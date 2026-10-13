@@ -27,13 +27,32 @@ type landingFakeGH struct {
 	afterMerge func()
 	queue      bool
 	checks     []prCheck // nil: the stub's green default (#309)
+	ci         *ciFakeGH // when set, GitHub's checks, jobs and statuses (#345)
 }
 
-func (g *landingFakeGH) PRHeadOID(context.Context, string, int) (string, error) {
+func (g *landingFakeGH) PRHeadOID(ctx context.Context, repo string, n int) (string, error) {
+	if g.ci != nil {
+		return g.ci.PRHeadOID(ctx, repo, n)
+	}
 	return g.pr.HeadOID, nil
 }
 
+func (g *landingFakeGH) JobRun(ctx context.Context, repo string, id int64) (jobRun, error) {
+	return g.ci.JobRun(ctx, repo, id)
+}
+
+func (g *landingFakeGH) PostStatus(ctx context.Context, repo, sha, statusContext, state, desc string) error {
+	return g.ci.PostStatus(ctx, repo, sha, statusContext, state, desc)
+}
+
+func (g *landingFakeGH) PRComment(ctx context.Context, repo string, n int, body string) error {
+	return g.ci.PRComment(ctx, repo, n, body)
+}
+
 func (g *landingFakeGH) PRChecks(ctx context.Context, repo string, n int) ([]prCheck, error) {
+	if g.ci != nil {
+		return g.ci.PRChecks(ctx, repo, n)
+	}
 	if g.checks == nil {
 		return g.stubGH.PRChecks(ctx, repo, n)
 	}

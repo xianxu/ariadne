@@ -328,9 +328,64 @@ func headHasWorkflows(git func(args ...string) (string, error), head string) (bo
 	return strings.TrimSpace(out) != "", nil
 }
 
+// localCheckRunner runs one declared local check on sha and records it
+// (runLocalCheck bound to a checkout). nil: the gate names the run instead.
+type localCheckRunner func(ctx context.Context, c localCheck, sha string) (localRunRecord, error)
+
+// newLocalCheckRunner binds runLocalCheck to a checkout for the CI gate.
+func newLocalCheckRunner(d localRunDeps) localCheckRunner {
+	return func(ctx context.Context, c localCheck, sha string) (localRunRecord, error) {
+		return runLocalCheck(ctx, d, c, sha)
+	}
+}
+
+// readLocalChecks reads the declaration from rev's tree; none is an empty one.
+func readLocalChecks(git func(args ...string) (string, error), rev string) (localCheckDecl, error) {
+	out, err := git("ls-tree", "--name-only", rev, localChecksPath)
+	if err != nil {
+		return localCheckDecl{}, fmt.Errorf("read %s's tree for %s: %w", rev, localChecksPath, err)
+	}
+	if strings.TrimSpace(out) == "" {
+		return localCheckDecl{}, nil
+	}
+	data, err := git("show", rev+":"+localChecksPath)
+	if err != nil {
+		return localCheckDecl{}, fmt.Errorf("read %s on %s: %w", localChecksPath, rev, err)
+	}
+	return parseLocalChecks([]byte(data))
+}
+
+// runnerlessChecks asks GitHub, for each cancelled check that has a declared
+// substitute and an Actions job link, whether the job ever got a runner. Only
+// those checks are asked about, so the calls are bounded by the declaration.
+func runnerlessChecks(ctx context.Context, gh ghCaller, repo string, checks []prCheck, decl localCheckDecl) (map[string]bool, error) {
+	out := map[string]bool{}
+	for _, c := range checks {
+		if c.Bucket != "cancel" {
+			continue
+		}
+		label := checkLabel(c)
+		if _, ok := decl.substituteFor(label); !ok {
+			continue
+		}
+		id, ok := jobIDFromLink(c.Link)
+		if !ok {
+			continue
+		}
+		j, err := gh.JobRun(ctx, repo, id)
+		if err != nil {
+			return nil, err
+		}
+		out[label] = j.runnerless()
+	}
+	return out, nil
+}
+
 // runCIGate reads PR number's checks and refuses unless they are green. A query
 // failure refuses too: unable to read is not green. noCI waives only this gate.
-func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, head string, git func(args ...string) (string, error), noCI bool, stderr io.Writer) error {
+// A declared local check the verdict needs (#345) runs through run, on head, and
+// the checks are read again before the gate passes.
+func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, head string, git func(args ...string) (string, error), run localCheckRunner, noCI bool, stderr io.Writer) error {
 	if noCI {
 		cwarn(stderr, "⚠️  --no-ci: SKIPPING the CI gate (#309) — landing without reading the PR's checks. Escape hatch for a broken CI system: say why in your log.")
 		return nil
@@ -341,26 +396,57 @@ func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, 
 	unread := func(what string, err error) error {
 		return fmt.Errorf("CI gate: could not read PR #%d's %s (refusing; unread is not green): %w\n  → retry, or --no-ci if the CI system itself is broken", number, what, err)
 	}
-	before, err := gh.PRHeadOID(ctx, repo, number)
-	if err != nil {
-		return unread("head", err)
-	}
-	checks, err := gh.PRChecks(ctx, repo, number)
-	if err != nil {
-		return unread("checks", err)
-	}
-	after, err := gh.PRHeadOID(ctx, repo, number)
-	if err != nil {
-		return unread("head", err)
-	}
-	if before != head || after != head {
-		return ciVerdict{Reason: ciHeadLag}.refusal(number)
-	}
 	hasWF, err := headHasWorkflows(git, head)
 	if err != nil {
 		return fmt.Errorf("CI gate: %w", err)
 	}
-	v := decideCIGate(ciInputs{Checks: checks, HeadHasWorkflows: hasWF})
+	decl, err := readLocalChecks(git, base)
+	if err != nil {
+		return fmt.Errorf("CI gate: %w\n  → fix the declaration on main (it is under the local-gates guard)", err)
+	}
+	read := func() ([]prCheck, ciVerdict, error) {
+		before, err := gh.PRHeadOID(ctx, repo, number)
+		if err != nil {
+			return nil, ciVerdict{}, unread("head", err)
+		}
+		checks, err := gh.PRChecks(ctx, repo, number)
+		if err != nil {
+			return nil, ciVerdict{}, unread("checks", err)
+		}
+		after, err := gh.PRHeadOID(ctx, repo, number)
+		if err != nil {
+			return nil, ciVerdict{}, unread("head", err)
+		}
+		if before != head || after != head {
+			return nil, ciVerdict{}, ciVerdict{Reason: ciHeadLag}.refusal(number)
+		}
+		runnerless, err := runnerlessChecks(ctx, gh, repo, checks, decl)
+		if err != nil {
+			return nil, ciVerdict{}, unread("Actions job", err)
+		}
+		return checks, decideCIGate(ciInputs{Checks: checks, HeadHasWorkflows: hasWF, Local: decl, Runnerless: runnerless}), nil
+	}
+	checks, v, err := read()
+	if err != nil {
+		return err
+	}
+	if v.Reason == ciLocalNeeded && run != nil {
+		for _, name := range v.LocalNeeded {
+			c, _ := decl.check(name)
+			rec, err := run(ctx, c, head)
+			if err != nil {
+				return fmt.Errorf("CI gate: %w", err)
+			}
+			if !rec.passed() {
+				return fmt.Errorf("CI gate: local check %s failed on %s (%s); log %s\n  → fix it and push, then re-run `sdlc merge`", name, abbrevSHA(head), rec.statusDescription(), rec.LogPath)
+			}
+		}
+		// The run took minutes: read again, so a push or a new failure since
+		// counts, and the recorded statuses are what passes the gate.
+		if checks, v, err = read(); err != nil {
+			return err
+		}
+	}
 	if !v.Reason.passes() {
 		return v.refusal(number)
 	}
@@ -372,6 +458,9 @@ func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, 
 		if !hasCheck(checks, name) {
 			return ciVerdict{Reason: ciMissing}.refusal(number)
 		}
+	}
+	for _, s := range v.Substituted {
+		cwarn(stderr, "CI job never got a runner; accepted the recorded local run instead: "+s)
 	}
 	if v.Reason == ciNoWorkflows {
 		cok(stderr, "CI checks: none, and no workflows on the head — nothing to wait for")
