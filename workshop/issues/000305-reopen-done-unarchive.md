@@ -67,9 +67,10 @@ unchanged.
       branch that passes the transfer guard, plans included; the guard refuses
       without the Log entry and changes nothing; a rerun after a failed push
       un-archives once.
-- [ ] Help (`set-status.md`) and recovery catalog.
+- [x] Help (`set-status.md`) and recovery catalog.
 
 ## Log
 
 ### 2026-10-08
 - 2026-10-12: implemented (`cmd/sdlc/reopendone.go`, shared `unarchiveIssue` in abandon.go); `go test -run TestReopen` green. Paused on the TL's quota hold before the help/catalog row, `change-code` and close. Next: help + catalog, then `sdlc change-code --issue 305`, the full suite, then `sdlc close`.
+- 2026-10-13: resumed after the hold; merged origin/main (clean); help + catalog row (`TestReopenUnarchivesADoneIssue`, `TestReopenDoneRerunAfterAFailedPush` as proofs); catalog/help tests green.
