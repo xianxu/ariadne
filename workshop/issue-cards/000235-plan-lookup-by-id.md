@@ -1,6 +1,6 @@
 ---
 id: 000235
-status: codecomplete
+status: done
 created: 2026-09-18
 updated: 2026-10-12
 estimate_hours: 1.4
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: ab683fcc8743e0185df90f8b49ada6815f700c96
         evidence_commit: b77e92faf20089d42a4ba39b229f6c521c15caa8
+        landed_commit: b98329dcb47251a147d9ef4f225f7b0d8ad454b3
 ---
 
 # Durable-plan lookup is exact-name: a plan under another slug is invisible
