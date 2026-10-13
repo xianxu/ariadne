@@ -99,9 +99,10 @@ func runSetStatus(ctx context.Context, stdout, stderr io.Writer, f *setStatusFla
 		prev = p
 		return next, err
 	}
-	// #286: reopening abandoned work restores its branch first; the card
-	// write below then clears the record, and the archive ref goes last.
-	restored, err := reopenAbandoned(ctx, stderr, f)
+	// #286, #305: reopening abandoned or archived done work restores its
+	// branch first; the card write below then clears an abandon record, and
+	// its archive ref goes last.
+	restored, err := restoreForReopen(ctx, stderr, f)
 	if err != nil {
 		return err
 	}
@@ -361,16 +362,18 @@ func isValidStatus(s string) bool {
 	return false
 }
 
-// reopenedAbandon is a restore that ran before set-status's card write.
-type reopenedAbandon struct {
+// reopenedIssue is a restore that ran before set-status's card write; rec is
+// zero for a done issue, which has no archive ref.
+type reopenedIssue struct {
 	env          *trackerEnv
 	rec          issue.Abandoned
 	id, cardPath string
 }
 
-// reopenAbandoned restores an abandoned issue's branch when set-status
-// reopens it (→ working from wontfix/punt with a kept branch); nil otherwise.
-func reopenAbandoned(ctx context.Context, stderr io.Writer, f *setStatusFlags) (*reopenedAbandon, error) {
+// restoreForReopen restores an issue's branch when set-status reopens it
+// (→ working from wontfix/punt with a kept branch, or from done with its
+// details archived on main, #305); nil otherwise.
+func restoreForReopen(ctx context.Context, stderr io.Writer, f *setStatusFlags) (*reopenedIssue, error) {
 	if f.Status != "working" || f.DryRun {
 		return nil, nil
 	}
@@ -393,6 +396,12 @@ func reopenAbandoned(ctx context.Context, stderr io.Writer, f *setStatusFlags) (
 		// ref still holding work the branch contains.
 		return unfinishedReopen(env, card)
 	}
+	if status == "done" {
+		if restored, err := restoreDone(env, stderr, card, f.IssuesDir, f.Force); err != nil || !restored {
+			return nil, err
+		}
+		return &reopenedIssue{env: env, id: card.ID, cardPath: card.Path}, nil
+	}
 	rec, ok, err := issue.CardAbandoned(card.Raw)
 	if err != nil || !ok || !rec.Started() || !vocab.Issue().IsTerminal(status) {
 		return nil, err
@@ -400,13 +409,13 @@ func reopenAbandoned(ctx context.Context, stderr io.Writer, f *setStatusFlags) (
 	if err := restoreAbandoned(env, stderr, card, rec, f.IssuesDir); err != nil {
 		return nil, err
 	}
-	return &reopenedAbandon{env: env, rec: rec, id: card.ID, cardPath: card.Path}, nil
+	return &reopenedIssue{env: env, rec: rec, id: card.ID, cardPath: card.Path}, nil
 }
 
 // unfinishedReopen recognises a reopen whose card write landed but whose
 // finish did not: the archive ref still exists and this checkout's branch
 // contains it. nil when there is nothing to finish.
-func unfinishedReopen(env *trackerEnv, card tracker.Record) (*reopenedAbandon, error) {
+func unfinishedReopen(env *trackerEnv, card tracker.Record) (*reopenedIssue, error) {
 	if env.branch == "" || env.onRest() {
 		return nil, nil
 	}
@@ -421,5 +430,5 @@ func unfinishedReopen(env *trackerEnv, card tracker.Record) (*reopenedAbandon, e
 	if kept, err := env.ancestorOf(tip, "HEAD"); err != nil || !kept {
 		return nil, err
 	}
-	return &reopenedAbandon{env: env, rec: issue.Abandoned{Ref: ref, Branch: env.branch, Head: tip}, id: card.ID, cardPath: card.Path}, nil
+	return &reopenedIssue{env: env, rec: issue.Abandoned{Ref: ref, Branch: env.branch, Head: tip}, id: card.ID, cardPath: card.Path}, nil
 }

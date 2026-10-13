@@ -61,9 +61,9 @@ unchanged.
 
 ## Plan
 
-- [ ] Extract the un-archive step from `restoreAbandoned` into a shared helper.
-- [ ] `restoreDone` + wire it into `reopenAbandoned` (renamed for both cases).
-- [ ] Tests: a done issue reopened from rest lands its details live on a pushed
+- [x] Extract the un-archive step from `restoreAbandoned` into a shared helper.
+- [x] `restoreDone` + wire it into `reopenAbandoned` (renamed for both cases).
+- [x] Tests: a done issue reopened from rest lands its details live on a pushed
       branch that passes the transfer guard, plans included; the guard refuses
       without the Log entry and changes nothing; a rerun after a failed push
       un-archives once.
@@ -72,3 +72,4 @@ unchanged.
 ## Log
 
 ### 2026-10-08
+- 2026-10-12: implemented (`cmd/sdlc/reopendone.go`, shared `unarchiveIssue` in abandon.go); `go test -run TestReopen` green. Paused on the TL's quota hold before the help/catalog row, `change-code` and close. Next: help + catalog, then `sdlc change-code --issue 305`, the full suite, then `sdlc close`.
