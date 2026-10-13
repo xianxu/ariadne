@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 1.52
+actual_hours: 1.53
 tracker:
     version: 1
     completion:
-        token: close-e3010c8cdb3b
+        token: close-149a54f122e5
         repository: github.com/xianxu/ariadne
-        reviewed_head: 69aa17f639a9ef681c2ddf8396cdbc3d9eadb6ea
-        evidence_commit: ae36ec72e7d768da7e03801d484e31fc23cf9ae0
+        reviewed_head: bd97a3051ab996fff319a7d7dccc138e2cf966cf
+        evidence_commit: aba90ac605ce808778db72f5fe8eac672cedc21d
 ---
 
 # Make Weave dependency resolution worktree-aware
