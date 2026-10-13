@@ -12,13 +12,16 @@ WF_HELP_TARGETS := help-workflow
 # releases the lock. The helper resolves beside
 # this file's real path (ariadne's), so a woven repo needs no copy of it.
 # WF_TEST_LOCK=off skips it; WF_TEST_LOCK_TIMEOUT=<seconds> bounds the wait.
+# A repo whose suite loads the machine like several declares its weight,
+# WF_TEST_WEIGHT ?= N, before including this file (#346; ariadne's sharded
+# suite is 2, so it runs alone); the default is 1.
 # Targeted runs never come here.
 WF_TEST_LOCK_HELPER := $(WF_WORKFLOW_SOURCE_DIR)scripts/test-lock.py
 ifneq ($(filter test,$(MAKECMDGOALS)),)
 ifeq ($(wildcard $(WF_TEST_LOCK_HELPER)),)
 $(warning [test-lock] $(WF_TEST_LOCK_HELPER) missing: running WITHOUT the machine-wide full-suite lock)
 else
-WF_TEST_LOCK_STATE := $(shell python3 $(WF_TEST_LOCK_HELPER) acquire --watch $$PPID)
+WF_TEST_LOCK_STATE := $(shell python3 $(WF_TEST_LOCK_HELPER) acquire --watch $$PPID --slots $(or $(WF_TEST_WEIGHT),1))
 ifeq ($(filter acquired reentrant skipped,$(WF_TEST_LOCK_STATE)),)
 $(error full-suite lock not taken ($(or $(WF_TEST_LOCK_STATE),helper failed)); see the [test-lock] lines above)
 endif
