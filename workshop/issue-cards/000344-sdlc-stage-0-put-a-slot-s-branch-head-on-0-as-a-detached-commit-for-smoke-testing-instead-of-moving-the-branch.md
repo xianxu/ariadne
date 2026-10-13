@@ -1,6 +1,6 @@
 ---
 id: 000344
-status: codecomplete
+status: done
 created: 2026-10-12
 updated: 2026-10-13
 estimate_hours: 1.32
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 911b8afa4437f1ab911c32d2c819d3fb329c9274
         evidence_commit: f1966e4dc49ff4225456619b34fd3ac5e8bd8e3e
+        landed_commit: 0c547ef52214aa7e18ca82a395195931447ae1b9
 ---
 
 # sdlc stage :0: put a slot's branch HEAD on :0 as a detached commit for smoke testing, instead of moving the branch
