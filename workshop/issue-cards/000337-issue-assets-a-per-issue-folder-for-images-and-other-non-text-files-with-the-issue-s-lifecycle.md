@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000337-issue-assets-a-per-issue-folder-for-images-and-other-non-text-files-with-the-issue-s-lifecycle.md
         source_blob: 1ec26303458517bfce3d11993f3c7cf0afe00a00
         destination: workshop/issues/000337-issue-assets-a-per-issue-folder-for-images-and-other-non-text-files-with-the-issue-s-lifecycle.md
+        main_commit: 3f8c1639f79218ec33095143c292ce7d7be2a8a1
 ---
 
 # issue assets: a per-issue folder for images and other non-text files, with the issue's lifecycle
