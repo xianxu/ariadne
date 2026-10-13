@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "9eb8f023", done: "49129e11"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Make Weave dependency resolution worktree-aware
@@ -141,6 +141,8 @@ Remaining for Task 4: `restoreSetup` fallback notice, acquire + weave compile te
 then Task 5 (sdlc `substrateWalk`) and Task 6 (atlas sweep, full suite, close).
 
 ### 2026-10-13 — resumed (ariadne:3)
+- 2026-10-13: closed — Full make test green 2026-10-13 14:32 at 69aa17f6 (origin/main incl. #346 merged; 12 shards, 1106 cmd/sdlc tests, 46 other packages, 0 failed). Round 2 fixes: BR-8 refresh declaredOrigins on layergraph.Resolver (TestRefreshLinkedWorktreeSubstrate reproduced ENOENT, now green); class sweep of construct/deps readers (migrateSourceless primary-only and fleet membership env-only keep the provably equal local join, commented); BR-9 plan superseded sites marked + Revisions; BR-10 substrateWalkWith seam + TestSubstrateWalkAnchorFailureReportsAbsent (mutation-checked). Round 1 fixes and earlier evidence unchanged: real linked-worktree tests across layergraph, workspace, acquire, weave compile, sdlc; parley.nvim#254 vocabulary regression covered. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-13: flow upgraded quick → full — 374 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 Merged origin/main (2707b66a, #265 landed; no conflicts). Task 4 finished: compile
 prints one notice per fallback; acquire tests (sourceless and sourced fallback, local
