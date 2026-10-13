@@ -1,12 +1,20 @@
 ---
 id: 000346
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: '2a6942e2a1173f793ff39710f3a2904af530acb3' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '19ad9672eaa649c50329c0ffaa6e28b5b63692b2' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-13T13:40:11-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # test gate: a sharded full suite counts as both suite slots (two ariadne suites at once pushed load to 185)
@@ -25,7 +33,35 @@ A suite declares its weight against the machine-wide budget: a sharded suite tak
 
 ## Plan
 
-- [ ]
+Design. The weight is a per-repo declaration: `WF_TEST_WEIGHT` in the root
+Makefile, set before `Makefile.workflow` is included (ariadne: 2; default 1).
+`Makefile.workflow` passes it to `test-lock.py acquire --slots N`, clamped to
+`WF_TEST_SUITES`.
+- **Atomic:** one scan takes all N free slots or none, so a waiter never holds a
+  partial set.
+- **Queue:** while waiting, a run holds the queue file (`<lock>.queue`, flock).
+  Only the head of the queue may take slots, so light suites can't starve a
+  heavy waiter.
+- **No deadlock:** the queue head holds no slot, and slot holders wait on
+  nothing.
+- **Records:** each slot file gets the holder's record, `slots` listing all of
+  them. The wait message names each holder once, plus who is next in line.
+
+Lifecycle: no new durable artifact beyond one queue lock file per machine,
+beside the slot files, rewritten in place and never growing.
+
+- [ ] `test-lock.py --slots N`: atomic multi-slot take, the queue, deduped holders.
+- [ ] `Makefile.workflow` passes `WF_TEST_WEIGHT`; ariadne's Makefile declares 2.
+- [ ] `scripts/test-lock.test.sh`, with fake lock files and `sleep` holders
+      only. Cases:
+  - a weight-2 suite takes both slots;
+  - a weight-1 suite waits behind it, and it waits for a weight-1 suite;
+  - it holds no slot while waiting;
+  - a light newcomer queues behind a heavy waiter;
+  - two weight-2 waiters both finish (no deadlock);
+  - the clamp;
+  - the make wiring.
+- [ ] Atlas: the sdlc-binary "Two full suites" section.
 
 ## Log
 
