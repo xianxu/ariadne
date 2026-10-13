@@ -1,12 +1,20 @@
 ---
 id: 000337
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-12
-updated: 2026-10-12
+updated: 2026-10-13
 estimate_hours:
-card_mirror: 'ae37fa1a5dadae3e93aa27559a11c08601f1f417' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '2fb12787270130defada498e4a08cfe3915b6676' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-13T13:03:22-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # issue assets: a per-issue folder for images and other non-text files, with the issue's lifecycle
@@ -25,18 +33,37 @@ Unshaped; a starting sketch from parley.nvim's `lua/parley/assets.lua` (#231):
 
 ## Done when
 
-- An agent can attach an image to an issue through an sdlc verb, the body links it, and the folder follows the issue through publish, archive and migrate.
+- An agent can attach an image or other bounded file through an sdlc verb; the body links it and the bundle follows publish, archive, restore, abandonment/reopen and slot move within the repository.
+- The attach verb enforces operator-owned allowed/text-only repository policy, derived from host visibility when unset; public or unknown visibility defaults to text-only. Help prints the policy and source. Refusals write nothing.
+- Publication and lifecycle retries preserve exact linked bytes and existing ownership protections, including asset-only changes and legacy repositories.
+- Cross-repo issue migration remains safely refused; its asset support is tracked by dependent #347.
 - The git storage decision is recorded with its reasons.
 
 ## Plan
 
-- [ ]
+Draft: [implementation plan](../plans/000337-issue-assets-plan.md), awaiting hub/operator review before building.
+
+- [ ] Typed asset policy, bounded bundle model, attach verb and dynamic policy help.
+- [ ] Bundle publication, ownership, recovery and restore.
+- [ ] Archive, abandon/reopen, legacy lifecycle and slot-move verification.
+- [ ] Documentation, targeted tests, full suite below load 40, close review and shipping on SHIP.
 
 ## Log
 
 ### 2026-10-12
 
 Filed from pair#483's shaping (pair:2), at the operator's request. Not a dependency of #483: a submission is written to Couch's store first; attaching it to a ticket is step two.
+
+### 2026-10-13 — design exploration
+
+Claimed in ariadne:5 and entered planning. Existing cross-repo migrate explicitly
+refuses issues because destination renumbering is deferred; hub narrowed this
+issue to the in-repo lifecycle and requested unassigned follow-up #347.
+Read pair origin/main's canonical couch skill: only explicit shareable submission
+content is eligible, private/unknown yields sanitized text without crops, and
+recordings remain local and expendable. The installed couch skill predates that
+rule. No implementation or tests run yet. ARCH-DRY and ARCH-PURPOSE motivate one
+bundle model across publication, all archive paths, abandon/reopen and restore.
 
 ## Revisions
 
@@ -46,3 +73,6 @@ Filed from pair#483's shaping (pair:2), at the operator's request. Not a depende
   to `text-only` for a public repository (from its host visibility) and to `allowed` for a private one; the attach verb
   refuses images under `text-only` and says why; the policy and its source are printed by `sdlc issue --help`. The
   operator changes a repo's policy; agents never do.
+
+- 2026-10-13T20:06Z — Hub scope direction (ops:0, delivery d0338359-494f-4951-838c-4e18ae676bf6): deliver attach/privacy and the complete in-repository bundle lifecycle; retain migrate's issue-family refusal. Cross-repo issue migration needs the renumbering capability deferred by #179 and is separated into #347, dependent on #337 and left unassigned. This revises the original migrate acceptance criterion explicitly.
+- 2026-10-13T20:06Z — Proposed design, pending plan review: plain Git with 1 MiB/file, 8 MiB/issue and 32-file limits; body-indexed immutable content-named assets, shared lifecycle planner, strict operator-owned repository policy, and unknown visibility treated as text-only. Full details and alternatives are in the durable plan; limits remain proposed choices until approved.
