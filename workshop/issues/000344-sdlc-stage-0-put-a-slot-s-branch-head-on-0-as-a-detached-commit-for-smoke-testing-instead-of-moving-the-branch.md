@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-12
 updated: 2026-10-13
-estimate_hours:
-card_mirror: 'c9cc50cb925fb780076f54332345882322bfa146' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 1.32
+card_mirror: '51c8337684f3b8095279c4e27ae7a169bf672beb' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T14:01:09-07:00
 claimant:
     operator: Xian Xu
@@ -36,7 +36,33 @@ The operator (2026-10-12): `sdlc stage :0` (run from the slot holding the branch
 - A slot stages its HEAD on `:0` with one command, keeps its branch, and later closes from its own slot; `:0` dirty refuses; a second stage replaces the first; tests cover each.
 - Docs and the xx-tl skill's smoke procedure use `sdlc stage`.
 
-## Plan
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec               design=0.3  impl=0.05
+item: smaller-go-module        design=0.05 impl=0.12
+item: smaller-go-module        design=0.05 impl=0.2
+item: smaller-go-module        design=0.05 impl=0.12
+item: smaller-go-module        design=0.05 impl=0.1
+item: atlas-docs               design=0.05 impl=0.08
+design-buffer: 0.1
+total: 1.32
+```
+
+Items, in order:
+- issue-spec: exploration, the durable plan, two plan-quality rounds.
+- smaller-go-module ×4:
+  1. the pure rules (`checkStage`/`checkUnstage`, `Leavable`, `checkMove`);
+  2. `stage`/`--clear` observe-switch-verify-record, and move's record clear;
+  3. `--build` and the binaries' revisions;
+  4. the fleet `staged` hold.
+- atlas-docs: stage/move help, workspace-branching, sdlc-binary.
+
+The rate is the same as #308's (familiar `move` code, real-git fixtures that
+already exist).
+
 
 Durable plan: `workshop/plans/000344-sdlc-stage-0-put-a-slot-s-branch-head-on-0-as-a-detached-commit-for-smoke-testing-instead-of-moving-the-branch-plan.md`.
 
