@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "acfe02c3", done: "f97daeb7"}
 ---
 
 # Repair a codecomplete card whose branch merged outside the detector (#239)
