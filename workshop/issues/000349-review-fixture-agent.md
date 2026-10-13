@@ -53,6 +53,7 @@ Keep production agent resolution and its explicit precedence tests unchanged.
 ## Log
 
 ### 2026-10-13
+- 2026-10-13: closed — Test-only change (no atlas surface): pinReviewAgent(t, agent) sets AGENT_CMD, which outranks PAIR_AGENT and the reviewer policy; the three named fixtures pin judge.AgentClaude. Reproduced first: all three failed under PAIR_AGENT=codex. After: they pass under PAIR_AGENT=codex, PAIR_AGENT=claude, PAIR_AGENT=claude AGENT_CMD=codex, PAIR_AGENT=codex AGENT_CMD=gemini. Audit: full make test under PAIR_AGENT=codex (16:19) and under AGENT_CMD=codex (16:29), 1120 cmd/sdlc tests + 47 packages each, both green; test-shard.py passes env through (no env= override). Production resolution and its precedence tests unchanged (diff is test files only).; review verdict: SHIP
 - 2026-10-13: unclaimed: Independent baseline test-fixture issue discovered during #337; left unassigned for another slot.
 
 Filed independently from #337. The source and fixtures match origin/main at
