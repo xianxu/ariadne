@@ -108,3 +108,12 @@ lookups that only name it (`command -v`, `which`, `type`, `hash`). The enumerate
 predecessor list and its `VAR=x` regex are gone; the regex had also misread
 `m=$(which mktemp)` as a prefix assignment. New rows for each opener and option form
 fail on the old rule; lookup and single-quoted rows stay clean; repo scan clean.
+
+Close review round 3 (SHIP; repeat family again): `codeOnly` masked a backquote
+substitution inside double quotes (`` d="`mktemp -d`" `` went unflagged), and three
+separate quote scanners (`stripComment`, `codeOnly`, `arguments`) could drift. Fixed as
+the rule: one `lex` classifies each byte (code, quoted text, quote delimiter), with `$(…)`
+and backquotes as code even inside double quotes, and cuts the comment. Masking, comment
+handling and argument splitting all read it; the other two scanners are deleted. The
+backquote row was red before the rewrite and is green now; every earlier row and the
+repository scan stay green.

@@ -28,6 +28,8 @@ func TestMktempFindings(t *testing.T) {
 		{"sudo with an option value", `sudo -u build mktemp -d`, "template"},
 		{"time -p", `time -p mktemp -d`, "template"},
 		{"env -i", `env -i PATH=/bin mktemp -d`, "template"},
+		{"backquotes in double quotes", "d=\"`mktemp -d`\"", "template"},
+		{"backquotes unquoted", "d=`mktemp -d`", "template"},
 		{"pushd into substitution", `pushd "$(mktemp -d "${TMPDIR:-/tmp}/p.XXXXXX")"`, "cd"},
 		{"cd into substitution", `ROOT="$(cd "$(mktemp -d "${TMPDIR:-/tmp}/c.XXXXXX")" && pwd -P)"`, "cd"},
 		// Safe.
@@ -44,6 +46,8 @@ func TestMktempFindings(t *testing.T) {
 		{"which lookup", `m=$(which mktemp)`, ""},
 		{"type lookup", `type mktemp`, ""},
 		{"single-quoted text", `trap 'echo use mktemp -d' EXIT`, ""},
+		{"apostrophe in a comment", `x=1 # don't mktemp -d here`, ""},
+		{"hash inside quotes is not a comment", `printf '#%s' x; d=$(mktemp -d)`, "template"},
 		{"braced variable", `echo "${mktemp} ${mktemp:-x}"`, ""},
 		{"cd into a checked var", `d=$(mktemp -d "${TMPDIR:-/tmp}/x.XXXXXX") || exit 1; cd "${d:?}"`, ""},
 	}
