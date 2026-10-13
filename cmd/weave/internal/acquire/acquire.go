@@ -318,8 +318,12 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 			} else {
 				if !filepath.IsAbs(dest) {
 					res, reason := resolver.Substrate(owner, dest)
+					// Absent beside both a linked worktree and its primary:
+					// refuse rather than clone a duplicate beside the worktree.
+					// A numbered environment's policy owns that refusal itself
+					// (validate below), with its own next action.
 					var absent *layergraph.FallbackAbsentError
-					if errors.As(reason, &absent) {
+					if errors.As(reason, &absent) && c.Policy == nil {
 						return result, fmt.Errorf("missing substrate %s declared in %s: absent beside this worktree (%s) and %s; check it out beside the primary checkout (weave compile there restores it), then retry", row.Path, owner, res.Local, reason)
 					}
 					dest = res.Path

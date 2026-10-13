@@ -152,6 +152,13 @@ all fallback tests went red. Fixture note: `cmd/weave`'s `setupGit` does not iso
 global excludes file, so the worktree fixture uses `git add -f`. Atlas: weave.md key
 decision and a *Linked worktrees* section in setup-and-replication.md.
 
+Full suite (13:05–13:14, load gated under 40): one failure,
+`TestDependencyFeatureCompileCannotFallBackToGenericAcquisition`. Inside a numbered
+environment, the new absent-everywhere refusal pre-empted the environment policy's own
+("compose from the dependency primary"). Fixed: that refusal applies only without a
+policy, so the environment's rule and message stand. `go test ./cmd/weave/...` green
+after the fix; the rest of the suite was green.
+
 ## Revisions
 
 - 2026-10-12 — the 2026-09-21 entry says a slot falls back to the primary checkout when

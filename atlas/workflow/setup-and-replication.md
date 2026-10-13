@@ -81,7 +81,8 @@ uses `<fleet>/base` for `substrate ../base` without a symlink or a rewritten
 - `weave compile` prints `weave: substrate <row> declared in <worktree> is absent
   beside this worktree; resolved via primary checkout <primary>: <path>` for
   each fallback. A row absent beside both refuses before compile writes
-  anything, instead of cloning a duplicate beside the worktree.
+  anything, instead of cloning a duplicate beside the worktree; inside a
+  numbered environment the environment policy below makes that refusal.
 
 `pkg/workspace.DependencyAnchor` finds the anchor; `layergraph.ChooseSubstrate`
 is the pure selection rule; `layergraph.Resolver` composes them for weave's walk
