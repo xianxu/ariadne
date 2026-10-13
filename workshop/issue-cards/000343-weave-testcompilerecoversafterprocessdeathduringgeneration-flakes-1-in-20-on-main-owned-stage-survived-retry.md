@@ -1,6 +1,6 @@
 ---
 id: 000343
-status: codecomplete
+status: done
 created: 2026-10-12
 updated: 2026-10-13
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 06c9afd08bbc9ca7b05e54601cb285e558076a13
         evidence_commit: 9b2544e91e1b2c1c70fa6c7c727f9e089b1e9281
+        landed_commit: 7f45d6de946a6bfb1015da1715c071253a944220
 ---
 
 # weave: TestCompileRecoversAfterProcessDeathDuringGeneration flakes ~1 in 20 on main ('owned stage survived retry')
