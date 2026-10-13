@@ -159,3 +159,29 @@ func TestToolsDoubleColonFailurePropagates(t *testing.T) {
 		t.Fatalf("later recipe ran: %v", err)
 	}
 }
+
+// #265 item 3: a root Makefile linked to another repository's would build
+// that repository's tools here; weave refuses and names the link.
+func TestToolsRefusesSymlinkedMakefile(t *testing.T) {
+	root := t.TempDir()
+	other, leaf := filepath.Join(root, "other"), filepath.Join(root, "leaf")
+	for _, dir := range []string{other, leaf} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(other, "Makefile"), []byte("tools:\n\ttouch built\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../other/Makefile", filepath.Join(leaf, "Makefile")); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	err := Tools(weavefs.OSFS{}, []string{leaf}, weavefs.ExecRunner{Stdout: &out, Stderr: &out}, false, &out)
+	if err == nil || !strings.Contains(err.Error(), leaf) || !strings.Contains(err.Error(), "is a symlink") {
+		t.Fatalf("want symlink refusal naming %s, got %v", leaf, err)
+	}
+	if _, err := os.Stat(filepath.Join(leaf, "built")); !os.IsNotExist(err) {
+		t.Fatalf("linked Makefile was built: %v", err)
+	}
+}

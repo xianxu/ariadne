@@ -143,3 +143,60 @@ func TestCompileMountsDataPerOwnerAndRetiresRemovedDeclarations(t *testing.T) {
 		t.Fatal("data source changed")
 	}
 }
+
+// #265 item 1: a compile the artifacts pass refuses writes nothing, even when a
+// data pass has mounts to apply. The leaf predates inventories and carries the
+// legacy ignore list; a generated output's path holds a file weave did not write.
+func TestCompileRefusalLeavesCheckoutUntouched(t *testing.T) {
+	root := t.TempDir()
+	base, leaf, data := filepath.Join(root, "base"), filepath.Join(root, "leaf"), filepath.Join(root, "data")
+	if err := os.MkdirAll(data, 0755); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"init", "-q"}, {"remote", "add", "origin", "https://github.com/example/data.git"}} {
+		setupGit(t, data, args...)
+	}
+	mkfile(t, filepath.Join(data, "payload"), "authored data\n")
+	mkfile(t, filepath.Join(base, "construct/base.manifest"), "skill construct/local\n")
+	mkfile(t, filepath.Join(base, "construct/local/example/.dynamic-skill"), "#!/bin/sh\n# weave-output: argv1\nmkdir -p \"$1\"\nprintf '%s\\n' '---' 'name: example' 'description: generated' '---' 'BODY' > \"$1/SKILL.md\"\n")
+	if err := os.Chmod(filepath.Join(base, "construct/local/example/.dynamic-skill"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	mkfile(t, filepath.Join(leaf, "construct/deps"), "substrate ../base\ndata https://github.com/example/data.git mounted\n")
+	legacy := "/AGENTS.md\n/.claude/skills/\n/construct/generated/\n.goto\n"
+	mkfile(t, filepath.Join(leaf, ".gitignore"), legacy)
+	occupied := filepath.Join(leaf, "construct/generated/example/SKILL.md")
+	mkfile(t, occupied, "authored, not generated\n")
+	var out bytes.Buffer
+	err := run(weavefs.OSFS{}, leaf, plan.TargetAll, false, &out)
+	if err == nil || !strings.Contains(err.Error(), "occupied by something weave did not write") {
+		t.Fatalf("want an artifacts refusal, got %v\n%s", err, out.String())
+	}
+	if got, _ := os.ReadFile(filepath.Join(leaf, ".gitignore")); string(got) != legacy {
+		t.Fatalf(".gitignore changed by a refused compile:\n%s", got)
+	}
+	if _, err := os.Lstat(filepath.Join(leaf, plan.InventoryPath)); !os.IsNotExist(err) {
+		t.Fatalf("refused compile wrote an inventory: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(leaf, "mounted")); !os.IsNotExist(err) {
+		t.Fatalf("refused compile mounted data: %v", err)
+	}
+}
+
+// #265 item 2: compile only reads a dependency with no data mounts.
+func TestCompileWritesNothingInMountlessDependency(t *testing.T) {
+	_, base, derived := buildFixture(t)
+	gitignore := filepath.Join(base, ".gitignore")
+	before, beforeErr := os.ReadFile(gitignore)
+	var out bytes.Buffer
+	if err := run(weavefs.OSFS{}, derived, plan.TargetAll, false, &out); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(filepath.Join(base, plan.InventoryPath)); !os.IsNotExist(err) {
+		t.Fatalf("compile wrote an inventory in the dependency: %v", err)
+	}
+	after, afterErr := os.ReadFile(gitignore)
+	if string(after) != string(before) || os.IsNotExist(beforeErr) != os.IsNotExist(afterErr) {
+		t.Fatalf("compile changed the dependency's .gitignore: %q -> %q", before, after)
+	}
+}

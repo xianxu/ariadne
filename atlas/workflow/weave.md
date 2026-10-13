@@ -30,10 +30,15 @@ composition, without mounting during dependency preparation. Missing sources in
 a dry-run report an incomplete preview and never cause a clone or installation.
 
 `weave compile` prepares dependencies, then runs each owner's `make tools`
-foundation-first, reconciles data mounts in their declaring owners, and runs
-generators plus artifact composition in the leaf. Ancestor contexts are not
+foundation-first, runs the leaf's generators into a stage, then checks every
+pass (`plan.CheckManaged`: each owner's data mounts, the leaf's artifacts, and a
+leaf data mount colliding with a generated output) before any pass writes, so a
+refused compile leaves every checkout as it was (#265). Only then does it
+reconcile data mounts in their declaring owners and compose artifacts in the
+leaf. Ancestor contexts are not
 recursively compiled. Tool declarations live in each owner's authored root
-Makefile and build from tracked sources before generated helpers exist.
+Makefile and build from tracked sources before generated helpers exist; a
+symlinked owner Makefile is refused, since it would build another repo's tools.
 Child processes receive owner bin directories on PATH; humans add the printed
 directories explicitly. Generic startup never edits shell configuration.
 
@@ -44,7 +49,8 @@ must already be present. The formula is published in the `xianxu/ariadne` tap
 compile, and the root Makefile is a write-once generic seed: absent roots are
 created from `construct/Makefile.seed`, while existing regular roots are
 adopted by prepending `-include Makefile.workflow` without replacing product
-rules.
+rules (a root that already includes it, directly or as `$(WF_WORKFLOW)`, is
+left alone).
 
 `plan.ApplyManaged` records output identities in
 `construct/generated/weave/ownership.json`, separating data and artifact

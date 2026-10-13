@@ -65,7 +65,7 @@ item gets a regression test reproducing the observed failure.
 
 ## Plan
 
-- [ ] Item 1: split `ApplyManaged` into a no-write `prepareManaged` (every
+- [x] Item 1: split `ApplyManaged` into a no-write `prepareManaged` (every
   inspection and refusal) and a commit; export `CheckManaged` (prepare only).
   `compilePrepared` collects every owner's data mounts, runs generation into
   its stage, plans artifacts, then checks every pass (each owner's data,
@@ -74,15 +74,15 @@ item gets a regression test reproducing the observed failure.
   inspection routine for check and apply. Generators read the layer graph,
   not data mounts (both `.dynamic-skill` markers), so generating before the
   data apply is safe.
-- [ ] Item 1 test: compile-level, pre-inventory leaf carrying the legacy list
+- [x] Item 1 test: compile-level, pre-inventory leaf carrying the legacy list
   and a data mount, with a generated output path occupied by an unowned file;
   compile refuses and `.gitignore` is byte-identical, no inventory, no mount.
-- [ ] Item 2 test: compile-level, a dependency with no data mounts gets no
+- [x] Item 2 test: compile-level, a dependency with no data mounts gets no
   inventory and no `.gitignore` (already fixed by #264; pin it at compile).
-- [ ] Item 3: `startup.Tools` uses `Lstat`; a symlinked owner Makefile is
+- [x] Item 3: `startup.Tools` uses `Lstat`; a symlinked owner Makefile is
   refused with a message naming the link and saying weave builds each owner's
   tools from its own Makefile. Test.
-- [ ] Item 4: `hasWorkflowInclude` recognizes `-include $(WF_WORKFLOW)` /
+- [x] Item 4: `hasWorkflowInclude` recognizes `-include $(WF_WORKFLOW)` /
   `include $(WF_WORKFLOW)`. Test that no second include is prepended.
 
 ## Log
@@ -97,5 +97,11 @@ item gets a regression test reproducing the observed failure.
   (unowned occupied generated output, directory at a recorded path), so the
   refusal is not atomic. Items 3 and 4 unchanged. Fleet Makefiles all use the
   direct include form now; item 4 still guards older checkouts.
+- Implemented. `TestCompileRefusalLeavesCheckoutUntouched` fails on the old
+  compile order (the root data pass wrote its `.gitignore` block before the
+  artifacts refusal) and passes with the check-all-then-apply order. A symlinked
+  Makefile now refuses in `startup.Tools`, which runs before seed-once, so
+  `SeedOnceInstruction`'s non-regular advice no longer reaches a linked
+  Makefile in compile; it still covers other non-regular paths.
 
 ### 2026-09-28
