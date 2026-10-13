@@ -43,11 +43,11 @@ Keep production agent resolution and its explicit precedence tests unchanged.
   operator override that outranks `PAIR_AGENT` and the reviewer policy, so it pins
   against any ambient `PAIR_AGENT` or `AGENT_CMD`; only `--agent` is above it. Pin the
   three named fixtures to `judge.AgentClaude`.
-- [ ] Audit: the whole suite under `PAIR_AGENT=codex`, and again under
+- [x] Audit: the whole suite under `PAIR_AGENT=codex`, and again under
   `AGENT_CMD=codex` (they catch different gaps: a fixture relying on the Claude default,
   and one that sets `PAIR_AGENT` but not `AGENT_CMD`); pin every further fixture either
   run exposes.
-- [ ] Production resolution unchanged: its precedence tests (`agent_resolver_test.go`,
+- [x] Production resolution unchanged: its precedence tests (`agent_resolver_test.go`,
   and the `t.Setenv("AGENT_CMD", "")` + `PAIR_AGENT` tests) stay as they are.
 
 ## Log
@@ -69,3 +69,10 @@ then `CODEX_CI`/`CODEX_THREAD_ID`, else Claude). After pinning, the three pass u
 `PAIR_AGENT=codex`, `PAIR_AGENT=claude`, `PAIR_AGENT=claude AGENT_CMD=codex` and
 `PAIR_AGENT=codex AGENT_CMD=gemini`. This slot's ambient env is `PAIR_AGENT=claude`,
 which is why Claude slots never see it.
+
+Audit: full `make test` under `PAIR_AGENT=codex` (16:19) and under `AGENT_CMD=codex`
+(16:29), 12 shards over 1120 cmd/sdlc tests + 47 packages each: both green, so no further
+fixture depends on the ambient agent. `scripts/test-shard.py` spawns `go test` without an
+`env=`, so both variables reached every test; the original failure was found the same way
+(#337's full suite under `PAIR_AGENT=codex`). The diff touches only test files and this
+issue: production resolution and its precedence tests are unchanged.
