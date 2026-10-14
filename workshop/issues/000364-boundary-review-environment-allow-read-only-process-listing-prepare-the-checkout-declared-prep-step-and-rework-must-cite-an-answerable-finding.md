@@ -172,6 +172,15 @@ missing production close/dispute lifecycle proof for unverifiable findings;
 accepted. Adding the promised lifecycle and mutation regression using existing
 fixtures. Core implementation and targeted reviewer checks otherwise pass.
 
+BR-2 regression complete: production close → unverifiable finding → host-evidence
+dispute → unanswered/note-less replies (two rejected attempts each, no accepted
+ledger/HEAD/reviewed-ref/card/detail advancement) → explicit answering withdrawal
+and codecomplete. `TestCloseUnverifiableDisputeLifecycle` passes in 16.005 s;
+disabling the dispute guard makes both invalid replies close, and the test fails
+(13.068 s). Production restored exactly. Logs: /tmp/364-unverifiable-lifecycle.log,
+/tmp/364-unverifiable-mutation.log. No production changes since full-suite baseline
+bd486507; this test-only delta is verified by its targeted run and mutation check.
+
 ## Revisions
 
 - 2026-10-14 — The final checklist item now describes implementation verification;

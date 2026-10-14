@@ -310,7 +310,7 @@ owns acceptance; do not add a duplicate boundary review outside the binary.
 - [x] Replace `trackedPreparationState` with a direct tracked-filesystem fingerprint
   and prove hidden modifications halt before reviewer execution. This strengthens
   the existing no-tracked-mutation contract; no new confinement model is introduced.
-- [ ] Rerun targeted lifecycle tests and the full suite, then re-close the finding.
+- [x] Rerun targeted lifecycle tests and the full suite, then re-close the finding.
 
 ### BR-2 correction
 
@@ -323,4 +323,13 @@ owns acceptance; do not add a duplicate boundary review outside the binary.
   closes the loop. Mutation-check removal of the dispute guard or ledger wiring
   (ARCH-PURPOSE). This completes existing scope, with no new production behavior.
 
-- [ ] Prove production unverifiable dispute lifecycle and kill a guard/wiring mutation.
+- [x] Prove production unverifiable dispute lifecycle and kill a guard/wiring mutation.
+
+BR-2 verification: `TestCloseUnverifiableDisputeLifecycle` passes in 16.005 s.
+The real close/dispute path delivers host evidence and kind to the reviewer,
+rejects both unanswered and note-less replies after two attempts without advancing
+ledger, HEAD, reviewed ref, or issue state, and accepts an explicit answering
+withdrawal. Bypassing the dispute guard made both invalid replies close the issue;
+the new test failed (13.068 s). Restored production file exactly; final run green.
+Full suite on bd486507 remains the production baseline; this correction adds only
+the regression test and documentation, so targeted verification covers the delta.
