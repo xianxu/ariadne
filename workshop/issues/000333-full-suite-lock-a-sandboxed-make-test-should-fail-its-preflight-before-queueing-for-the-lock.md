@@ -35,8 +35,39 @@ Give the base layer a pre-lock hook: a repo-provided preflight (convention: `tes
 
 ## Plan
 
-- [ ] Pre-lock hook in the base-layer make include; wire pair's preflight; add one for ariadne; check both.
+- [x] Pre-lock hook in `Makefile.workflow`: when `test` is a goal, run
+  `$(WF_TEST_PREFLIGHT)` (default `tests/host-preflight.sh`; a repo may set it before the
+  include) before the lock; on a non-zero exit, `$(error …)` without calling the lock
+  helper. Output goes to stderr (make's `$(shell)` would flatten it); only the status is
+  read. A repo without one is unaffected.
+- [x] pair: wired by the convention alone (it ships `tests/host-preflight.sh`); its own
+  `make test` prerequisite still runs it again after the lock, which is harmless.
+- [x] ariadne: no preflight, by decision (see Log).
+- [x] Tests in `scripts/test/test-lock.test.sh` (CI runs it); atlas.
 
 ## Log
 
 ### 2026-10-11
+
+### 2026-10-13 — ariadne:3
+
+Done-when 1, live: in this agent sandbox, with the full-suite lock held by another run,
+`WF_TEST_PREFLIGHT=<pair>/tests/host-preflight.sh make -n test` failed in 0 seconds with
+pair's own message (unix socket bind: Operation not permitted; pty open: out of pty
+devices; exec ps: Operation not permitted) and "not taking the full-suite lock", and no
+[test-lock] wait. Done-when 2: a passing preflight goes on to the lock (times out on the
+held one, takes the free one). Five cases in test-lock.test.sh; against main's
+Makefile.workflow the failing-preflight cases fail.
+
+Decision, revising the Spec's "ariadne gets the same probe set if its suite also needs
+sockets/PTYs/ps (it does: #330's processgroup tests)": #330 then replaced those `ps`
+probes with an exec-free kernel query (`testfix.AwaitExit`) and fixed the EPERM handling,
+so ariadne's suite now passes in the agent sandbox (every sandboxed full suite this slot
+ran today). pair's probes would refuse here and block runs that work. ariadne keeps the
+opt-in hook with no preflight; one belongs here only when a test needs what the sandbox
+refuses.
+
+## Revisions
+
+- 2026-10-13 — Spec: "ariadne gets the same probe set if its suite also needs
+  sockets/PTYs/ps (it does…)". It no longer does (#330), so ariadne gets no preflight.
