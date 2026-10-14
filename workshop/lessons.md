@@ -623,3 +623,7 @@ The simplest durable authority beats a clever scan of consequences.
 - In subprocess seams that execute on a heartbeat goroutine, test callbacks must return an error or use Errorf rather than Fatal: Fatal exits only that goroutine and strands the caller waiting for its result (#364 test development).
 
 - Git diff is a normalized report, not proof of byte preservation. A guard that promises unchanged tracked inputs must fingerprint actual bytes/types/modes independently of clean/text conversion and assume-unchanged/skip-worktree flags; disabling one diff feature only fixes an instance (#364 BR-1).
+
+- A pure admission test does not fulfill a promised lifecycle proof. For dispute
+  flows, drive the real close/dispute/dispatch path and check both evidence delivery
+  and non-advancement on invalid responses; mutation-check the integration wiring.

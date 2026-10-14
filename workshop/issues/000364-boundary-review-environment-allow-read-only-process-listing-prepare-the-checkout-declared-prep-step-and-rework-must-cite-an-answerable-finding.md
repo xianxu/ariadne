@@ -166,6 +166,12 @@ in 401.2 s, all 12 shards over 1,249 SDLC tests plus 53 other packages,
 zero failures or missing tests. Log: `/tmp/ariadne-364-full-suite-3.log`.
 Implementation acceptance restored; submitting BR-1 correction for re-review.
 
+Boundary review round 2 REWORK: BR-1 addressed (reviewer independently restored
+the prior guard and observed the regression fail). BR-2 Important identifies a
+missing production close/dispute lifecycle proof for unverifiable findings;
+accepted. Adding the promised lifecycle and mutation regression using existing
+fixtures. Core implementation and targeted reviewer checks otherwise pass.
+
 ## Revisions
 
 - 2026-10-14 — The final checklist item now describes implementation verification;

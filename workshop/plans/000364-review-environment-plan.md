@@ -311,3 +311,16 @@ owns acceptance; do not add a duplicate boundary review outside the binary.
   and prove hidden modifications halt before reviewer execution. This strengthens
   the existing no-tracked-mutation contract; no new confinement model is introduced.
 - [ ] Rerun targeted lifecycle tests and the full suite, then re-close the finding.
+
+### BR-2 correction
+
+- 2026-10-14 — Boundary round 2 accepted BR-1 after an independent mutation
+  check. BR-2 (Important, boundary-lifecycle-coverage) correctly identifies that
+  pure admission tests do not prove the promised production dispute lifecycle.
+  Add a temporary-repository close/dispute/review regression using existing
+  fixtures: host evidence reaches the reviewer, unanswered and note-less replies
+  cannot advance accepted ledger/head, and an explicit answering disposition
+  closes the loop. Mutation-check removal of the dispute guard or ledger wiring
+  (ARCH-PURPOSE). This completes existing scope, with no new production behavior.
+
+- [ ] Prove production unverifiable dispute lifecycle and kill a guard/wiring mutation.

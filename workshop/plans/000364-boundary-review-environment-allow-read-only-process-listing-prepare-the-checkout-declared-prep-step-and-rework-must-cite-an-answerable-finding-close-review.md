@@ -72,3 +72,74 @@ None.
 7. **Plan revision recommendations**
 
 Add a `## Revisions` entry specifying that tracked-state preservation compares actual file contents and modes independently of Git normalization and suppression settings. Extend the verification strategy to cover assume-unchanged, skip-worktree, and clean-filter cases.
+
+---
+
+## Re-review — 2026-10-14T01:28:26-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 364 — Boundary review environment: allow read-only process listing, prepare the checkout (declared prep step), and REWORK must cite an answerable finding |
+| repo | ariadne |
+| issue file | workshop/issues/000364-boundary-review-environment-allow-read-only-process-listing-prepare-the-checkout-declared-prep-step-and-rework-must-cite-an-answerable-finding.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 85135ce32b676c60628649a96c93446ac238a11c..8d30689ac48e03acf61382fb2617c0856a04ccd6 |
+| command | sdlc close --issue 364 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T01:28:26-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-1 is addressed with independently verified regression evidence. Preparation, bounded retries, response admission, and documentation are implemented coherently. One Important gap remains: the plan promises a production lifecycle regression for disputed unverifiable findings, but the checked-in tests exercise that requirement only through the pure validator.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      prepare.go:93 fingerprints actual filesystem state. Restoring the previous guard in a disposable pinned-head checkout made production Dispatch regressions fail for assume-unchanged, skip-worktree, clean filters, and permission changes; the corrected package passes. The disposable checkout was removed.
+findings:
+  - id: new
+    severity: Important
+    family: boundary-lifecycle-coverage
+    title: |
+      The promised unverifiable-dispute lifecycle regression is missing
+    detail: |
+      workshop/plans/000364-review-environment-plan.md:198 promises a real temporary-repository lifecycle proving host evidence reaches the next judge, invalid replies cannot advance ledger/head, and a valid disposition closes the loop. boundaryresponse_test.go:44 manually constructs a disputed ledger and calls the pure validator; existing dispute lifecycle fixtures use ordinary findings. Add a production close/dispatch regression that disputes an unverifiable finding, checks the reviewer receives its evidence, rejects unanswered or note-less responses without advancement, and accepts an explicit evidence-answering disposition. Prove it fails when the dispute admission guard or ledger wiring is removed (ARCH-PURPOSE).
+```
+
+1. **Strengths**
+
+   - The tracked-state guard handles Git suppression flags, normalization, file modes, symlinks, and gitlinks.
+   - Preparation and review share process cleanup, confinement, and one bounded attempt loop.
+   - Diagnostics remain separate from semantic output and have enforced retention limits.
+   - README, atlas, help, and prompt contracts document the new surface.
+
+2. **Critical findings:** None remaining.
+
+3. **Important findings:** The lifecycle coverage gap above. Extend the existing temporary-repository fixtures rather than adding another harness.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes:** Judge, reviewprepare, gatestate, reviewbox, and vocab suites passed. Targeted boundary, preparation, sidecar, admission, and dispute tests passed in 83.6 seconds. BR-1’s regression failed with the previous guard restored. Live Darwin conformance skipped because the parent sandbox rejects `sandbox_apply`; downstream and installed-agent opt-in checks were not run.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** Shared runner, retry loop, and ledger authority.
+   - **ARCH-PURE — pass:** Parsing, rendering, and admission consume values without IO.
+   - **ARCH-PURPOSE — flag:** Complete the promised dispute lifecycle proof.
+   - **ARCH-MOCK — pass:** Stateful temporary repositories and executable fixtures exercise production seams.
+   - **ARCH-CONSTRAINTS — pass:** Attempts, deadlines, output, and shutdown are bounded.
+   - **ARCH-SECURE — pass:** Pinned regular declarations and direct filesystem fingerprints protect review inputs.
+   - **ARCH-ORDER — pass:** Reset, confinement, preparation, and admission ordering is explicit and tested.
+   - **ARCH-FUNERAL — pass:** Checkout cleanup owns generated assets; permanent diagnostic retention has an explicit per-dispatch cost.
+
+7. **Plan revision recommendations:** Append a `## Revisions` entry recording the missing lifecycle proof and its regression strategy; mark that verification complete only after the production test and mutation check pass.
