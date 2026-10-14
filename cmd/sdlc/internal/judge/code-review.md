@@ -20,7 +20,8 @@ Use the Review window commands below to inspect the pinned repository range
 against the issue's Spec + Plan. Run at least the stat and name-status recipes
 before targeted or full patch inspection. If the repository, pinned objects, or
 a required read-only command is unavailable, do not infer from prose: return
-REWORK and identify the failed inspection. Then work the checklist below.
+REWORK with a blocking `kind: unverifiable` finding identifying the failed
+inspection, observed failure, and evidence needed to answer it. Then work the checklist below.
 Categorize every finding by severity — not everything is Critical; a nitpick
 marked Critical is noise.
 
@@ -130,7 +131,9 @@ holistic.
 The fenced ```` ```verdict ```` block above is the **authoritative machine-read
 handoff** — emit it as the first thing in your response. (A prose
 `VERDICT: <TOKEN>` first line still satisfies the legacy contract as a fallback,
-but the block is what the binary trusts.)
+but the block is what the binary trusts.) The findings block and dispositions
+also participate in boundary admission and gate-ledger checks; the verdict alone
+does not authorize crossing the boundary.
 
 After the verdict block: a 1-paragraph summary — what worked, what blocks SHIP if
 it isn't — followed by:

@@ -92,3 +92,21 @@ func TestBuildPrompt_ReviewNotes(t *testing.T) {
 		}
 	}
 }
+
+// Boundary findings participate in admission; generic judges retain their token contract.
+func TestBoundaryPromptAnswerableRework(t *testing.T) {
+	for _, category := range []Category{MilestoneReview, SmallDiffReview, FixReview} {
+		prompt := BuildPrompt(category, goldenInput)
+		for _, want := range []string{"REWORK requires", "kind: unverifiable", "nonempty note", "protocol error"} {
+			if !strings.Contains(prompt, want) {
+				t.Errorf("%s lacks %q", category, want)
+			}
+		}
+		if strings.Contains(prompt, "is advisory: a non-blocking verdict WITH findings") {
+			t.Errorf("%s still calls boundary findings advisory", category)
+		}
+	}
+	if !strings.Contains(BuildPrompt(DRY, goldenInput), "are advisory") {
+		t.Error("generic judge contract changed")
+	}
+}

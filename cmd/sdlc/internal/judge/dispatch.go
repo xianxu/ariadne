@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewbox"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewprepare"
 )
 
 // AgentCLI names a coding-agent CLI. The default is "claude"; the
@@ -28,8 +29,22 @@ const (
 	AgentGemini AgentCLI = "gemini"
 )
 
+// DispatchEvidence holds nonsemantic, bounded attempt diagnostics for the caller.
+type DispatchEvidence struct {
+	Preparation []reviewprepare.Result
+	Protocol    []reviewprepare.ProtocolResult
+}
+
 // DispatchOptions configures one invocation.
 type DispatchOptions struct {
+	// Preparation executes only in Checkout, after confinement and before each review.
+	Preparation     *reviewprepare.Config
+	PreparationHead string
+	Evidence        *DispatchEvidence
+	// ValidateResponse is pure admission against a caller-pinned ledger. Invalid
+	// output consumes the same two-attempt budget as a missing verdict.
+	ValidateResponse func(string) error
+
 	Agent        AgentCLI
 	Prompt       string
 	AllowedTools string // for claude; ignored by codex/gemini
@@ -120,12 +135,21 @@ var Run = runProcess
 var reviewShutdownGrace = 5 * time.Second
 
 func runProcess(ctx context.Context, onStart func(pid int), name string, args ...string) (ProcessOutput, error) {
+	var stdout, stderr bytes.Buffer
+	err := runCommand(ctx, onStart, "", &stdout, &stderr, name, args...)
+	return ProcessOutput{Stdout: stdout.Bytes(), Stderr: stderr.Bytes()}, err
+}
+
+// runCommand owns environment, cancellation and descendant cleanup for both
+// reviewer and preparation processes. Callers choose capture and exit policy.
+func runCommand(ctx context.Context, onStart func(int), dir string, stdout, stderr io.Writer, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = dir
 	configureReviewProcess(cmd)
 	cmd.Cancel = func() error { return terminateReviewProcess(cmd, false) }
 	cmd.WaitDelay = reviewShutdownGrace
-	if dir, err := ownerBinDir(); err == nil {
-		cmd.Env = binAugmentedEnv(dir, os.Environ())
+	if bin, err := ownerBinDir(); err == nil {
+		cmd.Env = binAugmentedEnv(bin, os.Environ())
 	}
 	if c, ok := ctx.Value(confinementKey{}).(*reviewbox.Confinement); ok {
 		if cmd.Env == nil {
@@ -133,22 +157,19 @@ func runProcess(ctx context.Context, onStart func(pid int), name string, args ..
 		}
 		cmd.Env = binAugmentedEnv(c.BinDir(), overlayEnv(cmd.Env, c.Env()))
 	}
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	cmd.Stdout, cmd.Stderr = stdout, stderr
 	if err := cmd.Start(); err != nil {
-		return ProcessOutput{}, err
+		return err
 	}
 	if onStart != nil {
 		onStart(cmd.Process.Pid)
 	}
-
-	// WaitDelay bounds both graceful cancellation and inherited pipe draining.
-	// Its escalation kills only the direct child; finish by killing remaining
-	// members of our own process group before returning. Wait reaps the direct
-	// child and joins the output-copy goroutines, so no runner work outlives us.
 	err := cmd.Wait()
 	_ = terminateReviewProcess(cmd, true)
-	return ProcessOutput{Stdout: stdout.Bytes(), Stderr: stderr.Bytes()}, err
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return err
 }
 
 // BuildArgs returns the argv (binary name + flags + final prompt) for
@@ -313,40 +334,77 @@ func overlayEnv(env, over []string) []string {
 // dispatchAttempts is the dispatch proper: one attempt, and the no-verdict
 // retry (#271, #300).
 func dispatchAttempts(ctx context.Context, opts DispatchOptions, conf *reviewbox.Confinement) (string, error) {
-	first, err := dispatchOnce(ctx, opts)
-	if err != nil || HasVerdict(first) {
-		return first, err
-	}
-	if opts.Stderr != nil {
-		fmt.Fprintln(opts.Stderr, "    … the reviewer ended without a verdict; dispatching it once more")
-	}
-	if opts.BeforeRetry != nil {
-		if err := opts.BeforeRetry(); err != nil {
-			return "## Attempt 1 (ended without a verdict)\n\n" + first + "\n\n## Attempt 2 (not started: " + err.Error() + ")\n", err
+	var first string
+	var invalid error
+	for attempt := 1; attempt <= 2; attempt++ {
+		if attempt == 2 {
+			if opts.Stderr != nil {
+				fmt.Fprintln(opts.Stderr, "    … reviewer response invalid; dispatching it once more:", invalid)
+			}
+			if opts.BeforeRetry != nil {
+				if err := opts.BeforeRetry(); err != nil {
+					return retryFailure(first, err, opts.ValidateResponse != nil)
+				}
+			}
+			if err := conf.Prepare(); err != nil {
+				return retryFailure(first, err, opts.ValidateResponse != nil)
+			}
 		}
-	}
-	// The reset checkout lost the base inside it; a retry is confined too.
-	if err := conf.Prepare(); err != nil {
-		return "## Attempt 1 (ended without a verdict)\n\n" + first + "\n\n## Attempt 2 (not started: " + err.Error() + ")\n", err
-	}
-	again := opts
-	again.Prompt = opts.Prompt + retryNotice
-	second, err := dispatchOnce(ctx, again)
-	if err != nil {
-		// Once a retry has started, nothing may drop attempt 1: the returned
-		// text carries it with the error. Running out of time is the fail-safe
-		// (no verdict, so the caller halts and the sidecar keeps the text);
-		// any other error is returned beside that text for the caller to show.
-		kept := "## Attempt 1 (ended without a verdict)\n\n" + first + "\n\n## Attempt 2 (retry; " + err.Error() + ")\n"
-		if errors.Is(err, context.DeadlineExceeded) {
-			return kept, nil
+		if err := runPreparation(ctx, opts, attempt); err != nil {
+			return "", err
 		}
-		return kept, err
+		current := opts
+		if attempt == 2 {
+			current.Prompt += retryNotice + "\nResponse validation: " + invalid.Error()
+		}
+		output, err := dispatchOnce(ctx, current)
+		if err != nil {
+			if attempt == 1 || opts.ValidateResponse != nil {
+				return output, err
+			}
+			kept, _ := retryFailure(first, err, false)
+			if errors.Is(err, context.DeadlineExceeded) {
+				return kept, nil
+			}
+			return kept, err
+		}
+		invalid = nil
+		if !HasVerdict(output) {
+			invalid = errors.New("missing verdict")
+		}
+		if invalid == nil && opts.ValidateResponse != nil {
+			invalid = opts.ValidateResponse(output)
+		}
+		if invalid == nil {
+			return output, nil
+		}
+		if opts.Evidence != nil {
+			opts.Evidence.Protocol = append(opts.Evidence.Protocol, reviewprepare.ProtocolResult{Attempt: attempt, Reason: invalid.Error(), Output: truncateDiagnostic(output)})
+		}
+		if attempt == 1 {
+			first = output
+			continue
+		}
+		if opts.ValidateResponse != nil {
+			return "", fmt.Errorf("review response protocol failed after two attempts: %w", invalid)
+		}
+		return "## Attempt 1 (ended without a verdict)\n\n" + first + "\n\n## Attempt 2 (retry; also without a verdict)\n\n" + output, nil
 	}
-	if HasVerdict(second) {
-		return second, nil
+	panic("unreachable")
+}
+
+func retryFailure(first string, err error, validated bool) (string, error) {
+	if validated {
+		return "", err
 	}
-	return "## Attempt 1 (ended without a verdict)\n\n" + first + "\n\n## Attempt 2 (retry; also without a verdict)\n\n" + second, nil
+	return "## Attempt 1 (ended without a verdict)\n\n" + first + "\n\n## Attempt 2 (not started: " + err.Error() + ")\n", err
+}
+
+func truncateDiagnostic(s string) string {
+	if len(s) > reviewprepare.OutputLimit {
+		return s[:reviewprepare.OutputLimit] + "\n[truncated]"
+	}
+	return s
 }
 
 // retryNotice is appended to a retried review's prompt (#300).

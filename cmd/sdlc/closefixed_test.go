@@ -81,6 +81,9 @@ func TestDoneWhenDecision(t *testing.T) {
 // fixedReview is a reviewer response that finalizes and carries a findings fence, so
 // its round stamps the reviewed head the next --fixed-then-ship anchors on.
 func fixedReview(verdict string) string {
+	if verdict == "REWORK" {
+		return "VERDICT: REWORK\n" + reworkBoundaryFindings
+	}
 	return "VERDICT: " + verdict + " (confidence: high)\n\nfine\n\n```findings\nfindings: []\n```\n"
 }
 
@@ -159,7 +162,7 @@ func TestFixedThenShip_AfterFixThenShipVerdict(t *testing.T) {
 		t.Fatalf("REWORK published the card:\n%s", card)
 	}
 
-	stubJudge(t, fixedReview("SHIP"))
+	stubJudge(t, "VERDICT: SHIP\n"+addressedBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand(closeArgs("402", "--fixed-then-ship")...); err != nil {
 		t.Fatalf("close --fixed-then-ship: %v\n%s", err, stderr)
 	}

@@ -4,6 +4,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -63,5 +65,49 @@ func TestProbeRejectsAFenceThatDoesNotDeny(t *testing.T) {
 func TestProbeReportsAMissingBinary(t *testing.T) {
 	if fence, reason := verifyFence(FenceSeatbelt, "no-such-fence-binary"); fence != FenceNone || !strings.Contains(reason, "not found") {
 		t.Fatalf("verifyFence = %q, %q", fence, reason)
+	}
+}
+
+// Check sandbox availability independently of Probe: regressions in the ps
+// exception must fail conformance, not turn into a checkout-only skip.
+func TestSeatbeltProcessInspection(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("Darwin Seatbelt conformance")
+	}
+	if out, err := exec.Command("sandbox-exec", "-p", "(version 1)(allow default)", "/bin/sh", "-c", "true").CombinedOutput(); err != nil {
+		t.Skipf("Seatbelt unavailable: %v: %s", err, out)
+	}
+	if fence, reason := verifyFence(FenceSeatbelt, "sandbox-exec"); fence != FenceSeatbelt {
+		t.Errorf("live fence probe rejected Seatbelt: %s", reason)
+	}
+	paths, err := Canonical([]string{t.TempDir(), t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	iso := Isolation{Fence: FenceSeatbelt, Dir: paths[0], Protect: paths[1:]}
+	pid := strconv.Itoa(os.Getpid())
+	for _, tc := range []struct {
+		name, command string
+		args          []string
+	}{
+		{"direct", "/bin/ps", []string{"-p", pid, "-o", "pid="}},
+		{"shell-child", "/bin/sh", []string{"-c", `/bin/ps -p "$1" -o pid=; result=$?; : > "$2/allowed" || exit 2; if ( : > "$3/denied" ) 2>/dev/null; then exit 3; fi; exit "$result"`, "sh", pid, paths[0], paths[1]}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			name, args := iso.Wrap(tc.command, tc.args)
+			out, err := exec.Command(name, args...).CombinedOutput()
+			if err != nil {
+				t.Fatalf("process inspection failed: %v: %s", err, out)
+			}
+			if strings.TrimSpace(string(out)) != pid {
+				t.Fatalf("ps output = %q, want known pid %s", out, pid)
+			}
+		})
+	}
+	if _, err := os.Stat(filepath.Join(paths[0], "allowed")); err != nil {
+		t.Errorf("scratch write: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(paths[1], "denied")); !os.IsNotExist(err) {
+		t.Errorf("protected write was not denied: %v", err)
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -19,7 +20,8 @@ import (
 // A fence is reported only after it was SEEN to work: the probe runs a command
 // through the same Isolation.Wrap a review uses, which must write an allowed
 // directory and be refused a protected one. So every round stamped `fenced` had
-// a live denial behind it, not just a binary that launched.
+// a live denial behind it, not just a binary that launched. On Darwin it also
+// verifies that /bin/ps can inspect a known live process.
 //
 // Seatbelt does not nest: inside another sandbox (Claude Code's Bash sandbox,
 // where slot agents run sdlc) sandbox_apply fails, and the review degrades to
@@ -61,7 +63,14 @@ func verifyFence(f Fence, binary string) (Fence, string) {
 		}
 	}
 	iso := Isolation{Fence: f, Dir: allowed, Protect: []string{protected}}
-	name, args := iso.Wrap("sh", []string{"-c", probeScript, "sh", allowed, protected})
+	probeArgs := []string{"-c", probeScript, "sh", allowed, protected}
+	if f == FenceSeatbelt {
+		// Darwin's setuid ps requires a literal exec exception. Inspect a known
+		// live PID before claiming the fence supports reviewer process inspection.
+		probeArgs[1] = `pid=$(/bin/ps -p "$3" -o pid=) && [ "$pid" -eq "$3" ] || { echo "process inspection failed" >&2; exit 4; }; ` + probeScript
+		probeArgs = append(probeArgs, strconv.Itoa(os.Getpid()))
+	}
+	name, args := iso.Wrap("sh", probeArgs)
 	var stderr bytes.Buffer
 	cmd := exec.Command(name, args...)
 	cmd.Stderr = &stderr

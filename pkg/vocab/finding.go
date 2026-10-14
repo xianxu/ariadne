@@ -20,6 +20,7 @@ var findingJSON []byte
 // the findings-block parser's accepted set, and the gate decision's blocking test all
 // derive from here, so none of them can drift from the others.
 type FindingModel struct {
+	Kinds        []string            `json:"kinds"`
 	Categories   map[string][]string `json:"categories"`   // "blocking"/"advisory" → severities
 	HardBlocking []string            `json:"hardBlocking"` // still blocks past the round cap
 	Dispositions map[string][]string `json:"dispositions"` // "closing"/"open" → dispositions
@@ -50,6 +51,9 @@ var findingCategoryOrder = []string{"blocking", "advisory"}
 func (m *FindingModel) Severities() []string {
 	return allStatuses(m.Categories, findingCategoryOrder)
 }
+
+// IsKind reports whether a present kind is modeled. Empty retains legacy defect semantics.
+func (m *FindingModel) IsKind(kind string) bool { return kind == "" || contains(m.Kinds, kind) }
 
 // IsSeverity reports whether s is a modeled severity — the parser's accepted set.
 func (m *FindingModel) IsSeverity(s string) bool { return contains(m.Severities(), s) }
@@ -120,8 +124,12 @@ func (m *FindingModel) RenderBlockInstruction() string {
 	b.WriteString("```findings\ndispose:\n  - id: <a prior finding's id>\n    disposition: <" +
 		strings.Join(m.JudgeDispositions(), " | ") + ">\n    note: |\n      <optional, one line>\nfindings:\n" +
 		"  - id: new\n    severity: <" + strings.Join(m.Severities(), " | ") + ">\n" +
+		"    kind: <" + strings.Join(m.Kinds, " | ") + ">\n" +
 		"    family: <slug>\n" +
 		"    title: |\n      <one line>\n    detail: |\n      <a sentence or two, optional>\n```\n\n")
+	b.WriteString("`kind` is optional; absent means defect. Use unverifiable when the reviewer\n")
+	b.WriteString("cannot verify an invariant in its environment; describe the invariant and the\n")
+	b.WriteString("missing measurement. A later dispute requires an explicit evidence-answering note.\n\n")
 	// family (#194 M3): the slug names the underlying RULE, not the symptom, and is what
 	// lets the gate say "this is the 3rd instance — state the rule" instead of watching
 	// the same missing rule get patched case by case. The instruction has to be explicit:

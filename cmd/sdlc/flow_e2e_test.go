@@ -47,7 +47,7 @@ func runVerbSequence(t *testing.T, id int, code map[string]string) (prompt, issu
 	git(t, repo, "add", "-A")
 	git(t, repo, "commit", "-q", "-m", fmt.Sprintf("#%d: implement", id))
 
-	_, last := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	_, last := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	run("close", "--issue", idArg, "--verified", "e2e", "--no-actual", "--no-atlas")
 	b, err := os.ReadFile(filepath.Join(repo, syncIssuesDir, name))
 	if err != nil {

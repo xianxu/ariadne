@@ -272,3 +272,24 @@ func roundAdvancesBoundary(review reviewResult, round gatestate.Round, d gatesta
 	}
 	return !d.Block || waived
 }
+
+// boundaryAdmissionLedger captures the structured scope under the close lock.
+// Direct/manual dispatches use the same reader before launching a reviewer.
+func boundaryAdmissionLedger(p boundaryReviewParams) (gatestate.Ledger, error) {
+	dir := p.PlansDir
+	if dir == "" {
+		dir = p.ReviewPlansDir
+	}
+	if dir == "" || p.IssueNum <= 0 {
+		return gatestate.Ledger{}, nil
+	}
+	path, err := issueFilePath(p.IssuesDir, p.IssueNum)
+	if err != nil {
+		return gatestate.Ledger{}, err
+	}
+	ledger, err := readBoundaryGateLedger(dir, filepath.Base(path), p.IssueNum)
+	if err != nil {
+		return gatestate.Ledger{}, err
+	}
+	return openScopeFor(ledger, p.Milestone), nil
+}

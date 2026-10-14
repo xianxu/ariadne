@@ -20,7 +20,8 @@ Use the Review window commands below to inspect the pinned repository range
 against the issue's Spec + Plan. Run at least the stat and name-status recipes
 before targeted or full patch inspection. If the repository, pinned objects, or
 a required read-only command is unavailable, do not infer from prose: return
-REWORK and identify the failed inspection. Then work the checklist below.
+REWORK with a blocking `kind: unverifiable` finding identifying the failed
+inspection, observed failure, and evidence needed to answer it. Then work the checklist below.
 Categorize every finding by severity — not everything is Critical; a nitpick
 marked Critical is noise.
 
@@ -140,7 +141,9 @@ confidence: <high | medium | low>
 The fenced ```` ```verdict ```` block above is the **authoritative machine-read
 handoff** — emit it as the first thing in your response. (A prose
 `VERDICT: <TOKEN>` first line still satisfies the legacy contract as a fallback,
-but the block is what the binary trusts.)
+but the block is what the binary trusts.) The findings block and dispositions
+also participate in boundary admission and gate-ledger checks; the verdict alone
+does not authorize crossing the boundary.
 
 After the verdict block: a 1-paragraph summary — what worked, what blocks SHIP if
 it isn't — followed by:
@@ -288,12 +291,17 @@ dispose:
 findings:
   - id: new
     severity: <Critical | Important | Minor>
+    kind: <defect | unverifiable>
     family: <slug>
     title: |
       <one line>
     detail: |
       <a sentence or two, optional>
 ```
+
+`kind` is optional; absent means defect. Use unverifiable when the reviewer
+cannot verify an invariant in its environment; describe the invariant and the
+missing measurement. A later dispute requires an explicit evidence-answering note.
 
 `family` is a short slug naming the underlying RULE a finding is an instance of,
 not its symptom — `block-opener-rule`, not `bracket-depth-bug`. If the prior-round
@@ -318,10 +326,36 @@ unquoted `## Estimate` or `issue #187` would silently truncate your finding.
   withdrawn      the judge retracts it (mistaken, or overtaken by a design change)
   not-addressed  still open — the judge re-raises it this round
 
+## Answerable boundary response
+
+REWORK requires at least one new blocking finding with a nonempty title and detail,
+or an explicit `not-addressed` disposition maintaining a known blocking finding
+in this review's scope. Use `id: new` for new findings; the binary assigns BR-n.
+An old open finding alone, a Minor-only finding, or an unknown ID cannot justify
+REWORK. Every disposition must refer to a known finding in scope.
+
+When the review environment prevents verification, emit `kind: unverifiable`
+(the optional kind defaults to ordinary defect semantics). Its detail must name
+the attempted command/check, the observed restriction or failure, and the host
+evidence or environment change that would answer it. Do not emit empty REWORK.
+
+The implementer can answer an unverifiable finding through `sdlc finding dispute`
+with measured host evidence. In the next round, explicitly dispose every pending
+unverifiable dispute with a nonempty note answering that evidence: withdraw it
+when the evidence holds, or mark it `not-addressed` and explain what remains.
+Do not silently carry a dispute forward or replace it with a new ID.
+
+Invalid responses share the existing two-attempt budget with missing verdicts.
+After the first invalid response, the checkout is reset, confinement recreated,
+and any declared preparation rerun before review. A second invalid response ends
+in a protocol error: neither attempt's findings are admitted, the reviewed head
+does not advance, and the close does not finalize.
+
 OUTPUT CONTRACT (machine-read — do not deviate). LEAD your response with the
 fenced ```verdict block shown above — that is the authoritative handoff the binary
-reads (its `verdict:` value is one of the listed tokens). Everything after the block
-is advisory: a non-blocking verdict WITH findings still PASSES the gate. A bare
+reads (its `verdict:` value is one of the listed tokens). Boundary findings and
+dispositions are also machine-read: admission and the gate ledger can block a
+non-blocking verdict. Follow the answerable-response rules above. A bare
 `VERDICT: <TOKEN>` line is accepted only as a FALLBACK when the block is absent.
 
 RUN UNATTENDED. You run non-interactively: no one answers questions and you

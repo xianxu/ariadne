@@ -4,7 +4,8 @@ import "strings"
 
 // The judge output contract (#70). Every agent-emitting judge leads its result
 // with a `VERDICT: <TOKEN> (confidence: …)` line; the classifier reads ONLY that
-// token — prose, findings, and severity tags below it are advisory. This file is
+// token for generic judges. Boundary reviews additionally validate findings and
+// dispositions before admitting a response (#364). This file is
 // the single source of truth for the token taxonomy that both the classifier
 // (classify.go) and the prompts (prompts.go, via ContractBlock — wired in M2)
 // derive from, so the two can't drift.
@@ -58,8 +59,9 @@ background), within the review's time limit, and end with your verdict.`
 // the two "lead" instructions no longer conflict in the milestone-review prompt.
 const BoundaryReviewContract = "OUTPUT CONTRACT (machine-read — do not deviate). LEAD your response with the\n" +
 	"fenced ```verdict block shown above — that is the authoritative handoff the binary\n" +
-	"reads (its `verdict:` value is one of the listed tokens). Everything after the block\n" +
-	"is advisory: a non-blocking verdict WITH findings still PASSES the gate. A bare\n" +
+	"reads (its `verdict:` value is one of the listed tokens). Boundary findings and\n" +
+	"dispositions are also machine-read: admission and the gate ledger can block a\n" +
+	"non-blocking verdict. Follow the answerable-response rules above. A bare\n" +
 	"`VERDICT: <TOKEN>` line is accepted only as a FALLBACK when the block is absent.\n\n" +
 	UnattendedRule
 

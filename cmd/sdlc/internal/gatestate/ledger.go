@@ -32,6 +32,7 @@ import (
 // lets a LATER round refer to it. Severity is validated against the `finding` model at
 // parse time, so by the time a Finding exists here its severity is modeled.
 type Finding struct {
+	Kind     string `yaml:"kind,omitempty"`
 	ID       string `yaml:"id"`
 	Severity string `yaml:"severity"`
 	Title    string `yaml:"title"`

@@ -93,7 +93,7 @@ func TestSetStatusRerunSettlesALostResponse(t *testing.T) {
 // first evidence commit kept in history.
 func TestCloseRerunAfterShipStartsANewGeneration(t *testing.T) {
 	r, cardPath, _ := closeReady(t, 412)
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	closeIt := func() issue.Completion {
 		t.Helper()
 		if _, stderr, err := executeSDLCTestCommand("close", "--issue", "412", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
