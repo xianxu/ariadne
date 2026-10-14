@@ -59,11 +59,11 @@ The helper and Git probes use production process seams with real portable tempor
 
 **Files:** `cmd/sdlc/helpercapability.go`, colocated tests, `localcheck_run.go`, `localcheck_run_test.go`, `localcheck_cmd_test.go`, and existing reentry fixtures only where their fake help must be updated.
 
-- [ ] Add pure parser cases for declared required options, missing options, misleading prose/substrings and malformed output.
-- [ ] Add a stale helper fixture with real supplying Git HEAD and workflow symlink. Through the local-check command/run path assert the helper acquisition marker, check marker and GH status/comment collections remain untouched; the diagnostic names the supplier path/HEAD and runnable repair. Verify RED against current code.
-- [ ] Add bounded probe cancellation/hang/output/error cases; current helper and weight-two fixtures; paths containing spaces; retained reentry and diagnostic baseline behavior.
-- [ ] Implement the bounded probe and caller wiring. Use `gitx.RunGitInContext` for supplier top-level/HEAD, never the consumer-bound `d.Git` for that evidence. Require normal helper file resolution; unreadable evidence refuses with a concrete inspection action rather than inventing a hash.
-- [ ] Update existing acquisition doubles to handle `acquire --help` without acquisition effects. Run targeted local-check/helper/reentry tests and verify GREEN, including the real helper fixture.
+- [x] Add pure parser cases for declared required options, missing options, misleading prose/substrings and malformed output.
+- [x] Add a stale helper fixture with real supplying Git HEAD and workflow symlink. Through the local-check command/run path assert the helper acquisition marker, check marker and GH status/comment collections remain untouched; the diagnostic names the supplier path/HEAD and runnable repair. Verify RED against current code.
+- [x] Add bounded probe cancellation/hang/output/error cases; current helper and weight-two fixtures; paths containing spaces; retained reentry and diagnostic baseline behavior.
+- [x] Implement the bounded probe and caller wiring. Use `gitx.RunGitInContext` for supplier top-level/HEAD, never the consumer-bound `d.Git` for that evidence. Require normal helper file resolution; unreadable evidence refuses with a concrete inspection action rather than inventing a hash.
+- [x] Update existing acquisition doubles to handle `acquire --help` without acquisition effects. Run targeted local-check/helper/reentry tests and verify GREEN, including the real helper fixture.
 
 Command: `go test ./cmd/sdlc -run '^(TestHelperCapability|TestRunLocalCheck|TestLocalCheck|TestAcquireSuiteSlot)' -count=1 -timeout 15m` (adjust the explicit test-name list to the existing named reentry tests discovered during implementation).
 
@@ -71,11 +71,11 @@ Command: `go test ./cmd/sdlc -run '^(TestHelperCapability|TestRunLocalCheck|Test
 
 **Files:** `cmd/weave/internal/refresh/model.go`, `refresh.go`, existing refresh integration tests, `cmd/weave/refresh.go`, `cmd/weave/refresh_test.go`.
 
-- [ ] Write a real numbered-slot regression: consumer issue branch ahead/divergent, its remote main independently advanced, private dependency behind remote. Assert dependency reaches captured main; consumer HEAD/branch/index and origin/main remain unchanged; compile sees updated substrate and runs once; primary and another slot remain untouched. Verify RED.
-- [ ] Add no-dependency source-branch and `--substrate --rebase` cases, with no Git updates and explicit compile/no-effect expectations respectively.
-- [ ] Add stale root evidence injected during dependency fetch/pre-apply/pre-compile, dirty or divergent dependency, target declaration change, missing checkout, private-ownership escape and compile-failure/retry cases. Reuse existing cases where they already prove the shared path; add mode-specific controls for the excluded root and selected subjects.
-- [ ] Implement `RunWithOptions` and have `Run` delegate with ordinary mode. Keep root in the observation and final-validation set, set its preserved target to its original HEAD, skip root fetch/target checks/update, and use the original phase transitions for all effects. Add CLI mode and mutual-exclusion validation before setup.
-- [ ] Run all refresh package and CLI regressions. Verify setup lease is held through compile and current ordinary refresh remains unchanged.
+- [x] Write a real numbered-slot regression: consumer issue branch ahead/divergent, its remote main independently advanced, private dependency behind remote. Assert dependency reaches captured main; consumer HEAD/branch/index and origin/main remain unchanged; compile sees updated substrate and runs once; primary and another slot remain untouched. Verify RED.
+- [x] Add no-dependency source-branch and `--substrate --rebase` cases, with no Git updates and explicit compile/no-effect expectations respectively.
+- [x] Add stale root evidence injected during dependency fetch/pre-apply/pre-compile, dirty or divergent dependency, target declaration change, missing checkout, private-ownership escape and compile-failure/retry cases. Reuse existing cases where they already prove the shared path; add mode-specific controls for the excluded root and selected subjects.
+- [x] Implement `RunWithOptions` and have `Run` delegate with ordinary mode. Keep root in the observation and final-validation set, set its preserved target to its original HEAD, skip root fetch/target checks/update, and use the original phase transitions for all effects. Add CLI mode and mutual-exclusion validation before setup.
+- [x] Run all refresh package and CLI regressions. Verify setup lease is held through compile and current ordinary refresh remains unchanged.
 
 Commands: `go test ./cmd/weave/internal/refresh -count=1`; `go test ./cmd/weave -run '^TestRefresh' -count=1 -timeout 10m`.
 
@@ -83,7 +83,7 @@ Commands: `go test ./cmd/weave/internal/refresh -count=1`; `go test ./cmd/weave 
 
 **Files:** `atlas/workflow/weave.md`, `atlas/workflow/workspace-branching.md`, `atlas/workflow/ci-merge-check.md`, issue details. Reuse the existing atlas pages; their index entries already exist.
 
-- [ ] Document the capability refusal, supplying HEAD, `weave refresh --substrate`, clean issue-branch requirement, source-only edge and retained-update retry semantics. Update CLI help consistently.
+- [x] Document the capability refusal, supplying HEAD, `weave refresh --substrate`, clean issue-branch requirement, source-only edge and retained-update retry semantics. Update CLI help consistently.
 - [ ] Check that removing capability wiring makes the production regression fail and removing root exclusion makes the issue-branch refresh regression fail. Record actual RED/GREEN evidence, not wording tests.
 - [ ] Run all weave packages and appropriate local-check targets; commit code/docs, merge current main, then run full `make -k test` through the machine gate with the checkout frozen.
 - [ ] Record local acceptance and enter binary-owned close review. PR CI and landing are subsequent gates; land autonomously after SHIP with current main integrated and `sdlc merge --yes`, never validation/CI bypasses.
