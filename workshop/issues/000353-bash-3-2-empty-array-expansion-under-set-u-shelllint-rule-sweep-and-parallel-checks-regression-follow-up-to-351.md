@@ -1,12 +1,12 @@
 ---
 id: 000353
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: '43f5d100cb2a1fb555714d9b3edabdac093bd377' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '145358d0e367d3aa5359a888d927384aa858475b' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T17:18:22-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.16
 ---
 
 # bash 3.2 empty-array expansion under set -u: shelllint rule, sweep, and parallel-checks regression (follow-up to #351)
