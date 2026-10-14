@@ -76,15 +76,15 @@
 
 **Files:** create `cmd/tl-worker/{main.go,help.md,main_test.go}` and `construct/local/tl-worker/SKILL.md`; modify `AGENTS.base.md` §15, `Makefile` (`tools`, `tl-worker-build`) and `atlas/` (a new `atlas/workflow/tl-skills.md`, linked from `atlas/index.md`).
 
-- [ ] Inventory every worker-facing rule in the ops draft ("Running batches", "Staging", "The project directory") and in recent TL dispatches (the Logs of the ops `teams/*/projects/*/project.md` files). Record the sorted table in `## Log`, with one row per rule and its destination:
+- [x] Inventory every worker-facing rule in the ops draft ("Running batches", "Staging", "The project directory") and in recent TL dispatches (the Logs of the ops `teams/*/projects/*/project.md` files). Record the sorted table in `## Log`, with one row per rule and its destination:
   - **§15** if it applies to any Couch-fleet agent;
   - **couch skill** if it is messaging mechanics, already in `couch --skill`: slot labels, the bare call form, `--message-file`, and receipt rungs;
   - **tl-worker** if it applies only to a TL-run fleet.
 
   A rule already in §15 or `couch --skill` is cited, not restated. If a rule belongs in `couch --skill` but is missing there, file it as a pair issue and record it.
-- [ ] Write the failing test `TestWorkerHelpCarriesEveryRule`. It checks `buildRoot()`'s `--help` output for one distinctive phrase per tl-worker rule from the inventory, as a table. Each row asserts its own phrase, so no row can pass vacuously.
-- [ ] Write `TestWorkerHelpDoesNotRestateSection15`: the help names §15 and `couch --skill`, and contains none of §15's distinctive phrasing ("whole Bash call", "substitution").
-- [ ] Write `cmd/tl-worker/help.md` and `main.go` (in the shape of doc-review: `//go:embed help.md`, cobra `Long`, no subcommands). The help must cover these rules:
+- [x] Write the failing test `TestWorkerHelpCarriesEveryRule`. It checks `buildRoot()`'s `--help` output for one distinctive phrase per tl-worker rule from the inventory, as a table. Each row asserts its own phrase, so no row can pass vacuously.
+- [x] Write `TestWorkerHelpDoesNotRestateSection15`: the help names §15 and `couch --skill`, and contains none of §15's distinctive phrasing ("whole Bash call", "substitution").
+- [x] Write `cmd/tl-worker/help.md` and `main.go` (in the shape of doc-review: `//go:embed help.md`, cobra `Long`, no subcommands). The help must cover these rules:
   - no permission is needed for targeted tests, a full suite before a close, or headless bounded browser runs; ask for a visible window, `:0`, machine changes or scope;
   - real hashes, from `git rev-parse`;
   - a cited known failure never ends the suite early (`make -k`; report every other failure);
@@ -97,19 +97,19 @@
   - a feature driving the operator's real environment gets a live check.
 
   The final set is whatever the inventory step settled.
-- [ ] Write the stub `construct/local/tl-worker/SKILL.md`. Its frontmatter description triggers on work dispatched by a Couch hub. The body, a few lines in the shape of the couch stub, says: run `tl-worker --help` and follow it; if `tl-worker` is not installed, stop and tell the operator.
-- [ ] Add `TestSkillStubsPointAtBinaries` (in `cmd/tl-worker`): it reads `../../construct/local/tl-worker/SKILL.md` and asserts that it names `tl-worker --help` and carries no rule text (under 30 lines).
-- [ ] Add one bullet to `AGENTS.base.md` §15: "At the start of each dispatched item, run `tl-worker --help` and follow it; the hub runs `tl-lead --help` instead. If the binary is not installed, tell the hub and continue under these rules." This is the deterministic load: `couch --prepare` reloads the context, and the constitution is always loaded. No Couch change is needed; record that in `## Log`. Run `weave refresh` so the composed `AGENTS.md`/`CLAUDE.md` pick it up, and add a test asserting that §15 names both binaries.
-- [ ] Add `tl-worker` to the Makefile's `tools`. Confirm that `construct/dev-aliases.sh --list` lists it (ariadne owns `cmd/tl-worker`, so every environment that sources dev-aliases, downstream repos included, gets it), and that weave compiles `.claude/skills/xx-tl-worker`.
-- [ ] Atlas: `atlas/workflow/tl-skills.md` covers the two binaries, where their prose lives, the stubs and the §15 load. Link it from `atlas/index.md`.
+- [x] Write the stub `construct/local/tl-worker/SKILL.md`. Its frontmatter description triggers on work dispatched by a Couch hub. The body, a few lines in the shape of the couch stub, says: run `tl-worker --help` and follow it; if `tl-worker` is not installed, stop and tell the operator.
+- [x] Add `TestSkillStubsPointAtBinaries` (in `cmd/tl-worker`): it reads `../../construct/local/tl-worker/SKILL.md` and asserts that it names `tl-worker --help` and carries no rule text (under 30 lines).
+- [x] Add one bullet to `AGENTS.base.md` §15: "At the start of each dispatched item, run `tl-worker --help` and follow it; the hub runs `tl-lead --help` instead. If the binary is not installed, tell the hub and continue under these rules." This is the deterministic load: `couch --prepare` reloads the context, and the constitution is always loaded. No Couch change is needed; record that in `## Log`. Run `weave refresh` so the composed `AGENTS.md`/`CLAUDE.md` pick it up, and add a test asserting that §15 names both binaries.
+- [x] Add `tl-worker` to the Makefile's `tools`. Confirm that `construct/dev-aliases.sh --list` lists it (ariadne owns `cmd/tl-worker`, so every environment that sources dev-aliases, downstream repos included, gets it), and that weave compiles `.claude/skills/xx-tl-worker`.
+- [x] Atlas: `atlas/workflow/tl-skills.md` covers the two binaries, where their prose lives, the stubs and the §15 load. Link it from `atlas/index.md`.
 - [ ] Run the targeted tests (`go test ./cmd/tl-worker/... ./cmd/weave/...`), then `sdlc milestone-close --milestone M1`.
 
 ## M2 — tl-lead prose
 
 **Files:** create `cmd/tl-lead/{main.go,help.md,main_test.go}` and `construct/local/tl-lead/SKILL.md`; modify `Makefile` and `atlas/workflow/tl-skills.md`.
 
-- [ ] Re-read the then-current ops draft. List its sections and map each to the lead prose or to "dropped" (an incident narrative, history or a "kink N" reference), and record the map in `## Log`.
-- [ ] Write the failing `TestLeadHelpCoversPlaybook`, with one row per required topic:
+- [x] Re-read the then-current ops draft. List its sections and map each to the lead prose or to "dropped" (an incident narrative, history or a "kink N" reference), and record the map in `## Log`.
+- [x] Write the failing `TestLeadHelpCoversPlaybook`, with one row per required topic:
   - the eight-step playbook;
   - talking to the operator (status file sections; `couch --notify` if pair#540 has landed, otherwise its sentence is omitted);
   - dispatch judgment;
@@ -120,10 +120,10 @@
   - grooming trains;
   - reading a slot's state;
   - fleet traps that are still true.
-- [ ] Write `TestLeadHelpHasNoNarratives`: there are no `kink \d+`, no dates such as `10-1\d` in parentheses, and no bare `#\d+` without a repo prefix (`(^|[^\w])#\d{3}` refuses).
-- [ ] Write `TestLeadHelpDoesNotRestateWorker`: the dispatch section cites `tl-worker --help` for the worker's rules and doesn't repeat them. It is checked against the same phrase table as M1, which is shared through a small exported `cmd/tl-worker` test-data file read by path.
-- [ ] Write `cmd/tl-lead/help.md` and `main.go`, rewriting the draft as current rules. A TL dispatch then carries only the issue and TL-only context, because the worker's half is in `tl-worker`.
-- [ ] Add the stub `construct/local/tl-lead/SKILL.md` (the description triggers on acting as the TL or hub), extend `TestSkillStubsPointAtBinaries` to it, and add it to the Makefile.
+- [x] Write `TestLeadHelpHasNoNarratives`: there are no `kink \d+`, no dates such as `10-1\d` in parentheses, and no bare `#\d+` without a repo prefix (`(^|[^\w])#\d{3}` refuses).
+- [x] Write `TestLeadHelpDoesNotRestateWorker`: the dispatch section cites `tl-worker --help` for the worker's rules and doesn't repeat them. It is checked against the same phrase table as M1, which is shared through a small exported `cmd/tl-worker` test-data file read by path.
+- [x] Write `cmd/tl-lead/help.md` and `main.go`, rewriting the draft as current rules. A TL dispatch then carries only the issue and TL-only context, because the worker's half is in `tl-worker`.
+- [x] Add the stub `construct/local/tl-lead/SKILL.md` (the description triggers on acting as the TL or hub), extend `TestSkillStubsPointAtBinaries` to it, and add it to the Makefile.
 - [ ] Update the atlas, run the targeted tests, then `sdlc milestone-close --milestone M2`.
 
 ## M3 — Go subcommands; retire the Python
@@ -132,16 +132,27 @@
 - Create `pkg/markdoc/*`, `pkg/trains/*` and `cmd/tl-lead/{status.go,trains.go,sessionsync.go,sdlc.go,bar.go,render.go,threads.go,seen.go,markers.go}` with their tests and `testdata/`.
 - Modify `cmd/sdlc/internal/issue/{fence,section,plan}.go` (into forwarding aliases), `cmd/sdlc/internal/project/trains.go` (the same) and `cmd/tl-lead/help.md` (whose procedure names the subcommands).
 
-- [ ] **Extract markdoc.** Move the fence, section and plan functions and their tests to `pkg/markdoc`. Replace the originals with aliases. `go build ./... && go test ./cmd/sdlc/internal/issue/... ./pkg/markdoc/...` passes unchanged. Grep proves no logic remains behind in `internal/issue/{fence,section,plan}.go`.
-- [ ] **Extract trains** the same way, into `pkg/trains`. `go test ./cmd/sdlc/internal/project/... ./pkg/trains/...` passes.
-- [ ] Write the `PlanBar` tests first: Mx counted when present, tasks otherwise, `no plan yet`, and fenced checkboxes ignored. Then implement it.
-- [ ] Write the `RenderTrains`/`RenderOffTrain` golden tests against a crafted `testdata/project.md`, shaped like the ops project files but holding no operator content. They cover each glyph, a cross-repo car, a failed car read (`?`), and an off-train slot list plus `_None._`. Then implement them.
-- [ ] Write the `fakeSessionSync` model and its own test, which pins the stale, lock, missing-hash and fold-not-owed refusals from couch's help.
-- [ ] Write the `status` tests against the fake, then implement them. Strategy: table-driven over each verb (`section`, `thread`, `owed`, `seen`, `submit`, `clobbered`, `trains`); `fakeSessionSync` injects a stale or held-lock outcome at a chosen call number, and each row asserts the exit code, the fake's write count and the folded IDs. The rows that carry the risk: `TestOperatorLockRefuses` (exit 3, zero writes); stale-then-success and four-stales refusal; `--fold-owed` folds only seen ∩ owed; the seen-set prunes to owed.
+- [x] **Extract markdoc.** Move the fence, section and plan functions and their tests to `pkg/markdoc`. Replace the originals with aliases. `go build ./... && go test ./cmd/sdlc/internal/issue/... ./pkg/markdoc/...` passes unchanged. Grep proves no logic remains behind in `internal/issue/{fence,section,plan}.go`.
+- [x] **Extract trains** the same way, into `pkg/trains`. `go test ./cmd/sdlc/internal/project/... ./pkg/trains/...` passes.
+- [x] Write the `PlanBar` tests first: Mx counted when present, tasks otherwise, `no plan yet`, and fenced checkboxes ignored. Then implement it.
+- [x] Write the `RenderTrains`/`RenderOffTrain` golden tests against a crafted `testdata/project.md`, shaped like the ops project files but holding no operator content. They cover each glyph, a cross-repo car, a failed car read (`?`), and an off-train slot list plus `_None._`. Then implement them.
+- [x] Write the `fakeSessionSync` model and its own test, which pins the stale, lock, missing-hash and fold-not-owed refusals from couch's help.
+- [x] Write the `status` tests against the fake, then implement them. Strategy: table-driven over each verb (`section`, `thread`, `owed`, `seen`, `submit`, `clobbered`, `trains`); `fakeSessionSync` injects a stale or held-lock outcome at a chosen call number, and each row asserts the exit code, the fake's write count and the folded IDs. The rows that carry the risk: `TestOperatorLockRefuses` (exit 3, zero writes); stale-then-success and four-stales refusal; `--fold-owed` folds only seen ∩ owed; the seen-set prunes to owed.
 
   The legacy `holder: agent` lock deletion is ported only if parley.nvim#315 is still open when M3 starts; record the check in `## Log`.
-- [ ] Write the `SDLC` seam (exec and decode) with `fakeSDLC` fixtures, and `tl-lead trains PROJECT` (stdout only, no write) on top of it, using bounded concurrency of 8.
-- [ ] Write the live conformance test (opt-in), run it once here against the real `couch`, and log the result.
-- [ ] Update the procedure in `help.md`, which names `tl-lead status …` and `tl-lead trains` and no Python, and assert it in `TestLeadHelpNamesSubcommands`.
-- [ ] Measure: run `tl-lead trains` against the live ops project, compare its output with `render-trains.py`'s, and log the timing and any diff.
+- [x] Write the `SDLC` seam (exec and decode) with `fakeSDLC` fixtures, and `tl-lead trains PROJECT` (stdout only, no write) on top of it, using bounded concurrency of 8.
+- [x] Write the live conformance test (opt-in), run it once here against the real `couch`, and log the result.
+- [x] Update the procedure in `help.md`, which names `tl-lead status …` and `tl-lead trains` and no Python, and assert it in `TestLeadHelpNamesSubcommands`.
+- [x] Measure: run `tl-lead trains` against the live ops project, compare its output with `render-trains.py`'s, and log the timing and any diff.
 - [ ] Run the full `make test` in the background before the close, then `sdlc close`. Hand over to the TL: the ops draft becomes a pointer, `scripts/*.py` are deleted, and the TL switches its calls to `tl-lead`. This is the TL's ops change, named in the report.
+
+## Revisions
+
+- 2026-10-13 — how the build departed from the plan, recorded while ticking the rows:
+  - **Rule-table loader.** It lives in `pkg/tlrules`, not inside a `cmd/` directory, because the settings test treats every `cmd/` directory as a binary that needs a sandbox exemption. `rules.tsv` gained a scope column (`own`/`cited`) so the lead may name the `sdlc stage` commands, which are the TL's half of the same step.
+  - **SDLC seam.** It gained `RepoRoot` (`sdlc workspace <repo> --json`), so each car resolves its repository in 0.2 s while the 11.8 s `sdlc fleet inventory` runs alongside, needed only for off-train slots. This took a measured render from 21.8 s to 13.7 s.
+  - **Render goldens.** They are inline in `trains_test.go` (`TestRenderTrainsGolden`, `TestRenderOffTrain`, `TestGatherTrains`) rather than in a `testdata/project.md`. The sdlc fixtures, `testdata/issue-show.json` and `testdata/fleet-inventory.json`, are captured from real output and scrubbed of machine and operator identifiers.
+  - **Status tests.** These are one test per verb plus a fault-injection table for the write loop (`TestWriteSectionRetries`). The named risk rows exist under these names: `TestOperatorLockRefuses`, `TestFoldOwedFoldsOnlySeen`, `TestListingPrunesSeenSet` and `TestSeenSetMalformedIsAnError`.
+  - **Legacy lock.** The `holder: agent` lock deletion is not ported, because parley.nvim#315 is done.
+  - **Settings exemption.** The `tl-worker *` / `tl-lead *` sandbox exemptions are ariadne#354, a local-gates change built from main by another slot. M1's milestone-close waits for it to land.
+
