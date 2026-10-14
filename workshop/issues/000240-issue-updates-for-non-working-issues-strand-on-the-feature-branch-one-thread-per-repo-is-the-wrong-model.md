@@ -133,7 +133,7 @@ removes the stranding and the sweep hazard without any new model.
 
 - [x] Publish selected non-issue workshop prose through a main CAS, with
       path, base, concurrency, and cleanup tests; document the path in atlas.
-- [ ] Verify the full suite on the repaired code and prepare the issue for close.
+- [x] Verify the full suite on the repaired code and prepare the issue for close.
 
 ## Log
 
@@ -160,6 +160,10 @@ in cleanup, BR-6 confirmed an edit could be overwritten between validation and
 restore, and BR-7 requested README usage. Literal Git pathspecs, an atomic
 move-and-check cleanup, and README guidance now have targeted regression tests
 passing; the earlier suite status is evidence only for the pre-fix code head.
+The repaired head `38ac58676eb41e341fa2fd62f7161401a9c8cc13` passed
+`sdlc local-check run --name suite`: all 12 cmd/sdlc shards (1,351 tests),
+54 other packages, zero failures, 501.6s wall, recorded as
+`sdlc-local/suite` (log SHA-256 prefix `d3a0bf281d08`).
 
 ### 2026-09-20
 
