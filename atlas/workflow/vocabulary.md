@@ -237,6 +237,44 @@ change. The engine remains datatype-generic; #180 M2 made the publish gate
 noun-table-driven and enrolled `issue` + `project`. Enrolling another noun is now a
 table row plus its noun-specific structural policy, not another validator.
 
+## Repo-defined enums (#348)
+
+The shared model can declare a frontmatter field's **type** while each repository
+declares its **allowed values**: ariadne ships the contract, and each repo fills
+it in. This is the vocabulary's answer to a per-repo taxonomy without forking
+`issue.cue` (the layer merge is whole-file shadowing, and sdlc reads the
+embedded export, so a repo cannot extend the model in place).
+
+- **Model** (`construct/vocabulary/issue.cue`):
+  - `enums` holds the shared closed enums (`severity: critical | high | medium | low`).
+  - `repoEnums` holds the repo-defined ones. It gives `declarationPath`
+    (`.sdlc/vocabulary.json`) and, per field, the syntax: `area` is a `/`-path of
+    `segment`s, up to `maxDepth`, multi-valued up to `maxItems`.
+  - Card rows name their set (`kind: enum | repo-enum`, `enum: <key>`), and the
+    `card-enums-declared` law ties each row to a declared set.
+  - `#Issue` carries the shape for the cue instance check.
+- **Declaration** (per repo, `.sdlc/vocabulary.json`, read from **main**, never a
+  branch):
+  - The format is `{"version": 1, "enums": {"area": ["couch/broadcast/web", ...]}}`,
+    parsed strictly by `cmd/sdlc/internal/repoenum`.
+  - An absent file declares nothing.
+  - A value is allowed when it is declared or is an ancestor of a declared value.
+  - `.sdlc/` is under the local-gates guard, so the operator governs each repo's
+    small set, and agents cannot drift the taxonomy.
+- **Where it is checked:**
+  - Card parsing checks **shape only** (`ParseCard`). A value later removed from a
+    declaration never makes a card unreadable.
+  - Membership is checked by the writers (`issue new --area/--severity`,
+    `issue set-area`, `issue set-severity`, `issue publish`), by `issue validate`
+    (files, and with `--all` every card), and by the #124 instance gate at
+    merge/push (against the declaration at the gate's base).
+- **Query:** `issue list --area couch/broadcast` matches by whole segments
+  (`couch/broadcast/web`, not `couch/broadcaster`). `--severity high,critical` is
+  also available, and `sdlc state --json` carries `area`/`severity`.
+- **Adding another repo enum** takes three things: a `repoEnums.fields` row, a card
+  (or details) field naming it, and a key in each repo's declaration. No new Go is
+  needed; the syntax is read from the model.
+
 ## Relationship to existing entries
 
 - The *operational* status flow (GitHub → local → archive) is

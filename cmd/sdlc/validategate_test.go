@@ -3,10 +3,12 @@ package main
 import (
 	"bytes"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/repoenum"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -25,7 +27,25 @@ func stubGate(t *testing.T, changes []gitx.FileChange, fmOK bool, fmRunErr error
 		return "  - status: \"in-progress\" is not valid", fmOK, fmRunErr
 	}
 	readIssueFileFn = func(p string) ([]byte, error) { return []byte(files[p]), nil }
+	stubRepoEnums(t, "", nil)
 	return func() { diffNameStatusFn, validateFrontmatterFn, readIssueFileFn = od, of, or }
+}
+
+// stubRepoEnums answers the gate's declaration read (#348) with decl at any
+// base, or with err; it counts reads.
+func stubRepoEnums(t *testing.T, decl string, err error) *int {
+	t.Helper()
+	prev := repoEnumsAtBaseFn
+	t.Cleanup(func() { repoEnumsAtBaseFn = prev })
+	reads := new(int)
+	repoEnumsAtBaseFn = func(string) (repoenum.Declaration, error) {
+		*reads++
+		if err != nil {
+			return repoenum.Declaration{}, err
+		}
+		return parseRepoEnums([]byte(decl))
+	}
+	return reads
 }
 
 func runGate() error {
@@ -127,6 +147,7 @@ func TestNounGatesDefaultIssueHomeComesFromVocabulary(t *testing.T) {
 func TestValidateChangedInstancesDispatchesByNoun(t *testing.T) {
 	od, of, or := diffNameStatusFn, validateFrontmatterFn, readIssueFileFn
 	t.Cleanup(func() { diffNameStatusFn, validateFrontmatterFn, readIssueFileFn = od, of, or })
+	stubRepoEnums(t, "", nil)
 
 	diffNameStatusFn = func(_, _ string) ([]gitx.FileChange, error) {
 		return []gitx.FileChange{
@@ -161,4 +182,61 @@ func TestValidateChangedInstancesDispatchesByNoun(t *testing.T) {
 	if reads != 1 {
 		t.Fatalf("issue section reads = %d, want 1 (projects have no issue-section gate)", reads)
 	}
+}
+
+// #348: the gate checks every changed issue's classification against the
+// declaration at its base. The declaration is read at most once, and only when
+// a changed issue carries an area (BR-1: unclassified input never depends on
+// it); an unreadable declaration then fails closed.
+func TestValidateChangedIssuesClassification(t *testing.T) {
+	issueFile := func(fm string) string {
+		return "---\nid: 000001\nstatus: open\n" + fm + "---\n\n# x\n"
+	}
+	changes := []gitx.FileChange{{Status: "M", Path: "workshop/issues/000001-x.md"}, {Status: "M", Path: "workshop/issues/000002-y.md"}}
+	for _, tc := range []struct {
+		name, fm1, fm2 string
+		want           string // "" = passes
+		reads          int
+	}{
+		{"declared and ancestor pass", "area: [couch/broadcast/web]\n", "area:\n  - couch\nseverity: high\n", "", 1},
+		{"undeclared area", "area: [couch/session]\n", "", "couch/session", 1},
+		{"invalid severity needs no declaration", "", "severity: urgent\n", "urgent", 0},
+		{"bad area shape needs no declaration", "area: Couch\n", "", "classification", 0},
+		{"duplicate area", "area: [couch, couch]\n", "", "twice", 0},
+		{"unclassified", "", "", "", 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			restore := stubGate(t, changes, true, nil, map[string]string{
+				"workshop/issues/000001-x.md": issueFile(tc.fm1), "workshop/issues/000002-y.md": issueFile(tc.fm2)})
+			defer restore()
+			reads := stubRepoEnums(t, `{"version":1,"enums":{"area":["couch/broadcast/web"]}}`, nil)
+			var out bytes.Buffer
+			err := validateChangedInstances("BASE", "HEAD", nounGates("workshop/issues"), &out, io.Discard)
+			if tc.want == "" && err != nil {
+				t.Fatalf("%v\n%s", err, out.String())
+			}
+			if tc.want != "" && (err == nil || !strings.Contains(out.String(), tc.want)) {
+				t.Fatalf("err %v, out %q, want %q", err, out.String(), tc.want)
+			}
+			if *reads != tc.reads {
+				t.Fatalf("declaration read %d times, want %d", *reads, tc.reads)
+			}
+		})
+	}
+	t.Run("unreadable declaration fails closed when an area needs it", func(t *testing.T) {
+		restore := stubGate(t, changes, true, nil, map[string]string{"workshop/issues/000001-x.md": issueFile("area: [couch]\n"), "workshop/issues/000002-y.md": issueFile("")})
+		defer restore()
+		stubRepoEnums(t, "", errors.New(".sdlc/vocabulary.json: version 2, want 1"))
+		if err := validateChangedInstances("BASE", "HEAD", nounGates("workshop/issues"), io.Discard, io.Discard); err == nil || !strings.Contains(err.Error(), ".sdlc/vocabulary.json") {
+			t.Fatalf("err %v", err)
+		}
+	})
+	t.Run("unreadable declaration does not gate unclassified issues", func(t *testing.T) {
+		restore := stubGate(t, changes, true, nil, map[string]string{"workshop/issues/000001-x.md": issueFile("severity: low\n"), "workshop/issues/000002-y.md": issueFile("")})
+		defer restore()
+		stubRepoEnums(t, "", errors.New("no main"))
+		if err := validateChangedInstances("BASE", "HEAD", nounGates("workshop/issues"), io.Discard, io.Discard); err != nil {
+			t.Fatalf("err %v", err)
+		}
+	})
 }

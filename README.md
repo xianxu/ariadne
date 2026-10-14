@@ -73,6 +73,29 @@ Planning and close reviews release the local repository lock while the reviewer
 runs. SDLC checks the prepared inputs again before recording a result; concurrent
 edits require a rerun. A review's timeout scales with its window (30m up to 500 added lines, +15m per further 1,000, at most `2h`; plan reviews get 30m, #300); `WF_REVIEW_TIMEOUT` (allowed `1s`–`2h`) overrides it.
 
+## Classifying issues
+
+An issue can carry a **severity** (`critical | high | medium | low`, shared by
+every repository) and **areas**: `/`-paths such as `couch/broadcast/web` naming
+where it belongs. Each repository declares its own allowed areas in
+`.sdlc/vocabulary.json` on main:
+
+```json
+{"version": 1, "enums": {"area": ["couch/broadcast/web", "sdlc/merge"]}}
+```
+
+Declaring `couch/broadcast/web` also allows `couch` and `couch/broadcast`. The
+file sits under the local-gates guard, so changing the taxonomy needs the
+operator's `local-gates-verified` label; an absent file declares no areas. Set
+them with `sdlc issue new --area couch/broadcast --severity high`, or later
+with `sdlc issue set-area --issue N <area>...` and
+`sdlc issue set-severity --issue N <level>` (each takes `--clear`). Both are
+card fields. Query with `sdlc issue list --area couch/broadcast`, which matches
+whole segments (`couch/broadcast/web`, not `couch/broadcaster`), and
+`--severity high,critical`. An undeclared area is refused by these writers, by
+`issue publish`, by `sdlc issue validate` and by the merge/push instance gate.
+See [repo-defined enums](atlas/workflow/vocabulary.md#repo-defined-enums-348).
+
 ## Standalone weave startup
 
 Install the published CLI from the Homebrew tap, then link and compile from the

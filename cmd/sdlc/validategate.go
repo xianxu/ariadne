@@ -23,6 +23,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/repoenum"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -33,6 +34,14 @@ var (
 	validateFrontmatterFn      = shellValidateFrontmatter
 	readIssueFileFn            = os.ReadFile
 	validateChangedInstancesFn = validateChangedInstances
+	// repoEnumsAtBaseFn reads the repository's declaration (#348) at the gate's
+	// base, the main the caller pinned.
+	repoEnumsAtBaseFn = func(base string) (repoenum.Declaration, error) {
+		return repoEnumsAtRev(func(args ...string) (string, error) {
+			out, err := gitx.RunGit(args...)
+			return string(out), err
+		}, base)
+	}
 )
 
 // nounGate binds one vocabulary noun to the repo directory containing its
@@ -63,6 +72,9 @@ func validateChangedInstances(base, head string, gates []nounGate, stdout, stder
 
 	var problems []string
 	checked := 0
+	// The declaration at base is read at most once, and only when a changed
+	// issue carries an area (#348).
+	read := lazyDecl(func() (repoenum.Declaration, error) { return repoEnumsAtBaseFn(base) })
 	for _, ch := range changes {
 		gate, ok := gateForPath(ch.Path, gates)
 		if ch.Status == "D" || !ok {
@@ -83,13 +95,31 @@ func validateChangedInstances(base, head string, gates []nounGate, stdout, stder
 			problems = append(problems, ch.Path+" (frontmatter):\n"+indentLines(strings.TrimSpace(out), "      "))
 		}
 
+		// One read per issue file, shared by the classification and section
+		// checks below.
+		var data []byte
+		var readErr error
+		if gate.noun == "issue" || (ch.Status == "A" && gate.checkSections) {
+			data, readErr = readIssueFileFn(ch.Path)
+		}
+
+		// Classification (#348): area membership in main's declaration and the
+		// shared severity, for every changed issue.
+		if gate.noun == "issue" && readErr == nil {
+			if err := detailsClassification(read, ch.Path, data); err != nil {
+				if errors.As(err, new(declUnreadable)) {
+					// The declaration itself is unreadable: fail closed.
+					return fmt.Errorf("instance-conformance gate: %w", err)
+				}
+				problems = append(problems, ch.Path+" (classification): "+strings.TrimPrefix(err.Error(), ch.Path+": "))
+			}
+		}
+
 		// Sections — newly-ADDED files only (grandfather legacy/in-flight; a rename "R"
 		// is NOT "A", so a renamed/archived ticket is never section-validated).
-		if ch.Status == "A" && gate.checkSections {
-			if data, rerr := readIssueFileFn(ch.Path); rerr == nil {
-				for _, f := range issue.CheckSectionsPresence(string(data)) {
-					problems = append(problems, ch.Path+" (section): "+f.Message)
-				}
+		if ch.Status == "A" && gate.checkSections && readErr == nil {
+			for _, f := range issue.CheckSectionsPresence(string(data)) {
+				problems = append(problems, ch.Path+" (section): "+f.Message)
 			}
 		}
 	}
