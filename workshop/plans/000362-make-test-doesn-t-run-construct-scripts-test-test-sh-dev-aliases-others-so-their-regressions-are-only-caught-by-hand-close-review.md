@@ -144,3 +144,58 @@ findings:
     detail: |
       scripts/test/scripts_test.go:25. pkg/testgate/ceiling.go says HangCeiling exists so every package's tests share one value. The runner takes about 13s, so the 2m ceiling still leaves about 9x headroom. ARCH-DRY: use testgate.HangCeiling, or explain why a whole-suite runner needs its own ceiling.
 ```
+
+---
+
+## Re-review — 2026-10-13T22:29:49-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 362 — make test doesn't run construct/scripts/test/*.test.sh (dev-aliases, others), so their regressions are only caught by hand |
+| repo | ariadne |
+| issue file | workshop/issues/000362-make-test-doesn-t-run-construct-scripts-test-test-sh-dev-aliases-others-so-their-regressions-are-only-caught-by-hand.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 14b19ee280dee33f6e3ec4bef1770bc2443c68f0..ae4b17867fa160731f6472b2fda860574431bea3 |
+| command | sdlc close --issue 362 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-13T22:29:49-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+BR-3, the only open finding, is fixed, and this window doesn't introduce any new problems. It changes one line of code: `scripts/test/scripts_test.go:26` now sets `runnerDeadline = testgate.HangCeiling` instead of its own `5 * time.Minute`. The comment above it now says the deadline is the shared ceiling, and `time` is still imported because `WaitDelay` uses it. The other changes are generated files (the gate ledger and the close-review record) and the issue-file entries that come with a close: the card mirror hash, `actual_hours`, and one Log line. `## Spec`, `## Revisions` and `## Done when` are unchanged, so scope did not change. There were no conflict resolutions to judge. In the review checkout, `go vet ./scripts/test/` passes and `go test -count=1 ./scripts/test/` passes in 7.5s, well under the 2-minute ceiling.
+
+1. **Strengths**
+   - `scripts/test/scripts_test.go:26` now takes its deadline from `testgate.HangCeiling`, the shared value the rest of the tree already uses (for example `cmd/weave/internal/staging/stage_test.go:39` and `cmd/weave/internal/weavefs/runner_owned_test.go:45`). That makes it one value for every package, which is what `pkg/testgate/ceiling.go:11` intends.
+   - The fix only changes the constant. The process-group kill, `WaitDelay` and the check of `ctx.Err()` before the exit error were verified in round 2, and they are unchanged.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - The issue's newest Log line, added by this window's close, describes the fix as "a 5-minute deadline". The constant is now 2 minutes. The line records the earlier close, so I'm not raising it as a finding.
+
+5. **Test coverage:** The deadline mechanism was shown to work in round 2 by forcing a hang. This window only changes the constant, so a new regression test isn't needed. The runner finishes in about 7–13s, well inside 2 minutes.
+
+6. **Architecture** (this window only)
+   - **ARCH-DRY:** pass. The separate constant is gone; the test uses the shared ceiling.
+   - **ARCH-PURE:** pass. This is test setup code only.
+   - **ARCH-PURPOSE:** pass. This test was the one place in the window that set its own ceiling, and it now uses the shared one.
+
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: addressed
+    note: |
+      scripts/test/scripts_test.go:26 now sets runnerDeadline = testgate.HangCeiling (2m), replacing the local 5m constant; go vet and go test -count=1 ./scripts/test pass (7.5s).
+```

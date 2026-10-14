@@ -48,6 +48,19 @@ rounds:
       isolation: checkout
       reviewed: 52fd1fd07d6b9b764a1a9b4af9b36044738034cb
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-13T22:29:49-07:00"
+      dispatched: "2026-10-13T22:29:18-07:00"
+      agent: claude
+      dispose:
+        - id: BR-3
+          disposition: addressed
+          note: scripts/test/scripts_test.go:26 now sets runnerDeadline = testgate.HangCeiling (2m), replacing the local 5m constant; go vet and go test -count=1 ./scripts/test pass (7.5s).
+          round: 3
+      recipe: fix-review
+      isolation: checkout
+      reviewed: ae4b17867fa160731f6472b2fda860574431bea3
+      blocked: false
 ---
 
 # Gate ledger — ariadne#362 (boundary-review)
@@ -76,6 +89,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-3** [Minor] `test-ceiling-single-source` TestConstructScripts adds its own 5m runnerDeadline instead of the shared testgate.HangCeiling
   scripts/test/scripts_test.go:25. pkg/testgate/ceiling.go says HangCeiling exists so every package's tests share one value. The runner takes about 13s, so the 2m ceiling still leaves about 9x headroom. ARCH-DRY: use testgate.HangCeiling, or explain why a whole-suite runner needs its own ceiling.
 
+## Round 3 — 2026-10-13T22:29:49-07:00 (claude) — passed
+
+### Disposed
+
+- BR-3 — addressed — scripts/test/scripts_test.go:26 now sets runnerDeadline = testgate.HangCeiling (2m), replacing the local 5m constant; go vet and go test -count=1 ./scripts/test pass (7.5s).
+
 ## Open findings
 
-- **BR-3** [Minor] `test-ceiling-single-source` TestConstructScripts adds its own 5m runnerDeadline instead of the shared testgate.HangCeiling
+(none — every finding has been disposed)
