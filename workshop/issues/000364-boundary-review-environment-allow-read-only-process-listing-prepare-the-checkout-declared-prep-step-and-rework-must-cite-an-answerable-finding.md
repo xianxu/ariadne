@@ -44,7 +44,7 @@ Host evidence (full suites, the blocked checks) was supplied in the Log, but a R
 
 - [x] Add and prove the literal Darwin ps exception without weakening protected writes.
 - [x] Model unverifiable findings and validate answerable boundary responses.
-- [ ] Prepare every disposable-checkout attempt and reuse bounded retry admission.
+- [x] Prepare every disposable-checkout attempt and reuse bounded retry admission.
 - [x] Document and verify with pair's runtime generation and the full suite.
 
 Durable plan: [review environment](../plans/000364-review-environment-plan.md).
@@ -158,6 +158,13 @@ plus the live pair proof pass (14.814 s). Pair origin/main remains
 b63f4bd76e3e81d1433cfeda544bb3bed8501522: the missing-assets failure reproduces,
 fenced preparation takes 1.532 s, runtimebundle tests pass, and source is unchanged.
 Fetched origin/main; it is already an ancestor. Full suite rerun follows.
+
+Full suite after BR-1 correction PASS at
+`bd486507794b44ba6bd094ed85c96fd6d77da30f`:
+`make -k test ARGS='--json /tmp/ariadne-364-full-suite-3.jsonl'` completed
+in 401.2 s, all 12 shards over 1,249 SDLC tests plus 53 other packages,
+zero failures or missing tests. Log: `/tmp/ariadne-364-full-suite-3.log`.
+Implementation acceptance restored; submitting BR-1 correction for re-review.
 
 ## Revisions
 
