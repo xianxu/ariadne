@@ -44,6 +44,7 @@ Delivery follows the close review: land the PR, repeat `weave refresh` from the 
 ## Log
 
 ### 2026-10-14
+- 2026-10-14: closed — make -k tools passed; four exact generated TL skill paths matched the added ignore patterns; git diff origin/main...HEAD -- .gitignore showed only those four additions; git diff --check passed; recorded sdlc-local/suite passed on baab3397 (12 shards, 1353 sdlc tests, 59 packages). No atlas surface: ignore entries only.; review verdict: SHIP
 
 - `weave refresh` on main-slot1 at `7a7223628f1ec78a213ad4dd6ea4f0f9761c9f31` changed only `.gitignore` by the four specified additions. The generated diff was stashed while `start-plan` created this issue branch from main.
 - On the issue branch, `git check-ignore -v` matched each of the four paths to its exact added line. `weave refresh` refuses a branch ahead of main, so the clean-refresh check moves to the resting branch after landing.
