@@ -351,3 +351,110 @@ findings:
    - **ARCH-FUNERAL — pass:** normal temporary cleanup and existing worktree/log retention are reused.
 
 7. **Plan revision recommendations:** Append an R4 recording the cleanup-test invariant across all four subprocess cases, and the commit-status conformance fixture, invocation and cadence. The M1 entity mapping otherwise matches the code after R2/R3.
+
+---
+
+## Re-review — 2026-10-13T23:22:41-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 332 — sdlc merge integrates a moved main itself, then re-runs the suite before landing |
+| repo | ariadne |
+| issue file | workshop/issues/000332-sdlc-merge-integrates-a-moved-main-itself-then-re-runs-the-suite-before-landing.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 96d587ce291afac3eb6b69ebf117d2d83c090671..5599f19d3e92e5e60af36d6f2b78076750a0562c |
+| command | sdlc milestone-close --issue 332 --milestone M1 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-13T23:22:41-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+M1 delivers the recorded suite requirement, main-derived defaults and weight, and docs-only ancestor reuse. Both open findings are addressed with verified regression evidence. No new blocking findings emerged. This verdict covers M1; integration retries and failure classification remain M2/M3 work.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      ChangedPathArgs supplies --no-renames -z to classification callers; rename and ancestor regressions pass.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Direct status-parser and ancestor-walk tests exist and pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Parent and ancestor-read failures propagate; error and root-commit regressions pass.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The parser excludes prerequisite-only “Not a target” entries; its direct regression passes.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Probe timeout, bounded pipe draining and process-group cleanup are implemented; lifetime regressions pass.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      withDefaultSuite is shared by the CI gate and local-check command.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Plan revision R2 records the delivered helper names, signatures and zero-weight default, matching the implementation.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      effectiveLocalChecks forces a declared suite to required while preserving execution settings; pure and gate regressions pass.
+  - id: BR-9
+    disposition: addressed
+    note: |
+      README.md:326 documents invocation, mandatory suite, main-derived default, weight and ancestor reuse, matching the implementation.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      Both probe assertions now expire after one second. Removing group configuration and termination in a disposable copy makes all four probe/runner lifetime cases fail on surviving children.
+  - id: BR-11
+    disposition: addressed
+    note: |
+      Live conformance passes through realGH.CommitStatuses against four pinned historical events; changing reduction to oldest-wins makes it fail. Atlas documents execution cadence.
+```
+
+**1. Strengths**
+
+- Shared suite derivation preserves overrides while enforcing the requirement (`cmd/sdlc/localchecks.go:143`, `cmd/sdlc/localchecks_make.go:39`).
+- Main-side probing prevents a branch from removing or reducing its own suite obligation (`cmd/sdlc/localchecks_make.go:53`).
+- Subprocess regressions now distinguish termination from natural completion.
+- The live status test verifies production behavior against independently pinned history (`cmd/sdlc/commitstatuses_conformance_test.go:24`).
+
+**2. Critical findings:** None.
+
+**3. Important findings:** None.
+
+**4. Minor findings:** None.
+
+**5. Test coverage**
+
+Targeted suite, gate, parser, ancestor, weight, command and subprocess tests passed. Complete `gitx` and `freshness` package tests passed. Live GitHub status conformance passed and rejected the parser mutation. Cleanup mutations failed all four lifetime cases as expected. Disposable copies were removed; the reviewed checkout remains clean. The full repository suite was not run.
+
+**6. Architecture**
+
+- **ARCH-DRY — Pass:** shared suite derivation, changed-path arguments and worktree lifecycle.
+- **ARCH-PURE — Pass:** M1 decision/parser entities are directly tested; IO stays in integration helpers.
+- **ARCH-PURPOSE — Pass:** M1’s suite enforcement is wired into the production gate and command.
+- **ARCH-MOCK — Pass:** stateful status fake shares the production seam; live conformance and cadence exist.
+- **ARCH-CONSTRAINTS — Pass:** ancestor traversal and subprocess lifetimes are bounded and tested.
+- **ARCH-SECURE — Pass:** enforcement inputs come from main; read failures refuse admission.
+- **ARCH-ORDER — Pass:** head checks and subprocess cleanup cover the relevant M1 ordering boundaries.
+- **ARCH-FUNERAL — Pass:** temporary probes/worktrees have cleanup; logs reuse existing retention.
+
+**7. Plan revisions**
+
+None required. Existing R2–R4 revisions reconcile the M1 implementation and prior findings.

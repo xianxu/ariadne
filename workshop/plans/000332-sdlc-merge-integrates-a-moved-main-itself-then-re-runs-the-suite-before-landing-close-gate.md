@@ -157,6 +157,60 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - "n": 4
+      timestamp: "2026-10-13T23:22:41-07:00"
+      dispatched: "2026-10-13T23:19:52-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: ChangedPathArgs supplies --no-renames -z to classification callers; rename and ancestor regressions pass.
+          round: 4
+        - id: BR-2
+          disposition: addressed
+          note: Direct status-parser and ancestor-walk tests exist and pass.
+          round: 4
+        - id: BR-3
+          disposition: addressed
+          note: Parent and ancestor-read failures propagate; error and root-commit regressions pass.
+          round: 4
+        - id: BR-4
+          disposition: addressed
+          note: The parser excludes prerequisite-only “Not a target” entries; its direct regression passes.
+          round: 4
+        - id: BR-5
+          disposition: addressed
+          note: Probe timeout, bounded pipe draining and process-group cleanup are implemented; lifetime regressions pass.
+          round: 4
+        - id: BR-6
+          disposition: addressed
+          note: withDefaultSuite is shared by the CI gate and local-check command.
+          round: 4
+        - id: BR-7
+          disposition: addressed
+          note: Plan revision R2 records the delivered helper names, signatures and zero-weight default, matching the implementation.
+          round: 4
+        - id: BR-8
+          disposition: addressed
+          note: effectiveLocalChecks forces a declared suite to required while preserving execution settings; pure and gate regressions pass.
+          round: 4
+        - id: BR-9
+          disposition: addressed
+          note: README.md:326 documents invocation, mandatory suite, main-derived default, weight and ancestor reuse, matching the implementation.
+          round: 4
+        - id: BR-10
+          disposition: addressed
+          note: Both probe assertions now expire after one second. Removing group configuration and termination in a disposable copy makes all four probe/runner lifetime cases fail on surviving children.
+          round: 4
+        - id: BR-11
+          disposition: addressed
+          note: Live conformance passes through realGH.CommitStatuses against four pinned historical events; changing reduction to oldest-wins makes it fail. Atlas documents execution cadence.
+          round: 4
+      boundary: M1
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 5599f19d3e92e5e60af36d6f2b78076750a0562c
+      blocked: false
 ---
 
 # Gate ledger — ariadne#332 (boundary-review)
@@ -218,7 +272,22 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-11** [Important] `external-fakes-require-live-conformance` The new commit-status dependency has no live conformance check
   cmd/sdlc/cigate.go:312-339 introduces a status endpoint and newest-first interpretation used to admit ancestor evidence. Tests exercise handwritten JSON and ciFakeGH; TestLiveJobRunConformance covers only JobRun. ARCH-MOCK requires a read-only opt-in check through realGH.CommitStatuses against independently known status history, plus a documented execution cadence.
 
+## Round 4 — 2026-10-13T23:22:41-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — ChangedPathArgs supplies --no-renames -z to classification callers; rename and ancestor regressions pass.
+- BR-2 — addressed — Direct status-parser and ancestor-walk tests exist and pass.
+- BR-3 — addressed — Parent and ancestor-read failures propagate; error and root-commit regressions pass.
+- BR-4 — addressed — The parser excludes prerequisite-only “Not a target” entries; its direct regression passes.
+- BR-5 — addressed — Probe timeout, bounded pipe draining and process-group cleanup are implemented; lifetime regressions pass.
+- BR-6 — addressed — withDefaultSuite is shared by the CI gate and local-check command.
+- BR-7 — addressed — Plan revision R2 records the delivered helper names, signatures and zero-weight default, matching the implementation.
+- BR-8 — addressed — effectiveLocalChecks forces a declared suite to required while preserving execution settings; pure and gate regressions pass.
+- BR-9 — addressed — README.md:326 documents invocation, mandatory suite, main-derived default, weight and ancestor reuse, matching the implementation.
+- BR-10 — addressed — Both probe assertions now expire after one second. Removing group configuration and termination in a disposable copy makes all four probe/runner lifetime cases fail on surviving children.
+- BR-11 — addressed — Live conformance passes through realGH.CommitStatuses against four pinned historical events; changing reduction to oldest-wins makes it fail. Atlas documents execution cadence.
+
 ## Open findings
 
-- **BR-10** [Important] `unbounded-subprocess` Probe cleanup tests accept natural child exit instead of proving termination
-- **BR-11** [Important] `external-fakes-require-live-conformance` The new commit-status dependency has no live conformance check
+(none — every finding has been disposed)

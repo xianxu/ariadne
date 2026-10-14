@@ -79,6 +79,7 @@ total: 2.35
 ### 2026-10-11
 
 ### 2026-10-13
+- 2026-10-13: closed M1 — R4: probe cleanup mutation fails both cases; four probe/runner descendant cases and read-only live CommitStatuses conformance against ariadne PR 229 pass in 8.298s. R3 broader local-check and CI-gate regressions passed in 28.346s; git diff --check clean.; review verdict: SHIP
 
 - Mapped the landing path (ariadne:1). `runDurableMerge` has no branch-contains-main check: GitHub merges a stale head server-side, so the landed tree is never tested. The re-review rule after integrating main is already the publish gate's (#304: the reviewed patch is replayed onto the new base; a code conflict owes `--fixed-then-ship`), not #269 freshness (stale/fresh only). sdlc never runs the suite; #345's `runLocalCheck` is the engine (exact sha, detached worktree, machine lock, recorded status). A bug was found there: `acquireSuiteSlot` takes weight 1, so `make test` goes reentrant and ariadne's weight-2 sharded suite would hold one slot.
 - Draft design sent to the hub:
