@@ -46,6 +46,33 @@ Durable plan: `workshop/plans/000332-sdlc-merge-integrates-a-moved-main-itself-t
 - [ ] M2 — integration loop in the durable path (merge main, conflict abort, publish-replay pre-check, lease push, bounded CI wait, re-integrate up to 3, resume an interrupted integration); legacy path refuses a moved main
 - [ ] M3 — failure labelling: a baseline run on main classifies introduced vs pre-existing
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module      design=0.05 impl=0.2
+item: smaller-go-module      design=0.05 impl=0.2
+item: atlas-docs             design=0.05 impl=0.06
+item: milestone-review       design=0.0 impl=0.16
+item: greenfield-go-module   design=0.25 impl=0.3
+item: smaller-go-module      design=0.05 impl=0.16
+item: smaller-go-module      design=0.05 impl=0.12
+item: milestone-review       design=0.0 impl=0.16
+item: smaller-go-module      design=0.05 impl=0.2
+item: milestone-review       design=0.0 impl=0.16
+design-buffer: 0.15
+total: 2.35
+```
+
+- The items, in order:
+  - M1: suite check (weight, default suite, effective declaration, main-side probe); ancestor-record rule with GitHub statuses; docs; M1 review.
+  - M2: the integration state machine and its shell (merge, abort, replay pre-check, lease push, PR-head sync, resume); CI wait; legacy refusal plus recovery contract; M2 review.
+  - M3: parser, classifier and baseline; the close review.
+- Design is at ×0.2, because the plan and R1 settle the decisions. Impl is at 40% of the v2 table midpoints.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
+
 ## Log
 
 ### 2026-10-11
