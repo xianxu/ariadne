@@ -105,7 +105,7 @@ Approved [implementation plan](../plans/000337-issue-assets-plan.md); next gate 
 - [x] Typed asset policy, bounded bundle model, attach verb and dynamic policy help.
 - [x] Bundle publication, ownership, recovery and restore.
 - [x] Archive, abandon/reopen, legacy lifecycle and slot-move verification.
-- [ ] Documentation and acceptance preparation: targeted tests and full suite started below load 40; then enter the binary-owned close review. Shipping remains subject to hub SHIP.
+- [x] Documentation and acceptance preparation: targeted tests and full suite through the weighted machine gate; then enter the binary-owned close review. Shipping remains subject to hub SHIP.
 
 ## Log
 
@@ -318,3 +318,5 @@ reproduced by reviewer overlays. Correction plan appended; acceptance reopened.
 - 2026-10-14T00:14Z — Hub retired the temporary load threshold: full acceptance now starts through the #346 weighted test lock using make -k test; no custom load/lock wait loop.
 
 - 2026-10-14T00:20Z — BR-7 correction targeted verification passed: AssetRecovery, AssetDestinationPolicy, MoveDetail, RecoveryReconcile, Creation, Transfer and MainCandidateReplay (cmd/sdlc 177.192s, tracker 39.009s). Production RED reproduced prepared/uncertain/landed invalid legacy publication; GREEN also covers confirmed-main resumption before card record/source removal. Candidate matrix binds body and exact members, rejects absent pins/corruption/oversize, and distinguishes already-landed proof from fresh policy admission. Full acceptance and close review remain pending.
+
+- 2026-10-14T00:55Z — Full make -k test ARGS=--shards 6 completed at 7f1ad7a2d29f44cea6a1e2a4015da774d95f7743: all 1227 cmd/sdlc tests passed across six shards; 48 other packages ran, with only startup/TestToolsDoubleColonFailurePropagates failing (its package summary repeats that failure). Suite wall 571.1s after weighted-gate wait 1576s; overall exit 2, not a clean full-suite pass. Baseline test inherits MAKEFLAGS=k and wrongly expects a nested make to stop: targeted FAIL with MAKEFLAGS=k, PASS with MAKEFLAGS unset (0.086s), package unchanged against main. Hub filed unassigned #356 and explicitly directed citing that one failure and continuing (receipt 62eadeb6-8400-4fb9-9f8e-6e8e9bc96e16). Log: /tmp/ariadne337-full-round4-20261013.log. No other failures. #352 details published and owner released; current main merged before this suite. Returning to normal close for BR-7 disposition.
