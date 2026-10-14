@@ -145,6 +145,20 @@ implementation acceptance reopened for this correction. Other review checks pass
 live Seatbelt checks skipped under the reviewer parent sandbox, with the host
 conformance evidence retained above.
 
+
+BR-1 correction: replaced normalized Git diff with a framed SHA-256 fingerprint
+of actual tracked bytes, modes, types and leaf symlink targets, retaining HEAD
+and index identity. Initialized gitlinks recurse into their own repository;
+ambiguous ancestor symlinks and populated non-repository gitlinks fail explicitly.
+Four old-code bypasses (assume-unchanged, skip-worktree, clean filter, chmod)
+failed red and now stop before reviewer execution. Dirty overlays and generated
+ignored/untracked assets remain allowed. All preparation tests pass (6.793 s),
+the full judge package passes (7.616 s), and targeted boundary lifecycle tests
+plus the live pair proof pass (14.814 s). Pair origin/main remains
+b63f4bd76e3e81d1433cfeda544bb3bed8501522: the missing-assets failure reproduces,
+fenced preparation takes 1.532 s, runtimebundle tests pass, and source is unchanged.
+Fetched origin/main; it is already an ancestor. Full suite rerun follows.
+
 ## Revisions
 
 - 2026-10-14 — The final checklist item now describes implementation verification;

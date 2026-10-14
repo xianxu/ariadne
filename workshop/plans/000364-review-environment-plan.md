@@ -307,7 +307,7 @@ owns acceptance; do not add a duplicate boundary review outside the binary.
 
 ### BR-1 correction
 
-- [ ] Replace `trackedPreparationState` with a direct tracked-filesystem fingerprint
+- [x] Replace `trackedPreparationState` with a direct tracked-filesystem fingerprint
   and prove hidden modifications halt before reviewer execution. This strengthens
   the existing no-tracked-mutation contract; no new confinement model is introduced.
 - [ ] Rerun targeted lifecycle tests and the full suite, then re-close the finding.
