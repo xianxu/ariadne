@@ -1,12 +1,12 @@
 ---
 id: 000348
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours: 2.11
-card_mirror: '19d09c0066837e047265ef8bfe6782c7c1ceddf3' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '1a5ff01a6333b17a8db8d33cf8e52497e07cddb9' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T16:23:16-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 1.55
 ---
 
 # issues: a hierarchical area path (couch/broadcast/web) and typed facets (severity), queryable by prefix
