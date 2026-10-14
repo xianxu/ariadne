@@ -116,28 +116,43 @@ TALKING TO THE OPERATOR
     `couch-owner: <hub slot>`, `operator: <slug>`. It is state, not a log:
     rewrite it in place, about one screen, gitignored. Every worker report
     updates it in the same turn, before you reply to the operator.
+  - The status file is the source of truth for mutual focus: anything listed
+    in it, a project or an issue, is what you and the operator are both
+    attending to, so its project file, its issue and the status file stay
+    current together. When a thread appears here, sweep its project file in
+    the same pass.
   - Its sections, in order:
-    1. `## Needs you`: numbered decisions and actions, each with your
+    1. `## Needs you`: decisions and actions for the operator, each with your
        recommendation. Queue several in order; never bury one in a thread.
-    2. `## Trains`: one line per train (each train has its own slot, so this
-       is also the slot view). Cars: ✓ landed, ◑ landing, ◐ in flight,
-       ○ waiting; counted in cars, not hours. The current car carries a bar
-       (▉ done, ▕ remaining) of its Mx milestones, or of its checkboxes when it
-       has none, then its phase (plan, build, close, landing, blocked) and at
-       most a few words. A final `⇒` line lists only the cross-train edges
-       that block a car now or just cleared.
-    3. `## Slots (off-train)`: one line per slot not on a train, same bar, or
-       `repo:N idle`.
-    4. `## Threads`: only cross-issue matters (an incident, a rollout, a
-       finding awaiting filing). Per-issue detail lives in the issue.
-    5. `## Fleet` (binaries, rollout state) and a short "recently done".
-  - Render Trains and Slots from sources, never by hand, on every pass:
-    `tl-lead status trains FILE PROJECT` renders both from the project's trains
-    table, `sdlc issue show` per car, `sdlc fleet inventory`, and each claimant
-    checkout's issue file, and writes them (`tl-lead trains PROJECT` only
-    prints). It takes about as long as the fleet inventory, ten-odd seconds. The
-    bar counts only what the files show; never round it up from a worker's
-    "almost done". A car rendered `?` was not read; look before acting on it.
+    2. `## Quota`: one line per coding agent with whatever its meter shows and
+       when it was read (Claude's weekly % and reset, Codex's credits or
+       weekly %, Qoder's credits), for a sense of whether an agent's limit is
+       being spent too fast. Read by hand (`/usage`, `/status`) until
+       `sdlc usage` (ariadne#365) supplies burn rates.
+    3. `## Threads`: one `###` subsection per thread, in focus order, with a
+       standing operator priority list first when there is one:
+       - a project (`### Project: <slug>`): where it stands against its
+         done_when, the open items, the file path, and its trains block;
+       - a train (`### Train: <name>`): a triaged set of loosely related
+         issues (bug fixes, performance, one area), lighter than a project;
+         trains aren't tagged on issues yet, so list the cars, open first,
+         then landed;
+       - `### Miscellaneous`: one-off operator asks not yet organized into a
+         project or a train.
+    4. `## Slots`: one line per slot (its issue, phase and bar; the agent or
+       model where it matters), then the free slots.
+    Per-issue detail lives in the issue file; the digest carries landed lists
+    and friction.
+  - Render from sources, never by hand, on every pass:
+    `tl-lead status slots FILE` renders `## Slots` from `sdlc fleet inventory`,
+    each slot's issue (`sdlc issue show`) and its checkout's issue file, and
+    writes it; it takes about as long as the inventory, ten-odd seconds.
+    `tl-lead trains PROJECT` prints a project's trains block (cars: ✓ landed,
+    ◑ landing, ◐ in flight with its bar, ○ waiting; counted in cars, not
+    hours) for its `### Project` thread. A bar counts `Mx` milestones, or
+    checkboxes when there are none, only as the files show them; never round
+    it up from a worker's "almost done". A `?` was not read; look before
+    acting on it.
   - Session-sync editing is pessimistic for the operator and optimistic for
     you. The operator's lock is the only lock: while it is held every write
     refuses (exit 3), so queue the update and fold it in after their submit, and
@@ -147,7 +162,9 @@ TALKING TO THE OPERATOR
     four) and passes arguments as a list, never through a shell:
       tl-lead status section FILE HEADING BODYFILE [--fold-owed]
       tl-lead status thread FILE TEXTFILE [--drop PREFIX]... [--fold-owed]
-      tl-lead status trains FILE PROJECT [--fold-owed]
+      tl-lead status slots FILE [--fold-owed]
+    A thread entry is one `###` subsection: it replaces the subsection with
+    the same heading, or goes in before `### Miscellaneous`.
     Never write the file any other way.
   - A submit arrives as an owed event. Run `tl-lead status submit FILE`: it
     prints the operator's edits, the lines holding 🤖 markers, any
@@ -287,6 +304,6 @@ TWO HATS
   The TL session is also the operator's chief of staff: features asked for in
   passing, tooling the session needs, demos. Run that work the same way: an
   issue, a prepared slot, landing as part of the item. Its live state is in the
-  status file (`## Slots (off-train)`, `## Threads`), and its history is in the
-  issues. Don't open a second log, and don't put it in a project file: a
+  status file (`## Slots`, `### Miscellaneous` under `## Threads`), and its
+  history is in the issues. Don't open a second log, and don't put it in a project file: a
   project file holds only its project.

@@ -12,74 +12,55 @@ import (
 	"github.com/xianxu/ariadne/pkg/trains"
 )
 
-// carReadConcurrency bounds the parallel `sdlc issue show` calls one render
-// makes (each is a process; a project has tens of cars).
-const carReadConcurrency = 8
+// readConcurrency bounds the parallel `sdlc issue show` calls one render makes
+// (each is a process; a project has tens of cars, a fleet tens of slots).
+const readConcurrency = 8
 
-// renderedTrains is one render's two status-file blocks.
-type renderedTrains struct {
-	Trains, Slots string
+// boundedEach runs f(0..n-1) with at most readConcurrency running at once and
+// returns when all have finished.
+func boundedEach(n int, f func(i int)) {
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, readConcurrency)
+	for i := range n {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer func() { <-sem; wg.Done() }()
+			f(i)
+		}()
+	}
+	wg.Wait()
 }
 
-// gatherTrains renders the Trains and off-train Slots blocks from sources: the
-// project's trains table, sdlc's observation of each car, sdlc's fleet
-// inventory, and each claimant checkout's issue file for the bar. Nothing is
-// typed by hand, so a rendered line can't drift from the truth.
-func gatherTrains(sd SDLC, projectPath, defaultRepo string) (renderedTrains, error) {
+// gatherTrains renders a project's trains block from sources: the project's
+// trains table, sdlc's observation of each car, and each claimant checkout's
+// issue file for the bar. Nothing is typed by hand, so a rendered line can't
+// drift from the truth. The TL pastes it into the project's `### Project`
+// thread.
+func gatherTrains(sd SDLC, projectPath, defaultRepo string) (string, error) {
 	raw, err := os.ReadFile(projectPath)
 	if err != nil {
-		return renderedTrains{}, err
+		return "", err
 	}
 	section, ok := markdoc.SectionBody(string(raw), "Trains")
 	if !ok {
-		return renderedTrains{}, fmt.Errorf("%s has no `## Trains` section", projectPath)
+		return "", fmt.Errorf("%s has no `## Trains` section", projectPath)
 	}
 	plan := trains.ParseTrains(section, defaultRepo)
 	if len(plan.Trains) == 0 {
-		return renderedTrains{}, fmt.Errorf("%s: no `| Train | Cars, in order | Slot |` rows under `## Trains`", projectPath)
+		return "", fmt.Errorf("%s: no `| Train | Cars, in order | Slot |` rows under `## Trains`", projectPath)
 	}
-	vantage := filepath.Dir(projectPath)
-	listed := map[trains.IssueRef]bool{}
+	seen := map[trains.IssueRef]bool{}
 	var refs []trains.IssueRef
 	for _, t := range plan.Trains {
 		for _, r := range t.Cars {
-			if !listed[r] {
-				listed[r] = true
+			if !seen[r] {
+				seen[r] = true
 				refs = append(refs, r)
 			}
 		}
 	}
-	// The fleet inventory (seconds: it reads every repository's claims) is
-	// needed only for the off-train block, so it runs while the cars are read.
-	var fleet Fleet
-	var fleetErr error
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		fleet, fleetErr = sd.FleetInventory(vantage)
-	}()
-	cars := readCars(sd, vantage, refs)
-	<-done
-	if fleetErr != nil {
-		// The Trains block doesn't depend on the inventory; only the
-		// off-train block goes unread, and says so.
-		return renderedTrains{
-			Trains: renderTrains(plan, cars),
-			Slots:  "```\n? off-train slots unread: " + fleetErr.Error() + "\n```",
-		}, nil
-	}
-
-	bars := map[string]string{}
-	candidates := offTrainSlots(fleet, listed, nil)
-	for _, o := range candidates {
-		if o.ID != 0 {
-			bars[o.Slot.Address] = issueBar(o.Slot.HostPath, o.ID)
-		}
-	}
-	return renderedTrains{
-		Trains: renderTrains(plan, cars),
-		Slots:  renderOffTrain(offTrainSlots(fleet, listed, bars)),
-	}, nil
+	return renderTrains(plan, readCars(sd, filepath.Dir(projectPath), refs)), nil
 }
 
 // readCars observes every car, at most carReadConcurrency at once. A car whose
@@ -108,25 +89,18 @@ func readCars(sd SDLC, vantage string, refs []trains.IssueRef) map[trains.IssueR
 	}
 	cars := make(map[trains.IssueRef]CarState, len(refs))
 	var mu sync.Mutex
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, carReadConcurrency)
-	for _, ref := range refs {
-		wg.Add(1)
-		sem <- struct{}{}
-		go func() {
-			defer func() { <-sem; wg.Done() }()
-			var c CarState
-			if why, bad := repoErr[ref.Repo]; bad {
-				c = CarState{Err: why}
-			} else {
-				c = readCar(sd, ref, repoPath[ref.Repo])
-			}
-			mu.Lock()
-			cars[ref] = c
-			mu.Unlock()
-		}()
-	}
-	wg.Wait()
+	boundedEach(len(refs), func(i int) {
+		ref := refs[i]
+		var c CarState
+		if why, bad := repoErr[ref.Repo]; bad {
+			c = CarState{Err: why}
+		} else {
+			c = readCar(sd, ref, repoPath[ref.Repo])
+		}
+		mu.Lock()
+		cars[ref] = c
+		mu.Unlock()
+	})
 	return cars
 }
 

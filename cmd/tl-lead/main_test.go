@@ -34,6 +34,9 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		{"playbook step 8, MVP run and closing", "MVP run, then `closing`, then `closed`"},
 		{"talking to the operator", "TALKING TO THE OPERATOR"},
 		{"status file sections", "`## Needs you`"},
+		{"the quota section", "`## Quota`"},
+		{"threads as ### subsections", "`### Project: <slug>`"},
+		{"the mutual-focus rule", "source of truth for mutual focus"},
 		{"notify only for what needs the operator now", "`couch --notify [--title T] MESSAGE`"},
 		{"session-sync: the operator's lock", "The operator's lock is the only lock"},
 		{"dispatch judgment", "The dispatch message carries only"},
@@ -115,7 +118,7 @@ func TestLeadHelpDoesNotRestateWorker(t *testing.T) {
 func TestLeadHelpNamesSubcommands(t *testing.T) {
 	help := helpOutput(t, "--help")
 	for _, want := range []string{
-		"tl-lead status trains FILE PROJECT", "tl-lead status section FILE HEADING BODYFILE",
+		"tl-lead status slots FILE", "tl-lead status section FILE HEADING BODYFILE",
 		"tl-lead status thread FILE TEXTFILE", "tl-lead status submit FILE", "tl-lead status seen FILE",
 		"tl-lead status owed FILE", "tl-lead status clobbered FILE --done", "tl-lead trains PROJECT",
 	} {
@@ -130,7 +133,7 @@ func TestLeadHelpNamesSubcommands(t *testing.T) {
 	}
 	// Every subcommand the help names exists in the command tree.
 	root := buildRoot(deps{})
-	for _, path := range [][]string{{"status", "trains"}, {"status", "section"}, {"status", "thread"}, {"status", "submit"},
+	for _, path := range [][]string{{"status", "slots"}, {"status", "section"}, {"status", "thread"}, {"status", "submit"},
 		{"status", "seen"}, {"status", "owed"}, {"status", "clobbered"}, {"trains"}} {
 		if c, _, err := root.Find(path); err != nil || c.Name() != path[len(path)-1] {
 			t.Errorf("tl-lead %v is not a command", path)

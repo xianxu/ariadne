@@ -150,6 +150,16 @@ Items in order: M1 tl-worker (binary, prose, stub, §15 line); M2 tl-lead prose;
   - Test: `TestTickMilestoneTicksEveryFormTheReaderCounts`, red before the fix on the bold, italic and in-progress forms.
   - The `sdlc` that runs is built from ariadne:0, so this branch's fix is not active for its own closes. M1 and M2 (closed in 3ccf9441 and 0b9dbd42) are ticked by hand here, and M3 is ticked by hand after its close.
 
+- Scope revision A built:
+  - `status trains` is gone. `status slots FILE` renders `## Slots` through a `renderedSections` table, which is where `status quota` (ariadne#365) will register.
+  - `trains PROJECT` prints only the trains block, and no longer reads the fleet inventory.
+  - `status thread` works on `###` subsections: it replaces a subsection by heading, or inserts before `### Miscellaneous`, and `--drop` matches heading prefixes.
+  - The lead prose has the 7e7df48 layout and the mutual-focus rule.
+  - Live checks:
+    - `status slots` against a copy of the live status file, kept inside this checkout (it must be in the fleet) and owned by a dummy owner: wrote `## Slots` in 18.4 s, listing every numbered slot plus a free line.
+    - `trains` on ariadne-robustness-1: 10.1 s.
+  - One loss to note for the TL: the hand-written Slots lines carried agent and model notes (for example "(Sol)"), which no sdlc contract exposes. A rendered `## Slots` drops them, so that context moves to the thread.
+
 ## Revisions
 
 - 2026-10-13 — the operator: **don't copy stories or lessons** into the binaries' prose. The prose states current

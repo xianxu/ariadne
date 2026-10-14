@@ -83,22 +83,22 @@ func TestWriteSectionRetries(t *testing.T) {
 		wantWrites int
 		wantBody   string
 	}{
-		{name: "no contention", wantCalls: 1, wantWrites: 1, wantBody: "- new\n- old"},
+		{name: "no contention", wantCalls: 1, wantWrites: 1, wantBody: "### Old\nx\n\n### New\ny"},
 		{name: "stale then success recomputes from the new read",
-			edits:     map[int]map[string]string{1: {"Threads": "- theirs\n- old"}},
-			wantCalls: 2, wantWrites: 1, wantBody: "- new\n- theirs\n- old"},
+			edits:     map[int]map[string]string{1: {"Threads": "### Old\nx\n\n### Theirs\nz"}},
+			wantCalls: 2, wantWrites: 1, wantBody: "### Old\nx\n\n### Theirs\nz\n\n### New\ny"},
 		{name: "four stales refuse",
 			edits: map[int]map[string]string{
-				1: {"Threads": "- e1"}, 2: {"Threads": "- e2"}, 3: {"Threads": "- e3"}, 4: {"Threads": "- e4"}},
-			wantExit: 6, wantCalls: 4, wantWrites: 0, wantBody: "- e4"},
+				1: {"Threads": "### e1"}, 2: {"Threads": "### e2"}, 3: {"Threads": "### e3"}, 4: {"Threads": "### e4"}},
+			wantExit: 6, wantCalls: 4, wantWrites: 0, wantBody: "### e4"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			f := newFake(map[string]string{"Threads": "- old"})
+			f := newFake(map[string]string{"Threads": "### Old\nx"})
 			if tc.edits != nil {
 				f.editBefore = tc.edits
 			}
 			file, body := statusFile(t, "")
-			_, err := run(t, deps{ss: f}, "status", "thread", file, body("- new\n"))
+			_, err := run(t, deps{ss: f}, "status", "thread", file, body("### New\ny\n"))
 			if exitCode(err) != tc.wantExit {
 				t.Fatalf("exit %d (%v), want %d", exitCode(err), err, tc.wantExit)
 			}
@@ -166,7 +166,7 @@ func TestStatusRefusesBadInput(t *testing.T) {
 	}{
 		{"empty section body", "  \n", "is empty",
 			func(file, b string) []string { return []string{"status", "section", file, "Needs you", b} }},
-		{"thread entry without a bullet", "not a bullet\n", "starts with '- '",
+		{"thread entry that is not a subsection", "- a bullet\n", "starts with '### '",
 			func(file, b string) []string { return []string{"status", "thread", file, b} }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -183,13 +183,14 @@ func TestStatusRefusesBadInput(t *testing.T) {
 	}
 }
 
-func TestThreadDrop(t *testing.T) {
-	f := newFake(map[string]string{"Threads": "- rollout: pair\n  detail line\n- incident: x\n- keep me"})
+func TestThreadDropAndPlace(t *testing.T) {
+	f := newFake(map[string]string{"Threads": "### Priorities\n1. a\n\n### Train: old\ncars\n\n### Project: p\nstate\n\n### Miscellaneous\n- ask"})
 	file, body := statusFile(t, "")
-	if _, err := run(t, deps{ss: f}, "status", "thread", file, body("- rollout: done\n"), "--drop", "- rollout", "--drop", "- incident"); err != nil {
+	if _, err := run(t, deps{ss: f}, "status", "thread", file, body("### Train: new\ncars\n"), "--drop", "### Train: old"); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := f.sections["Threads"], "- rollout: done\n- keep me"; got != want {
+	want := "### Priorities\n1. a\n\n### Project: p\nstate\n\n### Train: new\ncars\n\n### Miscellaneous\n- ask"
+	if got := f.sections["Threads"]; got != want {
 		t.Errorf("Threads = %q, want %q", got, want)
 	}
 }

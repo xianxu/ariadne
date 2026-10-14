@@ -113,30 +113,72 @@ func TestRenderTrainsGolden(t *testing.T) {
 	}
 }
 
-func TestRenderOffTrain(t *testing.T) {
+func TestRenderSlots(t *testing.T) {
 	fleet := Fleet{Slots: []FleetSlot{
 		{Address: "ariadne:0", Repo: "ariadne", Slot: 0, RestingBranch: "main", HostBranch: "000999-on-zero"},
-		{Address: "ariadne:1", Repo: "ariadne", Slot: 1, RestingBranch: "main-slot1", HostBranch: "000202-on-a-train"},
+		{Address: "ariadne:1", Repo: "ariadne", Slot: 1, RestingBranch: "main-slot1", HostBranch: "main-slot1"},
 		{Address: "ariadne:2", Repo: "ariadne", Slot: 2, RestingBranch: "main-slot2", HostBranch: "000350-lift-the-tl-skill"},
 		{Address: "pair:2", Repo: "pair", Slot: 2, RestingBranch: "main-slot2", HostBranch: "main-slot2"},
 		{Address: "pair:3", Repo: "pair", Slot: 3, RestingBranch: "main-slot3", HostBranch: "operator-experiment"},
+		{Address: "pair:4", Repo: "pair", Slot: 4, RestingBranch: "main-slot4", HostBranch: ""},
 	}}
-	listed := map[trains.IssueRef]bool{ref("ariadne", 202): true}
-	got := renderOffTrain(offTrainSlots(fleet, listed, map[string]string{"ariadne:2": "▉▕ M 1/2"}))
-	want := "```\n" +
-		"ariadne:2      ariadne#350      ▉▕ M 1/2  lift-the-tl-skill\n" +
-		"pair:2         idle\n" +
-		"```"
-	if got != want {
-		t.Errorf("renderOffTrain:\n%s\nwant:\n%s", got, want)
+	lines := slotLines(fleet)
+	for i := range lines {
+		if lines[i].ID == 350 {
+			lines[i].Phase, lines[i].Bar = "working", "▉▕ M 1/2"
+		}
 	}
-	if got := renderOffTrain(nil); got != "_None._" {
+	want := "```\n" +
+		"ariadne:2      ariadne#350      working       ▉▕ M 1/2  lift-the-tl-skill\n" +
+		"pair:3         on operator-experiment\n" +
+		"pair:4         detached\n" +
+		"free: ariadne:1, pair:2\n" +
+		"```"
+	if got := renderSlots(lines); got != want {
+		t.Errorf("renderSlots:\n%s\nwant:\n%s", got, want)
+	}
+	if got := renderSlots(nil); !strings.Contains(got, "no numbered slots") {
 		t.Errorf("empty: %q", got)
 	}
 }
 
+// gatherSlots over the fakes: the phase from the slot's issue observation, the
+// bar from its checkout's issue file; a failed observation reads `?`.
+func TestGatherSlots(t *testing.T) {
+	root := t.TempDir()
+	slot2 := filepath.Join(root, "ariadne-slot2", "ariadne")
+	slot3 := filepath.Join(root, "ariadne-slot3", "ariadne")
+	for _, p := range []string{slot2, slot3} {
+		if err := os.MkdirAll(filepath.Join(p, "workshop", "issues"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(slot2, "workshop", "issues", "000350-lift.md"), []byte("## Plan\n\n- [x] one\n- [ ] two\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sd := &fakeSDLC{
+		fleet: Fleet{Slots: []FleetSlot{
+			{Address: "ariadne:2", Repo: "ariadne", Slot: 2, RestingBranch: "main-slot2", HostPath: slot2, HostBranch: "000350-lift"},
+			{Address: "ariadne:3", Repo: "ariadne", Slot: 3, RestingBranch: "main-slot3", HostPath: slot3, HostBranch: "000351-gone"},
+		}},
+		obs: map[string]Observation{slot2 + "#350": {Status: "working"}},
+	}
+	got, err := gatherSlots(sd, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"ariadne:2      ariadne#350      working       ▉▕ tasks 1/2  lift",
+		"ariadne:3      ariadne#351      ?             no issue file  gone",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("Slots lacks %q:\n%s", want, got)
+		}
+	}
+}
+
 // gatherTrains end to end over the fakes: the project's table, each car's
-// observation, the claimant checkout's bar, and the off-train slot.
+// observation, and the claimant checkout's bar.
 func TestGatherTrains(t *testing.T) {
 	root := t.TempDir()
 	zero := filepath.Join(root, "ariadne")
@@ -167,15 +209,12 @@ func TestGatherTrains(t *testing.T) {
 			zero + "#204": {Status: "open"},
 		},
 	}
-	r, err := gatherTrains(sd, project, "")
+	block, err := gatherTrains(sd, project, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := "→ ariadne#202 ▉▕ M 1/2 working @ariadne:1"; !strings.Contains(r.Trains, want) {
-		t.Errorf("Trains lacks %q:\n%s", want, r.Trains)
-	}
-	if want := "ariadne:2      ariadne#350      ▉▕ tasks 1/2  lift"; !strings.Contains(r.Slots, want) {
-		t.Errorf("Slots lacks %q:\n%s", want, r.Slots)
+	if want := "→ ariadne#202 ▉▕ M 1/2 working @ariadne:1"; !strings.Contains(block, want) {
+		t.Errorf("trains block lacks %q:\n%s", want, block)
 	}
 	if sd.calls != 3 {
 		t.Errorf("observed %d cars, want 3 (each car once)", sd.calls)
@@ -192,48 +231,21 @@ func TestGatherTrainsRefusesNoTable(t *testing.T) {
 	}
 }
 
-// `status trains` writes both rendered blocks through the guarded path.
-func TestStatusTrainsWritesBoth(t *testing.T) {
-	root := t.TempDir()
-	project := filepath.Join(root, "project.md")
-	if err := os.WriteFile(project, []byte("## Trains\n\n| Train | Cars, in order | Slot |\n|---|---|---|\n| T | ariadne#1 | ariadne:1 |\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	sd := &fakeSDLC{
-		fleet: Fleet{Slots: []FleetSlot{{Address: "ariadne:0", Repo: "ariadne", HostPath: root, HostBranch: "main", RestingBranch: "main"}}},
-		obs:   map[string]Observation{root + "#1": {Status: "done"}},
-	}
-	f := newFake(map[string]string{"Trains": "old", "Slots (off-train)": "old"})
+// `status slots` writes the rendered block through the guarded path; a failed
+// fleet read writes nothing and says why.
+func TestStatusSlots(t *testing.T) {
+	sd := &fakeSDLC{fleet: Fleet{Slots: []FleetSlot{{Address: "ariadne:1", Repo: "ariadne", Slot: 1, RestingBranch: "main-slot1", HostBranch: "main-slot1"}}}}
+	f := newFake(map[string]string{"Slots": "old"})
 	file, _ := statusFile(t, "")
-	if _, err := run(t, deps{ss: f, sdlc: sd}, "status", "trains", file, project); err != nil {
+	if _, err := run(t, deps{ss: f, sdlc: sd}, "status", "slots", file); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(f.sections["Trains"], "ariadne#1 ✓") || f.sections["Slots (off-train)"] != "_None._" {
-		t.Errorf("sections = %q", f.sections)
+	if !strings.Contains(f.sections["Slots"], "free: ariadne:1") {
+		t.Errorf("Slots = %q", f.sections["Slots"])
 	}
-}
-
-// A failed fleet inventory leaves the Trains block intact and marks only the
-// off-train block unread.
-func TestGatherTrainsFleetFailureDegrades(t *testing.T) {
-	root := t.TempDir()
-	project := filepath.Join(root, "project.md")
-	if err := os.WriteFile(project, []byte("## Trains\n\n| Train | Cars, in order | Slot |\n|---|---|---|\n| T | ariadne#1 | ariadne:1 |\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	sd := &fakeSDLC{
-		fleet:    Fleet{Slots: []FleetSlot{{Address: "ariadne:0", Repo: "ariadne", HostPath: root}}},
-		fleetErr: fmt.Errorf("sdlc fleet inventory: timed out after 1m0s"),
-		obs:      map[string]Observation{root + "#1": {Status: "done"}},
-	}
-	r, err := gatherTrains(sd, project, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(r.Trains, "ariadne#1 ✓") {
-		t.Errorf("Trains lost on a fleet failure:\n%s", r.Trains)
-	}
-	if !strings.Contains(r.Slots, "? off-train slots unread: sdlc fleet inventory: timed out") {
-		t.Errorf("Slots = %q", r.Slots)
+	sd.fleetErr = fmt.Errorf("sdlc fleet inventory: timed out after 1m0s")
+	_, err := run(t, deps{ss: f, sdlc: sd}, "status", "slots", file)
+	if err == nil || !strings.Contains(err.Error(), "timed out") || f.writes != 1 {
+		t.Errorf("fleet failure: err=%v writes=%d (want the reason and no second write)", err, f.writes)
 	}
 }

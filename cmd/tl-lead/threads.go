@@ -5,45 +5,81 @@ import (
 	"strings"
 )
 
-// threadEntries splits a `## Threads` body into its top-level `- ` entries;
-// continuation lines stay with their entry.
-func threadEntries(body string) []string {
-	var out []string
+// The `## Threads` section is a list of `### ` subsections in focus order
+// (`### Project: <slug>`, `### Train: <name>`, `### Miscellaneous`), with an
+// optional preamble before the first. A thread entry is one such subsection.
+
+const miscThread = "### Miscellaneous"
+
+// threadBlocks splits a Threads body into its preamble and its `### `
+// subsections (each block keeps its heading line and body).
+func threadBlocks(body string) (preamble string, blocks []string) {
+	var pre []string
 	for _, line := range strings.Split(strings.Trim(body, "\n"), "\n") {
-		if strings.HasPrefix(line, "- ") || len(out) == 0 {
-			out = append(out, line)
-		} else {
-			out[len(out)-1] += "\n" + line
+		switch {
+		case strings.HasPrefix(line, "### "):
+			blocks = append(blocks, line)
+		case len(blocks) == 0:
+			pre = append(pre, line)
+		default:
+			blocks[len(blocks)-1] += "\n" + line
 		}
 	}
-	kept := out[:0]
-	for _, e := range out {
-		if strings.TrimSpace(e) != "" {
-			kept = append(kept, e)
-		}
+	for i := range blocks {
+		blocks[i] = strings.TrimRight(blocks[i], "\n")
 	}
-	return kept
+	return strings.Trim(strings.Join(pre, "\n"), "\n"), blocks
 }
 
-// prependThread puts entry first and drops every existing entry that starts
-// with one of the prefixes.
-func prependThread(body, entry string, drop []string) (string, error) {
+func heading(block string) string {
+	h, _, _ := strings.Cut(block, "\n")
+	return strings.TrimSpace(h)
+}
+
+// upsertThread puts entry (a `### ` subsection) into the Threads body: it
+// replaces the subsection with the same heading in place, or else goes in
+// before `### Miscellaneous` (which stays last), or else at the end. Every
+// existing subsection whose heading starts with one of the drop prefixes is
+// removed first.
+func upsertThread(body, entry string, drop []string) (string, error) {
 	entry = strings.Trim(entry, "\n")
-	if !strings.HasPrefix(entry, "- ") {
-		return "", errors.New("a Threads entry starts with '- '")
+	if !strings.HasPrefix(entry, "### ") {
+		return "", errors.New("a Threads entry is a `### ` subsection: its first line starts with '### '")
 	}
-	out := []string{entry}
-	for _, e := range threadEntries(body) {
+	pre, blocks := threadBlocks(body)
+	var kept []string
+	for _, b := range blocks {
 		dropped := false
 		for _, p := range drop {
-			if strings.HasPrefix(e, p) {
+			if strings.HasPrefix(heading(b), p) {
 				dropped = true
 				break
 			}
 		}
 		if !dropped {
-			out = append(out, e)
+			kept = append(kept, b)
 		}
 	}
-	return strings.Join(out, "\n"), nil
+	placed := false
+	for i, b := range kept {
+		if heading(b) == heading(entry) {
+			kept[i], placed = entry, true
+			break
+		}
+	}
+	if !placed {
+		at := len(kept)
+		for i, b := range kept {
+			if heading(b) == miscThread && heading(entry) != miscThread {
+				at = i
+				break
+			}
+		}
+		kept = append(kept[:at], append([]string{entry}, kept[at:]...)...)
+	}
+	parts := kept
+	if pre != "" {
+		parts = append([]string{pre}, kept...)
+	}
+	return strings.Join(parts, "\n\n"), nil
 }

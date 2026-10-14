@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -163,7 +164,6 @@ owed until it is read.`,
 	}
 	var foldOwed, done bool
 	var drop []string
-	var defaultRepo string
 
 	submit := &cobra.Command{
 		Use:   "submit FILE",
@@ -214,35 +214,19 @@ owed until it is read.`,
 	}
 	thread := &cobra.Command{
 		Use:   "thread FILE TEXTFILE",
-		Short: "Prepend a ## Threads entry; --drop removes entries starting with each prefix",
+		Short: "Put a ### subsection into ## Threads (replace by heading, else before ### Miscellaneous); --drop removes subsections by heading prefix",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			entry, err := readBodyFile(args[1])
 			if err != nil {
 				return err
 			}
-			if _, err := prependThread("", entry, nil); err != nil {
+			if _, err := upsertThread("", entry, nil); err != nil {
 				return err
 			}
 			return writeSection(d.ss, cmd.OutOrStdout(), args[0], "Threads", func(cur string) (string, error) {
-				return prependThread(cur, entry, drop)
+				return upsertThread(cur, entry, drop)
 			}, foldOwed)
-		},
-	}
-	trainsCmd := &cobra.Command{
-		Use:   "trains FILE PROJECT",
-		Short: "Render ## Trains and ## Slots (off-train) from sources and write both",
-		Args:  cobra.ExactArgs(2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			r, err := gatherTrains(d.sdlc, args[1], defaultRepo)
-			if err != nil {
-				return err
-			}
-			out := cmd.OutOrStdout()
-			if err := writeSection(d.ss, out, args[0], "Trains", func(string) (string, error) { return r.Trains, nil }, false); err != nil {
-				return err
-			}
-			return writeSection(d.ss, out, args[0], "Slots (off-train)", func(string) (string, error) { return r.Slots, nil }, foldOwed)
 		},
 	}
 	seen := &cobra.Command{
@@ -278,28 +262,61 @@ owed until it is read.`,
 			return handleClobbered(cmd.OutOrStdout(), args[0], done)
 		},
 	}
-	for _, c := range []*cobra.Command{section, thread, trainsCmd} {
+	rendered := renderedSectionCmds(d, &foldOwed)
+	for _, c := range append([]*cobra.Command{section, thread}, rendered...) {
 		c.Flags().BoolVar(&foldOwed, "fold-owed", false, "also fold the owed events an earlier submit/owed listed")
 	}
-	thread.Flags().StringArrayVar(&drop, "drop", nil, "drop existing entries starting with this prefix (repeatable)")
-	trainsCmd.Flags().StringVar(&defaultRepo, "default-repo", "", "repository of a bare #N car with no qualified car before it")
+	thread.Flags().StringArrayVar(&drop, "drop", nil, "drop subsections whose heading starts with this prefix, e.g. '### Train: old' (repeatable)")
 	clobbered.Flags().BoolVar(&done, "done", false, "the TL has merged it; remove the copy")
-	status.AddCommand(submit, section, thread, trainsCmd, seen, owed, clobbered)
+	status.AddCommand(append([]*cobra.Command{submit, section, thread, seen, owed, clobbered}, rendered...)...)
 	return status
+}
+
+// renderedSection is a status-file section rendered from sources rather than
+// written by hand. Each one becomes `tl-lead status <verb> FILE`, which renders
+// it and writes it through the guarded path. A later `status quota` (from
+// `sdlc usage`, ariadne#365) is one more row here.
+type renderedSection struct {
+	verb, heading, short string
+	render               func(d deps, file string) (string, error)
+}
+
+var renderedSections = []renderedSection{
+	{"slots", "Slots", "Render ## Slots (every numbered slot: issue, phase, bar; then the free ones) and write it",
+		func(d deps, file string) (string, error) { return gatherSlots(d.sdlc, filepath.Dir(file)) }},
+}
+
+func renderedSectionCmds(d deps, foldOwed *bool) []*cobra.Command {
+	var cmds []*cobra.Command
+	for _, rs := range renderedSections {
+		cmds = append(cmds, &cobra.Command{
+			Use:   rs.verb + " FILE",
+			Short: rs.short,
+			Args:  cobra.ExactArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				body, err := rs.render(d, args[0])
+				if err != nil {
+					return err
+				}
+				return writeSection(d.ss, cmd.OutOrStdout(), args[0], rs.heading, func(string) (string, error) { return body, nil }, *foldOwed)
+			},
+		})
+	}
+	return cmds
 }
 
 func newTrainsCmd(d deps) *cobra.Command {
 	var defaultRepo string
 	c := &cobra.Command{
 		Use:   "trains PROJECT",
-		Short: "Print the ## Trains and ## Slots (off-train) blocks rendered from sources",
+		Short: "Print a project's trains block, rendered from sources, for its ### Project thread",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			r, err := gatherTrains(d.sdlc, args[0], defaultRepo)
+			block, err := gatherTrains(d.sdlc, args[0], defaultRepo)
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "## Trains\n\n%s\n\n## Slots (off-train)\n\n%s\n", r.Trains, r.Slots)
+			fmt.Fprintln(cmd.OutOrStdout(), block)
 			return nil
 		},
 	}
