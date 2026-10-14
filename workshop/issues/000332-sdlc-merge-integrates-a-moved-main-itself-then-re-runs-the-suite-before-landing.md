@@ -40,8 +40,11 @@ A branch that passed its close review can sit unmerged for hours, because main k
 
 ## Plan
 
-- [ ] Design: integration step, suite command source, re-review rule via #269's freshness API, retry bound.
-- [ ] Implement with fakes; tests for the Done-when rows; atlas.
+Durable plan: `workshop/plans/000332-sdlc-merge-integrates-a-moved-main-itself-then-re-runs-the-suite-before-landing-plan.md`.
+
+- [ ] M1 — the suite as a recorded, enforced check (`sdlc-local/suite`: declared or default `make test` with the Makefile's weight; required on every landing; a docs-only-distance ancestor record counts; lock weight fix; `sdlc local-check run --name suite` documented as the close suite)
+- [ ] M2 — integration loop in the durable path (merge main, conflict abort, publish-replay pre-check, lease push, bounded CI wait, re-integrate up to 3, resume an interrupted integration); legacy path refuses a moved main
+- [ ] M3 — failure labelling: a baseline run on main classifies introduced vs pre-existing
 
 ## Log
 
@@ -59,4 +62,5 @@ A branch that passed its close review can sit unmerged for hours, because main k
   - bounded CI wait;
   - re-integrate when main moves again, at most 3 times;
   - an interrupted push resumes via an `Integrated-Main:` trailer.
-- Open questions to the hub: the suite source (declaration and/or a `make test` default), enforcement on every landing, the legacy path, the CI wait bound.
+- Hub approved (2026-10-13): (a) declaration, else default `make test` (Makefile weight); (b) every landing needs `sdlc-local/suite` on its head, with `sdlc local-check run --name suite` as THE close suite; (c) the legacy path refuses a moved main; (d) a 20-minute CI wait. Keep the baseline on failure. Close's own commits change the head, so a record on an ancestor with a docs-only distance counts (it reuses the publish gate's docs/code line).
+- (superseded) Open questions to the hub: the suite source (declaration and/or a `make test` default), enforcement on every landing, the legacy path, the CI wait bound.
