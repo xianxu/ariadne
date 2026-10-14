@@ -14,7 +14,7 @@ import (
 // fold of an ID not owed refuses, and the operator's lock is exit 3. Opt-in (TL_LEAD_LIVE=1, couch on PATH): run it
 // at each close of this binary's work and whenever pair changes session-sync.
 // The file names a dummy owner, so no slot's owed events are involved, and the
-// test never folds.
+// only fold names an ID that isn't owed (a refusal, which changes nothing).
 func TestSessionSyncConformance(t *testing.T) {
 	if os.Getenv("TL_LEAD_LIVE") != "1" {
 		t.Skip("set TL_LEAD_LIVE=1 to run against the real couch")
