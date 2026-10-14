@@ -1,0 +1,159 @@
+# SDLC usage implementation plan
+
+> **For agentic workers:** Consult AGENTS.md Section3 for bounded delegation; otherwise use superpowers-executing-plans. Steps use checkboxes. SDLC owns plan-quality and the single close review.
+
+**Goal:** Report local tokens and burn by slot/agent/model, whole-system issue cost including reviewers, and optional empirical account-meter exhaustion.
+
+**Architecture:** Normalize response usage before deduplication, time filtering and role/ownership attribution. Reuse #335 ownership/source lineage, extend existing gate evidence with explicit reviewer bindings, and keep aggregation/calibration pure. Filesystem/Git/CLI persistence stays in adapters.
+
+**Tech stack:** Existing Go/Cobra, encoding/json, time, bounded Git/fleet/transcript and fake reviewer seams. No provider API, price table or agent UI interaction.
+
+## Evidence and approach
+
+Read-only inventory:2725 Codex JSONL files/4.87GB,5140 Claude files/2.08GB; largest rollout276MB. Bounded recorded samples found modern token_usage_record plus legacy cumulative token_count, and repeated/revised Claude assistant usage. Label output **reported local response usage**, not complete provider quota consumption.
+
+Recommend one normalized usage package and shared attribution adapters. Parsing independently in commands duplicates counting/coverage rules. A persistent transcript index reduces IO but adds invalidation and retention machinery; defer until measured streaming latency warrants it. No cache writes in the initial read-only command.
+
+Hub receipt efaa1145-7a99-4c4d-91bc-88b4d1f5858c requires worker tokens, reviewer tokens with rounds, and total. Unbound sources remain visible in a global unknown-slot bucket. Meter conversion needs two compatible observations, never one guessed credits/token rate.
+
+## Core concepts
+
+### Pure entities
+
+| Name | Lives in | Status |
+|---|---|---|
+| Counters, response identity, coverage | cmd/sdlc/internal/usage/types.go | new |
+| Codex response/cumulative transitions | cmd/sdlc/internal/usage/codex.go | new |
+| Claude response revision transitions | cmd/sdlc/internal/usage/claude.go | new |
+| Dedup/window/slot/model/hour aggregation | cmd/sdlc/internal/usage/aggregate.go | new |
+| Meter transition and projection | cmd/sdlc/internal/usage/calibration.go | new |
+| Session/source lineage eligibility | cmd/sdlc/internal/transcripts/provenance.go | modified |
+| Reviewer dispatch binding value/validation | cmd/sdlc/internal/gatestate/reviewer.go | new |
+| Optional reviewer runs on gate rounds | cmd/sdlc/internal/gatestate/ledger.go | modified |
+| Ownership interval derivation | cmd/sdlc/internal/tracker/engagement.go | reused unchanged |
+
+Counters use checked int64 arithmetic and dimension presence. Canonical input includes reported cache reads/writes; total=input+output. Codex input already includes cached input. Normalize Claude input by adding its separately reported cache read/write. Cache columns are subsets of canonical input, never additional total. Nested TTL fields subdivide writes; reasoning/thinking subdivides output. Unsupported dimensions are null, not zero. Aggregates expose measured subtotals plus coverage status.
+
+Each response has one executing source, agent and actual model. Dedup before window filtering: identical copies count once; consistent streaming revisions replace provisional counters. Conflicting terminal/model/request/owner evidence is excluded and counted. Model changes remain per response, never attributed to today's selected model.
+
+### Integration points
+
+| Name | Lives in | Status | Wraps |
+|---|---|---|---|
+| Usage source enumeration/streaming | cmd/sdlc/internal/transcripts/usage_discovery.go | new | JSONL/meta files, registry, shared first-metadata parser |
+| Command/renderer | cmd/sdlc/usage.go; usage_render.go | new | Cobra/clock/fleet/source adapters |
+| Shared issue source selection | cmd/sdlc/actualinputs.go; usage_inputs.go | modified/new | pinned tracker history and ownedSourceWindows |
+| Reviewer attempt identity capture | cmd/sdlc/internal/judge/dispatch.go; stream.go | modified | existing Run result/stateful fake CLI |
+| Binding persistence/read adapter | cmd/sdlc/usage_reviewers.go; boundaryledger.go; changecode.go; reviewsidecar.go | new/modified | existing gate ledgers/sidecars |
+| Meter store | cmd/sdlc/internal/usage/meterstore.go | new | versioned local file, existing context-aware lock |
+| Registration/docs | cmd/sdlc/main.go; helptext/usage.md; README.md; atlas/workflow/sdlc-binary.md | modified/new | embedded help and operator docs |
+
+Reuse fleet.GitReader/stateful Git fake and portable real repositories. Transcript integration fixtures are temp folders with sanitized recorded JSONL and metadata, not function-call mocks. Gate capture uses existing fake agent Run tests plus recorded protocol preambles. Meter tests use portable state directories, never real account observations.
+
+## Counting contracts
+
+### Codex
+
+Prefer token_usage_record per-response usage keyed globally by agent+response_id. Resolve executing thread_id and match turn_context.model by exact turn_id. Child session_id can name the root: use the first session_meta.id/thread_id as file identity; copied later metadata cannot replace it.
+
+Do not add cumulative thread/turn counters, token_count or compacted.latest_token_usage_record to modern response spend. Embedded compaction evidence dedups by response identity; if its original is absent, admit explicit usage once with a reconstruction diagnostic. Modern mixed files do not get supplemented by cumulative totals; expose uncovered segments.
+
+Legacy-only files difference cumulative total_token_usage in file order. Read pre-window baseline before filtering. Equal snapshots add zero; missing initial baseline leaves an explicitly unmeasured segment. Decreases/reset or inconsistent dimensions re-establish the observed baseline and mark the lost segment. Never sum last_token_usage or fabricate a reset value. Accepted deltas use observation time and observed model; missing/conflicting model stays unknown.
+
+### Claude
+
+Key by message.id, requiring consistent requestId/model. Record UUID/block index is not spending identity. Prefer consistent terminal usage; within one response, monotone output revisions replace partial counts rather than add. Conflicting terminal counters are unmeasured. Use the selected completion timestamp for hour attribution. Partial-only responses remain provisional reported counts and mark incomplete coverage.
+
+Child discovery is opt-in; actual's root-only default remains. Logical identity is parent session plus agentId. Adjacent .meta.json toolUseId binds to explicit parent Task/Agent dispatch ID/time, then inherits parent slot/engagement through that proof. Missing/cyclic/conflicting lineage is unknown. Task duration does not supply tokens. cost-state/modelUsage and task-notification aggregates only diagnose coverage; do not add them to response totals or invent missing splits/timestamps.
+
+Primary samples:5379 Claude usage records represented2534 response IDs; partial child responses and aggregate-only model activity remain gaps. Codex20 rollouts had5812 response records and22 identical compaction copies. Sanitized Codex evidence is /tmp/ariadne365-codex-evidence.json. Claude cache semantics: https://platform.claude.com/docs/en/build-with-claude/prompt-caching.
+
+## Attribution and issue scope
+
+Default fleet mode maps root sessions by verified checkout/home-slot membership, including dependencies; bound descendants inherit source home slot. Ordinary/deleted/ambiguous roots are unknown. Enumerate relevant local sources beyond matched fleet cwds so observed unbound spend appears in unknown-slot groups. Use membership-only fleet lookup seams rather than default tracker-fetch/claim warming; enumerate once per report.
+
+Issue mode factors the ownership/source phase beneath actual's full resolver. Reuse EngagementHistory, DeriveEngagements, ownedSourceWindows and EligibleSources. Do not require a code commit for planning token measurement, and do not reuse actual's pruned contributing SourceIDs as the complete token source set. Worker responses must occur in admitted ownership intervals; descendants remain bound to original dispatch engagement, including moves/reclaims/brain sources.
+
+Active right edge is captured report time. Completed worker right edge is the exact completion evidence commit time, including work up to close, not today's HEAD or stale started. Show actual active time with its own provenance/window because that metric deliberately excludes final verification tail. Explicit --since intersects issue intervals and reviewer windows; omitted --since means the whole issue, including old bench runs.
+
+Reviewer cost requires typed dispatch binding: repository/issue/recipe/round/attempt, agent, recorded root, session identity when available, dispatch/finish timestamps, reviewed head and dispatching slot. Retries are distinct; bound descendants inherit reviewer role. Boundary roots are unique disposable roots; in-place plan/estimate reviewers require exact CLI-emitted session ID. No cwd+time guess for in-place review.
+
+Current ledger/sidecar types do not retain roots, so add optional evidence and preserve legacy rendering when absent. Capture Claude session_id from stream-json init/result and Codex UUID from the bounded startup metadata preamble BEFORE prompt/transcript text, keeping argv/permissions unchanged. Unknown protocol identities produce binding diagnostics. Unique boundary roots can still bind without session ID; in-place absence cannot.
+
+Persist all launched attempts, including protocol failure/retry/cancellation, through existing gate evidence paths without advancing verdict/findings state. Preparation without reviewer launch creates no charged attempt. Historical missing bindings are counted limitations; their unbound spend remains globally visible. #365's own prelanding reviews may remain legacy/unbound because it must use the shared gate binary; never install candidate gate code to hide that gap.
+
+## CLI and JSON
+
+- sdlc usage --since 6h, default24h; RFC3339 also accepted. Capture now once; half-open [since,until). --burn-window defaults3h and accepts1h..3h. Rates divide the selected recent window's elapsed WALL hours, not active-time hours. UTC hour buckets identify partial duration.
+- sdlc usage --issue N prints worker, reviewer with rounds/attempts, measured total, actual active time and coverage; agent/model breakdown remains. Missing evidence cannot look like a complete benchmark total.
+- --json returns schema_version1, scope/window, stable-sorted groups, hourly buckets, recent rate/window, issue role/round totals and optional active time, meter projections and coverage. Integers for counters; null for unsupported dimensions/projections; explicit completeness/status. No prompts, message bodies, raw stderr or secrets.
+- sdlc usage calibrate --agent codex --remaining 29276 --unit credits records one timestamped operator observation. Known parser agents; credits/percent units (percent0..100), finite nonnegative values. A meter increase starts a new epoch with diagnostic; units never mix.
+
+Coverage counts sources/records, accepted responses, duplicates, revisions, provisional responses, malformed/skipped records, unsupported formats, unknown slot/model, missing reviewer binding, baseline/reset gaps, truncated tails and unavailable sources. Retain counts and at most3 bounded examples per class.
+
+## Meter state and projection
+
+At least two strictly ordered same-agent/unit observations. Measure that agent's local reported tokens across ALL known/unknown-slot sources between observations. Empirical units_per_token=(remaining_before-remaining_after)/reported_tokens_between; units/hour=units_per_token*recent_agent_token_burn; remaining/units_hour yields projected exhaustion. Label it a local observed-mix estimate, not provider pricing or guaranteed quota deadline.
+
+Single point, stale pair (>7days), meter reset/nondecrease, zero token denominator/current burn, or incomplete required local evidence yields explicit status and null exhaustion. Provisional/aggregate discrepancy coverage remains visible and prevents confident projection. Issue-only burn cannot project an entire account; issue mode marks that projection not applicable.
+
+Pure transitions: empty+point→one; one+later lower same-unit point→pair; pair+compatible later point→latest pair; exact repeated point→no-op; earlier/conflicting same-time→refuse; increased meter→new one-point epoch. No stale/conflicting overwrite.
+
+Store versioned bounded observations at XDG_STATE_HOME/sdlc/usage-meter.json, fallback ~/.local/state/sdlc. At most two per known agent/unit,64KiB total. Lock via existing context-aware seam; same-dir unique temp,0600, sync/close, rename, deferred cleanup. Cancellation/failure preserves prior state. Latest-pair replacement bounds residue; no credentials/API keys. usage is read-only; calibrate alone writes meter state.
+
+## Operating envelope and lifecycle
+
+Batch CLI, not UI keystroke path. Initial target≤60s cold on the measured7GB store, one reader at a time; verify with real smoke, do not claim speed beforehand. Stat-old files may be skipped for recent windows only where mtime proves no newer append; selected files still need pre-window baseline/model metadata. Historical issues retain needed older sources.
+
+Enforce caller cancellation and60s report deadline; max16384 candidates,4MiB JSONL line,250000 accepted response identities, checked arithmetic. Bound exceedance means incomplete coverage and no projection; cancellation exits nonzero. Capture stat-sized read prefix, exclude concurrent appends, report truncation/mutation. Reuse metadata parsing without hashing all7GB to discover sources; hash selected prefixes only where provenance needs it. No silent recent-file or timestamp guess.
+
+No usage cache. In-memory counters die with command. Meter latest pairs bound file residue. Reviewer metadata is permanent≤2KiB/attempt, at most two normal attempts/round; existing issue archival carries it and Git retains history. Validate writer bound. ARCH-DRY shares ownership/membership/normalization; ARCH-PURE/ORDER types transitions; ARCH-SECURE bounds untrusted evidence; ARCH-MOCK uses portable state/Git/fake agents; ARCH-PURPOSE includes reviewers/unknown spend; ARCH-CONSTRAINTS/FUNERAL govern work and residue.
+
+## Verification by named risky function
+
+| Proposed function | Adversarial class and mechanical proof |
+|---|---|
+| NormalizeCodex / StepCodexCounter | modern+compaction copies, forks, stale/duplicate legacy totals, reset/no baseline; sequence/fuzz and mutation summing last snapshots |
+| NormalizeClaude / MergeResponse | repeated blocks, monotone partial→terminal, conflicting finals, absent dims; recorded fixtures, property and mutation adding block usage |
+| AggregateUsage | dedup across files before boundary selection, model switches, hour edges, overflow, unknown groups; pure properties and mutations wrong denominator/drop unknown |
+| ResolveUsageSources / shared ownership phase | moved roots, release/reclaim, dependencies, brain/Claude children, planning-only/completed issue; real Git/temp source conformance, mutation bypass owner or revive old dispatch |
+| CaptureReviewerRun / ValidateReviewerBinding | exact identity, retries, cancellation, failed protocol, in-place ambiguity; production dispatch→persistence→usage regression, mutate omitted binding persistence |
+| StepMeter / ProjectExhaustion | reorder/duplicate/unit mismatch/reset, one-point/zero/stale/partial; transition sequences and mutations one-point rate or wrong token interval |
+| MeterStore.Save | competing writers, interruption/truncated state/temp cleanup; portable state directory tests proving no lost pair/prior-file corruption |
+
+## Tasks — one atomic close boundary
+
+### Task1: normalized core
+
+Files: new internal/usage/{types,codex,claude,aggregate}.go, colocated tests and sanitized testdata/{codex,claude}.jsonl.
+
+- [ ] Write recorded-format and counter/revision sequence regressions; run go test ./cmd/sdlc/internal/usage -count=1 and observe RED.
+- [ ] Implement typed transitions, checked counters, dedup-before-window and hourly/burn aggregation.
+- [ ] Run properties/fuzz for duplicates/model/reset/partial/overflow/boundaries; kill last-snapshot and block-summing mutations; commit evidence.
+
+### Task2: attribution and gate evidence
+
+Files: transcripts/usage_discovery.go/tests, provenance.go/tests; usage_inputs.go/tests and actualinputs.go/tests; gatestate/reviewer.go/tests, ledger/render/parser tests; judge/{dispatch,stream}.go/tests; usage_reviewers.go, boundaryledger.go, changecode.go, reviewsidecar.go and command tests.
+
+- [ ] Add metadata/fork/Claude-meta child, unknown cwd, copied history, partial-tail, append/truncation fixtures; observe RED.
+- [ ] Add production gate-dispatch→binding→usage regression for boundary/plan/estimate; include retry/failure/cancellation with no verdict advancement.
+- [ ] Implement shared selection and optional bindings; preserve existing actual/gate/default discovery semantics.
+- [ ] Verify moves/reclaims/dependency/brain/old reviewer/planning-only/completed edges; kill missing-binding, eligibility-bypass and child-doublecount mutations; commit.
+
+### Task3: command, meter and docs
+
+Files: usage.go, usage_render.go/tests; internal/usage/{calibration,meterstore}.go/tests; main.go, helptext/usage.md, README.md, atlas/workflow/sdlc-binary.md.
+
+- [ ] Write human/JSON command and pure meter transition/projection tests plus portable store failure/concurrency; observe RED.
+- [ ] Implement flags, optional empirical projection and bounded observations, keeping usage read-only.
+- [ ] Verify per-issue role/round totals, null dimensions, skipped coverage, zero/stale/reset behavior and no transcript/UI mutation; kill one-point/rate/unknown/reviewer omission mutations.
+- [ ] Document JSON semantics, coverage limits, supported schemas, calibration location and reset/unit behavior.
+- [ ] Targeted package/command checks plus recorded-fixture conformance; real read-only --since6h/--issue smoke, record duration and limitations; commit.
+
+### Task4: acceptance and landing
+
+- [ ] Push exact code HEAD; sdlc local-check run --name suite; inspect passing record. All direct make invocations use make -k.
+- [ ] Shared sdlc close with fixture/mutation/smoke evidence; fix findings by class to final SHIP.
+- [ ] sdlc pr and sdlc merge --yes with green CI/exact-code suite; report PR and git-rev-parse hashes to hub. Shared rebuild follows landing.
+
+No estimate before change-code plan-quality acceptance. No Mx tags: one atomic feature/close boundary. Hub approves durable plan before implementation.

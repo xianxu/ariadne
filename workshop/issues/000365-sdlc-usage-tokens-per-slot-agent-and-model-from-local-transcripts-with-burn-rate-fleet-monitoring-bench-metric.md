@@ -42,7 +42,12 @@ The agents' own transcripts already record usage: Claude's session JSONL carries
 
 ## Plan
 
-- [ ]
+Durable plan: workshop/plans/000365-usage-plan.md.
+
+- [ ] Normalize recorded usage and deduplicate before attribution.
+- [ ] Reuse ownership/membership and persist explicit reviewer bindings.
+- [ ] Add reporting, calibrated projection and docs.
+- [ ] Verify recorded suite, SHIP, PR and merge.
 
 ## Log
 
@@ -69,3 +74,20 @@ roots, so global unknown-slot spend and per-issue coverage must name that limita
 unless an explicit review-session binding is required. Meter conversion needs two
 aligned observations in the same agent/unit; a single remaining value cannot imply
 credits per token. No implementation code or account observations written yet.
+
+### 2026-10-14 — durable plan and whole-system cost
+
+Verified hub receipt efaa1145-7a99-4c4d-91bc-88b4d1f5858c: include reviewer tokens
+with rounds separately from worker tokens and total. Existing sidecar/ledger types
+do not retain roots yet; add optional typed dispatch bindings and label legacy
+gaps. Modern Codex compaction/response identity and Claude duplicate/revised or
+provisional usage require normalization with explicit coverage. Meter conversion
+needs two observations. Durable plan ready for hub approval; no code changes yet.
+
+## Revisions
+
+### 2026-10-14 — whole-system bench cost
+
+Per hub, issue cost includes explicitly bound reviewer rounds/attempts alongside
+ownership-proven workers; expose separate subtotals and measured total. Missing
+binding/format evidence remains coverage, never guessed spend.
