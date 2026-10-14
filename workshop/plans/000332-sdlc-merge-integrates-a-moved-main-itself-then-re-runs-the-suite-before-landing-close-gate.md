@@ -211,6 +211,15 @@ rounds:
       isolation: fenced
       reviewed: 5599f19d3e92e5e60af36d6f2b78076750a0562c
       blocked: false
+    - "n": 5
+      timestamp: "2026-10-13T23:48:50-07:00"
+      dispatched: "2026-10-13T23:46:42-07:00"
+      agent: codex
+      boundary: M2
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
+      protocol_error: no valid findings block
 ---
 
 # Gate ledger — ariadne#332 (boundary-review)
@@ -287,6 +296,10 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-9 — addressed — README.md:326 documents invocation, mandatory suite, main-derived default, weight and ancestor reuse, matching the implementation.
 - BR-10 — addressed — Both probe assertions now expire after one second. Removing group configuration and termination in a disposable copy makes all four probe/runner lifetime cases fail on surviving children.
 - BR-11 — addressed — Live conformance passes through realGH.CommitStatuses against four pinned historical events; changing reduction to oldest-wins makes it fail. Atlas documents execution cadence.
+
+## Round 5 — 2026-10-13T23:48:50-07:00 (codex) — BLOCKED
+
+**Protocol error:** no valid findings block — this round contributed no findings.
 
 ## Open findings
 
