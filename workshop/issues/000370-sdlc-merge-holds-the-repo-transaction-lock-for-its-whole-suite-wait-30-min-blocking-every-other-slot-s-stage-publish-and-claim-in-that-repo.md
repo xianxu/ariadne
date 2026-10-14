@@ -1,12 +1,12 @@
 ---
 id: 000370
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours: 4.82
-card_mirror: '7df46001d484f5c1c74c5fbbe8399a8133280ca1' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9c9a767e08fdfd30eb5f13e39d4076de90febf34' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T11:38:01-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 1.58
 ---
 
 # sdlc merge holds the repo transaction lock for its whole suite wait (30+ min), blocking every other slot's stage, publish and claim in that repo
