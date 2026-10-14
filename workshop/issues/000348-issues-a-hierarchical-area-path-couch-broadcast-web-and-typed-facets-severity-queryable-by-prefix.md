@@ -47,7 +47,7 @@ Durable plan: `workshop/plans/000348-issues-a-hierarchical-area-path-couch-broad
 - [x] Gates: #124 instance gate + `issue validate` check membership
 - [x] `issue list --area <prefix> --severity`; state JSON fields
 - [x] Help + atlas
-- [ ] Verify, close, merge
+- [x] Verify, close, merge
 
 ## Estimate
 
@@ -87,6 +87,7 @@ total: 2.11
   - Help: renders values from the model.
 - Side-quest: `FuzzRepoEnumCardShape` found `ParseCard` panicking (index out of range) on frontmatter holding `\r`/NEL/U+2028/U+2029. YAML counts those as line breaks; the span table splits on `\n` only. Such frontmatter is now refused, and the fuzz seed is kept as a regression test.
 - An absent `.sdlc/vocabulary.json` is the empty declaration, so this change adds no guarded file (ariadne ships no starter set).
+- Full `make -k test` on 0a7af822: all 12 cmd/sdlc shards green (1145 tests). One failure, `cmd/weave/internal/startup TestToolsDoubleColonFailurePropagates`, is a `make -k` artifact (it inherits `MAKEFLAGS=k`; it passes standalone) tracked as #358. The run before it caught a missing recovery contract for `set-area`/`set-severity`, now fixed.
 
 ## Revisions
 
