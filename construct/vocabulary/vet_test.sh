@@ -16,6 +16,25 @@ json="$(cue export "$dir/issue.cue" --out json)"
 echo "$json" | grep -q '"categories"' || { echo "FAIL: categories not in export"; exit 1; }
 echo "$json" | grep -q '"lifecycle"'  || { echo "FAIL: lifecycle not in export";  exit 1; }
 
+# #348: shared and repo enums. A card row naming an undeclared enum is rejected
+# by the card-enums-declared law; #Issue checks severity membership and area path
+# shape (membership in a repo's declaration is sdlc's, not cue's).
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/vocab-vet.XXXXXX")"
+sed 's/enum: "severity", setter/enum: "nope", setter/' "$dir/issue.cue" > "$tmp/issue.cue"
+if cue vet "$tmp/issue.cue" 2>/dev/null; then
+  echo "FAIL: a card row naming an undeclared enum passed vet (#348)"; rm -rf "$tmp"; exit 1
+fi
+rm -rf "$tmp"
+echo "$json" | grep -q '"repoEnums"' || { echo "FAIL: repoEnums not in export"; exit 1; }
+echo "$json" | grep -q '"enums"'     || { echo "FAIL: enums not in export";     exit 1; }
+cue vet "$dir/issue.cue" "$dir/testdata/issue_area_severity_valid.json" -d '#Issue' \
+  || { echo "FAIL: a valid area/severity instance did not vet (#348)"; exit 1; }
+for bad in issue_severity_invalid issue_area_invalid issue_area_too_deep; do
+  if cue vet "$dir/issue.cue" "$dir/testdata/$bad.json" -d '#Issue' 2>/dev/null; then
+    echo "FAIL: $bad passed vet (#348)"; exit 1
+  fi
+done
+
 # verdict (ariadne#147): atomic noun — no lifecycle; guard the concrete `categories`
 # the binding consumes reaches the export (the `#Emitted`/`#Token` defs don't).
 cue vet "$dir/verdict.cue" || { echo "FAIL: valid verdict model did not vet"; exit 1; }

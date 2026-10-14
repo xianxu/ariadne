@@ -339,3 +339,18 @@ func TestScaffoldPlanSeedIsNotAnItem(t *testing.T) {
 		t.Errorf("the Plan seed matches PlanUncheckedRE as %q; close would refuse an empty Plan", m)
 	}
 }
+
+// #348: classification renders only when given, as card-shaped lines.
+func TestRender_AreaSeverity(t *testing.T) {
+	bare := Render(ScaffoldSpec{ID: "000057", Title: "x", Today: "2026-05-31"})
+	if strings.Contains(bare, "area:") || strings.Contains(bare, "severity:") {
+		t.Fatalf("unset fields rendered:\n%s", bare)
+	}
+	out := Render(ScaffoldSpec{ID: "000057", Title: "x", Today: "2026-05-31", Area: []string{"a/b", "c"}, Severity: "low"})
+	if !strings.Contains(out, "estimate_hours:\narea: [a/b, c]\nseverity: low\n---") {
+		t.Fatalf("classification not rendered:\n%s", out)
+	}
+	if _, _, err := SplitCard([]byte(out)); err != nil {
+		t.Fatalf("rendered classification is not card-valid: %v", err)
+	}
+}

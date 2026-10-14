@@ -47,6 +47,46 @@ var cardOwned = func() map[string]bool {
 	return owned
 }()
 
+// ownerFrontmatter is the frontmatter of the half that owns name: the card
+// for a card-owned field (unknown when a tracked issue has no card), else the
+// details.
+func (r IssueRecord) ownerFrontmatter(name string) (string, bool) {
+	switch {
+	case cardOwned[name] && r.Card != nil:
+		return r.Card.Card.Frontmatter, true
+	case cardOwned[name] && r.tracked:
+		return "", false
+	case r.DetailPath == "" || r.DetailErr != nil:
+		return "", false
+	}
+	return r.DetailFM, true
+}
+
+// List returns a list-valued field (#348 area), YAML-decoded, from the half
+// that owns it; ok is false when absent, null, or unreadable.
+func (r IssueRecord) List(name string) ([]string, bool) {
+	fm, ok := r.ownerFrontmatter(name)
+	if !ok {
+		return nil, false
+	}
+	values, ok, err := issue.FieldList(fm, name)
+	return values, ok && err == nil
+}
+
+// Text returns a scalar field YAML-decoded (so quoting does not change it),
+// from the half that owns it; "" when absent, null, or unreadable.
+func (r IssueRecord) Text(name string) string {
+	fm, ok := r.ownerFrontmatter(name)
+	if !ok {
+		return ""
+	}
+	v, err := issue.FieldString(fm, name)
+	if err != nil {
+		return ""
+	}
+	return v
+}
+
 // Field returns a frontmatter field from the half that owns it. A card-owned
 // field of an issue with a card is never read from the (possibly stale) mirror.
 func (r IssueRecord) Field(name string) (string, bool) {

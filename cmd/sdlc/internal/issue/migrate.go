@@ -196,6 +196,9 @@ func ArchivedCard(details []byte, file, objectFormat string) (card []byte, infer
 			}
 			continue
 		}
+		if field.Kind == "repo-enum" && n.Kind == yaml.SequenceNode {
+			n.Style |= yaml.FlowStyle // a hand-written block list carries over in the card's one-line form (#348)
+		}
 		if validateCardScalar(field, n) != nil {
 			if field.Kind == "actual" && (status == "done" || status == "codecomplete") {
 				add(field.Name, str(ActualNotApplicableSentinel))

@@ -22,6 +22,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/repoenum"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
@@ -124,6 +125,22 @@ func runLegacyIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string
 		die(stderr, fmt.Sprintf("issue file already exists: %s", dest))
 	}
 
+	// #348: legacy repositories read the declaration from main, never HEAD,
+	// and only for areas.
+	f.Areas = uniqueAreas(f.Areas)
+	if err := checkClassification(func() (repoenum.Declaration, error) {
+		git := func(args ...string) (string, error) {
+			out, err := mergeRunner.Git(args...)
+			return string(out), err
+		}
+		rev, err := repoEnumsMainRev(git)
+		if err != nil {
+			return repoenum.Declaration{}, err
+		}
+		return repoEnumsAtRev(git, rev)
+	}, f.Areas, f.Severity); err != nil {
+		return err
+	}
 	rendered := issue.Render(issue.ScaffoldSpec{
 		ID:          nextID,
 		Title:       title,
@@ -132,6 +149,8 @@ func runLegacyIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string
 		ProblemBody: problemBody,
 		Deps:        f.Deps,
 		Target:      f.Target,
+		Area:        f.Areas,
+		Severity:    f.Severity,
 	})
 
 	if _, err := issueassets.BuildBundle(nextID, issueAssetBody([]byte(rendered)), nil); err != nil {

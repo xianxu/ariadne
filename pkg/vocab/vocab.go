@@ -54,6 +54,27 @@ type CardField struct {
 	Kind     string `json:"kind"`
 	Required bool   `json:"required"`
 	Setter   string `json:"setter"`
+	// Enum names the field's value set (#348): a key of IssueModel.Enums for
+	// kind "enum", a key of RepoEnums.Fields for kind "repo-enum".
+	Enum string `json:"enum,omitempty"`
+}
+
+// RepoEnumModel is the repo-defined enum contract (#348): where a repository
+// declares allowed values, and each field's value syntax.
+type RepoEnumModel struct {
+	DeclarationPath string                  `json:"declarationPath"`
+	Fields          map[string]RepoEnumSpec `json:"fields"`
+}
+
+// RepoEnumSpec is one repo enum's syntax. For syntax "path": Segment is one
+// path segment's regular expression; a value has 1..MaxDepth segments joined
+// by "/". Multi fields hold at most MaxItems values.
+type RepoEnumSpec struct {
+	Syntax   string `json:"syntax"`
+	Segment  string `json:"segment"`
+	MaxDepth int    `json:"maxDepth"`
+	Multi    bool   `json:"multi"`
+	MaxItems int    `json:"maxItems"`
 }
 
 // CardModel separates user metadata ownership from internal transaction data.
@@ -99,6 +120,10 @@ type IssueModel struct {
 	Card CardModel `json:"card"`
 	// Own holds the ownership: block (#283) — the lock axis beside Lifecycle.
 	Own Ownership `json:"ownership"`
+	// Enums are the shared closed enums (#348): name → values in order.
+	Enums map[string][]string `json:"enums"`
+	// RepoEnums is the repo-defined enum contract (#348).
+	RepoEnums RepoEnumModel `json:"repoEnums"`
 }
 
 // Ownership is the issue's lock axis (#283): the card's claimant is the owner

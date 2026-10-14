@@ -61,6 +61,9 @@ type IssueState struct {
 	// Unreadable says why an "unreadable" status could not be read, when the
 	// reader knows (#288: an unparseable tracker card).
 	Unreadable string `json:"unreadable,omitempty"`
+	// Area and Severity classify the issue (#348); absent when unset.
+	Area     []string `json:"area,omitempty"`
+	Severity string   `json:"severity,omitempty"`
 	// Owner is the card's claimant, the lock (#283); absent when unowned.
 	Owner *IssueOwner `json:"owner,omitempty"`
 	// ClaimedAt is when the current owner took the card, from tracker history
@@ -80,6 +83,13 @@ type IssueRelease struct {
 	By     IssueOwner `json:"by"`
 	Branch string     `json:"branch,omitempty"`
 	Head   string     `json:"head,omitempty"`
+}
+
+// withClassification adds the record's area and severity (#348).
+func withClassification(st IssueState, rec tracker.IssueRecord) IssueState {
+	st.Area, _ = rec.List("area")
+	st.Severity = rec.Text("severity")
+	return st
 }
 
 // withOwnership adds a card's owner, or its release when unowned, to its row
@@ -353,7 +363,7 @@ func listIssueStates(ctx context.Context, issuesDir string) ([]IssueState, bool,
 				continue
 			}
 			updated, _ := rec.Field("updated")
-			out = append(out, withOwnership(IssueState{ID: rec.ID, Status: rec.Status(), Title: rec.Title(), Updated: updated, CardOnly: true}, rec))
+			out = append(out, withClassification(withOwnership(IssueState{ID: rec.ID, Status: rec.Status(), Title: rec.Title(), Updated: updated, CardOnly: true}, rec), rec))
 			continue
 		}
 		if rec.DetailErr != nil {
@@ -369,7 +379,7 @@ func listIssueStates(ctx context.Context, issuesDir string) ([]IssueState, bool,
 		}
 		updated, _ := rec.Field("updated")
 		total, ticked := issue.CountPlanItems(rec.DetailBody)
-		out = append(out, withOwnership(IssueState{
+		out = append(out, withClassification(withOwnership(IssueState{
 			ID:         rec.ID,
 			Path:       rec.DetailPath,
 			Status:     rec.Status(),
@@ -377,7 +387,7 @@ func listIssueStates(ctx context.Context, issuesDir string) ([]IssueState, bool,
 			PlanTotal:  total,
 			PlanTicked: ticked,
 			Updated:    updated,
-		}, rec))
+		}, rec), rec))
 	}
 	return out, rs.Stale, nil
 }

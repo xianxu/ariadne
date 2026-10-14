@@ -244,11 +244,11 @@ var Catalog = []Contract{
 		},
 	},
 	{
-		Verbs:         []string{"issue set-status", "set-status", "issue set-title", "issue set-estimate", "issue set-github"},
+		Verbs:         []string{"issue set-status", "set-status", "issue set-title", "issue set-estimate", "issue set-github", "issue set-area", "issue set-severity"},
 		Class:         ConvergentRetry,
 		Effects:       "one compare-and-swap on the card field (entering working also stamps the claimant, #277); a local mirror refresh. Reopening abandoned work (#286) first restores its branch from the archive ref (fetch, branch, merge main, un-archive commit, push), then after the card write commits the mirror, pushes and deletes the ref. Reopening a done issue whose details main archived (#305) first cuts the issue branch from main, un-archives the details and plans in one commit and pushes it, then after the card write commits the mirror and pushes.",
 		Evidence:      observeEvidence + ": card.",
-		Preconditions: "the lifecycle guards, including `owned` on start: an unowned open card is claimed first (#283) (--force waives guards, never a foreign owner); done and codecomplete belong to close and merge; wontfix/punt from started work belong to `sdlc abandon` (#286, not waivable).",
+		Preconditions: "the lifecycle guards, including `owned` on start: an unowned open card is claimed first (#283) (--force waives guards, never a foreign owner); done and codecomplete belong to close and merge; wontfix/punt from started work belong to `sdlc abandon` (#286, not waivable). set-area's values must be declared (or ancestors of declared values) in main's .sdlc/vocabulary.json and set-severity's in the shared enum (#348); a refused value writes nothing.",
 		Repeat:        "\"already has that …\" — no write.",
 		LostResponse:  "rerun the same command — the card decides. A concurrent change refuses (\"changed concurrently\").",
 		Ends:          "another card change since you read it.",
@@ -258,6 +258,7 @@ var Catalog = []Contract{
 			{"a done reopen un-archives details and plans onto a pushed branch from main, refuses (no Log entry, a foreign owner, another branch, a dirty tree, a stale local branch, the landed branch itself) before any change, and a failed push, a stale tracking ref or a lost finish is finished by rerunning (#305)", []string{"TestReopenUnarchivesADoneIssue", "TestReopenDoneRerunAfterAFailedPush", "TestReopenDoneWithAStaleTrackingRef", "TestReopenDoneRerunFinishesALostFinish", "TestReopenDoneRefusals", "TestReopenDoneGuardRefusalNamesTheFastForward", "TestReopenDoneDirtyTreeRefusesBeforeTheFastForward", "TestCheckUnarchived"}},
 			{"guards and claimant stamping", []string{"TestStatusDecisionRecordsOrRefusesTheClaimant", "TestCheckTransitionGuards_ReopenNeedsLogEntry"}},
 			{"a lost response is settled by rerunning", []string{"TestSetStatusRerunSettlesALostResponse"}},
+			{"a refused area or severity changes nothing; --clear removes (#348)", []string{"TestIssueSetAreaAndSeverity"}},
 		},
 	},
 	{
