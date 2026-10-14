@@ -47,6 +47,25 @@ func TestPreparationTrackedContentGuard(t *testing.T) {
 	}
 }
 
+func TestPreparationTrackedGuardIgnoresTextConversion(t *testing.T) {
+	dir := preparationRepo(t)
+	for path, body := range map[string]string{"tracked": "original\n", ".gitattributes": "tracked diff=constant\n"} {
+		if err := os.WriteFile(filepath.Join(dir, path), []byte(body), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, args := range [][]string{{"add", "."}, {"-c", "user.name=T", "-c", "user.email=t@example.com", "commit", "-qm", "tracked"}, {"config", "diff.constant.textconv", "sh -c 'echo constant' --"}} {
+		if b, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git: %v %s", err, b)
+		}
+	}
+	calls := fakeRuns(t, ProcessOutput{Stdout: []byte("VERDICT: SHIP")})
+	_, err := Dispatch(context.Background(), DispatchOptions{Agent: AgentCodex, Checkout: dir, Preparation: &reviewprepare.Config{Command: []string{"sh", "-c", "printf changed > tracked"}, TimeoutMinutes: 1}})
+	if err == nil || !strings.Contains(err.Error(), "tracked checkout state") || *calls != 0 {
+		t.Fatalf("text conversion hid tracked mutation: err=%v reviewer calls=%d", err, *calls)
+	}
+}
+
 func TestPreparationUsesReviewerWrapperAndEnvironment(t *testing.T) {
 	dir := preparationRepo(t)
 	calls := fakeRuns(t, ProcessOutput{Stdout: []byte("VERDICT: SHIP")})

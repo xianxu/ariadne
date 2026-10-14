@@ -83,7 +83,7 @@ func runPreparation(ctx context.Context, opts DispatchOptions, attempt int) (err
 // may already be dirty; preparation must preserve that starting state exactly.
 func trackedPreparationState(ctx context.Context, dir string) ([]byte, error) {
 	var state bytes.Buffer
-	for _, args := range [][]string{{"rev-parse", "HEAD"}, {"ls-files", "--stage", "-z"}, {"diff", "HEAD", "--binary", "--no-ext-diff"}} {
+	for _, args := range [][]string{{"rev-parse", "HEAD"}, {"ls-files", "--stage", "-z"}, {"diff", "HEAD", "--binary", "--no-ext-diff", "--no-textconv"}} {
 		out, err := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...).Output()
 		if err != nil {
 			return nil, fmt.Errorf("inspect prepared tracked tree: %w", err)

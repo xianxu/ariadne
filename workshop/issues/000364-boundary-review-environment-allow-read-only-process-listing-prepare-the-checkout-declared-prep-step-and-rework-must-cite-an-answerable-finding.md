@@ -122,6 +122,13 @@ interruption and four-call diagnostic retention tests pass (10.745 s for retenti
 Weave's unrelated setup-lease test failed once in the suite but passed 20 isolated
 repetitions; the next full suite retains raw JSON so any recurrence has diagnostics.
 
+A pre-restart probe showed Git textconv can reduce a real tracked-content diff
+to zero bytes. Cancelled the still-queued second run before any tests started.
+Added a red regression (reviewer incorrectly launched after a hidden mutation),
+then disabled textconv alongside external diffs in the tracked-state comparison.
+All preparation tests pass (11.523 s). Restarting the full run on this corrected
+commit, with raw JSON retained.
+
 ## Revisions
 
 - 2026-10-14 — Spec 1 corrected with hub approval: the existing fence denies source
