@@ -92,7 +92,11 @@ and `sdlc merge` will not land over it:
   latest verdict for that head whichever way GitHub attaches the job's check.
   Tested by executing the real run block: `scripts/test/local-gates-guard.test.sh`,
   run in CI by ariadne's `merge-checks.d/20-ci-workflow-tests.sh`, which runs
-  every `scripts/test/*.test.sh` except two named exclusions.
+  every `scripts/test/*.test.sh` except two named exclusions. One of those,
+  `scripts/test/construct-scripts.test.sh` (#362), runs every
+  `construct/scripts/test/*.test.sh` and names its own exclusions (none today);
+  `make test` runs the same runner through the Go test beside it
+  (`scripts/test/scripts_test.go`), so CI and the local suite share one list.
 - **Absence is not green.** The guard posts `pending` first and turns any exit
   before a decision into `failure`; merge's CI gate requires the
   `local-gates-guard/verdict` status whenever the target main carries the

@@ -34,8 +34,28 @@ Run every `construct/scripts/test/*.test.sh` from `make test` (and the CI merge 
 
 ## Plan
 
-- [ ]
+- [x] One runner, `scripts/test/construct-scripts.test.sh`: runs every
+  `construct/scripts/test/*.test.sh` under the bash on PATH, each in its own process,
+  names each failure and fails the run; its `EXCLUDED` list (empty today, each entry
+  with a reason) is the one place to leave a test out. Living in `scripts/test/`, the
+  CI merge check (`20-ci-workflow-tests`) runs it with no change to a local-gates file.
+- [x] `make test` (Go only, via test-shard.py over `go list ./...`) runs it through a
+  test-only Go package beside it, `scripts/test/scripts_test.go`
+  (`TestConstructScripts`, under `testgate.Enter`).
+- [x] Proof: a deliberately failing assertion in `dev-aliases.test.sh` fails `make test`.
+- [x] Atlas: ci-merge-check.md and base-layer.md say where these tests run.
 
 ## Log
 
 ### 2026-10-13
+
+### 2026-10-13 — ariadne:3
+
+All six construct tests pass locally in about 13s (dev-aliases 8s, clone-data-deps 3s,
+the rest about 1s), so nothing is excluded; CI's Linux runner is the remaining check.
+Proof: with `ko "deliberately broken for the #362 proof"` appended to
+`dev-aliases.test.sh` (working tree only, restored after), the full `make test` failed
+with `--- FAIL scripts/test TestConstructScripts` naming `dev-aliases.test.sh` and the
+assertion (`construct-scripts: 5 passed, 1 failed`). That run also hit the #361 weave
+load flake, unrelated. The runner itself guards its array expansion per #353's rule
+(the shelllint scan reads the index, so it saw the file once staged).
