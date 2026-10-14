@@ -1,12 +1,12 @@
 ---
 id: 000360
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: '6120f55a74c2252ad2cc2e0060ac7969c5760369' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '73aa63e4614d7bce5c0424f1026a852b8100dce6' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T18:37:33-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "c2e45336", done: "422b95dc"}
+actual_hours: 2.64
 ---
 
 # fleet: TestHangingRemoteDegradesOnlyItsRepository flakes under load; one 500ms read deadline also times out the healthy repository
