@@ -46,6 +46,7 @@ Build to a temp file beside the target (`bin/.X.tmp.$$`) and `mv -f` it over `bi
 ## Log
 
 ### 2026-10-13
+- 2026-10-13: closed — Round 1 fixes: atlas base-layer.md now states the build-and-rename form (the only stale restatement; reviewer swept for rm -f bin/ and go build -o bin); failed-build test added (stub go writes a partial binary and exits 1: call returns non-zero, runs nothing, leaves no bin/.X.*, previous bin/X still runs; with origin/main emitter the keeps-previous-binary case fails); Spec Revisions entry for the per-call directory. dev-aliases.test.sh under /bin/bash 3.2.57: 48 passed, 0 failed; the concurrency case fails with 62 No such file or directory execs on origin/main emitter. Real go build through the emitted function in bash 3.2 and zsh. Full make test green (12 shards, 1239 cmd/sdlc tests, 49 packages, 0 failed). (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 ### 2026-10-13 — ariadne:3
 
