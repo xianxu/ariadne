@@ -81,7 +81,7 @@ if [[ ${#ACTIVITIES[@]} -eq 0 ]]; then
     list_args+=(--activity "$a")
   done
 else
-  for a in "${ACTIVITIES[@]}"; do
+  for a in ${ACTIVITIES[@]+"${ACTIVITIES[@]}"}; do
     list_args+=(--activity "$a")
   done
 fi
@@ -90,16 +90,16 @@ fi
 SEGMENTS=()
 while IFS= read -r line; do
   [[ -n "$line" ]] && SEGMENTS+=("$line")
-done < <(python3 "$SCRIPT_DIR/segment_text.py" "${list_args[@]}" | cut -f1)
+done < <(python3 "$SCRIPT_DIR/segment_text.py" ${list_args[@]+"${list_args[@]}"} | cut -f1)
 
 if [[ -n "$LIMIT" && ${#SEGMENTS[@]} -gt $LIMIT ]]; then
   TRIMMED=()
   i=0
-  for s in "${SEGMENTS[@]}"; do
+  for s in ${SEGMENTS[@]+"${SEGMENTS[@]}"}; do
     [[ $i -ge $LIMIT ]] && break
     TRIMMED+=("$s"); i=$((i+1))
   done
-  SEGMENTS=("${TRIMMED[@]}")
+  SEGMENTS=(${TRIMMED[@]+"${TRIMMED[@]}"})
 fi
 TOTAL=${#SEGMENTS[@]}
 
@@ -112,7 +112,7 @@ EXTRACT_SYSTEM="$(cat "$EXTRACT_PROMPT")"
 echo "[introspect-extract] $TOTAL segment(s) to process. cache=$PATTERNS_DIR" >&2
 
 i=0
-for sid in "${SEGMENTS[@]}"; do
+for sid in ${SEGMENTS[@]+"${SEGMENTS[@]}"}; do
   i=$((i+1))
   # Filename-safe form of segment id: replace # and / with _
   safe="${sid//#/_}"; safe="${safe//\//_}"

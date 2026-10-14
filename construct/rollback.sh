@@ -64,7 +64,7 @@ find_version_dir() {
         return 1
     elif [ ${#matches[@]} -gt 1 ]; then
         echo "Error: Multiple versions match '$target':" >&2
-        for m in "${matches[@]}"; do
+        for m in ${matches[@]+"${matches[@]}"}; do
             echo "  $(basename "$m")" >&2
         done
         return 1

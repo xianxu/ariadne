@@ -243,6 +243,10 @@ Detailed incidents remain in their owning issue or review artifact.
   precede a command) misses the next context each review. When a review finds a
   second one, invert the rule: match every occurrence and enumerate only the
   provable exceptions (#342: if/while/sudo -u/time -p after {, sudo, time, VAR=x).
+- Before a lint encodes a portability rule, measure each form on the target. #353
+  assumed every array operator failed on bash 3.2 under `set -u`; measured, only the
+  bare `${a[@]}`/`${a[*]}` (and the bash-4 case operators) do, so the first rule
+  over-flagged substrings and pattern removal.
 - A behavior change to a surface the README documents updates the README, even
   with no new command: a now-false README sentence is a finding (#230 BR-3).
 - Validate external identifier grammar before interpreting sentinel values. An
