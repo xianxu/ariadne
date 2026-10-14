@@ -224,3 +224,11 @@ Per the hub's explicit direction, local acceptance precedes shared-binary rebuil
 and data repair. Done when now states that ordering and includes remeasurement of
 #335's own old-binary close. Complete repeats prove all authoritative effects;
 legacy header migration preserves raw calibration identities (ARCH-ORDER).
+
+### 2026-10-14 — passing recorded full suite
+
+sdlc local-check run --name suite passed on
+ dad811f5fd233dbb2db266f3929ee7fc27f78ce7: all1333 cmd/sdlc tests in12 shards
+and54 other packages, wall349.2s, zero failures. Recorded sdlc-local/suite;
+log SHA256 prefix bf0435c69975. Shared-binary close review is next; the pending
+land/rebuild/three-record repair ordering is acknowledged with no-plan-check.
