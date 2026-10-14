@@ -1,19 +1,19 @@
 ---
 id: 000358
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: 'eb91e918117bc032be2ee2fefe2ca52f84062e36' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '43fa88ad972a083a2969cdb1b5bfab87cd01ed07' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T18:04:12-07:00
 claimant:
     operator: Xian Xu
     machine: 4716879978a7b90f6b583da1716fd0e9
-    machine_name: MacBook Pro
-    workspace: ariadne:3
-    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 ---
 
@@ -48,7 +48,9 @@ flag (e.g. `-i`, `-n`) also needs neutralizing. Add a regression test that sets
 
 ## Plan
 
-- [ ]
+- [ ] Pin clean and inherited keep-going environments in the real make failure regression; verify RED.
+- [ ] Add -S to the shared tools argv and align the process double; verify targeted GREEN and full make -k test.
+- [ ] Record verification, close, and land on SHIP.
 
 ## Log
 
@@ -56,3 +58,7 @@ flag (e.g. `-i`, `-n`) also needs neutralizing. Add a regression test that sets
 - 2026-10-13: unclaimed: filed from #353; independent weave fix, unclaimed for the hub to assign
 
 Filed by ariadne:3 from #353's full suite (unrelated to #353's diff).
+
+## Revisions
+
+- 2026-10-14 — Hub assigned the production fix: cancel inherited keep-going with -S at the existing tools IO seam (ARCH-PURPOSE, ARCH-PURE). Preserve other make options, including job settings and explicitly selected ignore-error/dry-run modes; removing the whole environment is broader than this bug. Reuse the current real double-colon fixture and injected process double (ARCH-DRY, ARCH-MOCK). No new state, concurrency, artifacts or input surface is introduced (ARCH-ORDER, ARCH-FUNERAL, ARCH-CONSTRAINTS, ARCH-SECURE). #356 is superseded by this production correction.
