@@ -15,7 +15,7 @@ import (
 func closedThenRebased(t *testing.T, id int) (*trackerRepo, string, issue.Completion) {
 	t.Helper()
 	r, cardPath, _ := closeReady(t, id)
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", itoa(id), "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}
@@ -148,7 +148,7 @@ func TestOlderCloseTokenNeverClaimsANewerClose(t *testing.T) {
 	writeRepoFile(t, r.root, "cmd/b.go", "package a\n")
 	r.git("add", "cmd/b.go")
 	r.git("commit", "-qm", "#334: follow-up")
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "334", "--verified", "again", "--actual", "1", "--no-atlas"); err != nil {
 		t.Fatalf("re-close: %v\n%s", err, stderr)
 	}

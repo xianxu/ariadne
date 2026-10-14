@@ -10,9 +10,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os/exec"
+	"regexp"
 	"strings"
 )
 
@@ -20,6 +24,9 @@ import (
 // gh CLI. realGH below is the production implementation; tests
 // substitute stubGH (in fetch_test.go) or richer fakes per-verb.
 type ghCaller interface {
+	// RepoVisibility requires a full HTTPS GitHub repository URL; it never
+	// infers the authorization host from GH_HOST or the current checkout.
+	RepoVisibility(context.Context, string) (string, error)
 	// TitleAndBody returns the title + body of GitHub issue issueNum
 	// in repo (owner/repo slug). Used by `sdlc issue new --from-github`
 	// (and its `sdlc fetch` alias).
@@ -70,6 +77,10 @@ type ghCaller interface {
 	// PostStatus records a commit status on sha: how a local run is recorded
 	// as evidence on the exact head (#345, context localStatusContext).
 	PostStatus(ctx context.Context, repo, sha, statusContext, state, description string) error
+
+	// CommitStatuses returns the latest state of each commit status on sha
+	// (#332: a suite recorded on an ancestor of the landing head).
+	CommitStatuses(ctx context.Context, repo, sha string) (map[string]string, error)
 
 	// PRComment posts a comment on PR number (#345: a failed local run's tail).
 	PRComment(ctx context.Context, repo string, number int, body string) error
@@ -186,4 +197,53 @@ func (realGH) PRMerge(repo, branch, expectedHead string) error {
 // unchecked (#309).
 func prMergeArgs(repo, branch, expectedHead string) []string {
 	return []string{"pr", "merge", "--repo", repo, "--merge", "--delete-branch", "--match-head-commit", expectedHead, branch}
+}
+
+var visibilityRepositoryURL = regexp.MustCompile(`^https://github[.]com/[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*$`)
+
+// RepoVisibility queries only the visibility field; raw host errors may contain
+// credentials and are deliberately not returned to policy help or refusals.
+func (realGH) RepoVisibility(ctx context.Context, repo string) (string, error) {
+	if !visibilityRepositoryURL.MatchString(repo) {
+		return "", fmt.Errorf("visibility repository must include its publication host: use the full https://github.com/owner/repository URL")
+	}
+	cmd := exec.CommandContext(ctx, "gh", "repo", "view", repo, "--json", "visibility")
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", fmt.Errorf("visibility unavailable")
+	}
+	if err = cmd.Start(); err != nil {
+		return "", fmt.Errorf("visibility unavailable")
+	}
+	raw, readErr := io.ReadAll(io.LimitReader(out, 4097))
+	if len(raw) > 4096 || readErr != nil {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		return "", fmt.Errorf("invalid visibility response")
+	}
+	if err = cmd.Wait(); err != nil {
+		return "", fmt.Errorf("visibility unavailable")
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	if token, err := dec.Token(); err != nil || token != json.Delim('{') {
+		return "", fmt.Errorf("invalid visibility response")
+	}
+	if key, err := dec.Token(); err != nil || key != "visibility" {
+		return "", fmt.Errorf("invalid visibility response")
+	}
+	var visibility string
+	if err := dec.Decode(&visibility); err != nil || dec.More() {
+		return "", fmt.Errorf("invalid visibility response")
+	}
+	if token, err := dec.Token(); err != nil || token != json.Delim('}') {
+		return "", fmt.Errorf("invalid visibility response")
+	}
+	if _, err := dec.Token(); err != io.EOF {
+		return "", fmt.Errorf("invalid visibility response")
+	}
+	switch visibility {
+	case "PUBLIC", "PRIVATE", "INTERNAL":
+		return visibility, nil
+	}
+	return "", fmt.Errorf("unknown repository visibility")
 }

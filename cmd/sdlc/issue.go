@@ -25,6 +25,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/repoenum"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
@@ -42,7 +43,12 @@ func NewIssueCmd() *cobra.Command {
 			return cmd.Help()
 		},
 	}
-	cmd.AddCommand(newIssueNewCmd())
+	cmd.AddCommand(newIssueNewCmd(), newIssueAttachCmd())
+	defaultHelp := cmd.HelpFunc()
+	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		defaultHelp(cmd, args)
+		issueAssetHelp(cmd, args)
+	})
 
 	// set-status moved under `issue` (#56 M2). The transition guards live in
 	// statusDecision / checkTransitionGuards (pure, unit-tested); since #252
@@ -52,6 +58,7 @@ func NewIssueCmd() *cobra.Command {
 	setStatus.Long = renderLong("set-status") // #125: derive the lifecycle facts (not add()-wired)
 	cmd.AddCommand(setStatus)
 	cmd.AddCommand(newIssueSetTitleCmd(), newIssueSetEstimateCmd(), newIssueSetGitHubCmd())
+	cmd.AddCommand(newIssueSetAreaCmd(), newIssueSetSeverityCmd(), newIssueCorrectActualCmd())
 	cmd.AddCommand(newIssueMoveDetailCmd(), newIssueRecoveryCmd(), newIssueMigrateCmd())
 
 	cmd.AddCommand(newIssueSyncCmd())
@@ -96,7 +103,7 @@ the fail-closed boundary is the push/merge gate.`,
 		Args:          cobra.ArbitraryArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runIssueValidate(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f, args)
+			return runIssueValidate(commandContext(cmd.Context()), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f, args)
 		},
 	}
 	cmd.Flags().IntSliceVar(&f.Issues, "issue", nil, "issue ID(s) to validate (comma-separated: --issue 1,2,3)")
@@ -108,7 +115,7 @@ the fail-closed boundary is the push/merge gate.`,
 // runIssueValidate resolves the target file(s), runs full validation on each
 // (frontmatter + sections), and returns a non-nil error iff any file is
 // nonconforming (so the command exits non-zero).
-func runIssueValidate(stdout, stderr io.Writer, f *issueValidateFlags, args []string) error {
+func runIssueValidate(ctx context.Context, stdout, stderr io.Writer, f *issueValidateFlags, args []string) error {
 	files, err := resolveValidateTargets(f, args)
 	if err != nil {
 		return err
@@ -116,9 +123,11 @@ func runIssueValidate(stdout, stderr io.Writer, f *issueValidateFlags, args []st
 	if len(files) == 0 {
 		return fmt.Errorf("no issue files to validate (pass <file>, --issue N, or --all)")
 	}
+	read := lazyDecl(func() (repoenum.Declaration, error) { return issueValidateDeclaration(f.IssuesDir) })
 	nonconforming := 0
 	for _, file := range files {
 		probs := validateIssueFull(file)
+		probs = append(probs, classificationProblems(read, file)...)
 		if len(probs) == 0 {
 			cok(stderr, fmt.Sprintf("%s: conforms", file))
 			continue
@@ -129,10 +138,74 @@ func runIssueValidate(stdout, stderr io.Writer, f *issueValidateFlags, args []st
 			fmt.Fprintln(stdout, "  - "+p)
 		}
 	}
+	if f.All {
+		// #348: in a tracker repository the cards are the authority for area and
+		// severity, so --all sweeps them too.
+		cards := cardClassificationProblems(ctx, f.IssuesDir, read)
+		for _, p := range cards {
+			fmt.Fprintln(stdout, "  - "+p)
+		}
+		if len(cards) > 0 {
+			cwarn(stderr, fmt.Sprintf("%d card(s) carry an undeclared or invalid classification", len(cards)))
+			nonconforming += len(cards)
+		}
+	}
 	if nonconforming > 0 {
 		return fmt.Errorf("%d of %d issue file(s) nonconforming", nonconforming, len(files))
 	}
 	return nil
+}
+
+// issueValidateDeclaration reads the repository's declaration (#348) from main
+// for on-demand validation.
+func issueValidateDeclaration(issuesDir string) (repoenum.Declaration, error) {
+	root := repoRootOf(issuesDir)
+	if root == "" {
+		return parseRepoEnums(nil)
+	}
+	git := func(args ...string) (string, error) {
+		out, err := gitx.RunGit(append([]string{"-C", root}, args...)...)
+		return string(out), err
+	}
+	rev, err := repoEnumsMainRev(git)
+	if err != nil {
+		return repoenum.Declaration{}, err
+	}
+	return repoEnumsAtRev(git, rev)
+}
+
+// classificationProblems checks one file's area and severity (#348).
+func classificationProblems(read declReader, file string) []string {
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return nil
+	}
+	if err := detailsClassification(read, file, data); err != nil {
+		return []string{"classification: " + strings.TrimPrefix(err.Error(), file+": ")}
+	}
+	return nil
+}
+
+// cardClassificationProblems checks every card's area and severity (#348).
+func cardClassificationProblems(ctx context.Context, issuesDir string, read declReader) []string {
+	records, err := loadIssueRecords(ctx, issuesDir, tracker.PreferFresh)
+	if err != nil {
+		return []string{"cards: " + err.Error()}
+	}
+	var out []string
+	for _, r := range records.All() {
+		if r.Card == nil {
+			continue
+		}
+		areas, severity, err := frontmatterClassification(r.Card.Card.Frontmatter)
+		if err == nil {
+			err = checkClassification(read, areas, severity)
+		}
+		if err != nil {
+			out = append(out, fmt.Sprintf("card #%s: %v", r.ID, err))
+		}
+	}
+	return out
 }
 
 // resolveValidateTargets picks the files to validate from positional <file>
@@ -194,6 +267,8 @@ type issueNewFlags struct {
 	FromGitHub int
 	Deps       []string
 	Target     string
+	Areas      []string // #348
+	Severity   string   // #348
 	DryRun     bool
 	IssuesDir  string
 	HistoryDir string
@@ -225,6 +300,8 @@ title overrides it) and the issue body is seeded under ## Problem.`,
 	cmd.Flags().IntVar(&f.FromGitHub, "from-github", 0, "derive title + body from this GitHub issue number")
 	cmd.Flags().StringSliceVar(&f.Deps, "deps", nil, "dependency refs, e.g. --deps repo#1,repo#2")
 	cmd.Flags().StringVar(&f.Target, "target", "", "target: frontmatter slug")
+	cmd.Flags().StringArrayVar(&f.Areas, "area", nil, "an area (repeatable): a /-path declared in .sdlc/vocabulary.json on main, or an ancestor of one")
+	cmd.Flags().StringVar(&f.Severity, "severity", "", "severity: "+strings.Join(vocab.Issue().Enums["severity"], " | "))
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be path + body; do not write")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory holding archived issues")
@@ -288,6 +365,12 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 	if err != nil {
 		return err
 	}
+	// #348: checked before anything is reserved; the declaration is read only
+	// for areas.
+	f.Areas = uniqueAreas(f.Areas)
+	if err := checkClassification(func() (repoenum.Declaration, error) { return readTrackerRepoEnums(env) }, f.Areas, f.Severity); err != nil {
+		return err
+	}
 	if env.branch == "" {
 		// Its recovery record is bound to the creating checkout's branch.
 		return errors.New("issue new needs a checked-out branch (its recovery record names one); check out a branch first")
@@ -295,7 +378,7 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 	today := time.Now().Format("2006-01-02")
 	render := func(id string) (tracker.Draft, error) {
 		full := issue.Render(issue.ScaffoldSpec{ID: id, Title: title, Today: today, GithubIssue: ghNum,
-			ProblemBody: problemBody, Deps: f.Deps, Target: f.Target})
+			ProblemBody: problemBody, Deps: f.Deps, Target: f.Target, Area: f.Areas, Severity: f.Severity})
 		card, detail, err := issue.SplitCardWithFormat([]byte(full), env.format)
 		if err != nil {
 			return tracker.Draft{}, err
@@ -483,6 +566,7 @@ func runIssueSync(stdout, stderr io.Writer, f *issueSyncFlags) error {
 	// adds are the subject and the publish choice, both parameters of the shared
 	// helper rather than a second sync path.
 	syncFlags := &claimFlags{
+		Context:   f.Context,
 		Issue:     f.Issue,
 		IssuesDir: f.IssuesDir,
 		DryRun:    f.DryRun,
@@ -511,8 +595,10 @@ func issueSyncMessage(issue int, what string) string {
 // ── issue list ───────────────────────────────────────────────────────────────
 
 type issueListFlags struct {
-	Status    string
-	IssuesDir string
+	Status     string
+	Areas      []string // #348
+	Severities []string // #348
+	IssuesDir  string
 }
 
 func newIssueListCmd() *cobra.Command {
@@ -520,9 +606,11 @@ func newIssueListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List workshop issues (ID, status, title)",
-		Long: `List issues in workshop/issues/ as "ID  STATUS  TITLE", sorted by ID.
-Filter with --status. Broader than 'sdlc state', which surfaces only the
-working set + drift.`,
+		Long: `List issues in workshop/issues/ as "ID  STATUS  TITLE", sorted by ID; when a
+listed issue carries a severity or areas, SEVERITY and AREA columns are added.
+Filter with --status, --area (a /-path prefix by whole segments: couch/broadcast
+matches couch/broadcast/web, not couch/broadcaster) and --severity. Broader
+than 'sdlc state', which surfaces only the working set + drift.`,
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -530,6 +618,8 @@ working set + drift.`,
 		},
 	}
 	cmd.Flags().StringVar(&f.Status, "status", "", "filter to this status (open|working|blocked|done|wontfix|punt)")
+	cmd.Flags().StringArrayVar(&f.Areas, "area", nil, "filter to issues with an area under this /-path (repeatable; matches by whole segments)")
+	cmd.Flags().StringSliceVar(&f.Severities, "severity", nil, "filter to these severities (comma-separated: "+strings.Join(vocab.Issue().Enums["severity"], ",")+")")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	return cmd
 }
@@ -537,8 +627,9 @@ working set + drift.`,
 // runIssueList reuses state.go's listIssues (which reads + sorts by ID)
 // rather than re-deriving the scan/sort.
 func runIssueList(ctx context.Context, stdout, stderr io.Writer, f *issueListFlags) error {
-	if f.Status != "" && !isValidStatus(f.Status) {
-		die(stderr, fmt.Sprintf("invalid status %q (valid: %s)", f.Status, strings.Join(vocab.Issue().AllStatuses(), ", ")))
+	filter, err := newIssueListFilter(f.Status, f.Areas, f.Severities)
+	if err != nil {
+		die(stderr, err.Error())
 	}
 	issues, stale, err := listIssueStates(ctx, f.IssuesDir)
 	if err != nil {
@@ -547,17 +638,26 @@ func runIssueList(ctx context.Context, stdout, stderr io.Writer, f *issueListFla
 	if stale {
 		cwarn(stderr, staleTrackerNote)
 	}
-	n := 0
+	var shown []IssueState
+	classified := false
 	for _, is := range issues {
-		if f.Status != "" && is.Status != f.Status {
-			continue
+		if filter.matches(is) {
+			shown = append(shown, is)
+			classified = classified || len(is.Area) > 0 || is.Severity != ""
 		}
-		// width 10 fits the longest real status + the "unreadable"
-		// sentinel listIssues emits for broken files.
-		fmt.Fprintf(stdout, "%s  %-10s  %s\n", is.ID, valueOr(is.Status, "?"), is.Title)
-		n++
 	}
-	if n == 0 {
+	for _, is := range shown {
+		// width 10 fits the longest real status + the "unreadable"
+		// sentinel listIssues emits for broken files. The classification
+		// columns (#348) appear only when a listed issue carries one, so
+		// unclassified output is unchanged.
+		if classified {
+			fmt.Fprintf(stdout, "%s  %-10s  %-8s  %-24s  %s\n", is.ID, valueOr(is.Status, "?"), valueOr(is.Severity, "-"), valueOr(strings.Join(is.Area, ","), "-"), is.Title)
+		} else {
+			fmt.Fprintf(stdout, "%s  %-10s  %s\n", is.ID, valueOr(is.Status, "?"), is.Title)
+		}
+	}
+	if len(shown) == 0 {
 		cinfo(stderr, "no issues match")
 	}
 	return nil

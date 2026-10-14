@@ -17,7 +17,21 @@ WF_HELP_TARGETS := help-workflow
 # suite is 2, so it runs alone); the default is 1.
 # Targeted runs never come here.
 WF_TEST_LOCK_HELPER := $(WF_WORKFLOW_SOURCE_DIR)scripts/test-lock.py
+# #333: a repo whose suite cannot run on some hosts (an agent sandbox refusing
+# sockets, PTYs or exec) ships a host preflight, by convention
+# tests/host-preflight.sh, or names another with WF_TEST_PREFLIGHT ?= before
+# including this file. It runs here, before the lock, so a host that cannot run
+# the suite fails at once with the preflight's own message instead of queueing for
+# the machine-wide lock first. Its output goes to stderr; only its exit status is
+# read. A repo without one is unaffected.
+WF_TEST_PREFLIGHT ?= tests/host-preflight.sh
 ifneq ($(filter test,$(MAKECMDGOALS)),)
+ifneq ($(wildcard $(WF_TEST_PREFLIGHT)),)
+WF_TEST_PREFLIGHT_STATUS := $(shell bash $(WF_TEST_PREFLIGHT) 1>&2; echo $$?)
+ifneq ($(WF_TEST_PREFLIGHT_STATUS),0)
+$(error host preflight $(WF_TEST_PREFLIGHT) failed (exit $(WF_TEST_PREFLIGHT_STATUS)); not taking the full-suite lock. See its message above)
+endif
+endif
 ifeq ($(wildcard $(WF_TEST_LOCK_HELPER)),)
 $(warning [test-lock] $(WF_TEST_LOCK_HELPER) missing: running WITHOUT the machine-wide full-suite lock)
 else

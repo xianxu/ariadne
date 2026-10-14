@@ -12,16 +12,16 @@ WHY THIS EXISTS
 
 WHAT IT DOES
 
-  1. Resolves the issue's commit window (`gitx.CommitWindow`) + the peer issues
-     referenced in that window (so attribution is shared, not dumped to one).
-  2. Selects transcript sources for **brain + the issue's own repo** via the
-     harness registry (`internal/transcripts`) — one `Harness` per agent CLI,
-     merged by a pure `Select`. Today: Claude Code cwd dirs
-     (`~/.claude/projects/<encoded-cwd>`) + Codex session files
-     (`~/.codex/sessions/YYYY/MM/DD/*.jsonl`) whose `session_meta.cwd` matches one
-     of those repos. Harness-agnostic by design (a new agent CLI is one registry
-     entry). It does NOT scan unrelated cwd sessions: concurrent repo work
-     inflates the count.
+  1. Pins the code and tracker histories. In tracker repositories the window
+     comprises ownership intervals: claim to release, with every reclaim opening
+     a fresh interval. Relocation retains the original session root within that
+     continuous engagement. The output prints the actual right edge.
+  2. Admits sessions from those owning worktrees, irrespective of the checkout
+     running this command. A spawned session needs an admitted parent and a
+     dispatch within the engagement. Unbound brain sessions are excluded; the
+     provenance reports their count and active minutes. Missing or stale required
+     evidence refuses automatic adoption. Repositories without a tracker retain
+     the explicitly labeled repository-plus-brain heuristic.
   3. Runs the native `activetime` engine (`--commit-weight 1.0 --threshold-min 15
      --include-assistant`, in-process — no python3) and prints the suggested
      `--actual` value. If attribution is suspect (for example one long run
@@ -48,12 +48,24 @@ OUTPUT
   - no window           → no commits reference the issue yet; commit first, or
                             fall back to a judgment estimate.
 
+Completed issues replay the measurement inputs retained with their close evidence:
+code/tracker pins, source byte prefixes and digests, ownership windows, and phase
+cuts. Later transcript appends and bookkeeping cannot move that measurement.
+Legacy closes without retained inputs reconstruct their historical completion
+binding and report that limitation.
+
+To repair a completed sample, use sdlc issue correct-actual --issue N --reason TEXT
+(--dry-run previews it). It computes hours, preserves the close generation, and
+records provenance. --exclude removes a proven invalid calibration sample when
+reliable numeric evidence is unavailable. Interrupted corrections resume through
+sdlc issue recovery reconcile --issue N without measuring again.
+
 For the full per-segment breakdown, run `sdlc active-time` (the standalone engine).
 
 FLAGS
 
   --issue <n>         issue ID to measure (required)
-  --brain-dir <path>  brain repo path (transcript dir always included; default ../brain)
+  --brain-dir <path>  brain capture root (bound descendants only; default ../brain)
   --milestone <Mx>    measure one milestone's increment (#234)
 
 RELATED

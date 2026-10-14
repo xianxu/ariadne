@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
@@ -17,16 +18,19 @@ const landingTestBranch = "000001-procedure"
 
 type landingFakeGH struct {
 	ciSeamGH
-	t          *testing.T
-	remote     string
-	pr         landingPR
-	strategy   string
-	merges     int
-	queryErr   error
-	mergeErr   error
-	afterMerge func()
-	queue      bool
-	checks     []prCheck // nil: the stub's green default (#309)
+	t           *testing.T
+	remote      string
+	pr          landingPR
+	strategy    string
+	merges      int
+	queryErr    error
+	mergeErr    error
+	afterMerge  func()
+	queue       bool
+	checks      []prCheck // nil: the stub's green default (#309)
+	followPush  bool      // integration tests observe the real bare remote
+	headLag     int       // reads before GitHub registers a newly pushed head
+	afterStatus func(string)
 }
 
 func (g *landingFakeGH) PRHeadOID(ctx context.Context, repo string, n int) (string, error) {
@@ -50,7 +54,31 @@ func (g *landingFakeGH) LandingPRs(context.Context, string, string) ([]landingPR
 	if g.queryErr != nil {
 		return nil, g.queryErr
 	}
+	if g.followPush && g.pr.State == "OPEN" {
+		head := git(g.t, g.remote, "rev-parse", "refs/heads/"+g.pr.HeadRef)
+		g.pr.BaseOID = git(g.t, g.remote, "rev-parse", "refs/heads/main")
+		if head != g.pr.HeadOID {
+			if g.headLag > 0 {
+				g.headLag--
+			} else {
+				g.pr.HeadOID = head
+				if g.ci != nil {
+					g.ci.setHead(g.pr.Number, head)
+				}
+			}
+		}
+	}
 	return []landingPR{g.pr}, nil
+}
+
+func (g *landingFakeGH) PostStatus(ctx context.Context, repo, sha, statusContext, state, desc string) error {
+	if err := g.ciSeamGH.PostStatus(ctx, repo, sha, statusContext, state, desc); err != nil {
+		return err
+	}
+	if statusContext == localStatusContext(suiteCheckName) && g.afterStatus != nil {
+		g.afterStatus(sha)
+	}
+	return nil
 }
 func (g *landingFakeGH) LandingMerge(_ context.Context, repo string, n int, head string) error {
 	if head != g.pr.HeadOID || n != g.pr.Number || repo != g.pr.Repo {
@@ -814,5 +842,45 @@ func TestLandingPRPublishesARewrittenBranch(t *testing.T) {
 	}
 	if got := git(t, remote, "rev-parse", "refs/heads/"+landingTestBranch); got != head {
 		t.Fatalf("remote head %s, want the rewritten %s", got, head)
+	}
+}
+
+func TestLandingReturnVerifiesAssetMaterialization(t *testing.T) {
+	for _, conversion := range []bool{true, false} {
+		t.Run(map[bool]string{true: "conversion", false: "hook-bytes"}[conversion], func(t *testing.T) {
+			roots, _, _ := landingFixture(t, 1)
+			root := roots[1]
+			head := procedureHead(t, root)
+			name, _ := issueassets.Name([]byte("one\ntwo"), "png")
+			asset := "workshop/issues/assets/000998/" + name
+			peer := filepath.Join(t.TempDir(), "rest-peer")
+			git(t, root, "worktree", "add", "-b", "rest-evidence", peer, "main-slot1")
+			procedureWrite(t, peer, asset, "one\ntwo")
+			if conversion {
+				procedureWrite(t, peer, ".gitattributes", "workshop/issues/assets/** text eol=crlf\n")
+			}
+			git(t, peer, "add", ".")
+			git(t, peer, "commit", "-qm", "resting evidence")
+			git(t, root, "update-ref", "refs/heads/main-slot1", procedureHead(t, peer))
+			if !conversion {
+				hooks := t.TempDir()
+				procedureWrite(t, hooks, "post-checkout", "#!/bin/sh\nprintf changed > '"+asset+"'\n")
+				if err := os.Chmod(filepath.Join(hooks, "post-checkout"), 0755); err != nil {
+					t.Fatal(err)
+				}
+				git(t, root, "config", "core.hooksPath", hooks)
+			}
+			target, err := resolveLandingTarget(mergeRunner)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = returnLandingToRest(context.Background(), mergeRunner, *target, landingTestBranch, head, "workshop/issues")
+			if err == nil || !strings.Contains(err.Error(), asset) {
+				t.Fatalf("materialization accepted: %v", err)
+			}
+			if !gitSucceeds(root, "show-ref", "--verify", "refs/heads/"+landingTestBranch) {
+				t.Fatal("issue branch removed after materialization refusal")
+			}
+		})
 	}
 }

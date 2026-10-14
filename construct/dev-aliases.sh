@@ -9,7 +9,8 @@
 # run-anywhere tools (nous), which `go run`/`go tool` can't (their cwd is
 # pinned to the module dir). Form:
 #
-#   X() { ( cd OWNER && mkdir -p bin && rm -f bin/X && go build -o bin/X ./cmd/X ) || return; OWNER/bin/X "$@"; }
+#   X() { ( cd OWNER && mkdir -p bin && d="$(mktemp -d bin/.X.XXXXXX)" &&
+#     { go build -o "$d/X" ./cmd/X && mv -f "$d/X" bin/X; s=$?; rm -rf "${d:?}"; exit $s; } ) || return; OWNER/bin/X "$@"; }
 #
 # An owner whose build needs a generated input (a gitignored embed tree, say)
 # declares a `dev-prepare` make rule (#299; what counts as declared is
@@ -23,7 +24,13 @@
 # Makefiles, which detection does once per owner whenever the aliases are
 # emitted. An owner that declares nothing keeps the plain form above.
 #
-# The `rm -f bin/X` mirrors the owner Makefiles' code-signing-inode safety. The
+# The build goes to a private directory beside the target and is renamed over
+# bin/X (#355): a rename on one filesystem is atomic, so the old binary stays until
+# the new one replaces it, and a concurrent call never finds bin/X missing (a
+# per-call mktemp directory, so concurrent builds never share a path; the last
+# rename wins). The rename also gives the new binary a new inode, the macOS
+# code-signing safety the owner Makefiles get from `rm -f` first. A build killed
+# mid-way leaves its bin/.X.* directory behind (gitignored with bin/). The
 # function only builds + runs — it does NOT manage services (no `launchctl
 # bootout`); use the owner's `make <name>-dev` target for stop-prod-then-serve.
 #
@@ -248,9 +255,8 @@ printf '%s\n' "$final" | while IFS="$(printf '\t')" read -r bin repo; do
 		printf '%s\t%s\n' "$bin" "$repo"
 	else
 		repo_q="$(printf '%q' "$repo")"
-		# Build to the owner's bin/ (official path, gitignored — not a temp
-		# dir; safe for service binaries); rm -f first for code-signing-inode
-		# safety; run from the caller's cwd.
+		# Build beside the owner's bin/X (the official path, gitignored) and
+		# rename into place, so bin/X is never missing; run from the caller's cwd.
 		prep=""
 		# One detection per owner, not per binary: cache the answer by repo.
 		case "$prepared" in
@@ -263,8 +269,8 @@ printf '%s\n' "$final" | while IFS="$(printf '\t')" read -r bin repo; do
 					prepared="$prepared$repo=0|"
 				fi ;;
 		esac
-		printf '%s() { ( cd %s && %smkdir -p bin && rm -f bin/%s && go build -o bin/%s ./cmd/%s ) || return; %s/bin/%s "$@"; }\n' \
-			"$bin" "$repo_q" "$prep" "$bin" "$bin" "$bin" "$repo_q" "$bin"
+		printf '%s() { ( cd %s && %smkdir -p bin && d="$(mktemp -d bin/.%s.XXXXXX)" && { go build -o "$d/%s" ./cmd/%s && mv -f "$d/%s" bin/%s; s=$?; rm -rf "${d:?}"; exit $s; } ) || return; %s/bin/%s "$@"; }\n' \
+			"$bin" "$repo_q" "$prep" "$bin" "$bin" "$bin" "$bin" "$bin" "$repo_q" "$bin"
 	fi
 done
 

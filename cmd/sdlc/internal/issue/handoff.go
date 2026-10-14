@@ -40,11 +40,12 @@ type Completion struct {
 }
 
 type trackerEnvelope struct {
-	Version    int         `yaml:"version"`
-	Handoff    *Handoff    `yaml:"handoff,omitempty"`
-	Completion *Completion `yaml:"completion,omitempty"`
-	Release    *Release    `yaml:"release,omitempty"`   // #284
-	Abandoned  *Abandoned  `yaml:"abandoned,omitempty"` // #286
+	Version          int               `yaml:"version"`
+	Handoff          *Handoff          `yaml:"handoff,omitempty"`
+	Completion       *Completion       `yaml:"completion,omitempty"`
+	Release          *Release          `yaml:"release,omitempty"`   // #284
+	Abandoned        *Abandoned        `yaml:"abandoned,omitempty"` // #286
+	ActualCorrection *ActualCorrection `yaml:"actual_correction,omitempty"`
 	// Extra keeps every member this binary does not know, so a rewrite never
 	// drops a record a newer sdlc wrote (#284).
 	Extra map[string]yaml.Node `yaml:",inline"`
@@ -113,6 +114,11 @@ func cardEnvelope(d *cardDocument) (trackerEnvelope, error) {
 	}
 	if env.Abandoned != nil {
 		if err := env.Abandoned.validate(); err != nil {
+			return env, err
+		}
+	}
+	if env.ActualCorrection != nil {
+		if err := env.ActualCorrection.validate(); err != nil {
 			return env, err
 		}
 	}
@@ -195,7 +201,9 @@ func CardCompletion(card []byte) (Completion, bool, error) {
 }
 
 // SetCardCompletion records a close's binding. A new close (a new token)
-// replaces an older generation; the same close may only add its landed commit.
+// replaces an older generation and retires its current correction summary;
+// the same close may only add its landed commit. Historical card blobs retain
+// the retired correction's evidence.
 func SetCardCompletion(card []byte, c Completion) ([]byte, error) {
 	if err := c.validate(); err != nil {
 		return nil, err
@@ -207,6 +215,9 @@ func SetCardCompletion(card []byte, c Completion) ([]byte, error) {
 			if p != c || (prior.LandedCommit != "" && prior.LandedCommit != c.LandedCommit) {
 				return errors.New("a close's completion binding cannot be rewritten")
 			}
+		}
+		if env.Completion != nil && env.Completion.Token != c.Token {
+			env.ActualCorrection = nil
 		}
 		env.Completion = &c
 		return nil

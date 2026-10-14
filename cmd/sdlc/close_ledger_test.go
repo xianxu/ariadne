@@ -203,3 +203,25 @@ func TestAppendCalibrationRow_FlowColumns(t *testing.T) {
 		}
 	}
 }
+
+func TestAppendCalibrationRowCorrectionErrorsPreserveLedger(t *testing.T) {
+	for _, mode := range []string{"malformed", "missing-target"} {
+		t.Run(mode, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "ledger.tsv")
+			t.Setenv("WF_CALIB_LEDGER", path)
+			before := calibrationConsumerCorrectionFixture(t, mode)
+			if err := os.WriteFile(path, []byte(before), 0644); err != nil {
+				t.Fatal(err)
+			}
+			var stderr bytes.Buffer
+			appendCalibrationRow(&stderr, &closeFlags{Actual: "1"}, "estimate_hours: 3\n", ledgerTestBody(), "repo", "2", "2026-10-14", closeCostMetrics{}, closeFlowOutcome{})
+			got, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(got) != before || !strings.Contains(stderr.String(), "invalid") {
+				t.Fatalf("invalid correction did not block append: %q %q", got, stderr.String())
+			}
+		})
+	}
+}

@@ -69,3 +69,10 @@ RELATED
 
   sdlc actual    the everyday wrapper: resolves the window (gitx.CommitWindow) +
                  brain/repo transcript sources and prints one suggested --actual.
+
+ISSUE MEASUREMENT (#335)
+
+  The standalone engine remains a manual source/window tool. sdlc actual supplies
+  ownership-proven source intervals and pinned code/source evidence; close and
+  milestone-close use that same resolver. Use the owning measurement commands
+  when comparing adopted actuals or correcting calibration.

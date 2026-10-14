@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/staging"
+	"github.com/xianxu/ariadne/pkg/procgroup"
 )
 
 // Runner is the existing process seam shared by startup and generators.
@@ -64,13 +65,7 @@ func (r ExecRunner) run(dir string, argv []string, stage string) error {
 	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error {
-		err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		if errors.Is(err, syscall.ESRCH) {
-			return os.ErrProcessDone
-		}
-		return err
-	}
+	cmd.Cancel = func() error { return procgroup.Kill(cmd.Process.Pid, syscall.SIGKILL) }
 	// Descendants retaining output pipes must not hold Wait open indefinitely.
 	cmd.WaitDelay = time.Second
 	var lease *os.File
@@ -111,6 +106,10 @@ func (r ExecRunner) run(dir string, argv []string, stage string) error {
 // Under the marker contract it remains in this group, keeping the PGID reserved;
 // only then is signalling after Wait safe from process-group ID reuse. Zombie
 // processes hold no descriptors and therefore cannot block cleanup forever.
+//
+// A group that is already done (os.ErrProcessDone: empty, or on macOS only
+// zombies and exiting members) still settles on the lease: an exiting holder
+// keeps its descriptor for a moment after it can no longer be signalled (#361).
 func finishProducers(stage string, pgid int) error {
 	lease, err := staging.Exclusive(stage)
 	if err == nil {
@@ -119,7 +118,7 @@ func finishProducers(stage string, pgid int) error {
 	if !errors.Is(err, staging.ErrInUse) {
 		return err
 	}
-	if err := syscall.Kill(-pgid, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
+	if err := procgroup.Kill(pgid, syscall.SIGKILL); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		return err
 	}
 	if lease, err = staging.AwaitExclusive(stage, staging.Settle); err != nil {

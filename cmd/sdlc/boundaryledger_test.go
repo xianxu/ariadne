@@ -250,7 +250,7 @@ func (f *fakeReviewer) install(t *testing.T) {
 		if f.round == 1 {
 			return judge.ProcessOutput{Stdout: []byte("```verdict\nverdict: REWORK\nconfidence: high\n```\n\n" +
 				"```findings\nfindings:\n  - id: new\n    severity: Critical\n    title: |\n      " +
-				f.raiseOnce + "\n```\n")}, nil
+				f.raiseOnce + "\n    detail: The required invariant fails in the reviewed implementation.\n```\n")}, nil
 		}
 		var b strings.Builder
 		b.WriteString("```verdict\nverdict: SHIP\nconfidence: high\n```\n\n```findings\ndispose:\n")
@@ -402,7 +402,7 @@ func TestGateLedgerRefusal_BlocksAPassingVerdictAndIsBypassable(t *testing.T) {
 	// A SHIP verdict that does NOT dispose the open finding — the reviewer contradicting
 	// itself, which is the surprising case operators hit.
 	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
-		return judge.ProcessOutput{Stdout: []byte("```verdict\nverdict: SHIP\nconfidence: high\n```\n\n```findings\n```\n")}, nil
+		return judge.ProcessOutput{Stdout: []byte("```verdict\nverdict: SHIP\nconfidence: high\n```\n\n```findings\n{}\n```\n")}, nil
 	}
 
 	args := []string{"close", "--issue", "69", "--actual", "1", "--verified", "tests pass",
@@ -681,7 +681,7 @@ func TestGateLedgerBypass_IsRecordedInTheLedger(t *testing.T) {
 	orig := judge.Run
 	t.Cleanup(func() { judge.Run = orig })
 	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
-		return judge.ProcessOutput{Stdout: []byte("```verdict\nverdict: SHIP\nconfidence: high\n```\n\n```findings\n```\n")}, nil
+		return judge.ProcessOutput{Stdout: []byte("```verdict\nverdict: SHIP\nconfidence: high\n```\n\n```findings\n{}\n```\n")}, nil
 	}
 
 	if _, _, err := executeSDLCTestCommand("close", "--issue", "69", "--actual", "1",

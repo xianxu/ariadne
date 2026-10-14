@@ -13,6 +13,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 	"go.yaml.in/yaml/v3"
@@ -21,7 +22,9 @@ import (
 const landingArchiveLimit = 10000
 
 var landingArchiveRunner gitRunner = execGitRunner{}
-var newLandingArchivePublisher = func(root, remote string) (trunkPublisher, error) { return gitx.NewTrunkFile(root, remote, "main") }
+var newLandingArchivePublisher = func(ctx context.Context, root, remote string) (trunkPublisher, error) {
+	return gitx.NewTrunkFileContext(ctx, root, remote, "main")
+}
 
 type landingArchiveRoots struct{ issues, plans, history string }
 type landingArchiveBlob struct {
@@ -118,11 +121,11 @@ type landingArchivePlan struct {
 	moves []landingArchiveMove
 }
 
-func archiveRead(root string, args ...string) ([]byte, error) {
+func archiveReadContext(ctx context.Context, root string, args ...string) ([]byte, error) {
 	if root == "" {
 		return nil, fmt.Errorf("archive repository directory is required")
 	}
-	out, err := landingArchiveRunner.GitInDir(root, args...)
+	out, err := boundedLandingGit(ctx, landingArchiveRunner).GitInDir(root, args...)
 	if err != nil {
 		return nil, fmt.Errorf("archive git %s: %w\n%s", args[0], err, out)
 	}
@@ -160,7 +163,8 @@ func validateArchivePR(repo string, pr landingPR) error {
 	}
 	return nil
 }
-func archiveTree(root, ref string, dirs landingArchiveRoots) (landingArchiveSnapshot, error) {
+
+func archiveTreeContext(ctx context.Context, root, ref string, dirs landingArchiveRoots) (landingArchiveSnapshot, error) {
 	if !landingOIDValid(ref) {
 		return nil, fmt.Errorf("archive snapshot requires a full object ID")
 	}
@@ -170,7 +174,7 @@ func archiveTree(root, ref string, dirs landingArchiveRoots) (landingArchiveSnap
 			args = append(args, dir)
 		}
 	}
-	out, err := archiveRead(root, args...)
+	out, err := archiveReadContext(ctx, root, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -199,11 +203,12 @@ func archiveTree(root, ref string, dirs landingArchiveRoots) (landingArchiveSnap
 	}
 	return result, nil
 }
-func archiveBlob(root string, b landingArchiveBlob) ([]byte, error) {
+
+func archiveBlobContext(ctx context.Context, root string, b landingArchiveBlob) ([]byte, error) {
 	if b.mode != "100644" {
 		return nil, fmt.Errorf("archive requires ordinary non-executable blob, got mode %s", b.mode)
 	}
-	return archiveRead(root, "cat-file", "blob", b.oid)
+	return archiveReadContext(ctx, root, "cat-file", "blob", b.oid)
 }
 func parseLandingIssue(name string, content []byte) (landingOwnedIssue, error) {
 	fm, body, err := issue.Parse(string(content))
@@ -218,10 +223,17 @@ func parseLandingIssue(name string, content []byte) (landingOwnedIssue, error) {
 	return landingOwnedIssue{path: name, frontmatter: fm, body: body}, nil
 }
 func selectLandingIssues(ctx context.Context, root string, pr landingPR, issuesDir string) ([]landingOwnedIssue, error) {
-	if selected, tracked, err := selectTrackedLandingIssues(ctx, root, pr, issuesDir); tracked || err != nil {
-		return selected, err
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
-	out, err := archiveRead(root, "rev-list", "--max-count=10001", pr.HeadOID, "--not", pr.BaseOID, "--")
+	selectedTracked, tracked, trackedErr := selectTrackedLandingIssues(ctx, root, pr, issuesDir)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if tracked || trackedErr != nil {
+		return selectedTracked, trackedErr
+	}
+	out, err := archiveReadContext(ctx, root, "rev-list", "--max-count=10001", pr.HeadOID, "--not", pr.BaseOID, "--")
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +249,7 @@ func selectLandingIssues(ctx context.Context, root string, pr landingPR, issuesD
 		own[oid] = true
 	}
 	dirs := landingArchiveRoots{issues: issuesDir}
-	tree, err := archiveTree(root, pr.HeadOID, dirs)
+	tree, err := archiveTreeContext(ctx, root, pr.HeadOID, dirs)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +262,7 @@ func selectLandingIssues(ctx context.Context, root string, pr landingPR, issuesD
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		content, err := archiveBlob(root, tree[name])
+		content, err := archiveBlobContext(ctx, root, tree[name])
 		if err != nil {
 			return nil, fmt.Errorf("read %s: %w", name, err)
 		}
@@ -262,7 +274,7 @@ func selectLandingIssues(ctx context.Context, root string, pr landingPR, issuesD
 		if status != "codecomplete" {
 			continue
 		}
-		anchor, err := codecompleteAnchorCommitAt(pr.HeadOID, name, func(args ...string) ([]byte, error) { return archiveRead(root, args...) })
+		anchor, err := codecompleteAnchorCommitAt(pr.HeadOID, name, func(args ...string) ([]byte, error) { return archiveReadContext(ctx, root, args...) })
 		if err != nil {
 			return nil, err
 		}
@@ -274,7 +286,7 @@ func selectLandingIssues(ctx context.Context, root string, pr landingPR, issuesD
 			selected = append(selected, ref)
 		}
 	}
-	return selected, nil
+	return selected, ctx.Err()
 }
 
 // Archive selection additionally pins the minimum artifact membership at the PR head.
@@ -283,7 +295,7 @@ func selectArchiveLandingIssues(ctx context.Context, root string, pr landingPR, 
 	if err != nil || len(selected) == 0 {
 		return selected, err
 	}
-	tree, err := archiveTree(root, pr.HeadOID, landingArchiveRoots{plans: dirs.plans})
+	tree, err := archiveTreeContext(ctx, root, pr.HeadOID, landingArchiveRoots{plans: dirs.plans})
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +310,7 @@ func selectArchiveLandingIssues(ctx context.Context, root string, pr landingPR, 
 		}
 		sort.Strings(selected[i].requiredPlans)
 	}
-	return selected, nil
+	return selected, ctx.Err()
 }
 
 // Bodies and the editorial updated date may evolve; lifecycle metadata may not.
@@ -326,7 +338,21 @@ func sameLandingGeneration(original, current string) error {
 	return nil
 }
 
+func landingAssetRelated(name string, selected []landingOwnedIssue, dirs landingArchiveRoots) bool {
+	for _, ref := range selected {
+		base := path.Base(ref.path)
+		for _, dir := range []string{dirs.issues, vocab.ArchiveSubdir(dirs.history, vocab.ArchiveIssues)} {
+			if strings.HasPrefix(name, path.Join(dir, "assets", issueIDPrefix(base))+"/") {
+				return true
+			}
+		}
+	}
+	return false
+}
 func archiveRelated(name string, selected []landingOwnedIssue, dirs landingArchiveRoots) bool {
+	if landingAssetRelated(name, selected, dirs) {
+		return true
+	}
 	for _, ref := range selected {
 		base := path.Base(ref.path)
 		parent := path.Dir(name)
@@ -339,30 +365,54 @@ func archiveRelated(name string, selected []landingOwnedIssue, dirs landingArchi
 	}
 	return false
 }
-func archiveSnapshot(root, ref string, selected []landingOwnedIssue, dirs landingArchiveRoots) (landingArchiveSnapshot, error) {
-	tree, err := archiveTree(root, ref, dirs)
+
+func archiveSnapshotContext(ctx context.Context, root, ref string, selected []landingOwnedIssue, dirs landingArchiveRoots) (landingArchiveSnapshot, error) {
+	tree, err := archiveTreeContext(ctx, root, ref, dirs)
 	if err != nil {
 		return nil, err
 	}
 	for name, b := range tree {
-		if archiveRelated(name, selected, dirs) {
-			b.content, err = archiveBlob(root, b)
+		if archiveRelated(name, selected, dirs) && !landingAssetRelated(name, selected, dirs) {
+			b.content, err = archiveBlobContext(ctx, root, b)
 			if err != nil {
 				return nil, fmt.Errorf("read %s: %w", name, err)
 			}
 			tree[name] = b
 		}
 	}
+	// Read bounded bundles separately; unrelated asset bytes never enter this snapshot.
+	tf, err := gitx.NewTrunkFile(root, "origin", "main")
+	if err != nil {
+		return nil, err
+	}
+	for _, owned := range selected {
+		for _, detail := range []string{owned.path, archiveDestination(dirs.history, vocab.ArchiveIssues, path.Base(owned.path))} {
+			b, exists := tree[detail]
+			if !exists {
+				continue
+			}
+			bundle, err := assetFilesFromView(tf.ViewOf(ref), detail, issueIDPrefix(path.Base(owned.path)), b.content)
+			if err != nil {
+				return nil, err
+			}
+			for name, content := range assetBundleWrite(bundle, detail) {
+				b := tree[name]
+				b.content = content
+				tree[name] = b
+			}
+		}
+	}
 	return tree, nil
 }
 
-// planLandingArchive is pure: derive moves from fresh bytes, preserving bodies
-// while requiring the same issue identity and the codecomplete transition.
+// planLandingArchive derives moves from fresh bytes, preserving issue identity
+// and the codecomplete transition. Tracked details read their mirror baseline
+// through readCard, so this planner is an integration boundary.
 func planLandingArchive(selected []landingOwnedIssue, current landingArchiveSnapshot, dirs landingArchiveRoots, date string) (landingArchivePlan, error) {
-	plan := landingArchivePlan{write: gitx.TrunkWrite{Write: map[string][]byte{}}}
+	plan := landingArchivePlan{write: gitx.TrunkWrite{Write: map[string][]byte{}, ExactBytes: true}}
 	add := func(src, dst string, body []byte) error {
 		if _, exists := current[dst]; exists {
-			return fmt.Errorf("archive destination occupied: %s", dst)
+			return fmt.Errorf("archive destination occupied: %s; reconcile or remove that destination before retrying", dst)
 		}
 		if _, exists := plan.write.Write[dst]; exists {
 			return fmt.Errorf("duplicate archive destination: %s", dst)
@@ -392,7 +442,11 @@ func planLandingArchive(selected []landingOwnedIssue, current landingArchiveSnap
 				return plan, fmt.Errorf("PR-owned plan artifact missing: %s", name)
 			}
 		}
+		archiveAssetPrefix := path.Join(vocab.ArchiveSubdir(dirs.history, vocab.ArchiveIssues), "assets", issueIDPrefix(path.Base(owned.path))) + "/"
 		for name := range current {
+			if strings.HasPrefix(name, archiveAssetPrefix) {
+				return plan, fmt.Errorf("archive asset already exists: %s; reconcile or remove that archived asset before retrying", name)
+			}
 			parent := path.Dir(name)
 			if (parent == dirs.issues || parent == dirs.history || parent == vocab.ArchiveSubdir(dirs.history, vocab.ArchiveIssues)) && issueIDPrefix(path.Base(name)) == issueIDPrefix(path.Base(owned.path)) && name != owned.path {
 				return plan, fmt.Errorf("conflicting issue identity/archive: %s", name)
@@ -404,6 +458,30 @@ func planLandingArchive(selected []landingOwnedIssue, current landingArchiveSnap
 		} else {
 			if done, err = publishedIssueContent(ref.frontmatter, ref.body, date); err != nil {
 				return plan, fmt.Errorf("%s: %w", owned.path, err)
+			}
+		}
+		inventory := map[string][]byte{}
+		assetPrefix := path.Join(path.Dir(owned.path), "assets", issueIDPrefix(path.Base(owned.path))) + "/"
+		for name, asset := range current {
+			if strings.HasPrefix(name, assetPrefix) {
+				if asset.mode != "100644" {
+					return plan, fmt.Errorf("unsafe asset mode at %s: restore a regular asset file", name)
+				}
+				inventory[strings.TrimPrefix(name, path.Dir(owned.path)+"/")] = asset.content
+			}
+		}
+		bundle, err := issueassets.BuildBundle(issueIDPrefix(path.Base(owned.path)), issueAssetBody(b.content), inventory)
+		if err != nil {
+			return plan, err
+		}
+		assetNames := make([]string, 0, len(bundle.Files))
+		for name := range bundle.Files {
+			assetNames = append(assetNames, name)
+		}
+		sort.Strings(assetNames)
+		for _, name := range assetNames {
+			if err := add(path.Join(path.Dir(owned.path), name), path.Join(vocab.ArchiveSubdir(dirs.history, vocab.ArchiveIssues), name), bundle.Files[name]); err != nil {
+				return plan, err
 			}
 		}
 		if err := add(owned.path, archiveDestination(dirs.history, vocab.ArchiveIssues, path.Base(owned.path)), done); err != nil {
@@ -447,7 +525,7 @@ func archiveLandingPR(ctx context.Context, root, remote, repo string, pr landing
 	if len(selected) == 0 {
 		return nil
 	}
-	pub, err := newLandingArchivePublisher(root, remote)
+	pub, err := newLandingArchivePublisher(ctx, root, remote)
 	if err != nil {
 		return err
 	}
@@ -460,7 +538,7 @@ func archiveLandingPR(ctx context.Context, root, remote, repo string, pr landing
 		if complete {
 			return gitx.TrunkWrite{}, nil
 		}
-		snapshot, err := archiveSnapshot(root, v.Ref(), selected, dirs)
+		snapshot, err := archiveSnapshotContext(ctx, root, v.Ref(), selected, dirs)
 		if err != nil {
 			return gitx.TrunkWrite{}, err
 		}
@@ -492,10 +570,10 @@ func confirmLandingArchive(ctx context.Context, root, tip, repo string, pr landi
 	if !landingOIDValid(tip) {
 		return false, fmt.Errorf("archive proof requires a full main object ID")
 	}
-	if _, err := archiveRead(root, "merge-base", "--is-ancestor", pr.MergeOID, tip); err != nil {
+	if _, err := archiveReadContext(ctx, root, "merge-base", "--is-ancestor", pr.MergeOID, tip); err != nil {
 		return false, fmt.Errorf("PR integration is not confirmed on fresh main: %w", err)
 	}
-	out, err := archiveRead(root, "log", "--max-count=10001", "--format=%H%x00%(trailers:key=Landing-PR,valueonly)%x00%(trailers:key=Landing-Head,valueonly)%x00", tip, "--not", pr.BaseOID, "--")
+	out, err := archiveReadContext(ctx, root, "log", "--max-count=10001", "--format=%H%x00%(trailers:key=Landing-PR,valueonly)%x00%(trailers:key=Landing-Head,valueonly)%x00", tip, "--not", pr.BaseOID, "--")
 	if err != nil {
 		return false, err
 	}
@@ -516,7 +594,7 @@ func confirmLandingArchive(ctx context.Context, root, tip, repo string, pr landi
 			matching = append(matching, oid)
 		}
 	}
-	current, err := archiveSnapshot(root, tip, selected, dirs)
+	current, err := archiveSnapshotContext(ctx, root, tip, selected, dirs)
 	if err != nil {
 		return false, err
 	}
@@ -529,7 +607,7 @@ func confirmLandingArchive(ctx context.Context, root, tip, repo string, pr landi
 		return false, fmt.Errorf("ambiguous archive provenance for PR #%d", pr.Number)
 	}
 	archiveOID := matching[0]
-	parents, err := archiveRead(root, "rev-list", "--parents", "-n", "1", archiveOID, "--")
+	parents, err := archiveReadContext(ctx, root, "rev-list", "--parents", "-n", "1", archiveOID, "--")
 	if err != nil {
 		return false, err
 	}
@@ -537,11 +615,11 @@ func confirmLandingArchive(ctx context.Context, root, tip, repo string, pr landi
 	if len(p) != 2 || !landingOIDValid(p[1]) {
 		return false, fmt.Errorf("archive provenance is not one ordinary commit")
 	}
-	before, err := archiveSnapshot(root, p[1], selected, dirs)
+	before, err := archiveSnapshotContext(ctx, root, p[1], selected, dirs)
 	if err != nil {
 		return false, err
 	}
-	after, err := archiveSnapshot(root, archiveOID, selected, dirs)
+	after, err := archiveSnapshotContext(ctx, root, archiveOID, selected, dirs)
 	if err != nil {
 		return false, err
 	}
@@ -569,7 +647,7 @@ func confirmLandingArchive(ctx context.Context, root, tip, repo string, pr landi
 	if err != nil {
 		return false, err
 	}
-	changed, err := archiveRead(root, "diff-tree", "--no-commit-id", "--name-only", "--no-renames", "-r", "-z", p[1], archiveOID, "--")
+	changed, err := archiveReadContext(ctx, root, "diff-tree", "--no-commit-id", "--name-only", "--no-renames", "-r", "-z", p[1], archiveOID, "--")
 	if err != nil {
 		return false, err
 	}
@@ -606,6 +684,11 @@ func confirmLandingArchive(ctx context.Context, root, tip, repo string, pr landi
 			return false, fmt.Errorf("archived generation changed at %s", move.destination)
 		}
 	}
+	for _, src := range plan.write.Delete {
+		if _, exists := current[src]; exists {
+			return false, fmt.Errorf("active archive source remains: %s; remove the duplicate active artifact before retrying", src)
+		}
+	}
 	for name := range current {
 		if !archiveRelated(name, selected, dirs) {
 			continue
@@ -635,7 +718,7 @@ func selectTrackedLandingIssues(ctx context.Context, root string, pr landingPR, 
 	if err != nil {
 		return nil, true, err
 	}
-	tree, err := archiveTree(root, pr.HeadOID, landingArchiveRoots{issues: issuesDir})
+	tree, err := archiveTreeContext(ctx, root, pr.HeadOID, landingArchiveRoots{issues: issuesDir})
 	if err != nil {
 		return nil, true, err
 	}
@@ -646,7 +729,7 @@ func selectTrackedLandingIssues(ctx context.Context, root string, pr landingPR, 
 		if !ok {
 			return nil, true, fmt.Errorf("#%s is closed in this PR but its details (%s) are not at the PR head", oc.ID, name)
 		}
-		content, err := archiveBlob(root, b)
+		content, err := archiveBlobContext(ctx, root, b)
 		if err != nil {
 			return nil, true, fmt.Errorf("read %s: %w", name, err)
 		}
@@ -659,5 +742,5 @@ func selectTrackedLandingIssues(ctx context.Context, root string, pr landingPR, 
 		selected = append(selected, ref)
 	}
 	sort.Slice(selected, func(i, j int) bool { return selected[i].path < selected[j].path })
-	return selected, true, nil
+	return selected, true, ctx.Err()
 }

@@ -25,6 +25,14 @@ branch, or directly with `sdlc issue publish --issue N` by the owner (anyone,
 while unclaimed: #274) (#284). A resting branch only fast-forwards to main. See
 [issue tracker](atlas/workflow/issue-tracker.md).
 
+Attach evidence with `sdlc issue attach --issue N --file PATH --caption TEXT`,
+then commit both changed paths on the issue branch or use `sdlc issue publish`.
+The issue body indexes a bounded plain-Git bundle that follows publish,
+archive, restore and slot moves. Repository policy is operator-owned;
+public or unknown host visibility defaults to text-only, private to allowed.
+Source material must also be eligible for sharing. See
+[issue assets](atlas/workflow/issue-assets.md) for policy, limits and recovery.
+
 A claim also records its owner on the card (#277): the operator, a fingerprint
 of the machine, and the worktree. Only that workspace continues the issue
 through start-plan, change-code and close. `sdlc unclaim` releases it, handing
@@ -64,6 +72,59 @@ it keeps [issue publication](atlas/workflow/issue-sync.md): claim on main,
 Planning and close reviews release the local repository lock while the reviewer
 runs. SDLC checks the prepared inputs again before recording a result; concurrent
 edits require a rerun. A review's timeout scales with its window (30m up to 500 added lines, +15m per further 1,000, at most `2h`; plan reviews get 30m, #300); `WF_REVIEW_TIMEOUT` (allowed `1s`–`2h`) overrides it.
+
+Boundary reviews can prepare generated assets inside their disposable checkout.
+Commit a regular `.sdlc/review-prepare.json` file at the reviewed HEAD:
+
+```json
+{"version":1,"command":["make","runtimebundle-generate"],"timeout_minutes":10}
+```
+
+The command is an argv array, executed without an implicit shell at the checkout
+root under the same fence and confinement as the reviewer. Preparation runs after
+confinement on every attempt; retries reset the checkout and prepare again. The
+timeout defaults to 10 minutes (explicit range 1–30), capped by the remaining
+review deadline. Missing configuration means no preparation; invalid configuration,
+command failure, timeout, or tracked-file changes halt the review. Ignored and
+untracked generated assets are allowed and removed with the checkout. The config
+is read from the pinned HEAD blob, never the mutable working tree.
+
+Preparation output is capped at 64 KiB per attempt. Preparation and rejected-response
+diagnostics have a combined 256 KiB cap per dispatch and remain permanently in the
+review sidecar, archived with the issue. They cannot supply verdicts or findings.
+On Darwin the write fence permits only the literal system `/bin/ps` executable to
+run outside Seatbelt; invoking shells still cannot write protected source paths.
+
+A boundary REWORK must cite an answerable blocking finding or explicitly maintain
+a known blocker. A reviewer unable to verify can emit `kind: unverifiable`, naming
+the failed check and evidence needed. Answer it with `sdlc finding dispute --issue N
+--id BR-n --rationale '…' --evidence 'command and measured result'`; the next review
+must explicitly dispose it with a note answering the evidence. Two invalid responses
+halt with a protocol error and admit no findings. See the
+[boundary review contract](atlas/workflow/sdlc-binary.md) for details.
+
+## Classifying issues
+
+An issue can carry a **severity** (`critical | high | medium | low`, shared by
+every repository) and **areas**: `/`-paths such as `couch/broadcast/web` naming
+where it belongs. Each repository declares its own allowed areas in
+`.sdlc/vocabulary.json` on main:
+
+```json
+{"version": 1, "enums": {"area": ["couch/broadcast/web", "sdlc/merge"]}}
+```
+
+Declaring `couch/broadcast/web` also allows `couch` and `couch/broadcast`. The
+file sits under the local-gates guard, so changing the taxonomy needs the
+operator's `local-gates-verified` label; an absent file declares no areas. Set
+them with `sdlc issue new --area couch/broadcast --severity high`, or later
+with `sdlc issue set-area --issue N <area>...` and
+`sdlc issue set-severity --issue N <level>` (each takes `--clear`). Both are
+card fields. Query with `sdlc issue list --area couch/broadcast`, which matches
+whole segments (`couch/broadcast/web`, not `couch/broadcaster`), and
+`--severity high,critical`. An undeclared area is refused by these writers, by
+`issue publish`, by `sdlc issue validate` and by the merge/push instance gate.
+See [repo-defined enums](atlas/workflow/vocabulary.md#repo-defined-enums-348).
 
 ## Standalone weave startup
 
@@ -188,6 +249,13 @@ rules; non-regular Makefiles are preserved with an adoption instruction.
 `make weave` and the shared `make bootstrap` prerequisite delegate to
 `weave compile`; consumer bootstrap extensions remain additive.
 
+For host checks required by `make test`, provide `tests/host-preflight.sh`, or
+set `WF_TEST_PREFLIGHT ?= path/to/preflight.sh` before including
+`Makefile.workflow`. The workflow runs the script before acquiring the shared
+full-suite lock: failure prints the script's diagnostics and stops without
+queueing; success proceeds to the lock. Repositories without a preflight keep
+their existing behavior. See the [test gate documentation](atlas/workflow/sdlc-binary.md#running-the-test-suite-253).
+
 The seeded `./bootstrap.sh` runs from its own repository root, reuses a
 compatible weave on PATH, or runs `brew install xianxu/ariadne/weave` before
 executing `weave compile`. It requires Homebrew rather than installing it.
@@ -284,13 +352,27 @@ refresh remains explicit. Resume interrupted landing with
 See [landing and recovery](atlas/workflow/workspace-branching.md#land-and-retain-the-workspace)
 for evidence checks, legacy dependency behavior and the intentionally old baseline.
 
-Merge refuses red or pending CI on the PR head. A repository can declare local
+Merge refuses red CI on the PR head. Durable workspaces wait up to 20 minutes
+for pending CI, integrate a moved main locally, and recheck main before landing
+(up to three integrations); conflicts abort with the paths to resolve. Legacy
+worktrees require manual main integration and refuse pending CI.
+A repository can declare local
 checks in `.sdlc/local-checks.json` on main: `sdlc local-check run --name X`
 runs one on a pushed head under the machine-wide suite lock and records it as
 the commit status `sdlc-local/X`. Merge accepts that recorded pass in place of
 a CI job that never got a runner (never one that ran and failed), requires it
 for checks declared `required`, and runs a missing one itself. See
 [recorded local checks](atlas/workflow/ci-merge-check.md#recorded-local-checks-345).
+
+Run `sdlc local-check run --name suite` on the pushed head before close. Merge
+requires this suite's recorded pass: a declaration named `suite` overrides its
+command, timeout and `weight`, but cannot make it optional. Without a declared
+suite, main's `Makefile` supplies `make test` and `WF_TEST_WEIGHT` when it has a
+test target. The optional declaration `weight` (default 1) reserves that many
+machine-wide suite slots. A passing record on an ancestor remains valid through
+docs-only changes such as close's bookkeeping; code changes require another run.
+When the integrated head's suite fails, merge runs an unrecorded copy on main
+and labels the named failures as introduced or pre-existing in its refusal.
 
 ## Fleet queries
 
@@ -371,6 +453,12 @@ sdlc project close --slug legacy-example --no-retro
 `construct/vocabulary/project.cue`; project completion remains owned by
 `sdlc project close`. When a retro genuinely does not apply, acknowledge that
 explicitly with `--no-retro` (`--force` waives it too).
+
+Issue actuals are measured from ownership intervals and the owning slots' agent
+sessions. Close retains its measurement evidence so later `sdlc actual` replays
+the same inputs; `sdlc actual --milestone Mx` replays a finalized milestone.
+`sdlc issue correct-actual --issue N --reason TEXT --dry-run` previews a measured
+repair of a completed sample. See `sdlc actual --help` for provenance and recovery.
 
 ## License
 

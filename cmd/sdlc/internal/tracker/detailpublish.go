@@ -2,8 +2,12 @@ package tracker
 
 import (
 	"fmt"
+	"path"
+	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 )
 
 // DetailPublication prepares the main candidate that publishes an issue's
@@ -12,6 +16,14 @@ import (
 // own it). Shared by creation (#308) and the transfer that finishes a
 // pre-#308 creation, so both first publications refuse identically.
 func DetailPublication(main *gitx.TrunkFile, destination string, detail []byte, msg string) (gitx.Candidate, error) {
+	return DetailBundlePublication(main, destination, detail, nil, msg)
+}
+
+// DetailBundlePublication publishes one complete first-publication bundle.
+func DetailBundlePublication(main *gitx.TrunkFile, destination string, detail []byte, assets map[string][]byte, msg string) (gitx.Candidate, error) {
+	if err := validateDetailBundle(destination, detail, assets); err != nil {
+		return gitx.Candidate{}, err
+	}
 	return main.PrepareCandidate(msg, func(view *gitx.TrunkView) (gitx.TrunkWrite, error) {
 		present, err := view.Exists(destination)
 		if err != nil {
@@ -20,6 +32,35 @@ func DetailPublication(main *gitx.TrunkFile, destination string, detail []byte, 
 		if present {
 			return gitx.TrunkWrite{}, fmt.Errorf("%w: %s", ErrDestinationExists, destination)
 		}
-		return gitx.TrunkWrite{Write: map[string][]byte{destination: detail}, ExactBytes: true}, nil
+		writes := map[string][]byte{destination: detail}
+		for p, b := range assets {
+			present, err := view.Exists(p)
+			if err != nil {
+				return gitx.TrunkWrite{}, err
+			}
+			if present {
+				return gitx.TrunkWrite{}, fmt.Errorf("%w: asset %s", ErrDestinationExists, p)
+			}
+			writes[p] = b
+		}
+		return gitx.TrunkWrite{Write: writes, ExactBytes: true}, nil
 	})
+}
+
+// validateDetailBundle checks the authoritative Markdown body, excluding its
+// frontmatter. Creation has no assets; transfers pass their pinned member bytes.
+func validateDetailBundle(destination string, detail []byte, assets map[string][]byte) error {
+	id, _, _ := strings.Cut(path.Base(destination), "-")
+	_, body, err := issue.Parse(string(detail))
+	if err != nil {
+		return fmt.Errorf("%s: %w", destination, err)
+	}
+	files := map[string][]byte{}
+	for p, b := range assets {
+		files[strings.TrimPrefix(p, path.Dir(destination)+"/")] = b
+	}
+	if _, err := issueassets.BuildBundle(id, []byte(body), files); err != nil {
+		return fmt.Errorf("%s: %w", destination, err)
+	}
+	return nil
 }

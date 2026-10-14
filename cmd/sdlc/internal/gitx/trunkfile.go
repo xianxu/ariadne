@@ -72,7 +72,20 @@ var runGitInContext = func(ctx context.Context, dir string, env []string, args .
 // RunGitContext runs `git <args>` in the current directory under ctx: cancellation
 // or a deadline terminates git's process group. stderr is returned for messages.
 func RunGitContext(ctx context.Context, args ...string) (stdout, stderr []byte, err error) {
-	return runGitInContext(ctx, "", nil, args...)
+	return RunGitInContext(ctx, "", nil, args...)
+}
+
+// RunGitInContext is the shared contextual boundary for checkout-local reads
+// carrying an explicit directory and environment (tracker and replay callers).
+func RunGitInContext(ctx context.Context, dir string, env []string, args ...string) (stdout, stderr []byte, err error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+	stdout, stderr, err = runGitInContext(ctx, dir, env, args...)
+	if ctx.Err() != nil {
+		err = errors.Join(ctx.Err(), err)
+	}
+	return
 }
 
 var runGitInputContext = func(ctx context.Context, dir string, env []string, input io.Reader, args ...string) (stdout, stderr []byte, err error) {
@@ -82,17 +95,12 @@ var runGitInputContext = func(ctx context.Context, dir string, env []string, inp
 }
 
 func executeGitInputContext(ctx context.Context, dir string, env []string, input io.Reader, stdout, stderr io.Writer, args ...string) error {
-	cmd := exec.CommandContext(ctx, "git", args...)
-	processgroup.Configure(cmd)
-	cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
-	cmd.WaitDelay = time.Second
+	cmd, child, cancel := boundedGitCommand(ctx, env, "git", args...)
+	defer cancel()
 	cmd.Dir = dir
 	cmd.Stdin = input
-	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
-	}
 	cmd.Stdout, cmd.Stderr = stdout, stderr
-	return cmd.Run()
+	return finishGitCommand(cmd, child, cmd.Run())
 }
 
 // A git query that can legitimately answer "absent" has THREE outcomes, and this
@@ -134,6 +142,36 @@ type TrunkFile struct {
 	// probedTip is the remote tip the last RemoteExists read (#290), handed to
 	// the next Snapshot once so an unchanged tracker is read without a fetch.
 	probedTip string
+	// remoteBudget, when set (BoundRemote), bounds the total time this trunk
+	// waits on its remote (#360); remoteDeadline is that budget's end, fixed at
+	// the first remote command. Local git work is bounded only by ctx.
+	remoteBudget   time.Duration
+	remoteDeadline time.Time
+}
+
+// BoundRemote bounds the total time this trunk's remote-contacting commands
+// (fetch, ls-remote, push) may take, together, from the first one (#360). It
+// exists for "a remote that does not answer": local git work is not counted,
+// so a loaded machine's slow process spawns cannot exhaust the remote's budget.
+// The budget is spent over the trunk's lifetime, not per operation: once its end
+// passes, every later remote command fails at once. Call BoundRemote again for a
+// fresh budget (a long-lived trunk serving several reads).
+func (t *TrunkFile) BoundRemote(d time.Duration) {
+	t.remoteBudget, t.remoteDeadline = d, time.Time{}
+}
+
+// runRemote is run for a command that contacts the remote: under the remote
+// budget when one is set.
+func (t *TrunkFile) runRemote(env []string, args ...string) ([]byte, []byte, error) {
+	if t.remoteBudget <= 0 {
+		return t.run(env, args...)
+	}
+	if t.remoteDeadline.IsZero() {
+		t.remoteDeadline = time.Now().Add(t.remoteBudget)
+	}
+	ctx, cancel := context.WithDeadline(t.operationContext(), t.remoteDeadline)
+	defer cancel()
+	return t.runIn(ctx, env, args...)
 }
 
 // NewTrunkFile refuses an empty dir.
@@ -176,12 +214,18 @@ func (t *TrunkFile) run(env []string, args ...string) ([]byte, []byte, error) {
 	if t.ctx == nil {
 		return runGitIn(t.dir, env, args...)
 	}
-	if err := t.ctx.Err(); err != nil {
+	return t.runIn(t.ctx, env, args...)
+}
+
+// runIn runs git under ctx; ctx's end wins over the command's own error, so a
+// cancelled or expired operation is never reported as a git failure.
+func (t *TrunkFile) runIn(ctx context.Context, env []string, args ...string) ([]byte, []byte, error) {
+	if err := ctx.Err(); err != nil {
 		return nil, nil, err
 	}
-	out, diag, err := runGitInContext(t.ctx, t.dir, env, args...)
-	if t.ctx.Err() != nil {
-		return out, diag, t.ctx.Err()
+	out, diag, err := runGitInContext(ctx, t.dir, env, args...)
+	if ctx.Err() != nil {
+		return out, diag, ctx.Err()
 	}
 	return out, diag, err
 }
@@ -211,7 +255,7 @@ func (t *TrunkFile) fetch() ([]byte, error) {
 	t.probedTip = "" // a fetch supersedes what the last probe saw (#290)
 	// --no-auto-maintenance (#290): housekeeping belongs to the operator's own
 	// git; a tracker read should not pay for it on every fetch.
-	_, errOut, err := t.run(nil, "fetch", "--quiet", "--no-recurse-submodules", "--no-auto-maintenance", t.remote,
+	_, errOut, err := t.runRemote(nil, "fetch", "--quiet", "--no-recurse-submodules", "--no-auto-maintenance", t.remote,
 		"+refs/heads/"+t.branch+":"+t.trackingRef())
 	return errOut, err
 }
@@ -480,24 +524,44 @@ func writeTemp(content []byte) (string, func(), error) {
 // stop ends git without judging its exit; a full read reports git's failure,
 // so a failed read is never mistaken for an empty history.
 func (t *TrunkFile) HistoryStream(format, pathspec string, maxCommits int) (io.Reader, func(stoppedEarly bool) error, error) {
-	cmd := exec.CommandContext(t.operationContext(), "git", "-C", t.dir, "log", "--format="+format, "--name-only", fmt.Sprintf("--max-count=%d", maxCommits), t.trackingRef(), "--", pathspec)
+	return t.historyStream(t.trackingRef(), format, pathspec, maxCommits)
+}
+
+// HistoryStreamAt reads a pinned commit's newest-first path history. Keeping
+// newest-first ordering ensures the limit applies to the newest commits; callers
+// requiring chronological evidence reverse the bounded result after reading.
+func (t *TrunkFile) HistoryStreamAt(pin, format, pathspec string, maxCommits int) (io.Reader, func(stoppedEarly bool) error, error) {
+	if _, err := parseObjectID([]byte(pin)); err != nil {
+		return nil, nil, fmt.Errorf("history requires an exact commit: %w", err)
+	}
+	if maxCommits <= 0 {
+		return nil, nil, fmt.Errorf("history requires a positive commit limit")
+	}
+	return t.historyStream(pin, format, pathspec, maxCommits)
+}
+
+func (t *TrunkFile) historyStream(ref, format, pathspec string, maxCommits int) (io.Reader, func(stoppedEarly bool) error, error) {
+	cmd, child, cancel := boundedGitCommand(t.operationContext(), nil, "git", "-C", t.dir, "log", "--format="+format, "--name-only", fmt.Sprintf("--max-count=%d", maxCommits), ref, "--", pathspec)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.StdoutPipe()
 	if err != nil {
+		cancel()
 		return nil, nil, err
 	}
 	if err := cmd.Start(); err != nil {
+		cancel()
 		return nil, nil, err
 	}
 	finish := func(stoppedEarly bool) error {
+		defer cancel()
 		if stoppedEarly {
-			_ = cmd.Process.Kill()
-			_ = cmd.Wait()
+			_ = processgroup.Terminate(cmd, true)
+			_ = finishGitCommand(cmd, child, cmd.Wait())
 			return nil
 		}
-		if err := cmd.Wait(); err != nil {
-			return fmt.Errorf("git log %s: %w: %s", t.trackingRef(), err, strings.TrimSpace(stderr.String()))
+		if err := finishGitCommand(cmd, child, cmd.Wait()); err != nil {
+			return fmt.Errorf("git log %s: %w: %s", ref, err, strings.TrimSpace(stderr.String()))
 		}
 		return nil
 	}

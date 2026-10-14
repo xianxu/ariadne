@@ -30,6 +30,9 @@ categories: {
 // Must be a subset of categories.blocking (a conformance test pins this).
 hardBlocking: ["Critical"]
 
+kinds: ["defect", "unverifiable"]
+#Kind: or(kinds)
+
 #Severity: or(list.Concat([categories.blocking, categories.advisory]))
 
 // ── dispositions: what a LATER round may say about an EARLIER finding ──
@@ -93,6 +96,7 @@ discovery: {
 #Finding: {
 	id:       string // "new" when freshly raised; else a binary-assigned "<prefix>-<n>"
 	severity: #Severity
+	kind?: #Kind // absent means the legacy defect kind
 	title:    string
 	detail?:  string
 	// family: a slug naming the underlying RULE a finding is an instance of, not the

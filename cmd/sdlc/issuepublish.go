@@ -5,11 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path"
+	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/repoenum"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 func newIssuePublishCmd() *cobra.Command {
@@ -37,7 +43,7 @@ func newIssuePublishCmd() *cobra.Command {
 				if source == "" {
 					return fmt.Errorf("--commit SHA is required; select one coherent documentation commit")
 				}
-				return publishIssueCommit(cmd.OutOrStdout(), cmd.ErrOrStderr(), root, source,
+				return publishIssueCommit(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), root, source,
 					envOr("WF_ISSUES_DIR", "workshop/issues"), envOr("WF_HISTORY_DIR", "workshop/history"))
 			}
 			if source != "" {
@@ -105,6 +111,20 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 	if len(republish) == 0 {
 		return nil
 	}
+	// #348: the details' classification (the card's, mirrored) is checked
+	// against main's declaration before it is published.
+	read := lazyDecl(func() (repoenum.Declaration, error) { return readTrackerRepoEnums(env) })
+	for _, id := range republish {
+		card, _ := snap.Require(id)
+		file := filepath.Join(env.root, filepath.FromSlash(path.Join(dirs.Rel[0], path.Base(card.Path))))
+		data, err := os.ReadFile(file)
+		if err != nil {
+			continue // republishOwned reports a missing details file
+		}
+		if err := detailsClassification(read, card.Path, data); err != nil {
+			return err
+		}
+	}
 	if len(first) > 0 {
 		if env, err = openTracker(ctx); err != nil { // finishing a creation may have moved this checkout
 			return err
@@ -113,8 +133,9 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 	return republishOwned(env, stdout, stderr, republish, dirs.Rel[0], dryRun)
 }
 
-func publishIssueCommit(stdout, stderr io.Writer, root, source, issuesDir, historyDir string) error {
-	tf, err := gitx.NewTrunkFile(root, "origin", "main")
+func publishIssueCommit(ctx context.Context, stdout, stderr io.Writer, root, source, issuesDir, historyDir string) error {
+	ctx = commandContext(ctx)
+	tf, err := gitx.NewTrunkFileContext(ctx, root, "origin", "main")
 	if err != nil {
 		return err
 	}
@@ -132,7 +153,16 @@ func publishIssueCommit(stdout, stderr io.Writer, root, source, issuesDir, histo
 	if err := validateCommitSelection(selected, roots); err != nil {
 		return err
 	}
-	result, err := tf.PublishCommit(selected)
+	if err := checkPublishedClassification(tf, selected, roots[0]); err != nil {
+		return err
+	}
+	var changed []string
+	for _, c := range selected.Changes {
+		changed = append(changed, c.Path)
+	}
+	result, err := tf.PublishCommitChecked(selected, func(base, next *gitx.TrunkView) error {
+		return validateAssetPublication(ctx, root, base, next, changed, issuesDir, historyDir)
+	})
 	if err != nil {
 		return err
 	}
@@ -142,5 +172,48 @@ func publishIssueCommit(stdout, stderr io.Writer, root, source, issuesDir, histo
 	}
 	fmt.Fprintln(stderr)
 	fmt.Fprintln(stdout, result.Outcome)
+	return nil
+}
+
+// checkPublishedClassification checks the area and severity of every issue
+// file a legacy publication adds or changes (#348), against main's declaration
+// (read only when some file carries a classification).
+func checkPublishedClassification(tf *gitx.TrunkFile, sel gitx.SelectedCommit, issuesRoot string) error {
+	read := lazyDecl(func() (repoenum.Declaration, error) {
+		raw, err := tf.Read(vocab.Issue().RepoEnums.DeclarationPath)
+		if err != nil {
+			return repoenum.Declaration{}, err
+		}
+		return parseRepoEnums(raw)
+	})
+	for _, ch := range sel.Changes {
+		if strings.Trim(ch.NewMode, "0") == "" || !strings.HasPrefix(ch.Path, issuesRoot+"/") || !strings.HasSuffix(ch.Path, ".md") {
+			continue
+		}
+		data, err := tf.ReadAt(sel.Source, ch.Path)
+		if err != nil {
+			return err
+		}
+		if err := detailsClassification(read, ch.Path, data); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// detailsClassification checks one issue file's area and severity; a file
+// with neither (or no frontmatter) passes.
+func detailsClassification(read declReader, name string, data []byte) error {
+	fm, _, err := issue.Parse(string(data))
+	if err != nil {
+		return nil // structure is the instance gate's concern, not this check's
+	}
+	areas, severity, err := frontmatterClassification(fm)
+	if err == nil {
+		err = checkClassification(read, areas, severity)
+	}
+	if err != nil {
+		return fmt.Errorf("%s: %w", name, err)
+	}
 	return nil
 }

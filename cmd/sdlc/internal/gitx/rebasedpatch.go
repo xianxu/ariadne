@@ -1,9 +1,8 @@
 package gitx
 
 import (
+	"context"
 	"fmt"
-	"os"
-	"os/exec"
 	"regexp"
 	"sort"
 	"strconv"
@@ -15,11 +14,7 @@ import (
 // the bytes beside the *exec.ExitError), so callers can read both the output
 // and the exit status via gitExitCode. Overridable like run.
 var runEnv = func(env []string, name string, args ...string) ([]byte, error) {
-	cmd := exec.Command(name, args...)
-	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
-	}
-	return cmd.Output()
+	return boundedGitOutput(nil, env, name, args...)
 }
 
 // rebasedPatchIdentity fixes author and committer so S is a pure function of
@@ -45,17 +40,31 @@ const rebasedPatchMessage = "sdlc: reviewed patch rebased (#304)"
 // >= 2.42 (merge-tree --write-tree --merge-base, and --attr-source). A criss-cross history (more
 // than one merge base on either side) is an error naming the bases.
 func RebasedReviewedBase(mainRef, reviewed string) (s string, conflicted []string, err error) {
-	if err := requireGit242(); err != nil {
+	return rebasedReviewedBase(run, runEnv, mainRef, reviewed)
+}
+
+// RebasedReviewedBaseContext keeps the operation context through every replay
+// query, the merge driver and commit-tree, including its identity environment.
+func RebasedReviewedBaseContext(ctx context.Context, mainRef, reviewed string) (string, []string, error) {
+	run := func(name string, args ...string) ([]byte, error) { return boundedGitOutput(ctx, nil, name, args...) }
+	env := func(env []string, name string, args ...string) ([]byte, error) {
+		return boundedGitOutput(ctx, env, name, args...)
+	}
+	return rebasedReviewedBase(run, env, mainRef, reviewed)
+}
+
+func rebasedReviewedBase(run func(string, ...string) ([]byte, error), runEnv func([]string, string, ...string) ([]byte, error), mainRef, reviewed string) (s string, conflicted []string, err error) {
+	if err := requireGit242With(run); err != nil {
 		return "", nil, err
 	}
 	if _, err := run("git", "rev-parse", "--verify", "-q", reviewed+"^{commit}"); err != nil {
-		return "", nil, fmt.Errorf("reviewed head %q does not resolve to a commit", reviewed)
+		return "", nil, fmt.Errorf("reviewed head %q does not resolve to a commit: %w", reviewed, err)
 	}
-	bR, err := SoleMergeBase(mainRef, reviewed)
+	bR, err := soleMergeBase(run, mainRef, reviewed)
 	if err != nil {
 		return "", nil, fmt.Errorf("reviewed head %s: %w", reviewed, err)
 	}
-	bNow, err := SoleMergeBase(mainRef, "HEAD")
+	bNow, err := soleMergeBase(run, mainRef, "HEAD")
 	if err != nil {
 		return "", nil, fmt.Errorf("HEAD: %w", err)
 	}
@@ -68,7 +77,7 @@ func RebasedReviewedBase(mainRef, reviewed string) (s string, conflicted []strin
 	if err != nil {
 		status = gitExitCode(err)
 		if status != 1 {
-			return "", nil, fmt.Errorf("git merge-tree --merge-base=%s %s %s: %v", bR, bNow, reviewed, err)
+			return "", nil, fmt.Errorf("git merge-tree --merge-base=%s %s %s: %w", bR, bNow, reviewed, err)
 		}
 	}
 	// -z output: <tree>NUL then, on conflict, <path>NUL... and an empty entry
@@ -95,7 +104,7 @@ func RebasedReviewedBase(mainRef, reviewed string) (s string, conflicted []strin
 	commit, err := runEnv(rebasedPatchIdentity, "git", "commit-tree", "--no-gpg-sign",
 		tree, "-p", bNow, "-m", rebasedPatchMessage)
 	if err != nil {
-		return "", nil, fmt.Errorf("git commit-tree %s -p %s: %v", tree, bNow, err)
+		return "", nil, fmt.Errorf("git commit-tree %s -p %s: %w", tree, bNow, err)
 	}
 	s, err = parseObjectID(commit)
 	if err != nil {
@@ -106,10 +115,16 @@ func RebasedReviewedBase(mainRef, reviewed string) (s string, conflicted []strin
 
 // SoleMergeBase returns the single merge base of a and b, refusing an empty
 // answer (no shared history) and a criss-cross one (several bases).
-func SoleMergeBase(a, b string) (string, error) {
+func SoleMergeBase(a, b string) (string, error) { return soleMergeBase(run, a, b) }
+
+func SoleMergeBaseContext(ctx context.Context, a, b string) (string, error) {
+	return soleMergeBase(func(name string, args ...string) ([]byte, error) { return boundedGitOutput(ctx, nil, name, args...) }, a, b)
+}
+
+func soleMergeBase(run func(string, ...string) ([]byte, error), a, b string) (string, error) {
 	out, err := run("git", "merge-base", "--all", a, b)
 	if err != nil && gitExitCode(err) != 1 {
-		return "", fmt.Errorf("git merge-base --all %s %s: %v", a, b, err)
+		return "", fmt.Errorf("git merge-base --all %s %s: %w", a, b, err)
 	}
 	bases := strings.Fields(string(out))
 	switch len(bases) {
@@ -126,10 +141,12 @@ var gitVersionRE = regexp.MustCompile(`git version (\d+)\.(\d+)`)
 
 // requireGit242 refuses a git that predates merge-tree --merge-base (2.40) and
 // --attr-source (2.42).
-func requireGit242() error {
+func requireGit242() error { return requireGit242With(run) }
+
+func requireGit242With(run func(string, ...string) ([]byte, error)) error {
 	out, err := run("git", "version")
 	if err != nil {
-		return fmt.Errorf("git version: %v", err)
+		return fmt.Errorf("git version: %w", err)
 	}
 	v := strings.TrimSpace(string(out))
 	m := gitVersionRE.FindStringSubmatch(v)
@@ -150,6 +167,14 @@ func requireGit242() error {
 // the message. Exact match, never a body grep: a substring search is the #194
 // self-reference trap.
 func CommitsWithCloseToken(dir string, rangeArgs []string, token string) ([]string, error) {
+	return commitsWithCloseToken(run, dir, rangeArgs, token)
+}
+
+func CommitsWithCloseTokenContext(ctx context.Context, dir string, rangeArgs []string, token string) ([]string, error) {
+	return commitsWithCloseToken(func(name string, args ...string) ([]byte, error) { return boundedGitOutput(ctx, nil, name, args...) }, dir, rangeArgs, token)
+}
+
+func commitsWithCloseToken(run func(string, ...string) ([]byte, error), dir string, rangeArgs []string, token string) ([]string, error) {
 	if strings.TrimSpace(token) == "" {
 		return nil, fmt.Errorf("empty Close-Token")
 	}
@@ -162,7 +187,7 @@ func CommitsWithCloseToken(dir string, rangeArgs []string, token string) ([]stri
 	args = append(args, "--format=%H%x00%(trailers:key=Close-Token,valueonly,separator=%x2C)")
 	out, err := run("git", args...)
 	if err != nil {
-		return nil, fmt.Errorf("git log %s: %v", strings.Join(rangeArgs, " "), err)
+		return nil, fmt.Errorf("git log %s: %w", strings.Join(rangeArgs, " "), err)
 	}
 	var shas []string
 	for _, line := range strings.Split(string(out), "\n") {

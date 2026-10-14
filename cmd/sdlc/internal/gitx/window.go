@@ -8,10 +8,10 @@
 package gitx
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 	"time"
@@ -20,13 +20,12 @@ import (
 // run is the package-level command runner. Test code in this package
 // (and downstream packages once we propagate the pattern) can override
 // it to drive fixture-based scenarios without spawning real git
-// processes. Production path defaults to exec.Command(...).Output().
+// processes. Production commands have a two-minute bound and reclaim descendants.
 //
-// All new git callers in this package should use run; M3+ will migrate
-// the legacy direct exec.Command calls below when those code paths are
-// touched again.
+// All new git callers in this package should use run. Legacy direct calls
+// also use boundedGitOutput, preserving their existing injection behavior.
 var run = func(name string, args ...string) ([]byte, error) {
-	return exec.Command(name, args...).Output()
+	return boundedGitOutput(nil, nil, name, args...)
 }
 
 // RunGit runs `git <args>` via the package-level `run` shim and returns
@@ -95,19 +94,26 @@ func DiffBase() string {
 // publishing it) must not pull the issue's own design commits into the window.
 // "" when no main line resolves or HEAD shares no history with it.
 func BranchPoint() string {
-	trunk := TrunkRef()
+	return branchPoint(Capture, func(args ...string) ([]byte, error) {
+		return boundedGitOutput(nil, nil, "git", args...)
+	})
+}
+
+func branchPoint(capture func(...string) string, run func(...string) ([]byte, error)) string {
+	trunk := trunkRef(capture)
 	if trunk == "" {
 		return ""
 	}
-	base := Capture("merge-base", trunk, "HEAD")
-	if trunk == "main" || Capture("rev-parse", "--verify", "-q", "refs/heads/main") == "" {
+	base := capture("merge-base", trunk, "HEAD")
+	if trunk == "main" || capture("rev-parse", "--verify", "-q", "refs/heads/main") == "" {
 		return base
 	}
-	local := Capture("merge-base", "main", "HEAD")
+	local := capture("merge-base", "main", "HEAD")
 	if local == "" || local == base {
 		return base
 	}
-	if base == "" || exec.Command("git", "merge-base", "--is-ancestor", base, local).Run() == nil {
+	_, ancestorErr := run("merge-base", "--is-ancestor", base, local)
+	if base == "" || ancestorErr == nil {
 		return local
 	}
 	return base
@@ -118,11 +124,13 @@ func BranchPoint() string {
 // Not local main itself: a numbered slot shares refs with its primary, whose
 // local main is whatever the primary last pulled — stale, or carrying unpushed
 // commits — while the slot's branches fork from the published trunk.
-func TrunkRef() string {
-	if up := Capture("rev-parse", "--abbrev-ref", "--symbolic-full-name", "main@{upstream}"); up != "" && Capture("rev-parse", "--verify", "-q", up) != "" {
+func TrunkRef() string { return trunkRef(Capture) }
+
+func trunkRef(capture func(...string) string) string {
+	if up := capture("rev-parse", "--abbrev-ref", "--symbolic-full-name", "main@{upstream}"); up != "" && capture("rev-parse", "--verify", "-q", up) != "" {
 		return up
 	}
-	return MainRef()
+	return mainRef(capture)
 }
 
 // MergeBaseWithMain returns the branch point — `git merge-base main HEAD` — or
@@ -153,11 +161,13 @@ func MergeBaseWithMain() string {
 // master-only checkout). Single source for the origin/main→main→"" fallback
 // shared by recentCommits (state.go) and ShippedWorkOnMain below, so the
 // resolution lives in one place rather than being copy-pasted.
-func MainRef() string {
-	if Capture("rev-parse", "--verify", "origin/main") != "" {
+func MainRef() string { return mainRef(Capture) }
+
+func mainRef(capture func(...string) string) string {
+	if capture("rev-parse", "--verify", "origin/main") != "" {
 		return "origin/main"
 	}
-	if Capture("rev-parse", "--verify", "main") != "" {
+	if capture("rev-parse", "--verify", "main") != "" {
 		return "main"
 	}
 	return ""
@@ -333,19 +343,53 @@ const WindowCapDays = 61
 // extraRefs (#252) adds histories beside HEAD — the fetched issue tracker, whose
 // card commits record the claim and close. git log visits each commit once.
 func CommitWindow(issueNum string, extraRefs ...string) (firstSHA, firstISO, lastISO string, err error) {
+	firstSHA, firstISO, lastISO, err = commitWindowAt(nil, "", "HEAD", issueNum, extraRefs...)
+	if err != nil {
+		return "", "", "", nil
+	} // legacy discovery degrades on unavailable Git
+	return
+}
+
+// CommitWindowAt reads an explicitly pinned code history in the given checkout.
+// Unlike legacy discovery, failed/cancelled authority reads are errors.
+func CommitWindowAt(ctx context.Context, repo, head, issueNum string, extraRefs ...string) (firstSHA, firstISO, lastISO string, err error) {
+	if repo == "" {
+		return "", "", "", fmt.Errorf("measurement repository is missing")
+	}
+	if _, err := parseObjectID([]byte(head)); err != nil {
+		return "", "", "", fmt.Errorf("measurement head: %w", err)
+	}
+	return commitWindowAt(ctx, repo, head, issueNum, extraRefs...)
+}
+
+func commitWindowAt(ctx context.Context, repo, head, issueNum string, extraRefs ...string) (firstSHA, firstISO, lastISO string, err error) {
+	readGit := func(args ...string) ([]byte, error) {
+		if ctx != nil && ctx.Err() != nil {
+			err := ctx.Err()
+			return nil, err
+		}
+		if repo != "" {
+			args = append([]string{"-C", repo}, args...)
+		}
+		out, err := boundedGitOutput(ctx, nil, "git", args...)
+		if ctx != nil && ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return out, err
+	}
+
 	// Loose --grep first to narrow candidates; precise subject-anchor
 	// check happens below. Git's POSIX regex doesn't reliably support \b
 	// for word boundaries across platforms, so we filter subjects in Go.
 	args := []string{"log", "--grep=#" + issueNum, "--reverse", "--pretty=%aI%x00%H%x00%s"}
 	if len(extraRefs) > 0 {
-		args = append(append(args, "HEAD"), extraRefs...)
+		args = append(append(args, head), extraRefs...)
+	} else if head != "HEAD" {
+		args = append(args, head)
 	}
-	cmd := exec.Command("git", args...)
-	out, err := cmd.Output()
+	out, err := readGit(args...)
 	if err != nil {
-		// non-zero exit (e.g., not a git repo) → no window, no error
-		// (matches close-issue.py's CalledProcessError swallow)
-		return "", "", "", nil
+		return "", "", "", err
 	}
 	text := strings.TrimRight(string(out), "\n")
 	if text == "" {
@@ -383,13 +427,20 @@ func CommitWindow(issueNum string, extraRefs ...string) (firstSHA, firstISO, las
 	// v3 segment-start: parent of first match (still bounded by cap). Only for
 	// code history: a tracker commit's parent is some other card's change.
 	if len(extraRefs) > 0 {
-		if onHead := exec.Command("git", "merge-base", "--is-ancestor", firstSHA, "HEAD").Run(); onHead != nil {
+		if _, onHead := readGit("merge-base", "--is-ancestor", firstSHA, head); onHead != nil {
+			if ctx != nil && ctx.Err() != nil {
+				return "", "", "", ctx.Err()
+			}
+			if gitExitCode(onHead) != gitAbsentExit {
+				return "", "", "", onHead
+			}
 			return firstSHA, firstISO, lastISO, nil
 		}
 	}
-	parentOut, perr := exec.Command(
-		"git", "log", "-1", "--pretty=%aI", firstSHA+"^",
-	).Output()
+	parentOut, perr := readGit("log", "-1", "--pretty=%aI", firstSHA+"^")
+	if ctx != nil && ctx.Err() != nil {
+		return "", "", "", ctx.Err()
+	}
 	if perr == nil {
 		parentISO := strings.TrimSpace(string(parentOut))
 		if parentISO != "" && parentISO >= capISO {
@@ -452,8 +503,13 @@ func windowCapISO() string {
 // downstream (the atlas gate's docs rule) then misreads it (#231; lessons: git's
 // porcelain answers a human's question).
 func DiffNames(sinceRef, untilRef string) ([]string, error) {
-	cmd := exec.Command("git", "diff", "--name-only", "-z", sinceRef, untilRef)
-	out, err := cmd.Output()
+	return diffNamesWithRun(func(args ...string) ([]byte, error) {
+		return boundedGitOutput(nil, nil, "git", args...)
+	}, sinceRef, untilRef)
+}
+
+func diffNamesWithRun(run func(...string) ([]byte, error), sinceRef, untilRef string) ([]string, error) {
+	out, err := run(ChangedPathArgs(sinceRef, untilRef)...)
 	if err != nil {
 		return nil, fmt.Errorf("git diff --name-only %s %s: %w", sinceRef, untilRef, err)
 	}
@@ -464,6 +520,18 @@ func DiffNames(sinceRef, untilRef string) ([]string, error) {
 		}
 	}
 	return names, nil
+}
+
+// ChangedPathArgs is the git argv listing every path that differs between two
+// revisions, NUL-separated. --no-renames lists a rename as its old and its new
+// path: the docs/code classifiers read these lists, and a rename seen only by
+// its new name lets code renamed to .md pass as docs (#332 M1 BR-1).
+func ChangedPathArgs(since, until string) []string {
+	args := []string{"diff", "--name-only", "--no-renames", "-z", since}
+	if until != "" {
+		args = append(args, until)
+	}
+	return args
 }
 
 // FileChange is one entry of `git diff --name-status`: a single-letter status
@@ -515,8 +583,13 @@ type LogEntry struct {
 // (oldest first), one LogEntry per commit. Used by close-issue.py's
 // "first commit referencing '#N M4'" scan.
 func LogReverse() ([]LogEntry, error) {
-	cmd := exec.Command("git", "log", "--reverse", "--format=%H %ci %s")
-	out, err := cmd.Output()
+	return logReverse(func(args ...string) ([]byte, error) {
+		return boundedGitOutput(nil, nil, "git", args...)
+	})
+}
+
+func logReverse(run func(...string) ([]byte, error)) ([]LogEntry, error) {
+	out, err := run("log", "--reverse", "--format=%H %ci %s")
 	if err != nil {
 		return nil, fmt.Errorf("git log: %w", err)
 	}
@@ -548,7 +621,7 @@ func LogReverse() ([]LogEntry, error) {
 // RepoTopLevel returns the path of the git repo root (`git rev-parse
 // --show-toplevel`).
 func RepoTopLevel() (string, error) {
-	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	out, err := boundedGitOutput(nil, nil, "git", "rev-parse", "--show-toplevel")
 	if err != nil {
 		return "", fmt.Errorf("git rev-parse --show-toplevel: %w", err)
 	}

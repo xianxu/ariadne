@@ -137,6 +137,9 @@ func seedFromPlanGate(stderr io.Writer, bl gatestate.Ledger, plansDir, issueFile
 // reviewer CLI that never emits the fence, the round cap can never fire, and the prompt
 // keeps announcing "no prior rounds" on invocation six.
 func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review reviewResult, timestamp string) gatestate.Decision {
+	if err := gatestate.ValidateMeasurementInputs(p.ActualInputs); err != nil {
+		return blockOnLedgerFailure(stderr, "measurement inputs: "+err.Error())
+	}
 	if p.PlansDir == "" || p.IssueNum <= 0 {
 		return gatestate.Decision{}
 	}
@@ -182,6 +185,10 @@ func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review revie
 		l.Rounds[len(l.Rounds)-1].Recipe = string(p.recipe())
 		l.Rounds[len(l.Rounds)-1].Dispatched = review.Dispatched
 		l.Rounds[len(l.Rounds)-1].Isolation = review.Isolation
+	}
+
+	if !neverRan {
+		l.Rounds[len(l.Rounds)-1].ActualInputs = p.ActualInputs
 	}
 
 	// Cap per boundary; open findings from the WHOLE issue at the final boundary (BR-37).
@@ -271,4 +278,25 @@ func roundAdvancesBoundary(review reviewResult, round gatestate.Round, d gatesta
 		return false
 	}
 	return !d.Block || waived
+}
+
+// boundaryAdmissionLedger captures the structured scope under the close lock.
+// Direct/manual dispatches use the same reader before launching a reviewer.
+func boundaryAdmissionLedger(p boundaryReviewParams) (gatestate.Ledger, error) {
+	dir := p.PlansDir
+	if dir == "" {
+		dir = p.ReviewPlansDir
+	}
+	if dir == "" || p.IssueNum <= 0 {
+		return gatestate.Ledger{}, nil
+	}
+	path, err := issueFilePath(p.IssuesDir, p.IssueNum)
+	if err != nil {
+		return gatestate.Ledger{}, err
+	}
+	ledger, err := readBoundaryGateLedger(dir, filepath.Base(path), p.IssueNum)
+	if err != nil {
+		return gatestate.Ledger{}, err
+	}
+	return openScopeFor(ledger, p.Milestone), nil
 }

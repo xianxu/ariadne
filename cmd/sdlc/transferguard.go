@@ -16,7 +16,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
@@ -30,8 +32,12 @@ var guardTransferredDetailsFn = guardTransferredDetails
 func guardTransferredDetails(ctx context.Context) error {
 	// Decided before opening the tracker environment, which needs main's
 	// upstream: a legacy repository has no published-details protection.
-	if tracked, err := repositoryTracked(ctx, "."); err != nil || !tracked {
+	tracked, err := repositoryTracked(ctx, ".")
+	if err != nil {
 		return err
+	}
+	if !tracked {
+		return guardLegacyIssueAssets(ctx)
 	}
 	env, err := openTracker(ctx)
 	if err != nil {
@@ -49,7 +55,14 @@ func guardTransferredDetails(ctx context.Context) error {
 	for _, c := range changed {
 		refusals = append(refusals, detailsRefusal(env, c))
 	}
-	return errors.Join(refusals...)
+	if err := errors.Join(refusals...); err != nil {
+		return err
+	}
+	tree, paths, err := prospectiveAssetChanges(env, view.Ref())
+	if err != nil {
+		return err
+	}
+	return validateAssetPublication(ctx, env.root, view, env.main.ViewOf(tree), paths, envOr("WF_ISSUES_DIR", "workshop/issues"), envOr("WF_HISTORY_DIR", "workshop/history"))
 }
 
 // changedDetail is one published details file a landing may not change as it
@@ -87,6 +100,21 @@ func changedDetails(env *trackerEnv, mainTip string) ([]changedDetail, error) {
 	var out []changedDetail
 	for _, p := range paths {
 		name := path.Base(p)
+		assetID := assetIssueID(p)
+		if assetID != "" {
+			for n, rec := range cards {
+				if rec.ID == assetID {
+					name = n
+					break
+				}
+			}
+			for n, u := range unreadable {
+				if u.ID == assetID {
+					name = n
+					break
+				}
+			}
+		}
 		if u, bad := unreadable[name]; bad {
 			return nil, fmt.Errorf("landing changes %s, but tracker card #%s is malformed: %w\n"+
 				"      the landing is refused until the card is repaired", p, u.ID, u.Err)
@@ -95,7 +123,14 @@ func changedDetails(env *trackerEnv, mainTip string) ([]changedDetail, error) {
 		if !ok {
 			continue // not an issue's details
 		}
-		last, err := env.git("rev-list", "-1", mainTip, "--", p)
+		proofPaths := []string{p}
+		if assetID != "" {
+			// An added asset is already owned when its issue was published.
+			// Include the whole bundle so binary-only main updates are stale too.
+			proofPaths = append(proofPaths, path.Join(envOr("WF_ISSUES_DIR", "workshop/issues"), name))
+		}
+		proofPaths = append(proofPaths, path.Join(envOr("WF_ISSUES_DIR", "workshop/issues"), "assets", rec.ID))
+		last, err := env.git(append([]string{"rev-list", "-1", mainTip, "--"}, proofPaths...)...)
 		if err != nil {
 			return nil, err
 		}
@@ -122,18 +157,23 @@ func changedDetails(env *trackerEnv, mainTip string) ([]changedDetail, error) {
 // of mainTip and HEAD differs from mainTip. A conflicted path is among them:
 // merge-tree (exit 1) writes it with conflict markers.
 func prospectiveChanges(env *trackerEnv, mainTip string) ([]string, error) {
+	_, paths, err := prospectiveAssetChanges(env, mainTip)
+	return paths, err
+}
+
+func prospectiveAssetChanges(env *trackerEnv, mainTip string) (string, []string, error) {
 	raw, err := env.gitRaw(nil, "merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", mainTip, "HEAD")
 	var exit *exec.ExitError
 	if err != nil && !(errors.As(err, &exit) && exit.ExitCode() == 1) {
-		return nil, fmt.Errorf("compute the prospective merge with main: %w", err)
+		return "", nil, fmt.Errorf("compute the prospective merge with main: %w", err)
 	}
 	tree, _, _ := strings.Cut(string(raw), "\x00")
 	if tree == "" {
-		return nil, fmt.Errorf("compute the prospective merge with main: no tree (%v)", err)
+		return "", nil, fmt.Errorf("compute the prospective merge with main: no tree (%v)", err)
 	}
 	diff, err := env.gitRaw(nil, "diff", "--name-only", "--no-renames", "-z", mainTip, tree)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 	var paths []string
 	for _, p := range strings.Split(string(diff), "\x00") {
@@ -142,7 +182,7 @@ func prospectiveChanges(env *trackerEnv, mainTip string) ([]string, error) {
 		}
 	}
 	sort.Strings(paths)
-	return paths, nil
+	return tree, paths, nil
 }
 
 var errTransferredDetails = errors.New("landing would change published issue details")
@@ -183,4 +223,92 @@ func detailsRefusal(env *trackerEnv, c changedDetail) error {
 // but this workspace's own issue, whose edit is a record merging main keeps.
 func mayRestore(c changedDetail) bool {
 	return c.Own != issue.OwnershipMine
+}
+
+// assetIssueID classifies owned asset paths without reading their bytes: even
+// malformed bytes and unknown filenames remain subject to ownership.
+func assetIssueID(p string) string {
+	roots := []string{envOr("WF_ISSUES_DIR", "workshop/issues"), path.Join(envOr("WF_HISTORY_DIR", "workshop/history"), "issues")}
+	for _, root := range roots {
+		prefix := path.Join(root, "assets") + "/"
+		if !strings.HasPrefix(p, prefix) {
+			continue
+		}
+		id, rest, ok := strings.Cut(strings.TrimPrefix(p, prefix), "/")
+		if ok && rest != "" && len(id) == 6 && issueIDPrefix(id+"-x.md") == id {
+			return id
+		}
+	}
+	return ""
+}
+
+// Legacy repositories have no ownership tracker, but changed bodies still index
+// their bundles even if no asset directory has ever existed. Validate the actual
+// merge whenever a publication target is configured. Remote-less text-only work
+// retains its historical no-op only after checking local body indexes.
+func guardLegacyIssueAssets(ctx context.Context) error {
+	root, err := gitx.RepoTopLevelContext(ctx)
+	if err != nil {
+		return err
+	}
+	issues, history := envOr("WF_ISSUES_DIR", "workshop/issues"), envOr("WF_HISTORY_DIR", "workshop/history")
+	env, targetErr := openTracker(ctx)
+	if targetErr != nil {
+		needed, err := legacyAssetValidationNeeded(ctx, root, issues, history)
+		if err != nil {
+			return err
+		}
+		if !needed {
+			return nil
+		}
+		return fmt.Errorf("cannot validate issue assets against the publication destination: %w; configure and fetch the publication target before retrying", targetErr)
+	}
+	view, err := env.main.Snapshot()
+	if err != nil {
+		return fmt.Errorf("cannot read the publication destination: %w; fetch the configured main branch before retrying", err)
+	}
+	tree, paths, err := prospectiveAssetChanges(env, view.Ref())
+	if err != nil {
+		return err
+	}
+	return validateAssetPublication(ctx, root, view, env.main.ViewOf(tree), paths, issues, history)
+}
+
+// This fallback examines metadata history and only current issue-body blobs;
+// absence of an asset directory alone says nothing about the body index.
+func legacyAssetValidationNeeded(ctx context.Context, root, issues, history string) (bool, error) {
+	probe := &trackerEnv{ctx: ctx, root: root}
+	touched, err := probe.git("log", "-1", "--format=%H", "HEAD", "--", path.Join(issues, "assets"), path.Join(history, "issues", "assets"))
+	if err != nil {
+		return false, err
+	}
+	tf, err := gitx.NewTrunkFileContext(ctx, root, "origin", "main") // local ViewOf only; no remote operation
+	if err != nil {
+		return false, err
+	}
+	view := tf.ViewOf("HEAD")
+	needed := touched != ""
+	for _, home := range []string{issues, path.Join(history, "issues")} {
+		docs, err := view.FilesSelected(home, func(f gitx.TreeFile) bool {
+			return path.Dir(f.Path) == home && strings.HasSuffix(f.Path, ".md") && issueIDPrefix(path.Base(f.Path)) != ""
+		})
+		if err != nil {
+			return false, fmt.Errorf("cannot read issue body indexes: %w; restore readable issue details before retrying", err)
+		}
+		for _, doc := range docs {
+			id := issueIDPrefix(path.Base(doc.Path))
+			refs, err := issueassets.ParseRefs(id, issueAssetBody(doc.Content))
+			if err != nil {
+				return false, fmt.Errorf("%s: %w", doc.Path, err)
+			}
+			if len(refs) == 0 {
+				continue
+			}
+			needed = true
+			if _, err := assetFilesFromView(view, doc.Path, id, doc.Content); err != nil {
+				return false, fmt.Errorf("%s: %w", doc.Path, err)
+			}
+		}
+	}
+	return needed, nil
 }

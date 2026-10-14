@@ -47,10 +47,20 @@ WHAT IT DOES
        on the source checkout when one applies; clone-only (with a warning)
        where it cannot nest. The round and sidecar record
        `isolation: fenced|checkout` (#204)
+     - Runs pinned .sdlc/review-prepare.json preparation after confinement on each
+       attempt; retries reset/reconfine/reprepare. Uses the same strict preparation,
+       timeout and mutation checks documented in `sdlc close --help`.
      - Routes harness diagnostics/progress to terminal stderr; verdict parsing
-       and the durable `-m<x>-review.md` consume only the semantic final response
+       consumes only the semantic final response. Bounded preparation/protocol
+       evidence is retained separately in `-m<x>-review.md` (64 KiB preparation
+       output per attempt, 256 KiB diagnostic envelope per dispatch, permanent).
      - Surfaces findings + classifies clean / info / failure
-     - Parses the first line for SHIP | FIX-THEN-SHIP | REWORK
+     - Reads SHIP | FIX-THEN-SHIP | REWORK from the verdict block (legacy line
+       fallback). REWORK requires a new answerable blocker or an explicit
+       not-addressed disposition of a known blocker. Pending unverifiable disputes
+       require explicit disposition notes answering host evidence. Invalid output
+       gets one reset/reprepare retry, then a protocol error with no admitted
+       findings, reviewed-head advancement or close finalization.
 
   3. Records the boundary (#304, #197). In an issue tracker repository it
      COMMITS its own evidence: the issue details and plans records, subject
@@ -163,3 +173,11 @@ THE GATE LEDGER (#194)
   See `sdlc close --help` for the full contract — it is the same gate.
   The integrate gate (#269) runs here too, before the review: main's code
   landed by the most recent noon must be in the branch (`--no-integrate`).
+
+MEASUREMENT REPLAY (#335)
+
+  This command adopts the shared ownership-proven measurement for Mx and retains
+  its inputs with the final boundary round. Later actual --milestone Mx replays
+  those pins and cuts, even if the issue continues. Explicit --brain-dir resolves
+  identically across measurement consumers. A whole-issue estimate ratio is not
+  applied to a milestone increment.

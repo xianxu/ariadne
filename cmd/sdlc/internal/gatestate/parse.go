@@ -38,7 +38,12 @@ func ParseFindingsBlock(output string) (RoundReport, bool) {
 	for i, f := range rr.New {
 		// A titleless finding is unusable in the ledger and in the next round's prompt,
 		// and an unmodeled severity would reach Decide with no defined blocking behavior.
-		if !m.IsSeverity(f.Severity) || strings.TrimSpace(f.Title) == "" {
+		if !m.IsSeverity(f.Severity) || !m.IsKind(f.Kind) || strings.TrimSpace(f.Title) == "" {
+			return RoundReport{}, false
+		}
+		// Every unverifiable finding must identify the missing measurement, even
+		// an advisory finding accompanying a finalizing verdict (#364).
+		if f.Kind == "unverifiable" && strings.TrimSpace(f.Detail) == "" {
 			return RoundReport{}, false
 		}
 		rr.New[i].Title = normalizeText(f.Title)

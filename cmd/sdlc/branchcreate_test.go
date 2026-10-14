@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"strings"
 	"testing"
@@ -109,7 +110,7 @@ func anyGitCallStartsWith(calls [][]string, prefix ...string) bool {
 func TestCreateInPlaceBranch_AlreadyOnTarget(t *testing.T) {
 	r := &captureRunner{currentBranch: "000156-x", branchExists: true}
 	var out, errb bytes.Buffer
-	if _, err := createInPlaceBranch(&out, &errb, "000156-x", r); err != nil {
+	if _, err := createInPlaceBranch(context.Background(), &out, &errb, "000156-x", r, "workshop/issues"); err != nil {
 		t.Fatal(err)
 	}
 	if anyGitCallStartsWith(r.gitCalls, "checkout") {
@@ -123,7 +124,7 @@ func TestCreateInPlaceBranch_AlreadyOnTarget(t *testing.T) {
 func TestCreateInPlaceBranch_ExistsNotCheckedOut(t *testing.T) {
 	r := &captureRunner{currentBranch: "main", branchExists: true}
 	var out, errb bytes.Buffer
-	if _, err := createInPlaceBranch(&out, &errb, "000156-x", r); err != nil {
+	if _, err := createInPlaceBranch(context.Background(), &out, &errb, "000156-x", r, "workshop/issues"); err != nil {
 		t.Fatal(err)
 	}
 	if !gitCalled(r.gitCalls, "checkout", "000156-x") {
@@ -137,7 +138,7 @@ func TestCreateInPlaceBranch_ExistsNotCheckedOut(t *testing.T) {
 func TestCreateInPlaceBranch_CreatesWhenAbsent(t *testing.T) {
 	r := &captureRunner{currentBranch: "main", branchExists: false}
 	var out, errb bytes.Buffer
-	if _, err := createInPlaceBranch(&out, &errb, "000156-x", r); err != nil {
+	if _, err := createInPlaceBranch(context.Background(), &out, &errb, "000156-x", r, "workshop/issues"); err != nil {
 		t.Fatal(err)
 	}
 	if !gitCalled(r.gitCalls, "checkout", "-b", "000156-x") {
@@ -152,7 +153,7 @@ func TestCreateWorktreeBranch_ReusesExisting(t *testing.T) {
 		worktreePorcelain: worktreePorcelainZ([]string{"worktree /existing/wt/000156-x", "HEAD abc", "branch refs/heads/000156-x"}),
 	}
 	var out, errb bytes.Buffer
-	wtPath, err := createWorktreeBranch(&out, &errb, "000156-x", r)
+	wtPath, err := createWorktreeBranch(context.Background(), &out, &errb, "000156-x", r, "workshop/issues")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +182,7 @@ func TestCreateWorktreeBranch_AddsExistingBranchWithoutDashB(t *testing.T) {
 	// Branch exists but isn't in any worktree → `worktree add <path> <name>` (no -b).
 	r := &captureRunner{branchExists: true, worktreePorcelain: worktreePorcelainZ([]string{"worktree /repo", "HEAD abc", "branch refs/heads/main"})}
 	var out, errb bytes.Buffer
-	if _, err := createWorktreeBranch(&out, &errb, "000156-x", r); err != nil {
+	if _, err := createWorktreeBranch(context.Background(), &out, &errb, "000156-x", r, "workshop/issues"); err != nil {
 		t.Fatal(err)
 	}
 	if anyGitCallStartsWith(r.gitCalls, "worktree", "add", "-b") {
@@ -204,7 +205,7 @@ func TestCreateWorktreeBranch_AddsNewWithDashB(t *testing.T) {
 	// Brand-new branch → today's `worktree add -b <name> <path> HEAD`.
 	r := &captureRunner{branchExists: false, worktreePorcelain: worktreePorcelainZ([]string{"worktree /repo", "HEAD abc", "branch refs/heads/main"})}
 	var out, errb bytes.Buffer
-	if _, err := createWorktreeBranch(&out, &errb, "000156-x", r); err != nil {
+	if _, err := createWorktreeBranch(context.Background(), &out, &errb, "000156-x", r, "workshop/issues"); err != nil {
 		t.Fatal(err)
 	}
 	if !anyGitCallStartsWith(r.gitCalls, "worktree", "add", "-b", "000156-x") {
@@ -234,7 +235,7 @@ func TestCreateInPlaceBranch_RealRepo_IdempotentRerun(t *testing.T) {
 	var out, errb bytes.Buffer
 
 	// 1. First run creates the branch (checkout -b).
-	if _, err := createInPlaceBranch(&out, &errb, name, run); err != nil {
+	if _, err := createInPlaceBranch(context.Background(), &out, &errb, name, run, "workshop/issues"); err != nil {
 		t.Fatalf("first create: %v", err)
 	}
 	if cur := currentBranch(run); cur != name {
@@ -244,7 +245,7 @@ func TestCreateInPlaceBranch_RealRepo_IdempotentRerun(t *testing.T) {
 	// 2. Re-run while ON the branch — THE #156 BUG. Old code: exit-128
 	//    "branch already exists". New code: idempotent "already on branch".
 	errb.Reset()
-	if _, err := createInPlaceBranch(&out, &errb, name, run); err != nil {
+	if _, err := createInPlaceBranch(context.Background(), &out, &errb, name, run, "workshop/issues"); err != nil {
 		t.Fatalf("re-run on the existing branch must be idempotent (#156), got: %v", err)
 	}
 	if !strings.Contains(errb.String(), "Already on branch") {
@@ -256,7 +257,7 @@ func TestCreateInPlaceBranch_RealRepo_IdempotentRerun(t *testing.T) {
 		t.Fatalf("git checkout main: %v\n%s", err, out2)
 	}
 	errb.Reset()
-	if _, err := createInPlaceBranch(&out, &errb, name, run); err != nil {
+	if _, err := createInPlaceBranch(context.Background(), &out, &errb, name, run, "workshop/issues"); err != nil {
 		t.Fatalf("re-run from main onto an existing branch must switch, not error: %v", err)
 	}
 	if cur := currentBranch(run); cur != name {

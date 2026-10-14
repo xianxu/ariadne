@@ -21,6 +21,8 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/repoenum"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
@@ -36,7 +38,10 @@ import (
 // the verb needs the tracker; legacy keeps a legacy repository's local-only
 // verbs working offline, as they did before #252.
 func repositoryTracked(ctx context.Context, dir string) (bool, error) {
-	root := repoRootOf(dir)
+	root := repoRootOfContext(commandContext(ctx), dir)
+	if err := commandContext(ctx).Err(); err != nil {
+		return false, err
+	}
 	if root == "" {
 		return false, nil
 	}
@@ -123,6 +128,22 @@ func runLegacyIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string
 		die(stderr, fmt.Sprintf("issue file already exists: %s", dest))
 	}
 
+	// #348: legacy repositories read the declaration from main, never HEAD,
+	// and only for areas.
+	f.Areas = uniqueAreas(f.Areas)
+	if err := checkClassification(func() (repoenum.Declaration, error) {
+		git := func(args ...string) (string, error) {
+			out, err := mergeRunner.Git(args...)
+			return string(out), err
+		}
+		rev, err := repoEnumsMainRev(git)
+		if err != nil {
+			return repoenum.Declaration{}, err
+		}
+		return repoEnumsAtRev(git, rev)
+	}, f.Areas, f.Severity); err != nil {
+		return err
+	}
 	rendered := issue.Render(issue.ScaffoldSpec{
 		ID:          nextID,
 		Title:       title,
@@ -131,7 +152,13 @@ func runLegacyIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string
 		ProblemBody: problemBody,
 		Deps:        f.Deps,
 		Target:      f.Target,
+		Area:        f.Areas,
+		Severity:    f.Severity,
 	})
+
+	if _, err := issueassets.BuildBundle(nextID, issueAssetBody([]byte(rendered)), nil); err != nil {
+		return fmt.Errorf("%s: %w", shown, err)
+	}
 
 	if f.DryRun {
 		cinfo(stderr, "dry-run — no files written")
@@ -430,7 +457,8 @@ func syncLegacyIssue(stderr io.Writer, f *changeCodeFlags, issuePath string) {
 	// under --dry-run: a helper that commits must not depend on a caller's early
 	// return for its dry-run correctness.
 	syncFlags := &claimFlags{
-		Issue: id, IssuesDir: f.IssuesDir, NoStart: true,
+		Context: changeCodeContext(f),
+		Issue:   id, IssuesDir: f.IssuesDir, NoStart: true,
 		DryRun: f.DryRun, AllowNoChanges: true,
 	}
 	msg := issueSyncMessage(id, "spec/plan at change-code")

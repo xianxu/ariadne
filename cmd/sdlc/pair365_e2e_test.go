@@ -58,12 +58,12 @@ func TestCloseOnARenamedBranchAfterAnOutsideMergeLands(t *testing.T) {
 	// The close runs on a hand-made branch: #148 retired the issue's own name.
 	closing := branch + "-close"
 	git(t, slot1, "switch", "-q", "-c", closing)
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	mustSlotRun(t, slot1, "close", "--issue", "2", "--verified", "e2e", "--actual", "1", "--no-atlas")
 	mustSlotRun(t, slot1, "pr", "--dry-run") // the old guard refused here
 	git(t, slot1, "push", "-q", "-u", "upstream", closing)
 
-	gh := &landingFakeGH{t: t, remote: remote, pr: landingPR{Number: 8, State: "OPEN", Repo: "test/repo", HeadRef: closing,
+	gh := &landingFakeGH{t: t, remote: remote, followPush: true, pr: landingPR{Number: 8, State: "OPEN", Repo: "test/repo", HeadRef: closing,
 		HeadOID: procedureHead(t, slot1), BaseRef: "main", BaseOID: mainAt()}}
 	oldGH := ghClient
 	ghClient = gh

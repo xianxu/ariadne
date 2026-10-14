@@ -25,6 +25,8 @@ DECLARATION (.sdlc/local-checks.json, read from origin/main)
                    when that job never got a runner
   required         `sdlc merge` requires a recorded pass even with no CI job
   timeout_minutes  1..120, default 30; a timeout is a recorded failure
+  weight           1..8, default 1: the machine-wide suite slots the run
+                   takes at once (#346; ariadne's sharded suite takes 2)
 
   Unknown fields, another version, or a malformed entry make the declaration
   invalid, and `sdlc merge` refuses until main's copy is fixed.
@@ -41,6 +43,22 @@ WHAT A RUN DOES
      duration, log sha256 and host) on the commit. On failure it also posts a
      PR comment with the last 60 lines of the log, so don't run checks whose
      output carries secrets.
+
+THE SUITE (#332)
+
+  The check named `suite` is the full test suite, and every landing requires
+  its recorded pass. A repository that declares none gets its `make test`, at
+  the weight its Makefile gives (WF_TEST_WEIGHT): both read from main, so a
+  branch cannot drop or lighten the suite it owes. Run it before close:
+
+  A declared suite overrides command, timeout and weight, but is always
+  required, even when its required field is omitted or false.
+
+    sdlc local-check run --name suite      # on the pushed head
+
+  A record on an ancestor still counts when everything changed since is
+  docs-only (close's own Log and card commits), so merge reruns the suite only
+  when code changed after it: an integration of main, or a fix.
 
 HOW MERGE USES IT
 

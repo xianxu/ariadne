@@ -57,7 +57,7 @@ func externalMergeFixture(t *testing.T, variant string) (*trackerRepo, string, s
 	r, cardPath, detailPath := closeReady(t, 330)
 	branch := r.git("branch", "--show-current")
 	if variant == "closed" {
-		stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+		stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 		if _, stderr, err := executeSDLCTestCommand("close", "--issue", "330", "--verified", "e2e", "--actual", "1", "--no-atlas", "--no-ledger", "--no-project"); err != nil {
 			t.Fatalf("close: %v\n%s", err, stderr)
 		}
@@ -215,5 +215,18 @@ func TestStateJudgesTheNewestBranchTip(t *testing.T) {
 		if d.Issue == "000330" && strings.Contains(d.Message, "outside sdlc") {
 			t.Fatalf("judged by a stale tracking ref: %+v", d)
 		}
+	}
+}
+
+func TestFinishLandedIgnoresAssetVolume(t *testing.T) {
+	r := newTrackerRepo(t, nil, nil)
+	seedDiscoveryAssets(t, r, "workshop/issues")
+	env, err := openTracker(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stderr bytes.Buffer
+	if err := finishLandedLeftovers(env, &stderr, archiveDirs{Issues: "workshop/issues"}); err != nil {
+		t.Fatal(err)
 	}
 }

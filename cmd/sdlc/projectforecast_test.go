@@ -199,3 +199,26 @@ func TestMissingSectionsSkipsOptional(t *testing.T) {
 		t.Fatalf("missing = %v, want only B", got)
 	}
 }
+
+func TestForecastCalibrationCorrectionResolutionAndErrors(t *testing.T) {
+	for _, mode := range []string{"exclude", "malformed", "missing-target"} {
+		t.Run(mode, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "ledger.tsv")
+			t.Setenv("WF_CALIB_LEDGER", path)
+			if err := os.WriteFile(path, []byte(calibrationConsumerCorrectionFixture(t, mode)), 0644); err != nil {
+				t.Fatal(err)
+			}
+			cal, err := loadForecastCalibration("")
+			if err == nil || cal.N != 0 {
+				t.Fatalf("correction ignored: %+v %v", cal, err)
+			}
+			if mode == "exclude" {
+				if !strings.Contains(err.Error(), "has no row") {
+					t.Fatal(err)
+				}
+			} else if !strings.Contains(err.Error(), "calibration ledger") || strings.Contains(err.Error(), "has no row") {
+				t.Fatalf("corruption masked as no sample: %v", err)
+			}
+		})
+	}
+}

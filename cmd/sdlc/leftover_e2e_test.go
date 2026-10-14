@@ -114,7 +114,7 @@ func TestLeftoverBranchIsLockedUntilCaughtUpThenWorks(t *testing.T) {
 			writeRepoFile(t, r.root, "cmd/one.go", "package one\n")
 			r.git("add", "cmd/one.go")
 			r.git("commit", "-qm", "#1: implement")
-			stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+			stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 			mustSlotRun(t, r.root, "close", "--issue", "1", "--verified", "leftover", "--actual", "1", "--no-atlas")
 			if !strings.Contains(r.git("show", "HEAD:"+leftoverIssue), "design begun before the cutover") {
 				t.Fatal("the pre-cutover design was lost")

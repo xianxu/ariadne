@@ -50,9 +50,10 @@ func MktempFindings(src string) []Finding {
 type class byte
 
 const (
-	code   class = iota // runs: commands, operators, substitutions
-	quoted              // literal text inside quotes
-	delim               // a quote character opening or closing quoted text
+	code    class = iota // runs: commands, operators, substitutions
+	quoted               // text inside double quotes (expansions still apply)
+	squoted              // literal text inside single quotes
+	delim                // a quote character opening or closing quoted text
 )
 
 // lexed is one line, cut at its comment, with each byte classified. It is the
@@ -78,7 +79,7 @@ func lex(line string) lexed {
 		c := line[i]
 		switch top.kind {
 		case '\'':
-			cls[i] = quoted
+			cls[i] = squoted
 			if c == '\'' {
 				cls[i] = delim
 				stack = stack[:len(stack)-1]
@@ -139,6 +140,18 @@ func (l lexed) masked() string {
 	return string(b)
 }
 
+// expanding is the text the shell expands: code and double-quoted text, with
+// single-quoted literals and quote delimiters blanked, so offsets match text.
+func (l lexed) expanding() string {
+	b := []byte(l.text)
+	for i, c := range l.cls {
+		if c == squoted || c == delim {
+			b[i] = ' '
+		}
+	}
+	return string(b)
+}
+
 // arguments splits what follows offset up to the end of that command (an
 // unquoted ) ; | & or backquote), with quotes removed.
 func (l lexed) arguments(from int) []string {
@@ -154,7 +167,7 @@ func (l lexed) arguments(from int) []string {
 		c := l.text[i]
 		switch l.cls[i] {
 		case delim:
-		case quoted:
+		case quoted, squoted:
 			cur.WriteByte(c)
 		default:
 			switch {

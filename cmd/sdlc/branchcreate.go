@@ -7,6 +7,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -126,7 +127,7 @@ func listUntrackedIssues(root, issuesDir string, r gitRunner) ([]string, error) 
 // takes `worktree add -b`.
 //
 // Returns the worktree path on success.
-func createWorktreeBranch(stdout, stderr io.Writer, name string, r gitRunner) (string, error) {
+func createWorktreeBranch(ctx context.Context, stdout, stderr io.Writer, name string, r gitRunner, issuesDir string) (string, error) {
 	repoTop, err := gitx.RepoTopLevel()
 	if err != nil {
 		return "", fmt.Errorf("git rev-parse --show-toplevel: %v", err)
@@ -151,6 +152,14 @@ func createWorktreeBranch(stdout, stderr io.Writer, name string, r gitRunner) (s
 	}
 	existingWt, wtFound := worktreeForBranch(worktrees, name)
 	action := decideWorktreeBranch(branchExists(r, name), wtFound)
+	target := "HEAD"
+	if action != worktreeAddNew {
+		target = "refs/heads/" + name
+	}
+	assets, err := prepareBranchAssetMaterialization(ctx, r, target, action != worktreeReuse, issuesDir)
+	if err != nil {
+		return "", err
+	}
 
 	if action != worktreeReuse {
 		if err := r.MkdirAll(wtRoot); err != nil {
@@ -173,6 +182,10 @@ func createWorktreeBranch(stdout, stderr io.Writer, name string, r gitRunner) (s
 		cok(stderr, fmt.Sprintf("Worktree created at %s on branch %s", wtPath, name))
 	}
 
+	if err := assets.verify(wtPath); err != nil {
+		return "", err
+	}
+
 	gotoPath := filepath.Join(repoTop, ".goto")
 	if err := r.WriteFile(gotoPath, []byte(wtPath)); err != nil {
 		cwarn(stderr, fmt.Sprintf(".goto write failed: %v", err))
@@ -191,8 +204,17 @@ func createWorktreeBranch(stdout, stderr io.Writer, name string, r gitRunner) (s
 //
 // Returns the branch name on success (same as input, for symmetry with
 // createWorktreeBranch's return-the-location pattern).
-func createInPlaceBranch(stdout, stderr io.Writer, name string, r gitRunner) (string, error) {
-	switch decideInPlaceBranch(currentBranch(r), name, branchExists(r, name)) {
+func createInPlaceBranch(ctx context.Context, stdout, stderr io.Writer, name string, r gitRunner, issuesDir string) (string, error) {
+	action := decideInPlaceBranch(currentBranch(r), name, branchExists(r, name))
+	target := "HEAD"
+	if action == inPlaceSwitch {
+		target = "refs/heads/" + name
+	}
+	assets, err := prepareBranchAssetMaterialization(ctx, r, target, action != inPlaceOnTarget, issuesDir)
+	if err != nil {
+		return "", err
+	}
+	switch action {
 	case inPlaceOnTarget:
 		cok(stderr, fmt.Sprintf("Already on branch %s (working tree carried forward)", name))
 	case inPlaceSwitch:
@@ -205,6 +227,9 @@ func createInPlaceBranch(stdout, stderr io.Writer, name string, r gitRunner) (st
 			return "", fmt.Errorf("git checkout -b %s: %v\n%s", name, err, out)
 		}
 		cok(stderr, fmt.Sprintf("Branch %s created in place (working tree carried forward)", name))
+	}
+	if err := assets.verify(""); err != nil {
+		return "", err
 	}
 	fmt.Fprintln(stdout, name)
 	return name, nil
@@ -287,4 +312,72 @@ func currentBranch(r gitRunner) string {
 func branchExists(r gitRunner, name string) bool {
 	_, err := r.Git("show-ref", "--verify", "--quiet", "refs/heads/"+name)
 	return err == nil
+}
+
+// Branch creation also serves pre-tracker repositories. Use a local immutable
+// view, never require tracker ownership or fetch from an invented remote.
+type branchAssetMaterialization struct {
+	root  string
+	paths []string
+	view  *gitx.TrunkView
+}
+
+func prepareBranchAssetMaterialization(ctx context.Context, r gitRunner, target string, materialize bool, issuesDir string) (*branchAssetMaterialization, error) {
+	// Metadata only. Repositories without asset paths need no blob reads. Match
+	// broadly here; the shared verifier selects the exact configured directories.
+	hasAssets := false
+	for _, ref := range []string{"HEAD", target} {
+		raw, err := r.Git("ls-tree", "-r", "--name-only", "-z", ref)
+		if err != nil {
+			return nil, fmt.Errorf("list assets before branch checkout: %w; restore a readable %s before retrying", err, ref)
+		}
+		for _, p := range strings.Split(string(raw), "\x00") {
+			if strings.HasPrefix(p, "assets/") || strings.Contains(p, "/assets/") {
+				hasAssets = true
+			}
+		}
+	}
+	if !hasAssets {
+		return nil, nil
+	}
+	rawRoot, err := r.Git("rev-parse", "--show-toplevel")
+	if err != nil {
+		return nil, fmt.Errorf("read repository root before asset checkout: %w; run from the repository checkout", err)
+	}
+	root := strings.TrimSpace(string(rawRoot))
+	rawTip, err := r.Git("rev-parse", "--verify", target)
+	if err != nil {
+		return nil, fmt.Errorf("pin asset checkout target: %w; restore a valid %s before retrying", err, target)
+	}
+	tip := strings.TrimSpace(string(rawTip))
+	issuesDir, err = gitx.InsideRoot(root, issuesDir)
+	if err != nil {
+		return nil, fmt.Errorf("asset directory: %w; use an issue directory inside the repository", err)
+	}
+	local, err := gitx.NewTrunkFileContext(ctx, root, "origin", "main")
+	if err != nil {
+		return nil, err
+	}
+	env := &trackerEnv{ctx: ctx, root: root, main: local}
+	if materialize {
+		if err := verifyAssetTransition(env, tip, issuesDir); err != nil {
+			return nil, err
+		}
+	}
+	view := local.ViewOf(tip)
+	paths, err := assetMaterializationPaths(root, view, issuesDir)
+	if err != nil {
+		return nil, err
+	}
+	return &branchAssetMaterialization{root: root, paths: paths, view: view}, nil
+}
+
+func (a *branchAssetMaterialization) verify(root string) error {
+	if a == nil {
+		return nil
+	}
+	if root == "" {
+		root = a.root
+	}
+	return verifyMaterializedAssetPaths(root, a.view, a.paths)
 }

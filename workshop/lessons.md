@@ -19,6 +19,35 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- A context-free compatibility wrapper is still production code to a source
+  guard. Remove unused wrappers or route their nil context through the one
+  bounded fallback; keep fixture aliases in test files. A targeted behavior
+  test will not exercise a whole-package source guard (#332 full suite).
+- A reentrant resource acquisition must return the original owner's identity,
+  not merely permission to continue. The second local suite run reacquired its
+  lock but omitted the holder pid from its child environment, so nested make
+  waited on its own process (#332 BR-15). Test repeated runs with the real
+  stateful lock helper; a fake that always says "skipped" cannot expose this.
+- Run a recorded suite in a fresh checkout before treating it as landing
+  evidence. An ignored woven skill directory made a process-manual test pass
+  in the slot and fail in the clean suite worktree; assertions about generated
+  projections must be conditional or backed by an explicit fixture (#332).
+- When a stateful fake models a remote push, update its advertised PR head
+  from the pushed ref in every fixture that can integrate main. A stale fake
+  turns a successful integration into a two-minute registration timeout
+  (#332 full suite).
+- An override of execution settings must not override a mandatory gate's
+  requirement. Test omitted and explicitly false flags through the production
+  gate, as well as the pure derivation (#332 BR-8).
+- A failed parent lookup does not prove a root commit. Read positive parent
+  evidence and propagate operational errors; test those errors (#332 BR-3).
+- CommandContext alone does not bound a subprocess whose descendants retain
+  output pipes. Test cancellation with a real descendant and bound cleanup and
+  pipe draining (#332 BR-5).
+- A termination assertion must expire before the fixture child can exit
+  naturally; a two-minute wait for a one-minute sleeper proves no cleanup.
+  Mutation-check both timeout and parent-exit cases (#332 BR-10).
+
 - In a rejection table, each row must assert that it was refused by its own
   check (for example, the error names the field). A shared invariant failing
   first, such as a nil collection, makes every row pass vacuously (#279 BR-8).
@@ -126,6 +155,23 @@ Detailed incidents remain in their owning issue or review artifact.
   unpushed case was tested, which both versions refuse; the pushed-but-not-tip
   case is the one that tells them apart (#345 BR-3).
 
+- A check that needs a resource for only some inputs reads it lazily, at the
+  first input that needs it. #348's issue validate read the area declaration
+  up front, so a repository with no main failed every issue, including ones
+  carrying no area at all (BR-1). Pass a memoized reader, not the value, and
+  type its errors so a gate can still fail closed when the resource is needed.
+- Values a writer puts into YAML go through one encoder that quotes what YAML
+  would read as another type. #348 wrote areas unquoted, so a declared `2026`
+  or `true` became a number or a bool that the card's string check refused,
+  while the gate's decoder read it as a string (BR-2). Test a round trip with
+  type-ambiguous values.
+
+- Prove that a test builds the state it names, before trusting it as a
+  regression test. #361's first zombie-group test used `wait4(WNOWAIT)` to wait
+  without reaping, but Darwin ignores `WNOWAIT`, so the child was reaped and the
+  test passed with the fix reverted. Assert the precondition the kernel reports
+  (EPERM for a zombie-only group), then revert the fix and watch the test fail.
+
 ## Paths, processes, and integration
 
 - A before/after measurement needs a baseline binary built from the baseline
@@ -232,6 +278,13 @@ Detailed incidents remain in their owning issue or review artifact.
   precede a command) misses the next context each review. When a review finds a
   second one, invert the rule: match every occurrence and enumerate only the
   provable exceptions (#342: if/while/sudo -u/time -p after {, sudo, time, VAR=x).
+- Before a lint encodes a portability rule, measure each form on the target. #353
+  assumed every array operator failed on bash 3.2 under `set -u`; measured, only the
+  bare `${a[@]}`/`${a[*]}` (and the bash-4 case operators) do, so the first rule
+  over-flagged substrings and pattern removal.
+- `--no-atlas` is a claim to verify, not a default. Before passing it, grep the atlas
+  for the changed component's name and behavior words; twice (#355, #360) the close
+  review found the atlas restating the old behavior after `--no-atlas`.
 - A behavior change to a surface the README documents updates the README, even
   with no new command: a now-false README sentence is a finding (#230 BR-3).
 - Validate external identifier grammar before interpreting sentinel values. An
@@ -547,9 +600,103 @@ The simplest durable authority beats a clever scan of consequences.
 - A handoff against a file someone else keeps editing (an ops project's Log)
   goes stale as a saved patch within hours. Hand off the regeneration script
   and keep the patch only as a preview (#329 D10).
+
+- Adding binary sidecars under a document root changes existing subtree-reader
+  workload even if the document parser ignores them. Select document metadata
+  before loading blobs; per-attachment limits do not bound aggregate reads (#337 PQ-1).
+- Multi-file writes need an explicit distinction between unchanged preflight
+  refusal and recoverable post-effect failure. Rollback may remove only bytes
+  this attempt owns, while restart must re-establish evidence (#337 PQ-2).
+
+- Authorization for publishing new bytes belongs to the pinned destination
+  snapshot, not a stale working-tree configuration. Re-evaluate on every retry
+  and test remote-only tightening across all admission paths (#337 BR-1).
+- Git can transform bytes at every materialization path, including an archived
+  source later renamed into a safe destination. Check both paths before effects
+  and verify actual restored bytes against pinned content (#337 BR-2).
+- Classify a named function by its actual dependencies: snapshot loading, Git
+  or clock reads make a proof integration even when its planner is pure (#337 BR-3).
+- A fake external CLI response does not verify production argv against the real
+  service. Supply an opt-in read-only conformance check and its cadence (#337 BR-4).
+
+- A caller sweep is not complete until its inventory includes every direct
+  checkout/restore followed by commit. Verify that inventory against code search;
+  shared helper coverage did not imply issue restore used it (#337 BR-2 repeat).
+- Do not strip destination host identity before an authorization query. Ambient
+  CLI host settings can select a different private repository with the same
+  owner/name; test conflicting host settings through the real seam (#337 BR-5).
+- An index remains authoritative when its storage directory is absent. Skipping
+  validation based only on directory history misses body-only dangling links
+  (#337 BR-6).
+- A prepared durable candidate may predate its current validator. Validate the
+  complete pinned candidate at publication and uncertain-outcome recovery, not
+  only during preparation; absence of asset pins is not a body-index proof
+  (#337 BR-7).
 - Every claim a durable contract makes needs a test that proves it: each
   half of an OR rule, each recovery-catalog field, each ticked plan box. In
   #344 the ref-containment half of `Leavable` (the half the crash recovery
   relied on) could be mutated to false with every test still green, and two
   review rounds found unproven claims in the same family. Before closing,
   mutate each branch of a new rule once and list the test that fails.
+
+- Classify a function by all production effects reachable through its callbacks, not only its direct calls or name. An injected reader still makes a planner INTEGRATION when the production binding reads Git; trace every callback before declaring PURE (#337 BR-3).
+
+- When an authorized acceptance revision changes required checks, update the current Done when criteria as well as appending its revision history. Label completed local verification separately from pending PR CI; do not leave two competing acceptance contracts (#358 BR-1).
+
+- Polling deadlines must cover inflight IO and reject results that arrive after
+  expiry, including green. Exclude separately budgeted suite time explicitly;
+  give cleanup a fresh bounded context after cancellation (#332 BR-12).
+- A pure action selector does not own authoritative state. Route production
+  outcomes through typed state/event transitions, including error, recovery and
+  retry paths; test the counter and ordering invariants by mutation (#332 BR-14).
+- Bound the complete subprocess graph, including indirect shared Git helpers.
+  Cancellation during push may follow remote publication: preserve the local
+  commit and reconcile evidence on retry, rather than rolling back (#332 BR-13).
+
+- A deadline is only complete when it reaches every subprocess on the actual
+  call graph. Enumerate nested probes, replay helpers, tracker fallbacks,
+  archive reads and final diff measurements, then test cancellation with a real
+  sleeping command at each independent seam (#332 BR-12/BR-13 round 7).
+- A new consumer configuration hook needs a README entry as well as atlas details: name its default convention, override placement, and failure behavior (#333 BR-1).
+
+- Tests of environment-controlled output must own every relevant flag, including flags that override the one being tested. Codex's NO_COLOR broke forced-color assertions; inherited CLICOLOR_FORCE broke plain output (#363). Exercise the runner with conflicting ambient settings.
+
+- Plan test strategies by named risky function, adversarial input class and a mechanical guard; case inventories alone hide missing invariants. For append-only diagnostics, a per-attempt cap is not a retention policy: state permanent cost or bounded supersession and measure at the writer (#364 PQ-1/PQ-2).
+
+- In subprocess seams that execute on a heartbeat goroutine, test callbacks must return an error or use Errorf rather than Fatal: Fatal exits only that goroutine and strands the caller waiting for its result (#364 test development).
+
+- Git diff is a normalized report, not proof of byte preservation. A guard that promises unchanged tracked inputs must fingerprint actual bytes/types/modes independently of clean/text conversion and assume-unchanged/skip-worktree flags; disabling one diff feature only fixes an instance (#364 BR-1).
+
+- A pure admission test does not fulfill a promised lifecycle proof. For dispute
+  flows, drive the real close/dispute/dispatch path and check both evidence delivery
+  and non-advancement on invalid responses; mutation-check the integration wiring.
+
+
+- A convergent retry must prove every authoritative effect after private receipt
+  cleanup, including the effective calibration operation and current projection;
+  an unchanged card alone cannot prove completion (#335).
+- A calibration schema migration must preserve raw sample identities. Upgrade
+  headers under the same writer lock and atomically include the first new row;
+  test both fresh append and recovery of an already-written row (#335).
+- Cancellation tests should separate cleanup latency from natural completion by
+  a wide margin; subsecond scheduling assertions are brittle in sharded suites.
+  Keep the cancellation bound while making the fake command much slower (#335).
+
+- Admit delegated activity by original dispatch provenance before merging it
+  into parent activity. Clipping a merged span by a parent's later eligibility
+  loses the distinction between release, reclaim and continuous relocation
+  (#335 BR-1).
+- Authoritative exclusion must survive consumer selection across the full issue
+  history. Test multiple eligible older rows, not only a sole target; filtering
+  the excluded newest row alone can resurrect a superseded sample (#335 BR-2).
+- Diagnostic requirements need production caller regressions. A correct
+  comparator unit test cannot detect a removed close-time warning call; mutate
+  the wiring and include the incremental-milestone control (#335 BR-3).
+
+- Installing a new authoritative generation must retire metadata bound to its
+  predecessor in the same transition. Test re-close after both numeric repair
+  and exclusion, plus same-generation landing preservation (#335 BR-4).
+
+- A successful repair must show the measurement's reconstruction basis and
+  quality diagnostics as well as the number and hashes. Exercise preview and
+  execution through the command path, and reuse measurement rendering (#335 BR-5).

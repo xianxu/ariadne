@@ -12,10 +12,13 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/repoenum"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // cardUpdate is one setter's pure decision: from the current card (and the
@@ -147,6 +150,57 @@ func newIssueSetGitHubCmd() *cobra.Command {
 				value := strconv.Itoa(number)
 				return "github_issue → " + value, func(_ *trackerEnv, card tracker.Record, _ string) ([]byte, error) {
 					return issue.SetCardField(card.Raw, "github_issue", value)
+				}, nil
+			}
+		})
+}
+
+// newIssueSetAreaCmd sets the card's area list (#348): each value must be a
+// declared area, or an ancestor of one, in main's .sdlc/vocabulary.json.
+func newIssueSetAreaCmd() *cobra.Command {
+	var clear bool
+	return newCardSetterCmd("set-area <area>...", "Set an issue's areas (/-paths the repository declares in .sdlc/vocabulary.json)", cobra.ArbitraryArgs,
+		func(cmd *cobra.Command) func([]string) (string, cardUpdate, error) {
+			cmd.Flags().BoolVar(&clear, "clear", false, "remove the issue's areas")
+			return func(a []string) (string, cardUpdate, error) {
+				if clear == (len(a) > 0) {
+					return "", nil, errors.New("give one or more areas, or --clear")
+				}
+				if clear {
+					return "area → (none)", func(_ *trackerEnv, card tracker.Record, _ string) ([]byte, error) {
+						return issue.SetCardField(card.Raw, "area", "")
+					}, nil
+				}
+				areas := uniqueAreas(a)
+				return "area → " + issue.FlowList(areas), func(env *trackerEnv, card tracker.Record, _ string) ([]byte, error) {
+					if err := checkClassification(func() (repoenum.Declaration, error) { return readTrackerRepoEnums(env) }, areas, ""); err != nil {
+						return nil, err
+					}
+					return issue.SetCardField(card.Raw, "area", issue.FlowList(areas))
+				}, nil
+			}
+		})
+}
+
+// newIssueSetSeverityCmd sets the card's severity (#348), a shared enum.
+func newIssueSetSeverityCmd() *cobra.Command {
+	var clear bool
+	return newCardSetterCmd("set-severity <level>", "Set an issue's severity ("+strings.Join(vocab.Issue().Enums["severity"], " | ")+")", cobra.MaximumNArgs(1),
+		func(cmd *cobra.Command) func([]string) (string, cardUpdate, error) {
+			cmd.Flags().BoolVar(&clear, "clear", false, "remove the issue's severity")
+			return func(a []string) (string, cardUpdate, error) {
+				if clear == (len(a) == 1) {
+					return "", nil, errors.New("give a severity, or --clear")
+				}
+				level := ""
+				if !clear {
+					level = a[0]
+					if err := issue.CheckSeverity(level); err != nil {
+						return "", nil, err
+					}
+				}
+				return "severity → " + valueOr(level, "(none)"), func(_ *trackerEnv, card tracker.Record, _ string) ([]byte, error) {
+					return issue.SetCardField(card.Raw, "severity", level)
 				}, nil
 			}
 		})

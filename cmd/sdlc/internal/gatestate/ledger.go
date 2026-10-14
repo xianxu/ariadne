@@ -32,6 +32,7 @@ import (
 // lets a LATER round refer to it. Severity is validated against the `finding` model at
 // parse time, so by the time a Finding exists here its severity is modeled.
 type Finding struct {
+	Kind     string `yaml:"kind,omitempty"`
 	ID       string `yaml:"id"`
 	Severity string `yaml:"severity"`
 	Title    string `yaml:"title"`
@@ -61,6 +62,10 @@ type RoundReport struct {
 // Round is one gate invocation's durable record: what it disposed, what it raised, whether
 // the gate blocked, and whether the operator forced past it.
 type Round struct {
+	// ActualInputs pins the evidence adopted at this boundary (#335).
+	// Optional so every legacy ledger retains its original serialization.
+	ActualInputs *MeasurementInputs `yaml:"actual_inputs,omitempty"`
+
 	N         int    `yaml:"n"`
 	Timestamp string `yaml:"timestamp"`
 	// Dispatched is when the round's review was dispatched (#234); Timestamp is

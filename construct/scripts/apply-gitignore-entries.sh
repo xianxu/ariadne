@@ -30,7 +30,7 @@ GITIGNORE_ENTRIES=(
 
 touch "$GITIGNORE"
 changed=false
-for entry in "${GITIGNORE_ENTRIES[@]}"; do
+for entry in ${GITIGNORE_ENTRIES[@]+"${GITIGNORE_ENTRIES[@]}"}; do
     if ! grep -qxF "$entry" "$GITIGNORE"; then
         echo "$entry" >> "$GITIGNORE"
         changed=true

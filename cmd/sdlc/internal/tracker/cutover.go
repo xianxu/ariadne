@@ -9,6 +9,7 @@ package tracker
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -195,7 +196,17 @@ func CutOver(checkoutRoot string) (bool, error) {
 // FetchedTracker reports whether the clone at root has fetched an issue
 // tracker from any remote.
 func FetchedTracker(root string) (bool, error) {
-	out, err := gitx.RunGit("-C", root, "for-each-ref", "--count=1", "--format=%(refname)", "refs/remotes/*/"+vocab.Issue().Discovery().Tracker)
+	return fetchedTracker(gitx.RunGit, root)
+}
+
+// FetchedTrackerContext preserves cancellation during the legacy-mode fallback;
+// an interrupted discovery is an error, never permission to use legacy details.
+func FetchedTrackerContext(ctx context.Context, root string) (bool, error) {
+	return fetchedTracker(func(args ...string) ([]byte, error) { return gitx.GitOutputContext(ctx, args...) }, root)
+}
+
+func fetchedTracker(runGit func(...string) ([]byte, error), root string) (bool, error) {
+	out, err := runGit("-C", root, "for-each-ref", "--count=1", "--format=%(refname)", "refs/remotes/*/"+vocab.Issue().Discovery().Tracker)
 	if err != nil {
 		return false, fmt.Errorf("list fetched issue trackers: %w", err)
 	}

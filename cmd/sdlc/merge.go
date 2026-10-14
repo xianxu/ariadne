@@ -285,7 +285,7 @@ func decideMergeAction(openPRNumber string, mergedExists bool, unmergedCount int
 
 func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	ctx := commandContext(f.Context)
-	target, err := resolveLandingTarget(mergeRunner)
+	target, err := resolveLandingTarget(boundedLandingGit(ctx, mergeRunner))
 	if err != nil {
 		return err
 	}
@@ -562,12 +562,16 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		}
 		// The gate decides from main's tree whether the guard's verdict is
 		// required, so it reads a freshly fetched main, never a stale ref.
-		if out, ferr := mergeRunner.Git("fetch", "origin", "+refs/heads/main:refs/remotes/origin/main"); ferr != nil {
-			die(stderr, fmt.Sprintf("CI gate: git fetch origin main: %v\n%s", ferr, out))
+		main, err := requireLegacyMainIntegrated(gitCall, head)
+		if err != nil {
+			die(stderr, err.Error())
 		}
 		root := gitx.Capture("rev-parse", "--show-toplevel")
 		localRun := newLocalCheckRunner(localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: gitCall, PR: prNum, Stderr: stderr})
-		if err := runCIGate(ctx, ghClient, repo, prNum, "origin/main", head, gitCall, localRun, f.NoCI, stderr); err != nil {
+		if err := runCIGate(ctx, ghClient, repo, prNum, main, head, gitCall, localRun, f.NoCI, stderr); err != nil {
+			die(stderr, err.Error())
+		}
+		if _, err := requireLegacyMainIntegrated(gitCall, head); err != nil {
 			die(stderr, err.Error())
 		}
 		cinfo(stderr, fmt.Sprintf("Merging PR #%s (%s) into main via GitHub...", prNumber, branch))
@@ -599,15 +603,9 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		// idempotent either way. In-place: the merge is server-side, so switch
 		// this checkout back to main (a no-op if a prior run already did) before
 		// pulling the merged result.
-		if inPlace {
-			cinfo(stderr, "Switching to main...")
-			if out, gerr := mergeRunner.Git("switch", "main"); gerr != nil {
-				die(stderr, strandedMessage(branch, fmt.Sprintf("git switch main: %v\n%s", gerr, out), false))
-			}
-		}
-		cinfo(stderr, "Pulling main...")
-		if out, gerr := mergeRunner.GitInDir(mainPath, "pull"); gerr != nil {
-			die(stderr, strandedMessage(branch, fmt.Sprintf("git -C %s pull: %v\n%s", mainPath, gerr, out), inPlace))
+		cinfo(stderr, "Fetching and fast-forwarding main...")
+		if atMain, err := materializeMergedMain(ctx, mergeRunner, mainPath, f.IssuesDir, inPlace); err != nil {
+			die(stderr, strandedMessage(branch, err.Error(), inPlace && atMain))
 		}
 	} else {
 		cwarn(stderr, fmt.Sprintf("No open or merged PR for branch %s", branch))
@@ -667,6 +665,9 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		commitArgs, cerr := archiveCommitArgs(archiveCommitMessage, moves)
 		if cerr != nil {
 			die(stderr, cerr.Error())
+		}
+		if err := verifyArchivedAssetMoves(ctx, mainPath, moves); err != nil {
+			die(stderr, err.Error())
 		}
 		if out, gerr := mergeRunner.GitInDir(mainPath, commitArgs...); gerr != nil {
 			die(stderr, fmt.Sprintf("git -C %s commit: %v\n%s", mainPath, gerr, out))
@@ -764,11 +765,19 @@ func archiveDoneIssuesInDir(ctx context.Context, stderr io.Writer, repo, mainPat
 		// `gh issue close` would be redundant.) Repo param kept in
 		// signature for API symmetry with push's archive helper.
 		_ = repo
+		base := filepath.Base(ref.Path)
+		dest := archiveDestination(historyFull, vocab.ArchiveIssues, base)
+		body, err := os.ReadFile(ref.Path)
+		if err != nil {
+			return moves, err
+		}
+		assetMoves, err := prepareAssetArchive(ctx, mainPath, filepath.Join(issuesDir, base), archiveDestination(historyDir, vocab.ArchiveIssues, base), body, gitSrcUntracked(func(a ...string) ([]byte, error) { return mergeRunner.GitInDir(mainPath, a...) }))
+		if err != nil {
+			return moves, err
+		}
 		if err := os.MkdirAll(issuesSubFull, 0o755); err != nil {
 			return moves, fmt.Errorf("mkdir %s: %v", issuesSubFull, err)
 		}
-		base := filepath.Base(ref.Path)
-		dest := archiveDestination(historyFull, vocab.ArchiveIssues, base)
 		fmt.Fprintf(stderr, "  Moving %s to %s/\n", base, issuesSubRec)
 		if err := os.Rename(ref.Path, dest); err != nil {
 			return moves, fmt.Errorf("mv %s → %s: %v", ref.Path, dest, err)
@@ -781,6 +790,10 @@ func archiveDoneIssuesInDir(ctx context.Context, stderr io.Writer, repo, mainPat
 			IssuePath:   filepath.Join(issuesDir, base),
 			HistoryPath: archiveDestination(historyDir, vocab.ArchiveIssues, base),
 		})
+		if err := finishAssetArchiveMoves(mainPath, assetMoves); err != nil {
+			return moves, err
+		}
+		moves = append(moves, assetMoves...)
 		// Sweep the issue's durable plan + review sidecars to history too (#143).
 		// Rename under mainPath; record mainPath-relative paths for the git add.
 		// An untracked sidecar (#154) stages only its history dest — probe via

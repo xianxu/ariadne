@@ -9,24 +9,38 @@ SUBCOMMANDS
                  the tracker, the details on main; claimed by the creating slot
                  `repo:N` (N ≥ 1), unclaimed from `:0`; writes no checkout
                  (`--from-github N` seeds it from a GitHub issue)
+  attach         Copy bounded evidence and add its body link; requires
+                 --issue N --file PATH --caption TEXT; local edits only
   publish        Publish later edits to details on main (#284), by
                  {{DETAILS_EDITORS}};
                  one narrow main commit for a set (`--issue 284,285`). Also
                  finishes an incomplete creation (a card whose details never
                  reached main: filed before #308)
-  restore        Put main's version of published details back on this branch
+  restore        Put main's published details and asset bundle back on this branch
                  (`--issue N`): the transfer guard's offer for an edit that is
                  not this workspace's own record (#285)
+  correct-actual Re-measure a completed actual with --issue N --reason TEXT;
+                 --dry-run previews; --exclude invalidates a proven bad sample
+                 without inventing hours. Keeps the original close generation.
   recovery       `list` / `reconcile --issue N` interrupted tracker operations
+                 and measured actual corrections
   migrate        One-time cutover of a legacy repository to the issue tracker
                  (dry run; `--apply --expect DIGEST`; `--reconcile` on a branch)
   set-status     Flip an issue card's status with transition guards
   set-title      Retitle an issue card (paths keep their slug)
   set-estimate   Record estimate_hours on the card (`--hours`)
   set-github     Link the card to a GitHub issue (`--number`)
+  set-area       Set the card's areas (`<area>...` | `--clear`); each must be
+                 declared, or an ancestor of a declared one, in main's
+                 {{REPO_ENUMS_PATH}} (#348)
+  set-severity   Set the card's severity (`<level>` | `--clear`):
+                 {{SEVERITY_NAMES}}
   sync           (legacy repositories) commit an issue body; retired in tracker
                  repositories: commit details with git, publish with `publish`
-  list           List issues (ID, status, title), sorted by ID; --status filters
+  list           List issues (ID, status, title), sorted by ID; --status,
+                 --area (a /-path prefix by whole segments) and --severity
+                 filter; severity and area columns appear when a listed issue
+                 has them
   show           Print an issue's frontmatter + section headers (no bodies)
 
 CANONICAL ISSUE FILE
@@ -50,6 +64,17 @@ branch name verbatim, and the branch feeds the orientation slug's left segment.
     started        ISO-8601 stamp at the open→working flip (#116); the
                    active-time window anchor — set by the verb, never
                    hand-edited
+    area           (optional, card) where the issue belongs: a one-line list of
+                   /-paths, e.g. [couch/broadcast/web]. Allowed values are
+                   the repository's: declared in {{REPO_ENUMS_PATH}} on main
+                   (an operator-governed, local-gates-guarded file; an absent
+                   file declares none). Declaring couch/broadcast/web also
+                   allows couch and couch/broadcast. Set with `issue new
+                   --area` or `issue set-area`; checked by the writers, issue
+                   publish, issue validate and the merge/push instance gate
+                   (#348)
+    severity       (optional, card) {{SEVERITY_NAMES}}; set with
+                   `issue new --severity` or `issue set-severity`
     estimate_hours derived after the plan clears plan-quality; required by change-code — not at
                    claim (#113) — on the full flow only. Optional at create.
     flow           the issue's SDLC flow, one line (#231):
@@ -74,6 +99,7 @@ branch name verbatim, and the branch feeds the orientation slug's left segment.
     ## Plan         checkable steps; `## Plan` milestones gate reviews
     ## Log          dated session notes (### YYYY-MM-DD)
     ## Side quests  (optional) unplanned work that landed
+    ## Assets       (optional) links to evidence owned by this issue
 
 STATUS
 
@@ -123,6 +149,12 @@ reach main without shipping a branch. Per issue:
     edit). A file changed while publishing is never overwritten. A lost push
     response: rerun — main already holds the details, and the rerun only
     finishes the checkout.
+Publication includes the body-indexed asset bundle in the same transaction.
+Binary-only edits have the same ownership and conflict checks as body edits;
+new asset bytes recheck the current destination policy. Retry compares the
+whole bundle. Restore takes main's matching assets with its details, including
+archived copies, and preserves concurrent edits.
+
 PUBLISHED DETAILS ARE GUARDED (#285). Once main's history has an issue's details,
 `pr`, `push` and `merge` refuse a landing whose merge with main would change
 them unless the change is by {{DETAILS_EDITORS}}
@@ -144,6 +176,50 @@ the tracker's root commit. A checkout whose marker disagrees with the tracker
 card read and write with the next action; unmirrored details in such a
 repository refuse the legacy close/change-code paths. `sync` is retired to a
 pointer (#284); `publish --commit` and the Makefile/Python shell fallbacks refuse.
+
+ISSUE ASSETS (#337)
+
+  sdlc issue attach --issue N --file PATH --caption TEXT
+
+Attach a regular file and add an escaped image or ordinary link under ## Assets.
+All three flags are required. No commit or publication happens automatically:
+commit both printed paths on the issue branch, or use issue publish. Never
+commit on a resting branch. --issues-dir / WF_ISSUES_DIR selects a custom root.
+
+Assets live at workshop/issues/assets/NNNNNN/<sha256>.<extension>; the body
+links to assets/NNNNNN/<name>. Actual Markdown links are the only index, not
+code examples or a manifest. Names bind exact immutable bytes. Reattaching the
+same bytes and extension is idempotent. Limits: 1 MiB/file, 8 MiB/issue, 32 files.
+No automatic compression. Removing an asset and its link removes it from the
+current tree; Git history retains old bytes and grows with replacements.
+
+Repository policy is operator-owned workshop/asset-policy.json, strictly:
+  {"version":1,"policy":"allowed"}
+  {"version":1,"policy":"text-only"}
+No setter or override is provided. Invalid/unreadable policy needs operator
+repair. Without the file, the effective publication host's visibility decides:
+private allows; public or unknown is text-only. Offline/unsupported hosts fail
+closed. Help prints the effective policy and source. Text-only refuses every
+file attachment, regardless of extension; write a sanitized text summary.
+
+Repository permission does not authorize sharing the source. Pair notes need
+explicit privacy: shareable (pair#526); attach crops only when that AND the
+repository policy allow. Private/missing/unknown privacy means a sanitized
+text summary. Never depend on a recording or replay link.
+
+Assets follow the issue through publication, archive, restore, abandon/reopen
+and committed slot moves. Archive uses workshop/history/issues/assets/NNNNNN/
+so body links stay unchanged. Existing evidence can archive/restore after
+policy tightens. Cross-repo sdlc migrate still refuses issue-family artifacts;
+asset-aware issue migration is deferred to #347 after #179's renumbering work.
+
+Every refusal identifies its blocked input and recovery action: ask the operator
+to change the named policy file; remove an asset to meet a budget; restore a
+missing target or remove its link; link or delete an unknown file. Traversal,
+foreign IDs, symlinks and inconsistent content names refuse before mutation.
+A failed attachment never deletes pre-existing bytes or overwrites a changed
+body. It reports retained bytes and the action to reconcile them; rerun after
+following that action. Publication interruptions name the recovery verb.
 
 MIGRATION (#252)
 
@@ -180,7 +256,8 @@ The agent chooses a coherent same-repository documentation commit, then runs:
   sdlc issue publish --commit SHA
 
 The complete commit must contain ordinary Markdown changes under configured
-issues/plans/history roots or workshop/projects/. It may deliberately group an
+issues/plans/history roots or workshop/projects/, plus validated issue asset
+bundles indexed by their issue bodies. New asset bytes must pass repository policy. It may deliberately group an
 issue, separate plan and project records. Mixed code/docs, root or merge commits,
 symlinks and submodules refuse; split the commit explicitly. Atlas/code changes
 retain the reviewed PR path.

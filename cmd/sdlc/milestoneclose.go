@@ -67,6 +67,7 @@ type milestoneCloseFlags struct {
 // errored — the operator should still be able to reconstruct what
 // happened from the trailer alone.
 type reviewResult struct {
+	Evidence      judge.DispatchEvidence
 	DispatchError error  // failed/cancelled dispatch may not persist a round
 	Dispatched    string // #234: when the reviewer was dispatched (RFC3339)
 	Verdict       judge.Verdict
@@ -237,6 +238,7 @@ func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *mi
 	var r closeResult
 	var base, baseLong, head, windowBase, prior string
 	var snapshot closeReviewSnapshot
+	var admission gatestate.Ledger
 	if err := withRequiredRepoTransactionLock(cmd, func() error {
 		r = computeClose(stderr, closeF)
 		issuePath, perr := issueFilePath(f.IssuesDir, f.Issue)
@@ -249,27 +251,29 @@ func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *mi
 			return captureErr
 		}
 		snapshot = captured
-		prior = boundaryPriorFindings(stderr, boundaryReviewParams{
-			IssuesDir: f.IssuesDir, IssueNum: f.Issue, Milestone: f.Milestone, PlansDir: resolvePlansDir(f.PlansDir),
-		})
-		return nil
+		memoryParams := boundaryReviewParams{IssuesDir: f.IssuesDir, IssueNum: f.Issue, Milestone: f.Milestone, PlansDir: resolvePlansDir(f.PlansDir)}
+		prior = boundaryPriorFindings(stderr, memoryParams)
+		var lerr error
+		admission, lerr = boundaryAdmissionLedger(memoryParams)
+		return lerr
 	}); err != nil {
 		return err
 	}
 
 	return reviewThenFinalizeLocked(cmd, stdout, stderr, closeF, r, boundaryReviewParams{
-		Label:         fmt.Sprintf("#%d %s", f.Issue, f.Milestone),
-		Base:          base,
-		BaseLong:      baseLong,
-		WindowBase:    windowBase,
-		Head:          head,
-		IssuesDir:     f.IssuesDir,
-		Agent:         f.Agent,
-		AgentExplicit: f.AgentExplicit,
-		IssueNum:      f.Issue,
-		Milestone:     f.Milestone,
-		PlansDir:      resolvePlansDir(f.PlansDir),
-		PriorFindings: prior,
+		Label:           fmt.Sprintf("#%d %s", f.Issue, f.Milestone),
+		Base:            base,
+		BaseLong:        baseLong,
+		WindowBase:      windowBase,
+		Head:            head,
+		IssuesDir:       f.IssuesDir,
+		Agent:           f.Agent,
+		AgentExplicit:   f.AgentExplicit,
+		IssueNum:        f.Issue,
+		Milestone:       f.Milestone,
+		PlansDir:        resolvePlansDir(f.PlansDir),
+		PriorFindings:   prior,
+		AdmissionLedger: &admission,
 	}, snapshot)
 }
 
@@ -568,7 +572,10 @@ func appendVerdictSuffix(text, milestone string, verdict judge.Verdict) (string,
 // a whole-issue window (`#69`). Both invoke the same MilestoneReview prompt (the
 // embedded code-review.md procedure) on the resolved window.
 type boundaryReviewParams struct {
-	Context context.Context // caller cancellation follows the unlocked review
+	AdmissionLedger *gatestate.Ledger
+	ActualInputs    *gatestate.MeasurementInputs
+	Evidence        judge.DispatchEvidence
+	Context         context.Context // caller cancellation follows the unlocked review
 	// The prompt's issue ref is no longer carried here — it's derived from the
 	// live git context in boundaryReviewOptionsFor (#137, via IssueNum +
 	// Milestone + the repo root), so it names the actual repo (e.g. pair#69).
@@ -673,6 +680,22 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 		return notRun(reason)
 	}
 	opts.BeforeRetry = checkout.Reset // a retried attempt starts pristine too
+	opts.Preparation, err = readReviewPreparation(manifest.RepoRoot, manifest.HeadSHA)
+	if err != nil {
+		return notRun(err.Error())
+	}
+	opts.PreparationHead = manifest.HeadSHA
+	evidence := judge.DispatchEvidence{}
+	opts.Evidence = &evidence
+	ledger := p.AdmissionLedger
+	if ledger == nil {
+		captured, lerr := boundaryAdmissionLedger(p)
+		if lerr != nil {
+			return notRun(lerr.Error())
+		}
+		ledger = &captured
+	}
+	opts.ValidateResponse = func(output string) error { return validateBoundaryResponse(output, *ledger) }
 	if opts.Agent == judge.AgentCodex && opts.Containment == judge.ContainCheckout && runtime.GOOS == "darwin" {
 		// #310: on macOS codex's sandbox is Seatbelt too, which fails where the
 		// fence probe did; every command it runs is then refused (fail closed).
@@ -697,6 +720,12 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 		cwarn(stderr, fmt.Sprintf("boundary review failed: %v", derr))
 		r := res(judge.VerdictNotRun, derr.Error())
 		r.DispatchError = derr
+		r.Evidence = evidence
+		r.Agent, r.Dispatched, r.Isolation = string(agent), dispatched, iso.Level()
+		if p.PlansDir != "" {
+			p.Agent, p.Isolation, p.Evidence = r.Agent, r.Isolation, evidence
+			r.SidecarPath = persistReviewSidecar(stderr, p, r)
+		}
 		return r
 	}
 	fmt.Fprint(stdout, output)
@@ -716,7 +745,7 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 		cwarn(stderr, fmt.Sprintf("boundary review: no '%s' verdict found (block or line) — recording verdict as 'unknown'",
 			strings.Join(vocab.Verdict().Emitted(), " | ")))
 	}
-	rr := reviewResult{Verdict: verdict, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong, WindowBase: p.WindowBase, Output: output, Agent: string(agent), Dispatched: dispatched, Isolation: iso.Level()}
+	rr := reviewResult{Evidence: evidence, Verdict: verdict, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong, WindowBase: p.WindowBase, Output: output, Agent: string(agent), Dispatched: dispatched, Isolation: iso.Level()}
 	// #194 M2: capture the structured findings handoff. Persisting it is the caller's
 	// job (it holds the lock); parsing here keeps the raw output in one place.
 	if round, ok := gatestate.ParseFindingsBlock(output); ok {
@@ -731,14 +760,11 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	// latter defaults to "" so the sidecar's reviewer cell would otherwise be empty.
 	p.Agent = string(agent)
 	p.Isolation = rr.Isolation
+	p.Evidence = evidence
 	if p.PlansDir != "" {
-		if path, werr := writeReviewSidecar(p, string(verdict), output, nowRFC3339()); werr != nil {
-			cwarn(stderr, fmt.Sprintf("review sidecar not written: %v", werr))
-		} else {
-			rr.SidecarPath = path
-			cok(stderr, "review sidecar: "+path)
-		}
+		rr.SidecarPath = persistReviewSidecar(stderr, p, rr)
 	}
+
 	return rr
 }
 
@@ -757,6 +783,13 @@ func plannedBoundaryReviewOptions(stdout, stderr io.Writer, p boundaryReviewPara
 	opts, ok, reason := boundaryReviewOptionsFor(stdout, stderr, p, manifest, &iso)
 	if !ok {
 		return judge.DispatchOptions{}, errors.New(reason)
+	}
+	prep, err := readReviewPreparation(manifest.RepoRoot, manifest.HeadSHA)
+	if err != nil {
+		return judge.DispatchOptions{}, err
+	}
+	if prep != nil {
+		fmt.Fprintf(stdout, "Preparation at pinned HEAD (each attempt, after confinement): %q; timeout %d minutes, bounded by review deadline\n", prep.Command, prep.TimeoutMinutes)
 	}
 	return opts, nil
 }

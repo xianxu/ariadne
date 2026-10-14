@@ -70,7 +70,18 @@ func runRecoveryList(ctx context.Context, stdout io.Writer) error {
 		return err
 	}
 	all, listErr := receipts.List()
-	if len(all) == 0 && listErr == nil {
+	corrections, correctionErr := listActualCorrections(ctx, env.root)
+	if correctionErr != nil {
+		return correctionErr
+	}
+	for _, entry := range corrections {
+		document, err := readActualCorrection(entry)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "#%s\tactual-correction\t%s\tpending\t%s\there\n", document.State.Spec.IssueID, document.State.Phase, entry.Token)
+	}
+	if len(all) == 0 && len(corrections) == 0 && listErr == nil {
 		fmt.Fprintln(stdout, "no unfinished tracker operations")
 		return nil
 	}
@@ -109,6 +120,28 @@ func runRecoveryReconcileLanded(ctx context.Context, stdout, stderr io.Writer, i
 // is released instead (the operator reruns `issue new`); every other state is
 // driven forward, probing an uncertain effect before anything is repeated.
 func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID int) error {
+	if issueID > 0 {
+		env, err := openTracker(ctx)
+		if err != nil {
+			return err
+		}
+		entries, err := listActualCorrections(ctx, env.root)
+		if err != nil {
+			return err
+		}
+		for _, entry := range entries {
+			document, err := readActualCorrection(entry)
+			if err != nil {
+				return err
+			}
+			if document.State.Spec.IssueID != fmt.Sprintf("%06d", issueID) {
+				continue
+			}
+			if err := resumeActualCorrection(ctx, stdout, stderr, env.root, entry.Token); err != nil {
+				return err
+			}
+		}
+	}
 	if issueID <= 0 {
 		return errors.New("--issue is required and must be positive")
 	}
@@ -195,7 +228,7 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 			}
 			r = resumed.Receipt()
 			step = tracker.TransferStepper
-			adapter = tracker.NewTransferOp(ctx, env.repo, env.main, env.root, env.branchRef(), moveDetailRemover(env))
+			adapter = newIssueTransferOp(env)
 		case "completion":
 			resumed, err := tracker.ResumeCompletion(r)
 			if err != nil {

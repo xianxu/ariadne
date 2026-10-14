@@ -44,7 +44,7 @@ if [ "${#checks[@]}" -eq 0 ]; then
 fi
 
 failed=0
-for c in "${checks[@]}"; do
+for c in ${checks[@]+"${checks[@]}"}; do
     name="$(basename "$c")"
     if "$c" "$BASE" "$HEAD"; then
         echo "✓ merge-check passed: $name"

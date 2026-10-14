@@ -135,8 +135,8 @@ MODES
     - The ledger is NOT the prose sidecar. `-close-review.md` holds boundary
       metadata plus the reviewer's semantic final response for a human;
       `-close-gate.md` holds addressable findings for the next round. Harness
-      diagnostics and progress stay on terminal stderr. Neither replaces the
-      other.
+      diagnostics and progress stay on terminal stderr; bounded preparation/protocol
+      evidence is retained separately in the review sidecar. Neither replaces the other.
 
   FINDING FAMILIES (#194). Each finding carries a `family:` slug naming the
   underlying RULE it is an instance of, not its symptom. When a family already
@@ -209,13 +209,40 @@ MODES
   An OS write fence (sandbox-exec / bwrap), verified live before each review,
   keeps it out of every worktree of the repository and its git dir; where the
   fence cannot nest (inside an agent sandbox) the round runs clone-only with a
-  warning. A no-verdict retry starts from a reset clone. The round and sidecar record
+  warning. A missing-verdict or invalid-response retry starts from a reset clone.
+  The round and sidecar record
   `isolation: fenced|checkout`. WF_REVIEW_CHECKOUT_ROOT relocates the clones.
   Every reviewer (this one, plan-quality and `sdlc judge` alike) also runs
   confined (#339): its own TMPDIR, made and proven writable first (else the
   review did not run); git can neither find a repository above its root nor
   init/clone outside its directories; and a new `.git` above its root or a new
   entry in $HOME afterward fails the review, naming the paths.
+
+  BOUNDARY PREPARATION (#364). Commit a regular .sdlc/review-prepare.json blob
+  at the reviewed HEAD, for example:
+    {"version":1,"command":["make","runtimebundle-generate"],"timeout_minutes":10}
+  Missing means no preparation. Invalid/nonregular declarations fail setup.
+  The argv executes without an implicit shell at the disposable checkout root,
+  after confinement on each attempt under the same fence. A retry resets the
+  checkout, recreates confinement, then prepares again. Timeout defaults to
+  10 minutes (explicit 1–30), capped by the remaining review deadline. Preparation
+  failure, timeout, cancellation or tracked mutations halt before review;
+  ignored/untracked generated assets are allowed and cleaned with the checkout.
+  Dry-run displays the declaration and ordering without executing it.
+  Preparation output retains at most 64 KiB per attempt. The added prep/protocol
+  diagnostics retain at most 256 KiB per dispatch in the permanent review sidecar,
+  with truncation and byte counts, separate from verdict/finding parsing.
+  Darwin's fence exempts exactly /bin/ps for process inspection; the invoking
+  shell still cannot write protected source paths. Linux behavior is unchanged.
+
+  ANSWERABLE REWORK (#364). A new blocking finding needs nonempty title/detail;
+  alternatively explicitly maintain a known blocker with not-addressed. Existing
+  open findings alone, Minor-only findings or unknown IDs do not justify REWORK.
+  A kind: unverifiable finding identifies a failed check, observed restriction
+  and required evidence. Answer it with finding dispute and measured host evidence;
+  the next review must explicitly dispose it with a nonempty note. Invalid
+  responses share the existing two-attempt budget with missing verdicts, then
+  halt with a protocol error: no invalid findings, head advancement or finalization.
 
   (All lifecycle verbs — claim/start-plan/change-code/milestone-close/close/
    merge/push — also carry the repo guard (#176): they refuse in a brain
@@ -482,3 +509,12 @@ CALIBRATION LEDGER (#117 — closing the estimate↔actual loop)
   exists (a downstream repo with no sibling brain/), close skips it with a warning
   — a missing ledger never breaks the close. `actual_hours: N/A` closes are also
   excluded from the ledger and drift stats.
+
+MEASUREMENT PROVENANCE (#335)
+
+  Automatic adoption uses ownership intervals and owning-session provenance,
+  shared with actual and milestone-close. Explicit --brain-dir has the same
+  meaning in each command. The printed right edge is a timestamp, and the
+  boundary ledger retains code/tracker pins, source prefixes and phase cuts for
+  later replay. Missing required evidence refuses adoption. Whole-issue actuals
+  below 0.1× or above 10× estimate (at least 0.5h apart) warn for inspection.

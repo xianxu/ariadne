@@ -24,6 +24,38 @@ categories: {
 // measured time to feed velocity calibration. Keep the accepted spelling closed.
 #ActualNotApplicable: "N/A"
 
+// ── enums: shared closed enums for frontmatter fields (#348). Concrete lists so
+// they reach the export; the definitions derive from them. A card field of kind
+// `enum` names its key here. ──
+enums: {
+	severity: ["critical", "high", "medium", "low"]
+}
+
+#Severity: or(enums.severity)
+
+// ── repoEnums: repo-defined enums (#348). The shared model declares a field's
+// TYPE and syntax; each repository declares the field's allowed VALUES in its
+// own declaration file (declarationPath, read from main and governed under the
+// local-gates guard). An absent declaration is the empty one. A value is allowed
+// when it is declared or is an ancestor of a declared value. A card field of
+// kind `repo-enum` names its key under fields. ──
+repoEnums: {
+	declarationPath: ".sdlc/vocabulary.json"
+	fields: {
+		// area: where an issue belongs, as a /-path (product/feature/sub-area),
+		// queryable by segment prefix. `:` is not used because it means a slot.
+		area: {
+			syntax:   "path"
+			segment:  "[a-z0-9][a-z0-9-]*"
+			maxDepth: 4
+			multi:    true
+			maxItems: 8
+		}
+	}
+}
+
+#AreaPath: =~"^\(repoEnums.fields.area.segment)(/\(repoEnums.fields.area.segment)){0,\(repoEnums.fields.area.maxDepth-1)}$"
+
 // ── when: one-line semantics per status (the documented-value source) ──
 when: {
 	open:         "created, not yet started"
@@ -73,13 +105,18 @@ card: {
 		{name: "created", kind: "date", setter: "sdlc issue new"},
 		{name: "updated", kind: "date", setter: "sdlc issue set-status"},
 		{name: "estimate_hours", kind: "estimate", setter: "sdlc issue set-estimate"},
-		{name: "actual_hours", kind: "actual", setter: "sdlc close"},
+		{name: "actual_hours", kind: "actual", setter: "sdlc close or sdlc issue correct-actual"},
 		{name: "github_issue", kind: "github", setter: "sdlc issue set-github"},
 		// #277: who is responsible and where the work belongs — operator,
 		// keyed machine fingerprint + readable name, optional slot label,
 		// worktree and repository. Written with the claim's status CAS.
 		{name: "claimant", kind: "claimant", setter: "sdlc claim"},
 		{name: "title", kind: "title", required: true, setter: "sdlc issue set-title"},
+		// #348: classification. area's allowed values are the repository's
+		// (repoEnums); severity's are shared (enums). Card parsing checks shape
+		// only; membership is checked where values are written and in the gates.
+		{name: "area", kind: "repo-enum", enum: "area", setter: "sdlc issue set-area"},
+		{name: "severity", kind: "enum", enum: "severity", setter: "sdlc issue set-severity"},
 	]
 	internal: {field: "tracker", version: 1}
 }
@@ -137,6 +174,10 @@ scaffold: sections: [...#ScaffoldSection] & [
 	// flow is MODELED rather than left to the open `...` below, because a typo'd
 	// value (kind: quikc) would otherwise pass every gate silently (#231).
 	flow?: #Flow
+	// #348: shape only here; area membership is the repository's declaration,
+	// checked by sdlc's writers and gates.
+	severity?: #Severity | null
+	area?:     [...#AreaPath] | null
 	// compiled guard: a closed-work issue must carry measured actuals (a positive
 	// number) or the explicit not-applicable sentinel, not null/absent. Actuals are
 	// measured at `sdlc close` (#160), which now yields `codecomplete`; `merge` then
@@ -249,6 +290,16 @@ laws: {
 	"holdable-nonterminal": {
 		for s in ownership.holdable {
 			(s): list.Contains(categories.terminal, s) & false
+		}
+	}
+	// #348: a card field of kind enum names a shared enum; one of kind repo-enum
+	// names a repo enum field
+	"card-enums-declared": {
+		for f in card.fields if f.kind == "enum" {
+			(f.name): (enums[f.enum] != _|_) & true
+		}
+		for f in card.fields if f.kind == "repo-enum" {
+			(f.name): (repoEnums.fields[f.enum] != _|_) & true
 		}
 	}
 	// every non-terminal status is escapable (appears as some transition's `from`)

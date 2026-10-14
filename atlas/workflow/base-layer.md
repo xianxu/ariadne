@@ -83,13 +83,19 @@ ariadne-styled siblings and emits a shell function per owned `cmd/X`:
 source <(~/workspace/ariadne/construct/dev-aliases.sh)
 ```
 
-Each function builds to the **owner's** `bin/X` (the official, gitignored path
-— not a temp dir, so it's safe for a service binary like `nous`) and runs it in
+Each function installs the **owner's** `bin/X` (the official, gitignored path,
+so it's safe for a service binary like `nous`) and runs it in
 the **caller's** cwd, so it's always fresh and works for both repo-bound tools
 (`sdlc`, operates on the repo you're in) and run-anywhere tools (`nous`). The
-emitted form is `X() { ( cd OWNER && mkdir -p bin && rm -f bin/X && go build -o
-bin/X ./cmd/X ) || return; OWNER/bin/X "$@"; }` (the `rm -f` mirrors the owner
-Makefiles' code-signing-inode safety). An owner whose build needs a generated
+emitted function builds into a per-call `mktemp -d bin/.X.XXXXXX` directory beside
+the target and renames the result over `bin/X` (#355); the exact form is the one
+`printf` in `construct/dev-aliases.sh` (its header comment shows it), pinned by
+`dev-aliases.test.sh`. The rename is atomic, so
+another process calling `bin/X` during a rebuild never finds it missing (it used to
+be `rm -f` then build); concurrent builds use separate directories and the last
+rename wins; and the new inode gives the macOS code-signing safety the owner
+Makefiles get from `rm -f`. A build killed mid-way leaves its `bin/.X.*` directory.
+An owner whose build needs a generated
 input (pair's gitignored runtime-bundle embed tree) declares a `dev-prepare`
 rule in its `Makefile`, `Makefile.workflow` or `Makefile.local` (#299; make
 decides, via `make -q`, whether the rule exists); its functions then run `make
@@ -107,7 +113,9 @@ symlinks and non-buildable dirs (so a derivative never shadows the owner), and
 `cmd/X/.private` opts a binary out. `--list` shows `binary → owner`; `--strict`
 fails on a duplicate name. The script lives at `construct/dev-aliases.sh`
 with its hermetic test under
-`construct/scripts/test/dev-aliases.test.sh`. Like the other substrate scripts
+`construct/scripts/test/dev-aliases.test.sh`, which `make test` and the CI merge
+check run with the other `construct/scripts/test/*.test.sh` (#362, through
+`scripts/test/construct-scripts.test.sh`). Like the other substrate scripts
 it's documented by header comment + test, not a `SKILL.md` (those are for agent
 skills, not dev-env helpers).
 

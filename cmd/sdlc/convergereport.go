@@ -29,7 +29,14 @@ func NewConvergeReportCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("calibration ledger %s: %w", path, err)
 			}
-			renderConvergeReport(cmd.OutOrStdout(), estimate.ConvergeFactors(estimate.ParseRows(string(data))))
+			rows, err := estimate.ParseRowsChecked(string(data))
+			if err == nil {
+				rows, err = estimate.ResolveCorrections(rows)
+			}
+			if err != nil {
+				return fmt.Errorf("calibration ledger %s: %w", path, err)
+			}
+			renderConvergeReport(cmd.OutOrStdout(), estimate.ConvergeFactors(rows))
 			return nil
 		},
 	}
