@@ -1,6 +1,6 @@
 ---
 id: 000350
-status: codecomplete
+status: done
 created: 2026-10-13
 updated: 2026-10-14
 estimate_hours: 4.83
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: f1fde220fd4ea232791be65302e340a1728e4f59
         evidence_commit: d8002d7c21a0823804adda9967787d3adfb7fe2c
+        landed_commit: 87434bdc365c24bfba8aecfc2768dac1d6b5e079
 ---
 
 # lift the TL skill into ariadne: tl-lead and tl-worker skill binaries (help is the prose), scripts ported to Go, skill stubs
