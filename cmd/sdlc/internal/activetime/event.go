@@ -13,7 +13,9 @@
 package activetime
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -84,14 +86,21 @@ type codexPayload struct {
 // pure tool_result is dropped), but an assistant turn (when includeAssistant) is
 // ALWAYS emitted — its timestamp counts toward active time even with no text.
 func walkSessionEvents(path string, sc mentionScope, includeAssistant bool, pins ...SourcePrefix) ([]Event, []TaskSpan, error) {
-	data, err := readSessionPrefix(path, pins)
+	return walkSessionEventsContext(nil, path, sc, includeAssistant, pins...)
+}
+
+func walkSessionEventsContext(ctx context.Context, path string, sc mentionScope, includeAssistant bool, pins ...SourcePrefix) ([]Event, []TaskSpan, error) {
+	data, err := readSessionPrefixContext(ctx, path, pins)
 	if err != nil {
 		return nil, nil, err
 	}
 	var events []Event
 	var spans []TaskSpan
 	pending := map[string]time.Time{} // Agent dispatch id → dispatch time
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
+		if err := contextError(ctx); err != nil {
+			return nil, nil, err
+		}
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
@@ -317,19 +326,26 @@ func loadEvents(dirs []string, sc mentionScope, includeAssistant bool, sinceISO,
 }
 
 func loadEventsWithFiles(dirs, files []string, sc mentionScope, includeAssistant bool, sinceISO, untilISO string, prefixMaps ...map[string]SourcePrefix) ([]Event, []TaskSpan, error) {
+	return loadEventsWithFilesContext(nil, dirs, files, sc, includeAssistant, sinceISO, untilISO, prefixMaps...)
+}
+
+func loadEventsWithFilesContext(ctx context.Context, dirs, files []string, sc mentionScope, includeAssistant bool, sinceISO, untilISO string, prefixMaps ...map[string]SourcePrefix) ([]Event, []TaskSpan, error) {
+	if err := contextError(ctx); err != nil {
+		return nil, nil, err
+	}
 	var prefixes map[string]SourcePrefix
 	if len(prefixMaps) > 0 {
 		prefixes = prefixMaps[0]
 	}
 	read := func(path string) ([]Event, []TaskSpan, error) {
 		if prefixes == nil {
-			return walkSessionEvents(expandUser(path), sc, includeAssistant)
+			return walkSessionEventsContext(ctx, expandUser(path), sc, includeAssistant)
 		}
 		pin, ok := prefixes[path]
 		if !ok {
 			return nil, nil, fmt.Errorf("source %s lacks pinned evidence", path)
 		}
-		return walkSessionEvents(expandUser(path), sc, includeAssistant, pin)
+		return walkSessionEventsContext(ctx, expandUser(path), sc, includeAssistant, pin)
 	}
 	since, until, err := windowBounds(sinceISO, untilISO)
 	if err != nil {
@@ -339,6 +355,9 @@ func loadEventsWithFiles(dirs, files []string, sc mentionScope, includeAssistant
 	var events []Event
 	var spans []TaskSpan
 	for _, d := range dirs {
+		if err := contextError(ctx); err != nil {
+			return nil, nil, err
+		}
 		dir := expandUser(d)
 		fi, err := os.Stat(dir)
 		if err != nil || !fi.IsDir() {
@@ -348,7 +367,7 @@ func loadEventsWithFiles(dirs, files []string, sc mentionScope, includeAssistant
 		for _, f := range files {
 			evs, sps, err := read(f)
 			if err != nil {
-				if prefixes != nil {
+				if prefixes != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					return nil, nil, err
 				}
 				// Skip a session file that became unreadable after globbing —
@@ -385,7 +404,7 @@ func loadEventsWithFiles(dirs, files []string, sc mentionScope, includeAssistant
 	for _, f := range files {
 		evs, sps, err := read(f)
 		if err != nil {
-			if prefixes != nil {
+			if prefixes != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return nil, nil, err
 			}
 			continue
@@ -418,6 +437,9 @@ func loadEventsWithFiles(dirs, files []string, sc mentionScope, includeAssistant
 				spans = append(spans, sp)
 			}
 		}
+	}
+	if err := contextError(ctx); err != nil {
+		return nil, nil, err
 	}
 	sort.Slice(events, func(i, j int) bool { return events[i].Time.Before(events[j].Time) })
 	sort.Slice(spans, func(i, j int) bool { return spans[i].Start.Before(spans[j].Start) })

@@ -1,6 +1,7 @@
 package activetime
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"slices"
@@ -68,6 +69,10 @@ type Scope struct {
 // load_commits; %s never contains a newline, so one tab-delimited line per
 // commit is unambiguous.
 func loadWindowCommits(repo, sinceISO, untilISO string, scope Scope, extraRefs ...string) ([]Commit, error) {
+	return loadWindowCommitsContext(nil, repo, sinceISO, untilISO, scope, extraRefs...)
+}
+
+func loadWindowCommitsContext(ctx context.Context, repo, sinceISO, untilISO string, scope Scope, extraRefs ...string) ([]Commit, error) {
 	since, until, err := windowBounds(sinceISO, untilISO)
 	if err != nil {
 		return nil, err
@@ -82,7 +87,7 @@ func loadWindowCommits(repo, sinceISO, untilISO string, scope Scope, extraRefs .
 		// git log lists a commit reachable from several refs once.
 		args = append(append(args, head), extraRefs...)
 	}
-	out, err := gitRun(expandUser(repo), args...)
+	out, err := runGitContext(ctx, expandUser(repo), args...)
 	if err != nil {
 		return nil, err
 	}
@@ -90,21 +95,24 @@ func loadWindowCommits(repo, sinceISO, untilISO string, scope Scope, extraRefs .
 	if text == "" {
 		return nil, nil
 	}
-	own, merges, err := branchCommits(repo, scope)
+	own, merges, err := branchCommitsContext(ctx, repo, scope)
 	if err != nil {
 		return nil, err
 	}
-	beside, err := besideHead(repo, scope, extraRefs)
+	beside, err := besideHeadContext(ctx, repo, scope, extraRefs)
 	if err != nil {
 		return nil, err
 	}
 	// Resolved once from the repo the commits came from, not per line.
-	self, err := selfQualifier(repo)
+	self, err := selfQualifierContext(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
 	var commits []Commit
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
+		if err := contextError(ctx); err != nil {
+			return nil, err
+		}
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
@@ -143,6 +151,10 @@ func loadWindowCommits(repo, sinceISO, untilISO string, scope Scope, extraRefs .
 // Scope. A merge commit is integration, not work: merging main in mid-issue
 // must not add a boundary the unintegrated branch lacked.
 func branchCommits(repo string, scope Scope) (own, merges map[string]bool, err error) {
+	return branchCommitsContext(nil, repo, scope)
+}
+
+func branchCommitsContext(ctx context.Context, repo string, scope Scope) (own, merges map[string]bool, err error) {
 	if scope.BranchPoint == "" {
 		return nil, nil, nil
 	}
@@ -150,7 +162,7 @@ func branchCommits(repo string, scope Scope) (own, merges map[string]bool, err e
 	if head == "" {
 		head = "HEAD"
 	}
-	out, err := gitRun(expandUser(repo), "rev-list", "--parents", head, "^"+scope.BranchPoint)
+	out, err := runGitContext(ctx, expandUser(repo), "rev-list", "--parents", head, "^"+scope.BranchPoint)
 	if err != nil {
 		return nil, nil, fmt.Errorf("branch commits since %s: %w", scope.BranchPoint, err)
 	}
@@ -171,6 +183,10 @@ func branchCommits(repo string, scope Scope) (own, merges map[string]bool, err e
 // (the tracker's card commits, #252), or nil when there is nothing to filter:
 // no extra refs, or no measured issue to filter them to (#321).
 func besideHead(repo string, scope Scope, extraRefs []string) (map[string]bool, error) {
+	return besideHeadContext(nil, repo, scope, extraRefs)
+}
+
+func besideHeadContext(ctx context.Context, repo string, scope Scope, extraRefs []string) (map[string]bool, error) {
 	if len(extraRefs) == 0 || scope.Issue == "" {
 		return nil, nil
 	}
@@ -178,7 +194,7 @@ func besideHead(repo string, scope Scope, extraRefs []string) (map[string]bool, 
 	if head == "" {
 		head = "HEAD"
 	}
-	out, err := gitRun(expandUser(repo), append(append([]string{"rev-list"}, extraRefs...), "^"+head)...)
+	out, err := runGitContext(ctx, expandUser(repo), append(append([]string{"rev-list"}, extraRefs...), "^"+head)...)
 	if err != nil {
 		return nil, fmt.Errorf("commits beside HEAD in %v: %w", extraRefs, err)
 	}
@@ -263,4 +279,50 @@ func short7(sha string) string {
 		return sha[:7]
 	}
 	return sha
+}
+
+// gitRunContext is distinct from the nil-context legacy fixture seam.
+var gitRunContext = func(ctx context.Context, repo string, args ...string) ([]byte, error) {
+	command := exec.CommandContext(ctx, "git", append([]string{"-C", repo}, args...)...)
+	command.WaitDelay = time.Second
+	return command.Output()
+}
+
+func runGitContext(ctx context.Context, repo string, args ...string) ([]byte, error) {
+	if err := contextError(ctx); err != nil {
+		return nil, err
+	}
+	var data []byte
+	var err error
+	if ctx == nil {
+		data, err = gitRun(repo, args...)
+	} else {
+		data, err = gitRunContext(ctx, repo, args...)
+	}
+	if canceled := contextError(ctx); canceled != nil {
+		return nil, canceled
+	}
+	return data, err
+}
+
+type commitContextGitReader struct{ ctx context.Context }
+
+func (r commitContextGitReader) GitInDir(dir string, args ...string) ([]byte, error) {
+	return runGitContext(r.ctx, dir, args...)
+}
+func selfQualifierContext(ctx context.Context, repo string) (string, error) {
+	if ctx == nil {
+		return selfQualifier(repo)
+	}
+	if err := contextError(ctx); err != nil {
+		return "", err
+	}
+	identity, err := workspace.Resolve(commitContextGitReader{ctx}, expandUser(repo), "")
+	if canceled := contextError(ctx); canceled != nil {
+		return "", canceled
+	}
+	if err != nil {
+		return "", err
+	}
+	return identity.Repo, nil
 }

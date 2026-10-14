@@ -43,15 +43,30 @@ type RecoveryEntry struct {
 // and never pushed; the tracker's published provenance is the cross-clone
 // record. Every write is a compare-and-swap against the generation read.
 type RecoveryStore struct {
-	ctx context.Context
-	dir string
+	ctx    context.Context
+	dir    string
+	prefix string
 }
 
 func NewRecoveryStore(ctx context.Context, dir string) (*RecoveryStore, error) {
+	return NewRecoveryStoreFor(ctx, dir, "tracker")
+}
+
+// NewRecoveryStoreFor selects a closed operation namespace, reusing the same
+// CAS and object reachability semantics. Tracker remains the legacy default.
+func NewRecoveryStoreFor(ctx context.Context, dir, kind string) (*RecoveryStore, error) {
+	prefix := recoveryRefPrefix
+	switch kind {
+	case "tracker":
+	case "actual-correction":
+		prefix = "refs/sdlc/actual-corrections/"
+	default:
+		return nil, errors.New("unknown recovery namespace")
+	}
 	if ctx == nil || dir == "" {
 		return nil, errors.New("recovery store requires context and repository")
 	}
-	return &RecoveryStore{ctx: ctx, dir: dir}, nil
+	return &RecoveryStore{ctx: ctx, dir: dir, prefix: prefix}, nil
 }
 
 func (s *RecoveryStore) git(input []byte, limit int, args ...string) ([]byte, []byte, error) {
@@ -69,16 +84,16 @@ var recoveryIdentityEnv = []string{
 	"GIT_COMMITTER_NAME=sdlc recovery", "GIT_COMMITTER_EMAIL=sdlc@localhost",
 }
 
-func recoveryRef(token string) (string, error) {
+func (s *RecoveryStore) recoveryRef(token string) (string, error) {
 	if !recoveryToken.MatchString(token) {
 		return "", fmt.Errorf("invalid recovery token %q", token)
 	}
-	return recoveryRefPrefix + token, nil
+	return s.prefix + token, nil
 }
 
 // Save creates (expected == "") or replaces (expected == current OID) a record.
 func (s *RecoveryStore) Save(token, expected string, data RecoveryData) (string, error) {
-	ref, err := recoveryRef(token)
+	ref, err := s.recoveryRef(token)
 	if err != nil {
 		return "", err
 	}
@@ -165,7 +180,7 @@ func (s *RecoveryStore) Save(token, expected string, data RecoveryData) (string,
 
 // Delete removes a record only at the generation the caller read.
 func (s *RecoveryStore) Delete(token, expected string) error {
-	ref, err := recoveryRef(token)
+	ref, err := s.recoveryRef(token)
 	if err != nil {
 		return err
 	}
@@ -215,7 +230,7 @@ func (s *RecoveryStore) current(ref string) (string, error) {
 }
 
 func (s *RecoveryStore) Load(token string) (RecoveryEntry, error) {
-	ref, err := recoveryRef(token)
+	ref, err := s.recoveryRef(token)
 	if err != nil {
 		return RecoveryEntry{}, err
 	}
@@ -248,7 +263,7 @@ func (s *RecoveryStore) Load(token string) (RecoveryEntry, error) {
 
 // List reports every local record's token and generation, without contents.
 func (s *RecoveryStore) List() ([]RecoveryEntry, error) {
-	out, diag, err := s.git(nil, snapshotOutputLimit, "for-each-ref", "--format=%(objectname) %(refname)", recoveryRefPrefix)
+	out, diag, err := s.git(nil, snapshotOutputLimit, "for-each-ref", "--format=%(objectname) %(refname)", s.prefix)
 	if err != nil {
 		return nil, s.fail("list recovery records", err, diag)
 	}
@@ -258,10 +273,10 @@ func (s *RecoveryStore) List() ([]RecoveryEntry, error) {
 			continue
 		}
 		fields := strings.Fields(line)
-		if len(fields) != 2 || !strings.HasPrefix(fields[1], recoveryRefPrefix) {
+		if len(fields) != 2 || !strings.HasPrefix(fields[1], s.prefix) {
 			return nil, errors.New("malformed recovery ref listing")
 		}
-		token := strings.TrimPrefix(fields[1], recoveryRefPrefix)
+		token := strings.TrimPrefix(fields[1], s.prefix)
 		oid, err := parseObjectID([]byte(fields[0]))
 		if err != nil || !recoveryToken.MatchString(token) {
 			return nil, fmt.Errorf("malformed recovery ref %q", fields[1])

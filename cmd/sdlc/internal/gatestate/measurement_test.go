@@ -60,6 +60,8 @@ func TestMeasurementInputsValidation(t *testing.T) {
 		{"base", "branch_point", func(m *MeasurementInputs) { m.BranchPoint = strings.Repeat("g", 40) }},
 		{"since", "since", func(m *MeasurementInputs) { m.Since = "today" }},
 		{"until", "until", func(m *MeasurementInputs) { m.Until = m.Engagements[0].Start }},
+		{"brain count", "brain provenance", func(m *MeasurementInputs) { m.ExcludedBrainSessions = -1 }},
+		{"brain minutes", "brain provenance", func(m *MeasurementInputs) { m.ExcludedBrainMinutes = math.NaN() }},
 		{"gap", "gap_minutes", func(m *MeasurementInputs) { m.GapMinutes = 0 }},
 		{"weight", "commit_weight", func(m *MeasurementInputs) { m.CommitWeight = -1 }},
 		{"weight nan", "commit_weight", func(m *MeasurementInputs) { m.CommitWeight = math.NaN() }},

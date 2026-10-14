@@ -573,6 +573,7 @@ func appendVerdictSuffix(text, milestone string, verdict judge.Verdict) (string,
 // embedded code-review.md procedure) on the resolved window.
 type boundaryReviewParams struct {
 	AdmissionLedger *gatestate.Ledger
+	ActualInputs    *gatestate.MeasurementInputs
 	Evidence        judge.DispatchEvidence
 	Context         context.Context // caller cancellation follows the unlocked review
 	// The prompt's issue ref is no longer carried here — it's derived from the

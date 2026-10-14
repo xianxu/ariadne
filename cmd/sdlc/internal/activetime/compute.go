@@ -1,6 +1,7 @@
 package activetime
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"time"
@@ -36,6 +37,8 @@ const (
 // --prefix-commit-weight 0 is honored, matching the Python original's
 // --prefix-commit-weight defaulting (None → commit-weight).
 type Options struct {
+	// Context optionally cancels IO and parsing. Nil preserves legacy runners.
+	Context context.Context
 	Dirs    []string
 	Files   []string
 	GitRepo string
@@ -94,24 +97,30 @@ type AttributionWarning struct {
 // active time per the v3 rule. The only IO is the two loaders; everything below
 // is pure.
 func Compute(opts Options) (Result, error) {
+	if err := contextError(opts.Context); err != nil {
+		return Result{}, err
+	}
 	// The mention scope carries the tracked set plus the LOCAL repo name, so a `pair#127` in
 	// transcript prose is not counted as this repo's #127 (ariadne#190). The qualifier comes
 	// from GitRepo — the repo whose text is being attributed — for the same reason
 	// selfQualifier does on the commit path.
-	self, err := selfQualifier(opts.GitRepo)
+	self, err := selfQualifierContext(opts.Context, opts.GitRepo)
 	if err != nil {
 		return Result{}, err
 	}
 	sc := newMentionScope(self, opts.Issues)
-	events, spans, err := loadEventsWithFiles(opts.Dirs, opts.Files, sc, opts.IncludeAssistant, opts.SinceISO, opts.UntilISO, opts.SourcePrefixes)
+	events, spans, err := loadEventsWithFilesContext(opts.Context, opts.Dirs, opts.Files, sc, opts.IncludeAssistant, opts.SinceISO, opts.UntilISO, opts.SourcePrefixes)
 	if err != nil {
 		return Result{}, err
 	}
-	commits, err := loadWindowCommits(opts.GitRepo, opts.SinceISO, opts.UntilISO, opts.Scope, opts.ExtraRefs...)
+	commits, err := loadWindowCommitsContext(opts.Context, opts.GitRepo, opts.SinceISO, opts.UntilISO, opts.Scope, opts.ExtraRefs...)
 	if err != nil {
 		return Result{}, err
 	}
 
+	if err := contextError(opts.Context); err != nil {
+		return Result{}, err
+	}
 	res := Result{
 		PerIssue:   map[string]float64{},
 		NumEvents:  len(events),
@@ -128,6 +137,9 @@ func Compute(opts Options) (Result, error) {
 			res.Status = TelemetryGap
 		} else {
 			res.Status = EmptyWindow
+		}
+		if err := contextError(opts.Context); err != nil {
+			return Result{}, err
 		}
 		return res, nil
 	}
@@ -159,6 +171,9 @@ func Compute(opts Options) (Result, error) {
 	res.Warnings = attributionWarnings(res.Segments, res.PerIssue)
 	res.Warnings = append(res.Warnings, foreignRefWarnings(commits, sc.selfRepo)...)
 	res.Status = Measured
+	if err := contextError(opts.Context); err != nil {
+		return Result{}, err
+	}
 	return res, nil
 }
 

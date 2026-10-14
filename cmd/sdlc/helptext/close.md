@@ -509,3 +509,12 @@ CALIBRATION LEDGER (#117 — closing the estimate↔actual loop)
   exists (a downstream repo with no sibling brain/), close skips it with a warning
   — a missing ledger never breaks the close. `actual_hours: N/A` closes are also
   excluded from the ledger and drift stats.
+
+MEASUREMENT PROVENANCE (#335)
+
+  Automatic adoption uses ownership intervals and owning-session provenance,
+  shared with actual and milestone-close. Explicit --brain-dir has the same
+  meaning in each command. The printed right edge is a timestamp, and the
+  boundary ledger retains code/tracker pins, source prefixes and phase cuts for
+  later replay. Missing required evidence refuses adoption. Whole-issue actuals
+  below 0.1× or above 10× estimate (at least 0.5h apart) warn for inspection.

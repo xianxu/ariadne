@@ -134,3 +134,34 @@ item: milestone-review design=0.04 impl=0.20
 design-buffer: 0.15
 total: 4.174
 ```
+
+### 2026-10-14 — implementation integration checkpoint
+
+Ownership, lineage, clipping and retained-input components are committed. Shared
+production measurement, close/milestone snapshot persistence, explicit brain
+forwarding, ratio diagnostics and measured correction/recovery are integrated.
+All calibration consumers resolve exact-row invalidation before eligibility;
+ordinary and correction writers share a lock. Pure correction and engine context
+checks remain separate from command IO (ARCH-PURE/ARCH-DRY/ARCH-ORDER).
+
+Targeted root Actual/Calibration/ConvergeReport/Forecast checks passed in 55.977s.
+Seven internal/help packages passed; active-time took 19.505s. Real fixtures cover
+owner/caller worktrees, release/reclaim, completion/milestone replay, source append
+and changed-prefix refusal, explicit brain exclusion, interrupted correction and
+unchanged generation. Mutations/root production consumer conformance remain next.
+
+Read-only historical probes exposed a further legacy scope gap: today's main made
+old completed heads unscoped. Preview values are not correction evidence yet;
+resolving concrete close Review-Window pins and rejecting incomplete multi-boundary
+history before numeric repair. No peer record was changed. Full suite not run yet.
+
+### 2026-10-14 — integrated verification
+
+Expanded root Actual/Calibration/ConvergeReport/Forecast plus historical-window
+checks passed in 83.463s. Restored production consumer conformance passed in
+3.266s. Three independent mutations were killed by that real engine/worktree
+fixture: bypassing actual's ownership resolver, dropping close's brain override,
+and dropping milestone's brain forwarding. Recovery namespace checks passed
+0.470s. Exact historical scope and correction-input replay regressions passed.
+Exclusion diagnostics now retain counts and bounded examples instead of flooding
+output with unrelated historical sessions. Full suite is the next checkpoint.

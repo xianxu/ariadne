@@ -61,6 +61,7 @@ type closeFlags struct {
 	// Split is the measured build/converge division of an ADOPTED Actual (#234);
 	// nil when --actual was typed, which the ledger records as split_source manual.
 	Split     *actualSplit
+	Inputs    *gatestate.MeasurementInputs
 	Verified  string
 	Force     bool
 	DryRun    bool
@@ -466,7 +467,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		// the engine can't measure — and for an ADOPTED value (#178): comparing
 		// the measurement against itself would just re-run the engine.
 		if !adopted && !f.skip("actual") {
-			if derr := checkActualDeviation(commandContext(f.Context), stderr, issueStr, v, f.Milestone, f.plansDir()); derr != nil {
+			if derr := checkActualDeviation(commandContext(f.Context), stderr, issueStr, v, f.Milestone, f.plansDir(), f.BrainDir); derr != nil {
 				die(stderr, derr.Error())
 			}
 		}
@@ -521,6 +522,14 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	fm, body, err := issue.Parse(issueText)
 	if err != nil {
 		die(stderr, fmt.Sprintf("no YAML frontmatter in %s", issuePath))
+	}
+	if adopted && f.Milestone == "" {
+		estText, _ := issue.GetField(fm, "estimate_hours")
+		estimateHours, _ := strconv.ParseFloat(strings.TrimSpace(estText), 64)
+		actualHours, _ := strconv.ParseFloat(f.Actual, 64)
+		if warning := actualEstimateWarning(actualHours, estimateHours); warning != "" {
+			cwarn(stderr, warning)
+		}
 	}
 	trackerEra := issue.HasMirror(issueBytes)
 	if !trackerEra {
@@ -1106,45 +1115,58 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 		row.BuildHours, row.ConvergeHours = f.Split.Build, f.Split.Converge
 	}
 
-	existing, rerr := os.ReadFile(ledgerPath)
-	if rerr != nil && !os.IsNotExist(rerr) {
-		// Exists but transiently unreadable — do NOT clobber prior rows.
-		cwarn(stderr, fmt.Sprintf("calibration ledger unreadable (%v) — not overwriting", rerr))
-		return
-	}
-	var buf strings.Builder
-	if len(existing) == 0 {
-		buf.WriteString(estimate.Header() + "\n")
-	} else {
-		// Upgrade a legacy header before appending (#187). The column APPEND protects the
-		// reader, but the header is written only on creation — so without this, every
-		// pre-existing ledger would carry 20-column rows under a 10-column header: the
-		// churn and gate data present but unlabeled, which for a file read by humans and
-		// scripts by column name is worse than absent.
-		text := string(existing)
-		if upgraded, changed := estimate.UpgradeHeader(text); changed {
-			text = upgraded
-			cok(stderr, "calibration ledger: header upgraded to the current column set")
+	if err := withActualCalibrationLock(commandContext(f.Context), stderr, ledgerPath, func() error {
+		existing, rerr := os.ReadFile(ledgerPath)
+		if rerr != nil && !os.IsNotExist(rerr) {
+			// Exists but transiently unreadable — do NOT clobber prior rows.
+			cwarn(stderr, fmt.Sprintf("calibration ledger unreadable (%v) — not overwriting", rerr))
+			return nil
 		}
-		buf.WriteString(text)
-		if !strings.HasSuffix(text, "\n") {
-			buf.WriteString("\n")
+		var buf strings.Builder
+		if len(existing) == 0 {
+			buf.WriteString(estimate.Header() + "\n")
+		} else {
+			// Upgrade a legacy header before appending (#187). The column APPEND protects the
+			// reader, but the header is written only on creation — so without this, every
+			// pre-existing ledger would carry 20-column rows under a 10-column header: the
+			// churn and gate data present but unlabeled, which for a file read by humans and
+			// scripts by column name is worse than absent.
+			text := string(existing)
+			if upgraded, changed := estimate.UpgradeHeader(text); changed {
+				text = upgraded
+				cok(stderr, "calibration ledger: header upgraded to the current column set")
+			}
+			buf.WriteString(text)
+			if !strings.HasSuffix(text, "\n") {
+				buf.WriteString("\n")
+			}
 		}
-	}
-	buf.WriteString(estimate.FormatRow(row) + "\n")
-	if err := os.WriteFile(ledgerPath, []byte(buf.String()), 0o644); err != nil {
+		buf.WriteString(estimate.FormatRow(row) + "\n")
+		rows, parseErr := estimate.ParseRowsChecked(buf.String())
+		if parseErr == nil {
+			rows, parseErr = estimate.ResolveCorrections(rows)
+		}
+		if parseErr != nil {
+			cwarn(stderr, fmt.Sprintf("calibration ledger invalid (%v) — not appending", parseErr))
+			return nil
+		}
+		if err := os.WriteFile(ledgerPath, []byte(buf.String()), 0o644); err != nil {
+			cwarn(stderr, fmt.Sprintf("calibration ledger append failed: %v", err))
+			return nil
+		}
+
+		trust := "untrusted-window"
+		if row.WindowTrusted {
+			trust = "trusted-window"
+		}
+		cok(stderr, calibrationLine(row, trust))
+
+		if warn, msg := estimate.DriftVerdict(rows, 5); warn {
+			cwarn(stderr, msg)
+		}
+		return nil
+	}); err != nil {
 		cwarn(stderr, fmt.Sprintf("calibration ledger append failed: %v", err))
-		return
-	}
-
-	trust := "untrusted-window"
-	if row.WindowTrusted {
-		trust = "trusted-window"
-	}
-	cok(stderr, calibrationLine(row, trust))
-
-	if warn, msg := estimate.DriftVerdict(estimate.ParseRows(buf.String()), 5); warn {
-		cwarn(stderr, msg)
 	}
 }
 
@@ -1435,6 +1457,7 @@ func finalizeMilestoneEvidence(stderr io.Writer, f *closeFlags, r closeResult, r
 }
 
 func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResult, review reviewResult, p boundaryReviewParams, validate func() (string, error)) error {
+	p.ActualInputs = f.Inputs
 	kind := "close"
 	if f.Milestone != "" {
 		kind = "milestone-close"
@@ -1688,8 +1711,8 @@ func emitLessonsReminder(stdout io.Writer) {
 // computeActualForCloseFn is the measurement seam for the omit-path (#178) —
 // a package var so tests can stub the engine (the file's validateChangedInstancesFn
 // pattern). Production resolves roots and runs the same engine as `sdlc actual`.
-var computeActualForCloseFn = func(ctx context.Context, issueStr, milestone, plans string) actualResult {
-	repoTop, brainAbs, err := resolveActualRoots()
+var computeActualForCloseFn = func(ctx context.Context, issueStr, milestone, plans string, brain ...string) actualResult {
+	repoTop, brainAbs, err := resolveActualRoots(brain...)
 	if err != nil {
 		return actualResult{Status: actualError, Issue: issueStr, Detail: err.Error()}
 	}
@@ -1728,12 +1751,12 @@ func formatAdoptLine(res actualResult) string {
 // only that milestone's phases, so per-milestone values never double-count
 // across project detail blocks (the #178 reason milestones once refused).
 func adoptOmittedActual(stderr io.Writer, f *closeFlags, issueStr, mode string) (actualResult, bool) {
-	res := computeActualForCloseFn(commandContext(f.Context), issueStr, f.Milestone, f.plansDir())
+	res := computeActualForCloseFn(commandContext(f.Context), issueStr, f.Milestone, f.plansDir(), f.BrainDir)
 	v, ok := resolveOmittedActual(res)
 	if !ok {
 		return res, false
 	}
-	f.Actual, f.Split = v, res.Split
+	f.Actual, f.Split, f.Inputs = v, res.Split, res.Inputs
 	cinfo(stderr, formatAdoptLine(res))
 	for _, w := range res.Warnings {
 		cwarn(stderr, w)
@@ -1768,12 +1791,19 @@ func explainActual(stderr io.Writer, issueStr, mode, milestone string, res actua
 // resolveActualRoots returns the repo top (cwd fallback) and the sibling brain
 // dir — the two roots computeActual needs. Shared by explainActual (omit-path)
 // and checkActualDeviation (pass-path) so the resolution lives in one place.
-func resolveActualRoots() (repoTop, brainAbs string, err error) {
+func resolveActualRoots(brain ...string) (repoTop, brainAbs string, err error) {
 	identity, err := resolveWorkspace(".")
 	if err != nil {
 		return "", "", err
 	}
-	return identity.WorktreeRoot, filepath.Join(identity.FleetRoot, "brain"), nil
+	brainAbs = filepath.Join(identity.FleetRoot, "brain")
+	if len(brain) > 0 && brain[0] != "" {
+		brainAbs, err = filepath.Abs(brain[0])
+		if err != nil {
+			return "", "", err
+		}
+	}
+	return identity.WorktreeRoot, brainAbs, nil
 }
 
 // #87: backstop for a hand-passed --actual that doesn't match reality.
@@ -1824,8 +1854,8 @@ func actualDeviation(passed, measured float64) (devVerdict, float64) {
 // the shared engine, run the pure comparator, and warn (to stderr) or return a
 // refusal error. A milestone value is compared with that milestone's measured
 // increment (#234 E1). Unavailable measurements never gate.
-func checkActualDeviation(ctx context.Context, stderr io.Writer, issueStr string, passed float64, milestone, plans string) error {
-	res := computeActualForCloseFn(ctx, issueStr, milestone, plans)
+func checkActualDeviation(ctx context.Context, stderr io.Writer, issueStr string, passed float64, milestone, plans string, brain ...string) error {
+	res := computeActualForCloseFn(ctx, issueStr, milestone, plans, brain...)
 	if res.Status != actualMeasured {
 		return nil // can't measure → don't block (judgment path owns this)
 	}

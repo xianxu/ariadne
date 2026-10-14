@@ -22,7 +22,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | Verb              | Replaces (Make target)      | Defends |
 |-------------------|-----------------------------|---------|
 | `close`           | `make close-issue`          | Issue close: actual + verified + atlas + plan ticked; on full-issue close auto-dispatches the one boundary review (#69, `--no-judge` to skip) |
-| `actual`          | (new #68)                   | Compute an issue's focused dev-hours (in-binary active-time-v3 engine over brain+repo transcript sources), split into build vs converge at the boundary reviews; `--milestone Mx` measures one milestone's increment (#234) |
+| `actual`          | (new #68)                   | Compute an issue's focused dev-hours (in-binary active-time-v3 engine over ownership-proven sessions with retained replay inputs), split into build vs converge at the boundary reviews; `--milestone Mx` measures one milestone's increment (#234) |
 | `converge-report` | (new #234)                  | **Read-only** converge factor k = converge/build per model, flow and review recipe, over ledger rows that carry a split |
 | `active-time`     | (new #110; was active-time-v3.py) | Standalone CLI over the same engine — the per-segment attribution table for manual inspection; preserves the 2/3/0 loud-fail exit codes |
 | `state`           | (new)                       | Workflow state inspection + drift detection; per-issue owner and claim age, claims by slot and by operator (#284, claim times from tracker history via `tracker.Repository.ClaimTimes`) |
@@ -1106,6 +1106,29 @@ excluded (a truncated actual isn't a clean point; `actual_hours: N/A` rows are
 excluded; duplicate append rows for the same issue/model count once;
 skip-with-warning when no brain/ ledger dir exists downstream). This
 closes the loop the hand-kept validation log never did.
+
+**Ownership and replay (#335).** Tracker-backed actuals use claim→release
+intervals, with a fresh origin on reclaim. Sources follow the owning worktree's
+session roots and explicit child dispatch lineage, including retained roots after
+relocation; the checkout running close supplies no attribution authority.
+Unbound brain sessions are excluded and their count/minutes remain visible.
+`actualinputs.go` resolves code/tracker pins, windows, source identities and exact
+byte prefixes; `actualmeasurement.go` executes that same input for actual, close,
+and milestone-close. Boundary rounds retain the input snapshot so post-close
+measurement replays the original right edge and phase cuts. Incomplete required
+evidence refuses adoption; legacy no-tracker repositories retain a labeled old
+heuristic. Completed historical closes without snapshots are reconstructed from
+their exact completion binding and diagnosed explicitly.
+
+`issue correct-actual` measures a completed generation (or excludes a proven bad
+sample), records correction provenance on its card, and appends exact-target
+calibration corrections. A pure `internal/actualcorrection` transition model owns
+tracker uncertainty, calibration append, mirror publication and repeat/resume.
+Git refs under `refs/sdlc/actual-corrections/` retain pending evidence and objects;
+`issue recovery` resumes them without another measurement. Ordinary close and
+correction writers share the ledger-directory lock. Calibration readers resolve
+exact raw row invalidations before trust/filter selection and reject malformed
+correction evidence.
 
 **Build vs converge (#234).** A measured actual is split at the issue's
 boundary reviews.

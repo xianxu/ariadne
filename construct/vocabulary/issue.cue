@@ -105,7 +105,7 @@ card: {
 		{name: "created", kind: "date", setter: "sdlc issue new"},
 		{name: "updated", kind: "date", setter: "sdlc issue set-status"},
 		{name: "estimate_hours", kind: "estimate", setter: "sdlc issue set-estimate"},
-		{name: "actual_hours", kind: "actual", setter: "sdlc close"},
+		{name: "actual_hours", kind: "actual", setter: "sdlc close or sdlc issue correct-actual"},
 		{name: "github_issue", kind: "github", setter: "sdlc issue set-github"},
 		// #277: who is responsible and where the work belongs — operator,
 		// keyed machine fingerprint + readable name, optional slot label,

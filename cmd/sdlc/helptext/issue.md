@@ -19,7 +19,11 @@ SUBCOMMANDS
   restore        Put main's published details and asset bundle back on this branch
                  (`--issue N`): the transfer guard's offer for an edit that is
                  not this workspace's own record (#285)
+  correct-actual Re-measure a completed actual with --issue N --reason TEXT;
+                 --dry-run previews; --exclude invalidates a proven bad sample
+                 without inventing hours. Keeps the original close generation.
   recovery       `list` / `reconcile --issue N` interrupted tracker operations
+                 and measured actual corrections
   migrate        One-time cutover of a legacy repository to the issue tracker
                  (dry run; `--apply --expect DIGEST`; `--reconcile` on a branch)
   set-status     Flip an issue card's status with transition guards

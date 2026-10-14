@@ -22,21 +22,23 @@ const (
 // adopt an actual. It holds no transcript bytes and performs no IO (ARCH-PURE).
 // Validate before persistence; ParseSidecar also validates retained evidence.
 type MeasurementInputs struct {
-	Version          int                     `json:"version" yaml:"version"`
-	Method           string                  `json:"method" yaml:"method"`
-	Repository       string                  `json:"repository" yaml:"repository"`
-	CodeHead         string                  `json:"code_head" yaml:"code_head"`
-	TrackerHead      string                  `json:"tracker_head,omitempty" yaml:"tracker_head,omitempty"`
-	BranchPoint      string                  `json:"branch_point,omitempty" yaml:"branch_point,omitempty"`
-	Since            string                  `json:"since" yaml:"since"`
-	Until            string                  `json:"until" yaml:"until"`
-	BrainRoot        string                  `json:"brain_root,omitempty" yaml:"brain_root,omitempty"`
-	GapMinutes       int                     `json:"gap_minutes" yaml:"gap_minutes"`
-	CommitWeight     float64                 `json:"commit_weight" yaml:"commit_weight"`
-	IncludeAssistant bool                    `json:"include_assistant" yaml:"include_assistant"`
-	Engagements      []MeasurementEngagement `json:"engagements,omitempty" yaml:"engagements,omitempty"`
-	Sources          []MeasurementSource     `json:"sources,omitempty" yaml:"sources,omitempty"`
-	Cuts             []MeasurementCut        `json:"cuts,omitempty" yaml:"cuts,omitempty"`
+	Version               int                     `json:"version" yaml:"version"`
+	Method                string                  `json:"method" yaml:"method"`
+	Repository            string                  `json:"repository" yaml:"repository"`
+	CodeHead              string                  `json:"code_head" yaml:"code_head"`
+	TrackerHead           string                  `json:"tracker_head,omitempty" yaml:"tracker_head,omitempty"`
+	BranchPoint           string                  `json:"branch_point,omitempty" yaml:"branch_point,omitempty"`
+	Since                 string                  `json:"since" yaml:"since"`
+	Until                 string                  `json:"until" yaml:"until"`
+	BrainRoot             string                  `json:"brain_root,omitempty" yaml:"brain_root,omitempty"`
+	GapMinutes            int                     `json:"gap_minutes" yaml:"gap_minutes"`
+	CommitWeight          float64                 `json:"commit_weight" yaml:"commit_weight"`
+	IncludeAssistant      bool                    `json:"include_assistant" yaml:"include_assistant"`
+	Engagements           []MeasurementEngagement `json:"engagements,omitempty" yaml:"engagements,omitempty"`
+	Sources               []MeasurementSource     `json:"sources,omitempty" yaml:"sources,omitempty"`
+	ExcludedBrainSessions int                     `json:"excluded_brain_sessions,omitempty" yaml:"excluded_brain_sessions,omitempty"`
+	ExcludedBrainMinutes  float64                 `json:"excluded_brain_minutes,omitempty" yaml:"excluded_brain_minutes,omitempty"`
+	Cuts                  []MeasurementCut        `json:"cuts,omitempty" yaml:"cuts,omitempty"`
 }
 
 type MeasurementEngagement struct {
@@ -117,6 +119,9 @@ func (m MeasurementInputs) Validate() error {
 	}
 	if m.BrainRoot != "" && !filepath.IsAbs(m.BrainRoot) {
 		return fmt.Errorf("measurement brain_root must be absolute")
+	}
+	if m.ExcludedBrainSessions < 0 || m.ExcludedBrainMinutes < 0 || math.IsNaN(m.ExcludedBrainMinutes) || math.IsInf(m.ExcludedBrainMinutes, 0) {
+		return fmt.Errorf("measurement excluded brain provenance must be finite and nonnegative")
 	}
 	if m.GapMinutes <= 0 {
 		return fmt.Errorf("measurement gap_minutes must be positive")

@@ -173,3 +173,11 @@ THE GATE LEDGER (#194)
   See `sdlc close --help` for the full contract — it is the same gate.
   The integrate gate (#269) runs here too, before the review: main's code
   landed by the most recent noon must be in the branch (`--no-integrate`).
+
+MEASUREMENT REPLAY (#335)
+
+  This command adopts the shared ownership-proven measurement for Mx and retains
+  its inputs with the final boundary round. Later actual --milestone Mx replays
+  those pins and cuts, even if the issue continues. Explicit --brain-dir resolves
+  identically across measurement consumers. A whole-issue estimate ratio is not
+  applied to a milestone increment.

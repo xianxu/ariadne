@@ -200,3 +200,19 @@ A successful measured repair uses the same operation path with disposition repla
 
 No new measurement model, task-context inference, general sandbox, or all-worktree
 attribution is introduced. Code belongs to #335; pair data repair follows landing.
+
+## Revisions — implementation integration (2026-10-14)
+
+- The shared measurement runner and estimate comparator live together in
+  `actualmeasurement.go`; no separate comparator module is needed.
+- Finalized milestones retain and replay their own pre-review snapshot, while
+  the active whole issue continues measuring its aggregate ownership intervals.
+- A historical close without retained inputs resolves its exact concrete
+  Review-Window evidence rather than today's main. An unpinned multi-boundary
+  history is incomplete and refuses numeric auto-adoption.
+- Correction inputs take precedence for the same completed generation, so later
+  actual agrees with a corrected card. Explicit exclusion remains nonnumeric.
+- Exclusion diagnostics retain a count and bounded examples; brain active-session
+  count and minutes are persisted, with released intervals clipped out.
+- Ordinary close and correction writers share the existing ledger-directory lock
+  to prevent cross-repo read/rewrite and append races. No separate lock family.
