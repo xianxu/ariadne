@@ -1,6 +1,6 @@
 ---
 id: 000364
-status: codecomplete
+status: done
 created: 2026-10-13
 updated: 2026-10-14
 estimate_hours: 3.608
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 37c3e27aac67f707fcc2cc06ad8f6f4dd9a452e9
         evidence_commit: 4b065b611a1d776221e7753b8bcf23d63e5d917b
+        landed_commit: 7d0cc70f069d84a4ef8910e1edc3bf1ff55c25e1
 ---
 
 # Boundary review environment: allow read-only process listing, prepare the checkout (declared prep step), and REWORK must cite an answerable finding
