@@ -147,6 +147,43 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - "n": 5
+      timestamp: "2026-10-13T18:13:46-07:00"
+      dispatched: "2026-10-13T18:02:03-07:00"
+      agent: codex
+      dispose:
+        - id: BR-3
+          disposition: addressed
+          note: Plan lines 94–95 classify planner and proof as INTEGRATION; line 388 supersedes the earlier claim. landingarchive.go:399/445 reaches trackedArchiveBytes:55, whose readCard callback is bound to ReadCardBlob at line 729; internal/tracker/candidates.go:192 obtains a Git snapshot. The pinned correction changes classification/comments only.
+          round: 5
+        - id: BR-1
+          disposition: addressed
+          note: 'Retained: publication intersects local restrictions with pinned destination policy and rechecks on retries; destination-policy regressions remain present.'
+          round: 5
+        - id: BR-2
+          disposition: addressed
+          note: 'Retained: materialization paths check conversion attributes and verify pinned bytes before commits; isolated completed-issue reopen and stage/clear regressions passed.'
+          round: 5
+        - id: BR-4
+          disposition: addressed
+          note: 'Retained: the opt-in live visibility test exercises the production adapter, with invocation and change-triggered cadence documented in atlas.'
+          round: 5
+        - id: BR-5
+          disposition: addressed
+          note: 'Retained: authorization preserves the explicit destination host through the visibility seam; conflicting-host regression coverage remains present.'
+          round: 5
+        - id: BR-6
+          disposition: addressed
+          note: 'Retained: publication selects affected issue bodies as well as asset paths; missing body-indexed member regressions remain present.'
+          round: 5
+        - id: BR-7
+          disposition: addressed
+          note: 'Retained: shared candidate validation covers creation and transfer apply/probe plus confirmed transfer continuation; the full tracker test package passed.'
+          round: 5
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 2bd62b3fa0a643f65e0d2123a838aaf83f1367bf
+      blocked: false
 ---
 
 # Gate ledger — ariadne#337 (boundary-review)
@@ -211,6 +248,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-5 — addressed — Retained: visibility authorization preserves the explicit destination host through the gh seam.
 - BR-6 — addressed — Retained: publication validation selects affected issue bodies as well as asset paths, covering missing body-indexed members.
 
+## Round 5 — 2026-10-13T18:13:46-07:00 (codex) — passed
+
+### Disposed
+
+- BR-3 — addressed — Plan lines 94–95 classify planner and proof as INTEGRATION; line 388 supersedes the earlier claim. landingarchive.go:399/445 reaches trackedArchiveBytes:55, whose readCard callback is bound to ReadCardBlob at line 729; internal/tracker/candidates.go:192 obtains a Git snapshot. The pinned correction changes classification/comments only.
+- BR-1 — addressed — Retained: publication intersects local restrictions with pinned destination policy and rechecks on retries; destination-policy regressions remain present.
+- BR-2 — addressed — Retained: materialization paths check conversion attributes and verify pinned bytes before commits; isolated completed-issue reopen and stage/clear regressions passed.
+- BR-4 — addressed — Retained: the opt-in live visibility test exercises the production adapter, with invocation and change-triggered cadence documented in atlas.
+- BR-5 — addressed — Retained: authorization preserves the explicit destination host through the visibility seam; conflicting-host regression coverage remains present.
+- BR-6 — addressed — Retained: publication selects affected issue bodies as well as asset paths; missing body-indexed member regressions remain present.
+- BR-7 — addressed — Retained: shared candidate validation covers creation and transfer apply/probe plus confirmed transfer continuation; the full tracker test package passed.
+
 ## Open findings
 
-- **BR-3** [Critical] `core-concept-classification` The core-concepts table incorrectly declares archive proof PURE
+(none — every finding has been disposed)

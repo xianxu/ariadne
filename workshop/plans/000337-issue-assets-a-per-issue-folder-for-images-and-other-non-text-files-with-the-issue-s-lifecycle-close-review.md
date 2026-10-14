@@ -425,3 +425,93 @@ dispose:
     note: |
       Retained: publication validation selects affected issue bodies as well as asset paths, covering missing body-indexed members.
 ```
+
+---
+
+## Re-review — 2026-10-13T18:13:45-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 337 — issue assets: a per-issue folder for images and other non-text files, with the issue's lifecycle |
+| repo | ariadne |
+| issue file | workshop/issues/000337-issue-assets-a-per-issue-folder-for-images-and-other-non-text-files-with-the-issue-s-lifecycle.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 84d39c1513a4a30f0f61b4d7e5f610ff97b3b9ce..2bd62b3fa0a643f65e0d2123a838aaf83f1367bf |
+| command | sdlc close --issue 337 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-13T18:13:45-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: medium
+```
+
+BR-3 is addressed: the plan now correctly classifies both archive planner and proof as INTEGRATION, matching their production dependencies. Inspection of the pinned range found no new blocking defects or documentation gaps. Test confidence is qualified by the CLI batch timeout described below. The checkout remains unchanged.
+
+1. **Strengths**
+   - Shared bundle validation enforces body-indexed membership, content hashes and size limits.
+   - Publication validates destination policy and persisted candidates; materialization checks compare actual bytes against pinned snapshots.
+   - Attachment recovery uses explicit transitions and distinguishes newly installed bytes from pre-existing evidence.
+   - README, atlas, help and the recovery catalog document the new surface.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+   - Passed: full `internal/issueassets`, `internal/tracker` and `internal/gitx` packages.
+   - The CLI asset/lifecycle batch timed out after 480 seconds during reopen fixture setup, with no preceding assertion failures reported.
+   - The interrupted completed-issue reopen test and remaining stage/clear test passed separately in 111.331 seconds.
+   - `git diff --check` passed.
+   - Full-module tests and live visibility conformance were not rerun. BR-3 changes only classification and comments; source tracing supplies the appropriate evidence.
+
+6. **Architectural notes**
+   - **ARCH-DRY — pass:** shared bundle, publication and materialization helpers.
+   - **ARCH-PURE — pass:** pure asset core remains IO-free; archive classifications now reflect reachable IO.
+   - **ARCH-PURPOSE — pass:** reviewed consumers cover the approved in-repository lifecycle and legacy recovery.
+   - **ARCH-MOCK — pass:** stateful visibility fake, portable Git fixtures and live-conformance entry point.
+   - **ARCH-CONSTRAINTS — pass:** bounded files, bundles, queries and metadata-selected reads.
+   - **ARCH-SECURE — pass:** strict parsing, explicit host identity, destination-policy checks and byte validation.
+   - **ARCH-ORDER — pass:** explicit attachment transitions and persisted-candidate validation preserve uncertainty and partial progress.
+   - **ARCH-FUNERAL — pass:** cleanup, retained-file recovery, archive/removal behavior and Git-history costs are documented.
+
+7. **Plan revision recommendations:** None. The correction at `workshop/plans/000337-issue-assets-plan.md:388` explicitly supersedes the earlier pure-planner claim.
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Plan lines 94–95 classify planner and proof as INTEGRATION; line 388 supersedes the earlier claim. landingarchive.go:399/445 reaches trackedArchiveBytes:55, whose readCard callback is bound to ReadCardBlob at line 729; internal/tracker/candidates.go:192 obtains a Git snapshot. The pinned correction changes classification/comments only.
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Retained: publication intersects local restrictions with pinned destination policy and rechecks on retries; destination-policy regressions remain present.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Retained: materialization paths check conversion attributes and verify pinned bytes before commits; isolated completed-issue reopen and stage/clear regressions passed.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Retained: the opt-in live visibility test exercises the production adapter, with invocation and change-triggered cadence documented in atlas.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Retained: authorization preserves the explicit destination host through the visibility seam; conflicting-host regression coverage remains present.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Retained: publication selects affected issue bodies as well as asset paths; missing body-indexed member regressions remain present.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Retained: shared candidate validation covers creation and transfer apply/probe plus confirmed transfer continuation; the full tracker test package passed.
+```
