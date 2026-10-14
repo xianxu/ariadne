@@ -711,3 +711,23 @@ func TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust(t *testing.T) {
 		})
 	}
 }
+
+func TestActualCorrectionNumericDiagnostics(t *testing.T) {
+	for _, dryRun := range []bool{true, false} {
+		t.Run(fmt.Sprintf("dry=%v", dryRun), func(t *testing.T) {
+			r, _, _, inputs := actualCorrectionFixture(t)
+			measureActualCorrection = func(context.Context, string, string, string, string, string) actualResult {
+				return actualResult{Status: actualMeasured, Issue: "7", Hours: 2.57, Window: "2026-10-14T00:00:00Z → 2026-10-14T01:00:00Z", Inputs: &inputs, Warnings: []string{"historical reconstruction from close evidence", "provenance: owner roots; excluded brain: 2 sessions, 3.00 minutes"}}
+			}
+			var stdout, stderr bytes.Buffer
+			if err := runActualCorrection(context.Background(), &stdout, &stderr, "workshop/issues", 7, "repair with diagnostics", r.root, dryRun, false); err != nil {
+				t.Fatal(err)
+			}
+			for _, want := range []string{"window 2026-10-14T00:00:00Z → 2026-10-14T01:00:00Z", "historical reconstruction from close evidence", "provenance: owner roots; excluded brain: 2 sessions, 3.00 minutes"} {
+				if !strings.Contains(stderr.String(), want) {
+					t.Errorf("missing diagnostic %q: stdout=%s stderr=%s", want, &stdout, &stderr)
+				}
+			}
+		})
+	}
+}

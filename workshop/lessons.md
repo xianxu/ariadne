@@ -696,3 +696,7 @@ The simplest durable authority beats a clever scan of consequences.
 - Installing a new authoritative generation must retire metadata bound to its
   predecessor in the same transition. Test re-close after both numeric repair
   and exclusion, plus same-generation landing preservation (#335 BR-4).
+
+- A successful repair must show the measurement's reconstruction basis and
+  quality diagnostics as well as the number and hashes. Exercise preview and
+  execution through the command path, and reuse measurement rendering (#335 BR-5).

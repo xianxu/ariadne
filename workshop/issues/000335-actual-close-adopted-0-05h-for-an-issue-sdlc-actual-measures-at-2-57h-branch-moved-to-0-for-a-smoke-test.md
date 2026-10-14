@@ -293,3 +293,21 @@ reproduced the exact binding refusal in both cases (4.463s). Restored regression
 passed4.345s; expanded correction/reclose/rebase checks passed56.280s. Historical
 correction evidence remains in immutable card blobs. Fresh recorded suite and
 shared-binary round3 review remain required.
+
+### 2026-10-14 — round3 diagnostic gap and repair
+
+Recorded suite e8db458421fcf144425095f1d10abfe89fe455e3 passed348.7s:
+1335 command tests,54 packages,12 shards, zero failures (log9a5b41f48380).
+Round3 confirmed BR-4 addressed and returned FIX-THEN-SHIP, but the ledger refused
+finalization for new Important BR-5 measurement-diagnostics-preservation.
+Successful correction output omitted the measurement window and quality warnings.
+
+Command-path preview/execution regression observed RED3.453s for omitted window,
+historical reconstruction basis and exclusion provenance. Extracted the existing
+measured rendering into printActualMeasurement, shared by actual and numeric
+corrections after complete preflight validation. No duplicate diagnostic renderer
+and no unrelated close-adoption guidance in correction output (ARCH-DRY).
+Correction/printing checks passed41.529s; final preview/execution, dry-run
+no-effects/refusal and printing checks passed6.191s. The existing dry-run test
+continues proving no tracker/main publication, ledger append or recovery ref.
+Fresh recorded suite then shared round4 close are next; final SHIP still pending.

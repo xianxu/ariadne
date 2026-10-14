@@ -60,6 +60,38 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - "n": 3
+      timestamp: "2026-10-14T04:54:41-07:00"
+      dispatched: "2026-10-14T04:50:51-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Dispatch admission occurs before activity union; passing engine tests cover released dispatch, prior engagements, clipped original dispatch, and continuous relocation.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: ResolveCorrections suppresses earlier issue samples after exclusion; passing tests cover forecast, convergence, drift, later closes, and identical exclusion retries.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: TestOmittedActualCloseEstimateWarningWiring passes through production whole-issue close, checks both ratio warnings, and verifies the milestone control.
+          round: 3
+        - id: BR-4
+          disposition: addressed
+          note: SetCardCompletion atomically clears prior-token correction metadata. Removing that guard in a disposable pinned-head copy made both replacement/exclusion unit and production CodecompleteCard-to-resolver regressions fail; same-token preservation is covered.
+          round: 3
+      findings:
+        - kind: defect
+          id: BR-5
+          severity: Important
+          title: Correction previews discard measurement provenance and quality warnings
+          detail: 'cmd/sdlc/actualcorrection.go:672 consumes the measurement, but its successful numeric path prints only hours and hashes at line 776, discarding measured.Window and measured.Warnings. This hides historical reconstruction and attribution warnings despite the plan requiring the repair dry-run to name its reconstruction basis (workshop/plans/000335-actual-measurement-plan.md:120–124). ARCH-PURPOSE: render the bounded measurement diagnostics for successful previews and corrections, and add a command-path regression; a disposable extension of TestActualCorrectionDryRunAndUncertainRefusal failed because its supplied provenance warning appeared in neither stdout nor stderr.'
+          family: measurement-diagnostics-preservation
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#335 (boundary-review)
@@ -91,6 +123,20 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-4** [Critical] `completion-bound-correction-lifecycle` (kind: defect) Re-close retains a correction bound to the previous completion generation
   cmd/sdlc/actualinputs.go:106 rejects corrections whose completion binding differs, but internal/issue/handoff.go:217 replaces Completion without clearing ActualCorrection. A disposable-head regression using production tracker.CodecompleteCard followed by resolveOwnedActualInputs failed for both numeric replacement and exclusion with "actual correction belongs to a different completion binding". ARCH-ORDER/ARCH-PURPOSE: retire prior-generation correction metadata atomically when a new completion token is installed, preserve it for same-generation landing updates, and cover both correction dispositions with regressions.
 
+## Round 3 — 2026-10-14T04:54:41-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Dispatch admission occurs before activity union; passing engine tests cover released dispatch, prior engagements, clipped original dispatch, and continuous relocation.
+- BR-2 — addressed — ResolveCorrections suppresses earlier issue samples after exclusion; passing tests cover forecast, convergence, drift, later closes, and identical exclusion retries.
+- BR-3 — addressed — TestOmittedActualCloseEstimateWarningWiring passes through production whole-issue close, checks both ratio warnings, and verifies the milestone control.
+- BR-4 — addressed — SetCardCompletion atomically clears prior-token correction metadata. Removing that guard in a disposable pinned-head copy made both replacement/exclusion unit and production CodecompleteCard-to-resolver regressions fail; same-token preservation is covered.
+
+### Raised
+
+- **BR-5** [Important] `measurement-diagnostics-preservation` (kind: defect) Correction previews discard measurement provenance and quality warnings
+  cmd/sdlc/actualcorrection.go:672 consumes the measurement, but its successful numeric path prints only hours and hashes at line 776, discarding measured.Window and measured.Warnings. This hides historical reconstruction and attribution warnings despite the plan requiring the repair dry-run to name its reconstruction basis (workshop/plans/000335-actual-measurement-plan.md:120–124). ARCH-PURPOSE: render the bounded measurement diagnostics for successful previews and corrections, and add a command-path regression; a disposable extension of TestActualCorrectionDryRunAndUncertainRefusal failed because its supplied provenance warning appeared in neither stdout nor stderr.
+
 ## Open findings
 
-- **BR-4** [Critical] `completion-bound-correction-lifecycle` (kind: defect) Re-close retains a correction bound to the previous completion generation
+- **BR-5** [Important] `measurement-diagnostics-preservation` (kind: defect) Correction previews discard measurement provenance and quality warnings

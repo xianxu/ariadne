@@ -317,18 +317,24 @@ func statusFromResult(out activetime.Result, issueNum string) (actualStatus, flo
 	}
 }
 
+// printActualMeasurement preserves the measurement window, phase cuts and
+// bounded provenance diagnostics wherever a successful result is presented.
+func printActualMeasurement(w io.Writer, res actualResult) {
+	cok(w, fmt.Sprintf("measured actual for #%s: %.2fh   (window %s)", res.Issue, res.Hours, res.Window))
+	if s := res.Split; s != nil {
+		fmt.Fprintf(w, "  build %.2fh · converge %.2fh · uncounted tail %.2fh (cuts: %s)\n", s.Build, s.Converge, s.Tail, s.Source)
+	}
+	for _, warning := range res.Warnings {
+		fmt.Fprintf(w, "  attribution warning: %s\n", warning)
+	}
+}
+
 // printActual renders the engine's result for a human/agent: the suggested
 // --actual value, or the judgment-fallback guidance.
 func printActual(w io.Writer, res actualResult) {
 	switch res.Status {
 	case actualMeasured:
-		cok(w, fmt.Sprintf("measured actual for #%s: %.2fh   (window %s)", res.Issue, res.Hours, res.Window))
-		if s := res.Split; s != nil {
-			fmt.Fprintf(w, "  build %.2fh · converge %.2fh · uncounted tail %.2fh (cuts: %s)\n", s.Build, s.Converge, s.Tail, s.Source)
-		}
-		for _, warning := range res.Warnings {
-			fmt.Fprintf(w, "  attribution warning: %s\n", warning)
-		}
+		printActualMeasurement(w, res)
 		fmt.Fprintf(w, "  → close (or milestone-close, for a --milestone measurement) ADOPTS this when --actual is omitted (#178, #234)\n")
 		if len(res.Peers) > 1 {
 			fmt.Fprintf(w, "  (attributed across window issues: %s)\n", strings.Join(prefixHash(res.Peers), ", "))

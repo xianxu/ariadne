@@ -181,3 +181,97 @@ findings:
 7. **Plan revision recommendations**
 
    Add a `## Revisions` entry defining correction lifetime across completion changes: new completion token retires the current correction; same-token landing preserves it. Require numeric-replacement and exclusion sequence tests through production card completion and measurement replay.
+
+---
+
+## Re-review — 2026-10-14T04:54:41-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 335 — actual: close adopted 0.05h for an issue sdlc actual measures at 2.57h (branch moved to :0 for a smoke test) |
+| repo | ariadne |
+| issue file | workshop/issues/000335-actual-close-adopted-0-05h-for-an-issue-sdlc-actual-measures-at-2-57h-branch-moved-to-0-for-a-smoke-test.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ca9b09087f9c0992d0171fa691df8819336edbbf..e8db458421fcf144425095f1d10abfe89fe455e3 |
+| command | sdlc close --issue 335 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T04:54:41-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+BR-4 is addressed: replacing a completion generation retires its correction metadata, while same-generation landing preserves it. Removing the fix made both replacement and exclusion regressions fail. Targeted tests passed. One inexpensive contract gap remains: correction previews discard the measurement diagnostics needed to assess historical repairs.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Dispatch admission occurs before activity union; passing engine tests cover released dispatch, prior engagements, clipped original dispatch, and continuous relocation.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      ResolveCorrections suppresses earlier issue samples after exclusion; passing tests cover forecast, convergence, drift, later closes, and identical exclusion retries.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      TestOmittedActualCloseEstimateWarningWiring passes through production whole-issue close, checks both ratio warnings, and verifies the milestone control.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      SetCardCompletion atomically clears prior-token correction metadata. Removing that guard in a disposable pinned-head copy made both replacement/exclusion unit and production CodecompleteCard-to-resolver regressions fail; same-token preservation is covered.
+findings:
+  - id: new
+    severity: Important
+    kind: defect
+    family: measurement-diagnostics-preservation
+    title: |
+      Correction previews discard measurement provenance and quality warnings
+    detail: |
+      cmd/sdlc/actualcorrection.go:672 consumes the measurement, but its successful numeric path prints only hours and hashes at line 776, discarding measured.Window and measured.Warnings. This hides historical reconstruction and attribution warnings despite the plan requiring the repair dry-run to name its reconstruction basis (workshop/plans/000335-actual-measurement-plan.md:120–124). ARCH-PURPOSE: render the bounded measurement diagnostics for successful previews and corrections, and add a command-path regression; a disposable extension of TestActualCorrectionDryRunAndUncertainRefusal failed because its supplied provenance warning appeared in neither stdout nor stderr.
+```
+
+### Strengths
+
+- Shared measurement wiring pins ownership, code history, source prefixes, and phase cuts across preview and adoption.
+- Completion retirement is centralized in `cmd/sdlc/internal/issue/handoff.go:219`, covering both correction dispositions.
+- Correction recovery preserves confirmed progress and verifies operation identities before advancing effects.
+- README, atlas, and command help document the new correction and replay surfaces.
+
+### Critical findings
+
+None.
+
+### Important findings
+
+- `cmd/sdlc/actualcorrection.go:672`: preserve successful measurement diagnostics in correction output. Reuse the existing diagnostic rendering where practical; test reconstruction warnings, window output, and unchanged dry-run write behavior.
+
+### Minor findings
+
+None.
+
+### Test coverage notes
+
+Eight affected internal packages passed, along with targeted command tests covering measurement, corrections, calibration consumers, and adoption. BR-4’s fix-removal experiment failed as expected for both dispositions. The additional diagnostic assertion failed against pinned head. Disposable copies were removed; the reviewed checkout remains unchanged. The full suite was not rerun.
+
+### Architectural notes
+
+- **ARCH-DRY — pass:** measurement execution and calibration resolution are shared.
+- **ARCH-PURE — pass:** derivation, eligibility, clipping, validation, and correction transitions have direct pure tests.
+- **ARCH-PURPOSE — flag:** correction output loses required repair diagnostics.
+- **ARCH-MOCK — pass:** portable repositories and transcript fixtures exercise production boundaries.
+- **ARCH-CONSTRAINTS — pass:** history and retained evidence have explicit limits; cancellation is covered.
+- **ARCH-SECURE — pass:** generation, repository, prefix, and persisted-operation validation reject inconsistent evidence.
+- **ARCH-ORDER — pass:** correction phases and confirmation identities are explicit; BR-4 closes the generation lifecycle gap.
+- **ARCH-FUNERAL — pass:** completed recovery refs are removed; permanent evidence has documented bounded per-operation cost.
+
+### Plan revision recommendations
+
+None required. The diagnostic fix fulfills the existing contract. Landing, shared-binary rebuild, and peer-data repairs remain explicitly post-landing acceptance work.

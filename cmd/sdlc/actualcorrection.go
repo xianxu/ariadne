@@ -773,6 +773,9 @@ func runActualCorrection(ctx context.Context, stdout, stderr io.Writer, issuesDi
 	if err := actualcorrection.Validate(state); err != nil {
 		return err
 	}
+	if !exclude {
+		printActualMeasurement(stderr, measured)
+	}
 	fmt.Fprintf(stdout, "#%s actual: %s -> %s; close %s; reviewed %s; input %s; target %s\n", card.ID, old, nextActual, completion.Token, completion.ReviewedHEAD, spec.MeasurementDigest, target.RawID)
 	if dryRun {
 		return nil
