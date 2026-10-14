@@ -64,7 +64,7 @@ func TickMilestone(body, milestone string) (string, int) {
 	if !ok {
 		return body, 0
 	}
-	pat := regexp.MustCompile(`(?m)^(- )\[[ .]\]( ` + regexp.QuoteMeta(milestone) + `\b)`)
+	pat := regexp.MustCompile(`(?m)^(- )\[[ .]\]( ` + milestoneEmphasis + regexp.QuoteMeta(milestone) + `\b)`)
 	lines := strings.Split(body[start:end], "\n")
 	inside := FenceSpans(lines, UnterminatedIsProse)
 	n := 0
@@ -98,7 +98,12 @@ const MilestoneTagPattern = `M\d+[a-z]?`
 // by any separator (em dash, colon, space) — accepting every form existing issue
 // files use is the point: #231 retired a colon-only sibling in sizing.go that
 // reported zero milestones for the dominant em-dash form.
-var milestonePlanRE = regexp.MustCompile(`(?m)^- \[([ x.])\] \*{0,2}(` + MilestoneTagPattern + `)\b`)
+var milestonePlanRE = regexp.MustCompile(`(?m)^- \[([ x.])\] ` + milestoneEmphasis + `(` + MilestoneTagPattern + `)\b`)
+
+// milestoneEmphasis is the optional bold or italic opening before a milestone
+// tag. The reader (milestonePlanRE) and the writer (TickMilestone) share it, so
+// every row the reader counts is one the writer can tick (#350).
+const milestoneEmphasis = `\*{0,2}`
 
 // MilestonesInPlanOrder enumerates the milestone tags in a Plan body, in plan
 // order, de-duplicated (a milestone may appear twice if the plan was revised).
