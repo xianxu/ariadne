@@ -1,12 +1,12 @@
 ---
 id: 000361
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: '77bd89779dadc022f59c181b662e03c27c6fb40e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '2b6f4b57da2d1f569db54127d885b0f1b2cf2c67' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T19:18:29-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "991a59d0", done: "a3c27513"}
+actual_hours: 2.06
 ---
 
 # weave: TestCompileCancellationStopsLateGeneratorChild flakes under load (generation stage survived retirement)
