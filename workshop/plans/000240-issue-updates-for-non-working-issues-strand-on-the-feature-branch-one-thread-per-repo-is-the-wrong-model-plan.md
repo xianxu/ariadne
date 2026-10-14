@@ -85,3 +85,14 @@ retains the backup and reports its path. Tests inject edits to both the moved
 inode and the original path, and HEAD/index changes after the move. BR-7 adds
 the command's usage and recovery guidance to README. This is one cleanup
 transition per invocation; the prior one-path recovery policy remains.
+
+### 2026-10-14 — close review round 2
+
+The second boundary review disproved the claim above that one selected path
+implies one recoverable cleanup transition. A stop after rename leaves a backup
+that retry does not recognize (BR-1). Rechecking bytes before unlink cannot
+protect writes through an already-open descriptor after the check (BR-6).
+Automatic unlink and an unbounded no-lost-writes promise cannot coexist while
+another process may retain that descriptor. The cleanup policy is under design
+review before code changes; the next revision must define each interrupted
+state and the lifetime of any retained inode, or explicitly narrow cleanup.

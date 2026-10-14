@@ -94,3 +94,102 @@ findings:
 7. **Plan revision recommendations**
 
    Append a `## Revisions` entry defining literal selected-path handling and the revised cleanup state/effect contract. Enumerate tracked restoration, untracked removal, intervening file edits, and HEAD/index changes, with deterministic regression tests for each applicable ordering. Add README documentation to Task 3 before marking the boundary ready.
+
+---
+
+## Re-review — 2026-10-14T10:23:27-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 240 — Issue updates for non-working issues strand on the feature branch — one thread per repo is the wrong model |
+| repo | ariadne |
+| issue file | workshop/issues/000240-issue-updates-for-non-working-issues-strand-on-the-feature-branch-one-thread-per-repo-is-the-wrong-model.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 407e48a39057503fab7cdecaf6c69ce338ce7631..48255461dfd57311a8fd24a74d818826f97320d3 |
+| command | sdlc close --issue 240 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T10:23:27-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The publication path, conflict checks, literal filenames, and documentation are substantially covered. Two existing findings still block shipping: interruption after cleanup’s rename cannot recover through the documented retry, and writes through an open descriptor can still be silently discarded. The reviewed checkout remains unchanged; the disposable checkout was removed.
+
+Done-when: current — it covers the narrowed publication surface, retry behavior, local-work preservation, tests, and atlas documentation.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: not-addressed
+    note: |
+      ARCH-ORDER / ARCH-FUNERAL: cmd/sdlc/trunkpublish.go:276 creates an intermediate renamed-backup state that retry cannot recover. A deterministic interruption at trunkProseAfterMove reproduced both failures: tracked retry refuses at line 183 as a local deletion; untracked retry reports already clean at line 185 while retaining the backup. Define authoritative cleanup states and safe recovery for every intermediate effect, including process death, with production-transition sequence tests.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Plan Tasks 1–2 now name adversarial inputs and mechanical guards for the path predicate, publication decision, command, and cleanup. Lexical eligibility is separated from filesystem inspection; the pure tests invoke the predicates directly without IO. Cleanup strategy completeness remains covered by BR-1 and BR-6.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The issue Plan uses plain checkboxes; the implementation plan contains no M1 boundary or milestone-close. This matches AGENTS.base.md:51's single-pass close rule.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The plan specifies a 1 MiB prose envelope, two-minute shared remote deadline, cancellation, and three CAS attempts. cmd/sdlc/trunkpublish.go enforces the file-size limit and invokes BoundRemote; the existing Git seam supplies cancellation and the CAS budget.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Selected-path staging checks use literal pathspecs and cleanup reads the exact pinned HEAD blob instead of Git restore patterns. TestTrunkPublishTreatsSelectedWildcardFilenameLiterally passes at pinned head and fails when the pre-fix cleanup is restored in a disposable checkout: unrelated other.md loses its dirty edit.
+  - id: BR-6
+    disposition: not-addressed
+    note: |
+      ARCH-ORDER: cmd/sdlc/trunkpublish.go:313–317 and 332–336 still separate the final backup-byte check from unlink. A disposable overlay added only an ordering hook immediately before unlink; writing through a descriptor opened before rename made both tracked and untracked cleanup return nil with no backup, while the later edit disappeared. Exclusive creation also does not exclude subsequent writers during replacement.Write at line 327. Preserve recoverable data throughout cleanup and test all destructive-effect boundaries, rather than only the after-move event.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      README.md:28–37 adds command usage, eligibility, moved-main refusal, uncertain-push retry guidance, and an atlas link. These passages match the allowlist and publication checks; atlas/workflow/sdlc-binary.md also documents the new surface.
+```
+
+1. **Strengths**
+
+   - Reuses `gitx.TrunkFile.UpdateMany` for CAS publication rather than introducing another remote transaction mechanism.
+   - Separates lexical eligibility from filesystem checks and tests the pure decisions directly.
+   - Real-Git tests verify branch/index isolation, selected-path conflicts, and preservation of unrelated dirty work.
+   - README and atlas both document the new command.
+
+2. **Critical findings**
+
+   - **BR-6 remains open:** `cmd/sdlc/trunkpublish.go:317,336` can unlink a concurrently modified inode after validation. Preserve recoverable bytes across the entire destructive sequence and add controllable late-write tests.
+
+3. **Important findings**
+
+   - **BR-1 remains open:** `cmd/sdlc/trunkpublish.go:181–186,276` cannot reconcile interruption after rename. Add a recoverable cleanup state model that distinguishes incomplete cleanup from genuine local deletion or completed cleanup.
+
+4. **Minor findings**
+
+   - None newly raised.
+
+5. **Test coverage notes**
+
+   The targeted recovery, eligibility, decision, publication, and cleanup tests passed. The wildcard regression went red with pre-fix cleanup restored. Two additional deterministic overlays exposed the outstanding interruption and late-write failures. The full suite was not independently rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** existing CAS and Git boundaries are reused.
+   - **ARCH-PURE — pass:** eligibility and publication decisions are independently tested without IO.
+   - **ARCH-PURPOSE — flag:** BR-1/BR-6 leave the promised recovery and preservation behavior incomplete.
+   - **ARCH-MOCK — pass:** existing shared Git seam and stateful fixtures are reused.
+   - **ARCH-CONSTRAINTS — pass:** explicit input and remote budgets are present.
+   - **ARCH-SECURE — flag:** BR-6 treats a byte observation as authority for a later destructive effect.
+   - **ARCH-ORDER — flag:** intermediate cleanup states and late writes remain insufficiently modeled.
+   - **ARCH-FUNERAL — flag:** interrupted cleanup leaves backups without an automatic recovery/removal path.
+
+7. **Plan revision recommendations**
+
+   Add a `## Revisions` entry enumerating cleanup states, interruption points, permitted recovery actions, and backup lifecycle. Correct the claim that one selected path makes cleanup a single transition, and replace the after-move-only test strategy with coverage of every destructive-effect boundary.

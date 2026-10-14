@@ -164,6 +164,11 @@ The repaired head `38ac58676eb41e341fa2fd62f7161401a9c8cc13` passed
 `sdlc local-check run --name suite`: all 12 cmd/sdlc shards (1,351 tests),
 54 other packages, zero failures, 501.6s wall, recorded as
 `sdlc-local/suite` (log SHA-256 prefix `d3a0bf281d08`).
+The second close review returned REWORK. It confirmed literal-path and other
+repairs, but found that a process stop after the cleanup rename strands the
+backup on retry (BR-1), and an editor's already-open descriptor can write to
+that backup immediately before unlink, losing the new edit (BR-6). The cleanup
+contract needs an architectural revision before another close attempt.
 
 ### 2026-09-20
 
