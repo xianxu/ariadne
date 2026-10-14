@@ -160,6 +160,13 @@ Items in order: M1 tl-worker (binary, prose, stub, §15 line); M2 tl-lead prose;
     - `trains` on ariadne-robustness-1: 10.1 s.
   - One loss to note for the TL: the hand-written Slots lines carried agent and model notes (for example "(Sol)"), which no sdlc contract exposes. A rendered `## Slots` drops them, so that context moves to the thread.
 
+- Pre-close full suite (plain `make test`, 474 s; 12 shards, 1335 cmd/sdlc tests, 59 other packages): two failures.
+  - `scripts/test TestConstructScripts` (mine, the BR-1 class in shell tests): `portable-makefile.test.sh` asserted the hand list `{sdlc, datatype, vocabulary, doc-review}`. `slot-dependencies.test.sh` carried the same list (it is not in the suite). Both now derive the set from `cmd/` minus the distributed `weave`.
+    - `portable-makefile.test.sh` passes directly, and `go test ./scripts/test/` passes.
+    - `slot-dependencies.test.sh` is a heavy parley acceptance run. Its Python was syntax-checked, not run.
+    - A final sweep for quoted tool-name lists in cmd/, pkg/, scripts/ and construct/ found none left.
+  - `cmd/sdlc TestWaitCIGateBoundsRealMakeProbe`: a timing probe against a real `make`. It passes in isolation (`-count=1`); this branch doesn't touch the CI gate. Load-sensitive under the full suite.
+
 ## Revisions
 
 - 2026-10-13 — the operator: **don't copy stories or lessons** into the binaries' prose. The prose states current
