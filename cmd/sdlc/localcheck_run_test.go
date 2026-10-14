@@ -13,6 +13,12 @@ import (
 	"time"
 )
 
+// fakeSuiteLockHelper advertises the real argv contract without executing the
+// acquisition body. Marker/argv effects belong only to an acquisition call.
+func fakeSuiteLockHelper(acquireBody string) string {
+	return "import sys\nif sys.argv[1:] == ['acquire', '--help']:\n    print('options:\\n  --watch WATCH  owner\\n  --slots SLOTS  weight')\n    sys.exit(0)\n" + acquireBody
+}
+
 // localRunRepo is a real git repository with one commit, and a fake suite-lock
 // helper beside its Makefile.workflow that answers lockAnswer.
 func localRunRepo(t *testing.T, lockAnswer string) (localRunDeps, string, *ciFakeGH, *bytes.Buffer) {
@@ -43,7 +49,7 @@ func localRunRepo(t *testing.T, lockAnswer string) (localRunDeps, string, *ciFak
 		}
 	}
 	write("Makefile.workflow", "# fake\n", 0o644)
-	write("scripts/test-lock.py", "print("+fmt.Sprintf("%q", lockAnswer)+")\n", 0o755)
+	write("scripts/test-lock.py", fakeSuiteLockHelper("print("+fmt.Sprintf("%q", lockAnswer)+")\n"), 0o755)
 	write("marker-check.sh", "#!/bin/sh\necho ran > \"$1\"\n", 0o755)
 	must("add", "-A")
 	must("commit", "-q", "-m", "init")

@@ -31,7 +31,7 @@ func integrationFixture(t *testing.T) (root, server string, gh *landingFakeGH) {
 	gh.ci.setHead(gh.pr.Number, gh.pr.HeadOID)
 	for path, content := range map[string]string{
 		localChecksPath:     `{"version":1,"checks":[{"name":"suite","required":true,"command":["sh","-c","echo suite passed"]}]}`,
-		"Makefile.workflow": "# fixture\n", "scripts/test-lock.py": "print('skipped')\n",
+		"Makefile.workflow": "# fixture\n", "scripts/test-lock.py": fakeSuiteLockHelper("print('skipped')\n"),
 	} {
 		procedureWrite(t, server, path, content)
 	}

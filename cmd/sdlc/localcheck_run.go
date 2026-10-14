@@ -78,6 +78,10 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	if d.minute == 0 {
 		d.minute = time.Minute
 	}
+	helper, err := prepareSuiteHelper(ctx, d.Root)
+	if err != nil {
+		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
+	}
 	logDir, err := localCheckLogDir(d)
 	if err != nil {
 		return rec, err
@@ -92,7 +96,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	defer cleanup()
 
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
-	heldBy, err := acquireSuiteSlot(ctx, d, wt, c.Weight)
+	heldBy, err := acquireSuiteSlot(ctx, d, wt, c.Weight, helper)
 	if err != nil {
 		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
 	}
@@ -193,24 +197,17 @@ func localCheckLogDir(d localRunDeps) (string, error) {
 }
 
 // acquireSuiteSlot takes one of the machine-wide full-suite slots through the
-// helper Makefile.workflow uses, resolved the same way (beside its real path), so
-// a local check and `make test` share one cap. The slot is held until this
+// prepared helper Makefile.workflow uses, so a local check and `make test`
+// share one cap. Capability preflight has already run before any worktree
+// mutation. The slot is held until this
 // process exits. It returns the pid to export as WF_TEST_LOCK_HELD_BY when it
 // took the slot.
 //
 // weight is the slots the run takes at once (#346): passed as --slots, so a
 // make test inside it, which then sees WF_TEST_LOCK_HELD_BY and goes reentrant,
 // still runs at its declared weight (#332).
-func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight int) (string, error) {
+func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight int, helper string) (string, error) {
 	scope := suiteLockScope(dir)
-	mk, err := filepath.EvalSymlinks(filepath.Join(d.Root, "Makefile.workflow"))
-	if err != nil {
-		return "", fmt.Errorf("%w: no Makefile.workflow to find the suite lock from (%v)", errUnboundedSuite, err)
-	}
-	helper := filepath.Join(filepath.Dir(mk), "scripts", "test-lock.py")
-	if _, err := os.Stat(helper); err != nil {
-		return "", fmt.Errorf("%w: suite lock helper missing: %s", errUnboundedSuite, helper)
-	}
 	pid := fmt.Sprint(os.Getpid())
 	cmd := exec.CommandContext(ctx, "python3", helper, "acquire", "--watch", pid, "--slots", strconv.Itoa(max(weight, 1)))
 	cmd.Dir = dir
