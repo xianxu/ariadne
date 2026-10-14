@@ -368,3 +368,15 @@ landed states. Old invalid receipts must refuse actionable recovery without
 advancing main or source removal. Keep policy admission distinct from proof of
 an already-landed effect. Add RED/GREEN production recovery regressions, then
 repeat full acceptance and close. ARCH-PURPOSE / ARCH-SECURE / ARCH-ORDER.
+
+- Replay inventory: `TransferOp.Apply/Probe` and `CreationOp.Apply/Probe` use
+  the shared `mainPublisher` adapter for persisted candidate push/probe. Detail
+  republish derives a fresh write through `mainPublish` and validates the base
+  bundle and policy on callback retries; landing archive re-derives its write
+  through `UpdateMany` and validates the archive proof on uncertain recovery.
+  A candidate proof must bind the actual body and members to the receipt's
+  pinned source, so empty pins cannot hide unadmitted candidate bytes.
+
+### 2026-10-14T00:14Z — legacy recovery scope and test scheduling
+
+Hub approved a narrow refusal for invalid immutable legacy receipts; safe repair is deferred to dependent #352, unassigned and low priority. Read-only inventory found zero recovery refs across the machine fleet (68 checkouts, 44 unique Git repositories; zero scan errors). Diagnostics name the exact checkout/ref/document and list/reconcile command, then direct the user to ask the TL/hub to repair that legacy receipt (ariadne#352). The weighted machine test gate supersedes the temporary load threshold; start make -k test without a custom wait loop.

@@ -72,6 +72,45 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - "n": 3
+      timestamp: "2026-10-13T17:02:49-07:00"
+      dispatched: "2026-10-13T16:55:46-07:00"
+      agent: codex
+      dispose:
+        - id: BR-2
+          disposition: addressed
+          note: Source/destination preflight and post-materialization proofs are present. Reopen and restore regressions pass; removing restore's final validation makes both byte-tampering and attribute-tampering cases commit successfully and fail their tests.
+          round: 3
+        - id: BR-5
+          disposition: addressed
+          note: assetpolicy.go:57 retains the full GitHub URL and realGH rejects incomplete identities. Conflicting-GH_HOST tests pass across admission paths; restoring hostname stripping and the old permissive seam reproduces unauthorized admission.
+          round: 3
+        - id: BR-6
+          disposition: addressed
+          note: Legacy publication now validates changed body indexes without requiring asset-directory history. Restoring the historical directory-history shortcut makes the legacy guard regressions fail. A distinct persisted-transfer recovery gap is raised below.
+          round: 3
+        - id: BR-1
+          disposition: addressed
+          note: 'Retained: publication intersects local restrictions with pinned destination policy, with destination-race and recovery regression coverage.'
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: 'Retained: the Core concepts table identifies planLandingArchive as pure and confirmLandingArchive as integration, matching their implementations.'
+          round: 3
+        - id: BR-4
+          disposition: addressed
+          note: 'Retained: TestLiveAssetVisibilityConformance calls the production adapter; atlas/workflow/issue-assets.md documents its invocation and cadence.'
+          round: 3
+      findings:
+        - id: BR-7
+          severity: Critical
+          title: Prepared transfer recovery can publish missing body-indexed assets
+          detail: 'cmd/sdlc/issuemovedetail.go:409 returns success for empty SourceAssets, while internal/tracker/transferop.go:130 publishes resumed candidates without rerunning Prepare''s bundle validation. A temporary regression persisted an older prepared transfer containing a canonical missing-asset link, interrupted before main publication, then invoked runRecoveryReconcile: it returned nil and advanced remote main. This is the 2nd finding in this family. Do not fix only this instance: enforce body-index validation before every fresh or resumed publication, including prepared and uncertain receipts regardless of asset-pin presence, and sweep those states with regression tests. ARCH-PURPOSE / ARCH-SECURE / ARCH-ORDER.'
+          family: body-indexed-publication-validation
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#337 (boundary-review)
@@ -108,8 +147,22 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Critical] `body-indexed-publication-validation` Legacy publication skips missing assets introduced only through the body
   cmd/sdlc/transferguard.go:254–259 returns success when asset directories have no branch history. A temporary production regression added a Markdown link to a missing canonical asset without creating an asset directory; guardTransferredDetails accepted it. ARCH-PURPOSE: derive validation requirements from the authoritative body index as well as changed asset paths, and test body-only references through legacy publication.
 
+## Round 3 — 2026-10-13T17:02:49-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-2 — addressed — Source/destination preflight and post-materialization proofs are present. Reopen and restore regressions pass; removing restore's final validation makes both byte-tampering and attribute-tampering cases commit successfully and fail their tests.
+- BR-5 — addressed — assetpolicy.go:57 retains the full GitHub URL and realGH rejects incomplete identities. Conflicting-GH_HOST tests pass across admission paths; restoring hostname stripping and the old permissive seam reproduces unauthorized admission.
+- BR-6 — addressed — Legacy publication now validates changed body indexes without requiring asset-directory history. Restoring the historical directory-history shortcut makes the legacy guard regressions fail. A distinct persisted-transfer recovery gap is raised below.
+- BR-1 — addressed — Retained: publication intersects local restrictions with pinned destination policy, with destination-race and recovery regression coverage.
+- BR-3 — addressed — Retained: the Core concepts table identifies planLandingArchive as pure and confirmLandingArchive as integration, matching their implementations.
+- BR-4 — addressed — Retained: TestLiveAssetVisibilityConformance calls the production adapter; atlas/workflow/issue-assets.md documents its invocation and cadence.
+
+### Raised
+
+- **BR-7** [Critical] `body-indexed-publication-validation` Prepared transfer recovery can publish missing body-indexed assets
+  cmd/sdlc/issuemovedetail.go:409 returns success for empty SourceAssets, while internal/tracker/transferop.go:130 publishes resumed candidates without rerunning Prepare's bundle validation. A temporary regression persisted an older prepared transfer containing a canonical missing-asset link, interrupted before main publication, then invoked runRecoveryReconcile: it returned nil and advanced remote main. This is the 2nd finding in this family. Do not fix only this instance: enforce body-index validation before every fresh or resumed publication, including prepared and uncertain receipts regardless of asset-pin presence, and sweep those states with regression tests. ARCH-PURPOSE / ARCH-SECURE / ARCH-ORDER.
+
 ## Open findings
 
-- **BR-2** [Critical] `exact-bytes-at-materialization` Reopening can commit converted asset bytes under their original content name
-- **BR-5** [Critical] `destination-policy-authority` Host visibility can authorize assets using a different repository host
-- **BR-6** [Critical] `body-indexed-publication-validation` Legacy publication skips missing assets introduced only through the body
+- **BR-7** [Critical] `body-indexed-publication-validation` Prepared transfer recovery can publish missing body-indexed assets

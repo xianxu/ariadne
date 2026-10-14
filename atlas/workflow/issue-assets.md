@@ -123,6 +123,15 @@ refusal says to remove an asset; a missing target says to restore it or remove
 its link; an unlinked file says to link it or delete it. Follow the specific
 reconciliation command printed for an interrupted publication.
 
+Persisted publication receipts revalidate both their pinned source and actual
+candidate body and bytes on apply, probe, and later source removal. Empty asset
+pins do not waive validation. A valid already-landed candidate is proof, while
+a new push still requires policy admission. Invalid immutable legacy receipts
+refuse with the checkout, exact `refs/sdlc/recovery/<token>:document` locator,
+and `sdlc issue recovery list`; ask the TL/hub to repair that receipt under
+#352 before reconciling. Safe repair is deferred to #352; the initial fleet
+inventory found no existing receipts requiring it.
+
 Attachment installs bytes without replacing an existing destination, then
 compares the expected body before linking. A changed body is never overwritten.
 On failure, cleanup can remove only this attempt's newly installed bytes, after

@@ -11,33 +11,13 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 // assetFilesFromView inventories only this issue's directory. The body remains
 // the index: BuildBundle rejects unknown entries rather than publishing them.
 func assetFilesFromView(view *gitx.TrunkView, detailRel, id string, body []byte) (issueassets.Bundle, error) {
-	home := path.Dir(detailRel)
-	assets := path.Join(home, "assets")
-	dir := path.Join(assets, id)
-	// Include ancestor entries: a symlink replacing assets/ or its ID folder
-	// is a blob at that exact path and is not listed by a trailing-slash query.
-	files, err := view.FilesSelected(home, func(f gitx.TreeFile) bool {
-		return f.Path == assets || f.Path == dir || strings.HasPrefix(f.Path, dir+"/")
-	})
-	if err != nil {
-		return issueassets.Bundle{}, fmt.Errorf("cannot read asset bundle %s: %w; restore this bundle from its last valid commit before retrying", dir, err)
-	}
-	inventory := map[string][]byte{}
-	for _, f := range files {
-		if f.Path == assets || f.Path == dir {
-			return issueassets.Bundle{}, fmt.Errorf("asset directory %s is a file or symlink: replace it with a regular directory", f.Path)
-		}
-		if f.Mode != "100644" {
-			return issueassets.Bundle{}, fmt.Errorf("asset %s is not an ordinary file: restore a regular asset file", f.Path)
-		}
-		inventory[strings.TrimPrefix(f.Path, path.Dir(detailRel)+"/")] = f.Content
-	}
-	return issueassets.BuildBundle(id, issueAssetBody(body), inventory)
+	return tracker.AssetBundleFromView(view, detailRel, id, body)
 }
 func assetBundleWrite(bundle issueassets.Bundle, detailRel string) map[string][]byte {
 	out := map[string][]byte{}

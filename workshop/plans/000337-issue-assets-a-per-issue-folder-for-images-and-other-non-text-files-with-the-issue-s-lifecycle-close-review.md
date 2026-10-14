@@ -208,3 +208,116 @@ findings:
 7. **Plan revision recommendations**
 
    Append `## Revisions` entries establishing complete destination identity as an authorization invariant, enumerating every materialization caller requiring exact-byte verification, and requiring body-driven validation on legacy publication paths. Add the three demonstrated regressions before repeating this boundary review.
+
+---
+
+## Re-review — 2026-10-13T17:02:48-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 337 — issue assets: a per-issue folder for images and other non-text files, with the issue's lifecycle |
+| repo | ariadne |
+| issue file | workshop/issues/000337-issue-assets-a-per-issue-folder-for-images-and-other-non-text-files-with-the-issue-s-lifecycle.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | da2861cd8c8033f21726a6040de1dec6b12279bf..04376ef7082d1c615e3ce23ad4b7f52d3fcfa29f |
+| command | sdlc close --issue 337 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-13T17:02:48-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The three open findings have working corrections backed by regressions that fail when the fixes are removed. However, an older prepared transfer can still publish missing body-indexed assets through recovery. This independently reproduced correctness gap blocks shipping. The reviewed checkout is unchanged; the disposable mutation-test copy was removed.
+
+1. **Strengths**
+
+   - Shared Markdown parsing and bundle validation enforce content names, membership and byte budgets.
+   - Materialization checks now cover source/destination attributes and actual restored bytes.
+   - Visibility queries preserve the destination hostname through the production adapter.
+   - README and atlas document the command, policy, lifecycle, limits and recovery.
+
+2. **Critical findings**
+
+   **Prepared transfer recovery bypasses body-index validation** — `cmd/sdlc/issuemovedetail.go:409`, `cmd/sdlc/internal/tracker/transferop.go:130`.
+
+   Recovery can resume an already-prepared `transfer.main` candidate without executing `TransferOp.Prepare`, where bundle validation lives. The publication callback returns immediately when `SourceAssets` is empty.
+
+   A temporary regression constructed a valid persisted transfer using the previous text-only candidate preparation, interrupted before its main push, then invoked production `runRecoveryReconcile`. Its body linked a missing canonical asset. Recovery returned success and advanced remote main.
+
+   **This is the 2nd finding in family `body-indexed-publication-validation`.** Fix the rule across fresh and resumed operations: validate the pinned body and complete candidate bundle before publication, regardless of whether asset pins exist. Include prepared and uncertain receipt states; do not fix only this early return. **ARCH-PURPOSE / ARCH-SECURE / ARCH-ORDER.**
+
+3. **Important findings**
+
+   None additional.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - Focused command regressions passed: **26.783s**.
+   - Pure asset package passed: **0.087s**.
+   - Targeted tracker and Git snapshot tests passed: **10.691s / 5.149s**.
+   - Removing the fixes reproduced BR-2, BR-5 and BR-6 failures.
+   - New recovery regression failed as expected: `err=<nil> main_changed=true`.
+   - Broader asset/lifecycle run timed out after **240.318s**, during temporary-directory cleanup; it is **not a pass**.
+   - `git diff --check` passed. Full acceptance and live conformance were not rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared bundle, policy and materialization helpers.
+   - **ARCH-PURE — pass:** declared pure entities exist and have IO-free core tests; archive proof is correctly classified as integration.
+   - **ARCH-PURPOSE — flag:** recovery remains an unvalidated publication consumer.
+   - **ARCH-MOCK — pass:** portable Git fixtures, host doubles and opt-in production-adapter conformance.
+   - **ARCH-CONSTRAINTS — pass:** explicit bundle limits, bounded visibility responses and metadata-first discovery.
+   - **ARCH-SECURE — flag:** an older persisted candidate inherits validation assumptions from its producer.
+   - **ARCH-ORDER — flag:** prepared-candidate recovery skips the new invariant; retain a regression covering that restart sequence.
+   - **ARCH-FUNERAL — pass:** asset removal/archive paths, temporary-file recovery and retained Git-history costs are documented.
+
+7. **Plan revision recommendations**
+
+   Add a `## Revisions` entry extending the body-index validation inventory to persisted transfer candidates. Require equivalent validation for fresh preparation, prepared-candidate replay and uncertain-outcome recovery, including receipts created before asset validation existed.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Source/destination preflight and post-materialization proofs are present. Reopen and restore regressions pass; removing restore's final validation makes both byte-tampering and attribute-tampering cases commit successfully and fail their tests.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      assetpolicy.go:57 retains the full GitHub URL and realGH rejects incomplete identities. Conflicting-GH_HOST tests pass across admission paths; restoring hostname stripping and the old permissive seam reproduces unauthorized admission.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Legacy publication now validates changed body indexes without requiring asset-directory history. Restoring the historical directory-history shortcut makes the legacy guard regressions fail. A distinct persisted-transfer recovery gap is raised below.
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Retained: publication intersects local restrictions with pinned destination policy, with destination-race and recovery regression coverage.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Retained: the Core concepts table identifies planLandingArchive as pure and confirmLandingArchive as integration, matching their implementations.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Retained: TestLiveAssetVisibilityConformance calls the production adapter; atlas/workflow/issue-assets.md documents its invocation and cadence.
+findings:
+  - id: new
+    severity: Critical
+    family: body-indexed-publication-validation
+    title: |
+      Prepared transfer recovery can publish missing body-indexed assets
+    detail: |
+      cmd/sdlc/issuemovedetail.go:409 returns success for empty SourceAssets, while internal/tracker/transferop.go:130 publishes resumed candidates without rerunning Prepare's bundle validation. A temporary regression persisted an older prepared transfer containing a canonical missing-asset link, interrupted before main publication, then invoked runRecoveryReconcile: it returned nil and advanced remote main. This is the 2nd finding in this family. Do not fix only this instance: enforce body-index validation before every fresh or resumed publication, including prepared and uncertain receipts regardless of asset-pin presence, and sweep those states with regression tests. ARCH-PURPOSE / ARCH-SECURE / ARCH-ORDER.
+```
