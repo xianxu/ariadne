@@ -116,11 +116,11 @@ removes the stranding and the sweep hazard without any new model.
 - Existing `sdlc issue publish --issue N` remains the path for issue details;
   the current issue's design stays on its issue branch. `issue sync` is retired
   in tracker repositories.
-- From a dirty issue branch, `sdlc trunk publish --path P` publishes selected
+- From a dirty issue branch, `sdlc trunk publish --path P` publishes one selected
   non-issue workshop prose to main without committing it on the issue branch:
   `workshop/parley/`, `pensive/`, `targets/`, `projects/`, and `lessons.md`.
   Issues, plans, atlas, code, and base-layer settings are refused.
-- A selected path changed on main since this branch's base refuses before any
+- The selected path changed on main since this branch's base refuses before any
   write. A lost push response is reconciled by retry; cleanup changes only
   local copies whose bytes still equal those read for publication.
 - Tests cover a dirty feature branch, path refusals, concurrent main edits,
@@ -130,7 +130,7 @@ removes the stranding and the sweep hazard without any new model.
 
 ## Plan
 
-- [ ] M1 — Publish selected non-issue workshop prose through a main CAS, with
+- [ ] Publish selected non-issue workshop prose through a main CAS, with
       path, base, concurrency, and cleanup tests; document the path in atlas.
 - [ ] Verify the full suite, close the issue, and ship.
 
@@ -184,6 +184,14 @@ issue does not add a second slot model. The remaining gap is dirty non-issue
 workshop prose with no direct trunk path. The hub approved the explicit
 allowlist above. Atlas follows its code branch, while code and base-layer
 settings require the normal reviewed issue path (ARCH-PURPOSE, ARCH-DRY).
+
+### 2026-10-14 — one path per transaction
+
+Plan-quality PQ-1 exposed a partial-cleanup state in the proposed batch. One
+explicit path per invocation gives a complete retry rule without a persistent
+receipt: before cleanup, the local bytes remain available to compare with main;
+after cleanup, the path is clean and no further action is needed. PQ-3 also
+removed the single redundant milestone boundary; close owns the review.
 
 ### 2026-09-21 — distinguish couch provisioning from SDLC slot awareness
 
