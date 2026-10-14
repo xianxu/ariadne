@@ -84,3 +84,73 @@ findings:
     title: |
       Tickets.locked() defines an ad-hoc context-manager class; contextlib.contextmanager is simpler
 ```
+
+---
+
+## Re-review — 2026-10-13T20:23:07-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 357 — test gate: the suite queue is polled, not FIFO, so a waiter can starve (51+ min) while later suites take the head |
+| repo | ariadne |
+| issue file | workshop/issues/000357-test-gate-the-suite-queue-is-polled-not-fifo-so-a-waiter-can-starve-51-min-while-later-suites-take-the-head.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 4db30b480e4cee2802ed10b4d6c4544ad3f64690..603f60e74f8b2e3036374febe5eb650dd47ef1ed |
+| command | sdlc close --issue 357 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-13T20:23:07-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All three prior Minor findings are fixed by this change set. It adds no new defects and does not change scope. I ran the stat and name-status recipes and read the full diff; in the issue file, only the status, the log and the close note changed. The Spec and Done-when are untouched. At head, `bash scripts/test/test-lock.test.sh` passes all cases in about 33s, including every FIFO case.
+
+**1. Strengths**
+- **Tests wait for tickets, not for time.** `await_tickets` (`scripts/test/test-lock.test.sh:117-118`) gets arrival order from the waiters' tickets, not from fixed sleeps. Its regex `grep -c '^[0-9]'` counts only the numbered tickets and skips `alloc`, which matches the script's own `isdigit` filter (`scripts/test-lock.py:92`).
+- **Both test blocks were fixed.** The fix covers every waiter start in the file (lines 123-125 and 139-140), not just the one site the finding cited.
+- **The stopped-waiter rule is written down in both places that describe the queue.** It is in the script header (`scripts/test-lock.py:27-29`) and in the atlas (`atlas/workflow/sdlc-binary.md:1644-1645`). The existing test "the stopped waiter takes its turn" already checks this behavior.
+- **`Tickets.locked`** now uses `contextlib.contextmanager` with a `try/finally`, so the mutex is still released when an exception is raised (`scripts/test-lock.py:128-134`).
+
+**2. Critical findings:** none.
+
+**3. Important findings:** none.
+
+**4. Minor findings:** none new. `await_tickets` gives up silently after 10s, but the position check that follows would then fail with a clear message, so I'm not raising it.
+
+**5. Test coverage notes**
+- **BR-1:** the change is to the tests themselves. Arrival order now comes from the ticket count, which makes the tests more robust, and the whole suite passes.
+- **BR-2:** fixed with documentation, which was one of the two options the finding offered. The documented behavior is already covered by the existing SIGSTOP test.
+- **BR-3:** a refactor that doesn't change behavior. Every acquire in the suite goes through it.
+
+**6. Architectural notes**
+- **ARCH-DRY: pass.** The two shell helpers are shared by both test blocks.
+- **ARCH-PURE: pass.** The change set adds no new logic.
+- **ARCH-PURPOSE: pass.** Each fix covers its whole class:
+  - the sleep-ordered arrivals in both blocks;
+  - the liveness rule in both places that describe the queue;
+  - the one hand-written context manager.
+
+**7. Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      await_tickets polls the numbered-ticket count before each next waiter, in both FIFO blocks (test-lock.test.sh:123-125,139-140); suite passes at head.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Documented as the rule in the script header (test-lock.py:27-29) and atlas sdlc-binary.md:1644-1645; existing SIGSTOP test pins the behavior.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Tickets.locked now @contextlib.contextmanager with try/finally unlock (test-lock.py:128-134).
+```

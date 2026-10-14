@@ -52,6 +52,7 @@ Make admission FIFO: each waiter takes a ticket (an append-only sequence, e.g. a
 ## Log
 
 ### 2026-10-13
+- 2026-10-13: closed — Delta since 677c2df0 is the three advisory minors: FIFO tests now order arrivals by awaiting N tickets in the line (await_tickets) instead of 0.5s sleeps; the stopped (^Z) waiter keeping its place is documented as the rule in the script header and atlas (no heartbeat: it could misjudge a loaded waiter; before #357 a stopped head stalled the line the same way); Tickets.locked uses contextlib.contextmanager. scripts/test/test-lock.test.sh all passed after the change. (fixed-then-ship); review verdict: SHIP
 - 2026-10-13: closed — scripts/test/test-lock.test.sh all passed (39s) incl. new FIFO cases: arrival order with a SIGSTOPped waiter (a later waiter polling first does not overtake; asserts the stopped waiter has not acquired), kill -9 waiter skipped (handover within 3s), no ticket left behind, an older copy holding the queue file goes first, positions reported. Teeth: with origin/main test-lock.py swapped in, the overtake and position cases fail. Local merge gates 3/3 incl. 20-ci-workflow-tests now running the moved test. Full make test green (12 shards, 1227 cmd/sdlc tests, 48 packages, 0 failed), queued on the real machine lock with the new code printing position 1 in line: next to run. Atlas sdlc-binary.md test-gate section updated.; review verdict: SHIP
 - 2026-10-13: flow upgraded quick → full — 135 added lines in code files (limit 100)
 
