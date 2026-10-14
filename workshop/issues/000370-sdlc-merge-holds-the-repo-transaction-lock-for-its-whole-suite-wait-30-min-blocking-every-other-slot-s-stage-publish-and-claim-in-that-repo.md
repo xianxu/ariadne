@@ -55,7 +55,7 @@ design-buffer: 0.15
 total: 4.82
 ```
 
-The two API-integration items cover the durable and legacy Git/GitHub landing paths. Each uses a 1.5-hour v2 design midpoint discounted to 0.75 for the now detailed plan, and 1.5 implementation hours scaled to 0.60 by v3.1. The cross-cutting lock refactor uses 0.30 design and 0.50 × 0.40 = 0.20 implementation hours; atlas/docs uses 0.10 and 0.20 × 0.40 = 0.08; one close review uses 0.10 and 0.50 × 0.40 = 0.20. Familiarity is 1.5 because concurrency/recovery behavior is novel but bounded by existing seams. The thorough plan earns the v3.1 15% design buffer: 2.00 × 1.15 + 1.68 × 1.5 = 4.82 hours.
+The two API-integration items cover the durable and legacy Git/GitHub landing paths. Each starts from a 1.5-hour point in v2's 1–3 hour design range, discounted by 0.5 to 0.75: the contract is settled, while exact legacy phase extraction and the concurrent fixture orchestration still need design work. Each uses 1.5 v2 implementation hours scaled to 0.60 by v3.1. Those implementation items include the path-specific real-lock proofs, repeated-suite and head/main drift, interruption recovery, and elapsed recorded-suite/CI/landing checks. The cross-cutting lock refactor uses 0.30 design and 0.50 × 0.40 = 0.20 implementation hours, including the pure transition and lock metadata unit tests; atlas/docs uses 0.10 and 0.20 × 0.40 = 0.08; one close review uses 0.10 and 0.50 × 0.40 = 0.20. Familiarity is 1.5 because concurrency/recovery behavior is novel but bounded by existing seams. The thorough plan earns the v3.1 15% design buffer: 2.00 × 1.15 + 1.68 × 1.5 = 4.82 ship-wall-clock hours.
 
 *Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* The calibration source is marked stale by `sdlc estimate-source`, so the per-primitive hours are provisional.
 
@@ -67,7 +67,9 @@ The two API-integration items cover the durable and legacy Git/GitHub landing pa
 - Design: reuse `withRequiredRepoTransactionLock` (ARCH-DRY); keep `integrationState` as the only transition owner (ARCH-ORDER); use existing commit, lease, PR-head and archive evidence across unlocked phases (ARCH-FUNERAL/ARCH-PURPOSE).
 - Plan-quality round 1 (REWORK): accepted findings PQ-1 (legacy `runCIGate` can run a suite), PQ-2 (main drift after replay needs a reset/retry transition), and PQ-3 (named-function test strategies); a Minor requested explicit non-goals. The plan revision addresses each class before code.
 - Plan-quality round 2: CLEAN; PQ-1 through PQ-4 addressed, with no new findings. The estimate is derived after that review, per the gate's ordering.
+- Change-code admitted the full flow. Estimate-quality returned INFO: clarify the design-range point, test coverage and elapsed shipping work; the derivation now says where each belongs without changing the reconciled total.
 
 ## Revisions
 
 - 2026-10-14 11:42 PDT — Plan-quality review exposed a second suite-running merge path and a pre-push state gap. Expanded the plan to cover legacy merge, added a pure reset/retry transition and function-level test strategies, and renamed the durable plan to the canonical issue slug. The Spec and Done-when remain unchanged.
+- 2026-10-14 11:49 PDT — Clarified the admitted estimate after estimate-quality INFO: 1.5 is a chosen point within the v2 design range, not its midpoint; named the remaining design work and mapped tests plus ship-wall-clock verification to the integration items. Numeric estimate and acceptance contract unchanged.
