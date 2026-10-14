@@ -14,11 +14,10 @@ import (
 )
 
 // ZombieGroup starts a process group whose only member exits and stays
-// unreaped, and returns its command (the group leader, whose pid is the
-// pgid). On macOS it waits until the kernel answers
-// EPERM for the group (killpg skips zombies), the state #361 is about;
-// elsewhere a zombie still accepts signals, so it waits a short while. The
-// member is reaped at cleanup.
+// unreaped, and returns its command (the group leader, whose pid is the pgid).
+// On macOS it waits until the kernel answers EPERM for the group (killpg skips
+// zombies), the state #361 is about; elsewhere a zombie still accepts signals,
+// so it waits a short while. The member is reaped at cleanup.
 func ZombieGroup(t testing.TB) *exec.Cmd {
 	t.Helper()
 	cmd := exec.Command("sh", "-c", "exit 0")
