@@ -270,3 +270,11 @@ Core-concept file refinements: discovery IO lives in transcripts/discovery.go;
 the comparator shares actualmeasurement.go, and clipping lives in activetime/clip.go.
 These corrections fulfill existing dispatch/exclusion/warning contracts; no new
 feature scope or post-landing data writes (ARCH-PURPOSE/ARCH-ORDER).
+
+### 2026-10-14 — correction lifetime across completion generations
+
+BR-4: installing a new completion token atomically retires current correction
+metadata bound to its predecessor; same-token landing preserves it. Historical
+card/correction evidence remains immutable in Git. Sequence regressions cover
+both replacement and exclusion, rejected same-token rewrites, and production
+CodecompleteCard followed by resolver replay (ARCH-ORDER/ARCH-FUNERAL).

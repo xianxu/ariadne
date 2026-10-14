@@ -91,3 +91,93 @@ findings:
 7. **Plan revision recommendations**
 
    Add `## Revisions` entries specifying Claude span admission before activity union and exclusion precedence across multiple historical samples. Refresh the discovery file locations to `discovery.go` and the comparator location to `actualmeasurement.go`. Keep post-landing data repairs explicitly pending.
+
+---
+
+## Re-review — 2026-10-14T04:39:07-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 335 — actual: close adopted 0.05h for an issue sdlc actual measures at 2.57h (branch moved to :0 for a smoke test) |
+| repo | ariadne |
+| issue file | workshop/issues/000335-actual-close-adopted-0-05h-for-an-issue-sdlc-actual-measures-at-2-57h-branch-moved-to-0-for-a-smoke-test.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ca9b09087f9c0992d0171fa691df8819336edbbf..e7fe9c345a32e5d5577c622e888c7cb72e2d2b1c |
+| command | sdlc close --issue 335 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T04:39:07-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+All three prior findings are addressed, with regressions independently confirmed to fail when their fixes are removed. One new lifecycle defect blocks shipping: re-closing a corrected issue retains correction metadata from the previous completion generation, causing subsequent actual measurement to refuse. README and atlas updates are present; post-landing data repairs remain explicitly pending as documented.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Task spans retain original dispatch and are admitted within that engagement before union. Removing admission failed four dispatch regression cases; restoring it passed.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Validated exclusions suppress preceding issue samples before consumer selection. Removing the cutoff failed ordinary selection, forecast, convergence and drift assertions; restoring it passed. Production convergence and forecast regressions also passed.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      TestOmittedActualCloseEstimateWarningWiring exercises production whole-issue close and a milestone control. Removing the production warning failed both low/high issue cases; restoring it passed.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: completion-bound-correction-lifecycle
+    title: |
+      Re-close retains a correction bound to the previous completion generation
+    detail: |
+      cmd/sdlc/actualinputs.go:106 rejects corrections whose completion binding differs, but internal/issue/handoff.go:217 replaces Completion without clearing ActualCorrection. A disposable-head regression using production tracker.CodecompleteCard followed by resolveOwnedActualInputs failed for both numeric replacement and exclusion with "actual correction belongs to a different completion binding". ARCH-ORDER/ARCH-PURPOSE: retire prior-generation correction metadata atomically when a new completion token is installed, preserve it for same-generation landing updates, and cover both correction dispositions with regressions.
+```
+
+1. **Strengths**
+
+   - Dispatch provenance is enforced before activity union in `internal/activetime/compute.go:152`.
+   - Shared correction resolution protects all inspected calibration consumers.
+   - Retained transcript prefixes detect changed evidence while permitting later appends.
+   - Production warning tests verify successful close and milestone behavior.
+
+2. **Critical findings**
+
+   - **Stale correction after re-close:** `cmd/sdlc/actualinputs.go:106` and `cmd/sdlc/internal/issue/handoff.go:217`. Clear the current correction when replacing its completion generation; retain historical evidence in Git. Preserve correction metadata when merely adding the same generation’s landing commit.
+
+3. **Important findings**
+
+   None.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   Six core packages passed, as did targeted ownership, replay, correction, warning, convergence and forecast tests. All three prior fixes passed removal/restoration mutation checks. The new re-close probe failed for both correction dispositions. Disposable copies were removed; the reviewed tree remains clean. No full suite was rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared measurement and calibration resolution.
+   - **ARCH-PURE — pass:** ownership, eligibility, clipping and correction transitions have direct pure tests.
+   - **ARCH-PURPOSE — flag:** correction lifecycle breaks legitimate subsequent close generations.
+   - **ARCH-MOCK — pass:** portable Git repositories/remotes and transcript fixtures exercise integration boundaries.
+   - **ARCH-CONSTRAINTS — pass:** explicit history, source-count and snapshot bounds refuse incomplete authority.
+   - **ARCH-SECURE — pass:** persisted evidence is validated; changed prefixes refuse visibly.
+   - **ARCH-ORDER — flag:** completion replacement leaves authoritative state bound to an obsolete generation.
+   - **ARCH-FUNERAL — pass:** completed recovery refs are removed; permanent evidence costs are documented.
+
+7. **Plan revision recommendations**
+
+   Add a `## Revisions` entry defining correction lifetime across completion changes: new completion token retires the current correction; same-token landing preserves it. Require numeric-replacement and exclusion sequence tests through production card completion and measurement replay.

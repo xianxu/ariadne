@@ -1,6 +1,7 @@
 package issue
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"strings"
@@ -62,5 +63,77 @@ func TestActualCorrectionPreservesCompletion(t *testing.T) {
 	changed.IntentReason = "invalid\x00intent"
 	if _, err := SetCardActualCorrection(card, changed); err == nil {
 		t.Fatal("NUL intent reason accepted")
+	}
+}
+
+func TestCompletionGenerationRetiresOnlyItsPriorActualCorrection(t *testing.T) {
+	for _, exclude := range []bool{false, true} {
+		t.Run(fmt.Sprintf("exclude=%v", exclude), func(t *testing.T) {
+			completion := testCompletion("close-old")
+			card, err := SetCardCompletion([]byte(setterCard), completion)
+			if err != nil {
+				t.Fatal(err)
+			}
+			inputs := `{"version":1,"repository":"file:/r","code_head":"` + completion.ReviewedHEAD + `"}`
+			record := ActualCorrection{Version: 1, Token: "repair-old", CompletionToken: completion.Token, Repository: completion.Repository, EvidenceCommit: completion.EvidenceCommit, ReviewedHEAD: completion.ReviewedHEAD, PreviousActual: "0.05", NewActual: "2.57", Reason: "repair old close", Inputs: inputs, MeasurementDigest: fmt.Sprintf("%x", sha256.Sum256([]byte(inputs))), Exclude: exclude}
+			if exclude {
+				record.NewActual = "N/A"
+			}
+			corrected, err := SetCardActualCorrection(card, record)
+			if err != nil {
+				t.Fatal(err)
+			}
+			oldEvidence := append([]byte(nil), corrected...)
+			unchanged, err := SetCardCompletion(corrected, completion)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got, ok, err := CardActualCorrection(unchanged); err != nil || !ok || got != record {
+				t.Fatalf("same-generation repeat lost correction: %+v %v %v", got, ok, err)
+			}
+			landed := completion
+			landed.LandedCommit = strings.Repeat("e", 40)
+			landedCard, err := SetCardCompletion(corrected, landed)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got, ok, err := CardActualCorrection(landedCard); err != nil || !ok || got != record {
+				t.Fatalf("same-generation landing lost correction: %+v %v %v", got, ok, err)
+			}
+			if got, ok, err := CardCompletion(landedCard); err != nil || !ok || got != landed {
+				t.Fatal("landing binding changed")
+			}
+			rewritten := landed
+			rewritten.EvidenceCommit = strings.Repeat("f", 40)
+			beforeRejected := append([]byte(nil), landedCard...)
+			if out, err := SetCardCompletion(landedCard, rewritten); err == nil || out != nil {
+				t.Fatal("same-token rewrite emitted a replacement card")
+			}
+			if !bytes.Equal(landedCard, beforeRejected) {
+				t.Fatal("rejected rewrite mutated its input")
+			}
+			if got, ok, err := CardActualCorrection(landedCard); err != nil || !ok || got != record {
+				t.Fatal("rejected rewrite retired correction")
+			}
+			newCompletion := testCompletion("close-new")
+			newCompletion.ReviewedHEAD = strings.Repeat("a", 40)
+			newCompletion.EvidenceCommit = strings.Repeat("b", 40)
+			newCard, err := SetCardCompletion(landedCard, newCompletion)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got, ok, err := CardActualCorrection(newCard); err != nil || ok {
+				t.Fatalf("new completion retained prior-generation correction: %+v %v %v", got, ok, err)
+			}
+			if got, ok, err := CardCompletion(newCard); err != nil || !ok || got != newCompletion {
+				t.Fatal("new completion did not replace old generation")
+			}
+			if !bytes.Equal(corrected, oldEvidence) {
+				t.Fatal("new generation rewrote immutable old evidence")
+			}
+			if got, ok, err := CardActualCorrection(oldEvidence); err != nil || !ok || got != record {
+				t.Fatal("old evidence no longer retains old correction")
+			}
+		})
 	}
 }

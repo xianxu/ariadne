@@ -418,3 +418,59 @@ func TestOwnedActualResolverReconstructsProvenMainIntegrationScope(t *testing.T)
 		t.Fatalf("recorded main integration scope=%+v", got.Scope)
 	}
 }
+
+// A new production close retires the prior generation's repair while a landing
+// of that generation preserves it. Both replacement and exclusion are covered.
+func TestOwnedActualResolverRecloseRetiresPriorCorrection(t *testing.T) {
+	for _, excluded := range []bool{false, true} {
+		t.Run(fmt.Sprintf("exclude=%v", excluded), func(t *testing.T) {
+			r, saved, _ := ownedCompletedFixture(t, false)
+			ownedFixtureCorrection(t, r, saved, excluded, false)
+			cardPath := tracker.CardPath("000335", "owned")
+			ownedFixtureAt(t, 16)
+			ownedFixtureCard(t, r, cardPath, "land-same-generation", func(raw []byte) ([]byte, error) {
+				prior, ok, err := issue.CardActualCorrection(raw)
+				if err != nil || !ok {
+					t.Fatal("missing correction")
+				}
+				c, _, err := issue.CardCompletion(raw)
+				if err != nil {
+					return nil, err
+				}
+				c.LandedCommit = c.EvidenceCommit
+				next, err := issue.SetCardCompletion(raw, c)
+				if err != nil {
+					return nil, err
+				}
+				retained, ok, err := issue.CardActualCorrection(next)
+				if err != nil || !ok || retained.Token != prior.Token || retained.MeasurementDigest != prior.MeasurementDigest {
+					t.Fatal("landing retired same-generation correction")
+				}
+				return next, nil
+			})
+			got, err := resolveOwnedActualInputs(context.Background(), r.root, "", "335", "")
+			if excluded {
+				if err == nil || !strings.Contains(err.Error(), "explicitly excluded") {
+					t.Fatalf("landing lost exclusion: %v", err)
+				}
+			} else if err != nil || got.Snapshot.GapMinutes != 7 {
+				t.Fatalf("landing lost corrected inputs: %+v %v", got, err)
+			}
+			ownedFixtureAt(t, 17)
+			ownedFixtureCard(t, r, cardPath, "close-next-generation", func(raw []byte) ([]byte, error) {
+				c, _, err := issue.CardCompletion(raw)
+				if err != nil {
+					return nil, err
+				}
+				return tracker.CodecompleteCard(raw, tracker.ReceiptSpec{Token: "close-next", IssueID: "000335", Repository: saved.Repository, ReviewedHEAD: saved.CodeHead, EvidenceMessage: "#335: new close\n\nClose-Actual: 0.5"}, c.EvidenceCommit, "2026-10-14")
+			})
+			got, err = resolveOwnedActualInputs(context.Background(), r.root, "", "335", "")
+			if err != nil {
+				t.Fatalf("new completion retained stale correction: %v", err)
+			}
+			if !got.Replay || got.Snapshot.GapMinutes != saved.GapMinutes {
+				t.Fatalf("new close did not restore its own snapshot: %+v", got.Snapshot)
+			}
+		})
+	}
+}

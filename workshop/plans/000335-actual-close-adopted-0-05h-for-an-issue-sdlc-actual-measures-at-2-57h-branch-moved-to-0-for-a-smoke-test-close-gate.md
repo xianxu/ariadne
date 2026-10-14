@@ -32,6 +32,34 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-14T04:39:07-07:00"
+      dispatched: "2026-10-14T04:34:54-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Task spans retain original dispatch and are admitted within that engagement before union. Removing admission failed four dispatch regression cases; restoring it passed.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: Validated exclusions suppress preceding issue samples before consumer selection. Removing the cutoff failed ordinary selection, forecast, convergence and drift assertions; restoring it passed. Production convergence and forecast regressions also passed.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: TestOmittedActualCloseEstimateWarningWiring exercises production whole-issue close and a milestone control. Removing the production warning failed both low/high issue cases; restoring it passed.
+          round: 2
+      findings:
+        - kind: defect
+          id: BR-4
+          severity: Critical
+          title: Re-close retains a correction bound to the previous completion generation
+          detail: 'cmd/sdlc/actualinputs.go:106 rejects corrections whose completion binding differs, but internal/issue/handoff.go:217 replaces Completion without clearing ActualCorrection. A disposable-head regression using production tracker.CodecompleteCard followed by resolveOwnedActualInputs failed for both numeric replacement and exclusion with "actual correction belongs to a different completion binding". ARCH-ORDER/ARCH-PURPOSE: retire prior-generation correction metadata atomically when a new completion token is installed, preserve it for same-generation landing updates, and cover both correction dispositions with regressions.'
+          family: completion-bound-correction-lifecycle
+          round: 2
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#335 (boundary-review)
@@ -50,8 +78,19 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-3** [Important] `production-adoption-warning-coverage` (kind: defect) The close-time plausibility warning has no production-path regression
   cmd/sdlc/close.go:526 introduces the warning, but cmd/sdlc/actualwiring_test.go:59 only tests actualEstimateWarning directly. No test asserts that omitted-actual whole-issue close emits the warning; deleting its production call leaves the comparator test green. Add a close-path regression for an implausible adopted measurement and a milestone control, and confirm the regression fails when the warning call is removed.
 
+## Round 2 — 2026-10-14T04:39:07-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Task spans retain original dispatch and are admitted within that engagement before union. Removing admission failed four dispatch regression cases; restoring it passed.
+- BR-2 — addressed — Validated exclusions suppress preceding issue samples before consumer selection. Removing the cutoff failed ordinary selection, forecast, convergence and drift assertions; restoring it passed. Production convergence and forecast regressions also passed.
+- BR-3 — addressed — TestOmittedActualCloseEstimateWarningWiring exercises production whole-issue close and a milestone control. Removing the production warning failed both low/high issue cases; restoring it passed.
+
+### Raised
+
+- **BR-4** [Critical] `completion-bound-correction-lifecycle` (kind: defect) Re-close retains a correction bound to the previous completion generation
+  cmd/sdlc/actualinputs.go:106 rejects corrections whose completion binding differs, but internal/issue/handoff.go:217 replaces Completion without clearing ActualCorrection. A disposable-head regression using production tracker.CodecompleteCard followed by resolveOwnedActualInputs failed for both numeric replacement and exclusion with "actual correction belongs to a different completion binding". ARCH-ORDER/ARCH-PURPOSE: retire prior-generation correction metadata atomically when a new completion token is installed, preserve it for same-generation landing updates, and cover both correction dispositions with regressions.
+
 ## Open findings
 
-- **BR-1** [Critical] `dispatch-engagement-attribution` (kind: defect) Claude task spans inherit the parent session's later engagements
-- **BR-2** [Critical] `authoritative-calibration-exclusion` (kind: defect) Excluding the newest sample revives an older sample for the same issue
-- **BR-3** [Important] `production-adoption-warning-coverage` (kind: defect) The close-time plausibility warning has no production-path regression
+- **BR-4** [Critical] `completion-bound-correction-lifecycle` (kind: defect) Re-close retains a correction bound to the previous completion generation

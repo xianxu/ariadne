@@ -269,3 +269,27 @@ Integrated root correction/ownership/replay/warning/convergence/forecast checks
 passed58.663s. Restored mutation checks passed2.673s; full internal active-time,
 transcripts and estimate packages passed4.111s/0.068s/0.065s. Next: commit/push,
 fresh recorded suite on changed code, then shared-binary round2 close.
+
+### 2026-10-14 — recorded suite pass and boundary round2
+
+Recorded suite on e7fe9c345a32e5d5577c622e888c7cb72e2d2b1c passed344.3s:
+1334 command tests,54 packages,12 shards, zero failures (log6f5d01f45a40).
+Round2 independently confirmed BR-1/BR-2/BR-3 addressed with removal/restoration
+mutations. One new Critical BR-4 completion-bound-correction-lifecycle: a new
+completion token retained its predecessor's correction, so resolver correctly
+refused the mismatched binding. Fix the envelope transition once for all close
+consumers; preserve correction on same-generation landing updates. No data repair
+performed and no landing claimed.
+
+### 2026-10-14 — BR-4 verified
+
+SetCardCompletion now retires ActualCorrection atomically when the previous token
+changes; same-token landing/repeat preserves it and rejected rewrites leave input
+untouched. Internal numeric/exclusion sequence regression observed RED, then
+passed; retirement-disabled and same-generation-retirement mutations both caught.
+Issue package passed0.639s. Production CodecompleteCard→resolver regression
+covers both dispositions plus same-generation landing; disabling retirement
+reproduced the exact binding refusal in both cases (4.463s). Restored regression
+passed4.345s; expanded correction/reclose/rebase checks passed56.280s. Historical
+correction evidence remains in immutable card blobs. Fresh recorded suite and
+shared-binary round3 review remain required.

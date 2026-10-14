@@ -692,3 +692,7 @@ The simplest durable authority beats a clever scan of consequences.
 - Diagnostic requirements need production caller regressions. A correct
   comparator unit test cannot detect a removed close-time warning call; mutate
   the wiring and include the incremental-milestone control (#335 BR-3).
+
+- Installing a new authoritative generation must retire metadata bound to its
+  predecessor in the same transition. Test re-close after both numeric repair
+  and exclusion, plus same-generation landing preservation (#335 BR-4).

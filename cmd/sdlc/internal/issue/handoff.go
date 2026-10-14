@@ -201,7 +201,9 @@ func CardCompletion(card []byte) (Completion, bool, error) {
 }
 
 // SetCardCompletion records a close's binding. A new close (a new token)
-// replaces an older generation; the same close may only add its landed commit.
+// replaces an older generation and retires its current correction summary;
+// the same close may only add its landed commit. Historical card blobs retain
+// the retired correction's evidence.
 func SetCardCompletion(card []byte, c Completion) ([]byte, error) {
 	if err := c.validate(); err != nil {
 		return nil, err
@@ -213,6 +215,9 @@ func SetCardCompletion(card []byte, c Completion) ([]byte, error) {
 			if p != c || (prior.LandedCommit != "" && prior.LandedCommit != c.LandedCommit) {
 				return errors.New("a close's completion binding cannot be rewritten")
 			}
+		}
+		if env.Completion != nil && env.Completion.Token != c.Token {
+			env.ActualCorrection = nil
 		}
 		env.Completion = &c
 		return nil
