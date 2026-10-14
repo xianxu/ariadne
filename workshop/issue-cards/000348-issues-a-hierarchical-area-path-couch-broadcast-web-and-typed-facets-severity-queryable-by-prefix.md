@@ -17,10 +17,10 @@ actual_hours: 1.55
 tracker:
     version: 1
     completion:
-        token: close-49ec765a6bf5
+        token: close-7202941b5a3f
         repository: github.com/xianxu/ariadne
-        reviewed_head: d0cfeff3d6927a0ba7229df8969fcc34dcbda22b
-        evidence_commit: fda1f4b7d96adb618757ee7d8da81a4382904f2b
+        reviewed_head: 534f27540c7435c86d09a8ce25d3d8c406fff09f
+        evidence_commit: f05328d1f72afbba80750427e02410a5e03a3a74
 ---
 
 # issues: a hierarchical area path (couch/broadcast/web) and typed facets (severity), queryable by prefix
