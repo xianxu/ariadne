@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.18
+actual_hours: 0.20
 tracker:
     version: 1
     completion:
-        token: close-2994e48bafdf
+        token: close-ce7dd6f93dfd
         repository: github.com/xianxu/ariadne
-        reviewed_head: 83634985882f1566e69c81d746218cacb9ce1d50
-        evidence_commit: 677c2df09571c9b2072e73b56967e13e44274701
+        reviewed_head: 603f60e74f8b2e3036374febe5eb650dd47ef1ed
+        evidence_commit: 43826c76588d46593c06f29aae5a9374b72d4f3e
 ---
 
 # test gate: the suite queue is polled, not FIFO, so a waiter can starve (51+ min) while later suites take the head
