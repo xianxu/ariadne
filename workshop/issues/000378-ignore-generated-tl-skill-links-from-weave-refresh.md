@@ -31,18 +31,23 @@ Add the four generated TL skill paths to the existing `.gitignore` skill-link gr
 
 ## Done when
 
-- `weave refresh` leaves no tracked changes in a clean checkout containing the new ignore entries.
-- The branch patch changes only `.gitignore` by those four lines, and the required quick-flow gates pass.
+- All four generated TL skill paths are ignored by the exact new `.gitignore` patterns.
+- The non-issue branch patch changes only `.gitignore` by those four lines, and the required quick-flow gates pass.
 
 ## Plan
 
-- [ ] Carry the exact four-line generated diff onto this issue branch, verify its scope and repeat `weave refresh`.
+- [x] Carry the exact four-line generated diff onto this issue branch and verify its scope and ignore matches.
 - [ ] Run the required build and suite, and verify the exact patch before close.
 
-Delivery follows the close review: land the PR and report its merge commit.
+Delivery follows the close review: land the PR, repeat `weave refresh` from the resting branch, confirm it stays clean, and report the merge commit.
 
 ## Log
 
 ### 2026-10-14
 
 - `weave refresh` on main-slot1 at `7a7223628f1ec78a213ad4dd6ea4f0f9761c9f31` changed only `.gitignore` by the four specified additions. The generated diff was stashed while `start-plan` created this issue branch from main.
+- On the issue branch, `git check-ignore -v` matched each of the four paths to its exact added line. `weave refresh` refuses a branch ahead of main, so the clean-refresh check moves to the resting branch after landing.
+
+## Revisions
+
+- 2026-10-14 — The first verification wording required running `weave refresh` on the ahead issue branch, which weave refuses. The pre-close contract now checks all four generated paths and the exact diff; the operational refresh check follows the merge on the supported resting branch. The four-line scope is unchanged.
