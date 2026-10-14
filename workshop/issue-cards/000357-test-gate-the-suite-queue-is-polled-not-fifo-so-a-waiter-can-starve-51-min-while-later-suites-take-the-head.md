@@ -1,6 +1,6 @@
 ---
 id: 000357
-status: codecomplete
+status: done
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 603f60e74f8b2e3036374febe5eb650dd47ef1ed
         evidence_commit: 43826c76588d46593c06f29aae5a9374b72d4f3e
+        landed_commit: 2f8041ba3656d6de5f9eaf128fde30685116e64a
 ---
 
 # test gate: the suite queue is polled, not FIFO, so a waiter can starve (51+ min) while later suites take the head
