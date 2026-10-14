@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
-estimate_hours:
-card_mirror: 'efb86b83ffbf304205299b3d4b763a857eb0354f' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 8.881
+card_mirror: '4807cc301e82494819858a46b67e1bcb8f0e2ad4' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T07:39:58-07:00
 claimant:
     operator: Xian Xu
@@ -109,3 +109,51 @@ no semantic gate advancement during cancellation/staleness/death. Explicit revie
 binding precedes worker eligibility; conflicts are unknown and measured issue
 union counts each response once. Opt-in conformance runs on CLI upgrade/before
 bench. No implementation or estimate yet; rerun plan-quality next.
+
+## Estimate
+
+Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against
+baseline-v3.1.md. Method A only. Calibration source is flagged stale; provisional.
+Read v2/v2.1/v3/v3.1 and baseline before deriving. Stdlib JSON/time and existing
+Git/fleet/recovery/lock seams cover mechanics; no library replaces response
+revision semantics, ownership or interrupted review attribution. Thorough approved
+plan gives most domain components ×0.2 design discount and15% design buffer.
+Issue-spec captures the already-performed authoring separately. Impl values are
+40% of the v2 ranges; familiarity1.0 for this existing stack.
+
+Items: issue/spec; counter schema; Codex decoder; Claude decoder; dedup/aggregation;
+source discovery/lineage; shared ownership refactor; review attempt transition;
+review receipt IO; gate binding integration; meter model; meter store; command/
+rendering; docs; Claude/Codex live conformance each; one close review. Targeted
+regressions/mutations are included in their owning components. Design3.34h +
+impl5.04h; buffered total8.881h. No parallelism multiplier or typed actual.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.60 impl=0.08
+item: greenfield-go-module design=0.10 impl=0.24
+item: greenfield-go-module design=0.20 impl=0.32
+item: greenfield-go-module design=0.20 impl=0.32
+item: greenfield-go-module design=0.16 impl=0.28
+item: api-integration design=0.40 impl=0.60
+item: cross-cutting-refactor design=0.12 impl=0.20
+item: greenfield-go-module design=0.16 impl=0.32
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: greenfield-go-module design=0.16 impl=0.28
+item: smaller-go-module design=0.06 impl=0.20
+item: api-integration design=0.30 impl=0.48
+item: atlas-docs design=0.04 impl=0.08
+item: real-api-discovery design=0.00 impl=0.12
+item: real-api-discovery design=0.00 impl=0.12
+item: milestone-review design=0.04 impl=0.20
+design-buffer: 0.15
+total: 8.881
+```
+
+### 2026-10-14 — plan-quality accepted
+
+Round2 CLEAN high confidence; PQ-1/PQ-2/PQ-3 addressed, zero blockers. Derived
+estimate only after that acceptance; next rerun change-code for reconciliation
+and estimate advisory, then implementation.

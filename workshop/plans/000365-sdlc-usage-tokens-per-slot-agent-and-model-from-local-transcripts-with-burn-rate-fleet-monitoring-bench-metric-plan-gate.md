@@ -26,6 +26,24 @@ rounds:
           family: external-model-conformance-cadence
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-14T08:59:57-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Independent CAS receipts preserve interrupted attempts without advancing gate state, with explicit recovery coverage and retention tests.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: Reviewer bindings precede worker eligibility; conflicts become unknown, and production aggregation proves exclusive response accounting.
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          note: Opt-in live identity conformance runs on supported CLI upgrades and before benchmark batches through the production adapter.
+          round: 2
+      blocked: false
+content_hash: ba65e388c55a867c89f7debf9fe52105189eb79404e56e3204e1e25b64b47f9c
 ---
 
 # Gate ledger — ariadne#365 (plan-quality)
@@ -44,8 +62,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-3** [Minor] `external-model-conformance-cadence` Name the live conformance cadence for reviewer identity protocols.
   ARCH-MOCK: recorded startup preambles and fake Run tests establish fixtures, but the plan supplies no recurring comparison with live Claude/Codex identity emission. Name an opt-in conformance check and its cadence, such as supported CLI upgrades, so protocol drift is detected beyond the initial acceptance smoke.
 
+## Round 2 — 2026-10-14T08:59:57-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Independent CAS receipts preserve interrupted attempts without advancing gate state, with explicit recovery coverage and retention tests.
+- PQ-2 — addressed — Reviewer bindings precede worker eligibility; conflicts become unknown, and production aggregation proves exclusive response accounting.
+- PQ-3 — addressed — Opt-in live identity conformance runs on supported CLI upgrades and before benchmark batches through the production adapter.
+
 ## Open findings
 
-- **PQ-1** [Important] `accounting-evidence-survives-interruption` Define reviewer accounting persistence independently of gate advancement.
-- **PQ-2** [Important] `attribution-roles-are-exclusive` Give explicit reviewer bindings precedence over worker ownership eligibility.
-- **PQ-3** [Minor] `external-model-conformance-cadence` Name the live conformance cadence for reviewer identity protocols.
+(none — every finding has been disposed)
