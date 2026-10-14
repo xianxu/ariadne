@@ -83,13 +83,19 @@ ariadne-styled siblings and emits a shell function per owned `cmd/X`:
 source <(~/workspace/ariadne/construct/dev-aliases.sh)
 ```
 
-Each function builds to the **owner's** `bin/X` (the official, gitignored path
-— not a temp dir, so it's safe for a service binary like `nous`) and runs it in
+Each function installs the **owner's** `bin/X` (the official, gitignored path,
+so it's safe for a service binary like `nous`) and runs it in
 the **caller's** cwd, so it's always fresh and works for both repo-bound tools
 (`sdlc`, operates on the repo you're in) and run-anywhere tools (`nous`). The
-emitted form is `X() { ( cd OWNER && mkdir -p bin && rm -f bin/X && go build -o
-bin/X ./cmd/X ) || return; OWNER/bin/X "$@"; }` (the `rm -f` mirrors the owner
-Makefiles' code-signing-inode safety). An owner whose build needs a generated
+emitted form builds into a per-call directory beside the target and renames the
+result over `bin/X` (#355): `X() { ( cd OWNER && mkdir -p bin && d="$(mktemp -d
+bin/.X.XXXXXX)" && { go build -o "$d/X" ./cmd/X && mv -f "$d/X" bin/X; s=$?; rm -rf
+"${d:?}"; exit $s; } ) || return; OWNER/bin/X "$@"; }`. The rename is atomic, so
+another process calling `bin/X` during a rebuild never finds it missing (it used to
+be `rm -f` then build); concurrent builds use separate directories and the last
+rename wins; and the new inode gives the macOS code-signing safety the owner
+Makefiles get from `rm -f`. A build killed mid-way leaves its `bin/.X.*` directory.
+An owner whose build needs a generated
 input (pair's gitignored runtime-bundle embed tree) declares a `dev-prepare`
 rule in its `Makefile`, `Makefile.workflow` or `Makefile.local` (#299; make
 decides, via `make -q`, whether the rule exists); its functions then run `make

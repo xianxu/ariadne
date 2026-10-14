@@ -59,3 +59,7 @@ requires the binary's whole output. A build killed mid-way leaves its `bin/.X.*`
 directory (gitignored with bin/); nothing sweeps it, since a sweep could remove a
 concurrent build's directory. Nothing runs `construct/scripts/test/*.test.sh` on its
 own; the only shared script-test runner is the local-gates `20-ci-workflow-tests` check.
+
+Correction: the close passed `--no-atlas`, claiming no atlas surface, but
+`atlas/workflow/base-layer.md` restated the old `rm -f` form. Updated it after the close
+(doc-only).
