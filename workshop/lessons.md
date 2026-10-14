@@ -587,3 +587,5 @@ The simplest durable authority beats a clever scan of consequences.
   mutate each branch of a new rule once and list the test that fails.
 
 - Classify a function by all production effects reachable through its callbacks, not only its direct calls or name. An injected reader still makes a planner INTEGRATION when the production binding reads Git; trace every callback before declaring PURE (#337 BR-3).
+
+- When an authorized acceptance revision changes required checks, update the current Done when criteria as well as appending its revision history. Label completed local verification separately from pending PR CI; do not leave two competing acceptance contracts (#358 BR-1).
