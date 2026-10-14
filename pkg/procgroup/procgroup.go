@@ -1,7 +1,9 @@
 //go:build unix
 
 // Package procgroup signals a process group and says when nothing in it can
-// run any more, the one place weave and sdlc read the kernel's answer (#361).
+// run any more: the one reading of the kernel's answer to a process-group
+// signal that weave and sdlc share (#361). Single-process liveness probes
+// (kill(pid, 0), where EPERM means alive) are a different question.
 package procgroup
 
 import (

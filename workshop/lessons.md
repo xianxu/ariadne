@@ -137,6 +137,12 @@ Detailed incidents remain in their owning issue or review artifact.
   while the gate's decoder read it as a string (BR-2). Test a round trip with
   type-ambiguous values.
 
+- Prove that a test builds the state it names, before trusting it as a
+  regression test. #361's first zombie-group test used `wait4(WNOWAIT)` to wait
+  without reaping, but Darwin ignores `WNOWAIT`, so the child was reaped and the
+  test passed with the fix reverted. Assert the precondition the kernel reports
+  (EPERM for a zombie-only group), then revert the fix and watch the test fail.
+
 ## Paths, processes, and integration
 
 - A before/after measurement needs a baseline binary built from the baseline

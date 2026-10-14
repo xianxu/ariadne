@@ -14,7 +14,8 @@ import (
 )
 
 // ZombieGroup starts a process group whose only member exits and stays
-// unreaped, and returns its command (the group leader; its pid is the pgid). On macOS it waits until the kernel answers
+// unreaped, and returns its command (the group leader, whose pid is the
+// pgid). On macOS it waits until the kernel answers
 // EPERM for the group (killpg skips zombies), the state #361 is about;
 // elsewhere a zombie still accepts signals, so it waits a short while. The
 // member is reaped at cleanup.

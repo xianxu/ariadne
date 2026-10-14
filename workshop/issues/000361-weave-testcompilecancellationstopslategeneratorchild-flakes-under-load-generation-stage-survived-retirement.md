@@ -74,3 +74,7 @@ Filed by ariadne:3 from #353's full suite (unrelated to #353's diff).
   - `procgrouptest.ZombieGroup` builds a real zombie-only group and asserts the kernel's EPERM on macOS. An earlier draft used `wait4(WNOWAIT)`, which Darwin ignores, so it reaped the child and proved nothing.
   - `TestFinishProducersSettlesWhenTheGroupIsAlreadyDone` and `TestTerminateReportsADyingGroupAsDone` each **fail with the fix reverted** ("operation not permitted", the field error) and pass with it.
 - Under load (24 CPU burners, load ≈60), interleaved runs of the original test: reverted 2/100 + 4/100 survived; fixed 0/100 + 0/100.
+
+## Revisions
+
+- 2026-10-13 — delivered design differs from Plan item 2: no `killGroup` seam or fake kill. The tests build a real zombie-only process group (`pkg/procgroup/procgrouptest.ZombieGroup`, asserting the kernel's EPERM on macOS), so they exercise the kernel answer itself; a fake would have tested only our model of it (close review, Minor).
