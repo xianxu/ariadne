@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/pkg/procgroup"
 	"github.com/xianxu/ariadne/pkg/procgroup/procgrouptest"
 )
 
@@ -101,5 +102,74 @@ func TestTerminateReportsADyingGroupAsDone(t *testing.T) {
 		if err := Terminate(cmd, force); err != nil && !errors.Is(err, os.ErrProcessDone) {
 			t.Fatalf("force=%v: %v", force, err)
 		}
+	}
+}
+
+// The kernel's successful group signal can miss a descendant born during its
+// traversal. Reproduce that ordering by signalling only the ready parent on
+// the first pass, leaving its pipe-holding descendant in the original group.
+func TestForcedTerminationRetiresMemberMissedByFirstSignal(t *testing.T) {
+	ready := filepath.Join(t.TempDir(), "child")
+	cmd := exec.Command("sh", "-c", `sleep 60 & child=$!; printf '%s' "$child" > "$1"; wait`, "fixture", ready)
+	Configure(cmd)
+	cmd.WaitDelay = time.Second
+	var output bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &output, &output
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	child := 0
+	deadline := time.Now().Add(testfix.HangCeiling)
+	for time.Now().Before(deadline) {
+		raw, _ := os.ReadFile(ready)
+		child, _ = strconv.Atoi(string(raw))
+		if child > 0 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if child == 0 {
+		cmd.Process.Kill()
+		cmd.Wait()
+		t.Fatal("child never ready")
+	}
+	t.Cleanup(func() { _ = syscall.Kill(child, syscall.SIGKILL); _ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) })
+	calls := 0
+	start := time.Now()
+	err := terminateGroup(cmd.Process.Pid, syscall.SIGKILL, func(pgid int, sig syscall.Signal) error {
+		calls++
+		if calls == 1 {
+			return syscall.Kill(cmd.Process.Pid, sig)
+		}
+		return procgroup.Kill(pgid, sig)
+	})
+	if err != nil && !errors.Is(err, os.ErrProcessDone) {
+		t.Errorf("terminate: %v", err)
+	}
+	_ = cmd.Wait()
+	if elapsed := time.Since(start); elapsed >= 700*time.Millisecond {
+		t.Errorf("pipe holder survived first signal: %v", elapsed)
+	}
+	if calls < 2 {
+		t.Error("successful first signal was treated as group retirement")
+	}
+	if err := testfix.AwaitExit(child, 100*time.Millisecond); err != nil {
+		t.Errorf("missed descendant survived: %v", err)
+	}
+}
+
+func TestForcedTerminationPreservesSuccessfulCancelResult(t *testing.T) {
+	calls := 0
+	err := terminateGroup(123, syscall.SIGKILL, func(int, syscall.Signal) error {
+		calls++
+		if calls == 1 {
+			return nil
+		}
+		return os.ErrProcessDone
+	})
+	// exec.Cmd.Cancel needs nil once our signal was sent: returning ProcessDone
+	// instead would suppress context cancellation when the parent exits zero.
+	if err != nil {
+		t.Fatalf("successful cancellation became %v", err)
 	}
 }

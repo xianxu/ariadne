@@ -2,10 +2,110 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/spf13/cobra"
 )
+
+type blockedMergeWorker struct {
+	done chan struct{}
+	err  error
+}
+
+// Cleanup runs before fixture teardown: release the suite, cancel any wait,
+// then join the worker before cwd and package-global adapters can be restored.
+func startBlockedMergeWorker(t *testing.T, release string, run func(context.Context) error) *blockedMergeWorker {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	w := &blockedMergeWorker{done: make(chan struct{})}
+	go func() { w.err = run(ctx); close(w.done) }()
+	t.Cleanup(func() {
+		_ = os.WriteFile(release, nil, 0o600)
+		cancel()
+		<-w.done
+	})
+	return w
+}
+
+func TestBlockedMergeWorkerJoinsBeforeFixtureCleanup(t *testing.T) {
+	release := filepath.Join(t.TempDir(), "release")
+	started := make(chan struct{})
+	t.Run("early exit", func(t *testing.T) {
+		var worker *blockedMergeWorker
+		t.Cleanup(func() {
+			select {
+			case <-worker.done:
+			default:
+				t.Error("fixture cleanup ran before merge worker joined")
+			}
+		})
+		worker = startBlockedMergeWorker(t, release, func(ctx context.Context) error {
+			close(started)
+			<-ctx.Done()
+			return ctx.Err()
+		})
+		<-started
+		// Simulate an assertion exiting before the normal finished-channel receive.
+	})
+}
+
+func TestRunMerge_LegacyReleasesRepoLockDuringLocalCheck(t *testing.T) {
+	signalDir := t.TempDir()
+	started, release := filepath.Join(signalDir, "started"), filepath.Join(signalDir, "release")
+	command := fmt.Sprintf("touch %q; i=0; while [ ! -e %q ] && [ \"$i\" -lt 600 ]; do sleep 0.05; i=$((i+1)); done; test -e %q", started, release, release)
+	gh, _ := localChecksMergeRepo(t, command, 0, "")
+	cmd := markManualLockCommand(&cobra.Command{Use: "merge"})
+	cmd.SetContext(context.Background())
+	var locks atomic.Int32
+	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	f.Lock = func(run func() error) error {
+		locks.Add(1)
+		return withRequiredRepoTransactionLock(cmd, run)
+	}
+	worker := startBlockedMergeWorker(t, release, func(ctx context.Context) error {
+		f.Context = ctx
+		cmd.SetContext(ctx)
+		return runMerge(io.Discard, io.Discard, f)
+	})
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		if _, err := os.Stat(started); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("local check did not start")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if locks.Load() == 0 {
+		t.Fatal("merge never acquired the repo lock")
+	}
+	other := markManualLockCommand(&cobra.Command{Use: "claim"})
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	other.SetContext(ctx)
+	if err := withRequiredRepoTransactionLock(other, func() error { return nil }); err != nil {
+		t.Fatalf("another command could not acquire repo lock during local check: %v", err)
+	}
+	if err := os.WriteFile(release, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-worker.done:
+		if worker.err != nil || gh.prMergeCalls != 1 {
+			t.Fatalf("merge err=%v calls=%d", worker.err, gh.prMergeCalls)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("merge did not finish")
+	}
+}
 
 // The legacy path never integrates automatically. Check main before spending
 // suite time and again after the checks, without altering either branch tip.
@@ -44,6 +144,45 @@ func TestRunMerge_LegacyRefusesMovedMain(t *testing.T) {
 				t.Fatalf("remote branch changed: %s", got)
 			}
 		})
+	}
+}
+
+func TestRunMerge_LegacyRefusesHeadMovedDuringChecks(t *testing.T) {
+	root := tempRepo(t)
+	before := git(t, root, "rev-parse", "HEAD")
+	g := &legacyMovingMainGH{e2eGH: e2eGH{openPR: "42"}}
+	g.onChecks = func() { git(t, root, "commit", "--allow-empty", "-qm", "concurrent local edit") }
+	swapMergeDeps(t, g, nil)
+	cmd := markManualLockCommand(&cobra.Command{Use: "merge"})
+	cmd.SetContext(context.Background())
+	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history", Lock: func(run func() error) error {
+		return withRequiredRepoTransactionLock(cmd, run)
+	}}
+	msg, died := expectDie(t, func() { _ = runMerge(io.Discard, io.Discard, f) })
+	if !died || !strings.Contains(msg, "HEAD moved") || g.prMergeCalls != 0 {
+		t.Fatalf("died=%v merges=%d message=%s", died, g.prMergeCalls, msg)
+	}
+	if got := git(t, root, "rev-parse", "HEAD"); got == before {
+		t.Fatal("fixture did not move HEAD")
+	}
+}
+
+func TestRunMerge_LegacyRefusesHeadMovedAfterPublishGate(t *testing.T) {
+	root := tempRepo(t)
+	before := git(t, root, "rev-parse", "HEAD")
+	g := &e2eGH{openPR: "42"}
+	swapMergeDeps(t, g, func(context.Context, string, string, io.Writer) error {
+		git(t, root, "commit", "--allow-empty", "-qm", "concurrent published commit")
+		git(t, root, "push", "origin", "feature")
+		return nil
+	})
+	f := &mergeFlags{Yes: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	msg, died := expectDie(t, func() { _ = runMerge(io.Discard, io.Discard, f) })
+	if !died || !strings.Contains(msg, "HEAD moved") || g.prMergeCalls != 0 {
+		t.Fatalf("died=%v merges=%d message=%s", died, g.prMergeCalls, msg)
+	}
+	if got := git(t, root, "rev-parse", "HEAD"); got == before {
+		t.Fatal("fixture did not move HEAD")
 	}
 }
 

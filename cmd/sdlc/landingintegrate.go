@@ -22,14 +22,15 @@ var integrationSyncTimeout = 2 * time.Minute
 type integrationStep string
 
 const (
-	integrationMerge  integrationStep = "merge"
-	integrationAbort  integrationStep = "abort"
-	integrationReset  integrationStep = "reset"
-	integrationPush   integrationStep = "push"
-	integrationReplay integrationStep = "replay"
-	integrationGates  integrationStep = "gates"
-	integrationLand   integrationStep = "land"
-	integrationRefuse integrationStep = "refuse"
+	integrationMerge      integrationStep = "merge"
+	integrationAbort      integrationStep = "abort"
+	integrationReset      integrationStep = "reset"
+	integrationRetryReset integrationStep = "retry-reset"
+	integrationPush       integrationStep = "push"
+	integrationReplay     integrationStep = "replay"
+	integrationGates      integrationStep = "gates"
+	integrationLand       integrationStep = "land"
+	integrationRefuse     integrationStep = "refuse"
 )
 
 func integrationAncestor(r gitRunner, root, ancestor, head string) (bool, error) {
@@ -84,7 +85,7 @@ func integrationResume(r gitRunner, t landingTarget, head, remote, main string) 
 
 // selectIntegrationPR preserves strict ordinary selection. The sole exception
 // is a validated integration whose push (or GitHub registration) was interrupted.
-func selectIntegrationPR(ctx context.Context, r gitRunner, gh landingGH, t landingTarget, branch, head, current string, prs []landingPR, stderr io.Writer) (landingPR, bool, error) {
+func selectIntegrationPR(ctx context.Context, r gitRunner, gh landingGH, t landingTarget, branch, head, current string, prs []landingPR, lock func(func() error) error, stderr io.Writer) (landingPR, bool, error) {
 	pr, selectionErr := selectLandingPR(prs, t, branch, head)
 	if selectionErr == nil {
 		return pr, false, nil
@@ -93,18 +94,27 @@ func selectIntegrationPR(ctx context.Context, r gitRunner, gh landingGH, t landi
 	if err != nil || candidate.State != "OPEN" || current != branch {
 		return landingPR{}, false, selectionErr
 	}
-	main, err := t.fetchMain(r)
-	if err != nil {
-		return landingPR{}, false, err
-	}
-	remote, err := remoteRefTip(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote, "refs/heads/"+branch)
-	if err != nil {
-		return landingPR{}, false, err
-	}
-	if remote != candidate.HeadOID && remote != head {
-		return landingPR{}, false, selectionErr
-	}
-	valid, err := integrationResume(r, t, head, candidate.HeadOID, main)
+	var main, remote string
+	var valid bool
+	err = lock(func() error {
+		if err := revalidateLanding(r, t, branch, head, current); err != nil {
+			return err
+		}
+		var err error
+		main, err = t.fetchMain(r)
+		if err != nil {
+			return err
+		}
+		remote, err = remoteRefTip(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote, "refs/heads/"+branch)
+		if err != nil {
+			return err
+		}
+		if remote != candidate.HeadOID && remote != head {
+			return selectionErr
+		}
+		valid, err = integrationResume(r, t, head, candidate.HeadOID, main)
+		return err
+	})
 	if err != nil {
 		return landingPR{}, false, err
 	}
@@ -152,14 +162,28 @@ func syncIntegrationPR(ctx context.Context, gh landingGH, t landingTarget, branc
 
 // integrateLandingMain makes the merge, or resumes the already validated one;
 // replay must pass before a leased push can make either commit public.
-func integrateLandingMain(ctx context.Context, r gitRunner, gh landingGH, t landingTarget, branch string, s integrationState, noJudge bool, issuesDir string, stderr io.Writer) (integrationState, error) {
-	oldHead, head, main, pr := s.oldHead, s.head, s.main, s.pr
-	if err := revalidateLanding(r, t, branch, head, branch); err != nil {
-		return s, err
-	}
-	if s.phase == integrationMerge {
-		msg := fmt.Sprintf("Merge %s into %s (sdlc merge, #332)\n\n%s: %s", main, branch, integrationTrailer, main)
-		_, mergeErr := landingGit(r, t.Root, "-c", "merge.autoStash=false", "-c", "rerere.enabled=false", "merge", "--no-ff", "--no-edit", "-m", msg, main)
+func integrateLandingMain(ctx context.Context, r gitRunner, gh landingGH, t landingTarget, branch string, s integrationState, lock func(func() error) error, noJudge bool, issuesDir string, stderr io.Writer) (integrationState, error) {
+	if err := lock(func() error {
+		if err := revalidateLanding(r, t, branch, s.head, branch); err != nil {
+			return err
+		}
+		if s.phase != integrationMerge {
+			return nil
+		}
+		latest, err := t.fetchMain(r)
+		if err != nil {
+			return err
+		}
+		included, err := integrationAncestor(r, t.Root, latest, s.head)
+		if err != nil {
+			return err
+		}
+		s, _, err = transitionIntegration(s, integrationEvent{kind: integrationMainObserved, main: latest, included: included})
+		if err != nil || s.phase != integrationMerge {
+			return err
+		}
+		msg := fmt.Sprintf("Merge %s into %s (sdlc merge, #332)\n\n%s: %s", s.main, branch, integrationTrailer, s.main)
+		_, mergeErr := landingGit(r, t.Root, "-c", "merge.autoStash=false", "-c", "rerere.enabled=false", "merge", "--no-ff", "--no-edit", "-m", msg, s.main)
 		if mergeErr != nil {
 			var effect integrationStep
 			s, effect, _ = transitionIntegration(s, integrationEvent{kind: integrationMergeFailed})
@@ -167,32 +191,36 @@ func integrateLandingMain(ctx context.Context, r gitRunner, gh landingGH, t land
 			paths, pathErr := landingGit(recovery, t.Root, "diff", "--name-only", "--diff-filter=U", "-z")
 			mergeHead, probeErr := landingOptional(recovery, t.Root, "rev-parse", "--verify", "--quiet", "MERGE_HEAD")
 			if probeErr != nil {
-				return s, probeErr
+				return probeErr
 			}
 			if mergeHead != "" && effect == integrationAbort {
 				if _, err := landingGit(recovery, t.Root, "merge", "--abort"); err != nil {
-					return s, fmt.Errorf("integration failed and abort failed: %w; original: %v", err, mergeErr)
+					return fmt.Errorf("integration failed and abort failed: %w; original: %v", err, mergeErr)
 				}
 			}
 			if pathErr != nil {
-				return s, pathErr
+				return pathErr
 			}
 			s, _, _ = transitionIntegration(s, integrationEvent{kind: integrationRecoveryCompleted})
-			return s, fmt.Errorf("main integration conflict or merge failure in %s (branch preserved): %w\n  → merge %s/main manually, resolve the paths, re-close with --fixed-then-ship --full-suite, then retry sdlc merge", strings.Join(splitNUL(paths), ", "), mergeErr, t.Remote)
+			return fmt.Errorf("main integration conflict or merge failure in %s (branch preserved): %w\n  → merge %s/main manually, resolve the paths, re-close with --fixed-then-ship --full-suite, then retry sdlc merge", strings.Join(splitNUL(paths), ", "), mergeErr, t.Remote)
 		}
-		var err error
-		head, err = landingGit(r, t.Root, "rev-parse", "HEAD")
+		head, err := landingGit(r, t.Root, "rev-parse", "HEAD")
 		if err != nil {
-			return s, err
+			return err
 		}
 		s, _, err = transitionIntegration(s, integrationEvent{kind: integrationMerged, head: head})
-		if err != nil {
-			return s, err
-		}
+		return err
+	}); err != nil {
+		return s, err
+	}
+	if s.phase == integrationGates {
+		return s, nil
 	}
 	if s.phase != integrationReplay {
 		return s, fmt.Errorf("integration expected replay, got %s", s.phase)
 	}
+	oldHead, head, pr := s.oldHead, s.head, s.pr
+	main := s.main
 	integrated := pr
 	integrated.HeadOID, integrated.BaseOID = head, main
 	var replayErr error
@@ -211,23 +239,59 @@ func integrateLandingMain(ctx context.Context, r gitRunner, gh landingGH, t land
 	}
 	switch effect {
 	case integrationReset:
-		recovery := recoveryLandingGit(r)
-		if err := revalidateLanding(recovery, t, branch, head, branch); err != nil {
-			return s, fmt.Errorf("replay refused (%v); preserving changed checkout: %w", replayErr, err)
-		}
-		if _, err := landingGit(recovery, t.Root, "reset", "--keep", oldHead); err != nil {
-			return s, fmt.Errorf("replay refused (%v); rollback failed: %w", replayErr, err)
+		if err := lock(func() error {
+			recovery := recoveryLandingGit(r)
+			if err := revalidateLanding(recovery, t, branch, head, branch); err != nil {
+				return fmt.Errorf("replay refused (%v); preserving changed checkout: %w", replayErr, err)
+			}
+			if _, err := t.fetchMain(recovery); err != nil {
+				return err
+			}
+			if _, err := landingGit(recovery, t.Root, "reset", "--keep", oldHead); err != nil {
+				return fmt.Errorf("replay refused (%v); rollback failed: %w", replayErr, err)
+			}
+			return nil
+		}); err != nil {
+			return s, err
 		}
 		s, _, _ = transitionIntegration(s, integrationEvent{kind: integrationRecoveryCompleted})
 		return s, fmt.Errorf("integration replay refused; restored branch before pushing: %w", replayErr)
 	case integrationPush:
-		if err := revalidateLanding(r, t, branch, head, branch); err != nil {
+		if err := lock(func() error {
+			if err := revalidateLanding(r, t, branch, head, branch); err != nil {
+				return err
+			}
+			latest, err := t.fetchMain(r)
+			if err != nil {
+				return err
+			}
+			included, err := integrationAncestor(r, t.Root, latest, head)
+			if err != nil {
+				return err
+			}
+			s, effect, err = transitionIntegration(s, integrationEvent{kind: integrationMainObserved, main: latest, included: included})
+			if err != nil {
+				return err
+			}
+			if effect == integrationRetryReset {
+				recovery := recoveryLandingGit(r)
+				if _, err := landingGit(recovery, t.Root, "reset", "--keep", oldHead); err != nil {
+					return fmt.Errorf("main moved before integration push; rollback failed (branch preserved): %w", err)
+				}
+				s, _, err = transitionIntegration(s, integrationEvent{kind: integrationRecoveryCompleted})
+				return err
+			}
+			if _, err := landingGit(r, t.Root, "push", "--force-with-lease=refs/heads/"+branch+":"+oldHead, t.Remote, head+":refs/heads/"+branch); err != nil {
+				s, _, _ = transitionIntegration(s, integrationEvent{kind: integrationPushFailed})
+				return fmt.Errorf("integration lease push refused or completion uncertain; concurrent remote work is preserved (local integration retained); re-run sdlc merge to reconcile: %w", err)
+			}
+			return nil
+		}); err != nil {
 			return s, err
 		}
-		if _, err := landingGit(r, t.Root, "push", "--force-with-lease=refs/heads/"+branch+":"+oldHead, t.Remote, head+":refs/heads/"+branch); err != nil {
-			s, _, _ = transitionIntegration(s, integrationEvent{kind: integrationPushFailed})
-			return s, fmt.Errorf("integration lease push refused or completion uncertain; concurrent remote work is preserved (local integration retained); re-run sdlc merge to reconcile: %w", err)
-		}
+	}
+	if s.phase == integrationGates {
+		return s, nil // Main moved during replay; retry from the original remote head.
 	}
 	synced, err := syncIntegrationPR(ctx, gh, t, branch, head, pr, stderr)
 	if err != nil {
