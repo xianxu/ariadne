@@ -70,3 +70,9 @@ fixed, it runs to completion, exit 0, and leaves no `parallel-checks.*` dir in T
 
 Landing waits on the operator's `local-gates-verified` label on the PR (this is a
 local-gates path); that is the merge gate, not a Plan step.
+
+Close review (SHIP, round 1) left two advisory Minors, one class: bash 3.2 empty-array
+expansion under `set -u` (a sibling at `introspect-extract.sh:102`; no automated
+regression for the line 108 fix; `MAX_PARALLEL_CHECKS=0` at line 105). Filed as #353
+(unclaimed): a `pkg/shelllint` rule for the class plus its sweep. That is new design
+beyond this local-gates PR, whose scope the operator verifies.
