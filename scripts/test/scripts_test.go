@@ -28,6 +28,25 @@ const runnerDeadline = testgate.HangCeiling
 // TestConstructScripts runs every construct/scripts/test/*.test.sh through the
 // one runner the CI merge check also runs, so both apply the same exclusions.
 func TestConstructScripts(t *testing.T) {
+	for _, env := range []struct {
+		name, noColor, forceColor, term, ci string
+	}{
+		{"plain", "", "", "dumb", ""},
+		{"no_color_ci", "1", "1", "dumb", "1"},
+		{"forced_color_terminal", "", "1", "xterm-256color", ""},
+	} {
+		t.Run(env.name, func(t *testing.T) {
+			t.Setenv("NO_COLOR", env.noColor)
+			t.Setenv("CLICOLOR_FORCE", env.forceColor)
+			t.Setenv("TERM", env.term)
+			t.Setenv("CI", env.ci)
+			runConstructScripts(t)
+		})
+	}
+}
+
+func runConstructScripts(t *testing.T) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), runnerDeadline)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "bash", "construct-scripts.test.sh")

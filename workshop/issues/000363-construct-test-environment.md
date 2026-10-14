@@ -42,7 +42,7 @@ forced-color environments. Reuse its bounded process-group cleanup (ARCH-DRY).
 
 ## Plan
 
-- [ ] Add environment regression cases and observe their failures.
+- [x] Add environment regression cases and observe their failures.
 - [ ] Isolate vm-log test color inputs; verify all shell tests and the full suite.
 
 ## Log
@@ -53,3 +53,9 @@ Hub explicitly requested this fix after #333 landed. All six .test.sh files read
 only vm-log.test.sh depends on these color inputs. The other five assert paths,
 exit codes, generated commands, and fixture state; their called scripts do not
 branch on NO_COLOR, TERM, or CI (sandbox.sh's TERM is a signal name).
+
+Regression first: TestConstructScripts/no_color_ci failed on forced-color step,
+and forced_color_terminal failed on plain dim output; all five siblings passed.
+The test now clears both inherited color flags, preserving its explicit NO_COLOR
+precedence assertion. The Go runner reuses the existing per-run deadline and
+process-group cleanup for all three environment cases.
