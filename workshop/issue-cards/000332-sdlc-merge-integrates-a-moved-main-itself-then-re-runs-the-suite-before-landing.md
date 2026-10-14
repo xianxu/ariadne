@@ -1,6 +1,6 @@
 ---
 id: 000332
-status: codecomplete
+status: done
 created: 2026-10-11
 updated: 2026-10-14
 estimate_hours: 2.35
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: f129a2933854d6b90cdf9885eab8c77221f85caf
         evidence_commit: be867793e4122dd111e71f9f93c3d1bfd08e38f5
+        landed_commit: 92bb9b8bc6e2230899d519bd286254b92c7b7209
 ---
 
 # sdlc merge integrates a moved main itself, then re-runs the suite before landing
