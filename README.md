@@ -323,6 +323,14 @@ a CI job that never got a runner (never one that ran and failed), requires it
 for checks declared `required`, and runs a missing one itself. See
 [recorded local checks](atlas/workflow/ci-merge-check.md#recorded-local-checks-345).
 
+Run `sdlc local-check run --name suite` on the pushed head before close. Merge
+requires this suite's recorded pass: a declaration named `suite` overrides its
+command, timeout and `weight`, but cannot make it optional. Without a declared
+suite, main's `Makefile` supplies `make test` and `WF_TEST_WEIGHT` when it has a
+test target. The optional declaration `weight` (default 1) reserves that many
+machine-wide suite slots. A passing record on an ancestor remains valid through
+docs-only changes such as close's bookkeeping; code changes require another run.
+
 ## Fleet queries
 
 Inspect every Git worktree in the sibling-repository fleet from a caller path,

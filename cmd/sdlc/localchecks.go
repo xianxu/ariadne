@@ -139,9 +139,19 @@ func defaultSuiteCheck(weight int) localCheck {
 
 // effectiveLocalChecks is the declaration plus the default suite when the
 // declaration has none and the repository has a make test target (#332). A
-// declared suite always wins: it is the operator's override.
+// declared suite overrides execution settings, but cannot waive enforcement.
 func effectiveLocalChecks(d localCheckDecl, hasMakeTest bool, weight int) localCheckDecl {
-	if _, declared := d.check(suiteCheckName); declared || !hasMakeTest {
+	if _, declared := d.check(suiteCheckName); declared {
+		out := d
+		out.Checks = append([]localCheck(nil), d.Checks...)
+		for i := range out.Checks {
+			if out.Checks[i].Name == suiteCheckName {
+				out.Checks[i].Required = true
+			}
+		}
+		return out
+	}
+	if !hasMakeTest {
 		return d
 	}
 	out := d

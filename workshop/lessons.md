@@ -19,6 +19,15 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- An override of execution settings must not override a mandatory gate's
+  requirement. Test omitted and explicitly false flags through the production
+  gate, as well as the pure derivation (#332 BR-8).
+- A failed parent lookup does not prove a root commit. Read positive parent
+  evidence and propagate operational errors; test those errors (#332 BR-3).
+- CommandContext alone does not bound a subprocess whose descendants retain
+  output pipes. Test cancellation with a real descendant and bound cleanup and
+  pipe draining (#332 BR-5).
+
 - In a rejection table, each row must assert that it was refused by its own
   check (for example, the error names the field). A shared invariant failing
   first, such as a nil collection, makes every row pass vacuously (#279 BR-8).

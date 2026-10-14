@@ -232,3 +232,31 @@ So a branch that deletes `test:` or lowers `WF_TEST_WEIGHT` still owes the suite
   - the probe has a 2-minute timeout;
   - one shared `withDefaultSuite` serves the gate and the verb.
 - **Names as delivered** (the plan table said otherwise): `localRecordsOnAncestors` (was `suiteAncestorRecords`); `makeTestFacts(git, rev)` probing a worktree at main (was `makeTestFacts(root)`); a declared `weight: 0` means the default 1, and only negative or >8 is refused.
+
+### R3 — 2026-10-13 23:08 PDT, M1 boundary review round 2
+
+- **BR-8 (Critical):** execution overrides cannot disable the mandatory suite.
+  `effectiveLocalChecks` preserves a declared suite's command, timeout and weight
+  while making it required. `withDefaultSuite` applies that same derivation to
+  both declaration paths. Tests cover omitted, false and true `required`, and
+  exercise the real CI gate with omitted/false declarations (refusal without a
+  runner; a recorded suite run before admission). The bypass tests failed before
+  the fix. This follows ARCH-PURPOSE and ARCH-DRY.
+- **BR-3:** positive parent evidence comes from `rev-list --parents --max-count=1`.
+  Read failures propagate instead of implying a root commit; injected parent and
+  ancestor-walk failures are regression cases, alongside the real root fixture.
+- **BR-5:** the make probe uses the existing process-group helper to terminate
+  descendants, with a one-second pipe-drain bound after its two-minute deadline
+  (or parent exit). Tests cover a hanging make shell and a parent that exits while
+  its child retains pipes, and assert the child exits. Makefile stat errors other
+  than absence also propagate. Both process cases and the stat case failed before
+  correction (ARCH-CONSTRAINTS, ARCH-ORDER).
+  The same lifetime defect existed in `runLocalCheck`; its timeout and
+  parent-exit paths now terminate the group before removing the worktree too.
+  Both runner descendant tests failed without this correction. Its existing
+  five-second pipe-drain limit remains.
+- **BR-9:** README joins help and atlas in documenting the close-suite invocation,
+  automatic default, mandatory declared suite, ancestor reuse and weight setting.
+  M1 documentation includes `README.md`; process tests live in
+  `localchecks_make_process_test.go`, enforcement/error tests in
+  `suite_enforcement_test.go`.

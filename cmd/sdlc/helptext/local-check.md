@@ -51,6 +51,9 @@ THE SUITE (#332)
   the weight its Makefile gives (WF_TEST_WEIGHT): both read from main, so a
   branch cannot drop or lighten the suite it owes. Run it before close:
 
+  A declared suite overrides command, timeout and weight, but is always
+  required, even when its required field is omitted or false.
+
     sdlc local-check run --name suite      # on the pushed head
 
   A record on an ancestor still counts when everything changed since is

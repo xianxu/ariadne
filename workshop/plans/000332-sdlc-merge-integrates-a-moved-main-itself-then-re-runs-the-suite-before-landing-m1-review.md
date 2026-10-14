@@ -126,3 +126,120 @@ findings:
     title: |
       Plan names suiteAncestorRecords and makeTestFacts(root); code has localRecordsOnAncestors and makeTestFacts(git, rev); weight 0 means default, not refused
 ```
+
+---
+
+## Re-review — 2026-10-13T23:02:30-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 332 — sdlc merge integrates a moved main itself, then re-runs the suite before landing |
+| repo | ariadne |
+| issue file | workshop/issues/000332-sdlc-merge-integrates-a-moved-main-itself-then-re-runs-the-suite-before-landing.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 96d587ce291afac3eb6b69ebf117d2d83c090671..5a4e3cdf09b31f8591625586130295767131e7c9 |
+| command | sdlc milestone-close --issue 332 --milestone M1 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-13T23:02:30-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+M1’s default-suite derivation, weighted execution, and rename handling are substantially implemented and tested. One enforcement hole blocks shipping: a declared `suite` can remain optional, allowing landing without its recorded pass. README coverage is missing, and two prior Minor findings remain unresolved.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      ChangedPathArgs supplies --no-renames -z to the identified classifiers. Removing --no-renames made both TestLocalRecordsOnAncestors and TestDiffNamesListsBothSidesOfARename fail.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      TestParseCommitStatuses directly tests newest-first deduplication and malformed input. TestLocalRecordsOnAncestors exercises merge-base exclusion, early termination, the commit cap, root commits, and code changes; these tests pass.
+  - id: BR-3
+    disposition: not-addressed
+    note: |
+      cigate.go:481 now treats every rev-parse failure as a root commit, moving the uncertainty rather than resolving it. No regression test injects either rev-parse or rev-list failure. Positively establish parentlessness and propagate operational errors.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      parseMakeTestFacts excludes prerequisite-only entries. TestParseMakeTestFactsSkipsNotATarget passes and fails when that exclusion is removed.
+  - id: BR-5
+    disposition: not-addressed
+    note: |
+      localchecks_make.go:79-84 adds CommandContext but no bounded pipe wait or descendant cleanup. A temporary reproduction with a 50 ms deadline and $(shell sleep 1) returned after 1.04 seconds: Output waits for the descendant holding stderr open. No committed timeout regression exists. Bound subprocess lifetime and pipe draining, and test both.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      withDefaultSuite is now the shared derivation called by runCIGate and runLocalCheckCmd. Both production paths have passing integration coverage; this consolidation preserves behavior.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Plan R2's “Names as delivered” passage at line 234 explicitly corrects both function names/signatures and zero-weight semantics. These match cigate.go:472, localchecks_make.go:51, and localchecks.go:115.
+findings:
+  - id: new
+    severity: Critical
+    family: mandatory-checks-cannot-be-disabled-by-overrides
+    title: |
+      A declared suite can bypass the mandatory landing check
+    detail: |
+      localchecks_make.go:38 returns a declared suite unchanged; localchecks.go:143 likewise preserves Required=false. A main-side declaration containing {"name":"suite","command":["true"]} therefore makes runCIGate accept green CI without any suite record. A temporary integration regression reproduced this acceptance. ARCH-PURPOSE: preserve command/weight overrides while requiring the suite, or reject optional suite declarations; cover omitted and explicit-false required fields.
+  - id: new
+    severity: Important
+    family: readme-tracks-user-facing-contracts
+    title: |
+      README update appears missing for the default suite and weight setting
+    detail: |
+      README.md:318-324 still describes only explicitly declared required checks. This range adds automatic make-test enforcement, the close-suite invocation, ancestor-record reuse, and the weight configuration key without updating README. Update its local-check guidance alongside the existing atlas and embedded-help changes.
+```
+
+1. **Strengths**
+
+   - Suite facts come from main’s detached worktree; the fixture verifies that deleting the branch’s test target cannot change those facts.
+   - `ChangedPathArgs` consolidates rename-safe classification across the identified consumers.
+   - Regression tests demonstrate that docs-only close commits preserve suite evidence while subsequent code changes require another run.
+   - The weight test verifies the actual `--slots 2` argument reaching the lock helper.
+
+2. **Critical findings**
+
+   The declared-suite bypass above violates M1’s explicit “required on every landing” contract. Fix both declaration paths through the shared derivation and add a gate-level regression.
+
+3. **Important findings**
+
+   README lacks the new usage/configuration contract. Atlas and embedded help were updated appropriately.
+
+4. **Minor findings**
+
+   - **BR-3:** failed parent probes still become benign absence; error-path regression coverage is missing.
+   - **BR-5:** the timeout does not bound descendant-held pipes. Add bounded cancellation and cleanup coverage.
+
+5. **Test coverage notes**
+
+   Targeted tests passed in `cmd/sdlc`, `internal/gitx`, and `internal/freshness`. A subsequent focused run of the M1 tests also passed. BR-1 and BR-4 mutation checks produced the expected failures. Temporary reproductions confirmed the optional-suite bypass and ineffective subprocess deadline.
+
+   All temporary changes were restored; the checkout is clean. The full repository suite was not run.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared suite derivation, worktree helper, and changed-path arguments reduce duplication.
+   - **ARCH-PURE — pass:** declaration derivation and gate decisions remain pure; IO resides in integration helpers.
+   - **ARCH-PURPOSE — flag:** optional declared suites defeat mandatory enforcement.
+   - **ARCH-MOCK — pass:** GitHub uses the existing stateful seam; repository fixtures exercise git interactions and make has live conformance coverage.
+   - **ARCH-CONSTRAINTS — flag:** BR-5’s claimed timeout is not an effective wall-time bound.
+   - **ARCH-SECURE — flag:** BR-3 still converts a failed external probe into asserted absence.
+   - **ARCH-ORDER — flag:** BR-5 leaves descendant lifetime outside effective cancellation control. The larger integration state machine belongs to M2.
+   - **ARCH-FUNERAL — pass:** worktrees and probe files have cleanup paths; suite logs retain the existing bounded lifecycle.
+
+   M1’s core-concept entries match the implementation after R2’s corrections. M2/M3 entries are future work, not missing M1 deliverables.
+
+7. **Plan revision recommendations**
+
+   Append an R3 entry specifying that suite overrides cannot disable mandatory enforcement, defining positive root-commit evidence and error propagation, and correcting the probe’s timeout contract to include descendant cleanup and bounded pipe draining. Add the README update to M1’s documentation checklist.

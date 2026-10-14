@@ -157,7 +157,9 @@ first-class evidence, recorded on the commit it ran on:
   The default's existence and its weight (`WF_TEST_WEIGHT`) come from probing
   **main's** Makefile in a detached worktree, under a goal that is not `test`,
   so the probe takes no lock. A branch therefore cannot drop or lighten its own
-  suite. Agents run it before close with `sdlc local-check run --name suite`.
+  suite. A declared `suite` overrides execution settings but is always required,
+  even when `required` is omitted or false. Agents run it before close with
+  `sdlc local-check run --name suite`.
   - A record on a first-parent ancestor counts when the difference since is
     docs-only (`publishGateHasCodeSurface`, the publish gate's line). Close's
     own commits don't force a rerun.

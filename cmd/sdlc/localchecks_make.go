@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
 )
 
 // makeTestFactsFn is the seam: tests answer without running make.
@@ -22,7 +24,7 @@ var makeTestFactsFn = makeTestFacts
 
 // suiteWeightProbe prints the Makefile's suite weight under a goal that is not
 // `test`, so Makefile.workflow never takes the machine lock at parse time.
-const suiteProbeTimeout = 2 * time.Minute // a hanging $(shell) in main's Makefile must not stall merge
+var suiteProbeTimeout = 2 * time.Minute // a hanging $(shell) in main's Makefile must not stall merge
 
 const suiteWeightProbe = "__sdlc_suite_weight: ; @echo __SDLC_SUITE_WEIGHT=$(or $(WF_TEST_WEIGHT),1)\n"
 
@@ -36,7 +38,7 @@ var (
 // The one derivation the CI gate and `sdlc local-check run` share.
 func withDefaultSuite(git func(args ...string) (string, error), rev string, decl localCheckDecl) (localCheckDecl, error) {
 	if _, declared := decl.check(suiteCheckName); declared {
-		return decl, nil
+		return effectiveLocalChecks(decl, false, 0), nil
 	}
 	has, weight, err := makeTestFactsFn(git, rev)
 	if err != nil {
@@ -64,7 +66,10 @@ func makeTestFacts(git func(args ...string) (string, error), rev string) (has bo
 // probeMakeTestFacts asks make in dir, under a goal that is not test.
 func probeMakeTestFacts(dir string) (has bool, weight int, err error) {
 	if _, err := os.Stat(filepath.Join(dir, "Makefile")); err != nil {
-		return false, 0, nil
+		if os.IsNotExist(err) {
+			return false, 0, nil
+		}
+		return false, 0, fmt.Errorf("stat Makefile: %w", err)
 	}
 	probe, err := os.CreateTemp("", "sdlc-suite-probe-*.mk")
 	if err != nil {
@@ -79,9 +84,15 @@ func probeMakeTestFacts(dir string) (has bool, weight int, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), suiteProbeTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "make", "-s", "-p", "-f", "Makefile", "-f", probe.Name(), "__sdlc_suite_weight")
+	processgroup.Configure(cmd)
+	cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
+	cmd.WaitDelay = time.Second
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "WF_TEST_LOCK=off") // belt and braces: a probe never queues for a suite slot
 	out, err := cmd.Output()
+	// A parent can exit before children close inherited pipes. WaitDelay
+	// bounds the drain; terminate any remaining group members as well.
+	_ = processgroup.Terminate(cmd, true)
 	if ctx.Err() != nil {
 		return false, 0, fmt.Errorf("make probe exceeded %v", suiteProbeTimeout)
 	}

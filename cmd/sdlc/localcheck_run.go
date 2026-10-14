@@ -17,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
 )
 
 // localRunDeps is what a local run touches: GitHub (to record), git in the
@@ -82,6 +84,8 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	runCtx, cancel := context.WithTimeout(ctx, time.Duration(c.TimeoutMinutes)*d.minute)
 	defer cancel()
 	cmd := exec.CommandContext(runCtx, c.Command[0], c.Command[1:]...)
+	processgroup.Configure(cmd)
+	cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
 	cmd.Dir = wt
 	cmd.WaitDelay = 5 * time.Second
 	cmd.Env = os.Environ()
@@ -92,6 +96,9 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	cmd.Stdout, cmd.Stderr = out, out
 	start := time.Now()
 	runErr := cmd.Run()
+	// WaitDelay bounds inherited-pipe draining after the parent exits;
+	// stop remaining children before closing their log or removing their tree.
+	_ = processgroup.Terminate(cmd, true)
 	rec.Duration = time.Since(start)
 	_ = logf.Close()
 	var exitErr *exec.ExitError

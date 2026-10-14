@@ -478,7 +478,14 @@ func localRecordsOnAncestors(ctx context.Context, gh ghCaller, repo string, git 
 	if err != nil {
 		return nil, fmt.Errorf("merge base of %s and %s: %w", abbrevSHA(head), base, err)
 	}
-	if _, err := git("rev-parse", "--verify", "--quiet", head+"~1^{commit}"); err != nil {
+	parents, err := git("rev-list", "--parents", "--max-count=1", head)
+	if err != nil {
+		return nil, fmt.Errorf("parents of %s: %w", abbrevSHA(head), err)
+	}
+	if len(strings.Fields(parents)) == 0 {
+		return nil, fmt.Errorf("parents of %s: git returned no commit", abbrevSHA(head))
+	}
+	if len(strings.Fields(parents)) == 1 {
 		return found, nil // a root commit has no ancestor to inherit from
 	}
 	out, err := git("rev-list", "--first-parent", fmt.Sprintf("--max-count=%d", localAncestorLimit), head+"~1", "--not", strings.TrimSpace(mb))
