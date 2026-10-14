@@ -53,6 +53,8 @@ Before invoking a substrate helper, `sdlc` checks the helper's capability (e.g. 
 
 - 2026-10-14 — Expanded local-check, weighted admission, merge and landing targets GREEN (60.256s), plus cancelled-push resume (4.165s). All weave packages GREEN: go test ./cmd/weave/... -count=1 -timeout 15m; CLI 26.793s, refresh 54.518s. Full output: /tmp/ariadne366-weave-targeted.log.
 
+- 2026-10-14 — Mutation controls on disposable detached HEAD 5784a8e0: removing helper preflight made TestStaleSuiteHelperRefusesBeforeAcquisition fail with stale helper accepted; removing root fetch exclusion made TestRefreshSubstrateIssueBranchKeepsConsumerAndOtherSlots fail by treating the divergent consumer as an update subject. Both expected RED; checkout restored and removed. Current origin/main 407e48a39057503fab7cdecaf6c69ce338ce7631 already integrated. Recorded full suite started on 5784a8e0fe358601faac2b5c737344e5f951b6aa through sdlc local-check; waiting in FIFO weighted gate. Log: /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/5784a8e0fe358601faac2b5c737344e5f951b6aa/suite.log. Uses the gate-owned default make test (all shards), rather than a separate unrecorded make -k run.
+
 ## Revisions
 
 - 2026-10-14 08:20 — add (TL): the named fix must work on an **issue branch**. `weave refresh` advances the
