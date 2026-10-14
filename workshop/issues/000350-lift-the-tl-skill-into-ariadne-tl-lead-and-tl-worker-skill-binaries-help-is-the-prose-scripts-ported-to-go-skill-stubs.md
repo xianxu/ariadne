@@ -155,3 +155,8 @@ Items in order: M1 tl-worker (binary, prose, stub, §15 line); M2 tl-lead prose;
 - 2026-10-13 — the operator: **don't copy stories or lessons** into the binaries' prose. The prose states current
   rules and procedure only; incident history stays in ops learnings, and new kinks are addressed going forward as rule
   changes in the skill binaries (each fix lands as a prose or code change there), not as narratives.
+- 2026-10-14 — scope revision (TL ops:0, delivery 59e83725, receipt verified). Ops commit 7e7df48 restructured the status file after M2 took its prose from 17ee62c. The live file now has `## Needs you`, `## Quota`, `## Threads` (`### Project`, `### Train`, `### Miscellaneous`) and `## Slots`, and no longer has `## Trains` or `## Slots (off-train)`, so `tl-lead status trains` would refuse against it. Folded in before close:
+  - The lead prose lists the new layout plus the mutual-focus rule.
+  - `tl-lead status slots FILE` renders `## Slots` for every numbered slot from the fleet inventory, and replaces `status trains`.
+  - `tl-lead trains PROJECT` stays print-only, for pasting into a `### Project` thread.
+  - A registration point is left for a later `status quota` (from `sdlc usage`, ariadne#365). It is not built now.
