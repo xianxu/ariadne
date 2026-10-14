@@ -287,7 +287,11 @@ func fillDetails(rec *IssueRecord, f DetailFile) {
 // resting branch its workspace identity names (main for an ordinary worktree).
 func RepositoryForCheckout(ctx context.Context, root string) (*Repository, error) {
 	resting := "main"
-	if identity, err := workspace.Resolve(gitDirReader{ctx}, root, ""); err == nil && identity.RestingBranch != nil {
+	identity, err := workspace.Resolve(gitDirReader{ctx}, root, "")
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	if err == nil && identity.RestingBranch != nil {
 		resting = *identity.RestingBranch
 	}
 	return RepositoryFor(ctx, root, resting)
@@ -297,7 +301,7 @@ func RepositoryForCheckout(ctx context.Context, root string) (*Repository, error
 type gitDirReader struct{ ctx context.Context }
 
 func (g gitDirReader) GitInDir(dir string, args ...string) ([]byte, error) {
-	return gitx.RunGit(append([]string{"-C", dir}, args...)...)
+	return gitx.GitOutputContext(g.ctx, append([]string{"-C", dir}, args...)...)
 }
 
 // RepositoryFor opens the tracker of the repository at root through its
@@ -306,7 +310,10 @@ func (g gitDirReader) GitInDir(dir string, args ...string) ([]byte, error) {
 // configuration broke: that is an error, never a quiet fallback to mirrors.
 // nil, nil means "no tracker": its details are the record.
 func RepositoryFor(ctx context.Context, root, restingBranch string) (*Repository, error) {
-	if _, err := gitx.RunGit("-C", root, "rev-parse", "--git-dir"); err != nil {
+	if _, err := gitx.GitOutputContext(ctx, "-C", root, "rev-parse", "--git-dir"); err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, nil // not a repository: nothing can have been tracked
 	}
 	target, err := gitx.ResolvePublicationTarget(ctx, root, restingBranch)
@@ -317,7 +324,10 @@ func RepositoryFor(ctx context.Context, root, restingBranch string) (*Repository
 		}
 		return repo.GuardCutover(root), nil
 	}
-	fetched, ferr := FetchedTracker(root)
+	fetched, ferr := FetchedTrackerContext(ctx, root)
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	if ferr == nil && !fetched {
 		if merr := MarkerWithoutTracker(root); merr != nil {
 			return nil, merr

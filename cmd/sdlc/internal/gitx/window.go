@@ -94,19 +94,25 @@ func DiffBase() string {
 // publishing it) must not pull the issue's own design commits into the window.
 // "" when no main line resolves or HEAD shares no history with it.
 func BranchPoint() string {
-	trunk := TrunkRef()
+	return branchPoint(Capture, func(args ...string) ([]byte, error) {
+		return boundedGitOutput(context.Background(), nil, "git", args...)
+	})
+}
+
+func branchPoint(capture func(...string) string, run func(...string) ([]byte, error)) string {
+	trunk := trunkRef(capture)
 	if trunk == "" {
 		return ""
 	}
-	base := Capture("merge-base", trunk, "HEAD")
-	if trunk == "main" || Capture("rev-parse", "--verify", "-q", "refs/heads/main") == "" {
+	base := capture("merge-base", trunk, "HEAD")
+	if trunk == "main" || capture("rev-parse", "--verify", "-q", "refs/heads/main") == "" {
 		return base
 	}
-	local := Capture("merge-base", "main", "HEAD")
+	local := capture("merge-base", "main", "HEAD")
 	if local == "" || local == base {
 		return base
 	}
-	_, ancestorErr := boundedGitOutput(context.Background(), nil, "git", "merge-base", "--is-ancestor", base, local)
+	_, ancestorErr := run("merge-base", "--is-ancestor", base, local)
 	if base == "" || ancestorErr == nil {
 		return local
 	}
@@ -118,11 +124,13 @@ func BranchPoint() string {
 // Not local main itself: a numbered slot shares refs with its primary, whose
 // local main is whatever the primary last pulled — stale, or carrying unpushed
 // commits — while the slot's branches fork from the published trunk.
-func TrunkRef() string {
-	if up := Capture("rev-parse", "--abbrev-ref", "--symbolic-full-name", "main@{upstream}"); up != "" && Capture("rev-parse", "--verify", "-q", up) != "" {
+func TrunkRef() string { return trunkRef(Capture) }
+
+func trunkRef(capture func(...string) string) string {
+	if up := capture("rev-parse", "--abbrev-ref", "--symbolic-full-name", "main@{upstream}"); up != "" && capture("rev-parse", "--verify", "-q", up) != "" {
 		return up
 	}
-	return MainRef()
+	return mainRef(capture)
 }
 
 // MergeBaseWithMain returns the branch point — `git merge-base main HEAD` — or
@@ -153,11 +161,13 @@ func MergeBaseWithMain() string {
 // master-only checkout). Single source for the origin/main→main→"" fallback
 // shared by recentCommits (state.go) and ShippedWorkOnMain below, so the
 // resolution lives in one place rather than being copy-pasted.
-func MainRef() string {
-	if Capture("rev-parse", "--verify", "origin/main") != "" {
+func MainRef() string { return mainRef(Capture) }
+
+func mainRef(capture func(...string) string) string {
+	if capture("rev-parse", "--verify", "origin/main") != "" {
 		return "origin/main"
 	}
-	if Capture("rev-parse", "--verify", "main") != "" {
+	if capture("rev-parse", "--verify", "main") != "" {
 		return "main"
 	}
 	return ""
@@ -449,7 +459,13 @@ func windowCapISO() string {
 // downstream (the atlas gate's docs rule) then misreads it (#231; lessons: git's
 // porcelain answers a human's question).
 func DiffNames(sinceRef, untilRef string) ([]string, error) {
-	out, err := boundedGitOutput(context.Background(), nil, "git", ChangedPathArgs(sinceRef, untilRef)...)
+	return diffNamesWithRun(func(args ...string) ([]byte, error) {
+		return boundedGitOutput(context.Background(), nil, "git", args...)
+	}, sinceRef, untilRef)
+}
+
+func diffNamesWithRun(run func(...string) ([]byte, error), sinceRef, untilRef string) ([]string, error) {
+	out, err := run(ChangedPathArgs(sinceRef, untilRef)...)
 	if err != nil {
 		return nil, fmt.Errorf("git diff --name-only %s %s: %w", sinceRef, untilRef, err)
 	}
@@ -523,7 +539,13 @@ type LogEntry struct {
 // (oldest first), one LogEntry per commit. Used by close-issue.py's
 // "first commit referencing '#N M4'" scan.
 func LogReverse() ([]LogEntry, error) {
-	out, err := boundedGitOutput(context.Background(), nil, "git", "log", "--reverse", "--format=%H %ci %s")
+	return logReverse(func(args ...string) ([]byte, error) {
+		return boundedGitOutput(context.Background(), nil, "git", args...)
+	})
+}
+
+func logReverse(run func(...string) ([]byte, error)) ([]LogEntry, error) {
+	out, err := run("log", "--reverse", "--format=%H %ci %s")
 	if err != nil {
 		return nil, fmt.Errorf("git log: %w", err)
 	}

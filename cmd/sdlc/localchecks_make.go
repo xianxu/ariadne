@@ -20,7 +20,7 @@ import (
 )
 
 // makeTestFactsFn is the seam: tests answer without running make.
-var makeTestFactsFn = makeTestFacts
+var makeTestFactsFn = makeTestFactsContext
 
 // suiteWeightProbe prints the Makefile's suite weight under a goal that is not
 // `test`, so Makefile.workflow never takes the machine lock at parse time.
@@ -37,10 +37,14 @@ var (
 // probing rev's Makefile (rev is main: a branch cannot drop the suite it owes).
 // The one derivation the CI gate and `sdlc local-check run` share.
 func withDefaultSuite(git func(args ...string) (string, error), rev string, decl localCheckDecl) (localCheckDecl, error) {
+	return withDefaultSuiteContext(context.Background(), git, rev, decl)
+}
+
+func withDefaultSuiteContext(ctx context.Context, git func(args ...string) (string, error), rev string, decl localCheckDecl) (localCheckDecl, error) {
 	if _, declared := decl.check(suiteCheckName); declared {
 		return effectiveLocalChecks(decl, false, 0), nil
 	}
-	has, weight, err := makeTestFactsFn(git, rev)
+	has, weight, err := makeTestFactsFn(ctx, git, rev)
 	if err != nil {
 		return localCheckDecl{}, err
 	}
@@ -51,12 +55,19 @@ func withDefaultSuite(git func(args ...string) (string, error), rev string, decl
 // make's rule database (make -p) lists a test target, weight is
 // WF_TEST_WEIGHT (default 1). No Makefile: has is false.
 func makeTestFacts(git func(args ...string) (string, error), rev string) (has bool, weight int, err error) {
+	return makeTestFactsContext(context.Background(), git, rev)
+}
+
+func makeTestFactsContext(ctx context.Context, git func(args ...string) (string, error), rev string) (has bool, weight int, err error) {
+	if err := ctx.Err(); err != nil {
+		return false, 0, err
+	}
 	wt, cleanup, err := detachedWorktree(git, rev)
 	if err != nil {
 		return false, 0, fmt.Errorf("probe make test on %s: %w", abbrevSHA(rev), err)
 	}
 	defer cleanup()
-	has, weight, err = probeMakeTestFacts(wt)
+	has, weight, err = probeMakeTestFactsContext(ctx, wt)
 	if err != nil {
 		return false, 0, fmt.Errorf("probe make test on %s: %w", abbrevSHA(rev), err)
 	}
@@ -65,6 +76,13 @@ func makeTestFacts(git func(args ...string) (string, error), rev string) (has bo
 
 // probeMakeTestFacts asks make in dir, under a goal that is not test.
 func probeMakeTestFacts(dir string) (has bool, weight int, err error) {
+	return probeMakeTestFactsContext(context.Background(), dir)
+}
+
+func probeMakeTestFactsContext(ctx context.Context, dir string) (has bool, weight int, err error) {
+	if err := ctx.Err(); err != nil {
+		return false, 0, err
+	}
 	if _, err := os.Stat(filepath.Join(dir, "Makefile")); err != nil {
 		if os.IsNotExist(err) {
 			return false, 0, nil
@@ -81,7 +99,7 @@ func probeMakeTestFacts(dir string) (has bool, weight int, err error) {
 		return false, 0, err
 	}
 	probe.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), suiteProbeTimeout)
+	ctx, cancel := context.WithTimeout(ctx, suiteProbeTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "make", "-s", "-p", "-f", "Makefile", "-f", probe.Name(), "__sdlc_suite_weight")
 	processgroup.Configure(cmd)
@@ -94,7 +112,7 @@ func probeMakeTestFacts(dir string) (has bool, weight int, err error) {
 	// bounds the drain; terminate any remaining group members as well.
 	_ = processgroup.Terminate(cmd, true)
 	if ctx.Err() != nil {
-		return false, 0, fmt.Errorf("make probe exceeded %v", suiteProbeTimeout)
+		return false, 0, fmt.Errorf("make probe interrupted: %w", ctx.Err())
 	}
 	if err != nil {
 		return false, 0, err

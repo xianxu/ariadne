@@ -635,3 +635,8 @@ The simplest durable authority beats a clever scan of consequences.
 - Bound the complete subprocess graph, including indirect shared Git helpers.
   Cancellation during push may follow remote publication: preserve the local
   commit and reconcile evidence on retry, rather than rolling back (#332 BR-13).
+
+- A deadline is only complete when it reaches every subprocess on the actual
+  call graph. Enumerate nested probes, replay helpers, tracker fallbacks,
+  archive reads and final diff measurements, then test cancellation with a real
+  sleeping command at each independent seam (#332 BR-12/BR-13 round 7).

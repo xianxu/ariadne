@@ -247,6 +247,27 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - "n": 7
+      timestamp: "2026-10-14T01:02:22-07:00"
+      dispatched: "2026-10-14T00:53:58-07:00"
+      agent: codex
+      dispose:
+        - id: BR-12
+          disposition: not-addressed
+          note: Git/GitHub read deadlines and late-green rejection are corrected, with mutation-sensitive tests. However, prepareCIGateFacts at cmd/sdlc/cigate_wait.go:145 reaches probeMakeTestFacts, which creates a background context at cmd/sdlc/localchecks_make.go:84. A real Makefile probe took 1.07 seconds with only 40 ms remaining in the CI budget. Propagate the remaining budget through the complete facts-probe path, retaining separate bounded cleanup.
+          round: 7
+        - id: BR-13
+          disposition: not-addressed
+          note: 'Merge/push deadlines, descendant cleanup, and uncertain-push recovery have meaningful regression evidence. The integration call-graph sweep remains incomplete: publish replay calls gitx.RunGit, whose runner uses context.Background at cmd/sdlc/internal/gitx/window.go:28; runEnv does likewise at rebasedpatch.go:17. A cancelled runLandingPublishGate still spent 1.06 seconds in its first Git read. Ownership also reaches archiveRead at landingarchive.go:126, which invokes the unbounded landingArchiveRunner directly. Apply cancellation and command ceilings across the entire enumerated graph.'
+          round: 7
+        - id: BR-14
+          disposition: addressed
+          note: Production integration outcomes now pass through transitionIntegration in cmd/sdlc/integrationstate.go, owning head, lease base, PR, resume state, phase, and attempts. Removing retry-count advancement made both state regression tests fail. Production retry, recovery, and cancelled-push tests passed; Plan revision R6 describes the delivered model.
+          round: 7
+      boundary: M2
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#332 (boundary-review)
@@ -339,8 +360,15 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-14** [Important] `authoritative-state-transitions-owned-by-core` Integration state remains mutable outside the pure transition model
   cmd/sdlc/landing.go:430-435 updates head, PR, attempts and resume state directly; cmd/sdlc/landingintegrate.go:43 only selects actions, and its lease-refused event is test-only. ARCH-ORDER: introduce an owned state/event transition model returning next state and effects, route production outcomes through it, and revise the plan to describe the enforced boundary.
 
+## Round 7 — 2026-10-14T01:02:22-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-12 — not-addressed — Git/GitHub read deadlines and late-green rejection are corrected, with mutation-sensitive tests. However, prepareCIGateFacts at cmd/sdlc/cigate_wait.go:145 reaches probeMakeTestFacts, which creates a background context at cmd/sdlc/localchecks_make.go:84. A real Makefile probe took 1.07 seconds with only 40 ms remaining in the CI budget. Propagate the remaining budget through the complete facts-probe path, retaining separate bounded cleanup.
+- BR-13 — not-addressed — Merge/push deadlines, descendant cleanup, and uncertain-push recovery have meaningful regression evidence. The integration call-graph sweep remains incomplete: publish replay calls gitx.RunGit, whose runner uses context.Background at cmd/sdlc/internal/gitx/window.go:28; runEnv does likewise at rebasedpatch.go:17. A cancelled runLandingPublishGate still spent 1.06 seconds in its first Git read. Ownership also reaches archiveRead at landingarchive.go:126, which invokes the unbounded landingArchiveRunner directly. Apply cancellation and command ceilings across the entire enumerated graph.
+- BR-14 — addressed — Production integration outcomes now pass through transitionIntegration in cmd/sdlc/integrationstate.go, owning head, lease base, PR, resume state, phase, and attempts. Removing retry-count advancement made both state regression tests fail. Production retry, recovery, and cancelled-push tests passed; Plan revision R6 describes the delivered model.
+
 ## Open findings
 
 - **BR-12** [Important] `polling-deadlines-cover-inflight-work` CI polling can exceed its advertised deadline and accept a late green result
 - **BR-13** [Important] `unbounded-subprocess` Integration merge and push subprocesses have no deadline or cancellation
-- **BR-14** [Important] `authoritative-state-transitions-owned-by-core` Integration state remains mutable outside the pure transition model

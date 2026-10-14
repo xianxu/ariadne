@@ -536,7 +536,7 @@ func runPreparedCIGate(ctx context.Context, gh ghCaller, repo string, number int
 	}
 	if facts == nil {
 		var err error
-		facts, err = prepareCIGateFacts(git, base, head)
+		facts, err = prepareCIGateFactsContext(ctx, git, base, head)
 		if err != nil {
 			return err
 		}

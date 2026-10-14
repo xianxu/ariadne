@@ -21,7 +21,10 @@ func TestWaitCIGate(t *testing.T) {
 			now := time.Unix(0, 0)
 			ciWaitNow = func() time.Time { return now }
 			probes, polls := 0, 0
-			makeTestFactsFn = func(func(...string) (string, error), string) (bool, int, error) { probes++; return false, 1, nil }
+			makeTestFactsFn = func(context.Context, func(...string) (string, error), string) (bool, int, error) {
+				probes++
+				return false, 1, nil
+			}
 			g := &checksGH{checks: []prCheck{{Name: "build", Bucket: "pending"}}}
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -171,7 +174,9 @@ func TestWaitCIGateInflightBudget(t *testing.T) {
 			t.Cleanup(func() { ciWaitNow, ciWaitPause, makeTestFactsFn = oldNow, oldPause, oldFacts })
 			now := time.Unix(0, 0)
 			ciWaitNow = func() time.Time { return now }
-			makeTestFactsFn = func(func(...string) (string, error), string) (bool, int, error) { return false, 1, nil }
+			makeTestFactsFn = func(context.Context, func(...string) (string, error), string) (bool, int, error) {
+				return false, 1, nil
+			}
 			polls := 0
 			g := &budgetReadGH{checksGH: checksGH{checks: []prCheck{{Name: "build", Bucket: "pending"}}}}
 			g.before = func(ctx context.Context, method string) error {
@@ -265,7 +270,9 @@ func TestWaitCIGateGitContextBudget(t *testing.T) {
 	t.Cleanup(func() { ciWaitNow, makeTestFactsFn = oldNow, oldFacts })
 	now := time.Unix(0, 0)
 	ciWaitNow = func() time.Time { return now }
-	makeTestFactsFn = func(func(...string) (string, error), string) (bool, int, error) { return false, 1, nil }
+	makeTestFactsFn = func(context.Context, func(...string) (string, error), string) (bool, int, error) {
+		return false, 1, nil
+	}
 	calls := 0
 	factory := func(ctx context.Context) func(...string) (string, error) {
 		return func(...string) (string, error) {
@@ -301,7 +308,7 @@ func TestWaitCIGateProbeCleanupAfterExpiry(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			cleanupCalls := 0
-			makeTestFactsFn = func(git func(...string) (string, error), _ string) (bool, int, error) {
+			makeTestFactsFn = func(_ context.Context, git func(...string) (string, error), _ string) (bool, int, error) {
 				if canceled {
 					cancel()
 				} else {

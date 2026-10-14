@@ -82,9 +82,16 @@ func (r boundedLandingGitRunner) run(dir string, currentDir bool, args ...string
 	default:
 		// Deterministic fakes retain their existing interface and observations.
 		// Production subprocess execution above is the lifetime boundary.
+		var out []byte
+		var err error
 		if currentDir {
-			return r.gitRunner.Git(args...)
+			out, err = r.gitRunner.Git(args...)
+		} else {
+			out, err = r.gitRunner.GitInDir(dir, args...)
 		}
-		return r.gitRunner.GitInDir(dir, args...)
+		if ctx.Err() != nil {
+			err = errors.Join(ctx.Err(), err)
+		}
+		return out, err
 	}
 }

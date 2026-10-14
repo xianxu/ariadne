@@ -233,6 +233,9 @@ ceiling; recovery probes, abort/reset and worktree cleanup use fresh 30-second
 commands after cancellation. Shared gitx commands used by publish replay and
 ownership also have a two-minute ceiling. Process groups reclaim descendants
 even when the direct Git process exits before its inherited pipes close.
+Publish replay, tracker lookups and archive ownership reads carry the merge
+command's cancellation through contextual Git helpers. The quick-flow publish
+check measures its branch window and final numstat through the same context.
 
 Ordinary feature worktrees and private dependency clones keep their legacy
 per-repository flow: refresh their own main, archive and remove the completed

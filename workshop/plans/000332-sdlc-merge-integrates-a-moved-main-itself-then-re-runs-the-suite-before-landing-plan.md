@@ -335,3 +335,52 @@ So a branch that deletes `test:` or lowers `WF_TEST_WEIGHT` still owes the suite
   Real post-receive cancellation tests establish that the remote already
   published, then preserve both heads and recover landing without a duplicate
   integration.
+
+### R7 — 2026-10-14, M2 boundary review round 7
+
+The previous R6 enumeration was incomplete. BR-12's remaining-budget wrapper
+covered the Git and GitHub read callbacks, but the default suite's Makefile
+probe opened an independent background context. A 40 ms remaining budget let
+that probe continue for 1.07 seconds. BR-13's bounded landing runner covered
+its direct Git calls, but publish replay used gitx helpers with background
+contexts and archive ownership reads used the separate global archive runner.
+The reviewer reproduced a cancelled publish replay continuing for 1.06 seconds.
+BR-14's owned state transitions were accepted.
+
+Complete the same deadline through each actual production edge: CI facts
+preparation, default-suite derivation and Makefile probe (with fresh bounded
+worktree cleanup); publish replay's Git reads and environment commands; archive
+ownership reads; direct landing transport/probes; and cleanup after a cancelled
+operation. Preserve the existing two-minute per-command ceiling and the
+20-minute CI wait, with suite runtime excluded. Add real slow-command tests
+that fail on the previous background-context paths, then verify the existing
+landing, publish and archive behaviors. ARCH-CONSTRAINTS, ARCH-ORDER and
+ARCH-PURPOSE require this class sweep.
+
+### R8 — 2026-10-14, R7 implementation detail and verification scope
+
+The cancellation graph now has explicit context-bearing edges:
+
+- **CI facts:** `prepareCIGateFactsContext` → `withDefaultSuiteContext` →
+  `makeTestFactsContext` → `probeMakeTestFactsContext` uses the wait's
+  remaining deadline; detached-worktree cleanup receives separate fresh
+  bounded authority. The existing wrappers serve non-wait callers.
+- **Publish replay:** `runLandingPublishGate` and its ownership/anchor reads
+  call contextual gitx primitives through main-base resolution, replay
+  merge-tree and commit-tree construction, diff, tracker repository lookup,
+  close-token checks, and archive ownership snapshots. On cancellation, no
+  empty-capture fallback can authorize publication. The quick-flow final
+  diff uses a contextual whole-issue base and numstat read.
+- **Transport and recovery:** direct durable landing Git remains under the
+  two-minute per-command bound. Archive/tracker readers use their caller's
+  context. Abort/reset and explicit worktree cleanup retain the independent
+  30-second recovery bound.
+
+Regression tests run real sleeping Makefile and Git commands and assert prompt
+termination. Before the change, the Makefile probe took about 1.6s on both
+budget expiry and cancellation, publish and archive ownership reads exceeded
+the cancellation bound, quick-flow numstat continued after cancellation, and
+contextual replay APIs were absent. Two additional tracker reader modes were
+added after a call-graph sweep; both also failed before their correction.
+The previous R6 sentence claiming complete coverage is superseded by this
+enumeration and R7's reproduced counterexamples.

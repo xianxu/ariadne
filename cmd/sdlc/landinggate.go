@@ -73,14 +73,17 @@ func runLandingPublishGate(ctx context.Context, pr landingPR, issuesDir string, 
 	if !landingOIDValid(pr.HeadOID) || !landingOIDValid(pr.BaseOID) {
 		return fmt.Errorf("landing publish gate requires pinned PR head and base")
 	}
-	head, err := gitx.RunGit("rev-parse", "--verify", "HEAD")
-	if err != nil || strings.TrimSpace(string(head)) != pr.HeadOID {
+	head, err := gitx.GitOutputContext(ctx, "rev-parse", "--verify", "HEAD")
+	if err != nil {
+		return fmt.Errorf("landing publish gate read checkout HEAD: %w", err)
+	}
+	if strings.TrimSpace(string(head)) != pr.HeadOID {
 		return fmt.Errorf("landing publish gate checkout HEAD differs from selected PR head")
 	}
 	if err := guardTransferredDetailsFn(ctx); err != nil {
 		return err
 	}
-	root, err := gitx.RepoTopLevel()
+	root, err := gitx.RepoTopLevelContext(ctx)
 	if err != nil {
 		return err
 	}

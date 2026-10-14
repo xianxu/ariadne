@@ -9,13 +9,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
@@ -49,7 +46,7 @@ func openTrackerAt(ctx context.Context, dir string) (*trackerEnv, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	identity, err := workspace.Resolve(execGitRunner{}, dir, "")
+	identity, err := workspace.Resolve(boundedLandingGit(ctx, execGitRunner{}), dir, "")
 	if err != nil {
 		return nil, fmt.Errorf("resolve checkout: %w", err)
 	}
@@ -106,22 +103,9 @@ func (e *trackerEnv) gitEnv(extra []string, args ...string) (string, error) {
 // gitRaw runs git in the checkout and returns its stdout untouched; a failure
 // carries git's stderr.
 func (e *trackerEnv) gitRaw(extra []string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(e.ctx, "git", args...)
-	// Cancellation ends git and anything it spawned (a hook, a transport
-	// helper), as gitx's trunk writes do: a bounded push must not wait on a
-	// descendant still holding the output pipe (#286).
-	processgroup.Configure(cmd)
-	cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
-	cmd.WaitDelay = time.Second
-	cmd.Dir = e.root
-	if len(extra) > 0 {
-		cmd.Env = append(os.Environ(), extra...)
-	}
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
+	out, stderr, err := gitx.RunGitInContext(e.ctx, e.root, extra, args...)
 	if err != nil {
-		return out, fmt.Errorf("git %s: %w: %s", args[0], err, strings.TrimSpace(stderr.String()))
+		return out, fmt.Errorf("git %s: %w: %s", args[0], err, strings.TrimSpace(string(stderr)))
 	}
 	return out, nil
 }

@@ -189,6 +189,9 @@ func validatePublishAnchors(ctx context.Context, entries []publishIssue, stderr 
 			issues = append(issues, e.Path)
 		}
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if len(entries) == 0 {
 		// No codecomplete issue in this window (e.g. an intermediate push of
 		// not-yet-closed work) — no invariant to enforce. Deterministic no-op.
@@ -199,7 +202,7 @@ func validatePublishAnchors(ctx context.Context, entries []publishIssue, stderr 
 	// today's main — never a commit count after an anchor, which reads every main
 	// commit merged in after the close as unreviewed (A4). The anchor is the close's
 	// evidence commit: under the FIX-THEN-SHIP protocol the fixes ride into it (#174).
-	mainBase, stale, merr := reviewMainBase(ctx, gitx.Capture("rev-parse", "HEAD"))
+	mainBase, stale, merr := reviewMainBase(ctx, gitx.CaptureContext(ctx, "rev-parse", "HEAD"))
 	if stale != "" {
 		cwarn(stderr, "publish gate: measured against "+stale)
 	}
@@ -209,30 +212,33 @@ func validatePublishAnchors(ctx context.Context, entries []publishIssue, stderr 
 		switch {
 		case merr != nil:
 			d.Unresolvable = merr.Error()
-		case !isResolvedSHA(e.Anchor) || gitx.Capture("rev-parse", "--verify", "-q", e.Anchor+"^{commit}") == "":
+		case !isResolvedSHA(e.Anchor) || gitx.CaptureContext(ctx, "rev-parse", "--verify", "-q", e.Anchor+"^{commit}") == "":
 			d.Unresolvable = fmt.Sprintf("the reviewed commit %s is not in this repository (rebased in another clone, or its pin was removed)", shortOID(e.Anchor))
 		default:
 			base := e.Anchor // on main: nothing to replay onto
 			if mainBase != "" {
-				s, conflicted, err := gitx.RebasedReviewedBase(mainBase, e.Anchor)
+				s, conflicted, err := gitx.RebasedReviewedBaseContext(ctx, mainBase, e.Anchor)
 				if err != nil {
 					d.Unresolvable = err.Error()
 					break
 				}
 				base, d.Conflicted = s, conflicted
 				for _, p := range conflicted {
-					if !publishGateHasCodeSurface([]string{p}) && hasConflictMarkers(gitx.Capture("show", "HEAD:"+p)) {
+					if !publishGateHasCodeSurface([]string{p}) && hasConflictMarkers(gitx.CaptureContext(ctx, "show", "HEAD:"+p)) {
 						d.Markers = append(d.Markers, p)
 					}
 				}
 			}
-			paths, err := gitx.DiffNames(base, "HEAD")
+			paths, err := gitx.DiffNamesContext(ctx, base, "HEAD")
 			if err != nil {
 				return fmt.Errorf("publish gate: could not diff the reviewed patch %s against HEAD (%v) — refusing to publish unverified", shortOID(e.Anchor), err)
 			}
 			d.Paths = paths
 		}
 		deltas = append(deltas, d)
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	// Every whole-issue close reviewed the ENTIRE branch patch, so on a branch carrying
 	// several closes the newest one covers the rest: HEAD passes when any reviewed patch
@@ -358,13 +364,16 @@ func quickGrewPastReview(ctx context.Context, issues []string) error {
 			continue
 		}
 		n := issueIDFromPath(p)
-		base := boundaryWindowBase(ctx, strconv.Itoa(n), "", "", "")
+		base, err := quickBoundaryWindowBase(ctx, strconv.Itoa(n))
+		if err != nil {
+			return fmt.Errorf("publish gate: quick review window for #%d: %w", n, err)
+		}
 		if base == "" {
 			continue // no #N commit anchors a window: nothing was measured at close either
 		}
-		stats, err := windowFileStats(base, "HEAD")
+		stats, err := quickWindowFileStats(ctx, base, "HEAD")
 		if err != nil {
-			return fmt.Errorf("publish gate: could not measure #%d's diff %s..HEAD (%v) — refusing to publish unverified", n, shortSHA(base), err)
+			return fmt.Errorf("publish gate: could not measure #%d's diff %s..HEAD (%v) — refusing to publish unverified", n, abbrevSHA(base), err)
 		}
 		if why := flow.Measure(stats, 0, nil).GrewPastReview(); why != "" {
 			return fmt.Errorf(

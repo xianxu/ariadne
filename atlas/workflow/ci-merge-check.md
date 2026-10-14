@@ -185,6 +185,8 @@ The durable landing CI wait has a 20-minute budget covering inflight GitHub
 and Git reads. Every read receives the remaining deadline, and late green
 results refuse. Local suite runtime, including machine-lock queueing, is
 excluded. Cleanup receives fresh bounded IO after cancellation.
+The Makefile facts probe also inherits the remaining CI budget; its normal
+two-minute ceiling still applies outside a wait.
 
 ## Not the same as the publish gate or the close review
 

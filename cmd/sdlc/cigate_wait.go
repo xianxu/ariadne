@@ -26,6 +26,10 @@ type ciGateFacts struct {
 }
 
 func prepareCIGateFacts(git func(...string) (string, error), base, head string) (*ciGateFacts, error) {
+	return prepareCIGateFactsContext(context.Background(), git, base, head)
+}
+
+func prepareCIGateFactsContext(ctx context.Context, git func(...string) (string, error), base, head string) (*ciGateFacts, error) {
 	hasWF, err := headHasWorkflows(git, head)
 	if err != nil {
 		return nil, fmt.Errorf("CI gate: %w", err)
@@ -34,7 +38,7 @@ func prepareCIGateFacts(git func(...string) (string, error), base, head string) 
 	if err != nil {
 		return nil, fmt.Errorf("CI gate: %w\n  → fix the declaration on main (it is under the local-gates guard)", err)
 	}
-	decl, err = withDefaultSuite(git, base, decl)
+	decl, err = withDefaultSuiteContext(ctx, git, base, decl)
 	if err != nil {
 		return nil, fmt.Errorf("CI gate: %w", err)
 	}
@@ -142,7 +146,11 @@ func waitCIGate(ctx context.Context, gh ghCaller, repo string, number int, base,
 			return read(args...)
 		})
 	}
-	facts, err := prepareCIGateFacts(budgetGit, base, head)
+	// The default-suite facts include a real Makefile probe, not only Git
+	// reads. Keep the whole preparation inside the remaining read deadline.
+	facts, err := readWithinCIBudget(ctx, budget, func(ioCtx context.Context) (*ciGateFacts, error) {
+		return prepareCIGateFactsContext(ioCtx, budgetGit, base, head)
+	})
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}

@@ -112,3 +112,85 @@ findings:
     detail: |
       cmd/sdlc/landing.go:430-435 updates head, PR, attempts and resume state directly; cmd/sdlc/landingintegrate.go:43 only selects actions, and its lease-refused event is test-only. ARCH-ORDER: introduce an owned state/event transition model returning next state and effects, route production outcomes through it, and revise the plan to describe the enforced boundary.
 ```
+
+---
+
+## Re-review — 2026-10-14T01:02:21-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 332 — sdlc merge integrates a moved main itself, then re-runs the suite before landing |
+| repo | ariadne |
+| issue file | workshop/issues/000332-sdlc-merge-integrates-a-moved-main-itself-then-re-runs-the-suite-before-landing.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 9ea8e8a37b74f56317b1e4b0547411426b2f259e..5fb37ac030d00755217c474413e0d60a5f273993 |
+| command | sdlc milestone-close --issue 332 --milestone M2 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T01:02:21-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+M2’s integration, conflict recovery, lease protection, retry bound, and exact-head suite behavior passed the targeted tests. BR-14 is addressed. BR-12 and BR-13 remain partially open: the new deadlines do not reach every production subprocess. Two disposable regression probes reproduced those gaps. The repository remains unchanged; disposable copies were removed.
+
+```findings
+dispose:
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      Git/GitHub read deadlines and late-green rejection are corrected, with mutation-sensitive tests. However, prepareCIGateFacts at cmd/sdlc/cigate_wait.go:145 reaches probeMakeTestFacts, which creates a background context at cmd/sdlc/localchecks_make.go:84. A real Makefile probe took 1.07 seconds with only 40 ms remaining in the CI budget. Propagate the remaining budget through the complete facts-probe path, retaining separate bounded cleanup.
+  - id: BR-13
+    disposition: not-addressed
+    note: |
+      Merge/push deadlines, descendant cleanup, and uncertain-push recovery have meaningful regression evidence. The integration call-graph sweep remains incomplete: publish replay calls gitx.RunGit, whose runner uses context.Background at cmd/sdlc/internal/gitx/window.go:28; runEnv does likewise at rebasedpatch.go:17. A cancelled runLandingPublishGate still spent 1.06 seconds in its first Git read. Ownership also reaches archiveRead at landingarchive.go:126, which invokes the unbounded landingArchiveRunner directly. Apply cancellation and command ceilings across the entire enumerated graph.
+  - id: BR-14
+    disposition: addressed
+    note: |
+      Production integration outcomes now pass through transitionIntegration in cmd/sdlc/integrationstate.go, owning head, lease base, PR, resume state, phase, and attempts. Removing retry-count advancement made both state regression tests fail. Production retry, recovery, and cancelled-push tests passed; Plan revision R6 describes the delivered model.
+```
+
+1. **Strengths**
+
+   - Real bare-remote tests verify integration, conflict abort, replay rollback, concurrent-push protection, and reintegration limits.
+   - Interrupted integration validates both parents, trailer, and reconstructed tree before publication (`landingintegrate.go:47`).
+   - Cancelled push tests establish remote publication and verify recovery without duplicate integration.
+   - README, help, and atlas document the new flow and remaining server-side main race.
+
+2. **Critical findings**
+
+   None.
+
+3. **Important findings**
+
+   - **BR-12 — ARCH-CONSTRAINTS:** [`localchecks_make.go:84`](/Users/xianxu/Library/Caches/sdlc/review-checkouts/0d4e5e0686e65731/cmd/sdlc/localchecks_make.go:84) gives the Makefile probe an independent background deadline. Budget expiry is detected afterward, but cannot interrupt the probe. Pass the operation context and remaining budget through facts preparation, default-suite derivation, and probe execution.
+   - **BR-13 — ARCH-CONSTRAINTS, ARCH-ORDER, ARCH-PURPOSE:** [`window.go:28`](/Users/xianxu/Library/Caches/sdlc/review-checkouts/0d4e5e0686e65731/cmd/sdlc/internal/gitx/window.go:28) discards operation cancellation; [`landingarchive.go:126`](/Users/xianxu/Library/Caches/sdlc/review-checkouts/0d4e5e0686e65731/cmd/sdlc/landingarchive.go:126) bypasses the bounded runner. Complete the existing `unbounded-subprocess` class sweep, covering replay, ownership, probes, and cleanup—not only merge and push.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   The targeted M2 set passed: `cmd/sdlc` in **138.918s**, `gitx` in **3.280s**. Removing read-budget enforcement, retry advancement, and descendant cleanup produced regression failures; restored tests passed. The two additional deadline/cancellation probes failed consistently on pinned head. The full suite and authenticated live conformance were not run.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** immutable gate facts and existing gate derivation are reused.
+   - **ARCH-PURE — pass:** transition tests exercise the core without IO.
+   - **ARCH-PURPOSE — flag:** BR-13’s promised call-graph sweep remains incomplete.
+   - **ARCH-MOCK — pass:** stateful GitHub fixtures, real portable Git remotes, and existing live-conformance hooks are present.
+   - **ARCH-CONSTRAINTS — flag:** BR-12 and BR-13 leave deadline gaps.
+   - **ARCH-SECURE — pass:** resume validation and leases preserve identity and concurrent work.
+   - **ARCH-ORDER — flag:** state ownership is corrected, but replay subprocesses still ignore operation cancellation.
+   - **ARCH-FUNERAL — pass:** integration commits use branch lifecycle; temporary resources have cleanup paths.
+
+7. **Plan revision recommendations**
+
+   Add **“R7 — Complete context propagation across integration IO”** under `## Revisions`. Enumerate the facts probe, publish replay, ownership reads, transport, and cleanup; identify each context-bearing seam and regression test. Correct R6’s claim that the entire integration Git graph is already bounded and cancellable.
