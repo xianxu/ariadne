@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/pkg/procgroup/procgrouptest"
 )
 
 func TestCancellationKillsDescendants(t *testing.T) {
@@ -88,6 +89,17 @@ func TestTerminateUnstarted(t *testing.T) {
 	for _, force := range []bool{false, true} {
 		if err := Terminate(exec.Command("unused"), force); !errors.Is(err, os.ErrProcessDone) {
 			t.Errorf("force=%v: %v", force, err)
+		}
+	}
+}
+
+// #361: a group whose members are all zombies or exiting (macOS killpg: EPERM)
+// is done, not a failure to cancel.
+func TestTerminateReportsADyingGroupAsDone(t *testing.T) {
+	cmd := procgrouptest.ZombieGroup(t)
+	for _, force := range []bool{false, true} {
+		if err := Terminate(cmd, force); err != nil && !errors.Is(err, os.ErrProcessDone) {
+			t.Fatalf("force=%v: %v", force, err)
 		}
 	}
 }
