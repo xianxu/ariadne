@@ -48,6 +48,7 @@ forced-color environments. Reuse its bounded process-group cleanup (ARCH-DRY).
 ## Log
 
 ### 2026-10-13
+- 2026-10-13: closed — Full make -k test at 77230109f766933ffc042e1f018823b3d84f9de4 passed: all 1239 SDLC tests and 52 other packages, zero failures, 399.4s; /tmp/ariadne-363-full-suite.log. Regression-first environment matrix failed before fix on no_color_ci forced-color assertion and forced_color_terminal plain dim assertion, while all five sibling scripts passed; after clearing inherited flags all three full shell-runner cases passed in 24.798s. Read all six construct test scripts and swept invoked scripts for NO_COLOR, TERM, CI; only vm-log color assertions needed isolation. Production color precedence remains exercised unchanged. Atlas updated; git diff --check clean.; review verdict: SHIP
 
 Hub explicitly requested this fix after #333 landed. All six .test.sh files read;
 only vm-log.test.sh depends on these color inputs. The other five assert paths,
