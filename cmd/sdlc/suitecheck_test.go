@@ -104,7 +104,7 @@ func TestProbeMakeTestFactsAriadne(t *testing.T) {
 func TestAcquireSuiteSlotWeight(t *testing.T) {
 	d, sha, _, _ := localRunRepo(t, "acquired")
 	argv := filepath.Join(t.TempDir(), "argv")
-	writeRepoFile(t, d.Root, "scripts/test-lock.py", "import sys\nopen("+pyQuote(argv)+", 'w').write(' '.join(sys.argv[1:]))\nprint('acquired')\n")
+	writeRepoFile(t, d.Root, "scripts/test-lock.py", fakeSuiteLockHelper("open("+pyQuote(argv)+", 'w').write(' '.join(sys.argv[1:]))\nprint('acquired')\n"))
 	if _, err := runLocalCheck(context.Background(), d, localCheck{Name: "suite", Command: []string{"true"}, TimeoutMinutes: 30, Weight: 2}, sha); err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +178,7 @@ func TestLocalCheckCmd_DefaultSuite(t *testing.T) {
 	dir := tempRepoWith(t, map[string]string{
 		"Makefile":             "test:\n\t@echo suite-ran\n",
 		"Makefile.workflow":    "# fake\n",
-		"scripts/test-lock.py": "print('acquired')\n",
+		"scripts/test-lock.py": fakeSuiteLockHelper("print('acquired')\n"),
 	})
 	ci := newCIFakeGH()
 	head := strings.TrimSpace(git(t, dir, "rev-parse", "HEAD"))

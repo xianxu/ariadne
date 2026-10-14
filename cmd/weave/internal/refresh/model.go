@@ -14,6 +14,13 @@ type Snapshot struct {
 	rows                                               []layergraph.Dependency
 }
 type Prepared struct{ snapshots []Snapshot }
+
+// Options selects which observed repositories may advance. SubstrateOnly keeps
+// the consuming checkout as read-only evidence throughout the transaction.
+type Options struct {
+	Rebase        bool
+	SubstrateOnly bool
+}
 type Phase uint8
 
 const (

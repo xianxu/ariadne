@@ -272,6 +272,15 @@ require separate reconciliation; see [Weave refresh](weave.md#explicit-refresh-2
 The manual procedure below remains available for refreshing the host alone or
 using its configured upstream remote instead of origin.
 
+To update only the substrate while continuing a clean issue branch, run
+`weave refresh --substrate` in that checkout. It leaves the host's branch, HEAD,
+index and origin/main ref alone, fast-forwards its declared substrates, and
+recompiles. Existing cleanliness, ownership, graph and Git-operation guards still
+apply. `--rebase` is incompatible with this mode. A compile failure retains
+confirmed substrate updates; resolve the reported failure and retry. When the
+checkout itself supplies the helper source and has no substrates, this mode
+only recompiles; integrate main into the issue branch to update that source.
+
 1. Resolve the target and require it on its resting branch, ready as above.
    An active issue branch refuses; returning to rest is a separate explicit
    action after preserving its work. Capture resting HEAD and upstream config.

@@ -717,3 +717,5 @@ The simplest durable authority beats a clever scan of consequences.
 - Keep separately bounded metadata outside a byte-measured diagnostic envelope.
   Adding a sidecar block after that envelope changes the reported retained bytes
   even when the diagnostic renderer is untouched (#365).
+- New CLI flags and recovery commands need README coverage alongside atlas and help; enumerate all three before close (#366 BR-1).
+- When a fenced reviewer cannot run a regression, record an exact-head host rerun, environment qualification and log path; distinguish unverifiable review execution from a demonstrated implementation failure (#366 BR-2).
