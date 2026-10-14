@@ -8,7 +8,6 @@
 package gitx
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -25,7 +24,7 @@ import (
 // All new git callers in this package should use run. Legacy direct calls
 // also use boundedGitOutput, preserving their existing injection behavior.
 var run = func(name string, args ...string) ([]byte, error) {
-	return boundedGitOutput(context.Background(), nil, name, args...)
+	return boundedGitOutput(nil, nil, name, args...)
 }
 
 // RunGit runs `git <args>` via the package-level `run` shim and returns
@@ -95,7 +94,7 @@ func DiffBase() string {
 // "" when no main line resolves or HEAD shares no history with it.
 func BranchPoint() string {
 	return branchPoint(Capture, func(args ...string) ([]byte, error) {
-		return boundedGitOutput(context.Background(), nil, "git", args...)
+		return boundedGitOutput(nil, nil, "git", args...)
 	})
 }
 
@@ -350,7 +349,7 @@ func CommitWindow(issueNum string, extraRefs ...string) (firstSHA, firstISO, las
 	if len(extraRefs) > 0 {
 		args = append(append(args, "HEAD"), extraRefs...)
 	}
-	out, err := boundedGitOutput(context.Background(), nil, "git", args...)
+	out, err := boundedGitOutput(nil, nil, "git", args...)
 	if err != nil {
 		// non-zero exit (e.g., not a git repo) → no window, no error
 		// (matches close-issue.py's CalledProcessError swallow)
@@ -392,11 +391,11 @@ func CommitWindow(issueNum string, extraRefs ...string) (firstSHA, firstISO, las
 	// v3 segment-start: parent of first match (still bounded by cap). Only for
 	// code history: a tracker commit's parent is some other card's change.
 	if len(extraRefs) > 0 {
-		if _, onHead := boundedGitOutput(context.Background(), nil, "git", "merge-base", "--is-ancestor", firstSHA, "HEAD"); onHead != nil {
+		if _, onHead := boundedGitOutput(nil, nil, "git", "merge-base", "--is-ancestor", firstSHA, "HEAD"); onHead != nil {
 			return firstSHA, firstISO, lastISO, nil
 		}
 	}
-	parentOut, perr := boundedGitOutput(context.Background(), nil, "git", "log", "-1", "--pretty=%aI", firstSHA+"^")
+	parentOut, perr := boundedGitOutput(nil, nil, "git", "log", "-1", "--pretty=%aI", firstSHA+"^")
 	if perr == nil {
 		parentISO := strings.TrimSpace(string(parentOut))
 		if parentISO != "" && parentISO >= capISO {
@@ -460,7 +459,7 @@ func windowCapISO() string {
 // porcelain answers a human's question).
 func DiffNames(sinceRef, untilRef string) ([]string, error) {
 	return diffNamesWithRun(func(args ...string) ([]byte, error) {
-		return boundedGitOutput(context.Background(), nil, "git", args...)
+		return boundedGitOutput(nil, nil, "git", args...)
 	}, sinceRef, untilRef)
 }
 
@@ -540,7 +539,7 @@ type LogEntry struct {
 // "first commit referencing '#N M4'" scan.
 func LogReverse() ([]LogEntry, error) {
 	return logReverse(func(args ...string) ([]byte, error) {
-		return boundedGitOutput(context.Background(), nil, "git", args...)
+		return boundedGitOutput(nil, nil, "git", args...)
 	})
 }
 
@@ -577,7 +576,7 @@ func logReverse(run func(...string) ([]byte, error)) ([]LogEntry, error) {
 // RepoTopLevel returns the path of the git repo root (`git rev-parse
 // --show-toplevel`).
 func RepoTopLevel() (string, error) {
-	out, err := boundedGitOutput(context.Background(), nil, "git", "rev-parse", "--show-toplevel")
+	out, err := boundedGitOutput(nil, nil, "git", "rev-parse", "--show-toplevel")
 	if err != nil {
 		return "", fmt.Errorf("git rev-parse --show-toplevel: %w", err)
 	}

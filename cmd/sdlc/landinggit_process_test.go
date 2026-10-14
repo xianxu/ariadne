@@ -76,13 +76,18 @@ func TestBoundedLandingGitTerminatesDescendants(t *testing.T) {
 func TestBoundedLandingGitRecoveryUsesFreshContext(t *testing.T) {
 	root := t.TempDir()
 	git(t, root, "init", "-q")
-	ctx, cancel := context.WithCancel(context.Background())
+	type valueKey struct{}
+	ctx, cancel := context.WithCancel(context.WithValue(context.Background(), valueKey{}, "command scope"))
 	r := boundedLandingGit(ctx, execGitRunner{})
 	cancel()
 	if _, err := r.GitInDir(root, "rev-parse", "--git-dir"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancelled probe = %v", err)
 	}
-	if _, err := recoveryLandingGit(r).GitInDir(root, "rev-parse", "--git-dir"); err != nil {
+	recovery := recoveryLandingGit(r)
+	if got := recovery.(boundedLandingGitRunner).ctx.Value(valueKey{}); got != "command scope" {
+		t.Fatalf("recovery dropped command scope: %v", got)
+	}
+	if _, err := recovery.GitInDir(root, "rev-parse", "--git-dir"); err != nil {
 		t.Fatalf("fresh recovery probe = %v", err)
 	}
 }

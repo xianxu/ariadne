@@ -35,7 +35,7 @@ func loadIssueRecords(ctx context.Context, issuesDir string, mode tracker.FetchM
 
 // repoRootOf is the top of the checkout containing path, found from its
 // nearest existing ancestor ("" outside any repository).
-func repoRootOf(path string) string { return repoRootOfContext(context.Background(), path) }
+func repoRootOf(path string) string { return repoRootOfContext(commandContext(nil), path) }
 
 func repoRootOfContext(ctx context.Context, path string) string {
 	abs, err := filepath.Abs(path)

@@ -83,7 +83,7 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 	}
 	// #332: the default suite is runnable by name, so `sdlc local-check run
 	// --name suite` is the close suite.
-	if decl, err = withDefaultSuite(git, "origin/main", decl); err != nil {
+	if decl, err = withDefaultSuiteContext(ctx, git, "origin/main", decl); err != nil {
 		return err
 	}
 	if len(decl.Checks) == 0 {

@@ -27,9 +27,7 @@ func boundedLandingGit(ctx context.Context, r gitRunner) gitRunner {
 }
 
 func newBoundedLandingGit(ctx context.Context, r gitRunner, timeout time.Duration) gitRunner {
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx = commandContext(ctx)
 	if old, ok := r.(boundedLandingGitRunner); ok {
 		r = old.gitRunner
 	}
@@ -47,7 +45,11 @@ func withLandingGitContext(ctx context.Context, r gitRunner) gitRunner {
 }
 
 func recoveryLandingGit(r gitRunner) gitRunner {
-	return newBoundedLandingGit(context.Background(), r, landingRecoveryTimeout)
+	ctx := commandContext(nil)
+	if old, ok := r.(boundedLandingGitRunner); ok {
+		ctx = context.WithoutCancel(old.ctx)
+	}
+	return newBoundedLandingGit(ctx, r, landingRecoveryTimeout)
 }
 
 func (r boundedLandingGitRunner) Git(args ...string) ([]byte, error) {

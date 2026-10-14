@@ -17,6 +17,11 @@ var gitCommandTimeout = 2 * time.Minute
 // owns hook, transport and merge-driver descendants, including after the
 // direct child exits and leaves inherited pipes open.
 func boundedGitCommand(ctx context.Context, env []string, name string, args ...string) (*exec.Cmd, context.Context, context.CancelFunc) {
+	// Existing context-free Git APIs pass nil. Normalize only at this single
+	// execution boundary; contextual callers retain their operation context.
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	ctx, cancel := context.WithTimeout(ctx, gitCommandTimeout)
 	cmd := exec.CommandContext(ctx, name, args...)
 	processgroup.Configure(cmd)

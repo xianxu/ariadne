@@ -152,7 +152,7 @@ func TestTrackerFullSlotCycle(t *testing.T) {
 		t.Fatalf("close did not publish codecomplete:\n%s", c)
 	}
 	git(t, slot1, "push", "-q", "-u", "upstream", branch)
-	gh := &landingFakeGH{t: t, remote: remote, pr: landingPR{Number: 7, State: "OPEN", Repo: "test/repo", HeadRef: branch,
+	gh := &landingFakeGH{t: t, remote: remote, followPush: true, pr: landingPR{Number: 7, State: "OPEN", Repo: "test/repo", HeadRef: branch,
 		HeadOID: procedureHead(t, slot1), BaseRef: "main", BaseOID: mainAt()}}
 	oldGH := ghClient
 	ghClient = gh

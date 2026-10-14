@@ -397,3 +397,16 @@ is explicitly unknown rather than attributed to either tree. This preserves
 ARCH-PURE and ARCH-ORDER: the classifier has no IO, and the baseline cannot
 turn a failed gate into a landing. Real local Git/GitHub fake tests cover both
 labels, unparsed results, and the absence of a main status.
+
+### R10 — 2026-10-14, full-suite integration corrections
+
+The first full run exposed a source guard that targeted M2's new
+context-free compatibility wrappers, plus older end-to-end fixtures whose
+static PR head and moved-main setup no longer represented the intended state.
+Keep the contextual APIs as the production path; move fixture-only aliases
+into tests and centralize the remaining legacy nil-context fallback at the
+bounded Git execution seam. Preserve cancellation-independent recovery with
+the caller's context values. Let landing fakes observe pushed heads, and bring
+the legacy asset fixture's feature branch current before testing archive
+materialization. These are compatibility and proof corrections, not a change
+to M3's classification rule (ARCH-ORDER, ARCH-CONSTRAINTS).

@@ -25,10 +25,6 @@ type ciGateFacts struct {
 	required     []string
 }
 
-func prepareCIGateFacts(git func(...string) (string, error), base, head string) (*ciGateFacts, error) {
-	return prepareCIGateFactsContext(context.Background(), git, base, head)
-}
-
 func prepareCIGateFactsContext(ctx context.Context, git func(...string) (string, error), base, head string) (*ciGateFacts, error) {
 	hasWF, err := headHasWorkflows(git, head)
 	if err != nil {

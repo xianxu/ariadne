@@ -14,7 +14,7 @@ import (
 // the bytes beside the *exec.ExitError), so callers can read both the output
 // and the exit status via gitExitCode. Overridable like run.
 var runEnv = func(env []string, name string, args ...string) ([]byte, error) {
-	return boundedGitOutput(context.Background(), env, name, args...)
+	return boundedGitOutput(nil, env, name, args...)
 }
 
 // rebasedPatchIdentity fixes author and committer so S is a pure function of

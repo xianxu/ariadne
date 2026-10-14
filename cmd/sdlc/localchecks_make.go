@@ -36,9 +36,6 @@ var (
 // withDefaultSuite adds the default suite to decl when it declares none,
 // probing rev's Makefile (rev is main: a branch cannot drop the suite it owes).
 // The one derivation the CI gate and `sdlc local-check run` share.
-func withDefaultSuite(git func(args ...string) (string, error), rev string, decl localCheckDecl) (localCheckDecl, error) {
-	return withDefaultSuiteContext(context.Background(), git, rev, decl)
-}
 
 func withDefaultSuiteContext(ctx context.Context, git func(args ...string) (string, error), rev string, decl localCheckDecl) (localCheckDecl, error) {
 	if _, declared := decl.check(suiteCheckName); declared {
@@ -54,9 +51,6 @@ func withDefaultSuiteContext(ctx context.Context, git func(args ...string) (stri
 // makeTestFacts probes rev's Makefile in a detached worktree: has is whether
 // make's rule database (make -p) lists a test target, weight is
 // WF_TEST_WEIGHT (default 1). No Makefile: has is false.
-func makeTestFacts(git func(args ...string) (string, error), rev string) (has bool, weight int, err error) {
-	return makeTestFactsContext(context.Background(), git, rev)
-}
 
 func makeTestFactsContext(ctx context.Context, git func(args ...string) (string, error), rev string) (has bool, weight int, err error) {
 	if err := ctx.Err(); err != nil {
@@ -75,9 +69,6 @@ func makeTestFactsContext(ctx context.Context, git func(args ...string) (string,
 }
 
 // probeMakeTestFacts asks make in dir, under a goal that is not test.
-func probeMakeTestFacts(dir string) (has bool, weight int, err error) {
-	return probeMakeTestFactsContext(context.Background(), dir)
-}
 
 func probeMakeTestFactsContext(ctx context.Context, dir string) (has bool, weight int, err error) {
 	if err := ctx.Err(); err != nil {

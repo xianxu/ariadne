@@ -121,10 +121,6 @@ type landingArchivePlan struct {
 	moves []landingArchiveMove
 }
 
-func archiveRead(root string, args ...string) ([]byte, error) {
-	return archiveReadContext(context.Background(), root, args...)
-}
-
 func archiveReadContext(ctx context.Context, root string, args ...string) ([]byte, error) {
 	if root == "" {
 		return nil, fmt.Errorf("archive repository directory is required")
@@ -167,9 +163,6 @@ func validateArchivePR(repo string, pr landingPR) error {
 	}
 	return nil
 }
-func archiveTree(root, ref string, dirs landingArchiveRoots) (landingArchiveSnapshot, error) {
-	return archiveTreeContext(context.Background(), root, ref, dirs)
-}
 
 func archiveTreeContext(ctx context.Context, root, ref string, dirs landingArchiveRoots) (landingArchiveSnapshot, error) {
 	if !landingOIDValid(ref) {
@@ -209,9 +202,6 @@ func archiveTreeContext(ctx context.Context, root, ref string, dirs landingArchi
 		result[name] = landingArchiveBlob{mode: fields[0], oid: fields[2]}
 	}
 	return result, nil
-}
-func archiveBlob(root string, b landingArchiveBlob) ([]byte, error) {
-	return archiveBlobContext(context.Background(), root, b)
 }
 
 func archiveBlobContext(ctx context.Context, root string, b landingArchiveBlob) ([]byte, error) {
@@ -374,9 +364,6 @@ func archiveRelated(name string, selected []landingOwnedIssue, dirs landingArchi
 		}
 	}
 	return false
-}
-func archiveSnapshot(root, ref string, selected []landingOwnedIssue, dirs landingArchiveRoots) (landingArchiveSnapshot, error) {
-	return archiveSnapshotContext(context.Background(), root, ref, selected, dirs)
 }
 
 func archiveSnapshotContext(ctx context.Context, root, ref string, selected []landingOwnedIssue, dirs landingArchiveRoots) (landingArchiveSnapshot, error) {

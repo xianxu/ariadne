@@ -63,7 +63,7 @@ func TestCloseOnARenamedBranchAfterAnOutsideMergeLands(t *testing.T) {
 	mustSlotRun(t, slot1, "pr", "--dry-run") // the old guard refused here
 	git(t, slot1, "push", "-q", "-u", "upstream", closing)
 
-	gh := &landingFakeGH{t: t, remote: remote, pr: landingPR{Number: 8, State: "OPEN", Repo: "test/repo", HeadRef: closing,
+	gh := &landingFakeGH{t: t, remote: remote, followPush: true, pr: landingPR{Number: 8, State: "OPEN", Repo: "test/repo", HeadRef: closing,
 		HeadOID: procedureHead(t, slot1), BaseRef: "main", BaseOID: mainAt()}}
 	oldGH := ghClient
 	ghClient = gh

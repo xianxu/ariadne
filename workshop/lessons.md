@@ -19,6 +19,14 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- A context-free compatibility wrapper is still production code to a source
+  guard. Remove unused wrappers or route their nil context through the one
+  bounded fallback; keep fixture aliases in test files. A targeted behavior
+  test will not exercise a whole-package source guard (#332 full suite).
+- When a stateful fake models a remote push, update its advertised PR head
+  from the pushed ref in every fixture that can integrate main. A stale fake
+  turns a successful integration into a two-minute registration timeout
+  (#332 full suite).
 - An override of execution settings must not override a mandatory gate's
   requirement. Test omitted and explicitly false flags through the production
   gate, as well as the pure derivation (#332 BR-8).
