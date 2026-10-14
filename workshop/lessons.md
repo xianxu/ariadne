@@ -23,6 +23,10 @@ Detailed incidents remain in their owning issue or review artifact.
   selected filenames with literal pathspec syntax at every Git operation,
   including status and cleanup; a wildcard filename otherwise expands to
   unrelated dirty files (#240 BR-5).
+- Cleanup guidance must account for Git tracking state: `git restore` cannot
+  remove an untracked file before a merge. Test the printed command against a
+  real Git checkout, including a wildcard filename beside another match
+  (#240 post-review).
 - A cleanup that reads bytes and later restores or removes a path has a race
   between its check and its effect. A rename and recheck do not close the race:
   an editor can still write through an already-open descriptor immediately

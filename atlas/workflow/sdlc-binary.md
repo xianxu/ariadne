@@ -87,11 +87,13 @@ mid-issue. It reads one regular, unstaged Markdown file up to 1 MiB; the path
 must be unchanged in the issue branch since its merge base with main. Main's
 copy must still equal that base, unless it already has the selected bytes. The
 CAS rechecks main on every attempt; a path-level conflict refuses without
-touching local work. Publication retains the selected local file; it prints an
-exact literal-path `git restore` command to run after merging main into the
-branch, or before a merge that would otherwise conflict. If the local file
-changed during publication, it warns to preserve and reconcile that newer
-edit. A retry after an uncertain push uses the surviving local bytes to
+touching local work. Publication retains the selected local file. For a
+tracked path, it prints an exact literal-path `git restore` command to run
+after merging main into the branch, or before a merge that would otherwise
+conflict. An untracked path instead gets a targeted `git clean -f` command to
+run before the merge; Git restore cannot remove untracked files. If the local
+file changed during publication, it warns to preserve and reconcile that
+newer edit. A retry after an uncertain push uses the surviving local bytes to
 recognize an already-applied publication.
 Atlas changes travel with the code they map, and code/base-layer settings
 travel through the normal reviewed issue branch; they are outside this command's

@@ -224,15 +224,25 @@ func runTrunkPublish(ctx context.Context, stdout, stderr io.Writer, p string) er
 	current, present, err := readLocalProse(root, p)
 	if err != nil || !present || !bytes.Equal(current, local) {
 		fmt.Fprintf(stderr, "%s changed while publishing; preserve and reconcile the local path before cleanup\n", p)
-	} else {
+	} else if headOK {
 		fmt.Fprintf(stderr, "After merging main into this branch, run %s; or run it before a merge that would otherwise conflict (this discards the local copy).\n", trunkRestoreCommand(p))
+	} else {
+		fmt.Fprintf(stderr, "Before merging main into this branch, run %s to remove the published untracked copy; git restore cannot remove an untracked file.\n", trunkCleanCommand(p))
 	}
 	fmt.Fprintln(stdout, p)
 	return nil
 }
 
 func trunkRestoreCommand(p string) string {
+	return "git restore -- " + trunkLiteralArg(p)
+}
+
+func trunkCleanCommand(p string) string {
+	return "git clean -f -- " + trunkLiteralArg(p)
+}
+
+func trunkLiteralArg(p string) string {
 	// The Git pathspec and the shell argument must both be literal. A selected
 	// filename may itself contain wildcard or shell metacharacters.
-	return "git restore -- ':(literal)" + strings.ReplaceAll(p, "'", "'\\''") + "'"
+	return "':(literal)" + strings.ReplaceAll(p, "'", "'\\''") + "'"
 }

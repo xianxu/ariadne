@@ -30,7 +30,9 @@
 The command pins the selected path and local bytes before publishing. It verifies a regular file and rejects staged or branch-committed changes to it. On each CAS attempt it compares the pinned branch-base tree and current trunk view, rechecks the worktree identity, and constructs one `TrunkWrite` with `ExactBytes`. It uses the same stateful Git seam and real bare-Git fixtures as other SDLC publication tests (`cmd/sdlc/internal/gitx/updatemany.go:75`, ARCH-MOCK). An uncertain push returns the existing uncertainty error and leaves local bytes; rerunning first checks whether main carries the local bytes and then cleans. A rejected CAS retries only if unrelated main paths moved; a selected-path conflict refuses. The command serializes within the existing SDLC transaction lock, while the remote CAS governs other workspaces (ARCH-ORDER).
 
 After confirmed publication, the command retains the local file and prints
-literal-path cleanup guidance if its bytes still match the pinned read. If
+literal-path cleanup guidance if its bytes still match the pinned read. A
+tracked file uses Git restore, while an untracked file uses targeted Git clean
+before merging main. If
 the local path changed, it warns to preserve and reconcile the newer edit.
 A retry with main already matching the retained bytes makes no new commit and
 repeats the guidance. Other dirty paths and the issue branch's commits/index
@@ -124,3 +126,12 @@ main into this branch, or before a merge that would otherwise conflict. Tests
 must keep the source inode open and write through it after publication, proving
 the file and edit remain visible. Existing cleanup tests are replaced with
 retention, retry, and changed-local guidance tests (ARCH-ORDER, ARCH-FUNERAL).
+
+### 2026-10-14 — tracked versus untracked guidance
+
+The first recorded suite attempt was stopped while queued, before any tests
+ran, because the printed Git restore command cannot remove a newly created
+untracked file before main is merged. The revised output uses literal-path Git
+restore for tracked files and targeted literal-path `git clean -f` for untracked
+files before a conflicting merge. Real-Git tests execute each printed command,
+including a wildcard filename with another matching file beside it.

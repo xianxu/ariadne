@@ -33,8 +33,10 @@ path since the branch base, reconcile the edit first; the command refuses to
 overwrite it. If a push response is uncertain, rerun the same command with the
 local file intact. Publication leaves the local file untouched. Once this
 branch has merged main, run the printed `git restore -- ':(literal)<path>'`
-command to discard that now-published local copy, or run it before a merge
-that would otherwise conflict. If the local file changed during publication,
+command to discard a tracked local copy, or run it before a merge that would
+otherwise conflict. For an untracked note, run the printed targeted
+`git clean -f -- ':(literal)<path>'` before merging main; `git restore` cannot
+remove an untracked file. If the local file changed during publication,
 preserve and reconcile the newer edit instead. Issue details use
 `sdlc issue publish --issue N`; plans, atlas,
 code and settings travel with the reviewed issue branch. See

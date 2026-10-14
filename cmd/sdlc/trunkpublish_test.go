@@ -85,8 +85,13 @@ func TestTrunkPublishFromDirtyIssueBranch(t *testing.T) {
 	if got := r.git("status", "--porcelain", "--untracked-files=all"); !strings.Contains(got, "unrelated.go") || !strings.Contains(got, rel) {
 		t.Fatalf("wrong worktree retention: %s", got)
 	}
-	if !strings.Contains(errs, trunkRestoreCommand(rel)) {
-		t.Fatalf("missing exact-path cleanup guidance: %s", errs)
+	cleanCmd := "git clean -f -- ':(literal)" + rel + "'"
+	if !strings.Contains(errs, cleanCmd) || strings.Contains(errs, "git restore --") {
+		t.Fatalf("wrong untracked cleanup guidance: %s", errs)
+	}
+	r.git("clean", "-f", "--", ":(literal)"+rel)
+	if _, err := os.Stat(filepath.Join(r.root, rel)); !os.IsNotExist(err) {
+		t.Fatalf("printed untracked cleanup did not remove selected path: %v", err)
 	}
 }
 
@@ -164,7 +169,7 @@ func TestTrunkPublishRetryAfterPushInterruption(t *testing.T) {
 	if got, err := os.ReadFile(filepath.Join(r.root, rel)); err != nil || string(got) != "published\n" {
 		t.Fatalf("retry changed local copy: %q, %v", got, err)
 	}
-	if !strings.Contains(errs.String(), trunkRestoreCommand(rel)) {
+	if !strings.Contains(errs.String(), "git clean -f -- ':(literal)"+rel+"'") {
 		t.Fatalf("retry omitted cleanup guidance: %s", errs.String())
 	}
 }
@@ -228,6 +233,13 @@ func TestTrunkPublishPreservesTrackedBranchAndIndex(t *testing.T) {
 	}
 	if got, err := os.ReadFile(filepath.Join(r.root, rel)); err != nil || string(got) != "revised\n" {
 		t.Fatalf("local tracked copy changed: %q, %v", got, err)
+	}
+	if !strings.Contains(errs.String(), trunkRestoreCommand(rel)) {
+		t.Fatalf("tracked copy missing restore guidance: %s", errs.String())
+	}
+	r.git("restore", "--", ":(literal)"+rel)
+	if got, err := os.ReadFile(filepath.Join(r.root, rel)); err != nil || string(got) != "base\n" {
+		t.Fatalf("printed tracked cleanup did not restore base: %q, %v", got, err)
 	}
 }
 
@@ -309,6 +321,29 @@ func TestTrunkRestoreCommandQuotesShellAndGitMetacharacters(t *testing.T) {
 	want := "git restore -- ':(literal)workshop/parley/a'\\''b*.md'"
 	if got != want {
 		t.Fatalf("restore command = %q, want %q", got, want)
+	}
+}
+
+func TestTrunkPublishUntrackedWildcardCleanupIsLiteral(t *testing.T) {
+	r, _ := claimSetRepo(t)
+	r.git("switch", "-q", "-c", "000009-s09")
+	selected := "workshop/parley/*.md"
+	other := "workshop/parley/other.md"
+	writeRepoFile(t, r.root, selected, "selected\n")
+	writeRepoFile(t, r.root, other, "other\n")
+	var out, errs bytes.Buffer
+	if err := runTrunkPublish(context.Background(), &out, &errs, selected); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	if !strings.Contains(errs.String(), trunkCleanCommand(selected)) {
+		t.Fatalf("missing literal clean command: %s", errs.String())
+	}
+	r.git("clean", "-f", "--", ":(literal)"+selected)
+	if _, err := os.Stat(filepath.Join(r.root, selected)); !os.IsNotExist(err) {
+		t.Fatalf("selected untracked file remains: %v", err)
+	}
+	if got, err := os.ReadFile(filepath.Join(r.root, other)); err != nil || string(got) != "other\n" {
+		t.Fatalf("unselected wildcard match changed: %q, %v", got, err)
 	}
 }
 

@@ -178,6 +178,11 @@ contract tests pass, including a write through an already-open descriptor and
 retry after a confirmed push without a second main commit. `make -k tools`
 builds all four binaries. The recorded full suite and renewed close review
 remain.
+The first suite attempt waited for a machine test slot and was stopped before
+running tests when a guidance defect surfaced: `git restore` cannot remove an
+untracked file before the merge. Tracked files retain the literal-path restore
+command; untracked files now get a literal-path `git clean -f` command. A
+real-Git wildcard test proves it removes only the selected file.
 
 ### 2026-09-20
 
@@ -265,6 +270,16 @@ for after the branch has merged main, or before a merge that would otherwise
 conflict; a local edit observed after publication instead gets a preserve-and-
 reconcile warning. This removes the interrupted cleanup state entirely
 (ARCH-ORDER, ARCH-FUNERAL).
+
+### 2026-10-14 — tracked versus untracked cleanup guidance
+
+Before main has been merged into the issue branch, Git restore can discard a
+tracked local edit but cannot remove a newly created untracked file. The
+command therefore prints `git restore -- <literal path>` for tracked files and
+`git clean -f -- <literal path>` for untracked files. Both are exact-path,
+operator-run commands; the latter runs before a merge that would otherwise
+collide with the untracked file. A real-Git wildcard test verifies that the
+printed Git pathspec cannot expand to another file.
 
 ### 2026-09-21 — distinguish couch provisioning from SDLC slot awareness
 
