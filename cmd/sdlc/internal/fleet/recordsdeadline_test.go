@@ -95,17 +95,21 @@ func shortDeadline(t *testing.T, d time.Duration) {
 	t.Cleanup(func() { recordsReadDeadline = prev })
 }
 
-// #290: a tracked repository whose remote never answers degrades to unknown
-// with the timeout as its reason, within the read deadline, while another
-// repository in the same inventory reads present — one dead remote never
-// stalls or degrades the others.
+// #290: a tracked repository whose remote never answers degrades (#360: to
+// stale, from its last fetch) with the timeout as its reason, within the read
+// deadline, while another repository in the same inventory reads present — one
+// dead remote never stalls or degrades the others. The deadline bounds remote
+// contact only, so the healthy repository's local work under load cannot spend it.
 func TestHangingRemoteDegradesOnlyItsRepository(t *testing.T) {
 	fleetRoot := t.TempDir()
 	healthy := trackedRepo(t, fleetRoot, "healthy")
 	stuck := trackedRepo(t, fleetRoot, "stuck")
 	hangRemote(t, stuck)
 	freshRecords(t)
-	shortDeadline(t, 500*time.Millisecond)
+	// The remote budget, with headroom (#360): the healthy repository's real
+	// ls-remote and fetch against a local bare repository must fit even under
+	// load, while the stuck remote (a 30s hang) still runs it out.
+	shortDeadline(t, 2*time.Second)
 
 	start := time.Now()
 	inv, err := CollectInventory(context.Background(), fleetRoot, InventoryOptions{Git: execGitReader{}, Machine: func() (MachineIdentity, error) {
@@ -114,7 +118,7 @@ func TestHangingRemoteDegradesOnlyItsRepository(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if elapsed := time.Since(start); elapsed > 5*time.Second {
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
 		t.Fatalf("inventory took %v with a %v read deadline", elapsed, recordsReadDeadline)
 	}
 	states := map[string]TreeRow{}
@@ -124,8 +128,10 @@ func TestHangingRemoteDegradesOnlyItsRepository(t *testing.T) {
 	if h := states[filepath.Base(healthy)]; h.ClaimsState != ClaimsPresent {
 		t.Fatalf("healthy repository: %s %q", h.ClaimsState, h.ClaimsError)
 	}
-	if s := states[filepath.Base(stuck)]; s.ClaimsState != ClaimsUnknown || !strings.Contains(s.ClaimsError, "deadline") {
-		t.Fatalf("hanging repository: %s %q, want unknown naming the deadline", s.ClaimsState, s.ClaimsError)
+	// The deadline bounds the remote only (#360), so a hanging remote degrades
+	// like any unreachable one: answered from its last fetch, naming the deadline.
+	if s := states[filepath.Base(stuck)]; s.ClaimsState != ClaimsStale || !strings.Contains(s.ClaimsError, "deadline") {
+		t.Fatalf("hanging repository: %s %q, want stale naming the deadline", s.ClaimsState, s.ClaimsError)
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -42,6 +43,10 @@ func NewRepository(ctx context.Context, root, remote string) (*Repository, error
 	}
 	return &Repository{trunk: tf}, nil
 }
+
+// BoundRemote bounds the total time this repository's tracker waits on its
+// remote (gitx.TrunkFile.BoundRemote, #360); local reads are not counted.
+func (r *Repository) BoundRemote(d time.Duration) { r.trunk.BoundRemote(d) }
 
 func (r *Repository) Snapshot() (Snapshot, error) {
 	view, err := r.trunk.Snapshot()

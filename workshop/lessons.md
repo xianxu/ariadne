@@ -247,6 +247,9 @@ Detailed incidents remain in their owning issue or review artifact.
   assumed every array operator failed on bash 3.2 under `set -u`; measured, only the
   bare `${a[@]}`/`${a[*]}` (and the bash-4 case operators) do, so the first rule
   over-flagged substrings and pattern removal.
+- `--no-atlas` is a claim to verify, not a default. Before passing it, grep the atlas
+  for the changed component's name and behavior words; twice (#355, #360) the close
+  review found the atlas restating the old behavior after `--no-atlas`.
 - A behavior change to a surface the README documents updates the README, even
   with no new command: a now-false README sentence is a finding (#230 BR-3).
 - Validate external identifier grammar before interpreting sentinel values. An

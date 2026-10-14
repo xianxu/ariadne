@@ -223,7 +223,7 @@ func (t *TrunkFile) commitTree(tree, base, msg string, sign bool) (string, error
 	return parseObjectID(out)
 }
 func (t *TrunkFile) pushExpected(candidate, base string) ([]byte, error) {
-	out, diag, err := t.run(nil, "push", "--porcelain", "--force-with-lease=refs/heads/"+t.branch+":"+base, t.remote, candidate+":refs/heads/"+t.branch)
+	out, diag, err := t.runRemote(nil, "push", "--porcelain", "--force-with-lease=refs/heads/"+t.branch+":"+base, t.remote, candidate+":refs/heads/"+t.branch)
 	return append(out, diag...), err
 }
 

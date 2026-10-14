@@ -149,7 +149,7 @@ func (t *TrunkFile) BlobAt(commit, path string) (string, error) {
 // Absent is a completed observation (ls-remote exit 2), never a transport error.
 func (t *TrunkFile) RemoteExists() (bool, error) {
 	t.probedTip = ""
-	out, diag, err := t.run(nil, "ls-remote", "--refs", "--exit-code", "--", t.remote, t.localRef())
+	out, diag, err := t.runRemote(nil, "ls-remote", "--refs", "--exit-code", "--", t.remote, t.localRef())
 	if err == nil {
 		t.probedTip = parseLsRemoteTip(out, t.localRef())
 		return len(strings.TrimSpace(string(out))) > 0, nil
