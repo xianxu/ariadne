@@ -136,7 +136,7 @@ Items in order: M1 tl-worker (binary, prose, stub, §15 line); M2 tl-lead prose;
     - Mutation check: dropping `../tl-lead` makes it name `cmd/tl-lead/bar.go`. (ARCH-PURPOSE: the class is "a guard whose population is a directory list", and every list in that guard file now reaches the moved code.)
   - `weave/internal/startup TestToolsDoubleColonFailurePropagates`: not this branch.
     - `MAKEFLAGS=k` from my `make -k` reaches the child `make tools`, so the second `tools::` recipe runs after the first fails. It reproduces with `MAKEFLAGS=k go test …` and passes without it.
-    - weave's Tools honors an inherited `-k` in production too. Filed ariadne#359 (unclaimed).
+    - weave's Tools honors an inherited `-k` in production too. Tracked as ariadne#358 (filed earlier by ariadne:3; ariadne:5 is on it). My ariadne#359 duplicated it, and the TL marked it superseded.
     - The suite before close runs as plain `make test`.
 
 ## Revisions
