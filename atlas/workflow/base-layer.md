@@ -87,10 +87,10 @@ Each function installs the **owner's** `bin/X` (the official, gitignored path,
 so it's safe for a service binary like `nous`) and runs it in
 the **caller's** cwd, so it's always fresh and works for both repo-bound tools
 (`sdlc`, operates on the repo you're in) and run-anywhere tools (`nous`). The
-emitted form builds into a per-call directory beside the target and renames the
-result over `bin/X` (#355): `X() { ( cd OWNER && mkdir -p bin && d="$(mktemp -d
-bin/.X.XXXXXX)" && { go build -o "$d/X" ./cmd/X && mv -f "$d/X" bin/X; s=$?; rm -rf
-"${d:?}"; exit $s; } ) || return; OWNER/bin/X "$@"; }`. The rename is atomic, so
+emitted function builds into a per-call `mktemp -d bin/.X.XXXXXX` directory beside
+the target and renames the result over `bin/X` (#355); the exact form is the one
+`printf` in `construct/dev-aliases.sh` (its header comment shows it), pinned by
+`dev-aliases.test.sh`. The rename is atomic, so
 another process calling `bin/X` during a rebuild never finds it missing (it used to
 be `rm -f` then build); concurrent builds use separate directories and the last
 rename wins; and the new inode gives the macOS code-signing safety the owner
