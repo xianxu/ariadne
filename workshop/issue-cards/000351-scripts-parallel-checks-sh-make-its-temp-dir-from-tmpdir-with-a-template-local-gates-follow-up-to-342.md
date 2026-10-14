@@ -1,6 +1,6 @@
 ---
 id: 000351
-status: working
+status: codecomplete
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
@@ -13,8 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.45
 tracker:
     version: 1
+    completion:
+        token: close-a46288429563
+        repository: github.com/xianxu/ariadne
+        reviewed_head: a77603f1f6dfa5b2d8e2d1b5fe640416b34e7865
+        evidence_commit: a008947630b8458dd51bb13fc6a92cec9279a36b
 ---
 
 # scripts/parallel-checks.sh: make its temp dir from TMPDIR with a template (local-gates follow-up to #342)
