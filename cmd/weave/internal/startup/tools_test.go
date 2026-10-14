@@ -62,7 +62,7 @@ type toolProcessState struct {
 }
 
 func (s *toolProcessState) RunInput(dir string, argv []string, input string) error {
-	if input != ".PHONY: tools\n" || strings.Join(argv, " ") != "make --no-print-directory -f Makefile -f - tools" {
+	if input != ".PHONY: tools\n" || strings.Join(argv, " ") != "make -S --no-print-directory -f Makefile -f - tools" {
 		return fmt.Errorf("invalid make invocation")
 	}
 	if len(s.order) > 0 && !s.built[s.order[len(s.order)-1]] {
@@ -146,17 +146,22 @@ func TestToolsDoesNotInferBuildsAndAlwaysRunsAuthoredCommand(t *testing.T) {
 }
 
 func TestToolsDoubleColonFailurePropagates(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "Makefile"), []byte("tools::\n\tfalse\ntools::\n\ttouch unexpected\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	var out bytes.Buffer
-	err := Tools(weavefs.OSFS{}, []string{dir}, weavefs.ExecRunner{Stdout: &out, Stderr: &out}, false, &out)
-	if err == nil || !strings.Contains(out.String(), "false") {
-		t.Fatalf("authored failure not executed: %v\n%s", err, &out)
-	}
-	if _, err := os.Stat(filepath.Join(dir, "unexpected")); !os.IsNotExist(err) {
-		t.Fatalf("later recipe ran: %v", err)
+	for _, flags := range []string{"", "k"} {
+		t.Run("MAKEFLAGS="+flags, func(t *testing.T) {
+			t.Setenv("MAKEFLAGS", flags)
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, "Makefile"), []byte("tools::\n\tfalse\ntools::\n\ttouch unexpected\n"), 0644); err != nil {
+				t.Fatal(err)
+			}
+			var out bytes.Buffer
+			err := Tools(weavefs.OSFS{}, []string{dir}, weavefs.ExecRunner{Stdout: &out, Stderr: &out}, false, &out)
+			if err == nil || !strings.Contains(out.String(), "false") {
+				t.Fatalf("authored failure not executed: %v\n%s", err, &out)
+			}
+			if _, err := os.Stat(filepath.Join(dir, "unexpected")); !os.IsNotExist(err) {
+				t.Fatalf("later recipe ran: %v", err)
+			}
+		})
 	}
 }
 
