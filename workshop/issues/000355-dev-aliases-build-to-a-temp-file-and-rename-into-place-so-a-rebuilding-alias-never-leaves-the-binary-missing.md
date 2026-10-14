@@ -1,12 +1,12 @@
 ---
 id: 000355
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: '7bf13e350d06aa6a77b6da89d034630747210fbb' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f696372552d0981a91777f5964368305b3ef6119' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T20:27:01-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "61090024", done: "1dc27e69"}
+actual_hours: 0.23
 ---
 
 # dev-aliases: build to a temp file and rename into place, so a rebuilding alias never leaves the binary missing
