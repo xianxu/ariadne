@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
-estimate_hours:
-card_mirror: 'af877ffe20a60ba2c7e6ee5cc95637cac127612e' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 4.82
+card_mirror: '7df46001d484f5c1c74c5fbbe8399a8133280ca1' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T11:38:01-07:00
 claimant:
     operator: Xian Xu
@@ -39,6 +39,24 @@ Hold the transaction lock only around short git/tracker mutations: integrating m
 - [ ] Update workflow help and atlas, run targeted tests, `make -k tools`, and the recorded full suite; close and ship after the boundary review.
 
 Durable implementation steps: [merge-lock-scoping plan](../plans/000370-sdlc-merge-holds-the-repo-transaction-lock-for-its-whole-suite-wait-30-min-blocking-every-other-slot-s-stage-publish-and-claim-in-that-repo-plan.md).
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.5
+item: api-integration         design=0.75 impl=0.60
+item: api-integration         design=0.75 impl=0.60
+item: cross-cutting-refactor  design=0.30 impl=0.20
+item: atlas-docs              design=0.10 impl=0.08
+item: milestone-review        design=0.10 impl=0.20
+design-buffer: 0.15
+total: 4.82
+```
+
+The two API-integration items cover the durable and legacy Git/GitHub landing paths. Each uses a 1.5-hour v2 design midpoint discounted to 0.75 for the now detailed plan, and 1.5 implementation hours scaled to 0.60 by v3.1. The cross-cutting lock refactor uses 0.30 design and 0.50 × 0.40 = 0.20 implementation hours; atlas/docs uses 0.10 and 0.20 × 0.40 = 0.08; one close review uses 0.10 and 0.50 × 0.40 = 0.20. Familiarity is 1.5 because concurrency/recovery behavior is novel but bounded by existing seams. The thorough plan earns the v3.1 15% design buffer: 2.00 × 1.15 + 1.68 × 1.5 = 4.82 hours.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* The calibration source is marked stale by `sdlc estimate-source`, so the per-primitive hours are provisional.
 
 ## Log
 
