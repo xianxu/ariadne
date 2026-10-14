@@ -128,6 +128,17 @@ Items in order: M1 tl-worker (binary, prose, stub, §15 line); M2 tl-lead prose;
 
 - TL (ops:0, delivery 22fe4bae, receipt verified): the lead prose carries the notify rule now, though pair#540 has not landed. The hub interrupts the operator only for what needs them now (a smoke test ready, a decision, an incident) via `couch --notify`, citing pair#540; everything else waits in the status file. Test row added to `TestLeadHelpCoversPlaybook`.
 
+- Full suite (`make -k test`, 533 s; 12 shards, 1136 cmd/sdlc tests, 52 other packages): three failures.
+  - `settingsx TestBaseSettingsExcludedVerbsMatchArguments`: expected, waiting on ariadne#354.
+  - `cmd/sdlc TestPlanItemReadersUsePlanItemsBody` (mine): the source guard keyed its two exemptions on `internal/issue/plan.go`, and its scope check walked only cmd/sdlc, so it was blind to plan readers in `pkg/markdoc` and `cmd/tl-lead`. Fixed:
+    - `guardScanDirs` now includes `../../pkg/markdoc` and `../tl-lead`, and the exemptions are rekeyed;
+    - `TestGuardScopeCoversEveryPackage` walks the whole module, comparing absolute paths.
+    - Mutation check: dropping `../tl-lead` makes it name `cmd/tl-lead/bar.go`. (ARCH-PURPOSE: the class is "a guard whose population is a directory list", and every list in that guard file now reaches the moved code.)
+  - `weave/internal/startup TestToolsDoubleColonFailurePropagates`: not this branch.
+    - `MAKEFLAGS=k` from my `make -k` reaches the child `make tools`, so the second `tools::` recipe runs after the first fails. It reproduces with `MAKEFLAGS=k go test …` and passes without it.
+    - weave's Tools honors an inherited `-k` in production too. Filed ariadne#359 (unclaimed).
+    - The suite before close runs as plain `make test`.
+
 ## Revisions
 
 - 2026-10-13 — the operator: **don't copy stories or lessons** into the binaries' prose. The prose states current
