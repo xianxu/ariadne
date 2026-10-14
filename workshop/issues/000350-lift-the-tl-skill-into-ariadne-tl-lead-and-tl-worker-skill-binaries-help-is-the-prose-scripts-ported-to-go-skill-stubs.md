@@ -111,6 +111,21 @@ Items in order: M1 tl-worker (binary, prose, stub, §15 line); M2 tl-lead prose;
   - moved to tl-worker or cited: the dispatch checklist's worker rules (`tl-worker --help`); session-sync verb semantics, receipts, and peek (`couch --skill`).
   - changed: the draft's "known-red CI doesn't block a landing" contradicts AGENTS §5 (#309: merge refuses red CI, never `--no-ci`); the prose follows §5.
 
+- M3 built:
+  - `pkg/markdoc` (fence/section/plan scanners) and `pkg/trains` moved out of `cmd/sdlc/internal`; the old names forward, and the corpus test still checks 5345 sections across 878 files. `TestUnterminatedPolicies_DisagreeOnPurpose` stays in `internal/issue` (it pins two issue-package consumers), now in `fence_policy_test.go`. Moving `Edge` across packages made vet flag the unkeyed `Edge{…}` literals in `trainforecast_test.go`; they are keyed now.
+  - `tl-lead status submit|section|thread|trains|seen|owed|clobbered` over the `SessionSync` seam, and `tl-lead trains` over the `SDLC` seam.
+  - The legacy `holder: agent` lock deletion is not ported: parley.nvim#315 is done.
+  - The `.clobbered` diff uses a small LCS line diff (`linediff.go`), since there is no diff library in the module.
+- M3 live conformance (`TL_LEAD_LIVE=1 go test ./cmd/tl-lead -run Conformance`, sandboxed shell): PASS against the real couch.
+  - Checked: read hash, write, stale (exit 6), operator lock (exit 3), status.
+  - Measured by hand first: `couch-owner` is not enforced on write, and `status` on a file owned by this slot lists the slot's real owed deliveries, so the test uses a dummy owner and never folds.
+- M3 measurement against `render-trains.py` on the live ops ariadne-robustness-1 project:
+  - Python 8.0 s. Go 21.8 s with the fleet read before the cars, 13.7 s once it overlaps them. `sdlc fleet inventory` alone is 11.8 s (it reads every repository's claims), and that is now the floor. Accepted as in the envelope for a pass every few minutes; noted in the lead prose.
+  - Output matches Python's, except for these intended differences:
+    - full `repo#id` labels, per the prose rule;
+    - numbered idle slots listed (`pair:4 idle`);
+    - ariadne#350 counted as `M 0/3`, not `tasks 0/3`: Python's regex missed bold `**M1**` rows, while the shared scanner (the close gate's) reads them.
+
 ## Revisions
 
 - 2026-10-13 — the operator: **don't copy stories or lessons** into the binaries' prose. The prose states current

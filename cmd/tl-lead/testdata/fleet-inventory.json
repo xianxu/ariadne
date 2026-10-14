@@ -1,0 +1,248 @@
+{
+ "schema_version": 1,
+ "rows": [
+  {
+   "repo_identity": "/fleet/42shots/.git",
+   "repo_root": "/fleet/42shots",
+   "tree_path": "/fleet/42shots",
+   "branch": "main",
+   "detached": false,
+   "bare": false,
+   "facts": {
+    "available": true,
+    "head": "6bfdf3d18532f7116c97b4de9a959f221a3ce3de",
+    "commit_timestamp": "2026-10-08T22:58:34-07:00",
+    "base_available": true,
+    "base_ref": "origin/main",
+    "ahead": 0,
+    "behind": 0,
+    "dirty_count": 0
+   },
+   "issues": [],
+   "claims": [],
+   "claims_state": "present",
+   "policy": {
+    "ok": false,
+    "diagnostic": {
+     "code": "missing-policy",
+     "message": "fleet policy declaration is missing",
+     "path": "/fleet/42shots/.sdlc/fleet.json"
+    }
+   }
+  },
+  {
+   "repo_identity": "/fleet/CLIProxyAPI/.git",
+   "repo_root": "/fleet/CLIProxyAPI",
+   "tree_path": "/fleet/CLIProxyAPI",
+   "branch": "main",
+   "detached": false,
+   "bare": false,
+   "facts": {
+    "available": true,
+    "head": "6f923a28f77b08bda6eaa5eafc41b96dfcbcb8df",
+    "commit_timestamp": "2026-06-14T23:51:40+08:00",
+    "base_available": true,
+    "base_ref": "origin/main",
+    "ahead": 0,
+    "behind": 0,
+    "dirty_count": 0
+   },
+   "issues": [],
+   "claims": [],
+   "claims_state": "absent",
+   "policy": {
+    "ok": false,
+    "diagnostic": {
+     "code": "missing-policy",
+     "message": "fleet policy declaration is missing",
+     "path": "/fleet/CLIProxyAPI/.sdlc/fleet.json"
+    }
+   }
+  }
+ ],
+ "diagnostics": [],
+ "machine": {
+  "state": "present",
+  "fingerprint": "0000",
+  "name": "MacBook Pro"
+ },
+ "dangling_claims": [],
+ "slots": [
+  {
+   "address": "ariadne:0",
+   "repo": "ariadne",
+   "slot": 0,
+   "resting_branch": "main",
+   "verdict": "ready",
+   "members": [
+    {
+     "role": "host",
+     "path": "/fleet/ariadne",
+     "resting_branch": "main",
+     "branch": "main",
+     "verdict": "ready",
+     "reasons": []
+    }
+   ]
+  },
+  {
+   "address": "ariadne:1",
+   "repo": "ariadne",
+   "slot": 1,
+   "environment_root": "/fleet/worktree/ariadne-slot1",
+   "resting_branch": "main-slot1",
+   "verdict": "holds-work",
+   "members": [
+    {
+     "role": "host",
+     "path": "/fleet/worktree/ariadne-slot1/ariadne",
+     "resting_branch": "main-slot1",
+     "branch": "000348-issues-a-hierarchical-area-path-couch-broadcast-web-and-typed-facets-severity-queryable-by-prefix",
+     "verdict": "holds-work",
+     "reasons": [
+      "unlanded-commits",
+      "open-issue:ariadne#000348",
+      "claimed:ariadne#000348"
+     ]
+    }
+   ]
+  },
+  {
+   "address": "ariadne:2",
+   "repo": "ariadne",
+   "slot": 2,
+   "environment_root": "/fleet/worktree/ariadne-slot2",
+   "resting_branch": "main-slot2",
+   "verdict": "holds-work",
+   "members": [
+    {
+     "role": "host",
+     "path": "/fleet/worktree/ariadne-slot2/ariadne",
+     "resting_branch": "main-slot2",
+     "branch": "000350-lift-the-tl-skill-into-ariadne-tl-lead-and-tl-worker-skill-binaries-help-is-the-prose-scripts-ported-to-go-skill-stubs",
+     "verdict": "holds-work",
+     "reasons": [
+      "unlanded-commits",
+      "open-issue:ariadne#000350",
+      "claimed:ariadne#000350"
+     ]
+    }
+   ]
+  },
+  {
+   "address": "ariadne:3",
+   "repo": "ariadne",
+   "slot": 3,
+   "environment_root": "/fleet/worktree/ariadne-slot3",
+   "resting_branch": "main-slot3",
+   "verdict": "holds-work",
+   "members": [
+    {
+     "role": "host",
+     "path": "/fleet/worktree/ariadne-slot3/ariadne",
+     "resting_branch": "main-slot3",
+     "branch": "000353-bash-3-2-empty-array-expansion-under-set-u-shelllint-rule-sweep-and-parallel-checks-regression-follow-up-to-351",
+     "verdict": "holds-work",
+     "reasons": [
+      "unlanded-commits",
+      "open-issue:ariadne#000353",
+      "claimed:ariadne#000353"
+     ]
+    }
+   ]
+  },
+  {
+   "address": "ariadne:4",
+   "repo": "ariadne",
+   "slot": 4,
+   "environment_root": "/fleet/worktree/ariadne-slot4",
+   "resting_branch": "main-slot4",
+   "verdict": "holds-work",
+   "members": [
+    {
+     "role": "host",
+     "path": "/fleet/worktree/ariadne-slot4/ariadne",
+     "resting_branch": "main-slot4",
+     "branch": "000354-sandbox-exempt-tl-worker-and-tl-lead",
+     "verdict": "holds-work",
+     "reasons": [
+      "unlanded-commits",
+      "open-issue:ariadne#000354",
+      "claimed:ariadne#000354"
+     ]
+    }
+   ]
+  },
+  {
+   "address": "ariadne:5",
+   "repo": "ariadne",
+   "slot": 5,
+   "environment_root": "/fleet/worktree/ariadne-slot5",
+   "resting_branch": "main-slot5",
+   "verdict": "holds-work",
+   "members": [
+    {
+     "role": "host",
+     "path": "/fleet/worktree/ariadne-slot5/ariadne",
+     "resting_branch": "main-slot5",
+     "branch": "000337-issue-assets-a-per-issue-folder-for-images-and-other-non-text-files-with-the-issue-s-lifecycle",
+     "verdict": "holds-work",
+     "reasons": [
+      "unlanded-commits",
+      "open-issue:ariadne#000337",
+      "claimed:ariadne#000337"
+     ]
+    }
+   ]
+  },
+  {
+   "address": "pair:0",
+   "repo": "pair",
+   "slot": 0,
+   "resting_branch": "main",
+   "verdict": "holds-work",
+   "members": [
+    {
+     "role": "host",
+     "path": "/fleet/pair",
+     "resting_branch": "main",
+     "verdict": "holds-work",
+     "reasons": [
+      "unlanded-commits",
+      "staged"
+     ]
+    }
+   ]
+  },
+  {
+   "address": "pair:1",
+   "repo": "pair",
+   "slot": 1,
+   "environment_root": "/fleet/worktree/pair-slot1",
+   "resting_branch": "main-slot1",
+   "verdict": "holds-work",
+   "members": [
+    {
+     "role": "host",
+     "path": "/fleet/worktree/pair-slot1/pair",
+     "resting_branch": "main-slot1",
+     "branch": "000539-pair-fleet-inventory-rejects-sdlc-s-new-staged-hold-ariadne-344-accept-it",
+     "verdict": "holds-work",
+     "reasons": [
+      "unlanded-commits",
+      "open-issue:pair#000539",
+      "claimed:pair#000539"
+     ]
+    },
+    {
+     "role": "dependency",
+     "path": "/fleet/worktree/pair-slot1/ariadne",
+     "resting_branch": "main",
+     "branch": "main",
+     "verdict": "ready",
+     "reasons": []
+    }
+   ]
+  }
+ ]
+}

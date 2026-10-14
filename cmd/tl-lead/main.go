@@ -8,6 +8,7 @@ package main
 
 import (
 	_ "embed"
+	"errors"
 	"fmt"
 	"os"
 
@@ -17,16 +18,28 @@ import (
 //go:embed help.md
 var rootHelp string
 
+// deps are the seams to the world: couch's session-sync verbs and sdlc's JSON
+// contracts. Tests pass stateful fakes.
+type deps struct {
+	ss   SessionSync
+	sdlc SDLC
+}
+
 func main() {
-	if err := buildRoot().Execute(); err != nil {
+	d := deps{ss: couchSessionSync{bin: "couch"}, sdlc: execSDLC{bin: "sdlc"}}
+	if err := buildRoot(d).Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
+		var ee exitError
+		if errors.As(err, &ee) {
+			os.Exit(ee.code)
+		}
 		os.Exit(1)
 	}
 }
 
-// buildRoot assembles the single-command tree; with no arguments it prints the
+// buildRoot assembles the command tree; with no arguments it prints the
 // procedure, the same as --help.
-func buildRoot() *cobra.Command {
+func buildRoot(d deps) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "tl-lead",
 		Short:         "The procedure for the TL running a project from a Couch hub",
@@ -39,5 +52,6 @@ func buildRoot() *cobra.Command {
 		},
 	}
 	root.CompletionOptions.HiddenDefaultCmd = true
+	root.AddCommand(newStatusCmd(d), newTrainsCmd(d))
 	return root
 }

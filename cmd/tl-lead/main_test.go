@@ -13,7 +13,7 @@ import (
 
 func helpOutput(t *testing.T, args ...string) string {
 	t.Helper()
-	root := buildRoot()
+	root := buildRoot(deps{})
 	var out bytes.Buffer
 	root.SetOut(&out)
 	root.SetErr(&out)
@@ -106,5 +106,33 @@ func TestLeadHelpDoesNotRestateWorker(t *testing.T) {
 	}
 	if owned < 8 {
 		t.Fatalf("only %d worker-owned rules loaded; the table did not load", owned)
+	}
+}
+
+// The procedure names the subcommands that do the status-file work, and no
+// retired script.
+func TestLeadHelpNamesSubcommands(t *testing.T) {
+	help := helpOutput(t, "--help")
+	for _, want := range []string{
+		"tl-lead status trains FILE PROJECT", "tl-lead status section FILE HEADING BODYFILE",
+		"tl-lead status thread FILE TEXTFILE", "tl-lead status submit FILE", "tl-lead status seen FILE",
+		"tl-lead status owed FILE", "tl-lead status clobbered FILE --done", "tl-lead trains PROJECT",
+	} {
+		if !strings.Contains(help, want) {
+			t.Errorf("help does not name %q", want)
+		}
+	}
+	for _, retired := range []string{"ss.py", "tl-status.py", "render-trains.py", "scripts/"} {
+		if strings.Contains(help, retired) {
+			t.Errorf("help names the retired %q", retired)
+		}
+	}
+	// Every subcommand the help names exists in the command tree.
+	root := buildRoot(deps{})
+	for _, path := range [][]string{{"status", "trains"}, {"status", "section"}, {"status", "thread"}, {"status", "submit"},
+		{"status", "seen"}, {"status", "owed"}, {"status", "clobbered"}, {"trains"}} {
+		if c, _, err := root.Find(path); err != nil || c.Name() != path[len(path)-1] {
+			t.Errorf("tl-lead %v is not a command", path)
+		}
 	}
 }

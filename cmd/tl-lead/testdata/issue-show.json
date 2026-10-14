@@ -1,0 +1,92 @@
+{
+ "schema_version": 1,
+ "issue": "000350",
+ "observed_at": "2026-10-14T00:49:42Z",
+ "tracker": {
+  "state": "present",
+  "ref": "a8c9156c7c0f231cef46843c8b7c631eaf1f368f"
+ },
+ "card": {
+  "state": "present",
+  "source": "issue-tracker:workshop/issue-cards/000350-lift-the-tl-skill-into-ariadne-tl-lead-and-tl-worker-skill-binaries-help-is-the-prose-scripts-ported-to-go-skill-stubs.md",
+  "authority": "tracker",
+  "revision": "928c386e1933063f3d32198c4013409015eaff2c",
+  "status": "working",
+  "title": "lift the TL skill into ariadne: tl-lead and tl-worker skill binaries (help is the prose), scripts ported to Go, skill stubs",
+  "started": "2026-10-13T17:19:46-07:00",
+  "updated": "2026-10-13"
+ },
+ "assignment": {
+  "state": "present",
+  "source": "issue-tracker:workshop/issue-cards/000350-lift-the-tl-skill-into-ariadne-tl-lead-and-tl-worker-skill-binaries-help-is-the-prose-scripts-ported-to-go-skill-stubs.md",
+  "authority": "tracker",
+  "claimant": {
+   "operator": "Test Operator",
+   "machine": "0000",
+   "machine_name": "test machine",
+   "workspace": "ariadne:2",
+   "worktree": "/fleet/worktree/ariadne-slot2/ariadne",
+   "repository": "github.com/xianxu/ariadne"
+  },
+  "relation": "this-workspace",
+  "claimant_worktree": "holds-branch"
+ },
+ "workspaces": {
+  "state": "present",
+  "source": "git worktree list",
+  "authority": "worktree",
+  "holding": [
+   {
+    "path": "/fleet/worktree/ariadne-slot2/ariadne",
+    "address": "ariadne:2",
+    "branch": "000350-lift-the-tl-skill-into-ariadne-tl-lead-and-tl-worker-skill-binaries-help-is-the-prose-scripts-ported-to-go-skill-stubs",
+    "head": "8a11808711e4f2bbbb55797f3e194681c6587b76",
+    "dirty_count": 16,
+    "ahead": 7,
+    "behind": 12,
+    "is_claimant": true
+   }
+  ]
+ },
+ "branch": {
+  "state": "present",
+  "source": "refs/heads/000350-lift-the-tl-skill-into-ariadne-tl-lead-and-tl-worker-skill-binaries-help-is-the-prose-scripts-ported-to-go-skill-stubs",
+  "authority": "committed",
+  "ref": "refs/heads/000350-lift-the-tl-skill-into-ariadne-tl-lead-and-tl-worker-skill-binaries-help-is-the-prose-scripts-ported-to-go-skill-stubs",
+  "head": "8a11808711e4f2bbbb55797f3e194681c6587b76",
+  "commits_ahead_of_main": 7,
+  "last_commit_at": "2026-10-13T17:43:48-07:00"
+ },
+ "checkpoints": {
+  "state": "present",
+  "source": "refs/heads/000350-lift-the-tl-skill-into-ariadne-tl-lead-and-tl-worker-skill-binaries-help-is-the-prose-scripts-ported-to-go-skill-stubs:workshop/plans",
+  "authority": "committed",
+  "flow": {
+   "kind": "full",
+   "provenance": "inferred"
+  },
+  "plan": {
+   "total": 3,
+   "ticked": 0
+  },
+  "reviews": [
+   {
+    "state": "present",
+    "source": "refs/heads/000350-lift-the-tl-skill-into-ariadne-tl-lead-and-tl-worker-skill-binaries-help-is-the-prose-scripts-ported-to-go-skill-stubs:workshop/plans",
+    "boundary": "plan",
+    "open_blocking": 0
+   }
+  ]
+ },
+ "completion": {
+  "state": "absent",
+  "source": "issue-tracker:workshop/issue-cards/000350-lift-the-tl-skill-into-ariadne-tl-lead-and-tl-worker-skill-binaries-help-is-the-prose-scripts-ported-to-go-skill-stubs.md",
+  "authority": "tracker"
+ },
+ "landing": {
+  "state": "present",
+  "source": "issue-tracker:workshop/issue-cards/000350-lift-the-tl-skill-into-ariadne-tl-lead-and-tl-worker-skill-binaries-help-is-the-prose-scripts-ported-to-go-skill-stubs.md",
+  "authority": "tracker",
+  "outcome": "not-landed"
+ }
+}

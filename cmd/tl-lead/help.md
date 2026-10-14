@@ -126,25 +126,38 @@ TALKING TO THE OPERATOR
     4. `## Threads`: only cross-issue matters (an incident, a rollout, a
        finding awaiting filing). Per-issue detail lives in the issue.
     5. `## Fleet` (binaries, rollout state) and a short "recently done".
-  - Render Trains and Slots from sources, never by hand, on every pass. The
+  - Render Trains and Slots from sources, never by hand, on every pass:
+    `tl-lead status trains FILE PROJECT` renders both from the project's trains
+    table, `sdlc issue show` per car, `sdlc fleet inventory`, and each claimant
+    checkout's issue file, and writes them (`tl-lead trains PROJECT` only
+    prints). It takes about as long as the fleet inventory, ten-odd seconds. The
     bar counts only what the files show; never round it up from a worker's
-    "almost done".
+    "almost done". A car rendered `?` was not read; look before acting on it.
   - Session-sync editing is pessimistic for the operator and optimistic for
     you. The operator's lock is the only lock: while it is held every write
-    refuses, so queue the update and fold it in after their submit, and never
-    override a lock. You hold nothing between commands. Every write is
-    compare-and-replace against the hash you read; on `stale`, read again,
-    recompute and retry. Never write the file any other way.
-  - A submit arrives as an owed event. Run `diff`, resolve the 🤖 markers per
-    xx-fix (act, fold the result into the state, remove the marker; a reply in
-    the file only for a one-line question back; discussion stays in chat),
-    then clear the event with a folding write and mark the file seen. Fold
-    only events you have looked at: a submit landing mid-turn stays owed until
-    you read it.
+    refuses (exit 3), so queue the update and fold it in after their submit, and
+    never override a lock. You hold nothing between commands. Write only
+    through `tl-lead status`, which does the compare-and-replace loop (read the
+    hash, compute from that read, write naming it, retry on stale; exit 6 after
+    four) and passes arguments as a list, never through a shell:
+      tl-lead status section FILE HEADING BODYFILE [--fold-owed]
+      tl-lead status thread FILE TEXTFILE [--drop PREFIX]... [--fold-owed]
+      tl-lead status trains FILE PROJECT [--fold-owed]
+    Never write the file any other way.
+  - A submit arrives as an owed event. Run `tl-lead status submit FILE`: it
+    prints the operator's edits, the lines holding 🤖 markers, any
+    `.clobbered` copy, and the owed events (recording them as seen). Resolve
+    the markers per xx-fix (act, fold the result into the state, remove the
+    marker; a reply in the file only for a one-line question back; discussion
+    stays in chat), clear the event with a write passing `--fold-owed`, then
+    `tl-lead status seen FILE`. `--fold-owed` folds only events an earlier
+    `submit` or `tl-lead status owed FILE` listed, so a submit landing
+    mid-turn stays owed until you read it.
   - `<file>.clobbered` (parley's last-resort copy of a write that landed under
-    the operator's lock) is yours to clean up, never the operator's: delete it
-    when identical, otherwise merge what it has that the file lacks, then
-    delete it.
+    the operator's lock) is yours to clean up, never the operator's: `submit`
+    deletes one identical to the file and shows the diff of one that isn't;
+    merge what it has that the file lacks, then
+    `tl-lead status clobbered FILE --done`.
 
 GROOMING THE BACKLOG INTO TRAINS
   A train is a chain of issues in one code area, run in order by one slot. It
