@@ -19,6 +19,15 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- A selected repository path is data, but Git pathspecs are patterns. Pass
+  selected filenames with literal pathspec syntax at every Git operation,
+  including status and cleanup; a wildcard filename otherwise expands to
+  unrelated dirty files (#240 BR-5).
+- A cleanup that reads bytes and later restores or removes a path has a race
+  between its check and its effect. Move the selected inode aside first, recheck
+  it, and create any replacement exclusively; inject writes at the move and
+  replacement boundaries in tests so later edits remain recoverable (#240 BR-6).
+
 - A context-free compatibility wrapper is still production code to a source
   guard. Remove unused wrappers or route their nil context through the one
   bounded fallback; keep fixture aliases in test files. A targeted behavior

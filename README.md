@@ -25,6 +25,17 @@ branch, or directly with `sdlc issue publish --issue N` by the owner (anyone,
 while unclaimed: #274) (#284). A resting branch only fast-forwards to main. See
 [issue tracker](atlas/workflow/issue-tracker.md).
 
+For a non-issue workshop note edited while an issue branch is active, run
+`sdlc trunk publish --path workshop/parley/note.md`. It publishes one unstaged,
+uncommitted Markdown file under `workshop/parley/`, `pensive/`, `targets/` or
+`projects/`, or `workshop/lessons.md`, directly to main. If main changed that
+path since the branch base, reconcile the edit first; the command refuses to
+overwrite it. If a push response is uncertain, rerun the same command with the
+local file intact. After confirmed publication it cleans only the selected
+local copy. Issue details use `sdlc issue publish --issue N`; plans, atlas,
+code and settings travel with the reviewed issue branch. See
+[trunk publication](atlas/workflow/sdlc-binary.md#issue-reservation-local-durability-and-publication-244).
+
 Attach evidence with `sdlc issue attach --issue N --file PATH --caption TEXT`,
 then commit both changed paths on the issue branch or use `sdlc issue publish`.
 The issue body indexes a bounded plain-Git bundle that follows publish,

@@ -274,6 +274,129 @@ func TestFinishTrunkPublishPreservesLaterLocalEdit(t *testing.T) {
 	}
 }
 
+func TestTrunkPublishTreatsSelectedWildcardFilenameLiterally(t *testing.T) {
+	r, _ := claimSetRepo(t)
+	selected := "workshop/parley/*.md"
+	other := "workshop/parley/other.md"
+	writeRepoFile(t, r.root, selected, "selected base\n")
+	writeRepoFile(t, r.root, other, "other base\n")
+	r.git("add", "--", ":(literal)"+selected, ":(literal)"+other)
+	r.git("commit", "-q", "-m", "seed literal filenames")
+	r.git("push", "-q", "origin", "HEAD:main")
+	r.git("switch", "-q", "-c", "000009-s09")
+	writeRepoFile(t, r.root, selected, "selected edit\n")
+	writeRepoFile(t, r.root, other, "other edit\n")
+	var out, errs bytes.Buffer
+	if err := runTrunkPublish(context.Background(), &out, &errs, selected); err != nil {
+		t.Fatalf("publish literal path: %v\n%s", err, errs.String())
+	}
+	if got, err := os.ReadFile(filepath.Join(r.root, other)); err != nil || string(got) != "other edit\n" {
+		t.Fatalf("unselected wildcard match was changed: %q, %v", got, err)
+	}
+	if got, err := os.ReadFile(filepath.Join(r.root, selected)); err != nil || string(got) != "selected base\n" {
+		t.Fatalf("selected path not restored: %q, %v", got, err)
+	}
+}
+
+func TestFinishTrunkPublishPreservesEditDuringCleanup(t *testing.T) {
+	for _, tracked := range []bool{false, true} {
+		name := "untracked"
+		if tracked {
+			name = "tracked"
+		}
+		t.Run(name, func(t *testing.T) {
+			r, _ := claimSetRepo(t)
+			rel := "workshop/parley/concurrent.md"
+			if tracked {
+				writeRepoFile(t, r.root, rel, "base\n")
+				r.git("add", "--", rel)
+				r.git("commit", "-q", "-m", "seed")
+			}
+			writeRepoFile(t, r.root, rel, "published\n")
+			head := r.git("rev-parse", "HEAD")
+			old := trunkProseAfterMove
+			trunkProseAfterMove = func(_, backup string) {
+				if err := os.WriteFile(backup, []byte("later edit\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			defer func() { trunkProseAfterMove = old }()
+			err := finishTrunkPublish(context.Background(), r.root, rel, []byte("published\n"), tracked, head)
+			if err == nil || !strings.Contains(err.Error(), "changed") {
+				t.Fatalf("intervening edit not detected: %v", err)
+			}
+			if got, readErr := os.ReadFile(filepath.Join(r.root, rel)); readErr != nil || string(got) != "later edit\n" {
+				t.Fatalf("intervening edit lost: %q, %v", got, readErr)
+			}
+		})
+	}
+}
+
+func TestFinishTrunkPublishPreservesNewPathDuringCleanup(t *testing.T) {
+	for _, tracked := range []bool{false, true} {
+		name := "untracked"
+		if tracked {
+			name = "tracked"
+		}
+		t.Run(name, func(t *testing.T) {
+			r, _ := claimSetRepo(t)
+			rel := "workshop/parley/replaced.md"
+			if tracked {
+				writeRepoFile(t, r.root, rel, "base\n")
+				r.git("add", "--", rel)
+				r.git("commit", "-q", "-m", "seed")
+			}
+			writeRepoFile(t, r.root, rel, "published\n")
+			head := r.git("rev-parse", "HEAD")
+			old := trunkProseAfterMove
+			trunkProseAfterMove = func(original, _ string) {
+				if err := os.WriteFile(original, []byte("new writer\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			defer func() { trunkProseAfterMove = old }()
+			if err := finishTrunkPublish(context.Background(), r.root, rel, []byte("published\n"), tracked, head); err == nil || !strings.Contains(err.Error(), "another writer") {
+				t.Fatalf("new path not detected: %v", err)
+			}
+			if got, err := os.ReadFile(filepath.Join(r.root, rel)); err != nil || string(got) != "new writer\n" {
+				t.Fatalf("new writer lost: %q, %v", got, err)
+			}
+		})
+	}
+}
+
+func TestFinishTrunkPublishChecksHeadAndIndexAfterMove(t *testing.T) {
+	for _, kind := range []string{"HEAD", "index"} {
+		t.Run(kind, func(t *testing.T) {
+			r, _ := claimSetRepo(t)
+			rel := "workshop/parley/ordering.md"
+			writeRepoFile(t, r.root, rel, "base\n")
+			r.git("add", "--", rel)
+			r.git("commit", "-q", "-m", "seed")
+			writeRepoFile(t, r.root, rel, "published\n")
+			head := r.git("rev-parse", "HEAD")
+			old := trunkProseAfterMove
+			trunkProseAfterMove = func(_, _ string) {
+				if kind == "HEAD" {
+					writeRepoFile(t, r.root, "later.txt", "later\n")
+					r.git("add", "--", "later.txt")
+					r.git("commit", "-q", "-m", "move HEAD")
+				} else {
+					r.git("add", "-u", "--", rel)
+				}
+			}
+			defer func() { trunkProseAfterMove = old }()
+			err := finishTrunkPublish(context.Background(), r.root, rel, []byte("published\n"), true, head)
+			if err == nil || !strings.Contains(err.Error(), kind+" moved") && !strings.Contains(err.Error(), kind+" changed") {
+				t.Fatalf("%s mutation not detected: %v", kind, err)
+			}
+			if got, err := os.ReadFile(filepath.Join(r.root, rel)); err != nil || string(got) != "published\n" {
+				t.Fatalf("local bytes lost: %q, %v", got, err)
+			}
+		})
+	}
+}
+
 func gitInTest(t *testing.T, dir string, args ...string) string {
 	t.Helper()
 	cmd := append([]string{"-C", dir}, args...)

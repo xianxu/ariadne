@@ -51,9 +51,9 @@ After confirmed publication, `finishTrunkPublish` cleans the one path only if it
 
 ## Task 3: document, verify and review
 
-**Files:** `atlas/workflow/sdlc-binary.md`, `atlas/workflow/workspace-branching.md`, `workshop/issues/000240-*.md`, `workshop/lessons.md` only if a review finds a transferable rule.
+**Files:** `README.md`, `atlas/workflow/sdlc-binary.md`, `workshop/issues/000240-*.md`, `workshop/lessons.md` if review finds a transferable rule.
 
-- [x] Document `sdlc issue publish --issue` for issue details, `sdlc trunk publish --path` for non-issue workshop prose, and the branch-reviewed home for atlas/code/settings. Keep `atlas/index.md` current if adding a file (none planned).
+- [x] Document `sdlc issue publish --issue` for issue details, `sdlc trunk publish --path` for non-issue workshop prose, and the branch-reviewed home for atlas/code/settings in README and atlas. Keep `atlas/index.md` current if adding a file (none planned).
 - [x] Run `gofmt`, targeted tests, `make -k`, and the local suite via `sdlc local-check run --name suite` after the tree is stable; inspect logs and compare the patch with main.
 - [ ] Resolve review findings as a class, rerun affected checks, tick the final close row only when fulfilled, and run `sdlc close --issue 240 --verified <evidence>`; publish via `sdlc pr` and `sdlc merge` after CI.
 
@@ -71,3 +71,17 @@ has one close boundary. The review's minor envelope note is addressed too.
 The command's real-Git tests cover its path-level decision and local cleanup;
 the reused `gitx.UpdateMany` suite remains the proof for CAS retry and unknown
 remote responses. This avoids duplicating the lower seam's stateful fake tests.
+
+### 2026-10-14 — close review round 1
+
+BR-5 exposed that Git pathspecs can expand a selected wildcard filename, so
+every selected-path Git operation must use literal syntax. BR-6 exposed a race
+between validation and destructive cleanup. Cleanup now atomically moves the
+selected source to a nearby backup, rechecks its bytes and HEAD/index state,
+then uses exclusive creation for a tracked replacement; an untracked file is
+already removed from its original name by that move. On a changed moved inode
+it links the source back only if the original name remains free; otherwise it
+retains the backup and reports its path. Tests inject edits to both the moved
+inode and the original path, and HEAD/index changes after the move. BR-7 adds
+the command's usage and recovery guidance to README. This is one cleanup
+transition per invocation; the prior one-path recovery policy remains.

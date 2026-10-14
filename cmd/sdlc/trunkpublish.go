@@ -120,7 +120,7 @@ func gitForProse(ctx context.Context, root string, args ...string) ([]byte, erro
 }
 
 func stagedProse(ctx context.Context, root, p string) (bool, error) {
-	_, _, err := gitx.RunGitContext(ctx, "-C", root, "diff", "--cached", "--quiet", "--", p)
+	_, _, err := gitx.RunGitContext(ctx, "-C", root, "diff", "--cached", "--quiet", "--", ":(literal)"+p)
 	if err == nil {
 		return false, nil
 	}
@@ -221,6 +221,23 @@ func runTrunkPublish(ctx context.Context, stdout, stderr io.Writer, p string) er
 // before local cleanup; production always uses the same finisher.
 var finishPublishedProse = finishTrunkPublish
 
+// This ordering seam lets real filesystem tests edit the moved source between
+// the atomic rename and the validation that decides whether it may be removed.
+var trunkProseAfterMove = func(string, string) {}
+
+func restoreMovedProse(original, backup string) error {
+	// Link is exclusive: another writer's newly-created original must never be
+	// replaced by the backup. The link keeps writes through old descriptors
+	// visible at the restored name until the backup name is removed.
+	if err := os.Link(backup, original); err != nil {
+		return fmt.Errorf("local copy preserved at %s; restoring its name: %w", backup, err)
+	}
+	if err := os.Remove(backup); err != nil {
+		return fmt.Errorf("local copy restored at %s; removing backup %s: %w", original, backup, err)
+	}
+	return nil
+}
+
 func finishTrunkPublish(ctx context.Context, root, p string, published []byte, tracked bool, pinnedHead string) error {
 	head, err := gitForProse(ctx, root, "rev-parse", "HEAD")
 	if err != nil {
@@ -246,9 +263,75 @@ func finishTrunkPublish(ctx context.Context, root, p string, published []byte, t
 	if staged {
 		return fmt.Errorf("index changed during publication; left untouched")
 	}
-	if tracked {
-		_, err = gitForProse(ctx, root, "restore", "--worktree", "--", p)
+	abs := filepath.Join(root, filepath.FromSlash(p))
+	placeholder, err := os.CreateTemp(filepath.Dir(abs), ".sdlc-trunk-publish-*")
+	if err != nil {
 		return err
 	}
-	return os.Remove(filepath.Join(root, filepath.FromSlash(p)))
+	backup := placeholder.Name()
+	if err := placeholder.Close(); err != nil {
+		os.Remove(backup)
+		return err
+	}
+	if err := os.Rename(abs, backup); err != nil {
+		os.Remove(backup)
+		return err
+	}
+	trunkProseAfterMove(abs, backup)
+	// Every check after the move has an explicit recovery path. A writer that
+	// replaced the original name makes Link fail without overwriting it.
+	recover := func(cause error) error {
+		if restoreErr := restoreMovedProse(abs, backup); restoreErr != nil {
+			return fmt.Errorf("%w; %v", cause, restoreErr)
+		}
+		return cause
+	}
+	moved, infoErr := os.Lstat(backup)
+	if infoErr != nil || !moved.Mode().IsRegular() {
+		return recover(fmt.Errorf("moved local copy changed type during cleanup: %v", infoErr))
+	}
+	movedBytes, err := os.ReadFile(backup)
+	if err != nil || !bytes.Equal(movedBytes, published) {
+		return recover(fmt.Errorf("local bytes changed during cleanup; left untouched: %v", err))
+	}
+	head, err = gitForProse(ctx, root, "rev-parse", "HEAD")
+	if err != nil || string(head) != pinnedHead {
+		return recover(fmt.Errorf("HEAD moved during cleanup; local copy left untouched: %v", err))
+	}
+	staged, err = stagedProse(ctx, root, p)
+	if err != nil || staged {
+		return recover(fmt.Errorf("index changed during cleanup; local copy left untouched: %v", err))
+	}
+	if !tracked {
+		// The rename itself cleaned the selected path. A replacement at the
+		// original name belongs to a concurrent writer and is never removed.
+		if _, err := os.Lstat(abs); err == nil {
+			return fmt.Errorf("another writer claimed %s; published copy retained at %s", p, backup)
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("check local path %s: %w; published copy retained at %s", p, err, backup)
+		}
+		fresh, readErr := os.ReadFile(backup)
+		if readErr != nil || !bytes.Equal(fresh, published) {
+			return fmt.Errorf("local bytes changed during cleanup; copy retained at %s", backup)
+		}
+		return os.Remove(backup)
+	}
+	baseBytes, _, err := gitx.RunGitContext(ctx, "-C", root, "show", pinnedHead+":"+p)
+	if err != nil {
+		return recover(fmt.Errorf("read tracked base for %s: %w", p, err))
+	}
+	replacement, err := os.OpenFile(abs, os.O_WRONLY|os.O_CREATE|os.O_EXCL, moved.Mode().Perm())
+	if err != nil {
+		return fmt.Errorf("another writer claimed %s; local copy retained at %s: %w", p, backup, err)
+	}
+	_, writeErr := replacement.Write(baseBytes)
+	closeErr := replacement.Close()
+	if writeErr != nil || closeErr != nil {
+		return fmt.Errorf("restoring %s failed; published copy retained at %s: write %v, close %v", p, backup, writeErr, closeErr)
+	}
+	fresh, err := os.ReadFile(backup)
+	if err != nil || !bytes.Equal(fresh, published) {
+		return fmt.Errorf("local bytes changed during cleanup; copy retained at %s", backup)
+	}
+	return os.Remove(backup)
 }

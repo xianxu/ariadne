@@ -133,7 +133,7 @@ removes the stranding and the sweep hazard without any new model.
 
 - [x] Publish selected non-issue workshop prose through a main CAS, with
       path, base, concurrency, and cleanup tests; document the path in atlas.
-- [x] Verify the full suite and prepare the issue for close.
+- [ ] Verify the full suite on the repaired code and prepare the issue for close.
 
 ## Log
 
@@ -155,6 +155,11 @@ symlinks and later local edits; the recovery contract's proof registry passed.
 tests, 54 other packages, zero failures, 480.0s wall, recorded as
 `sdlc-local/suite` (log SHA-256 prefix `beab12315e98`). PR #241 is open;
 close review and merge remain.
+The first close review returned REWORK: BR-5 confirmed wildcard path expansion
+in cleanup, BR-6 confirmed an edit could be overwritten between validation and
+restore, and BR-7 requested README usage. Literal Git pathspecs, an atomic
+move-and-check cleanup, and README guidance now have targeted regression tests
+passing; the earlier suite status is evidence only for the pre-fix code head.
 
 ### 2026-09-20
 
@@ -219,6 +224,17 @@ The previous final Plan row included `close` and `ship` themselves, which
 cannot be checked before close's all-plan-items precondition. It now names the
 independently verified prerequisite; the Log records the remaining close and
 merge transitions.
+
+### 2026-10-14 — close review repair
+
+The first full boundary review found two local-work preservation defects and
+missing README guidance. The cleanup now treats the selected Git path
+literally, moves its source before any replacement/removal, and rechecks the
+moved bytes and HEAD/index before exclusive tracked restoration. If another
+writer claims the original name, or changes the moved source, the command
+preserves the bytes and reports a recovery path (ARCH-ORDER, ARCH-SECURE).
+This revision adds deterministic tests at those intervening events and reruns
+the full recorded suite before close.
 
 ### 2026-09-21 — distinguish couch provisioning from SDLC slot awareness
 
