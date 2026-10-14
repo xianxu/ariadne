@@ -1,13 +1,20 @@
 ---
 id: 000354
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: '0afc3e8690e0135ce048c88e891510c0fcd2e09a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '4ac6cbe48fcec14a1ecfe9340b7f6f95aaff2d5c' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T17:36:58-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # add tl-worker * and tl-lead * to .claude/settings.ariadne.json sandbox.excludedCommands (local gates; unblocks #350)
@@ -26,8 +33,20 @@ Add `"tl-worker *"` and `"tl-lead *"` to `sandbox.excludedCommands` in `.claude/
 
 ## Plan
 
-- [ ]
+- [x] Add `"tl-worker *"` and `"tl-lead *"` to `sandbox.excludedCommands`. The
+      `$comment` names the class ("ariadne's cmd/*"), not each binary, so it
+      needs no change.
+- [x] Verify `TestBaseSettingsExcludedVerbsMatchArguments` in a scratch copy
+      that has `cmd/tl-worker` and `cmd/tl-lead`.
 
 ## Log
 
 ### 2026-10-13
+
+- Dispatched by the TL (ops:0); claimed in ariadne:4.
+- Scratch check (`git archive HEAD` plus this settings file, with empty
+  `cmd/tl-worker` and `cmd/tl-lead`): the test passes. Control, the same tree
+  with main's settings: it fails with `lacks "tl-lead *"` and `lacks
+  "tl-worker *"`. On the real tree (no such dirs yet) the package passes too.
+- Local-gates path: the PR waits for the operator's `local-gates-verified`
+  label before `sdlc merge`.
