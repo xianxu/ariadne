@@ -113,7 +113,9 @@ symlinks and non-buildable dirs (so a derivative never shadows the owner), and
 `cmd/X/.private` opts a binary out. `--list` shows `binary → owner`; `--strict`
 fails on a duplicate name. The script lives at `construct/dev-aliases.sh`
 with its hermetic test under
-`construct/scripts/test/dev-aliases.test.sh`. Like the other substrate scripts
+`construct/scripts/test/dev-aliases.test.sh`, which `make test` and the CI merge
+check run with the other `construct/scripts/test/*.test.sh` (#362, through
+`scripts/test/construct-scripts.test.sh`). Like the other substrate scripts
 it's documented by header comment + test, not a `SKILL.md` (those are for agent
 skills, not dev-env helpers).
 
