@@ -1,12 +1,20 @@
 ---
 id: 000240
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-20
-updated: 2026-09-21
+updated: 2026-10-14
 estimate_hours:
-card_mirror: 'a17ad0182482b5fb55bf5f8c8af9d04e3d9b0e5f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '06b8d5a36c40dab06146f7df9e0a814693f042f4' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-14T08:53:15-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Issue updates for non-working issues strand on the feature branch — one thread per repo is the wrong model
@@ -105,21 +113,26 @@ removes the stranding and the sweep hazard without any new model.
 
 ## Done when
 
-- `sdlc issue sync --issue N` for an issue that is NOT the current branch's
-  claimed issue lands on the trunk, not the feature branch — verified from a
-  feature branch with a dirty unrelated issue file.
-- Syncing the issue that IS claimed on the current branch keeps today's
-  behaviour (it belongs with the work).
-- There is a stated, documented home for a non-issue edit that belongs on main,
-  or an explicit decision that no such edit is legitimate mid-issue.
-- The thread/slot model is either designed (a durable plan) or explicitly
-  deferred with the smallest-useful-step above shipped.
-- `atlas/workflow/` records whichever model lands.
+- Existing `sdlc issue publish --issue N` remains the path for issue details;
+  the current issue's design stays on its issue branch. `issue sync` is retired
+  in tracker repositories.
+- From a dirty issue branch, `sdlc trunk publish --path P` publishes selected
+  non-issue workshop prose to main without committing it on the issue branch:
+  `workshop/parley/`, `pensive/`, `targets/`, `projects/`, and `lessons.md`.
+  Issues, plans, atlas, code, and base-layer settings are refused.
+- A selected path changed on main since this branch's base refuses before any
+  write. A lost push response is reconciled by retry; cleanup changes only
+  local copies whose bytes still equal those read for publication.
+- Tests cover a dirty feature branch, path refusals, concurrent main edits,
+  uncertain outcome/retry, and preservation of unrelated dirty work.
+- `atlas/workflow/` documents the two publication paths and the explicit
+  decision that code, settings and atlas changes travel through issue review.
 
 ## Plan
 
-- [ ] design not yet done — brainstorm the slot model, then decide whether to
-      ship the smallest-useful-step first or go straight to slots.
+- [ ] M1 — Publish selected non-issue workshop prose through a main CAS, with
+      path, base, concurrency, and cleanup tests; document the path in atlas.
+- [ ] Verify the full suite, close the issue, and ship.
 
 ## Log
 
@@ -161,6 +174,16 @@ issue bodies (`issue sync` commits them locally), parley docs, targets,
 `lessons.md`, and base-layer files like `.claude/settings.ariadne.json`.
 
 ## Revisions
+
+### 2026-10-14 — narrow to the remaining trunk-publication gap
+
+The tracker cutover retired `issue sync` and supplied `issue publish --issue N`
+for unrelated issue details, so the original first two Done-when rows are
+already met by existing behavior. Couch slots now own workspace isolation; this
+issue does not add a second slot model. The remaining gap is dirty non-issue
+workshop prose with no direct trunk path. The hub approved the explicit
+allowlist above. Atlas follows its code branch, while code and base-layer
+settings require the normal reviewed issue path (ARCH-PURPOSE, ARCH-DRY).
 
 ### 2026-09-21 — distinguish couch provisioning from SDLC slot awareness
 
