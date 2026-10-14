@@ -6,7 +6,7 @@ github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: 'e050f9aa0bba673c5edd2f8990f90de3b9ee6f96' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9d783387a77f2b9701643a8b50994589a7e327f8' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T19:46:01-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
-actual_hours: 0.18
+actual_hours: 0.20
 ---
 
 # test gate: the suite queue is polled, not FIFO, so a waiter can starve (51+ min) while later suites take the head
