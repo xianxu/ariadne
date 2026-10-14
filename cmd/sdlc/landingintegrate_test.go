@@ -134,7 +134,6 @@ func TestLandingReleasesRepoLockDuringSuite(t *testing.T) {
 	_, server, gh := integrationFixture(t)
 	signalDir := t.TempDir()
 	started, release := filepath.Join(signalDir, "started"), filepath.Join(signalDir, "release")
-	t.Cleanup(func() { _ = os.WriteFile(release, nil, 0o600) })
 	command := fmt.Sprintf("touch %q; i=0; while [ ! -e %q ] && [ \"$i\" -lt 600 ]; do sleep 0.05; i=$((i+1)); done; test -e %q", started, release, release)
 	procedureWrite(t, server, localChecksPath, `{"version":1,"checks":[{"name":"suite","required":true,"command":["sh","-c",`+strconv.Quote(command)+`]}]}`)
 	git(t, server, "add", localChecksPath)
@@ -149,8 +148,11 @@ func TestLandingReleasesRepoLockDuringSuite(t *testing.T) {
 		locks.Add(1)
 		return withRequiredRepoTransactionLock(cmd, run)
 	}
-	finished := make(chan error, 1)
-	go func() { finished <- runMerge(io.Discard, io.Discard, f) }()
+	worker := startBlockedMergeWorker(t, release, func(ctx context.Context) error {
+		f.Context = ctx
+		cmd.SetContext(ctx)
+		return runMerge(io.Discard, io.Discard, f)
+	})
 	deadline := time.Now().Add(30 * time.Second)
 	for {
 		if _, err := os.Stat(started); err == nil {
@@ -176,9 +178,9 @@ func TestLandingReleasesRepoLockDuringSuite(t *testing.T) {
 		t.Fatal(err)
 	}
 	select {
-	case err := <-finished:
-		if err != nil || gh.merges != 1 {
-			t.Fatalf("merge err=%v merges=%d", err, gh.merges)
+	case <-worker.done:
+		if worker.err != nil || gh.merges != 1 {
+			t.Fatalf("merge err=%v merges=%d", worker.err, gh.merges)
 		}
 	case <-time.After(30 * time.Second):
 		t.Fatal("merge did not finish after releasing the suite")

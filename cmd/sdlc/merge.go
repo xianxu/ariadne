@@ -353,6 +353,11 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 			"  or run it from a terminal.")
 	}
 
+	repo, err := detectRepo()
+	if err != nil {
+		die(stderr, err.Error())
+	}
+
 	// ── 3. Branch pushed + HEAD synced ──────────────────────────────────────
 	// Key off the remote-tracking ref (origin/<branch>), NOT @{u}: a push
 	// updates origin/<branch> even when it can't write the local
@@ -360,21 +365,35 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// `git push` without -u), so requiring @{u} spuriously refuses a branch
 	// that is genuinely pushed (and has an open PR).
 	remoteRef := "origin/" + branch
-	if gitx.Capture("rev-parse", "--verify", "--quiet", remoteRef) == "" {
+	// A completed PR may have deleted its remote branch before this command
+	// could finish local archive/cleanup. Recovery is proven from main below;
+	// an open PR still requires the exact pushed remote head.
+	earlyPR, _ := ghClient.PRListForBranch(repo, branch)
+	earlyMerged := false
+	if earlyPR == "" {
+		earlyMerged, _ = ghClient.PRMergedForBranch(repo, branch)
+	}
+	recoveringMerged := earlyPR == "" && earlyMerged
+	if !recoveringMerged && gitx.Capture("rev-parse", "--verify", "--quiet", remoteRef) == "" {
 		fmt.Fprintf(stderr, "  %s[x]%s %s is not on origin\n", ansiRed, ansiReset, branch)
 		die(stderr, fmt.Sprintf("push the branch first (e.g. sdlc pr, or git push origin %s)", branch))
 	}
 
 	// ── 4. No local commits missing from the remote branch ──────────────────
-	aheadStr := gitx.Capture("rev-list", "--count", remoteRef+"..HEAD")
-	ahead, _ := strconv.Atoi(aheadStr)
+	ahead := 0
+	if !recoveringMerged {
+		aheadStr := gitx.Capture("rev-list", "--count", remoteRef+"..HEAD")
+		ahead, _ = strconv.Atoi(aheadStr)
+	}
 	if ahead > 0 {
 		fmt.Fprintf(stderr, "  %s[x]%s %d local commit(s) not yet on %s\n",
 			ansiRed, ansiReset, ahead, remoteRef)
 		die(stderr, "push your branch before merging — run `git push`, then re-run `sdlc merge`. "+
 			"(merge is server-side: a fix you committed for a failed pre-merge gate must reach origin first.)")
 	}
-	cok(stderr, fmt.Sprintf("Branch pushed; HEAD synced with %s", remoteRef))
+	if !recoveringMerged {
+		cok(stderr, fmt.Sprintf("Branch pushed; HEAD synced with %s", remoteRef))
+	}
 
 	// ── 4.5 Instance-conformance gate (#124) ────────────────────────────────
 	// Deterministic, separate from the judges. Runs after the branch is synced to
@@ -416,7 +435,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		cwarn(stderr, "--no-judge: skipping the pre-merge publish gate (#160 reviewed-HEAD-unchanged invariant)")
 	}
 	if err := f.withLock(func() error {
-		return revalidateLegacyMerge(branch, branchHead, remoteRef, inPlace, true, f)
+		return revalidateLegacyMerge(branch, branchHead, remoteRef, inPlace, !recoveringMerged, f)
 	}); err != nil {
 		die(stderr, err.Error())
 	}
@@ -452,11 +471,6 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		}
 		mainPath = mp
 		cok(stderr, fmt.Sprintf("Main worktree: %s", mainPath))
-	}
-
-	repo, err := detectRepo()
-	if err != nil {
-		die(stderr, err.Error())
 	}
 
 	// ── 7. Show unmerged commits ────────────────────────────────────────────
@@ -572,7 +586,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		}); ferr != nil {
 			die(stderr, ferr.Error())
 		}
-		n, cerr := countUnmerged(mergeRunner, "origin/main", remoteRef)
+		n, cerr := countUnmerged(mergeRunner, "origin/main", branchHead)
 		if cerr != nil {
 			die(stderr, fmt.Sprintf("couldn't verify %s is fully merged — refusing to clean up: %v", branch, cerr))
 		}

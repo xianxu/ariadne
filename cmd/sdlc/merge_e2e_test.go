@@ -413,6 +413,23 @@ func TestRunMerge_ResumeMergedPR_FinishesCleanup(t *testing.T) {
 	}
 }
 
+func TestRunMerge_ResumeMergedPR_AfterRemoteBranchDeletion(t *testing.T) {
+	dir := tempRepo(t)
+	git(t, dir, "switch", "main")
+	git(t, dir, "merge", "--ff-only", "feature")
+	git(t, dir, "push", "origin", "main")
+	git(t, dir, "switch", "feature")
+	git(t, dir, "push", "origin", "--delete", "feature")
+	git(t, dir, "update-ref", "-d", "refs/remotes/origin/feature")
+	gh := &e2eGH{mergedExists: true}
+	swapMergeDeps(t, gh, nil)
+	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	msg, died := expectDie(t, func() { _ = runMerge(io.Discard, io.Discard, f) })
+	if died || gh.prMergeCalls != 0 || git(t, dir, "branch", "--show-current") != "main" {
+		t.Fatalf("died=%v merges=%d message=%s", died, gh.prMergeCalls, msg)
+	}
+}
+
 // #148: a MERGED PR whose branch still carries commits not in main is a reused
 // branch name — sdlc merge must REFUSE (non-zero exit, no cleanup) instead of
 // silently deleting the branch and stranding the new commits. tempRepo leaves

@@ -14,10 +14,51 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type blockedMergeWorker struct {
+	done chan struct{}
+	err  error
+}
+
+// Cleanup runs before fixture teardown: release the suite, cancel any wait,
+// then join the worker before cwd and package-global adapters can be restored.
+func startBlockedMergeWorker(t *testing.T, release string, run func(context.Context) error) *blockedMergeWorker {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	w := &blockedMergeWorker{done: make(chan struct{})}
+	go func() { w.err = run(ctx); close(w.done) }()
+	t.Cleanup(func() {
+		_ = os.WriteFile(release, nil, 0o600)
+		cancel()
+		<-w.done
+	})
+	return w
+}
+
+func TestBlockedMergeWorkerJoinsBeforeFixtureCleanup(t *testing.T) {
+	release := filepath.Join(t.TempDir(), "release")
+	started := make(chan struct{})
+	t.Run("early exit", func(t *testing.T) {
+		var worker *blockedMergeWorker
+		t.Cleanup(func() {
+			select {
+			case <-worker.done:
+			default:
+				t.Error("fixture cleanup ran before merge worker joined")
+			}
+		})
+		worker = startBlockedMergeWorker(t, release, func(ctx context.Context) error {
+			close(started)
+			<-ctx.Done()
+			return ctx.Err()
+		})
+		<-started
+		// Simulate an assertion exiting before the normal finished-channel receive.
+	})
+}
+
 func TestRunMerge_LegacyReleasesRepoLockDuringLocalCheck(t *testing.T) {
 	signalDir := t.TempDir()
 	started, release := filepath.Join(signalDir, "started"), filepath.Join(signalDir, "release")
-	t.Cleanup(func() { _ = os.WriteFile(release, nil, 0o600) })
 	command := fmt.Sprintf("touch %q; i=0; while [ ! -e %q ] && [ \"$i\" -lt 600 ]; do sleep 0.05; i=$((i+1)); done; test -e %q", started, release, release)
 	gh, _ := localChecksMergeRepo(t, command, 0, "")
 	cmd := markManualLockCommand(&cobra.Command{Use: "merge"})
@@ -28,8 +69,11 @@ func TestRunMerge_LegacyReleasesRepoLockDuringLocalCheck(t *testing.T) {
 		locks.Add(1)
 		return withRequiredRepoTransactionLock(cmd, run)
 	}
-	finished := make(chan error, 1)
-	go func() { finished <- runMerge(io.Discard, io.Discard, f) }()
+	worker := startBlockedMergeWorker(t, release, func(ctx context.Context) error {
+		f.Context = ctx
+		cmd.SetContext(ctx)
+		return runMerge(io.Discard, io.Discard, f)
+	})
 	deadline := time.Now().Add(30 * time.Second)
 	for {
 		if _, err := os.Stat(started); err == nil {
@@ -54,9 +98,9 @@ func TestRunMerge_LegacyReleasesRepoLockDuringLocalCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 	select {
-	case err := <-finished:
-		if err != nil || gh.prMergeCalls != 1 {
-			t.Fatalf("merge err=%v calls=%d", err, gh.prMergeCalls)
+	case <-worker.done:
+		if worker.err != nil || gh.prMergeCalls != 1 {
+			t.Fatalf("merge err=%v calls=%d", worker.err, gh.prMergeCalls)
 		}
 	case <-time.After(30 * time.Second):
 		t.Fatal("merge did not finish")
