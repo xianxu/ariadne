@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
-estimate_hours:
-card_mirror: '5bccab1db5d8ec12359a52c74bf54a9a4d2278c0' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 3.608
+card_mirror: '20895a41ea90cb4a6d7efec93a5220f13605820d' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T23:48:12-07:00
 claimant:
     operator: Xian Xu
@@ -85,3 +85,31 @@ without claiming that the transcript identifies the historical outer argv.
   writes, not arbitrary signals/network/outside writes. Preserve that boundary and
   add only the measured literal ps exception; a general confinement redesign is out
   of scope. Evidence and approved execution direction are recorded above.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only. The existing process runner, JSON decoder,
+ledger and fence provide the needed libraries; no new dependency. Thorough plan
+uses ×0.2 design discount, 40% v2 implementation hours and 15% design buffer.
+Four smaller modules cover fence, vocabulary, diagnostics, and boundary wiring;
+two greenfield concerns cover declaration and admission. Integration includes
+retry/cancellation and downstream live proof. Familiarity is 1.0 for this Go stack.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: greenfield-go-module design=0.10 impl=0.32
+item: greenfield-go-module design=0.10 impl=0.32
+item: api-integration design=0.60 impl=0.60
+item: atlas-docs design=0.04 impl=0.08
+item: milestone-review design=0.04 impl=0.20
+design-buffer: 0.15
+total: 3.608
+```
+
+Plan-quality round 2 CLEAN: PQ-1/PQ-2 addressed; no new findings.
