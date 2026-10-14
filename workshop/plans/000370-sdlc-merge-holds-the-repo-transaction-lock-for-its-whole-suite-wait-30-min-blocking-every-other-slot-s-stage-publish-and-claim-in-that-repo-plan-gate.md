@@ -53,7 +53,11 @@ rounds:
           note: Non-goals explicitly bound scheduling, serialization, legacy policy and journal scope.
           round: 2
       blocked: false
-content_hash: 35e857e4ba366df5f1921058c42b261e2784db5fe0f93e6bfb4015e7ca66bc9a
+    - "n": 3
+      timestamp: "2026-10-14T11:46:27-07:00"
+      agent: codex
+      blocked: false
+content_hash: 9f141c6f82b2917a519a399870ad99bfcb771d8f627ee767f11e4b4a6d2aae54
 ---
 
 # Gate ledger — ariadne#370 (plan-quality)
@@ -82,6 +86,8 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - PQ-2 — addressed — Explicit pre-push drift transitions reset the unpublished commit, consume an attempt, and define recovery on either side of reset.
 - PQ-3 — addressed — Named risky functions have adversarial strategies and mechanical guards, separating pure tests from integration proofs.
 - PQ-4 — addressed — Non-goals explicitly bound scheduling, serialization, legacy policy and journal scope.
+
+## Round 3 — 2026-10-14T11:46:27-07:00 (codex) — passed
 
 ## Open findings
 
