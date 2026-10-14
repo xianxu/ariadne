@@ -69,6 +69,7 @@ The two API-integration items cover the durable and legacy Git/GitHub landing pa
 - Plan-quality round 2: CLEAN; PQ-1 through PQ-4 addressed, with no new findings. The estimate is derived after that review, per the gate's ordering.
 - Change-code admitted the full flow. Estimate-quality returned INFO: clarify the design-range point, test coverage and elapsed shipping work; the derivation now says where each belongs without changing the reconciled total.
 - Implementation: manual lock phases now bracket shared Git mutations, expected-head merge, and archive. Durable publish replay, GitHub registration and CI/suite waits are unlocked; legacy local checks are unlocked. A pre-push main move resets the unpublished integration and retries. Added real-lock probes during a blocked suite, repeated suites, and registration polling, plus exact-head/main drift tests. Targeted merge tests and `make -k tools` pass; recorded suite pending.
+- Verification: pushed code head `230f61e2f43550c0405bb9c5b7bbf4dc7666f975`; `sdlc local-check run --name suite` passed and posted `sdlc-local/suite` on that head (12 shards, 1,349 cmd/sdlc tests, 54 other packages, zero failures; log SHA-256 prefix `e276d37509b6`). Focused lock/drift tests, `make -k tools`, and `git diff --check` passed. Review and landing remain.
 
 ## Revisions
 
