@@ -1,6 +1,9 @@
 package estimate
 
 import (
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
 	"math"
 	"sort"
 	"strconv"
@@ -13,6 +16,10 @@ import (
 // are excluded from drift stats (the #68 posture: a truncated actual must not
 // masquerade as a clean data point).
 type LedgerRow struct {
+	// RawID identifies the exact original TSV bytes, excluding the line feed.
+	RawID      string
+	Correction *CorrectionRecord
+
 	Issue         string
 	Estimate      float64
 	EstDesign     float64
@@ -133,7 +140,7 @@ const ledgerHeader = "issue\testimate\test_design\test_impl\tactual\tratio\tmode
 	"\tgate_rounds\tgate_forced\tgate_addressed\tgate_withdrawn\tgate_open" +
 	"\tflow_kind\tflow_provenance\tflow_upgraded" +
 	"\tbuild_hours\tconverge_hours\tboundary_rounds\tsplit_source\treview_recipe" +
-	"\tgate_disputed\tboundary_disputed"
+	"\tgate_disputed\tboundary_disputed\tcorrection"
 
 // legacyCols is the column count before #187's append — the boundary between "row from an
 // older binary" and "row carrying cost metrics".
@@ -158,7 +165,7 @@ func Header() string { return ledgerHeader }
 
 // FormatRow renders one tab-separated ledger line in a stable column order.
 func FormatRow(r LedgerRow) string {
-	return strings.Join([]string{
+	line := strings.Join([]string{
 		r.Issue,
 		ftoa(r.Estimate), ftoa(r.EstDesign), ftoa(r.EstImpl), ftoa(r.Actual), ratioCell(r),
 		r.Model, Dash(r.Mode), yesno(r.WindowTrusted), r.Date,
@@ -168,6 +175,11 @@ func FormatRow(r LedgerRow) string {
 		ftoa(r.BuildHours), ftoa(r.ConvergeHours), itoa(r.BoundaryRounds), Dash(r.SplitSource), Dash(r.ReviewRecipe),
 		itoa(r.GateDisputed), itoa(r.BoundaryDisputed),
 	}, "\t")
+	if r.Correction != nil {
+		payload, _ := json.Marshal(r.Correction)
+		line += "\t" + string(payload)
+	}
+	return line
 }
 
 // ratioCell is the ratio column: "-" for a row with no estimate, which is no
@@ -182,33 +194,64 @@ func ratioCell(r LedgerRow) string {
 // ParseRows parses ledger lines into rows, skipping the header, blanks, and
 // `#`-comments. The ratio column is recomputed from estimate/actual, not read.
 func ParseRows(text string) []LedgerRow {
+	rows, _ := ParseRowsChecked(text)
+	return rows
+}
+
+// ParseRowsChecked preserves legacy parsing while refusing malformed correction evidence.
+func ParseRowsChecked(text string) ([]LedgerRow, error) {
 	var rows []LedgerRow
-	for _, line := range strings.Split(text, "\n") {
+	for lineNumber, line := range strings.Split(text, "\n") {
+		rawID := fmt.Sprintf("%x", sha256.Sum256([]byte(line)))
 		line = strings.TrimRight(line, "\r")
 		if strings.TrimSpace(line) == "" || strings.HasPrefix(line, "issue\t") || strings.HasPrefix(line, "#") {
 			continue
 		}
 		c := strings.Split(line, "\t")
+		var correction *CorrectionRecord
+		if len(c) > disputeCols && c[disputeCols] != "" && c[disputeCols] != "-" {
+			var err error
+			if len(c) != disputeCols+1 {
+				return nil, fmt.Errorf("ledger line %d: extra correction columns", lineNumber+1)
+			}
+			correction, err = parseCorrection(c[disputeCols])
+			if err != nil {
+				return nil, fmt.Errorf("ledger line %d: %w", lineNumber+1, err)
+			}
+		}
 		if len(c) < legacyCols {
 			continue
 		}
 		est, ok := parseLedgerFloat(c[1])
 		if !ok {
+			if correction != nil {
+				return nil, fmt.Errorf("ledger line %d: invalid correction sample number", lineNumber+1)
+			}
 			continue
 		}
 		estDesign, ok := parseLedgerFloat(c[2])
 		if !ok {
+			if correction != nil {
+				return nil, fmt.Errorf("ledger line %d: invalid correction sample number", lineNumber+1)
+			}
 			continue
 		}
 		estImpl, ok := parseLedgerFloat(c[3])
 		if !ok {
+			if correction != nil {
+				return nil, fmt.Errorf("ledger line %d: invalid correction sample number", lineNumber+1)
+			}
 			continue
 		}
 		actual, ok := parseLedgerFloat(c[4])
 		if !ok {
+			if correction != nil {
+				return nil, fmt.Errorf("ledger line %d: invalid correction sample number", lineNumber+1)
+			}
 			continue
 		}
 		row := LedgerRow{
+			RawID: rawID, Correction: correction,
 			Issue:         c[0],
 			Estimate:      est,
 			EstDesign:     estDesign,
@@ -254,7 +297,7 @@ func ParseRows(text string) []LedgerRow {
 		}
 		rows = append(rows, row)
 	}
-	return rows
+	return rows, nil
 }
 
 func ftoa(v float64) string { return strconv.FormatFloat(v, 'f', 2, 64) }

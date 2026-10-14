@@ -7,6 +7,19 @@ import (
 	"time"
 )
 
+func TestEligibleSourcesBoundBrainDescendant(t *testing.T) {
+	at := func(min int) time.Time { return time.Date(2026, 10, 13, 0, min, 0, 0, time.UTC) }
+	sessions := []SessionEvidence{
+		{Harness: "codex", ID: "root", CWD: "/owner", File: "root", Started: at(0)},
+		{Harness: "codex", ID: "child", CWD: "/brain", File: "child", Started: at(12), Spawned: true, ParentID: "root"},
+		{Harness: "codex", ID: "unbound", CWD: "/brain", File: "unbound", Started: at(12)},
+	}
+	got, _, err := EligibleSources(sessions, []SourceWindow{{Start: at(10), End: at(20), Began: at(10), Roots: []string{"/owner"}}})
+	if err != nil || len(got["child"]) != 1 || len(got["unbound"]) != 0 {
+		t.Fatalf("bound descendant lost or unrelated brain admitted: %+v %v", got, err)
+	}
+}
+
 func TestEligibleSourcesUsesLexicalPaths(t *testing.T) {
 	root := t.TempDir()
 	alias := filepath.Join(t.TempDir(), "alias")

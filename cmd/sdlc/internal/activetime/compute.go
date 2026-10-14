@@ -54,6 +54,7 @@ type Options struct {
 	// ActivityWindows, when non-nil, admits only confirmed ownership activity
 	// for each transcript source. The gap/span calculation runs before clipping.
 	ActivityWindows map[string][]ActivityWindow
+	SourcePrefixes  map[string]SourcePrefix
 }
 
 // Result is the structured outcome of a Compute run — the single value consumed
@@ -72,6 +73,9 @@ type Result struct {
 	// names Scope.Issue, oldest first (#234): the evidence for where each
 	// boundary's converge ends.
 	IssueCommitTimes []time.Time
+	// SourceIDs identifies actual contributing runs, excluding old same-cwd
+	// sessions with no activity in the admitted sample.
+	SourceIDs []string
 }
 
 const suspiciousSpanMin = 120.0
@@ -99,7 +103,7 @@ func Compute(opts Options) (Result, error) {
 		return Result{}, err
 	}
 	sc := newMentionScope(self, opts.Issues)
-	events, spans, err := loadEventsWithFiles(opts.Dirs, opts.Files, sc, opts.IncludeAssistant, opts.SinceISO, opts.UntilISO)
+	events, spans, err := loadEventsWithFiles(opts.Dirs, opts.Files, sc, opts.IncludeAssistant, opts.SinceISO, opts.UntilISO, opts.SourcePrefixes)
 	if err != nil {
 		return Result{}, err
 	}
@@ -138,6 +142,14 @@ func Compute(opts Options) (Result, error) {
 		return Result{}, err
 	}
 	res.Segments = claimActivityRuns(runs, commits, opts.CommitWeight, prefixWeight)
+	seenSources := map[string]bool{}
+	for _, run := range runs {
+		if !seenSources[run.Source] {
+			seenSources[run.Source] = true
+			res.SourceIDs = append(res.SourceIDs, run.Source)
+		}
+	}
+	slices.Sort(res.SourceIDs)
 	for _, s := range res.Segments {
 		res.TotalActive += s.Active
 		for iss, m := range s.Alloc {

@@ -14,10 +14,8 @@ func TestFormatRow_Stable(t *testing.T) {
 	}
 	got := FormatRow(r)
 	cols := strings.Split(got, "\t")
-	// Derived from Header() rather than a literal: the count grew from 10 to 20 in #187,
-	// and an assertion that restates the number just has to be edited alongside it
-	// without ever having caught anything. What matters is that row and header agree.
-	if want := len(strings.Split(Header(), "\t")); len(cols) != want {
+	// Ordinary rows retain the pre-correction width; the final header column is optional.
+	if want := len(strings.Split(Header(), "\t")) - 1; len(cols) != want {
 		t.Fatalf("FormatRow produced %d columns, header has %d: %q", len(cols), want, got)
 	}
 	if cols[0] != "ariadne#117" || cols[6] != "estimate-logic-v2" || cols[8] != "no" {
@@ -52,7 +50,7 @@ func TestFormatRowCarriesChurnColumns(t *testing.T) {
 		Rework: 2.4, GateRounds: 6, GateForced: 1,
 		GateAddressed: 2, GateWithdrawn: 1, GateOpen: 3}
 	cols := strings.Split(FormatRow(r), "\t")
-	if len(cols) != len(strings.Split(Header(), "\t")) {
+	if len(cols) != len(strings.Split(Header(), "\t"))-1 {
 		t.Fatalf("row has %d columns, header has %d", len(cols), len(strings.Split(Header(), "\t")))
 	}
 	// Positional, because ParseRows indexes positionally: these assertions are what makes
@@ -332,7 +330,7 @@ func TestLedgerSplitColumns(t *testing.T) {
 		FlowKind: "full", FlowProvenance: "inferred",
 		BuildHours: 2.4, ConvergeHours: 0.7, BoundaryRounds: 3, SplitSource: "dispatch", ReviewRecipe: "milestone-review"}
 	line := FormatRow(r)
-	if n := len(strings.Split(line, "\t")); n != len(strings.Split(Header(), "\t")) || n != disputeCols {
+	if n := len(strings.Split(line, "\t")); n != len(strings.Split(Header(), "\t"))-1 || n != disputeCols {
 		t.Fatalf("row has %d columns, header %d, want %d", n, len(strings.Split(Header(), "\t")), disputeCols)
 	}
 	got := ParseRows(line)

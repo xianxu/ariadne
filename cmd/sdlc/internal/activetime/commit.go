@@ -53,6 +53,8 @@ var gitRun = func(repo string, args ...string) ([]byte, error) {
 // names Issue; one with no lead is dropped too, never a neutral boundary. Unfiltered, another slot's card write seconds before a run took
 // the whole run once the measurement ran off the issue branch.
 type Scope struct {
+	// Head pins code history independently of the caller checkout; empty means HEAD.
+	Head        string
 	BranchPoint string
 	Issue       string
 }
@@ -70,11 +72,15 @@ func loadWindowCommits(repo, sinceISO, untilISO string, scope Scope, extraRefs .
 	if err != nil {
 		return nil, err
 	}
+	head := scope.Head
+	if head == "" {
+		head = "HEAD"
+	}
 	args := []string{"log", "--pretty=format:%H%x09%aI%x09%s", "--reverse"}
-	if len(extraRefs) > 0 {
+	if len(extraRefs) > 0 || scope.Head != "" {
 		// Histories beside HEAD (#252: the issue tracker's claim/close commits);
 		// git log lists a commit reachable from several refs once.
-		args = append(append(args, "HEAD"), extraRefs...)
+		args = append(append(args, head), extraRefs...)
 	}
 	out, err := gitRun(expandUser(repo), args...)
 	if err != nil {
@@ -140,7 +146,11 @@ func branchCommits(repo string, scope Scope) (own, merges map[string]bool, err e
 	if scope.BranchPoint == "" {
 		return nil, nil, nil
 	}
-	out, err := gitRun(expandUser(repo), "rev-list", "--parents", "HEAD", "^"+scope.BranchPoint)
+	head := scope.Head
+	if head == "" {
+		head = "HEAD"
+	}
+	out, err := gitRun(expandUser(repo), "rev-list", "--parents", head, "^"+scope.BranchPoint)
 	if err != nil {
 		return nil, nil, fmt.Errorf("branch commits since %s: %w", scope.BranchPoint, err)
 	}
@@ -164,7 +174,11 @@ func besideHead(repo string, scope Scope, extraRefs []string) (map[string]bool, 
 	if len(extraRefs) == 0 || scope.Issue == "" {
 		return nil, nil
 	}
-	out, err := gitRun(expandUser(repo), append(append([]string{"rev-list"}, extraRefs...), "^HEAD")...)
+	head := scope.Head
+	if head == "" {
+		head = "HEAD"
+	}
+	out, err := gitRun(expandUser(repo), append(append([]string{"rev-list"}, extraRefs...), "^"+head)...)
 	if err != nil {
 		return nil, fmt.Errorf("commits beside HEAD in %v: %w", extraRefs, err)
 	}

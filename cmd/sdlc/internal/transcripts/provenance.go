@@ -72,7 +72,7 @@ func EligibleSources(sessions []SessionEvidence, windows []SourceWindow) (map[st
 		}
 		pathOK := false
 		for _, w := range windows {
-			if w.Began.Equal(began) && !at.Before(w.Start) && at.Before(w.End) && hasRoot(w.Roots, s.CWD) {
+			if w.Began.Equal(began) && !at.Before(w.Start) && at.Before(w.End) && (s.Spawned || hasRoot(w.Roots, s.CWD)) {
 				pathOK = true
 				break
 			}
@@ -100,7 +100,7 @@ func EligibleSources(sessions []SessionEvidence, windows []SourceWindow) (map[st
 	var warnings []string
 	for _, s := range sessions {
 		for _, w := range windows {
-			if !hasRoot(w.Roots, s.CWD) || (!s.Started.IsZero() && !s.Started.Before(w.End)) {
+			if (!s.Spawned && !hasRoot(w.Roots, s.CWD)) || (!s.Started.IsZero() && !s.Started.Before(w.End)) {
 				continue
 			}
 			at := w.Start

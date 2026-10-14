@@ -14,6 +14,7 @@ package activetime
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -82,8 +83,8 @@ type codexPayload struct {
 // bearing user/assistant asymmetry: a user turn is dropped on empty text (and a
 // pure tool_result is dropped), but an assistant turn (when includeAssistant) is
 // ALWAYS emitted — its timestamp counts toward active time even with no text.
-func walkSessionEvents(path string, sc mentionScope, includeAssistant bool) ([]Event, []TaskSpan, error) {
-	data, err := os.ReadFile(path)
+func walkSessionEvents(path string, sc mentionScope, includeAssistant bool, pins ...SourcePrefix) ([]Event, []TaskSpan, error) {
+	data, err := readSessionPrefix(path, pins)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -315,7 +316,21 @@ func loadEvents(dirs []string, sc mentionScope, includeAssistant bool, sinceISO,
 	return loadEventsWithFiles(dirs, nil, sc, includeAssistant, sinceISO, untilISO)
 }
 
-func loadEventsWithFiles(dirs, files []string, sc mentionScope, includeAssistant bool, sinceISO, untilISO string) ([]Event, []TaskSpan, error) {
+func loadEventsWithFiles(dirs, files []string, sc mentionScope, includeAssistant bool, sinceISO, untilISO string, prefixMaps ...map[string]SourcePrefix) ([]Event, []TaskSpan, error) {
+	var prefixes map[string]SourcePrefix
+	if len(prefixMaps) > 0 {
+		prefixes = prefixMaps[0]
+	}
+	read := func(path string) ([]Event, []TaskSpan, error) {
+		if prefixes == nil {
+			return walkSessionEvents(expandUser(path), sc, includeAssistant)
+		}
+		pin, ok := prefixes[path]
+		if !ok {
+			return nil, nil, fmt.Errorf("source %s lacks pinned evidence", path)
+		}
+		return walkSessionEvents(expandUser(path), sc, includeAssistant, pin)
+	}
 	since, until, err := windowBounds(sinceISO, untilISO)
 	if err != nil {
 		return nil, nil, err
@@ -331,8 +346,11 @@ func loadEventsWithFiles(dirs, files []string, sc mentionScope, includeAssistant
 		}
 		files, _ := filepath.Glob(filepath.Join(dir, "*.jsonl"))
 		for _, f := range files {
-			evs, sps, err := walkSessionEvents(f, sc, includeAssistant)
+			evs, sps, err := read(f)
 			if err != nil {
+				if prefixes != nil {
+					return nil, nil, err
+				}
 				// Skip a session file that became unreadable after globbing —
 				// more robust than Python's unguarded open() (which would crash),
 				// an intentional divergence from the otherwise 1:1 port.
@@ -365,8 +383,11 @@ func loadEventsWithFiles(dirs, files []string, sc mentionScope, includeAssistant
 		}
 	}
 	for _, f := range files {
-		evs, sps, err := walkSessionEvents(expandUser(f), sc, includeAssistant)
+		evs, sps, err := read(f)
 		if err != nil {
+			if prefixes != nil {
+				return nil, nil, err
+			}
 			continue
 		}
 		for _, e := range evs {
