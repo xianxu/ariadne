@@ -232,3 +232,40 @@ sdlc local-check run --name suite passed on
 and54 other packages, wall349.2s, zero failures. Recorded sdlc-local/suite;
 log SHA256 prefix bf0435c69975. Shared-binary close review is next; the pending
 land/rebuild/three-record repair ordering is acknowledged with no-plan-check.
+
+### 2026-10-14 — boundary round1 REWORK
+
+Shared close adopted5.96h provisionally and reviewed ca9b0908..c4bdbe1b. REWORK
+raised BR-1 dispatch-engagement-attribution (Claude spans merged before clipping),
+BR-2 authoritative-calibration-exclusion (older rows could revive after exclusion),
+and BR-3 production-adoption-warning-coverage (comparator alone did not prove
+close wiring). Reproducing/fixing each class with independent regressions; the
+issue remains working. The earlier suite pass remains evidence for its commit,
+not these new code changes. A new recorded suite and close review are required.
+
+### 2026-10-14 — round1 findings addressed and mutation-verified
+
+BR-1: TaskSpan retains original Dispatched; AdmitTaskSpans binds it to its
+continuous Began engagement before union. Source eligibility carries Began;
+replay derives it from retained engagement slices and refuses unbound/ambiguous
+windows. Continuous relocation survives; fresh reclaim does not. Claude fixtures
+observed RED for four leak cases. Three internal mutations caught admission
+bypass, lost dispatch timestamp and reclaim grouping loss. Existing capped normal
+event-gap semantics are unchanged.
+
+BR-2: validated exclusion removes all preceding issue samples before every
+consumer's eligibility/selection; later legitimate closes/replacements survive.
+Repeated identical exclusions retain their original ordering. Multiple-row pure
+consumer regression observed RED, passed after fix; mutation caught. Exact-target
+replacement fuzz passed45385 executions. Production convergence and forecast
+fixtures now include an older eligible sample; removing the cutoff resurrected
+it and failed both commands.
+
+BR-3: production runCloseWithReview omitted-actual low/high cases assert the
+warning and successful reviewed finalization; runMilestoneClose control omits the
+whole-issue warning. Removing close's warning call failed both issue cases.
+
+Integrated root correction/ownership/replay/warning/convergence/forecast checks
+passed58.663s. Restored mutation checks passed2.673s; full internal active-time,
+transcripts and estimate packages passed4.111s/0.068s/0.065s. Next: commit/push,
+fresh recorded suite on changed code, then shared-binary round2 close.

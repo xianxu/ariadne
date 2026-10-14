@@ -1,6 +1,7 @@
 package activetime
 
 import (
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -74,5 +75,65 @@ func TestClipActivityTaskSpanAcrossRelease(t *testing.T) {
 	}
 	if err != nil || total != 8 {
 		t.Fatalf("span outside ownership counted: %+v %v", got, err)
+	}
+}
+
+func TestComputeAdmitsClaudeTaskDispatchBeforeOwnershipUnion(t *testing.T) {
+	at := func(min int) time.Time { return time.Date(2026, 1, 1, 0, min, 0, 0, time.UTC) }
+	for _, tc := range []struct {
+		name     string
+		dispatch int
+		since    string
+		want     float64
+		legacy   bool
+	}{
+		{name: "dispatch during release", dispatch: 10, want: 0},
+		{name: "dispatch in earlier engagement", dispatch: 1, want: 2},
+		{name: "dispatch in current engagement", dispatch: 31, want: 4},
+		{name: "dispatch exactly at release", dispatch: 3, want: 0},
+		{name: "original dispatch predates measurement", dispatch: 1, since: "2026-01-01T00:30:00Z", want: 0},
+		{name: "legacy unrestricted", dispatch: 1, want: 39, legacy: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := eventsDir(t,
+				fmt.Sprintf(`{"timestamp":"%s","type":"assistant","message":{"content":[{"type":"tool_use","id":"task","name":"Agent","input":{}}]}}`, at(tc.dispatch).Format(time.RFC3339)),
+				`{"timestamp":"2026-01-01T00:40:00Z","type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"task","content":"done"}]}}`,
+				`{"timestamp":"2026-01-01T00:50:00Z","type":"user","message":{"content":"#8 done"}}`,
+			)
+			withGitRun(t, func(string, ...string) ([]byte, error) { return nil, nil })
+			windows := map[string][]ActivityWindow{filepath.Join(dir, "s.jsonl"): {{Start: at(0), End: at(3)}, {Start: at(30), End: at(35)}}}
+			if tc.legacy {
+				windows = nil
+			}
+			since := wideSince
+			if tc.since != "" {
+				since = tc.since
+			}
+			res, err := Compute(Options{Dirs: []string{dir}, GitRepo: "/repo", SinceISO: since, UntilISO: wideUntil, Issues: []string{"8"}, CommitWeight: 1, ThresholdMin: 15, IncludeAssistant: true, ActivityWindows: windows})
+			if err != nil || res.TotalActive != tc.want {
+				t.Fatalf("dispatch %d: active=%v want=%v err=%v", tc.dispatch, res.TotalActive, tc.want, err)
+			}
+		})
+	}
+}
+
+func TestAdmitTaskSpansRetainsRelocationButEndsAtReclaim(t *testing.T) {
+	at := func(min int) time.Time { return time.Date(2026, 1, 1, 0, min, 0, 0, time.UTC) }
+	spans := []TaskSpan{{Start: at(1), End: at(40), Source: "root"}}
+	windows := map[string][]ActivityWindow{"root": {{Start: at(0), End: at(3), Began: at(0)}, {Start: at(3), End: at(10), Began: at(0)}, {Start: at(10), End: at(20), Began: at(10)}}}
+	admitted, err := AdmitTaskSpans(spans, windows)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runs := activityRuns(nil, admitted, 15)
+	var total float64
+	for _, run := range runs {
+		total += run.Active
+	}
+	if total != 9 {
+		t.Fatalf("dispatch crossed reclaim or lost relocation: %+v total=%v", admitted, total)
+	}
+	if len(spans) != 1 || spans[0].End != at(40) {
+		t.Fatal("admission mutated input")
 	}
 }

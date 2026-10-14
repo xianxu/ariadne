@@ -88,3 +88,11 @@ func TestEligibleSourcesVerifiesAncestorAtDispatch(t *testing.T) {
 		})
 	}
 }
+
+func TestEligibleSourcesPreservesContinuousEngagementOrigin(t *testing.T) {
+	sessions := []SessionEvidence{{Harness: "claude", ID: "root", File: "root", CWD: "/repo", Started: evidenceTime(0)}}
+	got, _, err := EligibleSources(sessions, []SourceWindow{{Start: evidenceTime(10), End: evidenceTime(20), Began: evidenceTime(5), Roots: []string{"/repo"}}})
+	if err != nil || len(got["root"]) != 1 || got["root"][0].Began != evidenceTime(5) {
+		t.Fatalf("engagement origin lost: %v %v", got, err)
+	}
+}

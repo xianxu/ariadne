@@ -38,6 +38,14 @@ func TestOwnedActualReplayUsesSavedPrefixAndWindows(t *testing.T) {
 	if got.Prefixes["current-location"] != (activetime.SourcePrefix{Bytes: 42, Digest: strings.Repeat("c", 64)}) || len(got.Windows["current-location"]) != 1 || !got.Windows["current-location"][0].Start.Equal(at.Add(time.Minute)) {
 		t.Fatalf("replay did not use saved prefix/window: %+v", got)
 	}
+	if !got.Windows["current-location"][0].Began.Equal(at) {
+		t.Fatal("replay lost the dispatch engagement origin")
+	}
+	broken := saved
+	broken.Engagements = nil
+	if _, err := ownedReplaySources(broken, found); err == nil {
+		t.Fatal("unbound retained dispatch window silently admitted")
+	}
 	if got.Scope.Head != saved.CodeHead {
 		t.Fatal("replay scope does not pin code history")
 	}

@@ -681,3 +681,14 @@ The simplest durable authority beats a clever scan of consequences.
 - Cancellation tests should separate cleanup latency from natural completion by
   a wide margin; subsecond scheduling assertions are brittle in sharded suites.
   Keep the cancellation bound while making the fake command much slower (#335).
+
+- Admit delegated activity by original dispatch provenance before merging it
+  into parent activity. Clipping a merged span by a parent's later eligibility
+  loses the distinction between release, reclaim and continuous relocation
+  (#335 BR-1).
+- Authoritative exclusion must survive consumer selection across the full issue
+  history. Test multiple eligible older rows, not only a sole target; filtering
+  the excluded newest row alone can resurrect a superseded sample (#335 BR-2).
+- Diagnostic requirements need production caller regressions. A correct
+  comparator unit test cannot detect a removed close-time warning call; mutate
+  the wiring and include the incremental-milestone control (#335 BR-3).

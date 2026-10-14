@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -381,7 +382,34 @@ func ownedReplaySources(saved gatestate.MeasurementInputs, found []transcripts.S
 			if err != nil {
 				return nil, err
 			}
-			out.Windows[s.File] = append(out.Windows[s.File], activetime.ActivityWindow{Start: start, End: end})
+			var began time.Time
+			if saved.Method == gatestate.MeasurementMethodEngagementV1 {
+				for _, engagement := range saved.Engagements {
+					left, err := time.Parse(time.RFC3339Nano, engagement.Start)
+					if err != nil {
+						return nil, err
+					}
+					right, err := time.Parse(time.RFC3339Nano, engagement.End)
+					if err != nil {
+						return nil, err
+					}
+					if start.Before(left) || end.After(right) {
+						continue
+					}
+					origin, err := time.Parse(time.RFC3339Nano, engagement.Began)
+					if err != nil {
+						return nil, err
+					}
+					if !began.IsZero() && !began.Equal(origin) {
+						return nil, errors.New("retained source window has ambiguous dispatch engagement")
+					}
+					began = origin
+				}
+				if began.IsZero() {
+					return nil, errors.New("retained source window has no dispatch engagement")
+				}
+			}
+			out.Windows[s.File] = append(out.Windows[s.File], activetime.ActivityWindow{Start: start, End: end, Began: began})
 		}
 	}
 	return out, nil

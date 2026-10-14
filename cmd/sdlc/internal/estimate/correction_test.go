@@ -208,7 +208,7 @@ func FuzzCorrectionExactSuppression(f *testing.F) {
 		if len(targets) == 0 {
 			return
 		}
-		exclusion := LedgerRow{Issue: "repo#1", Correction: &CorrectionRecord{Version: 1, Operation: "property", Generation: "g", Disposition: "exclude", Targets: targets, InputDigest: strings.Repeat("a", 64)}}
+		exclusion := LedgerRow{Issue: "repo#1", Correction: &CorrectionRecord{Version: 1, Operation: "property", Generation: "g", Disposition: "replace", Targets: targets, InputDigest: strings.Repeat("a", 64)}}
 		extra, err := ParseRowsChecked(FormatRow(exclusion))
 		if err != nil {
 			t.Fatal(err)
@@ -218,10 +218,13 @@ func FuzzCorrectionExactSuppression(f *testing.F) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(got) != len(kept) {
-			t.Fatalf("got %d want %d", len(got), len(kept))
+		if len(got) != len(kept)+1 {
+			t.Fatalf("got %d want %d", len(got), len(kept)+1)
 		}
 		for _, r := range got {
+			if r.Correction != nil {
+				continue
+			}
 			if !kept[r.RawID] {
 				t.Fatal("incorrect row survives")
 			}
@@ -231,4 +234,70 @@ func FuzzCorrectionExactSuppression(f *testing.F) {
 			t.Fatal("ordinary row lost")
 		}
 	})
+}
+
+func TestExclusionCannotResurrectEarlierOrdinarySample(t *testing.T) {
+	var raw strings.Builder
+	for _, actual := range []float64{1, 2, 3} {
+		raw.WriteString(FormatRow(LedgerRow{Issue: "repo#1", Estimate: 10, Actual: actual, Model: "estimate-logic-v2", WindowTrusted: true, BuildHours: actual, ConvergeHours: 0.1, SplitSource: "dispatch"}) + "\n")
+	}
+	rows, err := ParseRowsChecked(raw.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	excluded := LedgerRow{Issue: "repo#1", Correction: &CorrectionRecord{Version: 1, Operation: "exclude-history", Generation: "g", Disposition: "exclude", Targets: []string{rows[len(rows)-1].RawID}, InputDigest: strings.Repeat("a", 64)}}
+	extra, err := ParseRowsChecked(FormatRow(excluded))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows = append(rows, extra...)
+	effective, err := ResolveCorrections(rows)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := NewestPerIssue(effective); len(got) != 0 {
+		t.Errorf("ordinary sample resurrected: %+v", got)
+	}
+	if _, ok := CalibrateForecast(effective); ok {
+		t.Error("forecast resurrected excluded history")
+	}
+	if got := ConvergeFactors(effective); len(got) != 0 {
+		t.Errorf("converge resurrected excluded history: %+v", got)
+	}
+	if warn, msg := DriftVerdict(effective, 1); warn {
+		t.Errorf("drift resurrected excluded history: %s", msg)
+	}
+}
+
+func TestExclusionPermitsLaterCloseAndReplacement(t *testing.T) {
+	for _, mode := range []string{"ordinary", "replace", "retry-exclusion"} {
+		t.Run(mode, func(t *testing.T) {
+			rows, excluded := correctionFixture(t)
+			excluded.Correction.Disposition = "exclude"
+			exclusions, err := ParseRowsChecked(FormatRow(excluded))
+			if err != nil {
+				t.Fatal(err)
+			}
+			rows = append(rows, exclusions...)
+			later := LedgerRow{Issue: "repo#1", Estimate: 5, Actual: 8, BuildHours: 6, ConvergeHours: 2, SplitSource: "dispatch", WindowTrusted: true, Model: "estimate-logic-v2"}
+			if mode == "replace" {
+				later.Correction = &CorrectionRecord{Version: 1, Operation: "repair-after-exclude", Generation: excluded.Correction.Generation, Disposition: "replace", Targets: []string{exclusions[0].RawID}, InputDigest: strings.Repeat("b", 64)}
+			}
+			next, err := ParseRowsChecked(FormatRow(later))
+			if err != nil {
+				t.Fatal(err)
+			}
+			rows = append(rows, next...)
+			if mode == "retry-exclusion" {
+				rows = append(rows, exclusions...)
+			}
+			got, err := ResolveCorrections(rows)
+			if err != nil || len(got) != 1 || got[0].RawID != next[0].RawID {
+				t.Fatalf("legitimate later sample blocked: %v %+v", err, got)
+			}
+			if cal, ok := CalibrateForecast(got); !ok || cal.N != 1 {
+				t.Fatalf("later calibration absent: %+v %v", cal, ok)
+			}
+		})
+	}
 }

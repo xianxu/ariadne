@@ -112,7 +112,7 @@ func EligibleSources(sessions []SessionEvidence, windows []SourceWindow) (map[st
 				return nil, warnings, err
 			}
 			if ok {
-				out[s.File] = append(out[s.File], activetime.ActivityWindow{Start: at, End: w.End})
+				out[s.File] = append(out[s.File], activetime.ActivityWindow{Start: at, End: w.End, Began: w.Began})
 			}
 		}
 		if len(out[s.File]) == 0 {

@@ -85,5 +85,7 @@ func calibrationConsumerCorrectionFixture(t *testing.T, mode string) string {
 	if mode == "malformed" {
 		repair = estimate.FormatRow(estimate.LedgerRow{Issue: "repo#1"}) + "\t{}"
 	}
-	return estimate.Header() + "\n" + raw + "\n" + repair + "\n"
+	// Older eligible history must not reappear when the newest row is excluded.
+	older := estimate.FormatRow(estimate.LedgerRow{Issue: "repo#1", Estimate: 1, Actual: 2, WindowTrusted: true, Model: "estimate-logic-v2", BuildHours: 1.5, ConvergeHours: .5, SplitSource: "dispatch"})
+	return estimate.Header() + "\n" + older + "\n" + raw + "\n" + repair + "\n"
 }

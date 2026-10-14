@@ -46,6 +46,8 @@ type Event struct {
 // rather than truncate at the 15-min cap (#118 — measure ship wall-clock).
 type TaskSpan struct {
 	Start, End time.Time
+	// Dispatched preserves the original dispatch when measurement bounds clip Start.
+	Dispatched time.Time
 	Source     string
 }
 
@@ -136,7 +138,7 @@ func walkSessionEventsContext(ctx context.Context, path string, sc mentionScope,
 					pending[blk.ID] = ts
 				case d.Type == "user" && blk.Type == "tool_result" && blk.ToolUseID != "":
 					if start, ok := pending[blk.ToolUseID]; ok {
-						spans = append(spans, TaskSpan{Start: start, End: ts})
+						spans = append(spans, TaskSpan{Start: start, End: ts, Dispatched: start})
 						delete(pending, blk.ToolUseID)
 					}
 				}

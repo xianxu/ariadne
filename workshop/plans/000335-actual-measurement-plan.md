@@ -247,3 +247,26 @@ shared binary. After landing and the hub rebuild, repair pair#454/#514 AND #335
 with measured correct-actual. The acceptance checklist's land/repair item remains
 pending at close, acknowledged by the precise no-plan-check flag; no peer data
 write or gate-binary replacement occurs before landing.
+
+### 2026-10-14 — boundary round1 class corrections
+
+BR-1: admit each Claude Task span by its original dispatch engagement BEFORE
+activity union. Dispatched while released is excluded; dispatch in an earlier
+engagement cannot spill into a reclaim. Preserve continuous relocation through
+its existing Began identity, including replay derived from retained engagements.
+The event loader must retain original dispatch even when Since clips a span.
+
+BR-2: a validated exclusion is authoritative over every earlier sample for the
+issue, so consumer filtering/selection cannot revive older rows. Exact target
+and operation validation remains unchanged; a genuine later close or replacement
+can supply a new sample. Identical retries cannot advance exclusion ordering.
+
+BR-3: exercise omitted-actual whole-issue close through its production adoption
+path, assert the implausibility diagnostic, and verify a milestone control.
+Remove the actual warning call to prove the regression fails independently of
+the comparator unit test.
+
+Core-concept file refinements: discovery IO lives in transcripts/discovery.go;
+the comparator shares actualmeasurement.go, and clipping lives in activetime/clip.go.
+These corrections fulfill existing dispatch/exclusion/warning contracts; no new
+feature scope or post-landing data writes (ARCH-PURPOSE/ARCH-ORDER).

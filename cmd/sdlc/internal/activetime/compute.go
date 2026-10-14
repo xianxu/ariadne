@@ -149,6 +149,10 @@ func Compute(opts Options) (Result, error) {
 		prefixWeight = *opts.PrefixWeight
 	}
 
+	spans, err = AdmitTaskSpans(spans, opts.ActivityWindows)
+	if err != nil {
+		return Result{}, err
+	}
 	runs, err := ClipActivity(activityRuns(events, spans, opts.ThresholdMin), opts.ActivityWindows)
 	if err != nil {
 		return Result{}, err

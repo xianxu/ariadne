@@ -119,11 +119,15 @@ func validateCorrection(c *CorrectionRecord) error {
 }
 
 // ResolveCorrections resolves authoritative invalidation BEFORE any sample
-// eligibility filter. Ordinary reclose selection remains NewestPerIssue's job.
+// eligibility filter. An exclusion invalidates that issue's entire preceding
+// sample history, so eligibility filtering cannot resurrect an older close.
+// Later ordinary closes or replacements can establish a new sample. Ordinary
+// reclose selection within each remaining history stays NewestPerIssue's job.
 func ResolveCorrections(rows []LedgerRow) ([]LedgerRow, error) {
 	seen := map[string]LedgerRow{}
 	suppressed := map[string]bool{}
 	operations := map[string]LedgerRow{}
+	excludedThrough := map[string]int{}
 	var accepted []LedgerRow
 	for i, row := range rows {
 		if row.Correction != nil {
@@ -162,6 +166,9 @@ func ResolveCorrections(rows []LedgerRow) ([]LedgerRow, error) {
 			for _, id := range c.Targets {
 				suppressed[id] = true
 			}
+			if c.Disposition == "exclude" {
+				excludedThrough[row.Issue] = len(accepted)
+			}
 			operations[c.Operation] = row
 		}
 		if row.RawID != "" {
@@ -173,7 +180,10 @@ func ResolveCorrections(rows []LedgerRow) ([]LedgerRow, error) {
 		accepted = append(accepted, row)
 	}
 	out := make([]LedgerRow, 0, len(accepted))
-	for _, row := range accepted {
+	for index, row := range accepted {
+		if cutoff, excluded := excludedThrough[row.Issue]; excluded && index <= cutoff {
+			continue
+		}
 		if suppressed[row.RawID] || row.Correction != nil && row.Correction.Disposition == "exclude" {
 			continue
 		}
