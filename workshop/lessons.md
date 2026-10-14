@@ -721,3 +721,21 @@ The simplest durable authority beats a clever scan of consequences.
 
 - New CLI flags and recovery commands need README coverage alongside atlas and help; enumerate all three before close (#366 BR-1).
 - When a fenced reviewer cannot run a regression, record an exact-head host rerun, environment qualification and log path; distinguish unverifiable review execution from a demonstrated implementation failure (#366 BR-2).
+
+- A successful process-group signal is not a fork barrier. Forceful teardown
+  must cover members missed during traversal; test a successful partial first
+  signal with a real descendant holding inherited pipes (#369).
+- After a successful cancellation signal, preserve exec.Cmd.Cancel's nil
+  result while reconciling group retirement; returning ProcessDone afterward
+  can suppress the context error for a zero-exit parent (#369).
+- A deadline may legitimately expire before a subprocess's readiness marker.
+  Use explicit readiness for cancellation-after-start coverage rather than
+  requiring a short-budget test to prove OS scheduling latency (#369).
+
+- A child's 'released' message and even process Wait are completion evidence,
+  not proof that a producer lease is available. Probe the resource within the
+  existing settle budget; keep the child alive while asserting release so a
+  missing-close mutation cannot pass on implicit exit cleanup (#369).
+- test2json assigns assertion output to the exact failed subtest. A summary
+  that prints only its parent discards the fault; preserve failed child output
+  and regression-test it with recorded events (#369).
