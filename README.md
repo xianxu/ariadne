@@ -219,6 +219,13 @@ rules; non-regular Makefiles are preserved with an adoption instruction.
 `make weave` and the shared `make bootstrap` prerequisite delegate to
 `weave compile`; consumer bootstrap extensions remain additive.
 
+For host checks required by `make test`, provide `tests/host-preflight.sh`, or
+set `WF_TEST_PREFLIGHT ?= path/to/preflight.sh` before including
+`Makefile.workflow`. The workflow runs the script before acquiring the shared
+full-suite lock: failure prints the script's diagnostics and stops without
+queueing; success proceeds to the lock. Repositories without a preflight keep
+their existing behavior. See the [test gate documentation](atlas/workflow/sdlc-binary.md#running-the-test-suite).
+
 The seeded `./bootstrap.sh` runs from its own repository root, reuses a
 compatible weave on PATH, or runs `brew install xianxu/ariadne/weave` before
 executing `weave compile`. It requires Homebrew rather than installing it.

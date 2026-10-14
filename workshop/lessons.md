@@ -613,3 +613,5 @@ The simplest durable authority beats a clever scan of consequences.
 - Classify a function by all production effects reachable through its callbacks, not only its direct calls or name. An injected reader still makes a planner INTEGRATION when the production binding reads Git; trace every callback before declaring PURE (#337 BR-3).
 
 - When an authorized acceptance revision changes required checks, update the current Done when criteria as well as appending its revision history. Label completed local verification separately from pending PR CI; do not leave two competing acceptance contracts (#358 BR-1).
+
+- A new consumer configuration hook needs a README entry as well as atlas details: name its default convention, override placement, and failure behavior (#333 BR-1).
