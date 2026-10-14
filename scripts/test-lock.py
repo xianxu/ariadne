@@ -17,11 +17,14 @@
 # A suite's weight (#346), --slots N (WF_TEST_WEIGHT in the repo's Makefile), is
 # how many slots it takes: ariadne's sharded suite takes 2, so it runs alone at
 # the default cap. N is clamped to the slot count. All N are taken in one scan or
-# none are, so a waiter never holds part of its set. While waiting, a run holds
-# the queue file (<slot 0>.queue); only the queue's head takes slots, so light
-# suites never overtake the head waiter (the queue is a polled flock, not
-# FIFO, so the waiters behind it race for it), and the head holds no slot, so two heavy
-# waiters cannot deadlock.
+# none are, so a waiter never holds part of its set. Admission is FIFO (#357): each
+# waiter takes a numbered ticket in <slot 0>.tickets/ and holds a flock on it while
+# it waits, so the lowest live ticket is the oldest waiter, and a ticket whose lock
+# the kernel released (its waiter died) is pruned rather than blocking the line.
+# Only the oldest waiter may become the head, and the head also takes the queue
+# file (<slot 0>.queue), the head token older copies of this script use, so a
+# mixed fleet keeps their behavior. Only the head takes slots, so light suites never
+# overtake it, and the head holds no slot, so two heavy waiters cannot deadlock.
 #
 # WF_TEST_SUITES=<n> sets the slot count (default 2); WF_TEST_LOCK=off skips the
 # lock; WF_TEST_LOCK_TIMEOUT=<seconds> bounds the wait; WF_TEST_LOCK_FILE
@@ -74,6 +77,88 @@ def scan(fds, want):
         if k not in taken:
             fcntl.flock(fds[k], fcntl.LOCK_UN)
     return taken, busy
+
+
+def live_tickets(tdir):
+    """The live tickets, oldest first, as (number, path); prunes dead waiters' tickets.
+
+    Call under the allocation mutex: a ticket is created and locked under it, so an
+    unlocked ticket seen here belongs to a waiter that has died."""
+    live = []
+    for name in os.listdir(tdir):
+        if not name.isdigit():
+            continue
+        path = os.path.join(tdir, name)
+        try:
+            fd = os.open(path, os.O_RDWR)
+        except FileNotFoundError:
+            continue
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            live.append((int(name), path))  # its waiter holds it
+        else:
+            try:
+                os.unlink(path)  # its waiter is gone: skip it for good
+            except FileNotFoundError:
+                pass
+        finally:
+            os.close(fd)
+    return sorted(live)
+
+
+class Tickets:
+    """This waiter's place in the FIFO line (#357)."""
+
+    def __init__(self, base, rec):
+        self.dir = base + ".tickets"
+        os.makedirs(self.dir, exist_ok=True)
+        self.mutex = os.open(os.path.join(self.dir, "alloc"), os.O_RDWR | os.O_CREAT, 0o644)
+        with self.locked():
+            live = live_tickets(self.dir)
+            self.number = (live[-1][0] if live else 0) + 1
+            self.path = os.path.join(self.dir, f"{self.number:012d}")
+            self.fd = os.open(self.path, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o644)
+            fcntl.flock(self.fd, fcntl.LOCK_EX)
+            os.pwrite(self.fd, json.dumps(rec).encode(), 0)
+
+    def locked(self):
+        mutex = self.mutex
+
+        class Held:
+            def __enter__(self):
+                fcntl.flock(mutex, fcntl.LOCK_EX)
+
+            def __exit__(self, *exc):
+                fcntl.flock(mutex, fcntl.LOCK_UN)
+
+        return Held()
+
+    def ahead(self):
+        """The live waiters ahead of this one, oldest first, as their records."""
+        with self.locked():
+            live = live_tickets(self.dir)
+        recs = []
+        for number, path in live:
+            if number >= self.number:
+                break
+            try:
+                fd = os.open(path, os.O_RDONLY)
+            except FileNotFoundError:
+                continue  # it took its slots meanwhile
+            try:
+                recs.append(holder(fd))
+            finally:
+                os.close(fd)
+        return recs
+
+    def release(self):
+        try:
+            os.unlink(self.path)
+        except FileNotFoundError:
+            pass
+        os.close(self.fd)
+        os.close(self.mutex)
 
 
 def try_lock(fd):
@@ -146,35 +231,53 @@ def acquire(watch, weight=1):
     # `make test` inside a locked run (or make's own restart) passes through.
     held_by = int(os.environ.get("WF_TEST_LOCK_HELD_BY") or 0)
     limit = float(os.environ.get("WF_TEST_LOCK_TIMEOUT") or 0)
-    start = last = time.time()
-    first, head = True, False
-    while True:
-        if not head and try_lock(queue):
-            head = True
-            os.ftruncate(queue, 0)
-            os.pwrite(queue, json.dumps(rec).encode(), 0)
-        # Only the queue's head takes slots; the others just read who holds them.
-        taken, busy = scan(fds, want if head else 0)
+
+    def nested(busy):
         # A slot this make (or the make it runs under) already holds makes this a
         # nested run, even with another slot free.
-        if any(r and r.get("pid") in (watch, held_by) for r in busy):
-            for k in taken:
-                fcntl.flock(fds[k], fcntl.LOCK_UN)
-            return "reentrant"
-        if taken:
-            break
-        held = holders(busy)
-        if not head:
-            held += f"\n  next in line: {describe(holder(queue))}"
-        now = time.time()
-        wanted = "one" if want == 1 else f"{want}"
-        if first or now - last >= REPORT_EVERY:
-            log(f"waiting {int(now - start)}s for {wanted} of {len(fds)} full-suite slots ({paths[0]}*); held by:{held}")
-            first, last = False, now
-        if limit and now - start >= limit:
-            log(f"gave up after {int(now - start)}s waiting for a full-suite slot — a lock wait, not a test failure; held by:{held}")
-            return "timeout"
-        time.sleep(1)
+        return any(r and r.get("pid") in (watch, held_by) for r in busy)
+
+    # A nested run passes through without joining the line.
+    if nested(scan(fds, 0)[1]):
+        return "reentrant"
+    line = Tickets(paths[0], rec)
+    start = last = time.time()
+    first, head = True, False
+    try:
+        while True:
+            ahead = [] if head else line.ahead()
+            # Only the oldest live waiter may take the head; an older copy of this
+            # script may still hold the queue file, and goes first.
+            if not head and not ahead and try_lock(queue):
+                head = True
+                os.ftruncate(queue, 0)
+                os.pwrite(queue, json.dumps(rec).encode(), 0)
+            # Only the head takes slots; the others just read who holds them.
+            taken, busy = scan(fds, want if head else 0)
+            if nested(busy):
+                for k in taken:
+                    fcntl.flock(fds[k], fcntl.LOCK_UN)
+                return "reentrant"
+            if taken:
+                break
+            held = holders(busy)
+            if head:
+                held += "\n  position 1 in line: next to run"
+            else:
+                position = len(ahead) + 1
+                nxt = ahead[0] if ahead else holder(queue)
+                held += f"\n  position {position} in line; next in line: {describe(nxt)}"
+            now = time.time()
+            wanted = "one" if want == 1 else f"{want}"
+            if first or now - last >= REPORT_EVERY:
+                log(f"waiting {int(now - start)}s for {wanted} of {len(fds)} full-suite slots ({paths[0]}*); held by:{held}")
+                first, last = False, now
+            if limit and now - start >= limit:
+                log(f"gave up after {int(now - start)}s waiting for a full-suite slot — a lock wait, not a test failure; held by:{held}")
+                return "timeout"
+            time.sleep(1)
+    finally:
+        line.release()  # taking slots, giving up or nesting all leave the line
 
     os.close(queue)  # leaving the queue lets the next waiter take its slots
     held_fds = [fds[k] for k in taken]

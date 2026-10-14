@@ -1630,12 +1630,22 @@ had pushed load to 185.
 clamped to `WF_TEST_SUITES`. The acquisition rules:
 - **All or none.** The N slots are taken in one scan or not at all. A waiter
   holds no slot, so two heavy waiters cannot deadlock.
-- **One queue head.** While waiting, a run holds `test-suite.lock.queue`.
-  Only that head may take slots, so light suites never overtake the head waiter. The queue is a polled flock, not first-in-first-out, so waiters behind the head race for it.
+- **First in, first out (#357).** Each waiter takes a numbered ticket in
+  `test-suite.lock.tickets/` and holds a flock on it while it waits; the lowest
+  live ticket is the oldest waiter. A ticket whose lock the kernel released (its
+  waiter died) is pruned, so a crash never blocks the line. Tickets are created and
+  pruned under a short allocation lock (`alloc`), so a new ticket is never mistaken
+  for a dead one.
+- **One queue head.** Only the oldest waiter may become the head, and the head also
+  holds `test-suite.lock.queue`, the token older copies of the script use. Only the
+  head takes slots, so light suites never overtake it. Each slot runs the script
+  from its own branch, so in a mixed fleet an older copy can still win the queue
+  file and go first, as before; once every slot has the change, admission is FIFO.
 - **Records.** The holder's record goes into each slot it holds, with
   `slots: [...]`.
 
-The wait names each holder once, with `next in line: …` for the queue head.
+The wait names each holder once, then `position K in line; next in line: …` (the
+waiter ahead), or `position 1 in line: next to run` for the head.
 It asks for `2 of 2 full-suite slots` for a weight-2 run.
 
 While waiting it prints `[test-lock] waiting Ns for one of N full-suite slots …;
@@ -1644,7 +1654,9 @@ repeated every 30s. `WF_TEST_LOCK=off` skips the lock
 (loudly). `WF_TEST_LOCK_TIMEOUT=<seconds>` bounds the wait and then fails make
 with "full-suite lock not taken (timeout)" — a lock wait, not a test failure.
 Agents running the pre-close suite should run `make test` in the background so a
-wait can't trip the tool's timeout. Tests: `scripts/test-lock.test.sh`.
+wait can't trip the tool's timeout. Tests: `scripts/test/test-lock.test.sh`, which
+the `20-ci-workflow-tests` merge check runs (FIFO order under a stopped waiter, a
+dead waiter skipped, an older copy's head going first).
 
 ### Targeted runs share a machine budget (#324)
 
