@@ -194,3 +194,81 @@ dispose:
 7. **Plan revision recommendations**
 
    Add **“R7 — Complete context propagation across integration IO”** under `## Revisions`. Enumerate the facts probe, publish replay, ownership reads, transport, and cleanup; identify each context-bearing seam and regression test. Correct R6’s claim that the entire integration Git graph is already bounded and cancellable.
+
+---
+
+## Re-review — 2026-10-14T01:38:07-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 332 — sdlc merge integrates a moved main itself, then re-runs the suite before landing |
+| repo | ariadne |
+| issue file | workshop/issues/000332-sdlc-merge-integrates-a-moved-main-itself-then-re-runs-the-suite-before-landing.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 9ea8e8a37b74f56317b1e4b0547411426b2f259e..96d1b05bb868cf36b6db5779702b104ad724b331 |
+| command | sdlc milestone-close --issue 332 --milestone M2 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T01:38:07-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+M2’s integration, conflict recovery, leased push, bounded CI wait, retry limit, and interrupted-push recovery match the documented milestone. Both open findings are addressed, with regression tests independently shown to fail when fixes are removed. No new blocking findings. M3 failure classification remains outside this boundary.
+
+```findings
+dispose:
+  - id: BR-12
+    disposition: addressed
+    note: |
+      cigate_wait.go:79 enforces remaining deadlines and rejects late results; localchecks_make.go:70 propagates the budget into the real Makefile probe. Deadline tests pass. Removing probe context propagation makes both budget and cancellation regressions fail at approximately 1.53 seconds.
+  - id: BR-13
+    disposition: addressed
+    note: |
+      landinggit.go:61 bounds production Git processes and descendants; contextual helpers cover replay, archive ownership, and tracker discovery. Cancellation and uncertain-push recovery tests pass. Removing propagation independently fails archive ownership, tracker workspace/discovery, and all four replay-command regressions.
+  - id: BR-14
+    disposition: addressed
+    note: |
+      Previously accepted disposition remains valid. Production integration state advances through transitionIntegration; direct pure state tests and landing sequence tests pass.
+```
+
+1. **Strengths**
+
+   - Resume validates parents, trailer, and reconstructed merge tree rather than trusting a commit message (`cmd/sdlc/landingintegrate.go:48`).
+   - Push cancellation preserves possibly published work and supports reconciliation on retry (`cmd/sdlc/landingintegrate.go:227`).
+   - Tests exercise real Git merges, bare remotes, suite subprocesses, and deterministic main movement.
+   - README, help, atlas, and recovery contracts document the new behavior and the remaining server-side main race.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Focused deadline/process tests passed; M2 landing and legacy sequence tests passed.
+   - Integration-state, publish, review-window, and landing-archive checks passed.
+   - Full gitx package passed in 44.525 seconds.
+   - Mutation checks failed as expected; disposable checkouts were removed.
+   - Five broader archive failures reproduced at the pinned base. They resulted from repository-nested `TMPDIR`; all five passed with temporary fixtures outside the repository.
+   - Full repository suite and live GitHub conformance were not run.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared facts preparation, replay primitives, and pure window decisions are reused.
+   - **ARCH-PURE — pass:** integration transitions run directly without IO; effects remain in the shell.
+   - **ARCH-PURPOSE — pass:** M2 delivers the integration workflow and completes the previously missed cancellation paths.
+   - **ARCH-MOCK — pass:** stateful GitHub fakes and real isolated Git remotes exercise production seams; existing conformance coverage remains available.
+   - **ARCH-CONSTRAINTS — pass:** polling deadlines include inflight work; subprocess ceilings and retry limits are tested.
+   - **ARCH-SECURE — pass:** resume evidence and leases protect against fabricated markers and concurrent pushes; cancellation cannot authorize a late success.
+   - **ARCH-ORDER — pass:** typed transitions govern integration; deterministic sequence tests cover main movement and uncertain publication.
+   - **ARCH-FUNERAL — pass:** temporary probes/worktrees have cleanup paths; no new persistent journal is introduced.
+
+7. **Plan revision recommendations:** None required for M2. Existing revisions describe the delivered entities and corrections.

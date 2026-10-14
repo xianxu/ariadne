@@ -268,6 +268,28 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - "n": 8
+      timestamp: "2026-10-14T01:38:07-07:00"
+      dispatched: "2026-10-14T01:32:16-07:00"
+      agent: codex
+      dispose:
+        - id: BR-12
+          disposition: addressed
+          note: cigate_wait.go:79 enforces remaining deadlines and rejects late results; localchecks_make.go:70 propagates the budget into the real Makefile probe. Deadline tests pass. Removing probe context propagation makes both budget and cancellation regressions fail at approximately 1.53 seconds.
+          round: 8
+        - id: BR-13
+          disposition: addressed
+          note: landinggit.go:61 bounds production Git processes and descendants; contextual helpers cover replay, archive ownership, and tracker discovery. Cancellation and uncertain-push recovery tests pass. Removing propagation independently fails archive ownership, tracker workspace/discovery, and all four replay-command regressions.
+          round: 8
+        - id: BR-14
+          disposition: addressed
+          note: Previously accepted disposition remains valid. Production integration state advances through transitionIntegration; direct pure state tests and landing sequence tests pass.
+          round: 8
+      boundary: M2
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 96d1b05bb868cf36b6db5779702b104ad724b331
+      blocked: false
 ---
 
 # Gate ledger — ariadne#332 (boundary-review)
@@ -368,7 +390,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-13 — not-addressed — Merge/push deadlines, descendant cleanup, and uncertain-push recovery have meaningful regression evidence. The integration call-graph sweep remains incomplete: publish replay calls gitx.RunGit, whose runner uses context.Background at cmd/sdlc/internal/gitx/window.go:28; runEnv does likewise at rebasedpatch.go:17. A cancelled runLandingPublishGate still spent 1.06 seconds in its first Git read. Ownership also reaches archiveRead at landingarchive.go:126, which invokes the unbounded landingArchiveRunner directly. Apply cancellation and command ceilings across the entire enumerated graph.
 - BR-14 — addressed — Production integration outcomes now pass through transitionIntegration in cmd/sdlc/integrationstate.go, owning head, lease base, PR, resume state, phase, and attempts. Removing retry-count advancement made both state regression tests fail. Production retry, recovery, and cancelled-push tests passed; Plan revision R6 describes the delivered model.
 
+## Round 8 — 2026-10-14T01:38:07-07:00 (codex) — passed
+
+### Disposed
+
+- BR-12 — addressed — cigate_wait.go:79 enforces remaining deadlines and rejects late results; localchecks_make.go:70 propagates the budget into the real Makefile probe. Deadline tests pass. Removing probe context propagation makes both budget and cancellation regressions fail at approximately 1.53 seconds.
+- BR-13 — addressed — landinggit.go:61 bounds production Git processes and descendants; contextual helpers cover replay, archive ownership, and tracker discovery. Cancellation and uncertain-push recovery tests pass. Removing propagation independently fails archive ownership, tracker workspace/discovery, and all four replay-command regressions.
+- BR-14 — addressed — Previously accepted disposition remains valid. Production integration state advances through transitionIntegration; direct pure state tests and landing sequence tests pass.
+
 ## Open findings
 
-- **BR-12** [Important] `polling-deadlines-cover-inflight-work` CI polling can exceed its advertised deadline and accept a late green result
-- **BR-13** [Important] `unbounded-subprocess` Integration merge and push subprocesses have no deadline or cancellation
+(none — every finding has been disposed)
