@@ -49,9 +49,9 @@ flag (e.g. `-i`, `-n`) also needs neutralizing. Add a regression test that sets
 
 ## Plan
 
-- [ ] Pin clean and inherited keep-going environments in the real make failure regression; verify RED.
+- [x] Pin clean and inherited keep-going environments in the real make failure regression; verify RED.
 - [ ] Add -S to the shared tools argv and align the process double; verify targeted GREEN and full make -k test.
-- [ ] Record verification, close, and land on SHIP.
+- [ ] Record acceptance evidence, then enter close; land after SHIP.
 
 ## Log
 
@@ -63,3 +63,5 @@ Filed by ariadne:3 from #353's full suite (unrelated to #353's diff).
 ## Revisions
 
 - 2026-10-14 — Hub assigned the production fix: cancel inherited keep-going with -S at the existing tools IO seam (ARCH-PURPOSE, ARCH-PURE). Preserve other make options, including job settings and explicitly selected ignore-error/dry-run modes; removing the whole environment is broader than this bug. Reuse the current real double-colon fixture and injected process double (ARCH-DRY, ARCH-MOCK). No new state, concurrency, artifacts or input surface is introduced (ARCH-ORDER, ARCH-FUNERAL, ARCH-CONSTRAINTS, ARCH-SECURE). #356 is superseded by this production correction.
+
+- 2026-10-14 — RED: TestToolsDoubleColonFailurePropagates/MAKEFLAGS=k fails with later recipe ran (0.352s), while the explicit clean environment passes. GREEN after -S: MAKEFLAGS=k go test ./cmd/weave/internal/startup -count=1 passes (1.948s), including real Make and the existing stateful process double. The only production change is the tools argv; no architecture surface changed. Full make -k test next.
