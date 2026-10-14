@@ -1,28 +1,54 @@
 ---
 id: 000363
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: 'e32a35ba359da5edea200d49c3e00a7cd91b5305' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '061acdc1115eb39585db8d35752dad6e7b844873' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-13T23:21:46-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Construct shell tests isolate inherited color and terminal settings
 
 ## Problem
 
+The #333 full suite failed only in vm-log.test.sh: Codex supplies NO_COLOR=1,
+which overrides the test's CLICOLOR_FORCE=1. Unsetting NO_COLOR made the unchanged
+test pass. Inherited CLICOLOR_FORCE also breaks the plain dim assertions.
+
 ## Spec
+
+Make vm-log.test.sh own its color environment by clearing inherited NO_COLOR and
+CLICOLOR_FORCE before its explicit cases. Keep production color precedence unchanged.
+Sweep all six construct shell tests and their invoked scripts for NO_COLOR, TERM,
+and CI assumptions; exercise the existing runner under plain, no-color/CI, and
+forced-color environments. Reuse its bounded process-group cleanup (ARCH-DRY).
 
 ## Done when
 
--
+- The shell runner passes with NO_COLOR=1 and with inherited CLICOLOR_FORCE=1;
+  regression cases fail against the previous vm-log test.
+- The sweep records any TERM/CI assumptions and the full make -k test passes.
 
 ## Plan
 
-- [ ]
+- [ ] Add environment regression cases and observe their failures.
+- [ ] Isolate vm-log test color inputs; verify all shell tests and the full suite.
 
 ## Log
 
 ### 2026-10-13
+
+Hub explicitly requested this fix after #333 landed. All six .test.sh files read;
+only vm-log.test.sh depends on these color inputs. The other five assert paths,
+exit codes, generated commands, and fixture state; their called scripts do not
+branch on NO_COLOR, TERM, or CI (sandbox.sh's TERM is a signal name).
