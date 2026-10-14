@@ -50,8 +50,8 @@ flag (e.g. `-i`, `-n`) also needs neutralizing. Add a regression test that sets
 ## Plan
 
 - [x] Pin clean and inherited keep-going environments in the real make failure regression; verify RED.
-- [ ] Add -S to the shared tools argv and align the process double; verify targeted GREEN and full make -k test.
-- [ ] Record acceptance evidence, then enter close; land after SHIP.
+- [x] Add -S to the shared tools argv and align the process double; verify targeted GREEN and the revised acceptance run below.
+- [x] Record acceptance evidence, then enter close; land after SHIP.
 
 ## Log
 
@@ -65,3 +65,6 @@ Filed by ariadne:3 from #353's full suite (unrelated to #353's diff).
 - 2026-10-14 — Hub assigned the production fix: cancel inherited keep-going with -S at the existing tools IO seam (ARCH-PURPOSE, ARCH-PURE). Preserve other make options, including job settings and explicitly selected ignore-error/dry-run modes; removing the whole environment is broader than this bug. Reuse the current real double-colon fixture and injected process double (ARCH-DRY, ARCH-MOCK). No new state, concurrency, artifacts or input surface is introduced (ARCH-ORDER, ARCH-FUNERAL, ARCH-CONSTRAINTS, ARCH-SECURE). #356 is superseded by this production correction.
 
 - 2026-10-14 — RED: TestToolsDoubleColonFailurePropagates/MAKEFLAGS=k fails with later recipe ran (0.352s), while the explicit clean environment passes. GREEN after -S: MAKEFLAGS=k go test ./cmd/weave/internal/startup -count=1 passes (1.948s), including real Make and the existing stateful process double. The only production change is the tools argv; no architecture surface changed. Full make -k test next.
+
+- 2026-10-14 — Acceptance revision authorized by hub receipt bada6a90-b130-4909-b7cf-868d8b8cc798: replace the full-suite criterion with all weave packages, startup under both MAKEFLAGS=k and empty, and green PR CI. Full suite starved at the gate (ariadne#357); change confined to weave's tools argv. Cancelled the queued make and its own waiter after over 40 minutes, before any suite tests ran. No bypass of the machine lock.
+- 2026-10-14 — Revised acceptance passed at 865d3556d486dd7139125122d7fd597983b0a215: go test ./cmd/weave/... -count=1 (13 tested packages pass, one with no tests); startup MAKEFLAGS=k 0.830s and MAKEFLAGS empty 0.462s. Full weave log /tmp/ariadne358-weave-20261013.log; cancelled queue log /tmp/ariadne358-full-20261013.log. No architecture surface changed; this restores the existing fail-stop contract. Close and PR CI remain subsequent gates.
