@@ -31,3 +31,11 @@ Before invoking a substrate helper, `sdlc` checks the helper's capability (e.g. 
 ## Log
 
 ### 2026-10-14
+
+## Revisions
+
+- 2026-10-14 08:20 — add (TL): the named fix must work on an **issue branch**. `weave refresh` advances the
+  repository's own branch too, so it refuses on an issue branch that's ahead of main (pair:5 on pair#547), and
+  `--rebase` would rewrite the issue branch. Provide a substrate-only refresh (e.g. `weave refresh --substrate`):
+  fast-forward the slot's private substrate checkouts and recompile, leaving the repository's branch alone; the
+  refusal message names it.
