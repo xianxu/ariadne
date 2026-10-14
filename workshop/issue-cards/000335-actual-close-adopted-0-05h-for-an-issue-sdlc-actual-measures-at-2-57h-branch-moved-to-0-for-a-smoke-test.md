@@ -2,7 +2,7 @@
 id: 000335
 status: open
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-14
 estimate_hours:
 github_issue:
 tracker:
@@ -17,6 +17,14 @@ tracker:
         source_blob: 213ab13f7df89340a1d7e26c13d84f3afc5bac55
         destination: workshop/issues/000335-actual-close-adopted-0-05h-for-an-issue-sdlc-actual-measures-at-2-57h-branch-moved-to-0-for-a-smoke-test.md
         main_commit: 8f9ea913af4e10c119ecf8950e6a1efc1895cc0f
+started: 2026-10-14T01:44:37-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # actual: close adopted 0.05h for an issue sdlc actual measures at 2.57h (branch moved to :0 for a smoke test)
