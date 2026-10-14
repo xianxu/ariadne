@@ -187,6 +187,12 @@ results refuse. Local suite runtime, including machine-lock queueing, is
 excluded. Cleanup receives fresh bounded IO after cancellation.
 The Makefile facts probe also inherits the remaining CI budget; its normal
 two-minute ceiling still applies outside a wait.
+If the integrated head's suite fails, landing runs that same suite once on
+main as an unrecorded diagnostic baseline. The refusal separates named tests
+introduced by the branch from those also failing on main. An unparseable
+baseline failure is reported as such rather than assigning its failures to
+the branch; neither failed tree can land. Both runs retain their local logs,
+but only the tested branch head posts a commit status or PR comment.
 
 ## Not the same as the publish gate or the close review
 

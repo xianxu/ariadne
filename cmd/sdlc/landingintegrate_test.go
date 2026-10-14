@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -116,6 +117,55 @@ func TestLandingMainMovesDuringSuite(t *testing.T) {
 				if gh.ci.statuses[sha]["sdlc-local/suite"] != "success" {
 					t.Fatal("suite missing for " + sha)
 				}
+			}
+		})
+	}
+}
+
+func TestLandingSuiteFailureLabels(t *testing.T) {
+	for _, tc := range []struct {
+		name, command string
+		want          []string
+	}{
+		{
+			name:    "introduced-and-preexisting",
+			command: `echo '--- FAIL: TestB'; if test -f shipped.txt; then echo '--- FAIL: TestA'; fi; exit 1`,
+			want:    []string{"introduced: TestA", "pre-existing: TestB"},
+		},
+		{
+			name:    "unparsed-main-failure",
+			command: `echo 'suite infrastructure failed'; exit 1`,
+			want:    []string{"main is red (unparsed)"},
+		},
+		{
+			name:    "introduced-only",
+			command: `if test -f shipped.txt; then echo '--- FAIL: TestA'; exit 1; fi`,
+			want:    []string{"introduced: TestA", "main baseline passed"},
+		},
+		{
+			name:    "merged-unparsed-failure",
+			command: `if test -f shipped.txt; then echo 'suite infrastructure failed'; exit 1; fi`,
+			want:    []string{"merged suite failed (unparsed)", "main baseline passed"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, server, gh := integrationFixture(t)
+			procedureWrite(t, server, localChecksPath, `{"version":1,"checks":[{"name":"suite","required":true,"command":["sh","-c",`+strconv.Quote(tc.command)+`]}]}`)
+			git(t, server, "add", localChecksPath)
+			git(t, server, "commit", "-qm", "failing suite on main")
+			git(t, server, "push", "-q", "origin", "main")
+			main := procedureHead(t, server)
+			err := runMerge(io.Discard, io.Discard, landingFlags())
+			if err == nil {
+				t.Fatal("failing suite allowed landing")
+			}
+			for _, want := range tc.want {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("missing %q in refusal: %v", want, err)
+				}
+			}
+			if gh.merges != 0 || gh.ci.statuses[main] != nil {
+				t.Fatalf("baseline landed or posted a status: merges=%d main statuses=%v", gh.merges, gh.ci.statuses[main])
 			}
 		})
 	}

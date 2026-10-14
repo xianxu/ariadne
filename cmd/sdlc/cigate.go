@@ -380,6 +380,19 @@ func headHasWorkflows(git func(args ...string) (string, error), head string) (bo
 // (runLocalCheck bound to a checkout). nil: the gate names the run instead.
 type localCheckRunner func(ctx context.Context, c localCheck, sha string) (localRunRecord, error)
 
+// localCheckFailure carries a completed failed run to landing so the suite can
+// be compared with the same check on main. The failed head's status is already
+// recorded; this error does not authorize any landing.
+type localCheckFailure struct {
+	Check localCheck
+	Run   localRunRecord
+	Head  string
+}
+
+func (e *localCheckFailure) Error() string {
+	return fmt.Sprintf("CI gate: local check %s failed on %s (%s); log %s\n  → fix it and push, then re-run `sdlc merge`", e.Check.Name, abbrevSHA(e.Head), e.Run.statusDescription(), e.Run.LogPath)
+}
+
 // newLocalCheckRunner binds runLocalCheck to a checkout for the CI gate.
 func newLocalCheckRunner(d localRunDeps) localCheckRunner {
 	return func(ctx context.Context, c localCheck, sha string) (localRunRecord, error) {
@@ -594,7 +607,7 @@ func runPreparedCIGate(ctx context.Context, gh ghCaller, repo string, number int
 				return fmt.Errorf("CI gate: %w", err)
 			}
 			if !rec.passed() {
-				return fmt.Errorf("CI gate: local check %s failed on %s (%s); log %s\n  → fix it and push, then re-run `sdlc merge`", name, abbrevSHA(head), rec.statusDescription(), rec.LogPath)
+				return &localCheckFailure{Check: c, Run: rec, Head: head}
 			}
 		}
 		// The run took minutes: read again, so a push or a new failure since

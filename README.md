@@ -334,6 +334,8 @@ suite, main's `Makefile` supplies `make test` and `WF_TEST_WEIGHT` when it has a
 test target. The optional declaration `weight` (default 1) reserves that many
 machine-wide suite slots. A passing record on an ancestor remains valid through
 docs-only changes such as close's bookkeeping; code changes require another run.
+When the integrated head's suite fails, merge runs an unrecorded copy on main
+and labels the named failures as introduced or pre-existing in its refusal.
 
 ## Fleet queries
 

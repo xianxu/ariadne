@@ -384,3 +384,16 @@ contextual replay APIs were absent. Two additional tracker reader modes were
 added after a call-graph sweep; both also failed before their correction.
 The previous R6 sentence claiming complete coverage is superseded by this
 enumeration and R7's reproduced counterexamples.
+
+### R9 — 2026-10-14, M3 failure evidence and diagnostic baseline
+
+The CI gate now returns a typed failed-local-check result with its check and
+log record, so the landing shell can identify a failed suite without parsing
+refusal prose. It reads the merged-head log before a diagnostic run can prune
+older logs, then runs the same main-selected suite on main with status/comment
+recording disabled. Pure `failingTests` and `classifyFailures` functions label
+introduced and pre-existing tests; an unparsed failed baseline or merged run
+is explicitly unknown rather than attributed to either tree. This preserves
+ARCH-PURE and ARCH-ORDER: the classifier has no IO, and the baseline cannot
+turn a failed gate into a landing. Real local Git/GitHub fake tests cover both
+labels, unparsed results, and the absence of a main status.

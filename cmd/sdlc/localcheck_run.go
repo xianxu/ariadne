@@ -30,6 +30,9 @@ type localRunDeps struct {
 	Git    func(args ...string) (string, error)
 	PR     int // 0: no PR known, so a failure posts no comment
 	Stderr io.Writer
+	// SkipRecord is for a diagnostic baseline on main. It keeps the log but
+	// never publishes a commit status or PR comment for that baseline.
+	SkipRecord bool
 	// minute is the unit of timeout_minutes; tests shrink it.
 	minute time.Duration
 }
@@ -46,9 +49,10 @@ const (
 var errUnboundedSuite = errors.New("refusing to run an unbounded suite")
 
 // runLocalCheck runs c on sha in a fresh detached worktree, under one of the
-// machine-wide suite slots, keeps the log, and posts the outcome as the
-// localStatusContext(c.Name) status on sha. A failed check is a record, not an
-// error; the error is for a run that could not happen or could not be recorded.
+// machine-wide suite slots, keeps the log, and normally posts the outcome as
+// the localStatusContext(c.Name) status on sha. SkipRecord makes a diagnostic
+// run on main local-only. A failed check is a record, not an error; the error
+// is for a run that could not happen or, when required, could not be recorded.
 func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string) (localRunRecord, error) {
 	rec := localRunRecord{Name: c.Name, SHA: sha, Exit: -1}
 	rec.Host, _ = os.Hostname()
@@ -118,6 +122,10 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		return rec, err
 	}
 	pruneLocalCheckLogs(logDir, localCheckLogKeep)
+	if d.SkipRecord {
+		fmt.Fprintf(d.Stderr, "==> local check %s: %s on %s (diagnostic baseline, unrecorded)\n", c.Name, rec.statusDescription(), abbrevSHA(sha))
+		return rec, nil
+	}
 
 	if err := d.GH.PostStatus(ctx, d.Repo, sha, localStatusContext(c.Name), rec.state(), rec.statusDescription()); err != nil {
 		return rec, fmt.Errorf("local check %s %s but was NOT recorded on %s: %w", c.Name, rec.state(), abbrevSHA(sha), err)

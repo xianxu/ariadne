@@ -465,13 +465,14 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 					return err
 				}
 			}
-			localRun := newLocalCheckRunner(localRunDeps{GH: ghClient, Repo: t.Repo, Root: t.Root, Git: landingGitCall, PR: pr.Number, Stderr: stderr})
+			localDeps := localRunDeps{GH: ghClient, Repo: t.Repo, Root: t.Root, Git: landingGitCall, PR: pr.Number, Stderr: stderr}
+			localRun := newLocalCheckRunner(localDeps)
 			if err = waitCIGate(ctx, ghClient, t.Repo, pr.Number, targetMain, head, landingGitCall, localRun, f.NoCI, stderr, func(ioCtx context.Context) func(...string) (string, error) {
 				readRunner := withLandingGitContext(ioCtx, r)
 				return func(args ...string) (string, error) { return landingGit(readRunner, t.Root, args...) }
 			}); err != nil {
 				state, _, _ = transitionIntegration(state, integrationEvent{kind: integrationGatesRejected})
-				return err
+				return diagnoseSuiteFailure(ctx, err, targetMain, localDeps)
 			}
 			if err = revalidateLanding(r, t, branch, head, current); err != nil {
 				return err
