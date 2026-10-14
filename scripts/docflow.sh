@@ -156,7 +156,7 @@ cmd_round() {
     slug="${cur#review/}"; base="$(review_base "$cur")"
 
     if [[ ${#files[@]} -gt 0 ]]; then
-        git add -- "${files[@]}"
+        git add -- ${files[@]+"${files[@]}"}
     else
         # Stage exactly the recorded in-scope docs — never `git add -u`, which
         # sweeps unrelated tracked WIP into the review. Read into an array so
@@ -164,7 +164,7 @@ cmd_round() {
         local f; local -a inscope=()
         while IFS= read -r f; do [[ -n "$f" ]] && inscope+=("$f"); done < <(inscope_files "$cur")
         if [[ ${#inscope[@]} -gt 0 ]]; then
-            git add -- "${inscope[@]}"
+            git add -- ${inscope[@]+"${inscope[@]}"}
         else
             warn "no in-scope files recorded for $cur — staging all tracked changes (legacy branch?)"
             git add -u
@@ -184,9 +184,9 @@ cmd_round() {
         # detail that keeps `git log` readable: human rounds = operator, agent
         # rounds = agent), plus a Co-Authored-By trailer per repo convention.
         args+=(-m "Co-Authored-By: $AGENT_AUTHOR")
-        git "${args[@]}" --author="$AGENT_AUTHOR"
+        git ${args[@]+"${args[@]}"} --author="$AGENT_AUTHOR"
     else
-        git "${args[@]}"
+        git ${args[@]+"${args[@]}"}
     fi
     ok "$side r$n — $summary"
 }

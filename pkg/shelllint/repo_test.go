@@ -15,8 +15,8 @@ import (
 var exempt = map[string]string{}
 
 // TestTrackedScriptsMakeTempDirsFromTMPDIR applies MktempFindings to every
-// tracked shell script (#342). An exemption must still have a finding, so it
-// is removed when its issue lands.
+// tracked shell script (#342), and ArrayFindings to the bash ones (#353). An
+// exemption must still have a finding, so it is removed when its issue lands.
 func TestTrackedScriptsMakeTempDirsFromTMPDIR(t *testing.T) {
 	root := moduleRoot(t)
 	out, err := exec.Command("git", "-C", root, "ls-files", "-z").Output()
@@ -42,6 +42,9 @@ func TestTrackedScriptsMakeTempDirsFromTMPDIR(t *testing.T) {
 		}
 		scanned++
 		findings := MktempFindings(string(src))
+		if isBash(rel, src) {
+			findings = append(findings, ArrayFindings(string(src))...)
+		}
 		if issue, ok := exempt[rel]; ok {
 			if len(findings) == 0 {
 				t.Errorf("%s is exempt until %s, but has no finding: remove the exemption", rel, issue)
@@ -55,6 +58,37 @@ func TestTrackedScriptsMakeTempDirsFromTMPDIR(t *testing.T) {
 	if scanned == 0 {
 		t.Fatal("no tracked shell scripts found; the file filter is broken")
 	}
+}
+
+// isBash is a bash (or sh) script: arrays and set -u apply. zsh scripts and
+// Makefile recipes are not.
+func isBash(rel string, src []byte) bool {
+	switch filepath.Ext(rel) {
+	case ".sh", ".bash":
+		return !shebangNames(src, "zsh")
+	case ".zsh", ".mk":
+		return false
+	}
+	if strings.HasPrefix(filepath.Base(rel), "Makefile") {
+		return false
+	}
+	return shebangNames(src, "bash", "sh")
+}
+
+// shebangNames reports whether src's #! line names one of the interpreters.
+func shebangNames(src []byte, names ...string) bool {
+	first, _, _ := bytes.Cut(src, []byte("\n"))
+	if !bytes.HasPrefix(first, []byte("#!")) {
+		return false
+	}
+	for _, field := range strings.Fields(strings.ReplaceAll(string(first[2:]), "/", " ")) {
+		for _, n := range names {
+			if field == n {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // isShell is a shell script or a Makefile (whose recipes run in sh).

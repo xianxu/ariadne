@@ -77,7 +77,7 @@ run_check_captured() {
 assemble_context() {
     local outdir="$1"
     HAS_FAILURES=0
-    for name in "${ALL_CHECKS[@]}"; do
+    for name in ${ALL_CHECKS[@]+"${ALL_CHECKS[@]}"}; do
         local rc_file="$outdir/$name.rc"
         [[ -f "$rc_file" ]] || continue
         local rc
@@ -96,13 +96,18 @@ assemble_context() {
 run_all_parallel() {
     local outdir="$1"
     local max_jobs="${MAX_PARALLEL_CHECKS:-3}"
+    # 0 would make the wait loop below spin forever (#353).
+    if [[ ! "$max_jobs" =~ ^[1-9][0-9]*$ ]]; then
+        printf "${RED}MAX_PARALLEL_CHECKS must be a positive integer, got '%s'${RESET}\n" "$max_jobs" >&2
+        return 1
+    fi
     local pids=()
-    for check in "${ALL_CHECKS[@]}"; do
+    for check in ${ALL_CHECKS[@]+"${ALL_CHECKS[@]}"}; do
         # Wait for a slot if at the concurrency limit
         while [[ ${#pids[@]} -ge $max_jobs ]]; do
             # Rebuild pids array, removing finished processes
             local alive=()
-            for p in "${pids[@]}"; do
+            for p in ${pids[@]+"${pids[@]}"}; do
                 kill -0 "$p" 2>/dev/null && alive+=("$p")
             done
             # ${a[@]+...}: bash 3.2 (macOS /bin/bash) rejects an empty "${a[@]}" under set -u.
@@ -113,7 +118,7 @@ run_all_parallel() {
         run_check_captured "$check" "$outdir" &
         pids+=($!)
     done
-    for pid in "${pids[@]}"; do
+    for pid in ${pids[@]+"${pids[@]}"}; do
         wait "$pid" || true
     done
     if "$IS_TTY"; then printf "\r\033[K" >&2; fi

@@ -52,22 +52,22 @@ land first).
 
 ## Plan
 
-- [ ] `pkg/shelllint.ArrayFindings`: in a bash script that enables `set -u` (`set -u`,
+- [x] `pkg/shelllint.ArrayFindings`: in a bash script that enables `set -u` (`set -u`,
   `set -euo …`, `set -o nounset`), every `${name[@]}` / `${name[*]}` expansion is a
   finding unless it is a count (`${#a[@]}`), sits inside a guard (`${a[@]+…}`,
   `${a[@]:+…}`), or supplies a default (`-`, `:-`, `=`, `:=`, `?`, `:?`). Default-deny
   with provable exceptions only (#342's lesson): no "is it non-empty" analysis; guarding a
   literal array is free. Double-quoted text is scanned; single-quoted text and comments are
   not (the shared lexer). Table tests for each form.
-- [ ] Repo test applies it to tracked bash scripts (`.sh`/`.bash`, bash/sh shebangs; not
+- [x] Repo test applies it to tracked bash scripts (`.sh`/`.bash`, bash/sh shebangs; not
   zsh, not Makefiles), with the existing exemption map.
-- [ ] Sweep with `${a[@]+"${a[@]}"}`: introspect-extract.sh (5), docflow.sh (4),
+- [x] Sweep with `${a[@]+"${a[@]}"}`: introspect-extract.sh (5), docflow.sh (4),
   list-peers.sh and .tart/tart-list-peers.sh (2 each), apply-gitignore-entries.sh,
   rollback.sh, .openshell/overlay/bootstrap.sh, and the local-gates paths
   parallel-checks.sh (4), run-merge-checks.sh (1), pre-merge-checks.sh (1).
-- [ ] `MAX_PARALLEL_CHECKS` must be a positive integer: refuse otherwise (fail loudly
+- [x] `MAX_PARALLEL_CHECKS` must be a positive integer: refuse otherwise (fail loudly
   rather than clamp a misconfiguration).
-- [ ] Run each swept script that can run here; `bash -n` the rest.
+- [x] Run each swept script that can run here; `bash -n` the rest.
 
 ## Log
 
@@ -82,3 +82,20 @@ Filed by ariadne:3 from #351's close review (two advisory Minors, one class).
 use the guarded form (list-peers x2, clone-data-deps, .openshell/sandbox.sh) and 2 are in
 comments (run-merge-checks.sh:31, .colima/colima.sh:62). Three files are local-gates
 paths, so the PR needs the operator's label.
+
+### 2026-10-13 — implemented (ariadne:3)
+
+Measured on macOS /bin/bash 3.2.57 with an empty array under `set -u`: only the bare
+`${a[@]}`/`${a[*]}` and the bash-4 case operators (`^` `,`) fail; `:1`, `:0:1`, `#p`,
+`##p`, `%p`, `%%p`, `/a/b`, `//a/b`, `-`, `:-`, `+`, `:+` all succeed. The first cut
+flagged every non-default operator; narrowed to the measured set (the plan said "a
+default"; the measurement is the contract). `ArrayFindings` reported 21 sites in 9 files
+(`.tart/scripts/tart-list-peers.sh` is a symlink to list-peers.sh, scanned once); all
+guarded with `${a[@]+"${a[@]}"}` (`[*]` with `:-`), the list-peers substring edit reverted
+as unneeded. Guarded forms checked on 3.2: empty gives 0 elements, words with spaces stay
+whole, substring keeps its meaning. `MAX_PARALLEL_CHECKS` 0 and `abc` refuse (exit 1);
+default and 1 (which drives the wait loop's rebuild) complete, in the stub harness.
+Ran: docflow.test.sh ALL PASS, list-peers.sh, `pre-merge-checks.sh nosuchcheck` (the
+changed Available line), run-merge-checks.sh over this branch (3/3); `bash -n` for
+rollback.sh, apply-gitignore-entries.sh, .openshell/overlay/bootstrap.sh and
+introspect-extract.sh (state-changing or need a run dir/LLM).

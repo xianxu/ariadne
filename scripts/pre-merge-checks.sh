@@ -354,7 +354,7 @@ main() {
             fi
         done
         printf "${RED}Unknown check: %s${RESET}\n" "$target"
-        printf "Available: %s\n" "${CHECK_NAMES[*]}"
+        printf "Available: %s\n" "${CHECK_NAMES[*]:-}"
         return 1
     fi
 
