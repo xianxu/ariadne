@@ -24,6 +24,7 @@ import (
 
 // claimFlags holds the parsed flag values for the claim subcommand.
 type claimFlags struct {
+	Context   context.Context
 	Issue     int
 	IssuesDir string
 	DryRun    bool
@@ -286,6 +287,9 @@ func fastForwardRest(env *trackerEnv, target string) string {
 		return fmt.Sprintf("%s not fast-forwarded to main: reading HEAD failed: %v", env.resting, err)
 	}
 	if head == target {
+		if err := verifyMaterializedAssets(env.root, env.main.ViewOf(head), envOr("WF_ISSUES_DIR", "workshop/issues")); err != nil {
+			return fmt.Sprintf("%s already matches main, but asset verification failed: %v", env.resting, err)
+		}
 		return ""
 	}
 	contained, err := env.gitTest("merge-base", "--is-ancestor", "HEAD", target)
@@ -295,8 +299,15 @@ func fastForwardRest(env *trackerEnv, target string) string {
 	if !contained {
 		return fmt.Sprintf("%s not fast-forwarded to main: it has commits main lacks; reconcile them before shaping here", env.resting)
 	}
+	issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
+	if err := verifyAssetTransition(env, target, issuesDir); err != nil {
+		return fmt.Sprintf("%s not fast-forwarded to main: %v", env.resting, err)
+	}
 	if _, err := env.git("merge", "-q", "--ff-only", target); err != nil {
 		return fmt.Sprintf("%s not fast-forwarded to main (a local change is in the way): %v", env.resting, err)
+	}
+	if err := verifyMaterializedAssets(env.root, env.main.ViewOf(target), issuesDir); err != nil {
+		return fmt.Sprintf("%s fast-forwarded, but asset verification failed: %v", env.resting, err)
 	}
 	return ""
 }
@@ -513,7 +524,7 @@ func syncIssuesToMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg 
 		return fmt.Errorf("resolve new issue commit: %w", err)
 	}
 	source := strings.TrimSpace(string(raw))
-	if err := publishIssueCommit(stdout, stderr, paths.Root, source, f.IssuesDir, f.historyDir()); err != nil {
+	if err := publishIssueCommit(f.Context, stdout, stderr, paths.Root, source, f.IssuesDir, f.historyDir()); err != nil {
 		return fmt.Errorf("issue commit %s saved locally; publication failed: %w; retry with sdlc issue publish --commit %s", source, err, source)
 	}
 	return nil

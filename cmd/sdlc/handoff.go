@@ -177,7 +177,14 @@ func finishHandoff(env *trackerEnv, stderr io.Writer, card []byte, branch string
 // otherwise; it reports whether the checkout is now on branch.
 func switchClean(env *trackerEnv, stderr io.Writer, branch string) bool {
 	if env.branch == branch {
-		return true
+		head, err := env.git("rev-parse", "HEAD")
+		if err == nil {
+			err = verifyMaterializedAssets(env.root, env.main.ViewOf(head), envOr("WF_ISSUES_DIR", "workshop/issues"))
+		}
+		if err != nil {
+			cwarn(stderr, fmt.Sprintf("not ready on %s: %v; repair the evidence before retrying", branch, err))
+		}
+		return err == nil
 	}
 	dirty, err := cleanTree(env)
 	if err != nil {
@@ -188,11 +195,25 @@ func switchClean(env *trackerEnv, stderr io.Writer, branch string) bool {
 		cwarn(stderr, fmt.Sprintf("not switching to %s: this checkout has uncommitted changes:\n%s", branch, dirty))
 		return false
 	}
+	tip, err := env.git("rev-parse", "refs/heads/"+branch)
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("not switching to %s: read its tip before retrying: %v", branch, err))
+		return false
+	}
+	issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
+	if err := verifyAssetTransition(env, tip, issuesDir); err != nil {
+		cwarn(stderr, fmt.Sprintf("not switching to %s: %v", branch, err))
+		return false
+	}
 	if _, err := env.git("switch", "-q", branch); err != nil {
 		cwarn(stderr, fmt.Sprintf("not switched to %s: %v", branch, err))
 		return false
 	}
-	env.branch = branch
+	env.branch, env.head = branch, tip
+	if err := verifyMaterializedAssets(env.root, env.main.ViewOf(tip), issuesDir); err != nil {
+		cwarn(stderr, fmt.Sprintf("switched to %s but evidence needs recovery: %v", branch, err))
+		return false
+	}
 	return true
 }
 
@@ -253,6 +274,9 @@ func prepareTakeover(env *trackerEnv, card tracker.Record) (*takeover, error) {
 			return nil, fmt.Errorf("#%s: the local %s has commits the handed-off tip %s lacks (left from an earlier holding of it); reconcile them before taking over", id, rel.Branch, shortOID(rel.Head))
 		}
 	}
+	if err := verifyAssetTransition(env, rel.Head, envOr("WF_ISSUES_DIR", "workshop/issues")); err != nil {
+		return nil, err
+	}
 	return &takeover{branch: rel.Branch, head: rel.Head}, nil
 }
 
@@ -260,6 +284,10 @@ func prepareTakeover(env *trackerEnv, card tracker.Record) (*takeover, error) {
 // created (or fast-forwarded) at it and checked out. A failure warns: the card
 // already names this workspace, and a rerun of the claim finishes it.
 func finishTakeover(env *trackerEnv, stderr io.Writer, t *takeover) {
+	if err := verifyAssetTransition(env, t.head, envOr("WF_ISSUES_DIR", "workshop/issues")); err != nil {
+		cwarn(stderr, fmt.Sprintf("not resuming on %s: %v; rerun sdlc claim after recovery", t.branch, err))
+		return
+	}
 	if _, err := env.git("branch", "-f", t.branch, t.head); err != nil {
 		cwarn(stderr, fmt.Sprintf("%s not set at %s: %v; rerun `sdlc claim` to finish", t.branch, shortOID(t.head), err))
 		return

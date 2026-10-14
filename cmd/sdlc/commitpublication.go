@@ -12,7 +12,20 @@ import (
 func validateCommitSelection(selected gitx.SelectedCommit, roots []string) error {
 	for _, change := range selected.Changes {
 		p := change.Path
-		eligible := p != "" && path.Clean(p) == p && !strings.HasPrefix(p, "/") && strings.HasSuffix(p, ".md")
+		asset := false
+		for i, root := range roots {
+			if i == 0 || i == 2 {
+				if i == 2 {
+					root = path.Join(root, "issues")
+				}
+				prefix := path.Join(root, "assets") + "/"
+				if strings.HasPrefix(p, prefix) {
+					id, _, ok := strings.Cut(strings.TrimPrefix(p, prefix), "/")
+					asset = asset || (ok && len(id) == 6 && issueIDPrefix(id+"-x.md") == id)
+				}
+			}
+		}
+		eligible := p != "" && path.Clean(p) == p && !strings.HasPrefix(p, "/") && (strings.HasSuffix(p, ".md") || asset)
 		inside := false
 		for _, root := range roots {
 			if strings.HasPrefix(p, strings.TrimSuffix(root, "/")+"/") {

@@ -2,7 +2,9 @@ package gitx
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -145,5 +147,66 @@ func TestSnapshotSkipsTheFetchWhenTheTipIsUnchanged(t *testing.T) {
 	}
 	if n, _ := fetches(); n != 4 {
 		t.Fatalf("a probe survived an intervening fetch: %d fetches, want 4", n)
+	}
+}
+
+func TestFilesSelectedFiltersBeforeReadingBlobs(t *testing.T) {
+	repo, _ := trunkFixture(t, "seed\n")
+	tf, err := NewTrunkFileContext(context.Background(), repo, "origin", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writes := map[string][]byte{"issues/000001-one.md": []byte("issue document")}
+	blob := []byte(strings.Repeat("x", 1<<20))
+	for i := 0; i < 33; i++ {
+		writes[fmt.Sprintf("issues/assets/%06d/a.bin", i)] = blob
+	}
+	if err := tf.UpdateMany("assets", func(*TrunkView) (TrunkWrite, error) { return TrunkWrite{Write: writes}, nil }); err != nil {
+		t.Fatal(err)
+	}
+	view, err := tf.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := 0
+	files, err := view.FilesSelected("issues", func(f TreeFile) bool {
+		seen++
+		if len(f.Content) != 0 || f.OID == "" || f.Mode == "" {
+			t.Fatal("selector must receive metadata only")
+		}
+		return path.Dir(f.Path) == "issues"
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if seen != 34 || len(files) != 1 || string(files[0].Content) != "issue document" {
+		t.Fatalf("selected=%d visited=%d", len(files), seen)
+	}
+	empty, err := view.FilesSelected("issues", func(TreeFile) bool { return false })
+	if err != nil || len(empty) != 0 {
+		t.Fatalf("empty selection = %v, %v", empty, err)
+	}
+	if _, err := view.Files("issues"); err == nil {
+		t.Fatal("unfiltered aggregate must still exceed existing output limit")
+	}
+}
+
+func TestFilesSelectedPreservesBlobLimit(t *testing.T) {
+	repo, _ := trunkFixture(t, "seed\n")
+	tf, err := NewTrunkFileContext(context.Background(), repo, "origin", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tf.UpdateMany("oversized", func(*TrunkView) (TrunkWrite, error) {
+		return TrunkWrite{Write: map[string][]byte{"issues/one.md": []byte(strings.Repeat("x", SnapshotBlobLimit+1))}}, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	view, err := tf.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := view.FilesSelected("issues", func(TreeFile) bool { return true }); err == nil || !strings.Contains(err.Error(), "limit 1 MiB") {
+		t.Fatalf("oversized selection: %v", err)
 	}
 }

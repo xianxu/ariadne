@@ -83,6 +83,35 @@ func restoreDone(env *trackerEnv, stderr io.Writer, card tracker.Record, issuesD
 	if !reset {
 		ours = tip
 	}
+	// Pin the checkout target and check both the archive source and its future
+	// live asset paths before either the resting fast-forward or branch switch.
+	materializedTip, err := env.git("rev-parse", ours+"^{commit}")
+	if err != nil {
+		return false, err
+	}
+	materialized := env.main.ViewOf(materializedTip)
+	if err := verifyAssetTransition(env, materializedTip, issuesDir); err != nil {
+		return false, err
+	}
+	if archived, err := materialized.Exists(archivedRel); err != nil {
+		return false, err
+	} else if archived {
+		raw, err := materialized.Read(archivedRel)
+		if err != nil {
+			return false, err
+		}
+		bundle, err := assetFilesFromView(materialized, archivedRel, card.ID, raw)
+		if err != nil {
+			return false, err
+		}
+		for member := range bundle.Files {
+			for _, ref := range []string{"", "HEAD", materializedTip, view.Ref()} {
+				if err := verifyAssetAttributesAt(env.ctx, env.root, path.Join(issuesDir, member), ref); err != nil {
+					return false, err
+				}
+			}
+		}
+	}
 	if err := leaseOnRemoteBranch(env, name, view.Ref(), ours); err != nil {
 		return false, err
 	}
@@ -143,6 +172,9 @@ func restoreDone(env *trackerEnv, stderr io.Writer, card tracker.Record, issuesD
 			return false, err
 		}
 		env.branch = name
+	}
+	if err := verifyMaterializedAssets(env.root, materialized, issuesDir); err != nil {
+		return false, fmt.Errorf("#%s: checkout left invalid evidence: %w; restore the named assets from %s before retrying reopen", issueStr, err, materializedTip)
 	}
 	// 2: the details and plans come back out of the archive.
 	if err := unarchiveIssue(env, base, issuesDir, unarchiveSubject(card.ID)); err != nil {

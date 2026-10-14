@@ -59,7 +59,10 @@ KNOWN LIMITS (v1)
     re-qualified (producing `ariadne src#15`) — use the attached form.
   - gh#N refs and mixed-content code spans are reported, not rewritten.
   - Issue-family files (workshop/{issues,plans,history}/NNNNNN-*) refuse:
-    issue IDs are per-repo sequences; renumbering migration is v2.
+    issue IDs are per-repo sequences; renumbering was deferred by #179.
+    Issue asset bundles do not make issue migration supported: leave the
+    issue and its evidence in their repository until #347 implements it.
+    For movement between slots in the same repo, use sdlc move instead.
 
 FLAGS
 

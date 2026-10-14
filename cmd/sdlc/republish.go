@@ -12,10 +12,12 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
@@ -45,12 +47,14 @@ func republishDecision(local, base string, baseOK bool, main string) publishVerd
 
 // republishItem is one issue's publication, read before any effect.
 type republishItem struct {
-	id, path string
-	read     []byte // the local file as read, to prove it unchanged at the finish
-	publish  []byte // the bytes main receives: read, with the card mirror refreshed
-	base     string // the details body at the merge base of HEAD and main
-	baseOK   bool
-	write    bool // false: main already has these details (finish only)
+	id, path                       string
+	assets, baseAssets, mainAssets issueassets.Bundle
+	inventory                      map[string][]byte
+	read                           []byte // the local file as read, to prove it unchanged at the finish
+	publish                        []byte // the bytes main receives: read, with the card mirror refreshed
+	base                           string // the details body at the merge base of HEAD and main
+	baseOK                         bool
+	write                          bool // false: main already has these details (finish only)
 }
 
 // republishOwned publishes issues' edited details (mayNotEditDetails) to main in one narrow
@@ -114,6 +118,51 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 		if err != nil {
 			return err
 		}
+		it.mainAssets, err = assetFilesFromView(view, it.path, id, mainRaw)
+		if err != nil {
+			return err
+		}
+		it.baseAssets, err = assetFilesFromView(env.main.ViewOf(mergeBase), it.path, id, baseRaw)
+		if err != nil {
+			return err
+		}
+		it.inventory, err = readAssetFiles(env.root, it.path, id)
+		if err != nil {
+			return err
+		}
+		localFiles := map[string][]byte{}
+		refs, err := issueassets.ParseRefs(id, issueAssetBody(it.publish))
+		if err != nil {
+			return err
+		}
+		wanted := map[string]bool{}
+		for _, p := range refs {
+			wanted[p] = true
+		}
+		for p, b := range it.inventory {
+			if !wanted[p] {
+				old, ok := it.baseAssets.Files[p]
+				if !ok || !bytes.Equal(old, b) {
+					return fmt.Errorf("unlinked asset %s: link it in the body or delete it", p)
+				}
+				continue
+			}
+			localFiles[p] = b
+		}
+		it.assets, err = issueassets.BuildBundle(id, issueAssetBody(it.publish), localFiles)
+		if err != nil {
+			return err
+		}
+		for p := range it.assets.Files {
+			dest := path.Join(path.Dir(it.path), p)
+			if err := verifyAssetAttributes(env.ctx, env.root, dest); err != nil {
+				return err
+			}
+			if err := verifyAssetAttributesAt(env.ctx, env.root, dest, view.Ref()); err != nil {
+				return err
+			}
+		}
+
 		_, localBody, err := issue.Parse(string(it.publish))
 		if err != nil {
 			return fmt.Errorf("%s: %w", it.path, err)
@@ -125,7 +174,14 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 		if err != nil {
 			return fmt.Errorf("main's %s: %w", it.path, err)
 		}
-		switch republishDecision(localBody, it.base, it.baseOK, mainBody) {
+		decision := republishDecision(localBody, it.base, it.baseOK, mainBody)
+		if decision == publishNothing && !assetBundlesEqual(it.assets, it.mainAssets) {
+			decision = publishWrite
+		}
+		if decision == publishWrite && !assetBundlesEqual(it.baseAssets, it.mainAssets) {
+			decision = publishRefuse
+		}
+		switch decision {
 		case publishRefuse:
 			if !env.onRest() || !bringIn || dryRun {
 				return movedMainRefusal(env, id, it.path)
@@ -133,6 +189,11 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 			moved = append(moved, movedDetail{item: it, base: baseRaw, main: mainRaw})
 			continue
 		case publishWrite:
+			if len(issueassets.BundleDelta(it.mainAssets, it.assets).Writes) > 0 {
+				if err := requireAssetPublicationPolicy(env.ctx, env.root, view); err != nil {
+					return err
+				}
+			}
 			it.write = true
 			written = append(written, id)
 		}
@@ -149,6 +210,7 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 		msg := fmt.Sprintf("%s: issue: publish details\n\nTracker-Operation: %s", issue.JoinRefs(written, "#", ","), operationToken("publish"))
 		err := mainPublish(env, msg, func(v *gitx.TrunkView) (gitx.TrunkWrite, error) {
 			w := map[string][]byte{}
+			var deletes []string
 			for _, it := range items {
 				if !it.write {
 					continue
@@ -164,9 +226,32 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 				if curBody != it.base {
 					return gitx.TrunkWrite{}, fmt.Errorf("#%s: main's details changed while publishing; rerun `sdlc issue publish --issue %s` to judge them again — nothing was published", issue.CLIRef(it.id), issue.CLIRef(it.id))
 				}
+				currentAssets, err := assetFilesFromView(v, it.path, it.id, cur)
+				if err != nil {
+					return gitx.TrunkWrite{}, err
+				}
+				if !assetBundlesEqual(currentAssets, it.mainAssets) {
+					return gitx.TrunkWrite{}, fmt.Errorf("#%s assets changed on main: merge main and rerun issue publish", it.id)
+				}
+				delta := issueassets.BundleDelta(currentAssets, it.assets)
+				if len(delta.Writes) > 0 {
+					if err := requireAssetPublicationPolicy(env.ctx, env.root, v); err != nil {
+						return gitx.TrunkWrite{}, err
+					}
+				}
+				for p, b := range delta.Writes {
+					dest := path.Join(path.Dir(it.path), p)
+					if err := verifyAssetAttributesAt(env.ctx, env.root, dest, v.Ref()); err != nil {
+						return gitx.TrunkWrite{}, err
+					}
+					w[dest] = b
+				}
+				for _, p := range delta.Deletes {
+					deletes = append(deletes, path.Join(path.Dir(it.path), p))
+				}
 				w[it.path] = it.publish
 			}
-			return gitx.TrunkWrite{Write: w, ExactBytes: true}, nil
+			return gitx.TrunkWrite{Write: w, Delete: deletes, ExactBytes: true}, nil
 		}, func(string, string) error {
 			fresh, err := env.repo.Snapshot()
 			if err != nil {
@@ -230,6 +315,14 @@ func finishPublished(env *trackerEnv, stderr io.Writer, items []republishItem) {
 		cwarn(stderr, fmt.Sprintf("checkout not finished: reading main failed: %v", err))
 		return
 	}
+	// Restore-to-HEAD and the following main merge both materialize files.
+	// Preflight before setting aside even the first edited issue.
+	for _, it := range items {
+		if err := verifyAssetTransition(env, view.Ref(), path.Dir(it.path)); err != nil {
+			cwarn(stderr, fmt.Sprintf("checkout not finished: %v", err))
+			return
+		}
+	}
 	var ready []republishItem
 	for _, it := range items {
 		cur, err := os.ReadFile(filepath.Join(env.root, filepath.FromSlash(it.path)))
@@ -237,11 +330,34 @@ func finishPublished(env *trackerEnv, stderr io.Writer, items []republishItem) {
 			cwarn(stderr, fmt.Sprintf("%s changed while publishing; left as it is — main has the published copy", it.path))
 			continue
 		}
+		now, readErr := readAssetFiles(env.root, it.path, it.id)
+		if readErr != nil || !assetBundlesEqual(issueassets.Bundle{Files: now}, issueassets.Bundle{Files: it.inventory}) {
+			cwarn(stderr, fmt.Sprintf("%s assets changed while publishing; left unchanged — main has published bytes; reconcile and rerun issue publish", it.path))
+			continue
+		}
 		ready = append(ready, it)
 	}
 	restore := func(it republishItem) bool {
-		if err := restoreToHead(env, it.path); err != nil {
-			cwarn(stderr, fmt.Sprintf("%s not restored: %v", it.path, err))
+		head, err := env.git("rev-parse", "HEAD")
+		if err != nil {
+			cwarn(stderr, err.Error())
+			return false
+		}
+		paths := assetBundlePaths(it.path, it.assets, it.baseAssets, issueassets.Bundle{Files: it.inventory})
+		for _, p := range paths {
+			if err := restoreToHead(env, p); err != nil {
+				cwarn(stderr, fmt.Sprintf("%s not restored: %v", p, err))
+				return false
+			}
+		}
+		var assetPaths []string
+		for _, p := range paths {
+			if p != it.path {
+				assetPaths = append(assetPaths, p)
+			}
+		}
+		if err := verifyMaterializedAssetPaths(env.root, env.main.ViewOf(head), assetPaths); err != nil {
+			cwarn(stderr, err.Error())
 			return false
 		}
 		return true
@@ -266,7 +382,16 @@ func finishPublished(env *trackerEnv, stderr io.Writer, items []republishItem) {
 			cwarn(stderr, fmt.Sprintf("%s not written: %v", it.path, err))
 			continue
 		}
-		dirty, err := env.git("status", "--porcelain", "--", it.path)
+		paths := assetBundlePaths(it.path, it.assets, it.baseAssets, issueassets.Bundle{Files: it.inventory})
+		for p := range it.inventory {
+			if _, keep := it.assets.Files[p]; !keep {
+				if err := os.Remove(filepath.Join(env.root, filepath.FromSlash(path.Join(path.Dir(it.path), p)))); err != nil && !errors.Is(err, os.ErrNotExist) {
+					cwarn(stderr, err.Error())
+					return
+				}
+			}
+		}
+		dirty, err := env.git(append([]string{"status", "--porcelain", "--"}, paths...)...)
 		if err != nil {
 			cwarn(stderr, fmt.Sprintf("%s: reading its status failed, so the published bytes were not committed on %s: %v", it.path, env.branch, err))
 			continue
@@ -274,12 +399,31 @@ func finishPublished(env *trackerEnv, stderr io.Writer, items []republishItem) {
 		if dirty == "" {
 			continue
 		}
-		if _, err := env.git("add", "--", it.path); err != nil {
+		// A removal committed before publish is absent from both HEAD and
+		// the index. It needs no staging, and Git rejects that missing pathspec.
+		var stagePaths []string
+		for _, p := range paths {
+			_, statErr := os.Lstat(filepath.Join(env.root, filepath.FromSlash(p)))
+			tracked, probeErr := env.has("HEAD", p)
+			if probeErr != nil || (statErr != nil && !errors.Is(statErr, os.ErrNotExist)) {
+				cwarn(stderr, fmt.Sprintf("%s not staged: cannot verify local presence; rerun issue publish", p))
+				return
+			}
+			if tracked || statErr == nil {
+				stagePaths = append(stagePaths, p)
+			}
+		}
+		paths = stagePaths
+		if _, err := env.git(append([]string{"add", "-A", "--"}, paths...)...); err != nil {
 			cwarn(stderr, fmt.Sprintf("%s not staged: %v", it.path, err))
 			continue
 		}
+		if err := verifyAssetBundleOnDisk(env.ctx, env.root, it.path, it.id, it.publish, it.assets); err != nil {
+			cwarn(stderr, err.Error())
+			continue
+		}
 		msg := "#" + issue.CLIRef(it.id) + ": issue: details as published"
-		if _, err := env.git("commit", "-q", "--only", "-m", msg, "--", it.path); err != nil {
+		if _, err := env.git(append([]string{"commit", "-q", "--only", "-m", msg, "--"}, paths...)...); err != nil {
 			cwarn(stderr, fmt.Sprintf("the published details were not committed on %s: %v", env.branch, err))
 		}
 	}
@@ -305,62 +449,166 @@ type movedDetail struct {
 // merge publishes, now based on main; a conflict leaves the markers in the file
 // and refuses with the one remaining step, which runs from that state.
 func bringMainIn(env *trackerEnv, stdout, stderr io.Writer, ids []string, issuesRel, mainRef string, moved []movedDetail) error {
+	if err := verifyAssetTransition(env, mainRef, issuesRel); err != nil {
+		return err
+	}
 	merged := map[string][]byte{}
+	originals := map[string][]byte{}
+	affected := map[string]bool{}
 	var conflicted []string
+	var removeAfter []string
 	for _, m := range moved {
+		current, err := os.ReadFile(filepath.Join(env.root, filepath.FromSlash(m.item.path)))
+		inventory, assetErr := readAssetFiles(env.root, m.item.path, m.item.id)
+		if err != nil || assetErr != nil || !bytes.Equal(current, m.item.read) || !assetBundlesEqual(issueassets.Bundle{Files: inventory}, issueassets.Bundle{Files: m.item.inventory}) {
+			return fmt.Errorf("%s or its assets changed while preparing publication; nothing changed; rerun issue publish", m.item.path)
+		}
 		out, conflicts, err := mergeDetails(env, m.item.read, m.base, m.main)
 		if err != nil {
 			return fmt.Errorf("#%s: merging main into the local details failed: %w — nothing was changed", issue.CLIRef(m.item.id), err)
 		}
 		merged[m.item.path] = out
+		originals[m.item.path] = m.item.read
+		for p, b := range assetBundleWrite(issueassets.Bundle{Files: m.item.inventory}, m.item.path) {
+			originals[p] = b
+		}
+		for _, p := range assetBundlePaths(m.item.path, m.item.baseAssets, m.item.assets, issueassets.Bundle{Files: m.item.inventory}) {
+			affected[p] = true
+		}
+		union := map[string][]byte{}
+		for p, b := range m.item.mainAssets.Files {
+			union[p] = b
+		}
+		for p, b := range m.item.assets.Files {
+			if old, ok := union[p]; ok && !bytes.Equal(old, b) {
+				return fmt.Errorf("asset %s has conflicting bytes; reconcile it before publication", p)
+			}
+			union[p] = b
+		}
+		keep := map[string]bool{}
 		if conflicts {
 			conflicted = append(conflicted, m.item.path)
+			for p := range union {
+				keep[p] = true
+			}
+		} else {
+			refs, err := issueassets.ParseRefs(m.item.id, issueAssetBody(out))
+			if err != nil {
+				return err
+			}
+			for _, p := range refs {
+				keep[p] = true
+				if _, ok := union[p]; !ok {
+					return fmt.Errorf("merged details reference missing asset %s; restore it before publication", p)
+				}
+			}
+		}
+		for p, b := range union {
+			if keep[p] {
+				merged[path.Join(path.Dir(m.item.path), p)] = b
+			}
+		}
+		for p := range m.item.mainAssets.Files {
+			if !keep[p] {
+				removeAfter = append(removeAfter, path.Join(path.Dir(m.item.path), p))
+			}
 		}
 	}
-	// Set every edit aside, all or nothing. Each edit is first copied under the
-	// git directory, so no failure below can lose it; a failure puts every
-	// touched file back exactly as it was read, and says where the copies are
-	// if even that fails.
 	gitDir, err := env.git("rev-parse", "--absolute-git-dir")
 	if err != nil {
 		return err
 	}
 	aside := filepath.Join(gitDir, "sdlc", "publish-aside")
-	if err := os.MkdirAll(aside, 0o700); err != nil {
-		return fmt.Errorf("keeping a copy of the edits failed: %w — nothing was changed", err)
+	backupPath := func(p string) string {
+		if assetIssueID(p) != "" {
+			return filepath.Join(aside, filepath.FromSlash(p))
+		}
+		return filepath.Join(aside, path.Base(p))
 	}
-	for _, m := range moved {
-		if err := os.WriteFile(filepath.Join(aside, path.Base(m.item.path)), m.item.read, 0o600); err != nil {
-			return fmt.Errorf("keeping a copy of %s failed: %w — nothing was changed", m.item.path, err)
+	for p, b := range originals {
+		backup := backupPath(p)
+		if err := os.MkdirAll(filepath.Dir(backup), 0700); err != nil {
+			return fmt.Errorf("keeping a copy of %s failed: %w — nothing changed", p, err)
+		}
+		if err := os.WriteFile(backup, b, 0600); err != nil {
+			return fmt.Errorf("keeping a copy of %s failed: %w — nothing changed", p, err)
+		}
+	}
+	cleanup := func() {
+		for p := range originals {
+			backup := backupPath(p)
+			_ = os.Remove(backup)
+			for dir := filepath.Dir(backup); dir != aside && strings.HasPrefix(dir, aside+string(filepath.Separator)); dir = filepath.Dir(dir) {
+				if err := os.Remove(dir); err != nil {
+					break
+				}
+			}
 		}
 	}
 	putBack := func(cause string) error {
 		var failed []string
-		for _, m := range moved {
-			if err := writeLocal(filepath.Join(env.root, filepath.FromSlash(m.item.path)), m.item.read, 0o644); err != nil {
-				failed = append(failed, fmt.Sprintf("%s (%v)", m.item.path, err))
+		for p := range affected {
+			abs := filepath.Join(env.root, filepath.FromSlash(p))
+			var err error
+			if b, present := originals[p]; present {
+				err = os.MkdirAll(filepath.Dir(abs), 0755)
+				if err == nil {
+					err = writeLocal(abs, b, 0644)
+				}
+			} else {
+				err = os.Remove(abs)
+				if errors.Is(err, os.ErrNotExist) {
+					err = nil
+				}
+			}
+			if err != nil {
+				failed = append(failed, fmt.Sprintf("%s (%v)", p, err))
 			}
 		}
 		if len(failed) > 0 {
-			return fmt.Errorf("%s, and putting the edits back failed for %s; copies of every edit are in %s", cause, strings.Join(failed, ", "), aside)
+			return fmt.Errorf("%s, and putting edits back failed for %s; copies of every edit are in %s", cause, strings.Join(failed, ", "), aside)
 		}
-		removeAside(aside, moved)
+		cleanup()
 		return fmt.Errorf("%s — the edits are as they were", cause)
 	}
+	// Keep the established document ordering; asset paths then join the same
+	// set-aside transaction, so untracked identical bytes cannot obstruct Git.
 	for _, m := range moved {
-		if err := restoreToHead(env, m.item.path); err != nil {
-			return putBack(fmt.Sprintf("main's details changed since this checkout's base, and setting %s aside to bring main in failed: %v", m.item.path, err))
+		for _, p := range assetBundlePaths(m.item.path, m.item.baseAssets, m.item.assets, issueassets.Bundle{Files: m.item.inventory}) {
+			if err := restoreToHead(env, p); err != nil {
+				return putBack(fmt.Sprintf("main's details changed since this checkout's base, and setting %s aside to bring main in failed: %v", p, err))
+			}
 		}
 	}
 	if warn := fastForwardRest(env, mainRef); warn != "" {
 		return putBack("main's details changed since this checkout's base, and bringing main in failed: " + warn)
 	}
-	for p, b := range merged {
-		if err := writeLocal(filepath.Join(env.root, filepath.FromSlash(p)), b, 0o644); err != nil {
+	keys := make([]string, 0, len(merged))
+	for p := range merged {
+		keys = append(keys, p)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		a, b := assetIssueID(keys[i]) != "", assetIssueID(keys[j]) != ""
+		if a != b {
+			return a
+		}
+		return keys[i] < keys[j]
+	})
+	for _, p := range keys {
+		abs := filepath.Join(env.root, filepath.FromSlash(p))
+		if err := os.MkdirAll(filepath.Dir(abs), 0755); err != nil {
+			return fmt.Errorf("main was brought in, but preparing %s failed: %w; copies of every edit are in %s", p, err, aside)
+		}
+		if err := writeLocal(abs, merged[p], 0644); err != nil {
 			return fmt.Errorf("main was brought in, but writing the merged %s failed: %w; copies of every edit are in %s", p, err, aside)
 		}
 	}
-	removeAside(aside, moved)
+	for _, p := range removeAfter {
+		if err := os.Remove(filepath.Join(env.root, filepath.FromSlash(p))); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("main was brought in, but removing unlinked asset %s failed: %w; copies of every edit are in %s", p, err, aside)
+		}
+	}
+	cleanup()
 	if len(conflicted) > 0 {
 		return fmt.Errorf("main's details changed since this checkout's base: main was brought in and merged into your edits, with conflicts in %s; resolve the markers, then rerun `sdlc issue publish --issue %s` — nothing was published", strings.Join(conflicted, ", "), issue.JoinRefs(ids, "", ","))
 	}
@@ -445,18 +693,32 @@ var restoreToHead = func(env *trackerEnv, rel string) error {
 		return err
 	}
 	if inHead {
-		_, err = env.git("checkout", "HEAD", "--", rel)
-		return err
+		head, err := env.git("rev-parse", "HEAD")
+		if err != nil {
+			return err
+		}
+		if assetIssueID(rel) != "" {
+			if err := verifyAssetAttributesAt(env.ctx, env.root, rel, head); err != nil {
+				return err
+			}
+			if err := verifyAssetAttributes(env.ctx, env.root, rel); err != nil {
+				return err
+			}
+		}
+		if _, err = env.git("checkout", head, "--", rel); err != nil {
+			return err
+		}
+		if assetIssueID(rel) != "" {
+			return verifyMaterializedAssetPaths(env.root, env.main.ViewOf(head), []string{rel})
+		}
+		return nil
 	}
-	return os.Remove(filepath.Join(env.root, filepath.FromSlash(rel)))
+	err = os.Remove(filepath.Join(env.root, filepath.FromSlash(rel)))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	return err
 }
 
 // writeLocal writes a details file in the checkout; a seam for failure tests.
 var writeLocal = os.WriteFile
-
-// removeAside deletes the bring-in's copies once the edits are safe again.
-func removeAside(aside string, moved []movedDetail) {
-	for _, m := range moved {
-		_ = os.Remove(filepath.Join(aside, path.Base(m.item.path)))
-	}
-}

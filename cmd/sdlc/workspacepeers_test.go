@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -107,7 +108,7 @@ func TestPrivateEnvironmentFeatureWorktreeAndPropagation(t *testing.T) {
 		t.Fatalf("scope: %s", out.String())
 	}
 	t.Chdir(f.dep)
-	path, err := createWorktreeBranch(&out, &out, "feature", execGitRunner{})
+	path, err := createWorktreeBranch(context.Background(), &out, &out, "feature", execGitRunner{}, "workshop/issues")
 	if err != nil {
 		t.Fatal(err)
 	}

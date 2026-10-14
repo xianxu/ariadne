@@ -38,6 +38,13 @@ func (t *TrunkFile) Snapshot() (*TrunkView, error) {
 // Files reads a subtree with one listing and one batch request, regardless of
 // cardinality. Unlike archive, cat-file cannot apply export-ignore/subst filters.
 func (v *TrunkView) Files(prefix string) ([]TreeFile, error) {
+	return v.FilesSelected(prefix, nil)
+}
+
+// FilesSelected selects tree metadata before fetching any blob content. The
+// predicate receives Path, Mode and OID with nil Content; nil selects all files.
+// Tree listing, per-blob and aggregate output limits remain unchanged.
+func (v *TrunkView) FilesSelected(prefix string, selectFile func(TreeFile) bool) ([]TreeFile, error) {
 	if prefix != "" && (path.IsAbs(prefix) || path.Clean(prefix) != prefix || prefix == "." || strings.HasPrefix(prefix, "../") || strings.ContainsAny(prefix, "\\\x00")) {
 		return nil, errors.New("snapshot prefix must be a canonical repository-relative directory")
 	}
@@ -52,6 +59,18 @@ func (v *TrunkView) Files(prefix string) ([]TreeFile, error) {
 	files, err := parseSnapshotTree(out)
 	if err != nil || len(files) == 0 {
 		return files, err
+	}
+	if selectFile != nil {
+		selected := files[:0]
+		for _, f := range files {
+			if selectFile(f) {
+				selected = append(selected, f)
+			}
+		}
+		files = selected
+		if len(files) == 0 {
+			return files, nil
+		}
 	}
 	var input strings.Builder
 	for _, f := range files {

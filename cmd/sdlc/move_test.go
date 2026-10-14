@@ -202,3 +202,69 @@ func TestMoveVerifiesSourceRestingHead(t *testing.T) {
 		t.Fatalf("err = %v, want the post-move check to catch the moved resting branch\n%s", err, out)
 	}
 }
+
+func TestMoveRefusesAssetMaterializationConversion(t *testing.T) {
+	for _, incoming := range []bool{false, true} {
+		t.Run(map[bool]string{false: "destination-local", true: "incoming-branch"}[incoming], func(t *testing.T) {
+			r, _ := moveFixture(t)
+			issuesDir := "workshop/issues"
+			if !incoming {
+				issuesDir = "custom/issues"
+				t.Setenv("WF_ISSUES_DIR", issuesDir)
+			}
+			asset := issuesDir + "/assets/000001/evidence.png"
+			procedureWrite(t, r[1], asset, "line one\nline two")
+			if incoming {
+				procedureWrite(t, r[1], ".gitattributes", issuesDir+"/assets/** text eol=crlf\n")
+			}
+			testfix.Git(t, r[1], "add", ".")
+			testfix.Git(t, r[1], "commit", "-qm", "asset")
+			if !incoming {
+				procedureWrite(t, r[0], ".gitattributes", issuesDir+"/assets/** text eol=crlf\n")
+				testfix.Git(t, r[0], "add", ".")
+				testfix.Git(t, r[0], "commit", "-qm", "local conversion")
+			}
+			before := moveSnapshot(t, r...)
+			_, err := runMoveTest(t, r[1], ":0", false)
+			if err == nil || !strings.Contains(err.Error(), asset) || !strings.Contains(err.Error(), ".gitattributes") {
+				t.Fatalf("conversion accepted: %v", err)
+			}
+			if moveSnapshot(t, r...) != before {
+				t.Fatal("refusal switched a slot or changed refs")
+			}
+		})
+	}
+}
+
+func TestMoveVerifiesMaterializedAssetBytes(t *testing.T) {
+	for _, branch := range []string{"000001-procedure", "feature-evidence"} {
+		t.Run(branch, func(t *testing.T) {
+
+			r, _ := moveFixture(t)
+			if branch != "000001-procedure" {
+				testfix.Git(t, r[1], "branch", "-m", branch)
+			}
+			asset := "workshop/issues/assets/000001/evidence.png"
+			procedureWrite(t, r[1], asset, "original evidence")
+			testfix.Git(t, r[1], "add", ".")
+			testfix.Git(t, r[1], "commit", "-qm", "evidence")
+			hooks := filepath.Join(strings.TrimSpace(testfix.Capture(t, r[0], "rev-parse", "--path-format=absolute", "--git-common-dir")), "hooks")
+			procedureWrite(t, hooks, "post-checkout", "#!/bin/sh\n[ -f '"+asset+"' ] || exit 0\nprintf changed > '"+asset+"'\n")
+			if err := os.Chmod(filepath.Join(hooks, "post-checkout"), 0755); err != nil {
+				t.Fatal(err)
+			}
+			_, err := runMoveTest(t, r[1], ":0", false)
+			if err == nil || !strings.Contains(err.Error(), "both switches ran") || !strings.Contains(err.Error(), asset) || !strings.Contains(err.Error(), "restore") {
+				t.Fatalf("changed evidence accepted: %v", err)
+			}
+
+			if branch == "000001-procedure" {
+				if !strings.Contains(err.Error(), "--issue 1 in") || strings.Contains(err.Error(), "--issue 000001") {
+					t.Fatalf("nondecimal issue hint: %v", err)
+				}
+			} else if strings.Contains(err.Error(), "sdlc claim") {
+				t.Fatalf("non-issue branch has claim hint: %v", err)
+			}
+		})
+	}
+}

@@ -147,3 +147,38 @@ func TestIssueRestoreRefusesTheOwnersOwnEdit(t *testing.T) {
 		t.Fatal("a refused restore changed the checkout")
 	}
 }
+
+func TestIssueRestoreRefusesMaterializedAssetTamperingBeforeCommit(t *testing.T) {
+	for _, mode := range []string{"bytes", "attributes"} {
+		t.Run(mode, func(t *testing.T) {
+
+			r := handedOff(t)
+			r.git("fetch", "-q", "origin")
+			r.git("merge", "-q", "--no-edit", "origin/main")
+			p := assetFixture(t, r, "000008", spinOffDetails)
+			r.git("add", "workshop/issues")
+			r.git("commit", "-qm", "evidence")
+			r.git("push", "-q", "origin", "HEAD:main")
+			ownSpinOff(t, r, otherSlot)
+			writeRepoFile(t, r.root, p, "branch edits")
+			r.git("commit", "-qam", "edit evidence")
+			head, main := r.git("rev-parse", "HEAD"), r.originMain()
+			hooks := t.TempDir()
+			hook := "#!/bin/sh\nprintf hook-tampered > '" + p + "'\n"
+			if mode == "attributes" {
+				hook = "#!/bin/sh\nprintf 'workshop/issues/assets/** text eol=crlf\\n' > .gitattributes\n"
+			}
+			if err := os.WriteFile(filepath.Join(hooks, "post-checkout"), []byte(hook), 0755); err != nil {
+				t.Fatal(err)
+			}
+			r.git("config", "core.hooksPath", hooks)
+			err := runIssueRestore(context.Background(), os.Stdout, os.Stderr, []int{8})
+			if err == nil || !strings.Contains(err.Error(), p) || (!strings.Contains(err.Error(), "restore") && !strings.Contains(err.Error(), ".gitattributes")) {
+				t.Fatalf("tampered restore committed: %v", err)
+			}
+			if r.git("rev-parse", "HEAD") != head || r.originMain() != main {
+				t.Fatal("tampered restore advanced a commit")
+			}
+		})
+	}
+}

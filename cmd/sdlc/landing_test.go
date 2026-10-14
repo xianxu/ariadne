@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
@@ -814,5 +815,45 @@ func TestLandingPRPublishesARewrittenBranch(t *testing.T) {
 	}
 	if got := git(t, remote, "rev-parse", "refs/heads/"+landingTestBranch); got != head {
 		t.Fatalf("remote head %s, want the rewritten %s", got, head)
+	}
+}
+
+func TestLandingReturnVerifiesAssetMaterialization(t *testing.T) {
+	for _, conversion := range []bool{true, false} {
+		t.Run(map[bool]string{true: "conversion", false: "hook-bytes"}[conversion], func(t *testing.T) {
+			roots, _, _ := landingFixture(t, 1)
+			root := roots[1]
+			head := procedureHead(t, root)
+			name, _ := issueassets.Name([]byte("one\ntwo"), "png")
+			asset := "workshop/issues/assets/000998/" + name
+			peer := filepath.Join(t.TempDir(), "rest-peer")
+			git(t, root, "worktree", "add", "-b", "rest-evidence", peer, "main-slot1")
+			procedureWrite(t, peer, asset, "one\ntwo")
+			if conversion {
+				procedureWrite(t, peer, ".gitattributes", "workshop/issues/assets/** text eol=crlf\n")
+			}
+			git(t, peer, "add", ".")
+			git(t, peer, "commit", "-qm", "resting evidence")
+			git(t, root, "update-ref", "refs/heads/main-slot1", procedureHead(t, peer))
+			if !conversion {
+				hooks := t.TempDir()
+				procedureWrite(t, hooks, "post-checkout", "#!/bin/sh\nprintf changed > '"+asset+"'\n")
+				if err := os.Chmod(filepath.Join(hooks, "post-checkout"), 0755); err != nil {
+					t.Fatal(err)
+				}
+				git(t, root, "config", "core.hooksPath", hooks)
+			}
+			target, err := resolveLandingTarget(mergeRunner)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = returnLandingToRest(context.Background(), mergeRunner, *target, landingTestBranch, head, "workshop/issues")
+			if err == nil || !strings.Contains(err.Error(), asset) {
+				t.Fatalf("materialization accepted: %v", err)
+			}
+			if !gitSucceeds(root, "show-ref", "--verify", "refs/heads/"+landingTestBranch) {
+				t.Fatal("issue branch removed after materialization refusal")
+			}
+		})
 	}
 }

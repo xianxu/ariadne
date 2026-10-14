@@ -89,6 +89,12 @@ func (t *TrunkFile) SelectCommit(rev string) (SelectedCommit, error) {
 // PublishCommit applies one already-selected patch with its explicit parent as
 // the merge base. Git constructs objects only; caller refs/index/files stay put.
 func (t *TrunkFile) PublishCommit(selected SelectedCommit) (CommitPublicationResult, error) {
+	return t.PublishCommitChecked(selected, nil)
+}
+
+// PublishCommitChecked validates each merged candidate against its pinned base
+// before publication. The check is rerun after every optimistic-concurrency race.
+func (t *TrunkFile) PublishCommitChecked(selected SelectedCommit, check func(base, next *TrunkView) error) (CommitPublicationResult, error) {
 	result := CommitPublicationResult{Source: selected.Source}
 	if _, err := parseObjectID([]byte(selected.Source)); err != nil {
 		return result, err
@@ -137,6 +143,11 @@ func (t *TrunkFile) PublishCommit(selected SelectedCommit) (CommitPublicationRes
 		if tree == existing {
 			result.Outcome = CommitNoChange
 			return result, nil
+		}
+		if check != nil {
+			if err := check(t.ViewOf(base), t.ViewOf(tree)); err != nil {
+				return result, err
+			}
 		}
 		msg := selected.message + "\n\nSource-Commit: " + selected.Source
 		candidate, err := t.commitTree(tree, base, msg, sign)

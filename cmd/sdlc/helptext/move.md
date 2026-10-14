@@ -19,6 +19,9 @@ field refuses the refresh with a warning; the move stands.
   sdlc move :2              move to slot 2
   sdlc move --dry-run       check both slots and print the move; change nothing
 
+Committed issue assets travel with the branch and keep their relative body
+links. Commit both the issue body and newly attached files before moving.
+
 Run it from the slot that holds the issue branch. The move refuses, changing
 nothing, when:
 

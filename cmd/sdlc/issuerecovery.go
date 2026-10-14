@@ -195,7 +195,7 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 			}
 			r = resumed.Receipt()
 			step = tracker.TransferStepper
-			adapter = tracker.NewTransferOp(ctx, env.repo, env.main, env.root, env.branchRef(), moveDetailRemover(env))
+			adapter = newIssueTransferOp(env)
 		case "completion":
 			resumed, err := tracker.ResumeCompletion(r)
 			if err != nil {
