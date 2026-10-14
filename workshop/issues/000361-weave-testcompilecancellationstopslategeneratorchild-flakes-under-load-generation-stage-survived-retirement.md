@@ -57,6 +57,7 @@ settle for load, without letting a genuinely live producer's stage be removed.
 ## Log
 
 ### 2026-10-13
+- 2026-10-13: closed — Root cause proven by tracing finishProducers and staging.Remove under 24-40 CPU burners (4/60, 1/60, 3/200 reproduced): no failure reached the 1s settle; in each, killpg on the producer group returned EPERM, finishProducers returned before AwaitExclusive, and Remove met the still-exiting holder. Measured: macOS killpg on a zombie-only group returns EPERM. Fix: pkg/procgroup.Kill (ESRCH|EPERM -> done), finishProducers always settles on the lease, and weave Cancel plus sdlc processgroup.Terminate share it. Deterministic tests (real zombie group, EPERM asserted) TestFinishProducersSettlesWhenTheGroupIsAlreadyDone and TestTerminateReportsADyingGroupAsDone fail with the fix reverted and pass with it. Under load (~60) interleaved: reverted 6/200 survived, fixed 0/200. Full make -k test on 911ee0d3: exit 0, 1239 cmd/sdlc tests plus 51 packages green.; review verdict: SHIP
 - 2026-10-13: unclaimed: filed from #353; independent flake, unclaimed for the hub to assign
 
 Filed by ariadne:3 from #353's full suite (unrelated to #353's diff).
