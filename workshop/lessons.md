@@ -585,3 +585,5 @@ The simplest durable authority beats a clever scan of consequences.
   relied on) could be mutated to false with every test still green, and two
   review rounds found unproven claims in the same family. Before closing,
   mutate each branch of a new rule once and list the test that fails.
+
+- Classify a function by all production effects reachable through its callbacks, not only its direct calls or name. An injected reader still makes a planner INTEGRATION when the production binding reads Git; trace every callback before declaring PURE (#337 BR-3).

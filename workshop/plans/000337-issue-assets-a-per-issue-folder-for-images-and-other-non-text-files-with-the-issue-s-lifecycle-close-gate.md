@@ -111,6 +111,42 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - "n": 4
+      timestamp: "2026-10-13T18:00:05-07:00"
+      dispatched: "2026-10-13T17:56:13-07:00"
+      agent: codex
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: Shared checkedMainPublisher validation covers creation and transfer apply/probe plus confirmed transfer continuation. The production recovery test passed; disabling the guard made prepared, uncertain, landed, landed-uncertain, and confirmed cases fail.
+          round: 4
+        - id: BR-1
+          disposition: addressed
+          note: 'Retained: publication admission checks the pinned destination policy on each attempt, intersecting local restrictions.'
+          round: 4
+        - id: BR-2
+          disposition: addressed
+          note: 'Retained: materialization callers check attributes and compare actual asset bytes with pinned snapshots before local commits.'
+          round: 4
+        - id: BR-3
+          disposition: not-addressed
+          note: 'ARCH-PURE: the proof classification was corrected, but the earlier acceptance of the planner as PURE was mistaken. The plan at line 82 still labels planLandingArchive pure; landingarchive.go:444 calls trackedArchiveBytes, whose line 55 invokes the production ReadCardBlob callback bound at line 728. ReadCardBlob obtains a Git snapshot at internal/tracker/candidates.go:192. Reclassify the planner as INTEGRATION and correct the comment/Revisions claim, or preload card bytes outside it. Retain Critical under the explicit core-concepts contradiction rule; this remains family core-concept-classification.'
+          round: 4
+        - id: BR-4
+          disposition: addressed
+          note: 'Retained: the opt-in live visibility test uses the production adapter, and atlas documents its invocation and cadence.'
+          round: 4
+        - id: BR-5
+          disposition: addressed
+          note: 'Retained: visibility authorization preserves the explicit destination host through the gh seam.'
+          round: 4
+        - id: BR-6
+          disposition: addressed
+          note: 'Retained: publication validation selects affected issue bodies as well as asset paths, covering missing body-indexed members.'
+          round: 4
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#337 (boundary-review)
@@ -163,6 +199,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-7** [Critical] `body-indexed-publication-validation` Prepared transfer recovery can publish missing body-indexed assets
   cmd/sdlc/issuemovedetail.go:409 returns success for empty SourceAssets, while internal/tracker/transferop.go:130 publishes resumed candidates without rerunning Prepare's bundle validation. A temporary regression persisted an older prepared transfer containing a canonical missing-asset link, interrupted before main publication, then invoked runRecoveryReconcile: it returned nil and advanced remote main. This is the 2nd finding in this family. Do not fix only this instance: enforce body-index validation before every fresh or resumed publication, including prepared and uncertain receipts regardless of asset-pin presence, and sweep those states with regression tests. ARCH-PURPOSE / ARCH-SECURE / ARCH-ORDER.
 
+## Round 4 — 2026-10-13T18:00:05-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-7 — addressed — Shared checkedMainPublisher validation covers creation and transfer apply/probe plus confirmed transfer continuation. The production recovery test passed; disabling the guard made prepared, uncertain, landed, landed-uncertain, and confirmed cases fail.
+- BR-1 — addressed — Retained: publication admission checks the pinned destination policy on each attempt, intersecting local restrictions.
+- BR-2 — addressed — Retained: materialization callers check attributes and compare actual asset bytes with pinned snapshots before local commits.
+- BR-3 — not-addressed — ARCH-PURE: the proof classification was corrected, but the earlier acceptance of the planner as PURE was mistaken. The plan at line 82 still labels planLandingArchive pure; landingarchive.go:444 calls trackedArchiveBytes, whose line 55 invokes the production ReadCardBlob callback bound at line 728. ReadCardBlob obtains a Git snapshot at internal/tracker/candidates.go:192. Reclassify the planner as INTEGRATION and correct the comment/Revisions claim, or preload card bytes outside it. Retain Critical under the explicit core-concepts contradiction rule; this remains family core-concept-classification.
+- BR-4 — addressed — Retained: the opt-in live visibility test uses the production adapter, and atlas documents its invocation and cadence.
+- BR-5 — addressed — Retained: visibility authorization preserves the explicit destination host through the gh seam.
+- BR-6 — addressed — Retained: publication validation selects affected issue bodies as well as asset paths, covering missing body-indexed members.
+
 ## Open findings
 
-- **BR-7** [Critical] `body-indexed-publication-validation` Prepared transfer recovery can publish missing body-indexed assets
+- **BR-3** [Critical] `core-concept-classification` The core-concepts table incorrectly declares archive proof PURE

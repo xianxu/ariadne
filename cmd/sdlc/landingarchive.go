@@ -393,8 +393,9 @@ func archiveSnapshot(root, ref string, selected []landingOwnedIssue, dirs landin
 	return tree, nil
 }
 
-// planLandingArchive is pure: derive moves from fresh bytes, preserving bodies
-// while requiring the same issue identity and the codecomplete transition.
+// planLandingArchive derives moves from fresh bytes, preserving issue identity
+// and the codecomplete transition. Tracked details read their mirror baseline
+// through readCard, so this planner is an integration boundary.
 func planLandingArchive(selected []landingOwnedIssue, current landingArchiveSnapshot, dirs landingArchiveRoots, date string) (landingArchivePlan, error) {
 	plan := landingArchivePlan{write: gitx.TrunkWrite{Write: map[string][]byte{}, ExactBytes: true}}
 	add := func(src, dst string, body []byte) error {

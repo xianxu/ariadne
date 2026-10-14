@@ -79,7 +79,6 @@ reinterpret the existing migrate command as supporting issues.
 | Bundle / Delta (`ParseRefs`, `BuildBundle`, `BundleDelta`) | cmd/sdlc/internal/issueassets/bundle.go | new |
 | AttachState / AttachStage (`PrepareAttach`, `NextAttach`) | cmd/sdlc/internal/issueassets/attach.go | new |
 | Publication conflict decision (`republishDecision`) | cmd/sdlc/republish.go | modified |
-| Landing archive planner (`planLandingArchive`) | cmd/sdlc/landingarchive.go | modified |
 
 An issue owns one bundle with zero to 32 immutable members. Pure functions parse
 links/policy, calculate names/paths/limits, and plan exact changes from snapshots.
@@ -92,6 +91,7 @@ Unit tests are colocated and use bytes, without IO mocks.
 | Attach CLI and policy help | cmd/sdlc/issueattach.go; cmd/sdlc/issue.go | new / modified | Cobra, ownership and policy |
 | Visibility query | cmd/sdlc/assetpolicy.go; cmd/sdlc/ghclient.go | new / modified | context-bounded gh query |
 | Publication and ownership | cmd/sdlc/republish.go; cmd/sdlc/issuemovedetail.go; cmd/sdlc/transferguard.go | modified | pinned Git snapshots and TrunkWrite |
+| Landing archive planner (`planLandingArchive`) | cmd/sdlc/landingarchive.go | modified | trackedArchiveBytes calls the production Git-backed card reader |
 | Archive proof (`confirmLandingArchive`) | cmd/sdlc/landingarchive.go | modified | Git snapshots, tracker state and clock |
 | Restore / abandon / archive | cmd/sdlc/issuerestore.go; cmd/sdlc/landingarchive.go; cmd/sdlc/archivemain.go; cmd/sdlc/abandon.go; cmd/sdlc/push.go; cmd/sdlc/merge.go | modified | existing lifecycle transactions |
 
@@ -382,3 +382,7 @@ repeat full acceptance and close. ARCH-PURPOSE / ARCH-SECURE / ARCH-ORDER.
 Hub approved a narrow refusal for invalid immutable legacy receipts; safe repair is deferred to dependent #352, unassigned and low priority. Read-only inventory found zero recovery refs across the machine fleet (68 checkouts, 44 unique Git repositories; zero scan errors). Diagnostics name the exact checkout/ref/document and list/reconcile command, then direct the user to ask the TL/hub to repair that legacy receipt (ariadne#352). The weighted machine test gate supersedes the temporary load threshold; start make -k test without a custom wait loop.
 
 - 2026-10-14T00:55Z — Corrected full verification at 7f1ad7a2d29f44cea6a1e2a4015da774d95f7743 completed: 1227 cmd/sdlc tests passed, all six shards exit 0; 48 other packages with one baseline startup test failure caused by inherited MAKEFLAGS=k (ariadne#356). Overall make exit 2; hub authorized citing that one known failure and continuing. Clean targeted environment reproduces PASS; no branch changes in that package. Full execution 571.1s after weighted-gate wait 1576s. #352 published and unassigned. Close review remains pending.
+
+### 2026-10-14T01:01Z — archive planner classification correction
+
+BR-3 remains valid for the planner as well as its proof. This supersedes the earlier Revisions assertion that planLandingArchive is pure: it calls trackedArchiveBytes, which invokes landingOwnedIssue.readCard; production binds that callback to Repository.ReadCardBlob, which acquires a Git snapshot and reads a blob. Both planner and proof belong in INTEGRATION. The table and source comment now say so; pure issueassets policy/bundle/attach transitions remain byte-in/byte-out. This is a classification/comment correction only, verified by tracing the actual production callback; no executable behavior or test expectation changes. The completed 1227-test SDLC/full-module run remains applicable, with its disclosed #356 baseline exception.

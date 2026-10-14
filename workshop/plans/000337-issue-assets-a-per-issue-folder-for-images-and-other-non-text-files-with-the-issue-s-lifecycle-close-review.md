@@ -321,3 +321,107 @@ findings:
     detail: |
       cmd/sdlc/issuemovedetail.go:409 returns success for empty SourceAssets, while internal/tracker/transferop.go:130 publishes resumed candidates without rerunning Prepare's bundle validation. A temporary regression persisted an older prepared transfer containing a canonical missing-asset link, interrupted before main publication, then invoked runRecoveryReconcile: it returned nil and advanced remote main. This is the 2nd finding in this family. Do not fix only this instance: enforce body-index validation before every fresh or resumed publication, including prepared and uncertain receipts regardless of asset-pin presence, and sweep those states with regression tests. ARCH-PURPOSE / ARCH-SECURE / ARCH-ORDER.
 ```
+
+---
+
+## Re-review — 2026-10-13T18:00:04-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 337 — issue assets: a per-issue folder for images and other non-text files, with the issue's lifecycle |
+| repo | ariadne |
+| issue file | workshop/issues/000337-issue-assets-a-per-issue-folder-for-images-and-other-non-text-files-with-the-issue-s-lifecycle.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 84d39c1513a4a30f0f61b4d7e5f610ff97b3b9ce..2cd38ae505ffe4413ba9a04225f1e1dfbdd46b6f |
+| command | sdlc close --issue 337 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-13T18:00:04-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-7 is addressed: production recovery passes, and disabling the shared validation makes all five recovery-state regressions fail. One classification correction remains: BR-3’s earlier acceptance incorrectly treated the archive planner as pure. The required core-concepts cross-check therefore blocks this boundary. No new executable defect was confirmed.
+
+1. **Strengths**
+
+   - Persisted creation and transfer candidates share body-and-bundle validation before publication or confirmation.
+   - Recovery tests cover prepared, uncertain, landed, landed-uncertain, and confirmed transfers, including receipts without asset pins.
+   - Attachment uses an opaque transition model, bounded content-addressed bundles, and ownership-aware cleanup.
+   - README and atlas document the command, policy, lifecycle, limits, and legacy-receipt recovery restriction.
+
+2. **Critical findings**
+
+   **BR-3 — not-addressed; ARCH-PURE.** [The plan’s PURE table](workshop/plans/000337-issue-assets-plan.md:82) still includes `planLandingArchive`. Its tracked branch calls `trackedArchiveBytes` at `cmd/sdlc/landingarchive.go:444`, which invokes `owned.readCard` at line 55. Production binds that callback to `env.repo.ReadCardBlob` at line 728; `internal/tracker/candidates.go:192` obtains a Git snapshot before reading the blob.
+
+   The earlier recommendation to retain this planner as PURE was mistaken. Classify it as INTEGRATION and correct the corresponding comment and revision statement. Alternatively, preload the required card bytes outside the planner. This is the existing `core-concept-classification` finding, not a new finding. Severity follows the checklist’s explicit rule for table/code contradictions.
+
+3. **Important findings**
+
+   None.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - Targeted pure-core and tracker tests passed.
+   - Production BR-7 recovery test passed: **55.246s**.
+   - Attachment, publication, visibility, and archive selection passed: **42.431s**.
+   - Disabling the shared guard caused tracker regressions and **all five production recovery states** to fail.
+   - Independently reproduced the reported startup failure with `MAKEFLAGS=k`; it passes with `MAKEFLAGS` unset. That package is unchanged in the range.
+   - Full suite was not independently rerun. Pinned-range whitespace check passed; temporary overlay removed; checkout clean.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared bundle and replay-validation helpers.
+   - **ARCH-PURE — flag:** BR-3 classification contradiction above.
+   - **ARCH-PURPOSE — pass:** replay correction covers both persisted main publishers and subsequent transfer completion.
+   - **ARCH-MOCK — pass:** portable Git fixtures, stateful visibility fake, and opt-in conformance check.
+   - **ARCH-CONSTRAINTS — pass:** explicit byte/count limits and bounded visibility queries.
+   - **ARCH-SECURE — pass:** persisted candidates are validated against pinned source bytes.
+   - **ARCH-ORDER — pass:** uncertain publication and confirmed-stage recovery receive validation.
+   - **ARCH-FUNERAL — pass:** cleanup, archive/removal behavior, and retained Git-history costs are documented.
+
+7. **Plan revision recommendation**
+
+   Add a `## Revisions` entry correcting the earlier claim that `planLandingArchive` is pure, citing its production card-reader dependency. A classification-only repair needs source inspection, not a wording-presence test.
+
+```findings
+dispose:
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Shared checkedMainPublisher validation covers creation and transfer apply/probe plus confirmed transfer continuation. The production recovery test passed; disabling the guard made prepared, uncertain, landed, landed-uncertain, and confirmed cases fail.
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Retained: publication admission checks the pinned destination policy on each attempt, intersecting local restrictions.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Retained: materialization callers check attributes and compare actual asset bytes with pinned snapshots before local commits.
+  - id: BR-3
+    disposition: not-addressed
+    note: |
+      ARCH-PURE: the proof classification was corrected, but the earlier acceptance of the planner as PURE was mistaken. The plan at line 82 still labels planLandingArchive pure; landingarchive.go:444 calls trackedArchiveBytes, whose line 55 invokes the production ReadCardBlob callback bound at line 728. ReadCardBlob obtains a Git snapshot at internal/tracker/candidates.go:192. Reclassify the planner as INTEGRATION and correct the comment/Revisions claim, or preload card bytes outside it. Retain Critical under the explicit core-concepts contradiction rule; this remains family core-concept-classification.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Retained: the opt-in live visibility test uses the production adapter, and atlas documents its invocation and cadence.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Retained: visibility authorization preserves the explicit destination host through the gh seam.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Retained: publication validation selects affected issue bodies as well as asset paths, covering missing body-indexed members.
+```
