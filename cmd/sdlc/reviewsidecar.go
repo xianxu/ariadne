@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewusage"
 	"io"
 	"os"
 	"path/filepath"
@@ -19,20 +21,21 @@ import (
 // values — the clock (Timestamp) is captured at the IO boundary and passed in so
 // the renderers below stay pure (ARCH-PURE).
 type sidecarMeta struct {
-	IssueNum    int
-	Title       string
-	Repo        string
-	IssueFile   string
-	Milestone   string // "" ⇒ whole-issue close
-	Base        string // long base SHA
-	Head        string
-	Command     string
-	Agent       string
-	Isolation   string // #204: fenced | checkout; "" on sidecars written before it
-	Timestamp   string // RFC3339
-	Verdict     string
-	Diagnostics string
-	Body        string
+	ReviewerRuns []reviewusage.Record
+	IssueNum     int
+	Title        string
+	Repo         string
+	IssueFile    string
+	Milestone    string // "" ⇒ whole-issue close
+	Base         string // long base SHA
+	Head         string
+	Command      string
+	Agent        string
+	Isolation    string // #204: fenced | checkout; "" on sidecars written before it
+	Timestamp    string // RFC3339
+	Verdict      string
+	Diagnostics  string
+	Body         string
 }
 
 // sidecarPathFor derives a sidecar path from an issue filename stem plus a suffix. The one
@@ -112,6 +115,10 @@ func renderReviewEntry(m sidecarMeta, isRevision bool) string {
 		b.WriteString("\n")
 	}
 	b.WriteString(m.Diagnostics)
+	if len(m.ReviewerRuns) > 0 {
+		raw, _ := json.Marshal(m.ReviewerRuns)
+		fmt.Fprintf(&b, "\n<!-- sdlc-review-usage %s -->\n", raw)
+	}
 	return b.String()
 }
 
@@ -166,7 +173,7 @@ func writeReviewSidecar(p boundaryReviewParams, verdict, body, timestamp string)
 		title = issueTitleFromContent(string(raw))
 	}
 	path := sidecarPath(p.PlansDir, filepath.Base(issuePath), p.Milestone)
-	m := sidecarMeta{
+	m := sidecarMeta{ReviewerRuns: p.Evidence.ReviewerRuns,
 		IssueNum:    p.IssueNum,
 		Title:       title,
 		Repo:        repoIdentity(),

@@ -15,6 +15,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewbox"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewprepare"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewusage"
 )
 
 // AgentCLI names a coding-agent CLI. The default is "claude"; the
@@ -31,12 +32,19 @@ const (
 
 // DispatchEvidence holds nonsemantic, bounded attempt diagnostics for the caller.
 type DispatchEvidence struct {
-	Preparation []reviewprepare.Result
-	Protocol    []reviewprepare.ProtocolResult
+	Preparation      []reviewprepare.Result
+	Protocol         []reviewprepare.ProtocolResult
+	ReviewerRuns     []reviewusage.Record
+	UsageDiagnostics []string
 }
 
 // DispatchOptions configures one invocation.
 type DispatchOptions struct {
+	// Usage accounting is independent of semantic gate admission. Requested
+	// persistence must succeed before launch; later failures retain partial
+	// receipts and are surfaced in Evidence without advancing a gate round.
+	UsageIntent   *reviewusage.Intent
+	UsageRecorder func(context.Context, reviewusage.Record) error
 	// Preparation executes only in Checkout, after confinement and before each review.
 	Preparation     *reviewprepare.Config
 	PreparationHead string
@@ -354,6 +362,11 @@ func dispatchAttempts(ctx context.Context, opts DispatchOptions, conf *reviewbox
 			return "", err
 		}
 		current := opts
+		if opts.UsageIntent != nil {
+			intent := *opts.UsageIntent
+			intent.Attempt = attempt
+			current.UsageIntent = &intent
+		}
 		if attempt == 2 {
 			current.Prompt += retryNotice + "\nResponse validation: " + invalid.Error()
 		}
@@ -422,16 +435,147 @@ func dispatchOnce(ctx context.Context, opts DispatchOptions) (string, error) {
 		return "", err
 	}
 
+	var accounting reviewusage.Record
+	accounted := opts.UsageIntent != nil || opts.UsageRecorder != nil
+	accountingIndex := -1
+	diagnose := func(stage string, err error) {
+		diagnostic := stage + ": " + strings.Join(strings.Fields(err.Error()), " ")
+		if len(diagnostic) > 256 {
+			diagnostic = diagnostic[:256]
+		}
+		if opts.Evidence != nil {
+			opts.Evidence.UsageDiagnostics = append(opts.Evidence.UsageDiagnostics, diagnostic)
+		}
+		if opts.Stderr != nil {
+			fmt.Fprintln(opts.Stderr, "    … reviewer usage coverage incomplete:", diagnostic)
+		}
+	}
+	copyAccounting := func() {
+		if opts.Evidence == nil {
+			return
+		}
+		if accountingIndex < 0 {
+			accountingIndex = len(opts.Evidence.ReviewerRuns)
+			opts.Evidence.ReviewerRuns = append(opts.Evidence.ReviewerRuns, accounting)
+		} else {
+			opts.Evidence.ReviewerRuns[accountingIndex] = accounting
+		}
+	}
+	if accounted {
+		if opts.UsageIntent == nil || opts.UsageRecorder == nil {
+			return "", errors.New("review usage requires intent and recorder together")
+		}
+		intent := *opts.UsageIntent
+		intent.ID, err = reviewusage.NewID()
+		if err != nil {
+			return "", err
+		}
+		intent.Agent = string(opts.Agent)
+		if intent.Agent == "" {
+			intent.Agent = "claude"
+		}
+		if intent.Attempt == 0 {
+			intent.Attempt = 1
+		}
+		intent.RequestedAt = time.Now().UTC().Format(time.RFC3339Nano)
+		intent.Root = opts.Checkout
+		if intent.Root == "" {
+			intent.Root, err = os.Getwd()
+			if err != nil {
+				return "", err
+			}
+		}
+		intent.Root, err = filepath.Abs(intent.Root)
+		if err != nil {
+			return "", err
+		}
+		// CLI metadata records the physical cwd. Retain the absolute path
+		// when it cannot be resolved; resolution grants no new permissions.
+		if physical, resolveErr := filepath.EvalSymlinks(intent.Root); resolveErr == nil {
+			intent.Root = physical
+		}
+		accounting, err = reviewusage.NewRequested(intent)
+		if err != nil {
+			return "", fmt.Errorf("review usage requested intent: %w", err)
+		}
+		copyAccounting()
+		if err := opts.UsageRecorder(ctx, accounting); err != nil {
+			diagnose("requested persistence", err)
+			return "", fmt.Errorf("review usage requested persistence failed; reviewer was not launched: %w", err)
+		}
+	}
+
 	// pid is written once by Run's onStart (at child launch) and read by the
 	// heartbeat loop; atomic because the two live on different goroutines.
 	var pid atomic.Int64
-	onStart := func(p int) { pid.Store(int64(p)) }
+	onStart := func(p int) {
+		pid.Store(int64(p))
+		if !accounted {
+			return
+		}
+		next, err := reviewusage.Step(accounting, reviewusage.Event{Kind: reviewusage.Start, Intent: accounting.Intent, PID: p, At: time.Now().UTC().Format(time.RFC3339Nano)})
+		if err != nil {
+			diagnose("start confirmation", err)
+			return
+		}
+		accounting = next
+		copyAccounting()
+		if err := opts.UsageRecorder(ctx, accounting); err != nil {
+			diagnose("started persistence", err)
+		}
+	}
+	// One returned-process path serves synchronous, heartbeat, failed and
+	// cancelled runs. Only this accounting write gets a detached 2s budget.
+	returned := func(out ProcessOutput, runErr error) (string, error) {
+		if accounted {
+			outcome := "returned"
+			switch {
+			case accounting.Phase == reviewusage.Requested:
+				if runErr != nil {
+					outcome = "launch-failed"
+				}
+			case errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(runErr, context.DeadlineExceeded):
+				outcome = "deadline"
+			case errors.Is(ctx.Err(), context.Canceled) || errors.Is(runErr, context.Canceled):
+				outcome = "canceled"
+			case runErr != nil:
+				outcome = "exit-error"
+			}
+			id, identityErr := reviewusage.CaptureIdentity(string(opts.Agent), out.Stdout, out.Stderr)
+			diagnostic := ""
+			if identityErr != nil {
+				diagnostic = identityErr.Error()
+			}
+			if outcome == "launch-failed" {
+				id = ""
+			}
+			if outcome == "returned" && (opts.Agent == AgentClaude || opts.Agent == "") {
+				run := ReadStream(out.Stdout)
+				if run.Result != nil && run.Result.IsError {
+					outcome = "agent-error"
+				}
+			}
+			next, err := reviewusage.Step(accounting, reviewusage.Event{Kind: reviewusage.Finish, Intent: accounting.Intent, PID: accounting.PID, StartedAt: accounting.StartedAt, At: time.Now().UTC().Format(time.RFC3339Nano), SessionID: id, Outcome: outcome, Diagnostic: diagnostic})
+			if err != nil {
+				diagnose("finish confirmation", err)
+			} else {
+				accounting = next
+				copyAccounting()
+				cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+				if err := opts.UsageRecorder(cleanup, accounting); err != nil {
+					diagnose("finished persistence", err)
+				}
+				cancel()
+			}
+		}
+		return classifyRunResult(ctx, out, runErr, name, opts.Agent, opts.Stderr)
+	}
 
 	// No progress sink → run synchronously, exactly as before. This is the fast
 	// path (unit tests, quick dispatches) and stays free of goroutines/tickers.
 	if opts.Stderr == nil {
 		out, runErr := Run(ctx, onStart, name, args...)
-		return classifyRunResult(ctx, out, runErr, name, opts.Agent, nil)
+		return returned(out, runErr)
 	}
 
 	// Progress path (#140): the agent can run for minutes. Run it on a background
@@ -456,7 +600,7 @@ func dispatchOnce(ctx context.Context, opts DispatchOptions) (string, error) {
 	for {
 		select {
 		case r := <-done:
-			return classifyRunResult(ctx, r.out, r.runErr, name, opts.Agent, opts.Stderr)
+			return returned(r.out, r.runErr)
 		case <-ticks:
 			fmt.Fprintln(opts.Stderr, heartbeatLine(sinceStart(start), string(opts.Agent), int(pid.Load())))
 		}

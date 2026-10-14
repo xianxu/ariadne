@@ -85,6 +85,60 @@ gaps. Modern Codex compaction/response identity and Claude duplicate/revised or
 provisional usage require normalization with explicit coverage. Meter conversion
 needs two observations. Durable plan ready for hub approval; no code changes yet.
 
+### 2026-10-14 — implementation checkpoint
+
+change-code accepted the plan (CLEAN/high, round3) and derived8.881h estimate
+(INFO/high advisory: receipt/cleanup integration and final ship checks are tight).
+Implementation uses three bounded agents for normalization, source discovery,
+and reviewer receipts; main owns calibration and command/gate integration.
+
+Internal usage/transcripts tests pass. Four counting and four discovery mutations
+were caught; duplicate normalization fuzz ran81,292 cases. Calibration regressions
+cover one/two points, refill, conflict, stale reading, incomplete/zero burn,
+cancellation and preserving the private atomic file. Root attribution tests
+cover exclusive worker/reviewer union and conflicting binding copies. Root tests
+remain pending until the final dispatch adapter freezes.
+
+Candidate builds and a real local --since1h --json scan completed successfully:
+7931 candidates,88 recently selected sources (the first smoke double-counted the
+source counter and prompted a discovered_sources/decoded sources distinction).
+It reported legacy reviewer gaps and no invented forecast. Additional integration
+checks caught unbound brain-root admission, conflicting metadata restoration,
+missing projection-window completeness and mutation detection; fixed before
+root verification. Source stat identity now pins replacement/mtime evidence;
+growth alone remains an allowed stat-sized append.
+
+Reviewer accounting copies are optional round/sidecar fields. Estimate advisory
+attempts are retained in an optional ledger-level accounting field, avoiding a
+fake findings round. Cleanup requires an exact typed record in a committed
+HEAD/main artifact; uncommitted or partial copies cannot collect private refs.
+Token ownership and actual-time share ownershipSourceWindows; actual keeps its
+independent verification-tail policy. usage reads a local tracker snapshot and
+has no fetch, cache or provider interaction.
+
+### 2026-10-14 — targeted integration and live conformance
+
+Focused root usage/attribution/accounting tests pass (12.785s). The earlier
+ownership resolver regression selection passed except two new fixture mistakes:
+a fabricated unavailable reviewed SHA and an offline local remote losing its
+symlink spelling. Fixed the fixtures to use the real Git head and preserve the
+physical remote identity; production ownership safeguards stayed intact.
+
+Both real CLI identity checks now pass (Claude5.20s, Codex8.09s;13.460s total).
+Initial conformance found current Codex's versioned banner/optional stdin notice,
+Claude's canonical physical cwd, and leading queue-operation records without
+cwd. Added observed-format and queue→user regressions; no argv/permission change.
+The live check uses the same usage discovery adapter, including underscore paths.
+
+Private review admission now records its real PID/host and uses a10s bounded
+lock wait; a dead-holder regression reproduced and fixed PID0 non-reclamation.
+Unbound fleet evidence has its own recent window and is excluded from issue
+worker/reviewer totals. Spend completeness and attribution completeness are
+explicit JSON booleans; old reviewer bindings and unresolved aggregates remain
+visible gaps. Projection checks its own burn/calibration evidence, not just the
+issue detail window. Structured modelUsage/totalTokens counters diagnose gaps
+without adding aggregate spend a second time.
+
 ## Revisions
 
 ### 2026-10-14 — whole-system bench cost
