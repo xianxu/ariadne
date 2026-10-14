@@ -37,7 +37,9 @@ Hold the transaction lock only around short git/tracker mutations: integrating m
 
 - [x] Scope `sdlc merge` with the existing manual repo-lock helper and prove a second same-repo command can acquire the lock during both a first and a repeated suite run.
 - [x] Revalidate exact workspace/head and fresh main at each lock reacquisition around integration push and final landing; add deterministic head/main drift and interruption-retry tests.
-- [ ] Update workflow help and atlas, run targeted tests, `make -k tools`, and the recorded full suite; close and ship after the boundary review.
+- [x] Update workflow help and atlas, run targeted tests, `make -k tools`, and the recorded full suite.
+
+Delivery follows the boundary review: close and ship the reviewed head.
 
 Durable implementation steps: [merge-lock-scoping plan](../plans/000370-sdlc-merge-holds-the-repo-transaction-lock-for-its-whole-suite-wait-30-min-blocking-every-other-slot-s-stage-publish-and-claim-in-that-repo-plan.md).
 
@@ -75,3 +77,4 @@ The two API-integration items cover the durable and legacy Git/GitHub landing pa
 
 - 2026-10-14 11:42 PDT — Plan-quality review exposed a second suite-running merge path and a pre-push state gap. Expanded the plan to cover legacy merge, added a pure reset/retry transition and function-level test strategies, and renamed the durable plan to the canonical issue slug. The Spec and Done-when remain unchanged.
 - 2026-10-14 11:49 PDT — Clarified the admitted estimate after estimate-quality INFO: 1.5 is a chosen point within the v2 design range, not its midpoint; named the remaining design work and mapped tests plus ship-wall-clock verification to the integration items. Numeric estimate and acceptance contract unchanged.
+- 2026-10-14 12:19 PDT — Split the completed verification step from its subsequent close-and-ship delivery, so the Plan checklist records implemented work before the close gate runs. The acceptance contract is unchanged.
