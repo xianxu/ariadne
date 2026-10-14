@@ -20,8 +20,8 @@
 
 | Name | Lives in | Status |
 |------|----------|--------|
-| `workerHelp` (embedded prose) | `cmd/tl-worker/help.md` | new |
-| `leadHelp` (embedded prose) | `cmd/tl-lead/help.md` | new |
+| `rootHelp` (tl-worker's embedded prose) | `cmd/tl-worker/main.go`, `cmd/tl-worker/help.md` | new |
+| `rootHelp` (tl-lead's embedded prose) | `cmd/tl-lead/main.go`, `cmd/tl-lead/help.md` | new |
 | `markdoc` (fence/section/plan scanners) | `pkg/markdoc/{fence,section,plan}.go` | new (moved from `cmd/sdlc/internal/issue`) |
 | `trains` (`IssueRef`, `Train`, `Edge`, `TrainPlan`, `ParseTrains`) | `pkg/trains/trains.go` | new (moved from `cmd/sdlc/internal/project/trains.go`) |
 | `planBar` | `cmd/tl-lead/bar.go` | new |
@@ -38,12 +38,12 @@
 - **markdoc**: `FenceSpans`, `ScanMarkdownLines`, `SectionBody`, `SectionLineBounds`, `PlanItemsBody`, `CountPlanItems`, `MilestonesInPlanOrder`, `TickedMilestones` and `MilestoneTagPattern`. All are pure and need only the standard library. `cmd/sdlc/internal/issue` keeps its names as forwarding aliases (`type UnterminatedPolicy = markdoc.UnterminatedPolicy`, `var SectionBody = markdoc.SectionBody`, …). Its 125 importers are unchanged, and the existing tests move with the code.
   - **DRY rationale:** the one plan/section parser that sdlc's gates use is also what renders the TL's bar, so a bar can't disagree with what `close` counts.
 - **trains**: `trains.go` moves verbatim (it is stdlib-only). `cmd/sdlc/internal/project` aliases its types and keeps `(*Doc).Trains`.
-- **PlanBar(planBody) string**: counts `Mx` rows when the plan has any (`MilestonesInPlanOrder`/`TickedMilestones`), and checkboxes otherwise (`CountPlanItems`). It returns `▉▉▕ M 2/3`, `▉▕▕▕ tasks 1/4` or `no plan yet`.
+- **planBar(body) string**: counts `Mx` rows when the plan has any (`MilestonesInPlanOrder`/`TickedMilestones`), and checkboxes otherwise (`CountPlanItems`). It returns `▉▉▕ M 2/3`, `▉▕▕▕ tasks 1/4` or `no plan yet`.
 - **renderTrains(plan TrainPlan, cars map[IssueRef]CarState) string**: a project's fenced trains block, which the TL pastes into its `### Project` thread. Glyphs: ✓ done, ◑ codecomplete, ◐ in flight (claimed and not open), ○ waiting. `CarState{Status, Claimant, Bar, Err}`. A car whose read failed renders `?` with no bar, never as waiting (ARCH-SECURE: a failed read is not negative evidence).
 - **slotLines(fleet) / renderSlots(lines) string**: the `## Slots` block. One line per numbered slot (N ≥ 1): on an issue branch, its `repo#id`, phase (the card status, or `?` when the observation failed), bar and slug; on another branch, `on <branch>`; detached, `detached`. A final `free:` line lists the idle slots.
 - **threadBlocks / upsertThread(body, entry, drop)**: `## Threads` is a list of `###` subsections, plus an optional preamble. An entry replaces the subsection with the same heading, or else goes in before `### Miscellaneous` (which stays last). `--drop` removes subsections by heading prefix. Splitting is fence-aware (`markdoc.FenceSpans`), so a fenced `### ` line inside a thread body stays in its subsection.
 - **renderedSections**: one row per status section rendered from sources (`slots` → `## Slots`). Each row becomes `tl-lead status <verb> FILE` and writes through the guarded path; a later `status quota` from `sdlc usage` (ariadne#365) is one more row.
-- **SeenSet**: the IDs the TL has looked at (`.<file>.ss-seen`, JSON — the same name and format as `ss.py`, so the cutover keeps the TL's seen IDs and leaves no residue). It holds no state between events beyond that file; see ARCH-ORDER below.
+- **seen-set** (`loadSeen`/`saveSeen`): the IDs the TL has looked at (`.<file>.ss-seen`, JSON — the same name and format as `ss.py`, so the cutover keeps the TL's seen IDs and leaves no residue). It holds no state between events beyond that file; see ARCH-ORDER below.
 
 ### Integration points
 
