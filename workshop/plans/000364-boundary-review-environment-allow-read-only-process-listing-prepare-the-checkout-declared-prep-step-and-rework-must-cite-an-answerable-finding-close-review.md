@@ -143,3 +143,74 @@ findings:
    - **ARCH-FUNERAL — pass:** Checkout cleanup owns generated assets; permanent diagnostic retention has an explicit per-dispatch cost.
 
 7. **Plan revision recommendations:** Append a `## Revisions` entry recording the missing lifecycle proof and its regression strategy; mark that verification complete only after the production test and mutation check pass.
+
+---
+
+## Re-review — 2026-10-14T01:38:16-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 364 — Boundary review environment: allow read-only process listing, prepare the checkout (declared prep step), and REWORK must cite an answerable finding |
+| repo | ariadne |
+| issue file | workshop/issues/000364-boundary-review-environment-allow-read-only-process-listing-prepare-the-checkout-declared-prep-step-and-rework-must-cite-an-answerable-finding.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 85135ce32b676c60628649a96c93446ac238a11c..37c3e27aac67f707fcc2cc06ad8f6f4dd9a452e9 |
+| command | sdlc close --issue 364 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T01:38:16-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation matches the issue’s preparation, process-listing, and answerable-review contracts. BR-2 is addressed: the production lifecycle regression passes, and disabling the dispute-answer guard makes both invalid-response cases fail by incorrectly finalizing the issue. No new blocking findings emerged.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: addressed
+    note: |
+      cmd/sdlc/review_unverifiable_lifecycle_test.go:16 exercises production close/dispute/review, verifies host evidence reaches the reviewer, rejects unanswered and note-less replies without advancement, and accepts an answering withdrawal. It passes at pinned HEAD; disabling boundaryresponse.go's dispute-answer guard makes both rejection cases fail. The disposable mutation checkout was removed.
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The filesystem fingerprint remains in cmd/sdlc/internal/judge/prepare.go, independently checking tracked bytes, modes, types, and symlink targets. The suppression, normalization, and path-mutation regressions pass; the prior disposition remains supported.
+```
+
+1. **Strengths**
+
+   - Preparation and admission reuse one bounded attempt loop, with reset and preparation before retry (`cmd/sdlc/internal/judge/dispatch.go:336`).
+   - Configuration comes from pinned regular Git blobs; parsing rejects ambiguous declarations (`cmd/sdlc/reviewprepare.go:17`).
+   - The new lifecycle test checks durable outcomes through production commands, including ledger, issue, and reviewed-ref identity (`cmd/sdlc/review_unverifiable_lifecycle_test.go:16`).
+   - README, atlas, help, and generated prompt contracts document the new surface and limits.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed the judge, reviewprepare, reviewbox, gatestate, and vocabulary packages, plus targeted admission, pinned-reader, preparation, diagnostic-retention, and dispute-lifecycle tests. The independent guard mutation failed as expected.
+
+   Live Seatbelt tests skipped because this environment rejects `sandbox_apply`. Pair-generation and installed-Codex checks are opt-in and were not independently rerun. The full suite was not rerun during this review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared attempt loop, runner, and ledger rules.
+   - **ARCH-PURE — pass:** declaration parsing, admission, and rendering remain pure; declared entities exist at their stated paths.
+   - **ARCH-PURPOSE — pass:** production lifecycle coverage now completes the promised evidence-answering loop.
+   - **ARCH-MOCK — pass:** temporary repositories and controlled subprocess seams exercise production boundaries; live conformance hooks exist.
+   - **ARCH-CONSTRAINTS — pass:** deadlines, two-attempt budget, output caps, and descendant cleanup are enforced and tested.
+   - **ARCH-SECURE — pass:** pinned configuration, direct argv, narrow executable exception, and separate diagnostic channel.
+   - **ARCH-ORDER — pass:** retry sequencing and rejected-response non-advancement are exercised through production paths.
+   - **ARCH-FUNERAL — pass:** generated assets follow checkout cleanup; permanent diagnostic retention and per-dispatch cost are explicit.
+
+7. **Plan revision recommendations:** None. Remaining close and landing checkboxes appropriately remain pending.

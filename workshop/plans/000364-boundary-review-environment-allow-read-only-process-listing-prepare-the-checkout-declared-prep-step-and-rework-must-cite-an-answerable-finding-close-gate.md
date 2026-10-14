@@ -36,6 +36,23 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - "n": 3
+      timestamp: "2026-10-14T01:38:16-07:00"
+      dispatched: "2026-10-14T01:35:46-07:00"
+      agent: codex
+      dispose:
+        - id: BR-2
+          disposition: addressed
+          note: cmd/sdlc/review_unverifiable_lifecycle_test.go:16 exercises production close/dispute/review, verifies host evidence reaches the reviewer, rejects unanswered and note-less replies without advancement, and accepts an answering withdrawal. It passes at pinned HEAD; disabling boundaryresponse.go's dispute-answer guard makes both rejection cases fail. The disposable mutation checkout was removed.
+          round: 3
+        - id: BR-1
+          disposition: addressed
+          note: The filesystem fingerprint remains in cmd/sdlc/internal/judge/prepare.go, independently checking tracked bytes, modes, types, and symlink targets. The suppression, normalization, and path-mutation regressions pass; the prior disposition remains supported.
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 37c3e27aac67f707fcc2cc06ad8f6f4dd9a452e9
+      blocked: false
 ---
 
 # Gate ledger — ariadne#364 (boundary-review)
@@ -61,6 +78,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-2** [Important] `boundary-lifecycle-coverage` The promised unverifiable-dispute lifecycle regression is missing
   workshop/plans/000364-review-environment-plan.md:198 promises a real temporary-repository lifecycle proving host evidence reaches the next judge, invalid replies cannot advance ledger/head, and a valid disposition closes the loop. boundaryresponse_test.go:44 manually constructs a disputed ledger and calls the pure validator; existing dispute lifecycle fixtures use ordinary findings. Add a production close/dispatch regression that disputes an unverifiable finding, checks the reviewer receives its evidence, rejects unanswered or note-less responses without advancement, and accepts an explicit evidence-answering disposition. Prove it fails when the dispute admission guard or ledger wiring is removed (ARCH-PURPOSE).
 
+## Round 3 — 2026-10-14T01:38:16-07:00 (codex) — passed
+
+### Disposed
+
+- BR-2 — addressed — cmd/sdlc/review_unverifiable_lifecycle_test.go:16 exercises production close/dispute/review, verifies host evidence reaches the reviewer, rejects unanswered and note-less replies without advancement, and accepts an answering withdrawal. It passes at pinned HEAD; disabling boundaryresponse.go's dispute-answer guard makes both rejection cases fail. The disposable mutation checkout was removed.
+- BR-1 — addressed — The filesystem fingerprint remains in cmd/sdlc/internal/judge/prepare.go, independently checking tracked bytes, modes, types, and symlink targets. The suppression, normalization, and path-mutation regressions pass; the prior disposition remains supported.
+
 ## Open findings
 
-- **BR-2** [Important] `boundary-lifecycle-coverage` The promised unverifiable-dispute lifecycle regression is missing
+(none — every finding has been disposed)

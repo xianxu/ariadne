@@ -54,6 +54,7 @@ Durable plan: [review environment](../plans/000364-review-environment-plan.md).
 ### 2026-10-13
 
 ### 2026-10-14 — design and measured root cause
+- 2026-10-14: closed — Full make -k test PASS on bd486507794b44ba6bd094ed85c96fd6d77da30f: 1249 SDLC tests, 53 other packages, 401.2s, zero failures; /tmp/ariadne-364-full-suite-3.log and .jsonl. Production unchanged since that suite. Test-only BR-2 delta: TestCloseUnverifiableDisputeLifecycle PASS 16.005s; real close/dispute sends evidence, rejects unanswered/noteless replies twice without state advancement, accepts answering disposition. Removing dispute guard made both invalid replies close and test FAIL 13.068s; restored exactly; /tmp/364-unverifiable-lifecycle.log and /tmp/364-unverifiable-mutation.log. BR-1 independently accepted in round2. Live Darwin fence, installed Codex ps, and pair b63f4bd76e3e81d1433cfeda544bb3bed8501522 prep/runtimebundle checks passed with source unchanged. Linux unchanged, no local live Linux runner.; review verdict: SHIP
 
 Read pair#528 M1's review sidecar: blocked rounds were marked fenced. Current fenced
 Codex already launches with danger-full-access beneath the outer fence. Direct ps
