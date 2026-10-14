@@ -1,12 +1,20 @@
 ---
 id: 000332
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-13
 estimate_hours:
-card_mirror: '5366064c82408cae8f62f4875221b209c75d91f0' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ea1045716f873506fa709d999834a6809bd34561' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-13T22:09:00-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # sdlc merge integrates a moved main itself, then re-runs the suite before landing
@@ -38,3 +46,17 @@ A branch that passed its close review can sit unmerged for hours, because main k
 ## Log
 
 ### 2026-10-11
+
+### 2026-10-13
+
+- Mapped the landing path (ariadne:1). `runDurableMerge` has no branch-contains-main check: GitHub merges a stale head server-side, so the landed tree is never tested. The re-review rule after integrating main is already the publish gate's (#304: the reviewed patch is replayed onto the new base; a code conflict owes `--fixed-then-ship`), not #269 freshness (stale/fresh only). sdlc never runs the suite; #345's `runLocalCheck` is the engine (exact sha, detached worktree, machine lock, recorded status). A bug was found there: `acquireSuiteSlot` takes weight 1, so `make test` goes reentrant and ariadne's weight-2 sharded suite would hold one slot.
+- Draft design sent to the hub:
+  - integrate in `runDurableMerge`; on conflict abort and name the paths;
+  - pre-check the publish collision on the merge commit before running the suite;
+  - push with a lease;
+  - the suite as a REQUIRED recorded local check on the exact head (enforced at every landing), with a `weight` field;
+  - on failure, a baseline run on main labels failures introduced or pre-existing;
+  - bounded CI wait;
+  - re-integrate when main moves again, at most 3 times;
+  - an interrupted push resumes via an `Integrated-Main:` trailer.
+- Open questions to the hub: the suite source (declaration and/or a `make test` default), enforcement on every landing, the legacy path, the CI wait bound.
