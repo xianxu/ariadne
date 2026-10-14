@@ -225,6 +225,14 @@ its remaining configuration. There is no persistent transaction journal.
 An unpushed integration is recoverable from its `Integrated-Main:` trailer:
 verify its two parents, reconstructed clean tree and publish replay before the
 leased push. Ordinary unpushed commits still require `sdlc pr`.
+Cancellation during push can follow remote publication. Keep the local
+integration and retry to reconcile the remote and GitHub heads. Integration
+state and retry counting are owned by the typed event core in
+`cmd/sdlc/integrationstate.go`. Durable landing Git commands have a two-minute
+ceiling; recovery probes, abort/reset and worktree cleanup use fresh 30-second
+commands after cancellation. Shared gitx commands used by publish replay and
+ownership also have a two-minute ceiling. Process groups reclaim descendants
+even when the direct Git process exits before its inherited pipes close.
 
 Ordinary feature worktrees and private dependency clones keep their legacy
 per-repository flow: refresh their own main, archive and remove the completed

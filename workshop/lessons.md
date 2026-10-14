@@ -625,3 +625,13 @@ The simplest durable authority beats a clever scan of consequences.
 - Classify a function by all production effects reachable through its callbacks, not only its direct calls or name. An injected reader still makes a planner INTEGRATION when the production binding reads Git; trace every callback before declaring PURE (#337 BR-3).
 
 - When an authorized acceptance revision changes required checks, update the current Done when criteria as well as appending its revision history. Label completed local verification separately from pending PR CI; do not leave two competing acceptance contracts (#358 BR-1).
+
+- Polling deadlines must cover inflight IO and reject results that arrive after
+  expiry, including green. Exclude separately budgeted suite time explicitly;
+  give cleanup a fresh bounded context after cancellation (#332 BR-12).
+- A pure action selector does not own authoritative state. Route production
+  outcomes through typed state/event transitions, including error, recovery and
+  retry paths; test the counter and ordering invariants by mutation (#332 BR-14).
+- Bound the complete subprocess graph, including indirect shared Git helpers.
+  Cancellation during push may follow remote publication: preserve the local
+  commit and reconcile evidence on retry, rather than rolling back (#332 BR-13).

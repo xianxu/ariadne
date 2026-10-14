@@ -220,6 +220,33 @@ rounds:
       isolation: fenced
       blocked: true
       protocol_error: no valid findings block
+    - "n": 6
+      timestamp: "2026-10-14T00:01:36-07:00"
+      dispatched: "2026-10-13T23:58:36-07:00"
+      agent: codex
+      findings:
+        - id: BR-12
+          severity: Important
+          title: CI polling can exceed its advertised deadline and accept a late green result
+          detail: 'cmd/sdlc/cigate_wait.go:86-93 passes the original context through a complete gate evaluation and checks elapsed time only for pending/unregistered results. ARCH-CONSTRAINTS: enforce the remaining budget on polling IO, separately from suite runtime, and test slow reads and green completion after expiry.'
+          family: polling-deadlines-cover-inflight-work
+          round: 6
+        - id: BR-13
+          severity: Important
+          title: Integration merge and push subprocesses have no deadline or cancellation
+          detail: 'cmd/sdlc/landingintegrate.go:199,246 uses the unbounded execGitRunner in cmd/sdlc/runner.go:37-44. This is the 3rd finding in family unbounded-subprocess: state the rule and sweep the integration call graph, including probes and cleanup, rather than fixing only these instances. ARCH-CONSTRAINTS and ARCH-ORDER require bounded process and descendant lifetimes plus tests for cancellation and uncertain push completion.'
+          family: unbounded-subprocess
+          round: 6
+        - id: BR-14
+          severity: Important
+          title: Integration state remains mutable outside the pure transition model
+          detail: 'cmd/sdlc/landing.go:430-435 updates head, PR, attempts and resume state directly; cmd/sdlc/landingintegrate.go:43 only selects actions, and its lease-refused event is test-only. ARCH-ORDER: introduce an owned state/event transition model returning next state and effects, route production outcomes through it, and revise the plan to describe the enforced boundary.'
+          family: authoritative-state-transitions-owned-by-core
+          round: 6
+      boundary: M2
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#332 (boundary-review)
@@ -301,6 +328,19 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 **Protocol error:** no valid findings block — this round contributed no findings.
 
+## Round 6 — 2026-10-14T00:01:36-07:00 (codex) — BLOCKED
+
+### Raised
+
+- **BR-12** [Important] `polling-deadlines-cover-inflight-work` CI polling can exceed its advertised deadline and accept a late green result
+  cmd/sdlc/cigate_wait.go:86-93 passes the original context through a complete gate evaluation and checks elapsed time only for pending/unregistered results. ARCH-CONSTRAINTS: enforce the remaining budget on polling IO, separately from suite runtime, and test slow reads and green completion after expiry.
+- **BR-13** [Important] `unbounded-subprocess` Integration merge and push subprocesses have no deadline or cancellation
+  cmd/sdlc/landingintegrate.go:199,246 uses the unbounded execGitRunner in cmd/sdlc/runner.go:37-44. This is the 3rd finding in family unbounded-subprocess: state the rule and sweep the integration call graph, including probes and cleanup, rather than fixing only these instances. ARCH-CONSTRAINTS and ARCH-ORDER require bounded process and descendant lifetimes plus tests for cancellation and uncertain push completion.
+- **BR-14** [Important] `authoritative-state-transitions-owned-by-core` Integration state remains mutable outside the pure transition model
+  cmd/sdlc/landing.go:430-435 updates head, PR, attempts and resume state directly; cmd/sdlc/landingintegrate.go:43 only selects actions, and its lease-refused event is test-only. ARCH-ORDER: introduce an owned state/event transition model returning next state and effects, route production outcomes through it, and revise the plan to describe the enforced boundary.
+
 ## Open findings
 
-(none — every finding has been disposed)
+- **BR-12** [Important] `polling-deadlines-cover-inflight-work` CI polling can exceed its advertised deadline and accept a late green result
+- **BR-13** [Important] `unbounded-subprocess` Integration merge and push subprocesses have no deadline or cancellation
+- **BR-14** [Important] `authoritative-state-transitions-owned-by-core` Integration state remains mutable outside the pure transition model

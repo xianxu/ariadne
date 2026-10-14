@@ -348,7 +348,8 @@ func deleteLandingBranch(r gitRunner, t landingTarget, branch, head string) erro
 	return err
 }
 func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) error {
-	r := mergeRunner
+	ctx := commandContext(f.Context)
+	r := boundedLandingGit(ctx, mergeRunner)
 	branch, current, err := landingIssueBranch(r, t, f.Branch)
 	if err != nil {
 		return err
@@ -366,10 +367,6 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 	gh, ok := ghClient.(landingGH)
 	if !ok {
 		return errors.New("GitHub adapter does not support structured landing evidence")
-	}
-	ctx := f.Context
-	if ctx == nil {
-		ctx = context.Background()
 	}
 	head, err := landingOptional(r, t.Root, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch)
 	if err != nil {
@@ -397,14 +394,20 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 			return err
 		}
 
-		landingGitCall := func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }
+		landingGitCall := func(args ...string) (string, error) {
+			readRunner := r
+			if len(args) > 1 && args[0] == "worktree" && (args[1] == "remove" || args[1] == "prune") {
+				readRunner = recoveryLandingGit(r)
+			}
+			return landingGit(readRunner, t.Root, args...)
+		}
 		if f.NoValidate {
 			cwarn(stderr, "--no-validate: skipping instance and duplicate-ID gates")
 		}
 		if f.NoJudge {
 			cwarn(stderr, "--no-judge: skipping reviewed-HEAD publish gate")
 		}
-		attempts := 0
+		state := newIntegrationState(head, pr, resumeIntegration)
 		for {
 			targetMain, fetchErr := t.fetchMain(r)
 			if fetchErr != nil {
@@ -414,29 +417,35 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 			if err != nil {
 				return err
 			}
-			if remoteHead != head && (!resumeIntegration || remoteHead != pr.HeadOID) {
+			if remoteHead != state.head && (!state.resume || remoteHead != state.pr.HeadOID) {
 				return errors.New("local, remote and PR heads must match; push selected branch before landing")
 			}
-			included, err := integrationAncestor(r, t.Root, targetMain, head)
+			included, err := integrationAncestor(r, t.Root, targetMain, state.head)
 			if err != nil {
 				return err
 			}
-			step := nextIntegrationStep(integrationObs{MainIncluded: included, Attempts: attempts, Resume: resumeIntegration})
+			var step integrationStep
+			state, step, err = transitionIntegration(state, integrationEvent{kind: integrationMainObserved, main: targetMain, included: included})
+			if err != nil {
+				return err
+			}
 			if step == integrationRefuse {
 				return fmt.Errorf("main moved too often: stopped after %d integrations; re-run sdlc merge", integrationLimit)
 			}
-			if step == integrationMerge || step == integrationPush {
-				fmt.Fprintf(stderr, "Integrating %s/main before landing (attempt %d of %d)\n", t.Remote, attempts+1, integrationLimit)
-				head, pr, err = integrateLandingMain(ctx, r, gh, t, branch, head, targetMain, pr, resumeIntegration, f.NoJudge, f.IssuesDir, stderr)
+			if step == integrationMerge || step == integrationReplay {
+				fmt.Fprintf(stderr, "Integrating %s/main before landing (attempt %d of %d)\n", t.Remote, state.attempts+1, integrationLimit)
+				state, err = integrateLandingMain(ctx, r, gh, t, branch, state, f.NoJudge, f.IssuesDir, stderr)
 				if err != nil {
 					return err
 				}
-				attempts++
-				resumeIntegration = false
 			}
+			if state.phase != integrationGates {
+				return fmt.Errorf("integration cannot run gates from phase %s", state.phase)
+			}
+			head, pr = state.head, state.pr
 			// Gate this exact integrated tree. A resumed integration of an older
 			// main is brought fully current before spending time on its suite.
-			included, err = integrationAncestor(r, t.Root, targetMain, head)
+			included, err = integrationAncestor(r, t.Root, targetMain, state.head)
 			if err != nil {
 				return err
 			}
@@ -457,7 +466,11 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 				}
 			}
 			localRun := newLocalCheckRunner(localRunDeps{GH: ghClient, Repo: t.Repo, Root: t.Root, Git: landingGitCall, PR: pr.Number, Stderr: stderr})
-			if err = waitCIGate(ctx, ghClient, t.Repo, pr.Number, targetMain, head, landingGitCall, localRun, f.NoCI, stderr); err != nil {
+			if err = waitCIGate(ctx, ghClient, t.Repo, pr.Number, targetMain, head, landingGitCall, localRun, f.NoCI, stderr, func(ioCtx context.Context) func(...string) (string, error) {
+				readRunner := withLandingGitContext(ioCtx, r)
+				return func(args ...string) (string, error) { return landingGit(readRunner, t.Root, args...) }
+			}); err != nil {
+				state, _, _ = transitionIntegration(state, integrationEvent{kind: integrationGatesRejected})
 				return err
 			}
 			if err = revalidateLanding(r, t, branch, head, current); err != nil {
@@ -473,7 +486,14 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 			if err != nil {
 				return err
 			}
-			if nextIntegrationStep(integrationObs{MainIncluded: included, GatesPassed: true, Attempts: attempts}) == integrationLand {
+			state, step, err = transitionIntegration(state, integrationEvent{kind: integrationGatesChecked, main: latest, included: included})
+			if err != nil {
+				return err
+			}
+			if step == integrationRefuse {
+				return fmt.Errorf("main moved too often: stopped after %d integrations; re-run sdlc merge", integrationLimit)
+			}
+			if step == integrationLand {
 				break
 			}
 		}

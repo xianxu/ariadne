@@ -298,3 +298,40 @@ So a branch that deletes `test:` or lowers `WF_TEST_WEIGHT` still owes the suite
 - Main's final fetch narrows a remaining external race: `--match-head-commit`
   pins the PR head, not main atomically. The approved server merge method is
   unchanged; atlas states this limit explicitly.
+
+### R6 — 2026-10-14, M2 boundary review corrections
+
+- **BR-12 / ARCH-CONSTRAINTS:** the 20-minute CI budget now covers every
+  polling read: PR head/checks, Actions job, ancestor statuses, and Git facts
+  or ancestry reads. Each call receives the remaining deadline; expiry is
+  latched and checked before accepting any result, including green. The local
+  runner keeps its parent context and its entire elapsed duration (including
+  lock queueing) is excluded. Worktree remove/prune cleanup uses fresh bounded
+  IO after cancellation, separately from the admission budget.
+- **BR-13 / ARCH-CONSTRAINTS, ARCH-ORDER:** enumerate the integration Git graph:
+  target resolution, remote/ref reads, ancestor and resume probes, fetch, merge,
+  replay reads and commit-tree, lease push, abort/reset, worktree and checkout
+  cleanup. Durable landing commands use a contextual 2-minute command bound;
+  abort/reset and worktree cleanup use fresh 30-second commands. Shared gitx
+  defaults, environment commands, contextual input commands and history streams
+  also have a 2-minute ceiling, covering publish/ownership paths that do not use
+  the landing runner. Each subprocess owns its process group, bounds pipe drain
+  to one second, and reclaims descendants after cancellation or parent exit.
+  Cancellation during push is uncertain: retain the integration, then re-read
+  Git/GitHub and validate its existing resume evidence on retry. No rollback
+  follows a push whose publication may already have occurred.
+- **BR-14 / ARCH-ORDER:** `integrationState` and `transitionIntegration` in
+  `integrationstate.go` supersede the action-only observation helper. The core
+  owns head, previous head (lease/rollback base), main, PR, attempts, resume and
+  phase. Typed observations/outcomes produce the next state and effect: merge,
+  replay, abort/reset, push, gates, land or refusal. Production effects report
+  their results through this transition function, including failed push,
+  recovery completion, and main moving after gates. Invalid phase/event pairs
+  refuse. The shell only observes IO and executes the selected effects.
+- Regression evidence: deadline tests reproduced slow reads without deadlines
+  and accepted late green/Git results before correction. Removing retry counting
+  fails state/bound tests; removing post-exit group cleanup fails landing and
+  shared gitx descendant tests well before their 60-second natural lifetime.
+  Real post-receive cancellation tests establish that the remote already
+  published, then preserve both heads and recover landing without a duplicate
+  integration.

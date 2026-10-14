@@ -181,6 +181,11 @@ first-class evidence, recorded on the commit it ran on:
     holds the repository's weight. Before #332 it held one slot and went
     reentrant.
 
+The durable landing CI wait has a 20-minute budget covering inflight GitHub
+and Git reads. Every read receives the remaining deadline, and late green
+results refuse. Local suite runtime, including machine-lock queueing, is
+excluded. Cleanup receives fresh bounded IO after cancellation.
+
 ## Not the same as the publish gate or the close review
 
 Three distinct tiers, none an LLM at merge-time (#160):

@@ -223,31 +223,6 @@ func TestLandingIntegrationPublishCollisionResets(t *testing.T) {
 	}
 }
 
-func TestNextIntegrationStep(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		obs  integrationObs
-		want integrationStep
-	}{
-		{"needs main", integrationObs{}, integrationMerge},
-		{"last attempt", integrationObs{Attempts: 2}, integrationMerge},
-		{"limit", integrationObs{Attempts: 3}, integrationRefuse},
-		{"gates", integrationObs{MainIncluded: true}, integrationGates},
-		{"land", integrationObs{MainIncluded: true, GatesPassed: true, Attempts: 3}, integrationLand},
-		{"resume", integrationObs{Resume: true}, integrationPush},
-		{"conflict", integrationObs{Result: "conflict"}, integrationAbort},
-		{"replay refused", integrationObs{Result: "replay-refused"}, integrationReset},
-		{"replay passed", integrationObs{Result: "replay-passed"}, integrationPush},
-		{"lease refused", integrationObs{Result: "lease-refused"}, integrationRefuse},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := nextIntegrationStep(tc.obs); got != tc.want {
-				t.Fatalf("got %s want %s", got, tc.want)
-			}
-		})
-	}
-}
-
 func TestIntegrationPRSync(t *testing.T) {
 	oldTimeout, oldPoll := integrationSyncTimeout, integrationPollInterval
 	integrationSyncTimeout, integrationPollInterval = 20*time.Millisecond, time.Millisecond

@@ -60,40 +60,137 @@ var ciWaitPause = func(ctx context.Context, d time.Duration) error {
 	}
 }
 
-func waitCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, head string, git func(args ...string) (string, error), run localCheckRunner, noCI bool, stderr io.Writer) error {
+// Each polling read gets a fresh deadline from the remaining budget. A suite
+// does not inherit that deadline: its complete runtime is excluded afterward.
+type ciReadBudget struct {
+	started   time.Time
+	suiteTime time.Duration
+	expired   bool
+}
+
+func (b *ciReadBudget) remaining() time.Duration {
+	return ciWaitLimit - (ciWaitNow().Sub(b.started) - b.suiteTime)
+}
+
+func readWithinCIBudget[T any](ctx context.Context, b *ciReadBudget, read func(context.Context) (T, error)) (T, error) {
+	var zero T
+	if err := ctx.Err(); err != nil {
+		return zero, err
+	}
+	if b.expired || b.remaining() <= 0 {
+		b.expired = true
+		return zero, context.DeadlineExceeded
+	}
+	ioCtx, cancel := context.WithTimeout(ctx, b.remaining())
+	defer cancel()
+	value, err := read(ioCtx)
+	if ctx.Err() != nil {
+		return zero, ctx.Err()
+	}
+	if ioCtx.Err() != nil || b.remaining() <= 0 {
+		b.expired = true
+		return zero, context.DeadlineExceeded
+	}
+	return value, err
+}
+
+type ciBudgetGH struct {
+	ghCaller
+	budget *ciReadBudget
+}
+
+func (g ciBudgetGH) PRHeadOID(ctx context.Context, repo string, number int) (string, error) {
+	return readWithinCIBudget(ctx, g.budget, func(ctx context.Context) (string, error) { return g.ghCaller.PRHeadOID(ctx, repo, number) })
+}
+func (g ciBudgetGH) PRChecks(ctx context.Context, repo string, number int) ([]prCheck, error) {
+	return readWithinCIBudget(ctx, g.budget, func(ctx context.Context) ([]prCheck, error) { return g.ghCaller.PRChecks(ctx, repo, number) })
+}
+func (g ciBudgetGH) JobRun(ctx context.Context, repo string, id int64) (jobRun, error) {
+	return readWithinCIBudget(ctx, g.budget, func(ctx context.Context) (jobRun, error) { return g.ghCaller.JobRun(ctx, repo, id) })
+}
+func (g ciBudgetGH) CommitStatuses(ctx context.Context, repo, sha string) (map[string]string, error) {
+	return readWithinCIBudget(ctx, g.budget, func(ctx context.Context) (map[string]string, error) { return g.ghCaller.CommitStatuses(ctx, repo, sha) })
+}
+
+func waitCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, head string, git func(args ...string) (string, error), run localCheckRunner, noCI bool, stderr io.Writer, gitForContext ...func(context.Context) func(...string) (string, error)) error {
 	if noCI {
 		return runCIGate(ctx, gh, repo, number, base, head, git, run, true, stderr)
 	}
-	facts, err := prepareCIGateFacts(git, base, head)
+	budget := &ciReadBudget{started: ciWaitNow()}
+	var lastPending error
+	timeout := func() error {
+		return fmt.Errorf("CI wait exceeded %v: %w", ciWaitLimit, errors.Join(context.DeadlineExceeded, lastPending))
+	}
+	budgetGit := func(args ...string) (string, error) {
+		// Detached probe cleanup must remain possible after the read budget or
+		// caller expires. Only these exact cleanup commands get fresh authority.
+		cleanup := len(args) == 2 && args[0] == "worktree" && args[1] == "prune" || len(args) == 4 && args[0] == "worktree" && args[1] == "remove" && args[2] == "--force"
+		if cleanup {
+			cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), landingRecoveryTimeout)
+			defer cancel()
+			read := git
+			if len(gitForContext) > 0 {
+				read = gitForContext[0](cleanupCtx)
+			}
+			return read(args...)
+		}
+		return readWithinCIBudget(ctx, budget, func(ioCtx context.Context) (string, error) {
+			read := git
+			if len(gitForContext) > 0 {
+				read = gitForContext[0](ioCtx)
+			}
+			return read(args...)
+		})
+	}
+	facts, err := prepareCIGateFacts(budgetGit, base, head)
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	if budget.expired || budget.remaining() <= 0 {
+		return timeout()
+	}
 	if err != nil {
 		return err
 	}
-	started := ciWaitNow()
-	var suiteTime time.Duration
 	var timedRun localCheckRunner
 	if run != nil {
 		timedRun = func(ctx context.Context, c localCheck, sha string) (localRunRecord, error) {
+			if err := ctx.Err(); err != nil {
+				return localRunRecord{}, err
+			}
+			if budget.expired || budget.remaining() <= 0 {
+				budget.expired = true
+				return localRunRecord{}, context.DeadlineExceeded
+			}
 			start := ciWaitNow()
 			rec, err := run(ctx, c, sha)
-			suiteTime += ciWaitNow().Sub(start)
+			budget.suiteTime += ciWaitNow().Sub(start)
 			return rec, err
 		}
 	}
+	boundedGH := ciBudgetGH{ghCaller: gh, budget: budget}
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		err := runPreparedCIGate(ctx, gh, repo, number, base, head, git, timedRun, false, stderr, facts)
+		if budget.expired || budget.remaining() <= 0 {
+			return timeout()
+		}
+		err := runPreparedCIGate(ctx, boundedGH, repo, number, base, head, budgetGit, timedRun, false, stderr, facts)
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if budget.expired || budget.remaining() <= 0 {
+			return timeout()
+		}
 		var verdict *ciGateError
 		if !errors.As(err, &verdict) || (verdict.Reason != ciPending && verdict.Reason != ciNotRegistered) {
 			return err
 		}
-		elapsed := ciWaitNow().Sub(started) - suiteTime
-		if elapsed >= ciWaitLimit {
-			return fmt.Errorf("CI wait exceeded %v: %w", ciWaitLimit, err)
-		}
+		lastPending = err
+		elapsed := ciWaitLimit - budget.remaining()
 		fmt.Fprintf(stderr, "waiting for CI on PR #%d (%v of %v): %s\n", number, elapsed.Round(time.Second), ciWaitLimit, err)
-		if err := ciWaitPause(ctx, min(ciWaitInterval, ciWaitLimit-elapsed)); err != nil {
+		if err := ciWaitPause(ctx, min(ciWaitInterval, budget.remaining())); err != nil {
 			return err
 		}
 	}

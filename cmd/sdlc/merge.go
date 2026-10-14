@@ -285,7 +285,7 @@ func decideMergeAction(openPRNumber string, mergedExists bool, unmergedCount int
 
 func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	ctx := commandContext(f.Context)
-	target, err := resolveLandingTarget(mergeRunner)
+	target, err := resolveLandingTarget(boundedLandingGit(ctx, mergeRunner))
 	if err != nil {
 		return err
 	}

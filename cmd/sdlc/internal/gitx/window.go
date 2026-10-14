@@ -8,10 +8,10 @@
 package gitx
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 	"time"
@@ -20,13 +20,12 @@ import (
 // run is the package-level command runner. Test code in this package
 // (and downstream packages once we propagate the pattern) can override
 // it to drive fixture-based scenarios without spawning real git
-// processes. Production path defaults to exec.Command(...).Output().
+// processes. Production commands have a two-minute bound and reclaim descendants.
 //
-// All new git callers in this package should use run; M3+ will migrate
-// the legacy direct exec.Command calls below when those code paths are
-// touched again.
+// All new git callers in this package should use run. Legacy direct calls
+// also use boundedGitOutput, preserving their existing injection behavior.
 var run = func(name string, args ...string) ([]byte, error) {
-	return exec.Command(name, args...).Output()
+	return boundedGitOutput(context.Background(), nil, name, args...)
 }
 
 // RunGit runs `git <args>` via the package-level `run` shim and returns
@@ -107,7 +106,8 @@ func BranchPoint() string {
 	if local == "" || local == base {
 		return base
 	}
-	if base == "" || exec.Command("git", "merge-base", "--is-ancestor", base, local).Run() == nil {
+	_, ancestorErr := boundedGitOutput(context.Background(), nil, "git", "merge-base", "--is-ancestor", base, local)
+	if base == "" || ancestorErr == nil {
 		return local
 	}
 	return base
@@ -340,8 +340,7 @@ func CommitWindow(issueNum string, extraRefs ...string) (firstSHA, firstISO, las
 	if len(extraRefs) > 0 {
 		args = append(append(args, "HEAD"), extraRefs...)
 	}
-	cmd := exec.Command("git", args...)
-	out, err := cmd.Output()
+	out, err := boundedGitOutput(context.Background(), nil, "git", args...)
 	if err != nil {
 		// non-zero exit (e.g., not a git repo) → no window, no error
 		// (matches close-issue.py's CalledProcessError swallow)
@@ -383,13 +382,11 @@ func CommitWindow(issueNum string, extraRefs ...string) (firstSHA, firstISO, las
 	// v3 segment-start: parent of first match (still bounded by cap). Only for
 	// code history: a tracker commit's parent is some other card's change.
 	if len(extraRefs) > 0 {
-		if onHead := exec.Command("git", "merge-base", "--is-ancestor", firstSHA, "HEAD").Run(); onHead != nil {
+		if _, onHead := boundedGitOutput(context.Background(), nil, "git", "merge-base", "--is-ancestor", firstSHA, "HEAD"); onHead != nil {
 			return firstSHA, firstISO, lastISO, nil
 		}
 	}
-	parentOut, perr := exec.Command(
-		"git", "log", "-1", "--pretty=%aI", firstSHA+"^",
-	).Output()
+	parentOut, perr := boundedGitOutput(context.Background(), nil, "git", "log", "-1", "--pretty=%aI", firstSHA+"^")
 	if perr == nil {
 		parentISO := strings.TrimSpace(string(parentOut))
 		if parentISO != "" && parentISO >= capISO {
@@ -452,8 +449,7 @@ func windowCapISO() string {
 // downstream (the atlas gate's docs rule) then misreads it (#231; lessons: git's
 // porcelain answers a human's question).
 func DiffNames(sinceRef, untilRef string) ([]string, error) {
-	cmd := exec.Command("git", ChangedPathArgs(sinceRef, untilRef)...)
-	out, err := cmd.Output()
+	out, err := boundedGitOutput(context.Background(), nil, "git", ChangedPathArgs(sinceRef, untilRef)...)
 	if err != nil {
 		return nil, fmt.Errorf("git diff --name-only %s %s: %w", sinceRef, untilRef, err)
 	}
@@ -527,8 +523,7 @@ type LogEntry struct {
 // (oldest first), one LogEntry per commit. Used by close-issue.py's
 // "first commit referencing '#N M4'" scan.
 func LogReverse() ([]LogEntry, error) {
-	cmd := exec.Command("git", "log", "--reverse", "--format=%H %ci %s")
-	out, err := cmd.Output()
+	out, err := boundedGitOutput(context.Background(), nil, "git", "log", "--reverse", "--format=%H %ci %s")
 	if err != nil {
 		return nil, fmt.Errorf("git log: %w", err)
 	}
@@ -560,7 +555,7 @@ func LogReverse() ([]LogEntry, error) {
 // RepoTopLevel returns the path of the git repo root (`git rev-parse
 // --show-toplevel`).
 func RepoTopLevel() (string, error) {
-	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	out, err := boundedGitOutput(context.Background(), nil, "git", "rev-parse", "--show-toplevel")
 	if err != nil {
 		return "", fmt.Errorf("git rev-parse --show-toplevel: %w", err)
 	}

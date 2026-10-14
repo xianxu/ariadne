@@ -1,9 +1,8 @@
 package gitx
 
 import (
+	"context"
 	"fmt"
-	"os"
-	"os/exec"
 	"regexp"
 	"sort"
 	"strconv"
@@ -15,11 +14,7 @@ import (
 // the bytes beside the *exec.ExitError), so callers can read both the output
 // and the exit status via gitExitCode. Overridable like run.
 var runEnv = func(env []string, name string, args ...string) ([]byte, error) {
-	cmd := exec.Command(name, args...)
-	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
-	}
-	return cmd.Output()
+	return boundedGitOutput(context.Background(), env, name, args...)
 }
 
 // rebasedPatchIdentity fixes author and committer so S is a pure function of
