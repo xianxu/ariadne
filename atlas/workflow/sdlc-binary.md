@@ -362,8 +362,13 @@ worktree's `sdlc stage` record (`fleet.StagedCommit`), is the hold `staged`. The
 
 Tracker reads are the inventory's network cost (#290). `repoRecords` is a
 per-key-once cache, warmed for every tracked repository (`tracker.CutOver`,
-local) with at most 8 concurrent loads before the row walk, each under a 15s
-deadline (a timed-out load is kept, so the walk never waits twice). A read is
+local) with at most 8 concurrent loads before the row walk. Each load waits at
+most 15s on its remote (#360): the budget (`TrunkFile.BoundRemote`) covers only
+remote contact (ls-remote, fetch, push), shared across them, and local git work
+is not counted, so a loaded machine cannot spend it. A hanging remote then reads
+as stale, from the last fetch, like any unreachable remote (unknown if it was
+never fetched); a load that ends on the deadline is kept, so the walk never waits
+twice. A read is
 one `ls-remote` when the tracker is unchanged: `TrunkFile.RemoteExists` hands
 the tip it saw to the next `Snapshot`, which reads it directly when the local
 tracking ref already points there, and fetches otherwise. Tracker fetches pass

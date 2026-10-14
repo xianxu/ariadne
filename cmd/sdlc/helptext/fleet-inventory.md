@@ -25,8 +25,9 @@ remote is not contacted). A read both stale and partial reports partial, and
 `claims_error` carries both reasons. `claims_error` says why for stale, partial
 and unknown. Claims come from one tracker read per tracked repository; the
 reads run concurrently (at most 8), skip the fetch when the remote tracker is
-unchanged, and each has a 15s deadline — a remote that does not answer makes
-only its own repository's rows unknown.
+unchanged, and each waits at most 15s on its remote (local git work is not
+counted, #360) — a remote that does not answer makes only its own repository's
+rows stale (answered from its last fetch), or unknown if it was never fetched.
 
 SLOTS (#289): `slots` gives one readiness verdict per workspace. A fleet
 primary is `repo:0`; `<fleet>/worktree/<repo>-slotN/<repo>` is `repo:N`. A

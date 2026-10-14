@@ -56,7 +56,7 @@ func (t *TrunkFile) Bootstrap(files map[string][]byte, message string, beforePus
 	if _, diag, err := t.run(nil, "check-ref-format", ref); err != nil {
 		return result, fmt.Errorf("invalid bootstrap ref: %w\n%s", err, diag)
 	}
-	out, diag, err := t.run(nil, "ls-remote", "--refs", "--exit-code", "--", t.remote, ref)
+	out, diag, err := t.runRemote(nil, "ls-remote", "--refs", "--exit-code", "--", t.remote, ref)
 	if err == nil {
 		fields := strings.Fields(string(out))
 		if len(fields) != 2 || fields[1] != ref {
@@ -82,7 +82,7 @@ func (t *TrunkFile) Bootstrap(files map[string][]byte, message string, beforePus
 	if err := t.operationContext().Err(); err != nil {
 		return result, err
 	}
-	out, diag, err = t.run(nil, "push", "--porcelain", "--force-with-lease="+ref+":", "--", t.remote, result.Candidate+":"+ref)
+	out, diag, err = t.runRemote(nil, "push", "--porcelain", "--force-with-lease="+ref+":", "--", t.remote, result.Candidate+":"+ref)
 	observation := observedPush(err, append(out, diag...))
 	if t.operationContext().Err() != nil {
 		// Cancellation can leave partial porcelain output; it is not a completed
