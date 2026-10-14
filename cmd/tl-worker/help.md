@@ -8,7 +8,7 @@ current.
 
 Already stated elsewhere, and binding here; not repeated:
   - AGENTS §15: report every outcome to the hub, ask the hub rather than an
-    in-pane prompt, and call couch and sdlc as the whole Bash call.
+    in-pane prompt, and the exact form a couch or sdlc call must take.
   - AGENTS §5: targeted test runs while iterating, the full suite once before a
     close, and the machine-wide suite gate.
   - `couch --skill`: sending (including --message-file for shell syntax),

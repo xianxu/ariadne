@@ -35,6 +35,11 @@ var (
 	ErrLocked = errors.New("the operator holds the lock")
 	// ErrStale: the section changed since it was read (couch exit 6).
 	ErrStale = errors.New("stale: the section changed since it was read")
+	// ErrDeliveryGap: couch failed to record a delivery to this slot, so the
+	// owed events are unknown, not zero. Folding is impossible until the TL has
+	// checked its recent messages; a write without --fold-owed still works.
+	ErrDeliveryGap = errors.New("delivery gap: couch failed to record a delivery, so the owed events are unknown; " +
+		"check recent messages, then write without --fold-owed")
 )
 
 const (
@@ -85,6 +90,9 @@ func decodeReply(verb string, raw []byte) (couchReply, error) {
 	var r couchReply
 	if err := json.Unmarshal(raw, &r); err != nil {
 		return r, fmt.Errorf("couch --session-sync %s: unreadable reply: %v", verb, err)
+	}
+	if r.Code == "delivery-gap" {
+		return r, fmt.Errorf("couch --session-sync %s: %w (%s)", verb, ErrDeliveryGap, r.Error)
 	}
 	if r.Code != "ok" {
 		return r, fmt.Errorf("couch --session-sync %s refused (%s): %s", verb, r.Code, r.Error)

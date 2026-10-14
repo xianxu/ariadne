@@ -280,3 +280,31 @@ func TestSeenSetMalformedIsAnError(t *testing.T) {
 		t.Error("wrote despite an unreadable seen-set")
 	}
 }
+
+// A delivery gap makes the owed events unknown: a fold refuses with the next
+// action, while a plain write still goes through.
+func TestDeliveryGapRefusesFoldOnly(t *testing.T) {
+	f := newFake(map[string]string{"Needs you": "x"})
+	f.gap = true
+	file, body := statusFile(t, "")
+	_, err := run(t, deps{ss: f}, "status", "section", file, "Needs you", body("y"), "--fold-owed")
+	if !errors.Is(err, ErrDeliveryGap) || !strings.Contains(err.Error(), "check recent messages") {
+		t.Errorf("fold under a gap: err = %v", err)
+	}
+	if f.writes != 0 {
+		t.Error("folded write went through despite unknown owed events")
+	}
+	if _, err := run(t, deps{ss: f}, "status", "section", file, "Needs you", body("z")); err != nil {
+		t.Fatalf("plain write under a gap: %v", err)
+	}
+	if f.sections["Needs you"] != "z" {
+		t.Errorf("plain write did not land: %q", f.sections["Needs you"])
+	}
+}
+
+func TestDecodeReplyDeliveryGap(t *testing.T) {
+	_, err := decodeReply("status", []byte(`{"Code":"delivery-gap","Error":"a delivery was not recorded"}`))
+	if !errors.Is(err, ErrDeliveryGap) {
+		t.Errorf("err = %v, want ErrDeliveryGap", err)
+	}
+}

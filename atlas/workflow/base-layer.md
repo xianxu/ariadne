@@ -72,7 +72,7 @@ Derivatives run that owner's binaries; they do not copy its Go source through
 the manifest. `weave compile` runs each owner's root `make tools` before
 composition. The target builds explicit binaries into its own `bin/` from
 tracked sources and must not depend on weave or generated helpers. Ariadne
-builds sdlc, datatype, vocabulary, and doc-review; weave itself is distributed
+builds sdlc, datatype, vocabulary, doc-review, tl-worker, and tl-lead; weave itself is distributed
 separately. Child commands receive owner bins on PATH, while the human shell
 requires an explicit PATH update (compile prints the directories).
 

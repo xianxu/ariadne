@@ -22,6 +22,8 @@ type fakeSessionSync struct {
 	diff       string
 	editBefore map[int]map[string]string // write call number (1-based) → heading → new body
 
+	gap bool // status refuses with a delivery gap
+
 	writeCalls int // every WriteSection call
 	writes     int // successful writes
 	seenAll    bool
@@ -77,6 +79,9 @@ func (f *fakeSessionSync) WriteSection(_, heading, bodyPath, hash string, fold [
 }
 
 func (f *fakeSessionSync) Status(string) (SyncStatus, error) {
+	if f.gap {
+		return SyncStatus{}, fmt.Errorf("couch --session-sync status: %w", ErrDeliveryGap)
+	}
 	return SyncStatus{Holder: f.holder, Owed: slices.Clone(f.owed)}, nil
 }
 

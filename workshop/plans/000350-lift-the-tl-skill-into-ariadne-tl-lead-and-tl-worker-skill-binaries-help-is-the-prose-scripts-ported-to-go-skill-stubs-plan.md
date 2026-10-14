@@ -156,3 +156,9 @@
   - **Legacy lock.** The `holder: agent` lock deletion is not ported, because parley.nvim#315 is done.
   - **Settings exemption.** The `tl-worker *` / `tl-lead *` sandbox exemptions are ariadne#354, a local-gates change built from main by another slot. M1's milestone-close waits for it to land.
 
+- 2026-10-14 — the M1 boundary review (BR-1 to BR-5), answered in the same round:
+  - **BR-1, the stale tool lists.** Every restatement of "the tools ariadne builds" now names `tl-worker` and `tl-lead`: `README.md`, `atlas/workflow/base-layer.md`, `atlas/workflow/setup-and-replication.md` and `atlas/workflow/sandbox.md` (its exempt-binaries list, now "one per `cmd/` directory").
+  - **BR-2, "whole Bash call".** `cmd/tl-worker/help.md` no longer restates §15's phrasing ("the exact form a couch or sdlc call must take"), and `TestWorkerHelpDoesNotRestateSection15` now forbids "whole Bash call" as planned.
+  - **BR-3, the live fold check.** `TestSessionSyncConformance` now folds an ID that isn't owed against the real couch and asserts the refusal changes nothing. The dummy owner has no owed events.
+  - **BR-4, the delivery gap.** Couch's `delivery-gap` reply is the typed `ErrDeliveryGap` (`decodeReply`). A `--fold-owed` write refuses with the next action ("check recent messages, then write without --fold-owed"), and a plain write still lands (`TestDeliveryGapRefusesFoldOnly`). `--accept-gap` is not passed through: folding needs the owed set, which a gap leaves unknown. The fake for `SDLC` is `fakeSDLC`, in `cmd/tl-lead/trains_test.go`; there is no `sdlc_fake_test.go`. `cmd/tl-lead/fake_test.go` pins `fakeSessionSync`'s refusals.
+  - **BR-5, a fleet failure.** A failed `sdlc fleet inventory` no longer aborts the render: the Trains block renders, and the off-train block reads `? off-train slots unread: <reason>` (`TestGatherTrainsFleetFailureDegrades`).

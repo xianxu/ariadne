@@ -13,12 +13,13 @@ import (
 // fakeSDLC serves a fleet and per-checkout observations; a missing
 // observation is an error, as a failed `sdlc issue show` would be.
 type fakeSDLC struct {
-	fleet Fleet
+	fleet    Fleet
+	fleetErr error
 	obs   map[string]Observation // "<repoPath>#<n>"
 	calls int
 }
 
-func (f *fakeSDLC) FleetInventory(string) (Fleet, error) { return f.fleet, nil }
+func (f *fakeSDLC) FleetInventory(string) (Fleet, error) { return f.fleet, f.fleetErr }
 
 // RepoRoot resolves a repository to its :0 checkout, as `sdlc workspace` does.
 func (f *fakeSDLC) RepoRoot(_, repo string) (string, error) {
@@ -209,5 +210,30 @@ func TestStatusTrainsWritesBoth(t *testing.T) {
 	}
 	if !strings.Contains(f.sections["Trains"], "ariadne#1 ✓") || f.sections["Slots (off-train)"] != "_None._" {
 		t.Errorf("sections = %q", f.sections)
+	}
+}
+
+// A failed fleet inventory leaves the Trains block intact and marks only the
+// off-train block unread.
+func TestGatherTrainsFleetFailureDegrades(t *testing.T) {
+	root := t.TempDir()
+	project := filepath.Join(root, "project.md")
+	if err := os.WriteFile(project, []byte("## Trains\n\n| Train | Cars, in order | Slot |\n|---|---|---|\n| T | ariadne#1 | ariadne:1 |\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sd := &fakeSDLC{
+		fleet:    Fleet{Slots: []FleetSlot{{Address: "ariadne:0", Repo: "ariadne", HostPath: root}}},
+		fleetErr: fmt.Errorf("sdlc fleet inventory: timed out after 1m0s"),
+		obs:      map[string]Observation{root + "#1": {Status: "done"}},
+	}
+	r, err := gatherTrains(sd, project, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(r.Trains, "ariadne#1 ✓") {
+		t.Errorf("Trains lost on a fleet failure:\n%s", r.Trains)
+	}
+	if !strings.Contains(r.Slots, "? off-train slots unread: sdlc fleet inventory: timed out") {
+		t.Errorf("Slots = %q", r.Slots)
 	}
 }

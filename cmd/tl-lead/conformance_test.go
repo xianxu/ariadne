@@ -10,8 +10,8 @@ import (
 )
 
 // TestSessionSyncConformance checks the fake's model against the real couch:
-// read returns a hash, a write naming it succeeds, a stale hash is exit 6, and
-// the operator's lock is exit 3. Opt-in (TL_LEAD_LIVE=1, couch on PATH): run it
+// read returns a hash, a write naming it succeeds, a stale hash is exit 6, a
+// fold of an ID not owed refuses, and the operator's lock is exit 3. Opt-in (TL_LEAD_LIVE=1, couch on PATH): run it
 // at each close of this binary's work and whenever pair changes session-sync.
 // The file names a dummy owner, so no slot's owed events are involved, and the
 // test never folds.
@@ -49,6 +49,22 @@ func TestSessionSyncConformance(t *testing.T) {
 	}
 	if _, err := ss.Status(file); err != nil {
 		t.Errorf("status: %v", err)
+	}
+	// Folding an ID that isn't owed refuses and changes nothing, as the fake
+	// models it. The dummy owner has no owed events, so no real one is touched.
+	_, hash, err = ss.ReadSection(file, "A")
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := filepath.Join(dir, "other.md")
+	if err := os.WriteFile(other, []byte("other\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ss.WriteSection(file, "A", other, hash, []string{"00000000-not-owed"}); err == nil || errors.Is(err, ErrStale) || errors.Is(err, ErrLocked) {
+		t.Errorf("a fold of an ID not owed: err = %v, want a refusal", err)
+	}
+	if got, _, _ := ss.ReadSection(file, "A"); strings.TrimSpace(got) != "new" {
+		t.Errorf("a refused fold changed A to %q", got)
 	}
 
 	if err := os.WriteFile(file+".lock", []byte("holder: operator\n"), 0o644); err != nil {

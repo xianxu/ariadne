@@ -61,7 +61,12 @@ func gatherTrains(sd SDLC, projectPath, defaultRepo string) (renderedTrains, err
 	cars := readCars(sd, vantage, refs)
 	<-done
 	if fleetErr != nil {
-		return renderedTrains{}, fleetErr
+		// The Trains block doesn't depend on the inventory; only the
+		// off-train block goes unread, and says so.
+		return renderedTrains{
+			Trains: renderTrains(plan, cars),
+			Slots:  "```\n? off-train slots unread: " + fleetErr.Error() + "\n```",
+		}, nil
 	}
 
 	bars := map[string]string{}

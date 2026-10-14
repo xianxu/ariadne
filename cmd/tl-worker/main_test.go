@@ -61,7 +61,7 @@ func TestWorkerHelpDoesNotRestateSection15(t *testing.T) {
 			t.Errorf("help does not cite %s", cite)
 		}
 	}
-	for _, restated := range []string{"sandbox exemption", "substitution", "$(", "in-pane question prompt", "WF_TEST_SUITES", "publish-description"} {
+	for _, restated := range []string{"whole Bash call", "sandbox exemption", "substitution", "$(", "in-pane question prompt", "WF_TEST_SUITES", "publish-description"} {
 		if strings.Contains(help, restated) {
 			t.Errorf("help restates %q, which its source already owns", restated)
 		}
