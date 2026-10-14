@@ -1632,6 +1632,16 @@ is included. The default is 1. ariadne declares 2, because its sharded suite
 runs ~12 processes, so it runs alone at the default cap. Two of them at once
 had pushed load to 185.
 
+**Host preflight before the lock (#333).** A repo whose suite cannot run on some
+hosts ships a preflight, by convention `tests/host-preflight.sh`, or names another
+with `WF_TEST_PREFLIGHT ?=` before including `Makefile.workflow`. When `test` is a
+goal it runs at parse time, before the lock: a failing preflight stops `make test`
+at once with its own message ("not taking the full-suite lock"), so a sandboxed run
+never queues behind other suites first. Its output goes to stderr; only its exit
+status is read. pair ships one (sockets, PTYs, exec of `ps`). ariadne has none: #330
+made its suite pass in the agent sandbox, so the same probes would block runs that
+work.
+
 `Makefile.workflow` passes the weight as `test-lock.py acquire --slots N`,
 clamped to `WF_TEST_SUITES`. The acquisition rules:
 - **All or none.** The N slots are taken in one scan or not at all. A waiter
