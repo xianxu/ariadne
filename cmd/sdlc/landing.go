@@ -379,7 +379,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 	if err != nil {
 		return err
 	}
-	pr, resumeIntegration, err := selectIntegrationPR(ctx, r, gh, t, branch, head, current, prs, stderr)
+	pr, resumeIntegration, err := selectIntegrationPR(ctx, r, gh, t, branch, head, current, prs, f.withLock, stderr)
 	if err != nil {
 		return err
 	}
@@ -409,9 +409,16 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 		}
 		state := newIntegrationState(head, pr, resumeIntegration)
 		for {
-			targetMain, fetchErr := t.fetchMain(r)
-			if fetchErr != nil {
+			var targetMain string
+			if err = f.withLock(func() error {
+				if err := revalidateLanding(r, t, branch, state.head, current); err != nil {
+					return err
+				}
+				var fetchErr error
+				targetMain, fetchErr = t.fetchMain(r)
 				return fetchErr
+			}); err != nil {
+				return err
 			}
 			remoteHead, err := remoteRefTip(landingGitCall, t.Remote, "refs/heads/"+branch)
 			if err != nil {
@@ -434,10 +441,11 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 			}
 			if step == integrationMerge || step == integrationReplay {
 				fmt.Fprintf(stderr, "Integrating %s/main before landing (attempt %d of %d)\n", t.Remote, state.attempts+1, integrationLimit)
-				state, err = integrateLandingMain(ctx, r, gh, t, branch, state, f.NoJudge, f.IssuesDir, stderr)
+				state, err = integrateLandingMain(ctx, r, gh, t, branch, state, f.withLock, f.NoJudge, f.IssuesDir, stderr)
 				if err != nil {
 					return err
 				}
+				targetMain = state.main
 			}
 			if state.phase != integrationGates {
 				return fmt.Errorf("integration cannot run gates from phase %s", state.phase)
@@ -474,113 +482,122 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 				state, _, _ = transitionIntegration(state, integrationEvent{kind: integrationGatesRejected})
 				return diagnoseSuiteFailure(ctx, err, targetMain, localDeps)
 			}
-			if err = revalidateLanding(r, t, branch, head, current); err != nil {
-				return err
-			}
-			// Last read before the server merge: a successful suite on an older
-			// main cannot authorize landing after another branch has moved it.
-			latest, err := t.fetchMain(r)
-			if err != nil {
-				return err
-			}
-			included, err = integrationAncestor(r, t.Root, latest, head)
-			if err != nil {
-				return err
-			}
-			state, step, err = transitionIntegration(state, integrationEvent{kind: integrationGatesChecked, main: latest, included: included})
-			if err != nil {
+			// A suite authorizes only this head and a main it contains. Keep the
+			// final revalidation and expected-head server merge in one transaction.
+			if err = f.withLock(func() error {
+				if err := revalidateLanding(r, t, branch, head, current); err != nil {
+					return err
+				}
+				latest, err := t.fetchMain(r)
+				if err != nil {
+					return err
+				}
+				included, err := integrationAncestor(r, t.Root, latest, head)
+				if err != nil {
+					return err
+				}
+				state, step, err = transitionIntegration(state, integrationEvent{kind: integrationGatesChecked, main: latest, included: included})
+				if err != nil || step != integrationLand {
+					return err
+				}
+				if err := gh.LandingMerge(ctx, t.Repo, pr.Number, head); err != nil {
+					return fmt.Errorf("merge outcome uncertain; use recovery command: %w", err)
+				}
+				return nil
+			}); err != nil {
 				return err
 			}
 			if step == integrationRefuse {
 				return fmt.Errorf("main moved too often: stopped after %d integrations; re-run sdlc merge", integrationLimit)
 			}
 			if step == integrationLand {
+				prs, err = gh.LandingPRs(ctx, t.Repo, branch)
+				if err != nil {
+					return err
+				}
+				observed, err := selectLandingPR(prs, t, branch, head)
+				if err != nil {
+					return err
+				}
+				if observed.Number != pr.Number {
+					return errors.New("PR identity changed after merge request")
+				}
+				pr = observed
 				break
 			}
 		}
-
-		if err = gh.LandingMerge(ctx, t.Repo, pr.Number, head); err != nil {
-			return fmt.Errorf("merge outcome uncertain; use recovery command: %w", err)
+	}
+	return f.withLock(func() error {
+		if err := revalidateLanding(r, t, branch, head, current); err != nil {
+			return err
 		}
-		prs, err = gh.LandingPRs(ctx, t.Repo, branch)
+		if pr.State != "MERGED" {
+			return errors.New("PR is not yet merged (possibly queued); preserve checkout and retry after integration")
+		}
+		mainOID, err := t.fetchMain(r)
 		if err != nil {
 			return err
 		}
-		observed, err := selectLandingPR(prs, t, branch, head)
+		if _, err = landingGit(r, t.Root, "merge-base", "--is-ancestor", pr.MergeOID, mainOID); err != nil {
+			return fmt.Errorf("cannot confirm integration on %s/main: %w", t.Remote, err)
+		}
+		if err = revalidateLanding(r, t, branch, head, current); err != nil {
+			return err
+		}
+		// #252: the landing is confirmed, so the closes the PR owns go done on their
+		// cards, landed at its integrated merge (squash and rebase included).
+		if err = completeLandingPR(commandContext(f.Context), t.Root, f.IssuesDir, pr); err != nil {
+			return err
+		}
+		complete, err := landingArchiveComplete(ctx, t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
 		if err != nil {
 			return err
 		}
-		if observed.Number != pr.Number {
-			return errors.New("PR identity changed after merge request")
-		}
-		pr = observed
-	}
-	if pr.State != "MERGED" {
-		return errors.New("PR is not yet merged (possibly queued); preserve checkout and retry after integration")
-	}
-	mainOID, err := t.fetchMain(r)
-	if err != nil {
-		return err
-	}
-	if _, err = landingGit(r, t.Root, "merge-base", "--is-ancestor", pr.MergeOID, mainOID); err != nil {
-		return fmt.Errorf("cannot confirm integration on %s/main: %w", t.Remote, err)
-	}
-	if err = revalidateLanding(r, t, branch, head, current); err != nil {
-		return err
-	}
-	// #252: the landing is confirmed, so the closes the PR owns go done on their
-	// cards, landed at its integrated merge (squash and rebase included).
-	if err = completeLandingPR(commandContext(f.Context), t.Root, f.IssuesDir, pr); err != nil {
-		return err
-	}
-	complete, err := landingArchiveComplete(ctx, t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
-	if err != nil {
-		return err
-	}
-	action, err := nextLandingAction(landingObservation{Merged: true, Integrated: true, Archived: complete, AtRest: current == t.Rest, RefExists: head != ""})
-	if err != nil {
-		return err
-	}
-	if action == landingArchive {
-		if err = archiveLandingPR(ctx, t.Root, t.Remote, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir); err != nil {
-			return err
-		}
-		mainOID, err = t.fetchMain(r)
+		action, err := nextLandingAction(landingObservation{Merged: true, Integrated: true, Archived: complete, AtRest: current == t.Rest, RefExists: head != ""})
 		if err != nil {
 			return err
 		}
-		complete, err = landingArchiveComplete(ctx, t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
-		if err != nil {
+		if action == landingArchive {
+			if err = archiveLandingPR(ctx, t.Root, t.Remote, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir); err != nil {
+				return err
+			}
+			mainOID, err = t.fetchMain(r)
+			if err != nil {
+				return err
+			}
+			complete, err = landingArchiveComplete(ctx, t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
+			if err != nil {
+				return err
+			}
+			if !complete {
+				return errors.New("archive publication not confirmed; preserve checkout and retry")
+			}
+		}
+		if current != t.Rest {
+			if err = returnLandingToRest(ctx, r, t, branch, head, f.IssuesDir); err != nil {
+				return err
+			}
+		}
+		if err = deleteLandingBranch(r, t, branch, head); err != nil {
 			return err
 		}
-		if !complete {
-			return errors.New("archive publication not confirmed; preserve checkout and retry")
+		// #286: the landed branch leaves origin too, leased on the landed head so
+		// a push made after the PR merged is never thrown away.
+		if derr := deleteRemoteBranch(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote, branch, pr.HeadOID); derr != nil {
+			cwarn(stderr, fmt.Sprintf("landed, but %s was not deleted on %s: %v — `sdlc merge --branch %s --yes` retries it", branch, t.Remote, derr, branch))
 		}
-	}
-	if current != t.Rest {
-		if err = returnLandingToRest(ctx, r, t, branch, head, f.IssuesDir); err != nil {
-			return err
+		// #287: the next merge also finishes work merged outside sdlc — its card
+		// went done above (settled by its evidence); archive it and drop its branch.
+		if tracked, terr := repositoryTracked(ctx, t.Root); terr == nil && tracked {
+			if env, oerr := openTrackerAt(ctx, t.Root); oerr != nil {
+				cwarn(stderr, fmt.Sprintf("landed; work merged outside sdlc not checked: %v", oerr))
+			} else if ferr := finishLandedLeftovers(env, stderr, archiveDirs{Issues: f.IssuesDir, Plans: f.PlansDir, History: f.HistoryDir}); ferr != nil {
+				cwarn(stderr, fmt.Sprintf("landed; earlier work merged outside sdlc not archived: %v — `sdlc issue recovery reconcile --issue N` retries", ferr))
+			}
 		}
-	}
-	if err = deleteLandingBranch(r, t, branch, head); err != nil {
-		return err
-	}
-	// #286: the landed branch leaves origin too, leased on the landed head so
-	// a push made after the PR merged is never thrown away.
-	if derr := deleteRemoteBranch(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote, branch, pr.HeadOID); derr != nil {
-		cwarn(stderr, fmt.Sprintf("landed, but %s was not deleted on %s: %v — `sdlc merge --branch %s --yes` retries it", branch, t.Remote, derr, branch))
-	}
-	// #287: the next merge also finishes work merged outside sdlc — its card
-	// went done above (settled by its evidence); archive it and drop its branch.
-	if tracked, terr := repositoryTracked(ctx, t.Root); terr == nil && tracked {
-		if env, oerr := openTrackerAt(ctx, t.Root); oerr != nil {
-			cwarn(stderr, fmt.Sprintf("landed; work merged outside sdlc not checked: %v", oerr))
-		} else if ferr := finishLandedLeftovers(env, stderr, archiveDirs{Issues: f.IssuesDir, Plans: f.PlansDir, History: f.HistoryDir}); ferr != nil {
-			cwarn(stderr, fmt.Sprintf("landed; earlier work merged outside sdlc not archived: %v — `sdlc issue recovery reconcile --issue N` retries", ferr))
-		}
-	}
-	fmt.Fprintf(stdout, "Landed PR #%d; workspace retained on unchanged %s. Refresh is separate.\n", pr.Number, t.Rest)
-	return nil
+		fmt.Fprintf(stdout, "Landed PR #%d; workspace retained on unchanged %s. Refresh is separate.\n", pr.Number, t.Rest)
+		return nil
+	})
 }
 
 func runDurablePR(stdout, stderr io.Writer, f *prFlags, t landingTarget) error {

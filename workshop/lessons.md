@@ -19,6 +19,11 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- Before shortening a command's transaction lock, enumerate every path that can
+  run a suite and every ref-writing fetch, including legacy and recovery paths.
+  The #370 plan review caught a second merge path whose local CI fallback would
+  otherwise lose its lock entirely. Probe a second same-repo command against
+  the real lock during both first and repeated suite runs.
 - A context-free compatibility wrapper is still production code to a source
   guard. Remove unused wrappers or route their nil context through the one
   bounded fallback; keep fixture aliases in test files. A targeted behavior

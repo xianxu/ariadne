@@ -2,10 +2,66 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/spf13/cobra"
 )
+
+func TestRunMerge_LegacyReleasesRepoLockDuringLocalCheck(t *testing.T) {
+	signalDir := t.TempDir()
+	started, release := filepath.Join(signalDir, "started"), filepath.Join(signalDir, "release")
+	t.Cleanup(func() { _ = os.WriteFile(release, nil, 0o600) })
+	command := fmt.Sprintf("touch %q; i=0; while [ ! -e %q ] && [ \"$i\" -lt 600 ]; do sleep 0.05; i=$((i+1)); done; test -e %q", started, release, release)
+	gh, _ := localChecksMergeRepo(t, command, 0, "")
+	cmd := markManualLockCommand(&cobra.Command{Use: "merge"})
+	cmd.SetContext(context.Background())
+	var locks atomic.Int32
+	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	f.Lock = func(run func() error) error {
+		locks.Add(1)
+		return withRequiredRepoTransactionLock(cmd, run)
+	}
+	finished := make(chan error, 1)
+	go func() { finished <- runMerge(io.Discard, io.Discard, f) }()
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		if _, err := os.Stat(started); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("local check did not start")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if locks.Load() == 0 {
+		t.Fatal("merge never acquired the repo lock")
+	}
+	other := markManualLockCommand(&cobra.Command{Use: "claim"})
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	other.SetContext(ctx)
+	if err := withRequiredRepoTransactionLock(other, func() error { return nil }); err != nil {
+		t.Fatalf("another command could not acquire repo lock during local check: %v", err)
+	}
+	if err := os.WriteFile(release, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-finished:
+		if err != nil || gh.prMergeCalls != 1 {
+			t.Fatalf("merge err=%v calls=%d", err, gh.prMergeCalls)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("merge did not finish")
+	}
+}
 
 // The legacy path never integrates automatically. Check main before spending
 // suite time and again after the checks, without altering either branch tip.
@@ -44,6 +100,26 @@ func TestRunMerge_LegacyRefusesMovedMain(t *testing.T) {
 				t.Fatalf("remote branch changed: %s", got)
 			}
 		})
+	}
+}
+
+func TestRunMerge_LegacyRefusesHeadMovedDuringChecks(t *testing.T) {
+	root := tempRepo(t)
+	before := git(t, root, "rev-parse", "HEAD")
+	g := &legacyMovingMainGH{e2eGH: e2eGH{openPR: "42"}}
+	g.onChecks = func() { git(t, root, "commit", "--allow-empty", "-qm", "concurrent local edit") }
+	swapMergeDeps(t, g, nil)
+	cmd := markManualLockCommand(&cobra.Command{Use: "merge"})
+	cmd.SetContext(context.Background())
+	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history", Lock: func(run func() error) error {
+		return withRequiredRepoTransactionLock(cmd, run)
+	}}
+	msg, died := expectDie(t, func() { _ = runMerge(io.Discard, io.Discard, f) })
+	if !died || !strings.Contains(msg, "HEAD moved") || g.prMergeCalls != 0 {
+		t.Fatalf("died=%v merges=%d message=%s", died, g.prMergeCalls, msg)
+	}
+	if got := git(t, root, "rev-parse", "HEAD"); got == before {
+		t.Fatal("fixture did not move HEAD")
 	}
 }
 

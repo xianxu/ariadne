@@ -35,8 +35,8 @@ Hold the transaction lock only around short git/tracker mutations: integrating m
 
 ## Plan
 
-- [ ] Scope `sdlc merge` with the existing manual repo-lock helper and prove a second same-repo command can acquire the lock during both a first and a repeated suite run.
-- [ ] Revalidate exact workspace/head and fresh main at each lock reacquisition around integration push and final landing; add deterministic head/main drift and interruption-retry tests.
+- [x] Scope `sdlc merge` with the existing manual repo-lock helper and prove a second same-repo command can acquire the lock during both a first and a repeated suite run.
+- [x] Revalidate exact workspace/head and fresh main at each lock reacquisition around integration push and final landing; add deterministic head/main drift and interruption-retry tests.
 - [ ] Update workflow help and atlas, run targeted tests, `make -k tools`, and the recorded full suite; close and ship after the boundary review.
 
 Durable implementation steps: [merge-lock-scoping plan](../plans/000370-sdlc-merge-holds-the-repo-transaction-lock-for-its-whole-suite-wait-30-min-blocking-every-other-slot-s-stage-publish-and-claim-in-that-repo-plan.md).
@@ -68,6 +68,7 @@ The two API-integration items cover the durable and legacy Git/GitHub landing pa
 - Plan-quality round 1 (REWORK): accepted findings PQ-1 (legacy `runCIGate` can run a suite), PQ-2 (main drift after replay needs a reset/retry transition), and PQ-3 (named-function test strategies); a Minor requested explicit non-goals. The plan revision addresses each class before code.
 - Plan-quality round 2: CLEAN; PQ-1 through PQ-4 addressed, with no new findings. The estimate is derived after that review, per the gate's ordering.
 - Change-code admitted the full flow. Estimate-quality returned INFO: clarify the design-range point, test coverage and elapsed shipping work; the derivation now says where each belongs without changing the reconciled total.
+- Implementation: manual lock phases now bracket shared Git mutations, expected-head merge, and archive. Durable publish replay, GitHub registration and CI/suite waits are unlocked; legacy local checks are unlocked. A pre-push main move resets the unpublished integration and retries. Added real-lock probes during a blocked suite, repeated suites, and registration polling, plus exact-head/main drift tests. Targeted merge tests and `make -k tools` pass; recorded suite pending.
 
 ## Revisions
 
