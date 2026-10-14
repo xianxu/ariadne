@@ -43,7 +43,7 @@ Proposed durable plan: `workshop/plans/000335-actual-measurement-plan.md`.
 - [x] Reproduce checkout source loss and release/resume inflation.
 - [x] Derive ownership intervals/source provenance and unify consumer inputs.
 - [x] Add adoption diagnostics, correction/recovery, and production regressions.
-- [ ] Verify and land, then repair pair#454/#514 and #335 through the rebuilt shared binary’s measured correction.
+- [x] Verify and land, then repair pair#454/#514 and #335 through the rebuilt shared binary’s measured correction.
 
 ## Log
 
@@ -313,3 +313,25 @@ Correction/printing checks passed41.529s; final preview/execution, dry-run
 no-effects/refusal and printing checks passed6.191s. The existing dry-run test
 continues proving no tracker/main publication, ledger append or recovery ref.
 Fresh recorded suite then shared round4 close are next; final SHIP still pending.
+
+### 2026-10-14 — landed and measured data repairs complete
+
+Shared close round4 SHIP (high confidence), all5 findings addressed. PR240 landed
+83c317db7f806ab3cd3a83e7e6094611f329c2d5; archive551517cae0fee0995b91f69ca477b19a952e9bd3.
+Final recorded suite25c8e1661a59c361139f9433a7ef3534081b746e passed346.7s:
+1336 command tests/54 packages,12 shards, zero failures; all3 CI checks green.
+
+Hub receipt31032684-0edd-426f-86f0-59024cef387b confirmed shared rebuild and authorized
+preview→apply for all3 records. Shared correct-actual completed:
+
+| Issue | Before→after | Tracker commit | Main mirror commit |
+|---|---|---|---|
+| ariadne#335 | 7.76→7.76h (new retained snapshot) | 087e11514a13ccadc682d176d45673c95dade076 | 6c5f1ce9185f8da91420ee3e08d3447c9a6bb194 |
+| pair#454 | 0.05→1.78h | f38de816d94c4c6fae6529042304f16f84b7f8d1 | 312b2349ca0de83bcde5e31ab51fccdc3edc0347 |
+| pair#514 | 23.76→0.35h | 765ce9ed2b23194c86ba2c06889ad5ae8978d08c | 5458d7b6878fd9cb8834fbe9685050f1e4ea6601 |
+
+Standalone actual replays agreed for all3. Same-reason retries returned already
+complete with tracker/main commits unchanged. Each calibration operation exists
+exactly once;31-column header present. Remote archived mirrors match corrected
+card values and exact card blob baselines. No unfinished recovery operations in
+either repository. Final Plan item is complete; stop per hub instruction.
