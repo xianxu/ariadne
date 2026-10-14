@@ -30,25 +30,29 @@ func slowLocal(t *testing.T, d time.Duration) {
 // #360: the remote budget is not spent by local work. Local commands that
 // together take far longer than the budget still complete; the old shape, one
 // deadline over the whole operation, fails the same read.
+// The margins are wide so load cannot decide the result: local work is several
+// times the budget, and the remote calls (a local bare repository) have the whole
+// 1.5s to themselves.
 func TestRemoteBudgetDoesNotCountLocalWork(t *testing.T) {
 	repo, _ := trunkFixture(t, "seed\n")
-	slowLocal(t, 150*time.Millisecond)
+	slowLocal(t, 500*time.Millisecond)
+	const budget = 1500 * time.Millisecond
 
 	tf, err := NewTrunkFileContext(context.Background(), repo, "origin", "main")
 	if err != nil {
 		t.Fatal(err)
 	}
-	tf.BoundRemote(300 * time.Millisecond)
+	tf.BoundRemote(budget)
 	start := time.Now()
 	got, err := tf.Read("note.md")
 	if err != nil || string(got) != "seed\n" {
 		t.Fatalf("bounded remote read: %q, %v", got, err)
 	}
-	if elapsed := time.Since(start); elapsed < 300*time.Millisecond {
+	if elapsed := time.Since(start); elapsed < budget {
 		t.Fatalf("local work took %v; the fixture must exceed the budget to prove anything", elapsed)
 	}
 
-	whole, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	whole, cancel := context.WithTimeout(context.Background(), budget)
 	defer cancel()
 	old, err := NewTrunkFileContext(whole, repo, "origin", "main")
 	if err != nil {
@@ -96,18 +100,23 @@ func TestRemoteBudgetBoundsAHangingRemote(t *testing.T) {
 }
 
 // The budget is one budget for all of a trunk's remote commands, from the first:
-// a hanging remote cannot multiply it by the number of remote calls.
+// a hanging remote cannot multiply it by the number of remote calls. Timing-robust:
+// the first remote call has the whole 2s budget, then the test waits past the
+// budget's end, so the second call fails on the shared deadline however fast it is
+// (a per-call budget would let it succeed).
 func TestRemoteBudgetIsSharedAcrossRemoteCommands(t *testing.T) {
 	repo, _ := trunkFixture(t, "seed\n")
-	hangRemote(t, 150*time.Millisecond)
 	tf, err := NewTrunkFileContext(context.Background(), repo, "origin", "main")
 	if err != nil {
 		t.Fatal(err)
 	}
-	tf.BoundRemote(200 * time.Millisecond)
+	const budget = 2 * time.Second
+	tf.BoundRemote(budget)
+	start := time.Now()
 	if _, err := tf.RemoteExists(); err != nil {
 		t.Fatalf("first remote command, within the budget: %v", err)
 	}
+	time.Sleep(time.Until(start.Add(budget + 100*time.Millisecond)))
 	if _, err := tf.Read("note.md"); err == nil || !strings.Contains(err.Error(), "deadline") {
 		t.Fatalf("second remote command past the shared budget: %v, want the deadline", err)
 	}

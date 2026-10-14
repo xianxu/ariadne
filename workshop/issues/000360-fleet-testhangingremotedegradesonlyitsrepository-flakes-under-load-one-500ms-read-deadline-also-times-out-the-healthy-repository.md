@@ -65,7 +65,7 @@ repository its own deadline rather than one shared budget, decide that here too.
 - [x] Deterministic tests in `gitx` (latency injected through `runGitInContext`): slow
   local work does not spend the budget, while the old whole-operation deadline fails the
   same read; a hanging remote is bounded and named; the budget is shared.
-- [ ] Prove the fleet test under real load (in a loop alongside a full suite).
+- [x] Prove the fleet test under real load (in a loop alongside a full suite).
 
 ## Log
 
@@ -73,3 +73,20 @@ repository its own deadline rather than one shared budget, decide that here too.
 - 2026-10-13: unclaimed: filed from #353; independent flake, unclaimed for the hub to assign
 
 Filed by ariadne:3 from #353's full suite (unrelated to #353's diff).
+
+### 2026-10-13 — ariadne:3
+
+Under real load: test binaries built from origin/main and from this branch ran the fleet
+test alternately while a full suite ran (load 30 rising to 90): **origin/main failed 26 of
+100, this branch 0 of 100.** Two stresses that failed to reproduce, for the record: a
+CPU-only busy loop (load ~10, 0/20), and a slow `git` wrapper on PATH (the test harness
+resolves git's absolute path once, so the wrapper saw a single call). The deterministic
+proof is in `gitx` through the `runGitInContext` seam instead.
+
+That suite run caught my own `TestRemoteBudgetIsSharedAcrossRemoteCommands` failing under
+load (its first remote call plus a 150ms injected delay exceeded a 200ms budget: the same
+tight-margin fragility this issue fixes). Reworked both timing tests to rely on wide
+margins rather than sums: local work 500ms per command against a 1.5s budget, and for the
+shared budget, the first real call gets the whole 2s and the test then waits past the
+budget's end, so the second call fails on the shared deadline however fast it is. The
+shared test still fails with the budget disabled.
