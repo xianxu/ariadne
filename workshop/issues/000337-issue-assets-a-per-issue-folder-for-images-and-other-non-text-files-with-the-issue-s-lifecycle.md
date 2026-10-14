@@ -1,12 +1,12 @@
 ---
 id: 000337
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-12
 updated: 2026-10-13
 estimate_hours: 3.403
-card_mirror: 'b3805816f8745a7b181430ff1319546b52ba044e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '7769d41bb4796b48dd961b151c0e03ce9f2846f7' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T13:03:22-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 11.14
 ---
 
 # issue assets: a per-issue folder for images and other non-text files, with the issue's lifecycle
