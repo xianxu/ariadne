@@ -92,6 +92,35 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - "n": 4
+      timestamp: "2026-10-14T05:08:48-07:00"
+      dispatched: "2026-10-14T05:05:21-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Dispatch-engagement admission remains enforced before span union; active-time regression tests passed.
+          round: 4
+        - id: BR-2
+          disposition: addressed
+          note: ResolveCorrections suppresses preceding issue samples before eligibility filtering; internal and command consumer regressions passed.
+          round: 4
+        - id: BR-3
+          disposition: addressed
+          note: TestOmittedActualCloseEstimateWarningWiring passed its low/high whole-close cases and milestone control.
+          round: 4
+        - id: BR-4
+          disposition: addressed
+          note: SetCardCompletion retires correction metadata on token replacement; production re-close and same-generation preservation regressions passed.
+          round: 4
+        - id: BR-5
+          disposition: addressed
+          note: actualcorrection.go calls printActualMeasurement after numeric preflight. TestActualCorrectionNumericDiagnostics passed; deleting that call in a disposable pinned-head copy failed both preview and execution, and restoration passed.
+          round: 4
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 25c8e1661a59c361139f9433a7ef3534081b746e
+      blocked: false
 ---
 
 # Gate ledger — ariadne#335 (boundary-review)
@@ -137,6 +166,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Important] `measurement-diagnostics-preservation` (kind: defect) Correction previews discard measurement provenance and quality warnings
   cmd/sdlc/actualcorrection.go:672 consumes the measurement, but its successful numeric path prints only hours and hashes at line 776, discarding measured.Window and measured.Warnings. This hides historical reconstruction and attribution warnings despite the plan requiring the repair dry-run to name its reconstruction basis (workshop/plans/000335-actual-measurement-plan.md:120–124). ARCH-PURPOSE: render the bounded measurement diagnostics for successful previews and corrections, and add a command-path regression; a disposable extension of TestActualCorrectionDryRunAndUncertainRefusal failed because its supplied provenance warning appeared in neither stdout nor stderr.
 
+## Round 4 — 2026-10-14T05:08:48-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — Dispatch-engagement admission remains enforced before span union; active-time regression tests passed.
+- BR-2 — addressed — ResolveCorrections suppresses preceding issue samples before eligibility filtering; internal and command consumer regressions passed.
+- BR-3 — addressed — TestOmittedActualCloseEstimateWarningWiring passed its low/high whole-close cases and milestone control.
+- BR-4 — addressed — SetCardCompletion retires correction metadata on token replacement; production re-close and same-generation preservation regressions passed.
+- BR-5 — addressed — actualcorrection.go calls printActualMeasurement after numeric preflight. TestActualCorrectionNumericDiagnostics passed; deleting that call in a disposable pinned-head copy failed both preview and execution, and restoration passed.
+
 ## Open findings
 
-- **BR-5** [Important] `measurement-diagnostics-preservation` (kind: defect) Correction previews discard measurement provenance and quality warnings
+(none — every finding has been disposed)

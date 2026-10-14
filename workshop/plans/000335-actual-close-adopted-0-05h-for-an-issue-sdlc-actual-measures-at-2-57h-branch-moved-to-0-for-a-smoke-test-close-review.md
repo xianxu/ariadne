@@ -275,3 +275,84 @@ Eight affected internal packages passed, along with targeted command tests cover
 ### Plan revision recommendations
 
 None required. The diagnostic fix fulfills the existing contract. Landing, shared-binary rebuild, and peer-data repairs remain explicitly post-landing acceptance work.
+
+---
+
+## Re-review — 2026-10-14T05:08:48-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 335 — actual: close adopted 0.05h for an issue sdlc actual measures at 2.57h (branch moved to :0 for a smoke test) |
+| repo | ariadne |
+| issue file | workshop/issues/000335-actual-close-adopted-0-05h-for-an-issue-sdlc-actual-measures-at-2-57h-branch-moved-to-0-for-a-smoke-test.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ca9b09087f9c0992d0171fa691df8819336edbbf..25c8e1661a59c361139f9433a7ef3534081b746e |
+| command | sdlc close --issue 335 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T05:08:48-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation satisfies the local acceptance contract. BR-5 is addressed: successful correction previews and executions preserve measurement windows and provenance warnings, and removing the rendering call makes both regression cases fail. No new blocking findings surfaced. Landing, shared-binary rebuild, and data repairs remain explicitly ordered post-landing work.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Dispatch-engagement admission remains enforced before span union; active-time regression tests passed.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      ResolveCorrections suppresses preceding issue samples before eligibility filtering; internal and command consumer regressions passed.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      TestOmittedActualCloseEstimateWarningWiring passed its low/high whole-close cases and milestone control.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      SetCardCompletion retires correction metadata on token replacement; production re-close and same-generation preservation regressions passed.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      actualcorrection.go calls printActualMeasurement after numeric preflight. TestActualCorrectionNumericDiagnostics passed; deleting that call in a disposable pinned-head copy failed both preview and execution, and restoration passed.
+```
+
+1. **Strengths**
+
+   - Shared diagnostic rendering avoids duplicating measurement presentation: `cmd/sdlc/actual.go:322`, `cmd/sdlc/actualcorrection.go:786`.
+   - Replay pins Git authority and transcript prefixes, rejecting changed evidence.
+   - Correction recovery preserves confirmed progress and requires exact publication proofs.
+   - README, atlas, command help, and modeled field ownership cover the new surface.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None remaining.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Eight relevant internal packages passed. Command tests covering ownership, replay, correction, adoption warnings, convergence, and forecasting passed in 70.479 seconds. BR-5’s removal/restoration mutation independently confirmed regression sensitivity. `git diff --check` passed; the reviewed checkout remains clean. I did not rerun the full repository suite.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared measurement runner, renderer, and correction resolution; production calibration readers use the common rule.
+   - **ARCH-PURE — pass:** ownership, eligibility, clipping, and correction transitions have direct pure tests; IO resides in adapters.
+   - **ARCH-PURPOSE — pass:** moved-source retention, release/reclaim attribution, consumer parity, and correction diagnostics are delivered.
+   - **ARCH-MOCK — pass:** portable Git repositories and file-backed transcript fixtures exercise production seams.
+   - **ARCH-CONSTRAINTS — pass:** history, metadata, snapshot, and source limits are explicit; cancellation checks passed.
+   - **ARCH-SECURE — pass:** repository identity, retained prefixes, correction bindings, and malformed evidence receive explicit validation.
+   - **ARCH-ORDER — pass:** production recovery uses the transition model, retaining uncertain and partially completed effects.
+   - **ARCH-FUNERAL — pass:** completed recovery refs are deleted, temporary files are cleaned, and permanent evidence costs are documented.
+
+7. **Plan revision recommendations:** None required. Existing revisions reconcile implementation locations and post-landing acceptance ordering.

@@ -49,6 +49,7 @@ Proposed durable plan: `workshop/plans/000335-actual-measurement-plan.md`.
 ### 2026-10-11
 
 ### 2026-10-14 — root-cause investigation
+- 2026-10-14: closed — Recorded sdlc-local/suite passed on 25c8e1661a59c361139f9433a7ef3534081b746e:1336 command tests,54 packages,12 shards,346.7s. Prior four findings disposed addressed. BR-5 numeric correction preview/execution diagnostic regression RED3.453s before shared rendering; correction/printing checks41.529s and final preview/execution/no-write/refusal checks6.191s passed. no-plan-check acknowledges hub-required postlanding shared rebuild then measured corrections of #335/#454/#514; final land/repair item intentionally pending.; review verdict: SHIP
 
 Claimed #335 and entered planning. Raw #454 session evidence corrects the
 original caller assumption: close explicitly ran in pair:0 while its live agent
