@@ -91,3 +91,10 @@ auto-adoption, ratio warnings and measured corrections. Plan trimmed to narrow
 move-source retention and dispatch-interval lineage, each justified by the
 measured #454/#514 counterexample. General task-context inference dropped.
 Proceeding through change-code; estimate only after plan-quality.
+
+### 2026-10-14 — plan-quality round 1
+
+PQ-1–PQ-4 Important accepted: specify retained measurement inputs, correction
+state/effects, authoritative calibration invalidation and named function strategies.
+PQ-5/PQ-6 Minor retention/conformance notes incorporated too. Added executable
+contracts to the plan; no production changes. Re-running change-code.

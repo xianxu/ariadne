@@ -29,7 +29,9 @@
 |---|---|---|
 | OwnershipEvent / EngagementWindow derivation | `cmd/sdlc/internal/tracker/engagement.go` | new |
 | Session provenance / eligibility | `cmd/sdlc/internal/transcripts/provenance.go` | new |
+| MeasurementInputs snapshot | `cmd/sdlc/internal/gatestate/measurement.go` | new |
 | Actual input/provenance value | `cmd/sdlc/actual.go` | modified |
+| Correction transition / calibration resolution | `cmd/sdlc/internal/actualcorrection/model.go`, `cmd/sdlc/internal/estimate/ledger.go` | new / modified |
 | Activity interval clipping | `cmd/sdlc/internal/activetime/event.go` | modified |
 | Estimate plausibility comparator | `cmd/sdlc/actualplausibility.go` | new |
 
@@ -63,7 +65,7 @@ Use existing Git/tracker seams and real portable temporary repositories with fil
 
 Propose `sdlc issue correct-actual --issue N --reason TEXT`, with dry-run preview. It computes the value, accepts no hand-typed hours, requires a completed close generation, and preserves status/reviewed head/landing/original close evidence. Record old/new actual, input/algorithm provenance, and reason, bound to that generation.
 
-Pin tracker generation and calibration inputs before effects. Tracker CAS and calibration append are separate effects: use existing receipts/recovery, persist confirmed progress, and make retries converge without remeasuring or appending duplicates. Generation change refuses; uncertain publication reconciles remote evidence. Reuse append-only calibration supersession/NewestPerIssue; sweep all readers so invalid superseded rows cannot re-enter through pre-filtering. Refresh an archived card mirror through the existing narrow publication path, never another live slot's tree.
+Pin tracker generation and calibration inputs before effects. Tracker CAS and calibration append are separate effects: use existing receipts/recovery, persist confirmed progress, and make retries converge without remeasuring or appending duplicates. Generation change refuses; uncertain publication reconciles remote evidence. Add explicit correction resolution BEFORE ordinary calibration eligibility filtering; retain NewestPerIssue for ordinary re-close selection only. Sweep all readers through that shared resolution rule. Refresh an archived card mirror through the existing narrow publication path, never another live slot's tree.
 
 After #335 lands and the shared binary is rebuilt, inspect dry-run segment evidence and correct pair#454/#514 through the owning verb. Use fixed measurements, not 2.57h or a reset-window approximation. If historical provenance cannot be established, explicitly exclude the invalid sample and report what evidence repair needs.
 
@@ -73,11 +75,11 @@ After #335 lands and the shared binary is rebuilt, inspect dry-run segment evide
 - [ ] **History/source rules:** implement pure transitions and eligibility. Sequence/property tests exercise repeated claims, transfers/releases, missing/truncated history, and lineage. Individually mutation-check release clipping, moved-source retention, and old-child exclusion.
 - [ ] **Consumer parity:** drive actual, whole close, milestone close and explicit brain-dir through production temporary-repo entry points. Compare hours/provenance for identical pinned inputs before/after movement and landing; concurrent unrelated slots stay excluded. Mutation-check each consumer's wiring separately.
 - [ ] **Adoption:** pure ratio boundary tests and production omitted-actual warning/refusal tests. Update README, actual/active-time/close/milestone help and `atlas/workflow/sdlc-binary.md`.
-- [ ] **Correction:** test dry-run/no writes, generation races, interruption after each effect, retry/no duplicate row, and unchanged close binding. Update help/README/atlas and modeled field ownership; verify effective calibration/split readers use corrected evidence.
+- [ ] **Correction:** exercise the correction transition and each persisted-effect boundary under deterministic interruption/races, asserting unchanged close binding and idempotent completion. Update help/README/atlas and modeled field ownership; verify effective calibration/split readers use corrected evidence.
 - [ ] **Ship:** targeted checks then committed/frozen-tree background `make -k test`; close on SHIP, PR/CI/merge, real-hash report to hub.
 - [ ] **Repair data:** after landing, fixed-engine replay and owning-verb corrections for pair#454/#514; card/archive/effective calibration agree. Peer code/config remains separately owned.
 
-Named risky-function strategies: engagement derivation uses sequence/property tests; provenance eligibility uses adversarial metadata and dispatch-time intervals; event clipping preserves interval union and rejects released gaps; input resolution uses actual moves/landing in real repositories; adoption is pure boundary testing plus production guards; correction uses stateful Git/receipt interruption tests. Historical opt-in replay supplies conformance, distinct from synthetic expected-minute fixtures.
+Named risky-function strategies are defined below; test code owns the case inventory.
 
 Targeted commands: `go test ./cmd/sdlc/internal/tracker ./cmd/sdlc/internal/transcripts ./cmd/sdlc/internal/activetime -count=1`; `go test ./cmd/sdlc -run 'TestActual.*(Move|Release|Provenance)|TestClose.*Actual|TestActualCorrection' -count=1`. Full: `make -k test`; avoid the serial whole cmd/sdlc suite.
 
@@ -95,3 +97,106 @@ ARCH-DRY: one resolver/engine/correction authority. ARCH-PURE: typed event/windo
 ## Approval checkpoint
 
 Hub direction approved; proceed through change-code. No implementation or estimate yet; derive the estimate after plan-quality. No Mx tags: one atomic implementation review boundary.
+
+## Plan-quality refinements (2026-10-14)
+
+PQ-1–PQ-4 accepted; PQ-5/PQ-6 advisory also incorporated. These refine the approved core.
+
+### Durable measurement inputs (PQ-1)
+
+`gatestate.MeasurementInputs` is a versioned value retained on the boundary Round
+as optional `actual_inputs`. It contains code/tracker commit pins, branch point,
+effective endpoints, engagements/participant roots, engine parameters/version,
+the split-cut inputs used for that measurement, and source evidence identities
+(harness/session ID, selected prefix length and digest, dispatch parent/time).
+Close persists exactly the snapshot it measured; review/finalization may add a
+round but cannot silently change that adopted snapshot. Existing Markdown ledger
+render/parse must round-trip the field; the existing issue archive carries it.
+Completed actual reads it from completion.evidence_commit's ledger, bound to
+that completion.reviewed_head; it neither reads today's tracker as its time window
+nor derives scope from today's main. Event replay verifies recorded source prefixes;
+append-only later transcript activity does not change the pinned sample.
+
+For legacy closes lacking this field, explicitly report legacy reconstruction:
+use completion reviewed_head/evidence_commit, historical card generation and
+bounded ownership history at that close, with historical ledger cuts. Missing or
+ambiguous pins/evidence cannot auto-adopt or correct. The repair dry-run must name
+its reconstruction basis; corrected totals remain hypotheses until replay succeeds.
+Active preview and close consume the same resolver; tests compare snapshots and
+split inputs, not just rounded totals. Explicit brain-dir is part of the snapshot.
+
+Initial operational ceiling: 128 contributing sources and a 64 KiB serialized
+input snapshot, based on the motivating cases' dozens of sources. Exceeding either
+refuses confident measurement rather than truncating its authority. Prefix hashing
+streams bytes; no full transcript copies enter artifacts. One snapshot per accepted
+boundary round costs at most64 KiB plus Git history permanently. Transient values
+die at command return; no new cache. Opt-in historical/harness conformance runs
+before #335 close, after lineage parser changes, and when installed CLI metadata
+changes; synthetic fixtures run in ordinary tests.
+
+### Correction transition and effects (PQ-2/PQ-5)
+
+`actualcorrection.Transition(state,event)` owns this new operation; existing
+receipts supply persistence/CAS plumbing, not an already-defined calibration stage.
+Its immutable spec pins repository/issue, completion token/evidence/reviewed head,
+expected card blob, measurement/input digest, reason, calibration destination and
+superseded row hashes. Operation identity is a generated durable token; prepare it
+before writes and reuse it on recovery. No live command remeasures a prepared op.
+
+| State | Event | Next state / effect |
+|---|---|---|
+| Prepared | apply | publish card actual and correction metadata under expected-card CAS |
+| Prepared | tracker publication uncertain | remain Prepared; probe exact token/candidate on remote, never infer from equal hours |
+| Prepared | matching candidate confirmed | CalibrationPending; append resolved correction row under ledger lock |
+| CalibrationPending | append ack lost/restart | read ledger for exact operation ID and row digest; matching row is confirmed, mismatch refuses |
+| CalibrationPending | append confirmed | MirrorPending; publish bounded archived mirror projection on pinned main |
+| MirrorPending | projection confirmed or already exact | Complete; finalize operation evidence |
+| Any incomplete | competing completion/correction generation | refuse further effects, retain confirmed progress for inspection/recovery |
+| Complete | repeat | no-op, return recorded result |
+
+A concurrent correction races on the expected card generation, so one wins;
+recovery proves its own operation rather than claiming another writer's identical
+value. Cancellation stops before the next effect and retains the last confirmed
+state. Each state is persisted using the tracker's versioned operation envelope;
+new state parsing rejects malformed/unknown values. `issue recovery` resumes this
+operation through the same transition. A pending correction is reported as pending,
+never complete; temporary cross-store disagreement is explicit until completion.
+Transient receipt cleanup follows existing confirmed-operation recovery cleanup;
+retained correction evidence is capped at64 KiB per operation, permanently in
+tracker history, plus one bounded calibration row and Git storage overhead.
+
+### Authoritative calibration correction (PQ-3)
+
+Extend LedgerRow with an optional final correction column carrying a versioned
+JSON value: operation ID, completion generation, disposition replace/exclude,
+explicit target raw-row SHA-256 identities, and measurement digest. Legacy rows
+remain ordinary; targets are bound during preflight from exact existing raw rows,
+not guessed by issue number alone. Missing/ambiguous targets refuse before effects.
+`estimate.ResolveCorrections` first validates correction identity/target ownership,
+then suppresses those exact earlier rows. Replace makes the corrected row eligible;
+exclude supplies no numeric sample. Only AFTER this resolution do ordinary trust,
+model, positive-actual filtering and NewestPerIssue run; ordinary re-close behavior
+stays unchanged. All calibration/forecast/convergence consumers share this rule.
+Repeated operation IDs must have identical payloads; conflicting ones are errors.
+
+The owning exclusion action is `issue correct-actual --exclude --reason TEXT`,
+for a proven-invalid sample whose historical telemetry cannot support repair.
+It preserves completion evidence, records actual_hours N/A and explicit exclusion,
+and writes an exclusion correction targeting the invalid sample. It cannot invent
+hours. An excluded newest repair must not expose a superseded trusted sample.
+A successful measured repair uses the same operation path with disposition replace.
+
+### Named function verification strategies (PQ-4)
+
+| Proposed function | Adversarial class and mechanical guard |
+|---|---|
+| `tracker.DeriveEngagements` | ownership event sequences including release/reclaim and malformed gaps; property tests preserve disjoint intervals, and deleting release clipping must fail |
+| `transcripts.EligibleSources` | moved persistent roots and old descendant dispatch metadata; fixture/property tests reject unrelated lineage and preserve original root, mutation each rule independently |
+| `activetime.ClipActivity` | arbitrary overlapping intervals/spans and gaps; property tests preserve union minutes only inside admitted engagements, mutation clipping must fail |
+| `resolveActualInputs` | checkout/ref/override changes around movement/landing; production temporary-repo parity tests pin identical inputs, delete each caller's wiring independently |
+| `actualPlausibility` | finite/nonfinite ratios and absolute floor; pure boundary tests plus omitted-close production warning test, disable warning branch and observe failure |
+| `actualcorrection.Transition` | reordered, duplicate, interrupted and competing effect outcomes; deterministic sequence tests preserve generation and confirmed progress, mutate each confirmation guard |
+| `estimate.ResolveCorrections` | missing/conflicting/cross-issue targets and excluded replacements; seeded property/fuzz tests ensure suppressed rows never return through any consumer, mutation pre-filter resolution must fail |
+
+No new measurement model, task-context inference, general sandbox, or all-worktree
+attribution is introduced. Code belongs to #335; pair data repair follows landing.
