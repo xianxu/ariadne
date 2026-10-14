@@ -184,6 +184,8 @@ untracked file before the merge. Tracked files retain the literal-path restore
 command; untracked files now get a literal-path `git clean -f` command. A
 real-Git wildcard test proves it removes only the selected file.
 
+Resumed in ariadne:5 after the operator unfreeze, from moved HEAD ec6a37986245ea20c81ba10f7f923e627050fd55. Merged origin/main 74e803ecd896400bbe2e7f4b957c69383e9f1397 cleanly (merge 9716d6061b32b46c2a8fdd95de1daa14f82ae5c5), including #369/#370/#378. Focused recovery, eligibility, decision, publication and bounded-reader tests pass (16.707s; /tmp/ariadne240-focused-resume.log). gofmt reports no changes and git diff --check passes; make -k passes. Local file retention and literal tracked/untracked cleanup guidance are already implemented; the remaining acceptance step is the repaired-code recorded full suite followed by renewed close review.
+
 ### 2026-09-20
 
 Filed from the #239 session. Evidence above is all measured in that session, not

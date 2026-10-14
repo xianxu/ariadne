@@ -14,10 +14,10 @@
 
 | PURE entity | Lives in | Status |
 |---|---|---|
-| `TrunkProsePath` eligibility | `cmd/sdlc/trunkpublish.go` | new |
+| `trunkProsePath` eligibility | `cmd/sdlc/trunkpublish.go` | new |
 | `prosePublishDecision` | `cmd/sdlc/trunkpublish.go` | new |
 
-`TrunkProsePath` is lexical and accepts only `.md` paths below `workshop/parley/`, `workshop/pensive/`, `workshop/targets/`, `workshop/projects/`, plus exact `workshop/lessons.md`. It rejects issue, plan, atlas, code, base-layer, asset, traversal, and absolute paths. Filesystem inspection separately verifies regular files, including no symlink in the path. The explicit allowlist is intentional: code, settings and atlas require issue review. A path must be modified only in the working tree, not already committed on this issue branch or staged in the index; this lets successful publication remove its dirty copy without rewriting history (ARCH-PURPOSE).
+`trunkProsePath` is lexical and accepts only `.md` paths below `workshop/parley/`, `workshop/pensive/`, `workshop/targets/`, `workshop/projects/`, plus exact `workshop/lessons.md`. It rejects issue, plan, atlas, code, base-layer, asset, traversal, and absolute paths. Filesystem inspection separately verifies regular files, including no symlink in the path. The explicit allowlist is intentional: code, settings and atlas require issue review. A path must be modified only in the working tree, not already committed on this issue branch or staged in the index; this keeps branch history isolated while the published dirty copy remains available for manual cleanup (ARCH-PURPOSE).
 
 `prosePublishDecision(local, branchBase, main, presence)` yields already-present, write, or refuse. It extends the existing body comparison in `cmd/sdlc/republish.go:37` only for presence-aware prose semantics; share the equal-body rule rather than duplicate it (ARCH-DRY). It permits a new local file only if absent at the branch merge base and main. It permits an existing local edit only if main still has the branch-base bytes; identical local/main bytes are already-present. A main path that moved refuses even when only another line changed; the user must merge/reconcile deliberately. Tests are pure (ARCH-PURE).
 
@@ -27,7 +27,7 @@
 | `trunkRestoreCommand` | `cmd/sdlc/trunkpublish.go` | new | literal-path manual cleanup guidance |
 | `gitx.TrunkFile.UpdateMany` | `cmd/sdlc/internal/gitx/updatemany.go` | reused | Git commit-tree, fetch, CAS push, bounded retry |
 
-The command pins the selected path and local bytes before publishing. It verifies a regular file and rejects staged or branch-committed changes to it. On each CAS attempt it compares the pinned branch-base tree and current trunk view, rechecks the worktree identity, and constructs one `TrunkWrite` with `ExactBytes`. It uses the same stateful Git seam and real bare-Git fixtures as other SDLC publication tests (`cmd/sdlc/internal/gitx/updatemany.go:75`, ARCH-MOCK). An uncertain push returns the existing uncertainty error and leaves local bytes; rerunning first checks whether main carries the local bytes and then cleans. A rejected CAS retries only if unrelated main paths moved; a selected-path conflict refuses. The command serializes within the existing SDLC transaction lock, while the remote CAS governs other workspaces (ARCH-ORDER).
+The command pins the selected path and local bytes before publishing. It verifies a regular file and rejects staged or branch-committed changes to it. On each CAS attempt it compares the pinned branch-base tree and current trunk view, rechecks the worktree identity, and constructs one `TrunkWrite` with `ExactBytes`. It uses the same stateful Git seam and real bare-Git fixtures as other SDLC publication tests (`cmd/sdlc/internal/gitx/updatemany.go:75`, ARCH-MOCK). An uncertain push returns the existing uncertainty error and leaves local bytes; rerunning first checks whether main carries the local bytes and repeats cleanup guidance while retaining the local file. A rejected CAS retries only if unrelated main paths moved; a selected-path conflict refuses. The command serializes within the existing SDLC transaction lock, while the remote CAS governs other workspaces (ARCH-ORDER).
 
 After confirmed publication, the command retains the local file and prints
 literal-path cleanup guidance if its bytes still match the pinned read. A
@@ -48,7 +48,7 @@ and leaves the local file untouched (ARCH-CONSTRAINTS).
 
 **Files:** `cmd/sdlc/trunkpublish.go`, `cmd/sdlc/trunkpublish_test.go`
 
-- [x] Write `TrunkProsePath` tests with arbitrary path components (including traversal and separators) and `prosePublishDecision` tests over adversarial present/absent/value combinations; assert the specific refusal reason.
+- [x] Write `trunkProsePath` tests with arbitrary path components (including traversal and separators) and `prosePublishDecision` tests over adversarial present/absent/value combinations; assert the specific refusal reason.
 - [x] Run targeted tests to prove they fail before implementation.
 - [x] Implement the pure allowlist and decision; run the targeted tests green.
 - [x] Commit the tested core with the command as `#240: publish selected workshop prose to main`.
@@ -135,3 +135,7 @@ untracked file before main is merged. The revised output uses literal-path Git
 restore for tracked files and targeted literal-path `git clean -f` for untracked
 files before a conflicting merge. Real-Git tests execute each printed command,
 including a wildcard filename with another matching file beside it.
+
+### 2026-10-14 — resume in ariadne:5
+
+The moved branch is owned by ariadne:5. Current-plan summary wording now agrees with the approved retention policy: no automatic cleanup after publication or retry, and the pure path predicate uses its actual lowercase Go name. Historical cleanup designs remain in the preceding Revisions. Current main, including #369, #370 and #378, is integrated before renewed acceptance.
