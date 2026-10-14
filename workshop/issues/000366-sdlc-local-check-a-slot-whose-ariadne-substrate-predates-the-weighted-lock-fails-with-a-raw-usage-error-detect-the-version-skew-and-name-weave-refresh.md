@@ -1,12 +1,12 @@
 ---
 id: 000366
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
-card_mirror: '40c5f2c15a02338c3398906fd81a8c9dcc5187e6' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b027496dd84ea31c0a74363c7a92f2c2d39ee7e7' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T09:00:28-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.89
 ---
 
 # sdlc local-check: a slot whose ariadne substrate predates the weighted lock fails with a raw usage error; detect the version skew and name 'weave refresh'
