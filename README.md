@@ -225,7 +225,20 @@ branches. On a primary checkout this explicitly includes its declared shared pee
 ```sh
 weave refresh          # all-repository preflight, fast-forward only, then compile
 weave refresh --rebase # explicitly permit replaying local commits, then compile
+weave refresh --substrate # preserve the consumer issue branch; refresh substrates and compile
 ```
+
+Use `--substrate` from a clean issue branch to adopt newer declared substrates
+without fetching or advancing the consumer repository. Its branch, HEAD, index
+and origin/main remain unchanged; compilation can update generated composition.
+It cannot be combined with `--rebase`. Numbered slots refresh only their private
+substrates, with the same ownership, cleanliness and preflight safeguards.
+
+SDLC checks the resolved suite-lock helper before acquisition. An incompatible
+substrate names its checkout and HEAD and directs you to `weave refresh --substrate`,
+then retry the original local-check command. If the helper belongs to the consumer
+source itself, merge current main into the issue branch instead: substrate-only
+refresh cannot update tracked source. With no substrates this mode only recompiles.
 
 `--rebase` may rewrite local commits or stop with conflicts. Resolve or abort the
 Git operation explicitly before retrying. Completed repository updates remain

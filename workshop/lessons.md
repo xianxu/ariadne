@@ -715,3 +715,6 @@ The simplest durable authority beats a clever scan of consequences.
 - A successful repair must show the measurement's reconstruction basis and
   quality diagnostics as well as the number and hashes. Exercise preview and
   execution through the command path, and reuse measurement rendering (#335 BR-5).
+
+- New CLI flags and recovery commands need README coverage alongside atlas and help; enumerate all three before close (#366 BR-1).
+- When a fenced reviewer cannot run a regression, record an exact-head host rerun, environment qualification and log path; distinguish unverifiable review execution from a demonstrated implementation failure (#366 BR-2).

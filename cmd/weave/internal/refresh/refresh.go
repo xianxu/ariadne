@@ -64,6 +64,16 @@ func declaredOrigins(snapshots []Snapshot, anchors layergraph.Anchors) error {
 // Run refreshes current branches, then compiles once. It never acquires missing
 // checkouts or rolls back Git updates. The caller owns any setup lease.
 func Run(ctx context.Context, root string, c acquire.Client, rebase bool, out io.Writer, compile func() error) (retErr error) {
+	return RunWithOptions(ctx, root, c, Options{Rebase: rebase}, out, compile)
+}
+
+// RunWithOptions preserves the complete observation graph, even when the root
+// is excluded from the allowed update set. The caller owns the setup lease.
+func RunWithOptions(ctx context.Context, root string, c acquire.Client, options Options, out io.Writer, compile func() error) (retErr error) {
+	if options.SubstrateOnly && options.Rebase {
+		return fmt.Errorf("--substrate and --rebase cannot be combined; run weave refresh --substrate to fast-forward substrates only")
+	}
+	rebase := options.Rebase
 	if out == nil {
 		out = io.Discard
 	}
@@ -113,6 +123,10 @@ func Run(ctx context.Context, root string, c acquire.Client, rebase bool, out io
 	}
 	for i := range snapshots {
 		s := &snapshots[i]
+		if options.SubstrateOnly && s.path == root {
+			s.target = s.head
+			continue
+		}
 		// Fetch errors can contain credential-bearing transport URLs. Keep diagnostics
 		// to the checkout and operation; never echo subprocess stderr here.
 		if _, e := c.Git.Run(ctx, s.path, "fetch", "--no-recurse-submodules", "--no-tags", "origin", "+refs/heads/main:refs/remotes/origin/main"); e != nil {
@@ -130,7 +144,11 @@ func Run(ctx context.Context, root string, c acquire.Client, rebase bool, out io
 			continue
 		}
 		if !eligibility(s.head == s.target, isAncestor, rebase) {
-			blockers = append(blockers, fmt.Errorf("%s: local branch is ahead or divergent; reconcile it or explicitly use --rebase", s.path))
+			if options.SubstrateOnly {
+				blockers = append(blockers, fmt.Errorf("%s: substrate branch %s at %s is ahead or divergent; ask the operator to reconcile this checkout with origin/main, then retry weave refresh --substrate", s.path, s.branch, s.head))
+			} else {
+				blockers = append(blockers, fmt.Errorf("%s: local branch is ahead or divergent; reconcile it or explicitly use --rebase", s.path))
+			}
 		}
 		rows, e := targetDeclarations(ctx, c.Git, *s)
 		if e != nil {
@@ -171,6 +189,11 @@ func Run(ctx context.Context, root string, c acquire.Client, rebase bool, out io
 		}
 		if e := revalidate(ctx, c.Git, s); e != nil {
 			return fmt.Errorf("%s: %w", s.path, e)
+		}
+		if options.SubstrateOnly && s.path == root {
+			fmt.Fprintf(out, "%s: consumer branch preserved at %s\n", s.path, s.head)
+			final = append(final, s)
+			continue
 		}
 		if e := ignoredCollisions(ctx, c.Git, s, rebase); e != nil {
 			return fmt.Errorf("%s: %w", s.path, e)
@@ -228,6 +251,9 @@ func Run(ctx context.Context, root string, c acquire.Client, rebase bool, out io
 	}
 	if e := step(finished); e != nil {
 		return e
+	}
+	if options.SubstrateOnly && len(snapshots) == 1 {
+		fmt.Fprintln(out, "no substrate Git checkouts to refresh; compiling the current source branch (integrate main separately to update source-owned helpers)")
 	}
 	if compile == nil {
 		return fmt.Errorf("refresh requires a compile callback")
