@@ -141,8 +141,8 @@ def report(tmp, results):
                 times[key[1]] = ev.get("Elapsed", 0.0)
         print(f"{label:9} exit {code}  {secs:7.1f}s  {len(fails)} failed")
         for pkg, test in fails:
-            if test and "/" in test:
-                continue  # the parent test's output includes its subtests
+            # test2json assigns assertion output to the exact subtest, not
+            # its parent. Keep that evidence when reporting a failed child.
             print(f"--- FAIL {pkg} {test}".rstrip())
             print("".join(out.get((pkg, test), [])[-40:]), end="")
         if code != 0:

@@ -75,3 +75,15 @@ test passed10 repeats (0.896s). Repeating both probe modes additionally exposed
 the first shell marker is scheduled. Require start proof only for explicit
 cancel (which waits for that marker); both modes still check timing/error and
 worktree cleanup. No production timeout or elapsed assertion increased.
+
+### 2026-10-14 — suite blocked by lease flake, diagnostic repair
+
+Recorded suite on3c507cda18d9d357ada0c7328b4497185fe017ee passed all1342 root
+tests but failed the known weavefs lease test (0.08s), total524.9s. Focused
+lease100 repeats, whole-package50 repeats, and focused1000 repeats passed.
+Peer :2 confirmed its earlier full-suite failure had no retained assertion
+either. The summarizer wrongly assumes parent test2json output contains child
+assertions and drops failed subtests. A pure recorded-event regression caught
+that omission before removing the skip; it now runs from the root Go suite.
+Next recorded suite will retain the actual lease assertion if it recurs; no
+lease timing/production change is guessed without that evidence.
