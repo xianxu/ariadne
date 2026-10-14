@@ -400,6 +400,22 @@ var Catalog = []Contract{
 		},
 	},
 	{
+		Verbs:         []string{"trunk publish"},
+		Class:         ConvergentRetry,
+		Effects:       "publishes one explicitly selected dirty non-issue workshop Markdown path to main through a bounded compare-and-swap, then restores only its unchanged local copy to HEAD (or removes an untracked copy); no issue-branch commit or index write.",
+		Evidence:      "the selected bytes at origin/main and the local path's status; main's trunk: publish <path> commit when it wrote new bytes.",
+		Preconditions: "one allowlisted regular Markdown path under workshop/parley, pensive, targets or projects, or workshop/lessons.md; at most 1 MiB; no staged or branch-committed edit to that path; main's path unchanged since the branch merge base, unless it already has the selected bytes.",
+		Repeat:        "while local bytes remain, main's matching bytes make the retry finish cleanup without another commit; after cleanup the local path is clean and the repeat does nothing.",
+		LostResponse:  "rerun the same command. An uncertain push leaves local bytes untouched; main is fetched and compared to them before any retry write. A local edit during cleanup is preserved and reported.",
+		Ends:          "the selected bytes are on main and the unchanged local copy is clean; later prose edits are a new publication.",
+		Proofs: []Proof{
+			{"dirty issue branch publishes only the selected prose", []string{"TestTrunkPublishFromDirtyIssueBranch"}},
+			{"a changed main path refuses without mutation", []string{"TestTrunkPublishRefusesMovedMainPath"}},
+			{"interrupted cleanup retries without a second main commit", []string{"TestTrunkPublishRetryAfterCleanupInterruption"}},
+			{"moved branch HEAD never becomes cleanup's restore source", []string{"TestTrunkPublishDoesNotRestoreAfterHeadMoves"}},
+		},
+	},
+	{
 		Verbs:         []string{"unclaim"},
 		Class:         ConvergentRetry,
 		Effects:       "the owner's release (#284); the status never changes. An open claim: its unpublished edits are published (`issue publish`) while still held, then one tracker commit clears every named owner and records the release (who let go). Started work, one issue at a time: a handoff — the optional note is committed on the issue branch, the branch is pushed (leased on the copy this checkout last fetched: the owner is its only writer, but an unseen remote tip is never overwritten), the card records the release with branch and tip, and the checkout returns to rest.",

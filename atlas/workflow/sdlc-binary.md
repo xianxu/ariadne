@@ -49,6 +49,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `issue set-area` / `set-severity` | (new #348) | Classification setters: areas must be declared (or ancestors of declared values) in main's `.sdlc/vocabulary.json`; severity is the shared enum ([vocabulary](vocabulary.md#repo-defined-enums-348)) |
 | `issue sync`      | `make issue-sync ISSUE=N`   | Legacy repositories: commit one issue locally under `#N: issue-sync: <what>`. Retired in tracker repositories (#284): a pointer at `git commit` and `issue publish` |
 | `issue publish`   | (new #244; tracker mode #284) | Tracker repositories: `--issue a,b` publishes details to main (later edits, or finishing a pre-#308 creation by the owner (anyone, while unclaimed, #274) in one narrow commit, never over a moved main). Legacy repositories: `--commit SHA` applies one selected documentation commit to fresh remote main |
+| `trunk publish --path P` | (new #240) | Publish one dirty non-issue workshop Markdown file directly to main from an issue branch, with a CAS and path-level conflict check; cleanup leaves other branch work alone |
 | `issue set-status`| ← flat `set-status`         | Status-transition guards (relocated #56 M2) |
 | `issue list`      | (new)                       | List issues (ID/status/title), sorted by ID; `--status` filters; reuses `listIssues` |
 | `issue show`      | (new)                       | Issue frontmatter + section headers, no bodies |
@@ -77,6 +78,21 @@ for the operator workflow and recovery contract.
 | `issue sync --issue N` | Legacy repositories: one local issue-file commit; no network operation by default |
 | `issue sync --push` | Legacy repositories: only the narrow issue commit created by that invocation |
 | `issue publish --commit SHA` | Legacy repositories: the selected non-merge commit's entire eligible Markdown change set |
+| `trunk publish --path P` | One uncommitted prose file under `workshop/parley/`, `pensive/`, `targets/`, `projects/`, or `workshop/lessons.md` to main; never an issue-branch commit |
+
+For product/discussion work in a tracker repository, `issue publish --issue N`
+owns issue details (and issue plans remain on their issue branch). `trunk
+publish --path P` is the explicit home for a non-issue workshop note edited
+mid-issue. It reads one regular, unstaged Markdown file up to 1 MiB; the path
+must be unchanged in the issue branch since its merge base with main. Main's
+copy must still equal that base, unless it already has the selected bytes. The
+CAS rechecks main on every attempt; a path-level conflict refuses without
+touching local work. After confirmed publication, only an unchanged local copy
+is restored to HEAD or removed if untracked. A retry after an uncertain push
+uses the surviving local bytes to recognize an already-applied publication.
+Atlas changes travel with the code they map, and code/base-layer settings
+travel through the normal reviewed issue branch; they are outside this command's
+allowlist.
 
 `runClaim` owns remote status reservation. `syncIssuesToMain` dispatches local
 checkpointing, creation reservation, or publication of a newly created issue

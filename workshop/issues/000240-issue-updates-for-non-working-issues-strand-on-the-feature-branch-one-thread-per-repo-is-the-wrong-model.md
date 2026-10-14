@@ -137,6 +137,20 @@ removes the stranding and the sweep hazard without any new model.
 
 ## Log
 
+### 2026-10-14
+
+Claimed in ariadne:1 after `weave refresh`; the tracker-era issue publication
+path already exists, so scope narrowed to non-issue workshop prose with hub
+approval. The first plan-quality round found a partial-cleanup problem in a
+multi-path transaction; a single-path command removed that state and the
+redundant M1 boundary. `change-code` then admitted the revised design on the
+quick flow. Implemented the explicit prose allowlist and main CAS path, using
+the existing `gitx.TrunkFile.UpdateMany` machinery (ARCH-DRY). Targeted
+real-Git tests covered issue-branch isolation, moved main, interruption after
+publication, tracked/untracked cleanup, a moved HEAD, staged/committed refusals,
+symlinks and later local edits; the recovery contract's proof registry passed.
+`make -k` and `make tools` completed. Full recorded suite and close remain.
+
 ### 2026-09-20
 
 Filed from the #239 session. Evidence above is all measured in that session, not

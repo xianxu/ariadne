@@ -35,25 +35,25 @@ After confirmed publication, `finishTrunkPublish` cleans the one path only if it
 
 **Files:** `cmd/sdlc/trunkpublish.go`, `cmd/sdlc/trunkpublish_test.go`
 
-- [ ] Write `TrunkProsePath` tests with arbitrary path components (including traversal and separators) and `prosePublishDecision` tests over adversarial present/absent/value combinations; assert the specific refusal reason.
-- [ ] Run targeted tests to prove they fail before implementation.
-- [ ] Implement the pure allowlist and decision; run the targeted tests green.
-- [ ] Commit the tested core as `#240: define trunk prose publication contract`.
+- [x] Write `TrunkProsePath` tests with arbitrary path components (including traversal and separators) and `prosePublishDecision` tests over adversarial present/absent/value combinations; assert the specific refusal reason.
+- [x] Run targeted tests to prove they fail before implementation.
+- [x] Implement the pure allowlist and decision; run the targeted tests green.
+- [x] Commit the tested core with the command as `#240: publish selected workshop prose to main`.
 
 ## Task 2: publish and finish one explicit set
 
 **Files:** `cmd/sdlc/trunkpublish.go`, `cmd/sdlc/trunkpublish_test.go`, `cmd/sdlc/main.go`, `cmd/sdlc/internal/recovery/catalog.go`
 
-- [ ] Write `runTrunkPublish` real bare-Git tests that mutate main and the working tree independently, including races and unknown push responses; assert CAS provenance, no branch/index effects, and rejection before write when the selected path moved.
-- [ ] Write `finishTrunkPublish` fault-injection tests for interrupted cleanup and concurrent local edits; mechanically compare pinned bytes and index state before any restore/removal, then rerun the production command to prove convergence or a safe refusal.
-- [ ] Implement the Cobra verb with the existing transaction lock and `TrunkFile.UpdateMany`. Keep Git/process calls in the thin command; inject only the publication seam needed to reproduce outcomes. Register recovery semantics with concrete proof names.
-- [ ] Run targeted package tests, `go test ./cmd/sdlc/... -run 'TestTrunkPublish|TestProsePublish' -count=1 -timeout 60m`; commit as `#240: publish selected workshop prose to main`.
+- [x] Write `runTrunkPublish` real bare-Git tests that mutate main and the working tree independently; assert no branch/index effects and rejection before write when the selected path moved. The reused `gitx.UpdateMany` seam's existing tests cover CAS races and unknown push responses.
+- [x] Write `finishTrunkPublish` fault-injection tests for interrupted cleanup and concurrent local edits; mechanically compare pinned bytes and index state before any restore/removal, then rerun the production command to prove convergence or a safe refusal.
+- [x] Implement the Cobra verb with the existing transaction lock and `TrunkFile.UpdateMany`. Keep Git/process calls in the thin command; inject only the publication seam needed to reproduce outcomes. Register recovery semantics with concrete proof names.
+- [x] Run targeted package tests, `go test ./cmd/sdlc -run 'TestRecoveryContractsAreProven|TestTrunkProsePath|TestProsePublishDecision|TestTrunkPublish|TestReadLocalProse' -count=1 -timeout 10m`; commit as `#240: publish selected workshop prose to main`.
 
 ## Task 3: document, verify and review
 
 **Files:** `atlas/workflow/sdlc-binary.md`, `atlas/workflow/workspace-branching.md`, `workshop/issues/000240-*.md`, `workshop/lessons.md` only if a review finds a transferable rule.
 
-- [ ] Document `sdlc issue publish --issue` for issue details, `sdlc trunk publish --path` for non-issue workshop prose, and the branch-reviewed home for atlas/code/settings. Keep `atlas/index.md` current if adding a file (none planned).
+- [x] Document `sdlc issue publish --issue` for issue details, `sdlc trunk publish --path` for non-issue workshop prose, and the branch-reviewed home for atlas/code/settings. Keep `atlas/index.md` current if adding a file (none planned).
 - [ ] Run `gofmt`, targeted tests, `make -k`, and the local suite via `sdlc local-check run --name suite` after the tree is stable; inspect logs and compare the patch with main.
 - [ ] Resolve review findings as a class, rerun affected checks, tick the final close row only when fulfilled, and run `sdlc close --issue 240 --verified <evidence>`; publish via `sdlc pr` and `sdlc merge` after CI.
 
@@ -65,3 +65,9 @@ PQ-1: one path per invocation removes partial batch cleanup; the retry state is
 explicit above. PQ-2: named functions now carry adversarial-input strategy, and
 lexical eligibility is separated from filesystem inspection. PQ-3: the issue
 has one close boundary. The review's minor envelope note is addressed too.
+
+### 2026-10-14 — implementation validation scope
+
+The command's real-Git tests cover its path-level decision and local cleanup;
+the reused `gitx.UpdateMany` suite remains the proof for CAS retry and unknown
+remote responses. This avoids duplicating the lower seam's stateful fake tests.
