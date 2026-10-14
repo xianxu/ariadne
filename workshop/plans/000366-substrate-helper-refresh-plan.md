@@ -85,8 +85,8 @@ Commands: `go test ./cmd/weave/internal/refresh -count=1`; `go test ./cmd/weave 
 
 - [x] Document the capability refusal, supplying HEAD, `weave refresh --substrate`, clean issue-branch requirement, source-only edge and retained-update retry semantics. Update CLI help consistently.
 - [x] Check that removing capability wiring makes the production regression fail and removing root exclusion makes the issue-branch refresh regression fail. Record actual RED/GREEN evidence, not wording tests.
-- [ ] Run all weave packages and appropriate local-check targets; commit code/docs, merge current main, then run full `make -k test` through the machine gate with the checkout frozen.
-- [ ] Record local acceptance and enter binary-owned close review. PR CI and landing are subsequent gates; land autonomously after SHIP with current main integrated and `sdlc merge --yes`, never validation/CI bypasses.
+- [x] Run all weave packages and appropriate local-check targets; commit code/docs, merge current main, then run full `make -k test` through the machine gate with the checkout frozen.
+- [x] Record local acceptance and enter binary-owned close review. PR CI and landing are subsequent gates; land autonomously after SHIP with current main integrated and `sdlc merge --yes`, never validation/CI bypasses.
 
 ## Revisions
 

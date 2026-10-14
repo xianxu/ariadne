@@ -41,7 +41,7 @@ Before invoking a substrate helper, `sdlc` checks the helper's capability (e.g. 
 
 - [x] Preflight required helper capabilities and refuse before acquisition with supplying checkout/HEAD and an executable repair.
 - [x] Add substrate-only refresh on clean issue branches, preserving consumer Git state and existing dependency safeguards.
-- [ ] Verify regressions, update atlas, run full acceptance, then enter close review.
+- [x] Verify regressions, update atlas, run full acceptance, then enter close review.
 
 ## Log
 
@@ -54,6 +54,8 @@ Before invoking a substrate helper, `sdlc` checks the helper's capability (e.g. 
 - 2026-10-14 — Expanded local-check, weighted admission, merge and landing targets GREEN (60.256s), plus cancelled-push resume (4.165s). All weave packages GREEN: go test ./cmd/weave/... -count=1 -timeout 15m; CLI 26.793s, refresh 54.518s. Full output: /tmp/ariadne366-weave-targeted.log.
 
 - 2026-10-14 — Mutation controls on disposable detached HEAD 5784a8e0: removing helper preflight made TestStaleSuiteHelperRefusesBeforeAcquisition fail with stale helper accepted; removing root fetch exclusion made TestRefreshSubstrateIssueBranchKeepsConsumerAndOtherSlots fail by treating the divergent consumer as an update subject. Both expected RED; checkout restored and removed. Current origin/main 407e48a39057503fab7cdecaf6c69ce338ce7631 already integrated. Recorded full suite started on 5784a8e0fe358601faac2b5c737344e5f951b6aa through sdlc local-check; waiting in FIFO weighted gate. Log: /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/5784a8e0fe358601faac2b5c737344e5f951b6aa/suite.log. Uses the gate-owned default make test (all shards), rather than a separate unrecorded make -k run.
+
+- 2026-10-14 — Full recorded suite GREEN on 5784a8e0fe358601faac2b5c737344e5f951b6aa: make test, 12 shards over 1342 cmd/sdlc tests and 54 other packages, all exit 0, wall 529.7s; sdlc-local/suite success, log sha256 prefix 538323fb56bd. Local acceptance complete; entering binary-owned close review.
 
 ## Revisions
 
