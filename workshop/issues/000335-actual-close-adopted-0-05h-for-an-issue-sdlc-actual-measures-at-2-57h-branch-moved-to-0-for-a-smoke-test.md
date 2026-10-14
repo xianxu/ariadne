@@ -1,12 +1,20 @@
 ---
 id: 000335
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-14
 estimate_hours:
-card_mirror: 'edb441d4f08c00d2d6c73b57c34ae82eb4d29629' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '12b57347a8110c9de45dc2a5bee09efcf285dcbf' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-14T01:44:37-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # actual: close adopted 0.05h for an issue sdlc actual measures at 2.57h (branch moved to :0 for a smoke test)
@@ -28,8 +36,49 @@ Find why close's measurement differs from `sdlc actual` for the same issue minut
 
 ## Plan
 
-- [ ]
+Proposed durable plan: `workshop/plans/000335-actual-measurement-plan.md`.
+
+- [ ] Reproduce checkout source loss and release/resume inflation.
+- [ ] Derive ownership intervals/source provenance and unify consumer inputs.
+- [ ] Add adoption diagnostics, correction/recovery, and production regressions.
+- [ ] Verify and land, then repair pair#454/#514 through measured correction.
 
 ## Log
 
 ### 2026-10-11
+
+### 2026-10-14 — root-cause investigation
+
+Claimed #335 and entered planning. Raw #454 session evidence corrects the
+original caller assumption: close explicitly ran in pair:0 while its live agent
+remained rooted in pair:1. Exact caller-cwd transcript selection excluded that
+session. Retained close.log records Oct11 20:08:38 and 0.05h. A current-engine
+same-interval replay selects 3.3 minutes from pair:0+brain versus 118.6 minutes
+from pair:1; this proves source loss, not the original 2.57h as a corrected value.
+
+#514's release retained started; re-claim reused that first start and selected
+unrelated same-slot sessions over the released period. Independent raw-event
+accounting reconstructs 23.755738h → 23.76h. Old child activity crossing the new
+claim means ownership intervals need source lineage too. Suspected duplicated
+histories were independent sibling agents; legitimate parallel work remains.
+Exact commit/session evidence and proposed contracts are in the durable plan.
+
+No existing actual correction verb was found. The plan proposes measured,
+generation-bound correction and recovery, then data repair after landing.
+No implementation or estimate; submitting direction to the hub.
+
+## Revisions
+
+- 2026-10-14 — Hub adds opposite inflation case pair#514. Historical evidence
+  corrects #454's close cwd to pair:0. Proposed scope adds release/resume
+  intervals, source lineage, pinned-input parity and repair of both records.
+  Original Spec/Done when preserved; supplemental acceptance is below.
+
+## Supplemental acceptance
+
+- Preserve genuine early work across release/resume, excluding the released gap
+  and unrelated old descendants; reproduce the #514 failure with deterministic fixtures.
+- Close/actual use identical pinned inputs and report their actual right edge,
+  source eligibility, and quality across moves and landing.
+- Correct both pair records through the measured owning verb, or explicitly
+  exclude a sample when historical evidence cannot support a trustworthy repair.
