@@ -8,6 +8,7 @@
 package gitx
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -342,18 +343,53 @@ const WindowCapDays = 61
 // extraRefs (#252) adds histories beside HEAD — the fetched issue tracker, whose
 // card commits record the claim and close. git log visits each commit once.
 func CommitWindow(issueNum string, extraRefs ...string) (firstSHA, firstISO, lastISO string, err error) {
+	firstSHA, firstISO, lastISO, err = commitWindowAt(nil, "", "HEAD", issueNum, extraRefs...)
+	if err != nil {
+		return "", "", "", nil
+	} // legacy discovery degrades on unavailable Git
+	return
+}
+
+// CommitWindowAt reads an explicitly pinned code history in the given checkout.
+// Unlike legacy discovery, failed/cancelled authority reads are errors.
+func CommitWindowAt(ctx context.Context, repo, head, issueNum string, extraRefs ...string) (firstSHA, firstISO, lastISO string, err error) {
+	if repo == "" {
+		return "", "", "", fmt.Errorf("measurement repository is missing")
+	}
+	if _, err := parseObjectID([]byte(head)); err != nil {
+		return "", "", "", fmt.Errorf("measurement head: %w", err)
+	}
+	return commitWindowAt(ctx, repo, head, issueNum, extraRefs...)
+}
+
+func commitWindowAt(ctx context.Context, repo, head, issueNum string, extraRefs ...string) (firstSHA, firstISO, lastISO string, err error) {
+	readGit := func(args ...string) ([]byte, error) {
+		if ctx != nil && ctx.Err() != nil {
+			err := ctx.Err()
+			return nil, err
+		}
+		if repo != "" {
+			args = append([]string{"-C", repo}, args...)
+		}
+		out, err := boundedGitOutput(ctx, nil, "git", args...)
+		if ctx != nil && ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return out, err
+	}
+
 	// Loose --grep first to narrow candidates; precise subject-anchor
 	// check happens below. Git's POSIX regex doesn't reliably support \b
 	// for word boundaries across platforms, so we filter subjects in Go.
 	args := []string{"log", "--grep=#" + issueNum, "--reverse", "--pretty=%aI%x00%H%x00%s"}
 	if len(extraRefs) > 0 {
-		args = append(append(args, "HEAD"), extraRefs...)
+		args = append(append(args, head), extraRefs...)
+	} else if head != "HEAD" {
+		args = append(args, head)
 	}
-	out, err := boundedGitOutput(nil, nil, "git", args...)
+	out, err := readGit(args...)
 	if err != nil {
-		// non-zero exit (e.g., not a git repo) → no window, no error
-		// (matches close-issue.py's CalledProcessError swallow)
-		return "", "", "", nil
+		return "", "", "", err
 	}
 	text := strings.TrimRight(string(out), "\n")
 	if text == "" {
@@ -391,11 +427,20 @@ func CommitWindow(issueNum string, extraRefs ...string) (firstSHA, firstISO, las
 	// v3 segment-start: parent of first match (still bounded by cap). Only for
 	// code history: a tracker commit's parent is some other card's change.
 	if len(extraRefs) > 0 {
-		if _, onHead := boundedGitOutput(nil, nil, "git", "merge-base", "--is-ancestor", firstSHA, "HEAD"); onHead != nil {
+		if _, onHead := readGit("merge-base", "--is-ancestor", firstSHA, head); onHead != nil {
+			if ctx != nil && ctx.Err() != nil {
+				return "", "", "", ctx.Err()
+			}
+			if gitExitCode(onHead) != gitAbsentExit {
+				return "", "", "", onHead
+			}
 			return firstSHA, firstISO, lastISO, nil
 		}
 	}
-	parentOut, perr := boundedGitOutput(nil, nil, "git", "log", "-1", "--pretty=%aI", firstSHA+"^")
+	parentOut, perr := readGit("log", "-1", "--pretty=%aI", firstSHA+"^")
+	if ctx != nil && ctx.Err() != nil {
+		return "", "", "", ctx.Err()
+	}
 	if perr == nil {
 		parentISO := strings.TrimSpace(string(parentOut))
 		if parentISO != "" && parentISO >= capISO {

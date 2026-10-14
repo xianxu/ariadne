@@ -454,6 +454,12 @@ sdlc project close --slug legacy-example --no-retro
 `sdlc project close`. When a retro genuinely does not apply, acknowledge that
 explicitly with `--no-retro` (`--force` waives it too).
 
+Issue actuals are measured from ownership intervals and the owning slots' agent
+sessions. Close retains its measurement evidence so later `sdlc actual` replays
+the same inputs; `sdlc actual --milestone Mx` replays a finalized milestone.
+`sdlc issue correct-actual --issue N --reason TEXT --dry-run` previews a measured
+repair of a completed sample. See `sdlc actual --help` for provenance and recovery.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

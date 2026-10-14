@@ -23,6 +23,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
@@ -68,6 +69,8 @@ type actualResult struct {
 	Warnings []string
 	// Split divides Hours at the boundary reviews (#234); nil unless measured.
 	Split *actualSplit
+	// Inputs is the exact admitted evidence retained by close/correction.
+	Inputs *gatestate.MeasurementInputs
 }
 
 // computeActual is the engine glue: resolve the commit window + peer issues + the
@@ -85,6 +88,19 @@ func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actu
 // is the plans dir holding the boundary gate ledger ("" for the default); a
 // close passes its own --plans-dir, so the split reads the rounds it persists.
 func computeActualFor(ctx context.Context, repoTop, brainAbs, issueNum, milestone, plans string) actualResult {
+	owned, err := resolveOwnedActualInputs(ctx, repoTop, brainAbs, issueNum, plans, milestone)
+	if err != nil {
+		return actualResult{Status: actualError, Issue: issueNum, Detail: err.Error()}
+	}
+	if owned != nil {
+		return computeOwnedActualFor(ctx, repoTop, issueNum, milestone, owned)
+	}
+	result := computeLegacyActualFor(ctx, repoTop, brainAbs, issueNum, milestone, plans)
+	result.Warnings = append(result.Warnings, "legacy no-tracker attribution heuristic: repository cwd plus brain; ownership provenance unavailable")
+	return result
+}
+
+func computeLegacyActualFor(ctx context.Context, repoTop, brainAbs, issueNum, milestone, plans string) actualResult {
 	res := actualResult{Issue: issueNum}
 	identity, err := resolveWorkspace(repoTop)
 	if err != nil {
@@ -301,18 +317,24 @@ func statusFromResult(out activetime.Result, issueNum string) (actualStatus, flo
 	}
 }
 
+// printActualMeasurement preserves the measurement window, phase cuts and
+// bounded provenance diagnostics wherever a successful result is presented.
+func printActualMeasurement(w io.Writer, res actualResult) {
+	cok(w, fmt.Sprintf("measured actual for #%s: %.2fh   (window %s)", res.Issue, res.Hours, res.Window))
+	if s := res.Split; s != nil {
+		fmt.Fprintf(w, "  build %.2fh · converge %.2fh · uncounted tail %.2fh (cuts: %s)\n", s.Build, s.Converge, s.Tail, s.Source)
+	}
+	for _, warning := range res.Warnings {
+		fmt.Fprintf(w, "  attribution warning: %s\n", warning)
+	}
+}
+
 // printActual renders the engine's result for a human/agent: the suggested
 // --actual value, or the judgment-fallback guidance.
 func printActual(w io.Writer, res actualResult) {
 	switch res.Status {
 	case actualMeasured:
-		cok(w, fmt.Sprintf("measured actual for #%s: %.2fh   (window %s)", res.Issue, res.Hours, res.Window))
-		if s := res.Split; s != nil {
-			fmt.Fprintf(w, "  build %.2fh · converge %.2fh · uncounted tail %.2fh (cuts: %s)\n", s.Build, s.Converge, s.Tail, s.Source)
-		}
-		for _, warning := range res.Warnings {
-			fmt.Fprintf(w, "  attribution warning: %s\n", warning)
-		}
+		printActualMeasurement(w, res)
 		fmt.Fprintf(w, "  → close (or milestone-close, for a --milestone measurement) ADOPTS this when --actual is omitted (#178, #234)\n")
 		if len(res.Peers) > 1 {
 			fmt.Fprintf(w, "  (attributed across window issues: %s)\n", strings.Join(prefixHash(res.Peers), ", "))

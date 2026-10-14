@@ -57,7 +57,7 @@ func TestCheckActualDeviation_SkipsWhenUnmeasurable(t *testing.T) {
 func TestCheckActualDeviation_MilestoneComparesItsIncrement(t *testing.T) {
 	orig := computeActualForCloseFn
 	var asked []string
-	computeActualForCloseFn = func(_ context.Context, _ string, milestone, _ string) actualResult {
+	computeActualForCloseFn = func(_ context.Context, _ string, milestone, _ string, _ ...string) actualResult {
 		asked = append(asked, milestone)
 		return actualResult{Status: actualMeasured, Hours: 0.40}
 	}

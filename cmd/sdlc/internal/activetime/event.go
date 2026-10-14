@@ -13,7 +13,10 @@
 package activetime
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -43,6 +46,8 @@ type Event struct {
 // rather than truncate at the 15-min cap (#118 — measure ship wall-clock).
 type TaskSpan struct {
 	Start, End time.Time
+	// Dispatched preserves the original dispatch when measurement bounds clip Start.
+	Dispatched time.Time
 	Source     string
 }
 
@@ -82,15 +87,22 @@ type codexPayload struct {
 // bearing user/assistant asymmetry: a user turn is dropped on empty text (and a
 // pure tool_result is dropped), but an assistant turn (when includeAssistant) is
 // ALWAYS emitted — its timestamp counts toward active time even with no text.
-func walkSessionEvents(path string, sc mentionScope, includeAssistant bool) ([]Event, []TaskSpan, error) {
-	data, err := os.ReadFile(path)
+func walkSessionEvents(path string, sc mentionScope, includeAssistant bool, pins ...SourcePrefix) ([]Event, []TaskSpan, error) {
+	return walkSessionEventsContext(nil, path, sc, includeAssistant, pins...)
+}
+
+func walkSessionEventsContext(ctx context.Context, path string, sc mentionScope, includeAssistant bool, pins ...SourcePrefix) ([]Event, []TaskSpan, error) {
+	data, err := readSessionPrefixContext(ctx, path, pins)
 	if err != nil {
 		return nil, nil, err
 	}
 	var events []Event
 	var spans []TaskSpan
 	pending := map[string]time.Time{} // Agent dispatch id → dispatch time
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
+		if err := contextError(ctx); err != nil {
+			return nil, nil, err
+		}
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
@@ -126,7 +138,7 @@ func walkSessionEvents(path string, sc mentionScope, includeAssistant bool) ([]E
 					pending[blk.ID] = ts
 				case d.Type == "user" && blk.Type == "tool_result" && blk.ToolUseID != "":
 					if start, ok := pending[blk.ToolUseID]; ok {
-						spans = append(spans, TaskSpan{Start: start, End: ts})
+						spans = append(spans, TaskSpan{Start: start, End: ts, Dispatched: start})
 						delete(pending, blk.ToolUseID)
 					}
 				}
@@ -315,7 +327,28 @@ func loadEvents(dirs []string, sc mentionScope, includeAssistant bool, sinceISO,
 	return loadEventsWithFiles(dirs, nil, sc, includeAssistant, sinceISO, untilISO)
 }
 
-func loadEventsWithFiles(dirs, files []string, sc mentionScope, includeAssistant bool, sinceISO, untilISO string) ([]Event, []TaskSpan, error) {
+func loadEventsWithFiles(dirs, files []string, sc mentionScope, includeAssistant bool, sinceISO, untilISO string, prefixMaps ...map[string]SourcePrefix) ([]Event, []TaskSpan, error) {
+	return loadEventsWithFilesContext(nil, dirs, files, sc, includeAssistant, sinceISO, untilISO, prefixMaps...)
+}
+
+func loadEventsWithFilesContext(ctx context.Context, dirs, files []string, sc mentionScope, includeAssistant bool, sinceISO, untilISO string, prefixMaps ...map[string]SourcePrefix) ([]Event, []TaskSpan, error) {
+	if err := contextError(ctx); err != nil {
+		return nil, nil, err
+	}
+	var prefixes map[string]SourcePrefix
+	if len(prefixMaps) > 0 {
+		prefixes = prefixMaps[0]
+	}
+	read := func(path string) ([]Event, []TaskSpan, error) {
+		if prefixes == nil {
+			return walkSessionEventsContext(ctx, expandUser(path), sc, includeAssistant)
+		}
+		pin, ok := prefixes[path]
+		if !ok {
+			return nil, nil, fmt.Errorf("source %s lacks pinned evidence", path)
+		}
+		return walkSessionEventsContext(ctx, expandUser(path), sc, includeAssistant, pin)
+	}
 	since, until, err := windowBounds(sinceISO, untilISO)
 	if err != nil {
 		return nil, nil, err
@@ -324,6 +357,9 @@ func loadEventsWithFiles(dirs, files []string, sc mentionScope, includeAssistant
 	var events []Event
 	var spans []TaskSpan
 	for _, d := range dirs {
+		if err := contextError(ctx); err != nil {
+			return nil, nil, err
+		}
 		dir := expandUser(d)
 		fi, err := os.Stat(dir)
 		if err != nil || !fi.IsDir() {
@@ -331,8 +367,11 @@ func loadEventsWithFiles(dirs, files []string, sc mentionScope, includeAssistant
 		}
 		files, _ := filepath.Glob(filepath.Join(dir, "*.jsonl"))
 		for _, f := range files {
-			evs, sps, err := walkSessionEvents(f, sc, includeAssistant)
+			evs, sps, err := read(f)
 			if err != nil {
+				if prefixes != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					return nil, nil, err
+				}
 				// Skip a session file that became unreadable after globbing —
 				// more robust than Python's unguarded open() (which would crash),
 				// an intentional divergence from the otherwise 1:1 port.
@@ -365,8 +404,11 @@ func loadEventsWithFiles(dirs, files []string, sc mentionScope, includeAssistant
 		}
 	}
 	for _, f := range files {
-		evs, sps, err := walkSessionEvents(expandUser(f), sc, includeAssistant)
+		evs, sps, err := read(f)
 		if err != nil {
+			if prefixes != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return nil, nil, err
+			}
 			continue
 		}
 		for _, e := range evs {
@@ -397,6 +439,9 @@ func loadEventsWithFiles(dirs, files []string, sc mentionScope, includeAssistant
 				spans = append(spans, sp)
 			}
 		}
+	}
+	if err := contextError(ctx); err != nil {
+		return nil, nil, err
 	}
 	sort.Slice(events, func(i, j int) bool { return events[i].Time.Before(events[j].Time) })
 	sort.Slice(spans, func(i, j int) bool { return spans[i].Start.Before(spans[j].Start) })

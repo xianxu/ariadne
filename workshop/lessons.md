@@ -670,3 +670,33 @@ The simplest durable authority beats a clever scan of consequences.
 - A pure admission test does not fulfill a promised lifecycle proof. For dispute
   flows, drive the real close/dispute/dispatch path and check both evidence delivery
   and non-advancement on invalid responses; mutation-check the integration wiring.
+
+
+- A convergent retry must prove every authoritative effect after private receipt
+  cleanup, including the effective calibration operation and current projection;
+  an unchanged card alone cannot prove completion (#335).
+- A calibration schema migration must preserve raw sample identities. Upgrade
+  headers under the same writer lock and atomically include the first new row;
+  test both fresh append and recovery of an already-written row (#335).
+- Cancellation tests should separate cleanup latency from natural completion by
+  a wide margin; subsecond scheduling assertions are brittle in sharded suites.
+  Keep the cancellation bound while making the fake command much slower (#335).
+
+- Admit delegated activity by original dispatch provenance before merging it
+  into parent activity. Clipping a merged span by a parent's later eligibility
+  loses the distinction between release, reclaim and continuous relocation
+  (#335 BR-1).
+- Authoritative exclusion must survive consumer selection across the full issue
+  history. Test multiple eligible older rows, not only a sole target; filtering
+  the excluded newest row alone can resurrect a superseded sample (#335 BR-2).
+- Diagnostic requirements need production caller regressions. A correct
+  comparator unit test cannot detect a removed close-time warning call; mutate
+  the wiring and include the incremental-milestone control (#335 BR-3).
+
+- Installing a new authoritative generation must retire metadata bound to its
+  predecessor in the same transition. Test re-close after both numeric repair
+  and exclusion, plus same-generation landing preservation (#335 BR-4).
+
+- A successful repair must show the measurement's reconstruction basis and
+  quality diagnostics as well as the number and hashes. Exercise preview and
+  execution through the command path, and reuse measurement rendering (#335 BR-5).

@@ -46,3 +46,13 @@ SEE ALSO
   sdlc <verb> --help     the verb's full contract and its proofs
   sdlc issue show --help the observation schema (#279)
   sdlc issue recovery    receipts and reconcile
+
+MEASURED ACTUAL CORRECTIONS (#335)
+
+  issue correct-actual retains its measured inputs in Git recovery refs before
+  publication. recovery list includes pending corrections; reconcile --issue N
+  resumes their tracker, calibration and mirror effects against the exact close
+  generation. It probes uncertain publication and never re-measures on resume.
+  An append-only calibration correction suppresses exact raw row hashes before
+  trust/filter selection, so an invalidated sample cannot reappear through an
+  older trusted row. Malformed correction evidence is a reported error.

@@ -1,6 +1,7 @@
 package activetime
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"time"
@@ -36,6 +37,8 @@ const (
 // --prefix-commit-weight 0 is honored, matching the Python original's
 // --prefix-commit-weight defaulting (None → commit-weight).
 type Options struct {
+	// Context optionally cancels IO and parsing. Nil preserves legacy runners.
+	Context context.Context
 	Dirs    []string
 	Files   []string
 	GitRepo string
@@ -51,6 +54,10 @@ type Options struct {
 	PrefixWeight     *float64
 	ThresholdMin     int
 	IncludeAssistant bool
+	// ActivityWindows, when non-nil, admits only confirmed ownership activity
+	// for each transcript source. The gap/span calculation runs before clipping.
+	ActivityWindows map[string][]ActivityWindow
+	SourcePrefixes  map[string]SourcePrefix
 }
 
 // Result is the structured outcome of a Compute run — the single value consumed
@@ -69,6 +76,9 @@ type Result struct {
 	// names Scope.Issue, oldest first (#234): the evidence for where each
 	// boundary's converge ends.
 	IssueCommitTimes []time.Time
+	// SourceIDs identifies actual contributing runs, excluding old same-cwd
+	// sessions with no activity in the admitted sample.
+	SourceIDs []string
 }
 
 const suspiciousSpanMin = 120.0
@@ -87,24 +97,30 @@ type AttributionWarning struct {
 // active time per the v3 rule. The only IO is the two loaders; everything below
 // is pure.
 func Compute(opts Options) (Result, error) {
+	if err := contextError(opts.Context); err != nil {
+		return Result{}, err
+	}
 	// The mention scope carries the tracked set plus the LOCAL repo name, so a `pair#127` in
 	// transcript prose is not counted as this repo's #127 (ariadne#190). The qualifier comes
 	// from GitRepo — the repo whose text is being attributed — for the same reason
 	// selfQualifier does on the commit path.
-	self, err := selfQualifier(opts.GitRepo)
+	self, err := selfQualifierContext(opts.Context, opts.GitRepo)
 	if err != nil {
 		return Result{}, err
 	}
 	sc := newMentionScope(self, opts.Issues)
-	events, spans, err := loadEventsWithFiles(opts.Dirs, opts.Files, sc, opts.IncludeAssistant, opts.SinceISO, opts.UntilISO)
+	events, spans, err := loadEventsWithFilesContext(opts.Context, opts.Dirs, opts.Files, sc, opts.IncludeAssistant, opts.SinceISO, opts.UntilISO, opts.SourcePrefixes)
 	if err != nil {
 		return Result{}, err
 	}
-	commits, err := loadWindowCommits(opts.GitRepo, opts.SinceISO, opts.UntilISO, opts.Scope, opts.ExtraRefs...)
+	commits, err := loadWindowCommitsContext(opts.Context, opts.GitRepo, opts.SinceISO, opts.UntilISO, opts.Scope, opts.ExtraRefs...)
 	if err != nil {
 		return Result{}, err
 	}
 
+	if err := contextError(opts.Context); err != nil {
+		return Result{}, err
+	}
 	res := Result{
 		PerIssue:   map[string]float64{},
 		NumEvents:  len(events),
@@ -122,6 +138,9 @@ func Compute(opts Options) (Result, error) {
 		} else {
 			res.Status = EmptyWindow
 		}
+		if err := contextError(opts.Context); err != nil {
+			return Result{}, err
+		}
 		return res, nil
 	}
 
@@ -130,7 +149,23 @@ func Compute(opts Options) (Result, error) {
 		prefixWeight = *opts.PrefixWeight
 	}
 
-	res.Segments = buildSegments(events, commits, spans, opts.CommitWeight, prefixWeight, opts.ThresholdMin)
+	spans, err = AdmitTaskSpans(spans, opts.ActivityWindows)
+	if err != nil {
+		return Result{}, err
+	}
+	runs, err := ClipActivity(activityRuns(events, spans, opts.ThresholdMin), opts.ActivityWindows)
+	if err != nil {
+		return Result{}, err
+	}
+	res.Segments = claimActivityRuns(runs, commits, opts.CommitWeight, prefixWeight)
+	seenSources := map[string]bool{}
+	for _, run := range runs {
+		if !seenSources[run.Source] {
+			seenSources[run.Source] = true
+			res.SourceIDs = append(res.SourceIDs, run.Source)
+		}
+	}
+	slices.Sort(res.SourceIDs)
 	for _, s := range res.Segments {
 		res.TotalActive += s.Active
 		for iss, m := range s.Alloc {
@@ -140,6 +175,9 @@ func Compute(opts Options) (Result, error) {
 	res.Warnings = attributionWarnings(res.Segments, res.PerIssue)
 	res.Warnings = append(res.Warnings, foreignRefWarnings(commits, sc.selfRepo)...)
 	res.Status = Measured
+	if err := contextError(opts.Context); err != nil {
+		return Result{}, err
+	}
 	return res, nil
 }
 

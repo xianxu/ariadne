@@ -1,0 +1,280 @@
+# Issue-scoped Actual Measurement Implementation Plan
+
+> **For agentic workers:** Consult AGENTS.md Section 3. Delegate bounded pure parsers when useful; retain measurement integration in the main session. One atomic issue close owns the review.
+
+**Goal:** Make close and actual agree across moves and release/resume, and correct both documented bad records using measured evidence.
+
+**Architecture:** Derive one pinned measurement input from issue ownership and completion history. Reuse the harness registry, active-time engine, split logic, tracker CAS/receipts, and calibration supersession. Preserve the gap cap and intended parallel-agent accounting.
+
+**Tech Stack:** Go, Git tracker history, Claude/Codex JSONL metadata, TSV calibration ledger.
+
+## Evidence
+
+- pair#454 close `3d8523e9f59fb59120447e3e4f35fee1e35b9d24` recorded 0.05h. Raw Claude session `51e5e28c-0ea9-4824-a11e-8bfda24922ae`, line 1320, explicitly runs close from pair:0 while its session remains rooted in pair:1. Retained close.log prints Oct11 20:08:38 PDT as the start. A current-engine replay over 20:08:38–22:22 selects 3.3 minutes from pair:0+brain versus 118.6 minutes from pair:1 alone. This proves source loss; it does not establish the prior 2.57h as the corrected total.
+- pair#514 initial claim `dcecfc402b4cc3c87bb921d461a19b3ad4447ed1` stamps Oct12 18:20:35 PDT. Release `d228d955b71cd14789b8b1364df7ed18553e5b06` at 18:21:14 removes the owner but retains started. Re-claim `3f2bc6490edbe22d7a7538b6da909152f5c6769d` on Oct13 18:29:07 retains it. Close `86bd8e8074a4d55f931b34b8aeb7b96da8a2c61b` records 23.76h. Codex session `01a13646-a9b3-7443-a36e-43f301879fd6`, lines 8454/8474, captures close and actual both reporting 23.76h.
+- Independent capped-gap event accounting reconstructs 22.226980h Codex + 1.528758h Claude = 23.755738h → 23.76h. Selected sessions performed pair#483/#513/#516/#524/#533/#538 during the released period. Intervals alone still admit 3.573 min from an old #533 child crossing the new claim; source lineage matters. Suspected copied histories were independent sibling agents, with no shared full response records or call IDs.
+- Both callers share computeActualFor, but select the caller's exact cwd. Explicit brain overrides also differ. The printed right edge says HEAD while the engine uses the last matching issue commit; current branch scope changes after landing.
+
+## Alternatives
+
+1. **Recommended:** derive engagement intervals and source provenance from pinned history. Preserve early shaping and moved-session activity; make incomplete evidence explicit.
+2. Reset started and admit every worktree: loses genuine earlier work and admits unrelated concurrent activity.
+3. Add warnings only: reveals suspicious totals but leaves attribution wrong.
+
+## Core concepts
+
+### Pure entities
+
+| Name | Lives in | Status |
+|---|---|---|
+| OwnershipEvent / EngagementWindow derivation | `cmd/sdlc/internal/tracker/engagement.go` | new |
+| Session provenance / eligibility | `cmd/sdlc/internal/transcripts/provenance.go` | new |
+| MeasurementInputs snapshot | `cmd/sdlc/internal/gatestate/measurement.go` | new |
+| Actual input/provenance value | `cmd/sdlc/actual.go` | modified |
+| Correction transition / calibration resolution | `cmd/sdlc/internal/actualcorrection/model.go`, `cmd/sdlc/internal/estimate/ledger.go` | new / modified |
+| Activity interval clipping | `cmd/sdlc/internal/activetime/event.go` | modified |
+| Estimate plausibility comparator | `cmd/sdlc/actualplausibility.go` | new |
+
+An issue owns zero or more engagement windows. Claim opens, release closes, and re-claim opens another. Relocate preserves the continuous engagement; reclaim closes the previous ownership interval and opens a new one without inheriting its start. Earlier genuine work stays in its earlier interval. Started remains first-engagement metadata, not a continuous attribution window. Derive transitions from card snapshots, including legacy history without operation trailers; reuse existing tracker operation constants and parsing.
+
+Only recorded participant roots for the verified same repository are eligible. A persistent source-rooted main session remains eligible after a move during the continuous engagement, because shell cd does not change session metadata. Descendants inherit their dispatch engagement; an old child cannot join a newly claimed issue merely because its cwd and timestamps overlap. Keep lineage handling narrow: Claude Agent spans retain dispatch interval; Codex thread_spawn metadata identifies parent and dispatch time. Exclude descendants dispatched outside this issue’s engagement; do not add a general task-context inference system. Preserve legitimate parallel agents.
+
+Missing/inconsistent ownership or lineage produces an explicit quality limitation, not confident inclusion of every same-cwd source. Legacy no-tracker measurements retain a labeled fallback. Ambiguous required evidence prevents automatic adoption/correction with an actionable diagnostic. Preserve the existing gap and mention-weighting rules.
+
+### Integration points
+
+| Name | Lives in | Status | Wraps |
+|---|---|---|---|
+| Pinned input resolver | `cmd/sdlc/actualinputs.go` | new | workspace identity, refs/card history |
+| Harness source discovery | `cmd/sdlc/internal/transcripts/{claude,codex,transcripts}.go` | modified | files and lineage metadata |
+| Explicit measurement code ref | `cmd/sdlc/internal/gitx/window.go`, `cmd/sdlc/internal/activetime/commit.go` | modified | Git log/ranges |
+| Shared consumer wiring | `cmd/sdlc/{actual,close,milestoneclose}.go` | modified | resolver and existing engine |
+| Measured correction command | `cmd/sdlc/actualcorrection.go` | new | tracker CAS/receipt and calibration |
+
+Use existing Git/tracker seams and real portable temporary repositories with file-backed Claude/Codex fixtures. One snapshot names code HEAD, tracker HEAD, branch scope, effective start/end, engagements, and selected/excluded source provenance. Close measures its pinned review input; a completed issue resolves completion.reviewed_head and its finalized ledger instead of the caller's later main HEAD. Verify scope/split parity through landing. Respect explicit brain-dir identically in every consumer.
+
+## Contracts and limits
+
+- Verify participant paths against canonical repository identity; exclude unrelated slots/repos and review checkouts. Deleted roots, malformed history, missing telemetry, and stale reads remain visible uncertainty.
+- Print actual start/end, code/tracker refs, scope, participant roots, excluded interval/source reasons, source/event counts, and quality. Detailed segment accounting stays in active-time.
+- Whole-issue adoption warns when actual/estimate < 0.1 or > 10 with at least 0.5h difference. These are review heuristics, not proof of error. Do not compare milestone increments with a whole-issue estimate. Incomplete required evidence refuses auto-adoption independently of ratio; preserve existing explicit judgment escapes.
+- Reuse the 5,000-record history ceiling and stop when relevant issue history is resolved. Hitting it means unknown, not empty. Honor cancellation; stream metadata before large payloads. No background work outlives measurement, and no persistent transcript cache is added.
+- No new status/lifecycle enum or sandbox. Update modeled actual_hours writer ownership only if correction introduces a writer. Diagnostics return/print; bounded correction evidence uses existing tracker receipts/history, never published raw transcripts.
+
+## Measured correction
+
+Propose `sdlc issue correct-actual --issue N --reason TEXT`, with dry-run preview. It computes the value, accepts no hand-typed hours, requires a completed close generation, and preserves status/reviewed head/landing/original close evidence. Record old/new actual, input/algorithm provenance, and reason, bound to that generation.
+
+Pin tracker generation and calibration inputs before effects. Tracker CAS and calibration append are separate effects: use existing receipts/recovery, persist confirmed progress, and make retries converge without remeasuring or appending duplicates. Generation change refuses; uncertain publication reconciles remote evidence. Add explicit correction resolution BEFORE ordinary calibration eligibility filtering; retain NewestPerIssue for ordinary re-close selection only. Sweep all readers through that shared resolution rule. Refresh an archived card mirror through the existing narrow publication path, never another live slot's tree.
+
+After #335 lands and the shared binary is rebuilt, inspect dry-run segment evidence and correct pair#454/#514 through the owning verb. Use fixed measurements, not 2.57h or a reset-window approximation. If historical provenance cannot be established, explicitly exclude the invalid sample and report what evidence repair needs.
+
+## Tasks and verification
+
+- [ ] **Reproduce:** portable histories for move :1→:0→:1 with a persistent source-rooted session, and claim→release→other work→claim with an old child crossing the new claim. State expected minutes independently, preserve early shaping, and observe RED before production changes.
+- [ ] **History/source rules:** implement pure transitions and eligibility. Sequence/property tests exercise repeated claims, transfers/releases, missing/truncated history, and lineage. Individually mutation-check release clipping, moved-source retention, and old-child exclusion.
+- [ ] **Consumer parity:** drive actual, whole close, milestone close and explicit brain-dir through production temporary-repo entry points. Compare hours/provenance for identical pinned inputs before/after movement and landing; concurrent unrelated slots stay excluded. Mutation-check each consumer's wiring separately.
+- [ ] **Adoption:** pure ratio boundary tests and production omitted-actual warning/refusal tests. Update README, actual/active-time/close/milestone help and `atlas/workflow/sdlc-binary.md`.
+- [ ] **Correction:** exercise the correction transition and each persisted-effect boundary under deterministic interruption/races, asserting unchanged close binding and idempotent completion. Update help/README/atlas and modeled field ownership; verify effective calibration/split readers use corrected evidence.
+- [ ] **Ship:** targeted checks then committed/frozen-tree background `make -k test`; close on SHIP, PR/CI/merge, real-hash report to hub.
+- [ ] **Repair data:** after landing, fixed-engine replay and owning-verb corrections for pair#454/#514; card/archive/effective calibration agree. Peer code/config remains separately owned.
+
+Named risky-function strategies are defined below; test code owns the case inventory.
+
+Targeted commands: `go test ./cmd/sdlc/internal/tracker ./cmd/sdlc/internal/transcripts ./cmd/sdlc/internal/activetime -count=1`; `go test ./cmd/sdlc -run 'TestActual.*(Move|Release|Provenance)|TestClose.*Actual|TestActualCorrection' -count=1`. Full: `make -k test`; avoid the serial whole cmd/sdlc suite.
+
+## Architecture lenses
+
+ARCH-DRY: one resolver/engine/correction authority. ARCH-PURE: typed event/window/eligibility/comparison rules. ARCH-PURPOSE: both failures, all consumers, actual data repair. ARCH-MOCK: file-backed repos/transcripts and opt-in historical conformance. ARCH-CONSTRAINTS: bounded issue history and metadata-first reads. ARCH-SECURE: verified identity/provenance and explicit ambiguity. ARCH-ORDER: modeled ownership transitions, pinned generations, interrupted/repeated effects. ARCH-FUNERAL: no cache family; bounded receipts/correction rows use existing retention and Git history.
+
+## Revisions
+
+- 2026-10-14 — Hub approved the core direction (receipt e5efe89a-aad5-40dd-813a-d6559e2053b1), requesting proportionality. Ownership intervals follow claim/release; reclaim starts a fresh interval. Two narrow extensions are retained only for the measured counterexamples:
+  - Moved persistent source retention is needed because #454's pair:1-rooted session kept issuing commands in pair:0 after relocation; strict owner-path/time switching would again lose those events.
+  - Dispatch lineage is needed because #514's old #533 child contributes 3.573 minutes after re-claim despite correct ownership-time and slot filtering; exclude children dispatched outside the engagement.
+  - Drop general task-context inference; keep existing harness metadata/span seams.
+
+## Approval checkpoint
+
+Hub direction approved; proceed through change-code. No implementation or estimate yet; derive the estimate after plan-quality. No Mx tags: one atomic implementation review boundary.
+
+## Plan-quality refinements (2026-10-14)
+
+PQ-1–PQ-4 accepted; PQ-5/PQ-6 advisory also incorporated. These refine the approved core.
+
+### Durable measurement inputs (PQ-1)
+
+`gatestate.MeasurementInputs` is a versioned value retained on the boundary Round
+as optional `actual_inputs`. It contains code/tracker commit pins, branch point,
+effective endpoints, engagements/participant roots, engine parameters/version,
+the split-cut inputs used for that measurement, and source evidence identities
+(harness/session ID, selected prefix length and digest, dispatch parent/time).
+Close persists exactly the snapshot it measured; review/finalization may add a
+round but cannot silently change that adopted snapshot. Existing Markdown ledger
+render/parse must round-trip the field; the existing issue archive carries it.
+Completed actual reads it from completion.evidence_commit's ledger, bound to
+that completion.reviewed_head; it neither reads today's tracker as its time window
+nor derives scope from today's main. Event replay verifies recorded source prefixes;
+append-only later transcript activity does not change the pinned sample.
+
+For legacy closes lacking this field, explicitly report legacy reconstruction:
+use completion reviewed_head/evidence_commit, historical card generation and
+bounded ownership history at that close, with historical ledger cuts. Missing or
+ambiguous pins/evidence cannot auto-adopt or correct. The repair dry-run must name
+its reconstruction basis; corrected totals remain hypotheses until replay succeeds.
+Active preview and close consume the same resolver; tests compare snapshots and
+split inputs, not just rounded totals. Explicit brain-dir is part of the snapshot.
+
+Initial operational ceiling: 128 contributing sources and a 64 KiB serialized
+input snapshot, based on the motivating cases' dozens of sources. Exceeding either
+refuses confident measurement rather than truncating its authority. Prefix hashing
+streams bytes; no full transcript copies enter artifacts. One snapshot per accepted
+boundary round costs at most64 KiB plus Git history permanently. Transient values
+die at command return; no new cache. Opt-in historical/harness conformance runs
+before #335 close, after lineage parser changes, and when installed CLI metadata
+changes; synthetic fixtures run in ordinary tests.
+
+### Correction transition and effects (PQ-2/PQ-5)
+
+`actualcorrection.Transition(state,event)` owns this new operation; existing
+receipts supply persistence/CAS plumbing, not an already-defined calibration stage.
+Its immutable spec pins repository/issue, completion token/evidence/reviewed head,
+expected card blob, measurement/input digest, reason, calibration destination and
+superseded row hashes. Operation identity is a generated durable token; prepare it
+before writes and reuse it on recovery. No live command remeasures a prepared op.
+
+| State | Event | Next state / effect |
+|---|---|---|
+| Prepared | apply | publish card actual and correction metadata under expected-card CAS |
+| Prepared | tracker publication uncertain | remain Prepared; probe exact token/candidate on remote, never infer from equal hours |
+| Prepared | matching candidate confirmed | CalibrationPending; append resolved correction row under ledger lock |
+| CalibrationPending | append ack lost/restart | read ledger for exact operation ID and row digest; matching row is confirmed, mismatch refuses |
+| CalibrationPending | append confirmed | MirrorPending; publish bounded archived mirror projection on pinned main |
+| MirrorPending | projection confirmed or already exact | Complete; finalize operation evidence |
+| Any incomplete | competing completion/correction generation | refuse further effects, retain confirmed progress for inspection/recovery |
+| Complete | repeat | no-op, return recorded result |
+
+A concurrent correction races on the expected card generation, so one wins;
+recovery proves its own operation rather than claiming another writer's identical
+value. Cancellation stops before the next effect and retains the last confirmed
+state. Each state is persisted using the tracker's versioned operation envelope;
+new state parsing rejects malformed/unknown values. `issue recovery` resumes this
+operation through the same transition. A pending correction is reported as pending,
+never complete; temporary cross-store disagreement is explicit until completion.
+Transient receipt cleanup follows existing confirmed-operation recovery cleanup;
+retained correction evidence is capped at64 KiB per operation, permanently in
+tracker history, plus one bounded calibration row and Git storage overhead.
+
+### Authoritative calibration correction (PQ-3)
+
+Extend LedgerRow with an optional final correction column carrying a versioned
+JSON value: operation ID, completion generation, disposition replace/exclude,
+explicit target raw-row SHA-256 identities, and measurement digest. Legacy rows
+remain ordinary; targets are bound during preflight from exact existing raw rows,
+not guessed by issue number alone. Missing/ambiguous targets refuse before effects.
+`estimate.ResolveCorrections` first validates correction identity/target ownership,
+then suppresses those exact earlier rows. Replace makes the corrected row eligible;
+exclude supplies no numeric sample. Only AFTER this resolution do ordinary trust,
+model, positive-actual filtering and NewestPerIssue run; ordinary re-close behavior
+stays unchanged. All calibration/forecast/convergence consumers share this rule.
+Repeated operation IDs must have identical payloads; conflicting ones are errors.
+
+The owning exclusion action is `issue correct-actual --exclude --reason TEXT`,
+for a proven-invalid sample whose historical telemetry cannot support repair.
+It preserves completion evidence, records actual_hours N/A and explicit exclusion,
+and writes an exclusion correction targeting the invalid sample. It cannot invent
+hours. An excluded newest repair must not expose a superseded trusted sample.
+A successful measured repair uses the same operation path with disposition replace.
+
+### Named function verification strategies (PQ-4)
+
+| Proposed function | Adversarial class and mechanical guard |
+|---|---|
+| `tracker.DeriveEngagements` | ownership event sequences including release/reclaim and malformed gaps; property tests preserve disjoint intervals, and deleting release clipping must fail |
+| `transcripts.EligibleSources` | moved persistent roots and old descendant dispatch metadata; fixture/property tests reject unrelated lineage and preserve original root, mutation each rule independently |
+| `activetime.ClipActivity` | arbitrary overlapping intervals/spans and gaps; property tests preserve union minutes only inside admitted engagements, mutation clipping must fail |
+| `resolveActualInputs` | checkout/ref/override changes around movement/landing; production temporary-repo parity tests pin identical inputs, delete each caller's wiring independently |
+| `actualPlausibility` | finite/nonfinite ratios and absolute floor; pure boundary tests plus omitted-close production warning test, disable warning branch and observe failure |
+| `actualcorrection.Transition` | reordered, duplicate, interrupted and competing effect outcomes; deterministic sequence tests preserve generation and confirmed progress, mutate each confirmation guard |
+| `estimate.ResolveCorrections` | missing/conflicting/cross-issue targets and excluded replacements; seeded property/fuzz tests ensure suppressed rows never return through any consumer, mutation pre-filter resolution must fail |
+
+No new measurement model, task-context inference, general sandbox, or all-worktree
+attribution is introduced. Code belongs to #335; pair data repair follows landing.
+
+## Revisions — implementation integration (2026-10-14)
+
+- The shared measurement runner and estimate comparator live together in
+  `actualmeasurement.go`; no separate comparator module is needed.
+- Finalized milestones retain and replay their own pre-review snapshot, while
+  the active whole issue continues measuring its aggregate ownership intervals.
+- A historical close without retained inputs resolves its exact concrete
+  Review-Window evidence rather than today's main. An unpinned multi-boundary
+  history is incomplete and refuses numeric auto-adoption.
+- Correction inputs take precedence for the same completed generation, so later
+  actual agrees with a corrected card. Explicit exclusion remains nonnumeric.
+- Exclusion diagnostics retain a count and bounded examples; brain active-session
+  count and minutes are persisted, with released intervals clipped out.
+- Ordinary close and correction writers share the existing ledger-directory lock
+  to prevent cross-repo read/rewrite and append races. No separate lock family.
+
+### 2026-10-14 — historical repair preflight refinement
+
+The real #454 evidence supplies a narrow additional proof: reviewed HEAD is an
+explicit main-integration merge, and its second parent exactly equals the
+completed Review-Window base. Accept that pinned scope even with named boundaries;
+continue refusing unproved multi-boundary/reclose scope. This is needed to repair
+#454 numerically from retained Git evidence rather than unnecessarily exclude it.
+The #514 dry-run also exposed standard archive lookup, now derived through the
+existing issue-directory authority (active, canonical archive and legacy flat).
+
+### 2026-10-14 — retry evidence and final acceptance ordering
+
+A complete correction repeat proves the current card generation, effective
+calibration operation and main mirror before returning its recorded result.
+Missing or superseded proof refuses rather than creating another operation.
+Ownership-proven repairs mark their window trusted; legacy fallback does not.
+The first correction atomically upgrades a legacy calibration header under the
+existing writer lock, preserving all raw sample bytes/identities and permissions.
+Recovery's catalog names the real command proofs.
+
+The first recorded suite caught the missing recovery declaration and a600ms
+cancellation assertion under sharded load. Its fixture now separates a30s fake
+command from a3s cancellation deadline; no production cancellation rule changed.
+Final targeted correction/catalog/cancellation checks passed39.436s.
+
+Hub receipt804134bb-8925-425e-87f2-e409e6befc45 requires close/PR/merge with the
+shared binary. After landing and the hub rebuild, repair pair#454/#514 AND #335
+with measured correct-actual. The acceptance checklist's land/repair item remains
+pending at close, acknowledged by the precise no-plan-check flag; no peer data
+write or gate-binary replacement occurs before landing.
+
+### 2026-10-14 — boundary round1 class corrections
+
+BR-1: admit each Claude Task span by its original dispatch engagement BEFORE
+activity union. Dispatched while released is excluded; dispatch in an earlier
+engagement cannot spill into a reclaim. Preserve continuous relocation through
+its existing Began identity, including replay derived from retained engagements.
+The event loader must retain original dispatch even when Since clips a span.
+
+BR-2: a validated exclusion is authoritative over every earlier sample for the
+issue, so consumer filtering/selection cannot revive older rows. Exact target
+and operation validation remains unchanged; a genuine later close or replacement
+can supply a new sample. Identical retries cannot advance exclusion ordering.
+
+BR-3: exercise omitted-actual whole-issue close through its production adoption
+path, assert the implausibility diagnostic, and verify a milestone control.
+Remove the actual warning call to prove the regression fails independently of
+the comparator unit test.
+
+Core-concept file refinements: discovery IO lives in transcripts/discovery.go;
+the comparator shares actualmeasurement.go, and clipping lives in activetime/clip.go.
+These corrections fulfill existing dispatch/exclusion/warning contracts; no new
+feature scope or post-landing data writes (ARCH-PURPOSE/ARCH-ORDER).
+
+### 2026-10-14 — correction lifetime across completion generations
+
+BR-4: installing a new completion token atomically retires current correction
+metadata bound to its predecessor; same-token landing preserves it. Historical
+card/correction evidence remains immutable in Git. Sequence regressions cover
+both replacement and exclusion, rejected same-token rewrites, and production
+CodecompleteCard followed by resolver replay (ARCH-ORDER/ARCH-FUNERAL).

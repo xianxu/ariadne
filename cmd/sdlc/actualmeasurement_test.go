@@ -1,0 +1,130 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"fmt"
+	"math"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/transcripts"
+)
+
+func TestOwnedActualEngineReplayAndExcludedBrainProvenance(t *testing.T) {
+	t.Setenv("GIT_AUTHOR_DATE", "2026-10-14T00:00:00Z")
+	t.Setenv("GIT_COMMITTER_DATE", "2026-10-14T00:00:00Z")
+	root := testfix.Repo(t, testfix.InitialCommit())
+	t.Setenv("GIT_AUTHOR_DATE", "2026-10-14T00:30:00Z")
+	t.Setenv("GIT_COMMITTER_DATE", "2026-10-14T00:30:00Z")
+	testfix.Git(t, root, "commit", "--allow-empty", "-qm", "#335: measured work")
+	head := strings.TrimSpace(testfix.Capture(t, root, "rev-parse", "HEAD"))
+	start := time.Date(2026, 10, 14, 0, 0, 0, 0, time.UTC)
+	source := func(id, cwd string) transcripts.SessionEvidence {
+		file := filepath.Join(t.TempDir(), id+".jsonl")
+		data := []byte("{\"timestamp\":\"2026-10-14T00:05:00Z\",\"type\":\"user\",\"message\":{\"content\":\"#335\"}}\n{\"timestamp\":\"2026-10-14T00:15:00Z\",\"type\":\"user\",\"message\":{\"content\":\"#335\"}}\n")
+		if err := os.WriteFile(file, data, 0600); err != nil {
+			t.Fatal(err)
+		}
+		return transcripts.SessionEvidence{Harness: "claude", ID: id, CWD: cwd, File: file, Digest: fmt.Sprintf("%x", sha256.Sum256(data)), Length: int64(len(data)), Started: start}
+	}
+	owner := source("owner", root)
+	brain := source("unbound", t.TempDir())
+	m := gatestate.MeasurementInputs{Version: 1, Method: gatestate.MeasurementMethodLegacyV1, Repository: "repo", CodeHead: head,
+		Since: start.Format(time.RFC3339), Until: start.Add(30 * time.Minute).Format(time.RFC3339), BrainRoot: brain.CWD, GapMinutes: 15, CommitWeight: 1, IncludeAssistant: true}
+	in := &ownedActualInputs{Snapshot: m, Files: []string{owner.File}, Prefixes: map[string]activetime.SourcePrefix{owner.File: {Bytes: owner.Length, Digest: owner.Digest}},
+		Windows: map[string][]activetime.ActivityWindow{owner.File: {{Start: start, End: start.Add(30 * time.Minute)}}}, Scope: activetime.Scope{Head: head, Issue: "335"}, Sessions: []transcripts.SessionEvidence{owner}, ExcludedBrain: []transcripts.SessionEvidence{brain}}
+	result := computeOwnedActualFor(context.Background(), root, "335", "", in)
+	if result.Status != actualMeasured || math.Abs(result.Hours-1.0/6) > .00001 {
+		t.Fatalf("result=%+v", result)
+	}
+	if result.Inputs == nil || result.Inputs.ExcludedBrainSessions != 1 || result.Inputs.ExcludedBrainMinutes != 10 || len(result.Inputs.Sources) != 1 {
+		t.Fatalf("invisible excluded evidence: %+v", result.Inputs)
+	}
+	// New HEAD and appended events must not change replay's pinned code or bytes.
+	t.Setenv("GIT_AUTHOR_DATE", "2026-10-14T00:10:00Z")
+	t.Setenv("GIT_COMMITTER_DATE", "2026-10-14T00:10:00Z")
+	testfix.Git(t, root, "commit", "--allow-empty", "-qm", "#999: another task")
+	f, err := os.OpenFile(owner.File, os.O_WRONLY|os.O_APPEND, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.WriteString("{\"timestamp\":\"2026-10-14T00:25:00Z\",\"type\":\"user\",\"message\":{\"content\":\"#335\"}}\n")
+	_ = f.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	replay, err := ownedReplaySources(*result.Inputs, []transcripts.SessionEvidence{owner})
+	if err != nil {
+		t.Fatal(err)
+	}
+	replay.Scope.Issue = "335"
+	again := computeOwnedActualFor(context.Background(), root, "335", "", replay)
+	if again.Status != actualMeasured || again.Hours != result.Hours || again.Inputs.ExcludedBrainMinutes != 10 {
+		t.Fatalf("changed replay: %+v original=%+v", again, result)
+	}
+	raw, err := os.ReadFile(owner.File)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw[0] = ' '
+	if err := os.WriteFile(owner.File, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if changed := computeOwnedActualFor(context.Background(), root, "335", "", replay); changed.Status != actualError {
+		t.Fatalf("changed prefix auto-adopted: %+v", changed)
+	}
+}
+
+func TestOwnedActualProductionConsumersShareBrainAndOwnership(t *testing.T) {
+	r, _, _, _, path := ownedResolverFixture(t)
+	appendEvents := func(path string, minutes ...int) {
+		f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0600)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		for _, minute := range minutes {
+			if _, err := fmt.Fprintf(f, "{\"timestamp\":\"2026-10-14T00:%02d:00Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"#335\"}]}}\n", minute); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	appendEvents(path, 2, 8)
+	brain := t.TempDir()
+	brainSource := filepath.Join(filepath.Dir(path), "brain.jsonl")
+	raw := fmt.Sprintf("{\"timestamp\":\"2026-10-14T00:00:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"brain\",\"cwd\":%q}}\n", brain)
+	if err := os.WriteFile(brainSource, []byte(raw), 0600); err != nil {
+		t.Fatal(err)
+	}
+	appendEvents(brainSource, 1, 9)
+	measured := computeActualFor(context.Background(), r.root, brain, "335", "", "")
+	if measured.Status != actualMeasured || math.Abs(measured.Hours-.1) > .00001 {
+		t.Fatalf("measured=%+v", measured)
+	}
+	var output bytes.Buffer
+	command := NewActualCmd()
+	command.SetOut(&output)
+	command.SetErr(&output)
+	command.SetArgs([]string{"--issue", "335", "--brain-dir", brain})
+	if err := command.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "0.10h") {
+		t.Fatalf("actual command disagrees: %s", output.String())
+	}
+	for _, milestone := range []string{"", "M1"} {
+		f := (&milestoneCloseFlags{Issue: 335, Milestone: milestone, BrainDir: brain}).closeFlags()
+		result, ok := adoptOmittedActual(&bytes.Buffer{}, f, "335", "issue")
+		if !ok || f.Actual != "0.10" || result.Inputs == nil || result.Inputs.BrainRoot != brain || result.Inputs.CodeHead != measured.Inputs.CodeHead || result.Inputs.ExcludedBrainSessions != 1 || result.Inputs.ExcludedBrainMinutes != 8 {
+			t.Fatalf("consumer %q lost shared inputs: result=%+v flags=%+v", milestone, result, f)
+		}
+	}
+}

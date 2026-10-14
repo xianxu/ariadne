@@ -84,7 +84,14 @@ func loadForecastCalibration(brainDir string) (estimate.ForecastCalibration, err
 	if err != nil {
 		return estimate.ForecastCalibration{}, fmt.Errorf("calibration ledger %s: %w", path, err)
 	}
-	cal, ok := estimate.CalibrateForecast(estimate.ParseRows(string(data)))
+	rows, err := estimate.ParseRowsChecked(string(data))
+	if err == nil {
+		rows, err = estimate.ResolveCorrections(rows)
+	}
+	if err != nil {
+		return estimate.ForecastCalibration{}, fmt.Errorf("calibration ledger %s: %w", path, err)
+	}
+	cal, ok := estimate.CalibrateForecast(rows)
 	if !ok {
 		return estimate.ForecastCalibration{}, fmt.Errorf("calibration ledger %s has no row with a build/converge split and an estimate (ariadne#234)", path)
 	}
