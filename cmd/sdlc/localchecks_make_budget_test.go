@@ -76,7 +76,10 @@ func TestWaitCIGateBoundsRealMakeProbe(t *testing.T) {
 			if !errors.Is(err, want) || elapsed > 700*time.Millisecond {
 				t.Errorf("probe ignored %s: elapsed=%v err=%v", mode, elapsed, err)
 			}
-			if _, err := os.Stat(marker); err != nil {
+			// The budget can legitimately expire before make's first shell
+			// command is scheduled. Explicit cancellation, unlike a deadline,
+			// waits for this marker and must prove the real probe started.
+			if _, err := os.Stat(marker); mode == "cancel" && err != nil {
 				t.Errorf("real make probe never started: %v", err)
 			}
 			if worktree == "" || removes != 1 || prunes != 1 {

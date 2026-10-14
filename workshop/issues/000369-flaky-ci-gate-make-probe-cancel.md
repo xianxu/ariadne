@@ -37,8 +37,8 @@ one-second WaitDelay; fix the observed process lifecycle, not a timeout.
 
 ## Plan
 
-- [ ] Measure kernel signal results and descendant lifetime on cancellation.
-- [ ] Apply the smallest root-cause fix with a failing regression (ARCH-DRY).
+- [x] Measure kernel signal results and descendant lifetime on cancellation.
+- [x] Apply the smallest root-cause fix with a failing regression (ARCH-DRY).
 - [ ] Run 50 cancellations, relevant lifecycle tests and the recorded suite.
 
 ## Log
@@ -50,3 +50,28 @@ Baseline on this branch: one cancellation failure in50 runs, elapsed1.017309208s
 matching the1s WaitDelay. Investigation will distinguish signal failure from
 late descendants rather than assuming the #361 hypothesis. ARCH-ORDER: process
 exit evidence does not prove inherited pipes have been released.
+
+### 2026-10-14 — measured root cause and regression
+
+Baseline cancel failed1/50 (1.017309208s). A temporary real-make trace failed
+3/100: syscall group termination returned nil, yet a live orphan sleep remained
+in the SAME group (e.g. sleep19654,pgid19648). Therefore #361's EPERM mapping
+is not this failure: a successful group signal is one traversal, not a fork
+barrier; it can miss a child born during teardown that holds inherited pipes.
+
+The deterministic regression signals only the ready parent on the first
+successful pass, preserving a real child/pipe. It failed with1.001s drain and
+a surviving child, then passed with bounded forceful re-signalling. Forceful
+teardown repeats every5ms until the kernel reports done, capped at100ms;
+graceful signalling and existing WaitDelay/700ms assertions stay unchanged.
+Preserve nil after a successful first signal so exec.Cmd.Cancel cannot suppress
+context cancellation when the parent exits zero; a separate regression caught
+that return-value edge before correction.
+
+Final repeat: budget0/50 failures, cancel0/50 failures. Full internal processgroup
+and procgroup packages pass; judge13.517s, gitx90.813s pass. The reported lease
+test passed10 repeats (0.896s). Repeating both probe modes additionally exposed
+10/50 budget-only fixture failures: a100ms deadline legitimately expires before
+the first shell marker is scheduled. Require start proof only for explicit
+cancel (which waits for that marker); both modes still check timing/error and
+worktree cleanup. No production timeout or elapsed assertion increased.
