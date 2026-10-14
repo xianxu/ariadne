@@ -788,7 +788,7 @@ func revalidateLegacyMerge(branch, head, remoteRef string, inPlace, requireRemot
 		return err
 	}
 	if len(refusal) > 0 {
-		return fmt.Errorf("worktree changed during merge: %s", strings.Join(refusal, ", "))
+		return fmt.Errorf("worktree changed during merge: %s; discard or move aside these changes and retry — refusing before the irreversible merge", strings.Join(refusal, ", "))
 	}
 	return nil
 }
