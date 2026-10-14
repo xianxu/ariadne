@@ -78,6 +78,8 @@ total: 2.35
 
 
 
+
+- 2026-10-14: closed — Done-when: moved-main branch integrates and lands under stateful remote test; conflict abort preserves branch and names paths; failed integrated suite runs unrecorded main baseline and labels introduced/pre-existing or unparsed results. M1/M2/M3 milestone reviews SHIP with no open findings. Real lock-helper baseline/retry/multiple-check tests red-before/green-after; clean detached process-manual test passed. Full make -k test on 26aa7b64 passed 12/12 cmd/sdlc shards (1,289 tests) and 51 packages in 398.0s; atlas documents detached suite environment. No gates bypassed.; review verdict: SHIP
 - 2026-10-14: closed M3 — BR-15: real test-lock helper and nested make reproduced baseline self-wait and repeated-check self-wait before correction (3.186s); preserving per-lock-scope owner made baseline, reintegration retry, and multiple named checks pass with local-run/landing regressions (8.271s). Full make -k test on f9e520df passed 12/12 cmd/sdlc shards (1,289 tests) and 51 other packages in 430.6s; gofmt and git diff --check clean. M3 classification and unrecorded baseline tests remain green; no gates bypassed.; review verdict: SHIP
 - 2026-10-14: closed M2 — R8: CI Makefile probe and replay/tracker/archive/quick-flow Git commands now inherit cancellation and remaining CI budget; real slow-command regressions failed before correction and passed after. Broad landing/publish/archive/CI cmd/sdlc regressions 202.192s, full gitx 41.630s, final cancellation/integration/quick-flow cmd/sdlc 25.906s, full tracker 100.489s; gofmt and git diff --check clean. BR-14 previously accepted; no gates bypassed.; review verdict: SHIP
 ### 2026-10-11

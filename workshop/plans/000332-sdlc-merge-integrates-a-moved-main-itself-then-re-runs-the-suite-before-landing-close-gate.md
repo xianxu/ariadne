@@ -295,8 +295,7 @@ rounds:
       dispatched: "2026-10-14T02:14:10-07:00"
       agent: codex
       findings:
-        - kind: defect
-          id: BR-15
+        - id: BR-15
           severity: Critical
           title: Diagnostic baseline loses lock ownership and waits on its own process
           detail: cmd/sdlc/suitebaseline.go:27 calls runLocalCheck a second time while the first run's suite lock remains held until sdlc exits. acquireSuiteSlot returns an empty holder for "reentrant" at cmd/sdlc/localcheck_run.go:206, so the baseline subprocess receives no WF_TEST_LOCK_HELD_BY; nested make test then waits on sdlc's occupied slots instead of running. An isolated reproduction with the real helper returned acquired, then reentrant, then timeout without the holder identity; supplying that identity returned reentrant immediately. Preserve the actual lock owner's identity across every repeated run, and cover baseline, integration retries, and multiple named checks with stateful lock tests. ARCH-PURPOSE, ARCH-MOCK, and ARCH-ORDER apply.
@@ -319,6 +318,75 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       reviewed: cc93bb2aeae75a159e754ce3cd42f33bca61fded
+      blocked: false
+    - "n": 11
+      timestamp: "2026-10-14T03:00:24-07:00"
+      dispatched: "2026-10-14T02:56:16-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: ChangedPathArgs disables rename collapsing; direct rename and ancestor-evidence regressions passed.
+          round: 11
+        - id: BR-2
+          disposition: addressed
+          note: Direct status-parser and ancestor-walk tests cover ordering, malformed input, bounds, roots, and code changes; selected tests passed.
+          round: 11
+        - id: BR-3
+          disposition: addressed
+          note: Parent-read and ancestor-walk errors propagate; explicit root handling and injected-error regressions passed.
+          round: 11
+        - id: BR-4
+          disposition: addressed
+          note: parseMakeTestFacts excludes prerequisite-only Not a target entries; its direct regression passed.
+          round: 11
+        - id: BR-5
+          disposition: addressed
+          note: The Makefile probe has a contextual deadline and process-group cleanup; real deadline and descendant regressions passed.
+          round: 11
+        - id: BR-6
+          disposition: addressed
+          note: Both the CI gate and local-check command use withDefaultSuiteContext for effective suite derivation.
+          round: 11
+        - id: BR-7
+          disposition: addressed
+          note: Plan revisions R2, R5, R6, and R8 document delivered names, signatures, default weight semantics, and transition ownership consistently with source.
+          round: 11
+        - id: BR-8
+          disposition: addressed
+          note: effectiveLocalChecks forces a declared suite to remain required; omitted and false required-value gate regressions passed.
+          round: 11
+        - id: BR-9
+          disposition: addressed
+          note: README.md documents the recorded close-suite command, default make test, mandatory declaration behavior, weight, and ancestor reuse, matching localchecks.go and localchecks_make.go.
+          round: 11
+        - id: BR-10
+          disposition: addressed
+          note: Cleanup tests require descendant exit within one second against a sixty-second natural lifetime; probe and runner cases passed.
+          round: 11
+        - id: BR-11
+          disposition: addressed
+          note: The opt-in live conformance test checks independently pinned status history through realGH.CommitStatuses; atlas documents its invocation and cadence.
+          round: 11
+        - id: BR-12
+          disposition: addressed
+          note: Remaining-budget contexts cover GitHub reads, Git reads, and the real Makefile probe; late-result and cancellation regressions passed.
+          round: 11
+        - id: BR-13
+          disposition: addressed
+          note: Landing and shared Git execution enforce command bounds and descendant cleanup; publish, ownership, and uncertain-push regressions passed.
+          round: 11
+        - id: BR-14
+          disposition: addressed
+          note: Production integration progression uses transitionIntegration; state, retry-bound, recovery, and production sequence tests passed.
+          round: 11
+        - id: BR-15
+          disposition: addressed
+          note: Baseline and repeated-check regressions passed on head and both failed after removing owner preservation in a disposable checkout.
+          round: 11
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: f129a2933854d6b90cdf9885eab8c77221f85caf
       blocked: false
 ---
 
@@ -432,7 +500,7 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 ### Raised
 
-- **BR-15** [Critical] `lock-reentry-preserves-owner-identity` (kind: defect) Diagnostic baseline loses lock ownership and waits on its own process
+- **BR-15** [Critical] `lock-reentry-preserves-owner-identity` Diagnostic baseline loses lock ownership and waits on its own process
   cmd/sdlc/suitebaseline.go:27 calls runLocalCheck a second time while the first run's suite lock remains held until sdlc exits. acquireSuiteSlot returns an empty holder for "reentrant" at cmd/sdlc/localcheck_run.go:206, so the baseline subprocess receives no WF_TEST_LOCK_HELD_BY; nested make test then waits on sdlc's occupied slots instead of running. An isolated reproduction with the real helper returned acquired, then reentrant, then timeout without the holder identity; supplying that identity returned reentrant immediately. Preserve the actual lock owner's identity across every repeated run, and cover baseline, integration retries, and multiple named checks with stateful lock tests. ARCH-PURPOSE, ARCH-MOCK, and ARCH-ORDER apply.
 
 ## Round 10 — 2026-10-14T02:35:05-07:00 (codex) — passed
@@ -440,6 +508,26 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 ### Disposed
 
 - BR-15 — addressed — cmd/sdlc/localcheck_run.go:224-241 preserves lock ownership on reentry. The real-helper baseline and repeated-check tests pass on the pinned head; restoring the empty reentrant holder in a disposable clone makes both fail with nested lock waits (3.220s). Coverage includes the baseline, successive heads, and multiple named checks. The clone was removed.
+
+## Round 11 — 2026-10-14T03:00:24-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — ChangedPathArgs disables rename collapsing; direct rename and ancestor-evidence regressions passed.
+- BR-2 — addressed — Direct status-parser and ancestor-walk tests cover ordering, malformed input, bounds, roots, and code changes; selected tests passed.
+- BR-3 — addressed — Parent-read and ancestor-walk errors propagate; explicit root handling and injected-error regressions passed.
+- BR-4 — addressed — parseMakeTestFacts excludes prerequisite-only Not a target entries; its direct regression passed.
+- BR-5 — addressed — The Makefile probe has a contextual deadline and process-group cleanup; real deadline and descendant regressions passed.
+- BR-6 — addressed — Both the CI gate and local-check command use withDefaultSuiteContext for effective suite derivation.
+- BR-7 — addressed — Plan revisions R2, R5, R6, and R8 document delivered names, signatures, default weight semantics, and transition ownership consistently with source.
+- BR-8 — addressed — effectiveLocalChecks forces a declared suite to remain required; omitted and false required-value gate regressions passed.
+- BR-9 — addressed — README.md documents the recorded close-suite command, default make test, mandatory declaration behavior, weight, and ancestor reuse, matching localchecks.go and localchecks_make.go.
+- BR-10 — addressed — Cleanup tests require descendant exit within one second against a sixty-second natural lifetime; probe and runner cases passed.
+- BR-11 — addressed — The opt-in live conformance test checks independently pinned status history through realGH.CommitStatuses; atlas documents its invocation and cadence.
+- BR-12 — addressed — Remaining-budget contexts cover GitHub reads, Git reads, and the real Makefile probe; late-result and cancellation regressions passed.
+- BR-13 — addressed — Landing and shared Git execution enforce command bounds and descendant cleanup; publish, ownership, and uncertain-push regressions passed.
+- BR-14 — addressed — Production integration progression uses transitionIntegration; state, retry-bound, recovery, and production sequence tests passed.
+- BR-15 — addressed — Baseline and repeated-check regressions passed on head and both failed after removing owner preservation in a disposable checkout.
 
 ## Open findings
 
