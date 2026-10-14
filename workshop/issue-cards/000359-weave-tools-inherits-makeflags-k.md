@@ -1,6 +1,6 @@
 ---
 id: 000359
-status: open
+status: wontfix
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
