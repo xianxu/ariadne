@@ -21,8 +21,9 @@ DURABLE WORKSPACES (:0 AND :N)
      is not completion: require MERGED and reachable integration on freshly
      fetched configured main. Already merged squash/rebase PRs use exact PR
      evidence too; a matching branch name alone is insufficient.
-  3. Archive this PR's completed issue/plan/review records on remote main in
-     one conditional commit. Retry verifies matching archive provenance.
+  3. Archive this PR's completed issue/plan/review records and indexed issue
+     assets on remote main in one conditional commit. Relative asset links
+     stay unchanged. Retry verifies the exact bundle and archive provenance.
      Other checkouts are not used to pull, archive or publish.
   4. Recheck identity, refs, upstream and occupancy; switch safely to unchanged
      rest, then compare-and-delete only the integrated local issue ref and

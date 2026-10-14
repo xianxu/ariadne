@@ -42,7 +42,12 @@ func NewIssueCmd() *cobra.Command {
 			return cmd.Help()
 		},
 	}
-	cmd.AddCommand(newIssueNewCmd())
+	cmd.AddCommand(newIssueNewCmd(), newIssueAttachCmd())
+	defaultHelp := cmd.HelpFunc()
+	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		defaultHelp(cmd, args)
+		issueAssetHelp(cmd, args)
+	})
 
 	// set-status moved under `issue` (#56 M2). The transition guards live in
 	// statusDecision / checkTransitionGuards (pure, unit-tested); since #252
@@ -483,6 +488,7 @@ func runIssueSync(stdout, stderr io.Writer, f *issueSyncFlags) error {
 	// adds are the subject and the publish choice, both parameters of the shared
 	// helper rather than a second sync path.
 	syncFlags := &claimFlags{
+		Context:   f.Context,
 		Issue:     f.Issue,
 		IssuesDir: f.IssuesDir,
 		DryRun:    f.DryRun,

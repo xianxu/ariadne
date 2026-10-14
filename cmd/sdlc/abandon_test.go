@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"os"
 	"path/filepath"
 	"strings"
@@ -477,5 +478,305 @@ func TestAbandonResumeRefusesAnotherWorkspace(t *testing.T) {
 	}
 	if remoteTip(t, r, s09Branch) == "" || r.git("for-each-ref", "refs/heads/"+s09Branch) == "" {
 		t.Fatal("a refused resume deleted the branch")
+	}
+}
+
+func TestAbandonAndReopenKeepsBranchAssets(t *testing.T) {
+	r, _, _ := startedHere(t)
+	peerAdd(t, r, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
+	writeRepoFile(t, r.root, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
+	data := "branch evidence"
+	name, _ := issueassets.Name([]byte(data), "png")
+	rel := "assets/000009/" + name
+	live, archived := "workshop/issues/"+rel, "workshop/history/issues/"+rel
+	body, err := os.ReadFile(filepath.Join(r.root, handoffDetail))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, r.root, handoffDetail, string(body)+"\n![evidence]("+rel+")\n")
+	writeRepoFile(t, r.root, live, data)
+	r.git("add", ".")
+	r.git("commit", "-qm", "branch evidence")
+	if err := abandon9("punt", "later"); err != nil {
+		t.Fatal(err)
+	}
+	r.git("fetch", "-q", "origin")
+	if got := r.git("show", "origin/main:"+archived); got != data {
+		t.Fatalf("archived evidence=%q", got)
+	}
+	if out, err := reopen9(); err != nil {
+		t.Fatalf("reopen: %v %s", err, out)
+	}
+	if got := r.git("show", "HEAD:"+live); got != data {
+		t.Fatalf("restored evidence=%q", got)
+	}
+	if gitSucceeds(r.root, "cat-file", "-e", "HEAD:"+archived) {
+		t.Fatal("archived asset retained after restore")
+	}
+}
+
+func TestAbandonRetryRefusesMissingArchivedAsset(t *testing.T) {
+	r, _, _ := startedHere(t)
+	peerAdd(t, r, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
+	writeRepoFile(t, r.root, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
+	data := "branch evidence"
+	name, _ := issueassets.Name([]byte(data), "png")
+	rel := "assets/000009/" + name
+	raw, err := os.ReadFile(filepath.Join(r.root, handoffDetail))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, r.root, handoffDetail, string(raw)+"\n![evidence]("+rel+")\n")
+	writeRepoFile(t, r.root, "workshop/issues/"+rel, data)
+	r.git("add", ".")
+	r.git("commit", "-qm", "branch evidence")
+	if err := abandon9("punt", "later"); err != nil {
+		t.Fatal(err)
+	}
+	r.git("pull", "-q", "--ff-only")
+	r.git("rm", "workshop/history/issues/"+rel)
+	r.git("commit", "-qm", "missing archived asset")
+	r.git("push", "-q", "origin", "main")
+	before := r.originMain()
+	if err := abandon9("punt", "later"); err == nil || !strings.Contains(err.Error(), "restore") {
+		t.Fatalf("missing archived asset accepted: %v", err)
+	}
+	if r.originMain() != before {
+		t.Fatal("refusal changed main")
+	}
+}
+
+func TestAbandonNewAssetsRefusedBeforePublication(t *testing.T) {
+	r, paths, _ := startedHere(t)
+	name, _ := issueassets.Name([]byte("private evidence"), "png")
+	rel := "assets/000009/" + name
+	raw, err := os.ReadFile(filepath.Join(r.root, handoffDetail))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, r.root, handoffDetail, string(raw)+"\n![evidence]("+rel+")\n")
+	writeRepoFile(t, r.root, "workshop/issues/"+rel, "private evidence")
+	writeRepoFile(t, r.root, assetPolicyPath, `{"version":1,"policy":"text-only"}`)
+	r.git("add", ".")
+	r.git("commit", "-qm", "operator text-only policy")
+	head, main, card := r.git("rev-parse", "HEAD"), r.originMain(), r.card(paths["000009"])
+	err = abandon9("punt", "later")
+	if err == nil || !strings.Contains(err.Error(), "text-only") {
+		t.Fatalf("new evidence accepted: %v", err)
+	}
+	if r.git("rev-parse", "HEAD") != head || r.originMain() != main || r.card(paths["000009"]) != card || remoteRef(t, r, s09Archive) != "" {
+		t.Fatal("privacy refusal changed local or published state")
+	}
+}
+
+func TestAbandonPublishedAssetsSurvivePolicyTightening(t *testing.T) {
+	r, _, _ := startedHere(t)
+	data := "published evidence"
+	name, _ := issueassets.Name([]byte(data), "png")
+	rel := "assets/000009/" + name
+	raw, err := os.ReadFile(filepath.Join(r.root, handoffDetail))
+	if err != nil {
+		t.Fatal(err)
+	}
+	peerAdd(t, r, "workshop/issues/"+rel, data)
+	peerAdd(t, r, handoffDetail, string(raw)+"\n![evidence]("+rel+")\n")
+	r.git("fetch", "-q", "origin")
+	r.git("merge", "-q", "--no-edit", "origin/main")
+	writeRepoFile(t, r.root, assetPolicyPath, `{"version":1,"policy":"text-only"}`)
+	r.git("add", assetPolicyPath)
+	r.git("commit", "-qm", "operator tightened asset policy")
+	if err := abandon9("punt", "later"); err != nil {
+		t.Fatal(err)
+	}
+	r.git("fetch", "-q", "origin")
+	if got := r.git("show", "origin/main:workshop/history/issues/"+rel); got != data {
+		t.Fatalf("published bytes lost: %q", got)
+	}
+}
+
+func TestAbandonAnotherEpisodeReplacesArchivedAssets(t *testing.T) {
+	r, _, _ := startedHere(t)
+	firstName, _ := issueassets.Name([]byte("first evidence"), "png")
+	firstRel := "assets/000009/" + firstName
+	raw, err := os.ReadFile(filepath.Join(r.root, handoffDetail))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, r.root, handoffDetail, string(raw)+"\n![evidence]("+firstRel+")\n")
+	writeRepoFile(t, r.root, "workshop/issues/"+firstRel, "first evidence")
+	peerAdd(t, r, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
+	writeRepoFile(t, r.root, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
+	r.git("add", ".")
+	r.git("commit", "-qm", "first evidence")
+	if err := abandon9("punt", "later"); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := reopen9(); err != nil {
+		t.Fatalf("reopen %v: %s", err, out)
+	}
+	secondName, _ := issueassets.Name([]byte("second evidence"), "png")
+	secondRel := "assets/000009/" + secondName
+	raw, err = os.ReadFile(filepath.Join(r.root, handoffDetail))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, r.root, handoffDetail, strings.ReplaceAll(string(raw), firstRel, secondRel))
+	r.git("rm", "workshop/issues/"+firstRel)
+	writeRepoFile(t, r.root, "workshop/issues/"+secondRel, "second evidence")
+	r.git("add", ".")
+	r.git("commit", "-qm", "second evidence")
+	if err := abandon9("wontfix", "finished"); err != nil {
+		t.Fatal(err)
+	}
+	r.git("fetch", "-q", "origin")
+	if got := r.git("show", "origin/main:workshop/history/issues/"+secondRel); got != "second evidence" {
+		t.Fatalf("new evidence lost: %q", got)
+	}
+	if gitSucceeds(r.root, "cat-file", "-e", "origin/main:workshop/history/issues/"+firstRel) {
+		t.Fatal("previous bundle member retained")
+	}
+	if err := abandon9("wontfix", "finished"); err != nil {
+		t.Fatalf("second generation retry: %v", err)
+	}
+}
+
+func TestAbandonSuccessorRefusesChangedCard(t *testing.T) {
+	r, _, _ := abandonedHere(t)
+	if out, err := reopen9(); err != nil {
+		t.Fatalf("reopen: %v %s", err, out)
+	}
+	before := r.originMain()
+	previous := mainPublish
+	t.Cleanup(func() { mainPublish = previous })
+	changed := false
+	mainPublish = func(env *trackerEnv, msg string, prepare func(*gitx.TrunkView) (gitx.TrunkWrite, error), guard func(string, string) error) error {
+		return previous(env, msg, prepare, func(base, candidate string) error {
+			if !changed {
+				changed = true
+				snap, err := env.repo.Snapshot()
+				if err != nil {
+					return err
+				}
+				rec, err := snap.Require("000009")
+				if err != nil {
+					return err
+				}
+				next, err := issue.SetCardField(rec.Raw, "updated", "2027-01-01")
+				if err != nil {
+					return err
+				}
+				if err := env.repo.UpdateCard(rec, next, "concurrent-card-update", func(string, string) error { return nil }); err != nil {
+					t.Fatalf("inject concurrent card update: %v", err)
+				}
+			}
+			return guard(base, candidate)
+		})
+	}
+	err := abandon9("wontfix", "for good")
+	if err == nil || !strings.Contains(err.Error(), "card") || !strings.Contains(err.Error(), "rerun") {
+		t.Fatalf("changed generation accepted: %v", err)
+	}
+	if r.originMain() != before {
+		t.Fatal("stale generation replaced the archive")
+	}
+}
+
+func TestReopenRefusesArchiveConversionBeforeEffects(t *testing.T) {
+	r, _, _ := startedHere(t)
+	peerAdd(t, r, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
+	writeRepoFile(t, r.root, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
+	data := "line one\nline two"
+	name, _ := issueassets.Name([]byte(data), "png")
+	rel := "assets/000009/" + name
+	live, archived := "workshop/issues/"+rel, "workshop/history/issues/"+rel
+	body, err := os.ReadFile(filepath.Join(r.root, handoffDetail))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, r.root, handoffDetail, string(body)+"\n![evidence]("+rel+")\n")
+	writeRepoFile(t, r.root, live, data)
+	writeRepoFile(t, r.root, ".gitattributes", "workshop/issues/assets/** -text\nworkshop/history/issues/assets/** text eol=crlf\n")
+	r.git("add", ".")
+	r.git("commit", "-qm", "evidence and archive conversion")
+	if err := abandon9("punt", "later"); err != nil {
+		t.Fatal(err)
+	}
+	before := r.git("rev-parse", "HEAD")
+	branch := r.git("branch", "--show-current")
+	kept := remoteRef(t, r, s09Archive)
+	_, err = reopen9()
+	if err == nil || !strings.Contains(err.Error(), archived) || !strings.Contains(err.Error(), ".gitattributes") {
+		t.Fatalf("archive conversion accepted: %v; restored bytes=%q", err, r.git("show", "HEAD:"+live))
+	}
+	if r.git("rev-parse", "HEAD") != before || r.git("branch", "--show-current") != branch || r.git("status", "--porcelain") != "" || remoteRef(t, r, s09Archive) != kept {
+		t.Fatal("refusal changed checkout or kept reference")
+	}
+}
+
+func TestReopenVerifiesMaterializedArchiveBytes(t *testing.T) {
+	r, _, _ := startedHere(t)
+	peerAdd(t, r, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
+	writeRepoFile(t, r.root, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
+	data := "line one\nline two"
+	name, _ := issueassets.Name([]byte(data), "png")
+	rel := "assets/000009/" + name
+	live, archived := "workshop/issues/"+rel, "workshop/history/issues/"+rel
+	body, err := os.ReadFile(filepath.Join(r.root, handoffDetail))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, r.root, handoffDetail, string(body)+"\n![evidence]("+rel+")\n")
+	writeRepoFile(t, r.root, live, data)
+	r.git("add", ".")
+	r.git("commit", "-qm", "evidence and archive conversion")
+	if err := abandon9("punt", "later"); err != nil {
+		t.Fatal(err)
+	}
+	hooks := filepath.Join(r.root, ".git", "hooks")
+	r.git("config", "core.hooksPath", hooks)
+	for _, hook := range []string{"post-merge", "post-checkout", "post-commit"} {
+		writeRepoFile(t, r.root, ".git/hooks/"+hook, "#!/bin/sh\n[ -f '"+archived+"' ] || exit 0\nprintf changed > '"+archived+"'\n")
+		if err := os.Chmod(filepath.Join(hooks, hook), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	kept := remoteRef(t, r, s09Archive)
+	_, err = reopen9()
+	if err == nil || !strings.Contains(err.Error(), "restore") || !strings.Contains(err.Error(), "archive") {
+		t.Fatalf("changed archived bytes accepted: %v", err)
+	}
+	if remoteRef(t, r, s09Archive) != kept || remoteTip(t, r, s09Branch) != "" {
+		t.Fatal("refusal changed kept or issue remote references")
+	}
+	if _, err := os.Stat(filepath.Join(r.root, archived)); err != nil {
+		t.Fatal("archive moved before byte validation")
+	}
+
+}
+
+func TestReopenKeptBranchVerifiesOtherMaterializedAssets(t *testing.T) {
+	r, _, _ := startedHere(t)
+	data := "other evidence"
+	name, _ := issueassets.Name([]byte(data), "png")
+	rel := "workshop/issues/assets/991111/" + name
+	writeRepoFile(t, r.root, rel, data)
+	writeRepoFile(t, r.root, "workshop/issues/991111-other.md", "# Other\n![evidence](assets/991111/"+name+")\n")
+	r.git("add", ".")
+	r.git("commit", "-qm", "other evidence on kept branch")
+	if err := abandon9("punt", "later"); err != nil {
+		t.Fatal(err)
+	}
+	hooks := t.TempDir()
+	if err := os.WriteFile(filepath.Join(hooks, "post-checkout"), []byte("#!/bin/sh\n[ -f '"+rel+"' ] || exit 0\nprintf changed > '"+rel+"'\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	r.git("config", "core.hooksPath", hooks)
+	kept := remoteRef(t, r, s09Archive)
+	_, err := reopen9()
+	if err == nil || !strings.Contains(err.Error(), rel) {
+		t.Fatalf("kept branch hook tamper accepted: %v", err)
+	}
+	if r.git("rev-parse", "HEAD") != kept || gitSucceeds(r.root, "rev-parse", "-q", "--verify", "MERGE_HEAD") {
+		t.Fatal("reopen started merging before validating the switched branch")
 	}
 }

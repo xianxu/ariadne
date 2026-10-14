@@ -295,15 +295,26 @@ func landingUnoccupied(r gitRunner, t landingTarget, branch string) error {
 	}
 	return nil
 }
-func returnLandingToRest(r gitRunner, t landingTarget, branch, head string) error {
+func returnLandingToRest(ctx context.Context, r gitRunner, t landingTarget, branch, head, issuesDir string) error {
 	if err := revalidateLanding(r, t, branch, head, branch); err != nil {
 		return err
 	}
 	if err := landingUnoccupied(r, t, t.Rest); err != nil {
 		return err
 	}
+	reader, err := gitx.NewTrunkFileContext(ctx, t.Root, t.Remote, "main")
+	if err != nil {
+		return err
+	}
+	view := reader.ViewOf(t.RestOID)
+	if err := verifyAssetMaterialization(ctx, t.Root, view, issuesDir); err != nil {
+		return err
+	}
 	if _, err := landingGit(r, t.Root, "-c", "submodule.recurse=false", "switch", "--no-overwrite-ignore", t.Rest); err != nil {
 		return err
+	}
+	if err := verifyMaterializedAssets(t.Root, view, issuesDir); err != nil {
+		return fmt.Errorf("returned to %s, but asset verification failed: %w; the issue branch is preserved", t.Rest, err)
 	}
 	return revalidateLanding(r, t, branch, head, t.Rest)
 }
@@ -483,7 +494,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 		}
 	}
 	if current != t.Rest {
-		if err = returnLandingToRest(r, t, branch, head); err != nil {
+		if err = returnLandingToRest(ctx, r, t, branch, head, f.IssuesDir); err != nil {
 			return err
 		}
 	}
