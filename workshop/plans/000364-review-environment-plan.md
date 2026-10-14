@@ -270,7 +270,7 @@ this issue and plan. Update atlas index only if a new atlas page is introduced.
 - [x] Run live Darwin fence conformance and an installed Codex fenced-review smoke
   that calls ps; use current agent modes, not bypass-approval flags. Run Linux fence
   coverage on a suitable runner or explicitly report any missing platform evidence.
-- [ ] Run full `make -k test` in the background on a committed stable tree; fix failures.
+- [x] Run full `make -k test` in the background on a committed stable tree; fix failures.
   Then `sdlc close --issue 364 --verified '<actual behavior evidence>'`; resolve findings.
 - [ ] Fetch/merge main, `sdlc pr`, wait for actual CI checks, `sdlc merge --yes` on SHIP,
   and report the real PR/hash to the hub. Stop at operator-held config verification
@@ -333,3 +333,8 @@ withdrawal. Bypassing the dispute guard made both invalid replies close the issu
 the new test failed (13.068 s). Restored production file exactly; final run green.
 Full suite on bd486507 remains the production baseline; this correction adds only
 the regression test and documentation, so targeted verification covers the delta.
+
+Close round 3 SHIP: BR-1 and BR-2 addressed, zero new or open blocking findings.
+The reviewer independently reran the production lifecycle and its guard mutation.
+Close evidence commit: 4b065b611a1d776221e7753b8bcf23d63e5d917b.
+Measured actual 3.80 h; publication/landing remains the final administrative step.
