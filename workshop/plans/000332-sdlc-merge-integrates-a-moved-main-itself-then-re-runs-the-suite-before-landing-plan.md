@@ -410,3 +410,17 @@ the caller's context values. Let landing fakes observe pushed heads, and bring
 the legacy asset fixture's feature branch current before testing archive
 materialization. These are compatibility and proof corrections, not a change
 to M3's classification rule (ARCH-ORDER, ARCH-CONSTRAINTS).
+
+### R11 — 2026-10-14, M3 boundary BR-15 lock-owner reentry
+
+The M3 review reproduced a real machine-lock self-wait: after one local suite
+run acquired the slots, the next run's helper returned `reentrant`, but the Go
+runner returned an empty holder and omitted `WF_TEST_LOCK_HELD_BY` from the
+nested `make test`. The suite then waited on slots held until `sdlc` exited.
+This applies to the diagnostic baseline, integration retries, and consecutive
+named local checks. Keep the actual owner per lock scope when the helper first
+acquires it; on reentry, return that owner, or the inherited parent holder if
+the current process nested under another make. `skipped` remains unowned.
+Real-helper tests use an isolated lock file and a nested make for the baseline
+and repeated check sequence. Both tests failed before the correction and
+passed after it (ARCH-PURPOSE, ARCH-MOCK, ARCH-ORDER).

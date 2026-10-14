@@ -290,6 +290,22 @@ rounds:
       isolation: fenced
       reviewed: 96d1b05bb868cf36b6db5779702b104ad724b331
       blocked: false
+    - "n": 9
+      timestamp: "2026-10-14T02:17:27-07:00"
+      dispatched: "2026-10-14T02:14:10-07:00"
+      agent: codex
+      findings:
+        - kind: defect
+          id: BR-15
+          severity: Critical
+          title: Diagnostic baseline loses lock ownership and waits on its own process
+          detail: cmd/sdlc/suitebaseline.go:27 calls runLocalCheck a second time while the first run's suite lock remains held until sdlc exits. acquireSuiteSlot returns an empty holder for "reentrant" at cmd/sdlc/localcheck_run.go:206, so the baseline subprocess receives no WF_TEST_LOCK_HELD_BY; nested make test then waits on sdlc's occupied slots instead of running. An isolated reproduction with the real helper returned acquired, then reentrant, then timeout without the holder identity; supplying that identity returned reentrant immediately. Preserve the actual lock owner's identity across every repeated run, and cover baseline, integration retries, and multiple named checks with stateful lock tests. ARCH-PURPOSE, ARCH-MOCK, and ARCH-ORDER apply.
+          family: lock-reentry-preserves-owner-identity
+          round: 9
+      boundary: M3
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#332 (boundary-review)
@@ -398,6 +414,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-13 — addressed — landinggit.go:61 bounds production Git processes and descendants; contextual helpers cover replay, archive ownership, and tracker discovery. Cancellation and uncertain-push recovery tests pass. Removing propagation independently fails archive ownership, tracker workspace/discovery, and all four replay-command regressions.
 - BR-14 — addressed — Previously accepted disposition remains valid. Production integration state advances through transitionIntegration; direct pure state tests and landing sequence tests pass.
 
+## Round 9 — 2026-10-14T02:17:27-07:00 (codex) — BLOCKED
+
+### Raised
+
+- **BR-15** [Critical] `lock-reentry-preserves-owner-identity` (kind: defect) Diagnostic baseline loses lock ownership and waits on its own process
+  cmd/sdlc/suitebaseline.go:27 calls runLocalCheck a second time while the first run's suite lock remains held until sdlc exits. acquireSuiteSlot returns an empty holder for "reentrant" at cmd/sdlc/localcheck_run.go:206, so the baseline subprocess receives no WF_TEST_LOCK_HELD_BY; nested make test then waits on sdlc's occupied slots instead of running. An isolated reproduction with the real helper returned acquired, then reentrant, then timeout without the holder identity; supplying that identity returned reentrant immediately. Preserve the actual lock owner's identity across every repeated run, and cover baseline, integration retries, and multiple named checks with stateful lock tests. ARCH-PURPOSE, ARCH-MOCK, and ARCH-ORDER apply.
+
 ## Open findings
 
-(none — every finding has been disposed)
+- **BR-15** [Critical] `lock-reentry-preserves-owner-identity` (kind: defect) Diagnostic baseline loses lock ownership and waits on its own process

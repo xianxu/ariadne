@@ -23,6 +23,11 @@ Detailed incidents remain in their owning issue or review artifact.
   guard. Remove unused wrappers or route their nil context through the one
   bounded fallback; keep fixture aliases in test files. A targeted behavior
   test will not exercise a whole-package source guard (#332 full suite).
+- A reentrant resource acquisition must return the original owner's identity,
+  not merely permission to continue. The second local suite run reacquired its
+  lock but omitted the holder pid from its child environment, so nested make
+  waited on its own process (#332 BR-15). Test repeated runs with the real
+  stateful lock helper; a fake that always says "skipped" cannot expose this.
 - When a stateful fake models a remote push, update its advertised PR head
   from the pushed ref in every fixture that can integrate main. A stale fake
   turns a successful integration into a two-minute registration timeout

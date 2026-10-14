@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
@@ -47,6 +48,24 @@ const (
 // errUnboundedSuite: the machine-wide suite lock could not be taken, so the
 // check does not run (#319/#341 bound heavy suites machine-wide).
 var errUnboundedSuite = errors.New("refusing to run an unbounded suite")
+
+// test-lock.py's watcher holds a process's acquired slots until that process
+// exits. A later run reports "reentrant" but omits the original owner pid;
+// keep it per lock scope so nested make test inherits the actual holder.
+var suiteLockOwners = struct {
+	sync.Mutex
+	byScope map[string]string
+}{byScope: make(map[string]string)}
+
+func suiteLockScope(dir string) string {
+	if file := os.Getenv("WF_TEST_LOCK_FILE"); file != "" {
+		if !filepath.IsAbs(file) {
+			file = filepath.Join(dir, file)
+		}
+		return filepath.Clean(file)
+	}
+	return "default\x00" + os.Getenv("XDG_STATE_HOME") + "\x00" + os.Getenv("HOME")
+}
 
 // runLocalCheck runs c on sha in a fresh detached worktree, under one of the
 // machine-wide suite slots, keeps the log, and normally posts the outcome as
@@ -183,6 +202,7 @@ func localCheckLogDir(d localRunDeps) (string, error) {
 // make test inside it, which then sees WF_TEST_LOCK_HELD_BY and goes reentrant,
 // still runs at its declared weight (#332).
 func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight int) (string, error) {
+	scope := suiteLockScope(dir)
 	mk, err := filepath.EvalSymlinks(filepath.Join(d.Root, "Makefile.workflow"))
 	if err != nil {
 		return "", fmt.Errorf("%w: no Makefile.workflow to find the suite lock from (%v)", errUnboundedSuite, err)
@@ -202,8 +222,24 @@ func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight in
 	}
 	switch state {
 	case "acquired":
+		suiteLockOwners.Lock()
+		suiteLockOwners.byScope[scope] = pid
+		suiteLockOwners.Unlock()
 		return pid, nil
-	case "reentrant", "skipped":
+	case "reentrant":
+		suiteLockOwners.Lock()
+		owner := suiteLockOwners.byScope[scope]
+		suiteLockOwners.Unlock()
+		if owner != "" {
+			return owner, nil
+		}
+		// This process may itself be nested under a make that owns the slot.
+		// Preserve its advertised holder, which the helper just validated.
+		if inherited := os.Getenv("WF_TEST_LOCK_HELD_BY"); inherited != "" {
+			return inherited, nil
+		}
+		return pid, nil // the helper recognized its own --watch pid
+	case "skipped":
 		return "", nil
 	default:
 		return "", fmt.Errorf("%w: suite lock answered %q (see the [test-lock] lines above)", errUnboundedSuite, state)
