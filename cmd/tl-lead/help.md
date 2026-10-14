@@ -106,6 +106,11 @@ TALKING TO THE OPERATOR
     operator runs several repos and slots.
   - Lead with the outcome, then what changed, then what needs the operator.
     Keep their decisions in a short list at the end.
+  - Interrupt the operator only for what needs them now: a smoke test ready,
+    a decision, an incident. Those go to their desktop through the hub's
+    `couch --notify [--title T] MESSAGE` (pair#540; hub-only, and slots' own
+    terminal notifications are swallowed, so the hub is the one voice).
+    Everything else waits in the status file.
   - Keep a live status file for the operator's right pane:
     teams/<team>/tl-status-<operator>.md, frontmatter `type: session-sync`,
     `couch-owner: <hub slot>`, `operator: <slug>`. It is state, not a log:

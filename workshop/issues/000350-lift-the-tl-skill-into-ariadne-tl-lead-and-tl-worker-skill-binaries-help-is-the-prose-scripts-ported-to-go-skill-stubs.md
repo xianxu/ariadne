@@ -126,6 +126,8 @@ Items in order: M1 tl-worker (binary, prose, stub, §15 line); M2 tl-lead prose;
     - numbered idle slots listed (`pair:4 idle`);
     - ariadne#350 counted as `M 0/3`, not `tasks 0/3`: Python's regex missed bold `**M1**` rows, while the shared scanner (the close gate's) reads them.
 
+- TL (ops:0, delivery 22fe4bae, receipt verified): the lead prose carries the notify rule now, though pair#540 has not landed. The hub interrupts the operator only for what needs them now (a smoke test ready, a decision, an incident) via `couch --notify`, citing pair#540; everything else waits in the status file. Test row added to `TestLeadHelpCoversPlaybook`.
+
 ## Revisions
 
 - 2026-10-13 — the operator: **don't copy stories or lessons** into the binaries' prose. The prose states current

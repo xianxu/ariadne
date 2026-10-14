@@ -34,6 +34,7 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		{"playbook step 8, MVP run and closing", "MVP run, then `closing`, then `closed`"},
 		{"talking to the operator", "TALKING TO THE OPERATOR"},
 		{"status file sections", "`## Needs you`"},
+		{"notify only for what needs the operator now", "`couch --notify [--title T] MESSAGE`"},
 		{"session-sync: the operator's lock", "The operator's lock is the only lock"},
 		{"dispatch judgment", "The dispatch message carries only"},
 		{"product stewardship", "STEWARDSHIP"},
