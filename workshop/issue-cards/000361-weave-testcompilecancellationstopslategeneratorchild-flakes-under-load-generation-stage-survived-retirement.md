@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 2.06
+actual_hours: 2.08
 tracker:
     version: 1
     completion:
-        token: close-f0cea6b9f605
+        token: close-696f9866fd8b
         repository: github.com/xianxu/ariadne
-        reviewed_head: 1f174297427fced9cc9138068030fd1a315bc80a
-        evidence_commit: baf458dcfef25e50c28603d08e525a19a9ef4956
+        reviewed_head: 9a9dbe53488c896b59aaf0d532994d4a988defc9
+        evidence_commit: 93f9e8f419cfe4b72d740c112d9ed9bb4b00aa25
 ---
 
 # weave: TestCompileCancellationStopsLateGeneratorChild flakes under load (generation stage survived retirement)
