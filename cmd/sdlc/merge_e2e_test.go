@@ -468,6 +468,9 @@ func TestRunMerge_CodecompleteFlippedToDoneAndArchived(t *testing.T) {
 	git(t, dir, "commit", "-m", "seed codecomplete issue")
 	git(t, dir, "push", "origin", "main")
 	git(t, dir, "switch", "feature")
+	// Legacy landings require main to be integrated before admission (#332).
+	git(t, dir, "merge", "--no-edit", "main")
+	git(t, dir, "push", "origin", "feature")
 
 	gh := &e2eGH{openPR: "42"}
 	// --no-judge SKIPS the publish gate, but the flip (step 10.5) is unconditional —
@@ -635,6 +638,12 @@ func TestRunMergeVerifiesAssetMaterializationBeforeArchive(t *testing.T) {
 			git(t, peer, "add", ".")
 			git(t, peer, "commit", "-qm", "published evidence")
 			git(t, peer, "push", "origin", "HEAD:main")
+			// Legacy landing now refuses a moved main. Integrate and publish it
+			// first, leaving local main old so landing still materializes these
+			// asset bytes when it updates the resting checkout.
+			git(t, root, "fetch", "-q", "origin", "main")
+			git(t, root, "merge", "--no-edit", "origin/main")
+			git(t, root, "push", "-q", "origin", "HEAD:feature")
 			if !conversion {
 				hooks := t.TempDir()
 				procedureWrite(t, hooks, "post-merge", "#!/bin/sh\nprintf changed > '"+asset+"'\n")

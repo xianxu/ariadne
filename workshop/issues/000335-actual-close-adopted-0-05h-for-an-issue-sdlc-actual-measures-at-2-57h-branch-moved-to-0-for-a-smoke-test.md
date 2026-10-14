@@ -177,3 +177,14 @@ and ownership/historical/consumer suite passed27.895s. Peer records still unchan
 Hub receipt32a83138-00fc-44cc-a4eb-7675539e024d announces #332 landed; next verification
 uses sdlc local-check run --name suite on the pushed integrated commit so merge
 can reuse the recorded pass.
+
+### 2026-10-14 — main integration verification
+
+Merged #332 and resolved Git history/window conflicts preserving pinned reads and
+bounded process-group cleanup. Ownership/active-time Git reads now use the shared
+bounded Git boundary too. The new context guard observed RED for the legacy window
+wrapper's fresh Background context; preserved its existing context-free API through
+the bounded nil fallback while explicit pinned reads retain caller cancellation.
+Context/production/archive checks passed5.809s; history/window checks passed
+3.706s(gitx)/1.238s(tracker); active-time passed4.419s. Archive/scope repair fixtures
+had passed27.895s before integration. No peer records changed.

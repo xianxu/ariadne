@@ -247,7 +247,7 @@ func assetIssueID(p string) string {
 // merge whenever a publication target is configured. Remote-less text-only work
 // retains its historical no-op only after checking local body indexes.
 func guardLegacyIssueAssets(ctx context.Context) error {
-	root, err := gitx.RepoTopLevel()
+	root, err := gitx.RepoTopLevelContext(ctx)
 	if err != nil {
 		return err
 	}

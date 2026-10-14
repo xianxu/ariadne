@@ -285,7 +285,7 @@ func decideMergeAction(openPRNumber string, mergedExists bool, unmergedCount int
 
 func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	ctx := commandContext(f.Context)
-	target, err := resolveLandingTarget(mergeRunner)
+	target, err := resolveLandingTarget(boundedLandingGit(ctx, mergeRunner))
 	if err != nil {
 		return err
 	}
@@ -562,12 +562,16 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		}
 		// The gate decides from main's tree whether the guard's verdict is
 		// required, so it reads a freshly fetched main, never a stale ref.
-		if out, ferr := mergeRunner.Git("fetch", "origin", "+refs/heads/main:refs/remotes/origin/main"); ferr != nil {
-			die(stderr, fmt.Sprintf("CI gate: git fetch origin main: %v\n%s", ferr, out))
+		main, err := requireLegacyMainIntegrated(gitCall, head)
+		if err != nil {
+			die(stderr, err.Error())
 		}
 		root := gitx.Capture("rev-parse", "--show-toplevel")
 		localRun := newLocalCheckRunner(localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: gitCall, PR: prNum, Stderr: stderr})
-		if err := runCIGate(ctx, ghClient, repo, prNum, "origin/main", head, gitCall, localRun, f.NoCI, stderr); err != nil {
+		if err := runCIGate(ctx, ghClient, repo, prNum, main, head, gitCall, localRun, f.NoCI, stderr); err != nil {
+			die(stderr, err.Error())
+		}
+		if _, err := requireLegacyMainIntegrated(gitCall, head); err != nil {
 			die(stderr, err.Error())
 		}
 		cinfo(stderr, fmt.Sprintf("Merging PR #%s (%s) into main via GitHub...", prNumber, branch))

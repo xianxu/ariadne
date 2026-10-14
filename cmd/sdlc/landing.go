@@ -348,7 +348,8 @@ func deleteLandingBranch(r gitRunner, t landingTarget, branch, head string) erro
 	return err
 }
 func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) error {
-	r := mergeRunner
+	ctx := commandContext(f.Context)
+	r := boundedLandingGit(ctx, mergeRunner)
 	branch, current, err := landingIssueBranch(r, t, f.Branch)
 	if err != nil {
 		return err
@@ -367,10 +368,6 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 	if !ok {
 		return errors.New("GitHub adapter does not support structured landing evidence")
 	}
-	ctx := f.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	head, err := landingOptional(r, t.Root, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch)
 	if err != nil {
 		return err
@@ -382,7 +379,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 	if err != nil {
 		return err
 	}
-	pr, err := selectLandingPR(prs, t, branch, head)
+	pr, resumeIntegration, err := selectIntegrationPR(ctx, r, gh, t, branch, head, current, prs, stderr)
 	if err != nil {
 		return err
 	}
@@ -396,16 +393,13 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 		if _, err = nextLandingAction(landingObservation{AtRest: current == t.Rest, RefExists: head != ""}); err != nil {
 			return err
 		}
-		targetMain, fetchErr := t.fetchMain(r)
-		if fetchErr != nil {
-			return fetchErr
-		}
-		remoteHead, err := remoteRefTip(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote, "refs/heads/"+branch)
-		if err != nil {
-			return err
-		}
-		if remoteHead != head {
-			return errors.New("local, remote and PR heads must match; push selected branch before landing")
+
+		landingGitCall := func(args ...string) (string, error) {
+			readRunner := r
+			if len(args) > 1 && args[0] == "worktree" && (args[1] == "remove" || args[1] == "prune") {
+				readRunner = recoveryLandingGit(r)
+			}
+			return landingGit(readRunner, t.Root, args...)
 		}
 		if f.NoValidate {
 			cwarn(stderr, "--no-validate: skipping instance and duplicate-ID gates")
@@ -413,28 +407,98 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 		if f.NoJudge {
 			cwarn(stderr, "--no-judge: skipping reviewed-HEAD publish gate")
 		}
-		if !f.NoValidate {
-			if err = runLandingInstanceGate(targetMain, head, nounGates(f.IssuesDir), stdout, stderr, r); err != nil {
+		state := newIntegrationState(head, pr, resumeIntegration)
+		for {
+			targetMain, fetchErr := t.fetchMain(r)
+			if fetchErr != nil {
+				return fetchErr
+			}
+			remoteHead, err := remoteRefTip(landingGitCall, t.Remote, "refs/heads/"+branch)
+			if err != nil {
 				return err
 			}
-			if err = runLandingDuplicateGate(targetMain, head, f.IssuesDir, f.HistoryDir, r); err != nil {
+			if remoteHead != state.head && (!state.resume || remoteHead != state.pr.HeadOID) {
+				return errors.New("local, remote and PR heads must match; push selected branch before landing")
+			}
+			included, err := integrationAncestor(r, t.Root, targetMain, state.head)
+			if err != nil {
 				return err
 			}
-		}
-		if !f.NoJudge {
-			if err = runLandingPublishGate(commandContext(f.Context), pr, f.IssuesDir, stderr); err != nil {
+			var step integrationStep
+			state, step, err = transitionIntegration(state, integrationEvent{kind: integrationMainObserved, main: targetMain, included: included})
+			if err != nil {
 				return err
 			}
+			if step == integrationRefuse {
+				return fmt.Errorf("main moved too often: stopped after %d integrations; re-run sdlc merge", integrationLimit)
+			}
+			if step == integrationMerge || step == integrationReplay {
+				fmt.Fprintf(stderr, "Integrating %s/main before landing (attempt %d of %d)\n", t.Remote, state.attempts+1, integrationLimit)
+				state, err = integrateLandingMain(ctx, r, gh, t, branch, state, f.NoJudge, f.IssuesDir, stderr)
+				if err != nil {
+					return err
+				}
+			}
+			if state.phase != integrationGates {
+				return fmt.Errorf("integration cannot run gates from phase %s", state.phase)
+			}
+			head, pr = state.head, state.pr
+			// Gate this exact integrated tree. A resumed integration of an older
+			// main is brought fully current before spending time on its suite.
+			included, err = integrationAncestor(r, t.Root, targetMain, state.head)
+			if err != nil {
+				return err
+			}
+			if !included {
+				continue
+			}
+			if !f.NoValidate {
+				if err = runLandingInstanceGate(targetMain, head, nounGates(f.IssuesDir), stdout, stderr, r); err != nil {
+					return err
+				}
+				if err = runLandingDuplicateGate(targetMain, head, f.IssuesDir, f.HistoryDir, r); err != nil {
+					return err
+				}
+			}
+			if !f.NoJudge {
+				if err = runLandingPublishGate(ctx, pr, f.IssuesDir, stderr); err != nil {
+					return err
+				}
+			}
+			localDeps := localRunDeps{GH: ghClient, Repo: t.Repo, Root: t.Root, Git: landingGitCall, PR: pr.Number, Stderr: stderr}
+			localRun := newLocalCheckRunner(localDeps)
+			if err = waitCIGate(ctx, ghClient, t.Repo, pr.Number, targetMain, head, landingGitCall, localRun, f.NoCI, stderr, func(ioCtx context.Context) func(...string) (string, error) {
+				readRunner := withLandingGitContext(ioCtx, r)
+				return func(args ...string) (string, error) { return landingGit(readRunner, t.Root, args...) }
+			}); err != nil {
+				state, _, _ = transitionIntegration(state, integrationEvent{kind: integrationGatesRejected})
+				return diagnoseSuiteFailure(ctx, err, targetMain, localDeps)
+			}
+			if err = revalidateLanding(r, t, branch, head, current); err != nil {
+				return err
+			}
+			// Last read before the server merge: a successful suite on an older
+			// main cannot authorize landing after another branch has moved it.
+			latest, err := t.fetchMain(r)
+			if err != nil {
+				return err
+			}
+			included, err = integrationAncestor(r, t.Root, latest, head)
+			if err != nil {
+				return err
+			}
+			state, step, err = transitionIntegration(state, integrationEvent{kind: integrationGatesChecked, main: latest, included: included})
+			if err != nil {
+				return err
+			}
+			if step == integrationRefuse {
+				return fmt.Errorf("main moved too often: stopped after %d integrations; re-run sdlc merge", integrationLimit)
+			}
+			if step == integrationLand {
+				break
+			}
 		}
-		// #309: refuse red or pending CI on the PR head; LandingMerge pins that head.
-		landingGitCall := func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }
-		localRun := newLocalCheckRunner(localRunDeps{GH: ghClient, Repo: t.Repo, Root: t.Root, Git: landingGitCall, PR: pr.Number, Stderr: stderr})
-		if err = runCIGate(ctx, ghClient, t.Repo, pr.Number, targetMain, head, landingGitCall, localRun, f.NoCI, stderr); err != nil {
-			return err
-		}
-		if err = revalidateLanding(r, t, branch, head, current); err != nil {
-			return err
-		}
+
 		if err = gh.LandingMerge(ctx, t.Repo, pr.Number, head); err != nil {
 			return fmt.Errorf("merge outcome uncertain; use recovery command: %w", err)
 		}

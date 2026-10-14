@@ -118,7 +118,7 @@ func closeTokenCarried(env *trackerEnv, token, cardPath, head, base string) (boo
 		}
 		rangeArgs = []string{head, "--since=" + since}
 	}
-	shas, err := gitx.CommitsWithCloseToken(env.root, rangeArgs, token)
+	shas, err := gitx.CommitsWithCloseTokenContext(env.ctx, env.root, rangeArgs, token)
 	return len(shas) > 0, err
 }
 

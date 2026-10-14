@@ -46,6 +46,9 @@ func (s stubGH) JobRun(context.Context, string, int64) (jobRun, error) {
 func (s stubGH) PostStatus(context.Context, string, string, string, string, string) error {
 	return errors.New("stubGH: PostStatus not implemented")
 }
+func (s stubGH) CommitStatuses(context.Context, string, string) (map[string]string, error) {
+	return nil, errors.New("stubGH: CommitStatuses not implemented")
+}
 func (s stubGH) PRComment(context.Context, string, int, string) error {
 	return errors.New("stubGH: PRComment not implemented")
 }

@@ -72,7 +72,20 @@ var runGitInContext = func(ctx context.Context, dir string, env []string, args .
 // RunGitContext runs `git <args>` in the current directory under ctx: cancellation
 // or a deadline terminates git's process group. stderr is returned for messages.
 func RunGitContext(ctx context.Context, args ...string) (stdout, stderr []byte, err error) {
-	return runGitInContext(ctx, "", nil, args...)
+	return RunGitInContext(ctx, "", nil, args...)
+}
+
+// RunGitInContext is the shared contextual boundary for checkout-local reads
+// carrying an explicit directory and environment (tracker and replay callers).
+func RunGitInContext(ctx context.Context, dir string, env []string, args ...string) (stdout, stderr []byte, err error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+	stdout, stderr, err = runGitInContext(ctx, dir, env, args...)
+	if ctx.Err() != nil {
+		err = errors.Join(ctx.Err(), err)
+	}
+	return
 }
 
 var runGitInputContext = func(ctx context.Context, dir string, env []string, input io.Reader, args ...string) (stdout, stderr []byte, err error) {
@@ -82,17 +95,12 @@ var runGitInputContext = func(ctx context.Context, dir string, env []string, inp
 }
 
 func executeGitInputContext(ctx context.Context, dir string, env []string, input io.Reader, stdout, stderr io.Writer, args ...string) error {
-	cmd := exec.CommandContext(ctx, "git", args...)
-	processgroup.Configure(cmd)
-	cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
-	cmd.WaitDelay = time.Second
+	cmd, child, cancel := boundedGitCommand(ctx, env, "git", args...)
+	defer cancel()
 	cmd.Dir = dir
 	cmd.Stdin = input
-	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
-	}
 	cmd.Stdout, cmd.Stderr = stdout, stderr
-	return cmd.Run()
+	return finishGitCommand(cmd, child, cmd.Run())
 }
 
 // A git query that can legitimately answer "absent" has THREE outcomes, and this
@@ -533,23 +541,26 @@ func (t *TrunkFile) HistoryStreamAt(pin, format, pathspec string, maxCommits int
 }
 
 func (t *TrunkFile) historyStream(ref, format, pathspec string, maxCommits int) (io.Reader, func(stoppedEarly bool) error, error) {
-	cmd := exec.CommandContext(t.operationContext(), "git", "-C", t.dir, "log", "--format="+format, "--name-only", fmt.Sprintf("--max-count=%d", maxCommits), ref, "--", pathspec)
+	cmd, child, cancel := boundedGitCommand(t.operationContext(), nil, "git", "-C", t.dir, "log", "--format="+format, "--name-only", fmt.Sprintf("--max-count=%d", maxCommits), ref, "--", pathspec)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.StdoutPipe()
 	if err != nil {
+		cancel()
 		return nil, nil, err
 	}
 	if err := cmd.Start(); err != nil {
+		cancel()
 		return nil, nil, err
 	}
 	finish := func(stoppedEarly bool) error {
+		defer cancel()
 		if stoppedEarly {
-			_ = cmd.Process.Kill()
-			_ = cmd.Wait()
+			_ = processgroup.Terminate(cmd, true)
+			_ = finishGitCommand(cmd, child, cmd.Wait())
 			return nil
 		}
-		if err := cmd.Wait(); err != nil {
+		if err := finishGitCommand(cmd, child, cmd.Wait()); err != nil {
 			return fmt.Errorf("git log %s: %w: %s", ref, err, strings.TrimSpace(stderr.String()))
 		}
 		return nil

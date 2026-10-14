@@ -77,6 +77,11 @@ and `sdlc merge` will not land over it:
   The merge is pinned to the read head with `--match-head-commit`. `--no-ci`
   waives only this gate. gh exits 1 (failing) or 8 (pending) while still
   printing the JSON, so the adapter reads stdout before the exit status.
+- **Durable CI wait** (`cmd/sdlc/cigate_wait.go`). The durable path polls only
+  pending or unregistered checks every 30 seconds, for up to 20 minutes of CI
+  waiting (local suite runtime excluded). Typed refusals keep red, missing,
+  unknown, head-lag and read errors terminal. Immutable main/head facts, including
+  the make probe, are loaded once per wait. The legacy path still refuses pending.
 - **The local-gates guard** (`.github/workflows/local-gates-guard.yml`, seeded).
   It runs on `pull_request_target`, so main's copy of the guard decides and a
   PR cannot weaken the guard within itself; it never checks out or runs PR
@@ -159,6 +164,46 @@ first-class evidence, recorded on the commit it ran on:
   what CI guards is the declaration and the gate code.
 - **Fake:** `ciFakeGH` (`cmd/sdlc/cigate_fake_test.go`) models heads, checks,
   the status rollup, jobs and comments, behind the same `ghCaller` seam.
+- **Live conformance:** run
+  `SDLC_LIVE_GH=1 SDLC_LIVE_COMMIT_STATUSES_GH="$(command -v gh)" go test ./cmd/sdlc -run '^TestLiveCommitStatusesConformance$' -count=1`
+  when changing the status adapter, parser or fake, and before landing behavior
+  that depends on them. It only reads GitHub (requires authenticated access to
+  `xianxu/ariadne`): PR #229's head has a known guard history with pending,
+  failure and success states. The check verifies that `realGH.CommitStatuses`
+  selects the newest state. The explicit installed CLI path avoids the test
+  harness's fake `gh`; changed fixture history requires independent inspection
+  before updating expectations. Ordinary tests skip this network check.
+- **The suite on every landing (#332).** The check named `suite` is required
+  for every landing: either the declared one, or the repository's `make test`.
+  The default's existence and its weight (`WF_TEST_WEIGHT`) come from probing
+  **main's** Makefile in a detached worktree, under a goal that is not `test`,
+  so the probe takes no lock. A branch therefore cannot drop or lighten its own
+  suite. A declared `suite` overrides execution settings but is always required,
+  even when `required` is omitted or false. Agents run it before close with
+  `sdlc local-check run --name suite`.
+  - A record on a first-parent ancestor counts when the difference since is
+    docs-only (`publishGateHasCodeSurface`, the publish gate's line). Close's
+    own commits don't force a rerun.
+  - A declared `weight` reaches `test-lock.py --slots`, so `make test` under it
+    holds the repository's weight. Before #332 it held one slot and went
+    reentrant.
+
+The durable landing CI wait has a 20-minute budget covering inflight GitHub
+and Git reads. Every read receives the remaining deadline, and late green
+results refuse. Local suite runtime, including machine-lock queueing, is
+excluded. Cleanup receives fresh bounded IO after cancellation.
+The Makefile facts probe also inherits the remaining CI budget; its normal
+two-minute ceiling still applies outside a wait.
+If the integrated head's suite fails, landing runs that same suite once on
+main as an unrecorded diagnostic baseline. The refusal separates named tests
+introduced by the branch from those also failing on main. An unparseable
+baseline failure is reported as such rather than assigning its failures to
+the branch; neither failed tree can land. Both runs retain their local logs,
+but only the tested branch head posts a commit status or PR comment.
+Recorded checks use a detached worktree of the pushed commit. The suite and
+its assertions therefore must work without ignored, woven projections from
+an agent's long-lived slot; tests that need such files supply their own
+fixtures or condition their expectations on the projection being present.
 
 ## Not the same as the publish gate or the close review
 

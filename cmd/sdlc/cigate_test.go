@@ -322,12 +322,9 @@ func TestRunMerge_LaggingPRHeadRefuses(t *testing.T) {
 	}
 }
 
-// The legacy path decides the guard requirement from main as fetched now:
-// main gained the guard after this checkout last fetched, and the PR has no
-// verdict, so merge refuses. In this in-place fixture step 9b's fetch already
-// refreshes origin/main; the gate's own fetch is what covers a linked worktree,
-// which 9b does not fetch for and which has no e2e fixture here.
-func TestRunMerge_GuardOnFreshMainRequiresVerdict(t *testing.T) {
+// Main gained a guard after the checkout last fetched. The legacy integration
+// check now refuses this stale branch before spending time on its CI gate.
+func TestRunMerge_GuardOnFreshMainRequiresIntegration(t *testing.T) {
 	dir := tempRepo(t)
 	origin := strings.TrimSpace(git(t, dir, "remote", "get-url", "origin"))
 	other := t.TempDir()
@@ -347,7 +344,7 @@ func TestRunMerge_GuardOnFreshMainRequiresVerdict(t *testing.T) {
 	swapMergeDeps(t, gh, nil)
 	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
 	msg, died := expectDie(t, func() { runMerge(io.Discard, io.Discard, f) })
-	if !died || !strings.Contains(msg, localGatesVerdict) || gh.prMergeCalls != 0 {
+	if !died || !strings.Contains(msg, "main moved") || gh.prMergeCalls != 0 {
 		t.Fatalf("died=%v calls=%d msg=%q", died, gh.prMergeCalls, msg)
 	}
 }
@@ -367,16 +364,16 @@ func TestRunMerge_GreenCIPinsPushedHead(t *testing.T) {
 }
 
 // The durable landing path refuses red CI before LandingMerge. Fails if
-// landing.go's runCIGate call alone is removed.
+// landing.go's waitCIGate call alone is removed.
 func TestLandingRedCIRefusesBeforeMerge(t *testing.T) {
 	_, _, gh := landingFixture(t, 1)
-	gh.checks = []prCheck{{Name: "local-gates-guard", Bucket: "pending"}}
+	gh.checks = []prCheck{{Name: "local-gates-guard", Bucket: "fail"}}
 	err := runMerge(io.Discard, io.Discard, landingFlags())
-	if err == nil || !strings.Contains(err.Error(), "local-gates-guard") || !strings.Contains(err.Error(), "still running") {
+	if err == nil || !strings.Contains(err.Error(), "local-gates-guard") || !strings.Contains(err.Error(), "failing checks") {
 		t.Fatalf("err %v", err)
 	}
 	if gh.merges != 0 {
-		t.Fatalf("merged %d times over pending CI", gh.merges)
+		t.Fatalf("merged %d times over red CI", gh.merges)
 	}
 	f := landingFlags()
 	f.NoCI = true

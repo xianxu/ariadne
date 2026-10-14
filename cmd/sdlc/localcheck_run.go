@@ -14,8 +14,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
 )
 
 // localRunDeps is what a local run touches: GitHub (to record), git in the
@@ -27,6 +31,9 @@ type localRunDeps struct {
 	Git    func(args ...string) (string, error)
 	PR     int // 0: no PR known, so a failure posts no comment
 	Stderr io.Writer
+	// SkipRecord is for a diagnostic baseline on main. It keeps the log but
+	// never publishes a commit status or PR comment for that baseline.
+	SkipRecord bool
 	// minute is the unit of timeout_minutes; tests shrink it.
 	minute time.Duration
 }
@@ -42,10 +49,29 @@ const (
 // check does not run (#319/#341 bound heavy suites machine-wide).
 var errUnboundedSuite = errors.New("refusing to run an unbounded suite")
 
+// test-lock.py's watcher holds a process's acquired slots until that process
+// exits. A later run reports "reentrant" but omits the original owner pid;
+// keep it per lock scope so nested make test inherits the actual holder.
+var suiteLockOwners = struct {
+	sync.Mutex
+	byScope map[string]string
+}{byScope: make(map[string]string)}
+
+func suiteLockScope(dir string) string {
+	if file := os.Getenv("WF_TEST_LOCK_FILE"); file != "" {
+		if !filepath.IsAbs(file) {
+			file = filepath.Join(dir, file)
+		}
+		return filepath.Clean(file)
+	}
+	return "default\x00" + os.Getenv("XDG_STATE_HOME") + "\x00" + os.Getenv("HOME")
+}
+
 // runLocalCheck runs c on sha in a fresh detached worktree, under one of the
-// machine-wide suite slots, keeps the log, and posts the outcome as the
-// localStatusContext(c.Name) status on sha. A failed check is a record, not an
-// error; the error is for a run that could not happen or could not be recorded.
+// machine-wide suite slots, keeps the log, and normally posts the outcome as
+// the localStatusContext(c.Name) status on sha. SkipRecord makes a diagnostic
+// run on main local-only. A failed check is a record, not an error; the error
+// is for a run that could not happen or, when required, could not be recorded.
 func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string) (localRunRecord, error) {
 	rec := localRunRecord{Name: c.Name, SHA: sha, Exit: -1}
 	rec.Host, _ = os.Hostname()
@@ -59,21 +85,14 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	rec.LogPath = filepath.Join(logDir, sha, c.Name+".log")
 	sweepStaleLocalWorktrees(d)
 
-	wt, err := os.MkdirTemp("", localCheckTmpPrefix+"*")
+	wt, cleanup, err := detachedWorktree(d.Git, sha)
 	if err != nil {
-		return rec, err
+		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
 	}
-	defer func() {
-		_, _ = d.Git("worktree", "remove", "--force", wt)
-		_ = os.RemoveAll(wt)
-		_, _ = d.Git("worktree", "prune")
-	}()
-	if out, err := d.Git("worktree", "add", "--detach", wt, sha); err != nil {
-		return rec, fmt.Errorf("local check %s: worktree at %s: %w\n%s", c.Name, sha, err, out)
-	}
+	defer cleanup()
 
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
-	heldBy, err := acquireSuiteSlot(ctx, d, wt)
+	heldBy, err := acquireSuiteSlot(ctx, d, wt, c.Weight)
 	if err != nil {
 		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
 	}
@@ -88,6 +107,8 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	runCtx, cancel := context.WithTimeout(ctx, time.Duration(c.TimeoutMinutes)*d.minute)
 	defer cancel()
 	cmd := exec.CommandContext(runCtx, c.Command[0], c.Command[1:]...)
+	processgroup.Configure(cmd)
+	cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
 	cmd.Dir = wt
 	cmd.WaitDelay = 5 * time.Second
 	cmd.Env = os.Environ()
@@ -98,6 +119,9 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	cmd.Stdout, cmd.Stderr = out, out
 	start := time.Now()
 	runErr := cmd.Run()
+	// WaitDelay bounds inherited-pipe draining after the parent exits;
+	// stop remaining children before closing their log or removing their tree.
+	_ = processgroup.Terminate(cmd, true)
 	rec.Duration = time.Since(start)
 	_ = logf.Close()
 	var exitErr *exec.ExitError
@@ -117,6 +141,10 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		return rec, err
 	}
 	pruneLocalCheckLogs(logDir, localCheckLogKeep)
+	if d.SkipRecord {
+		fmt.Fprintf(d.Stderr, "==> local check %s: %s on %s (diagnostic baseline, unrecorded)\n", c.Name, rec.statusDescription(), abbrevSHA(sha))
+		return rec, nil
+	}
 
 	if err := d.GH.PostStatus(ctx, d.Repo, sha, localStatusContext(c.Name), rec.state(), rec.statusDescription()); err != nil {
 		return rec, fmt.Errorf("local check %s %s but was NOT recorded on %s: %w", c.Name, rec.state(), abbrevSHA(sha), err)
@@ -128,6 +156,26 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	}
 	fmt.Fprintf(d.Stderr, "==> local check %s: %s, recorded as %s on %s\n", c.Name, rec.statusDescription(), localStatusContext(c.Name), abbrevSHA(sha))
 	return rec, nil
+}
+
+// detachedWorktree checks sha out in a fresh temporary worktree and returns
+// its path and a cleanup that removes it (a run's, or a probe's, view of an
+// exact commit whatever the slot has checked out).
+func detachedWorktree(git func(args ...string) (string, error), sha string) (string, func(), error) {
+	wt, err := os.MkdirTemp("", localCheckTmpPrefix+"*")
+	if err != nil {
+		return "", nil, err
+	}
+	cleanup := func() {
+		_, _ = git("worktree", "remove", "--force", wt)
+		_ = os.RemoveAll(wt)
+		_, _ = git("worktree", "prune")
+	}
+	if out, err := git("worktree", "add", "--detach", wt, sha); err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("worktree at %s: %w\n%s", sha, err, out)
+	}
+	return wt, cleanup, nil
 }
 
 // localCheckLogDir is <git common dir>/sdlc/local-checks: never committed, shared
@@ -149,7 +197,12 @@ func localCheckLogDir(d localRunDeps) (string, error) {
 // a local check and `make test` share one cap. The slot is held until this
 // process exits. It returns the pid to export as WF_TEST_LOCK_HELD_BY when it
 // took the slot.
-func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string) (string, error) {
+//
+// weight is the slots the run takes at once (#346): passed as --slots, so a
+// make test inside it, which then sees WF_TEST_LOCK_HELD_BY and goes reentrant,
+// still runs at its declared weight (#332).
+func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight int) (string, error) {
+	scope := suiteLockScope(dir)
 	mk, err := filepath.EvalSymlinks(filepath.Join(d.Root, "Makefile.workflow"))
 	if err != nil {
 		return "", fmt.Errorf("%w: no Makefile.workflow to find the suite lock from (%v)", errUnboundedSuite, err)
@@ -159,7 +212,7 @@ func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string) (string, 
 		return "", fmt.Errorf("%w: suite lock helper missing: %s", errUnboundedSuite, helper)
 	}
 	pid := fmt.Sprint(os.Getpid())
-	cmd := exec.CommandContext(ctx, "python3", helper, "acquire", "--watch", pid)
+	cmd := exec.CommandContext(ctx, "python3", helper, "acquire", "--watch", pid, "--slots", strconv.Itoa(max(weight, 1)))
 	cmd.Dir = dir
 	cmd.Stderr = d.Stderr
 	out, err := cmd.Output()
@@ -169,8 +222,24 @@ func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string) (string, 
 	}
 	switch state {
 	case "acquired":
+		suiteLockOwners.Lock()
+		suiteLockOwners.byScope[scope] = pid
+		suiteLockOwners.Unlock()
 		return pid, nil
-	case "reentrant", "skipped":
+	case "reentrant":
+		suiteLockOwners.Lock()
+		owner := suiteLockOwners.byScope[scope]
+		suiteLockOwners.Unlock()
+		if owner != "" {
+			return owner, nil
+		}
+		// This process may itself be nested under a make that owns the slot.
+		// Preserve its advertised holder, which the helper just validated.
+		if inherited := os.Getenv("WF_TEST_LOCK_HELD_BY"); inherited != "" {
+			return inherited, nil
+		}
+		return pid, nil // the helper recognized its own --watch pid
+	case "skipped":
 		return "", nil
 	default:
 		return "", fmt.Errorf("%w: suite lock answered %q (see the [test-lock] lines above)", errUnboundedSuite, state)

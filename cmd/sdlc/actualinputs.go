@@ -1,13 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -707,27 +705,17 @@ func uniqueStrings(values []string) []string {
 	return out
 }
 
-type ownedActualBoundedBuffer struct{ bytes.Buffer }
-
-func (b *ownedActualBoundedBuffer) Write(p []byte) (int, error) {
-	if b.Len()+len(p) > 4<<20 {
-		return 0, fmt.Errorf("measurement Git output exceeds bound")
-	}
-	return b.Buffer.Write(p)
-}
+// All measurement Git reads share the bounded process-group boundary (#332).
 func ownedActualGit(ctx context.Context, root string, args ...string) (string, error) {
-	if err := ctx.Err(); err != nil {
-		return "", err
+	stdout, stderr, err := gitx.RunGitInContext(ctx, root, nil, args...)
+	if ctx.Err() != nil {
+		return "", ctx.Err()
 	}
-	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", root}, args...)...)
-	var stdout, stderr ownedActualBoundedBuffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		if ctx.Err() != nil {
-			return "", ctx.Err()
-		}
-		return "", fmt.Errorf("measurement git %s: %w: %s", args[0], err, strings.TrimSpace(stderr.String()))
+	if len(stdout) > 4<<20 || len(stderr) > 4<<20 {
+		return "", fmt.Errorf("measurement Git output exceeds bound")
 	}
-	return strings.TrimSuffix(stdout.String(), "\n"), nil
+	if err != nil {
+		return "", fmt.Errorf("measurement git %s: %w: %s", args[0], err, strings.TrimSpace(string(stderr)))
+	}
+	return strings.TrimSuffix(string(stdout), "\n"), nil
 }

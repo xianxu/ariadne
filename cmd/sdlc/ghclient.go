@@ -78,6 +78,10 @@ type ghCaller interface {
 	// as evidence on the exact head (#345, context localStatusContext).
 	PostStatus(ctx context.Context, repo, sha, statusContext, state, description string) error
 
+	// CommitStatuses returns the latest state of each commit status on sha
+	// (#332: a suite recorded on an ancestor of the landing head).
+	CommitStatuses(ctx context.Context, repo, sha string) (map[string]string, error)
+
 	// PRComment posts a comment on PR number (#345: a failed local run's tail).
 	PRComment(ctx context.Context, repo string, number int, body string) error
 }

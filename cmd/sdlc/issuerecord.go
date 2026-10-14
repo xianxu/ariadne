@@ -23,7 +23,10 @@ func loadIssueRecords(ctx context.Context, issuesDir string, mode tracker.FetchM
 	if err != nil {
 		return tracker.Records{}, err
 	}
-	root := repoRootOf(abs)
+	root := repoRootOfContext(commandContext(ctx), abs)
+	if err := commandContext(ctx).Err(); err != nil {
+		return tracker.Records{}, err
+	}
 	if root == "" {
 		return tracker.LoadRecords(commandContext(ctx), nil, abs, mode)
 	}
@@ -32,19 +35,22 @@ func loadIssueRecords(ctx context.Context, issuesDir string, mode tracker.FetchM
 
 // repoRootOf is the top of the checkout containing path, found from its
 // nearest existing ancestor ("" outside any repository).
-func repoRootOf(path string) string {
+func repoRootOf(path string) string { return repoRootOfContext(commandContext(nil), path) }
+
+func repoRootOfContext(ctx context.Context, path string) string {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return ""
 	}
-	for dir := abs; ; dir = filepath.Dir(dir) {
-		if out, err := gitx.RunGit("-C", dir, "rev-parse", "--show-toplevel"); err == nil {
+	for dir := abs; ctx.Err() == nil; dir = filepath.Dir(dir) {
+		if out, err := gitx.GitOutputContext(ctx, "-C", dir, "rev-parse", "--show-toplevel"); err == nil {
 			return strings.TrimSpace(string(out))
 		}
 		if filepath.Dir(dir) == dir {
 			return "" // not inside a repository (or the directory does not exist yet)
 		}
 	}
+	return ""
 }
 
 // loadIssueRecordsAt reads the repository rooted at root (issuesDir relative to it).

@@ -19,6 +19,35 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- A context-free compatibility wrapper is still production code to a source
+  guard. Remove unused wrappers or route their nil context through the one
+  bounded fallback; keep fixture aliases in test files. A targeted behavior
+  test will not exercise a whole-package source guard (#332 full suite).
+- A reentrant resource acquisition must return the original owner's identity,
+  not merely permission to continue. The second local suite run reacquired its
+  lock but omitted the holder pid from its child environment, so nested make
+  waited on its own process (#332 BR-15). Test repeated runs with the real
+  stateful lock helper; a fake that always says "skipped" cannot expose this.
+- Run a recorded suite in a fresh checkout before treating it as landing
+  evidence. An ignored woven skill directory made a process-manual test pass
+  in the slot and fail in the clean suite worktree; assertions about generated
+  projections must be conditional or backed by an explicit fixture (#332).
+- When a stateful fake models a remote push, update its advertised PR head
+  from the pushed ref in every fixture that can integrate main. A stale fake
+  turns a successful integration into a two-minute registration timeout
+  (#332 full suite).
+- An override of execution settings must not override a mandatory gate's
+  requirement. Test omitted and explicitly false flags through the production
+  gate, as well as the pure derivation (#332 BR-8).
+- A failed parent lookup does not prove a root commit. Read positive parent
+  evidence and propagate operational errors; test those errors (#332 BR-3).
+- CommandContext alone does not bound a subprocess whose descendants retain
+  output pipes. Test cancellation with a real descendant and bound cleanup and
+  pipe draining (#332 BR-5).
+- A termination assertion must expire before the fixture child can exit
+  naturally; a two-minute wait for a one-minute sleeper proves no cleanup.
+  Mutation-check both timeout and parent-exit cases (#332 BR-10).
+
 - In a rejection table, each row must assert that it was refused by its own
   check (for example, the error names the field). A shared invariant failing
   first, such as a nil collection, makes every row pass vacuously (#279 BR-8).
@@ -614,6 +643,20 @@ The simplest durable authority beats a clever scan of consequences.
 
 - When an authorized acceptance revision changes required checks, update the current Done when criteria as well as appending its revision history. Label completed local verification separately from pending PR CI; do not leave two competing acceptance contracts (#358 BR-1).
 
+- Polling deadlines must cover inflight IO and reject results that arrive after
+  expiry, including green. Exclude separately budgeted suite time explicitly;
+  give cleanup a fresh bounded context after cancellation (#332 BR-12).
+- A pure action selector does not own authoritative state. Route production
+  outcomes through typed state/event transitions, including error, recovery and
+  retry paths; test the counter and ordering invariants by mutation (#332 BR-14).
+- Bound the complete subprocess graph, including indirect shared Git helpers.
+  Cancellation during push may follow remote publication: preserve the local
+  commit and reconcile evidence on retry, rather than rolling back (#332 BR-13).
+
+- A deadline is only complete when it reaches every subprocess on the actual
+  call graph. Enumerate nested probes, replay helpers, tracker fallbacks,
+  archive reads and final diff measurements, then test cancellation with a real
+  sleeping command at each independent seam (#332 BR-12/BR-13 round 7).
 - A new consumer configuration hook needs a README entry as well as atlas details: name its default convention, override placement, and failure behavior (#333 BR-1).
 
 - Tests of environment-controlled output must own every relevant flag, including flags that override the one being tested. Codex's NO_COLOR broke forced-color assertions; inherited CLICOLOR_FORCE broke plain output (#363). Exercise the runner with conflicting ambient settings.

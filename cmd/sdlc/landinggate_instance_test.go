@@ -118,12 +118,11 @@ func TestLandingInstanceGate_FailsClosedWithoutMergeBase(t *testing.T) {
 }
 
 // The production call site: runMerge must hand the instance gate the branch's own
-// window — merge-base..PR head — even when the PR's base OID is a main that moved
-// on after the branch was cut. Removing the landing.go call-site fix fails this
-// test alone; the unit tests above call the gate directly.
+// window — merge-base..PR head — after integrating a main that moved. The
+// direct tests above also cover the helper on branches not yet integrated.
 func TestLandingPassesBranchWindowToInstanceGate(t *testing.T) {
-	roots, remote, gh := landingFixture(t, 1)
-	branchPoint := strings.TrimSpace(git(t, roots[1], "merge-base", "HEAD", "upstream/main"))
+	_, remote, gh := landingFixture(t, 1)
+	gh.followPush = true
 	server := filepath.Join(t.TempDir(), "advance")
 	git(t, "", "clone", "--quiet", remote, server)
 	git(t, server, "config", "user.name", "server")
@@ -131,6 +130,7 @@ func TestLandingPassesBranchWindowToInstanceGate(t *testing.T) {
 	git(t, server, "commit", "--allow-empty", "-qm", "main moves on after the branch point")
 	git(t, server, "push", "-q", "origin", "HEAD:main")
 	gh.pr.BaseOID = procedureHead(t, server) // GitHub reports the PR base as main's tip
+	integratedMain := gh.pr.BaseOID
 
 	var gotBase, gotHead string
 	prev := validateChangedInstancesFn
@@ -145,8 +145,8 @@ func TestLandingPassesBranchWindowToInstanceGate(t *testing.T) {
 	if err := runMerge(io.Discard, io.Discard, f); err != nil {
 		t.Fatal(err)
 	}
-	if gotBase != branchPoint || gotHead != gh.pr.HeadOID {
-		t.Fatalf("instance gate window = %s..%q, want branch point %s..PR head %s (main tip %s)",
-			gotBase, gotHead, branchPoint, gh.pr.HeadOID, gh.pr.BaseOID)
+	if gotBase != integratedMain || gotHead != gh.pr.HeadOID {
+		t.Fatalf("instance gate window = %s..%q, want integrated main %s..PR head %s",
+			gotBase, gotHead, integratedMain, gh.pr.HeadOID)
 	}
 }

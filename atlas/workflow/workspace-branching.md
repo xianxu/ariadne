@@ -188,6 +188,14 @@ and re-running it is the way to publish later commits. Before integration or swi
 tracked changes (including tracker edits) and ongoing Git operations refuse. Noncolliding untracked and
 ignored files remain; collisions refuse without stash/reset or forced switching.
 
+When main moved, durable merge integrates it on the issue branch before checks.
+Conflicts abort and name their paths. Clean merges pass the publish replay rule
+before a push leased against the observed remote head; replay refusal resets
+that local integration. GitHub has up to two minutes to register the pushed
+head, then the suite/CI gates run. A final main fetch repeats integration if
+necessary (at most three integrations). This narrows the main-movement race;
+GitHub's expected-head option pins the PR head, not main atomically.
+
 A server-side merge request is followed by exact integration confirmation;
 queue admission alone is insufficient. Already merged squash/rebase PRs are
 recognized through their original PR head and reachable integration evidence.
@@ -195,7 +203,8 @@ The command archives only this PR's completed issue/plan/review records on remot
 main, with provenance checked on retry. It then returns to the unchanged resting
 ref and removes only the proven issue branch and its configuration. It neither
 pulls in another checkout nor removes the enclosing environment or dependencies.
-No remote branch deletion is added; repository auto-deletion remains independent.
+The remote issue branch is deleted with a lease on the landed head; concurrent
+new work is preserved.
 
 The resting snapshot is intentionally old. An issue may still appear active in
 its local tracker even though remote main already contains the archive. This is
@@ -213,10 +222,26 @@ an already merged PR, never merges an open one. Retry re-observes Git/GitHub and
 archive evidence; uncertain outcomes, changed issue commits or occupancy refuse
 cleanup. If the ref was already deleted, confirmed recovery can finish removing
 its remaining configuration. There is no persistent transaction journal.
+An unpushed integration is recoverable from its `Integrated-Main:` trailer:
+verify its two parents, reconstructed clean tree and publish replay before the
+leased push. Ordinary unpushed commits still require `sdlc pr`.
+Cancellation during push can follow remote publication. Keep the local
+integration and retry to reconcile the remote and GitHub heads. Integration
+state and retry counting are owned by the typed event core in
+`cmd/sdlc/integrationstate.go`. Durable landing Git commands have a two-minute
+ceiling; recovery probes, abort/reset and worktree cleanup use fresh 30-second
+commands after cancellation. Shared gitx commands used by publish replay and
+ownership also have a two-minute ceiling. Process groups reclaim descendants
+even when the direct Git process exits before its inherited pipes close.
+Publish replay, tracker lookups and archive ownership reads carry the merge
+command's cancellation through contextual Git helpers. The quick-flow publish
+check measures its branch window and final numstat through the same context.
 
 Ordinary feature worktrees and private dependency clones keep their legacy
 per-repository flow: refresh their own main, archive and remove the completed
-branch; ordinary feature worktrees are removed. For coordinated Ariadne/Pair
+branch; ordinary feature worktrees are removed. They refuse a moved main before
+and after checks, naming manual integration with `git merge origin/main`.
+For coordinated Ariadne/Pair
 work, land the Ariadne dependency through its normal SDLC flow first, verify
 Pair against that merged dependency, then land Pair. Driving both from a Pair
 thread does not recursively publish, refresh or clean sibling repositories.

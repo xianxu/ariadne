@@ -3,13 +3,13 @@ package activetime
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueref"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
@@ -32,8 +32,7 @@ type Commit struct {
 // commit_test.go can drive fixtures without spawning git. repo is passed via
 // `-C` so the standalone `--git-repo <path>` flag can target arbitrary repos.
 var gitRun = func(repo string, args ...string) ([]byte, error) {
-	full := append([]string{"-C", repo}, args...)
-	return exec.Command("git", full...).Output()
+	return gitx.RunGit(append([]string{"-C", repo}, args...)...)
 }
 
 // Scope limits a measurement's boundaries to one issue branch (#270). Main's
@@ -283,9 +282,8 @@ func short7(sha string) string {
 
 // gitRunContext is distinct from the nil-context legacy fixture seam.
 var gitRunContext = func(ctx context.Context, repo string, args ...string) ([]byte, error) {
-	command := exec.CommandContext(ctx, "git", append([]string{"-C", repo}, args...)...)
-	command.WaitDelay = time.Second
-	return command.Output()
+	out, _, err := gitx.RunGitInContext(ctx, repo, nil, args...)
+	return out, err
 }
 
 func runGitContext(ctx context.Context, repo string, args ...string) ([]byte, error) {
