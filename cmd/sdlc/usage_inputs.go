@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"time"
 
@@ -53,6 +54,15 @@ func resolveUsageAuthority(ctx context.Context, root string, id int, now time.Ti
 		return out, e
 	}
 	if !ok {
+		tracked, err := localTrackerDeclared(root)
+		if err != nil {
+			return out, err
+		}
+		if !tracked {
+			legacy, err := legacyUsageAuthority(ctx, root, id, now)
+			legacy.Repository = out.Repository
+			return legacy, err
+		}
 		return out, fmt.Errorf("usage issue attribution needs a local tracker snapshot; run sdlc issue list to refresh it")
 	}
 	rec, ok := snap.Card(fmt.Sprintf("%06d", id))
@@ -86,7 +96,11 @@ func resolveUsageAuthority(ctx context.Context, root string, id int, now time.Ti
 	return out, e
 }
 func legacyUsageAuthority(ctx context.Context, root string, id int, now time.Time) (usageAuthority, error) {
-	_, start, _, e := gitx.CommitWindowAt(ctx, root, "HEAD", strconv.Itoa(id))
+	head, e := ownedActualGit(ctx, root, "rev-parse", "--verify", "HEAD^{commit}")
+	if e != nil {
+		return usageAuthority{}, e
+	}
+	_, start, _, e := gitx.CommitWindowAt(ctx, root, head, strconv.Itoa(id))
 	if e != nil {
 		return usageAuthority{}, e
 	}
@@ -126,6 +140,7 @@ func usageFleetSlots(ctx context.Context, root string) (map[string]string, []str
 			repos = append(repos, r)
 		}
 	}
+	sort.Strings(repos)
 	return slots, repos, nil
 }
 func usageSessionSlots(sessions []transcripts.SessionEvidence, roots map[string]string) map[string]string {

@@ -197,6 +197,9 @@ func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput
 		}
 		coverage.Counts[k] = int64(v)
 	}
+	var commonCoverage usage.Coverage
+	commonCoverage.Merge(coverage)
+	parserCoverage := map[string]*usage.Coverage{"codex": {}, "claude": {}}
 	var responses []usage.Response
 	for _, s := range discovery.Sources {
 		if e = ctx.Err(); e != nil {
@@ -205,6 +208,7 @@ func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput
 		file, err := os.Open(s.File)
 		if err != nil {
 			coverage.Add("unavailable_sources", s.Harness)
+			parserCoverage[s.Harness].Add("unavailable_sources", "")
 			continue
 		}
 		before, beforeErr := file.Stat()
@@ -212,26 +216,31 @@ func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput
 		stat, statErr := file.Stat()
 		file.Close()
 		coverage.Merge(c)
+		parserCoverage[s.Harness].Merge(c)
 		if beforeErr != nil || !usageSourceStable(s.Info, before, stat) {
 			coverage.Add("source_mutations", s.Harness)
+			parserCoverage[s.Harness].Add("source_mutations", "")
 		}
 		if statErr != nil || stat.Size() < s.Length {
 			coverage.Add("truncated_tails", s.Harness)
+			parserCoverage[s.Harness].Add("truncated_tails", "")
 		}
 		if err != nil {
 			if ctx.Err() != nil {
 				return out, ctx.Err()
 			}
 			coverage.Add("unavailable_sources", s.Harness)
+			parserCoverage[s.Harness].Add("unavailable_sources", "")
 			continue
 		}
 		if len(responses)+len(rows) > 250000 {
 			coverage.Add("bound_exceeded", "response identities")
+			commonCoverage.Add("bound_exceeded", "response identities")
 			break
 		}
 		responses = append(responses, rows...)
 	}
-	responses, c, e := usage.NormalizeResponses(responses)
+	responses, c, normalizedCoverage, e := normalizeUsageEvidence(responses)
 	if e != nil {
 		return out, e
 	}
@@ -295,19 +304,23 @@ func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput
 			}
 		}
 		points := usage.MeterPoints(meter, agent, unit)
-		glance.Coverage = hour.Coverage
-		complete := coverage.SpendComplete() && hour.Coverage.SpendComplete()
+		glance.Coverage.Merge(commonCoverage)
+		if agentCoverage := parserCoverage[agent]; agentCoverage != nil {
+			glance.Coverage.Merge(*agentCoverage)
+		}
+		glance.Coverage.Merge(normalizedCoverage[agent])
+		viewCoverage := hour.Coverage
 		var calibrationTokens int64
 		if len(points) == 2 && now.Sub(points[0].At) <= 7*24*time.Hour {
 			report, e := usage.AggregateUsage(responses, usage.Window{Since: points[0].At, Until: points[1].At}, burn, only)
 			if e != nil {
 				return out, e
 			}
-			glance.Coverage.Merge(report.Coverage)
-			complete = complete && report.Coverage.SpendComplete()
+			viewCoverage = report.Coverage
 			calibrationTokens, _ = report.Totals.Total()
 		}
-		glance.Projection = usage.ProjectMeter(meter, agent, unit, now, calibrationTokens, hour.BurnTokensPerHour, complete)
+		glance.Coverage.Merge(viewCoverage)
+		glance.Projection = usage.ProjectMeter(meter, agent, unit, now, calibrationTokens, hour.BurnTokensPerHour, glance.Coverage.SpendComplete())
 		out.AgentGlance = append(out.AgentGlance, glance)
 	}
 	if f.Issue > 0 {
@@ -469,4 +482,31 @@ func usageSourceStable(pin, before, after os.FileInfo) bool {
 		return false
 	}
 	return true
+}
+
+// normalizeUsageEvidence deduplicates globally within the agent-qualified
+// identity namespace and retains each account's own completeness diagnostics.
+func normalizeUsageEvidence(in []usage.Response) ([]usage.Response, usage.Coverage, map[string]usage.Coverage, error) {
+	buckets := map[string][]usage.Response{}
+	for _, r := range in {
+		buckets[r.Agent] = append(buckets[r.Agent], r)
+	}
+	agents := []string{}
+	for a := range buckets {
+		agents = append(agents, a)
+	}
+	sort.Strings(agents)
+	var out []usage.Response
+	var global usage.Coverage
+	byAgent := map[string]usage.Coverage{}
+	for _, a := range agents {
+		rows, c, e := usage.NormalizeResponses(buckets[a])
+		if e != nil {
+			return nil, global, byAgent, e
+		}
+		global.Merge(c)
+		byAgent[a] = c
+		out = append(out, rows...)
+	}
+	return out, global, byAgent, nil
 }

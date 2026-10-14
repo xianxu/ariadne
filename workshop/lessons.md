@@ -700,3 +700,13 @@ The simplest durable authority beats a clever scan of consequences.
 - A successful repair must show the measurement's reconstruction basis and
   quality diagnostics as well as the number and hashes. Exercise preview and
   execution through the command path, and reuse measurement rendering (#335 BR-5).
+
+- Bind accounting by recorded immutable dispatch facts and exact identities. A
+  disposable directory name is not proof; an exact captured session must outrank
+  an interrupted earlier root-only receipt when a checkout is reused (#365).
+- Scope completeness to the denominator being projected. Global response dedup
+  can coexist with per-agent coverage; another agent's unknown format must not
+  invalidate a complete account calibration (#365).
+- Live CLI metadata includes protocol noise before authoritative identity.
+  Distinguish known queue records and startup banners from the first actual
+  session metadata, and regression-test the observed provider formats (#365).

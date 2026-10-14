@@ -78,6 +78,7 @@ func TestUsageSessionSlotsCyclesNeverAcquireSlotFromSharedCWD(t *testing.T) {
 func TestBindUsageReviewersRequiresExactInPlaceOrDisposableRootEvidence(t *testing.T) {
 	exact := usageAttributionRecord(t, "exact", usageAttributionReviewerID, "/repo", 1, 1)
 	unique := usageAttributionRecord(t, "unique", "", "/tmp/review-checkouts/attempt-b", 2, 1)
+	unique.Intent.DisposableRoot = true
 	unbound := usageAttributionRecord(t, "unbound", "", "/repo", 3, 1)
 	sessions := []transcripts.SessionEvidence{
 		usageAttributionSession(usageAttributionReviewerID, "/repo", "", false, 0),
@@ -231,5 +232,35 @@ func TestUsageIssuePartsCountDetailRoundsAndAttemptsNotModelsOrBurnOnlyGroups(t 
 	parts := usageIssueParts(report)
 	if parts[1].Tokens != 60 || parts[1].Rounds != 1 || parts[1].Attempts != 2 || parts[2].Tokens != 60 {
 		t.Fatalf("models or burn-only groups invented review rounds: %+v groups=%+v", parts, report.Groups)
+	}
+}
+
+func TestUsageExactReviewerIdentitySurvivesInterruptedPriorRound(t *testing.T) {
+	root := "/tmp/review-checkouts/reused"
+	finished := usageAttributionRecord(t, "new", usageAttributionReviewerID, root, 2, 1)
+	old, e := reviewusage.NewRequested(finished.Intent)
+	if e != nil {
+		t.Fatal(e)
+	}
+	old.Intent.DisposableRoot = true
+	old.Intent.ID = "old"
+	old.Intent.Round = 1
+	old.Intent.RequestedAt = usageAttributionAt(5).Format(time.RFC3339Nano)
+	sessions := []transcripts.SessionEvidence{usageAttributionSession(usageAttributionReviewerID, root, "", false, 12)}
+	for _, records := range [][]reviewusage.Record{{old, finished}, {finished, old}} {
+		got := bindUsageReviewers(sessions, records, usageAttributionAt(30))
+		b := got["codex:"+usageAttributionReviewerID]
+		if b.Conflict || b.Attempt != "new" {
+			t.Fatalf("old unknown finish overruled exact new dispatch: %+v", got)
+		}
+	}
+}
+func TestUsageReviewerRootNameCannotSupplyDisposableProof(t *testing.T) {
+	root := "/ordinary/review-checkouts/repo"
+	r := usageAttributionRecord(t, "in-place", "", root, 1, 1)
+	sessions := []transcripts.SessionEvidence{usageAttributionSession("unknown", root, "", false, 12)}
+	got := bindUsageReviewers(sessions, []reviewusage.Record{r}, usageAttributionAt(30))
+	if !got["codex:unknown"].Conflict {
+		t.Fatalf("path spelling guessed disposable authority: %+v", got)
 	}
 }

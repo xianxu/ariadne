@@ -45,9 +45,9 @@ The agents' own transcripts already record usage: Claude's session JSONL carries
 
 Durable plan: workshop/plans/000365-usage-plan.md.
 
-- [ ] Normalize recorded usage and deduplicate before attribution.
-- [ ] Reuse ownership/membership and persist explicit reviewer bindings.
-- [ ] Add reporting, calibrated projection and docs.
+- [x] Normalize recorded usage and deduplicate before attribution.
+- [x] Reuse ownership/membership and persist explicit reviewer bindings.
+- [x] Add reporting, calibrated projection and docs.
 - [ ] Verify recorded suite, SHIP, PR and merge.
 
 ## Log
@@ -212,3 +212,25 @@ total: 8.881
 Round2 CLEAN high confidence; PQ-1/PQ-2/PQ-3 addressed, zero blockers. Derived
 estimate only after that acceptance; next rerun change-code for reconciliation
 and estimate advisory, then implementation.
+
+### 2026-10-14 — final attribution regressions and smoke
+
+A disposable checkout is now an explicit immutable dispatch fact, rather than a
+path-name heuristic. A captured session identity outranks an earlier unfinished
+root-only receipt on a reused checkout; contradictory exact identities remain
+unknown. Offline legacy ownership uses a local-only tracker resolver, preserving
+the labelled legacy fallback without a fetch. Calibration coverage is scoped to
+each agent after global deduplication: another agent's format gaps cannot erase
+a complete denominator, while the agent's own gaps still refuse projection.
+
+Focused root regressions passed12.029s; full usage/reviewusage/judge/transcripts
+package runs passed (0.164s/1.872s/14.559s/0.171s). Earlier live CLI conformance
+passed13.460s. Real candidate scans on f2695117751b33038fef21c26ebd721dbd93371b
+took23.94s for six-hour fleet and17.69s for issue365. Issue smoke reported
+29,884,871 worker tokens, zero bound reviewer tokens and three explicit legacy
+review gaps; shared pre-feature reviews cannot be guessed into the new schema.
+No account observations existed, so projections were null.
+
+The first recorded suite attempt was cancelled while still queued, before any
+suite execution. It is not passing evidence. Next: commit these tested fixes,
+run the recorded suite on the exact pushed head, then close/SHIP/PR/merge.

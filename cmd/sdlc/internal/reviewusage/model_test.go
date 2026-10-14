@@ -58,6 +58,8 @@ func TestAttemptConfirmedProgress(t *testing.T) {
 			field.SetString(field.String() + "foreign")
 		case reflect.Int:
 			field.SetInt(field.Int() + 1)
+		case reflect.Bool:
+			field.SetBool(!field.Bool())
 		}
 		if got, err := Step(started, bad); err == nil || got != started {
 			t.Fatalf("ignored intent member %s", value.Type().Field(i).Name)

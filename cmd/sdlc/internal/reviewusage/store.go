@@ -267,7 +267,7 @@ func Parse(raw []byte) (Record, error) {
 	if err != nil {
 		return Record{}, err
 	}
-	if _, err := objectShape(fields["intent"], "id repository issue_id recipe round attempt agent root reviewed_head slot requested_at", ""); err != nil {
+	if _, err := objectShape(fields["intent"], "id repository issue_id recipe round attempt agent root reviewed_head slot requested_at", "disposable_root"); err != nil {
 		return Record{}, err
 	}
 	var r Record

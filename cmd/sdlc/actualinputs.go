@@ -54,7 +54,7 @@ func resolveOwnedActualInputs(ctx context.Context, repoTop, brainAbs, issueNum, 
 	if repo == nil {
 		return nil, nil
 	}
-	rs, err := actualInputRecords(ctx, repo, filepath.Join(repoTop, envOr("WF_ISSUES_DIR", "workshop/issues")))
+	rs, err := actualInputRecords(ctx, repo, repoTop, filepath.Join(repoTop, envOr("WF_ISSUES_DIR", "workshop/issues")))
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +271,7 @@ func ownedMeasurementCuts(l gatestate.Ledger) []gatestate.MeasurementCut {
 
 type localMeasurementContextKey struct{}
 
-func actualInputRecords(ctx context.Context, repo *tracker.Repository, details string) (tracker.Records, error) {
+func actualInputRecords(ctx context.Context, repo *tracker.Repository, root, details string) (tracker.Records, error) {
 	if local, _ := ctx.Value(localMeasurementContextKey{}).(bool); !local {
 		return tracker.LoadRecords(ctx, repo, details, tracker.PreferFresh)
 	}
@@ -280,6 +280,13 @@ func actualInputRecords(ctx context.Context, repo *tracker.Repository, details s
 		return tracker.Records{}, err
 	}
 	if !ok {
+		tracked, e := localTrackerDeclared(root)
+		if e != nil {
+			return tracker.Records{}, e
+		}
+		if !tracked {
+			return tracker.Records{}, nil
+		}
 		return tracker.Records{}, fmt.Errorf("local tracker snapshot unavailable")
 	}
 	return tracker.ComposeRecords(tracker.Records{Tracker: true, Ref: snap.Ref()}, snap.Records(), snap.Unreadable(), nil), nil
@@ -768,4 +775,12 @@ func ownedActualGit(ctx context.Context, root string, args ...string) (string, e
 		return "", fmt.Errorf("measurement git %s: %w: %s", args[0], err, strings.TrimSpace(string(stderr)))
 	}
 	return strings.TrimSuffix(string(stdout), "\n"), nil
+}
+
+func localTrackerDeclared(root string) (bool, error) {
+	_, e := os.Stat(filepath.Join(root, tracker.CutoverMarkerPath))
+	if os.IsNotExist(e) {
+		return false, nil
+	}
+	return e == nil, e
 }

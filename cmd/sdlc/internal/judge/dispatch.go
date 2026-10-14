@@ -478,6 +478,7 @@ func dispatchOnce(ctx context.Context, opts DispatchOptions) (string, error) {
 			intent.Attempt = 1
 		}
 		intent.RequestedAt = time.Now().UTC().Format(time.RFC3339Nano)
+		intent.DisposableRoot = opts.Checkout != ""
 		intent.Root = opts.Checkout
 		if intent.Root == "" {
 			intent.Root, err = os.Getwd()

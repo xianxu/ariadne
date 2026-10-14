@@ -27,17 +27,18 @@ const (
 )
 
 type Intent struct {
-	ID           string `json:"id" yaml:"id"`
-	Repository   string `json:"repository" yaml:"repository"`
-	IssueID      string `json:"issue_id" yaml:"issue_id"`
-	Recipe       string `json:"recipe" yaml:"recipe"`
-	Round        int    `json:"round" yaml:"round"`
-	Attempt      int    `json:"attempt" yaml:"attempt"`
-	Agent        string `json:"agent" yaml:"agent"`
-	Root         string `json:"root" yaml:"root"`
-	ReviewedHEAD string `json:"reviewed_head" yaml:"reviewed_head"`
-	Slot         string `json:"slot" yaml:"slot"`
-	RequestedAt  string `json:"requested_at" yaml:"requested_at"`
+	DisposableRoot bool   `json:"disposable_root,omitempty" yaml:"disposable_root,omitempty"`
+	ID             string `json:"id" yaml:"id"`
+	Repository     string `json:"repository" yaml:"repository"`
+	IssueID        string `json:"issue_id" yaml:"issue_id"`
+	Recipe         string `json:"recipe" yaml:"recipe"`
+	Round          int    `json:"round" yaml:"round"`
+	Attempt        int    `json:"attempt" yaml:"attempt"`
+	Agent          string `json:"agent" yaml:"agent"`
+	Root           string `json:"root" yaml:"root"`
+	ReviewedHEAD   string `json:"reviewed_head" yaml:"reviewed_head"`
+	Slot           string `json:"slot" yaml:"slot"`
+	RequestedAt    string `json:"requested_at" yaml:"requested_at"`
 }
 type Record struct {
 	Version    int    `json:"version" yaml:"version"`

@@ -19,6 +19,7 @@ type usageReviewBinding struct {
 	Repository, Issue, Slot, Round, Attempt string
 	Since, Until                            time.Time
 	Conflict                                bool
+	Exact                                   bool
 }
 
 func loadUsageReviewers(ctx context.Context, repos []string, issueFilter int) ([]reviewusage.Record, usage.Coverage, error) {
@@ -171,7 +172,7 @@ func bindUsageReviewers(sessions []transcripts.SessionEvidence, records []review
 			}
 			if r.SessionID != "" && s.ID == r.SessionID {
 				matches = append(matches, key)
-			} else if r.SessionID == "" && strings.Contains(filepath.ToSlash(i.Root), "/review-checkouts/") && filepath.Clean(s.CWD) == filepath.Clean(i.Root) && !s.Started.Before(start) && s.Started.Before(end) {
+			} else if r.SessionID == "" && i.DisposableRoot && filepath.Clean(s.CWD) == filepath.Clean(i.Root) && !s.Started.Before(start) && s.Started.Before(end) {
 				matches = append(matches, key)
 			} else if r.SessionID == "" && filepath.Clean(s.CWD) == filepath.Clean(i.Root) && !s.Started.Before(start) && s.Started.Before(end) {
 				matches = append(matches, key)
@@ -181,6 +182,13 @@ func bindUsageReviewers(sessions []transcripts.SessionEvidence, records []review
 		for _, key := range matches {
 			candidate := b
 			candidate.Conflict = candidate.Conflict || uncertain[key]
+			candidate.Exact = r.SessionID != ""
+			if old, ok := out[key]; ok && old.Exact && !candidate.Exact {
+				continue
+			} else if ok && !old.Exact && candidate.Exact {
+				out[key] = candidate
+				continue
+			}
 			if old, ok := out[key]; ok && old.Attempt != b.Attempt {
 				old.Conflict = true
 				out[key] = old

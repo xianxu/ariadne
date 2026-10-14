@@ -128,3 +128,41 @@ func TestUsageSourcePinAllowsAppendButRefusesRewrites(t *testing.T) {
 		t.Fatal("replacement accepted")
 	}
 }
+
+func TestNormalizedUsageCoverageIsAgentScoped(t *testing.T) {
+	at := time.Now().UTC()
+	good := usage.Response{ID: "same", SourceID: "source", Agent: "codex", Model: "m", At: at, Tokens: usage.Counters{Input: 10, Output: 1}}
+	bad := good
+	bad.Agent = "claude"
+	conflict := bad
+	conflict.Tokens.Input = 12
+	rows, global, byAgent, e := normalizeUsageEvidence([]usage.Response{good, bad, conflict})
+	if e != nil || len(rows) != 1 || !byAgent["codex"].SpendComplete() || byAgent["claude"].SpendComplete() || global.SpendComplete() {
+		t.Fatalf("agent evidence contaminated: %+v %+v %+v %v", rows, global, byAgent, e)
+	}
+}
+
+func TestUsageLegacyRemoteNeedsNoTrackerFetch(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	root := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	remote := filepath.Join(t.TempDir(), "absent.git")
+	testfix.Git(t, root, "remote", "add", "origin", remote)
+	testfix.Git(t, root, "update-ref", "refs/remotes/origin/main", "HEAD")
+	testfix.Git(t, root, "config", "branch.main.remote", "origin")
+	testfix.Git(t, root, "config", "branch.main.merge", "refs/heads/main")
+	writeRepoFile(t, root, "workshop/issues/000365-legacy.md", "---\nid: 365\nstatus: working\n---\n# Legacy\n")
+	testfix.Git(t, root, "add", "workshop")
+	testfix.Git(t, root, "commit", "-qm", "#365: plan")
+	a, e := resolveUsageAuthority(context.Background(), root, 365, time.Now().Add(time.Minute))
+	if e != nil || a.Repository == "" || !strings.Contains(a.Label, "legacy no-tracker") {
+		t.Fatalf("legacy authority %+v %v", a, e)
+	}
+	ctx := context.WithValue(context.Background(), localMeasurementContextKey{}, true)
+	_, _, _, warning := actualTrackerInputs(ctx, root, "365")
+	if warning != "" {
+		t.Fatalf("local actual companion contacted unavailable tracker: %s", warning)
+	}
+	if _, e = os.Stat(filepath.Join(root, ".git", "FETCH_HEAD")); !os.IsNotExist(e) {
+		t.Fatal("usage wrote FETCH_HEAD", e)
+	}
+}
