@@ -59,6 +59,7 @@ flag (e.g. `-i`, `-n`) also needs neutralizing. Add a regression test that sets
 ## Log
 
 ### 2026-10-13
+- 2026-10-13: closed — All go test ./cmd/weave/... -count=1 packages pass; startup MAKEFLAGS=k 0.830s and empty 0.462s. Round1 reviewer independently confirmed regression fails without -S. Since verification only prose changed: Done when now matches authorized scope and CI remains pending before landing. Full suite starved at gate (#357), cancelled before tests; hub receipt bada6a90-b130-4909-b7cf-868d8b8cc798 authorizes weave verification plus PR CI. Existing tools failure contract restored, no new architecture surface. Log /tmp/ariadne358-weave-20261013.log; diff check clean.; review verdict: SHIP
 - 2026-10-13: unclaimed: filed from #353; independent weave fix, unclaimed for the hub to assign
 
 Filed by ariadne:3 from #353's full suite (unrelated to #353's diff).

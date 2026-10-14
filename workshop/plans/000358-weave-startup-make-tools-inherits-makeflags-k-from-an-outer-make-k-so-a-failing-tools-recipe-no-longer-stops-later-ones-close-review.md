@@ -61,3 +61,62 @@ findings:
     detail: |
       workshop/issues/000358-weave-startup-make-tools-inherits-makeflags-k-from-an-outer-make-k-so-a-failing-tools-recipe-no-longer-stops-later-ones.md:48 still requires make -k test, while line 69 replaces it with all weave packages, both startup environments, and green PR CI. Line 70 also calls revised acceptance passed while leaving CI subsequent. These are all instances in this window: reconcile the acceptance sections and distinguish completed local evidence from pending CI.
 ```
+
+---
+
+## Re-review — 2026-10-13T19:13:33-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 358 — weave: startup make tools inherits MAKEFLAGS=k from an outer make -k, so a failing tools recipe no longer stops later ones |
+| repo | ariadne |
+| issue file | workshop/issues/000358-weave-startup-make-tools-inherits-makeflags-k-from-an-outer-make-k-so-a-failing-tools-recipe-no-longer-stops-later-ones.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | f5b513d43608477ba059418ed9fd84e6068fc705..2bc43b0cacc6bb967a0dd121341d8843ebb81d9d |
+| command | sdlc close --issue 358 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-13T19:13:33-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The fix restores fail-stop behavior under inherited `MAKEFLAGS=k`, and the regression detects its removal. BR-1 is addressed: the current acceptance criteria distinguish completed local verification from pending PR CI. No new findings.
+
+1. **Strengths**
+   - `cmd/weave/internal/startup/tools.go:36` applies `-S` at the shared process boundary while preserving other environment settings.
+   - `tools_test.go:148` exercises real Make in both environments and checks error propagation plus suppression of later recipes.
+   - Issue #358 lines 48–51 and 72–75 consistently describe the revised acceptance contract.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage**
+   - Startup package passed uncached with both `MAKEFLAGS=k` and empty `MAKEFLAGS`.
+   - Removing only `-S` in a temporary copy caused the inherited-keep-going regression to fail; the clean case passed. The copy was removed.
+   - The broader weave run produced no results before interruption; its recorded success was not independently confirmed. PR CI remains required before landing.
+
+6. **Architecture**
+   - **ARCH-DRY: pass.** One shared invocation covers owner layers.
+   - **ARCH-PURE: pass.** The change remains within the existing injected IO boundary.
+   - **ARCH-PURPOSE: pass.** The regression demonstrates the actual failure and its correction.
+   - No new architectural or user-facing surface requires atlas/README changes. No Core concepts table applies.
+
+7. **Plan revisions:** None needed.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Issue #358:48–51 replaces the old full-suite criterion and explicitly marks PR CI pending at local close; lines 72–75 consistently distinguish local verification from subsequent CI. The pinned before/after diff confirms this prose-only correction.
+```
