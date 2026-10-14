@@ -234,3 +234,18 @@ No account observations existed, so projections were null.
 The first recorded suite attempt was cancelled while still queued, before any
 suite execution. It is not passing evidence. Next: commit these tested fixes,
 run the recorded suite on the exact pushed head, then close/SHIP/PR/merge.
+
+### 2026-10-14 — full-suite findings and targeted repair
+
+Recorded suite on5f2038d83b65449224fff53a945dfd6cd7cf6421 failed after531.6s
+(1357 root tests/12 shards,56 other packages). Three classes: new Git-driving
+reviewusage package lacked TestMain's real-Git/testgate setup; accounting appended
+after the byte-measured diagnostic envelope; private accounting refs unnecessarily
+pinned reviewed code and prevented a rebased generation from being pruned.
+
+Reproduced all failures. A new store regression failed before removing object
+pins, then passed while proving the receipt still retains its reviewed SHA.
+Accounting receipts contain metadata only, not code recovery authority. Moved
+accounting before the measured diagnostics and added the standard package test
+harness. Targeted root lifecycle/usage/accounting regressions passed50.143s;
+reviewusage package passed1.330s. Next integrate current main and rerun the suite.

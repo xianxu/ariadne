@@ -114,11 +114,12 @@ func renderReviewEntry(m sidecarMeta, isRevision bool) string {
 	if !strings.HasSuffix(m.Body, "\n") {
 		b.WriteString("\n")
 	}
-	b.WriteString(m.Diagnostics)
 	if len(m.ReviewerRuns) > 0 {
 		raw, _ := json.Marshal(m.ReviewerRuns)
 		fmt.Fprintf(&b, "\n<!-- sdlc-review-usage %s -->\n", raw)
 	}
+	// Keep the measured diagnostic envelope last; accounting has its own bound.
+	b.WriteString(m.Diagnostics)
 	return b.String()
 }
 

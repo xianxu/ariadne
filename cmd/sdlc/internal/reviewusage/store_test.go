@@ -160,3 +160,26 @@ func TestStoreStrictDocument(t *testing.T) {
 		}
 	}
 }
+
+// Accounting retains immutable metadata, not a code-recovery object graph.
+// Rebase/prune must not retain a superseded code generation merely for usage.
+func TestStoreDoesNotRetainReviewedCode(t *testing.T) {
+	ctx := context.Background()
+	store, intent := storeFixture(t)
+	branch := strings.TrimSpace(testfix.Capture(t, store.root, "branch", "--show-current"))
+	if _, err := store.SaveRequested(ctx, intent); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, store.root, "checkout", "--orphan", "replacement")
+	testfix.Git(t, store.root, "commit", "--allow-empty", "-m", "replacement")
+	testfix.Git(t, store.root, "branch", "-D", branch)
+	testfix.Git(t, store.root, "reflog", "expire", "--expire=now", "--all")
+	testfix.Git(t, store.root, "gc", "--prune=now")
+	if exec.Command("git", "-C", store.root, "cat-file", "-e", intent.ReviewedHEAD+"^{commit}").Run() == nil {
+		t.Fatal("accounting retained superseded reviewed code")
+	}
+	entry, err := store.Load(ctx, intent.ID)
+	if err != nil || entry.Record.Intent.ReviewedHEAD != intent.ReviewedHEAD {
+		t.Fatalf("accounting metadata was not retained: %+v %v", entry, err)
+	}
+}

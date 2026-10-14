@@ -710,3 +710,10 @@ The simplest durable authority beats a clever scan of consequences.
 - Live CLI metadata includes protocol noise before authoritative identity.
   Distinguish known queue records and startup banners from the first actual
   session metadata, and regression-test the observed provider formats (#365).
+
+- Accounting recovery refs should retain their document, not pin the reviewed
+  code graph. Test rebase/prune while metadata survives; generic recovery object
+  retention can silently change code lifecycle semantics (#365).
+- Keep separately bounded metadata outside a byte-measured diagnostic envelope.
+  Adding a sidecar block after that envelope changes the reported retained bytes
+  even when the diagnostic renderer is untouched (#365).

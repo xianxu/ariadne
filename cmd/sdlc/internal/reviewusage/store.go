@@ -125,7 +125,7 @@ func (s *Store) Save(ctx context.Context, r Record, expectedOID string) (string,
 		if prior.Record == r {
 			return prior.OID, nil
 		}
-		return raw.Save(r.Intent.ID, expectedOID, gitx.RecoveryData{Document: doc, Objects: []string{r.Intent.ReviewedHEAD}})
+		return raw.Save(r.Intent.ID, expectedOID, gitx.RecoveryData{Document: doc})
 	}
 	if r.Phase != Requested {
 		return "", errors.New("new review usage receipt must be requested")
@@ -165,7 +165,7 @@ func (s *Store) Save(ctx context.Context, r Record, expectedOID string) (string,
 	if len(refs) >= s.limit {
 		return "", fmt.Errorf("review usage store full (%d retained refs); publish identical attempt evidence and run confirmed-reachability cleanup before dispatch", len(refs))
 	}
-	return raw.Save(r.Intent.ID, "", gitx.RecoveryData{Document: doc, Objects: []string{r.Intent.ReviewedHEAD}})
+	return raw.Save(r.Intent.ID, "", gitx.RecoveryData{Document: doc})
 }
 
 // Record supports a recorder callback while preserving per-record CAS. A
