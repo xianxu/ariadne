@@ -384,6 +384,202 @@ rounds:
       isolation: fenced
       reviewed: 0058e96c01c1287501f0129f9735bc5062029e78
       blocked: false
+    - actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 60e462468f2815550b4026cda2fe6e2b5c10db3b
+        tracker_head: 2f329519753ec1c2fb07d4dcdcb1477435a6ec97
+        branch_point: 1c39182532fa3cc78ea4935abff4ab1b87a6f01d
+        since: "2026-10-13T17:19:46-07:00"
+        until: "2026-10-14T09:53:52-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-13T17:19:46-07:00"
+              end: "2026-10-14T09:53:52-07:00"
+              began: "2026-10-13T17:19:46-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: bd759883-0d13-49e6-8d0c-73ff96809176
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 5c34a25ce33e7b3b7cd7e70959429d55d73e25fcd681beea2202618f73af9d4a
+              started: "2026-10-14T00:28:59.212Z"
+              spawned: false
+              bytes: 421205
+              windows:
+                - start: "2026-10-14T00:28:59.212Z"
+                  end: "2026-10-14T09:53:52-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: e6dfb40c22bd678974a23a7275f9842088b2da40966acb301ebd0ba6a7002310
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 4336683
+              windows:
+                - start: "2026-10-13T17:19:46-07:00"
+                  end: "2026-10-14T09:53:52-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 0.052116666666666665
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-14T08:44:50-07:00"
+              finalized: "2026-10-14T08:47:13-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-14T08:49:27-07:00"
+              finalized: "2026-10-14T08:51:31-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-14T08:52:50-07:00"
+              finalized: "2026-10-14T08:53:42-07:00"
+              finalizing: true
+            - boundary: M3
+              dispatched: "2026-10-14T08:57:39-07:00"
+              finalized: "2026-10-14T08:59:14-07:00"
+              finalizing: false
+            - boundary: M3
+              dispatched: "2026-10-14T09:01:52-07:00"
+              finalized: "2026-10-14T09:12:37-07:00"
+              finalizing: true
+      "n": 6
+      timestamp: "2026-10-14T10:30:47-07:00"
+      dispatched: "2026-10-14T10:28:56-07:00"
+      agent: claude
+      dispose:
+        - id: BR-6
+          disposition: addressed
+          note: cmd/tl-lead/conformance_test.go:12-17 now says the only fold names an ID that isn't owed, matching lines 53-68.
+          round: 6
+        - id: BR-7
+          disposition: withdrawn
+          note: Overtaken by the scope revision (cc315116, db844120). The off-train render was removed; no "off-train" text remains in cmd/tl-lead or atlas.
+          round: 6
+      findings:
+        - kind: defect
+          id: BR-9
+          severity: Critical
+          title: Plan Core concepts and Revisions still claim RenderOffTrain and the off-train degraded render; slots and threads entities are missing
+          detail: '2nd in family plan-core-concepts-drift. Plan line 28 lists RenderOffTrain in cmd/tl-lead/render.go, and lines 7, 38, 138, 153 and 164 describe the off-train block, TestRenderOffTrain and TestGatherTrainsFleetFailureDegrades. None of these exist after db844120. There are no rows for slotLines/renderSlots/gatherSlots (slots.go) or upsertThread (threads.go), and the scope decision was logged only in the issue. Rule: any commit that adds or removes an entity, or records a scope decision, updates Core concepts and Revisions in the same commit. Sweep every row and revision claim against the tree.'
+          family: plan-core-concepts-drift
+          round: 6
+        - kind: defect
+          id: BR-10
+          severity: Minor
+          title: Comments name a nonexistent carReadConcurrency and claim the slot Phase carries the read error
+          detail: '2nd in family comment-tracks-code. trains.go:66 names carReadConcurrency (the constant is readConcurrency). slots.go:18 says Phase is "?" with the read error, but gatherSlots (slots.go:86) discards the error. Rule: a comment naming an identifier or carried data must match the code. Sweep with grep for identifiers that don''t resolve.'
+          family: comment-tracks-code
+          round: 6
+        - kind: defect
+          id: BR-11
+          severity: Minor
+          title: threadBlocks splits on any line starting with "### ", including inside a code fence
+          detail: cmd/tl-lead/threads.go:15 isn't fence-aware. A pasted thread body with a fenced line starting "### " would be split into a spurious subsection. pkg/markdoc already has a fence scanner it could reuse (ARCH-DRY).
+          family: reuse-fence-aware-scanner
+          round: 6
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
+    - actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: f1fde220fd4ea232791be65302e340a1728e4f59
+        tracker_head: 2f329519753ec1c2fb07d4dcdcb1477435a6ec97
+        branch_point: 1c39182532fa3cc78ea4935abff4ab1b87a6f01d
+        since: "2026-10-13T17:19:46-07:00"
+        until: "2026-10-14T10:32:55-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-13T17:19:46-07:00"
+              end: "2026-10-14T10:32:55-07:00"
+              began: "2026-10-13T17:19:46-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: bd759883-0d13-49e6-8d0c-73ff96809176
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 5c34a25ce33e7b3b7cd7e70959429d55d73e25fcd681beea2202618f73af9d4a
+              started: "2026-10-14T00:28:59.212Z"
+              spawned: false
+              bytes: 421205
+              windows:
+                - start: "2026-10-14T00:28:59.212Z"
+                  end: "2026-10-14T10:32:55-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 91afa70c23133a5073cf54461bb186c9561c46be7ef2e71431e00e720ed71e77
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 4517963
+              windows:
+                - start: "2026-10-13T17:19:46-07:00"
+                  end: "2026-10-14T10:32:55-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 0.052116666666666665
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-14T08:44:50-07:00"
+              finalized: "2026-10-14T08:47:13-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-14T08:49:27-07:00"
+              finalized: "2026-10-14T08:51:31-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-14T08:52:50-07:00"
+              finalized: "2026-10-14T08:53:42-07:00"
+              finalizing: true
+            - boundary: M3
+              dispatched: "2026-10-14T08:57:39-07:00"
+              finalized: "2026-10-14T08:59:14-07:00"
+              finalizing: false
+            - boundary: M3
+              dispatched: "2026-10-14T09:01:52-07:00"
+              finalized: "2026-10-14T09:12:37-07:00"
+              finalizing: true
+            - dispatched: "2026-10-14T10:28:56-07:00"
+              finalized: "2026-10-14T10:30:47-07:00"
+              finalizing: false
+      "n": 7
+      timestamp: "2026-10-14T10:38:15-07:00"
+      dispatched: "2026-10-14T10:33:42-07:00"
+      agent: claude
+      dispose:
+        - id: BR-9
+          disposition: addressed
+          note: Core concepts lists slotLines/renderSlots/SlotLine, threadBlocks/upsertThread, lineDiff, renderedSections; RenderOffTrain/ThreadEntries marked deleted; Revisions 2026-10-14 supersedes TestRenderOffTrain and TestGatherTrainsFleetFailureDegrades by name; grep of plan identifiers resolves except deleted/superseded ones.
+          round: 7
+        - id: BR-10
+          disposition: addressed
+          note: trains.go:66 now names readConcurrency; slots.go:18 says "?" when the observation failed, matching gatherSlots; comment-identifier sweep over tl-lead/tl-worker/pkg found no unresolved names.
+          round: 7
+        - id: BR-11
+          disposition: addressed
+          note: threads.go:23 uses markdoc.FenceSpans; neutralizing the guard turns TestUpsertThread's fenced-### row red.
+          round: 7
+      findings:
+        - kind: defect
+          id: BR-12
+          severity: Minor
+          title: Core concepts rows name workerHelp/leadHelp and the note names PlanBar; the code has rootHelp and planBar
+          detail: 3rd in family. Plan rows 23-24 cite workerHelp/leadHelp but both embeds are rootHelp (cmd/tl-lead/main.go:19, cmd/tl-worker/main.go:18); entity note line 41 says PlanBar while code and table say planBar. The lessons.md rule (grep each cited identifier before close) covers this; mechanize that grep as a close step rather than patching instances.
+          family: plan-core-concepts-drift
+          round: 7
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: f1fde220fd4ea232791be65302e340a1728e4f59
+      blocked: false
 ---
 
 # Gate ledger — ariadne#350 (boundary-review)
@@ -441,7 +637,35 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - BR-8 — addressed — Hand copy deleted from cmd/sdlc/close_test.go; boundary cases now drive markdoc.TickMilestone (plan_test.go:146-168, incl. bold); reverting milestoneEmphasis at plan.go:67 turns both new tests red; sweep finds no other regex copies.
 
+## Round 6 — 2026-10-14T10:30:47-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-6 — addressed — cmd/tl-lead/conformance_test.go:12-17 now says the only fold names an ID that isn't owed, matching lines 53-68.
+- BR-7 — withdrawn — Overtaken by the scope revision (cc315116, db844120). The off-train render was removed; no "off-train" text remains in cmd/tl-lead or atlas.
+
+### Raised
+
+- **BR-9** [Critical] `plan-core-concepts-drift` (kind: defect) Plan Core concepts and Revisions still claim RenderOffTrain and the off-train degraded render; slots and threads entities are missing
+  2nd in family plan-core-concepts-drift. Plan line 28 lists RenderOffTrain in cmd/tl-lead/render.go, and lines 7, 38, 138, 153 and 164 describe the off-train block, TestRenderOffTrain and TestGatherTrainsFleetFailureDegrades. None of these exist after db844120. There are no rows for slotLines/renderSlots/gatherSlots (slots.go) or upsertThread (threads.go), and the scope decision was logged only in the issue. Rule: any commit that adds or removes an entity, or records a scope decision, updates Core concepts and Revisions in the same commit. Sweep every row and revision claim against the tree.
+- **BR-10** [Minor] `comment-tracks-code` (kind: defect) Comments name a nonexistent carReadConcurrency and claim the slot Phase carries the read error
+  2nd in family comment-tracks-code. trains.go:66 names carReadConcurrency (the constant is readConcurrency). slots.go:18 says Phase is "?" with the read error, but gatherSlots (slots.go:86) discards the error. Rule: a comment naming an identifier or carried data must match the code. Sweep with grep for identifiers that don't resolve.
+- **BR-11** [Minor] `reuse-fence-aware-scanner` (kind: defect) threadBlocks splits on any line starting with "### ", including inside a code fence
+  cmd/tl-lead/threads.go:15 isn't fence-aware. A pasted thread body with a fenced line starting "### " would be split into a spurious subsection. pkg/markdoc already has a fence scanner it could reuse (ARCH-DRY).
+
+## Round 7 — 2026-10-14T10:38:15-07:00 (claude) — passed
+
+### Disposed
+
+- BR-9 — addressed — Core concepts lists slotLines/renderSlots/SlotLine, threadBlocks/upsertThread, lineDiff, renderedSections; RenderOffTrain/ThreadEntries marked deleted; Revisions 2026-10-14 supersedes TestRenderOffTrain and TestGatherTrainsFleetFailureDegrades by name; grep of plan identifiers resolves except deleted/superseded ones.
+- BR-10 — addressed — trains.go:66 now names readConcurrency; slots.go:18 says "?" when the observation failed, matching gatherSlots; comment-identifier sweep over tl-lead/tl-worker/pkg found no unresolved names.
+- BR-11 — addressed — threads.go:23 uses markdoc.FenceSpans; neutralizing the guard turns TestUpsertThread's fenced-### row red.
+
+### Raised
+
+- **BR-12** [Minor] `plan-core-concepts-drift` (kind: defect) Core concepts rows name workerHelp/leadHelp and the note names PlanBar; the code has rootHelp and planBar
+  3rd in family. Plan rows 23-24 cite workerHelp/leadHelp but both embeds are rootHelp (cmd/tl-lead/main.go:19, cmd/tl-worker/main.go:18); entity note line 41 says PlanBar while code and table say planBar. The lessons.md rule (grep each cited identifier before close) covers this; mechanize that grep as a close step rather than patching instances.
+
 ## Open findings
 
-- **BR-6** [Minor] `comment-tracks-code` (kind: defect) TestSessionSyncConformance doc comment still says the test never folds
-- **BR-7** [Minor] `atlas-tracks-behavior` (kind: defect) tl-skills atlas does not mention the degraded off-train render when the fleet read fails
+- **BR-12** [Minor] `plan-core-concepts-drift` (kind: defect) Core concepts rows name workerHelp/leadHelp and the note names PlanBar; the code has rootHelp and planBar
