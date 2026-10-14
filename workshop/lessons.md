@@ -17,6 +17,13 @@ Detailed incidents remain in their owning issue or review artifact.
 - When merging or removing concepts, hunt every consumer before deleting a
   symbol. A follow-up issue must not offload the current issue's purpose.
 
+- Moving code to a new package, or adding a `cmd/` binary, changes two
+  populations nothing recomputes. Source guards that scan a directory list
+  silently stop covering the moved code: their exemptions name the old file,
+  and their scope check walks only the old tree. Prose that enumerates the
+  binaries (README, atlas) goes stale. Before the first review, grep the guards
+  for the old path and the docs for a sibling binary's name (#350 BR-1).
+
 ## Guards and proof
 
 - A context-free compatibility wrapper is still production code to a source
