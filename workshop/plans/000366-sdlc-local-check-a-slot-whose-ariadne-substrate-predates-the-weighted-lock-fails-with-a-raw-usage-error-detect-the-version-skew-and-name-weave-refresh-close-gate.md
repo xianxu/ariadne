@@ -76,6 +76,13 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+disputes:
+    - id: BR-2
+      rationale: The finding offers passing host evidence as its repair. The existing fixture and production code are unchanged; the exact reviewed HEAD passes the requested retry and all-weave checks on the authorized host, and its code-identical ancestor has a recorded full-suite success. The fenced reviewer failure does not invalidate that measured acceptance evidence.
+      evidence: At HEAD 5d13f3bc5d5a3d703dbb6b2a6edb2794daf22f60, go test ./cmd/weave -run ^TestRefreshCLICompilesAndRetries$ -count=1 -timeout 3m passed 13.043s (/tmp/ariadne366-retry-host.log), and passed 14.085s with GIT_CEILING_DIRECTORIES=/Users/xianxu/workspace/worktree/ariadne-slot5 (/tmp/ariadne366-retry-ceiling.log). Fresh go test ./cmd/weave/... -count=1 -timeout 15m passed all packages, CLI 25.879s and refresh 93.848s (/tmp/ariadne366-review-all-weave.log). Recorded full suite on code-identical ancestor 5784a8e0fe358601faac2b5c737344e5f951b6aa passed 12 shards/1342 SDLC tests and 54 other packages in 529.7s, sdlc-local/suite success, log sha256 prefix 538323fb56bd.
+      after: 1
+      timestamp: "2026-10-14T17:20:16Z"
+      by: Xian Xu on Xian’s MacBook Pro at ariadne:5 (/Users/xianxu/workspace/worktree/ariadne-slot5/ariadne)
 ---
 
 # Gate ledger — ariadne#366 (boundary-review)
@@ -92,7 +99,15 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-2** [Important] `required-regression-verification` (kind: unverifiable) Existing refresh retry regression cannot initialize under the review Git ceiling
   Running go test ./cmd/weave ./cmd/weave/internal/refresh -run '^(TestRefresh|TestSubstrate)' -count=1 -timeout 3m -v failed at cmd/weave/refresh_test.go:44: TestRefreshCLICompilesAndRetries calls compile before initializing its temporary repositories, and rev-parse --show-toplevel returns fatal: not a git repository under GIT_CEILING_DIRECTORIES. Provide passing host evidence for this regression and the required all-weave run at the pinned head, or make the fixture independent of enclosing repository discovery.
 
+## Disputes
+
+Findings the implementer declined (`sdlc finding dispute`), each answered by the
+next review round.
+
+- **BR-2** — after round 1 (2026-10-14T17:20:16Z, Xian Xu on Xian’s MacBook Pro at ariadne:5 (/Users/xianxu/workspace/worktree/ariadne-slot5/ariadne))
+  rationale: The finding offers passing host evidence as its repair. The existing fixture and production code are unchanged; the exact reviewed HEAD passes the requested retry and all-weave checks on the authorized host, and its code-identical ancestor has a recorded full-suite success. The fenced reviewer failure does not invalidate that measured acceptance evidence.
+  evidence: At HEAD 5d13f3bc5d5a3d703dbb6b2a6edb2794daf22f60, go test ./cmd/weave -run ^TestRefreshCLICompilesAndRetries$ -count=1 -timeout 3m passed 13.043s (/tmp/ariadne366-retry-host.log), and passed 14.085s with GIT_CEILING_DIRECTORIES=/Users/xianxu/workspace/worktree/ariadne-slot5 (/tmp/ariadne366-retry-ceiling.log). Fresh go test ./cmd/weave/... -count=1 -timeout 15m passed all packages, CLI 25.879s and refresh 93.848s (/tmp/ariadne366-review-all-weave.log). Recorded full suite on code-identical ancestor 5784a8e0fe358601faac2b5c737344e5f951b6aa passed 12 shards/1342 SDLC tests and 54 other packages in 529.7s, sdlc-local/suite success, log sha256 prefix 538323fb56bd.
+
 ## Open findings
 
 - **BR-1** [Important] `user-facing-surface-documentation` README update is missing for weave refresh --substrate
-- **BR-2** [Important] `required-regression-verification` (kind: unverifiable) Existing refresh retry regression cannot initialize under the review Git ceiling
