@@ -1,12 +1,20 @@
 ---
 id: 000350
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: 'a88c98687f32f300004793be7d7b3d67f4281e61' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '557ea39c3cfb9055b0c87158ed738f4be51b7e43' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-13T17:19:46-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # lift the TL skill into ariadne: tl-lead and tl-worker skill binaries (help is the prose), scripts ported to Go, skill stubs
@@ -32,7 +40,7 @@ The ops draft stays the editing surface until this lands, then becomes a pointer
 
 ## Plan
 
-Proposed approach (the implementer refines it into a durable plan; three review boundaries):
+Durable plan: `workshop/plans/000350-tl-skill-binaries-plan.md` (three review boundaries):
 
 - [ ] **M1 — tl-worker.** Inventory every worker-facing rule in the ops draft and in TL dispatches (ops `skills-draft/xx-tl/SKILL.md`, "Running batches" dispatch checklist; recent dispatch messages in ops `teams/devinfra/projects/*/project.md` Logs). Sort each into: base layer (AGENTS §15, any Couch-fleet agent), couch skill (messaging mechanics), or `tl-worker` (TL-run fleet only). New `cmd/tl-worker`: `--help` prints the embedded prose (go:embed of a markdown file under the command, the same shape as `sdlc --help`/`couch --skill`). Skill stub under ariadne's skill delivery (weave) pointing at the binary. Couch-side load: coordinate with pair so `couch --prepare` tells a worker slot to load `tl-worker` (a pair issue, filed by the implementer, if Couch needs a change). Tests: the stub names the binary; `--help` contains each rule; AGENTS §15 and the couch skill aren't contradicted.
 - [ ] **M2 — tl-lead prose.** New `cmd/tl-lead`; `--help` prints the lead prose rewritten from the ops draft as current rules and procedure: the eight-step playbook, talking to the operator, dispatch judgment, product stewardship with the operator's two design rules, the smoke loop via `sdlc stage`, attention and load, the project lifecycle. Every reference in full `repo#NNN` form.
@@ -41,6 +49,11 @@ Proposed approach (the implementer refines it into a durable plan; three review 
 ## Log
 
 ### 2026-10-13
+
+- Design (plan written): `tl-status.py` is dead (no caller in ops; the draft routes every write through `ss.py` over `couch --session-sync`, which owns the operator-lock refusal, exit 3). It is retired, not ported; `tl-lead status` passes exit 3 through as the lock refusal.
+- ARCH-DRY: sdlc's trains parser (`cmd/sdlc/internal/project/trains.go`) and plan/section/fence scanners (`internal/issue`) are internal to cmd/sdlc; M3 moves them to `pkg/trains` and `pkg/markdoc` with forwarding aliases, so `tl-lead` and sdlc's gates share one parser.
+- `sdlc issue show --json` consumers reject unknown keys, so no milestone field is added to the observation; car status comes from it, the bar from `pkg/markdoc` on the claimant checkout's file, off-train slots from `sdlc fleet inventory --json`.
+- tl-worker load: one AGENTS §15 line (`tl-worker --help` per dispatched item; the hub runs `tl-lead --help`). `couch --prepare` already reloads the context onto the constitution, so no pair change is needed for the load.
 
 ## Revisions
 
