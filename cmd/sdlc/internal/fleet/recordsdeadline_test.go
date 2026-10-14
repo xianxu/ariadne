@@ -106,7 +106,10 @@ func TestHangingRemoteDegradesOnlyItsRepository(t *testing.T) {
 	stuck := trackedRepo(t, fleetRoot, "stuck")
 	hangRemote(t, stuck)
 	freshRecords(t)
-	shortDeadline(t, 500*time.Millisecond)
+	// The remote budget, with headroom (#360): the healthy repository's real
+	// ls-remote and fetch against a local bare repository must fit even under
+	// load, while the stuck remote (a 30s hang) still runs it out.
+	shortDeadline(t, 2*time.Second)
 
 	start := time.Now()
 	inv, err := CollectInventory(context.Background(), fleetRoot, InventoryOptions{Git: execGitReader{}, Machine: func() (MachineIdentity, error) {
@@ -115,7 +118,7 @@ func TestHangingRemoteDegradesOnlyItsRepository(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if elapsed := time.Since(start); elapsed > 5*time.Second {
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
 		t.Fatalf("inventory took %v with a %v read deadline", elapsed, recordsReadDeadline)
 	}
 	states := map[string]TreeRow{}

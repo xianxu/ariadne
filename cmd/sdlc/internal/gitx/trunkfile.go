@@ -145,6 +145,9 @@ type TrunkFile struct {
 // (fetch, ls-remote, push) may take, together, from the first one (#360). It
 // exists for "a remote that does not answer": local git work is not counted,
 // so a loaded machine's slow process spawns cannot exhaust the remote's budget.
+// The budget is spent over the trunk's lifetime, not per operation: once its end
+// passes, every later remote command fails at once. Call BoundRemote again for a
+// fresh budget (a long-lived trunk serving several reads).
 func (t *TrunkFile) BoundRemote(d time.Duration) {
 	t.remoteBudget, t.remoteDeadline = d, time.Time{}
 }
@@ -160,14 +163,7 @@ func (t *TrunkFile) runRemote(env []string, args ...string) ([]byte, []byte, err
 	}
 	ctx, cancel := context.WithDeadline(t.operationContext(), t.remoteDeadline)
 	defer cancel()
-	if err := ctx.Err(); err != nil {
-		return nil, nil, err
-	}
-	out, diag, err := runGitInContext(ctx, t.dir, env, args...)
-	if ctx.Err() != nil {
-		return out, diag, ctx.Err()
-	}
-	return out, diag, err
+	return t.runIn(ctx, env, args...)
 }
 
 // NewTrunkFile refuses an empty dir.
@@ -210,12 +206,18 @@ func (t *TrunkFile) run(env []string, args ...string) ([]byte, []byte, error) {
 	if t.ctx == nil {
 		return runGitIn(t.dir, env, args...)
 	}
-	if err := t.ctx.Err(); err != nil {
+	return t.runIn(t.ctx, env, args...)
+}
+
+// runIn runs git under ctx; ctx's end wins over the command's own error, so a
+// cancelled or expired operation is never reported as a git failure.
+func (t *TrunkFile) runIn(ctx context.Context, env []string, args ...string) ([]byte, []byte, error) {
+	if err := ctx.Err(); err != nil {
 		return nil, nil, err
 	}
-	out, diag, err := runGitInContext(t.ctx, t.dir, env, args...)
-	if t.ctx.Err() != nil {
-		return out, diag, t.ctx.Err()
+	out, diag, err := runGitInContext(ctx, t.dir, env, args...)
+	if ctx.Err() != nil {
+		return out, diag, ctx.Err()
 	}
 	return out, diag, err
 }

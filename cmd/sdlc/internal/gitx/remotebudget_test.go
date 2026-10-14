@@ -83,7 +83,9 @@ func hangRemote(t *testing.T, delay time.Duration) {
 // A remote that never answers is bounded by the budget and named as such.
 func TestRemoteBudgetBoundsAHangingRemote(t *testing.T) {
 	repo, _ := trunkFixture(t, "seed\n")
-	hangRemote(t, time.Hour)
+	// Ten seconds, not forever: without the budget the read returns after the
+	// hang and fails the elapsed check below, instead of the test binary timing out.
+	hangRemote(t, 10*time.Second)
 	tf, err := NewTrunkFileContext(context.Background(), repo, "origin", "main")
 	if err != nil {
 		t.Fatal(err)

@@ -90,3 +90,19 @@ margins rather than sums: local work 500ms per command against a 1.5s budget, an
 shared budget, the first real call gets the whole 2s and the test then waits past the
 budget's end, so the second call fails on the shared deadline however fast it is. The
 shared test still fails with the budget disabled.
+
+Close review round 1 (FIX-THEN-SHIP): two Important, three Minor, all fixed.
+- Important: atlas `sdlc-binary.md` still said "each under a 15s deadline"; it now says
+  the 15s is a remote budget, local work is not counted, and a hanging remote reads stale
+  (unknown if never fetched). My close passed `--no-atlas` again without grepping the
+  atlas first; the same miss as #355.
+- Important: the fleet test still gave the healthy repository's real remote calls only
+  500ms. Now 2s (with the design fixed, the test budget is legitimately a remote budget
+  with headroom, as the Spec asked); the elapsed bound is 10s, still well under the 30s
+  hang.
+- Minor: `run` and `runRemote` share `runIn` (context check, call, context-error
+  precedence) instead of duplicating it.
+- Minor: the hanging-remote test hangs 10s, not an hour, so a removed budget fails its
+  assertion (verified: "want an error naming the deadline") instead of the test timeout.
+- Minor: `BoundRemote` says the budget is spent over the trunk's lifetime; call it again
+  for a fresh one.
