@@ -1,6 +1,6 @@
 ---
 id: 000333
-status: codecomplete
+status: done
 created: 2026-10-11
 updated: 2026-10-13
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: ca1831dbccacfc1c2ca73fdd30fb8cb6d14ebcf4
         evidence_commit: a631ddade45831e2801b5ce95a91514caf37172a
+        landed_commit: 1662699dc19dae606d09336d1e72504ea50efc5d
 ---
 
 # Full-suite lock: a sandboxed make test should fail its preflight before queueing for the lock
