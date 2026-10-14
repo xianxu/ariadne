@@ -1,6 +1,6 @@
 ---
 id: 000358
-status: codecomplete
+status: done
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 2bc43b0cacc6bb967a0dd121341d8843ebb81d9d
         evidence_commit: 8737806f2da78fd455c369ba9c010982ac4bbe05
+        landed_commit: 6417f54979fad5218eb59da032e208eda0dbfe34
 ---
 
 # weave: startup make tools inherits MAKEFLAGS=k from an outer make -k, so a failing tools recipe no longer stops later ones
