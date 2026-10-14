@@ -1,12 +1,20 @@
 ---
 id: 000370
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
-card_mirror: '90deb7a813081c73efbaabb239a33d6849f465b0' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'af877ffe20a60ba2c7e6ee5cc95637cac127612e' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-14T11:38:01-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # sdlc merge holds the repo transaction lock for its whole suite wait (30+ min), blocking every other slot's stage, publish and claim in that repo
@@ -26,8 +34,15 @@ Hold the transaction lock only around short git/tracker mutations: integrating m
 
 ## Plan
 
-- [ ]
+- [ ] Scope `sdlc merge` with the existing manual repo-lock helper and prove a second same-repo command can acquire the lock during both a first and a repeated suite run.
+- [ ] Revalidate exact workspace/head and fresh main at each lock reacquisition around integration push and final landing; add deterministic head/main drift and interruption-retry tests.
+- [ ] Update workflow help and atlas, run targeted tests, `make -k tools`, and the recorded full suite; close and ship after the boundary review.
+
+Durable implementation steps: [merge-lock-scoping plan](../plans/000370-merge-lock-scoping-plan.md).
 
 ## Log
 
 ### 2026-10-14
+
+- Live evidence: ariadne:2's merge held `.git/sdlc.lock` through its first `make test` and a second full suite after main advanced; `sdlc move :5` for #240 waited until that merge finished. The lock interval exceeded 30 minutes and delayed this issue's own creation. ARCH-CONSTRAINTS: the suite queue/run is unbounded relative to a short repository transaction.
+- Design: reuse `withRequiredRepoTransactionLock` (ARCH-DRY); keep `integrationState` as the only transition owner (ARCH-ORDER); use existing commit, lease, PR-head and archive evidence across unlocked phases (ARCH-FUNERAL/ARCH-PURPOSE).
