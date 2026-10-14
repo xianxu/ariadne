@@ -193,6 +193,10 @@ introduced by the branch from those also failing on main. An unparseable
 baseline failure is reported as such rather than assigning its failures to
 the branch; neither failed tree can land. Both runs retain their local logs,
 but only the tested branch head posts a commit status or PR comment.
+Recorded checks use a detached worktree of the pushed commit. The suite and
+its assertions therefore must work without ignored, woven projections from
+an agent's long-lived slot; tests that need such files supply their own
+fixtures or condition their expectations on the projection being present.
 
 ## Not the same as the publish gate or the close review
 
