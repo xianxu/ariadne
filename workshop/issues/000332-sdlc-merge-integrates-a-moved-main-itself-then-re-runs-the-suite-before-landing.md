@@ -117,3 +117,5 @@ total: 2.35
 - Full `make -k test` rerun on `860d52a767efaa0624db028fdd563213717e36a3` passed: 12/12 cmd/sdlc shards, 1,287 cmd/sdlc tests, and 51 other packages; 392.7s wall, zero failures. M3 milestone review and issue close remain pending.
 
 - M3 boundary round 9 REWORK on `6868d4d5693919e9bbd323a02d71f3f73b6ce0be`: one Critical BR-15, lock reentry loses the actual holder identity on the second suite run. The reviewer reproduced an isolated helper self-wait; reported to the hub. New real-lock baseline and repeated-check tests failed before correction (3.186s), then passed with the existing local-run and landing-label tests (8.271s). R11 records the class sweep: baseline, reintegration retries, and multiple named checks all preserve the owner. Broader verification and the boundary retry remain pending.
+
+- Full `make -k test` on `f9e520df05c5cd6aa6f6725a8dfcd8ddadb5899b` passed after BR-15: 12/12 cmd/sdlc shards, 1,289 cmd/sdlc tests, 51 other packages, zero failures, 430.6s wall. M3 boundary retry pending.
