@@ -215,3 +215,20 @@ So a branch that deletes `test:` or lowers `WF_TEST_WEIGHT` still owes the suite
 - No change to the server-side merge method (`gh pr merge --merge --match-head-commit`).
 - No integration on the legacy (non-slot) path; it refuses.
 - No suite for repositories with neither a declaration nor a `make test` target; the requirement then does not apply.
+
+### R2 — 2026-10-13, M1 boundary review
+
+- **BR-1 (Important), the class "path lists fed to the docs/code classifier must name every changed path".** With git's default rename detection, `git diff --name-only` lists a rename only by its new name, so code renamed to `.md` read as docs. That would keep an old suite record valid, and also let the publish gate pass such a rename. The feeders, all now built by one `gitx.ChangedPathArgs` (`--no-renames -z`):
+  - the ancestor walk;
+  - `gitx.DiffNames` (publish gate, review anchor, close window, review window plan);
+  - freshness's diff;
+  - the tracker migration's anchor classification.
+
+  Tests: `TestDiffNamesListsBothSidesOfARename` and the rename case in `TestLocalRecordsOnAncestors`, both of which fail with the flag removed.
+- **BR-2 (Important):** direct tests for `parseCommitStatuses` (newest first) and `localRecordsOnAncestors`: merge-base bound, early stop, cap, root commit.
+- **Minors:**
+  - a `rev-list` error is returned, with the root commit detected explicitly;
+  - make's "Not a target" entries are skipped;
+  - the probe has a 2-minute timeout;
+  - one shared `withDefaultSuite` serves the gate and the verb.
+- **Names as delivered** (the plan table said otherwise): `localRecordsOnAncestors` (was `suiteAncestorRecords`); `makeTestFacts(git, rev)` probing a worktree at main (was `makeTestFacts(root)`); a declared `weight: 0` means the default 1, and only negative or >8 is refused.

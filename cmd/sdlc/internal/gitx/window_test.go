@@ -494,3 +494,40 @@ func TestSubjectOwnedBy(t *testing.T) {
 		}
 	}
 }
+
+// #332 M1 BR-1: a rename lists both its old and its new path, so code renamed
+// to a docs name is still seen as code by the classifiers that read this list.
+func TestDiffNamesListsBothSidesOfARename(t *testing.T) {
+	dir := t.TempDir()
+	run := func(args ...string) string {
+		t.Helper()
+		out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	run("init", "-q")
+	run("config", "user.email", "t@example.com")
+	run("config", "user.name", "T")
+	if err := os.WriteFile(filepath.Join(dir, "f.go"), []byte("package f\n\nfunc F() int { return 1 }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", "-A")
+	run("commit", "-qm", "code")
+	base := run("rev-parse", "HEAD")
+	run("mv", "f.go", "f.md")
+	run("commit", "-qm", "rename")
+	wd, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(wd)
+	names, err := DiffNames(base, "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(names, ",") != "f.go,f.md" {
+		t.Fatalf("names %v", names)
+	}
+}

@@ -6,6 +6,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // makeTestFactsFn is the seam: tests answer without running make.
@@ -20,12 +22,28 @@ var makeTestFactsFn = makeTestFacts
 
 // suiteWeightProbe prints the Makefile's suite weight under a goal that is not
 // `test`, so Makefile.workflow never takes the machine lock at parse time.
+const suiteProbeTimeout = 2 * time.Minute // a hanging $(shell) in main's Makefile must not stall merge
+
 const suiteWeightProbe = "__sdlc_suite_weight: ; @echo __SDLC_SUITE_WEIGHT=$(or $(WF_TEST_WEIGHT),1)\n"
 
 var (
 	suiteWeightLine = regexp.MustCompile(`^__SDLC_SUITE_WEIGHT=(\d+)$`)
 	testRuleLine    = regexp.MustCompile(`^test:`)
 )
+
+// withDefaultSuite adds the default suite to decl when it declares none,
+// probing rev's Makefile (rev is main: a branch cannot drop the suite it owes).
+// The one derivation the CI gate and `sdlc local-check run` share.
+func withDefaultSuite(git func(args ...string) (string, error), rev string, decl localCheckDecl) (localCheckDecl, error) {
+	if _, declared := decl.check(suiteCheckName); declared {
+		return decl, nil
+	}
+	has, weight, err := makeTestFactsFn(git, rev)
+	if err != nil {
+		return localCheckDecl{}, err
+	}
+	return effectiveLocalChecks(decl, has, weight), nil
+}
 
 // makeTestFacts probes rev's Makefile in a detached worktree: has is whether
 // make's rule database (make -p) lists a test target, weight is
@@ -58,10 +76,15 @@ func probeMakeTestFacts(dir string) (has bool, weight int, err error) {
 		return false, 0, err
 	}
 	probe.Close()
-	cmd := exec.Command("make", "-s", "-p", "-f", "Makefile", "-f", probe.Name(), "__sdlc_suite_weight")
+	ctx, cancel := context.WithTimeout(context.Background(), suiteProbeTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "make", "-s", "-p", "-f", "Makefile", "-f", probe.Name(), "__sdlc_suite_weight")
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "WF_TEST_LOCK=off") // belt and braces: a probe never queues for a suite slot
 	out, err := cmd.Output()
+	if ctx.Err() != nil {
+		return false, 0, fmt.Errorf("make probe exceeded %v", suiteProbeTimeout)
+	}
 	if err != nil {
 		return false, 0, err
 	}
@@ -74,14 +97,18 @@ func parseMakeTestFacts(out string) (has bool, weight int, err error) {
 	weight = 0
 	sc := bufio.NewScanner(strings.NewReader(out))
 	sc.Buffer(make([]byte, 64<<10), 4<<20)
+	prev := ""
 	for sc.Scan() {
 		line := sc.Text()
 		if m := suiteWeightLine.FindStringSubmatch(line); m != nil {
 			weight, _ = strconv.Atoi(m[1])
 		}
-		if testRuleLine.MatchString(line) {
+		// make -p lists a file named only as a prerequisite under "# Not a
+		// target:"; that is not a test rule.
+		if testRuleLine.MatchString(line) && prev != "# Not a target:" {
 			has = true
 		}
+		prev = line
 	}
 	if err := sc.Err(); err != nil {
 		return false, 0, err

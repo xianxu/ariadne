@@ -19,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
 // prCheck is one check GitHub reports on a PR's head, as `gh pr checks` buckets it.
@@ -449,6 +451,17 @@ func unrecordedRequired(decl localCheckDecl, checks []prCheck) []string {
 	return out
 }
 
+// splitNUL splits git's -z output.
+func splitNUL(out string) []string {
+	var paths []string
+	for _, p := range strings.Split(out, "\x00") {
+		if p = strings.TrimSpace(p); p != "" {
+			paths = append(paths, p)
+		}
+	}
+	return paths
+}
+
 // localAncestorLimit bounds the walk for a record on an ancestor.
 const localAncestorLimit = 30
 
@@ -465,16 +478,19 @@ func localRecordsOnAncestors(ctx context.Context, gh ghCaller, repo string, git 
 	if err != nil {
 		return nil, fmt.Errorf("merge base of %s and %s: %w", abbrevSHA(head), base, err)
 	}
+	if _, err := git("rev-parse", "--verify", "--quiet", head+"~1^{commit}"); err != nil {
+		return found, nil // a root commit has no ancestor to inherit from
+	}
 	out, err := git("rev-list", "--first-parent", fmt.Sprintf("--max-count=%d", localAncestorLimit), head+"~1", "--not", strings.TrimSpace(mb))
 	if err != nil {
-		return found, nil // no first parent (a root commit): nothing to inherit
+		return nil, fmt.Errorf("ancestors of %s: %w", abbrevSHA(head), err)
 	}
 	for _, a := range strings.Fields(out) {
-		diff, err := git("diff", "--name-only", a, head)
+		diff, err := git(gitx.ChangedPathArgs(a, head)...)
 		if err != nil {
 			return nil, err
 		}
-		if publishGateHasCodeSurface(strings.Fields(diff)) {
+		if publishGateHasCodeSurface(splitNUL(diff)) {
 			break
 		}
 		statuses, err := gh.CommitStatuses(ctx, repo, a)
@@ -516,14 +532,8 @@ func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, 
 	if err != nil {
 		return fmt.Errorf("CI gate: %w\n  → fix the declaration on main (it is under the local-gates guard)", err)
 	}
-	if _, declared := decl.check(suiteCheckName); !declared {
-		// #332: every landing owes a suite; a repository that declares none
-		// owes its make test, probed on main so a branch cannot drop it.
-		has, weight, err := makeTestFactsFn(git, base)
-		if err != nil {
-			return fmt.Errorf("CI gate: %w", err)
-		}
-		decl = effectiveLocalChecks(decl, has, weight)
+	if decl, err = withDefaultSuite(git, base, decl); err != nil {
+		return fmt.Errorf("CI gate: %w", err)
 	}
 	read := func() ([]prCheck, ciVerdict, error) {
 		before, err := gh.PRHeadOID(ctx, repo, number)

@@ -192,3 +192,116 @@ func TestLocalCheckCmd_DefaultSuite(t *testing.T) {
 		t.Fatalf("statuses %v\n%s", ci.statuses, stderr.String())
 	}
 }
+
+func TestParseCommitStatuses(t *testing.T) {
+	// GitHub lists statuses newest first: the first state per context is current.
+	got, err := parseCommitStatuses([]byte(`[
+		{"context":"sdlc-local/suite","state":"success"},
+		{"context":"ci/x","state":"pending"},
+		{"context":"sdlc-local/suite","state":"failure"},
+		{"context":"","state":"success"}]`))
+	if err != nil || len(got) != 2 || got["sdlc-local/suite"] != "success" || got["ci/x"] != "pending" {
+		t.Fatalf("%v %v", got, err)
+	}
+	if _, err := parseCommitStatuses([]byte(`{}`)); err == nil {
+		t.Fatal("a non-list body decoded")
+	}
+}
+
+// The ancestor walk's limits (M1 BR-2): bounded by the merge base, stops at the
+// first code difference (including code renamed to docs, BR-1), stops once
+// every name is found, caps its length, and treats a root commit as nothing to
+// inherit.
+func TestLocalRecordsOnAncestors(t *testing.T) {
+	ctx := context.Background()
+	dir := testfix.Repo(t, testfix.InitialCommit())
+	git := func(args ...string) (string, error) {
+		out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput()
+		return strings.TrimSpace(string(out)), err
+	}
+	commit := func(path, body string) string {
+		writeRepoFile(t, dir, path, body)
+		testfix.Git(t, dir, "add", "-A")
+		testfix.Git(t, dir, "commit", "-qm", path)
+		out, _ := git("rev-parse", "HEAD")
+		return out
+	}
+	g := newCIFakeGH()
+	record := func(sha string) {
+		g.known[sha] = true
+		_ = g.PostStatus(ctx, "o/r", sha, "sdlc-local/suite", "success", "d")
+	}
+	calls := 0
+	counting := &countingStatusGH{ciFakeGH: g, calls: &calls}
+
+	// A record before the merge base never counts: it is main's, not the branch's.
+	beforeBase := commit("pkg/a.go", "package pkg\n")
+	record(beforeBase)
+	testfix.Git(t, dir, "branch", "base-ref")
+	head := commit("workshop/notes.md", "x\n")
+	if found, err := localRecordsOnAncestors(ctx, counting, "o/r", git, head, "base-ref", []string{"suite"}); err != nil || found["suite"] {
+		t.Fatalf("record before the merge base counted: %v %v", found, err)
+	}
+
+	// Docs-only distance: counted, and the walk stops at the first find.
+	tested := commit("pkg/b.go", "package pkg\n")
+	record(tested)
+	commit("workshop/one.md", "1\n")
+	head = commit("workshop/two.md", "2\n")
+	calls = 0
+	found, err := localRecordsOnAncestors(ctx, counting, "o/r", git, head, "base-ref", []string{"suite"})
+	if err != nil || !found["suite"] || calls != 2 {
+		t.Fatalf("docs-only distance: %v %v, %d status calls (want 2: one.md's parent… then tested)", found, err, calls)
+	}
+
+	// BR-1: code renamed to a docs name is a code difference.
+	testfix.Git(t, dir, "mv", "pkg/b.go", "pkg/b.md")
+	testfix.Git(t, dir, "commit", "-qm", "rename code to docs")
+	renamed, _ := git("rev-parse", "HEAD")
+	if found, err := localRecordsOnAncestors(ctx, counting, "o/r", git, renamed, "base-ref", []string{"suite"}); err != nil || found["suite"] {
+		t.Fatalf("a rename of code to .md kept the record: %v %v", found, err)
+	}
+
+	// The cap: more docs-only commits than the limit hide an older record.
+	for i := 0; i < localAncestorLimit+2; i++ {
+		commit("workshop/many.md", strings.Repeat("x", i+1)+"\n")
+	}
+	far, _ := git("rev-parse", "HEAD")
+	record(renamed) // the rename commit itself, now beyond the cap
+	calls = 0
+	if found, err := localRecordsOnAncestors(ctx, counting, "o/r", git, far, "base-ref", []string{"suite"}); err != nil || found["suite"] || calls > localAncestorLimit {
+		t.Fatalf("cap: %v %v, %d calls", found, err, calls)
+	}
+
+	// A root commit has no ancestor.
+	root := testfix.Repo(t)
+	rgit := func(args ...string) (string, error) {
+		out, err := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput()
+		return strings.TrimSpace(string(out)), err
+	}
+	writeRepoFile(t, root, "a.txt", "a\n")
+	testfix.Git(t, root, "add", "-A")
+	testfix.Git(t, root, "commit", "-qm", "root")
+	only, _ := rgit("rev-parse", "HEAD")
+	if found, err := localRecordsOnAncestors(ctx, counting, "o/r", rgit, only, only, []string{"suite"}); err != nil || found["suite"] {
+		t.Fatalf("root commit: %v %v", found, err)
+	}
+}
+
+// countingStatusGH counts CommitStatuses calls.
+type countingStatusGH struct {
+	*ciFakeGH
+	calls *int
+}
+
+func (g *countingStatusGH) CommitStatuses(ctx context.Context, repo, sha string) (map[string]string, error) {
+	*g.calls++
+	return g.ciFakeGH.CommitStatuses(ctx, repo, sha)
+}
+
+func TestParseMakeTestFactsSkipsNotATarget(t *testing.T) {
+	db := "# Not a target:\ntest:\n#  Implicit rule search has not been done.\n__SDLC_SUITE_WEIGHT=1\n"
+	if has, _, err := parseMakeTestFacts(db); err != nil || has {
+		t.Fatalf("a prerequisite-only test entry read as a rule: %v %v", has, err)
+	}
+}

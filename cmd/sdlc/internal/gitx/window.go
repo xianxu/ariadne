@@ -452,7 +452,7 @@ func windowCapISO() string {
 // downstream (the atlas gate's docs rule) then misreads it (#231; lessons: git's
 // porcelain answers a human's question).
 func DiffNames(sinceRef, untilRef string) ([]string, error) {
-	cmd := exec.Command("git", "diff", "--name-only", "-z", sinceRef, untilRef)
+	cmd := exec.Command("git", ChangedPathArgs(sinceRef, untilRef)...)
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("git diff --name-only %s %s: %w", sinceRef, untilRef, err)
@@ -464,6 +464,18 @@ func DiffNames(sinceRef, untilRef string) ([]string, error) {
 		}
 	}
 	return names, nil
+}
+
+// ChangedPathArgs is the git argv listing every path that differs between two
+// revisions, NUL-separated. --no-renames lists a rename as its old and its new
+// path: the docs/code classifiers read these lists, and a rename seen only by
+// its new name lets code renamed to .md pass as docs (#332 M1 BR-1).
+func ChangedPathArgs(since, until string) []string {
+	args := []string{"diff", "--name-only", "--no-renames", "-z", since}
+	if until != "" {
+		args = append(args, until)
+	}
+	return args
 }
 
 // FileChange is one entry of `git diff --name-status`: a single-letter status
