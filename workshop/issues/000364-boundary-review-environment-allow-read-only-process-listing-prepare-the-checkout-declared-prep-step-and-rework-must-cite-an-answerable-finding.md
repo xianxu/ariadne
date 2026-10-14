@@ -110,6 +110,18 @@ by default. Linux code is unchanged; no live Linux runner is available locally.
 The hub was asked to assign pair's real declaration separately, with operator-held
 verification for its `.sdlc` configuration change.
 
+Full-suite attempt 1 at `ee488c91982297fa4b34ddaa01bb5c00013f94d5` waited
+449 s and ran 501.1 s, failing. Remaining raw SHIP/REWORK test fixtures needed
+valid findings/detail. A concurrency fixture's empty findings fence triggered
+retry and a double-close panic, aborting its shard (the 12 missing-test report).
+Corrected fixtures pass targeted tests, including all 14 concurrency schedules
+(41.398 s). A production regression was also caught: dispatch errors must never
+persist semantic review text. The sidecar now retains only bounded diagnostics
+for failures; cancellation/no-evidence launch failures retain no artifact. The
+interruption and four-call diagnostic retention tests pass (10.745 s for retention).
+Weave's unrelated setup-lease test failed once in the suite but passed 20 isolated
+repetitions; the next full suite retains raw JSON so any recurrence has diagnostics.
+
 ## Revisions
 
 - 2026-10-14 — Spec 1 corrected with hub approval: the existing fence denies source

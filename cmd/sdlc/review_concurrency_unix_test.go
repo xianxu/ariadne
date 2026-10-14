@@ -35,7 +35,7 @@ func blockedBoundaryReviewer(t *testing.T, verdict string) (<-chan struct{}, fun
 	if err != nil {
 		t.Fatal(err)
 	}
-	body := "```verdict\nverdict: " + verdict + "\nconfidence: high\n```\n\n```findings\n```\n"
+	body := "```verdict\nverdict: " + verdict + "\nconfidence: high\n```\n\n```findings\n{}\n```\n"
 	if err := os.WriteFile(response, []byte(body), 0600); err != nil {
 		t.Fatal(err)
 	}

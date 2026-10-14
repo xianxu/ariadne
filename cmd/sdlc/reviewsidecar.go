@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewprepare"
 )
 
@@ -188,6 +189,13 @@ func writeReviewSidecar(p boundaryReviewParams, verdict, body, timestamp string)
 }
 
 func persistReviewSidecar(stderr io.Writer, p boundaryReviewParams, r reviewResult) string {
+	// Failed dispatches may retain bounded attempt diagnostics, never semantic
+	// output that resembles an accepted review. A launch failure without evidence
+	// retains the historical no-artifact behavior.
+	if r.DispatchError != nil {
+		r.Output = ""
+		r.Verdict = judge.VerdictNotRun
+	}
 	diagnostics := reviewprepare.RenderDiagnostics(p.Evidence.Preparation, p.Evidence.Protocol)
 	if r.Output == "" && diagnostics == "" {
 		return ""
