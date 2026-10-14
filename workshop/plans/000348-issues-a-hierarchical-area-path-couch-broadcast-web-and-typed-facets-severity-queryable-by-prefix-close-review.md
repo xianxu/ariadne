@@ -128,3 +128,108 @@ findings:
     title: |
       repoenum.ValidValue recompiles the path regex on every call; cache it per spec
 ```
+
+---
+
+## Re-review — 2026-10-13T19:38:31-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 348 — issues: a hierarchical area path (couch/broadcast/web) and typed facets (severity), queryable by prefix |
+| repo | ariadne |
+| issue file | workshop/issues/000348-issues-a-hierarchical-area-path-couch-broadcast-web-and-typed-facets-severity-queryable-by-prefix.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | f6774623fcf1d4e44a25780fbf5a4e7061241229..d0cfeff3d6927a0ba7229df8969fcc34dcbda22b |
+| command | sdlc close --issue 348 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-13T19:38:31-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Waiting on the test suite; meanwhile checking the remaining area writers for the BR-2 class.
+
+The main package hit go test's 10m default timeout. Running the #348 tests directly instead.
+
+Pre-existing environment failure (also fails on base). Now reverting the BR-1 and BR-2 fixes to confirm their tests go red.
+
+Both fixes go red when reverted, and the checkout is restored. Next, sweeping for any leftover duplicate validators or unquoted area writers.
+
+All prior fixes check out. Last step: a quick look at the plan's checklist and the atlas diff for any gaps.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All seven findings from round 1 are fixed, and I found nothing new. I checked each fix against the code and tests at head `d0cfeff3`, not against the commit message. For the two behavior fixes (BR-1 and BR-2), I reverted each fix in this checkout and confirmed its regression tests then fail. Both files are restored and the checkout is clean. This checkout has no `main` ref, which is the exact setup BR-1 described. Here `TestRunIssueValidate` now passes; with BR-1 reverted it fails. The one test failure I saw, `TestPushPublishSequence_CodecompleteFlippedThenArchived`, fails the same way on the base commit `f6774623`, so this change didn't cause it.
+
+**1. Strengths**
+- `cmd/sdlc/repoenums.go:579-606`: one memoized reader, `lazyDecl`, now handles the declaration for every caller. Its typed error, `declUnreadable`, means the merge/push gate still refuses to pass when it needs the declaration and can't read it (`validategate.go:109-112`). Issues with no area no longer depend on the declaration at all. This one design fixes BR-1 at every call site: validate, the writers, publish and the gate.
+- `cmd/sdlc/internal/issue/classify.go`: there is now one validator per field: `CheckSeverity`, `CheckAreaSyntax`, `RepoEnumValid` and `EnumValid`. The card parser, `checkClassification` and the list filter all use them. The only other places that read the severity list are help text and flag descriptions, which are generated from the same model.
+- `FlowList` decides whether to quote a value by asking the YAML decoder itself, so it doesn't keep its own list of special words. Both writers that emit areas (`scaffold.go:242` and `cardsetters.go:175,179`) use it, and `TestFlowList` checks that every rendered list reads back as strings.
+- `TestValidateChangedIssuesClassification` now asserts how many times the declaration is read in each case (0 or 1). That pins the "read only when needed" contract, not just whether the gate passes or fails.
+
+**2. Critical findings:** none.
+
+**3. Important findings:** none.
+
+**4. Minor findings:** none new.
+
+**5. Test coverage notes**
+- **BR-1 reverted** (made `checkClassification` read the declaration unconditionally). These went red:
+  - `TestRunIssueValidate`
+  - `TestIssueValidateWithoutMain`
+  - `TestCheckClassification`
+  - five subtests of `TestValidateChangedIssuesClassification`
+- **BR-2 reverted** (stopped quoting in `FlowList`). These went red:
+  - `TestFlowList`
+  - `TestIssueSetAreaQuotesAndDedupes`
+- **BR-4:** covered by the "twice" case in `TestCheckClassification`, the duplicate-area gate subtest, and the dedupe check in the set-area test.
+- **Full suite:** `go test ./cmd/sdlc/...` hits Go's default 10-minute timeout on the `cmd/sdlc` package in this checkout. Every other package passes. The targeted #348 tests pass.
+
+**6. Architecture**
+- **ARCH-DRY: pass.** BR-5 is consolidated into `classify.go`, and `lazyDecl` replaces four copies of hand-written lazy loading.
+- **ARCH-PURE: pass.** The validators and `FlowList` are pure. Reading the declaration is passed in as a function argument.
+- **ARCH-PURPOSE: pass.** The fixes cover the whole class each time: every writer quotes its output, and every checker is lazy.
+- **ARCH-MOCK: pass.** Tests swap the declaration reader through a replaceable function variable (`repoEnumsAtBaseFn`) and use real temporary git repos via `testfix`.
+- **ARCH-CONSTRAINTS: pass.** The compiled path pattern is now cached (BR-7), and the declaration is read at most once per run.
+- **ARCH-SECURE: pass.** If the declaration can't be read or parsed, the gate refuses to pass, and the per-file problem is reported where you can see it.
+- **ARCH-ORDER: pass.** The memoized reader only lives for one command or gate run.
+- **ARCH-FUNERAL: pass.** The pattern cache is keyed by the model's area specs, which are a fixed set, so it can't grow without limit. Nothing durable is created.
+
+**7. Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      checkClassification reads the declaration via lazyDecl only when there are areas; reverting this turns TestRunIssueValidate, TestIssueValidateWithoutMain, TestCheckClassification and the gate subtests red, and TestRunIssueValidate passes in this no-main checkout.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      issue.FlowList (classify.go) quotes values that would not decode as strings, and both area writers (scaffold.go:242, cardsetters.go:175/179) use it; reverting the quoting turns TestFlowList and TestIssueSetAreaQuotesAndDedupes red.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README.md gains a "Classifying issues" section covering set-area/set-severity with --clear, the --area/--severity flags on new and list, .sdlc/vocabulary.json and the gates; this matches cardsetters.go and issue.go.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      checkClassification refuses duplicates ("listed twice") and writers apply uniqueAreas; both are covered by TestCheckClassification, the gate's duplicate-area subtest and TestIssueSetAreaQuotesAndDedupes.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      card.go, checkClassification and newIssueListFilter all go through issue.EnumValid/RepoEnumValid/CheckSeverity/CheckAreaSyntax; the remaining reads of the severity list are help text generated from the model.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      The doc comment for withOwnership is back above its function in state.go.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      pathPattern caches the compiled pattern in a sync.Map keyed by the model's area spec, a fixed set.
+```
