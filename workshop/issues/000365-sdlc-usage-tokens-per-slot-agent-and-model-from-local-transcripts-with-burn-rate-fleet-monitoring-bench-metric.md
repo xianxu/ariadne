@@ -1,12 +1,20 @@
 ---
 id: 000365
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
-card_mirror: '1e60accb6ea30a9f9f6c214f73549d73d3412497' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'efb86b83ffbf304205299b3d4b763a857eb0354f' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-14T07:39:58-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # sdlc usage: tokens per slot, agent and model from local transcripts, with burn rate (fleet monitoring + bench metric)
@@ -39,3 +47,25 @@ The agents' own transcripts already record usage: Claude's session JSONL carries
 ## Log
 
 ### 2026-10-14
+
+### 2026-10-14 — claimed and initial measurements
+
+Claim/start-plan completed in ariadne:3. Read-only store inventory:2725 Codex
+JSONL files/4.87GB,5140 Claude files/2.08GB; largest Codex rollout276MB. Default
+usage needs bounded streaming and recent-file pruning rather than unbounded
+whole-store reads. Actual source discovery is deliberately root-only for Claude;
+token accounting must retain explicitly-bound child billing without duplicating
+parent responses. Fleet membership collection must avoid default tracker fetches.
+
+Local format investigations found Codex0.162.1 token_usage_record (response identity
+and cumulative thread/turn counters), including compaction copies; legacy token_count
+snapshots cannot be summed. Claude repeats message-level usage across content blocks
+and may revise a streamed response. Response identity/dedup and original model are
+required before attribution. Unknown dimensions/formats must remain explicit.
+
+Asked hub for the bench's gate-reviewer attribution policy: #335's strict owner/root
+and bound-descendant admission excludes standalone disposable-checkout reviewer
+roots, so global unknown-slot spend and per-issue coverage must name that limitation
+unless an explicit review-session binding is required. Meter conversion needs two
+aligned observations in the same agent/unit; a single remaining value cannot imply
+credits per token. No implementation code or account observations written yet.
