@@ -1,12 +1,12 @@
 ---
 id: 000364
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-13
-updated: 2026-10-13
+updated: 2026-10-14
 estimate_hours: 3.608
-card_mirror: '20895a41ea90cb4a6d7efec93a5220f13605820d' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'c0e81fa7ab2a8da96b1c63a57afc0befa5de1568' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T23:48:12-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 3.80
 ---
 
 # Boundary review environment: allow read-only process listing, prepare the checkout (declared prep step), and REWORK must cite an answerable finding
