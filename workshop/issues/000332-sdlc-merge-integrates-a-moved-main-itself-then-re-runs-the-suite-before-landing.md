@@ -45,7 +45,7 @@ Durable plan: `workshop/plans/000332-sdlc-merge-integrates-a-moved-main-itself-t
 
 - [x] M1 — the suite as a recorded, enforced check (`sdlc-local/suite`: declared or default `make test` with the Makefile's weight; required on every landing; a docs-only-distance ancestor record counts; lock weight fix; `sdlc local-check run --name suite` documented as the close suite)
 - [x] M2 — integration loop in the durable path (merge main, conflict abort, publish-replay pre-check, lease push, bounded CI wait, re-integrate up to 3, resume an interrupted integration); legacy path refuses a moved main
-- [ ] M3 — failure labelling: a baseline run on main classifies introduced vs pre-existing
+- [x] M3 — failure labelling: a baseline run on main classifies introduced vs pre-existing
 
 ## Estimate
 
@@ -77,6 +77,8 @@ total: 2.35
 ## Log
 
 
+
+- 2026-10-14: closed M3 — BR-15: real test-lock helper and nested make reproduced baseline self-wait and repeated-check self-wait before correction (3.186s); preserving per-lock-scope owner made baseline, reintegration retry, and multiple named checks pass with local-run/landing regressions (8.271s). Full make -k test on f9e520df passed 12/12 cmd/sdlc shards (1,289 tests) and 51 other packages in 430.6s; gofmt and git diff --check clean. M3 classification and unrecorded baseline tests remain green; no gates bypassed.; review verdict: SHIP
 - 2026-10-14: closed M2 — R8: CI Makefile probe and replay/tracker/archive/quick-flow Git commands now inherit cancellation and remaining CI budget; real slow-command regressions failed before correction and passed after. Broad landing/publish/archive/CI cmd/sdlc regressions 202.192s, full gitx 41.630s, final cancellation/integration/quick-flow cmd/sdlc 25.906s, full tracker 100.489s; gofmt and git diff --check clean. BR-14 previously accepted; no gates bypassed.; review verdict: SHIP
 ### 2026-10-11
 

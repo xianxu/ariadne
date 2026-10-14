@@ -71,3 +71,68 @@ findings:
 7. **Plan revision recommendation**
 
    Add a `## Revisions` entry specifying that every suite run in one `sdlc` process preserves the actual lock owner through acquisition and subprocess execution. Enumerate baseline, integration retries, and multiple named checks, with regression tests that fail when owner propagation is removed.
+
+---
+
+## Re-review — 2026-10-14T02:35:05-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 332 — sdlc merge integrates a moved main itself, then re-runs the suite before landing |
+| repo | ariadne |
+| issue file | workshop/issues/000332-sdlc-merge-integrates-a-moved-main-itself-then-re-runs-the-suite-before-landing.md |
+| boundary | milestone M3 |
+| milestone | M3 |
+| window | 05de5db107a4db2927f2e6e424e4bedb51d28c03..cc93bb2aeae75a159e754ce3cd42f33bca61fded |
+| command | sdlc milestone-close --issue 332 --milestone M3 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T02:35:05-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+M3 delivers the documented failure classification and diagnostic baseline without permitting a failed suite to land. BR-15 is addressed with reachable regression tests that fail when the correction is removed. No new blocking findings emerged from the pinned range.
+
+```findings
+dispose:
+  - id: BR-15
+    disposition: addressed
+    note: |
+      cmd/sdlc/localcheck_run.go:224-241 preserves lock ownership on reentry. The real-helper baseline and repeated-check tests pass on the pinned head; restoring the empty reentrant holder in a disposable clone makes both fail with nested lock waits (3.220s). Coverage includes the baseline, successive heads, and multiple named checks. The clone was removed.
+```
+
+1. **Strengths**
+
+   - Typed failure propagation avoids interpreting refusal text (`cmd/sdlc/cigate.go:385`).
+   - The baseline uses the same selected check, suppresses status/comment publication, and preserves the original refusal (`cmd/sdlc/suitebaseline.go:25`).
+   - Parser and classifier logic remain pure, with direct tests for package attribution, deduplication, and unparsed failures.
+   - README and atlas describe the new diagnostic behavior.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Focused diagnostic, ownership, context, and recovery tests passed in 25.556s. Broader landing/local-check regressions passed in 30.080s. Parser fuzzing passed with 4,026 executions. The BR-15 mutation failed both regression tests as required. Diff checks passed and the checkout remains clean. I did not rerun the full suite.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** baseline reuses the existing runner and selected suite.
+   - **ARCH-PURE — pass:** parsing/classification are separate from diagnostic IO.
+   - **ARCH-PURPOSE — pass:** classification, unknown-result handling, and refusal are delivered.
+   - **ARCH-MOCK — pass:** stateful Git/GitHub fixtures and the real isolated lock helper exercise production seams; existing live conformance remains available.
+   - **ARCH-CONSTRAINTS — pass:** sequential baseline execution retains existing suite bounds.
+   - **ARCH-SECURE — pass:** read failures remain visible; diagnostic execution cannot publish main status.
+   - **ARCH-ORDER — pass:** gate rejection precedes diagnostics; diagnostics cannot authorize landing.
+   - **ARCH-FUNERAL — pass:** baseline logs reuse capped storage and temporary-worktree cleanup.
+
+7. **Plan revision recommendations:** None. R9–R11 describe the delivered M3 behavior and ownership correction accurately.

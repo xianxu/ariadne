@@ -306,6 +306,20 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - "n": 10
+      timestamp: "2026-10-14T02:35:05-07:00"
+      dispatched: "2026-10-14T02:31:31-07:00"
+      agent: codex
+      dispose:
+        - id: BR-15
+          disposition: addressed
+          note: cmd/sdlc/localcheck_run.go:224-241 preserves lock ownership on reentry. The real-helper baseline and repeated-check tests pass on the pinned head; restoring the empty reentrant holder in a disposable clone makes both fail with nested lock waits (3.220s). Coverage includes the baseline, successive heads, and multiple named checks. The clone was removed.
+          round: 10
+      boundary: M3
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: cc93bb2aeae75a159e754ce3cd42f33bca61fded
+      blocked: false
 ---
 
 # Gate ledger — ariadne#332 (boundary-review)
@@ -421,6 +435,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-15** [Critical] `lock-reentry-preserves-owner-identity` (kind: defect) Diagnostic baseline loses lock ownership and waits on its own process
   cmd/sdlc/suitebaseline.go:27 calls runLocalCheck a second time while the first run's suite lock remains held until sdlc exits. acquireSuiteSlot returns an empty holder for "reentrant" at cmd/sdlc/localcheck_run.go:206, so the baseline subprocess receives no WF_TEST_LOCK_HELD_BY; nested make test then waits on sdlc's occupied slots instead of running. An isolated reproduction with the real helper returned acquired, then reentrant, then timeout without the holder identity; supplying that identity returned reentrant immediately. Preserve the actual lock owner's identity across every repeated run, and cover baseline, integration retries, and multiple named checks with stateful lock tests. ARCH-PURPOSE, ARCH-MOCK, and ARCH-ORDER apply.
 
+## Round 10 — 2026-10-14T02:35:05-07:00 (codex) — passed
+
+### Disposed
+
+- BR-15 — addressed — cmd/sdlc/localcheck_run.go:224-241 preserves lock ownership on reentry. The real-helper baseline and repeated-check tests pass on the pinned head; restoring the empty reentrant holder in a disposable clone makes both fail with nested lock waits (3.220s). Coverage includes the baseline, successive heads, and multiple named checks. The clone was removed.
+
 ## Open findings
 
-- **BR-15** [Critical] `lock-reentry-preserves-owner-identity` (kind: defect) Diagnostic baseline loses lock ownership and waits on its own process
+(none — every finding has been disposed)
