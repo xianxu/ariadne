@@ -1,6 +1,6 @@
 ---
 id: 000361
-status: codecomplete
+status: done
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 9a9dbe53488c896b59aaf0d532994d4a988defc9
         evidence_commit: 93f9e8f419cfe4b72d740c112d9ed9bb4b00aa25
+        landed_commit: d190aa0a2c08cc420a1596f022a82bfbacd2c3ab
 ---
 
 # weave: TestCompileCancellationStopsLateGeneratorChild flakes under load (generation stage survived retirement)
