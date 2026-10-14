@@ -68,3 +68,10 @@ a ticket lives exactly as long as its waiter's wait; it is unlinked on acquire, 
 or nesting, and a crashed waiter's ticket by the next allocation or position check;
 `alloc` is one persistent empty file. The moved test takes 39s (local-gates-guard.test.sh
 takes 87s).
+
+Close review (SHIP, round 1) left three advisory Minors, all fixed: the FIFO tests order
+arrivals by waiting until the line holds N tickets (`await_tickets`), not by 0.5s gaps;
+a stopped (^Z) waiter keeping its place is now documented (script header and atlas) as
+the rule, not a heartbeat that could misjudge a loaded waiter: before #357 a stopped head
+stalled the line the same way, and the waiters behind name it as next in line;
+`Tickets.locked` uses `contextlib.contextmanager`.

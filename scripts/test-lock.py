@@ -24,7 +24,9 @@
 # Only the oldest waiter may become the head, and the head also takes the queue
 # file (<slot 0>.queue), the head token older copies of this script use, so a
 # mixed fleet keeps their behavior. Only the head takes slots, so light suites never
-# overtake it, and the head holds no slot, so two heavy waiters cannot deadlock.
+# overtake it, and the head holds no slot, so two heavy waiters cannot deadlock. A
+# live waiter keeps its place even when stopped (^Z): the line waits for it, and
+# the waiters behind it name it as next in line.
 #
 # WF_TEST_SUITES=<n> sets the slot count (default 2); WF_TEST_LOCK=off skips the
 # lock; WF_TEST_LOCK_TIMEOUT=<seconds> bounds the wait; WF_TEST_LOCK_FILE
@@ -32,6 +34,7 @@
 # a locked make.
 
 import argparse
+import contextlib
 import fcntl
 import json
 import os
@@ -122,17 +125,13 @@ class Tickets:
             fcntl.flock(self.fd, fcntl.LOCK_EX)
             os.pwrite(self.fd, json.dumps(rec).encode(), 0)
 
+    @contextlib.contextmanager
     def locked(self):
-        mutex = self.mutex
-
-        class Held:
-            def __enter__(self):
-                fcntl.flock(mutex, fcntl.LOCK_EX)
-
-            def __exit__(self, *exc):
-                fcntl.flock(mutex, fcntl.LOCK_UN)
-
-        return Held()
+        fcntl.flock(self.mutex, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(self.mutex, fcntl.LOCK_UN)
 
     def ahead(self):
         """The live waiters ahead of this one, oldest first, as their records."""

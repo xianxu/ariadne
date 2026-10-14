@@ -112,13 +112,17 @@ check "a weight-1 make test runs alongside" 'WF_TEST_WEIGHT=1 WF_TEST_LOCK_TIMEO
 # are started as python3 itself, not through lock(), so $! is the waiter process:
 # a signal to a backgrounded function's subshell would not reach it.
 export WF_TEST_LOCK_FILE="$tmp/fifo" WF_TEST_SUITES=1
+# Arrival order comes from the tickets, not from timing: start the next waiter only
+# once the line holds n tickets (startup can take a while under load).
+tickets() { ls "$WF_TEST_LOCK_FILE.tickets" 2>/dev/null | grep -c '^[0-9]'; }
+await_tickets() { local i=0; while [ "$(tickets)" -lt "$1" ] && [ $i -lt 200 ]; do sleep 0.05; i=$((i + 1)); done; }
 holder_pid() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["pid"])' "$WF_TEST_LOCK_FILE"; }
 sleep 60 & f0=$!
 check "fifo: a holder takes the slot" '[ "$(lock $f0)" = acquired ]'
 sleep 60 & fa=$!; sleep 60 & fb=$!; sleep 60 & fc=$!
-python3 scripts/test-lock.py acquire --watch $fa >"$tmp/fa.out" 2>"$tmp/fa.err" & wa=$!; sleep 0.5
-python3 scripts/test-lock.py acquire --watch $fb >"$tmp/fb.out" 2>"$tmp/fb.err" & wb=$!; sleep 0.5
-python3 scripts/test-lock.py acquire --watch $fc >"$tmp/fc.out" 2>"$tmp/fc.err" & wc=$!; sleep 1.5
+python3 scripts/test-lock.py acquire --watch $fa >"$tmp/fa.out" 2>"$tmp/fa.err" & wa=$!; await_tickets 1
+python3 scripts/test-lock.py acquire --watch $fb >"$tmp/fb.out" 2>"$tmp/fb.err" & wb=$!; await_tickets 2
+python3 scripts/test-lock.py acquire --watch $fc >"$tmp/fc.out" 2>"$tmp/fc.err" & wc=$!; await_tickets 3; sleep 1.5
 check "fifo: waiters report their positions" 'grep -q "position 1 in line: next to run" "$tmp/fa.err" && grep -q "position 2 in line; next in line: .*make pid $fa" "$tmp/fb.err" && grep -q "position 3 in line; next in line: .*make pid $fa" "$tmp/fc.err"'
 kill -STOP $wb
 release $f0; wait $wa
@@ -132,8 +136,8 @@ check "fifo: the last arrival goes last" '[ "$(cat "$tmp/fc.out")" = acquired ]'
 release $fc
 sleep 60 & g0=$!; sleep 60 & gd=$!; sleep 60 & ge=$!
 lock $g0 >/dev/null
-python3 scripts/test-lock.py acquire --watch $gd >/dev/null 2>&1 & wd=$!; sleep 0.5
-python3 scripts/test-lock.py acquire --watch $ge >"$tmp/ge.out" 2>/dev/null & we=$!; sleep 1.5
+python3 scripts/test-lock.py acquire --watch $gd >/dev/null 2>&1 & wd=$!; await_tickets 1
+python3 scripts/test-lock.py acquire --watch $ge >"$tmp/ge.out" 2>/dev/null & we=$!; await_tickets 2
 kill -9 $wd; wait $wd 2>/dev/null
 release $g0; t0=$(date +%s); wait $we
 check "fifo: a dead waiter's ticket is skipped" '[ "$(cat "$tmp/ge.out")" = acquired ] && [ $(( $(date +%s) - t0 )) -le 3 ]'

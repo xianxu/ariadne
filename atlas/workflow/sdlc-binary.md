@@ -1641,6 +1641,8 @@ clamped to `WF_TEST_SUITES`. The acquisition rules:
   head takes slots, so light suites never overtake it. Each slot runs the script
   from its own branch, so in a mixed fleet an older copy can still win the queue
   file and go first, as before; once every slot has the change, admission is FIFO.
+  A live waiter keeps its place even when stopped (^Z), so the line waits for it;
+  the waiters behind it name it as `next in line`.
 - **Records.** The holder's record goes into each slot it holds, with
   `slots: [...]`.
 
