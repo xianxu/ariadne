@@ -81,6 +81,15 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 	if err != nil {
 		return err
 	}
+	if _, declared := decl.check(suiteCheckName); !declared {
+		// #332: the default suite (make test, at main's weight) is runnable
+		// by name, so `sdlc local-check run --name suite` is the close suite.
+		has, weight, err := makeTestFactsFn(git, "origin/main")
+		if err != nil {
+			return err
+		}
+		decl = effectiveLocalChecks(decl, has, weight)
+	}
 	if len(decl.Checks) == 0 {
 		return fmt.Errorf("local-check run: origin/main declares no local checks (%s)", localChecksPath)
 	}

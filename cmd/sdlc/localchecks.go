@@ -29,6 +29,13 @@ const localChecksPath = ".sdlc/local-checks.json"
 const (
 	localCheckDefaultTimeout = 30
 	localCheckMaxTimeout     = 120
+	localCheckMaxWeight      = 8 // test-lock.py clamps to the machine's slot count
+	// suiteCheckName is the check every landing requires (#332): declared, or
+	// the default make test.
+	suiteCheckName = "suite"
+	// suiteDefaultTimeout bounds the default suite: ariadne's sharded run is
+	// about 6-13 minutes plus queueing behind the machine lock.
+	suiteDefaultTimeout = 60
 )
 
 // localCheckDecl is the parsed declaration.
@@ -47,6 +54,9 @@ type localCheck struct {
 	Substitutes    []string `json:"substitutes,omitempty"`
 	Required       bool     `json:"required,omitempty"`
 	TimeoutMinutes int      `json:"timeout_minutes,omitempty"`
+	// Weight is how many machine-wide suite slots the run takes at once (#346,
+	// #332): ariadne's sharded suite takes 2 and runs alone. Default 1.
+	Weight int `json:"weight,omitempty"`
 }
 
 // localCheckName becomes a status context and a path segment.
@@ -102,6 +112,12 @@ func parseLocalChecks(data []byte) (localCheckDecl, error) {
 			labels[l] = c.Name
 		}
 		switch {
+		case c.Weight == 0:
+			c.Weight = 1
+		case c.Weight < 0 || c.Weight > localCheckMaxWeight:
+			return bad("check %q: weight %d outside 1..%d", c.Name, c.Weight, localCheckMaxWeight)
+		}
+		switch {
 		case c.TimeoutMinutes == 0:
 			c.TimeoutMinutes = localCheckDefaultTimeout
 		case c.TimeoutMinutes < 0 || c.TimeoutMinutes > localCheckMaxTimeout:
@@ -109,6 +125,29 @@ func parseLocalChecks(data []byte) (localCheckDecl, error) {
 		}
 	}
 	return d, nil
+}
+
+// defaultSuiteCheck is the suite a repository runs when it declares none: its
+// make test, at the weight its Makefile gives (#332).
+func defaultSuiteCheck(weight int) localCheck {
+	if weight < 1 {
+		weight = 1
+	}
+	return localCheck{Name: suiteCheckName, Command: []string{"make", "test"}, Required: true,
+		TimeoutMinutes: suiteDefaultTimeout, Weight: min(weight, localCheckMaxWeight)}
+}
+
+// effectiveLocalChecks is the declaration plus the default suite when the
+// declaration has none and the repository has a make test target (#332). A
+// declared suite always wins: it is the operator's override.
+func effectiveLocalChecks(d localCheckDecl, hasMakeTest bool, weight int) localCheckDecl {
+	if _, declared := d.check(suiteCheckName); declared || !hasMakeTest {
+		return d
+	}
+	out := d
+	out.Version = 1
+	out.Checks = append(append([]localCheck(nil), d.Checks...), defaultSuiteCheck(weight))
+	return out
 }
 
 // substituteFor finds the local check declared to stand in for a CI check label.

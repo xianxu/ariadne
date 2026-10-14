@@ -31,7 +31,7 @@ func fixedThenShipRefusal(issueStr string, w reviewWindow, upgraded bool, fullSu
 	if code := codeSurfacePaths(w.Conflicted); len(code) > 0 && strings.TrimSpace(fullSuite) == "" {
 		return fmt.Sprintf("--fixed-then-ship: this window resolves a conflict with main in code (%s).\n"+
 			"  Only the review narrows; the full test suite still runs (operator decision, #320).\n"+
-			"  Run it (`make test`), then re-run with --full-suite '<evidence>'.", strings.Join(code, ", "))
+			"  Run it (`sdlc local-check run --name suite` on the pushed head), then re-run with --full-suite '<evidence>'.", strings.Join(code, ", "))
 	}
 	return ""
 }

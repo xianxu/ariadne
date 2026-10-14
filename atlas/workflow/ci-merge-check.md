@@ -152,6 +152,18 @@ first-class evidence, recorded on the commit it ran on:
   what CI guards is the declaration and the gate code.
 - **Fake:** `ciFakeGH` (`cmd/sdlc/cigate_fake_test.go`) models heads, checks,
   the status rollup, jobs and comments, behind the same `ghCaller` seam.
+- **The suite on every landing (#332).** The check named `suite` is required
+  for every landing: either the declared one, or the repository's `make test`.
+  The default's existence and its weight (`WF_TEST_WEIGHT`) come from probing
+  **main's** Makefile in a detached worktree, under a goal that is not `test`,
+  so the probe takes no lock. A branch therefore cannot drop or lighten its own
+  suite. Agents run it before close with `sdlc local-check run --name suite`.
+  - A record on a first-parent ancestor counts when the difference since is
+    docs-only (`publishGateHasCodeSurface`, the publish gate's line). Close's
+    own commits don't force a rerun.
+  - A declared `weight` reaches `test-lock.py --slots`, so `make test` under it
+    holds the repository's weight. Before #332 it held one slot and went
+    reentrant.
 
 ## Not the same as the publish gate or the close review
 

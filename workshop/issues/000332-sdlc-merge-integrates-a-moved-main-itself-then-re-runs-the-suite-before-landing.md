@@ -43,7 +43,7 @@ A branch that passed its close review can sit unmerged for hours, because main k
 
 Durable plan: `workshop/plans/000332-sdlc-merge-integrates-a-moved-main-itself-then-re-runs-the-suite-before-landing-plan.md`.
 
-- [ ] M1 — the suite as a recorded, enforced check (`sdlc-local/suite`: declared or default `make test` with the Makefile's weight; required on every landing; a docs-only-distance ancestor record counts; lock weight fix; `sdlc local-check run --name suite` documented as the close suite)
+- [x] M1 — the suite as a recorded, enforced check (`sdlc-local/suite`: declared or default `make test` with the Makefile's weight; required on every landing; a docs-only-distance ancestor record counts; lock weight fix; `sdlc local-check run --name suite` documented as the close suite)
 - [ ] M2 — integration loop in the durable path (merge main, conflict abort, publish-replay pre-check, lease push, bounded CI wait, re-integrate up to 3, resume an interrupted integration); legacy path refuses a moved main
 - [ ] M3 — failure labelling: a baseline run on main classifies introduced vs pre-existing
 

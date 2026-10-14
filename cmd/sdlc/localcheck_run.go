@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -59,21 +60,14 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	rec.LogPath = filepath.Join(logDir, sha, c.Name+".log")
 	sweepStaleLocalWorktrees(d)
 
-	wt, err := os.MkdirTemp("", localCheckTmpPrefix+"*")
+	wt, cleanup, err := detachedWorktree(d.Git, sha)
 	if err != nil {
-		return rec, err
+		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
 	}
-	defer func() {
-		_, _ = d.Git("worktree", "remove", "--force", wt)
-		_ = os.RemoveAll(wt)
-		_, _ = d.Git("worktree", "prune")
-	}()
-	if out, err := d.Git("worktree", "add", "--detach", wt, sha); err != nil {
-		return rec, fmt.Errorf("local check %s: worktree at %s: %w\n%s", c.Name, sha, err, out)
-	}
+	defer cleanup()
 
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
-	heldBy, err := acquireSuiteSlot(ctx, d, wt)
+	heldBy, err := acquireSuiteSlot(ctx, d, wt, c.Weight)
 	if err != nil {
 		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
 	}
@@ -130,6 +124,26 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	return rec, nil
 }
 
+// detachedWorktree checks sha out in a fresh temporary worktree and returns
+// its path and a cleanup that removes it (a run's, or a probe's, view of an
+// exact commit whatever the slot has checked out).
+func detachedWorktree(git func(args ...string) (string, error), sha string) (string, func(), error) {
+	wt, err := os.MkdirTemp("", localCheckTmpPrefix+"*")
+	if err != nil {
+		return "", nil, err
+	}
+	cleanup := func() {
+		_, _ = git("worktree", "remove", "--force", wt)
+		_ = os.RemoveAll(wt)
+		_, _ = git("worktree", "prune")
+	}
+	if out, err := git("worktree", "add", "--detach", wt, sha); err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("worktree at %s: %w\n%s", sha, err, out)
+	}
+	return wt, cleanup, nil
+}
+
 // localCheckLogDir is <git common dir>/sdlc/local-checks: never committed, shared
 // by the slot's worktrees, gone with the clone.
 func localCheckLogDir(d localRunDeps) (string, error) {
@@ -149,7 +163,11 @@ func localCheckLogDir(d localRunDeps) (string, error) {
 // a local check and `make test` share one cap. The slot is held until this
 // process exits. It returns the pid to export as WF_TEST_LOCK_HELD_BY when it
 // took the slot.
-func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string) (string, error) {
+//
+// weight is the slots the run takes at once (#346): passed as --slots, so a
+// make test inside it, which then sees WF_TEST_LOCK_HELD_BY and goes reentrant,
+// still runs at its declared weight (#332).
+func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight int) (string, error) {
 	mk, err := filepath.EvalSymlinks(filepath.Join(d.Root, "Makefile.workflow"))
 	if err != nil {
 		return "", fmt.Errorf("%w: no Makefile.workflow to find the suite lock from (%v)", errUnboundedSuite, err)
@@ -159,7 +177,7 @@ func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string) (string, 
 		return "", fmt.Errorf("%w: suite lock helper missing: %s", errUnboundedSuite, helper)
 	}
 	pid := fmt.Sprint(os.Getpid())
-	cmd := exec.CommandContext(ctx, "python3", helper, "acquire", "--watch", pid)
+	cmd := exec.CommandContext(ctx, "python3", helper, "acquire", "--watch", pid, "--slots", strconv.Itoa(max(weight, 1)))
 	cmd.Dir = dir
 	cmd.Stderr = d.Stderr
 	out, err := cmd.Output()

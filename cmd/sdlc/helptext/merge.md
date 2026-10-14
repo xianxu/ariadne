@@ -97,6 +97,11 @@ CI GATE (#309)
   pinned head, records it, and reads the checks again. A job that ran and
   failed still blocks. See `sdlc local-check run --help`.
 
+  The suite on every landing (#332): the head merge lands must carry a passing
+  `sdlc-local/suite` record: the declared suite, or the repository's make test
+  read from main. A record on an ancestor counts when only docs changed since
+  (close's own commits). Without one, merge runs the suite itself first.
+
 FLAGS
 
   --yes                 skip interactive confirmation; required without a TTY
