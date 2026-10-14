@@ -20,9 +20,10 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// runnerDeadline bounds the whole runner (it takes about 13s), so a hanging
-// shell test fails here instead of holding the suite until go test's timeout.
-const runnerDeadline = 5 * time.Minute
+// runnerDeadline bounds the whole runner (it takes about 13s) with the shared
+// test hang ceiling, so a hanging shell test fails here instead of holding the
+// suite until go test's timeout.
+const runnerDeadline = testgate.HangCeiling
 
 // TestConstructScripts runs every construct/scripts/test/*.test.sh through the
 // one runner the CI merge check also runs, so both apply the same exclusions.
