@@ -52,6 +52,7 @@ exemption from #342's template-less `mktemp` check.
 ## Log
 
 ### 2026-10-13
+- 2026-10-13: closed — Full make test green (12 shards, 1136 cmd/sdlc tests, 47 packages, 0 failed). pkg/shelllint green with an empty exemption map (scripts/parallel-checks.sh now scanned). Failure path: TMPDIR=/nonexistent-342 parallel-checks.sh --audit prints Cannot make a temp dir and exits 1, writing nothing. Success path in a scratch repo with a stub pre-merge-checks.sh (real checks launch LLM agents): first died at line 108 alive[@] unbound variable (macOS bash 3.2.57, set -u), fixed with ${alive[@]+...}; then completes, exit 0, no parallel-checks.* left in TMPDIR. No atlas surface: sandbox.md already describes the exemption mechanism, which stays (empty).; review verdict: SHIP
 - 2026-10-13: unclaimed: filed from #342; local-gates change, operator verifies; unclaimed for whoever the hub assigns
 
 Filed by ariadne:3 while working #342, which exempts this one path until this lands.
