@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.31
+actual_hours: 0.59
 tracker:
     version: 1
     completion:
-        token: close-25ad4be1768f
+        token: close-e1078bb8f6ae
         repository: github.com/xianxu/ariadne
-        reviewed_head: 52fd1fd07d6b9b764a1a9b4af9b36044738034cb
-        evidence_commit: a013603ab9079661305d601eeca862170ff0ae04
+        reviewed_head: ae4b17867fa160731f6472b2fda860574431bea3
+        evidence_commit: 7e3d384385425c8bc15a2c755633b7a7cc75fe38
 ---
 
 # make test doesn't run construct/scripts/test/*.test.sh (dev-aliases, others), so their regressions are only caught by hand
