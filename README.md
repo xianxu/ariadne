@@ -224,7 +224,7 @@ set `WF_TEST_PREFLIGHT ?= path/to/preflight.sh` before including
 `Makefile.workflow`. The workflow runs the script before acquiring the shared
 full-suite lock: failure prints the script's diagnostics and stops without
 queueing; success proceeds to the lock. Repositories without a preflight keep
-their existing behavior. See the [test gate documentation](atlas/workflow/sdlc-binary.md#running-the-test-suite).
+their existing behavior. See the [test gate documentation](atlas/workflow/sdlc-binary.md#running-the-test-suite-253).
 
 The seeded `./bootstrap.sh` runs from its own repository root, reuses a
 compatible weave on PATH, or runs `brew install xianxu/ariadne/weave` before
