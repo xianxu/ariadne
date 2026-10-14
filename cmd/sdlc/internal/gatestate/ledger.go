@@ -62,6 +62,10 @@ type RoundReport struct {
 // Round is one gate invocation's durable record: what it disposed, what it raised, whether
 // the gate blocked, and whether the operator forced past it.
 type Round struct {
+	// ActualInputs pins the evidence adopted at this boundary (#335).
+	// Optional so every legacy ledger retains its original serialization.
+	ActualInputs *MeasurementInputs `yaml:"actual_inputs,omitempty"`
+
 	N         int    `yaml:"n"`
 	Timestamp string `yaml:"timestamp"`
 	// Dispatched is when the round's review was dispatched (#234); Timestamp is

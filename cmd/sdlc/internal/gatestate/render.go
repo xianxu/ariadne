@@ -167,6 +167,11 @@ func ParseSidecar(text string) (Ledger, error) {
 	if err := yaml.Unmarshal([]byte(fm), &l); err != nil {
 		return Ledger{}, fmt.Errorf("gate ledger frontmatter does not parse: %w", err)
 	}
+	for _, r := range l.Rounds {
+		if err := ValidateMeasurementInputs(r.ActualInputs); err != nil {
+			return Ledger{}, fmt.Errorf("gate ledger round %d actual_inputs: %w", r.N, err)
+		}
+	}
 	return l, nil
 }
 
