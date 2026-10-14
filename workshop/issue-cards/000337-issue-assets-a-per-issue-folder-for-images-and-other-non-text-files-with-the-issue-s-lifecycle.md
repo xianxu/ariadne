@@ -1,6 +1,6 @@
 ---
 id: 000337
-status: codecomplete
+status: done
 created: 2026-10-12
 updated: 2026-10-13
 estimate_hours: 3.403
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 2bd62b3fa0a643f65e0d2123a838aaf83f1367bf
         evidence_commit: 845b8c49d0142fdfee47b173d49b4c8f19cac1fd
+        landed_commit: ea064b2283c00e9603ceb140c1cf7046789cd3d7
 ---
 
 # issue assets: a per-issue folder for images and other non-text files, with the issue's lifecycle
