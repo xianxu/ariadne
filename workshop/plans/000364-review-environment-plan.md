@@ -205,13 +205,13 @@ rather than adding a procedural case inventory. Tests precede implementation.
 **Files:** `cmd/sdlc/internal/reviewbox/fence.go`, `fence_test.go`, `probe.go`,
 `probe_test.go`; `cmd/sdlc/reviewisolation_test.go` as needed.
 
-- [ ] Add a failing profile test and real Darwin test: known PID read succeeds,
+- [x] Add a failing profile test and real Darwin test: known PID read succeeds,
   scratch write succeeds, protected write fails. Test direct and shell-child ps.
-- [ ] Run `go test ./cmd/sdlc/internal/reviewbox -run 'Test.*(Fence|Process)' -count=1`;
+- [x] Run `go test ./cmd/sdlc/internal/reviewbox -run 'Test.*(Fence|Process)' -count=1`;
   observe the ps failure without the literal rule on a fence-capable Darwin host.
-- [ ] Add only `(allow process-exec (literal "/bin/ps") (with no-sandbox))` to the
+- [x] Add only `(allow process-exec (literal "/bin/ps") (with no-sandbox))` to the
   generated Seatbelt profile. Keep supported-OS fallback diagnostics explicit.
-- [ ] Rerun, then remove the rule temporarily and prove the conformance test fails;
+- [x] Rerun, then remove the rule temporarily and prove the conformance test fails;
   restore it and commit the isolated task with an issue reference.
 
 ### Task 2: Model and validate answerable findings
@@ -220,12 +220,12 @@ rather than adding a procedural case inventory. Tests precede implementation.
 `cmd/sdlc/internal/gatestate/{ledger,parse,prompt,render}.go` and tests;
 new `cmd/sdlc/boundaryresponse{,_test}.go`.
 
-- [ ] Write failing tests using the named admission, parser and renderer strategies above.
-- [ ] Add kind vocabulary and derive parser/rendered instructions from it; regenerate
+- [x] Write failing tests using the named admission, parser and renderer strategies above.
+- [x] Add kind vocabulary and derive parser/rendered instructions from it; regenerate
   exports with the existing vocabulary tools, not handwritten generated JSON.
-- [ ] Implement one pure admission function over response + scoped ledger, using
+- [x] Implement one pure admission function over response + scoped ledger, using
   existing parsing and disposition validation rather than duplicating authority rules.
-- [ ] Run `go test ./pkg/vocab ./cmd/sdlc/internal/gatestate -count=1` and
+- [x] Run `go test ./pkg/vocab ./cmd/sdlc/internal/gatestate -count=1` and
   `go test ./cmd/sdlc -run '^TestBoundaryResponse' -count=1`; prove the rejection
   tests fail with their guards removed, restore, and commit.
 
@@ -236,18 +236,18 @@ new `cmd/sdlc/reviewprepare{,_test}.go`; `cmd/sdlc/internal/judge/dispatch.go`,
 new `prepare{,_test}.go`, `dispatchstream_test.go`, cancellation tests;
 `cmd/sdlc/{milestoneclose,boundaryledger,reviewisolation,reviewsidecar}.go` and tests.
 
-- [ ] Write failing declaration, pinned-reader, diagnostic and lifecycle tests using
+- [x] Write failing declaration, pinned-reader, diagnostic and lifecycle tests using
   the named function strategies above.
-- [ ] Implement declaration IO and the context-aware preparation hook inside the
+- [x] Implement declaration IO and the context-aware preparation hook inside the
   shared attempt lifecycle. Reuse process cancellation mechanics with strict prep
   exit handling; do not reuse reviewer nonzero-exit swallowing.
-- [ ] Add response validation to the same retry decision; no separate nested retry.
+- [x] Add response validation to the same retry decision; no separate nested retry.
   Preserve existing missing-verdict behavior for callers without a validator.
-- [ ] Wire the pure boundary validator to close, milestone-close and fix-review.
+- [x] Wire the pure boundary validator to close, milestone-close and fix-review.
   Persist prep/protocol diagnostics without accepted verdict/round/head advancement
   from invalid text; preserve stale-result checks and existing ledgers.
-- [ ] Execute the named boundary lifecycle strategy through the production seams.
-- [ ] Run `go test ./cmd/sdlc/internal/judge ./cmd/sdlc/internal/reviewprepare -count=1`
+- [x] Execute the named boundary lifecycle strategy through the production seams.
+- [x] Run `go test ./cmd/sdlc/internal/judge ./cmd/sdlc/internal/reviewprepare -count=1`
   and `go test ./cmd/sdlc -run 'Test.*(BoundaryResponse|ReviewPrepar|BoundaryReview|ReviewSidecar|Dispute)' -count=1`;
   mutation-check each new rejection/ordering branch, restore, and commit.
 
@@ -258,16 +258,16 @@ new `prepare{,_test}.go`, `dispatchstream_test.go`, cancellation tests;
 `cmd/sdlc/helptext/{close,milestone-close,finding-dispute}.md` where applicable;
 this issue and plan. Update atlas index only if a new atlas page is introduced.
 
-- [ ] Document the literal ps exception, pinned prep declaration and limits, retry
+- [x] Document the literal ps exception, pinned prep declaration and limits, retry
   ordering, failure diagnostics, kind/dispute requirement, and unchanged fallback limits.
-- [ ] Prepare a disposable copy of pinned pair main with a tracked declaration using
+- [x] Prepare a disposable copy of pinned pair main with a tracked declaration using
   `make runtimebundle-generate`; execute through the production preparation seam and
   verify `go test ./cmd/internal/runtimebundle -count=1` succeeds in that checkout.
   Record actual revision, command, duration, and protected-source invariants.
-- [ ] Coordinate the real pair declaration as a separate pair-owned configuration
+- [x] Coordinate the real pair declaration as a separate pair-owned configuration
   issue/PR through the hub; `.sdlc/*` requires the operator's local-gates-verified label.
   Do not edit another slot or apply that label. Pair#547 independently removes ps execs.
-- [ ] Run live Darwin fence conformance and an installed Codex fenced-review smoke
+- [x] Run live Darwin fence conformance and an installed Codex fenced-review smoke
   that calls ps; use current agent modes, not bypass-approval flags. Run Linux fence
   coverage on a suitable runner or explicitly report any missing platform evidence.
 - [ ] Run full `make -k test` in the background on a committed stable tree; fix failures.
@@ -290,3 +290,9 @@ owns acceptance; do not add a duplicate boundary review outside the binary.
   guards. PQ-2: declared permanent diagnostic retention, a 256 KiB writer envelope
   per dispatch, visible retained-byte measurement and repeated-failure cost. Scope
   and approved behavior remain unchanged.
+
+- 2026-10-14 — Implementation and live proofs complete. Full make -k suite passed
+  at 74bd16708c717eeafdcf599ad9842180c09c6ed4 (1,249 SDLC tests, 53 packages,
+  449.2 s). The last two administrative rows remain pending until their close and
+  landing actions complete. Linux live coverage remains unavailable locally;
+  the existing Linux fence behavior was preserved.

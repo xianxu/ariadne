@@ -42,10 +42,10 @@ Host evidence (full suites, the blocked checks) was supplied in the Log, but a R
 
 ## Plan
 
-- [ ] Add and prove the literal Darwin ps exception without weakening protected writes.
-- [ ] Model unverifiable findings and validate answerable boundary responses.
-- [ ] Prepare every disposable-checkout attempt and reuse bounded retry admission.
-- [ ] Document, verify with pair's runtime generation, run the full suite, close and land.
+- [x] Add and prove the literal Darwin ps exception without weakening protected writes.
+- [x] Model unverifiable findings and validate answerable boundary responses.
+- [x] Prepare every disposable-checkout attempt and reuse bounded retry admission.
+- [x] Document and verify with pair's runtime generation and the full suite.
 
 Durable plan: [review environment](../plans/000364-review-environment-plan.md).
 
@@ -129,7 +129,18 @@ then disabled textconv alongside external diffs in the tracked-state comparison.
 All preparation tests pass (11.523 s). Restarting the full run on this corrected
 commit, with raw JSON retained.
 
+Full suite PASS at `74bd16708c717eeafdcf599ad9842180c09c6ed4`:
+`make -k test ARGS='--json /tmp/ariadne-364-full-suite-2.jsonl'` waited 70 s,
+then ran 449.2 s; all 12 shards over 1,249 SDLC tests plus 53 other packages
+exited zero, with no missing tests or failures. Log:
+`/tmp/ariadne-364-full-suite-2.log`. The weave lease failure did not recur.
+Implementation acceptance evidence is complete; close review and landing are next.
+
 ## Revisions
+
+- 2026-10-14 — The final checklist item now describes implementation verification;
+  close/land remain subsequent SDLC actions recorded in the Log and durable plan,
+  so their future execution is not falsely marked complete before the close gate.
 
 - 2026-10-14 — Spec 1 corrected with hub approval: the existing fence denies source
   writes, not arbitrary signals/network/outside writes. Preserve that boundary and
