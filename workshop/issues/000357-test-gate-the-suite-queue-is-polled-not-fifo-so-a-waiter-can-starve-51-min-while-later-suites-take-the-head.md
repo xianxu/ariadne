@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "6f03c7d8", done: "2b803d0e"}
 ---
 
 # test gate: the suite queue is polled, not FIFO, so a waiter can starve (51+ min) while later suites take the head
