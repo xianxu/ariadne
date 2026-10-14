@@ -43,6 +43,7 @@ Add `"tl-worker *"` and `"tl-lead *"` to `sandbox.excludedCommands` in `.claude/
 ## Log
 
 ### 2026-10-13
+- 2026-10-13: closed — make test green at 519c0609: 12 shards, 1136 cmd/sdlc tests plus 47 packages, 0 failed. TestBaseSettingsExcludedVerbsMatchArguments passes in a scratch copy (git archive HEAD) with empty cmd/tl-worker and cmd/tl-lead dirs; the control with main's settings fails with lacks "tl-lead *" and lacks "tl-worker *". Settings-only change, so --no-atlas: there is no new architectural surface, and atlas/workflow/sandbox.md already states the X * rule for every cmd binary.; review verdict: SHIP
 
 - Dispatched by the TL (ops:0); claimed in ariadne:4.
 - Scratch check (`git archive HEAD` plus this settings file, with empty
