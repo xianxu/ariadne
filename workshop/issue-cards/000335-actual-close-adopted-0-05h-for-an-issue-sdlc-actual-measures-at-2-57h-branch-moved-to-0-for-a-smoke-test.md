@@ -1,6 +1,6 @@
 ---
 id: 000335
-status: codecomplete
+status: done
 created: 2026-10-11
 updated: 2026-10-14
 estimate_hours: 4.174
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 25c8e1661a59c361139f9433a7ef3534081b746e
         evidence_commit: 946fae33c38b8250ce1d65a64860d0fc29463ec4
+        landed_commit: 83c317db7f806ab3cd3a83e7e6094611f329c2d5
 ---
 
 # actual: close adopted 0.05h for an issue sdlc actual measures at 2.57h (branch moved to :0 for a smoke test)
