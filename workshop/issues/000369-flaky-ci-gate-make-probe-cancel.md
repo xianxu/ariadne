@@ -1,12 +1,12 @@
 ---
 id: 000369
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
-card_mirror: '432936cc379234b38af8e7aea1797c7a0790f8d8' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ceabb2f4c7ca9da9f2908b67522c650cc83a10c7' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T11:06:25-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "bddf13a5", done: "70017678"}
+actual_hours: 0.94
 ---
 
 # TestWaitCIGateBoundsRealMakeProbe/cancel is flaky on main: cancel sometimes returns after ~1.05s (the make child's sleep) instead of under 700ms; also TestSetupLeaseSurvivesRunnerParentDeath failed once under the full suite
