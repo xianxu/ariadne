@@ -3,8 +3,9 @@
 # The one runner for those tests: the CI merge check (20-ci-workflow-tests) runs
 # it as a scripts/test/ script, and `make test` runs it through the Go test beside
 # it (scripts/test/scripts_test.go), so the exclusion list below has one home.
-# Each test runs under the bash on PATH (macOS /bin/bash 3.2 locally) in its own
-# process; a failing or missing test fails the run, naming it.
+# Each test runs under the first bash on PATH (on macOS that is /bin/bash 3.2
+# unless a newer bash comes first) in its own process; a failing or missing test
+# fails the run, naming it.
 #
 # Excluded by name, each with its reason (none today; a test that needs a live
 # environment or is too slow belongs here, never silently skipped):

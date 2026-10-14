@@ -61,3 +61,8 @@ with `--- FAIL scripts/test TestConstructScripts` naming `dev-aliases.test.sh` a
 assertion (`construct-scripts: 5 passed, 1 failed`). That run also hit the #361 weave
 load flake, unrelated. The runner itself guards its array expansion per #353's rule
 (the shelllint scan reads the index, so it saw the file once staged).
+
+Close review (SHIP, round 1) left two advisory Minors, both fixed: `TestConstructScripts`
+now bounds the runner (5 minutes; it takes about 13s) in its own process group, killed
+whole on the deadline (with a 1s deadline it fails at 1.00s, "did not finish within 1s");
+the runner header says it uses the first bash on PATH, not "macOS /bin/bash 3.2".

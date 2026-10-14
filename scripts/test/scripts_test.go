@@ -4,9 +4,13 @@
 package scripttest
 
 import (
+	"context"
+	"errors"
 	"os"
 	"os/exec"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/xianxu/ariadne/pkg/testgate"
 )
@@ -16,11 +20,31 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// runnerDeadline bounds the whole runner (it takes about 13s), so a hanging
+// shell test fails here instead of holding the suite until go test's timeout.
+const runnerDeadline = 5 * time.Minute
+
 // TestConstructScripts runs every construct/scripts/test/*.test.sh through the
 // one runner the CI merge check also runs, so both apply the same exclusions.
 func TestConstructScripts(t *testing.T) {
-	out, err := exec.Command("bash", "construct-scripts.test.sh").CombinedOutput()
+	ctx, cancel := context.WithTimeout(context.Background(), runnerDeadline)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "bash", "construct-scripts.test.sh")
+	// Its own process group, killed whole on the deadline: a test's background
+	// children must not outlive it holding the output pipe.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
+			return err
+		}
+		return nil
+	}
+	cmd.WaitDelay = 5 * time.Second
+	out, err := cmd.CombinedOutput()
 	t.Logf("%s", out)
+	if ctx.Err() != nil {
+		t.Fatalf("construct/scripts/test did not finish within %v", runnerDeadline)
+	}
 	if err != nil {
 		t.Fatalf("construct/scripts/test: %v (failing tests are named above)", err)
 	}
