@@ -30,3 +30,9 @@ Make the test hermetic: the nested make runs with MAKEFLAGS (and MFLAGS, MAKELEV
 ## Log
 
 ### 2026-10-13
+
+## Revisions
+
+- 2026-10-13 — superseded by ariadne#358 (filed by ariadne:3 with the better framing): it is a weave contract bug, not
+  only a test: `startup.Tools` runs the owner's `make tools` with the inherited environment, so an outer `make -k`
+  changes weave's failure behaviour; the fix passes `-S` in the tools argv. Work #358; drop this one when it lands.
