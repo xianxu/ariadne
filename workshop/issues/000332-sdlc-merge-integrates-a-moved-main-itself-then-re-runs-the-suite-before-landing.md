@@ -1,12 +1,12 @@
 ---
 id: 000332
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-11
-updated: 2026-10-13
+updated: 2026-10-14
 estimate_hours: 2.35
-card_mirror: '89f3d390ea3abfa5a267585072506bda46e83a45' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '85fc6b7842090b7dbedfef322f6325e124899238' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T22:09:00-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 7.84
 ---
 
 # sdlc merge integrates a moved main itself, then re-runs the suite before landing
