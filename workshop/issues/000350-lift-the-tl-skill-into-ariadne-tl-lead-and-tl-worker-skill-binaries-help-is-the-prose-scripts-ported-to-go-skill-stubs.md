@@ -55,6 +55,8 @@ Durable plan: `workshop/plans/000350-tl-skill-binaries-plan.md` (three review bo
 - `sdlc issue show --json` consumers reject unknown keys, so no milestone field is added to the observation; car status comes from it, the bar from `pkg/markdoc` on the claimant checkout's file, off-train slots from `sdlc fleet inventory --json`.
 - tl-worker load: one AGENTS §15 line (`tl-worker --help` per dispatched item; the hub runs `tl-lead --help`). `couch --prepare` already reloads the context onto the constitution, so no pair change is needed for the load.
 
+- TL (ops:0) approved the plan at 043d866e, all six design calls as proposed (delivery dc0d1c8e, receipt verified).
+
 ## Revisions
 
 - 2026-10-13 — the operator: **don't copy stories or lessons** into the binaries' prose. The prose states current
