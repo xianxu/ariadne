@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "a405bcb2", done: "3cacb993"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # sdlc local-check: a slot whose ariadne substrate predates the weighted lock fails with a raw usage error; detect the version skew and name 'weave refresh'
@@ -46,6 +46,8 @@ Before invoking a substrate helper, `sdlc` checks the helper's capability (e.g. 
 ## Log
 
 ### 2026-10-14
+- 2026-10-14: closed — README/atlas/help now document all new surface. BR-2 measured host evidence supplied by dispute: exact reviewed HEAD retry passes normally and with Git ceiling, all weave packages pass; recorded make test suite on code-identical 5784a8e0 passed 12 shards over 1342 SDLC tests and 54 other packages in 529.7s, sdlc-local/suite success, log sha256 prefix 538323fb56bd. Stale helper and divergent issue-branch guard mutations fail their production regressions; preservation/races/retry verified.; review verdict: SHIP
+- 2026-10-14: flow upgraded quick → full — 238 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 - 2026-10-14 — Hub approved plan f74dd4a3 (receipt f01d54c4-9201-4d44-af26-b074729c156e), including source-owned exception; change-code succeeded. The diff leaves the quick code shell, so close will run full review.
 - 2026-10-14 — Helper RED reproduced stale acceptance, premature worktree mutations and misleading help prose; initial GREEN 22.673s. Caller inventory found five more legacy test doubles; a shared side-effect-free fake advertisement now replaces their acquisition-only scripts. Expanded caller verification is pending.

@@ -84,3 +84,77 @@ findings:
 7. **Plan revision recommendations**
 
    Add a `## Revisions` entry expanding Task 3 to include README documentation for `--substrate`. Record environment-qualified acceptance evidence for the existing refresh retry regression; the logged acceptance claim alone does not resolve the verification finding.
+
+---
+
+## Re-review — 2026-10-14T10:25:59-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 366 — sdlc local-check: a slot whose ariadne substrate predates the weighted lock fails with a raw usage error; detect the version skew and name 'weave refresh' |
+| repo | ariadne |
+| issue file | workshop/issues/000366-sdlc-local-check-a-slot-whose-ariadne-substrate-predates-the-weighted-lock-fails-with-a-raw-usage-error-detect-the-version-skew-and-name-weave-refresh.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 407e48a39057503fab7cdecaf6c69ce338ce7631..6e1d320bca5b6b8e1f0c07a1d11ecebc50b045bf |
+| command | sdlc close --issue 366 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T10:25:59-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The implementation satisfies the issue’s revised contract: incompatible helpers refuse before acquisition or worktree changes, and substrate-only refresh preserves the consumer branch while retaining existing safeguards. Both prior findings are disposed below. No new blocking defects were found.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      README.md:227–240 now documents substrate-only usage, consumer Git-state preservation, incompatible --rebase, private ownership, and the source-owned helper exception. These passages match the CLI, refresh transaction, and helper diagnostic.
+  - id: BR-2
+    disposition: withdrawn
+    note: |
+      The retry command reproduces the Git-ceiling fixture initialization failure here. Inspected host logs confirm retry passes normally and with the reported ceiling, and all weave packages pass. Git comparison confirms those measured revisions and pinned HEAD have identical production/test code. The recorded full-suite log also matches SHA-256 prefix 538323fb56bd and reports all shards successful.
+```
+
+1. **Strengths**
+
+   - `cmd/sdlc/localcheck_run.go:81` performs capability preflight before log creation, worktree maintenance, acquisition, or status publication.
+   - `cmd/sdlc/helpercapability.go:120` bounds probe time and combined output, separates stderr from capability evidence, and cancels subprocess groups.
+   - `cmd/weave/internal/refresh/refresh.go:126` excludes the consumer from fetch/update effects while preserving its observation and revalidation.
+   - Regression tests exercise root races, dependency refusals, partial progress, compilation retry, private ownership, and consumer Git-state preservation.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None remaining.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Helper/local-check targets passed: **22.551s**.
+   - Real-helper reentry targets passed: **3.325s**.
+   - Substrate CLI targets passed: **7.219s**.
+   - The complete refresh package passed: **119.327s**.
+   - In a temporary clone, disabling preflight made the stale-helper regression fail; disabling root fetch exclusion made the issue-branch regression fail. The clone was removed.
+   - The broad all-weave rerun encountered existing fixture failures under this environment and was stopped after stalling. It is not reported as passing; the inspected host acceptance evidence supports BR-2’s withdrawal.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** one capability parser, shared fixture advertisement, and one refresh transaction.
+   - **ARCH-PURE — pass:** option parsing remains deterministic; subprocess work stays in integration functions. Core-concept classifications match the code.
+   - **ARCH-PURPOSE — pass:** recovery works on issue branches, including the documented source-owned exception.
+   - **ARCH-MOCK — pass:** portable repositories and stateful Git adapters exercise the production seam; real Git/helper checks provide conformance evidence.
+   - **ARCH-CONSTRAINTS — pass:** time/output bounds are tested; existing graph limits remain enforced.
+   - **ARCH-SECURE — pass:** supplying paths resolve through symlinks, repair commands are quoted, and probe stderr is excluded from diagnostics.
+   - **ARCH-ORDER — pass:** existing phase transitions remain authoritative; race and retry tests preserve confirmed partial progress.
+   - **ARCH-FUNERAL — pass:** no new durable artifact family; probe buffers end with the call and subprocess cleanup is bounded.
+
+7. **Plan revision recommendations:** None. README, atlas, CLI help, and the revised plan match the delivered behavior.
