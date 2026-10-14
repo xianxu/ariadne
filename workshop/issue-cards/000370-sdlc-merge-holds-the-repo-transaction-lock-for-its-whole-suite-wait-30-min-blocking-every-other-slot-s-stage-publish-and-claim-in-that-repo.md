@@ -1,6 +1,6 @@
 ---
 id: 000370
-status: codecomplete
+status: done
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours: 4.82
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 585b559c956261264e35237144797db4ff7414fb
         evidence_commit: 2a19d0e7c0d3d24972e9e1561329c0e4c461ac5b
+        landed_commit: ef420af80d2b81cae2d5a9008c4151ddca6b6a34
 ---
 
 # sdlc merge holds the repo transaction lock for its whole suite wait (30+ min), blocking every other slot's stage, publish and claim in that repo
