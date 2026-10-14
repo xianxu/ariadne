@@ -249,3 +249,15 @@ Accounting receipts contain metadata only, not code recovery authority. Moved
 accounting before the measured diagnostics and added the standard package test
 harness. Targeted root lifecycle/usage/accounting regressions passed50.143s;
 reviewusage package passed1.330s. Next integrate current main and rerun the suite.
+
+### 2026-10-14 — operator freeze checkpoint
+
+Operator paused #365 to reserve machine/suite capacity for essential fixes.
+Implementation and targeted repairs are committed and pushed through
+a328babd198a2e5696a69c565701c872385b32d2. Replacement full suite was cancelled
+while queued (owned group32406, exit130), before execution. No passing full
+suite record exists for the repaired implementation. No close or PR yet.
+
+Hub subsequently authorized only #369 cancellation-flake repair from main.
+#365 remains paused; resume requires explicit unfreeze, then recorded full
+suite, shared-binary close to SHIP, PR and merge.
