@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "fd79a0e3", done: "aee77c44"}
 ---
 
 # Construct shell tests isolate inherited color and terminal settings
