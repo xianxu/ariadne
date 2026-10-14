@@ -105,7 +105,8 @@ run_all_parallel() {
             for p in "${pids[@]}"; do
                 kill -0 "$p" 2>/dev/null && alive+=("$p")
             done
-            pids=("${alive[@]}")
+            # ${a[@]+...}: bash 3.2 (macOS /bin/bash) rejects an empty "${a[@]}" under set -u.
+            pids=(${alive[@]+"${alive[@]}"})
             [[ ${#pids[@]} -ge $max_jobs ]] && sleep 0.5
         done
         progress "running $check..."
@@ -141,8 +142,11 @@ main() {
         return 0
     fi
 
-    OUTDIR=$(mktemp -d)
-    trap 'rm -rf "$OUTDIR" 2>/dev/null' EXIT
+    OUTDIR=$(mktemp -d "${TMPDIR:-/tmp}/parallel-checks.XXXXXX") || {
+        printf "${RED}Cannot make a temp dir under %s${RESET}\n" "${TMPDIR:-/tmp}" >&2
+        return 1
+    }
+    trap 'rm -rf "${OUTDIR:?}" 2>/dev/null' EXIT
 
     printf "\n${CYAN}${BOLD}Constitution checks${RESET}" >&2
     measure_diff

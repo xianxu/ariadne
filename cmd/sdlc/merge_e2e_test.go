@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
@@ -590,8 +591,8 @@ func TestRunMerge_StrandedAfterMerge_NamesRecovery(t *testing.T) {
 	for _, tc := range []struct {
 		verb, wantBack string
 	}{
-		{"switch", ""},                   // still on feature: re-run directly
-		{"pull", "`git switch feature`"}, // already on main: go back first
+		{"switch", ""},                    // still on feature: re-run directly
+		{"merge", "`git switch feature`"}, // already on main: go back first
 	} {
 		t.Run(tc.verb, func(t *testing.T) {
 			tempRepo(t)
@@ -613,6 +614,44 @@ func TestRunMerge_StrandedAfterMerge_NamesRecovery(t *testing.T) {
 			}
 			if tc.wantBack == "" && strings.Contains(msg, "git switch feature") {
 				t.Errorf("switch failure left us on feature; message should not say switch back: %q", msg)
+			}
+		})
+	}
+}
+
+func TestRunMergeVerifiesAssetMaterializationBeforeArchive(t *testing.T) {
+	for _, conversion := range []bool{true, false} {
+		t.Run(map[bool]string{true: "conversion", false: "hook-bytes"}[conversion], func(t *testing.T) {
+			root := tempRepo(t)
+			name, _ := issueassets.Name([]byte("one\ntwo"), "png")
+			asset := "workshop/issues/assets/000998/" + name
+			peer := filepath.Join(t.TempDir(), "peer")
+			git(t, root, "worktree", "add", "-b", "main-evidence", peer, "main")
+			procedureWrite(t, peer, asset, "one\ntwo")
+			procedureWrite(t, peer, "workshop/issues/000998-live.md", "---\nid: 998\nstatus: working\n---\n![evidence](assets/000998/"+name+")\n")
+			if conversion {
+				procedureWrite(t, peer, ".gitattributes", "workshop/issues/assets/** text eol=crlf\n")
+			}
+			git(t, peer, "add", ".")
+			git(t, peer, "commit", "-qm", "published evidence")
+			git(t, peer, "push", "origin", "HEAD:main")
+			if !conversion {
+				hooks := t.TempDir()
+				procedureWrite(t, hooks, "post-merge", "#!/bin/sh\nprintf changed > '"+asset+"'\n")
+				if err := os.Chmod(filepath.Join(hooks, "post-merge"), 0755); err != nil {
+					t.Fatal(err)
+				}
+				git(t, root, "config", "core.hooksPath", hooks)
+			}
+			gh := &e2eGH{openPR: "42"}
+			swapMergeDeps(t, gh, nil)
+			f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+			msg, died := expectDie(t, func() { runMerge(io.Discard, io.Discard, f) })
+			if !died || !strings.Contains(msg, asset) {
+				t.Fatalf("materialization accepted: died=%v msg=%s", died, msg)
+			}
+			if _, err := os.Stat(filepath.Join(root, "workshop/issues/000999-done.md")); err != nil {
+				t.Fatal("archive started before byte verification")
 			}
 		})
 	}

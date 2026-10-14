@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"os"
 	"path/filepath"
 	"strings"
@@ -343,5 +344,94 @@ func TestLandingArchiveReadFailuresAndLimits(t *testing.T) {
 				t.Fatal("failed read mutated remote")
 			}
 		})
+	}
+}
+
+func TestLandingArchiveAssetsAndProof(t *testing.T) {
+	root, origin, pr := laFixture(t)
+	data := "evidence\x00bytes"
+	name, _ := issueassets.Name([]byte(data), "png")
+	rel := "assets/000246/" + name
+	src, dst := "workshop/issues/"+rel, "workshop/history/issues/"+rel
+	laWrite(t, root, laIssue, laBody("codecomplete", "![evidence]("+rel+")"))
+	laWrite(t, root, src, data)
+	pr.HeadOID = laCommit(t, root, "evidence")
+	pr.MergeOID = pr.HeadOID
+	testfix.Git(t, root, "push", "-q", "origin", "HEAD:main")
+	if err := laArchive(root, pr); err != nil {
+		t.Fatal(err)
+	}
+	tip := laGit(t, origin, "rev-parse", "main")
+	if got := testfix.Capture(t, origin, "show", "main:"+dst); got != data {
+		t.Fatalf("asset=%q", got)
+	}
+	if gitSucceeds(root, "cat-file", "-e", tip+":"+src) {
+		t.Fatal("active asset retained")
+	}
+	if complete, err := laProof(root, tip, pr); err != nil || !complete {
+		t.Fatalf("proof=%v %v", complete, err)
+	}
+	testfix.Git(t, root, "checkout", "-q", "-B", "tamper", tip)
+	laWrite(t, root, dst, "changed")
+	changed := laCommit(t, root, "tamper archive")
+	if complete, err := laProof(root, changed, pr); err == nil || complete {
+		t.Fatalf("changed asset accepted: %v %v", complete, err)
+	}
+}
+
+func TestLandingArchiveAssetRefusalsPreserveMain(t *testing.T) {
+	for _, kind := range []string{"missing", "unlinked", "collision", "archive-residue"} {
+		t.Run(kind, func(t *testing.T) {
+			root, origin, pr := laFixture(t)
+			name, _ := issueassets.Name([]byte("evidence"), "png")
+			rel := "assets/000246/" + name
+			body := "![evidence](" + rel + ")"
+			if kind == "unlinked" {
+				body = "no evidence link"
+			}
+			laWrite(t, root, laIssue, laBody("codecomplete", body))
+			if kind != "missing" {
+				laWrite(t, root, "workshop/issues/"+rel, "evidence")
+			}
+			if kind == "archive-residue" {
+				other, _ := issueassets.Name([]byte("older evidence"), "png")
+				laWrite(t, root, "workshop/history/issues/assets/000246/"+other, "older evidence")
+			}
+			if kind == "collision" {
+				laWrite(t, root, "workshop/history/issues/"+rel, "evidence")
+			}
+			pr.HeadOID = laCommit(t, root, "evidence state")
+			pr.MergeOID = pr.HeadOID
+			testfix.Git(t, root, "push", "-q", "origin", "HEAD:main")
+			before := laGit(t, origin, "rev-parse", "main")
+			err := laArchive(root, pr)
+			if err == nil {
+				t.Fatal("invalid bundle archived")
+			}
+			if laGit(t, origin, "rev-parse", "main") != before {
+				t.Fatal("refusal changed main")
+			}
+		})
+	}
+}
+
+func TestLandingArchiveProofRefusesRecreatedActiveAsset(t *testing.T) {
+	root, origin, pr := laFixture(t)
+	name, _ := issueassets.Name([]byte("evidence"), "png")
+	rel := "assets/000246/" + name
+	laWrite(t, root, laIssue, laBody("codecomplete", "![evidence]("+rel+")"))
+	laWrite(t, root, "workshop/issues/"+rel, "evidence")
+	pr.HeadOID = laCommit(t, root, "evidence")
+	pr.MergeOID = pr.HeadOID
+	testfix.Git(t, root, "push", "-q", "origin", "HEAD:main")
+	if err := laArchive(root, pr); err != nil {
+		t.Fatal(err)
+	}
+	tip := laGit(t, origin, "rev-parse", "main")
+	testfix.Git(t, root, "checkout", "-q", "-B", "recreate", tip)
+	laWrite(t, root, "workshop/issues/"+rel, "evidence")
+	changed := laCommit(t, root, "recreate active asset")
+	if complete, err := laProof(root, changed, pr); err == nil || complete {
+		t.Fatalf("active asset accepted: %v %v", complete, err)
 	}
 }

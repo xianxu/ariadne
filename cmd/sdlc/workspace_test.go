@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -141,7 +142,7 @@ func TestWorkspaceBranchPlacement(t *testing.T) {
 	f := newWorkspaceFixture(t)
 	t.Chdir(f.Slot)
 	var out, diag bytes.Buffer
-	got, err := createWorktreeBranch(&out, &diag, "second-issue", execGitRunner{})
+	got, err := createWorktreeBranch(context.Background(), &out, &diag, "second-issue", execGitRunner{}, "workshop/issues")
 	if err != nil {
 		t.Fatal(err)
 	}

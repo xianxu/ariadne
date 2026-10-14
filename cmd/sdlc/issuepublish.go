@@ -43,7 +43,7 @@ func newIssuePublishCmd() *cobra.Command {
 				if source == "" {
 					return fmt.Errorf("--commit SHA is required; select one coherent documentation commit")
 				}
-				return publishIssueCommit(cmd.OutOrStdout(), cmd.ErrOrStderr(), root, source,
+				return publishIssueCommit(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), root, source,
 					envOr("WF_ISSUES_DIR", "workshop/issues"), envOr("WF_HISTORY_DIR", "workshop/history"))
 			}
 			if source != "" {
@@ -133,8 +133,9 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 	return republishOwned(env, stdout, stderr, republish, dirs.Rel[0], dryRun)
 }
 
-func publishIssueCommit(stdout, stderr io.Writer, root, source, issuesDir, historyDir string) error {
-	tf, err := gitx.NewTrunkFile(root, "origin", "main")
+func publishIssueCommit(ctx context.Context, stdout, stderr io.Writer, root, source, issuesDir, historyDir string) error {
+	ctx = commandContext(ctx)
+	tf, err := gitx.NewTrunkFileContext(ctx, root, "origin", "main")
 	if err != nil {
 		return err
 	}
@@ -155,7 +156,13 @@ func publishIssueCommit(stdout, stderr io.Writer, root, source, issuesDir, histo
 	if err := checkPublishedClassification(tf, selected, roots[0]); err != nil {
 		return err
 	}
-	result, err := tf.PublishCommit(selected)
+	var changed []string
+	for _, c := range selected.Changes {
+		changed = append(changed, c.Path)
+	}
+	result, err := tf.PublishCommitChecked(selected, func(base, next *gitx.TrunkView) error {
+		return validateAssetPublication(ctx, root, base, next, changed, issuesDir, historyDir)
+	})
 	if err != nil {
 		return err
 	}

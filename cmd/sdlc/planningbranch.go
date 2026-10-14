@@ -36,6 +36,13 @@ func preparePlanningBranch(env *trackerEnv, id, detailPath string) (planningBran
 		if err := refuseUnlandedBase(env, "HEAD", view.Ref(), id, name); err != nil {
 			return 0, err
 		}
+		head, err := env.git("rev-parse", "HEAD")
+		if err != nil {
+			return 0, err
+		}
+		if err := verifyMaterializedAssets(env.root, env.main.ViewOf(head), path.Dir(detailPath)); err != nil {
+			return 0, err
+		}
 		return planningAlreadyOnBranch, nil
 	}
 	if !env.onRest() {
@@ -80,11 +87,24 @@ func preparePlanningBranch(env *trackerEnv, id, detailPath string) (planningBran
 		if err := refuseUnlandedBase(env, "refs/heads/"+name, pinned, id, name); err != nil {
 			return 0, err
 		}
+		tip, err := env.git("rev-parse", "refs/heads/"+name)
+		if err != nil {
+			return 0, err
+		}
+		if err := verifyAssetTransition(env, tip, path.Dir(detailPath)); err != nil {
+			return 0, err
+		}
 		if _, err := env.git("switch", "-q", name); err != nil {
 			return 0, fmt.Errorf("switch to existing %s: %w", name, err)
 		}
-		env.branch = name
+		env.branch, env.head = name, tip
+		if err := verifyMaterializedAssets(env.root, env.main.ViewOf(tip), path.Dir(detailPath)); err != nil {
+			return 0, err
+		}
 		return planningSwitchedBranch, nil
+	}
+	if err := verifyAssetTransition(env, pinned, path.Dir(detailPath)); err != nil {
+		return 0, err
 	}
 	if _, err := env.git("switch", "-q", "--no-track", "-c", name, pinned); err != nil {
 		return 0, fmt.Errorf("create %s at main: %w", name, err)
@@ -94,6 +114,9 @@ func preparePlanningBranch(env *trackerEnv, id, detailPath string) (planningBran
 		return 0, errors.New("planning branch is not at the pinned main commit")
 	}
 	env.branch, env.head = name, head
+	if err := verifyMaterializedAssets(env.root, env.main.ViewOf(pinned), path.Dir(detailPath)); err != nil {
+		return 0, err
+	}
 	return planningCreatedBranch, nil
 }
 

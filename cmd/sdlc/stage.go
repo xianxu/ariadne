@@ -14,6 +14,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/fleet"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
@@ -31,7 +32,7 @@ func NewStageCmd() *cobra.Command {
 				if build {
 					return errors.New("--clear and --build do not combine")
 				}
-				return runUnstage(".", address, dryRun, cmd.OutOrStdout(), cmd.ErrOrStderr())
+				return runUnstage(commandContext(cmd.Context()), ".", address, dryRun, cmd.OutOrStdout(), cmd.ErrOrStderr())
 			}
 			return runStage(commandContext(cmd.Context()), ".", address, build, dryRun, cmd.OutOrStdout(), cmd.ErrOrStderr())
 		},
@@ -51,6 +52,14 @@ func runStage(ctx context.Context, dir, address string, build, dryRun bool, stdo
 		return err
 	}
 	from, to, commit := facts.From, facts.To, facts.From.Head
+	assets, err := slotAssetEnvironment(ctx, to.Root)
+	if err != nil {
+		return err
+	}
+	issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
+	if err := verifyAssetTransition(assets, commit, issuesDir); err != nil {
+		return err
+	}
 	if n := len(from.Changes) + len(from.Untracked); n > 0 {
 		cwarn(stderr, fmt.Sprintf("%s has %d uncommitted or untracked path(s); only its HEAD %s is staged", from.Address, n, shortOID(commit)))
 	}
@@ -75,6 +84,9 @@ func runStage(ctx context.Context, dir, address string, build, dryRun bool, stdo
 	if err := verifySlot(r, to.Root, "", commit); err != nil {
 		return err
 	}
+	if err := verifyMaterializedAssets(to.Root, assets.main.ViewOf(commit), issuesDir); err != nil {
+		return err
+	}
 	// Recorded only after the verified switch: a crash before it leaves :N at a
 	// commit the slot's branch contains, which is leavable anyway.
 	if err := writeStaged(r, to.Root, commit); err != nil {
@@ -94,7 +106,7 @@ func runStage(ctx context.Context, dir, address string, build, dryRun bool, stdo
 	return nil
 }
 
-func runUnstage(dir, address string, dryRun bool, stdout, stderr io.Writer) error {
+func runUnstage(ctx context.Context, dir, address string, dryRun bool, stdout, stderr io.Writer) error {
 	r := execGitRunner{}
 	id, err := workspace.Resolve(r, dir, address)
 	if err != nil {
@@ -108,10 +120,22 @@ func runUnstage(dir, address string, dryRun bool, stdout, stderr io.Writer) erro
 		return fmt.Errorf("sdlc stage runs between durable slots; %s is not one", to.Root)
 	}
 	staged, err := checkUnstage(to)
-	if err != nil || !staged {
-		if err == nil {
-			cok(stderr, fmt.Sprintf("%s is on its resting branch %s; nothing staged", to.Address, to.Resting))
+	if err != nil {
+		return err
+	}
+	assets, err := slotAssetEnvironment(ctx, to.Root)
+	if err != nil {
+		return err
+	}
+	issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
+	if !staged {
+		if err := verifyMaterializedAssets(to.Root, assets.main.ViewOf(to.Head), issuesDir); err != nil {
+			return err
 		}
+		cok(stderr, fmt.Sprintf("%s is on its resting branch %s; nothing staged", to.Address, to.Resting))
+		return nil
+	}
+	if err := verifyAssetTransition(assets, to.RestHead, issuesDir); err != nil {
 		return err
 	}
 	if dryRun {
@@ -124,9 +148,20 @@ func runUnstage(dir, address string, dryRun bool, stdout, stderr io.Writer) erro
 	if err := verifySlot(r, to.Root, to.Resting, to.RestHead); err != nil {
 		return err
 	}
+	if err := verifyMaterializedAssets(to.Root, assets.main.ViewOf(to.RestHead), issuesDir); err != nil {
+		return err
+	}
 	removeStaged(r, to.Root)
 	fmt.Fprintf(stdout, "%s is back on %s (was staged at %s)\n", to.Address, to.Resting, shortOID(to.Head))
 	return nil
+}
+
+func slotAssetEnvironment(ctx context.Context, root string) (*trackerEnv, error) {
+	reader, err := gitx.NewTrunkFileContext(ctx, root, "origin", "main")
+	if err != nil {
+		return nil, err
+	}
+	return &trackerEnv{ctx: ctx, root: root, main: reader}, nil
 }
 
 // observeStage reads everything checkStage needs from both slots.

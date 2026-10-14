@@ -21,6 +21,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/repoenum"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
@@ -151,6 +152,10 @@ func runLegacyIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string
 		Area:        f.Areas,
 		Severity:    f.Severity,
 	})
+
+	if _, err := issueassets.BuildBundle(nextID, issueAssetBody([]byte(rendered)), nil); err != nil {
+		return fmt.Errorf("%s: %w", shown, err)
+	}
 
 	if f.DryRun {
 		cinfo(stderr, "dry-run — no files written")
@@ -449,7 +454,8 @@ func syncLegacyIssue(stderr io.Writer, f *changeCodeFlags, issuePath string) {
 	// under --dry-run: a helper that commits must not depend on a caller's early
 	// return for its dry-run correctness.
 	syncFlags := &claimFlags{
-		Issue: id, IssuesDir: f.IssuesDir, NoStart: true,
+		Context: changeCodeContext(f),
+		Issue:   id, IssuesDir: f.IssuesDir, NoStart: true,
 		DryRun: f.DryRun, AllowNoChanges: true,
 	}
 	msg := issueSyncMessage(id, "spec/plan at change-code")

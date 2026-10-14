@@ -558,9 +558,45 @@ The simplest durable authority beats a clever scan of consequences.
 - A handoff against a file someone else keeps editing (an ops project's Log)
   goes stale as a saved patch within hours. Hand off the regeneration script
   and keep the patch only as a preview (#329 D10).
+
+- Adding binary sidecars under a document root changes existing subtree-reader
+  workload even if the document parser ignores them. Select document metadata
+  before loading blobs; per-attachment limits do not bound aggregate reads (#337 PQ-1).
+- Multi-file writes need an explicit distinction between unchanged preflight
+  refusal and recoverable post-effect failure. Rollback may remove only bytes
+  this attempt owns, while restart must re-establish evidence (#337 PQ-2).
+
+- Authorization for publishing new bytes belongs to the pinned destination
+  snapshot, not a stale working-tree configuration. Re-evaluate on every retry
+  and test remote-only tightening across all admission paths (#337 BR-1).
+- Git can transform bytes at every materialization path, including an archived
+  source later renamed into a safe destination. Check both paths before effects
+  and verify actual restored bytes against pinned content (#337 BR-2).
+- Classify a named function by its actual dependencies: snapshot loading, Git
+  or clock reads make a proof integration even when its planner is pure (#337 BR-3).
+- A fake external CLI response does not verify production argv against the real
+  service. Supply an opt-in read-only conformance check and its cadence (#337 BR-4).
+
+- A caller sweep is not complete until its inventory includes every direct
+  checkout/restore followed by commit. Verify that inventory against code search;
+  shared helper coverage did not imply issue restore used it (#337 BR-2 repeat).
+- Do not strip destination host identity before an authorization query. Ambient
+  CLI host settings can select a different private repository with the same
+  owner/name; test conflicting host settings through the real seam (#337 BR-5).
+- An index remains authoritative when its storage directory is absent. Skipping
+  validation based only on directory history misses body-only dangling links
+  (#337 BR-6).
+- A prepared durable candidate may predate its current validator. Validate the
+  complete pinned candidate at publication and uncertain-outcome recovery, not
+  only during preparation; absence of asset pins is not a body-index proof
+  (#337 BR-7).
 - Every claim a durable contract makes needs a test that proves it: each
   half of an OR rule, each recovery-catalog field, each ticked plan box. In
   #344 the ref-containment half of `Leavable` (the half the crash recovery
   relied on) could be mutated to false with every test still green, and two
   review rounds found unproven claims in the same family. Before closing,
   mutate each branch of a new rule once and list the test that fails.
+
+- Classify a function by all production effects reachable through its callbacks, not only its direct calls or name. An injected reader still makes a planner INTEGRATION when the production binding reads Git; trace every callback before declaring PURE (#337 BR-3).
+
+- When an authorized acceptance revision changes required checks, update the current Done when criteria as well as appending its revision history. Label completed local verification separately from pending PR CI; do not leave two competing acceptance contracts (#358 BR-1).

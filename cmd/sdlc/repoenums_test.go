@@ -166,7 +166,7 @@ func TestIssuePublish_RefusesUndeclaredArea(t *testing.T) {
 		writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "---\nid: 000206\nstatus: open\n"+fm+"---\n\n# x\n\n## Spec\n\nedit\n")
 		git(t, repo, "commit", "-qam", "edit")
 		var out, errs bytes.Buffer
-		err := publishIssueCommit(&out, &errs, repo, strings.TrimSpace(git(t, repo, "rev-parse", "HEAD")), syncIssuesDir, "workshop/history")
+		err := publishIssueCommit(context.Background(), &out, &errs, repo, strings.TrimSpace(git(t, repo, "rev-parse", "HEAD")), syncIssuesDir, "workshop/history")
 		if err != nil {
 			git(t, repo, "reset", "-q", "--hard", "HEAD~1") // a refused edit is not the next edit's parent
 		}

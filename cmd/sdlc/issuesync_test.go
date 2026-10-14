@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -454,7 +455,7 @@ func TestIssueSync_PushRequiresExplicitAlreadyCommittedBody(t *testing.T) {
 	if got := git(t, origin, "rev-parse", "main"); got != before {
 		t.Fatal("refusal published")
 	}
-	if err := publishIssueCommit(&out, &errs, repo, source, syncIssuesDir, "workshop/history"); err != nil {
+	if err := publishIssueCommit(context.Background(), &out, &errs, repo, source, syncIssuesDir, "workshop/history"); err != nil {
 		t.Fatal(err)
 	}
 	if got := git(t, origin, "show", "main:"+issuePath206); !strings.Contains(got, "committed design") {
@@ -542,11 +543,11 @@ func TestPublishIsIdempotent(t *testing.T) {
 	var out, errs bytes.Buffer
 	syncOK(t, &out, &errs, &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir})
 	source := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD"))
-	if err := publishIssueCommit(&out, &errs, repo, source, syncIssuesDir, "workshop/history"); err != nil {
+	if err := publishIssueCommit(context.Background(), &out, &errs, repo, source, syncIssuesDir, "workshop/history"); err != nil {
 		t.Fatal(err)
 	}
 	tip := git(t, origin, "rev-parse", "main")
-	if err := publishIssueCommit(&out, &errs, repo, source, syncIssuesDir, "workshop/history"); err != nil {
+	if err := publishIssueCommit(context.Background(), &out, &errs, repo, source, syncIssuesDir, "workshop/history"); err != nil {
 		t.Fatal(err)
 	}
 	if got := git(t, origin, "rev-parse", "main"); got != tip {
@@ -874,7 +875,7 @@ func TestSyncIssuesToMain_PublishesFromASubdirectory(t *testing.T) {
 	git(t, repo, "commit", "-q", "-m", "local commit")
 	stdout.Reset()
 	stderr.Reset()
-	if err := publishIssueCommit(&stdout, &stderr, repo, strings.TrimSpace(git(t, repo, "rev-parse", "HEAD")), syncIssuesDir, "workshop/history"); err != nil {
+	if err := publishIssueCommit(context.Background(), &stdout, &stderr, repo, strings.TrimSpace(git(t, repo, "rev-parse", "HEAD")), syncIssuesDir, "workshop/history"); err != nil {
 		t.Fatalf("republish from a subdirectory: %v\n%s", err, stderr.String())
 	}
 	if on := git(t, origin, "show", "main:"+syncIssuesDir+"/000206-issue-sync-verb.md"); !strings.Contains(on, "committed then republished") {
@@ -971,5 +972,46 @@ func TestLocateIssueFile_FromASubdirectory(t *testing.T) {
 	}
 	if !strings.HasSuffix(got, "000042-x.md") {
 		t.Errorf("got %q", got)
+	}
+}
+
+func TestIssuePublishCommitCanceledCommand(t *testing.T) {
+	repo, origin := syncRepo(t)
+	writeSyncIssue(t, repo, filepath.Base(issuePath206), "cancelled publication\n")
+	git(t, repo, "add", "--", issuePath206)
+	git(t, repo, "commit", "-q", "-m", "selected design")
+	source := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD"))
+	before := git(t, origin, "rev-parse", "main")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	cmd := newIssuePublishCmd()
+	cmd.SetContext(ctx)
+	cmd.SetArgs([]string{"--commit", source})
+	var out, errs bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&errs)
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "context canceled") {
+		t.Errorf("cancelled command error = %v; stderr = %s", err, errs.String())
+	}
+	if got := git(t, origin, "rev-parse", "main"); got != before {
+		t.Error("cancelled command published to origin/main")
+	}
+}
+
+func TestSyncIssuesToMainCanceledPublication(t *testing.T) {
+	repo, origin := syncRepo(t)
+	writeSyncIssue(t, repo, filepath.Base(issuePath206), "cancelled sync publication\n")
+	before := git(t, origin, "rev-parse", "main")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	var out, errs bytes.Buffer
+	f := &claimFlags{Context: ctx, Issue: 206, IssuesDir: syncIssuesDir, NoStart: true}
+	err := syncIssuesToMain(&out, &errs, f, execGitRunner{}, "#206: issue-sync: cancelled")
+	if err == nil || !strings.Contains(err.Error(), "context canceled") {
+		t.Errorf("cancelled sync error = %v; stderr = %s", err, errs.String())
+	}
+	if got := git(t, origin, "rev-parse", "main"); got != before {
+		t.Error("cancelled sync published to origin/main")
 	}
 }

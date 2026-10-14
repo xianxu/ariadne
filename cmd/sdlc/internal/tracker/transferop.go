@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -26,12 +27,13 @@ type Remover func(spec ReceiptSpec, mainCommit string) error
 // unrelated card change (a claim, once details are on main) never strands it.
 type TransferOp struct {
 	diagnostics
-	ctx    context.Context
-	repo   *Repository
-	main   *gitx.TrunkFile
-	root   string
-	branch string // refs/heads/<name> of the checkout driving this run
-	remove Remover
+	ctx           context.Context
+	repo          *Repository
+	main          *gitx.TrunkFile
+	root          string
+	branch        string // refs/heads/<name> of the checkout driving this run
+	remove        Remover
+	BeforePublish func(ReceiptSpec, *gitx.TrunkView) error
 }
 
 func NewTransferOp(ctx context.Context, repo *Repository, main *gitx.TrunkFile, root, branch string, remove Remover) *TransferOp {
@@ -41,10 +43,22 @@ func NewTransferOp(ctx context.Context, repo *Repository, main *gitx.TrunkFile, 
 // removeSource runs the remover only in the source checkout.
 func (op *TransferOp) removeSource(r Receipt) error {
 	spec := r.Spec()
+	if err := op.validateConfirmed(r); err != nil {
+		return err
+	}
 	if err := requireSourceCheckout(spec, op.branch); err != nil {
 		return err
 	}
 	return op.remove(spec, MainCommit(r))
+}
+
+// Confirmed publications are still evidence when a receipt resumes at a later stage.
+func (op *TransferOp) validateConfirmed(r Receipt) error {
+	if oid := MainCommit(r); oid != "" {
+		_, err := checkedMainPublisher(op.main, op.root, r.Spec(), oid, nil)
+		return err
+	}
+	return nil
 }
 
 func (op *TransferOp) handoff(spec ReceiptSpec) issue.Handoff {
@@ -65,6 +79,9 @@ func MainCommit(r Receipt) string {
 
 func (op *TransferOp) Prepare(e Effect, r Receipt) (Event, error) {
 	spec := r.Spec()
+	if err := op.validateConfirmed(r); err != nil {
+		return Event{}, err
+	}
 	var c gitx.Candidate
 	var err error
 	switch e.Stage {
@@ -74,12 +91,17 @@ func (op *TransferOp) Prepare(e Effect, r Receipt) (Event, error) {
 			return issue.SetCardHandoff(current, h)
 		})
 	case "transfer.main":
-		var detail []byte
-		if detail, err = gitx.ReadBlob(op.ctx, op.root, spec.SourceBlob); err != nil {
+		detail, bundle, err := pinnedDetail(op.main.ViewOf(spec.MainBase), spec)
+		if err != nil {
 			return Event{}, err
 		}
 		msg := fmt.Sprintf("#%s: issue: initial details\n\nTracker-Operation: %s\nDetail-Handoff: #%s", issue.CLIRef(spec.IssueID), spec.Token, spec.IssueID)
-		c, err = DetailPublication(op.main, spec.DestinationPath, detail, msg)
+
+		writes := map[string][]byte{}
+		for p, b := range bundle.Files {
+			writes[path.Join(path.Dir(spec.DestinationPath), p)] = b
+		}
+		c, err = DetailBundlePublication(op.main, spec.DestinationPath, detail, writes, msg)
 	case "transfer.record":
 		h := op.handoff(spec)
 		h.MainCommit = MainCommit(r)
@@ -100,11 +122,18 @@ func (op *TransferOp) Prepare(e Effect, r Receipt) (Event, error) {
 
 func (op *TransferOp) Apply(e Effect, r Receipt) (Event, error) {
 	spec := r.Spec()
+	if err := op.validateConfirmed(r); err != nil {
+		return Event{}, err
+	}
 	switch e.Kind {
 	case PublishCard:
 		return publishCardEvent(op.repo, &op.diagnostics, e, spec.CardPath)
 	case PublishMain:
-		return publishEvent(mainPublisher{op.main}, &op.diagnostics, e, e.Expected.MainBase, confirmedMain(e))
+		p, err := checkedMainPublisher(op.main, op.root, spec, e.CandidateOID, op.BeforePublish)
+		if err != nil {
+			return Event{}, err
+		}
+		return publishEvent(p, &op.diagnostics, e, e.Expected.MainBase, confirmedMain(e))
 	case RemoveSource:
 		if err := op.removeSource(r); err != nil {
 			return Event{}, err
@@ -116,11 +145,18 @@ func (op *TransferOp) Apply(e Effect, r Receipt) (Event, error) {
 
 func (op *TransferOp) Probe(e Effect, r Receipt) (Event, error) {
 	spec := r.Spec()
+	if err := op.validateConfirmed(r); err != nil {
+		return Event{}, err
+	}
 	switch e.Stage {
 	case "transfer.handoff", "transfer.record":
 		return probeCardEvent(op.repo, &op.diagnostics, e, spec.CardPath)
 	case "transfer.main":
-		return probeEvent(mainPublisher{op.main}, &op.diagnostics, e, e.Expected.MainBase, confirmedMain(e))
+		p, err := checkedMainPublisher(op.main, op.root, spec, e.CandidateOID, op.BeforePublish)
+		if err != nil {
+			return Event{}, err
+		}
+		return probeEvent(p, &op.diagnostics, e, e.Expected.MainBase, confirmedMain(e))
 	case "transfer.remove":
 		// The remover is idempotent: it confirms an earlier removal or finishes it.
 		if err := op.removeSource(r); err != nil {
@@ -146,9 +182,33 @@ func (op *TransferOp) Refresh(e Effect, r Receipt) (Event, error) {
 }
 
 // mainPublisher exposes main's candidate steps through the shared publisher.
-type mainPublisher struct{ t *gitx.TrunkFile }
+type mainPublisher struct {
+	t      *gitx.TrunkFile
+	spec   ReceiptSpec
+	before func(ReceiptSpec, *gitx.TrunkView) error
+}
 
-func (m mainPublisher) Push(c gitx.Candidate) (gitx.PushOutcome, error) { return m.t.PushCandidate(c) }
+func (m mainPublisher) Push(c gitx.Candidate) (gitx.PushOutcome, error) {
+	if m.before != nil {
+		state, _, err := m.t.ProbeCandidate(c)
+		if err != nil {
+			return gitx.PushUnknown, err
+		}
+		if state == gitx.ProbeReachable {
+			return gitx.PushAccepted, nil
+		}
+		if state == gitx.ProbeAbsentMoved {
+			return gitx.PushRejected, nil
+		}
+		if state != gitx.ProbeAbsentSame {
+			return gitx.PushUnknown, fmt.Errorf("cannot establish publication destination")
+		}
+		if err := m.before(m.spec, m.t.ViewOf(c.Base)); err != nil {
+			return gitx.PushUnknown, err
+		}
+	}
+	return m.t.PushCandidate(c)
+}
 func (m mainPublisher) Probe(c gitx.Candidate) (gitx.ProbeOutcome, string, error) {
 	return m.t.ProbeCandidate(c)
 }

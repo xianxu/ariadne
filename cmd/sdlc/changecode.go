@@ -250,11 +250,11 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	// 8. Create branch.
 	switch wt {
 	case "yes":
-		if _, err := createWorktreeBranch(stdout, stderr, name, changeCodeRunner); err != nil {
+		if _, err := createWorktreeBranch(changeCodeContext(f), stdout, stderr, name, changeCodeRunner, f.IssuesDir); err != nil {
 			die(stderr, err.Error())
 		}
 	case "no":
-		if _, err := createInPlaceBranch(stdout, stderr, name, changeCodeRunner); err != nil {
+		if _, err := createInPlaceBranch(changeCodeContext(f), stdout, stderr, name, changeCodeRunner, f.IssuesDir); err != nil {
 			die(stderr, err.Error())
 		}
 	}

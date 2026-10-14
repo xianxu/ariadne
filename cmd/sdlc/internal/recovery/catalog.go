@@ -9,6 +9,22 @@ const observeEvidence = "`sdlc issue show N --json`"
 // does not exist.
 var Catalog = []Contract{
 	{
+		Verbs:         []string{"issue attach"},
+		Class:         ConvergentRetry,
+		Effects:       "copies bounded source bytes to the issue's content-addressed asset folder and atomically adds a relative body link; no commit or push.",
+		Evidence:      "inspect the issue body and its assets/<id>/ folder; git diff shows the link and git status shows the copied file.",
+		Preconditions: "the repository asset policy allows files; the issue is editable here; the source and existing bundle pass size, path, hash and Git attribute checks.",
+		Repeat:        "the same source bytes and extension already linked are a no-op, preserving the existing caption; exact installed but unlinked bytes can be adopted. A missing linked file refuses, naming the file to restore.",
+		LostResponse:  "inspect the body and asset bytes, then rerun the same command. A failed body write removes only newly installed, unchanged, unreferenced bytes; pre-existing or uncertain bytes are retained and named. An interrupted body temporary file refuses until the named file is reconciled and removed.",
+		Ends:          "source bytes, extension, body, ownership or policy change; the next invocation validates the current bundle anew.",
+		Proofs: []Proof{
+			{"exact copies and retries preserve one link", []string{"TestIssueAttachCopiesLinksAndRetryIsNoop"}},
+			{"rollback removes only owned bytes and a lost response is reconciled", []string{"TestIssueAttachFailureRecoveryUsesOwnedBytes"}},
+			{"missing linked bytes and interrupted body temporary files refuse", []string{"TestIssueAttachMissingLinkedBytesNeverReportsSuccess", "TestIssueAttachPreflightRecoveryAndBodyLimit"}},
+			{"policy and converting attributes refuse before installing bytes", []string{"TestIssueAttachPolicyRefusesBeforeReadingSource", "TestIssueAttachRefusesConvertingAttributes"}},
+		},
+	},
+	{
 		Verbs:         []string{"claim"},
 		Class:         ConvergentRetry,
 		Effects:       "one tracker commit recording this workspace as owner, the lock (#277, #283), on every named card (#284: a set is all or nothing, each card decided on the bytes each attempt reads): the claimant, `updated` and a first `started`, spending any release; the status is unchanged (an open card stays open until start-plan; unowned started work is taken over in its status). A handed-off card (its release names a branch) is one issue at a time: the branch is fetched and checked out at the recorded tip. Afterwards a resting branch fast-forwards to the fetched main, or claim warns why not; elsewhere, details differing from main's are named. On the owner's own moved work it relocates the claimant. Never pushes main. A legacy repository (no tracker) has no owner, and its claim performs open → working.",
