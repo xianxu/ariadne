@@ -66,7 +66,7 @@ func reviewRootEntries(t *testing.T) []os.DirEntry {
 	return entries
 }
 
-const shipReview = "VERDICT: SHIP (confidence: high)\n\nLooks good.\n"
+const shipReview = "VERDICT: SHIP (confidence: high)\n\nLooks good.\n" + emptyBoundaryFindings
 
 func TestBoundaryReviewRunsInDisposableCheckout(t *testing.T) {
 	t.Setenv("WF_REVIEW_CHECKOUT_ROOT", t.TempDir())

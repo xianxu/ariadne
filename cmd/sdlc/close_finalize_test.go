@@ -77,7 +77,7 @@ func TestCloseCommands_IssueChangedDuringBoundaryReview_DoesNotFinalize(t *testi
 			judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 				close(started)
 				<-releaseReview
-				return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
+				return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n" + emptyBoundaryFindings)}, nil
 			}
 
 			done := make(chan struct {
@@ -147,7 +147,7 @@ func TestCloseCommand_HEADChangedDuringBoundaryReview_DoesNotFinalize(t *testing
 	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 		close(started)
 		<-releaseReview
-		return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
+		return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n" + emptyBoundaryFindings)}, nil
 	}
 
 	done := make(chan struct {
@@ -225,7 +225,7 @@ func TestCloseCommand_ProjectChangedDuringBoundaryReview_DoesNotFinalize(t *test
 	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 		close(started)
 		<-releaseReview
-		return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
+		return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n" + emptyBoundaryFindings)}, nil
 	}
 
 	done := make(chan struct {
@@ -338,7 +338,7 @@ func TestCloseCommand_PlanChangedDuringBoundaryReview_DoesNotFinalize(t *testing
 				judge.Run = func(ctx context.Context, onStart func(pid int), agent string, args ...string) (judge.ProcessOutput, error) {
 					close(started)
 					<-releaseReview
-					return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
+					return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n" + emptyBoundaryFindings)}, nil
 				}
 
 				done := make(chan error, 1)
@@ -372,7 +372,7 @@ func TestCloseCommand_PlanChangedDuringBoundaryReview_DoesNotFinalize(t *testing
 // non-finalizing (REWORK) close does not.
 func TestRunCloseWithReview_EmitsLessonsReminder(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\ngood")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\ngood"+emptyBoundaryFindings)
 	var stdout strings.Builder
 	if err := runCloseWithReview(&stdout, io.Discard, closeFlagsFor(issuesDir)); err != nil {
 		t.Fatalf("SHIP close should finalize: %v", err)
@@ -382,7 +382,7 @@ func TestRunCloseWithReview_EmitsLessonsReminder(t *testing.T) {
 	}
 
 	issuesDir2 := closeRepo(t, 69)
-	stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nnope")
+	stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nnope"+reworkBoundaryFindings)
 	var stdout2 strings.Builder
 	_ = runCloseWithReview(&stdout2, io.Discard, closeFlagsFor(issuesDir2))
 	if strings.Contains(stdout2.String(), judge.LessonsReminder) {
@@ -395,7 +395,7 @@ func TestRunCloseWithReview_EmitsLessonsReminder(t *testing.T) {
 // ambiguity (the old FindByIssueRef refused on >1; DiscoverByIssueRef ticks all).
 func TestRunClose_UpdatesAllMatchingProjects(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\ngood")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\ngood"+emptyBoundaryFindings)
 	repoRoot, _ := os.Getwd()
 	projectsDir := filepath.Join(repoRoot, "workshop", "projects")
 	if err := os.MkdirAll(projectsDir, 0o755); err != nil {
@@ -426,7 +426,7 @@ func TestRunClose_UpdatesAllMatchingProjects(t *testing.T) {
 // no close log line, no actual_hours, a non-nil error, and no "flipped → done".
 func TestRunCloseWithReview_REWORK_DoesNotFinalize(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
-	stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nNeeds rework.\n")
+	stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nNeeds rework.\n"+reworkBoundaryFindings)
 
 	var stderr strings.Builder
 	err := runCloseWithReview(io.Discard, &stderr, closeFlagsFor(issuesDir))
@@ -480,7 +480,7 @@ func TestRunCloseWithReview_DispatchError_Halts(t *testing.T) {
 }
 
 // #139: an unexpected verdict (unknown — no schema-valid verdict) halts for a
-// human; it does not finalize.
+// protocol refusal after one retry; it does not finalize.
 func TestRunCloseWithReview_Unknown_Halts(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
 	stubJudge(t, "I reviewed the diff and have some thoughts, but no clear call.\n")
@@ -493,8 +493,8 @@ func TestRunCloseWithReview_Unknown_Halts(t *testing.T) {
 	if strings.Contains(readIssue(t, issuesDir), "status: codecomplete") {
 		t.Error("an unknown verdict must NOT finalize the close")
 	}
-	if !strings.Contains(stderr.String(), "UNEXPECTED") || !strings.Contains(stderr.String(), "consult a human") {
-		t.Errorf("halt should tell the operator to stop + consult a human:\n%s", stderr.String())
+	if !strings.Contains(stderr.String(), "protocol failed after two attempts") || !strings.Contains(stderr.String(), "missing verdict") {
+		t.Errorf("halt should report the exhausted response-protocol retry:\n%s", stderr.String())
 	}
 }
 
@@ -504,12 +504,12 @@ func TestRunCloseWithReview_RerunAfterREWORK(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
 	f := closeFlagsFor(issuesDir)
 
-	stubJudge(t, "VERDICT: REWORK\n\nfix it")
+	stubJudge(t, "VERDICT: REWORK\n\nfix it"+reworkBoundaryFindings)
 	if err := runCloseWithReview(io.Discard, io.Discard, f); err == nil {
 		t.Fatal("first close (REWORK) should error")
 	}
 	// Rerun with SHIP — note f carries NO NoReclose flag.
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\ngood")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\ngood"+addressedBoundaryFindings)
 	if err := runCloseWithReview(io.Discard, io.Discard, f); err != nil {
 		t.Fatalf("rerun (SHIP) should finalize cleanly (no --no-reclose-guard), got: %v", err)
 	}
@@ -529,7 +529,7 @@ func TestRunCloseWithReview_RerunAfterREWORK(t *testing.T) {
 // leaves the milestone unwritten (no "closed M1" log line), non-nil error.
 func TestRunMilestoneClose_REWORK_DoesNotFinalize(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
-	stubJudge(t, "VERDICT: REWORK\n\nnot yet")
+	stubJudge(t, "VERDICT: REWORK\n\nnot yet"+reworkBoundaryFindings)
 
 	f := &milestoneCloseFlags{Issue: 69, Milestone: "M1", Actual: "1", Verified: "tests pass",
 		NoAtlas: true, IssuesDir: issuesDir, BrainDir: "../nonexistent-brain"}
@@ -544,7 +544,7 @@ func TestRunMilestoneClose_REWORK_DoesNotFinalize(t *testing.T) {
 // #139: a milestone SHIP finalizes (writes + annotates the closed-M1 line).
 func TestRunMilestoneClose_SHIP_Finalizes(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\ngood slice")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\ngood slice"+emptyBoundaryFindings)
 
 	f := &milestoneCloseFlags{Issue: 69, Milestone: "M1", Actual: "1", Verified: "tests pass",
 		NoAtlas: true, IssuesDir: issuesDir, BrainDir: "../nonexistent-brain"}
@@ -577,7 +577,7 @@ func TestCloseCommand_DocOnlyCommitDuringBoundaryReview_Finalizes(t *testing.T) 
 	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 		close(started)
 		<-releaseReview
-		return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
+		return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n" + emptyBoundaryFindings)}, nil
 	}
 
 	done := make(chan struct {
@@ -667,7 +667,7 @@ func TestCloseCommands_TLOwnedProjectUntouched(t *testing.T) {
 				judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 					close(started)
 					<-releaseReview
-					return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
+					return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n" + emptyBoundaryFindings)}, nil
 				}
 				done := make(chan error, 1)
 				var stderr string
@@ -740,7 +740,7 @@ func TestCloseCommands_TrainOnlyProjectUntouched(t *testing.T) {
 			orig := judge.Run
 			t.Cleanup(func() { judge.Run = orig })
 			judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
-				return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
+				return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n" + emptyBoundaryFindings)}, nil
 			}
 			_, stderr, err := executeSDLCTestCommand(append(args, "--issues-dir", issuesDir, "--brain-dir", brainDir)...)
 			if err != nil {

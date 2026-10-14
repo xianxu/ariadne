@@ -38,7 +38,7 @@ func bodyOf(t *testing.T, details string) string {
 // narrow commit after the evidence commit the card is bound to.
 func TestCloseRefreshesDetailsToCodecompleteCard(t *testing.T) {
 	r, cardPath, detailPath := closeReady(t, 341)
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "341", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}
@@ -64,7 +64,7 @@ func TestCloseRefreshesDetailsToCodecompleteCard(t *testing.T) {
 // committed bytes refreshed, the worktree keeps its edit plus the new mirror.
 func TestCloseMirrorKeepsDirtyDetailsBody(t *testing.T) {
 	r, cardPath, detailPath := closeReady(t, 342)
-	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nrename a thing\n")
+	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nrename a thing\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "342", "--verified", "e2e", "--actual", "1", "--no-atlas", "--no-ledger"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}
@@ -97,7 +97,7 @@ func TestCloseMirrorKeepsDirtyDetailsBody(t *testing.T) {
 // finished by recovery reconcile.
 func TestReconcileRetriesAnInterruptedCloseMirror(t *testing.T) {
 	r, cardPath, detailPath := closeReady(t, 350)
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "350", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}
@@ -266,7 +266,7 @@ func TestArchivedDetailsProjectsOrKeeps(t *testing.T) {
 // break the landing's retry proof — the archived mirror pins the card it used.
 func TestDurableLandingProofSurvivesACardChangeAfterArchive(t *testing.T) {
 	r, cardPath, _ := closeReady(t, 347)
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "347", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}
@@ -303,7 +303,7 @@ func TestDurableLandingProofSurvivesACardChangeAfterArchive(t *testing.T) {
 // wedge a landing: the details are archived unchanged and the proof completes.
 func TestDurableLandingArchivesAnUnreadableBaselineUnchanged(t *testing.T) {
 	r, _, detailPath := closeReady(t, 348)
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "348", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}

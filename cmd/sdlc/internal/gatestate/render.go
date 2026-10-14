@@ -119,7 +119,7 @@ func Render(rawLedger Ledger, repo string) string {
 		if len(r.New) > 0 {
 			b.WriteString("\n### Raised\n\n")
 			for _, f := range r.New {
-				fmt.Fprintf(&b, "- **%s** [%s]%s %s\n", f.ID, f.Severity, familyTag(f.Family), f.Title)
+				fmt.Fprintf(&b, "- **%s** [%s]%s %s\n", f.ID, f.Severity, familyTag(f.Family)+kindTag(f.Kind), f.Title)
 				if f.Detail != "" {
 					fmt.Fprintf(&b, "  %s\n", strings.ReplaceAll(f.Detail, "\n", "\n  "))
 				}
@@ -146,7 +146,7 @@ func Render(rawLedger Ledger, repo string) string {
 		return b.String()
 	}
 	for _, f := range open {
-		fmt.Fprintf(&b, "- **%s** [%s]%s %s\n", f.ID, f.Severity, familyTag(f.Family), f.Title)
+		fmt.Fprintf(&b, "- **%s** [%s]%s %s\n", f.ID, f.Severity, familyTag(f.Family)+kindTag(f.Kind), f.Title)
 	}
 	return b.String()
 }
@@ -178,4 +178,12 @@ func familyTag(family string) string {
 		return ""
 	}
 	return " `" + family + "`"
+}
+
+// kindTag preserves absent kinds in legacy prose projections.
+func kindTag(kind string) string {
+	if kind == "" {
+		return ""
+	}
+	return " (kind: " + kind + ")"
 }

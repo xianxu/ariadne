@@ -168,7 +168,7 @@ func findingIDs(fs []gatestate.Finding) []string {
 // #202: every ledger-gate refusal tells the fixer the dispute exists — one subtest per
 // site, each driven end-to-end, so removing the line at any one site fails here.
 func TestLedgerGateRefusalsRouteToDispute(t *testing.T) {
-	const fence = "```findings\nfindings:\n  - id: new\n    severity: Important\n    title: |\n      the byte path is unasserted\n```\n"
+	const fence = "```findings\nfindings:\n  - id: new\n    severity: Important\n    title: |\n      the byte path is unasserted\n    detail: |\n      The byte-path result has no assertion proving the required behavior.\n```\n"
 
 	t.Run("plan-quality ledger block", func(t *testing.T) {
 		testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir()) // the ledger write takes the repo lock

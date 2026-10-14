@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # vm-log.test.sh — deterministic checks of color gating + dim filtering.
 set -euo pipefail
+# Each case below owns its color policy, regardless of the invoking harness.
+unset NO_COLOR CLICOLOR_FORCE
 LOG="$(cd "$(dirname "$0")/.." && pwd)/vm-log.sh"
 
 # NO_COLOR → plain (no ESC), even with CLICOLOR_FORCE also set (NO_COLOR wins)

@@ -11,6 +11,10 @@
     "hardBlocking": [
         "Critical"
     ],
+    "kinds": [
+        "defect",
+        "unverifiable"
+    ],
     "dispositions": {
         "closing": [
             "addressed",

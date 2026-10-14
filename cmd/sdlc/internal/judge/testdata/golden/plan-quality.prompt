@@ -370,12 +370,17 @@ dispose:
 findings:
   - id: new
     severity: <Critical | Important | Minor>
+    kind: <defect | unverifiable>
     family: <slug>
     title: |
       <one line>
     detail: |
       <a sentence or two, optional>
 ```
+
+`kind` is optional; absent means defect. Use unverifiable when the reviewer
+cannot verify an invariant in its environment; describe the invariant and the
+missing measurement. A later dispute requires an explicit evidence-answering note.
 
 `family` is a short slug naming the underlying RULE a finding is an instance of,
 not its symptom — `block-opener-rule`, not `bracket-depth-bug`. If the prior-round

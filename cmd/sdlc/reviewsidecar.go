@@ -2,12 +2,15 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewprepare"
 )
 
 // sidecarMeta is everything a fresh reader needs to orient on a persisted
@@ -16,19 +19,20 @@ import (
 // values — the clock (Timestamp) is captured at the IO boundary and passed in so
 // the renderers below stay pure (ARCH-PURE).
 type sidecarMeta struct {
-	IssueNum  int
-	Title     string
-	Repo      string
-	IssueFile string
-	Milestone string // "" ⇒ whole-issue close
-	Base      string // long base SHA
-	Head      string
-	Command   string
-	Agent     string
-	Isolation string // #204: fenced | checkout; "" on sidecars written before it
-	Timestamp string // RFC3339
-	Verdict   string
-	Body      string
+	IssueNum    int
+	Title       string
+	Repo        string
+	IssueFile   string
+	Milestone   string // "" ⇒ whole-issue close
+	Base        string // long base SHA
+	Head        string
+	Command     string
+	Agent       string
+	Isolation   string // #204: fenced | checkout; "" on sidecars written before it
+	Timestamp   string // RFC3339
+	Verdict     string
+	Diagnostics string
+	Body        string
 }
 
 // sidecarPathFor derives a sidecar path from an issue filename stem plus a suffix. The one
@@ -107,6 +111,7 @@ func renderReviewEntry(m sidecarMeta, isRevision bool) string {
 	if !strings.HasSuffix(m.Body, "\n") {
 		b.WriteString("\n")
 	}
+	b.WriteString(m.Diagnostics)
 	return b.String()
 }
 
@@ -162,22 +167,44 @@ func writeReviewSidecar(p boundaryReviewParams, verdict, body, timestamp string)
 	}
 	path := sidecarPath(p.PlansDir, filepath.Base(issuePath), p.Milestone)
 	m := sidecarMeta{
-		IssueNum:  p.IssueNum,
-		Title:     title,
-		Repo:      repoIdentity(),
-		IssueFile: issuePath,
-		Milestone: p.Milestone,
-		Base:      p.BaseLong,
-		Head:      p.Head,
-		Command:   sidecarCommand(p.IssueNum, p.Milestone),
-		Agent:     p.Agent,
-		Isolation: p.Isolation,
-		Timestamp: timestamp,
-		Verdict:   verdict,
-		Body:      body,
+		IssueNum:    p.IssueNum,
+		Title:       title,
+		Repo:        repoIdentity(),
+		IssueFile:   issuePath,
+		Milestone:   p.Milestone,
+		Base:        p.BaseLong,
+		Head:        p.Head,
+		Command:     sidecarCommand(p.IssueNum, p.Milestone),
+		Agent:       p.Agent,
+		Isolation:   p.Isolation,
+		Timestamp:   timestamp,
+		Verdict:     verdict,
+		Body:        body,
+		Diagnostics: reviewprepare.RenderDiagnostics(p.Evidence.Preparation, p.Evidence.Protocol),
 	}
 	if prior, rerr := os.ReadFile(path); rerr == nil {
 		return path, atomicWriteFile(path, []byte(string(prior)+"\n---\n\n"+renderReviewEntry(m, true)))
 	}
 	return path, atomicWriteFile(path, []byte(renderReviewEntry(m, false)))
+}
+
+func persistReviewSidecar(stderr io.Writer, p boundaryReviewParams, r reviewResult) string {
+	// Failed dispatches may retain bounded attempt diagnostics, never semantic
+	// output that resembles an accepted review. A launch failure without evidence
+	// retains the historical no-artifact behavior.
+	if r.DispatchError != nil {
+		r.Output = ""
+		r.Verdict = judge.VerdictNotRun
+	}
+	diagnostics := reviewprepare.RenderDiagnostics(p.Evidence.Preparation, p.Evidence.Protocol)
+	if r.Output == "" && diagnostics == "" {
+		return ""
+	}
+	path, err := writeReviewSidecar(p, string(r.Verdict), r.Output, nowRFC3339())
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("review sidecar not written: %v", err))
+		return ""
+	}
+	cok(stderr, fmt.Sprintf("review sidecar: %s (added diagnostic bytes: %d)", path, len(diagnostics)))
+	return path
 }

@@ -657,3 +657,16 @@ The simplest durable authority beats a clever scan of consequences.
   call graph. Enumerate nested probes, replay helpers, tracker fallbacks,
   archive reads and final diff measurements, then test cancellation with a real
   sleeping command at each independent seam (#332 BR-12/BR-13 round 7).
+- A new consumer configuration hook needs a README entry as well as atlas details: name its default convention, override placement, and failure behavior (#333 BR-1).
+
+- Tests of environment-controlled output must own every relevant flag, including flags that override the one being tested. Codex's NO_COLOR broke forced-color assertions; inherited CLICOLOR_FORCE broke plain output (#363). Exercise the runner with conflicting ambient settings.
+
+- Plan test strategies by named risky function, adversarial input class and a mechanical guard; case inventories alone hide missing invariants. For append-only diagnostics, a per-attempt cap is not a retention policy: state permanent cost or bounded supersession and measure at the writer (#364 PQ-1/PQ-2).
+
+- In subprocess seams that execute on a heartbeat goroutine, test callbacks must return an error or use Errorf rather than Fatal: Fatal exits only that goroutine and strands the caller waiting for its result (#364 test development).
+
+- Git diff is a normalized report, not proof of byte preservation. A guard that promises unchanged tracked inputs must fingerprint actual bytes/types/modes independently of clean/text conversion and assume-unchanged/skip-worktree flags; disabling one diff feature only fixes an instance (#364 BR-1).
+
+- A pure admission test does not fulfill a promised lifecycle proof. For dispute
+  flows, drive the real close/dispute/dispatch path and check both evidence delivery
+  and non-advancement on invalid responses; mutation-check the integration wiring.

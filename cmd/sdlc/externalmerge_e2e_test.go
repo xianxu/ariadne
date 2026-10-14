@@ -27,7 +27,7 @@ func TestMergeFinishesEarlierExternalMerges(t *testing.T) {
 		git(t, slot, "pull", "-q", "--ff-only")
 	}
 	mainAt := func() string { return strings.Fields(git(t, primary, "ls-remote", "upstream", "refs/heads/main"))[0] }
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 
 	// build files, claims, starts, designs, implements and closes one issue.
 	build := func(title, slug, id, file string) (branch, detail string) {

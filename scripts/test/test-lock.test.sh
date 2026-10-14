@@ -153,4 +153,21 @@ kill $oldhead; wait $oldhead 2>/dev/null
 check "fifo: then the new waiter takes the free slot" '[ "$(WF_TEST_LOCK_TIMEOUT=3 lock $gn)" = acquired ]'
 release $gn
 
+# #333: a repo's host preflight runs before the lock. A failing one stops make
+# test at once with its own message, without taking or waiting for the lock
+# (held here by another run); a passing one leaves the lock path as it was.
+export WF_TEST_LOCK_FILE="$tmp/pre" WF_TEST_SUITES=1
+printf '#!/usr/bin/env bash\necho "host-preflight FAILED: probe refused" >&2\nexit 1\n' >"$tmp/pf-fail.sh"
+printf '#!/usr/bin/env bash\necho "host-preflight ok"\n' >"$tmp/pf-ok.sh"
+sleep 60 & ph=$!
+lock $ph >/dev/null
+t0=$(date +%s)
+WF_TEST_PREFLIGHT="$tmp/pf-fail.sh" make -n test >/dev/null 2>"$tmp/pf.err"; pf_rc=$?
+check "preflight: a failing preflight stops make test" '[ $pf_rc -ne 0 ] && grep -q "host-preflight FAILED: probe refused" "$tmp/pf.err" && grep -q "not taking the full-suite lock" "$tmp/pf.err"'
+check "preflight: it fails at once, never queueing for the held lock" '[ $(( $(date +%s) - t0 )) -le 3 ] && ! grep -q "\[test-lock\]" "$tmp/pf.err"'
+check "preflight: a passing preflight goes on to the lock as before" '! WF_TEST_PREFLIGHT="$tmp/pf-ok.sh" WF_TEST_LOCK_TIMEOUT=1 make -n test >/dev/null 2>"$tmp/pf-ok.err" && grep -q "host-preflight ok" "$tmp/pf-ok.err" && grep -q "full-suite lock not taken (timeout)" "$tmp/pf-ok.err"'
+check "preflight: none at the default path changes nothing" '[ ! -e tests/host-preflight.sh ] && ! WF_TEST_LOCK_TIMEOUT=1 make -n test >/dev/null 2>"$tmp/pf-none.err" && ! grep -q "preflight" "$tmp/pf-none.err"'
+release $ph
+check "preflight: a passing preflight takes the free lock" 'WF_TEST_PREFLIGHT="$tmp/pf-ok.sh" make -n test >/dev/null 2>&1'
+
 [ $fails -eq 0 ] && echo "all passed" || { echo "$fails failed"; exit 1; }

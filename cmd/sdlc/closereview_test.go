@@ -45,6 +45,12 @@ func closeRepo(t *testing.T, issueNum int) string {
 	return issuesDir
 }
 
+// Valid boundary handoffs are explicit at call sites; stubJudge preserves malformed
+// responses unchanged for protocol/refusal tests.
+const emptyBoundaryFindings = "\n```findings\nfindings: []\n```\n"
+const reworkBoundaryFindings = "\n```findings\nfindings:\n  - id: new\n    severity: Important\n    title: Missing required behavior\n    detail: The implementation does not satisfy the requested behavior.\n```\n"
+const addressedBoundaryFindings = "\n```findings\ndispose:\n  - id: BR-1\n    disposition: addressed\n    note: The required behavior is implemented.\n```\n"
+
 // stubJudge swaps judge.Run for a recorder; returns a pointer to the call count
 // and the last prompt seen. Restores on cleanup.
 func stubJudge(t *testing.T, output string) (*int, *string) {
@@ -109,7 +115,7 @@ func TestCloseCommandsReleaseLockDuringBoundaryReview(t *testing.T) {
 			judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 				close(started)
 				<-releaseReview
-				return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
+				return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n" + emptyBoundaryFindings)}, nil
 			}
 
 			done := make(chan error, 1)
@@ -207,7 +213,7 @@ func waitForErr(t *testing.T, ch <-chan error, label string) error {
 // exactly one boundary review on the whole-issue window and emits its trailer.
 func TestRunCloseWithReview_IssueClose_Dispatches(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
-	calls, lastPrompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nLooks good.\n")
+	calls, lastPrompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nLooks good.\n"+emptyBoundaryFindings)
 
 	var stdout strings.Builder
 	f := &closeFlags{
@@ -273,7 +279,7 @@ func TestRunCloseWithReview_IssueClose_Dispatches(t *testing.T) {
 func TestDispatchBoundaryReview_WritesMilestoneSidecar(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
 	head := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD"))
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nMilestone looks good.\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nMilestone looks good.\n"+emptyBoundaryFindings)
 
 	res := dispatchBoundaryReview(io.Discard, io.Discard, boundaryReviewParams{
 		Label:     "#69 M1",
@@ -360,7 +366,7 @@ func TestRunCloseWithReview_AgentDefaultUsesPairAgent(t *testing.T) {
 	t.Setenv("AGENT_CMD", "")
 	t.Setenv("PAIR_AGENT", "codex")
 	issuesDir := closeRepo(t, 69)
-	calls, lastName := stubJudgeCommand(t, "VERDICT: SHIP (confidence: high)\n\nLooks good.\n")
+	calls, lastName := stubJudgeCommand(t, "VERDICT: SHIP (confidence: high)\n\nLooks good.\n"+emptyBoundaryFindings)
 
 	f := &closeFlags{
 		Issue: 69, Actual: "1", Verified: "tests pass", NoAtlas: true,
@@ -381,7 +387,7 @@ func TestRunCloseWithReview_DryRunPrintsPairAgentCommand(t *testing.T) {
 	t.Setenv("AGENT_CMD", "")
 	t.Setenv("PAIR_AGENT", "codex")
 	issuesDir := closeRepo(t, 69)
-	calls, _ := stubJudgeCommand(t, "VERDICT: SHIP (confidence: high)\n\nLooks good.\n")
+	calls, _ := stubJudgeCommand(t, "VERDICT: SHIP (confidence: high)\n\nLooks good.\n"+emptyBoundaryFindings)
 
 	var stdout strings.Builder
 	f := &closeFlags{
@@ -424,7 +430,7 @@ func readIssue(t *testing.T, issuesDir string) string {
 // milestone-close computes + reviews via computeClose, never runCloseWithReview.
 func TestRunCloseWithReview_MilestoneRefuses(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
-	calls, _ := stubJudge(t, "VERDICT: SHIP\n")
+	calls, _ := stubJudge(t, "VERDICT: SHIP\n"+emptyBoundaryFindings)
 
 	f := &closeFlags{
 		Issue: 69, Milestone: "M1", Actual: "1", Verified: "slice done", NoAtlas: true,
@@ -446,7 +452,7 @@ func TestRunCloseWithReview_MilestoneRefuses(t *testing.T) {
 // boundary (not-run trailer), per the #67 per-gate-bypass convention.
 func TestRunCloseWithReview_NoJudge_Skips(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
-	calls, _ := stubJudge(t, "VERDICT: SHIP\n")
+	calls, _ := stubJudge(t, "VERDICT: SHIP\n"+emptyBoundaryFindings)
 
 	var stdout strings.Builder
 	f := &closeFlags{
@@ -500,7 +506,7 @@ func rewriteIssuePlan(t *testing.T, issuesDir, planRows string) {
 func TestClose_TrailingUnclosedMilestones_AcceptedByCloseReview(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
 	rewriteIssuePlan(t, issuesDir, "- [x] **M1 — all the work**")
-	calls, _ := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nLooks good.\n")
+	calls, _ := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nLooks good.\n"+emptyBoundaryFindings)
 
 	var stdout, stderr strings.Builder
 	f := &closeFlags{
@@ -555,7 +561,7 @@ func TestClose_MidstreamMissingVerdict_Refuses(t *testing.T) {
 	} {
 		testfix.Git(t, "", args...)
 	}
-	calls, _ := stubJudge(t, "VERDICT: SHIP\n")
+	calls, _ := stubJudge(t, "VERDICT: SHIP\n"+emptyBoundaryFindings)
 
 	f := &closeFlags{
 		Issue: 69, Actual: "1", Verified: "tests pass", NoAtlas: true,
@@ -585,7 +591,7 @@ func TestClose_MidstreamMissingVerdict_Refuses(t *testing.T) {
 func TestClose_TrailingMissingVerdict_NoJudgeRefuses(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
 	rewriteIssuePlan(t, issuesDir, "- [x] **M1 — all the work**")
-	calls, _ := stubJudge(t, "VERDICT: SHIP\n")
+	calls, _ := stubJudge(t, "VERDICT: SHIP\n"+emptyBoundaryFindings)
 
 	f := &closeFlags{
 		Issue: 69, Actual: "1", Verified: "tests pass", NoAtlas: true, NoJudge: true,
@@ -611,7 +617,7 @@ func TestClose_TrailingMissingVerdict_NoJudgeRefuses(t *testing.T) {
 // fix now, bundle into one commit, don't re-run close.
 func TestClose_FixThenShip_EmitsProtocol(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
-	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nFinding: nit.\n")
+	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nFinding: nit.\n"+emptyBoundaryFindings)
 
 	var stdout, stderr strings.Builder
 	f := &closeFlags{
@@ -638,7 +644,7 @@ func TestClose_FixThenShip_EmitsProtocol(t *testing.T) {
 // verdict-conditional.
 func TestClose_Ship_NoProtocolBlock(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nLooks good.\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nLooks good.\n"+emptyBoundaryFindings)
 
 	var stdout, stderr strings.Builder
 	f := &closeFlags{

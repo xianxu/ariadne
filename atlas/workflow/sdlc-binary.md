@@ -922,7 +922,7 @@ files are overlaid at their paths, since they can be uncommitted at close. The
 prompt's `repository root:` and its `git -C` recipes name the clone, and only
 such an isolated prompt (`PromptInput.Isolated`) tells the reviewer to revert
 in place. `sdlc judge` and plan reviews still run in the caller's checkout and
-keep the scratch-copy instruction. A no-verdict retry resets the clone first
+keep the scratch-copy instruction. A missing-verdict or invalid-response retry resets the clone first
 (`DispatchOptions.BeforeRetry` → `Checkout.Reset`), so attempt 2 never reads
 attempt 1's mutations. The process is one argv transform shared by every
 agent (`Isolation.Wrap`, applied through `judge.DispatchOptions.Wrap`):
@@ -936,7 +936,12 @@ is Seatbelt; on Linux it is `bwrap --ro-bind`. Under the fence, each agent's
 own sandbox is turned off (`DispatchOptions.Fenced`: claude `--settings`
 sandbox disabled, codex `--sandbox danger-full-access`, gemini
 `--sandbox=false`). Seatbelt cannot nest, so one outer fence is what gives the
-three agents the same writable scope.
+three agents the same writable scope. Darwin's setuid `/bin/ps` cannot execute
+under even an allow-default Seatbelt profile. The profile adds exactly
+`(allow process-exec (literal "/bin/ps") (with no-sandbox))`; this exempts the
+system process-listing binary, while its invoking shell and other children remain
+subject to protected-source write denials. No wildcard executable exemption or
+broader sandbox model is introduced; Linux's fence remains unchanged.
 
 That scope is wider than the agents' own sandboxes in one direction: HOME and
 other repositories stay writable, because agents write their own state there.
@@ -945,7 +950,9 @@ worktrees are fenced.
 
 `reviewbox.Probe` reports a fence only after seeing it work. Through the same
 `Wrap`, it must write an allowed scratch directory and be refused a protected
-one, so every `fenced` round had a live denial behind it. When the probe fails,
+one, so every `fenced` round had a live denial behind it. On Darwin it also
+requires `/bin/ps` to inspect a known live PID. Live conformance covers direct
+and shell-child ps plus allowed and protected writes. When the probe fails,
 the round degrades to the clone alone, with a warning. Slot agents normally run
 sdlc outside Claude Code's Bash sandbox (`sdlc *` is in `excludedCommands`,
 #334), so the fence can apply. When sdlc is called in a form that stays
@@ -954,6 +961,57 @@ and the round runs clone-only. The ledger round's `isolation:` and the
 sidecar's `| isolation |` row record `fenced` or `checkout`. Degrading was the
 TL's decision on #204. `--dry-run` prints the wrapped command with a
 `<review-checkout>` placeholder.
+
+**Pinned preparation and answerable responses (#364).** Boundary reviews read
+`.sdlc/review-prepare.json` from the pinned HEAD's regular Git blob, not the working
+tree. Absence means no preparation. Version 1 accepts `command` (a nonempty argv
+array) and optional `timeout_minutes` (default 10, explicit range 1–30):
+
+```json
+{"version":1,"command":["make","runtimebundle-generate"],"timeout_minutes":10}
+```
+
+Invalid JSON, unknown fields/version, trailing data, empty argv/arguments, invalid
+timeouts and nonregular entries such as symlinks are setup errors. The command
+runs without an implicit shell in the disposable checkout, under the same Wrap
+and confinement environment as the reviewer. The remaining dispatch deadline
+also limits preparation. `--dry-run` displays the declaration and ordering without
+starting either process. The live source never receives preparation writes.
+
+Attempt order is checkout → confinement → preparation → review → response
+validation. The single retry resets the checkout, recreates confinement, and
+prepares again. Launch errors, nonzero preparation exits, timeout, cancellation
+or tracked-tree mutations stop before that reviewer attempt. Untracked/ignored
+build outputs are allowed and removed with the disposable checkout and its crash
+sweep. Process-group cancellation and reaping use the existing bounded runner.
+
+REWORK requires a new blocking finding with nonempty title/detail, or an explicit
+`not-addressed` disposition of a known blocking finding in scope. An old open
+finding alone, Minor-only finding or unknown ID does not qualify. New findings
+use `id: new`; admission precedes BR-n assignment. All referenced dispositions are
+validated against the pinned scoped ledger. Optional `kind: unverifiable` names
+an environment-limited check; omission preserves ordinary defect semantics. Its
+detail names the attempted command, observed restriction and evidence needed.
+After `sdlc finding dispute` supplies measured host evidence, the next round must
+explicitly dispose every pending unverifiable dispute with a nonempty note
+answering it. Ordinary historical dispute semantics remain unchanged.
+
+Invalid responses and missing verdicts share one two-attempt budget. The retry
+gets the admission error; a second invalid response produces a protocol error.
+Neither invalid attempt contributes findings, reviewed-head advancement or close
+finalization. Preparation and protocol diagnostics remain separate from semantic
+review text. Preparation output drains beyond a 64 KiB per-attempt retention cap;
+the complete additional diagnostic envelope, including metadata and rejected
+response excerpts, is bounded to 256 KiB per dispatch with truncation and retained
+byte counts. The existing append-only review sidecar retains it permanently and
+archives it with the issue, including failed invocations with no accepted round.
+Four maximum envelopes add at most 1 MiB (Git storage overhead is additional).
+Accepted review bodies retain their existing behavior outside this new budget.
+
+Ownership: `internal/reviewprepare` parses declarations and renders diagnostics;
+`reviewprepare.go` reads pinned blobs; `internal/judge` executes each prepared
+attempt; `boundaryresponse.go` validates admission; `reviewsidecar.go` persists
+evidence after the existing stale-state checks.
 
 **Every reviewer runs confined (#339).** The fence covers the source
 repository only, and some rounds run clone-only, so `judge.Dispatch` confines
@@ -1384,8 +1442,8 @@ the repo lock and keeps the historical `workshop/history` exclusion; manual
 directory flags, and keeps issue-less ad-hoc review valid. Omitting manual
 `--head` means base-vs-working-tree: committed-after-base plus staged/unstaged
 tracked changes are in scope, untracked files are not. Reviewers must run the
-manifest's read-only inspection recipes and return REWORK if the repository,
-objects, or commands are unavailable. This keeps agent argv bounded even for a
+manifest's read-only inspection recipes and return REWORK with an answerable
+blocking unverifiable finding if the repository, objects, or commands are unavailable. This keeps agent argv bounded even for a
 multi-megabyte legitimate window while Git remains the patch source (ARCH-DRY,
 ARCH-PURE, ARCH-MOCK).
 
@@ -1444,7 +1502,8 @@ behind a thin atomic-write seam — ARCH-PURE). Both close paths share it
 header (issue id/title, repo, issue file, boundary kind, milestone, base..head
 window, command, reviewer, timestamp, verdict) plus that response. Harness
 diagnostics, progress, prompt echo, and tool transcript remain terminal stderr
-and never enter verdict/finding parsing or either durable sidecar. A re-run of the same
+and never enter verdict/finding parsing. The bounded preparation/protocol
+diagnostic envelope described above is retained separately in the review sidecar. A re-run of the same
 boundary **appends** a timestamped `## Re-review` section rather than overwriting
 (the §1 revision convention). The terminal still prints the semantic body + the
 `Review-Verdict:` trailer; the sidecar adds a durable surface an agent can reopen
@@ -1631,6 +1690,16 @@ run passes through (`WF_TEST_LOCK_HELD_BY`), even while another slot is free.
 is included. The default is 1. ariadne declares 2, because its sharded suite
 runs ~12 processes, so it runs alone at the default cap. Two of them at once
 had pushed load to 185.
+
+**Host preflight before the lock (#333).** A repo whose suite cannot run on some
+hosts ships a preflight, by convention `tests/host-preflight.sh`, or names another
+with `WF_TEST_PREFLIGHT ?=` before including `Makefile.workflow`. When `test` is a
+goal it runs at parse time, before the lock: a failing preflight stops `make test`
+at once with its own message ("not taking the full-suite lock"), so a sandboxed run
+never queues behind other suites first. Its output goes to stderr; only its exit
+status is read. pair ships one (sockets, PTYs, exec of `ps`). ariadne has none: #330
+made its suite pass in the agent sandbox, so the same probes would block runs that
+work.
 
 `Makefile.workflow` passes the weight as `test-lock.py acquire --slots N`,
 clamped to `WF_TEST_SUITES`. The acquisition rules:

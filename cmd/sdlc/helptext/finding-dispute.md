@@ -25,7 +25,11 @@ WHAT IT DOES TO THE GATE.
     `not-addressed` (re-raised; the finding blocks again, and you fix it —
     the CLASS it names, not the site: ARCH-PURPOSE (`sdlc arch-principles`)
     — or dispute it again with new evidence). A dispute it leaves
-    unanswered stands.
+    unanswered stands for ordinary findings. A pending `kind: unverifiable`
+    boundary dispute MUST receive an explicit valid disposition with a nonempty
+    note answering the measured host evidence. An omission is an invalid response,
+    retried once within the existing two-attempt budget, then a protocol error.
+    Neither invalid attempt admits findings or advances the reviewed head.
   - It is loud. This verb warns, every gate line reports "N of M finding(s)
     settled by implementer DISPUTE, not a fix", and `sdlc close` records the
     counts in the calibration ledger (gate_disputed, boundary_disputed).

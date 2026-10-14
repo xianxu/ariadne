@@ -70,6 +70,10 @@ func (i Isolation) Wrap(name string, args []string) (string, []string) {
 func seatbeltProfile(protect []string) string {
 	var b strings.Builder
 	b.WriteString("(version 1)(allow default)")
+	// Darwin's /bin/ps is setuid root; Seatbelt refuses its exec even under
+	// allow-default. Exempt only this system executable, leaving its invoking
+	// shell and other children subject to the protected-path write denials.
+	b.WriteString(`(allow process-exec (literal "/bin/ps") (with no-sandbox))`)
 	if len(protect) > 0 {
 		b.WriteString("(deny file-write*")
 		for _, p := range protect {
