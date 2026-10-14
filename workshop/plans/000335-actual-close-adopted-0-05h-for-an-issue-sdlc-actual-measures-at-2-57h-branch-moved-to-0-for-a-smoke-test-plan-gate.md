@@ -44,6 +44,36 @@ rounds:
           family: external-conformance-cadence
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-14T02:06:21-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Versioned boundary snapshots retain refs, scope, endpoints, split inputs and source bindings; completed replay and legacy degradation are specified.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: actualcorrection.Transition defines effect order, durable identity, exact acknowledgment evidence, recovery and competing-generation refusal.
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          note: Versioned generation-bound correction records resolve exact targets before eligibility filtering; an owning exclusion action is defined.
+          round: 2
+        - id: PQ-4
+          disposition: addressed
+          note: Named risky functions each have an adversarial input class and mechanical guard; executable tests own the case inventory.
+          round: 2
+        - id: PQ-5
+          disposition: addressed
+          note: Existing recovery owns transient receipt cleanup; retained snapshots and correction evidence have explicit bounded permanent costs.
+          round: 2
+        - id: PQ-6
+          disposition: addressed
+          note: Historical conformance runs before issue close, after lineage parser changes and when installed CLI metadata changes.
+          round: 2
+      blocked: false
+content_hash: edbd319f1a201d1d7e780e06711ec74435ebd67979fa7deddbcc9bc6acb48a3d
 ---
 
 # Gate ledger — ariadne#335 (plan-quality)
@@ -68,11 +98,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-6** [Minor] `external-conformance-cadence` Give historical conformance replay an execution cadence
   ARCH-MOCK: Historical opt-in replay is named but no cadence is stated. Specify when it runs to detect Claude/Codex lineage metadata drift rather than relying solely on synthetic fixtures.
 
+## Round 2 — 2026-10-14T02:06:21-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Versioned boundary snapshots retain refs, scope, endpoints, split inputs and source bindings; completed replay and legacy degradation are specified.
+- PQ-2 — addressed — actualcorrection.Transition defines effect order, durable identity, exact acknowledgment evidence, recovery and competing-generation refusal.
+- PQ-3 — addressed — Versioned generation-bound correction records resolve exact targets before eligibility filtering; an owning exclusion action is defined.
+- PQ-4 — addressed — Named risky functions each have an adversarial input class and mechanical guard; executable tests own the case inventory.
+- PQ-5 — addressed — Existing recovery owns transient receipt cleanup; retained snapshots and correction evidence have explicit bounded permanent costs.
+- PQ-6 — addressed — Historical conformance runs before issue close, after lineage parser changes and when installed CLI metadata changes.
+
 ## Open findings
 
-- **PQ-1** [Important] `durable-measurement-inputs` Define how pinned measurement inputs survive close and landing
-- **PQ-2** [Important] `multi-effect-recovery-contract` Specify correction states and idempotence across tracker and calibration effects
-- **PQ-3** [Important] `authoritative-calibration-supersession` Define correction and exclusion records before sweeping calibration readers
-- **PQ-4** [Important] `named-function-test-strategies` Name the risky functions and compress test-case prose into strategies
-- **PQ-5** [Minor] `durable-artifact-lifecycle` State correction-record retention and permanent growth cost
-- **PQ-6** [Minor] `external-conformance-cadence` Give historical conformance replay an execution cadence
+(none — every finding has been disposed)

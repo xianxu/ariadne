@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-11
 updated: 2026-10-14
-estimate_hours:
-card_mirror: '12b57347a8110c9de45dc2a5bee09efcf285dcbf' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 4.174
+card_mirror: 'd64c47a033a3591cb3ed7317d8f6a98a52ba5064' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T01:44:37-07:00
 claimant:
     operator: Xian Xu
@@ -98,3 +98,38 @@ PQ-1–PQ-4 Important accepted: specify retained measurement inputs, correction
 state/effects, authoritative calibration invalidation and named function strategies.
 PQ-5/PQ-6 Minor retention/conformance notes incorporated too. Added executable
 contracts to the plan; no production changes. Re-running change-code.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only. Source flagged stale; treat values as provisional.
+Read v2/v2.1/v3/v3.1 method and baseline before derivation. Go JSON/time and existing
+Git/tracker/receipt/ledger machinery cover the IO plumbing; no library supplies
+issue ownership or lineage semantics, so no speculative library discount. Thorough
+approved plan applies ×0.2 design discount and15% design buffer. Impl values are
+40% of v2 ranges, familiarity1.0 for this existing Go stack.
+
+Items in order: engagement model; source eligibility; activity clipping; durable
+measurement snapshot; consumer input integration; correction transition; correction
+transaction integration; calibration resolution; plausibility warning; docs;
+post-land two-record data repair; one close review. Each implementation item includes
+its targeted regression strategy. Design1.16h + impl2.84h; buffered total4.174h.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module design=0.10 impl=0.24
+item: greenfield-go-module design=0.10 impl=0.24
+item: smaller-go-module design=0.04 impl=0.16
+item: greenfield-go-module design=0.10 impl=0.28
+item: api-integration design=0.20 impl=0.48
+item: greenfield-go-module design=0.10 impl=0.28
+item: api-integration design=0.20 impl=0.48
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.02 impl=0.08
+item: atlas-docs design=0.04 impl=0.08
+item: cross-repo-refactor-small design=0.06 impl=0.12
+item: milestone-review design=0.04 impl=0.20
+design-buffer: 0.15
+total: 4.174
+```
