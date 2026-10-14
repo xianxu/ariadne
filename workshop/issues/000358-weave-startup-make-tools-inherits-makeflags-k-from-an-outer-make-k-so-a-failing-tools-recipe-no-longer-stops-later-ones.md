@@ -1,12 +1,12 @@
 ---
 id: 000358
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: '43fa88ad972a083a2969cdb1b5bfab87cd01ed07' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'adf2bd727133c71c0916b8afa485a5b9607d79a5' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T18:04:12-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "22db63ab", done: "129ba1c5"}
+actual_hours: 1.09
 ---
 
 # weave: startup make tools inherits MAKEFLAGS=k from an outer make -k, so a failing tools recipe no longer stops later ones
