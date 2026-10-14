@@ -107,6 +107,29 @@ func TestLandingRegistrationPollingDoesNotHoldRepoLock(t *testing.T) {
 	}
 }
 
+func TestLandingMainMovesDuringRegistrationBeforeFirstSuite(t *testing.T) {
+	root, server, gh := integrationFixture(t)
+	gh.headLag = 1
+	var moved string
+	gh.afterLaggedQuery = func() {
+		if moved == "" {
+			moved = integrationAdvance(t, server, "registration.go", "main moved during registration\n")
+		}
+	}
+	var tested []string
+	gh.afterStatus = func(sha string) { tested = append(tested, sha) }
+	if err := runMerge(io.Discard, io.Discard, landingFlags()); err != nil {
+		t.Fatal(err)
+	}
+	if moved == "" || len(tested) != 1 || gh.merges != 1 {
+		t.Fatalf("moved=%q suite heads=%v merges=%d", moved, tested, gh.merges)
+	}
+	included, err := integrationAncestor(mergeRunner, root, moved, tested[0])
+	if err != nil || !included {
+		t.Fatalf("suite head %s did not contain moved main %s", tested[0], moved)
+	}
+}
+
 func TestLandingReleasesRepoLockDuringSuite(t *testing.T) {
 	_, server, gh := integrationFixture(t)
 	signalDir := t.TempDir()

@@ -415,6 +415,11 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	} else {
 		cwarn(stderr, "--no-judge: skipping the pre-merge publish gate (#160 reviewed-HEAD-unchanged invariant)")
 	}
+	if err := f.withLock(func() error {
+		return revalidateLegacyMerge(branch, branchHead, remoteRef, inPlace, true, f)
+	}); err != nil {
+		die(stderr, err.Error())
+	}
 
 	// ── 5.5 Tracker ownership (#252) ─────────────────────────────────────────
 	// The server-side merge may squash or rebase, leaving the evidence commits
@@ -605,7 +610,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 			die(stderr, err.Error())
 		}
 		if err := f.withLock(func() error {
-			if err := revalidateLegacyMerge(branch, head, remoteRef, inPlace, true, f); err != nil {
+			if err := revalidateLegacyMerge(branch, branchHead, remoteRef, inPlace, true, f); err != nil {
 				return err
 			}
 			if _, err := requireLegacyMainIntegrated(gitCall, head); err != nil {

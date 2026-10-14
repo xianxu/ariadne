@@ -445,6 +445,31 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 				if err != nil {
 					return err
 				}
+				// PR-head registration may have waited while another slot moved main.
+				// Observe it again before spending suite time on this integration.
+				if err = f.withLock(func() error {
+					if err := revalidateLanding(r, t, branch, state.head, current); err != nil {
+						return err
+					}
+					latest, err := t.fetchMain(r)
+					if err != nil {
+						return err
+					}
+					included, err := integrationAncestor(r, t.Root, latest, state.head)
+					if err != nil {
+						return err
+					}
+					state, step, err = transitionIntegration(state, integrationEvent{kind: integrationMainObserved, main: latest, included: included})
+					return err
+				}); err != nil {
+					return err
+				}
+				if step == integrationRefuse {
+					return fmt.Errorf("main moved too often: stopped after %d integrations; re-run sdlc merge", integrationLimit)
+				}
+				if step != integrationGates {
+					continue
+				}
 				targetMain = state.main
 			}
 			if state.phase != integrationGates {

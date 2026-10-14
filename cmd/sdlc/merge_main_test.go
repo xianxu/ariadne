@@ -123,6 +123,25 @@ func TestRunMerge_LegacyRefusesHeadMovedDuringChecks(t *testing.T) {
 	}
 }
 
+func TestRunMerge_LegacyRefusesHeadMovedAfterPublishGate(t *testing.T) {
+	root := tempRepo(t)
+	before := git(t, root, "rev-parse", "HEAD")
+	g := &e2eGH{openPR: "42"}
+	swapMergeDeps(t, g, func(context.Context, string, string, io.Writer) error {
+		git(t, root, "commit", "--allow-empty", "-qm", "concurrent published commit")
+		git(t, root, "push", "origin", "feature")
+		return nil
+	})
+	f := &mergeFlags{Yes: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	msg, died := expectDie(t, func() { _ = runMerge(io.Discard, io.Discard, f) })
+	if !died || !strings.Contains(msg, "HEAD moved") || g.prMergeCalls != 0 {
+		t.Fatalf("died=%v merges=%d message=%s", died, g.prMergeCalls, msg)
+	}
+	if got := git(t, root, "rev-parse", "HEAD"); got == before {
+		t.Fatal("fixture did not move HEAD")
+	}
+}
+
 type legacyMovingMainGH struct {
 	e2eGH
 	onChecks func()
