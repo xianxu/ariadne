@@ -1,20 +1,22 @@
 ---
 id: 000361
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: 'caa96e389a15f7292d4870ac878034435a8b2035' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '34bed1caaf9a292399062adee4748207d25dbf7e' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T19:18:29-07:00
 claimant:
     operator: Xian Xu
     machine: 4716879978a7b90f6b583da1716fd0e9
     machine_name: MacBook Pro
-    workspace: ariadne:3
-    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "991a59d0", done: "a3c27513"}
+actual_hours: 2.08
 ---
 
 # weave: TestCompileCancellationStopsLateGeneratorChild flakes under load (generation stage survived retirement)
@@ -48,11 +50,32 @@ settle for load, without letting a genuinely live producer's stage be removed.
 
 ## Plan
 
-- [ ]
+- [x] `pkg/procgroup.Kill(pgid, sig)`: ESRCH and EPERM → `os.ErrProcessDone` (documented, measured XNU semantics); unit test on a zombie-only group
+- [x] weave `finishProducers`: a done group is not an error; always settle on the lease (the proof); seam `killGroup` + deterministic test (an exiting holder, EPERM-equivalent kill) that fails when reverted
+- [x] Sweep the class: weave `cmd.Cancel` and sdlc `processgroup.Terminate` use the helper
+- [x] Prove under load: the flaky test 50x+ under CPU load with the fix; with the fix reverted it fails
 
 ## Log
 
 ### 2026-10-13
+- 2026-10-13: closed — Close-review Minors fixed, comment/doc-only: procgroup package doc narrowed to process-group signals (single-process liveness probes named as a different question); ZombieGroup doc comment reflowed; plan Revisions entry records the delivered real-zombie-group test design; lessons entry. go vet clean; pkg/procgroup, weavefs and sdlc processgroup tests green. (fixed-then-ship) (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-13: closed — Root cause proven by tracing finishProducers and staging.Remove under 24-40 CPU burners (4/60, 1/60, 3/200 reproduced): no failure reached the 1s settle; in each, killpg on the producer group returned EPERM, finishProducers returned before AwaitExclusive, and Remove met the still-exiting holder. Measured: macOS killpg on a zombie-only group returns EPERM. Fix: pkg/procgroup.Kill (ESRCH|EPERM -> done), finishProducers always settles on the lease, and weave Cancel plus sdlc processgroup.Terminate share it. Deterministic tests (real zombie group, EPERM asserted) TestFinishProducersSettlesWhenTheGroupIsAlreadyDone and TestTerminateReportsADyingGroupAsDone fail with the fix reverted and pass with it. Under load (~60) interleaved: reverted 6/200 survived, fixed 0/200. Full make -k test on 911ee0d3: exit 0, 1239 cmd/sdlc tests plus 51 packages green.; review verdict: SHIP
 - 2026-10-13: unclaimed: filed from #353; independent flake, unclaimed for the hub to assign
 
 Filed by ariadne:3 from #353's full suite (unrelated to #353's diff).
+- 2026-10-13 (ariadne:1) root cause, with evidence. I traced `finishProducers` and `staging.Remove` (temporary instrumentation, now removed) and reproduced under 24–40 CPU burners: 4/60, 1/60, then 3/200 failures. The issue's hypothesis (the 1s settle expiring) is **wrong**: no failing run reached the preserve path, and each took about 0.3s. In every failure:
+  1. The first `Exclusive` was busy.
+  2. `kill(-pgid, SIGKILL)` returned **EPERM**.
+  3. `finishProducers` returned that error at once, skipping `AwaitExclusive`.
+  4. `Remove`'s non-blocking `Exclusive` then met the still-exiting holder (`lsof` a moment later showed none), and the stage survived.
+
+  A measurement on this Mac: `kill(-pgid, 0|SIGKILL)` on a group whose only member is an unreaped zombie returns EPERM, and ESRCH only after the reap. XNU skips exiting/zombie processes in killpg and reports EPERM, but marks a process exiting before its descriptors close. So "group can't be signalled" ≠ "lease released". It's a real retirement bug in weave, not a test-timing assumption. The same EPERM-as-failure handling is in weave's `cmd.Cancel` and sdlc's `processgroup.Terminate` (the class).
+- 2026-10-13 (ariadne:1) fix: `pkg/procgroup.Kill` maps ESRCH and EPERM to `os.ErrProcessDone` in one place. `finishProducers` treats done as non-fatal and always settles on the lease (the lease is the proof; a live unsignalable holder still times out and is preserved). weave's `cmd.Cancel` and sdlc's `processgroup.Terminate` use the helper (the class: every killpg site).
+- Tests:
+  - `procgrouptest.ZombieGroup` builds a real zombie-only group and asserts the kernel's EPERM on macOS. An earlier draft used `wait4(WNOWAIT)`, which Darwin ignores, so it reaped the child and proved nothing.
+  - `TestFinishProducersSettlesWhenTheGroupIsAlreadyDone` and `TestTerminateReportsADyingGroupAsDone` each **fail with the fix reverted** ("operation not permitted", the field error) and pass with it.
+- Under load (24 CPU burners, load ≈60), interleaved runs of the original test: reverted 2/100 + 4/100 survived; fixed 0/100 + 0/100.
+
+## Revisions
+
+- 2026-10-13 — delivered design differs from Plan item 2: no `killGroup` seam or fake kill. The tests build a real zombie-only process group (`pkg/procgroup/procgrouptest.ZombieGroup`, asserting the kernel's EPERM on macOS), so they exercise the kernel answer itself; a fake would have tested only our model of it (close review, Minor).

@@ -5,10 +5,11 @@
 package processgroup
 
 import (
-	"errors"
 	"os"
 	"os/exec"
 	"syscall"
+
+	"github.com/xianxu/ariadne/pkg/procgroup"
 )
 
 // Configure places the child in its own group. Call before Start.
@@ -26,9 +27,7 @@ func Terminate(cmd *exec.Cmd, force bool) error {
 	if force {
 		signal = syscall.SIGKILL
 	}
-	err := syscall.Kill(-cmd.Process.Pid, signal)
-	if errors.Is(err, syscall.ESRCH) {
-		return os.ErrProcessDone
-	}
-	return err
+	// procgroup reads the kernel's answer: an empty group, or (macOS) one
+	// whose members are all zombies or exiting, is done (#361).
+	return procgroup.Kill(cmd.Process.Pid, signal)
 }

@@ -350,7 +350,12 @@ process group. Retry preserves a live descendant’s stage even after weave dies
 then reclaims it after the writer exits. Before judging a dead owner's lease
 busy, retry waits a bounded settle (`staging.Settle`, shared with cancellation's
 cleanup through `staging.AwaitExclusive`): an exiting producer closes its output
-pipe before its inherited lease, so a waiting caller can retry in between (#343).
+pipe before its inherited lease, so a waiting caller can retry in between (#343). The
+signal's answer is never that proof either. On macOS, `killpg` returns EPERM
+for a group whose members are all zombies or already exiting, and a process
+is marked exiting before its descriptors close. So `pkg/procgroup.Kill` reads
+ESRCH and EPERM as "done", while `finishProducers` still settles on the lease
+(#361). sdlc's `processgroup.Terminate` shares the helper.
 A dead owner's stage whose orphan is still alive costs every reclaim up to that
 settle (1s), serially per such stage, until the orphan exits.
 Published outputs remain intact until ownership-checked publication.
