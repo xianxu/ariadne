@@ -1,6 +1,6 @@
 ---
 id: 000378
-status: working
+status: codecomplete
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
@@ -14,6 +14,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.91
+tracker:
+    version: 1
+    completion:
+        token: close-1566bdb350bd
+        repository: github.com/xianxu/ariadne
+        reviewed_head: ecc1d53b7899ee421d305ddeb73d6217c26217c2
+        evidence_commit: d7b6c56dc82a41bf6de59280a249ac754d1fcd12
 ---
 
 # Ignore generated TL skill links from weave refresh
