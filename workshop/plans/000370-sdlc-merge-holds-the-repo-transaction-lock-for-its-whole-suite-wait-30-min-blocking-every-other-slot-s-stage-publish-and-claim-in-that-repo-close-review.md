@@ -187,3 +187,75 @@ findings:
 
    - Remote-head requirements apply before a new landing; confirmed-landing recovery must tolerate branch deletion and still finish cleanup.
    - Concurrent fixtures must cancel and join workers before restoring shared state, including failure paths.
+
+---
+
+## Re-review — 2026-10-14T13:18:20-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 370 — sdlc merge holds the repo transaction lock for its whole suite wait (30+ min), blocking every other slot's stage, publish and claim in that repo |
+| repo | ariadne |
+| issue file | workshop/issues/000370-sdlc-merge-holds-the-repo-transaction-lock-for-its-whole-suite-wait-30-min-blocking-every-other-slot-s-stage-publish-and-claim-in-that-repo.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 675dccf184b69de76bf1f8228c2b818459794a75..585b559c956261264e35237144797db4ff7414fb |
+| command | sdlc close --issue 370 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T13:18:20-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The lock scoping satisfies the issue’s purpose: long checks run unlocked, and landing revalidates pinned evidence before irreversible effects. BR-3 and BR-4 have reachable regression coverage that fails when their corrections are removed. No new blocking findings were found.
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: addressed
+    note: |
+      TestRunMerge_ResumeMergedPR_AfterRemoteBranchDeletion passes on pinned head. Disabling merged-recovery selection in a disposable checkout makes it refuse cleanup because the deleted branch is absent. New landing retains strict remote-head checks.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Both blocked-suite fixtures use startBlockedMergeWorker, which releases, cancels and joins before fixture teardown. TestBlockedMergeWorkerJoinsBeforeFixtureCleanup passes; removing the join makes it fail. The disposable checkout was removed.
+```
+
+1. **Strengths**
+   - Reuses the existing transaction-lock helper and binds it in the production command (`cmd/sdlc/merge.go:116`).
+   - Keeps final head/main validation and expected-head merge together (`cmd/sdlc/landing.go:512`).
+   - Models pre-push main drift as reset/retry, preserving concurrent remote work through leased pushes (`cmd/sdlc/landingintegrate.go:272`).
+   - Tests exercise real Git state and real lock acquisition, with controllable drift and registration delays.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Focused lock, drift, recovery and cleanup regressions passed. All `TestRunMerge_` tests, integration-state tests, lock metadata and the interrupted recovery case passed in a separate run. Both prior corrections were independently demonstrated red without the fix.
+
+   The broader selection exceeded my five-minute aggregate timeout while progressing through recovery fixtures; no assertion failure preceded the cutoff. The full suite was not independently rerun. `git diff --check` passed; the checkout remains clean.
+
+6. **Architectural notes**
+
+   | Marker | Assessment |
+   |---|---|
+   | ARCH-DRY | Pass — shared lock and worker-lifecycle helpers. |
+   | ARCH-PURE | Pass — integration transitions remain deterministic and tested without IO. |
+   | ARCH-PURPOSE | Pass — durable and legacy suite paths release the lock. |
+   | ARCH-MOCK | Pass — existing seams use stateful GitHub fixtures and portable bare Git remotes. |
+   | ARCH-CONSTRAINTS | Pass — waits are unlocked; integration retries remain bounded. |
+   | ARCH-SECURE | Pass — identity, cleanliness and exact-head checks guard landing effects. |
+   | ARCH-ORDER | Pass — reset/retry transitions are exercised; uncertain pushes retain recovery evidence. |
+   | ARCH-FUNERAL | Pass — no new persistent artifact family; fixture workers are joined. |
+
+7. **Plan revision recommendations:** None. Existing revisions describe the final implementation. Atlas and help updates cover the changed flow; no new command, flag or configuration key requires a README update.

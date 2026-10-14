@@ -64,6 +64,7 @@ The two API-integration items cover the durable and legacy Git/GitHub landing pa
 ## Log
 
 ### 2026-10-14
+- 2026-10-14: closed — Real-lock probes show other slots acquire during blocked/repeated suites and PR polling; pinned legacy HEAD and deleted-remote recovery, durable main/head drift, and fixture lifetime pass regression tests; make -k tools and recorded suite on bd47ebda passed (12 shards, 1353 cmd/sdlc tests, 54 packages, zero failures).; review verdict: SHIP
 
 - Live evidence: ariadne:2's merge held `.git/sdlc.lock` through its first `make test` and a second full suite after main advanced; `sdlc move :5` for #240 waited until that merge finished. The lock interval exceeded 30 minutes and delayed this issue's own creation. ARCH-CONSTRAINTS: the suite queue/run is unbounded relative to a short repository transaction.
 - Design: reuse `withRequiredRepoTransactionLock` (ARCH-DRY); keep `integrationState` as the only transition owner (ARCH-ORDER); use existing commit, lease, PR-head and archive evidence across unlocked phases (ARCH-FUNERAL/ARCH-PURPOSE).

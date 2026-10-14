@@ -198,6 +198,102 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 585b559c956261264e35237144797db4ff7414fb
+        tracker_head: 3fcac19f4b68eacef3ccd3b905b25047ae017dff
+        branch_point: 675dccf184b69de76bf1f8228c2b818459794a75
+        since: "2026-10-14T11:38:01-07:00"
+        until: "2026-10-14T13:10:25-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-14T11:38:01-07:00"
+              end: "2026-10-14T13:10:25-07:00"
+              began: "2026-10-14T11:38:01-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 061554a8f15f419c31c357a962ed00a513517b13446b33f92aaed0e5f23a77f4
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 20524902
+              windows:
+                - start: "2026-10-14T11:38:01-07:00"
+                  end: "2026-10-14T13:10:25-07:00"
+            - harness: codex
+              id: 01a13bb6-8ece-7533-bf70-cb6022b40029
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: a7243862f79aa4e17102cda8f735c70c42cc802984be5c4e20fabce5e807085a
+              started: "2026-10-14T18:39:42.497Z"
+              spawned: false
+              bytes: 576557
+              windows:
+                - start: "2026-10-14T18:39:42.497Z"
+                  end: "2026-10-14T13:10:25-07:00"
+            - harness: codex
+              id: 01a13bb9-c9d4-74e0-8386-4967333fab42
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 39e12181e61983a2b02636e7dd5640454d664cf5e614e9d45901d17b0ef9cb16
+              started: "2026-10-14T18:43:14.309Z"
+              spawned: false
+              bytes: 436808
+              windows:
+                - start: "2026-10-14T18:43:14.309Z"
+                  end: "2026-10-14T13:10:25-07:00"
+            - harness: codex
+              id: 01a13bbc-0eea-7293-a1da-e6b517ba3bc5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: b5b9167849378e1cfc8f4649223b2400a4e745d62160cde7230cbd5aa87c5ceb
+              started: "2026-10-14T18:45:43.129Z"
+              spawned: false
+              bytes: 454631
+              windows:
+                - start: "2026-10-14T18:45:43.129Z"
+                  end: "2026-10-14T13:10:25-07:00"
+            - harness: codex
+              id: 01a13bbc-c0df-7e53-9383-6398cd4255a9
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 7f11c95c3b9871616ac14dd392bb0200ef5cfbe4f1ced84e182c4f1a79694b0b
+              started: "2026-10-14T18:46:28.655Z"
+              spawned: false
+              bytes: 368889
+              windows:
+                - start: "2026-10-14T18:46:28.655Z"
+                  end: "2026-10-14T13:10:25-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 0.04295
+        cuts:
+            - dispatched: "2026-10-14T12:19:27-07:00"
+              finalized: "2026-10-14T12:24:05-07:00"
+              finalizing: false
+            - dispatched: "2026-10-14T12:39:55-07:00"
+              finalized: "2026-10-14T12:45:30-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-14T13:18:21-07:00"
+      dispatched: "2026-10-14T13:11:01-07:00"
+      agent: codex
+      dispose:
+        - id: BR-3
+          disposition: addressed
+          note: TestRunMerge_ResumeMergedPR_AfterRemoteBranchDeletion passes on pinned head. Disabling merged-recovery selection in a disposable checkout makes it refuse cleanup because the deleted branch is absent. New landing retains strict remote-head checks.
+          round: 3
+        - id: BR-4
+          disposition: addressed
+          note: Both blocked-suite fixtures use startBlockedMergeWorker, which releases, cancels and joins before fixture teardown. TestBlockedMergeWorkerJoinsBeforeFixtureCleanup passes; removing the join makes it fail. The disposable checkout was removed.
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 585b559c956261264e35237144797db4ff7414fb
+      blocked: false
 ---
 
 # Gate ledger — ariadne#370 (boundary-review)
@@ -228,7 +324,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-4** [Important] `concurrent-fixtures-own-worker-lifetime` (kind: defect) Blocked-suite tests release signals without joining merge workers on failure
   cmd/sdlc/landingintegrate_test.go:137,153 and cmd/sdlc/merge_main_test.go:20,32 start merge goroutines, but cleanup only writes a release file. Fatal startup, lock-acquisition, or completion failures bypass the finished-channel receive, allowing fixture cleanup to restore cwd and package-global adapters while runMerge is still executing Git effects. ARCH-ORDER/ARCH-SECURE: give both workers cancellation contexts and cleanup that releases, cancels, and joins them before restoring fixture state; consolidate this lifecycle helper.
 
+## Round 3 — 2026-10-14T13:18:21-07:00 (codex) — passed
+
+### Disposed
+
+- BR-3 — addressed — TestRunMerge_ResumeMergedPR_AfterRemoteBranchDeletion passes on pinned head. Disabling merged-recovery selection in a disposable checkout makes it refuse cleanup because the deleted branch is absent. New landing retains strict remote-head checks.
+- BR-4 — addressed — Both blocked-suite fixtures use startBlockedMergeWorker, which releases, cancels and joins before fixture teardown. TestBlockedMergeWorkerJoinsBeforeFixtureCleanup passes; removing the join makes it fail. The disposable checkout was removed.
+
 ## Open findings
 
-- **BR-3** [Critical] `recovery-preconditions-respect-completed-effects` (kind: defect) Legacy recovery requires a remote branch that successful merging deletes
-- **BR-4** [Important] `concurrent-fixtures-own-worker-lifetime` (kind: defect) Blocked-suite tests release signals without joining merge workers on failure
+(none — every finding has been disposed)
