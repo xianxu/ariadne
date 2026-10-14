@@ -34,13 +34,13 @@ func TestForecastTrainsParallelAndEdges(t *testing.T) {
 		t.Fatalf("range = %v–%v", f.PathLow, f.PathHigh)
 	}
 	// x#2 ⇒ x#3 serializes B behind A: 2+1+4 = 7
-	p.Edges = []Edge{{r("x", 2), r("x", 3)}}
+	p.Edges = []Edge{{From: r("x", 2), To: r("x", 3)}}
 	f, _ = ForecastTrains(p, cars, unitCal)
 	if !eps(f.Path, 7) || f.LastTrain != "B" {
 		t.Fatalf("with edge = %+v", f)
 	}
 	// an edge from outside the plan is ignored
-	p.Edges = []Edge{{r("other", 9), r("x", 1)}}
+	p.Edges = []Edge{{From: r("other", 9), To: r("x", 1)}}
 	if f, _ = ForecastTrains(p, cars, unitCal); !eps(f.Path, 4) {
 		t.Fatalf("out-of-plan edge changed the path: %+v", f)
 	}
@@ -77,7 +77,7 @@ func TestForecastTrainsLandedPriorAndMissing(t *testing.T) {
 func TestForecastTrainsCycleAndEmpty(t *testing.T) {
 	p := TrainPlan{
 		Trains: []Train{{Name: "A", Cars: []IssueRef{r("x", 1), r("x", 2)}}},
-		Edges:  []Edge{{r("x", 2), r("x", 1)}},
+		Edges:  []Edge{{From: r("x", 2), To: r("x", 1)}},
 	}
 	if _, err := ForecastTrains(p, nil, unitCal); err == nil || !strings.Contains(err.Error(), "cycle") {
 		t.Fatalf("cycle = %v", err)
@@ -86,7 +86,7 @@ func TestForecastTrainsCycleAndEmpty(t *testing.T) {
 	// cycle; the error must name a car on the cycle.
 	down := TrainPlan{
 		Trains: []Train{{Name: "Y", Cars: []IssueRef{r("r", 5)}}, {Name: "X", Cars: []IssueRef{r("r", 3), r("r", 4)}}},
-		Edges:  []Edge{{r("r", 4), r("r", 5)}, {r("r", 4), r("r", 3)}},
+		Edges:  []Edge{{From: r("r", 4), To: r("r", 5)}, {From: r("r", 4), To: r("r", 3)}},
 	}
 	_, err := ForecastTrains(down, nil, unitCal)
 	if err == nil || !(strings.Contains(err.Error(), "r#3") || strings.Contains(err.Error(), "r#4")) {
@@ -146,7 +146,7 @@ func TestForecastTrainsInvariants(t *testing.T) {
 		if id >= 2 {
 			a, b := 1+rng.Intn(id-1), 0
 			b = a + 1 + rng.Intn(id-a)
-			p.Edges = append(p.Edges, Edge{r("x", a), r("x", b)})
+			p.Edges = append(p.Edges, Edge{From: r("x", a), To: r("x", b)})
 			withEdge, err := ForecastTrains(p, cars, unitCal)
 			if err != nil {
 				t.Fatal(err)
