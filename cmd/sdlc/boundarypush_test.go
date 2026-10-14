@@ -138,7 +138,7 @@ func TestBoundaryVerbsPushTheIssueBranch(t *testing.T) {
 	run("milestone-close", "--issue", "320", "--milestone", "M2", "--verified", "e2e", "--actual", "0.1", "--no-atlas", "--no-project")
 	atHead("a judged milestone-close")
 
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	run("close", "--issue", "320", "--verified", "e2e", "--actual", "1", "--no-atlas", "--no-ledger", "--no-project")
 	atHead("close")
 
@@ -188,7 +188,7 @@ func TestStartPlanRerunPushes(t *testing.T) {
 func TestReconciledClosePushes(t *testing.T) {
 	r, _, _ := closeReady(t, 321)
 	branch := r.git("branch", "--show-current")
-	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nfix a nit\n")
+	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nfix a nit\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "321", "--verified", "e2e", "--actual", "1", "--no-atlas", "--no-ledger", "--no-project"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}

@@ -9,17 +9,27 @@ truth (`cmd/sdlc/internal/judge/contract.go`).
 
 ## The contract
 
-A judge's response's **first line MUST be exactly**:
+A generic judge's response's **first line MUST be exactly**:
 
 ```
 VERDICT: <TOKEN> (confidence: high | medium | low)
 ```
 
-The parser reads **only** `<TOKEN>`. Findings, notes, and severity tags below it
+For generic judges, the classifier reads **only** `<TOKEN>`. Findings, notes, and severity tags below it
 are **advisory** — a non-blocking verdict *with* notes still PASSES the gate.
 Do not put a title, heading, or preamble above the VERDICT line; it must lead.
 (The parser tolerates a stray preamble defensively, but the contract is "lead
 with the verdict".)
+
+Boundary reviews instead lead with the fenced `verdict` block (a legacy verdict
+line is a fallback). Their structured findings and dispositions also participate
+in admission and ledger checks: a passing token alone cannot finalize a boundary.
+REWORK requires a new blocking finding with nonempty title/detail or an explicit
+`not-addressed` disposition maintaining a known blocking finding in scope. Pending
+`kind: unverifiable` disputes require explicit valid dispositions with nonempty
+notes answering the host evidence. Invalid responses share the two-attempt budget
+with missing verdicts; a second invalid response halts with a protocol error,
+admitting no findings and advancing neither reviewed head nor close state.
 
 Every contract also carries the **unattended rule** (`judge.UnattendedRule`,
 #300): the reviewer runs non-interactively and receives no notifications, so it

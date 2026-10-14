@@ -66,7 +66,7 @@ func TestTrackerCloseCommitsEvidenceAndPublishesBoundCard(t *testing.T) {
 	r.git("add", "unrelated.go") // staged unrelated work must stay out of the evidence
 	reviewed := r.git("rev-parse", "HEAD")
 	mainBefore := r.originMain()
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "301", "--verified", "e2e", "--actual", "1.5", "--no-atlas"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}
@@ -111,7 +111,7 @@ func TestTrackerCloseCommitsEvidenceAndPublishesBoundCard(t *testing.T) {
 
 func TestTrackerCloseFixThenShipLandsEvidenceAfterTheFixes(t *testing.T) {
 	r, cardPath, _ := closeReady(t, 302)
-	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nrename a thing\n")
+	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nrename a thing\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "302", "--verified", "e2e", "--actual", "2", "--no-atlas", "--no-ledger"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}
@@ -142,7 +142,7 @@ func TestTrackerCloseFixThenShipLandsEvidenceAfterTheFixes(t *testing.T) {
 // the deferred close: the evidence commit may be empty and still anchors it.
 func TestTrackerCloseFixThenShipSurvivesASweepingFixCommit(t *testing.T) {
 	r, cardPath, _ := closeReady(t, 303)
-	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nrename a thing\n")
+	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nrename a thing\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "303", "--verified", "e2e", "--actual", "2", "--no-atlas", "--no-ledger"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}
@@ -170,7 +170,7 @@ func TestTrackerCloseFixThenShipSurvivesASweepingFixCommit(t *testing.T) {
 // HEAD's version instead of reverting it to the bytes pinned at close.
 func TestTrackerCloseFixThenShipKeepsALaterEditOfAPinnedFile(t *testing.T) {
 	r, _, detailPath := closeReady(t, 306)
-	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nrename a thing\n")
+	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nrename a thing\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "306", "--verified", "e2e", "--actual", "2", "--no-atlas", "--no-ledger"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}
@@ -206,11 +206,11 @@ func TestTrackerCloseFixThenShipKeepsALaterEditOfAPinnedFile(t *testing.T) {
 // leaving two receipts that could rebind the card to the older review.
 func TestTrackerReCloseSupersedesAnUnstartedClose(t *testing.T) {
 	r, cardPath, _ := closeReady(t, 304)
-	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nrename a thing\n")
+	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nrename a thing\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "304", "--verified", "first", "--actual", "2", "--no-atlas", "--no-ledger"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "304", "--verified", "second", "--actual", "2", "--no-atlas", "--no-ledger"); err != nil {
 		t.Fatalf("re-close: %v\n%s", err, stderr)
 	}
@@ -227,7 +227,7 @@ func TestTrackerReCloseSupersedesAnUnstartedClose(t *testing.T) {
 func TestTrackerCloseRefusesPreconditionsBeforeReview(t *testing.T) {
 	r, _, _ := closeReady(t, 305)
 	r.git("switch", "-q", "--detach")
-	calls, _ := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	calls, _ := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	head := r.git("rev-parse", "HEAD")
 	msg, died := expectDie(t, func() {
 		_, _, _ = executeSDLCTestCommand("close", "--issue", "305", "--verified", "e2e", "--actual", "1", "--no-atlas")
@@ -252,7 +252,7 @@ func TestLegacyDetailsRefuseInATrackedCheckout(t *testing.T) {
 	if _, err := refreshChangeCodeMirror(&changeCodeFlags{Issue: 330}, "000330-legacy", abs); !errors.Is(err, tracker.ErrLegacyDetails) || !strings.Contains(err.Error(), "migrate --reconcile") {
 		t.Fatalf("change-code took the legacy path: %v", err)
 	}
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	before := r.git("rev-parse", "HEAD")
 	msg, died := expectDie(t, func() {
 		_, _, _ = executeSDLCTestCommand("close", "--issue", "330", "--verified", "e2e", "--actual", "1", "--no-atlas")
@@ -277,7 +277,7 @@ func TestLegacyDetailsRefuseInATrackedCheckout(t *testing.T) {
 // status read cut it to "orkshop/…", leaving the ledger uncommitted).
 func TestTrackerReCloseCommitsTheModifiedGateLedger(t *testing.T) {
 	r, _, _ := closeReady(t, 302)
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	closeOnce := func() {
 		t.Helper()
 		if _, stderr, err := executeSDLCTestCommand("close", "--issue", "302", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
@@ -322,7 +322,7 @@ func TestTrackerCloseSurvivesARebase(t *testing.T) {
 			id := 310 + i
 			idArg := fmt.Sprint(id)
 			r, cardPath, _ := closeReady(t, id)
-			stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+			stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 			if _, stderr, err := executeSDLCTestCommand("close", "--issue", idArg, "--verified", "first", "--actual", "1", "--no-atlas", "--no-ledger"); err != nil {
 				t.Fatalf("first close: %v\n%s", err, stderr)
 			}
@@ -354,7 +354,7 @@ func TestTrackerCloseSurvivesARebase(t *testing.T) {
 			if _, stderr, err := executeSDLCTestCommand("issue", "set-status", "working", "--issue", idArg); err != nil {
 				t.Fatalf("reopen: %v\n%s", err, stderr)
 			}
-			stubJudge(t, "VERDICT: "+tc.verdict+" (confidence: high)\n\nfine\n")
+			stubJudge(t, "VERDICT: "+tc.verdict+" (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 			if _, stderr, err := executeSDLCTestCommand("close", "--issue", idArg, "--verified", "second", "--actual", "1", "--no-atlas", "--no-ledger"); err != nil {
 				t.Fatalf("second close: %v\n%s", err, stderr)
 			}

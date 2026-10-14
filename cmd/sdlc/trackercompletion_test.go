@@ -20,7 +20,7 @@ import (
 func closedAndLanded(t *testing.T, id int) (*trackerRepo, string, string) {
 	t.Helper()
 	r, cardPath, detailPath := closeReady(t, id)
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", itoa(id), "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}
@@ -86,7 +86,7 @@ func itoa(n int) string { return strconv.Itoa(n) }
 // they are — verifiably, and idempotently on retry.
 func TestDurableLandingArchivesTrackedCloseByBinding(t *testing.T) {
 	r, cardPath, detailPath := closeReady(t, 321)
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "321", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}
@@ -202,7 +202,7 @@ func TestDurableRunMergeCompletesTrackedCloseForEveryStrategy(t *testing.T) {
 // codecomplete, bound to its evidence, until a real landing.
 func TestAbandonedWorktreeMergeLeavesTheCloseCodecomplete(t *testing.T) {
 	r, cardPath, _ := closeReady(t, 311)
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "311", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}

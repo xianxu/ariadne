@@ -76,7 +76,7 @@ func TestLegacyRepositoryFullLifecycle(t *testing.T) {
 	writeRepoFile(t, r.root, "cmd/cycle.go", "package cycle\n")
 	r.git("add", "cmd/cycle.go")
 	r.git("commit", "-qm", "#4: implement")
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	mustSlotRun(t, r.root, "close", "--issue", "4", "--verified", "legacy cycle", "--actual", "1", "--no-atlas")
 	if !strings.Contains(readRepoFileOr(t, r.root, path), "status: codecomplete") {
 		t.Fatal("legacy close did not record codecomplete in the details")

@@ -79,7 +79,7 @@ const smallDiffMarker = "## Small-diff focus"
 // the shell is reviewed with the small-diff recipe, and its record stays quick.
 func TestCloseQuickWithinShellSelectsSmallDiff(t *testing.T) {
 	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a.go": goLines(20), "cmd/a_test.go": goLines(300)})
-	calls, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	calls, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func overLineLimit() map[string]string {
 // close records full/inferred with the measured reason and runs the full review.
 func TestCloseQuickCrossingShellUpgrades(t *testing.T) {
 	dir := quickCloseRepo(t, 231, "", overLineLimit())
-	calls, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	calls, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestCloseSpreadButTinyAtTheLimit(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			dir := quickCloseRepo(t, 231, "", spread(c.total))
-			_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
+			_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n"+emptyBoundaryFindings)
 			if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 				t.Fatal(err)
 			}
@@ -180,7 +180,7 @@ func TestCloseDesignGrewPastTheLimit(t *testing.T) {
 			}
 			testfix.Git(t, ".", "add", ".")
 			testfix.Git(t, ".", "commit", "-q", "-m", "#231: plan")
-			_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
+			_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n"+emptyBoundaryFindings)
 			if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 				t.Fatal(err)
 			}
@@ -199,7 +199,7 @@ func TestCloseDesignGrewPastTheLimit(t *testing.T) {
 // quick does not exempt a diff that leaves it.
 func TestCloseOperatorQuickStillUpgrades(t *testing.T) {
 	dir := quickCloseRepo(t, 231, "quick", map[string]string{"cmd/a.go": goLines(flow.MaxAddedLines + 1)})
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)
 	}
@@ -214,14 +214,14 @@ func TestCloseOperatorQuickStillUpgrades(t *testing.T) {
 func TestCloseQuickReworkThenReclose(t *testing.T) {
 	dir := quickCloseRepo(t, 231, "", overLineLimit())
 	before := readQuick(t, dir)
-	stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nno\n")
+	stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nno\n"+reworkBoundaryFindings)
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err == nil {
 		t.Fatal("a REWORK verdict should not finalize")
 	}
 	if after := readQuick(t, dir); after != before {
 		t.Fatalf("REWORK wrote the issue:\n%s", after)
 	}
-	_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
+	_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n"+addressedBoundaryFindings)
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +237,7 @@ func TestCloseQuickEmptyDoneWhenRefuses(t *testing.T) {
 	path := filepath.Join(dir, "000231-x.md")
 	text := readQuick(t, dir)
 	os.WriteFile(path, []byte(strings.Replace(text, "- it works", "-", 1)), 0o644)
-	calls, _ := stubJudge(t, "VERDICT: SHIP (confidence: high)\n")
+	calls, _ := stubJudge(t, "VERDICT: SHIP (confidence: high)\n"+emptyBoundaryFindings)
 	msg, died := expectDie(t, func() { runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)) })
 	if !died || !strings.Contains(msg, "Done when") || *calls != 0 {
 		t.Errorf("died=%v calls=%d msg=%q; want a refusal naming Done when, before any review", died, *calls, msg)
@@ -254,7 +254,7 @@ func TestCloseQuickStaleDoneWhenDefersToTheReview(t *testing.T) {
 	path := filepath.Join(dir, "000231-x.md")
 	stale := strings.Replace(readQuick(t, dir), "Thing.", "A reframed thing.", 1)
 	os.WriteFile(path, []byte(stale), 0o644)
-	calls, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nDone-when: current — the reframe is wording only\n")
+	calls, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nDone-when: current — the reframe is wording only\n"+emptyBoundaryFindings)
 
 	noJudge := quickFlags(dir, 231)
 	noJudge.NoJudge = true
@@ -280,7 +280,7 @@ func TestCloseQuickStaleDoneWhenWaivedWithoutReview(t *testing.T) {
 	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a.go": goLines(5)})
 	path := filepath.Join(dir, "000231-x.md")
 	os.WriteFile(path, []byte(strings.Replace(readQuick(t, dir), "Thing.", "A reframed thing.", 1)), 0o644)
-	calls, _ := stubJudge(t, "VERDICT: SHIP (confidence: high)\n")
+	calls, _ := stubJudge(t, "VERDICT: SHIP (confidence: high)\n"+emptyBoundaryFindings)
 	f := quickFlags(dir, 231)
 	f.NoJudge, f.NoDoneWhenFresh = true, true
 	if err := runCloseWithReview(io.Discard, io.Discard, f); err != nil || *calls != 0 {
@@ -292,7 +292,7 @@ func TestCloseQuickStaleDoneWhenWaivedWithoutReview(t *testing.T) {
 // closes exactly as before — the full recipe, nothing flow-related written.
 func TestCloseNoFlowUnchanged(t *testing.T) {
 	dir := closeRepo(t, 69)
-	_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
+	_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n"+emptyBoundaryFindings)
 	if err := runCloseWithReview(io.Discard, io.Discard, closeFlagsFor(dir)); err != nil {
 		t.Fatal(err)
 	}
@@ -348,7 +348,7 @@ func readQuick(t *testing.T, issuesDir string) string {
 // close by shrinking.
 func TestCloseQuickReworkShrinkThenReclose(t *testing.T) {
 	dir := quickCloseRepo(t, 231, "", overLineLimit())
-	_, first := stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nno\n")
+	_, first := stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nno\n"+reworkBoundaryFindings)
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err == nil {
 		t.Fatal("a REWORK verdict should not finalize")
 	}
@@ -359,7 +359,7 @@ func TestCloseQuickReworkShrinkThenReclose(t *testing.T) {
 	testfixGit(t, "add", "-A")
 	testfixGit(t, "commit", "-q", "-m", "#231: drop b")
 
-	_, second := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
+	_, second := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n"+addressedBoundaryFindings)
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)
 	}
@@ -402,11 +402,11 @@ func testfixGit(t *testing.T, args ...string) {
 // quick issue that needed one fix would be upgraded for nothing.
 func TestCloseQuickSmallDiffReworkStaysQuick(t *testing.T) {
 	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a.go": goLines(5)})
-	stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nno\n")
+	stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nno\n"+reworkBoundaryFindings)
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err == nil {
 		t.Fatal("a REWORK verdict should not finalize")
 	}
-	_, second := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
+	_, second := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n"+addressedBoundaryFindings)
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)
 	}
@@ -425,7 +425,7 @@ func TestCloseQuickSmallDiffReworkStaysQuick(t *testing.T) {
 func TestCloseNonASCIIPathsClassifyAsThemselves(t *testing.T) {
 	dir := quickCloseRepo(t, 231, "", map[string]string{
 		"cmd/a.go": goLines(5), "docs/café.md": goLines(150), "docs/naïve.md": goLines(150), "tests/überprüfung_spec.lua": goLines(300)})
-	_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
+	_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n"+emptyBoundaryFindings)
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)
 	}
@@ -446,7 +446,7 @@ func TestCloseQuotedDocAndTestNamesDoNotCount(t *testing.T) {
 		"docs/a\"b.md":        goLines(150),
 		"tests/x\"y_spec.lua": goLines(150),
 	})
-	_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
+	_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n"+emptyBoundaryFindings)
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)
 	}

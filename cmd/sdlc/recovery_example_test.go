@@ -51,7 +51,7 @@ func runSchedulingExample(t *testing.T, n int, verdict string) {
 		map[string]string{syncIssuesDir + "/" + pid + "-example.md": string(detail)})
 	coordinator := filepath.Join(t.TempDir(), "coordinator")
 	testfix.Git(t, r.root, "worktree", "add", "-q", "--detach", coordinator, "origin/main")
-	stubJudge(t, "VERDICT: "+verdict+" (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: "+verdict+" (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 
 	observeJSON := func() map[string]any {
 		t.Helper()

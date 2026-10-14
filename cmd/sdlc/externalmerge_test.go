@@ -57,7 +57,7 @@ func externalMergeFixture(t *testing.T, variant string) (*trackerRepo, string, s
 	r, cardPath, detailPath := closeReady(t, 330)
 	branch := r.git("branch", "--show-current")
 	if variant == "closed" {
-		stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+		stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 		if _, stderr, err := executeSDLCTestCommand("close", "--issue", "330", "--verified", "e2e", "--actual", "1", "--no-atlas", "--no-ledger", "--no-project"); err != nil {
 			t.Fatalf("close: %v\n%s", err, stderr)
 		}

@@ -24,7 +24,7 @@ func judgeStream(t *testing.T, name string) string {
 // then a block-less postscript records that verdict, not "unknown", and its
 // sidecar keeps the findings.
 func TestCloseRecordsTheVerdictBeforeAPostscript(t *testing.T) {
-	pinReviewAgent(t, judge.AgentClaude) // the stream is Claude JSONL
+	pinReviewAgent(t, judge.AgentClaude)         // the stream is Claude JSONL
 	stream := judgeStream(t, "postscript.jsonl") // before closeReady changes directory
 	r, _, detailPath := closeReady(t, 340)
 	calls, _ := stubJudgeSeq(t, stream)
@@ -42,7 +42,7 @@ func TestCloseRecordsTheVerdictBeforeAPostscript(t *testing.T) {
 }
 
 // A reviewer that never gives a verdict is dispatched twice; the close keeps
-// its fail-safe (does not finalize) and the sidecar holds both runs.
+// its fail-safe (does not finalize) and the sidecar holds both runs as diagnostics.
 func TestCloseWithoutAVerdictKeepsBothRuns(t *testing.T) {
 	pinReviewAgent(t, judge.AgentClaude) // the stream is Claude JSONL
 	stream := judgeStream(t, "background_wait.jsonl")
@@ -55,8 +55,8 @@ func TestCloseWithoutAVerdictKeepsBothRuns(t *testing.T) {
 	if *calls != 2 || strings.Contains(r.card(cardPath), "status: codecomplete") {
 		t.Fatalf("%d dispatches; card:\n%s", *calls, r.card(cardPath))
 	}
-	if sidecar := readSidecar(t, r.root, detailPath); strings.Count(sidecar, "I'll wait") != 2 || !strings.Contains(sidecar, "## Attempt 2") {
-		t.Fatalf("sidecar does not hold both runs:\n%s", sidecar)
+	if sidecar := readSidecar(t, r.root, detailPath); strings.Count(sidecar, "I'll wait") != 2 || !strings.Contains(sidecar, "Protocol attempt 2") {
+		t.Fatalf("sidecar diagnostics do not hold both runs:\n%s", sidecar)
 	}
 }
 
@@ -93,7 +93,7 @@ func TestCloseSizesTheReviewTimeout(t *testing.T) {
 				if d, ok := ctx.Deadline(); ok {
 					left = time.Until(d)
 				}
-				return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n")}, nil
+				return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n" + emptyBoundaryFindings)}, nil
 			}
 			_, stderr, _ := executeSDLCTestCommand("close", "--issue", "342", "--verified", "e2e", "--actual", "1", "--no-atlas", "--no-ledger", "--no-project")
 			if left <= c.min || left > c.max {

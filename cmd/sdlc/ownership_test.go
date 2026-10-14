@@ -66,7 +66,7 @@ func dropClaimant(t *testing.T, r *trackerRepo, id, cardPath string) {
 // error) and whether the review judge was dispatched.
 func ownershipGate(t *testing.T, r *trackerRepo, name string, id int, detailPath string) (refusal string, judged bool) {
 	t.Helper()
-	calls, _ := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	calls, _ := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	idArg := itoa(id)
 	run := func(args ...string) string {
 		var out string

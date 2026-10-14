@@ -73,6 +73,36 @@ Planning and close reviews release the local repository lock while the reviewer
 runs. SDLC checks the prepared inputs again before recording a result; concurrent
 edits require a rerun. A review's timeout scales with its window (30m up to 500 added lines, +15m per further 1,000, at most `2h`; plan reviews get 30m, #300); `WF_REVIEW_TIMEOUT` (allowed `1s`–`2h`) overrides it.
 
+Boundary reviews can prepare generated assets inside their disposable checkout.
+Commit a regular `.sdlc/review-prepare.json` file at the reviewed HEAD:
+
+```json
+{"version":1,"command":["make","runtimebundle-generate"],"timeout_minutes":10}
+```
+
+The command is an argv array, executed without an implicit shell at the checkout
+root under the same fence and confinement as the reviewer. Preparation runs after
+confinement on every attempt; retries reset the checkout and prepare again. The
+timeout defaults to 10 minutes (explicit range 1–30), capped by the remaining
+review deadline. Missing configuration means no preparation; invalid configuration,
+command failure, timeout, or tracked-file changes halt the review. Ignored and
+untracked generated assets are allowed and removed with the checkout. The config
+is read from the pinned HEAD blob, never the mutable working tree.
+
+Preparation output is capped at 64 KiB per attempt. Preparation and rejected-response
+diagnostics have a combined 256 KiB cap per dispatch and remain permanently in the
+review sidecar, archived with the issue. They cannot supply verdicts or findings.
+On Darwin the write fence permits only the literal system `/bin/ps` executable to
+run outside Seatbelt; invoking shells still cannot write protected source paths.
+
+A boundary REWORK must cite an answerable blocking finding or explicitly maintain
+a known blocker. A reviewer unable to verify can emit `kind: unverifiable`, naming
+the failed check and evidence needed. Answer it with `sdlc finding dispute --issue N
+--id BR-n --rationale '…' --evidence 'command and measured result'`; the next review
+must explicitly dispose it with a note answering the evidence. Two invalid responses
+halt with a protocol error and admit no findings. See the
+[boundary review contract](atlas/workflow/sdlc-binary.md) for details.
+
 ## Classifying issues
 
 An issue can carry a **severity** (`critical | high | medium | low`, shared by

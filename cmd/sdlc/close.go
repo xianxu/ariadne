@@ -38,6 +38,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/churn"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
@@ -1280,6 +1281,7 @@ func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 	var base, baseLong, head, windowBase string
 	var snapshot closeReviewSnapshot
 	var prior string
+	var admission gatestate.Ledger
 	if err := withRequiredRepoTransactionLock(cmd, func() error {
 		r = computeClose(stderr, f)
 		base, baseLong, head, windowBase = closeReviewAnchors(f, r)
@@ -1288,29 +1290,31 @@ func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 			return captureErr
 		}
 		snapshot = captured
-		prior = boundaryPriorFindings(stderr, boundaryReviewParams{
-			IssuesDir: f.IssuesDir, IssueNum: f.Issue, Milestone: "", PlansDir: f.plansDir(),
-		})
-		return nil
+		memoryParams := boundaryReviewParams{IssuesDir: f.IssuesDir, IssueNum: f.Issue, PlansDir: f.plansDir()}
+		prior = boundaryPriorFindings(stderr, memoryParams)
+		var lerr error
+		admission, lerr = boundaryAdmissionLedger(memoryParams)
+		return lerr
 	}); err != nil {
 		return err
 	}
 
 	return reviewThenFinalizeLocked(cmd, stdout, stderr, f, r, boundaryReviewParams{
-		Label:         "#" + strconv.Itoa(f.Issue),
-		Base:          base,
-		BaseLong:      baseLong,
-		Head:          head,
-		IssuesDir:     f.IssuesDir,
-		Agent:         f.Agent,
-		AgentExplicit: f.AgentExplicit,
-		IssueNum:      f.Issue,
-		Milestone:     "",
-		PlansDir:      f.plansDir(),
-		PriorFindings: prior,
-		Category:      closeRecipe(f, r),
-		ReviewNotes:   r.reviewNotes,
-		WindowBase:    windowBase,
+		Label:           "#" + strconv.Itoa(f.Issue),
+		Base:            base,
+		BaseLong:        baseLong,
+		Head:            head,
+		IssuesDir:       f.IssuesDir,
+		Agent:           f.Agent,
+		AgentExplicit:   f.AgentExplicit,
+		IssueNum:        f.Issue,
+		Milestone:       "",
+		PlansDir:        f.plansDir(),
+		PriorFindings:   prior,
+		AdmissionLedger: &admission,
+		Category:        closeRecipe(f, r),
+		ReviewNotes:     r.reviewNotes,
+		WindowBase:      windowBase,
 	}, snapshot)
 }
 
@@ -1375,6 +1379,11 @@ func reviewThenFinalize(stdout, stderr io.Writer, f *closeFlags, r closeResult, 
 	if err != nil {
 		return err
 	}
+	ledger, err := boundaryAdmissionLedger(p)
+	if err != nil {
+		return err
+	}
+	p.AdmissionLedger = &ledger
 	dispatchParams := p
 	dispatchParams.ReviewPlansDir, dispatchParams.PlansDir = p.PlansDir, ""
 	review := dispatchBoundaryReview(stdout, stderr, dispatchParams)
@@ -1389,9 +1398,6 @@ func reviewThenFinalizeLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 	review := dispatchBoundaryReview(stdout, stderr, dispatchParams)
 	if err := p.Context.Err(); err != nil {
 		return fmt.Errorf("boundary review interrupted: %w", err)
-	}
-	if review.DispatchError != nil {
-		return review.DispatchError
 	}
 	return withRequiredRepoTransactionLock(cmd, func() error {
 		return finalizeBoundaryReview(stdout, stderr, f, r, review, p, snapshot.validate)
@@ -1438,9 +1444,6 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 			return fmt.Errorf("boundary review interrupted: %w", err)
 		}
 	}
-	if review.DispatchError != nil {
-		return review.DispatchError
-	}
 	verb := closeVerb(f.Milestone)
 	if validate != nil {
 		note, err := validate()
@@ -1470,15 +1473,12 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 			return fmt.Errorf("boundary review interrupted: %w", err)
 		}
 	}
-	if review.Output != "" && review.SidecarPath == "" && p.PlansDir != "" {
-		p.Agent = review.Agent
-		p.Isolation = review.Isolation
-		if path, werr := writeReviewSidecar(p, string(review.Verdict), review.Output, nowRFC3339()); werr != nil {
-			cwarn(stderr, fmt.Sprintf("review sidecar not written: %v", werr))
-		} else {
-			review.SidecarPath = path
-			cok(stderr, "review sidecar: "+path)
-		}
+	if review.SidecarPath == "" && p.PlansDir != "" {
+		p.Agent, p.Isolation, p.Evidence = review.Agent, review.Isolation, review.Evidence
+		review.SidecarPath = persistReviewSidecar(stderr, p, review)
+	}
+	if review.DispatchError != nil {
+		return review.DispatchError
 	}
 
 	// #194 M2 (D4): the verdict and the ledger are BOTH gates, and finalizing requires

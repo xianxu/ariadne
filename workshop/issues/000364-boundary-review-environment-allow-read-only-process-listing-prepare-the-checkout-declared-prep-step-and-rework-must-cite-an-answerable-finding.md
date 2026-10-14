@@ -80,6 +80,36 @@ pair:2 located the raw round-10 reviewer session
 reported `/bin/ps` EPERM. This corroborates the measured outer Seatbelt failure,
 without claiming that the transcript identifies the historical outer argv.
 
+### 2026-10-14 — implementation checks
+
+Change-code full flow passed (plan-quality CLEAN; estimate-quality INFO). The
+estimate includes integration design for concrete snapshot/sidecar threading in
+existing lock paths, and verification/ship work in integration plus boundary review;
+docs are small extensions to existing pages. Its implementation allowance may be
+tight, as the advisory review noted; actuals will be measured rather than adjusted
+to fit the estimate.
+
+Literal ps rule: live Darwin direct and shell-child known-PID checks pass, as do
+scratch writes and protected-write refusal. Removing the rule reproduced EPERM
+and failed the conformance test; restored package passes. No Linux behavior changed.
+Preparation/retry tests first failed for missing assets, unchecked failures and
+accepted empty REWORK, then passed after lifecycle integration. A boundary test
+proves both invalid attempts are retained as diagnostics without an admitted round.
+Parser/finding fuzzing and four admission guard mutations passed their checks.
+Combined judge/reviewprepare/reviewbox/gatestate/vocab tests passed. Full suite and final boundary review remain pending.
+
+Live downstream proof: pair origin/main `b63f4bd76e3e81d1433cfeda544bb3bed8501522`
+failed its runtimebundle test before generation. In a disposable clone with a
+tracked declaration, production fenced preparation took 655.738 ms and the real
+runtimebundle test passed (0.181 s); source HEAD/refs/status/diff stayed unchanged.
+Installed Codex v0.162.1, gpt-6.1-sol, approval never, danger-full-access beneath
+Seatbelt executed `/bin/ps -p 1 -o pid=,comm=` and returned PID 1 `/sbin/launchd`.
+Its SHIP/findings handoff passed the boundary validator; the live smoke passed
+in 9.385 s. Both credential/platform-sensitive checks are opt-in tests, skipped
+by default. Linux code is unchanged; no live Linux runner is available locally.
+The hub was asked to assign pair's real declaration separately, with operator-held
+verification for its `.sdlc` configuration change.
+
 ## Revisions
 
 - 2026-10-14 — Spec 1 corrected with hub approval: the existing fence denies source

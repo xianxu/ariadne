@@ -12,7 +12,7 @@ func TestWrapPerFence(t *testing.T) {
 		name  string
 		args  []string
 	}{
-		{FenceSeatbelt, "sandbox-exec", []string{"-p", `(version 1)(allow default)(deny file-write* (subpath "/src") (subpath "/src/.git"))`, "env", "-C", "/box", "claude", "-p", "x"}},
+		{FenceSeatbelt, "sandbox-exec", []string{"-p", `(version 1)(allow default)(allow process-exec (literal "/bin/ps") (with no-sandbox))(deny file-write* (subpath "/src") (subpath "/src/.git"))`, "env", "-C", "/box", "claude", "-p", "x"}},
 		{FenceBwrap, "bwrap", []string{"--dev-bind", "/", "/", "--ro-bind", "/src", "/src", "--ro-bind", "/src/.git", "/src/.git", "--chdir", "/box", "claude", "-p", "x"}},
 		{FenceNone, "env", []string{"-C", "/box", "claude", "-p", "x"}},
 	}
@@ -37,7 +37,7 @@ func TestWrapDoesNotAliasCallerArgs(t *testing.T) {
 
 func TestSeatbeltProfileEscapes(t *testing.T) {
 	got := seatbeltProfile([]string{`/a "b"\c`})
-	want := `(version 1)(allow default)(deny file-write* (subpath "/a \"b\"\\c"))`
+	want := `(version 1)(allow default)(allow process-exec (literal "/bin/ps") (with no-sandbox))(deny file-write* (subpath "/a \"b\"\\c"))`
 	if got != want {
 		t.Fatalf("got %s, want %s", got, want)
 	}

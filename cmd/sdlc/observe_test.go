@@ -177,7 +177,7 @@ func TestObserveCheckpointsAcrossTheLifecycle(t *testing.T) {
 		t.Fatalf("holding: %+v", o.Workspaces)
 	}
 
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "394", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}
