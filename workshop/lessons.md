@@ -617,3 +617,5 @@ The simplest durable authority beats a clever scan of consequences.
 - A new consumer configuration hook needs a README entry as well as atlas details: name its default convention, override placement, and failure behavior (#333 BR-1).
 
 - Tests of environment-controlled output must own every relevant flag, including flags that override the one being tested. Codex's NO_COLOR broke forced-color assertions; inherited CLICOLOR_FORCE broke plain output (#363). Exercise the runner with conflicting ambient settings.
+
+- Plan test strategies by named risky function, adversarial input class and a mechanical guard; case inventories alone hide missing invariants. For append-only diagnostics, a per-attempt cap is not a retention policy: state permanent cost or bounded supersession and measure at the writer (#364 PQ-1/PQ-2).

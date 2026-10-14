@@ -145,6 +145,22 @@ Boundary admission rules:
    advancement, and no close finalization. Do not feed concatenated invalid text back
    to the verdict parser. Keep failure evidence in the existing sidecar/diagnostics.
 
+### Diagnostic retention
+
+Preparation/protocol evidence is permanently retained in the existing append-only
+review sidecar and archived with the issue, including failed invocations that never
+produce a ledger round. No expiry or automatic deletion is promised. The new
+`reviewprepare.RenderDiagnostics` limits the entire added diagnostic envelope to
+256 KiB per dispatch, including metadata, truncation markers and invalid-response
+excerpts. The 64 KiB preparation-output cap per attempt remains a subsidiary cap;
+remaining envelope space holds protocol evidence. Capture drains beyond caps.
+The renderer records retained byte count and truncation; `writeReviewSidecar`
+reports that count at append time, where repeated-invocation cost is measurable.
+Four maximally verbose failed invocations add at most 1 MiB of diagnostics to the
+working sidecar (Git history/storage overhead is additional). Existing accepted
+review bodies are unchanged and outside this new diagnostic budget. Tests measure
+the envelope and appended byte delta, including retries and repeated failed calls.
+
 ## Architecture and lifecycle checks
 
 - **ARCH-DRY:** one attempt loop, process runner, ledger/dispute lifecycle, and binary-owned review.
@@ -163,6 +179,24 @@ Boundary admission rules:
 - **ARCH-FUNERAL:** generated artifacts stay in the existing disposable checkout;
   normal cleanup and crash sweep remove them. Bounded evidence uses existing sidecars
   archived with the issue; no new persistent cache or queue.
+
+## Function-level verification strategy
+
+The following strategies own the test scope; task checkboxes refer to these
+rather than adding a procedural case inventory. Tests precede implementation.
+
+| Function | Risk / adversarial input class | Strategy and mechanical guard |
+|---|---|---|
+| `reviewprepare.Parse` (new) | malformed or ambiguous declaration bytes | Seeded fuzzing of strict JSON validation; accepted values always satisfy version/argv/timeout invariants; remove unknown-field/EOF validation and observe a failing seed. |
+| `readReviewPreparation` (new, integration) | mutable or nonregular declaration at pinned revision | Temporary real Git repository changed after pinning; assert returned bytes follow the pinned regular blob; mutation removing mode/pin guard must fail. |
+| `validateBoundaryResponse` (new, pure) | malformed responses and cross-scope finding references | Seeded fuzzing plus a scoped ledger model; admitted REWORK always has a new blocker or valid maintained blocker, and every pending unverifiable dispute has an answer; remove each admission guard and observe failure. |
+| `gatestate.ParseFindingsBlock` | malformed/unknown kind and legacy omission | Seeded parser fuzzing checks unknown kinds cannot enter accepted reports while historical omission retains defect semantics. |
+| `gatestate.Render`, `ParseSidecar`, `RenderPriorFindingsScoped` | reordered ledger entries, legacy and new finding kinds | Round-trip property and repeatable permutation checks preserve identity/kind/scope and deterministic canonical output; mutate kind propagation and observe failure. |
+| `reviewprepare.RenderDiagnostics` (new, pure) | oversized and verdict-looking diagnostic text | Property test supplies arbitrary bounded results; rendered envelope never exceeds the dispatch byte cap, remains separate from semantic output, and reports truncation and retained bytes. |
+| `seatbeltProfile`, `verifyFence` | process exec alongside protected writes | Real Darwin conformance through direct and shell-child ps plus protected/scratch write probes; removing the literal rule reproduces EPERM. |
+| `runPreparation` (new), `dispatchAttempts` | failed/hanging commands, descendant processes, invalid responses | Stateful executable fixture records events through the real process seam; reproducible event sequence enforces reset→confinement→prep→review with at most two attempts, strict failure stopping and descendant cleanup. Remove ordering/admission guards to prove the harness detects the fault. |
+| `dispatchBoundaryReview`, `persistBoundaryRound` | invalid response after a disputed stable-ID finding | Real temporary-repo lifecycle proves host evidence reaches the next judge, invalid text cannot advance accepted ledger/head, and a valid disposition closes the loop. |
+| `writeReviewSidecar` | repeated failed dispatches | Append two maximum diagnostic envelopes and measure byte deltas; each added envelope obeys the cap and reports its size even when no ledger round is accepted. |
 
 ## Tasks
 
@@ -186,9 +220,7 @@ Boundary admission rules:
 `cmd/sdlc/internal/gatestate/{ledger,parse,prompt,render}.go` and tests;
 new `cmd/sdlc/boundaryresponse{,_test}.go`.
 
-- [ ] Add red tests for optional kind/legacy round trips, unknown-kind refusal,
-  empty REWORK, known maintained findings, unknown IDs, Minor-only/settled-only
-  blockers, and unanswered/answered scoped unverifiable disputes.
+- [ ] Write failing tests using the named admission, parser and renderer strategies above.
 - [ ] Add kind vocabulary and derive parser/rendered instructions from it; regenerate
   exports with the existing vocabulary tools, not handwritten generated JSON.
 - [ ] Implement one pure admission function over response + scoped ledger, using
@@ -204,11 +236,8 @@ new `cmd/sdlc/reviewprepare{,_test}.go`; `cmd/sdlc/internal/judge/dispatch.go`,
 new `prepare{,_test}.go`, `dispatchstream_test.go`, cancellation tests;
 `cmd/sdlc/{milestoneclose,boundaryledger,reviewisolation,reviewsidecar}.go` and tests.
 
-- [ ] Write failing parser/pinned-blob tests for all declaration cases above.
-- [ ] Write integration fixtures that create generated assets, log each attempt,
-  mutate first-attempt files, fail preparation, hang with a child, and print fake
-  verdict fences. Assert reset precedes reprepare, failures prevent reviewer launch,
-  source files never change, output is bounded, and children are gone on return.
+- [ ] Write failing declaration, pinned-reader, diagnostic and lifecycle tests using
+  the named function strategies above.
 - [ ] Implement declaration IO and the context-aware preparation hook inside the
   shared attempt lifecycle. Reuse process cancellation mechanics with strict prep
   exit handling; do not reuse reviewer nonzero-exit swallowing.
@@ -217,8 +246,7 @@ new `prepare{,_test}.go`, `dispatchstream_test.go`, cancellation tests;
 - [ ] Wire the pure boundary validator to close, milestone-close and fix-review.
   Persist prep/protocol diagnostics without accepted verdict/round/head advancement
   from invalid text; preserve stale-result checks and existing ledgers.
-- [ ] Test invalid→valid, invalid→invalid, reset/prep error, cancellation, deadline,
-  dirty prep, and a real stable-ID dispute→host evidence→judge disposition sequence.
+- [ ] Execute the named boundary lifecycle strategy through the production seams.
 - [ ] Run `go test ./cmd/sdlc/internal/judge ./cmd/sdlc/internal/reviewprepare -count=1`
   and `go test ./cmd/sdlc -run 'Test.*(BoundaryResponse|ReviewPrepar|BoundaryReview|ReviewSidecar|Dispute)' -count=1`;
   mutation-check each new rejection/ordering branch, restore, and commit.
@@ -254,3 +282,11 @@ Task 1 and the pure/model part of Task 2 are bounded independent subagent work.
 The main session owns Task 3's shared lifecycle integration and Task 4. Avoid
 concurrent edits to dispatch, ledger wiring, and prompt files. One final SDLC review
 owns acceptance; do not add a duplicate boundary review outside the binary.
+
+## Revisions
+
+- 2026-10-14 — Plan-quality PQ-1: replaced procedural test inventories with named
+  function-level strategies, adversarial classes, fuzz/property checks and mechanical
+  guards. PQ-2: declared permanent diagnostic retention, a 256 KiB writer envelope
+  per dispatch, visible retained-byte measurement and repeated-failure cost. Scope
+  and approved behavior remain unchanged.

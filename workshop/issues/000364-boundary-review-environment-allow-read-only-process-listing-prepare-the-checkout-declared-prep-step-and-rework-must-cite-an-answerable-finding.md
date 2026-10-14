@@ -66,6 +66,19 @@ Hub approved the measured narrow rule, declared prep using pair's
 the plan then proceeding through change-code without another approval. Pair#547
 separately replaces pair's ps subprocesses. No implementation changes yet.
 
+### 2026-10-14 — plan review and historical corroboration
+
+Plan-quality round 1 raised PQ-1 (function-level test strategies) and PQ-2
+(diagnostic retention). The durable plan now names each risky function and its
+mechanical test strategy, and makes permanent retention plus per-dispatch cost
+explicit. No implementation started before the gate clears.
+
+pair:2 located the raw round-10 reviewer session
+`01a13908-b083-7751-a0f4-4345bf6222ff`: its turn context explicitly records
+`danger-full-access` and approval policy `never`; direct shell/test execution still
+reported `/bin/ps` EPERM. This corroborates the measured outer Seatbelt failure,
+without claiming that the transcript identifies the historical outer argv.
+
 ## Revisions
 
 - 2026-10-14 — Spec 1 corrected with hub approval: the existing fence denies source
