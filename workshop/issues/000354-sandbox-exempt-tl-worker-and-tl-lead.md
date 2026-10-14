@@ -1,12 +1,12 @@
 ---
 id: 000354
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: '4ac6cbe48fcec14a1ecfe9340b7f6f95aaff2d5c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b8f843e96c21ec89ced11aebc19b2a4a1fda8477' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T17:36:58-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "27755c00", done: "7c397d52"}
+actual_hours: 0.03
 ---
 
 # add tl-worker * and tl-lead * to .claude/settings.ariadne.json sandbox.excludedCommands (local gates; unblocks #350)
