@@ -1,6 +1,6 @@
 ---
 id: 000378
-status: codecomplete
+status: done
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
@@ -22,6 +22,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: ecc1d53b7899ee421d305ddeb73d6217c26217c2
         evidence_commit: d7b6c56dc82a41bf6de59280a249ac754d1fcd12
+        landed_commit: 9f5fb4bfe80f8ed73f1818d028f6a92aae82ad95
 ---
 
 # Ignore generated TL skill links from weave refresh
