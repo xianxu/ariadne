@@ -68,21 +68,26 @@ func LookupRepoIssues(ctx context.Context, repoRoot, id string) ([]IssueRecord, 
 	return records, nil
 }
 
-// recordsReadDeadline bounds one repository's tracker read (#290): a remote
-// that does not answer degrades that repository, never the whole inventory.
+// recordsReadDeadline bounds how long one repository's tracker read waits on its
+// remote (#290): a remote that does not answer degrades that repository, never
+// the whole inventory. It is a remote budget (#360), not a deadline on the whole
+// read: local git work is not counted, so a loaded machine's slow process spawns
+// cannot spend it and fail a healthy repository.
 var recordsReadDeadline = 15 * time.Second
 
 // repoRecords loads (once per process) a repository's composed issue records.
 // Fleet inventory is a read-only view: a stale tracker read is acceptable.
 var repoRecords = newRecordsCache(loadRepoRecords).get
 
-// loadRepoRecords is one repository's tracker read under the read deadline.
+// loadRepoRecords is one repository's tracker read, its remote under the read
+// deadline.
 func loadRepoRecords(ctx context.Context, repoRoot string) (tracker.Records, error) {
-	ctx, cancel := context.WithTimeout(ctx, recordsReadDeadline)
-	defer cancel()
 	repo, err := tracker.RepositoryForCheckout(ctx, repoRoot)
 	if err != nil {
 		return tracker.Records{}, err
+	}
+	if repo != nil {
+		repo.BoundRemote(recordsReadDeadline)
 	}
 	rs, err := tracker.LoadRecords(ctx, repo, filepath.Join(repoRoot, vocab.Issue().Discovery().Home), tracker.PreferFresh)
 	if err != nil {

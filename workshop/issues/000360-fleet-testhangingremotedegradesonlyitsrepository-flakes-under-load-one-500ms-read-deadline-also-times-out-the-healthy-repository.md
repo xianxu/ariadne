@@ -1,12 +1,12 @@
 ---
 id: 000360
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: '4cd511df0921ae717b977f58e8035b5e81e856c6' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '6120f55a74c2252ad2cc2e0060ac7969c5760369' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T18:37:33-07:00
 claimant:
     operator: Xian Xu
@@ -47,7 +47,24 @@ repository its own deadline rather than one shared budget, decide that here too.
 
 ## Plan
 
-- [ ]
+- [x] Root cause: `recordsReadDeadline` wrapped the whole repository read
+  (`context.WithTimeout` in `loadRepoRecords`), and that context is bound into the
+  `tracker.Repository`/`gitx.TrunkFile`, so it governed every git call, local and
+  remote. Its purpose is "a remote that does not answer", yet under load the healthy
+  repository's local work (`workspace.Resolve`, `ResolvePublicationTarget`) spent it
+  ("invalid resting branch: context deadline exceeded").
+- [x] Design fix: `gitx.TrunkFile.BoundRemote(d)` (via `tracker.Repository.BoundRemote`)
+  is a remote budget, applied only to the five remote-contacting commands (fetch, two
+  ls-remote, two push) through `runRemote`, shared across them from the first one (a
+  hang cannot multiply it per call). Local work runs on the caller's context. Fleet sets
+  `recordsReadDeadline` as that budget instead of wrapping the read.
+- [x] Consequence: a hanging remote now degrades like any unreachable remote under
+  `PreferFresh` (stale, answered from its last fetch, naming the deadline) instead of
+  unknown, because the read survives to its local fallback. The fleet test expects that.
+- [x] Deterministic tests in `gitx` (latency injected through `runGitInContext`): slow
+  local work does not spend the budget, while the old whole-operation deadline fails the
+  same read; a hanging remote is bounded and named; the budget is shared.
+- [ ] Prove the fleet test under real load (in a loop alongside a full suite).
 
 ## Log
 

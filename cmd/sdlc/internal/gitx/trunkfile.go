@@ -134,6 +134,40 @@ type TrunkFile struct {
 	// probedTip is the remote tip the last RemoteExists read (#290), handed to
 	// the next Snapshot once so an unchanged tracker is read without a fetch.
 	probedTip string
+	// remoteBudget, when set (BoundRemote), bounds the total time this trunk
+	// waits on its remote (#360); remoteDeadline is that budget's end, fixed at
+	// the first remote command. Local git work is bounded only by ctx.
+	remoteBudget   time.Duration
+	remoteDeadline time.Time
+}
+
+// BoundRemote bounds the total time this trunk's remote-contacting commands
+// (fetch, ls-remote, push) may take, together, from the first one (#360). It
+// exists for "a remote that does not answer": local git work is not counted,
+// so a loaded machine's slow process spawns cannot exhaust the remote's budget.
+func (t *TrunkFile) BoundRemote(d time.Duration) {
+	t.remoteBudget, t.remoteDeadline = d, time.Time{}
+}
+
+// runRemote is run for a command that contacts the remote: under the remote
+// budget when one is set.
+func (t *TrunkFile) runRemote(env []string, args ...string) ([]byte, []byte, error) {
+	if t.remoteBudget <= 0 {
+		return t.run(env, args...)
+	}
+	if t.remoteDeadline.IsZero() {
+		t.remoteDeadline = time.Now().Add(t.remoteBudget)
+	}
+	ctx, cancel := context.WithDeadline(t.operationContext(), t.remoteDeadline)
+	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+	out, diag, err := runGitInContext(ctx, t.dir, env, args...)
+	if ctx.Err() != nil {
+		return out, diag, ctx.Err()
+	}
+	return out, diag, err
 }
 
 // NewTrunkFile refuses an empty dir.
@@ -211,7 +245,7 @@ func (t *TrunkFile) fetch() ([]byte, error) {
 	t.probedTip = "" // a fetch supersedes what the last probe saw (#290)
 	// --no-auto-maintenance (#290): housekeeping belongs to the operator's own
 	// git; a tracker read should not pay for it on every fetch.
-	_, errOut, err := t.run(nil, "fetch", "--quiet", "--no-recurse-submodules", "--no-auto-maintenance", t.remote,
+	_, errOut, err := t.runRemote(nil, "fetch", "--quiet", "--no-recurse-submodules", "--no-auto-maintenance", t.remote,
 		"+refs/heads/"+t.branch+":"+t.trackingRef())
 	return errOut, err
 }
