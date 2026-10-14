@@ -56,5 +56,6 @@ land first).
 ## Log
 
 ### 2026-10-13
+- 2026-10-13: unclaimed: filed from #351's close review; unclaimed for whoever the hub assigns
 
 Filed by ariadne:3 from #351's close review (two advisory Minors, one class).
