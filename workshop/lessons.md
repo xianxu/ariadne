@@ -28,6 +28,10 @@ Detailed incidents remain in their owning issue or review artifact.
   lock but omitted the holder pid from its child environment, so nested make
   waited on its own process (#332 BR-15). Test repeated runs with the real
   stateful lock helper; a fake that always says "skipped" cannot expose this.
+- Run a recorded suite in a fresh checkout before treating it as landing
+  evidence. An ignored woven skill directory made a process-manual test pass
+  in the slot and fail in the clean suite worktree; assertions about generated
+  projections must be conditional or backed by an explicit fixture (#332).
 - When a stateful fake models a remote push, update its advertised PR head
   from the pushed ref in every fixture that can integrate main. A stale fake
   turns a successful integration into a two-minute registration timeout

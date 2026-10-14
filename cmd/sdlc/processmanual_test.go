@@ -36,7 +36,14 @@ func TestProcessManualCmd_WiredInRoot(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatalf("`sdlc process-manual` failed: %v", err)
 	}
-	for _, want := range []string{"# Process manual", "milestone-review", "## Skills"} {
+	wants := []string{"# Process manual", "milestone-review"}
+	// .claude/skills is a woven, ignored projection. A fresh checkout used by
+	// recorded local checks has no projection until weave runs; the collector's
+	// fixture tests cover skill rendering independently of this repository.
+	if info, err := os.Stat(filepath.Join("..", "..", ".claude", "skills")); err == nil && info.IsDir() {
+		wants = append(wants, "## Skills")
+	}
+	for _, want := range wants {
 		if !strings.Contains(buf.String(), want) {
 			t.Errorf("`sdlc process-manual` output missing %q:\n%s", want, buf.String())
 		}

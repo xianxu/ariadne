@@ -424,3 +424,13 @@ the current process nested under another make. `skipped` remains unowned.
 Real-helper tests use an isolated lock file and a nested make for the baseline
 and repeated check sequence. Both tests failed before the correction and
 passed after it (ARCH-PURPOSE, ARCH-MOCK, ARCH-ORDER).
+
+### R12 — 2026-10-14, clean-checkout suite proof
+
+The recorded suite runs in a detached checkout. Its first run exposed a test
+that expected the ignored woven `.claude/skills` projection from the slot;
+that directory is absent from a fresh Git checkout. Keep the command-level
+manual assertions for tracked content and assert the optional skills section
+only when its projection exists. The collector's explicit skill fixture
+continues to prove skill rendering. Verify this correction in a clean
+worktree, then rerun both the full and recorded suites before issue close.
