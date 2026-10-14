@@ -1,13 +1,13 @@
 ---
 id: 000378
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
 severity: low
-card_mirror: '2acdefde628c6a1180fd34a3268c049b6a32a856' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5d4371153a3ed104313f2fd614108b263795138f' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T15:05:20-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "ad02ad32", done: "7c4caa8d"}
+actual_hours: 0.91
 ---
 
 # Ignore generated TL skill links from weave refresh
