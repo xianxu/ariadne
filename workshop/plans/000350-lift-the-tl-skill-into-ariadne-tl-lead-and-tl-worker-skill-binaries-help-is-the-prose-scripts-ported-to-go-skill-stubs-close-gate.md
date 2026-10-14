@@ -240,6 +240,150 @@ rounds:
       isolation: fenced
       reviewed: 9cb63797c7e4567798c31622edb61fe68a432110
       blocked: false
+    - actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 81db31ea07a5b1eda21876c95d20150b5f2b1345
+        tracker_head: bf0ee6bf72cf5ebd646dc1115c840d9028ec7807
+        branch_point: 1c39182532fa3cc78ea4935abff4ab1b87a6f01d
+        since: "2026-10-13T17:19:46-07:00"
+        until: "2026-10-14T08:57:16-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-13T17:19:46-07:00"
+              end: "2026-10-14T08:57:16-07:00"
+              began: "2026-10-13T17:19:46-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: bd759883-0d13-49e6-8d0c-73ff96809176
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 5c34a25ce33e7b3b7cd7e70959429d55d73e25fcd681beea2202618f73af9d4a
+              started: "2026-10-14T00:28:59.212Z"
+              spawned: false
+              bytes: 421205
+              windows:
+                - start: "2026-10-14T00:28:59.212Z"
+                  end: "2026-10-14T08:57:16-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 26b66958451af76f2edef3405602e7c39713065af3838fd1d6e7c293b372e415
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 3658872
+              windows:
+                - start: "2026-10-13T17:19:46-07:00"
+                  end: "2026-10-14T08:57:16-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 0.052116666666666665
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-14T08:44:50-07:00"
+              finalized: "2026-10-14T08:47:13-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-14T08:49:27-07:00"
+              finalized: "2026-10-14T08:51:31-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-14T08:52:50-07:00"
+              finalized: "2026-10-14T08:53:42-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-14T08:59:14-07:00"
+      dispatched: "2026-10-14T08:57:39-07:00"
+      agent: claude
+      findings:
+        - kind: defect
+          id: BR-8
+          severity: Important
+          title: TestMilestoneTickRegex pins a stale hand copy of the pre-fix tick regex, not markdoc.TickMilestone
+          detail: cmd/sdlc/close_test.go:164-172 claims to mirror runClose's tick regex but builds the old pattern without milestoneEmphasis, which diverged from pkg/markdoc/plan.go:67 in this window. Its boundary cases (M40, M4b, M4-extra, [x] unchanged) never reach the production function. Move them into a pkg/markdoc table over TickMilestone, including bold forms, and delete the copy.
+          family: tests-exercise-production-code
+          round: 4
+      boundary: M3
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
+    - actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 0058e96c01c1287501f0129f9735bc5062029e78
+        tracker_head: 8fe4bb4ef49ab9e0e465e4e00fc521af3821dd7d
+        branch_point: 1c39182532fa3cc78ea4935abff4ab1b87a6f01d
+        since: "2026-10-13T17:19:46-07:00"
+        until: "2026-10-14T09:01:12-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-13T17:19:46-07:00"
+              end: "2026-10-14T09:01:12-07:00"
+              began: "2026-10-13T17:19:46-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: bd759883-0d13-49e6-8d0c-73ff96809176
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 5c34a25ce33e7b3b7cd7e70959429d55d73e25fcd681beea2202618f73af9d4a
+              started: "2026-10-14T00:28:59.212Z"
+              spawned: false
+              bytes: 421205
+              windows:
+                - start: "2026-10-14T00:28:59.212Z"
+                  end: "2026-10-14T09:01:12-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 80c2a4d5ff16e30e57972af3dce14bca575777e0482a7a30486fd068cb2df22e
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 3748112
+              windows:
+                - start: "2026-10-13T17:19:46-07:00"
+                  end: "2026-10-14T09:01:12-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 0.052116666666666665
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-14T08:44:50-07:00"
+              finalized: "2026-10-14T08:47:13-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-14T08:49:27-07:00"
+              finalized: "2026-10-14T08:51:31-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-14T08:52:50-07:00"
+              finalized: "2026-10-14T08:53:42-07:00"
+              finalizing: true
+            - boundary: M3
+              dispatched: "2026-10-14T08:57:39-07:00"
+              finalized: "2026-10-14T08:59:14-07:00"
+              finalizing: false
+      "n": 5
+      timestamp: "2026-10-14T09:12:37-07:00"
+      dispatched: "2026-10-14T09:01:52-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: addressed
+          note: Hand copy deleted from cmd/sdlc/close_test.go; boundary cases now drive markdoc.TickMilestone (plan_test.go:146-168, incl. bold); reverting milestoneEmphasis at plan.go:67 turns both new tests red; sweep finds no other regex copies.
+          round: 5
+      boundary: M3
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 0058e96c01c1287501f0129f9735bc5062029e78
+      blocked: false
 ---
 
 # Gate ledger — ariadne#350 (boundary-review)
@@ -283,6 +427,19 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - **BR-7** [Minor] `atlas-tracks-behavior` (kind: defect) tl-skills atlas does not mention the degraded off-train render when the fleet read fails
   atlas/workflow/tl-skills.md:33 says a failed car read renders as ?, but not that a failed sdlc fleet inventory now renders "? off-train slots unread: <reason>" (TestGatherTrainsFleetFailureDegrades); add one clause at M3's atlas pass.
+
+## Round 4 — 2026-10-14T08:59:14-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-8** [Important] `tests-exercise-production-code` (kind: defect) TestMilestoneTickRegex pins a stale hand copy of the pre-fix tick regex, not markdoc.TickMilestone
+  cmd/sdlc/close_test.go:164-172 claims to mirror runClose's tick regex but builds the old pattern without milestoneEmphasis, which diverged from pkg/markdoc/plan.go:67 in this window. Its boundary cases (M40, M4b, M4-extra, [x] unchanged) never reach the production function. Move them into a pkg/markdoc table over TickMilestone, including bold forms, and delete the copy.
+
+## Round 5 — 2026-10-14T09:12:37-07:00 (claude) — passed
+
+### Disposed
+
+- BR-8 — addressed — Hand copy deleted from cmd/sdlc/close_test.go; boundary cases now drive markdoc.TickMilestone (plan_test.go:146-168, incl. bold); reverting milestoneEmphasis at plan.go:67 turns both new tests red; sweep finds no other regex copies.
 
 ## Open findings
 

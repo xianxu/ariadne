@@ -74,6 +74,8 @@ Items in order: M1 tl-worker (binary, prose, stub, §15 line); M2 tl-lead prose;
 
 
 
+
+- 2026-10-14: closed M3 — BR-8: TestMilestoneTickRegex (a hand copy of the pre-fix regex) deleted; its boundary cases plus bold forms now drive markdoc.TickMilestone (TestTickMilestoneBoundaries); sweep for other test-local plan-regex copies found none (TestPlanUncheckedDetection already uses production). M3: pkg/markdoc + pkg/trains extraction, tl-lead status/trains over fakes (lock exit 3, stale exit 6, fold seen-and-owed, delivery gap, degraded render), TL_LEAD_LIVE=1 conformance PASS, TickMilestone bold fix; review verdict: SHIP
 - 2026-10-14: closed M2 — cmd/tl-lead help: TestLeadHelpCoversPlaybook (21 topic rows incl. couch --notify per pair#540), TestLeadHelpHasNoNarratives (mutation-checked), TestLeadHelpDoesNotRestateWorker, TestSkillStubsPointAtBinaries (tl-lead stub) pass; weave skills lists xx-tl-lead. --no-atlas: M2 atlas surface (tl-lead row and prose in atlas/workflow/tl-skills.md) landed in 6039a71a, inside the M1 window, which M1 already closed; this window is a comment fix only; review verdict: SHIP
 - 2026-10-14: closed M1 — cmd/tl-worker tests (TestWorkerHelpCarriesEveryRule, TestWorkerHelpDoesNotRestateSection15 now forbidding whole Bash call, TestSkillStubsPointAtBinaries, TestSection15NamesTheBinaries) pass; settingsx passes with ariadne#354 merged; BR-1..BR-5 answered in a4d6e7ef (tool lists in README + 3 atlas pages, live fold refusal in TestSessionSyncConformance PASS, ErrDeliveryGap, degraded off-train render); review verdict: SHIP
 ### 2026-10-13
