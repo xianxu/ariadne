@@ -172,6 +172,74 @@ rounds:
       isolation: fenced
       reviewed: 392c1079c8f81086a51ede0b695c4cc6e8bebdcc
       blocked: false
+    - actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 9cb63797c7e4567798c31622edb61fe68a432110
+        tracker_head: 11346d7d8670215cdb8a925e96e50b21ab84730d
+        branch_point: 1c39182532fa3cc78ea4935abff4ab1b87a6f01d
+        since: "2026-10-13T17:19:46-07:00"
+        until: "2026-10-14T08:51:52-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-13T17:19:46-07:00"
+              end: "2026-10-14T08:51:52-07:00"
+              began: "2026-10-13T17:19:46-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: bd759883-0d13-49e6-8d0c-73ff96809176
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 5c34a25ce33e7b3b7cd7e70959429d55d73e25fcd681beea2202618f73af9d4a
+              started: "2026-10-14T00:28:59.212Z"
+              spawned: false
+              bytes: 421205
+              windows:
+                - start: "2026-10-14T00:28:59.212Z"
+                  end: "2026-10-14T08:51:52-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 9b0d8d962954805f1159c7b4cf6633c5e305da24252ea3b93be3d39a5ea87038
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 3490413
+              windows:
+                - start: "2026-10-13T17:19:46-07:00"
+                  end: "2026-10-14T08:51:52-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 0.052116666666666665
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-14T08:44:50-07:00"
+              finalized: "2026-10-14T08:47:13-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-14T08:49:27-07:00"
+              finalized: "2026-10-14T08:51:31-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-14T08:53:42-07:00"
+      dispatched: "2026-10-14T08:52:50-07:00"
+      agent: claude
+      findings:
+        - kind: defect
+          id: BR-7
+          severity: Minor
+          title: tl-skills atlas does not mention the degraded off-train render when the fleet read fails
+          detail: 'atlas/workflow/tl-skills.md:33 says a failed car read renders as ?, but not that a failed sdlc fleet inventory now renders "? off-train slots unread: <reason>" (TestGatherTrainsFleetFailureDegrades); add one clause at M3''s atlas pass.'
+          family: atlas-tracks-behavior
+          round: 3
+      boundary: M2
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 9cb63797c7e4567798c31622edb61fe68a432110
+      blocked: false
 ---
 
 # Gate ledger — ariadne#350 (boundary-review)
@@ -209,6 +277,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Minor] `comment-tracks-code` (kind: defect) TestSessionSyncConformance doc comment still says the test never folds
   cmd/tl-lead/conformance_test.go:16-17 says "the test never folds", but lines 53-68 now fold a not-owed ID; reword it to say the fold names an ID that isn't owed.
 
+## Round 3 — 2026-10-14T08:53:42-07:00 (claude) — passed
+
+### Raised
+
+- **BR-7** [Minor] `atlas-tracks-behavior` (kind: defect) tl-skills atlas does not mention the degraded off-train render when the fleet read fails
+  atlas/workflow/tl-skills.md:33 says a failed car read renders as ?, but not that a failed sdlc fleet inventory now renders "? off-train slots unread: <reason>" (TestGatherTrainsFleetFailureDegrades); add one clause at M3's atlas pass.
+
 ## Open findings
 
 - **BR-6** [Minor] `comment-tracks-code` (kind: defect) TestSessionSyncConformance doc comment still says the test never folds
+- **BR-7** [Minor] `atlas-tracks-behavior` (kind: defect) tl-skills atlas does not mention the degraded off-train render when the fleet read fails
