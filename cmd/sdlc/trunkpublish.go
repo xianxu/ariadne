@@ -19,12 +19,15 @@ import (
 
 const maxTrunkProseBytes = 1 << 20
 
+// Test seam for the state immediately after a confirmed remote push.
+var trunkPublishAfterPush = func() error { return nil }
+
 func newTrunkCmd() *cobra.Command {
 	var selected string
 	cmd := &cobra.Command{Use: "trunk", Short: "Publish selected non-issue workshop prose to main"}
 	pub := markMutatingCommand(&cobra.Command{
 		Use: "publish --path P", Short: "Publish one dirty workshop prose file to main without an issue-branch commit",
-		Long: "Publish one dirty Markdown file under workshop/parley, pensive, targets or projects, or workshop/lessons.md, to main. Issue details use sdlc issue publish; plans, atlas, code and settings travel with reviewed issue branches. A main edit to the selected path refuses. A retry after an uncertain push reconciles the same local bytes.",
+		Long: "Publish one dirty Markdown file under workshop/parley, pensive, targets or projects, or workshop/lessons.md, to main. Issue details use sdlc issue publish; plans, atlas, code and settings travel with reviewed issue branches. A main edit to the selected path refuses. A retry after an uncertain push reconciles the same local bytes. The local file remains untouched; the command prints exact-path cleanup guidance.",
 		Args: cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
 			guardSpineRepo(c.ErrOrStderr())
@@ -40,6 +43,11 @@ func newTrunkCmd() *cobra.Command {
 func trunkProsePath(p string) error {
 	if p == "" || path.Clean(p) != p || strings.HasPrefix(p, "/") || strings.Contains(p, "\\") || !strings.HasSuffix(p, ".md") {
 		return fmt.Errorf("ineligible trunk prose path %q", p)
+	}
+	for _, r := range p {
+		if r < 0x20 || r == 0x7f {
+			return fmt.Errorf("ineligible trunk prose path %q: control character", p)
+		}
 	}
 	if p == "workshop/lessons.md" {
 		return nil
@@ -209,129 +217,22 @@ func runTrunkPublish(ctx context.Context, stdout, stderr io.Writer, p string) er
 	if err != nil {
 		return err
 	}
-	if err := finishPublishedProse(ctx, root, p, local, headOK, string(head)); err != nil {
-		return fmt.Errorf("%s is on main, but the local copy was not cleaned: %w; rerun trunk publish --path %s", p, err, p)
+	if err := trunkPublishAfterPush(); err != nil {
+		return fmt.Errorf("%s is on main and the local copy is untouched: %w; rerun trunk publish --path %s", p, err, p)
 	}
-	fmt.Fprintf(stderr, "%s published to main\n", p)
+	fmt.Fprintf(stderr, "%s is on main; local copy retained\n", p)
+	current, present, err := readLocalProse(root, p)
+	if err != nil || !present || !bytes.Equal(current, local) {
+		fmt.Fprintf(stderr, "%s changed while publishing; preserve and reconcile the local path before cleanup\n", p)
+	} else {
+		fmt.Fprintf(stderr, "After merging main into this branch, run %s; or run it before a merge that would otherwise conflict (this discards the local copy).\n", trunkRestoreCommand(p))
+	}
 	fmt.Fprintln(stdout, p)
 	return nil
 }
 
-// The seam permits a real-Git test to interrupt after the remote push but
-// before local cleanup; production always uses the same finisher.
-var finishPublishedProse = finishTrunkPublish
-
-// This ordering seam lets real filesystem tests edit the moved source between
-// the atomic rename and the validation that decides whether it may be removed.
-var trunkProseAfterMove = func(string, string) {}
-
-func restoreMovedProse(original, backup string) error {
-	// Link is exclusive: another writer's newly-created original must never be
-	// replaced by the backup. The link keeps writes through old descriptors
-	// visible at the restored name until the backup name is removed.
-	if err := os.Link(backup, original); err != nil {
-		return fmt.Errorf("local copy preserved at %s; restoring its name: %w", backup, err)
-	}
-	if err := os.Remove(backup); err != nil {
-		return fmt.Errorf("local copy restored at %s; removing backup %s: %w", original, backup, err)
-	}
-	return nil
-}
-
-func finishTrunkPublish(ctx context.Context, root, p string, published []byte, tracked bool, pinnedHead string) error {
-	head, err := gitForProse(ctx, root, "rev-parse", "HEAD")
-	if err != nil {
-		return err
-	}
-	if string(head) != pinnedHead {
-		return fmt.Errorf("HEAD moved during publication; local bytes left untouched")
-	}
-	current, present, err := readLocalProse(root, p)
-	if err != nil {
-		return err
-	}
-	if !present {
-		return nil // already cleaned after a lost response
-	}
-	if !bytes.Equal(current, published) {
-		return fmt.Errorf("local bytes changed during publication; left untouched")
-	}
-	staged, err := stagedProse(ctx, root, p)
-	if err != nil {
-		return err
-	}
-	if staged {
-		return fmt.Errorf("index changed during publication; left untouched")
-	}
-	abs := filepath.Join(root, filepath.FromSlash(p))
-	placeholder, err := os.CreateTemp(filepath.Dir(abs), ".sdlc-trunk-publish-*")
-	if err != nil {
-		return err
-	}
-	backup := placeholder.Name()
-	if err := placeholder.Close(); err != nil {
-		os.Remove(backup)
-		return err
-	}
-	if err := os.Rename(abs, backup); err != nil {
-		os.Remove(backup)
-		return err
-	}
-	trunkProseAfterMove(abs, backup)
-	// Every check after the move has an explicit recovery path. A writer that
-	// replaced the original name makes Link fail without overwriting it.
-	recover := func(cause error) error {
-		if restoreErr := restoreMovedProse(abs, backup); restoreErr != nil {
-			return fmt.Errorf("%w; %v", cause, restoreErr)
-		}
-		return cause
-	}
-	moved, infoErr := os.Lstat(backup)
-	if infoErr != nil || !moved.Mode().IsRegular() {
-		return recover(fmt.Errorf("moved local copy changed type during cleanup: %v", infoErr))
-	}
-	movedBytes, err := os.ReadFile(backup)
-	if err != nil || !bytes.Equal(movedBytes, published) {
-		return recover(fmt.Errorf("local bytes changed during cleanup; left untouched: %v", err))
-	}
-	head, err = gitForProse(ctx, root, "rev-parse", "HEAD")
-	if err != nil || string(head) != pinnedHead {
-		return recover(fmt.Errorf("HEAD moved during cleanup; local copy left untouched: %v", err))
-	}
-	staged, err = stagedProse(ctx, root, p)
-	if err != nil || staged {
-		return recover(fmt.Errorf("index changed during cleanup; local copy left untouched: %v", err))
-	}
-	if !tracked {
-		// The rename itself cleaned the selected path. A replacement at the
-		// original name belongs to a concurrent writer and is never removed.
-		if _, err := os.Lstat(abs); err == nil {
-			return fmt.Errorf("another writer claimed %s; published copy retained at %s", p, backup)
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("check local path %s: %w; published copy retained at %s", p, err, backup)
-		}
-		fresh, readErr := os.ReadFile(backup)
-		if readErr != nil || !bytes.Equal(fresh, published) {
-			return fmt.Errorf("local bytes changed during cleanup; copy retained at %s", backup)
-		}
-		return os.Remove(backup)
-	}
-	baseBytes, _, err := gitx.RunGitContext(ctx, "-C", root, "show", pinnedHead+":"+p)
-	if err != nil {
-		return recover(fmt.Errorf("read tracked base for %s: %w", p, err))
-	}
-	replacement, err := os.OpenFile(abs, os.O_WRONLY|os.O_CREATE|os.O_EXCL, moved.Mode().Perm())
-	if err != nil {
-		return fmt.Errorf("another writer claimed %s; local copy retained at %s: %w", p, backup, err)
-	}
-	_, writeErr := replacement.Write(baseBytes)
-	closeErr := replacement.Close()
-	if writeErr != nil || closeErr != nil {
-		return fmt.Errorf("restoring %s failed; published copy retained at %s: write %v, close %v", p, backup, writeErr, closeErr)
-	}
-	fresh, err := os.ReadFile(backup)
-	if err != nil || !bytes.Equal(fresh, published) {
-		return fmt.Errorf("local bytes changed during cleanup; copy retained at %s", backup)
-	}
-	return os.Remove(backup)
+func trunkRestoreCommand(p string) string {
+	// The Git pathspec and the shell argument must both be literal. A selected
+	// filename may itself contain wildcard or shell metacharacters.
+	return "git restore -- ':(literal)" + strings.ReplaceAll(p, "'", "'\\''") + "'"
 }

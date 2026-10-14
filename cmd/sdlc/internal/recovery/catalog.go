@@ -402,17 +402,17 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"trunk publish"},
 		Class:         ConvergentRetry,
-		Effects:       "publishes one explicitly selected dirty non-issue workshop Markdown path to main through a bounded compare-and-swap, then restores only its unchanged local copy to HEAD (or removes an untracked copy); no issue-branch commit or index write.",
+		Effects:       "publishes one explicitly selected dirty non-issue workshop Markdown path to main through a bounded compare-and-swap; the local file, issue-branch commit and index remain untouched.",
 		Evidence:      "the selected bytes at origin/main and the local path's status; main's trunk: publish <path> commit when it wrote new bytes.",
 		Preconditions: "one allowlisted regular Markdown path under workshop/parley, pensive, targets or projects, or workshop/lessons.md; at most 1 MiB; no staged or branch-committed edit to that path; main's path unchanged since the branch merge base, unless it already has the selected bytes.",
-		Repeat:        "while local bytes remain, main's matching bytes make the retry finish cleanup without another commit; after cleanup the local path is clean and the repeat does nothing.",
-		LostResponse:  "rerun the same command. An uncertain push leaves local bytes untouched; main is fetched and compared to them before any retry write. A local edit during cleanup is preserved and reported.",
-		Ends:          "the selected bytes are on main and the unchanged local copy is clean; later prose edits are a new publication.",
+		Repeat:        "the retained local bytes already on main make a retry a no-op without another commit; exact-path cleanup guidance repeats.",
+		LostResponse:  "rerun the same command. An uncertain push leaves local bytes untouched; main is fetched and compared to them before any retry write. A later local edit is preserved and reported.",
+		Ends:          "the selected bytes are on main and the local copy remains for explicit cleanup after merging main, or before a conflicting merge.",
 		Proofs: []Proof{
 			{"dirty issue branch publishes only the selected prose", []string{"TestTrunkPublishFromDirtyIssueBranch"}},
 			{"a changed main path refuses without mutation", []string{"TestTrunkPublishRefusesMovedMainPath"}},
-			{"interrupted cleanup retries without a second main commit", []string{"TestTrunkPublishRetryAfterCleanupInterruption"}},
-			{"moved branch HEAD never becomes cleanup's restore source", []string{"TestTrunkPublishDoesNotRestoreAfterHeadMoves"}},
+			{"interruption after push retries without a second main commit", []string{"TestTrunkPublishRetryAfterPushInterruption"}},
+			{"an open descriptor's later write survives publication", []string{"TestTrunkPublishPreservesOpenDescriptorWriteAfterPush"}},
 		},
 	},
 	{

@@ -122,8 +122,9 @@ removes the stranding and the sweep hazard without any new model.
   `workshop/parley/`, `pensive/`, `targets/`, `projects/`, and `lessons.md`.
   Issues, plans, atlas, code, and base-layer settings are refused.
 - The selected path changed on main since this branch's base refuses before any
-  write. A lost push response is reconciled by retry; cleanup changes only
-  local copies whose bytes still equal those read for publication.
+  write. A lost push response is reconciled by retry. Publication never removes
+  or rewrites the local file; it prints exact-path cleanup guidance, and warns
+  when the local bytes changed during publication.
 - Tests cover a dirty feature branch, path refusals, concurrent main edits,
   uncertain outcome/retry, and preservation of unrelated dirty work.
 - `atlas/workflow/` documents the two publication paths and the explicit
@@ -132,8 +133,8 @@ removes the stranding and the sweep hazard without any new model.
 ## Plan
 
 - [x] Publish selected non-issue workshop prose through a main CAS, with
-      path, base, concurrency, and cleanup tests; document the path in atlas.
-- [x] Verify the full suite on the repaired code and prepare the issue for close.
+      path, base, concurrency, and local-retention tests; document the path in atlas.
+- [ ] Verify the full suite on the repaired code and prepare the issue for close.
 
 ## Log
 
@@ -169,6 +170,14 @@ repairs, but found that a process stop after the cleanup rename strands the
 backup on retry (BR-1), and an editor's already-open descriptor can write to
 that backup immediately before unlink, losing the new edit (BR-6). The cleanup
 contract needs an architectural revision before another close attempt.
+The hub approved retaining the local copy after publication. The automatic
+cleanup and backup state are gone; the command prints a literal-path manual
+cleanup command only when the retained bytes still match the published bytes,
+and warns to preserve a later edit otherwise. Targeted real-Git and recovery
+contract tests pass, including a write through an already-open descriptor and
+retry after a confirmed push without a second main commit. `make -k tools`
+builds all four binaries. The recorded full suite and renewed close review
+remain.
 
 ### 2026-09-20
 
@@ -244,6 +253,18 @@ writer claims the original name, or changes the moved source, the command
 preserves the bytes and reports a recovery path (ARCH-ORDER, ARCH-SECURE).
 This revision adds deterministic tests at those intervening events and reruns
 the full recorded suite before close.
+
+### 2026-10-14 — retain the local copy after publication
+
+The second close review showed that the move-and-recheck cleanup still loses
+writes through an editor's already-open descriptor, and that a stopped cleanup
+cannot be retried reliably. The hub approved removing automatic cleanup. The
+command publishes the pinned bytes through the existing CAS and leaves the
+selected local file untouched. It prints `git restore -- <exact path>` guidance
+for after the branch has merged main, or before a merge that would otherwise
+conflict; a local edit observed after publication instead gets a preserve-and-
+reconcile warning. This removes the interrupted cleanup state entirely
+(ARCH-ORDER, ARCH-FUNERAL).
 
 ### 2026-09-21 — distinguish couch provisioning from SDLC slot awareness
 

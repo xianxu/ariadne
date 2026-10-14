@@ -31,8 +31,12 @@ uncommitted Markdown file under `workshop/parley/`, `pensive/`, `targets/` or
 `projects/`, or `workshop/lessons.md`, directly to main. If main changed that
 path since the branch base, reconcile the edit first; the command refuses to
 overwrite it. If a push response is uncertain, rerun the same command with the
-local file intact. After confirmed publication it cleans only the selected
-local copy. Issue details use `sdlc issue publish --issue N`; plans, atlas,
+local file intact. Publication leaves the local file untouched. Once this
+branch has merged main, run the printed `git restore -- ':(literal)<path>'`
+command to discard that now-published local copy, or run it before a merge
+that would otherwise conflict. If the local file changed during publication,
+preserve and reconcile the newer edit instead. Issue details use
+`sdlc issue publish --issue N`; plans, atlas,
 code and settings travel with the reviewed issue branch. See
 [trunk publication](atlas/workflow/sdlc-binary.md#issue-reservation-local-durability-and-publication-244).
 

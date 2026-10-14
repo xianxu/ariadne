@@ -4,7 +4,7 @@
 
 **Goal:** Publish one explicitly selected, dirty non-issue workshop prose file to main while another issue branch is active, without carrying that prose in the issue branch.
 
-**Architecture:** Add `sdlc trunk publish --path P` around the existing `gitx.TrunkFile.UpdateMany` CAS transaction. A pure path/three-body decision selects only approved prose and refuses a main path that moved from the branch merge base; a thin command reads local Git/worktree state, publishes exact bytes, then restores an unchanged local file to the branch's HEAD. One path per invocation makes cleanup a single transition. Retry observes main and finishes a prior successful push without another write.
+**Architecture:** Add `sdlc trunk publish --path P` around the existing `gitx.TrunkFile.UpdateMany` CAS transaction. A pure path/three-body decision selects only approved prose and refuses a main path that moved from the branch merge base; a thin command reads local Git/worktree state, publishes exact bytes, and retains the local file. Retry observes main and recognizes a prior successful push without another write. The approved cleanup-policy revision below supersedes the earlier automatic-cleanup design.
 
 **Tech Stack:** Go, Cobra, `cmd/sdlc/internal/gitx`, real bare-Git test fixtures.
 
@@ -24,12 +24,23 @@
 | Integration point | Lives in | Status | Wraps |
 |---|---|---|---|
 | `runTrunkPublish` | `cmd/sdlc/trunkpublish.go` | new | working tree, Git queries, `gitx.TrunkFile` |
-| `finishTrunkPublish` | `cmd/sdlc/trunkpublish.go` | new | local path and index cleanup |
+| `trunkRestoreCommand` | `cmd/sdlc/trunkpublish.go` | new | literal-path manual cleanup guidance |
 | `gitx.TrunkFile.UpdateMany` | `cmd/sdlc/internal/gitx/updatemany.go` | reused | Git commit-tree, fetch, CAS push, bounded retry |
 
 The command pins the selected path and local bytes before publishing. It verifies a regular file and rejects staged or branch-committed changes to it. On each CAS attempt it compares the pinned branch-base tree and current trunk view, rechecks the worktree identity, and constructs one `TrunkWrite` with `ExactBytes`. It uses the same stateful Git seam and real bare-Git fixtures as other SDLC publication tests (`cmd/sdlc/internal/gitx/updatemany.go:75`, ARCH-MOCK). An uncertain push returns the existing uncertainty error and leaves local bytes; rerunning first checks whether main carries the local bytes and then cleans. A rejected CAS retries only if unrelated main paths moved; a selected-path conflict refuses. The command serializes within the existing SDLC transaction lock, while the remote CAS governs other workspaces (ARCH-ORDER).
 
-After confirmed publication, `finishTrunkPublish` cleans the one path only if its current local bytes and index state still match the pinned read. A tracked path is restored from HEAD; an untracked path is removed. A cleanup failure before the effect leaves the original bytes for retry. If cleanup succeeded but its reply was lost, a retry sees a clean path and returns no-op; it does not infer ownership of main's unrelated changes. Other dirty paths and the issue branch's commits/index are untouched. No durable record family is added: the main commit is the artifact, and normal Git history retains it (ARCH-FUNERAL). Work is a human-invoked, one-path transaction, not a watcher. The command accepts files up to 1 MiB (prose envelope; larger files refuse before reading fully), uses `gitx.BoundRemote` for a 2-minute deadline and command cancellation, and the existing three-attempt remote CAS budget. An exceeded limit fails before push and leaves the local file untouched (ARCH-CONSTRAINTS).
+After confirmed publication, the command retains the local file and prints
+literal-path cleanup guidance if its bytes still match the pinned read. If
+the local path changed, it warns to preserve and reconcile the newer edit.
+A retry with main already matching the retained bytes makes no new commit and
+repeats the guidance. Other dirty paths and the issue branch's commits/index
+are untouched. No durable record family is added: the main commit is the
+artifact, and normal Git history retains it (ARCH-FUNERAL). Work is a
+human-invoked, one-path transaction, not a watcher. The command accepts files
+up to 1 MiB (prose envelope; larger files refuse before reading fully), uses
+`gitx.BoundRemote` for a 2-minute deadline and command cancellation, and the
+existing three-attempt remote CAS budget. An exceeded limit fails before push
+and leaves the local file untouched (ARCH-CONSTRAINTS).
 
 ## Task 1: pin the path and decision contract
 
@@ -45,7 +56,10 @@ After confirmed publication, `finishTrunkPublish` cleans the one path only if it
 **Files:** `cmd/sdlc/trunkpublish.go`, `cmd/sdlc/trunkpublish_test.go`, `cmd/sdlc/main.go`, `cmd/sdlc/internal/recovery/catalog.go`
 
 - [x] Write `runTrunkPublish` real bare-Git tests that mutate main and the working tree independently; assert no branch/index effects and rejection before write when the selected path moved. The reused `gitx.UpdateMany` seam's existing tests cover CAS races and unknown push responses.
-- [x] Write `finishTrunkPublish` fault-injection tests for interrupted cleanup and concurrent local edits; mechanically compare pinned bytes and index state before any restore/removal, then rerun the production command to prove convergence or a safe refusal.
+- [x] Write real-Git tests for interrupted post-push response, retained local
+  copies, and edits through an open descriptor; rerun the command to prove a
+  matching main body makes no second commit and changed local bytes get no
+  destructive cleanup guidance.
 - [x] Implement the Cobra verb with the existing transaction lock and `TrunkFile.UpdateMany`. Keep Git/process calls in the thin command; inject only the publication seam needed to reproduce outcomes. Register recovery semantics with concrete proof names.
 - [x] Run targeted package tests, `go test ./cmd/sdlc -run 'TestRecoveryContractsAreProven|TestTrunkProsePath|TestProsePublishDecision|TestTrunkPublish|TestReadLocalProse' -count=1 -timeout 10m`; commit as `#240: publish selected workshop prose to main`.
 
@@ -54,7 +68,7 @@ After confirmed publication, `finishTrunkPublish` cleans the one path only if it
 **Files:** `README.md`, `atlas/workflow/sdlc-binary.md`, `workshop/issues/000240-*.md`, `workshop/lessons.md` if review finds a transferable rule.
 
 - [x] Document `sdlc issue publish --issue` for issue details, `sdlc trunk publish --path` for non-issue workshop prose, and the branch-reviewed home for atlas/code/settings in README and atlas. Keep `atlas/index.md` current if adding a file (none planned).
-- [x] Run `gofmt`, targeted tests, `make -k`, and the local suite via `sdlc local-check run --name suite` after the tree is stable; inspect logs and compare the patch with main.
+- [ ] Run `gofmt`, targeted tests, `make -k`, and the local suite via `sdlc local-check run --name suite` after the tree is stable; inspect logs and compare the patch with main.
 - [ ] Resolve review findings as a class, rerun affected checks, tick the final close row only when fulfilled, and run `sdlc close --issue 240 --verified <evidence>`; publish via `sdlc pr` and `sdlc merge` after CI.
 
 ## Revisions
@@ -96,3 +110,17 @@ Automatic unlink and an unbounded no-lost-writes promise cannot coexist while
 another process may retain that descriptor. The cleanup policy is under design
 review before code changes; the next revision must define each interrupted
 state and the lifetime of any retained inode, or explicitly narrow cleanup.
+
+### 2026-10-14 — approved cleanup policy
+
+The hub approved the narrower policy: publish the pinned bytes to main and
+leave the selected local file untouched. No backup, restore, remove, receipt,
+or working-tree effect follows the CAS. A retry compares the retained local
+bytes with main; if they match, it makes no new commit and repeats exact-path
+cleanup guidance. After publication, re-read the local path: if its bytes
+changed, warn to preserve and reconcile those edits rather than suggest
+`git restore`. Otherwise print `git restore -- <literal path>` after merging
+main into this branch, or before a merge that would otherwise conflict. Tests
+must keep the source inode open and write through it after publication, proving
+the file and edit remain visible. Existing cleanup tests are replaced with
+retention, retry, and changed-local guidance tests (ARCH-ORDER, ARCH-FUNERAL).
