@@ -6,11 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/spf13/cobra"
 )
 
 // Real bare origin, real merges and real suite subprocesses; the GH fake
@@ -77,6 +81,170 @@ func TestLandingIntegratesAMovedMain(t *testing.T) {
 	}
 }
 
+func TestLandingRegistrationPollingDoesNotHoldRepoLock(t *testing.T) {
+	_, _, gh := integrationFixture(t)
+	gh.headLag = 2
+	cmd := markManualLockCommand(&cobra.Command{Use: "merge"})
+	cmd.SetContext(context.Background())
+	f := landingFlags()
+	f.Lock = func(run func() error) error { return withRequiredRepoTransactionLock(cmd, run) }
+	queries := 0
+	gh.afterLaggedQuery = func() {
+		queries++
+		other := markManualLockCommand(&cobra.Command{Use: "claim"})
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		other.SetContext(ctx)
+		if err := withRequiredRepoTransactionLock(other, func() error { return nil }); err != nil {
+			t.Errorf("repo lock held during GitHub registration query: %v", err)
+		}
+	}
+	if err := runMerge(io.Discard, io.Discard, f); err != nil {
+		t.Fatal(err)
+	}
+	if queries < 2 || gh.merges != 1 {
+		t.Fatalf("queries=%d merges=%d", queries, gh.merges)
+	}
+}
+
+func TestLandingMainMovesDuringRegistrationBeforeFirstSuite(t *testing.T) {
+	root, server, gh := integrationFixture(t)
+	gh.headLag = 1
+	var moved string
+	gh.afterLaggedQuery = func() {
+		if moved == "" {
+			moved = integrationAdvance(t, server, "registration.go", "main moved during registration\n")
+		}
+	}
+	var tested []string
+	gh.afterStatus = func(sha string) { tested = append(tested, sha) }
+	if err := runMerge(io.Discard, io.Discard, landingFlags()); err != nil {
+		t.Fatal(err)
+	}
+	if moved == "" || len(tested) != 1 || gh.merges != 1 {
+		t.Fatalf("moved=%q suite heads=%v merges=%d", moved, tested, gh.merges)
+	}
+	included, err := integrationAncestor(mergeRunner, root, moved, tested[0])
+	if err != nil || !included {
+		t.Fatalf("suite head %s did not contain moved main %s", tested[0], moved)
+	}
+}
+
+func TestLandingReleasesRepoLockDuringSuite(t *testing.T) {
+	_, server, gh := integrationFixture(t)
+	signalDir := t.TempDir()
+	started, release := filepath.Join(signalDir, "started"), filepath.Join(signalDir, "release")
+	command := fmt.Sprintf("touch %q; i=0; while [ ! -e %q ] && [ \"$i\" -lt 600 ]; do sleep 0.05; i=$((i+1)); done; test -e %q", started, release, release)
+	procedureWrite(t, server, localChecksPath, `{"version":1,"checks":[{"name":"suite","required":true,"command":["sh","-c",`+strconv.Quote(command)+`]}]}`)
+	git(t, server, "add", localChecksPath)
+	git(t, server, "commit", "-qm", "block the suite")
+	git(t, server, "push", "-q", "origin", "main")
+
+	cmd := markManualLockCommand(&cobra.Command{Use: "merge"})
+	cmd.SetContext(context.Background())
+	var locks atomic.Int32
+	f := landingFlags()
+	f.Lock = func(run func() error) error {
+		locks.Add(1)
+		return withRequiredRepoTransactionLock(cmd, run)
+	}
+	worker := startBlockedMergeWorker(t, release, func(ctx context.Context) error {
+		f.Context = ctx
+		cmd.SetContext(ctx)
+		return runMerge(io.Discard, io.Discard, f)
+	})
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		if _, err := os.Stat(started); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("suite did not start")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if locks.Load() == 0 {
+		t.Fatal("merge never acquired the repo transaction lock")
+	}
+
+	other := markManualLockCommand(&cobra.Command{Use: "claim"})
+	lockCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	other.SetContext(lockCtx)
+	if err := withRequiredRepoTransactionLock(other, func() error { return nil }); err != nil {
+		t.Fatalf("another command could not acquire the repo lock while suite ran: %v", err)
+	}
+	if err := os.WriteFile(release, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-worker.done:
+		if worker.err != nil || gh.merges != 1 {
+			t.Fatalf("merge err=%v merges=%d", worker.err, gh.merges)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("merge did not finish after releasing the suite")
+	}
+}
+
+func TestLandingMainMovesDuringReplayResetsUnpublishedMerge(t *testing.T) {
+	root, server, gh := integrationFixture(t)
+	before := procedureHead(t, root)
+	moved := ""
+	oldGuard := guardTransferredDetailsFn
+	guardTransferredDetailsFn = func(context.Context) error {
+		if moved == "" {
+			moved = integrationAdvance(t, server, "during-replay.txt", "new main\n")
+		}
+		return nil
+	}
+	t.Cleanup(func() { guardTransferredDetailsFn = oldGuard })
+	f := landingFlags()
+	f.NoJudge = false
+	if err := runMerge(io.Discard, io.Discard, f); err != nil {
+		t.Fatal(err)
+	}
+	if moved == "" || gh.merges != 1 {
+		t.Fatalf("replay did not advance main or land once: moved=%s merges=%d", moved, gh.merges)
+	}
+	log := git(t, gh.remote, "log", "--format=%B", before+".."+gh.pr.HeadOID)
+	if got := strings.Count(log, "Integrated-Main:"); got != 1 {
+		t.Fatalf("published %d integration commits after pre-push drift, want one", got)
+	}
+	if !strings.Contains(log, "Integrated-Main: "+moved) {
+		t.Fatalf("published integration omitted latest main %s: %s", moved, log)
+	}
+}
+
+func TestLandingReacquiresLockAndRefusesHeadDriftAfterSuite(t *testing.T) {
+	root, _, gh := integrationFixture(t)
+	cmd := markManualLockCommand(&cobra.Command{Use: "merge"})
+	cmd.SetContext(context.Background())
+	var locks atomic.Int32
+	f := landingFlags()
+	f.Lock = func(run func() error) error {
+		locks.Add(1)
+		return withRequiredRepoTransactionLock(cmd, run)
+	}
+	locksBeforeDrift := int32(-1)
+	newHead := ""
+	gh.afterStatus = func(string) {
+		if newHead != "" {
+			return
+		}
+		locksBeforeDrift = locks.Load()
+		git(t, root, "commit", "--allow-empty", "-qm", "concurrent local work")
+		newHead = procedureHead(t, root)
+	}
+	err := runMerge(io.Discard, io.Discard, f)
+	if err == nil || !strings.Contains(err.Error(), "issue branch changed") {
+		t.Fatalf("head drift was not refused: %v", err)
+	}
+	if locksBeforeDrift < 0 || locks.Load() <= locksBeforeDrift || gh.merges != 0 || procedureHead(t, root) != newHead {
+		t.Fatalf("no locked revalidation after suite: before=%d after=%d merges=%d head=%s want=%s", locksBeforeDrift, locks.Load(), gh.merges, procedureHead(t, root), newHead)
+	}
+}
+
 func TestLandingConflictRefusesAndLeavesTheBranch(t *testing.T) {
 	root, server, gh := integrationFixture(t)
 	integrationAdvance(t, server, "shipped.txt", "main's conflicting feature\n")
@@ -98,14 +266,25 @@ func TestLandingMainMovesDuringSuite(t *testing.T) {
 	for _, moves := range []int{1, 3} {
 		t.Run(fmt.Sprint(moves), func(t *testing.T) {
 			_, server, gh := integrationFixture(t)
+			cmd := markManualLockCommand(&cobra.Command{Use: "merge"})
+			cmd.SetContext(context.Background())
+			f := landingFlags()
+			f.Lock = func(run func() error) error { return withRequiredRepoTransactionLock(cmd, run) }
 			var tested []string
 			gh.afterStatus = func(sha string) {
 				tested = append(tested, sha)
+				other := markManualLockCommand(&cobra.Command{Use: "claim"})
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer cancel()
+				other.SetContext(ctx)
+				if err := withRequiredRepoTransactionLock(other, func() error { return nil }); err != nil {
+					t.Errorf("repo lock unavailable after suite run %d: %v", len(tested), err)
+				}
 				if len(tested) <= moves {
 					integrationAdvance(t, server, "moving.go", fmt.Sprintf("change %d\n", len(tested)))
 				}
 			}
-			err := runMerge(io.Discard, io.Discard, landingFlags())
+			err := runMerge(io.Discard, io.Discard, f)
 			if moves == 1 {
 				if err != nil || gh.merges != 1 || len(tested) != 2 {
 					t.Fatalf("err=%v merges=%d tested=%v", err, gh.merges, tested)

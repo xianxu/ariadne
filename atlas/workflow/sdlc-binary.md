@@ -455,7 +455,13 @@ Unix reviewers have owned process groups so cancellation also kills descendants,
 and the direct reviewer is reaped before returning. CLI interruption is carried
 through the review context; no asynchronous writer survives command completion.
 
-`merge` and `push` retain their existing whole-transaction lock. Wait messages
+`merge` holds the lock around short integration Git operations, the leased push,
+the final expected-head merge, and archive/cleanup. Publish replay, GitHub PR
+registration and CI polling, and the local suite run happen unlocked. Every
+reacquisition checks the exact branch HEAD and worktree and fetches main: main
+drift restarts integration and gates, while HEAD drift refuses. The legacy
+dependency-clone path also releases the lock for local checks and refuses drift
+before server merge. `push` retains its whole-transaction lock. Wait messages
 name the live holder; wait or retry rather than deleting its lock. Recovery is
 conservative but not wedging:
 `die()` drains the active lock cleanup registry before `os.Exit`, missing
