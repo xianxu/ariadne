@@ -82,3 +82,12 @@ No implementation or estimate; submitting direction to the hub.
   source eligibility, and quality across moves and landing.
 - Correct both pair records through the measured owning verb, or explicitly
   exclude a sample when historical evidence cannot support a trustworthy repair.
+
+### 2026-10-14 — hub direction approved
+
+Receipt e5efe89a-aad5-40dd-813a-d6559e2053b1 approves ownership intervals,
+owner-session attribution, shared caller inputs, diagnostics, no incomplete
+auto-adoption, ratio warnings and measured corrections. Plan trimmed to narrow
+move-source retention and dispatch-interval lineage, each justified by the
+measured #454/#514 counterexample. General task-context inference dropped.
+Proceeding through change-code; estimate only after plan-quality.

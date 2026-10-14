@@ -33,9 +33,9 @@
 | Activity interval clipping | `cmd/sdlc/internal/activetime/event.go` | modified |
 | Estimate plausibility comparator | `cmd/sdlc/actualplausibility.go` | new |
 
-An issue owns zero or more engagement windows. Claim opens, release closes, and re-claim opens another. Relocate/reclaim transfers preserve genuine preceding work. Started remains first-engagement metadata, not a continuous attribution window. Derive transitions from card snapshots, including legacy history without operation trailers; reuse existing tracker operation constants and parsing.
+An issue owns zero or more engagement windows. Claim opens, release closes, and re-claim opens another. Relocate preserves the continuous engagement; reclaim closes the previous ownership interval and opens a new one without inheriting its start. Earlier genuine work stays in its earlier interval. Started remains first-engagement metadata, not a continuous attribution window. Derive transitions from card snapshots, including legacy history without operation trailers; reuse existing tracker operation constants and parsing.
 
-Only recorded participant roots for the verified same repository are eligible. A persistent source-rooted main session remains eligible after a move during the continuous engagement, because shell cd does not change session metadata. Descendants inherit their dispatch engagement; an old child cannot join a newly claimed issue merely because its cwd and timestamps overlap. Claude Agent spans inherit parent task provenance; Codex thread_spawn metadata identifies parent/dispatch context. Preserve legitimate parallel agents.
+Only recorded participant roots for the verified same repository are eligible. A persistent source-rooted main session remains eligible after a move during the continuous engagement, because shell cd does not change session metadata. Descendants inherit their dispatch engagement; an old child cannot join a newly claimed issue merely because its cwd and timestamps overlap. Keep lineage handling narrow: Claude Agent spans retain dispatch interval; Codex thread_spawn metadata identifies parent and dispatch time. Exclude descendants dispatched outside this issue’s engagement; do not add a general task-context inference system. Preserve legitimate parallel agents.
 
 Missing/inconsistent ownership or lineage produces an explicit quality limitation, not confident inclusion of every same-cwd source. Legacy no-tracker measurements retain a labeled fallback. Ambiguous required evidence prevents automatic adoption/correction with an actionable diagnostic. Preserve the existing gap and mention-weighting rules.
 
@@ -85,6 +85,13 @@ Targeted commands: `go test ./cmd/sdlc/internal/tracker ./cmd/sdlc/internal/tran
 
 ARCH-DRY: one resolver/engine/correction authority. ARCH-PURE: typed event/window/eligibility/comparison rules. ARCH-PURPOSE: both failures, all consumers, actual data repair. ARCH-MOCK: file-backed repos/transcripts and opt-in historical conformance. ARCH-CONSTRAINTS: bounded issue history and metadata-first reads. ARCH-SECURE: verified identity/provenance and explicit ambiguity. ARCH-ORDER: modeled ownership transitions, pinned generations, interrupted/repeated effects. ARCH-FUNERAL: no cache family; bounded receipts/correction rows use existing retention and Git history.
 
+## Revisions
+
+- 2026-10-14 — Hub approved the core direction (receipt e5efe89a-aad5-40dd-813a-d6559e2053b1), requesting proportionality. Ownership intervals follow claim/release; reclaim starts a fresh interval. Two narrow extensions are retained only for the measured counterexamples:
+  - Moved persistent source retention is needed because #454's pair:1-rooted session kept issuing commands in pair:0 after relocation; strict owner-path/time switching would again lose those events.
+  - Dispatch lineage is needed because #514's old #533 child contributes 3.573 minutes after re-claim despite correct ownership-time and slot filtering; exclude children dispatched outside the engagement.
+  - Drop general task-context inference; keep existing harness metadata/span seams.
+
 ## Approval checkpoint
 
-Proposed to the hub; no implementation or estimate yet. Enter change-code after direction approval and derive the estimate after plan-quality. No Mx tags: one atomic implementation review boundary.
+Hub direction approved; proceed through change-code. No implementation or estimate yet; derive the estimate after plan-quality. No Mx tags: one atomic implementation review boundary.
