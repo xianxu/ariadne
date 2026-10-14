@@ -1,12 +1,12 @@
 ---
 id: 000362
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: 'a09f6a5fc9fddd0efdc9214ee24f4ee14d67a2ac' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '258ab0b5a7c6eba2743aee1be11d10e426608184' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T21:52:01-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "6069416a", done: "4e15c9e1"}
+actual_hours: 0.29
 ---
 
 # make test doesn't run construct/scripts/test/*.test.sh (dev-aliases, others), so their regressions are only caught by hand
