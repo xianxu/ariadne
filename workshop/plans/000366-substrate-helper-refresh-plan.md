@@ -91,3 +91,5 @@ Commands: `go test ./cmd/weave/internal/refresh -count=1`; `go test ./cmd/weave 
 ## Revisions
 
 - 2026-10-14 — Planning incorporates the issue's 08:20 revision. The diagnostic repair is substrate-only because ordinary refresh attempts to advance an issue branch. The complete observed graph remains an invariant even when the consumer is excluded from the effect set. No implementation has started; hub plan approval is pending.
+
+- 2026-10-14 — BR-1: Task 3 includes README coverage for the new user-facing flag and recovery diagnostic, alongside atlas and CLI help. BR-2: acceptance evidence is environment-qualified and pinned to the exact reviewed HEAD; no production behavior change is needed for a reviewer-only inability to run a fixture when host retry/all-weave and recorded full-suite evidence pass.

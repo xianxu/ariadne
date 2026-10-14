@@ -57,6 +57,8 @@ Before invoking a substrate helper, `sdlc` checks the helper's capability (e.g. 
 
 - 2026-10-14 — Full recorded suite GREEN on 5784a8e0fe358601faac2b5c737344e5f951b6aa: make test, 12 shards over 1342 cmd/sdlc tests and 54 other packages, all exit 0, wall 529.7s; sdlc-local/suite success, log sha256 prefix 538323fb56bd. Local acceptance complete; entering binary-owned close review.
 
+- 2026-10-14 — Boundary round 1 REWORK: BR-1 missing README flag guidance; added complete usage, preservation, incompatible flags, private ownership, source-owned exception and no-dependency behavior. BR-2 reviewer could not initialize existing retry fixture under its Git ceiling. Host counter-measurements at reviewed HEAD 5d13f3bc5d5a3d703dbb6b2a6edb2794daf22f60: TestRefreshCLICompilesAndRetries passes both normally (13.043s, /tmp/ariadne366-retry-host.log) and with GIT_CEILING_DIRECTORIES set to the slot parent (14.085s, /tmp/ariadne366-retry-ceiling.log); fresh all-weave run passes (/tmp/ariadne366-review-all-weave.log). Recorded full suite also passed on code-identical ancestor 5784a8e0. Dispute will provide this measured host evidence as the finding explicitly requests.
+
 ## Revisions
 
 - 2026-10-14 08:20 — add (TL): the named fix must work on an **issue branch**. `weave refresh` advances the
