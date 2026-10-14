@@ -114,4 +114,4 @@ while [[ ${#queue[@]} -gt 0 ]]; do
     done < <(deps_substrate_targets "$current")
 done
 
-printf '%s\n' "${peers[@]}"
+printf '%s\n' ${peers[@]+"${peers[@]}"}

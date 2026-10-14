@@ -109,7 +109,7 @@ download_argparse & pids+=($!)
 download_luafilesystem & pids+=($!)
 
 failed=0
-for pid in "${pids[@]}"; do
+for pid in ${pids[@]+"${pids[@]}"}; do
     wait "$pid" || failed=1
 done
 if [ "$failed" -ne 0 ]; then

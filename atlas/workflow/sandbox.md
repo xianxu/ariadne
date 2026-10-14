@@ -37,6 +37,10 @@ ariadne, `pkg/shelllint`'s repository test refuses a template-less `mktemp`, or 
 or `pushd` into a `$(mktemp …)` substitution, in every tracked shell script and Makefile, with
 named, issue-linked exemptions that fail once stale. Allowing `/var/folders` in the
 sandbox instead would put agent churn back on the journaled Data volume (pair#496).
+The same test applies `pkg/shelllint.ArrayFindings` to tracked bash scripts that enable
+`set -u` (#353): macOS `/bin/bash` 3.2 exits on an empty array's bare `"${a[@]}"` (or
+`[*]`), so write `${a[@]+"${a[@]}"}`. Substring, pattern and replacement operators were
+measured safe and are not flagged.
 
 ## 2. OpenShell Sandbox (`.openshell/`)
 
