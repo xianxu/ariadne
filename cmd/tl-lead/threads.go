@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"strings"
+
+	"github.com/xianxu/ariadne/pkg/markdoc"
 )
 
 // The `## Threads` section is a list of `### ` subsections in focus order
@@ -12,12 +14,16 @@ import (
 const miscThread = "### Miscellaneous"
 
 // threadBlocks splits a Threads body into its preamble and its `### `
-// subsections (each block keeps its heading line and body).
+// subsections (each block keeps its heading line and body), skipping `### `
+// lines inside a fence.
 func threadBlocks(body string) (preamble string, blocks []string) {
 	var pre []string
-	for _, line := range strings.Split(strings.Trim(body, "\n"), "\n") {
+	lines := strings.Split(strings.Trim(body, "\n"), "\n")
+	// A `### ` line inside a fenced block is content, not a heading.
+	fenced := markdoc.FenceSpans(lines, markdoc.UnterminatedIsProse)
+	for i, line := range lines {
 		switch {
-		case strings.HasPrefix(line, "### "):
+		case strings.HasPrefix(line, "### ") && !fenced[i]:
 			blocks = append(blocks, line)
 		case len(blocks) == 0:
 			pre = append(pre, line)

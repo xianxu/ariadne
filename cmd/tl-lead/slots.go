@@ -15,7 +15,7 @@ type SlotLine struct {
 	Slot  FleetSlot
 	ID    int    // the issue its branch carries; 0 when on no issue branch
 	Slug  string // the branch's slug after the id
-	Phase string // the issue's card status, or "?" with the read error
+	Phase string // the issue's card status, or "?" when its observation failed
 	Bar   string
 }
 

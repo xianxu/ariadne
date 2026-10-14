@@ -63,7 +63,7 @@ func gatherTrains(sd SDLC, projectPath, defaultRepo string) (string, error) {
 	return renderTrains(plan, readCars(sd, filepath.Dir(projectPath), refs)), nil
 }
 
-// readCars observes every car, at most carReadConcurrency at once. A car whose
+// readCars observes every car, at most readConcurrency at once. A car whose
 // read fails carries the reason, so it renders `?`. Each repository's checkout
 // is resolved once, before the reads start.
 func readCars(sd SDLC, vantage string, refs []trains.IssueRef) map[trains.IssueRef]CarState {

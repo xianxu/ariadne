@@ -15,6 +15,9 @@ func TestUpsertThread(t *testing.T) {
 		{"keeps a preamble", "intro line\n\n### Project: p", "### Train: t",
 			"intro line\n\n### Project: p\n\n### Train: t"},
 		{"an empty section", "", "### Miscellaneous\n- ask", "### Miscellaneous\n- ask"},
+		{"a fenced ### line stays inside its subsection",
+			"### Project: p\n```\n### not a heading\n```\n\n### Miscellaneous\n- x", "### Project: p\nnew",
+			"### Project: p\nnew\n\n### Miscellaneous\n- x"},
 	} {
 		got, err := upsertThread(tc.body, tc.entry, nil)
 		if err != nil || got != tc.want {

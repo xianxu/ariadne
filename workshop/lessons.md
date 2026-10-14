@@ -259,6 +259,14 @@ Detailed incidents remain in their owning issue or review artifact.
 - Stage explicit paths; never let `git add -A` sweep unrelated untracked WIP.
   Verify `change-code` created the intended branch before committing.
 
+- A durable plan's Core concepts table is the current model, not history. A
+  commit that adds, removes or renames an entity, or that lands a scope
+  revision, updates the table and entity notes in that same commit (removed
+  entities marked `deleted`). It also appends a Revisions entry that supersedes
+  by name every earlier claim it voids, including ticked rows whose tests no
+  longer exist. Before a close, grep the plan for each cited test name and
+  identifier against the tree (#350, family plan-core-concepts-drift).
+
 ## Base-layer and data sharp edges
 
 - Preserve raw Git path output through adapters; trimming whitespace before the

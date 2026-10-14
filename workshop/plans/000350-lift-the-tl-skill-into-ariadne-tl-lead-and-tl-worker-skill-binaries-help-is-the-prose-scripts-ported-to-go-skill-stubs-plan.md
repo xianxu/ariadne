@@ -4,7 +4,7 @@
 
 **Goal:** Lift the ops TL skill draft into ariadne as two skill binaries, `tl-worker` and `tl-lead`. Each one's `--help` is its prose. `tl-lead` also gets Go subcommands that replace the ops Python scripts, and weave delivers a pointer stub for each skill.
 
-**Architecture:** Each binary has the shape of `cmd/doc-review`: a cobra root whose `Long` is a `go:embed`ded markdown file. `tl-lead status …` is a thin shell over `couch --session-sync`, behind a `SessionSync` seam with a stateful fake. `tl-lead trains` renders from the project file, reusing sdlc's own trains parser and plan counter. Both move from `cmd/sdlc/internal` into importable `pkg/` packages, and the old paths re-export them, so there is no second parser (ARCH-DRY). Car status comes from `sdlc issue show --json` and off-train slots from `sdlc fleet inventory --json`, both behind an exec seam with fakes (ARCH-MOCK).
+**Architecture:** Each binary has the shape of `cmd/doc-review`: a cobra root whose `Long` is a `go:embed`ded markdown file. `tl-lead status …` is a thin shell over `couch --session-sync`, behind a `SessionSync` seam with a stateful fake. `tl-lead trains` renders a project's trains block, reusing sdlc's own trains parser and plan counter. Both move from `cmd/sdlc/internal` into importable `pkg/` packages, and the old paths re-export them, so there is no second parser (ARCH-DRY). `tl-lead status slots` renders the status file's `## Slots` from `sdlc fleet inventory --json`. Car and slot status come from `sdlc issue show --json`. These are all behind one exec seam with a fake (ARCH-MOCK).
 
 **Tech Stack:** Go 1.26, cobra, go:embed; `couch --session-sync` (pair), `sdlc issue show --json`, `sdlc fleet inventory --json`.
 
@@ -24,18 +24,25 @@
 | `leadHelp` (embedded prose) | `cmd/tl-lead/help.md` | new |
 | `markdoc` (fence/section/plan scanners) | `pkg/markdoc/{fence,section,plan}.go` | new (moved from `cmd/sdlc/internal/issue`) |
 | `trains` (`IssueRef`, `Train`, `Edge`, `TrainPlan`, `ParseTrains`) | `pkg/trains/trains.go` | new (moved from `cmd/sdlc/internal/project/trains.go`) |
-| `PlanBar` | `cmd/tl-lead/bar.go` | new |
-| `RenderTrains` / `RenderOffTrain` | `cmd/tl-lead/render.go` | new |
-| `ThreadEntries` / `PrependThread` | `cmd/tl-lead/threads.go` | new |
-| `SeenSet` (merge, prune, foldable) | `cmd/tl-lead/seen.go` | new |
-| `MarkerLines` (operator 🤖 markers in a file) | `cmd/tl-lead/markers.go` | new |
+| `planBar` | `cmd/tl-lead/bar.go` | new |
+| `renderTrains` / `carGlyph` / `CarState` | `cmd/tl-lead/render.go` | new |
+| `slotLines` / `renderSlots` / `SlotLine` | `cmd/tl-lead/slots.go` | new |
+| `threadBlocks` / `upsertThread` | `cmd/tl-lead/threads.go` | new |
+| seen-set (`loadSeen`, `saveSeen`, `foldable`, `without`) | `cmd/tl-lead/seen.go` | new |
+| `markerLines` (operator 🤖 markers in a file) | `cmd/tl-lead/markers.go` | new |
+| `lineDiff` (the `.clobbered` diff) | `cmd/tl-lead/linediff.go` | new |
+| `renderedSections` (rendered status sections; the `status quota` hook) | `cmd/tl-lead/status.go` | new |
+| `RenderOffTrain` / `offTrainSlots` (the off-train block) | `cmd/tl-lead/render.go` | deleted (the status file has no `## Slots (off-train)` since ops 7e7df48) |
+| `ThreadEntries` / `PrependThread` (bullet threads) | `cmd/tl-lead/threads.go` | deleted (threads are `###` subsections since ops 7e7df48) |
 
 - **markdoc**: `FenceSpans`, `ScanMarkdownLines`, `SectionBody`, `SectionLineBounds`, `PlanItemsBody`, `CountPlanItems`, `MilestonesInPlanOrder`, `TickedMilestones` and `MilestoneTagPattern`. All are pure and need only the standard library. `cmd/sdlc/internal/issue` keeps its names as forwarding aliases (`type UnterminatedPolicy = markdoc.UnterminatedPolicy`, `var SectionBody = markdoc.SectionBody`, …). Its 125 importers are unchanged, and the existing tests move with the code.
   - **DRY rationale:** the one plan/section parser that sdlc's gates use is also what renders the TL's bar, so a bar can't disagree with what `close` counts.
 - **trains**: `trains.go` moves verbatim (it is stdlib-only). `cmd/sdlc/internal/project` aliases its types and keeps `(*Doc).Trains`.
 - **PlanBar(planBody) string**: counts `Mx` rows when the plan has any (`MilestonesInPlanOrder`/`TickedMilestones`), and checkboxes otherwise (`CountPlanItems`). It returns `▉▉▕ M 2/3`, `▉▕▕▕ tasks 1/4` or `no plan yet`.
-- **RenderTrains(plan TrainPlan, cars map[IssueRef]CarState, defaultRepo) string**: the fenced Trains block. Glyphs: ✓ done, ◑ codecomplete, ◐ in flight (claimed and not open), ○ waiting. `CarState{Status, Claimant, Bar, Err}`. A car whose read failed renders `?` with no bar, never as waiting (ARCH-SECURE: a failed read is not negative evidence).
-- **RenderOffTrain(slots []SlotFact, listed set) string**: one line per slot whose branch is an issue branch no train lists, or `_None._` when there are none.
+- **renderTrains(plan TrainPlan, cars map[IssueRef]CarState) string**: a project's fenced trains block, which the TL pastes into its `### Project` thread. Glyphs: ✓ done, ◑ codecomplete, ◐ in flight (claimed and not open), ○ waiting. `CarState{Status, Claimant, Bar, Err}`. A car whose read failed renders `?` with no bar, never as waiting (ARCH-SECURE: a failed read is not negative evidence).
+- **slotLines(fleet) / renderSlots(lines) string**: the `## Slots` block. One line per numbered slot (N ≥ 1): on an issue branch, its `repo#id`, phase (the card status, or `?` when the observation failed), bar and slug; on another branch, `on <branch>`; detached, `detached`. A final `free:` line lists the idle slots.
+- **threadBlocks / upsertThread(body, entry, drop)**: `## Threads` is a list of `###` subsections, plus an optional preamble. An entry replaces the subsection with the same heading, or else goes in before `### Miscellaneous` (which stays last). `--drop` removes subsections by heading prefix. Splitting is fence-aware (`markdoc.FenceSpans`), so a fenced `### ` line inside a thread body stays in its subsection.
+- **renderedSections**: one row per status section rendered from sources (`slots` → `## Slots`). Each row becomes `tl-lead status <verb> FILE` and writes through the guarded path; a later `status quota` from `sdlc usage` (ariadne#365) is one more row.
 - **SeenSet**: the IDs the TL has looked at (`.<file>.ss-seen`, JSON — the same name and format as `ss.py`, so the cutover keeps the TL's seen IDs and leaves no residue). It holds no state between events beyond that file; see ARCH-ORDER below.
 
 ### Integration points
@@ -44,20 +51,20 @@
 |------|----------|--------|-------|
 | `SessionSync` | `cmd/tl-lead/sessionsync.go` | new | `couch --session-sync` |
 | `fakeSessionSync` | `cmd/tl-lead/sessionsync_fake_test.go` | new | stateful model of a session-sync file |
-| `SDLC` | `cmd/tl-lead/sdlc.go` | new | `sdlc issue show --json`, `sdlc fleet inventory --json` |
-| `fakeSDLC` | `cmd/tl-lead/sdlc_fake_test.go` | new | fixture observations and inventory |
+| `SDLC` | `cmd/tl-lead/sdlc.go` | new | `sdlc issue show --json`, `sdlc fleet inventory --json`, `sdlc workspace <repo> --json` |
+| `fakeSDLC` | `cmd/tl-lead/trains_test.go` | new | fixture fleet, observations and repository roots |
 | skill stubs | `construct/local/tl-lead/SKILL.md`, `construct/local/tl-worker/SKILL.md` | new | weave skill delivery (`xx-tl-lead`, `xx-tl-worker`) |
 | §15 pointer | `AGENTS.base.md` §15 | modified | the constitution every slot loads |
 
-- **SessionSync**: the methods `ReadSection(file, heading) (body, hash)`, `ReadAll`, `WriteSection(file, heading, bodyPath, hash, fold []string)`, `Status(file) (owed []string, lock string)` and `Diff(file)`. The real implementation calls `exec.Command(couch, "--session-sync", args...)` with an argv array, never a shell. Exit codes become typed errors: `ErrLocked` (3), `ErrStale` (6) and `ErrDeliveryGap`.
+- **SessionSync**: the methods `ReadSection(file, heading) (body, hash)`, `WriteSection(file, heading, bodyPath, hash, fold []string)`, `Status(file) (SyncStatus{Holder, Owed})`, `Diff(file)` and `MarkAllSeen(file)` (`read --all`). The real implementation calls `exec.Command(couch, "--session-sync", args...)` with an argv array, never a shell. Exit codes become typed errors: `ErrLocked` (3), `ErrStale` (6) and `ErrDeliveryGap`.
   - **Fake state model:** the file's text, a per-section hash (sha of the body), a lock holder (`operator` or none), a list of owed IDs, and a write counter. Its write semantics match Couch's help: a stale hash refuses, a held lock refuses, a missing `--if-hash` refuses, and folding an ID that isn't owed refuses.
-  - **Live conformance:** `TestSessionSyncConformance` runs when `couch` is on PATH and `TL_LEAD_LIVE=1`. Against a temporary session-sync file it checks read, write, stale (6) and an operator lock (3). It is opt-in and runs at every close of this issue and whenever pair changes session-sync (logged in `## Log`).
-- **SDLC**: `IssueShow(repoPath, n)` and `FleetInventory()` decode into local structs that hold only the fields `tl-lead` reads. Decoding is lenient here: `tl-lead` is a reader, and the observation's own strictness binds sdlc. `schema_version != 1` is refused visibly. The fake serves canned JSON shaped like real `sdlc` output, captured once into `testdata/` from a scratch repository.
+  - **Live conformance:** `TestSessionSyncConformance` runs when `couch` is on PATH and `TL_LEAD_LIVE=1`. Against a temporary session-sync file it checks read, write, stale (6), a refused fold of an ID not owed, status, and an operator lock (3). It is opt-in and runs at every close of this issue and whenever pair changes session-sync (logged in `## Log`).
+- **SDLC**: `FleetInventory(vantage)`, `RepoRoot(vantage, repo)` and `IssueShow(repoPath, n)` decode into local structs that hold only the fields `tl-lead` reads. Decoding is lenient here: `tl-lead` is a reader, and the observation's own strictness binds sdlc. `schema_version != 1` is refused visibly. The fake serves canned JSON shaped like real `sdlc` output, captured once into `testdata/` from a scratch repository.
 
 ### ARCH notes
 
 - **ARCH-PURPOSE:** the Done-when names four consumers: the worker's rules, the lead's prose, the scripts and the delivery path. Each milestone closes one of them end to end. The ops-side pointer and the TL switching to the binaries are the TL's ops change; M3 ends by handing that over, and nothing here defers it.
-- **ARCH-CONSTRAINTS:** `trains` is an interactive TL pass, run about every few minutes. The Python baseline is about 10 s. It makes N ≤ 30 car reads, at most 8 concurrent, with a 60 s timeout each; a timed-out car renders `?`. `status` verbs are light, with one or two couch calls each. Load and memory are N/A: there is no hot loop and no large input.
+- **ARCH-CONSTRAINTS:** `trains` and `status slots` are interactive TL passes, run about every few minutes. The Python baseline is about 10 s. `trains` makes N ≤ 30 car reads, at most 8 concurrent (`boundedEach`, `readConcurrency`), with a 60 s timeout each; a timed-out car renders `?`. Measured: about 10 s. `status slots` is bounded by the `sdlc fleet inventory` read, about 12 s, plus one observation per busy slot; measured at about 18 s. `status` verbs are light, with one or two couch calls each. Load and memory are N/A: there is no hot loop and no large input.
 - **ARCH-SECURE:** every input crosses a process boundary: project.md, issue files and couch/sdlc JSON. Each is parsed into a typed value, and malformed input degrades to a visible `?` or a refusal, never a fabricated count. Body files reach couch as an argv path. No credentials are touched.
 - **ARCH-ORDER:** the state is Couch's file plus the seen-set. The events that matter:
   - **A submit lands mid-turn.** Its ID is not in the seen-set, so `--fold-owed` doesn't fold it until a later `submit` or `owed` lists it.
@@ -135,7 +142,7 @@
 - [x] **Extract markdoc.** Move the fence, section and plan functions and their tests to `pkg/markdoc`. Replace the originals with aliases. `go build ./... && go test ./cmd/sdlc/internal/issue/... ./pkg/markdoc/...` passes unchanged. Grep proves no logic remains behind in `internal/issue/{fence,section,plan}.go`.
 - [x] **Extract trains** the same way, into `pkg/trains`. `go test ./cmd/sdlc/internal/project/... ./pkg/trains/...` passes.
 - [x] Write the `PlanBar` tests first: Mx counted when present, tasks otherwise, `no plan yet`, and fenced checkboxes ignored. Then implement it.
-- [x] Write the `RenderTrains`/`RenderOffTrain` golden tests against a crafted `testdata/project.md`, shaped like the ops project files but holding no operator content. They cover each glyph, a cross-repo car, a failed car read (`?`), and an off-train slot list plus `_None._`. Then implement them.
+- [x] Write the `RenderTrains`/`RenderOffTrain` golden tests against a crafted `testdata/project.md`, shaped like the ops project files but holding no operator content. They cover each glyph, a cross-repo car, a failed car read (`?`), and an off-train slot list plus `_None._`. Then implement them. *(Superseded by scope revision A: the off-train block is gone; see the 2026-10-14 Revisions. The trains golden is `TestRenderTrainsGolden`; `## Slots` is `TestRenderSlots`/`TestGatherSlots`.)*
 - [x] Write the `fakeSessionSync` model and its own test, which pins the stale, lock, missing-hash and fold-not-owed refusals from couch's help.
 - [x] Write the `status` tests against the fake, then implement them. Strategy: table-driven over each verb (`section`, `thread`, `owed`, `seen`, `submit`, `clobbered`, `trains`); `fakeSessionSync` injects a stale or held-lock outcome at a chosen call number, and each row asserts the exit code, the fake's write count and the folded IDs. The rows that carry the risk: `TestOperatorLockRefuses` (exit 3, zero writes); stale-then-success and four-stales refusal; `--fold-owed` folds only seen ∩ owed; the seen-set prunes to owed.
 
@@ -162,3 +169,10 @@
   - **BR-3, the live fold check.** `TestSessionSyncConformance` now folds an ID that isn't owed against the real couch and asserts the refusal changes nothing. The dummy owner has no owed events.
   - **BR-4, the delivery gap.** Couch's `delivery-gap` reply is the typed `ErrDeliveryGap` (`decodeReply`). A `--fold-owed` write refuses with the next action ("check recent messages, then write without --fold-owed"), and a plain write still lands (`TestDeliveryGapRefusesFoldOnly`). `--accept-gap` is not passed through: folding needs the owed set, which a gap leaves unknown. The fake for `SDLC` is `fakeSDLC`, in `cmd/tl-lead/trains_test.go`; there is no `sdlc_fake_test.go`. `cmd/tl-lead/fake_test.go` pins `fakeSessionSync`'s refusals.
   - **BR-5, a fleet failure.** A failed `sdlc fleet inventory` no longer aborts the render: the Trains block renders, and the off-train block reads `? off-train slots unread: <reason>` (`TestGatherTrainsFleetFailureDegrades`).
+- 2026-10-14 — the issue-close review (REWORK) found the plan still describing what scope revision A (db844120) removed. These earlier claims are superseded:
+  - **Off-train block.** The M3 render goldens' `TestRenderOffTrain` and BR-5's degraded off-train block (`TestGatherTrainsFleetFailureDegrades`) no longer exist. The status file has no `## Slots (off-train)`.
+  - **Replacement tests.** `## Slots` is covered by `TestRenderSlots`, `TestGatherSlots` and `TestStatusSlots`. In `TestStatusSlots`, a failed fleet read writes nothing and names the reason.
+  - **Fleet overlap.** The car reads no longer overlap a fleet read (see the "SDLC seam" note above): `trains` no longer reads the fleet at all.
+  - **Threads.** Bullet threads (`ThreadEntries`/`PrependThread`) became `###` subsections (`threadBlocks`/`upsertThread`; tests `TestUpsertThread`, `TestThreadDropAndPlace`), and splitting is now fence-aware.
+  - **Core concepts.** The table and entity notes above were corrected in place to the code, and removed entities are marked `deleted`.
+
