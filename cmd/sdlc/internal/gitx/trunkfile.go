@@ -516,7 +516,24 @@ func writeTemp(content []byte) (string, func(), error) {
 // stop ends git without judging its exit; a full read reports git's failure,
 // so a failed read is never mistaken for an empty history.
 func (t *TrunkFile) HistoryStream(format, pathspec string, maxCommits int) (io.Reader, func(stoppedEarly bool) error, error) {
-	cmd := exec.CommandContext(t.operationContext(), "git", "-C", t.dir, "log", "--format="+format, "--name-only", fmt.Sprintf("--max-count=%d", maxCommits), t.trackingRef(), "--", pathspec)
+	return t.historyStream(t.trackingRef(), format, pathspec, maxCommits)
+}
+
+// HistoryStreamAt reads a pinned commit's newest-first path history. Keeping
+// newest-first ordering ensures the limit applies to the newest commits; callers
+// requiring chronological evidence reverse the bounded result after reading.
+func (t *TrunkFile) HistoryStreamAt(pin, format, pathspec string, maxCommits int) (io.Reader, func(stoppedEarly bool) error, error) {
+	if _, err := parseObjectID([]byte(pin)); err != nil {
+		return nil, nil, fmt.Errorf("history requires an exact commit: %w", err)
+	}
+	if maxCommits <= 0 {
+		return nil, nil, fmt.Errorf("history requires a positive commit limit")
+	}
+	return t.historyStream(pin, format, pathspec, maxCommits)
+}
+
+func (t *TrunkFile) historyStream(ref, format, pathspec string, maxCommits int) (io.Reader, func(stoppedEarly bool) error, error) {
+	cmd := exec.CommandContext(t.operationContext(), "git", "-C", t.dir, "log", "--format="+format, "--name-only", fmt.Sprintf("--max-count=%d", maxCommits), ref, "--", pathspec)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.StdoutPipe()
@@ -533,7 +550,7 @@ func (t *TrunkFile) HistoryStream(format, pathspec string, maxCommits int) (io.R
 			return nil
 		}
 		if err := cmd.Wait(); err != nil {
-			return fmt.Errorf("git log %s: %w: %s", t.trackingRef(), err, strings.TrimSpace(stderr.String()))
+			return fmt.Errorf("git log %s: %w: %s", ref, err, strings.TrimSpace(stderr.String()))
 		}
 		return nil
 	}

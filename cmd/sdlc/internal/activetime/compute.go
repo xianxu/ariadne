@@ -51,6 +51,9 @@ type Options struct {
 	PrefixWeight     *float64
 	ThresholdMin     int
 	IncludeAssistant bool
+	// ActivityWindows, when non-nil, admits only confirmed ownership activity
+	// for each transcript source. The gap/span calculation runs before clipping.
+	ActivityWindows map[string][]ActivityWindow
 }
 
 // Result is the structured outcome of a Compute run — the single value consumed
@@ -130,7 +133,11 @@ func Compute(opts Options) (Result, error) {
 		prefixWeight = *opts.PrefixWeight
 	}
 
-	res.Segments = buildSegments(events, commits, spans, opts.CommitWeight, prefixWeight, opts.ThresholdMin)
+	runs, err := ClipActivity(activityRuns(events, spans, opts.ThresholdMin), opts.ActivityWindows)
+	if err != nil {
+		return Result{}, err
+	}
+	res.Segments = claimActivityRuns(runs, commits, opts.CommitWeight, prefixWeight)
 	for _, s := range res.Segments {
 		res.TotalActive += s.Active
 		for iss, m := range s.Alloc {
