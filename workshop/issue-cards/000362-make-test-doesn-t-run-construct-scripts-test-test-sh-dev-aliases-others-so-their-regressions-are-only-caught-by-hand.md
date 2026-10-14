@@ -1,6 +1,6 @@
 ---
 id: 000362
-status: codecomplete
+status: done
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: ae4b17867fa160731f6472b2fda860574431bea3
         evidence_commit: 7e3d384385425c8bc15a2c755633b7a7cc75fe38
+        landed_commit: 84ece871ef07f4c9559d1797f740bb4642ceda70
 ---
 
 # make test doesn't run construct/scripts/test/*.test.sh (dev-aliases, others), so their regressions are only caught by hand
