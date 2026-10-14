@@ -19,6 +19,24 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- Before shortening a command's transaction lock, enumerate every path that can
+  run a suite and every ref-writing fetch, including legacy and recovery paths.
+  The #370 plan review caught a second merge path whose local CI fallback would
+  otherwise lose its lock entirely. Probe a second same-repo command against
+  the real lock during both first and repeated suite runs.
+- A validation window needs one pinned commit from the first gate through the
+  irreversible effect. Re-reading a remote ref after an unlocked gate can make
+  later CI checks authorize code the earlier gate never saw (#370 BR-1).
+- After polling an external service for a pushed head, fetch and check main
+  again before an expensive suite. Main may advance during registration, and
+  detecting it only after the suite wastes the full run (#370 BR-2).
+- Recovery preconditions must account for effects a completed earlier phase
+  deletes. A merged PR can remove its remote branch before archive resumes;
+  prove the shipped local head against main before demanding a remote ref
+  (#370 BR-3).
+- A concurrent test fixture owns its worker through teardown. On every exit,
+  release blockers, cancel waits and join the worker before restoring cwd or
+  global adapters; a signal write alone leaves a race (#370 BR-4).
 - A context-free compatibility wrapper is still production code to a source
   guard. Remove unused wrappers or route their nil context through the one
   bounded fallback; keep fixture aliases in test files. A targeted behavior

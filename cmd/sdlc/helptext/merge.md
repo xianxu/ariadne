@@ -24,6 +24,10 @@ DURABLE WORKSPACES (:0 AND :N)
      Require the recorded suite and wait up to 20 minutes for pending CI
      (30-second polls, local suite runtime excluded). Re-fetch main immediately
      before landing and repeat integration if it moved, at most three times.
+     The repo transaction lock is released during replay, CI waits and the
+     suite, so other slots can publish or claim. Each mutation reacquires it
+     and checks the exact branch HEAD and worktree; moved main is reintegrated
+     and regated, while a moved HEAD refuses.
   2. Submit a server-side merge with an expected-head check. Queue admission
      is not completion: require MERGED and reachable integration on freshly
      fetched configured main. Already merged squash/rebase PRs use exact PR
@@ -68,6 +72,8 @@ ORDINARY WORKTREES AND DEPENDENCY CLONES
   cleanup may delete the remote branch through gh. It never recursively lands
   sibling repositories. --branch recovery is for durable workspaces only.
   If main moved, the legacy path refuses before checks or after a long suite.
+  It also releases the repo lock during checks, then refuses a moved HEAD or
+  worktree before the server-side merge.
   Merge origin/main manually, resolve conflicts, push with sdlc pr, record the
   suite and retry. It never integrates main automatically.
 

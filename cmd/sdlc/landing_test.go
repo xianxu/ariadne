@@ -18,19 +18,20 @@ const landingTestBranch = "000001-procedure"
 
 type landingFakeGH struct {
 	ciSeamGH
-	t           *testing.T
-	remote      string
-	pr          landingPR
-	strategy    string
-	merges      int
-	queryErr    error
-	mergeErr    error
-	afterMerge  func()
-	queue       bool
-	checks      []prCheck // nil: the stub's green default (#309)
-	followPush  bool      // integration tests observe the real bare remote
-	headLag     int       // reads before GitHub registers a newly pushed head
-	afterStatus func(string)
+	t                *testing.T
+	remote           string
+	pr               landingPR
+	strategy         string
+	merges           int
+	queryErr         error
+	mergeErr         error
+	afterMerge       func()
+	queue            bool
+	checks           []prCheck // nil: the stub's green default (#309)
+	followPush       bool      // integration tests observe the real bare remote
+	headLag          int       // reads before GitHub registers a newly pushed head
+	afterLaggedQuery func()
+	afterStatus      func(string)
 }
 
 func (g *landingFakeGH) PRHeadOID(ctx context.Context, repo string, n int) (string, error) {
@@ -58,6 +59,9 @@ func (g *landingFakeGH) LandingPRs(context.Context, string, string) ([]landingPR
 		head := git(g.t, g.remote, "rev-parse", "refs/heads/"+g.pr.HeadRef)
 		g.pr.BaseOID = git(g.t, g.remote, "rev-parse", "refs/heads/main")
 		if head != g.pr.HeadOID {
+			if g.afterLaggedQuery != nil {
+				g.afterLaggedQuery()
+			}
 			if g.headLag > 0 {
 				g.headLag--
 			} else {
