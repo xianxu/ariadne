@@ -103,6 +103,8 @@
       "datatype *",
       "doc-review *",
       "vocabulary *",
+      "tl-worker *",
+      "tl-lead *",
       "couch *",
       "pair *",
       "pair-help *",
