@@ -43,7 +43,7 @@ func localRunRepo(t *testing.T, lockAnswer string) (localRunDeps, string, *ciFak
 		}
 	}
 	write("Makefile.workflow", "# fake\n", 0o644)
-	write("scripts/test-lock.py", "print("+fmt.Sprintf("%q", lockAnswer)+")\n", 0o755)
+	write("scripts/test-lock.py", "import sys\nif sys.argv[1:] == ['acquire', '--help']:\n    print('options:\\n  --watch WATCH  owner\\n  --slots SLOTS  weight')\nelse:\n    print("+fmt.Sprintf("%q", lockAnswer)+")\n", 0o755)
 	write("marker-check.sh", "#!/bin/sh\necho ran > \"$1\"\n", 0o755)
 	must("add", "-A")
 	must("commit", "-q", "-m", "init")
