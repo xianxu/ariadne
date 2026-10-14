@@ -50,4 +50,17 @@ func TestActualCorrectionPreservesCompletion(t *testing.T) {
 	if _, err := SetCardActualCorrection(card, changed); err == nil {
 		t.Fatal("mismatched snapshot digest accepted")
 	}
+	changed = record
+	changed.IntentReason = "original intent"
+	if _, err := SetCardActualCorrection(card, changed); err != nil {
+		t.Fatal(err)
+	}
+	changed.IntentReason = strings.Repeat("x", 4097)
+	if _, err := SetCardActualCorrection(card, changed); err == nil {
+		t.Fatal("unbounded intent reason accepted")
+	}
+	changed.IntentReason = "invalid\x00intent"
+	if _, err := SetCardActualCorrection(card, changed); err == nil {
+		t.Fatal("NUL intent reason accepted")
+	}
 }

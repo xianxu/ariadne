@@ -120,24 +120,6 @@ func appendActualCorrectionRow(ctx context.Context, stderr io.Writer, file, line
 		if err != nil {
 			return err
 		}
-		found := false
-		for _, row := range rows {
-			if row.Correction != nil && row.Correction.Operation == token {
-				if row.RawID != digest {
-					return errors.New("calibration operation ID already has different row evidence")
-				}
-				found = true
-			}
-		}
-		if found {
-			return nil
-		}
-		// Validate targets against the current ledger before any append. A competing
-		// correction that suppressed our exact target cannot be silently adopted.
-		added, err := estimate.ParseRowsChecked(line + "\n")
-		if err != nil || len(added) != 1 || added[0].Correction == nil || added[0].Correction.Operation != token {
-			return errors.New("invalid prepared calibration correction")
-		}
 		resolved, err := estimate.ResolveCorrections(rows)
 		if err != nil {
 			return err
@@ -146,6 +128,73 @@ func appendActualCorrectionRow(ctx context.Context, stderr io.Writer, file, line
 		for _, row := range resolved {
 			effective[row.RawID] = true
 		}
+		// Header upgrades replace the file atomically under the same ledger
+		// lock. Sample lines remain byte-identical, preserving raw identities.
+		replace := func(content []byte) error {
+			info, err := os.Stat(file)
+			if err != nil {
+				return err
+			}
+			temp, err := os.CreateTemp(filepath.Dir(file), ".actual-correction-*")
+			if err != nil {
+				return err
+			}
+			defer os.Remove(temp.Name())
+			defer temp.Close()
+			if err := temp.Chmod(info.Mode()); err != nil {
+				return err
+			}
+			if _, err := temp.Write(content); err != nil {
+				return err
+			}
+			if err := temp.Sync(); err != nil {
+				return err
+			}
+			if err := temp.Close(); err != nil {
+				return err
+			}
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			return os.Rename(temp.Name(), file)
+		}
+		found := false
+		var owned estimate.LedgerRow
+		for _, row := range rows {
+			if row.Correction != nil && row.Correction.Operation == token {
+				if row.RawID != digest {
+					return errors.New("calibration operation ID already has different row evidence")
+				}
+				found = true
+				owned = row
+			}
+		}
+		if found {
+			if owned.Correction.Disposition == "replace" && !effective[owned.RawID] {
+				return errors.New("calibration operation was superseded before confirmation")
+			}
+			if owned.Correction.Disposition == "exclude" {
+				for _, row := range rows {
+					if row.Correction != nil {
+						for _, target := range row.Correction.Targets {
+							if target == owned.RawID {
+								return errors.New("calibration exclusion was superseded before confirmation")
+							}
+						}
+					}
+				}
+			}
+			if upgraded, changed := estimate.UpgradeHeader(string(raw)); changed {
+				return replace([]byte(upgraded))
+			}
+			return nil
+		}
+		// Validate targets against the current ledger before any append. A competing
+		// correction that suppressed our exact target cannot be silently adopted.
+		added, err := estimate.ParseRowsChecked(line + "\n")
+		if err != nil || len(added) != 1 || added[0].Correction == nil || added[0].Correction.Operation != token {
+			return errors.New("invalid prepared calibration correction")
+		}
 		for _, target := range added[0].Correction.Targets {
 			if !effective[target] {
 				return errors.New("calibration target was superseded before append")
@@ -153,6 +202,12 @@ func appendActualCorrectionRow(ctx context.Context, stderr io.Writer, file, line
 		}
 		if _, err = estimate.ResolveCorrections(append(rows, added[0])); err != nil {
 			return err
+		}
+		if upgraded, changed := estimate.UpgradeHeader(string(raw)); changed {
+			if !strings.HasSuffix(upgraded, "\n") {
+				upgraded += "\n"
+			}
+			return replace([]byte(upgraded + line + "\n"))
 		}
 		f, err := os.OpenFile(file, os.O_WRONLY|os.O_APPEND, 0)
 		if err != nil {
@@ -365,7 +420,157 @@ func readActualCorrection(entry gitx.RecoveryEntry) (actualCorrectionDocument, e
 	return d, nil
 }
 
+// actualCorrectionMainMirror reads the one authoritative details location,
+// sharing the active/legacy/archive directory model with other issue verbs.
+func actualCorrectionMainMirror(main *gitx.TrunkView, issuesDir, cardPath string) (string, []byte, error) {
+	var mirrorPath string
+	var content []byte
+	seen := map[string]bool{}
+	for _, dir := range issue.IDDirs(issuesDir, envArchiveDirs().History) {
+		p := path.Join(filepath.ToSlash(dir), path.Base(cardPath))
+		if seen[p] {
+			continue
+		}
+		seen[p] = true
+		exists, err := main.Exists(p)
+		if err != nil {
+			return "", nil, err
+		}
+		if !exists {
+			continue
+		}
+		if mirrorPath != "" {
+			return "", nil, errors.New("ambiguous main details location")
+		}
+		mirrorPath = p
+		content, err = main.Read(p)
+		if err != nil {
+			return "", nil, err
+		}
+	}
+	if mirrorPath == "" {
+		return "", nil, errors.New("completed issue has no main details mirror to correct")
+	}
+	return mirrorPath, content, nil
+}
+
+// A completed repeat has no private recovery ref. Its remote card, effective
+// calibration operation and main projection must independently prove the same
+// operation before it can return without measuring or producing another row.
+func actualCorrectionCompleteRepeat(env *trackerEnv, card tracker.Record, completion issue.Completion, issuesDir, ledger, ref, reason string, exclude bool) (issue.ActualCorrection, bool, error) {
+	record, exists, err := issue.CardActualCorrection(card.Raw)
+	if err != nil {
+		return record, false, err
+	}
+	intent := record.IntentReason
+	if intent == "" {
+		intent = record.Reason
+	}
+	actual, _ := issue.GetField(card.Card.Frontmatter, "actual_hours")
+	if !exists || intent != reason || record.Exclude != exclude || record.NewActual != actual || record.CompletionToken != completion.Token || record.Repository != completion.Repository || record.EvidenceCommit != completion.EvidenceCommit || record.ReviewedHEAD != completion.ReviewedHEAD {
+		return record, false, nil
+	}
+	refuse := func(cause error) (issue.ActualCorrection, bool, error) {
+		return record, false, fmt.Errorf("correction %s is not proved complete: %w; restore its calibration/mirror evidence or original recovery receipt, then run sdlc issue recovery reconcile --issue %s", record.Token, cause, issue.CLIRef(card.ID))
+	}
+	raw, err := os.ReadFile(ledger)
+	if err != nil {
+		return refuse(err)
+	}
+	rows, err := estimate.ParseRowsChecked(string(raw))
+	if err != nil {
+		return refuse(err)
+	}
+	effective, err := estimate.ResolveCorrections(rows)
+	if err != nil {
+		return refuse(err)
+	}
+	disposition := "replace"
+	if exclude {
+		disposition = "exclude"
+	}
+	var owned *estimate.LedgerRow
+	for _, row := range rows {
+		if row.Correction == nil || row.Correction.Operation != record.Token {
+			continue
+		}
+		c := row.Correction
+		if row.Issue != ref || c.Generation != completion.Token || c.InputDigest != record.MeasurementDigest || c.Disposition != disposition {
+			return refuse(errors.New("calibration operation binding mismatch"))
+		}
+		if exclude {
+			if row.Actual != 0 {
+				return refuse(errors.New("exclusion correction contains numeric sample"))
+			}
+		} else {
+			n, err := strconv.ParseFloat(record.NewActual, 64)
+			if err != nil || math.IsNaN(n) || math.IsInf(n, 0) || math.Abs(row.Actual-n) > 0.000001 {
+				return refuse(errors.New("calibration actual does not match recorded correction"))
+			}
+		}
+		copy := row
+		owned = &copy
+	}
+	if owned == nil {
+		return refuse(errors.New("calibration operation evidence missing"))
+	}
+	if exclude {
+		// Exclusions deliberately produce no effective numeric row. Validate
+		// resolution above, then prove no later correction superseded this row.
+		for _, row := range rows {
+			if row.Correction != nil {
+				for _, target := range row.Correction.Targets {
+					if target == owned.RawID {
+						return refuse(errors.New("calibration operation was superseded"))
+					}
+				}
+			}
+		}
+	} else {
+		found := false
+		for _, row := range estimate.NewestPerIssue(effective) {
+			if row.RawID == owned.RawID {
+				found = true
+			}
+		}
+		if !found {
+			return refuse(errors.New("calibration operation is no longer effective"))
+		}
+	}
+	main, err := env.main.Snapshot()
+	if err != nil {
+		return refuse(err)
+	}
+	_, mirror, err := actualCorrectionMainMirror(main, issuesDir, card.Path)
+	if err != nil {
+		return refuse(err)
+	}
+	baseline, err := issue.MirrorBaselineOID(mirror)
+	if err != nil {
+		return refuse(err)
+	}
+	if baseline != card.BlobOID {
+		return refuse(errors.New("main mirror does not name the corrected card generation"))
+	}
+	if _, err := issue.RefreshMirror(mirror, card.Raw, card.Raw); err != nil {
+		return refuse(err)
+	}
+	latest, err := env.repo.Snapshot()
+	if err != nil {
+		return refuse(err)
+	}
+	current, err := latest.Require(card.ID)
+	if err != nil {
+		return refuse(err)
+	}
+	if current.BlobOID != card.BlobOID {
+		return refuse(errors.New("card generation changed while confirming completion"))
+	}
+	return record, true, nil
+}
+
 func runActualCorrection(ctx context.Context, stdout, stderr io.Writer, issuesDir string, id int, reason, brainDir string, dryRun, exclude bool) error {
+	intentReason := reason
 	if id <= 0 || strings.TrimSpace(reason) == "" || len(reason) > 4<<10 {
 		return errors.New("--issue and bounded --reason are required")
 	}
@@ -448,6 +653,14 @@ func runActualCorrection(ctx context.Context, stdout, stderr io.Writer, issuesDi
 	if err != nil {
 		return err
 	}
+	repeated, complete, err := actualCorrectionCompleteRepeat(env, card, completion, issuesDir, ledger, identity.Repo+"#"+strconv.Itoa(id), reason, exclude)
+	if err != nil {
+		return err
+	}
+	if complete {
+		fmt.Fprintf(stdout, "Correction %s already complete: #%s actual %s\n", repeated.Token, card.ID, repeated.NewActual)
+		return nil
+	}
 	raw, err := os.ReadFile(ledger)
 	if err != nil {
 		return fmt.Errorf("calibration targets: %w", err)
@@ -497,7 +710,7 @@ func runActualCorrection(ctx context.Context, stdout, stderr io.Writer, issuesDi
 		return err
 	}
 	token := operationToken("actual-correction")
-	evidence := issue.ActualCorrection{Version: 1, Token: token, CompletionToken: completion.Token, Repository: completion.Repository, EvidenceCommit: completion.EvidenceCommit, ReviewedHEAD: completion.ReviewedHEAD, PreviousActual: old, NewActual: nextActual, Reason: reason, MeasurementDigest: correctionDigest(inputJSON), Inputs: string(inputJSON), Exclude: exclude}
+	evidence := issue.ActualCorrection{Version: 1, Token: token, CompletionToken: completion.Token, Repository: completion.Repository, EvidenceCommit: completion.EvidenceCommit, ReviewedHEAD: completion.ReviewedHEAD, PreviousActual: old, NewActual: nextActual, Reason: reason, IntentReason: intentReason, MeasurementDigest: correctionDigest(inputJSON), Inputs: string(inputJSON), Exclude: exclude}
 	candidate, err := issue.SetCardField(card.Raw, "actual_hours", nextActual)
 	if err != nil {
 		return err
@@ -514,32 +727,9 @@ func runActualCorrection(ctx context.Context, stdout, stderr io.Writer, issuesDi
 	if err != nil {
 		return err
 	}
-	var mirrorPath string
-	var original []byte
-	seenPaths := map[string]bool{}
-	for _, dir := range issue.IDDirs(issuesDir, envArchiveDirs().History) {
-		p := path.Join(filepath.ToSlash(dir), path.Base(card.Path))
-		if seenPaths[p] {
-			continue
-		}
-		seenPaths[p] = true
-		exists, err := main.Exists(p)
-		if err != nil {
-			return err
-		}
-		if exists {
-			if mirrorPath != "" {
-				return errors.New("ambiguous main details location")
-			}
-			mirrorPath = p
-			original, err = main.Read(p)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	if mirrorPath == "" {
-		return errors.New("completed issue has no main details mirror to correct")
+	mirrorPath, original, err := actualCorrectionMainMirror(main, issuesDir, card.Path)
+	if err != nil {
+		return err
 	}
 	baseline, err := issue.MirrorBaselineOID(original)
 	if err != nil {
@@ -556,6 +746,9 @@ func runActualCorrection(ctx context.Context, stdout, stderr io.Writer, issuesDi
 	row := target
 	row.RawID = ""
 	row.Actual = measured.Hours
+	if !exclude && inputs.Method == gatestate.MeasurementMethodEngagementV1 {
+		row.WindowTrusted = true
+	}
 	row.Date = time.Now().Format("2006-01-02")
 	disposition := "replace"
 	if exclude {

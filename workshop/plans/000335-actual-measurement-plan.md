@@ -226,3 +226,24 @@ continue refusing unproved multi-boundary/reclose scope. This is needed to repai
 #454 numerically from retained Git evidence rather than unnecessarily exclude it.
 The #514 dry-run also exposed standard archive lookup, now derived through the
 existing issue-directory authority (active, canonical archive and legacy flat).
+
+### 2026-10-14 — retry evidence and final acceptance ordering
+
+A complete correction repeat proves the current card generation, effective
+calibration operation and main mirror before returning its recorded result.
+Missing or superseded proof refuses rather than creating another operation.
+Ownership-proven repairs mark their window trusted; legacy fallback does not.
+The first correction atomically upgrades a legacy calibration header under the
+existing writer lock, preserving all raw sample bytes/identities and permissions.
+Recovery's catalog names the real command proofs.
+
+The first recorded suite caught the missing recovery declaration and a600ms
+cancellation assertion under sharded load. Its fixture now separates a30s fake
+command from a3s cancellation deadline; no production cancellation rule changed.
+Final targeted correction/catalog/cancellation checks passed39.436s.
+
+Hub receipt804134bb-8925-425e-87f2-e409e6befc45 requires close/PR/merge with the
+shared binary. After landing and the hub rebuild, repair pair#454/#514 AND #335
+with measured correct-actual. The acceptance checklist's land/repair item remains
+pending at close, acknowledged by the precise no-plan-check flag; no peer data
+write or gate-binary replacement occurs before landing.

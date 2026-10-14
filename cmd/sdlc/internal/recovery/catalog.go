@@ -9,6 +9,25 @@ const observeEvidence = "`sdlc issue show N --json`"
 // does not exist.
 var Catalog = []Contract{
 	{
+		Verbs:         []string{"issue correct-actual"},
+		Class:         ConvergentRetry,
+		Effects:       "measures a completed close generation, publishes corrected actual and bounded input provenance on its tracker card, appends an exact-target calibration correction, then publishes its active or archived details mirror. --exclude records N/A and invalidates the proven bad sample without inventing hours; --dry-run previews without publication.",
+		Evidence:      "sdlc issue recovery list; the card's tracker.actual_correction and actual_hours; the calibration correction operation and mirror baseline.",
+		Preconditions: "codecomplete or done with exact completion token/reviewed head/evidence commit, unambiguous effective calibration target, valid retained or reconstructed measurement inputs, and an unchanged expected card and details mirror.",
+		Repeat:        "a pending operation resumes its pinned inputs, never measures again. The same reason and exclusion intent after confirmed completion is a no-op, proven by its own calibration row and current mirror. A different reason requests a new correction.",
+		LostResponse:  "rerun the same command or sdlc issue recovery reconcile --issue N. Git recovery refs retain confirmed progress and candidate objects; uncertain publication is probed for reachability and exact operation identity before any repeat. Missing confirmation or a moved generation refuses and retains the receipt.",
+		Ends:          "a new completed close generation or competing card/mirror write invalidates the pending operation. A confirmed operation releases its local ref; its tracker and calibration evidence remain in history.",
+		Proofs: []Proof{
+			{"same-intent confirmed completion performs no measurement or write", []string{"TestActualCorrectionCompleteRepeatDoesNotRemeasure"}},
+			{"interruption resumes after tracker publication without measuring again", []string{"TestActualCorrectionResumesConfirmedTrackerWithoutRemeasure"}},
+			{"dry-run changes nothing and incomplete numeric evidence refuses", []string{"TestActualCorrectionDryRunAndUncertainRefusal"}},
+			{"uncertain moved publication retains its exact receipt and performs no republish", []string{"TestActualCorrectionAbsentMovedCandidatePreservesReceipt"}},
+			{"ordinary and canonical archived mirrors refresh through exact generation proof", []string{"TestActualCorrectionStandardArchiveMirror"}},
+			{"calibration repeat is exact and conflicting operation identity refuses", []string{"TestActualCorrectionAppendIdempotentAndConflict"}},
+		},
+	},
+
+	{
 		Verbs:         []string{"issue attach"},
 		Class:         ConvergentRetry,
 		Effects:       "copies bounded source bytes to the issue's content-addressed asset folder and atomically adds a relative body link; no commit or push.",

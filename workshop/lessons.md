@@ -670,3 +670,14 @@ The simplest durable authority beats a clever scan of consequences.
 - A pure admission test does not fulfill a promised lifecycle proof. For dispute
   flows, drive the real close/dispute/dispatch path and check both evidence delivery
   and non-advancement on invalid responses; mutation-check the integration wiring.
+
+
+- A convergent retry must prove every authoritative effect after private receipt
+  cleanup, including the effective calibration operation and current projection;
+  an unchanged card alone cannot prove completion (#335).
+- A calibration schema migration must preserve raw sample identities. Upgrade
+  headers under the same writer lock and atomically include the first new row;
+  test both fresh append and recovery of an already-written row (#335).
+- Cancellation tests should separate cleanup latency from natural completion by
+  a wide margin; subsecond scheduling assertions are brittle in sharded suites.
+  Keep the cancellation bound while making the fake command much slower (#335).

@@ -33,16 +33,16 @@ Find why close's measurement differs from `sdlc actual` for the same issue minut
 - The cause is reproduced in a test (a branch moved to :0 and back, then closed).
 - Close and `sdlc actual` measure the same window and agree.
 - An implausibly low measurement against the estimate warns or refuses at close.
-- pair#454's actual is corrected.
+- After implementation lands and the hub rebuilds the shared binary, measured correct-actual repairs pair#454, pair#514 and #335 itself. Local acceptance verifies the command and dry-runs; peer data writes are deliberately post-landing.
 
 ## Plan
 
 Proposed durable plan: `workshop/plans/000335-actual-measurement-plan.md`.
 
-- [ ] Reproduce checkout source loss and release/resume inflation.
-- [ ] Derive ownership intervals/source provenance and unify consumer inputs.
-- [ ] Add adoption diagnostics, correction/recovery, and production regressions.
-- [ ] Verify and land, then repair pair#454/#514 through measured correction.
+- [x] Reproduce checkout source loss and release/resume inflation.
+- [x] Derive ownership intervals/source provenance and unify consumer inputs.
+- [x] Add adoption diagnostics, correction/recovery, and production regressions.
+- [ ] Verify and land, then repair pair#454/#514 and #335 through the rebuilt shared binary’s measured correction.
 
 ## Log
 
@@ -188,3 +188,39 @@ the bounded nil fallback while explicit pinned reads retain caller cancellation.
 Context/production/archive checks passed5.809s; history/window checks passed
 3.706s(gitx)/1.238s(tracker); active-time passed4.419s. Archive/scope repair fixtures
 had passed27.895s before integration. No peer records changed.
+
+### 2026-10-14 — recorded suite and correction retry verification
+
+The recorded suite on c525514a97d7e8f1c9e046f4113c47804bee49f5 failed after
+348.8s: all 54 other packages passed, but cmd/sdlc reported a missing recovery
+catalog contract and the existing slow-numstat cancellation fixture exceeded its
+600ms wall-clock assertion under the sharded suite. Added the correction contract
+with named command proofs. The cancellation fixture now sleeps30s and permits3s
+for cancellation/process cleanup, preserving a large separation from natural
+completion; its isolated run passed0.778s. No numstat production change.
+
+Completed correction retries now require matching card generation, effective
+calibration operation and current main mirror, returning the recorded result
+without remeasurement or another row. Missing/superseded evidence refuses.
+Ownership-proven replacement rows become window-trusted; legacy measurements do
+not acquire trust. The legacy calibration header upgrades atomically under the
+writer lock while preserving every sample byte/hash and file mode, including
+header-only recovery of an already-appended operation. Header regression observed
+RED before the fix. Final correction/catalog/cancellation checks passed39.436s;
+recovery/issue/estimate packages passed0.181s/0.743s/0.166s.
+
+Hub receipt804134bb-8925-425e-87f2-e409e6befc45 explicitly retains the shared-binary
+landing rule. Close, PR and merge use shared sdlc; after landing and its hub rebuild,
+correct-actual remeasures #335 itself as well as pair#454/#514. Read-only previews
+were0.05→1.78h and23.76→0.35h; no peer data has been changed. The final Plan item
+stays pending through local acceptance because it includes these authorized
+post-landing actions. Close will acknowledge that ordering with no-plan-check.
+
+## Revisions
+
+### 2026-10-14 — acceptance ordering and correction confirmation
+
+Per the hub's explicit direction, local acceptance precedes shared-binary rebuild
+and data repair. Done when now states that ordering and includes remeasurement of
+#335's own old-binary close. Complete repeats prove all authoritative effects;
+legacy header migration preserves raw calibration identities (ARCH-ORDER).

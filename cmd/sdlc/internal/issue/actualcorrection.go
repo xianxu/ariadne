@@ -22,6 +22,7 @@ type ActualCorrection struct {
 	PreviousActual    string `yaml:"previous_actual"`
 	NewActual         string `yaml:"new_actual"`
 	Reason            string `yaml:"reason"`
+	IntentReason      string `yaml:"intent_reason,omitempty"`
 	MeasurementDigest string `yaml:"measurement_digest"`
 	Inputs            string `yaml:"measurement_inputs"`
 	Exclude           bool   `yaml:"exclude"`
@@ -30,6 +31,9 @@ type ActualCorrection struct {
 func (a ActualCorrection) validate() error {
 	if a.Version != 1 {
 		return errors.New("unknown actual correction version")
+	}
+	if len(a.IntentReason) > 4<<10 || strings.ContainsRune(a.IntentReason, '\x00') {
+		return errors.New("actual correction has invalid intent reason")
 	}
 	for _, v := range []string{a.Token, a.CompletionToken, a.Repository, a.Reason, a.PreviousActual, a.NewActual} {
 		if strings.TrimSpace(v) == "" || strings.ContainsRune(v, '\x00') {

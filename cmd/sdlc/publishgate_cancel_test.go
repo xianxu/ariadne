@@ -24,7 +24,7 @@ func TestQuickGrewPastReviewCancelsSlowNumstat(t *testing.T) {
 	}
 	bin := t.TempDir()
 	marker := filepath.Join(bin, "entered")
-	script := "#!/bin/sh\ncase \"$*\" in *'diff --numstat'*) touch \"" + marker + "\"; sleep 2;; esac\nexec \"" + realGit + "\" \"$@\"\n"
+	script := "#!/bin/sh\ncase \"$*\" in *'diff --numstat'*) touch \"" + marker + "\"; sleep 30;; esac\nexec \"" + realGit + "\" \"$@\"\n"
 	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,10 @@ func TestQuickGrewPastReviewCancelsSlowNumstat(t *testing.T) {
 		if err == nil || !errors.Is(err, context.Canceled) && !strings.Contains(err.Error(), "canceled") {
 			t.Fatalf("cancellation = %v", err)
 		}
-	case <-time.After(600 * time.Millisecond):
+	// Allow bounded process-group/pipe cleanup and shared-suite scheduling.
+	// The uncancelled fixture lasts thirty seconds, so natural completion
+	// cannot satisfy this three-second cancellation assertion.
+	case <-time.After(3 * time.Second):
 		t.Fatal("numstat ignored cancellation")
 	}
 }
