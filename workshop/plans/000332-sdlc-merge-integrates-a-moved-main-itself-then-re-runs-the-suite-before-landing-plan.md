@@ -185,3 +185,33 @@ Nothing deferred.
   - `TestLandingSuiteFailureLabels`: the merged suite fails A and B, main's baseline fails B; the refusal reports A introduced and B pre-existing, and the baseline posts no status. Done-when row 3.
   - Main red with an unparsed failure gets the right message.
 - [ ] Implement and commit. Then full `make -k test`, `sdlc close --issue 332`, PR, `sdlc merge --yes`, and report.
+
+## Revisions
+
+### R1 — 2026-10-13, plan-quality round 1
+
+**PQ-1 (Important), the class "enforcement configuration read from the branch under test".** Every input that decides *whether* and *how heavily* the suite is required must come from main. The *test subject* is the head. The enumeration:
+
+| Input | Source before R1 | Source now |
+|---|---|---|
+| Declaration (`.sdlc/local-checks.json`) | main's tree (#345) | unchanged |
+| Default-suite facts (`test` target exists, `WF_TEST_WEIGHT`) | branch checkout ✗ | **main**: `makeTestFacts` runs the probe in a detached worktree at the gate's base (main's sha), removed after (the #345 worktree helper, ARCH-DRY) |
+| Lock helper location (`Makefile.workflow` realpath) | the slot root | unchanged: the machine lock is slot infrastructure, not branch content; a branch cannot raise or lower the cap through it |
+| Suite command execution | head (detached worktree at head) | unchanged: the head is what is under test |
+
+So a branch that deletes `test:` or lowers `WF_TEST_WEIGHT` still owes the suite at main's weight. Test: `TestDefaultSuiteFactsComeFromMain`, where the branch deletes `test:` and lowers the weight, yet the gate still requires `sdlc-local/suite` and acquires main's weight.
+
+**PQ-2 (Minor), PR head sync.** After the lease push, `integrateMain` re-reads the PR (`gh.LandingPRs` → `selectLandingPR`) until `pr.HeadOID` equals the pushed merge commit. It polls every 5s, bounded at 2 min, then refuses with "GitHub has not registered the pushed head; re-run sdlc merge". Only then do the publish gate and the head-match checks run, against the re-read `pr` (HeadOID and BaseOID). This is covered in `TestLandingIntegratesAMovedMain` with a fake that lags one read.
+
+**PQ-3 (Minor), worst-case wall time.**
+- **One integration costs** the suite (about 6–13 min plus lock queueing), the CI wait (≤20 min) and the PR-head sync (≤2 min).
+- **The worst case** is 3 × (13 + 20 + 2) ≈ 105 min, plus one baseline (≈13 min) on failure, so about 2 h in the foreground.
+- **This is acceptable:** merge is batch work that agents already run in the background, and each bound is printed while it applies. A run that exceeds them stops with a named next action rather than hanging.
+
+**PQ-4 (Minor), non-goals.**
+- No rebasing; integration is a merge commit.
+- No automatic conflict resolution.
+- No re-review after a clean integration, beyond the publish gate's existing replay rule (#304).
+- No change to the server-side merge method (`gh pr merge --merge --match-head-commit`).
+- No integration on the legacy (non-slot) path; it refuses.
+- No suite for repositories with neither a declaration nor a `make test` target; the requirement then does not apply.
