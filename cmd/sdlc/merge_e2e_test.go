@@ -468,6 +468,9 @@ func TestRunMerge_CodecompleteFlippedToDoneAndArchived(t *testing.T) {
 	git(t, dir, "commit", "-m", "seed codecomplete issue")
 	git(t, dir, "push", "origin", "main")
 	git(t, dir, "switch", "feature")
+	// Legacy landings require main to be integrated before admission (#332).
+	git(t, dir, "merge", "--no-edit", "main")
+	git(t, dir, "push", "origin", "feature")
 
 	gh := &e2eGH{openPR: "42"}
 	// --no-judge SKIPS the publish gate, but the flip (step 10.5) is unconditional —

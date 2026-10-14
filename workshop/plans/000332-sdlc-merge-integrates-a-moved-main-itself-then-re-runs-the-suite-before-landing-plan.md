@@ -276,3 +276,25 @@ So a branch that deletes `test:` or lowers `WF_TEST_WEIGHT` still owes the suite
   failure, and success records, so the live history and expected success test the
   endpoint and newest-first reduction. Document invocation and cadence in atlas:
   on changes to the adapter/parser/fake and before landing dependent behavior.
+
+### R5 — 2026-10-14, M2 implementation details
+
+- The integration transition model delegates suite/CI substeps to the existing
+  CI gate under `integrationGates`; `waitCIGate` owns pending/unregistered polling.
+  `ciGateError` preserves refusal reasons, and `ciGateFacts`/`prepareCIGateFacts`
+  load immutable main/head configuration once per wait (ARCH-DRY). The wait
+  excludes local-run duration from its 20-minute budget. These live in
+  `cigate_wait.go` (+ tests), with `runPreparedCIGate` in `cigate.go`.
+- Integration helpers as delivered: `integrateLandingMain`, `integrationResume`,
+  `selectIntegrationPR`, `syncIntegrationPR`, `integrationAncestor`, plus
+  `nextIntegrationStep`, all in `landingintegrate.go`. Resume requires an exact
+  two-parent clean merge tree, not just a trailer. Its replay is checked before
+  push too, including interruption before the original replay check.
+- The legacy refusal uses `requireLegacyMainIntegrated` in `merge_main.go`,
+  before and after checks. `merge_main_test.go` verifies both points leave local
+  and remote issue heads unchanged. Existing codecomplete/archive setup now
+  integrates main first, so it continues testing archive behavior past this new
+  admission requirement.
+- Main's final fetch narrows a remaining external race: `--match-head-commit`
+  pins the PR head, not main atomically. The approved server merge method is
+  unchanged; atlas states this limit explicitly.

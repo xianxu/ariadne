@@ -77,6 +77,11 @@ and `sdlc merge` will not land over it:
   The merge is pinned to the read head with `--match-head-commit`. `--no-ci`
   waives only this gate. gh exits 1 (failing) or 8 (pending) while still
   printing the JSON, so the adapter reads stdout before the exit status.
+- **Durable CI wait** (`cmd/sdlc/cigate_wait.go`). The durable path polls only
+  pending or unregistered checks every 30 seconds, for up to 20 minutes of CI
+  waiting (local suite runtime excluded). Typed refusals keep red, missing,
+  unknown, head-lag and read errors terminal. Immutable main/head facts, including
+  the make probe, are loaded once per wait. The legacy path still refuses pending.
 - **The local-gates guard** (`.github/workflows/local-gates-guard.yml`, seeded).
   It runs on `pull_request_target`, so main's copy of the guard decides and a
   PR cannot weaken the guard within itself; it never checks out or runs PR

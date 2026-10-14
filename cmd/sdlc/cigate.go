@@ -12,7 +12,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os/exec"
@@ -208,7 +207,7 @@ func (v ciVerdict) refusal(pr int) error {
 		b.WriteString("\n  → wait for the checks (`gh pr checks " + strconv.Itoa(pr) + " --watch`), then re-run `sdlc merge`.")
 		b.WriteString("\n  A repository whose workflows never run on PRs stays pending here; only then is `--no-ci` the answer.")
 	}
-	return errors.New(b.String())
+	return &ciGateError{Reason: v.Reason, Message: b.String()}
 }
 
 func checkLabel(c prCheck) string {
@@ -521,6 +520,10 @@ func localRecordsOnAncestors(ctx context.Context, gh ghCaller, repo string, git 
 // A declared local check the verdict needs (#345) runs through run, on head, and
 // the checks are read again before the gate passes.
 func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, head string, git func(args ...string) (string, error), run localCheckRunner, noCI bool, stderr io.Writer) error {
+	return runPreparedCIGate(ctx, gh, repo, number, base, head, git, run, noCI, stderr, nil)
+}
+
+func runPreparedCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, head string, git func(args ...string) (string, error), run localCheckRunner, noCI bool, stderr io.Writer, facts *ciGateFacts) error {
 	if noCI {
 		cwarn(stderr, "⚠️  --no-ci: SKIPPING the CI gate (#309) — landing without reading the PR's checks. Escape hatch for a broken CI system: say why in your log.")
 		return nil
@@ -531,17 +534,14 @@ func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, 
 	unread := func(what string, err error) error {
 		return fmt.Errorf("CI gate: could not read PR #%d's %s (refusing; unread is not green): %w\n  → retry, or --no-ci if the CI system itself is broken", number, what, err)
 	}
-	hasWF, err := headHasWorkflows(git, head)
-	if err != nil {
-		return fmt.Errorf("CI gate: %w", err)
+	if facts == nil {
+		var err error
+		facts, err = prepareCIGateFacts(git, base, head)
+		if err != nil {
+			return err
+		}
 	}
-	decl, err := readLocalChecks(git, base)
-	if err != nil {
-		return fmt.Errorf("CI gate: %w\n  → fix the declaration on main (it is under the local-gates guard)", err)
-	}
-	if decl, err = withDefaultSuite(git, base, decl); err != nil {
-		return fmt.Errorf("CI gate: %w", err)
-	}
+	decl, hasWF, required := facts.decl, facts.hasWorkflows, facts.required
 	read := func() ([]prCheck, ciVerdict, error) {
 		before, err := gh.PRHeadOID(ctx, repo, number)
 		if err != nil {
@@ -571,10 +571,6 @@ func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, 
 	checks, v, err := read()
 	if err != nil {
 		return err
-	}
-	required, err := requiredChecks(git, base)
-	if err != nil {
-		return fmt.Errorf("CI gate: %w", err)
 	}
 	missing := func(checks []prCheck) error {
 		for _, name := range required {

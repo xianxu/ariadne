@@ -16,7 +16,14 @@ DURABLE WORKSPACES (:0 AND :N)
   changed identity or ambiguous evidence refuse. Noncolliding untracked and
   ignored files survive; switch collisions refuse. Never stash/reset to finish.
 
-  1. Run instance, duplicate-ID and deterministic publish gates, then confirm.
+  1. If configured main moved, merge it into the issue branch locally. A
+     conflict aborts and names the paths. A clean integration must pass the
+     publish replay check before its leased push; a refusal resets this
+     integration, without pushing. Wait up to two minutes for GitHub's PR head
+     to register the push, then run instance, duplicate-ID and publish gates.
+     Require the recorded suite and wait up to 20 minutes for pending CI
+     (30-second polls, local suite runtime excluded). Re-fetch main immediately
+     before landing and repeat integration if it moved, at most three times.
   2. Submit a server-side merge with an expected-head check. Queue admission
      is not completion: require MERGED and reachable integration on freshly
      fetched configured main. Already merged squash/rebase PRs use exact PR
@@ -30,8 +37,8 @@ DURABLE WORKSPACES (:0 AND :N)
      remove its branch configuration. Never delete the workspace directory.
 
   The enclosing environment, sibling dependency clones and other slots stay
-  intact. No recursive publication or remote branch deletion is added; GitHub
-  repository auto-deletion settings remain independent. The unchanged local
+  intact. The completed remote issue branch is deleted with a lease on the
+  landed head; a concurrent push is preserved. The unchanged local
   baseline may still show an active tracker record already archived remotely.
   Refresh is a separate explicit operation.
 
@@ -48,6 +55,11 @@ RECOVERY
   is preserved during this ref-only cleanup, including staged/unstaged changes;
   active Git operations still refuse. No transaction journal is created.
 
+  An interrupted local integration may resume before its push: its merge commit
+  must carry Integrated-Main, with the remote issue head as first parent and
+  the named main as second parent. The clean merge tree is verified again, as
+  is the publish replay check; ordinary unpushed edits still require sdlc pr.
+
 ORDINARY WORKTREES AND DEPENDENCY CLONES
 
   These retain the legacy flow: publish through origin, refresh their own main,
@@ -55,6 +67,9 @@ ORDINARY WORKTREES AND DEPENDENCY CLONES
   are removed; in-place dependency checkouts return to updated main. Legacy
   cleanup may delete the remote branch through gh. It never recursively lands
   sibling repositories. --branch recovery is for durable workspaces only.
+  If main moved, the legacy path refuses before checks or after a long suite.
+  Merge origin/main manually, resolve conflicts, push with sdlc pr, record the
+  suite and retry. It never integrates main automatically.
 
 PUBLISH GATE
 
@@ -87,6 +102,10 @@ CI GATE (#309)
   operator's `local-gates-verified` label (atlas/workflow/ci-merge-check.md);
   agents never apply it. --no-ci waives this gate only, for a broken CI
   system or a repository whose workflows never run on PRs.
+
+  Durable workspaces poll pending/unregistered checks for up to 20 minutes;
+  red, missing, unknown, changed-head and unreadable results refuse immediately.
+  Ordinary worktrees retain immediate pending refusal.
 
   Recorded local checks (#345): a CI job GitHub cancelled before any runner
   took it (no runner, zero steps) passes when the check main's
