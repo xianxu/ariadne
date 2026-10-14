@@ -36,7 +36,7 @@ func TestLocalCheckCmd(t *testing.T) {
 	dir := tempRepoWith(t, map[string]string{
 		localChecksPath:        decl,
 		"Makefile.workflow":    "# fake\n",
-		"scripts/test-lock.py": "print('acquired')\n",
+		"scripts/test-lock.py": fakeSuiteLockHelper("print('acquired')\n"),
 	})
 	ci := newCIFakeGH()
 	head := strings.TrimSpace(git(t, dir, "rev-parse", "HEAD"))

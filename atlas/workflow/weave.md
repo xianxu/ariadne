@@ -91,6 +91,17 @@ whole-set preflight and sequential application. Discovery reuses read-only
 `acquire.Client.Restore`, rejecting incomplete/missing checkouts; data mount
 repositories are not Git update subjects. There is no SDLC claim hook.
 
+`weave refresh --substrate` updates only those declared substrate layers and
+recompiles, including from a clean issue branch. The consumer remains an observed,
+revalidated subject but its branch, HEAD, index and origin/main ref are preserved;
+its current main is not fetched. Numbered environments retain private-checkout
+ownership, so this cannot refresh another slot or the primary's shared supplier.
+The flag cannot be combined with `--rebase`; divergent substrate work needs
+explicit reconciliation. Generated composition may change during compilation.
+With no substrate layers, the command recompiles the current source branch and
+reports that no substrate Git checkout advanced. Merge current main separately
+to adopt newer helpers tracked in that source checkout.
+
 Before branch updates, every repository must be clean (including nonignored
 untracked files and dirty submodules), attached and free of active Git operations.
 Default mode requires captured HEAD to be an ancestor of captured remote main;

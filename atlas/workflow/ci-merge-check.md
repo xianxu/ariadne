@@ -187,6 +187,17 @@ first-class evidence, recorded on the commit it ran on:
   - A declared `weight` reaches `test-lock.py --slots`, so `make test` under it
     holds the repository's weight. Before #332 it held one slot and went
     reentrant.
+  - Before local-check worktree maintenance or queueing, SDLC probes the resolved
+    helper's side-effect-free `acquire --help` for the required `--watch` and
+    `--slots` declarations. Missing or unverifiable capability refuses without a
+    check run or posted status. Help is bounded to five seconds and 64 KiB, with
+    process-group cancellation and a one-second pipe drain.
+  - A stale helper refusal names its actual supplying checkout and HEAD, then
+    gives `weave refresh --substrate` in the consumer checkout. This repairs
+    private substrates from a clean issue branch without rebasing that branch.
+    If the helper is tracked in the consumer itself, the refusal instead says
+    to merge current main into the issue branch; substrate refresh cannot adopt
+    newer tracked source. Neither repair runs automatically.
 
 The durable landing CI wait has a 20-minute budget covering inflight GitHub
 and Git reads. Every read receives the remaining deadline, and late green

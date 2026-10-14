@@ -13,7 +13,7 @@ import (
 )
 
 func buildRefresh() *cobra.Command {
-	var rebase bool
+	var rebase, substrate bool
 	cmd := &cobra.Command{
 		Use:   "refresh",
 		Short: "Explicitly refresh this repository and its substrate dependencies",
@@ -26,7 +26,13 @@ Then update those same branches and run compile, even if already current.
 stop for explicit resolution. Updates already completed remain after any error;
 resolve the reported problem and run refresh again. No automatic stash or reset.
 
-Run on a workspace's resting branch when ready to adopt newer sources. Numbered
+--substrate refreshes only the declared substrates and recompiles. It works on
+a clean issue branch, preserving this repository's branch, HEAD, index and
+origin/main ref. It cannot be combined with --rebase. Generated composition may
+change during compile. With no substrates it only recompiles the current source;
+merge current main separately to update helpers owned by that source branch.
+
+Run the default mode on a workspace's resting branch to adopt newer sources. Numbered
 slots refresh their private substrates; a primary refresh includes its declared
 shared peers. No other slot is refreshed. Data mount repositories are not Git
 refresh subjects. Changed dependency declarations refuse before branch updates;
@@ -50,7 +56,7 @@ Ordinary weave compile preserves existing Git revisions; refresh is explicit.`,
 			client.Git = acquire.ExecGit{ExtraFiles: runner.ExtraFiles, Raw: true, Timeout: 2 * time.Minute, MaxOutputBytes: 4 << 20}
 			client.MaxLayers = 128
 			client.MaxDeclarationBytes = 1 << 20
-			return refresh.Run(cmd.Context(), root, client, rebase, cmd.OutOrStdout(), func() error {
+			return refresh.RunWithOptions(cmd.Context(), root, client, refresh.Options{Rebase: rebase, SubstrateOnly: substrate}, cmd.OutOrStdout(), func() error {
 				compileClient := client
 				compileClient.Git = acquire.ExecGit{ExtraFiles: runner.ExtraFiles}
 				return compilePrepared(cmd.Context(), weavefs.OSFS{}, root, plan.TargetAll, false, cmd.OutOrStdout(), compileClient, runner)
@@ -58,5 +64,7 @@ Ordinary weave compile preserves existing Git revisions; refresh is explicit.`,
 		},
 	}
 	cmd.Flags().BoolVar(&rebase, "rebase", false, "allow rebasing local commits onto captured origin/main instead of fast-forward only")
+	cmd.Flags().BoolVar(&substrate, "substrate", false, "refresh only declared substrates and compile, preserving this repository's branch and HEAD")
+	cmd.MarkFlagsMutuallyExclusive("substrate", "rebase")
 	return cmd
 }

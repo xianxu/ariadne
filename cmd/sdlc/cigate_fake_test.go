@@ -363,7 +363,7 @@ func localChecksMergeRepo(t *testing.T, command string, steps int, runner string
 	tempRepoWith(t, map[string]string{
 		localChecksPath:        decl,
 		"Makefile.workflow":    "# fake\n",
-		"scripts/test-lock.py": "print('acquired')\n",
+		"scripts/test-lock.py": fakeSuiteLockHelper("print('acquired')\n"),
 	})
 	head, err := exec.Command("git", "rev-parse", "origin/feature").Output()
 	if err != nil {
@@ -435,7 +435,7 @@ func TestLandingRunnerlessJobMergesAfterLocalRun(t *testing.T) {
 	for rel, body := range map[string]string{
 		localChecksPath:        `{"version":1,"checks":[{"name":"zellij","command":["sh","-c","echo live ok"],"substitutes":["couch-zellij-conformance / conformance"]}]}`,
 		"Makefile.workflow":    "# fake\n",
-		"scripts/test-lock.py": "print('acquired')\n",
+		"scripts/test-lock.py": fakeSuiteLockHelper("print('acquired')\n"),
 	} {
 		procedureWrite(t, seed, rel, body)
 	}
