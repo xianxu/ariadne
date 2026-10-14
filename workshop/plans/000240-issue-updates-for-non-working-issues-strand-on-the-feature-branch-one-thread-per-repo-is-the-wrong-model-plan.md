@@ -54,7 +54,7 @@ After confirmed publication, `finishTrunkPublish` cleans the one path only if it
 **Files:** `atlas/workflow/sdlc-binary.md`, `atlas/workflow/workspace-branching.md`, `workshop/issues/000240-*.md`, `workshop/lessons.md` only if a review finds a transferable rule.
 
 - [x] Document `sdlc issue publish --issue` for issue details, `sdlc trunk publish --path` for non-issue workshop prose, and the branch-reviewed home for atlas/code/settings. Keep `atlas/index.md` current if adding a file (none planned).
-- [ ] Run `gofmt`, targeted tests, `make -k`, and the local suite via `sdlc local-check run --name suite` after the tree is stable; inspect logs and compare the patch with main.
+- [x] Run `gofmt`, targeted tests, `make -k`, and the local suite via `sdlc local-check run --name suite` after the tree is stable; inspect logs and compare the patch with main.
 - [ ] Resolve review findings as a class, rerun affected checks, tick the final close row only when fulfilled, and run `sdlc close --issue 240 --verified <evidence>`; publish via `sdlc pr` and `sdlc merge` after CI.
 
 ## Revisions

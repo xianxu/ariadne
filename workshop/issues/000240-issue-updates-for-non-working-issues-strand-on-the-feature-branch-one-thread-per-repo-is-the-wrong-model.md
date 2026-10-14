@@ -131,9 +131,9 @@ removes the stranding and the sweep hazard without any new model.
 
 ## Plan
 
-- [ ] Publish selected non-issue workshop prose through a main CAS, with
+- [x] Publish selected non-issue workshop prose through a main CAS, with
       path, base, concurrency, and cleanup tests; document the path in atlas.
-- [ ] Verify the full suite, close the issue, and ship.
+- [x] Verify the full suite and prepare the issue for close.
 
 ## Log
 
@@ -149,7 +149,12 @@ the existing `gitx.TrunkFile.UpdateMany` machinery (ARCH-DRY). Targeted
 real-Git tests covered issue-branch isolation, moved main, interruption after
 publication, tracked/untracked cleanup, a moved HEAD, staged/committed refusals,
 symlinks and later local edits; the recovery contract's proof registry passed.
-`make -k` and `make tools` completed. Full recorded suite and close remain.
+`make -k` and `make tools` completed. The pushed head
+`3ab56c0d21ae5954dce67462656a671ec22f9fbc` passed
+`sdlc local-check run --name suite`: 12/12 cmd/sdlc shards, 1,347 cmd/sdlc
+tests, 54 other packages, zero failures, 480.0s wall, recorded as
+`sdlc-local/suite` (log SHA-256 prefix `beab12315e98`). PR #241 is open;
+close review and merge remain.
 
 ### 2026-09-20
 
@@ -207,6 +212,13 @@ explicit path per invocation gives a complete retry rule without a persistent
 receipt: before cleanup, the local bytes remain available to compare with main;
 after cleanup, the path is clean and no further action is needed. PQ-3 also
 removed the single redundant milestone boundary; close owns the review.
+
+### 2026-10-14 — close gate plan wording
+
+The previous final Plan row included `close` and `ship` themselves, which
+cannot be checked before close's all-plan-items precondition. It now names the
+independently verified prerequisite; the Log records the remaining close and
+merge transitions.
 
 ### 2026-09-21 — distinguish couch provisioning from SDLC slot awareness
 
