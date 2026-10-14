@@ -1,12 +1,13 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/pkg/tlrules"
 )
 
 func helpOutput(t *testing.T, args ...string) string {
@@ -23,25 +24,16 @@ func helpOutput(t *testing.T, args ...string) string {
 }
 
 // workerRules reads testdata/rules.tsv: one row per rule the help must carry.
-func workerRules(t *testing.T) [][2]string {
+func workerRules(t *testing.T) []tlrules.Rule {
 	t.Helper()
 	f, err := os.Open(filepath.Join("testdata", "rules.tsv"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	var rows [][2]string
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		line := sc.Text()
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		rule, phrase, ok := strings.Cut(line, "\t")
-		if !ok || phrase == "" {
-			t.Fatalf("malformed rules.tsv row %q", line)
-		}
-		rows = append(rows, [2]string{rule, phrase})
+	rows, err := tlrules.Parse(f)
+	if err != nil {
+		t.Fatal(err)
 	}
 	if len(rows) < 10 {
 		t.Fatalf("rules.tsv has %d rows; the table did not load", len(rows))
@@ -53,8 +45,8 @@ func TestWorkerHelpCarriesEveryRule(t *testing.T) {
 	for _, args := range [][]string{{"--help"}, {}} {
 		help := helpOutput(t, args...)
 		for _, r := range workerRules(t) {
-			if !strings.Contains(help, r[1]) {
-				t.Errorf("tl-worker %v: rule %s: help lacks %q", args, r[0], r[1])
+			if !strings.Contains(help, r.Phrase) {
+				t.Errorf("tl-worker %v: rule %s: help lacks %q", args, r.Name, r.Phrase)
 			}
 		}
 	}
@@ -77,7 +69,7 @@ func TestWorkerHelpDoesNotRestateSection15(t *testing.T) {
 }
 
 func TestSkillStubsPointAtBinaries(t *testing.T) {
-	for _, bin := range []string{"tl-worker"} {
+	for _, bin := range []string{"tl-worker", "tl-lead"} {
 		raw, err := os.ReadFile(filepath.Join("..", "..", "construct", "local", bin, "SKILL.md"))
 		if err != nil {
 			t.Fatal(err)

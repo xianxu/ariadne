@@ -102,6 +102,15 @@ Items in order: M1 tl-worker (binary, prose, stub, §15 line); M2 tl-lead prose;
 - M1 built: `cmd/tl-worker` (help.md embedded, cobra root), stub `construct/local/tl-worker`, the §15 load bullet, Makefile `tools`, atlas `workflow/tl-skills.md`. `weave skills` lists `xx-tl-worker`; `construct/dev-aliases.sh --list` lists `tl-worker`. `weave compile` composed AGENTS.md/CLAUDE.md, then stopped at writing `.claude/settings.json` (sandbox-denied path); the `.claude/skills/xx-tl-worker` link lands at this slot's next unsandboxed `weave refresh` (couch --prepare).
 - BLOCKER: `cmd/weave/internal/settingsx` `TestBaseSettingsExcludedVerbsMatchArguments` requires every `cmd/` binary in `.claude/settings.ariadne.json` `sandbox.excludedCommands` as `X *`. That file is local-gates protected (`.claude/settings*.json`); per AGENTS §5 that change is its own issue with operator-held verification. Asked the hub.
 
+- TL: file the settings change separately. Filed ariadne#354 (add `tl-worker *` / `tl-lead *` to excludedCommands), unclaimed for ariadne:4; M1's milestone-close waits for it on main. (`sdlc unclaim --note` refused right after `issue new` on an issue branch: the note needs local details that `issue new` never writes there. Plain unclaim worked; reported to the hub.)
+- The rule-table loader is `pkg/tlrules`, not `cmd/internal`: the settings test treats every `cmd/` directory as a binary that needs a sandbox exemption.
+- M2 section map (ops draft at 17ee62c, unchanged since this session started; pair#540 not landed, so no `couch --notify`):
+  - kept as rules: the model/roles, the eight steps, two modes in ops, the project directory, allocation, talking to the operator (status file and session-sync principles), grooming, dispatch, watching, landing/smoke, staging (TL half), attention, batch edges, fleet traps, two hats, waiting notices.
+  - dropped as narrative: kink/learnings numbers, dated incidents, project-name examples.
+  - dropped as obsolete interim rules: "until ariadne#308" (close ticks in the TL checkout; landed), "until ariadne#318" (sandbox bypass for sends; landed), "until parley.nvim#315" (agent-held lock; done), "until pair#434" (manual prepare; done), "until the machine-wide test lock" (ariadne#346; landed).
+  - moved to tl-worker or cited: the dispatch checklist's worker rules (`tl-worker --help`); session-sync verb semantics, receipts, and peek (`couch --skill`).
+  - changed: the draft's "known-red CI doesn't block a landing" contradicts AGENTS §5 (#309: merge refuses red CI, never `--no-ci`); the prose follows §5.
+
 ## Revisions
 
 - 2026-10-13 — the operator: **don't copy stories or lessons** into the binaries' prose. The prose states current

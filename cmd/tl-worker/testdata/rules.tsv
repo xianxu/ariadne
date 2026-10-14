@@ -1,15 +1,16 @@
-# One row per tl-worker rule: <rule>\t<phrase the help must contain>.
-# The tl-lead help is checked against this table too: it cites tl-worker for
-# these rules and must not restate them.
-permissions	bounded headless browser run
-permissions-ask	visible window, touch the :0 slot
-known-failure	`make -k`
-real-hashes	`git rev-parse`
-project-file	The TL owns the project file
-filing	`sdlc unclaim --issue N`
-live-check	gets a live check against that real setup
-stage	`sdlc stage --build`
-stage-clear	`sdlc stage --clear`
-landing	`sdlc merge --yes` yourself
-landing-stop	report the merge with its PR number to the hub, and stop
-report-receipt	receipt reads `submitted`
+# One row per tl-worker rule: <rule>\t<scope>\t<phrase the help must contain>.
+# scope `own`: only tl-worker states it, and the tl-lead help must not contain the
+# phrase. scope `cited`: a command the lead's procedure names too (the TL's half of
+# the same step), so tl-lead may contain it.
+permissions	own	bounded headless browser run
+permissions-ask	own	visible window, touch the :0 slot
+known-failure	own	`make -k`
+real-hashes	own	`git rev-parse`
+project-file	own	The TL owns the project file
+filing	own	`sdlc unclaim --issue N`
+live-check	own	gets a live check against that real setup
+stage	cited	`sdlc stage --build`
+stage-clear	cited	`sdlc stage --clear`
+landing	own	`sdlc merge --yes` yourself
+landing-stop	own	report the merge with its PR number to the hub, and stop
+report-receipt	own	receipt reads `submitted`
