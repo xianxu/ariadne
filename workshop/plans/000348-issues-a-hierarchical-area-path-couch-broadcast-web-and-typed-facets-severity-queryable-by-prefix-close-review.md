@@ -233,3 +233,103 @@ dispose:
     note: |
       pathPattern caches the compiled pattern in a sync.Map keyed by the model's area spec, a fixed set.
 ```
+
+---
+
+## Re-review — 2026-10-13T20:14:20-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 348 — issues: a hierarchical area path (couch/broadcast/web) and typed facets (severity), queryable by prefix |
+| repo | ariadne |
+| issue file | workshop/issues/000348-issues-a-hierarchical-area-path-couch-broadcast-web-and-typed-facets-severity-queryable-by-prefix.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 62da7e26dabe6ffeafb04ed13f59b3c610c59a2d..534f27540c7435c86d09a8ce25d3d8c406fff09f |
+| command | sdlc close --issue 348 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-13T20:14:20-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Still waiting on the build and test run. The conflict resolution I've read so far looks correct.
+
+Two RepoLock tests are failing. I'm checking whether they also fail on main.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Verdict: SHIP.** All seven earlier findings (BR-1 to BR-7) were already disposed, and this window adds no new defect. The interdiff does three things:
+
+- **Conflict resolutions in `cmd/sdlc/issuepublish.go` and `cmd/sdlc/legacymode.go`.** These are the real content of the window. They keep both sides' intent.
+- **One test call-site update.** `cmd/sdlc/repoenums_test.go:169` was changed to match main's new signature.
+- **Bookkeeping.** The card moved from working to codecomplete and the 348 plan files moved from `workshop/history/plans/` back to `workshop/plans/`. `## Spec`, `## Revisions` and `## Done when` are unchanged, so scope did not change.
+
+Main had committed conflict markers (`<<<<<<< 3d12bf88 … >>>>>>> d0cfeff3`) into base `62da7e26`. Head resolves all of them, and `git grep` finds no markers left outside `workshop/`.
+
+## 1. Strengths
+- **The publish resolution keeps both changes** (`cmd/sdlc/issuepublish.go:156-165`):
+  - This issue's `checkPublishedClassification(tf, selected, roots[0])` stays in place, after `validateCommitSelection`.
+  - Main's change stays too: it builds `changed` and calls `tf.PublishCommitChecked(...)` with `validateAssetPublication`, replacing the bare `tf.PublishCommit`.
+  - Ordering is sound: classification is a cheap check before publishing, and the asset check runs inside the checked publish. Nothing from either side is dropped.
+- **The import resolution in `legacymode.go:24-25` keeps both `issueassets` (main) and `repoenum` (this issue).** Both are used, and `go build ./...` and `go vet ./cmd/sdlc/` pass.
+- **The test fix follows main's API change.** `publishIssueCommit` now takes a `context.Context` first, and `repoenums_test.go` passes `context.Background()`. That keeps the publish-refusal regression test compiling and running.
+
+## 2. Critical findings
+None.
+
+## 3. Important findings
+None.
+
+## 4. Minor findings
+None introduced by this window.
+
+## 5. Test coverage notes
+- **Tests for this issue pass at head:** `TestIssuePublish_RefusesUndeclaredArea`, `TestIssueValidateWithoutMain`, `TestCheckClassification`, `TestIssueSetAreaAndSeverity`, `TestIssueSetAreaQuotesAndDedupes`, and the `TestLegacy*` lifecycle and gate tests.
+- **Every `cmd/sdlc/internal/*` package passes**, including `repoenum`, `issue`, `tracker` and `gitx`.
+- **Three tests in `cmd/sdlc` fail, but the same way on main's parent `3d12bf88`:** `TestPushPublishSequence_CodecompleteFlippedThenArchived`, `TestLegacyRepoLockConcurrentIssueNewSerializesAllocation` and `TestLegacyRepoLockSetStatusMutationWaits`. I ran them in a temporary worktree of main and got identical failures. The error is "issue tracker cutover mismatch … no issue tracker is reachable", which looks like a property of the review checkout's environment (no issue-tracker remote). This window did not cause them.
+- **The full `cmd/sdlc` package did not finish within the 600s default `go test` timeout here**, so I couldn't confirm the whole package passes. I covered the window's code with the targeted runs above.
+
+## 6. Architectural notes
+- **ARCH-DRY: pass.** The resolution adds no duplicated logic; it splices the two sides together with no copy-paste.
+- **ARCH-PURE: pass.** `checkPublishedClassification` still sits in the thin publish shell and reads the declaration lazily through `lazyDecl`. Asset validation stays behind the injected `PublishCommitChecked` callback.
+- **ARCH-PURPOSE: pass.** The publish-time membership check, which was the point of the earlier publish-refusal work, survives the merge. It was not dropped in favour of main's version.
+
+## 7. Plan revision recommendations
+None.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Already disposed in prior round; interdiff does not regress it (TestIssueValidateWithoutMain passes at head).
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Already disposed; TestIssueSetAreaQuotesAndDedupes passes at head.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Already disposed; README untouched by this interdiff.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Already disposed; dedupe test passes at head.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Already disposed; interdiff adds no new validator copies.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Already disposed; state.go untouched by this interdiff.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Already disposed; repoenum untouched and its tests pass.
+```
