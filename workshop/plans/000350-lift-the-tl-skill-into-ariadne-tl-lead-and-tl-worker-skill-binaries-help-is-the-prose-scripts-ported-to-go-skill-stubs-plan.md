@@ -8,6 +8,8 @@
 
 **Tech Stack:** Go 1.26, cobra, go:embed; `couch --session-sync` (pair), `sdlc issue show --json`, `sdlc fleet inventory --json`.
 
+**Non-goals:** no Couch change (the §15 line is the load); `tl-status.py` is retired, not ported; no new field on `sdlc issue show --json`; the ops pointer and deleting `scripts/*.py` are the TL's ops change after M3.
+
 **Source of the prose:** `~/workspace/ops/skills-draft/xx-tl/SKILL.md` and the TL's dispatch messages. The draft is still changing, so M2 reads the then-current file, not today's. Per the issue's Revisions, no stories or lessons are copied: the prose is current rules and procedure, and every reference has the full `repo#NNN` form.
 
 ---
@@ -34,7 +36,7 @@
 - **PlanBar(planBody) string**: counts `Mx` rows when the plan has any (`MilestonesInPlanOrder`/`TickedMilestones`), and checkboxes otherwise (`CountPlanItems`). It returns `▉▉▕ M 2/3`, `▉▕▕▕ tasks 1/4` or `no plan yet`.
 - **RenderTrains(plan TrainPlan, cars map[IssueRef]CarState, defaultRepo) string**: the fenced Trains block. Glyphs: ✓ done, ◑ codecomplete, ◐ in flight (claimed and not open), ○ waiting. `CarState{Status, Claimant, Bar, Err}`. A car whose read failed renders `?` with no bar, never as waiting (ARCH-SECURE: a failed read is not negative evidence).
 - **RenderOffTrain(slots []SlotFact, listed set) string**: one line per slot whose branch is an issue branch no train lists, or `_None._` when there are none.
-- **SeenSet**: the IDs the TL has looked at (`.<file>.tl-seen`, JSON). It holds no state between events beyond that file; see ARCH-ORDER below.
+- **SeenSet**: the IDs the TL has looked at (`.<file>.ss-seen`, JSON — the same name and format as `ss.py`, so the cutover keeps the TL's seen IDs and leaves no residue). It holds no state between events beyond that file; see ARCH-ORDER below.
 
 ### Integration points
 
@@ -65,7 +67,7 @@
   - **Death between couch's write and the seen-set prune.** The prune is idempotent at the next call.
 
   Tests drive these through `fakeSessionSync`, which can inject a stale write or a lock at a chosen call number.
-- **ARCH-FUNERAL:** the seen-set file is pruned on every write to the IDs still owed, so it is bounded by the owed set. It dies with the status file and is gitignored alongside it. `<file>.clobbered` is deleted by `status submit` when it is identical, and by `status clobbered --done` otherwise. The binaries create nothing else that is durable.
+- **ARCH-FUNERAL:** the seen-set file is pruned on every write to the IDs still owed (a deliberate change from `ss.py`'s grow-only `mark_seen`), so it is bounded by the owed set. It dies with the status file and is gitignored alongside it. `<file>.clobbered` is deleted by `status submit` when it is identical, and by `status clobbered --done` otherwise. The binaries create nothing else that is durable.
 - **ARCH-MOCK:** covered by the integration-point table. `git` is not called directly, because slot branches come from `sdlc fleet inventory`.
 
 ---
@@ -97,8 +99,8 @@
   The final set is whatever the inventory step settled.
 - [ ] Write the stub `construct/local/tl-worker/SKILL.md`. Its frontmatter description triggers on work dispatched by a Couch hub. The body, a few lines in the shape of the couch stub, says: run `tl-worker --help` and follow it; if `tl-worker` is not installed, stop and tell the operator.
 - [ ] Add `TestSkillStubsPointAtBinaries` (in `cmd/tl-worker`): it reads `../../construct/local/tl-worker/SKILL.md` and asserts that it names `tl-worker --help` and carries no rule text (under 30 lines).
-- [ ] Add one bullet to `AGENTS.base.md` §15: "At the start of each dispatched item, run `tl-worker --help` and follow it; the hub runs `tl-lead --help` instead." This is the deterministic load: `couch --prepare` reloads the context, and the constitution is always loaded. No Couch change is needed; record that in `## Log`. Run `weave refresh` so the composed `AGENTS.md`/`CLAUDE.md` pick it up, and add a test asserting that §15 names both binaries.
-- [ ] Add `tl-worker` to the Makefile's `tools`. Confirm that `construct/dev-aliases.sh --list` lists it, and that weave compiles `.claude/skills/xx-tl-worker`.
+- [ ] Add one bullet to `AGENTS.base.md` §15: "At the start of each dispatched item, run `tl-worker --help` and follow it; the hub runs `tl-lead --help` instead. If the binary is not installed, tell the hub and continue under these rules." This is the deterministic load: `couch --prepare` reloads the context, and the constitution is always loaded. No Couch change is needed; record that in `## Log`. Run `weave refresh` so the composed `AGENTS.md`/`CLAUDE.md` pick it up, and add a test asserting that §15 names both binaries.
+- [ ] Add `tl-worker` to the Makefile's `tools`. Confirm that `construct/dev-aliases.sh --list` lists it (ariadne owns `cmd/tl-worker`, so every environment that sources dev-aliases, downstream repos included, gets it), and that weave compiles `.claude/skills/xx-tl-worker`.
 - [ ] Atlas: `atlas/workflow/tl-skills.md` covers the two binaries, where their prose lives, the stubs and the §15 load. Link it from `atlas/index.md`.
 - [ ] Run the targeted tests (`go test ./cmd/tl-worker/... ./cmd/weave/...`), then `sdlc milestone-close --milestone M1`.
 
@@ -135,17 +137,7 @@
 - [ ] Write the `PlanBar` tests first: Mx counted when present, tasks otherwise, `no plan yet`, and fenced checkboxes ignored. Then implement it.
 - [ ] Write the `RenderTrains`/`RenderOffTrain` golden tests against a crafted `testdata/project.md`, shaped like the ops project files but holding no operator content. They cover each glyph, a cross-repo car, a failed car read (`?`), and an off-train slot list plus `_None._`. Then implement them.
 - [ ] Write the `fakeSessionSync` model and its own test, which pins the stale, lock, missing-hash and fold-not-owed refusals from couch's help.
-- [ ] Write the `status` tests against the fake, then implement them:
-  - `section` replaces a body and refuses an empty body file;
-  - `thread` prepends, `--drop PREFIX` removes entries, and an entry must start with `- `;
-  - **stale then success:** a stale write injected at call 1 re-reads and succeeds;
-  - **four stales:** refuses;
-  - **`TestOperatorLockRefuses`:** the lock is held, so the command exits 3 with the queue message and the fake records zero writes;
-  - `owed` records the seen IDs, and `--fold-owed` folds only IDs that are both seen and owed;
-  - the seen-set is pruned to the owed set;
-  - `submit` prints the diff, the 🤖 marker lines (excluding the `To comment:` legend), the clobbered handling and the owed IDs;
-  - `seen` marks the whole file seen;
-  - `trains FILE PROJECT` writes both sections in one pass.
+- [ ] Write the `status` tests against the fake, then implement them. Strategy: table-driven over each verb (`section`, `thread`, `owed`, `seen`, `submit`, `clobbered`, `trains`); `fakeSessionSync` injects a stale or held-lock outcome at a chosen call number, and each row asserts the exit code, the fake's write count and the folded IDs. The rows that carry the risk: `TestOperatorLockRefuses` (exit 3, zero writes); stale-then-success and four-stales refusal; `--fold-owed` folds only seen ∩ owed; the seen-set prunes to owed.
 
   The legacy `holder: agent` lock deletion is ported only if parley.nvim#315 is still open when M3 starts; record the check in `## Log`.
 - [ ] Write the `SDLC` seam (exec and decode) with `fakeSDLC` fixtures, and `tl-lead trains PROJECT` (stdout only, no write) on top of it, using bounded concurrency of 8.

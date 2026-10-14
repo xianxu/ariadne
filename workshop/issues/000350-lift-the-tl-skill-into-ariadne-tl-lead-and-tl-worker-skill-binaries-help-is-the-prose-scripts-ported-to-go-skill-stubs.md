@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
-estimate_hours:
-card_mirror: '557ea39c3cfb9055b0c87158ed738f4be51b7e43' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 4.83
+card_mirror: '928c386e1933063f3d32198c4013409015eaff2c' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T17:19:46-07:00
 claimant:
     operator: Xian Xu
@@ -40,11 +40,34 @@ The ops draft stays the editing surface until this lands, then becomes a pointer
 
 ## Plan
 
-Durable plan: `workshop/plans/000350-tl-skill-binaries-plan.md` (three review boundaries):
+Durable plan: `workshop/plans/000350-lift-the-tl-skill-into-ariadne-tl-lead-and-tl-worker-skill-binaries-help-is-the-prose-scripts-ported-to-go-skill-stubs-plan.md` (three review boundaries):
 
 - [ ] **M1 — tl-worker.** Inventory every worker-facing rule in the ops draft and in TL dispatches (ops `skills-draft/xx-tl/SKILL.md`, "Running batches" dispatch checklist; recent dispatch messages in ops `teams/devinfra/projects/*/project.md` Logs). Sort each into: base layer (AGENTS §15, any Couch-fleet agent), couch skill (messaging mechanics), or `tl-worker` (TL-run fleet only). New `cmd/tl-worker`: `--help` prints the embedded prose (go:embed of a markdown file under the command, the same shape as `sdlc --help`/`couch --skill`). Skill stub under ariadne's skill delivery (weave) pointing at the binary. Couch-side load: coordinate with pair so `couch --prepare` tells a worker slot to load `tl-worker` (a pair issue, filed by the implementer, if Couch needs a change). Tests: the stub names the binary; `--help` contains each rule; AGENTS §15 and the couch skill aren't contradicted.
 - [ ] **M2 — tl-lead prose.** New `cmd/tl-lead`; `--help` prints the lead prose rewritten from the ops draft as current rules and procedure: the eight-step playbook, talking to the operator, dispatch judgment, product stewardship with the operator's two design rules, the smoke loop via `sdlc stage`, attention and load, the project lifecycle. Every reference in full `repo#NNN` form.
 - [ ] **M3 — Go subcommands; retire Python.** `tl-lead status submit|section|thread|owed|seen|trains` replaces `ss.py`/`tl-status.py` (same session-file format, the operator-lock refusal, the owed/fold bookkeeping); `tl-lead trains` replaces `render-trains.py` using `sdlc`'s project parser (shared package, no second parser). Golden tests against the current ops status file and project files; a lock-refusal test. Then the ops draft becomes a pointer (an ops change the TL makes), and the TL switches its own calls over.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: skill-or-dispatcher     design=0.6 impl=0.14
+item: skill-or-dispatcher     design=0.8 impl=0.16
+item: cross-cutting-refactor  design=0.3 impl=0.14
+item: greenfield-go-module    design=0.8 impl=0.24
+item: smaller-go-module       design=0.3 impl=0.16
+item: real-api-discovery      design=0.0 impl=0.18
+item: atlas-docs              design=0.1 impl=0.05
+item: milestone-review        design=0.0 impl=0.14
+item: milestone-review        design=0.0 impl=0.14
+item: milestone-review        design=0.0 impl=0.14
+design-buffer: 0.15
+total: 4.83
+```
+
+Items in order: M1 tl-worker (binary, prose, stub, §15 line); M2 tl-lead prose; the markdoc/trains extraction to pkg/; `tl-lead status` over the SessionSync seam with its stateful fake; `tl-lead trains` over the SDLC seam; the couch session-sync live conformance; atlas; three milestone reviews.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Log
 
