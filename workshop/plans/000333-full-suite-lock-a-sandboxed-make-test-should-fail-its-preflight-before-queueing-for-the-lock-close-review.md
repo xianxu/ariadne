@@ -60,3 +60,64 @@ findings:
     detail: |
       Makefile.workflow:20–27 introduces two user-facing surfaces: automatic tests/host-preflight.sh discovery and the WF_TEST_PREFLIGHT override. Both are documented in atlas/workflow/sdlc-binary.md:1635, but README.md is unchanged. Add a concise README usage paragraph covering the convention, setting the override before including Makefile.workflow, and failure before lock acquisition, with an atlas link. These are all instances of this family in the window.
 ```
+
+---
+
+## Re-review — 2026-10-13T23:17:54-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 333 — Full-suite lock: a sandboxed make test should fail its preflight before queueing for the lock |
+| repo | ariadne |
+| issue file | workshop/issues/000333-full-suite-lock-a-sandboxed-make-test-should-fail-its-preflight-before-queueing-for-the-lock.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 1ecde6535c8c6899120f80f504f38293fccf4180..ca1831dbccacfc1c2ca73fdd30fb8cb6d14ebcf4 |
+| command | sdlc close --issue 333 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-13T23:17:54-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The preflight executes before lock acquisition, preserves diagnostics, and stops failing hosts without queueing. Passing and absent preflights retain normal lock behavior. BR-1 is addressed by the README addition; no blocking findings remain.
+
+Done-when: current — both failure-before-queueing and normal lock acquisition still cover the revised scope; omitting ariadne’s own probe does not change those outcomes.
+
+1. **Strengths**
+   - `Makefile.workflow:27–38` places the shared hook before the lock helper.
+   - `scripts/test/test-lock.test.sh:159–171` checks failing, passing, and absent preflights against held/free locks.
+   - `README.md:222` and `atlas/workflow/sdlc-binary.md:1635` document discovery, override placement, and failure behavior.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+   - `bash scripts/test/test-lock.test.sh` passed, including all five new assertions.
+   - A disposable fixture verified default-path discovery, exit-7 diagnostics, and exclusion of non-`test` goals. The same failure assertion fails against the base Makefile.
+   - Pair’s actual sandbox run was not independently reproduced; the base-layer behavior was verified.
+   - `git diff --check` passed.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass** — one shared hook delegates host checks to repository-owned scripts.
+   - **ARCH-PURE: pass** — the change remains a small IO boundary.
+   - **ARCH-PURPOSE: pass** — refusal precedes lock acquisition, while successful probes preserve acquisition behavior.
+
+7. **Plan revision recommendations:** None. The existing revision explains ariadne’s opt-out; the kernel-based `testfix.AwaitExit` supports its stated rationale.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      README.md:222–227 now documents tests/host-preflight.sh discovery, WF_TEST_PREFLIGHT assignment before inclusion, and failure before queueing, with an atlas link. These claims match Makefile.workflow:27–38. This is a prose-only correction; no wording-presence test is required.
+```

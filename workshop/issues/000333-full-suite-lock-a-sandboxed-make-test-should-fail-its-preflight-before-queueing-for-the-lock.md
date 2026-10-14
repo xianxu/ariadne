@@ -50,6 +50,7 @@ Give the base layer a pre-lock hook: a repo-provided preflight (convention: `tes
 ### 2026-10-11
 
 ### 2026-10-13 — ariadne:3
+- 2026-10-13: closed — BR-1 addressed: README covers default tests/host-preflight.sh, WF_TEST_PREFLIGHT before include, and refusal before lock acquisition; atlas link verified. All five preflight cases and complete test-lock.test.sh passed. Recorded live pair sandbox preflight failed in 0 seconds while lock held, diagnostics preserved, no queue. Full make -k test at implementation HEAD 5006a0a7da3da93864e40981c6bc2cd6e7fa2d1d completed in 583.9s with all 1239 SDLC tests passing; sole failure TestConstructScripts/vm-log forced color reproduced with inherited NO_COLOR=1. Unchanged script and env -u NO_COLOR go test ./scripts/test -run ^TestConstructScripts$ -count=1 passed (15.556s). Hub accepted explicit environment evidence without another full suite; separate hermeticity issue follows landing. Only documentation changed since verification; git diff --check clean. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 Done-when 1, live: in this agent sandbox, with the full-suite lock held by another run,
 `WF_TEST_PREFLIGHT=<pair>/tests/host-preflight.sh make -n test` failed in 0 seconds with
