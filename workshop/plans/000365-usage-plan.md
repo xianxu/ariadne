@@ -170,3 +170,71 @@ explicit fleet scope and1h window, ahead of detailed groups. This remains a
 fleet measure even alongside an issue detail; do not project whole-account burn
 from issue-only tokens. Source selection retains recent1h/3h evidence needed
 for this glance independently of an explicitly narrower detail --since.
+
+### 2026-10-14 — plan-quality interruption and role refinements
+
+PQ-1: accounting cannot depend on gate finalization. planningreview.go's dispatch
+returns before ledger writes after stale/cancelled validation; close does likewise.
+Use the existing gitx.RecoveryStore CAS/reachability machinery with a closed
+review-usage namespace, not a parallel file journal or acceptance gate. Add a
+thin internal/reviewusage receipt store and pure attempt transition model; gate
+rounds/sidecars retain optional copies of that same typed binding. This receipt is
+necessary specifically to preserve dispatch attribution when normal gate writes
+are forbidden. It is nonsemantic and never contributes a gate round or verdict.
+
+Attempt transitions are explicit: Requested(intent/root/issue/recipe/round/attempt)
+→ Started(on actual child launch, PID/time) → Finished(on return with exact CLI
+identity if available, finish time and outcome). Exact event retries are idempotent;
+identity rewrite/out-of-order confirmation refuses. A Requested intent may have
+launched before process death, so absence of Started confirmation is uncertain,
+not proof of no spend. Persist Requested with CAS BEFORE launching; failure to
+save prevents launch. Capture Started via Run's onStart, and finish via the shared
+sync/heartbeat return seam; both use this model. CLI failure/protocol retry are
+accounted even though no acceptance result is published. Each retry gets its own
+attempt ID; no overwrite of the earlier attempt.
+
+Receipt writes use bounded Git CAS in the common dir, outside worktree artifacts
+and semantic snapshots. They do not acquire/release the SDLC repo lock while an
+external reviewer runs, and do not change plans, ledgers, findings, round caps or
+pass-through. Terminal persistence gets a fresh bounded cleanup context (2s), not
+an already-cancelled dispatch context. If a terminal write fails, retain known
+partial receipt and expose incomplete attempt coverage; never authorize another
+review or replay a provider call. Hard process death leaves Requested/Started:
+usage is read-only and counts only explicit session/unique disposable-root proof,
+reporting unfinished status and unknown coverage where in-place ID was not captured.
+It never guesses a finish time/session or declares success. Normal gate artifact
+copies happen only after their existing safe reacquire/validation.
+
+Ref retention: each attempt payload≤2KiB; max4096 pending accounting refs per repo
+(~8MiB payload). Before new dispatch, cleanup compare-deletes only records whose
+identical binding is proven committed and reachable in the issue's ledger/sidecar
+on a branch/main; uncommitted or stale receipts stay. A full store refuses BEFORE
+launch with the retained refs and publication/cleanup next action. Git keeps small
+historical object overhead; no automatic deletion of uncertain attempts. Add
+namespace isolation/cap/CAS tests. Tests drive cancellation, stale validation,
+lock reacquire failure, death-equivalent Requested/Started and retry: binding
+retention must hold while findings/round count/reviewed anchor remain unchanged.
+
+PQ-2: role selection is exclusive, after response dedup. A single valid explicit
+reviewer binding takes precedence over ownership-based worker eligibility,
+including in-place plan/estimate roots. A reviewer root plus bound descendants
+inherits that role; subtract it from worker candidates. Conflicting issue/round
+or session bindings put the response in unknown attribution with a counted
+conflict, never both roles. Only otherwise can shared ownership admit a worker.
+For every complete report, worker+reviewer equals the union of accepted issue
+response identities exactly once. Production ResolveUsageSources→AggregateUsage
+regression must include an owned in-place reviewer and fail when precedence is
+removed; do not rely only on a pure role selector test.
+
+PQ-3: opt-in live identity conformance test (WF_LIVE_USAGE_CONFORMANCE=1) compares
+supported Claude/Codex Run startup identities with a recorded transcript identity
+through the same adapter. Run on supported CLI upgrades and before a benchmark
+batch; no background scheduler. Offline tests use sanitized real preambles and
+stateful fake processes. Missing/changed protocol remains coverage and cannot
+silently create a guessed binding. The usage command never launches an agent.
+
+Core concept additions: PURE AttemptState/Event/StepAttempt in
+internal/reviewusage/model.go; INTEGRATION AttemptStore in
+internal/reviewusage/store.go, wrapping gitx.RecoveryStore. Existing judge and
+round/sidecar adapters consume that single typed evidence. Task2 owns these files
+and gitx/recoveryref.go closed-namespace extension with colocated tests.

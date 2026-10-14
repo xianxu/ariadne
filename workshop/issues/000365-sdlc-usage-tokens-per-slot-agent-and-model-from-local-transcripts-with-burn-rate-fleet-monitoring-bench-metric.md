@@ -99,3 +99,13 @@ Presentation addition: first output is one fleet-glance row per agent with last
 hour tokens, labelled burn rate and calibrated projection/status; JSON exposes
 the same fleet-scope glance. Proceed through change-code's owned plan-quality
 gate; no estimate or implementation before its acceptance.
+
+### 2026-10-14 — plan gate round1 refinements
+
+Plan gate returned FAILURE with PQ-1 interrupted accounting persistence, PQ-2
+exclusive roles, and Minor PQ-3 live protocol conformance cadence. Refined durable
+plan with Requested→Started→Finished accounting-only receipts reusing Git CAS;
+no semantic gate advancement during cancellation/staleness/death. Explicit reviewer
+binding precedes worker eligibility; conflicts are unknown and measured issue
+union counts each response once. Opt-in conformance runs on CLI upgrade/before
+bench. No implementation or estimate yet; rerun plan-quality next.
