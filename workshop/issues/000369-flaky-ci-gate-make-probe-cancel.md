@@ -44,6 +44,7 @@ one-second WaitDelay; fix the observed process lifecycle, not a timeout.
 ## Log
 
 ### 2026-10-14
+- 2026-10-14: closed — Recorded sdlc-local/suite passed on b74440ee82f01bbc41b982f8377bd1383c2c8553: 1354 cmd/sdlc tests and 54 other packages, 0 failures, 7m26s. Cancel baseline 1/50 failures, final cancel and budget each 0/50 with unchanged 700ms assertion/WaitDelay; successful-partial-signal regression fails before repair. Lease failed under load then passed 500 repeats with actual resource proofs; missing-close mutation fails. Both lifecycle packages pass 10 repeats. No new architectural surface: existing cancellation/lease APIs and confinement retained.; review verdict: SHIP
 
 #365 is checkpointed and paused on its own branch; #369 starts from main.
 Baseline on this branch: one cancellation failure in50 runs, elapsed1.017309208s,
