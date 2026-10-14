@@ -48,7 +48,6 @@ exemption from #342's template-less `mktemp` check.
 - [x] Folded in (same file, same operator verification): line 108's
   `pids=("${alive[@]}")` dies under bash 3.2's `set -u` when every running check
   finishes between polls; now `${alive[@]+"${alive[@]}"}`.
-- [ ] Operator's `local-gates-verified` label on the PR, then merge.
 
 ## Log
 
@@ -66,3 +65,6 @@ with a stub `pre-merge-checks.sh` (the real checks launch LLM agents, `specs` wi
 tools): it first stopped at line 108 with `alive[@]: unbound variable` (macOS /bin/bash
 3.2.57, empty array under `set -u`, a pre-existing bug the instant stubs make certain);
 fixed, it runs to completion, exit 0, and leaves no `parallel-checks.*` dir in TMPDIR.
+
+Landing waits on the operator's `local-gates-verified` label on the PR (this is a
+local-gates path); that is the merge gate, not a Plan step.
