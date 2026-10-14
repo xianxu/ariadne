@@ -38,7 +38,7 @@ Hold the transaction lock only around short git/tracker mutations: integrating m
 - [ ] Revalidate exact workspace/head and fresh main at each lock reacquisition around integration push and final landing; add deterministic head/main drift and interruption-retry tests.
 - [ ] Update workflow help and atlas, run targeted tests, `make -k tools`, and the recorded full suite; close and ship after the boundary review.
 
-Durable implementation steps: [merge-lock-scoping plan](../plans/000370-merge-lock-scoping-plan.md).
+Durable implementation steps: [merge-lock-scoping plan](../plans/000370-sdlc-merge-holds-the-repo-transaction-lock-for-its-whole-suite-wait-30-min-blocking-every-other-slot-s-stage-publish-and-claim-in-that-repo-plan.md).
 
 ## Log
 
@@ -46,3 +46,8 @@ Durable implementation steps: [merge-lock-scoping plan](../plans/000370-merge-lo
 
 - Live evidence: ariadne:2's merge held `.git/sdlc.lock` through its first `make test` and a second full suite after main advanced; `sdlc move :5` for #240 waited until that merge finished. The lock interval exceeded 30 minutes and delayed this issue's own creation. ARCH-CONSTRAINTS: the suite queue/run is unbounded relative to a short repository transaction.
 - Design: reuse `withRequiredRepoTransactionLock` (ARCH-DRY); keep `integrationState` as the only transition owner (ARCH-ORDER); use existing commit, lease, PR-head and archive evidence across unlocked phases (ARCH-FUNERAL/ARCH-PURPOSE).
+- Plan-quality round 1 (REWORK): accepted findings PQ-1 (legacy `runCIGate` can run a suite), PQ-2 (main drift after replay needs a reset/retry transition), and PQ-3 (named-function test strategies); a Minor requested explicit non-goals. The plan revision addresses each class before code.
+
+## Revisions
+
+- 2026-10-14 11:42 PDT — Plan-quality review exposed a second suite-running merge path and a pre-push state gap. Expanded the plan to cover legacy merge, added a pure reset/retry transition and function-level test strategies, and renamed the durable plan to the canonical issue slug. The Spec and Done-when remain unchanged.
