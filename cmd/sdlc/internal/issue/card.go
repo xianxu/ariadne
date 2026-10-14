@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/repoenum"
 	"github.com/xianxu/ariadne/pkg/vocab"
 	"go.yaml.in/yaml/v3"
 )
@@ -293,7 +292,7 @@ func validateRepoEnumNode(field vocab.CardField, n *yaml.Node) error {
 	}
 	seen := map[string]bool{}
 	for _, item := range n.Content {
-		if item.Kind != yaml.ScalarNode || item.Tag != "!!str" || !repoenum.ValidValue(spec, item.Value) {
+		if item.Kind != yaml.ScalarNode || item.Tag != "!!str" || !RepoEnumValid(field.Enum, item.Value) {
 			return fail(fmt.Sprintf("value %q is not a valid %s", item.Value, field.Enum))
 		}
 		if seen[item.Value] {
@@ -354,7 +353,7 @@ func validateCardScalar(field vocab.CardField, n *yaml.Node) error {
 		}
 	case "enum":
 		// #348: a shared closed enum from the model.
-		if n.Tag != "!!str" || !slices.Contains(vocab.Issue().Enums[field.Enum], n.Value) {
+		if n.Tag != "!!str" || !EnumValid(field.Enum, n.Value) {
 			return fail()
 		}
 	case "github":

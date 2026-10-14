@@ -3,10 +3,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/repoenum"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
@@ -24,16 +26,17 @@ func newIssueListFilter(status string, areas, severities []string) (issueListFil
 	if status != "" && !isValidStatus(status) {
 		return issueListFilter{}, fmt.Errorf("invalid status %q (valid: %s)", status, strings.Join(vocab.Issue().AllStatuses(), ", "))
 	}
-	spec := vocab.Issue().RepoEnums.Fields["area"]
 	for _, a := range areas {
-		if !repoenum.ValidValue(spec, a) {
-			return issueListFilter{}, fmt.Errorf("--area %q is not a /-path of lowercase segments", a)
+		if err := issue.CheckAreaSyntax(a); err != nil {
+			return issueListFilter{}, fmt.Errorf("--area: %w", err)
 		}
 	}
-	valid := vocab.Issue().Enums["severity"]
 	for _, s := range severities {
-		if !slices.Contains(valid, s) {
-			return issueListFilter{}, fmt.Errorf("--severity %q is not one of %s", s, strings.Join(valid, ", "))
+		if s == "" {
+			return issueListFilter{}, errors.New("--severity: empty value")
+		}
+		if err := issue.CheckSeverity(s); err != nil {
+			return issueListFilter{}, fmt.Errorf("--severity: %w", err)
 		}
 	}
 	return issueListFilter{status: status, areas: areas, severities: severities}, nil

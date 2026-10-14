@@ -5,7 +5,6 @@ package main
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -56,27 +55,85 @@ func repoEnumsMainRev(git func(args ...string) (string, error)) (string, error) 
 	return "", fmt.Errorf("no main to read %s from", vocab.Issue().RepoEnums.DeclarationPath)
 }
 
-// checkClassification checks area values (syntax and membership in the
-// declaration) and a severity (membership in the shared enum). An empty
-// severity and no areas pass. Every writer and gate applies this one check.
-func checkClassification(decl repoenum.Declaration, areas []string, severity string) error {
-	m := vocab.Issue()
-	spec := m.RepoEnums.Fields["area"]
-	for _, a := range areas {
-		if !repoenum.ValidValue(spec, a) {
-			return fmt.Errorf("area %q is not a /-path of lowercase segments (at most %d)", a, spec.MaxDepth)
+// declReader reads a repository's declaration. Callers pass one that is only
+// invoked when there is an area to check (#348 BR-1: input carrying no area
+// never depends on the declaration being readable), memoized by lazyDecl.
+type declReader func() (repoenum.Declaration, error)
+
+// declUnreadable marks an error reading or parsing the declaration itself (as
+// opposed to a value it refuses), so a gate can fail closed on it.
+type declUnreadable struct{ err error }
+
+func (e declUnreadable) Error() string { return e.err.Error() }
+func (e declUnreadable) Unwrap() error { return e.err }
+
+// lazyDecl memoizes read: at most one read per command or gate run. Its
+// errors are declUnreadable.
+func lazyDecl(read declReader) declReader {
+	var (
+		done bool
+		decl repoenum.Declaration
+		err  error
+	)
+	return func() (repoenum.Declaration, error) {
+		if !done {
+			decl, err = read()
+			if err != nil {
+				err = declUnreadable{err}
+			}
+			done = true
 		}
+		return decl, err
+	}
+}
+
+// checkClassification checks areas (syntax, no duplicates, membership in the
+// declaration) and a severity (the shared enum). No areas and no severity
+// pass without reading anything; the declaration is read only for areas.
+// Every writer and gate applies this one check.
+func checkClassification(read declReader, areas []string, severity string) error {
+	if err := issue.CheckSeverity(severity); err != nil {
+		return err
+	}
+	if len(areas) == 0 {
+		return nil
+	}
+	spec := vocab.Issue().RepoEnums.Fields["area"]
+	seen := map[string]bool{}
+	for _, a := range areas {
+		if err := issue.CheckAreaSyntax(a); err != nil {
+			return err
+		}
+		if seen[a] {
+			return fmt.Errorf("area %q listed twice", a)
+		}
+		seen[a] = true
 	}
 	if spec.MaxItems > 0 && len(areas) > spec.MaxItems {
 		return fmt.Errorf("at most %d areas, got %d", spec.MaxItems, len(areas))
 	}
-	if undeclared := decl.Undeclared("area", areas); len(undeclared) > 0 {
-		return repoenum.Refusal(m.RepoEnums, "area", undeclared)
+	decl, err := read()
+	if err != nil {
+		return err
 	}
-	if severity != "" && !slices.Contains(m.Enums["severity"], severity) {
-		return fmt.Errorf("severity %q is not one of %s", severity, strings.Join(m.Enums["severity"], ", "))
+	if undeclared := decl.Undeclared("area", areas); len(undeclared) > 0 {
+		return repoenum.Refusal(vocab.Issue().RepoEnums, "area", undeclared)
 	}
 	return nil
+}
+
+// uniqueAreas drops repeated areas, keeping first occurrences in order (a
+// writer's convenience; the check refuses duplicates in hand-edited input).
+func uniqueAreas(areas []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, a := range areas {
+		if !seen[a] {
+			seen[a] = true
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 // frontmatterClassification reads area and severity from frontmatter (a card's
@@ -89,6 +146,3 @@ func frontmatterClassification(fm string) (areas []string, severity string, err 
 	severity, err = issue.FieldString(fm, "severity")
 	return areas, severity, err
 }
-
-// flowList renders values as the card's one-line flow list.
-func flowList(values []string) string { return "[" + strings.Join(values, ", ") + "]" }

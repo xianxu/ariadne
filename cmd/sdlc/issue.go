@@ -118,11 +118,11 @@ func runIssueValidate(ctx context.Context, stdout, stderr io.Writer, f *issueVal
 	if len(files) == 0 {
 		return fmt.Errorf("no issue files to validate (pass <file>, --issue N, or --all)")
 	}
-	decl, declErr := issueValidateDeclaration(f.IssuesDir)
+	read := lazyDecl(func() (repoenum.Declaration, error) { return issueValidateDeclaration(f.IssuesDir) })
 	nonconforming := 0
 	for _, file := range files {
 		probs := validateIssueFull(file)
-		probs = append(probs, classificationProblems(decl, declErr, file)...)
+		probs = append(probs, classificationProblems(read, file)...)
 		if len(probs) == 0 {
 			cok(stderr, fmt.Sprintf("%s: conforms", file))
 			continue
@@ -133,10 +133,10 @@ func runIssueValidate(ctx context.Context, stdout, stderr io.Writer, f *issueVal
 			fmt.Fprintln(stdout, "  - "+p)
 		}
 	}
-	if f.All && declErr == nil {
+	if f.All {
 		// #348: in a tracker repository the cards are the authority for area and
 		// severity, so --all sweeps them too.
-		cards := cardClassificationProblems(ctx, f.IssuesDir, decl)
+		cards := cardClassificationProblems(ctx, f.IssuesDir, read)
 		for _, p := range cards {
 			fmt.Fprintln(stdout, "  - "+p)
 		}
@@ -170,22 +170,19 @@ func issueValidateDeclaration(issuesDir string) (repoenum.Declaration, error) {
 }
 
 // classificationProblems checks one file's area and severity (#348).
-func classificationProblems(decl repoenum.Declaration, declErr error, file string) []string {
+func classificationProblems(read declReader, file string) []string {
 	data, err := os.ReadFile(file)
 	if err != nil {
 		return nil
 	}
-	if declErr != nil {
-		return []string{"classification: could not read the declaration: " + declErr.Error()}
-	}
-	if err := detailsClassification(decl, file, data); err != nil {
+	if err := detailsClassification(read, file, data); err != nil {
 		return []string{"classification: " + strings.TrimPrefix(err.Error(), file+": ")}
 	}
 	return nil
 }
 
 // cardClassificationProblems checks every card's area and severity (#348).
-func cardClassificationProblems(ctx context.Context, issuesDir string, decl repoenum.Declaration) []string {
+func cardClassificationProblems(ctx context.Context, issuesDir string, read declReader) []string {
 	records, err := loadIssueRecords(ctx, issuesDir, tracker.PreferFresh)
 	if err != nil {
 		return []string{"cards: " + err.Error()}
@@ -197,7 +194,7 @@ func cardClassificationProblems(ctx context.Context, issuesDir string, decl repo
 		}
 		areas, severity, err := frontmatterClassification(r.Card.Card.Frontmatter)
 		if err == nil {
-			err = checkClassification(decl, areas, severity)
+			err = checkClassification(read, areas, severity)
 		}
 		if err != nil {
 			out = append(out, fmt.Sprintf("card #%s: %v", r.ID, err))
@@ -363,15 +360,11 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 	if err != nil {
 		return err
 	}
-	if len(f.Areas) > 0 || f.Severity != "" {
-		// #348: checked before anything is reserved.
-		decl, err := readTrackerRepoEnums(env)
-		if err != nil {
-			return err
-		}
-		if err := checkClassification(decl, f.Areas, f.Severity); err != nil {
-			return err
-		}
+	// #348: checked before anything is reserved; the declaration is read only
+	// for areas.
+	f.Areas = uniqueAreas(f.Areas)
+	if err := checkClassification(func() (repoenum.Declaration, error) { return readTrackerRepoEnums(env) }, f.Areas, f.Severity); err != nil {
+		return err
 	}
 	if env.branch == "" {
 		// Its recovery record is bound to the creating checkout's branch.

@@ -72,7 +72,9 @@ func validateChangedInstances(base, head string, gates []nounGate, stdout, stder
 
 	var problems []string
 	checked := 0
-	var decl *repoenum.Declaration // read once, only when an issue changed (#348)
+	// The declaration at base is read at most once, and only when a changed
+	// issue carries an area (#348).
+	read := lazyDecl(func() (repoenum.Declaration, error) { return repoEnumsAtBaseFn(base) })
 	for _, ch := range changes {
 		gate, ok := gateForPath(ch.Path, gates)
 		if ch.Status == "D" || !ok {
@@ -104,14 +106,11 @@ func validateChangedInstances(base, head string, gates []nounGate, stdout, stder
 		// Classification (#348): area membership in main's declaration and the
 		// shared severity, for every changed issue.
 		if gate.noun == "issue" && readErr == nil {
-			if decl == nil {
-				d, err := repoEnumsAtBaseFn(base)
-				if err != nil {
+			if err := detailsClassification(read, ch.Path, data); err != nil {
+				if errors.As(err, new(declUnreadable)) {
+					// The declaration itself is unreadable: fail closed.
 					return fmt.Errorf("instance-conformance gate: %w", err)
 				}
-				decl = &d
-			}
-			if err := detailsClassification(*decl, ch.Path, data); err != nil {
 				problems = append(problems, ch.Path+" (classification): "+strings.TrimPrefix(err.Error(), ch.Path+": "))
 			}
 		}

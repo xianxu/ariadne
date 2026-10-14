@@ -91,10 +91,10 @@ func mustFM(t *testing.T, raw []byte) string {
 
 func TestFieldList(t *testing.T) {
 	for fm, want := range map[string]string{
-		"area: [a/b, c]":     "a/b,c",
-		"area:\n- a\n- b":    "a,b",
-		"area:\n  - a/b":     "a/b",
-		"area: []":           "",
+		"area: [a/b, c]":      "a/b,c",
+		"area:\n- a\n- b":     "a,b",
+		"area:\n  - a/b":      "a/b",
+		"area: []":            "",
 		"other: 1\narea: [x]": "x",
 	} {
 		got, ok, err := FieldList(fm, "area")
@@ -217,4 +217,27 @@ func FuzzRepoEnumCardShape(f *testing.F) {
 			t.Fatalf("%d values accepted from %q", len(got), value)
 		}
 	})
+}
+
+// BR-2: FlowList quotes exactly the values YAML would read as another type, and
+// every rendered list parses back to the same strings.
+func TestFlowList(t *testing.T) {
+	values := []string{"a/b", "2026", "true", "null", "1e5", "sdlc", "0x10", "on"}
+	got := FlowList(values)
+	if !strings.Contains(got, "a/b, \"2026\", \"true\", \"null\", \"1e5\", sdlc") {
+		t.Fatalf("%s", got)
+	}
+	back, ok, err := FieldList("area: "+got, "area")
+	if err != nil || !ok || strings.Join(back, ",") != strings.Join(values, ",") {
+		t.Fatalf("round trip %v %v %v", back, ok, err)
+	}
+	var n yaml.Node
+	if err := yaml.Unmarshal([]byte("v: "+got), &n); err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range n.Content[0].Content[1].Content {
+		if item.Tag != "!!str" {
+			t.Fatalf("%q decoded as %s", item.Value, item.Tag)
+		}
+	}
 }

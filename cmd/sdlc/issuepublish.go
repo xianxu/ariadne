@@ -113,7 +113,7 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 	}
 	// #348: the details' classification (the card's, mirrored) is checked
 	// against main's declaration before it is published.
-	var decl *repoenum.Declaration
+	read := lazyDecl(func() (repoenum.Declaration, error) { return readTrackerRepoEnums(env) })
 	for _, id := range republish {
 		card, _ := snap.Require(id)
 		file := filepath.Join(env.root, filepath.FromSlash(path.Join(dirs.Rel[0], path.Base(card.Path))))
@@ -121,14 +121,7 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 		if err != nil {
 			continue // republishOwned reports a missing details file
 		}
-		if decl == nil {
-			d, err := readTrackerRepoEnums(env)
-			if err != nil {
-				return err
-			}
-			decl = &d
-		}
-		if err := detailsClassification(*decl, card.Path, data); err != nil {
+		if err := detailsClassification(read, card.Path, data); err != nil {
 			return err
 		}
 	}
@@ -179,7 +172,13 @@ func publishIssueCommit(stdout, stderr io.Writer, root, source, issuesDir, histo
 // file a legacy publication adds or changes (#348), against main's declaration
 // (read only when some file carries a classification).
 func checkPublishedClassification(tf *gitx.TrunkFile, sel gitx.SelectedCommit, issuesRoot string) error {
-	var decl *repoenum.Declaration
+	read := lazyDecl(func() (repoenum.Declaration, error) {
+		raw, err := tf.Read(vocab.Issue().RepoEnums.DeclarationPath)
+		if err != nil {
+			return repoenum.Declaration{}, err
+		}
+		return parseRepoEnums(raw)
+	})
 	for _, ch := range sel.Changes {
 		if strings.Trim(ch.NewMode, "0") == "" || !strings.HasPrefix(ch.Path, issuesRoot+"/") || !strings.HasSuffix(ch.Path, ".md") {
 			continue
@@ -188,18 +187,7 @@ func checkPublishedClassification(tf *gitx.TrunkFile, sel gitx.SelectedCommit, i
 		if err != nil {
 			return err
 		}
-		if decl == nil {
-			raw, err := tf.Read(vocab.Issue().RepoEnums.DeclarationPath)
-			if err != nil {
-				return err
-			}
-			d, err := parseRepoEnums(raw)
-			if err != nil {
-				return err
-			}
-			decl = &d
-		}
-		if err := detailsClassification(*decl, ch.Path, data); err != nil {
+		if err := detailsClassification(read, ch.Path, data); err != nil {
 			return err
 		}
 	}
@@ -208,14 +196,14 @@ func checkPublishedClassification(tf *gitx.TrunkFile, sel gitx.SelectedCommit, i
 
 // detailsClassification checks one issue file's area and severity; a file
 // with neither (or no frontmatter) passes.
-func detailsClassification(decl repoenum.Declaration, name string, data []byte) error {
+func detailsClassification(read declReader, name string, data []byte) error {
 	fm, _, err := issue.Parse(string(data))
 	if err != nil {
 		return nil // structure is the instance gate's concern, not this check's
 	}
 	areas, severity, err := frontmatterClassification(fm)
 	if err == nil {
-		err = checkClassification(decl, areas, severity)
+		err = checkClassification(read, areas, severity)
 	}
 	if err != nil {
 		return fmt.Errorf("%s: %w", name, err)

@@ -126,6 +126,17 @@ Detailed incidents remain in their owning issue or review artifact.
   unpushed case was tested, which both versions refuse; the pushed-but-not-tip
   case is the one that tells them apart (#345 BR-3).
 
+- A check that needs a resource for only some inputs reads it lazily, at the
+  first input that needs it. #348's issue validate read the area declaration
+  up front, so a repository with no main failed every issue, including ones
+  carrying no area at all (BR-1). Pass a memoized reader, not the value, and
+  type its errors so a gate can still fail closed when the resource is needed.
+- Values a writer puts into YAML go through one encoder that quotes what YAML
+  would read as another type. #348 wrote areas unquoted, so a declared `2026`
+  or `true` became a number or a bool that the card's string check refused,
+  while the gate's decoder read it as a string (BR-2). Test a round trip with
+  type-ambiguous values.
+
 ## Paths, processes, and integration
 
 - A before/after measurement needs a baseline binary built from the baseline

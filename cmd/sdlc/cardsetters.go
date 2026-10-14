@@ -11,7 +11,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -172,16 +171,12 @@ func newIssueSetAreaCmd() *cobra.Command {
 						return issue.SetCardField(card.Raw, "area", "")
 					}, nil
 				}
-				areas := slices.Compact(slices.Clone(a))
-				return "area → " + flowList(areas), func(env *trackerEnv, card tracker.Record, _ string) ([]byte, error) {
-					decl, err := readTrackerRepoEnums(env)
-					if err != nil {
+				areas := uniqueAreas(a)
+				return "area → " + issue.FlowList(areas), func(env *trackerEnv, card tracker.Record, _ string) ([]byte, error) {
+					if err := checkClassification(func() (repoenum.Declaration, error) { return readTrackerRepoEnums(env) }, areas, ""); err != nil {
 						return nil, err
 					}
-					if err := checkClassification(decl, areas, ""); err != nil {
-						return nil, err
-					}
-					return issue.SetCardField(card.Raw, "area", flowList(areas))
+					return issue.SetCardField(card.Raw, "area", issue.FlowList(areas))
 				}, nil
 			}
 		})
@@ -200,7 +195,7 @@ func newIssueSetSeverityCmd() *cobra.Command {
 				level := ""
 				if !clear {
 					level = a[0]
-					if err := checkClassification(repoenum.Declaration{}, nil, level); err != nil {
+					if err := issue.CheckSeverity(level); err != nil {
 						return "", nil, err
 					}
 				}

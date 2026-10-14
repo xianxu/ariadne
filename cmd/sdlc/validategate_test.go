@@ -185,8 +185,9 @@ func TestValidateChangedInstancesDispatchesByNoun(t *testing.T) {
 }
 
 // #348: the gate checks every changed issue's classification against the
-// declaration at its base, reading the declaration once and only when an issue
-// changed; an unreadable declaration fails closed.
+// declaration at its base. The declaration is read at most once, and only when
+// a changed issue carries an area (BR-1: unclassified input never depends on
+// it); an unreadable declaration then fails closed.
 func TestValidateChangedIssuesClassification(t *testing.T) {
 	issueFile := func(fm string) string {
 		return "---\nid: 000001\nstatus: open\n" + fm + "---\n\n# x\n"
@@ -195,11 +196,14 @@ func TestValidateChangedIssuesClassification(t *testing.T) {
 	for _, tc := range []struct {
 		name, fm1, fm2 string
 		want           string // "" = passes
+		reads          int
 	}{
-		{"declared and ancestor pass", "area: [couch/broadcast/web]\n", "area:\n  - couch\nseverity: high\n", ""},
-		{"undeclared area", "area: [couch/session]\n", "", "couch/session"},
-		{"invalid severity", "", "severity: urgent\n", "urgent"},
-		{"bad area shape", "area: Couch\n", "", "classification"},
+		{"declared and ancestor pass", "area: [couch/broadcast/web]\n", "area:\n  - couch\nseverity: high\n", "", 1},
+		{"undeclared area", "area: [couch/session]\n", "", "couch/session", 1},
+		{"invalid severity needs no declaration", "", "severity: urgent\n", "urgent", 0},
+		{"bad area shape needs no declaration", "area: Couch\n", "", "classification", 0},
+		{"duplicate area", "area: [couch, couch]\n", "", "twice", 0},
+		{"unclassified", "", "", "", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			restore := stubGate(t, changes, true, nil, map[string]string{
@@ -214,24 +218,24 @@ func TestValidateChangedIssuesClassification(t *testing.T) {
 			if tc.want != "" && (err == nil || !strings.Contains(out.String(), tc.want)) {
 				t.Fatalf("err %v, out %q, want %q", err, out.String(), tc.want)
 			}
-			if *reads != 1 {
-				t.Fatalf("declaration read %d times, want once", *reads)
+			if *reads != tc.reads {
+				t.Fatalf("declaration read %d times, want %d", *reads, tc.reads)
 			}
 		})
 	}
-	t.Run("no issue changed: declaration never read", func(t *testing.T) {
-		restore := stubGate(t, []gitx.FileChange{{Status: "M", Path: "README.md"}}, true, nil, nil)
-		defer restore()
-		reads := stubRepoEnums(t, "", nil)
-		if err := validateChangedInstances("BASE", "HEAD", nounGates("workshop/issues"), io.Discard, io.Discard); err != nil || *reads != 0 {
-			t.Fatalf("err %v reads %d", err, *reads)
-		}
-	})
-	t.Run("unreadable declaration fails closed", func(t *testing.T) {
-		restore := stubGate(t, changes, true, nil, map[string]string{"workshop/issues/000001-x.md": issueFile(""), "workshop/issues/000002-y.md": issueFile("")})
+	t.Run("unreadable declaration fails closed when an area needs it", func(t *testing.T) {
+		restore := stubGate(t, changes, true, nil, map[string]string{"workshop/issues/000001-x.md": issueFile("area: [couch]\n"), "workshop/issues/000002-y.md": issueFile("")})
 		defer restore()
 		stubRepoEnums(t, "", errors.New(".sdlc/vocabulary.json: version 2, want 1"))
 		if err := validateChangedInstances("BASE", "HEAD", nounGates("workshop/issues"), io.Discard, io.Discard); err == nil || !strings.Contains(err.Error(), ".sdlc/vocabulary.json") {
+			t.Fatalf("err %v", err)
+		}
+	})
+	t.Run("unreadable declaration does not gate unclassified issues", func(t *testing.T) {
+		restore := stubGate(t, changes, true, nil, map[string]string{"workshop/issues/000001-x.md": issueFile("severity: low\n"), "workshop/issues/000002-y.md": issueFile("")})
+		defer restore()
+		stubRepoEnums(t, "", errors.New("no main"))
+		if err := validateChangedInstances("BASE", "HEAD", nounGates("workshop/issues"), io.Discard, io.Discard); err != nil {
 			t.Fatalf("err %v", err)
 		}
 	})

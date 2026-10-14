@@ -239,7 +239,7 @@ func Render(s ScaffoldSpec) string {
 	fmt.Fprintf(&b, "updated: %s\n", s.Today)
 	b.WriteString("estimate_hours:\n")
 	if len(s.Area) > 0 {
-		fmt.Fprintf(&b, "area: [%s]\n", strings.Join(s.Area, ", "))
+		fmt.Fprintf(&b, "area: %s\n", FlowList(s.Area))
 	}
 	if s.Severity != "" {
 		fmt.Fprintf(&b, "severity: %s\n", s.Severity)

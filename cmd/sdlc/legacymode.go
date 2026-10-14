@@ -21,6 +21,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/repoenum"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
@@ -123,23 +124,21 @@ func runLegacyIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string
 		die(stderr, fmt.Sprintf("issue file already exists: %s", dest))
 	}
 
-	if len(f.Areas) > 0 || f.Severity != "" {
-		// #348: legacy repositories read the declaration from main, never HEAD.
+	// #348: legacy repositories read the declaration from main, never HEAD,
+	// and only for areas.
+	f.Areas = uniqueAreas(f.Areas)
+	if err := checkClassification(func() (repoenum.Declaration, error) {
 		git := func(args ...string) (string, error) {
 			out, err := mergeRunner.Git(args...)
 			return string(out), err
 		}
 		rev, err := repoEnumsMainRev(git)
 		if err != nil {
-			return err
+			return repoenum.Declaration{}, err
 		}
-		decl, err := repoEnumsAtRev(git, rev)
-		if err != nil {
-			return err
-		}
-		if err := checkClassification(decl, f.Areas, f.Severity); err != nil {
-			return err
-		}
+		return repoEnumsAtRev(git, rev)
+	}, f.Areas, f.Severity); err != nil {
+		return err
 	}
 	rendered := issue.Render(issue.ScaffoldSpec{
 		ID:          nextID,

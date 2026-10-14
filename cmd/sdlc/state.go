@@ -85,8 +85,6 @@ type IssueRelease struct {
 	Head   string     `json:"head,omitempty"`
 }
 
-// withOwnership adds a card's owner, or its release when unowned, to its row
-// (#283, #284); an unreadable record is reported, never shown as unowned.
 // withClassification adds the record's area and severity (#348).
 func withClassification(st IssueState, rec tracker.IssueRecord) IssueState {
 	st.Area, _ = rec.List("area")
@@ -94,6 +92,8 @@ func withClassification(st IssueState, rec tracker.IssueRecord) IssueState {
 	return st
 }
 
+// withOwnership adds a card's owner, or its release when unowned, to its row
+// (#283, #284); an unreadable record is reported, never shown as unowned.
 func withOwnership(st IssueState, rec tracker.IssueRecord) IssueState {
 	if rec.Card == nil {
 		return st

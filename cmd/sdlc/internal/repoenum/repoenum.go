@@ -15,6 +15,7 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
@@ -25,13 +26,25 @@ type Declaration struct {
 	Enums   map[string][]string `json:"enums"`
 }
 
+// patterns caches each spec's compiled pattern: ValidValue runs per value on
+// list and gate paths.
+var patterns sync.Map // vocab.RepoEnumSpec → *regexp.Regexp
+
 // pathPattern builds a field's value pattern from its spec (the model's segment
 // rule and depth), so Go restates no syntax of its own.
 func pathPattern(spec vocab.RepoEnumSpec) (*regexp.Regexp, error) {
+	if re, ok := patterns.Load(spec); ok {
+		return re.(*regexp.Regexp), nil
+	}
 	if spec.Syntax != "path" || spec.Segment == "" || spec.MaxDepth < 1 {
 		return nil, fmt.Errorf("unsupported repo enum syntax %+v", spec)
 	}
-	return regexp.Compile(fmt.Sprintf(`^%s(/%s){0,%d}$`, spec.Segment, spec.Segment, spec.MaxDepth-1))
+	re, err := regexp.Compile(fmt.Sprintf(`^%s(/%s){0,%d}$`, spec.Segment, spec.Segment, spec.MaxDepth-1))
+	if err != nil {
+		return nil, err
+	}
+	patterns.Store(spec, re)
+	return re, nil
 }
 
 // ValidValue reports whether v has the field's syntax.

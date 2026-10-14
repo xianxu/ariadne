@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/repoenum"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
@@ -208,5 +209,70 @@ func TestIssueValidateClassification(t *testing.T) {
 	err = runIssueValidate(context.Background(), &out, &errs, &issueValidateFlags{IssuesDir: "workshop/issues"}, []string{detailPath})
 	if err == nil || !strings.Contains(out.String(), "urgent") {
 		t.Fatalf("err %v\n%s", err, out.String())
+	}
+}
+
+// BR-1: without a main to read the declaration from, on-demand validation
+// passes files that carry no area and reports only the ones that do.
+func TestIssueValidateWithoutMain(t *testing.T) {
+	prev := validateFrontmatterFn
+	validateFrontmatterFn = func(_, _ string) (string, bool, error) { return "", true, nil }
+	t.Cleanup(func() { validateFrontmatterFn = prev })
+	dir := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	testfix.Git(t, dir, "branch", "-M", "master")
+	plain := "---\nid: 000001\nstatus: open\nseverity: low\n---\n\n# x\n\n## Problem\n\n## Spec\n\n## Done when\n\n- y\n\n## Plan\n\n- [ ] z\n\n## Log\n"
+	writeRepoFile(t, dir, "workshop/issues/000001-x.md", plain)
+	writeRepoFile(t, dir, "workshop/issues/000002-y.md", strings.Replace(plain, "severity: low", "area: [couch]", 1))
+	var out, errs bytes.Buffer
+	err := runIssueValidate(context.Background(), &out, &errs, &issueValidateFlags{IssuesDir: "workshop/issues"}, []string{"workshop/issues/000001-x.md"})
+	if err != nil {
+		t.Fatalf("an unclassified file failed without main: %v\n%s", err, out.String())
+	}
+	err = runIssueValidate(context.Background(), &out, &errs, &issueValidateFlags{IssuesDir: "workshop/issues"}, []string{"workshop/issues/000002-y.md"})
+	if err == nil || !strings.Contains(out.String(), "no main") {
+		t.Fatalf("an area without a declaration passed: %v\n%s", err, out.String())
+	}
+}
+
+// BR-2: a declared area whose plain YAML form is not a string (2026, true) is
+// written quoted, so the card accepts it; BR-4: repeated areas are written once.
+func TestIssueSetAreaQuotesAndDedupes(t *testing.T) {
+	cardPath, card, _, _ := seededIssue(t, "000001", "x")
+	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{".sdlc/vocabulary.json": `{"version":1,"enums":{"area":["2026/q4","true","sdlc"]}}`})
+	if out, err := runSdlc(t, "issue", "set-area", "--issue", "1", "2026/q4", "true", "sdlc", "true"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	parsed, err := issue.ParseCard([]byte(r.card(cardPath)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _, _ := issue.FieldList(parsed.Frontmatter, "area"); strings.Join(got, ",") != "2026/q4,true,sdlc" {
+		t.Fatalf("area %v:\n%s", got, r.card(cardPath))
+	}
+	if out, err := runSdlc(t, "issue", "set-area", "--issue", "1", "2026"); err != nil {
+		t.Fatalf("an ancestor that YAML reads as a number was refused: %v\n%s", err, out)
+	}
+}
+
+func TestCheckClassification(t *testing.T) {
+	reads := 0
+	read := func() (repoenum.Declaration, error) {
+		reads++
+		return parseRepoEnums([]byte(areaDecl))
+	}
+	if err := checkClassification(read, nil, "high"); err != nil || reads != 0 {
+		t.Fatalf("severity only: %v, %d reads", err, reads)
+	}
+	if err := checkClassification(read, []string{"sdlc", "sdlc"}, ""); err == nil || !strings.Contains(err.Error(), "twice") || reads != 0 {
+		t.Fatalf("duplicates: %v, %d reads", err, reads)
+	}
+	if err := checkClassification(read, []string{"sdlc", "couch"}, ""); err != nil || reads != 1 {
+		t.Fatalf("declared: %v, %d reads", err, reads)
+	}
+	memo := lazyDecl(read)
+	_, _ = memo()
+	_, _ = memo()
+	if reads != 2 {
+		t.Fatalf("lazyDecl read %d times, want once more", reads-1)
 	}
 }
