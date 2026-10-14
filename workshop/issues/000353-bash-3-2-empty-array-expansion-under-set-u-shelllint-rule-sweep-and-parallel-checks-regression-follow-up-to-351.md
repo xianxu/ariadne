@@ -99,3 +99,23 @@ Ran: docflow.test.sh ALL PASS, list-peers.sh, `pre-merge-checks.sh nosuchcheck` 
 changed Available line), run-merge-checks.sh over this branch (3/3); `bash -n` for
 rollback.sh, apply-gitignore-entries.sh, .openshell/overlay/bootstrap.sh and
 introspect-extract.sh (state-changing or need a run dir/LLM).
+
+Close review round 1 (FIX-THEN-SHIP): one Important, three Minors, all fixed.
+- Important: the `MAX_PARALLEL_CHECKS` refusal had only a manual check. Added
+  `scripts/test/parallel-checks.test.sh` (run in CI by the `20-ci-workflow-tests`
+  merge check): the real script against a stub runner; 3 and 1 complete with no
+  "unbound variable" (1 drives #351's pids rebuild), 0, abc and -2 refuse, an
+  unwritable TMPDIR refuses (#351). Each run is bounded by a perl alarm, so a spinning
+  regression fails instead of hanging. Mutations: dropping the validation fails 3 of 6
+  (0 and -2 spin to the alarm, abc exits 0); restoring #351's unguarded rebuild fails 2.
+- Minor: `isShell` reuses `shebangNames`.
+- Minor: nounset is also read from shebang flags (`#!/bin/bash -eu`); a caller's
+  `bash -u script` cannot be seen statically.
+- Minor: the plan's default-deny wording is superseded; see Revisions.
+
+## Revisions
+
+- 2026-10-13 — Plan row 1 described the rule as "default-deny except count, guard or
+  default". Measured on /bin/bash 3.2.57, only the bare `${a[@]}`/`${a[*]}` and the
+  bash-4 case operators (`^` `,`) fail for an empty array under `set -u`. The rule flags
+  exactly those; substring, pattern-removal and replacement forms are not findings.

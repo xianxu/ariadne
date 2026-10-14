@@ -101,18 +101,7 @@ func isShell(rel string, src []byte) bool {
 	if strings.HasPrefix(base, "Makefile") {
 		return true
 	}
-	first, _, _ := bytes.Cut(src, []byte("\n"))
-	if !bytes.HasPrefix(first, []byte("#!")) {
-		return false
-	}
-	for _, sh := range []string{"sh", "bash", "zsh", "dash", "ksh"} {
-		for _, field := range strings.Fields(strings.ReplaceAll(string(first[2:]), "/", " ")) {
-			if field == sh {
-				return true
-			}
-		}
-	}
-	return false
+	return shebangNames(src, "sh", "bash", "zsh", "dash", "ksh")
 }
 
 func moduleRoot(t *testing.T) string {

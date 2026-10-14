@@ -11,6 +11,10 @@ const reasonArray = `array expansion under set -u: macOS /bin/bash 3.2 treats an
 // nounset is a set command that turns on -u.
 var nounset = regexp.MustCompile(`(^|[\s;&|])set\s+(-[a-zA-Z]*u[a-zA-Z]*|-o\s+nounset)(\s|$)`)
 
+// shebangNounset is a #! line that passes -u to its interpreter
+// (#!/bin/bash -eu). A caller's `bash -u script` cannot be seen from the file.
+var shebangNounset = regexp.MustCompile(`^#!.*\s-[a-zA-Z]*u[a-zA-Z]*(\s|$)`)
+
 // ArrayFindings reports, in a script that enables nounset anywhere, each
 // ${name[@]} or ${name[*]} expansion that bash 3.2 rejects for an empty array:
 // the bare form, and the bash-4 case operators (^ ,). Measured on macOS
@@ -21,7 +25,7 @@ var nounset = regexp.MustCompile(`(^|[\s;&|])set\s+(-[a-zA-Z]*u[a-zA-Z]*|-o\s+no
 func ArrayFindings(src string) []Finding {
 	lines := strings.Split(src, "\n")
 	parsed := make([]lexed, len(lines))
-	strict := false
+	strict := shebangNounset.MatchString(lines[0])
 	for i, raw := range lines {
 		parsed[i] = lex(raw)
 		if nounset.MatchString(parsed[i].masked()) {

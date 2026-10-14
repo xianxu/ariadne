@@ -55,12 +55,12 @@ func TestArrayFindings(t *testing.T) {
 // Only a script that enables nounset is checked, in any of its spellings.
 func TestArrayFindingsNeedsNounset(t *testing.T) {
 	line := `for x in "${xs[@]}"; do :; done`
-	for _, header := range []string{"set -u", "set -eu", "set -o nounset", "  set -euo pipefail  # strict"} {
+	for _, header := range []string{"set -u", "set -eu", "set -o nounset", "  set -euo pipefail  # strict", "#!/bin/bash -eu", "#!/usr/bin/env -S bash -u"} {
 		if got := ArrayFindings(header + "\n" + line + "\n"); len(got) != 1 {
 			t.Errorf("%q: findings %+v, want 1", header, got)
 		}
 	}
-	for _, header := range []string{"set -e", "set -o pipefail", "# set -u", "echo 'set -u'"} {
+	for _, header := range []string{"set -e", "set -o pipefail", "# set -u", "echo 'set -u'", "#!/bin/bash -e", "#!/usr/bin/env bash"} {
 		if got := ArrayFindings(header + "\n" + line + "\n"); len(got) != 0 {
 			t.Errorf("%q: findings %+v, want none", header, got)
 		}
