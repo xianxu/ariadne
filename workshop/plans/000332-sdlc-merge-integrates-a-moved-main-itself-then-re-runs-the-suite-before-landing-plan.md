@@ -260,3 +260,19 @@ So a branch that deletes `test:` or lowers `WF_TEST_WEIGHT` still owes the suite
   M1 documentation includes `README.md`; process tests live in
   `localchecks_make_process_test.go`, enforcement/error tests in
   `suite_enforcement_test.go`.
+
+### R4 — 2026-10-13 23:26 PDT, M1 boundary review round 3
+
+- **BR-10:** all four descendant tests (probe/runner × timeout/parent exit)
+  must bound their exit assertion below the child's 60-second natural lifetime.
+  The runner already used one second; the probe now does too. Removing probe
+  process-group configuration and both termination calls makes both cases fail
+  on a surviving child (4.867s total), instead of waiting for natural exit.
+  Runner mutations were already proven red in R3. ARCH-ORDER: a cleanup test
+  must distinguish termination from eventual natural completion.
+- **BR-11:** add opt-in read-only `TestLiveCommitStatusesConformance` through
+  `realGH.CommitStatuses`, against ariadne PR #229's immutable head
+  `38ca18d3d9e95151f2ad3659e278ca45fe954b07`. Its guard context has known pending,
+  failure, and success records, so the live history and expected success test the
+  endpoint and newest-first reduction. Document invocation and cadence in atlas:
+  on changes to the adapter/parser/fake and before landing dependent behavior.

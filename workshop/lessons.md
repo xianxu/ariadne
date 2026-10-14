@@ -27,6 +27,9 @@ Detailed incidents remain in their owning issue or review artifact.
 - CommandContext alone does not bound a subprocess whose descendants retain
   output pipes. Test cancellation with a real descendant and bound cleanup and
   pipe draining (#332 BR-5).
+- A termination assertion must expire before the fixture child can exit
+  naturally; a two-minute wait for a one-minute sleeper proves no cleanup.
+  Mutation-check both timeout and parent-exit cases (#332 BR-10).
 
 - In a rejection table, each row must assert that it was refused by its own
   check (for example, the error names the field). A shared invariant failing

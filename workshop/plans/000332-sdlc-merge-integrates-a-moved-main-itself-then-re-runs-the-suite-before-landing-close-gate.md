@@ -99,6 +99,64 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - "n": 3
+      timestamp: "2026-10-13T23:15:59-07:00"
+      dispatched: "2026-10-13T23:10:43-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: ChangedPathArgs disables rename detection; the rename regressions passed.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: Direct status-parser and ancestor-walk tests exist and passed.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: Parent and ancestor read failures propagate. Both regression cases failed when error swallowing was restored in a disposable checkout.
+          round: 3
+        - id: BR-4
+          disposition: addressed
+          note: parseMakeTestFacts excludes prerequisite-only entries; its direct regression passed.
+          round: 3
+        - id: BR-5
+          disposition: addressed
+          note: The probe has a deadline and bounded pipe draining. Removing the deadline made the hanging-shell regression fail.
+          round: 3
+        - id: BR-6
+          disposition: addressed
+          note: Both the CI gate and local-check command derive checks through withDefaultSuite.
+          round: 3
+        - id: BR-7
+          disposition: addressed
+          note: Plan revision R2 records the delivered names, main-revision probe signature, and weight-zero default.
+          round: 3
+        - id: BR-8
+          disposition: addressed
+          note: effectiveLocalChecks forces declared suites to required while preserving execution settings. Removing enforcement failed both omitted/false integration cases and the pure regression.
+          round: 3
+        - id: BR-9
+          disposition: addressed
+          note: README.md:326-332 documents the close command, default suite, mandatory overrides, weight and ancestor reuse, matching localchecks.go, localchecks_make.go and cigate.go.
+          round: 3
+      findings:
+        - id: BR-10
+          severity: Important
+          title: Probe cleanup tests accept natural child exit instead of proving termination
+          detail: 'cmd/sdlc/localchecks_make_process_test.go:71 waits two minutes for children that sleep only 60 seconds. Removing process-group configuration and both termination calls leaves both probe cases passing; the corresponding runner tests correctly fail. ARCH-ORDER: this is the 2nd finding in family unbounded-subprocess. State and apply the rule across probe/runner timeout and parent-exit cases: the cleanup assertion must expire before the child can finish naturally. Verify each cleanup mutation goes red.'
+          family: unbounded-subprocess
+          round: 3
+        - id: BR-11
+          severity: Important
+          title: The new commit-status dependency has no live conformance check
+          detail: cmd/sdlc/cigate.go:312-339 introduces a status endpoint and newest-first interpretation used to admit ancestor evidence. Tests exercise handwritten JSON and ciFakeGH; TestLiveJobRunConformance covers only JobRun. ARCH-MOCK requires a read-only opt-in check through realGH.CommitStatuses against independently known status history, plus a documented execution cadence.
+          family: external-fakes-require-live-conformance
+          round: 3
+      boundary: M1
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#332 (boundary-review)
@@ -139,9 +197,28 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-9** [Important] `readme-tracks-user-facing-contracts` README update appears missing for the default suite and weight setting
   README.md:318-324 still describes only explicitly declared required checks. This range adds automatic make-test enforcement, the close-suite invocation, ancestor-record reuse, and the weight configuration key without updating README. Update its local-check guidance alongside the existing atlas and embedded-help changes.
 
+## Round 3 — 2026-10-13T23:15:59-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — ChangedPathArgs disables rename detection; the rename regressions passed.
+- BR-2 — addressed — Direct status-parser and ancestor-walk tests exist and passed.
+- BR-3 — addressed — Parent and ancestor read failures propagate. Both regression cases failed when error swallowing was restored in a disposable checkout.
+- BR-4 — addressed — parseMakeTestFacts excludes prerequisite-only entries; its direct regression passed.
+- BR-5 — addressed — The probe has a deadline and bounded pipe draining. Removing the deadline made the hanging-shell regression fail.
+- BR-6 — addressed — Both the CI gate and local-check command derive checks through withDefaultSuite.
+- BR-7 — addressed — Plan revision R2 records the delivered names, main-revision probe signature, and weight-zero default.
+- BR-8 — addressed — effectiveLocalChecks forces declared suites to required while preserving execution settings. Removing enforcement failed both omitted/false integration cases and the pure regression.
+- BR-9 — addressed — README.md:326-332 documents the close command, default suite, mandatory overrides, weight and ancestor reuse, matching localchecks.go, localchecks_make.go and cigate.go.
+
+### Raised
+
+- **BR-10** [Important] `unbounded-subprocess` Probe cleanup tests accept natural child exit instead of proving termination
+  cmd/sdlc/localchecks_make_process_test.go:71 waits two minutes for children that sleep only 60 seconds. Removing process-group configuration and both termination calls leaves both probe cases passing; the corresponding runner tests correctly fail. ARCH-ORDER: this is the 2nd finding in family unbounded-subprocess. State and apply the rule across probe/runner timeout and parent-exit cases: the cleanup assertion must expire before the child can finish naturally. Verify each cleanup mutation goes red.
+- **BR-11** [Important] `external-fakes-require-live-conformance` The new commit-status dependency has no live conformance check
+  cmd/sdlc/cigate.go:312-339 introduces a status endpoint and newest-first interpretation used to admit ancestor evidence. Tests exercise handwritten JSON and ciFakeGH; TestLiveJobRunConformance covers only JobRun. ARCH-MOCK requires a read-only opt-in check through realGH.CommitStatuses against independently known status history, plus a documented execution cadence.
+
 ## Open findings
 
-- **BR-3** [Minor] `error-swallowed-as-benign-case` localRecordsOnAncestors treats any rev-list error as "root commit"
-- **BR-5** [Minor] `unbounded-subprocess` The make -p probe has no timeout; a hanging $(shell) in main's Makefile stalls merge
-- **BR-8** [Critical] `mandatory-checks-cannot-be-disabled-by-overrides` A declared suite can bypass the mandatory landing check
-- **BR-9** [Important] `readme-tracks-user-facing-contracts` README update appears missing for the default suite and weight setting
+- **BR-10** [Important] `unbounded-subprocess` Probe cleanup tests accept natural child exit instead of proving termination
+- **BR-11** [Important] `external-fakes-require-live-conformance` The new commit-status dependency has no live conformance check

@@ -243,3 +243,111 @@ findings:
 7. **Plan revision recommendations**
 
    Append an R3 entry specifying that suite overrides cannot disable mandatory enforcement, defining positive root-commit evidence and error propagation, and correcting the probe’s timeout contract to include descendant cleanup and bounded pipe draining. Add the README update to M1’s documentation checklist.
+
+---
+
+## Re-review — 2026-10-13T23:15:59-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 332 — sdlc merge integrates a moved main itself, then re-runs the suite before landing |
+| repo | ariadne |
+| issue file | workshop/issues/000332-sdlc-merge-integrates-a-moved-main-itself-then-re-runs-the-suite-before-landing.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 96d587ce291afac3eb6b69ebf117d2d83c090671..a4242abdc03ff2c852fcb3ffa6db214abb03fc0c |
+| command | sdlc milestone-close --issue 332 --milestone M1 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-13T23:15:59-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+M1’s implementation passes the focused tests, and all prior findings are addressed. Two Important verification gaps remain: the probe cleanup test passes without descendant termination, and the new GitHub status reader lacks live conformance coverage. No production correctness defect was confirmed.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      ChangedPathArgs disables rename detection; the rename regressions passed.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Direct status-parser and ancestor-walk tests exist and passed.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Parent and ancestor read failures propagate. Both regression cases failed when error swallowing was restored in a disposable checkout.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      parseMakeTestFacts excludes prerequisite-only entries; its direct regression passed.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      The probe has a deadline and bounded pipe draining. Removing the deadline made the hanging-shell regression fail.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Both the CI gate and local-check command derive checks through withDefaultSuite.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Plan revision R2 records the delivered names, main-revision probe signature, and weight-zero default.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      effectiveLocalChecks forces declared suites to required while preserving execution settings. Removing enforcement failed both omitted/false integration cases and the pure regression.
+  - id: BR-9
+    disposition: addressed
+    note: |
+      README.md:326-332 documents the close command, default suite, mandatory overrides, weight and ancestor reuse, matching localchecks.go, localchecks_make.go and cigate.go.
+findings:
+  - id: new
+    severity: Important
+    family: unbounded-subprocess
+    title: |
+      Probe cleanup tests accept natural child exit instead of proving termination
+    detail: |
+      cmd/sdlc/localchecks_make_process_test.go:71 waits two minutes for children that sleep only 60 seconds. Removing process-group configuration and both termination calls leaves both probe cases passing; the corresponding runner tests correctly fail. ARCH-ORDER: this is the 2nd finding in family unbounded-subprocess. State and apply the rule across probe/runner timeout and parent-exit cases: the cleanup assertion must expire before the child can finish naturally. Verify each cleanup mutation goes red.
+  - id: new
+    severity: Important
+    family: external-fakes-require-live-conformance
+    title: |
+      The new commit-status dependency has no live conformance check
+    detail: |
+      cmd/sdlc/cigate.go:312-339 introduces a status endpoint and newest-first interpretation used to admit ancestor evidence. Tests exercise handwritten JSON and ciFakeGH; TestLiveJobRunConformance covers only JobRun. ARCH-MOCK requires a read-only opt-in check through realGH.CommitStatuses against independently known status history, plus a documented execution cadence.
+```
+
+1. **Strengths**
+   - Mandatory-suite enforcement shares one derivation across the gate and command.
+   - Default-suite facts come from main, with a regression covering branch-side removal.
+   - Ancestor reuse has real Git fixtures covering code changes, renames, traversal limits and root commits.
+   - README, atlas and embedded help describe the new surface.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** The two verification gaps above. Tighten the probe’s exit assertion and add status-endpoint conformance coverage.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes:** Focused tests passed in `cmd/sdlc` (77.49s), `gitx` and `freshness`; `git diff --check` passed. Disposable mutation runs confirmed regressions for enforcement, swallowed errors, probe timeout and runner cleanup. They exposed the probe-cleanup false negative. Temporary checkouts were removed; the reviewed checkout remains unchanged. The full suite was not run.
+
+6. **Architectural notes**
+   - **ARCH-DRY — pass:** shared declaration derivation and changed-path arguments.
+   - **ARCH-PURE — pass:** M1 decisions/parsers remain pure; IO uses separate seams.
+   - **ARCH-PURPOSE — pass:** M1 enforcement is delivered; M2/M3 remain explicitly pending.
+   - **ARCH-MOCK — flag:** missing status-endpoint conformance.
+   - **ARCH-CONSTRAINTS — pass:** bounded ancestor traversal, probe deadline and weighted suite acquisition.
+   - **ARCH-SECURE — pass:** main supplies enforcement configuration; GitHub target identifiers are validated.
+   - **ARCH-ORDER — flag:** probe tests do not establish descendant termination.
+   - **ARCH-FUNERAL — pass:** normal temporary cleanup and existing worktree/log retention are reused.
+
+7. **Plan revision recommendations:** Append an R4 recording the cleanup-test invariant across all four subprocess cases, and the commit-status conformance fixture, invocation and cadence. The M1 entity mapping otherwise matches the code after R2/R3.

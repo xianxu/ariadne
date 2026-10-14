@@ -152,6 +152,15 @@ first-class evidence, recorded on the commit it ran on:
   what CI guards is the declaration and the gate code.
 - **Fake:** `ciFakeGH` (`cmd/sdlc/cigate_fake_test.go`) models heads, checks,
   the status rollup, jobs and comments, behind the same `ghCaller` seam.
+- **Live conformance:** run
+  `SDLC_LIVE_GH=1 SDLC_LIVE_COMMIT_STATUSES_GH="$(command -v gh)" go test ./cmd/sdlc -run '^TestLiveCommitStatusesConformance$' -count=1`
+  when changing the status adapter, parser or fake, and before landing behavior
+  that depends on them. It only reads GitHub (requires authenticated access to
+  `xianxu/ariadne`): PR #229's head has a known guard history with pending,
+  failure and success states. The check verifies that `realGH.CommitStatuses`
+  selects the newest state. The explicit installed CLI path avoids the test
+  harness's fake `gh`; changed fixture history requires independent inspection
+  before updating expectations. Ordinary tests skip this network check.
 - **The suite on every landing (#332).** The check named `suite` is required
   for every landing: either the declared one, or the repository's `make test`.
   The default's existence and its weight (`WF_TEST_WEIGHT`) come from probing

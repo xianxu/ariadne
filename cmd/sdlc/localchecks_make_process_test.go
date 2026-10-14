@@ -68,7 +68,9 @@ func TestMakeProbeBoundsDescendantPipes(t *testing.T) {
 			case <-time.After(3 * time.Second):
 				t.Fatal("probe exceeded deadline plus bounded pipe-drain interval")
 			}
-			if err := testfix.AwaitExit(child, testfix.HangCeiling); err != nil {
+			// This bound must be shorter than the child's 60-second sleep,
+			// otherwise natural exit can conceal broken group termination.
+			if err := testfix.AwaitExit(child, time.Second); err != nil {
 				t.Errorf("probe left running descendant: %v", err)
 			}
 		})
