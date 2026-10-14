@@ -157,3 +157,16 @@ Files: usage.go, usage_render.go/tests; internal/usage/{calibration,meterstore}.
 - [ ] sdlc pr and sdlc merge --yes with green CI/exact-code suite; report PR and git-rev-parse hashes to hub. Shared rebuild follows landing.
 
 No estimate before change-code plan-quality acceptance. No Mx tags: one atomic feature/close boundary. Hub approves durable plan before implementation.
+
+## Revisions
+
+### 2026-10-14 — approved fleet glance first
+
+Hub receipt4479fade-4e09-47d1-be7d-806e76f8d261 approves1157b761 and requires the
+first report surface to be the TL's fleet glance: one line per agent, tokens in
+the last hour, burn rate (label its1–3h denominator), and calibrated projection
+or explicit non-projecting status. JSON adds stable agent_glance rows with an
+explicit fleet scope and1h window, ahead of detailed groups. This remains a
+fleet measure even alongside an issue detail; do not project whole-account burn
+from issue-only tokens. Source selection retains recent1h/3h evidence needed
+for this glance independently of an explicitly narrower detail --since.

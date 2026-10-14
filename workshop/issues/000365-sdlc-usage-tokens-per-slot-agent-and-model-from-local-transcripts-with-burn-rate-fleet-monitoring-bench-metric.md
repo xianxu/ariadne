@@ -91,3 +91,11 @@ needs two observations. Durable plan ready for hub approval; no code changes yet
 Per hub, issue cost includes explicitly bound reviewer rounds/attempts alongside
 ownership-proven workers; expose separate subtotals and measured total. Missing
 binding/format evidence remains coverage, never guessed spend.
+
+### 2026-10-14 — hub plan approval
+
+Verified receipt4479fade-4e09-47d1-be7d-806e76f8d261 approves plan1157b761.
+Presentation addition: first output is one fleet-glance row per agent with last
+hour tokens, labelled burn rate and calibrated projection/status; JSON exposes
+the same fleet-scope glance. Proceed through change-code's owned plan-quality
+gate; no estimate or implementation before its acceptance.
