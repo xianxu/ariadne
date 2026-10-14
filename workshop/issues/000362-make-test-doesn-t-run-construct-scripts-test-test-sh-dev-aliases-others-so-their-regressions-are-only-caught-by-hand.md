@@ -48,6 +48,7 @@ Run every `construct/scripts/test/*.test.sh` from `make test` (and the CI merge 
 ## Log
 
 ### 2026-10-13
+- 2026-10-13: closed — scripts/test/construct-scripts.test.sh runs all 6 construct/scripts/test/*.test.sh (6 passed, 0 excluded, about 13s), with a named EXCLUDED list (empty); the CI merge check 20-ci-workflow-tests runs it as a scripts/test script, and make test runs it via scripts/test/scripts_test.go TestConstructScripts. Proof: a deliberate failing assertion in dev-aliases.test.sh made the full make test fail at scripts/test TestConstructScripts naming dev-aliases.test.sh (restored after). Green full make test after restore (12 shards, 1239 cmd/sdlc tests, 50 packages incl. scripts/test, 0 failed). shelllint repo scan clean on the runner. Atlas ci-merge-check.md and base-layer.md updated.; review verdict: SHIP
 
 ### 2026-10-13 — ariadne:3
 
