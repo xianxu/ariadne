@@ -32,6 +32,28 @@ rounds:
           family: explicit-scope-exclusions
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-14T11:43:56-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Legacy local checks run unlocked, followed by pinned snapshot revalidation; real-lock regression coverage is specified.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: Explicit pre-push drift transitions reset the unpublished commit, consume an attempt, and define recovery on either side of reset.
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          note: Named risky functions have adversarial strategies and mechanical guards, separating pure tests from integration proofs.
+          round: 2
+        - id: PQ-4
+          disposition: addressed
+          note: Non-goals explicitly bound scheduling, serialization, legacy policy and journal scope.
+          round: 2
+      blocked: false
+content_hash: 35e857e4ba366df5f1921058c42b261e2784db5fe0f93e6bfb4015e7ca66bc9a
 ---
 
 # Gate ledger — ariadne#370 (plan-quality)
@@ -52,9 +74,15 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-4** [Minor] `explicit-scope-exclusions` State the design's non-goals explicitly
   Add a short statement identifying intentionally excluded work and why, such as changing suite scheduling, introducing cross-machine serialization, or adding a durable journal. This makes the intended lock-scoping boundary reviewable without inferring exclusions from the implementation checklist.
 
+## Round 2 — 2026-10-14T11:43:56-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Legacy local checks run unlocked, followed by pinned snapshot revalidation; real-lock regression coverage is specified.
+- PQ-2 — addressed — Explicit pre-push drift transitions reset the unpublished commit, consume an attempt, and define recovery on either side of reset.
+- PQ-3 — addressed — Named risky functions have adversarial strategies and mechanical guards, separating pure tests from integration proofs.
+- PQ-4 — addressed — Non-goals explicitly bound scheduling, serialization, legacy policy and journal scope.
+
 ## Open findings
 
-- **PQ-1** [Important] `lock-scope-covers-all-waiting-paths` Legacy merge can execute a suite while retaining the whole-command lock
-- **PQ-2** [Important] `drift-recovery-transition-contract` Define main-drift recovery between replay and integration push
-- **PQ-3** [Important] `function-level-test-strategy` Replace the test-case inventory with named risky-function strategies
-- **PQ-4** [Minor] `explicit-scope-exclusions` State the design's non-goals explicitly
+(none — every finding has been disposed)

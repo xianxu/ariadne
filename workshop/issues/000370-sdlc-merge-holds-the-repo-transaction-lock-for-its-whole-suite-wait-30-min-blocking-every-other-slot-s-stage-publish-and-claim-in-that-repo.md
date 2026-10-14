@@ -47,6 +47,7 @@ Durable implementation steps: [merge-lock-scoping plan](../plans/000370-sdlc-mer
 - Live evidence: ariadne:2's merge held `.git/sdlc.lock` through its first `make test` and a second full suite after main advanced; `sdlc move :5` for #240 waited until that merge finished. The lock interval exceeded 30 minutes and delayed this issue's own creation. ARCH-CONSTRAINTS: the suite queue/run is unbounded relative to a short repository transaction.
 - Design: reuse `withRequiredRepoTransactionLock` (ARCH-DRY); keep `integrationState` as the only transition owner (ARCH-ORDER); use existing commit, lease, PR-head and archive evidence across unlocked phases (ARCH-FUNERAL/ARCH-PURPOSE).
 - Plan-quality round 1 (REWORK): accepted findings PQ-1 (legacy `runCIGate` can run a suite), PQ-2 (main drift after replay needs a reset/retry transition), and PQ-3 (named-function test strategies); a Minor requested explicit non-goals. The plan revision addresses each class before code.
+- Plan-quality round 2: CLEAN; PQ-1 through PQ-4 addressed, with no new findings. The estimate is derived after that review, per the gate's ordering.
 
 ## Revisions
 
