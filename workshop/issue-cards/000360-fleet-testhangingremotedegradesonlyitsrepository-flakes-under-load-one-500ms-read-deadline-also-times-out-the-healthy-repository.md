@@ -1,6 +1,6 @@
 ---
 id: 000360
-status: working
+status: codecomplete
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
@@ -13,8 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 2.64
 tracker:
     version: 1
+    completion:
+        token: close-835c8e1ca7f9
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 45da7ab97efc46037c6ca297e935ecb111f27f63
+        evidence_commit: a892fffc27f096373f8638beec7bb5b7444419ad
 ---
 
 # fleet: TestHangingRemoteDegradesOnlyItsRepository flakes under load; one 500ms read deadline also times out the healthy repository
