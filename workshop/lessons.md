@@ -575,6 +575,10 @@ The simplest durable authority beats a clever scan of consequences.
 - An index remains authoritative when its storage directory is absent. Skipping
   validation based only on directory history misses body-only dangling links
   (#337 BR-6).
+- A prepared durable candidate may predate its current validator. Validate the
+  complete pinned candidate at publication and uncertain-outcome recovery, not
+  only during preparation; absence of asset pins is not a body-index proof
+  (#337 BR-7).
 - Every claim a durable contract makes needs a test that proves it: each
   half of an OR rule, each recovery-catalog field, each ticked plan box. In
   #344 the ref-containment half of `Leavable` (the half the crash recovery

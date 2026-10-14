@@ -356,3 +356,15 @@ suite before returning to close. No approved feature-scope expansion.
   tests, 48 other packages, six shards, zero failures, 818.8s. Start load 39.22;
   two-slot lock active. All required implementation verification is complete;
   binary-owned close review and hub SHIP remain pending.
+
+### 2026-10-14T00:03Z — persisted-publication correction
+
+BR-7 shows that preparation is not an invariant boundary: a durable candidate
+can outlive the validator that produced it. At every main publication or probe,
+validate the pinned body and complete candidate bundle regardless of asset-pin
+presence. Inventory transfer, creation, detail republish and other receipt main
+publishers; cover fresh, prepared, uncertain/not-landed and uncertain/already-
+landed states. Old invalid receipts must refuse actionable recovery without
+advancing main or source removal. Keep policy admission distinct from proof of
+an already-landed effect. Add RED/GREEN production recovery regressions, then
+repeat full acceptance and close. ARCH-PURPOSE / ARCH-SECURE / ARCH-ORDER.

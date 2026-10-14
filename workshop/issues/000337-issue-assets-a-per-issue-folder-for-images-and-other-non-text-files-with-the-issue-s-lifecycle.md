@@ -105,7 +105,7 @@ Approved [implementation plan](../plans/000337-issue-assets-plan.md); next gate 
 - [x] Typed asset policy, bounded bundle model, attach verb and dynamic policy help.
 - [x] Bundle publication, ownership, recovery and restore.
 - [x] Archive, abandon/reopen, legacy lifecycle and slot-move verification.
-- [x] Documentation and acceptance preparation: targeted tests and full suite started below load 40; then enter the binary-owned close review. Shipping remains subject to hub SHIP.
+- [ ] Documentation and acceptance preparation: targeted tests and full suite started below load 40; then enter the binary-owned close review. Shipping remains subject to hub SHIP.
 
 ## Log
 
@@ -280,6 +280,14 @@ reproduced by reviewer overlays. Correction plan appended; acceptance reopened.
   BR-5 and BR-6; prior accepted findings remain documented in its sidecar.
 
 ## Revisions
+
+- 2026-10-14T00:03Z — Third close review accepted BR-1 through BR-6 but found
+  BR-7: prepared transfer recovery can bypass body-index validation from the
+  preparation phase. The correction must validate pinned source and actual
+  candidate bundles at fresh/resumed publication and uncertain-outcome recovery,
+  including old receipts without asset pins. Sweep every main publication
+  operation and its replay states; preserve bounded readers and fail before
+  publication or confirmation effects. No feature-scope expansion.
 
 - 2026-10-12 — the operator: issue assets are where submitted web-cast note crops (pair#483) land when notes become an issue
   (text first in the issue body; only the crops that matter as assets; recordings stay local, never S3 yet). Add a
