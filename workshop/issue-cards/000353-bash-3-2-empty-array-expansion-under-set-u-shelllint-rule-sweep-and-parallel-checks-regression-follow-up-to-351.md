@@ -1,6 +1,6 @@
 ---
 id: 000353
-status: working
+status: codecomplete
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
@@ -13,8 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.16
 tracker:
     version: 1
+    completion:
+        token: close-76d16da1a724
+        repository: github.com/xianxu/ariadne
+        reviewed_head: ae1b29a6c0fbc177443e36687e706f04f1a2d8a0
+        evidence_commit: ff7350ab0a3d3290cea936f2ea17a9fff488a463
 ---
 
 # bash 3.2 empty-array expansion under set -u: shelllint rule, sweep, and parallel-checks regression (follow-up to #351)
