@@ -34,8 +34,28 @@ Build to a temp file beside the target (`bin/.X.tmp.$$`) and `mv -f` it over `bi
 
 ## Plan
 
-- [ ]
+- [x] Emitted functions build into a per-call `mktemp -d bin/.X.XXXXXX` directory beside
+  the target and `mv -f` the binary over `bin/X` (atomic on one filesystem; unique per
+  call, last rename wins), then remove the directory. A directory, not a temp file:
+  `go build -o` refuses to overwrite an existing file that is not a Go build output. The
+  rename also gives the new binary a new inode, the code-signing safety `rm -f` gave.
+  dev-prepare and stdout-to-stderr unchanged; no second staleness scheme.
+- [x] Shape assertions updated; concurrency test: two concurrent rebuilds through a slow
+  stub go while a poller execs `bin/X` and requires a whole binary every time.
 
 ## Log
 
 ### 2026-10-13
+
+### 2026-10-13 — ariadne:3
+
+`dev-aliases.test.sh` under macOS /bin/bash 3.2.57: 44 passed, 0 failed. Teeth: with
+origin/main's emitter swapped in, the concurrency case fails with 62 `No such file or
+directory` execs (the TL's couch failure) and a final binary that is not whole, plus the
+four old-shape assertions. The first stub wrote its output immediately, so the old
+`rm -f` window would have been microseconds and the poller might never have seen it; the
+stub now waits before writing, like a real link, and writes in two steps, and the poller
+requires the binary's whole output. A build killed mid-way leaves its `bin/.X.*`
+directory (gitignored with bin/); nothing sweeps it, since a sweep could remove a
+concurrent build's directory. Nothing runs `construct/scripts/test/*.test.sh` on its
+own; the only shared script-test runner is the local-gates `20-ci-workflow-tests` check.

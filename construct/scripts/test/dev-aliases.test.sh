@@ -57,7 +57,7 @@ n_gmail="$(printf '%s\n' "$out" | grep -c '^gmail()')"
 [ "$n_gmail" = "1" ] && ok "exactly one gmail() emitted" || ko "expected 1 gmail(), got $n_gmail"
 
 # ── function-body shape (the defining property; fixture can't run go build) ───
-assert_contains "cd $WS/ariadne && mkdir -p bin && rm -f bin/sdlc && go build -o bin/sdlc ./cmd/sdlc" "$out" "builds to owner bin/ (rm -f first), owner cmd path"
+assert_contains 'cd '"$WS"'/ariadne && mkdir -p bin && d="$(mktemp -d bin/.sdlc.XXXXXX)" && { go build -o "$d/sdlc" ./cmd/sdlc && mv -f "$d/sdlc" bin/sdlc;' "$out" "builds beside owner bin/ and renames into place (#355), owner cmd path"
 assert_contains "$WS/ariadne/bin/sdlc \"\$@\""                                                        "$out" "runs the owner-bin binary with caller args/cwd"
 
 # ── owner-declared preparation step (#299) ───────────────────────────────────
@@ -70,9 +70,9 @@ printf -- '-include Makefile.local\n' > "$WS/prepd/Makefile"
 printf '.PHONY: dev-prepare\ndev-prepare: assets/stamp\nassets/stamp:\n' > "$WS/prepd/Makefile.local"
 prep_out="$(bash "$GEN" --workspace "$WS" 2>/dev/null)"
 gen_line="$(printf '%s\n' "$prep_out" | grep '^gen()')"
-assert_contains "cd $WS/prepd && make -s dev-prepare >&2 && mkdir -p bin && rm -f bin/gen && go build -o bin/gen ./cmd/gen" "$gen_line" "a declaring owner runs dev-prepare before go build"
+assert_contains 'cd '"$WS"'/prepd && make -s dev-prepare >&2 && mkdir -p bin && d="$(mktemp -d bin/.gen.XXXXXX)" && { go build -o "$d/gen" ./cmd/gen' "$gen_line" "a declaring owner runs dev-prepare before go build"
 nous_line="$(printf '%s\n' "$prep_out" | grep '^nous()')"
-[ "$nous_line" = "nous() { ( cd $WS/nous && mkdir -p bin && rm -f bin/nous && go build -o bin/nous ./cmd/nous ) || return; $WS/nous/bin/nous \"\$@\"; }" ] \
+[ "$nous_line" = 'nous() { ( cd '"$WS"'/nous && mkdir -p bin && d="$(mktemp -d bin/.nous.XXXXXX)" && { go build -o "$d/nous" ./cmd/nous && mv -f "$d/nous" bin/nous; s=$?; rm -rf "${d:?}"; exit $s; } ) || return; '"$WS"'/nous/bin/nous "$@"; }' ] \
 	&& ok "an owner without dev-prepare keeps the exact plain form" || ko "plain form changed: [$nous_line]"
 # Make decides what declares the step: a rule (here, or via an include) does;
 # an assignment, a target-specific variable or a recipe line that merely
@@ -123,7 +123,7 @@ gen_def="$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^gen()')"
 export TRACE="$WS/trace"; : > "$TRACE"
 run_out="$(PATH="$STUB:$PATH" bash -c "$gen_def; gen a b" 2>/dev/null)"
 [ "$run_out" = "ran a b" ] && ok "the binary's stdout carries only its own output" || ko "stdout polluted: [$run_out]"
-[ "$(cat "$TRACE")" = "$(printf 'make -s dev-prepare\ngo build -o bin/gen ./cmd/gen')" ] && ok "dev-prepare runs before go build" || ko "order: [$(cat "$TRACE")]"
+case "$(cat "$TRACE")" in "make -s dev-prepare"$'\n'"go build -o bin/.gen."??????"/gen ./cmd/gen") ok "dev-prepare runs before go build" ;; *) ko "order: [$(cat "$TRACE")]" ;; esac
 : > "$TRACE"; rm -f "$WS/prepd/bin/gen"
 fail_err="$(MAKE_FAIL=1 PATH="$STUB:$PATH" bash -c "$gen_def; gen a" 2>&1 >/dev/null)"; fail_rc=$?
 [ "$fail_rc" -ne 0 ] && ok "a failed dev-prepare fails the call" || ko "failed dev-prepare returned 0"
@@ -220,6 +220,32 @@ if bash "$GEN" --workspace >/dev/null 2>&1; then
 else
 	ok "--workspace with no value exits non-zero"
 fi
+
+# #355: a rebuild never leaves the binary missing. Two concurrent alias calls
+# rebuild bin/nous through a slow stub go (like a real link, it writes its output
+# only after a while, and in two steps) while a third process execs the target path
+# in a loop: every exec must find a whole binary, and no build directory is left.
+SLOW="$WS/slowbin"; mkdir -p "$SLOW"
+cat > "$SLOW/go" <<'STUBEOF'
+#!/bin/sh
+out="$3"; sleep 0.4; printf '#!/bin/sh\n' > "$out"; chmod +x "$out"; sleep 0.4; printf 'echo built\n' >> "$out"
+STUBEOF
+chmod +x "$SLOW/go"
+nous_def="$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^nous()')"
+PATH="$SLOW:$PATH" bash -c "$nous_def; nous >/dev/null" || ko "the first build failed"
+MISS="$WS/misses"; : > "$MISS"
+( end=$(( $(date +%s) + 3 )); while [ "$(date +%s)" -lt "$end" ]; do
+	got="$("$WS/nous/bin/nous" 2>>"$MISS")" || echo "exec failed" >> "$MISS"
+	[ "$got" = built ] || echo "partial binary: [$got]" >> "$MISS"
+done ) & poller=$!
+PATH="$SLOW:$PATH" bash -c "$nous_def; nous >/dev/null" & b1=$!
+PATH="$SLOW:$PATH" bash -c "$nous_def; nous >/dev/null" & b2=$!
+wait $b1; r1=$?; wait $b2; r2=$?; wait $poller
+[ $r1 -eq 0 ] && [ $r2 -eq 0 ] && ok "two concurrent rebuilds both succeed" || ko "concurrent rebuilds failed: $r1 $r2"
+[ ! -s "$MISS" ] && ok "the binary is never missing during a rebuild" || ko "exec saw a missing or partial binary: $(sort "$MISS" | uniq -c | head -3)"
+left="$(ls -A "$WS/nous/bin" | grep -v '^nous$')"
+[ -z "$left" ] && ok "no build directory is left behind" || ko "left in bin/: $left"
+[ "$("$WS/nous/bin/nous")" = "built" ] && ok "the last rename installed a whole binary" || ko "final binary is not whole"
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
