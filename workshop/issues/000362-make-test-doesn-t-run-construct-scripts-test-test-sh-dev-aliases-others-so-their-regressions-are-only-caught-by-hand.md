@@ -13,11 +13,15 @@ card_mirror: '23b9f900634ddb06a95c7f1ed5149e5a1910a8c3' # card fields mirrored f
 
 ## Problem
 
+Shell tests under `construct/scripts/test/*.test.sh` (e.g. `dev-aliases.test.sh`, 48 cases added by #355) aren't run by `make test` or CI, so a regression in them is caught only if someone runs them by hand. #357 fixed the same gap for `test-lock.test.sh` by moving it under `scripts/test/`, which CI runs.
+
 ## Spec
+
+Run every `construct/scripts/test/*.test.sh` from `make test` (and the CI merge check), the same way `scripts/test/` is run, under bash 3.2-compatible settings. If any are slow or need a live environment, mark them and leave those out explicitly rather than silently.
 
 ## Done when
 
--
+- `make test` runs all `construct/scripts/test/*.test.sh` (or names the excluded ones and why); a deliberately broken test fails `make test`.
 
 ## Plan
 
