@@ -73,7 +73,11 @@ rounds:
           note: Historical conformance runs before issue close, after lineage parser changes and when installed CLI metadata changes.
           round: 2
       blocked: false
-content_hash: edbd319f1a201d1d7e780e06711ec74435ebd67979fa7deddbcc9bc6acb48a3d
+    - "n": 3
+      timestamp: "2026-10-14T02:08:22-07:00"
+      agent: codex
+      blocked: false
+content_hash: c468938cbd43711306990b5167fa72cdfc8bbfbad6ca3da12eb38db8cb500e73
 ---
 
 # Gate ledger — ariadne#335 (plan-quality)
@@ -108,6 +112,8 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - PQ-4 — addressed — Named risky functions each have an adversarial input class and mechanical guard; executable tests own the case inventory.
 - PQ-5 — addressed — Existing recovery owns transient receipt cleanup; retained snapshots and correction evidence have explicit bounded permanent costs.
 - PQ-6 — addressed — Historical conformance runs before issue close, after lineage parser changes and when installed CLI metadata changes.
+
+## Round 3 — 2026-10-14T02:08:22-07:00 (codex) — passed
 
 ## Open findings
 
