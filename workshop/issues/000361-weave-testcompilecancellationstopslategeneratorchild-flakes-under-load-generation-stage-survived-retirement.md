@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "991a59d0", done: "a3c27513"}
 ---
 
 # weave: TestCompileCancellationStopsLateGeneratorChild flakes under load (generation stage survived retirement)
