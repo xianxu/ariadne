@@ -1,6 +1,6 @@
 ---
 id: 000369
-status: working
+status: codecomplete
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
@@ -13,8 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.94
 tracker:
     version: 1
+    completion:
+        token: close-02f686c7c0b4
+        repository: github.com/xianxu/ariadne
+        reviewed_head: b97208e5484273f0cc54d44be9b8257d5b0cb584
+        evidence_commit: f9653a63018fe180eada73dfd722496b028897a8
 ---
 
 # TestWaitCIGateBoundsRealMakeProbe/cancel is flaky on main: cancel sometimes returns after ~1.05s (the make child's sleep) instead of under 700ms; also TestSetupLeaseSurvivesRunnerParentDeath failed once under the full suite
