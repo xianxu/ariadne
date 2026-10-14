@@ -39,7 +39,7 @@ one-second WaitDelay; fix the observed process lifecycle, not a timeout.
 
 - [x] Measure kernel signal results and descendant lifetime on cancellation.
 - [x] Apply the smallest root-cause fix with a failing regression (ARCH-DRY).
-- [ ] Run 50 cancellations, relevant lifecycle tests and the recorded suite.
+- [x] Run 50 cancellations, relevant lifecycle tests and the recorded suite.
 
 ## Log
 
@@ -109,3 +109,12 @@ TestInheritedLeaseOutlivesParentCopy; settle on that lease before Remove too
 The queued follow-up suite was cancelled at admission (exit130) for these
 measured repairs; no passing record is claimed. Next commit, record the full
 suite on the repaired head, then shared close/PR/merge.
+
+### 2026-10-14 — recorded full-suite acceptance
+
+sdlc local-check run --name suite passed on
+b74440ee82f01bbc41b982f8377bd1383c2c8553:1354 cmd/sdlc tests in12 shards,
+54 other packages, zero failures,445.8s (7m26s). Recorded sdlc-local/suite
+success, log sha256 prefixc47b0021ba8a. All code is in that tested head; this
+checkpoint is docs-only. Next shared close review, PR and merge. #365 stays
+paused at85b35d75, with its implementation/suite/landing status checkpointed.
