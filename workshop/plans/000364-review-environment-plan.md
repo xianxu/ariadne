@@ -296,3 +296,18 @@ owns acceptance; do not add a duplicate boundary review outside the binary.
   449.2 s). The last two administrative rows remain pending until their close and
   landing actions complete. Linux live coverage remains unavailable locally;
   the existing Linux fence behavior was preserved.
+
+- 2026-10-14 — Boundary BR-1 (Critical, review-input-integrity): Git's normalized
+  diff is not an oracle for actual tracked contents. Replace tracked-state
+  comparison with a filesystem fingerprint of tracked file bytes, types, modes
+  and symlink targets, retaining HEAD/index identity. The comparison must ignore
+  Git text/clean normalization and assume-unchanged/skip-worktree suppression;
+  generated untracked/ignored files remain allowed. Include direct production
+  Dispatch regressions for each hiding mechanism and type/mode changes.
+
+### BR-1 correction
+
+- [ ] Replace `trackedPreparationState` with a direct tracked-filesystem fingerprint
+  and prove hidden modifications halt before reviewer execution. This strengthens
+  the existing no-tracked-mutation contract; no new confinement model is introduced.
+- [ ] Rerun targeted lifecycle tests and the full suite, then re-close the finding.

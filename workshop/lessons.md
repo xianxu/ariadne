@@ -621,3 +621,5 @@ The simplest durable authority beats a clever scan of consequences.
 - Plan test strategies by named risky function, adversarial input class and a mechanical guard; case inventories alone hide missing invariants. For append-only diagnostics, a per-attempt cap is not a retention policy: state permanent cost or bounded supersession and measure at the writer (#364 PQ-1/PQ-2).
 
 - In subprocess seams that execute on a heartbeat goroutine, test callbacks must return an error or use Errorf rather than Fatal: Fatal exits only that goroutine and strands the caller waiting for its result (#364 test development).
+
+- Git diff is a normalized report, not proof of byte preservation. A guard that promises unchanged tracked inputs must fingerprint actual bytes/types/modes independently of clean/text conversion and assume-unchanged/skip-worktree flags; disabling one diff feature only fixes an instance (#364 BR-1).

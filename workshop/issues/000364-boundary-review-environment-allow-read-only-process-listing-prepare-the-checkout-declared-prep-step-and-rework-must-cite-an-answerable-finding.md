@@ -44,7 +44,7 @@ Host evidence (full suites, the blocked checks) was supplied in the Log, but a R
 
 - [x] Add and prove the literal Darwin ps exception without weakening protected writes.
 - [x] Model unverifiable findings and validate answerable boundary responses.
-- [x] Prepare every disposable-checkout attempt and reuse bounded retry admission.
+- [ ] Prepare every disposable-checkout attempt and reuse bounded retry admission.
 - [x] Document and verify with pair's runtime generation and the full suite.
 
 Durable plan: [review environment](../plans/000364-review-environment-plan.md).
@@ -135,6 +135,15 @@ then ran 449.2 s; all 12 shards over 1,249 SDLC tests plus 53 other packages
 exited zero, with no missing tests or failures. Log:
 `/tmp/ariadne-364-full-suite-2.log`. The weave lease failure did not recur.
 Implementation acceptance evidence is complete; close review and landing are next.
+
+Boundary review round 1 REWORK: BR-1 Critical, `review-input-integrity`.
+The reviewer reproduced a preparation command using assume-unchanged to change
+tracked bytes without detection and identified clean-filter normalization as the
+same class. Accepted; the guard must fingerprint actual filesystem contents,
+types and modes independently of Git's normalized diff. Durable plan revised;
+implementation acceptance reopened for this correction. Other review checks passed;
+live Seatbelt checks skipped under the reviewer parent sandbox, with the host
+conformance evidence retained above.
 
 ## Revisions
 
