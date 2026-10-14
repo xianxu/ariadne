@@ -43,7 +43,7 @@ forced-color environments. Reuse its bounded process-group cleanup (ARCH-DRY).
 ## Plan
 
 - [x] Add environment regression cases and observe their failures.
-- [ ] Isolate vm-log test color inputs; verify all shell tests and the full suite.
+- [x] Isolate vm-log test color inputs; verify all shell tests and the full suite.
 
 ## Log
 
@@ -59,3 +59,9 @@ and forced_color_terminal failed on plain dim output; all five siblings passed.
 The test now clears both inherited color flags, preserving its explicit NO_COLOR
 precedence assertion. The Go runner reuses the existing per-run deadline and
 process-group cleanup for all three environment cases.
+
+Targeted green: go test ./scripts/test -run '^TestConstructScripts$' -count=1
+passed in 24.798s. Full make -k test at
+77230109f766933ffc042e1f018823b3d84f9de4 passed in 399.4s after a 505s lock wait:
+all 1239 SDLC tests and 52 other packages, zero failures, under the normal Codex
+environment. Log: /tmp/ariadne-363-full-suite.log. Atlas documents the matrix.
