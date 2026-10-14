@@ -114,3 +114,99 @@ findings:
     detail: |
       cmd/tl-lead/trains.go:68 returns fleetErr before rendering the Trains block. It could render the off-train block as ? instead.
 ```
+
+---
+
+## Re-review — 2026-10-14T08:51:30-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 350 — lift the TL skill into ariadne: tl-lead and tl-worker skill binaries (help is the prose), scripts ported to Go, skill stubs |
+| repo | ariadne |
+| issue file | workshop/issues/000350-lift-the-tl-skill-into-ariadne-tl-lead-and-tl-worker-skill-binaries-help-is-the-prose-scripts-ported-to-go-skill-stubs.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 1c39182532fa3cc78ea4935abff4ab1b87a6f01d..392c1079c8f81086a51ede0b695c4cc6e8bebdcc |
+| command | sdlc milestone-close --issue 350 --milestone M1 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-14T08:51:30-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Verifying the prior fixes now: running the tests, then reverting each fix to confirm its test fails without it.
+
+pkg/workspace's failure is pre-existing (it fails at base too, and the window doesn't touch it). Next, reverting each fix to confirm its regression test fails.
+
+Both regression tests go red when their fix is reverted. Last check: whether couch is available to run the live conformance test.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All five prior findings are fixed, and each fix that changes behavior has a regression test I confirmed fails without it. I reverted `trains.go` and the `delivery-gap` branch of `decodeReply` in the disposable checkout. `TestGatherTrainsFleetFailureDegrades` and `TestDecodeReplyDeliveryGap` both failed. Reverting `cmd/tl-worker/help.md` made `TestWorkerHelpDoesNotRestateSection15` fail. The live check also passed against the real couch on this host: `TL_LEAD_LIVE=1 go test ./cmd/tl-lead -run TestSessionSyncConformance` passes with the new fold step. `go build ./...` is clean, and the `cmd/tl-lead`, `cmd/tl-worker`, `pkg/markdoc`, `pkg/trains`, `pkg/tlrules`, `cmd/sdlc/internal/{issue,project}` tests pass. One failure, `pkg/workspace` `TestEnvironmentLegacyAndArchive` ("nil Git reader"), is not from this branch: nothing in the window touches that package, and it fails the same way with the base version restored. One new Minor finding (a stale comment); nothing blocks.
+
+1. **Strengths**
+   - `cmd/tl-lead/trains.go:63-70`: when the fleet read fails, only the off-train block degrades and it says why; the Trains block still renders. The fleet read runs alongside the car reads, so it adds no time.
+   - `cmd/tl-lead/sessionsync.go:94-96`: couch's `delivery-gap` reply becomes a typed `ErrDeliveryGap`, and the error text names the next step. `TestDeliveryGapRefusesFoldOnly` covers both sides: a fold is refused, a plain write still lands.
+   - The BR-1 fix went past the one site named. README and all three atlas tool lists now name `tl-worker` and `tl-lead`; a grep for these tool lists in Markdown outside `workshop/` finds no stale copy.
+   - The live conformance test checks that a refused fold leaves the section unchanged, not just that it errors (`conformance_test.go:66-68`).
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings**
+   - `cmd/tl-lead/conformance_test.go:16-17`: the doc comment still ends "and the test never folds", but the test now folds (lines 53-68). Change it to say the fold names an ID that isn't owed, so no real event is touched.
+
+5. **Test coverage notes**
+   - `TestDeliveryGapRefusesFoldOnly` uses a fake that returns `ErrDeliveryGap` directly. The real couch-to-error mapping is covered separately by `TestDecodeReplyDeliveryGap`, and together they cover the path.
+   - The degraded Slots text puts `fleetErr.Error()` inside a code fence unescaped. Stderr containing a code fence would break it. This is speculative, so I'm not raising it.
+
+6. **Architectural notes**
+   - **ARCH-DRY:** pass. The scanners and trains parser moved into `pkg/markdoc` and `pkg/trains` instead of being copied.
+   - **ARCH-PURE:** pass. The rendering functions (`renderTrains`, `offTrainSlots`, `foldable`) are pure, and IO goes through the `SDLC` and `SessionSync` interfaces.
+   - **ARCH-PURPOSE:** pass. The BR-1 class (every list of the tools ariadne builds) was swept, not just the README instance.
+   - **ARCH-MOCK:** pass. `fakeSessionSync` keeps state across calls, and the live conformance check now covers the fold refusals it models.
+   - **ARCH-CONSTRAINTS:** pass. The fleet read is bounded and overlapped; a timeout now degrades the output instead of aborting.
+   - **ARCH-SECURE:** pass. couch is called with an argv array, and an unreadable reply is a visible error.
+   - **ARCH-ORDER:** pass. The write is guarded by the read hash (`ErrStale`), and a delivery gap is treated as "unknown", not "nothing owed".
+   - **ARCH-FUNERAL:** pass. The seen-set is pruned of folded IDs (`without(seen, fold)`), and the conformance test works in a temporary directory.
+   - **Upcoming:** a later round could have the live check also cover the `delivery-gap` reply format.
+
+7. **Plan revision recommendations:** none needed. The 2026-10-14 Revisions entry already overrides the Core concepts row `cmd/tl-lead/sdlc_fake_test.go` (plan line 48). Optionally, change that row to point straight at `cmd/tl-lead/trains_test.go`.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      README.md:195 and atlas base-layer.md:75, setup-and-replication.md:54, sandbox.md:13 all list tl-worker and tl-lead; a grep sweep finds no stale list.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      help.md:11 reworded; the test forbids "whole Bash call"; restoring the old help.md fails TestWorkerHelpDoesNotRestateSection15.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      conformance_test.go:53-68 folds an ID not owed against real couch; it passed live on this host with TL_LEAD_LIVE=1.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      ErrDeliveryGap exists and is mapped in decodeReply; reverting the mapping fails TestDecodeReplyDeliveryGap; a plan Revisions entry fixes the fake file names.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      trains.go:63-70 renders Trains and marks Slots unread; reverting fails TestGatherTrainsFleetFailureDegrades.
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: comment-tracks-code
+    title: |
+      TestSessionSyncConformance doc comment still says the test never folds
+    detail: |
+      cmd/tl-lead/conformance_test.go:16-17 says "the test never folds", but lines 53-68 now fold a not-owed ID; reword it to say the fold names an ID that isn't owed.
+```

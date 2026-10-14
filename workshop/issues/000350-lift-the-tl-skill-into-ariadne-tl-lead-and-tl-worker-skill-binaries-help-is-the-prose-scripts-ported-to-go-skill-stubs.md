@@ -72,6 +72,8 @@ Items in order: M1 tl-worker (binary, prose, stub, §15 line); M2 tl-lead prose;
 
 ## Log
 
+
+- 2026-10-14: closed M1 — cmd/tl-worker tests (TestWorkerHelpCarriesEveryRule, TestWorkerHelpDoesNotRestateSection15 now forbidding whole Bash call, TestSkillStubsPointAtBinaries, TestSection15NamesTheBinaries) pass; settingsx passes with ariadne#354 merged; BR-1..BR-5 answered in a4d6e7ef (tool lists in README + 3 atlas pages, live fold refusal in TestSessionSyncConformance PASS, ErrDeliveryGap, degraded off-train render); review verdict: SHIP
 ### 2026-10-13
 
 - Design (plan written): `tl-status.py` is dead (no caller in ops; the draft routes every write through `ss.py` over `couch --session-sync`, which owns the operator-lock refusal, exit 3). It is retired, not ported; `tl-lead status` passes exit 3 through as the lock refusal.
