@@ -1,12 +1,21 @@
 ---
 id: 000362
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: '23b9f900634ddb06a95c7f1ed5149e5a1910a8c3' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a09f6a5fc9fddd0efdc9214ee24f4ee14d67a2ac' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-13T21:52:01-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "6069416a", done: "4e15c9e1"}
 ---
 
 # make test doesn't run construct/scripts/test/*.test.sh (dev-aliases, others), so their regressions are only caught by hand
