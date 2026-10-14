@@ -1,10 +1,19 @@
 ---
 id: 000332
-status: working
+status: codecomplete
 created: 2026-10-11
-updated: 2026-10-13
+updated: 2026-10-14
 estimate_hours: 2.35
 github_issue:
+started: 2026-10-13T22:09:00-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
+actual_hours: 7.84
 tracker:
     version: 1
     handoff:
@@ -17,14 +26,11 @@ tracker:
         source_blob: c95ddf7f8da3eb3f8fb3bac2807c0d2aa67012d1
         destination: workshop/issues/000332-sdlc-merge-integrates-a-moved-main-itself-then-re-runs-the-suite-before-landing.md
         main_commit: 7c3cf44e20946bc0f5a0e3150dfd51b4c480e93d
-started: 2026-10-13T22:09:00-07:00
-claimant:
-    operator: Xian Xu
-    machine: 4716879978a7b90f6b583da1716fd0e9
-    machine_name: Xian’s MacBook Pro
-    workspace: ariadne:1
-    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
-    repository: github.com/xianxu/ariadne
+    completion:
+        token: close-3cd9136294e2
+        repository: github.com/xianxu/ariadne
+        reviewed_head: f129a2933854d6b90cdf9885eab8c77221f85caf
+        evidence_commit: be867793e4122dd111e71f9f93c3d1bfd08e38f5
 ---
 
 # sdlc merge integrates a moved main itself, then re-runs the suite before landing
