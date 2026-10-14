@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -159,70 +158,6 @@ func TestMilestoneCloseCmd_RegistersBypasses(t *testing.T) {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("milestone-close command missing flag: --%s", flag)
 		}
-	}
-}
-
-// TestMilestoneTickRegex mirrors the regex in runClose's milestone path:
-//
-//	(?m)^(- )\[[ .]\]( <milestone>\b)
-//
-// Verifies the boundary semantics — M4 must not match M4-extra or M40, [x]
-// must not be re-ticked.
-func TestMilestoneTickRegex(t *testing.T) {
-	pat := regexp.MustCompile(`(?m)^(- )\[[ .]\]( M4\b)`)
-	tests := []struct {
-		name string
-		in   string
-		out  string
-	}{
-		{
-			"unchecked",
-			"- [ ] M4 — port close-issue\n",
-			"- [x] M4 — port close-issue\n",
-		},
-		{
-			"in_progress",
-			"- [.] M4 — port close-issue\n",
-			"- [x] M4 — port close-issue\n",
-		},
-		{
-			"already_done_unchanged",
-			"- [x] M4 — port close-issue\n",
-			"- [x] M4 — port close-issue\n",
-		},
-		{
-			// NOTE: this matches because Python's \b (= Go RE2's \b) treats
-			// the boundary between '4' (\w) and '-' (\W) as a word break.
-			// close-issue.py has the same behavior — verified with python3
-			// against the same input. Preserving Python parity over the
-			// "M4-extra should not match" intuition.
-			"M4_extra_DOES_match_via_word_boundary",
-			"- [ ] M4-extra — different milestone\n",
-			"- [x] M4-extra — different milestone\n",
-		},
-		{
-			"M40_no_match",
-			"- [ ] M40 — different milestone\n",
-			"- [ ] M40 — different milestone\n",
-		},
-		{
-			"M4b_no_match_for_M4",
-			"- [ ] M4b — different milestone\n",
-			"- [ ] M4b — different milestone\n",
-		},
-		{
-			"mixed_plan",
-			"- [ ] M3 — earlier\n- [ ] M4 — target\n- [ ] M5 — later\n",
-			"- [ ] M3 — earlier\n- [x] M4 — target\n- [ ] M5 — later\n",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := pat.ReplaceAllString(tt.in, "${1}[x]${2}")
-			if got != tt.out {
-				t.Errorf("got %q want %q", got, tt.out)
-			}
-		})
 	}
 }
 

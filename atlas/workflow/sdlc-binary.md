@@ -476,7 +476,13 @@ Unix reviewers have owned process groups so cancellation also kills descendants,
 and the direct reviewer is reaped before returning. CLI interruption is carried
 through the review context; no asynchronous writer survives command completion.
 
-`merge` and `push` retain their existing whole-transaction lock. Wait messages
+`merge` holds the lock around short integration Git operations, the leased push,
+the final expected-head merge, and archive/cleanup. Publish replay, GitHub PR
+registration and CI polling, and the local suite run happen unlocked. Every
+reacquisition checks the exact branch HEAD and worktree and fetches main: main
+drift restarts integration and gates, while HEAD drift refuses. The legacy
+dependency-clone path also releases the lock for local checks and refuses drift
+before server merge. `push` retains its whole-transaction lock. Wait messages
 name the live holder; wait or retry rather than deleting its lock. Recovery is
 conservative but not wedging:
 `die()` drains the active lock cleanup registry before `os.Exit`, missing
@@ -595,14 +601,14 @@ Pure core (`parseRef`, `classifyFamily`) is unit-tested with no IO; the IO seams
 `push`/`merge`/`state` archive logic should migrate onto the same `Discovery()`
 accessor — a DRY consolidation, separate from this resolver.
 
-### Project trains and forecast (`trains.go` + `trainforecast.go` + `projectforecast.go`, #329)
+### Project trains and forecast (`pkg/trains` + `trainforecast.go` + `projectforecast.go`, #329)
 
 A project is a TL's coordination plane with no deadline (#329 retired the #182
 calendar forecast, the throughput baseline and the Phase-A fog/calendar
 ledgers along with `deadline:`/`planned_finish:`). The forecast is derived on
 read and never typed in.
 
-- **Trains parser (`internal/project/trains.go`, pure).** `ParseTrains` reads
+- **Trains parser (`pkg/trains/trains.go`, pure; shared with `tl-lead`, #350; `internal/project` forwards the names).** `ParseTrains` reads
   `## Trains`: a `| Train | Cars… | Slot |` table (a bare `#N` inherits the
   previous car's repo; parentheses are annotations; every separator means "next
   car") and `⇒` edge bullets (prose after a colon is the reason; `~` bullets are

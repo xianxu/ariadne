@@ -17,6 +17,13 @@ Detailed incidents remain in their owning issue or review artifact.
 - When merging or removing concepts, hunt every consumer before deleting a
   symbol. A follow-up issue must not offload the current issue's purpose.
 
+- Moving code to a new package, or adding a `cmd/` binary, changes two
+  populations nothing recomputes. Source guards that scan a directory list
+  silently stop covering the moved code: their exemptions name the old file,
+  and their scope check walks only the old tree. Prose that enumerates the
+  binaries (README, atlas) goes stale. Before the first review, grep the guards
+  for the old path and the docs for a sibling binary's name (#350 BR-1).
+
 ## Guards and proof
 
 - A selected repository path is data, but Git pathspecs are patterns. Pass
@@ -35,6 +42,24 @@ Detailed incidents remain in their owning issue or review artifact.
   writes at the final destructive boundary, not only after the move (#240 BR-1,
   BR-6).
 
+- Before shortening a command's transaction lock, enumerate every path that can
+  run a suite and every ref-writing fetch, including legacy and recovery paths.
+  The #370 plan review caught a second merge path whose local CI fallback would
+  otherwise lose its lock entirely. Probe a second same-repo command against
+  the real lock during both first and repeated suite runs.
+- A validation window needs one pinned commit from the first gate through the
+  irreversible effect. Re-reading a remote ref after an unlocked gate can make
+  later CI checks authorize code the earlier gate never saw (#370 BR-1).
+- After polling an external service for a pushed head, fetch and check main
+  again before an expensive suite. Main may advance during registration, and
+  detecting it only after the suite wastes the full run (#370 BR-2).
+- Recovery preconditions must account for effects a completed earlier phase
+  deletes. A merged PR can remove its remote branch before archive resumes;
+  prove the shipped local head against main before demanding a remote ref
+  (#370 BR-3).
+- A concurrent test fixture owns its worker through teardown. On every exit,
+  release blockers, cancel waits and join the worker before restoring cwd or
+  global adapters; a signal write alone leaves a race (#370 BR-4).
 - A context-free compatibility wrapper is still production code to a source
   guard. Remove unused wrappers or route their nil context through the one
   bounded fallback; keep fixture aliases in test files. A targeted behavior
@@ -267,6 +292,14 @@ Detailed incidents remain in their owning issue or review artifact.
   long-running reviews so design survives compaction.
 - Stage explicit paths; never let `git add -A` sweep unrelated untracked WIP.
   Verify `change-code` created the intended branch before committing.
+
+- A durable plan's Core concepts table is the current model, not history. A
+  commit that adds, removes or renames an entity, or that lands a scope
+  revision, updates the table and entity notes in that same commit (removed
+  entities marked `deleted`). It also appends a Revisions entry that supersedes
+  by name every earlier claim it voids, including ticked rows whose tests no
+  longer exist. Before a close, grep the plan for each cited test name and
+  identifier against the tree (#350, family plan-core-concepts-drift).
 
 ## Base-layer and data sharp edges
 
@@ -719,3 +752,21 @@ The simplest durable authority beats a clever scan of consequences.
 
 - New CLI flags and recovery commands need README coverage alongside atlas and help; enumerate all three before close (#366 BR-1).
 - When a fenced reviewer cannot run a regression, record an exact-head host rerun, environment qualification and log path; distinguish unverifiable review execution from a demonstrated implementation failure (#366 BR-2).
+
+- A successful process-group signal is not a fork barrier. Forceful teardown
+  must cover members missed during traversal; test a successful partial first
+  signal with a real descendant holding inherited pipes (#369).
+- After a successful cancellation signal, preserve exec.Cmd.Cancel's nil
+  result while reconciling group retirement; returning ProcessDone afterward
+  can suppress the context error for a zero-exit parent (#369).
+- A deadline may legitimately expire before a subprocess's readiness marker.
+  Use explicit readiness for cancellation-after-start coverage rather than
+  requiring a short-budget test to prove OS scheduling latency (#369).
+
+- A child's 'released' message and even process Wait are completion evidence,
+  not proof that a producer lease is available. Probe the resource within the
+  existing settle budget; keep the child alive while asserting release so a
+  missing-close mutation cannot pass on implicit exit cleanup (#369).
+- test2json assigns assertion output to the exact failed subtest. A summary
+  that prints only its parent discards the fault; preserve failed child output
+  and regression-test it with recorded events (#369).

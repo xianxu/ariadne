@@ -299,7 +299,11 @@ func assertWiring(t *testing.T, edges []wiring) {
 // TestGuardScopeCoversEveryPackage keeps the list honest by failing when a
 // package outside it references a plan-counting regex — a population defined by
 // a list is exactly what these guards exist to distrust.
-var guardScanDirs = []string{".", "internal/issue", "internal/observe"}
+//
+// The scanners themselves live in pkg/markdoc, and tl-lead (a second binary)
+// reads plans through them (#350), so the list reaches outside cmd/sdlc and the
+// scope check below walks the whole module.
+var guardScanDirs = []string{".", "internal/issue", "internal/observe", "../../pkg/markdoc", "../tl-lead"}
 
 // planItemMatchers are the regexes that COUNT plan items. Any function using one
 // is by definition a plan-item reader and must take its body from
@@ -328,10 +332,10 @@ var planItemMatchers = []string{
 // derivation never classes it as a reader. An entry added for it was rejected by
 // the stale check on exactly that ground.
 var planItemReaderExemptions = map[string]string{
-	"internal/issue/plan.go:MilestonesInPlanOrder": "a PURE helper that RECEIVES an already-filtered plan body. " +
+	"../../pkg/markdoc/plan.go:MilestonesInPlanOrder": "a PURE helper that RECEIVES an already-filtered plan body. " +
 		"Exempt here; its callers are derived readers instead, because MilestonesInPlanOrder is itself " +
 		"in planItemMatchers (#231 BR-4) — so each must obtain its body from PlanItemsBody",
-	"internal/issue/plan.go:TickedMilestones": "a PURE helper that RECEIVES an already-filtered plan body, " +
+	"../../pkg/markdoc/plan.go:TickedMilestones": "a PURE helper that RECEIVES an already-filtered plan body, " +
 		"as MilestonesInPlanOrder does (#279); it is in planItemMatchers, so its callers are derived " +
 		"readers and must obtain that body from PlanItemsBody",
 }
@@ -462,20 +466,42 @@ func qualifiedFile(dir, path string) string {
 // guards exist to prevent, one level up: a population defined by a list rather
 // than by the tree.
 //
-// Fully deriving the scope would mean walking every package under cmd/sdlc on
-// every run. Instead this asserts the LIST is complete for the property that
-// matters: no package outside guardScanDirs references a plan-counting regex.
-// When one does, this fails and names it, and the fix is one entry.
+// Fully deriving the scope would mean parsing every package on every run.
+// Instead this asserts the LIST is complete for the property that matters: no
+// package anywhere in the module (not only under cmd/sdlc: the scanners moved to
+// pkg/markdoc and tl-lead reads plans too, #350) outside guardScanDirs
+// references a plan-counting regex. When one does, this fails and names it, and
+// the fix is one entry.
 func TestGuardScopeCoversEveryPackage(t *testing.T) {
+	// Compared as absolute paths: guardScanDirs is relative to cmd/sdlc, the
+	// walk to the module root.
+	abs := func(p string) string {
+		a, err := filepath.Abs(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return a
+	}
 	scanned := map[string]bool{}
 	for _, d := range guardScanDirs {
-		scanned[filepath.Clean(d)] = true
+		scanned[abs(d)] = true
 	}
-	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+	moduleRoot := filepath.Join("..", "..")
+	err := filepath.Walk(moduleRoot, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
 			return nil
 		}
-		dir := filepath.Clean(filepath.Dir(path))
+		if info.IsDir() {
+			switch info.Name() {
+			case ".git", "workshop", "testdata", "node_modules", "bin":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		dir := abs(filepath.Dir(path))
 		if scanned[dir] {
 			return nil
 		}

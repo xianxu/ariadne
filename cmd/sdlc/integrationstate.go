@@ -44,6 +44,13 @@ func transitionIntegration(s integrationState, e integrationEvent) (integrationS
 	}
 	switch e.kind {
 	case integrationMainObserved, integrationGatesChecked:
+		if e.kind == integrationMainObserved && s.phase == integrationPush {
+			s.main = e.main
+			if !e.included {
+				s.phase = integrationRetryReset
+			}
+			return s, s.phase, nil
+		}
 		if s.phase != integrationGates && !(e.kind == integrationMainObserved && s.phase == integrationMerge) {
 			return invalid()
 		}
@@ -99,11 +106,17 @@ func transitionIntegration(s integrationState, e integrationEvent) (integrationS
 		}
 		s.phase = integrationRefuse
 	case integrationRecoveryCompleted:
-		if s.phase != integrationAbort && s.phase != integrationReset {
+		if s.phase != integrationAbort && s.phase != integrationReset && s.phase != integrationRetryReset {
 			return invalid()
 		}
 		s.head = s.oldHead
-		s.phase = integrationRefuse
+		if s.phase == integrationRetryReset {
+			s.attempts++
+			s.resume = false
+			s.phase = integrationGates
+		} else {
+			s.phase = integrationRefuse
+		}
 	case integrationPushFailed:
 		if s.phase != integrationPush {
 			return invalid()

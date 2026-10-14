@@ -19,8 +19,12 @@ with tempfile.TemporaryDirectory(prefix='portable make ') as tmp:
         assert result.returncode==code,result.stdout
     make(owner,'tools')
     rows=(root/'events').read_text().splitlines()
-    assert len(rows)==4,rows
-    assert {p.name for p in (owner/'bin').iterdir()}=={'sdlc','datatype','vocabulary','doc-review'},rows
+    # Every owned cmd/ tool except the separately distributed weave gateway;
+    # derived from the tree, so a new binary can't leave a stale hand list here.
+    tools={d.name for d in (source/'cmd').iterdir() if d.is_dir() and d.name!='weave'}
+    assert len(tools)>=4,tools
+    assert len(rows)==len(tools),rows
+    assert {p.name for p in (owner/'bin').iterdir()}==tools,rows
     assert all(row.startswith(f'go:{owner}:build -o bin/') for row in rows),rows
     leaf=root/'leaf'; leaf.mkdir()
     # The consumer authors its own root and needs no ariadne source build rules.

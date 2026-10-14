@@ -130,7 +130,7 @@ One paragraph: what was attempted, what landed, what got deferred.
 - (optional; recommended for multi-day issues) name + ~time + commit ref
 ```
 
-## Reading a section (`internal/issue/fence.go`, #211)
+## Reading a section (`pkg/markdoc/fence.go`, #211; moved from `internal/issue` in #350, which still forwards the names)
 
 Issue bodies are parsed by ONE fence-aware scanner. `FenceSpans` classifies each
 line as inside or outside a fenced code block; `ScanMarkdownLines` visits the

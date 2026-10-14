@@ -50,6 +50,7 @@ import (
 // mergeFlags holds the parsed flag values for the merge subcommand.
 type mergeFlags struct {
 	Context    context.Context
+	Lock       func(func() error) error
 	Branch     string
 	Yes        bool
 	NoJudge    bool
@@ -59,6 +60,13 @@ type mergeFlags struct {
 	IssuesDir  string
 	HistoryDir string
 	PlansDir   string
+}
+
+func (f *mergeFlags) withLock(run func() error) error {
+	if f.Lock == nil { // Direct package tests supply an unlocked runner.
+		return run()
+	}
+	return f.Lock(run)
 }
 
 // mergeRunner is the package-level runner for merge (test seam). Type
@@ -96,7 +104,7 @@ func (stdinPrompter) Ask(question string, w io.Writer) string {
 // NewMergeCmd returns the cobra command for `sdlc merge`.
 func NewMergeCmd() *cobra.Command {
 	f := mergeFlags{}
-	cmd := markMutatingCommand(&cobra.Command{
+	cmd := markManualLockCommand(&cobra.Command{
 		Use:           "merge",
 		Short:         "Merge the current branch (in-place or worktree) via GitHub PR, archive done issues, clean up",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"merge\") in main.go.",
@@ -105,6 +113,7 @@ func NewMergeCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			guardSpineRepo(cmd.ErrOrStderr()) // #176 lifecycle guard
 			f.Context = cmd.Context()
+			f.Lock = func(run func() error) error { return withRequiredRepoTransactionLock(cmd, run) }
 			return runMerge(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
@@ -301,6 +310,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	if branch == "" || branch == "main" {
 		die(stderr, fmt.Sprintf("sdlc merge must be run from a worktree branch (current: %s)", valueOr(branch, "(detached)")))
 	}
+	branchHead := gitx.Capture("rev-parse", "HEAD")
 	cinfo(stderr, fmt.Sprintf("Branch: %s", branch))
 
 	// ── 2. No uncommitted TRACKED changes ───────────────────────────────────
@@ -343,6 +353,11 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 			"  or run it from a terminal.")
 	}
 
+	repo, err := detectRepo()
+	if err != nil {
+		die(stderr, err.Error())
+	}
+
 	// ── 3. Branch pushed + HEAD synced ──────────────────────────────────────
 	// Key off the remote-tracking ref (origin/<branch>), NOT @{u}: a push
 	// updates origin/<branch> even when it can't write the local
@@ -350,21 +365,35 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// `git push` without -u), so requiring @{u} spuriously refuses a branch
 	// that is genuinely pushed (and has an open PR).
 	remoteRef := "origin/" + branch
-	if gitx.Capture("rev-parse", "--verify", "--quiet", remoteRef) == "" {
+	// A completed PR may have deleted its remote branch before this command
+	// could finish local archive/cleanup. Recovery is proven from main below;
+	// an open PR still requires the exact pushed remote head.
+	earlyPR, _ := ghClient.PRListForBranch(repo, branch)
+	earlyMerged := false
+	if earlyPR == "" {
+		earlyMerged, _ = ghClient.PRMergedForBranch(repo, branch)
+	}
+	recoveringMerged := earlyPR == "" && earlyMerged
+	if !recoveringMerged && gitx.Capture("rev-parse", "--verify", "--quiet", remoteRef) == "" {
 		fmt.Fprintf(stderr, "  %s[x]%s %s is not on origin\n", ansiRed, ansiReset, branch)
 		die(stderr, fmt.Sprintf("push the branch first (e.g. sdlc pr, or git push origin %s)", branch))
 	}
 
 	// ── 4. No local commits missing from the remote branch ──────────────────
-	aheadStr := gitx.Capture("rev-list", "--count", remoteRef+"..HEAD")
-	ahead, _ := strconv.Atoi(aheadStr)
+	ahead := 0
+	if !recoveringMerged {
+		aheadStr := gitx.Capture("rev-list", "--count", remoteRef+"..HEAD")
+		ahead, _ = strconv.Atoi(aheadStr)
+	}
 	if ahead > 0 {
 		fmt.Fprintf(stderr, "  %s[x]%s %d local commit(s) not yet on %s\n",
 			ansiRed, ansiReset, ahead, remoteRef)
 		die(stderr, "push your branch before merging — run `git push`, then re-run `sdlc merge`. "+
 			"(merge is server-side: a fix you committed for a failed pre-merge gate must reach origin first.)")
 	}
-	cok(stderr, fmt.Sprintf("Branch pushed; HEAD synced with %s", remoteRef))
+	if !recoveringMerged {
+		cok(stderr, fmt.Sprintf("Branch pushed; HEAD synced with %s", remoteRef))
+	}
 
 	// ── 4.5 Instance-conformance gate (#124) ────────────────────────────────
 	// Deterministic, separate from the judges. Runs after the branch is synced to
@@ -384,7 +413,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// object: the two files have different slugs, so they are different paths and
 	// git merges both cleanly.
 	if !f.NoValidate {
-		if err := refuseDuplicateIssueIDs(stderr, f.IssuesDir, f.HistoryDir, mergeRunner); err != nil {
+		if err := f.withLock(func() error { return refuseDuplicateIssueIDs(stderr, f.IssuesDir, f.HistoryDir, mergeRunner) }); err != nil {
 			die(stderr, err.Error())
 		}
 	}
@@ -405,12 +434,23 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	} else {
 		cwarn(stderr, "--no-judge: skipping the pre-merge publish gate (#160 reviewed-HEAD-unchanged invariant)")
 	}
+	if err := f.withLock(func() error {
+		return revalidateLegacyMerge(branch, branchHead, remoteRef, inPlace, !recoveringMerged, f)
+	}); err != nil {
+		die(stderr, err.Error())
+	}
 
 	// ── 5.5 Tracker ownership (#252) ─────────────────────────────────────────
 	// The server-side merge may squash or rebase, leaving the evidence commits
 	// off main, so the closes this branch owns are selected now, from the
 	// branch, and completed after the landing is pulled.
-	trackerOwned, trackerEnvForMerge, err := branchOwnedCompletions(commandContext(f.Context), f.IssuesDir)
+	var trackerOwned []ownedCompletion
+	var trackerEnvForMerge *trackerEnv
+	err = f.withLock(func() error {
+		var err error
+		trackerOwned, trackerEnvForMerge, err = branchOwnedCompletions(commandContext(f.Context), f.IssuesDir)
+		return err
+	})
 	if err != nil {
 		die(stderr, fmt.Sprintf("tracker completions: %v", err))
 	}
@@ -431,11 +471,6 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		}
 		mainPath = mp
 		cok(stderr, fmt.Sprintf("Main worktree: %s", mainPath))
-	}
-
-	repo, err := detectRepo()
-	if err != nil {
-		die(stderr, err.Error())
 	}
 
 	// ── 7. Show unmerged commits ────────────────────────────────────────────
@@ -504,8 +539,14 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// Same mergeRefusal decision as step 2 (#78); in place, against a freshly
 	// fetched origin/main so main's newer tracker edits refuse here (#196).
 	if inPlace {
-		if out, ferr := mergeRunner.Git("fetch", "origin", "main"); ferr != nil {
-			die(stderr, fmt.Sprintf("git fetch origin main (to check dirty tracker files against it): %v\n%s", ferr, out))
+		if ferr := f.withLock(func() error {
+			out, err := mergeRunner.Git("fetch", "origin", "main")
+			if err != nil {
+				return fmt.Errorf("git fetch origin main (to check dirty tracker files against it): %v\n%s", err, out)
+			}
+			return nil
+		}); ferr != nil {
+			die(stderr, ferr.Error())
 		}
 	}
 	redirty, derr := worktreeDirty(mergeRunner)
@@ -536,10 +577,16 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// error → die (fail-safe: never clean up a branch we couldn't verify).
 	unmergedCount := 0
 	if prNumber == "" && mergedExists {
-		if out, ferr := mergeRunner.Git("fetch", "origin", "main"); ferr != nil {
-			die(stderr, fmt.Sprintf("git fetch origin main (to verify %s is fully merged): %v\n%s", branch, ferr, out))
+		if ferr := f.withLock(func() error {
+			out, err := mergeRunner.Git("fetch", "origin", "main")
+			if err != nil {
+				return fmt.Errorf("git fetch origin main (to verify %s is fully merged): %v\n%s", branch, err, out)
+			}
+			return nil
+		}); ferr != nil {
+			die(stderr, ferr.Error())
 		}
-		n, cerr := countUnmerged(mergeRunner, "origin/main", remoteRef)
+		n, cerr := countUnmerged(mergeRunner, "origin/main", branchHead)
 		if cerr != nil {
 			die(stderr, fmt.Sprintf("couldn't verify %s is fully merged — refusing to clean up: %v", branch, cerr))
 		}
@@ -562,7 +609,12 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		}
 		// The gate decides from main's tree whether the guard's verdict is
 		// required, so it reads a freshly fetched main, never a stale ref.
-		main, err := requireLegacyMainIntegrated(gitCall, head)
+		var main string
+		err := f.withLock(func() error {
+			var err error
+			main, err = requireLegacyMainIntegrated(gitCall, head)
+			return err
+		})
 		if err != nil {
 			die(stderr, err.Error())
 		}
@@ -571,11 +623,23 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		if err := runCIGate(ctx, ghClient, repo, prNum, main, head, gitCall, localRun, f.NoCI, stderr); err != nil {
 			die(stderr, err.Error())
 		}
-		if _, err := requireLegacyMainIntegrated(gitCall, head); err != nil {
-			die(stderr, err.Error())
-		}
-		cinfo(stderr, fmt.Sprintf("Merging PR #%s (%s) into main via GitHub...", prNumber, branch))
-		if err := ghClient.PRMerge(repo, branch, head); err != nil {
+		if err := f.withLock(func() error {
+			if err := revalidateLegacyMerge(branch, branchHead, remoteRef, inPlace, true, f); err != nil {
+				return err
+			}
+			if _, err := requireLegacyMainIntegrated(gitCall, head); err != nil {
+				return err
+			}
+			prHead, err := ghClient.PRHeadOID(ctx, repo, prNum)
+			if err != nil {
+				return err
+			}
+			if prHead != head {
+				return fmt.Errorf("PR head moved during local checks: expected %s, got %s; retry sdlc merge", head, prHead)
+			}
+			cinfo(stderr, fmt.Sprintf("Merging PR #%s (%s) into main via GitHub...", prNumber, branch))
+			return ghClient.PRMerge(repo, branch, head)
+		}); err != nil {
 			die(stderr, err.Error())
 		}
 		merged = true
@@ -597,17 +661,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 				"  Not switching / pulling / archiving / deleting — your %d commit(s) are safe on %s.",
 			branch, unmergedCount, unmergedCount, remoteRef))
 	}
-
-	if merged {
-		// Post-merge local steps — run for both a fresh merge and a resume, and
-		// idempotent either way. In-place: the merge is server-side, so switch
-		// this checkout back to main (a no-op if a prior run already did) before
-		// pulling the merged result.
-		cinfo(stderr, "Fetching and fast-forwarding main...")
-		if atMain, err := materializeMergedMain(ctx, mergeRunner, mainPath, f.IssuesDir, inPlace); err != nil {
-			die(stderr, strandedMessage(branch, err.Error(), inPlace && atMain))
-		}
-	} else {
+	if !merged {
 		cwarn(stderr, fmt.Sprintf("No open or merged PR for branch %s", branch))
 		if inPlace {
 			die(stderr, "no PR for this branch — run `sdlc pr` first, then re-run `sdlc merge` (or `git switch main` to abandon the branch)")
@@ -622,89 +676,134 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 				die(stderr, "aborted by operator")
 			}
 		}
-		// Worktree path: falls through to archive + worktree removal regardless
-		// — the shell does the same. If no unmerged, we silently proceed.
 	}
 
-	// ── 10.5 Publish flip (#160): codecomplete → done on main ────────────────
-	// The merged issues arrive on main at `codecomplete`; flip them to done (the
-	// deterministic publish flip) BEFORE archiving — archiveDoneIssuesInDir keys on
-	// IsTerminal, and codecomplete is active. Actuals were set at close, so the
-	// done-guard holds. The flip is captured by the archive commit below (the
-	// flipped files move to history).
-	// Only a confirmed landing completes a card: a PR merged now, or found merged
-	// on resume. An abandoned branch (removed without merging) completes nothing.
-	if trackerEnvForMerge != nil && merged {
-		out, lerr := mergeRunner.GitInDir(mainPath, "rev-parse", "--verify", "HEAD^{commit}")
-		if lerr != nil {
-			die(stderr, fmt.Sprintf("resolve the landed main commit: %v\n%s", lerr, out))
-		}
-		landed := strings.TrimSpace(string(out))
-		for _, oc := range trackerOwned {
-			if cerr := completeOnCard(trackerEnvForMerge, oc, landed); cerr != nil {
-				die(stderr, fmt.Sprintf("complete #%s on its card: %v\n  retry `sdlc merge` or `sdlc issue recovery reconcile --issue %s`", issue.CLIRef(oc.ID), cerr, issue.CLIRef(oc.ID)))
-			}
-		}
-	}
-	if flipped, ferr := publishCodecompleteIssues(ctx, filepath.Join(mainPath, f.IssuesDir)); ferr != nil {
-		die(stderr, fmt.Sprintf("publish flip (codecomplete → done): %v", ferr))
-	} else if len(flipped) > 0 {
-		cinfo(stderr, fmt.Sprintf("Published %d issue(s): codecomplete → done", len(flipped)))
-	}
-
-	// ── 11. Archive done issues in MAIN worktree ────────────────────────────
-	moves, err := archiveDoneIssuesInDir(ctx, stderr, repo, mainPath, f.IssuesDir, f.HistoryDir, f.PlansDir)
-	if err != nil {
-		die(stderr, err.Error())
-	}
-	if len(moves) > 0 {
-		cinfo(stderr, "Committing archived history in main...")
-		if out, gerr := mergeRunner.GitInDir(mainPath, archiveAddArgs(moves)...); gerr != nil {
-			die(stderr, fmt.Sprintf("git -C %s add: %v\n%s", mainPath, gerr, out))
-		}
-		commitArgs, cerr := archiveCommitArgs(archiveCommitMessage, moves)
-		if cerr != nil {
-			die(stderr, cerr.Error())
-		}
-		if err := verifyArchivedAssetMoves(ctx, mainPath, moves); err != nil {
+	return f.withLock(func() error {
+		if err := revalidateLegacyMerge(branch, branchHead, remoteRef, inPlace, false, f); err != nil {
 			die(stderr, err.Error())
 		}
-		if out, gerr := mergeRunner.GitInDir(mainPath, commitArgs...); gerr != nil {
-			die(stderr, fmt.Sprintf("git -C %s commit: %v\n%s", mainPath, gerr, out))
+		if merged {
+			// Post-merge local steps — run for both a fresh merge and a resume, and
+			// idempotent either way. In-place: the merge is server-side, so switch
+			// this checkout back to main (a no-op if a prior run already did) before
+			// pulling the merged result.
+			cinfo(stderr, "Fetching and fast-forwarding main...")
+			if atMain, err := materializeMergedMain(ctx, mergeRunner, mainPath, f.IssuesDir, inPlace); err != nil {
+				die(stderr, strandedMessage(branch, err.Error(), inPlace && atMain))
+			}
 		}
-		if out, gerr := mergeRunner.GitInDir(mainPath, "push"); gerr != nil {
-			die(stderr, fmt.Sprintf("git -C %s push: %v\n%s", mainPath, gerr, out))
-		}
-	}
 
-	// ── 12. Cleanup ─────────────────────────────────────────────────────────
-	if inPlace {
-		// Already switched to main + pulled above; just delete the merged branch.
-		cinfo(stderr, fmt.Sprintf("Deleting merged branch %s...", branch))
-		if out, gerr := mergeRunner.Git("branch", "-D", branch); gerr != nil {
+		// ── 10.5 Publish flip (#160): codecomplete → done on main ────────────────
+		// The merged issues arrive on main at `codecomplete`; flip them to done (the
+		// deterministic publish flip) BEFORE archiving — archiveDoneIssuesInDir keys on
+		// IsTerminal, and codecomplete is active. Actuals were set at close, so the
+		// done-guard holds. The flip is captured by the archive commit below (the
+		// flipped files move to history).
+		// Only a confirmed landing completes a card: a PR merged now, or found merged
+		// on resume. An abandoned branch (removed without merging) completes nothing.
+		if trackerEnvForMerge != nil && merged {
+			out, lerr := mergeRunner.GitInDir(mainPath, "rev-parse", "--verify", "HEAD^{commit}")
+			if lerr != nil {
+				die(stderr, fmt.Sprintf("resolve the landed main commit: %v\n%s", lerr, out))
+			}
+			landed := strings.TrimSpace(string(out))
+			for _, oc := range trackerOwned {
+				if cerr := completeOnCard(trackerEnvForMerge, oc, landed); cerr != nil {
+					die(stderr, fmt.Sprintf("complete #%s on its card: %v\n  retry `sdlc merge` or `sdlc issue recovery reconcile --issue %s`", issue.CLIRef(oc.ID), cerr, issue.CLIRef(oc.ID)))
+				}
+			}
+		}
+		if flipped, ferr := publishCodecompleteIssues(ctx, filepath.Join(mainPath, f.IssuesDir)); ferr != nil {
+			die(stderr, fmt.Sprintf("publish flip (codecomplete → done): %v", ferr))
+		} else if len(flipped) > 0 {
+			cinfo(stderr, fmt.Sprintf("Published %d issue(s): codecomplete → done", len(flipped)))
+		}
+
+		// ── 11. Archive done issues in MAIN worktree ────────────────────────────
+		moves, err := archiveDoneIssuesInDir(ctx, stderr, repo, mainPath, f.IssuesDir, f.HistoryDir, f.PlansDir)
+		if err != nil {
+			die(stderr, err.Error())
+		}
+		if len(moves) > 0 {
+			cinfo(stderr, "Committing archived history in main...")
+			if out, gerr := mergeRunner.GitInDir(mainPath, archiveAddArgs(moves)...); gerr != nil {
+				die(stderr, fmt.Sprintf("git -C %s add: %v\n%s", mainPath, gerr, out))
+			}
+			commitArgs, cerr := archiveCommitArgs(archiveCommitMessage, moves)
+			if cerr != nil {
+				die(stderr, cerr.Error())
+			}
+			if err := verifyArchivedAssetMoves(ctx, mainPath, moves); err != nil {
+				die(stderr, err.Error())
+			}
+			if out, gerr := mergeRunner.GitInDir(mainPath, commitArgs...); gerr != nil {
+				die(stderr, fmt.Sprintf("git -C %s commit: %v\n%s", mainPath, gerr, out))
+			}
+			if out, gerr := mergeRunner.GitInDir(mainPath, "push"); gerr != nil {
+				die(stderr, fmt.Sprintf("git -C %s push: %v\n%s", mainPath, gerr, out))
+			}
+		}
+
+		// ── 12. Cleanup ─────────────────────────────────────────────────────────
+		if inPlace {
+			// Already switched to main + pulled above; just delete the merged branch.
+			cinfo(stderr, fmt.Sprintf("Deleting merged branch %s...", branch))
+			if out, gerr := mergeRunner.Git("branch", "-D", branch); gerr != nil {
+				cwarn(stderr, fmt.Sprintf("git branch -D %s: %v\n%s", branch, gerr, out))
+			}
+			cok(stderr, "Done. You are on main.")
+			return nil
+		}
+
+		cinfo(stderr, fmt.Sprintf("Removing worktree at %s...", wtPath))
+		// Run worktree remove + branch delete from the MAIN worktree, since
+		// removing the current worktree from within itself is undefined.
+		// Best-effort (matches shell `|| true`).
+		if out, gerr := mergeRunner.GitInDir(mainPath, "worktree", "remove", wtPath); gerr != nil {
+			cwarn(stderr, fmt.Sprintf("git worktree remove %s: %v\n%s", wtPath, gerr, out))
+		}
+		if out, gerr := mergeRunner.GitInDir(mainPath, "branch", "-D", branch); gerr != nil {
 			cwarn(stderr, fmt.Sprintf("git branch -D %s: %v\n%s", branch, gerr, out))
 		}
-		cok(stderr, "Done. You are on main.")
+		// .goto in the soon-to-be-removed worktree points back to main, so
+		// `g` after re-creating the dir lands the operator in main.
+		gotoPath := filepath.Join(wtPath, ".goto")
+		if err := os.WriteFile(gotoPath, []byte(mainPath), 0o644); err != nil {
+			cwarn(stderr, fmt.Sprintf(".goto write failed: %v", err))
+		}
+		cok(stderr, "Done. Run: g (to cd back to main)")
 		return nil
-	}
+	})
+}
 
-	cinfo(stderr, fmt.Sprintf("Removing worktree at %s...", wtPath))
-	// Run worktree remove + branch delete from the MAIN worktree, since
-	// removing the current worktree from within itself is undefined.
-	// Best-effort (matches shell `|| true`).
-	if out, gerr := mergeRunner.GitInDir(mainPath, "worktree", "remove", wtPath); gerr != nil {
-		cwarn(stderr, fmt.Sprintf("git worktree remove %s: %v\n%s", wtPath, gerr, out))
+// revalidateLegacyMerge protects the older, non-durable merge path each time
+// it reacquires the lock after an unlocked check or confirmation window.
+func revalidateLegacyMerge(branch, head, remoteRef string, inPlace, requireRemote bool, f *mergeFlags) error {
+	if got := gitx.Capture("branch", "--show-current"); got != branch {
+		return fmt.Errorf("branch moved during merge: expected %s, got %s; retry sdlc merge", branch, got)
 	}
-	if out, gerr := mergeRunner.GitInDir(mainPath, "branch", "-D", branch); gerr != nil {
-		cwarn(stderr, fmt.Sprintf("git branch -D %s: %v\n%s", branch, gerr, out))
+	if got := gitx.Capture("rev-parse", "HEAD"); got != head {
+		return fmt.Errorf("HEAD moved during merge: expected %s, got %s; retry sdlc merge", head, got)
 	}
-	// .goto in the soon-to-be-removed worktree points back to main, so
-	// `g` after re-creating the dir lands the operator in main.
-	gotoPath := filepath.Join(wtPath, ".goto")
-	if err := os.WriteFile(gotoPath, []byte(mainPath), 0o644); err != nil {
-		cwarn(stderr, fmt.Sprintf(".goto write failed: %v", err))
+	if requireRemote {
+		if out, err := mergeRunner.Git("fetch", "origin", branch); err != nil {
+			return fmt.Errorf("fetch %s: %v\n%s", branch, err, out)
+		}
+		if got := gitx.Capture("rev-parse", "--verify", remoteRef); got != head {
+			return fmt.Errorf("remote head moved during merge: expected %s, got %s; retry sdlc merge", head, got)
+		}
 	}
-	cok(stderr, "Done. Run: g (to cd back to main)")
+	entries, err := worktreeDirty(mergeRunner)
+	if err != nil {
+		return err
+	}
+	refusal, err := mergeRefusal(mergeRunner, assessDirty(entries, f.IssuesDir, f.HistoryDir), inPlace, "origin/main")
+	if err != nil {
+		return err
+	}
+	if len(refusal) > 0 {
+		return fmt.Errorf("worktree changed during merge: %s; discard or move aside these changes and retry — refusing before the irreversible merge", strings.Join(refusal, ", "))
+	}
 	return nil
 }
 
