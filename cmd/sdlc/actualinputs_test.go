@@ -368,3 +368,45 @@ func TestOwnedActualResolverDoesNotAdoptExcludedCorrection(t *testing.T) {
 		t.Fatalf("excluded sample diagnostic missing: %v", err)
 	}
 }
+
+func TestOwnedActualResolverReconstructsProvenMainIntegrationScope(t *testing.T) {
+	r, cardPath, _, owner, _ := ownedResolverFixture(t)
+	branch := "000335-integrated"
+	testfix.Git(t, r.root, "switch", "-q", "-c", branch)
+	ownedFixtureAt(t, 12)
+	testfix.Git(t, r.root, "commit", "--allow-empty", "-qm", "#335 M1: milestone work")
+	testfix.Git(t, r.root, "switch", "-q", "main")
+	ownedFixtureAt(t, 13)
+	testfix.Git(t, r.root, "commit", "--allow-empty", "-qm", "#999: concurrent main work")
+	base := r.git("rev-parse", "HEAD")
+	testfix.Git(t, r.root, "push", "-q", "origin", "main")
+	testfix.Git(t, r.root, "switch", "-q", branch)
+	ownedFixtureAt(t, 14)
+	testfix.Git(t, r.root, "merge", "--no-ff", "-qm", "Merge remote-tracking branch 'origin/main' into "+branch, "origin/main")
+	head := r.git("rev-parse", "HEAD")
+	ledger := gatestate.Ledger{Gate: "boundary-review", IssueNum: 335, IDPrefix: "BR", Rounds: []gatestate.Round{{N: 1, Boundary: "M1", Timestamp: "2026-10-14T00:12:00Z", Reviewed: r.git("rev-parse", "HEAD^1")}, {N: 2, Timestamp: "2026-10-14T00:14:00Z", Reviewed: head}}}
+	writeRepoFile(t, r.root, "workshop/plans/000335-owned-close-gate.md", gatestate.Render(ledger, "fixture"))
+	testfix.Git(t, r.root, "add", "workshop/plans/000335-owned-close-gate.md")
+	ownedFixtureAt(t, 15)
+	testfix.Git(t, r.root, "commit", "-qm", fmt.Sprintf("#335: close evidence\n\nReview-Verdict: SHIP\nReview-Window: %s..%s", base[:8], head[:8]))
+	evidence := r.git("rev-parse", "HEAD")
+	ownedFixtureAt(t, 16)
+	ownedFixtureCard(t, r, cardPath, "close-final", func(raw []byte) ([]byte, error) {
+		raw, err := issue.SetCardCompletion(raw, issue.Completion{Token: "close-final", Repository: owner.Repository, ReviewedHEAD: head, EvidenceCommit: evidence})
+		if err != nil {
+			return nil, err
+		}
+		raw, err = issue.SetCardField(raw, "actual_hours", "0.5")
+		if err != nil {
+			return nil, err
+		}
+		return issue.SetCardField(raw, "status", "codecomplete")
+	})
+	got, err := resolveOwnedActualInputs(context.Background(), r.root, "", "335", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Scope.BranchPoint != base || got.Scope.Head != head {
+		t.Fatalf("recorded main integration scope=%+v", got.Scope)
+	}
+}

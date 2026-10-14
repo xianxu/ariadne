@@ -74,12 +74,18 @@ func TestActualCorrectionAppendIdempotentAndConflict(t *testing.T) {
 
 func actualCorrectionFixture(t *testing.T) (*trackerRepo, string, issue.Completion, gatestate.MeasurementInputs) {
 	t.Helper()
+	return actualCorrectionFixtureAt(t, "workshop/history")
+}
+
+func actualCorrectionFixtureAt(t *testing.T, archiveDir string) (*trackerRepo, string, issue.Completion, gatestate.MeasurementInputs) {
+	t.Helper()
+	t.Setenv("WF_HISTORY_DIR", "workshop/history")
 	full := []byte("---\nid: 000007\nstatus: done\ncreated: 2026-09-01\nupdated: 2026-09-01\nactual_hours: 0.05\n---\n\n# Seven\n\n## Problem\nReport.\n")
 	card, details, err := issue.SplitCardWithFormat(full, "sha1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := newTrackerRepo(t, map[string]string{card7Path: string(card)}, map[string]string{"workshop/history/000007-seven.md": string(details)})
+	r := newTrackerRepo(t, map[string]string{card7Path: string(card)}, map[string]string{filepath.ToSlash(filepath.Join(archiveDir, "000007-seven.md")): string(details)})
 	env, err := openTracker(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -351,5 +357,45 @@ func TestActualCorrectionAbsentMovedCandidatePreservesReceipt(t *testing.T) {
 	pending, err := store.Load(entry.Token)
 	if err != nil || pending.OID != oid {
 		t.Fatalf("refusal discarded or changed pending evidence: %v", err)
+	}
+}
+
+func TestActualCorrectionStandardArchiveMirror(t *testing.T) {
+	r, _, _, inputs := actualCorrectionFixtureAt(t, "workshop/history/issues")
+	measureActualCorrection = func(context.Context, string, string, string, string, string) actualResult {
+		return actualResult{Status: actualMeasured, Hours: 2.57, Inputs: &inputs}
+	}
+	ctx := context.Background()
+	if err := runActualCorrection(ctx, io.Discard, io.Discard, "workshop/issues", 7, "repair standard archive", r.root, true, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := runActualCorrection(ctx, io.Discard, io.Discard, "workshop/issues", 7, "repair standard archive", r.root, false, false); err != nil {
+		t.Fatal(err)
+	}
+	env, err := openTracker(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := env.repo.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	card, err := snapshot.Require("000007")
+	if err != nil {
+		t.Fatal(err)
+	}
+	view, err := env.main.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mirror, err := view.Read("workshop/history/issues/000007-seven.md")
+	if err != nil || len(mirror) == 0 {
+		t.Fatalf("standard archive missing: %v", err)
+	}
+	if _, err := issue.RefreshMirror(mirror, card.Raw, card.Raw); err != nil {
+		t.Fatalf("standard card/archive disagree: %v", err)
+	}
+	if exists, err := view.Exists("workshop/history/000007-seven.md"); err != nil || exists {
+		t.Fatalf("created legacy copy: %v", err)
 	}
 }

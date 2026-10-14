@@ -224,7 +224,7 @@ func resolveOwnedActualInputs(ctx context.Context, repoTop, brainAbs, issueNum, 
 	}
 	var scope activetime.Scope
 	if completed {
-		scope, err = ownedHistoricalScope(ctx, repoTop, issueNum, completion, ledger)
+		scope, err = ownedHistoricalScope(ctx, repoTop, issueNum, completion, ledger, target.Remote)
 	} else {
 		scope, err = ownedActualScope(ctx, repoTop, head, issueNum, target.Remote, identity.Branch)
 	}
@@ -609,22 +609,20 @@ func ownedReviewWindow(message string) (string, string, error) {
 	return base, head, nil
 }
 
-func ownedHistoricalScope(ctx context.Context, root, issueNum string, completion issue.Completion, ledger gatestate.Ledger) (activetime.Scope, error) {
+func ownedHistoricalScope(ctx context.Context, root, issueNum string, completion issue.Completion, ledger gatestate.Ledger, remotes ...string) (activetime.Scope, error) {
 	scope := activetime.Scope{Head: completion.ReviewedHEAD, Issue: issueNum}
 	finalized := 0
+	multipleBoundaries := false
 	for _, round := range ledger.Rounds {
 		if _, _, ok := cutTimes(round); !ok {
 			continue
 		}
 		if round.Boundary != "" {
-			return scope, fmt.Errorf("historical multi-boundary measurement lacks its original pinned branch point; exclude the sample explicitly")
+			multipleBoundaries = true
 		}
 		if round.Reviewed != "" {
 			finalized++
 		}
-	}
-	if finalized > 1 {
-		return scope, fmt.Errorf("historical re-close measurement lacks its original pinned branch point; exclude the sample explicitly")
 	}
 	message, err := ownedActualGit(ctx, root, "show", "-s", "--format=%B", completion.EvidenceCommit)
 	if err != nil {
@@ -648,8 +646,52 @@ func ownedHistoricalScope(ctx context.Context, root, issueNum string, completion
 	if _, err := ownedActualGit(ctx, root, "merge-base", "--is-ancestor", base, head); err != nil {
 		return scope, fmt.Errorf("historical Review-Window base is not an ancestor of the reviewed head: %w", err)
 	}
+	if multipleBoundaries || finalized > 1 {
+		remote := ""
+		if len(remotes) > 0 {
+			remote = remotes[0]
+		}
+		proven, err := ownedMainIntegrationBase(ctx, root, issueNum, head, base, remote)
+		if err != nil {
+			return scope, err
+		}
+		if !proven {
+			return scope, fmt.Errorf("historical multi-boundary or re-close measurement lacks its original pinned branch point; exclude the sample explicitly")
+		}
+	}
 	scope.BranchPoint = base
 	return scope, nil
+}
+
+// A recorded main integration at the reviewed HEAD proves that a Review-Window
+// base is the issue's main boundary, rather than an earlier milestone head.
+// Both topology and the explicit publication-remote subject must agree.
+func ownedMainIntegrationBase(ctx context.Context, root, issueNum, head, base, remote string) (bool, error) {
+	if remote == "" {
+		return false, nil
+	}
+	metadata, err := ownedActualGit(ctx, root, "show", "-s", "--format=%P%x00%s", head)
+	if err != nil {
+		return false, err
+	}
+	parentsRaw, subject, ok := strings.Cut(metadata, "\x00")
+	if !ok {
+		return false, fmt.Errorf("historical reviewed merge metadata is malformed")
+	}
+	parents := strings.Fields(parentsRaw)
+	if len(parents) != 2 || parents[1] != base {
+		return false, nil
+	}
+	id, err := strconv.Atoi(issueNum)
+	if err != nil {
+		return false, err
+	}
+	prefix := "Merge remote-tracking branch '" + remote + "/main' into "
+	if !strings.HasPrefix(subject, prefix) {
+		return false, nil
+	}
+	branch := strings.TrimPrefix(subject, prefix)
+	return strings.HasPrefix(branch, fmt.Sprintf("%06d-", id)) && !strings.ContainsAny(branch, " \t\r\n"), nil
 }
 
 func uniqueStrings(values []string) []string {

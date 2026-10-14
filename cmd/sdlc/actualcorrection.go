@@ -516,8 +516,13 @@ func runActualCorrection(ctx context.Context, stdout, stderr io.Writer, issuesDi
 	}
 	var mirrorPath string
 	var original []byte
-	for _, dir := range []string{issuesDir, envOr("WF_HISTORY_DIR", "workshop/history")} {
+	seenPaths := map[string]bool{}
+	for _, dir := range issue.IDDirs(issuesDir, envArchiveDirs().History) {
 		p := path.Join(filepath.ToSlash(dir), path.Base(card.Path))
+		if seenPaths[p] {
+			continue
+		}
+		seenPaths[p] = true
 		exists, err := main.Exists(p)
 		if err != nil {
 			return err

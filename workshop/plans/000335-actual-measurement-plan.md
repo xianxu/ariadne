@@ -216,3 +216,13 @@ attribution is introduced. Code belongs to #335; pair data repair follows landin
   count and minutes are persisted, with released intervals clipped out.
 - Ordinary close and correction writers share the existing ledger-directory lock
   to prevent cross-repo read/rewrite and append races. No separate lock family.
+
+### 2026-10-14 — historical repair preflight refinement
+
+The real #454 evidence supplies a narrow additional proof: reviewed HEAD is an
+explicit main-integration merge, and its second parent exactly equals the
+completed Review-Window base. Accept that pinned scope even with named boundaries;
+continue refusing unproved multi-boundary/reclose scope. This is needed to repair
+#454 numerically from retained Git evidence rather than unnecessarily exclude it.
+The #514 dry-run also exposed standard archive lookup, now derived through the
+existing issue-directory authority (active, canonical archive and legacy flat).

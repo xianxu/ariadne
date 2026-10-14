@@ -165,3 +165,15 @@ and dropping milestone's brain forwarding. Recovery namespace checks passed
 0.470s. Exact historical scope and correction-input replay regressions passed.
 Exclusion diagnostics now retain counts and bounded examples instead of flooding
 output with unrelated historical sessions. Full suite is the next checkpoint.
+
+### 2026-10-14 — real repair preflight
+
+Stopped queued make suite before it acquired a slot (exit130, no suite run). The
+#514 dry-run found a missing canonical archive lookup; fixed via issue.IDDirs.
+#454's explicit main-integration merge second parent proves the exact concrete
+Review-Window base, allowing its multi-boundary historical scope without inference
+from current main. Both real fixture regressions observed RED, then the correction
+and ownership/historical/consumer suite passed27.895s. Peer records still unchanged.
+Hub receipt32a83138-00fc-44cc-a4eb-7675539e024d announces #332 landed; next verification
+uses sdlc local-check run --name suite on the pushed integrated commit so merge
+can reuse the recorded pass.
