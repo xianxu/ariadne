@@ -247,5 +247,20 @@ left="$(ls -A "$WS/nous/bin" | grep -v '^nous$')"
 [ -z "$left" ] && ok "no build directory is left behind" || ko "left in bin/: $left"
 [ "$("$WS/nous/bin/nous")" = "built" ] && ok "the last rename installed a whole binary" || ko "final binary is not whole"
 
+# A failed build fails the call without running anything, removes its build
+# directory, and leaves the previous binary in place (rm -f used to destroy it).
+FAILGO="$WS/failbin"; mkdir -p "$FAILGO"
+cat > "$FAILGO/go" <<'STUBEOF'
+#!/bin/sh
+printf '#!/bin/sh\necho partial\n' > "$3"; chmod +x "$3"; echo "compile error" >&2; exit 1
+STUBEOF
+chmod +x "$FAILGO/go"
+fail_out="$(PATH="$FAILGO:$PATH" bash -c "$nous_def; nous" 2>/dev/null)"; fail_rc=$?
+[ "$fail_rc" -ne 0 ] && ok "a failed build fails the call" || ko "a failed build returned 0"
+[ -z "$fail_out" ] && ok "a failed build runs nothing" || ko "a failed build ran: [$fail_out]"
+left="$(ls -A "$WS/nous/bin" | grep -v '^nous$')"
+[ -z "$left" ] && ok "a failed build removes its build directory" || ko "left in bin/ after a failed build: $left"
+[ "$("$WS/nous/bin/nous")" = "built" ] && ok "a failed build keeps the previous binary" || ko "the previous binary was lost"
+
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

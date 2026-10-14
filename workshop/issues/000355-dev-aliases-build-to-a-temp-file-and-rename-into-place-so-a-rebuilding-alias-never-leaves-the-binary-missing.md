@@ -63,3 +63,21 @@ own; the only shared script-test runner is the local-gates `20-ci-workflow-tests
 Correction: the close passed `--no-atlas`, claiming no atlas surface, but
 `atlas/workflow/base-layer.md` restated the old `rm -f` form. Updated it after the close
 (doc-only).
+
+Close review round 1 (FIX-THEN-SHIP; the run itself refused as stale because the atlas
+fix above landed mid-review): two Important, one Minor.
+- Important: the stale `base-layer.md` form, fixed in fac123dd (the same restatement
+  the correction above names).
+- Important: no test for a failed build. Added: a stub go that writes a partial binary
+  and exits 1; the call returns non-zero, runs nothing, leaves no `bin/.X.*`, and the
+  previous `bin/X` still runs (the old `rm -f` form destroyed it).
+- Minor: the Spec's temp-file wording; see Revisions.
+
+## Revisions
+
+- 2026-10-13 — Spec said "build to a temp file beside the target (`bin/.X.tmp.$$`)".
+  Built instead into a per-call `mktemp -d bin/.X.XXXXXX` directory, then `mv -f` over
+  `bin/X`: `go build -o` refuses to overwrite an existing file that is not a Go build
+  output, and `$$` is the parent shell's pid inside the function's subshell, so
+  concurrent calls from one shell would share it. Same filesystem, so the rename stays
+  atomic; the per-call directory gives the uniqueness the Spec asked for.
