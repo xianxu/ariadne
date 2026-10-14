@@ -352,13 +352,27 @@ refresh remains explicit. Resume interrupted landing with
 See [landing and recovery](atlas/workflow/workspace-branching.md#land-and-retain-the-workspace)
 for evidence checks, legacy dependency behavior and the intentionally old baseline.
 
-Merge refuses red or pending CI on the PR head. A repository can declare local
+Merge refuses red CI on the PR head. Durable workspaces wait up to 20 minutes
+for pending CI, integrate a moved main locally, and recheck main before landing
+(up to three integrations); conflicts abort with the paths to resolve. Legacy
+worktrees require manual main integration and refuse pending CI.
+A repository can declare local
 checks in `.sdlc/local-checks.json` on main: `sdlc local-check run --name X`
 runs one on a pushed head under the machine-wide suite lock and records it as
 the commit status `sdlc-local/X`. Merge accepts that recorded pass in place of
 a CI job that never got a runner (never one that ran and failed), requires it
 for checks declared `required`, and runs a missing one itself. See
 [recorded local checks](atlas/workflow/ci-merge-check.md#recorded-local-checks-345).
+
+Run `sdlc local-check run --name suite` on the pushed head before close. Merge
+requires this suite's recorded pass: a declaration named `suite` overrides its
+command, timeout and `weight`, but cannot make it optional. Without a declared
+suite, main's `Makefile` supplies `make test` and `WF_TEST_WEIGHT` when it has a
+test target. The optional declaration `weight` (default 1) reserves that many
+machine-wide suite slots. A passing record on an ancestor remains valid through
+docs-only changes such as close's bookkeeping; code changes require another run.
+When the integrated head's suite fails, merge runs an unrecorded copy on main
+and labels the named failures as introduced or pre-existing in its refusal.
 
 ## Fleet queries
 

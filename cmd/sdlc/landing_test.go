@@ -18,16 +18,19 @@ const landingTestBranch = "000001-procedure"
 
 type landingFakeGH struct {
 	ciSeamGH
-	t          *testing.T
-	remote     string
-	pr         landingPR
-	strategy   string
-	merges     int
-	queryErr   error
-	mergeErr   error
-	afterMerge func()
-	queue      bool
-	checks     []prCheck // nil: the stub's green default (#309)
+	t           *testing.T
+	remote      string
+	pr          landingPR
+	strategy    string
+	merges      int
+	queryErr    error
+	mergeErr    error
+	afterMerge  func()
+	queue       bool
+	checks      []prCheck // nil: the stub's green default (#309)
+	followPush  bool      // integration tests observe the real bare remote
+	headLag     int       // reads before GitHub registers a newly pushed head
+	afterStatus func(string)
 }
 
 func (g *landingFakeGH) PRHeadOID(ctx context.Context, repo string, n int) (string, error) {
@@ -51,7 +54,31 @@ func (g *landingFakeGH) LandingPRs(context.Context, string, string) ([]landingPR
 	if g.queryErr != nil {
 		return nil, g.queryErr
 	}
+	if g.followPush && g.pr.State == "OPEN" {
+		head := git(g.t, g.remote, "rev-parse", "refs/heads/"+g.pr.HeadRef)
+		g.pr.BaseOID = git(g.t, g.remote, "rev-parse", "refs/heads/main")
+		if head != g.pr.HeadOID {
+			if g.headLag > 0 {
+				g.headLag--
+			} else {
+				g.pr.HeadOID = head
+				if g.ci != nil {
+					g.ci.setHead(g.pr.Number, head)
+				}
+			}
+		}
+	}
 	return []landingPR{g.pr}, nil
+}
+
+func (g *landingFakeGH) PostStatus(ctx context.Context, repo, sha, statusContext, state, desc string) error {
+	if err := g.ciSeamGH.PostStatus(ctx, repo, sha, statusContext, state, desc); err != nil {
+		return err
+	}
+	if statusContext == localStatusContext(suiteCheckName) && g.afterStatus != nil {
+		g.afterStatus(sha)
+	}
+	return nil
 }
 func (g *landingFakeGH) LandingMerge(_ context.Context, repo string, n int, head string) error {
 	if head != g.pr.HeadOID || n != g.pr.Number || repo != g.pr.Repo {

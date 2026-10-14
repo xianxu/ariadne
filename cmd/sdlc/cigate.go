@@ -12,13 +12,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
 // prCheck is one check GitHub reports on a PR's head, as `gh pr checks` buckets it.
@@ -72,6 +73,10 @@ type ciInputs struct {
 	HeadHasWorkflows bool
 	Local            localCheckDecl
 	Runnerless       map[string]bool
+	// RecordedAncestors names local checks with a passing record on an
+	// ancestor of the head whose difference from it is docs-only (#332):
+	// close's own commits do not invalidate the suite run before close.
+	RecordedAncestors map[string]bool
 }
 
 // isCommitStatus reports whether a check is a commit status rather than a check
@@ -93,6 +98,11 @@ func decideCIGate(in ciInputs) ciVerdict {
 	for _, c := range in.Checks {
 		if c.Bucket == "pass" && isCommitStatus(c) {
 			recorded[c.Name] = true
+		}
+	}
+	for name, ok := range in.RecordedAncestors {
+		if ok {
+			recorded[localStatusContext(name)] = true
 		}
 	}
 	var v ciVerdict
@@ -197,7 +207,7 @@ func (v ciVerdict) refusal(pr int) error {
 		b.WriteString("\n  → wait for the checks (`gh pr checks " + strconv.Itoa(pr) + " --watch`), then re-run `sdlc merge`.")
 		b.WriteString("\n  A repository whose workflows never run on PRs stays pending here; only then is `--no-ci` the answer.")
 	}
-	return errors.New(b.String())
+	return &ciGateError{Reason: v.Reason, Message: b.String()}
 }
 
 func checkLabel(c prCheck) string {
@@ -298,6 +308,36 @@ func (realGH) PostStatus(ctx context.Context, repo, sha, statusContext, state, d
 	return err
 }
 
+func (realGH) CommitStatuses(ctx context.Context, repo, sha string) (map[string]string, error) {
+	if !landingRepoValid(repo) || !landingOIDValid(sha) {
+		return nil, fmt.Errorf("ci gate: invalid repository or commit")
+	}
+	out, err := runLandingGH(ctx, "api", "repos/"+repo+"/commits/"+sha+"/statuses?per_page=100")
+	if err != nil {
+		return nil, err
+	}
+	return parseCommitStatuses(out)
+}
+
+// parseCommitStatuses reads GitHub's status list, newest first: the first
+// state seen for a context is its current one.
+func parseCommitStatuses(data []byte) (map[string]string, error) {
+	var list []struct {
+		Context string `json:"context"`
+		State   string `json:"state"`
+	}
+	if err := json.Unmarshal(data, &list); err != nil {
+		return nil, fmt.Errorf("decode commit statuses: %w", err)
+	}
+	out := map[string]string{}
+	for _, s := range list {
+		if _, seen := out[s.Context]; !seen && s.Context != "" {
+			out[s.Context] = s.State
+		}
+	}
+	return out, nil
+}
+
 func (realGH) PRComment(ctx context.Context, repo string, number int, body string) error {
 	if !landingRepoValid(repo) || number <= 0 {
 		return fmt.Errorf("local check: invalid repository or PR number")
@@ -339,6 +379,19 @@ func headHasWorkflows(git func(args ...string) (string, error), head string) (bo
 // localCheckRunner runs one declared local check on sha and records it
 // (runLocalCheck bound to a checkout). nil: the gate names the run instead.
 type localCheckRunner func(ctx context.Context, c localCheck, sha string) (localRunRecord, error)
+
+// localCheckFailure carries a completed failed run to landing so the suite can
+// be compared with the same check on main. The failed head's status is already
+// recorded; this error does not authorize any landing.
+type localCheckFailure struct {
+	Check localCheck
+	Run   localRunRecord
+	Head  string
+}
+
+func (e *localCheckFailure) Error() string {
+	return fmt.Sprintf("CI gate: local check %s failed on %s (%s); log %s\n  → fix it and push, then re-run `sdlc merge`", e.Check.Name, abbrevSHA(e.Head), e.Run.statusDescription(), e.Run.LogPath)
+}
 
 // newLocalCheckRunner binds runLocalCheck to a checkout for the CI gate.
 func newLocalCheckRunner(d localRunDeps) localCheckRunner {
@@ -389,11 +442,101 @@ func runnerlessChecks(ctx context.Context, gh ghCaller, repo string, checks []pr
 	return out, nil
 }
 
+// unrecordedRequired names the required local checks with no passing record
+// on the head itself.
+func unrecordedRequired(decl localCheckDecl, checks []prCheck) []string {
+	var out []string
+	for _, c := range decl.Checks {
+		if !c.Required {
+			continue
+		}
+		recorded := false
+		for _, ch := range checks {
+			if ch.Name == localStatusContext(c.Name) && ch.Bucket == "pass" && isCommitStatus(ch) {
+				recorded = true
+			}
+		}
+		if !recorded {
+			out = append(out, c.Name)
+		}
+	}
+	return out
+}
+
+// splitNUL splits git's -z output.
+func splitNUL(out string) []string {
+	var paths []string
+	for _, p := range strings.Split(out, "\x00") {
+		if p = strings.TrimSpace(p); p != "" {
+			paths = append(paths, p)
+		}
+	}
+	return paths
+}
+
+// localAncestorLimit bounds the walk for a record on an ancestor.
+const localAncestorLimit = 30
+
+// localRecordsOnAncestors finds, for each named check, a passing record on a
+// first-parent ancestor of head whose difference from head is docs-only (the
+// publish gate's line: embedded docs count as code). The walk stops at the
+// first ancestor with a code difference: an older one only differs by more.
+func localRecordsOnAncestors(ctx context.Context, gh ghCaller, repo string, git func(args ...string) (string, error), head, base string, names []string) (map[string]bool, error) {
+	found := map[string]bool{}
+	if len(names) == 0 {
+		return found, nil
+	}
+	mb, err := git("merge-base", head, base)
+	if err != nil {
+		return nil, fmt.Errorf("merge base of %s and %s: %w", abbrevSHA(head), base, err)
+	}
+	parents, err := git("rev-list", "--parents", "--max-count=1", head)
+	if err != nil {
+		return nil, fmt.Errorf("parents of %s: %w", abbrevSHA(head), err)
+	}
+	if len(strings.Fields(parents)) == 0 {
+		return nil, fmt.Errorf("parents of %s: git returned no commit", abbrevSHA(head))
+	}
+	if len(strings.Fields(parents)) == 1 {
+		return found, nil // a root commit has no ancestor to inherit from
+	}
+	out, err := git("rev-list", "--first-parent", fmt.Sprintf("--max-count=%d", localAncestorLimit), head+"~1", "--not", strings.TrimSpace(mb))
+	if err != nil {
+		return nil, fmt.Errorf("ancestors of %s: %w", abbrevSHA(head), err)
+	}
+	for _, a := range strings.Fields(out) {
+		diff, err := git(gitx.ChangedPathArgs(a, head)...)
+		if err != nil {
+			return nil, err
+		}
+		if publishGateHasCodeSurface(splitNUL(diff)) {
+			break
+		}
+		statuses, err := gh.CommitStatuses(ctx, repo, a)
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range names {
+			if statuses[localStatusContext(n)] == "success" {
+				found[n] = true
+			}
+		}
+		if len(found) == len(names) {
+			break
+		}
+	}
+	return found, nil
+}
+
 // runCIGate reads PR number's checks and refuses unless they are green. A query
 // failure refuses too: unable to read is not green. noCI waives only this gate.
 // A declared local check the verdict needs (#345) runs through run, on head, and
 // the checks are read again before the gate passes.
 func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, head string, git func(args ...string) (string, error), run localCheckRunner, noCI bool, stderr io.Writer) error {
+	return runPreparedCIGate(ctx, gh, repo, number, base, head, git, run, noCI, stderr, nil)
+}
+
+func runPreparedCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, head string, git func(args ...string) (string, error), run localCheckRunner, noCI bool, stderr io.Writer, facts *ciGateFacts) error {
 	if noCI {
 		cwarn(stderr, "⚠️  --no-ci: SKIPPING the CI gate (#309) — landing without reading the PR's checks. Escape hatch for a broken CI system: say why in your log.")
 		return nil
@@ -404,14 +547,14 @@ func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, 
 	unread := func(what string, err error) error {
 		return fmt.Errorf("CI gate: could not read PR #%d's %s (refusing; unread is not green): %w\n  → retry, or --no-ci if the CI system itself is broken", number, what, err)
 	}
-	hasWF, err := headHasWorkflows(git, head)
-	if err != nil {
-		return fmt.Errorf("CI gate: %w", err)
+	if facts == nil {
+		var err error
+		facts, err = prepareCIGateFactsContext(ctx, git, base, head)
+		if err != nil {
+			return err
+		}
 	}
-	decl, err := readLocalChecks(git, base)
-	if err != nil {
-		return fmt.Errorf("CI gate: %w\n  → fix the declaration on main (it is under the local-gates guard)", err)
-	}
+	decl, hasWF, required := facts.decl, facts.hasWorkflows, facts.required
 	read := func() ([]prCheck, ciVerdict, error) {
 		before, err := gh.PRHeadOID(ctx, repo, number)
 		if err != nil {
@@ -432,15 +575,15 @@ func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, 
 		if err != nil {
 			return nil, ciVerdict{}, unread("Actions job", err)
 		}
-		return checks, decideCIGate(ciInputs{Checks: checks, HeadHasWorkflows: hasWF, Local: decl, Runnerless: runnerless}), nil
+		ancestors, err := localRecordsOnAncestors(ctx, gh, repo, git, head, base, unrecordedRequired(decl, checks))
+		if err != nil {
+			return nil, ciVerdict{}, unread("local check records", err)
+		}
+		return checks, decideCIGate(ciInputs{Checks: checks, HeadHasWorkflows: hasWF, Local: decl, Runnerless: runnerless, RecordedAncestors: ancestors}), nil
 	}
 	checks, v, err := read()
 	if err != nil {
 		return err
-	}
-	required, err := requiredChecks(git, base)
-	if err != nil {
-		return fmt.Errorf("CI gate: %w", err)
 	}
 	missing := func(checks []prCheck) error {
 		for _, name := range required {
@@ -464,7 +607,7 @@ func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, 
 				return fmt.Errorf("CI gate: %w", err)
 			}
 			if !rec.passed() {
-				return fmt.Errorf("CI gate: local check %s failed on %s (%s); log %s\n  → fix it and push, then re-run `sdlc merge`", name, abbrevSHA(head), rec.statusDescription(), rec.LogPath)
+				return &localCheckFailure{Check: c, Run: rec, Head: head}
 			}
 		}
 		// The run took minutes: read again, so a push or a new failure since

@@ -38,7 +38,10 @@ import (
 // the verb needs the tracker; legacy keeps a legacy repository's local-only
 // verbs working offline, as they did before #252.
 func repositoryTracked(ctx context.Context, dir string) (bool, error) {
-	root := repoRootOf(dir)
+	root := repoRootOfContext(commandContext(ctx), dir)
+	if err := commandContext(ctx).Err(); err != nil {
+		return false, err
+	}
 	if root == "" {
 		return false, nil
 	}

@@ -356,7 +356,7 @@ func legacyCloseAnchors(env *migrateEnv, main string, branches []string, issuePa
 			if onMain {
 				span = main + "..." + ref
 			}
-			changed, err := env.git("diff", "--name-only", "-z", span)
+			changed, err := env.git(gitx.ChangedPathArgs(span, "")...)
 			if err != nil {
 				return nil, err
 			}

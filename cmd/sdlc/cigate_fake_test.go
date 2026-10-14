@@ -102,6 +102,16 @@ func (g *ciFakeGH) PostStatus(_ context.Context, _, sha, statusContext, state, _
 	return nil
 }
 
+func (g *ciFakeGH) CommitStatuses(_ context.Context, _ string, sha string) (map[string]string, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	out := map[string]string{}
+	for c, st := range g.statuses[sha] {
+		out[c] = st
+	}
+	return out, nil
+}
+
 func (g *ciFakeGH) PRComment(_ context.Context, _ string, number int, body string) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -128,6 +138,13 @@ func (g ciSeamGH) PostStatus(ctx context.Context, repo, sha, statusContext, stat
 		return g.stubGH.PostStatus(ctx, repo, sha, statusContext, state, desc)
 	}
 	return g.ci.PostStatus(ctx, repo, sha, statusContext, state, desc)
+}
+
+func (g ciSeamGH) CommitStatuses(ctx context.Context, repo, sha string) (map[string]string, error) {
+	if g.ci == nil {
+		return g.stubGH.CommitStatuses(ctx, repo, sha)
+	}
+	return g.ci.CommitStatuses(ctx, repo, sha)
 }
 
 func (g ciSeamGH) PRComment(ctx context.Context, repo string, n int, body string) error {

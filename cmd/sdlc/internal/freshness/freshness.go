@@ -20,6 +20,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
 // ConfigPath is the repository's freshness configuration, relative to its root.
@@ -126,7 +128,7 @@ func Check(git Git, mainRef, head string, cutoff time.Time, isCode func([]string
 	if err != nil {
 		return inconclusive("merge-base with "+short(r.Required), err)
 	}
-	names, err := git("diff", "--name-only", "-z", strings.TrimSpace(string(base)), r.Required, "--")
+	names, err := git(append(gitx.ChangedPathArgs(strings.TrimSpace(string(base)), r.Required), "--")...)
 	if err != nil {
 		return inconclusive("diff to "+short(r.Required), err)
 	}

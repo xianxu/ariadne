@@ -328,16 +328,20 @@ func readReviewedHead(issuePath, plansDir string, pick func(gatestate.Ledger) (s
 // the caller turns it into a named branch-patch fallback (D2). stale names a fetch that
 // failed, so the window says it was measured against main as last fetched.
 func reviewMainBase(ctx context.Context, head string) (base, stale string, err error) {
+	if err := ctx.Err(); err != nil {
+		return "", "", err
+	}
 	ref, stale := reviewMainRef(ctx)
 	if ref == "" {
-		if trunk := gitx.TrunkRef(); trunk != "" {
-			if _, err := gitx.SoleMergeBase(trunk, "HEAD"); err != nil {
+		if trunk := gitx.TrunkRefContext(ctx); trunk != "" {
+			if _, err := gitx.SoleMergeBaseContext(ctx, trunk, "HEAD"); err != nil {
 				return "", stale, err
 			}
 		}
-		return gitx.MergeBaseWithMain(), stale, nil
+		base := gitx.MergeBaseWithMainContext(ctx)
+		return base, stale, ctx.Err()
 	}
-	b, err := gitx.SoleMergeBase(ref, "HEAD")
+	b, err := gitx.SoleMergeBaseContext(ctx, ref, "HEAD")
 	if err != nil {
 		return "", stale, err
 	}
@@ -356,7 +360,7 @@ func reviewMainRef(ctx context.Context) (ref, stale string) {
 	// tip and so misses, while repeated calls within one invocation share one fetch.
 	// A root-only key returned the main of the process's first call even after a
 	// later fetch, which pulled main's own changes into the branch patch.
-	key := gitx.Capture("rev-parse", "--show-toplevel") + "@" + gitx.Capture("rev-parse", "-q", "--verify", gitx.TrunkRef())
+	key := gitx.CaptureContext(ctx, "rev-parse", "--show-toplevel") + "@" + gitx.CaptureContext(ctx, "rev-parse", "-q", "--verify", gitx.TrunkRefContext(ctx))
 	root := strings.SplitN(key, "@", 2)[0]
 	reviewMainMu.Lock()
 	defer reviewMainMu.Unlock()
@@ -378,7 +382,7 @@ func reviewMainRef(ctx context.Context) (ref, stale string) {
 	}
 	// The snapshot's fetch just moved the tracking tip: cache under the new key too.
 	reviewMainCache[key] = c
-	reviewMainCache[root+"@"+gitx.Capture("rev-parse", "-q", "--verify", gitx.TrunkRef())] = c
+	reviewMainCache[root+"@"+gitx.CaptureContext(ctx, "rev-parse", "-q", "--verify", gitx.TrunkRefContext(ctx))] = c
 	return c.ref, c.stale
 }
 

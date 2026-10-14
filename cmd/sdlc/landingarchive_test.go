@@ -275,7 +275,7 @@ func TestLandingArchiveFreshRetryAndUnknown(t *testing.T) {
 				}
 			}
 			orig := newLandingArchivePublisher
-			newLandingArchivePublisher = func(string, string) (trunkPublisher, error) { return pub, nil }
+			newLandingArchivePublisher = func(context.Context, string, string) (trunkPublisher, error) { return pub, nil }
 			defer func() { newLandingArchivePublisher = orig }()
 			err = laArchive(root, pr)
 			if unknown {

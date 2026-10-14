@@ -30,6 +30,7 @@ func TestVerbContextsReachTrackerReads(t *testing.T) {
 		"main.withRequiredRepoTransactionLock": true,
 		"gitx.runGitIn":                        true, // the context-free legacy runner
 		"gitx.operationContext":                true, // nil fallback of a context-free TrunkFile
+		"gitx.boundedGitCommand":               true, // nil fallback for existing context-free Git APIs; one bounded execution boundary
 	}
 	dirs := []string{"."}
 	internal, err := filepath.Glob("internal/*")
