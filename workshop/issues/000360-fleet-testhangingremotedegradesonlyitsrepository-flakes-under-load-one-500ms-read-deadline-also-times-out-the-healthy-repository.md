@@ -70,6 +70,7 @@ repository its own deadline rather than one shared budget, decide that here too.
 ## Log
 
 ### 2026-10-13
+- 2026-10-13: closed — Round 1 fixes: atlas sdlc-binary.md tracker-reads paragraph now states the remote budget (local work not counted; hanging remote reads stale, unknown if never fetched); fleet test budget 2s with a 10s elapsed bound (30s hang still separates); run/runRemote share runIn; hanging-remote test hangs 10s so a removed budget fails its assertion (verified) not the test timeout; BoundRemote doc states lifetime spending. go test gitx (TestRemoteBudget*, TestTrunkContext*) and fleet (Hanging|Deadline) green. Earlier evidence: under full-suite load origin/main failed the fleet test 26/100, this branch 0/100; second suite run fleet 84/84 and gitx budget tests 84/84; full suite green but for the #361 weave load flake (untouched code).; review verdict: SHIP
 - 2026-10-13: unclaimed: filed from #353; independent flake, unclaimed for the hub to assign
 
 Filed by ariadne:3 from #353's full suite (unrelated to #353's diff).
