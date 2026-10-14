@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-11
 updated: 2026-10-13
-estimate_hours:
-card_mirror: 'ea1045716f873506fa709d999834a6809bd34561' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 2.35
+card_mirror: '89f3d390ea3abfa5a267585072506bda46e83a45' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T22:09:00-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
 ---
 
 # sdlc merge integrates a moved main itself, then re-runs the suite before landing
