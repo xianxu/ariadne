@@ -53,5 +53,6 @@ flag (e.g. `-i`, `-n`) also needs neutralizing. Add a regression test that sets
 ## Log
 
 ### 2026-10-13
+- 2026-10-13: unclaimed: filed from #353; independent weave fix, unclaimed for the hub to assign
 
 Filed by ariadne:3 from #353's full suite (unrelated to #353's diff).
