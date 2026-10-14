@@ -81,3 +81,68 @@ findings:
     detail: |
       pkg/procgroup/procgrouptest/zombie.go:16-17. It is the only such line in the window.
 ```
+
+---
+
+## Re-review — 2026-10-13T22:04:42-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 361 — weave: TestCompileCancellationStopsLateGeneratorChild flakes under load (generation stage survived retirement) |
+| repo | ariadne |
+| issue file | workshop/issues/000361-weave-testcompilecancellationstopslategeneratorchild-flakes-under-load-generation-stage-survived-retirement.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 6efa1ca100dd86ccaaa5df7df9f6fc30b532259f..9a9dbe53488c896b59aaf0d532994d4a988defc9 |
+| command | sdlc close --issue 361 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-13T22:04:42-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All three prior Minor findings are fixed, and the interdiff adds no new defects. It only changes wording. Two Go comments are reworded, there is one new lessons entry, and two generated review/ledger artifacts are added. There are no code, test or scope changes. The new `## Revisions` entry records the design that was actually delivered, as BR-2 asked. It does not change scope: `## Spec` and `## Done when` are untouched, and the Plan checklist is unchanged.
+
+Done-when: current — the clause (failing path identified, test passes 50x under load, fix fails the test when reverted) is about behaviour, and this window does not change that behaviour. The Revisions entry only changes how the test is built (a real zombie group instead of a seam), not what Done-when asks for.
+
+1. **Strengths**
+   - `pkg/procgroup/procgroup.go:3-6`: the package doc now limits its claim to process-group signals. It also says outright that single-process `kill(pid, 0)` probes (where EPERM means alive) are a different question. That is exactly the distinction BR-1 asked for.
+   - `pkg/procgroup/procgrouptest/zombie.go:16-20`: the comment is reflowed to the same line width as its neighbours. A check finds no line over 80 characters in either file.
+   - `workshop/lessons.md`: the new lesson is a general rule ("prove the test builds the state it names") rather than a one-off note about this incident.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** none new.
+
+5. **Test coverage:** this window changes no behaviour, so no new tests are needed. The regression tests the earlier round checked by reverting the fix are untouched.
+
+6. **Architecture (interdiff only)**
+   - **ARCH-DRY: pass.** Nothing is duplicated. A grep for raw `syscall.Kill(-pgid…)` outside tests finds only `procgroup.Kill` itself and the precondition probe in the `procgrouptest` helper. That probe is test setup, not a second reading of the kernel's answer, so the narrowed "shared reading" claim holds.
+   - **ARCH-PURE: pass.** Only comments changed.
+   - **ARCH-PURPOSE: pass.** Each fix covers the whole class its finding named. The doc-claim fix says where the claim stops, rather than just deleting the word "one". The plan fix is a Revisions entry describing the actual test design.
+
+7. **Plan revision recommendations:** none. The new Revisions entry already makes the plan match the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      procgroup.go:3-6 now scopes the claim to process-group signals and explicitly excludes kill(pid,0) liveness probes; grep confirms no other production group-signal site.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Issue Revisions entry (2026-10-13) records no killGroup seam or fake kill; tests use procgrouptest.ZombieGroup with the kernel's EPERM, which matches the code.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      zombie.go:16-20 reflowed; no line over 80 columns remains in either touched Go file.
+```
