@@ -1,5 +1,6 @@
 // fence.go — the fenced-code-block scanner for LINE-oriented markdown structure
-// in cmd/sdlc (#211): section extraction, heading location, prose word counts.
+// shared by cmd/sdlc and cmd/tl-lead (#211, #350): section extraction, heading
+// location, prose word counts.
 //
 // Before this file the tree had three, and they disagreed:
 //
@@ -22,7 +23,7 @@
 // CommonMark-correct one — moved DOWN into `issue` (project imports issue, so it
 // cannot go the other way), given the one thing it lacked: an explicit
 // unterminated-fence policy.
-package issue
+package markdoc
 
 import (
 	"regexp"

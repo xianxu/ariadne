@@ -192,8 +192,9 @@ nonzero rather than claiming a complete dependency list.
 `make tools` foundation-first, then data mounts and the leaf's generators and
 artifacts. Owner `tools` targets build explicit binaries from tracked sources
 into their own `bin/` and must work before composition. Ariadne builds `sdlc`,
-`datatype`, `vocabulary`, and `doc-review`; it does not rebuild the distributed
-weave gateway as part of `tools`.
+`datatype`, `vocabulary`, `doc-review`, `tl-worker`, and `tl-lead` (the TL skill
+binaries: run `tl-worker --help` or `tl-lead --help`); it does not rebuild the
+distributed weave gateway as part of `tools`.
 
 Child processes receive the layer tool directories on PATH. After compilation,
 weave prints the directories to add to your own shell PATH; startup never edits

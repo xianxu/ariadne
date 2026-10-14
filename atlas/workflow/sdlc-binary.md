@@ -580,14 +580,14 @@ Pure core (`parseRef`, `classifyFamily`) is unit-tested with no IO; the IO seams
 `push`/`merge`/`state` archive logic should migrate onto the same `Discovery()`
 accessor — a DRY consolidation, separate from this resolver.
 
-### Project trains and forecast (`trains.go` + `trainforecast.go` + `projectforecast.go`, #329)
+### Project trains and forecast (`pkg/trains` + `trainforecast.go` + `projectforecast.go`, #329)
 
 A project is a TL's coordination plane with no deadline (#329 retired the #182
 calendar forecast, the throughput baseline and the Phase-A fog/calendar
 ledgers along with `deadline:`/`planned_finish:`). The forecast is derived on
 read and never typed in.
 
-- **Trains parser (`internal/project/trains.go`, pure).** `ParseTrains` reads
+- **Trains parser (`pkg/trains/trains.go`, pure; shared with `tl-lead`, #350; `internal/project` forwards the names).** `ParseTrains` reads
   `## Trains`: a `| Train | Cars… | Slot |` table (a bare `#N` inherits the
   previous car's repo; parentheses are annotations; every separator means "next
   car") and `⇒` edge bullets (prose after a colon is the reason; `~` bullets are

@@ -1,12 +1,22 @@
 ---
 id: 000350
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-13
-updated: 2026-10-13
-estimate_hours:
-card_mirror: 'a88c98687f32f300004793be7d7b3d67f4281e61' # card fields mirrored from issue-cards; edit via sdlc
+updated: 2026-10-14
+estimate_hours: 4.83
+card_mirror: '810a3df925fb6f77bbc238c982efc35547ffe69a' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-13T17:19:46-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 2.20
 ---
 
 # lift the TL skill into ariadne: tl-lead and tl-worker skill binaries (help is the prose), scripts ported to Go, skill stubs
@@ -32,18 +42,141 @@ The ops draft stays the editing surface until this lands, then becomes a pointer
 
 ## Plan
 
-Proposed approach (the implementer refines it into a durable plan; three review boundaries):
+Durable plan: `workshop/plans/000350-lift-the-tl-skill-into-ariadne-tl-lead-and-tl-worker-skill-binaries-help-is-the-prose-scripts-ported-to-go-skill-stubs-plan.md` (three review boundaries):
 
-- [ ] **M1 — tl-worker.** Inventory every worker-facing rule in the ops draft and in TL dispatches (ops `skills-draft/xx-tl/SKILL.md`, "Running batches" dispatch checklist; recent dispatch messages in ops `teams/devinfra/projects/*/project.md` Logs). Sort each into: base layer (AGENTS §15, any Couch-fleet agent), couch skill (messaging mechanics), or `tl-worker` (TL-run fleet only). New `cmd/tl-worker`: `--help` prints the embedded prose (go:embed of a markdown file under the command, the same shape as `sdlc --help`/`couch --skill`). Skill stub under ariadne's skill delivery (weave) pointing at the binary. Couch-side load: coordinate with pair so `couch --prepare` tells a worker slot to load `tl-worker` (a pair issue, filed by the implementer, if Couch needs a change). Tests: the stub names the binary; `--help` contains each rule; AGENTS §15 and the couch skill aren't contradicted.
-- [ ] **M2 — tl-lead prose.** New `cmd/tl-lead`; `--help` prints the lead prose rewritten from the ops draft as current rules and procedure: the eight-step playbook, talking to the operator, dispatch judgment, product stewardship with the operator's two design rules, the smoke loop via `sdlc stage`, attention and load, the project lifecycle. Every reference in full `repo#NNN` form.
-- [ ] **M3 — Go subcommands; retire Python.** `tl-lead status submit|section|thread|owed|seen|trains` replaces `ss.py`/`tl-status.py` (same session-file format, the operator-lock refusal, the owed/fold bookkeeping); `tl-lead trains` replaces `render-trains.py` using `sdlc`'s project parser (shared package, no second parser). Golden tests against the current ops status file and project files; a lock-refusal test. Then the ops draft becomes a pointer (an ops change the TL makes), and the TL switches its own calls over.
+- [x] **M1 — tl-worker.** Inventory every worker-facing rule in the ops draft and in TL dispatches (ops `skills-draft/xx-tl/SKILL.md`, "Running batches" dispatch checklist; recent dispatch messages in ops `teams/devinfra/projects/*/project.md` Logs). Sort each into: base layer (AGENTS §15, any Couch-fleet agent), couch skill (messaging mechanics), or `tl-worker` (TL-run fleet only). New `cmd/tl-worker`: `--help` prints the embedded prose (go:embed of a markdown file under the command, the same shape as `sdlc --help`/`couch --skill`). Skill stub under ariadne's skill delivery (weave) pointing at the binary. Couch-side load: coordinate with pair so `couch --prepare` tells a worker slot to load `tl-worker` (a pair issue, filed by the implementer, if Couch needs a change). Tests: the stub names the binary; `--help` contains each rule; AGENTS §15 and the couch skill aren't contradicted.
+- [x] **M2 — tl-lead prose.** New `cmd/tl-lead`; `--help` prints the lead prose rewritten from the ops draft as current rules and procedure: the eight-step playbook, talking to the operator, dispatch judgment, product stewardship with the operator's two design rules, the smoke loop via `sdlc stage`, attention and load, the project lifecycle. Every reference in full `repo#NNN` form.
+- [x] **M3 — Go subcommands; retire Python.** `tl-lead status submit|section|thread|owed|seen|trains` replaces `ss.py`/`tl-status.py` (same session-file format, the operator-lock refusal, the owed/fold bookkeeping); `tl-lead trains` replaces `render-trains.py` using `sdlc`'s project parser (shared package, no second parser). Golden tests against the current ops status file and project files; a lock-refusal test. Then the ops draft becomes a pointer (an ops change the TL makes), and the TL switches its own calls over.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: skill-or-dispatcher     design=0.6 impl=0.14
+item: skill-or-dispatcher     design=0.8 impl=0.16
+item: cross-cutting-refactor  design=0.3 impl=0.14
+item: greenfield-go-module    design=0.8 impl=0.24
+item: smaller-go-module       design=0.3 impl=0.16
+item: real-api-discovery      design=0.0 impl=0.18
+item: atlas-docs              design=0.1 impl=0.05
+item: milestone-review        design=0.0 impl=0.14
+item: milestone-review        design=0.0 impl=0.14
+item: milestone-review        design=0.0 impl=0.14
+design-buffer: 0.15
+total: 4.83
+```
+
+Items in order: M1 tl-worker (binary, prose, stub, §15 line); M2 tl-lead prose; the markdoc/trains extraction to pkg/; `tl-lead status` over the SessionSync seam with its stateful fake; `tl-lead trains` over the SDLC seam; the couch session-sync live conformance; atlas; three milestone reviews.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Log
 
+
+
+
+
+- 2026-10-14: closed — full make test green (497s, 1335 cmd/sdlc tests + 59 packages) at 60e46246, then targeted tl-lead tests green after the close-review fixes (f1fde220: plan Core concepts match the tree, comments fixed, fence-aware thread splitting mutation-checked); M1-M3 SHIP; tl-worker --help / tl-lead --help print the split prose; xx-tl-worker/xx-tl-lead stubs point at the binaries; AGENTS section 15 loads tl-worker; tl-lead status submit|section|thread|slots|seen|owed|clobbered and trains replace ss.py/render-trains.py (tl-status.py retired), TestOperatorLockRefuses, TL_LEAD_LIVE=1 conformance PASS; live status slots and trains checked. Ops pointer + deleting the Python are the TL ops change after landing.; review verdict: SHIP
+- 2026-10-14: closed M3 — BR-8: TestMilestoneTickRegex (a hand copy of the pre-fix regex) deleted; its boundary cases plus bold forms now drive markdoc.TickMilestone (TestTickMilestoneBoundaries); sweep for other test-local plan-regex copies found none (TestPlanUncheckedDetection already uses production). M3: pkg/markdoc + pkg/trains extraction, tl-lead status/trains over fakes (lock exit 3, stale exit 6, fold seen-and-owed, delivery gap, degraded render), TL_LEAD_LIVE=1 conformance PASS, TickMilestone bold fix; review verdict: SHIP
+- 2026-10-14: closed M2 — cmd/tl-lead help: TestLeadHelpCoversPlaybook (21 topic rows incl. couch --notify per pair#540), TestLeadHelpHasNoNarratives (mutation-checked), TestLeadHelpDoesNotRestateWorker, TestSkillStubsPointAtBinaries (tl-lead stub) pass; weave skills lists xx-tl-lead. --no-atlas: M2 atlas surface (tl-lead row and prose in atlas/workflow/tl-skills.md) landed in 6039a71a, inside the M1 window, which M1 already closed; this window is a comment fix only; review verdict: SHIP
+- 2026-10-14: closed M1 — cmd/tl-worker tests (TestWorkerHelpCarriesEveryRule, TestWorkerHelpDoesNotRestateSection15 now forbidding whole Bash call, TestSkillStubsPointAtBinaries, TestSection15NamesTheBinaries) pass; settingsx passes with ariadne#354 merged; BR-1..BR-5 answered in a4d6e7ef (tool lists in README + 3 atlas pages, live fold refusal in TestSessionSyncConformance PASS, ErrDeliveryGap, degraded off-train render); review verdict: SHIP
 ### 2026-10-13
+
+- Design (plan written): `tl-status.py` is dead (no caller in ops; the draft routes every write through `ss.py` over `couch --session-sync`, which owns the operator-lock refusal, exit 3). It is retired, not ported; `tl-lead status` passes exit 3 through as the lock refusal.
+- ARCH-DRY: sdlc's trains parser (`cmd/sdlc/internal/project/trains.go`) and plan/section/fence scanners (`internal/issue`) are internal to cmd/sdlc; M3 moves them to `pkg/trains` and `pkg/markdoc` with forwarding aliases, so `tl-lead` and sdlc's gates share one parser.
+- `sdlc issue show --json` consumers reject unknown keys, so no milestone field is added to the observation; car status comes from it, the bar from `pkg/markdoc` on the claimant checkout's file, off-train slots from `sdlc fleet inventory --json`.
+- tl-worker load: one AGENTS §15 line (`tl-worker --help` per dispatched item; the hub runs `tl-lead --help`). `couch --prepare` already reloads the context onto the constitution, so no pair change is needed for the load.
+
+- TL (ops:0) approved the plan at 043d866e, all six design calls as proposed (delivery dc0d1c8e, receipt verified).
+
+- M1 inventory (rule → destination). Sources: the ops draft's dispatch checklist ("Running batches"), "Staging", "Landing", "The project directory", and the standing rules in TL dispatches.
+  | Rule | Destination |
+  |---|---|
+  | questions to the hub via couch, never the operator / no in-pane prompt | AGENTS §15 (cited) |
+  | report every outcome to the hub | AGENTS §15 (cited) |
+  | couch/sdlc as the whole Bash call | AGENTS §15 (cited) |
+  | targeted tests while iterating, full suite before close, one heavy suite at a time | AGENTS §5 machine test budget (cited) |
+  | label the slot (publish-description) after claim; verb costs; --message-file | `couch --skill` (cited) |
+  | no permission for tests/suite/headless browser; ask for window, :0, machine, scope | tl-worker |
+  | a cited known failure never ends a suite early (make -k) | tl-worker |
+  | hashes from git rev-parse | tl-worker |
+  | never edit the project file; the TL records | tl-worker |
+  | file follow-ups from the owning slot, or unclaim | tl-worker |
+  | live check of operator-environment features; sdlc stage --build / --clear | tl-worker |
+  | on SHIP land yourself (merge main, sdlc merge --yes, never --no-validate), report PR, stop | tl-worker |
+  | resend an expired/not-dispatched report; uncertain → per couch --skill | tl-worker (cites couch --skill) |
+  | "start fresh", prepare the slot, known-red CI judgment, probes respect the harness | tl-lead (the TL's actions, not the worker's) |
+  No rule needed a couch-skill addition, so no pair issue was filed.
+- M1 built: `cmd/tl-worker` (help.md embedded, cobra root), stub `construct/local/tl-worker`, the §15 load bullet, Makefile `tools`, atlas `workflow/tl-skills.md`. `weave skills` lists `xx-tl-worker`; `construct/dev-aliases.sh --list` lists `tl-worker`. `weave compile` composed AGENTS.md/CLAUDE.md, then stopped at writing `.claude/settings.json` (sandbox-denied path); the `.claude/skills/xx-tl-worker` link lands at this slot's next unsandboxed `weave refresh` (couch --prepare).
+- BLOCKER: `cmd/weave/internal/settingsx` `TestBaseSettingsExcludedVerbsMatchArguments` requires every `cmd/` binary in `.claude/settings.ariadne.json` `sandbox.excludedCommands` as `X *`. That file is local-gates protected (`.claude/settings*.json`); per AGENTS §5 that change is its own issue with operator-held verification. Asked the hub.
+
+- TL: file the settings change separately. Filed ariadne#354 (add `tl-worker *` / `tl-lead *` to excludedCommands), unclaimed for ariadne:4; M1's milestone-close waits for it on main. (`sdlc unclaim --note` refused right after `issue new` on an issue branch: the note needs local details that `issue new` never writes there. Plain unclaim worked; reported to the hub.)
+- The rule-table loader is `pkg/tlrules`, not `cmd/internal`: the settings test treats every `cmd/` directory as a binary that needs a sandbox exemption.
+- M2 section map (ops draft at 17ee62c, unchanged since this session started; pair#540 not landed, so no `couch --notify`):
+  - kept as rules: the model/roles, the eight steps, two modes in ops, the project directory, allocation, talking to the operator (status file and session-sync principles), grooming, dispatch, watching, landing/smoke, staging (TL half), attention, batch edges, fleet traps, two hats, waiting notices.
+  - dropped as narrative: kink/learnings numbers, dated incidents, project-name examples.
+  - dropped as obsolete interim rules: "until ariadne#308" (close ticks in the TL checkout; landed), "until ariadne#318" (sandbox bypass for sends; landed), "until parley.nvim#315" (agent-held lock; done), "until pair#434" (manual prepare; done), "until the machine-wide test lock" (ariadne#346; landed).
+  - moved to tl-worker or cited: the dispatch checklist's worker rules (`tl-worker --help`); session-sync verb semantics, receipts, and peek (`couch --skill`).
+  - changed: the draft's "known-red CI doesn't block a landing" contradicts AGENTS §5 (#309: merge refuses red CI, never `--no-ci`); the prose follows §5.
+
+- M3 built:
+  - `pkg/markdoc` (fence/section/plan scanners) and `pkg/trains` moved out of `cmd/sdlc/internal`; the old names forward, and the corpus test still checks 5345 sections across 878 files. `TestUnterminatedPolicies_DisagreeOnPurpose` stays in `internal/issue` (it pins two issue-package consumers), now in `fence_policy_test.go`. Moving `Edge` across packages made vet flag the unkeyed `Edge{…}` literals in `trainforecast_test.go`; they are keyed now.
+  - `tl-lead status submit|section|thread|trains|seen|owed|clobbered` over the `SessionSync` seam, and `tl-lead trains` over the `SDLC` seam.
+  - The legacy `holder: agent` lock deletion is not ported: parley.nvim#315 is done.
+  - The `.clobbered` diff uses a small LCS line diff (`linediff.go`), since there is no diff library in the module.
+- M3 live conformance (`TL_LEAD_LIVE=1 go test ./cmd/tl-lead -run Conformance`, sandboxed shell): PASS against the real couch.
+  - Checked: read hash, write, stale (exit 6), operator lock (exit 3), status.
+  - Measured by hand first: `couch-owner` is not enforced on write, and `status` on a file owned by this slot lists the slot's real owed deliveries, so the test uses a dummy owner and never folds.
+- M3 measurement against `render-trains.py` on the live ops ariadne-robustness-1 project:
+  - Python 8.0 s. Go 21.8 s with the fleet read before the cars, 13.7 s once it overlaps them. `sdlc fleet inventory` alone is 11.8 s (it reads every repository's claims), and that is now the floor. Accepted as in the envelope for a pass every few minutes; noted in the lead prose.
+  - Output matches Python's, except for these intended differences:
+    - full `repo#id` labels, per the prose rule;
+    - numbered idle slots listed (`pair:4 idle`);
+    - ariadne#350 counted as `M 0/3`, not `tasks 0/3`: Python's regex missed bold `**M1**` rows, while the shared scanner (the close gate's) reads them.
+
+- TL (ops:0, delivery 22fe4bae, receipt verified): the lead prose carries the notify rule now, though pair#540 has not landed. The hub interrupts the operator only for what needs them now (a smoke test ready, a decision, an incident) via `couch --notify`, citing pair#540; everything else waits in the status file. Test row added to `TestLeadHelpCoversPlaybook`.
+
+- Full suite (`make -k test`, 533 s; 12 shards, 1136 cmd/sdlc tests, 52 other packages): three failures.
+  - `settingsx TestBaseSettingsExcludedVerbsMatchArguments`: expected, waiting on ariadne#354.
+  - `cmd/sdlc TestPlanItemReadersUsePlanItemsBody` (mine): the source guard keyed its two exemptions on `internal/issue/plan.go`, and its scope check walked only cmd/sdlc, so it was blind to plan readers in `pkg/markdoc` and `cmd/tl-lead`. Fixed:
+    - `guardScanDirs` now includes `../../pkg/markdoc` and `../tl-lead`, and the exemptions are rekeyed;
+    - `TestGuardScopeCoversEveryPackage` walks the whole module, comparing absolute paths.
+    - Mutation check: dropping `../tl-lead` makes it name `cmd/tl-lead/bar.go`. (ARCH-PURPOSE: the class is "a guard whose population is a directory list", and every list in that guard file now reaches the moved code.)
+  - `weave/internal/startup TestToolsDoubleColonFailurePropagates`: not this branch.
+    - `MAKEFLAGS=k` from my `make -k` reaches the child `make tools`, so the second `tools::` recipe runs after the first fails. It reproduces with `MAKEFLAGS=k go test …` and passes without it.
+    - weave's Tools honors an inherited `-k` in production too. Tracked as ariadne#358 (filed earlier by ariadne:3; ariadne:5 is on it). My ariadne#359 duplicated it, and the TL marked it superseded.
+    - The suite before close runs as plain `make test`.
+
+- Found while closing M1 and M2: `TickMilestone` (now `pkg/markdoc/plan.go`) never ticked a bold row (`- [ ] **M1 — …`), though `milestonePlanRE` counts it, so the closed M1 and M2 stayed unticked. That form appears in 65 rows across the repo. The bug predates this issue, but it blocks this close (the plan check refuses unticked rows) and the code is in the file this issue moved, so it is folded in here.
+  - Fix: the reader and the writer share one `milestoneEmphasis` prefix.
+  - Test: `TestTickMilestoneTicksEveryFormTheReaderCounts`, red before the fix on the bold, italic and in-progress forms.
+  - The `sdlc` that runs is built from ariadne:0, so this branch's fix is not active for its own closes. M1 and M2 (closed in 3ccf9441 and 0b9dbd42) are ticked by hand here, and M3 is ticked by hand after its close.
+
+- Scope revision A built:
+  - `status trains` is gone. `status slots FILE` renders `## Slots` through a `renderedSections` table, which is where `status quota` (ariadne#365) will register.
+  - `trains PROJECT` prints only the trains block, and no longer reads the fleet inventory.
+  - `status thread` works on `###` subsections: it replaces a subsection by heading, or inserts before `### Miscellaneous`, and `--drop` matches heading prefixes.
+  - The lead prose has the 7e7df48 layout and the mutual-focus rule.
+  - Live checks:
+    - `status slots` against a copy of the live status file, kept inside this checkout (it must be in the fleet) and owned by a dummy owner: wrote `## Slots` in 18.4 s, listing every numbered slot plus a free line.
+    - `trains` on ariadne-robustness-1: 10.1 s.
+  - One loss to note for the TL: the hand-written Slots lines carried agent and model notes (for example "(Sol)"), which no sdlc contract exposes. A rendered `## Slots` drops them, so that context moves to the thread.
+
+- Pre-close full suite (plain `make test`, 474 s; 12 shards, 1335 cmd/sdlc tests, 59 other packages): two failures.
+  - `scripts/test TestConstructScripts` (mine, the BR-1 class in shell tests): `portable-makefile.test.sh` asserted the hand list `{sdlc, datatype, vocabulary, doc-review}`. `slot-dependencies.test.sh` carried the same list (it is not in the suite). Both now derive the set from `cmd/` minus the distributed `weave`.
+    - `portable-makefile.test.sh` passes directly, and `go test ./scripts/test/` passes.
+    - `slot-dependencies.test.sh` is a heavy parley acceptance run. Its Python was syntax-checked, not run.
+    - A final sweep for quoted tool-name lists in cmd/, pkg/, scripts/ and construct/ found none left.
+  - `cmd/sdlc TestWaitCIGateBoundsRealMakeProbe`: a timing probe against a real `make`. It passes in isolation (`-count=1`); this branch doesn't touch the CI gate. Load-sensitive under the full suite.
 
 ## Revisions
 
 - 2026-10-13 — the operator: **don't copy stories or lessons** into the binaries' prose. The prose states current
   rules and procedure only; incident history stays in ops learnings, and new kinks are addressed going forward as rule
   changes in the skill binaries (each fix lands as a prose or code change there), not as narratives.
+- 2026-10-14 — scope revision (TL ops:0, delivery 59e83725, receipt verified). Ops commit 7e7df48 restructured the status file after M2 took its prose from 17ee62c. The live file now has `## Needs you`, `## Quota`, `## Threads` (`### Project`, `### Train`, `### Miscellaneous`) and `## Slots`, and no longer has `## Trains` or `## Slots (off-train)`, so `tl-lead status trains` would refuse against it. Folded in before close:
+  - The lead prose lists the new layout plus the mutual-focus rule.
+  - `tl-lead status slots FILE` renders `## Slots` for every numbered slot from the fleet inventory, and replaces `status trains`.
+  - `tl-lead trains PROJECT` stays print-only, for pasting into a `### Project` thread.
+  - A registration point is left for a later `status quota` (from `sdlc usage`, ariadne#365). It is not built now.

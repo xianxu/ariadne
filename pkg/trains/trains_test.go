@@ -1,4 +1,4 @@
-package project
+package trains
 
 import (
 	"reflect"

@@ -17,6 +17,13 @@ Detailed incidents remain in their owning issue or review artifact.
 - When merging or removing concepts, hunt every consumer before deleting a
   symbol. A follow-up issue must not offload the current issue's purpose.
 
+- Moving code to a new package, or adding a `cmd/` binary, changes two
+  populations nothing recomputes. Source guards that scan a directory list
+  silently stop covering the moved code: their exemptions name the old file,
+  and their scope check walks only the old tree. Prose that enumerates the
+  binaries (README, atlas) goes stale. Before the first review, grep the guards
+  for the old path and the docs for a sibling binary's name (#350 BR-1).
+
 ## Guards and proof
 
 - Before shortening a command's transaction lock, enumerate every path that can
@@ -269,6 +276,14 @@ Detailed incidents remain in their owning issue or review artifact.
   long-running reviews so design survives compaction.
 - Stage explicit paths; never let `git add -A` sweep unrelated untracked WIP.
   Verify `change-code` created the intended branch before committing.
+
+- A durable plan's Core concepts table is the current model, not history. A
+  commit that adds, removes or renames an entity, or that lands a scope
+  revision, updates the table and entity notes in that same commit (removed
+  entities marked `deleted`). It also appends a Revisions entry that supersedes
+  by name every earlier claim it voids, including ticked rows whose tests no
+  longer exist. Before a close, grep the plan for each cited test name and
+  identifier against the tree (#350, family plan-core-concepts-drift).
 
 ## Base-layer and data sharp edges
 

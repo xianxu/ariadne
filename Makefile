@@ -20,10 +20,10 @@ help: $(WF_HELP_TARGETS)
 
 # Build this layer's explicit tools from tracked sources. weave itself is a
 # distributed gateway, built separately for development/release.
-.PHONY: tools sdlc-build datatype-build vocabulary-build doc-review-build weave-build vocab-embed
-tools: sdlc-build datatype-build vocabulary-build doc-review-build
+.PHONY: tools sdlc-build datatype-build vocabulary-build doc-review-build tl-worker-build tl-lead-build weave-build vocab-embed
+tools: sdlc-build datatype-build vocabulary-build doc-review-build tl-worker-build tl-lead-build
 
-sdlc-build datatype-build vocabulary-build doc-review-build:
+sdlc-build datatype-build vocabulary-build doc-review-build tl-worker-build tl-lead-build:
 	@mkdir -p bin
 	go build -o bin/$(@:-build=) ./cmd/$(@:-build=)
 
