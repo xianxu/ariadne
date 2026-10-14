@@ -37,7 +37,7 @@ Add the four generated TL skill paths to the existing `.gitignore` skill-link gr
 ## Plan
 
 - [x] Carry the exact four-line generated diff onto this issue branch and verify its scope and ignore matches.
-- [ ] Run the required build and suite, and verify the exact patch before close.
+- [x] Run the required build and suite, and verify the exact patch before close.
 
 Delivery follows the close review: land the PR, repeat `weave refresh` from the resting branch, confirm it stays clean, and report the merge commit.
 
@@ -47,6 +47,7 @@ Delivery follows the close review: land the PR, repeat `weave refresh` from the 
 
 - `weave refresh` on main-slot1 at `7a7223628f1ec78a213ad4dd6ea4f0f9761c9f31` changed only `.gitignore` by the four specified additions. The generated diff was stashed while `start-plan` created this issue branch from main.
 - On the issue branch, `git check-ignore -v` matched each of the four paths to its exact added line. `weave refresh` refuses a branch ahead of main, so the clean-refresh check moves to the resting branch after landing.
+- `make -k tools` passed. The recorded `sdlc local-check run --name suite` passed on `baab3397b68763918c8d530b83df78aebd28b62f`: 12 shards, 1,353 `cmd/sdlc` tests, and 59 other packages. A prior suite run hit an intermittent `cmd/weave` process-death recovery failure; that focused pair of tests passed three repetitions, and the complete rerun passed. The transient GitHub API interruption cleared and the passing result posted.
 
 ## Revisions
 
