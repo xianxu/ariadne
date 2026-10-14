@@ -193,6 +193,7 @@ func TestBoundaryReviewRoundsGetFreshCheckouts(t *testing.T) {
 // Under a fence the argv runs the agent inside sandbox-exec with the source
 // root and git common dir write-denied, and the agent's own sandbox off.
 func TestBoundaryReviewFencedArgvAndStamp(t *testing.T) {
+	pinReviewAgent(t, judge.AgentClaude) // asserts Claude's argv
 	t.Setenv("WF_REVIEW_CHECKOUT_ROOT", t.TempDir())
 	p := boundaryWindow(t)
 	p.PlansDir = t.TempDir()
