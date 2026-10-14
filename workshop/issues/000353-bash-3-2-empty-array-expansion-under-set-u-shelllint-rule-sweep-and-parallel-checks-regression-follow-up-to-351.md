@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "f1596569", done: "eb9e586e"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # bash 3.2 empty-array expansion under set -u: shelllint rule, sweep, and parallel-checks regression (follow-up to #351)
@@ -72,6 +72,8 @@ land first).
 ## Log
 
 ### 2026-10-13
+- 2026-10-13: closed — Round 1 fixes: scripts/test/parallel-checks.test.sh (run by the 20-ci-workflow-tests merge check) 6/6 green: MAX 3 and 1 complete with no unbound variable (1 drives the #351 pids rebuild), 0/abc/-2 refuse exit 1, unwritable TMPDIR refuses; perl-alarm bounded. Mutations: validation removed fails 3/6 (0 and -2 hit the alarm, abc exits 0); #351 unguarded rebuild restored fails 2/6. Shebang -u detection added with tests; isShell reuses shebangNames; plan Revisions records the measured operator set. go test ./pkg/shelllint green incl. repo scan. Earlier evidence unchanged: rule measured on bash 3.2.57, 21 sites guarded, swept scripts run; full suite x3, each with one unrelated load/env flake filed as #358 (MAKEFLAGS=k, deterministic), #360, #361, each passing alone. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-13: flow upgraded quick → full — 149 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - 2026-10-13: unclaimed: filed from #351's close review; unclaimed for whoever the hub assigns
 
 Filed by ariadne:3 from #351's close review (two advisory Minors, one class).
