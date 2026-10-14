@@ -98,6 +98,7 @@
 
 ### 15. Couch Slots
 - In a Couch slot (the environment has `COUCH_TREE` set), the **hub** is the slot Couch started from, where the TL works. Address it as `couch --send-to hub` (#336). If Couch refuses `hub` (an older Couch, or one started outside a checkout), use the slot that dispatched your work. With neither, these rules don't apply. The hub itself skips them.
+- **Load the fleet rules** (#350): at the start of each dispatched item, run `tl-worker --help` and follow it; the hub runs `tl-lead --help` instead. If the binary is not installed, tell the hub and continue under these rules.
 - **Report every item's outcome to the hub**, whoever started the work, the hub by dispatch or the operator by hand: landed (with the PR), blocked (on what), or waiting for the operator (on what). Send one message per outcome, not progress chatter.
 - **Ask the hub, not an in-pane question prompt.** An in-pane prompt blocks silently until Couch's waiting notice. The hub answers what it can and brings the operator in when the call is theirs. Use an in-pane prompt only while the operator is shaping the work live in that slot.
 - **Call `couch` and `sdlc` as the whole Bash call** (#334, #336). Only that form matches the sandbox exemption, and a sandboxed `couch --send-to` can't reach the supervisor's socket. Measured:

@@ -81,6 +81,27 @@ Items in order: M1 tl-worker (binary, prose, stub, §15 line); M2 tl-lead prose;
 
 - TL (ops:0) approved the plan at 043d866e, all six design calls as proposed (delivery dc0d1c8e, receipt verified).
 
+- M1 inventory (rule → destination). Sources: the ops draft's dispatch checklist ("Running batches"), "Staging", "Landing", "The project directory", and the standing rules in TL dispatches.
+  | Rule | Destination |
+  |---|---|
+  | questions to the hub via couch, never the operator / no in-pane prompt | AGENTS §15 (cited) |
+  | report every outcome to the hub | AGENTS §15 (cited) |
+  | couch/sdlc as the whole Bash call | AGENTS §15 (cited) |
+  | targeted tests while iterating, full suite before close, one heavy suite at a time | AGENTS §5 machine test budget (cited) |
+  | label the slot (publish-description) after claim; verb costs; --message-file | `couch --skill` (cited) |
+  | no permission for tests/suite/headless browser; ask for window, :0, machine, scope | tl-worker |
+  | a cited known failure never ends a suite early (make -k) | tl-worker |
+  | hashes from git rev-parse | tl-worker |
+  | never edit the project file; the TL records | tl-worker |
+  | file follow-ups from the owning slot, or unclaim | tl-worker |
+  | live check of operator-environment features; sdlc stage --build / --clear | tl-worker |
+  | on SHIP land yourself (merge main, sdlc merge --yes, never --no-validate), report PR, stop | tl-worker |
+  | resend an expired/not-dispatched report; uncertain → per couch --skill | tl-worker (cites couch --skill) |
+  | "start fresh", prepare the slot, known-red CI judgment, probes respect the harness | tl-lead (the TL's actions, not the worker's) |
+  No rule needed a couch-skill addition, so no pair issue was filed.
+- M1 built: `cmd/tl-worker` (help.md embedded, cobra root), stub `construct/local/tl-worker`, the §15 load bullet, Makefile `tools`, atlas `workflow/tl-skills.md`. `weave skills` lists `xx-tl-worker`; `construct/dev-aliases.sh --list` lists `tl-worker`. `weave compile` composed AGENTS.md/CLAUDE.md, then stopped at writing `.claude/settings.json` (sandbox-denied path); the `.claude/skills/xx-tl-worker` link lands at this slot's next unsandboxed `weave refresh` (couch --prepare).
+- BLOCKER: `cmd/weave/internal/settingsx` `TestBaseSettingsExcludedVerbsMatchArguments` requires every `cmd/` binary in `.claude/settings.ariadne.json` `sandbox.excludedCommands` as `X *`. That file is local-gates protected (`.claude/settings*.json`); per AGENTS §5 that change is its own issue with operator-held verification. Asked the hub.
+
 ## Revisions
 
 - 2026-10-13 — the operator: **don't copy stories or lessons** into the binaries' prose. The prose states current
