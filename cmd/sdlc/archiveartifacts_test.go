@@ -3,6 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"os"
 	"path/filepath"
 	"strings"
@@ -388,5 +391,202 @@ func TestPreparedArchiveMoves_RecoversPlanArtifacts(t *testing.T) {
 	}
 	if !sawPlan {
 		t.Errorf("the plan move was not recovered: %#v", moves)
+	}
+}
+
+func TestArchiveDoneIssuesAssets(t *testing.T) {
+	for _, merge := range []bool{false, true} {
+		t.Run(map[bool]string{false: "push", true: "merge"}[merge], func(t *testing.T) {
+			root := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+			data := "evidence"
+			name, _ := issueassets.Name([]byte(data), "png")
+			rel := "assets/000143/" + name
+			src, dst := "workshop/issues/"+rel, "workshop/history/issues/"+rel
+			mkArtifact(t, "workshop/issues/000143-x.md", "---\nid: 143\nstatus: done\n---\n![evidence]("+rel+")\n")
+			mkArtifact(t, src, data)
+			var out bytes.Buffer
+			var moves []preparedArchiveMove
+			var err error
+			if merge {
+				moves, err = archiveDoneIssuesInDir(context.Background(), &out, "", root, "workshop/issues", "workshop/history", "workshop/plans")
+			} else {
+				moves, err = archiveDoneIssues(context.Background(), &out, "", "workshop/issues", "workshop/history", "workshop/plans")
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			b, err := os.ReadFile(dst)
+			if err != nil || string(b) != data {
+				t.Fatalf("asset=%q %v", b, err)
+			}
+			if _, err := os.Stat(src); !os.IsNotExist(err) {
+				t.Fatal("active asset retained")
+			}
+			if len(moves) != 2 {
+				t.Fatalf("moves=%v", moves)
+			}
+		})
+	}
+}
+
+func TestPreparedArchiveMovesRecoversAssets(t *testing.T) {
+	testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	data := "evidence"
+	name, _ := issueassets.Name([]byte(data), "png")
+	rel := "assets/000143/" + name
+	src, dst := "workshop/issues/"+rel, "workshop/history/issues/"+rel
+	mkArtifact(t, "workshop/history/issues/000143-x.md", "---\nid: 143\nstatus: done\n---\n![evidence]("+rel+")\n")
+	mkArtifact(t, dst, data)
+	status := " D workshop/issues/000143-x.md\n?? workshop/history/issues/000143-x.md\n D " + src + "\n?? " + dst + "\n"
+	moves, other, err := preparedArchiveMoves(context.Background(), statusOf(t, status), "workshop/issues", "workshop/history", "workshop/plans")
+	if err != nil || len(other) != 0 || len(moves) != 2 {
+		t.Fatalf("moves=%v other=%v err=%v", moves, other, err)
+	}
+	// Arbitrary asset-shaped additions have no authority without a moved issue body.
+	_, other, err = preparedArchiveMoves(context.Background(), statusOf(t, " D "+src+"\n?? "+dst+"\n"), "workshop/issues", "workshop/history", "workshop/plans")
+	if err != nil || len(other) == 0 {
+		t.Fatalf("unowned assets accepted: %v %v", other, err)
+	}
+}
+
+func TestPreparedArchiveMovesFinishesPartialAssetMove(t *testing.T) {
+	testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	data := "evidence"
+	name, _ := issueassets.Name([]byte(data), "png")
+	rel := "assets/000143/" + name
+	src, dst := "workshop/issues/"+rel, "workshop/history/issues/"+rel
+	mkArtifact(t, "workshop/history/issues/000143-x.md", "---\nid: 143\nstatus: done\n---\n![evidence]("+rel+")\n")
+	mkArtifact(t, src, data)
+	status := " D workshop/issues/000143-x.md\n?? workshop/history/issues/000143-x.md\n"
+	moves, other, err := preparedArchiveMoves(context.Background(), statusOf(t, status), "workshop/issues", "workshop/history", "workshop/plans")
+	if err != nil || len(other) != 0 || len(moves) != 2 {
+		t.Fatalf("moves=%v other=%v err=%v", moves, other, err)
+	}
+	for _, m := range moves {
+		if m.IssuePath == src {
+			if err := finishAssetArchiveMoves(".", []preparedArchiveMove{m}); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	b, err := os.ReadFile(dst)
+	if err != nil || string(b) != data {
+		t.Fatalf("asset=%q %v", b, err)
+	}
+}
+
+func TestArchiveAssetsRefuseConvertingAttributesBeforeEffects(t *testing.T) {
+	for _, merge := range []bool{false, true} {
+		t.Run(map[bool]string{false: "push", true: "merge"}[merge], func(t *testing.T) {
+			root := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+			data := "evidence\r\n"
+			name, _ := issueassets.Name([]byte(data), "png")
+			rel := "assets/000143/" + name
+			src, dst := "workshop/issues/"+rel, "workshop/history/issues/"+rel
+			detail := "workshop/issues/000143-x.md"
+			mkArtifact(t, detail, "---\nid: 143\nstatus: done\n---\n![evidence]("+rel+")\n")
+			mkArtifact(t, src, data)
+			mkArtifact(t, ".gitattributes", "workshop/issues/assets/** -text\nworkshop/history/issues/assets/** text eol=lf\n")
+			testfix.Git(t, root, "add", ".")
+			testfix.Git(t, root, "commit", "-qm", "evidence")
+			before := testfix.Capture(t, root, "rev-parse", "HEAD")
+			index := testfix.Capture(t, root, "ls-files", "--stage")
+			var out bytes.Buffer
+			var err error
+			if merge {
+				_, err = archiveDoneIssuesInDir(context.Background(), &out, "", root, "workshop/issues", "workshop/history", "workshop/plans")
+			} else {
+				_, err = archiveDoneIssues(context.Background(), &out, "", "workshop/issues", "workshop/history", "workshop/plans")
+			}
+			if err == nil || !strings.Contains(err.Error(), ".gitattributes") || !strings.Contains(err.Error(), dst) {
+				t.Fatalf("converting attributes accepted: %v", err)
+			}
+			if got, e := os.ReadFile(src); e != nil || string(got) != data {
+				t.Fatalf("source changed: %q %v", got, e)
+			}
+			if _, e := os.Stat(detail); e != nil {
+				t.Fatal("body moved before refusal")
+			}
+			if testfix.Capture(t, root, "rev-parse", "HEAD") != before || testfix.Capture(t, root, "ls-files", "--stage") != index {
+				t.Fatal("refusal changed refs/index")
+			}
+		})
+	}
+}
+
+func TestArchiveAssetsRefuseArchivedResidueBeforeEffects(t *testing.T) {
+	for _, active := range []bool{false, true} {
+		for _, merge := range []bool{false, true} {
+			t.Run(fmt.Sprintf("active=%v/merge=%v", active, merge), func(t *testing.T) {
+				root := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+				detail := "workshop/issues/000143-x.md"
+				body := "---\nid: 143\nstatus: done\n---\n"
+				if active {
+					name, _ := issueassets.Name([]byte("new"), "png")
+					rel := "assets/000143/" + name
+					body += "![evidence](" + rel + ")\n"
+					mkArtifact(t, "workshop/issues/"+rel, "new")
+				}
+				mkArtifact(t, detail, body)
+				name, _ := issueassets.Name([]byte("old"), "png")
+				orphan := "workshop/history/issues/assets/000143/" + name
+				mkArtifact(t, orphan, "old")
+				testfix.Git(t, root, "add", ".")
+				testfix.Git(t, root, "commit", "-qm", "evidence")
+				before := testfix.Capture(t, root, "status", "--porcelain")
+				var out bytes.Buffer
+				var err error
+				if merge {
+					_, err = archiveDoneIssuesInDir(context.Background(), &out, "", root, "workshop/issues", "workshop/history", "workshop/plans")
+				} else {
+					_, err = archiveDoneIssues(context.Background(), &out, "", "workshop/issues", "workshop/history", "workshop/plans")
+				}
+				if err == nil || !strings.Contains(err.Error(), orphan) || !strings.Contains(err.Error(), "remove") {
+					t.Fatalf("archived residue accepted: %v", err)
+				}
+				if got := testfix.Capture(t, root, "status", "--porcelain"); got != before {
+					t.Fatalf("refusal changed checkout: %s", got)
+				}
+			})
+		}
+	}
+}
+
+type archiveAssetTamperRunner struct {
+	execGitRunner
+	destination string
+}
+
+func (r archiveAssetTamperRunner) Git(args ...string) ([]byte, error) {
+	out, err := r.execGitRunner.Git(args...)
+	if err == nil && len(args) > 0 && args[0] == "add" {
+		err = os.WriteFile(r.destination, []byte("tampered after staging"), 0644)
+	}
+	return out, err
+}
+
+func TestArchiveRecoveryVerifiesAssetBytesBeforeCommit(t *testing.T) {
+	root := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	name, _ := issueassets.Name([]byte("evidence"), "png")
+	rel := "assets/000143/" + name
+	src, dst := "workshop/issues/"+rel, "workshop/history/issues/"+rel
+	mkArtifact(t, "workshop/issues/000143-x.md", "---\nid: 143\nstatus: done\n---\n![evidence]("+rel+")\n")
+	mkArtifact(t, src, "evidence")
+	testfix.Git(t, root, "add", ".")
+	testfix.Git(t, root, "commit", "-qm", "evidence")
+	head := testfix.Capture(t, root, "rev-parse", "HEAD")
+	var out bytes.Buffer
+	if _, err := archiveDoneIssues(context.Background(), &out, "", "workshop/issues", "workshop/history", "workshop/plans"); err != nil {
+		t.Fatal(err)
+	}
+	old := pushRunner
+	pushRunner = archiveAssetTamperRunner{destination: dst}
+	t.Cleanup(func() { pushRunner = old })
+	_, err := recoverInterruptedArchive(context.Background(), &out, &out, &pushFlags{IssuesDir: "workshop/issues", HistoryDir: "workshop/history", PlansDir: "workshop/plans"})
+	if err == nil || !strings.Contains(err.Error(), "content name") {
+		t.Fatalf("corrupted archive not refused before commit: %v", err)
+	}
+	if testfix.Capture(t, root, "rev-parse", "HEAD") != head {
+		t.Fatal("corrupted archive committed")
 	}
 }

@@ -45,6 +45,8 @@ WHAT IT DOES
   4. `git push`.
   5. Archives done/wontfix/punt issue files to `workshop/history/issues/`
      (their plan docs + review sidecars to `workshop/history/plans/`, #181).
+     Indexed assets move to `workshop/history/issues/assets/NNNNNN/` in the
+     same archive, preserving the body's relative links (#337).
      For `status: done` + `github_issue:`, calls `gh issue close`
      with the comment "Fixed on main." first. If any moved, commits
      and pushes the archive in a follow-up commit ("archive completed

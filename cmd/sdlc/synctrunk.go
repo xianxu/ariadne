@@ -12,6 +12,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 )
 
 // trunkPublisher is the seam, declared in the consumer (Go idiom) so the verb's
@@ -213,6 +214,9 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 				return set, fmt.Errorf("read new issue %s: %w", rel, rerr)
 			}
 
+			if _, err := issueassets.BuildBundle(fmt.Sprintf("%06d", issueIDFromPath(rel)), issueAssetBody(data), nil); err != nil {
+				return set, fmt.Errorf("%s: %w", rel, err)
+			}
 			writes = append(writes, pending{rel, data})
 		}
 

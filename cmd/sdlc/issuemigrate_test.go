@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -553,4 +554,39 @@ func TestIssueMigrateNamesADirtyPathWithASpace(t *testing.T) {
 			t.Errorf("refusal does not name %q:\n%s", strings.TrimSpace(p), out)
 		}
 	}
+}
+
+// Issue discovery must not consume aggregate asset bytes while listing documents.
+func TestMigrationInventoryIgnoresAssetVolume(t *testing.T) {
+	r := legacyRepo(t)
+	seedDiscoveryAssets(t, r, "workshop/issues")
+	seedDiscoveryAssets(t, r, "workshop/history/issues")
+	env, err := openMigrate(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	view, err := env.main.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	in, err := migrationInventory(env, view)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(in.Active) != 2 || len(in.Archived) != 2 {
+		t.Fatalf("inventory counts: active=%d archived=%d", len(in.Active), len(in.Archived))
+	}
+}
+
+func seedDiscoveryAssets(t *testing.T, r *trackerRepo, dir string) {
+	t.Helper()
+	blob := strings.Repeat("x", 1<<20)
+	for i := 0; i < 33; i++ {
+		writeRepoFile(t, r.root, fmt.Sprintf("%s/assets/%06d/%02d.bin", dir, 100+i/8, i%8), blob)
+	}
+	// A Markdown attachment is not an issue document either.
+	writeRepoFile(t, r.root, dir+"/assets/000100/999999-not-an-issue.md", "not issue frontmatter")
+	r.git("add", dir+"/assets")
+	r.git("commit", "-qm", "asset volume")
+	r.git("push", "-q", "origin", "HEAD:main")
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
@@ -285,5 +286,48 @@ func TestReopenDoneDirtyTreeRefusesBeforeTheFastForward(t *testing.T) {
 	}
 	if r.git("rev-parse", "HEAD") != head {
 		t.Fatal("the refusal came after a fast-forward")
+	}
+}
+
+func TestReopenDoneAssetMaterialization(t *testing.T) {
+	for _, mode := range []string{"destination-conversion", "hook-other-asset"} {
+		t.Run(mode, func(t *testing.T) {
+			r, cardPath, _ := doneArchived(t)
+			data := "evidence\n"
+			name, _ := issueassets.Name([]byte(data), "png")
+			member := "assets/000330/" + name
+			archived := "workshop/history/issues/" + member
+			peerAdd(t, r, archived, data)
+			peerAdd(t, r, s330History, r.git("show", "HEAD:"+s330History)+"\n![evidence]("+member+")\n")
+			if mode == "destination-conversion" {
+				peerAdd(t, r, ".gitattributes", "workshop/issues/assets/** text eol=crlf\n")
+			} else {
+				other := "workshop/issues/assets/000331/" + name
+				peerAdd(t, r, other, data)
+				peerAdd(t, r, "workshop/issues/000331-other.md", "# Other\n![evidence](assets/000331/"+name+")\n")
+				hooks := t.TempDir()
+				if err := os.WriteFile(filepath.Join(hooks, "post-checkout"), []byte("#!/bin/sh\nprintf tampered > '"+other+"'\n"), 0755); err != nil {
+					t.Fatal(err)
+				}
+				r.git("config", "core.hooksPath", hooks)
+			}
+			r.git("fetch", "-q", "origin")
+			r.git("merge", "-q", "--ff-only", "origin/main")
+			before := r.git("rev-parse", "HEAD")
+			writeReopenEntry(t, r)
+			out, err := reopen330()
+			if err == nil {
+				t.Fatalf("reopen accepted %s: %s", mode, out)
+			}
+			if !strings.Contains(err.Error()+out, "asset") {
+				t.Fatalf("unexpected refusal: %v %s", err, out)
+			}
+			if r.git("rev-parse", "HEAD") != before || !strings.Contains(r.card(cardPath), "status: done") {
+				t.Fatal("invalid materialization was committed or card changed")
+			}
+			if mode == "destination-conversion" && r.git("branch", "--show-current") != "main" {
+				t.Fatal("destination conversion refused only after switching branches")
+			}
+		})
 	}
 }

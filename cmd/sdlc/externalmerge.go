@@ -214,7 +214,10 @@ func finishLandedLeftovers(env *trackerEnv, stderr io.Writer, dirs archiveDirs) 
 		return err
 	}
 	live := map[string]bool{}
-	files, err := view.Files(dirs.Issues)
+	files, err := view.FilesSelected(dirs.Issues, func(f gitx.TreeFile) bool {
+		_, _, ok := issue.ParseFilename(path.Base(f.Path))
+		return path.Dir(f.Path) == dirs.Issues && ok
+	})
 	if err != nil {
 		return err
 	}

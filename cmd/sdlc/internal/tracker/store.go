@@ -29,7 +29,7 @@ func (s *RecoveryReceipts) Save(r Receipt) error {
 	b := r.binding()
 	var objects []string
 	pinned := []string{b.CandidateOID, r.wire.Spec.SourceBlob, r.wire.Spec.CardOID}
-	for _, e := range r.wire.Spec.EvidenceEntries() {
+	for _, e := range append(r.wire.Spec.EvidenceEntries(), r.wire.Spec.AssetEntries()...) {
 		pinned = append(pinned, e.Blob) // a deferred evidence commit replays these
 	}
 	for _, oid := range pinned {

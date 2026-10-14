@@ -105,7 +105,7 @@ func (op *CreationOp) checkDraft(id string, d Draft) error {
 	if err != nil || baseline != want {
 		return errors.New("draft details do not mirror the draft card")
 	}
-	return nil
+	return validateDetailBundle(d.DetailPath, d.Detail, nil)
 }
 
 func (op *CreationOp) Prepare(e Effect, r Receipt) (Event, error) {
@@ -122,7 +122,7 @@ func (op *CreationOp) Prepare(e Effect, r Receipt) (Event, error) {
 		}
 		return Event{Kind: EventCandidatePrepared, Binding: e.Expected, CandidateOID: c.OID, CandidateBaseOID: c.Base}, nil
 	case "creation.main":
-		detail, err := gitx.ReadBlob(op.ctx, op.co.Root, spec.SourceBlob)
+		detail, err := op.main.ViewOf(spec.MainBase).ReadBlob(spec.SourceBlob)
 		if err != nil {
 			return Event{}, err
 		}
@@ -137,21 +137,41 @@ func (op *CreationOp) Prepare(e Effect, r Receipt) (Event, error) {
 }
 
 func (op *CreationOp) Apply(e Effect, r Receipt) (Event, error) {
+	spec := r.Spec()
+	if e.Stage == "creation.reserve" {
+		if _, _, err := pinnedDetail(op.main.ViewOf(spec.MainBase), spec); err != nil {
+			return Event{}, blockedMainReceipt(op.co.Root, spec, e.CandidateOID, err)
+		}
+	}
+
 	switch e.Stage {
 	case "creation.reserve":
 		return publishCardEvent(op.repo, &op.diagnostics, e, r.Spec().CardPath)
 	case "creation.main":
-		return publishEvent(mainPublisher{op.main}, &op.diagnostics, e, e.Expected.MainBase, confirmedMain(e))
+		p, err := checkedMainPublisher(op.main, op.co.Root, spec, e.CandidateOID, nil)
+		if err != nil {
+			return Event{}, err
+		}
+		return publishEvent(p, &op.diagnostics, e, e.Expected.MainBase, confirmedMain(e))
 	}
 	return Event{}, fmt.Errorf("creation cannot apply stage %s", e.Stage)
 }
 
 func (op *CreationOp) Probe(e Effect, r Receipt) (Event, error) {
+	if e.Stage == "creation.reserve" {
+		if _, _, err := pinnedDetail(op.main.ViewOf(r.Spec().MainBase), r.Spec()); err != nil {
+			return Event{}, blockedMainReceipt(op.co.Root, r.Spec(), e.CandidateOID, err)
+		}
+	}
 	switch e.Stage {
 	case "creation.reserve":
 		return probeCardEvent(op.repo, &op.diagnostics, e, r.Spec().CardPath)
 	case "creation.main":
-		return probeEvent(mainPublisher{op.main}, &op.diagnostics, e, e.Expected.MainBase, confirmedMain(e))
+		p, err := checkedMainPublisher(op.main, op.co.Root, r.Spec(), e.CandidateOID, nil)
+		if err != nil {
+			return Event{}, err
+		}
+		return probeEvent(p, &op.diagnostics, e, e.Expected.MainBase, confirmedMain(e))
 	}
 	return Event{}, fmt.Errorf("creation cannot probe stage %s", e.Stage)
 }
