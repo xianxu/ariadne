@@ -1,6 +1,6 @@
 ---
 id: 000354
-status: working
+status: codecomplete
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
@@ -13,8 +13,14 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.03
 tracker:
     version: 1
+    completion:
+        token: close-b33d9b99f97c
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 729a91747d61fe6c9514d7c707571aa1a6302e05
+        evidence_commit: 0221eb4bd71f8f199857e8c1e22008aa92663d8e
 ---
 
 # add tl-worker * and tl-lead * to .claude/settings.ariadne.json sandbox.excludedCommands (local gates; unblocks #350)
