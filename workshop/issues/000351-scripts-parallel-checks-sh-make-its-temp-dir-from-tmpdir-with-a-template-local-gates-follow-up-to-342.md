@@ -1,12 +1,12 @@
 ---
 id: 000351
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: 'a9f0ed62db56d720938a437f54a6e2140e6752bf' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '8ce15f448832635ca014da0fe5f658f8287bff30' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T15:49:17-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.45
 ---
 
 # scripts/parallel-checks.sh: make its temp dir from TMPDIR with a template (local-gates follow-up to #342)
