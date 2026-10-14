@@ -87,3 +87,25 @@ assertions and drops failed subtests. A pure recorded-event regression caught
 that omission before removing the skip; it now runs from the root Go suite.
 Next recorded suite will retain the actual lease assertion if it recurs; no
 lease timing/production change is guessed without that evidence.
+
+### 2026-10-14 — lease authority measured and repaired
+
+Under other active suites the known lease case reproduced1/500: after
+'released', AcquireSetup still returned ErrSetupInUse. Keeping the payload
+alive on a second explicit barrier reproduced2/100; tracing500 repetitions
+found four cases where the lease became available1.2–1.6ms later while the
+child was still awaiting 'finish'. The message/process notification precedes
+resource release; it is not evidence of persistent leakage.
+
+The fixture now keeps the child alive through the resource probes, polls setup
+release within existing staging.Settle, and uses existing AwaitExclusive for
+the stage. Strict exclusion before release remains immediate. Fixed lease
+case passed500 repeats. An omitted-close mutation failed in1.02s, proving a
+real retained descriptor cannot pass merely because the child eventually exits.
+Related package testing exposed the same post-Wait assumption in
+TestInheritedLeaseOutlivesParentCopy; settle on that lease before Remove too
+(ARCH-PURPOSE/ORDER). Both packages passed10 repeats16.213s/12.027s.
+
+The queued follow-up suite was cancelled at admission (exit130) for these
+measured repairs; no passing record is claimed. Next commit, record the full
+suite on the repaired head, then shared close/PR/merge.

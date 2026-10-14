@@ -731,3 +731,11 @@ The simplest durable authority beats a clever scan of consequences.
 - A deadline may legitimately expire before a subprocess's readiness marker.
   Use explicit readiness for cancellation-after-start coverage rather than
   requiring a short-budget test to prove OS scheduling latency (#369).
+
+- A child's 'released' message and even process Wait are completion evidence,
+  not proof that a producer lease is available. Probe the resource within the
+  existing settle budget; keep the child alive while asserting release so a
+  missing-close mutation cannot pass on implicit exit cleanup (#369).
+- test2json assigns assertion output to the exact failed subtest. A summary
+  that prints only its parent discards the fault; preserve failed child output
+  and regression-test it with recorded events (#369).
