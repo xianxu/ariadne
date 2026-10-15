@@ -83,6 +83,7 @@ total: 1.259
 ## Log
 
 ### 2026-10-14
+- 2026-10-14: closed — go test ./cmd/tl-lead ./cmd/tl-worker green: golden parser/linker cases (multi-line, inner blanks, repeated numbers, image lines, done:/answer markers, preamble), list/link via the stateful fake (stale hash and a mid-write edit refuse exit 6 with no retry, lock exit 3, answered no-op), help phrase guard per ported rule G1-G11 + 5 comparison folds, verb test walks the command tree; parity: instructions list == opinstr.py list byte for byte on a copy of the real ops status file (3 bullets); fresh-context comparison of the draft at e7ea8e5 finds no missing rule (one deliberate contradiction: known-red CI per AGENTS 5); full make test: all shards green except cmd/sdlc TestShardedReportRetainsSubtestDiagnostics, a main #369 test writing to /tmp under the sandbox, filed as ariadne#381; review verdict: SHIP
 - Compared ops draft e7ea8e5 with help.md at main 18915f6c: gaps G1–G9 in the plan. `couch --skill` names `couch-owner:` canonical (`owner:` legacy), so the help keeps it. parley.nvim#315 landed (PR #228): the `holder: agent` workaround is not ported.
 - The TL approved the plan (G1–G9, the hash guard, `couch-owner:`), pinned `--flow full`, and supplied the text for G10 and G11 (plan Revisions).
 - plan-quality INFO, 2 Minors (help rule guards; the single-shot link write), folded into the plan's Revisions. The plan file was renamed to its canonical name.
