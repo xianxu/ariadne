@@ -172,7 +172,7 @@ func commitIndexOnto(env *trackerEnv, withIndex []string, head, message string) 
 	if err != nil {
 		return "", err
 	}
-	args := []string{"commit-tree", tree, "-p", head, "-m", agentid.StampCurrent(message)}
+	args := []string{"commit-tree", tree, "-p", head, "-m", agentid.StampCurrent(message, env.ctx)}
 	// Unset exits 1: no signing.
 	if value, err := env.git("config", "--bool", "--get", "commit.gpgsign"); err == nil && value == "true" {
 		args = append(args, "-S")

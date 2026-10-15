@@ -84,10 +84,11 @@ func TestClaudeRepeatedBlocksRevisionAndCache(t *testing.T) {
 }
 
 func TestNormalizeConflictBeforeWindow(t *testing.T) {
-	base := Response{ID: "m", SourceID: "s", Agent: "claude", Model: "a", RequestID: "req", At: stamp("2026-10-14T09:00:00Z"), Tokens: Counters{Input: 10, Output: 5}}
+	base := Response{ID: "m", SourceID: "s", Agent: "claude", Model: "a", RequestID: "req", At: stamp("2026-10-14T09:00:00Z"), Tokens: &Counters{Input: 10, Output: 5}}
 	for _, kind := range []string{"terminal", "model", "request", "source"} {
 		t.Run(kind, func(t *testing.T) {
 			next := base
+			next.Tokens = cloneCounters(next.Tokens)
 			next.At = stamp("2026-10-14T10:00:00Z")
 			switch kind {
 			case "terminal":
@@ -103,7 +104,7 @@ func TestNormalizeConflictBeforeWindow(t *testing.T) {
 			if e != nil {
 				t.Fatal(e)
 			}
-			if got.Totals.Input != 0 || got.Coverage.Counts["conflicts"] != 1 {
+			if got.Totals != nil && got.Totals.Input != 0 || got.Coverage.Counts["conflicts"] != 1 {
 				t.Fatalf("report=%+v", got)
 			}
 		})
@@ -113,12 +114,12 @@ func TestNormalizeConflictBeforeWindow(t *testing.T) {
 func TestAggregateHoursBurnUnknownAndOverflow(t *testing.T) {
 	since := stamp("2026-10-14T10:30:00Z")
 	until := stamp("2026-10-14T12:00:00Z")
-	rr := []Response{{ID: "a", SourceID: "s", Agent: "codex", Model: "a", At: since, Tokens: Counters{Input: 100, Output: 20, CacheRead: p(80)}}, {ID: "b", SourceID: "s", Agent: "codex", Model: "b", At: stamp("2026-10-14T11:00:00Z"), Tokens: Counters{Input: 30, Output: 0}}, {ID: "c", Agent: "codex", At: until, Tokens: Counters{Input: 999}}}
+	rr := []Response{{ID: "a", SourceID: "s", Agent: "codex", Model: "a", At: since, Tokens: &Counters{Input: 100, Output: 20, CacheRead: p(80)}}, {ID: "b", SourceID: "s", Agent: "codex", Model: "b", At: stamp("2026-10-14T11:00:00Z"), Tokens: &Counters{Input: 30, Output: 0}}, {ID: "c", Agent: "codex", At: until, Tokens: &Counters{Input: 999}}}
 	got, e := AggregateUsage(rr, Window{since, until}, Window{since, until}, nil)
 	if e != nil {
 		t.Fatal(e)
 	}
-	if got.Totals.Input != 130 || got.Totals.Output != 20 || got.BurnTokensPerHour != 100 || len(got.Groups) != 2 || len(got.Hourly) != 2 || got.Totals.CacheRead != nil || got.Coverage.Counts["unknown_slot"] != 2 {
+	if got.Totals.Input != 130 || got.Totals.Output != 20 || (got.BurnTokensPerHour == nil || *got.BurnTokensPerHour != 100) || len(got.Groups) != 2 || len(got.Hourly) != 2 || got.Totals.CacheRead != nil || got.Coverage.Counts["unknown_slot"] != 2 {
 		t.Fatalf("report=%+v", got)
 	}
 	rr[0].Tokens.Input = math.MaxInt64
@@ -165,9 +166,11 @@ func TestClaudeProvisionalConflictingFinalAndOverflow(t *testing.T) {
 		t.Fatalf("partial response lost or presented complete: %+v %v", report, err)
 	}
 	final := r[0]
+	final.Tokens = cloneCounters(final.Tokens)
 	final.Provisional = false
 	final.Tokens.Output = 5
 	conflict := final
+	conflict.Tokens = cloneCounters(conflict.Tokens)
 	conflict.Tokens.Output = 6
 	normal, coverage, err := NormalizeResponses([]Response{final, conflict, final})
 	if err != nil || len(normal) != 0 || coverage.Counts["conflicts"] != 1 {
@@ -196,12 +199,14 @@ func TestModernCopiedHistoryAndReconstructedCompaction(t *testing.T) {
 }
 
 func TestAggregateFiltersAfterRevisionAndPreservesMeasuredSubsets(t *testing.T) {
-	base := Response{ID: "a", SourceID: "s", Agent: "claude", Model: "a", At: stamp("2026-10-14T09:00:00Z"), Tokens: Counters{Input: 10, Output: 1, CacheRead: p(5)}, Provisional: true}
+	base := Response{ID: "a", SourceID: "s", Agent: "claude", Model: "a", At: stamp("2026-10-14T09:00:00Z"), Tokens: &Counters{Input: 10, Output: 1, CacheRead: p(5)}, Provisional: true}
 	final := base
+	final.Tokens = cloneCounters(final.Tokens)
 	final.Provisional = false
 	final.At = stamp("2026-10-14T10:30:00Z")
 	final.Tokens.Output = 2
 	other := final
+	other.Tokens = cloneCounters(other.Tokens)
 	other.ID = "b"
 	other.Model = "b"
 	other.Tokens.CacheRead = nil
@@ -210,10 +215,10 @@ func TestAggregateFiltersAfterRevisionAndPreservesMeasuredSubsets(t *testing.T) 
 		return Attribution{Include: true, Slot: "repo:1", Role: "reviewer", Round: "round1", Attempt: "attempt1"}
 	}
 	r, err := AggregateUsage([]Response{base, final, other}, w, w, resolve)
-	if err != nil || r.Totals.Input != 20 || r.Totals.Output != 4 || r.Totals.CacheRead != nil || r.MeasuredDimensions.CacheRead == nil || *r.MeasuredDimensions.CacheRead != 5 || r.Groups[0].Role != "reviewer" || r.Groups[0].Round != "round1" || r.Coverage.Counts["provisional"] != 0 {
+	if err != nil || r.Totals.Input != 20 || r.Totals.Output != 4 || r.Totals.CacheRead != nil || r.MeasuredDimensions == nil || r.MeasuredDimensions.CacheRead == nil || *r.MeasuredDimensions.CacheRead != 5 || r.Groups[0].Role != "reviewer" || r.Groups[0].Round != "round1" || r.Coverage.Counts["provisional"] != 0 {
 		t.Fatalf("report=%+v err=%v", r, err)
 	}
-	if r.BurnTokensPerHour != 24 {
+	if r.BurnTokensPerHour == nil || *r.BurnTokensPerHour != 24 {
 		t.Fatalf("burn=%v", r.BurnTokensPerHour)
 	}
 }
@@ -224,9 +229,9 @@ func FuzzNormalizeDuplicates(f *testing.F) {
 		if in < 0 || out < 0 || in > math.MaxInt64-out {
 			return
 		}
-		r := Response{ID: "r", SourceID: "s", Agent: "codex", Model: "m", At: stamp("2026-10-14T10:00:00Z"), Tokens: Counters{Input: in, Output: out}}
+		r := Response{ID: "r", SourceID: "s", Agent: "codex", Model: "m", At: stamp("2026-10-14T10:00:00Z"), Tokens: &Counters{Input: in, Output: out}}
 		got, c, err := NormalizeResponses([]Response{r, r, r})
-		if err != nil || len(got) != 1 || !got[0].Tokens.equal(r.Tokens) || c.Counts["duplicates"] != 2 {
+		if err != nil || len(got) != 1 || !got[0].Tokens.equal(*r.Tokens) || c.Counts["duplicates"] != 2 {
 			t.Fatalf("dedup=%+v %+v %v", got, c, err)
 		}
 	})
@@ -284,7 +289,7 @@ func TestDecodePartialTailAndLineBound(t *testing.T) {
 
 func TestAttributionConflictPreservesIssueExclusionAndFleetUnknown(t *testing.T) {
 	w := Window{stamp("2026-10-14T10:00:00Z"), stamp("2026-10-14T11:00:00Z")}
-	r := Response{ID: "r", SourceID: "s", Agent: "codex", Model: "a", At: w.Since, Tokens: Counters{Input: 10, Output: 2}}
+	r := Response{ID: "r", SourceID: "s", Agent: "codex", Model: "a", At: w.Since, Tokens: &Counters{Input: 10, Output: 2}}
 	for _, include := range []bool{false, true} {
 		report, err := AggregateUsage([]Response{r}, w, w, func(Response) Attribution {
 			return Attribution{Include: include, Conflict: true, Slot: "repo:1", Role: "worker"}
@@ -296,7 +301,7 @@ func TestAttributionConflictPreservesIssueExclusionAndFleetUnknown(t *testing.T)
 			t.Fatalf("lost conflict %+v", report)
 		}
 		if !include {
-			if report.Totals.Input != 0 || len(report.Groups) != 0 {
+			if report.Totals != nil && report.Totals.Input != 0 || len(report.Groups) != 0 {
 				t.Fatalf("issue exclusion lost %+v", report)
 			}
 		} else if len(report.Groups) != 1 || report.Groups[0].Slot != "unknown-slot" || report.Groups[0].Role != "unknown" || report.Coverage.Counts["unknown_slot"] != 1 {
@@ -328,11 +333,11 @@ func TestDiscoveryCoverageSeparatesSpendAndLineage(t *testing.T) {
 
 func TestEmptyDetailWindowKeepsIndependentBurn(t *testing.T) {
 	at := stamp("2026-10-14T10:00:00Z")
-	r := Response{ID: "r", SourceID: "s", Agent: "codex", Model: "m", At: at, Tokens: Counters{Input: 10, Output: 2}}
+	r := Response{ID: "r", SourceID: "s", Agent: "codex", Model: "m", At: at, Tokens: &Counters{Input: 10, Output: 2}}
 	empty := Window{Since: at, Until: at}
 	burn := Window{Since: at, Until: at.Add(time.Hour)}
 	report, err := AggregateUsage([]Response{r}, empty, burn, nil)
-	if err != nil || report.Totals.Input != 0 || report.Totals.Output != 0 || len(report.Hourly) != 0 || report.BurnTokensPerHour != 12 {
+	if err != nil || report.Totals != nil && (report.Totals.Input != 0 || report.Totals.Output != 0) || len(report.Hourly) != 0 || (report.BurnTokensPerHour == nil || *report.BurnTokensPerHour != 12) {
 		t.Fatalf("empty detail obscured independent burn: %+v %v", report, err)
 	}
 	if _, err := AggregateUsage([]Response{r}, Window{Since: at.Add(time.Second), Until: at}, burn, nil); err == nil {
@@ -405,4 +410,18 @@ func TestClaudeAggregateModelBoundAndBoundedExamples(t *testing.T) {
 	if c.Counts["aggregate_usage_unreconciled"] != 10 || len(c.Examples["aggregate_usage_unreconciled"]) != 3 {
 		t.Fatalf("unbounded diagnostic %+v", c)
 	}
+}
+
+func cloneCounters(c *Counters) *Counters {
+	if c == nil {
+		return nil
+	}
+	v := *c
+	for _, p := range []**int64{&v.CacheRead, &v.CacheWrite, &v.Reasoning} {
+		if *p != nil {
+			n := **p
+			*p = &n
+		}
+	}
+	return &v
 }

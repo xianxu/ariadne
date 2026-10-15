@@ -14,6 +14,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -208,7 +209,7 @@ func verifyRefTarget(newForm string) string {
 // order and semantics per the plan: refusals via die (fail-closed, nothing
 // half-moved); every rewrite verified from the DESTINATION's vantage before
 // any write.
-func runMigrate(o *migrateOpts) error {
+func runMigrate(ctx context.Context, o *migrateOpts) error {
 	srcRoot, err := gitx.RepoTopLevel()
 	if err != nil {
 		die(o.stderr, "not inside a git repo: "+err.Error())
@@ -364,10 +365,10 @@ func runMigrate(o *migrateOpts) error {
 		fmt.Fprintf(o.stderr, "    git -C %s %s\n", destTop, strings.Join(quoteMigrateMsg(migrateCommitArgs(destMsg, destRel)), " "))
 		fmt.Fprintf(o.stderr, "    git -C %s %s\n", srcRoot, strings.Join(quoteMigrateMsg(migrateCommitArgs(srcMsg, relPath)), " "))
 	} else {
-		if out, err := gitInDir(destTop, migrateCommitArgs(agentid.StampCurrent(destMsg), destRel)...); err != nil {
+		if out, err := gitInDir(destTop, migrateCommitArgs(agentid.StampCurrent(destMsg, ctx), destRel)...); err != nil {
 			die(o.stderr, fmt.Sprintf("commit in %s: %v — %s", destRepo, err, out))
 		}
-		if out, err := gitInDir(srcRoot, migrateCommitArgs(agentid.StampCurrent(srcMsg), relPath)...); err != nil {
+		if out, err := gitInDir(srcRoot, migrateCommitArgs(agentid.StampCurrent(srcMsg, ctx), relPath)...); err != nil {
 			die(o.stderr, fmt.Sprintf("commit in %s: %v — %s", srcRepo, err, out))
 		}
 		cok(o.stderr, fmt.Sprintf("moved %s → %s/%s (both sides committed, scoped)", relPath, destRepo, destRel))
@@ -473,7 +474,7 @@ func NewMigrateCmd() *cobra.Command {
 			// DESTINATION instead (inside runMigrate).
 			o.file, o.destDir = args[0], args[1]
 			o.stderr = cmd.ErrOrStderr()
-			return runMigrate(&o)
+			return runMigrate(cmd.Context(), &o)
 		},
 	})
 	cmd.Flags().StringVar(&o.destPath, "dest-path", "", "repo-root-relative path at the destination (default: same as the source's)")

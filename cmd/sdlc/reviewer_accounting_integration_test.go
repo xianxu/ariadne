@@ -71,7 +71,7 @@ func assertGateUsage(t *testing.T, root, recipe string, issue int) reviewusage.R
 	at = at.Add(end.Sub(at) / 2)
 	sessions := []transcripts.SessionEvidence{{Harness: r.Intent.Agent, ID: r.SessionID, CWD: r.Intent.Root, Started: at}}
 	bindings := bindUsageReviewers(sessions, records, end.Add(time.Second))
-	response := usage.Response{ID: "production-review-response", SourceID: r.SessionID, Agent: r.Intent.Agent, Model: "fixture", At: at, Tokens: usage.Counters{Input: 17, Output: 3}}
+	response := usage.Response{ID: "production-review-response", SourceID: r.SessionID, Agent: r.Intent.Agent, Model: "fixture", At: at, Tokens: &usage.Counters{Input: 17, Output: 3}}
 	report, err := usage.AggregateUsage([]usage.Response{response}, usage.Window{Since: at.Add(-time.Second), Until: end.Add(time.Second)}, usage.Window{Since: at.Add(-time.Second), Until: end.Add(time.Second)}, func(response usage.Response) usage.Attribution {
 		return usageDetailAttribution(response, usage.Attribution{Role: "worker", Slot: "unknown-slot", Include: true}, bindings, usageAuthority{Repository: r.Intent.Repository}, issue, true)
 	})
@@ -79,7 +79,7 @@ func assertGateUsage(t *testing.T, root, recipe string, issue int) reviewusage.R
 		t.Fatal(err)
 	}
 	parts := usageIssueParts(report)
-	if parts[0].Tokens != 0 || parts[1].Tokens != 20 || parts[1].Rounds != 1 || parts[1].Attempts != 1 || parts[2].Tokens != 20 {
+	if parts[0].Tokens != nil || usageTokenValue(parts[1].Tokens) != 20 || parts[1].Rounds != 1 || parts[1].Attempts != 1 || usageTokenValue(parts[2].Tokens) != 20 {
 		t.Fatalf("production binding did not reach issue worker/reviewer/total: %+v records=%+v", parts, records)
 	}
 	return r

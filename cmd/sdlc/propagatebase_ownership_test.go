@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -38,7 +39,7 @@ func TestCommitConsumptionPreservesIgnoredWithoutOwnership(t *testing.T) {
 	git(t, root, "add", ".gitignore")
 	git(t, root, "add", "-f", "authored.txt")
 	git(t, root, "commit", "-qm", "initial")
-	changed, err := commitConsumption(root, "test#239")
+	changed, err := commitConsumption(context.Background(), root, "test#239")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +83,7 @@ esac
 			t.Setenv("PROPAGATION_READY", filepath.Join(parent, "ready"))
 			t.Setenv("PROPAGATION_FAIL", failure)
 			var out bytes.Buffer
-			err := runPropagateBase(owner, "test#239", false, &out)
+			err := runPropagateBase(context.Background(), owner, "test#239", false, &out)
 			if (err != nil) != (failure != "") {
 				t.Fatalf("error=%v output=%s", err, &out)
 			}
@@ -136,7 +137,7 @@ func TestCommitConsumptionUntracksOnlyMatchingOwnedIgnoredPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 	propagationWrite(t, root, weaveownership.InventoryPath, string(data))
-	changed, err := commitConsumption(root, "test#239")
+	changed, err := commitConsumption(context.Background(), root, "test#239")
 	if err != nil || !changed {
 		t.Fatalf("changed=%v error=%v", changed, err)
 	}
@@ -158,7 +159,7 @@ func TestCommitConsumptionUntracksOnlyMatchingOwnedIgnoredPaths(t *testing.T) {
 			t.Errorf("authored or locally retained path untracked: %s", name)
 		}
 	}
-	if changed, err := commitConsumption(root, "test#239"); err != nil || changed {
+	if changed, err := commitConsumption(context.Background(), root, "test#239"); err != nil || changed {
 		t.Fatalf("repeat changed=%v error=%v", changed, err)
 	}
 }
@@ -172,7 +173,7 @@ func TestCommitConsumptionInvalidInventoryDoesNotMutateIndex(t *testing.T) {
 	git(t, root, "add", "-f", "authored.txt")
 	git(t, root, "commit", "-qm", "initial")
 	propagationWrite(t, root, weaveownership.InventoryPath, "{truncated")
-	if _, err := commitConsumption(root, "test#239"); err == nil {
+	if _, err := commitConsumption(context.Background(), root, "test#239"); err == nil {
 		t.Fatal("invalid inventory accepted")
 	}
 	if got := git(t, root, "status", "--porcelain"); got != "" {
@@ -207,14 +208,14 @@ func TestPropagatePreviewNeedsNoWeaveAndMissingCompilerLeavesCleanRepo(t *testin
 	}
 	t.Setenv("PATH", bin)
 	var out bytes.Buffer
-	if err := runPropagateBase(owner, "test#239", true, &out); err != nil {
+	if err := runPropagateBase(context.Background(), owner, "test#239", true, &out); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "weave compile") {
 		t.Fatal(out.String())
 	}
 	out.Reset()
-	if err := runPropagateBase(owner, "test#239", false, &out); err == nil || !strings.Contains(out.String(), "find installed weave") {
+	if err := runPropagateBase(context.Background(), owner, "test#239", false, &out); err == nil || !strings.Contains(out.String(), "find installed weave") {
 		t.Fatalf("error=%v output=%s", err, &out)
 	}
 	if got := git(t, leaf, "status", "--porcelain"); got != "" {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -121,7 +122,7 @@ func TestPropagateBaseSkipsDirtyDependent(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := runPropagateBase(canonRoot(owner), "test#1", false, &buf)
+	err := runPropagateBase(context.Background(), canonRoot(owner), "test#1", false, &buf)
 	if err == nil {
 		t.Fatalf("expected non-zero (skipped) error, got nil\n%s", buf.String())
 	}

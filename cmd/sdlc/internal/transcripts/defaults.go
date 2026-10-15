@@ -2,6 +2,7 @@ package transcripts
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 )
@@ -14,6 +15,7 @@ func DefaultHarnesses() []Harness {
 	return []Harness{
 		ClaudeHarness(defaultClaudeRoot()),
 		CodexHarness(defaultCodexRoot()),
+		QoderHarness(defaultQoderRoot()),
 	}
 }
 
@@ -33,4 +35,12 @@ func defaultCodexRoot() string {
 		return ""
 	}
 	return agentid.CodexSessions(home)
+}
+
+func defaultQoderRoot() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".qoder", "projects")
 }

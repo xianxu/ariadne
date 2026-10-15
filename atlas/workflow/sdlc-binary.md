@@ -23,7 +23,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 |-------------------|-----------------------------|---------|
 | `close`           | `make close-issue`          | Issue close: actual + verified + atlas + plan ticked; on full-issue close auto-dispatches the one boundary review (#69, `--no-judge` to skip) |
 | `actual`          | (new #68)                   | Compute an issue's focused dev-hours (in-binary active-time-v3 engine over ownership-proven sessions with retained replay inputs), split into build vs converge at the boundary reviews; `--milestone Mx` measures one milestone's increment (#234) |
-| `agent-id`        | (new #367)                  | Print this session's `Agent: <agent>/<model>/<effort>` commit trailer (`cmd/sdlc/internal/agentid`): agent from the judge's env signals, model and effort from the tail of the session's own transcript, `SDLC_AGENT_ID` overrides. Every sdlc commit site stamps it through `agentid.StampCurrent` (`TestEveryCommitSiteStamps` refuses a new unstamped site); `close` warns about first-parent window commits without it |
+| `agent-id`        | (new #367)                  | Print this session's `Agent: <agent>/<model>/<effort>` commit trailer (`cmd/sdlc/internal/agentid`): native session signals and validated transcript metadata; Qoder uses its launch binding and recorded workspace (#385), `SDLC_AGENT_ID` overrides. Every sdlc commit site stamps it through `agentid.StampCurrent` (`TestEveryCommitSiteStamps` refuses a new unstamped site); `close` warns about first-parent window commits without it |
 | `converge-report` | (new #234)                  | **Read-only** converge factor k = converge/build per model, flow and review recipe, over ledger rows that carry a split |
 | `active-time`     | (new #110; was active-time-v3.py) | Standalone CLI over the same engine — the per-segment attribution table for manual inspection; preserves the 2/3/0 loud-fail exit codes |
 | `state`           | (new)                       | Workflow state inspection + drift detection; per-issue owner and claim age, claims by slot and by operator (#284, claim times from tracker history via `tracker.Repository.ClaimTimes`) |
@@ -1299,25 +1299,28 @@ door on terminal issues: start-plan/change-code refuse on `status: done`
 (the #139 compute→review→finalize; `runClose` is now test-only, #146).
 The convention generalizes `merge`'s pre-existing `--no-judge`.
 
-**Measured actuals (#68, #110).** `--actual` is computed, not hand-typed. `sdlc
-actual --issue N` (`actual.go`'s `computeActual`, shared with close's
-missing-`--actual` explainer) runs the native **`internal/activetime`** engine
-(`activetime.Compute`, in-process — no python3) over the issue's `CommitWindow` +
-`activetime.WindowIssues` peers (the same branch-scoped commits the engine
-segments on, #270), feeding it **brain + the issue's repo** transcript
-sources. Source selection is a **harness abstraction** (`internal/transcripts`,
-#134), not a Claude-only path convention: each agent CLI implements a `Harness`
-(`Name()` + `Sources(cwds) → Sources{Dirs,Files}`); `DefaultHarnesses()` is the
-registry; a pure `Select` merges their contributions for the brain+repo cwds.
-Two harnesses ship — **Claude** (one `~/.claude/projects/<cwd-encoded>` dir per
-cwd → `Dirs`, engine globs them) and **Codex** (date-sharded
-`~/.codex/sessions/YYYY/MM/DD/*.jsonl` filtered by `session_meta.cwd` → `Files`,
-since Codex stores cwd inside the file, not the path). A third agent CLI is one
-new `<harness>.go` + one registry entry — `actual.go` and the engine never change
-(ARCH-PURPOSE). Pure encoders/parsers (`cwdToClaudeDir`, `codexCWDFromBytes`) are
-unit-tested directly; each `Sources` method is the thin IO seam, tolerant of
-malformed / empty / no-`session_meta` Codex files. This is the validated heuristic (events come only from transcripts;
-the wrong/missing sources were why actuals read 0 and got faked). The engine
+**Measured actuals (#68, #110, #335, #385).** `--actual` is computed, not
+hand-typed. `sdlc actual --issue N` and close's missing-`--actual` adoption share
+the native `internal/activetime` engine. Tracker-backed repositories use the
+ownership intervals and pinned source evidence described above. No-tracker
+repositories retain the explicitly labelled brain/repo cwd heuristic and the
+issue's `CommitWindow` plus `activetime.WindowIssues` peers.
+
+Source selection uses `internal/transcripts.Harness`: `Name()` and
+`Sources(ctx, cwds) → (Sources{Dirs,Files,Warnings}, error)`.
+`DefaultHarnesses()` registers Claude, Codex and Qoder; `Select` merges their
+contributions, retaining warnings and discarding partial selections on error.
+Claude supplies cwd-encoded project directories; Codex supplies date-sharded
+files matched by `session_meta.cwd`. Qoder supplies files matched by recorded
+workspace directories, using the same strict `DiscoverEvidence` path for legacy
+selection and ownership-based actuals. Failed Qoder evidence requires complete
+proof of unrelated workspace roots before exclusion; unresolved or relevant
+failures refuse adoption. Proven unrelated failures remain visible as warnings
+in both paths. Claude/Codex legacy selection keeps its existing heuristic
+handling of malformed or missing metadata. Pure encoders/parsers are tested
+directly; filesystem selection is the thin, cancellable IO seam.
+
+The engine
 returns a structured `Result.Status`: `TelemetryGap`
 (commits-but-0-events → restore owning-slot transcript evidence), `EmptyWindow` (nothing to measure), or
 `Measured` (`PerIssue[N]` → hours). Attribution is global-boundary based (#92):
@@ -1961,17 +1964,42 @@ derive from the primary/common Git directory; local artifacts remain in the
 current worktree. See [Workspace Identity](workspace-identity.md) for address,
 resting-branch, calibration and project-discovery semantics.
 
-## Local token usage (#365)
+## Local usage (#365, #385)
 
-`sdlc usage` reads bounded local Claude/Codex response evidence. Its first rows
-show fleet tokens in the last hour, wall-clock burn over 1–3 hours, and an
+`sdlc usage` reads bounded local Claude/Codex/Qoder response evidence. Its first rows
+show fleet native usage in the last hour, wall-clock burn over 1–3 hours, and an
 empirical account projection when two compatible meter readings and complete
 spend evidence support it. `--since` selects detailed groups/hourly totals;
-`--json` exposes schema version 1. Caches are input subsets and reasoning is an
+`--json` exposes schema version 2. Caches are input subsets and reasoning is an
 output subset, so totals never add them twice. Codex normalization admits usage
 only after resolving the immutable executing identity; pre-identity usage is
 skipped and makes spend coverage incomplete even when a valid header arrives
 later. Missing cwd separately affects attribution.
+
+Qoder reports per-response credits; its zero token placeholders stay null.
+Unexpected nonzero or invalid token placeholders produce visible format coverage
+and block account projections while preserving independently valid credits.
+Credits use exact bounded decimal arithmetic, are deduplicated by message.id,
+and never include original_credits a second time. Reports carry parallel token
+and credit columns; a mixed scope has null complete totals for unsupported
+units and separately labelled known subtotals. No conversion between tokens and
+credits is inferred. `internal/qodertranscript` supplies the shared typed
+metadata/configuration interpretation for usage, actuals and agent identity.
+Discovery reads `~/.qoder/projects/*/*.jsonl`, matches recorded
+workspace-directories rather than project slugs, and preserves immutable session
+identity across replays. Actuals/close use the existing ownership and pinned
+prefix evidence path. Failed Qoder sources block automatic actual adoption while
+workspace relevance is unresolved or relevant. Only a completely scanned, valid,
+immutable prefix proving all recorded roots unrelated permits exclusion; an
+early foreign cwd cannot justify skipping a damaged or truncated source.
+
+Agent identity checks QODER_CLI before competing native-agent markers; Qoder
+also exports CLAUDE_PLUGIN_* variables, which do not prove Claude invocation.
+When present, Pair's launch-pinned PAIR_SESSION_ID must match the transcript
+sessionId and recorded cwd. Without that binding, competing sessions remain
+qoder/-/-; recency never chooses another session's model. SDLC_AGENT_ID remains
+the explicit ambiguity fallback. Qoder transcript recognition does not add a
+Qoder gate-reviewer CLI.
 
 `--issue N` reuses ownership intervals and bound descendants from actual-time
 attribution, but includes the review/verification tail and ends completed issues
@@ -2001,7 +2029,8 @@ reacquisition; accounting never advances a review gate or permits a retry.
 
 `sdlc usage calibrate --agent codex --remaining 29276 --unit credits` writes the
 private bounded meter under XDG_STATE_HOME (default ~/.local/state). Two readings
-of the same agent/unit calibrate meter change against local tokens between them;
+of the same agent/unit calibrate meter change against local tokens between them
+(reported native credits for Qoder);
 refills restart calibration. One reading, stale/incomplete evidence or zero burn
 produces a labelled status and null projection. Plain usage has no cache and
 never interacts with the providers. Re-run opt-in identity conformance when the

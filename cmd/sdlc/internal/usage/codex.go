@@ -139,7 +139,7 @@ func (s *codexState) step(r record, c *Coverage) error {
 			c.Add("reset_gaps", "inconsistent cumulative subsets")
 			return nil
 		}
-		s.legacy = append(s.legacy, Response{ID: fmt.Sprintf("legacy:%s:%d", s.source, s.ordinal), SourceID: s.source, Agent: "codex", Model: s.model, At: at, Tokens: d, Origin: "legacy-cumulative"})
+		s.legacy = append(s.legacy, Response{ID: fmt.Sprintf("legacy:%s:%d", s.source, s.ordinal), SourceID: s.source, Agent: "codex", Model: s.model, At: at, Tokens: &d, Origin: "legacy-cumulative"})
 	}
 	return nil
 }
@@ -202,7 +202,7 @@ func (s *codexState) response(r record, raw json.RawMessage, embedded bool, c *C
 			s.original[q.ResponseID] = at
 		}
 	}
-	s.modern = append(s.modern, Response{ID: q.ResponseID, SourceID: s.source, Agent: "codex", RequestID: q.TurnID, At: at, Tokens: tokens, Origin: q.ThreadID, Model: q.TurnID})
+	s.modern = append(s.modern, Response{ID: q.ResponseID, SourceID: s.source, Agent: "codex", RequestID: q.TurnID, At: at, Tokens: &tokens, Origin: q.ThreadID, Model: q.TurnID})
 	return nil
 }
 

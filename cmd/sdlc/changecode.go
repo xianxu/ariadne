@@ -309,7 +309,7 @@ func checkpointDesign(f *changeCodeFlags, name, issuePath string) error {
 	if out, err := changeCodeRunner.Git(append([]string{"add", "--"}, paths...)...); err != nil {
 		return fmt.Errorf("git add: %v\n%s", err, out)
 	}
-	args := append([]string{"commit", "-q", "--no-verify", "-m", agentid.StampCurrent(designCheckpointMessage(id)), "--only", "--"}, paths...)
+	args := append([]string{"commit", "-q", "--no-verify", "-m", agentid.StampCurrent(designCheckpointMessage(id), changeCodeContext(f)), "--only", "--"}, paths...)
 	if out, err := changeCodeRunner.Git(args...); err != nil {
 		return fmt.Errorf("git commit: %v\n%s", err, out)
 	}
