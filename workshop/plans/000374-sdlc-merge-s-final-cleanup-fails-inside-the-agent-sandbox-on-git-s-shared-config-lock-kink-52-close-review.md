@@ -76,3 +76,72 @@ findings:
 7. **Plan revision recommendations**
 
    None. The plan already distinguishes local acceptance from TL-owned post-merge production conformance.
+
+---
+
+## Re-review — 2026-10-15T01:04:58-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 374 — sdlc merge's final cleanup fails inside the agent sandbox on git's shared config lock (kink 52) |
+| repo | ariadne |
+| issue file | workshop/issues/000374-sdlc-merge-s-final-cleanup-fails-inside-the-agent-sandbox-on-git-s-shared-config-lock-kink-52.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 1643ba28edb46a03318f90c89c225d1a33ac13a0..e4477efc64bfc352c85ba6a01acba5fd7b7e3363 |
+| command | sdlc close --issue 374 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-15T01:04:58-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The implementation matches the revised Spec and Plan. Protected config no longer fails a confirmed landing; guarded ref retirement remains mandatory, and later sweeps retry obsolete metadata cleanup. Focused tests passed, and three mutations demonstrated meaningful regression coverage. No blocking defects found.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: withdrawn
+    note: |
+      The recorded host command passed at 7144ce9e9da2794944597c720cea49d5e69b68ef, confirming native write denial, successful merge/ref retirement, and unchanged config bytes. Diff inspection confirms cmd/sdlc is unchanged between that commit and reviewed head e4477efc. My rerun reproduced sandbox-exec exit 71 before child execution, consistent with the stated nested-sandbox restriction. The host evidence answers BR-1.
+```
+
+1. **Strengths**
+
+   - Shared cleanup preserves metadata when refs or checkouts exist, or observations fail: `cmd/sdlc/branchconfig.go:36`.
+   - Existing done cards and config provide retry discovery without another durable queue: `cmd/sdlc/externalmerge.go:233`.
+   - Explicit publication refspecs retain leases while avoiding upstream creation: `cmd/sdlc/boundarypush.go:59`.
+   - README, atlas, help, and recovery documentation explain the changed behavior and manual-Git concurrency limit.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   The focused selection passed in 144.806s, covering publication, creation, reopening, legacy PRs, persistent config denial, reconciliation, observation guards, interrupted cleanup, and dirty-rest recovery.
+
+   Temporary Go overlays confirmed tests fail when restoring fatal metadata cleanup, restoring `-u`, or removing retry-sweep wiring. Overlay files were removed; repository sources were unchanged.
+
+   Native execution remains restricted here as described in BR-1. The recorded full suite was not independently rerun; its code head differs from this head only in tracker/plan artifacts.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** direct cleanup and reconciliation share one helper.
+   - **ARCH-PURE — pass:** Git operations remain behind injected runners; the concept table correctly classifies integration entities.
+   - **ARCH-PURPOSE — pass:** both upstream producers and legacy residue are addressed.
+   - **ARCH-MOCK — pass:** production seams use real scratch Git and the existing stateful GitHub fake.
+   - **ARCH-CONSTRAINTS — pass:** existing bounded runners remain; no background work or added fan-out.
+   - **ARCH-SECURE — pass:** failed observations preserve metadata; argv and escaped regex construction retain structural boundaries.
+   - **ARCH-ORDER — pass:** guarded retirement, interruption recovery, repeated denial, and late manual recreation have executable coverage.
+   - **ARCH-FUNERAL — pass:** retained config has an automatic cleanup owner; no new durable artifact family.
+
+7. **Plan revision recommendations:** None. Production Claude-slot conformance remains explicitly TL-owned after merge, consistent with the revised acceptance criteria.
