@@ -10,7 +10,7 @@
 # pinned to the module dir). Form:
 #
 #   X() { ( cd OWNER && mkdir -p bin && d="$(mktemp -d bin/.X.XXXXXX)" &&
-#     { go build -o "$d/X" ./cmd/X && mv -f "$d/X" bin/X; s=$?; rm -rf "${d:?}"; exit $s; } ) || return; OWNER/bin/X "$@"; }
+#     { go build -trimpath -o "$d/X" ./cmd/X && mv -f "$d/X" bin/X; s=$?; rm -rf "${d:?}"; exit $s; } ) || return; OWNER/bin/X "$@"; }
 #
 # An owner whose build needs a generated input (a gitignored embed tree, say)
 # declares a `dev-prepare` make rule (#299; what counts as declared is
@@ -269,7 +269,7 @@ printf '%s\n' "$final" | while IFS="$(printf '\t')" read -r bin repo; do
 					prepared="$prepared$repo=0|"
 				fi ;;
 		esac
-		printf '%s() { ( cd %s && %smkdir -p bin && d="$(mktemp -d bin/.%s.XXXXXX)" && { go build -o "$d/%s" ./cmd/%s && mv -f "$d/%s" bin/%s; s=$?; rm -rf "${d:?}"; exit $s; } ) || return; %s/bin/%s "$@"; }\n' \
+		printf '%s() { ( cd %s && %smkdir -p bin && d="$(mktemp -d bin/.%s.XXXXXX)" && { go build -trimpath -o "$d/%s" ./cmd/%s && mv -f "$d/%s" bin/%s; s=$?; rm -rf "${d:?}"; exit $s; } ) || return; %s/bin/%s "$@"; }\n' \
 			"$bin" "$repo_q" "$prep" "$bin" "$bin" "$bin" "$bin" "$bin" "$repo_q" "$bin"
 	fi
 done

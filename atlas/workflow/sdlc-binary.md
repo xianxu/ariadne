@@ -1656,6 +1656,16 @@ on no-divergence so the caller can pick the issue-specific fallback.
 
 ## Build + install
 
+Ariadne's owner `Makefile` reads effective `go env GOFLAGS`, retains those flags,
+and exports `-trimpath` to its tool builds and Python test sharder. Already-present
+`-trimpath` is kept once. A command-line Make `GOFLAGS=...` assignment retains
+Make's explicit override semantics. Generated `construct/dev-aliases.sh`
+functions pass the flag directly to every owner's `go build`; existing shell
+functions need to be reloaded after the emitter changes. Direct Go invocations
+can pass `-trimpath` themselves. The compiler records module/import paths rather
+than worktree source paths, allowing unchanged compiled packages to share cache
+artifacts across worktrees. Fixture/source discovery uses cwd, Git or module roots.
+
 ```
 make ensure-go         guarantee the Go toolchain (#61): no-op if present,
                        brew-installs on macOS, else fails fast with go.dev/dl
@@ -1675,6 +1685,11 @@ present), so bootstrap never provisioned a toolchain; #61 closed that gap. nous
 owns its richer toolchain (Homebrew/GPG/gh/…) separately.
 
 ### Running the test suite (#253)
+
+The required recorded suite is declared in `.sdlc/local-checks.json` as
+`make test`, with weight 2 and a 60-minute timeout. It inherits the owner's
+trimpath default and existing Go flags. Before that declaration landed, the
+equivalent fallback suite command exercised the same candidate Makefile.
 
 `make test` (`scripts/test-shard.py`) is the full run: it compiles the
 `cmd/sdlc` test binary once and splits its top-level tests over one process per

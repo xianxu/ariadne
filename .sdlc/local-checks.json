@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "checks": [
+    {
+      "name": "suite",
+      "command": ["make", "test"],
+      "required": true,
+      "timeout_minutes": 60,
+      "weight": 2
+    }
+  ]
+}
