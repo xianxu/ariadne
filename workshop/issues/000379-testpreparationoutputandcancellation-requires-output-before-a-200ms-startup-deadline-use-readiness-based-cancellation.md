@@ -47,6 +47,7 @@ Prove output retention and cancellation without requiring OS/Git/process startup
 ## Log
 
 ### 2026-10-14
+- 2026-10-14: closed — The preparation test waits for a producer marker after writing 64x OutputLimit before canceling; an already-canceled control accepts empty evidence. Focused pair passed 20 repetitions, whole judge package passed, make -k tools passed, and recorded sdlc-local/suite passed on 6bb8b055 (12 shards, 1353 sdlc tests, 59 packages). No atlas surface: test-only change. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 Filed unassigned from the primary checkout while #240 remains owned by ariadne:5. Evidence: /tmp/ariadne240-preparation-targeted.log, /tmp/ariadne240-preparation-diagnostic.log and /tmp/ariadne240-preparation-main.log. Full recorded suite failed after 756.0s (1366 SDLC tests, 59 other packages); log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/6433ffd3ecd69e3e3b1a0591a4c5002f6f8eaba8/suite.log, SHA-256 prefix d75cb1db7b6a. Independent repair should land from main before #240 reruns its acceptance suite.
 
