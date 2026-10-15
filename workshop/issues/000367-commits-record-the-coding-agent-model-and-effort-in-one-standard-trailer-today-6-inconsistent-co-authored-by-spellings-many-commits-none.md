@@ -37,14 +37,18 @@ One machine-readable trailer on every agent-authored commit, e.g. `Agent: codex/
 
 Durable plan: `workshop/plans/000367-agent-trailer-plan.md` (format coordinated with #365; pure `agentid` package, stamped commit sites + sweep test, `sdlc agent-id`, close report, AGENTS.base.md §12).
 
-- [ ] agentid pure core (Identity, Stamp, MissingAgent)
-- [ ] transcript readers + Current()
-- [ ] sdlc agent-id verb
-- [ ] stamp commit sites + sweep test
-- [ ] close report of window commits without Agent:
-- [ ] AGENTS.base.md §12 + atlas
+- [x] agentid pure core (Identity, Stamp, MissingAgent)
+- [x] transcript readers + Current()
+- [x] sdlc agent-id verb
+- [x] stamp commit sites + sweep test
+- [x] close report of window commits without Agent:
+- [x] AGENTS.base.md §12 + atlas
 - [ ] verify: full suite, window trailers
 
 ## Log
 
 ### 2026-10-14
+- Format sent to ariadne:3 (#365) and the TL: `Agent: agent/model/effort` with the transcripts' raw names. Env carries no model (only CLAUDE_EFFORT), so model and effort come from the session transcript's tail: Claude assistant records carry `message.model` + `effort`; Codex `turn_context.payload` carries `model` + `effort`.
+- Tests run inside agent sessions, so TestMain in cmd/sdlc, gitx and tracker pins `SDLC_AGENT_ID` (`testfix.PinAgent`); otherwise commit messages in tests would depend on who runs the suite.
+- Stamped 16 `commit`/`commit-tree` sites plus the landing integration merge; exempt (named in the sweep test): recovery ref, rebased-patch temp commit, abandon's merge conclusion. The GitHub PR merge commit is GitHub's message; merges carry no work and the close report skips them (first-parent, no merges).
+- Close report is a warning, not a gate (proposed to the TL; one GateCatalog row promotes it).
