@@ -214,6 +214,17 @@ projections. Live conformance12.513s remains valid for unchanged CLI identity
 protocol. Plan function labels now match delivered seams. Shared close rerun is
 next; no candidate gate binary grades its own landing.
 
+
+### 2026-10-14 22:56 — round2 REWORK, prior classes disposed
+
+Shared close verified/disposed all four original findings and reproduced BR-5
+(discovery accepts Codex thread_id fallback but decoder does not; copied parent
+spend admitted) and BR-6 (issue/repository filters hide other issue reviewer
+identity before role selection). Fix the shared identity and exclusion-evidence
+classes with production regressions; preserve all scan bounds and explicit
+coverage. Fresh recorded suite follows behavior changes. No disputed finding or
+waived guard; continue to SHIP.
+
 ## Revisions
 
 ### 2026-10-14 — whole-system bench cost

@@ -341,3 +341,25 @@ BR-3's concept-map reconciliation also includes the reporting-only accounting
 decoder and replaces conceptual function labels in the verification table with
 delivered functions/seams. These are documentation-only corrections; the passing
 suite's code is unchanged. Shared close remains the final review authority.
+
+
+### 2026-10-14 22:56 — round2 identity and role-exclusion classes
+
+Shared review verified/disposed BR-1 through BR-4, then reproduced two new
+Critical findings. BR-5 requires a single immutable first Codex session-metadata
+identity contract across discovery and decoding: id/thread_id aliases, conflicting
+aliases, copied later metadata, and malformed/empty first metadata. Share a pure
+parser; first evidence cannot be repaired from later copied history (ARCH-DRY).
+
+BR-6 requires all relevant reviewer identity evidence before exclusive role
+selection. File/repository issue filters must not hide a different issue's known
+in-place reviewer and turn it into this issue's worker. Load bounded fleet
+identity evidence, then filter included reviewer totals after role selection;
+verify ledger/comment/private receipt parity before and after committed cleanup.
+Keep selected-issue gap coverage distinct from unrelated historical gaps where
+possible, and keep scan bounds/unreadable evidence explicit (ARCH-PURPOSE).
+
+Task2's verification scope now includes production discovery→Decode identity
+conformance and production loader→role attribution with cross-issue/cross-repo
+persistence/cleanup. The passing36799280 suite remains true for its code, but
+these behavior fixes require a fresh recorded suite before the next close.

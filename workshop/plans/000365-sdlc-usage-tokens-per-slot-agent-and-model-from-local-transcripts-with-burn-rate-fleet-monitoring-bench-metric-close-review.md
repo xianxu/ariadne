@@ -101,3 +101,103 @@ Append `## Revisions` entries that:
 - Require reconciliation of all applicable cumulative evidence before declaring spend complete.
 - Require visible diagnostics for invalid reviewer evidence.
 - Correct Task2’s integration-test completion claim until the production regressions exist.
+
+---
+
+## Re-review — 2026-10-14T22:55:38-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 365 — sdlc usage: tokens per slot, agent and model from local transcripts, with burn rate (fleet monitoring + bench metric) |
+| repo | ariadne |
+| issue file | workshop/issues/000365-sdlc-usage-tokens-per-slot-agent-and-model-from-local-transcripts-with-burn-rate-fleet-monitoring-bench-metric.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 8699bc8dbdec809db55ddbd242eb3ecffb990a6d..ead74a59d03dda4a26a91c2515ca093df96f388d |
+| command | sdlc close --issue 365 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T22:55:38-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+All four prior findings are addressed, with regression evidence for the behavior changes. Two additional accounting defects block shipping: discovery and decoding disagree on Codex session identity, and issue filtering can turn another issue’s known reviewer into worker spend. The focused tests pass; both new defects reproduce against the pinned head.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Mixed legacy/thread and per-turn reconciliation tests pass. Overlays restoring each pre-fix decoder make the corresponding regressions fail.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Ledger, comment and private-store invalid-evidence tests pass. Removing invalid-identity quarantine makes all three worker-exclusion regressions fail.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Inspected the before/after plan diff: Core concepts now names reviewusage/model.go and usage.go, and labels provenance.go and tracker/engagement.go reused unchanged. Filesystem and pinned diff confirm those paths and statuses; the Revisions entry records the correction.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Production boundary, plan and estimate dispatch-through-loading tests pass, including cancellation without semantic advancement. Independently omitting their accounting attachments makes each intended regression fail.
+findings:
+  - id: new
+    severity: Critical
+    family: session-identity-contract-must-be-shared
+    title: |
+      Codex decoding ignores an executing identity accepted by discovery
+    detail: |
+      cmd/sdlc/internal/usage/codex.go:35-42 reads only session_meta.payload.id, while internal/transcripts/usage_discovery.go:332-335 accepts thread_id as its fallback. A production discovery→Decode probe verified a child identified by thread_id, then returned both its 12 tokens and 120 copied parent tokens with spend_complete=true. Share the immutable executing-identity contract across discovery and decoding, and cover both identity spellings plus later copied metadata. ARCH-DRY, ARCH-SECURE.
+  - id: new
+    severity: Critical
+    family: role-exclusion-requires-unfiltered-evidence
+    title: |
+      Issue filtering removes reviewer evidence before exclusive role selection
+    detail: |
+      cmd/sdlc/usage_reviewers.go:66-67 skips other issues’ accounting artifacts, and usage.go:249 supplies the selected issue as that filter. Once a private receipt is collected into its committed artifact, a known in-place reviewer for another issue can therefore become the selected issue’s worker during overlapping ownership intervals. A production-loader probe with a valid issue-366 plan-review ledger returned zero records, complete coverage and worker Include=true for issue 365. Load relevant reviewer identity evidence before issue filtering; filter included reviewer totals only after exclusive role selection. Cover ledger/sidecar persistence and receipt-cleanup parity. ARCH-PURPOSE, ARCH-SECURE.
+```
+
+1. **Strengths**
+
+   - Cumulative snapshots remain diagnostic evidence rather than additional spend.
+   - Invalid accounting retains usable identity for quarantine through a shared artifact decoder.
+   - Production attachment regressions detect missing boundary, plan and estimate wiring.
+   - README and atlas updates cover the command, calibration and receipt lifecycle.
+
+2. **Critical findings**
+
+   The two findings above require fixes and regression tests before crossing the boundary.
+
+3. **Important findings**
+
+   None.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   Usage, reviewusage, transcripts and judge packages passed, as did targeted root usage/accounting tests. Mutation checks confirmed the prior fixes are exercised. Both new probes failed against unchanged production code. Temporary overlays were removed; the checkout remains clean. I did not rerun the full suite or live provider conformance.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — flag:** session identity parsing differs between consumers.
+   - **ARCH-PURE — pass:** normalization, aggregation and transitions have direct pure tests.
+   - **ARCH-PURPOSE — flag:** premature issue filtering breaks exclusive reviewer attribution.
+   - **ARCH-MOCK — pass:** portable repositories and stateful fake reviewer processes exercise shared boundaries.
+   - **ARCH-CONSTRAINTS — pass:** explicit scan, line, response and deadline bounds are implemented.
+   - **ARCH-SECURE — flag:** the new defects admit incorrect attribution despite available identity evidence.
+   - **ARCH-ORDER — pass:** receipt transitions and cancellation preserve confirmed progress separately from gate acceptance.
+   - **ARCH-FUNERAL — pass:** private receipts have bounded retention and committed-evidence cleanup; permanent metadata has a documented per-attempt cost.
+
+7. **Plan revision recommendations**
+
+   Append `## Revisions` entries establishing one immutable Codex identity contract across consumers and requiring reviewer exclusion evidence to survive issue filtering and receipt cleanup. Add both regressions to Task2’s verification scope.
