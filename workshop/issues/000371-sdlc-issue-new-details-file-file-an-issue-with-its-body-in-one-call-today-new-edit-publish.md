@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "5b408f42", done: "55abce04"}
 ---
 
 # sdlc issue new --details FILE: file an issue with its body in one call (today: new, edit, publish)
