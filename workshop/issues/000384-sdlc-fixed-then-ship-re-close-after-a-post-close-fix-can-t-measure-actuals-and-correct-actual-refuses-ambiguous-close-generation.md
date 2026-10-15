@@ -76,6 +76,7 @@ Durable plan: [re-close actuals](../plans/000384-reclose-actuals-plan.md).
 ## Log
 
 ### 2026-10-15
+- 2026-10-15: closed — Production measured close -> fix -> fixed-then-ship twice pins each reviewed head and admits fix activity; historical preview stays immutable; legacy ambiguous correction names eligible raw targets and exact exclusion. Focused command/internal/recovery tests and mutation checks passed. Recorded full make test on bb42d2f5298124aaaefab53cd71598869b5b6c1c passed: 12 shards, 1394 cmd/sdlc tests, 60 other packages, zero failures, 620.8s; log SHA256 dd9d98c2ce2a1d8f7681fd643ef7541a3eef46633dc20daa8285d1ead551d734. Decimal-ID regression and source guard pass.; review verdict: SHIP
 
 ### 2026-10-15 — investigation and plan
 
