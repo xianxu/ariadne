@@ -1,12 +1,12 @@
 ---
 id: 000390
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
-card_mirror: '4b230c432e31a158915d4ee628337c4a61c6a19b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'dba6de132cb14930b2c4fe68adf8aca4d70e7b7b' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-15T13:05:00-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "a78b6b3e", done: "e87c0e11"}
+actual_hours: 1.07
 ---
 
 # test-economy: design the pattern (evidence tiers, integration tax, flakes, budgets, minimization) from test-stats data
