@@ -38,6 +38,32 @@ rounds:
           family: explicit-operating-envelope
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-14T20:57:17-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Private attempt directories, atomic publication markers, dead-owner cleanup, separate retention roots and controlled-order concurrency tests define publication and cleanup ownership.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: decodeSuiteAttempt defines bounded schema and path validation; rejected records produce coverage diagnostics and cannot supply statistical or flake evidence.
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          note: Tasks name parser, aggregator, decoder, publication, pruning and command functions with adversarial strategies and mechanical assertions, including controlled writer ordering.
+          round: 2
+        - id: PQ-4
+          disposition: addressed
+          note: parseSuiteLogFacts explicitly reuses failingTests, which baseline diagnosis already consumes at cmd/sdlc/suitebaseline.go:35.
+          round: 2
+        - id: PQ-5
+          disposition: addressed
+          note: The plan states expected fleet volume, measured storage basis, log and record intake limits, visible overload behavior and recorder overhead.
+          round: 2
+      blocked: false
+content_hash: 49ff9a40d420140fa76ad164617dcd845af67775271b57961dee3d10bf5fd36a
 ---
 
 # Gate ledger — ariadne#376 (plan-quality)
@@ -60,10 +86,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-5** [Minor] `explicit-operating-envelope` Give the statistics reader and recorder an operating envelope
   Thirty-day retention bounds age rather than record count, failed-log bytes or reader memory. State an expected fleet/run/log-size range with its basis and visible behavior when exceeded, including malformed oversized input; identify an acceptable recorder overhead rather than implying retention alone bounds resource use. ARCH-CONSTRAINTS.
 
+## Round 2 — 2026-10-14T20:57:17-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Private attempt directories, atomic publication markers, dead-owner cleanup, separate retention roots and controlled-order concurrency tests define publication and cleanup ownership.
+- PQ-2 — addressed — decodeSuiteAttempt defines bounded schema and path validation; rejected records produce coverage diagnostics and cannot supply statistical or flake evidence.
+- PQ-3 — addressed — Tasks name parser, aggregator, decoder, publication, pruning and command functions with adversarial strategies and mechanical assertions, including controlled writer ordering.
+- PQ-4 — addressed — parseSuiteLogFacts explicitly reuses failingTests, which baseline diagnosis already consumes at cmd/sdlc/suitebaseline.go:35.
+- PQ-5 — addressed — The plan states expected fleet volume, measured storage basis, log and record intake limits, visible overload behavior and recorder overhead.
+
 ## Open findings
 
-- **PQ-1** [Important] `durable-publication-ownership` Define publication and cleanup ownership across concurrent suite attempts
-- **PQ-2** [Important] `persisted-input-validation` Specify the trust boundary and validation policy for attempt records
-- **PQ-3** [Important] `function-level-test-strategy` Replace test-case inventories with named functions and adversarial strategies
-- **PQ-4** [Minor] `shared-behavior-single-source` Explicitly reuse the existing failure-extraction behavior
-- **PQ-5** [Minor] `explicit-operating-envelope` Give the statistics reader and recorder an operating envelope
+(none — every finding has been disposed)

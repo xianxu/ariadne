@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
-estimate_hours:
-card_mirror: 'e037a35a6d79e19bdc78531dfa3c98fb9636095e' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 3.48
+card_mirror: '59a5dbff06fab52bc6a7a0daf717f88f901fb6b6' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T20:40:09-07:00
 claimant:
     operator: Xian Xu
@@ -38,6 +38,24 @@ The operator (2026-10-14) made test health and performance a train ("test econom
 - [ ] Expose `sdlc test-stats --since 7d [--repo …] [--json]`, verify the real ariadne/pair output, update CLI documentation, run the suite and close review.
 
 Detailed design: [test-stats plan](../plans/000376-test-stats-plan.md). The TL approved recording future attempts because current logs cannot reconstruct all requested metrics.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module design=0.4 impl=0.32
+item: greenfield-go-module design=0.4 impl=0.32
+item: greenfield-go-module design=0.4 impl=0.32
+item: smaller-go-module design=0.1 impl=0.2
+item: atlas-docs design=0.1 impl=0.08
+item: milestone-review design=0.1 impl=0.2
+item: issue-spec design=0.2 impl=0.08
+design-buffer: 0.15
+total: 3.48
+```
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. Three greenfield Go concerns are log parsing, aggregation, and durable attempt storage (design 2.0 hours each discounted ×0.2 for the detailed plan, implementation 0.8 hours each scaled ×0.4); the smaller module is CLI wiring on existing Cobra/fleet helpers. The calibration source reports stale relative to its ledger, so this estimate is provisional.
 
 ## Log
 
