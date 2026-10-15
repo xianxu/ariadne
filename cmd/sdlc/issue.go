@@ -494,7 +494,7 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 		cwarn(stderr, fmt.Sprintf("#%s is filed unclaimed: this workspace's identity is unavailable (%v)", issue.CLIRef(spec.IssueID), err))
 	case creatorClaims(me.Workspace) && !f.NoClaim:
 		claimAtCreation(env, stderr, spec.IssueID, me)
-	case f.NoClaim:
+	case creatorClaims(me.Workspace):
 		cinfo(stderr, fmt.Sprintf("#%s is unclaimed (--no-claim); the slot that works it claims it with `sdlc claim --issue %s`", issue.CLIRef(spec.IssueID), issue.CLIRef(spec.IssueID)))
 	default:
 		cinfo(stderr, fmt.Sprintf("#%s is unclaimed (filed outside a numbered slot); the slot that works it claims it with `sdlc claim --issue %s`", issue.CLIRef(spec.IssueID), issue.CLIRef(spec.IssueID)))

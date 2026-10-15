@@ -50,12 +50,17 @@ Filing an issue with content takes three steps: `sdlc issue new "title"` (publis
 - [x] `issue new --details FILE|-` and `--no-claim`. Tests against the fake origin: card and body published in one creation commit, the checkout untouched (`assertCheckoutUntouched`); an invalid file refused before any ID is reserved (the tracker's max ID unchanged, main unchanged); stdin; `--from-github` with a Problem in the file refused; `--no-claim` from a slot leaves it unclaimed; `--dry-run` shows the merged body
 - [x] Help text for `issue new`, the `sdlc issue --help` contract if it lists the flags, the atlas, and the AGENTS §2 creation line if it names the flow
 
+## Revisions
+
+- 2026-10-15 (close review): `ParseDetails` scans with `FenceSpans` in both unterminated modes rather than `ScanMarkdownLines`, and refuses an unclosed fence.
+
 ## Log
 
 
 
 - 2026-10-15: closed — ParseDetails units (full, partial, fenced headings, 8 refusals) + Render-with-sections unit; 4 fake-origin tests in cmd/sdlc/issuenew_details_test.go: one creation commit carries card and full body with checkout untouched, bad file refused before reserving (main and tracker unchanged), from-github plus Problem conflict refused, stdin with dry-run, --no-claim from a numbered slot files unclaimed; live go run dry-run against this repo rendered the merged body; full make test green (12 shards, 1374 cmd/sdlc tests, 59 packages, 0 failed); review verdict: SHIP
 - 2026-10-15: flow upgraded quick → full — 138 added lines in code files (limit 100)
+- 2026-10-15: review Minors fixed: help-text parenthetical back after the main merge; `--no-claim` from `:0` prints the outside-a-slot notice; a legacy-path `--details` test; the Revisions note above.
 ### 2026-10-14
 - Plan: parse the details into sections before reserving; `Render` takes the sections; `--no-claim` per the TL. Quick flow.
 - Built. Unit tests: `ParseDetails` (full body, fenced `## ` kept as body, an empty section, 8 refusals) and `Render` with sections. Fake-origin tests: one creation commit carrying card and body, checkout untouched; unknown section and `# ` title refused before reserving (main and issue-tracker unchanged); `--from-github` with a Problem refused; stdin with `--dry-run`; `--no-claim` from `pair:1` files unclaimed. `go test -run IssueNew` green. A live `--dry-run` against this repo renders the merged body. Docs: the `issue new` help, `sdlc issue --help`, AGENTS.base §2, the atlas.

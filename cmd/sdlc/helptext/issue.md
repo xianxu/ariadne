@@ -120,10 +120,10 @@ refreshes; a hand edit to a mirrored field is refused with the setter to use.
 
 Details are published at creation (#308): `issue new` puts them on main in the
 same operation that reserves the card, and writes no checkout; a branch gets
-them with its next main merge. `issue new --details FILE` (`-` for stdin, #371)
-supplies the body as `## <Section>` blocks, checked before any ID is reserved;
-`--no-claim` files from a numbered slot without claiming (`start-plan` branches from fresh main). The
-issue is claimable at once. Later edits ride the issue branch's PR or
+them with its next main merge (`start-plan` branches from fresh main). `issue
+new --details FILE` (`-` for stdin, #371) supplies the body as `## <Section>`
+blocks, checked before any ID is reserved; `--no-claim` files from a numbered
+slot without claiming. The issue is claimable at once. Later edits ride the issue branch's PR or
 `issue publish`. Checkpoint design with ordinary git commits on the issue
 branch.
 
