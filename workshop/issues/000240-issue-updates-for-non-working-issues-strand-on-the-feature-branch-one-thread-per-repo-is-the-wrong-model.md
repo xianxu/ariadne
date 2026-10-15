@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "aa1acded", done: "5c2eed8a"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Issue updates for non-working issues strand on the feature branch — one thread per repo is the wrong model
@@ -139,6 +139,8 @@ removes the stranding and the sweep hazard without any new model.
 ## Log
 
 ### 2026-10-14
+- 2026-10-14: closed — BR-8 growth tests RED consumed 3MiB; bounded initial/post-publication reads GREEN at limit+1, focused publication/reader tests 58.334s and recovery registry 0.662s. Repaired-head make test on 40be9ef72775ccf6cc3873ac6a7344625c62aff9 passed all 12 shards/1368 SDLC tests and 59 other packages, 451.2s, log sha256 977ce9b0d172f51703823912c5ab9302353eb4ccb68007156f131b00e145ac04. Final SDLC status POST hit a transient network failure; no record-only verb exists, so only that failed status was retried with gh api and read back: sdlc-local/suite success ID 56390349486, marked status retry. Formatting, tool builds, retained local/open-descriptor writes, exact-path guidance, CAS retry/isolation, README and atlas verified.; review verdict: SHIP
+- 2026-10-14: flow upgraded quick → full — 273 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 Claimed in ariadne:1 after `weave refresh`; the tracker-era issue publication
 path already exists, so scope narrowed to non-issue workshop prose with hub

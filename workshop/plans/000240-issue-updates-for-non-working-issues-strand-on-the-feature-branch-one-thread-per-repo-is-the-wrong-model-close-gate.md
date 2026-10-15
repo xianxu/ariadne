@@ -344,6 +344,170 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 6e2bb6a7abee199c4ece5eefad7a1b5326cb553f
+        tracker_head: 84921a6d968f98ca0d8571e544d08876b14af6f0
+        branch_point: 4c52f8a4e712c01c3d764bf53340a5289940fc7b
+        since: "2026-10-14T08:53:15-07:00"
+        until: "2026-10-14T19:53:00-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-14T08:53:15-07:00"
+              end: "2026-10-14T11:37:28-07:00"
+              began: "2026-10-14T08:53:15-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+            - start: "2026-10-14T11:37:28-07:00"
+              end: "2026-10-14T19:53:00-07:00"
+              began: "2026-10-14T08:53:15-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+                - /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        sources:
+            - harness: codex
+              id: 01a136db-6cd1-7a31-87f3-271411613545
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+              digest: bee970bab5e7c1e255dfcbb549cbabc3cee02b3271dcf1c15b7bae44b530277f
+              started: "2026-10-13T20:02:12.897Z"
+              spawned: false
+              bytes: 20111903
+              windows:
+                - start: "2026-10-14T11:37:28-07:00"
+                  end: "2026-10-14T19:53:00-07:00"
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 7263cc1a48524adf5a14355b71ceb8f7410d6341c65377c0b50bfc9d7c5e0c48
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 23372656
+              windows:
+                - start: "2026-10-14T08:53:15-07:00"
+                  end: "2026-10-14T11:37:28-07:00"
+                - start: "2026-10-14T11:37:28-07:00"
+                  end: "2026-10-14T19:53:00-07:00"
+            - harness: codex
+              id: 01a13b21-7327-7c60-9006-edb3c90098ae
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: c3162bf2b1730739eeab71cce50f8496d7da0898d39c3ef94f0cb469e5e0af89
+              started: "2026-10-14T15:56:50.688Z"
+              spawned: false
+              bytes: 527136
+              windows:
+                - start: "2026-10-14T15:56:50.688Z"
+                  end: "2026-10-14T11:37:28-07:00"
+                - start: "2026-10-14T11:37:28-07:00"
+                  end: "2026-10-14T19:53:00-07:00"
+            - harness: codex
+              id: 01a13bb6-8ece-7533-bf70-cb6022b40029
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: a7243862f79aa4e17102cda8f735c70c42cc802984be5c4e20fabce5e807085a
+              started: "2026-10-14T18:39:42.497Z"
+              spawned: false
+              bytes: 576557
+              windows:
+                - start: "2026-10-14T18:39:42.497Z"
+                  end: "2026-10-14T19:53:00-07:00"
+            - harness: codex
+              id: 01a13bb9-c9d4-74e0-8386-4967333fab42
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 39e12181e61983a2b02636e7dd5640454d664cf5e614e9d45901d17b0ef9cb16
+              started: "2026-10-14T18:43:14.309Z"
+              spawned: false
+              bytes: 436808
+              windows:
+                - start: "2026-10-14T18:43:14.309Z"
+                  end: "2026-10-14T19:53:00-07:00"
+            - harness: codex
+              id: 01a13bbc-0eea-7293-a1da-e6b517ba3bc5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: b5b9167849378e1cfc8f4649223b2400a4e745d62160cde7230cbd5aa87c5ceb
+              started: "2026-10-14T18:45:43.129Z"
+              spawned: false
+              bytes: 454631
+              windows:
+                - start: "2026-10-14T18:45:43.129Z"
+                  end: "2026-10-14T19:53:00-07:00"
+            - harness: codex
+              id: 01a13bbc-c0df-7e53-9383-6398cd4255a9
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 7f11c95c3b9871616ac14dd392bb0200ef5cfbe4f1ced84e182c4f1a79694b0b
+              started: "2026-10-14T18:46:28.655Z"
+              spawned: false
+              bytes: 368889
+              windows:
+                - start: "2026-10-14T18:46:28.655Z"
+                  end: "2026-10-14T19:53:00-07:00"
+            - harness: codex
+              id: 01a13d0f-202d-7363-959f-3a7f66f12435
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+              parent_id: 01a136db-6cd1-7a31-87f3-271411613545
+              digest: c7fc9edc8957fca0aae26a02c229411fadc29612f2c191d49d4f7a3ca7f88e52
+              started: "2026-10-15T00:56:03.985Z"
+              spawned: true
+              bytes: 459045
+              windows:
+                - start: "2026-10-15T00:56:03.985Z"
+                  end: "2026-10-14T19:53:00-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 60.19775
+        cuts:
+            - dispatched: "2026-10-14T09:32:19-07:00"
+              finalized: "2026-10-14T09:36:09-07:00"
+              finalizing: false
+            - dispatched: "2026-10-14T10:19:16-07:00"
+              finalized: "2026-10-14T10:23:27-07:00"
+              finalizing: false
+            - dispatched: "2026-10-14T17:52:33-07:00"
+              finalized: "2026-10-14T17:55:25-07:00"
+              finalizing: false
+      "n": 5
+      timestamp: "2026-10-14T19:55:35-07:00"
+      dispatched: "2026-10-14T19:53:16-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Publication performs no local cleanup; TestTrunkPublishRetryAfterPushInterruption verifies retained bytes and retry without another main commit.
+          round: 5
+        - id: BR-2
+          disposition: addressed
+          note: Plan Tasks 1–2 name function-level strategies for eligibility, publication decisions, conflicts, retention, and retry; corresponding tests exist and pass.
+          round: 5
+        - id: BR-3
+          disposition: addressed
+          note: The current issue and plan use ordinary task checkboxes and one whole-issue close boundary; no redundant milestone-close remains.
+          round: 5
+        - id: BR-4
+          disposition: addressed
+          note: The plan declares a 1 MiB input limit, two-minute remote budget, and existing CAS attempt budget; production wiring and targeted budget tests confirm enforcement.
+          round: 5
+        - id: BR-5
+          disposition: addressed
+          note: Selected-path staging checks and printed cleanup commands use literal pathspecs; tracked and untracked wildcard-filename regression tests pass.
+          round: 5
+        - id: BR-6
+          disposition: addressed
+          note: Production publication retains the local file; the open-descriptor regression verifies a later write survives and suppresses destructive cleanup guidance.
+          round: 5
+        - id: BR-7
+          disposition: addressed
+          note: README.md:28 documents trunk publish --path, eligibility, retry, retention, and tracked/untracked cleanup, consistent with trunkpublish.go:231–238 and the executable guidance tests.
+          round: 5
+        - id: BR-8
+          disposition: addressed
+          note: trunkpublish.go:120 limits actual consumption to maxTrunkProseBytes+1 for both callers. Tests pass at pinned head; an overlay removing only LimitReader makes growth tests fail at both production read sites, consuming 3145728 bytes instead of 1048577.
+          round: 5
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 6e2bb6a7abee199c4ece5eefad7a1b5326cb553f
+      blocked: false
 ---
 
 # Gate ledger — ariadne#240 (boundary-review)
@@ -408,6 +572,19 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-8** [Important] `explicit-operating-envelope` (kind: defect) Enforce the prose limit during reading, not only before and after it
   cmd/sdlc/trunkpublish.go:105–117 checks Lstat size, then calls unbounded os.ReadFile. A file growing between those operations is read fully before rejection, contrary to the plan's promise to refuse oversized input before reading fully. Deterministic instrumentation in a disposable pinned-head checkout grew the file after Lstat: the reader consumed 4,194,304 bytes against a 1,048,576-byte limit. ARCH-CONSTRAINTS: this is the 2nd finding in family explicit-operating-envelope. Earlier rounds fixed declaration of the bounds; state and enforce the rule across both initial and post-publication reads: consume at most limit+1 bytes, then reject overflow. Add regression coverage for static oversized input and growth after validation.
 
+## Round 5 — 2026-10-14T19:55:35-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — Publication performs no local cleanup; TestTrunkPublishRetryAfterPushInterruption verifies retained bytes and retry without another main commit.
+- BR-2 — addressed — Plan Tasks 1–2 name function-level strategies for eligibility, publication decisions, conflicts, retention, and retry; corresponding tests exist and pass.
+- BR-3 — addressed — The current issue and plan use ordinary task checkboxes and one whole-issue close boundary; no redundant milestone-close remains.
+- BR-4 — addressed — The plan declares a 1 MiB input limit, two-minute remote budget, and existing CAS attempt budget; production wiring and targeted budget tests confirm enforcement.
+- BR-5 — addressed — Selected-path staging checks and printed cleanup commands use literal pathspecs; tracked and untracked wildcard-filename regression tests pass.
+- BR-6 — addressed — Production publication retains the local file; the open-descriptor regression verifies a later write survives and suppresses destructive cleanup guidance.
+- BR-7 — addressed — README.md:28 documents trunk publish --path, eligibility, retry, retention, and tracked/untracked cleanup, consistent with trunkpublish.go:231–238 and the executable guidance tests.
+- BR-8 — addressed — trunkpublish.go:120 limits actual consumption to maxTrunkProseBytes+1 for both callers. Tests pass at pinned head; an overlay removing only LimitReader makes growth tests fail at both production read sites, consuming 3145728 bytes instead of 1048577.
+
 ## Open findings
 
-- **BR-8** [Important] `explicit-operating-envelope` (kind: defect) Enforce the prose limit during reading, not only before and after it
+(none — every finding has been disposed)

@@ -299,3 +299,96 @@ Focused command/recovery tests passed in 17.306s; selected CAS, uncertainty, can
 **Plan revision recommendations**
 
 Add a `## Revisions` entry defining the read-time bound for every local prose read and naming deterministic overflow/growth regression tests. Also remove the statement at plan line 30 that every CAS attempt rechecks worktree identity; the current callback publishes pinned bytes and checks local contents after publication.
+
+---
+
+## Re-review — 2026-10-14T19:55:35-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 240 — Issue updates for non-working issues strand on the feature branch — one thread per repo is the wrong model |
+| repo | ariadne |
+| issue file | workshop/issues/000240-issue-updates-for-non-working-issues-strand-on-the-feature-branch-one-thread-per-repo-is-the-wrong-model.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 4c52f8a4e712c01c3d764bf53340a5289940fc7b..6e2bb6a7abee199c4ece5eefad7a1b5326cb553f |
+| command | sdlc close --issue 240 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T19:55:35-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range satisfies the revised publication and local-retention contract. BR-8 is addressed: both production reads enforce the byte limit, and removing that enforcement makes the regression tests fail. No new blocking findings were identified.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Publication performs no local cleanup; TestTrunkPublishRetryAfterPushInterruption verifies retained bytes and retry without another main commit.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Plan Tasks 1–2 name function-level strategies for eligibility, publication decisions, conflicts, retention, and retry; corresponding tests exist and pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The current issue and plan use ordinary task checkboxes and one whole-issue close boundary; no redundant milestone-close remains.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The plan declares a 1 MiB input limit, two-minute remote budget, and existing CAS attempt budget; production wiring and targeted budget tests confirm enforcement.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Selected-path staging checks and printed cleanup commands use literal pathspecs; tracked and untracked wildcard-filename regression tests pass.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Production publication retains the local file; the open-descriptor regression verifies a later write survives and suppresses destructive cleanup guidance.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      README.md:28 documents trunk publish --path, eligibility, retry, retention, and tracked/untracked cleanup, consistent with trunkpublish.go:231–238 and the executable guidance tests.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      trunkpublish.go:120 limits actual consumption to maxTrunkProseBytes+1 for both callers. Tests pass at pinned head; an overlay removing only LimitReader makes growth tests fail at both production read sites, consuming 3145728 bytes instead of 1048577.
+```
+
+1. **Strengths**
+
+   - Publication reuses the existing CAS implementation and rechecks main on each attempt ([trunkpublish.go:212](cmd/sdlc/trunkpublish.go:212)).
+   - Local retention removes destructive cleanup races while preserving useful recovery guidance.
+   - Reader tests measure actual consumption, including growth after metadata validation.
+   - README and atlas both document the new command and its review boundaries.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes:** Focused command, reader, and recovery tests passed (16.090s). Targeted Git CAS, uncertainty, cancellation, and remote-budget tests passed (14.566s). The BR-8 negative control failed as expected at both read sites. Whitespace checks passed; the checkout remains unchanged. The full suite was not rerun during this review.
+
+6. **Architectural notes**
+
+   | Principle | Result |
+   |---|---|
+   | ARCH-DRY | Pass — existing CAS, attribute checks, and literal-argument helper are reused. |
+   | ARCH-PURE | Pass — eligibility and publication decisions are pure and tested directly. |
+   | ARCH-PURPOSE | Pass — the approved non-issue publication gap is delivered. |
+   | ARCH-MOCK | Pass — shared Git seam, portable bare repositories, stateful fake, and real-Git counterparts cover external behavior. |
+   | ARCH-CONSTRAINTS | Pass — actual local reads, remote time, and CAS attempts are bounded. |
+   | ARCH-SECURE | Pass — path validation, file checks, argv calls, and literal cleanup arguments protect the selected-path boundary. |
+   | ARCH-ORDER | Pass — pinned bytes and existing publication transitions preserve uncertainty; interruption and retry are tested. |
+   | ARCH-FUNERAL | Pass — no new backup, receipt, or cache family; retained local copies have explicit cleanup guidance. |
+
+7. **Plan revision recommendations:** None.
