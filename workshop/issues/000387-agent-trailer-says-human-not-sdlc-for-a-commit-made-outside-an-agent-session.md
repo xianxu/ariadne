@@ -42,7 +42,7 @@ operator (2026-10-15): "say human in that case".
 - [x] `agentid.Human` ("human") is the no-session value; `agentid.Legacy` ("sdlc") still parses to the same human identity
 - [x] tests: round trip of `Human`, Parse of `Legacy`, detect's plain-shell cases expect `Human`
 - [x] docs: `helptext/agent-id.md`, `AGENTS.base.md` §12; the detect.go override comment
-- [ ] full suite; land after ariadne#385, whose new detect tests expect "sdlc", switching them to `Human` at the main merge
+- [x] full suite; land after ariadne#385, whose new detect tests expect "sdlc", switching them to `Human` at the main merge
 
 ## Log
 
