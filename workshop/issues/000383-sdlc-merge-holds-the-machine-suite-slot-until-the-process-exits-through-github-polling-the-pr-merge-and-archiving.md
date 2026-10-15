@@ -76,6 +76,7 @@ The event most likely to be mishandled is an early return between acquire and ru
 ## Log
 
 ### 2026-10-14
+- 2026-10-14: closed — close-review Minor fixed: release-timing wording in localcheck_run.go comment and sdlc-binary.md now names the watcher kqueue/0.5s-poll; comment-only code change, go build clean (fixed-then-ship); review verdict: SHIP
 - 2026-10-14: closed — real test-lock.py: TestSuiteSlotCoversOnlyTheRun (a waiter during the suite answers timeout, a waiter in the GitHub PostStatus phase answers acquired) and TestSuiteRerunQueuesForTheSlot (run 2 under an outside holder times out, run 3 passes after) pass, and both FAIL against the old localcheck_run.go; existing reentry tests pass; go test -run LocalCheck|RealLock|Suite|HelperCap|Landing green (463s); full make test: every shard green except TestShardedReportRetainsSubtestDiagnostics, the sandbox /tmp failure tracked as ariadne#382; review verdict: SHIP
 - Plan: a per-run slot holder (`cat` on a pipe) as the `--watch` pid, released right after the suite; no `test-lock.py` change (every copy already takes `--watch`). Quick flow.
 - The TL approved the plan and added: test (1) also asserts that no waiter is admitted while the suite runs.

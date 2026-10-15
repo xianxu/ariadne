@@ -82,3 +82,62 @@ output: "Reading the diff and the helper is done; next I'll check the callers an
 
 truncated: false
 retained-bytes: 0000005222
+
+---
+
+## Re-review — 2026-10-14T23:22:45-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 383 — sdlc merge holds the machine suite slot until the process exits, through GitHub polling, the PR merge and archiving |
+| repo | ariadne |
+| issue file | workshop/issues/000383-sdlc-merge-holds-the-machine-suite-slot-until-the-process-exits-through-github-polling-the-pr-merge-and-archiving.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 551d94ed2823dcf2856fed196c50192bc9c90c23..d7e7e9272d35731033477332b25470bd92ef26e7 |
+| command | sdlc close --issue 383 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-14T23:22:45-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This review covers only the interdiff since the close review. It changes two lines of wording in `atlas/workflow/sdlc-binary.md`, rewrites one comment in `cmd/sdlc/localcheck_run.go`, adds the generated close-gate and close-review files under `workshop/plans/`, and edits the issue file's frontmatter and Log. No executable code changed. BR-2 is fixed at both places the prior round named. The new wording matches `scripts/test-lock.py:198-214`, where `wait_for_exit` returns at once through kqueue `NOTE_EXIT` and otherwise checks `kill(pid,0)` every 0.5 s. BR-1 was left unchanged on purpose, and the reason holds: `acquireSuiteSlot` still has exactly one caller (`cmd/sdlc/localcheck_run.go:81`), and the slot is released before `runLocalCheck` returns. So every later merge step runs without the slot. The issue-file edits only record the close: status set to codecomplete, `actual_hours`, and Log lines. `## Spec`, `## Revisions` and `## Done when` are unchanged, so the scope has not changed.
+
+1. **Strengths**
+   - `cmd/sdlc/localcheck_run.go:112-115`: the comment now says `release()` *starts* the release, and the watcher frees the slot when the holder exits. That is accurate on every platform.
+   - `atlas/workflow/sdlc-binary.md:1742-1744`: the timing is stated for each watcher, kqueue and the 0.5 s poll. This was the fix the prior finding suggested.
+   - I checked the rest of the class: `atlas/workflow/ci-merge-check.md:149-150` only says the holder "is released when the suite ends". It makes no claim about ordering against the status post, so nothing else needs rewording. A search for "before the status post" in `atlas/` and `cmd/` found nothing.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** none new. One trivial nit, not raised as a finding: the atlas text says "macOS's kqueue", but the helper uses kqueue wherever `select.kqueue` exists, which includes the BSDs. The Go comment's wording, "with kqueue", is more precise.
+
+5. **Test coverage:** the interdiff changes only comments, prose and generated files, so no regression test is needed. The existing behavioural tests (`TestSuiteSlotCoversOnlyTheRun`, `TestSuiteRerunQueuesForTheSlot`) still cover the behaviour the docs describe.
+
+6. **Architecture (interdiff only)**
+   - **ARCH-DRY: pass.** Only wording changed; nothing is duplicated.
+   - **ARCH-PURE: pass.** No code changed.
+   - **ARCH-PURPOSE: pass.** The fix covers the whole doc-timing class: both sites named, plus the sweep of `ci-merge-check.md`.
+
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: withdrawn
+    note: |
+      Verified by structure. acquireSuiteSlot's only caller is localcheck_run.go:81, and the slot is released before runLocalCheck returns, so the CI poll and PR merge always run without the slot. The prior round said the same. Not worth an end-to-end merge test.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Fixed at both sites: sdlc-binary.md:1742-1744 and localcheck_run.go:112-115 now state the release timing per watcher, matching test-lock.py:198-214. ci-merge-check.md:149 makes no ordering claim.
+```
