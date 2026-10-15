@@ -59,6 +59,7 @@ effect on wall and queue time.
 ## Log
 
 ### 2026-10-15
+- 2026-10-15: closed — Operator approved the design; #392-#398 and pair#578 are published and listed in the ops project. BR-1 main-failure classification is corrected in the plan and side doc; docs pass git diff --check and make -k. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 Live `sdlc test-stats --since 7d` at 13:05 PDT: ariadne wall p50/p90
 531.4/620.8 s (19/20 coverage), queue 602.0/1769.0 s (9/20); pair wall
