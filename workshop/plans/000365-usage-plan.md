@@ -486,3 +486,24 @@ suite-slot release fix. Real read-only fleet/issue JSON smokes on the same code
 pass36.92s/25.71s. Missing calibration remains insufficient with null projections;
 six own legacy reviewer gaps remain explicit after the third review. Shared close
 is next; subsequent checkpoint edits are documentation only.
+
+
+### 2026-10-15 01:44 — unresolved launched reviewer evidence
+
+Fourth close verifies BR-1 through BR-6, including the complete executing-identity
+ordering fix, but opens BR-7 in invalid-accounting-evidence-must-remain-visible.
+Schema-valid launched/Finished receipts without a matching usable transcript can
+disappear from binding resolution, leaving zero tokens and falsely complete
+spend/attribution coverage. Process completion is not accounting completion.
+
+Enumerate the rule across private receipt, ledger and sidecar comment persistence;
+Requested/Started/Finished/confirmed launch-failed outcomes; absent/exact identity;
+missing, invalid, unavailable and usable empty/positive transcript evidence;
+selected issue/repository and fleet agent scope. Every relevant launched attempt
+must resolve to usable evidence or retain an explicit coverage gap through the
+production collector and calibrated agent denominator. Confirmed launch failure
+remains distinct non-spending evidence. Preserve global reviewer exclusion before
+selected-result filtering (ARCH-ORDER, ARCH-SECURE, ARCH-PURPOSE). Add production
+collector matrix regressions and mutate the coverage wiring. The passing suite
+on006be910 remains evidence for that head only; behavior fixes need fresh suite
+and shared close.

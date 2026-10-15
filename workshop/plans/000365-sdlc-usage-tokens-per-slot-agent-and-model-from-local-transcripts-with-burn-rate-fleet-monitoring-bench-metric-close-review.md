@@ -300,3 +300,107 @@ dispose:
 7. **Plan revision recommendations**
 
    Add a `## Revisions` entry enumerating the complete executing-identity rule: absent, invalid, early and late headers; both aliases; copied later headers; ordinary and compacted responses. Require production discovery→Decode regressions proving that record order cannot admit another thread’s spend as complete.
+
+---
+
+## Re-review — 2026-10-15T01:43:33-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 365 — sdlc usage: tokens per slot, agent and model from local transcripts, with burn rate (fleet monitoring + bench metric) |
+| repo | ariadne |
+| issue file | workshop/issues/000365-sdlc-usage-tokens-per-slot-agent-and-model-from-local-transcripts-with-burn-rate-fleet-monitoring-bench-metric.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 0820d860ceb54656f8a7c6cab6f209e2b6a65729..ab74cbf2e2e9d3ca1cfa8754071b40d55abc78a3 |
+| command | sdlc close --issue 365 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-15T01:43:33-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-5 is addressed, with regression tests that fail when its guards are removed. The focused suites pass, and README/atlas updates cover the new surface. One separate blocking defect remains: a known launched reviewer with no matching local transcript can disappear from the report while both completeness flags remain true.
+
+```findings
+dispose:
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Discovery and decoding share CodexExecutingID. Production matrix tests cover aliases, copied metadata, preidentity responses/snapshots and absent identity. Four independent guard-removal mutations fail the regression tests.
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Thread, turn and legacy cumulative reconciliation tests pass; disabling reconciliation makes the missing-spend regressions fail.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Invalid artifact/private evidence remains visible and quarantined. Removing artifact validation diagnostics fails the ledger/comment regressions. The new finding concerns schema-valid receipts that cannot resolve to transcript evidence.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The plan's Core concepts tables now match delivered paths and distinguish pure decoding from IO adapters; provenance.go and engagement derivation are correctly recorded as reused unchanged.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Production boundary and planning dispatch tests pass. Independently disabling boundary, plan or estimate accounting attachment fails the corresponding production regression.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Cross-issue exclusion and cleanup lifecycle tests pass. Restoring issue-prefiltered records fails both ledger and comment exclusion regressions.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: invalid-accounting-evidence-must-remain-visible
+    title: |
+      Launched reviewers without usable transcript bindings silently report complete coverage
+    detail: |
+      cmd/sdlc/usage_reviewers.go:184-199 drops a retained attempt when no session matches, and returns only bindings without unresolved-attempt diagnostics. Valid Finished records pass reviewer_accounting.go:154-157 even when identity capture failed. Two temporary regression probes reproduced empty coverage and complete=true for a launched receipt with missing-session-identity and for an exact session ID whose transcript is unavailable. A full collectUsage probe confirmed zero tokens with spend_complete=true and attribution_complete=true despite the known launched reviewer. This violates whole-system issue accounting and uncertainty preservation (ARCH-PURPOSE, ARCH-SECURE, ARCH-ORDER). This is the 2nd finding in family invalid-accounting-evidence-must-remain-visible. State and enforce the rule for every relevant launched attempt: reconcile it to usable transcript evidence or retain an explicit coverage gap. Sweep private, ledger and comment evidence, missing/exact identities, and unavailable/invalid sources; preserve confirmed launch-failed as a distinct non-spending outcome.
+```
+
+1. **Strengths**
+
+   - The shared immutable identity parser removes discovery/decoder drift.
+   - Deduplication precedes window and role selection; cumulative counters remain coverage evidence rather than additional charges.
+   - Reviewer receipts use explicit transitions, bounded storage and exact committed-evidence cleanup.
+   - README and atlas document commands, counter semantics and coverage limitations.
+
+2. **Critical findings**
+
+   - **Unresolved launched attempts disappear**, at `cmd/sdlc/usage_reviewers.go:184-199`. Return binding-resolution diagnostics and merge them into report coverage. Process completion must not imply accounting completeness.
+
+3. **Important findings**
+
+   None.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   Usage, transcripts, reviewusage and judge packages pass. Focused command, attribution, accounting and production-dispatch tests pass (`16.405s`). Mutations confirm regression sensitivity for BR-1/2/4/5/6.
+
+   The new probes fail on pinned HEAD, including through `collectUsage`. They ran through temporary overlays, which were removed. The checkout remains unchanged. I did not rerun the full suite or live-provider conformance.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared identity and ownership contracts.
+   - **ARCH-PURE — pass:** normalization, aggregation and transitions have separate IO adapters.
+   - **ARCH-PURPOSE — flag:** missing reviewer evidence can produce a falsely complete cost report.
+   - **ARCH-MOCK — pass:** portable repositories, fake CLI processes and opt-in conformance exist.
+   - **ARCH-CONSTRAINTS — pass:** cancellation, deadlines and input bounds are enforced.
+   - **ARCH-SECURE — flag:** absent transcript evidence becomes affirmative completeness.
+   - **ARCH-ORDER — flag:** Finished process state is conflated with resolved accounting.
+   - **ARCH-FUNERAL — pass:** meter retention and reviewer receipt bounds/cleanup are explicit.
+
+7. **Plan revision recommendation**
+
+   Append a `## Revisions` entry requiring each relevant launched attempt to resolve to usable transcript evidence or an explicit gap. Add production collector regressions across all three persistence forms, covering missing identity, unavailable transcript, invalid metadata and confirmed launch failure.
