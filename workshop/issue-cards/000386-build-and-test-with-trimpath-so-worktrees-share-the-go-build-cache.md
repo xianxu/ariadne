@@ -1,6 +1,6 @@
 ---
 id: 000386
-status: codecomplete
+status: done
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 4e4c777f85600a57f01f49e1c4a9731f884ce104
         evidence_commit: 38b6cf977236644f18545990fb04229b829d2d7b
+        landed_commit: 8b232cda89dc951ce81e3952a6056a3da19fe3f5
 ---
 
 # Build and test with -trimpath so worktrees share the Go build cache
