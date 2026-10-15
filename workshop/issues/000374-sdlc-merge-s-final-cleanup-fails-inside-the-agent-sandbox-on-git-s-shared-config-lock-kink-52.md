@@ -38,7 +38,10 @@ Find which cleanup step writes git's shared config (branch deletion with upstrea
 - [x] Keep ref deletion and identity/occupancy/CAS guards mandatory; make only obsolete branch-config removal a non-blocking deferred cleanup, with the affected config path and retry owner reported.
 - [x] Reuse the existing done-card merge/reconcile sweep to retry configuration cleanup for absent, unoccupied landed issue branches; preserve live/recreated refs and unrelated config (ARCH-DRY, ARCH-FUNERAL).
 - [x] Add real-Git regressions for repeated config-lock denial, interruption before/after ref deletion, automatic later cleanup when writable, and live/recreated branch protection. Exercise the full merge caller with the existing stateful GitHub fake, plus a native denied-config sandbox check.
-- [ ] Update help/recovery/atlas for deferred metadata cleanup, run focused and recorded full-suite verification, close and land on SHIP.
+- [x] Update help/recovery/atlas and run focused verification for deferred metadata cleanup.
+- [ ] Run recorded full-suite verification on the pushed integrated code head.
+
+After acceptance, use SDLC close and land on SHIP; those workflow transitions are recorded by their own evidence.
 
 ## Log
 
@@ -89,6 +92,10 @@ Full-flow plan-quality round 1 requested a precise concurrency guarantee (PQ-1) 
 ### 2026-10-15 — TL acceptance revision
 
 TL receipt 8ee3e12f-7646-4b3d-9b23-fdd4ce34efae explicitly accepts the native protected-config full-merge regression as sufficient to close. The production live default-agent check moves to the next Claude-slot landing after this fix merges, owned and logged by the TL (#383 in ariadne:2 or #367 in ariadne:4). Updated current Done when to match that authorized acceptance, retaining the distinction between completed local verification and pending production evidence. Earlier custom/default-profile scratch fixture checks remain supplemental evidence; they do not claim that later production landing already happened. No separate GitHub scratch issue was created.
+
+### 2026-10-15 — verification checkbox precision
+
+Separated the last Plan checkbox into completed docs/focused verification and pending recorded suite; close/landing remain subsequent SDLC transitions rather than a checkbox that could be prematurely ticked before they happen. Scope and acceptance are unchanged.
 
 ## Estimate
 
