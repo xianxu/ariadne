@@ -858,3 +858,5 @@ The simplest durable authority beats a clever scan of consequences.
   owner for any retained residue (#374 plan review).
 
 - Generated recovery commands must preserve the request’s semantic intent. An ambiguous exclusion that printed a numeric-repair retry lost --exclude; test both intents through the production refusal before publishing recovery guidance (#384).
+
+- A failure reproduced on main proves shared exposure, not intermittency. Flake-based landing exceptions need same-exact-head fail→pass evidence and a named issue; persistent-main and suspected failures stay distinct and blocking (#390 BR-1).

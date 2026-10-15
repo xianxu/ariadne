@@ -115,3 +115,11 @@ The TL updated `ops:teams/devinfra/projects/test-economy/project.md` Tasks
 with #392–#398, pair#578, and the existing #328/#327 work. The approved
 design, independent cards and project view now agree; this issue made no code
 or gate changes.
+
+### 2026-10-15 14:48 PDT — Boundary review BR-1 addressed
+
+The first close review identified an overbroad flake predicate in side doc 02:
+a failure seen on main can be a persistent regression. The plan and side doc
+now require same-head fail→pass evidence before known-flake eligibility, and
+keep an unproven main failure blocking. #394 already names persistent main
+failure as a separate acceptance case. Review rerun is pending.

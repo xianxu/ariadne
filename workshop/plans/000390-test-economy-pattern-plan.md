@@ -85,7 +85,7 @@ The operator approved the landing rule in linked side doc 02:
 
 1. Landing still requires **one passing full suite on the exact head** being landed.
 2. If a failed test already has an **open, named flake issue**, retain the failed attempt and log against that issue. A rerun of the full suite on the **same head** that passes counts as landing evidence. The first failure does not disappear from flake statistics.
-3. An **unknown failure blocks landing until classified**. A reproducible branch-caused failure is fixed on that branch. A newly established flake gets its own issue that day, with the failure evidence and owner; only then can the known-flake rerun rule apply. A passing retry without classification cannot admit a landing.
+3. An **unknown failure blocks landing until classified**. A reproducible branch-caused failure is fixed on that branch. A newly established intermittent flake needs same-head fail→pass evidence, gets its own issue that day, and only then can the known-flake rerun rule apply. A failure on main without demonstrated intermittency is a shared or persistent-main fault, not flake eligibility. A passing retry without classification cannot admit a landing.
 4. Fix flakes as **separate root-cause issues** on the TL's daily list. Do not substitute a retry loop or a longer timeout for the fix.
 
 Quarantine needs operator approval for a named test, an owning issue, replacement coverage (or written risk acceptance), a seven-day expiry and an explicit main-health signal. Expiry restores the test or blocks landing until renewed. Do not quarantine a whole package. The target is **zero unowned flakes**, not a claim that a short sample proves zero flake probability. The daily review checks each new failure and the filing clock.
@@ -205,3 +205,9 @@ Side doc 03 still awaits operator marks.
 **Reason:** The operator approved the design and #390 requires independently owned implementation issues.
 
 **Delta:** The weekly brain measurement is **#392**, first. Serial per-repo admission with fleet-blocking priority is **#393**, after #392 and #380. The exact-head known-flake landing and daily triage rule is **#394**, after #392. Feature-scoped mutation minimization is **#395**, after #328 and feeding #327's monthly GC. Shared default guidance is **#396**, after #392–#395. Measured soft budgets are deferred in **#397** until several weekly snapshots and an operator value choice. Proven doc-only drift reuse is a conditional later optimization in **#398**, after #393's pilot. Pair couchcore profiling is **pair#578**, after ariadne#392; its 481.3-second p90 remains an observation, not an approved limit. The older rollout table's proposed “New” rows resolve to these cards; #327, #328 and #380 remain existing dependencies.
+
+### 2026-10-15 14:48 PDT — Intermittency proof before flake eligibility
+
+**Reason:** The first #390 close review found that side doc 02's “fails on main too” predicate would misclassify a deterministic main regression as a flake (BR-1, family `failure-classification-requires-evidence`).
+
+**Delta:** Side doc 02 and section 3 now require **same-exact-head fail→pass evidence** before a new failure enters the known-flake landing rule. A failure on main without that evidence remains a shared or persistent-main fault; it blocks landing until diagnosed, and cannot be laundered by filing a flake issue. This clarifies the operator's “unknown blocks until classified” decision without changing the one-passing-suite requirement. The #394 card already distinguishes persistent main failure in its Done when; its implementation must use this proof rule (ARCH-PURPOSE).

@@ -16,8 +16,10 @@ _Side doc of [the plan](../000390-test-economy-pattern-plan.md) §3 (flake polic
    evidence. The landing isn't blocked by someone else's known flake.
 3. **A failure that isn't a known flake blocks the landing until it's classified:**
    - if the branch caused it (it reproduces on the branch, not on main), it's the branch's bug: fix it;
-   - if it's a new flake (same head fails then passes, or fails on main too), the TL files a flake issue that day, and
-     from then on rule 2 applies, so the landing proceeds with a rerun.
+   - if it is demonstrably intermittent (the same exact head fails then passes, on the branch or on main), the TL
+     files a flake issue that day; from then on rule 2 applies, so a passing same-head rerun may admit the landing.
+     A failure also seen on main **without** same-head fail→pass evidence is only a shared or suspected fault; a
+     persistent main regression is not a flake and does not gain known-flake eligibility.
 4. **Flakes are fixed as their own issues** (root cause, never a retry loop or a longer timeout), on the TL's daily
    standing list, like today's #423, #554, #562, #564, #568.
 
