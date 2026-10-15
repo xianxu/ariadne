@@ -11,7 +11,17 @@ with tempfile.TemporaryDirectory(prefix='portable make ') as tmp:
         (owner/name).write_bytes((source/name).read_bytes())
     def executable(path,body):
         path.write_text('#!/bin/sh\nset -eu\n'+body); path.chmod(0o755)
-    executable(commands/'go','printf "go:%s:%s\\n" "$PWD" "$*" >> "$FIXTURE/events"\n[ "$1" = build ]\n[ "$2" = -o ]\nmkdir -p "$(dirname "$3")"\ntouch "$3"\n')
+    executable(commands/'go', '''''''''if [ "$1" = env ] && [ "${2:-}" = GOFLAGS ]; then
+    printf '%s\\n' "${GOFLAGS--p=3}"
+    exit 0
+fi
+printf "go:%s:%s\\n" "$PWD" "$*" >> "$FIXTURE/events"
+printf '%s\\n' "${GOFLAGS-}" >> "$FIXTURE/flags"
+[ "$1" = build ]
+[ "$2" = -o ]
+mkdir -p "$(dirname "$3")"
+touch "$3"
+''''''''')
     executable(commands/'weave','printf "weave:%s:%s\\n" "$PWD" "$*" >> "$FIXTURE/events"\nexit "${FAIL_WEAVE:-0}"\n')
     env=dict(os.environ,PATH=f'{commands}:'+os.environ['PATH'],FIXTURE=str(root))
     def make(repo,*targets,code=0):
@@ -26,6 +36,8 @@ with tempfile.TemporaryDirectory(prefix='portable make ') as tmp:
     assert len(rows)==len(tools),rows
     assert {p.name for p in (owner/'bin').iterdir()}==tools,rows
     assert all(row.startswith(f'go:{owner}:build -o bin/') for row in rows),rows
+    flags=(root/'flags').read_text().splitlines()
+    assert len(flags)==len(tools) and all('-trimpath' in row.split() for row in flags),flags
     leaf=root/'leaf'; leaf.mkdir()
     # The consumer authors its own root and needs no ariadne source build rules.
     (leaf/'Makefile').write_text('include Makefile.workflow\nproduct:\n\t@echo product-ok\n')

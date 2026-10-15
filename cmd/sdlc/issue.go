@@ -371,7 +371,7 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 		return err
 	}
 	if !tracked {
-		return runLegacyIssueNew(stdout, stderr, f, args)
+		return runLegacyIssueNew(ctx, stdout, stderr, f, args)
 	}
 	title := ""
 	if len(args) > 0 {

@@ -29,11 +29,16 @@ type UsageSource struct {
 // UsageDiscovery separates readable sources from proven lineage inputs. Old
 // parents can appear in Sessions without entering the recent usage source set.
 type UsageDiscovery struct {
-	Sources      []UsageSource
-	Sessions     []SessionEvidence
-	Diagnostics  map[string]int
-	Examples     map[string][]string
-	UnknownFiles []string
+	Sources     []UsageSource
+	Sessions    []SessionEvidence
+	Diagnostics map[string]int
+	// AgentDiagnostics scopes provider-local gaps. GlobalDiagnostics contains
+	// only gaps that cannot be assigned to a known provider; Diagnostics remains
+	// the aggregate report. Never copy aggregate gaps into every agent projection.
+	AgentDiagnostics  map[string]map[string]int
+	GlobalDiagnostics map[string]int
+	Examples          map[string][]string
+	UnknownFiles      []string
 }
 
 func (d *UsageDiscovery) note(kind, example string) {
@@ -44,6 +49,23 @@ func (d *UsageDiscovery) note(kind, example string) {
 		}
 		d.Examples[kind] = append(d.Examples[kind], example)
 	}
+}
+
+func (d *UsageDiscovery) countFor(agent, kind string) {
+	d.Diagnostics[kind]++
+	d.scopeFor(agent, kind)
+}
+
+func (d *UsageDiscovery) scopeFor(agent, kind string) {
+	if d.AgentDiagnostics[agent] == nil {
+		d.AgentDiagnostics[agent] = map[string]int{}
+	}
+	d.AgentDiagnostics[agent][kind]++
+}
+
+func (d *UsageDiscovery) noteFor(agent, kind, example string) {
+	d.note(kind, example)
+	d.scopeFor(agent, kind)
 }
 
 type usageCandidate struct {
@@ -62,19 +84,22 @@ func DiscoverUsageEvidence(ctx context.Context, hs []Harness, since time.Time) (
 func discoverUsageEvidence(ctx context.Context, hs []Harness, since time.Time, limit int) (UsageDiscovery, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	out := UsageDiscovery{Diagnostics: map[string]int{}, Examples: map[string][]string{}}
+	out := UsageDiscovery{Diagnostics: map[string]int{}, Examples: map[string][]string{}, AgentDiagnostics: map[string]map[string]int{}, GlobalDiagnostics: map[string]int{}}
 	var candidates []*usageCandidate
 	seen := map[string]bool{}
 	stop := fmt.Errorf("usage candidate limit")
-	for _, h := range hs {
+	for hi, h := range hs {
 		root := ""
 		switch h := h.(type) {
 		case codexHarness:
 			root = h.root
 		case claudeHarness:
 			root = h.root
+		case qoderHarness:
+			root = h.root
 		default:
 			out.note("unsupported_harness", h.Name())
+			out.GlobalDiagnostics["unsupported_harness"]++
 			continue
 		}
 		if root == "" {
@@ -88,7 +113,7 @@ func discoverUsageEvidence(ctx context.Context, hs []Harness, since time.Time, l
 				if os.IsNotExist(err) && path == root {
 					return nil
 				}
-				out.note("unavailable_source", path)
+				out.noteFor(h.Name(), "unavailable_source", path)
 				return nil
 			}
 			if e.IsDir() || filepath.Ext(path) != ".jsonl" {
@@ -102,14 +127,14 @@ func discoverUsageEvidence(ctx context.Context, hs []Harness, since time.Time, l
 			if out.Diagnostics["candidates"] >= limit {
 				return stop
 			}
-			out.Diagnostics["candidates"]++
+			out.countFor(h.Name(), "candidates")
 			info, err := e.Info()
 			if err != nil {
-				out.note("unavailable_source", path)
+				out.noteFor(h.Name(), "unavailable_source", path)
 				return nil
 			}
 			if !info.Mode().IsRegular() {
-				out.note("unavailable_source", path)
+				out.noteFor(h.Name(), "unavailable_source", path)
 				return nil
 			}
 			c := &usageCandidate{UsageSource: UsageSource{SessionEvidence: SessionEvidence{Harness: h.Name(), File: path, ID: "file:" + path, Length: info.Size()}, LineageStatus: "unknown", Info: info}, recent: since.IsZero() || !info.ModTime().Before(since)}
@@ -125,6 +150,15 @@ func discoverUsageEvidence(ctx context.Context, hs []Harness, since time.Time, l
 		})
 		if err == stop {
 			out.note("candidate_limit", root)
+			// One aggregate bound event affects the interrupted provider and every
+			// provider skipped after it, but must not invalidate completed providers.
+			scoped := map[string]bool{}
+			for _, remaining := range hs[hi:] {
+				if !scoped[remaining.Name()] {
+					out.scopeFor(remaining.Name(), "candidate_limit")
+					scoped[remaining.Name()] = true
+				}
+			}
 			break
 		}
 		if err != nil {
@@ -214,7 +248,7 @@ func discoverUsageEvidence(ctx context.Context, hs []Harness, since time.Time, l
 			if ctx.Err() != nil {
 				return out, ctx.Err()
 			}
-			out.note("dispatch_scan_incomplete", c.File)
+			out.noteFor(c.Harness, "dispatch_scan_incomplete", c.File)
 			c.err = err
 		}
 	}
@@ -275,16 +309,16 @@ func discoverUsageEvidence(ctx context.Context, hs []Harness, since time.Time, l
 			out.Sessions = append(out.Sessions, c.SessionEvidence)
 		}
 		if !c.recent {
-			out.Diagnostics["pruned_old_source"]++
+			out.countFor(c.Harness, "pruned_old_source")
 			continue
 		}
-		out.Diagnostics["sources"]++
+		out.countFor(c.Harness, "sources")
 		if err != nil {
 			kind := "invalid_lineage"
 			if !c.MetadataComplete {
 				kind = "unknown_metadata"
 			}
-			out.note(kind, c.File)
+			out.noteFor(c.Harness, kind, c.File)
 			out.UnknownFiles = append(out.UnknownFiles, c.File)
 		}
 		out.Sources = append(out.Sources, c.UsageSource)
@@ -299,6 +333,17 @@ func discoverUsageEvidence(ctx context.Context, hs []Harness, since time.Time, l
 }
 
 func readUsageMetadata(ctx context.Context, c *usageCandidate) error {
+	if c.Harness == "qoder" {
+		s, err := readQoderEvidence(ctx, c.File, c.Length, c.Info)
+		s.Length = c.Length // Failed metadata must retain the sampled usage bound.
+		c.SessionEvidence = s
+		if err != nil {
+			return err
+		}
+		c.MetadataComplete = true
+		return nil
+	}
+
 	found := false
 	stop := fmt.Errorf("metadata found")
 	limit := c.Length

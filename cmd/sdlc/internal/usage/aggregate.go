@@ -15,7 +15,7 @@ func NormalizeResponses(in []Response) ([]Response, Coverage, error) {
 	byID := map[string]Response{}
 	bad := map[string]bool{}
 	for _, r := range in {
-		if e := r.Tokens.Validate(); e != nil {
+		if e := r.ValidateMeasurements(); e != nil {
 			return nil, c, e
 		}
 		if r.ID == "" || r.Agent == "" || r.At.IsZero() {
@@ -41,7 +41,7 @@ func NormalizeResponses(in []Response) ([]Response, Coverage, error) {
 			c.Add("conflicts", "conflicting response attribution")
 			continue
 		}
-		if old.Tokens.equal(r.Tokens) {
+		if old.equalMeasurements(r) {
 			c.Add("duplicates", "")
 			if old.Provisional && !r.Provisional {
 				byID[key] = r
@@ -53,10 +53,10 @@ func NormalizeResponses(in []Response) ([]Response, Coverage, error) {
 			continue
 		}
 		switch {
-		case old.Provisional && old.Tokens.monotone(r.Tokens):
+		case old.Provisional && old.monotoneMeasurements(r):
 			byID[key] = r
 			c.Add("revisions", "")
-		case r.Provisional && r.Tokens.monotone(old.Tokens):
+		case r.Provisional && r.monotoneMeasurements(old):
 			c.Add("revisions", "")
 		default:
 			bad[key] = true
@@ -77,26 +77,6 @@ func NormalizeResponses(in []Response) ([]Response, Coverage, error) {
 	return out, c, nil
 }
 
-type groupAccumulator struct {
-	Group
-	burn int64
-	has  bool
-}
-type hourAccumulator struct {
-	Hour
-	has bool
-}
-
-func appendCounters(dst *Counters, has *bool, value Counters) error {
-	if !*has {
-		*dst = value
-		*has = true
-		return nil
-	}
-	r, e := dst.Add(value)
-	*dst = r
-	return e
-}
 func measuredDimensions(dst *Counters, v Counters) error {
 	for _, x := range []struct {
 		dst **int64
@@ -117,9 +97,102 @@ func measuredDimensions(dst *Counters, v Counters) error {
 	return nil
 }
 
-// AggregateUsage is PURE. Attribution runs once, after global deduplication;
-// its Include predicate owns issue scope and exclusive reviewer precedence.
-// Rates use elapsed WALL hours in burnWindow, independent of active-time.
+// measurements retains known subtotals while an unknown component poisons only
+// that unit's total. This keeps native units independent in mixed reports.
+type measurements struct {
+	tokens                      *Counters
+	credits                     *CreditAmount
+	measured                    *Counters
+	measuredCredits             *CreditAmount
+	tokenUnknown, creditUnknown bool
+}
+
+func (m *measurements) add(r Response) error {
+	if r.Tokens == nil {
+		m.tokenUnknown = true
+	} else {
+		v := *r.Tokens
+		if m.measured == nil {
+			m.measured = &Counters{}
+		}
+		if m.tokens == nil {
+			m.tokens = &v
+		} else {
+			s, e := m.tokens.Add(v)
+			if e != nil {
+				return e
+			}
+			m.tokens = &s
+		}
+		var e error
+		m.measured.Input, e = checkedAdd(m.measured.Input, v.Input)
+		if e != nil {
+			return e
+		}
+		m.measured.Output, e = checkedAdd(m.measured.Output, v.Output)
+		if e != nil {
+			return e
+		}
+		if _, e = m.measured.Total(); e != nil {
+			return e
+		}
+		if e = measuredDimensions(m.measured, v); e != nil {
+			return e
+		}
+	}
+	if r.Credits == nil {
+		m.creditUnknown = true
+	} else {
+		v := *r.Credits
+		if m.measuredCredits == nil {
+			m.measuredCredits = &v
+		} else {
+			s, e := m.measuredCredits.Add(v)
+			if e != nil {
+				return e
+			}
+			m.measuredCredits = &s
+		}
+		m.credits = m.measuredCredits
+	}
+	return nil
+}
+func (m measurements) totals() (*Counters, *CreditAmount) {
+	t, c := m.tokens, m.credits
+	if m.tokenUnknown {
+		t = nil
+	}
+	if m.creditUnknown {
+		c = nil
+	}
+	return t, c
+}
+func (m measurements) rates(hours float64) (*float64, *float64) {
+	t, c := m.totals()
+	var tr, cr *float64
+	if t != nil {
+		n, _ := t.Total()
+		v := float64(n) / hours
+		tr = &v
+	}
+	if c != nil {
+		v := c.Float64() / hours
+		cr = &v
+	}
+	return tr, cr
+}
+
+type groupAccumulator struct {
+	Group
+	detail, burn measurements
+}
+type hourAccumulator struct {
+	Hour
+	detail measurements
+}
+
+// AggregateUsage normalizes globally before filtering and attributes each unique
+// response once. Rates use elapsed wall hours independently for each native unit.
 func AggregateUsage(in []Response, window, burnWindow Window, resolve func(Response) Attribution) (Report, error) {
 	var report Report
 	if window.Until.Before(window.Since) || !burnWindow.Until.After(burnWindow.Since) {
@@ -132,8 +205,7 @@ func AggregateUsage(in []Response, window, burnWindow Window, resolve func(Respo
 	}
 	groups := map[string]*groupAccumulator{}
 	hours := map[time.Time]*hourAccumulator{}
-	hasTotal := false
-	var burnTotal int64
+	var detailTotal, burnTotal measurements
 	for _, r := range rr {
 		detail, burn := window.contains(r.At), burnWindow.contains(r.At)
 		if !detail && !burn {
@@ -172,28 +244,21 @@ func AggregateUsage(in []Response, window, burnWindow Window, resolve func(Respo
 			g = &groupAccumulator{Group: Group{Slot: a.Slot, Agent: r.Agent, Model: model, Role: a.Role, Round: a.Round, Attempt: a.Attempt}}
 			groups[key] = g
 		}
-		total, e := r.Tokens.Total()
-		if e != nil {
-			return report, e
-		}
 		if burn {
-			if g.burn, e = checkedAdd(g.burn, total); e != nil {
+			if e = g.burn.add(r); e != nil {
 				return report, e
 			}
-			if burnTotal, e = checkedAdd(burnTotal, total); e != nil {
+			if e = burnTotal.add(r); e != nil {
 				return report, e
 			}
 		}
 		if !detail {
 			continue
 		}
-		if e = appendCounters(&report.Totals, &hasTotal, r.Tokens); e != nil {
+		if e = detailTotal.add(r); e != nil {
 			return report, e
 		}
-		if e = measuredDimensions(&report.MeasuredDimensions, r.Tokens); e != nil {
-			return report, e
-		}
-		if e = appendCounters(&g.Tokens, &g.has, r.Tokens); e != nil {
+		if e = g.detail.add(r); e != nil {
 			return report, e
 		}
 		g.Responses++
@@ -210,13 +275,16 @@ func AggregateUsage(in []Response, window, burnWindow Window, resolve func(Respo
 			h = &hourAccumulator{Hour: Hour{At: at, DurationHours: end.Sub(start).Hours()}}
 			hours[at] = h
 		}
-		if e = appendCounters(&h.Tokens, &h.has, r.Tokens); e != nil {
+		if e = h.detail.add(r); e != nil {
 			return report, e
 		}
 		h.Responses++
 	}
+	report.Totals, report.Credits = detailTotal.totals()
+	report.MeasuredDimensions = detailTotal.measured
+	report.MeasuredCredits = detailTotal.measuredCredits
 	duration := burnWindow.Until.Sub(burnWindow.Since).Hours()
-	report.BurnTokensPerHour = float64(burnTotal) / duration
+	report.BurnTokensPerHour, report.BurnCreditsPerHour = burnTotal.rates(duration)
 	keys := make([]string, 0, len(groups))
 	for k := range groups {
 		keys = append(keys, k)
@@ -224,16 +292,18 @@ func AggregateUsage(in []Response, window, burnWindow Window, resolve func(Respo
 	sort.Strings(keys)
 	for _, k := range keys {
 		g := groups[k]
-		g.BurnTokensPerHour = float64(g.burn) / duration
+		g.Tokens, g.Credits = g.detail.totals()
+		g.MeasuredCredits = g.detail.measuredCredits
+		g.MeasuredDimensions = g.detail.measured
+		g.BurnTokensPerHour, g.BurnCreditsPerHour = g.burn.rates(duration)
 		report.Groups = append(report.Groups, g.Group)
 	}
 	for _, h := range hours {
+		h.Tokens, h.Credits = h.detail.totals()
+		h.MeasuredCredits = h.detail.measuredCredits
+		h.MeasuredDimensions = h.detail.measured
 		report.Hourly = append(report.Hourly, h.Hour)
 	}
 	sort.Slice(report.Hourly, func(i, j int) bool { return report.Hourly[i].At.Before(report.Hourly[j].At) })
-	report.MeasuredDimensions.Input, report.MeasuredDimensions.Output = report.Totals.Input, report.Totals.Output
-	if _, e = report.Totals.Total(); e != nil {
-		return report, e
-	}
 	return report, nil
 }

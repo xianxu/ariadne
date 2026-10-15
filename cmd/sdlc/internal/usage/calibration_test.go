@@ -1,6 +1,8 @@
 package usage
 
 import (
+	"encoding/json"
+	"math"
 	"testing"
 	"time"
 )
@@ -71,4 +73,55 @@ func TestMeterRefusesUnsupportedEvidence(t *testing.T) {
 			t.Fatalf("invalid accepted %+v", o)
 		}
 	}
+}
+
+func TestMeterExtremeFiniteInputsNeverPublishNonFiniteProjection(t *testing.T) {
+	now := stamp("2026-10-14T10:00:00Z")
+	for _, agent := range []string{"codex", "qoder"} {
+		m := Meter{Version: 1, Observations: []Observation{{Agent: agent, Unit: "credits", Remaining: math.MaxFloat64, At: now.Add(-time.Hour)}, {Agent: agent, Unit: "credits", Remaining: 1, At: now}}}
+		var projections []Projection
+		if agent == "codex" {
+			projections = append(projections, ProjectMeter(m, agent, "credits", now, 1, 2, true))
+		} else {
+			for _, s := range []string{"1", "0.000000000000000000000000000000000001"} {
+				c := nativeCredit(t, s)
+				projections = append(projections, ProjectCreditMeter(m, agent, "credits", now, *c, 2, true))
+			}
+		}
+		for _, p := range projections {
+			if p.Status != "invalid_projection" || p.UnitsPerToken != nil || p.UnitsPerCredit != nil || p.UnitsPerHour != nil || p.HoursRemaining != nil {
+				t.Fatalf("nonfinite projection accepted: %+v", p)
+			}
+			if _, e := json.Marshal(p); e != nil {
+				t.Fatal(e)
+			}
+		}
+	}
+}
+
+func FuzzMeterProjectionFiniteJSON(f *testing.F) {
+	f.Add(math.MaxFloat64, 2.0, "0.000000000000000000000000000000000001")
+	f.Add(100.0, 10.0, "1")
+	f.Fuzz(func(t *testing.T, remaining, burn float64, raw string) {
+		if math.IsNaN(remaining) || math.IsInf(remaining, 0) || remaining <= 1 || math.IsNaN(burn) || math.IsInf(burn, 0) || burn <= 0 {
+			return
+		}
+		credits, e := ParseCredit([]byte(raw))
+		if e != nil {
+			return
+		}
+		now := stamp("2026-10-14T10:00:00Z")
+		for _, agent := range []string{"codex", "qoder"} {
+			m := Meter{Version: 1, Observations: []Observation{{Agent: agent, Unit: "credits", Remaining: remaining, At: now.Add(-time.Hour)}, {Agent: agent, Unit: "credits", Remaining: 1, At: now}}}
+			var p Projection
+			if agent == "qoder" {
+				p = ProjectCreditMeter(m, agent, "credits", now, credits, burn, true)
+			} else {
+				p = ProjectMeter(m, agent, "credits", now, 1, burn, true)
+			}
+			if _, e = json.Marshal(p); e != nil {
+				t.Fatalf("projection not finite: %+v %v", p, e)
+			}
+		}
+	})
 }

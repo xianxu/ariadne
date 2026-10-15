@@ -18,6 +18,8 @@
 // directly.
 package transcripts
 
+import "context"
+
 // Sources is the engine input a set of harnesses resolves to — exactly the shape
 // activetime.Compute consumes (Options.Dirs / Options.Files). Dirs are globbed
 // for *.jsonl (Claude's one-dir-per-cwd layout); Files are individual session
@@ -26,25 +28,40 @@ package transcripts
 type Sources struct {
 	Dirs  []string
 	Files []string
+	// Warnings retain diagnostics for sources proven safely excludable.
+	Warnings []string
 }
 
 // Harness resolves one agent CLI's on-disk transcripts for a set of repo cwds.
 // Implementations are the IO seam; the aggregation over them (Select) is pure.
 type Harness interface {
 	Name() string
-	Sources(cwds []string) Sources
+	Sources(ctx context.Context, cwds []string) (Sources, error)
 }
 
 // Select runs every harness for the given cwds and merges their contributions
 // into one Sources, deduping while preserving first-seen order so the engine's
 // inputs are stable. Pure over the injected harness slice — production passes
 // DefaultHarnesses(); tests pass fakes or temp-rooted real harnesses.
-func Select(cwds []string, hs []Harness) Sources {
+func Select(ctx context.Context, cwds []string, hs []Harness) (Sources, error) {
+	if err := ctx.Err(); err != nil {
+		return Sources{}, err
+	}
 	var out Sources
 	seenDir := map[string]bool{}
 	seenFile := map[string]bool{}
 	for _, h := range hs {
-		s := h.Sources(cwds)
+		if ctx.Err() != nil {
+			return Sources{}, ctx.Err()
+		}
+		s, err := h.Sources(ctx, cwds)
+		if err != nil {
+			return Sources{}, err
+		}
+		if ctx.Err() != nil {
+			return Sources{}, ctx.Err()
+		}
+		out.Warnings = append(out.Warnings, s.Warnings...)
 		for _, d := range s.Dirs {
 			if !seenDir[d] {
 				seenDir[d] = true
@@ -58,5 +75,5 @@ func Select(cwds []string, hs []Harness) Sources {
 			}
 		}
 	}
-	return out
+	return out, nil
 }

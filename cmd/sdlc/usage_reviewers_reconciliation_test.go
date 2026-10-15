@@ -13,7 +13,7 @@ func TestReviewerUsageReconcilesEveryRelevantAttempt(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			record := usageAttributionRecord(t, "reconcile", usageAttributionReviewerID, "/repo", 1, 1)
 			sessions := []transcripts.SessionEvidence{usageAttributionSession(record.SessionID, "/repo", "", false, 12)}
-			response := usage.Response{ID: "reported", SourceID: record.SessionID, Agent: "codex", At: usageAttributionAt(15)}
+			response := usage.Response{ID: "reported", SourceID: record.SessionID, Agent: "codex", At: usageAttributionAt(15), Tokens: &usage.Counters{}}
 			responses := []usage.Response{response}
 			usable := map[string]bool{"codex:" + record.SessionID: true}
 			switch mode {
@@ -33,7 +33,7 @@ func TestReviewerUsageReconcilesEveryRelevantAttempt(t *testing.T) {
 			case "provisional-response":
 				responses[0].Provisional = true
 			case "usable-positive":
-				responses[0].Tokens = usage.Counters{Input: 17, Output: 3}
+				responses[0].Tokens = &usage.Counters{Input: 17, Output: 3}
 			case "requested":
 				var err error
 				record, err = reviewusage.NewRequested(record.Intent)
@@ -94,7 +94,7 @@ func TestReviewerUsageCanonicalCopiesResolveButInvalidCopiesStayUncertain(t *tes
 		t.Fatal(err)
 	}
 	session := usageAttributionSession(record.SessionID, "/repo", "", false, 12)
-	response := usage.Response{ID: "reported", Agent: "codex", SourceID: record.SessionID, At: usageAttributionAt(15)}
+	response := usage.Response{ID: "reported", Agent: "codex", SourceID: record.SessionID, At: usageAttributionAt(15), Tokens: &usage.Counters{}}
 	usable := map[string]bool{"codex:" + record.SessionID: true}
 	invalid := requested
 	invalid.Version = 99

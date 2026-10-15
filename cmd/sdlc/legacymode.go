@@ -60,7 +60,7 @@ func errLegacyOnly(verb, legacyWay string) error {
 
 // runLegacyIssueNew is the entry point for `sdlc issue new`. Hard guardrail
 // failures call die(); the happy path prints the created path to stdout.
-func runLegacyIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) error {
+func runLegacyIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags, args []string) error {
 	title := ""
 	if len(args) > 0 {
 		title = args[0]
@@ -189,7 +189,7 @@ func runLegacyIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string
 	// (rides #80's filtered add — unrelated untracked files stay put). nextID is
 	// a zero-padded string ("000083"); claimFlags.Issue is an int.
 	if id, perr := strconv.Atoi(nextID); perr == nil {
-		syncFlags := &claimFlags{Issue: id, IssuesDir: f.IssuesDir, HistoryDir: f.HistoryDir, NoStart: true, FirstPublication: true}
+		syncFlags := &claimFlags{Context: ctx, Issue: id, IssuesDir: f.IssuesDir, HistoryDir: f.HistoryDir, NoStart: true, FirstPublication: true}
 		// Route the sync's stdout to stderr: its machine "synced" marker must not
 		// pollute `issue new`'s stdout contract (the created path, printed below).
 		// "" keeps issue new's historical subject ("issue-sync: update issues");

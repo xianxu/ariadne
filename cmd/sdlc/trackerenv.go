@@ -186,7 +186,7 @@ func commitOnly(e *trackerEnv, message string, paths ...string) error {
 	if _, err := e.git(append([]string{"add", "--"}, paths...)...); err != nil {
 		return err
 	}
-	_, err := e.git(append([]string{"commit", "-q", "--no-verify", "-m", agentid.StampCurrent(message), "--only", "--"}, paths...)...)
+	_, err := e.git(append([]string{"commit", "-q", "--no-verify", "-m", agentid.StampCurrent(message, e.ctx), "--only", "--"}, paths...)...)
 	return err
 }
 

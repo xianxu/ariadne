@@ -275,7 +275,7 @@ func reviewerUsageCoverage(records []reviewusage.Record, bindings map[string]usa
 	for _, response := range responses {
 		key := response.Agent + ":" + response.SourceID
 		binding, ok := bindings[key]
-		if !ok || binding.Conflict || !usableSources[key] || response.Provisional || response.Tokens.Validate() != nil || response.At.Before(binding.Since) || !response.At.Before(binding.Until) {
+		if !ok || binding.Conflict || !usableSources[key] || response.Provisional || response.ValidateMeasurements() != nil || response.At.Before(binding.Since) || !response.At.Before(binding.Until) {
 			continue
 		}
 		resolved[usageReviewerAttemptKey{binding.Repository, binding.Issue, response.Agent, binding.Attempt}] = true
@@ -311,7 +311,7 @@ func usageReviewerAttemptRelevant(record reviewusage.Record, scope usageReviewer
 	if scope.Repository != "" && i.Repository != scope.Repository || scope.Issue > 0 && i.IssueID != fmt.Sprintf("%06d", scope.Issue) {
 		return false
 	}
-	if scope.Agent != "" && i.Agent != scope.Agent && (i.Agent == "claude" || i.Agent == "codex" || i.Agent == "gemini") {
+	if scope.Agent != "" && i.Agent != scope.Agent && usageKnownReviewerAgent(i.Agent) {
 		return false
 	}
 	start, err := time.Parse(time.RFC3339Nano, i.RequestedAt)
@@ -334,4 +334,13 @@ func usageReviewerAttemptRelevant(record reviewusage.Record, scope usageReviewer
 		}
 	}
 	return false
+}
+
+func usageKnownReviewerAgent(agent string) bool {
+	for _, a := range usage.Agents() {
+		if a == agent {
+			return true
+		}
+	}
+	return agent == "gemini"
 }

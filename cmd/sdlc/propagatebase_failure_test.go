@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -103,7 +104,7 @@ func TestMigrationGitFailureRetainsEffectsAndCanRetry(t *testing.T) {
 			// A seed materialized by compile must also survive failed staging/commit.
 			propagationWrite(t, root, "entrypoint.sh", "authored seed\n")
 			faultingGit(t, root, tc.verb, tc.occurrence, tc.after)
-			_, err := commitConsumption(root, "test#239")
+			_, err := commitConsumption(context.Background(), root, "test#239")
 			if err == nil {
 				t.Fatal("Git failure hidden")
 			}
@@ -136,7 +137,7 @@ func TestMigrationGitFailureRetainsEffectsAndCanRetry(t *testing.T) {
 			}
 			// Internal retry observes actual index/HEAD state; it does not replay a
 			// presumed rollback or duplicate a commit that succeeded before error.
-			if _, err := commitConsumption(root, "test#239"); err != nil {
+			if _, err := commitConsumption(context.Background(), root, "test#239"); err != nil {
 				t.Fatal(err)
 			}
 			if got := git(t, root, "rev-list", "--count", "HEAD"); got != "2" {
@@ -169,7 +170,7 @@ func TestPropagationAfterPartialIndexFailureRequiresOperatorResolution(t *testin
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	faultingGit(t, root, "rm", 2, false)
 	var out bytes.Buffer
-	if err := runPropagateBase(owner, "test#239", false, &out); err == nil {
+	if err := runPropagateBase(context.Background(), owner, "test#239", false, &out); err == nil {
 		t.Fatal("failure hidden")
 	}
 	first, err := os.ReadFile(events)
@@ -177,7 +178,7 @@ func TestPropagationAfterPartialIndexFailureRequiresOperatorResolution(t *testin
 		t.Fatal(err)
 	}
 	out.Reset()
-	if err := runPropagateBase(owner, "test#239", false, &out); err == nil || !strings.Contains(out.String(), "SKIPPED: dirty") {
+	if err := runPropagateBase(context.Background(), owner, "test#239", false, &out); err == nil || !strings.Contains(out.String(), "SKIPPED: dirty") {
 		t.Fatalf("error=%v output=%s", err, &out)
 	}
 	second, err := os.ReadFile(events)
@@ -186,7 +187,7 @@ func TestPropagationAfterPartialIndexFailureRequiresOperatorResolution(t *testin
 	}
 	// Simulate the operator inspecting and committing the retained partial index.
 	git(t, root, "commit", "-qm", "reviewed partial migration")
-	if err := runPropagateBase(owner, "test#239", false, &out); err != nil {
+	if err := runPropagateBase(context.Background(), owner, "test#239", false, &out); err != nil {
 		t.Fatal(err)
 	}
 	if got := git(t, root, "ls-files", "--", "generated-a", "generated-b"); got != "" {
@@ -217,7 +218,7 @@ func TestPropagationStatusFailureDoesNotRunCompiler(t *testing.T) {
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	faultingGit(t, root, "status", 1, false)
 	var out bytes.Buffer
-	if err := runPropagateBase(owner, "test#239", false, &out); err == nil || !strings.Contains(out.String(), "FAILED: git status") {
+	if err := runPropagateBase(context.Background(), owner, "test#239", false, &out); err == nil || !strings.Contains(out.String(), "FAILED: git status") {
 		t.Fatalf("error=%v output=%s", err, &out)
 	}
 	if _, err := os.Stat(called); !os.IsNotExist(err) {

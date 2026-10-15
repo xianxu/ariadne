@@ -399,7 +399,7 @@ func moveDetailRemover(env *trackerEnv) tracker.Remover {
 			return nil
 		}
 		msg := fmt.Sprintf("#%s: issue: hand off initial details to main\n\nTracker-Operation: %s\nDetail-Handoff: #%s", issue.CLIRef(spec.IssueID), spec.Token, spec.IssueID)
-		if _, err := env.git(append([]string{"commit", "-q", "--no-verify", "-m", agentid.StampCurrent(msg), "--only", "--"}, trackedPaths...)...); err != nil {
+		if _, err := env.git(append([]string{"commit", "-q", "--no-verify", "-m", agentid.StampCurrent(msg, env.ctx), "--only", "--"}, trackedPaths...)...); err != nil {
 			return fmt.Errorf("commit source removal: %w; rerun issue recovery reconcile", err)
 		}
 		return nil

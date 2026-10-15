@@ -3,6 +3,11 @@
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
 
+- CLI fakes must locate named option operands and model read-only queries.
+  Adding `-trimpath` shifted Go's `-o` operand, while `go env GOFLAGS` was
+  incorrectly counted as a build. Preserve assertions about real build effects
+  while extending the fake's command model (#386).
+
 ## Contracts and single sources
 
 - A prose policy becomes an integration contract when code reads the repository.
@@ -860,3 +865,27 @@ The simplest durable authority beats a clever scan of consequences.
 - Generated recovery commands must preserve the request’s semantic intent. An ambiguous exclusion that printed a numeric-repair retry lost --exclude; test both intents through the production refusal before publishing recovery guidance (#384).
 
 - A failure reproduced on main proves shared exposure, not intermittency. Flake-based landing exceptions need same-exact-head fail→pass evidence and a named issue; persistent-main and suspected failures stay distinct and blocking (#390 BR-1).
+- A native agent marker establishes the invoking stack, not its session. Bind
+  session metadata to validated launch identity and workspace; newer activity
+  cannot resolve competing sessions. Sampled prefix/tail metadata cannot rule
+  out a contradiction in the skipped middle (#385 PQ-1).
+- Optional native measurements require optional subtotals too. An empty sum over
+  no supported observations is not measured zero, and an incomplete group must
+  retain its independently known subtotal (#385).
+
+- Unsupported provider fields still need format validation. Keep unavailable
+  units null, but diagnose changes to their documented placeholders across every
+  counter field; do not silently bless a new accounting format (#385 BR-1).
+- A user-facing measurement change includes the README entry point and its atlas
+  anchors. Sweep links when renaming a mapped section, alongside help and atlas
+  updates (#385 BR-2).
+
+- Failed evidence discovery needs an explicit unresolved outcome. A source is not
+  proven unrelated merely because its owner has not been parsed yet; test parse,
+  read and bound failures before metadata, then test production adoption against
+  a positive surviving-source baseline (#385 BR-3).
+
+- Provider discovery must distinguish standalone sessions from native auxiliary
+  layouts. Unclassifiable files need visible skipped-source diagnostics, not a
+  fleet-wide close failure; reserve adoption refusal for positively owned broken
+  evidence and test a real nested subagent fixture through close adoption (#391).

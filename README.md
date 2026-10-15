@@ -127,22 +127,25 @@ must explicitly dispose it with a note answering the evidence. Two invalid respo
 halt with a protocol error and admit no findings. See the
 [boundary review contract](atlas/workflow/sdlc-binary.md) for details.
 
-## Local token usage
+## Local usage
 
-`sdlc usage --since 6h` reads local Claude and Codex transcripts without
-contacting an agent. The first rows show each agent's last-hour tokens and
-recent wall-clock burn; details group reported counters by slot and model.
-`sdlc usage --issue N` separates ownership-proven worker tokens, explicitly
-bound reviewer rounds, and their total alongside measured active time. Use
-`--json` for schema-versioned output with coverage and unknown attribution.
+`sdlc usage --since 6h` reads local Claude, Codex and Qoder transcripts without
+contacting an agent. The first rows show each agent's last-hour usage and recent
+wall-clock burn; details group measurements by slot and model. Claude and Codex
+report tokens; Qoder reports exact credits, with tokens unavailable (`null`),
+never inferred from credits. Mixed scopes label known subtotals separately.
+`sdlc usage --issue N` separates ownership-proven worker usage, explicitly bound
+reviewer rounds, and their total alongside measured active time. `--json` uses
+schema version 2 with nullable measurements, coverage and unknown attribution.
 
 Optional account calibration uses two observations of the same agent and unit:
 `sdlc usage calibrate --agent codex --remaining 29276 --unit credits` (Claude
-also accepts `--unit percent`). Only calibration writes local meter state.
-One reading or incomplete spend evidence yields a status and no projection;
-local response counters do not claim to be the provider's quota or invoice.
-See `sdlc usage --help` and the [usage map](atlas/workflow/sdlc-binary.md#local-token-usage-365)
-for counter semantics, bounds, legacy reviewer gaps and calibration storage.
+also accepts `--unit percent`; Qoder accepts native `--unit credits`). Only
+calibration writes local meter state. One reading or incomplete spend evidence
+yields a status and no projection; local measurements do not claim to be the
+provider's quota or invoice. See `sdlc usage --help` and the
+[usage map](atlas/workflow/sdlc-binary.md#local-usage-365-385) for counter
+semantics, bounds, legacy reviewer gaps and calibration storage.
 
 ## Classifying issues
 
@@ -181,7 +184,7 @@ weave compile
 Naming the formula in full lets Homebrew load it from the untrusted third-party
 tap. To have a bare `brew upgrade` pick up new releases, trust the tap once with
 `brew trust xianxu/ariadne`. To work on weave itself, build the candidate from
-this checkout with `go build -o bin/weave ./cmd/weave` and put `bin/` first on
+this checkout with `go build -trimpath -o bin/weave ./cmd/weave` and put `bin/` first on
 PATH.
 
 `weave link ../ariadne` also accepts an existing local base. Address links clone
@@ -303,6 +306,16 @@ Makefile, weave prepends the workflow include without replacing the product
 rules; non-regular Makefiles are preserved with an adoption instruction.
 `make weave` and the shared `make bootstrap` prerequisite delegate to
 `weave compile`; consumer bootstrap extensions remain additive.
+
+Ariadne's owner tool builds and `make test` default to `-trimpath`, so identical
+packages share Go's build cache across worktrees. Existing effective `GOFLAGS`
+(including compile caps) are retained; an explicit Make command-line `GOFLAGS`
+assignment overrides the default. The recorded suite declares the same
+`make test` command. Generated dev aliases also pass `-trimpath` when building
+each peer owner's tools; reload existing shell functions from the checkout root
+with `source <(construct/dev-aliases.sh)`. For direct Go commands, use
+`go build -trimpath` or `go test -trimpath`. See the
+[build and test details](atlas/workflow/sdlc-binary.md#build--install).
 
 For host checks required by `make test`, provide `tests/host-preflight.sh`, or
 set `WF_TEST_PREFLIGHT ?= path/to/preflight.sh` before including

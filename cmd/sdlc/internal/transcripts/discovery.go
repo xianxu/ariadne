@@ -17,9 +17,14 @@ import (
 const metadataLimit = 1 << 20
 
 // DiscoverEvidence streams source metadata, retaining only exact requested
-// paths. Built-in Codex discovery avoids the legacy whole-file cwd parser.
+// paths. Built-in Codex and Qoder discovery bypass legacy Sources selection.
 // Digests cover the stat-sized prefix, so later appends cannot change replay.
 func DiscoverEvidence(ctx context.Context, cwds []string, hs []Harness) ([]SessionEvidence, []string, error) {
+	return discoverEvidence(ctx, cwds, hs, UsageCandidateLimit)
+}
+
+func discoverEvidence(ctx context.Context, cwds []string, hs []Harness, qoderLimit int) ([]SessionEvidence, []string, error) {
+	qoderCandidates := 0
 	var out []SessionEvidence
 	var warnings []string
 	seen := map[string]bool{}
@@ -38,9 +43,18 @@ func DiscoverEvidence(ctx context.Context, cwds []string, hs []Harness) ([]Sessi
 			return nil
 		}
 		seen[path] = true
-		s, err := readEvidenceMetadata(ctx, path, harness, cwd)
+		var s SessionEvidence
+		var err error
+		ownership := qoderOwnershipUnresolved
+		if harness == "qoder" {
+			s, ownership, err = readQoderEvidenceFor(ctx, path, -1, nil, allowed)
+		} else {
+			s, err = readEvidenceMetadata(ctx, path, harness, cwd)
+		}
 		if err != nil {
-			if known || allowed[normalizedPath(s.CWD)] || ctx.Err() != nil {
+			// Native sidechains omit standalone workspace metadata. Unknown sources
+			// remain visible as skipped; only proven requested evidence blocks adoption.
+			if known || harness == "qoder" && ownership == qoderOwnershipRelevant || allowed[normalizedPath(s.CWD)] || ctx.Err() != nil {
 				return fmt.Errorf("source %s: %w", path, err)
 			}
 			warnings = append(warnings, fmt.Sprintf("skipped source %s: %v", path, err))
@@ -49,8 +63,10 @@ func DiscoverEvidence(ctx context.Context, cwds []string, hs []Harness) ([]Sessi
 		if !allowed[normalizedPath(s.CWD)] {
 			return nil
 		}
-		if err := pinEvidence(ctx, &s); err != nil {
-			return fmt.Errorf("source %s: %w", path, err)
+		if harness != "qoder" {
+			if err := pinEvidence(ctx, &s); err != nil {
+				return fmt.Errorf("source %s: %w", path, err)
+			}
 		}
 		out = append(out, s)
 		return nil
@@ -59,22 +75,39 @@ func DiscoverEvidence(ctx context.Context, cwds []string, hs []Harness) ([]Sessi
 		if err := ctx.Err(); err != nil {
 			return nil, warnings, err
 		}
-		if codex, ok := h.(codexHarness); ok {
-			if codex.root == "" || len(allowed) == 0 {
+		root := ""
+		switch v := h.(type) {
+		case codexHarness:
+			root = v.root
+		case qoderHarness:
+			root = v.root
+		}
+		if root != "" {
+			if len(allowed) == 0 {
 				continue
 			}
-			err := filepath.WalkDir(codex.root, func(path string, d os.DirEntry, err error) error {
+			err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 				if ctx.Err() != nil {
 					return ctx.Err()
 				}
 				if err != nil {
-					if os.IsNotExist(err) {
+					if os.IsNotExist(err) && (h.Name() != "qoder" || path == root) {
+						return nil
+					}
+					if h.Name() == "qoder" {
+						warnings = append(warnings, fmt.Sprintf("skipped source %s: %v", path, err))
 						return nil
 					}
 					return err
 				}
 				if d.IsDir() || filepath.Ext(path) != ".jsonl" {
 					return nil
+				}
+				if h.Name() == "qoder" {
+					qoderCandidates++
+					if qoderCandidates > qoderLimit {
+						return fmt.Errorf("qoder candidate limit exceeded (%d)", qoderLimit)
+					}
 				}
 				return collect(path, h.Name(), "", false)
 			})
@@ -83,7 +116,10 @@ func DiscoverEvidence(ctx context.Context, cwds []string, hs []Harness) ([]Sessi
 			}
 			continue
 		}
-		sources := Select(cwds, []Harness{h})
+		sources, err := Select(ctx, cwds, []Harness{h})
+		if err != nil {
+			return nil, warnings, err
+		}
 		for _, dir := range sources.Dirs {
 			entries, err := os.ReadDir(dir)
 			if os.IsNotExist(err) {
@@ -119,6 +155,9 @@ func DiscoverEvidence(ctx context.Context, cwds []string, hs []Harness) ([]Sessi
 }
 
 func readEvidenceMetadata(ctx context.Context, path, harness, inferredCWD string) (SessionEvidence, error) {
+	if harness == "qoder" {
+		return readQoderEvidence(ctx, path, -1, nil)
+	}
 	s := SessionEvidence{Harness: harness, File: path, CWD: inferredCWD}
 	f, err := os.Open(path)
 	if err != nil {
