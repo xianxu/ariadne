@@ -1,12 +1,20 @@
 ---
 id: 000399
-status: open
+status: working
 deps: [parley.nvim#332, pair#573]
 github_issue:
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
-card_mirror: '4d1322dd4e320147e1b1fea6afa626e9b3148e4b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e1514d8edef259613b78c11d7f6ec74e85ed46bc' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-15T16:24:58-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Universal review skill and canonical round export
@@ -59,3 +67,4 @@ the same protocol. S1 is parley.nvim#332 plus pair#573.
 2026-10-15 — filed from parley.nvim:1 while planning the operator-requested S2a;
 unclaimed for hub dispatch. See ops teams/devinfra/projects/universal-agent-input-interface/design.md
 S2 and project.md S2a. This is the shared-skill half; no Parley code belongs here.
+- 2026-10-15 (ariadne:2): claimed. TL decision (ops:0): Alt+Return sends ONLY 'submitted: PATH'; the skill carries the whole protocol (frontmatter process-instruction, couch --session-sync diff for changes since last read, review modes, marker grammar). parley.nvim:1 confirms #319 is submitted-only: it deletes the verbose Couch builder/diff baseline and keeps only the inline in-editor fallback outside Couch, so the export must serve both: the skill (in Couch) and the inline fallback (standalone).
