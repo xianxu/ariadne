@@ -1,6 +1,6 @@
 ---
 id: 000390
-status: codecomplete
+status: done
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: bd83e139d3b606b79372a3719f5ee61f84a06088
         evidence_commit: d0a4bc4b35889429e3346f7cc2a63a0dd3a5e86d
+        landed_commit: e6c41c9e1d82b3d21f1009d425525ddd76f07f9f
 ---
 
 # test-economy: design the pattern (evidence tiers, integration tax, flakes, budgets, minimization) from test-stats data
