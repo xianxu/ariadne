@@ -1,12 +1,12 @@
 ---
 id: 000387
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
-card_mirror: '49c00a61085133c15bc1550afad620f6c1ea0b0c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '4d584597e13e61d1d9ae7e45e7881e8ab16078fc' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-15T11:01:43-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "309edd46", done: "ab958c7e"}
+actual_hours: 1.11
 ---
 
 # Agent: trailer says 'human' (not 'sdlc') for a commit made outside an agent session
