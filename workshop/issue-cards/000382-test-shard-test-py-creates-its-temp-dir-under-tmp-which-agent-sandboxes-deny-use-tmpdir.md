@@ -1,6 +1,6 @@
 ---
 id: 000382
-status: codecomplete
+status: done
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 5650a7a84b70f1c803fafa294614a273c254f516
         evidence_commit: 399fa004049a1cc527c3818aa8564dcf6dd484e1
+        landed_commit: b97394b5d008a5f1880805ebf5dc51b2575fc3f3
 ---
 
 # test-shard.test.py creates its temp dir under /tmp, which agent sandboxes deny; use TMPDIR
