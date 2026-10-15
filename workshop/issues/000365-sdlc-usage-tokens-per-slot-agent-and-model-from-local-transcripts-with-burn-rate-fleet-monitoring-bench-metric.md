@@ -48,7 +48,7 @@ Durable plan: workshop/plans/000365-usage-plan.md.
 - [x] Normalize recorded usage and deduplicate before attribution.
 - [x] Reuse ownership/membership and persist explicit reviewer bindings.
 - [x] Add reporting, calibrated projection and docs.
-- [ ] Verify recorded suite and acceptance evidence.
+- [x] Verify recorded suite and acceptance evidence.
 
 Then publish through shared sdlc close (SHIP), PR and merge.
 
@@ -140,6 +140,24 @@ explicit JSON booleans; old reviewer bindings and unresolved aggregates remain
 visible gaps. Projection checks its own burn/calibration evidence, not just the
 issue detail window. Structured modelUsage/totalTokens counters diagnose gaps
 without adding aggregate spend a second time.
+
+### 2026-10-14 — resumed acceptance evidence
+
+Recorded sdlc-local/suite passed on
+081417175e5b47f9dd779f1747fe275f2957aab3:1389 cmd/sdlc tests in12 shards,
+61 other packages, zero failures,765.9s (12m46s), log hash prefixaff116cf6257.
+All code is in that tested head; the acceptance checkpoint is docs-only.
+
+Fresh live identity conformance passed12.513s (Claude4.40s, Codex7.96s).
+Candidate six-hour fleet JSON completed19.69s; issue365 JSON23.85s. Fleet
+glance reports both agents first, with no invented projection when observations
+are absent. Issue reports65,302,026 worker tokens, zero bound reviewer tokens,
+the same total, and measured active time5.2947516667h with its own provenance.
+Three pre-feature reviewer gaps remain explicitly labelled; shared old gates
+cannot be retroactively guessed into the new binding schema. Reports are local
+/tmp/ariadne365-resume-fleet.json and /tmp/ariadne365-resume-issue.json.
+
+Next shared close to SHIP, PR and merge.
 
 ## Revisions
 

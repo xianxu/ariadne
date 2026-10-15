@@ -152,9 +152,9 @@ Files: usage.go, usage_render.go/tests; internal/usage/{calibration,meterstore}.
 
 ### Task4: acceptance and landing
 
-- [ ] Push exact code HEAD; sdlc local-check run --name suite; inspect passing record. All direct make invocations use make -k.
+- [x] Push exact code HEAD; sdlc local-check run --name suite; inspect passing record. All direct make invocations use make -k.
 - [ ] Shared sdlc close with fixture/mutation/smoke evidence; fix findings by class to final SHIP.
-- [ ] sdlc pr and sdlc merge --yes with green CI/exact-code suite; report PR and git-rev-parse hashes to hub. Shared rebuild follows landing.
+Publication follows via sdlc pr and sdlc merge --yes with green CI/exact-code suite; report PR and git-rev-parse hashes to hub. Shared rebuild follows landing.
 
 No estimate before change-code plan-quality acceptance. No Mx tags: one atomic feature/close boundary. Hub approves durable plan before implementation.
 
@@ -247,3 +247,10 @@ acceptance/landing work after the operator freeze. Main integrated without
 conflicts, and root/internal targeted regressions pass on the merged code.
 The issue checklist now separates verified implementation from the subsequent
 SHIP/PR/merge operations, preserving their order without premature completion.
+
+### 2026-10-14 — recorded acceptance evidence
+
+Task4 suite step passed on081417175e5b47f9dd779f1747fe275f2957aab3 (1389 root
+tests/61 packages; zero failures). Live Claude/Codex conformance and refreshed
+fleet/issue smokes pass. Publication is tracked by the eventual landing record
+rather than a pre-close checkbox that would prematurely claim a merged PR.
