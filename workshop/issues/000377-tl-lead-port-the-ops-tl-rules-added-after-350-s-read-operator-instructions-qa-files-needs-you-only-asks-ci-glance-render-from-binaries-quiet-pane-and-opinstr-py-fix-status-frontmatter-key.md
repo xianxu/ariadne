@@ -1,12 +1,20 @@
 ---
 id: 000377
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
-card_mirror: '6a71b701e40f33774c3bac8d63f4c04c46e34524' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '61dfaff9de95f84900765daee472045008c3b800' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-14T20:39:55-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead: port the ops TL rules added after #350's read (Operator instructions + QA files, Needs-you only asks, CI glance, render-from-binaries, quiet pane) and opinstr.py; fix status frontmatter key
@@ -33,8 +41,17 @@ Port each missing rule into `tl-lead --help` (rules only, no stories); port `opi
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000377-tl-lead-ops-rules-catch-up-plan.md` (single pass, one close).
+
+- [ ] help.md: rules G1–G8, the frontmatter key, the instructions verbs
+- [ ] pure parser and linker (`instructions.go`) with golden tests
+- [ ] `status instructions list|link` verbs with fake-backed tests
+- [ ] help names every verb (test)
+- [ ] atlas tl-skills.md
+- [ ] G10/G11 (slot verification after disruption, filing from a resting checkout) once the hub sends the source
+- [ ] fresh comparison of the draft against help.md, recorded in the Log
 
 ## Log
 
 ### 2026-10-14
+- Compared ops draft e7ea8e5 with help.md at main 18915f6c: gaps G1–G9 in the plan. `couch --skill` names `couch-owner:` canonical (`owner:` legacy), so the help keeps it. parley.nvim#315 landed (PR #228): the `holder: agent` workaround is not ported.
