@@ -1,12 +1,22 @@
 ---
 id: 000240
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-20
-updated: 2026-09-21
+updated: 2026-10-14
 estimate_hours:
-card_mirror: 'a17ad0182482b5fb55bf5f8c8af9d04e3d9b0e5f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5d9580e0acd30d93d5a2c176f5f29b449bbdbff1' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-14T08:53:15-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 9.66
 ---
 
 # Issue updates for non-working issues strand on the feature branch — one thread per repo is the wrong model
@@ -105,23 +115,91 @@ removes the stranding and the sweep hazard without any new model.
 
 ## Done when
 
-- `sdlc issue sync --issue N` for an issue that is NOT the current branch's
-  claimed issue lands on the trunk, not the feature branch — verified from a
-  feature branch with a dirty unrelated issue file.
-- Syncing the issue that IS claimed on the current branch keeps today's
-  behaviour (it belongs with the work).
-- There is a stated, documented home for a non-issue edit that belongs on main,
-  or an explicit decision that no such edit is legitimate mid-issue.
-- The thread/slot model is either designed (a durable plan) or explicitly
-  deferred with the smallest-useful-step above shipped.
-- `atlas/workflow/` records whichever model lands.
+- Existing `sdlc issue publish --issue N` remains the path for issue details;
+  the current issue's design stays on its issue branch. `issue sync` is retired
+  in tracker repositories.
+- From a dirty issue branch, `sdlc trunk publish --path P` publishes one selected
+  non-issue workshop prose to main without committing it on the issue branch:
+  `workshop/parley/`, `pensive/`, `targets/`, `projects/`, and `lessons.md`.
+  Issues, plans, atlas, code, and base-layer settings are refused.
+- The selected path changed on main since this branch's base refuses before any
+  write. A lost push response is reconciled by retry. Publication never removes
+  or rewrites the local file; it prints exact-path cleanup guidance, and warns
+  when the local bytes changed during publication.
+- Tests cover a dirty feature branch, path refusals, concurrent main edits,
+  uncertain outcome/retry, and preservation of unrelated dirty work.
+- `atlas/workflow/` documents the two publication paths and the explicit
+  decision that code, settings and atlas changes travel through issue review.
 
 ## Plan
 
-- [ ] design not yet done — brainstorm the slot model, then decide whether to
-      ship the smallest-useful-step first or go straight to slots.
+- [x] Publish selected non-issue workshop prose through a main CAS, with
+      path, base, concurrency, and local-retention tests; document the path in atlas.
+- [x] Verify the full suite on the repaired code and prepare the issue for close.
 
 ## Log
+
+### 2026-10-14
+- 2026-10-14: closed — BR-8 growth tests RED consumed 3MiB; bounded initial/post-publication reads GREEN at limit+1, focused publication/reader tests 58.334s and recovery registry 0.662s. Repaired-head make test on 40be9ef72775ccf6cc3873ac6a7344625c62aff9 passed all 12 shards/1368 SDLC tests and 59 other packages, 451.2s, log sha256 977ce9b0d172f51703823912c5ab9302353eb4ccb68007156f131b00e145ac04. Final SDLC status POST hit a transient network failure; no record-only verb exists, so only that failed status was retried with gh api and read back: sdlc-local/suite success ID 56390349486, marked status retry. Formatting, tool builds, retained local/open-descriptor writes, exact-path guidance, CAS retry/isolation, README and atlas verified.; review verdict: SHIP
+- 2026-10-14: flow upgraded quick → full — 273 added lines in code files (limit 100); an earlier round of this close already ran the full review
+
+Claimed in ariadne:1 after `weave refresh`; the tracker-era issue publication
+path already exists, so scope narrowed to non-issue workshop prose with hub
+approval. The first plan-quality round found a partial-cleanup problem in a
+multi-path transaction; a single-path command removed that state and the
+redundant M1 boundary. `change-code` then admitted the revised design on the
+quick flow. Implemented the explicit prose allowlist and main CAS path, using
+the existing `gitx.TrunkFile.UpdateMany` machinery (ARCH-DRY). Targeted
+real-Git tests covered issue-branch isolation, moved main, interruption after
+publication, tracked/untracked cleanup, a moved HEAD, staged/committed refusals,
+symlinks and later local edits; the recovery contract's proof registry passed.
+`make -k` and `make tools` completed. The pushed head
+`3ab56c0d21ae5954dce67462656a671ec22f9fbc` passed
+`sdlc local-check run --name suite`: 12/12 cmd/sdlc shards, 1,347 cmd/sdlc
+tests, 54 other packages, zero failures, 480.0s wall, recorded as
+`sdlc-local/suite` (log SHA-256 prefix `beab12315e98`). PR #241 is open;
+close review and merge remain.
+The first close review returned REWORK: BR-5 confirmed wildcard path expansion
+in cleanup, BR-6 confirmed an edit could be overwritten between validation and
+restore, and BR-7 requested README usage. Literal Git pathspecs, an atomic
+move-and-check cleanup, and README guidance now have targeted regression tests
+passing; the earlier suite status is evidence only for the pre-fix code head.
+The repaired head `38ac58676eb41e341fa2fd62f7161401a9c8cc13` passed
+`sdlc local-check run --name suite`: all 12 cmd/sdlc shards (1,351 tests),
+54 other packages, zero failures, 501.6s wall, recorded as
+`sdlc-local/suite` (log SHA-256 prefix `d3a0bf281d08`).
+The second close review returned REWORK. It confirmed literal-path and other
+repairs, but found that a process stop after the cleanup rename strands the
+backup on retry (BR-1), and an editor's already-open descriptor can write to
+that backup immediately before unlink, losing the new edit (BR-6). The cleanup
+contract needs an architectural revision before another close attempt.
+The hub approved retaining the local copy after publication. The automatic
+cleanup and backup state are gone; the command prints a literal-path manual
+cleanup command only when the retained bytes still match the published bytes,
+and warns to preserve a later edit otherwise. Targeted real-Git and recovery
+contract tests pass, including a write through an already-open descriptor and
+retry after a confirmed push without a second main commit. `make -k tools`
+builds all four binaries. The recorded full suite and renewed close review
+remain.
+The first suite attempt waited for a machine test slot and was stopped before
+running tests when a guidance defect surfaced: `git restore` cannot remove an
+untracked file before the merge. Tracked files retain the literal-path restore
+command; untracked files now get a literal-path `git clean -f` command. A
+real-Git wildcard test proves it removes only the selected file.
+
+Resumed in ariadne:5 after the operator unfreeze, from moved HEAD ec6a37986245ea20c81ba10f7f923e627050fd55. Merged origin/main 74e803ecd896400bbe2e7f4b957c69383e9f1397 cleanly (merge 9716d6061b32b46c2a8fdd95de1daa14f82ae5c5), including #369/#370/#378. Focused recovery, eligibility, decision, publication and bounded-reader tests pass (16.707s; /tmp/ariadne240-focused-resume.log). gofmt reports no changes and git diff --check passes; make -k passes. Local file retention and literal tracked/untracked cleanup guidance are already implemented; the remaining acceptance step is the repaired-code recorded full suite followed by renewed close review.
+
+The resumed recorded suite on 6433ffd3ecd69e3e3b1a0591a4c5002f6f8eaba8 completed with failure: all 12 root SDLC shards passed (1366 tests), but the judge package failed TestPreparationOutputAndCancellation at preparation_test.go:79 (len=0, truncated=false). Wall 756.0s across 59 other packages; sdlc-local/suite records exit 2, log SHA-256 prefix d75cb1db7b6a, /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/6433ffd3ecd69e3e3b1a0591a4c5002f6f8eaba8/suite.log. The 200ms test deadline covers Git inspection/startup and can cancel before output capture, invalidating its truncation expectation under load. Focused and diagnostic-only overlay retries reproduced it; the tested preparation/processgroup sources match main byte-for-byte, while isolated main retries passed. Filed and published unassigned #379 with measured evidence and readiness-based acceptance criteria; hub asked to route the independent repair from main. #240 full-suite/close steps stay unchecked; no bypass or close attempted. No suite remains running or queued.
+
+After #379 landed in PR #247 (e3db93ddb5787059b724fcf04367362921fece9f), merged main 4c52f8a4e712c01c3d764bf53340a5289940fc7b cleanly as d9c48bfb12e0ec56825eb991f586812a00783623. Renewed #240 publication/recovery focused tests pass (/tmp/ariadne240-focused-after379.log). Preparation output/cancellation passes three runs (3.961s), and the explicit pre-canceled control passes (2.274s); logs /tmp/ariadne240-preparation-after379.log and /tmp/ariadne240-preparation-canceled-control.log. Diff whitespace checks pass. The independent blocker is resolved; starting the recorded full suite again before close.
+
+Renewed recorded full suite GREEN on 1e559e8ded87fd4e0d4690c52c0df79dbfc6a570 after #379: all 12 root SDLC shards over 1366 tests and 59 other packages exit 0, zero failures, wall 594.5s (9m55s). Status sdlc-local/suite success; log SHA-256 prefix a3c195ef563e, /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/1e559e8ded87fd4e0d4690c52c0df79dbfc6a570/suite.log. Both repaired preparation controls passed inside the full suite. Local acceptance is complete and the final issue Plan row is checked; entering renewed binary-owned close review of the approved local-retention contract.
+
+Close round 3 returned REWORK. The reviewer disposed BR-1 through BR-7, confirming retention eliminates interrupted cleanup and open-descriptor loss; one Important finding remains: BR-8 proved os.ReadFile consumed 4 MiB after a small-file Lstat despite the 1 MiB contract. Plan revised to cap actual reads at limit+1 for both initial and post-publication reads with deterministic consumption tests; acceptance row reopened for the repaired code. No publication-policy change or bypass.
+
+BR-8 TDD repair: deterministic real-file growth controls first failed by consuming 3,145,728 bytes at both production read sites instead of max+1=1,048,577 (/tmp/ariadne-240-br8-red.log). readLocalProse now opens the file through the controlled integration seam and reads through io.LimitReader(maxTrunkProseBytes+1), retaining existing metadata/type checks and rejecting overflow. Exact-limit, static-oversize, post-Lstat growth, initial no-main-mutation and post-publication retained-local/guidance tests pass; complete focused publication/reader tests GREEN 58.334s (/tmp/ariadne-240-br8-green.log). Recovery proof registry passes 0.662s (/tmp/ariadne240-br8-recovery.log). Both local-read callers use the same bound; no new publication policy. The earlier suite pass predates this code change, so a renewed recorded suite is required before close.
+
+BR-8 repaired-head full suite GREEN on 40be9ef72775ccf6cc3873ac6a7344625c62aff9: all 12 root shards over 1368 tests and 59 other packages exit 0, zero failures, wall 451.2s. Log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/40be9ef72775ccf6cc3873ac6a7344625c62aff9/suite.log, full SHA-256 977ce9b0d172f51703823912c5ab9302353eb4ccb68007156f131b00e145ac04 (backup /tmp/ariadne240-br8-suite-pass.log). SDLC completed the suite but its final status POST failed connecting to api.github.com, so the command exited without recording success. After GitHub recovered, inspection confirmed local-check exposes no record-only retry. Used the manual recovery exception to retry only that failed publication with gh api: independently verified all 13 runner rows exit 0 and hash, posted success on the exact tested SHA, and read it back (status ID 56390349486, description marked status retry). No test command/result or gate configuration changed. Tool builds also passed after the reader fix (/tmp/ariadne240-br8-tools.log). Renewed local acceptance complete; entering close review again.
 
 ### 2026-09-20
 
@@ -162,6 +240,64 @@ issue bodies (`issue sync` commits them locally), parley docs, targets,
 
 ## Revisions
 
+### 2026-10-14 — narrow to the remaining trunk-publication gap
+
+The tracker cutover retired `issue sync` and supplied `issue publish --issue N`
+for unrelated issue details, so the original first two Done-when rows are
+already met by existing behavior. Couch slots now own workspace isolation; this
+issue does not add a second slot model. The remaining gap is dirty non-issue
+workshop prose with no direct trunk path. The hub approved the explicit
+allowlist above. Atlas follows its code branch, while code and base-layer
+settings require the normal reviewed issue path (ARCH-PURPOSE, ARCH-DRY).
+
+### 2026-10-14 — one path per transaction
+
+Plan-quality PQ-1 exposed a partial-cleanup state in the proposed batch. One
+explicit path per invocation gives a complete retry rule without a persistent
+receipt: before cleanup, the local bytes remain available to compare with main;
+after cleanup, the path is clean and no further action is needed. PQ-3 also
+removed the single redundant milestone boundary; close owns the review.
+
+### 2026-10-14 — close gate plan wording
+
+The previous final Plan row included `close` and `ship` themselves, which
+cannot be checked before close's all-plan-items precondition. It now names the
+independently verified prerequisite; the Log records the remaining close and
+merge transitions.
+
+### 2026-10-14 — close review repair
+
+The first full boundary review found two local-work preservation defects and
+missing README guidance. The cleanup now treats the selected Git path
+literally, moves its source before any replacement/removal, and rechecks the
+moved bytes and HEAD/index before exclusive tracked restoration. If another
+writer claims the original name, or changes the moved source, the command
+preserves the bytes and reports a recovery path (ARCH-ORDER, ARCH-SECURE).
+This revision adds deterministic tests at those intervening events and reruns
+the full recorded suite before close.
+
+### 2026-10-14 — retain the local copy after publication
+
+The second close review showed that the move-and-recheck cleanup still loses
+writes through an editor's already-open descriptor, and that a stopped cleanup
+cannot be retried reliably. The hub approved removing automatic cleanup. The
+command publishes the pinned bytes through the existing CAS and leaves the
+selected local file untouched. It prints `git restore -- <exact path>` guidance
+for after the branch has merged main, or before a merge that would otherwise
+conflict; a local edit observed after publication instead gets a preserve-and-
+reconcile warning. This removes the interrupted cleanup state entirely
+(ARCH-ORDER, ARCH-FUNERAL).
+
+### 2026-10-14 — tracked versus untracked cleanup guidance
+
+Before main has been merged into the issue branch, Git restore can discard a
+tracked local edit but cannot remove a newly created untracked file. The
+command therefore prints `git restore -- <literal path>` for tracked files and
+`git clean -f -- <literal path>` for untracked files. Both are exact-path,
+operator-run commands; the latter runs before a merge that would otherwise
+collide with the untracked file. A real-Git wildcard test verifies that the
+printed Git pathspec cannot expand to another file.
+
 ### 2026-09-21 — distinguish couch provisioning from SDLC slot awareness
 
 The slot direction is now narrower and more rigid than this issue's initial
@@ -190,3 +326,7 @@ implementation slot a cheaper one after review, but neither profile changes
 which issue branch owns the work or relaxes the lifecycle gates. The effective
 harness/model should be observable, while the trunk-routing rules remain
 profile-independent.
+
+### 2026-10-14 — close round 3 bounded-read correction
+
+Retain the existing 1 MiB operating envelope during reading, including growth after metadata validation. Every local read consumes at most limit+1 bytes before overflow refusal. Source bytes are pinned for CAS publication; local rereads govern only non-destructive guidance.

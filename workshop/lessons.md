@@ -26,6 +26,22 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- A selected repository path is data, but Git pathspecs are patterns. Pass
+  selected filenames with literal pathspec syntax at every Git operation,
+  including status and cleanup; a wildcard filename otherwise expands to
+  unrelated dirty files (#240 BR-5).
+- Cleanup guidance must account for Git tracking state: `git restore` cannot
+  remove an untracked file before a merge. Test the printed command against a
+  real Git checkout, including a wildcard filename beside another match
+  (#240 post-review).
+- A cleanup that reads bytes and later restores or removes a path has a race
+  between its check and its effect. A rename and recheck do not close the race:
+  an editor can still write through an already-open descriptor immediately
+  before the renamed inode is unlinked. Model every interrupted effect and keep
+  the old inode recoverable for as long as late writes are promised safe; test
+  writes at the final destructive boundary, not only after the move (#240 BR-1,
+  BR-6).
+
 - Before shortening a command's transaction lock, enumerate every path that can
   run a suite and every ref-writing fetch, including legacy and recovery paths.
   The #370 plan review caught a second merge path whose local CI fallback would
@@ -754,3 +770,5 @@ The simplest durable authority beats a clever scan of consequences.
 - test2json assigns assertion output to the exact failed subtest. A summary
   that prints only its parent discards the fault; preserve failed child output
   and regression-test it with recorded events (#369).
+
+- File metadata is not a read budget: enforce limit+1 at the reader for both admission and post-effect rereads, and test growth after metadata validation with measured consumption rather than only checking the final error (#240 BR-8).

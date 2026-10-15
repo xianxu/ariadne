@@ -1,0 +1,394 @@
+# Boundary Review — ariadne#240 (whole-issue close)
+
+| field | value |
+|-------|-------|
+| issue | 240 — Issue updates for non-working issues strand on the feature branch — one thread per repo is the wrong model |
+| repo | ariadne |
+| issue file | workshop/issues/000240-issue-updates-for-non-working-issues-strand-on-the-feature-branch-one-thread-per-repo-is-the-wrong-model.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 407e48a39057503fab7cdecaf6c69ce338ce7631..c66f2889426d7d9024853f455ab9eeac0e206efc |
+| command | sdlc close --issue 240 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T09:36:09-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The publication path correctly reuses the existing CAS machinery, and the targeted tests pass. Two confirmed cleanup defects can discard unpublished edits, blocking shipment. The new command also needs README coverage.
+
+Done-when: current — it covers the narrowed prose-publication scope, conflict refusal, retry, cleanup preservation, tests, and atlas documentation.
+
+1. **Strengths**
+
+   - The presence-aware decision distinguishes absent files from empty files and refuses conflicting main edits (`cmd/sdlc/trunkpublish.go:56`).
+   - Publication reuses `TrunkFile.UpdateMany`, including its bounded CAS retry and uncertain-outcome handling (`cmd/sdlc/trunkpublish.go:196`).
+   - Real-Git tests verify feature-branch isolation, unrelated staged-work preservation, and retry without another main commit.
+   - Atlas documents both publication paths and the reviewed home for code, settings, and atlas changes (`atlas/workflow/sdlc-binary.md:83`).
+
+```findings
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: literal-selected-path
+    title: |
+      Cleanup interprets the selected filename as a Git pattern and discards unrelated edits
+    detail: |
+      cmd/sdlc/trunkpublish.go:250 passes p to git restore without literal-pathspec handling, although trunkProsePath accepts wildcard characters. A temporary regression overlay invoking runTrunkPublish with a tracked workshop/parley/*.md filename published successfully but restored an unrelated dirty other.md to its base bytes. Use literal pathspecs consistently for selected-path Git operations and add regression coverage for wildcard filenames.
+  - id: new
+    severity: Critical
+    kind: defect
+    family: cleanup-preserves-concurrent-work
+    title: |
+      Cleanup can overwrite edits made after its validation
+    detail: |
+      cmd/sdlc/trunkpublish.go:232-253 reads and compares the file, then separately restores or removes it; these destructive effects are not conditional on the validated file still being current. A deterministic temporary overlay injected an edit when the restore subprocess started: finishTrunkPublish returned nil and replaced that edit with base bytes. ARCH-ORDER: redesign cleanup to preserve intervening writes, with explicit cleanup transitions and controllable ordering tests for tracked restore, untracked removal, and HEAD/index changes.
+  - id: new
+    severity: Important
+    kind: defect
+    family: readme-user-surface
+    title: |
+      README update appears missing for trunk publish --path
+    detail: |
+      cmd/sdlc/main.go:151 introduces a user-facing command and cmd/sdlc/trunkpublish.go:34 introduces its --path flag, but README.md has no change in the pinned range. Add usage, eligibility, conflict, and retry guidance alongside README.md:15's concurrent-work documentation, linking to the updated atlas.
+```
+
+2. **Critical findings**
+
+   Both findings above violate the promised preservation of local work. The existing “later local edit” test changes bytes before cleanup begins; it does not exercise an edit between validation and destruction.
+
+3. **Important findings**
+
+   README documentation is missing for the new command. Atlas coverage is present.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - Targeted command, recovery-contract, cleanup, and pure-function tests passed.
+   - Targeted `gitx` publication, retry, and cancellation tests passed.
+   - Both reviewer-added regression overlays failed against the pinned head, confirming the defects through production functions.
+   - Temporary fixtures and overlays were removed; the checkout remains unchanged.
+   - The full-suite result recorded in the issue was not independently rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** publication shares the existing CAS machinery.
+   - **ARCH-PURE — pass:** eligibility and publication decisions are pure and tested without IO; Git/filesystem effects reside in integration functions.
+   - **ARCH-PURPOSE — flag:** destructive cleanup defeats the issue’s goal of preserving unrelated and concurrent work.
+   - **ARCH-MOCK — pass:** portable real-Git fixtures and existing stateful publication tests exercise the shared Git boundary.
+   - **ARCH-CONSTRAINTS — pass:** the implementation declares a 1 MiB file limit, remote deadline, and bounded CAS attempts.
+   - **ARCH-SECURE — flag:** an accepted filename crosses into Git’s pattern language during cleanup; literal-path handling is required.
+   - **ARCH-ORDER — flag:** validation and cleanup effects admit destructive interleavings; current tests omit those schedules.
+   - **ARCH-FUNERAL — pass:** no new sidecar or receipt family is introduced; publication uses existing Git history retention.
+
+7. **Plan revision recommendations**
+
+   Append a `## Revisions` entry defining literal selected-path handling and the revised cleanup state/effect contract. Enumerate tracked restoration, untracked removal, intervening file edits, and HEAD/index changes, with deterministic regression tests for each applicable ordering. Add README documentation to Task 3 before marking the boundary ready.
+
+---
+
+## Re-review — 2026-10-14T10:23:27-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 240 — Issue updates for non-working issues strand on the feature branch — one thread per repo is the wrong model |
+| repo | ariadne |
+| issue file | workshop/issues/000240-issue-updates-for-non-working-issues-strand-on-the-feature-branch-one-thread-per-repo-is-the-wrong-model.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 407e48a39057503fab7cdecaf6c69ce338ce7631..48255461dfd57311a8fd24a74d818826f97320d3 |
+| command | sdlc close --issue 240 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T10:23:27-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The publication path, conflict checks, literal filenames, and documentation are substantially covered. Two existing findings still block shipping: interruption after cleanup’s rename cannot recover through the documented retry, and writes through an open descriptor can still be silently discarded. The reviewed checkout remains unchanged; the disposable checkout was removed.
+
+Done-when: current — it covers the narrowed publication surface, retry behavior, local-work preservation, tests, and atlas documentation.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: not-addressed
+    note: |
+      ARCH-ORDER / ARCH-FUNERAL: cmd/sdlc/trunkpublish.go:276 creates an intermediate renamed-backup state that retry cannot recover. A deterministic interruption at trunkProseAfterMove reproduced both failures: tracked retry refuses at line 183 as a local deletion; untracked retry reports already clean at line 185 while retaining the backup. Define authoritative cleanup states and safe recovery for every intermediate effect, including process death, with production-transition sequence tests.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Plan Tasks 1–2 now name adversarial inputs and mechanical guards for the path predicate, publication decision, command, and cleanup. Lexical eligibility is separated from filesystem inspection; the pure tests invoke the predicates directly without IO. Cleanup strategy completeness remains covered by BR-1 and BR-6.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The issue Plan uses plain checkboxes; the implementation plan contains no M1 boundary or milestone-close. This matches AGENTS.base.md:51's single-pass close rule.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The plan specifies a 1 MiB prose envelope, two-minute shared remote deadline, cancellation, and three CAS attempts. cmd/sdlc/trunkpublish.go enforces the file-size limit and invokes BoundRemote; the existing Git seam supplies cancellation and the CAS budget.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Selected-path staging checks use literal pathspecs and cleanup reads the exact pinned HEAD blob instead of Git restore patterns. TestTrunkPublishTreatsSelectedWildcardFilenameLiterally passes at pinned head and fails when the pre-fix cleanup is restored in a disposable checkout: unrelated other.md loses its dirty edit.
+  - id: BR-6
+    disposition: not-addressed
+    note: |
+      ARCH-ORDER: cmd/sdlc/trunkpublish.go:313–317 and 332–336 still separate the final backup-byte check from unlink. A disposable overlay added only an ordering hook immediately before unlink; writing through a descriptor opened before rename made both tracked and untracked cleanup return nil with no backup, while the later edit disappeared. Exclusive creation also does not exclude subsequent writers during replacement.Write at line 327. Preserve recoverable data throughout cleanup and test all destructive-effect boundaries, rather than only the after-move event.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      README.md:28–37 adds command usage, eligibility, moved-main refusal, uncertain-push retry guidance, and an atlas link. These passages match the allowlist and publication checks; atlas/workflow/sdlc-binary.md also documents the new surface.
+```
+
+1. **Strengths**
+
+   - Reuses `gitx.TrunkFile.UpdateMany` for CAS publication rather than introducing another remote transaction mechanism.
+   - Separates lexical eligibility from filesystem checks and tests the pure decisions directly.
+   - Real-Git tests verify branch/index isolation, selected-path conflicts, and preservation of unrelated dirty work.
+   - README and atlas both document the new command.
+
+2. **Critical findings**
+
+   - **BR-6 remains open:** `cmd/sdlc/trunkpublish.go:317,336` can unlink a concurrently modified inode after validation. Preserve recoverable bytes across the entire destructive sequence and add controllable late-write tests.
+
+3. **Important findings**
+
+   - **BR-1 remains open:** `cmd/sdlc/trunkpublish.go:181–186,276` cannot reconcile interruption after rename. Add a recoverable cleanup state model that distinguishes incomplete cleanup from genuine local deletion or completed cleanup.
+
+4. **Minor findings**
+
+   - None newly raised.
+
+5. **Test coverage notes**
+
+   The targeted recovery, eligibility, decision, publication, and cleanup tests passed. The wildcard regression went red with pre-fix cleanup restored. Two additional deterministic overlays exposed the outstanding interruption and late-write failures. The full suite was not independently rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** existing CAS and Git boundaries are reused.
+   - **ARCH-PURE — pass:** eligibility and publication decisions are independently tested without IO.
+   - **ARCH-PURPOSE — flag:** BR-1/BR-6 leave the promised recovery and preservation behavior incomplete.
+   - **ARCH-MOCK — pass:** existing shared Git seam and stateful fixtures are reused.
+   - **ARCH-CONSTRAINTS — pass:** explicit input and remote budgets are present.
+   - **ARCH-SECURE — flag:** BR-6 treats a byte observation as authority for a later destructive effect.
+   - **ARCH-ORDER — flag:** intermediate cleanup states and late writes remain insufficiently modeled.
+   - **ARCH-FUNERAL — flag:** interrupted cleanup leaves backups without an automatic recovery/removal path.
+
+7. **Plan revision recommendations**
+
+   Add a `## Revisions` entry enumerating cleanup states, interruption points, permitted recovery actions, and backup lifecycle. Correct the claim that one selected path makes cleanup a single transition, and replace the after-move-only test strategy with coverage of every destructive-effect boundary.
+
+---
+
+## Re-review — 2026-10-14T17:55:24-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 240 — Issue updates for non-working issues strand on the feature branch — one thread per repo is the wrong model |
+| repo | ariadne |
+| issue file | workshop/issues/000240-issue-updates-for-non-working-issues-strand-on-the-feature-branch-one-thread-per-repo-is-the-wrong-model.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 4c52f8a4e712c01c3d764bf53340a5289940fc7b..9049b272b979f464c7f0afca39edfb576526aeaf |
+| command | sdlc close --issue 240 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T17:55:24-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The revised retention policy resolves the previous cleanup and recovery defects, and the focused publication and CAS tests pass. One Important gap remains: the local reader can consume an arbitrarily grown file before enforcing its documented 1 MiB limit.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Automatic cleanup and backup state are removed. TestTrunkPublishRetryAfterPushInterruption verifies retained bytes and no second main commit; restoring the pre-retention cleanup makes this test fail.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Publication performs no local restore, rename, or removal. TestTrunkPublishPreservesOpenDescriptorWriteAfterPush passes and fails with the pre-retention implementation restored in a disposable checkout.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Plan Tasks 1–2 identify function-level strategies for eligibility, presence-aware decisions, publication, interruption, and local retention; corresponding tests exist.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The plan has three implementation tasks and one subsequent issue-close boundary; the redundant M1 boundary is absent.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Plan lines 41–45 explicitly declare the 1 MiB input envelope, two-minute remote budget, and three-attempt CAS budget. Enforcement of the input envelope has a separate finding below.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Selected-path staging checks and cleanup guidance use literal Git pathspecs. Tracked and untracked wildcard-filename tests pass and verify preservation of neighboring files.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      README.md now documents trunk publish --path, its allowlist, conflict refusal, retry, local retention, and tracked/untracked cleanup guidance, consistent with the command.
+findings:
+  - id: new
+    severity: Important
+    kind: defect
+    family: explicit-operating-envelope
+    title: |
+      Enforce the prose limit during reading, not only before and after it
+    detail: |
+      cmd/sdlc/trunkpublish.go:105–117 checks Lstat size, then calls unbounded os.ReadFile. A file growing between those operations is read fully before rejection, contrary to the plan's promise to refuse oversized input before reading fully. Deterministic instrumentation in a disposable pinned-head checkout grew the file after Lstat: the reader consumed 4,194,304 bytes against a 1,048,576-byte limit. ARCH-CONSTRAINTS: this is the 2nd finding in family explicit-operating-envelope. Earlier rounds fixed declaration of the bounds; state and enforce the rule across both initial and post-publication reads: consume at most limit+1 bytes, then reject overflow. Add regression coverage for static oversized input and growth after validation.
+```
+
+**Strengths**
+
+- Publication reuses `gitx.TrunkFile.UpdateMany`, including its bounded CAS retry and uncertainty handling.
+- Retaining the local inode removes the destructive cleanup race and interrupted-backup lifecycle.
+- Real-Git tests verify branch/index isolation, moved-main refusal, and literal filename handling.
+- README and atlas both document the new command and its reviewed scope.
+
+**Critical findings**
+
+None.
+
+**Important findings**
+
+The bounded-reader defect above, at `cmd/sdlc/trunkpublish.go:112`. Open the file and read through a limit of `maxTrunkProseBytes+1`; reject overflow without consuming the remainder.
+
+**Minor findings**
+
+None.
+
+**Test coverage notes**
+
+Focused command/recovery tests passed in 17.306s; selected CAS, uncertainty, cancellation, and stateful-fake tests passed in 34.490s. Both retention regressions failed when the previous cleanup implementation was restored. The temporary growth check demonstrated the remaining defect. The disposable checkout was removed; the reviewed checkout is clean. I did not rerun the full suite.
+
+**Architectural notes**
+
+- **ARCH-DRY — pass:** existing CAS machinery and publication verdict type are reused.
+- **ARCH-PURE — pass:** eligibility and publication decisions have direct tests without IO.
+- **ARCH-PURPOSE — pass:** the revised non-issue prose publication scope is delivered.
+- **ARCH-MOCK — pass:** production uses the existing Git seam, with stateful fake and real-Git race coverage.
+- **ARCH-CONSTRAINTS — flag:** read-time input bounding remains unenforced.
+- **ARCH-SECURE — pass:** lexical validation, symlink refusal, literal pathspecs, and shell quoting cover the inspected paths.
+- **ARCH-ORDER — pass:** remote transitions remain in the existing publication model; automatic local cleanup state is eliminated.
+- **ARCH-FUNERAL — pass:** no backup or receipt family remains; temporary Git artifacts use existing cleanup.
+
+**Plan revision recommendations**
+
+Add a `## Revisions` entry defining the read-time bound for every local prose read and naming deterministic overflow/growth regression tests. Also remove the statement at plan line 30 that every CAS attempt rechecks worktree identity; the current callback publishes pinned bytes and checks local contents after publication.
+
+---
+
+## Re-review — 2026-10-14T19:55:35-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 240 — Issue updates for non-working issues strand on the feature branch — one thread per repo is the wrong model |
+| repo | ariadne |
+| issue file | workshop/issues/000240-issue-updates-for-non-working-issues-strand-on-the-feature-branch-one-thread-per-repo-is-the-wrong-model.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 4c52f8a4e712c01c3d764bf53340a5289940fc7b..6e2bb6a7abee199c4ece5eefad7a1b5326cb553f |
+| command | sdlc close --issue 240 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T19:55:35-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range satisfies the revised publication and local-retention contract. BR-8 is addressed: both production reads enforce the byte limit, and removing that enforcement makes the regression tests fail. No new blocking findings were identified.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Publication performs no local cleanup; TestTrunkPublishRetryAfterPushInterruption verifies retained bytes and retry without another main commit.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Plan Tasks 1–2 name function-level strategies for eligibility, publication decisions, conflicts, retention, and retry; corresponding tests exist and pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The current issue and plan use ordinary task checkboxes and one whole-issue close boundary; no redundant milestone-close remains.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The plan declares a 1 MiB input limit, two-minute remote budget, and existing CAS attempt budget; production wiring and targeted budget tests confirm enforcement.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Selected-path staging checks and printed cleanup commands use literal pathspecs; tracked and untracked wildcard-filename regression tests pass.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Production publication retains the local file; the open-descriptor regression verifies a later write survives and suppresses destructive cleanup guidance.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      README.md:28 documents trunk publish --path, eligibility, retry, retention, and tracked/untracked cleanup, consistent with trunkpublish.go:231–238 and the executable guidance tests.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      trunkpublish.go:120 limits actual consumption to maxTrunkProseBytes+1 for both callers. Tests pass at pinned head; an overlay removing only LimitReader makes growth tests fail at both production read sites, consuming 3145728 bytes instead of 1048577.
+```
+
+1. **Strengths**
+
+   - Publication reuses the existing CAS implementation and rechecks main on each attempt ([trunkpublish.go:212](cmd/sdlc/trunkpublish.go:212)).
+   - Local retention removes destructive cleanup races while preserving useful recovery guidance.
+   - Reader tests measure actual consumption, including growth after metadata validation.
+   - README and atlas both document the new command and its review boundaries.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes:** Focused command, reader, and recovery tests passed (16.090s). Targeted Git CAS, uncertainty, cancellation, and remote-budget tests passed (14.566s). The BR-8 negative control failed as expected at both read sites. Whitespace checks passed; the checkout remains unchanged. The full suite was not rerun during this review.
+
+6. **Architectural notes**
+
+   | Principle | Result |
+   |---|---|
+   | ARCH-DRY | Pass — existing CAS, attribute checks, and literal-argument helper are reused. |
+   | ARCH-PURE | Pass — eligibility and publication decisions are pure and tested directly. |
+   | ARCH-PURPOSE | Pass — the approved non-issue publication gap is delivered. |
+   | ARCH-MOCK | Pass — shared Git seam, portable bare repositories, stateful fake, and real-Git counterparts cover external behavior. |
+   | ARCH-CONSTRAINTS | Pass — actual local reads, remote time, and CAS attempts are bounded. |
+   | ARCH-SECURE | Pass — path validation, file checks, argv calls, and literal cleanup arguments protect the selected-path boundary. |
+   | ARCH-ORDER | Pass — pinned bytes and existing publication transitions preserve uncertainty; interruption and retry are tested. |
+   | ARCH-FUNERAL | Pass — no new backup, receipt, or cache family; retained local copies have explicit cleanup guidance. |
+
+7. **Plan revision recommendations:** None.
