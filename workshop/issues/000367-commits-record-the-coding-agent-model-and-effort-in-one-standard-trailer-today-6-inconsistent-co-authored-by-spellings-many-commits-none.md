@@ -1,12 +1,20 @@
 ---
 id: 000367
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
-card_mirror: 'c613cb12fc517fc4aae62a61b94db146dbd3a199' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '8b088f0b6decee523ca05cc6e74ac83dcd190f4a' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-14T20:40:03-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Commits record the coding agent, model and effort in one standard trailer (today: 6+ inconsistent Co-Authored-By spellings, many commits none)
@@ -26,7 +34,15 @@ One machine-readable trailer on every agent-authored commit, e.g. `Agent: codex/
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000367-agent-trailer-plan.md` (format coordinated with #365; pure `agentid` package, stamped commit sites + sweep test, `sdlc agent-id`, close report, AGENTS.base.md §12).
+
+- [ ] agentid pure core (Identity, Stamp, MissingAgent)
+- [ ] transcript readers + Current()
+- [ ] sdlc agent-id verb
+- [ ] stamp commit sites + sweep test
+- [ ] close report of window commits without Agent:
+- [ ] AGENTS.base.md §12 + atlas
+- [ ] verify: full suite, window trailers
 
 ## Log
 
