@@ -68,3 +68,14 @@ Single pass, one close (no milestones).
 - [ ] Fresh comparison: the draft at e7ea8e5 against the new help.md, row by row, recorded in `## Log`.
 
 **Verification:** `go test ./cmd/tl-lead/...`; `tl-lead status instructions list` against a copy of ops's real status file via the fake (no write to the real one); the full `make test` before close.
+
+## Revisions
+
+### 2026-10-14 — the TL approved the plan and supplied G10 and G11
+
+The TL approved G1–G9 as written, the hash guard on G9 included. They confirmed `couch-owner:` as the canonical key (ops switches its file), and pinned `--flow full`. G10 and G11 existed only in the TL's memory, and the TL sent their text:
+
+| # | Rule | Lands in |
+|---|---|---|
+| G10 | Verify slots after a disruption (a network outage, a Couch restart or exit, a machine sleep, a load spike, a broadcast): peek every slot that was working (`couch --peek <slot> --lines 6`). "Working (…)" is fine. A slot that is idle with an error or a stopped turn gets a targeted nudge; confirm its delivery with `--message-status`, retrying once load drops. A sent or "outcome uncertain" message is not evidence the slot resumed. Report which slots were stalled. | help.md, WATCHING |
+| G11 | Issue filing: `sdlc issue new` from a numbered slot's checkout claims the issue for that slot. To file for later or for another slot, unclaim right after publishing (`sdlc unclaim --issue N`), or file from the slot that will own it. Fill Problem, Spec and Done when before publishing; publish with `sdlc issue publish --issue N`, then reset the checkout's `workshop/issues` and fast-forward. | help.md, DISPATCH (replaces the one-line filing rule) |

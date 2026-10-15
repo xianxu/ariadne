@@ -48,10 +48,11 @@ Durable plan: `workshop/plans/000377-tl-lead-ops-rules-catch-up-plan.md` (single
 - [ ] `status instructions list|link` verbs with fake-backed tests
 - [ ] help names every verb (test)
 - [ ] atlas tl-skills.md
-- [ ] G10/G11 (slot verification after disruption, filing from a resting checkout) once the hub sends the source
+- [ ] G10 (verify slots after a disruption) and G11 (issue filing), text from the TL (plan Revisions)
 - [ ] fresh comparison of the draft against help.md, recorded in the Log
 
 ## Log
 
 ### 2026-10-14
 - Compared ops draft e7ea8e5 with help.md at main 18915f6c: gaps G1–G9 in the plan. `couch --skill` names `couch-owner:` canonical (`owner:` legacy), so the help keeps it. parley.nvim#315 landed (PR #228): the `holder: agent` workaround is not ported.
+- The TL approved the plan (G1–G9, the hash guard, `couch-owner:`), pinned `--flow full`, and supplied the text for G10 and G11 (plan Revisions).
