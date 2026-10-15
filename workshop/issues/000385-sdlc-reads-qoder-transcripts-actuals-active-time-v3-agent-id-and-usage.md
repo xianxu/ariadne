@@ -235,6 +235,8 @@ file splits/names in the initial plan without adding another runtime owner.
 
 - BR-3 final targeted verification green: production tracked and legacy actual/close refusal, successful retained replay, native usage/mixed issue reporting/provider isolation and context guard together (62.100s); transcript race suite (11.192s). All four internal packages also passed after error-returning selection migration. Proven foreign exclusions retain diagnostics in legacy actuals; this regression failed before warning propagation (2.57s). Same-size/same-mtime pathname replacement is refused via file identity. Atlas now maps the three providers and current cancellable/error-returning selection API. Next: integrate main, recorded suite, close to SHIP.
 
+- BR-3 candidate 366a2c19a2cab9e4e7fc669775eeb8c4d6c13c58 passed recorded sdlc-local/suite: 1495 cmd/sdlc tests across 12 shards and 63 other packages, zero failures, 562.1s runtime (601s separate queue wait), log sha256 prefix dae4930edd14. Both production actual/adoption paths refuse failed unresolved sources and preserve safe-exclusion diagnostics. Proceeding to shared close round 3 for BR-3 disposition and SHIP.
+
 ## Estimate
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
