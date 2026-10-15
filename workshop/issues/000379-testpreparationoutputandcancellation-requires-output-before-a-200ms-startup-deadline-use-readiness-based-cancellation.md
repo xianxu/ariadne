@@ -1,13 +1,13 @@
 ---
 id: 000379
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
 severity: medium
-card_mirror: '264c8ef0ffea4d4e1fbad8204db8869caa8cf8dd' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'cf42f3bcf00ae6dfdd6f5adb342876bcb97f8bdb' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T17:08:54-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "ee32aab6", done: "4e0a0b91"}
+actual_hours: 0.35
 ---
 
 # TestPreparationOutputAndCancellation requires output before a 200ms startup deadline; use readiness-based cancellation
