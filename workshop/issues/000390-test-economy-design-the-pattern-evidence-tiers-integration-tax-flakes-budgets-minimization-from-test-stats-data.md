@@ -53,7 +53,7 @@ effect on wall and queue time.
 
 - [x] Draft the operator decision record at `workshop/plans/000390-test-economy-pattern-plan.md` from #376 attempt data and current close/merge contracts.
 - [x] Have the operator review the policy choices; record approved decisions as a dated revision.
-- [ ] File the implementing issues and list them in the ops project; close this design-only issue after review.
+- [x] File the implementing issues and list them in the ops project; close this design-only issue after review.
 
 ## Log
 
@@ -107,3 +107,10 @@ measurement; #393 serial landing admission; #394 issue-backed flake landing;
 are #397 measured budgets and #398 proven doc-only reuse; pair#578 covers
 couchcore profiling. Existing #328, #327 and #380 remain in the rollout. The
 TL has the full list for the ops project; its update is pending verification.
+
+### 2026-10-15 14:44 PDT — Project linkage verified
+
+The TL updated `ops:teams/devinfra/projects/test-economy/project.md` Tasks
+with #392–#398, pair#578, and the existing #328/#327 work. The approved
+design, independent cards and project view now agree; this issue made no code
+or gate changes.
