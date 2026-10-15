@@ -127,28 +127,28 @@ No usage cache. In-memory counters die with command. Meter latest pairs bound fi
 
 Files: new internal/usage/{types,codex,claude,aggregate}.go, colocated tests and sanitized testdata/{codex,claude}.jsonl.
 
-- [ ] Write recorded-format and counter/revision sequence regressions; run go test ./cmd/sdlc/internal/usage -count=1 and observe RED.
-- [ ] Implement typed transitions, checked counters, dedup-before-window and hourly/burn aggregation.
-- [ ] Run properties/fuzz for duplicates/model/reset/partial/overflow/boundaries; kill last-snapshot and block-summing mutations; commit evidence.
+- [x] Write recorded-format and counter/revision sequence regressions; run go test ./cmd/sdlc/internal/usage -count=1 and observe RED.
+- [x] Implement typed transitions, checked counters, dedup-before-window and hourly/burn aggregation.
+- [x] Run properties/fuzz for duplicates/model/reset/partial/overflow/boundaries; kill last-snapshot and block-summing mutations; commit evidence.
 
 ### Task2: attribution and gate evidence
 
 Files: transcripts/usage_discovery.go/tests, provenance.go/tests; usage_inputs.go/tests and actualinputs.go/tests; gatestate/reviewer.go/tests, ledger/render/parser tests; judge/{dispatch,stream}.go/tests; usage_reviewers.go, boundaryledger.go, changecode.go, reviewsidecar.go and command tests.
 
-- [ ] Add metadata/fork/Claude-meta child, unknown cwd, copied history, partial-tail, append/truncation fixtures; observe RED.
-- [ ] Add production gate-dispatch→binding→usage regression for boundary/plan/estimate; include retry/failure/cancellation with no verdict advancement.
-- [ ] Implement shared selection and optional bindings; preserve existing actual/gate/default discovery semantics.
-- [ ] Verify moves/reclaims/dependency/brain/old reviewer/planning-only/completed edges; kill missing-binding, eligibility-bypass and child-doublecount mutations; commit.
+- [x] Add metadata/fork/Claude-meta child, unknown cwd, copied history, partial-tail, append/truncation fixtures; observe RED.
+- [x] Add production gate-dispatch→binding→usage regression for boundary/plan/estimate; include retry/failure/cancellation with no verdict advancement.
+- [x] Implement shared selection and optional bindings; preserve existing actual/gate/default discovery semantics.
+- [x] Verify moves/reclaims/dependency/brain/old reviewer/planning-only/completed edges; kill missing-binding, eligibility-bypass and child-doublecount mutations; commit.
 
 ### Task3: command, meter and docs
 
 Files: usage.go, usage_render.go/tests; internal/usage/{calibration,meterstore}.go/tests; main.go, helptext/usage.md, README.md, atlas/workflow/sdlc-binary.md.
 
-- [ ] Write human/JSON command and pure meter transition/projection tests plus portable store failure/concurrency; observe RED.
-- [ ] Implement flags, optional empirical projection and bounded observations, keeping usage read-only.
-- [ ] Verify per-issue role/round totals, null dimensions, skipped coverage, zero/stale/reset behavior and no transcript/UI mutation; kill one-point/rate/unknown/reviewer omission mutations.
-- [ ] Document JSON semantics, coverage limits, supported schemas, calibration location and reset/unit behavior.
-- [ ] Targeted package/command checks plus recorded-fixture conformance; real read-only --since6h/--issue smoke, record duration and limitations; commit.
+- [x] Write human/JSON command and pure meter transition/projection tests plus portable store failure/concurrency; observe RED.
+- [x] Implement flags, optional empirical projection and bounded observations, keeping usage read-only.
+- [x] Verify per-issue role/round totals, null dimensions, skipped coverage, zero/stale/reset behavior and no transcript/UI mutation; kill one-point/rate/unknown/reviewer omission mutations.
+- [x] Document JSON semantics, coverage limits, supported schemas, calibration location and reset/unit behavior.
+- [x] Targeted package/command checks plus recorded-fixture conformance; real read-only --since6h/--issue smoke, record duration and limitations; commit.
 
 ### Task4: acceptance and landing
 
@@ -238,3 +238,12 @@ internal/reviewusage/model.go; INTEGRATION AttemptStore in
 internal/reviewusage/store.go, wrapping gitx.RecoveryStore. Existing judge and
 round/sidecar adapters consume that single typed evidence. Task2 owns these files
 and gitx/recoveryref.go closed-namespace extension with colocated tests.
+
+### 2026-10-14 20:40 — resume checkpoint
+
+Task1–3 are complete per the issue's implementation, conformance, mutation and
+smoke checkpoints; mark their execution rows accordingly. Task4 is the remaining
+acceptance/landing work after the operator freeze. Main integrated without
+conflicts, and root/internal targeted regressions pass on the merged code.
+The issue checklist now separates verified implementation from the subsequent
+SHIP/PR/merge operations, preserving their order without premature completion.

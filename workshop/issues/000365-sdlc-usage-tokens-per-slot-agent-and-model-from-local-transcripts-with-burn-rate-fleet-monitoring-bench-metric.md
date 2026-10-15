@@ -48,7 +48,9 @@ Durable plan: workshop/plans/000365-usage-plan.md.
 - [x] Normalize recorded usage and deduplicate before attribution.
 - [x] Reuse ownership/membership and persist explicit reviewer bindings.
 - [x] Add reporting, calibrated projection and docs.
-- [ ] Verify recorded suite, SHIP, PR and merge.
+- [ ] Verify recorded suite and acceptance evidence.
+
+Then publish through shared sdlc close (SHIP), PR and merge.
 
 ## Log
 
@@ -261,3 +263,22 @@ suite record exists for the repaired implementation. No close or PR yet.
 Hub subsequently authorized only #369 cancellation-flake repair from main.
 #365 remains paused; resume requires explicit unfreeze, then recorded full
 suite, shared-binary close to SHIP, PR and merge.
+
+### 2026-10-14 20:40 — unfreeze and main integration
+
+Hub/operator authorized resume. Checked out the preserved issue branch and
+merged current origin/main without conflicts at
+74f8305f9fd7b9b76f1a6ae63cb7902cc9ddc59c. This includes the #369 termination
+and lease-fixture repairs plus later SDLC/TL changes. Focused root usage,
+accounting and prior lifecycle regressions pass61.001s; usage/reviewusage/judge/
+transcripts packages pass (0.158s/1.723s/9.697s/0.160s). No code change was
+needed for integration. Next recorded suite, shared close review and landing.
+
+### 2026-10-14 20:40 — acceptance checklist clarification
+
+The original final checkbox combined verification with SHIP/PR/merge, which
+necessarily occur after close checks the implementation plan. Track verification
+as the checkbox and retain the unchanged publishing sequence as prose, so a
+checked plan cannot falsely claim that future landing has already happened.
+Durable Task1–3 reflect the completed implementation/checkpoint evidence;
+Task4 retains the pending suite/close/landing steps. Scope and Done when unchanged.
