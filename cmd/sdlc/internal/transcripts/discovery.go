@@ -52,7 +52,9 @@ func discoverEvidence(ctx context.Context, cwds []string, hs []Harness, qoderLim
 			s, err = readEvidenceMetadata(ctx, path, harness, cwd)
 		}
 		if err != nil {
-			if known || harness == "qoder" && ownership != qoderOwnershipUnrelated || allowed[normalizedPath(s.CWD)] || ctx.Err() != nil {
+			// Native sidechains omit standalone workspace metadata. Unknown sources
+			// remain visible as skipped; only proven requested evidence blocks adoption.
+			if known || harness == "qoder" && ownership == qoderOwnershipRelevant || allowed[normalizedPath(s.CWD)] || ctx.Err() != nil {
 				return fmt.Errorf("source %s: %w", path, err)
 			}
 			warnings = append(warnings, fmt.Sprintf("skipped source %s: %v", path, err))
@@ -90,6 +92,10 @@ func discoverEvidence(ctx context.Context, cwds []string, hs []Harness, qoderLim
 				}
 				if err != nil {
 					if os.IsNotExist(err) && (h.Name() != "qoder" || path == root) {
+						return nil
+					}
+					if h.Name() == "qoder" {
+						warnings = append(warnings, fmt.Sprintf("skipped source %s: %v", path, err))
 						return nil
 					}
 					return err
