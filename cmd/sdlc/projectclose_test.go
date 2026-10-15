@@ -187,5 +187,112 @@ func projectCloseFixture(t *testing.T, status string, retro bool) (*projectClose
 	original := projectTodayFn
 	projectTodayFn = func() string { return "2026-07-16" }
 	t.Cleanup(func() { projectTodayFn = original })
-	return &projectCloseFlags{Slug: "alpha", ProjectsDir: projects, HistoryDir: history}, projectPath
+	stubCloseMVP(t, map[string]bool{"ariadne#1": true, "ariadne#2": true})
+	return &projectCloseFlags{Slug: "alpha", ProjectsDir: projects, HistoryDir: history, Verified: "audit passed"}, projectPath
+}
+
+// stubCloseMVP answers the close's MVP lookup from a map; a missing ref errors.
+func stubCloseMVP(t *testing.T, landed map[string]bool) {
+	t.Helper()
+	orig := projectCloseTerminalFn
+	projectCloseTerminalFn = func(context.Context, string) func(string) (bool, error) {
+		return func(ref string) (bool, error) {
+			done, ok := landed[ref]
+			if !ok {
+				return false, os.ErrNotExist
+			}
+			return done, nil
+		}
+	}
+	t.Cleanup(func() { projectCloseTerminalFn = orig })
+}
+
+// #373: close requires --verified and records it, and re-checks the MVP.
+func TestProjectCloseVerifiedAndMVPGates(t *testing.T) {
+	f, projectPath := projectCloseFixture(t, "closing", true)
+	f.Verified = ""
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err == nil || !strings.Contains(err.Error(), "--verified") {
+		t.Fatalf("no --verified = %v", err)
+	}
+	f.Verified = "audit of 7 days found nothing"
+	stubCloseMVP(t, map[string]bool{"ariadne#1": true, "ariadne#2": false})
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err == nil || !strings.Contains(err.Error(), "not landed: ariadne#2") {
+		t.Fatalf("open MVP = %v", err)
+	}
+	if _, err := os.Stat(projectPath); err != nil {
+		t.Fatal("a refused close moved the record")
+	}
+	stubCloseMVP(t, map[string]bool{"ariadne#1": true, "ariadne#2": true})
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(filepath.Join(f.HistoryDir, "projects", "alpha.md"))
+	if !strings.Contains(string(b), "- status: closing → closed\n- verified: audit of 7 days found nothing") {
+		t.Errorf("close entry lacks the evidence:\n%s", b)
+	}
+}
+
+// #373: a dry run reports every refusal and writes nothing.
+func TestProjectCloseDryRunReportsAndWritesNothing(t *testing.T) {
+	f, projectPath := projectCloseFixture(t, "executing", false)
+	f.Verified, f.DryRun = "", true
+	before, _ := os.ReadFile(projectPath)
+	var out bytes.Buffer
+	err := runProjectClose(context.Background(), &out, &bytes.Buffer{}, f)
+	if err == nil || !strings.Contains(err.Error(), "would refuse (3 gate(s))") {
+		t.Fatalf("dry run = %v\n%s", err, out.String())
+	}
+	for _, want := range []string{"set-status --to closing", "retro gate", "--verified", "would archive " + projectPath} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("dry run missing %q:\n%s", want, out.String())
+		}
+	}
+	after, _ := os.ReadFile(projectPath)
+	if string(after) != string(before) {
+		t.Error("dry run changed the record")
+	}
+	if _, err := os.Stat(f.HistoryDir); !os.IsNotExist(err) {
+		t.Error("dry run created the archive")
+	}
+}
+
+// #373: the ops layout. Closing a linked record updates the real file in its
+// team folder and moves the link to the archive, retargeted; the folder stays.
+func TestProjectCloseLinkedRecord(t *testing.T) {
+	f, projectPath := projectCloseFixture(t, "closing", true)
+	root := filepath.Dir(filepath.Dir(filepath.Dir(projectPath)))
+	real := filepath.Join(root, "teams", "t", "projects", "alpha", "project.md")
+	if err := os.MkdirAll(filepath.Dir(real), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(projectPath, real); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(filepath.Dir(real), "learnings.md"), []byte("kept\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join("..", "..", "teams", "t", "projects", "alpha", "project.md"), projectPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(projectPath); !os.IsNotExist(err) {
+		t.Errorf("live link still present: %v", err)
+	}
+	dest := filepath.Join(f.HistoryDir, "projects", "alpha.md")
+	if fi, err := os.Lstat(dest); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("archive is not a link: %v", err)
+	}
+	b, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatalf("archived link does not resolve: %v", err)
+	}
+	realBytes, _ := os.ReadFile(real)
+	if !strings.Contains(string(b), "status: closed") || string(b) != string(realBytes) {
+		t.Errorf("the real file was not closed in place:\n%s", realBytes)
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(real), "learnings.md")); err != nil {
+		t.Error("the team folder lost its companions")
+	}
 }

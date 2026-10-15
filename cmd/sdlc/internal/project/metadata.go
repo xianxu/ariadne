@@ -18,6 +18,7 @@ type Metadata struct {
 	Name          string   `yaml:"name"`
 	Status        string   `yaml:"status"`
 	MVPScope      []string `yaml:"mvp_scope"`
+	DoneWhen      string   `yaml:"done_when"`
 	Deps          []string `yaml:"deps"`
 	EstimateHours any      `yaml:"estimate_hours"`
 	ActualHours   any      `yaml:"actual_hours"`
