@@ -864,6 +864,7 @@ The simplest durable authority beats a clever scan of consequences.
 
 - Generated recovery commands must preserve the request’s semantic intent. An ambiguous exclusion that printed a numeric-repair retry lost --exclude; test both intents through the production refusal before publishing recovery guidance (#384).
 
+- A failure reproduced on main proves shared exposure, not intermittency. Flake-based landing exceptions need same-exact-head fail→pass evidence and a named issue; persistent-main and suspected failures stay distinct and blocking (#390 BR-1).
 - A native agent marker establishes the invoking stack, not its session. Bind
   session metadata to validated launch identity and workspace; newer activity
   cannot resolve competing sessions. Sampled prefix/tail metadata cannot rule
