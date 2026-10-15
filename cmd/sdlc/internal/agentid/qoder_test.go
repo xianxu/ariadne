@@ -36,8 +36,8 @@ func TestQoderInvokingIdentityUsesProvenance(t *testing.T) {
 		{"native beats competing stack", map[string]string{"QODER_CLI": "1", "PAIR_SESSION_ID": "older-invoking", "CODEX_CI": "1", "CLAUDECODE": "1", "PAIR_AGENT": "claude"}, "qoder/auto/-"},
 		{"native-only ambiguity", map[string]string{"QODER_CLI": "1"}, "qoder/-/-"},
 		{"mismatched binding never recency fallback", map[string]string{"QODER_CLI": "1", "PAIR_SESSION_ID": "absent"}, "qoder/-/-"},
-		{"plain Pair pane", map[string]string{"PAIR_AGENT": "qoder", "PAIR_SESSION_ID": "older-invoking"}, "sdlc"},
-		{"plugin aliases do not prove Claude", map[string]string{"CLAUDE_PLUGIN_ROOT": "x", "CLAUDE_PLUGIN_DATA": "x"}, "sdlc"},
+		{"plain Pair pane", map[string]string{"PAIR_AGENT": "qoder", "PAIR_SESSION_ID": "older-invoking"}, Human},
+		{"plugin aliases do not prove Claude", map[string]string{"CLAUDE_PLUGIN_ROOT": "x", "CLAUDE_PLUGIN_DATA": "x"}, Human},
 		{"override", map[string]string{"QODER_CLI": "1", OverrideEnv: "qoder/bound/high"}, "qoder/bound/high"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

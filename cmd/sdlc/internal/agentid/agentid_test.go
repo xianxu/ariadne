@@ -10,7 +10,7 @@ func TestIdentityRoundTrip(t *testing.T) {
 		{Identity{"claude", "claude-opus-5-5", "medium"}, "claude/claude-opus-5-5/medium"},
 		{Identity{"codex", "gpt-6-astra", ""}, "codex/gpt-6-astra/-"},
 		{Identity{"claude", "", ""}, "claude/-/-"},
-		{Identity{}, "sdlc"},
+		{Identity{}, Human},
 	} {
 		if got := tc.id.String(); got != tc.want {
 			t.Errorf("%+v.String() = %q, want %q", tc.id, got, tc.want)
@@ -18,6 +18,13 @@ func TestIdentityRoundTrip(t *testing.T) {
 		back, ok := Parse(tc.want)
 		if !ok || back != tc.id {
 			t.Errorf("Parse(%q) = %+v, %v; want %+v", tc.want, back, ok, tc.id)
+		}
+	}
+	// #387: history from #367 says "sdlc" for the same thing; the literal pins
+	// the history format, which editing the constant must not change.
+	for _, v := range []string{"human", "sdlc"} {
+		if id, ok := Parse(v); !ok || id != (Identity{}) {
+			t.Errorf("Parse(%q) = %+v, %v; want the human identity", v, id, ok)
 		}
 	}
 	for _, bad := range []string{"", "claude", "claude/x", "-/m/e", "a/b/c/d"} {

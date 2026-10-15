@@ -4,8 +4,9 @@ Every agent-authored commit carries it, next to the human-facing
 `Co-Authored-By:` line, and sdlc stamps it on the commits it makes. The values
 are the names the agent's own transcript records (`claude/claude-opus-5-5/high`,
 `codex/gpt-6-astra/medium`), so commits join `sdlc usage` and `sdlc actual`
-without a mapping. An unknown part is `-`; with no agent session at all the value
-is `sdlc`.
+without a mapping. An unknown part is `-`; with no agent session at all (the
+operator in a plain shell) the value is `human`. History from before #387 says
+`sdlc` for the same thing, and readers treat it as `human`.
 
 Where the values come from: the agent from the session's environment (the same
 signals the judge uses: PAIR_AGENT, CODEX_THREAD_ID, CLAUDECODE); the model and

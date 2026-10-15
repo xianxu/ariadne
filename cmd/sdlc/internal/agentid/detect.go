@@ -22,7 +22,7 @@ type Detector struct {
 	Now    func() time.Time
 }
 
-// OverrideEnv names the identity outright (agent/model/effort or "sdlc"), for
+// OverrideEnv names the identity outright (agent/model/effort, or Human), for
 // scripts that know it and for tests that need a fixed trailer.
 const OverrideEnv = "SDLC_AGENT_ID"
 
