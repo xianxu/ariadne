@@ -51,7 +51,7 @@ A failure stops subsequent phases. Ancestor preparation does not recursively
 compile ancestor contexts. Owner `tools` targets must build from tracked sources
 before generated helpers exist; each owner declares its explicit tools in its
 own root Makefile and writes them to its own `bin/`. Ariadne's target builds
-`sdlc`, `datatype`, `vocabulary`, and `doc-review`. Distributed weave is built
+`sdlc`, `datatype`, `vocabulary`, `doc-review`, `tl-worker`, and `tl-lead`. Distributed weave is built
 separately for development or release.
 
 Compilation supplies owner bin directories to child processes and prints them

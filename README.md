@@ -25,6 +25,23 @@ branch, or directly with `sdlc issue publish --issue N` by the owner (anyone,
 while unclaimed: #274) (#284). A resting branch only fast-forwards to main. See
 [issue tracker](atlas/workflow/issue-tracker.md).
 
+For a non-issue workshop note edited while an issue branch is active, run
+`sdlc trunk publish --path workshop/parley/note.md`. It publishes one unstaged,
+uncommitted Markdown file under `workshop/parley/`, `pensive/`, `targets/` or
+`projects/`, or `workshop/lessons.md`, directly to main. If main changed that
+path since the branch base, reconcile the edit first; the command refuses to
+overwrite it. If a push response is uncertain, rerun the same command with the
+local file intact. Publication leaves the local file untouched. Once this
+branch has merged main, run the printed `git restore -- ':(literal)<path>'`
+command to discard a tracked local copy, or run it before a merge that would
+otherwise conflict. For an untracked note, run the printed targeted
+`git clean -f -- ':(literal)<path>'` before merging main; `git restore` cannot
+remove an untracked file. If the local file changed during publication,
+preserve and reconcile the newer edit instead. Issue details use
+`sdlc issue publish --issue N`; plans, atlas,
+code and settings travel with the reviewed issue branch. See
+[trunk publication](atlas/workflow/sdlc-binary.md#issue-reservation-local-durability-and-publication-244).
+
 Attach evidence with `sdlc issue attach --issue N --file PATH --caption TEXT`,
 then commit both changed paths on the issue branch or use `sdlc issue publish`.
 The issue body indexes a bounded plain-Git bundle that follows publish,
@@ -209,8 +226,9 @@ nonzero rather than claiming a complete dependency list.
 `make tools` foundation-first, then data mounts and the leaf's generators and
 artifacts. Owner `tools` targets build explicit binaries from tracked sources
 into their own `bin/` and must work before composition. Ariadne builds `sdlc`,
-`datatype`, `vocabulary`, and `doc-review`; it does not rebuild the distributed
-weave gateway as part of `tools`.
+`datatype`, `vocabulary`, `doc-review`, `tl-worker`, and `tl-lead` (the TL skill
+binaries: run `tl-worker --help` or `tl-lead --help`); it does not rebuild the
+distributed weave gateway as part of `tools`.
 
 Child processes receive the layer tool directories on PATH. After compilation,
 weave prints the directories to add to your own shell PATH; startup never edits

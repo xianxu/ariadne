@@ -21,6 +21,7 @@ The ariadne workflow is an issue-based development loop designed for AI-assisted
 - [Construct: Adaptation is Ariadne-Only](construct-adaptation.md) — why only ariadne runs `/construct adapt`; how derivatives inherit via `construct/adapted/`
 - [Ledger Landscape](ledger-landscape.md) — where state and evidence live across all surfaces; principles for picking the right ledger
 - [sdlc Binary](sdlc-binary.md) — checkpoint-guard binary; 10 verbs (incl. the `issue` group); embedded help; fresh-context judges
+- [TL skill binaries](tl-skills.md) — `tl-worker` / `tl-lead` fleet rules as embedded help; pointer stubs; the AGENTS §15 load (#350)
 - [Data Artifacts](data-artifacts.md) — typed markdown documents via the xx-datatype skill
 - [Introspection](introspect.md) — postmortem mining of Claude transcripts into auto-loading taste-rule skills
 - [sdlc process-manual](process-manual.md) — the process manual: `sdlc process-manual` unrolls every always-on injection source (sdlc prompts, help text, skills, lessons, AGENTS chain, memories) into one linked markdown doc (#153, M1)

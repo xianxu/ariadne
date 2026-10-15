@@ -50,6 +50,13 @@ func TestInheritedLeaseOutlivesParentCopy(t *testing.T) {
 	if err := cmd.Wait(); err != nil {
 		t.Fatal(err)
 	}
+	// Wait reports process completion, not final descriptor release. Settle
+	// on the lease itself before asking Remove to delete the stage.
+	proof, err := AwaitExclusive(stage, Settle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proof.Close()
 	if err := Remove(stage); err != nil {
 		t.Fatal(err)
 	}

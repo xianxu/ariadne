@@ -49,6 +49,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `issue set-area` / `set-severity` | (new #348) | Classification setters: areas must be declared (or ancestors of declared values) in main's `.sdlc/vocabulary.json`; severity is the shared enum ([vocabulary](vocabulary.md#repo-defined-enums-348)) |
 | `issue sync`      | `make issue-sync ISSUE=N`   | Legacy repositories: commit one issue locally under `#N: issue-sync: <what>`. Retired in tracker repositories (#284): a pointer at `git commit` and `issue publish` |
 | `issue publish`   | (new #244; tracker mode #284) | Tracker repositories: `--issue a,b` publishes details to main (later edits, or finishing a pre-#308 creation by the owner (anyone, while unclaimed, #274) in one narrow commit, never over a moved main). Legacy repositories: `--commit SHA` applies one selected documentation commit to fresh remote main |
+| `trunk publish --path P` | (new #240) | Publish one dirty non-issue workshop Markdown file directly to main from an issue branch, with a CAS and path-level conflict check; the local file remains untouched |
 | `issue set-status`| ← flat `set-status`         | Status-transition guards (relocated #56 M2) |
 | `issue list`      | (new)                       | List issues (ID/status/title), sorted by ID; `--status` filters; reuses `listIssues` |
 | `issue show`      | (new)                       | Issue frontmatter + section headers, no bodies |
@@ -77,6 +78,26 @@ for the operator workflow and recovery contract.
 | `issue sync --issue N` | Legacy repositories: one local issue-file commit; no network operation by default |
 | `issue sync --push` | Legacy repositories: only the narrow issue commit created by that invocation |
 | `issue publish --commit SHA` | Legacy repositories: the selected non-merge commit's entire eligible Markdown change set |
+| `trunk publish --path P` | One uncommitted prose file under `workshop/parley/`, `pensive/`, `targets/`, `projects/`, or `workshop/lessons.md` to main; never an issue-branch commit |
+
+For product/discussion work in a tracker repository, `issue publish --issue N`
+owns issue details (and issue plans remain on their issue branch). `trunk
+publish --path P` is the explicit home for a non-issue workshop note edited
+mid-issue. It reads one regular, unstaged Markdown file up to 1 MiB; the path
+must be unchanged in the issue branch since its merge base with main. Main's
+copy must still equal that base, unless it already has the selected bytes. The
+CAS rechecks main on every attempt; a path-level conflict refuses without
+touching local work. Publication retains the selected local file. For a
+tracked path, it prints an exact literal-path `git restore` command to run
+after merging main into the branch, or before a merge that would otherwise
+conflict. An untracked path instead gets a targeted `git clean -f` command to
+run before the merge; Git restore cannot remove untracked files. If the local
+file changed during publication, it warns to preserve and reconcile that
+newer edit. A retry after an uncertain push uses the surviving local bytes to
+recognize an already-applied publication.
+Atlas changes travel with the code they map, and code/base-layer settings
+travel through the normal reviewed issue branch; they are outside this command's
+allowlist.
 
 `runClaim` owns remote status reservation. `syncIssuesToMain` dispatches local
 checkpointing, creation reservation, or publication of a newly created issue
@@ -455,7 +476,13 @@ Unix reviewers have owned process groups so cancellation also kills descendants,
 and the direct reviewer is reaped before returning. CLI interruption is carried
 through the review context; no asynchronous writer survives command completion.
 
-`merge` and `push` retain their existing whole-transaction lock. Wait messages
+`merge` holds the lock around short integration Git operations, the leased push,
+the final expected-head merge, and archive/cleanup. Publish replay, GitHub PR
+registration and CI polling, and the local suite run happen unlocked. Every
+reacquisition checks the exact branch HEAD and worktree and fetches main: main
+drift restarts integration and gates, while HEAD drift refuses. The legacy
+dependency-clone path also releases the lock for local checks and refuses drift
+before server merge. `push` retains its whole-transaction lock. Wait messages
 name the live holder; wait or retry rather than deleting its lock. Recovery is
 conservative but not wedging:
 `die()` drains the active lock cleanup registry before `os.Exit`, missing
@@ -574,14 +601,14 @@ Pure core (`parseRef`, `classifyFamily`) is unit-tested with no IO; the IO seams
 `push`/`merge`/`state` archive logic should migrate onto the same `Discovery()`
 accessor — a DRY consolidation, separate from this resolver.
 
-### Project trains and forecast (`trains.go` + `trainforecast.go` + `projectforecast.go`, #329)
+### Project trains and forecast (`pkg/trains` + `trainforecast.go` + `projectforecast.go`, #329)
 
 A project is a TL's coordination plane with no deadline (#329 retired the #182
 calendar forecast, the throughput baseline and the Phase-A fog/calendar
 ledgers along with `deadline:`/`planned_finish:`). The forecast is derived on
 read and never typed in.
 
-- **Trains parser (`internal/project/trains.go`, pure).** `ParseTrains` reads
+- **Trains parser (`pkg/trains/trains.go`, pure; shared with `tl-lead`, #350; `internal/project` forwards the names).** `ParseTrains` reads
   `## Trains`: a `| Train | Cars… | Slot |` table (a bare `#N` inherits the
   previous car's repo; parentheses are annotations; every separator means "next
   car") and `⇒` edge bullets (prose after a colon is the reason; `~` bullets are

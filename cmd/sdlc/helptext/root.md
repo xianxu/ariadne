@@ -49,8 +49,11 @@ LOCAL REPO TRANSACTION LOCK
     while external reviewers run, then reacquire and validate their prepared
     repository, branch, artifacts and ledger before recording any result.
     Stale or interrupted reviews refuse; rerun against the current state.
-    `merge` and `push` still hold the lock through their ship transactions;
-    wait or retry rather than removing a live holder's lock.
+    `merge` holds it for short Git, landing and archive transactions, releasing
+    it for publish replay, GitHub polling, CI waits and the local suite. It
+    revalidates HEAD, worktree and main on reacquisition. `push` retains its
+    whole-transaction lock; wait or retry rather than removing a live holder's
+    lock.
   - Review dispatch's timeout scales with the review window (#300): 30 minutes
     up to 500 added lines, 15 more per further 1,000, at most 2h; plan reviews
     get 30 minutes. WF_REVIEW_TIMEOUT overrides it with a Go duration from 1s

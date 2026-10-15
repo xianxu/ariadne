@@ -3,6 +3,7 @@ package judge
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -69,14 +70,65 @@ func TestPreparationOutputAndCancellation(t *testing.T) {
 	dir := preparationRepo(t)
 	calls := fakeRuns(t, ProcessOutput{})
 	evidence := &DispatchEvidence{}
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	ready := filepath.Join(dir, "output-ready")
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, err := Dispatch(ctx, DispatchOptions{Agent: AgentCodex, Checkout: dir, Preparation: &reviewprepare.Config{Command: []string{"sh", "-c", "yes diagnostic & wait"}, TimeoutMinutes: 1}, Evidence: evidence})
-	if err == nil || *calls != 0 || len(evidence.Preparation) != 1 {
+	finished := make(chan error, 1)
+	go func() {
+		_, err := Dispatch(ctx, DispatchOptions{Agent: AgentCodex, Checkout: dir, Preparation: &reviewprepare.Config{
+			Command:        []string{"sh", "-c", fmt.Sprintf("head -c %d /dev/zero && touch \"$1\" && sleep 60", 64*reviewprepare.OutputLimit), "sh", ready},
+			TimeoutMinutes: 1,
+		}, Evidence: evidence})
+		finished <- err
+	}()
+	// The producer signals only after writing far beyond the output cap. The
+	// timeout protects a broken setup; it does not trigger the cancellation.
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	deadline := time.NewTimer(30 * time.Second)
+	defer deadline.Stop()
+	for {
+		if _, err := os.Stat(ready); err == nil {
+			break
+		} else if !errors.Is(err, os.ErrNotExist) {
+			cancel()
+			<-finished
+			t.Fatal(err)
+		}
+		select {
+		case err := <-finished:
+			t.Fatalf("preparation ended before output readiness: %v", err)
+		case <-ticker.C:
+		case <-deadline.C:
+			cancel()
+			err := <-finished
+			t.Fatalf("preparation never signaled output readiness: %v", err)
+		}
+	}
+	cancel()
+	err := <-finished
+	if !errors.Is(err, context.Canceled) || *calls != 0 || len(evidence.Preparation) != 1 {
 		t.Fatalf("err=%v calls=%d evidence=%+v", err, *calls, evidence)
 	}
 	if r := evidence.Preparation[0]; len(r.Output) > reviewprepare.OutputLimit || !r.Truncated {
 		t.Fatalf("output bound: len=%d truncated=%v", len(r.Output), r.Truncated)
+	}
+}
+
+func TestPreparationCanceledBeforeOutput(t *testing.T) {
+	dir := preparationRepo(t)
+	calls := fakeRuns(t, ProcessOutput{})
+	evidence := &DispatchEvidence{}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := Dispatch(ctx, DispatchOptions{Agent: AgentCodex, Checkout: dir, Preparation: &reviewprepare.Config{
+		Command: []string{"sh", "-c", "echo unexpected"}, TimeoutMinutes: 1,
+	}, Evidence: evidence})
+	if !errors.Is(err, context.Canceled) || *calls != 0 || len(evidence.Preparation) != 1 {
+		t.Fatalf("err=%v calls=%d evidence=%+v", err, *calls, evidence)
+	}
+	if r := evidence.Preparation[0]; r.Output != "" || r.Truncated {
+		t.Fatalf("early cancellation gained output: %+v", r)
 	}
 }
 

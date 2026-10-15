@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/staging"
 
@@ -31,9 +32,9 @@ func TestSetupRunnerHelper(t *testing.T) {
 	if stage != "" {
 		fd = 4
 	}
-	// Release is an explicit barrier after the last setup write. No sleep is
-	// used as evidence of either child readiness or descriptor release.
-	script := fmt.Sprintf("echo ready; read release; exec %d>&-; exec 3>&-; echo released", fd)
+	// Release is a barrier after the last setup write. The resource probe below
+	// proves descriptor release; a printed message alone is not that proof.
+	script := fmt.Sprintf("echo ready; read release; exec %d>&-; exec 3>&-; echo released; read finish", fd)
 	if stage == "" {
 		err = runner.Run(env, []string{"sh", "-c", script})
 	} else {
@@ -123,18 +124,33 @@ func TestSetupLeaseSurvivesRunnerParentDeath(t *testing.T) {
 				t.Fatal(err)
 			}
 			expect("released")
-			lease, err := staging.AcquireSetup(env)
-			if err != nil {
-				t.Fatal("child release retained lease", err)
-			}
+			lease := awaitReleasedSetupLease(t, env)
 			lease.Close()
 			if owned {
-				lease, err := staging.Exclusive(stage)
+				lease, err := staging.AwaitExclusive(stage, staging.Settle)
 				if err != nil {
 					t.Fatal(err)
 				}
 				lease.Close()
 			}
+			if _, err := feed.Write([]byte("finish\n")); err != nil {
+				t.Fatal(err)
+			}
 		})
+	}
+}
+
+func awaitReleasedSetupLease(t *testing.T, environment string) *os.File {
+	t.Helper()
+	deadline := time.Now().Add(staging.Settle)
+	for {
+		lease, err := staging.AcquireSetup(environment)
+		if err == nil {
+			return lease
+		}
+		if !errors.Is(err, staging.ErrSetupInUse) || !time.Now().Before(deadline) {
+			t.Fatal("child release retained lease", err)
+		}
+		time.Sleep(time.Millisecond)
 	}
 }

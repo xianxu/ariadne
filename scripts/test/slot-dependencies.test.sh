@@ -98,7 +98,9 @@ for number,host in enumerate(slots,1):
     assert (host/'Makefile.workflow').resolve()==dep/'Makefile.workflow'
     assert (host/'.agents/skills/xx-issues').resolve()==dep/'construct/local/issues'
     assert (host/'.agents/skills/xx-datatype/SKILL.md').is_file()
-    for tool in ['sdlc','datatype','vocabulary','doc-review']:assert os.access(dep/'bin'/tool,os.X_OK),tool
+    tools=sorted(d.name for d in (dep/'cmd').iterdir() if d.is_dir() and d.name!='weave')  # every owned tool but the distributed gateway
+    assert len(tools)>=4,tools
+    for tool in tools:assert os.access(dep/'bin'/tool,os.X_OK),tool
     (scratch/f'tracked-diff-{number}.txt').write_text(git(host,'diff','--stat')+'\n'+git(host,'diff')+'\n')
     (scratch/f'owner-tracked-diff-{number}.txt').write_text(git(dep,'diff','--stat')+'\n'+git(dep,'diff')+'\n')
     # Go embeds VCS dirty/revision metadata; rebuilding after first composition

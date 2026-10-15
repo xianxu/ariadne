@@ -1,4 +1,4 @@
-package issue
+package markdoc
 
 import (
 	"strings"
@@ -107,5 +107,62 @@ func TestTickedMilestones(t *testing.T) {
 	}
 	if len(got) != 3 {
 		t.Errorf("unexpected set %v", got)
+	}
+}
+
+// TickMilestone ticks every row form MilestonesInPlanOrder reads as a
+// milestone, bold included: a row the reader counts but the writer can't tick
+// leaves a closed milestone open in the Plan (#350, found when M1/M2 closed and
+// their `- [ ] **M1 — …` rows stayed unticked).
+func TestTickMilestoneTicksEveryFormTheReaderCounts(t *testing.T) {
+	for _, row := range []string{
+		"- [ ] M1 — plain",
+		"- [ ] **M1 — bold.** detail",
+		"- [ ] *M1 — emphasis",
+		"- [.] **M1 — in progress",
+		"- [ ] M1: colon",
+	} {
+		body := "## Plan\n\n" + row + "\n- [ ] M2 — other\n\n## Log\n"
+		items, _ := PlanItemsBody(body)
+		if ms := MilestonesInPlanOrder(items); len(ms) == 0 || ms[0] != "M1" {
+			t.Fatalf("%q: the reader does not count it as M1 (%v); the test premise is wrong", row, ms)
+		}
+		got, n := TickMilestone(body, "M1")
+		if n != 1 {
+			t.Errorf("%q: TickMilestone ticked %d rows, want 1", row, n)
+			continue
+		}
+		items, _ = PlanItemsBody(got)
+		if !TickedMilestones(items)["M1"] || TickedMilestones(items)["M2"] {
+			t.Errorf("%q: after the tick the reader sees %v", row, TickedMilestones(items))
+		}
+	}
+}
+
+// TestTickMilestoneBoundaries drives the production writer through the tag
+// boundaries close relies on (these cases were a hand copy of the regex in
+// cmd/sdlc/close_test.go, which went stale when the writer learned bold rows).
+// M4-extra matches because RE2's \b breaks between '4' and '-'; M40 and M4b
+// do not; a ticked row is left as it is.
+func TestTickMilestoneBoundaries(t *testing.T) {
+	for _, tc := range []struct {
+		name, row, want string
+		n               int
+	}{
+		{"unchecked", "- [ ] M4 — port", "- [x] M4 — port", 1},
+		{"in progress", "- [.] M4 — port", "- [x] M4 — port", 1},
+		{"bold", "- [ ] **M4 — port.** more", "- [x] **M4 — port.** more", 1},
+		{"already done unchanged", "- [x] M4 — port", "- [x] M4 — port", 0},
+		{"M4-extra matches via the word boundary", "- [ ] M4-extra — other", "- [x] M4-extra — other", 1},
+		{"M40 does not match", "- [ ] M40 — other", "- [ ] M40 — other", 0},
+		{"M4b does not match", "- [ ] M4b — other", "- [ ] M4b — other", 0},
+		{"bold M40 does not match", "- [ ] **M40 — other", "- [ ] **M40 — other", 0},
+	} {
+		body := "## Plan\n\n- [ ] M3 — earlier\n" + tc.row + "\n- [ ] M5 — later\n\n## Log\n"
+		got, n := TickMilestone(body, "M4")
+		want := "## Plan\n\n- [ ] M3 — earlier\n" + tc.want + "\n- [ ] M5 — later\n\n## Log\n"
+		if n != tc.n || got != want {
+			t.Errorf("%s: TickMilestone = (%q, %d), want (%q, %d)", tc.name, got, n, want, tc.n)
+		}
 	}
 }

@@ -73,3 +73,26 @@ func TestIntegrationStateRecoveryAndBound(t *testing.T) {
 		t.Fatalf("uncertain push %+v %s %v", s, e, err)
 	}
 }
+
+func TestIntegrationStateMainDriftBeforePushRequestsReset(t *testing.T) {
+	s := newIntegrationState("old", landingPR{HeadOID: "old"}, false)
+	for _, event := range []integrationEvent{
+		{kind: integrationMainObserved, main: "main-1", included: false},
+		{kind: integrationMerged, head: "merged"},
+		{kind: integrationReplayAccepted},
+	} {
+		var err error
+		s, _, err = transitionIntegration(s, event)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	s, effect, err := transitionIntegration(s, integrationEvent{kind: integrationMainObserved, main: "main-2", included: false})
+	if err != nil || effect != integrationStep("retry-reset") || s.oldHead != "old" || s.head != "merged" {
+		t.Fatalf("pre-push drift state=%+v effect=%s err=%v", s, effect, err)
+	}
+	s, effect, err = transitionIntegration(s, integrationEvent{kind: integrationRecoveryCompleted})
+	if err != nil || effect != integrationGates || s.head != "old" || s.attempts != 1 {
+		t.Fatalf("retry after reset state=%+v effect=%s err=%v", s, effect, err)
+	}
+}
