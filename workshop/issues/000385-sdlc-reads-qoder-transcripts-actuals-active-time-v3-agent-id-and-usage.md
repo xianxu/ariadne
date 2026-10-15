@@ -50,7 +50,17 @@ with `runtime-config` rows carrying `model` and `reasoningEffort`, and a `worksp
 
 ## Plan
 
-- [ ]
+Durable design: [Qoder transcript measurements](../plans/000385-qoder-transcripts-plan.md).
+
+- [ ] Shared bounded Qoder record/metadata adapter and sanitized fixtures.
+- [ ] Exact per-response credits, nullable token measurements, global dedup and
+  native-unit aggregation/calibration through existing usage primitives.
+- [ ] Recorded-workspace discovery feeding ownership-proven actuals and close
+  adoption, with retained-prefix and cross-checkout regression fixtures.
+- [ ] Measured invoking-session binding and Qoder identity; keep observed-agent
+  recognition separate from gate-reviewer CLI capability.
+- [ ] Native columns and coverage across fleet/slot/model/issue/hourly output;
+  documentation, conformance, exact-head suite, close review and SHIP landing.
 
 ## Log
 
@@ -81,3 +91,18 @@ with `runtime-config` rows carrying `model` and `reasoningEffort`, and a `worksp
 - Next: finish the durable plan (nullable native measurements and credits,
   shared discovery/decoder, identity binding, actual/close fixtures), commit it,
   and send the plan to the hub before change-code. No implementation yet.
+
+## Revisions
+
+### 2026-10-15 — measured native unit and integration design
+
+The dispatch explicitly requires Qoder credits by slot/model, not zero token
+spend. Extend Spec/Done when: every usage output scope carries optional credits
+and nullable tokens/rates; mixed aggregates identify measured subtotals; exact
+decimal sums preserve the measured precision. Optional Qoder meter projections
+use reported credits as their denominator and retain the existing two-point,
+complete-evidence requirement. Usage JSON declares schema version 2. The durable
+plan enumerates discovery, normalization, attribution, actual/close, identity,
+reporting and calibration consumers. Identity implementation remains blocked on
+measured invoking-session evidence (asked the hub), rather than guessing an
+environment marker or enabling an unsupported gate-reviewer CLI.
