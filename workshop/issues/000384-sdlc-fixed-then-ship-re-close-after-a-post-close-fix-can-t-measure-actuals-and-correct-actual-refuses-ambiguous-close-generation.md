@@ -67,7 +67,7 @@ The three smaller modules cover candidate measurement, exact-target selection an
 
 - [x] Reproduce measured whole-close -> post-close fix -> fixed-then-ship; pin candidate measurement to the new reviewed head while preserving historical replay.
 - [x] Add explicit eligible raw-row selection and precise ambiguity/exclusion recovery to correct-actual, with unchanged-state and retry tests.
-- [ ] Align refusal/help/README/atlas text and complete focused and recorded full-suite verification.
+- [x] Align refusal/help/README/atlas text and complete focused and recorded full-suite verification.
 
 After verification, close through the mandatory review, integrate current main, and land on SHIP.
 
@@ -128,6 +128,10 @@ While the recorded check on be92302c waited, main landed #371 (PR #253), changin
 Recorded suite on e55eed0871ac4061db7f8fd22d3d18e4958c9a75 exited 1 after 1438s queue and 503.4s execution (12 shards, 1394 cmd/sdlc tests, 60 other packages). The only failing test was TestIssueHintsRenderDecimalIDs: five new recovery hints used raw padded issue IDs. All other shards/packages passed; this is not a passing suite. Fixed the hints with the existing issue.CLIRef formatter (ARCH-DRY), preserving Cobra decimal parsing. The added padded-ID case and source guard first failed together, then both passed (0.598s). Re-run the recorded full suite on the pushed fix before close.
 
 - Replacement recorded suite is pinned to bb42d2f5298124aaaefab53cd71598869b5b6c1c in detached checkout /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/sdlc-local-1778550346, initially fifth in the machine queue. Log: /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/bb42d2f5298124aaaefab53cd71598869b5b6c1c/suite.log. Fresh origin/main remains f113e1e9fc9b7eac98bf7b3a644fc97f1095a360; integration already up to date. No result claimed; no overrides.
+
+### 2026-10-15 — recorded full suite passed
+
+sdlc local-check run --name suite passed on bb42d2f5298124aaaefab53cd71598869b5b6c1c: exit 0, 620.8s execution after 1913s gate wait, all 12 shards / 1394 cmd/sdlc tests and 60 other packages with zero failures. Recorded as sdlc-local/suite; log digest prefix dd9d98c2ce2a. The source guard and padded-ID regression are included. Remaining steps are mandatory close review, current-main integration and landing on SHIP; no verification gates waived.
 
 ## Revisions
 
