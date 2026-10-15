@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
@@ -171,7 +172,7 @@ func commitIndexOnto(env *trackerEnv, withIndex []string, head, message string) 
 	if err != nil {
 		return "", err
 	}
-	args := []string{"commit-tree", tree, "-p", head, "-m", message}
+	args := []string{"commit-tree", tree, "-p", head, "-m", agentid.StampCurrent(message)}
 	// Unset exits 1: no signing.
 	if value, err := env.git("config", "--bool", "--get", "commit.gpgsign"); err == nil && value == "true" {
 		args = append(args, "-S")

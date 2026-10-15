@@ -160,6 +160,7 @@ func TestMain(m *testing.M) {
 	testfix.PreferRealGit()
 	cleanupQuietGit := testfix.QuietBackgroundGit()
 	cleanupReviewBox := hermeticReviewBox()
+	testfix.PinAgent() // #367
 	// #303: no test runs the installed weave; a test that reaches the catch-up
 	// installs its own fake.
 	weaveRefresh = func(context.Context, string, io.Writer) error {

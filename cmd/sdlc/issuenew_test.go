@@ -111,6 +111,9 @@ func TestIssueNewFromSlotClaimsAndLeavesTreeClean(t *testing.T) {
 	if !strings.Contains(log, "Tracker-Operation: "+tracker.OpClaim+"-") {
 		t.Fatalf("the claim is not a claim-kind tracker commit:\n%s", log)
 	}
+	if !strings.Contains(log, "\nAgent: "+testfix.FixedAgent) { // #367
+		t.Fatalf("the tracker commit lacks the Agent trailer:\n%s", log)
+	}
 	if r.mainFile("workshop/issues/000008-claimed-at-birth.md") == "" {
 		t.Fatal("details not on main")
 	}
