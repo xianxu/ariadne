@@ -54,7 +54,7 @@ func resolveOwnedActualInputs(ctx context.Context, repoTop, brainAbs, issueNum, 
 	if repo == nil {
 		return nil, nil
 	}
-	rs, err := tracker.LoadRecords(ctx, repo, filepath.Join(repoTop, envOr("WF_ISSUES_DIR", "workshop/issues")), tracker.PreferFresh)
+	rs, err := actualInputRecords(ctx, repo, repoTop, filepath.Join(repoTop, envOr("WF_ISSUES_DIR", "workshop/issues")))
 	if err != nil {
 		return nil, err
 	}
@@ -202,22 +202,7 @@ func resolveOwnedActualInputs(ctx context.Context, repoTop, brainAbs, issueNum, 
 	if err != nil {
 		return nil, err
 	}
-	events, err := repo.EngagementHistory(trackerPin, rec.Card.Path)
-	if err != nil {
-		return nil, err
-	}
-	engagements, err := tracker.DeriveEngagements(events, until)
-	if err != nil {
-		return nil, err
-	}
-	if len(engagements) == 0 {
-		return nil, fmt.Errorf("measurement has no verified owned interval before its pinned right edge")
-	}
-	machine, _, err := localMachine()
-	if err != nil {
-		return nil, err
-	}
-	sourceWindows, err := ownedSourceWindows(ctx, engagements, target.Repository, machine)
+	sourceWindows, err := ownershipSourceWindows(ctx, repo, trackerPin, rec.Card.Path, target.Repository, until)
 	if err != nil {
 		return nil, err
 	}
@@ -282,6 +267,50 @@ func ownedMeasurementCuts(l gatestate.Ledger) []gatestate.MeasurementCut {
 		out = append(out, cut)
 	}
 	return out
+}
+
+type localMeasurementContextKey struct{}
+
+func actualInputRecords(ctx context.Context, repo *tracker.Repository, root, details string) (tracker.Records, error) {
+	if local, _ := ctx.Value(localMeasurementContextKey{}).(bool); !local {
+		return tracker.LoadRecords(ctx, repo, details, tracker.PreferFresh)
+	}
+	snap, ok, err := repo.LocalSnapshot()
+	if err != nil {
+		return tracker.Records{}, err
+	}
+	if !ok {
+		tracked, e := localTrackerDeclared(root)
+		if e != nil {
+			return tracker.Records{}, e
+		}
+		if !tracked {
+			return tracker.Records{}, nil
+		}
+		return tracker.Records{}, fmt.Errorf("local tracker snapshot unavailable")
+	}
+	return tracker.ComposeRecords(tracker.Records{Tracker: true, Ref: snap.Ref()}, snap.Records(), snap.Unreadable(), nil), nil
+}
+
+// ownershipSourceWindows is shared authority for active time and token usage.
+// Each caller supplies its own explicit right edge; tokens include the review tail.
+func ownershipSourceWindows(ctx context.Context, repo *tracker.Repository, pin, cardPath, repository string, until time.Time) ([]transcripts.SourceWindow, error) {
+	events, err := repo.EngagementHistory(pin, cardPath)
+	if err != nil {
+		return nil, err
+	}
+	engagements, err := tracker.DeriveEngagements(events, until)
+	if err != nil {
+		return nil, err
+	}
+	if len(engagements) == 0 {
+		return nil, fmt.Errorf("measurement has no verified owned interval before its pinned right edge")
+	}
+	machine, _, err := localMachine()
+	if err != nil {
+		return nil, err
+	}
+	return ownedSourceWindows(ctx, engagements, repository, machine)
 }
 
 // Roots are validated within each continuous engagement, including retained
@@ -746,4 +775,12 @@ func ownedActualGit(ctx context.Context, root string, args ...string) (string, e
 		return "", fmt.Errorf("measurement git %s: %w: %s", args[0], err, strings.TrimSpace(string(stderr)))
 	}
 	return strings.TrimSuffix(string(stdout), "\n"), nil
+}
+
+func localTrackerDeclared(root string) (bool, error) {
+	_, e := os.Stat(filepath.Join(root, tracker.CutoverMarkerPath))
+	if os.IsNotExist(e) {
+		return false, nil
+	}
+	return e == nil, e
 }

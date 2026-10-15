@@ -10,15 +10,18 @@ package judge
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewusage"
 	"strings"
 )
 
 // AgentRun is one reviewer run read from its stdout.
 type AgentRun struct {
-	Stream   bool     // at least one line parsed as a stream event
-	Messages []string // each assistant message's text, in order
-	Tail     string   // lines that didn't parse (a truncated stream), or the whole output when not a stream
-	Result   *Result  // the terminal result event, nil when absent
+	SessionID          string
+	IdentityDiagnostic string
+	Stream             bool     // at least one line parsed as a stream event
+	Messages           []string // each assistant message's text, in order
+	Tail               string   // lines that didn't parse (a truncated stream), or the whole output when not a stream
+	Result             *Result  // the terminal result event, nil when absent
 }
 
 // Result is the stream's terminal result event.
@@ -46,6 +49,11 @@ type streamEvent struct {
 // nothing it already wrote; output with no event at all is plain text.
 func ReadStream(out []byte) AgentRun {
 	var r AgentRun
+	if id, err := reviewusage.CaptureIdentity("claude", out, nil); err == nil {
+		r.SessionID = id
+	} else {
+		r.IdentityDiagnostic = err.Error()
+	}
 	var tail []string
 	for _, line := range bytes.Split(out, []byte("\n")) {
 		if len(bytes.TrimSpace(line)) == 0 {
