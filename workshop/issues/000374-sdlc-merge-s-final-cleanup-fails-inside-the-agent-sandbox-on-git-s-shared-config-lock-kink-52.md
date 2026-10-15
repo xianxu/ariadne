@@ -77,6 +77,26 @@ Recorded full suite is queued on pushed integrated code head 046de3e2eb19f0072f2
 
 sdlc local-check run --name suite passed on 046de3e2eb19f0072f28e5055fbef9b7bf42337d: all 12 shards over 1,376 cmd/sdlc tests plus 59 other packages, zero failures, wall 491.1s (8m11s). Recorded as sdlc-local/suite; log SHA-256 prefix 29a64b61bad4 at the path above. Weighted queue wait was 2,671s. Only issue/plan documentation changed after that code head. Local acceptance is complete under the TL's explicit revision; production Claude-slot conformance remains TL-owned after landing.
 
+
+### Close review BR-1: host counter-measurement
+
+The review found no correctness defect, but its nested sandbox refused sandbox-exec with exit 71 before the native child started. Re-ran on the host at pinned HEAD `7144ce9e9da2794944597c720cea49d5e69b68ef` (no source changes):
+
+```text
+$ env ARIADNE_NATIVE_SANDBOX=1 go test ./cmd/sdlc -run '^TestLandingNativeConfigSandbox$' -count=1 -v -timeout 4m
+=== RUN   TestLandingNativeConfigSandbox
+    branchconfig_native_test.go:88: === RUN   TestLandingNativeConfigSandbox
+            branchconfig_native_test.go:49: native config-write denial confirmed; full merge command completed and issue ref retired
+        --- PASS: TestLandingNativeConfigSandbox (3.19s)
+        PASS
+--- PASS: TestLandingNativeConfigSandbox (4.03s)
+PASS
+ok  github.com/xianxu/ariadne/cmd/sdlc  4.370s
+```
+
+Exit 0 also confirms the parent compared the protected config bytes before/after and found them unchanged (lines 83–86). This supplies the exact host evidence requested by BR-1; it does not assert the review sandbox can nest another sandbox. TL-owned production conformance remains the next Claude-slot landing.
+
+
 ## Revisions
 
 ### 2026-10-14 — prevent unnecessary metadata at publication
