@@ -127,3 +127,59 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"a2a02621-dcde-4d45-bbda-62493f95a2e3","repository":"github.com/xianxu/ariadne","issue_id":"000388","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/c9a6ecbdad635c1d","reviewed_head":"1fada25d45c0c0bfc77d15abb1855a3327ff531c","slot":"ariadne:2","requested_at":"2026-10-15T18:51:36.792899Z"},"phase":"finished","pid":4053,"started_at":"2026-10-15T18:51:36.885018Z","finished_at":"2026-10-15T18:52:16.508615Z","session_id":"2fe6a619-6710-45e1-9c4c-6f4993775d8a","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-15T11:53:07-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 388 — tl-lead: a deleted Operator-instructions bullet closes its QA file (follow-ups go to Needs you) |
+| repo | ariadne |
+| issue file | workshop/issues/000388-tl-lead-a-deleted-operator-instructions-bullet-closes-its-qa-file-follow-ups-go-to-needs-you.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 6af3a87ed5eb05ec83679a877837022dc73cdcba..4ccf516b8845760352ecc66b107bc5b384bab86b |
+| command | sdlc close --issue 388 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-15T11:53:07-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+BR-2 is fixed, and the fix covers the whole class, not just the line BR-2 named. Only three files changed. The single substantive one is `atlas/workflow/tl-skills.md:34`, which no longer says "later follow-ups go to Needs you". It now says "A bullet the operator deletes closes its QA file, and no follow-up goes into that file; `tl-lead --help` says where follow-ups go". That is the fix BR-2 recommended: the atlas no longer restates where follow-ups go and points to help.md instead. I searched the whole tree outside `workshop/` for other statements of the rule. The only one left is `cmd/tl-lead/help.md:168-171`, which already carries the "if it needs the operator" condition (round 2 confirmed this). So the `section-contract-consistency` family now has one source and no stale copies. The other two changed files are the generated gate ledger and the review log under `workshop/plans/`, both bookkeeping. `## Spec`, `## Revisions` and `## Done when` are untouched, so this is not a scope change. No conflict resolutions are listed.
+
+1. **Strengths**
+   - `atlas/workflow/tl-skills.md:34` defers to `tl-lead --help` instead of restating the condition. That removes the duplicated copy rather than updating it again (ARCH-DRY).
+   - The atlas still keeps the invariant that matters, "closes its QA file … no follow-up goes into that file". This matches what the guards at `cmd/tl-lead/main_test.go:61-62` pin in help.md.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** none.
+
+5. **Test coverage:** The atlas is prose, so no test is needed for its wording. The existing help.md guards (`main_test.go:61-62`) still pin how the rule behaves, and those lines did not change in this window.
+
+6. **Architecture**
+   - **ARCH-DRY:** pass. The atlas stops restating the routing rule, so help.md is the only place it lives.
+   - **ARCH-PURE:** pass. No code changed.
+   - **ARCH-PURPOSE:** pass. A search of the tree found no other place restating the rule.
+
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: addressed
+    note: |
+      tl-skills.md:34 now says only "closes its QA file, and no follow-up goes into that file" and defers to tl-lead --help; tree sweep finds help.md:168-171 (already conditioned) as the sole remaining routing statement.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"a2e3152b-703f-49d7-8938-b1d746ce8c66","repository":"github.com/xianxu/ariadne","issue_id":"000388","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/2ca7c60a4ec7eacc","reviewed_head":"4ccf516b8845760352ecc66b107bc5b384bab86b","slot":"ariadne:2","requested_at":"2026-10-15T18:52:49.978834Z"},"phase":"finished","pid":9528,"started_at":"2026-10-15T18:52:50.076366Z","finished_at":"2026-10-15T18:53:07.637103Z","session_id":"d76bc1fb-7d6c-4e24-8c17-8d0eb6025e51","outcome":"returned"}] -->

@@ -146,6 +146,77 @@ rounds:
       isolation: fenced
       reviewed: 1fada25d45c0c0bfc77d15abb1855a3327ff531c
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: a2e3152b-703f-49d7-8938-b1d746ce8c66
+            repository: github.com/xianxu/ariadne
+            issue_id: "000388"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/2ca7c60a4ec7eacc
+            reviewed_head: 4ccf516b8845760352ecc66b107bc5b384bab86b
+            slot: ariadne:2
+            requested_at: "2026-10-15T18:52:49.978834Z"
+          phase: finished
+          pid: 9528
+          started_at: "2026-10-15T18:52:50.076366Z"
+          finished_at: "2026-10-15T18:53:07.637103Z"
+          session_id: d76bc1fb-7d6c-4e24-8c17-8d0eb6025e51
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 4ccf516b8845760352ecc66b107bc5b384bab86b
+        tracker_head: e47d3b4d2f8405cbab53ec34c10ac8b5df4fbdbc
+        branch_point: ea2cee461c058080a25b03e689e9142c3ea21a63
+        since: "2026-10-15T11:11:59-07:00"
+        until: "2026-10-15T11:52:34-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-15T11:11:59-07:00"
+              end: "2026-10-15T11:52:34-07:00"
+              began: "2026-10-15T11:11:59-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: c01b5a49286fb01081a8df0a0f28fd1ebb41d60bf89b9176a5dd87492768ee10
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 8539785
+              windows:
+                - start: "2026-10-15T11:11:59-07:00"
+                  end: "2026-10-15T11:52:34-07:00"
+        cuts:
+            - dispatched: "2026-10-15T11:50:28-07:00"
+              finalized: "2026-10-15T11:51:04-07:00"
+              finalizing: true
+            - dispatched: "2026-10-15T11:51:36-07:00"
+              finalized: "2026-10-15T11:52:17-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-15T11:53:08-07:00"
+      dispatched: "2026-10-15T11:52:49-07:00"
+      agent: claude
+      dispose:
+        - id: BR-2
+          disposition: addressed
+          note: tl-skills.md:34 now says only "closes its QA file, and no follow-up goes into that file" and defers to tl-lead --help; tree sweep finds help.md:168-171 (already conditioned) as the sole remaining routing statement.
+          round: 3
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 4ccf516b8845760352ecc66b107bc5b384bab86b
+      blocked: false
 ---
 
 # Gate ledger — ariadne#388 (boundary-review)
@@ -171,6 +242,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-2** [Minor] `section-contract-consistency` (kind: defect) atlas tl-skills.md:34 still routes all later follow-ups to Needs you unconditionally
   2nd finding in this family: the BR-1 fix updated help.md but the atlas restatement still says "later follow-ups go to Needs you", contradicting the asks-only rule. Rule: any restatement of the routing must keep the "if it needs the operator" condition or not restate it; simplest is for the atlas to keep only "closes its QA file, never into that file" and defer to tl-lead --help. Prevalence: 2 sites restate the routing, 1 still has the old wording.
 
+## Round 3 — 2026-10-15T11:53:08-07:00 (claude) — passed
+
+### Disposed
+
+- BR-2 — addressed — tl-skills.md:34 now says only "closes its QA file, and no follow-up goes into that file" and defers to tl-lead --help; tree sweep finds help.md:168-171 (already conditioned) as the sole remaining routing statement.
+
 ## Open findings
 
-- **BR-2** [Minor] `section-contract-consistency` (kind: defect) atlas tl-skills.md:34 still routes all later follow-ups to Needs you unconditionally
+(none — every finding has been disposed)
