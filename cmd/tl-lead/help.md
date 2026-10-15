@@ -165,8 +165,11 @@ TALKING TO THE OPERATOR
     ` → [answer](qa/…)` to a bullet, and every bullet gets one, questions and
     instructions alike (an instruction's file records what was done and
     where). An unlinked bullet is open; the operator deletes a bullet when
-    satisfied. Bullets are addressed by position, since the operator reuses
-    numbers:
+    satisfied. A deleted bullet closes its QA file: the operator has read it
+    and won't reopen it. A later follow-up on that topic goes to Needs you if
+    it needs the operator, else into Threads or a new bullet's answer, and
+    never into the closed file. Bullets are
+    addressed by position, since the operator reuses numbers:
       tl-lead status instructions list FILE
       tl-lead status instructions link FILE POS TARGET --hash H
     `list` prints the open bullets with their positions and the section's
