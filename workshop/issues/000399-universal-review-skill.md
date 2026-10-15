@@ -59,8 +59,39 @@ the same protocol. S1 is parley.nvim#332 plus pair#573.
 
 ## Plan
 
-- [ ] Confirm the shared export contract with parley.nvim#319, then author the
-  skill via the writing-skills workflow and land it before the consumer.
+Quick flow: prose plus one small Go validator; no Mx.
+
+Layout, `construct/local/universal-review/` (weave lowers it to `xx-universal-review` in `.claude/skills` and `.agents/skills`):
+- `SKILL.md`: the trigger is a `submitted: PATH` (or `review request: PATH`) delivery for a markdown document. The steps: read `round.md`, choose the adapter, and follow it. It is short and restates no protocol.
+- `round.md`: the harness-neutral round. It covers:
+  - the inputs: the document, the frontmatter `process-instruction: [mode][mode] text` (`free-form` when there is no mode), and the changes since your last read;
+  - mode resolution: an exact name, else a unique prefix; an ambiguous or unknown name is refused, naming the modes; several modes give every body but only the first mode's directives;
+  - what the mode flags mean as directives: scope, deletions, frontier;
+  - marker readiness and the reply rules. It refers to the grammar and restates none of it.
+- `modes/*.md`: the six stock modes, byte-for-byte from parley's `lua/parley/skills/review/modes/`. They become canonical here; parley regenerates its copy (#319).
+- `adapters/file-edit.md`: editing the file itself.
+  - A **registered** document (`couch --session-sync lookup`) goes `diff`, then `read --all` for the hash, then `write --all --if-hash H --fold <owed IDs>`. Exit 3 (the operator holds the lock) queues the write until the next submit, and a lock older than 30 minutes is pinged. Exit 6 (stale) re-reads. The CAS is never bypassed.
+  - An **unregistered** document is edited in place; changes since the last read come from your own last read, else the whole file.
+  - The `propose_edits` tool adapter stays parley-owned (#319's `local-adapter.md`).
+- `review-convention.md`: a symlink to `../fix/review-convention.md`, the one authored grammar. A relative link then works both lexically, through `.claude/skills/xx-universal-review/`, and physically.
+- `export.json`: the versioned manifest that parley's `sync-review-protocol.py` snapshots.
+  - Header: `{"schema":"ariadne/universal-review-export","version":1,"members":[…]}`.
+  - Each member has `role` (round | grammar | adapter | mode), `path` relative to the skill directory, `bytes` and `sha256`.
+  - The grammar member also has `source: construct/local/fix/review-convention.md`.
+  - Mode members are dense records: `name`, `order`, `scope`, `deletions`, `frontier`.
+  - Members are sorted by role and then order, with no timestamps, so the file is deterministic.
+
+Tasks:
+- [ ] Author `SKILL.md`, `round.md` and `adapters/file-edit.md` via the superpowers-writing-skills workflow. Copy the six modes and add the grammar symlink.
+- [ ] Add a `pkg/reviewexport` validator:
+  - it parses mode frontmatter as parley does (flat keys; name equals basename; valid enum values);
+  - it builds the manifest;
+  - `TestExportCurrent` fails on a stale or missing member, and `UPDATE_REVIEW_EXPORT=1` regenerates the manifest;
+  - a determinism test builds it twice and checks the two are identical.
+- [ ] A discovery test: an ariadne-derived fixture whose weave lowering yields `xx-universal-review` in both harness directories, with `review-convention.md` resolving through the harness path.
+- [ ] Point `tl-lead --help` and `tl-worker --help` at the skill for review requests, with phrase guards. The `xx-couch` skill gets the same one-line pointer.
+- [ ] Atlas: a short `atlas/workflow/universal-review.md`, linked from the indexes.
+- [ ] Live check, coordinated by the hub: one operator Alt+Return on a registered document is answered by the skill under the lock and the CAS.
 
 ## Log
 
