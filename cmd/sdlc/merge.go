@@ -679,7 +679,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		}
 	}
 
-	return f.withLock(func() error {
+	err = f.withLock(func() error {
 		if err := revalidateLegacyMerge(branch, branchHead, remoteRef, inPlace, false, f); err != nil {
 			die(stderr, err.Error())
 		}
@@ -775,6 +775,12 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		cok(stderr, "Done. Run: g (to cd back to main)")
 		return nil
 	})
+	// ── 13. Landing tick (#373) — after the lock: warn-only IO on other
+	// repositories' origins ─────────────────────────────────────────────────────
+	if err == nil && merged {
+		tickOnLanding(ctx, stdout, stderr, mainPath, branch, prNumber)
+	}
+	return err
 }
 
 // revalidateLegacyMerge protects the older, non-durable merge path each time

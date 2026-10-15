@@ -54,6 +54,11 @@ func runProjectStatus(ctx context.Context, stdout, _ io.Writer, f *projectStatus
 		return err
 	}
 	fmt.Fprint(stdout, renderBoard(b, projectTodayFn()))
+	metadata, err := d.Metadata()
+	if err != nil {
+		return err
+	}
+	fmt.Fprint(stdout, renderMVP(metadata, projectdoc.MVPProgress(metadata.MVPScope, projectIssueTerminalFn(ctx, path))))
 	if line := forecastLine(ctx, path, f.BrainDir); line != "" {
 		fmt.Fprintln(stdout, line)
 	}
@@ -344,3 +349,19 @@ var projectIssueRecords = func() func(context.Context, string) (tracker.Records,
 		return rs, err
 	}
 }()
+
+// renderMVP is the charter view (#373): mvp_scope landed against open, any ref
+// whose card could not be read, and the done_when the close audits.
+func renderMVP(m projectdoc.Metadata, mvp projectdoc.MVP) string {
+	var s strings.Builder
+	if len(m.MVPScope) == 0 {
+		s.WriteString("mvp: - (no mvp_scope)\n")
+	} else {
+		fmt.Fprintf(&s, "mvp: %d/%d landed · open: %s\n", len(mvp.Landed), len(m.MVPScope), valueOr(strings.Join(mvp.Open, ", "), "-"))
+	}
+	for _, err := range mvp.Errors {
+		fmt.Fprintf(&s, "warning: %v\n", err)
+	}
+	fmt.Fprintf(&s, "done_when: %s\n", valueOr(strings.TrimSpace(m.DoneWhen), "-"))
+	return s.String()
+}

@@ -50,6 +50,28 @@ func assertGatesigAttributes(t *testing.T, refusal, flag string, commands ...str
 	}
 }
 
+// assertGatesigAcknowledges is the waiver side: the acknowledgement a
+// catalogued flag prints must match that flag's AckPat on each command.
+func assertGatesigAcknowledges(t *testing.T, out, flag string, commands ...string) {
+	t.Helper()
+	stripped := regexp.MustCompile(`\x1b\[[0-9;]*m`).ReplaceAllString(out, "")
+	for _, cmd := range commands {
+		found := false
+		for _, g := range processmanual.GateCatalog {
+			if g.Flag != flag || !slices.Contains(g.Commands, cmd) {
+				continue
+			}
+			found = true
+			if g.AckPat == "" || !regexp.MustCompile(g.AckPat).MatchString(stripped) {
+				t.Errorf("%s --%s: AckPat %q does not match %q", cmd, flag, g.AckPat, stripped)
+			}
+		}
+		if !found {
+			t.Errorf("%s --%s is not in the gate catalog", cmd, flag)
+		}
+	}
+}
+
 // #177: the single docs classifier — *.md anywhere, or anything under
 // workshop/, atlas/, docs/. Everything else (Makefile, .gitignore,
 // extensionless files) conservatively counts as code: build files ARE

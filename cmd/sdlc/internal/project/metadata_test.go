@@ -82,3 +82,27 @@ func TestTLOwners(t *testing.T) {
 		}
 	}
 }
+
+func TestLandingTick(t *testing.T) {
+	for _, tc := range []struct {
+		fm      string
+		want    bool
+		wantErr bool
+	}{
+		{"name: p\n", true, false},
+		{"tl: xian-xu@ops:0\n", TLLandingTickDefault, false},
+		{"tl: xian-xu@ops:0\nlanding_tick: true\n", true, false},
+		{"landing_tick: false\n", false, false},
+		{"landing_tick: maybe\n", false, true},
+		{"tl: 7\n", false, true},
+	} {
+		d, err := ParseDoc("---\n" + tc.fm + "---\n# p\n")
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := d.LandingTick()
+		if (err != nil) != tc.wantErr || (!tc.wantErr && got != tc.want) {
+			t.Errorf("%q: got %v, %v; want %v (err %v)", tc.fm, got, err, tc.want, tc.wantErr)
+		}
+	}
+}

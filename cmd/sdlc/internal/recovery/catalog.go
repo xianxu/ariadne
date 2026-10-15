@@ -476,6 +476,7 @@ var Exempt = map[string]string{
 	"project set-status": "project artifacts, not the issue workflow",
 	"project retro":      "project artifacts, not the issue workflow",
 	"project close":      "project artifacts, not the issue workflow",
+	"project tick":       "project artifacts, not the issue workflow; a CAS commit on origin, rerun is idempotent",
 	"migrate":            "cross-repository artifact move tool (#179), outside the issue workflow",
 	"fetch":              "refreshes remote-tracking refs only; no workflow state",
 }
