@@ -154,6 +154,7 @@ func runLegacyIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string
 		Target:      f.Target,
 		Area:        f.Areas,
 		Severity:    f.Severity,
+		Sections:    f.sections,
 	})
 
 	if _, err := issueassets.BuildBundle(nextID, issueAssetBody([]byte(rendered)), nil); err != nil {
