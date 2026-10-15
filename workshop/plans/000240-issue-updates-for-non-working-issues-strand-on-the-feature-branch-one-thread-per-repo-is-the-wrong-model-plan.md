@@ -23,11 +23,12 @@
 
 | Integration point | Lives in | Status | Wraps |
 |---|---|---|---|
+| `readLocalProse` | `cmd/sdlc/trunkpublish.go` | modified | regular-file validation and bounded local bytes |
 | `runTrunkPublish` | `cmd/sdlc/trunkpublish.go` | new | working tree, Git queries, `gitx.TrunkFile` |
 | `trunkRestoreCommand` | `cmd/sdlc/trunkpublish.go` | new | literal-path manual cleanup guidance |
 | `gitx.TrunkFile.UpdateMany` | `cmd/sdlc/internal/gitx/updatemany.go` | reused | Git commit-tree, fetch, CAS push, bounded retry |
 
-The command pins the selected path and local bytes before publishing. It verifies a regular file and rejects staged or branch-committed changes to it. On each CAS attempt it compares the pinned branch-base tree and current trunk view, rechecks the worktree identity, and constructs one `TrunkWrite` with `ExactBytes`. It uses the same stateful Git seam and real bare-Git fixtures as other SDLC publication tests (`cmd/sdlc/internal/gitx/updatemany.go:75`, ARCH-MOCK). An uncertain push returns the existing uncertainty error and leaves local bytes; rerunning first checks whether main carries the local bytes and repeats cleanup guidance while retaining the local file. A rejected CAS retries only if unrelated main paths moved; a selected-path conflict refuses. The command serializes within the existing SDLC transaction lock, while the remote CAS governs other workspaces (ARCH-ORDER).
+The command pins the selected path and local bytes before publishing. It verifies a regular file and rejects staged or branch-committed changes to it. On each CAS attempt it compares the pinned branch-base tree and current trunk view, constructs one `TrunkWrite` with `ExactBytes`. It uses the same stateful Git seam and real bare-Git fixtures as other SDLC publication tests (`cmd/sdlc/internal/gitx/updatemany.go:75`, ARCH-MOCK). An uncertain push returns the existing uncertainty error and leaves local bytes; rerunning first checks whether main carries the local bytes and repeats cleanup guidance while retaining the local file. A rejected CAS retries only if unrelated main paths moved; a selected-path conflict refuses. The command serializes within the existing SDLC transaction lock, while the remote CAS governs other workspaces (ARCH-ORDER).
 
 After confirmed publication, the command retains the local file and prints
 literal-path cleanup guidance if its bytes still match the pinned read. A
@@ -145,3 +146,7 @@ The moved branch is owned by ariadne:5. Current-plan summary wording now agrees 
 ### 2026-10-14 — renewed local acceptance
 
 After the independent #379 readiness repair landed, the renewed recorded full suite passed on 1e559e8d (594.5s, all 12 SDLC shards and 59 other packages). The final checklist row now names verified pre-close readiness; close and landing remain subsequent workflow transitions, matching the issue's earlier close-gate wording revision. The approved implementation scope is unchanged.
+
+### 2026-10-14 — close round 3 read-time bound
+
+BR-1 through BR-7 are disposed after the approved retention repair; BR-8 shows metadata size checks do not enforce the promised read-time envelope. Every local prose read, both before and after publication, must consume at most maxTrunkProseBytes+1 bytes and reject overflow without consuming the remainder. Add deterministic exact-limit, static-oversize and post-validation-growth controls that measure consumed bytes through production wiring, plus initial-refusal and post-publication-retention checks. This is the existing 1 MiB contract, not a new publication policy. The current CAS summary now states the actual pinned-byte behavior: callback revalidation concerns main, while local bytes are reread only for post-publication guidance (ARCH-CONSTRAINTS, ARCH-ORDER). Repeat focused checks and the recorded full suite after the code fix, before renewed close.

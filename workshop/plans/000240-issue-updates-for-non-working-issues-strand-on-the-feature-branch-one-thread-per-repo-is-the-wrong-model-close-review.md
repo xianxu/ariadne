@@ -193,3 +193,109 @@ dispose:
 7. **Plan revision recommendations**
 
    Add a `## Revisions` entry enumerating cleanup states, interruption points, permitted recovery actions, and backup lifecycle. Correct the claim that one selected path makes cleanup a single transition, and replace the after-move-only test strategy with coverage of every destructive-effect boundary.
+
+---
+
+## Re-review — 2026-10-14T17:55:24-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 240 — Issue updates for non-working issues strand on the feature branch — one thread per repo is the wrong model |
+| repo | ariadne |
+| issue file | workshop/issues/000240-issue-updates-for-non-working-issues-strand-on-the-feature-branch-one-thread-per-repo-is-the-wrong-model.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 4c52f8a4e712c01c3d764bf53340a5289940fc7b..9049b272b979f464c7f0afca39edfb576526aeaf |
+| command | sdlc close --issue 240 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T17:55:24-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The revised retention policy resolves the previous cleanup and recovery defects, and the focused publication and CAS tests pass. One Important gap remains: the local reader can consume an arbitrarily grown file before enforcing its documented 1 MiB limit.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Automatic cleanup and backup state are removed. TestTrunkPublishRetryAfterPushInterruption verifies retained bytes and no second main commit; restoring the pre-retention cleanup makes this test fail.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Publication performs no local restore, rename, or removal. TestTrunkPublishPreservesOpenDescriptorWriteAfterPush passes and fails with the pre-retention implementation restored in a disposable checkout.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Plan Tasks 1–2 identify function-level strategies for eligibility, presence-aware decisions, publication, interruption, and local retention; corresponding tests exist.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The plan has three implementation tasks and one subsequent issue-close boundary; the redundant M1 boundary is absent.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Plan lines 41–45 explicitly declare the 1 MiB input envelope, two-minute remote budget, and three-attempt CAS budget. Enforcement of the input envelope has a separate finding below.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Selected-path staging checks and cleanup guidance use literal Git pathspecs. Tracked and untracked wildcard-filename tests pass and verify preservation of neighboring files.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      README.md now documents trunk publish --path, its allowlist, conflict refusal, retry, local retention, and tracked/untracked cleanup guidance, consistent with the command.
+findings:
+  - id: new
+    severity: Important
+    kind: defect
+    family: explicit-operating-envelope
+    title: |
+      Enforce the prose limit during reading, not only before and after it
+    detail: |
+      cmd/sdlc/trunkpublish.go:105–117 checks Lstat size, then calls unbounded os.ReadFile. A file growing between those operations is read fully before rejection, contrary to the plan's promise to refuse oversized input before reading fully. Deterministic instrumentation in a disposable pinned-head checkout grew the file after Lstat: the reader consumed 4,194,304 bytes against a 1,048,576-byte limit. ARCH-CONSTRAINTS: this is the 2nd finding in family explicit-operating-envelope. Earlier rounds fixed declaration of the bounds; state and enforce the rule across both initial and post-publication reads: consume at most limit+1 bytes, then reject overflow. Add regression coverage for static oversized input and growth after validation.
+```
+
+**Strengths**
+
+- Publication reuses `gitx.TrunkFile.UpdateMany`, including its bounded CAS retry and uncertainty handling.
+- Retaining the local inode removes the destructive cleanup race and interrupted-backup lifecycle.
+- Real-Git tests verify branch/index isolation, moved-main refusal, and literal filename handling.
+- README and atlas both document the new command and its reviewed scope.
+
+**Critical findings**
+
+None.
+
+**Important findings**
+
+The bounded-reader defect above, at `cmd/sdlc/trunkpublish.go:112`. Open the file and read through a limit of `maxTrunkProseBytes+1`; reject overflow without consuming the remainder.
+
+**Minor findings**
+
+None.
+
+**Test coverage notes**
+
+Focused command/recovery tests passed in 17.306s; selected CAS, uncertainty, cancellation, and stateful-fake tests passed in 34.490s. Both retention regressions failed when the previous cleanup implementation was restored. The temporary growth check demonstrated the remaining defect. The disposable checkout was removed; the reviewed checkout is clean. I did not rerun the full suite.
+
+**Architectural notes**
+
+- **ARCH-DRY — pass:** existing CAS machinery and publication verdict type are reused.
+- **ARCH-PURE — pass:** eligibility and publication decisions have direct tests without IO.
+- **ARCH-PURPOSE — pass:** the revised non-issue prose publication scope is delivered.
+- **ARCH-MOCK — pass:** production uses the existing Git seam, with stateful fake and real-Git race coverage.
+- **ARCH-CONSTRAINTS — flag:** read-time input bounding remains unenforced.
+- **ARCH-SECURE — pass:** lexical validation, symlink refusal, literal pathspecs, and shell quoting cover the inspected paths.
+- **ARCH-ORDER — pass:** remote transitions remain in the existing publication model; automatic local cleanup state is eliminated.
+- **ARCH-FUNERAL — pass:** no backup or receipt family remains; temporary Git artifacts use existing cleanup.
+
+**Plan revision recommendations**
+
+Add a `## Revisions` entry defining the read-time bound for every local prose read and naming deterministic overflow/growth regression tests. Also remove the statement at plan line 30 that every CAS attempt rechecks worktree identity; the current callback publishes pinned bytes and checks local contents after publication.

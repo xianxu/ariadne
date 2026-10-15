@@ -191,6 +191,159 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 9049b272b979f464c7f0afca39edfb576526aeaf
+        tracker_head: 84921a6d968f98ca0d8571e544d08876b14af6f0
+        branch_point: 4c52f8a4e712c01c3d764bf53340a5289940fc7b
+        since: "2026-10-14T08:53:15-07:00"
+        until: "2026-10-14T17:52:06-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-14T08:53:15-07:00"
+              end: "2026-10-14T11:37:28-07:00"
+              began: "2026-10-14T08:53:15-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+            - start: "2026-10-14T11:37:28-07:00"
+              end: "2026-10-14T17:52:06-07:00"
+              began: "2026-10-14T08:53:15-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+                - /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        sources:
+            - harness: codex
+              id: 01a136db-6cd1-7a31-87f3-271411613545
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+              digest: ab049e7f9b9b2fd4cd39d559a2049dac956af547b6426efae172d5cb94eafd43
+              started: "2026-10-13T20:02:12.897Z"
+              spawned: false
+              bytes: 19563577
+              windows:
+                - start: "2026-10-14T11:37:28-07:00"
+                  end: "2026-10-14T17:52:06-07:00"
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 250a43b6f36d74011493b050d52ce7d14222ff4f6d03c5984a80d98d56cdf350
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 23360225
+              windows:
+                - start: "2026-10-14T08:53:15-07:00"
+                  end: "2026-10-14T11:37:28-07:00"
+                - start: "2026-10-14T11:37:28-07:00"
+                  end: "2026-10-14T17:52:06-07:00"
+            - harness: codex
+              id: 01a13b21-7327-7c60-9006-edb3c90098ae
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: c3162bf2b1730739eeab71cce50f8496d7da0898d39c3ef94f0cb469e5e0af89
+              started: "2026-10-14T15:56:50.688Z"
+              spawned: false
+              bytes: 527136
+              windows:
+                - start: "2026-10-14T15:56:50.688Z"
+                  end: "2026-10-14T11:37:28-07:00"
+                - start: "2026-10-14T11:37:28-07:00"
+                  end: "2026-10-14T17:52:06-07:00"
+            - harness: codex
+              id: 01a13bb6-8ece-7533-bf70-cb6022b40029
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: a7243862f79aa4e17102cda8f735c70c42cc802984be5c4e20fabce5e807085a
+              started: "2026-10-14T18:39:42.497Z"
+              spawned: false
+              bytes: 576557
+              windows:
+                - start: "2026-10-14T18:39:42.497Z"
+                  end: "2026-10-14T17:52:06-07:00"
+            - harness: codex
+              id: 01a13bb9-c9d4-74e0-8386-4967333fab42
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 39e12181e61983a2b02636e7dd5640454d664cf5e614e9d45901d17b0ef9cb16
+              started: "2026-10-14T18:43:14.309Z"
+              spawned: false
+              bytes: 436808
+              windows:
+                - start: "2026-10-14T18:43:14.309Z"
+                  end: "2026-10-14T17:52:06-07:00"
+            - harness: codex
+              id: 01a13bbc-0eea-7293-a1da-e6b517ba3bc5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: b5b9167849378e1cfc8f4649223b2400a4e745d62160cde7230cbd5aa87c5ceb
+              started: "2026-10-14T18:45:43.129Z"
+              spawned: false
+              bytes: 454631
+              windows:
+                - start: "2026-10-14T18:45:43.129Z"
+                  end: "2026-10-14T17:52:06-07:00"
+            - harness: codex
+              id: 01a13bbc-c0df-7e53-9383-6398cd4255a9
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 7f11c95c3b9871616ac14dd392bb0200ef5cfbe4f1ced84e182c4f1a79694b0b
+              started: "2026-10-14T18:46:28.655Z"
+              spawned: false
+              bytes: 368889
+              windows:
+                - start: "2026-10-14T18:46:28.655Z"
+                  end: "2026-10-14T17:52:06-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 45.166466666666665
+        cuts:
+            - dispatched: "2026-10-14T09:32:19-07:00"
+              finalized: "2026-10-14T09:36:09-07:00"
+              finalizing: false
+            - dispatched: "2026-10-14T10:19:16-07:00"
+              finalized: "2026-10-14T10:23:27-07:00"
+              finalizing: false
+      "n": 4
+      timestamp: "2026-10-14T17:55:25-07:00"
+      dispatched: "2026-10-14T17:52:33-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Automatic cleanup and backup state are removed. TestTrunkPublishRetryAfterPushInterruption verifies retained bytes and no second main commit; restoring the pre-retention cleanup makes this test fail.
+          round: 4
+        - id: BR-6
+          disposition: addressed
+          note: Publication performs no local restore, rename, or removal. TestTrunkPublishPreservesOpenDescriptorWriteAfterPush passes and fails with the pre-retention implementation restored in a disposable checkout.
+          round: 4
+        - id: BR-2
+          disposition: addressed
+          note: Plan Tasks 1–2 identify function-level strategies for eligibility, presence-aware decisions, publication, interruption, and local retention; corresponding tests exist.
+          round: 4
+        - id: BR-3
+          disposition: addressed
+          note: The plan has three implementation tasks and one subsequent issue-close boundary; the redundant M1 boundary is absent.
+          round: 4
+        - id: BR-4
+          disposition: addressed
+          note: Plan lines 41–45 explicitly declare the 1 MiB input envelope, two-minute remote budget, and three-attempt CAS budget. Enforcement of the input envelope has a separate finding below.
+          round: 4
+        - id: BR-5
+          disposition: addressed
+          note: Selected-path staging checks and cleanup guidance use literal Git pathspecs. Tracked and untracked wildcard-filename tests pass and verify preservation of neighboring files.
+          round: 4
+        - id: BR-7
+          disposition: addressed
+          note: README.md now documents trunk publish --path, its allowlist, conflict refusal, retry, local retention, and tracked/untracked cleanup guidance, consistent with the command.
+          round: 4
+      findings:
+        - kind: defect
+          id: BR-8
+          severity: Important
+          title: Enforce the prose limit during reading, not only before and after it
+          detail: 'cmd/sdlc/trunkpublish.go:105–117 checks Lstat size, then calls unbounded os.ReadFile. A file growing between those operations is read fully before rejection, contrary to the plan''s promise to refuse oversized input before reading fully. Deterministic instrumentation in a disposable pinned-head checkout grew the file after Lstat: the reader consumed 4,194,304 bytes against a 1,048,576-byte limit. ARCH-CONSTRAINTS: this is the 2nd finding in family explicit-operating-envelope. Earlier rounds fixed declaration of the bounds; state and enforce the rule across both initial and post-publication reads: consume at most limit+1 bytes, then reject overflow. Add regression coverage for static oversized input and growth after validation.'
+          family: explicit-operating-envelope
+          round: 4
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#240 (boundary-review)
@@ -238,7 +391,23 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-6 — not-addressed — ARCH-ORDER: cmd/sdlc/trunkpublish.go:313–317 and 332–336 still separate the final backup-byte check from unlink. A disposable overlay added only an ordering hook immediately before unlink; writing through a descriptor opened before rename made both tracked and untracked cleanup return nil with no backup, while the later edit disappeared. Exclusive creation also does not exclude subsequent writers during replacement.Write at line 327. Preserve recoverable data throughout cleanup and test all destructive-effect boundaries, rather than only the after-move event.
 - BR-7 — addressed — README.md:28–37 adds command usage, eligibility, moved-main refusal, uncertain-push retry guidance, and an atlas link. These passages match the allowlist and publication checks; atlas/workflow/sdlc-binary.md also documents the new surface.
 
+## Round 4 — 2026-10-14T17:55:25-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Automatic cleanup and backup state are removed. TestTrunkPublishRetryAfterPushInterruption verifies retained bytes and no second main commit; restoring the pre-retention cleanup makes this test fail.
+- BR-6 — addressed — Publication performs no local restore, rename, or removal. TestTrunkPublishPreservesOpenDescriptorWriteAfterPush passes and fails with the pre-retention implementation restored in a disposable checkout.
+- BR-2 — addressed — Plan Tasks 1–2 identify function-level strategies for eligibility, presence-aware decisions, publication, interruption, and local retention; corresponding tests exist.
+- BR-3 — addressed — The plan has three implementation tasks and one subsequent issue-close boundary; the redundant M1 boundary is absent.
+- BR-4 — addressed — Plan lines 41–45 explicitly declare the 1 MiB input envelope, two-minute remote budget, and three-attempt CAS budget. Enforcement of the input envelope has a separate finding below.
+- BR-5 — addressed — Selected-path staging checks and cleanup guidance use literal Git pathspecs. Tracked and untracked wildcard-filename tests pass and verify preservation of neighboring files.
+- BR-7 — addressed — README.md now documents trunk publish --path, its allowlist, conflict refusal, retry, local retention, and tracked/untracked cleanup guidance, consistent with the command.
+
+### Raised
+
+- **BR-8** [Important] `explicit-operating-envelope` (kind: defect) Enforce the prose limit during reading, not only before and after it
+  cmd/sdlc/trunkpublish.go:105–117 checks Lstat size, then calls unbounded os.ReadFile. A file growing between those operations is read fully before rejection, contrary to the plan's promise to refuse oversized input before reading fully. Deterministic instrumentation in a disposable pinned-head checkout grew the file after Lstat: the reader consumed 4,194,304 bytes against a 1,048,576-byte limit. ARCH-CONSTRAINTS: this is the 2nd finding in family explicit-operating-envelope. Earlier rounds fixed declaration of the bounds; state and enforce the rule across both initial and post-publication reads: consume at most limit+1 bytes, then reject overflow. Add regression coverage for static oversized input and growth after validation.
+
 ## Open findings
 
-- **BR-1** [Important] `partial-progress-recovery` Define recovery after publication succeeds but only part of cleanup completes
-- **BR-6** [Critical] `cleanup-preserves-concurrent-work` (kind: defect) Cleanup can overwrite edits made after its validation
+- **BR-8** [Important] `explicit-operating-envelope` (kind: defect) Enforce the prose limit during reading, not only before and after it

@@ -134,7 +134,7 @@ removes the stranding and the sweep hazard without any new model.
 
 - [x] Publish selected non-issue workshop prose through a main CAS, with
       path, base, concurrency, and local-retention tests; document the path in atlas.
-- [x] Verify the full suite on the repaired code and prepare the issue for close.
+- [ ] Verify the full suite on the repaired code and prepare the issue for close.
 
 ## Log
 
@@ -191,6 +191,8 @@ The resumed recorded suite on 6433ffd3ecd69e3e3b1a0591a4c5002f6f8eaba8 completed
 After #379 landed in PR #247 (e3db93ddb5787059b724fcf04367362921fece9f), merged main 4c52f8a4e712c01c3d764bf53340a5289940fc7b cleanly as d9c48bfb12e0ec56825eb991f586812a00783623. Renewed #240 publication/recovery focused tests pass (/tmp/ariadne240-focused-after379.log). Preparation output/cancellation passes three runs (3.961s), and the explicit pre-canceled control passes (2.274s); logs /tmp/ariadne240-preparation-after379.log and /tmp/ariadne240-preparation-canceled-control.log. Diff whitespace checks pass. The independent blocker is resolved; starting the recorded full suite again before close.
 
 Renewed recorded full suite GREEN on 1e559e8ded87fd4e0d4690c52c0df79dbfc6a570 after #379: all 12 root SDLC shards over 1366 tests and 59 other packages exit 0, zero failures, wall 594.5s (9m55s). Status sdlc-local/suite success; log SHA-256 prefix a3c195ef563e, /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/1e559e8ded87fd4e0d4690c52c0df79dbfc6a570/suite.log. Both repaired preparation controls passed inside the full suite. Local acceptance is complete and the final issue Plan row is checked; entering renewed binary-owned close review of the approved local-retention contract.
+
+Close round 3 returned REWORK. The reviewer disposed BR-1 through BR-7, confirming retention eliminates interrupted cleanup and open-descriptor loss; one Important finding remains: BR-8 proved os.ReadFile consumed 4 MiB after a small-file Lstat despite the 1 MiB contract. Plan revised to cap actual reads at limit+1 for both initial and post-publication reads with deterministic consumption tests; acceptance row reopened for the repaired code. No publication-policy change or bypass.
 
 ### 2026-09-20
 
@@ -317,3 +319,7 @@ implementation slot a cheaper one after review, but neither profile changes
 which issue branch owns the work or relaxes the lifecycle gates. The effective
 harness/model should be observable, while the trunk-routing rules remain
 profile-independent.
+
+### 2026-10-14 — close round 3 bounded-read correction
+
+Retain the existing 1 MiB operating envelope during reading, including growth after metadata validation. Every local read consumes at most limit+1 bytes before overflow refusal. Source bytes are pinned for CAS publication; local rereads govern only non-destructive guidance.

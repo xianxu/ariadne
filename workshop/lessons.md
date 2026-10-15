@@ -770,3 +770,5 @@ The simplest durable authority beats a clever scan of consequences.
 - test2json assigns assertion output to the exact failed subtest. A summary
   that prints only its parent discards the fault; preserve failed child output
   and regression-test it with recorded events (#369).
+
+- File metadata is not a read budget: enforce limit+1 at the reader for both admission and post-effect rereads, and test growth after metadata validation with measured consumption rather than only checking the final error (#240 BR-8).
