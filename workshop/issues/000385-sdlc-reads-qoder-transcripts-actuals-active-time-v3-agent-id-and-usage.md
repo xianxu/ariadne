@@ -201,6 +201,13 @@ was added. Outer collector/renderers and issue parts live in usage.go; actual
 adoption integration lives in actual_qoder_test.go. This supersedes proposed
 file splits/names in the initial plan without adding another runtime owner.
 
+- Final code candidate f509924f894f1830d5e787a13befadf5d9f3e1c1 includes
+  origin/main 1e2e9bd573e7b08366688d10001e95583dd35e97 (merge reports already
+  up to date). Exact-candidate root Qoder/native/partial-subtotal tests pass
+  (10.794s), and all four changed internal package suites pass together.
+  No root test jobs remain. Ready for the recorded full suite once shared
+  scratch capacity/environment is resolved; no suite or close started yet.
+
 - Plan-quality round 2 CLEAN: PQ-1 and PQ-2 addressed, no new findings.
 
 ## Estimate
