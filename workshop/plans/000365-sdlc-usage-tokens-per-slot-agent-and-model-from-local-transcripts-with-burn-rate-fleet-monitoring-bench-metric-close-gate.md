@@ -706,6 +706,164 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: b759d303ec54115d173213a91d3c1a62807f7640
+        tracker_head: e729638a8173ef693fdbe3b8781bccd5497515c4
+        branch_point: cc512f9c673b47c8567ac769c75a03882bb3f811
+        since: "2026-10-14T07:39:58-07:00"
+        until: "2026-10-15T03:55:39-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-14T07:39:58-07:00"
+              end: "2026-10-15T03:55:39-07:00"
+              began: "2026-10-14T07:39:58-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fd-1ac0-7a83-826e-60623c226386
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 4efd3e48c6f75b2bed01e70039e1ee9cb99914f89c4ad42e67b2e1bf49a9511d
+              started: "2026-10-14T05:58:30.184Z"
+              spawned: false
+              bytes: 35432852
+              windows:
+                - start: "2026-10-14T07:39:58-07:00"
+                  end: "2026-10-15T03:55:39-07:00"
+            - harness: codex
+              id: 01a13b1c-bf44-71e2-81bd-5d24934b826e
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: e92e937bd36804a2b768db3419fb4733c214f05436d1f73f506d20e37182ed82
+              started: "2026-10-14T15:51:42.429Z"
+              spawned: false
+              bytes: 747338
+              windows:
+                - start: "2026-10-14T15:51:42.429Z"
+                  end: "2026-10-15T03:55:39-07:00"
+            - harness: codex
+              id: 01a13b23-a09c-7d03-9c26-d94c5e01b8a5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 30703dd1110e0f2b3d1f227c181abee39e19bca5930e07c83f34010170f69d20
+              started: "2026-10-14T15:59:13.3Z"
+              spawned: false
+              bytes: 442525
+              windows:
+                - start: "2026-10-14T15:59:13.3Z"
+                  end: "2026-10-15T03:55:39-07:00"
+            - harness: codex
+              id: 01a13b26-2c15-7842-8c20-78ad9adc63ca
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: fb19b09075ef1b879ef0d82858e34e66e2e8954dc02673929d4c561bb98c32a6
+              started: "2026-10-14T16:02:00.404Z"
+              spawned: false
+              bytes: 439211
+              windows:
+                - start: "2026-10-14T16:02:00.404Z"
+                  end: "2026-10-15T03:55:39-07:00"
+            - harness: codex
+              id: 01a13b26-c5e7-7711-8e4a-fc316e11fce7
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: deb59b626263063d9512ef2be32e8b120cd0d3e4b275cd73aab82b52717d5268
+              started: "2026-10-14T16:02:39.61Z"
+              spawned: false
+              bytes: 411362
+              windows:
+                - start: "2026-10-14T16:02:39.61Z"
+                  end: "2026-10-15T03:55:39-07:00"
+            - harness: codex
+              id: 01a13dc2-2285-7ce1-a8e9-4fa83a870304
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a138fd-1ac0-7a83-826e-60623c226386
+              digest: 5ff76b8ba1dd007fde14bae02b98cb89f0a5bc8a3f3143494e5c1cc672cf884f
+              started: "2026-10-15T04:11:35.597Z"
+              spawned: true
+              bytes: 1614584
+              windows:
+                - start: "2026-10-15T04:11:35.597Z"
+                  end: "2026-10-15T03:55:39-07:00"
+            - harness: codex
+              id: 01a13dc2-37b9-7592-a8f7-eea3ca7eef4f
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a138fd-1ac0-7a83-826e-60623c226386
+              digest: bdcf3e0b6da2383e7843506b5b1f546b6866ff3be2fe16bb50caf44d820e6425
+              started: "2026-10-15T04:11:41.014Z"
+              spawned: true
+              bytes: 2133856
+              windows:
+                - start: "2026-10-15T04:11:41.014Z"
+                  end: "2026-10-15T03:55:39-07:00"
+            - harness: codex
+              id: 01a13dc2-4abd-79a2-a84f-bc2a245a476e
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a138fd-1ac0-7a83-826e-60623c226386
+              digest: ee6e32c10573f6e976b656beffee849e1914604ea39edb9531b1fa4f97f0bac6
+              started: "2026-10-15T04:11:45.906Z"
+              spawned: true
+              bytes: 2246216
+              windows:
+                - start: "2026-10-15T04:11:45.906Z"
+                  end: "2026-10-15T03:55:39-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 75.24986666666666
+        cuts:
+            - dispatched: "2026-10-14T21:07:30-07:00"
+              finalized: "2026-10-14T21:11:21-07:00"
+              finalizing: false
+            - dispatched: "2026-10-14T22:50:24-07:00"
+              finalized: "2026-10-14T22:55:38-07:00"
+              finalizing: false
+            - dispatched: "2026-10-15T00:01:55-07:00"
+              finalized: "2026-10-15T00:05:26-07:00"
+              finalizing: false
+            - dispatched: "2026-10-15T01:38:11-07:00"
+              finalized: "2026-10-15T01:43:34-07:00"
+              finalizing: false
+            - dispatched: "2026-10-15T02:56:22-07:00"
+              finalized: "2026-10-15T02:59:36-07:00"
+              finalizing: false
+      "n": 6
+      timestamp: "2026-10-15T03:58:59-07:00"
+      dispatched: "2026-10-15T03:55:52-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Cumulative reconciliation retains uncovered-spend diagnostics; usage package regressions pass.
+          round: 6
+        - id: BR-2
+          disposition: addressed
+          note: Invalid accounting evidence remains quarantined and visible; invalid-artifact and identity regressions pass.
+          round: 6
+        - id: BR-3
+          disposition: addressed
+          note: The plan's Core concepts tables match delivered paths, statuses, and pure versus integration responsibilities.
+          round: 6
+        - id: BR-4
+          disposition: addressed
+          note: Production boundary, planning, and cancellation dispatch-to-accounting regressions pass.
+          round: 6
+        - id: BR-5
+          disposition: addressed
+          note: Discovery and decoding share executing-identity parsing; identity-ordering and model-context regressions pass.
+          round: 6
+        - id: BR-6
+          disposition: addressed
+          note: Reviewer evidence is loaded before issue filtering; cross-issue and cross-repository exclusion regressions pass.
+          round: 6
+        - id: BR-7
+          disposition: addressed
+          note: Receipt reconciliation uses reviewusage.Advance and permits nonspending exemptions only for uncontested launch failures. Collector coverage and contradiction matrices pass. Restoring the pre-fix resolver makes the production Started-versus-launch-failed regression fail with falsely complete coverage and a calibrated forecast; separate compatibility and exemption mutations also fail.
+          round: 6
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: b759d303ec54115d173213a91d3c1a62807f7640
+      blocked: false
 ---
 
 # Gate ledger — ariadne#365 (boundary-review)
@@ -781,6 +939,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-6 — addressed — Reviewer identities load before issue selection; cross-issue and cross-repository exclusion regressions pass.
 - BR-7 — not-addressed — cmd/sdlc/usage_reviewers.go:239-245 accepts incompatible phase copies as canonical progress. A schema-valid Finished/returned private receipt and a Finished/launch-failed sidecar with the same intent and finish timestamp collapse to launch-failed: missing StartedAt/PID and changed Outcome are not checked. Lines 279-280 then exempt the attempt from coverage. A temporary production-collector regression reproduced zero unresolved_reviewer_usage, complete spend/attribution coverage and a calibrated Claude projection with the reviewer transcript absent. Pure probes also reproduce Started versus launch-failed in both input orders. This remains the existing invalid-accounting-evidence-must-remain-visible family. Enforce one rule across all receipt copies: only transition-compatible prefixes may collapse; contradictory launch evidence must retain uncertainty and quarantine identities. Sweep phase pairs, terminal outcomes, missing progress fields and input ordering across private, ledger and comment evidence.
 
+## Round 6 — 2026-10-15T03:58:59-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — Cumulative reconciliation retains uncovered-spend diagnostics; usage package regressions pass.
+- BR-2 — addressed — Invalid accounting evidence remains quarantined and visible; invalid-artifact and identity regressions pass.
+- BR-3 — addressed — The plan's Core concepts tables match delivered paths, statuses, and pure versus integration responsibilities.
+- BR-4 — addressed — Production boundary, planning, and cancellation dispatch-to-accounting regressions pass.
+- BR-5 — addressed — Discovery and decoding share executing-identity parsing; identity-ordering and model-context regressions pass.
+- BR-6 — addressed — Reviewer evidence is loaded before issue filtering; cross-issue and cross-repository exclusion regressions pass.
+- BR-7 — addressed — Receipt reconciliation uses reviewusage.Advance and permits nonspending exemptions only for uncontested launch failures. Collector coverage and contradiction matrices pass. Restoring the pre-fix resolver makes the production Started-versus-launch-failed regression fail with falsely complete coverage and a calibrated forecast; separate compatibility and exemption mutations also fail.
+
 ## Open findings
 
-- **BR-7** [Critical] `invalid-accounting-evidence-must-remain-visible` (kind: defect) Launched reviewers without usable transcript bindings silently report complete coverage
+(none — every finding has been disposed)

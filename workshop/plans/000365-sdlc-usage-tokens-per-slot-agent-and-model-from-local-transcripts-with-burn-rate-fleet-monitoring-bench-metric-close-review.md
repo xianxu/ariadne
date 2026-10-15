@@ -503,3 +503,92 @@ dispose:
 7. **Plan revision recommendations**
 
    Append a `## Revisions` entry defining receipt compatibility through the existing transition model. Require permutation tests covering every phase pair and incompatible terminal outcomes; contradictory launch evidence must never qualify for the non-spending exemption.
+
+---
+
+## Re-review — 2026-10-15T03:58:58-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 365 — sdlc usage: tokens per slot, agent and model from local transcripts, with burn rate (fleet monitoring + bench metric) |
+| repo | ariadne |
+| issue file | workshop/issues/000365-sdlc-usage-tokens-per-slot-agent-and-model-from-local-transcripts-with-burn-rate-fleet-monitoring-bench-metric.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | cc512f9c673b47c8567ac769c75a03882bb3f811..b759d303ec54115d173213a91d3c1a62807f7640 |
+| command | sdlc close --issue 365 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-15T03:58:58-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range satisfies the issue’s Spec and Plan. BR-7 is addressed, including contradictory receipt copies: unresolved reviewer spend remains visible and prevents calibration. Targeted tests pass, and restoring the pre-fix resolver makes the production regression fail. No new blocking findings.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Cumulative reconciliation retains uncovered-spend diagnostics; usage package regressions pass.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Invalid accounting evidence remains quarantined and visible; invalid-artifact and identity regressions pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The plan's Core concepts tables match delivered paths, statuses, and pure versus integration responsibilities.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Production boundary, planning, and cancellation dispatch-to-accounting regressions pass.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Discovery and decoding share executing-identity parsing; identity-ordering and model-context regressions pass.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Reviewer evidence is loaded before issue filtering; cross-issue and cross-repository exclusion regressions pass.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Receipt reconciliation uses reviewusage.Advance and permits nonspending exemptions only for uncontested launch failures. Collector coverage and contradiction matrices pass. Restoring the pre-fix resolver makes the production Started-versus-launch-failed regression fail with falsely complete coverage and a calibrated forecast; separate compatibility and exemption mutations also fail.
+```
+
+1. **Strengths**
+
+   - Global normalization precedes windows and attribution, preserving conflicts across copies (`cmd/sdlc/internal/usage/aggregate.go:13`).
+   - Receipt compatibility reuses the recorder’s transition contract (`cmd/sdlc/usage_reviewers.go:246`).
+   - Unresolved attempts affect both report coverage and calibration inputs (`cmd/sdlc/usage.go:304`, `:344`).
+   - README and atlas updates document the command, accounting semantics, calibration, and limitations.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed usage, reviewusage, and transcripts package tests; reviewer dispatch tests; production accounting tests; retained-reviewer coverage and contradiction matrices; and targeted command, authority, quarantine, and exclusion regressions. The pre-fix production overlay failed as expected. Temporary overlays were removed; the checkout remains clean. Full suite and live-provider conformance were not rerun during this review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — Pass:** shared ownership, identity parsing, and receipt transitions.
+   - **ARCH-PURE — Pass:** normalization, aggregation, calibration, and reconciliation remain deterministic.
+   - **ARCH-PURPOSE — Pass:** worker/reviewer accounting includes explicit uncertainty.
+   - **ARCH-MOCK — Pass:** portable repositories, transcript fixtures, and fake reviewer seams exercise production paths.
+   - **ARCH-CONSTRAINTS — Pass:** explicit scan, line, response, storage, and deadline bounds.
+   - **ARCH-SECURE — Pass:** invalid evidence is validated, quarantined, and diagnosed.
+   - **ARCH-ORDER — Pass:** contradictory confirmations cannot erase known progress or establish nonspending.
+   - **ARCH-FUNERAL — Pass:** meter retention is bounded; receipt admission and committed-evidence cleanup define lifecycle.
+
+7. **Plan revision recommendations:** None.
