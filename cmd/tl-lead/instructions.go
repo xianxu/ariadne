@@ -1,0 +1,159 @@
+package main
+
+import (
+	"errors"
+	"fmt"
+	"io"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"github.com/spf13/cobra"
+)
+
+// instructionsHeading is the operator's section of the status file: their
+// numbered questions and instructions, which the TL only links answers to.
+const instructionsHeading = "Operator instructions"
+
+var (
+	bulletStartRE = regexp.MustCompile(`^\d+\.\s`)
+	answeredRE    = regexp.MustCompile(`→\s*(\[answer\]\(|done:)`)
+)
+
+// Bullet is one operator bullet. Pos is its 1-based position in the section:
+// the operator reuses numbers, so the number never identifies a bullet.
+type Bullet struct {
+	Pos      int
+	Start    int // index of its first line in the section
+	Lines    []string
+	Answered bool
+}
+
+// instructionBullets splits the section body into bullets. A bullet starts at
+// a line `N. ` and runs to the next one or the end of the section, with its
+// trailing blank lines dropped; lines before the first bullet belong to none.
+func instructionBullets(section string) []Bullet {
+	var out []Bullet
+	for i, l := range strings.Split(section, "\n") {
+		switch {
+		case bulletStartRE.MatchString(l):
+			out = append(out, Bullet{Pos: len(out) + 1, Start: i, Lines: []string{l}})
+		case len(out) > 0:
+			b := &out[len(out)-1]
+			b.Lines = append(b.Lines, l)
+		}
+	}
+	for i := range out {
+		b := &out[i]
+		for len(b.Lines) > 1 && strings.TrimSpace(b.Lines[len(b.Lines)-1]) == "" {
+			b.Lines = b.Lines[:len(b.Lines)-1]
+		}
+		b.Answered = answeredRE.MatchString(strings.Join(b.Lines, "\n"))
+	}
+	return out
+}
+
+// errAlreadyLinked: the bullet already carries an answer; nothing to write.
+var errAlreadyLinked = errors.New("already answered")
+
+// linkBullet appends ` → [answer](target)` to bullet pos's last non-blank
+// line and returns the new section body.
+func linkBullet(section string, pos int, target string) (string, error) {
+	bs := instructionBullets(section)
+	if pos < 1 || pos > len(bs) {
+		return "", fmt.Errorf("refused: no bullet %d in ## %s (%d bullets)", pos, instructionsHeading, len(bs))
+	}
+	b := bs[pos-1]
+	if b.Answered {
+		return section, errAlreadyLinked
+	}
+	lines := strings.Split(section, "\n")
+	last := b.Start + len(b.Lines) - 1
+	lines[last] = strings.TrimRight(lines[last], " \t") + " → [answer](" + target + ")"
+	return strings.Join(lines, "\n"), nil
+}
+
+// renderOpen lists the open bullets as `POS<TAB>first line`, continuation
+// lines tab-indented, then the section hash that a later link must name.
+func renderOpen(bs []Bullet, hash string) string {
+	var sb strings.Builder
+	for _, b := range bs {
+		if b.Answered {
+			continue
+		}
+		fmt.Fprintf(&sb, "%d\t%s\n", b.Pos, b.Lines[0])
+		for _, l := range b.Lines[1:] {
+			fmt.Fprintf(&sb, "\t%s\n", l)
+		}
+	}
+	fmt.Fprintf(&sb, "hash: %s\n", hash)
+	return sb.String()
+}
+
+// linkInstruction writes one answer link, pinned to the read `list` reported.
+// Unlike writeSection it never retries on stale: positions come from that
+// read, and recomputing against a newer one could link a different bullet.
+func linkInstruction(ss SessionSync, out io.Writer, file string, pos int, target, hash string) error {
+	cur, h, err := ss.ReadSection(file, instructionsHeading)
+	if err != nil {
+		return refusal(file, instructionsHeading, err)
+	}
+	moved := exitError{6, fmt.Errorf("refused: ## %s changed since list; list again", instructionsHeading)}
+	if h != hash {
+		return moved
+	}
+	body, err := linkBullet(cur, pos, target)
+	if errors.Is(err, errAlreadyLinked) {
+		fmt.Fprintf(out, "bullet %d is already answered; nothing written\n", pos)
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	err = writeBody(body, func(path string) error { return ss.WriteSection(file, instructionsHeading, path, hash, nil) })
+	if errors.Is(err, ErrStale) {
+		return moved
+	}
+	if err != nil {
+		return refusal(file, instructionsHeading, err)
+	}
+	fmt.Fprintf(out, "linked bullet %d → %s\n", pos, target)
+	return nil
+}
+
+func newInstructionsCmd(d deps) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "instructions",
+		Short: "Read ## Operator instructions and link answers to its bullets (by position; numbers repeat)",
+	}
+	list := &cobra.Command{
+		Use:   "list FILE",
+		Short: "Print the open (unanswered) bullets by position, then the section hash",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			body, hash, err := d.ss.ReadSection(args[0], instructionsHeading)
+			if err != nil {
+				return refusal(args[0], instructionsHeading, err)
+			}
+			fmt.Fprint(cmd.OutOrStdout(), renderOpen(instructionBullets(body), hash))
+			return nil
+		},
+	}
+	var hash string
+	link := &cobra.Command{
+		Use:   "link FILE POS TARGET --hash H",
+		Short: "Append ' → [answer](TARGET)' to bullet POS, if the section still has the hash list printed",
+		Args:  cobra.ExactArgs(3),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			pos, err := strconv.Atoi(args[1])
+			if err != nil {
+				return fmt.Errorf("refused: POS %q is not a number", args[1])
+			}
+			return linkInstruction(d.ss, cmd.OutOrStdout(), args[0], pos, args[2], hash)
+		},
+	}
+	link.Flags().StringVar(&hash, "hash", "", "the section hash `list` printed (required)")
+	_ = link.MarkFlagRequired("hash")
+	c.AddCommand(list, link)
+	return c
+}

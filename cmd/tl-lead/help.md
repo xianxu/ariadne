@@ -111,9 +111,15 @@ TALKING TO THE OPERATOR
     `couch --notify [--title T] MESSAGE` (pair#540; hub-only, and slots' own
     terminal notifications are swallowed, so the hub is the one voice).
     Everything else waits in the status file.
+  - Keep the agent pane quiet. Input the operator types in the draft pane gets
+    a normal reply there. Input from the status file or a QA file is answered
+    in files, with at most one line in the pane. Routine worker reports go to
+    the status file and the digest; the pane carries decisions and act-now
+    items.
   - Keep a live status file for the operator's right pane:
     teams/<team>/tl-status-<operator>.md, frontmatter `type: session-sync`,
-    `couch-owner: <hub slot>`, `operator: <slug>`. It is state, not a log:
+    `couch-owner: <hub slot>` (couch still reads the older `owner:`),
+    `operator: <slug>`. It is state, not a log:
     rewrite it in place, about one screen, gitignored. Every worker report
     updates it in the same turn, before you reply to the operator.
   - The status file is the source of truth for mutual focus: anything listed
@@ -122,8 +128,11 @@ TALKING TO THE OPERATOR
     current together. When a thread appears here, sweep its project file in
     the same pass.
   - Its sections, in order:
-    1. `## Needs you`: decisions and actions for the operator, each with your
-       recommendation. Queue several in order; never bury one in a thread.
+    0. `## Operator instructions`: the operator's (see below).
+    1. `## Needs you`: only asks, a decision or an action the operator must
+       take, each with your recommendation. No status here; status goes to
+       Threads. Queue several in order; never bury one in a thread. Remove an
+       item the moment it is done.
     2. `## Quota`: one line per coding agent with whatever its meter shows and
        when it was read (Claude's weekly % and reset, Codex's credits or
        weekly %, Qoder's credits), for a sense of whether an agent's limit is
@@ -143,7 +152,31 @@ TALKING TO THE OPERATOR
        model where it matters), then the free slots.
     Per-issue detail lives in the issue file; the digest carries landed lists
     and friction.
-  - Render from sources, never by hand, on every pass:
+  - `## Operator instructions` belongs to the operator: their questions and
+    instructions, numbered. Never edit, delete or reorder those lines, and add
+    no 🤖 markers there. Your only write is appending
+    ` → [answer](qa/…)` to a bullet, and every bullet gets one, questions and
+    instructions alike (an instruction's file records what was done and
+    where). An unlinked bullet is open; the operator deletes a bullet when
+    satisfied. Bullets are addressed by position, since the operator reuses
+    numbers:
+      tl-lead status instructions list FILE
+      tl-lead status instructions link FILE POS TARGET --hash H
+    `list` prints the open bullets with their positions and the section's
+    hash; `link` refuses (exit 6) if the section changed since that hash,
+    because the positions may now name other bullets: list again.
+  - QA files hold the answers: teams/<team>/qa/<operator>/YYYY-MM-DD-NN-<slug>.md,
+    gitignored like the status file. Each opens with the frontmatter
+    `process-instruction: "[free-form] answer the operator's 🤖 comments in place"`
+    (so a send needs no prompt), the question as its title, and a plain
+    relative backlink to the status file, with no `#anchor` (parley's open
+    falls back to gf, which reads `#` as part of the filename). An answer file
+    answers only the question asked; Needs you and status stay in the status
+    file.
+  - Render sections from binaries wherever possible, on every pass. Hand-write
+    only judgment (Operator instructions answers, Needs you, the why of a
+    thread), and take even its facts from `sdlc`. A fact you retype every pass
+    is the next piece to lift into a binary.
     `tl-lead status slots FILE` renders `## Slots` from `sdlc fleet inventory`,
     each slot's issue (`sdlc issue show`) and its checkout's issue file, and
     writes it; it takes about as long as the inventory, ten-odd seconds.
@@ -156,7 +189,8 @@ TALKING TO THE OPERATOR
   - Session-sync editing is pessimistic for the operator and optimistic for
     you. The operator's lock is the only lock: while it is held every write
     refuses (exit 3), so queue the update and fold it in after their submit, and
-    never override a lock. You hold nothing between commands. Write only
+    never override a lock. A lock with no submit stays: mention in chat that
+    updates are waiting on it. You hold nothing between commands. Write only
     through `tl-lead status`, which does the compare-and-replace loop (read the
     hash, compute from that read, write naming it, retry on stale; exit 6 after
     four) and passes arguments as a list, never through a shell:
@@ -204,8 +238,12 @@ DISPATCH
   - Pick parallel issues that touch separate code, and name any expected
     overlap up front. One issue, one branch, from main: work on unlanded code
     waits.
-  - File each issue from the checkout of the slot that should own it, or
-    `sdlc unclaim` it right after: `sdlc issue new` claims for the filing slot.
+  - Filing an issue: `sdlc issue new` from a numbered slot's checkout claims
+    the issue for that slot. File from the slot that will own it, or, filing
+    for later or for another slot, `sdlc unclaim` it right after publishing.
+    Fill Problem, Spec and Done when before publishing; publish with
+    `sdlc issue publish --issue N`, then reset that checkout's workshop/issues
+    and fast-forward its resting branch.
   - Prepare the slot before every dispatch (`couch --prepare repo:N --confirm`):
     a slot builds sdlc and the layer tools from its own substrate checkout, so
     an unprepared slot runs stale gates. After an sdlc or weave fix lands,
@@ -223,6 +261,13 @@ WATCHING
   - Poll every send the recipient waits on until it reads `submitted`; resend
     on `expired`. On an uncertain outcome, peek before resending: a blind
     resend duplicates the message and spends the recipient's allowance.
+  - Verify the slots after a disruption: a network outage, a Couch restart or
+    exit, a machine sleep, a load spike, a broadcast. Peek every slot that was
+    working (`couch --peek <slot> --lines 6`). "Working (…)" is fine; a slot
+    idle with an error or a stopped turn gets a targeted nudge, and you
+    confirm its delivery with `--message-status`, retrying once load drops. A
+    sent or "outcome uncertain" message is not evidence the slot resumed.
+    Report which slots were stalled.
   - Free for new work means idle, on its resting branch, clean, and with no
     claim in progress. Idle is not free: a quiet slot may be waiting on a
     question.
@@ -267,6 +312,9 @@ THE SMOKE LOOP VIA `sdlc stage`
 
 ATTENTION AND LOAD
   - Needs you stays short and current.
+  - Glance at CI on main every pass, per repo:
+    `gh run list --repo <owner>/<repo> --branch main --limit 5`. A red main
+    goes into the status file and gets an issue and a slot that same pass.
   - Catch a silent slot within the hour, not by morning.
   - After every landing, render every project's trains and dispatch any idle
     slot that has a next car, before returning to the busy project: an idle
