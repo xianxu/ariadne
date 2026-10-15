@@ -447,3 +447,54 @@ dispose:
    - **ARCH-PURPOSE — Pass:** Covers both initialization and publication failure isolation. No new CLI or architectural surface requires README or atlas changes.
 
 7. **Plan revision recommendations:** None.
+
+---
+
+## Re-review — 2026-10-15T03:17:28-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 376 — Test economy: measure suite wall time, per-package time, queue wait and flake rate from recorded local checks (sdlc test-stats) |
+| repo | ariadne |
+| issue file | workshop/issues/000376-test-economy-measure-suite-wall-time-per-package-time-queue-wait-and-flake-rate-from-recorded-local-checks-sdlc-test-stats.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 5868c85ef81545d1b117eba41633e9727276c320..31640f116181c6a5a2ca032eaa4d94099cf7f4c9 |
+| command | sdlc close --issue 376 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-15T03:17:28-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The conflict resolution preserves both queue-wait measurement and prompt suite-slot release. Focused tests pass, and the interdiff introduces no identified defects or scope changes. No prior findings remain open.
+
+```findings
+{}
+```
+
+1. **Strengths**
+   - Queue timing brackets acquisition correctly (`cmd/sdlc/localcheck_run.go:96–101`).
+   - Deferred release protects early returns while preserving release immediately after execution.
+   - Existing integration tests exercise real lock contention, retries, and release before status posting.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes:** Focused runner, queue timing, slot lifecycle, retry, and telemetry-failure tests passed. `git diff --check` passed. Full suite not rerun; checkout unchanged.
+
+6. **Architectural notes**
+   - **ARCH-DRY — Pass:** Reuses existing acquisition and release mechanisms.
+   - **ARCH-PURE — Pass:** Changes remain within the IO shell.
+   - **ARCH-PURPOSE — Pass:** Resolution retains both sides’ intended behavior. No new surface requires README or atlas updates.
+
+7. **Plan revision recommendations:** None.
