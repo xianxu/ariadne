@@ -1,12 +1,20 @@
 ---
 id: 000371
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-14
-updated: 2026-10-14
+updated: 2026-10-15
 estimate_hours:
-card_mirror: '7e44a9c578ecc7c07c91bf0b7058bb557b2a4948' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '70d425a7172013f510a4020023f7460fabbe7069' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-15T00:11:03-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # sdlc issue new --details FILE: file an issue with its body in one call (today: new, edit, publish)
@@ -26,8 +34,21 @@ Filing an issue with content takes three steps: `sdlc issue new "title"` (publis
 
 ## Plan
 
-- [ ]
+**Design.**
+- **Pure core** (`internal/issue`, ARCH-PURE):
+  - `ParseDetails(text) (map[string]string, error)` reads a details file. It holds `## <Section>` blocks only, scanned fence-aware with `markdoc.ScanMarkdownLines`, so a `## ` inside a code fence is body text.
+  - Refused: frontmatter; a `# ` H1 (the title is the positional argument; a second H1 would also break `SplitCardWithFormat`); text before the first `##`; a heading that isn't one of the model's sections (`vocab.Issue().Sections()`); a section given twice; an empty file.
+  - `ScaffoldSpec` gains `Sections map[string]string`. `Render` uses a supplied section's body in place of its seed. Sections not supplied keep the template's, including Log's dated heading.
+  - `ProblemBody` (`--from-github`) stays as it is. A `--details` that also carries `## Problem` together with `--from-github` is refused: two sources for one section.
+- **Shell** (`issue.go`): `--details FILE` (`-` for stdin) is read and parsed in `runIssueNew` before `openTracker` reserves anything. A bad file refuses with no ID taken and nothing on origin. The parsed sections go through the existing `render(id)` closure, so the card and the full details go in the one creation commit behind the existing receipt, and `checkDraft`'s bundle validation runs on the result. `--dry-run` prints the merged body. Nothing is written to the checkout; the details file is only read. The legacy path (`runLegacyIssueNew`) passes the same `Sections` to `Render`, so `--details` works there too.
+- **`--no-claim`** (the TL's ask): filed from a numbered slot, the issue stays unclaimed. It skips `claimAtCreation` and prints the same unclaimed line as filing from `:0`. This replaces new-then-unclaim for filing on another slot's behalf.
+- **ARCH-SECURE:** the details file is untrusted input, turned into a typed `map[section]body` at the boundary. Unknown structure refuses rather than guesses. **ARCH-ORDER:** validate before reserving, so a refusal has no effects. **ARCH-FUNERAL:** creates nothing new. **ARCH-MOCK:** the tests use the existing `newTrackerRepo` fake origin.
+
+- [ ] `issue.ParseDetails` and `Render` sections, with unit tests: a full body; a partial one (missing sections keep the template's); a fenced `## ` stays body; each refusal (frontmatter, H1, preamble, unknown heading, duplicate, empty)
+- [ ] `issue new --details FILE|-` and `--no-claim`. Tests against the fake origin: card and body published in one creation commit, the checkout untouched (`assertCheckoutUntouched`); an invalid file refused before any ID is reserved (the tracker's max ID unchanged, main unchanged); stdin; `--from-github` with a Problem in the file refused; `--no-claim` from a slot leaves it unclaimed; `--dry-run` shows the merged body
+- [ ] Help text for `issue new`, the `sdlc issue --help` contract if it lists the flags, the atlas, and the AGENTS §2 creation line if it names the flow
 
 ## Log
 
 ### 2026-10-14
+- Plan: parse the details into sections before reserving; `Render` takes the sections; `--no-claim` per the TL. Quick flow.
