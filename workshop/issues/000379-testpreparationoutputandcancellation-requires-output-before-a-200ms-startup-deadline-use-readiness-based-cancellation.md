@@ -1,13 +1,21 @@
 ---
 id: 000379
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
 severity: medium
-card_mirror: 'c8a282924e55950d33335cd835294c3526f8c0ec' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '264c8ef0ffea4d4e1fbad8204db8869caa8cf8dd' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-14T17:08:54-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # TestPreparationOutputAndCancellation requires output before a 200ms startup deadline; use readiness-based cancellation
@@ -31,8 +39,14 @@ Prove output retention and cancellation without requiring OS/Git/process startup
 
 ## Plan
 
+- [ ] Make the preparation subprocess write beyond `OutputLimit` and signal readiness before test cancellation; bound only the wait for readiness. Assert the cancellation error, no reviewer call, and capped/truncated evidence.
+- [ ] Add an already-canceled preparation control that accepts empty, untruncated output and still refuses to dispatch the reviewer.
+- [ ] Run focused repetitions and the recorded suite, then close, land, and notify ariadne:5.
+
 ## Log
 
 ### 2026-10-14
 
 Filed unassigned from the primary checkout while #240 remains owned by ariadne:5. Evidence: /tmp/ariadne240-preparation-targeted.log, /tmp/ariadne240-preparation-diagnostic.log and /tmp/ariadne240-preparation-main.log. Full recorded suite failed after 756.0s (1366 SDLC tests, 59 other packages); log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/6433ffd3ecd69e3e3b1a0591a4c5002f6f8eaba8/suite.log, SHA-256 prefix d75cb1db7b6a. Independent repair should land from main before #240 reruns its acceptance suite.
+
+Claimed in ariadne:1. Design keeps production untouched (ARCH-PURE, ARCH-PURPOSE): an explicit signal from the oversized producer, rather than elapsed wall time, establishes that truncation has become observable before cancellation. A pre-canceled control documents that early expiry need not retain output.
