@@ -44,6 +44,7 @@ Detailed design: [test-stats plan](../plans/000376-test-stats-plan.md). The TL a
 ### 2026-10-14
 
 - Claimed in ariadne:1. Source inspection found ariadne's retained suite logs contain shard summaries and pair's contain Go package timings, but the single log per SHA is overwritten by a retry; queue tickets are ephemeral; pair logs lack total wall time. A per-attempt compact record is needed to measure the full Spec going forward. Historical fields that cannot be recovered will be marked unknown (ARCH-PURPOSE), not estimated from file times.
+- Plan-quality round 1 raised PQ-1–PQ-3 (concurrent publication, persisted-input validation, named function tests) and two Minor findings. The durable plan now specifies a private in-flight directory and atomic record marker, safe cleanup, bounded validation, controlled-order tests, reuse of `failingTests`, and an operating envelope. Re-running the gate on that revision.
 
 ## Revisions
 
