@@ -1,5 +1,5 @@
-Open a GitHub pull request for the current issue branch. Pushes with upstream
-tracking and includes touched issues' github_issue links in the PR body.
+Open a GitHub pull request for the current issue branch. Pushes with an explicit refspec
+and includes touched issues' github_issue links in the PR body.
 
 DURABLE WORKSPACES (:0 AND :N)
 
@@ -13,15 +13,15 @@ DURABLE WORKSPACES (:0 AND :N)
   list and Fixes links, push the selected issue branch to that remote, and
   create its PR against main. When the branch already has one open PR, the
   push updates it and the verb reports `updated PR #N to <sha>` — re-run
-  `sdlc pr` after any new commit on the branch. If git pushes but cannot record
-  the upstream (a write-protected .git/config), it warns. This does not
+  `sdlc pr` after any new commit on the branch. Issue publication creates no
+  upstream config; main/resting tracking stays unchanged. This does not
   refresh the resting branch or any dependency. Resting branches and detached
   HEAD cannot be PR subjects.
 
 ORDINARY WORKTREES AND DEPENDENCY CLONES
 
   Keep the legacy flow: compute the merge base of local main and HEAD, build
-  the body, push with `git push -u origin <branch>`, and create the main PR.
+  the body, push with `git push origin refs/heads/<branch>:refs/heads/<branch>`, and create the main PR.
   These repositories publish separately; no recursive dependency publication.
 
 FLAGS

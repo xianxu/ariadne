@@ -309,26 +309,20 @@ func TestLandingPRUpdatesOpenPR(t *testing.T) {
 	}
 }
 
-// #267: git exits 0 when it pushes but cannot write the upstream (a sandbox
-// that denies .git/config); `sdlc pr` must say so rather than drop it.
-func TestLandingPRWarnsUnrecordedUpstream(t *testing.T) {
+// #374: absence of an issue upstream is intentional; publication uses an explicit refspec.
+func TestLandingPRWithoutUpstream(t *testing.T) {
 	roots, _, _ := landingFixture(t, 1)
-	git(t, roots[1], "config", "--unset", "branch."+landingTestBranch+".merge")
-	old := prRunner
-	t.Cleanup(func() { prRunner = old })
-	prRunner = landingHookRunner{gitRunner: prRunner, after: func(root string, args []string) error {
-		if len(args) > 0 && args[0] == "push" {
-			git(t, roots[1], "config", "--unset", "branch."+landingTestBranch+".merge")
-		}
-		return nil
-	}}
+	git(t, roots[1], "config", "--remove-section", "branch."+landingTestBranch)
 	ghClient = &recordingGH{}
 	var errOut strings.Builder
 	if err := runPR(io.Discard, &errOut, &prFlags{IssuesDir: "workshop/issues"}); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(errOut.String(), "upstream") || !strings.Contains(errOut.String(), ".git/config") {
-		t.Fatalf("missing upstream warning: %q", errOut.String())
+	if strings.Contains(errOut.String(), "upstream") {
+		t.Fatalf("unexpected upstream warning: %s", &errOut)
+	}
+	if out, err := landingOptional(prRunner, roots[1], "config", "--get-regexp", `^branch\.`+landingTestBranch+`\.`); err != nil || out != "" {
+		t.Fatal("publication created issue config", out, err)
 	}
 }
 
@@ -424,8 +418,8 @@ func TestLandingInterruptedCleanup(t *testing.T) {
 				}
 				return nil
 			}}
-			if err := runMerge(io.Discard, io.Discard, landingFlags()); err == nil {
-				t.Fatal("expected interruption")
+			if err := runMerge(io.Discard, io.Discard, landingFlags()); (err != nil) != (phase != "config") {
+				t.Fatalf("interruption result for %s: %v", phase, err)
 			}
 			if !failed {
 				t.Fatal("did not reach selected boundary")
@@ -766,8 +760,8 @@ func TestLandingPreservesDirtyRestingRecovery(t *testing.T) {
 			}}
 			err := runMerge(io.Discard, io.Discard, landingFlags())
 			if phase != "after-switch" {
-				if err == nil || !stopped {
-					t.Fatal("missing interruption", err)
+				if (err != nil) != (phase != "after-delete") || !stopped {
+					t.Fatal("unexpected cleanup interruption result", err)
 				}
 				mergeRunner = original
 				dirtyRest()

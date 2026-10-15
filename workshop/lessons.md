@@ -781,3 +781,8 @@ The simplest durable authority beats a clever scan of consequences.
 - Apply declared input bounds before every consumer of the input. A parser that checks only total bytes can still hand an oversized line to regex and failure extraction (#376 BR-7).
 - Exact JSON key validation does not prevent null from becoming a zero-valued nested scalar. Validate required fields, including nested measurement fields, before struct decoding and prove rejected rows never enter aggregates (#376 BR-8).
 - Optional telemetry must not become a precondition for the operation it observes. Test failures both before execution (store reservation) and after execution (publication), and assert the primary result and status still complete (#376 BR-9).
+- Convenience branch tracking is a durable shared-config effect. Before using
+  push --set-upstream, trace the consumers; explicit remote/refspec publication
+  can avoid both the protected config write and its later cleanup. Distinguish
+  required ref retirement from ancillary metadata, and name an automatic retry
+  owner for any retained residue (#374 plan review).
