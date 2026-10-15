@@ -47,5 +47,6 @@ operator (2026-10-15): "say human in that case".
 ## Log
 
 ### 2026-10-15
+- 2026-10-15: closed — Recorded suite sdlc-local/suite green on 035f0447 (main with #385 and #391 merged); the only commit since is the docs-only atlas row (83cf89ad). agentid tests: TestIdentityRoundTrip renders the empty identity as Human and parses it back; Parse(Legacy "sdlc") yields the human identity; the plain-shell and no-session cases in detect_test and #385 qoder_test expect Human; the commit-site sweep (TestEveryCommitSiteStamps) passes. Docs: helptext/agent-id.md, AGENTS.base.md section 12, and the atlas agent-id row.; review verdict: SHIP
 - One source for the value (ARCH-DRY): `Human` and `Legacy` constants in agentid.go; tests reference the constant, not the literal. The only readers of the value are `Parse` and the agentid tests (grep across cmd/ and pkg/), so nothing else needs to change.
 - Coordination: #385 (ariadne:3) adds detect tests expecting "sdlc" for plain-shell cases. #387 lands after it and updates those cases at the main merge (told ariadne:3).
