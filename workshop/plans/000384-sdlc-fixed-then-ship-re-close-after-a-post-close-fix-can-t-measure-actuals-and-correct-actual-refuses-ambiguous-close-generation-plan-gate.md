@@ -15,6 +15,16 @@ rounds:
           family: function-level-test-strategy
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-15T02:51:20-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Lines 67–68 replace correction test inventories with named-function strategies and mechanical guards; line 85 names the resolver and close callers.
+          round: 2
+      blocked: false
+content_hash: 25a1ac2ac7d61405d4f893bf40f9d3522ac334d9af34671b27d1feb1799b0948
 ---
 
 # Gate ledger — ariadne#384 (plan-quality)
@@ -29,6 +39,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-1** [Important] `function-level-test-strategy` (kind: defect) Compress test inventories into strategies for named risky functions
   workshop/plans/000384-reclose-actuals-plan.md:67–68 enumerates test cases that this gate explicitly rejects; replace those inventories with one adversarial-input-class and mechanical-guard strategy per risky function. At line 85, name the actual resolver and close functions instead of “Owned resolver and close caller,” retaining the production lifecycle regression and mutation checks.
 
+## Round 2 — 2026-10-15T02:51:20-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Lines 67–68 replace correction test inventories with named-function strategies and mechanical guards; line 85 names the resolver and close callers.
+
 ## Open findings
 
-- **PQ-1** [Important] `function-level-test-strategy` (kind: defect) Compress test inventories into strategies for named risky functions
+(none — every finding has been disposed)

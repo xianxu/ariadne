@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-15
-estimate_hours:
-card_mirror: 'eac79361280276f335ef1b8f471b83e190ff3ca4' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 1.94
+card_mirror: '08928821f9e14c9ce26bd9b9d35e6372924dc818' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-15T02:37:57-07:00
 claimant:
     operator: Xian Xu
@@ -42,6 +42,26 @@ for ~2 hours with no supported path; the TL unblocked it with `--no-actual` and 
   carried-forward actuals and correct provenance.
 - `correct-actual` on that state either repairs it or names the precise next step; tests cover both.
 
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. Calibration is marked stale by estimate-source; provisional.*
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.25 impl=0.08
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: cross-cutting-refactor design=0.10 impl=0.20
+item: atlas-docs design=0.05 impl=0.08
+item: milestone-review design=0.10 impl=0.20
+design-buffer: 0.15
+total: 1.94
+```
+
+The three smaller modules cover candidate measurement, exact-target selection and recovery admission/transaction verification. Existing Go/Cobra/tracker/attribution libraries cover the stack; no novel library discovery is needed. v2 design uses the thorough-plan discount for those modules (0.3 × 0.2); issue design uses a mid-density 0.5 discount. Implementation entries already apply v3.1's 40% scale once. Familiar terrain is ×1.0. Design 0.68 × 1.15 + implementation 1.16 = 1.942 hours (rounded to 1.94); scope includes production regressions, mutation checks, docs and one close review. Queue wall time is not developer active time.
+
 ## Plan
 
 - [ ] Reproduce measured whole-close -> post-close fix -> fixed-then-ship; pin candidate measurement to the new reviewed head while preserving historical replay.
@@ -69,3 +89,5 @@ Planning note: the first plan write found workshop/plans absent (all prior plans
 TL approved plan 8b8c784c as written (verified Couch receipt 756d7f64-245b-447e-bf1d-08f60d7c41fb). Read pair:2's original Codex transcript at /Users/xianxu/.codex/sessions/2026/10/12/rollout-2026-10-12T22-02-23-01a133a3-eaec-77b3-8c1e-dc4ac6b41fbd.jsonl, command events 2026-10-15T06:39:32Z–06:41:26Z. Confirmed actual/close mismatch and exact correct-actual refusal; prior reviewed d0862f78585dcca647c6494d6a8fd6942d7bf5e1, saved faa2056195acaec505029ab5fbf7e31431c2857f. Original close failed before judge dispatch, not a code-test failure.
 
 Plan-quality round 1 raised PQ-1 (function-level test strategy): refined correction test rows to named-function adversarial classes/mechanical guards. A redundant unchanged-plan dispatch was interrupted before recording another round; no implementation begun. No design scope change.
+
+- Plan-quality round 2 CLEAN: PQ-1 addressed, no open findings. Derived estimate only after this pass, using the named v3.1 calibration and existing library seams.
