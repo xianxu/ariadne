@@ -1,12 +1,20 @@
 ---
 id: 000388
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
-card_mirror: '9a3245e3b7585ff4d641957e03de842627829fc2' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '3ed9ab16c2d43dcf57093109c4e27530a2d7d957' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-15T11:11:59-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead: a deleted Operator-instructions bullet closes its QA file (follow-ups go to Needs you)
@@ -31,8 +39,9 @@ closed QA file, which the operator won't reopen. Add a phrase guard in tl-lead's
 
 ## Plan
 
-- [ ]
+- [x] State the rule in `cmd/tl-lead/help.md` beside the bullet-deletion line; phrase guards in `TestLeadHelpCoversPlaybook`.
 
 ## Log
 
 ### 2026-10-15
+- Rule added to the Operator-instructions paragraph of `tl-lead --help`; two phrase guards (closes, never into the closed file). `go test ./cmd/tl-lead/` green.
