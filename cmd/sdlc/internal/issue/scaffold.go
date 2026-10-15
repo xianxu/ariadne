@@ -207,6 +207,9 @@ type ScaffoldSpec struct {
 	Target      string   // optional; adds a `target:` line when non-empty
 	Area        []string // optional (#348); adds `area: [a, b]` when non-empty
 	Severity    string   // optional (#348); adds `severity:` when non-empty
+	// Sections (#371): a body per section name (ParseDetails), used in place
+	// of the section's seed and dynamic content; sections absent keep them.
+	Sections map[string]string
 }
 
 // Render returns the canonical new-issue file content (trailing newline
@@ -260,6 +263,9 @@ func Render(s ScaffoldSpec) string {
 			content = strings.TrimSpace(s.ProblemBody) // --from-github body, else blank
 		case "Log":
 			content = fmt.Sprintf("### %s", s.Today) // dated session subheading
+		}
+		if body, ok := s.Sections[sec.Name]; ok {
+			content = body
 		}
 		if content == "" {
 			continue
