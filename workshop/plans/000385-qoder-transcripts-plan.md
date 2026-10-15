@@ -415,3 +415,13 @@ Marked verified implementation tasks complete. The issue's final checkbox now
 names implemented output/docs/conformance; full suite, close/SHIP and landing
 remain an explicit pending release sequence, rather than making the landing
 itself a checkbox precondition for the close gate. Scope and Done when unchanged.
+
+### 2026-10-15 — preserve caller cancellation at the new IO seams
+
+The full suite's existing context guard found two background contexts in new
+Qoder scans. Harness.Sources/Select now take caller context, and identity
+Detect/Current/StampCurrent propagate it from command and commit callers.
+Cancelled identity scans are not cached. This is required by ARCH-CONSTRAINTS:
+the two-second identity bound must also respect the enclosing command's lifetime.
+Existing guards stay unchanged; cancellation regressions and the recorded suite
+verify the change before close.

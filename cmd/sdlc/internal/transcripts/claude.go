@@ -1,6 +1,7 @@
 package transcripts
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,13 +22,16 @@ func (claudeHarness) Name() string { return "claude" }
 // Sources returns the transcript dir for each cwd whose encoded folder exists
 // under root — brain + repo only, never an unrelated concurrently-edited folder
 // (those inflate the count, #68). Deliberately not "all folders."
-func (h claudeHarness) Sources(cwds []string) Sources {
+func (h claudeHarness) Sources(ctx context.Context, cwds []string) Sources {
 	if h.root == "" {
 		return Sources{}
 	}
 	var out Sources
 	seen := map[string]bool{}
 	for _, cwd := range cwds {
+		if ctx.Err() != nil {
+			return Sources{}
+		}
 		if cwd == "" {
 			continue
 		}

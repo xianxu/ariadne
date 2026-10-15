@@ -221,6 +221,8 @@ file splits/names in the initial plan without adding another runtime owner.
 
 - Recorded suite on 02cdc490f32e7952d27ca04f9841fac4e000f8d9 failed after 558.4s: all runtime shards/packages passed, but TestVerbContextsReachTrackerReads found background contexts in Qoder identity and transcript selection. Thread caller contexts through both APIs and commit before a new recorded suite; do not change the guard. Failure log: git common dir/sdlc/test-stats/failed/9386958194ea2e6d5bf9b125515098a4.log.
 
+- Context repair verified: existing TestVerbContextsReachTrackerReads (0.770s), TestEveryCommitSiteStamps plus migrate/propagation checks (14.987s), and TestQoderActualCloseOwnershipAndRetainedReplay (31.015s) pass. Identity race suite passed; transcript cancellation/race suite passed. No guard exceptions changed.
+
 ## Estimate
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against

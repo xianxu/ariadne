@@ -167,7 +167,7 @@ func TestWorkspaceMigrationRejectsSameGitRepository(t *testing.T) {
 	t.Chdir(f.Slot)
 	var diag bytes.Buffer
 	msg, died := expectDie(t, func() {
-		_ = runMigrate(&migrateOpts{file: "move.md", destDir: f.Primary, noCleanCheck: true, stderr: &diag})
+		_ = runMigrate(context.Background(), &migrateOpts{file: "move.md", destDir: f.Primary, noCleanCheck: true, stderr: &diag})
 	})
 	if !died || !strings.Contains(msg, "same repo") {
 		t.Fatalf("same repository migration accepted: died=%v msg=%s diag=%s", died, msg, diag.String())
@@ -190,7 +190,7 @@ func TestWorkspacePropagationUsesFleetButRetainsSource(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	if err := runPropagateBase(f.Ordinary, "sample#1", true, &out); err != nil {
+	if err := runPropagateBase(context.Background(), f.Ordinary, "sample#1", true, &out); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "consumer") {

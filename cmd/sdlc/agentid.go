@@ -18,7 +18,7 @@ func NewAgentIDCmd() *cobra.Command {
 		Long: "Placeholder — replaced by helptext.MustGet(\"agent-id\") in main.go.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			id := agentid.Current()
+			id := agentid.Current(cmd.Context())
 			if !asJSON {
 				fmt.Fprintln(cmd.OutOrStdout(), id.Trailer())
 				return nil

@@ -41,7 +41,7 @@ func selectQoderSession(candidates []qoderCandidate, bound string) Identity {
 	return out
 }
 
-func (d Detector) qoderIdentity() Identity {
+func (d Detector) qoderIdentity(parent context.Context) Identity {
 	unknown := Identity{Agent: "qoder"}
 	cwd := d.CWD
 	if cwd == "" {
@@ -56,7 +56,7 @@ func (d Detector) qoderIdentity() Identity {
 	if d.Now != nil {
 		now = d.Now()
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(parent, 2*time.Second)
 	defer cancel()
 	bound := d.Getenv("PAIR_SESSION_ID")
 	// Match names as data rather than interpolating an environment value into a glob.

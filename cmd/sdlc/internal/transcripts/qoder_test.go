@@ -34,10 +34,10 @@ func TestQoderDiscoveryRecordedWorkspaceAndPinnedPrefix(t *testing.T) {
 	data := qoderRows("/repo")
 	path := qoderFixture(t, root, data)
 	h := QoderHarness(root)
-	if got := Select([]string{"/repo"}, []Harness{h}); len(got.Files) != 1 || got.Files[0] != path {
+	if got := Select(context.Background(), []string{"/repo"}, []Harness{h}); len(got.Files) != 1 || got.Files[0] != path {
 		t.Fatalf("sources=%+v", got)
 	}
-	if got := Select([]string{"/misleading/project/slug"}, []Harness{h}); len(got.Files) != 0 {
+	if got := Select(context.Background(), []string{"/misleading/project/slug"}, []Harness{h}); len(got.Files) != 0 {
 		t.Fatalf("slug inferred cwd: %+v", got)
 	}
 	got, warnings, err := DiscoverEvidence(context.Background(), []string{"/repo"}, []Harness{h})
@@ -246,5 +246,18 @@ func TestQoderActualDiscoveryUnrelatedMalformedSourceDoesNotBlock(t *testing.T) 
 	got, warnings, err := DiscoverEvidence(context.Background(), []string{"/repo"}, []Harness{QoderHarness(root)})
 	if err != nil || len(got) != 1 || len(warnings) != 1 {
 		t.Fatalf("unrelated source blocks actual: %+v %v %v", got, warnings, err)
+	}
+}
+
+func TestQoderSourcesReceivesCallerCancellation(t *testing.T) {
+	root := t.TempDir()
+	qoderFixture(t, root, qoderRows("/repo"))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if got := QoderHarness(root).Sources(ctx, []string{"/repo"}); len(got.Files) != 0 {
+		t.Fatalf("canceled Qoder selection returned sources: %+v", got)
+	}
+	if got := Select(ctx, []string{"/repo"}, []Harness{QoderHarness(root)}); len(got.Files) != 0 {
+		t.Fatalf("Select lost caller cancellation: %+v", got)
 	}
 }

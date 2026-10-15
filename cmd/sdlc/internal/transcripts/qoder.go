@@ -20,7 +20,7 @@ type qoderHarness struct{ root string }
 // project-directory label. root is ~/.qoder/projects in production.
 func QoderHarness(root string) Harness { return qoderHarness{root: root} }
 func (qoderHarness) Name() string      { return "qoder" }
-func (h qoderHarness) Sources(cwds []string) Sources {
+func (h qoderHarness) Sources(ctx context.Context, cwds []string) Sources {
 	allowed := map[string]bool{}
 	for _, cwd := range cwds {
 		if cwd != "" {
@@ -32,15 +32,21 @@ func (h qoderHarness) Sources(cwds []string) Sources {
 	}
 	var out Sources
 	_ = filepath.WalkDir(h.root, func(path string, d os.DirEntry, err error) error {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		if err != nil || d.IsDir() || filepath.Ext(path) != ".jsonl" {
 			return nil
 		}
-		s, err := readQoderEvidence(context.Background(), path, -1, nil)
+		s, err := readQoderEvidence(ctx, path, -1, nil)
 		if err == nil && allowed[normalizedPath(s.CWD)] {
 			out.Files = append(out.Files, path)
 		}
 		return nil
 	})
+	if ctx.Err() != nil {
+		return Sources{}
+	}
 	sort.Strings(out.Files)
 	return out
 }

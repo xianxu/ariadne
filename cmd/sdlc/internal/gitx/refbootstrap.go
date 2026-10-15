@@ -175,7 +175,7 @@ func (t *TrunkFile) bootstrapCommit(paths []string, files map[string][]byte, mes
 	if err != nil {
 		return "", err
 	}
-	args := []string{"commit-tree", tree, "-m", agentid.StampCurrent(message)}
+	args := []string{"commit-tree", tree, "-m", agentid.StampCurrent(message, t.operationContext())}
 	if sign {
 		args = append(args, "-S")
 	}

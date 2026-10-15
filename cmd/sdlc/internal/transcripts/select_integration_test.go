@@ -1,6 +1,7 @@
 package transcripts
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -36,7 +37,7 @@ func TestSelectMergesClaudeDirsAndCodexFiles(t *testing.T) {
 	write("other.jsonl", "/w/other") // unrelated cwd → excluded
 
 	hs := []Harness{ClaudeHarness(claudeRoot), CodexHarness(codexRoot)}
-	got := Select([]string{brain, repo}, hs)
+	got := Select(context.Background(), []string{brain, repo}, hs)
 
 	want := Sources{
 		Dirs: []string{claudeRepo}, // only repo has a Claude folder

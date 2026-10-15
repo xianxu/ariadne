@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -177,7 +178,7 @@ func TestRunMigrate_HappyPath(t *testing.T) {
 	srcRoot, dstRoot := migrateRepos(t)
 	var errBuf strings.Builder
 	o := &migrateOpts{file: "data/project/p.md", destDir: "../dst", stderr: &errBuf}
-	if err := runMigrate(o); err != nil {
+	if err := runMigrate(context.Background(), o); err != nil {
 		t.Fatalf("runMigrate: %v\nstderr:\n%s", err, errBuf.String())
 	}
 	got, err := os.ReadFile(filepath.Join(dstRoot, "data/project/p.md"))
@@ -220,7 +221,7 @@ func TestRunMigrate_DanglingRefRefuses(t *testing.T) {
 	gitOut(t, srcRoot, "commit", "-q", "-m", "edit")
 
 	msg, died := expectDie(t, func() {
-		_ = runMigrate(&migrateOpts{file: "data/project/p.md", destDir: "../dst", stderr: io.Discard})
+		_ = runMigrate(context.Background(), &migrateOpts{file: "data/project/p.md", destDir: "../dst", stderr: io.Discard})
 	})
 	if !died {
 		t.Fatal("dangling ref should refuse")
@@ -248,7 +249,7 @@ func TestRunMigrate_Guards(t *testing.T) {
 			t.Fatal(err)
 		}
 		msg, died := expectDie(t, func() {
-			_ = runMigrate(&migrateOpts{file: "data/project/p.md", destDir: "../dst", stderr: io.Discard})
+			_ = runMigrate(context.Background(), &migrateOpts{file: "data/project/p.md", destDir: "../dst", stderr: io.Discard})
 		})
 		if !died || !strings.Contains(msg, "brain") || !strings.Contains(msg, "#171") {
 			t.Errorf("brain-dest refusal wrong (died=%v):\n%s", died, msg)
@@ -257,7 +258,7 @@ func TestRunMigrate_Guards(t *testing.T) {
 	t.Run("dest == source repo", func(t *testing.T) {
 		migrateRepos(t)
 		msg, died := expectDie(t, func() {
-			_ = runMigrate(&migrateOpts{file: "data/project/p.md", destDir: ".", stderr: io.Discard})
+			_ = runMigrate(context.Background(), &migrateOpts{file: "data/project/p.md", destDir: ".", stderr: io.Discard})
 		})
 		if !died || !strings.Contains(msg, "same repo") {
 			t.Errorf("same-repo refusal wrong (died=%v):\n%s", died, msg)
@@ -266,7 +267,7 @@ func TestRunMigrate_Guards(t *testing.T) {
 	t.Run("source outside cwd repo", func(t *testing.T) {
 		migrateRepos(t)
 		msg, died := expectDie(t, func() {
-			_ = runMigrate(&migrateOpts{file: "../dst/workshop/issues/000005-y.md", destDir: "../dst", stderr: io.Discard})
+			_ = runMigrate(context.Background(), &migrateOpts{file: "../dst/workshop/issues/000005-y.md", destDir: "../dst", stderr: io.Discard})
 		})
 		if !died || !strings.Contains(msg, "inside the current repo") {
 			t.Errorf("outside-repo refusal wrong (died=%v):\n%s", died, msg)
@@ -275,7 +276,7 @@ func TestRunMigrate_Guards(t *testing.T) {
 	t.Run("issue-family refuses", func(t *testing.T) {
 		migrateRepos(t)
 		msg, died := expectDie(t, func() {
-			_ = runMigrate(&migrateOpts{file: "workshop/issues/000012-x.md", destDir: "../dst", stderr: io.Discard})
+			_ = runMigrate(context.Background(), &migrateOpts{file: "workshop/issues/000012-x.md", destDir: "../dst", stderr: io.Discard})
 		})
 		if !died || !strings.Contains(msg, "renumber") {
 			t.Errorf("issue-family refusal wrong (died=%v):\n%s", died, msg)
@@ -288,13 +289,13 @@ func TestRunMigrate_Guards(t *testing.T) {
 			t.Fatal(err)
 		}
 		msg, died := expectDie(t, func() {
-			_ = runMigrate(&migrateOpts{file: "data/project/p.md", destDir: "../dst", stderr: io.Discard})
+			_ = runMigrate(context.Background(), &migrateOpts{file: "data/project/p.md", destDir: "../dst", stderr: io.Discard})
 		})
 		if !died || !strings.Contains(msg, "dirty") {
 			t.Errorf("dirty-dest refusal wrong (died=%v):\n%s", died, msg)
 		}
 		var errBuf strings.Builder
-		if err := runMigrate(&migrateOpts{file: "data/project/p.md", destDir: "../dst", noCleanCheck: true, stderr: &errBuf}); err != nil {
+		if err := runMigrate(context.Background(), &migrateOpts{file: "data/project/p.md", destDir: "../dst", noCleanCheck: true, stderr: &errBuf}); err != nil {
 			t.Errorf("--no-clean-check should proceed: %v", err)
 		}
 	})
@@ -308,7 +309,7 @@ func TestRunMigrate_Guards(t *testing.T) {
 			t.Fatal(err)
 		}
 		msg, died := expectDie(t, func() {
-			_ = runMigrate(&migrateOpts{file: "data/project/p.md", destDir: "../dst", noCleanCheck: true, stderr: io.Discard})
+			_ = runMigrate(context.Background(), &migrateOpts{file: "data/project/p.md", destDir: "../dst", noCleanCheck: true, stderr: io.Discard})
 		})
 		if !died || !strings.Contains(msg, "already exists") {
 			t.Errorf("dest-exists refusal wrong (died=%v):\n%s", died, msg)
@@ -320,7 +321,7 @@ func TestRunMigrate_Guards(t *testing.T) {
 			t.Fatal(err)
 		}
 		msg, died := expectDie(t, func() {
-			_ = runMigrate(&migrateOpts{file: "data/project/p.md", destDir: "../dst", stderr: io.Discard})
+			_ = runMigrate(context.Background(), &migrateOpts{file: "data/project/p.md", destDir: "../dst", stderr: io.Discard})
 		})
 		if !died || !strings.Contains(msg, "uncommitted") {
 			t.Errorf("modified-source refusal wrong (died=%v):\n%s", died, msg)
@@ -335,7 +336,7 @@ func TestRunMigrate_Guards(t *testing.T) {
 		}
 		testfix.Repo(t, testfix.At(filepath.Dir(nested), filepath.Base(nested)))
 		msg, died := expectDie(t, func() {
-			_ = runMigrate(&migrateOpts{file: "data/project/p.md", destDir: nested, stderr: io.Discard})
+			_ = runMigrate(context.Background(), &migrateOpts{file: "data/project/p.md", destDir: nested, stderr: io.Discard})
 		})
 		if !died || !strings.Contains(msg, "src#12") {
 			t.Errorf("non-sibling verification refusal wrong (died=%v):\n%s", died, msg)
@@ -348,7 +349,7 @@ func TestRunMigrate_NoCommit(t *testing.T) {
 	srcRoot, dstRoot := migrateRepos(t)
 	srcHead := strings.TrimSpace(gitOut(t, srcRoot, "rev-parse", "HEAD"))
 	dstHead := strings.TrimSpace(gitOut(t, dstRoot, "rev-parse", "HEAD"))
-	if err := runMigrate(&migrateOpts{file: "data/project/p.md", destDir: "../dst", noCommit: true, stderr: io.Discard}); err != nil {
+	if err := runMigrate(context.Background(), &migrateOpts{file: "data/project/p.md", destDir: "../dst", noCommit: true, stderr: io.Discard}); err != nil {
 		t.Fatalf("runMigrate --no-commit: %v", err)
 	}
 	if got := strings.TrimSpace(gitOut(t, dstRoot, "diff", "--cached", "--name-only")); got != "data/project/p.md" {
@@ -382,7 +383,7 @@ func TestRunMigrate_InboundReport(t *testing.T) {
 	gitOut(t, sib, "commit", "-q", "-m", "note")
 
 	var errBuf strings.Builder
-	if err := runMigrate(&migrateOpts{file: "data/project/p.md", destDir: "../dst", stderr: &errBuf}); err != nil {
+	if err := runMigrate(context.Background(), &migrateOpts{file: "data/project/p.md", destDir: "../dst", stderr: &errBuf}); err != nil {
 		t.Fatalf("runMigrate: %v", err)
 	}
 	if !strings.Contains(errBuf.String(), "sib/notes.md:1") {
@@ -403,14 +404,14 @@ func TestRunMigrate_RoundTrip(t *testing.T) {
 		if err := os.Chdir(srcRoot); err != nil {
 			t.Fatal(err)
 		}
-		if err := runMigrate(&migrateOpts{file: "data/project/p.md", destDir: "../dst", stderr: io.Discard}); err != nil {
+		if err := runMigrate(context.Background(), &migrateOpts{file: "data/project/p.md", destDir: "../dst", stderr: io.Discard}); err != nil {
 			t.Fatalf("outbound: %v", err)
 		}
 		// dst → src (roles swap; cwd must be dst — the file's owner)
 		if err := os.Chdir(dstRoot); err != nil {
 			t.Fatal(err)
 		}
-		if err := runMigrate(&migrateOpts{file: "data/project/p.md", destDir: "../src", stderr: io.Discard}); err != nil {
+		if err := runMigrate(context.Background(), &migrateOpts{file: "data/project/p.md", destDir: "../src", stderr: io.Discard}); err != nil {
 			t.Fatalf("return: %v", err)
 		}
 	}
@@ -468,7 +469,7 @@ func TestRunMigrate_SymlinkedCwd(t *testing.T) {
 	// Simulate the shell: logical $PWD through the symlink, same physical dir.
 	t.Setenv("PWD", filepath.Join(link, filepath.Base(srcRoot)))
 	var errBuf strings.Builder
-	if err := runMigrate(&migrateOpts{file: "data/project/p.md", destDir: "../dst", stderr: &errBuf}); err != nil {
+	if err := runMigrate(context.Background(), &migrateOpts{file: "data/project/p.md", destDir: "../dst", stderr: &errBuf}); err != nil {
 		t.Fatalf("runMigrate under symlinked $PWD: %v\nstderr:\n%s", err, errBuf.String())
 	}
 	if _, err := os.Stat(filepath.Join(dstRoot, "data/project/p.md")); err != nil {
@@ -484,7 +485,7 @@ func TestRunMigrate_DestPath(t *testing.T) {
 	t.Run("relocates within the dest repo", func(t *testing.T) {
 		srcRoot, dstRoot := migrateRepos(t)
 		_ = srcRoot
-		if err := runMigrate(&migrateOpts{file: "data/project/p.md", destDir: "../dst", destPath: "docs/moved/q.md", stderr: io.Discard}); err != nil {
+		if err := runMigrate(context.Background(), &migrateOpts{file: "data/project/p.md", destDir: "../dst", destPath: "docs/moved/q.md", stderr: io.Discard}); err != nil {
 			t.Fatalf("runMigrate --dest-path: %v", err)
 		}
 		if _, err := os.Stat(filepath.Join(dstRoot, "docs/moved/q.md")); err != nil {
@@ -497,7 +498,7 @@ func TestRunMigrate_DestPath(t *testing.T) {
 	t.Run("traversal refuses before any write", func(t *testing.T) {
 		srcRoot, dstRoot := migrateRepos(t)
 		msg, died := expectDie(t, func() {
-			_ = runMigrate(&migrateOpts{file: "data/project/p.md", destDir: "../dst", destPath: "../evil.md", stderr: io.Discard})
+			_ = runMigrate(context.Background(), &migrateOpts{file: "data/project/p.md", destDir: "../dst", destPath: "../evil.md", stderr: io.Discard})
 		})
 		if !died || !strings.Contains(msg, "escapes the destination repo") {
 			t.Errorf("traversal refusal wrong (died=%v):\n%s", died, msg)

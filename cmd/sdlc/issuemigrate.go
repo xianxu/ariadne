@@ -618,7 +618,7 @@ func runMigrateReconcile(env *migrateEnv, stdout, stderr io.Writer) error {
 	if err := verifyIndexedAssetBundles(env.trackerEnv, home); err != nil {
 		return rollback(err)
 	}
-	if _, err := env.git("commit", "--no-edit", "-m", agentid.StampCurrent(msg)); err != nil {
+	if _, err := env.git("commit", "--no-edit", "-m", agentid.StampCurrent(msg, env.ctx)); err != nil {
 		return fmt.Errorf("committing the verified cutover merge failed: %w; inspect git status and repair the commit failure, or run git merge --abort", err)
 	}
 	cok(stderr, fmt.Sprintf("%s is across the cutover (merged main's migration commit %s)", env.branch, shortOID(migration)))

@@ -117,7 +117,7 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 		if f.DryRun {
 			fmt.Fprintf(stdout, "Would: git commit -a -m %q\n", msg)
 		} else {
-			if out, gerr := pushRunner.Git("commit", "-a", "-m", agentid.StampCurrent(msg)); gerr != nil {
+			if out, gerr := pushRunner.Git("commit", "-a", "-m", agentid.StampCurrent(msg, ctx)); gerr != nil {
 				die(stderr, fmt.Sprintf("git commit failed: %v\n%s", gerr, out))
 			}
 		}
@@ -205,7 +205,7 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 		if out, gerr := pushRunner.Git(archiveAddArgs(moves)...); gerr != nil {
 			die(stderr, fmt.Sprintf("git add archived paths: %v\n%s", gerr, out))
 		}
-		commitArgs, cerr := archiveCommitArgs(agentid.StampCurrent(archiveCommitMessage), moves)
+		commitArgs, cerr := archiveCommitArgs(agentid.StampCurrent(archiveCommitMessage, ctx), moves)
 		if cerr != nil {
 			die(stderr, cerr.Error())
 		}
@@ -432,7 +432,7 @@ func recoverInterruptedArchive(ctx context.Context, stdout, stderr io.Writer, f 
 	if out, gerr := pushRunner.Git(archiveAddArgs(moves)...); gerr != nil {
 		return false, fmt.Errorf("git add archived paths: %v\n%s", gerr, out)
 	}
-	commitArgs, cerr := archiveCommitArgs(agentid.StampCurrent(archiveCommitMessage), moves)
+	commitArgs, cerr := archiveCommitArgs(agentid.StampCurrent(archiveCommitMessage, ctx), moves)
 	if cerr != nil {
 		return false, cerr
 	}

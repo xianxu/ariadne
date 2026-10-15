@@ -42,7 +42,7 @@ func TestQoderInvokingIdentityUsesProvenance(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			d := Detector{Home: home, Getenv: func(k string) string { return tc.env[k] }, CWD: "/workspace/repo", Now: func() time.Time { return now }}
-			if got := d.Detect().String(); got != tc.want {
+			if got := d.Detect(context.Background()).String(); got != tc.want {
 				t.Fatalf("got %s want %s", got, tc.want)
 			}
 		})
@@ -60,7 +60,7 @@ func TestQoderNativeSingleWorkspaceSession(t *testing.T) {
 		}
 		return ""
 	}, CWD: "/workspace/repo", Now: func() time.Time { return now }}
-	if got := d.Detect().String(); got != "qoder/auto/-" {
+	if got := d.Detect(context.Background()).String(); got != "qoder/auto/-" {
 		t.Fatalf("got %s", got)
 	}
 }
@@ -88,7 +88,7 @@ func TestQoderIdentityDoesNotSkipConflictingMiddle(t *testing.T) {
 		}
 		return ""
 	}, CWD: "/workspace/repo", Now: func() time.Time { return now }}
-	if got := d.Detect().String(); got != "qoder/-/-" {
+	if got := d.Detect(context.Background()).String(); got != "qoder/-/-" {
 		t.Fatalf("skipped conflicting evidence: %s", got)
 	}
 }
@@ -153,7 +153,7 @@ func TestQoderIdentityCanonicalWorkspace(t *testing.T) {
 		}
 		return ""
 	}}
-	if got := d.Detect().String(); got != "qoder/auto/-" {
+	if got := d.Detect(context.Background()).String(); got != "qoder/auto/-" {
 		t.Fatalf("canonical workspace mismatch: %s", got)
 	}
 }
@@ -184,7 +184,45 @@ func TestQoderIdentityContradictoryWorkspaceCopies(t *testing.T) {
 		}
 		return ""
 	}}
-	if got := d.Detect().String(); got != "qoder/-/-" {
+	if got := d.Detect(context.Background()).String(); got != "qoder/-/-" {
 		t.Fatalf("contradictory copy selected: %s", got)
+	}
+}
+
+func TestQoderDetectionHonorsCallerCancellation(t *testing.T) {
+	now := time.Now()
+	home := t.TempDir()
+	qoderFixture(t, home, "one", "/workspace/repo", "auto", now.Add(-time.Minute))
+	d := Detector{Home: home, CWD: "/workspace/repo", Now: func() time.Time { return now }, Getenv: func(k string) string {
+		if k == "QODER_CLI" {
+			return "1"
+		}
+		return ""
+	}}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if got := d.Detect(ctx).String(); got != "qoder/-/-" {
+		t.Fatalf("cancelled scan resolved identity: %s", got)
+	}
+	if got := d.Detect(context.Background()).String(); got != "qoder/auto/-" {
+		t.Fatalf("uncancelled scan: %s", got)
+	}
+}
+
+func TestCurrentDoesNotCacheCancelledDetection(t *testing.T) {
+	t.Cleanup(func() {
+		current.mu.Lock()
+		current.ready, current.identity = false, Identity{}
+		current.mu.Unlock()
+	})
+	t.Setenv(OverrideEnv, "codex/cancelled/high")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if got := Current(ctx).String(); got != "codex/cancelled/high" {
+		t.Fatal(got)
+	}
+	t.Setenv(OverrideEnv, "qoder/retried/-")
+	if got := Current(context.Background()).String(); got != "qoder/retried/-" {
+		t.Fatalf("cancelled detection cached: %s", got)
 	}
 }

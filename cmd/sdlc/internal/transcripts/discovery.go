@@ -110,7 +110,7 @@ func discoverEvidence(ctx context.Context, cwds []string, hs []Harness, qoderLim
 			}
 			continue
 		}
-		sources := Select(cwds, []Harness{h})
+		sources := Select(ctx, cwds, []Harness{h})
 		for _, dir := range sources.Dirs {
 			entries, err := os.ReadDir(dir)
 			if os.IsNotExist(err) {
