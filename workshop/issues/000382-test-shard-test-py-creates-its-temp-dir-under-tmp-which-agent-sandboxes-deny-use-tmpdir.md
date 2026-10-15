@@ -45,6 +45,7 @@ hardcoded `/tmp` temp locations and fix them the same way.
 ## Log
 
 ### 2026-10-14
+- 2026-10-14: closed — Real macOS restricted-root RED/GREEN: both existing test allocators fail before and pass after with writable TMPDIR and raw /tmp denied; focused TestShardedReportRetainsSubtestDiagnostics passed. Recorded sdlc-local/suite passed on integrated 517df7de: 12 shards, 1368 cmd/sdlc tests, 59 packages, zero failures, 564.3s. Sweep and commented protocol exceptions documented. Existing test bugfix introduces no architectural surface (--no-atlas). (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 Claimed ariadne:5 and started from fresh main. The authorized small design is to let Python tempfile select its environment-configured root, removing explicit /tmp overrides rather than adding another fallback policy (ARCH-DRY). Initial inventory found the report test and embedded Python in scripts/test/slot-dependencies.test.sh. Wider scratch-state findings were sent to the hub for scope guidance: brainstorming start/stop is a coupled managed-skill protocol, and close-issue.py uses a warmup counter file rather than a temporary directory. A documented allocation-denial check will execute the real report test with a custom writable TMPDIR and reject temporary allocations outside it; the issue explicitly permits a documented check.
 
