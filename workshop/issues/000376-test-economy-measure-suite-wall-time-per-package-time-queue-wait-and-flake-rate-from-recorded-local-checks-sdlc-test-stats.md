@@ -1,12 +1,12 @@
 ---
 id: 000376
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-14
-updated: 2026-10-14
+updated: 2026-10-15
 estimate_hours: 3.48
-card_mirror: '59a5dbff06fab52bc6a7a0daf717f88f901fb6b6' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b92bc0b1ddeedddc84e304c6051ad39d65cd3b9a' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T20:40:09-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 5.72
 ---
 
 # Test economy: measure suite wall time, per-package time, queue wait and flake rate from recorded local checks (sdlc test-stats)
