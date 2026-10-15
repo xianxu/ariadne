@@ -1,12 +1,20 @@
 ---
 id: 000373
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-14
-updated: 2026-10-14
+updated: 2026-10-15
 estimate_hours:
-card_mirror: 'a49b3038e86955994f27e6414d7d6367d99bdcd3' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ebcf05fad7b51c7bd8cf07eebe661a1f4a05bf69' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-15T01:00:50-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Project lifecycle verbs: sdlc project tick/close, and landing ticks the referencing project's item automatically
@@ -26,7 +34,15 @@ Projects are hand-maintained files (`workshop/projects/…`, ops `teams/*/projec
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000373-project-lifecycle-verbs-plan.md`.
+
+- [ ] Pure core: `TickLandedIssue`, `MVPProgress` (mvp-landed guard on it)
+- [ ] `tickLanded` + `sdlc project tick` (origin publish via TrunkFile, TL-owned allowed)
+- [ ] merge post-archive hook
+- [ ] `project status` MVP + done_when
+- [ ] `project close` --verified, MVP re-check, --dry-run, symlinked record
+- [ ] docs: helptext, project datatype ownership, atlas
+- [ ] verify on ariadne-robustness-1 (dry-run), full suite
 
 ## Log
 
