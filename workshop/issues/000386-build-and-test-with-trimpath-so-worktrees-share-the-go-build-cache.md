@@ -43,8 +43,9 @@ minutes. The operator approved building with `-trimpath`.
 
 ## Plan
 
-- [ ] Run the unchanged full suite with GOFLAGS=-trimpath through the normal machine gate. Capture exact head, output, duration and any failures. Repair demonstrated source-path assumptions with the existing cwd/Git/module-root helpers; add a regression for each discovered problem. No speculative path refactor.
+- [x] Run the unchanged full suite with GOFLAGS=-trimpath through the normal machine gate. Capture exact head, output, duration and any failures. Repair demonstrated source-path assumptions with the existing cwd/Git/module-root helpers; add a regression for each discovered problem. No speculative path refactor.
 - [ ] Make the owner Makefile export effective Go flags plus -trimpath by default, retaining environment/go-env flags (currently -p=3). Add .sdlc/local-checks.json declaring required suite argv [make, test], weight 2 and timeout 60 minutes: the existing execution settings, with trimming inherited from the tested Makefile. Add an execution regression in scripts/test/trimpath_test.go exercising real owner build/test recipes with a temporary tracing Go/Python fixture, checking trimpath plus preserved flags. Run RED/GREEN and remove the default in a temporary mutation to prove this test fails.
+- [ ] Add -trimpath to construct/dev-aliases.sh's existing emitter only, including its example. Extend the existing emitted-function execution fixture in construct/scripts/test/dev-aliases.test.sh; run RED/GREEN and remove the emitted flag once to prove the regression.
 - [ ] Measure one unchanged package (pkg/vocab) in two clean temporary Git worktrees of the same pinned commit, using a private shared cache per mode. Compare untrimmed A/B versus trimmed A/B: archive cache path/build ID, second-worktree compile actions, elapsed time and cache growth. Keep Go version/flags/head in the Log; do not clear the machine's cache. Remove owned worktrees and private caches after capturing results.
 - [ ] Document the defaults and direct-Go opt-in in README and the existing build/test atlas section. Publish a PR, run the recorded full suite on its pushed head with trimming enabled by default, and record evidence. Obtain operator verification for the protected .sdlc declaration, then close through mandatory review and land on SHIP.
 
@@ -54,7 +55,7 @@ Recommended approach: set the repository's effective GOFLAGS once in its owner M
 
 The recorded suite currently uses fallback make test because no .sdlc/local-checks.json exists. The new declaration keeps the same argv, required enforcement, weight and timeout; it makes the repo's suite explicit without changing sdlc's configuration authority. The pre-landing runner reads the declaration from main, so verification of this PR still uses main's equivalent fallback and the candidate's Makefile. The operator must apply local-gates-verified after inspecting the concrete PR; the agent never applies it.
 
-Core concepts: no new domain entity or lifecycle. Integration surfaces are the owner Makefile (modified, Go subprocess environment), .sdlc/local-checks.json (new, existing recorded-check schema) and scripts/test/trimpath_test.go (new regression through real Make recipes). Existing fake executable fixtures persist argv/environment observations in a private test folder; the two-worktree measurement is live Go-cache conformance. No generic build wrapper or cache manager is introduced.
+Core concepts: no new domain entity or lifecycle. Integration surfaces are the owner Makefile (modified, Go subprocess environment), .sdlc/local-checks.json (new, existing recorded-check schema) scripts/test/trimpath_test.go (new regression through real Make recipes), and construct/dev-aliases.sh (modified emitted Go argv, existing execution fixture). Existing fake executable fixtures persist argv/environment observations in a private test folder; the two-worktree measurement is live Go-cache conformance. No generic build wrapper or cache manager is introduced.
 
 The path inventory found no runtime.Caller/Callers/FuncForPC/go-build source lookup. Existing repoRootForTest/realRepoRoot use Git/cwd, and package helpers walk to go.mod. Full-suite execution is the acceptance proof, including nested builds and stage VCS metadata checks (ARCH-PURPOSE).
 
@@ -70,6 +71,14 @@ Read-only source inventory (including a delegated independent sweep) found no co
 
 Plan is inside the quick-flow shell unless demonstrated fixes expand it. No implementation edits or suite started before the committed plan is sent to the hub.
 
+### 2026-10-15 — approved scope and baseline verification
+
+Verified TL approval receipt 7cc52a6b-ec83-4141-a1b8-14ef6a6ca6f6: plan 09917b82 approved, with the generic dev-alias emitter also in scope because it builds every peer owner in each worktree. Keep that production change to the flag itself. TL will request the operator's local-gates label once the concrete PR is available.
+
+Unchanged-source baseline at 09917b82befd712f7d2fa96cc8f40b047d153d88 passed with GOFLAGS='-p=3 -trimpath' (existing cap retained): make test exit 0, 639.2s execution after 694s gate wait, 12 shards / 1485 cmd/sdlc tests and 62 other packages, zero failures. Log: /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne386-baseline-w33e6s6c.log. No demonstrated absolute-source-path dependency, so no speculative path-helper change. Checkout stayed unchanged through the suite.
+
 ## Revisions
 
 - 2026-10-15 — Clarify repository-scoped default flag inheritance and equivalent explicit recorded-suite settings, preserve existing Go flags, and include a measured untrimmed control. Original purpose and Done-when unchanged.
+
+- 2026-10-15T11:19-07:00 — TL approval explicitly includes construct/dev-aliases.sh's flag-only emitter change across peer owners. Supersedes the proposed emitter exclusion in the initial Log; current Plan and integration inventory include the existing emitter/test seam. Done-when unchanged.
