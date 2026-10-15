@@ -64,8 +64,9 @@ Durable design: [Qoder transcript measurements](../plans/000385-qoder-transcript
 - [x] Native columns and coverage across fleet/slot/model/issue/hourly output;
   documentation, conformance and targeted regression checks.
 
-Release sequence: recorded exact-head full suite passed; shared close review
-to SHIP, PR and merge remain pending. These gates follow completed implementation.
+Publication uses sdlc pr and sdlc merge after the recorded exact-code suite
+and shared close review return a passing result and SHIP. These gates follow
+completed implementation; the card and landing receipt record publication.
 
 ## Log
 

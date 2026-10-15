@@ -280,12 +280,12 @@ behavior tests, then the minimum implementation, green verification and a commit
 - [x] Read-only live conformance against the supplied sample: normalized 117
   responses, exact 45.938730726457140528 credits, null tokens, auto/null effort,
   recorded workspace. Record commands/hashes, never raw records.
-- [ ] Reconcile delivered concept/file inventory, update issue verification, merge
+- [x] Reconcile delivered concept/file inventory, update issue verification, merge
   origin/main, then run sdlc local-check run --name suite on the exact candidate
   in the background. Inspect its complete result before shared sdlc close;
   measured adoption and its one fresh-context boundary review must reach SHIP.
   Direct make calls use make -k. Fix or dispute findings through their ledger.
-- [ ] Land with sdlc pr and sdlc merge, verify real hashes with git rev-parse and
+Publication procedure: land with sdlc pr and sdlc merge, verify real hashes with git rev-parse and
   report the PR/commits to the hub. Honor moved-main/exact-suite requirements;
   no self-applied local-gates label or CI bypass.
 
@@ -479,3 +479,11 @@ before warning propagation, then passed after the fix. Same-size/same-mtime
 pathname replacement is rejected by inode identity. Both actual/adoption paths,
 usage compatibility and the context guard pass together; transcript race checks
 pass. A new recorded suite and fresh close review remain required before landing.
+
+### 2026-10-15 — accepted implementation and publication procedure
+
+The exact-code suite passed and shared close round 3 returned SHIP, disposing
+BR-3 with no new findings. All implementation/verification tasks above are
+complete. Publication remains the binary-owned PR/merge procedure; it is stated
+as a procedure rather than an implementation checkbox that would prematurely
+claim a not-yet-completed landing. The card and landing receipt record its result.
