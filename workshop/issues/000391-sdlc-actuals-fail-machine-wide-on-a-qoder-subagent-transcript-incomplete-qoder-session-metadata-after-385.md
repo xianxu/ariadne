@@ -45,8 +45,8 @@ the whole measurement fail. Since every close/actual scans the transcript roots,
 
 ## Plan
 
-- [ ] Reproduce native nested subagent layout and unclassifiable-file failures with fixtures.
-- [ ] Warn and skip unclassifiable Qoder sources; keep positively owned failures and cancellation fatal through shared discovery (ARCH-DRY). Identity already scans only top-level sessions.
+- [x] Reproduce native nested subagent layout and unclassifiable-file failures with fixtures.
+- [x] Warn and skip unclassifiable Qoder sources; keep positively owned failures and cancellation fatal through shared discovery (ARCH-DRY). Identity already scans only top-level sessions.
 - [ ] Verify actual/close adoption, run recorded suite, close on SHIP and land; notify ariadne:4 and hub.
 
 ## Log
@@ -54,3 +54,5 @@ the whole measurement fail. Since every close/actual scans the transcript roots,
 ### 2026-10-15
 
 Measured native child: project/parent-session/subagents/agent-aExplore-ID.jsonl contains user/assistant rows with parent sessionId, agentId and isSidechain=true, but no workspace-directories or runtime-config. Recursively requiring standalone session metadata makes this unresolved file fatal fleet-wide. Use the operator-approved skip-with-diagnostic approach rather than inventing inherited metadata. Existing limits, immutable prefix validation, known-owner failures and cancellation remain enforced; no new state or retained artifacts (ARCH-PURE, ARCH-SECURE, ARCH-FUNERAL).
+
+Regression red: native child and four unclassifiable scenarios failed actual/close adoption before the fix. Green: all root TestQoder tests passed (42.575s); transcripts normal and race suites passed. Candidate actual --issue 387 computes with eight explicit skipped-source warnings. Shared actual --issue 391 still fails on the first child; close will use shared sdlc with --no-actual (known installed measurement regression, no invented hours), then remeasurement can follow the rebuild.

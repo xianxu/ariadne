@@ -1973,10 +1973,12 @@ metadata/configuration interpretation for usage, actuals and agent identity.
 Discovery reads `~/.qoder/projects/*/*.jsonl`, matches recorded
 workspace-directories rather than project slugs, and preserves immutable session
 identity across replays. Actuals/close use the existing ownership and pinned
-prefix evidence path. Failed Qoder sources block automatic actual adoption while
-workspace relevance is unresolved or relevant. Only a completely scanned, valid,
-immutable prefix proving all recorded roots unrelated permits exclusion; an
-early foreign cwd cannot justify skipping a damaged or truncated source.
+prefix evidence path. Failed Qoder sources with a recorded requested workspace
+block automatic actual adoption. Unclassifiable files, including native
+session/subagents/agent-*.jsonl sidechains without workspace metadata, are skipped
+with path/reason warnings rather than blocking unrelated issues. Identity scans
+only top-level sessions. Usage retains unbound sources in its unknown-slot
+coverage; skipped actual sources are not attributed by directory-name guesses.
 
 Agent identity checks QODER_CLI before competing native-agent markers; Qoder
 also exports CLAUDE_PLUGIN_* variables, which do not prove Claude invocation.

@@ -237,15 +237,15 @@ func TestQoderActualDiscoveryRefusesPartialOwnedEvidence(t *testing.T) {
 		})
 	}
 }
-func TestQoderActualDiscoveryUnresolvedForeignSourceBlocks(t *testing.T) {
+func TestQoderActualDiscoveryReportsUnresolvedForeignSource(t *testing.T) {
 	root := t.TempDir()
 	path := qoderFixture(t, root, qoderRows("/repo"))
 	if err := os.WriteFile(filepath.Join(filepath.Dir(path), "bad-unrelated.jsonl"), []byte(strings.ReplaceAll(qoderRows("/other"), `"S"`, `"other"`)+"not-json\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	got, warnings, err := DiscoverEvidence(context.Background(), []string{"/repo"}, []Harness{QoderHarness(root)})
-	if err == nil || len(got) != 0 {
-		t.Fatalf("unresolved foreign source allowed partial actual: %+v %v %v", got, warnings, err)
+	if err != nil || len(got) != 1 || len(warnings) != 1 {
+		t.Fatalf("unclassifiable foreign source should be reported: %+v %v %v", got, warnings, err)
 	}
 }
 
@@ -266,39 +266,47 @@ func TestQoderActualDiscoveryUnknownOwnershipFailureMatrix(t *testing.T) {
 	for _, cwd := range []string{"/repo", "/foreign"} {
 		rows := qoderRows(cwd)
 		parts := strings.SplitN(rows, "\n", 2)
-		for _, bad := range []string{
-			"not-json\n" + rows,
-			parts[0] + "\nnot-json\n" + parts[1],
-			rows + "not-json\n",
-			strings.Repeat("x", UsageLineLimit+1) + "\n" + rows,
-			rows + strings.Repeat("x", UsageLineLimit+1) + "\n",
-			strings.Repeat("{}\n", qoderRecordLimit+1) + rows,
-			rows + strings.Repeat("{}\n", qoderRecordLimit+1),
+		for _, tc := range []struct {
+			name, body   string
+			observedRoot bool
+		}{
+			{"parse-prefix", "not-json\n" + rows, true},
+			{"parse-middle", parts[0] + "\nnot-json\n" + parts[1], true},
+			{"parse-suffix", rows + "not-json\n", true},
+			{"line-prefix", strings.Repeat("x", UsageLineLimit+1) + "\n" + rows, false},
+			{"line-suffix", rows + strings.Repeat("x", UsageLineLimit+1) + "\n", true},
+			{"record-prefix", strings.Repeat("{}\n", qoderRecordLimit+1) + rows, false},
+			{"record-suffix", rows + strings.Repeat("{}\n", qoderRecordLimit+1), true},
 		} {
-			t.Run(fmt.Sprintf("%s/%d", cwd, len(bad)), func(t *testing.T) {
+			t.Run(cwd+"/"+tc.name, func(t *testing.T) {
 				root := t.TempDir()
 				good := strings.ReplaceAll(qoderRows("/repo"), `"S"`, `"good"`)
 				path := qoderFixture(t, root, good)
-				if err := os.WriteFile(filepath.Join(filepath.Dir(path), "uncertain.jsonl"), []byte(bad), 0600); err != nil {
+				if err := os.WriteFile(filepath.Join(filepath.Dir(path), "uncertain.jsonl"), []byte(tc.body), 0600); err != nil {
 					t.Fatal(err)
 				}
-				got, _, err := DiscoverEvidence(context.Background(), []string{"/repo"}, []Harness{QoderHarness(root)})
-				if err == nil || len(got) != 0 {
-					t.Fatalf("unresolved source allowed partial adoption: %+v %v", got, err)
+				got, warnings, err := DiscoverEvidence(context.Background(), []string{"/repo"}, []Harness{QoderHarness(root)})
+				if cwd == "/repo" && tc.observedRoot {
+					if err == nil || len(got) != 0 {
+						t.Fatalf("positively relevant broken source was ignored: %+v %v %v", got, warnings, err)
+					}
+				} else if err != nil || len(got) != 1 || len(warnings) != 1 {
+					t.Fatalf("unclassifiable source should be reported without blocking: %+v %v %v", got, warnings, err)
 				}
 			})
 		}
 	}
 }
-func TestQoderActualDiscoveryUnreadableCandidateRefuses(t *testing.T) {
+
+func TestQoderActualDiscoveryReportsUnreadableCandidate(t *testing.T) {
 	root := t.TempDir()
 	path := qoderFixture(t, root, qoderRows("/repo"))
 	if err := os.Symlink(filepath.Join(root, "absent"), filepath.Join(filepath.Dir(path), "unreadable.jsonl")); err != nil {
 		t.Fatal(err)
 	}
-	got, _, err := DiscoverEvidence(context.Background(), []string{"/repo"}, []Harness{QoderHarness(root)})
-	if err == nil || len(got) != 0 {
-		t.Fatalf("unreadable candidate allowed partial adoption: %+v %v", got, err)
+	got, warnings, err := DiscoverEvidence(context.Background(), []string{"/repo"}, []Harness{QoderHarness(root)})
+	if err != nil || len(got) != 1 || len(warnings) != 1 {
+		t.Fatalf("unreadable candidate should be reported: %+v %v %v", got, warnings, err)
 	}
 }
 func TestQoderActualDiscoveryCompleteForeignFailureCanBeExcluded(t *testing.T) {
@@ -413,7 +421,7 @@ func TestQoderOwnershipReplacementDuringReadCannotProveUnrelated(t *testing.T) {
 	}
 }
 
-func TestQoderSourcesAndSelectRefuseUnresolvedEvidence(t *testing.T) {
+func TestQoderSourcesAndSelectRefuseRelevantBrokenEvidence(t *testing.T) {
 	root := t.TempDir()
 	path := qoderFixture(t, root, qoderRows("/repo"))
 	if err := os.WriteFile(filepath.Join(filepath.Dir(path), "unknown.jsonl"), []byte("not-json\n"+qoderRows("/repo")), 0600); err != nil {
@@ -421,10 +429,58 @@ func TestQoderSourcesAndSelectRefuseUnresolvedEvidence(t *testing.T) {
 	}
 	got, err := QoderHarness(root).Sources(context.Background(), []string{"/repo"})
 	if err == nil || len(got.Files) != 0 {
-		t.Fatalf("Sources hid unknown ownership: %+v %v", got, err)
+		t.Fatalf("Sources hid positively relevant broken evidence: %+v %v", got, err)
 	}
 	got, err = Select(context.Background(), []string{"/repo"}, []Harness{fakeHarness{name: "legacy", src: Sources{Files: []string{"previous-source"}}}, QoderHarness(root)})
 	if err == nil || len(got.Files) != 0 {
-		t.Fatalf("Select returned partial sources: %+v %v", got, err)
+		t.Fatalf("Select ignored positively relevant broken evidence: %+v %v", got, err)
+	}
+}
+
+func TestQoderActualDiscoveryExcludesRealLayoutSidechainWithWarning(t *testing.T) {
+	root := t.TempDir()
+	parent := filepath.Join(root, "project-slug", "parent-id.jsonl")
+	child := filepath.Join(root, "project-slug", "parent-id", "subagents", "agent-aExplore-123.jsonl")
+	if err := os.MkdirAll(filepath.Dir(child), 0700); err != nil {
+		t.Fatal(err)
+	}
+	parentRows := strings.ReplaceAll(qoderRows("/repo"), `"S"`, `"parent-id"`)
+	if err := os.WriteFile(parent, []byte(parentRows), 0600); err != nil {
+		t.Fatal(err)
+	}
+	childRows := `{"type":"user","sessionId":"parent-id","agentId":"aExplore-123","isSidechain":true,"timestamp":"2026-10-14T00:00:10Z","message":{"content":"explore"}}
+{"type":"assistant","sessionId":"parent-id","agentId":"aExplore-123","isSidechain":true,"timestamp":"2026-10-14T00:00:20Z","message":{"id":"child-response","content":"result","stop_reason":"end_turn","usage":{"credits":0.1,"billable":true}}}
+`
+	if err := os.WriteFile(child, []byte(childRows), 0600); err != nil {
+		t.Fatal(err)
+	}
+	hs := []Harness{QoderHarness(root)}
+	sessions, warnings, err := DiscoverEvidence(context.Background(), []string{"/repo"}, hs)
+	if err != nil || len(sessions) != 1 || sessions[0].File != parent || len(warnings) != 1 || !strings.Contains(warnings[0], child) {
+		t.Fatalf("parent lost to sidechain metadata: sessions=%+v warnings=%v err=%v", sessions, warnings, err)
+	}
+	sources, err := Select(context.Background(), []string{"/repo"}, hs)
+	if err != nil || len(sources.Files) != 1 || sources.Files[0] != parent {
+		t.Fatalf("selection disagrees with parent discovery: %+v %v", sources, err)
+	}
+}
+
+func TestQoderActualDiscoveryReportsUnreadableDirectory(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses directory permissions")
+	}
+	root := t.TempDir()
+	qoderFixture(t, root, qoderRows("/repo"))
+	blocked := filepath.Join(root, "unreadable-project")
+	if err := os.Mkdir(blocked, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(blocked, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(blocked, 0700) })
+	got, warnings, err := DiscoverEvidence(context.Background(), []string{"/repo"}, []Harness{QoderHarness(root)})
+	if err != nil || len(got) != 1 || len(warnings) != 1 || !strings.Contains(warnings[0], blocked) {
+		t.Fatalf("unclassifiable directory blocked measurement or vanished: %+v %v %v", got, warnings, err)
 	}
 }

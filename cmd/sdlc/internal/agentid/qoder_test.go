@@ -54,6 +54,14 @@ func TestQoderNativeSingleWorkspaceSession(t *testing.T) {
 	home := t.TempDir()
 	qoderFixture(t, home, "one", "/workspace/repo", "auto", now.Add(-time.Minute))
 	qoderFixture(t, home, "foreign", "/workspace/other", "wrong", now)
+	// Native sidechains lack standalone metadata and must not poison identity.
+	child := filepath.Join(home, ".qoder/projects/misleading-slug/one/subagents/agent-aExplore-fixture.jsonl")
+	if err := os.MkdirAll(filepath.Dir(child), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(child, []byte(`{"type":"user","sessionId":"one","agentId":"aExplore-fixture","isSidechain":true,"timestamp":"2026-10-15T16:59:00Z"}`+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	d := Detector{Home: home, Getenv: func(k string) string {
 		if k == "QODER_CLI" {
 			return "1"

@@ -878,3 +878,8 @@ The simplest durable authority beats a clever scan of consequences.
   proven unrelated merely because its owner has not been parsed yet; test parse,
   read and bound failures before metadata, then test production adoption against
   a positive surviving-source baseline (#385 BR-3).
+
+- Provider discovery must distinguish standalone sessions from native auxiliary
+  layouts. Unclassifiable files need visible skipped-source diagnostics, not a
+  fleet-wide close failure; reserve adoption refusal for positively owned broken
+  evidence and test a real nested subagent fixture through close adoption (#391).

@@ -114,8 +114,8 @@ func TestQoderActualCloseOwnershipAndRetainedReplay(t *testing.T) {
 	}
 }
 
-func TestQoderActualCloseRefusesUnresolvedSourceFailures(t *testing.T) {
-	for _, scenario := range []string{"malformed-before-owned", "malformed-before-foreign", "malformed-without-workspace", "oversized-before-owned", "unreadable-before-workspace"} {
+func TestQoderActualCloseClassifiesSourceFailures(t *testing.T) {
+	for _, scenario := range []string{"malformed-before-owned", "malformed-before-foreign", "malformed-without-workspace", "oversized-before-owned", "unreadable-before-workspace", "native-subagent"} {
 		t.Run(scenario, func(t *testing.T) {
 			r, _, _, owner, _ := ownedResolverFixture(t)
 			path := filepath.Join(os.Getenv("HOME"), ".qoder/projects/fixture/broken.jsonl")
@@ -147,6 +147,12 @@ func TestQoderActualCloseRefusesUnresolvedSourceFailures(t *testing.T) {
 				rows = "not-json\n"
 			case "oversized-before-owned":
 				rows = strings.Repeat(" ", transcripts.UsageLineLimit+1) + "\n" + rows
+			case "native-subagent":
+				path = filepath.Join(filepath.Dir(path), "good-qoder", "subagents", "agent-aExplore-fixture.jsonl")
+				if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+					t.Fatal(err)
+				}
+				rows = `{"type":"user","sessionId":"good-qoder","agentId":"aExplore-fixture","isSidechain":true,"timestamp":"2026-10-14T00:03:00Z","message":{"content":"fixture child"}}` + "\n"
 			case "unreadable-before-workspace":
 				if err := os.Symlink(filepath.Join(t.TempDir(), "missing.jsonl"), path); err != nil {
 					t.Fatal(err)
@@ -158,14 +164,15 @@ func TestQoderActualCloseRefusesUnresolvedSourceFailures(t *testing.T) {
 				}
 			}
 			measured := computeActualFor(context.Background(), r.root, "", "335", "", "")
-			if measured.Status != actualError {
-				t.Errorf("omitted unresolved source and measured partial actual: %+v", measured)
-			}
 			flags := &closeFlags{Issue: 335, BrainDir: filepath.Join(t.TempDir(), "no-brain")}
 			var diagnostics bytes.Buffer
 			_, adopted := adoptOmittedActual(&diagnostics, flags, "335", "issue")
-			if adopted || flags.Actual != "" || flags.Inputs != nil {
-				t.Fatalf("close adopted partial evidence: adopted=%v actual=%q inputs=%+v diagnostics=%s", adopted, flags.Actual, flags.Inputs, diagnostics.String())
+			if scenario == "malformed-before-owned" {
+				if measured.Status != actualError || adopted || flags.Actual != "" || flags.Inputs != nil {
+					t.Fatalf("known-owned failure adopted: measured=%+v adopted=%v diagnostics=%s", measured, adopted, diagnostics.String())
+				}
+			} else if measured.Status != actualMeasured || measured.Hours != baseline.Hours || !adopted || !strings.Contains(strings.Join(measured.Warnings, " "), "skipped source") || !strings.Contains(strings.Join(measured.Warnings, " "), path) {
+				t.Fatalf("unclassifiable file blocked or vanished: measured=%+v adopted=%v diagnostics=%s", measured, adopted, diagnostics.String())
 			}
 		})
 	}
