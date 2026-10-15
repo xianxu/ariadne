@@ -11,7 +11,7 @@ import (
 )
 
 // Only Git's completed negative query means absent; failed probes preserve metadata.
-func optionalBranchConfig(git gitFn, args ...string) (string, error) {
+func optionalGitOutput(git gitFn, args ...string) (string, error) {
 	out, err := git(args...)
 	var exit *exec.ExitError
 	if errors.As(err, &exit) && exit.ExitCode() == 1 {
@@ -34,11 +34,11 @@ func cleanupBranchConfig(git gitFn, branch string, stderr io.Writer) {
 }
 
 func removeObsoleteBranchConfig(git gitFn, branch string) error {
-	config, err := optionalBranchConfig(git, "config", "--local", "--get-regexp", `^branch\.`+regexp.QuoteMeta(branch)+`\.`)
+	config, err := optionalGitOutput(git, "config", "--local", "--get-regexp", `^branch\.`+regexp.QuoteMeta(branch)+`\.`)
 	if err != nil || config == "" {
 		return err
 	}
-	tip, err := optionalBranchConfig(git, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch)
+	tip, err := optionalGitOutput(git, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch)
 	if err != nil || tip != "" {
 		return err
 	}

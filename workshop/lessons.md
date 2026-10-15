@@ -772,3 +772,9 @@ The simplest durable authority beats a clever scan of consequences.
   and regression-test it with recorded events (#369).
 
 - File metadata is not a read budget: enforce limit+1 at the reader for both admission and post-effect rereads, and test growth after metadata validation with measured consumption rather than only checking the final error (#240 BR-8).
+
+- Convenience branch tracking is a durable shared-config effect. Before using
+  push --set-upstream, trace the consumers; explicit remote/refspec publication
+  can avoid both the protected config write and its later cleanup. Distinguish
+  required ref retirement from ancillary metadata, and name an automatic retry
+  owner for any retained residue (#374 plan review).

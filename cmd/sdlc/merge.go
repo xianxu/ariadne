@@ -13,8 +13,8 @@
 //
 //  1. branch != main / non-empty
 //  2. no uncommitted tracked changes (untracked files warn, don't block — #78)
-//  3. upstream configured
-//  4. branch not ahead of upstream
+//  3. issue branch published on its explicit remote ref
+//  4. branch not ahead of its remote ref
 //  5. pre-merge PUBLISH GATE (#160) — the deterministic reviewed-HEAD-unchanged
 //     invariant (refuse unless HEAD is unchanged since the codecomplete issues'
 //     `sdlc close`); NO LLM (all LLM review is close-time). Skippable --no-judge.
@@ -388,7 +388,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	if ahead > 0 {
 		fmt.Fprintf(stderr, "  %s[x]%s %d local commit(s) not yet on %s\n",
 			ansiRed, ansiReset, ahead, remoteRef)
-		die(stderr, "push your branch before merging — run `git push`, then re-run `sdlc merge`. "+
+		die(stderr, "push your branch before merging — run `sdlc pr`, then re-run `sdlc merge`. "+
 			"(merge is server-side: a fix you committed for a failed pre-merge gate must reach origin first.)")
 	}
 	if !recoveringMerged {
@@ -400,7 +400,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// origin (merge is server-side) so it checks the same tree that will merge.
 	if !f.NoValidate {
 		if err := validateChangedInstancesFn(gitx.DiffBase(), "", nounGates(f.IssuesDir), stdout, stderr); err != nil {
-			die(stderr, err.Error()+"\n  → fix and `git push` (merge is server-side), or --no-validate to bypass.")
+			die(stderr, err.Error()+"\n  → fix and `sdlc pr` (merge is server-side), or --no-validate to bypass.")
 		}
 	} else {
 		cwarn(stderr, "⚠️  --no-validate: SKIPPING the instance-conformance gate (#124) — modeled frontmatter and issue sections NOT verified before main. Escape hatch: say why in your commit/log.")

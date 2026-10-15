@@ -231,7 +231,7 @@ func finishLandedLeftovers(env *trackerEnv, stderr io.Writer, dirs archiveDirs) 
 		}
 	}
 	// Existing branch config is the retry marker; done cards authorize its cleanup.
-	configured, err := optionalBranchConfig(env.git, "config", "--local", "--name-only", "--get-regexp", `^branch\.`)
+	configured, err := optionalGitOutput(env.git, "config", "--local", "--name-only", "--get-regexp", `^branch\.`)
 	if err != nil {
 		return err
 	}

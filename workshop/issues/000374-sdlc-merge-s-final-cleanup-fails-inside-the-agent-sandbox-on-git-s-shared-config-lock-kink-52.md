@@ -34,9 +34,9 @@ Find which cleanup step writes git's shared config (branch deletion with upstrea
 
 ## Plan
 
-- [ ] Keep ref deletion and identity/occupancy/CAS guards mandatory; make only obsolete branch-config removal a non-blocking deferred cleanup, with the affected config path and retry owner reported.
-- [ ] Reuse the existing done-card merge/reconcile sweep to retry configuration cleanup for absent, unoccupied landed issue branches; preserve live/recreated refs and unrelated config (ARCH-DRY, ARCH-FUNERAL).
-- [ ] Add real-Git regressions for repeated config-lock denial, interruption before/after ref deletion, automatic later cleanup when writable, and live/recreated branch protection. Exercise the full merge caller with the existing stateful GitHub fake, plus a native denied-config sandbox check.
+- [x] Keep ref deletion and identity/occupancy/CAS guards mandatory; make only obsolete branch-config removal a non-blocking deferred cleanup, with the affected config path and retry owner reported.
+- [x] Reuse the existing done-card merge/reconcile sweep to retry configuration cleanup for absent, unoccupied landed issue branches; preserve live/recreated refs and unrelated config (ARCH-DRY, ARCH-FUNERAL).
+- [x] Add real-Git regressions for repeated config-lock denial, interruption before/after ref deletion, automatic later cleanup when writable, and live/recreated branch protection. Exercise the full merge caller with the existing stateful GitHub fake, plus a native denied-config sandbox check.
 - [ ] Update help/recovery/atlas for deferred metadata cleanup, run focused and recorded full-suite verification, close and land on SHIP.
 
 ## Log
@@ -52,6 +52,14 @@ Recommended design: distinguish mandatory branch retirement from ancillary obsol
 Alternatives considered: making all final cleanup fatal preserves the present retry loop under a persistent sandbox restriction; permanently dropping configuration cleanup accumulates residue with no owner. Writing the protected shared config by another path is neither safe nor a permitted sandbox workaround. The proposed deferred sweep supplies an explicit lifecycle for the residue (ARCH-FUNERAL).
 
 The original live acceptance asks for a scratch issue in the default agent sandbox. The full merge regression will cover a scratch issue with real Git and the production merge path plus stateful fake GitHub, including a real denied-config sandbox. Ask the hub how to arrange the additional default-Claude sandbox live landing without overlapping another slot's active issue; do not silently replace that acceptance with a simulation.
+
+### 2026-10-15 — validated implementation checkpoint
+
+Full plan-quality cleared PQ-1/PQ-2; full-flow change-code passed with derived estimate 1.94h. Estimate-quality INFO notes the verification/shipping allowance is optimistic; keep that whole-issue derivation rather than back-fitting it to elapsed time. Producer and compatibility implementations are complete, with no issue upstream consumer requiring tracking; main/rest config remains required. Existing interruption tests now distinguish critical ref retirement from nonfatal metadata cleanup. Shared optional Git-output handling is reused by landing and cleanup.
+
+Focused restored-head verification passed: the directly affected 12-test selection (new producer/cleanup cases, interruption/dirty-rest recovery, CAS and pushed freshness) completed in 161.642s. An overly broad serial selection timed out at 15m while TestLandingIntegratesAMovedMain had run only 9s, without an assertion failure; replace that selection with the targeted result plus the upcoming sharded full suite, not a claimed pass. Native macOS conformance (ARIADNE_NATIVE_SANDBOX=1 go test ./cmd/sdlc -run ^TestLandingNativeConfigSandbox$ -count=1 -v -timeout 4m) ran the full merge command path in a child process under a custom profile denying shared config/config.lock writes, with real scratch Git and stateful local GitHub fake. Denial control failed as intended, merge succeeded/ref retired, config bytes stayed unchanged (13.038s). This custom-profile check is not yet the original default-agent live acceptance.
+
+Mutation checks /tmp/ariadne374-mutations.log confirmed failures when restoring fatal metadata cleanup, removing ref-presence guard, and removing occupancy guard; sources were restored. An initial test-edit anchor failed and yielded a no-tests-to-run mutation attempt, which was rejected rather than counted; corrected harness reran all three successfully. Final restored native/probe/upstream focused run passed in 24.094s, including failed-observation controls and late manual-ref preservation. No whole suite is claimed yet; original live acceptance remains pending the hub response. Documentation and the operational ownership boundary are updated in README, help, atlas and recovery catalog.
 
 ## Revisions
 

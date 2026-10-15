@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"io"
 	"os"
 	"path/filepath"
@@ -93,5 +95,53 @@ func TestReconcileRetriesObsoleteBranchConfig(t *testing.T) {
 	}
 	if got := r.git("config", "branch.unrelated.remote"); got != "keep-me" {
 		t.Fatal("unrelated config changed", got)
+	}
+}
+
+func TestObsoleteConfigGuards(t *testing.T) {
+	for _, mode := range []string{"occupied", "ref-present", "ref-probe-fails", "worktree-probe-fails", "manual-recreation"} {
+		t.Run(mode, func(t *testing.T) {
+			root := testfix.Repo(t, testfix.InitialCommit())
+			const branch = "000374-guard"
+			git(t, root, "config", "branch."+branch+".remote", "origin")
+			before := git(t, root, "config", "--local", "--list")
+			tip := git(t, root, "rev-parse", "HEAD")
+			if mode == "ref-present" {
+				git(t, root, "update-ref", "refs/heads/"+branch, tip)
+			}
+			if mode == "occupied" {
+				git(t, root, "symbolic-ref", "HEAD", "refs/heads/"+branch)
+			}
+			reached := false
+			query := func(args ...string) (string, error) {
+				if mode == "ref-probe-fails" && args[0] == "rev-parse" || mode == "worktree-probe-fails" && args[0] == "worktree" {
+					reached = true
+					return "", errors.New("probe failed")
+				}
+				if strings.Contains(strings.Join(args, " "), "--remove-section") {
+					if mode != "manual-recreation" {
+						t.Error("destructive config write despite protected observation")
+					}
+					reached = true
+					git(t, root, "update-ref", "refs/heads/"+branch, tip)
+				}
+				return landingGit(execGitRunner{}, root, args...)
+			}
+			err := removeObsoleteBranchConfig(query, branch)
+			if strings.HasSuffix(mode, "fails") && (err == nil || !reached) {
+				t.Fatal("failed probe not preserved", err)
+			}
+			if mode == "occupied" && err != nil {
+				t.Fatal(err)
+			}
+			if mode != "manual-recreation" && git(t, root, "config", "--local", "--list") != before {
+				t.Fatal("config changed")
+			}
+			if mode == "manual-recreation" {
+				if err != nil || !reached || git(t, root, "rev-parse", "refs/heads/"+branch) != tip {
+					t.Fatal("late manual ref/commit lost", err)
+				}
+			}
+		})
 	}
 }

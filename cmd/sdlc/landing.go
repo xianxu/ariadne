@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 
@@ -30,15 +29,7 @@ func landingGit(r gitRunner, root string, args ...string) (string, error) {
 	return strings.TrimSuffix(string(out), "\n"), nil
 }
 func landingOptional(r gitRunner, root string, args ...string) (string, error) {
-	out, err := r.GitInDir(root, args...)
-	if err != nil {
-		var ee *exec.ExitError
-		if errors.As(err, &ee) && ee.ExitCode() == 1 {
-			return "", nil
-		}
-		return "", fmt.Errorf("git %s: %w\n%s", strings.Join(args, " "), err, out)
-	}
-	return strings.TrimSuffix(string(out), "\n"), nil
+	return optionalGitOutput(func(args ...string) (string, error) { return landingGit(r, root, args...) }, args...)
 }
 func landingRepoURL(raw string) (string, error) {
 	path := ""
