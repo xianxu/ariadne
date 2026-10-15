@@ -141,6 +141,12 @@ Mandatory close review returned SHIP, high confidence, no findings (round 1). Re
 
 Merged current origin/main cea78653e4003d0ca6fa64fbf9ae3b726f5d9b37, including landed #365, cleanly as f73b00e5e1748c2b59f2b4415d4214aa6b75adee. Inspected shared actual/actualinputs changes: ownership discovery was extracted behind the same authority and local-only tracker reads are opt-in via context; candidate/historical separation remains intact. No conflict resolution or issue-scope change. PR #255 updated; submitted a fresh recorded full suite on this combined head before landing. Previous passing suite does not establish this integrated head's result.
 
+### 2026-10-15 — integrated suite passed; final landing gate
+
+Recorded suite on f73b00e5e1748c2b59f2b4415d4214aa6b75adee passed, exit 0: 489.9s after 555s gate wait, all 12 shards / 1443 cmd/sdlc tests and 62 other packages, zero failures. Log SHA256 86c95cc40935192fc06f1b4b36736bfccfba34a163c2b80ce0d4cdfd27fd8820. PR CI also green.
+
+The final fresh fetch found #376 landed on current main 7bfdff6ee3dfc9141dc97525f865c5316b156595 (test statistics/local-check accounting, independent of #384). Integrating that current main before sdlc merge --yes; the landing command owns the required exact-head suite, CI and any further bounded main integrations. No gate waivers. Review remains SHIP; no #384 code changed since review.
+
 ## Revisions
 
 - 2026-10-15T04:18:20-07:00 — Separate verification checkboxes from the later close/landing workflow so closing does not require pre-claiming its own success. Scope and acceptance unchanged.
