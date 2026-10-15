@@ -83,3 +83,11 @@ will save a weekly per-repo test-stats summary in brain and link it from the
 ops project; full suites per landed issue is the headline evidence-tier metric.
 Minimization now follows #328's traceability map feature by feature: overlap
 nominates, mutation testing measures detection, and review decides removals.
+
+### 2026-10-15 14:29 PDT — Operator's two inline design decisions
+
+The operator set ariadne/pair as pilots but the adopted mechanisms as defaults
+for every SDLC repo. Landing runtime data stays local and outside Git; a later
+cloud backup must succeed before deletion. Both are recorded in the durable
+plan's Revision. Three side docs were added for further operator review and
+remain open.

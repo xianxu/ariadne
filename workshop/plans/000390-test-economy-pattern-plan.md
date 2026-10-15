@@ -1,12 +1,18 @@
+---
+process-instruction: commented on project design. reply with sidedoc format for each comment, or address inline following protocol we discussed in universal-agent-input-interface
+---
 # Test Economy Pattern Design Plan
 
 > **For agentic workers:** This is the operator's decision record, not authorization to implement. The implementing issues below each enter the normal claim → plan → change-code flow; use AGENTS.md Section 3 for their execution strategy.
 
 **Goal:** Keep ariadne and pair test evidence trustworthy while reducing suite queue delay and preventing test-runtime growth as agents add tests.
 
-**Architecture:** Preserve a full-suite landing guarantee on the exact integration head. Use targeted evidence during development, serial admission of ready PRs, measured soft package budgets, daily flake triage, and periodic evidence-led minimization. Roll out one independently testable concern per issue.
+**Architecture:** Preserve a full-suite landing guarantee on the exact integration head. Use targeted evidence during development, serial admission of ready PRs → [discussion](000390-test-economy-pattern-plan.side/01-landing-admission.md), measured soft package budgets, daily flake triage, and periodic evidence-led minimization. Roll out one independently testable concern per issue.
 
 **Tech stack:** Existing `sdlc` local-check attempt records and merge gate, Git/GitHub PRs, Make, Go and Lua tests, ops project reporting.
+
+**Scope (operator, 10-15):** pilot in ariadne and pair, but every mechanism here (evidence tiers, landing admission, the
+flake policy, the test-stats summaries) becomes **ariadne's default for every sdlc repo**, not a per-repo option.
 
 ---
 
@@ -64,13 +70,16 @@ Targeted runs shorten iteration while exact-head suite evidence still protects m
 
 Use **one active integration candidate per repository**. Ready PRs keep independent reviews and CI, then queue FIFO. Admission snapshots main and PR head, creates the integration head, runs the declared suite under the existing weighted suite lock, verifies exact-head status and CI, re-fetches main, and lands only when pinned identities still match. Main movement invalidates the candidate; rebuild against new main while later candidates wait. A failed or timed-out suite blocks only its candidate and produces a diagnosis; it never silently admits it. Preserve its original branch and review evidence on refusal. A failed candidate may be removed from the queue without blocking later ready PRs, but no failed candidate lands.
 
-Use a durable state machine (ARCH-ORDER): `waiting → integrating → testing → verified → landing → landed`, with explicit `stale`, `failed` and `uncertain` outcomes. A crash, timeout or unknown GitHub response resumes by fetching PR/main and checking exact OIDs; probe uncertain publication before retry. A terminal receipt is kept for the 30-day analysis window, then swept (ARCH-FUNERAL). Do not hold the repo transaction lock across suite wait/run (#370); lock only short Git/tracker transitions. The machine-wide weighted suite lock still limits load (ARCH-CONSTRAINTS). Test main drift, head drift, process death at each effect, duplicate requests and uncertain GitHub replies through the production transition function and stateful fakes.
+Use a durable state machine (ARCH-ORDER): `waiting → integrating → testing → verified → landing → landed`, with explicit `stale`, `failed` and `uncertain` outcomes. A crash, timeout or unknown GitHub response resumes by fetching PR/main and checking exact OIDs; probe uncertain publication before retry. A terminal receipt is kept for the 30-day analysis window, then swept (ARCH-FUNERAL). **Retention follows the same scheme as the rest of
+sdlc's runtime data (operator, 10-15):** ephemeral runtime and supporting data live outside git, local to the machine,
+and (later) are backed up to cloud storage before deletion. Do not hold the repo transaction lock across suite wait/run (#370); lock only short Git/tracker transitions. The machine-wide weighted suite lock still limits load (ARCH-CONSTRAINTS). Test main drift, head drift, process death at each effect, duplicate requests and uncertain GitHub replies through the production transition function and stateful fakes. → [discussion: is this a new
+"landing" workflow?](000390-test-economy-pattern-plan.side/01-landing-admission.md)
 
 **Pilot stop rule:** if serial admission does not reduce repeat full suites per merged PR, or raises p90 ready-to-land delay over seven complete days, pause expansion and inspect queue scheduling versus suite runtime. Batching is separate because it changes merge/recovery identity. A later doc-only reuse issue must compare effective test inputs, including generated files, test commands, configuration and dependency lockfiles, on both trees; unknowns run the suite. A file-extension-only exemption is insufficient.
 
 ## 3. Flake policy and owner
 
-The TL owns a **daily standing list** in the ops project. Every intermittent failure observed in local attempts or CI gets a named issue within 24 hours, with repo, test, exact head, log/run link, first-seen time, reproduction status and owner. Within that day the owner must identify the root cause or record the failed hypotheses, next diagnostic and an explicit blocker; an unexplained retry is not resolution. A retry may diagnose but cannot convert an unexplained failure into passing evidence. Fix the scheduling, fixture or root cause; never lengthen a timeout solely to green the suite. Classify reproducible branch regressions apart from confirmed same-head fail→pass and suspected environmental faults. Retain failed-attempt logs (#376), and extend measurement to CI before reporting a combined health trend.
+The TL owns a **daily standing list** in the ops project. Every intermittent failure observed in local attempts or CI gets a named issue within 24 hours, with repo, test, exact head, log/run link, first-seen time, reproduction status and owner. Within that day the owner must identify the root cause or record the failed hypotheses, next diagnostic and an explicit blocker; an unexplained retry is not resolution. A retry may diagnose but cannot convert an unexplained failure into passing evidence. Fix the scheduling, fixture or root cause; never lengthen a timeout solely to green the suite. Classify reproducible branch regressions apart from confirmed same-head fail→pass and suspected environmental faults. Retain failed-attempt logs (#376), and extend measurement to CI before reporting a combined health trend. → [discussion](000390-test-economy-pattern-plan.side/02-flakes-and-landing.md)
 
 Quarantine needs operator approval for a named test, an owning issue, replacement coverage (or written risk acceptance), a seven-day expiry and an explicit main-health signal. Expiry restores the test or blocks landing until renewed. Do not quarantine a whole package. The target is **zero unowned flakes**, not a claim that a short sample proves zero flake probability. The daily review checks each new failure and the filing clock.
 
@@ -85,6 +94,8 @@ Pair's `cmd/internal/couchcore` p90 is **481.3 s (n=21)**. Propose initial soft 
 #327's monthly repo-GC issue owns a report, starting with couchcore. Rank package time by p90, then nominate tests using overlapping line/branch coverage or duplicate scenarios. **Coverage overlap nominates; it does not prove equal fault detection.** For each candidate compare unique mutants killed on a bounded code slice where practical, requirements/traceability coverage, and before/after package wall time. Keep a test if it uniquely kills a mutant, guards an unmodeled contract, or covers a distinct integration path. Remove or merge only with a reviewable evidence table and a full-suite landing run. Report “not measurable” rather than fabricated redundancy.
 
 The monthly report names owner, sampled package and run cost. #327's schedule/report implementation must bound retention and archive old reports (ARCH-FUNERAL). The cadence complements immediate flake fixes.
+
+→ [discussion: the exact algorithm](000390-test-economy-pattern-plan.side/03-minimization-algorithm.md)
 
 ## Implementing issues and rollout
 
@@ -137,3 +148,13 @@ The new merge-queue implementation issue must test: a granted fleet blocker over
 **Delta — minimization:** Supersede section 5's package-first removal sequence. Start only after #328's feature → code → tests traceability map is operating. Work **one mapped feature at a time**: coverage overlap nominates possible duplicate tests; feature-scoped mutation testing supplies deterministic fault-detection evidence; a reviewer judges removal against behavioral contracts and integration paths. Record which mutants each candidate uniquely kills, any unmodeled requirement, the decision, and before/after runtime. A missing mutation tool or incomplete map means “not measured,” never automatic deletion. #327's first GC run follows this order; keep performance profiling separate from deletion decisions.
 
 **Rollout amendment:** The weekly brain snapshot issue precedes #328; #328 precedes #327's minimization. The budget declaration issue waits for several weekly snapshots and a further operator decision. The plan's earlier 600/240 s pilot and immediate budget row are withdrawn. Add the snapshot linkage and headline ratio to the seven-day review, and compare them only when both weeks have enough complete issue attribution.
+
+### 2026-10-15 14:29 PDT — Default scope and runtime-data retention
+
+**Reason:** The operator added two decisions directly to this plan during review. Three linked side docs hold the still-open discussions; their text awaits operator marks.
+
+**Delta — default scope:** Pilot the pattern in ariadne and pair, then make each adopted mechanism—evidence tiers, landing admission, flake policy, and test-stats summaries—ariadne's default for every SDLC repository. Implementing issues must plan the base-layer propagation and consumer verification; a per-repo opt-in is not the intended contract. This records the operator's new `Scope` paragraph above.
+
+**Delta — runtime-data lifecycle:** Landing-queue receipts and supporting runtime data live outside Git on the local machine, using the same scheme as other SDLC runtime data. The later backup path uploads data to cloud storage **before deletion**; deletion without confirmed backup is outside this decision. Implementing issues must identify the existing runtime-data owner and specify retention, backup confirmation and recovery rather than inventing a repository-tracked ledger. This records the operator's inline retention paragraph in section 2 (ARCH-FUNERAL, ARCH-DRY).
+
+The linked side docs `01-landing-admission.md`, `02-flakes-and-landing.md`, and `03-minimization-algorithm.md` are part of this design record as written. No open question in them is accepted or rejected by this revision; wait for the operator's marks before folding their answers into the plan.
