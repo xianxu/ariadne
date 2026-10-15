@@ -77,3 +77,60 @@ output: "Tests pass. Next I'm checking the remaining doc mentions and the fixtur
 
 truncated: false
 retained-bytes: 0000003225
+
+---
+
+## Re-review — 2026-10-15T15:05:34-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 387 — Agent: trailer says 'human' (not 'sdlc') for a commit made outside an agent session |
+| repo | ariadne |
+| issue file | workshop/issues/000387-agent-trailer-says-human-not-sdlc-for-a-commit-made-outside-an-agent-session.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 157c4622ccdb89e2a6d999d200027584e36569e7..870f183161f3b9a02677cb355caeaa3afe7f99a2 |
+| command | sdlc close --issue 387 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-15T15:05:34-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This window fixes the one prior finding, BR-1, and adds no new defects. The test at `cmd/sdlc/internal/agentid/agentid_test.go:23-29` now checks the literal strings `"human"` and `"sdlc"` instead of the `Legacy` constant, so the format already in history is pinned. To confirm the test catches a regression, I changed `const Legacy = "sdlc"` to `"sdlc2"` in the disposable checkout. The test failed with `agentid_test.go:27: Parse("sdlc") = human, false; want the human identity`. I then restored the file, and `go test ./cmd/sdlc/internal/agentid/` passes. The rest of the window is generated gate and review records under `workshop/plans/`, plus an issue-file change: the status moves to `codecomplete`, `actual_hours` is set and a close Log line is added. None of that changes `## Spec`, `## Revisions` or `## Done when`, so scope is unchanged. This window resolves no conflicts.
+
+1. **Strengths**
+   - Fixing BR-1 also pinned `"human"`, the value new trailers carry, with a literal. That covers the whole class of trailer formats that end up in history, not just the instance BR-1 named (`agentid_test.go:25`).
+   - The comment says why the literals are there: editing the constant must not change the history format.
+   - The production code is unchanged. `Human` and `Legacy` stay the only definitions in `agentid.go:20,24`.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none raised. One small wording mismatch: an earlier Log line in the issue says "tests reference the constant, not the literal", and the history-format test now deliberately uses literals. That bullet was written before the fix, so it is a historical note, not a defect.
+
+5. **Test coverage notes:** The mutation test shows the regression test fails without the fix. Both values that can appear in a trailer, `human` and `sdlc`, are now pinned by literals. The round-trip table still checks that rendering and parsing go through the constants.
+
+6. **Architectural notes (interdiff only)**
+   - **ARCH-DRY: pass.** Repeating the literals in this test is deliberate: the test pins an external format, so it is not duplicated logic.
+   - **ARCH-PURE: pass.** Only the test changed, and it calls the pure `Parse` function with no IO.
+   - **ARCH-PURPOSE: pass.** The fix covers the whole class (every trailer value that can appear in history), not only the `sdlc` instance the finding named.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      agentid_test.go:25 now loops over the literals "human" and "sdlc". Changing Legacy to "sdlc2" turns the test red at line 27, and restoring it turns it green.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"a4d74aea-ed98-42e2-b118-2bccd9a96b21","repository":"github.com/xianxu/ariadne","issue_id":"000387","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/9c79a10366ccb264","reviewed_head":"870f183161f3b9a02677cb355caeaa3afe7f99a2","slot":"ariadne:4","requested_at":"2026-10-15T22:05:02.964772Z"},"phase":"finished","pid":50768,"started_at":"2026-10-15T22:05:03.131021Z","finished_at":"2026-10-15T22:05:28.024626Z","session_id":"f23d282e-3d09-44d2-a1d9-e44a184e0c6a","outcome":"returned"}] -->
