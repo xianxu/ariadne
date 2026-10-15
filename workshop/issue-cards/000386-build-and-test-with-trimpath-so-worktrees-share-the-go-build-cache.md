@@ -1,6 +1,6 @@
 ---
 id: 000386
-status: working
+status: codecomplete
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.53
+tracker:
+    version: 1
+    completion:
+        token: close-60cd35fa71d4
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 4e4c777f85600a57f01f49e1c4a9731f884ce104
+        evidence_commit: 38b6cf977236644f18545990fb04229b829d2d7b
 ---
 
 # Build and test with -trimpath so worktrees share the Go build cache
