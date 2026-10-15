@@ -47,7 +47,7 @@ minutes. The operator approved building with `-trimpath`.
 - [x] Run the unchanged full suite with GOFLAGS=-trimpath through the normal machine gate. Capture exact head, output, duration and any failures. Repair demonstrated source-path assumptions with the existing cwd/Git/module-root helpers; add a regression for each discovered problem. No speculative path refactor.
 - [x] Make the owner Makefile export effective Go flags plus -trimpath by default, retaining environment/go-env flags (currently -p=3). Add .sdlc/local-checks.json declaring required suite argv [make, test], weight 2 and timeout 60 minutes: the existing execution settings, with trimming inherited from the tested Makefile. Add an execution regression in scripts/test/trimpath_test.go exercising real owner build/test recipes with a temporary tracing Go/Python fixture, checking trimpath plus preserved flags. Run RED/GREEN and remove the default in a temporary mutation to prove this test fails.
 - [x] Add -trimpath to construct/dev-aliases.sh's existing emitter only, including its example. Extend the existing emitted-function execution fixture in construct/scripts/test/dev-aliases.test.sh; run RED/GREEN and remove the emitted flag once to prove the regression.
-- [ ] Measure one unchanged package (pkg/vocab) in two clean temporary Git worktrees of the same pinned commit, using a private shared cache per mode. Compare untrimmed A/B versus trimmed A/B: archive cache path/build ID, second-worktree compile actions, elapsed time and cache growth. Keep Go version/flags/head in the Log; do not clear the machine's cache. Remove owned worktrees and private caches after capturing results.
+- [x] Measure one unchanged package (pkg/vocab) in two clean temporary Git worktrees of the same pinned commit, using a private shared cache per mode. Compare untrimmed A/B versus trimmed A/B: archive cache path/build ID, second-worktree compile actions, elapsed time and cache growth. Keep Go version/flags/head in the Log; do not clear the machine's cache. Remove owned worktrees and private caches after capturing results.
 - [ ] Document the defaults and direct-Go opt-in in README and the existing build/test atlas section. Publish a PR, run the recorded full suite on its pushed head with trimming enabled by default, and record evidence.
 
 After verification, close through mandatory review, obtain operator verification for the protected .sdlc declaration, integrate current main and land on SHIP. Verification checkboxes do not claim their own later close/landing success.
@@ -87,6 +87,21 @@ change-code admitted the inferred quick flow. New recipe-execution regressions f
 Delegated emitter change touched only its Go argv/example plus its existing tests. Existing shape and executed-argv assertions gave RED 44/4 before the flag, GREEN 48/0 after it, RED 44/4 when only the emitted flag was removed, then restored GREEN 48/0. Inspected the diff independently. Fake Go executables now find the -o operand rather than relying on its old argument position.
 
 Combined script tests exposed portable-makefile.test.sh's fake treating the new go env GOFLAGS query as an extra build. Updated that fake's query response and asserted each build's effective trimpath; preserved the exact owned-build population assertion. No production workaround. Combined scripts/test package then passed (57.989s), including all construct shell fixtures under three output environments. make tools weave-build passed for all seven owner binaries; go version -m bin/sdlc confirms -trimpath=true while retaining VCS metadata. README/atlas describe defaults, direct-Go use and reloading emitted shell functions.
+
+### 2026-10-15 — two-worktree cache measurement and PR
+
+PR #258: https://github.com/xianxu/ariadne/pull/258. TL notified that the new .sdlc/local-checks.json needs operator verification; no label applied by the agent. Current-main integration added only newly published issue details.
+
+Live cache experiment on go1.27.1, package ./pkg/vocab, two clean detached worktrees pinned to 3aea98b94dd7167dda40b00511cb865886cc731d. Each mode used its own initially empty GOCACHE, shared by A and B; global cache/settings were not changed. Commands in each worktree were go build -x ./pkg/vocab, go list -export -f '{{.Export}}' ./pkg/vocab, and go tool buildid on that archive. Go flags were -p=3, then -p=3 -trimpath. File counts/bytes were measured immediately around each build/list sequence.
+
+| Mode | A seconds / compile actions | B seconds / compile actions | B added files / bytes | Archive identity |
+| --- | --- | --- | --- | --- |
+| untrimmed | 20.068 / 74 | 0.619 / 1 | 6 / 569080 | different |
+| trimmed | 20.794 / 74 | 0.193 / 0 | 2 / 3877 | same |
+
+Untrimmed archive SHA256s differ: b6822f56fa5e9646899d536246d7a54c75468b75b8aa15920bb905e776225a76 and 7029f9b2d3718fe1a883f95bd26cc9cd39bb5f9441a4df6c8aa647003673f47e. Both trimmed worktrees resolve to the exact same cached archive SHA256 93fbcce3741257b9242a6afc6f342525a703f654e847984501971d6fc9dae08b and build ID I7o7WJL3VuttT7n4QXHx/zhDWmgnAj3OljnwpjvA-. The second trimmed build invokes no compiler; two extra cache files still account for 3,877 bytes. This is a single representative-package conformance measurement, not a fleet-wide speed/size claim. Cold cache totals differed between modes and are not claimed as a reduction.
+
+Raw report: /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne386-cache-report-aequzz93.json. Both experiment worktrees and private caches were removed successfully after recording the values. Only the report and this Log retain the evidence. Next: recorded full suite on the pushed implementation, then mandatory close review and operator-gated landing.
 
 ## Revisions
 
