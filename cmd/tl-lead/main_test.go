@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/pkg/tlrules"
 )
 
@@ -52,6 +53,31 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		{"fleet traps", "FLEET TRAPS"},
 		{"allocation across operators", "ALLOCATION ACROSS OPERATORS"},
 		{"the project directory", "THE PROJECT DIRECTORY"},
+		// The rules #377 ported from the ops draft, one phrase each.
+		{"G1 Operator instructions is section 0", "0. `## Operator instructions`"},
+		{"G2 the TL only links answers", "Your only write is appending"},
+		{"G2 every bullet gets an answer", "every bullet gets one, questions and"},
+		{"G3 QA file path", "teams/<team>/qa/<operator>/YYYY-MM-DD-NN-<slug>.md"},
+		{"G3 QA frontmatter", "`process-instruction: \"[free-form] answer the operator's 🤖 comments in place\"`"},
+		{"G3 backlink without anchor", "with no `#anchor`"},
+		{"G3 answers only the question", "answers only the question asked"},
+		{"G4 Needs you holds only asks", "only asks, a decision or an action"},
+		{"G4 remove when done", "Remove an\n       item the moment it is done"},
+		{"G5 CI glance on main", "Glance at CI on main every pass"},
+		{"G6 render from binaries", "Render sections from binaries wherever possible"},
+		{"G6 a retyped fact is the next lift", "next piece to lift into a binary"},
+		{"G7 quiet pane", "Keep the agent pane quiet"},
+		{"G8 a lock with no submit", "A lock with no submit stays"},
+		{"frontmatter key", "`couch-owner: <hub slot>` (couch still reads the older `owner:`)"},
+		{"G10 verify slots after a disruption", "Verify the slots after a disruption"},
+		{"G10 a send is not evidence", "is not evidence the slot resumed"},
+		{"G11 filing publishes then resets", "`sdlc issue publish --issue N`, then reset"},
+		// From the fresh comparison of the draft against this help.
+		{"a dispatch names the repo only", "the repo\n    prefix is enough"},
+		{"update on every thread change", "Update it whenever a\n    thread changes state"},
+		{"Couch encodes no one repo's usage", "Don't ask Couch to encode one repo's usage"},
+		{"stage, never move", "never `sdlc move` (which transfers ownership)"},
+		{"waves are trains", "waves are fine"},
 	}
 	for _, args := range [][]string{{"--help"}, {}} {
 		help := helpOutput(t, args...)
@@ -113,30 +139,34 @@ func TestLeadHelpDoesNotRestateWorker(t *testing.T) {
 	}
 }
 
-// The procedure names the subcommands that do the status-file work, and no
-// retired script.
+// The procedure names every command in the tree, and no retired script.
 func TestLeadHelpNamesSubcommands(t *testing.T) {
 	help := helpOutput(t, "--help")
-	for _, want := range []string{
-		"tl-lead status slots FILE", "tl-lead status section FILE HEADING BODYFILE",
-		"tl-lead status thread FILE TEXTFILE", "tl-lead status submit FILE", "tl-lead status seen FILE",
-		"tl-lead status owed FILE", "tl-lead status clobbered FILE --done", "tl-lead trains PROJECT",
-	} {
-		if !strings.Contains(help, want) {
-			t.Errorf("help does not name %q", want)
+	var walk func(c *cobra.Command, path string)
+	n := 0
+	walk = func(c *cobra.Command, path string) {
+		for _, sub := range c.Commands() {
+			if sub.Hidden || sub.Name() == "help" || sub.Name() == "completion" {
+				continue
+			}
+			p := path + " " + sub.Name()
+			if sub.HasSubCommands() {
+				walk(sub, p)
+				continue
+			}
+			n++
+			if !strings.Contains(help, p+" ") {
+				t.Errorf("help does not name %q", p)
+			}
 		}
 	}
-	for _, retired := range []string{"ss.py", "tl-status.py", "render-trains.py", "scripts/"} {
+	walk(buildRoot(deps{}), "tl-lead")
+	if n < 10 {
+		t.Fatalf("walked only %d commands; the tree did not load", n)
+	}
+	for _, retired := range []string{"ss.py", "tl-status.py", "render-trains.py", "opinstr.py", "scripts/"} {
 		if strings.Contains(help, retired) {
 			t.Errorf("help names the retired %q", retired)
-		}
-	}
-	// Every subcommand the help names exists in the command tree.
-	root := buildRoot(deps{})
-	for _, path := range [][]string{{"status", "slots"}, {"status", "section"}, {"status", "thread"}, {"status", "submit"},
-		{"status", "seen"}, {"status", "owed"}, {"status", "clobbered"}, {"trains"}} {
-		if c, _, err := root.Find(path); err != nil || c.Name() != path[len(path)-1] {
-			t.Errorf("tl-lead %v is not a command", path)
 		}
 	}
 }
