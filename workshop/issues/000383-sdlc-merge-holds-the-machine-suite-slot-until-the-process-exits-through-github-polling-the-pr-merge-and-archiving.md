@@ -1,12 +1,12 @@
 ---
 id: 000383
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
-card_mirror: '70f5509b1909f08bb06abcb85ec5ee73077f57b2' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '8ce76fe1e1def79ef2822968f5d9b46868a4825e' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T22:12:14-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "896f6e9b", done: "f5ad8155"}
+actual_hours: 0.26
 ---
 
 # sdlc merge holds the machine suite slot until the process exits, through GitHub polling, the PR merge and archiving
