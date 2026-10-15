@@ -127,6 +127,8 @@ While the recorded check on be92302c waited, main landed #371 (PR #253), changin
 
 Recorded suite on e55eed0871ac4061db7f8fd22d3d18e4958c9a75 exited 1 after 1438s queue and 503.4s execution (12 shards, 1394 cmd/sdlc tests, 60 other packages). The only failing test was TestIssueHintsRenderDecimalIDs: five new recovery hints used raw padded issue IDs. All other shards/packages passed; this is not a passing suite. Fixed the hints with the existing issue.CLIRef formatter (ARCH-DRY), preserving Cobra decimal parsing. The added padded-ID case and source guard first failed together, then both passed (0.598s). Re-run the recorded full suite on the pushed fix before close.
 
+- Replacement recorded suite is pinned to bb42d2f5298124aaaefab53cd71598869b5b6c1c in detached checkout /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/sdlc-local-1778550346, initially fifth in the machine queue. Log: /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/bb42d2f5298124aaaefab53cd71598869b5b6c1c/suite.log. Fresh origin/main remains f113e1e9fc9b7eac98bf7b3a644fc97f1095a360; integration already up to date. No result claimed; no overrides.
+
 ## Revisions
 
 - 2026-10-15T04:18:20-07:00 — Separate verification checkboxes from the later close/landing workflow so closing does not require pre-claiming its own success. Scope and acceptance unchanged.
