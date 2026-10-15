@@ -181,7 +181,7 @@ weave compile
 Naming the formula in full lets Homebrew load it from the untrusted third-party
 tap. To have a bare `brew upgrade` pick up new releases, trust the tap once with
 `brew trust xianxu/ariadne`. To work on weave itself, build the candidate from
-this checkout with `go build -o bin/weave ./cmd/weave` and put `bin/` first on
+this checkout with `go build -trimpath -o bin/weave ./cmd/weave` and put `bin/` first on
 PATH.
 
 `weave link ../ariadne` also accepts an existing local base. Address links clone

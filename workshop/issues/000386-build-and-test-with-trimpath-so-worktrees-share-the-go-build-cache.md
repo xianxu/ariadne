@@ -48,7 +48,7 @@ minutes. The operator approved building with `-trimpath`.
 - [x] Make the owner Makefile export effective Go flags plus -trimpath by default, retaining environment/go-env flags (currently -p=3). Add .sdlc/local-checks.json declaring required suite argv [make, test], weight 2 and timeout 60 minutes: the existing execution settings, with trimming inherited from the tested Makefile. Add an execution regression in scripts/test/trimpath_test.go exercising real owner build/test recipes with a temporary tracing Go/Python fixture, checking trimpath plus preserved flags. Run RED/GREEN and remove the default in a temporary mutation to prove this test fails.
 - [x] Add -trimpath to construct/dev-aliases.sh's existing emitter only, including its example. Extend the existing emitted-function execution fixture in construct/scripts/test/dev-aliases.test.sh; run RED/GREEN and remove the emitted flag once to prove the regression.
 - [x] Measure one unchanged package (pkg/vocab) in two clean temporary Git worktrees of the same pinned commit, using a private shared cache per mode. Compare untrimmed A/B versus trimmed A/B: archive cache path/build ID, second-worktree compile actions, elapsed time and cache growth. Keep Go version/flags/head in the Log; do not clear the machine's cache. Remove owned worktrees and private caches after capturing results.
-- [ ] Document the defaults and direct-Go opt-in in README and the existing build/test atlas section. Publish a PR, run the recorded full suite on its pushed head with trimming enabled by default, and record evidence.
+- [x] Document the defaults and direct-Go opt-in in README and the existing build/test atlas section. Publish a PR, run the recorded full suite on its pushed head with trimming enabled by default, and record evidence.
 
 After verification, close through mandatory review, obtain operator verification for the protected .sdlc declaration, integrate current main and land on SHIP. Verification checkboxes do not claim their own later close/landing success.
 
@@ -108,6 +108,10 @@ Raw report: /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne386-cache-re
 Recorded suite submitted via sdlc local-check run --name suite on pushed head 7835077ce52b3554e2aa45277245b3c540dbe900. Detached checkout /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/sdlc-local-144912622; initial log /Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/inflight/164589ef40143f19a6849abd5419a1f0/run.log. Initially queue position 5; no pass claimed. Existing main fallback invokes make test and the pinned candidate's exported GOFLAGS supplies trimpath.
 
 PR local-gates-guard is red because the operator's label is not yet present, as expected for the protected new declaration. TL received the concrete PR/label request (Couch receipt b6f009f5-ce8f-467e-a9ed-327053111e10, submitted). No waiver or agent-applied label. Finish recorded verification and mandatory close review; landing waits for operator verification and green CI. Code, targeted proof and cache measurement are already committed.
+
+### 2026-10-15 — recorded default suite passed
+
+Recorded suite on 7835077ce52b3554e2aa45277245b3c540dbe900 passed, exit 0: 466.9s execution after 1652s queue, all 12 shards / 1485 cmd/sdlc tests and 62 other packages, zero failures. Recorded as sdlc-local/suite; log digest prefix 075a4014449f. Log: /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/7835077ce52b3554e2aa45277245b3c540dbe900/suite.log. No GOFLAGS override was supplied to this run: candidate Makefile defaults supplied trimming. Aligned the earlier standalone weave build example with the documented direct-Go flag. Implementation and verification checkboxes are complete; mandatory close review and operator-gated landing remain.
 
 ## Revisions
 
