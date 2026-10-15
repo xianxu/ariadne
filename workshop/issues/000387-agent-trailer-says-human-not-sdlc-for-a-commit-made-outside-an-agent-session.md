@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "309edd46", done: "ab958c7e"}
 ---
 
 # Agent: trailer says 'human' (not 'sdlc') for a commit made outside an agent session
