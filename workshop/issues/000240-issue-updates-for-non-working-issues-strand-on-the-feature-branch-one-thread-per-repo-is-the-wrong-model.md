@@ -134,7 +134,7 @@ removes the stranding and the sweep hazard without any new model.
 
 - [x] Publish selected non-issue workshop prose through a main CAS, with
       path, base, concurrency, and local-retention tests; document the path in atlas.
-- [ ] Verify the full suite on the repaired code and prepare the issue for close.
+- [x] Verify the full suite on the repaired code and prepare the issue for close.
 
 ## Log
 
@@ -189,6 +189,8 @@ Resumed in ariadne:5 after the operator unfreeze, from moved HEAD ec6a37986245ea
 The resumed recorded suite on 6433ffd3ecd69e3e3b1a0591a4c5002f6f8eaba8 completed with failure: all 12 root SDLC shards passed (1366 tests), but the judge package failed TestPreparationOutputAndCancellation at preparation_test.go:79 (len=0, truncated=false). Wall 756.0s across 59 other packages; sdlc-local/suite records exit 2, log SHA-256 prefix d75cb1db7b6a, /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/6433ffd3ecd69e3e3b1a0591a4c5002f6f8eaba8/suite.log. The 200ms test deadline covers Git inspection/startup and can cancel before output capture, invalidating its truncation expectation under load. Focused and diagnostic-only overlay retries reproduced it; the tested preparation/processgroup sources match main byte-for-byte, while isolated main retries passed. Filed and published unassigned #379 with measured evidence and readiness-based acceptance criteria; hub asked to route the independent repair from main. #240 full-suite/close steps stay unchecked; no bypass or close attempted. No suite remains running or queued.
 
 After #379 landed in PR #247 (e3db93ddb5787059b724fcf04367362921fece9f), merged main 4c52f8a4e712c01c3d764bf53340a5289940fc7b cleanly as d9c48bfb12e0ec56825eb991f586812a00783623. Renewed #240 publication/recovery focused tests pass (/tmp/ariadne240-focused-after379.log). Preparation output/cancellation passes three runs (3.961s), and the explicit pre-canceled control passes (2.274s); logs /tmp/ariadne240-preparation-after379.log and /tmp/ariadne240-preparation-canceled-control.log. Diff whitespace checks pass. The independent blocker is resolved; starting the recorded full suite again before close.
+
+Renewed recorded full suite GREEN on 1e559e8ded87fd4e0d4690c52c0df79dbfc6a570 after #379: all 12 root SDLC shards over 1366 tests and 59 other packages exit 0, zero failures, wall 594.5s (9m55s). Status sdlc-local/suite success; log SHA-256 prefix a3c195ef563e, /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/1e559e8ded87fd4e0d4690c52c0df79dbfc6a570/suite.log. Both repaired preparation controls passed inside the full suite. Local acceptance is complete and the final issue Plan row is checked; entering renewed binary-owned close review of the approved local-retention contract.
 
 ### 2026-09-20
 

@@ -70,8 +70,10 @@ and leaves the local file untouched (ARCH-CONSTRAINTS).
 **Files:** `README.md`, `atlas/workflow/sdlc-binary.md`, `workshop/issues/000240-*.md`, `workshop/lessons.md` if review finds a transferable rule.
 
 - [x] Document `sdlc issue publish --issue` for issue details, `sdlc trunk publish --path` for non-issue workshop prose, and the branch-reviewed home for atlas/code/settings in README and atlas. Keep `atlas/index.md` current if adding a file (none planned).
-- [ ] Run `gofmt`, targeted tests, `make -k`, and the local suite via `sdlc local-check run --name suite` after the tree is stable; inspect logs and compare the patch with main.
-- [ ] Resolve review findings as a class, rerun affected checks, tick the final close row only when fulfilled, and run `sdlc close --issue 240 --verified <evidence>`; publish via `sdlc pr` and `sdlc merge` after CI.
+- [x] Run `gofmt`, targeted tests, `make -k`, and the local suite via `sdlc local-check run --name suite` after the tree is stable; inspect logs and compare the patch with main.
+- [x] Implement the approved retention repair for the cleanup findings, rerun affected checks, and record passing local acceptance for renewed close review.
+
+Next workflow checkpoints: run `sdlc close --issue 240 --verified <evidence>`; publish via `sdlc pr` and `sdlc merge` after SHIP and green CI.
 
 ## Revisions
 
@@ -139,3 +141,7 @@ including a wildcard filename with another matching file beside it.
 ### 2026-10-14 — resume in ariadne:5
 
 The moved branch is owned by ariadne:5. Current-plan summary wording now agrees with the approved retention policy: no automatic cleanup after publication or retry, and the pure path predicate uses its actual lowercase Go name. Historical cleanup designs remain in the preceding Revisions. Current main, including #369, #370 and #378, is integrated before renewed acceptance.
+
+### 2026-10-14 — renewed local acceptance
+
+After the independent #379 readiness repair landed, the renewed recorded full suite passed on 1e559e8d (594.5s, all 12 SDLC shards and 59 other packages). The final checklist row now names verified pre-close readiness; close and landing remain subsequent workflow transitions, matching the issue's earlier close-gate wording revision. The approved implementation scope is unchanged.
