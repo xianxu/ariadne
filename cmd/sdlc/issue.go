@@ -272,6 +272,37 @@ type issueNewFlags struct {
 	DryRun     bool
 	IssuesDir  string
 	HistoryDir string
+	Details    string // #371: a file of `## <Section>` blocks, or "-" for stdin
+	NoClaim    bool   // #371: filed from a numbered slot, stay unclaimed
+	sections   map[string]string
+}
+
+// issueNewStdin is where `--details -` reads from.
+var issueNewStdin io.Reader = os.Stdin
+
+// readIssueDetails parses --details before anything is reserved, so a bad
+// file takes no ID and publishes nothing.
+func readIssueDetails(f *issueNewFlags) error {
+	if f.Details == "" {
+		return nil
+	}
+	var raw []byte
+	var err error
+	if f.Details == "-" {
+		raw, err = io.ReadAll(issueNewStdin)
+	} else {
+		raw, err = os.ReadFile(f.Details)
+	}
+	if err != nil {
+		return fmt.Errorf("--details: %w", err)
+	}
+	if f.sections, err = issue.ParseDetails(string(raw)); err != nil {
+		return fmt.Errorf("--details %s: %w; nothing was reserved", f.Details, err)
+	}
+	if _, ok := f.sections["Problem"]; ok && f.FromGitHub > 0 {
+		return errors.New("--details gives ## Problem and --from-github seeds it too; drop one; nothing was reserved")
+	}
+	return nil
 }
 
 func newIssueNewCmd() *cobra.Command {
@@ -287,9 +318,22 @@ agent must not do by hand under parallel workstreams — and prints the path.
   sdlc issue new "Some title"              # blank issue
   sdlc issue new "x" --target my-target    # with a target: slug
   sdlc issue new --from-github 42          # title/body from a GitHub issue
+  sdlc issue new "x" --details body.md     # title + body in one call
+  sdlc issue new "x" --details - --no-claim  # body on stdin; leave it unclaimed
 
 With --from-github the title is taken from the GitHub issue (a positional
-title overrides it) and the issue body is seeded under ## Problem.`,
+title overrides it) and the issue body is seeded under ## Problem.
+
+With --details the body comes from FILE ("-" for stdin): ## <Section> blocks
+only, each a section of the issue file (Problem, Spec, Done when, Plan, Log), at
+most once; sections it leaves out keep the template's. It is checked before
+anything is reserved: frontmatter, a # title (the title is the argument), text
+before the first section, an unknown or repeated section, or a code fence that
+never closes refuses, with no ID taken. The card and the whole body publish in
+the one creation commit; the file is only read, never the checkout written.
+
+Filed from a numbered slot the issue is claimed by that slot; --no-claim
+leaves it unclaimed (filing for another slot, or for later).`,
 		Args:          cobra.MaximumNArgs(1),
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -303,6 +347,8 @@ title overrides it) and the issue body is seeded under ## Problem.`,
 	cmd.Flags().StringArrayVar(&f.Areas, "area", nil, "an area (repeatable): a /-path declared in .sdlc/vocabulary.json on main, or an ancestor of one")
 	cmd.Flags().StringVar(&f.Severity, "severity", "", "severity: "+strings.Join(vocab.Issue().Enums["severity"], " | "))
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be path + body; do not write")
+	cmd.Flags().StringVar(&f.Details, "details", "", "the body: a file of ## <Section> blocks, or - for stdin")
+	cmd.Flags().BoolVar(&f.NoClaim, "no-claim", false, "filed from a numbered slot, leave the issue unclaimed")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory holding archived issues")
 	return cmd
@@ -319,6 +365,9 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 		return err
 	}
 	if err := issueDirGuard(f.IssuesDir, !tracked); err != nil {
+		return err
+	}
+	if err := readIssueDetails(f); err != nil {
 		return err
 	}
 	if !tracked {
@@ -378,7 +427,7 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 	today := time.Now().Format("2006-01-02")
 	render := func(id string) (tracker.Draft, error) {
 		full := issue.Render(issue.ScaffoldSpec{ID: id, Title: title, Today: today, GithubIssue: ghNum,
-			ProblemBody: problemBody, Deps: f.Deps, Target: f.Target, Area: f.Areas, Severity: f.Severity})
+			ProblemBody: problemBody, Deps: f.Deps, Target: f.Target, Area: f.Areas, Severity: f.Severity, Sections: f.sections})
 		card, detail, err := issue.SplitCardWithFormat([]byte(full), env.format)
 		if err != nil {
 			return tracker.Draft{}, err
@@ -443,8 +492,10 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 	switch {
 	case err != nil:
 		cwarn(stderr, fmt.Sprintf("#%s is filed unclaimed: this workspace's identity is unavailable (%v)", issue.CLIRef(spec.IssueID), err))
-	case creatorClaims(me.Workspace):
+	case creatorClaims(me.Workspace) && !f.NoClaim:
 		claimAtCreation(env, stderr, spec.IssueID, me)
+	case f.NoClaim:
+		cinfo(stderr, fmt.Sprintf("#%s is unclaimed (--no-claim); the slot that works it claims it with `sdlc claim --issue %s`", issue.CLIRef(spec.IssueID), issue.CLIRef(spec.IssueID)))
 	default:
 		cinfo(stderr, fmt.Sprintf("#%s is unclaimed (filed outside a numbered slot); the slot that works it claims it with `sdlc claim --issue %s`", issue.CLIRef(spec.IssueID), issue.CLIRef(spec.IssueID)))
 	}

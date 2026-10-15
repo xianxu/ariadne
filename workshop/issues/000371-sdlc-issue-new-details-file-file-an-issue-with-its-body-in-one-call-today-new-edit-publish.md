@@ -45,11 +45,12 @@ Filing an issue with content takes three steps: `sdlc issue new "title"` (publis
 - **`--no-claim`** (the TL's ask): filed from a numbered slot, the issue stays unclaimed. It skips `claimAtCreation` and prints the same unclaimed line as filing from `:0`. This replaces new-then-unclaim for filing on another slot's behalf.
 - **ARCH-SECURE:** the details file is untrusted input, turned into a typed `map[section]body` at the boundary. Unknown structure refuses rather than guesses. **ARCH-ORDER:** validate before reserving, so a refusal has no effects. **ARCH-FUNERAL:** creates nothing new. **ARCH-MOCK:** the tests use the existing `newTrackerRepo` fake origin.
 
-- [ ] `issue.ParseDetails` and `Render` sections, with unit tests: a full body; a partial one (missing sections keep the template's); a fenced `## ` stays body; each refusal (frontmatter, H1, preamble, unknown heading, duplicate, empty)
-- [ ] `issue new --details FILE|-` and `--no-claim`. Tests against the fake origin: card and body published in one creation commit, the checkout untouched (`assertCheckoutUntouched`); an invalid file refused before any ID is reserved (the tracker's max ID unchanged, main unchanged); stdin; `--from-github` with a Problem in the file refused; `--no-claim` from a slot leaves it unclaimed; `--dry-run` shows the merged body
-- [ ] Help text for `issue new`, the `sdlc issue --help` contract if it lists the flags, the atlas, and the AGENTS §2 creation line if it names the flow
+- [x] `issue.ParseDetails` and `Render` sections, with unit tests: a full body; a partial one (missing sections keep the template's); a fenced `## ` stays body; each refusal (frontmatter, H1, preamble, unknown heading, duplicate, empty)
+- [x] `issue new --details FILE|-` and `--no-claim`. Tests against the fake origin: card and body published in one creation commit, the checkout untouched (`assertCheckoutUntouched`); an invalid file refused before any ID is reserved (the tracker's max ID unchanged, main unchanged); stdin; `--from-github` with a Problem in the file refused; `--no-claim` from a slot leaves it unclaimed; `--dry-run` shows the merged body
+- [x] Help text for `issue new`, the `sdlc issue --help` contract if it lists the flags, the atlas, and the AGENTS §2 creation line if it names the flow
 
 ## Log
 
 ### 2026-10-14
 - Plan: parse the details into sections before reserving; `Render` takes the sections; `--no-claim` per the TL. Quick flow.
+- Built. Unit tests: `ParseDetails` (full body, fenced `## ` kept as body, an empty section, 8 refusals) and `Render` with sections. Fake-origin tests: one creation commit carrying card and body, checkout untouched; unknown section and `# ` title refused before reserving (main and issue-tracker unchanged); `--from-github` with a Problem refused; stdin with `--dry-run`; `--no-claim` from `pair:1` files unclaimed. `go test -run IssueNew` green. A live `--dry-run` against this repo renders the merged body. Docs: the `issue new` help, `sdlc issue --help`, AGENTS.base §2, the atlas.
