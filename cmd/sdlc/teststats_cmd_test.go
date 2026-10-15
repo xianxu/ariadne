@@ -113,3 +113,44 @@ func TestSuiteStatsCommandSinceFilter(t *testing.T) {
 		t.Fatalf("12h = %v, %v", got, err)
 	}
 }
+
+func TestSuiteStatsCommandSmokeRecordDoesNotHideLegacySuite(t *testing.T) {
+	fleet := t.TempDir()
+	repo := filepath.Join(fleet, "ariadne")
+	common := filepath.Join(repo, ".git")
+	sha := strings.Repeat("a", 40)
+	now := time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC)
+	root := filepath.Join(common, "sdlc", "test-stats", "attempts")
+	if err := os.MkdirAll(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	a := SuiteAttempt{Version: 1, ID: "aabbccdd", Repo: "xianxu/ariadne", SHA: sha, Check: "smoke", StartedAt: now.Add(-time.Minute), FinishedAt: now, LogSHA256: strings.Repeat("b", 64), LogPath: filepath.Join("local-checks", sha, "smoke.log")}
+	b, err := json.Marshal(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, a.ID+".json"), b, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	legacy := filepath.Join(common, "sdlc", "local-checks", sha)
+	if err := os.MkdirAll(legacy, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(legacy, "suite.log"), []byte("ok github.com/xianxu/ariadne/pkg/stats 2.5s\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	deps := testStatsDeps{now: func() time.Time { return now }, identity: func() (workspace.Identity, error) {
+		return workspace.Identity{PrimaryRoot: repo, FleetRoot: fleet}, nil
+	}, fleetDirs: func(string) ([]string, error) { return []string{repo}, nil }, commonDir: func(string) (string, error) { return common, nil }}
+	var out bytes.Buffer
+	if err := runTestStats(&out, testStatsFlags{Since: "7d", JSON: true}, deps); err != nil {
+		t.Fatal(err)
+	}
+	var report testStatsReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Repos) != 1 || report.Repos[0].Runs != 1 || report.Repos[0].FullyRecorded != 0 || len(report.Repos[0].Slow) != 1 {
+		t.Fatalf("legacy suite hidden by smoke record: %+v", report)
+	}
+}

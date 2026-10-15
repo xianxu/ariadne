@@ -260,3 +260,45 @@ func TestReadSuiteAttemptsCapsTotalBytes(t *testing.T) {
 		t.Fatalf("unbounded intake: %d %v %v", len(rows), warnings, err)
 	}
 }
+
+func TestPruneSuiteAttemptsReclaimsOnlyDeadOwnerPublicationTemps(t *testing.T) {
+	root := t.TempDir()
+	now := time.Now()
+	old := now.Add(-48 * time.Hour)
+	active, err := beginSuiteAttempt(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadID := strings.Repeat("d", 32)
+	deadDir := filepath.Join(root, "inflight", deadID)
+	if err := os.MkdirAll(deadDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(deadDir, "owner"), []byte("999999999"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{active.ID, deadID} {
+		path := filepath.Join(root, "attempts", ".attempt-"+id+"-12345")
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("incomplete"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(path, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Chtimes(deadDir, old, old); err != nil {
+		t.Fatal(err)
+	}
+	if err := pruneSuiteAttempts(root, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "attempts", ".attempt-"+active.ID+"-12345")); err != nil {
+		t.Fatalf("active temp removed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "attempts", ".attempt-"+deadID+"-12345")); !os.IsNotExist(err) {
+		t.Fatalf("dead-owner temp retained: %v", err)
+	}
+}

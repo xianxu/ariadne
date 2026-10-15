@@ -135,7 +135,10 @@ func runTestStats(out io.Writer, flags testStatsFlags, deps testStatsDeps) error
 		}
 		known := map[string]bool{}
 		for i := range attempts {
-			known[attempts[i].SHA] = true
+			// A different local check at this head does not cover suite.log.
+			if attempts[i].Check == suiteCheckName {
+				known[attempts[i].SHA] = true
+			}
 			attempts[i].Repo = name
 		}
 		legacy, legacyWarnings := readLegacySuiteLogs(common, name, known)
@@ -195,8 +198,11 @@ func readLegacySuiteLogs(common, repo string, known map[string]bool) ([]SuiteAtt
 		}
 		facts := parseSuiteLogFacts(string(data))
 		exit := 0
-		if strings.Contains(string(data), "\nFAIL") || strings.Contains(string(data), " exit 1 ") {
+		if facts.Failed {
 			exit = 1
+		}
+		for _, warning := range facts.Warnings {
+			warnings = append(warnings, path+": "+warning)
 		}
 		out = append(out, SuiteAttempt{Repo: repo, SHA: sha, Check: suiteCheckName, StartedAt: info.ModTime().UTC(), Exit: exit, WallSeconds: facts.WallSeconds, Failures: facts.Failures, Units: facts.Units, Legacy: true})
 	}

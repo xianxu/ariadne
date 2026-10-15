@@ -207,7 +207,7 @@ func publishSuiteAttempt(root string, w *suiteAttemptWriter, a SuiteAttempt) (st
 		from = filepath.Join(root, a.LogPath)
 	}
 	legacy := filepath.Join(filepath.Dir(root), "local-checks", a.SHA, a.Check+".log")
-	if err := copySuiteLogAtomically(from, legacy); err != nil {
+	if err := copySuiteLogAtomically(from, legacy, filepath.Dir(w.LogPath)); err != nil {
 		return "", fmt.Errorf("legacy log copy: %w", err)
 	}
 	data, err := json.Marshal(a)
@@ -222,7 +222,9 @@ func publishSuiteAttempt(root string, w *suiteAttemptWriter, a SuiteAttempt) (st
 	} else if !os.IsNotExist(err) {
 		return "", err
 	}
-	tmp, err := os.CreateTemp(filepath.Join(root, "attempts"), ".attempt-*")
+	// Name the temp for its private owner. A crash leaves its ID available to
+	// the dead-owner pruner, while active writers are never swept.
+	tmp, err := os.CreateTemp(filepath.Join(root, "attempts"), ".attempt-"+a.ID+"-*")
 	if err != nil {
 		return "", err
 	}
@@ -245,7 +247,7 @@ func publishSuiteAttempt(root string, w *suiteAttemptWriter, a SuiteAttempt) (st
 	return final, nil
 }
 
-func copySuiteLogAtomically(src, dst string) error {
+func copySuiteLogAtomically(src, dst, privateDir string) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
@@ -254,7 +256,9 @@ func copySuiteLogAtomically(src, dst string) error {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
-	out, err := os.CreateTemp(filepath.Dir(dst), ".suite-*")
+	// Keep this publication temp in the same private in-flight directory as
+	// the writer log, so dead-owner cleanup also reclaims an interrupted copy.
+	out, err := os.CreateTemp(privateDir, ".suite-*")
 	if err != nil {
 		return err
 	}
@@ -349,7 +353,17 @@ func pruneSuiteAttempts(root string, now time.Time) error {
 		return err
 	}
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
+		if e.IsDir() {
+			continue
+		}
+		if id, ok := attemptTempOwner(e.Name()); ok {
+			info, err := e.Info()
+			if err == nil && now.Sub(info.ModTime()) > suiteInflightStale && suiteOwnerDead(filepath.Join(root, "inflight", id)) {
+				_ = os.Remove(filepath.Join(root, "attempts", e.Name()))
+			}
+			continue
+		}
+		if !strings.HasSuffix(e.Name(), ".json") {
 			continue
 		}
 		info, err := e.Info()
@@ -395,6 +409,18 @@ func pruneSuiteAttempts(root string, now time.Time) error {
 		_ = os.RemoveAll(filepath.Join(root, "inflight", e.Name()))
 	}
 	return nil
+}
+
+func attemptTempOwner(name string) (string, bool) {
+	const prefix = ".attempt-"
+	if !strings.HasPrefix(name, prefix) {
+		return "", false
+	}
+	rest := strings.TrimPrefix(name, prefix)
+	if len(rest) < 34 || rest[32] != '-' || !suiteHex.MatchString(rest[:32]) {
+		return "", false
+	}
+	return rest[:32], true
 }
 
 func suiteOwnerDead(dir string) bool {

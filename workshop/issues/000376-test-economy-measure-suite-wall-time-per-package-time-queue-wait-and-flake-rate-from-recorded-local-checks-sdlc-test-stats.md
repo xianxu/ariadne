@@ -70,6 +70,8 @@ Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `
 - The first recorded suite was queued behind two other runs; I cancelled it before it acquired the suite lock after spotting a total-reader-memory gap. The reader now streams directory entries and caps aggregate JSON intake at 64 MiB with an explicit warning. The suite will run on the corrected pushed head.
 - During the next queue wait, validation review found an omitted JSON `exit` defaulted to zero and could fabricate success. Added required-field and duplicate-key checks, with regression fixtures; cancelled before acquiring the suite lock again so final verification applies to the corrected head.
 - The recorded `sdlc local-check run --name suite` passed on pushed head `0554b5cd5c50dfbf274db6948f2107cb28ee7094`: 12 shards and 59 other packages, 0 failures, wall 538.8s, queue wait 2557s; check `sdlc-local/suite` recorded with log SHA-256 prefix `0eb8013093b0`. `git diff --check` passed. Submitting the branch to the close boundary review now.
+- Close review round 1 returned REWORK: BR-1 JSON event format was unparsed, BR-2 a smoke attempt hid same-SHA legacy suite evidence, BR-3 the plan mislocated `SuiteAttempt`, and BR-4 crash-left publication temps had no owner-based cleanup. Reproduced both behavior defects with red tests; fixes and the corresponding plan/lessons revisions are in progress (ARCH-PURPOSE, ARCH-FUNERAL).
+- Round 1 fixes pass focused parser, command, publication, pruning and local-check tests. `make -k tools`, `git diff --check`, and the real read-only CLI pass; the rerun shows ariadne 20 historical runs, pair 21, and explicit unknown queue coverage. A recorded suite on the fixed head is required before re-close.
 
 ## Revisions
 

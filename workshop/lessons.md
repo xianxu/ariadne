@@ -772,3 +772,7 @@ The simplest durable authority beats a clever scan of consequences.
   and regression-test it with recorded events (#369).
 
 - File metadata is not a read budget: enforce limit+1 at the reader for both admission and post-effect rereads, and test growth after metadata validation with measured consumption rather than only checking the final error (#240 BR-8).
+
+- A log-format contract needs fixtures for every named producer format, including structured events; test malformed records and failure identities as well as successful timings (#376 BR-1).
+- Deduplicate evidence by the kind of check it covers, not only by commit SHA; a smoke result must not hide a suite log (#376 BR-2).
+- Every temporary publication file needs an owner and a crash cleanup path. Test dead-owner reclamation alongside an active writer that must survive (#376 BR-4).

@@ -176,6 +176,9 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		if log, readErr := os.ReadFile(writer.LogPath); readErr == nil {
 			facts := parseSuiteLogFacts(string(log))
 			attempt.Failures, attempt.Units = facts.Failures, facts.Units
+			for _, warning := range facts.Warnings {
+				fmt.Fprintf(d.Stderr, "[!] local check %s: log parser: %s\n", c.Name, warning)
+			}
 		}
 	} else {
 		fmt.Fprintf(d.Stderr, "[!] local check %s: log too large for timing/failure parser; raw log retained\n", c.Name)

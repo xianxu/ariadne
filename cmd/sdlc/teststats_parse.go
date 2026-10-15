@@ -1,8 +1,11 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"math"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -21,28 +24,63 @@ type SuiteLogFacts struct {
 	Failures    []string        `json:"failures,omitempty"`
 	Units       []SuiteDuration `json:"units,omitempty"`
 	WallSeconds *float64        `json:"wall_seconds"`
+	Failed      bool            `json:"failed"`
+	Warnings    []string        `json:"warnings,omitempty"`
 }
 
 var (
-	shardSummary = regexp.MustCompile(`^(packages|shard[0-9]+)\s+exit\s+[0-9]+\s+([0-9]+(?:\.[0-9]+)?)s\s+[0-9]+\s+failed$`)
+	shardSummary = regexp.MustCompile(`^(packages|shard[0-9]+)\s+exit\s+([0-9]+)\s+([0-9]+(?:\.[0-9]+)?)s\s+[0-9]+\s+failed$`)
 	goPackageOK  = regexp.MustCompile(`^ok\s+(\S+)\s+([0-9]+(?:\.[0-9]+)?)s(?:\s|$)`)
 	shardWall    = regexp.MustCompile(`^wall\s+([0-9]+(?:\.[0-9]+)?)s(?:\s|$)`)
 )
 
-// parseSuiteLogFacts reads the two existing suite output formats. Failure
+type goTestJSONEvent struct {
+	Action  string   `json:"Action"`
+	Package string   `json:"Package"`
+	Test    string   `json:"Test"`
+	Elapsed *float64 `json:"Elapsed"`
+}
+
+// parseSuiteLogFacts reads the existing text and go test -json suite formats. Failure
 // naming stays centralized in failingTests, shared with baseline diagnosis.
 func parseSuiteLogFacts(log string) SuiteLogFacts {
 	facts := SuiteLogFacts{Failures: failingTests(log)}
-	for _, raw := range strings.Split(log, "\n") {
+	failures := make(map[string]struct{}, len(facts.Failures))
+	for _, name := range facts.Failures {
+		failures[name] = struct{}{}
+	}
+	for index, raw := range strings.Split(log, "\n") {
 		line := strings.TrimSpace(raw)
+		if strings.HasPrefix(line, "{") && strings.Contains(line, `"Action"`) {
+			var event goTestJSONEvent
+			if err := json.Unmarshal([]byte(line), &event); err != nil {
+				appendSuiteParseWarning(&facts, fmt.Sprintf("line %d: malformed go test JSON event: %v", index+1, err))
+				continue
+			}
+			if event.Action == "fail" {
+				facts.Failed = true
+			}
+			if event.Action == "fail" && event.Package != "" && event.Test != "" && !strings.Contains(event.Test, "/") {
+				failures[event.Package+"."+event.Test] = struct{}{}
+			}
+			if (event.Action == "pass" || event.Action == "fail") && event.Test == "" {
+				if event.Package == "" || event.Elapsed == nil || math.IsNaN(*event.Elapsed) || math.IsInf(*event.Elapsed, 0) || *event.Elapsed < 0 {
+					appendSuiteParseWarning(&facts, fmt.Sprintf("line %d: package outcome lacks valid package or elapsed seconds", index+1))
+					continue
+				}
+				facts.Units = append(facts.Units, SuiteDuration{Kind: "package", Name: event.Package, Seconds: *event.Elapsed})
+			}
+			continue
+		}
 		if m := shardSummary.FindStringSubmatch(line); m != nil {
-			if seconds, ok := suiteSeconds(m[2]); ok {
+			if seconds, ok := suiteSeconds(m[3]); ok {
 				kind := "shard"
 				if m[1] == "packages" {
 					kind = "package-group"
 				}
 				facts.Units = append(facts.Units, SuiteDuration{Kind: kind, Name: m[1], Seconds: seconds})
 			}
+			facts.Failed = facts.Failed || m[2] != "0"
 			continue
 		}
 		if m := goPackageOK.FindStringSubmatch(line); m != nil && strings.ContainsAny(m[1], "/.") {
@@ -56,8 +94,26 @@ func parseSuiteLogFacts(log string) SuiteLogFacts {
 				facts.WallSeconds = &seconds
 			}
 		}
+		if line == "FAIL" || strings.HasPrefix(line, "FAIL ") || strings.HasPrefix(line, "FAIL\t") {
+			facts.Failed = true
+		}
+	}
+	if len(failures) != 0 {
+		facts.Failures = facts.Failures[:0]
+		for name := range failures {
+			facts.Failures = append(facts.Failures, name)
+		}
+		sort.Strings(facts.Failures)
 	}
 	return facts
+}
+
+func appendSuiteParseWarning(facts *SuiteLogFacts, warning string) {
+	if len(facts.Warnings) < 8 {
+		facts.Warnings = append(facts.Warnings, warning)
+	} else if len(facts.Warnings) == 8 {
+		facts.Warnings = append(facts.Warnings, "additional malformed events omitted")
+	}
 }
 
 func suiteSeconds(raw string) (float64, bool) {
