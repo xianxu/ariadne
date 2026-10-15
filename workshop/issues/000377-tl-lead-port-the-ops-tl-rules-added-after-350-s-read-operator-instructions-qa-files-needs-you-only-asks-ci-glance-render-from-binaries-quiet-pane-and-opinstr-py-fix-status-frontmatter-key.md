@@ -1,12 +1,22 @@
 ---
 id: 000377
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
-estimate_hours:
-card_mirror: '6a71b701e40f33774c3bac8d63f4c04c46e34524' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 1.259
+card_mirror: 'e981acd9d7206d42354c267b5fd859d10654f830' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-14T20:39:55-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
+actual_hours: 0.18
 ---
 
 # tl-lead: port the ops TL rules added after #350's read (Operator instructions + QA files, Needs-you only asks, CI glance, render-from-binaries, quiet pane) and opinstr.py; fix status frontmatter key
@@ -33,8 +43,52 @@ Port each missing rule into `tl-lead --help` (rules only, no stories); port `opi
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000377-tl-lead-port-the-ops-tl-rules-added-after-350-s-read-operator-instructions-qa-files-needs-you-only-asks-ci-glance-render-from-binaries-quiet-pane-and-opinstr-py-fix-status-frontmatter-key-plan.md` (single pass, one close).
+
+- [x] help.md: rules G1–G8, the frontmatter key, the instructions verbs
+- [x] pure parser and linker (`instructions.go`) with golden tests
+- [x] `status instructions list|link` verbs with fake-backed tests
+- [x] help names every verb (test)
+- [x] atlas tl-skills.md
+- [x] G10 (verify slots after a disruption) and G11 (issue filing), text from the TL (plan Revisions)
+- [x] fresh comparison of the draft against help.md, recorded in the Log
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only. Source flagged stale; treat values as provisional.
+Existing Go stack (cobra, the SessionSync seam and its stateful fake, the help
+guards), so familiarity 1.0; no library discount applies. The approved plan is
+thorough, so design hours are small and the design buffer is 15%. Impl values are
+40% of the v2 ranges.
+
+Items in order: help.md rule port (G1–G8, G10, G11); the pure parser and linker;
+the list/link verbs with the single-shot write; help guards derived from the tree;
+atlas; the fresh comparison; one close review. Design 0.26h + impl 0.96h; buffered
+total 1.259h.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.04 impl=0.16
+item: smaller-go-module design=0.04 impl=0.16
+item: smaller-go-module design=0.02 impl=0.08
+item: atlas-docs design=0.04 impl=0.08
+item: smaller-go-module design=0.02 impl=0.08
+item: milestone-review design=0.04 impl=0.20
+design-buffer: 0.15
+total: 1.259
+```
 
 ## Log
 
 ### 2026-10-14
+- 2026-10-14: closed — close-review Minors fixed: link refuses empty/whitespace/paren TARGET (tests: empty, space, newline+fake bullet, parens); trim before the link is unicode.IsSpace, so a CRLF line links like opinstr.py rstrip (test); go test ./cmd/tl-lead ./cmd/tl-worker green after merging main (fixed-then-ship); review verdict: SHIP
+- 2026-10-14: closed — go test ./cmd/tl-lead ./cmd/tl-worker green: golden parser/linker cases (multi-line, inner blanks, repeated numbers, image lines, done:/answer markers, preamble), list/link via the stateful fake (stale hash and a mid-write edit refuse exit 6 with no retry, lock exit 3, answered no-op), help phrase guard per ported rule G1-G11 + 5 comparison folds, verb test walks the command tree; parity: instructions list == opinstr.py list byte for byte on a copy of the real ops status file (3 bullets); fresh-context comparison of the draft at e7ea8e5 finds no missing rule (one deliberate contradiction: known-red CI per AGENTS 5); full make test: all shards green except cmd/sdlc TestShardedReportRetainsSubtestDiagnostics, a main #369 test writing to /tmp under the sandbox, filed as ariadne#381; review verdict: SHIP
+- Compared ops draft e7ea8e5 with help.md at main 18915f6c: gaps G1–G9 in the plan. `couch --skill` names `couch-owner:` canonical (`owner:` legacy), so the help keeps it. parley.nvim#315 landed (PR #228): the `holder: agent` workaround is not ported.
+- The TL approved the plan (G1–G9, the hash guard, `couch-owner:`), pinned `--flow full`, and supplied the text for G10 and G11 (plan Revisions).
+- plan-quality INFO, 2 Minors (help rule guards; the single-shot link write), folded into the plan's Revisions. The plan file was renamed to its canonical name.
+- Built in 677b2a33. The help guards cover one phrase per rule (G1–G8, G10, G11); the verb test walks the command tree. Parity: on a copy of ops's real status file with its answer links stripped, `instructions list` output matches `opinstr.py list` byte for byte (3 bullets). `go test ./cmd/tl-lead ./cmd/tl-worker` green.
+- Fresh comparison (a fresh-context subagent, the draft at e7ea8e5 against tl-lead/tl-worker help plus the cited `couch --skill`, `sdlc --help` and AGENTS §5/§15): about 140 rules covered, no load-bearing rule missing. It found 5 minor omissions, now folded in with guards: in a dispatch the repo prefix is enough; update the status file on every thread change; don't ask Couch to encode one repo's usage; stage with `sdlc stage`, never `sdlc move`; waves are fine, written as the trains table. One contradiction is deliberate: known-red CI. The draft lets it land; tl-lead (since #350) and AGENTS §5 (#309) say `sdlc merge` refuses red CI, fix it in its own issue. It was confirmed in practice on #350 (no CI waiver). Also dropped as obsolete: the until-ariadne#308 stray-tick trap, the ariadne#318 sandbox bypass, `tools/watch_issues.py`, 'by hand until sdlc learns directories'.
+- The close review returned SHIP with 2 Minors, both fixed in this round. `link` now refuses a TARGET that is empty or contains whitespace or parentheses, since a newline could add a fake bullet and a paren would end the link. The trim before the link is `unicode.IsSpace`, matching `rstrip()` on CRLF lines. Tests cover both.
