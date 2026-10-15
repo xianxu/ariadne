@@ -1,12 +1,12 @@
 ---
 id: 000373
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-15
 estimate_hours:
-card_mirror: 'ebcf05fad7b51c7bd8cf07eebe661a1f4a05bf69' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '198828e134846b008642af4432af6e3dc98d781e' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-15T01:00:50-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 2.60
 ---
 
 # Project lifecycle verbs: sdlc project tick/close, and landing ticks the referencing project's item automatically
