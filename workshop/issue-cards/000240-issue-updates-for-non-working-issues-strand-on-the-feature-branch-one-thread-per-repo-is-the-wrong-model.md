@@ -1,6 +1,6 @@
 ---
 id: 000240
-status: working
+status: codecomplete
 created: 2026-09-20
 updated: 2026-10-14
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 9.66
+tracker:
+    version: 1
+    completion:
+        token: close-c5803b3e0f26
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 6e2bb6a7abee199c4ece5eefad7a1b5326cb553f
+        evidence_commit: 9c2930620851bb031df4af0cfc04938527b762af
 ---
 
 # Issue updates for non-working issues strand on the feature branch — one thread per repo is the wrong model
