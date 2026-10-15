@@ -77,6 +77,10 @@ Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `
 - The round-2 fix head `d4b102b5d41c7cc4bceecde4b7f74c54d598db52` passed `sdlc local-check run --name suite`: 12 shards and 59 other packages, 0 failures, wall 617.0s, queue wait 1345s, log SHA-256 prefix `eba87fa23c08`, status `sdlc-local/suite` recorded. The broader targeted tests, `make -k tools`, and `git diff --check` also passed; submitting BR-5–BR-7 dispositions for re-review.
 - Close review round 3 disposed BR-5–BR-7, then found BR-8: a nested duration's JSON null could decode to zero and bias slow-unit statistics. A red read-and-aggregate test proved null `kind` and `seconds` were admitted. The decoder now rejects null for every required nested scalar, emits coverage warnings instead of rows, and validates duration kinds (ARCH-SECURE, ARCH-PURPOSE).
 
+### 2026-10-15
+
+- The BR-8 fix head `e1f4826083f90bcf6540d108394926cc072391d7` passed `sdlc local-check run --name suite`: 12 shards and 59 other packages, 0 failures, wall 482.1s, queue wait 2603s, log SHA-256 prefix `8107e1d22518`, status `sdlc-local/suite` recorded. The broader targeted tests, `make -k tools`, and `git diff --check` passed; submitting BR-8 for re-review.
+
 ## Revisions
 
 ### 2026-10-14 — TL-approved recorder scope

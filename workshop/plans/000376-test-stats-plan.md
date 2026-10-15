@@ -108,6 +108,6 @@ BR-1 added explicit `go test -json` pass/fail/malformed fixtures and bounded par
 
 BR-5 tightened the persisted-input boundary: every top-level attempt field and nested duration field must use its exact canonical JSON name, before Go's case-insensitive struct decoder runs; aliases, including conflicting outcome keys, are rejected. BR-6 completed the format-by-outcome matrix: ariadne shard summaries, plain Go package `ok` and `FAIL` summaries, and `go test -json` package `pass` and `fail` events all retain available duration and failure evidence. BR-7 enforces the planned 1 MiB per-line limit before either failure extraction or timing parsing; an oversized line makes all parsed facts unavailable with a warning, while the raw log and hash remain available. The new boundary-size and outcome fixtures are the regression contract (ARCH-SECURE, ARCH-PURPOSE, ARCH-CONSTRAINTS).
 
-### 2026-10-14 — close review round 3
+### 2026-10-15 — close review round 3
 
 BR-8 found that Go's scalar decoder also maps nested JSON nulls to zero values. Required scalar fields reject null at every depth before decoding; only queue/wall measurements and agent/model/effort identity are nullable by schema. A record with a null duration kind, name or seconds now produces a coverage diagnostic and contributes no samples, and duration kind is validated against the emitted measurement kinds (ARCH-SECURE, ARCH-PURPOSE).
