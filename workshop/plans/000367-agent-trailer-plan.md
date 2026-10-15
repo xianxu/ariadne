@@ -87,5 +87,5 @@ An unknown part is `-` (e.g. `claude/claude-opus-5-5/-`). With no agent environm
 - **Exempt commits:** the GitHub PR merge commit (GitHub writes it) and abandon's merge conclusion; merges carry no work and the close report skips them. The archive and migrate argv builders also render paste-able hints, so their executing callers stamp the message instead.
 - **A pair slot's plain shell is not a session:** `Env.InSession` ignores `PAIR_AGENT`, so an operator's hand-run sdlc commit says `Agent: sdlc`, not `claude/-/-`.
 - Fixtures are inline constants in `detect_test.go`, not `testdata/`.
-- Behavioural trailer assertions now cover close evidence (and close's report wiring), tracker cards, `issue new`, the change-code checkpoint, issue sync and the landing integration merge.
+- Behavioural trailer assertions now cover close evidence (and close's report wiring), tracker cards, `issue new`, the change-code checkpoint, issue sync (the published commit and, after round 2, `syncInPlace`'s own local commit) and the landing integration merge.
 

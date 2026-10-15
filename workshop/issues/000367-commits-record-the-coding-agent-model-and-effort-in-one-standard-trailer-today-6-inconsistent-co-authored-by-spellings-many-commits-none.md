@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "9f75bd42", done: "66bf61b7"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Commits record the coding agent, model and effort in one standard trailer (today: 6+ inconsistent Co-Authored-By spellings, many commits none)
@@ -48,8 +48,11 @@ Durable plan: `workshop/plans/000367-agent-trailer-plan.md` (format coordinated 
 ## Log
 
 ### 2026-10-14
+- 2026-10-14: closed — recorded suite sdlc-local/suite pass on a6da3802 (exit 0); round-1 fixes: agentid is a stdlib-only leaf owning the agent env (gitx deps add only agentid), transcript roots single-sourced; tests: agentid unit (render/parse, Stamp, Claude/Codex tails, bounded read, detection incl. PAIR_AGENT-only shell), TestEveryCommitSiteStamps sweep, Agent trailer asserted on close evidence, tracker cards, issue new, change-code checkpoint, issue sync and the landing integration merge, close report wiring asserted in the close e2e; every commit in this window carries one Agent value; review verdict: FIX-THEN-SHIP
+- 2026-10-14: flow upgraded quick → full — 509 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Format sent to ariadne:3 (#365) and the TL: `Agent: agent/model/effort` with the transcripts' raw names. Env carries no model (only CLAUDE_EFFORT), so model and effort come from the session transcript's tail: Claude assistant records carry `message.model` + `effort`; Codex `turn_context.payload` carries `model` + `effort`.
 - Tests run inside agent sessions, so TestMain in cmd/sdlc, gitx and tracker pins `SDLC_AGENT_ID` (`testfix.PinAgent`); otherwise commit messages in tests would depend on who runs the suite.
 - Stamped 16 `commit`/`commit-tree` sites plus the landing integration merge; exempt (named in the sweep test): recovery ref, rebased-patch temp commit, abandon's merge conclusion. The GitHub PR merge commit is GitHub's message; merges carry no work and the close report skips them (first-parent, no merges).
 - Close report is a warning, not a gate (proposed to the TL; one GateCatalog row promotes it).
 - Boundary review round 1 (FIX-THEN-SHIP): BR-1 gitx reached into judge through agentid. Fixed by making agentid a stdlib-only leaf that owns the agent env (judge aliases it); gitx's deps add only agentid. Minors fixed in the same round: transcript roots single-sourced, plan Revisions, behavioural trailer tests for the checkpoint/sync/landing merge/close wiring, PAIR_AGENT-only shells read as `sdlc`, help text notes the 1 MiB tail. Left as is: `Stamp` treats a last paragraph starting `Agent: ` as already stamped (that paragraph is a trailer block by git's own rule).
+- Boundary review round 2 (FIX-THEN-SHIP, no blocking): BR-1..3 addressed; BR-4 (no behavioural test for the `syncInPlace` local commit) fixed by asserting the on-main arm's local HEAD in `TestIssueSync_PublishMatrix`, checked red with the stamp removed.

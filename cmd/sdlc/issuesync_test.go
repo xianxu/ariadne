@@ -520,6 +520,11 @@ func TestIssueSync_PublishMatrix(t *testing.T) {
 				if msg := git(t, repo, "log", "-1", "--format=%B", "origin/main"); !strings.Contains(msg, "\nAgent: "+testfix.FixedAgent) { // #367
 					t.Errorf("the sync commit lacks the Agent trailer:\n%s", msg)
 				}
+				if loc.name == "on main" { // syncInPlace's own local commit, before trunk publication restamps
+					if msg := git(t, dir, "log", "-1", "--format=%B", "HEAD"); !strings.Contains(msg, "\nAgent: "+testfix.FixedAgent) {
+						t.Errorf("the local sync commit lacks the Agent trailer:\n%s", msg)
+					}
+				}
 			})
 		}
 	}
