@@ -80,3 +80,90 @@ findings:
    No scope revision needed. Implement the already-promised format diagnostic and complete the README documentation gate.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"f19d47bd-d5af-41fd-8399-853500dce3c4","repository":"github.com/xianxu/ariadne","issue_id":"000385","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/1f99f510016bcc98","reviewed_head":"d4c9d29701d73e39a2718e22398b484d4c694460","slot":"ariadne:3","requested_at":"2026-10-15T18:42:18.468641Z"},"phase":"finished","pid":38476,"started_at":"2026-10-15T18:42:18.70588Z","finished_at":"2026-10-15T18:45:11.374353Z","session_id":"01a140df-4f76-7342-8669-a30a2b5886ed","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-15T12:25:59-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 385 — sdlc reads Qoder transcripts: actuals (active-time-v3), agent-id and usage |
+| repo | ariadne |
+| issue file | workshop/issues/000385-sdlc-reads-qoder-transcripts-actuals-active-time-v3-agent-id-and-usage.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ea2cee461c058080a25b03e689e9142c3ea21a63..0ffe2ebd220d7aca981c81bbad63697e45dc9b2f |
+| command | sdlc close --issue 385 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-15T12:25:59-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+Both prior findings are addressed and the targeted suites pass. One correctness blocker remains: malformed input before workspace metadata lets actual discovery omit an owned Qoder transcript, then close adopts the remaining partial measurement.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      qoder.go checks all four placeholders, including streaming rows. Regression tests cover nonzero and invalid values; removing the check through a temporary overlay makes the placeholder and streaming tests fail.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      README.md:130–149 now documents Qoder credits, calibration and schema-version-2 nullable measurements, and links to the matching Local usage heading in atlas/workflow/sdlc-binary.md. The collector and calibration implementation support the documented behavior.
+findings:
+  - id: new
+    severity: Critical
+    family: incomplete-evidence-adoption
+    title: |
+      Malformed prefixes allow close to adopt incomplete Qoder actuals
+    detail: |
+      cmd/sdlc/internal/transcripts/qoder.go:119–121 returns on a malformed row before later workspace metadata can establish relevance. discovery.go:54–59 then treats the failed source as skippable. A temporary extension of TestQoderActualDiscoveryRefusesPartialOwnedEvidence with "not-json\n" before valid owned rows returned the good source with no error. A production actual/close overlay confirmed actualMeasured, 0.1 hours and adopted=true despite that omitted owned source. Preserve uncertainty until exclusion is proven: continue bounded relevance discovery after recoverable parse failures, and refuse automatic adoption when scan failures or limits leave ownership unresolved. Sweep parse, read and bound failures before ownership resolution, with discovery and close regressions (ARCH-SECURE, ARCH-ORDER, ARCH-PURPOSE).
+```
+
+1. **Strengths**
+
+   - Shared typed metadata and sticky session/config conflicts avoid divergent provider interpretations.
+   - Exact credit arithmetic and nullable measurements preserve native amounts without fabricating token usage.
+   - Identity tests validate launch binding, competing sessions, contradictory copies and cancellation.
+   - README, help and atlas describe the new reporting surface and schema change.
+
+2. **Critical findings**
+
+   - The malformed-prefix adoption defect above must be fixed before crossing the boundary.
+
+3. **Important findings**
+
+   None.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   All four changed internal package suites passed. Targeted command tests covering Qoder, output, cancellation, attribution and commit stamping passed. Removing BR-1’s check made its regressions fail. Two temporary overlays reproduced the new defect through discovery and production close adoption. Tracked files remain unchanged; the full suite was not rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared adapter, normalization and measurement aggregation.
+   - **ARCH-PURE — pass:** deterministic metadata/arithmetic core with filesystem boundaries.
+   - **ARCH-PURPOSE — flag:** incomplete evidence can enter actuals and velocity calibration.
+   - **ARCH-MOCK — pass:** portable transcript stores and temporary Git fixtures exercise production seams.
+   - **ARCH-CONSTRAINTS — pass:** explicit scan, numeric and cancellation bounds.
+   - **ARCH-SECURE — flag:** unknown ownership after parsing failure becomes safe exclusion without evidence.
+   - **ARCH-ORDER — flag:** failure before metadata resolution permits successful partial adoption.
+   - **ARCH-FUNERAL — pass:** existing meter replacement and retained-evidence lifecycles are reused.
+
+7. **Plan revision recommendations**
+
+   Add a `## Revisions` entry defining unresolved, proven-unrelated and relevant failed-source outcomes. Require automatic actuals refusal while ownership remains unresolved, and extend the failure matrix to errors before workspace metadata.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"c6262c8f-db3d-4050-afb1-07d45375f688","repository":"github.com/xianxu/ariadne","issue_id":"000385","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/a9751bcd78f9e3a6","reviewed_head":"0ffe2ebd220d7aca981c81bbad63697e45dc9b2f","slot":"ariadne:3","requested_at":"2026-10-15T19:23:40.725396Z"},"phase":"finished","pid":42027,"started_at":"2026-10-15T19:23:40.827993Z","finished_at":"2026-10-15T19:25:58.415464Z","session_id":"01a14105-2e87-7582-99cf-85f33824b443","outcome":"returned"}] -->

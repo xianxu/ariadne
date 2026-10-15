@@ -113,3 +113,60 @@ func TestQoderActualCloseOwnershipAndRetainedReplay(t *testing.T) {
 		})
 	}
 }
+
+func TestQoderActualCloseRefusesUnresolvedSourceFailures(t *testing.T) {
+	for _, scenario := range []string{"malformed-before-owned", "malformed-before-foreign", "malformed-without-workspace", "oversized-before-owned", "unreadable-before-workspace"} {
+		t.Run(scenario, func(t *testing.T) {
+			r, _, _, owner, _ := ownedResolverFixture(t)
+			path := filepath.Join(os.Getenv("HOME"), ".qoder/projects/fixture/broken.jsonl")
+			if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+				t.Fatal(err)
+			}
+			good := fmt.Sprintf(`{"type":"workspace-directories","sessionId":"good-qoder","directories":[%q]}`+"\n", owner.Worktree)
+			for _, minute := range []int{2, 3, 7, 8} {
+				good += fmt.Sprintf(`{"type":"user","sessionId":"good-qoder","timestamp":"2026-10-14T00:%02d:00Z","message":{"content":"#335"}}`+"\n", minute)
+			}
+			if err := os.WriteFile(filepath.Join(filepath.Dir(path), "good.jsonl"), []byte(good), 0600); err != nil {
+				t.Fatal(err)
+			}
+			baseline := computeActualFor(context.Background(), r.root, "", "335", "", "")
+			if baseline.Status != actualMeasured || baseline.Hours <= 0 {
+				t.Fatalf("fixture lacks good owned source: %+v", baseline)
+			}
+			workspace := owner.Worktree
+			if scenario == "malformed-before-foreign" {
+				workspace = filepath.Join(t.TempDir(), "foreign")
+			}
+			rows := fmt.Sprintf(`{"type":"workspace-directories","sessionId":"broken-qoder","directories":[%q]}
+{"type":"user","sessionId":"broken-qoder","timestamp":"2026-10-14T00:03:00Z"}
+`, workspace)
+			switch scenario {
+			case "malformed-before-owned", "malformed-before-foreign":
+				rows = "not-json\n" + rows
+			case "malformed-without-workspace":
+				rows = "not-json\n"
+			case "oversized-before-owned":
+				rows = strings.Repeat(" ", transcripts.UsageLineLimit+1) + "\n" + rows
+			case "unreadable-before-workspace":
+				if err := os.Symlink(filepath.Join(t.TempDir(), "missing.jsonl"), path); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if scenario != "unreadable-before-workspace" {
+				if err := os.WriteFile(path, []byte(rows), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			measured := computeActualFor(context.Background(), r.root, "", "335", "", "")
+			if measured.Status != actualError {
+				t.Errorf("omitted unresolved source and measured partial actual: %+v", measured)
+			}
+			flags := &closeFlags{Issue: 335, BrainDir: filepath.Join(t.TempDir(), "no-brain")}
+			var diagnostics bytes.Buffer
+			_, adopted := adoptOmittedActual(&diagnostics, flags, "335", "issue")
+			if adopted || flags.Actual != "" || flags.Inputs != nil {
+				t.Fatalf("close adopted partial evidence: adopted=%v actual=%q inputs=%+v diagnostics=%s", adopted, flags.Actual, flags.Inputs, diagnostics.String())
+			}
+		})
+	}
+}

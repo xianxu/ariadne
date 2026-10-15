@@ -873,3 +873,8 @@ The simplest durable authority beats a clever scan of consequences.
 - A user-facing measurement change includes the README entry point and its atlas
   anchors. Sweep links when renaming a mapped section, alongside help and atlas
   updates (#385 BR-2).
+
+- Failed evidence discovery needs an explicit unresolved outcome. A source is not
+  proven unrelated merely because its owner has not been parsed yet; test parse,
+  read and bound failures before metadata, then test production adoption against
+  a positive surviving-source baseline (#385 BR-3).

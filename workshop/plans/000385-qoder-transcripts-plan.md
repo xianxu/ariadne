@@ -435,3 +435,25 @@ coverage gate prevents projections. BR-2 updates README's public usage contract
 and its renamed atlas link. Scope and Done when are unchanged. Regression tests
 cover parser/normalization and production collection/JSON/projection behavior;
 a new recorded suite and boundary review remain required for these code changes.
+
+### 2026-10-15 — BR-3: failed-source ownership must remain explicit
+
+The earlier relevant/not-relevant boolean collapsed absence of proof into safe
+exclusion when a scan failed before workspace metadata. Use three outcomes:
+
+| Outcome | Required evidence | Automatic actuals on scan failure |
+|---|---|---|
+| unresolved | no complete exclusion proof, including parse/read/open/line/record/integrity failures or invalid/absent workspace evidence | refuse, preserving the failed source diagnostic |
+| proven unrelated | entire bounded, immutable, syntactically valid prefix scanned; every workspace row has nonempty absolute roots; all observed roots exclude the requested ownership roots | may exclude with warning |
+| relevant | any observed requested root, sticky through later errors or conflicts | refuse |
+
+Continue bounded metadata discovery after recoverable parse errors to identify
+possible ownership, but never turn that damaged prefix into exclusion proof.
+Read, cancellation, mutation and bound failures remain unresolved or relevant;
+no sampled prefix or early foreign cwd proves exclusion. Complete foreign-only
+workspace conflicts can be excluded after the complete scan. This enforces the
+existing incomplete-evidence prohibition (ARCH-SECURE, ARCH-ORDER, ARCH-PURPOSE),
+not a new scope. Test errors before, between and after metadata, line/record
+bounds, unreadable candidates, invalid roots, and foreign-only exclusion controls.
+Production actual and close-adoption regressions require a positive good-source
+baseline and refusal of the incomplete aggregate.

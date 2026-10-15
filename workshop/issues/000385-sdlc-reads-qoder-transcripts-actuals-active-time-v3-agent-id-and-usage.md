@@ -229,6 +229,8 @@ file splits/names in the initial plan without adding another runtime owner.
 
 - Fix candidate c3045138d6284cccf9dd9c51fe9bf2522dd2883d passed recorded sdlc-local/suite: all 12 shards over 1493 cmd/sdlc tests and 63 other packages, zero failures, 467.5s runtime; log sha256 prefix 96f6b115fbcd (1613s separate queue wait). Read-only conformance also passes on the original 883-record prefix: 117 responses, exact 45.938730726457140528 credits, null tokens, complete spend coverage. The live file had grown to 1107 records/148 responses when reread, so its old whole-file fixed-count assertion was replaced only in the external conformance overlay with this original-prefix check; no fixture payload was copied.
 
+- Close round 2 disposed BR-1/BR-2 as addressed, then raised Critical BR-3 (incomplete-evidence-adoption): a parse/read/bound failure before workspace proof was silently excluded. Confirmed production red (29.68s): with a positive 0.10h good-source baseline, malformed prefixes before owned/foreign metadata, no metadata, oversized prefixes, and unreadable candidates all still measured/adopted 0.10h. Expanded internal discovery matrix also reproduces the class. Durable plan now defines unresolved/proven-unrelated/relevant source outcomes, requiring complete exclusion proof and refusal on uncertainty. Implementation and fresh verification remain pending.
+
 ## Estimate
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
