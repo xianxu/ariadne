@@ -551,3 +551,25 @@ fleet/issue JSON smokes pass22.03s/31.91s on this same code, with null projectio
 when calibration is insufficient and seven own legacy reviewer gaps explicit.
 Only documentation bookkeeping follows this passing code head. Shared close
 remains the final review authority.
+
+
+### 2026-10-15 03:00 — canonical receipt compatibility REWORK
+
+Round5 verifies BR-1 through BR-6 and ordinary BR-7 missing-evidence behavior,
+but retains BR-7 for contradictory individually valid receipt copies. Both the
+reviewer and a separate read-only overlay reproduced Started versus launch-failed
+and incompatible Finished copies being collapsed into nonspending evidence;
+a production collector probe reports a calibrated forecast despite a missing
+reviewer transcript. The local five-case/both-order overlay fails0.376s.
+
+Replace the handwritten partial compatibility check with the existing pure
+reviewusage.Advance contract: only legal prefixes/equal repeats collapse. If
+neither direction is compatible, quarantine both records and preserve explicit
+uncertainty; a launch-failed exemption requires uncontested compatible evidence.
+Enumerate every phase pair, terminal outcome, PID/start/finish/session/diagnostic
+rewrite, absent progress fields, invalid copies and both input orders. Test
+private, ledger and comment evidence through the collector, including missing
+transcript and present transcript that must not fall back to worker. Retain the
+valid prefix/zero/positive/nonspending controls. This reuses the transition model
+(ARCH-DRY, ARCH-ORDER) rather than defining another receipt state machine. Fresh
+recorded suite and shared close follow; the previous pass is head-specific.

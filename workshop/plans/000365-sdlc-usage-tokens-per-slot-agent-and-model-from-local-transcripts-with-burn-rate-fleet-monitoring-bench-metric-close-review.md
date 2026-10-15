@@ -404,3 +404,102 @@ findings:
 7. **Plan revision recommendation**
 
    Append a `## Revisions` entry requiring each relevant launched attempt to resolve to usable transcript evidence or an explicit gap. Add production collector regressions across all three persistence forms, covering missing identity, unavailable transcript, invalid metadata and confirmed launch failure.
+
+---
+
+## Re-review — 2026-10-15T02:59:35-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 365 — sdlc usage: tokens per slot, agent and model from local transcripts, with burn rate (fleet monitoring + bench metric) |
+| repo | ariadne |
+| issue file | workshop/issues/000365-sdlc-usage-tokens-per-slot-agent-and-model-from-local-transcripts-with-burn-rate-fleet-monitoring-bench-metric.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | d52954ddcb4147a86531c6b7ae9ad32a8d46a165..27c2f5437844614a47c20fa2fd473f8334ce46d0 |
+| command | sdlc close --issue 365 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-15T02:59:35-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-7’s normal missing-evidence cases now work, and its regression fails when collector coverage wiring is removed. However, contradictory receipt copies can still erase confirmed launch evidence, producing complete coverage and a calibrated forecast despite an unavailable reviewer transcript. BR-7 remains blocking.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Cumulative and per-turn reconciliation retain uncovered spend; corresponding usage regressions pass.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Invalid accounting remains visible and recoverable identities are quarantined; existing validation paths remain intact.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Core concept tables identify delivered paths, statuses and pure functions alongside IO adapters.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Production boundary and planning dispatch-to-usage regressions exist and pass in this review.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Discovery and decoding share immutable executing identity; alias, ordering and model-context regressions pass.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Reviewer identities load before issue selection; cross-issue and cross-repository exclusion regressions pass.
+  - id: BR-7
+    disposition: not-addressed
+    note: |
+      cmd/sdlc/usage_reviewers.go:239-245 accepts incompatible phase copies as canonical progress. A schema-valid Finished/returned private receipt and a Finished/launch-failed sidecar with the same intent and finish timestamp collapse to launch-failed: missing StartedAt/PID and changed Outcome are not checked. Lines 279-280 then exempt the attempt from coverage. A temporary production-collector regression reproduced zero unresolved_reviewer_usage, complete spend/attribution coverage and a calibrated Claude projection with the reviewer transcript absent. Pure probes also reproduce Started versus launch-failed in both input orders. This remains the existing invalid-accounting-evidence-must-remain-visible family. Enforce one rule across all receipt copies: only transition-compatible prefixes may collapse; contradictory launch evidence must retain uncertainty and quarantine identities. Sweep phase pairs, terminal outcomes, missing progress fields and input ordering across private, ledger and comment evidence.
+```
+
+1. **Strengths**
+
+   - Global normalization precedes attribution and window selection.
+   - Reviewer accounting persists independently of semantic gate advancement.
+   - BR-7 tests exercise real persistence and collection across three artifact forms.
+   - README and atlas document the new command, calibration and coverage semantics.
+
+2. **Critical findings**
+
+   - **BR-7 remains open — `cmd/sdlc/usage_reviewers.go:239`.** Receipt reconciliation bypasses the transition compatibility enforced by `reviewusage.Advance`. Reuse that contract when collapsing phase prefixes, require compatible terminal copies, and preserve conflicting launch evidence as incomplete coverage. **ARCH-DRY, ARCH-PURPOSE, ARCH-SECURE, ARCH-ORDER.**
+
+3. **Important findings**
+
+   None newly raised.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   Passed usage, transcripts and reviewusage package suites; reviewer coverage/reconciliation tests; selected production dispatch and exclusion regressions; and judge accounting tests. Removing BR-7 collector wiring made its existing regression fail.
+
+   Temporary overlay probes exposed the remaining contradiction through both pure reconciliation and `collectUsage`. Overlays were removed; the checkout remains clean. Full suite and live provider conformance were not rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — flag:** receipt reconciliation duplicates an incomplete version of transition compatibility.
+   - **ARCH-PURE — pass:** normalization, aggregation and transitions remain separated from IO.
+   - **ARCH-PURPOSE — flag:** contradictory evidence can still understate whole-issue cost.
+   - **ARCH-MOCK — pass:** portable repositories, transcript fixtures and fake reviewer processes exercise shared seams.
+   - **ARCH-CONSTRAINTS — pass:** explicit scan, record, deadline and storage bounds are implemented.
+   - **ARCH-SECURE — flag:** individually valid persisted records are incorrectly trusted as mutually compatible.
+   - **ARCH-ORDER — flag:** reconciliation can replace confirmed launch progress with non-launch evidence.
+   - **ARCH-FUNERAL — pass:** meter replacement and receipt caps/committed-evidence cleanup provide explicit lifecycle bounds.
+
+7. **Plan revision recommendations**
+
+   Append a `## Revisions` entry defining receipt compatibility through the existing transition model. Require permutation tests covering every phase pair and incompatible terminal outcomes; contradictory launch evidence must never qualify for the non-spending exemption.

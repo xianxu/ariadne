@@ -552,6 +552,160 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 27c2f5437844614a47c20fa2fd473f8334ce46d0
+        tracker_head: 8e4749e4126a9fbed3a3739f33818f9f403ecfd9
+        branch_point: d52954ddcb4147a86531c6b7ae9ad32a8d46a165
+        since: "2026-10-14T07:39:58-07:00"
+        until: "2026-10-15T02:56:09-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-14T07:39:58-07:00"
+              end: "2026-10-15T02:56:09-07:00"
+              began: "2026-10-14T07:39:58-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fd-1ac0-7a83-826e-60623c226386
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: dd6d697cb4ff393f76f4fad70d0cd1d57a289ed751e5509e0a9f31e3c244ff61
+              started: "2026-10-14T05:58:30.184Z"
+              spawned: false
+              bytes: 34539263
+              windows:
+                - start: "2026-10-14T07:39:58-07:00"
+                  end: "2026-10-15T02:56:09-07:00"
+            - harness: codex
+              id: 01a13b1c-bf44-71e2-81bd-5d24934b826e
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: e92e937bd36804a2b768db3419fb4733c214f05436d1f73f506d20e37182ed82
+              started: "2026-10-14T15:51:42.429Z"
+              spawned: false
+              bytes: 747338
+              windows:
+                - start: "2026-10-14T15:51:42.429Z"
+                  end: "2026-10-15T02:56:09-07:00"
+            - harness: codex
+              id: 01a13b23-a09c-7d03-9c26-d94c5e01b8a5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 30703dd1110e0f2b3d1f227c181abee39e19bca5930e07c83f34010170f69d20
+              started: "2026-10-14T15:59:13.3Z"
+              spawned: false
+              bytes: 442525
+              windows:
+                - start: "2026-10-14T15:59:13.3Z"
+                  end: "2026-10-15T02:56:09-07:00"
+            - harness: codex
+              id: 01a13b26-2c15-7842-8c20-78ad9adc63ca
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: fb19b09075ef1b879ef0d82858e34e66e2e8954dc02673929d4c561bb98c32a6
+              started: "2026-10-14T16:02:00.404Z"
+              spawned: false
+              bytes: 439211
+              windows:
+                - start: "2026-10-14T16:02:00.404Z"
+                  end: "2026-10-15T02:56:09-07:00"
+            - harness: codex
+              id: 01a13b26-c5e7-7711-8e4a-fc316e11fce7
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: deb59b626263063d9512ef2be32e8b120cd0d3e4b275cd73aab82b52717d5268
+              started: "2026-10-14T16:02:39.61Z"
+              spawned: false
+              bytes: 411362
+              windows:
+                - start: "2026-10-14T16:02:39.61Z"
+                  end: "2026-10-15T02:56:09-07:00"
+            - harness: codex
+              id: 01a13dc2-2285-7ce1-a8e9-4fa83a870304
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a138fd-1ac0-7a83-826e-60623c226386
+              digest: 5ff76b8ba1dd007fde14bae02b98cb89f0a5bc8a3f3143494e5c1cc672cf884f
+              started: "2026-10-15T04:11:35.597Z"
+              spawned: true
+              bytes: 1614584
+              windows:
+                - start: "2026-10-15T04:11:35.597Z"
+                  end: "2026-10-15T02:56:09-07:00"
+            - harness: codex
+              id: 01a13dc2-37b9-7592-a8f7-eea3ca7eef4f
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a138fd-1ac0-7a83-826e-60623c226386
+              digest: 71581b98c0e078469ab29711ec6827650132ddaee5850bd869c9dd9799f8627a
+              started: "2026-10-15T04:11:41.014Z"
+              spawned: true
+              bytes: 1824086
+              windows:
+                - start: "2026-10-15T04:11:41.014Z"
+                  end: "2026-10-15T02:56:09-07:00"
+            - harness: codex
+              id: 01a13dc2-4abd-79a2-a84f-bc2a245a476e
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a138fd-1ac0-7a83-826e-60623c226386
+              digest: ef55b1876b823e6e1d152685413eb2baefb929b8bdd9c9d1dcbcc7c703d42f4b
+              started: "2026-10-15T04:11:45.906Z"
+              spawned: true
+              bytes: 1982448
+              windows:
+                - start: "2026-10-15T04:11:45.906Z"
+                  end: "2026-10-15T02:56:09-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 75.24986666666666
+        cuts:
+            - dispatched: "2026-10-14T21:07:30-07:00"
+              finalized: "2026-10-14T21:11:21-07:00"
+              finalizing: false
+            - dispatched: "2026-10-14T22:50:24-07:00"
+              finalized: "2026-10-14T22:55:38-07:00"
+              finalizing: false
+            - dispatched: "2026-10-15T00:01:55-07:00"
+              finalized: "2026-10-15T00:05:26-07:00"
+              finalizing: false
+            - dispatched: "2026-10-15T01:38:11-07:00"
+              finalized: "2026-10-15T01:43:34-07:00"
+              finalizing: false
+      "n": 5
+      timestamp: "2026-10-15T02:59:36-07:00"
+      dispatched: "2026-10-15T02:56:22-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Cumulative and per-turn reconciliation retain uncovered spend; corresponding usage regressions pass.
+          round: 5
+        - id: BR-2
+          disposition: addressed
+          note: Invalid accounting remains visible and recoverable identities are quarantined; existing validation paths remain intact.
+          round: 5
+        - id: BR-3
+          disposition: addressed
+          note: Core concept tables identify delivered paths, statuses and pure functions alongside IO adapters.
+          round: 5
+        - id: BR-4
+          disposition: addressed
+          note: Production boundary and planning dispatch-to-usage regressions exist and pass in this review.
+          round: 5
+        - id: BR-5
+          disposition: addressed
+          note: Discovery and decoding share immutable executing identity; alias, ordering and model-context regressions pass.
+          round: 5
+        - id: BR-6
+          disposition: addressed
+          note: Reviewer identities load before issue selection; cross-issue and cross-repository exclusion regressions pass.
+          round: 5
+        - id: BR-7
+          disposition: not-addressed
+          note: 'cmd/sdlc/usage_reviewers.go:239-245 accepts incompatible phase copies as canonical progress. A schema-valid Finished/returned private receipt and a Finished/launch-failed sidecar with the same intent and finish timestamp collapse to launch-failed: missing StartedAt/PID and changed Outcome are not checked. Lines 279-280 then exempt the attempt from coverage. A temporary production-collector regression reproduced zero unresolved_reviewer_usage, complete spend/attribution coverage and a calibrated Claude projection with the reviewer transcript absent. Pure probes also reproduce Started versus launch-failed in both input orders. This remains the existing invalid-accounting-evidence-must-remain-visible family. Enforce one rule across all receipt copies: only transition-compatible prefixes may collapse; contradictory launch evidence must retain uncertainty and quarantine identities. Sweep phase pairs, terminal outcomes, missing progress fields and input ordering across private, ledger and comment evidence.'
+          round: 5
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#365 (boundary-review)
@@ -614,6 +768,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - **BR-7** [Critical] `invalid-accounting-evidence-must-remain-visible` (kind: defect) Launched reviewers without usable transcript bindings silently report complete coverage
   cmd/sdlc/usage_reviewers.go:184-199 drops a retained attempt when no session matches, and returns only bindings without unresolved-attempt diagnostics. Valid Finished records pass reviewer_accounting.go:154-157 even when identity capture failed. Two temporary regression probes reproduced empty coverage and complete=true for a launched receipt with missing-session-identity and for an exact session ID whose transcript is unavailable. A full collectUsage probe confirmed zero tokens with spend_complete=true and attribution_complete=true despite the known launched reviewer. This violates whole-system issue accounting and uncertainty preservation (ARCH-PURPOSE, ARCH-SECURE, ARCH-ORDER). This is the 2nd finding in family invalid-accounting-evidence-must-remain-visible. State and enforce the rule for every relevant launched attempt: reconcile it to usable transcript evidence or retain an explicit coverage gap. Sweep private, ledger and comment evidence, missing/exact identities, and unavailable/invalid sources; preserve confirmed launch-failed as a distinct non-spending outcome.
+
+## Round 5 — 2026-10-15T02:59:36-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Cumulative and per-turn reconciliation retain uncovered spend; corresponding usage regressions pass.
+- BR-2 — addressed — Invalid accounting remains visible and recoverable identities are quarantined; existing validation paths remain intact.
+- BR-3 — addressed — Core concept tables identify delivered paths, statuses and pure functions alongside IO adapters.
+- BR-4 — addressed — Production boundary and planning dispatch-to-usage regressions exist and pass in this review.
+- BR-5 — addressed — Discovery and decoding share immutable executing identity; alias, ordering and model-context regressions pass.
+- BR-6 — addressed — Reviewer identities load before issue selection; cross-issue and cross-repository exclusion regressions pass.
+- BR-7 — not-addressed — cmd/sdlc/usage_reviewers.go:239-245 accepts incompatible phase copies as canonical progress. A schema-valid Finished/returned private receipt and a Finished/launch-failed sidecar with the same intent and finish timestamp collapse to launch-failed: missing StartedAt/PID and changed Outcome are not checked. Lines 279-280 then exempt the attempt from coverage. A temporary production-collector regression reproduced zero unresolved_reviewer_usage, complete spend/attribution coverage and a calibrated Claude projection with the reviewer transcript absent. Pure probes also reproduce Started versus launch-failed in both input orders. This remains the existing invalid-accounting-evidence-must-remain-visible family. Enforce one rule across all receipt copies: only transition-compatible prefixes may collapse; contradictory launch evidence must retain uncertainty and quarantine identities. Sweep phase pairs, terminal outcomes, missing progress fields and input ordering across private, ledger and comment evidence.
 
 ## Open findings
 
