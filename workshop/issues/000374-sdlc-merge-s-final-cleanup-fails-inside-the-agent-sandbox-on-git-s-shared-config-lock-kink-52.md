@@ -30,7 +30,8 @@ Find which cleanup step writes git's shared config (branch deletion with upstrea
 
 ## Done when
 
-- A full `sdlc merge --yes` inside the default agent sandbox completes cleanup without a manual rerun (live check on a scratch issue), and an interrupted cleanup completes on the next run (test).
+- The native protected-config full-merge regression passes without manual rerun, and interrupted cleanup converges on the next run (tests). This is sufficient for local close, per TL approval.
+- Production default-agent sandbox cleanup: **verified by the TL at the next Claude-slot landing** after #374 merges (ariadne:2 #383 or ariadne:4 #367). The TL owns this post-merge check and will log its result; no separate scratch issue is required.
 
 ## Plan
 
@@ -101,3 +102,7 @@ item: real-api-discovery design=0.00 impl=0.24
 design-buffer: 0.15
 total: 1.94
 ```
+
+### 2026-10-15 — TL acceptance revision
+
+TL receipt 8ee3e12f-7646-4b3d-9b23-fdd4ce34efae explicitly accepts the native protected-config full-merge regression as sufficient to close. The production live default-agent check moves to the next Claude-slot landing after this fix merges, owned and logged by the TL (#383 in ariadne:2 or #367 in ariadne:4). Updated current Done when to match that authorized acceptance, retaining the distinction between completed local verification and pending production evidence. Earlier custom/default-profile scratch fixture checks remain supplemental evidence; they do not claim that later production landing already happened. No separate GitHub scratch issue was created.

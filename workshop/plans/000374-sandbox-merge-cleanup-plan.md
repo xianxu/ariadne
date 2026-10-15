@@ -72,3 +72,7 @@ PQ-2: replaced scenario/edit inventories with a function-specific adversarial st
 ### 2026-10-15 — default profile evidence
 
 The live environment check now uses Claude itself with unchanged repository sandbox settings, rather than substituting the earlier custom macOS profile. Scratch GitHub effects remain backed by the existing local stateful fake; the issue Log records that qualification and the fixture-only flags explicitly. The production PR landing remains a separate all-gates operation.
+
+### 2026-10-15 — TL owns post-merge production conformance
+
+TL accepts the native protected-config full-merge regression for close. Production default-agent cleanup will be verified and logged by TL at the next Claude-slot landing after #374 merges (#383 or #367); no separate scratch issue. Current issue Done when now states this explicit ownership, rather than treating supplemental scratch fixtures as that production check.
