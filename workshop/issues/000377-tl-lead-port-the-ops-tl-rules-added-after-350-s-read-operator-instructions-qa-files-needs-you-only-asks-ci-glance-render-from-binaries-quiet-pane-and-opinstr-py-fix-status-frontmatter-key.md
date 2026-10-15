@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
-estimate_hours:
-card_mirror: '61dfaff9de95f84900765daee472045008c3b800' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 1.259
+card_mirror: 'd030951424b0a69bc961e763d46dfe42cdd56cbc' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T20:39:55-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # tl-lead: port the ops TL rules added after #350's read (Operator instructions + QA files, Needs-you only asks, CI glance, render-from-binaries, quiet pane) and opinstr.py; fix status frontmatter key
