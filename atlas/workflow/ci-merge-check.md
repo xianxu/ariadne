@@ -145,7 +145,9 @@ first-class evidence, recorded on the commit it ran on:
   in a fresh detached worktree at the exact commit, under one of the
   machine-wide full-suite slots (the same `scripts/test-lock.py` that
   `make test` takes, found beside `Makefile.workflow`'s real path; it refuses
-  rather than run unbounded). The log is kept under
+  rather than run unbounded). The slot covers the suite's execution only: a
+  per-run holder child is the watched pid and is released when the suite ends,
+  so merge's GitHub polling and landing hold no slot (#383). The log is kept under
   `<git common dir>/sdlc/local-checks/<sha>/` (newest 20 commits), and the run
   posts the commit status `sdlc-local/<name>`. A failure also posts a bounded
   log tail as a PR comment.
