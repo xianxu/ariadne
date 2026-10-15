@@ -1,12 +1,12 @@
 ---
 id: 000385
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours: 3.81
-card_mirror: 'fb1ff013603e865a1b162809cc46c4e5660fece3' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ebe17fdf9b98e561b5ca7d06cca757dcb52832d2' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-15T09:33:04-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 5.74
 ---
 
 # sdlc reads Qoder transcripts: actuals (active-time-v3), agent-id and usage
