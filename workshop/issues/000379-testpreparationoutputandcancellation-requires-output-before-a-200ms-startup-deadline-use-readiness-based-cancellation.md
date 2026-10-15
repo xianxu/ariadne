@@ -40,8 +40,8 @@ Prove output retention and cancellation without requiring OS/Git/process startup
 
 ## Plan
 
-- [ ] Make the preparation subprocess write beyond `OutputLimit` and signal readiness before test cancellation; bound only the wait for readiness. Assert the cancellation error, no reviewer call, and capped/truncated evidence.
-- [ ] Add an already-canceled preparation control that accepts empty, untruncated output and still refuses to dispatch the reviewer.
+- [x] Make the preparation subprocess write beyond `OutputLimit` and signal readiness before test cancellation; bound only the wait for readiness. Assert the cancellation error, no reviewer call, and capped/truncated evidence.
+- [x] Add an already-canceled preparation control that accepts empty, untruncated output and still refuses to dispatch the reviewer.
 - [ ] Run focused repetitions and the recorded suite, then close, land, and notify ariadne:5.
 
 ## Log
@@ -51,3 +51,5 @@ Prove output retention and cancellation without requiring OS/Git/process startup
 Filed unassigned from the primary checkout while #240 remains owned by ariadne:5. Evidence: /tmp/ariadne240-preparation-targeted.log, /tmp/ariadne240-preparation-diagnostic.log and /tmp/ariadne240-preparation-main.log. Full recorded suite failed after 756.0s (1366 SDLC tests, 59 other packages); log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/6433ffd3ecd69e3e3b1a0591a4c5002f6f8eaba8/suite.log, SHA-256 prefix d75cb1db7b6a. Independent repair should land from main before #240 reruns its acceptance suite.
 
 Claimed in ariadne:1. Design keeps production untouched (ARCH-PURE, ARCH-PURPOSE): an explicit signal from the oversized producer, rather than elapsed wall time, establishes that truncation has become observable before cancellation. A pre-canceled control documents that early expiry need not retain output.
+
+The focused pair passed 20 repetitions; the whole `judge` package passed once. The new producer writes 64 times the output cap before marking readiness and waits to be canceled. The parent uses a bounded marker wait only as a setup failure guard; cancellation is event-driven. `git diff --check` passed.
