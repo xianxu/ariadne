@@ -39,6 +39,10 @@ func TestDecodeSuiteAttemptRejectsUntrustedRecords(t *testing.T) {
 		"missing baseline": strings.Replace(valid, `"main_baseline":false,`, ``, 1),
 		"duplicate exit":   strings.Replace(valid, `"exit":2,`, `"exit":0,"exit":2,`, 1),
 		"null exit":        strings.Replace(valid, `"exit":2,`, `"exit":null,`, 1),
+		"case alias exit":  strings.Replace(valid, `"exit":2,`, `"exit":2,"Exit":0,`, 1),
+		"case alias sha":   strings.Replace(valid, `"sha":"`, `"SHA":"`, 1),
+		"case alias check": strings.Replace(valid, `"check":"suite"`, `"Check":"suite"`, 1),
+		"case alias unit":  strings.Replace(valid, `"log_path":"failed/a1.log"`, `"log_path":"failed/a1.log","units":[{"kind":"package","name":"x/a","seconds":1,"Seconds":999}]`, 1),
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := decodeSuiteAttempt([]byte(raw)); err == nil {

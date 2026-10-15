@@ -28,6 +28,17 @@ const (
 var suiteHex = regexp.MustCompile(`^[0-9a-fA-F]+$`)
 var suiteRepo = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
+// encoding/json matches struct fields case-insensitively even with
+// DisallowUnknownFields. Persisted evidence needs exact schema names so an
+// alias cannot override a required outcome field after duplicate detection.
+var suiteAttemptJSONFields = map[string]bool{
+	"version": true, "id": true, "repo": true, "sha": true, "check": true,
+	"slot": true, "agent": true, "model": true, "effort": true,
+	"started_at": true, "finished_at": true, "main_baseline": true,
+	"queue_seconds": true, "wall_seconds": true, "exit": true, "timed_out": true,
+	"log_sha256": true, "log_path": true, "failures": true, "units": true,
+}
+
 type suiteAttemptWriter struct{ ID, LogPath string }
 
 // beginSuiteAttempt reserves a private log path. Only its owner writes there;
@@ -73,13 +84,18 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 			return a, err
 		}
 		key, ok := keyToken.(string)
-		if !ok || keys[key] {
-			return a, errors.New("duplicate or invalid attempt field")
+		if !ok || !suiteAttemptJSONFields[key] || keys[key] {
+			return a, errors.New("duplicate or noncanonical attempt field")
 		}
 		keys[key] = true
 		var value json.RawMessage
 		if err := probe.Decode(&value); err != nil {
 			return a, err
+		}
+		if key == "units" {
+			if err := validateSuiteUnitsJSON(value); err != nil {
+				return a, err
+			}
 		}
 		if key != "queue_seconds" && key != "wall_seconds" && key != "agent" && key != "model" && key != "effort" && bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
 			return a, fmt.Errorf("null required attempt field %s", key)
@@ -151,6 +167,43 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 		return a, errors.New("log path escapes generated locations")
 	}
 	return a, nil
+}
+
+func validateSuiteUnitsJSON(data []byte) error {
+	var units []json.RawMessage
+	if err := json.Unmarshal(data, &units); err != nil {
+		return err
+	}
+	for _, raw := range units {
+		dec := json.NewDecoder(bytes.NewReader(raw))
+		start, err := dec.Token()
+		if err != nil || start != json.Delim('{') {
+			return errors.New("duration unit must be an object")
+		}
+		keys := map[string]bool{}
+		for dec.More() {
+			keyToken, err := dec.Token()
+			if err != nil {
+				return err
+			}
+			key, ok := keyToken.(string)
+			if !ok || key != "kind" && key != "name" && key != "seconds" || keys[key] {
+				return errors.New("duplicate or noncanonical duration field")
+			}
+			keys[key] = true
+			var value json.RawMessage
+			if err := dec.Decode(&value); err != nil {
+				return err
+			}
+		}
+		if _, err := dec.Token(); err != nil {
+			return err
+		}
+		if !keys["kind"] || !keys["name"] || !keys["seconds"] {
+			return errors.New("duration unit missing field")
+		}
+	}
+	return nil
 }
 
 // publishSuiteAttempt closes the private lifecycle before posting status. It

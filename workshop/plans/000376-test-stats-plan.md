@@ -103,3 +103,7 @@ During the next queued suite wait, found that absent or duplicate JSON `exit` co
 ### 2026-10-14 — close review round 1
 
 BR-1 added explicit `go test -json` pass/fail/malformed fixtures and bounded parser warnings to the log-format contract. BR-2 added a mixed-check fixture: only a recorded suite attempt suppresses a legacy suite log at the same SHA. BR-3 corrected the `SuiteAttempt` location and marked PURE entities versus INTEGRATION persistence. BR-4 named attempt publication temps by owner ID and covered old dead-owner residue, while legacy copy temps use the private in-flight directory. These changes supersede the earlier text-only parsing and same-directory publication-temp descriptions (ARCH-PURPOSE, ARCH-FUNERAL).
+
+### 2026-10-14 — close review round 2
+
+BR-5 tightened the persisted-input boundary: every top-level attempt field and nested duration field must use its exact canonical JSON name, before Go's case-insensitive struct decoder runs; aliases, including conflicting outcome keys, are rejected. BR-6 completed the format-by-outcome matrix: ariadne shard summaries, plain Go package `ok` and `FAIL` summaries, and `go test -json` package `pass` and `fail` events all retain available duration and failure evidence. BR-7 enforces the planned 1 MiB per-line limit before either failure extraction or timing parsing; an oversized line makes all parsed facts unavailable with a warning, while the raw log and hash remain available. The new boundary-size and outcome fixtures are the regression contract (ARCH-SECURE, ARCH-PURPOSE, ARCH-CONSTRAINTS).

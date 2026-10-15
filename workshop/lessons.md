@@ -776,3 +776,6 @@ The simplest durable authority beats a clever scan of consequences.
 - A log-format contract needs fixtures for every named producer format, including structured events; test malformed records and failure identities as well as successful timings (#376 BR-1).
 - Deduplicate evidence by the kind of check it covers, not only by commit SHA; a smoke result must not hide a suite log (#376 BR-2).
 - Every temporary publication file needs an owner and a crash cleanup path. Test dead-owner reclamation alongside an active writer that must survive (#376 BR-4).
+- Go's JSON struct decoder accepts field names case-insensitively even with unknown-field rejection. Validate exact persisted keys before decoding evidence that can change a success or failure outcome (#376 BR-5).
+- A format matrix must cover both outcomes: a failing package can still report a duration, and omitting it biases slow-unit statistics (#376 BR-6).
+- Apply declared input bounds before every consumer of the input. A parser that checks only total bytes can still hand an oversized line to regex and failure extraction (#376 BR-7).

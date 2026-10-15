@@ -2,6 +2,7 @@ package main
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -42,6 +43,7 @@ func TestSuiteLogFactsPairAndMalformedLines(t *testing.T) {
 	want := []SuiteDuration{
 		{Kind: "package", Name: "github.com/xianxu/pair/cmd/internal/wrapcmd", Seconds: 57.12},
 		{Kind: "package", Name: "github.com/xianxu/pair/cmd/internal/titlepoller", Seconds: 0.176},
+		{Kind: "package", Name: "github.com/xianxu/pair/cmd/internal/wrapcmd", Seconds: 57.12},
 	}
 	if !reflect.DeepEqual(got.Units, want) {
 		t.Fatalf("units = %#v, want %#v", got.Units, want)
@@ -111,4 +113,45 @@ func TestSuiteLogFactsJSONTestFailureWithoutPackageOutcome(t *testing.T) {
 	if !got.Failed || !reflect.DeepEqual(got.Failures, []string{"example.com/a.TestOnly"}) {
 		t.Fatalf("facts = %#v, want failed test even without package outcome", got)
 	}
+}
+
+func TestSuiteLogFactsOutcomeFormats(t *testing.T) {
+	tests := []struct {
+		name   string
+		log    string
+		failed bool
+		unit   SuiteDuration
+	}{
+		{"plain pass", "ok example.com/pkg 1.2s\n", false, SuiteDuration{"package", "example.com/pkg", 1.2}},
+		{"plain fail", "FAIL example.com/pkg 2.3s\n", true, SuiteDuration{"package", "example.com/pkg", 2.3}},
+		{"JSON pass", "{\"Action\":\"pass\",\"Package\":\"example.com/pkg\",\"Elapsed\":3.4}\n", false, SuiteDuration{"package", "example.com/pkg", 3.4}},
+		{"JSON fail", "{\"Action\":\"fail\",\"Package\":\"example.com/pkg\",\"Elapsed\":4.5}\n", true, SuiteDuration{"package", "example.com/pkg", 4.5}},
+		{"shard pass", "shard0 exit 0 5.6s 0 failed\n", false, SuiteDuration{"shard", "shard0", 5.6}},
+		{"shard fail", "shard0 exit 1 6.7s 1 failed\n", true, SuiteDuration{"shard", "shard0", 6.7}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := parseSuiteLogFacts(tc.log)
+			if got.Failed != tc.failed || !reflect.DeepEqual(got.Units, []SuiteDuration{tc.unit}) {
+				t.Fatalf("facts = %#v, want failed=%v unit=%#v", got, tc.failed, tc.unit)
+			}
+		})
+	}
+}
+
+func TestSuiteLogFactsLineSizeBoundary(t *testing.T) {
+	const lineLimit = 1 << 20
+	t.Run("exact limit accepted", func(t *testing.T) {
+		got := parseSuiteLogFacts(strings.Repeat("x", lineLimit) + "\nwall 1s\n")
+		if got.WallSeconds == nil || *got.WallSeconds != 1 || len(got.Warnings) != 0 {
+			t.Fatalf("facts = %#v", got)
+		}
+	})
+	t.Run("over limit makes all facts unavailable", func(t *testing.T) {
+		log := "wall 1s\n" + strings.Repeat("x", lineLimit+1) + "\nFAIL example.com/pkg 2s\n"
+		got := parseSuiteLogFacts(log)
+		if got.WallSeconds != nil || got.Failed || len(got.Failures) != 0 || len(got.Units) != 0 || len(got.Warnings) != 1 {
+			t.Fatalf("facts = %#v; want unavailable measurements and one warning", got)
+		}
+	})
 }
