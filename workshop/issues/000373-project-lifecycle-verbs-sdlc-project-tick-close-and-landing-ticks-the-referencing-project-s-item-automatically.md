@@ -43,7 +43,7 @@ Durable plan: `workshop/plans/000373-project-lifecycle-verbs-sdlc-project-tick-c
 - [x] `project status` MVP + done_when
 - [x] `project close` --verified, MVP re-check, --dry-run, symlinked record
 - [x] docs: helptext, project datatype ownership, atlas
-- [ ] verify on ariadne-robustness-1 (dry-run), full suite
+- [x] verify on ariadne-robustness-1 (dry-run), full suite
 
 ## Log
 
