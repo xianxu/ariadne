@@ -1,12 +1,12 @@
 ---
 id: 000374
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-14
-updated: 2026-10-14
+updated: 2026-10-15
 estimate_hours: 1.94
-card_mirror: '850a058c400a99580b9725a2f436e5ea8d54ac97' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'daab3d63e8048d4ac077ddf8ee69c62bef3a99e1' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T23:06:07-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 2.28
 ---
 
 # sdlc merge's final cleanup fails inside the agent sandbox on git's shared config lock (kink 52)
