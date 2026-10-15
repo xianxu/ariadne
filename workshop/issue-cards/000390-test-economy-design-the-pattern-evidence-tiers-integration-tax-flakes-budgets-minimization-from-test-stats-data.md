@@ -1,6 +1,6 @@
 ---
 id: 000390
-status: working
+status: codecomplete
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.07
+tracker:
+    version: 1
+    completion:
+        token: close-cb041c5df8ce
+        repository: github.com/xianxu/ariadne
+        reviewed_head: bd83e139d3b606b79372a3719f5ee61f84a06088
+        evidence_commit: d0a4bc4b35889429e3346f7cc2a63a0dd3a5e86d
 ---
 
 # test-economy: design the pattern (evidence tiers, integration tax, flakes, budgets, minimization) from test-stats data
