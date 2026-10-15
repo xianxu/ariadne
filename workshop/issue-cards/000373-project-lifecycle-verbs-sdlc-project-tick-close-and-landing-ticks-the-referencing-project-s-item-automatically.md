@@ -1,6 +1,6 @@
 ---
 id: 000373
-status: codecomplete
+status: done
 created: 2026-10-14
 updated: 2026-10-15
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 0aa64f88819a74197e75d1b0f6f99a032006ab1b
         evidence_commit: dd846813a7d2347328f09477046f7e0ab678b6bc
+        landed_commit: 0ed33e3e61ccfc11a0f2d775efd51327813881b1
 ---
 
 # Project lifecycle verbs: sdlc project tick/close, and landing ticks the referencing project's item automatically
