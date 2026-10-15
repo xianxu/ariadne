@@ -7,13 +7,16 @@ estimate_hours:
 github_issue:
 severity: low
 started: 2026-10-14T21:16:15-07:00
-claimant:
-    operator: Xian Xu
-    machine: 4716879978a7b90f6b583da1716fd0e9
-    machine_name: Xian’s MacBook Pro
-    workspace: ariadne:2
-    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
-    repository: github.com/xianxu/ariadne
+tracker:
+    version: 1
+    release:
+        by:
+            operator: Xian Xu
+            machine: 4716879978a7b90f6b583da1716fd0e9
+            machine_name: Xian’s MacBook Pro
+            workspace: ariadne:2
+            worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+            repository: github.com/xianxu/ariadne
 ---
 
 # test-shard.test.py writes its temp dir under /tmp, so make test fails in a sandboxed slot
