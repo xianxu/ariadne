@@ -222,9 +222,9 @@ behavior tests, then the minimum implementation, green verification and a commit
 
 **Create:** cmd/sdlc/internal/qodertranscript/{record.go,session.go,record_test.go,session_test.go,testdata/session.jsonl}.
 
-- [ ] Add red tests for ParseRecord and SessionState through the strategies above;
+- [x] Add red tests for ParseRecord and SessionState through the strategies above;
   run go test ./cmd/sdlc/internal/qodertranscript -count=1 and verify red.
-- [ ] Implement the whitelisted record parser and encapsulated transition model;
+- [x] Implement the whitelisted record parser and encapsulated transition model;
   run that package green and commit the adapter with sanitized fixtures.
 
 ### Task 2: exact credits and optional native measurements
@@ -232,13 +232,13 @@ behavior tests, then the minimum implementation, green verification and a commit
 **Create:** cmd/sdlc/internal/usage/{credits.go,credits_test.go,qoder.go,qoder_test.go,testdata/qoder.jsonl}.
 **Modify:** cmd/sdlc/internal/usage/{types.go,aggregate.go,read.go,usage_test.go,calibration.go,calibration_test.go}; existing decoder tests affected by optional measurements.
 
-- [ ] Add red tests for credit parsing/arithmetic, Qoder response transitions,
+- [x] Add red tests for credit parsing/arithmetic, Qoder response transitions,
   normalization and mixed-unit aggregation using the strategies above; run
   go test ./cmd/sdlc/internal/usage -run 'Qoder|Credit|Native|Mixed' -count=1.
-- [ ] Implement immutable bounded credits, nullable measurements, Qoder decoding
+- [x] Implement immutable bounded credits, nullable measurements, Qoder decoding
   and shared normalization/aggregation; preserve existing cumulative-gap checks.
   Sweep response/total/rate consumers for nil safety through the compiler.
-- [ ] Extend the existing meter with the minimal native-credit denominator;
+- [x] Extend the existing meter with the minimal native-credit denominator;
   run the meter strategy and entire internal/usage package green, then commit.
 
 ### Task 3: discovery, active-time and close adoption
@@ -246,23 +246,23 @@ behavior tests, then the minimum implementation, green verification and a commit
 **Create:** cmd/sdlc/internal/transcripts/{qoder.go,qoder_test.go,qoder_integration_test.go}.
 **Modify:** cmd/sdlc/internal/transcripts/{defaults.go,discovery.go,usage_discovery.go,discovery_test.go,usage_discovery_test.go}; cmd/sdlc/{actualwiring_test.go,close_actualdev_test.go}.
 
-- [ ] Add red production discovery/actual/adoption tests with portable transcript
+- [x] Add red production discovery/actual/adoption tests with portable transcript
   and real Git fixtures; run go test ./cmd/sdlc/internal/transcripts -run Qoder -count=1.
-- [ ] Register QoderHarness; both discovery paths consume shared metadata, retain
+- [x] Register QoderHarness; both discovery paths consume shared metadata, retain
   pinned evidence, and select files by recorded workspace. Reuse actual ownership
   and close adoption without a provider-specific hours calculation.
-- [ ] Run go test ./cmd/sdlc -run 'Qoder.*(Actual|Close)|Actual.*Qoder|Close.*Qoder' -count=1
+- [x] Run go test ./cmd/sdlc -run 'Qoder.*(Actual|Close)|Actual.*Qoder|Close.*Qoder' -count=1
   and the transcripts package green, then commit.
 
 ### Task 4: invoking identity without unsupported reviewers
 
 **Modify:** cmd/sdlc/internal/agentid/{env.go,detect.go,transcript.go,agentid.go,detect_test.go,agentid_test.go}; cmd/sdlc/internal/judge/agent_resolver.go and its existing policy tests.
 
-- [ ] Resolve the plan gate's invocation-provenance finding with the hub and
+- [x] Resolve the plan gate's invocation-provenance finding with the hub and
   record the accepted binding policy as a revision before implementation.
-- [ ] Add red identity-selection and reviewer-policy tests using the strategies
+- [x] Add red identity-selection and reviewer-policy tests using the strategies
   above; keep observed-agent recognition distinct from reviewer capability.
-- [ ] Implement the accepted binding policy and shared metadata reads. Run
+- [x] Implement the accepted binding policy and shared metadata reads. Run
   go test ./cmd/sdlc/internal/agentid ./cmd/sdlc/internal/judge -run 'Qoder|Detect|Agent|Reviewer' -count=1
   green and commit.
 
@@ -271,13 +271,13 @@ behavior tests, then the minimum implementation, green verification and a commit
 **Modify:** cmd/sdlc/{usage.go,usage_reviewers.go,usage_command_test.go,usage_output_errors_test.go}; cmd/sdlc/helptext/usage.md; atlas/workflow/sdlc-binary.md; atlas/index.md; issue and plan.
 **Create:** cmd/sdlc/usage_qoder_test.go.
 
-- [ ] Add red collector/CLI tests using the command strategy above. Derive
+- [x] Add red collector/CLI tests using the command strategy above. Derive
   measurement-provider loops from one usage-owned registry and wire Qoder reads;
   keep gate CLI capability independent. Implement schema v2 and native columns.
-- [ ] Run go test ./cmd/sdlc -run 'Usage.*Qoder|Qoder.*Usage|Usage.*(Output|Cancellation|Attribution)' -count=1
+- [x] Run go test ./cmd/sdlc -run 'Usage.*Qoder|Qoder.*Usage|Usage.*(Output|Cancellation|Attribution)' -count=1
   plus changed internal packages green. Freeze checkout/HEAD during production
   fixture tests. Update atlas/help with the delivered contracts and migration.
-- [ ] Read-only live conformance against the supplied sample: normalized 117
+- [x] Read-only live conformance against the supplied sample: normalized 117
   responses, exact 45.938730726457140528 credits, null tokens, auto/null effort,
   recorded workspace. Record commands/hashes, never raw records.
 - [ ] Reconcile delivered concept/file inventory, update issue verification, merge
@@ -408,3 +408,10 @@ config, arithmetic, normalization, projection, discovery and identity property
 checks plus production collector/actual/close fixtures pass. Remaining release
 steps are current-main integration, recorded full suite, shared close to SHIP,
 PR and merge. No new scope or deferred requested consumer.
+
+### 2026-10-15 — implementation checklist and release gates
+
+Marked verified implementation tasks complete. The issue's final checkbox now
+names implemented output/docs/conformance; full suite, close/SHIP and landing
+remain an explicit pending release sequence, rather than making the landing
+itself a checkbox precondition for the close gate. Scope and Done when unchanged.

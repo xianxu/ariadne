@@ -60,8 +60,11 @@ Durable design: [Qoder transcript measurements](../plans/000385-qoder-transcript
   adoption, with retained-prefix and cross-checkout regression fixtures.
 - [x] Measured invoking-session binding and Qoder identity; keep observed-agent
   recognition separate from gate-reviewer CLI capability.
-- [ ] Native columns and coverage across fleet/slot/model/issue/hourly output;
-  documentation, conformance, exact-head suite, close review and SHIP landing.
+- [x] Native columns and coverage across fleet/slot/model/issue/hourly output;
+  documentation, conformance and targeted regression checks.
+
+Release sequence (pending): recorded exact-head full suite, shared close review
+to SHIP, PR and merge. These gates follow completed implementation.
 
 ## Log
 
@@ -207,6 +210,12 @@ file splits/names in the initial plan without adding another runtime owner.
   (10.794s), and all four changed internal package suites pass together.
   No root test jobs remain. Ready for the recorded full suite once shared
   scratch capacity/environment is resolved; no suite or close started yet.
+
+- Hub confirmed operator-approved cache cleanup restored scratch capacity.
+  Recorded suite started via sdlc local-check run --name suite on pushed
+  02cdc490f32e7952d27ca04f9841fac4e000f8d9; waiting next in machine-wide queue.
+  Inflight log: git common dir/sdlc/test-stats/inflight/
+  9386958194ea2e6d5bf9b125515098a4/run.log. No other test jobs owned.
 
 - Plan-quality round 2 CLEAN: PQ-1 and PQ-2 addressed, no new findings.
 
