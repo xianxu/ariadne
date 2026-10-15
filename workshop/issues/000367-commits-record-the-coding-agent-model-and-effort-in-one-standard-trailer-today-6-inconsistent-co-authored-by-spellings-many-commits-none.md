@@ -43,7 +43,7 @@ Durable plan: `workshop/plans/000367-agent-trailer-plan.md` (format coordinated 
 - [x] stamp commit sites + sweep test
 - [x] close report of window commits without Agent:
 - [x] AGENTS.base.md §12 + atlas
-- [ ] verify: full suite, window trailers
+- [x] verify: full suite, window trailers (recorded sdlc-local/suite pass on 9852afd2)
 
 ## Log
 
