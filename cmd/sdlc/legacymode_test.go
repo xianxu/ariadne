@@ -29,6 +29,22 @@ func TestLegacyRepositoryIssueNewAllocatesFromFiles(t *testing.T) {
 	}
 }
 
+// #371: --details reaches the legacy path through the same Render.
+func TestLegacyRepositoryIssueNewDetails(t *testing.T) {
+	r := legacyRepo(t)
+	f := detailsFile(t, detailsBody)
+	out, err := slotRun(t, r.root, "issue", "new", "legacy details", "--slug", "legacy-details", "--details", f)
+	if err != nil {
+		t.Fatalf("issue new --details in a legacy repository: %v\n%s", err, out)
+	}
+	body := r.git("show", "HEAD:workshop/issues/000004-legacy-details.md")
+	for _, want := range []string{"## Spec\n\nOne call.\n", "## Done when\n\n- one call files it\n"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("legacy details lack %q:\n%s", want, body)
+		}
+	}
+}
+
 // The legacy lifecycle, run end to end by the #252 binary in a repository
 // without a tracker: the proof that #252 can ship before any cutover. Each
 // verb behaves as at pre-252-freeze; the tracker-only verbs refuse with the

@@ -42,8 +42,9 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
 | `merge`           | `make merge`                | PR landing with instance/publish gates and confirmation; :0/:N archive remotely and return to unchanged rest, ordinary worktrees/dependencies retain legacy cleanup |
 | `local-check run` | (new #345)                  | Run checks declared in main's `.sdlc/local-checks.json` on a pushed commit, in a detached worktree under the machine-wide suite lock, and record each as the commit status `sdlc-local/<name>`; merge's CI gate accepts it for a CI job that never got a runner and requires it for `required` checks ([ci-merge-check](ci-merge-check.md#recorded-local-checks-345)) |
+| `test-stats`      | (new #376)                  | **Read-only** local-fleet summary of recorded suite wall time, queue waits, slow package/shard p90, and same-head fail→pass flakes; `--since`, `--repo`, and `--json` filter or export it. Legacy per-head logs contribute partial rows with explicit missing-metric coverage. |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
-| `issue new`       | (new; xx-issues skill prose)| File on origin: the next ID's card on `issue-tracker` and the details on main, writing no checkout; a numbered slot claims what it files (#252, #308; `--from-github N` seeds from GitHub) |
+| `issue new`       | (new; xx-issues skill prose)| File on origin: the next ID's card on `issue-tracker` and the details on main, writing no checkout; a numbered slot claims what it files unless `--no-claim` (#252, #308; `--from-github N` seeds from GitHub; `--details FILE\|-` gives the body as `## <Section>` blocks, parsed by `issue.ParseDetails` before any ID is reserved, #371) |
 | `issue move-detail` | (new #252; hidden #308)   | Deprecated alias of `issue publish --issue N`: finishes a pre-#308 creation by publishing its local details to main; net-zero removal on the source |
 | `issue recovery`  | (new #252)                  | `list` / `reconcile --issue N` interrupted tracker operations, from the checkout that owns them |
 | `issue set-title` / `set-estimate` / `set-github` | (new #252) | Card-field setters (compare-and-swap on the card) |
@@ -1929,3 +1930,49 @@ checkpoints stays prose-driven.
 derive from the primary/common Git directory; local artifacts remain in the
 current worktree. See [Workspace Identity](workspace-identity.md) for address,
 resting-branch, calibration and project-discovery semantics.
+
+## Local token usage (#365)
+
+`sdlc usage` reads bounded local Claude/Codex response evidence. Its first rows
+show fleet tokens in the last hour, wall-clock burn over 1–3 hours, and an
+empirical account projection when two compatible meter readings and complete
+spend evidence support it. `--since` selects detailed groups/hourly totals;
+`--json` exposes schema version 1. Caches are input subsets and reasoning is an
+output subset, so totals never add them twice. Codex normalization admits usage
+only after resolving the immutable executing identity; pre-identity usage is
+skipped and makes spend coverage incomplete even when a valid header arrives
+later. Missing cwd separately affects attribution.
+
+`--issue N` reuses ownership intervals and bound descendants from actual-time
+attribution, but includes the review/verification tail and ends completed issues
+at their exact completion evidence commit. Reviewer binding has precedence over
+worker eligibility: separate worker, reviewer (rounds/attempts), and total lines
+count each response once. `actual` remains an independent active-time metric
+with its own right edge. The command reads the local tracker snapshot without
+refreshing it; provenance names the pin. Unmapped spend is visible in
+unknown-slot, and legacy missing review bindings stay coverage gaps.
+
+`internal/usage` owns pure response normalization, deduplication, window/rate
+aggregation and meter transitions. `internal/transcripts/usage_discovery.go`
+adds usage-only discovery of explicitly dispatched Claude children; actual's
+existing flat Claude discovery remains unchanged. `usage_inputs.go` applies
+Git-verified fleet membership and shared ownership; `usage_reviewers.go` joins
+recorded dispatch bindings, never guesses by repository overlap.
+
+`internal/reviewusage` records accounting-only Requested → Started → Finished
+receipts in the Git common directory's closed review-usage CAS namespace. The
+request persists before launch; cancellation uses a bounded cleanup context.
+An unfinished receipt is uncertainty, not evidence that the provider spent
+nothing. Canonical attempts need stable, complete bound response evidence or an
+explicit unresolved_reviewer_usage spend gap. These gaps follow issue/report
+windows and each agent's burn/calibration windows; confirmed launch failures are
+nonspending. Typed copies enter round ledgers and sidecars after safe lock
+reacquisition; accounting never advances a review gate or permits a retry.
+
+`sdlc usage calibrate --agent codex --remaining 29276 --unit credits` writes the
+private bounded meter under XDG_STATE_HOME (default ~/.local/state). Two readings
+of the same agent/unit calibrate meter change against local tokens between them;
+refills restart calibration. One reading, stale/incomplete evidence or zero burn
+produces a labelled status and null projection. Plain usage has no cache and
+never interacts with the providers. Re-run opt-in identity conformance when the
+agent CLIs change and before bench runs; see the usage help for coverage bounds.

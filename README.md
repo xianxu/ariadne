@@ -25,6 +25,13 @@ branch, or directly with `sdlc issue publish --issue N` by the owner (anyone,
 while unclaimed: #274) (#284). A resting branch only fast-forwards to main. See
 [issue tracker](atlas/workflow/issue-tracker.md).
 
+Issue publication uses explicit remote/refspecs without creating issue-branch
+upstream config; re-run `sdlc pr` after later commits. Main/resting tracking stays
+unchanged. If protected Git config prevents cleanup of legacy upstream metadata,
+landing still succeeds with a warning. Later merge/reconcile sweeps retry that
+metadata automatically when config is writable. See
+[workspace branching](atlas/workflow/workspace-branching.md#protected-config-during-landing-374).
+
 For a non-issue workshop note edited while an issue branch is active, run
 `sdlc trunk publish --path workshop/parley/note.md`. It publishes one unstaged,
 uncommitted Markdown file under `workshop/parley/`, `pensive/`, `targets/` or
@@ -119,6 +126,23 @@ the failed check and evidence needed. Answer it with `sdlc finding dispute --iss
 must explicitly dispose it with a note answering the evidence. Two invalid responses
 halt with a protocol error and admit no findings. See the
 [boundary review contract](atlas/workflow/sdlc-binary.md) for details.
+
+## Local token usage
+
+`sdlc usage --since 6h` reads local Claude and Codex transcripts without
+contacting an agent. The first rows show each agent's last-hour tokens and
+recent wall-clock burn; details group reported counters by slot and model.
+`sdlc usage --issue N` separates ownership-proven worker tokens, explicitly
+bound reviewer rounds, and their total alongside measured active time. Use
+`--json` for schema-versioned output with coverage and unknown attribution.
+
+Optional account calibration uses two observations of the same agent and unit:
+`sdlc usage calibrate --agent codex --remaining 29276 --unit credits` (Claude
+also accepts `--unit percent`). Only calibration writes local meter state.
+One reading or incomplete spend evidence yields a status and no projection;
+local response counters do not claim to be the provider's quota or invoice.
+See `sdlc usage --help` and the [usage map](atlas/workflow/sdlc-binary.md#local-token-usage-365)
+for counter semantics, bounds, legacy reviewer gaps and calibration storage.
 
 ## Classifying issues
 
@@ -404,6 +428,13 @@ machine-wide suite slots. A passing record on an ancestor remains valid through
 docs-only changes such as close's bookkeeping; code changes require another run.
 When the integrated head's suite fails, merge runs an unrecorded copy on main
 and labels the named failures as introduced or pre-existing in its refusal.
+
+`sdlc test-stats` reads saved suite attempts across local sibling repositories
+and reports wall and queue percentiles, slow packages or shards, and named
+flakes. Use `--since 7d`, `--repo pair`, or `--json` to narrow or export the
+view. Historical per-head logs are marked partial because overwritten retries
+and queue waits cannot be reconstructed. The command does not run tests or
+contact GitHub.
 
 ## Fleet queries
 

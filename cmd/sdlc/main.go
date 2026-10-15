@@ -81,7 +81,7 @@ type cliSignalContextKey struct{}
 
 func cliOwnsReviewSignals(cmd *cobra.Command) bool {
 	switch cmd.Name() {
-	case "change-code", "close", "milestone-close", "judge":
+	case "change-code", "close", "milestone-close", "judge", "usage", "calibrate":
 		return true
 	}
 	return false
@@ -150,6 +150,7 @@ func buildRoot() *cobra.Command {
 	add(NewIssueCmd(), "issue", "Create + manage issues (new / sync / publish / set-status / list / show)")
 	add(newTrunkCmd(), "", "Publish selected non-issue workshop prose to main")
 	add(NewProjectCmd(), "project", "Create + manage projects (new / list / show / set-status / validate)")
+	add(NewUsageCmd(), "usage", "Report local tokens, fleet burn and issue cost")
 	add(NewActualCmd(), "actual", "Compute an issue's focused dev-hours via active-time-v3 (#68)")
 	add(NewActiveTimeCmd(), "active-time", "Per-issue active-time attribution table (the v3 engine, standalone)")
 	add(NewCloseCmd(), "close", "Close an issue or milestone (ACTUAL + VERIFIED + atlas/project sweep)")
@@ -158,6 +159,7 @@ func buildRoot() *cobra.Command {
 	add(NewPRCmd(), "pr", "Open a pull request from a feature branch")
 	add(NewMergeCmd(), "merge", "Merge the PR, archive done issues, clean up")
 	add(NewLocalCheckCmd(), "local-check", "Run declared local checks on a pushed head and record them as commit statuses (#345)")
+	add(NewTestStatsCmd(), "test-stats", "Summarize recorded suite times, queue waits, and flakes across the local fleet")
 	add(NewPushCmd(), "push", "Ship from main (clean tree + pre-merge judges + archive)")
 	add(NewWorkspaceCmd(), "workspace", "Resolve Git-verified repository and workspace identity")
 	add(NewMoveCmd(), "move", "Move this slot's issue branch into another slot (default :0)")

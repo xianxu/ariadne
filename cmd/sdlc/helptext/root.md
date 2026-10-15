@@ -68,7 +68,7 @@ WHEN A VERB ERRORS
   Do NOT route around it with hand-rolled `git`/`gh`. Its errors are next-action
   specs. The fix is one of two things:
     (a) satisfy the precondition it names and re-run the same verb (e.g. `sdlc
-        merge` saying "no upstream" → run `sdlc pr` first, then `sdlc merge`); or
+        merge` saying "branch not pushed" → run `sdlc pr` first, then `sdlc merge`); or
     (b) if the error is a genuine gap in `sdlc` itself, fix that edge case in the
         source and re-run. We're still ironing out edge cases.
   Only drop to manual when a verb genuinely cannot express the need — say so.

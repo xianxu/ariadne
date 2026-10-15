@@ -744,6 +744,12 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 		return nil
 	}
 
+	opts.Evidence = &judge.DispatchEvidence{}
+	if f.review != nil {
+		if err := attachReviewerAccounting(f.review.context(), &opts, f.Issue, "plan-quality", len(ledger.Rounds)+1, ""); err != nil {
+			return err
+		}
+	}
 	cinfo(stderr, fmt.Sprintf("invoking %s for plan-quality check …", agent))
 	output, dispatchErr := dispatchPlanningReview(f, opts)
 	if dispatchErr != nil {
@@ -771,7 +777,7 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 		cwarn(stderr, "plan-quality: no valid ```findings block — falling back to the verdict token; this round carries NO findings, so the gate cannot converge on it")
 		blocked := classifyFallback(stderr, output) != nil
 		persistPlanGateRound(stderr, f, issueFile, ledger, gatestate.Round{
-			N: n, Timestamp: nowRFC3339(), Agent: string(agent),
+			N: n, Timestamp: nowRFC3339(), Agent: string(agent), ReviewerRuns: opts.Evidence.ReviewerRuns,
 			ProtocolError: "no valid findings block",
 			Blocked:       blocked,
 			Forced:        forcedRationale(f.Force, blocked),
@@ -783,6 +789,7 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 	}
 
 	round := gatestate.AssignIDs(ledger, rr, n, nowRFC3339(), string(agent))
+	round.ReviewerRuns = opts.Evidence.ReviewerRuns
 	applied, aerr := gatestate.ApplyChecked(ledger, round)
 	if aerr != nil {
 		// Same reasoning: a protocol error is a round that happened and cost latency.
@@ -976,11 +983,23 @@ func runEstimateQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name,
 		return nil
 	}
 
+	opts.Evidence = &judge.DispatchEvidence{}
+	if f.review != nil {
+		if err := attachReviewerAccounting(f.review.context(), &opts, f.Issue, "estimate-quality", 1, ""); err != nil {
+			return err
+		}
+	}
 	cinfo(stderr, fmt.Sprintf("invoking %s for estimate-quality check …", agent))
 	output, dispatchErr := dispatchPlanningReview(f, opts)
 	if dispatchErr != nil {
 		fmt.Fprint(stdout, output) // a failed retry still carries the first attempt (#300)
 		return fmt.Errorf("estimate-quality dispatch failed: %w", dispatchErr)
+	}
+
+	if f.review != nil && len(opts.Evidence.ReviewerRuns) > 0 {
+		if err := persistEstimateUsage(f, name, opts.Evidence.ReviewerRuns); err != nil {
+			cwarn(stderr, "reviewer accounting retained in private refs; ledger copy: "+err.Error())
+		}
 	}
 
 	fmt.Fprint(stdout, output)
