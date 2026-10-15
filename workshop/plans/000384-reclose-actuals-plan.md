@@ -78,7 +78,7 @@ Historical reconstruction is not an implicit fallback: a fixed-then-ship Review-
 - [x] Remove manual/judgment-hour fallback advice from these measured workflows. Explain candidate versus historical inputs, target selection, recovery and exclusion. Sweep README/help/atlas/comments for competing contracts.
 - [x] Update issue Log and checkboxes. Run focused actual/adoption/fix-review/correction tests and internal estimate/actualcorrection packages; git diff --check.
 - [ ] Push with sdlc pr; recorded full suite via sdlc local-check run --name suite, using the machine gate without overrides.
-- [ ] Close through mandatory review; fix blocking findings. Integrate current main, pass exact-head suite and PR CI, sdlc merge --yes without waivers, verify card/archive/hashes, report landed outcome to hub and stop.
+After verification, close through mandatory review and fix blocking findings. Integrate current main, pass exact-head suite and PR CI, sdlc merge --yes without waivers, verify card/archive/hashes, report the landed outcome to hub and stop.
 
 ## Test strategy by risky function
 
@@ -101,3 +101,5 @@ Historical reconstruction is not an implicit fallback: a fixed-then-ship Review-
 ## Revisions
 
 - 2026-10-15 — PQ-1: replace correction case inventories with named-function adversarial strategies and mechanical mutation oracles. Name the resolver and close caller explicitly. Scope and operator-approved design unchanged.
+
+- 2026-10-15T04:18:20-07:00 — Keep the future close/landing workflow outside verification checkboxes; no scope or acceptance change.
