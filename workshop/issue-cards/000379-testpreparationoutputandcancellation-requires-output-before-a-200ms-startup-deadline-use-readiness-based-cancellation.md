@@ -1,6 +1,6 @@
 ---
 id: 000379
-status: codecomplete
+status: done
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
@@ -22,6 +22,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 22b10de702c62c52f56ca1ff66c2a3a9ef7caf14
         evidence_commit: a826babc1d33f94847cc880196043f4ca6531f34
+        landed_commit: e3db93ddb5787059b724fcf04367362921fece9f
 ---
 
 # TestPreparationOutputAndCancellation requires output before a 200ms startup deadline; use readiness-based cancellation
