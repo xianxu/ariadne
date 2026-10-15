@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // Record shapes as Claude Code and Codex write them (trimmed to the fields read).
@@ -79,5 +81,14 @@ func TestTailIsBounded(t *testing.T) {
 	}
 	if m, _ := claudeFromTail(got); m != "m" {
 		t.Fatalf("the newest record was not in the tail")
+	}
+}
+
+func TestTestfixPinsTheOverride(t *testing.T) {
+	if testfix.AgentOverrideEnv != OverrideEnv {
+		t.Fatalf("testfix pins %q, agentid reads %q", testfix.AgentOverrideEnv, OverrideEnv)
+	}
+	if _, ok := Parse(testfix.FixedAgent); !ok {
+		t.Fatalf("testfix.FixedAgent %q does not parse", testfix.FixedAgent)
 	}
 }

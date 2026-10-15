@@ -364,10 +364,10 @@ func runMigrate(o *migrateOpts) error {
 		fmt.Fprintf(o.stderr, "    git -C %s %s\n", destTop, strings.Join(quoteMigrateMsg(migrateCommitArgs(destMsg, destRel)), " "))
 		fmt.Fprintf(o.stderr, "    git -C %s %s\n", srcRoot, strings.Join(quoteMigrateMsg(migrateCommitArgs(srcMsg, relPath)), " "))
 	} else {
-		if out, err := gitInDir(destTop, migrateCommitArgs(destMsg, destRel)...); err != nil {
+		if out, err := gitInDir(destTop, migrateCommitArgs(agentid.StampCurrent(destMsg), destRel)...); err != nil {
 			die(o.stderr, fmt.Sprintf("commit in %s: %v — %s", destRepo, err, out))
 		}
-		if out, err := gitInDir(srcRoot, migrateCommitArgs(srcMsg, relPath)...); err != nil {
+		if out, err := gitInDir(srcRoot, migrateCommitArgs(agentid.StampCurrent(srcMsg), relPath)...); err != nil {
 			die(o.stderr, fmt.Sprintf("commit in %s: %v — %s", srcRepo, err, out))
 		}
 		cok(o.stderr, fmt.Sprintf("moved %s → %s/%s (both sides committed, scoped)", relPath, destRepo, destRel))
@@ -443,7 +443,7 @@ func reportInboundRefs(stderr io.Writer, srcRoot, destTop, relPath, destRel stri
 // (ARCH-DRY — the same reason archiveCommitArgs derives from archiveAddArgs).
 // Pure: argv only, no IO.
 func migrateCommitArgs(msg, path string) []string {
-	return []string{"commit", "-q", "-m", agentid.StampCurrent(msg), "--", path}
+	return []string{"commit", "-q", "-m", msg, "--", path}
 }
 
 // quoteMigrateMsg renders a migrateCommitArgs argv for display, quoting the

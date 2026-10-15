@@ -205,7 +205,7 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 		if out, gerr := pushRunner.Git(archiveAddArgs(moves)...); gerr != nil {
 			die(stderr, fmt.Sprintf("git add archived paths: %v\n%s", gerr, out))
 		}
-		commitArgs, cerr := archiveCommitArgs(archiveCommitMessage, moves)
+		commitArgs, cerr := archiveCommitArgs(agentid.StampCurrent(archiveCommitMessage), moves)
 		if cerr != nil {
 			die(stderr, cerr.Error())
 		}
@@ -281,7 +281,7 @@ func archiveCommitArgs(msg string, moves []preparedArchiveMove) ([]string, error
 	if len(moves) == 0 {
 		return nil, fmt.Errorf("archiveCommitArgs: no moves — an empty pathspec would commit the whole index")
 	}
-	args := []string{"commit", "-m", agentid.StampCurrent(msg), "--"}
+	args := []string{"commit", "-m", msg, "--"}
 	return append(args, archiveAddArgs(moves)[2:]...), nil
 }
 
@@ -432,7 +432,7 @@ func recoverInterruptedArchive(ctx context.Context, stdout, stderr io.Writer, f 
 	if out, gerr := pushRunner.Git(archiveAddArgs(moves)...); gerr != nil {
 		return false, fmt.Errorf("git add archived paths: %v\n%s", gerr, out)
 	}
-	commitArgs, cerr := archiveCommitArgs(archiveCommitMessage, moves)
+	commitArgs, cerr := archiveCommitArgs(agentid.StampCurrent(archiveCommitMessage), moves)
 	if cerr != nil {
 		return false, cerr
 	}
