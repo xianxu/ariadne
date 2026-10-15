@@ -44,3 +44,56 @@ func TestCodexModernReconcilesEveryCumulativeSource(t *testing.T) {
 		})
 	}
 }
+
+func TestCodexTurnCumulativeCoverage(t *testing.T) {
+	record := func(id, turn string, input, output int64, cumulative string) string {
+		field := ""
+		if cumulative != "" {
+			field = `,"turn_token_usage":` + cumulative
+		}
+		return fmt.Sprintf("{\"type\":\"token_usage_record\",\"timestamp\":\"2026-10-14T10:00:00Z\",\"payload\":{\"response_id\":%q,\"thread_id\":\"thread\",\"turn_id\":%q,\"usage\":{\"input_tokens\":%d,\"output_tokens\":%d}%s}}\n", id, turn, input, output, field)
+	}
+	total := func(input, output int64) string {
+		return fmt.Sprintf(`{"input_tokens":%d,"output_tokens":%d}`, input, output)
+	}
+	base := record("r", "t1", 100, 20, total(500, 100))
+	matching := record("s", "t2", 1000, 200, total(1000, 200))
+	for _, tc := range []struct {
+		name, text    string
+		input, output int64
+		gap           bool
+	}{
+		{"missing spend with no thread counter", base, 100, 20, true},
+		{"another turn cannot fill missing spend", base + matching, 1100, 220, true},
+		{"duplicate cannot fill missing spend", base + base, 100, 20, true},
+		{"turn input high water survives output increase", record("r", "t1", 100, 20, total(500, 10)) + record("s", "t1", 0, 0, total(100, 20)), 100, 20, true},
+		{"turn output high water survives input increase", record("r", "t1", 100, 20, total(10, 100)) + record("s", "t1", 0, 0, total(100, 20)), 100, 20, true},
+		{"invalid negative turn counter", record("r", "t1", 100, 20, total(-1, 20)), 100, 20, true},
+		{"invalid turn counter shape", record("r", "t1", 100, 20, `{"input_tokens":"unknown","output_tokens":20}`), 100, 20, true},
+		{"missing turn counter dimension", record("r", "t1", 100, 20, `{"input_tokens":100}`), 100, 20, true},
+		{"matching multi response and multi turn totals", record("r", "t1", 100, 20, total(100, 20)) + record("q", "t1", 200, 40, total(300, 60)) + matching, 1300, 260, false},
+		{"matching duplicate has no extra charge", matching + matching, 1000, 200, false},
+		{"absent turn counter", record("r", "t1", 100, 20, ""), 100, 20, false},
+		{"null turn counter", record("r", "t1", 100, 20, "null"), 100, 20, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			responses, coverage := decode(t, "codex", tc.text)
+			responses, normalized, err := NormalizeResponses(responses)
+			if err != nil {
+				t.Fatal(err)
+			}
+			coverage.Merge(normalized)
+			var input, output int64
+			for _, response := range responses {
+				input += response.Tokens.Input
+				output += response.Tokens.Output
+			}
+			if input != tc.input || output != tc.output {
+				t.Fatalf("cumulative evidence changed response spend: %d/%d", input, output)
+			}
+			if (coverage.Counts["uncovered_segments"] > 0) != tc.gap || coverage.SpendComplete() == tc.gap {
+				t.Fatalf("turn coverage lost cumulative evidence: %+v", coverage)
+			}
+		})
+	}
+}

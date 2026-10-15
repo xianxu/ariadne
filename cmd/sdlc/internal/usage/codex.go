@@ -18,6 +18,7 @@ type codexState struct {
 	original              map[string]time.Time
 	expected              *Counters
 	legacyExpected        *Counters
+	turnExpected          map[string]*Counters
 }
 type codexUsage struct {
 	ResponseID  string          `json:"response_id"`
@@ -25,6 +26,7 @@ type codexUsage struct {
 	TurnID      string          `json:"turn_id"`
 	Usage       json.RawMessage `json:"usage"`
 	ThreadUsage json.RawMessage `json:"thread_token_usage"`
+	TurnUsage   json.RawMessage `json:"turn_token_usage"`
 }
 
 func (s *codexState) step(r record, c *Coverage) error {
@@ -155,6 +157,18 @@ func (s *codexState) response(r record, raw json.RawMessage, embedded bool, c *C
 			rememberCumulativeMaximum(&s.expected, expected)
 		}
 	}
+	if len(q.TurnUsage) > 0 && string(q.TurnUsage) != "null" {
+		if expected, err := decodeCounters(q.TurnUsage, false); err != nil {
+			c.Add("uncovered_segments", "invalid turn cumulative evidence")
+		} else {
+			if s.turnExpected == nil {
+				s.turnExpected = map[string]*Counters{}
+			}
+			maximum := s.turnExpected[q.TurnID]
+			rememberCumulativeMaximum(&maximum, expected)
+			s.turnExpected[q.TurnID] = maximum
+		}
+	}
 	if embedded {
 		if s.embedded == nil {
 			s.embedded = map[string]bool{}
@@ -213,6 +227,7 @@ func (s *codexState) finish(c *Coverage) []Response {
 	// Modern files are never supplemented with snapshot totals. A larger
 	// authoritative cumulative counter exposes missing response evidence instead.
 	known := Counters{}
+	knownTurns := map[string]Counters{}
 	seen := map[string]bool{}
 	for _, r := range s.modern {
 		if seen[r.ID] {
@@ -230,6 +245,11 @@ func (s *codexState) finish(c *Coverage) []Response {
 			c.Add("uncovered_segments", "response sum overflows")
 			break
 		}
+		// Each turn subtotal is bounded by the checked nonnegative thread sum.
+		turn := knownTurns[r.RequestID]
+		turn.Input += r.Tokens.Input
+		turn.Output += r.Tokens.Output
+		knownTurns[r.RequestID] = turn
 	}
 	// Legacy snapshots have no thread identity. Copied parent history cannot
 	// prove that an excess snapshot belongs to the parent rather than this
@@ -237,6 +257,15 @@ func (s *codexState) finish(c *Coverage) []Response {
 	for _, expected := range []*Counters{s.expected, s.legacyExpected} {
 		if expected != nil && (expected.Input > known.Input || expected.Output > known.Output) {
 			c.Add("uncovered_segments", "cumulative counters exceed recorded responses")
+			break
+		}
+	}
+	// Another turn's responses cannot reconcile missing spend in this turn.
+	// Duplicate/compaction response IDs were excluded from both sums above.
+	for turn, expected := range s.turnExpected {
+		known := knownTurns[turn]
+		if expected.Input > known.Input || expected.Output > known.Output {
+			c.Add("uncovered_segments", "turn cumulative counters exceed recorded turn responses")
 			break
 		}
 	}

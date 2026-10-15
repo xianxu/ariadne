@@ -189,6 +189,20 @@ failing fallback executables now prevent any provider call. BR-3 reconciled plan
 paths/status/PURE ownership. All four classes are addressed pending fresh suite
 and shared close review; no earlier suite is claimed for changed code.
 
+
+### 2026-10-14 21:57 — BR-1 turn-counter sibling
+
+Production-decoder overlay proved turn_token_usage was ignored: one turn's
+missing spend appeared complete, including when another turn hid its deficit.
+Per-turn maxima now reconcile only against that turn's deduplicated responses;
+invalid counters are visible and no cumulative totals are charged. Eight RED
+cases/four controls; all12 cases and full usage package pass0.165s after fix.
+Superseded f3bfa3ed suite was cancelled after1959s queue wait and part of its run,
+not adopted as passing evidence. Verified and stopped its orphan Make process
+group81248 after local-check parent SIGINT exited130; no owned suite remains.
+Fresh recorded suite follows this fix. Fleet/issue smoke25.02s/23.03s on the prior
+head retained explicit coverage and null uncalibrated projections.
+
 ## Revisions
 
 ### 2026-10-14 — whole-system bench cost

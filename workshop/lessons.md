@@ -804,3 +804,7 @@ The simplest durable authority beats a clever scan of consequences.
 - Fake one selected agent and guard every fallback agent executable in production
   dispatch tests. An omitted explicit-agent flag must fail locally rather than
   launch a real provider from a hermetic fixture (#365 BR-4).
+
+- Enumerate cumulative counter scopes as well as formats. Compare each turn's
+  high-water evidence with that turn's response union; unrelated turns must not
+  mask a missing segment (#365 BR-1).

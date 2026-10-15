@@ -304,3 +304,23 @@ overlays omitting boundary/plan/estimate attachment each fail the intended
 missing-binding assertion (1.179s/2.389s/2.590s). Initial fixture agent-selection
 and duplicate-ID errors were corrected; every fallback CLI is now a failing local
 guard. Task2's reopened production row is complete on this evidence.
+
+
+### 2026-10-14 21:57 — complete cumulative-evidence class
+
+A final BR-1 sibling sweep found turn_token_usage in the recorded Codex fixture
+but absent from reconciliation. An external production-decoder probe proved that
+one turn's missing spend stayed complete and another turn's responses could mask
+it. Decode optional turn totals, retain per-turn dimension maxima, and compare
+with response-ID-deduplicated sums from the same turn, never thread-wide spend.
+Invalid present turn totals degrade coverage; absent/null totals are neutral.
+Eight defective cases failed before the fix; four controls already passed; all12
+new cases and the usage package pass0.165s after the fix. This closes the named
+class across legacy, thread and turn cumulative evidence without adding charges.
+
+The f3bfa3ed suite waited1959s and then ran until superseded by this concrete
+coverage fix; it was cancelled, not passed. Parent local-check SIGINT exited130
+but left Make/Python running; verified own disposable-root cwd and process group
+81248, then terminated that group and verified it was gone. A fresh suite must
+record the corrected code. Refreshed fleet/issue smokes on the previous fix head
+completed25.02s/23.03s and correctly exposed coverage/projection limits.
