@@ -143,7 +143,7 @@ func bindUsageReviewers(sessions []transcripts.SessionEvidence, records []review
 	out := map[string]usageReviewBinding{}
 	selected, bad := selectUsageReviewerRecords(records)
 	for _, r := range selected {
-		if reviewusage.Validate(r) == nil && r.Phase == reviewusage.Finished && r.Outcome == "launch-failed" {
+		if confirmedReviewerLaunchFailure(r, bad[r.Intent.ID]) {
 			// A confirmed failed launch cannot claim a worker session by root.
 			continue
 		}
@@ -236,13 +236,18 @@ func selectUsageReviewerRecords(records []reviewusage.Record) ([]reviewusage.Rec
 			continue
 		}
 		old, ok := best[r.Intent.ID]
-		if ok && (old.Intent != r.Intent || old.SessionID != "" && r.SessionID != "" && old.SessionID != r.SessionID || old.StartedAt != "" && r.StartedAt != "" && old.StartedAt != r.StartedAt || old.FinishedAt != "" && r.FinishedAt != "" && old.FinishedAt != r.FinishedAt) {
-			bad[r.Intent.ID] = true
-			conflicting = append(conflicting, old, r)
+		if !ok {
+			best[r.Intent.ID] = r
 			continue
 		}
-		if !ok || r.Phase == reviewusage.Finished || old.Phase == reviewusage.Requested && r.Phase == reviewusage.Started {
+		// The recorder's model defines the entire immutable confirmation
+		// prefix, including PID, outcome and diagnostics. Partial field
+		// comparisons cannot decide whether two confirmations are compatible.
+		if reviewusage.Advance(old, r) == nil {
 			best[r.Intent.ID] = r
+		} else if reviewusage.Advance(r, old) != nil {
+			bad[r.Intent.ID] = true
+			conflicting = append(conflicting, old, r)
 		}
 	}
 	var selected []reviewusage.Record
@@ -251,6 +256,12 @@ func selectUsageReviewerRecords(records []reviewusage.Record) ([]reviewusage.Rec
 	}
 	selected = append(selected, conflicting...)
 	return selected, bad
+}
+
+// Non-spending is a property of an uncontested confirmed attempt, not of one
+// individually valid copy amid contradictory launch evidence.
+func confirmedReviewerLaunchFailure(record reviewusage.Record, conflicting bool) bool {
+	return !conflicting && reviewusage.Validate(record) == nil && record.Phase == reviewusage.Finished && record.Outcome == "launch-failed"
 }
 
 type usageReviewerAttemptKey struct{ Repository, Issue, Agent, ID string }
@@ -270,13 +281,13 @@ func reviewerUsageCoverage(records []reviewusage.Record, bindings map[string]usa
 		resolved[usageReviewerAttemptKey{binding.Repository, binding.Issue, response.Agent, binding.Attempt}] = true
 	}
 	var coverage usage.Coverage
-	selected, _ := selectUsageReviewerRecords(records)
+	selected, bad := selectUsageReviewerRecords(records)
 	seen := map[usageReviewerAttemptKey]bool{}
 	for _, record := range selected {
 		if !usageReviewerAttemptRelevant(record, scope, windows, now) {
 			continue
 		}
-		if reviewusage.Validate(record) == nil && record.Phase == reviewusage.Finished && record.Outcome == "launch-failed" {
+		if confirmedReviewerLaunchFailure(record, bad[record.Intent.ID]) {
 			continue
 		}
 		intent := record.Intent

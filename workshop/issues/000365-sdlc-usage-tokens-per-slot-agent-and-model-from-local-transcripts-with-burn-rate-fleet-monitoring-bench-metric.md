@@ -403,6 +403,28 @@ valid prefix/zero/positive/nonspending controls. This reuses the transition mode
 (ARCH-DRY, ARCH-ORDER) rather than defining another receipt state machine. Fresh
 recorded suite and shared close follow; the previous pass is head-specific.
 
+
+### 2026-10-15 03:06 — canonical receipt contradictions verified
+
+selectUsageReviewerRecords now delegates prefix compatibility to
+reviewusage.Advance in both directions. Incompatible copies retain all identities
+and a permanent conflict flag; the shared confirmedReviewerLaunchFailure helper
+grants nonspending only to uncontested valid launch-failed evidence, in binding
+and coverage alike. The existing recorder transition model owns every progress
+field and terminal confirmation (ARCH-DRY, ARCH-ORDER).
+
+Pure matrix covers every pair of eight phase/outcome states in both orders,
+PID/start/finish/session/diagnostic/intent rewrites and invalid copies, plus
+selected-issue quarantine. Agent regression run passes0.503s; root canonical and
+reconciliation run passes0.290s. Restoring manual selection fails0.466s; dropping
+the uncontested exemption guard fails0.399s. Production collector42-case matrix
+passes81.579s: original26 controls plus16 persisted contradiction cases across
+ledger/comment, Started/Finished launched state, both private/artifact orders and
+missing/present transcript evidence. Present reviewer tokens remain quarantined,
+never worker. Clean production RED9.403s; old-selector-only mutation fails1.708s
+and complete-old-file mutation fails2.714s. All files frozen, diff check clean.
+Commit and integrate main before fresh recorded suite and shared close.
+
 ## Revisions
 
 ### 2026-10-14 — whole-system bench cost

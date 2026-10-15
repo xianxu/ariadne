@@ -78,6 +78,11 @@ func coverageReviewerFixture(t *testing.T, format, mode string) (string, reviewu
 	case "missing-id":
 		record.SessionID = ""
 	case "unavailable-exact":
+	case "started-progress":
+		record.Phase = reviewusage.Started
+		record.SessionID = ""
+		record.FinishedAt = ""
+		record.Outcome = ""
 	case "invalid-metadata", "metadata-only", "malformed-source":
 		coverageClaudeSource(t, root, record.SessionID, mode, 0)
 	case "launch-failed":
@@ -198,6 +203,105 @@ func TestUsageCollectorRetainedReviewerCoverage(t *testing.T) {
 					}
 				}
 			})
+		}
+	}
+}
+
+// Independently retained receipts can each be schema-valid while contradicting
+// whether a launch happened. Storage traversal order cannot erase confirmed
+// progress, bless zero spend, or turn its transcript into owned worker activity.
+func TestUsageCollectorContradictoryReviewerProgress(t *testing.T) {
+	for _, format := range []string{"ledger", "comment"} {
+		for _, phase := range []string{"finished", "started"} {
+			for _, order := range []string{"progress-private", "failed-private"} {
+				for _, trace := range []string{"absent", "present"} {
+					t.Run(format+"/"+phase+"/"+order+"/"+trace, func(t *testing.T) {
+						ctx := context.Background()
+						mode := "unavailable-exact"
+						if phase == "started" {
+							mode = "started-progress"
+						}
+						if order == "failed-private" {
+							mode = "launch-failed"
+						}
+						root, record := coverageReviewerFixture(t, "private", mode)
+						progress := record
+						progress.PID = 123
+						progress.StartedAt = usageAttributionAt(10).Format(time.RFC3339Nano)
+						progress.SessionID = usageAttributionReviewerID
+						progress.Phase = reviewusage.Finished
+						progress.FinishedAt = usageAttributionAt(20).Format(time.RFC3339Nano)
+						progress.Outcome = "returned"
+						if phase == "started" {
+							progress.Phase = reviewusage.Started
+							progress.FinishedAt = ""
+							progress.SessionID = ""
+							progress.Outcome = ""
+						}
+						failed := record
+						failed.Phase = reviewusage.Finished
+						failed.PID = 0
+						failed.StartedAt = ""
+						failed.SessionID = ""
+						failed.FinishedAt = usageAttributionAt(20).Format(time.RFC3339Nano)
+						failed.Outcome = "launch-failed"
+						for _, r := range []reviewusage.Record{progress, failed} {
+							if err := reviewusage.Validate(r); err != nil {
+								t.Fatalf("contradiction must use individually valid records: %v", err)
+							}
+						}
+						artifact := failed
+						if order == "failed-private" {
+							artifact = progress
+						}
+						var raw, suffix string
+						if format == "ledger" {
+							raw = gatestate.Render(gatestate.Ledger{Gate: "plan-quality", IssueNum: 365, Rounds: []gatestate.Round{{N: 1, ReviewerRuns: []reviewusage.Record{artifact}}}}, "fixture")
+							suffix = "gate"
+						} else {
+							encoded, err := json.Marshal([]reviewusage.Record{artifact})
+							if err != nil {
+								t.Fatal(err)
+							}
+							raw = "<!-- sdlc-review-usage " + string(encoded) + " -->\n"
+							suffix = "review"
+						}
+						writeRepoFile(t, root, "workshop/plans/000365-contradictory-plan-"+suffix+".md", raw)
+						testfix.Git(t, root, "add", "workshop")
+						testfix.Git(t, root, "commit", "-qm", "retain contradictory independent receipt")
+						if trace == "present" {
+							// Keep only the suspected reviewer response: if the failed-launch copy
+							// wins, these ten tokens would incorrectly become ordinary worker cost.
+							background := filepath.Join(os.Getenv("HOME"), ".claude/projects/fixture", usageAttributionOtherID+".jsonl")
+							if err := os.Remove(background); err != nil {
+								t.Fatal(err)
+							}
+							coverageClaudeSource(t, root, usageAttributionReviewerID, "response", 10)
+						}
+						out, err := collectUsage(ctx, usageFlags{Issue: 365, Since: "1h", Burn: 3 * time.Hour}, usageAttributionAt(30))
+						if err != nil {
+							t.Fatal(err)
+						}
+						for name, coverage := range map[string]usage.Coverage{"report": out.Report.Coverage, "overall": out.Coverage} {
+							if coverage.Counts["unresolved_reviewer_usage"] != 1 || coverage.SpendComplete() {
+								t.Errorf("%s contradictory progress collapsed to no-spend: %+v", name, coverage)
+							}
+						}
+						var glance *agentGlance
+						for i := range out.AgentGlance {
+							if out.AgentGlance[i].Agent == "claude" {
+								glance = &out.AgentGlance[i]
+							}
+						}
+						if glance == nil || glance.Coverage.SpendComplete() || glance.Coverage.Counts["unresolved_reviewer_usage"] != 1 || glance.Projection.Status != "incomplete_evidence" || glance.Projection.HoursRemaining != nil {
+							t.Errorf("contradictory progress permits calibrated forecast: %+v", glance)
+						}
+						if trace == "present" && (out.IssueParts[0].Tokens != 0 || out.IssueParts[1].Tokens != 0 || out.IssueParts[2].Tokens != 0) {
+							t.Errorf("contradictory reviewer identity became worker or trusted reviewer cost: %+v", out.IssueParts)
+						}
+					})
+				}
+			}
 		}
 	}
 }

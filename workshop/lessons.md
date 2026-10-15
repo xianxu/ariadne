@@ -838,3 +838,8 @@ The simplest durable authority beats a clever scan of consequences.
 - Canonicalize receipt phase-prefix copies before counting unfinished attempts.
   Confirmed launch failure is nonspending; missing launch evidence is uncertainty
   and cannot be collapsed into that outcome (#365 BR-7).
+
+- Individually valid state records are not necessarily compatible copies. Reuse
+  the writer's transition contract to collapse prefixes, and require uncontested
+  evidence for nonspending exemptions. Test all phase/outcome pairs, rewrites and
+  persistence orders; contradictory launch proof must survive (#365 BR-7).
