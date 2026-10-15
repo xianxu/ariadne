@@ -197,121 +197,97 @@ bounded store and replacement lifecycle (two per agent/unit); adding Qoder does
 not append an unbounded history. Actual evidence uses existing snapshot retention
 and cleanup; do not create a second Qoder snapshot family (ARCH-FUNERAL).
 
-## Implementation tasks
+## Function-level verification strategy
+
+Each risky function has an adversarial input class and a mechanical guard.
+Tests exercise production functions; each implementation task begins with red
+behavior tests, then the minimum implementation, green verification and a commit.
+
+| Function / production seam | Strategy and guard |
+|----------------------------|--------------------|
+| qodertranscript.ParseRecord | Seeded fuzzing over mixed JSON record/timestamp shapes; never panic, invent metadata, or expose unselected payload fields. |
+| SessionState.Step / Metadata / ConfigAt | Generated replay/conflict/order sequences against an independent small model; immutable identity, ambiguity cannot self-repair, config cannot rewind. |
+| ParseCredit / CreditAmount.Add | Seeded numeric fuzzing and independent math/big.Rat oracle; exact decimal roundtrip/addition or explicit bound refusal, never float truncation. |
+| decodeQoder / qoderState.Step / Finish | Generated streamed response sequences; terminal union contains each message.id once, original_credits never multiplies spend, unavailable tokens stay null. |
+| NormalizeResponses | Permutation/duplication properties with conflicting copies outside selected windows; no read-order winner and final evidence is never charged twice. |
+| AggregateUsage | Generated mixed-unit windows/roles compared with an independent response-union oracle; complete totals imply every included response supports that unit. |
+| ProjectMeter / ProjectCreditMeter | Generated ordered observation/burn sequences through existing validation/reset guards; unsupported or incomplete denominators never produce projections. |
+| QoderHarness.Sources / DiscoverEvidence / readUsageMetadata | Portable persisted JSONL fixture state machine through production discovery; recorded workspace and the same adapter govern attribution despite misleading file labels or concurrent writes. |
+| resolveActualInputs / computeActualForClose / measured adoption | Existing real temporary Git ownership fixtures extended through Qoder discovery; command and close consume the same retained prefix and ownership interval, producing identical nonzero hours. |
+| Detector.Detect / selectQoderSession | Generated competing session/env observations with injected cwd/clock/read limits; never stamp another session's metadata, preserve explicit override and shell fallback. |
+| ResolveReviewerCLI / ReviewerPolicy.Validate | Existing policy matrix with an observed Qoder worker; recognition never implies an unsupported reviewer executable. |
+| collectUsage / renderUsage | Portable fleet/home/issue fixtures and failing/short writers through command entry points; all native report scopes preserve nulls, exact credits, coverage and errors. |
 
 ### Task 1: shared typed Qoder records and portable fixtures
 
 **Create:** cmd/sdlc/internal/qodertranscript/{record.go,session.go,record_test.go,session_test.go,testdata/session.jsonl}.
 
-- [ ] Write failing pure tests for mixed timestamp types, stable/repeated versus
-  contradictory session/workspace records, missing/multiple roots, stale config
-  replay, null effort, model changes and message ancestry without child lineage.
-- [ ] Run go test ./cmd/sdlc/internal/qodertranscript -count=1; confirm the new
-  behavior fails before implementing the shared adapter/transition model.
-- [ ] Implement whitelisted typed records and encapsulated transition state.
-  Ignore unknown payload fields without copying them into state or diagnostics.
-- [ ] Exercise streamed/terminal rows and malformed/torn input in the portable
-  fixture. Run the package tests and commit the passing adapter/fixture.
+- [ ] Add red tests for ParseRecord and SessionState through the strategies above;
+  run go test ./cmd/sdlc/internal/qodertranscript -count=1 and verify red.
+- [ ] Implement the whitelisted record parser and encapsulated transition model;
+  run that package green and commit the adapter with sanitized fixtures.
 
 ### Task 2: exact credits and optional native measurements
 
 **Create:** cmd/sdlc/internal/usage/{credits.go,credits_test.go,qoder.go,qoder_test.go,testdata/qoder.jsonl}.
-**Modify:** cmd/sdlc/internal/usage/{types.go,aggregate.go,read.go,usage_test.go,calibration.go,calibration_test.go}; affected existing decoder tests.
+**Modify:** cmd/sdlc/internal/usage/{types.go,aggregate.go,read.go,usage_test.go,calibration.go,calibration_test.go}; existing decoder tests affected by optional measurements.
 
-- [ ] Write failing tests: exact 45.938730726457140528 sum; 18-digit fractions
-  beyond scaled-int64 range; credits versus original_credits; null/negative/
-  malformed/oversized numbers; billable ambiguity; provisional→final and
-  duplicate/conflicting finals across copied files, outside requested windows.
-- [ ] Run go test ./cmd/sdlc/internal/usage -run 'Qoder|Credit|Native|Mixed' -count=1
-  and record the intended failures.
-- [ ] Implement bounded immutable CreditAmount and optional token/credit response
-  measurements. Qoder terminal usage yields Tokens:nil, exact Credits and native
-  response identity; streaming UUIDs never multiply charges. Refactor existing
-  normalization/aggregation once, preserving Claude/Codex cumulative-gap checks.
-- [ ] Test the full measurement matrix, per-model changes, mixed/unit-incomplete
-  totals, hour/role selection, zero-response supported dimensions, cancellation
-  and bounds. Sweep all Response.Tokens and total/rate consumers for nil safety.
-- [ ] Extend existing meter projection for --agent qoder with reported-credit
-  denominator; two compatible observations are mandatory. Test one-observation
-  insufficient, missing credits, stale/future/refill/zero-burn intervals, unit
-  selection, mixed-agent isolation and unchanged token-agent results.
-- [ ] Run the entire internal/usage package once and commit the coherent core.
+- [ ] Add red tests for credit parsing/arithmetic, Qoder response transitions,
+  normalization and mixed-unit aggregation using the strategies above; run
+  go test ./cmd/sdlc/internal/usage -run 'Qoder|Credit|Native|Mixed' -count=1.
+- [ ] Implement immutable bounded credits, nullable measurements, Qoder decoding
+  and shared normalization/aggregation; preserve existing cumulative-gap checks.
+  Sweep response/total/rate consumers for nil safety through the compiler.
+- [ ] Extend the existing meter with the minimal native-credit denominator;
+  run the meter strategy and entire internal/usage package green, then commit.
 
 ### Task 3: discovery, active-time and close adoption
 
 **Create:** cmd/sdlc/internal/transcripts/{qoder.go,qoder_test.go,qoder_integration_test.go}.
 **Modify:** cmd/sdlc/internal/transcripts/{defaults.go,discovery.go,usage_discovery.go,discovery_test.go,usage_discovery_test.go}; cmd/sdlc/{actualwiring_test.go,close_actualdev_test.go}.
 
-- [ ] Add failing production-path tests for a temporary Qoder home: discovery
-  uses workspace metadata despite misleading slug; absent/ambiguous roots cannot
-  leak to actuals; usage keeps readable unknown-slot charges; numeric config rows
-  are not malformed activity; housekeeping does not inflate focused time.
-- [ ] Run go test ./cmd/sdlc/internal/transcripts -run Qoder -count=1; verify red.
-- [ ] Register QoderHarness and reuse the leaf metadata decoder in both discovery
-  paths. Preserve pinned length/stat/hash and ownership selectors. Return files
-  selected by recorded workspace, not whole unrelated project directories.
-- [ ] Drive real ownership fixtures through resolve/measurement, sdlc actual,
-  close measured adoption and retained-prefix replay. Cover another checkout
-  closing the owner's issue, reclaim intervals, unrelated sessions, nonzero
-  activity, ambiguity and a subsequently extended/removed live source. Reuse
-  existing actual/close test seams; do not special-case Qoder hours in close.
+- [ ] Add red production discovery/actual/adoption tests with portable transcript
+  and real Git fixtures; run go test ./cmd/sdlc/internal/transcripts -run Qoder -count=1.
+- [ ] Register QoderHarness; both discovery paths consume shared metadata, retain
+  pinned evidence, and select files by recorded workspace. Reuse actual ownership
+  and close adoption without a provider-specific hours calculation.
 - [ ] Run go test ./cmd/sdlc -run 'Qoder.*(Actual|Close)|Actual.*Qoder|Close.*Qoder' -count=1
-  plus the transcripts package, then commit verified wiring.
+  and the transcripts package green, then commit.
 
-### Task 4: exact invoking identity without enabling unsupported reviewers
+### Task 4: invoking identity without unsupported reviewers
 
-**Modify:** cmd/sdlc/internal/agentid/{env.go,detect.go,transcript.go,agentid.go,detect_test.go,agentid_test.go}; cmd/sdlc/internal/judge/{agent_resolver.go,agent_resolver_test.go} (verify existing test filename before editing).
+**Modify:** cmd/sdlc/internal/agentid/{env.go,detect.go,transcript.go,agentid.go,detect_test.go,agentid_test.go}; cmd/sdlc/internal/judge/agent_resolver.go and its existing policy tests.
 
-- [ ] Resolve the measured native session binding with the hub; append a plan
-  revision with signal provenance, exact lookup policy and ambiguity behavior.
-  This step blocks identity implementation if the evidence is still missing.
-- [ ] Write failing tests for invoking Qoder→qoder/auto/-, configured effort,
-  config replay/model updates, exact session mismatch, multiple matching copies,
-  absent/truncated/oversized metadata, SDLC_AGENT_ID precedence, Pair-only shell
-  context, and unchanged Claude/Codex/Gemini identities.
-- [ ] Separate observed-agent recognition from dispatch capability. Keep Known's
-  existing reviewer contract or give reviewer checks an explicit capability
-  predicate before extending identity recognition. Assert all reviewer policy
-  modes/overrides do not select an unsupported executable as a side effect.
-- [ ] Wire the measured signal and exact session reader to the shared adapter.
-  Unknown model/effort stay dashes; auto is retained as recorded. Run
-  go test ./cmd/sdlc/internal/agentid ./cmd/sdlc/internal/judge -run 'Qoder|Detect|Agent|Reviewer' -count=1,
-  then commit verified identity behavior.
+- [ ] Resolve the plan gate's invocation-provenance finding with the hub and
+  record the accepted binding policy as a revision before implementation.
+- [ ] Add red identity-selection and reviewer-policy tests using the strategies
+  above; keep observed-agent recognition distinct from reviewer capability.
+- [ ] Implement the accepted binding policy and shared metadata reads. Run
+  go test ./cmd/sdlc/internal/agentid ./cmd/sdlc/internal/judge -run 'Qoder|Detect|Agent|Reviewer' -count=1
+  green and commit.
 
-### Task 5: collector, native columns, documentation, and SHIP
+### Task 5: native output, documentation, and SHIP
 
-**Modify:** cmd/sdlc/{usage.go,usage_reviewers.go,usage_command_test.go,usage_output_errors_test.go}; cmd/sdlc/helptext/usage.md; atlas/workflow/sdlc-binary.md; atlas/index.md; this plan and the issue.
+**Modify:** cmd/sdlc/{usage.go,usage_reviewers.go,usage_command_test.go,usage_output_errors_test.go}; cmd/sdlc/helptext/usage.md; atlas/workflow/sdlc-binary.md; atlas/index.md; issue and plan.
 **Create:** cmd/sdlc/usage_qoder_test.go.
 
-- [ ] Write failing collector/CLI tests using a temporary home, fleet and issue
-  ownership fixture. Assert Qoder appears in fleet glance and slot/model detail;
-  tokens and token burn are JSON null; credits are exact; worker/reviewer/total,
-  hourly and unbound scopes preserve both native units and exclusion semantics.
-- [ ] Enumerate hardcoded provider lists in collection, parser coverage, meter
-  windows and glance. Derive supported measurement agents from one usage-owned
-  registry rather than scattering a third name across loops. Add Qoder read
-  dispatch; leave gate CLI capability independent.
-- [ ] Render schema v2 plus parallel credits/token columns; retain labelled
-  coverage and existing first-output glance. Check output errors/short writes,
-  late cancellation and durable-calibration summary errors still propagate.
+- [ ] Add red collector/CLI tests using the command strategy above. Derive
+  measurement-provider loops from one usage-owned registry and wire Qoder reads;
+  keep gate CLI capability independent. Implement schema v2 and native columns.
 - [ ] Run go test ./cmd/sdlc -run 'Usage.*Qoder|Qoder.*Usage|Usage.*(Output|Cancellation|Attribution)' -count=1
-  and all changed internal packages. Keep the checkout/HEAD frozen during
-  production-root fixture tests. Update atlas/help with format, null, exact
-  native credits, calibration, unknown-model and ownership contracts.
-- [ ] Read-only conformance: run the candidate reader against the supplied real
-  sample, with no transcript content emitted. Compare normalized response count
-  117 and exact credits 45.938730726457140528, Qoder token null, auto/null effort
-  and recorded workspace. Record command/evidence hashes, not raw records.
-- [ ] Reconcile plan entity/file inventory with the delivered diff; record test
-  results in the issue. Merge origin/main and resolve before final verification.
-- [ ] Run sdlc local-check run --name suite on the exact candidate commit in the
-  background, inspect its complete result, then sdlc close --issue 385 --verified
-  with targeted and full-suite evidence. Use shared sdlc, measured actual adoption,
-  and the binary's one fresh-context boundary review; fix/dispute findings until
-  SHIP. Direct make invocations use make -k per standing rule.
-- [ ] Open/land with sdlc pr and sdlc merge, verify real hashes via git rev-parse,
-  and report one landed outcome with PR and commit hashes to the hub. Honor moved
-  main/exact-suite requirements; no self-applied local-gates label or CI bypass.
+  plus changed internal packages green. Freeze checkout/HEAD during production
+  fixture tests. Update atlas/help with the delivered contracts and migration.
+- [ ] Read-only live conformance against the supplied sample: normalized 117
+  responses, exact 45.938730726457140528 credits, null tokens, auto/null effort,
+  recorded workspace. Record commands/hashes, never raw records.
+- [ ] Reconcile delivered concept/file inventory, update issue verification, merge
+  origin/main, then run sdlc local-check run --name suite on the exact candidate
+  in the background. Inspect its complete result before shared sdlc close;
+  measured adoption and its one fresh-context boundary review must reach SHIP.
+  Direct make calls use make -k. Fix or dispute findings through their ledger.
+- [ ] Land with sdlc pr and sdlc merge, verify real hashes with git rev-parse and
+  report the PR/commits to the hub. Honor moved-main/exact-suite requirements;
+  no self-applied local-gates label or CI bypass.
 
 ## Architecture cross-check
 
@@ -365,8 +341,13 @@ prevents proving the latest candidate, degrade to unknown model/effort rather
 than assuming unseen files are inactive. No goroutine or background scan
 outlives Detect. Usage/actual retain their existing larger batch budgets.
 
-Extend identity tests with QODER_CLI plus competing Claude/Codex/Pair signals;
-CLAUDE_PLUGIN_* alone; ordinary Pair panes; wrong cwd despite newer mtime;
-uniquely latest activity; timestamp ties; repeated copies; invalid/future rows;
-replayed old config; injected cancellation and each scan bound. Test Qoder
-observed identity without making the judge accept/dispatch a Qoder reviewer.
+Identity verification follows Detector.Detect/selectQoderSession and reviewer
+policy strategies in the function-level table above.
+
+### 2026-10-15 — PQ-2 function-level strategy revision
+
+The plan-quality gate requires named risky functions and mechanical adversarial
+strategies rather than prose test-case inventories. Replaced the inventories and
+procedural task detail with the function-level strategy table and compact TDD
+steps. The measurement, source and integration contracts above are unchanged.
+PQ-1 invocation provenance is being resolved with the hub before Task 4.

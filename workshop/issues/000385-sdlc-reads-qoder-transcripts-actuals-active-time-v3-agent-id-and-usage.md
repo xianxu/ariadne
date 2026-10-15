@@ -117,3 +117,14 @@ keeps model/effort unknown, with explicit SDLC_AGENT_ID as the launch-bound
 fallback. Qoder also sets CLAUDE_PLUGIN_* variables; these are not Claude
 markers. The plan revision specifies bounded cwd/activity selection and the
 priority/ambiguity regression matrix, superseding the earlier open question.
+
+### 2026-10-15 — approved plan; plan-quality round 1
+
+The hub approved the core plan and minimal native-credit meter. change-code
+round 1 raised PQ-1 (recency does not prove invoking session) and PQ-2 (replace
+test-case inventories with named functions and mechanical strategies). The plan
+now carries a concise function-level adversarial strategy and TDD task sequence.
+Asked the hub to refine identity: QODER_CLI establishes invocation; a Pair-pinned
+PAIR_SESSION_ID can then bind the exact transcript only after cwd/sessionId
+validation; without launch binding, competing sessions remain unknown. Awaiting
+that decision before the gate rerun; no production code changed.
