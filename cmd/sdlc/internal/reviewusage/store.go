@@ -88,6 +88,59 @@ func (s *Store) List(ctx context.Context) ([]Entry, error) {
 	}
 	return out, nil
 }
+
+// AccountingEvidence is the reporting-only view of retained receipts. Unlike
+// List, one unreadable receipt does not erase other usable identities. Invalid
+// records carry Version=0 and an error: callers may quarantine matching sessions
+// but must never treat them as attribution or gate authority.
+func (s *Store) AccountingEvidence(ctx context.Context) ([]Entry, error) {
+	raw, err := s.raw(ctx)
+	if err != nil {
+		return nil, err
+	}
+	refs, err := raw.List()
+	if err != nil {
+		return nil, err
+	}
+	if len(refs) > s.limit {
+		return nil, fmt.Errorf("review usage refs exceed limit %d", s.limit)
+	}
+	var out []Entry
+	var problems error
+	for _, ref := range refs {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		entry, err := raw.Load(ref.Token)
+		if err != nil {
+			problems = errors.Join(problems, err)
+			continue
+		}
+		record, err := ParseAccountingEvidence(entry.Data.Document)
+		if record.Intent.ID != entry.Token {
+			record.Version = 0
+			err = errors.Join(err, errors.New("review usage ref identity mismatch"))
+		}
+		problems = errors.Join(problems, err)
+		out = append(out, Entry{OID: entry.OID, Record: record})
+	}
+	return out, problems
+}
+
+// ParseAccountingEvidence preserves recoverable identity after a strict parse
+// fails. Version=0 makes that evidence fail Validate even when the malformed
+// shape would otherwise decode into a valid record (for example unknown keys).
+func ParseAccountingEvidence(raw []byte) (Record, error) {
+	record, err := Parse(raw)
+	if err != nil {
+		if len(raw) <= MaxBytes {
+			_ = json.Unmarshal(raw, &record)
+		}
+		record.Version = 0
+	}
+	return record, err
+}
+
 func (s *Store) Delete(ctx context.Context, id, expectedOID string) error {
 	raw, err := s.raw(ctx)
 	if err != nil {

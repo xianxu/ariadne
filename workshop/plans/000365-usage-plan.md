@@ -140,7 +140,7 @@ Files: new internal/usage/{types,codex,claude,aggregate}.go, colocated tests and
 Files: internal/transcripts/usage_discovery.go/tests (reuse provenance.go unchanged); usage_inputs.go/tests and actualinputs.go/tests; internal/reviewusage/{model,identity,store}.go/tests; internal/gatestate/ledger.go and ledger/parser tests; internal/judge/{dispatch,stream}.go/tests; reviewer_accounting.go/tests, usage_reviewers.go, boundaryledger.go, changecode.go, milestoneclose.go, reviewsidecar.go and command tests.
 
 - [x] Add metadata/fork/Claude-meta child, unknown cwd, copied history, partial-tail, append/truncation fixtures; observe RED.
-- [ ] Add production gate-dispatch→binding→usage regression for boundary/plan/estimate; include retry/failure/cancellation with no verdict advancement.
+- [x] Add production gate-dispatch→binding→usage regression for boundary/plan/estimate; include retry/failure/cancellation with no verdict advancement.
 - [x] Implement shared selection and optional bindings; preserve existing actual/gate/default discovery semantics.
 - [x] Verify moves/reclaims/dependency/brain/old reviewer/planning-only/completed edges; kill missing-binding, eligibility-bypass and child-doublecount mutations; commit.
 
@@ -282,3 +282,25 @@ boundary/plan/estimate, including interruption without semantic advancement;
 removing production attachment must fail them. Rerun the recorded suite after
 these code changes, then close to SHIP. Previous passing evidence remains an
 accurate record for its earlier head, not evidence for the pending fixes.
+
+
+### 2026-10-14 21:30 — round1 regression evidence
+
+BR-2 reporting now uses Store.AccountingEvidence for private receipts, retaining
+partial identity plus errors while strict gate-facing List/Load remain unchanged.
+A shared artifact decoder validates ledger/comment records and cleanup accepts
+only valid exact records. Invalid identity is quarantine evidence, not attribution
+authority. Private/ledger/comment version99, strict shape/duplicate-key failures,
+malformed artifacts, invalid timestamps/root evidence and cleanup guards pass;
+root targeted2.369s and reviewusage package3.113s after observed RED.
+
+BR-4 production tests now exist in reviewer_accounting_integration_test.go:
+boundary dispatch verifies disposable identity and exact sidecar copy; production
+change-code verifies plan/estimate receipts and exact ledger copies through usage
+loading and worker0/reviewer20/total20 with one round/attempt. Cancellation after
+observed Started retains Finished/canceled accounting without semantic ledger or
+HEAD movement. All three tests pass across three runs15.261s. Independent Go
+ overlays omitting boundary/plan/estimate attachment each fail the intended
+missing-binding assertion (1.179s/2.389s/2.590s). Initial fixture agent-selection
+and duplicate-ID errors were corrected; every fallback CLI is now a failing local
+guard. Task2's reopened production row is complete on this evidence.

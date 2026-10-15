@@ -800,3 +800,7 @@ The simplest durable authority beats a clever scan of consequences.
 - A direct dispatcher test cannot prove gate wiring. Drive production boundary,
   plan and estimate entry points through retained receipts to usage, including
   interrupted outcomes; kill omitted-attachment mutations (#365 BR-4).
+
+- Fake one selected agent and guard every fallback agent executable in production
+  dispatch tests. An omitted explicit-agent flag must fail locally rather than
+  launch a real provider from a hermetic fixture (#365 BR-4).

@@ -174,6 +174,21 @@ map now names delivered paths/status and PURE/IO ownership; Task2 production
 integration checkbox reopened until the actual wiring tests pass. Prior suite
 pass remains evidence for08141717 only; rerun after these code fixes.
 
+
+### 2026-10-14 21:30 — round1 fixes verified
+
+BR-2 now validates and reports invalid ledger/comment/private accounting, retains
+usable identity solely for quarantine, and never authorizes cleanup from invalid
+records. Targeted regressions2.369s and reviewusage package3.113s pass after RED.
+BR-4 production boundary/plan/estimate dispatch→receipt/artifact→usage tests pass
+three repetitions15.261s; independent omission mutations fail each production
+attachment (1.179s/2.389s/2.590s). Cancellation preserves Finished/canceled receipt
+without semantic advancement. Initial fixture mistakes briefly allowed fallback
+real reviewers; both were interrupted/reaped, and explicit agent selection plus
+failing fallback executables now prevent any provider call. BR-3 reconciled plan
+paths/status/PURE ownership. All four classes are addressed pending fresh suite
+and shared close review; no earlier suite is claimed for changed code.
+
 ## Revisions
 
 ### 2026-10-14 — whole-system bench cost

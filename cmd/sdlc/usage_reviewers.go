@@ -2,14 +2,12 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewusage"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/transcripts"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/usage"
@@ -34,15 +32,14 @@ func loadUsageReviewers(ctx context.Context, repos []string, issueFilter int) ([
 		}
 		store, e := reviewusage.NewStore(root)
 		if e == nil {
-			entries, e := store.List(ctx)
+			entries, e := store.AccountingEvidence(ctx)
 			if e != nil {
 				coverage.Add("unavailable_reviewer_bindings", "")
-			} else {
-				for _, entry := range entries {
-					records = append(records, entry.Record)
-					if entry.Record.Phase != reviewusage.Finished {
-						coverage.Add("unfinished_reviewer_bindings", "")
-					}
+			}
+			for _, entry := range entries {
+				records = append(records, entry.Record)
+				if entry.Record.Phase != reviewusage.Finished {
+					coverage.Add("unfinished_reviewer_bindings", "")
 				}
 			}
 		} else {
@@ -92,26 +89,12 @@ func loadUsageReviewers(ctx context.Context, repos []string, issueFilter int) ([
 					coverage.Add("unavailable_reviewer_bindings", "")
 					return nil
 				}
-				ledger, e := gatestate.ParseSidecar(string(raw))
-				if e == nil {
-					records = append(records, ledger.ReviewerRuns...)
-					for _, round := range ledger.Rounds {
-						if len(round.ReviewerRuns) == 0 && !round.NoCap {
-							coverage.Add("legacy_reviewer_binding_gaps", "")
-						}
-						records = append(records, round.ReviewerRuns...)
-					}
+				retained, evidenceCoverage := decodeReviewerAccountingArtifact(string(raw))
+				if strings.HasSuffix(name, "-gate.md") && !strings.HasPrefix(strings.TrimSpace(string(raw)), "---") {
+					evidenceCoverage.Add("unavailable_reviewer_bindings", "reviewer ledger missing frontmatter")
 				}
-				for _, line := range strings.Split(string(raw), "\n") {
-					if strings.HasPrefix(line, "<!-- sdlc-review-usage ") && strings.HasSuffix(line, " -->") {
-						var rr []reviewusage.Record
-						if json.Unmarshal([]byte(strings.TrimSuffix(strings.TrimPrefix(line, "<!-- sdlc-review-usage "), " -->")), &rr) == nil {
-							records = append(records, rr...)
-						} else {
-							coverage.Add("unavailable_reviewer_bindings", "")
-						}
-					}
-				}
+				records = append(records, retained...)
+				coverage.Merge(evidenceCoverage)
 				return nil
 			})
 			if e != nil {
@@ -134,6 +117,10 @@ func bindUsageReviewers(sessions []transcripts.SessionEvidence, records []review
 	var conflicting []reviewusage.Record
 	for _, r := range records {
 		if reviewusage.Validate(r) != nil {
+			// Invalid accounting is not worker evidence. Retain any usable
+			// session/root identity as a quarantined binding below.
+			conflicting = append(conflicting, r)
+			bad[r.Intent.ID] = true
 			continue
 		}
 		old, ok := best[r.Intent.ID]
@@ -153,10 +140,7 @@ func bindUsageReviewers(sessions []transcripts.SessionEvidence, records []review
 	selected = append(selected, conflicting...)
 	for _, r := range selected {
 		i := r.Intent
-		start, e := time.Parse(time.RFC3339Nano, i.RequestedAt)
-		if e != nil {
-			continue
-		}
+		start, startErr := time.Parse(time.RFC3339Nano, i.RequestedAt)
 		end := now
 		if r.FinishedAt != "" {
 			if t, e := time.Parse(time.RFC3339Nano, r.FinishedAt); e == nil {
@@ -172,9 +156,9 @@ func bindUsageReviewers(sessions []transcripts.SessionEvidence, records []review
 			}
 			if r.SessionID != "" && s.ID == r.SessionID {
 				matches = append(matches, key)
-			} else if r.SessionID == "" && i.DisposableRoot && filepath.Clean(s.CWD) == filepath.Clean(i.Root) && !s.Started.Before(start) && s.Started.Before(end) {
+			} else if r.SessionID == "" && startErr == nil && filepath.IsAbs(i.Root) && i.DisposableRoot && filepath.Clean(s.CWD) == filepath.Clean(i.Root) && !s.Started.Before(start) && s.Started.Before(end) {
 				matches = append(matches, key)
-			} else if r.SessionID == "" && filepath.Clean(s.CWD) == filepath.Clean(i.Root) && !s.Started.Before(start) && s.Started.Before(end) {
+			} else if r.SessionID == "" && startErr == nil && filepath.IsAbs(i.Root) && filepath.Clean(s.CWD) == filepath.Clean(i.Root) && !s.Started.Before(start) && s.Started.Before(end) {
 				matches = append(matches, key)
 				uncertain[key] = true
 			}

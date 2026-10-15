@@ -4,13 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"path/filepath"
 	"strings"
 
+	"go.yaml.in/yaml/v3"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewusage"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/usage"
+	"github.com/xianxu/ariadne/pkg/frontmatter"
 )
 
 // attachReviewerAccounting prepares an accounting-only CAS recorder before the
@@ -133,21 +137,77 @@ func cleanupReviewerAccounting(ctx context.Context, root, remote string, store *
 	}
 	return nil
 }
-func reviewerRecordsInArtifact(raw string) []reviewusage.Record {
+
+// decodeReviewerAccountingArtifact is shared by reporting and reachability
+// cleanup. Invalid evidence remains available for identity quarantine, but never
+// becomes accepted accounting or authorizes deletion of a private receipt.
+func decodeReviewerAccountingArtifact(raw string) ([]reviewusage.Record, usage.Coverage) {
 	var records []reviewusage.Record
-	if ledger, e := gatestate.ParseSidecar(raw); e == nil {
-		records = append(records, ledger.ReviewerRuns...)
-		for _, r := range ledger.Rounds {
-			records = append(records, r.ReviewerRuns...)
+	var coverage usage.Coverage
+	retain := func(rr []reviewusage.Record, malformed bool) {
+		for _, record := range rr {
+			if malformed {
+				// Preserve recoverable identity while ensuring this partial parse
+				// cannot acquire attribution authority.
+				record.Version = 0
+			}
+			if err := reviewusage.Validate(record); err != nil {
+				coverage.Add("unavailable_reviewer_bindings", err.Error())
+			}
+			records = append(records, record)
+		}
+	}
+	// Boundary review prose has no frontmatter; its typed evidence is in the
+	// comment below. A present but unreadable ledger must be reported.
+	if strings.HasPrefix(strings.TrimSpace(raw), "---") {
+		ledger, err := gatestate.ParseSidecar(raw)
+		malformed := err != nil
+		if malformed {
+			coverage.Add("unavailable_reviewer_bindings", "malformed reviewer ledger")
+			// A semantic ledger error (for example in actual_inputs) can still
+			// leave independently typed reviewer identity recoverable.
+			if fm, _, splitErr := frontmatter.Split(raw); splitErr == nil {
+				_ = yaml.Unmarshal([]byte(fm), &ledger)
+			}
+		}
+		retain(ledger.ReviewerRuns, malformed)
+		for _, round := range ledger.Rounds {
+			if len(round.ReviewerRuns) == 0 && !round.NoCap {
+				coverage.Add("legacy_reviewer_binding_gaps", "")
+			}
+			retain(round.ReviewerRuns, malformed)
 		}
 	}
 	for _, line := range strings.Split(raw, "\n") {
-		if strings.HasPrefix(line, "<!-- sdlc-review-usage ") && strings.HasSuffix(line, " -->") {
-			var rr []reviewusage.Record
-			if json.Unmarshal([]byte(strings.TrimSuffix(strings.TrimPrefix(line, "<!-- sdlc-review-usage "), " -->")), &rr) == nil {
-				records = append(records, rr...)
-			}
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "<!-- sdlc-review-usage") {
+			continue
+		}
+		malformed := !strings.HasPrefix(line, "<!-- sdlc-review-usage ") || !strings.HasSuffix(line, " -->")
+		if malformed {
+			coverage.Add("unavailable_reviewer_bindings", "malformed reviewer accounting comment")
+		}
+		var encoded []json.RawMessage
+		payload := strings.TrimSuffix(strings.TrimPrefix(line, "<!-- sdlc-review-usage "), " -->")
+		if err := json.Unmarshal([]byte(payload), &encoded); err != nil || encoded == nil {
+			coverage.Add("unavailable_reviewer_bindings", "malformed reviewer accounting JSON")
+			continue
+		}
+		for _, item := range encoded {
+			record, err := reviewusage.ParseAccountingEvidence(item)
+			retain([]reviewusage.Record{record}, malformed || err != nil)
 		}
 	}
-	return records
+	return records, coverage
+}
+
+func reviewerRecordsInArtifact(raw string) []reviewusage.Record {
+	records, _ := decodeReviewerAccountingArtifact(raw)
+	valid := records[:0]
+	for _, record := range records {
+		if reviewusage.Validate(record) == nil {
+			valid = append(valid, record)
+		}
+	}
+	return valid
 }
