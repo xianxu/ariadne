@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/spf13/cobra"
 )
@@ -59,6 +60,12 @@ var errAlreadyLinked = errors.New("already answered")
 // linkBullet appends ` → [answer](target)` to bullet pos's last non-blank
 // line and returns the new section body.
 func linkBullet(section string, pos int, target string) (string, error) {
+	// The target lands inside the operator's section as a link: whitespace
+	// could start a new line (even a fake bullet) and a paren would end the
+	// link early.
+	if target == "" || strings.ContainsAny(target, "()") || strings.IndexFunc(target, unicode.IsSpace) >= 0 {
+		return "", fmt.Errorf("refused: TARGET %q must be a relative path with no whitespace or parentheses", target)
+	}
 	bs := instructionBullets(section)
 	if pos < 1 || pos > len(bs) {
 		return "", fmt.Errorf("refused: no bullet %d in ## %s (%d bullets)", pos, instructionsHeading, len(bs))
@@ -69,7 +76,7 @@ func linkBullet(section string, pos int, target string) (string, error) {
 	}
 	lines := strings.Split(section, "\n")
 	last := b.Start + len(b.Lines) - 1
-	lines[last] = strings.TrimRight(lines[last], " \t") + " → [answer](" + target + ")"
+	lines[last] = strings.TrimRightFunc(lines[last], unicode.IsSpace) + " → [answer](" + target + ")"
 	return strings.Join(lines, "\n"), nil
 }
 

@@ -100,6 +100,15 @@ func TestLinkBullet(t *testing.T) {
 	if got, err := linkBullet(opSection, 3, target); err != errAlreadyLinked || got != opSection {
 		t.Errorf("an answered bullet: err %v, changed %v; want errAlreadyLinked and no change", err, got != opSection)
 	}
+	for _, bad := range []string{"", "qa/a b.md", "qa/a.md\n9. fake", "qa/(x).md"} {
+		if _, err := linkBullet(opSection, 1, bad); err == nil {
+			t.Errorf("target %q: want a refusal", bad)
+		}
+	}
+	// CRLF: the carriage return is trimmed before the link, as rstrip() does.
+	if got, _ := linkBullet("1. a\r", 1, target); got != "1. a → [answer]("+target+")" {
+		t.Errorf("CRLF line: %q", got)
+	}
 	for _, pos := range []int{0, 6} {
 		if _, err := linkBullet(opSection, pos, target); err == nil || !strings.Contains(err.Error(), "no bullet") {
 			t.Errorf("pos %d: err %v, want a no-bullet refusal", pos, err)
