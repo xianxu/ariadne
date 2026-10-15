@@ -1,12 +1,12 @@
 ---
 id: 000371
-status: codecomplete
+status: done
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-15
 estimate_hours:
-card_mirror: '96ed9a78560a8569a74aa50ba635b8363374dffd' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ac202164a6a9c8d37c0753d6ef6fc7f3bf9cfdd7' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-15T00:11:03-07:00
 claimant:
     operator: Xian Xu
