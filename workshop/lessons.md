@@ -819,3 +819,10 @@ The simplest durable authority beats a clever scan of consequences.
 - Issue numbers are repository-local. Qualify diagnostic scope by the same
   repository identity used for ownership, even when exclusion evidence must be
   loaded fleet-wide; include same-number foreign-repo controls (#365 BR-6).
+
+- A nested measurement may package cancellation as a status. Check context at
+  the collector/command success boundary and preserve simultaneous output
+  failures. Test late IO cancellation, not only entry cancellation (#365).
+- Propagate summary/renderer writes, including short writes. After a durable
+  calibration succeeds, an output error must say the observation was recorded;
+  never pretend it rolled back or discard the original IO cause (#365).

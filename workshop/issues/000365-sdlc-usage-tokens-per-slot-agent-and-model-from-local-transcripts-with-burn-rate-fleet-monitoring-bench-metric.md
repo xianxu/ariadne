@@ -250,6 +250,17 @@ Distinct origins/reversed roots/same-repo alternate worktree/fleet/error-cache
 controls pass4.719s, broad usage/production/accounting45.998s. Queued b9d5da55
 suite cancelled130 before running; own parent/acquire child verified gone.
 
+
+### 2026-10-14 23:16 — cancellation/output regressions
+
+Late-actual cancellation was represented as a status while collectUsage returned
+success. Final collector/command boundaries now return context errors and retain
+output errors. Bounded buffers propagate text/JSON/calibrate short-write failures;
+already-saved meter observations are preserved with explicit recorded-before-
+summary-failed diagnostics. Four production regressions pass count3/21.872s;
+reverted-fix overlay fails all four7.808s. No provider calls or transition changes.
+Commit this final code before a fresh recorded suite.
+
 ## Revisions
 
 ### 2026-10-14 — whole-system bench cost

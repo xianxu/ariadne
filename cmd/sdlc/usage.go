@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -68,9 +70,15 @@ func NewUsageCmd() *cobra.Command {
 			return e
 		}
 		if f.JSON {
-			return json.NewEncoder(cmd.OutOrStdout()).Encode(out)
+			writer := bufio.NewWriter(cmd.OutOrStdout())
+			e = json.NewEncoder(writer).Encode(out)
+			if e == nil {
+				e = writer.Flush()
+			}
+		} else {
+			e = renderUsage(cmd.OutOrStdout(), out)
 		}
-		return renderUsage(cmd.OutOrStdout(), out)
+		return errors.Join(e, ctx.Err())
 	}}
 	cmd.Flags().StringVar(&f.Since, "since", "24h", "Detail window duration or RFC3339 timestamp; omitted with --issue means whole issue")
 	cmd.Flags().DurationVar(&f.Burn, "burn-window", 3*time.Hour, "Wall-clock burn window, 1h through 3h")
@@ -103,7 +111,11 @@ func NewUsageCmd() *cobra.Command {
 		if e != nil {
 			return e
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "Recorded %s %g %s (%d observations); two observations and complete token evidence are required for a projection.\n", agent, remaining, unit, len(usage.MeterPoints(m, agent, unit)))
+		writer := bufio.NewWriter(cmd.OutOrStdout())
+		fmt.Fprintf(writer, "Recorded %s %g %s (%d observations); two observations and complete token evidence are required for a projection.\n", agent, remaining, unit, len(usage.MeterPoints(m, agent, unit)))
+		if err := errors.Join(writer.Flush(), cmd.Context().Err()); err != nil {
+			return fmt.Errorf("meter observation recorded; summary output failed: %w", err)
+		}
 		return nil
 	}}
 	cal.Flags().StringVar(&agent, "agent", "", "codex or claude")
@@ -345,7 +357,7 @@ func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput
 			out.Actual.Hours = &actual.Hours
 		}
 	}
-	return out, nil
+	return out, ctx.Err()
 }
 func usageIssueParts(report usage.Report) []usageIssuePart {
 	parts := []usageIssuePart{{Role: "worker"}, {Role: "reviewer"}, {Role: "total"}}
@@ -369,6 +381,8 @@ func usageIssueParts(report usage.Report) []usageIssuePart {
 	return parts
 }
 func renderUsage(w io.Writer, out usageOutput) error {
+	writer := bufio.NewWriter(w)
+	w = writer
 	for _, g := range out.AgentGlance {
 		projection := g.Projection.Status
 		if g.Projection.HoursRemaining != nil {
@@ -417,7 +431,7 @@ func renderUsage(w io.Writer, out usageOutput) error {
 		fmt.Fprintf(w, " %s=%d", k, out.Coverage.Counts[k])
 	}
 	fmt.Fprintln(w)
-	return nil
+	return writer.Flush()
 }
 
 func usageDetailAttribution(r usage.Response, a usage.Attribution, reviewers map[string]usageReviewBinding, authority usageAuthority, issue int, workerEligible bool) usage.Attribution {

@@ -404,3 +404,23 @@ missing scope identity and cached failure; focused4.719s/broad45.998s pass after
 RED. Superseded b9d5da55 suite was still queued and cancelled130; verified parent
 68943 and its own acquire-child73249 were gone. No passing result is claimed for
 that head. Fresh suite follows final corrected diagnostic code.
+
+
+### 2026-10-14 23:16 — report cancellation/output boundary
+
+A controlled late-actual FIFO probe reproduced collectUsage returning success
+when its context was cancelled during active-time measurement. Check context at
+the collector return and join context/output errors at the command boundary.
+The same output-path sweep proved text rendering and calibration summaries
+ignored write errors, and direct JSON encoding did not detect a short writer.
+Use bounded4KiB buffered writers and return Flush errors; preserve simultaneous
+context and output causes. A calibration already persisted remains persisted and
+its error explicitly says the observation was recorded before summary failure.
+
+Four stateful production regressions (late actual cancellation, text/JSON final
+write cancellation, sentinel/short/simultaneous write failures, persisted-meter
+summary failure) pass three repetitions21.872s. Reverting all fixes in a Go
+overlay fails all four intended assertions7.808s; no provider calls or new source
+seam. Tests use portable local storage, a Unix-only FIFO test and stateful
+writers. No meter transition, normal actual status or output content changes.
+Fresh recorded suite follows this final code checkpoint.
