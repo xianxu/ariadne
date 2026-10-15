@@ -1735,6 +1735,17 @@ prerequisites, which are pair's whole suite. Targeted runs (`go test -run …`, 
 single `make test-*` target) never take it; they go through the test gate below. A nested `make test` under a locked
 run passes through (`WF_TEST_LOCK_HELD_BY`), even while another slot is free.
 
+**`sdlc`'s own suite runs hold the slot for the run only (#383).** A local check
+(`sdlc local-check run`, and the suite `sdlc merge` runs) does not give the
+helper its own pid to watch. It starts a per-run holder, a `cat` on a pipe from
+`sdlc`, and passes that pid as `--watch`. Right after the suite's process group
+ends, it closes the pipe and reaps the holder, which frees the slot before the
+status post, the CI poll, the PR merge, archiving and cleanup. If `sdlc` dies,
+the kernel closes the pipe, and the slot is freed as well. A rerun in the same
+`sdlc` (a re-integrated head, the baseline diagnosis) starts a new holder and
+takes a ticket like any other waiter. The suite's `WF_TEST_LOCK_HELD_BY` is the
+holder's pid, so its nested `make test` passes through.
+
 **Weighted suites (#346).** A suite heavier than one slot declares its weight:
 `WF_TEST_WEIGHT ?= N` in the repo's root Makefile, before `Makefile.workflow`
 is included. The default is 1. ariadne declares 2, because its sharded suite

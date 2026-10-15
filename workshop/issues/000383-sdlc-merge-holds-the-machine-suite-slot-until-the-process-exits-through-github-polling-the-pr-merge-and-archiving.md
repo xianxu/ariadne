@@ -67,13 +67,14 @@ Every landing therefore blocks the fleet's suites for minutes beyond its own tes
 
 The event most likely to be mishandled is an early return between acquire and run; the `defer` covers it. **ARCH-FUNERAL:** the holder is the slot's lifetime, and nothing new is persisted. **ARCH-MOCK:** the tests use the real helper and real flocks, as the reentry tests already do.
 
-- [ ] `acquireSuiteSlot` returns a holder with a `release`; `runLocalCheck` releases right after the suite and `defer`s it; `suiteLockOwners` removed
-- [ ] Test (real `test-lock.py`): a fake GitHub whose `PostStatus` blocks runs an outside `acquire --slots 2` while blocked, and that outside acquire answers `acquired`; and from inside the suite, an outside acquire answers `timeout` (the slot is held for the suite's whole run, per the TL). That is, the slot is free during the GitHub phase of `runLocalCheck`, which every later merge step comes after.
-- [ ] Test: a rerun goes through the line. Between run 1 and run 2 an outside process holds the slots, so run 2 times out with `errUnboundedSuite`; without the outside holder, run 2 acquires and its nested make sees `reentrant` with run 2's holder pid. The existing reentry tests keep passing.
-- [ ] Docs: atlas ci-merge-check.md (Recording) and sdlc-binary.md (the suite lock) say the slot covers the suite's execution only
+- [x] `acquireSuiteSlot` returns a holder with a `release`; `runLocalCheck` releases right after the suite and `defer`s it; `suiteLockOwners` removed
+- [x] Test (real `test-lock.py`): a fake GitHub whose `PostStatus` blocks runs an outside `acquire --slots 2` while blocked, and that outside acquire answers `acquired`; and from inside the suite, an outside acquire answers `timeout` (the slot is held for the suite's whole run, per the TL). That is, the slot is free during the GitHub phase of `runLocalCheck`, which every later merge step comes after.
+- [x] Test: a rerun goes through the line. Between run 1 and run 2 an outside process holds the slots, so run 2 times out with `errUnboundedSuite`; without the outside holder, run 2 acquires and its nested make sees `reentrant` with run 2's holder pid. The existing reentry tests keep passing.
+- [x] Docs: atlas ci-merge-check.md (Recording) and sdlc-binary.md (the suite lock) say the slot covers the suite's execution only
 
 ## Log
 
 ### 2026-10-14
 - Plan: a per-run slot holder (`cat` on a pipe) as the `--watch` pid, released right after the suite; no `test-lock.py` change (every copy already takes `--watch`). Quick flow.
 - The TL approved the plan and added: test (1) also asserts that no waiter is admitted while the suite runs.
+- Built. Both new tests use the real helper. `TestSuiteSlotCoversOnlyTheRun`: a waiter during the suite answers timeout, and one in the GitHub phase answers acquired. `TestSuiteRerunQueuesForTheSlot`: run 2 under an outside holder times out, and run 3 passes once the holder has left. On the old `localcheck_run.go` both fail (the GitHub-phase waiter answers timeout; run 2 passes through). The existing reentry tests pass, and so does the broad `-run 'LocalCheck|RealLock|Suite|HelperCap|Landing'` set (463 s).

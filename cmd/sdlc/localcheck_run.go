@@ -49,24 +49,6 @@ const (
 // check does not run (#319/#341 bound heavy suites machine-wide).
 var errUnboundedSuite = errors.New("refusing to run an unbounded suite")
 
-// test-lock.py's watcher holds a process's acquired slots until that process
-// exits. A later run reports "reentrant" but omits the original owner pid;
-// keep it per lock scope so nested make test inherits the actual holder.
-var suiteLockOwners = struct {
-	sync.Mutex
-	byScope map[string]string
-}{byScope: make(map[string]string)}
-
-func suiteLockScope(dir string) string {
-	if file := os.Getenv("WF_TEST_LOCK_FILE"); file != "" {
-		if !filepath.IsAbs(file) {
-			file = filepath.Join(dir, file)
-		}
-		return filepath.Clean(file)
-	}
-	return "default\x00" + os.Getenv("XDG_STATE_HOME") + "\x00" + os.Getenv("HOME")
-}
-
 // runLocalCheck runs c on sha in a fresh detached worktree, under one of the
 // machine-wide suite slots, keeps the log, and normally posts the outcome as
 // the localStatusContext(c.Name) status on sha. SkipRecord makes a diagnostic
@@ -96,10 +78,11 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	defer cleanup()
 
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
-	heldBy, err := acquireSuiteSlot(ctx, d, wt, c.Weight, helper)
+	heldBy, release, err := acquireSuiteSlot(ctx, d, wt, c.Weight, helper)
 	if err != nil {
 		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
 	}
+	defer release()
 
 	if err := os.MkdirAll(filepath.Dir(rec.LogPath), 0o755); err != nil {
 		return rec, err
@@ -126,6 +109,9 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	// WaitDelay bounds inherited-pipe draining after the parent exits;
 	// stop remaining children before closing their log or removing their tree.
 	_ = processgroup.Terminate(cmd, true)
+	// The slot covers the suite's run only (#383): free it before the log,
+	// the GitHub writes and whatever the caller (merge) does next.
+	release()
 	rec.Duration = time.Since(start)
 	_ = logf.Close()
 	var exitErr *exec.ExitError
@@ -199,47 +185,59 @@ func localCheckLogDir(d localRunDeps) (string, error) {
 // acquireSuiteSlot takes one of the machine-wide full-suite slots through the
 // prepared helper Makefile.workflow uses, so a local check and `make test`
 // share one cap. Capability preflight has already run before any worktree
-// mutation. The slot is held until this
-// process exits. It returns the pid to export as WF_TEST_LOCK_HELD_BY when it
-// took the slot.
+// mutation.
+//
+// The slot lasts one run (#383): the helper watches a per-run holder child (a
+// `cat` on a pipe from this process), not this process, so release (close the
+// pipe, reap the child) frees it, and so does this process dying by any route
+// (the kernel closes the pipe). A later run in the same process starts a new
+// holder and queues for a slot like anyone else. It returns the pid to export
+// as WF_TEST_LOCK_HELD_BY (the holder's, which the slot record names) and the
+// release, which is idempotent.
 //
 // weight is the slots the run takes at once (#346): passed as --slots, so a
 // make test inside it, which then sees WF_TEST_LOCK_HELD_BY and goes reentrant,
 // still runs at its declared weight (#332).
-func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight int, helper string) (string, error) {
-	scope := suiteLockScope(dir)
-	pid := fmt.Sprint(os.Getpid())
+func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight int, helper string) (string, func(), error) {
+	holder := exec.Command("cat")
+	processgroup.Configure(holder)
+	pipe, err := holder.StdinPipe()
+	if err != nil {
+		return "", nil, fmt.Errorf("%w: suite slot holder: %v", errUnboundedSuite, err)
+	}
+	if err := holder.Start(); err != nil {
+		return "", nil, fmt.Errorf("%w: suite slot holder: %v", errUnboundedSuite, err)
+	}
+	var once sync.Once
+	release := func() {
+		once.Do(func() {
+			_ = pipe.Close()
+			_ = holder.Wait()
+		})
+	}
+	pid := fmt.Sprint(holder.Process.Pid)
 	cmd := exec.CommandContext(ctx, "python3", helper, "acquire", "--watch", pid, "--slots", strconv.Itoa(max(weight, 1)))
 	cmd.Dir = dir
 	cmd.Stderr = d.Stderr
 	out, err := cmd.Output()
 	state := strings.TrimSpace(string(out))
 	if err != nil {
-		return "", fmt.Errorf("%w: suite lock helper: %v", errUnboundedSuite, err)
+		release()
+		return "", nil, fmt.Errorf("%w: suite lock helper: %v", errUnboundedSuite, err)
 	}
 	switch state {
 	case "acquired":
-		suiteLockOwners.Lock()
-		suiteLockOwners.byScope[scope] = pid
-		suiteLockOwners.Unlock()
-		return pid, nil
+		return pid, release, nil
 	case "reentrant":
-		suiteLockOwners.Lock()
-		owner := suiteLockOwners.byScope[scope]
-		suiteLockOwners.Unlock()
-		if owner != "" {
-			return owner, nil
-		}
-		// This process may itself be nested under a make that owns the slot.
-		// Preserve its advertised holder, which the helper just validated.
-		if inherited := os.Getenv("WF_TEST_LOCK_HELD_BY"); inherited != "" {
-			return inherited, nil
-		}
-		return pid, nil // the helper recognized its own --watch pid
+		// Nested under a make that holds the slot: no slot of ours to hold.
+		release()
+		return os.Getenv("WF_TEST_LOCK_HELD_BY"), func() {}, nil
 	case "skipped":
-		return "", nil
+		release()
+		return "", func() {}, nil
 	default:
-		return "", fmt.Errorf("%w: suite lock answered %q (see the [test-lock] lines above)", errUnboundedSuite, state)
+		release()
+		return "", nil, fmt.Errorf("%w: suite lock answered %q (see the [test-lock] lines above)", errUnboundedSuite, state)
 	}
 }
 
