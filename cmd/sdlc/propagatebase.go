@@ -24,6 +24,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/pkg/weaveownership"
 )
 
@@ -344,7 +345,7 @@ func commitConsumption(repoRoot, ref string) (changed bool, err error) {
 		return false, fmt.Errorf("git add: %w", err)
 	}
 	msg := fmt.Sprintf("%s: consume base-layer change (propagate-base)", ref)
-	if err := exec.Command("git", "-C", repoRoot, "commit", "-q", "-m", msg).Run(); err != nil {
+	if err := exec.Command("git", "-C", repoRoot, "commit", "-q", "-m", agentid.StampCurrent(msg)).Run(); err != nil {
 		return false, fmt.Errorf("git commit: %w", err)
 	}
 	return true, nil

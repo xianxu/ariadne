@@ -17,6 +17,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processmanual"
 )
@@ -58,8 +59,8 @@ func runProcessManual(stdout, stderr io.Writer, outPath, session string, full, i
 		}
 		home, _ := os.UserHomeDir()
 		content, err := processmanual.RunFrictionReport(
-			filepath.Join(home, ".claude", "projects"),
-			filepath.Join(home, ".codex", "sessions"), asJSON)
+			agentid.ClaudeProjects(home),
+			agentid.CodexSessions(home), asJSON)
 		if err != nil {
 			return err
 		}

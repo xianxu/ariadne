@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
@@ -89,7 +90,7 @@ func runHandoff(env *trackerEnv, stdout, stderr io.Writer, card tracker.Record, 
 		if changed, err := appendUnclaimNote(abs, note, false); err != nil { // keyed by handoffNoteCommitted
 			return err
 		} else if changed {
-			if _, err := env.git("commit", "-q", "-m", "#"+issue.CLIRef(id)+": log: handoff", "--", rel); err != nil {
+			if _, err := env.git("commit", "-q", "-m", agentid.StampCurrent("#"+issue.CLIRef(id)+": log: handoff"), "--", rel); err != nil {
 				return fmt.Errorf("committing the handoff note: %w", err)
 			}
 		}

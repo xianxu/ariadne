@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewbox"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewprepare"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewusage"
@@ -25,9 +26,9 @@ import (
 type AgentCLI string
 
 const (
-	AgentClaude AgentCLI = "claude"
-	AgentCodex  AgentCLI = "codex"
-	AgentGemini AgentCLI = "gemini"
+	AgentClaude AgentCLI = agentid.Claude
+	AgentCodex  AgentCLI = agentid.Codex
+	AgentGemini AgentCLI = agentid.Gemini
 )
 
 // DispatchEvidence holds nonsemantic, bounded attempt diagnostics for the caller.
