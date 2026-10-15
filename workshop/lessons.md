@@ -750,6 +750,22 @@ The simplest durable authority beats a clever scan of consequences.
   quality diagnostics as well as the number and hashes. Exercise preview and
   execution through the command path, and reuse measurement rendering (#335 BR-5).
 
+- Bind accounting by recorded immutable dispatch facts and exact identities. A
+  disposable directory name is not proof; an exact captured session must outrank
+  an interrupted earlier root-only receipt when a checkout is reused (#365).
+- Scope completeness to the denominator being projected. Global response dedup
+  can coexist with per-agent coverage; another agent's unknown format must not
+  invalidate a complete account calibration (#365).
+- Live CLI metadata includes protocol noise before authoritative identity.
+  Distinguish known queue records and startup banners from the first actual
+  session metadata, and regression-test the observed provider formats (#365).
+
+- Accounting recovery refs should retain their document, not pin the reviewed
+  code graph. Test rebase/prune while metadata survives; generic recovery object
+  retention can silently change code lifecycle semantics (#365).
+- Keep separately bounded metadata outside a byte-measured diagnostic envelope.
+  Adding a sidecar block after that envelope changes the reported retained bytes
+  even when the diagnostic renderer is untouched (#365).
 - New CLI flags and recovery commands need README coverage alongside atlas and help; enumerate all three before close (#366 BR-1).
 - When a fenced reviewer cannot run a regression, record an exact-head host rerun, environment qualification and log path; distinguish unverifiable review execution from a demonstrated implementation failure (#366 BR-2).
 
@@ -781,6 +797,60 @@ The simplest durable authority beats a clever scan of consequences.
 - Apply declared input bounds before every consumer of the input. A parser that checks only total bytes can still hand an oversized line to regex and failure extraction (#376 BR-7).
 - Exact JSON key validation does not prevent null from becoming a zero-valued nested scalar. Validate required fields, including nested measurement fields, before struct decoding and prove rejected rows never enter aggregates (#376 BR-8).
 - Optional telemetry must not become a precondition for the operation it observes. Test failures both before execution (store reservation) and after execution (publication), and assert the primary result and status still complete (#376 BR-9).
+- Reconcile all applicable cumulative evidence before declaring response spend
+  complete: a newer format or reset must not erase a higher earlier observation.
+  Snapshots diagnose gaps without being added to response totals (#365 BR-1).
+- Invalid accounting evidence is uncertainty, not absence. Share artifact decoding,
+  report validation/parse failures, and quarantine usable reviewer identities so
+  invalid receipts cannot silently reclassify spend as worker (#365 BR-2).
+- Reconcile the durable plan's concept map with final files and PURE/IO ownership
+  before close; planned file names are not delivered architecture (#365 BR-3).
+- A direct dispatcher test cannot prove gate wiring. Drive production boundary,
+  plan and estimate entry points through retained receipts to usage, including
+  interrupted outcomes; kill omitted-attachment mutations (#365 BR-4).
+
+- Fake one selected agent and guard every fallback agent executable in production
+  dispatch tests. An omitted explicit-agent flag must fail locally rather than
+  launch a real provider from a hermetic fixture (#365 BR-4).
+
+- Enumerate cumulative counter scopes as well as formats. Compare each turn's
+  high-water evidence with that turn's response union; unrelated turns must not
+  mask a missing segment (#365 BR-1).
+
+- Discovery and decoding must share one immutable executing-identity parser.
+  Preserve failed first metadata as uncertainty; later copied headers cannot
+  repair it. Exercise the production discovery→decoder pair (#365 BR-5).
+- Load exclusion evidence before filtering requested results. Reviewer identity
+  must survive cross-issue/repository selection and private-receipt cleanup;
+  test the committed artifact after the private copy is collected (#365 BR-6).
+
+- Issue numbers are repository-local. Qualify diagnostic scope by the same
+  repository identity used for ownership, even when exclusion evidence must be
+  loaded fleet-wide; include same-number foreign-repo controls (#365 BR-6).
+
+- A nested measurement may package cancellation as a status. Check context at
+  the collector/command success boundary and preserve simultaneous output
+  failures. Test late IO cancellation, not only entry cancellation (#365).
+- Propagate summary/renderer writes, including short writes. After a durable
+  calibration succeeds, an output error must say the observation was recorded;
+  never pretend it rolled back or discard the original IO cause (#365).
+
+- An immutable identity is also an ordering contract: account only after it is
+  resolved, or buffer and reconcile every dependent counter and timestamp.
+  Missing identity and pre-identity records must leave spend visibly incomplete;
+  test early/late/absent headers through discovery and decoding (#365 BR-5).
+
+- A valid process receipt is not a complete accounting denominator. Reconcile
+  every relevant attempt with usable reported evidence or an explicit spend gap;
+  test the collector and calibrated forecast, not only binding helpers (#365 BR-7).
+- Canonicalize receipt phase-prefix copies before counting unfinished attempts.
+  Confirmed launch failure is nonspending; missing launch evidence is uncertainty
+  and cannot be collapsed into that outcome (#365 BR-7).
+
+- Individually valid state records are not necessarily compatible copies. Reuse
+  the writer's transition contract to collapse prefixes, and require uncontested
+  evidence for nonspending exemptions. Test all phase/outcome pairs, rewrites and
+  persistence orders; contradictory launch proof must survive (#365 BR-7).
 - Convenience branch tracking is a durable shared-config effect. Before using
   push --set-upstream, trace the consumers; explicit remote/refspec publication
   can avoid both the protected config write and its later cleanup. Distinguish
