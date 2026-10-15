@@ -48,7 +48,9 @@ minutes. The operator approved building with `-trimpath`.
 - [x] Make the owner Makefile export effective Go flags plus -trimpath by default, retaining environment/go-env flags (currently -p=3). Add .sdlc/local-checks.json declaring required suite argv [make, test], weight 2 and timeout 60 minutes: the existing execution settings, with trimming inherited from the tested Makefile. Add an execution regression in scripts/test/trimpath_test.go exercising real owner build/test recipes with a temporary tracing Go/Python fixture, checking trimpath plus preserved flags. Run RED/GREEN and remove the default in a temporary mutation to prove this test fails.
 - [x] Add -trimpath to construct/dev-aliases.sh's existing emitter only, including its example. Extend the existing emitted-function execution fixture in construct/scripts/test/dev-aliases.test.sh; run RED/GREEN and remove the emitted flag once to prove the regression.
 - [ ] Measure one unchanged package (pkg/vocab) in two clean temporary Git worktrees of the same pinned commit, using a private shared cache per mode. Compare untrimmed A/B versus trimmed A/B: archive cache path/build ID, second-worktree compile actions, elapsed time and cache growth. Keep Go version/flags/head in the Log; do not clear the machine's cache. Remove owned worktrees and private caches after capturing results.
-- [ ] Document the defaults and direct-Go opt-in in README and the existing build/test atlas section. Publish a PR, run the recorded full suite on its pushed head with trimming enabled by default, and record evidence. Obtain operator verification for the protected .sdlc declaration, then close through mandatory review and land on SHIP.
+- [ ] Document the defaults and direct-Go opt-in in README and the existing build/test atlas section. Publish a PR, run the recorded full suite on its pushed head with trimming enabled by default, and record evidence.
+
+After verification, close through mandatory review, obtain operator verification for the protected .sdlc declaration, integrate current main and land on SHIP. Verification checkboxes do not claim their own later close/landing success.
 
 ### Design and verification details
 
@@ -91,3 +93,5 @@ Combined script tests exposed portable-makefile.test.sh's fake treating the new 
 - 2026-10-15 — Clarify repository-scoped default flag inheritance and equivalent explicit recorded-suite settings, preserve existing Go flags, and include a measured untrimmed control. Original purpose and Done-when unchanged.
 
 - 2026-10-15T11:19-07:00 — TL approval explicitly includes construct/dev-aliases.sh's flag-only emitter change across peer owners. Supersedes the proposed emitter exclusion in the initial Log; current Plan and integration inventory include the existing emitter/test seam. Done-when unchanged.
+
+- 2026-10-15 — Separate completed implementation/verification checkboxes from later close, operator-label and landing actions, avoiding a self-dependent close precondition. No acceptance or scope change.
