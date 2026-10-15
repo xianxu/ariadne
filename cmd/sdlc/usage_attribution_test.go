@@ -164,9 +164,9 @@ func TestUsageReviewerPrecedenceCountsIssueResponseUnionOnce(t *testing.T) {
 	authority := usageAuthority{Repository: r.Intent.Repository, Until: now}
 	workerWindows := map[string][]activetime.ActivityWindow{"/repo": {{Start: usageAttributionAt(0), End: now}}}
 	responses := []usage.Response{
-		{ID: "worker-response", SourceID: "worker", Agent: "codex", Model: "model", At: usageAttributionAt(15), Tokens: usage.Counters{Input: 10, Output: 1}},
-		{ID: "review-response", SourceID: usageAttributionReviewerID, Agent: "codex", Model: "model", At: usageAttributionAt(15), Tokens: usage.Counters{Input: 20, Output: 2}},
-		{ID: "child-response", SourceID: "review-child", Agent: "codex", Model: "other-model", At: usageAttributionAt(16), Tokens: usage.Counters{Input: 30, Output: 3}},
+		{ID: "worker-response", SourceID: "worker", Agent: "codex", Model: "model", At: usageAttributionAt(15), Tokens: &usage.Counters{Input: 10, Output: 1}},
+		{ID: "review-response", SourceID: usageAttributionReviewerID, Agent: "codex", Model: "model", At: usageAttributionAt(15), Tokens: &usage.Counters{Input: 20, Output: 2}},
+		{ID: "child-response", SourceID: "review-child", Agent: "codex", Model: "other-model", At: usageAttributionAt(16), Tokens: &usage.Counters{Input: 30, Output: 3}},
 	}
 	// A copied transcript response must not multiply worker/reviewer cost.
 	responses = append(responses, responses[1])
@@ -179,7 +179,7 @@ func TestUsageReviewerPrecedenceCountsIssueResponseUnionOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	parts := usageIssueParts(report)
-	if len(parts) != 3 || parts[0].Tokens != 11 || parts[1].Tokens != 55 || parts[2].Tokens != 66 || parts[1].Rounds != 1 || parts[1].Attempts != 1 {
+	if len(parts) != 3 || usageTokenValue(parts[0].Tokens) != 11 || usageTokenValue(parts[1].Tokens) != 55 || usageTokenValue(parts[2].Tokens) != 66 || parts[1].Rounds != 1 || parts[1].Attempts != 1 {
 		t.Fatalf("issue cost duplicated/reclassified executing identities: %+v groups=%+v", parts, report.Groups)
 	}
 	if report.Coverage.Counts["accepted_responses"] != 3 {
@@ -188,7 +188,7 @@ func TestUsageReviewerPrecedenceCountsIssueResponseUnionOnce(t *testing.T) {
 }
 
 func TestUsageReviewerConflictCannotFallBackToOwnedWorker(t *testing.T) {
-	response := usage.Response{ID: "response", SourceID: usageAttributionReviewerID, Agent: "codex", Model: "model", At: usageAttributionAt(15), Tokens: usage.Counters{Input: 20, Output: 2}}
+	response := usage.Response{ID: "response", SourceID: usageAttributionReviewerID, Agent: "codex", Model: "model", At: usageAttributionAt(15), Tokens: &usage.Counters{Input: 20, Output: 2}}
 	record := usageAttributionRecord(t, "attempt", usageAttributionReviewerID, "/repo", 1, 1)
 	other := record
 	other.Intent.ID = "conflict"
@@ -202,18 +202,17 @@ func TestUsageReviewerConflictCannotFallBackToOwnedWorker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	total, err := report.Totals.Total()
-	if err != nil || total != 0 {
+	if report.Totals != nil || report.MeasuredDimensions != nil {
 		t.Fatalf("conflicted issue binding still charged benchmark: %+v %v", report, err)
 	}
 }
 
 func TestUsageIssuePartsCountDetailRoundsAndAttemptsNotModelsOrBurnOnlyGroups(t *testing.T) {
 	responses := []usage.Response{
-		{ID: "model-a", SourceID: "review", Agent: "codex", Model: "a", At: usageAttributionAt(25), Tokens: usage.Counters{Input: 10}},
-		{ID: "model-b", SourceID: "review", Agent: "codex", Model: "b", At: usageAttributionAt(26), Tokens: usage.Counters{Input: 20}},
-		{ID: "retry", SourceID: "retry", Agent: "codex", Model: "a", At: usageAttributionAt(27), Tokens: usage.Counters{Input: 30}},
-		{ID: "prior", SourceID: "burn-only", Agent: "codex", Model: "a", At: usageAttributionAt(5), Tokens: usage.Counters{Input: 40}},
+		{ID: "model-a", SourceID: "review", Agent: "codex", Model: "a", At: usageAttributionAt(25), Tokens: &usage.Counters{Input: 10}},
+		{ID: "model-b", SourceID: "review", Agent: "codex", Model: "b", At: usageAttributionAt(26), Tokens: &usage.Counters{Input: 20}},
+		{ID: "retry", SourceID: "retry", Agent: "codex", Model: "a", At: usageAttributionAt(27), Tokens: &usage.Counters{Input: 30}},
+		{ID: "prior", SourceID: "burn-only", Agent: "codex", Model: "a", At: usageAttributionAt(5), Tokens: &usage.Counters{Input: 40}},
 	}
 	report, err := usage.AggregateUsage(responses, usage.Window{Since: usageAttributionAt(20), Until: usageAttributionAt(30)}, usage.Window{Since: usageAttributionAt(0), Until: usageAttributionAt(30)}, func(r usage.Response) usage.Attribution {
 		a := usage.Attribution{Slot: "repo:3", Role: "reviewer", Round: "365/boundary-review/1", Attempt: "first", Include: true}
@@ -230,7 +229,7 @@ func TestUsageIssuePartsCountDetailRoundsAndAttemptsNotModelsOrBurnOnlyGroups(t 
 		t.Fatal(err)
 	}
 	parts := usageIssueParts(report)
-	if parts[1].Tokens != 60 || parts[1].Rounds != 1 || parts[1].Attempts != 2 || parts[2].Tokens != 60 {
+	if usageTokenValue(parts[1].Tokens) != 60 || parts[1].Rounds != 1 || parts[1].Attempts != 2 || usageTokenValue(parts[2].Tokens) != 60 {
 		t.Fatalf("models or burn-only groups invented review rounds: %+v groups=%+v", parts, report.Groups)
 	}
 }

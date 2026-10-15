@@ -77,5 +77,5 @@ func decodeClaude(r record, source string) (Response, bool, error) {
 	if e != nil {
 		return Response{}, false, e
 	}
-	return Response{ID: q.ID, SourceID: source, Agent: "claude", Model: q.Model, RequestID: r.RequestID, At: at, Tokens: tokens, Provisional: len(q.Stop) == 0 || string(q.Stop) == "null", Origin: "message"}, true, nil
+	return Response{ID: q.ID, SourceID: source, Agent: "claude", Model: q.Model, RequestID: r.RequestID, At: at, Tokens: &tokens, Provisional: len(q.Stop) == 0 || string(q.Stop) == "null", Origin: "message"}, true, nil
 }

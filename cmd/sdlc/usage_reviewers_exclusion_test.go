@@ -26,7 +26,7 @@ func exclusionReport(t *testing.T, roots []string, selectedIssue int, record rev
 	}
 	sessions := []transcripts.SessionEvidence{usageAttributionSession(record.SessionID, record.Intent.Root, "", false, 0)}
 	bindings := bindUsageReviewers(sessions, records, usageAttributionAt(30))
-	response := usage.Response{ID: "response", Agent: "codex", SourceID: record.SessionID, Model: "fixture", At: usageAttributionAt(15), Tokens: usage.Counters{Input: 17, Output: 3}}
+	response := usage.Response{ID: "response", Agent: "codex", SourceID: record.SessionID, Model: "fixture", At: usageAttributionAt(15), Tokens: &usage.Counters{Input: 17, Output: 3}}
 	report, err := usage.AggregateUsage([]usage.Response{response}, usage.Window{Since: usageAttributionAt(0), Until: usageAttributionAt(30)}, usage.Window{Since: usageAttributionAt(0), Until: usageAttributionAt(30)}, func(r usage.Response) usage.Attribution {
 		return usageDetailAttribution(r, usage.Attribution{Role: "worker", Slot: "repo:3", Include: true}, bindings, usageAuthority{Repository: record.Intent.Repository}, selectedIssue, true)
 	})
@@ -56,11 +56,11 @@ func TestUsageReviewerOtherIssueExclusionSurvivesReceiptCleanup(t *testing.T) {
 			assertTotals := func(stage string) {
 				t.Helper()
 				excluded := usageIssueParts(exclusionReport(t, []string{root}, 365, record))
-				if excluded[0].Tokens != 0 || excluded[1].Tokens != 0 || excluded[2].Tokens != 0 {
+				if excluded[0].Tokens != nil || excluded[1].Tokens != nil || excluded[2].Tokens != nil {
 					t.Fatalf("%s: other issue reviewer became selected worker: %+v", stage, excluded)
 				}
 				included := usageIssueParts(exclusionReport(t, []string{root}, 366, record))
-				if included[0].Tokens != 0 || included[1].Tokens != 20 || included[1].Rounds != 1 || included[1].Attempts != 1 || included[2].Tokens != 20 {
+				if included[0].Tokens != nil || usageTokenValue(included[1].Tokens) != 20 || included[1].Rounds != 1 || included[1].Attempts != 1 || usageTokenValue(included[2].Tokens) != 20 {
 					t.Fatalf("%s: reviewer lost or counted twice: %+v", stage, included)
 				}
 			}
@@ -114,7 +114,7 @@ func TestUsageReviewerExclusionIncludesOtherRepositories(t *testing.T) {
 		t.Fatal(err)
 	}
 	report := exclusionReport(t, reviewRepositories(root, []string{peer}), 365, record)
-	if parts := usageIssueParts(report); parts[0].Tokens != 0 || parts[2].Tokens != 0 {
+	if parts := usageIssueParts(report); parts[0].Tokens != nil || parts[2].Tokens != nil {
 		t.Fatalf("other-repo reviewer became worker: %+v", parts)
 	}
 }

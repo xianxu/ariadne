@@ -39,7 +39,7 @@ func TestClaudeHarnessSources(t *testing.T) {
 	mk(brain)
 	mk("/w/pair") // unrelated — present on disk but NOT in cwds → must be excluded
 
-	got := ClaudeHarness(root).Sources([]string{brain, repo})
+	got := requireHarnessSources(t, ClaudeHarness(root), []string{brain, repo})
 	want := Sources{Dirs: []string{
 		filepath.Join(root, cwdToClaudeDir(brain)),
 		filepath.Join(root, cwdToClaudeDir(repo)),
@@ -49,14 +49,14 @@ func TestClaudeHarnessSources(t *testing.T) {
 	}
 
 	// A cwd whose folder doesn't exist is silently skipped (not invented).
-	got2 := ClaudeHarness(root).Sources([]string{"/w/does-not-exist", brain})
+	got2 := requireHarnessSources(t, ClaudeHarness(root), []string{"/w/does-not-exist", brain})
 	want2 := Sources{Dirs: []string{filepath.Join(root, cwdToClaudeDir(brain))}}
 	if !reflect.DeepEqual(got2, want2) {
 		t.Errorf("missing folder should be skipped; got %+v want %+v", got2, want2)
 	}
 
 	// Empty root → no dirs, no panic.
-	if got3 := ClaudeHarness("").Sources([]string{repo}); len(got3.Dirs) != 0 {
+	if got3 := requireHarnessSources(t, ClaudeHarness(""), []string{repo}); len(got3.Dirs) != 0 {
 		t.Errorf("empty root should yield no dirs, got %+v", got3)
 	}
 }

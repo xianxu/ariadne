@@ -23,13 +23,21 @@ type Projection struct {
 	Unit           string   `json:"unit"`
 	Status         string   `json:"status"`
 	Remaining      *float64 `json:"remaining"`
+	UnitsPerCredit *float64 `json:"units_per_credit"`
 	UnitsPerToken  *float64 `json:"units_per_token"`
 	UnitsPerHour   *float64 `json:"units_per_hour"`
 	HoursRemaining *float64 `json:"hours_remaining"`
 }
 
 func ValidateObservation(o Observation) error {
-	if o.Agent != "codex" && o.Agent != "claude" {
+	supported := false
+	for _, agent := range Agents() {
+		if o.Agent == agent {
+			supported = true
+			break
+		}
+	}
+	if !supported {
 		return fmt.Errorf("unsupported meter agent %q", o.Agent)
 	}
 	if o.Unit != "credits" && o.Unit != "percent" {
@@ -124,6 +132,13 @@ func ObserveMeter(m Meter, o Observation) (Meter, error) {
 // ProjectMeter consumes measured tokens between the two readings, across all
 // local slots. Attribution gaps do not change the account denominator.
 func ProjectMeter(m Meter, agent, unit string, now time.Time, tokens int64, burn float64, complete bool) Projection {
+	return projectMeter(m, agent, unit, now, float64(tokens), burn, complete, false)
+}
+
+func ProjectCreditMeter(m Meter, agent, unit string, now time.Time, credits CreditAmount, burn float64, complete bool) Projection {
+	return projectMeter(m, agent, unit, now, credits.Float64(), burn, complete, true)
+}
+func projectMeter(m Meter, agent, unit string, now time.Time, measured, burn float64, complete, credit bool) Projection {
 	p := Projection{Agent: agent, Unit: unit, Status: "insufficient_calibration"}
 	points := MeterPoints(m, agent, unit)
 	if len(points) == 0 {
@@ -146,8 +161,11 @@ func ProjectMeter(m Meter, agent, unit string, now time.Time, tokens int64, burn
 		p.Status = "incomplete_evidence"
 		return p
 	}
-	if tokens <= 0 {
+	if measured <= 0 {
 		p.Status = "no_measured_tokens"
+		if credit {
+			p.Status = "no_measured_credits"
+		}
 		return p
 	}
 	delta := points[0].Remaining - latest.Remaining
@@ -159,15 +177,19 @@ func ProjectMeter(m Meter, agent, unit string, now time.Time, tokens int64, burn
 		p.Status = "no_recent_burn"
 		return p
 	}
-	rate := delta / float64(tokens)
+	rate := delta / measured
 	hour := rate * burn
 	hours := latest.Remaining / hour
-	if math.IsNaN(hours) || math.IsInf(hours, 0) {
+	if math.IsNaN(rate) || math.IsInf(rate, 0) || math.IsNaN(hour) || math.IsInf(hour, 0) || math.IsNaN(hours) || math.IsInf(hours, 0) {
 		p.Status = "invalid_projection"
 		return p
 	}
 	p.Status = "calibrated"
-	p.UnitsPerToken = &rate
+	if credit {
+		p.UnitsPerCredit = &rate
+	} else {
+		p.UnitsPerToken = &rate
+	}
 	p.UnitsPerHour = &hour
 	p.HoursRemaining = &hours
 	return p

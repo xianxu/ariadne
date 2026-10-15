@@ -97,6 +97,7 @@ var claimRunner gitRunner = execGitRunner{}
 // only once its creation is complete — its details have landed on main — so a
 // card-only or local-only issue can never be worked by a second thread.
 func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) error {
+	f.Context = ctx
 	nums := claimIssues(f)
 	if tracked, err := repositoryTracked(ctx, f.IssuesDir); err != nil {
 		return err
@@ -594,7 +595,7 @@ func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg strin
 	// transaction lock serializes sdlc verbs against each other, but nothing
 	// stops a peer running plain `git add`. A pathspec implies --only, leaving
 	// the rest of the index untouched.
-	commitArgs := append([]string{"commit", "-m", agentid.StampCurrent(syncMessage(msg, defaultSyncSubject)), "--"}, pathspec...)
+	commitArgs := append([]string{"commit", "-m", agentid.StampCurrent(syncMessage(msg, defaultSyncSubject), commandContext(f.Context)), "--"}, pathspec...)
 	if out, err := r.GitInDir(paths.Root, commitArgs...); err != nil {
 		return fmt.Errorf("commit failed: %v\n%s", err, out)
 	}

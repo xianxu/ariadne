@@ -1,6 +1,7 @@
 package agentid
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -62,7 +63,7 @@ func TestDetect(t *testing.T) {
 		{"malformed override ignored", map[string]string{OverrideEnv: "junk"}, "sdlc"},
 	} {
 		d := Detector{Home: home, Getenv: func(k string) string { return tc.env[k] }}
-		if got := d.Detect().String(); got != tc.want {
+		if got := d.Detect(context.Background()).String(); got != tc.want {
 			t.Errorf("%s: Detect = %q, want %q", tc.name, got, tc.want)
 		}
 	}

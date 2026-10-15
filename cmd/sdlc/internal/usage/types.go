@@ -84,15 +84,16 @@ func (c Counters) Add(d Counters) (Counters, error) {
 }
 
 type Response struct {
-	ID          string    `json:"id"`
-	SourceID    string    `json:"source_id"`
-	Agent       string    `json:"agent"`
-	Model       string    `json:"model"`
-	RequestID   string    `json:"request_id"`
-	At          time.Time `json:"at"`
-	Tokens      Counters  `json:"tokens"`
-	Provisional bool      `json:"provisional"`
-	Origin      string    `json:"origin"`
+	ID          string        `json:"id"`
+	SourceID    string        `json:"source_id"`
+	Agent       string        `json:"agent"`
+	Model       string        `json:"model"`
+	RequestID   string        `json:"request_id"`
+	At          time.Time     `json:"at"`
+	Tokens      *Counters     `json:"tokens"`
+	Provisional bool          `json:"provisional"`
+	Origin      string        `json:"origin"`
+	Credits     *CreditAmount `json:"credits"`
 }
 type Coverage struct {
 	Counts   map[string]int64    `json:"counts"`
@@ -150,7 +151,7 @@ func (c Coverage) Complete() bool {
 // SpendComplete separates known spend from its attribution. Unknown checkout,
 // model or role does not remove tokens from the account-wide denominator.
 func (c Coverage) SpendComplete() bool {
-	for _, k := range []string{"conflicts", "malformed_records", "unsupported_formats", "baseline_gaps", "reset_gaps", "provisional", "truncated_tails", "unavailable_sources", "bound_exceeded", "source_mutations", "uncovered_segments", "reconstructed_compaction", "unavailable_source", "candidate_limit", "unsupported_harness", "aggregate_usage_unreconciled", "unresolved_reviewer_usage"} {
+	for _, k := range []string{"conflicts", "malformed_records", "unsupported_formats", "baseline_gaps", "reset_gaps", "provisional", "truncated_tails", "unavailable_sources", "bound_exceeded", "source_mutations", "uncovered_segments", "reconstructed_compaction", "unavailable_source", "candidate_limit", "unsupported_harness", "aggregate_usage_unreconciled", "unresolved_reviewer_usage", "unknown_charge", "session_conflicts"} {
 		if c.Counts[k] > 0 {
 			return false
 		}
@@ -173,29 +174,39 @@ type Attribution struct {
 const UnknownSlot = "unknown-slot"
 
 type Group struct {
-	Slot              string   `json:"slot"`
-	Agent             string   `json:"agent"`
-	Model             string   `json:"model"`
-	Role              string   `json:"role"`
-	Round             string   `json:"round"`
-	Attempt           string   `json:"attempt"`
-	Tokens            Counters `json:"tokens"`
-	Responses         int64    `json:"responses"`
-	BurnTokensPerHour float64  `json:"burn_tokens_per_hour"`
+	Slot               string        `json:"slot"`
+	Agent              string        `json:"agent"`
+	Model              string        `json:"model"`
+	Role               string        `json:"role"`
+	Round              string        `json:"round"`
+	Attempt            string        `json:"attempt"`
+	Tokens             *Counters     `json:"tokens"`
+	Responses          int64         `json:"responses"`
+	BurnTokensPerHour  *float64      `json:"burn_tokens_per_hour"`
+	Credits            *CreditAmount `json:"credits"`
+	MeasuredCredits    *CreditAmount `json:"measured_credits"`
+	BurnCreditsPerHour *float64      `json:"burn_credits_per_hour"`
+	MeasuredDimensions *Counters     `json:"measured_dimensions"`
 }
 type Hour struct {
-	At            time.Time `json:"at"`
-	DurationHours float64   `json:"duration_hours"`
-	Tokens        Counters  `json:"tokens"`
-	Responses     int64     `json:"responses"`
+	At                 time.Time     `json:"at"`
+	DurationHours      float64       `json:"duration_hours"`
+	Tokens             *Counters     `json:"tokens"`
+	Responses          int64         `json:"responses"`
+	Credits            *CreditAmount `json:"credits"`
+	MeasuredCredits    *CreditAmount `json:"measured_credits"`
+	MeasuredDimensions *Counters     `json:"measured_dimensions"`
 }
 type Report struct {
-	Groups             []Group  `json:"groups"`
-	Hourly             []Hour   `json:"hourly"`
-	Totals             Counters `json:"totals"`
-	MeasuredDimensions Counters `json:"measured_dimensions"`
-	BurnTokensPerHour  float64  `json:"burn_tokens_per_hour"`
-	Coverage           Coverage `json:"coverage"`
+	Groups             []Group       `json:"groups"`
+	Hourly             []Hour        `json:"hourly"`
+	Totals             *Counters     `json:"totals"`
+	MeasuredDimensions *Counters     `json:"measured_dimensions"`
+	BurnTokensPerHour  *float64      `json:"burn_tokens_per_hour"`
+	Coverage           Coverage      `json:"coverage"`
+	Credits            *CreditAmount `json:"credits"`
+	MeasuredCredits    *CreditAmount `json:"measured_credits"`
+	BurnCreditsPerHour *float64      `json:"burn_credits_per_hour"`
 }
 
 func (c Coverage) MarshalJSON() ([]byte, error) {
@@ -205,4 +216,24 @@ func (c Coverage) MarshalJSON() ([]byte, error) {
 		SpendComplete       bool                `json:"spend_complete"`
 		AttributionComplete bool                `json:"attribution_complete"`
 	}{c.Counts, c.Examples, c.SpendComplete(), c.Complete()})
+}
+
+// Agents returns the supported local measurement providers.
+func Agents() []string { return []string{"claude", "codex", "qoder"} }
+func (r Response) ValidateMeasurements() error {
+	if r.Tokens != nil {
+		if err := r.Tokens.Validate(); err != nil {
+			return err
+		}
+	}
+	if r.Tokens == nil && r.Credits == nil && !r.Provisional {
+		return fmt.Errorf("missing response measurements")
+	}
+	return nil
+}
+func (r Response) equalMeasurements(s Response) bool {
+	return (r.Tokens == nil && s.Tokens == nil || r.Tokens != nil && s.Tokens != nil && r.Tokens.equal(*s.Tokens)) && (r.Credits == nil && s.Credits == nil || r.Credits != nil && s.Credits != nil && r.Credits.Cmp(*s.Credits) == 0)
+}
+func (r Response) monotoneMeasurements(s Response) bool {
+	return (r.Tokens == nil || s.Tokens != nil && r.Tokens.monotone(*s.Tokens)) && (r.Credits == nil || s.Credits != nil && r.Credits.Cmp(*s.Credits) <= 0)
 }

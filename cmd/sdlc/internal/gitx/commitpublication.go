@@ -214,7 +214,7 @@ func (t *TrunkFile) ancestor(ctx context.Context, source, base string) (bool, er
 	return false, fmt.Errorf("publication reachability query: %v\n%s", err, diag)
 }
 func (t *TrunkFile) commitTree(tree, base, msg string, sign bool) (string, error) {
-	args := []string{"commit-tree", tree, "-p", base, "-m", agentid.StampCurrent(msg)}
+	args := []string{"commit-tree", tree, "-p", base, "-m", agentid.StampCurrent(msg, t.operationContext())}
 	if sign {
 		args = append([]string{"commit-tree", "-S"}, args[1:]...)
 	}

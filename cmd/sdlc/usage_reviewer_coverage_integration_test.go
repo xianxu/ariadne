@@ -193,7 +193,11 @@ func TestUsageCollectorRetainedReviewerCoverage(t *testing.T) {
 							if mode == "positive-response" {
 								want = 10
 							}
-							if out.IssueParts[0].Tokens != 20 || out.IssueParts[1].Tokens != want || out.IssueParts[2].Tokens != 20+want {
+							reviewerMatches := out.IssueParts[1].Tokens != nil && *out.IssueParts[1].Tokens == want
+							if mode == "launch-failed" {
+								reviewerMatches = out.IssueParts[1].Tokens == nil
+							}
+							if usageTokenValue(out.IssueParts[0].Tokens) != 20 || !reviewerMatches || usageTokenValue(out.IssueParts[2].Tokens) != 20+want {
 								t.Errorf("usable reviewer/worker union: %+v", out.IssueParts)
 							}
 						}
@@ -296,7 +300,7 @@ func TestUsageCollectorContradictoryReviewerProgress(t *testing.T) {
 						if glance == nil || glance.Coverage.SpendComplete() || glance.Coverage.Counts["unresolved_reviewer_usage"] != 1 || glance.Projection.Status != "incomplete_evidence" || glance.Projection.HoursRemaining != nil {
 							t.Errorf("contradictory progress permits calibrated forecast: %+v", glance)
 						}
-						if trace == "present" && (out.IssueParts[0].Tokens != 0 || out.IssueParts[1].Tokens != 0 || out.IssueParts[2].Tokens != 0) {
+						if trace == "present" && (out.IssueParts[0].Tokens != nil || out.IssueParts[1].Tokens != nil || out.IssueParts[2].Tokens != nil) {
 							t.Errorf("contradictory reviewer identity became worker or trusted reviewer cost: %+v", out.IssueParts)
 						}
 					})
