@@ -265,6 +265,36 @@ func TestReadSuiteAttemptsCapsTotalBytes(t *testing.T) {
 	}
 }
 
+func TestReadSuiteAttemptsRejectsNullNestedScalars(t *testing.T) {
+	for _, field := range []string{"kind", "name", "seconds"} {
+		t.Run(field, func(t *testing.T) {
+			root := t.TempDir()
+			a := storedAttemptFixture("aabb")
+			a.Units = []SuiteDuration{{Kind: "package", Name: "x/slow", Seconds: 2}}
+			data, err := json.Marshal(a)
+			if err != nil {
+				t.Fatal(err)
+			}
+			old := map[string]string{"kind": `"kind":"package"`, "name": `"name":"x/slow"`, "seconds": `"seconds":2`}[field]
+			data = []byte(strings.Replace(string(data), old, `"`+field+`":null`, 1))
+			path := filepath.Join(root, "attempts", a.ID+".json")
+			if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, data, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			rows, warnings, err := readSuiteAttempts(root, 10)
+			if err != nil || len(rows) != 0 || len(warnings) == 0 {
+				t.Fatalf("admitted null %s as measurement: rows=%+v warnings=%q err=%v", field, rows, warnings, err)
+			}
+			if got := aggregateSuiteAttempts(rows, a.StartedAt.Add(-time.Minute), "x/ariadne"); len(got) != 0 {
+				t.Fatalf("invalid row entered aggregate: %+v", got)
+			}
+		})
+	}
+}
+
 func TestPruneSuiteAttemptsReclaimsOnlyDeadOwnerPublicationTemps(t *testing.T) {
 	root := t.TempDir()
 	now := time.Now()

@@ -159,7 +159,7 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 		}
 	}
 	for _, u := range a.Units {
-		if u.Name == "" || len(u.Name) > 512 || u.Seconds < 0 || math.IsNaN(u.Seconds) || math.IsInf(u.Seconds, 0) {
+		if u.Kind != "package" && u.Kind != "package-group" && u.Kind != "shard" || u.Name == "" || len(u.Name) > 512 || u.Seconds < 0 || math.IsNaN(u.Seconds) || math.IsInf(u.Seconds, 0) {
 			return a, errors.New("invalid duration unit")
 		}
 	}
@@ -194,6 +194,9 @@ func validateSuiteUnitsJSON(data []byte) error {
 			var value json.RawMessage
 			if err := dec.Decode(&value); err != nil {
 				return err
+			}
+			if bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+				return fmt.Errorf("null required duration field %s", key)
 			}
 		}
 		if _, err := dec.Token(); err != nil {

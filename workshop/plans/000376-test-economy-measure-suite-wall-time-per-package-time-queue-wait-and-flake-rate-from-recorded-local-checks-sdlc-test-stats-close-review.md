@@ -208,3 +208,115 @@ findings:
 7. **Plan revision recommendations**
 
    Add `## Revisions` entries defining canonical persisted-field decoding and the complete format-by-outcome parsing matrix. Record the implementation and regression coverage for the existing line-limit requirement.
+
+---
+
+## Re-review — 2026-10-14T23:53:58-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 376 — Test economy: measure suite wall time, per-package time, queue wait and flake rate from recorded local checks (sdlc test-stats) |
+| repo | ariadne |
+| issue file | workshop/issues/000376-test-economy-measure-suite-wall-time-per-package-time-queue-wait-and-flake-rate-from-recorded-local-checks-sdlc-test-stats.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 18915f6c17d9b4aeb5e618d3f736705ec355d2b3..c234e995793ba319832bb3cc02c01f06c50042fa |
+| command | sdlc close --issue 376 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-14T23:53:58-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The three open findings are fixed, and each regression fails when its correction is removed. Targeted tests and `git diff --check` pass. One adjacent persisted-input defect remains: a null package duration becomes a measured zero, contradicting the plan’s unknown-value contract and contaminating slow-unit statistics.
+
+1. **Strengths**
+
+   - Parsing and aggregation remain directly tested pure functions, separate from filesystem and command handling.
+   - Retry tests verify immutable failed logs survive later runs and failed status publication.
+   - README, CLI help, and atlas document the new command, partial historical coverage, and reader limits.
+
+2. **Critical findings**
+
+   None.
+
+3. **Important findings**
+
+   - **Null unit durations fabricate measurements** — `cmd/sdlc/teststats_store.go:194–197` accepts `seconds:null`; struct decoding converts it to `0`. Validation at line 162 accepts that zero, and `cmd/sdlc/teststats.go:127–130` counts it toward package/shard samples and p90. The disposable regression `TestBoundary376NullUnitTiming` failed on the pinned head with `Seconds:0`.
+
+     Reject null for required nested fields before decoding. Sweep required scalar fields at every schema depth, with tests proving malformed records produce coverage warnings and never enter aggregates. **ARCH-SECURE. This is the 2nd finding in family `persisted-evidence-canonical-decoding`; fix the schema-wide rule, not only this instance.**
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - Targeted parser, aggregation, command, store, recorder, and hashing tests passed.
+   - In a disposable copy, removing each BR-5–BR-7 correction made its regression fail.
+   - The null-duration adversarial test failed on unchanged head behavior.
+   - Disposable files were removed; the review checkout remains clean. The full suite was not rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** recorder and legacy reader share timing parsing and reuse failure extraction.
+   - **ARCH-PURE — pass:** parsing and aggregation tests require no IO or mocks.
+   - **ARCH-PURPOSE — pass:** wall, queue, slow-unit, and flake reporting are implemented with explicit historical gaps.
+   - **ARCH-MOCK — pass:** command discovery dependencies are injected; recorder tests use the existing status fake and portable temporary repositories.
+   - **ARCH-CONSTRAINTS — pass:** record count, aggregate JSON bytes, log bytes, and line bounds have explicit diagnostics and focused tests.
+   - **ARCH-SECURE — flag:** nested null durations bypass the persisted-evidence contract.
+   - **ARCH-ORDER — pass:** publication precedes status posting; controlled publication/pruning tests preserve active attempts.
+   - **ARCH-FUNERAL — pass:** retention and dead-owner residue cleanup have implemented removal paths and tests.
+
+   The three Core concepts exist at their documented paths; their pure behavior is tested directly. README and atlas updates satisfy the docs gate.
+
+7. **Plan revision recommendations**
+
+   Add a `## Revisions` entry defining nullability for every top-level and nested schema field. Record the invariant that required scalar nulls invalidate the record rather than becoming zero-value measurements, and name the regression matrix enforcing it.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Existing JSON package/test event and malformed-event regressions pass; explicit JSON parsing remains present.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Suite-only legacy suppression remains present; TestSuiteStatsCommandSmokeRecordDoesNotHideLegacySuite passes.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Plan line 15 places SuiteAttempt in cmd/sdlc/teststats.go and identifies persistence separately; the definition exists there and the round-1 Revisions passage records the correction.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Owner-named publication temps and dead-owner pruning remain implemented; TestPruneSuiteAttemptsReclaimsOnlyDeadOwnerPublicationTemps passes.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Canonical-name guards reject top-level and nested aliases. Removing those guards in a disposable copy makes the exit-alias and unit-alias regressions fail.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Text, JSON, and shard pass/fail timing fixtures pass. Removing failed-package timing extraction makes TestSuiteLogFactsOutcomeFormats/plain_fail fail.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      The shared parser checks line lengths before either extractor. Exact-limit and over-limit tests pass; removing the bound makes the over-limit regression fail.
+findings:
+  - id: new
+    severity: Important
+    kind: defect
+    family: persisted-evidence-canonical-decoding
+    title: |
+      Null nested durations become fabricated zero-second measurements
+    detail: |
+      cmd/sdlc/teststats_store.go:194-197 accepts a unit's "seconds":null; decoding converts it to zero, validation at line 162 accepts it, and cmd/sdlc/teststats.go:127-130 includes it in samples and p90. TestBoundary376NullUnitTiming reproduced this on the pinned head. ARCH-SECURE: this violates the plan's unknown-value and malformed-record contracts. This is the 2nd finding in family persisted-evidence-canonical-decoding. State and enforce the schema-wide rule that required scalar fields at every depth reject null before zero-value decoding; sweep the field inventory and add regressions proving rejected records generate coverage diagnostics and never enter aggregates.
+```

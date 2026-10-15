@@ -779,3 +779,4 @@ The simplest durable authority beats a clever scan of consequences.
 - Go's JSON struct decoder accepts field names case-insensitively even with unknown-field rejection. Validate exact persisted keys before decoding evidence that can change a success or failure outcome (#376 BR-5).
 - A format matrix must cover both outcomes: a failing package can still report a duration, and omitting it biases slow-unit statistics (#376 BR-6).
 - Apply declared input bounds before every consumer of the input. A parser that checks only total bytes can still hand an oversized line to regex and failure extraction (#376 BR-7).
+- Exact JSON key validation does not prevent null from becoming a zero-valued nested scalar. Validate required fields, including nested measurement fields, before struct decoding and prove rejected rows never enter aggregates (#376 BR-8).
