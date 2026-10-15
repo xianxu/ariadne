@@ -162,7 +162,7 @@ func TestListingPrunesSeenSet(t *testing.T) {
 func TestStatusRefusesBadInput(t *testing.T) {
 	for _, tc := range []struct {
 		name, body, want string
-		args          func(file, bodyPath string) []string
+		args             func(file, bodyPath string) []string
 	}{
 		{"empty section body", "  \n", "is empty",
 			func(file, b string) []string { return []string{"status", "section", file, "Needs you", b} }},
