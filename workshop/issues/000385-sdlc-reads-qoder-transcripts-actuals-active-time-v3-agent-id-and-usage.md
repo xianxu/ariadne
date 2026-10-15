@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-15
-estimate_hours:
-card_mirror: 'b55d53d636d237f850c177b43e12df3daea83023' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 3.81
+card_mirror: 'fb1ff013603e865a1b162809cc46c4e5660fece3' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-15T09:33:04-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # sdlc reads Qoder transcripts: actuals (active-time-v3), agent-id and usage
@@ -133,3 +134,34 @@ that decision before the gate rerun; no production code changed.
   PAIR_SESSION_ID binds only after transcript sessionId/cwd validation. A missing
   or mismatched binding cannot choose a competing session by recency; native-only
   ambiguity remains qoder/-/-. Recorded the superseding plan revision for PQ-1.
+
+- Plan-quality round 2 CLEAN: PQ-1 and PQ-2 addressed, no new findings.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only. Source is labelled stale by estimate-source,
+so this is provisional calibration, not a throughput promise. Derivation after
+plan acceptance: issue/spec 1h design ×0.2; adapter 1h ×0.2; decimal module
+1h ×0.5 library discount (math/big) ×0.2; six existing-seam extensions
+(discovery, identity, response decoder, meter, reporting, actual/adoption tests)
+each 0.3h ×0.2 design and 0.5h ×0.4 implementation; nullable refactor 0.5h ×0.2;
+docs 0.1h ×0.2; one review 0.2h ×0.2. Implementations otherwise use v2 upper
+module ranges at v3.1's 40%, plus one 0.6h ×0.4 format-discovery primitive.
+Familiarity 1.0 (same stack and #365 seams), thorough-plan design buffer 15%.
+Design 1.02h ×1.15 plus implementation 2.64h = 3.813h (card 3.81h).
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.20 impl=0.08
+item: greenfield-go-module design=0.20 impl=0.32
+item: greenfield-go-module design=0.10 impl=0.32
+item: smaller-go-module design=0.36 impl=1.20
+item: cross-cutting-refactor design=0.10 impl=0.20
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0.04 impl=0.20
+item: real-api-discovery design=0.00 impl=0.24
+design-buffer: 0.15
+total: 3.813
+```
