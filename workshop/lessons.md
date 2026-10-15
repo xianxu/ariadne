@@ -843,3 +843,8 @@ The simplest durable authority beats a clever scan of consequences.
   the writer's transition contract to collapse prefixes, and require uncontested
   evidence for nonspending exemptions. Test all phase/outcome pairs, rewrites and
   persistence orders; contradictory launch proof must survive (#365 BR-7).
+- Convenience branch tracking is a durable shared-config effect. Before using
+  push --set-upstream, trace the consumers; explicit remote/refspec publication
+  can avoid both the protected config write and its later cleanup. Distinguish
+  required ref retirement from ancillary metadata, and name an automatic retry
+  owner for any retained residue (#374 plan review).

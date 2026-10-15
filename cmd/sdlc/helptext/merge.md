@@ -38,7 +38,8 @@ DURABLE WORKSPACES (:0 AND :N)
      Other checkouts are not used to pull, archive or publish.
   4. Recheck identity, refs, upstream and occupancy; switch safely to unchanged
      rest, then compare-and-delete only the integrated local issue ref and
-     remove its branch configuration. Never delete the workspace directory.
+     try to remove legacy branch config. A blocked config write warns and defers
+     metadata cleanup without failing the landing. Never delete the workspace.
 
   The enclosing environment, sibling dependency clones and other slots stay
   intact. The completed remote issue branch is deleted with a lease on the
@@ -55,7 +56,9 @@ RECOVERY
   only an already merged PR, never initiate an open PR's merge. It confirms
   integration/archive again before cleanup; new local commits or uncertain
   evidence preserve work and refuse. After ref deletion, retry can finish
-  removing leftover branch configuration. Work created on the resting checkout
+  removing leftover branch configuration. In tracker repos, later merge/reconcile
+  sweeps retry metadata for done issues with absent, unoccupied local branches;
+  writable config clears it automatically. Work created on the resting checkout
   is preserved during this ref-only cleanup, including staged/unstaged changes;
   active Git operations still refuse. No transaction journal is created.
 

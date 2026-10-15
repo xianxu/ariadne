@@ -25,6 +25,13 @@ branch, or directly with `sdlc issue publish --issue N` by the owner (anyone,
 while unclaimed: #274) (#284). A resting branch only fast-forwards to main. See
 [issue tracker](atlas/workflow/issue-tracker.md).
 
+Issue publication uses explicit remote/refspecs without creating issue-branch
+upstream config; re-run `sdlc pr` after later commits. Main/resting tracking stays
+unchanged. If protected Git config prevents cleanup of legacy upstream metadata,
+landing still succeeds with a warning. Later merge/reconcile sweeps retry that
+metadata automatically when config is writable. See
+[workspace branching](atlas/workflow/workspace-branching.md#protected-config-during-landing-374).
+
 For a non-issue workshop note edited while an issue branch is active, run
 `sdlc trunk publish --path workshop/parley/note.md`. It publishes one unstaged,
 uncommitted Markdown file under `workshop/parley/`, `pensive/`, `targets/` or

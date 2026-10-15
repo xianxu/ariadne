@@ -130,7 +130,7 @@ func TestCreateInPlaceBranch_ExistsNotCheckedOut(t *testing.T) {
 	if !gitCalled(r.gitCalls, "checkout", "000156-x") {
 		t.Errorf("branch-exists must switch via `checkout <name>` (no -b): %v", r.gitCalls)
 	}
-	if gitCalled(r.gitCalls, "checkout", "-b", "000156-x") {
+	if gitCalled(r.gitCalls, "checkout", "-b", "000156-x", "--no-track") {
 		t.Errorf("branch-exists must NOT use -b: %v", r.gitCalls)
 	}
 }
@@ -141,7 +141,7 @@ func TestCreateInPlaceBranch_CreatesWhenAbsent(t *testing.T) {
 	if _, err := createInPlaceBranch(context.Background(), &out, &errb, "000156-x", r, "workshop/issues"); err != nil {
 		t.Fatal(err)
 	}
-	if !gitCalled(r.gitCalls, "checkout", "-b", "000156-x") {
+	if !gitCalled(r.gitCalls, "checkout", "-b", "000156-x", "--no-track") {
 		t.Errorf("absent branch must be created via `checkout -b <name>`: %v", r.gitCalls)
 	}
 }

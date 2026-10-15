@@ -496,7 +496,7 @@ func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, re
 		}
 	}
 	if createBranch {
-		if _, err := env.git("branch", "-q", rec.Branch, rec.Head); err != nil {
+		if _, err := env.git("branch", "-q", "--no-track", rec.Branch, rec.Head); err != nil {
 			return err
 		}
 	}
