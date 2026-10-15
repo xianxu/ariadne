@@ -13,7 +13,7 @@ func TestGateFlagNames(t *testing.T) {
 	got := GateFlagNames()
 	want := []string{
 		"no-actual", "no-atlas", "no-ci", "no-done-when-fresh", "no-estimate", "no-estimate-recon",
-		"no-integrate", "no-judge", "no-ledger", "no-plan-check", "no-project", "no-reclose-guard", "no-retro",
+		"no-integrate", "no-judge", "no-ledger", "no-mvp", "no-plan-check", "no-project", "no-reclose-guard", "no-retro",
 		"no-structural", "no-validate", "no-verdict", "no-verified",
 	}
 	if !reflect.DeepEqual(got, want) {
@@ -32,7 +32,7 @@ func TestGateFlagsForCommand(t *testing.T) {
 		"change-code":   {"no-estimate", "no-estimate-recon", "no-judge", "no-structural"},
 		"merge":         {"no-ci", "no-judge", "no-validate"},
 		"push":          {"no-judge", "no-validate"},
-		"project close": {"no-retro"},
+		"project close": {"no-mvp", "no-retro"},
 	}
 	for cmd, want := range cases {
 		got := GateFlagsFor(cmd)

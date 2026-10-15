@@ -553,7 +553,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 			}
 		}
 	}
-	return f.withLock(func() error {
+	if err := f.withLock(func() error {
 		if err := revalidateLanding(r, t, branch, head, current); err != nil {
 			return err
 		}
@@ -621,11 +621,15 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 				cwarn(stderr, fmt.Sprintf("landed; earlier work merged outside sdlc not archived: %v — `sdlc issue recovery reconcile --issue N` retries", ferr))
 			}
 		}
-		// #373: tick the landed issue in every live project citing it.
-		tickOnLanding(ctx, stdout, stderr, t.Root, branch, strconv.Itoa(pr.Number))
-		fmt.Fprintf(stdout, "Landed PR #%d; workspace retained on unchanged %s. Refresh is separate.\n", pr.Number, t.Rest)
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+	// #373: tick the landed issue in every live project citing it — after the
+	// lock: it is warn-only IO on other repositories' origins.
+	tickOnLanding(ctx, stdout, stderr, t.Root, branch, strconv.Itoa(pr.Number))
+	fmt.Fprintf(stdout, "Landed PR #%d; workspace retained on unchanged %s. Refresh is separate.\n", pr.Number, t.Rest)
+	return nil
 }
 
 func runDurablePR(stdout, stderr io.Writer, f *prFlags, t landingTarget) error {

@@ -82,14 +82,18 @@ THE PROJECT DIRECTORY (teams/<team>/projects/<slug>/)
 
   - One writer per file; a second TL gets its own keyed files. <operator> is a
     slug of `git config user.name`; check that it is a real name first.
-  - The TLs own project.md; workers never write it. Tick a Breakdown row
-    (annotated with the PR) only after you have verified the merge.
+  - The TLs own project.md; workers never edit it by hand. A worker's
+    `sdlc merge` prints `sdlc project tick --issue R#N --pr N` for you: run it
+    once you have verified the merge (it ticks the row and adds the PR, on
+    origin main). Set `landing_tick: true` in the frontmatter to let merge
+    tick it itself.
   - Among TLs, edit project.md narrowly: your own lanes' Allocation and
     Breakdown rows, plus dated Log entries that name you. Fold learnings and
     scope events in at batch edges, not per message.
   - Hand a session over with the `continuation` datatype, never an ad-hoc file.
-  - Archive: at `sdlc project close`, move the directory to
-    teams/<team>/history/projects/<slug>/ and drop the symlink.
+  - Archive: `sdlc project close --verified '…'` closes the record in place
+    under teams/<team>/projects/<slug>/ and moves its workshop/projects link
+    to workshop/history/projects/; the team folder stays.
 
 ALLOCATION ACROSS OPERATORS
   1. Topologically sort the Breakdown into lanes: dependency chains that run

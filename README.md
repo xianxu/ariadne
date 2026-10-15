@@ -465,7 +465,11 @@ sdlc project validate --slug example
 sdlc project status --slug example
 sdlc project retro --slug example --dry-run
 sdlc project retro --slug example
-sdlc project close --slug example
+sdlc project close --slug example --dry-run      # every refusal, nothing written
+sdlc project close --slug example --verified 'The MVP boundary holds: <evidence>'
+# Tick a landed issue in every live project citing it, on each project's origin
+# main (merge runs this itself; see landing_tick below):
+sdlc project tick --issue ariadne#373 --pr 251 [--dry-run]
 # Find every project record referencing an issue, fleet-wide (archive-inclusive):
 sdlc project find --issue metis#18
 sdlc resolve --kind project 'metis#18'   # same discovery via the resolver
@@ -483,7 +487,16 @@ sdlc project close --slug legacy-example --no-retro
 `set-status` enforces the lifecycle and named guards declared in
 `construct/vocabulary/project.cue`; project completion remains owned by
 `sdlc project close`. When a retro genuinely does not apply, acknowledge that
-explicitly with `--no-retro` (`--force` waives it too).
+explicitly with `--no-retro` (`--force` waives it too). Close also requires
+`--verified` evidence and re-checks that every `mvp_scope` issue landed
+(`--no-mvp`, or `--force`, waives that); `status` prints the same `mvp: L/T landed` line
+and the project's `done_when`.
+
+When an issue lands, `sdlc merge` ticks its rows in every live project citing it
+and appends `(PR #N)`, one commit on the project repository's origin main. A
+project without `tl:` is ticked by default; a TL-owned one only with
+`landing_tick: true`, and otherwise merge prints the `sdlc project tick` command
+for the TL.
 
 Issue actuals are measured from ownership intervals and the owning slots' agent
 sessions. Close retains its measurement evidence so later `sdlc actual` replays

@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -105,7 +106,11 @@ func tickLandedProjects(ctx context.Context, stdout, stderr io.Writer, matches [
 		}
 		transform := landingTickTransform(repoName, issueID, pr, opts.Auto)
 		if opts.DryRun {
-			fmt.Fprintln(stdout, dryRunTick(m.Path, rel, filepath.Base(m.RepoDir), transform))
+			line, ok := dryRunTick(m.Path, rel, filepath.Base(m.RepoDir), transform)
+			fmt.Fprintln(stdout, line)
+			if !ok {
+				missed++
+			}
 			continue
 		}
 		changed := false
@@ -137,22 +142,23 @@ func prSuffix(pr string) string {
 }
 
 // dryRunTick previews one project's edit on the local copy (origin's may
-// differ; the real run re-derives on it).
-func dryRunTick(path, rel, repo string, transform func([]byte) ([]byte, error)) string {
+// differ; the real run re-derives on it). ok is false where the real run
+// would miss the project, so a dry run exits as the real one would.
+func dryRunTick(path, rel, repo string, transform func([]byte) ([]byte, error)) (line string, ok bool) {
 	old, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Sprintf("Would skip %s: %v", path, err)
+		return fmt.Sprintf("Would skip %s: %v", path, err), false
 	}
 	next, err := transform(old)
 	switch {
 	case errors.Is(err, errLandingTickOff):
-		return fmt.Sprintf("Would not tick %s: landing tick is off (TL-owned)", path)
+		return fmt.Sprintf("Would not tick %s: landing tick is off (TL-owned)", path), true
 	case err != nil:
-		return fmt.Sprintf("Would skip %s: %v", path, err)
+		return fmt.Sprintf("Would skip %s: %v", path, err), false
 	case string(next) == string(old):
-		return fmt.Sprintf("No change: %s", path)
+		return fmt.Sprintf("No change: %s", path), true
 	}
-	return fmt.Sprintf("Would publish to %s's origin main: %s", repo, rel)
+	return fmt.Sprintf("Would publish to %s's origin main: %s", repo, rel), true
 }
 
 // publishProjectEdit commits one transform of a project file to its
@@ -207,6 +213,10 @@ func runProjectTick(ctx context.Context, stdout, stderr io.Writer, f *projectTic
 	return nil
 }
 
+// landingTickTimeout bounds the whole landing tick: it runs after the merge
+// lock is released, but a hung peer origin must not hang the landing either.
+const landingTickTimeout = 2 * time.Minute
+
 // tickOnLanding is merge's hook (#373): the landed branch's issue (one issue,
 // one branch: #272) is ticked in every live project citing it, on each
 // project's origin. Warn-only; a branch without an id prefix ticks nothing.
@@ -215,6 +225,8 @@ func tickOnLanding(ctx context.Context, stdout, stderr io.Writer, root, branch, 
 	if id == 0 {
 		return
 	}
+	ctx, cancel := context.WithTimeout(commandContext(ctx), landingTickTimeout)
+	defer cancel()
 	identity, err := resolveWorkspace(root)
 	if err != nil {
 		cwarn(stderr, fmt.Sprintf("landed; projects not ticked: %v", err))

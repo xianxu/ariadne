@@ -20,9 +20,9 @@ var (
 )
 
 type projectCloseFlags struct {
-	Slug, ProjectsDir, HistoryDir string
-	Verified                      string
-	Drop, NoRetro, Force, DryRun  bool
+	Slug, ProjectsDir, HistoryDir       string
+	Verified                            string
+	Drop, NoRetro, NoMVP, Force, DryRun bool
 }
 
 // projectCloseTerminalFn is the close's MVP lookup; tests stub it.
@@ -44,6 +44,7 @@ func newProjectCloseCmd() *cobra.Command {
 	cmd.Flags().StringVar(&f.Verified, "verified", "", "evidence the done_when audit passed (required to close; recorded in the Log)")
 	cmd.Flags().BoolVar(&f.Drop, "drop", false, "close through the lifecycle's dropped transition")
 	cmd.Flags().BoolVar(&f.NoRetro, "no-retro", false, "waive the retrospective gate")
+	cmd.Flags().BoolVar(&f.NoMVP, "no-mvp", false, "waive the MVP gate (an mvp_scope issue not landed)")
 	cmd.Flags().BoolVar(&f.Force, "force", false, "waive the retro and MVP gates")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "evaluate every gate and print the archive move; write nothing")
 	return cmd
@@ -117,7 +118,7 @@ func runProjectClose(ctx context.Context, stdout, stderr io.Writer, f *projectCl
 		if strings.TrimSpace(f.Verified) == "" {
 			problems = append(problems, fmt.Errorf("--verified '<evidence>' is required: say how the done_when audit passed"))
 		}
-		if err := projectCloseMVPGate(ctx, path, metadata, f.Force, stderr); err != nil {
+		if err := projectCloseMVPGate(ctx, path, metadata, f.NoMVP || f.Force, stderr); err != nil {
 			problems = append(problems, err)
 		}
 	}
@@ -148,8 +149,9 @@ func runProjectClose(ctx context.Context, stdout, stderr io.Writer, f *projectCl
 }
 
 // projectCloseMVPGate refuses a close while an mvp_scope issue is open or
-// unreadable (MVPProgress, the guard's own definition). --force waives it.
-func projectCloseMVPGate(ctx context.Context, path string, meta projectdoc.Metadata, force bool, stderr io.Writer) error {
+// unreadable (MVPProgress, the guard's own definition). --no-mvp (or --force)
+// waives it.
+func projectCloseMVPGate(ctx context.Context, path string, meta projectdoc.Metadata, waive bool, stderr io.Writer) error {
 	if len(meta.MVPScope) == 0 {
 		return nil
 	}
@@ -164,11 +166,11 @@ func projectCloseMVPGate(ctx context.Context, path string, meta projectdoc.Metad
 	for _, err := range mvp.Errors {
 		why = append(why, err.Error())
 	}
-	if force {
-		cwarn(stderr, "--force: closing with the MVP incomplete ("+strings.Join(why, "; ")+")")
+	if waive {
+		cwarn(stderr, "--no-mvp (or --force): closing with the MVP incomplete ("+strings.Join(why, "; ")+")")
 		return nil
 	}
-	return fmt.Errorf("MVP gate: %s; land them, move them to explicitly_out, or pass --force", strings.Join(why, "; "))
+	return fmt.Errorf("MVP gate: %s; land them, move them to explicitly_out, or pass --no-mvp (or --force)", strings.Join(why, "; "))
 }
 
 // printProjectCloseDryRun reports the close without writing: the transition,
@@ -301,9 +303,21 @@ func commitLinkedProjectClose(livePath, real, dest, projectNext string) error {
 		return err
 	}
 	defer os.Remove(stage)
-	if err := projectCloseRenameFn(stage, real); err != nil {
+	// The rename is the commit point: the live link goes first, so any failure
+	// before it rolls back to the open record and a rerun starts clean.
+	liveTarget, err := os.Readlink(livePath)
+	if err != nil {
 		_ = os.Remove(dest)
 		return err
 	}
-	return os.Remove(livePath)
+	if err := os.Remove(livePath); err != nil {
+		_ = os.Remove(dest)
+		return err
+	}
+	if err := projectCloseRenameFn(stage, real); err != nil {
+		_ = os.Symlink(liveTarget, livePath)
+		_ = os.Remove(dest)
+		return err
+	}
+	return nil
 }

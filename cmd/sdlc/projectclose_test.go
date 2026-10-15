@@ -258,7 +258,10 @@ func TestProjectCloseDryRunReportsAndWritesNothing(t *testing.T) {
 
 // #373: the ops layout. Closing a linked record updates the real file in its
 // team folder and moves the link to the archive, retargeted; the folder stays.
-func TestProjectCloseLinkedRecord(t *testing.T) {
+// linkedProjectCloseFixture moves the fixture's record to the ops layout,
+// teams/t/projects/alpha/project.md, linked from workshop/projects/alpha.md.
+func linkedProjectCloseFixture(t *testing.T) (*projectCloseFlags, string, string) {
+	t.Helper()
 	f, projectPath := projectCloseFixture(t, "closing", true)
 	root := filepath.Dir(filepath.Dir(filepath.Dir(projectPath)))
 	real := filepath.Join(root, "teams", "t", "projects", "alpha", "project.md")
@@ -274,6 +277,11 @@ func TestProjectCloseLinkedRecord(t *testing.T) {
 	if err := os.Symlink(filepath.Join("..", "..", "teams", "t", "projects", "alpha", "project.md"), projectPath); err != nil {
 		t.Fatal(err)
 	}
+	return f, projectPath, real
+}
+
+func TestProjectCloseLinkedRecord(t *testing.T) {
+	f, projectPath, real := linkedProjectCloseFixture(t)
 	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
 		t.Fatal(err)
 	}
@@ -294,5 +302,31 @@ func TestProjectCloseLinkedRecord(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(filepath.Dir(real), "learnings.md")); err != nil {
 		t.Error("the team folder lost its companions")
+	}
+}
+
+// A linked close that fails at its commit point (the real file's rename) rolls
+// back: the live link, the open record, no archive link; a rerun then closes.
+func TestProjectCloseLinkedRecordRollsBack(t *testing.T) {
+	f, projectPath, real := linkedProjectCloseFixture(t)
+	before, _ := os.ReadFile(real)
+	originalRename := projectCloseRenameFn
+	projectCloseRenameFn = func(string, string) error { return errors.New("forced rename failure") }
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err == nil || !strings.Contains(err.Error(), "forced rename failure") {
+		t.Fatalf("runProjectClose error = %v", err)
+	}
+	projectCloseRenameFn = originalRename
+	if fi, err := os.Lstat(projectPath); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("live link not restored: %v", err)
+	}
+	if after, _ := os.ReadFile(real); string(after) != string(before) {
+		t.Error("the real file changed")
+	}
+	dest := filepath.Join(f.HistoryDir, "projects", "alpha.md")
+	if _, err := os.Lstat(dest); !os.IsNotExist(err) {
+		t.Fatalf("archive link left behind: %v", err)
+	}
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
+		t.Fatalf("rerun: %v", err)
 	}
 }

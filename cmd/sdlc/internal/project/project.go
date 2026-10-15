@@ -97,7 +97,16 @@ func TickLandedIssue(text, repoName, issueID, pr string) (string, int) {
 
 // mentionsPR reports whether line already names PR #pr (not a longer number).
 func mentionsPR(line, pr string) bool {
-	return regexp.MustCompile(`PR #` + regexp.QuoteMeta(pr) + `\b`).MatchString(line)
+	for rest := line; ; {
+		i := strings.Index(rest, "PR #"+pr)
+		if i < 0 {
+			return false
+		}
+		rest = rest[i+len("PR #"+pr):]
+		if rest == "" || rest[0] < '0' || rest[0] > '9' {
+			return true
+		}
+	}
 }
 
 func parseTickDoc(text string) (*Doc, bool, error) {

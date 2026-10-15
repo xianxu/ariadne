@@ -77,7 +77,7 @@
 
 ## Tasks
 
-- [ ] **Task 1: pure core.** TDD `TickLandedIssue` with these cases:
+- [x] **Task 1: pure core.** TDD `TickLandedIssue` with these cases:
   - open row
   - blocked `[.]`
   - cancelled `[-]` untouched
@@ -87,20 +87,20 @@
   - a second run is byte-identical
 
   Then `MVPProgress`; rewrite the `mvp-landed` guard on it, and its existing tests stay green.
-- [ ] **Task 2: `tickLanded` and the `project tick` verb.** Temp fleet: the issue's repo, plus a peer with a bare origin and a project whose path in workshop/projects is a symlink into `teams/x/projects/p/project.md` with `tl:` set. Assert:
+- [x] **Task 2: `tickLanded` and the `project tick` verb.** Temp fleet: the issue's repo, plus a peer with a bare origin and a project whose path in workshop/projects is a symlink into `teams/x/projects/p/project.md` with `tl:` set. Assert:
   - origin main gains one commit to the real file;
   - the peer checkout's HEAD, index and worktree are unchanged;
   - a rerun publishes nothing;
   - `--dry-run` writes nothing.
-- [ ] **Task 3: merge hook.** Extend the merge integration test fixture (fake gh PR state) with a referencing project in a second repo, and assert the tick lands after archive. Also test that a tick failure (unreachable origin) warns and the merge still succeeds.
-- [ ] **Task 4: status.** MVP and done_when lines; table test via `buildRoot()` with a fake card lookup.
-- [ ] **Task 5: close.** Cover these in tests:
+- [x] **Task 3: merge hook.** Extend the merge integration test fixture (fake gh PR state) with a referencing project in a second repo, and assert the tick lands after archive. Also test that a tick failure (unreachable origin) warns and the merge still succeeds.
+- [x] **Task 4: status.** MVP and done_when lines; table test via `buildRoot()` with a fake card lookup.
+- [x] **Task 5: close.** Cover these in tests:
   - `--verified` required and logged
   - the MVP re-check refuses with the open refs
   - `--dry-run` writes nothing
   - a symlinked record: the real file gets the update and the link moves to history, retargeted
-- [ ] **Task 6: docs.** Help text for `project tick`/`status`/`close` (`cmd/sdlc/helptext`); `construct/datatype/project.md` § Ownership, so a landing tick writes TL-owned projects on origin; `atlas/workflow/sdlc-binary.md` row.
-- [ ] **Task 7: verify on the real file.**
+- [x] **Task 6: docs.** Help text for `project tick`/`status`/`close` (`cmd/sdlc/helptext`); `construct/datatype/project.md` § Ownership, so a landing tick writes TL-owned projects on origin; `atlas/workflow/sdlc-binary.md` row.
+- [x] **Task 7: verify on the real file.**
   - `sdlc project status --slug ariadne-robustness-1 --projects-dir ~/workspace/ops/workshop/projects`
   - `project close … --verified x --dry-run`, read-only
   - `project tick --issue ariadne#240 --dry-run`, an already-ticked row, so it should report "no change"
@@ -117,3 +117,9 @@
 - Points 2–4 approved as written. Point 1 changes #326's ownership rule, which is the operator's call: a TL-owned project is ticked at landing only with `landing_tick: true` in its frontmatter (schema field added to `project.cue`); unset, it follows `project.TLLandingTickDefault` (false), and merge prints the exact `sdlc project tick` command instead. Projects without `tl:` tick by default. A hand-run `project tick` writes regardless (the explicit choice).
 - The landed issue is read from the branch's id prefix (#272), not from tracker completions, so a resumed landing re-ticks idempotently.
 
+
+### 2026-10-15 — boundary review round 1 (FIX-THEN-SHIP)
+- Delivered names differ from Core concepts: `landingTickTransform(repoName, issueID, pr, auto)`, `tickLandedProjects` (the per-project loop), `tickOnLanding` (merge's hook), and `publishProjectEdit` (shared with close's peer publish).
+- The landing tick now runs after the merge lock is released, bounded by `landingTickTimeout` (2m) on both merge paths: it is warn-only IO on other repositories' origins.
+- `project close` gained `--no-mvp` for the MVP gate (`--force` still waives every gate), cataloged in `processmanual/gatesig.go`.
+- A linked close commits at the real file's rename; the live link is removed before it, so any failure rolls back to the open record.

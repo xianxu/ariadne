@@ -47,7 +47,7 @@ the reason. `~` bullets are overlap notes the forecast ignores.
 A retrospective is a Log entry headed `### <ISO date> — retro`. Transitioning
 to `closed` is intentionally unavailable through `set-status`; use
 `sdlc project close --verified '<evidence>'`, which owns the retro gate, re-checks
-that every `mvp_scope` issue landed, records the evidence in the Log, and moves
+that every `mvp_scope` issue landed (`--no-mvp` waives it), records the evidence in the Log, and moves
 the record to the archive. A linked record (ops: `workshop/projects/x.md` →
 `teams/…/x/project.md`) is updated in place and only the link moves. `--dry-run`
 reports every refusal and the move, writing nothing. `status` prints

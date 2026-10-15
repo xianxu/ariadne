@@ -70,7 +70,7 @@ Guards:
 Ordinary transitions go through `sdlc project set-status`. Closing and the
 post-execution drop go through `sdlc project close`, which owns the retro gate
 and the archive move. A close takes `--verified '<evidence>'` (recorded in the
-Log) and re-checks that every `mvp_scope` issue landed; `--dry-run` reports the
+Log) and re-checks that every `mvp_scope` issue landed (`--no-mvp` waives it); `--dry-run` reports the
 gates without writing.
 
 ## Ownership
