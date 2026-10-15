@@ -145,3 +145,64 @@ func TestQoderResponseUsesApplicableRuntimeConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestQoderUnsupportedTokenPlaceholdersKeepKnownCredits(t *testing.T) {
+	fields := []string{"input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"}
+	for _, field := range fields {
+		for _, value := range []string{"1", "-1", "0.5", "null", "1e999999"} {
+			t.Run(field+"/"+value, func(t *testing.T) {
+				raw := qoderHeader + "\n" + qoderRow("m", `"end_turn"`, fmt.Sprintf(`{"credits":1.25,"billable":true,%q:%s}`, field, value))
+				rows, c, err := Decode(context.Background(), "qoder", "f", strings.NewReader(raw))
+				if err != nil {
+					t.Fatal(err)
+				}
+				rows, n, err := NormalizeResponses(rows)
+				c.Merge(n)
+				if err != nil || len(rows) != 1 || rows[0].Tokens != nil || rows[0].Credits == nil || rows[0].Credits.String() != "1.25" || c.Counts["unsupported_formats"] != 1 || c.SpendComplete() {
+					t.Fatalf("future token format silently accepted: rows=%+v coverage=%+v err=%v", rows, c, err)
+				}
+			})
+		}
+	}
+}
+func TestQoderZeroTokenPlaceholdersAndAbsentRemainSupported(t *testing.T) {
+	for _, value := range []string{"0", "0.0", "0e0"} {
+		raw := qoderHeader + "\n" + qoderRow("m", `"end_turn"`, fmt.Sprintf(`{"credits":1,"billable":true,"input_tokens":%s,"output_tokens":%s,"cache_read_input_tokens":%s,"cache_creation_input_tokens":%s}`, value, value, value, value))
+		rows, c, err := Decode(context.Background(), "qoder", "f", strings.NewReader(raw))
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows, n, err := NormalizeResponses(rows)
+		c.Merge(n)
+		if err != nil || len(rows) != 1 || rows[0].Tokens != nil || rows[0].Credits == nil || !c.SpendComplete() {
+			t.Fatalf("zero %s: rows=%+v coverage=%+v err=%v", value, rows, c, err)
+		}
+	}
+}
+func TestQoderInvalidTypedTokenPlaceholdersDoNotHideOtherCredits(t *testing.T) {
+	for _, field := range []string{"input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"} {
+		for _, value := range []string{`"1"`, `true`, `{}`, `[]`} {
+			t.Run(field+"/"+value, func(t *testing.T) {
+				bad := qoderRow("bad", `"end_turn"`, fmt.Sprintf(`{"credits":9,"billable":true,%q:%s}`, field, value))
+				good := qoderRow("good", `"end_turn"`, `{"credits":1.25,"billable":true}`)
+				rows, c, err := Decode(context.Background(), "qoder", "f", strings.NewReader(qoderHeader+"\n"+bad+"\n"+good))
+				if err != nil {
+					t.Fatal(err)
+				}
+				rows, n, err := NormalizeResponses(rows)
+				c.Merge(n)
+				if err != nil || len(rows) != 1 || rows[0].ID != "good" || rows[0].Tokens != nil || rows[0].Credits == nil || rows[0].Credits.String() != "1.25" || c.Counts["malformed_records"] != 1 || c.SpendComplete() {
+					t.Fatalf("typed invalid row: rows=%+v coverage=%+v err=%v", rows, c, err)
+				}
+			})
+		}
+	}
+}
+func TestQoderStreamingTokenFormatDriftRemainsVisible(t *testing.T) {
+	stream := qoderRow("m", "null", `{"output_tokens":5}`)
+	terminal := qoderRow("m", `"end_turn"`, `{"credits":1.25,"billable":true}`)
+	rows, c, err := Decode(context.Background(), "qoder", "f", strings.NewReader(qoderHeader+"\n"+stream+"\n"+terminal))
+	if err != nil || len(rows) != 1 || rows[0].Tokens != nil || rows[0].Credits == nil || c.Counts["unsupported_formats"] != 1 || c.SpendComplete() {
+		t.Fatalf("stream drift hidden: rows=%+v coverage=%+v err=%v", rows, c, err)
+	}
+}

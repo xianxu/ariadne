@@ -425,3 +425,13 @@ Cancelled identity scans are not cached. This is required by ARCH-CONSTRAINTS:
 the two-second identity bound must also respect the enclosing command's lifetime.
 Existing guards stay unchanged; cancellation regressions and the recorded suite
 verify the change before close.
+
+### 2026-10-15 — boundary round 1 corrections
+
+BR-1 implements the already-promised format-drift diagnostic for every present
+Qoder token placeholder, including streaming observations. Unsupported semantics
+keep tokens null and valid credits visible, while the existing unsupported-format
+coverage gate prevents projections. BR-2 updates README's public usage contract
+and its renamed atlas link. Scope and Done when are unchanged. Regression tests
+cover parser/normalization and production collection/JSON/projection behavior;
+a new recorded suite and boundary review remain required for these code changes.

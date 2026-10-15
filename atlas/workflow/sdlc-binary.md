@@ -1959,6 +1959,8 @@ skipped and makes spend coverage incomplete even when a valid header arrives
 later. Missing cwd separately affects attribution.
 
 Qoder reports per-response credits; its zero token placeholders stay null.
+Unexpected nonzero or invalid token placeholders produce visible format coverage
+and block account projections while preserving independently valid credits.
 Credits use exact bounded decimal arithmetic, are deduplicated by message.id,
 and never include original_credits a second time. Reports carry parallel token
 and credit columns; a mixed scope has null complete totals for unsupported

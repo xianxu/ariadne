@@ -120,6 +120,30 @@ func TestUsageQoderNativeCollector(t *testing.T) {
 			t.Fatalf("native calibration %+v", g)
 		}
 	}
+	// Future token semantics must remain visible through the production collector
+	// and block projection even when a copied session still has zero placeholders.
+	if e := os.WriteFile(path, []byte(strings.Replace(raw, `"input_tokens":0`, `"input_tokens":123`, 1)), 0600); e != nil {
+		t.Fatal(e)
+	}
+	drift, e := collectUsage(context.Background(), usageFlags{Since: "24h", Burn: time.Hour}, now)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if drift.Report.Totals != nil || drift.Report.Credits == nil || drift.Report.Credits.String() != "1.123456789012345678" || drift.Coverage.Counts["unsupported_formats"] == 0 {
+		t.Fatalf("format drift hidden: %+v", drift)
+	}
+	for _, g := range drift.AgentGlance {
+		if g.Agent == "qoder" && (g.Projection.Status == "calibrated" || g.Projection.HoursRemaining != nil) {
+			t.Fatalf("unsupported format projected: %+v", g)
+		}
+	}
+	encoded, e = json.Marshal(drift)
+	if e != nil || !bytes.Contains(encoded, []byte(`"unsupported_formats"`)) {
+		t.Fatalf("missing format coverage: %s, %v", encoded, e)
+	}
+	if e := os.WriteFile(path, []byte(raw), 0600); e != nil {
+		t.Fatal(e)
+	}
 	// Duplicate physical session identities are deliberately unbound even when
 	// their response spend can be deduplicated. Ownership requires one source.
 	if out.Report.Coverage.Counts["unknown_slot"] == 0 {

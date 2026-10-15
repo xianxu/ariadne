@@ -47,6 +47,19 @@ func decodeQoder(ctx context.Context, reader io.Reader) ([]Response, Coverage, e
 			coverage.Add("unknown_metadata", "ambiguous Qoder attribution metadata")
 		}
 		if r.Type == "assistant" {
+			// Tokens stay unavailable in this format. Only absent fields and bounded
+			// exact numeric zero match the observed placeholder schema; preserve known
+			// credits while making any new counter semantics visibly unsupported.
+			if r.Message != nil {
+				for _, field := range []string{"input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"} {
+					if raw, ok := r.Message.Usage[field]; ok {
+						placeholder, err := ParseCredit(raw)
+						if err != nil || !placeholder.IsZero() {
+							coverage.Add("unsupported_formats", "unrecognized Qoder token placeholder")
+						}
+					}
+				}
+			}
 			if r.Message == nil || r.Message.ID == "" {
 				coverage.Add("malformed_records", "missing Qoder response identity")
 				continue

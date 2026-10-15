@@ -866,3 +866,10 @@ The simplest durable authority beats a clever scan of consequences.
 - Optional native measurements require optional subtotals too. An empty sum over
   no supported observations is not measured zero, and an incomplete group must
   retain its independently known subtotal (#385).
+
+- Unsupported provider fields still need format validation. Keep unavailable
+  units null, but diagnose changes to their documented placeholders across every
+  counter field; do not silently bless a new accounting format (#385 BR-1).
+- A user-facing measurement change includes the README entry point and its atlas
+  anchors. Sweep links when renaming a mapped section, alongside help and atlas
+  updates (#385 BR-2).

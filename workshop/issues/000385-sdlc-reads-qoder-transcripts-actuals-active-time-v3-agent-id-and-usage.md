@@ -225,6 +225,8 @@ file splits/names in the initial plan without adding another runtime owner.
 
 - Recorded full suite passed on 36d666d5d23b68665210a0e79d8c54cb926de3ab: 12 shards over 1493 cmd/sdlc tests plus 63 other packages, zero failures, wall 549.7s. Status sdlc-local/suite; log sha256 prefix 87ceba8033ab. Queue wait 1498s was separate from runtime. Full log: git common dir/sdlc/local-checks/36d666d5d23b68665210a0e79d8c54cb926de3ab/suite.log. Gitx context/publication regression selection also passed (144.720s).
 
+- Close round 1 returned FIX-THEN-SHIP with no Critical findings, but was not finalized because BR-1/BR-2 remained Important. Fixed the unsupported-format class across all four token fields (including streaming, invalid types and numeric forms), preserving null tokens/known credits and blocking projection through existing coverage. Red-to-green internal regressions and full internal usage race suite pass (1.243s); production collector coverage/JSON/projection regression passes (3.656s). README/atlas now describe native credits, schema-v2 nullability and calibration, and the atlas anchor is repaired. Next: record a full suite on the fix commit, then rerun shared close for SHIP.
+
 ## Estimate
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
