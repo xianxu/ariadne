@@ -64,8 +64,8 @@ Historical reconstruction is not an implicit fallback: a fixed-then-ship Review-
 
 **Files:** cmd/sdlc/actualcorrection.go, actualcorrection_test.go; internal/actualcorrection tests if recovery intent changes.
 
-- [ ] Pure tests: same-day/same-value distinct rows, default ambiguity, explicit eligible digest, malformed/unknown ID, foreign issue/date/value/generation, superseded row, identical RawID duplicates.
-- [ ] Production command tests: ledger path/candidates/retry command, selected numeric correction, selected exclusion after untrustworthy measurement, unchanged dry-run and invalid selection. Exercise matching/conflicting pending and completed retries.
+- [ ] Exercise actualCorrectionTargetForGeneration against adversarial calibration histories whose values coincide but provenance differs. Selection must be within the independently derived eligible effective set; preserve default uniqueness. Mutation removing the eligibility predicate or ignoring the digest must fail a foreign-row or exact-selection assertion.
+- [ ] Drive runActualCorrection through the real command/portable ledger and tracker, perturbing selection intent before initial admission and after durable progress. Assert exact-target publication on valid intent and fingerprint all stores to prove unchanged refusal/dry-run; replay must preserve its original target. Mutation of selector-to-receipt wiring must fail the durable-target assertion.
 - [ ] Add optional --target-row. Reuse target eligibility and existing durable target digest. Selection only admits an initial target; recovery cannot retarget it.
 - [ ] Numeric measurement failure names its cause and exact supported same-target exclusion command. Preserve generation/source/repository checks; malformed evidence cannot become a numeric success.
 - [ ] Run RED/GREEN and mutate eligibility filtering and selector-to-receipt wiring to prove guards.
@@ -82,8 +82,8 @@ Historical reconstruction is not an implicit fallback: a fixed-then-ship Review-
 
 ## Test strategy by risky function
 
-- **Owned resolver and close caller:** real close/fix/re-close/preview sequence; distinct source/head pins; prior corrected/excluded controls. Mutation restores historical purpose and must fail the production sequence.
-- **actualCorrectionTargetForGeneration:** pure row sets cover eligibility/ambiguity/digest/supersession. Mutations permit foreign target or ignore selector and must go red.
+- **resolveOwnedActualInputs / computeActualForCloseFn / adoptOmittedActual:** real close/fix/re-close/preview sequence; distinct source/head pins; prior corrected/excluded controls. Mutation restores historical purpose and must fail the production sequence.
+- **actualCorrectionTargetForGeneration:** adversarial histories deliberately share issue/date/value but differ in provenance; independently derive eligible effective IDs and assert selected membership or unchanged refusal. Mutations allowing foreign targets or ignoring the selector must go red.
 - **runActualCorrection:** real tracker/main/ledger and production measurement where practical; existing bounded measurement seam only for calibration transaction cases. Assert durable exact target, unchanged other rows, no effects from dry-run, and no retargeting after interruption.
 - **printActual/explainActual:** all unmeasurable statuses name supported actions without manual-hour fallback, including production command output.
 
@@ -97,3 +97,7 @@ Historical reconstruction is not an implicit fallback: a fixed-then-ship Review-
 - ARCH-SECURE: validate persisted snapshots/rows; selected digest cannot bypass eligibility or mint hours.
 - ARCH-ORDER: explicit candidate/replay purpose; existing correction transitions and exact completion checks; conflicting retry tests.
 - ARCH-FUNERAL: no new artifact family or schema; existing snapshot/archive/supersession and recovery cleanup owns residue. Original rows remain audit history.
+
+## Revisions
+
+- 2026-10-15 — PQ-1: replace correction case inventories with named-function adversarial strategies and mechanical mutation oracles. Name the resolver and close caller explicitly. Scope and operator-approved design unchanged.

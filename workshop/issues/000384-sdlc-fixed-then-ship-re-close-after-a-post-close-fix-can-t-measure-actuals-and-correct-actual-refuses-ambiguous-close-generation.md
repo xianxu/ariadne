@@ -63,3 +63,9 @@ Scratch overlay reproduction (no tracked source edits): `go test -overlay /var/f
 Alternatives and verification are in the durable plan: measure candidate closes afresh, never transplant snapshot pins or carry unlabelled hours. Explicit eligible raw-row selection makes legacy correction actionable; historical numeric measurement stays fail-closed, with a same-target exclusion command where evidence cannot establish the original branch point. Send committed plan to TL before change-code.
 
 Planning note: the first plan write found workshop/plans absent (all prior plans were archived); it made no plan or commit. Created the directory through the plan artifact and retried normally.
+
+### 2026-10-15 — approval and plan review
+
+TL approved plan 8b8c784c as written (verified Couch receipt 756d7f64-245b-447e-bf1d-08f60d7c41fb). Read pair:2's original Codex transcript at /Users/xianxu/.codex/sessions/2026/10/12/rollout-2026-10-12T22-02-23-01a133a3-eaec-77b3-8c1e-dc4ac6b41fbd.jsonl, command events 2026-10-15T06:39:32Z–06:41:26Z. Confirmed actual/close mismatch and exact correct-actual refusal; prior reviewed d0862f78585dcca647c6494d6a8fd6942d7bf5e1, saved faa2056195acaec505029ab5fbf7e31431c2857f. Original close failed before judge dispatch, not a code-test failure.
+
+Plan-quality round 1 raised PQ-1 (function-level test strategy): refined correction test rows to named-function adversarial classes/mechanical guards. A redundant unchanged-plan dispatch was interrupted before recording another round; no implementation begun. No design scope change.
