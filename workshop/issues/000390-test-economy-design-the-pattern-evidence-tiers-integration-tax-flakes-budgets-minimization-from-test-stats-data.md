@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "a78b6b3e", done: "e87c0e11"}
 ---
 
 # test-economy: design the pattern (evidence tiers, integration tax, flakes, budgets, minimization) from test-stats data
