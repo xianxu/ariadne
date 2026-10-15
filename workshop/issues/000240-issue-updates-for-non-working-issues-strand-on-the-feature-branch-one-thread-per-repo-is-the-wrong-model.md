@@ -194,6 +194,8 @@ Renewed recorded full suite GREEN on 1e559e8ded87fd4e0d4690c52c0df79dbfc6a570 af
 
 Close round 3 returned REWORK. The reviewer disposed BR-1 through BR-7, confirming retention eliminates interrupted cleanup and open-descriptor loss; one Important finding remains: BR-8 proved os.ReadFile consumed 4 MiB after a small-file Lstat despite the 1 MiB contract. Plan revised to cap actual reads at limit+1 for both initial and post-publication reads with deterministic consumption tests; acceptance row reopened for the repaired code. No publication-policy change or bypass.
 
+BR-8 TDD repair: deterministic real-file growth controls first failed by consuming 3,145,728 bytes at both production read sites instead of max+1=1,048,577 (/tmp/ariadne-240-br8-red.log). readLocalProse now opens the file through the controlled integration seam and reads through io.LimitReader(maxTrunkProseBytes+1), retaining existing metadata/type checks and rejecting overflow. Exact-limit, static-oversize, post-Lstat growth, initial no-main-mutation and post-publication retained-local/guidance tests pass; complete focused publication/reader tests GREEN 58.334s (/tmp/ariadne-240-br8-green.log). Recovery proof registry passes 0.662s (/tmp/ariadne240-br8-recovery.log). Both local-read callers use the same bound; no new publication policy. The earlier suite pass predates this code change, so a renewed recorded suite is required before close.
+
 ### 2026-09-20
 
 Filed from the #239 session. Evidence above is all measured in that session, not

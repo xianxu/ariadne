@@ -71,8 +71,8 @@ and leaves the local file untouched (ARCH-CONSTRAINTS).
 **Files:** `README.md`, `atlas/workflow/sdlc-binary.md`, `workshop/issues/000240-*.md`, `workshop/lessons.md` if review finds a transferable rule.
 
 - [x] Document `sdlc issue publish --issue` for issue details, `sdlc trunk publish --path` for non-issue workshop prose, and the branch-reviewed home for atlas/code/settings in README and atlas. Keep `atlas/index.md` current if adding a file (none planned).
-- [x] Run `gofmt`, targeted tests, `make -k`, and the local suite via `sdlc local-check run --name suite` after the tree is stable; inspect logs and compare the patch with main.
-- [x] Implement the approved retention repair for the cleanup findings, rerun affected checks, and record passing local acceptance for renewed close review.
+- [ ] Run `gofmt`, targeted tests, `make -k`, and the local suite via `sdlc local-check run --name suite` after the tree is stable; inspect logs and compare the patch with main.
+- [ ] Implement the approved retention and bounded-read repairs, rerun affected checks, and record passing local acceptance for renewed close review.
 
 Next workflow checkpoints: run `sdlc close --issue 240 --verified <evidence>`; publish via `sdlc pr` and `sdlc merge` after SHIP and green CI.
 

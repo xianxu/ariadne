@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -137,6 +138,143 @@ func TestReadLocalProseDistinguishesFinalComponent(t *testing.T) {
 	b, ok, err := readLocalProse(root, rel)
 	if err != nil || !ok || string(b) != "nested prose\n" {
 		t.Fatalf("read nested prose: %q, %v, %v", b, ok, err)
+	}
+}
+
+type countedTrunkProseReader struct {
+	io.ReadCloser
+	consumed *int
+}
+
+func (r countedTrunkProseReader) Read(p []byte) (int, error) {
+	n, err := r.ReadCloser.Read(p)
+	*r.consumed += n
+	return n, err
+}
+
+// Grow the real file only when opened, after readLocalProse has checked Lstat.
+// Counting the underlying reads proves the byte cap, rather than only rejection.
+func probeTrunkProseReads(t *testing.T, full string, growOn int, grown []byte) *[]*int {
+	t.Helper()
+	var consumed []*int
+	old := trunkProseOpen
+	t.Cleanup(func() { trunkProseOpen = old })
+	trunkProseOpen = func(name string) (io.ReadCloser, error) {
+		if name != full {
+			t.Fatalf("unexpected prose read %q, want %q", name, full)
+		}
+		if len(consumed)+1 == growOn {
+			if err := os.WriteFile(name, grown, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		f, err := os.Open(name)
+		if err != nil {
+			return nil, err
+		}
+		n := new(int)
+		consumed = append(consumed, n)
+		return countedTrunkProseReader{f, n}, nil
+	}
+	return &consumed
+}
+
+func TestReadLocalProseByteLimit(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		size int
+		grow bool
+	}{
+		{"exact limit", maxTrunkProseBytes, false},
+		{"static oversize", maxTrunkProseBytes + 1, false},
+		{"growth after metadata validation", 1, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			rel := "workshop/parley/bounded.md"
+			initial := bytes.Repeat([]byte("a"), tc.size)
+			writeRepoFile(t, root, rel, string(initial))
+			growOn := 0
+			if tc.grow {
+				growOn = 1
+			}
+			consumed := probeTrunkProseReads(t, filepath.Join(root, rel), growOn, bytes.Repeat([]byte("g"), 3*maxTrunkProseBytes))
+			got, present, err := readLocalProse(root, rel)
+			if tc.size == maxTrunkProseBytes {
+				if err != nil || !present || !bytes.Equal(got, initial) {
+					t.Fatalf("exact limit rejected: bytes=%d, present=%v, err=%v", len(got), present, err)
+				}
+			} else if err == nil || !strings.Contains(err.Error(), "1 MiB prose limit") || present || got != nil {
+				t.Fatalf("oversize result: bytes=%d, present=%v, err=%v", len(got), present, err)
+			}
+			wantRead := tc.size
+			if tc.size > maxTrunkProseBytes {
+				if len(*consumed) != 0 {
+					t.Fatal("statically oversized file was opened")
+				}
+				return
+			}
+			if tc.grow {
+				wantRead = maxTrunkProseBytes + 1
+			}
+			if len(*consumed) != 1 || *(*consumed)[0] != wantRead {
+				t.Fatalf("actual consumption = %v, want one read of %d bytes", trunkProseReadCounts(consumed), wantRead)
+			}
+		})
+	}
+}
+
+func trunkProseReadCounts(consumed *[]*int) []int {
+	var counts []int
+	for _, n := range *consumed {
+		counts = append(counts, *n)
+	}
+	return counts
+}
+
+func TestTrunkPublishBoundsGrowingLocalProse(t *testing.T) {
+	for _, growOn := range []int{1, 2} {
+		name := "initial refusal"
+		if growOn == 2 {
+			name = "post-publication preservation"
+		}
+		t.Run(name, func(t *testing.T) {
+			r, _ := claimSetRepo(t)
+			r.git("switch", "-q", "-c", "000009-s09")
+			rel := "workshop/pensive/growing.md"
+			initial := "publish these bytes\n"
+			grown := bytes.Repeat([]byte("g"), 3*maxTrunkProseBytes)
+			writeRepoFile(t, r.root, rel, initial)
+			full := filepath.Join(r.root, rel)
+			consumed := probeTrunkProseReads(t, full, growOn, grown)
+			before := r.originMain()
+			var out, errs bytes.Buffer
+			err := runTrunkPublish(context.Background(), &out, &errs, rel)
+			if growOn == 1 {
+				if err == nil || !strings.Contains(err.Error(), "1 MiB prose limit") {
+					t.Fatalf("oversized initial read accepted: %v", err)
+				}
+				if r.originMain() != before {
+					t.Fatal("refused read mutated main")
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("confirmed publication failed: %v", err)
+				}
+				if got := r.git("show", r.originMain()+":"+rel); got != strings.TrimSpace(initial) {
+					t.Fatalf("wrong published bytes: %q", got)
+				}
+				if !strings.Contains(errs.String(), "preserve and reconcile") || strings.Contains(errs.String(), "git clean") || strings.Contains(errs.String(), "git restore") {
+					t.Fatalf("unsafe cleanup guidance: %s", errs.String())
+				}
+			}
+			if got, err := os.ReadFile(full); err != nil || !bytes.Equal(got, grown) {
+				t.Fatalf("local growth lost: bytes=%d, err=%v", len(got), err)
+			}
+			if len(*consumed) != growOn || *(*consumed)[growOn-1] != maxTrunkProseBytes+1 {
+				t.Fatalf("actual consumption = %v, want growing read capped at %d", trunkProseReadCounts(consumed), maxTrunkProseBytes+1)
+			}
+		})
 	}
 }
 

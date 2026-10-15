@@ -22,6 +22,9 @@ const maxTrunkProseBytes = 1 << 20
 // Test seam for the state immediately after a confirmed remote push.
 var trunkPublishAfterPush = func() error { return nil }
 
+// Test seam for a file changing after its metadata has been validated.
+var trunkProseOpen = func(name string) (io.ReadCloser, error) { return os.Open(name) }
+
 func newTrunkCmd() *cobra.Command {
 	var selected string
 	cmd := &cobra.Command{Use: "trunk", Short: "Publish selected non-issue workshop prose to main"}
@@ -109,7 +112,12 @@ func readLocalProse(root, p string) ([]byte, bool, error) {
 			return nil, false, fmt.Errorf("%s is not a directory", cur)
 		}
 	}
-	b, err := os.ReadFile(cur)
+	f, err := trunkProseOpen(cur)
+	if err != nil {
+		return nil, false, err
+	}
+	defer f.Close()
+	b, err := io.ReadAll(io.LimitReader(f, maxTrunkProseBytes+1))
 	if err != nil {
 		return nil, false, err
 	}
