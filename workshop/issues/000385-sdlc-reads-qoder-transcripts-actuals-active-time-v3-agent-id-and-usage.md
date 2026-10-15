@@ -227,6 +227,8 @@ file splits/names in the initial plan without adding another runtime owner.
 
 - Close round 1 returned FIX-THEN-SHIP with no Critical findings, but was not finalized because BR-1/BR-2 remained Important. Fixed the unsupported-format class across all four token fields (including streaming, invalid types and numeric forms), preserving null tokens/known credits and blocking projection through existing coverage. Red-to-green internal regressions and full internal usage race suite pass (1.243s); production collector coverage/JSON/projection regression passes (3.656s). README/atlas now describe native credits, schema-v2 nullability and calibration, and the atlas anchor is repaired. Next: record a full suite on the fix commit, then rerun shared close for SHIP.
 
+- Fix candidate c3045138d6284cccf9dd9c51fe9bf2522dd2883d passed recorded sdlc-local/suite: all 12 shards over 1493 cmd/sdlc tests and 63 other packages, zero failures, 467.5s runtime; log sha256 prefix 96f6b115fbcd (1613s separate queue wait). Read-only conformance also passes on the original 883-record prefix: 117 responses, exact 45.938730726457140528 credits, null tokens, complete spend coverage. The live file had grown to 1107 records/148 responses when reread, so its old whole-file fixed-count assertion was replaced only in the external conformance overlay with this original-prefix check; no fixture payload was copied.
+
 ## Estimate
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
