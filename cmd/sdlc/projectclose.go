@@ -20,9 +20,13 @@ var (
 )
 
 type projectCloseFlags struct {
-	Slug, ProjectsDir, HistoryDir string
-	Drop, NoRetro, Force          bool
+	Slug, ProjectsDir, HistoryDir       string
+	Verified                            string
+	Drop, NoRetro, NoMVP, Force, DryRun bool
 }
+
+// projectCloseTerminalFn is the close's MVP lookup; tests stub it.
+var projectCloseTerminalFn = projectIssueTerminalFn
 
 func newProjectCloseCmd() *cobra.Command {
 	f := projectCloseFlags{}
@@ -37,13 +41,16 @@ func newProjectCloseCmd() *cobra.Command {
 	cmd.Flags().StringVar(&f.Slug, "slug", "", "project slug")
 	cmd.Flags().StringVar(&f.ProjectsDir, "projects-dir", defaultProjectsDir(), "directory holding live project files")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", vocab.Project().Discovery().Archive, "history archive root")
+	cmd.Flags().StringVar(&f.Verified, "verified", "", "evidence the done_when audit passed (required to close; recorded in the Log)")
 	cmd.Flags().BoolVar(&f.Drop, "drop", false, "close through the lifecycle's dropped transition")
 	cmd.Flags().BoolVar(&f.NoRetro, "no-retro", false, "waive the retrospective gate")
-	cmd.Flags().BoolVar(&f.Force, "force", false, "waive the retro gate")
+	cmd.Flags().BoolVar(&f.NoMVP, "no-mvp", false, "waive the MVP gate (an mvp_scope issue not landed)")
+	cmd.Flags().BoolVar(&f.Force, "force", false, "waive the retro and MVP gates")
+	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "evaluate every gate and print the archive move; write nothing")
 	return cmd
 }
 
-func runProjectClose(_ context.Context, stdout, stderr io.Writer, f *projectCloseFlags) error {
+func runProjectClose(ctx context.Context, stdout, stderr io.Writer, f *projectCloseFlags) error {
 	path, err := projectdoc.ResolvePath(f.ProjectsDir, f.Slug)
 	if err != nil {
 		return err
@@ -66,18 +73,24 @@ func runProjectClose(_ context.Context, stdout, stderr io.Writer, f *projectClos
 			return fmt.Errorf("project close --drop requires a live project (%s; current %q); drop a defined project with `sdlc project set-status --to dropped`", strings.Join(m.Categories["executing"], " or "), from)
 		}
 	}
+
+	// Every gate is evaluated, in order, so a dry run reports them all; a real
+	// close refuses on the first.
+	var problems []error
 	tr := projectCloseTransitionFn(from, event)
+	guarded := tr
 	if tr == nil {
 		required := m.FirstTransitionForEvent(event)
-		if !f.Drop && m.IsExecuting(from) && required != nil {
-			return fmt.Errorf("project is %s; wrap it first with `sdlc project set-status --to %s` (every mvp_scope issue landed)", from, required.From)
+		guarded = required
+		switch {
+		case !f.Drop && m.IsExecuting(from) && required != nil:
+			problems = append(problems, fmt.Errorf("project is %s; wrap it first with `sdlc project set-status --to %s` (every mvp_scope issue landed)", from, required.From))
+		case required != nil:
+			problems = append(problems, fmt.Errorf("project close requires status %s (current %q); advance it through the project lifecycle funnel first", required.From, from))
+		default:
+			return fmt.Errorf("no modeled %s transition from project status %q", event, from)
 		}
-		if required != nil {
-			return fmt.Errorf("project close requires status %s (current %q); advance it through the project lifecycle funnel first", required.From, from)
-		}
-		return fmt.Errorf("no modeled %s transition from project status %q", event, from)
 	}
-
 	handlers := map[string]func() error{
 		"retro-recorded": func() error {
 			if f.NoRetro || f.Force {
@@ -90,29 +103,106 @@ func runProjectClose(_ context.Context, stdout, stderr io.Writer, f *projectClos
 			return nil
 		},
 	}
-	for _, name := range tr.Guards {
+	for _, name := range guarded.Guards {
 		handler, ok := handlers[name]
 		if !ok {
 			return fmt.Errorf("unknown project close guard %q named by the vocabulary", name)
 		}
 		if err := handler(); err != nil {
-			return err
+			problems = append(problems, err)
+		}
+	}
+	if !f.Drop {
+		// #373: a close records its evidence and re-checks the MVP, since scope
+		// can grow while a project sits in closing.
+		if strings.TrimSpace(f.Verified) == "" {
+			problems = append(problems, fmt.Errorf("--verified '<evidence>' is required: say how the done_when audit passed"))
+		}
+		if err := projectCloseMVPGate(ctx, path, metadata, f.NoMVP || f.Force, stderr); err != nil {
+			problems = append(problems, err)
 		}
 	}
 
+	archiveDir := vocab.ArchiveSubdir(f.HistoryDir, vocab.ArchiveProjects)
+	dest := filepath.Join(archiveDir, filepath.Base(path))
+	if f.DryRun {
+		return printProjectCloseDryRun(stdout, path, dest, from, guarded.To, problems)
+	}
+	if len(problems) > 0 {
+		return problems[0]
+	}
+
 	closeEntry := fmt.Sprintf("### %s — %s\n\n- status: %s → %s", today, event, from, tr.To)
+	if v := strings.TrimSpace(f.Verified); v != "" && !f.Drop {
+		closeEntry += "\n- verified: " + v
+	}
 	if err := d.AppendToSection("Log", closeEntry); err != nil {
 		return err
 	}
 	d.SetFM("status", tr.To)
 	d.SetFM("updated", today)
-	archiveDir := vocab.ArchiveSubdir(f.HistoryDir, vocab.ArchiveProjects)
-	dest := filepath.Join(archiveDir, filepath.Base(path))
 	if err := commitProjectClose(path, dest, d.Render()); err != nil {
 		return err
 	}
 	fmt.Fprintln(stdout, dest)
 	return nil
+}
+
+// projectCloseMVPGate refuses a close while an mvp_scope issue is open or
+// unreadable (MVPProgress, the guard's own definition). --no-mvp (or --force)
+// waives it.
+func projectCloseMVPGate(ctx context.Context, path string, meta projectdoc.Metadata, waive bool, stderr io.Writer) error {
+	if len(meta.MVPScope) == 0 {
+		return nil
+	}
+	mvp := projectdoc.MVPProgress(meta.MVPScope, projectCloseTerminalFn(ctx, path))
+	if mvp.Done() {
+		return nil
+	}
+	var why []string
+	if len(mvp.Open) > 0 {
+		why = append(why, "not landed: "+strings.Join(mvp.Open, ", "))
+	}
+	for _, err := range mvp.Errors {
+		why = append(why, err.Error())
+	}
+	if waive {
+		cwarn(stderr, "--no-mvp (or --force): closing with the MVP incomplete ("+strings.Join(why, "; ")+")")
+		return nil
+	}
+	return fmt.Errorf("MVP gate: %s; land them, move them to explicitly_out, or pass --no-mvp (or --force)", strings.Join(why, "; "))
+}
+
+// printProjectCloseDryRun reports the close without writing: the transition,
+// every refusal, and where the record would go.
+func printProjectCloseDryRun(stdout io.Writer, path, dest, from, to string, problems []error) error {
+	fmt.Fprintf(stdout, "dry run: %s → %s\n", from, to)
+	for _, p := range problems {
+		fmt.Fprintf(stdout, "  refuses: %v\n", p)
+	}
+	if real, linked := projectLinkTarget(path); linked {
+		fmt.Fprintf(stdout, "  would update %s in place and move the link %s → %s\n", real, path, dest)
+	} else {
+		fmt.Fprintf(stdout, "  would archive %s → %s\n", path, dest)
+	}
+	if len(problems) > 0 {
+		return fmt.Errorf("dry run: the close would refuse (%d gate(s))", len(problems))
+	}
+	return nil
+}
+
+// projectLinkTarget resolves a live record that is a symlink (the ops layout:
+// workshop/projects/x.md → teams/…/x/project.md).
+func projectLinkTarget(path string) (string, bool) {
+	fi, err := os.Lstat(path)
+	if err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		return "", false
+	}
+	real, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return "", false
+	}
+	return real, true
 }
 
 func stageProjectCloseFile(dir, pattern string, data []byte) (path string, err error) {
@@ -142,10 +232,13 @@ func commitProjectClose(livePath, dest, projectNext string) error {
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return err
 	}
-	if _, err := os.Stat(dest); err == nil {
+	if _, err := os.Lstat(dest); err == nil {
 		return fmt.Errorf("archived project already exists: %s", dest)
 	} else if !os.IsNotExist(err) {
 		return err
+	}
+	if real, linked := projectLinkTarget(livePath); linked {
+		return commitLinkedProjectClose(livePath, real, dest, projectNext)
 	}
 	projectStage, err := projectCloseStageFileFn(filepath.Dir(dest), ".sdlc-project-close-project-*", []byte(projectNext))
 	if err != nil {
@@ -186,4 +279,47 @@ func reserveProjectCloseBackup(dir, pattern string) (string, error) {
 		return "", err
 	}
 	return path, nil
+}
+
+// commitLinkedProjectClose closes a linked record (#373): the real file, which
+// sits in a team folder beside the project's handoffs and reviews, is updated
+// in place, and the link moves to the archive, retargeted. Moving the link
+// alone used to orphan the real file as a live-looking record.
+func commitLinkedProjectClose(livePath, real, dest, projectNext string) error {
+	destDir, err := filepath.EvalSymlinks(filepath.Dir(dest)) // same spelling as real (/var vs /private/var)
+	if err != nil {
+		return err
+	}
+	target, err := filepath.Rel(destDir, real)
+	if err != nil {
+		return err
+	}
+	if err := os.Symlink(target, dest); err != nil {
+		return err
+	}
+	stage, err := projectCloseStageFileFn(filepath.Dir(real), ".sdlc-project-close-project-*", []byte(projectNext))
+	if err != nil {
+		_ = os.Remove(dest)
+		return err
+	}
+	defer os.Remove(stage)
+	// The rename is the commit point: the live link goes first, so any failure
+	// before it rolls back to the open record and a rerun starts clean.
+	liveTarget, err := os.Readlink(livePath)
+	if err != nil {
+		_ = os.Remove(dest)
+		return err
+	}
+	if err := os.Remove(livePath); err != nil {
+		_ = os.Remove(dest)
+		return err
+	}
+	if err := projectCloseRenameFn(stage, real); err != nil {
+		_ = os.Remove(dest)
+		if lerr := os.Symlink(liveTarget, livePath); lerr != nil {
+			return fmt.Errorf("%w; restoring the live link %s → %s also failed: %v", err, livePath, liveTarget, lerr)
+		}
+		return err
+	}
+	return nil
 }

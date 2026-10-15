@@ -128,6 +128,10 @@ var GateCatalog = []GateSig{
 	{Commands: []string{"project close"}, Flag: "no-retro", Gate: "project retro recorded", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-retro \(or --force\): closing without a recorded project retro`,
 		RefusalPat: `run .*project retro.*, or pass --no-retro \(or --force\)`},
+	// #373: every mvp_scope issue landed (MVPProgress).
+	{Commands: []string{"project close"}, Flag: "no-mvp", Gate: "project MVP landed (#373)", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+		AckPat:     `--no-mvp \(or --force\): closing with the MVP incomplete`,
+		RefusalPat: `MVP gate: .*pass --no-mvp \(or --force\)`},
 
 	// change-code — G2, silent unless --force. ACK = "<base> gate[s] bypassed (--force:";
 	// the base differs from the flag (no-judge → plan-quality/estimate-quality).

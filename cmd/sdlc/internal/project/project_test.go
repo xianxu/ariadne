@@ -333,3 +333,42 @@ func TestTickNestedMilestoneRows(t *testing.T) {
 		t.Fatalf("the board's tasks are the top-level rows: %d", len(d.Tasks))
 	}
 }
+
+func TestTickLandedIssue(t *testing.T) {
+	in := strings.Join([]string{
+		"## Breakdown",
+		"- [ ] open row [ariadne#7]",
+		"- [.] blocked row [ariadne#7 M2]",
+		"- [-] cancelled row [ariadne#7 M3]",
+		"- [x] ticked by close [ariadne#7 M1]",
+		"- [x] already noted [ariadne#7] (PR #41)",
+		"- [ ] other issue [ariadne#70]",
+		"- [ ] other repo [pair#7]",
+		"- [x] longer PR [ariadne#7] (PR #410)",
+		"",
+	}, "\n")
+	want := strings.Join([]string{
+		"## Breakdown",
+		"- [x] open row [ariadne#7] (PR #41)",
+		"- [x] blocked row [ariadne#7 M2] (PR #41)",
+		"- [-] cancelled row [ariadne#7 M3]",
+		"- [x] ticked by close [ariadne#7 M1] (PR #41)",
+		"- [x] already noted [ariadne#7] (PR #41)",
+		"- [ ] other issue [ariadne#70]",
+		"- [ ] other repo [pair#7]",
+		"- [x] longer PR [ariadne#7] (PR #410) (PR #41)",
+		"",
+	}, "\n")
+	got, n := TickLandedIssue(in, "ariadne", "7", "41")
+	if got != want || n != 4 {
+		t.Fatalf("n=%d got:\n%s\nwant:\n%s", n, got, want)
+	}
+	again, n2 := TickLandedIssue(got, "ariadne", "7", "41")
+	if again != got || n2 != 0 {
+		t.Errorf("second run changed %d rows:\n%s", n2, again)
+	}
+	noPR, n3 := TickLandedIssue(in, "ariadne", "7", "")
+	if n3 != 2 || strings.Contains(noPR, "(PR #41)\n- [-]") || !strings.Contains(noPR, "- [x] open row [ariadne#7]\n") {
+		t.Errorf("empty pr should only tick (n=%d):\n%s", n3, noPR)
+	}
+}

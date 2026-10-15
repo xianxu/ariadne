@@ -187,5 +187,187 @@ func projectCloseFixture(t *testing.T, status string, retro bool) (*projectClose
 	original := projectTodayFn
 	projectTodayFn = func() string { return "2026-07-16" }
 	t.Cleanup(func() { projectTodayFn = original })
-	return &projectCloseFlags{Slug: "alpha", ProjectsDir: projects, HistoryDir: history}, projectPath
+	stubCloseMVP(t, map[string]bool{"ariadne#1": true, "ariadne#2": true})
+	return &projectCloseFlags{Slug: "alpha", ProjectsDir: projects, HistoryDir: history, Verified: "audit passed"}, projectPath
+}
+
+// stubCloseMVP answers the close's MVP lookup from a map; a missing ref errors.
+func stubCloseMVP(t *testing.T, landed map[string]bool) {
+	t.Helper()
+	orig := projectCloseTerminalFn
+	projectCloseTerminalFn = func(context.Context, string) func(string) (bool, error) {
+		return func(ref string) (bool, error) {
+			done, ok := landed[ref]
+			if !ok {
+				return false, os.ErrNotExist
+			}
+			return done, nil
+		}
+	}
+	t.Cleanup(func() { projectCloseTerminalFn = orig })
+}
+
+// #373: close requires --verified and records it, and re-checks the MVP.
+func TestProjectCloseVerifiedAndMVPGates(t *testing.T) {
+	f, projectPath := projectCloseFixture(t, "closing", true)
+	f.Verified = ""
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err == nil || !strings.Contains(err.Error(), "--verified") {
+		t.Fatalf("no --verified = %v", err)
+	}
+	f.Verified = "audit of 7 days found nothing"
+	stubCloseMVP(t, map[string]bool{"ariadne#1": true, "ariadne#2": false})
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err == nil || !strings.Contains(err.Error(), "not landed: ariadne#2") {
+		t.Fatalf("open MVP = %v", err)
+	}
+	if _, err := os.Stat(projectPath); err != nil {
+		t.Fatal("a refused close moved the record")
+	}
+	stubCloseMVP(t, map[string]bool{"ariadne#1": true, "ariadne#2": true})
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(filepath.Join(f.HistoryDir, "projects", "alpha.md"))
+	if !strings.Contains(string(b), "- status: closing → closed\n- verified: audit of 7 days found nothing") {
+		t.Errorf("close entry lacks the evidence:\n%s", b)
+	}
+}
+
+// #373: a dry run reports every refusal and writes nothing.
+func TestProjectCloseDryRunReportsAndWritesNothing(t *testing.T) {
+	f, projectPath := projectCloseFixture(t, "executing", false)
+	f.Verified, f.DryRun = "", true
+	before, _ := os.ReadFile(projectPath)
+	var out bytes.Buffer
+	err := runProjectClose(context.Background(), &out, &bytes.Buffer{}, f)
+	if err == nil || !strings.Contains(err.Error(), "would refuse (3 gate(s))") {
+		t.Fatalf("dry run = %v\n%s", err, out.String())
+	}
+	for _, want := range []string{"set-status --to closing", "retro gate", "--verified", "would archive " + projectPath} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("dry run missing %q:\n%s", want, out.String())
+		}
+	}
+	after, _ := os.ReadFile(projectPath)
+	if string(after) != string(before) {
+		t.Error("dry run changed the record")
+	}
+	if _, err := os.Stat(f.HistoryDir); !os.IsNotExist(err) {
+		t.Error("dry run created the archive")
+	}
+}
+
+// #373: the ops layout. Closing a linked record updates the real file in its
+// team folder and moves the link to the archive, retargeted; the folder stays.
+// linkedProjectCloseFixture moves the fixture's record to the ops layout,
+// teams/t/projects/alpha/project.md, linked from workshop/projects/alpha.md.
+func linkedProjectCloseFixture(t *testing.T) (*projectCloseFlags, string, string) {
+	t.Helper()
+	f, projectPath := projectCloseFixture(t, "closing", true)
+	root := filepath.Dir(filepath.Dir(filepath.Dir(projectPath)))
+	real := filepath.Join(root, "teams", "t", "projects", "alpha", "project.md")
+	if err := os.MkdirAll(filepath.Dir(real), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(projectPath, real); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(filepath.Dir(real), "learnings.md"), []byte("kept\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join("..", "..", "teams", "t", "projects", "alpha", "project.md"), projectPath); err != nil {
+		t.Fatal(err)
+	}
+	return f, projectPath, real
+}
+
+func TestProjectCloseLinkedRecord(t *testing.T) {
+	f, projectPath, real := linkedProjectCloseFixture(t)
+	originalRename := projectCloseRenameFn
+	projectCloseRenameFn = func(oldPath, newPath string) error {
+		// The rename of the real file is the commit point: the live link is
+		// already gone, so every earlier failure rolls back.
+		if _, err := os.Lstat(projectPath); !os.IsNotExist(err) {
+			t.Errorf("live link still present at the commit point: %v", err)
+		}
+		return originalRename(oldPath, newPath)
+	}
+	t.Cleanup(func() { projectCloseRenameFn = originalRename })
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(projectPath); !os.IsNotExist(err) {
+		t.Errorf("live link still present: %v", err)
+	}
+	dest := filepath.Join(f.HistoryDir, "projects", "alpha.md")
+	if fi, err := os.Lstat(dest); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("archive is not a link: %v", err)
+	}
+	b, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatalf("archived link does not resolve: %v", err)
+	}
+	realBytes, _ := os.ReadFile(real)
+	if !strings.Contains(string(b), "status: closed") || string(b) != string(realBytes) {
+		t.Errorf("the real file was not closed in place:\n%s", realBytes)
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(real), "learnings.md")); err != nil {
+		t.Error("the team folder lost its companions")
+	}
+}
+
+// A linked close that fails at its commit point (the real file's rename) rolls
+// back: the live link, the open record, no archive link; a rerun then closes.
+func TestProjectCloseLinkedRecordRollsBack(t *testing.T) {
+	f, projectPath, real := linkedProjectCloseFixture(t)
+	before, _ := os.ReadFile(real)
+	originalRename := projectCloseRenameFn
+	projectCloseRenameFn = func(string, string) error { return errors.New("forced rename failure") }
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err == nil || !strings.Contains(err.Error(), "forced rename failure") {
+		t.Fatalf("runProjectClose error = %v", err)
+	}
+	projectCloseRenameFn = originalRename
+	if fi, err := os.Lstat(projectPath); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("live link not restored: %v", err)
+	}
+	if after, _ := os.ReadFile(real); string(after) != string(before) {
+		t.Error("the real file changed")
+	}
+	dest := filepath.Join(f.HistoryDir, "projects", "alpha.md")
+	if _, err := os.Lstat(dest); !os.IsNotExist(err) {
+		t.Fatalf("archive link left behind: %v", err)
+	}
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
+		t.Fatalf("rerun: %v", err)
+	}
+}
+
+// Each project close gate's refusal and waiver are attributable by its gate
+// catalog row, matched against the text close actually emits (#373 review,
+// waiver-catalog-coverage).
+func TestProjectCloseGatesMatchTheCatalog(t *testing.T) {
+	gates := []struct {
+		flag  string
+		setup func(*projectCloseFlags)
+		waive func(*projectCloseFlags)
+	}{
+		{"no-retro", func(*projectCloseFlags) {}, func(f *projectCloseFlags) { f.NoRetro = true }},
+		{"no-mvp", func(*projectCloseFlags) { stubCloseMVP(t, map[string]bool{"ariadne#1": true, "ariadne#2": false}) }, func(f *projectCloseFlags) { f.NoMVP = true }},
+	}
+	for _, g := range gates {
+		t.Run(g.flag, func(t *testing.T) {
+			f, _ := projectCloseFixture(t, "closing", g.flag != "no-retro")
+			g.setup(f)
+			err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f)
+			if err == nil {
+				t.Fatal("the gate did not refuse")
+			}
+			assertGatesigAttributes(t, err.Error(), g.flag, "project close")
+			g.waive(f)
+			var stderr bytes.Buffer
+			if err := runProjectClose(context.Background(), &bytes.Buffer{}, &stderr, f); err != nil {
+				t.Fatalf("waived: %v", err)
+			}
+			assertGatesigAcknowledges(t, stderr.String(), g.flag, "project close")
+		})
+	}
 }

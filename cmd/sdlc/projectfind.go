@@ -40,38 +40,46 @@ func newProjectFindCmd() *cobra.Command {
 // and `resolve --kind project` (ARCH-DRY). The ref's repo token resolves with
 // the same sibling matching as `sdlc resolve` (exact, then unique prefix).
 func discoverProjectsForRef(refStr, root string) ([]projectdoc.ProjectMatch, ArtifactRef, error) {
+	matches, _, ref, err := discoverProjectsInScope(refStr, root, projectdoc.ActiveAndArchive)
+	return matches, ref, err
+}
+
+// discoverProjectsInScope is discoverProjectsForRef with the scope chosen and
+// the issue's repository name returned: `project tick` (#373) edits live
+// records only, under the name their rows cite.
+func discoverProjectsInScope(refStr, root string, scope projectdoc.DiscoverScope) ([]projectdoc.ProjectMatch, string, ArtifactRef, error) {
 	ref, err := parseRef(refStr)
 	if err != nil {
-		return nil, ArtifactRef{}, err
+		return nil, "", ArtifactRef{}, err
 	}
 	if ref.GitHub {
-		return nil, ref, fmt.Errorf("github refs have no project records (projects reference workshop issues)")
+		return nil, "", ref, fmt.Errorf("github refs have no project records (projects reference workshop issues)")
 	}
 	identity, err := resolveWorkspace(root)
 	if err != nil {
-		return nil, ref, err
+		return nil, "", ref, err
 	}
 	repoDir, err := resolveRepoDir(ref, identity.WorktreeRoot)
 	if err != nil {
-		return nil, ref, err
+		return nil, "", ref, err
 	}
 	target, err := resolveWorkspace(repoDir)
 	if err != nil {
-		return nil, ref, err
+		return nil, "", ref, err
 	}
 	repoName := target.Repo
 	overlays, err := projectWorkspaceRoots(identity)
 	if err != nil {
-		return nil, ref, err
+		return nil, "", ref, err
 	}
-	matches, err := projectdoc.DiscoverInRoots(overlays, repoName, strconv.Itoa(ref.ID), projectdoc.ActiveAndArchive)
+	matches, err := projectdoc.DiscoverInRoots(overlays, repoName, strconv.Itoa(ref.ID), scope)
 	if err != nil {
-		return nil, ref, err
+		return nil, "", ref, err
 	}
 	if len(matches) == 0 {
-		return nil, ref, fmt.Errorf("no project across the fleet references %s#%d", repoName, ref.ID)
+		return nil, "", ref, fmt.Errorf("no project across the fleet references %s#%d", repoName, ref.ID)
 	}
-	return matches, ref, nil
+	return matches, repoName, ref, nil
 }
 
 // printProjectMatches is the shared text renderer for both navigation surfaces

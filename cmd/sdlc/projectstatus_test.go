@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -239,5 +240,33 @@ func TestComputeBoardUnknownDepsBlock(t *testing.T) {
 	}
 	if len(b.Blocked) != 1 || b.Blocked[0] != "ariadne#1" || len(b.Frontier) != 1 || b.Frontier[0] != "ariadne#2" {
 		t.Fatalf("blocked %v frontier %v", b.Blocked, b.Frontier)
+	}
+}
+
+// #373: status prints the MVP against mvp_scope and the done_when the close
+// audits, through the same card lookup the mvp-landed guard uses.
+func TestProjectStatusShowsMVPAndDoneWhen(t *testing.T) {
+	_, _, slot := projectWorkspaceFixture(t)
+	path := writeProjectFile(t, slot, "mvp", "---\ntype: project\nname: mvp\ngoal: g\ndone_when: \"the audit finds nothing\"\nstatus: executing\nmvp_scope: [ariadne#1, ariadne#2, ariadne#9]\n---\n## Charter\nWhy.\n## Trains\n## Breakdown\n- [x] one [ariadne#1]\n- [ ] two [ariadne#2]\n## Log\n## Decisions\n")
+	stubForecastLookup(t, map[string]issueMeta{
+		"ariadne#1": {Status: "done"},
+		"ariadne#2": {Status: "working"},
+	}, nil)
+	t.Chdir(slot)
+	var out bytes.Buffer
+	if err := runProjectStatus(context.Background(), &out, &bytes.Buffer{}, &projectStatusFlags{Slug: "mvp", ProjectsDir: filepath.Dir(path), BrainDir: t.TempDir()}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"mvp: 1/3 landed · open: ariadne#2\n", "warning: mvp_scope ariadne#9:", "done_when: the audit finds nothing\n"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("status missing %q:\n%s", want, out.String())
+		}
+	}
+}
+
+func TestRenderMVPWithoutScope(t *testing.T) {
+	got := renderMVP(projectdoc.Metadata{}, projectdoc.MVP{})
+	if got != "mvp: - (no mvp_scope)\ndone_when: -\n" {
+		t.Errorf("got %q", got)
 	}
 }

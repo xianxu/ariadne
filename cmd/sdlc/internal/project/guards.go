@@ -48,18 +48,12 @@ func Guards() map[string]GuardFunc {
 			if ctx.IssueTerminal == nil {
 				return fmt.Errorf("no issue lookup available to check mvp_scope")
 			}
-			var open []string
-			for _, ref := range meta.MVPScope {
-				done, err := ctx.IssueTerminal(ref)
-				if err != nil {
-					return fmt.Errorf("mvp_scope %s: %w", ref, err)
-				}
-				if !done {
-					open = append(open, ref)
-				}
+			mvp := MVPProgress(meta.MVPScope, ctx.IssueTerminal)
+			if len(mvp.Errors) > 0 {
+				return mvp.Errors[0]
 			}
-			if len(open) > 0 {
-				return fmt.Errorf("mvp_scope issues not landed: %s", strings.Join(open, ", "))
+			if len(mvp.Open) > 0 {
+				return fmt.Errorf("mvp_scope issues not landed: %s", strings.Join(mvp.Open, ", "))
 			}
 			return nil
 		},

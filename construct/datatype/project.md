@@ -39,6 +39,7 @@ Distinct from sibling datatypes:
 | `goal` | yes | One sentence. Why this project exists. |
 | `done_when` | yes | The MVP boundary as a falsifiable criterion. *"What would make me say this project is finished?"* |
 | `status` | yes | See `construct/vocabulary/project.cue` (the schema authority): `defined` → `executing` → `closing` → `closed`, or `dropped`. |
+| `landing_tick` | optional | `true`/`false`: whether `sdlc merge` ticks this project when a cited issue lands (ariadne#373). Unset: yes without `tl:`, no for a TL-owned project. |
 | `tl` | optional | The TL driving the project: a slot handle (`xian-xu@ops:0`), or a list of them where each owns trains. A TL-owned project is written only by its TLs. `sdlc close` and `milestone-close` skip it entirely (no tick, no detail block, no review snapshot) and print an info line, so workers report landings to the TL instead (ariadne#326). |
 | `operator` | optional | The human the project serves. Default = self. |
 | `mvp_scope` | optional | List of issue refs (`[<repo>#<id>, ...]`) in the MVP. The `executing` → `closing` guard requires every one to have landed. |
@@ -68,13 +69,16 @@ Guards:
 
 Ordinary transitions go through `sdlc project set-status`. Closing and the
 post-execution drop go through `sdlc project close`, which owns the retro gate
-and the archive move.
+and the archive move. A close takes `--verified '<evidence>'` (recorded in the
+Log) and re-checks that every `mvp_scope` issue landed (`--no-mvp` waives it); `--dry-run` reports the
+gates without writing.
 
 ## Ownership
 
-- **The TLs own the project file; workers never write it.** A worker reports its landing, and the TL verifies the merge and ticks the row with the PR number.
+- **The TLs own the project file; workers never edit it by hand.** A worker reports its landing to the TL; the row tick is the landing tick below (or the TL's, while that is off).
 - A worker's close neither ticks a TL-owned project nor treats an edit to it as staling the worker's review (ariadne#326).
 - A project without `tl:` is still ticked by the close gate, as before.
+- **At landing** (ariadne#373), `sdlc merge` ticks the landed issue's rows and appends `(PR #N)`, by one commit on the project repository's origin main, never in a checkout. A project without `tl:` is ticked by default. A TL-owned project is ticked only with `landing_tick: true` in its frontmatter; otherwise merge prints the `sdlc project tick` command for the TL. `landing_tick: false` opts any project out.
 
 ## Body skeleton
 
