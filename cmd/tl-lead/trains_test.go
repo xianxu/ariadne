@@ -15,8 +15,8 @@ import (
 type fakeSDLC struct {
 	fleet    Fleet
 	fleetErr error
-	obs   map[string]Observation // "<repoPath>#<n>"
-	calls int
+	obs      map[string]Observation // "<repoPath>#<n>"
+	calls    int
 }
 
 func (f *fakeSDLC) FleetInventory(string) (Fleet, error) { return f.fleet, f.fleetErr }
