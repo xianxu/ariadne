@@ -159,6 +159,21 @@ cannot be retroactively guessed into the new binding schema. Reports are local
 
 Next shared close to SHIP, PR and merge.
 
+
+### 2026-10-14 21:20 — boundary round1 REWORK
+
+Shared close reviewed2723e1f5892053ae932f5c86bf14818454ae62ad, measured5.70h,
+and returned three Critical/one Important findings. BR-1 reproduced mixed modern
+100/20 and legacy500/100 snapshots falsely complete; preserve per-dimension
+high-water evidence across both formats and resets, never add snapshots to
+response totals. New regression failed7/8 cases before fix, plus a copied-parent
+ambiguity case failed before removing its blanket exemption; all9 cases and
+usage package pass0.174s after fix. BR-2 invalid reviewer evidence and BR-4
+production attachment regressions are being addressed separately. BR-3 concept
+map now names delivered paths/status and PURE/IO ownership; Task2 production
+integration checkbox reopened until the actual wiring tests pass. Prior suite
+pass remains evidence for08141717 only; rerun after these code fixes.
+
 ## Revisions
 
 ### 2026-10-14 — whole-system bench cost

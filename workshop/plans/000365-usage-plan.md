@@ -20,33 +20,37 @@ Hub receipt efaa1145-7a99-4c4d-91bc-88b4d1f5858c requires worker tokens, reviewe
 
 ### Pure entities
 
+Paths below are relative to cmd/sdlc/. Status is relative to the issue's pinned main base.
+
 | Name | Lives in | Status |
 |---|---|---|
-| Counters, response identity, coverage | cmd/sdlc/internal/usage/types.go | new |
-| Codex response/cumulative transitions | cmd/sdlc/internal/usage/codex.go | new |
-| Claude response revision transitions | cmd/sdlc/internal/usage/claude.go | new |
-| Dedup/window/slot/model/hour aggregation | cmd/sdlc/internal/usage/aggregate.go | new |
-| Meter transition and projection | cmd/sdlc/internal/usage/calibration.go | new |
-| Session/source lineage eligibility | cmd/sdlc/internal/transcripts/provenance.go | modified |
-| Reviewer dispatch binding value/validation | cmd/sdlc/internal/gatestate/reviewer.go | new |
-| Optional reviewer runs on gate rounds | cmd/sdlc/internal/gatestate/ledger.go | modified |
-| Ownership interval derivation | cmd/sdlc/internal/tracker/engagement.go | reused unchanged |
+| Counters, response identity, coverage | internal/usage/types.go | new |
+| Codex response/cumulative transitions | internal/usage/codex.go | new |
+| Claude response/aggregate and counter decoding | internal/usage/claude.go; decodeCounters in internal/usage/read.go | new |
+| Dedup/window/slot/model/hour aggregation | internal/usage/aggregate.go | new |
+| Meter validation, transition and projection | internal/usage/calibration.go | new |
+| Reviewer Intent/Record/Event, Validate, Step and Advance | internal/reviewusage/model.go | new |
+| Reviewer CLI identity protocol decoding | internal/reviewusage/identity.go | new |
+| Issue ownership interval derivation | internal/tracker/engagement.go | reused unchanged |
+| Session/source lineage eligibility | internal/transcripts/provenance.go | reused unchanged |
+| Slot, worker-window and role selection | usage_inputs.go; usage_reviewers.go; usage.go | new; pure selection functions share files with IO adapters |
+| Optional reviewer records on gate ledgers/rounds | internal/gatestate/ledger.go | modified |
 
-Counters use checked int64 arithmetic and dimension presence. Canonical input includes reported cache reads/writes; total=input+output. Codex input already includes cached input. Normalize Claude input by adding its separately reported cache read/write. Cache columns are subsets of canonical input, never additional total. Nested TTL fields subdivide writes; reasoning/thinking subdivides output. Unsupported dimensions are null, not zero. Aggregates expose measured subtotals plus coverage status.
-
-Each response has one executing source, agent and actual model. Dedup before window filtering: identical copies count once; consistent streaming revisions replace provisional counters. Conflicting terminal/model/request/owner evidence is excluded and counted. Model changes remain per response, never attributed to today's selected model.
+Counters use checked int64 arithmetic and dimension presence. Canonical input includes cache reads/writes; output includes reasoning. Unsupported dimensions are null. Normalize and globally deduplicate responses before windows or attribution; aggregate observations diagnose missing spend rather than supplying duplicate totals. Response model and immutable session/dispatch facts determine attribution.
 
 ### Integration points
 
 | Name | Lives in | Status | Wraps |
 |---|---|---|---|
-| Usage source enumeration/streaming | cmd/sdlc/internal/transcripts/usage_discovery.go | new | JSONL/meta files, registry, shared first-metadata parser |
-| Command/renderer | cmd/sdlc/usage.go; usage_render.go | new | Cobra/clock/fleet/source adapters |
-| Shared issue source selection | cmd/sdlc/actualinputs.go; usage_inputs.go | modified/new | pinned tracker history and ownedSourceWindows |
-| Reviewer attempt identity capture | cmd/sdlc/internal/judge/dispatch.go; stream.go | modified | existing Run result/stateful fake CLI |
-| Binding persistence/read adapter | cmd/sdlc/usage_reviewers.go; boundaryledger.go; changecode.go; reviewsidecar.go | new/modified | existing gate ledgers/sidecars |
-| Meter store | cmd/sdlc/internal/usage/meterstore.go | new | versioned local file, existing context-aware lock |
-| Registration/docs | cmd/sdlc/main.go; helptext/usage.md; README.md; atlas/workflow/sdlc-binary.md | modified/new | embedded help and operator docs |
+| Usage source enumeration/streaming | internal/transcripts/usage_discovery.go | new | JSONL/meta files and harness registry; actual's root-only discovery unchanged |
+| Bounded normalized-record reader | internal/usage/read.go (Decode) | new | io.Reader, cancellation and line limits; delegates to pure record transitions |
+| Command, collection and rendering | usage.go | new | Cobra/clock, fleet/source adapters, pure aggregation and rendering |
+| Shared issue source selection | actualinputs.go; actual.go; usage_inputs.go | modified/modified/new | pinned tracker history and ownershipSourceWindows |
+| Reviewer attempt capture | internal/judge/dispatch.go; internal/judge/stream.go | modified | existing Run process/onStart/return seam |
+| Accounting receipt store | internal/reviewusage/store.go; internal/gitx/recoveryref.go | new/modified | bounded CAS Git RecoveryData, admission lock and cleanup |
+| Reviewer attachment, artifact persistence/read and binding | reviewer_accounting.go; usage_reviewers.go; boundaryledger.go; changecode.go; milestoneclose.go; reviewsidecar.go | new/new/modified/modified/modified/modified | workspace/Git identity, ledger/sidecar IO and pure typed binding |
+| Meter store/process probe | internal/usage/meterstore.go; internal/usage/meterprocess.go | new | private versioned atomic file, context-aware lock and process liveness |
+| Registration/docs | main.go; helptext/usage.md; README.md; atlas/workflow/sdlc-binary.md | modified/new/modified/modified | embedded help and operator docs |
 
 Reuse fleet.GitReader/stateful Git fake and portable real repositories. Transcript integration fixtures are temp folders with sanitized recorded JSONL and metadata, not function-call mocks. Gate capture uses existing fake agent Run tests plus recorded protocol preambles. Meter tests use portable state directories, never real account observations.
 
@@ -133,16 +137,16 @@ Files: new internal/usage/{types,codex,claude,aggregate}.go, colocated tests and
 
 ### Task2: attribution and gate evidence
 
-Files: transcripts/usage_discovery.go/tests, provenance.go/tests; usage_inputs.go/tests and actualinputs.go/tests; gatestate/reviewer.go/tests, ledger/render/parser tests; judge/{dispatch,stream}.go/tests; usage_reviewers.go, boundaryledger.go, changecode.go, reviewsidecar.go and command tests.
+Files: internal/transcripts/usage_discovery.go/tests (reuse provenance.go unchanged); usage_inputs.go/tests and actualinputs.go/tests; internal/reviewusage/{model,identity,store}.go/tests; internal/gatestate/ledger.go and ledger/parser tests; internal/judge/{dispatch,stream}.go/tests; reviewer_accounting.go/tests, usage_reviewers.go, boundaryledger.go, changecode.go, milestoneclose.go, reviewsidecar.go and command tests.
 
 - [x] Add metadata/fork/Claude-meta child, unknown cwd, copied history, partial-tail, append/truncation fixtures; observe RED.
-- [x] Add production gate-dispatch→binding→usage regression for boundary/plan/estimate; include retry/failure/cancellation with no verdict advancement.
+- [ ] Add production gate-dispatch→binding→usage regression for boundary/plan/estimate; include retry/failure/cancellation with no verdict advancement.
 - [x] Implement shared selection and optional bindings; preserve existing actual/gate/default discovery semantics.
 - [x] Verify moves/reclaims/dependency/brain/old reviewer/planning-only/completed edges; kill missing-binding, eligibility-bypass and child-doublecount mutations; commit.
 
 ### Task3: command, meter and docs
 
-Files: usage.go, usage_render.go/tests; internal/usage/{calibration,meterstore}.go/tests; main.go, helptext/usage.md, README.md, atlas/workflow/sdlc-binary.md.
+Files: usage.go, usage_command_test.go, usage_attribution_test.go; internal/usage/{calibration,meterstore}.go/tests; main.go, helptext/usage.md, README.md, atlas/workflow/sdlc-binary.md.
 
 - [x] Write human/JSON command and pure meter transition/projection tests plus portable store failure/concurrency; observe RED.
 - [x] Implement flags, optional empirical projection and bounded observations, keeping usage read-only.
@@ -233,8 +237,8 @@ batch; no background scheduler. Offline tests use sanitized real preambles and
 stateful fake processes. Missing/changed protocol remains coverage and cannot
 silently create a guessed binding. The usage command never launches an agent.
 
-Core concept additions: PURE AttemptState/Event/StepAttempt in
-internal/reviewusage/model.go; INTEGRATION AttemptStore in
+Core concept additions: PURE Intent/Record/Event/Step/Advance in
+internal/reviewusage/model.go; INTEGRATION Store in
 internal/reviewusage/store.go, wrapping gitx.RecoveryStore. Existing judge and
 round/sidecar adapters consume that single typed evidence. Task2 owns these files
 and gitx/recoveryref.go closed-namespace extension with colocated tests.
@@ -254,3 +258,27 @@ Task4 suite step passed on081417175e5b47f9dd779f1747fe275f2957aab3 (1389 root
 tests/61 packages; zero failures). Live Claude/Codex conformance and refreshed
 fleet/issue smokes pass. Publication is tracked by the eventual landing record
 rather than a pre-close checkbox that would prematurely claim a merged PR.
+
+
+### 2026-10-14 21:15 — close round1 classes (BR-1 through BR-4)
+
+BR-3 reconciles the Core concepts tables and task paths above with the pinned
+implementation: provenance.go and ownership derivation are reused unchanged;
+reviewusage/model.go owns the pure attempt model, reviewusage/store.go owns IO,
+and usage.go owns rendering. No gatestate/reviewer.go or usage_render.go exists.
+This replaces planned locations with delivered ownership (ARCH-PURE/ARCH-DRY).
+
+BR-1 requires reconciliation of every applicable modern/legacy cumulative
+observation, including mixed format and reset/high-water evidence, before
+spend_complete can authorize a meter denominator. Snapshots remain coverage-only.
+BR-2 requires one validated artifact decoder for ledger and comment readers;
+invalid or unreadable evidence must degrade coverage, and usable reviewer
+identity must quarantine that session from ordinary worker attribution.
+
+BR-4 reopens Task2's production integration row: existing decoder, direct judge,
+serialization and pure attribution tests do not prove production attachment.
+Add real gate attachment→fake CLI→receipt/artifact→usage-loading regressions for
+boundary/plan/estimate, including interruption without semantic advancement;
+removing production attachment must fail them. Rerun the recorded suite after
+these code changes, then close to SHIP. Previous passing evidence remains an
+accurate record for its earlier head, not evidence for the pending fixes.

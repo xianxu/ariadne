@@ -17,6 +17,7 @@ type codexState struct {
 	embedded              map[string]bool
 	original              map[string]time.Time
 	expected              *Counters
+	legacyExpected        *Counters
 }
 type codexUsage struct {
 	ResponseID  string          `json:"response_id"`
@@ -93,6 +94,7 @@ func (s *codexState) step(r record, c *Coverage) error {
 			return e
 		}
 		s.ordinal++
+		rememberCumulativeMaximum(&s.legacyExpected, v)
 		if s.baseline == nil {
 			s.baseline = &v
 			c.Add("baseline_gaps", "initial cumulative snapshot has no prior baseline")
@@ -149,8 +151,8 @@ func (s *codexState) response(r record, raw json.RawMessage, embedded bool, c *C
 	if len(q.ThreadUsage) > 0 && string(q.ThreadUsage) != "null" {
 		if expected, err := decodeCounters(q.ThreadUsage, false); err != nil {
 			c.Add("uncovered_segments", "invalid thread cumulative evidence")
-		} else if s.expected == nil || expected.Input > s.expected.Input || expected.Output > s.expected.Output {
-			s.expected = &expected
+		} else {
+			rememberCumulativeMaximum(&s.expected, expected)
 		}
 	}
 	if embedded {
@@ -169,6 +171,22 @@ func (s *codexState) response(r record, raw json.RawMessage, embedded bool, c *C
 	s.modern = append(s.modern, Response{ID: q.ResponseID, SourceID: s.source, Agent: "codex", RequestID: q.TurnID, At: at, Tokens: tokens, Origin: q.ThreadID, Model: q.TurnID})
 	return nil
 }
+
+// Cumulative evidence is a lower bound on response coverage, never additional
+// spend. Preserve each dimension independently: resets or a later incomparable
+// snapshot must not erase an earlier observation of missing responses.
+func rememberCumulativeMaximum(maximum **Counters, next Counters) {
+	if *maximum == nil {
+		*maximum = &Counters{}
+	}
+	if next.Input > (*maximum).Input {
+		(*maximum).Input = next.Input
+	}
+	if next.Output > (*maximum).Output {
+		(*maximum).Output = next.Output
+	}
+}
+
 func (s *codexState) finish(c *Coverage) []Response {
 	if !s.modernSeen {
 		return s.legacy
@@ -177,8 +195,6 @@ func (s *codexState) finish(c *Coverage) []Response {
 	// baseline gap does not make authoritative response evidence incomplete.
 	delete(c.Counts, "baseline_gaps")
 	delete(c.Examples, "baseline_gaps")
-	delete(c.Counts, "reset_gaps")
-	delete(c.Examples, "reset_gaps")
 	for id := range s.embedded {
 		if _, ok := s.original[id]; !ok {
 			c.Add("reconstructed_compaction", "response reconstructed from compaction")
@@ -215,13 +231,12 @@ func (s *codexState) finish(c *Coverage) []Response {
 			break
 		}
 	}
-	expected := s.expected
-	if expected == nil && c.Counts["copied_history"] == 0 {
-		expected = s.baseline
-	}
-	for _, expected := range []*Counters{expected} {
+	// Legacy snapshots have no thread identity. Copied parent history cannot
+	// prove that an excess snapshot belongs to the parent rather than this
+	// session, so uncertainty stays visible without charging either total.
+	for _, expected := range []*Counters{s.expected, s.legacyExpected} {
 		if expected != nil && (expected.Input > known.Input || expected.Output > known.Output) {
-			c.Add("uncovered_segments", "modern cumulative counters exceed recorded responses")
+			c.Add("uncovered_segments", "cumulative counters exceed recorded responses")
 			break
 		}
 	}

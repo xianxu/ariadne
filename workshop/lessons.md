@@ -788,3 +788,15 @@ The simplest durable authority beats a clever scan of consequences.
   and regression-test it with recorded events (#369).
 
 - File metadata is not a read budget: enforce limit+1 at the reader for both admission and post-effect rereads, and test growth after metadata validation with measured consumption rather than only checking the final error (#240 BR-8).
+
+- Reconcile all applicable cumulative evidence before declaring response spend
+  complete: a newer format or reset must not erase a higher earlier observation.
+  Snapshots diagnose gaps without being added to response totals (#365 BR-1).
+- Invalid accounting evidence is uncertainty, not absence. Share artifact decoding,
+  report validation/parse failures, and quarantine usable reviewer identities so
+  invalid receipts cannot silently reclassify spend as worker (#365 BR-2).
+- Reconcile the durable plan's concept map with final files and PURE/IO ownership
+  before close; planned file names are not delivered architecture (#365 BR-3).
+- A direct dispatcher test cannot prove gate wiring. Drive production boundary,
+  plan and estimate entry points through retained receipts to usage, including
+  interrupted outcomes; kill omitted-attachment mutations (#365 BR-4).
