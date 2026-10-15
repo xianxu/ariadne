@@ -1,12 +1,12 @@
 ---
 id: 000388
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
-card_mirror: '3ed9ab16c2d43dcf57093109c4e27530a2d7d957' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '74ec334491c0017cf3c3cffeb1d082923ce61182' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-15T11:11:59-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "8896f841", done: "09465f33"}
+actual_hours: 0.28
 ---
 
 # tl-lead: a deleted Operator-instructions bullet closes its QA file (follow-ups go to Needs you)
