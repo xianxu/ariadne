@@ -62,7 +62,7 @@ func landingTickTransform(repoName, issueID, pr string, auto bool) func([]byte) 
 // landingTickCommand is the exact hand-run equivalent, printed when the
 // automatic tick is off or failed.
 func landingTickCommand(repoName, issueID, pr string) string {
-	cmd := fmt.Sprintf("sdlc project tick --issue %s#%s", repoName, issueID)
+	cmd := fmt.Sprintf("sdlc project tick --issue %s#%s", repoName, issue.CLIRef(issueID))
 	if pr != "" {
 		cmd += " --pr " + pr
 	}
