@@ -1,6 +1,6 @@
 ---
 id: 000391
-status: codecomplete
+status: done
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 6bdd2b646b30f7c880c369c876a6eebb2483f615
         evidence_commit: 2b3b2208dca68dbec5e4e42f3ab794227fbf9f0e
+        landed_commit: f5dced1f194617f852e892734427e5f747423946
 ---
 
 # sdlc actuals fail machine-wide on a Qoder subagent transcript ('incomplete qoder session metadata') after #385
