@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "eadd258f", done: "8004846b"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Project lifecycle verbs: sdlc project tick/close, and landing ticks the referencing project's item automatically
@@ -50,6 +50,8 @@ Durable plan: `workshop/plans/000373-project-lifecycle-verbs-sdlc-project-tick-c
 ### 2026-10-14
 
 ### 2026-10-15
+- 2026-10-15: closed — Recorded suite sdlc-local/suite green on 0aa64f88 (branch with main merged, after review rounds 1 and 2). Done-when covered: TestLandingTicksPeerProject and TestRunMerge_LegacyLandingTicksPeerProject (cross-repo tick on origin, and via tickOutsideLock the tick runs after the merge lock, mutation-checked on both paths), TestTickOnLanding_TLOwnedIsOptIn, TestTickOnLanding_FailureWarnsWithRetry, TestProjectTick_PublishesEveryCitingProjectOnOrigin, TestProjectStatusShowsMVPAndDoneWhen, TestProjectCloseVerifiedAndMVPGates, TestProjectCloseDryRunReportsAndWritesNothing, TestProjectCloseLinkedRecord (commit-point order, mutation-checked), TestProjectCloseLinkedRecordRollsBack, TestProjectCloseGatesMatchTheCatalog (no-retro and no-mvp refusal and ack vs GateCatalog); unit TestTickLandedIssue/TestMVPProgress/TestLandingTick. Read-only dry runs on ariadne-robustness-1: status shows mvp 44/44 + done_when; close --dry-run refuses (executing, no retro) and would close the real teams/ file in place.; review verdict: SHIP
+- 2026-10-15: flow upgraded quick → full — 607 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - TL approved points 2–4 of the plan; point 1 (landing ticks TL-owned projects) is the operator's call, so TL-owned projects are opt-in via `landing_tick: true` (default `project.TLLandingTickDefault = false`) and merge prints `sdlc project tick --issue R --pr N` for the TL instead. Flipping the default is one line.
 - Landed issue comes from the branch's id prefix (#272: one issue, one branch), so a resumed landing still ticks; the tick is idempotent.
 - Real-file dry runs: `project status` on ariadne-robustness-1 prints `mvp: 44/44 landed`; `project close --dry-run` refuses on status executing and the missing retro and would close the real teams/ file in place; `project tick --issue ariadne#240 --pr 241 --dry-run` → no change (row names PR #241); `--issue ariadne#376` → would publish to ops's origin.
