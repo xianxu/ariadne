@@ -231,6 +231,8 @@ file splits/names in the initial plan without adding another runtime owner.
 
 - Close round 2 disposed BR-1/BR-2 as addressed, then raised Critical BR-3 (incomplete-evidence-adoption): a parse/read/bound failure before workspace proof was silently excluded. Confirmed production red (29.68s): with a positive 0.10h good-source baseline, malformed prefixes before owned/foreign metadata, no metadata, oversized prefixes, and unreadable candidates all still measured/adopted 0.10h. Expanded internal discovery matrix also reproduces the class. Durable plan now defines unresolved/proven-unrelated/relevant source outcomes, requiring complete exclusion proof and refusal on uncertainty. Implementation and fresh verification remain pending.
 
+- BR-3 tracked production matrix now green (23.706s), internal transcript race suite green (8.092s), and usage/adapter/identity suites green. Consumer sweep reproduced the same class in the labelled no-tracker path: positive baseline followed by malformed Qoder evidence still measured/adopted 0.10h (legacy production red, 1.15s). Propagate conventional source-selection errors there too, reusing the strict Qoder discovery path while retaining the legacy attribution heuristic. Same-size pathname replacement was independently reproduced and checked; preserve its mtime in the regression so inode identity remains the decisive guard.
+
 ## Estimate
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against

@@ -457,3 +457,14 @@ not a new scope. Test errors before, between and after metadata, line/record
 bounds, unreadable candidates, invalid roots, and foreign-only exclusion controls.
 Production actual and close-adoption regressions require a positive good-source
 baseline and refusal of the incomplete aggregate.
+
+### 2026-10-15 — BR-3 consumer sweep includes legacy selection
+
+The no-tracker consumer also discarded Qoder source failures in Harness.Sources.
+A production counterexample with a positive labelled 0.10h baseline still adopted
+0.10h after adding a malformed-prefix Qoder source. Give Sources and Select the
+conventional (Sources, error) result, reuse strict Qoder evidence discovery for
+legacy selection, and propagate failures into actualError before adoption. Other
+providers retain their existing legacy selection behavior; attribution remains
+the explicitly labelled heuristic. This is the same incomplete-evidence rule at
+both actual consumers, not a new attribution model (ARCH-DRY, ARCH-PURPOSE).

@@ -170,3 +170,49 @@ func TestQoderActualCloseRefusesUnresolvedSourceFailures(t *testing.T) {
 		})
 	}
 }
+
+func TestQoderLegacyActualCloseRefusesUnresolvedSource(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	ownedFixtureAt(t, 0)
+	root := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	physical, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root = physical
+	writeRepoFile(t, root, "workshop/issues/000335-legacy.md", "---\nid: 335\nstatus: working\nstarted: 2026-10-14T00:01:00Z\n---\n# Legacy actual\n")
+	ownedFixtureAt(t, 1)
+	testfix.Git(t, root, "add", "workshop")
+	testfix.Git(t, root, "commit", "-qm", "#335: plan: legacy fixture")
+	ownedFixtureAt(t, 10)
+	testfix.Git(t, root, "commit", "--allow-empty", "-qm", "#335: work")
+	path := filepath.Join(os.Getenv("HOME"), ".qoder/projects/fixture/good.jsonl")
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		t.Fatal(err)
+	}
+	good := fmt.Sprintf(`{"type":"workspace-directories","sessionId":"good-qoder","directories":[%q]}`+"\n", root)
+	for _, minute := range []int{2, 3, 7, 8} {
+		good += fmt.Sprintf(`{"type":"user","sessionId":"good-qoder","timestamp":"2026-10-14T00:%02d:00Z","message":{"content":"#335"}}`+"\n", minute)
+	}
+	if err := os.WriteFile(path, []byte(good), 0600); err != nil {
+		t.Fatal(err)
+	}
+	baseline := computeActualFor(context.Background(), root, "", "335", "", "")
+	if baseline.Status != actualMeasured || baseline.Hours <= 0 || !strings.Contains(strings.Join(baseline.Warnings, " "), "legacy no-tracker") {
+		t.Fatalf("legacy fixture lacks positive labelled baseline: %+v", baseline)
+	}
+	bad := "not-json\n" + strings.ReplaceAll(good, "good-qoder", "broken-qoder")
+	if err := os.WriteFile(filepath.Join(filepath.Dir(path), "broken.jsonl"), []byte(bad), 0600); err != nil {
+		t.Fatal(err)
+	}
+	measured := computeActualFor(context.Background(), root, "", "335", "", "")
+	if measured.Status != actualError {
+		t.Errorf("legacy actual silently omitted unresolved Qoder source: %+v", measured)
+	}
+	flags := &closeFlags{Issue: 335, BrainDir: filepath.Join(t.TempDir(), "no-brain")}
+	var diagnostics bytes.Buffer
+	_, adopted := adoptOmittedActual(&diagnostics, flags, "335", "issue")
+	if adopted || flags.Actual != "" {
+		t.Fatalf("legacy close adopted partial evidence: adopted=%v actual=%q diagnostic=%s", adopted, flags.Actual, diagnostics.String())
+	}
+}
