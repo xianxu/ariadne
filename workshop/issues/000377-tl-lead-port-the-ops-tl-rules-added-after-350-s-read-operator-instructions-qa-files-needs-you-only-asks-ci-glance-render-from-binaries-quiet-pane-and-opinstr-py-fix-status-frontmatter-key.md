@@ -50,7 +50,7 @@ Durable plan: `workshop/plans/000377-tl-lead-port-the-ops-tl-rules-added-after-3
 - [x] help names every verb (test)
 - [x] atlas tl-skills.md
 - [x] G10 (verify slots after a disruption) and G11 (issue filing), text from the TL (plan Revisions)
-- [ ] fresh comparison of the draft against help.md, recorded in the Log
+- [x] fresh comparison of the draft against help.md, recorded in the Log
 
 ## Estimate
 
@@ -87,3 +87,4 @@ total: 1.259
 - The TL approved the plan (G1–G9, the hash guard, `couch-owner:`), pinned `--flow full`, and supplied the text for G10 and G11 (plan Revisions).
 - plan-quality INFO, 2 Minors (help rule guards; the single-shot link write), folded into the plan's Revisions. The plan file was renamed to its canonical name.
 - Built in 677b2a33. The help guards cover one phrase per rule (G1–G8, G10, G11); the verb test walks the command tree. Parity: on a copy of ops's real status file with its answer links stripped, `instructions list` output matches `opinstr.py list` byte for byte (3 bullets). `go test ./cmd/tl-lead ./cmd/tl-worker` green.
+- Fresh comparison (a fresh-context subagent, the draft at e7ea8e5 against tl-lead/tl-worker help plus the cited `couch --skill`, `sdlc --help` and AGENTS §5/§15): about 140 rules covered, no load-bearing rule missing. It found 5 minor omissions, now folded in with guards: in a dispatch the repo prefix is enough; update the status file on every thread change; don't ask Couch to encode one repo's usage; stage with `sdlc stage`, never `sdlc move`; waves are fine, written as the trains table. One contradiction is deliberate: known-red CI. The draft lets it land; tl-lead (since #350) and AGENTS §5 (#309) say `sdlc merge` refuses red CI, fix it in its own issue. It was confirmed in practice on #350 (no CI waiver). Also dropped as obsolete: the until-ariadne#308 stray-tick trap, the ariadne#318 sandbox bypass, `tools/watch_issues.py`, 'by hand until sdlc learns directories'.

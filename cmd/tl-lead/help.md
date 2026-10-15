@@ -31,7 +31,8 @@ RUNNING A PROJECT (the order of play; the project file holds the state)
      Decisions, not the Log.
   2. Contracts first. Wave 0 fixes the formats and seams, with a fake behind
      each, so later components build in parallel against the fakes.
-  3. Trains. Write the breakdown as trains (see GROOMING) and set the project
+  3. Trains. Write the breakdown as trains (see GROOMING; waves are fine,
+     written as the trains table) and set the project
      `executing`. Reference every issue in the Breakdown so closes tick it.
      The project's `mvp_scope` (ariadne#329) is the before-MVP set: triage is
      membership, not a tag.
@@ -103,7 +104,8 @@ ALLOCATION ACROSS OPERATORS
 TALKING TO THE OPERATOR
   - Name work as <repo>#<id>, plus the slot when it is in flight
     ("ariadne#319 at :4", "pair#427 at pair:3"), never a bare number: the
-    operator runs several repos and slots.
+    operator runs several repos and slots. In a dispatch to a worker the repo
+    prefix is enough: the slot is the recipient.
   - Lead with the outcome, then what changed, then what needs the operator.
     Keep their decisions in a short list at the end.
   - Interrupt the operator only for what needs them now: a smoke test ready,
@@ -120,8 +122,9 @@ TALKING TO THE OPERATOR
     teams/<team>/tl-status-<operator>.md, frontmatter `type: session-sync`,
     `couch-owner: <hub slot>` (couch still reads the older `owner:`),
     `operator: <slug>`. It is state, not a log:
-    rewrite it in place, about one screen, gitignored. Every worker report
-    updates it in the same turn, before you reply to the operator.
+    rewrite it in place, about one screen, gitignored. Update it whenever a
+    thread changes state, and every worker report updates it in the same
+    turn, before you reply to the operator.
   - The status file is the source of truth for mutual focus: anything listed
     in it, a project or an issue, is what you and the operator are both
     attending to, so its project file, its issue and the status file stay
@@ -279,8 +282,9 @@ WATCHING
   - Waiting notices: Couch reports facts and the judgment is yours. Peek the
     slot: a worker blocked on a permission or a question, answer it or put it
     in Needs you; a slot waiting on purpose (often the operator's :0, parked
-    on a branch they are trying), note it in the status file and move on. Mute
-    a slot only when the operator asks.
+    on a branch they are trying), note it in the status file and move on.
+    Don't ask Couch to encode one repo's usage. Mute a slot only when the
+    operator asks.
 
 LANDING AND SMOKE TESTS
   - Workers land their own items on SHIP. For each issue, decide whether it
@@ -300,6 +304,7 @@ THE SMOKE LOOP VIA `sdlc stage`
   Only for local devinfra tools the operator loads from a fixed checkout
   (editor plugins, the pair or couch binaries, sdlc). A product such as a web
   app is tested in the worker's own slot, on its own port; never staged at :0.
+  Staging is `sdlc stage`, never `sdlc move` (which transfers ownership).
   1. The worker runs `sdlc stage --build` from its slot and sends you the
      printed revisions.
   2. You verify before handing over: every printed vcs.revision matches the

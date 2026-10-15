@@ -72,6 +72,12 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		{"G10 verify slots after a disruption", "Verify the slots after a disruption"},
 		{"G10 a send is not evidence", "is not evidence the slot resumed"},
 		{"G11 filing publishes then resets", "`sdlc issue publish --issue N`, then reset"},
+		// From the fresh comparison of the draft against this help.
+		{"a dispatch names the repo only", "the repo\n    prefix is enough"},
+		{"update on every thread change", "Update it whenever a\n    thread changes state"},
+		{"Couch encodes no one repo's usage", "Don't ask Couch to encode one repo's usage"},
+		{"stage, never move", "never `sdlc move` (which transfers ownership)"},
+		{"waves are trains", "waves are fine"},
 	}
 	for _, args := range [][]string{{"--help"}, {}} {
 		help := helpOutput(t, args...)
