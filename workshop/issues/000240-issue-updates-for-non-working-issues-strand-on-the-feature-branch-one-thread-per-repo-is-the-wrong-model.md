@@ -1,12 +1,12 @@
 ---
 id: 000240
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-20
 updated: 2026-10-14
 estimate_hours:
-card_mirror: 'ad99acfe3c4b75be63be3dd1177f916930d52e22' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5d9580e0acd30d93d5a2c176f5f29b449bbdbff1' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T08:53:15-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 9.66
 ---
 
 # Issue updates for non-working issues strand on the feature branch — one thread per repo is the wrong model
