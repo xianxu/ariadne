@@ -39,7 +39,7 @@ hardcoded `/tmp` temp locations and fix them the same way.
 
 ## Plan
 
-- [ ] Remove hardcoded test temporary-directory roots found by the sweep.
+- [x] Remove hardcoded test temporary-directory roots found by the sweep.
 - [ ] Verify the report with a writable TMPDIR and denied outside allocation; run the recorded full suite.
 
 ## Log
@@ -47,3 +47,17 @@ hardcoded `/tmp` temp locations and fix them the same way.
 ### 2026-10-14
 
 Claimed ariadne:5 and started from fresh main. The authorized small design is to let Python tempfile select its environment-configured root, removing explicit /tmp overrides rather than adding another fallback policy (ARCH-DRY). Initial inventory found the report test and embedded Python in scripts/test/slot-dependencies.test.sh. Wider scratch-state findings were sent to the hub for scope guidance: brainstorming start/stop is a coupled managed-skill protocol, and close-issue.py uses a warmup counter file rather than a temporary directory. A documented allocation-denial check will execute the real report test with a custom writable TMPDIR and reject temporary allocations outside it; the issue explicitly permits a documented check.
+
+### Restricted-root verification
+
+Before the fix, a real macOS sandbox with writable custom TMPDIR and denied writes under /tmp and /private/tmp reproduced PermissionError in both the report test and the slot-dependencies bootstrap. After removing the two dir overrides, the same check passes; the explicit raw-/tmp allocation control remains denied. Commands/results: python3 -B /tmp/ariadne382-tmpdir-check.py; RED /tmp/ariadne382-tmpdir-red.log, GREEN /tmp/ariadne382-tmpdir-green.log. The bootstrap check executes only the existing allocation prefix and verifies its evidence directory is a child of TMPDIR, without running the unrelated product acceptance suite. The existing Go wrapper TestShardedReportRetainsSubtestDiagnostics passes (0.456s; /tmp/ariadne382-shard-report.log).
+
+Reproduce the report check from a writable TMPDIR outside /tmp:
+
+```sh
+test_root=$(mktemp -d "${TMPDIR:?}/ariadne382.XXXXXX") || exit 1
+trap 'rmdir "${test_root:?}"' EXIT
+TMPDIR="${test_root:?}" sandbox-exec -p '(version 1) (allow default) (deny file-write* (subpath "/tmp") (subpath "/private/tmp"))' python3 -B scripts/test-shard.test.py
+```
+
+The read-only sweep inspected allocator and /tmp matches across 693 tracked shell/Python/Go-test/testdata files in scripts, construct, cmd, pkg, .colima and .openshell. Exactly the two changed test allocations force /tmp. Intentional literals in pkg/shelllint/mktemp_test.go exercise rejection; other Go/testdata hits are sample paths or error strings. Proper ${TMPDIR:-/tmp} fallbacks remain. Wider scripts findings are pending hub scope guidance: managed brainstorming start/stop default session paths (active adaptation and frozen copies), and the legacy close-issue.py warmup counter file.
