@@ -63,8 +63,8 @@ Durable design: [Qoder transcript measurements](../plans/000385-qoder-transcript
 - [x] Native columns and coverage across fleet/slot/model/issue/hourly output;
   documentation, conformance and targeted regression checks.
 
-Release sequence (pending): recorded exact-head full suite, shared close review
-to SHIP, PR and merge. These gates follow completed implementation.
+Release sequence: recorded exact-head full suite passed; shared close review
+to SHIP, PR and merge remain pending. These gates follow completed implementation.
 
 ## Log
 
@@ -222,6 +222,8 @@ file splits/names in the initial plan without adding another runtime owner.
 - Recorded suite on 02cdc490f32e7952d27ca04f9841fac4e000f8d9 failed after 558.4s: all runtime shards/packages passed, but TestVerbContextsReachTrackerReads found background contexts in Qoder identity and transcript selection. Thread caller contexts through both APIs and commit before a new recorded suite; do not change the guard. Failure log: git common dir/sdlc/test-stats/failed/9386958194ea2e6d5bf9b125515098a4.log.
 
 - Context repair verified: existing TestVerbContextsReachTrackerReads (0.770s), TestEveryCommitSiteStamps plus migrate/propagation checks (14.987s), and TestQoderActualCloseOwnershipAndRetainedReplay (31.015s) pass. Identity race suite passed; transcript cancellation/race suite passed. No guard exceptions changed.
+
+- Recorded full suite passed on 36d666d5d23b68665210a0e79d8c54cb926de3ab: 12 shards over 1493 cmd/sdlc tests plus 63 other packages, zero failures, wall 549.7s. Status sdlc-local/suite; log sha256 prefix 87ceba8033ab. Queue wait 1498s was separate from runtime. Full log: git common dir/sdlc/local-checks/36d666d5d23b68665210a0e79d8c54cb926de3ab/suite.log. Gitx context/publication regression selection also passed (144.720s).
 
 ## Estimate
 
