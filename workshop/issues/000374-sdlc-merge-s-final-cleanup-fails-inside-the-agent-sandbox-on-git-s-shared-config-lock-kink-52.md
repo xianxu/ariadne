@@ -39,7 +39,7 @@ Find which cleanup step writes git's shared config (branch deletion with upstrea
 - [x] Reuse the existing done-card merge/reconcile sweep to retry configuration cleanup for absent, unoccupied landed issue branches; preserve live/recreated refs and unrelated config (ARCH-DRY, ARCH-FUNERAL).
 - [x] Add real-Git regressions for repeated config-lock denial, interruption before/after ref deletion, automatic later cleanup when writable, and live/recreated branch protection. Exercise the full merge caller with the existing stateful GitHub fake, plus a native denied-config sandbox check.
 - [x] Update help/recovery/atlas and run focused verification for deferred metadata cleanup.
-- [ ] Run recorded full-suite verification on the pushed integrated code head.
+- [x] Run recorded full-suite verification on the pushed integrated code head.
 
 After acceptance, use SDLC close and land on SHIP; those workflow transitions are recorded by their own evidence.
 
@@ -72,6 +72,10 @@ Reproduced the actual default-agent boundary using a temporary Go overlay of the
 The first default-profile run refused fake-server unpack into the host's unrelated /var/folders temporary tree. Retried with the scratch fixture in Claude's existing writable TMPDIR, /Volumes/AgentScratch/tmp/claude-501, without modifying sandbox settings. The successful default-profile child completed in 7.34s; complete host harness passed in 18.359s. Saved stream /tmp/ariadne374-default-sandbox-stream.jsonl SHA-256 74793f8ae2bc669416c81ce17c32a169ad60c4fa3c76f9276feff3127662abc3; command log /tmp/ariadne374-default-sandbox.log SHA-256 10842d0f55514c6a20ae2faadcaca7c85820422d83adf6a40fa22bc5aba0f0d2. Directly inspected the stream's system initialization and Bash input; this conclusion does not rely only on the model's summary. Sent these qualifications to hub, superseding the earlier unresolved environment question. No separate live GitHub issue was created.
 
 Recorded full suite is queued on pushed integrated code head 046de3e2eb19f0072f28e5055fbef9b7bf42337d (session 84920), log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/046de3e2eb19f0072f28e5055fbef9b7bf42337d/suite.log, PR https://github.com/xianxu/ariadne/pull/252. Keep this existing run. Only documentation changes after its pinned code head.
+
+### 2026-10-15 — recorded full suite passed
+
+sdlc local-check run --name suite passed on 046de3e2eb19f0072f28e5055fbef9b7bf42337d: all 12 shards over 1,376 cmd/sdlc tests plus 59 other packages, zero failures, wall 491.1s (8m11s). Recorded as sdlc-local/suite; log SHA-256 prefix 29a64b61bad4 at the path above. Weighted queue wait was 2,671s. Only issue/plan documentation changed after that code head. Local acceptance is complete under the TL's explicit revision; production Claude-slot conformance remains TL-owned after landing.
 
 ## Revisions
 

@@ -51,7 +51,7 @@ All rows are integration tests; none misclassifies Git-backed behavior as pure.
 - [x] Observe compatibility regressions fail on baseline, implement nonblocking ancillary cleanup and retry discovery, and observe combined GREEN.
 - [x] Finish compatibility adaptation and adversarial guards using the function strategies above; mutation-check the changed admission rules.
 - [x] Update PR/merge help, recovery catalog, atlas and README to describe explicit issue publication and deferred legacy metadata cleanup with its ownership boundary.
-- [ ] Run relevant focused regressions and recorded full suite on pushed integrated HEAD via sdlc local-check run --name suite.
+- [x] Run relevant focused regressions and recorded full suite on pushed integrated HEAD via sdlc local-check run --name suite.
 - [x] Fulfill the default-agent-sandbox scratch cleanup check; record the actual Claude default-profile tool call and real-Git/stateful-local-GitHub fixture qualifications in the issue Log. Production landing still runs all gates.
 After acceptance: close through binary-owned review, fix findings, merge current main, land via sdlc merge --yes with all validations and report actual hashes. Their actual outcomes belong in the issue Log.
 
