@@ -10,9 +10,12 @@ call is the whole shell command (AGENTS §15).
 
 Decide in this order, and edit directly only on a confirmed **untracked**:
 
-1. Outside a Couch slot (`COUCH_TREE` unset): **untracked**.
-2. Frontmatter `type: session-sync`: **tracked**, whatever the registry says
-   (Couch routes these through its own storage without a registration).
+1. Frontmatter `type: session-sync`: **tracked**, whatever the registry says
+   and wherever you are (Couch routes these through its own storage without a
+   registration). If Couch can't be reached (outside a Couch slot, or a
+   failing call), write nothing and tell the operator; never fall back to a
+   direct edit.
+2. Outside a Couch slot (`COUCH_TREE` unset): **untracked**.
 3. `couch --session-sync lookup FILE --json` exits 0 with Code `ok`:
    a non-null Registration is **tracked**; an explicit `null` Registration is
    **untracked**.
@@ -40,10 +43,11 @@ One round reviews one snapshot: the text whose hash you write against.
    new document, frontmatter kept, to a body file made with
    `mktemp "${TMPDIR:-/tmp}/review.XXXXXX"`.
 5. **Write:** `couch --session-sync write --all BODYFILE FILE --if-hash H --fold ID[,ID]`,
-   folding exactly the IDs kept in step 1, which this write answers. A
-   delivery that arrived after step 1 stays owed for the next round. With no
-   IDs kept, leave out `--fold`. With nothing to change, write the snapshot
-   back as read, so the asks are still folded.
+   folding only those IDs kept in step 1 whose asks this write answers. A
+   kept delivery you didn't answer, and one that arrived after step 1, stay
+   owed for the next round. With no IDs to fold, leave out `--fold`. When the
+   answer changes nothing, write the snapshot back as read, so its asks are
+   still folded.
 
 Refusals:
 

@@ -12,9 +12,9 @@ skill carries the rest.
   verb, so it works outside Couch. §4 is reserved for S2's section modes.
 - **`modes/*.md`** — the six stock modes, canonical here since #399; parley snapshots them.
 - **`adapters/file-edit.md`** — editing the file. A document is edited directly only on a
-  confirmed untracked lookup; a `type: session-sync` file or a registered one goes through
+  confirmed untracked lookup; a `type: session-sync` file (tracked even outside a slot) or a registered one goes through
   `couch --session-sync` status → diff → `read --all` (the snapshot, hash H) →
-  `write --all --if-hash H --fold <the IDs read in status>`. Exit 3 (lock) defers to the
+  `write --all --if-hash H --fold <the IDs from status that this write answers>`. Exit 3 (lock) defers to the
   next submit; exit 6 (stale) recomputes.
 - **`review-convention.md`** — a symlink to `construct/local/fix/review-convention.md`, the
   one authored marker grammar.

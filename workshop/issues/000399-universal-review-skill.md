@@ -125,3 +125,6 @@ S2 and project.md S2a. This is the shared-skill half; no Parley code belongs her
   - "edit region" in place of the overloaded word "scope";
   - "pending" as any agent turn, whoever wrote it;
   - where the operator's free text applies.
+- 2026-10-15: parley.nvim:1 checked the pin at 8bead12b (delivery c732ec76): all 9 member hashes match, and the six modes are byte-identical to parley's. The export shape is accepted. Two corrections to the file-edit adapter followed:
+  - `type: session-sync` is tested first, before `COUCH_TREE`. A legacy session-sync file stays tracked outside a slot, and when its storage is unreachable the adapter refuses instead of editing directly.
+  - The write folds only the kept IDs whose asks it answers. A kept delivery that wasn't answered stays owed.
