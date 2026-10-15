@@ -432,7 +432,7 @@ Commit and integrate main before fresh recorded suite and shared close.
 
 Recorded sdlc-local/suite passes on534f55993743981145013fabd916180fef2a23f1:
 1430 cmd/sdlc tests and62 other packages, zero failures across12 shards and the
-package run,552.5s/9m13s after2348s queue wait. Log SHA256 prefixed8c620b8859
+package run,552.5s/9m13s after2348s queue wait. Log SHA256 prefix ed8c620b8859
 on Mac.localdomain. This includes transition-compatible receipt reconciliation
 and main's sandbox-safe branch configuration integration. Prior reporting-path
 real-store fleet/issue smokes passed22.03s/31.91s before the final pure receipt
