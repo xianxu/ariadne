@@ -1,6 +1,6 @@
 ---
 id: 000365
-status: codecomplete
+status: done
 created: 2026-10-14
 updated: 2026-10-15
 estimate_hours: 8.881
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: b759d303ec54115d173213a91d3c1a62807f7640
         evidence_commit: 56f47485f46a28e279295e202c84bb9f28f40ad7
+        landed_commit: 679f977353020fbada3bddd99af66a969eca86a6
 ---
 
 # sdlc usage: tokens per slot, agent and model from local transcripts, with burn rate (fleet monitoring + bench metric)
