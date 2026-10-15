@@ -346,6 +346,174 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: deb475f4-837f-428e-b764-9569698eb952
+            repository: github.com/xianxu/ariadne
+            issue_id: "000385"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/201d08d1f0de78ef
+            reviewed_head: c907a4d0ba566153263b2334826a9eeb5779f1dd
+            slot: ariadne:3
+            requested_at: "2026-10-15T20:04:59.847852Z"
+          phase: finished
+          pid: 9588
+          started_at: "2026-10-15T20:04:59.956079Z"
+          finished_at: "2026-10-15T20:07:23.068597Z"
+          session_id: 01a1412b-029d-7fc0-aa89-d0362e8e17f2
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: c907a4d0ba566153263b2334826a9eeb5779f1dd
+        tracker_head: 50b325faaa7337121199f235859f0aa8b54027f5
+        branch_point: 8e637c6e2dd431b4c82c42c2dea680f93918c785
+        since: "2026-10-15T09:33:04-07:00"
+        until: "2026-10-15T13:04:44-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-15T09:33:04-07:00"
+              end: "2026-10-15T13:04:44-07:00"
+              began: "2026-10-15T09:33:04-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fd-1ac0-7a83-826e-60623c226386
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: a584a19e995ca1e921b1f3791b1044b4fa2c02533e2cfc0229b55973c8474416
+              started: "2026-10-14T05:58:30.184Z"
+              spawned: false
+              bytes: 44288249
+              windows:
+                - start: "2026-10-15T09:33:04-07:00"
+                  end: "2026-10-15T13:04:44-07:00"
+            - harness: codex
+              id: 01a14074-981e-74f2-af8c-a6ddf477fc6d
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: a9886dc5ea07325421724dbd964a263d52c38a01666ce05f66b4eb483be6e957
+              started: "2026-10-15T16:45:47.228Z"
+              spawned: false
+              bytes: 758658
+              windows:
+                - start: "2026-10-15T16:45:47.228Z"
+                  end: "2026-10-15T13:04:44-07:00"
+            - harness: codex
+              id: 01a14079-9246-7ea3-91fb-c457e3886da9
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 1f1689dceec0617335228ae3ffa7158942cc8f392d39eed6bd1e8e0323cd5c72
+              started: "2026-10-15T16:51:14.597Z"
+              spawned: false
+              bytes: 453960
+              windows:
+                - start: "2026-10-15T16:51:14.597Z"
+                  end: "2026-10-15T13:04:44-07:00"
+            - harness: codex
+              id: 01a1407a-af6f-7152-833b-a43cafac9231
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 467ba6fd9787954503097fe5d6f76e5f3eacf111156a527937edb4a48121c222
+              started: "2026-10-15T16:52:26.427Z"
+              spawned: false
+              bytes: 462233
+              windows:
+                - start: "2026-10-15T16:52:26.427Z"
+                  end: "2026-10-15T13:04:44-07:00"
+            - harness: codex
+              id: 01a1407b-1424-7c31-964f-c6839b6c5951
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 9bfc53e280ec295615d2f254082bc30c1f99379efc2f80040203fcef658d93a0
+              started: "2026-10-15T16:52:54.44Z"
+              spawned: false
+              bytes: 420615
+              windows:
+                - start: "2026-10-15T16:52:54.44Z"
+                  end: "2026-10-15T13:04:44-07:00"
+            - harness: codex
+              id: 01a1407b-ee59-71d1-98d5-f8a27ea6615a
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a138fd-1ac0-7a83-826e-60623c226386
+              digest: 9efef5aa5f9e50eef2d508357bf71aee275445db8b2a49fb239a8fb0e8da70a8
+              started: "2026-10-15T16:53:46.292Z"
+              spawned: true
+              bytes: 611271
+              windows:
+                - start: "2026-10-15T16:53:46.292Z"
+                  end: "2026-10-15T13:04:44-07:00"
+            - harness: codex
+              id: 01a1407d-b788-7921-97ed-2aa273e67570
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a138fd-1ac0-7a83-826e-60623c226386
+              digest: 23ed2409e504187554c6d6aa4eba3868f59c74027970bb50e97cb1bd40c15e76
+              started: "2026-10-15T16:55:43.336Z"
+              spawned: true
+              bytes: 806710
+              windows:
+                - start: "2026-10-15T16:55:43.336Z"
+                  end: "2026-10-15T13:04:44-07:00"
+            - harness: codex
+              id: 01a1407e-0e37-7f82-9b51-1e2425d58944
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a138fd-1ac0-7a83-826e-60623c226386
+              digest: 888e8c69e57908465103bf8fe4ab74d0205318c884c073cf5c4e53ca373a20f0
+              started: "2026-10-15T16:56:05.521Z"
+              spawned: true
+              bytes: 1906848
+              windows:
+                - start: "2026-10-15T16:56:05.521Z"
+                  end: "2026-10-15T13:04:44-07:00"
+            - harness: codex
+              id: 01a14080-72b2-7e43-bc09-63ffe1e09102
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a138fd-1ac0-7a83-826e-60623c226386
+              digest: e1a877e295cf76c410c5c74c7a817e582583faf1e507b98fe977b821fe7d9247
+              started: "2026-10-15T16:58:42.319Z"
+              spawned: true
+              bytes: 1553084
+              windows:
+                - start: "2026-10-15T16:58:42.319Z"
+                  end: "2026-10-15T13:04:44-07:00"
+            - harness: codex
+              id: 01a140bb-446b-78a2-bad0-8a87ab45e0d6
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a138fd-1ac0-7a83-826e-60623c226386
+              digest: bea2c41d92607fceb2ea2d50a0cf2458e402a022f020adbe379546da89cb68ea
+              started: "2026-10-15T18:02:57.072Z"
+              spawned: true
+              bytes: 811720
+              windows:
+                - start: "2026-10-15T18:02:57.072Z"
+                  end: "2026-10-15T13:04:44-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 0.03448333333333333
+        cuts:
+            - dispatched: "2026-10-15T11:42:18-07:00"
+              finalized: "2026-10-15T11:45:12-07:00"
+              finalizing: false
+            - dispatched: "2026-10-15T12:23:40-07:00"
+              finalized: "2026-10-15T12:26:00-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-15T13:07:23-07:00"
+      dispatched: "2026-10-15T13:04:59-07:00"
+      agent: codex
+      dispose:
+        - id: BR-3
+          disposition: addressed
+          note: Failed scans retain unresolved ownership unless complete evidence proves exclusion. Production tracked and legacy actual/close regressions pass. Restoring the former early parse return and error-selection rule in a disposable copy makes the discovery failure matrix and unreadable-candidate regression fail; the copy was removed.
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: c907a4d0ba566153263b2334826a9eeb5779f1dd
+      blocked: false
 ---
 
 # Gate ledger — ariadne#385 (boundary-review)
@@ -374,6 +542,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-3** [Critical] `incomplete-evidence-adoption` Malformed prefixes allow close to adopt incomplete Qoder actuals
   cmd/sdlc/internal/transcripts/qoder.go:119–121 returns on a malformed row before later workspace metadata can establish relevance. discovery.go:54–59 then treats the failed source as skippable. A temporary extension of TestQoderActualDiscoveryRefusesPartialOwnedEvidence with "not-json\n" before valid owned rows returned the good source with no error. A production actual/close overlay confirmed actualMeasured, 0.1 hours and adopted=true despite that omitted owned source. Preserve uncertainty until exclusion is proven: continue bounded relevance discovery after recoverable parse failures, and refuse automatic adoption when scan failures or limits leave ownership unresolved. Sweep parse, read and bound failures before ownership resolution, with discovery and close regressions (ARCH-SECURE, ARCH-ORDER, ARCH-PURPOSE).
 
+## Round 3 — 2026-10-15T13:07:23-07:00 (codex) — passed
+
+### Disposed
+
+- BR-3 — addressed — Failed scans retain unresolved ownership unless complete evidence proves exclusion. Production tracked and legacy actual/close regressions pass. Restoring the former early parse return and error-selection rule in a disposable copy makes the discovery failure matrix and unreadable-candidate regression fail; the copy was removed.
+
 ## Open findings
 
-- **BR-3** [Critical] `incomplete-evidence-adoption` Malformed prefixes allow close to adopt incomplete Qoder actuals
+(none — every finding has been disposed)
