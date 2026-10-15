@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "ee32aab6", done: "4e0a0b91"}
 ---
 
 # TestPreparationOutputAndCancellation requires output before a 200ms startup deadline; use readiness-based cancellation
