@@ -36,7 +36,7 @@ The operator (2026-10-14) made test health and performance a train ("test econom
 
 - [x] Parse recorded suite logs and aggregate per-repository wall, queue, slow-unit and flake metrics; test pure calculations with ariadne and pair fixtures.
 - [x] Preserve one compact record per future suite attempt so retries, queue waits and baseline runs are measurable; test retention and lost status posts.
-- [ ] Expose `sdlc test-stats --since 7d [--repo …] [--json]`, verify the real ariadne/pair output, update CLI documentation, run the suite and close review.
+- [x] Expose `sdlc test-stats --since 7d [--repo …] [--json]`, verify the real ariadne/pair output, update CLI documentation, run the suite and close review.
 
 Detailed design: [test-stats plan](../plans/000376-test-stats-plan.md). The TL approved recording future attempts because current logs cannot reconstruct all requested metrics.
 
@@ -69,6 +69,7 @@ Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `
 - The real read-only CLI from ariadne:1 reports ariadne 20 historical suite runs (wall coverage 19/20, queue 0/20) and pair 20 (wall and queue 0/20), with slow-unit lists; historical unknowns remain `n/a`. A third sibling, parley.nvim, has 8 partial runs. No confirmed flake rate denominator exists until new per-attempt records accumulate.
 - The first recorded suite was queued behind two other runs; I cancelled it before it acquired the suite lock after spotting a total-reader-memory gap. The reader now streams directory entries and caps aggregate JSON intake at 64 MiB with an explicit warning. The suite will run on the corrected pushed head.
 - During the next queue wait, validation review found an omitted JSON `exit` defaulted to zero and could fabricate success. Added required-field and duplicate-key checks, with regression fixtures; cancelled before acquiring the suite lock again so final verification applies to the corrected head.
+- The recorded `sdlc local-check run --name suite` passed on pushed head `0554b5cd5c50dfbf274db6948f2107cb28ee7094`: 12 shards and 59 other packages, 0 failures, wall 538.8s, queue wait 2557s; check `sdlc-local/suite` recorded with log SHA-256 prefix `0eb8013093b0`. `git diff --check` passed. Submitting the branch to the close boundary review now.
 
 ## Revisions
 
