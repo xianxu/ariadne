@@ -47,16 +47,57 @@ func TickAllTaskRowsForIssue(text, repoName, issueID string) (string, int) {
 	wantRef := repoName + "#" + issueID
 	n := 0
 	for _, task := range d.legacyTaskRows {
-		if task.State != ' ' && task.State != '.' {
-			continue
-		}
-		if task.RefText != wantRef && !strings.HasPrefix(task.RefText, wantRef+" ") {
+		if !openIssueRow(task, wantRef) {
 			continue
 		}
 		d.setTaskStateAtLine(task.LineIdx, 'x')
 		n++
 	}
 	return renderTickDoc(d, fullDoc), n
+}
+
+// openIssueRow is the issue-close match: a `[ ]` or `[.]` row whose ref is the
+// issue, with or without a milestone tag.
+func openIssueRow(task Task, wantRef string) bool {
+	return (task.State == ' ' || task.State == '.') && refIsIssue(task.RefText, wantRef)
+}
+
+func refIsIssue(refText, wantRef string) bool {
+	return refText == wantRef || strings.HasPrefix(refText, wantRef+" ")
+}
+
+// TickLandedIssue is the landing edit (#373): every open row for the issue is
+// ticked as TickAllTaskRowsForIssue does, and every row for the issue that is
+// now ticked gains " (PR #<pr>)" unless it already names that PR. Cancelled
+// rows are left alone. Idempotent: a second run returns the same text. An
+// empty pr only ticks. Returns the text and the number of rows changed.
+func TickLandedIssue(text, repoName, issueID, pr string) (string, int) {
+	d, fullDoc, err := parseTickDoc(text)
+	if err != nil {
+		return text, 0
+	}
+	wantRef := repoName + "#" + issueID
+	n := 0
+	for _, task := range d.legacyTaskRows {
+		changed := false
+		if openIssueRow(task, wantRef) {
+			d.setTaskStateAtLine(task.LineIdx, 'x')
+			changed = true
+		}
+		if pr != "" && (changed || task.State == 'x') && refIsIssue(task.RefText, wantRef) && !mentionsPR(d.lines[task.LineIdx], pr) {
+			d.lines[task.LineIdx] = strings.TrimRight(d.lines[task.LineIdx], " \t") + " (PR #" + pr + ")"
+			changed = true
+		}
+		if changed {
+			n++
+		}
+	}
+	return renderTickDoc(d, fullDoc), n
+}
+
+// mentionsPR reports whether line already names PR #pr (not a longer number).
+func mentionsPR(line, pr string) bool {
+	return regexp.MustCompile(`PR #` + regexp.QuoteMeta(pr) + `\b`).MatchString(line)
 }
 
 func parseTickDoc(text string) (*Doc, bool, error) {

@@ -745,6 +745,11 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 			}
 		}
 
+		// ── 11.5 Landing tick (#373) ────────────────────────────────────────────
+		if merged {
+			tickOnLanding(ctx, stdout, stderr, mainPath, branch, prNumber)
+		}
+
 		// ── 12. Cleanup ─────────────────────────────────────────────────────────
 		if inPlace {
 			// Already switched to main + pulled above; just delete the merged branch.

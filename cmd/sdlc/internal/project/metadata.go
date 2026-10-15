@@ -119,3 +119,34 @@ func (d *Doc) TLOwners() ([]string, error) {
 	}
 	return owners, nil
 }
+
+// TLLandingTickDefault is whether a landing ticks a TL-owned project whose
+// frontmatter has no `landing_tick:` (#373). Off while the operator decides on
+// #326's ownership change; flipping it is this one line.
+const TLLandingTickDefault = false
+
+// LandingTick reports whether `sdlc merge` writes this project's rows when a
+// referenced issue lands. An explicit `landing_tick: true|false` wins;
+// otherwise a project without `tl:` ticks and a TL-owned one follows
+// TLLandingTickDefault. An unreadable field or owner is an error, so a caller
+// never writes a TL's file on a guess.
+func (d *Doc) LandingTick() (bool, error) {
+	var m struct {
+		LandingTick any `yaml:"landing_tick"`
+	}
+	if err := yaml.Unmarshal([]byte(d.fm), &m); err != nil {
+		return false, fmt.Errorf("decode YAML frontmatter: %w", err)
+	}
+	switch v := m.LandingTick.(type) {
+	case bool:
+		return v, nil
+	case nil:
+	default:
+		return false, fmt.Errorf("invalid landing_tick YAML type %T; want true or false", v)
+	}
+	owners, err := d.TLOwners()
+	if err != nil {
+		return false, err
+	}
+	return len(owners) == 0 || TLLandingTickDefault, nil
+}

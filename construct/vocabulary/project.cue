@@ -85,6 +85,10 @@ scaffold: sections: [...#ScaffoldSection] & [
 	// A TL-owned project is written only by its TL: close and milestone-close
 	// skip it (ariadne#326).
 	tl?: string | [...string] | null
+	// whether `sdlc merge` ticks this project's rows when a referenced issue
+	// lands (ariadne#373). Absent: yes without tl:, and off for a TL-owned
+	// project until the operator flips the default.
+	landing_tick?: bool | null
 	// issue refs ("repo#id"); the MVP commitment. explicitly_out is the
 	// load-bearing half of the scoping conversation.
 	mvp_scope?:      [...string] | null

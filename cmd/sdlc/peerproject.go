@@ -80,16 +80,9 @@ func peerProjectTransform(in projectEditInput) func([]byte) ([]byte, error) {
 
 // publishPeerProject publishes one peer project edit to the peer's origin.
 func publishPeerProject(ctx context.Context, e projectEdit, closingRef string) error {
-	if gitx.IsBrainRepo(e.repoDir) {
-		return errors.New("a brain capture repository is never written (#176)")
-	}
 	rel, err := peerProjectPath(e.repoDir, e.path)
 	if err != nil {
 		return err
 	}
-	tf, err := peerTrunk(ctx, e.repoDir)
-	if err != nil {
-		return err
-	}
-	return tf.Update(rel, fmt.Sprintf("project: close-time update (%s)", closingRef), peerProjectTransform(e.in))
+	return publishProjectEdit(ctx, e.repoDir, rel, fmt.Sprintf("project: close-time update (%s)", closingRef), peerProjectTransform(e.in))
 }
