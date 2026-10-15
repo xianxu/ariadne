@@ -1,6 +1,6 @@
 ---
 id: 000374
-status: codecomplete
+status: done
 created: 2026-10-14
 updated: 2026-10-15
 estimate_hours: 1.94
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: e4477efc64bfc352c85ba6a01acba5fd7b7e3363
         evidence_commit: 056aa86890d354e8d114adfbb1d1e0e12f83ec65
+        landed_commit: f040e8982d026b403faf94131153e5571f4ea61f
 ---
 
 # sdlc merge's final cleanup fails inside the agent sandbox on git's shared config lock (kink 52)
