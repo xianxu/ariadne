@@ -368,6 +368,19 @@ Missing owned model stays explicit unknown_model without discarding valid spend.
 All source edits are frozen. Commit, integrate main, and run fresh recorded suite
 before shared close. No prior suite is reused for this behavior change.
 
+
+### 2026-10-15 02:55 — reviewer reconciliation acceptance suite passes
+
+Recorded sdlc-local/suite passes on5e0825b416b027d28cc1f6d6ea781f89648b58ef:
+1418 cmd/sdlc tests and62 other packages, zero failures across12 shards and the
+package run,549.5s/9m10s execution after2991s queue wait. Log SHA256 prefix
+ea0d803fab2f on Mac.localdomain. This includes BR-7, preidentity model-context
+isolation and main's Agent trailer integration. Final real-store read-only
+fleet/issue JSON smokes pass22.03s/31.91s on this same code, with null projections
+when calibration is insufficient and seven own legacy reviewer gaps explicit.
+Only documentation bookkeeping follows this passing code head. Shared close
+remains the final review authority.
+
 ## Revisions
 
 ### 2026-10-14 — whole-system bench cost
