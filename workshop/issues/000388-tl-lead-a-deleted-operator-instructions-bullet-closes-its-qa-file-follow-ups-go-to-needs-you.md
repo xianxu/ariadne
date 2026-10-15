@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "8896f841", done: "09465f33"}
 ---
 
 # tl-lead: a deleted Operator-instructions bullet closes its QA file (follow-ups go to Needs you)
