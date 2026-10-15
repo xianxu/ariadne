@@ -20,9 +20,12 @@ func TestIdentityRoundTrip(t *testing.T) {
 			t.Errorf("Parse(%q) = %+v, %v; want %+v", tc.want, back, ok, tc.id)
 		}
 	}
-	// #387: history from #367 says "sdlc" for the same thing.
-	if id, ok := Parse(Legacy); !ok || id != (Identity{}) {
-		t.Errorf("Parse(%q) = %+v, %v; want the human identity", Legacy, id, ok)
+	// #387: history from #367 says "sdlc" for the same thing; the literal pins
+	// the history format, which editing the constant must not change.
+	for _, v := range []string{"human", "sdlc"} {
+		if id, ok := Parse(v); !ok || id != (Identity{}) {
+			t.Errorf("Parse(%q) = %+v, %v; want the human identity", v, id, ok)
+		}
 	}
 	for _, bad := range []string{"", "claude", "claude/x", "-/m/e", "a/b/c/d"} {
 		if _, ok := Parse(bad); ok {
