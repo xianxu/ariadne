@@ -304,6 +304,18 @@ guard0.189s and removed unresolved-identity finish guard0.211s. Help/atlas now
 document skipped preidentity usage and incomplete coverage. Commit and integrate
 main before a fresh recorded suite; shared close remains pending.
 
+
+### 2026-10-15 01:37 — identity-ordering acceptance suite passes
+
+Recorded sdlc-local/suite passes on006be910cea6b6c06e74284825e6d442226d55b2:
+1410 cmd/sdlc tests and61 other packages, zero failures across12 shards and the
+package run,527.2s/8m47s execution after4164s queue wait. Log SHA256 prefix
+c1f5e224441d on Mac.localdomain. This includes the remaining BR-5 fix and main's
+suite-slot release fix. Real read-only fleet/issue JSON smokes on the same code
+pass36.92s/25.71s. Missing calibration remains insufficient with null projections;
+six own legacy reviewer gaps remain explicit after the third review. Shared close
+is next; subsequent checkpoint edits are documentation only.
+
 ## Revisions
 
 ### 2026-10-14 — whole-system bench cost
