@@ -230,6 +230,20 @@ func finishLandedLeftovers(env *trackerEnv, stderr io.Writer, dirs archiveDirs) 
 			done = append(done, rec)
 		}
 	}
+	// Existing branch config is the retry marker; done cards authorize its cleanup.
+	configured, err := optionalBranchConfig(env.git, "config", "--local", "--name-only", "--get-regexp", `^branch\.`)
+	if err != nil {
+		return err
+	}
+	for _, rec := range done {
+		branch := issue.BranchName(rec.Path)
+		for _, key := range strings.Fields(configured) {
+			if dot := strings.LastIndexByte(key, '.'); dot >= 0 && key[:dot] == "branch."+branch {
+				cleanupBranchConfig(env.git, branch, stderr)
+				break
+			}
+		}
+	}
 	for _, rec := range done {
 		base := path.Base(rec.Path)
 		if !live[base] {

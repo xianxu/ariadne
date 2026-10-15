@@ -318,7 +318,7 @@ func returnLandingToRest(ctx context.Context, r gitRunner, t landingTarget, bran
 	}
 	return revalidateLanding(r, t, branch, head, t.Rest)
 }
-func deleteLandingBranch(r gitRunner, t landingTarget, branch, head string) error {
+func deleteLandingBranch(r gitRunner, t landingTarget, branch, head string, stderr io.Writer) error {
 	if err := revalidateLanding(r, t, branch, head, t.Rest); err != nil {
 		return err
 	}
@@ -338,14 +338,8 @@ func deleteLandingBranch(r gitRunner, t landingTarget, branch, head string) erro
 	if err := landingUnoccupied(r, t, branch); err != nil {
 		return err
 	}
-	config, err := landingOptional(r, t.Root, "config", "--local", "--get-regexp", `^branch\.`+regexp.QuoteMeta(branch)+`\.`)
-	if err != nil {
-		return err
-	}
-	if config != "" {
-		_, err = landingGit(r, t.Root, "config", "--local", "--remove-section", "branch."+branch)
-	}
-	return err
+	cleanupBranchConfig(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, branch, stderr)
+	return nil
 }
 func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) error {
 	ctx := commandContext(f.Context)
@@ -603,7 +597,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 				return err
 			}
 		}
-		if err = deleteLandingBranch(r, t, branch, head); err != nil {
+		if err = deleteLandingBranch(r, t, branch, head, stderr); err != nil {
 			return err
 		}
 		// #286: the landed branch leaves origin too, leased on the landed head so
@@ -657,7 +651,7 @@ func runDurablePR(stdout, stderr io.Writer, f *prFlags, t landingTarget) error {
 	body := combineBody(commits, formatFixes(ghNums))
 	if f.DryRun {
 		// #267: the dry run stays offline, so it names both outcomes of the PR query.
-		fmt.Fprintf(stdout, "Would: git push -u %s %s\nWould: update the branch's open PR if one exists, else gh pr create --repo %s --base main --head %s\n%s\n", t.Remote, branch, t.Repo, branch, body)
+		fmt.Fprintf(stdout, "Would: git push %s refs/heads/%s:refs/heads/%s\nWould: update the branch's open PR if one exists, else gh pr create --repo %s --base main --head %s\n%s\n", t.Remote, branch, branch, t.Repo, branch, body)
 		return nil
 	}
 	now, err := resolveLandingTarget(prRunner)
@@ -695,13 +689,6 @@ func runDurablePR(stdout, stderr io.Writer, f *prFlags, t landingTarget) error {
 	// its last push publishes without a blind force.
 	if err = leasedBranchPush(func(args ...string) (string, error) { return landingGit(prRunner, t.Root, args...) }, t.Remote, branch); err != nil {
 		return err
-	}
-	// #267: git exits 0 when it pushes but cannot write the upstream config,
-	// and its stderr is not returned on success; verify the result instead.
-	if upstream, cerr := landingOptional(prRunner, t.Root, "config", "--get", "branch."+branch+".merge"); cerr != nil {
-		cwarn(stderr, fmt.Sprintf("pushed, but could not read %s's upstream: %v", branch, cerr))
-	} else if upstream == "" {
-		cwarn(stderr, fmt.Sprintf("pushed, but git did not record %s's upstream (a write-protected .git/config, as in an agent sandbox, does this); a bare `git push` will fail — re-run `sdlc pr` to publish later commits", branch))
 	}
 	// #267: the branch's open PR follows its head; the push was the update.
 	if len(open) == 1 {

@@ -176,7 +176,7 @@ func createWorktreeBranch(ctx context.Context, stdout, stderr io.Writer, name st
 		}
 		cok(stderr, fmt.Sprintf("Worktree created at %s on existing branch %s", wtPath, name))
 	case worktreeAddNew:
-		if out, err := r.Git("worktree", "add", "-b", name, wtPath, "HEAD"); err != nil {
+		if out, err := r.Git("worktree", "add", "-b", name, "--no-track", wtPath, "HEAD"); err != nil {
 			return "", fmt.Errorf("git worktree add: %v\n%s", err, out)
 		}
 		cok(stderr, fmt.Sprintf("Worktree created at %s on branch %s", wtPath, name))
@@ -223,7 +223,7 @@ func createInPlaceBranch(ctx context.Context, stdout, stderr io.Writer, name str
 		}
 		cok(stderr, fmt.Sprintf("Switched to existing branch %s (working tree carried forward)", name))
 	case inPlaceCreate:
-		if out, err := r.Git("checkout", "-b", name); err != nil {
+		if out, err := r.Git("checkout", "-b", name, "--no-track"); err != nil {
 			return "", fmt.Errorf("git checkout -b %s: %v\n%s", name, err, out)
 		}
 		cok(stderr, fmt.Sprintf("Branch %s created in place (working tree carried forward)", name))
