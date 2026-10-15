@@ -34,8 +34,8 @@ The operator (2026-10-14) made test health and performance a train ("test econom
 
 ## Plan
 
-- [ ] Parse recorded suite logs and aggregate per-repository wall, queue, slow-unit and flake metrics; test pure calculations with ariadne and pair fixtures.
-- [ ] Preserve one compact record per future suite attempt so retries, queue waits and baseline runs are measurable; test retention and lost status posts.
+- [x] Parse recorded suite logs and aggregate per-repository wall, queue, slow-unit and flake metrics; test pure calculations with ariadne and pair fixtures.
+- [x] Preserve one compact record per future suite attempt so retries, queue waits and baseline runs are measurable; test retention and lost status posts.
 - [ ] Expose `sdlc test-stats --since 7d [--repo …] [--json]`, verify the real ariadne/pair output, update CLI documentation, run the suite and close review.
 
 Detailed design: [test-stats plan](../plans/000376-test-stats-plan.md). The TL approved recording future attempts because current logs cannot reconstruct all requested metrics.
@@ -64,6 +64,9 @@ Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `
 
 - Claimed in ariadne:1. Source inspection found ariadne's retained suite logs contain shard summaries and pair's contain Go package timings, but the single log per SHA is overwritten by a retry; queue tickets are ephemeral; pair logs lack total wall time. A per-attempt compact record is needed to measure the full Spec going forward. Historical fields that cannot be recovered will be marked unknown (ARCH-PURPOSE), not estimated from file times.
 - Plan-quality round 1 raised PQ-1–PQ-3 (concurrent publication, persisted-input validation, named function tests) and two Minor findings. The durable plan now specifies a private in-flight directory and atomic record marker, safe cleanup, bounded validation, controlled-order tests, reuse of `failingTests`, and an operating envelope. Re-running the gate on that revision.
+- Plan-quality passed on round 2; change-code entered full-flow implementation after a reconciled 3.48-hour v3.1 estimate. Estimate-quality accepted it with Info that storage and fleet integration may consume more than their primitive allocations; the measured actual at close will calibrate that.
+- Focused tests prove parser/aggregation, malformed-record rejection, failure-log collision refusal, 30-day pruning, crash-orphan cleanup, same-head retry after a failed status POST, exact-head Agent trailer, measured lock wait, and long-line log hashing. `make -k tools` and `git diff --check` pass.
+- The real read-only CLI from ariadne:1 reports ariadne 20 historical suite runs (wall coverage 19/20, queue 0/20) and pair 20 (wall and queue 0/20), with slow-unit lists; historical unknowns remain `n/a`. A third sibling, parley.nvim, has 8 partial runs. No confirmed flake rate denominator exists until new per-attempt records accumulate.
 
 ## Revisions
 

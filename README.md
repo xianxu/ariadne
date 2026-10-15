@@ -405,6 +405,13 @@ docs-only changes such as close's bookkeeping; code changes require another run.
 When the integrated head's suite fails, merge runs an unrecorded copy on main
 and labels the named failures as introduced or pre-existing in its refusal.
 
+`sdlc test-stats` reads saved suite attempts across local sibling repositories
+and reports wall and queue percentiles, slow packages or shards, and named
+flakes. Use `--since 7d`, `--repo pair`, or `--json` to narrow or export the
+view. Historical per-head logs are marked partial because overwritten retries
+and queue waits cannot be reconstructed. The command does not run tests or
+contact GitHub.
+
 ## Fleet queries
 
 Inspect every Git worktree in the sibling-repository fleet from a caller path,

@@ -55,27 +55,27 @@ pair        19  11m/15m       2m/30m                 2/19     wall 8/19 queue 8/
 
 **Files:** create `cmd/sdlc/teststats_parse.go`, `cmd/sdlc/teststats.go`, and matching `_test.go` files with compact fixture logs from both repositories.
 
-- [ ] Test `parseSuiteLogFacts`: feed captured ariadne/pair snippets with malformed/partial lines, duplicate failures and package-vs-shard ambiguity; assert exact named units and that `failingTests` supplies the same failure names baseline diagnosis uses. Confirm red before implementation.
-- [ ] Test `aggregateSuiteAttempts`: permute fail→pass ordering on one exact head, main-baseline failures, missing fields and out-of-window records; mechanically assert nearest-rank quantiles, coverage denominators, flake classification, slow-unit ordering and repo filter against fixed expected values. Confirm red, then implement the pure functions.
-- [ ] Run `go test ./cmd/sdlc -run 'TestSuiteStats|TestSuiteLog' -count=1` and commit the pure core.
+- [x] Test `parseSuiteLogFacts`: feed captured ariadne/pair snippets with malformed/partial lines, duplicate failures and package-vs-shard ambiguity; assert exact named units and that `failingTests` supplies the same failure names baseline diagnosis uses. Confirm red before implementation.
+- [x] Test `aggregateSuiteAttempts`: permute fail→pass ordering on one exact head, main-baseline failures, missing fields and out-of-window records; mechanically assert nearest-rank quantiles, coverage denominators, flake classification, slow-unit ordering and repo filter against fixed expected values. Confirm red, then implement the pure functions.
+- [x] Run `go test ./cmd/sdlc -run 'TestSuiteStats|TestSuiteLog' -count=1` and commit the pure core.
 
 ### 2. Preserve each suite attempt
 
 **Files:** modify `cmd/sdlc/localcheck_run.go`, `cmd/sdlc/localchecks.go`; create `cmd/sdlc/teststats_store.go` and focused tests in `cmd/sdlc/localcheck_run_test.go`/`cmd/sdlc/teststats_store_test.go`.
 
-- [ ] Test `decodeSuiteAttempt` against truncated/oversized/unknown-version JSON, traversal paths, illegal outcomes and valid nullable identity; assert rejected records never reach aggregation. Confirm red, then implement validation.
-- [ ] Test `publishSuiteAttempt`/`pruneSuiteAttempts` with two controlled concurrent writers, one paused after failed-log move while the other publishes and prunes; assert no active attempt is removed, crash residue is reclaimed only with dead-owner proof, 30-day metadata/log pruning is paired, and IDs cannot overwrite. Confirm red, then implement the store.
-- [ ] Test `runLocalCheck` failing then successful on the same SHA: two immutable records and the failed log survive even when the legacy named log changes. Use the existing stateful lock helper/CI fake to verify measured queue wait, baseline flag, exact SHA/exit/hash on status-post failure, and slot plus nullable #367 identity.
-- [ ] Measure acquisition wait around `acquireSuiteSlot`; extend the local run record; run into a unique attempt log, preserve failed logs, parse the completed log and save the compact attempt before the GitHub status call. A stats-write failure emits an explicit warning but does not turn a passing suite into a failed check.
-- [ ] Run targeted local-check/store tests and commit.
+- [x] Test `decodeSuiteAttempt` against truncated/oversized/unknown-version JSON, traversal paths, illegal outcomes and valid nullable identity; assert rejected records never reach aggregation. Confirm red, then implement validation.
+- [x] Test `publishSuiteAttempt`/`pruneSuiteAttempts` with two controlled concurrent writers, one paused after failed-log move while the other publishes and prunes; assert no active attempt is removed, crash residue is reclaimed only with dead-owner proof, 30-day metadata/log pruning is paired, and IDs cannot overwrite. Confirm red, then implement the store.
+- [x] Test `runLocalCheck` failing then successful on the same SHA: two immutable records and the failed log survive even when the legacy named log changes. Use the existing stateful lock helper/CI fake to verify measured queue wait, baseline flag, exact SHA/exit/hash on status-post failure, and slot plus nullable #367 identity.
+- [x] Measure acquisition wait around `acquireSuiteSlot`; extend the local run record; run into a unique attempt log, preserve failed logs, parse the completed log and save the compact attempt before the GitHub status call. A stats-write failure emits an explicit warning but does not turn a passing suite into a failed check.
+- [x] Run targeted local-check/store tests and commit.
 
 ### 3. Read the fleet and render the command
 
 **Files:** create `cmd/sdlc/teststats_cmd.go`, `cmd/sdlc/helptext/test-stats.md`, command tests; modify `cmd/sdlc/main.go`, `README.md`, `atlas/workflow/sdlc-binary.md` and `atlas/index.md` if needed for a new map entry.
 
-- [ ] Test `collectSuiteStats`/`renderSuiteStats` from a numbered slot in a synthetic sibling fleet: vary record age, malformed input, legacy/new overlap and repository filter; assert `--since 7d`, JSON/text, warnings and unknown coverage, plus no GitHub call or repository mutation.
-- [ ] Register `sdlc test-stats`; reuse fleet normalization and common-dir discovery. Stream legacy logs only when no attempt record covers that log; render explicit coverage and flake classifications.
-- [ ] Run focused command tests, `make -k tools`, and the real read-only `sdlc test-stats --since 7d` against ariadne and pair. Capture the actual output as evidence, not the illustrative table above.
+- [x] Test `collectSuiteStats`/`renderSuiteStats` from a numbered slot in a synthetic sibling fleet: vary record age, malformed input, legacy/new overlap and repository filter; assert `--since 7d`, JSON/text, warnings and unknown coverage, plus no GitHub call or repository mutation.
+- [x] Register `sdlc test-stats`; reuse fleet normalization and common-dir discovery. Stream legacy logs only when no attempt record covers that log; render explicit coverage and flake classifications.
+- [x] Run focused command tests, `make -k tools`, and the real read-only `sdlc test-stats --since 7d` against ariadne and pair. Capture the actual output as evidence, not the illustrative table above.
 
 ### 4. Boundary and landing
 
