@@ -727,7 +727,11 @@ func runActualCorrection(ctx context.Context, stdout, stderr io.Writer, issuesDi
 			var detail strings.Builder
 			fmt.Fprintf(&detail, "%s in %s; completion %s. Select the row whose provenance belongs to this close (never select by ordering):", err, ledger, completion.Token)
 			for _, row := range ambiguous.Candidates {
-				fmt.Fprintf(&detail, "\n  %s (date %s, model %q, mode %q, flow %q, review %q, churn %d/%d/%d/%d, boundary rounds %d)\n  %s --dry-run", row.RawID, row.Date, row.Model, row.Mode, row.FlowKind, row.ReviewRecipe, row.ChurnProd, row.ChurnTest, row.ChurnAtlas, row.ChurnWorkshop, row.BoundaryRounds, actualCorrectionRetryCommand(id, reason, brainDir, row.RawID))
+				retry := actualCorrectionRetryCommand(id, reason, brainDir, row.RawID)
+				if exclude {
+					retry += " --exclude"
+				}
+				fmt.Fprintf(&detail, "\n  %s (date %s, model %q, mode %q, flow %q, review %q, churn %d/%d/%d/%d, boundary rounds %d)\n  %s --dry-run", row.RawID, row.Date, row.Model, row.Mode, row.FlowKind, row.ReviewRecipe, row.ChurnProd, row.ChurnTest, row.ChurnAtlas, row.ChurnWorkshop, row.BoundaryRounds, retry)
 			}
 			return errors.New(detail.String())
 		}

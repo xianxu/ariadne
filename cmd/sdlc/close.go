@@ -1861,7 +1861,7 @@ func actualDeviation(passed, measured float64) (devVerdict, float64) {
 func checkActualDeviation(ctx context.Context, stderr io.Writer, issueStr string, passed float64, milestone, plans string, brain ...string) error {
 	res := computeActualForCloseFn(ctx, issueStr, milestone, plans, brain...)
 	if res.Status != actualMeasured {
-		return nil // can't measure → don't block (judgment path owns this)
+		return nil // unavailable comparison does not establish a deviation
 	}
 	verdict, ratio := actualDeviation(passed, res.Hours)
 	switch verdict {

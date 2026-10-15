@@ -52,10 +52,10 @@ type actualStatus int
 
 const (
 	actualMeasured     actualStatus = iota // engine produced a number
-	actualTelemetryGap                     // commits exist but 0 events — judgment
+	actualTelemetryGap                     // commits exist but 0 events — recover transcript evidence
 	actualEmptyWindow                      // no commits/events to measure
 	actualNoWindow                         // no commits reference the issue yet
-	actualError                            // engine/IO error — fall back to judgment
+	actualError                            // engine/IO error — recover required evidence
 )
 
 type actualResult struct {
@@ -305,7 +305,7 @@ func windowStart(parentISO, claimISO string) string {
 
 // statusFromResult maps an activetime.Result to the actual outcome for issueNum.
 // Pure — the integration contract, unit-testable without git/files. Mirrors the
-// old classifyV3 exit-code mapping: telemetry-gap stays a judgment signal;
+// old classifyV3 exit-code mapping: telemetry-gap stays unmeasurable;
 // measured-with-the-issue yields hours; everything else is an empty window.
 func statusFromResult(out activetime.Result, issueNum string) (actualStatus, float64) {
 	switch out.Status {

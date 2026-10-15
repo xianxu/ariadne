@@ -10,8 +10,58 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
+
+// Legacy generations already written by the bug keep strict historical replay.
+// The real correction command must connect that refusal to an exact repair
+// target, rather than offering a command that repeats the ambiguous selection.
+func TestLegacyRecloseCorrectionNamesExactExclusion(t *testing.T) {
+	r, _, _ := ownedCompletedFixture(t, true)
+	r.git("commit", "--amend", "-qm", "#335: legacy re-close evidence\n\nClose-Actual: 0.5")
+	evidence := r.git("rev-parse", "HEAD")
+	ownedFixtureAt(t, 13)
+	cardPath := "workshop/issue-cards/000335-owned.md"
+	ownedFixtureCard(t, r, cardPath, "legacy-proof", func(raw []byte) ([]byte, error) {
+		completion, _, err := issue.CardCompletion(raw)
+		if err != nil {
+			return nil, err
+		}
+		completion.Token = "legacy-proof"
+		completion.EvidenceCommit = evidence
+		return issue.SetCardCompletion(raw, completion)
+	})
+	identity, err := resolveWorkspace(r.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := estimate.LedgerRow{Issue: identity.Repo + "#335", Actual: .5, Date: r.git("show", "-s", "--format=%cs", evidence)}
+	text := estimate.Header() + "\n" + estimate.FormatRow(row) + "\n"
+	row.Model = "legacy-reclose"
+	text += estimate.FormatRow(row) + "\n"
+	ledger := filepath.Join(t.TempDir(), "calibration.tsv")
+	if err := os.WriteFile(ledger, []byte(text), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("WF_CALIB_LEDGER", ledger)
+	t.Chdir(r.root)
+	args := []string{"issue", "correct-actual", "--issue", "335", "--reason", "inconsistent legacy generation", "--brain-dir", r.root, "--dry-run"}
+	beforeCard, beforeMain := r.card(cardPath), r.originMain()
+	if _, _, err := executeSDLCTestCommand(args...); err == nil || !strings.Contains(err.Error(), ledger) || !strings.Contains(err.Error(), "--target-row") {
+		t.Fatalf("legacy ambiguity has no exact next action: %v", err)
+	}
+	rows, err := estimate.ParseRowsChecked(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := executeSDLCTestCommand(append(args, "--target-row", rows[1].RawID)...); err == nil || !strings.Contains(err.Error(), "retained measurement code head differs") || !strings.Contains(err.Error(), "--target-row "+rows[1].RawID+" --exclude") {
+		t.Fatalf("legacy numeric refusal has no exact exclusion action: %v", err)
+	}
+	if after, err := os.ReadFile(ledger); err != nil || string(after) != text || r.card(cardPath) != beforeCard || r.originMain() != beforeMain {
+		t.Fatal("legacy correction refusal changed authoritative stores")
+	}
+}
 
 func TestActualRefusalsRequireEvidenceInsteadOfInventedHours(t *testing.T) {
 	for _, status := range []actualStatus{actualTelemetryGap, actualEmptyWindow, actualNoWindow, actualError} {

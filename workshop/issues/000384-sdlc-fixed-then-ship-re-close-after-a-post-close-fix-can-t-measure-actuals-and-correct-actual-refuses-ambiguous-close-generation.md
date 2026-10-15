@@ -66,7 +66,7 @@ The three smaller modules cover candidate measurement, exact-target selection an
 ## Plan
 
 - [x] Reproduce measured whole-close -> post-close fix -> fixed-then-ship; pin candidate measurement to the new reviewed head while preserving historical replay.
-- [ ] Add explicit eligible raw-row selection and precise ambiguity/exclusion recovery to correct-actual, with unchanged-state and retry tests.
+- [x] Add explicit eligible raw-row selection and precise ambiguity/exclusion recovery to correct-actual, with unchanged-state and retry tests.
 - [ ] Align refusal/help/README/atlas text, run focused and recorded full-suite verification, close through review, integrate main and land.
 
 Durable plan: [re-close actuals](../plans/000384-reclose-actuals-plan.md).
@@ -100,3 +100,13 @@ change-code passed (full flow), PQ CLEAN with no open findings; estimate-quality
 Production command regression, without measurement stubs: measured close -> code fix -> fixed-then-ship repeated twice -> completed preview and publication, followed by a rejected fix review preserving the old completion. Each success pins current reviewed code, admits longer source prefix/fix activity and increases measured hours. Prior numeric correction and exclusion remain effective historically while candidate inputs are freshly resolved. Initial fixture failures were diagnosed as exit capture and a started clock later than the fixed Git commit; the test now owns that clock explicitly. Intended RED then failed at round 1's stale code/source pins (12.025s). GREEN including mismatch/milestone/ownership controls passed (26.826s); expanded lifecycle/correction controls passed (35.970s), and lifecycle/refusal wording passed (55.790s).
 
 Mutation through a temporary Go overlay restored the production close caller to historical purpose while omitting only the purpose-text assertion. The lifecycle still failed on round 1's stale code/source pins (exit 1, 31.178s), proving the production wiring rather than wording. Root sources were unchanged by the overlay. A wording RED reproduced manual-hour advice; the fix replaces it with evidence recovery, supported correction dry-run, or explicit N/A only when measurement does not apply.
+
+### 2026-10-15 — correction integration and focused verification
+
+Integrated delegated commit 0a69a81ef47237c46e3fdeecb6b58cc82e33d592 as 4a6b3469. Its isolated TestActualCorrection* regression passed on the exact delegated commit (128.346s); selector tests passed (10.402s). Delegated mutations of eligibility and selector-to-receipt wiring failed the foreign-row and exact durable-target assertions; sources restored before final GREEN. Independently inspected the patch and ran the combined command regressions here. No schema/model change: explicit full raw SHA256 selection is restricted to the effective eligible set, existing receipt targets bind recovery, and conflicting pending/completed selection refuses unchanged.
+
+An integration review found ambiguity retry commands dropped --exclude; added intended RED (3.224s) and preserved exclusion intent. Combined selector/candidate/provenance tests GREEN (36.741s). README/help/atlas/recovery catalog now describe candidate versus historical measurement, explicit provenance-based target selection, conflict-safe recovery and exact exclusion. Removed obsolete manual-hour fallback advice and comments. The broader focused command selection passed (159.978s), internal actualcorrection/estimate/recovery packages passed, and recovery-contract proof coverage passed (0.752s).
+
+Added a real legacy-corruption command test without a measurement stub: completion with mismatched retained code pin plus ambiguous rows. It first names the ledger/candidates, then the explicit selected target reaches the actual historical resolver and produces the exact mismatch plus same-target exclusion command, leaving card/main/calibration unchanged (6.719s). Fixture creation initially tried rewriting an existing completion token and was correctly refused; using a new explicit legacy-generation token respects the existing binding invariant.
+
+Next: commit this verified patch, integrate fresh main, push PR and run the recorded full suite before close. Production source work is complete; CI/full-suite and mandatory close review remain.

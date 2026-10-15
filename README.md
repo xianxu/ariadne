@@ -495,8 +495,15 @@ explicitly with `--no-retro` (`--force` waives it too).
 Issue actuals are measured from ownership intervals and the owning slots' agent
 sessions. Close retains its measurement evidence so later `sdlc actual` replays
 the same inputs; `sdlc actual --milestone Mx` replays a finalized milestone.
+Each new close, including `--fixed-then-ship`, measures its current candidate
+head and tracker authority rather than adopting a prior completion's snapshot.
 `sdlc issue correct-actual --issue N --reason TEXT --dry-run` previews a measured
-repair of a completed sample. See `sdlc actual --help` for provenance and recovery.
+repair of a completed sample. If legacy rows are ambiguous, its diagnostic names
+the ledger and eligible raw-row hashes. Have the TL/operator select the row by
+its provenance and use `--target-row <full SHA256>`; ordering is not evidence.
+`--exclude` invalidates a proven bad sample when numeric evidence cannot be
+trusted. Pending corrections retain their target; a conflicting selector refuses.
+See `sdlc actual --help` for provenance and recovery.
 
 ## License
 

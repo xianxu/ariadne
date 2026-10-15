@@ -34,6 +34,9 @@ func TestActualCorrectionTargetSelectorCommand(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), ledger) || !strings.Contains(err.Error(), completion.Token) || !strings.Contains(err.Error(), rows[1].RawID) || !strings.Contains(err.Error(), "--target-row") {
 		t.Fatalf("missing concrete target recovery: %v", err)
 	}
+	if _, _, err := executeSDLCTestCommand(append(args, "--exclude")...); err == nil || strings.Count(err.Error(), "--exclude --dry-run") != 2 {
+		t.Fatalf("ambiguity recovery lost the requested exclusion intent: %v", err)
+	}
 	for _, target := range []string{"short", strings.Repeat("f", 64), rows[2].RawID} {
 		if _, _, err := executeSDLCTestCommand(append(args, "--target-row", target)...); err == nil {
 			t.Fatalf("invalid target %q accepted", target)

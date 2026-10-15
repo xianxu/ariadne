@@ -1148,6 +1148,12 @@ evidence refuses adoption; legacy no-tracker repositories retain a labeled old
 heuristic. Completed historical closes without snapshots are reconstructed from
 their exact completion binding and diagnosed explicitly.
 
+`computeActualForCloseFn` explicitly selects `actualCloseCandidate`: a close
+derives new ownership-proven inputs at current HEAD/current tracker, even when
+the card holds an older completion or actual correction. `computeActualFor`
+retains historical replay for preview/correction. This distinction prevents a
+fix re-close from binding old measurement pins to its new reviewed head.
+
 `issue correct-actual` measures a completed generation (or excludes a proven bad
 sample), records correction provenance on its card, and appends exact-target
 calibration corrections. A pure `internal/actualcorrection` transition model owns
@@ -1157,6 +1163,15 @@ Git refs under `refs/sdlc/actual-corrections/` retain pending evidence and objec
 correction writers share the ledger-directory lock. Calibration readers resolve
 exact raw row invalidations before trust/filter selection and reject malformed
 correction evidence.
+
+For ambiguous legacy rows, `correct-actual --target-row <full SHA256>` selects
+only within the eligible effective set. The diagnostic names the ledger,
+completion, candidate metadata and exact dry-run commands; TL/operator provenance
+selection is required, not inferred from row order. Existing recovery target
+hashes bind the choice across retries; conflicting choices refuse. An untrustworthy
+numeric measurement names a same-target exclusion command for a proven invalid
+sample, preserving the reason and avoiding invented hours. No snapshot or
+correction schema changes are needed.
 
 **Build vs converge (#234).** A measured actual is split at the issue's
 boundary reviews.
@@ -1302,7 +1317,7 @@ unit-tested directly; each `Sources` method is the thin IO seam, tolerant of
 malformed / empty / no-`session_meta` Codex files. This is the validated heuristic (events come only from transcripts;
 the wrong/missing sources were why actuals read 0 and got faked). The engine
 returns a structured `Result.Status`: `TelemetryGap`
-(commits-but-0-events → labeled judgment), `EmptyWindow` (nothing to measure), or
+(commits-but-0-events → restore owning-slot transcript evidence), `EmptyWindow` (nothing to measure), or
 `Measured` (`PerIssue[N]` → hours). Attribution is global-boundary based (#92):
 source-scoped activity runs are claimed by nearby issue-referenced commits;
 overlaps collapse within one transcript source but not across parallel sources;

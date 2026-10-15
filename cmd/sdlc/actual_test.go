@@ -44,7 +44,7 @@ func TestStatusFromResult(t *testing.T) {
 		wantHrs float64
 	}{
 		{
-			"telemetry gap → judgment",
+			"telemetry gap → evidence recovery",
 			activetime.Result{Status: activetime.TelemetryGap},
 			actualTelemetryGap, 0,
 		},

@@ -64,19 +64,19 @@ Historical reconstruction is not an implicit fallback: a fixed-then-ship Review-
 
 **Files:** cmd/sdlc/actualcorrection.go, actualcorrection_test.go; internal/actualcorrection tests if recovery intent changes.
 
-- [ ] Exercise actualCorrectionTargetForGeneration against adversarial calibration histories whose values coincide but provenance differs. Selection must be within the independently derived eligible effective set; preserve default uniqueness. Mutation removing the eligibility predicate or ignoring the digest must fail a foreign-row or exact-selection assertion.
-- [ ] Drive runActualCorrection through the real command/portable ledger and tracker, perturbing selection intent before initial admission and after durable progress. Assert exact-target publication on valid intent and fingerprint all stores to prove unchanged refusal/dry-run; replay must preserve its original target. Mutation of selector-to-receipt wiring must fail the durable-target assertion.
-- [ ] Add optional --target-row. Reuse target eligibility and existing durable target digest. Selection only admits an initial target; recovery cannot retarget it.
-- [ ] Numeric measurement failure names its cause and exact supported same-target exclusion command. Preserve generation/source/repository checks; malformed evidence cannot become a numeric success.
-- [ ] Run RED/GREEN and mutate eligibility filtering and selector-to-receipt wiring to prove guards.
-- [ ] Commit and log evidence.
+- [x] Exercise actualCorrectionTargetForGeneration against adversarial calibration histories whose values coincide but provenance differs. Selection must be within the independently derived eligible effective set; preserve default uniqueness. Mutation removing the eligibility predicate or ignoring the digest must fail a foreign-row or exact-selection assertion.
+- [x] Drive runActualCorrection through the real command/portable ledger and tracker, perturbing selection intent before initial admission and after durable progress. Assert exact-target publication on valid intent and fingerprint all stores to prove unchanged refusal/dry-run; replay must preserve its original target. Mutation of selector-to-receipt wiring must fail the durable-target assertion.
+- [x] Add optional --target-row. Reuse target eligibility and existing durable target digest. Selection only admits an initial target; recovery cannot retarget it.
+- [x] Numeric measurement failure names its cause and exact supported same-target exclusion command. Preserve generation/source/repository checks; malformed evidence cannot become a numeric success.
+- [x] Run RED/GREEN and mutate eligibility filtering and selector-to-receipt wiring to prove guards.
+- [x] Commit and log evidence.
 
 ### Documentation and acceptance
 
 **Files:** README.md; atlas/workflow/sdlc-binary.md; cmd/sdlc/helptext/actual.md, close.md, issue.md; actual.go/close.go diagnostic wording and tests.
 
-- [ ] Remove manual/judgment-hour fallback advice from these measured workflows. Explain candidate versus historical inputs, target selection, recovery and exclusion. Sweep README/help/atlas/comments for competing contracts.
-- [ ] Update issue Log and checkboxes. Run focused actual/adoption/fix-review/correction tests and internal estimate/actualcorrection packages; git diff --check.
+- [x] Remove manual/judgment-hour fallback advice from these measured workflows. Explain candidate versus historical inputs, target selection, recovery and exclusion. Sweep README/help/atlas/comments for competing contracts.
+- [x] Update issue Log and checkboxes. Run focused actual/adoption/fix-review/correction tests and internal estimate/actualcorrection packages; git diff --check.
 - [ ] Push with sdlc pr; recorded full suite via sdlc local-check run --name suite, using the machine gate without overrides.
 - [ ] Close through mandatory review; fix blocking findings. Integrate current main, pass exact-head suite and PR CI, sdlc merge --yes without waivers, verify card/archive/hashes, report landed outcome to hub and stop.
 
