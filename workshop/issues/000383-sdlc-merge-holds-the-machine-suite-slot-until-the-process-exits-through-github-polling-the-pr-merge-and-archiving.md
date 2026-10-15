@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "896f6e9b", done: "f5ad8155"}
 ---
 
 # sdlc merge holds the machine suite slot until the process exits, through GitHub polling, the PR merge and archiving
