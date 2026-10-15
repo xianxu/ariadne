@@ -1,6 +1,6 @@
 ---
 id: 000385
-status: codecomplete
+status: done
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours: 3.81
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: c907a4d0ba566153263b2334826a9eeb5779f1dd
         evidence_commit: 79c3927be1388a855e0d0b1ca15e3b85b3c74181
+        landed_commit: c82c88ba71acc77227fdcb033e8ac9bf4f6aca6a
 ---
 
 # sdlc reads Qoder transcripts: actuals (active-time-v3), agent-id and usage
