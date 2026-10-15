@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "c3576436", done: "7f5d6529"}
 ---
 
 # Build and test with -trimpath so worktrees share the Go build cache
