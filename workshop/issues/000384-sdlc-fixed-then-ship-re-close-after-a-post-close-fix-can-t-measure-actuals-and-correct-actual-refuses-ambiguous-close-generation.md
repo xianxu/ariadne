@@ -1,12 +1,12 @@
 ---
 id: 000384
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours: 1.94
-card_mirror: '08928821f9e14c9ce26bd9b9d35e6372924dc818' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'c19fa8c000fad472bd81af7a21599cf1cf12326a' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-15T02:37:57-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 3.13
 ---
 
 # sdlc: fixed-then-ship re-close after a post-close fix can't measure actuals, and correct-actual refuses (ambiguous close generation)
