@@ -424,3 +424,18 @@ overlay fails all four intended assertions7.808s; no provider calls or new sourc
 seam. Tests use portable local storage, a Unix-only FIFO test and stateful
 writers. No meter transition, normal actual status or output content changes.
 Fresh recorded suite follows this final code checkpoint.
+
+
+### 2026-10-14 23:59 — final recorded suite
+
+Recorded sdlc-local/suite passes on0ba4bc396785b7cdbd7a21cbffa66f474ccadb37:
+1408 cmd/sdlc tests/61 other packages, zero failures,589.4s (9m50s), after1943s
+queue wait. All12 shards/packages exit0; log SHA256 prefix1adc88ca710d, host
+Mac.localdomain. Final issue smoke passes48.18s and now reports the correct five
+own legacy gaps instead of14 mixed-repository gaps. Latest live Claude/Codex
+identity conformance passes14.543s. All behavior changes are represented by this
+suite; subsequent bookkeeping is documentation only. Shared close remains the
+final fresh-context review authority.
+
+Standalone final --since6h fleet JSON smoke passes37.71s on this same code;
+latest final fleet/issue timings are37.71s/48.18s, both within60s.
