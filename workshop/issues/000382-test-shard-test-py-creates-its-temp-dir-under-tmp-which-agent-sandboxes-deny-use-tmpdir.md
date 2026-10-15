@@ -40,7 +40,7 @@ hardcoded `/tmp` temp locations and fix them the same way.
 ## Plan
 
 - [x] Remove hardcoded test temporary-directory roots found by the sweep.
-- [ ] Verify the report with a writable TMPDIR and denied outside allocation; run the recorded full suite.
+- [x] Verify the report with a writable TMPDIR and denied outside allocation; run the recorded full suite.
 
 ## Log
 
@@ -75,3 +75,7 @@ Expanded the read-only sweep to 1,139 tracked code/config/executable files, incl
 The recorded suite on pushed code commit c65defd6e618c09a79d59e8cfc5af22a362e2ec6 is queued via sdlc local-check run --name suite (session 94512); at 22:11 PDT it was fourth in line after about 23 minutes. Keep this existing run, rather than creating another. Only issue documentation changed after that code commit.
 
 Current main gained #377 code while the first run was queued. Canceled that waiting run before any tests started, merged origin/main cleanly, and pushed integrated commit 517df7de41290f17677dfd2028d2e4e307374884. Replacement recorded suite session 36941 uses that integrated head; log: /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/517df7de41290f17677dfd2028d2e4e307374884/suite.log. A transient GitHub branch-push rejection was probed (remote still held c65defd6) and retried successfully before starting the replacement.
+
+### Recorded acceptance passed
+
+Integrated head 517df7de41290f17677dfd2028d2e4e307374884 passed sdlc local-check run --name suite, recorded as sdlc-local/suite: all 12 shards over 1,368 cmd/sdlc tests and 59 other packages exited zero, no failures, wall 564.3s. Queue wait was 2,134s. Log SHA-256 prefix f94bf6775cbf. Together with the real restricted-root RED/GREEN and focused wrapper above, this satisfies both acceptance rows. This fixes existing test temporary-root selection and adds no architectural surface.
