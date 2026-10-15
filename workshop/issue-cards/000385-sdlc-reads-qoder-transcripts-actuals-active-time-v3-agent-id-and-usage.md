@@ -1,6 +1,6 @@
 ---
 id: 000385
-status: working
+status: codecomplete
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours: 3.81
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 5.74
+tracker:
+    version: 1
+    completion:
+        token: close-8e3653a25e72
+        repository: github.com/xianxu/ariadne
+        reviewed_head: c907a4d0ba566153263b2334826a9eeb5779f1dd
+        evidence_commit: 79c3927be1388a855e0d0b1ca15e3b85b3c74181
 ---
 
 # sdlc reads Qoder transcripts: actuals (active-time-v3), agent-id and usage
