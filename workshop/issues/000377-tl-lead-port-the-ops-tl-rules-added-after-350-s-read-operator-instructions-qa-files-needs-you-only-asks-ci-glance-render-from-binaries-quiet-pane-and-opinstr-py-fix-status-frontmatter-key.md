@@ -44,12 +44,12 @@ Port each missing rule into `tl-lead --help` (rules only, no stories); port `opi
 
 Durable plan: `workshop/plans/000377-tl-lead-port-the-ops-tl-rules-added-after-350-s-read-operator-instructions-qa-files-needs-you-only-asks-ci-glance-render-from-binaries-quiet-pane-and-opinstr-py-fix-status-frontmatter-key-plan.md` (single pass, one close).
 
-- [ ] help.md: rules G1–G8, the frontmatter key, the instructions verbs
-- [ ] pure parser and linker (`instructions.go`) with golden tests
-- [ ] `status instructions list|link` verbs with fake-backed tests
-- [ ] help names every verb (test)
-- [ ] atlas tl-skills.md
-- [ ] G10 (verify slots after a disruption) and G11 (issue filing), text from the TL (plan Revisions)
+- [x] help.md: rules G1–G8, the frontmatter key, the instructions verbs
+- [x] pure parser and linker (`instructions.go`) with golden tests
+- [x] `status instructions list|link` verbs with fake-backed tests
+- [x] help names every verb (test)
+- [x] atlas tl-skills.md
+- [x] G10 (verify slots after a disruption) and G11 (issue filing), text from the TL (plan Revisions)
 - [ ] fresh comparison of the draft against help.md, recorded in the Log
 
 ## Estimate
@@ -86,3 +86,4 @@ total: 1.259
 - Compared ops draft e7ea8e5 with help.md at main 18915f6c: gaps G1–G9 in the plan. `couch --skill` names `couch-owner:` canonical (`owner:` legacy), so the help keeps it. parley.nvim#315 landed (PR #228): the `holder: agent` workaround is not ported.
 - The TL approved the plan (G1–G9, the hash guard, `couch-owner:`), pinned `--flow full`, and supplied the text for G10 and G11 (plan Revisions).
 - plan-quality INFO, 2 Minors (help rule guards; the single-shot link write), folded into the plan's Revisions. The plan file was renamed to its canonical name.
+- Built in 677b2a33. The help guards cover one phrase per rule (G1–G8, G10, G11); the verb test walks the command tree. Parity: on a copy of ops's real status file with its answer links stripped, `instructions list` output matches `opinstr.py list` byte for byte (3 bullets). `go test ./cmd/tl-lead ./cmd/tl-worker` green.
