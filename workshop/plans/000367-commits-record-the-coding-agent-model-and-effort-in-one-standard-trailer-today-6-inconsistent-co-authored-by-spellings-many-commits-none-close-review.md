@@ -121,3 +121,99 @@ findings:
     detail: |
       The sweep test covers stamping at the source-line level, but there is no behavioural assertion for these three sites, and none for the close.go:663 wiring of reportMissingAgent.
 ```
+
+---
+
+## Re-review — 2026-10-14T23:39:58-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 367 — Commits record the coding agent, model and effort in one standard trailer (today: 6+ inconsistent Co-Authored-By spellings, many commits none) |
+| repo | ariadne |
+| issue file | workshop/issues/000367-commits-record-the-coding-agent-model-and-effort-in-one-standard-trailer-today-6-inconsistent-co-authored-by-spellings-many-commits-none.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 18915f6c17d9b4aeb5e618d3f736705ec355d2b3..a6da38026389acf2358c0132581d61e9cbf6bd63 |
+| command | sdlc close --issue 367 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-14T23:39:58-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Now the fix commit itself.
+
+Prior-round fixes check out on reading. Next I'm running the targeted tests, then removing individual stamps to see whether the new assertions fail without them.
+
+Now revert checks for the claim sync and changecode stamps.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+This is ready to ship. The round-1 blocker (BR-1) is fixed: `agentid` now uses only the standard library and owns the agent environment, and `judge.AgentDefaultEnv` is just another name for `agentid.Env`. `go list -deps ./cmd/sdlc/internal/gitx` now adds only `agentid`; judge, reviewbox, reviewprepare and estimate are gone. The plan's new Revisions section records why gitx calls `StampCurrent` instead of taking the identity as a parameter. The build is clean and the targeted tests pass. Every commit in this issue's window has exactly one `Agent:` value, so the Done-when holds. One Minor item is left: the claim-sync stamp has no behavioural test. When I removed it, every test still passed, because the trunk publication path adds the stamp again on the published commit. That does not block the boundary.
+
+**1. Strengths**
+- **Done-when holds on the issue's own window.** `git log --format='%(trailers:key=Agent)'` shows `claude/claude-opus-5-5/medium` on all 7 commits.
+- **The `agentid` package is a real leaf** (`cmd/sdlc/internal/agentid/env.go`).
+  - `EnvFrom(getenv)` is now the one parser of the agent environment, used by both the judge and the detector.
+  - `ClaudeProjects`/`CodexSessions` are the only production statements of the transcript roots. Grep finds no other production literals; only tests restate them.
+- **Untrusted transcript input is handled carefully** (`transcript.go`). The read is capped at 1 MiB. A truncated first line or an unknown record is skipped, and a miss gives empty parts rather than a guess. `TestTailIsBounded` checks both the cap and that the newest record lands inside it.
+- **The sweep test makes the purpose enforceable.** `TestEveryCommitSiteStamps` fails on any new commit site that skips the stamp, and each exemption carries a reason (`cmd/sdlc/agentstamp_test.go:17-27`).
+- **The new assertions catch real regressions.** With the change-code stamp removed, `TestChangeCodeRefreshesCardFieldsAndCheckpointsLocally` fails as it should (`checkpoint Agent trailer ""`). The close test now checks that the report is actually printed, which covers the `close.go:666` wiring.
+
+**2. Critical findings:** none.
+
+**3. Important findings:** none.
+
+**4. Minor findings**
+- **BR-4 is still partly open** (disposed `not-addressed` below). The commit stamp in `syncInPlace` (`claim.go:597`) has no behavioural test. I removed it and ran `-run 'Sync|Claim|IssueNew|Publish'`: nothing related failed. `TestIssueSync_PublishMatrix` checks the commit on `origin/main`, and `TrunkFile.commitTree` stamps that commit again. The local commit made with `--no-push` is never checked.
+  - Fix: add the same `%(trailers:key=Agent,valueonly)` check to a `--no-push` sync test, or to the local HEAD before publication.
+  - The source-level sweep test still guards this site, so this stays Minor.
+- **README:** the new `agent-id` verb appears in the help text, AGENTS.base.md and the atlas, but not in README.md. README has no per-verb catalog to add it to, so I am not raising this.
+
+**5. Test coverage notes**
+- Passing: the `agentid`, `judge`, `transcripts` and `processmanual` packages, plus the targeted `cmd/sdlc` tests (sweep, checkpoint, issue sync, landing integration, tracker close).
+- Two tests fail in this review checkout whether or not anything is reverted: `TestLegacyRepoLockConcurrentIssueNewSerializesAllocation` and `TestPushPublishSequence_CodecompleteFlippedThenArchived`. Both stop with "no issue tracker is reachable", meaning the checkout has no issue-tracker branch. This is an environment problem, not part of this diff.
+- Revert checks:
+  - Change-code stamp: the test fails without it, as it should.
+  - Claim-sync stamp: no test fails without it (see BR-4).
+- The checkout was restored afterwards; `git status` is clean.
+
+**6. Architectural notes**
+- **ARCH-DRY: pass.** The agent environment and transcript roots each have one production source; `knownAgent` and `MainAgent` delegate to `agentid`.
+- **ARCH-PURE: pass, with a recorded exception.** gitx calls `StampCurrent`, which reads the environment and a file once per process via `sync.OnceValue`. The plan's Revisions section justifies this: with 16 constructors, any one of them could forget an injected identity. Test hermeticity comes from `PinAgent` in each `TestMain` that asserts commit messages.
+- **ARCH-PURPOSE: pass.**
+  - Commit sites are enforced by the sweep test, and the close report covers commits agents make by hand.
+  - The report is a warning, not a gate. This is deliberate, recorded in the plan, and promoting it later is one catalog row.
+- **ARCH-MOCK: pass.** Tests use real git in temp repos, transcripts come from inline fixtures in a temp home, and the environment comes through an injected `Getenv`.
+- **ARCH-CONSTRAINTS: pass.** One seek plus a bounded read of at most 1 MiB, once per process.
+- **ARCH-SECURE: pass.** Only the session's own transcript is read. A malformed `SDLC_AGENT_ID` is ignored rather than trusted (covered by a test case). No credentials are involved.
+- **ARCH-ORDER: pass.** The only state is a per-process memo of a read-only lookup.
+- **ARCH-FUNERAL: pass.** The only durable output is one trailer line per commit.
+- **For #365:** `Parse` and `ParseLog` are the stable surface to group usage by agent.
+
+**7. Plan revision recommendations**
+- One correction to the Revisions bullet "Behavioural trailer assertions now cover … issue sync". The issue-sync assertion checks the published commit, which `gitx.commitTree` stamps. It does not cover `syncInPlace`'s own stamp. Either reword the bullet or add the local-commit assertion (BR-4).
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      agentid is now standard-library only, and go list -deps for gitx adds only agentid (judge, reviewbox, reviewprepare and estimate are gone). The parameter-vs-StampCurrent decision is recorded with its reasons in the plan Revisions, and tests are hermetic through testfix.PinAgent in the gitx, tracker and cmd/sdlc TestMains.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      agentid.EnvFrom is the single agent-env parser (judge.CurrentAgentDefaultEnv delegates to it, env.go:24). ClaudeProjects and CodexSessions are used by transcripts/defaults.go, processmanual.go, processmanual/session.go and processmanual/memory.go, and grep finds no remaining production literals.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The plan Revisions now record the 1 MiB tail, the gh merge exemption, the inline fixtures, gitx using StampCurrent, and PAIR_AGENT-only shells reading as sdlc. All tasks are ticked, and each claim matches detect.go, env.go and agentstamp_test.go.
+  - id: BR-4
+    disposition: not-addressed
+    note: |
+      The change-code checkpoint (verified red when its stamp is reverted), landing merge and close-report wiring now have assertions. The claim-sync stamp at claim.go:597 does not: with it removed, -run 'Sync|Claim|IssueNew|Publish' showed no related failures, because the issue-sync test checks origin/main, which gitx.commitTree stamps again.
+```
