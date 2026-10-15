@@ -37,10 +37,16 @@ The operator (2026-10-14) made test health and performance a train ("test econom
 - [ ] Preserve one compact record per future suite attempt so retries, queue waits and baseline runs are measurable; test retention and lost status posts.
 - [ ] Expose `sdlc test-stats --since 7d [--repo …] [--json]`, verify the real ariadne/pair output, update CLI documentation, run the suite and close review.
 
-Detailed design: [test-stats plan](../plans/000376-test-stats-plan.md). The TL is reviewing the recorder scope because current logs cannot reconstruct all requested metrics.
+Detailed design: [test-stats plan](../plans/000376-test-stats-plan.md). The TL approved recording future attempts because current logs cannot reconstruct all requested metrics.
 
 ## Log
 
 ### 2026-10-14
 
 - Claimed in ariadne:1. Source inspection found ariadne's retained suite logs contain shard summaries and pair's contain Go package timings, but the single log per SHA is overwritten by a retry; queue tickets are ephemeral; pair logs lack total wall time. A per-attempt compact record is needed to measure the full Spec going forward. Historical fields that cannot be recovered will be marked unknown (ARCH-PURPOSE), not estimated from file times.
+
+## Revisions
+
+### 2026-10-14 — TL-approved recorder scope
+
+Record verified slot and nullable agent/model/effort compatible with #367. Save exact head, exit and log hash before status posting so #380 can retry a failed upload from the saved result. Preserve each failed attempt's log across same-head retries for 30 days, together with its metadata. Suite commands and protected gates remain unchanged; historical unknowns stay unknown.
