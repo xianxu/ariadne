@@ -88,7 +88,11 @@ func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actu
 // is the plans dir holding the boundary gate ledger ("" for the default); a
 // close passes its own --plans-dir, so the split reads the rounds it persists.
 func computeActualFor(ctx context.Context, repoTop, brainAbs, issueNum, milestone, plans string) actualResult {
-	owned, err := resolveOwnedActualInputs(ctx, repoTop, brainAbs, issueNum, plans, milestone)
+	return computeActualForPurpose(ctx, repoTop, brainAbs, issueNum, milestone, plans, actualHistorical)
+}
+
+func computeActualForPurpose(ctx context.Context, repoTop, brainAbs, issueNum, milestone, plans string, purpose actualInputPurpose) actualResult {
+	owned, err := resolveOwnedActualInputsFor(ctx, repoTop, brainAbs, issueNum, plans, purpose, milestone)
 	if err != nil {
 		return actualResult{Status: actualError, Issue: issueNum, Detail: err.Error()}
 	}
@@ -329,8 +333,7 @@ func printActualMeasurement(w io.Writer, res actualResult) {
 	}
 }
 
-// printActual renders the engine's result for a human/agent: the suggested
-// --actual value, or the judgment-fallback guidance.
+// printActual renders measured evidence or the action needed to recover it.
 func printActual(w io.Writer, res actualResult) {
 	switch res.Status {
 	case actualMeasured:
@@ -341,17 +344,21 @@ func printActual(w io.Writer, res actualResult) {
 		}
 	case actualTelemetryGap:
 		cwarn(w, fmt.Sprintf("telemetry unavailable for #%s (window has commits but no transcript events).", res.Issue))
-		fmt.Fprintln(w, "  The work's transcripts aren't under brain/repo (peer cwds / worktrees) or aged out.")
-		fmt.Fprintln(w, "  → record a LABELED judgment estimate: --actual <h> (note 'judgment') or --no-actual.")
+		fmt.Fprintf(w, "  → ask the TL/hub to restore the owning slot's transcripts, then re-run sdlc actual --issue %s.\n", res.Issue)
 		if res.Detail != "" {
 			fmt.Fprintf(w, "  (%s)\n", res.Detail)
 		}
 	case actualEmptyWindow:
-		cwarn(w, fmt.Sprintf("found no measurable activity for #%s — use a labeled judgment estimate.", res.Issue))
+		cwarn(w, fmt.Sprintf("found no measurable activity for #%s; ask the TL/hub to restore its ownership/source evidence, then re-run sdlc actual --issue %s.", res.Issue, res.Issue))
 	case actualNoWindow:
-		cwarn(w, fmt.Sprintf("no commits reference #%s yet — commit first, or use a judgment estimate.", res.Issue))
+		cwarn(w, fmt.Sprintf("no commits reference #%s yet; commit the issue's work with #%s in the subject, then re-run sdlc actual --issue %s.", res.Issue, res.Issue, res.Issue))
 	case actualError:
-		cwarn(w, fmt.Sprintf("can't auto-compute (%s) — fall back to a judgment estimate.", res.Detail))
+		cwarn(w, fmt.Sprintf("can't auto-compute (%s).", res.Detail))
+		if strings.Contains(res.Detail, "retained measurement code head differs") {
+			fmt.Fprintf(w, "  → run sdlc issue correct-actual --issue %s --reason 'repair inconsistent retained measurement' --dry-run; it names the exact target/exclusion action if numeric repair is unavailable.\n", res.Issue)
+		} else {
+			fmt.Fprintf(w, "  → ask the TL/hub to restore the named measurement evidence, then re-run sdlc actual --issue %s.\n", res.Issue)
+		}
 	}
 }
 

@@ -61,11 +61,11 @@ design-buffer: 0.15
 total: 1.94
 ```
 
-The three smaller modules cover candidate measurement, exact-target selection and recovery admission/transaction verification. Existing Go/Cobra/tracker/attribution libraries cover the stack; no novel library discovery is needed. v2 design uses the thorough-plan discount for those modules (0.3 × 0.2); issue design uses a mid-density 0.5 discount. Implementation entries already apply v3.1's 40% scale once. Familiar terrain is ×1.0. Design 0.68 × 1.15 + implementation 1.16 = 1.942 hours (rounded to 1.94); scope includes production regressions, mutation checks, docs and one close review. Queue wall time is not developer active time.
+The three smaller modules cover candidate measurement, exact-target selection and recovery admission/transaction verification. Existing Go/Cobra/tracker/attribution libraries cover the stack; no novel library discovery is needed. v2 design uses the thorough-plan discount for those modules (0.3 × 0.2); issue design uses a mid-density 0.5 discount. Implementation entries already apply v3.1's 40% scale once. Familiar terrain is ×1.0. Design 0.68 × 1.15 + implementation 1.16 = 1.942 hours (rounded to 1.94); scope includes production regressions, mutation checks, docs and one close review. The cross-cutting allocation covers shared caller wiring, refusal wording, verification integration and landing; module allocations include their focused production regressions. Both estimate and measured actual use idle-removed ship wall-clock, including AI/subagent execution spans; actual queue treatment remains owned by the measurement engine, with no separate attention discount.
 
 ## Plan
 
-- [ ] Reproduce measured whole-close -> post-close fix -> fixed-then-ship; pin candidate measurement to the new reviewed head while preserving historical replay.
+- [x] Reproduce measured whole-close -> post-close fix -> fixed-then-ship; pin candidate measurement to the new reviewed head while preserving historical replay.
 - [ ] Add explicit eligible raw-row selection and precise ambiguity/exclusion recovery to correct-actual, with unchanged-state and retry tests.
 - [ ] Align refusal/help/README/atlas text, run focused and recorded full-suite verification, close through review, integrate main and land.
 
@@ -92,3 +92,11 @@ TL approved plan 8b8c784c as written (verified Couch receipt 756d7f64-245b-447e-
 Plan-quality round 1 raised PQ-1 (function-level test strategy): refined correction test rows to named-function adversarial classes/mechanical guards. A redundant unchanged-plan dispatch was interrupted before recording another round; no implementation begun. No design scope change.
 
 - Plan-quality round 2 CLEAN: PQ-1 addressed, no open findings. Derived estimate only after this pass, using the named v3.1 calibration and existing library seams.
+
+### 2026-10-15 — candidate measurement implemented
+
+change-code passed (full flow), PQ CLEAN with no open findings; estimate-quality INFO noted optimistic test allowances. Implemented typed historical/candidate purpose across the shared resolver/engine; only close selects candidate. Prior completion and correction snapshots remain immutable for preview/correction. Fresh candidate output names its purpose and exact code/tracker pins.
+
+Production command regression, without measurement stubs: measured close -> code fix -> fixed-then-ship repeated twice -> completed preview and publication, followed by a rejected fix review preserving the old completion. Each success pins current reviewed code, admits longer source prefix/fix activity and increases measured hours. Prior numeric correction and exclusion remain effective historically while candidate inputs are freshly resolved. Initial fixture failures were diagnosed as exit capture and a started clock later than the fixed Git commit; the test now owns that clock explicitly. Intended RED then failed at round 1's stale code/source pins (12.025s). GREEN including mismatch/milestone/ownership controls passed (26.826s); expanded lifecycle/correction controls passed (35.970s), and lifecycle/refusal wording passed (55.790s).
+
+Mutation through a temporary Go overlay restored the production close caller to historical purpose while omitting only the purpose-text assertion. The lifecycle still failed on round 1's stale code/source pins (exit 1, 31.178s), proving the production wiring rather than wording. Root sources were unchanged by the overlay. A wording RED reproduced manual-hour advice; the fix replaces it with evidence recovery, supported correction dry-run, or explicit N/A only when measurement does not apply.

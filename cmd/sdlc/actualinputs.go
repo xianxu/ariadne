@@ -38,7 +38,21 @@ type ownedActualInputs struct {
 	Replay        bool
 }
 
+type actualInputPurpose uint8
+
+const (
+	actualHistorical actualInputPurpose = iota
+	actualCloseCandidate
+)
+
 func resolveOwnedActualInputs(ctx context.Context, repoTop, brainAbs, issueNum, plans string, milestones ...string) (*ownedActualInputs, error) {
+	return resolveOwnedActualInputsFor(ctx, repoTop, brainAbs, issueNum, plans, actualHistorical, milestones...)
+}
+
+func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNum, plans string, purpose actualInputPurpose, milestones ...string) (*ownedActualInputs, error) {
+	if purpose != actualHistorical && purpose != actualCloseCandidate {
+		return nil, fmt.Errorf("unsupported measurement purpose %d", purpose)
+	}
 	milestone := ""
 	if len(milestones) > 0 {
 		milestone = milestones[0]
@@ -95,10 +109,17 @@ func resolveOwnedActualInputs(ctx context.Context, repoTop, brainAbs, issueNum, 
 	var ledger gatestate.Ledger
 	var warnings []string
 	trackerPin := rs.Ref
+	if completed && completion.Repository != target.Repository {
+		return nil, fmt.Errorf("completion evidence belongs to another repository")
+	}
+	// A new close reviews today's candidate, even when the card still carries
+	// an earlier completion or correction. Historical consumers must instead
+	// replay that completion's immutable measurement generation.
+	completed = completed && purpose == actualHistorical
+	if purpose == actualCloseCandidate {
+		warnings = append(warnings, "measurement purpose: close candidate (fresh code/tracker inputs)")
+	}
 	if completed {
-		if completion.Repository != target.Repository {
-			return nil, fmt.Errorf("completion evidence belongs to another repository")
-		}
 		correction, corrected, err := issue.CardActualCorrection(rec.Card.Raw)
 		if err != nil {
 			return nil, err

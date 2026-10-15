@@ -53,12 +53,12 @@ Historical reconstruction is not an implicit fallback: a fixed-then-ship Review-
 
 **Files:** cmd/sdlc/actualinputs_test.go, closefixed_test.go; cmd/sdlc/actualinputs.go, actual.go, close.go.
 
-- [ ] Drive measured whole close -> post-close fix -> measured fixed-then-ship re-close through the production command, with real owned tracker/transcript fixtures. Do not stub measurement. Assert latest ActualInputs.CodeHead equals completion.ReviewedHEAD, fix activity is admitted, historical preview replays the new generation, and publication passes.
-- [ ] Keep historical mismatch rejection and finalized milestone tests. Add prior numeric-correction/exclusion controls for candidate measurement, and REWORK preservation of the old completion.
-- [ ] Run RED; distinguish stale-head failure from fixture errors.
-- [ ] Introduce typed purpose through the shared resolver/engine. Close requests candidate mode, reading current tracker authority and local boundary cuts. Historical actual/correction callers retain replay mode. Finalized milestone previews keep their behavior.
-- [ ] Run focused GREEN. Restore the old purpose at the production close caller as a mutation; the sequence test must fail.
-- [ ] Commit and log evidence.
+- [x] Drive measured whole close -> post-close fix -> measured fixed-then-ship re-close through the production command, with real owned tracker/transcript fixtures. Do not stub measurement. Assert latest ActualInputs.CodeHead equals completion.ReviewedHEAD, fix activity is admitted, historical preview replays the new generation, and publication passes.
+- [x] Keep historical mismatch rejection and finalized milestone tests. Add prior numeric-correction/exclusion controls for candidate measurement, and REWORK preservation of the old completion.
+- [x] Run RED; distinguish stale-head failure from fixture errors.
+- [x] Introduce typed purpose through the shared resolver/engine. Close requests candidate mode, reading current tracker authority and local boundary cuts. Historical actual/correction callers retain replay mode. Finalized milestone previews keep their behavior.
+- [x] Run focused GREEN. Restore the old purpose at the production close caller as a mutation; the sequence test must fail.
+- [x] Commit and log evidence.
 
 ### Support exact legacy correction targets
 
