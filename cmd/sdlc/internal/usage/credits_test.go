@@ -50,6 +50,25 @@ func TestCreditRejectsUntrustedNumberClass(t *testing.T) {
 	}
 }
 
+func TestCreditJSONPreservesExactAggregate(t *testing.T) {
+	a := credit(t, strings.Repeat("9", 64))
+	sum, err := a.Add(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(sum)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded CreditAmount
+	if err := json.Unmarshal(raw, &decoded); err != nil || decoded.Cmp(sum) != 0 {
+		t.Fatalf("aggregate roundtrip: %v", err)
+	}
+	if err := json.Unmarshal([]byte("null"), &decoded); err == nil {
+		t.Fatal("null became measured zero")
+	}
+}
+
 func FuzzCreditExactRoundTripAndAddition(f *testing.F) {
 	for _, s := range []string{"0", "1e-18", "45.938730726457140528", "999999999999999999999999999999999999", "1e9999", "null", "-1"} {
 		f.Add(s, s)

@@ -156,7 +156,7 @@ func computeLegacyActualFor(ctx context.Context, repoTop, brainAbs, issueNum, mi
 	src := transcripts.Select(nonEmpty(brainAbs, repoTop), transcripts.DefaultHarnesses())
 	res.Dirs = src.Dirs
 	if len(src.Dirs) == 0 && len(src.Files) == 0 {
-		res.Status, res.Detail = actualTelemetryGap, "no brain/repo transcript sources found across the harness registry (Claude ~/.claude/projects, Codex ~/.codex/sessions)"
+		res.Status, res.Detail = actualTelemetryGap, "no brain/repo transcript sources found across the harness registry (Claude ~/.claude/projects, Codex ~/.codex/sessions, Qoder ~/.qoder/projects)"
 		return res
 	}
 

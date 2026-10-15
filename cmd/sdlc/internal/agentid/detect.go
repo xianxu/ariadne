@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 // tailBytes bounds the transcript read: session files grow past 100 MB, and
@@ -16,6 +17,8 @@ const tailBytes = 1 << 20
 type Detector struct {
 	Home   string
 	Getenv func(string) string
+	CWD    string
+	Now    func() time.Time
 }
 
 // OverrideEnv names the identity outright (agent/model/effort or "sdlc"), for
@@ -27,6 +30,11 @@ const OverrideEnv = "SDLC_AGENT_ID"
 func (d Detector) Detect() Identity {
 	if id, ok := Parse(d.Getenv(OverrideEnv)); ok {
 		return id
+	}
+	// Qoder also exports Claude plugin variables. Its native invocation marker
+	// takes precedence; Pair pane context alone never establishes invocation.
+	if d.Getenv("QODER_CLI") != "" {
+		return d.qoderIdentity()
 	}
 	env := EnvFrom(d.Getenv)
 	if !env.InSession() {

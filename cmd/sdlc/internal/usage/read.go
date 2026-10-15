@@ -33,6 +33,9 @@ func Decode(ctx context.Context, agent, sourceID string, reader io.Reader) ([]Re
 		return nil, coverage, err
 	}
 	coverage.Add("sources", "")
+	if agent == "qoder" {
+		return decodeQoder(ctx, reader)
+	}
 	if agent != "codex" && agent != "claude" {
 		coverage.Add("unsupported_formats", "unknown agent")
 		return nil, coverage, nil

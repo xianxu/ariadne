@@ -1946,17 +1946,37 @@ derive from the primary/common Git directory; local artifacts remain in the
 current worktree. See [Workspace Identity](workspace-identity.md) for address,
 resting-branch, calibration and project-discovery semantics.
 
-## Local token usage (#365)
+## Local usage (#365, #385)
 
-`sdlc usage` reads bounded local Claude/Codex response evidence. Its first rows
-show fleet tokens in the last hour, wall-clock burn over 1–3 hours, and an
+`sdlc usage` reads bounded local Claude/Codex/Qoder response evidence. Its first rows
+show fleet native usage in the last hour, wall-clock burn over 1–3 hours, and an
 empirical account projection when two compatible meter readings and complete
 spend evidence support it. `--since` selects detailed groups/hourly totals;
-`--json` exposes schema version 1. Caches are input subsets and reasoning is an
+`--json` exposes schema version 2. Caches are input subsets and reasoning is an
 output subset, so totals never add them twice. Codex normalization admits usage
 only after resolving the immutable executing identity; pre-identity usage is
 skipped and makes spend coverage incomplete even when a valid header arrives
 later. Missing cwd separately affects attribution.
+
+Qoder reports per-response credits; its zero token placeholders stay null.
+Credits use exact bounded decimal arithmetic, are deduplicated by message.id,
+and never include original_credits a second time. Reports carry parallel token
+and credit columns; a mixed scope has null complete totals for unsupported
+units and separately labelled known subtotals. No conversion between tokens and
+credits is inferred. `internal/qodertranscript` supplies the shared typed
+metadata/configuration interpretation for usage, actuals and agent identity.
+Discovery reads `~/.qoder/projects/*/*.jsonl`, matches recorded
+workspace-directories rather than project slugs, and preserves immutable session
+identity across replays. Actuals/close use the existing ownership and pinned
+prefix evidence path.
+
+Agent identity checks QODER_CLI before competing native-agent markers; Qoder
+also exports CLAUDE_PLUGIN_* variables, which do not prove Claude invocation.
+When present, Pair's launch-pinned PAIR_SESSION_ID must match the transcript
+sessionId and recorded cwd. Without that binding, competing sessions remain
+qoder/-/-; recency never chooses another session's model. SDLC_AGENT_ID remains
+the explicit ambiguity fallback. Qoder transcript recognition does not add a
+Qoder gate-reviewer CLI.
 
 `--issue N` reuses ownership intervals and bound descendants from actual-time
 attribution, but includes the review/verification tail and ends completed issues
@@ -1986,7 +2006,8 @@ reacquisition; accounting never advances a review gate or permits a retry.
 
 `sdlc usage calibrate --agent codex --remaining 29276 --unit credits` writes the
 private bounded meter under XDG_STATE_HOME (default ~/.local/state). Two readings
-of the same agent/unit calibrate meter change against local tokens between them;
+of the same agent/unit calibrate meter change against local tokens between them
+(reported native credits for Qoder);
 refills restart calibration. One reading, stale/incomplete evidence or zero burn
 produces a labelled status and null projection. Plain usage has no cache and
 never interacts with the providers. Re-run opt-in identity conformance when the

@@ -858,3 +858,11 @@ The simplest durable authority beats a clever scan of consequences.
   owner for any retained residue (#374 plan review).
 
 - Generated recovery commands must preserve the request’s semantic intent. An ambiguous exclusion that printed a numeric-repair retry lost --exclude; test both intents through the production refusal before publishing recovery guidance (#384).
+
+- A native agent marker establishes the invoking stack, not its session. Bind
+  session metadata to validated launch identity and workspace; newer activity
+  cannot resolve competing sessions. Sampled prefix/tail metadata cannot rule
+  out a contradiction in the skipped middle (#385 PQ-1).
+- Optional native measurements require optional subtotals too. An empty sum over
+  no supported observations is not measured zero, and an incomplete group must
+  retain its independently known subtotal (#385).

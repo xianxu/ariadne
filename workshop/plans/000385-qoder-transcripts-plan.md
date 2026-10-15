@@ -372,3 +372,19 @@ Detector.Detect/selectQoderSession property tests must preserve this policy
 under permutation of sessions and activity timestamps, including a newer
 noninvoking session. Task 4's decision prerequisite is complete; PQ-1 is addressed
 by the policy and its production-function verification strategy.
+
+### 2026-10-15 — measured implementation bounds and nullable subtotals
+
+Identity's initial prefix/tail sampling missed a constructed middle workspace
+contradiction. Replace the 1-MiB sampled identity read with a complete stat-pinned
+scan up to 4 MiB per session, retaining the 16-MiB total, 256-candidate and
+2-second limits. The measured 1.2-MiB real sample fits this budget; excess or
+incomplete evidence yields unknown identity. Canonical workspace paths and
+contradictory physical copies are covered by production Detector regressions.
+
+MeasuredDimensions is also nullable on Report/Group/Hour: absence of any known
+token response must not emit input/output zero under a known-subtotal label.
+Mixed scopes retain their independently measured subtotal. Provider-local
+discovery diagnostics preserve agent isolation; candidate exhaustion marks the
+interrupted and later unscanned providers incomplete. These refine the approved
+truth/coverage contract without changing native units or ownership rules.

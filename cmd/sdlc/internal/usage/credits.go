@@ -19,6 +19,10 @@ var creditNumber = regexp.MustCompile(`^(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9
 // ParseCredit accepts bounded nonnegative JSON numbers. Precision limits are
 // checked before math/big sees an exponent or allocates its coefficient.
 func ParseCredit(raw []byte) (CreditAmount, error) {
+	return parseCredit(raw, 64)
+}
+
+func parseCredit(raw []byte, digitLimit int) (CreditAmount, error) {
 	bad := fmt.Errorf("invalid or out-of-bounds reported credits")
 	if len(raw) == 0 || len(raw) > 128 {
 		return CreditAmount{}, bad
@@ -37,7 +41,7 @@ func ParseCredit(raw []byte) (CreditAmount, error) {
 		}
 	}
 	digits := strings.ReplaceAll(mantissa, ".", "")
-	if len(strings.TrimLeft(digits, "0")) > 64 {
+	if len(strings.TrimLeft(digits, "0")) > digitLimit {
 		return CreditAmount{}, bad
 	}
 	scale := -exponent
@@ -54,7 +58,7 @@ func ParseCredit(raw []byte) (CreditAmount, error) {
 	if !ok {
 		return CreditAmount{}, bad
 	}
-	v, err := canonicalCredit(r, scale, 64)
+	v, err := canonicalCredit(r, scale, digitLimit)
 	if err != nil {
 		return CreditAmount{}, bad
 	}
@@ -80,8 +84,19 @@ func (c CreditAmount) String() string {
 }
 func (c CreditAmount) IsZero() bool                 { return c.String() == "0" }
 func (c CreditAmount) MarshalJSON() ([]byte, error) { return []byte(c.String()), nil }
-func (c CreditAmount) rat() *big.Rat                { r, _ := new(big.Rat).SetString(c.String()); return r }
-func (c CreditAmount) Cmp(d CreditAmount) int       { return c.rat().Cmp(d.rat()) }
+
+// UnmarshalJSON also admits the bounded aggregate range used by our reports.
+// Provider records still enter through ParseCredit's tighter input bound.
+func (c *CreditAmount) UnmarshalJSON(raw []byte) error {
+	v, err := parseCredit(raw, 80)
+	if err != nil {
+		return err
+	}
+	*c = v
+	return nil
+}
+func (c CreditAmount) rat() *big.Rat          { r, _ := new(big.Rat).SetString(c.String()); return r }
+func (c CreditAmount) Cmp(d CreditAmount) int { return c.rat().Cmp(d.rat()) }
 func (c CreditAmount) Add(d CreditAmount) (CreditAmount, error) {
 	scale := func(v CreditAmount) int {
 		s := v.String()

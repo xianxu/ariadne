@@ -53,10 +53,10 @@ with `runtime-config` rows carrying `model` and `reasoningEffort`, and a `worksp
 
 Durable design: [Qoder transcript measurements](../plans/000385-qoder-transcripts-plan.md).
 
-- [ ] Shared bounded Qoder record/metadata adapter and sanitized fixtures.
-- [ ] Exact per-response credits, nullable token measurements, global dedup and
+- [x] Shared bounded Qoder record/metadata adapter and sanitized fixtures.
+- [x] Exact per-response credits, nullable token measurements, global dedup and
   native-unit aggregation/calibration through existing usage primitives.
-- [ ] Recorded-workspace discovery feeding ownership-proven actuals and close
+- [x] Recorded-workspace discovery feeding ownership-proven actuals and close
   adoption, with retained-prefix and cross-checkout regression fixtures.
 - [ ] Measured invoking-session binding and Qoder identity; keep observed-agent
   recognition separate from gate-reviewer CLI capability.
@@ -134,6 +134,40 @@ that decision before the gate rerun; no production code changed.
   PAIR_SESSION_ID binds only after transcript sessionId/cwd validation. A missing
   or mismatched binding cannot choose a competing session by recency; native-only
   ambiguity remains qoder/-/-. Recorded the superseding plan revision for PQ-1.
+
+### 2026-10-15 — implementation checkpoint
+
+- Shared parser/state, discovery, native usage core and invoking identity pass
+  their four internal package suites together. Parser race/seeded fuzz and
+  generated state/response permutations pass. Actual/close integration passes
+  through production ownership fixtures, including reclaim, cross-checkout
+  parity, nonzero adoption, pinned replay and truncation refusal.
+- Read-only production Decode + NormalizeResponses conformance against the
+  supplied transcript passes: 117 responses, exact 45.938730726457140528 credits,
+  tokens null, model auto, complete spend evidence. An external temporary Go
+  overlay runs this check without adding the private sample to the checkout.
+- Native measurement objects and known subtotals are nullable; missing token
+  support never becomes zero. Workspace/config ambiguity preserves known credits
+  and marks attribution unknown; session identity conflicts remain blocking.
+  Runtime-config epochs, not message aliases or replay arrival order, supply
+  response models. Credit JSON roundtrips preserve aggregate precision.
+- Discovery diagnostics now separate provider-local and truly global failures;
+  a candidate-cap interruption also marks later unscanned providers incomplete.
+  The collector regression reproduced Qoder failures contaminating Claude's
+  meter before scoped coverage fixed it. A partial-group regression reproduced
+  loss of a known subtotal before using the retained measured dimensions.
+- Identity uses exact validated launch binding, canonical workspace comparison,
+  and rejects contradictory copies. A generated middle-conflict regression
+  demonstrated prefix/tail sampling could miss poisoned metadata; identity now
+  scans complete sources up to 4 MiB (16 MiB overall, 256 candidates, 2 seconds),
+  returning unknown on excess. No runtime artifacts or provider-store writes.
+- Outer native tests pass fleet amounts, calibration, hourly/model detail,
+  provider isolation and partial subtotals. Broad usage/reviewer run reached one
+  new issue-fixture failure: identical physical copies are deliberately unbound
+  by existing ownership selection. Fixture now separates copied-spend dedup from
+  unambiguous issue attribution. Final empty-role null regression is in progress.
+- Remaining: finish root output tests, reconcile inventory/docs, merge current
+  main, record exact-head full suite, shared close review to SHIP, PR and merge.
 
 - Plan-quality round 2 CLEAN: PQ-1 and PQ-2 addressed, no new findings.
 

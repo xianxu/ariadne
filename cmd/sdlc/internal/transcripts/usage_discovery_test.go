@@ -312,3 +312,50 @@ func TestUsageDiscoveryClaudeMalformedActualMetadataCannotBeRepaired(t *testing.
 		t.Fatalf("malformed first actual metadata repaired by later record: %+v %v", got, err)
 	}
 }
+
+func TestUsageDiscoveryScopesProviderFailures(t *testing.T) {
+	qoderRoot, codexRoot := t.TempDir(), t.TempDir()
+	if err := os.Symlink(filepath.Join(qoderRoot, "absent"), filepath.Join(qoderRoot, "unavailable.jsonl")); err != nil {
+		t.Fatal(err)
+	}
+	usageFixture(t, qoderRoot, "malformed.jsonl", "not-json\n")
+	usageFixture(t, codexRoot, "valid.jsonl", usageMeta("codex-valid", "/repo", ""))
+	got, err := DiscoverUsageEvidence(context.Background(), []Harness{QoderHarness(qoderRoot), CodexHarness(codexRoot)}, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Diagnostics["unavailable_source"] != 1 || got.Diagnostics["unknown_metadata"] != 1 {
+		t.Fatalf("aggregate diagnostics=%v", got.Diagnostics)
+	}
+	if got.AgentDiagnostics["qoder"]["unavailable_source"] != 1 || got.AgentDiagnostics["qoder"]["unknown_metadata"] != 1 {
+		t.Fatalf("Qoder gaps missing: %v", got.AgentDiagnostics)
+	}
+	if got.AgentDiagnostics["codex"]["unavailable_source"] != 0 || got.AgentDiagnostics["codex"]["unknown_metadata"] != 0 || len(got.GlobalDiagnostics) != 0 {
+		t.Fatalf("provider gap leaked globally: agents=%v global=%v", got.AgentDiagnostics, got.GlobalDiagnostics)
+	}
+}
+func TestUsageDiscoveryCandidateBoundScopesUnscannedProviders(t *testing.T) {
+	claudeRoot, codexRoot, qoderRoot := t.TempDir(), t.TempDir(), t.TempDir()
+	usageFixture(t, claudeRoot, "one.jsonl", "{}\n")
+	usageFixture(t, codexRoot, "one.jsonl", usageMeta("one", "/repo", ""))
+	usageFixture(t, codexRoot, "two.jsonl", usageMeta("two", "/repo", ""))
+	qoderFixture(t, qoderRoot, qoderRows("/repo"))
+	// Claude completes before the cap. Codex reaches it, and Qoder is never walked.
+	got, err := discoverUsageEvidence(context.Background(), []Harness{ClaudeHarness(claudeRoot), CodexHarness(codexRoot), QoderHarness(qoderRoot)}, time.Time{}, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Diagnostics["candidate_limit"] != 1 || got.AgentDiagnostics["codex"]["candidate_limit"] != 1 || got.AgentDiagnostics["qoder"]["candidate_limit"] != 1 {
+		t.Fatalf("unscanned providers lost bound: aggregate=%v agents=%v", got.Diagnostics, got.AgentDiagnostics)
+	}
+	if got.AgentDiagnostics["claude"]["candidate_limit"] != 0 || got.GlobalDiagnostics["candidate_limit"] != 0 {
+		t.Fatalf("completed provider contaminated: agents=%v global=%v", got.AgentDiagnostics, got.GlobalDiagnostics)
+	}
+}
+
+func TestUsageDiscoveryUnsupportedHarnessRemainsGlobal(t *testing.T) {
+	got, err := DiscoverUsageEvidence(context.Background(), []Harness{fakeHarness{name: "future-provider"}}, time.Time{})
+	if err != nil || got.Diagnostics["unsupported_harness"] != 1 || got.GlobalDiagnostics["unsupported_harness"] != 1 || len(got.AgentDiagnostics) != 0 {
+		t.Fatalf("unknown provider diagnostic vanished: %+v %v", got, err)
+	}
+}
