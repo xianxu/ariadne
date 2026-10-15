@@ -1,12 +1,20 @@
 ---
 id: 000382
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
-card_mirror: '8bf699775854d9ff2811cbb237df330ea144682f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '343f6315d1f97d8a8977e09912ab0b366ec0f010' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-14T21:42:00-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # test-shard.test.py creates its temp dir under /tmp, which agent sandboxes deny; use TMPDIR
@@ -30,8 +38,11 @@ hardcoded `/tmp` temp locations and fix them the same way.
 
 ## Plan
 
-- [ ]
+- [ ] Remove hardcoded test temporary-directory roots found by the sweep.
+- [ ] Verify the report with a writable TMPDIR and denied outside allocation; run the recorded full suite.
 
 ## Log
 
 ### 2026-10-14
+
+Claimed ariadne:5 and started from fresh main. The authorized small design is to let Python tempfile select its environment-configured root, removing explicit /tmp overrides rather than adding another fallback policy (ARCH-DRY). Initial inventory found the report test and embedded Python in scripts/test/slot-dependencies.test.sh. Wider scratch-state findings were sent to the hub for scope guidance: brainstorming start/stop is a coupled managed-skill protocol, and close-issue.py uses a warmup counter file rather than a temporary directory. A documented allocation-denial check will execute the real report test with a custom writable TMPDIR and reject temporary allocations outside it; the issue explicitly permits a documented check.
