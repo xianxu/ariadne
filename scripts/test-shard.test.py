@@ -21,7 +21,7 @@ class ReportTest(unittest.TestCase):
             {"Action": "fail", "Package": package, "Test": "TestLease"},
             {"Action": "fail", "Package": package},
         ]
-        with tempfile.TemporaryDirectory(prefix="shard-report-", dir="/tmp") as root:
+        with tempfile.TemporaryDirectory(prefix="shard-report-") as root:
             path = Path(root)
             (path / "packages.json").write_text("".join(json.dumps(x) + "\n" for x in events))
             out = io.StringIO()
