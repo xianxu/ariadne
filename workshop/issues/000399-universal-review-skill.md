@@ -128,3 +128,4 @@ S2 and project.md S2a. This is the shared-skill half; no Parley code belongs her
 - 2026-10-15: parley.nvim:1 checked the pin at 8bead12b (delivery c732ec76): all 9 member hashes match, and the six modes are byte-identical to parley's. The export shape is accepted. Two corrections to the file-edit adapter followed:
   - `type: session-sync` is tested first, before `COUCH_TREE`. A legacy session-sync file stays tracked outside a slot, and when its storage is unreachable the adapter refuses instead of editing directly.
   - The write folds only the kept IDs whose asks it answers. A kept delivery that wasn't answered stays owed.
+- 2026-10-15: TL decision (delivery f73c1f3a): land now with --no-plan-check. The live Alt+Return check moves to parley.nvim#332's combined acceptance; the TL owns it and records the result here. The landing evidence is the fresh-agent dry run, the green full suite, and parley.nvim:1's independent verification of the export.
