@@ -184,7 +184,7 @@ weave compile
 Naming the formula in full lets Homebrew load it from the untrusted third-party
 tap. To have a bare `brew upgrade` pick up new releases, trust the tap once with
 `brew trust xianxu/ariadne`. To work on weave itself, build the candidate from
-this checkout with `go build -o bin/weave ./cmd/weave` and put `bin/` first on
+this checkout with `go build -trimpath -o bin/weave ./cmd/weave` and put `bin/` first on
 PATH.
 
 `weave link ../ariadne` also accepts an existing local base. Address links clone
@@ -306,6 +306,16 @@ Makefile, weave prepends the workflow include without replacing the product
 rules; non-regular Makefiles are preserved with an adoption instruction.
 `make weave` and the shared `make bootstrap` prerequisite delegate to
 `weave compile`; consumer bootstrap extensions remain additive.
+
+Ariadne's owner tool builds and `make test` default to `-trimpath`, so identical
+packages share Go's build cache across worktrees. Existing effective `GOFLAGS`
+(including compile caps) are retained; an explicit Make command-line `GOFLAGS`
+assignment overrides the default. The recorded suite declares the same
+`make test` command. Generated dev aliases also pass `-trimpath` when building
+each peer owner's tools; reload existing shell functions from the checkout root
+with `source <(construct/dev-aliases.sh)`. For direct Go commands, use
+`go build -trimpath` or `go test -trimpath`. See the
+[build and test details](atlas/workflow/sdlc-binary.md#build--install).
 
 For host checks required by `make test`, provide `tests/host-preflight.sh`, or
 set `WF_TEST_PREFLIGHT ?= path/to/preflight.sh` before including
