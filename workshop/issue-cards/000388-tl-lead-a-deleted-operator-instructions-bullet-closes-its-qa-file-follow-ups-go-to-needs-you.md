@@ -1,6 +1,6 @@
 ---
 id: 000388
-status: codecomplete
+status: done
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 4ccf516b8845760352ecc66b107bc5b384bab86b
         evidence_commit: 47a01f2ef60887be5e70f2f6f4ada5aa6d08d690
+        landed_commit: c545d0a3cea7974714a0987cf411314c4d95d03d
 ---
 
 # tl-lead: a deleted Operator-instructions bullet closes its QA file (follow-ups go to Needs you)
