@@ -103,6 +103,12 @@ Untrimmed archive SHA256s differ: b6822f56fa5e9646899d536246d7a54c75468b75b8aa15
 
 Raw report: /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne386-cache-report-aequzz93.json. Both experiment worktrees and private caches were removed successfully after recording the values. Only the report and this Log retain the evidence. Next: recorded full suite on the pushed implementation, then mandatory close review and operator-gated landing.
 
+### 2026-10-15 — candidate suite checkpoint
+
+Recorded suite submitted via sdlc local-check run --name suite on pushed head 7835077ce52b3554e2aa45277245b3c540dbe900. Detached checkout /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/sdlc-local-144912622; initial log /Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/inflight/164589ef40143f19a6849abd5419a1f0/run.log. Initially queue position 5; no pass claimed. Existing main fallback invokes make test and the pinned candidate's exported GOFLAGS supplies trimpath.
+
+PR local-gates-guard is red because the operator's label is not yet present, as expected for the protected new declaration. TL received the concrete PR/label request (Couch receipt b6f009f5-ce8f-467e-a9ed-327053111e10, submitted). No waiver or agent-applied label. Finish recorded verification and mandatory close review; landing waits for operator verification and green CI. Code, targeted proof and cache measurement are already committed.
+
 ## Revisions
 
 - 2026-10-15 — Clarify repository-scoped default flag inheritance and equivalent explicit recorded-suite settings, preserve existing Go flags, and include a measured untrimmed control. Original purpose and Done-when unchanged.
