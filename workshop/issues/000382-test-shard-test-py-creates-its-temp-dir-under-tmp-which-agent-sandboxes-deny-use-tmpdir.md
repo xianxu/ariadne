@@ -61,3 +61,9 @@ TMPDIR="${test_root:?}" sandbox-exec -p '(version 1) (allow default) (deny file-
 ```
 
 The read-only sweep inspected allocator and /tmp matches across 693 tracked shell/Python/Go-test/testdata files in scripts, construct, cmd, pkg, .colima and .openshell. Exactly the two changed test allocations force /tmp. Intentional literals in pkg/shelllint/mktemp_test.go exercise rejection; other Go/testdata hits are sample paths or error strings. Proper ${TMPDIR:-/tmp} fallbacks remain. Wider scripts findings are pending hub scope guidance: managed brainstorming start/stop default session paths (active adaptation and frozen copies), and the legacy close-issue.py warmup counter file.
+
+## Revisions
+
+### 2026-10-14 — classify intentional sweep exceptions
+
+The current Done when already permits remaining hardcoded locations when comments justify them. The read-only sweep's active brainstorming protocol is an intentional exception: construct/adapted/superpowers-brainstorming/scripts/stop-server.sh:4-7 explicitly documents deletion only under /tmp, preserving project-local .superpowers content, and line 24 enforces that allowlist. Its start-server.sh default is paired with that cleanup contract; sandboxed callers can select --project-dir. Frozen copies under construct/sources/superpowers/v5.0.2/skills/brainstorming and construct/versions/0004/superpowers-brainstorming preserve the same commented upstream protocol. They are not test allocator overrides and are not edited or auto-promoted here. The legacy scripts/close-issue.py warmup counter is a state file, not a temporary-directory allocation; shelllint's literal /tmp input intentionally tests rejection. These are explicit inventory classifications under the existing exception criterion, not an inferred approval of the unanswered hub question. The two actual test allocations are fixed and verified with raw-/tmp writes denied.
