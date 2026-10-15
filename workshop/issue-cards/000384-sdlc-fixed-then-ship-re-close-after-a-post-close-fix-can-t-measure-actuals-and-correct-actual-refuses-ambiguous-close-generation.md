@@ -1,6 +1,6 @@
 ---
 id: 000384
-status: working
+status: codecomplete
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours: 1.94
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 3.13
+tracker:
+    version: 1
+    completion:
+        token: close-bbc4eaaf1b86
+        repository: github.com/xianxu/ariadne
+        reviewed_head: cf2845c0d334b28818c54eb998cbd0b2b69f35b1
+        evidence_commit: dbec6a72682cb6483d5ec8d08abb41a5279aa085
 ---
 
 # sdlc: fixed-then-ship re-close after a post-close fix can't measure actuals, and correct-actual refuses (ambiguous close generation)
