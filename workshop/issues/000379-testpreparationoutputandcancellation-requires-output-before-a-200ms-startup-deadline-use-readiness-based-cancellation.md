@@ -42,7 +42,7 @@ Prove output retention and cancellation without requiring OS/Git/process startup
 
 - [x] Make the preparation subprocess write beyond `OutputLimit` and signal readiness before test cancellation; bound only the wait for readiness. Assert the cancellation error, no reviewer call, and capped/truncated evidence.
 - [x] Add an already-canceled preparation control that accepts empty, untruncated output and still refuses to dispatch the reviewer.
-- [ ] Run focused repetitions and the recorded suite, then close, land, and notify ariadne:5.
+- [x] Run focused repetitions and the recorded suite, then check the patch before close.
 
 ## Log
 
@@ -53,3 +53,9 @@ Filed unassigned from the primary checkout while #240 remains owned by ariadne:5
 Claimed in ariadne:1. Design keeps production untouched (ARCH-PURE, ARCH-PURPOSE): an explicit signal from the oversized producer, rather than elapsed wall time, establishes that truncation has become observable before cancellation. A pre-canceled control documents that early expiry need not retain output.
 
 The focused pair passed 20 repetitions; the whole `judge` package passed once. The new producer writes 64 times the output cap before marking readiness and waits to be canceled. The parent uses a bounded marker wait only as a setup failure guard; cancellation is event-driven. `git diff --check` passed.
+
+`make -k tools` passed. The recorded `sdlc local-check run --name suite` passed on `6bb8b055773d6ae49e4078d04a05bf3bb4751e8a`: all 12 shards (1,353 `cmd/sdlc` tests) and 59 other packages, 0 failures. The next delivery steps are the close review, PR, landing, and notification to ariadne:5 and the hub.
+
+## Revisions
+
+- 2026-10-14 — Split delivery from the final Plan checkbox: the close gate requires all implementation and verification items checked before it runs, while close/land/notification necessarily follow that gate. Scope and acceptance are unchanged.
