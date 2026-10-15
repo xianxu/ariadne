@@ -19,9 +19,10 @@ import (
 )
 
 const (
-	suiteAttemptKeep    = 30 * 24 * time.Hour
-	suiteInflightStale  = 24 * time.Hour
-	suiteAttemptMaxJSON = 1 << 20
+	suiteAttemptKeep         = 30 * 24 * time.Hour
+	suiteInflightStale       = 24 * time.Hour
+	suiteAttemptMaxJSON      = 1 << 20
+	suiteAttemptReaderBudget = 64 << 20
 )
 
 var suiteHex = regexp.MustCompile(`^[0-9a-fA-F]+$`)
@@ -236,43 +237,69 @@ func copySuiteLogAtomically(src, dst string) error {
 // readSuiteAttempts never opens record-derived log paths. It reports malformed
 // input as coverage loss and admits at most limit published files.
 func readSuiteAttempts(root string, limit int) ([]SuiteAttempt, []string, error) {
-	entries, err := os.ReadDir(filepath.Join(root, "attempts"))
+	return readSuiteAttemptsBudget(root, limit, suiteAttemptReaderBudget)
+}
+
+func readSuiteAttemptsBudget(root string, limit int, maxBytes int64) ([]SuiteAttempt, []string, error) {
+	dir, err := os.Open(filepath.Join(root, "attempts"))
 	if os.IsNotExist(err) {
 		return nil, nil, nil
 	}
 	if err != nil {
 		return nil, nil, err
 	}
+	defer dir.Close()
 	var out []SuiteAttempt
 	var warnings []string
 	seen := 0
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
-			continue
+	var bytesRead int64
+	for {
+		entries, dirErr := dir.ReadDir(128)
+		if dirErr != nil && dirErr != io.EOF {
+			return out, warnings, dirErr
 		}
-		if seen >= limit {
-			warnings = append(warnings, "record limit reached; later attempts omitted")
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
+				continue
+			}
+			if seen >= limit {
+				warnings = append(warnings, "record limit reached; later attempts omitted")
+				return out, warnings, nil
+			}
+			seen++
+			p := filepath.Join(root, "attempts", e.Name())
+			f, openErr := os.Open(p)
+			if openErr != nil {
+				warnings = append(warnings, p+": "+openErr.Error())
+				continue
+			}
+			remaining := maxBytes - bytesRead
+			if remaining <= 0 {
+				_ = f.Close()
+				warnings = append(warnings, "record byte budget reached; later attempts omitted")
+				return out, warnings, nil
+			}
+			b, readErr := io.ReadAll(io.LimitReader(f, min(int64(suiteAttemptMaxJSON+1), remaining+1)))
+			_ = f.Close()
+			if readErr != nil {
+				warnings = append(warnings, p+": "+readErr.Error())
+				continue
+			}
+			if int64(len(b)) > remaining {
+				warnings = append(warnings, "record byte budget reached; later attempts omitted")
+				return out, warnings, nil
+			}
+			bytesRead += int64(len(b))
+			a, decodeErr := decodeSuiteAttempt(b)
+			if decodeErr != nil || e.Name() != a.ID+".json" {
+				warnings = append(warnings, p+": invalid attempt record")
+				continue
+			}
+			out = append(out, a)
+		}
+		if dirErr == io.EOF {
 			break
 		}
-		seen++
-		p := filepath.Join(root, "attempts", e.Name())
-		f, err := os.Open(p)
-		if err != nil {
-			warnings = append(warnings, p+": "+err.Error())
-			continue
-		}
-		b, err := io.ReadAll(io.LimitReader(f, suiteAttemptMaxJSON+1))
-		_ = f.Close()
-		if err != nil {
-			warnings = append(warnings, p+": "+err.Error())
-			continue
-		}
-		a, err := decodeSuiteAttempt(b)
-		if err != nil || e.Name() != a.ID+".json" {
-			warnings = append(warnings, p+": invalid attempt record")
-			continue
-		}
-		out = append(out, a)
 	}
 	return out, warnings, nil
 }

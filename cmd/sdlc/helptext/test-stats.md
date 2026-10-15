@@ -18,3 +18,5 @@ Older per-head logs are partial: they cannot recover queue time or overwritten
 retries, and some formats do not report total wall time. The command labels
 missing metrics as n/a and reports unreadable or malformed records as coverage
 warnings rather than treating them as successful runs.
+The reader caps each repository at 10,000 records and 64 MiB of record JSON;
+if a cap is reached, it reports the omitted coverage.

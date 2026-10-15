@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -230,5 +231,28 @@ func TestPruneSuiteAttemptsPairsExpiredRecordsAndOrphans(t *testing.T) {
 	}
 	if _, err := os.Stat(inflight); !os.IsNotExist(err) {
 		t.Fatalf("retained dead-owner inflight: %v", err)
+	}
+}
+
+func TestReadSuiteAttemptsCapsTotalBytes(t *testing.T) {
+	root := t.TempDir()
+	for _, id := range []string{"aa11", "bb22"} {
+		a := storedAttemptFixture(id)
+		a.LogPath = filepath.Join("failed", id+".log")
+		data, err := json.Marshal(a)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p := filepath.Join(root, "attempts", id+".json")
+		if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rows, warnings, err := readSuiteAttemptsBudget(root, 10, 500)
+	if err != nil || len(rows) != 1 || len(warnings) == 0 {
+		t.Fatalf("unbounded intake: %d %v %v", len(rows), warnings, err)
 	}
 }
