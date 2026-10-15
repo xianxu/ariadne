@@ -219,6 +219,8 @@ file splits/names in the initial plan without adding another runtime owner.
 
 - Plan-quality round 2 CLEAN: PQ-1 and PQ-2 addressed, no new findings.
 
+- Recorded suite on 02cdc490f32e7952d27ca04f9841fac4e000f8d9 failed after 558.4s: all runtime shards/packages passed, but TestVerbContextsReachTrackerReads found background contexts in Qoder identity and transcript selection. Thread caller contexts through both APIs and commit before a new recorded suite; do not change the guard. Failure log: git common dir/sdlc/test-stats/failed/9386958194ea2e6d5bf9b125515098a4.log.
+
 ## Estimate
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
