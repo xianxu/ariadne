@@ -24,7 +24,16 @@ rounds:
           note: Lines 67–68 replace correction test inventories with named-function strategies and mechanical guards; line 85 names the resolver and close callers.
           round: 2
       blocked: false
-content_hash: 25a1ac2ac7d61405d4f893bf40f9d3522ac334d9af34671b27d1feb1799b0948
+    - "n": 3
+      timestamp: "2026-10-15T02:52:45-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Named risky functions have adversarial strategies and mechanical guards; the prior finding remains resolved.
+          round: 3
+      blocked: false
+content_hash: bd8f53560d6f3f89b1c58c37d088fde7c6795578a8c50641e54f84de048dea0b
 ---
 
 # Gate ledger — ariadne#384 (plan-quality)
@@ -44,6 +53,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 ### Disposed
 
 - PQ-1 — addressed — Lines 67–68 replace correction test inventories with named-function strategies and mechanical guards; line 85 names the resolver and close callers.
+
+## Round 3 — 2026-10-15T02:52:45-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Named risky functions have adversarial strategies and mechanical guards; the prior finding remains resolved.
 
 ## Open findings
 
