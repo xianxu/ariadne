@@ -172,3 +172,23 @@ func TestLandingTicksPeerProject(t *testing.T) {
 		t.Errorf("landing did not tick ops's project:\n%s\n%s", got, out.String())
 	}
 }
+
+// #373: the legacy (non-slot) merge path ticks too, after its archive step.
+func TestRunMerge_LegacyLandingTicksPeerProject(t *testing.T) {
+	dir := tempRepo(t)
+	git(t, dir, "branch", "-m", "feature", "000042-x")
+	git(t, dir, "push", "-q", "origin", "000042-x")
+	ops := initFleetRepo(t, filepath.Dir(dir), "ops")
+	rel := seedLinkedProject(t, ops, "p", "", "- [ ] the thing ["+filepath.Base(dir)+"#42]\n")
+	origin := withOrigin(t, ops)
+
+	swapMergeDeps(t, &e2eGH{openPR: "42"}, nil)
+	var out bytes.Buffer
+	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	if msg, died := expectDie(t, func() { runMerge(&out, &out, f) }); died {
+		t.Fatalf("merge died: %s\n%s", msg, out.String())
+	}
+	if got := originFile(t, origin, rel); !strings.Contains(got, "- [x] the thing ["+filepath.Base(dir)+"#42] (PR #42)") {
+		t.Errorf("legacy landing did not tick ops's project:\n%s\n%s", got, out.String())
+	}
+}
