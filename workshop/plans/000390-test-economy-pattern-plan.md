@@ -115,3 +115,13 @@ After a seven-day pilot, report by repo: count/coverage; suite and queue p50/p90
 3. Confirm TL daily flake ownership and seven-day operator-approved quarantine exception.
 
 After approval, record changed decisions in dated `## Revisions` sections here and in #390, commit the artifacts, file the new issues, update the ops project, and close #390 as design-only. Implementation starts on separate issue branches from main.
+
+## Revisions
+
+### 2026-10-15 13:39 PDT — Fleet-blocking priority lane
+
+**Reason:** ariadne#391 blocks `sdlc close` across the fleet and waited fourth for a suite today. A strict FIFO serial admission queue would preserve that failure mode.
+
+**Delta:** The serial-admission recommendation's “queue FIFO” means FIFO **within a priority class**, not across all candidates. Add a `fleet-blocking` class above `normal`, granted only by the operator or TL for a named issue that blocks a shared fleet workflow. The grant records grantor, issue, reason, time and expiry (at most 24 hours unless renewed); the queue's admission record also logs when the candidate jumps ahead of normal candidates. At each **next admission**, choose the oldest ready fleet-blocking candidate, then the oldest ready normal candidate. Never interrupt a running suite, revoke a candidate already landing, or treat the priority grant as a waiver of review, CI, exact-head suite, or local-gates checks. A failed/stale prioritized candidate leaves admission and re-enters only when ready; priority expires on issue landing or its timestamp. Report priority and normal wait distributions plus displacement count in the pilot, so chronic emergency use is visible (ARCH-ORDER, ARCH-CONSTRAINTS).
+
+The new merge-queue implementation issue must test: a granted fleet blocker overtakes waiting normal candidates; same-class FIFO remains stable; a running suite is not preempted; expired/unlogged/unauthorized grants have no effect; and retry after crash preserves the logged grant without duplicating admission. This revision supersedes the unqualified FIFO wording in section 2 and the rollout table.

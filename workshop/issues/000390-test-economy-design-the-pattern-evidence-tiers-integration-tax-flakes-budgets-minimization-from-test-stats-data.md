@@ -65,3 +65,12 @@ Live `sdlc test-stats --since 7d` at 13:05 PDT: ariadne wall p50/p90
 481.3 s (n=21). The earlier 554 s queue median was a different snapshot;
 the plan pins this newer one and reports sample coverage. Zero confirmed
 same-head flakes in 9/24 complete attempts does not imply zero flakes overall.
+
+## Revisions
+
+### 2026-10-15 13:39 PDT — Priority for fleet-blocking repairs
+
+The TL reported #391 waited fourth for a suite while it blocked `sdlc close`
+fleet-wide. The plan now specifies a logged, time-bounded operator/TL grant
+that lets a fleet-blocking candidate pass waiting normal candidates at the
+next admission; it never preempts a running suite or waives landing evidence.
