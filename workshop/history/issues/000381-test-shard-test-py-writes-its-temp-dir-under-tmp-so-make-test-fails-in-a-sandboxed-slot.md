@@ -1,20 +1,20 @@
 ---
 id: 000381
-status: open
+status: wontfix
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
 severity: low
-card_mirror: '5e3370cee8bb75b2cd334ddddabab24ba6e7317d' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'd34509b3bbfaf989c3e0df0fcb51336e6980e2ed' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T21:16:15-07:00
 claimant:
     operator: Xian Xu
     machine: 4716879978a7b90f6b583da1716fd0e9
     machine_name: Xian’s MacBook Pro
-    workspace: ariadne:2
-    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    workspace: ariadne:0
+    worktree: /Users/xianxu/workspace/ariadne
     repository: github.com/xianxu/ariadne
 ---
 
@@ -39,3 +39,4 @@ Drop `dir="/tmp"`; Python's `tempfile` honours `TMPDIR`. Sweep `scripts/*.py` fo
 ## Log
 
 ### 2026-10-14
+- 2026-10-14: abandoned (wontfix): duplicate of #382 (same /tmp temp dir in scripts/test-shard.test.py; filed minutes apart), which ariadne:5 is fixing
