@@ -1,6 +1,6 @@
 ---
 id: 000379
-status: working
+status: codecomplete
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
@@ -14,6 +14,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.35
+tracker:
+    version: 1
+    completion:
+        token: close-d2678e03f008
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 22b10de702c62c52f56ca1ff66c2a3a9ef7caf14
+        evidence_commit: a826babc1d33f94847cc880196043f4ca6531f34
 ---
 
 # TestPreparationOutputAndCancellation requires output before a 200ms startup deadline; use readiness-based cancellation
