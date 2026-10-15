@@ -315,8 +315,10 @@ func commitLinkedProjectClose(livePath, real, dest, projectNext string) error {
 		return err
 	}
 	if err := projectCloseRenameFn(stage, real); err != nil {
-		_ = os.Symlink(liveTarget, livePath)
 		_ = os.Remove(dest)
+		if lerr := os.Symlink(liveTarget, livePath); lerr != nil {
+			return fmt.Errorf("%w; restoring the live link %s → %s also failed: %v", err, livePath, liveTarget, lerr)
+		}
 		return err
 	}
 	return nil

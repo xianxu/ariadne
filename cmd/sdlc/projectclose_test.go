@@ -282,6 +282,16 @@ func linkedProjectCloseFixture(t *testing.T) (*projectCloseFlags, string, string
 
 func TestProjectCloseLinkedRecord(t *testing.T) {
 	f, projectPath, real := linkedProjectCloseFixture(t)
+	originalRename := projectCloseRenameFn
+	projectCloseRenameFn = func(oldPath, newPath string) error {
+		// The rename of the real file is the commit point: the live link is
+		// already gone, so every earlier failure rolls back.
+		if _, err := os.Lstat(projectPath); !os.IsNotExist(err) {
+			t.Errorf("live link still present at the commit point: %v", err)
+		}
+		return originalRename(oldPath, newPath)
+	}
+	t.Cleanup(func() { projectCloseRenameFn = originalRename })
 	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
 		t.Fatal(err)
 	}
@@ -328,5 +338,36 @@ func TestProjectCloseLinkedRecordRollsBack(t *testing.T) {
 	}
 	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
 		t.Fatalf("rerun: %v", err)
+	}
+}
+
+// Each project close gate's refusal and waiver are attributable by its gate
+// catalog row, matched against the text close actually emits (#373 review,
+// waiver-catalog-coverage).
+func TestProjectCloseGatesMatchTheCatalog(t *testing.T) {
+	gates := []struct {
+		flag  string
+		setup func(*projectCloseFlags)
+		waive func(*projectCloseFlags)
+	}{
+		{"no-retro", func(*projectCloseFlags) {}, func(f *projectCloseFlags) { f.NoRetro = true }},
+		{"no-mvp", func(*projectCloseFlags) { stubCloseMVP(t, map[string]bool{"ariadne#1": true, "ariadne#2": false}) }, func(f *projectCloseFlags) { f.NoMVP = true }},
+	}
+	for _, g := range gates {
+		t.Run(g.flag, func(t *testing.T) {
+			f, _ := projectCloseFixture(t, "closing", g.flag != "no-retro")
+			g.setup(f)
+			err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f)
+			if err == nil {
+				t.Fatal("the gate did not refuse")
+			}
+			assertGatesigAttributes(t, err.Error(), g.flag, "project close")
+			g.waive(f)
+			var stderr bytes.Buffer
+			if err := runProjectClose(context.Background(), &bytes.Buffer{}, &stderr, f); err != nil {
+				t.Fatalf("waived: %v", err)
+			}
+			assertGatesigAcknowledges(t, stderr.String(), g.flag, "project close")
+		})
 	}
 }

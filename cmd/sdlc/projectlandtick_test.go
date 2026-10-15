@@ -35,6 +35,20 @@ func seedLinkedProject(t *testing.T, peer, slug, frontmatter, rows string) strin
 	return realRel
 }
 
+// tickOutsideLock makes f's lock check, as each locked section ends, that the
+// tick has not reached origin yet: it is warn-only IO on another repository and
+// runs after the merge lock is released (#373 review, BR-3).
+func tickOutsideLock(t *testing.T, f *mergeFlags, origin, rel string) {
+	t.Helper()
+	f.Lock = func(run func() error) error {
+		err := run()
+		if strings.Contains(originFile(t, origin, rel), "[x]") {
+			t.Error("the landing tick ran under the merge lock")
+		}
+		return err
+	}
+}
+
 func originHead(t *testing.T, origin string) string {
 	t.Helper()
 	return strings.TrimSpace(testfix.Capture(t, origin, "rev-parse", "main"))
@@ -164,8 +178,10 @@ func TestLandingTicksPeerProject(t *testing.T) {
 	rel := seedLinkedProject(t, ops, "p", "", "- [ ] the procedure [sample#1]\n")
 	origin := withOrigin(t, ops)
 
+	f := landingFlags()
+	tickOutsideLock(t, f, origin, rel)
 	var out bytes.Buffer
-	if err := runMerge(&out, &out, landingFlags()); err != nil {
+	if err := runMerge(&out, &out, f); err != nil {
 		t.Fatalf("merge: %v\n%s", err, out.String())
 	}
 	if got := originFile(t, origin, rel); !strings.Contains(got, "- [x] the procedure [sample#1] (PR #1)") {
@@ -185,6 +201,7 @@ func TestRunMerge_LegacyLandingTicksPeerProject(t *testing.T) {
 	swapMergeDeps(t, &e2eGH{openPR: "42"}, nil)
 	var out bytes.Buffer
 	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	tickOutsideLock(t, f, origin, rel)
 	if msg, died := expectDie(t, func() { runMerge(&out, &out, f) }); died {
 		t.Fatalf("merge died: %s\n%s", msg, out.String())
 	}
