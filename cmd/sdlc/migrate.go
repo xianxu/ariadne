@@ -25,6 +25,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueref"
@@ -363,10 +364,10 @@ func runMigrate(o *migrateOpts) error {
 		fmt.Fprintf(o.stderr, "    git -C %s %s\n", destTop, strings.Join(quoteMigrateMsg(migrateCommitArgs(destMsg, destRel)), " "))
 		fmt.Fprintf(o.stderr, "    git -C %s %s\n", srcRoot, strings.Join(quoteMigrateMsg(migrateCommitArgs(srcMsg, relPath)), " "))
 	} else {
-		if out, err := gitInDir(destTop, migrateCommitArgs(destMsg, destRel)...); err != nil {
+		if out, err := gitInDir(destTop, migrateCommitArgs(agentid.StampCurrent(destMsg), destRel)...); err != nil {
 			die(o.stderr, fmt.Sprintf("commit in %s: %v — %s", destRepo, err, out))
 		}
-		if out, err := gitInDir(srcRoot, migrateCommitArgs(srcMsg, relPath)...); err != nil {
+		if out, err := gitInDir(srcRoot, migrateCommitArgs(agentid.StampCurrent(srcMsg), relPath)...); err != nil {
 			die(o.stderr, fmt.Sprintf("commit in %s: %v — %s", srcRepo, err, out))
 		}
 		cok(o.stderr, fmt.Sprintf("moved %s → %s/%s (both sides committed, scoped)", relPath, destRepo, destRel))

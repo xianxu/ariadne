@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/workspace"
@@ -185,7 +186,7 @@ func commitOnly(e *trackerEnv, message string, paths ...string) error {
 	if _, err := e.git(append([]string{"add", "--"}, paths...)...); err != nil {
 		return err
 	}
-	_, err := e.git(append([]string{"commit", "-q", "--no-verify", "-m", message, "--only", "--"}, paths...)...)
+	_, err := e.git(append([]string{"commit", "-q", "--no-verify", "-m", agentid.StampCurrent(message), "--only", "--"}, paths...)...)
 	return err
 }
 

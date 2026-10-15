@@ -77,7 +77,7 @@ func TestRepositoryFreshSnapshotAndConditionalWrite(t *testing.T) {
 	if testfix.Capture(t, root, "rev-parse", "HEAD") != before || testfix.Capture(t, root, "status", "--porcelain") != "" {
 		t.Fatal("tracker write changed caller checkout")
 	}
-	if log := testfix.Capture(t, root, "log", "-1", "--format=%B", "refs/remotes/publication/issue-tracker"); !strings.Contains(log, "Tracker-Operation: test-claim-one") {
+	if log := testfix.Capture(t, root, "log", "-1", "--format=%B", "refs/remotes/publication/issue-tracker"); !strings.Contains(log, "Tracker-Operation: test-claim-one\nAgent: "+testfix.FixedAgent) {
 		t.Fatalf("missing provenance: %s", log)
 	}
 }
@@ -217,7 +217,7 @@ func TestUpdateCardTrailers(t *testing.T) {
 	}
 	snap, _ = r.Snapshot()
 	msg := strings.TrimSpace(testfix.Capture(t, root, "log", "-1", "--format=%B", snap.Ref()))
-	if want := "#252: tracker: update card\n\nTracker-Operation: test-trailers\n" + strings.Join(trailers, "\n"); msg != want {
+	if want := "#252: tracker: update card\n\nTracker-Operation: test-trailers\n" + strings.Join(trailers, "\n") + "\nAgent: " + testfix.FixedAgent; msg != want {
 		t.Fatalf("message:\n%s\nwant:\n%s", msg, want)
 	}
 	if got := cardMessage("000252", "update card", "plain"); got != "#252: tracker: update card\n\nTracker-Operation: plain" {

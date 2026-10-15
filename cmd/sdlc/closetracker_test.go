@@ -67,15 +67,20 @@ func TestTrackerCloseCommitsEvidenceAndPublishesBoundCard(t *testing.T) {
 	reviewed := r.git("rev-parse", "HEAD")
 	mainBefore := r.originMain()
 	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
-	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "301", "--verified", "e2e", "--actual", "1.5", "--no-atlas"); err != nil {
+	_, stderr, err := executeSDLCTestCommand("close", "--issue", "301", "--verified", "e2e", "--actual", "1.5", "--no-atlas")
+	if err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
+	}
+	// #367: the fixture's hand commit has no Agent trailer; sdlc's own do.
+	if !strings.Contains(stderr, "1 commit(s) in the window lack an Agent: trailer") || !strings.Contains(stderr, "#301: implement") {
+		t.Errorf("close did not report the bare commit:\n%s", stderr)
 	}
 	evidence := r.git("rev-parse", evidenceRev)
 	if r.git("rev-parse", evidenceRev+"^") != reviewed {
 		t.Fatal("the evidence commit is not directly on the reviewed commit")
 	}
 	msg := r.git("log", "-1", "--format=%B", evidenceRev)
-	for _, want := range []string{"#301: close", "Review-Verdict: SHIP", "Close-Actual: 1.5"} {
+	for _, want := range []string{"#301: close", "Review-Verdict: SHIP", "Close-Actual: 1.5", "\nAgent: " + testfix.FixedAgent} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("evidence message lacks %q:\n%s", want, msg)
 		}

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
@@ -593,7 +594,7 @@ func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg strin
 	// transaction lock serializes sdlc verbs against each other, but nothing
 	// stops a peer running plain `git add`. A pathspec implies --only, leaving
 	// the rest of the index untouched.
-	commitArgs := append([]string{"commit", "-m", syncMessage(msg, defaultSyncSubject), "--"}, pathspec...)
+	commitArgs := append([]string{"commit", "-m", agentid.StampCurrent(syncMessage(msg, defaultSyncSubject)), "--"}, pathspec...)
 	if out, err := r.GitInDir(paths.Root, commitArgs...); err != nil {
 		return fmt.Errorf("commit failed: %v\n%s", err, out)
 	}

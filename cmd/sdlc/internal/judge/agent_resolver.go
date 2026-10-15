@@ -3,33 +3,16 @@ package judge
 import (
 	"fmt"
 	"os"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 )
 
 // AgentDefaultEnv is the explicit environment slice used to derive a default
-// judge agent. Avoid wildcard scans: only process/session signals that identify
-// the active agent stack belong here.
-type AgentDefaultEnv struct {
-	AgentCmd      string
-	PairAgent     string
-	CodexCI       string
-	CodexThreadID string
-	ClaudeCode    string
-}
+// judge agent; agentid owns it so commit stamping (#367) shares it.
+type AgentDefaultEnv = agentid.Env
 
 // CurrentAgentDefaultEnv reads the process environment at the IO boundary.
-func CurrentAgentDefaultEnv() AgentDefaultEnv {
-	claudeCode := os.Getenv("CLAUDECODE")
-	if claudeCode == "" {
-		claudeCode = os.Getenv("CLAUDE_CODE_ENTRYPOINT")
-	}
-	return AgentDefaultEnv{
-		AgentCmd:      os.Getenv("AGENT_CMD"),
-		PairAgent:     os.Getenv("PAIR_AGENT"),
-		CodexCI:       os.Getenv("CODEX_CI"),
-		CodexThreadID: os.Getenv("CODEX_THREAD_ID"),
-		ClaudeCode:    claudeCode,
-	}
-}
+func CurrentAgentDefaultEnv() AgentDefaultEnv { return agentid.EnvFrom(os.Getenv) }
 
 // ResolveAgentCLI selects the judge agent: the main agent's own CLI (the `same`
 // reviewer policy). Explicit --agent and AGENT_CMD are operator/script
@@ -52,15 +35,7 @@ func ResolveReviewerCLI(explicit string, explicitSet bool, env AgentDefaultEnv, 
 }
 
 // MainAgent is the agent driving this session, from its environment signals.
-func MainAgent(env AgentDefaultEnv) AgentCLI {
-	if agent, ok := knownAgent(env.PairAgent); ok {
-		return agent
-	}
-	if env.CodexCI != "" || env.CodexThreadID != "" {
-		return AgentCodex
-	}
-	return AgentClaude
-}
+func MainAgent(env AgentDefaultEnv) AgentCLI { return AgentCLI(env.Main()) }
 
 // ReviewerMode is how a repo picks its reviewer from the main agent (#310,
 // reviving #129's modes).
@@ -121,14 +96,8 @@ func (p ReviewerPolicy) Validate() error {
 }
 
 func knownAgent(s string) (AgentCLI, bool) {
-	switch AgentCLI(s) {
-	case AgentClaude:
-		return AgentClaude, true
-	case AgentCodex:
-		return AgentCodex, true
-	case AgentGemini:
-		return AgentGemini, true
-	default:
+	if !agentid.Known(s) {
 		return "", false
 	}
+	return AgentCLI(s), true
 }

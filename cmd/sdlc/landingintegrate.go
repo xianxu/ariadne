@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 )
 
 const integrationTrailer = "Integrated-Main"
@@ -183,7 +185,7 @@ func integrateLandingMain(ctx context.Context, r gitRunner, gh landingGH, t land
 			return err
 		}
 		msg := fmt.Sprintf("Merge %s into %s (sdlc merge, #332)\n\n%s: %s", s.main, branch, integrationTrailer, s.main)
-		_, mergeErr := landingGit(r, t.Root, "-c", "merge.autoStash=false", "-c", "rerere.enabled=false", "merge", "--no-ff", "--no-edit", "-m", msg, s.main)
+		_, mergeErr := landingGit(r, t.Root, "-c", "merge.autoStash=false", "-c", "rerere.enabled=false", "merge", "--no-ff", "--no-edit", "-m", agentid.StampCurrent(msg), s.main)
 		if mergeErr != nil {
 			var effect integrationStep
 			s, effect, _ = transitionIntegration(s, integrationEvent{kind: integrationMergeFailed})

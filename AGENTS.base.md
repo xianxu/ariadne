@@ -88,6 +88,7 @@
 - Shape: `<area>: <subject>` or `<area>: <verb>: <subject>`. Reference issue/milestone when applicable: `#15 M4b: subject` (agents grep `git log --grep "^#15"`).
 - `side-quest:` verb for unplanned-but-right work.
 - Body = why, not what (the diff shows what). End with a `Co-Authored-By:` trailer naming the authoring model.
+- **`Agent:` trailer (#367):** every agent-authored commit also carries `Agent: <agent>/<model>/<effort>`, the machine record that velocity per model reads (`claude/claude-opus-5-5/high`, `codex/gpt-6-astra/medium`). Run `sdlc agent-id` once per session and copy the line it prints: `git commit -m '…' --trailer 'Agent: …'`. sdlc stamps the commits it makes itself, and `sdlc close` lists window commits that lack the trailer.
 
 ### 13. Model User Intention
 - Hold a running hypothesis of the user's intent and update it **every turn** — each exchange moves the model positively or negatively. Keep it **self-consistent** and **fitting the observed interactions**; when a turn contradicts the model, revise the model — don't rationalize the observation away (a "that's not what I meant" is a model failure to fix, not noise). These two criteria are **canonical here**; the `continuation` datatype's `## Thread arc & user model` checkpoint and the per-session `pensive` flush persist the model but defer to this definition.
