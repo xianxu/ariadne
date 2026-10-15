@@ -58,3 +58,72 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"731b8f80-206f-49c0-9f9e-0cc700156ee7","repository":"github.com/xianxu/ariadne","issue_id":"000388","recipe":"small-diff-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/8773d3e5a93da4ab","reviewed_head":"94c04e25375bc72795d15dff740af616e51ecafd","slot":"ariadne:2","requested_at":"2026-10-15T18:50:28.889412Z"},"phase":"finished","pid":82276,"started_at":"2026-10-15T18:50:29.290554Z","finished_at":"2026-10-15T18:50:58.035524Z","session_id":"2c467df3-27d8-4423-be7b-069b9ca33162","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-15T11:52:16-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 388 — tl-lead: a deleted Operator-instructions bullet closes its QA file (follow-ups go to Needs you) |
+| repo | ariadne |
+| issue file | workshop/issues/000388-tl-lead-a-deleted-operator-instructions-bullet-closes-its-qa-file-follow-ups-go-to-needs-you.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | fc11a763760300a520a0a5758e2d23b142a6bb34..1fada25d45c0c0bfc77d15abb1855a3327ff531c |
+| command | sdlc close --issue 388 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-15T11:52:16-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The fix in this window delivers what BR-1 asked for. `cmd/tl-lead/help.md:169-171` now sends a later follow-up to Needs you only "if it needs the operator, else into Threads or a new bullet's answer". That matches Needs you's asks-only rule at `help.md:139-141`. The phrase guard `"never into the closed file"` is still on one physical line, and `go test ./cmd/tl-lead/ -run TestLeadHelpCoversPlaybook` passes at head. The issue file changes only frontmatter (status, `actual_hours`, card mirror) and adds Log lines. `## Spec` and `## Done when` are unchanged, so scope has not changed. No conflict resolutions are listed. The fix does leave one restatement of the old wording, in `atlas/workflow/tl-skills.md:34`, which is noted below as a Minor. Nothing blocks SHIP.
+
+1. **Strengths**
+   - `help.md:169-171` fixes the contract mismatch with a condition ("if it needs the operator") rather than dropping the Needs you destination. This keeps the Spec's intent and respects the section's rule.
+   - Both #388 guards (`main_test.go:61-62`) still match and pass, and the reflow did not split either guarded phrase.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - **This is the 2nd finding in family `section-contract-consistency`.** `atlas/workflow/tl-skills.md:34` still says "later follow-ups go to Needs you, never into that file". That is the unconditional routing BR-1 flagged, so the fix covered the case BR-1 named but not every place that restates it.
+     - The general rule: anything that restates where follow-ups go must keep the Needs you condition, or not restate the destination at all.
+     - Recommended fix: the atlas line keeps only the "closes its QA file … never into that file" part and points to `tl-lead --help` for where follow-ups go, so help.md is the single source.
+     - How common it is: 2 sites state the routing (help.md and the atlas), and 1 of them still has the old wording.
+
+5. **Test coverage:** No guard pins the new condition. That is acceptable for a wording correction, and the behaviour is prose the TL consumes. The existing guards still pin the closes and never-reopen halves.
+
+6. **Architecture**
+   - **ARCH-DRY:** flagged as Minor. The atlas restates the routing rule and has fallen out of date with its source (above).
+   - **ARCH-PURE:** passes, because no code changed.
+   - **ARCH-PURPOSE:** flagged as Minor, for the same atlas line: one other place that restates the rule was not updated.
+
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      help.md:169-171 now routes to Needs you only "if it needs the operator, else into Threads or a new bullet's answer", consistent with help.md:139-141; guards pass.
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: section-contract-consistency
+    title: |
+      atlas tl-skills.md:34 still routes all later follow-ups to Needs you unconditionally
+    detail: |
+      2nd finding in this family: the BR-1 fix updated help.md but the atlas restatement still says "later follow-ups go to Needs you", contradicting the asks-only rule. Rule: any restatement of the routing must keep the "if it needs the operator" condition or not restate it; simplest is for the atlas to keep only "closes its QA file, never into that file" and defer to tl-lead --help. Prevalence: 2 sites restate the routing, 1 still has the old wording.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"a2a02621-dcde-4d45-bbda-62493f95a2e3","repository":"github.com/xianxu/ariadne","issue_id":"000388","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/c9a6ecbdad635c1d","reviewed_head":"1fada25d45c0c0bfc77d15abb1855a3327ff531c","slot":"ariadne:2","requested_at":"2026-10-15T18:51:36.792899Z"},"phase":"finished","pid":4053,"started_at":"2026-10-15T18:51:36.885018Z","finished_at":"2026-10-15T18:52:16.508615Z","session_id":"2fe6a619-6710-45e1-9c4c-6f4993775d8a","outcome":"returned"}] -->

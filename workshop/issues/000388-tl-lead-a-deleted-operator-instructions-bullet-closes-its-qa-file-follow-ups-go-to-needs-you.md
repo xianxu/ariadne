@@ -46,6 +46,7 @@ closed QA file, which the operator won't reopen. Add a phrase guard in tl-lead's
 ## Log
 
 ### 2026-10-15
+- 2026-10-15: closed — close-review Minor fixed in 1fada25d: a follow-up goes to Needs you only when it needs the operator, else Threads or a new bullet answer; phrase guards still pass, go test ./cmd/tl-lead green (fixed-then-ship); review verdict: SHIP
 - 2026-10-15: closed — tl-lead --help states the rule (a deleted Operator-instructions bullet closes its QA file; follow-ups go to Needs you or a new bullet answer, never into the closed file); two phrase guards in TestLeadHelpCoversPlaybook; atlas tl-skills.md notes it; go test ./cmd/tl-lead green; full make test green (12 shards, 1485 cmd/sdlc tests, 62 packages, 0 failed); review verdict: SHIP
 - Rule added to the Operator-instructions paragraph of `tl-lead --help`; two phrase guards (closes, never into the closed file). `go test ./cmd/tl-lead/` green.
 - Close-review Minor fixed: a follow-up goes to Needs you only if it needs the operator, else Threads or a new bullet's answer, matching Needs you's asks-only contract.
