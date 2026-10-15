@@ -1739,8 +1739,9 @@ run passes through (`WF_TEST_LOCK_HELD_BY`), even while another slot is free.
 (`sdlc local-check run`, and the suite `sdlc merge` runs) does not give the
 helper its own pid to watch. It starts a per-run holder, a `cat` on a pipe from
 `sdlc`, and passes that pid as `--watch`. Right after the suite's process group
-ends, it closes the pipe and reaps the holder, which frees the slot before the
-status post, the CI poll, the PR merge, archiving and cleanup. If `sdlc` dies,
+ends, it closes the pipe and reaps the holder. The helper's watcher frees the
+slot on that exit (at once on macOS's kqueue, within its 0.5 s poll elsewhere),
+so the status post, the CI poll, the PR merge, archiving and cleanup hold no slot. If `sdlc` dies,
 the kernel closes the pipe, and the slot is freed as well. A rerun in the same
 `sdlc` (a re-integrated head, the baseline diagnosis) starts a new holder and
 takes a ticket like any other waiter. The suite's `WF_TEST_LOCK_HELD_BY` is the

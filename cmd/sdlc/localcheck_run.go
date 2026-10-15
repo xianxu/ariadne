@@ -109,8 +109,10 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	// WaitDelay bounds inherited-pipe draining after the parent exits;
 	// stop remaining children before closing their log or removing their tree.
 	_ = processgroup.Terminate(cmd, true)
-	// The slot covers the suite's run only (#383): free it before the log,
-	// the GitHub writes and whatever the caller (merge) does next.
+	// The slot covers the suite's run only (#383): start its release before
+	// the log, the GitHub writes and whatever the caller (merge) does next. The
+	// watcher frees it on the holder's exit (at once with kqueue, within its
+	// 0.5 s poll elsewhere).
 	release()
 	rec.Duration = time.Since(start)
 	_ = logf.Close()
