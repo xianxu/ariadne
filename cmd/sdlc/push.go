@@ -30,6 +30,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
@@ -116,7 +117,7 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 		if f.DryRun {
 			fmt.Fprintf(stdout, "Would: git commit -a -m %q\n", msg)
 		} else {
-			if out, gerr := pushRunner.Git("commit", "-a", "-m", msg); gerr != nil {
+			if out, gerr := pushRunner.Git("commit", "-a", "-m", agentid.StampCurrent(msg)); gerr != nil {
 				die(stderr, fmt.Sprintf("git commit failed: %v\n%s", gerr, out))
 			}
 		}
@@ -280,7 +281,7 @@ func archiveCommitArgs(msg string, moves []preparedArchiveMove) ([]string, error
 	if len(moves) == 0 {
 		return nil, fmt.Errorf("archiveCommitArgs: no moves — an empty pathspec would commit the whole index")
 	}
-	args := []string{"commit", "-m", msg, "--"}
+	args := []string{"commit", "-m", agentid.StampCurrent(msg), "--"}
 	return append(args, archiveAddArgs(moves)[2:]...), nil
 }
 

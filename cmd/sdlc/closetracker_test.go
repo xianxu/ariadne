@@ -75,7 +75,7 @@ func TestTrackerCloseCommitsEvidenceAndPublishesBoundCard(t *testing.T) {
 		t.Fatal("the evidence commit is not directly on the reviewed commit")
 	}
 	msg := r.git("log", "-1", "--format=%B", evidenceRev)
-	for _, want := range []string{"#301: close", "Review-Verdict: SHIP", "Close-Actual: 1.5"} {
+	for _, want := range []string{"#301: close", "Review-Verdict: SHIP", "Close-Actual: 1.5", "\nAgent: " + testfix.FixedAgent} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("evidence message lacks %q:\n%s", want, msg)
 		}

@@ -6,6 +6,8 @@ import (
 	"path"
 	"sort"
 	"strings"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 )
 
 // BootstrapOutcome records publication knowledge, not the desired ref state.
@@ -173,7 +175,7 @@ func (t *TrunkFile) bootstrapCommit(paths []string, files map[string][]byte, mes
 	if err != nil {
 		return "", err
 	}
-	args := []string{"commit-tree", tree, "-m", message}
+	args := []string{"commit-tree", tree, "-m", agentid.StampCurrent(message)}
 	if sign {
 		args = append(args, "-S")
 	}

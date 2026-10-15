@@ -25,6 +25,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueref"
@@ -442,7 +443,7 @@ func reportInboundRefs(stderr io.Writer, srcRoot, destTop, relPath, destRel stri
 // (ARCH-DRY — the same reason archiveCommitArgs derives from archiveAddArgs).
 // Pure: argv only, no IO.
 func migrateCommitArgs(msg, path string) []string {
-	return []string{"commit", "-q", "-m", msg, "--", path}
+	return []string{"commit", "-q", "-m", agentid.StampCurrent(msg), "--", path}
 }
 
 // quoteMigrateMsg renders a migrateCommitArgs argv for display, quoting the
