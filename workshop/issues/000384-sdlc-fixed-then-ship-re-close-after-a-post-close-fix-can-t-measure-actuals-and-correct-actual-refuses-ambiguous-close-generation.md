@@ -1,12 +1,20 @@
 ---
 id: 000384
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
-card_mirror: '612c50a39261ec91117a2127bca8de940658aa0f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'eac79361280276f335ef1b8f471b83e190ff3ca4' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-15T02:37:57-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # sdlc: fixed-then-ship re-close after a post-close fix can't measure actuals, and correct-actual refuses (ambiguous close generation)
@@ -36,8 +44,22 @@ for ~2 hours with no supported path; the TL unblocked it with `--no-actual` and 
 
 ## Plan
 
-- [ ]
+- [ ] Reproduce measured whole-close -> post-close fix -> fixed-then-ship; pin candidate measurement to the new reviewed head while preserving historical replay.
+- [ ] Add explicit eligible raw-row selection and precise ambiguity/exclusion recovery to correct-actual, with unchanged-state and retry tests.
+- [ ] Align refusal/help/README/atlas text, run focused and recorded full-suite verification, close through review, integrate main and land.
+
+Durable plan: [re-close actuals](../plans/000384-reclose-actuals-plan.md).
 
 ## Log
 
 ### 2026-10-15
+
+### 2026-10-15 — investigation and plan
+
+Claimed from ariadne:5 and entered start-plan. Read resolver, close/adoption/fix-review, tracker completion and correction flow. Read-only peer inventory confirmed ordinary calibration rows carry issue/date/rounded actual but no completion identity. Existing fix-review integration tests type --actual, masking automatic measurement failure. ARCH-ORDER/ARCH-DRY shaped measurement-purpose separation without another engine or relaxed historical pin checks.
+
+Scratch overlay reproduction (no tracked source edits): `go test -overlay /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne384-repro-obg1buye/overlay.json ./cmd/sdlc -run '^TestRepro384' -count=1 -v -timeout 3m` gave intended RED, exit 1 in 8.000s. After a post-close fix the resolver returned replay=true with prior code 05b73221ed3c7090122a8dee5c61eac9663b7870 instead of candidate 3b5cb4e6064b58cb93028f1ed3d473c798a91c2f. A second fixture reproduced exactly 'retained measurement code head differs from the completion’s reviewed generation'. The correction uniqueness predicate admits no supported explicit selector; --exclude traverses the same ambiguous selector and fails again. Awaiting pair:2's original transcript/output (Couch exposed no native transcript binding). No production records were changed.
+
+Alternatives and verification are in the durable plan: measure candidate closes afresh, never transplant snapshot pins or carry unlabelled hours. Explicit eligible raw-row selection makes legacy correction actionable; historical numeric measurement stays fail-closed, with a same-target exclusion command where evidence cannot establish the original branch point. Send committed plan to TL before change-code.
+
+Planning note: the first plan write found workshop/plans absent (all prior plans were archived); it made no plan or commit. Created the directory through the plan artifact and retried normally.
