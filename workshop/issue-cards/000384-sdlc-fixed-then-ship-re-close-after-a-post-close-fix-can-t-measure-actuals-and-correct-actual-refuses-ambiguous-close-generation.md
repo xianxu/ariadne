@@ -1,6 +1,6 @@
 ---
 id: 000384
-status: codecomplete
+status: done
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours: 1.94
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: cf2845c0d334b28818c54eb998cbd0b2b69f35b1
         evidence_commit: dbec6a72682cb6483d5ec8d08abb41a5279aa085
+        landed_commit: 60a1ecdfaee94da733bac9d021edc4a9a17ebebc
 ---
 
 # sdlc: fixed-then-ship re-close after a post-close fix can't measure actuals, and correct-actual refuses (ambiguous close generation)
