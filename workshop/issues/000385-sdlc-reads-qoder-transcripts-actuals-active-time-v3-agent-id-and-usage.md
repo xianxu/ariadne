@@ -106,3 +106,14 @@ plan enumerates discovery, normalization, attribution, actual/close, identity,
 reporting and calibration consumers. Identity implementation remains blocked on
 measured invoking-session evidence (asked the hub), rather than guessing an
 environment marker or enabling an unsupported gate-reviewer CLI.
+
+### 2026-10-15 09:47 — hub measurement resolves identity prerequisite
+
+The TL measured QODER_CLI on the running qodercli-1.1.71 process; its tool
+shells inherit it. There is no native session-ID variable. Detect Qoder before
+other native-agent signals, then choose the uniquely latest activity session
+whose recorded workspace matches cwd. Ambiguity or bounded/incomplete discovery
+keeps model/effort unknown, with explicit SDLC_AGENT_ID as the launch-bound
+fallback. Qoder also sets CLAUDE_PLUGIN_* variables; these are not Claude
+markers. The plan revision specifies bounded cwd/activity selection and the
+priority/ambiguity regression matrix, superseding the earlier open question.

@@ -332,3 +332,41 @@ and cleanup; do not create a second Qoder snapshot family (ARCH-FUNERAL).
   duplicate/final/conflict states, pinned-prefix concurrency and sequence tests.
 - ARCH-FUNERAL: no new runtime cache or sidecar family; existing bounded meter
   replacement and actual snapshot retention own all persistent measurement data.
+
+## Revisions
+
+### 2026-10-15 09:47 — measured Qoder detection and transcript selection
+
+Supersedes the unresolved binding prerequisite and exact-session-environment
+assumption above. The hub measured variable names on pair:4's running
+qodercli-1.1.71 process: QODER_CLI is a native invoking-stack marker; no native
+session-ID environment variable exists. Qoder also exports CLAUDE_PLUGIN_ROOT
+and CLAUDE_PLUGIN_DATA, which must never establish Claude identity. No variable
+values or private environment dumps are needed or retained.
+
+Task 4's binding decision is resolved: after a valid SDLC_AGENT_ID override,
+detect Qoder from nonempty QODER_CLI before other native-agent markers. Neither
+PAIR_AGENT nor PAIR_SESSION_ID establishes Qoder invocation. Resolve candidates
+under ~/.qoder/projects/*/*.jsonl by recorded workspace-directories matching the
+invoking cwd (inject cwd/clock at the Detector IO seam). Rank by actual ISO
+user/assistant activity timestamps, not file modification time, directory slug,
+or replayed runtime-config timestamps. Select the uniquely latest active session;
+read its model/effort through the shared adapter. No candidate, tied distinct
+sessions, conflicting metadata, future/invalid activity or incomplete scanning
+returns a guessed model: keep qoder/-/- and document explicit launch-bound
+SDLC_AGENT_ID as the ambiguity fallback. Duplicate copies of the same identity
+must agree rather than selecting the first glob match.
+
+Identity discovery is a bounded local read: at most 256 candidate files,
+16 MiB total bytes and a 2-second context, with the existing 1-MiB per-session
+read budget shared between metadata prefix and activity/config tail. These are
+initial operator-facing batch budgets, not measured latency claims. If any bound
+prevents proving the latest candidate, degrade to unknown model/effort rather
+than assuming unseen files are inactive. No goroutine or background scan
+outlives Detect. Usage/actual retain their existing larger batch budgets.
+
+Extend identity tests with QODER_CLI plus competing Claude/Codex/Pair signals;
+CLAUDE_PLUGIN_* alone; ordinary Pair panes; wrong cwd despite newer mtime;
+uniquely latest activity; timestamp ties; repeated copies; invalid/future rows;
+replayed old config; injected cancellation and each scan bound. Test Qoder
+observed identity without making the judge accept/dispatch a Qoder reviewer.
