@@ -81,6 +81,13 @@ and (later) are backed up to cloud storage before deletion. Do not hold the repo
 
 The TL owns a **daily standing list** in the ops project. Every intermittent failure observed in local attempts or CI gets a named issue within 24 hours, with repo, test, exact head, log/run link, first-seen time, reproduction status and owner. Within that day the owner must identify the root cause or record the failed hypotheses, next diagnostic and an explicit blocker; an unexplained retry is not resolution. A retry may diagnose but cannot convert an unexplained failure into passing evidence. Fix the scheduling, fixture or root cause; never lengthen a timeout solely to green the suite. Classify reproducible branch regressions apart from confirmed same-head fail→pass and suspected environmental faults. Retain failed-attempt logs (#376), and extend measurement to CI before reporting a combined health trend. → [discussion](000390-test-economy-pattern-plan.side/02-flakes-and-landing.md)
 
+The operator approved the landing rule in linked side doc 02:
+
+1. Landing still requires **one passing full suite on the exact head** being landed.
+2. If a failed test already has an **open, named flake issue**, retain the failed attempt and log against that issue. A rerun of the full suite on the **same head** that passes counts as landing evidence. The first failure does not disappear from flake statistics.
+3. An **unknown failure blocks landing until classified**. A reproducible branch-caused failure is fixed on that branch. A newly established flake gets its own issue that day, with the failure evidence and owner; only then can the known-flake rerun rule apply. A passing retry without classification cannot admit a landing.
+4. Fix flakes as **separate root-cause issues** on the TL's daily list. Do not substitute a retry loop or a longer timeout for the fix.
+
 Quarantine needs operator approval for a named test, an owning issue, replacement coverage (or written risk acceptance), a seven-day expiry and an explicit main-health signal. Expiry restores the test or blocks landing until renewed. Do not quarantine a whole package. The target is **zero unowned flakes**, not a claim that a short sample proves zero flake probability. The daily review checks each new failure and the filing clock.
 
 ## 4. Package budgets, with couchcore first
@@ -94,6 +101,16 @@ Pair's `cmd/internal/couchcore` p90 is **481.3 s (n=21)**. Propose initial soft 
 #327's monthly repo-GC issue owns a report, starting with couchcore. Rank package time by p90, then nominate tests using overlapping line/branch coverage or duplicate scenarios. **Coverage overlap nominates; it does not prove equal fault detection.** For each candidate compare unique mutants killed on a bounded code slice where practical, requirements/traceability coverage, and before/after package wall time. Keep a test if it uniquely kills a mutant, guards an unmodeled contract, or covers a distinct integration path. Remove or merge only with a reviewable evidence table and a full-suite landing run. Report “not measurable” rather than fabricated redundancy.
 
 The monthly report names owner, sampled package and run cost. #327's schedule/report implementation must bound retention and archive old reports (ARCH-FUNERAL). The cadence complements immediate flake fixes.
+
+The operator approved this **feature-by-feature algorithm after #328's map is operating**:
+
+1. Run each mapped test alone with per-test line/branch coverage and runtime; retain the feature, test and command identities so the run is reproducible.
+2. Nominate a test only when its covered set is a subset of the union of the other mapped tests' covered sets. Rank nominations by potential time saved. This is a search filter, not a removal decision.
+3. Mutate a bounded slice of that feature's code and record which tests kill each mutant. A candidate with no uniquely killed mutant is **redundant by the measured mutation set**; a test that uniquely kills any mutant stays. Report the mutation set and tool failures rather than treating unmeasured mutants as survived.
+4. Review each nominated test and choose **remove, merge or keep**, with a reason. Preserve distinct assertions, documented scenarios and integration paths even when mutation evidence overlaps.
+5. Make the chosen change in a normal reviewed issue. Re-run feature coverage, mutation tests and the full landing suite; the feature's mutation score and coverage must not fall, and report before/after test time. If the oracle is incomplete, retain the test and record the gap.
+
+The monthly #327 report gives one row per feature with tests examined, candidates, mutation results, review decisions and seconds saved. Side doc [03](000390-test-economy-pattern-plan.side/03-minimization-algorithm.md) holds the command-level example; no removal is inferred from coverage overlap alone.
 
 → [discussion: the exact algorithm](000390-test-economy-pattern-plan.side/03-minimization-algorithm.md)
 
@@ -168,3 +185,17 @@ The linked side docs `01-landing-admission.md`, `02-flakes-and-landing.md`, and 
 **Delta — storage:** In a Couch setup, place durable queue files in **Couch's storage directory** beside its other runtime state. `sdlc` reads and writes those files directly with atomic writes and locking; Couch displays the queue but is not on the landing execution path, so `sdlc merge` must still admit, recover and land while Couch is stopped or restarting. In a plain-shell setup without Couch, use the repository's Git common directory as the local runtime-state fallback. Both locations remain outside Git and follow the operator's backup-before-deletion decision above. The merge-queue implementing issue must exercise both locations and a Couch-down recovery with the same state model (ARCH-DRY, ARCH-ORDER, ARCH-FUNERAL).
 
 Only side doc 01's two choices are settled by this revision; side docs 02 and 03 still await operator marks.
+
+### 2026-10-15 14:37 PDT — Known-flake landing rule
+
+**Reason:** The operator approved all four rules in linked side doc `02-flakes-and-landing.md`.
+
+**Delta:** Section 3 now distinguishes an explained, issue-backed flake from an unknown failure. One passing full suite on the exact landing head remains mandatory. A known flake's failed attempt is retained and attached to its issue; a passing full-suite rerun on that same head can satisfy the gate. An unknown failure blocks until it is fixed as a branch bug or classified and filed as a new flake; only the latter becomes eligible for the known-flake rerun rule. Flakes are fixed through their own root-cause issues, never by retrying to green or raising a timeout. The implementing flake/landing issue must test known, unknown and branch-bug cases and preserve both attempts in measurement (ARCH-PURPOSE, ARCH-ORDER).
+
+Side doc 03 still awaits operator marks.
+
+### 2026-10-15 14:40 PDT — Feature-scoped minimization algorithm
+
+**Reason:** The operator approved linked side doc `03-minimization-algorithm.md`; all three side-doc discussions are now decided.
+
+**Delta:** Section 5 now states the five-step algorithm after #328: per-test coverage, coverage-subset nomination, feature-scoped mutation as the deterministic detection signal, reviewed remove/merge/keep judgment, and verification that feature mutation score and coverage hold after a change. #327's implementing issue owns the monthly feature reports and must preserve unmeasured/failed tool outcomes rather than labeling tests redundant. This records the operator's final design approval; filing the independent implementation issues and listing them in the ops project remains #390's completion work.

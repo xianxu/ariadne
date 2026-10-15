@@ -51,8 +51,8 @@ effect on wall and queue time.
 
 ## Plan
 
-- [ ] Draft the operator decision record at `workshop/plans/000390-test-economy-pattern-plan.md` from #376 attempt data and current close/merge contracts.
-- [ ] Have the operator review the policy choices; record approved decisions as a dated revision.
+- [x] Draft the operator decision record at `workshop/plans/000390-test-economy-pattern-plan.md` from #376 attempt data and current close/merge contracts.
+- [x] Have the operator review the policy choices; record approved decisions as a dated revision.
 - [ ] File the implementing issues and list them in the ops project; close this design-only issue after review.
 
 ## Log
@@ -91,3 +91,10 @@ for every SDLC repo. Landing runtime data stays local and outside Git; a later
 cloud backup must succeed before deletion. Both are recorded in the durable
 plan's Revision. Three side docs were added for further operator review and
 remain open.
+
+### 2026-10-15 14:40 PDT — Side-doc decisions approved
+
+The operator approved the per-repo landing queue and its storage decision,
+the issue-backed known-flake rerun rule, and the feature-scoped minimization
+algorithm. The durable plan now records all three; #390 remains open only to
+file the implementing issues and link them from the ops project before close.

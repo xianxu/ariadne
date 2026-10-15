@@ -27,3 +27,5 @@ flake issue first means every intermittent failure gets owned and fixed, while l
 **What the plan text says now** is stricter ("a retry cannot convert an unexplained failure into passing evidence").
 Rules 2–3 keep that ("unexplained" means not yet classified) but make the classified case explicit. If you agree, I'll
 have ariadne:1 fold these four rules into §3.
+
+**Decided (operator): approved.** The four rules go into §3.

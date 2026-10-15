@@ -36,3 +36,5 @@ kept with the weekly test-stats summaries. **Cadence:** a monthly round on the s
 
 **What's deterministic vs. judgment:** steps 1–3 are mechanical and reproducible; step 4 is judgment with that evidence
 attached; nothing is removed on coverage overlap alone.
+
+**Decided (operator): approved.** This algorithm goes into §5.
