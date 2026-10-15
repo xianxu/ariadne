@@ -51,6 +51,7 @@ the whole measurement fail. Since every close/actual scans the transcript roots,
 ## Log
 
 ### 2026-10-15
+- 2026-10-15: closed — Native-layout regression reproduced before fix; actual/close and identity tests pass; transcript race tests pass; candidate actual #387 computes with eight skipped child warnings. Recorded full suite passed 66708c61 (1495 cmd/sdlc tests, 63 packages, zero failures, 612.5s, log b0e9c8ae0658). No actual recorded: installed shared sdlc fails on the same native child, so hours cannot be measured by the gate without fabricating; remeasure after landing/rebuild.; review verdict: SHIP
 
 Measured native child: project/parent-session/subagents/agent-aExplore-ID.jsonl contains user/assistant rows with parent sessionId, agentId and isSidechain=true, but no workspace-directories or runtime-config. Recursively requiring standalone session metadata makes this unresolved file fatal fleet-wide. Use the operator-approved skip-with-diagnostic approach rather than inventing inherited metadata. Existing limits, immutable prefix validation, known-owner failures and cancellation remain enforced; no new state or retained artifacts (ARCH-PURE, ARCH-SECURE, ARCH-FUNERAL).
 
