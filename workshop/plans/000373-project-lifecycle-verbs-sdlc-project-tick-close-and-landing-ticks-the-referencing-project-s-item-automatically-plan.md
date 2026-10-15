@@ -110,3 +110,10 @@
 - Rewriting the TL's existing hand ticks, or backfilling `(PR #N)` on old rows.
 - Ticking the trains table (cars have no checkbox; the forecast reads cards).
 - Archiving ops team folders (the link moves; the folder stays).
+
+## Revisions
+
+### 2026-10-15 — TL review of the plan
+- Points 2–4 approved as written. Point 1 changes #326's ownership rule, which is the operator's call: a TL-owned project is ticked at landing only with `landing_tick: true` in its frontmatter (schema field added to `project.cue`); unset, it follows `project.TLLandingTickDefault` (false), and merge prints the exact `sdlc project tick` command instead. Projects without `tl:` tick by default. A hand-run `project tick` writes regardless (the explicit choice).
+- The landed issue is read from the branch's id prefix (#272), not from tracker completions, so a resumed landing re-ticks idempotently.
+

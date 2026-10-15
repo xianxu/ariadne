@@ -16,6 +16,7 @@ SUBCOMMANDS
   retro          Append a retrospective checkpoint
   close          Close or drop the project and archive it
   find           Find every project record referencing an issue, fleet-wide
+  tick           Tick a landed issue in every project citing it, on each origin
   forecast       Forecast remaining focused hours from the trains (read-only)
 
 PROJECT FILE
@@ -45,7 +46,20 @@ the reason. `~` bullets are overlap notes the forecast ignores.
 
 A retrospective is a Log entry headed `### <ISO date> — retro`. Transitioning
 to `closed` is intentionally unavailable through `set-status`; use
-`sdlc project close`, which owns the retro gate and the archive move.
+`sdlc project close --verified '<evidence>'`, which owns the retro gate, re-checks
+that every `mvp_scope` issue landed, records the evidence in the Log, and moves
+the record to the archive. A linked record (ops: `workshop/projects/x.md` →
+`teams/…/x/project.md`) is updated in place and only the link moves. `--dry-run`
+reports every refusal and the move, writing nothing. `status` prints
+`mvp: L/T landed · open: …` and the `done_when` the close audits.
+
+`tick --issue <ref> [--pr N] [--dry-run]` ticks the landed issue's `[ ]`/`[.]`
+rows in every live project citing it and appends `(PR #N)` (`[-]` rows stay).
+Each project is written by one compare-and-swap commit on its repository's
+origin main, never in a checkout; pull it into the checkout afterwards.
+Idempotent. `sdlc merge` runs it after landing. A project opts in or out with
+`landing_tick: true|false`; unset, a project without `tl:` ticks and a TL-owned
+one does not (merge prints the `sdlc project tick` command for the TL instead).
 
 `find --issue <ref>` (e.g. `metis#18`, `#171`) walks every fleet sibling —
 active `workshop/projects/`, archived `workshop/history/projects/`, and the
