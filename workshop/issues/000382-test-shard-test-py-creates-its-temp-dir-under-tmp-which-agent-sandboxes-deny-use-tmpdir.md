@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "c44738ca", done: "e42711c6"}
 ---
 
 # test-shard.test.py creates its temp dir under /tmp, which agent sandboxes deny; use TMPDIR
