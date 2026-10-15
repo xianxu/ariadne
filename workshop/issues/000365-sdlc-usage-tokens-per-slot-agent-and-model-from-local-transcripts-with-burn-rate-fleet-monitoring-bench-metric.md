@@ -425,6 +425,19 @@ never worker. Clean production RED9.403s; old-selector-only mutation fails1.708s
 and complete-old-file mutation fails2.714s. All files frozen, diff check clean.
 Commit and integrate main before fresh recorded suite and shared close.
 
+
+### 2026-10-15 03:55 — canonical receipt acceptance suite passes
+
+Recorded sdlc-local/suite passes on534f55993743981145013fabd916180fef2a23f1:
+1430 cmd/sdlc tests and62 other packages, zero failures across12 shards and the
+package run,552.5s/9m13s after2348s queue wait. Log SHA256 prefixed8c620b8859
+on Mac.localdomain. This includes transition-compatible receipt reconciliation
+and main's sandbox-safe branch configuration integration. Prior reporting-path
+real-store fleet/issue smokes passed22.03s/31.91s before the final pure receipt
+compatibility refinement; the current42-case production matrix proves its
+behavior. Documentation bookkeeping only follows this passing code head. Shared
+close is next; no passing verdict or landing is claimed yet.
+
 ## Revisions
 
 ### 2026-10-14 — whole-system bench cost
