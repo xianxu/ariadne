@@ -1,6 +1,6 @@
 ---
 id: 000376
-status: codecomplete
+status: done
 created: 2026-10-14
 updated: 2026-10-15
 estimate_hours: 3.48
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 31640f116181c6a5a2ca032eaa4d94099cf7f4c9
         evidence_commit: 0430483a0e7dc9375a627c9a62ec5943a751bc83
+        landed_commit: 8f9b10d0ca715bf9c11506670f163a4562477ebe
 ---
 
 # Test economy: measure suite wall time, per-package time, queue wait and flake rate from recorded local checks (sdlc test-stats)
