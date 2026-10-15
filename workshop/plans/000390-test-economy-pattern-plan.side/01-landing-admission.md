@@ -49,5 +49,12 @@ actually helps: **full suites per merged PR** must fall and **p90 ready-to-lande
 
 - Queue scope: per repo (proposed). One machine-wide queue would also serialize pair vs ariadne landings, which don't
   conflict; per repo is enough.
+  **Decided (operator): per-repo queue.** Cross-repo dependencies between tasks are the TL's job to sequence before the
+  tasks start (as with #556 → #544 → #571 today), not the queue's.
 - Queue state location: local, outside git (like the other runtime state; see the plan's retention note), since all
   slots run on this machine today. A cross-machine queue would need origin-hosted state later.
+  **Decided (operator): in Couch's storage directory** (`~/.local/share/pair/…`, next to its other runtime state):
+  Couch is ariadne's runtime environment. One constraint keeps that crash-only: sdlc reads and writes the queue
+  **files** directly (with the same atomic-write and lock discipline), so landing still works while Couch itself is
+  down or restarting; Couch only displays the queue. And when sdlc runs outside a Couch setup (a plain shell), it
+  falls back to the repo's git common dir.

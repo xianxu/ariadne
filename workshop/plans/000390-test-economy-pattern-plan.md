@@ -158,3 +158,13 @@ The new merge-queue implementation issue must test: a granted fleet blocker over
 **Delta — runtime-data lifecycle:** Landing-queue receipts and supporting runtime data live outside Git on the local machine, using the same scheme as other SDLC runtime data. The later backup path uploads data to cloud storage **before deletion**; deletion without confirmed backup is outside this decision. Implementing issues must identify the existing runtime-data owner and specify retention, backup confirmation and recovery rather than inventing a repository-tracked ledger. This records the operator's inline retention paragraph in section 2 (ARCH-FUNERAL, ARCH-DRY).
 
 The linked side docs `01-landing-admission.md`, `02-flakes-and-landing.md`, and `03-minimization-algorithm.md` are part of this design record as written. No open question in them is accepted or rejected by this revision; wait for the operator's marks before folding their answers into the plan.
+
+### 2026-10-15 14:34 PDT — Landing-admission scope and storage
+
+**Reason:** The operator answered both open choices in linked side doc `01-landing-admission.md`.
+
+**Delta — scope:** Keep one queue **per repository**, not a machine-wide landing queue. Pair and ariadne land independently; the TL sequences cross-repo task dependencies before tasks start. The queue orders ready PRs within its own repo and does not infer or enforce cross-repo dependencies.
+
+**Delta — storage:** In a Couch setup, place durable queue files in **Couch's storage directory** beside its other runtime state. `sdlc` reads and writes those files directly with atomic writes and locking; Couch displays the queue but is not on the landing execution path, so `sdlc merge` must still admit, recover and land while Couch is stopped or restarting. In a plain-shell setup without Couch, use the repository's Git common directory as the local runtime-state fallback. Both locations remain outside Git and follow the operator's backup-before-deletion decision above. The merge-queue implementing issue must exercise both locations and a Couch-down recovery with the same state model (ARCH-DRY, ARCH-ORDER, ARCH-FUNERAL).
+
+Only side doc 01's two choices are settled by this revision; side docs 02 and 03 still await operator marks.
