@@ -1,12 +1,12 @@
 ---
 id: 000365
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-14
-updated: 2026-10-14
+updated: 2026-10-15
 estimate_hours: 8.881
-card_mirror: '4807cc301e82494819858a46b67e1bcb8f0e2ad4' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5a0e9dcabbf7ee1f584c6251415660bf75c553e8' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T07:39:58-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 16.33
 ---
 
 # sdlc usage: tokens per slot, agent and model from local transcripts, with burn rate (fleet monitoring + bench metric)
