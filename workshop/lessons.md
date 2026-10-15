@@ -3,6 +3,11 @@
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
 
+- CLI fakes must locate named option operands and model read-only queries.
+  Adding `-trimpath` shifted Go's `-o` operand, while `go env GOFLAGS` was
+  incorrectly counted as a build. Preserve assertions about real build effects
+  while extending the fake's command model (#386).
+
 ## Contracts and single sources
 
 - A prose policy becomes an integration contract when code reads the repository.

@@ -57,7 +57,7 @@ n_gmail="$(printf '%s\n' "$out" | grep -c '^gmail()')"
 [ "$n_gmail" = "1" ] && ok "exactly one gmail() emitted" || ko "expected 1 gmail(), got $n_gmail"
 
 # ── function-body shape (the defining property; fixture can't run go build) ───
-assert_contains 'cd '"$WS"'/ariadne && mkdir -p bin && d="$(mktemp -d bin/.sdlc.XXXXXX)" && { go build -o "$d/sdlc" ./cmd/sdlc && mv -f "$d/sdlc" bin/sdlc;' "$out" "builds beside owner bin/ and renames into place (#355), owner cmd path"
+assert_contains 'cd '"$WS"'/ariadne && mkdir -p bin && d="$(mktemp -d bin/.sdlc.XXXXXX)" && { go build -trimpath -o "$d/sdlc" ./cmd/sdlc && mv -f "$d/sdlc" bin/sdlc;' "$out" "builds beside owner bin/ and renames into place (#355), owner cmd path"
 assert_contains "$WS/ariadne/bin/sdlc \"\$@\""                                                        "$out" "runs the owner-bin binary with caller args/cwd"
 
 # ── owner-declared preparation step (#299) ───────────────────────────────────
@@ -70,9 +70,9 @@ printf -- '-include Makefile.local\n' > "$WS/prepd/Makefile"
 printf '.PHONY: dev-prepare\ndev-prepare: assets/stamp\nassets/stamp:\n' > "$WS/prepd/Makefile.local"
 prep_out="$(bash "$GEN" --workspace "$WS" 2>/dev/null)"
 gen_line="$(printf '%s\n' "$prep_out" | grep '^gen()')"
-assert_contains 'cd '"$WS"'/prepd && make -s dev-prepare >&2 && mkdir -p bin && d="$(mktemp -d bin/.gen.XXXXXX)" && { go build -o "$d/gen" ./cmd/gen' "$gen_line" "a declaring owner runs dev-prepare before go build"
+assert_contains 'cd '"$WS"'/prepd && make -s dev-prepare >&2 && mkdir -p bin && d="$(mktemp -d bin/.gen.XXXXXX)" && { go build -trimpath -o "$d/gen" ./cmd/gen' "$gen_line" "a declaring owner runs dev-prepare before go build"
 nous_line="$(printf '%s\n' "$prep_out" | grep '^nous()')"
-[ "$nous_line" = 'nous() { ( cd '"$WS"'/nous && mkdir -p bin && d="$(mktemp -d bin/.nous.XXXXXX)" && { go build -o "$d/nous" ./cmd/nous && mv -f "$d/nous" bin/nous; s=$?; rm -rf "${d:?}"; exit $s; } ) || return; '"$WS"'/nous/bin/nous "$@"; }' ] \
+[ "$nous_line" = 'nous() { ( cd '"$WS"'/nous && mkdir -p bin && d="$(mktemp -d bin/.nous.XXXXXX)" && { go build -trimpath -o "$d/nous" ./cmd/nous && mv -f "$d/nous" bin/nous; s=$?; rm -rf "${d:?}"; exit $s; } ) || return; '"$WS"'/nous/bin/nous "$@"; }' ] \
 	&& ok "an owner without dev-prepare keeps the exact plain form" || ko "plain form changed: [$nous_line]"
 # Make decides what declares the step: a rule (here, or via an include) does;
 # an assignment, a target-specific variable or a recipe line that merely
@@ -116,14 +116,18 @@ echo "make $*" >> "$TRACE"; echo "prep-chatter"
 STUBEOF
 cat > "$STUB/go" <<'STUBEOF'
 #!/bin/sh
-echo "go $*" >> "$TRACE"; printf '#!/bin/sh\necho ran "$@"\n' > "$3"; chmod +x "$3"
+echo "go $*" >> "$TRACE"
+while [ "$#" -gt 0 ] && [ "$1" != -o ]; do shift; done
+[ "$#" -ge 2 ] || exit 2
+out="$2"
+printf '#!/bin/sh\necho ran "$@"\n' > "$out"; chmod +x "$out"
 STUBEOF
 chmod +x "$STUB/make" "$STUB/go"
 gen_def="$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^gen()')"
 export TRACE="$WS/trace"; : > "$TRACE"
 run_out="$(PATH="$STUB:$PATH" bash -c "$gen_def; gen a b" 2>/dev/null)"
 [ "$run_out" = "ran a b" ] && ok "the binary's stdout carries only its own output" || ko "stdout polluted: [$run_out]"
-case "$(cat "$TRACE")" in "make -s dev-prepare"$'\n'"go build -o bin/.gen."??????"/gen ./cmd/gen") ok "dev-prepare runs before go build" ;; *) ko "order: [$(cat "$TRACE")]" ;; esac
+case "$(cat "$TRACE")" in "make -s dev-prepare"$'\n'"go build -trimpath -o bin/.gen."??????"/gen ./cmd/gen") ok "dev-prepare runs before go build" ;; *) ko "order: [$(cat "$TRACE")]" ;; esac
 : > "$TRACE"; rm -f "$WS/prepd/bin/gen"
 fail_err="$(MAKE_FAIL=1 PATH="$STUB:$PATH" bash -c "$gen_def; gen a" 2>&1 >/dev/null)"; fail_rc=$?
 [ "$fail_rc" -ne 0 ] && ok "a failed dev-prepare fails the call" || ko "failed dev-prepare returned 0"
@@ -228,7 +232,9 @@ fi
 SLOW="$WS/slowbin"; mkdir -p "$SLOW"
 cat > "$SLOW/go" <<'STUBEOF'
 #!/bin/sh
-out="$3"; sleep 0.4; printf '#!/bin/sh\n' > "$out"; chmod +x "$out"; sleep 0.4; printf 'echo built\n' >> "$out"
+while [ "$#" -gt 0 ] && [ "$1" != -o ]; do shift; done
+[ "$#" -ge 2 ] || exit 2
+out="$2"; sleep 0.4; printf '#!/bin/sh\n' > "$out"; chmod +x "$out"; sleep 0.4; printf 'echo built\n' >> "$out"
 STUBEOF
 chmod +x "$SLOW/go"
 nous_def="$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^nous()')"
@@ -252,7 +258,10 @@ left="$(ls -A "$WS/nous/bin" | grep -v '^nous$')"
 FAILGO="$WS/failbin"; mkdir -p "$FAILGO"
 cat > "$FAILGO/go" <<'STUBEOF'
 #!/bin/sh
-printf '#!/bin/sh\necho partial\n' > "$3"; chmod +x "$3"; echo "compile error" >&2; exit 1
+while [ "$#" -gt 0 ] && [ "$1" != -o ]; do shift; done
+[ "$#" -ge 2 ] || exit 2
+out="$2"
+printf '#!/bin/sh\necho partial\n' > "$out"; chmod +x "$out"; echo "compile error" >&2; exit 1
 STUBEOF
 chmod +x "$FAILGO/go"
 fail_out="$(PATH="$FAILGO:$PATH" bash -c "$nous_def; nous" 2>/dev/null)"; fail_rc=$?
