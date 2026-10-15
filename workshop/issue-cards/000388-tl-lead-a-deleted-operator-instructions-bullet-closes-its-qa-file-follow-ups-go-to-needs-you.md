@@ -17,10 +17,10 @@ actual_hours: 0.28
 tracker:
     version: 1
     completion:
-        token: close-57cfc27f4281
+        token: close-038378e4317e
         repository: github.com/xianxu/ariadne
-        reviewed_head: 94c04e25375bc72795d15dff740af616e51ecafd
-        evidence_commit: 808453d61d8938ca6e2b4b6d93d32e1b5cf6f9ae
+        reviewed_head: 1fada25d45c0c0bfc77d15abb1855a3327ff531c
+        evidence_commit: 911c19475dcd2b8829c542d9d687986df94300ba
 ---
 
 # tl-lead: a deleted Operator-instructions bullet closes its QA file (follow-ups go to Needs you)
