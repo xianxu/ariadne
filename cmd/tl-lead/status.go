@@ -160,7 +160,9 @@ stale read and recompute again (at most 4 times, then exit 6). The operator's
 lock refuses every write (exit 3): queue the update and fold it in after their
 submit. --fold-owed folds only the owed events an earlier submit or owed
 listed (the seen-set, .<file>.ss-seen), so a submit that lands mid-turn stays
-owed until it is read.`,
+owed until it is read. The one write that never retries is instructions
+link: its position comes from the read list reported, so a changed section
+refuses (exit 6) instead.`,
 	}
 	var foldOwed, done bool
 	var drop []string
@@ -268,7 +270,7 @@ owed until it is read.`,
 	}
 	thread.Flags().StringArrayVar(&drop, "drop", nil, "drop subsections whose heading starts with this prefix, e.g. '### Train: old' (repeatable)")
 	clobbered.Flags().BoolVar(&done, "done", false, "the TL has merged it; remove the copy")
-	status.AddCommand(append([]*cobra.Command{submit, section, thread, seen, owed, clobbered}, rendered...)...)
+	status.AddCommand(append([]*cobra.Command{submit, section, thread, seen, owed, clobbered, newInstructionsCmd(d)}, rendered...)...)
 	return status
 }
 

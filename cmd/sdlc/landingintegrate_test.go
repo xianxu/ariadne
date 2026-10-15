@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // Real bare origin, real merges and real suite subprocesses; the GH fake
@@ -73,7 +75,7 @@ func TestLandingIntegratesAMovedMain(t *testing.T) {
 	if got := git(t, root, "show", "-s", "--format=%P", head); got != before+" "+main {
 		t.Fatalf("parents=%s", got)
 	}
-	if got := git(t, root, "show", "-s", "--format=%B", head); !strings.Contains(got, "Integrated-Main: "+main) {
+	if got := git(t, root, "show", "-s", "--format=%B", head); !strings.Contains(got, "Integrated-Main: "+main) || !strings.Contains(got, "\nAgent: "+testfix.FixedAgent) {
 		t.Fatalf("missing trailer: %s", got)
 	}
 	if got := git(t, root, "branch", "--show-current"); got != "main-slot1" {

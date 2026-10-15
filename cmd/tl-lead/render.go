@@ -76,4 +76,3 @@ func renderTrains(plan trains.TrainPlan, cars map[trains.IssueRef]CarState) stri
 	}
 	return strings.Join(append(lines, "```"), "\n")
 }
-

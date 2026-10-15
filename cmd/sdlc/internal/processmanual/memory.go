@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 )
 
 // claudeProjectSlug maps an absolute repo path to the Claude harness
@@ -29,7 +31,7 @@ func memorySources(homeDir, absRepoRoot string, include bool) []InjectionSource 
 				"`sdlc process-manual --include-memory` locally to inspect them — do not commit that output.",
 		}}
 	}
-	memDir := filepath.Join(homeDir, ".claude", "projects", claudeProjectSlug(absRepoRoot), "memory")
+	memDir := filepath.Join(agentid.ClaudeProjects(homeDir), claudeProjectSlug(absRepoRoot), "memory")
 	entries, err := os.ReadDir(memDir)
 	if err == nil {
 		var out []InjectionSource

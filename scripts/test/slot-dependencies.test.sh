@@ -4,7 +4,7 @@
 # ARIADNE_REF (HEAD), ARIADNE_WORKTREE (1: include local tracked/cmd/pkg edits),
 # PARLEY_SOURCE, PARLEY_REF (HEAD containing remote source metadata), PLENARY.
 # RUN_PRODUCT_TESTS=0 skips the full Parley suite only; runtime probes always run.
-# All clones, builds, HOME/XDG state and evidence stay in a retained /tmp tree.
+# All clones, builds, HOME/XDG state and evidence stay in a retained environment-selected temporary tree.
 # Existing Go module cache is reused with GOPROXY=off; brew is an inert fixture.
 set -euo pipefail
 export SLOT_TEST_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -12,7 +12,7 @@ exec python3 - <<'PY'
 import hashlib,json,os,pathlib,shutil,subprocess,tempfile,time
 P=pathlib.Path
 repo=P(os.environ['SLOT_TEST_ROOT'])
-scratch=P(tempfile.mkdtemp(prefix='slot-dependencies.',dir='/tmp')).resolve()
+scratch=P(tempfile.mkdtemp(prefix='slot-dependencies.')).resolve()
 print('Evidence:',scratch,flush=True)
 source=P(os.environ.get('ARIADNE_SOURCE',repo)).resolve()
 parley=P(os.environ.get('PARLEY_SOURCE',repo.parent/'parley.nvim')).resolve()

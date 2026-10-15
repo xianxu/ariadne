@@ -2,7 +2,8 @@ package transcripts
 
 import (
 	"os"
-	"path/filepath"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 )
 
 // DefaultHarnesses returns the production harness registry, rooted at the real
@@ -22,7 +23,7 @@ func defaultClaudeRoot() string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(home, ".claude", "projects")
+	return agentid.ClaudeProjects(home)
 }
 
 // defaultCodexRoot is ~/.codex/sessions (Codex's date-sharded transcript store).
@@ -31,5 +32,5 @@ func defaultCodexRoot() string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(home, ".codex", "sessions")
+	return agentid.CodexSessions(home)
 }

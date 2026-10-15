@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
@@ -91,6 +92,9 @@ func TestChangeCodeRefreshesCardFieldsAndCheckpointsLocally(t *testing.T) {
 	}
 	if got := r.git("log", "-1", "--format=%s"); got != "#9: plan: accepted design at change-code" {
 		t.Fatalf("checkpoint subject %q", got)
+	}
+	if got := r.git("log", "-1", "--format=%(trailers:key=Agent,valueonly)"); got != testfix.FixedAgent { // #367
+		t.Fatalf("checkpoint Agent trailer %q", got)
 	}
 	files := r.git("show", "--name-only", "--format=", "HEAD")
 	if !strings.Contains(files, detailPath) || !strings.Contains(files, "workshop/plans/000009-nine-plan.md") {

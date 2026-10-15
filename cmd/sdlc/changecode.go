@@ -47,6 +47,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
@@ -308,7 +309,7 @@ func checkpointDesign(f *changeCodeFlags, name, issuePath string) error {
 	if out, err := changeCodeRunner.Git(append([]string{"add", "--"}, paths...)...); err != nil {
 		return fmt.Errorf("git add: %v\n%s", err, out)
 	}
-	args := append([]string{"commit", "-q", "--no-verify", "-m", designCheckpointMessage(id), "--only", "--"}, paths...)
+	args := append([]string{"commit", "-q", "--no-verify", "-m", agentid.StampCurrent(designCheckpointMessage(id)), "--only", "--"}, paths...)
 	if out, err := changeCodeRunner.Git(args...); err != nil {
 		return fmt.Errorf("git commit: %v\n%s", err, out)
 	}
