@@ -182,9 +182,9 @@ Durable landing supports same-repository PRs. Local issue HEAD, fresh remote
 issue HEAD and PR head must match before merge. A commit after `sdlc pr` (a
 main merge, a FIX-THEN-SHIP fix) leaves the open PR behind; `merge` refuses
 naming that PR, and re-running `sdlc pr` pushes into it (`updated PR #N`)
-rather than creating another. `git push -u` exits 0 even when a sandbox denies
-the `.git/config` write, so the branch may have no upstream; `sdlc pr` warns,
-and re-running it is the way to publish later commits. Before integration or switching,
+rather than creating another. Issue branches publish with explicit refspecs and
+without upstream configuration; re-run `sdlc pr` to publish later commits.
+Resting/main tracking stays unchanged. Before integration or switching,
 tracked changes (including tracker edits) and ongoing Git operations refuse. Noncolliding untracked and
 ignored files remain; collisions refuse without stash/reset or forced switching.
 
@@ -327,3 +327,18 @@ The agent owns the prose preconditions; these tests do not turn them into CLI
 enforcement. Existing workspace resolver tests cover address/identity validity.
 Durable landing is covered separately by `cmd/sdlc/landing_test.go` and the
 GitHub/archive fixtures, including interrupted cleanup and preservation checks.
+
+### Protected config during landing (#374)
+
+Issue creation/publication does not create tracking metadata. Older or manually
+configured issue branches can still have it: after guarded ref retirement, a
+failed shared-config write warns rather than failing the confirmed landing.
+Existing branch sections are the retry markers. The done-card sweep in the next
+merge or issue recovery reconcile removes metadata when config is writable,
+only after checking local ref absence and worktree occupancy. No new cleanup
+journal or sandbox permission is needed.
+
+The shared SDLC repo lock serializes cooperating issue operations. Concurrent
+manual Git does not take it: a branch recreated after the final probes may lose
+ancillary tracking configuration, but config cleanup never deletes its ref or
+commits. Keep manual ref/config changes outside an SDLC cleanup transaction.

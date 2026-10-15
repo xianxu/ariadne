@@ -1,7 +1,7 @@
 // pr.go — `sdlc pr` subcommand. Ports the `pull-request:` Make target.
 //
 // Run from a worktree branch (refuses main). Pushes the branch with
-// upstream tracking, scans touched issue files since branch point for
+// an explicit refspec, scans touched issue files since branch point for
 // github_issue: frontmatter, formats them as "Fixes #1, #2, #3", and
 // opens a PR via `gh pr create`. Mirrors Makefile.workflow ~lines 350-388.
 package main
@@ -100,10 +100,12 @@ func runPR(stdout, stderr io.Writer, f *prFlags) error {
 	fixes := formatFixes(ghNums)
 	body := combineBody(commits, fixes)
 
-	// ── 5. Push branch with upstream ────────────────────────────────────────
+	// ── 5. Publish branch ────────────────────────────────────────
+	ref := "refs/heads/" + branch
+	refspec := ref + ":" + ref
 	if f.DryRun {
 		cinfo(stderr, "dry-run — no push or PR creation")
-		fmt.Fprintf(stdout, "Would: git push -u origin %s\n", branch)
+		fmt.Fprintf(stdout, "Would: git push origin %s\n", refspec)
 		fmt.Fprintf(stdout, "Would: gh pr create --repo %s --base main --head %s\n", repo, branch)
 		if fixes != "" {
 			fmt.Fprintln(stdout, "── fixes line ──")
@@ -116,9 +118,9 @@ func runPR(stdout, stderr io.Writer, f *prFlags) error {
 		return nil
 	}
 
-	cinfo(stderr, fmt.Sprintf("Pushing %s with upstream tracking...", branch))
-	if out, gerr := prRunner.Git("push", "-u", "origin", branch); gerr != nil {
-		die(stderr, fmt.Sprintf("git push -u origin %s: %v\n%s", branch, gerr, out))
+	cinfo(stderr, fmt.Sprintf("Pushing %s to origin...", branch))
+	if out, gerr := prRunner.Git("push", "origin", refspec); gerr != nil {
+		die(stderr, fmt.Sprintf("git push origin %s: %v\n%s", refspec, gerr, out))
 	}
 
 	// ── 6. Open PR ──────────────────────────────────────────────────────────
