@@ -1,8 +1,8 @@
 ---
 id: 000367
-status: codecomplete
+status: done
 created: 2026-10-14
-updated: 2026-10-14
+updated: 2026-10-15
 estimate_hours:
 github_issue:
 started: 2026-10-14T20:40:03-07:00
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: a6da38026389acf2358c0132581d61e9cbf6bd63
         evidence_commit: df58e1f4b1bca513a9e2387c09656d554380723f
+        landed_commit: 7bdd19107dcb8e02b2e56baccfe47d6887580e57
 ---
 
 # Commits record the coding agent, model and effort in one standard trailer (today: 6+ inconsistent Co-Authored-By spellings, many commits none)
