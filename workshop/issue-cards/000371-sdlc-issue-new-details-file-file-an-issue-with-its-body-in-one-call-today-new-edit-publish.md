@@ -17,10 +17,10 @@ actual_hours: 0.12
 tracker:
     version: 1
     completion:
-        token: close-efd6c9970e85
+        token: close-ffe108eac8aa
         repository: github.com/xianxu/ariadne
-        reviewed_head: 4ad181aafb45810d42611e4881e3245a0801d1af
-        evidence_commit: c38e508bcf49ae24f1733fb5863ce81243ef096b
+        reviewed_head: ff2f38fb068d73f3a209d221832de93271b13f70
+        evidence_commit: f6d2a9254c24d0a631403c8475b9563d3bd7d8c6
 ---
 
 # sdlc issue new --details FILE: file an issue with its body in one call (today: new, edit, publish)
