@@ -86,6 +86,10 @@ The first durable-plan write failed because workshop/plans did not exist on this
 
 Full-flow plan-quality round 1 requested a precise concurrency guarantee (PQ-1) and function-specific test strategies (PQ-2). The revised durable plan explicitly limits metadata-preservation guarantees to cooperating SDLC commands under the shared repo lock; a manual Git recreation after the last probe may lose ancillary tracking config but never its ref/commits. This supersedes the earlier unqualified recreated-ref language. The plan now assigns an adversarial input/event class and mechanical regression guard to each risky integration function. Live acceptance question sent to hub as receipt 7ebef1e8-3e97-4a82-909f-3ad2fa2e16b3; original acceptance remains pending.
 
+### 2026-10-15 — TL acceptance revision
+
+TL receipt 8ee3e12f-7646-4b3d-9b23-fdd4ce34efae explicitly accepts the native protected-config full-merge regression as sufficient to close. The production live default-agent check moves to the next Claude-slot landing after this fix merges, owned and logged by the TL (#383 in ariadne:2 or #367 in ariadne:4). Updated current Done when to match that authorized acceptance, retaining the distinction between completed local verification and pending production evidence. Earlier custom/default-profile scratch fixture checks remain supplemental evidence; they do not claim that later production landing already happened. No separate GitHub scratch issue was created.
+
 ## Estimate
 
 *Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only.* Calibration is marked stale by sdlc estimate-source, so these coefficients are provisional. Same Go/Git stack; existing Git runners and stateful GitHub fake avoid a novel-stack/library search. Familiarity 1.0. Issue authoring uses table design 0.5 / implementation 0.3; producer refactor and small cleanup module each use implementation 0.5, docs 0.2, review 0.5, Git sandbox discovery 0.6. Implementation values below apply v3.1's 40% scale. Settled plan/pattern design discounts: refactor 0.5 x0.2=0.10, module 0.3 x0.2=0.06, docs 0.1 x0.2=0.02; authoring/review remain 0.5/0.1. Thorough-plan buffer 15%. Total 0.78 x1.15 +1.04 =1.937h, rounded 1.94h.
@@ -102,7 +106,3 @@ item: real-api-discovery design=0.00 impl=0.24
 design-buffer: 0.15
 total: 1.94
 ```
-
-### 2026-10-15 — TL acceptance revision
-
-TL receipt 8ee3e12f-7646-4b3d-9b23-fdd4ce34efae explicitly accepts the native protected-config full-merge regression as sufficient to close. The production live default-agent check moves to the next Claude-slot landing after this fix merges, owned and logged by the TL (#383 in ariadne:2 or #367 in ariadne:4). Updated current Done when to match that authorized acceptance, retaining the distinction between completed local verification and pending production evidence. Earlier custom/default-profile scratch fixture checks remain supplemental evidence; they do not claim that later production landing already happened. No separate GitHub scratch issue was created.
