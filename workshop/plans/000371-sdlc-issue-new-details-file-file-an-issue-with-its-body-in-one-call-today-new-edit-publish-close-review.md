@@ -84,3 +84,61 @@ findings:
     detail: |
       legacymode.go passes Sections to Render, but no test checks the body there; a legacy-mode fixture asserting the supplied Spec appears would pin it.
 ```
+
+---
+
+## Re-review — 2026-10-15T01:36:36-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 371 — sdlc issue new --details FILE: file an issue with its body in one call (today: new, edit, publish) |
+| repo | ariadne |
+| issue file | workshop/issues/000371-sdlc-issue-new-details-file-file-an-issue-with-its-body-in-one-call-today-new-edit-publish.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 8cd6dbd96b8015db26662dbad4edf65109ab0cf6..ff2f38fb068d73f3a209d221832de93271b13f70 |
+| command | sdlc close --issue 371 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-15T01:36:36-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both earlier findings are fixed, and the interdiff adds no new defects. In `cmd/sdlc/helptext/issue.md`, the "(`start-plan` branches from fresh main)" parenthetical is back after "next main merge", the clause it qualifies, and the `--details`/`--no-claim` sentences now come after it. The new `TestLegacyRepositoryIssueNewDetails` passes. I commented out `Sections: f.sections` at `cmd/sdlc/legacymode.go:157` and the test failed, because the rendered body fell back to the template text. I then restored the line, so the test does guard the legacy path.
+
+The switch change at `cmd/sdlc/issue.go:497` answers the earlier review's Minor note about the `:0` notice. In a numbered slot, `--no-claim` now prints the `--no-claim` notice. From `:0` or outside a slot, it prints "filed outside a numbered slot". It is a message-only change and the claim decision is the same.
+
+The `## Revisions` entry just records the plan correction the close review recommended (`FenceSpans` instead of `ScanMarkdownLines`). It does not change scope. The `TestIssueNew*` and `TestLegacyRepositoryIssueNew*` tests pass (`ok`, 51.7s).
+
+1. **Strengths**
+   - The legacy test checks the rendered body on the legacy path itself (`cmd/sdlc/legacymode_test.go:33-46`), and reverting the fix makes it fail.
+   - The help-text fix moves the sentences around instead of rewording them, so no other context moved.
+   - The `issue.go` switch now gives each case its own message.
+
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none new. No test covers the `:0` notice's wording, but it is only a message, so no finding.
+5. **Test coverage:** BR-2's regression test passes, and fails when the fix is reverted.
+6. **Architecture:**
+   - **ARCH-DRY: pass.** The test reuses the existing `detailsFile`, `detailsBody` and `slotRun` helpers.
+   - **ARCH-PURE: pass.** No logic was added.
+   - **ARCH-PURPOSE: pass.** For each family, I checked that this interdiff has no other instance of the same class. Only one parallel path (legacy) passes `Sections`, and it is now tested. Only one help paragraph was edited.
+7. **Plan revisions:** none beyond the entry already recorded.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      helptext/issue.md now reads "next main merge (`start-plan` branches from fresh main)" with the --details/--no-claim sentences after it.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      TestLegacyRepositoryIssueNewDetails asserts the supplied Spec and Done-when, and it goes red when legacymode.go:157 Sections pass-through is reverted.
+```

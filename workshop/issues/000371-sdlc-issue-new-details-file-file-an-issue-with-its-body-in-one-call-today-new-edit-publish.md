@@ -58,6 +58,8 @@ Filing an issue with content takes three steps: `sdlc issue new "title"` (publis
 
 
 
+
+- 2026-10-15: closed — close-review Minors fixed in ff2f38fb: help parenthetical restored, :0 --no-claim notice, legacy-path --details test added; go test -run IssueNew|LegacyRepositoryIssueNew|Help green (fixed-then-ship); review verdict: SHIP
 - 2026-10-15: closed — ParseDetails units (full, partial, fenced headings, 8 refusals) + Render-with-sections unit; 4 fake-origin tests in cmd/sdlc/issuenew_details_test.go: one creation commit carries card and full body with checkout untouched, bad file refused before reserving (main and tracker unchanged), from-github plus Problem conflict refused, stdin with dry-run, --no-claim from a numbered slot files unclaimed; live go run dry-run against this repo rendered the merged body; full make test green (12 shards, 1374 cmd/sdlc tests, 59 packages, 0 failed); review verdict: SHIP
 - 2026-10-15: flow upgraded quick → full — 138 added lines in code files (limit 100)
 - 2026-10-15: review Minors fixed: help-text parenthetical back after the main merge; `--no-claim` from `:0` prints the outside-a-slot notice; a legacy-path `--details` test; the Revisions note above.
