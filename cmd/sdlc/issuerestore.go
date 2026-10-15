@@ -157,7 +157,7 @@ func runIssueRestore(ctx context.Context, stdout, _ io.Writer, nums []int) error
 		return err
 	}
 	msg := strings.Join(refs, ",") + ": issue: restore main's details"
-	if _, err := env.git(append([]string{"commit", "-q", "-m", agentid.StampCurrent(msg), "--"}, paths...)...); err != nil {
+	if _, err := env.git(append([]string{"commit", "-q", "-m", agentid.StampCurrent(msg, ctx), "--"}, paths...)...); err != nil {
 		return err
 	}
 	for _, p := range paths {

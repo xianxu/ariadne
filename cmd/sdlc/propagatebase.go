@@ -14,6 +14,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -137,7 +138,7 @@ type propResult struct {
 // runPropagateBase orchestrates the propagation. ownerRoot is the owner repo (cwd).
 // ref is the commit-message reference (e.g. "ariadne#107"). dryRun reports the plan
 // without mutating. Returns an error if any dependent FAILED.
-func runPropagateBase(ownerRoot, ref string, dryRun bool, out io.Writer) error {
+func runPropagateBase(ctx context.Context, ownerRoot, ref string, dryRun bool, out io.Writer) error {
 	identity, err := resolveWorkspace(ownerRoot)
 	if err != nil {
 		return fmt.Errorf("resolve propagation owner: %w", err)
@@ -215,7 +216,7 @@ func runPropagateBase(ownerRoot, ref string, dryRun bool, out io.Writer) error {
 				res.status = "FAILED: verify-complete: " + err.Error()
 				break
 			}
-			changed, cerr := commitConsumption(d.root, ref)
+			changed, cerr := commitConsumption(ctx, d.root, ref)
 			switch {
 			case cerr != nil:
 				res.status = "FAILED: commit — " + cerr.Error()
@@ -299,7 +300,7 @@ func workingTreeDirty(repoRoot string) (bool, error) {
 // PRECONDITION: the caller (runPropagateBase) verified the tree was CLEAN before
 // re-weaving (workingTreeDirty), so every change `git add -A` stages here is the
 // re-weave's OWN output — never a concurrent session's unrelated in-flight work.
-func commitConsumption(repoRoot, ref string) (changed bool, err error) {
+func commitConsumption(ctx context.Context, repoRoot, ref string) (changed bool, err error) {
 	// A failed Git command may already have changed the index or even committed.
 	// Preserve Git's actual state; never infer rollback from an error. The public
 	// propagation precheck will reject dirty retries until the operator resolves
@@ -345,7 +346,7 @@ func commitConsumption(repoRoot, ref string) (changed bool, err error) {
 		return false, fmt.Errorf("git add: %w", err)
 	}
 	msg := fmt.Sprintf("%s: consume base-layer change (propagate-base)", ref)
-	if err := exec.Command("git", "-C", repoRoot, "commit", "-q", "-m", agentid.StampCurrent(msg)).Run(); err != nil {
+	if err := exec.Command("git", "-C", repoRoot, "commit", "-q", "-m", agentid.StampCurrent(msg, ctx)).Run(); err != nil {
 		return false, fmt.Errorf("git commit: %w", err)
 	}
 	return true, nil
@@ -370,7 +371,7 @@ func newPropagateBaseCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runPropagateBase(canonRoot(cwd), ref, dryRun, cmd.OutOrStdout())
+			return runPropagateBase(cmd.Context(), canonRoot(cwd), ref, dryRun, cmd.OutOrStdout())
 		},
 	}
 	cmd.Flags().StringVar(&ref, "ref", "", "commit-message reference for the consumption (e.g. ariadne#107)")

@@ -424,7 +424,7 @@ func finishPublished(env *trackerEnv, stderr io.Writer, items []republishItem) {
 			continue
 		}
 		msg := "#" + issue.CLIRef(it.id) + ": issue: details as published"
-		if _, err := env.git(append([]string{"commit", "-q", "--only", "-m", agentid.StampCurrent(msg), "--"}, paths...)...); err != nil {
+		if _, err := env.git(append([]string{"commit", "-q", "--only", "-m", agentid.StampCurrent(msg, env.ctx), "--"}, paths...)...); err != nil {
 			cwarn(stderr, fmt.Sprintf("the published details were not committed on %s: %v", env.branch, err))
 		}
 	}

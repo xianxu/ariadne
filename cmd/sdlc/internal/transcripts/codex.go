@@ -1,6 +1,7 @@
 package transcripts
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -23,9 +24,12 @@ func (codexHarness) Name() string { return "codex" }
 // Sources walks root for *.jsonl session files and returns those whose
 // session_meta.cwd is in cwds, sorted. A malformed/empty/no-meta file is skipped,
 // never aborting the walk.
-func (h codexHarness) Sources(cwds []string) Sources {
+func (h codexHarness) Sources(ctx context.Context, cwds []string) (Sources, error) {
+	if err := ctx.Err(); err != nil {
+		return Sources{}, err
+	}
 	if h.root == "" {
-		return Sources{}
+		return Sources{}, nil
 	}
 	allowed := map[string]bool{}
 	for _, cwd := range cwds {
@@ -34,10 +38,13 @@ func (h codexHarness) Sources(cwds []string) Sources {
 		}
 	}
 	if len(allowed) == 0 {
-		return Sources{}
+		return Sources{}, nil
 	}
 	var files []string
 	_ = filepath.WalkDir(h.root, func(path string, d os.DirEntry, err error) error {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		if err != nil || d.IsDir() || filepath.Ext(path) != ".jsonl" {
 			return nil
 		}
@@ -46,11 +53,14 @@ func (h codexHarness) Sources(cwds []string) Sources {
 		}
 		return nil
 	})
+	if ctx.Err() != nil {
+		return Sources{}, ctx.Err()
+	}
 	sort.Strings(files)
 	if len(files) == 0 {
-		return Sources{}
+		return Sources{}, nil
 	}
-	return Sources{Files: files}
+	return Sources{Files: files}, nil
 }
 
 // codexSessionCWD is the thin IO seam: read the file, hand the bytes to the pure

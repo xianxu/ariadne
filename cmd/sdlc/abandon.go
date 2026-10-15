@@ -653,7 +653,7 @@ func unarchiveIssue(env *trackerEnv, base, issuesDir, message string) error {
 		if err := verifyAssetBundleOnDisk(env.ctx, env.root, liveRel, id, raw, bundle); err != nil {
 			return err
 		}
-		if _, err := env.git(append([]string{"commit", "-q", "--no-verify", "-m", agentid.StampCurrent(message), "--"}, paths...)...); err != nil {
+		if _, err := env.git(append([]string{"commit", "-q", "--no-verify", "-m", agentid.StampCurrent(message, env.ctx), "--"}, paths...)...); err != nil {
 			return err
 		}
 	}

@@ -730,7 +730,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 			if out, gerr := mergeRunner.GitInDir(mainPath, archiveAddArgs(moves)...); gerr != nil {
 				die(stderr, fmt.Sprintf("git -C %s add: %v\n%s", mainPath, gerr, out))
 			}
-			commitArgs, cerr := archiveCommitArgs(agentid.StampCurrent(archiveCommitMessage), moves)
+			commitArgs, cerr := archiveCommitArgs(agentid.StampCurrent(archiveCommitMessage, ctx), moves)
 			if cerr != nil {
 				die(stderr, cerr.Error())
 			}

@@ -1,10 +1,12 @@
 package agentid
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 // tailBytes bounds the transcript read: session files grow past 100 MB, and
@@ -16,6 +18,8 @@ const tailBytes = 1 << 20
 type Detector struct {
 	Home   string
 	Getenv func(string) string
+	CWD    string
+	Now    func() time.Time
 }
 
 // OverrideEnv names the identity outright (agent/model/effort, or Human), for
@@ -24,9 +28,14 @@ const OverrideEnv = "SDLC_AGENT_ID"
 
 // Detect returns the session's identity: the agent from the same environment
 // signals the judge uses, model and effort from the session's own transcript.
-func (d Detector) Detect() Identity {
+func (d Detector) Detect(ctx context.Context) Identity {
 	if id, ok := Parse(d.Getenv(OverrideEnv)); ok {
 		return id
+	}
+	// Qoder also exports Claude plugin variables. Its native invocation marker
+	// takes precedence; Pair pane context alone never establishes invocation.
+	if d.Getenv("QODER_CLI") != "" {
+		return d.qoderIdentity(ctx)
 	}
 	env := EnvFrom(d.Getenv)
 	if !env.InSession() {
@@ -69,14 +78,27 @@ func (d Detector) tail(pattern string) []byte {
 	return b
 }
 
-var current = sync.OnceValue(func() Identity {
-	home, _ := os.UserHomeDir()
-	return Detector{Home: home, Getenv: os.Getenv}.Detect()
-})
+var current struct {
+	mu       sync.Mutex
+	ready    bool
+	identity Identity
+}
 
-// Current is this process's identity, detected once.
-func Current() Identity { return current() }
+// Current is this process's identity, cached after an uncancelled detection.
+func Current(ctx context.Context) Identity {
+	current.mu.Lock()
+	defer current.mu.Unlock()
+	if current.ready {
+		return current.identity
+	}
+	home, _ := os.UserHomeDir()
+	id := (Detector{Home: home, Getenv: os.Getenv}).Detect(ctx)
+	if ctx.Err() == nil {
+		current.identity, current.ready = id, true
+	}
+	return id
+}
 
 // StampCurrent stamps a commit message with this process's identity; every
 // commit sdlc makes passes its message through it.
-func StampCurrent(msg string) string { return Stamp(msg, Current()) }
+func StampCurrent(msg string, ctx context.Context) string { return Stamp(msg, Current(ctx)) }

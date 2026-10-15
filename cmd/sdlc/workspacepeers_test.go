@@ -101,7 +101,7 @@ func TestPrivateEnvironmentFeatureWorktreeAndPropagation(t *testing.T) {
 	global := testfix.Repo(t, testfix.At(f.fleet, "global-consumer"), testfix.InitialCommit())
 	privateWrite(t, global, "construct/deps", "substrate "+f.dep+"\n")
 	var out bytes.Buffer
-	if err := runPropagateBase(f.dep, "base#1", true, &out); err != nil {
+	if err := runPropagateBase(context.Background(), f.dep, "base#1", true, &out); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "app") || strings.Contains(out.String(), "global-consumer") {
@@ -206,7 +206,7 @@ func TestPrivateEnvironmentHostPropagation(t *testing.T) {
 	privateWrite(t, f.dep, "construct/deps", "substrate ../app\n")
 	privateWrite(t, f.slot, "construct/base.manifest", "")
 	var out bytes.Buffer
-	if err := runPropagateBase(f.slot, "app#1", true, &out); err != nil {
+	if err := runPropagateBase(context.Background(), f.slot, "app#1", true, &out); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "base") {

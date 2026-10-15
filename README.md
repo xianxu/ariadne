@@ -127,22 +127,25 @@ must explicitly dispose it with a note answering the evidence. Two invalid respo
 halt with a protocol error and admit no findings. See the
 [boundary review contract](atlas/workflow/sdlc-binary.md) for details.
 
-## Local token usage
+## Local usage
 
-`sdlc usage --since 6h` reads local Claude and Codex transcripts without
-contacting an agent. The first rows show each agent's last-hour tokens and
-recent wall-clock burn; details group reported counters by slot and model.
-`sdlc usage --issue N` separates ownership-proven worker tokens, explicitly
-bound reviewer rounds, and their total alongside measured active time. Use
-`--json` for schema-versioned output with coverage and unknown attribution.
+`sdlc usage --since 6h` reads local Claude, Codex and Qoder transcripts without
+contacting an agent. The first rows show each agent's last-hour usage and recent
+wall-clock burn; details group measurements by slot and model. Claude and Codex
+report tokens; Qoder reports exact credits, with tokens unavailable (`null`),
+never inferred from credits. Mixed scopes label known subtotals separately.
+`sdlc usage --issue N` separates ownership-proven worker usage, explicitly bound
+reviewer rounds, and their total alongside measured active time. `--json` uses
+schema version 2 with nullable measurements, coverage and unknown attribution.
 
 Optional account calibration uses two observations of the same agent and unit:
 `sdlc usage calibrate --agent codex --remaining 29276 --unit credits` (Claude
-also accepts `--unit percent`). Only calibration writes local meter state.
-One reading or incomplete spend evidence yields a status and no projection;
-local response counters do not claim to be the provider's quota or invoice.
-See `sdlc usage --help` and the [usage map](atlas/workflow/sdlc-binary.md#local-token-usage-365)
-for counter semantics, bounds, legacy reviewer gaps and calibration storage.
+also accepts `--unit percent`; Qoder accepts native `--unit credits`). Only
+calibration writes local meter state. One reading or incomplete spend evidence
+yields a status and no projection; local measurements do not claim to be the
+provider's quota or invoice. See `sdlc usage --help` and the
+[usage map](atlas/workflow/sdlc-binary.md#local-usage-365-385) for counter
+semantics, bounds, legacy reviewer gaps and calibration storage.
 
 ## Classifying issues
 
