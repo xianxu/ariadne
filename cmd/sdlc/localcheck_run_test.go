@@ -148,6 +148,113 @@ func TestRunLocalCheck(t *testing.T) {
 	})
 }
 
+func TestRunLocalCheckRecordsEveryAttemptBeforeStatusPost(t *testing.T) {
+	d, sha, gh, _ := localRunRepo(t, "acquired")
+	check := localCheck{Name: "suite", Command: []string{"sh", "-c", "echo '--- FAIL: TestA (0.01s)'; exit 2"}, TimeoutMinutes: 30}
+	first, err := runLocalCheck(context.Background(), d, check, sha)
+	if err != nil || first.Exit != 2 {
+		t.Fatalf("failure run: %+v %v", first, err)
+	}
+	failedBytes, err := os.ReadFile(first.LogPath)
+	if err != nil || !strings.Contains(string(failedBytes), "TestA") {
+		t.Fatalf("failure log: %q %v", failedBytes, err)
+	}
+	check.Command = []string{"sh", "-c", "echo retry passed"}
+	gh.known = map[string]bool{} // status POST fails after the saved run
+	second, err := runLocalCheck(context.Background(), d, check, sha)
+	if err == nil || !strings.Contains(err.Error(), "NOT recorded") || !second.passed() {
+		t.Fatalf("retry: %+v %v", second, err)
+	}
+	root := filepath.Join(d.Root, ".git", "sdlc", "test-stats")
+	rows, warnings, err := readSuiteAttempts(root, 100)
+	if err != nil || len(warnings) != 0 || len(rows) != 2 {
+		t.Fatalf("attempts: %d %v %v", len(rows), warnings, err)
+	}
+	var failed, passed bool
+	for _, row := range rows {
+		if row.SHA != sha || row.Repo != d.Repo || row.LogSHA256 == "" {
+			t.Fatalf("incomplete recovery record: %+v", row)
+		}
+		if row.Exit == 2 {
+			failed = true
+		}
+		if row.Exit == 0 {
+			passed = true
+		}
+	}
+	if !failed || !passed {
+		t.Fatalf("missing attempt: %+v", rows)
+	}
+	if b, err := os.ReadFile(first.LogPath); err != nil || string(b) != string(failedBytes) {
+		t.Fatalf("retry overwrote failed log: %q %v", b, err)
+	}
+}
+
+func TestRunLocalCheckStatsInitializationFailureStillRunsAndPostsStatus(t *testing.T) {
+	d, sha, gh, stderr := localRunRepo(t, "acquired")
+	logDir, err := localCheckLogDir(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	storeRoot := filepath.Join(filepath.Dir(logDir), "test-stats")
+	if err := os.MkdirAll(storeRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(storeRoot, "inflight"), []byte("blocked"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(t.TempDir(), "ran")
+	check := localCheck{Name: "suite", Command: []string{"./marker-check.sh", marker}, TimeoutMinutes: 30}
+	rec, err := runLocalCheck(context.Background(), d, check, sha)
+	if err != nil || !rec.passed() {
+		t.Fatalf("check blocked by optional stats: %+v %v\n%s", rec, err, stderr)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("check did not run: %v", err)
+	}
+	if gh.statuses[sha]["sdlc-local/suite"] != "success" {
+		t.Fatalf("status not posted: %v", gh.statuses)
+	}
+	if rec.LogPath != filepath.Join(logDir, sha, "suite.log") {
+		t.Fatalf("legacy log fallback path: %s", rec.LogPath)
+	}
+	if _, err := os.Stat(rec.LogPath); err != nil {
+		t.Fatalf("fallback log missing: %v", err)
+	}
+	if !strings.Contains(stderr.String(), "attempt") {
+		t.Fatalf("stats failure not reported: %s", stderr)
+	}
+}
+
+func TestRunLocalCheckStatsPublicationFailureStillPostsStatus(t *testing.T) {
+	d, sha, gh, stderr := localRunRepo(t, "acquired")
+	logDir, err := localCheckLogDir(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	storeRoot := filepath.Join(filepath.Dir(logDir), "test-stats")
+	if err := os.MkdirAll(storeRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(storeRoot, "attempts"), []byte("blocked"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	check := localCheck{Name: "suite", Command: []string{"sh", "-c", "echo ran"}, TimeoutMinutes: 30}
+	rec, err := runLocalCheck(context.Background(), d, check, sha)
+	if err != nil || !rec.passed() {
+		t.Fatalf("check blocked by optional stats: %+v %v\n%s", rec, err, stderr)
+	}
+	if gh.statuses[sha]["sdlc-local/suite"] != "success" {
+		t.Fatalf("status not posted: %v", gh.statuses)
+	}
+	if b, err := os.ReadFile(rec.LogPath); err != nil || !strings.Contains(string(b), "ran") {
+		t.Fatalf("run log unavailable: %q %v", b, err)
+	}
+	if !strings.Contains(stderr.String(), "attempt result was not fully saved") {
+		t.Fatalf("stats failure not reported: %s", stderr)
+	}
+}
+
 func TestPruneLocalCheckLogs(t *testing.T) {
 	dir := t.TempDir()
 	base := time.Now().Add(-time.Hour)
@@ -165,5 +272,79 @@ func TestPruneLocalCheckLogs(t *testing.T) {
 	entries, _ := os.ReadDir(dir)
 	if len(entries) != 20 || entries[0].Name() != "sha05" {
 		t.Fatalf("kept %d, oldest %s", len(entries), entries[0].Name())
+	}
+}
+
+func TestHashAndTailKeepsHashForLongOutputLine(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "suite.log")
+	content := []byte(strings.Repeat("x", 2<<20) + "\nlast\n")
+	if err := os.WriteFile(p, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	hash, tail, err := hashAndTail(p, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hash != hashBytes(content) || len(tail) != 2 || tail[1] != "last" {
+		t.Fatalf("hash/tail mismatch: %s, %d lines", hash, len(tail))
+	}
+}
+
+func TestSuiteAgentFieldsKeepsKnownAgentWithoutModel(t *testing.T) {
+	agent, model, effort := suiteAgentFields("sdlc\n")
+	if agent == nil || *agent != "sdlc" || model != nil || effort != nil {
+		t.Fatalf("identity: %v %v %v", agent, model, effort)
+	}
+}
+
+func TestRunLocalCheckMeasuresLockWaitAndExactHeadAgent(t *testing.T) {
+	d, _, gh, _ := localRunRepo(t, "acquired")
+	helper := filepath.Join(d.Root, "scripts", "test-lock.py")
+	body := fakeSuiteLockHelper("import time\ntime.sleep(0.12)\nprint('acquired')\n")
+	if err := os.WriteFile(helper, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := d.Git("add", "scripts/test-lock.py"); err != nil {
+		t.Fatalf("add: %v %s", err, out)
+	}
+	if out, err := d.Git("commit", "-q", "-m", "lock wait", "-m", "Agent: codex/gpt-6-sol/medium"); err != nil {
+		t.Fatalf("commit: %v %s", err, out)
+	}
+	out, err := d.Git("rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sha := strings.TrimSpace(out)
+	gh.setHead(9, sha)
+	rec, err := runLocalCheck(context.Background(), d, localCheck{Name: "suite", Command: []string{"true"}, TimeoutMinutes: 30}, sha)
+	if err != nil || !rec.passed() {
+		t.Fatalf("run: %+v %v", rec, err)
+	}
+	rows, warnings, err := readSuiteAttempts(filepath.Join(d.Root, ".git", "sdlc", "test-stats"), 10)
+	if err != nil || len(warnings) != 0 || len(rows) != 1 {
+		t.Fatalf("rows: %+v %v %v", rows, warnings, err)
+	}
+	a := rows[0]
+	if a.QueueSeconds == nil || *a.QueueSeconds < 0.1 {
+		t.Fatalf("queue wait not measured around lock: %+v", a.QueueSeconds)
+	}
+	if a.SHA != sha || a.Agent == nil || *a.Agent != "codex" || a.Model == nil || *a.Model != "gpt-6-sol" || a.Effort == nil || *a.Effort != "medium" {
+		t.Fatalf("exact-head identity: %+v", a)
+	}
+}
+
+func TestRunLocalCheckBaselineIsSavedWithoutPostingStatus(t *testing.T) {
+	d, sha, gh, _ := localRunRepo(t, "acquired")
+	d.SkipRecord = true
+	rec, err := runLocalCheck(context.Background(), d, localCheck{Name: "suite", Command: []string{"true"}, TimeoutMinutes: 30}, sha)
+	if err != nil || !rec.passed() {
+		t.Fatalf("baseline: %+v %v", rec, err)
+	}
+	if len(gh.statuses[sha]) != 0 {
+		t.Fatalf("baseline posted status: %+v", gh.statuses[sha])
+	}
+	rows, warnings, err := readSuiteAttempts(filepath.Join(d.Root, ".git", "sdlc", "test-stats"), 10)
+	if err != nil || len(warnings) != 0 || len(rows) != 1 || !rows[0].MainBaseline {
+		t.Fatalf("saved baseline: %+v %v %v", rows, warnings, err)
 	}
 }

@@ -4,6 +4,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 // localRunDeps is what a local run touches: GitHub (to record), git in the
@@ -69,6 +71,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		return rec, err
 	}
 	rec.LogPath = filepath.Join(logDir, sha, c.Name+".log")
+	storeRoot := filepath.Join(filepath.Dir(logDir), "test-stats")
 	sweepStaleLocalWorktrees(d)
 
 	wt, cleanup, err := detachedWorktree(d.Git, sha)
@@ -77,11 +80,25 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	}
 	defer cleanup()
 
+	writer, err := beginSuiteAttempt(storeRoot)
+	publishing := false
+	if err != nil {
+		fmt.Fprintf(d.Stderr, "[!] local check %s: attempt log unavailable; using legacy log path: %v\n", c.Name, err)
+	} else {
+		defer func() {
+			if !publishing {
+				_ = os.RemoveAll(filepath.Dir(writer.LogPath))
+			}
+		}()
+		rec.LogPath = writer.LogPath
+	}
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
+	queueStart := time.Now()
 	heldBy, release, err := acquireSuiteSlot(ctx, d, wt, c.Weight, helper)
 	if err != nil {
 		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
 	}
+	queueWait := time.Since(queueStart)
 	defer release()
 
 	if err := os.MkdirAll(filepath.Dir(rec.LogPath), 0o755); err != nil {
@@ -115,6 +132,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	// 0.5 s poll elsewhere).
 	release()
 	rec.Duration = time.Since(start)
+	finished := time.Now().UTC()
 	_ = logf.Close()
 	var exitErr *exec.ExitError
 	switch {
@@ -132,6 +150,44 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	if rec.LogSHA256, rec.Tail, err = hashAndTail(rec.LogPath, localCheckTailLines); err != nil {
 		return rec, err
 	}
+	queueSeconds, wallSeconds := queueWait.Seconds(), rec.Duration.Seconds()
+	if writer != nil {
+		attempt := SuiteAttempt{Version: 1, ID: writer.ID, Repo: d.Repo, SHA: sha, Check: c.Name,
+			StartedAt: start.UTC(), FinishedAt: finished, MainBaseline: d.SkipRecord,
+			QueueSeconds: &queueSeconds, WallSeconds: &wallSeconds,
+			Exit: rec.Exit, TimedOut: rec.TimedOut, LogSHA256: rec.LogSHA256}
+		if identity, idErr := workspace.Resolve(execGitRunner{}, d.Root, ""); idErr == nil && identity.Address != nil {
+			attempt.Slot = *identity.Address
+		}
+		if trailer, trailerErr := d.Git("show", "-s", "--format=%(trailers:key=Agent,valueonly)", sha); trailerErr == nil {
+			attempt.Agent, attempt.Model, attempt.Effort = suiteAgentFields(trailer)
+		}
+		if info, statErr := os.Stat(writer.LogPath); statErr == nil && info.Size() <= 64<<20 {
+			if log, readErr := os.ReadFile(writer.LogPath); readErr == nil {
+				facts := parseSuiteLogFacts(string(log))
+				attempt.Failures, attempt.Units = facts.Failures, facts.Units
+				for _, warning := range facts.Warnings {
+					fmt.Fprintf(d.Stderr, "[!] local check %s: log parser: %s\n", c.Name, warning)
+				}
+			}
+		} else {
+			fmt.Fprintf(d.Stderr, "[!] local check %s: log too large for timing/failure parser; raw log retained\n", c.Name)
+		}
+		publishing = true // retain failure residue for dead-owner cleanup if save fails
+		if _, saveErr := publishSuiteAttempt(storeRoot, writer, attempt); saveErr != nil {
+			fmt.Fprintf(d.Stderr, "[!] local check %s: attempt result was not fully saved: %v\n", c.Name, saveErr)
+		} else {
+			if !rec.passed() {
+				rec.LogPath = filepath.Join(storeRoot, "failed", writer.ID+".log")
+			} else {
+				rec.LogPath = filepath.Join(logDir, sha, c.Name+".log")
+			}
+			fmt.Fprintf(d.Stderr, "    saved log %s\n", rec.LogPath)
+			if pruneErr := pruneSuiteAttempts(storeRoot, time.Now()); pruneErr != nil {
+				fmt.Fprintf(d.Stderr, "[!] local check %s: attempt pruning: %v\n", c.Name, pruneErr)
+			}
+		}
+	}
 	pruneLocalCheckLogs(logDir, localCheckLogKeep)
 	if d.SkipRecord {
 		fmt.Fprintf(d.Stderr, "==> local check %s: %s on %s (diagnostic baseline, unrecorded)\n", c.Name, rec.statusDescription(), abbrevSHA(sha))
@@ -148,6 +204,17 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	}
 	fmt.Fprintf(d.Stderr, "==> local check %s: %s, recorded as %s on %s\n", c.Name, rec.statusDescription(), localStatusContext(c.Name), abbrevSHA(sha))
 	return rec, nil
+}
+
+func suiteAgentFields(raw string) (*string, *string, *string) {
+	parts := strings.Split(strings.TrimSpace(raw), "/")
+	if len(parts) == 1 && parts[0] != "" && !strings.ContainsAny(parts[0], " \t\r\n") {
+		return &parts[0], nil, nil
+	}
+	if len(parts) != 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" || strings.ContainsAny(strings.Join(parts, ""), " \t\r\n") {
+		return nil, nil, nil
+	}
+	return &parts[0], &parts[1], &parts[2]
 }
 
 // detachedWorktree checks sha out in a fresh temporary worktree and returns
@@ -252,21 +319,41 @@ func hashAndTail(path string, n int) (string, []string, error) {
 	defer f.Close()
 	h := sha256.New()
 	var tail []string
-	sc := bufio.NewScanner(io.TeeReader(f, h))
-	sc.Buffer(make([]byte, 64<<10), 1<<20)
-	for sc.Scan() {
-		tail = append(tail, sc.Text())
-		if len(tail) > n {
-			tail = tail[1:]
+	r := bufio.NewReaderSize(io.TeeReader(f, h), 64<<10)
+	line := make([]byte, 0, 64<<10)
+	add := func() {
+		if n > 0 {
+			tail = append(tail, string(bytes.TrimSuffix(line, []byte{'\r'})))
+			if len(tail) > n {
+				tail = tail[1:]
+			}
+		}
+		line = line[:0]
+	}
+	for {
+		chunk, readErr := r.ReadSlice('\n')
+		if len(line) < 1<<20 {
+			room := (1 << 20) - len(line)
+			part := bytes.TrimSuffix(chunk, []byte{'\n'})
+			if len(part) > room {
+				part = part[:room]
+			}
+			line = append(line, part...)
+		}
+		switch readErr {
+		case nil:
+			add()
+		case bufio.ErrBufferFull:
+			continue
+		case io.EOF:
+			if len(line) > 0 {
+				add()
+			}
+			return hex.EncodeToString(h.Sum(nil)), tail, nil
+		default:
+			return "", nil, readErr
 		}
 	}
-	if err := sc.Err(); err != nil {
-		// An over-long line stops the scan; hash the rest so the digest covers the file.
-		if _, cerr := io.Copy(h, f); cerr != nil {
-			return "", nil, cerr
-		}
-	}
-	return hex.EncodeToString(h.Sum(nil)), tail, nil
 }
 
 // pruneLocalCheckLogs keeps the newest keep per-head directories under dir.
