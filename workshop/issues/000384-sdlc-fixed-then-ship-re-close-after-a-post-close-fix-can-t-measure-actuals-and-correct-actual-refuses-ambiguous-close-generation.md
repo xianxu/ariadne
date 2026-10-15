@@ -1,12 +1,22 @@
 ---
 id: 000384
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-15
-estimate_hours:
-card_mirror: '612c50a39261ec91117a2127bca8de940658aa0f' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 1.94
+card_mirror: 'c19fa8c000fad472bd81af7a21599cf1cf12326a' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-15T02:37:57-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
+actual_hours: 3.13
 ---
 
 # sdlc: fixed-then-ship re-close after a post-close fix can't measure actuals, and correct-actual refuses (ambiguous close generation)
@@ -34,10 +44,109 @@ for ~2 hours with no supported path; the TL unblocked it with `--no-actual` and 
   carried-forward actuals and correct provenance.
 - `correct-actual` on that state either repairs it or names the precise next step; tests cover both.
 
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. Calibration is marked stale by estimate-source; provisional.*
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.25 impl=0.08
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: cross-cutting-refactor design=0.10 impl=0.20
+item: atlas-docs design=0.05 impl=0.08
+item: milestone-review design=0.10 impl=0.20
+design-buffer: 0.15
+total: 1.94
+```
+
+The three smaller modules cover candidate measurement, exact-target selection and recovery admission/transaction verification. Existing Go/Cobra/tracker/attribution libraries cover the stack; no novel library discovery is needed. v2 design uses the thorough-plan discount for those modules (0.3 × 0.2); issue design uses a mid-density 0.5 discount. Implementation entries already apply v3.1's 40% scale once. Familiar terrain is ×1.0. Design 0.68 × 1.15 + implementation 1.16 = 1.942 hours (rounded to 1.94); scope includes production regressions, mutation checks, docs and one close review. The cross-cutting allocation covers shared caller wiring, refusal wording, verification integration and landing; module allocations include their focused production regressions. Both estimate and measured actual use idle-removed ship wall-clock, including AI/subagent execution spans; actual queue treatment remains owned by the measurement engine, with no separate attention discount.
+
 ## Plan
 
-- [ ]
+- [x] Reproduce measured whole-close -> post-close fix -> fixed-then-ship; pin candidate measurement to the new reviewed head while preserving historical replay.
+- [x] Add explicit eligible raw-row selection and precise ambiguity/exclusion recovery to correct-actual, with unchanged-state and retry tests.
+- [x] Align refusal/help/README/atlas text and complete focused and recorded full-suite verification.
+
+After verification, close through the mandatory review, integrate current main, and land on SHIP.
+
+Durable plan: [re-close actuals](../plans/000384-reclose-actuals-plan.md).
 
 ## Log
 
 ### 2026-10-15
+- 2026-10-15: closed — Production measured close -> fix -> fixed-then-ship twice pins each reviewed head and admits fix activity; historical preview stays immutable; legacy ambiguous correction names eligible raw targets and exact exclusion. Focused command/internal/recovery tests and mutation checks passed. Recorded full make test on bb42d2f5298124aaaefab53cd71598869b5b6c1c passed: 12 shards, 1394 cmd/sdlc tests, 60 other packages, zero failures, 620.8s; log SHA256 dd9d98c2ce2a1d8f7681fd643ef7541a3eef46633dc20daa8285d1ead551d734. Decimal-ID regression and source guard pass.; review verdict: SHIP
+
+### 2026-10-15 — investigation and plan
+
+Claimed from ariadne:5 and entered start-plan. Read resolver, close/adoption/fix-review, tracker completion and correction flow. Read-only peer inventory confirmed ordinary calibration rows carry issue/date/rounded actual but no completion identity. Existing fix-review integration tests type --actual, masking automatic measurement failure. ARCH-ORDER/ARCH-DRY shaped measurement-purpose separation without another engine or relaxed historical pin checks.
+
+Scratch overlay reproduction (no tracked source edits): `go test -overlay /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne384-repro-obg1buye/overlay.json ./cmd/sdlc -run '^TestRepro384' -count=1 -v -timeout 3m` gave intended RED, exit 1 in 8.000s. After a post-close fix the resolver returned replay=true with prior code 05b73221ed3c7090122a8dee5c61eac9663b7870 instead of candidate 3b5cb4e6064b58cb93028f1ed3d473c798a91c2f. A second fixture reproduced exactly 'retained measurement code head differs from the completion’s reviewed generation'. The correction uniqueness predicate admits no supported explicit selector; --exclude traverses the same ambiguous selector and fails again. Awaiting pair:2's original transcript/output (Couch exposed no native transcript binding). No production records were changed.
+
+Alternatives and verification are in the durable plan: measure candidate closes afresh, never transplant snapshot pins or carry unlabelled hours. Explicit eligible raw-row selection makes legacy correction actionable; historical numeric measurement stays fail-closed, with a same-target exclusion command where evidence cannot establish the original branch point. Send committed plan to TL before change-code.
+
+Planning note: the first plan write found workshop/plans absent (all prior plans were archived); it made no plan or commit. Created the directory through the plan artifact and retried normally.
+
+### 2026-10-15 — approval and plan review
+
+TL approved plan 8b8c784c as written (verified Couch receipt 756d7f64-245b-447e-bf1d-08f60d7c41fb). Read pair:2's original Codex transcript at /Users/xianxu/.codex/sessions/2026/10/12/rollout-2026-10-12T22-02-23-01a133a3-eaec-77b3-8c1e-dc4ac6b41fbd.jsonl, command events 2026-10-15T06:39:32Z–06:41:26Z. Confirmed actual/close mismatch and exact correct-actual refusal; prior reviewed d0862f78585dcca647c6494d6a8fd6942d7bf5e1, saved faa2056195acaec505029ab5fbf7e31431c2857f. Original close failed before judge dispatch, not a code-test failure.
+
+Plan-quality round 1 raised PQ-1 (function-level test strategy): refined correction test rows to named-function adversarial classes/mechanical guards. A redundant unchanged-plan dispatch was interrupted before recording another round; no implementation begun. No design scope change.
+
+- Plan-quality round 2 CLEAN: PQ-1 addressed, no open findings. Derived estimate only after this pass, using the named v3.1 calibration and existing library seams.
+
+### 2026-10-15 — candidate measurement implemented
+
+change-code passed (full flow), PQ CLEAN with no open findings; estimate-quality INFO noted optimistic test allowances. Implemented typed historical/candidate purpose across the shared resolver/engine; only close selects candidate. Prior completion and correction snapshots remain immutable for preview/correction. Fresh candidate output names its purpose and exact code/tracker pins.
+
+Production command regression, without measurement stubs: measured close -> code fix -> fixed-then-ship repeated twice -> completed preview and publication, followed by a rejected fix review preserving the old completion. Each success pins current reviewed code, admits longer source prefix/fix activity and increases measured hours. Prior numeric correction and exclusion remain effective historically while candidate inputs are freshly resolved. Initial fixture failures were diagnosed as exit capture and a started clock later than the fixed Git commit; the test now owns that clock explicitly. Intended RED then failed at round 1's stale code/source pins (12.025s). GREEN including mismatch/milestone/ownership controls passed (26.826s); expanded lifecycle/correction controls passed (35.970s), and lifecycle/refusal wording passed (55.790s).
+
+Mutation through a temporary Go overlay restored the production close caller to historical purpose while omitting only the purpose-text assertion. The lifecycle still failed on round 1's stale code/source pins (exit 1, 31.178s), proving the production wiring rather than wording. Root sources were unchanged by the overlay. A wording RED reproduced manual-hour advice; the fix replaces it with evidence recovery, supported correction dry-run, or explicit N/A only when measurement does not apply.
+
+### 2026-10-15 — correction integration and focused verification
+
+Integrated delegated commit 0a69a81ef47237c46e3fdeecb6b58cc82e33d592 as 4a6b3469. Its isolated TestActualCorrection* regression passed on the exact delegated commit (128.346s); selector tests passed (10.402s). Delegated mutations of eligibility and selector-to-receipt wiring failed the foreign-row and exact durable-target assertions; sources restored before final GREEN. Independently inspected the patch and ran the combined command regressions here. No schema/model change: explicit full raw SHA256 selection is restricted to the effective eligible set, existing receipt targets bind recovery, and conflicting pending/completed selection refuses unchanged.
+
+An integration review found ambiguity retry commands dropped --exclude; added intended RED (3.224s) and preserved exclusion intent. Combined selector/candidate/provenance tests GREEN (36.741s). README/help/atlas/recovery catalog now describe candidate versus historical measurement, explicit provenance-based target selection, conflict-safe recovery and exact exclusion. Removed obsolete manual-hour fallback advice and comments. The broader focused command selection passed (159.978s), internal actualcorrection/estimate/recovery packages passed, and recovery-contract proof coverage passed (0.752s).
+
+Added a real legacy-corruption command test without a measurement stub: completion with mismatched retained code pin plus ambiguous rows. It first names the ledger/candidates, then the explicit selected target reaches the actual historical resolver and produces the exact mismatch plus same-target exclusion command, leaving card/main/calibration unchanged (6.719s). Fixture creation initially tried rewriting an existing completion token and was correctly refused; using a new explicit legacy-generation token respects the existing binding invariant.
+
+Next: commit this verified patch, integrate fresh main, push PR and run the recorded full suite before close. Production source work is complete; CI/full-suite and mandatory close review remain.
+
+### 2026-10-15 — PR and recorded suite checkpoint
+
+PR #255: https://github.com/xianxu/ariadne/pull/255. Fresh origin/main integration was already up to date. Pushed implementation head be92302c3ec5c45bd747f75a1832fb97fc14c075 (git rev-parse). sdlc pr has no title/body options, so it owned publication and gh pr edit set the review description separately. Recorded full suite is running/queued through `sdlc local-check run --name suite`, initially position 6, pinned to that head in detached checkout /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/sdlc-local-3400735097. Log: /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/be92302c3ec5c45bd747f75a1832fb97fc14c075/suite.log. No suite result claimed yet. No gate overrides or load loops. Detached correction worktree was clean and removed after its commit was integrated; no delegated tests remain active. After full-suite pass, run mandatory close review, integrate any newer main, publish final head, and land with sdlc merge --yes on SHIP.
+
+### 2026-10-15 — supersede queued pre-integration check
+
+While the recorded check on be92302c waited, main landed #371 (PR #253), changing issue/scaffold code. Canceled our still-queued pre-integration check with SIGINT (exit 130 after 2597s wait, test-lock remained waiting and ran no tests). No pass was recorded or claimed. Merged current origin/main f113e1e9fc9b7eac98bf7b3a644fc97f1095a360 cleanly, including compatible help/atlas edits. Requeue the required recorded suite on the combined pushed head; no tests or queue gates waived. This is one explicit replacement for a known code integration, not a custom wait/load loop.
+
+- Replacement recorded check pinned to pushed combined head e55eed0871ac4061db7f8fd22d3d18e4958c9a75 (git rev-parse), initially queue position 4. Detached checkout /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/sdlc-local-2717862169; log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/e55eed0871ac4061db7f8fd22d3d18e4958c9a75/suite.log. No result yet. Implementation and focused verification are committed; full-suite pass and close/landing remain.
+
+### 2026-10-15 — full-suite guard failure and decimal hint repair
+
+Recorded suite on e55eed0871ac4061db7f8fd22d3d18e4958c9a75 exited 1 after 1438s queue and 503.4s execution (12 shards, 1394 cmd/sdlc tests, 60 other packages). The only failing test was TestIssueHintsRenderDecimalIDs: five new recovery hints used raw padded issue IDs. All other shards/packages passed; this is not a passing suite. Fixed the hints with the existing issue.CLIRef formatter (ARCH-DRY), preserving Cobra decimal parsing. The added padded-ID case and source guard first failed together, then both passed (0.598s). Re-run the recorded full suite on the pushed fix before close.
+
+- Replacement recorded suite is pinned to bb42d2f5298124aaaefab53cd71598869b5b6c1c in detached checkout /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/sdlc-local-1778550346, initially fifth in the machine queue. Log: /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/bb42d2f5298124aaaefab53cd71598869b5b6c1c/suite.log. Fresh origin/main remains f113e1e9fc9b7eac98bf7b3a644fc97f1095a360; integration already up to date. No result claimed; no overrides.
+
+### 2026-10-15 — recorded full suite passed
+
+sdlc local-check run --name suite passed on bb42d2f5298124aaaefab53cd71598869b5b6c1c: exit 0, 620.8s execution after 1913s gate wait, all 12 shards / 1394 cmd/sdlc tests and 60 other packages with zero failures. Recorded as sdlc-local/suite; log digest prefix dd9d98c2ce2a. The source guard and padded-ID regression are included. Remaining steps are mandatory close review, current-main integration and landing on SHIP; no verification gates waived.
+
+### 2026-10-15 — SHIP and current-main integration
+
+Mandatory close review returned SHIP, high confidence, no findings (round 1). Reviewer independently ran lifecycle/legacy/selector/refusal regressions (113.053s), historical/milestone/exclusion/retirement controls (42.858s) and internal packages. Close adopted measured 3.13h and published codecomplete bound to evidence dbec6a72682cb6483d5ec8d08abb41a5279aa085. No waivers.
+
+Merged current origin/main cea78653e4003d0ca6fa64fbf9ae3b726f5d9b37, including landed #365, cleanly as f73b00e5e1748c2b59f2b4415d4214aa6b75adee. Inspected shared actual/actualinputs changes: ownership discovery was extracted behind the same authority and local-only tracker reads are opt-in via context; candidate/historical separation remains intact. No conflict resolution or issue-scope change. PR #255 updated; submitted a fresh recorded full suite on this combined head before landing. Previous passing suite does not establish this integrated head's result.
+
+### 2026-10-15 — integrated suite passed; final landing gate
+
+Recorded suite on f73b00e5e1748c2b59f2b4415d4214aa6b75adee passed, exit 0: 489.9s after 555s gate wait, all 12 shards / 1443 cmd/sdlc tests and 62 other packages, zero failures. Log SHA256 86c95cc40935192fc06f1b4b36736bfccfba34a163c2b80ce0d4cdfd27fd8820. PR CI also green.
+
+The final fresh fetch found #376 landed on current main 7bfdff6ee3dfc9141dc97525f865c5316b156595 (test statistics/local-check accounting, independent of #384). Integrating that current main before sdlc merge --yes; the landing command owns the required exact-head suite, CI and any further bounded main integrations. No gate waivers. Review remains SHIP; no #384 code changed since review.
+
+## Revisions
+
+- 2026-10-15T04:18:20-07:00 — Separate verification checkboxes from the later close/landing workflow so closing does not require pre-claiming its own success. Scope and acceptance unchanged.

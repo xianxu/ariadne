@@ -55,6 +55,11 @@ FIXED-THEN-SHIP (#183)
   landed after it: the review's fixes, a post-close change, or a resolution of a
   conflict with main (the publish gate names this path when it refuses).
 
+  Omit --actual: re-close measures the current candidate head and tracker inputs,
+  including fix activity. It retains those fresh inputs with the new reviewed
+  generation. Historical sdlc actual preview keeps replaying completed evidence;
+  re-close does not transplant that older snapshot onto a newer code head.
+
     - Window: the interdiff since the head that close review read, replayed onto
       today's main (the same replay as a later milestone's window, #304). Main's
       own changes never enter it; a conflict shows only its resolution.
@@ -254,8 +259,8 @@ WHAT THE GUARD DEFENDS
   --actual <hours>     focused dev-hours. Omit it: close measures and ADOPTS
                        the value (#178; loud info line with window + attribution).
                        An explicit value is deviation-checked (#87). Run
-                       `sdlc actual --issue N` to preview. Required by hand only
-                       when measurement fails.
+                       `sdlc actual --issue N` to preview. When measurement fails,
+                       recover its named evidence; do not invent hours.
   --verified '<line>'  one-line evidence the work meets done-when (behavior,
                        not artifacts: "tests pass" beats "code written").
                        Required.
@@ -438,7 +443,7 @@ FLAGS
 
   --issue <n>           ariadne workshop issue ID (numeric, zero-pad
                         applied internally; required)
-  --actual <hours>      focused dev-hours (required unless --no-actual/--force)
+  --actual <hours>      focused dev-hours (omit to measure/adopt; --no-actual records N/A)
   --verified '<line>'   one-line behavior evidence (required unless --no-verified/--force)
   --force               bypass ALL gates (≡ every --no-* flag); reason in --verified
   --no-<gate>           one flag per gate, each waiving exactly that gate — the
@@ -470,7 +475,7 @@ If --actual is missing, close runs active-time-v3 itself (brain + repo
 transcript dirs, this issue's window + auto-discovered peers) and ADOPTS the
 measured value in the same invocation (#178) — a loud info line shows the hours,
 window, and peer attribution. When the telemetry isn't available it refuses and
-points you to a labeled judgment estimate. Attribution warnings print alongside
+names the evidence to recover before retrying. Do not invent hours. Attribution warnings print alongside
 the adoption; inspect them, because they identify dominant long runs or mention
 fallback where commit boundary evidence was weak. The measured value is BUILD
 + CONVERGE (#234): it is split at each boundary review's first dispatch, and the

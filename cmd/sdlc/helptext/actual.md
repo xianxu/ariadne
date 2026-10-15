@@ -23,8 +23,8 @@ WHAT IT DOES
      evidence refuses automatic adoption. Repositories without a tracker retain
      the explicitly labeled repository-plus-brain heuristic.
   3. Runs the native `activetime` engine (`--commit-weight 1.0 --threshold-min 15
-     --include-assistant`, in-process — no python3) and prints the suggested
-     `--actual` value. If attribution is suspect (for example one long run
+     --include-assistant`, in-process — no python3) and prints measured
+     hours. If attribution is suspect (for example one long run
      dominates the issue total, or the engine had to use mention fallback because
      no issue commit boundary existed), warning lines are printed before the
      close suggestion.
@@ -44,9 +44,10 @@ OUTPUT
   - telemetry unavailable → window has commits but no transcript events (work
                             lived in cwds/worktrees not under brain/repo, or aged
                             out / in an unsupported harness transcript shape).
-                            Record a LABELED judgment estimate (or --no-actual).
-  - no window           → no commits reference the issue yet; commit first, or
-                            fall back to a judgment estimate.
+                            Ask the TL/hub to restore the owning slot's transcripts,
+                            then re-run sdlc actual --issue N.
+  - no window           → commit the issue's work with #N in its subject, then
+                            re-run sdlc actual --issue N. Do not invent hours.
 
 Completed issues replay the measurement inputs retained with their close evidence:
 code/tracker pins, source byte prefixes and digests, ownership windows, and phase
@@ -54,11 +55,23 @@ cuts. Later transcript appends and bookkeeping cannot move that measurement.
 Legacy closes without retained inputs reconstruct their historical completion
 binding and report that limitation.
 
+Close and milestone-close measure their current candidate head and tracker
+authority, including fixed-then-ship re-closes. They retain a fresh snapshot with
+the new reviewed generation; completed preview keeps its prior immutable pins.
+
 To repair a completed sample, use sdlc issue correct-actual --issue N --reason TEXT
 (--dry-run previews it). It computes hours, preserves the close generation, and
 records provenance. --exclude removes a proven invalid calibration sample when
 reliable numeric evidence is unavailable. Interrupted corrections resume through
 sdlc issue recovery reconcile --issue N without measuring again.
+
+Ambiguous legacy calibration rows need an explicit --target-row <full SHA256>.
+The refusal lists the exact ledger path, completion and eligible row IDs with
+metadata and retry commands. Ask the TL/operator to identify the row by provenance;
+never choose by ordering. Selection cannot admit a foreign or superseded row.
+A pending or completed same-intent retry cannot change its original target.
+If retained measurement cannot support a numeric repair, the error names an exact
+same-target --exclude command for a proven invalid sample. It never supplies hours.
 
 For the full per-segment breakdown, run `sdlc active-time` (the standalone engine).
 

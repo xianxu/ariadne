@@ -22,6 +22,10 @@ SUBCOMMANDS
   correct-actual Re-measure a completed actual with --issue N --reason TEXT;
                  --dry-run previews; --exclude invalidates a proven bad sample
                  without inventing hours. Keeps the original close generation.
+                 --target-row <full SHA256> selects an eligible raw row when
+                 legacy rows are ambiguous; the error lists candidates and
+                 exact retry commands. Obtain the TL/operator's provenance
+                 choice; never infer it from ordering. Retries retain the target.
   recovery       `list` / `reconcile --issue N` interrupted tracker operations
                  and measured actual corrections
   migrate        One-time cutover of a legacy repository to the issue tracker

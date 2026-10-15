@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -35,12 +36,12 @@ var measureActualCorrection = func(ctx context.Context, root, brain, id, milesto
 
 func newIssueCorrectActualCmd() *cobra.Command {
 	var id int
-	var reason, brain string
+	var reason, brain, targetRow string
 	var dry, exclude bool
 	cmd := markMutatingCommand(&cobra.Command{Use: "correct-actual", Short: "Correct a completed issue's actual from pinned measured evidence", Args: cobra.NoArgs, SilenceErrors: true})
 	cmd.RunE = func(c *cobra.Command, _ []string) error {
 		return withRequiredRepoTransactionLock(c, func() error {
-			return runActualCorrection(c.Context(), c.OutOrStdout(), c.ErrOrStderr(), envOr("WF_ISSUES_DIR", "workshop/issues"), id, reason, brain, dry, exclude)
+			return runActualCorrection(c.Context(), c.OutOrStdout(), c.ErrOrStderr(), envOr("WF_ISSUES_DIR", "workshop/issues"), id, reason, brain, dry, exclude, targetRow)
 		})
 	}
 	cmd.Flags().IntVar(&id, "issue", 0, "completed issue ID (required)")
@@ -48,6 +49,7 @@ func newIssueCorrectActualCmd() *cobra.Command {
 	cmd.Flags().StringVar(&brain, "brain-dir", "../brain", "brain repository and calibration destination")
 	cmd.Flags().BoolVar(&dry, "dry-run", false, "preview measured correction without writing")
 	cmd.Flags().BoolVar(&exclude, "exclude", false, "exclude a proven invalid sample without inventing hours")
+	cmd.Flags().StringVar(&targetRow, "target-row", "", "full SHA256 of an eligible calibration row (required when ambiguous)")
 	return cmd
 }
 
@@ -70,7 +72,20 @@ func withActualCalibrationLock(ctx context.Context, stderr io.Writer, ledgerPath
 func actualCorrectionTarget(text, ref, old, date string) (estimate.LedgerRow, error) {
 	return actualCorrectionTargetForGeneration(text, ref, old, date, "")
 }
-func actualCorrectionTargetForGeneration(text, ref, old, date, generation string) (estimate.LedgerRow, error) {
+
+type actualCorrectionAmbiguity struct{ Candidates []estimate.LedgerRow }
+
+func (e *actualCorrectionAmbiguity) Error() string { return "ambiguous calibration close generation" }
+
+func actualCorrectionTargetForGeneration(text, ref, old, date, generation string, selectors ...string) (estimate.LedgerRow, error) {
+	selector := ""
+	if len(selectors) > 0 {
+		selector = selectors[0]
+	}
+	if selector != "" && !validActualTargetRow(selector) {
+		return estimate.LedgerRow{}, errors.New("--target-row must be a full lowercase SHA256 digest; copy an eligible row ID from the ambiguity diagnostic")
+	}
+
 	rows, err := estimate.ParseRowsChecked(text)
 	if err != nil {
 		return estimate.LedgerRow{}, err
@@ -83,7 +98,8 @@ func actualCorrectionTargetForGeneration(text, ref, old, date, generation string
 	if err != nil || math.IsNaN(value) || math.IsInf(value, 0) {
 		return estimate.LedgerRow{}, errors.New("recorded actual is not numeric; there is no eligible target")
 	}
-	var selected *estimate.LedgerRow
+	var candidates []estimate.LedgerRow
+	seen := map[string]bool{}
 	for _, row := range rows {
 		if row.Issue != ref || math.Abs(row.Actual-value) > 0.000001 {
 			continue
@@ -95,16 +111,40 @@ func actualCorrectionTargetForGeneration(text, ref, old, date, generation string
 		} else if row.Date != date {
 			continue
 		}
-		if selected != nil && selected.RawID != row.RawID {
-			return estimate.LedgerRow{}, errors.New("ambiguous calibration close generation; repair target evidence before correcting")
+		if selector != "" && row.RawID != selector {
+			continue
 		}
-		copy := row
-		selected = &copy
+		if !seen[row.RawID] {
+			candidates = append(candidates, row)
+			seen[row.RawID] = true
+		}
 	}
-	if selected == nil {
+	if len(candidates) == 0 {
+		if selector != "" {
+			return estimate.LedgerRow{}, fmt.Errorf("target row %s is not an eligible effective row for this issue, actual and completed close generation; retry without --target-row to inspect eligible targets", selector)
+		}
 		return estimate.LedgerRow{}, errors.New("no exact effective calibration row for recorded actual and completed close generation")
 	}
-	return *selected, nil
+	if len(candidates) > 1 {
+		return estimate.LedgerRow{}, &actualCorrectionAmbiguity{Candidates: candidates}
+	}
+	return candidates[0], nil
+}
+
+func validActualTargetRow(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	for _, c := range value {
+		if !(c >= 'a' && c <= 'f' || c >= '0' && c <= '9') {
+			return false
+		}
+	}
+	return true
+}
+
+func actualCorrectionRetryCommand(id int, reason, brain, target string) string {
+	return fmt.Sprintf("sdlc issue correct-actual --issue %d --reason %s --brain-dir %s --target-row %s", id, quoteHelperShell(reason), quoteHelperShell(brain), target)
 }
 
 func appendActualCorrectionRow(ctx context.Context, stderr io.Writer, file, line, token, digest string) error {
@@ -457,7 +497,7 @@ func actualCorrectionMainMirror(main *gitx.TrunkView, issuesDir, cardPath string
 // A completed repeat has no private recovery ref. Its remote card, effective
 // calibration operation and main projection must independently prove the same
 // operation before it can return without measuring or producing another row.
-func actualCorrectionCompleteRepeat(env *trackerEnv, card tracker.Record, completion issue.Completion, issuesDir, ledger, ref, reason string, exclude bool) (issue.ActualCorrection, bool, error) {
+func actualCorrectionCompleteRepeat(env *trackerEnv, card tracker.Record, completion issue.Completion, issuesDir, ledger, ref, reason string, exclude bool, selectors ...string) (issue.ActualCorrection, bool, error) {
 	record, exists, err := issue.CardActualCorrection(card.Raw)
 	if err != nil {
 		return record, false, err
@@ -514,6 +554,10 @@ func actualCorrectionCompleteRepeat(env *trackerEnv, card tracker.Record, comple
 	if owned == nil {
 		return refuse(errors.New("calibration operation evidence missing"))
 	}
+	if len(selectors) > 0 && selectors[0] != "" && !slices.Contains(owned.Correction.Targets, selectors[0]) {
+		return record, false, fmt.Errorf("target row %s conflicts with completed correction %s; retry with --target-row %s", selectors[0], record.Token, owned.Correction.Targets[0])
+	}
+
 	if exclude {
 		// Exclusions deliberately produce no effective numeric row. Validate
 		// resolution above, then prove no later correction superseded this row.
@@ -569,7 +613,15 @@ func actualCorrectionCompleteRepeat(env *trackerEnv, card tracker.Record, comple
 	return record, true, nil
 }
 
-func runActualCorrection(ctx context.Context, stdout, stderr io.Writer, issuesDir string, id int, reason, brainDir string, dryRun, exclude bool) error {
+func runActualCorrection(ctx context.Context, stdout, stderr io.Writer, issuesDir string, id int, reason, brainDir string, dryRun, exclude bool, selectors ...string) error {
+	targetRow := ""
+	if len(selectors) > 0 {
+		targetRow = selectors[0]
+	}
+	if targetRow != "" && !validActualTargetRow(targetRow) {
+		return errors.New("--target-row must be a full lowercase SHA256 digest; copy an eligible row ID from the ambiguity diagnostic")
+	}
+
 	intentReason := reason
 	if id <= 0 || strings.TrimSpace(reason) == "" || len(reason) > 4<<10 {
 		return errors.New("--issue and bounded --reason are required")
@@ -596,6 +648,9 @@ func runActualCorrection(ctx context.Context, stdout, stderr io.Writer, issuesDi
 			return err
 		}
 		if d.State.Spec.IssueID == fmt.Sprintf("%06d", id) {
+			if targetRow != "" && !slices.Contains(d.State.Spec.TargetHashes, targetRow) {
+				return fmt.Errorf("target row %s conflicts with pending correction %s; resume its pinned target with sdlc issue recovery reconcile --issue %d", targetRow, d.State.Spec.Token, id)
+			}
 			if dryRun {
 				fmt.Fprintf(stdout, "Pending correction %s: %s -> %s (%s)\n", entry.Token, d.State.Spec.PreviousActual, d.State.Spec.NewActual, d.State.Phase)
 				return nil
@@ -653,7 +708,7 @@ func runActualCorrection(ctx context.Context, stdout, stderr io.Writer, issuesDi
 	if err != nil {
 		return err
 	}
-	repeated, complete, err := actualCorrectionCompleteRepeat(env, card, completion, issuesDir, ledger, identity.Repo+"#"+strconv.Itoa(id), reason, exclude)
+	repeated, complete, err := actualCorrectionCompleteRepeat(env, card, completion, issuesDir, ledger, identity.Repo+"#"+strconv.Itoa(id), reason, exclude, targetRow)
 	if err != nil {
 		return err
 	}
@@ -665,9 +720,25 @@ func runActualCorrection(ctx context.Context, stdout, stderr io.Writer, issuesDi
 	if err != nil {
 		return fmt.Errorf("calibration targets: %w", err)
 	}
-	target, err := actualCorrectionTargetForGeneration(string(raw), identity.Repo+"#"+strconv.Itoa(id), old, date, completion.Token)
+	target, err := actualCorrectionTargetForGeneration(string(raw), identity.Repo+"#"+strconv.Itoa(id), old, date, completion.Token, targetRow)
 	if err != nil {
-		return err
+		var ambiguous *actualCorrectionAmbiguity
+		if errors.As(err, &ambiguous) {
+			var detail strings.Builder
+			fmt.Fprintf(&detail, "%s in %s; completion %s. Select the row whose provenance belongs to this close (never select by ordering):", err, ledger, completion.Token)
+			for _, row := range ambiguous.Candidates {
+				retry := actualCorrectionRetryCommand(id, reason, brainDir, row.RawID)
+				if exclude {
+					retry += " --exclude"
+				}
+				fmt.Fprintf(&detail, "\n  %s (date %s, model %q, mode %q, flow %q, review %q, churn %d/%d/%d/%d, boundary rounds %d)\n  %s --dry-run", row.RawID, row.Date, row.Model, row.Mode, row.FlowKind, row.ReviewRecipe, row.ChurnProd, row.ChurnTest, row.ChurnAtlas, row.ChurnWorkshop, row.BoundaryRounds, retry)
+			}
+			return errors.New(detail.String())
+		}
+		return fmt.Errorf("calibration target in %s; completion %s: %w", ledger, completion.Token, err)
+	}
+	measurementRefusal := func(cause error) error {
+		return fmt.Errorf("%w; if this sample is proven invalid, exclude it without inventing hours: %s --exclude", cause, actualCorrectionRetryCommand(id, intentReason, brainDir, target.RawID))
 	}
 	measured := measureActualCorrection(ctx, env.root, brainAbs, strconv.Itoa(id), "", "")
 	var inputs gatestate.MeasurementInputs
@@ -691,19 +762,19 @@ func runActualCorrection(ctx context.Context, stdout, stderr io.Writer, issuesDi
 		}
 	} else {
 		if measured.Status != actualMeasured || measured.Inputs == nil {
-			return fmt.Errorf("correction requires trustworthy measured input: status %d, %s, %s", measured.Status, measured.Detail, strings.Join(measured.Warnings, "; "))
+			return measurementRefusal(fmt.Errorf("correction requires trustworthy measured input: status %d, %s, %s", measured.Status, measured.Detail, strings.Join(measured.Warnings, "; ")))
 		}
 		inputs = *measured.Inputs
 		if math.IsNaN(measured.Hours) || math.IsInf(measured.Hours, 0) || measured.Hours < 0 {
-			return errors.New("correction measured invalid actual")
+			return measurementRefusal(errors.New("correction measured invalid actual"))
 		}
 		nextActual = strconv.FormatFloat(measured.Hours, 'f', 2, 64)
 	}
 	if err := inputs.Validate(); err != nil {
-		return err
+		return measurementRefusal(err)
 	}
 	if inputs.Repository != env.target.Repository || inputs.CodeHead != completion.ReviewedHEAD {
-		return errors.New("measurement is not pinned to the completed close generation")
+		return measurementRefusal(errors.New("measurement is not pinned to the completed close generation"))
 	}
 	inputJSON, err := json.Marshal(inputs)
 	if err != nil {

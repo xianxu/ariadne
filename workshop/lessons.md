@@ -856,3 +856,5 @@ The simplest durable authority beats a clever scan of consequences.
   can avoid both the protected config write and its later cleanup. Distinguish
   required ref retirement from ancillary metadata, and name an automatic retry
   owner for any retained residue (#374 plan review).
+
+- Generated recovery commands must preserve the request’s semantic intent. An ambiguous exclusion that printed a numeric-repair retry lost --exclude; test both intents through the production refusal before publishing recovery guidance (#384).

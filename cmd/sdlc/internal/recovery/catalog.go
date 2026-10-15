@@ -13,8 +13,8 @@ var Catalog = []Contract{
 		Class:         ConvergentRetry,
 		Effects:       "measures a completed close generation, publishes corrected actual and bounded input provenance on its tracker card, appends an exact-target calibration correction, then publishes its active or archived details mirror. --exclude records N/A and invalidates the proven bad sample without inventing hours; --dry-run previews without publication.",
 		Evidence:      "sdlc issue recovery list; the card's tracker.actual_correction and actual_hours; the calibration correction operation and mirror baseline.",
-		Preconditions: "codecomplete or done with exact completion token/reviewed head/evidence commit, unambiguous effective calibration target, valid retained or reconstructed measurement inputs, and an unchanged expected card and details mirror.",
-		Repeat:        "a pending operation resumes its pinned inputs, never measures again. The same reason and exclusion intent after confirmed completion is a no-op, proven by its own calibration row and current mirror. A different reason requests a new correction.",
+		Preconditions: "codecomplete or done with exact completion token/reviewed head/evidence commit, an unambiguous effective calibration target or an explicitly selected eligible raw row (--target-row full SHA256), valid retained or reconstructed measurement inputs, and an unchanged expected card and details mirror. Ambiguity names the ledger, candidates and exact retry commands; select by provenance, never ordering.",
+		Repeat:        "a pending operation resumes its pinned inputs, never measures again. The same reason and exclusion intent after confirmed completion is a no-op, proven by its own calibration row and current mirror. An explicit selector conflicting with the pinned target refuses, pending or complete. A different reason requests a new correction.",
 		LostResponse:  "rerun the same command or sdlc issue recovery reconcile --issue N. Git recovery refs retain confirmed progress and candidate objects; uncertain publication is probed for reachability and exact operation identity before any repeat. Missing confirmation or a moved generation refuses and retains the receipt.",
 		Ends:          "a new completed close generation or competing card/mirror write invalidates the pending operation. A confirmed operation releases its local ref; its tracker and calibration evidence remain in history.",
 		Proofs: []Proof{
@@ -24,6 +24,7 @@ var Catalog = []Contract{
 			{"uncertain moved publication retains its exact receipt and performs no republish", []string{"TestActualCorrectionAbsentMovedCandidatePreservesReceipt"}},
 			{"ordinary and canonical archived mirrors refresh through exact generation proof", []string{"TestActualCorrectionStandardArchiveMirror"}},
 			{"calibration repeat is exact and conflicting operation identity refuses", []string{"TestActualCorrectionAppendIdempotentAndConflict"}},
+			{"explicit selection remains eligible and cannot retarget recovery", []string{"TestActualCorrectionTargetSelectorCommand", "TestActualCorrectionTargetSelectorRetry", "TestActualCorrectionTargetSelectorEligibility"}},
 		},
 	},
 

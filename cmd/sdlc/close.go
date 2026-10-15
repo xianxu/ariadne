@@ -1720,13 +1720,13 @@ var computeActualForCloseFn = func(ctx context.Context, issueStr, milestone, pla
 	if err != nil {
 		return actualResult{Status: actualError, Issue: issueStr, Detail: err.Error()}
 	}
-	return computeActualFor(ctx, repoTop, brainAbs, issueStr, milestone, plans)
+	return computeActualForPurpose(ctx, repoTop, brainAbs, issueStr, milestone, plans, actualCloseCandidate)
 }
 
 // resolveOmittedActual is the pure omit-path decision (#178): adopt a measured
 // value (format pinned to %.2f — the ledger value must equal what the info line
 // shows) or refuse. Only actualMeasured adopts; telemetry-gap/no-window/empty/
-// error keep the explainActual refusal (judgment paths).
+// error keep the evidence-recovery refusal.
 func resolveOmittedActual(res actualResult) (string, bool) {
 	if res.Status != actualMeasured {
 		return "", false
@@ -1770,11 +1770,11 @@ func adoptOmittedActual(stderr io.Writer, f *closeFlags, issueStr, mode string) 
 
 // explainActual is now the UNMEASURABLE explainer (#178): the omit-path adopts
 // a successful measurement, so this renders only when the engine couldn't
-// produce a number — res (already computed by the caller) says why, and the
-// agent supplies a labeled judgment value.
+// produce a number — res (already computed by the caller) says what evidence
+// needs recovery. Hours must not be invented to get past this refusal.
 func explainActual(stderr io.Writer, issueStr, mode, milestone string, res actualResult) {
 	var head []string
-	head = append(head, fmt.Sprintf("%sACTUAL=<hours> required for %s close (§5 step 3) — measurement unavailable for this window.%s", ansiRed, mode, ansiReset), "")
+	head = append(head, fmt.Sprintf("%sMeasured actual unavailable for %s close — recover the evidence below.%s", ansiRed, mode, ansiReset), "")
 	head = append(head, fmt.Sprintf("  %sSemantic:%s  focused dev-hours on this %s (#%s) — not wall-clock.", ansiCyan, ansiReset, mode, issueStr))
 	head = append(head, "             (a measured value is adopted automatically; you only land here", "             when the engine can't measure — the status below says why)", "")
 	fmt.Fprintln(stderr, strings.Join(head, "\n"))
@@ -1786,7 +1786,7 @@ func explainActual(stderr io.Writer, issueStr, mode, milestone string, res actua
 
 	var tail []string
 	tail = append(tail, "", fmt.Sprintf("  %sThen re-run:%s", ansiCyan, ansiReset))
-	tail = append(tail, "    "+rerunCmd(issueStr, milestone, " --actual <hours>"), "")
+	tail = append(tail, "    "+rerunCmd(issueStr, milestone, ""), "")
 	tail = append(tail, fmt.Sprintf("  (Re-measure anytime: sdlc actual --issue %s)", issueStr))
 	tail = append(tail, "  Pass --no-actual (or --force) only when measurement is not applicable; close records actual_hours: N/A and skips calibration.")
 	fmt.Fprintln(stderr, strings.Join(tail, "\n"))
@@ -1861,7 +1861,7 @@ func actualDeviation(passed, measured float64) (devVerdict, float64) {
 func checkActualDeviation(ctx context.Context, stderr io.Writer, issueStr string, passed float64, milestone, plans string, brain ...string) error {
 	res := computeActualForCloseFn(ctx, issueStr, milestone, plans, brain...)
 	if res.Status != actualMeasured {
-		return nil // can't measure → don't block (judgment path owns this)
+		return nil // unavailable comparison does not establish a deviation
 	}
 	verdict, ratio := actualDeviation(passed, res.Hours)
 	switch verdict {
