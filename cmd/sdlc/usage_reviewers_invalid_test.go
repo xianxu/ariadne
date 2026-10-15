@@ -55,7 +55,7 @@ func TestUsageReviewerInvalidRetainedEvidenceCannotBecomeWorker(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			records, coverage, err := loadUsageReviewers(context.Background(), []string{root}, 365)
+			records, coverage, err := loadUsageReviewers(context.Background(), []string{root}, reviewerTestScope(t, root, 365))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -93,7 +93,7 @@ func TestUsageReviewerMalformedArtifactsAreVisible(t *testing.T) {
 			if err := os.WriteFile(path, []byte(raw), 0600); err != nil {
 				t.Fatal(err)
 			}
-			_, coverage, err := loadUsageReviewers(context.Background(), []string{root}, 365)
+			_, coverage, err := loadUsageReviewers(context.Background(), []string{root}, reviewerTestScope(t, root, 365))
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -239,6 +239,17 @@ identity and scan-bound regressions pass5.067s; broad targeted tests pass21.340s
 Both new classes have RED/GREEN evidence. Integrate main and run fresh recorded
 suite before shared close; maintain all previous dispositions.
 
+
+### 2026-10-14 23:11 — scope diagnostics by repository and issue
+
+Final read-only issue smoke passes50.60s; fresh live identity conformance passes
+14.543s. Smoke gap count4→14 exposed same-number foreign-repository legacy rounds
+entering selected diagnostics. Real-Git RED proved2 vs1; explicit repo-qualified
+scope now retains all exclusion identities with correctly selected gap counts.
+Distinct origins/reversed roots/same-repo alternate worktree/fleet/error-cache
+controls pass4.719s, broad usage/production/accounting45.998s. Queued b9d5da55
+suite cancelled130 before running; own parent/acquire child verified gone.
+
 ## Revisions
 
 ### 2026-10-14 — whole-system bench cost

@@ -815,3 +815,7 @@ The simplest durable authority beats a clever scan of consequences.
 - Load exclusion evidence before filtering requested results. Reviewer identity
   must survive cross-issue/repository selection and private-receipt cleanup;
   test the committed artifact after the private copy is collected (#365 BR-6).
+
+- Issue numbers are repository-local. Qualify diagnostic scope by the same
+  repository identity used for ownership, even when exclusion evidence must be
+  loaded fleet-wide; include same-number foreign-repo controls (#365 BR-6).

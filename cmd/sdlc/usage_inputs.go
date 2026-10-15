@@ -27,19 +27,11 @@ type usageAuthority struct {
 // never fetches or rewrites it. The snapshot pin is printed as provenance.
 func resolveUsageAuthority(ctx context.Context, root string, id int, now time.Time) (usageAuthority, error) {
 	out := usageAuthority{Until: now}
-	identity, e := resolveWorkspace(root)
+	repository, e := resolveUsageRepository(ctx, root)
 	if e != nil {
 		return out, e
 	}
-	resting := "main"
-	if identity.RestingBranch != nil {
-		resting = *identity.RestingBranch
-	}
-	target, e := gitx.ResolvePublicationTarget(ctx, root, resting)
-	if e != nil {
-		target.Repository = identity.RepoIdentity
-	}
-	out.Repository = target.Repository
+	out.Repository = repository
 	repo, e := recordsRepository(ctx, root)
 	if e != nil {
 		return out, e
@@ -75,7 +67,7 @@ func resolveUsageAuthority(ctx context.Context, root string, id int, now time.Ti
 	}
 	pin := snap.Ref()
 	if done {
-		if completion.Repository != target.Repository {
+		if completion.Repository != out.Repository {
 			return out, fmt.Errorf("usage completion belongs to another repository")
 		}
 		stamp, e := ownedActualGit(ctx, root, "show", "-s", "--format=%cI", completion.EvidenceCommit)
@@ -91,10 +83,30 @@ func resolveUsageAuthority(ctx context.Context, root string, id int, now time.Ti
 			return out, e
 		}
 	}
-	out.Windows, e = ownershipSourceWindows(ctx, repo, pin, rec.Path, target.Repository, out.Until)
+	out.Windows, e = ownershipSourceWindows(ctx, repo, pin, rec.Path, out.Repository, out.Until)
 	out.Label = "ownership intervals; local tracker " + pin
 	return out, e
 }
+
+// resolveUsageRepository is the shared read-only identity contract for ownership
+// and reviewer diagnostics. Publication identity spans clones; repositories with
+// no declared publication target retain their canonical Git-common identity.
+func resolveUsageRepository(ctx context.Context, root string) (string, error) {
+	identity, err := resolveWorkspace(root)
+	if err != nil {
+		return "", err
+	}
+	resting := "main"
+	if identity.RestingBranch != nil {
+		resting = *identity.RestingBranch
+	}
+	target, err := gitx.ResolvePublicationTarget(ctx, root, resting)
+	if err != nil {
+		return identity.RepoIdentity, nil
+	}
+	return target.Repository, nil
+}
+
 func legacyUsageAuthority(ctx context.Context, root string, id int, now time.Time) (usageAuthority, error) {
 	head, e := ownedActualGit(ctx, root, "rev-parse", "--verify", "HEAD^{commit}")
 	if e != nil {

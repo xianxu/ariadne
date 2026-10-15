@@ -43,7 +43,7 @@ func accountingCLI(t *testing.T, verdict string) {
 func assertGateUsage(t *testing.T, root, recipe string, issue int) reviewusage.Record {
 	t.Helper()
 	ctx := context.Background()
-	records, coverage, err := loadUsageReviewers(ctx, []string{root}, issue)
+	records, coverage, err := loadUsageReviewers(ctx, []string{root}, reviewerTestScope(t, root, issue))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestProductionPlanningCancellationRetainsAccountingOnly(t *testing.T) {
 			t.Fatalf("command returned before launch confirmation: %v\n%s", err, out.String())
 		default:
 		}
-		records, _, err := loadUsageReviewers(context.Background(), []string{repo}, 206)
+		records, _, err := loadUsageReviewers(context.Background(), []string{repo}, reviewerTestScope(t, repo, 206))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -223,7 +223,7 @@ func TestProductionPlanningCancellationRetainsAccountingOnly(t *testing.T) {
 	case <-time.After(testfix.HangCeiling):
 		t.Fatal("production cancellation did not return")
 	}
-	records, _, err := loadUsageReviewers(context.Background(), []string{repo}, 206)
+	records, _, err := loadUsageReviewers(context.Background(), []string{repo}, reviewerTestScope(t, repo, 206))
 	if err != nil {
 		t.Fatal(err)
 	}

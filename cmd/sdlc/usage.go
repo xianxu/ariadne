@@ -246,7 +246,7 @@ func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput
 	}
 	coverage.Merge(c)
 	slots := usageSessionSlots(discovery.Sessions, roots)
-	reviewers, reviewCoverage, e := loadUsageReviewers(ctx, reviewRepositories(root, repos), f.Issue)
+	reviewers, reviewCoverage, e := loadUsageReviewers(ctx, reviewRepositories(root, repos), usageReviewerScope{Repository: authority.Repository, Issue: f.Issue})
 	if e != nil {
 		return out, e
 	}

@@ -17,7 +17,7 @@ import (
 
 func exclusionReport(t *testing.T, roots []string, selectedIssue int, record reviewusage.Record) usage.Report {
 	t.Helper()
-	records, coverage, err := loadUsageReviewers(context.Background(), roots, selectedIssue)
+	records, coverage, err := loadUsageReviewers(context.Background(), roots, usageReviewerScope{Repository: record.Intent.Repository, Issue: selectedIssue})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,14 +131,14 @@ func TestUsageReviewerExclusionKeepsSelectedLegacyDiagnostics(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	_, coverage, err := loadUsageReviewers(context.Background(), []string{root}, 365)
+	_, coverage, err := loadUsageReviewers(context.Background(), []string{root}, reviewerTestScope(t, root, 365))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if coverage.Counts["legacy_reviewer_binding_gaps"] != 1 {
 		t.Fatalf("selected issue inherited unrelated legacy gaps: %+v", coverage)
 	}
-	_, fleetCoverage, err := loadUsageReviewers(context.Background(), []string{root}, 0)
+	_, fleetCoverage, err := loadUsageReviewers(context.Background(), []string{root}, usageReviewerScope{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +159,7 @@ func TestUsageReviewerUnfilteredEvidenceBoundIsExplicit(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	_, coverage, err := loadUsageReviewers(context.Background(), []string{root}, 365)
+	_, coverage, err := loadUsageReviewers(context.Background(), []string{root}, reviewerTestScope(t, root, 365))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +181,7 @@ func TestUsageReviewerUnselectedUnreadableEvidenceRemainsVisible(t *testing.T) {
 	if err := os.WriteFile(path, []byte(raw), 0600); err != nil {
 		t.Fatal(err)
 	}
-	records, coverage, err := loadUsageReviewers(context.Background(), []string{root}, 365)
+	records, coverage, err := loadUsageReviewers(context.Background(), []string{root}, reviewerTestScope(t, root, 365))
 	if err != nil {
 		t.Fatal(err)
 	}

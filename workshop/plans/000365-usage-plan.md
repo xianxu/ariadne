@@ -387,3 +387,20 @@ fix for ledger/comment and cross-repository exclusion, then pass5.067s; broad
 usage, production dispatch, binding and accounting regressions pass21.340s. No
 aggregate counter or ownership interval behavior was changed. Fresh suite follows
 current-main integration; previous pass is not reused for changed code.
+
+
+### 2026-10-14 23:11 — repository-qualified diagnostic scope
+
+The final issue smoke exposed a BR-6 diagnostic sibling: after all fleet identity
+loading, legacy gaps rose4→14 because unrelated repositories' issue365 matched
+an integer-only scope. A real-Git overlay with distinct origins proved2 gaps
+instead of1 for the selected issue. Use explicit usageReviewerScope{Repository,
+Issue} and shared read-only resolveUsageRepository (extracted unchanged from
+ownership resolution), never positional root guesses. All exclusion identities
+remain loaded; only legacy-gap diagnostics are repository/issue qualified.
+Lazy root identity failures remain explicit and resolve once per root. Tests
+cover distinct origins, reversed root order, fleet mode, alternate worktrees,
+missing scope identity and cached failure; focused4.719s/broad45.998s pass after
+RED. Superseded b9d5da55 suite was still queued and cancelled130; verified parent
+68943 and its own acquire-child73249 were gone. No passing result is claimed for
+that head. Fresh suite follows final corrected diagnostic code.

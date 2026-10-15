@@ -20,15 +20,26 @@ type usageReviewBinding struct {
 	Exact                                   bool
 }
 
-// loadUsageReviewers loads role-exclusion identities across all issues. issueScope
-// limits legacy-gap diagnostics only; included totals are filtered after binding.
-func loadUsageReviewers(ctx context.Context, repos []string, issueScope int) ([]reviewusage.Record, usage.Coverage, error) {
+type usageReviewerScope struct {
+	Repository string
+	Issue      int
+}
+
+// loadUsageReviewers loads role-exclusion identities across all issues. scope
+// qualifies legacy-gap diagnostics by repository and issue only; included totals
+// are filtered after binding. Its zero value selects fleet diagnostics.
+func loadUsageReviewers(ctx context.Context, repos []string, scope usageReviewerScope) ([]reviewusage.Record, usage.Coverage, error) {
 	var records []reviewusage.Record
 	var coverage usage.Coverage
+	if scope.Issue > 0 && scope.Repository == "" {
+		return nil, coverage, fmt.Errorf("reviewer diagnostic scope requires repository identity")
+	}
 	seen := map[string]bool{}
 	files := 0
 	boundHit := false
 	for _, root := range repos {
+		var diagnosticRepository string
+		diagnosticRepositoryResolved := false
 		if ctx.Err() != nil {
 			return nil, coverage, ctx.Err()
 		}
@@ -98,9 +109,23 @@ func loadUsageReviewers(ctx context.Context, repos []string, issueScope int) ([]
 				// Legacy rounds without identity only diagnose the selected issue
 				// (or the whole fleet). Unreadable evidence remains visible for
 				// every issue because it may hide a required role exclusion.
-				if issueScope > 0 && !strings.HasPrefix(name, fmt.Sprintf("%06d-", issueScope)) {
-					delete(evidenceCoverage.Counts, "legacy_reviewer_binding_gaps")
-					delete(evidenceCoverage.Examples, "legacy_reviewer_binding_gaps")
+				if scope.Issue > 0 {
+					selected := strings.HasPrefix(name, fmt.Sprintf("%06d-", scope.Issue))
+					if selected && evidenceCoverage.Counts["legacy_reviewer_binding_gaps"] > 0 {
+						if !diagnosticRepositoryResolved {
+							var identityErr error
+							diagnosticRepository, identityErr = resolveUsageRepository(ctx, root)
+							diagnosticRepositoryResolved = true
+							if identityErr != nil {
+								coverage.Add("unavailable_reviewer_bindings", "reviewer diagnostic repository unavailable")
+							}
+						}
+						selected = diagnosticRepository == scope.Repository
+					}
+					if !selected {
+						delete(evidenceCoverage.Counts, "legacy_reviewer_binding_gaps")
+						delete(evidenceCoverage.Examples, "legacy_reviewer_binding_gaps")
+					}
 				}
 				coverage.Merge(evidenceCoverage)
 				return nil
