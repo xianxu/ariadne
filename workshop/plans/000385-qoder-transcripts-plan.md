@@ -468,3 +468,14 @@ legacy selection, and propagate failures into actualError before adoption. Other
 providers retain their existing legacy selection behavior; attribution remains
 the explicitly labelled heuristic. This is the same incomplete-evidence rule at
 both actual consumers, not a new attribution model (ARCH-DRY, ARCH-PURPOSE).
+
+### 2026-10-15 — BR-3 verified delivered API
+
+Sources now retains exclusion warnings as well as file/directory inputs;
+Select forwards them and discards partial results on error. The legacy
+production regression additionally proves that a complete foreign-only metadata
+conflict can be safely excluded while its diagnostic remains visible. It failed
+before warning propagation, then passed after the fix. Same-size/same-mtime
+pathname replacement is rejected by inode identity. Both actual/adoption paths,
+usage compatibility and the context guard pass together; transcript race checks
+pass. A new recorded suite and fresh close review remain required before landing.

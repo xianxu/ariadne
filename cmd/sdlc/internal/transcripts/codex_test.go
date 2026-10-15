@@ -1,7 +1,6 @@
 package transcripts
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -59,7 +58,7 @@ func TestCodexHarnessSelectsByCWDAndSurvivesMalformed(t *testing.T) {
 	write("empty.jsonl", "")
 	write("other.jsonl", `{"timestamp":"2026-06-26T16:00:00Z","type":"session_meta","payload":{"cwd":"/w/other"}}`)
 
-	got := CodexHarness(root).Sources(context.Background(), []string{"/w/repo"})
+	got := requireHarnessSources(t, CodexHarness(root), []string{"/w/repo"})
 	want := Sources{Files: []string{match}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Sources = %+v, want %+v", got, want)
@@ -67,17 +66,17 @@ func TestCodexHarnessSelectsByCWDAndSurvivesMalformed(t *testing.T) {
 
 	// brain + repo both matched → both files, sorted.
 	brain := write("brain.jsonl", `{"timestamp":"2026-06-26T16:00:00Z","type":"session_meta","payload":{"cwd":"/w/brain"}}`)
-	got2 := CodexHarness(root).Sources(context.Background(), []string{"/w/brain", "/w/repo"})
+	got2 := requireHarnessSources(t, CodexHarness(root), []string{"/w/brain", "/w/repo"})
 	want2 := Sources{Files: []string{brain, match}} // sorted: brain.jsonl < match.jsonl
 	if !reflect.DeepEqual(got2, want2) {
 		t.Fatalf("Sources = %+v, want %+v", got2, want2)
 	}
 
 	// Empty root / empty cwds → no files, no panic.
-	if g := CodexHarness("").Sources(context.Background(), []string{"/w/repo"}); len(g.Files) != 0 {
+	if g := requireHarnessSources(t, CodexHarness(""), []string{"/w/repo"}); len(g.Files) != 0 {
 		t.Errorf("empty root should yield no files, got %+v", g)
 	}
-	if g := CodexHarness(root).Sources(context.Background(), nil); len(g.Files) != 0 {
+	if g := requireHarnessSources(t, CodexHarness(root), nil); len(g.Files) != 0 {
 		t.Errorf("no cwds should yield no files, got %+v", g)
 	}
 }

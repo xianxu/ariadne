@@ -22,15 +22,18 @@ func (claudeHarness) Name() string { return "claude" }
 // Sources returns the transcript dir for each cwd whose encoded folder exists
 // under root — brain + repo only, never an unrelated concurrently-edited folder
 // (those inflate the count, #68). Deliberately not "all folders."
-func (h claudeHarness) Sources(ctx context.Context, cwds []string) Sources {
+func (h claudeHarness) Sources(ctx context.Context, cwds []string) (Sources, error) {
+	if err := ctx.Err(); err != nil {
+		return Sources{}, err
+	}
 	if h.root == "" {
-		return Sources{}
+		return Sources{}, nil
 	}
 	var out Sources
 	seen := map[string]bool{}
 	for _, cwd := range cwds {
 		if ctx.Err() != nil {
-			return Sources{}
+			return Sources{}, ctx.Err()
 		}
 		if cwd == "" {
 			continue
@@ -44,7 +47,7 @@ func (h claudeHarness) Sources(ctx context.Context, cwds []string) Sources {
 			seen[dir] = true
 		}
 	}
-	return out
+	return out, nil
 }
 
 // claudePathEncoder mirrors Claude Code's cwd→folder encoding: every '/' and '.'

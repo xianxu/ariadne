@@ -201,6 +201,17 @@ func TestQoderLegacyActualCloseRefusesUnresolvedSource(t *testing.T) {
 	if baseline.Status != actualMeasured || baseline.Hours <= 0 || !strings.Contains(strings.Join(baseline.Warnings, " "), "legacy no-tracker") {
 		t.Fatalf("legacy fixture lacks positive labelled baseline: %+v", baseline)
 	}
+	foreign := `{"type":"workspace-directories","sessionId":"foreign-qoder","directories":["/foreign"]}
+{"type":"user","sessionId":"foreign-qoder","timestamp":"2026-10-14T00:03:00Z","message":{"content":"foreign"}}
+{"type":"workspace-directories","sessionId":"foreign-qoder","directories":["/another-foreign"]}
+`
+	if err := os.WriteFile(filepath.Join(filepath.Dir(path), "foreign.jsonl"), []byte(foreign), 0600); err != nil {
+		t.Fatal(err)
+	}
+	excluded := computeActualFor(context.Background(), root, "", "335", "", "")
+	if excluded.Status != actualMeasured || excluded.Hours != baseline.Hours || !strings.Contains(strings.Join(excluded.Warnings, " "), "skipped source") {
+		t.Fatalf("proven foreign exclusion lost diagnostic: %+v", excluded)
+	}
 	bad := "not-json\n" + strings.ReplaceAll(good, "good-qoder", "broken-qoder")
 	if err := os.WriteFile(filepath.Join(filepath.Dir(path), "broken.jsonl"), []byte(bad), 0600); err != nil {
 		t.Fatal(err)

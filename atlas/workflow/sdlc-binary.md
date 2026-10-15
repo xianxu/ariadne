@@ -1299,25 +1299,28 @@ door on terminal issues: start-plan/change-code refuse on `status: done`
 (the #139 compute→review→finalize; `runClose` is now test-only, #146).
 The convention generalizes `merge`'s pre-existing `--no-judge`.
 
-**Measured actuals (#68, #110).** `--actual` is computed, not hand-typed. `sdlc
-actual --issue N` (`actual.go`'s `computeActual`, shared with close's
-missing-`--actual` explainer) runs the native **`internal/activetime`** engine
-(`activetime.Compute`, in-process — no python3) over the issue's `CommitWindow` +
-`activetime.WindowIssues` peers (the same branch-scoped commits the engine
-segments on, #270), feeding it **brain + the issue's repo** transcript
-sources. Source selection is a **harness abstraction** (`internal/transcripts`,
-#134), not a Claude-only path convention: each agent CLI implements a `Harness`
-(`Name()` + `Sources(cwds) → Sources{Dirs,Files}`); `DefaultHarnesses()` is the
-registry; a pure `Select` merges their contributions for the brain+repo cwds.
-Two harnesses ship — **Claude** (one `~/.claude/projects/<cwd-encoded>` dir per
-cwd → `Dirs`, engine globs them) and **Codex** (date-sharded
-`~/.codex/sessions/YYYY/MM/DD/*.jsonl` filtered by `session_meta.cwd` → `Files`,
-since Codex stores cwd inside the file, not the path). A third agent CLI is one
-new `<harness>.go` + one registry entry — `actual.go` and the engine never change
-(ARCH-PURPOSE). Pure encoders/parsers (`cwdToClaudeDir`, `codexCWDFromBytes`) are
-unit-tested directly; each `Sources` method is the thin IO seam, tolerant of
-malformed / empty / no-`session_meta` Codex files. This is the validated heuristic (events come only from transcripts;
-the wrong/missing sources were why actuals read 0 and got faked). The engine
+**Measured actuals (#68, #110, #335, #385).** `--actual` is computed, not
+hand-typed. `sdlc actual --issue N` and close's missing-`--actual` adoption share
+the native `internal/activetime` engine. Tracker-backed repositories use the
+ownership intervals and pinned source evidence described above. No-tracker
+repositories retain the explicitly labelled brain/repo cwd heuristic and the
+issue's `CommitWindow` plus `activetime.WindowIssues` peers.
+
+Source selection uses `internal/transcripts.Harness`: `Name()` and
+`Sources(ctx, cwds) → (Sources{Dirs,Files,Warnings}, error)`.
+`DefaultHarnesses()` registers Claude, Codex and Qoder; `Select` merges their
+contributions, retaining warnings and discarding partial selections on error.
+Claude supplies cwd-encoded project directories; Codex supplies date-sharded
+files matched by `session_meta.cwd`. Qoder supplies files matched by recorded
+workspace directories, using the same strict `DiscoverEvidence` path for legacy
+selection and ownership-based actuals. Failed Qoder evidence requires complete
+proof of unrelated workspace roots before exclusion; unresolved or relevant
+failures refuse adoption. Proven unrelated failures remain visible as warnings
+in both paths. Claude/Codex legacy selection keeps its existing heuristic
+handling of malformed or missing metadata. Pure encoders/parsers are tested
+directly; filesystem selection is the thin, cancellable IO seam.
+
+The engine
 returns a structured `Result.Status`: `TelemetryGap`
 (commits-but-0-events → restore owning-slot transcript evidence), `EmptyWindow` (nothing to measure), or
 `Measured` (`PerIssue[N]` → hours). Attribution is global-boundary based (#92):
@@ -1970,7 +1973,10 @@ metadata/configuration interpretation for usage, actuals and agent identity.
 Discovery reads `~/.qoder/projects/*/*.jsonl`, matches recorded
 workspace-directories rather than project slugs, and preserves immutable session
 identity across replays. Actuals/close use the existing ownership and pinned
-prefix evidence path.
+prefix evidence path. Failed Qoder sources block automatic actual adoption while
+workspace relevance is unresolved or relevant. Only a completely scanned, valid,
+immutable prefix proving all recorded roots unrelated permits exclusion; an
+early foreign cwd cannot justify skipping a damaged or truncated source.
 
 Agent identity checks QODER_CLI before competing native-agent markers; Qoder
 also exports CLAUDE_PLUGIN_* variables, which do not prove Claude invocation.

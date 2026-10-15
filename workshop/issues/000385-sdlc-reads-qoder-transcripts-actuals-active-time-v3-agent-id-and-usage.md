@@ -233,6 +233,8 @@ file splits/names in the initial plan without adding another runtime owner.
 
 - BR-3 tracked production matrix now green (23.706s), internal transcript race suite green (8.092s), and usage/adapter/identity suites green. Consumer sweep reproduced the same class in the labelled no-tracker path: positive baseline followed by malformed Qoder evidence still measured/adopted 0.10h (legacy production red, 1.15s). Propagate conventional source-selection errors there too, reusing the strict Qoder discovery path while retaining the legacy attribution heuristic. Same-size pathname replacement was independently reproduced and checked; preserve its mtime in the regression so inode identity remains the decisive guard.
 
+- BR-3 final targeted verification green: production tracked and legacy actual/close refusal, successful retained replay, native usage/mixed issue reporting/provider isolation and context guard together (62.100s); transcript race suite (11.192s). All four internal packages also passed after error-returning selection migration. Proven foreign exclusions retain diagnostics in legacy actuals; this regression failed before warning propagation (2.57s). Same-size/same-mtime pathname replacement is refused via file identity. Atlas now maps the three providers and current cancellable/error-returning selection API. Next: integrate main, recorded suite, close to SHIP.
+
 ## Estimate
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against

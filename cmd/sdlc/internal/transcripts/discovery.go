@@ -45,14 +45,14 @@ func discoverEvidence(ctx context.Context, cwds []string, hs []Harness, qoderLim
 		seen[path] = true
 		var s SessionEvidence
 		var err error
-		relevant := false
+		ownership := qoderOwnershipUnresolved
 		if harness == "qoder" {
-			s, relevant, err = readQoderEvidenceFor(ctx, path, -1, nil, allowed)
+			s, ownership, err = readQoderEvidenceFor(ctx, path, -1, nil, allowed)
 		} else {
 			s, err = readEvidenceMetadata(ctx, path, harness, cwd)
 		}
 		if err != nil {
-			if known || relevant || allowed[normalizedPath(s.CWD)] || ctx.Err() != nil {
+			if known || harness == "qoder" && ownership != qoderOwnershipUnrelated || allowed[normalizedPath(s.CWD)] || ctx.Err() != nil {
 				return fmt.Errorf("source %s: %w", path, err)
 			}
 			warnings = append(warnings, fmt.Sprintf("skipped source %s: %v", path, err))
@@ -89,7 +89,7 @@ func discoverEvidence(ctx context.Context, cwds []string, hs []Harness, qoderLim
 					return ctx.Err()
 				}
 				if err != nil {
-					if os.IsNotExist(err) {
+					if os.IsNotExist(err) && (h.Name() != "qoder" || path == root) {
 						return nil
 					}
 					return err
@@ -110,7 +110,10 @@ func discoverEvidence(ctx context.Context, cwds []string, hs []Harness, qoderLim
 			}
 			continue
 		}
-		sources := Select(ctx, cwds, []Harness{h})
+		sources, err := Select(ctx, cwds, []Harness{h})
+		if err != nil {
+			return nil, warnings, err
+		}
 		for _, dir := range sources.Dirs {
 			entries, err := os.ReadDir(dir)
 			if os.IsNotExist(err) {

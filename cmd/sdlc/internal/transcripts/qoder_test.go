@@ -34,10 +34,10 @@ func TestQoderDiscoveryRecordedWorkspaceAndPinnedPrefix(t *testing.T) {
 	data := qoderRows("/repo")
 	path := qoderFixture(t, root, data)
 	h := QoderHarness(root)
-	if got := Select(context.Background(), []string{"/repo"}, []Harness{h}); len(got.Files) != 1 || got.Files[0] != path {
+	if got := requireSelectedSources(t, []string{"/repo"}, []Harness{h}); len(got.Files) != 1 || got.Files[0] != path {
 		t.Fatalf("sources=%+v", got)
 	}
-	if got := Select(context.Background(), []string{"/misleading/project/slug"}, []Harness{h}); len(got.Files) != 0 {
+	if got := requireSelectedSources(t, []string{"/misleading/project/slug"}, []Harness{h}); len(got.Files) != 0 {
 		t.Fatalf("slug inferred cwd: %+v", got)
 	}
 	got, warnings, err := DiscoverEvidence(context.Background(), []string{"/repo"}, []Harness{h})
@@ -237,15 +237,15 @@ func TestQoderActualDiscoveryRefusesPartialOwnedEvidence(t *testing.T) {
 		})
 	}
 }
-func TestQoderActualDiscoveryUnrelatedMalformedSourceDoesNotBlock(t *testing.T) {
+func TestQoderActualDiscoveryUnresolvedForeignSourceBlocks(t *testing.T) {
 	root := t.TempDir()
 	path := qoderFixture(t, root, qoderRows("/repo"))
 	if err := os.WriteFile(filepath.Join(filepath.Dir(path), "bad-unrelated.jsonl"), []byte(strings.ReplaceAll(qoderRows("/other"), `"S"`, `"other"`)+"not-json\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	got, warnings, err := DiscoverEvidence(context.Background(), []string{"/repo"}, []Harness{QoderHarness(root)})
-	if err != nil || len(got) != 1 || len(warnings) != 1 {
-		t.Fatalf("unrelated source blocks actual: %+v %v %v", got, warnings, err)
+	if err == nil || len(got) != 0 {
+		t.Fatalf("unresolved foreign source allowed partial actual: %+v %v %v", got, warnings, err)
 	}
 }
 
@@ -254,10 +254,177 @@ func TestQoderSourcesReceivesCallerCancellation(t *testing.T) {
 	qoderFixture(t, root, qoderRows("/repo"))
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if got := QoderHarness(root).Sources(ctx, []string{"/repo"}); len(got.Files) != 0 {
+	if got, err := QoderHarness(root).Sources(ctx, []string{"/repo"}); err == nil || len(got.Files) != 0 {
 		t.Fatalf("canceled Qoder selection returned sources: %+v", got)
 	}
-	if got := Select(ctx, []string{"/repo"}, []Harness{QoderHarness(root)}); len(got.Files) != 0 {
+	if got, err := Select(ctx, []string{"/repo"}, []Harness{QoderHarness(root)}); err == nil || len(got.Files) != 0 {
 		t.Fatalf("Select lost caller cancellation: %+v", got)
+	}
+}
+
+func TestQoderActualDiscoveryUnknownOwnershipFailureMatrix(t *testing.T) {
+	for _, cwd := range []string{"/repo", "/foreign"} {
+		rows := qoderRows(cwd)
+		parts := strings.SplitN(rows, "\n", 2)
+		for _, bad := range []string{
+			"not-json\n" + rows,
+			parts[0] + "\nnot-json\n" + parts[1],
+			rows + "not-json\n",
+			strings.Repeat("x", UsageLineLimit+1) + "\n" + rows,
+			rows + strings.Repeat("x", UsageLineLimit+1) + "\n",
+			strings.Repeat("{}\n", qoderRecordLimit+1) + rows,
+			rows + strings.Repeat("{}\n", qoderRecordLimit+1),
+		} {
+			t.Run(fmt.Sprintf("%s/%d", cwd, len(bad)), func(t *testing.T) {
+				root := t.TempDir()
+				good := strings.ReplaceAll(qoderRows("/repo"), `"S"`, `"good"`)
+				path := qoderFixture(t, root, good)
+				if err := os.WriteFile(filepath.Join(filepath.Dir(path), "uncertain.jsonl"), []byte(bad), 0600); err != nil {
+					t.Fatal(err)
+				}
+				got, _, err := DiscoverEvidence(context.Background(), []string{"/repo"}, []Harness{QoderHarness(root)})
+				if err == nil || len(got) != 0 {
+					t.Fatalf("unresolved source allowed partial adoption: %+v %v", got, err)
+				}
+			})
+		}
+	}
+}
+func TestQoderActualDiscoveryUnreadableCandidateRefuses(t *testing.T) {
+	root := t.TempDir()
+	path := qoderFixture(t, root, qoderRows("/repo"))
+	if err := os.Symlink(filepath.Join(root, "absent"), filepath.Join(filepath.Dir(path), "unreadable.jsonl")); err != nil {
+		t.Fatal(err)
+	}
+	got, _, err := DiscoverEvidence(context.Background(), []string{"/repo"}, []Harness{QoderHarness(root)})
+	if err == nil || len(got) != 0 {
+		t.Fatalf("unreadable candidate allowed partial adoption: %+v %v", got, err)
+	}
+}
+func TestQoderActualDiscoveryCompleteForeignFailureCanBeExcluded(t *testing.T) {
+	root := t.TempDir()
+	path := qoderFixture(t, root, qoderRows("/repo"))
+	foreign := strings.ReplaceAll(qoderRows("/foreign"), `"S"`, `"other"`) + `{"type":"workspace-directories","sessionId":"other","directories":["/second-foreign"]}` + "\n"
+	if err := os.WriteFile(filepath.Join(filepath.Dir(path), "foreign-conflict.jsonl"), []byte(foreign), 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, warnings, err := DiscoverEvidence(context.Background(), []string{"/repo"}, []Harness{QoderHarness(root)})
+	if err != nil || len(got) != 1 || len(warnings) != 1 {
+		t.Fatalf("proven foreign source was not excludable: %+v %v %v", got, warnings, err)
+	}
+}
+
+func TestQoderOwnershipProofRequiresCompleteWorkspaceRows(t *testing.T) {
+	requested := map[string]bool{"/repo": true}
+	for _, workspace := range []string{
+		`{"type":"workspace-directories","sessionId":"S","directories":[]}`,
+		`{"type":"workspace-directories","sessionId":"S"}`,
+		`{"type":"workspace-directories","sessionId":"S","directories":[""]}`,
+		`{"type":"workspace-directories","sessionId":"S","directories":["relative"]}`,
+	} {
+		t.Run(workspace, func(t *testing.T) {
+			root := t.TempDir()
+			path := qoderFixture(t, root, workspace+"\n"+qoderRows("/foreign"))
+			_, proof, err := readQoderEvidenceFor(context.Background(), path, -1, nil, requested)
+			if err == nil || proof != qoderOwnershipUnresolved {
+				t.Fatalf("invalid workspace proved exclusion: proof=%v err=%v", proof, err)
+			}
+		})
+	}
+	for _, tc := range []struct {
+		body string
+		want qoderOwnership
+	}{
+		{"not-json\n" + qoderRows("/repo"), qoderOwnershipRelevant},
+		{"not-json\n" + qoderRows("/foreign"), qoderOwnershipUnresolved},
+		{qoderRows("/foreign") + `{"type":"workspace-directories","sessionId":"S","directories":["/another-foreign"]}` + "\n", qoderOwnershipUnrelated},
+	} {
+		root := t.TempDir()
+		path := qoderFixture(t, root, tc.body)
+		_, proof, err := readQoderEvidenceFor(context.Background(), path, -1, nil, requested)
+		if err == nil || proof != tc.want {
+			t.Fatalf("proof=%v want=%v err=%v", proof, tc.want, err)
+		}
+	}
+}
+func TestQoderIncompleteFileProofCannotExcludeForeignSource(t *testing.T) {
+	requested := map[string]bool{"/repo": true}
+	root := t.TempDir()
+	path := qoderFixture(t, root, qoderRows("/foreign"))
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, length := range []int64{info.Size() + 1} {
+		_, proof, err := readQoderEvidenceFor(context.Background(), path, length, nil, requested)
+		if err == nil || proof != qoderOwnershipUnresolved {
+			t.Fatalf("truncated sampled prefix excluded: proof=%v err=%v", proof, err)
+		}
+	}
+	// A changed sampled file must fail before acquiring any new metadata proof.
+	if err := os.Chtimes(path, info.ModTime(), info.ModTime().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	_, proof, err := readQoderEvidenceFor(context.Background(), path, info.Size(), info, requested)
+	if err == nil || proof != qoderOwnershipUnresolved {
+		t.Fatalf("mutated sampled prefix excluded: proof=%v err=%v", proof, err)
+	}
+	_, proof, err = readQoderEvidenceFor(context.Background(), filepath.Join(root, "missing.jsonl"), -1, nil, requested)
+	if err == nil || proof != qoderOwnershipUnresolved {
+		t.Fatalf("missing source excluded: proof=%v err=%v", proof, err)
+	}
+}
+
+type qoderMutationContext struct {
+	context.Context
+	onCheck func()
+	checked bool
+}
+
+func (c *qoderMutationContext) Err() error {
+	if !c.checked {
+		c.checked = true
+		c.onCheck()
+	}
+	return c.Context.Err()
+}
+func TestQoderOwnershipReplacementDuringReadCannotProveUnrelated(t *testing.T) {
+	root := t.TempDir()
+	path := qoderFixture(t, root, qoderRows("/foreign"))
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replacement := filepath.Join(root, "owned-replacement")
+	if err := os.WriteFile(replacement, []byte(qoderRows("/ownedxx")), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(replacement, info.ModTime(), info.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+	var mutationErr error
+	ctx := &qoderMutationContext{Context: context.Background(), onCheck: func() { mutationErr = os.Rename(replacement, path) }}
+	_, proof, err := readQoderEvidenceFor(ctx, path, -1, nil, map[string]bool{"/ownedxx": true})
+	if mutationErr != nil {
+		t.Fatal(mutationErr)
+	}
+	if !ctx.checked || err == nil || proof != qoderOwnershipUnresolved {
+		t.Fatalf("replaced path was excluded: checked=%v proof=%v err=%v", ctx.checked, proof, err)
+	}
+}
+
+func TestQoderSourcesAndSelectRefuseUnresolvedEvidence(t *testing.T) {
+	root := t.TempDir()
+	path := qoderFixture(t, root, qoderRows("/repo"))
+	if err := os.WriteFile(filepath.Join(filepath.Dir(path), "unknown.jsonl"), []byte("not-json\n"+qoderRows("/repo")), 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := QoderHarness(root).Sources(context.Background(), []string{"/repo"})
+	if err == nil || len(got.Files) != 0 {
+		t.Fatalf("Sources hid unknown ownership: %+v %v", got, err)
+	}
+	got, err = Select(context.Background(), []string{"/repo"}, []Harness{fakeHarness{name: "legacy", src: Sources{Files: []string{"previous-source"}}}, QoderHarness(root)})
+	if err == nil || len(got.Files) != 0 {
+		t.Fatalf("Select returned partial sources: %+v %v", got, err)
 	}
 }
