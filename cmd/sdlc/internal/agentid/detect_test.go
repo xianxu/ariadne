@@ -51,15 +51,15 @@ func TestDetect(t *testing.T) {
 		env  map[string]string
 		want string
 	}{
-		{"plain shell", nil, "sdlc"},
-		{"pair slot shell, no agent session", map[string]string{"PAIR_AGENT": "codex"}, "sdlc"},
+		{"plain shell", nil, Human},
+		{"pair slot shell, no agent session", map[string]string{"PAIR_AGENT": "codex"}, Human},
 		{"pair names the agent of a session", map[string]string{"PAIR_AGENT": "codex", "CODEX_CI": "1"}, "codex/-/-"},
 		{"claude session", map[string]string{"CLAUDECODE": "1", "CLAUDE_CODE_SESSION_ID": "sid-1"}, "claude/claude-opus-5-5/high"},
 		{"claude, transcript missing", map[string]string{"CLAUDECODE": "1", "CLAUDE_CODE_SESSION_ID": "gone", "CLAUDE_EFFORT": "max"}, "claude/-/max"},
 		{"codex session", map[string]string{"CODEX_THREAD_ID": "tid-9"}, "codex/gpt-6-astra/medium"},
 		{"codex, transcript missing", map[string]string{"CODEX_THREAD_ID": "nope"}, "codex/-/-"},
 		{"override wins", map[string]string{"CLAUDECODE": "1", OverrideEnv: "codex/m/e"}, "codex/m/e"},
-		{"malformed override ignored", map[string]string{OverrideEnv: "junk"}, "sdlc"},
+		{"malformed override ignored", map[string]string{OverrideEnv: "junk"}, Human},
 	} {
 		d := Detector{Home: home, Getenv: func(k string) string { return tc.env[k] }}
 		if got := d.Detect().String(); got != tc.want {

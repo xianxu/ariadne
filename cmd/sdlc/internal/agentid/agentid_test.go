@@ -10,7 +10,7 @@ func TestIdentityRoundTrip(t *testing.T) {
 		{Identity{"claude", "claude-opus-5-5", "medium"}, "claude/claude-opus-5-5/medium"},
 		{Identity{"codex", "gpt-6-astra", ""}, "codex/gpt-6-astra/-"},
 		{Identity{"claude", "", ""}, "claude/-/-"},
-		{Identity{}, "sdlc"},
+		{Identity{}, Human},
 	} {
 		if got := tc.id.String(); got != tc.want {
 			t.Errorf("%+v.String() = %q, want %q", tc.id, got, tc.want)
@@ -19,6 +19,10 @@ func TestIdentityRoundTrip(t *testing.T) {
 		if !ok || back != tc.id {
 			t.Errorf("Parse(%q) = %+v, %v; want %+v", tc.want, back, ok, tc.id)
 		}
+	}
+	// #387: history from #367 says "sdlc" for the same thing.
+	if id, ok := Parse(Legacy); !ok || id != (Identity{}) {
+		t.Errorf("Parse(%q) = %+v, %v; want the human identity", Legacy, id, ok)
 	}
 	for _, bad := range []string{"", "claude", "claude/x", "-/m/e", "a/b/c/d"} {
 		if _, ok := Parse(bad); ok {

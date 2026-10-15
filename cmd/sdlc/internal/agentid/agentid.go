@@ -15,8 +15,16 @@ import (
 // TrailerKey is the git trailer every agent-authored or sdlc-made commit carries.
 const TrailerKey = "Agent"
 
+// Human is the trailer value when no agent session was found: the operator
+// ran sdlc, or committed, in a plain shell (#387).
+const Human = "human"
+
+// Legacy is the value #367 wrote for Human; history still carries it, so Parse
+// reads it as Human.
+const Legacy = "sdlc"
+
 // Identity is the agent behind a commit. An empty Agent means no agent session
-// was found (an operator running sdlc in a plain shell); it renders as "sdlc".
+// was found (an operator in a plain shell); it renders as Human.
 type Identity struct {
 	Agent, Model, Effort string
 }
@@ -24,7 +32,7 @@ type Identity struct {
 // String renders the trailer value: agent/model/effort, "-" for an unknown part.
 func (id Identity) String() string {
 	if id.Agent == "" {
-		return "sdlc"
+		return Human
 	}
 	return strings.Join([]string{id.Agent, dash(id.Model), dash(id.Effort)}, "/")
 }
@@ -33,9 +41,10 @@ func (id Identity) String() string {
 func (id Identity) Trailer() string { return TrailerKey + ": " + id.String() }
 
 // Parse is String's inverse, for readers grouping commits by agent (#365).
+// Human and Legacy both parse to the empty (human) Identity.
 func Parse(value string) (Identity, bool) {
 	value = strings.TrimSpace(value)
-	if value == "sdlc" {
+	if value == Human || value == Legacy {
 		return Identity{}, true
 	}
 	parts := strings.Split(value, "/")
