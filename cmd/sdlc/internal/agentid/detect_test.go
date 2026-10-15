@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // Record shapes as Claude Code and Codex write them (trimmed to the fields read).
@@ -54,6 +52,8 @@ func TestDetect(t *testing.T) {
 		want string
 	}{
 		{"plain shell", nil, "sdlc"},
+		{"pair slot shell, no agent session", map[string]string{"PAIR_AGENT": "codex"}, "sdlc"},
+		{"pair names the agent of a session", map[string]string{"PAIR_AGENT": "codex", "CODEX_CI": "1"}, "codex/-/-"},
 		{"claude session", map[string]string{"CLAUDECODE": "1", "CLAUDE_CODE_SESSION_ID": "sid-1"}, "claude/claude-opus-5-5/high"},
 		{"claude, transcript missing", map[string]string{"CLAUDECODE": "1", "CLAUDE_CODE_SESSION_ID": "gone", "CLAUDE_EFFORT": "max"}, "claude/-/max"},
 		{"codex session", map[string]string{"CODEX_THREAD_ID": "tid-9"}, "codex/gpt-6-astra/medium"},
@@ -81,14 +81,5 @@ func TestTailIsBounded(t *testing.T) {
 	}
 	if m, _ := claudeFromTail(got); m != "m" {
 		t.Fatalf("the newest record was not in the tail")
-	}
-}
-
-func TestTestfixPinsTheOverride(t *testing.T) {
-	if testfix.AgentOverrideEnv != OverrideEnv {
-		t.Fatalf("testfix pins %q, agentid reads %q", testfix.AgentOverrideEnv, OverrideEnv)
-	}
-	if _, ok := Parse(testfix.FixedAgent); !ok {
-		t.Fatalf("testfix.FixedAgent %q does not parse", testfix.FixedAgent)
 	}
 }

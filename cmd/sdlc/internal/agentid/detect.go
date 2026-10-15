@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
 
 // tailBytes bounds the transcript read: session files grow past 100 MB, and
@@ -30,28 +28,22 @@ func (d Detector) Detect() Identity {
 	if id, ok := Parse(d.Getenv(OverrideEnv)); ok {
 		return id
 	}
-	env := judge.AgentDefaultEnv{
-		AgentCmd:      d.Getenv("AGENT_CMD"),
-		PairAgent:     d.Getenv("PAIR_AGENT"),
-		CodexCI:       d.Getenv("CODEX_CI"),
-		CodexThreadID: d.Getenv("CODEX_THREAD_ID"),
-		ClaudeCode:    d.Getenv("CLAUDECODE") + d.Getenv("CLAUDE_CODE_ENTRYPOINT"),
-	}
-	if env.PairAgent == "" && env.CodexCI == "" && env.CodexThreadID == "" && env.ClaudeCode == "" {
+	env := EnvFrom(d.Getenv)
+	if !env.InSession() {
 		return Identity{}
 	}
-	id := Identity{Agent: string(judge.MainAgent(env))}
-	switch judge.AgentCLI(id.Agent) {
-	case judge.AgentClaude:
+	id := Identity{Agent: env.Main()}
+	switch id.Agent {
+	case Claude:
 		if sid := d.Getenv("CLAUDE_CODE_SESSION_ID"); sid != "" {
-			id.Model, id.Effort = claudeFromTail(d.tail(filepath.Join(d.Home, ".claude", "projects", "*", sid+".jsonl")))
+			id.Model, id.Effort = claudeFromTail(d.tail(filepath.Join(ClaudeProjects(d.Home), "*", sid+".jsonl")))
 		}
 		if id.Effort == "" {
 			id.Effort = d.Getenv("CLAUDE_EFFORT")
 		}
-	case judge.AgentCodex:
+	case Codex:
 		if tid := env.CodexThreadID; tid != "" {
-			id.Model, id.Effort = codexFromTail(d.tail(filepath.Join(d.Home, ".codex", "sessions", "*", "*", "*", "rollout-*-"+tid+".jsonl")))
+			id.Model, id.Effort = codexFromTail(d.tail(filepath.Join(CodexSessions(d.Home), "*", "*", "*", "rollout-*-"+tid+".jsonl")))
 		}
 	}
 	return id

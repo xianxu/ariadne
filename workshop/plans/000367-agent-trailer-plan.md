@@ -64,16 +64,28 @@ An unknown part is `-` (e.g. `claude/claude-opus-5-5/-`). With no agent environm
 
 ## Tasks
 
-- [ ] **Task 1: agentid pure core.** TDD `Identity.String/Parse` (round trip, `-` parts, `sdlc`), `Stamp` (no trailers, existing trailer block, already stamped, message without trailing newline), `MissingAgent`. Files: `cmd/sdlc/internal/agentid/agentid.go`, `agentid_test.go`.
-- [ ] **Task 2: transcript readers + Current().** Fixtures: a Claude tail (assistant record with `model`/`effort`, truncated first line) and a Codex tail (`turn_context` with `model`/`reasoning_effort`). TDD `claudeFromTail`, `codexFromTail`, then `Detector.Current` with temp homes (Claude session found by id, Codex rollout found by thread id, missing file → `-` parts, no agent env → `sdlc`, `CLAUDE_EFFORT` fallback). Files: `transcript.go`, `detect.go`, tests, `testdata/`.
-- [ ] **Task 3: `sdlc agent-id`.** Prints `Agent: …`; `--json` prints the three parts. Test via `buildRoot()` with a fake env. File: `cmd/sdlc/agentid.go`, test.
-- [ ] **Task 4: stamp the commit sites** listed above, then the sweep test. Extend one existing test per helper family to assert the trailer: `commitIndexOnto` (close evidence), tracker card commit (`issue new`), `claim` sync, `changecode` checkpoint, landing merge message.
-- [ ] **Task 5: close report.** `sdlc close` warns with the list from `MissingAgent` over the review window; test with a window holding one stamped and one bare commit.
-- [ ] **Task 6: docs.** AGENTS.base.md §12: keep `Co-Authored-By`, add the `Agent:` trailer and how to get it (`sdlc agent-id`, then `git commit … --trailer 'Agent: …'`); regenerate AGENTS.md/CLAUDE.md with weave; atlas: `atlas/workflow/sdlc-binary.md` gains the trailer and verb.
-- [ ] **Task 7: verify.** Targeted tests per task; full `make test` under the gate before close; `git log --format='%(trailers:key=Agent)'` over this issue's own window shows one value per commit (this session's commits included, since I stamp mine from Task 3 on).
+- [x] **Task 1: agentid pure core.** TDD `Identity.String/Parse` (round trip, `-` parts, `sdlc`), `Stamp` (no trailers, existing trailer block, already stamped, message without trailing newline), `MissingAgent`. Files: `cmd/sdlc/internal/agentid/agentid.go`, `agentid_test.go`.
+- [x] **Task 2: transcript readers + Current().** Fixtures: a Claude tail (assistant record with `model`/`effort`, truncated first line) and a Codex tail (`turn_context` with `model`/`reasoning_effort`). TDD `claudeFromTail`, `codexFromTail`, then `Detector.Current` with temp homes (Claude session found by id, Codex rollout found by thread id, missing file → `-` parts, no agent env → `sdlc`, `CLAUDE_EFFORT` fallback). Files: `transcript.go`, `detect.go`, tests, `testdata/`.
+- [x] **Task 3: `sdlc agent-id`.** Prints `Agent: …`; `--json` prints the three parts. Test via `buildRoot()` with a fake env. File: `cmd/sdlc/agentid.go`, test.
+- [x] **Task 4: stamp the commit sites** listed above, then the sweep test. Extend one existing test per helper family to assert the trailer: `commitIndexOnto` (close evidence), tracker card commit (`issue new`), `claim` sync, `changecode` checkpoint, landing merge message.
+- [x] **Task 5: close report.** `sdlc close` warns with the list from `MissingAgent` over the review window; test with a window holding one stamped and one bare commit.
+- [x] **Task 6: docs.** AGENTS.base.md §12: keep `Co-Authored-By`, add the `Agent:` trailer and how to get it (`sdlc agent-id`, then `git commit … --trailer 'Agent: …'`); regenerate AGENTS.md/CLAUDE.md with weave; atlas: `atlas/workflow/sdlc-binary.md` gains the trailer and verb.
+- [x] **Task 7: verify.** Targeted tests per task; full `make test` under the gate before close; `git log --format='%(trailers:key=Agent)'` over this issue's own window shows one value per commit (this session's commits included, since I stamp mine from Task 3 on).
 
 ## Out of scope
 
 - Grouping `sdlc actual` or `sdlc usage` by the trailer (#365 owns usage; `Parse` is exported for it).
 - Rewriting history or back-filling old commits.
 - A git commit-msg hook (local-gates territory; the close report covers detection).
+
+## Revisions
+
+### 2026-10-14 — after the first boundary review (BR-1 and minors)
+- **gitx stamps through `agentid.StampCurrent`, and `agentid` is a stdlib-only leaf.** The plan said gitx would take the identity as a parameter. A TrunkFile has 16 production constructors; injecting there lets any one of them forget, and the stamp is not the caller's choice. Instead the env-to-agent logic moved from judge into `agentid` (`Env`, `EnvFrom`, `Main`, `Known`; `judge.AgentDefaultEnv` is now an alias), so gitx gains only the leaf (`go list -deps ./cmd/sdlc/internal/gitx` adds `agentid` and nothing else). Tests stay hermetic through the pinned `SDLC_AGENT_ID` in each TestMain that asserts commit messages.
+- **Transcript roots single-sourced** as `agentid.ClaudeProjects` / `agentid.CodexSessions`; `transcripts/defaults.go`, `processmanual.go`, `processmanual/session.go` and `processmanual/memory.go` use them (ARCH-DRY).
+- **Tail bound is 1 MiB** (`tailBytes`), not 256 KiB: Codex `turn_context` lines carry the developer instructions and run to tens of KiB.
+- **Exempt commits:** the GitHub PR merge commit (GitHub writes it) and abandon's merge conclusion; merges carry no work and the close report skips them. The archive and migrate argv builders also render paste-able hints, so their executing callers stamp the message instead.
+- **A pair slot's plain shell is not a session:** `Env.InSession` ignores `PAIR_AGENT`, so an operator's hand-run sdlc commit says `Agent: sdlc`, not `claude/-/-`.
+- Fixtures are inline constants in `detect_test.go`, not `testdata/`.
+- Behavioural trailer assertions now cover close evidence (and close's report wiring), tracker cards, `issue new`, the change-code checkpoint, issue sync and the landing integration merge.
+

@@ -12,6 +12,9 @@ signals the judge uses: PAIR_AGENT, CODEX_THREAD_ID, CLAUDECODE); the model and
 effort from the newest records of the session's own transcript (Claude Code:
 ~/.claude/projects/*/$CLAUDE_CODE_SESSION_ID.jsonl; Codex: the rollout file named
 by $CODEX_THREAD_ID), with CLAUDE_EFFORT as Claude's effort fallback.
+Only the transcript's last 1 MiB is read, so a model whose newest record was
+pushed out by larger later records reads as `-`. PAIR_AGENT names which agent
+a session is, but alone (a pair slot's plain shell) it is not a session.
 SDLC_AGENT_ID=<agent>/<model>/<effort> names it outright.
 
 USAGE
