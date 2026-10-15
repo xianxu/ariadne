@@ -35,7 +35,7 @@ Projects are hand-maintained files (`workshop/projects/…`, ops `teams/*/projec
 
 ## Plan
 
-Durable plan: `workshop/plans/000373-project-lifecycle-verbs-plan.md`.
+Durable plan: `workshop/plans/000373-project-lifecycle-verbs-sdlc-project-tick-close-and-landing-ticks-the-referencing-project-s-item-automatically-plan.md`.
 
 - [ ] Pure core: `TickLandedIssue`, `MVPProgress` (mvp-landed guard on it)
 - [ ] `tickLanded` + `sdlc project tick` (origin publish via TrunkFile, TL-owned allowed)
