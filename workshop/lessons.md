@@ -826,3 +826,8 @@ The simplest durable authority beats a clever scan of consequences.
 - Propagate summary/renderer writes, including short writes. After a durable
   calibration succeeds, an output error must say the observation was recorded;
   never pretend it rolled back or discard the original IO cause (#365).
+
+- An immutable identity is also an ordering contract: account only after it is
+  resolved, or buffer and reconcile every dependent counter and timestamp.
+  Missing identity and pre-identity records must leave spend visibly incomplete;
+  test early/late/absent headers through discovery and decoding (#365 BR-5).

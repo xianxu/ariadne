@@ -456,3 +456,21 @@ cwd alone affects attribution. Preserve the immutable shared parser and bounds
 (ARCH-DRY, ARCH-SECURE, ARCH-ORDER). Add production discovery→Decode matrix
 regressions and old-code mutation evidence, then run a fresh recorded suite and
 shared close; the prior code-head suite does not cover this behavior revision.
+
+
+### 2026-10-15 00:20 — identity ordering class verified
+
+BR-5 now rejects ordinary/compacted usage and cumulative snapshots before a
+valid executing identity, before counter, baseline, high-water, timestamp or
+compaction bookkeeping. Missing identity always leaves spend incomplete, even
+for empty/legacy-only sources; valid identity without cwd remains spend-complete.
+The production discovery→Decode matrix covers both aliases, early/late headers,
+absent/invalid headers, copied later headers and owned/foreign records:39 identity
+cases. Explicit headers were added only to individual independent fixtures.
+
+Usage/transcripts packages pass1.045s/0.918s; stable command, attribution,
+reviewer-accounting and production dispatch regressions pass105.478s. Agent
+mutation runs fail as intended with the old decoder1.299s, removed snapshot
+guard0.189s and removed unresolved-identity finish guard0.211s. Help/atlas now
+document skipped preidentity usage and incomplete coverage. Commit and integrate
+main before a fresh recorded suite; shared close remains pending.

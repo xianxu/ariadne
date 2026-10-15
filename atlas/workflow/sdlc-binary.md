@@ -1923,7 +1923,10 @@ show fleet tokens in the last hour, wall-clock burn over 1–3 hours, and an
 empirical account projection when two compatible meter readings and complete
 spend evidence support it. `--since` selects detailed groups/hourly totals;
 `--json` exposes schema version 1. Caches are input subsets and reasoning is an
-output subset, so totals never add them twice.
+output subset, so totals never add them twice. Codex normalization admits usage
+only after resolving the immutable executing identity; pre-identity usage is
+skipped and makes spend coverage incomplete even when a valid header arrives
+later. Missing cwd separately affects attribution.
 
 `--issue N` reuses ownership intervals and bound descendants from actual-time
 attribution, but includes the review/verification tail and ends completed issues

@@ -48,4 +48,7 @@ usage has no cache and performs no tracker fetch or provider interaction.
 The scan is streaming and bounded (60s, 16384 sources, 4MiB lines, 250000
 response identities). Coverage names malformed/unsupported records, missing
 baselines, resets, provisional responses, truncation, and excluded attribution.
+Codex usage before a valid executing-session identity is skipped with incomplete
+spend coverage; later headers cannot make that prefix safe retroactively. A
+missing working directory affects attribution, separately from spend coverage.
 A bound is a visible incomplete report; cancellation exits unsuccessfully.

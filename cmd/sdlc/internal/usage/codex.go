@@ -86,6 +86,10 @@ func (s *codexState) step(r record, c *Coverage) error {
 		if q.Type != "token_count" {
 			return nil
 		}
+		if s.thread == "" {
+			c.Add("uncovered_segments", "cumulative snapshot rejected without executing identity")
+			return nil
+		}
 		if q.Info == nil {
 			c.Add("uncovered_segments", "token snapshot has no usage")
 			return nil
@@ -135,6 +139,13 @@ func (s *codexState) step(r record, c *Coverage) error {
 	return nil
 }
 func (s *codexState) response(r record, raw json.RawMessage, embedded bool, c *Coverage) error {
+	if s.thread == "" {
+		// Reject before any counters, original timestamps or compaction evidence
+		// can taint the eventual executing thread. A late header cannot prove
+		// which earlier records belong to this execution.
+		c.Add("uncovered_segments", "response rejected without executing identity")
+		return nil
+	}
 	var q codexUsage
 	if e := json.Unmarshal(raw, &q); e != nil {
 		return e
@@ -206,11 +217,14 @@ func rememberCumulativeMaximum(maximum **Counters, next Counters) {
 }
 
 func (s *codexState) finish(c *Coverage) []Response {
+	if s.thread == "" {
+		if c.Counts["unknown_metadata"] == 0 {
+			c.Add("unknown_metadata", "Codex executing identity metadata absent")
+		}
+		c.Add("uncovered_segments", "Codex source has no valid executing identity")
+	}
 	if !s.modernSeen {
 		return s.legacy
-	}
-	if !s.metadataSeen {
-		c.Add("unknown_metadata", "Codex executing identity metadata absent")
 	}
 	// Cumulative snapshots are diagnostic only in modern files. Their initial
 	// baseline gap does not make authoritative response evidence incomplete.

@@ -22,7 +22,8 @@ func decode(t *testing.T, agent, text string) ([]Response, Coverage) {
 func p(n int64) *int64 { return &n }
 
 func TestCodexModernCompactionAndModel(t *testing.T) {
-	r, c := decode(t, "codex", `{"type":"turn_context","payload":{"turn_id":"t","model":"model-a"}}
+	r, c := decode(t, "codex", `{"type":"session_meta","payload":{"id":"thread"}}
+{"type":"turn_context","payload":{"turn_id":"t","model":"model-a"}}
 {"type":"token_usage_record","timestamp":"2026-10-14T10:00:00Z","payload":{"response_id":"r","thread_id":"thread","turn_id":"t","usage":{"input_tokens":100,"cached_input_tokens":80,"output_tokens":20,"reasoning_output_tokens":5,"total_tokens":120}}}
 {"type":"compacted","timestamp":"2026-10-14T10:01:00Z","payload":{"latest_token_usage_record":{"response_id":"r","thread_id":"thread","turn_id":"t","usage":{"input_tokens":100,"cached_input_tokens":80,"output_tokens":20,"reasoning_output_tokens":5,"total_tokens":120}}}}
 {"type":"event_msg","timestamp":"2026-10-14T10:02:00Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":500,"output_tokens":100},"last_token_usage":{"input_tokens":500,"output_tokens":100}}}}
@@ -48,7 +49,8 @@ func TestCodexModernCompactionAndModel(t *testing.T) {
 }
 
 func TestCodexLegacyBaselineDuplicateReset(t *testing.T) {
-	r, c := decode(t, "codex", `{"type":"turn_context","payload":{"model":"legacy"}}
+	r, c := decode(t, "codex", `{"type":"session_meta","payload":{"id":"thread"}}
+{"type":"turn_context","payload":{"model":"legacy"}}
 {"type":"event_msg","timestamp":"2026-10-14T09:00:00Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"output_tokens":10},"last_token_usage":{"input_tokens":100,"output_tokens":10}}}}
 {"type":"event_msg","timestamp":"2026-10-14T10:00:00Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":140,"output_tokens":20},"last_token_usage":{"input_tokens":999,"output_tokens":999}}}}
 {"type":"event_msg","timestamp":"2026-10-14T10:01:00Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":140,"output_tokens":20},"last_token_usage":{"input_tokens":999,"output_tokens":999}}}}
@@ -127,7 +129,7 @@ func TestAggregateHoursBurnUnknownAndOverflow(t *testing.T) {
 
 func TestDecodeMalformedUnsupportedCancellation(t *testing.T) {
 	_, c := decode(t, "codex", "{bad}\n{\"type\":\"token_usage_record\",\"timestamp\":\"bad\",\"payload\":{}}\n")
-	if c.Counts["malformed_records"] != 2 || c.Complete() {
+	if c.Counts["malformed_records"] != 1 || c.Counts["unknown_metadata"] == 0 || c.Counts["uncovered_segments"] == 0 || c.Complete() {
 		t.Fatalf("coverage=%+v", c)
 	}
 	_, c = decode(t, "other", "{}\n")
@@ -171,7 +173,8 @@ func TestClaudeProvisionalConflictingFinalAndOverflow(t *testing.T) {
 	if err != nil || len(normal) != 0 || coverage.Counts["conflicts"] != 1 {
 		t.Fatalf("conflicting final was revived: %+v %+v %v", normal, coverage, err)
 	}
-	_, coverage = decode(t, "codex", `{"type":"event_msg","timestamp":"2026-10-14T10:00:00Z","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":100}}}}`)
+	_, coverage = decode(t, "codex", `{"type":"session_meta","payload":{"id":"thread"}}
+{"type":"event_msg","timestamp":"2026-10-14T10:00:00Z","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":100}}}}`)
 	if coverage.Counts["malformed_records"] != 1 || coverage.SpendComplete() {
 		t.Fatalf("unsupported input/output invented: %+v", coverage)
 	}
@@ -257,7 +260,8 @@ func TestSanitizedRecordedSchemas(t *testing.T) {
 }
 
 func TestCompactionCopyDoesNotChangeOriginalTimestamp(t *testing.T) {
-	r, _ := decode(t, "codex", `{"type":"turn_context","payload":{"turn_id":"t","model":"a"}}
+	r, _ := decode(t, "codex", `{"type":"session_meta","payload":{"id":"thread"}}
+{"type":"turn_context","payload":{"turn_id":"t","model":"a"}}
 {"type":"compacted","timestamp":"2026-10-14T09:00:00Z","payload":{"latest_token_usage_record":{"response_id":"r","thread_id":"thread","turn_id":"t","usage":{"input_tokens":10,"output_tokens":2}}}}
 {"type":"token_usage_record","timestamp":"2026-10-14T10:00:00Z","payload":{"response_id":"r","thread_id":"thread","turn_id":"t","usage":{"input_tokens":10,"output_tokens":2}}}
 `)
