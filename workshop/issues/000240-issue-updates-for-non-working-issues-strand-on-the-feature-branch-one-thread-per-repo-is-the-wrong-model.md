@@ -134,7 +134,7 @@ removes the stranding and the sweep hazard without any new model.
 
 - [x] Publish selected non-issue workshop prose through a main CAS, with
       path, base, concurrency, and local-retention tests; document the path in atlas.
-- [ ] Verify the full suite on the repaired code and prepare the issue for close.
+- [x] Verify the full suite on the repaired code and prepare the issue for close.
 
 ## Log
 
@@ -195,6 +195,8 @@ Renewed recorded full suite GREEN on 1e559e8ded87fd4e0d4690c52c0df79dbfc6a570 af
 Close round 3 returned REWORK. The reviewer disposed BR-1 through BR-7, confirming retention eliminates interrupted cleanup and open-descriptor loss; one Important finding remains: BR-8 proved os.ReadFile consumed 4 MiB after a small-file Lstat despite the 1 MiB contract. Plan revised to cap actual reads at limit+1 for both initial and post-publication reads with deterministic consumption tests; acceptance row reopened for the repaired code. No publication-policy change or bypass.
 
 BR-8 TDD repair: deterministic real-file growth controls first failed by consuming 3,145,728 bytes at both production read sites instead of max+1=1,048,577 (/tmp/ariadne-240-br8-red.log). readLocalProse now opens the file through the controlled integration seam and reads through io.LimitReader(maxTrunkProseBytes+1), retaining existing metadata/type checks and rejecting overflow. Exact-limit, static-oversize, post-Lstat growth, initial no-main-mutation and post-publication retained-local/guidance tests pass; complete focused publication/reader tests GREEN 58.334s (/tmp/ariadne-240-br8-green.log). Recovery proof registry passes 0.662s (/tmp/ariadne240-br8-recovery.log). Both local-read callers use the same bound; no new publication policy. The earlier suite pass predates this code change, so a renewed recorded suite is required before close.
+
+BR-8 repaired-head full suite GREEN on 40be9ef72775ccf6cc3873ac6a7344625c62aff9: all 12 root shards over 1368 tests and 59 other packages exit 0, zero failures, wall 451.2s. Log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/40be9ef72775ccf6cc3873ac6a7344625c62aff9/suite.log, full SHA-256 977ce9b0d172f51703823912c5ab9302353eb4ccb68007156f131b00e145ac04 (backup /tmp/ariadne240-br8-suite-pass.log). SDLC completed the suite but its final status POST failed connecting to api.github.com, so the command exited without recording success. After GitHub recovered, inspection confirmed local-check exposes no record-only retry. Used the manual recovery exception to retry only that failed publication with gh api: independently verified all 13 runner rows exit 0 and hash, posted success on the exact tested SHA, and read it back (status ID 56390349486, description marked status retry). No test command/result or gate configuration changed. Tool builds also passed after the reader fix (/tmp/ariadne240-br8-tools.log). Renewed local acceptance complete; entering close review again.
 
 ### 2026-09-20
 
