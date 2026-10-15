@@ -135,6 +135,12 @@ Recorded suite on e55eed0871ac4061db7f8fd22d3d18e4958c9a75 exited 1 after 1438s 
 
 sdlc local-check run --name suite passed on bb42d2f5298124aaaefab53cd71598869b5b6c1c: exit 0, 620.8s execution after 1913s gate wait, all 12 shards / 1394 cmd/sdlc tests and 60 other packages with zero failures. Recorded as sdlc-local/suite; log digest prefix dd9d98c2ce2a. The source guard and padded-ID regression are included. Remaining steps are mandatory close review, current-main integration and landing on SHIP; no verification gates waived.
 
+### 2026-10-15 — SHIP and current-main integration
+
+Mandatory close review returned SHIP, high confidence, no findings (round 1). Reviewer independently ran lifecycle/legacy/selector/refusal regressions (113.053s), historical/milestone/exclusion/retirement controls (42.858s) and internal packages. Close adopted measured 3.13h and published codecomplete bound to evidence dbec6a72682cb6483d5ec8d08abb41a5279aa085. No waivers.
+
+Merged current origin/main cea78653e4003d0ca6fa64fbf9ae3b726f5d9b37, including landed #365, cleanly as f73b00e5e1748c2b59f2b4415d4214aa6b75adee. Inspected shared actual/actualinputs changes: ownership discovery was extracted behind the same authority and local-only tracker reads are opt-in via context; candidate/historical separation remains intact. No conflict resolution or issue-scope change. PR #255 updated; submitted a fresh recorded full suite on this combined head before landing. Previous passing suite does not establish this integrated head's result.
+
 ## Revisions
 
 - 2026-10-15T04:18:20-07:00 — Separate verification checkboxes from the later close/landing workflow so closing does not require pre-claiming its own success. Scope and acceptance unchanged.
