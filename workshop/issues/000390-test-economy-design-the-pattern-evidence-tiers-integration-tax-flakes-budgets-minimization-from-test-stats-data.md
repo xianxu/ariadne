@@ -98,3 +98,12 @@ The operator approved the per-repo landing queue and its storage decision,
 the issue-backed known-flake rerun rule, and the feature-scoped minimization
 algorithm. The durable plan now records all three; #390 remains open only to
 file the implementing issues and link them from the ops project before close.
+
+### 2026-10-15 14:43 PDT — Implementation cards filed
+
+The approved follow-on work is filed and published, unclaimed: #392 weekly
+measurement; #393 serial landing admission; #394 issue-backed flake landing;
+#395 feature-scoped minimization; #396 shared guidance. Deferred follow-ups
+are #397 measured budgets and #398 proven doc-only reuse; pair#578 covers
+couchcore profiling. Existing #328, #327 and #380 remain in the rollout. The
+TL has the full list for the ops project; its update is pending verification.

@@ -72,8 +72,8 @@ Use **one active integration candidate per repository**. Ready PRs keep independ
 
 Use a durable state machine (ARCH-ORDER): `waiting → integrating → testing → verified → landing → landed`, with explicit `stale`, `failed` and `uncertain` outcomes. A crash, timeout or unknown GitHub response resumes by fetching PR/main and checking exact OIDs; probe uncertain publication before retry. A terminal receipt is kept for the 30-day analysis window, then swept (ARCH-FUNERAL). **Retention follows the same scheme as the rest of
 sdlc's runtime data (operator, 10-15):** ephemeral runtime and supporting data live outside git, local to the machine,
-and (later) are backed up to cloud storage before deletion. Do not hold the repo transaction lock across suite wait/run (#370); lock only short Git/tracker transitions. The machine-wide weighted suite lock still limits load (ARCH-CONSTRAINTS). Test main drift, head drift, process death at each effect, duplicate requests and uncertain GitHub replies through the production transition function and stateful fakes. → [discussion: is this a new
-"landing" workflow?](000390-test-economy-pattern-plan.side/01-landing-admission.md)
+and (later) are backed up to cloud storage before deletion. Do not hold the repo transaction lock across suite wait/run (#370); lock only short Git/tracker transitions. The machine-wide weighted suite lock still limits load (ARCH-CONSTRAINTS). Test main drift, head drift, process death at each effect, duplicate requests and uncertain GitHub replies through the production transition function and stateful fakes. →
+[discussion: is this a new "landing" workflow?](000390-test-economy-pattern-plan.side/01-landing-admission.md)
 
 **Pilot stop rule:** if serial admission does not reduce repeat full suites per merged PR, or raises p90 ready-to-land delay over seven complete days, pause expansion and inspect queue scheduling versus suite runtime. Batching is separate because it changes merge/recovery identity. A later doc-only reuse issue must compare effective test inputs, including generated files, test commands, configuration and dependency lockfiles, on both trees; unknowns run the suite. A file-extension-only exemption is insufficient.
 
@@ -199,3 +199,9 @@ Side doc 03 still awaits operator marks.
 **Reason:** The operator approved linked side doc `03-minimization-algorithm.md`; all three side-doc discussions are now decided.
 
 **Delta:** Section 5 now states the five-step algorithm after #328: per-test coverage, coverage-subset nomination, feature-scoped mutation as the deterministic detection signal, reviewed remove/merge/keep judgment, and verification that feature mutation score and coverage hold after a change. #327's implementing issue owns the monthly feature reports and must preserve unmeasured/failed tool outcomes rather than labeling tests redundant. This records the operator's final design approval; filing the independent implementation issues and listing them in the ops project remains #390's completion work.
+
+### 2026-10-15 14:43 PDT — Implementing issue map
+
+**Reason:** The operator approved the design and #390 requires independently owned implementation issues.
+
+**Delta:** The weekly brain measurement is **#392**, first. Serial per-repo admission with fleet-blocking priority is **#393**, after #392 and #380. The exact-head known-flake landing and daily triage rule is **#394**, after #392. Feature-scoped mutation minimization is **#395**, after #328 and feeding #327's monthly GC. Shared default guidance is **#396**, after #392–#395. Measured soft budgets are deferred in **#397** until several weekly snapshots and an operator value choice. Proven doc-only drift reuse is a conditional later optimization in **#398**, after #393's pilot. Pair couchcore profiling is **pair#578**, after ariadne#392; its 481.3-second p90 remains an observation, not an approved limit. The older rollout table's proposed “New” rows resolve to these cards; #327, #328 and #380 remain existing dependencies.
