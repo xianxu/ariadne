@@ -831,3 +831,10 @@ The simplest durable authority beats a clever scan of consequences.
   resolved, or buffer and reconcile every dependent counter and timestamp.
   Missing identity and pre-identity records must leave spend visibly incomplete;
   test early/late/absent headers through discovery and decoding (#365 BR-5).
+
+- A valid process receipt is not a complete accounting denominator. Reconcile
+  every relevant attempt with usable reported evidence or an explicit spend gap;
+  test the collector and calibrated forecast, not only binding helpers (#365 BR-7).
+- Canonicalize receipt phase-prefix copies before counting unfinished attempts.
+  Confirmed launch failure is nonspending; missing launch evidence is uncertainty
+  and cannot be collapsed into that outcome (#365 BR-7).

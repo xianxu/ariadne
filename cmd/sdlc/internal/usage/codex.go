@@ -46,6 +46,11 @@ func (s *codexState) step(r record, c *Coverage) error {
 		}
 		s.thread = id
 	case "turn_context":
+		if s.thread == "" {
+			// Model context from an unidentified prefix may belong to copied
+			// history. It cannot establish either turn or legacy stream models.
+			return nil
+		}
 		var q struct {
 			TurnID string `json:"turn_id"`
 			Model  string `json:"model"`

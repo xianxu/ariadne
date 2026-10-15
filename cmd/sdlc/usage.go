@@ -213,6 +213,7 @@ func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput
 	commonCoverage.Merge(coverage)
 	parserCoverage := map[string]*usage.Coverage{"codex": {}, "claude": {}}
 	var responses []usage.Response
+	usableSources := map[string]bool{}
 	for _, s := range discovery.Sources {
 		if e = ctx.Err(); e != nil {
 			return out, e
@@ -244,6 +245,9 @@ func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput
 			coverage.Add("unavailable_sources", s.Harness)
 			parserCoverage[s.Harness].Add("unavailable_sources", "")
 			continue
+		}
+		if beforeErr == nil && statErr == nil && stat.Size() >= s.Length && usageSourceStable(s.Info, before, stat) && c.SpendComplete() {
+			usableSources[s.Harness+":"+s.ID] = true
 		}
 		if len(responses)+len(rows) > 250000 {
 			coverage.Add("bound_exceeded", "response identities")
@@ -297,6 +301,7 @@ func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput
 	if e != nil {
 		return out, e
 	}
+	out.Report.Coverage.Merge(reviewerUsageCoverage(reviewers, reviewerMap, responses, usableSources, now, usageReviewerScope{Repository: authority.Repository, Issue: f.Issue}, []usage.Window{out.Window}))
 	coverage.Merge(out.Report.Coverage)
 	out.Coverage = coverage
 	for _, agent := range []string{"claude", "codex"} {
@@ -332,6 +337,11 @@ func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput
 			calibrationTokens, _ = report.Totals.Total()
 		}
 		glance.Coverage.Merge(viewCoverage)
+		reviewerWindows := []usage.Window{burn}
+		if len(points) == 2 && now.Sub(points[0].At) <= 7*24*time.Hour {
+			reviewerWindows = append(reviewerWindows, usage.Window{Since: points[0].At, Until: points[1].At})
+		}
+		glance.Coverage.Merge(reviewerUsageCoverage(reviewers, reviewerMap, responses, usableSources, now, usageReviewerScope{Agent: agent}, reviewerWindows))
 		glance.Projection = usage.ProjectMeter(meter, agent, unit, now, calibrationTokens, hour.BurnTokensPerHour, glance.Coverage.SpendComplete())
 		out.AgentGlance = append(out.AgentGlance, glance)
 	}

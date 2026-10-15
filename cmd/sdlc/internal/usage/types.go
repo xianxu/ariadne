@@ -150,7 +150,7 @@ func (c Coverage) Complete() bool {
 // SpendComplete separates known spend from its attribution. Unknown checkout,
 // model or role does not remove tokens from the account-wide denominator.
 func (c Coverage) SpendComplete() bool {
-	for _, k := range []string{"conflicts", "malformed_records", "unsupported_formats", "baseline_gaps", "reset_gaps", "provisional", "truncated_tails", "unavailable_sources", "bound_exceeded", "source_mutations", "uncovered_segments", "reconstructed_compaction", "unavailable_source", "candidate_limit", "unsupported_harness", "aggregate_usage_unreconciled"} {
+	for _, k := range []string{"conflicts", "malformed_records", "unsupported_formats", "baseline_gaps", "reset_gaps", "provisional", "truncated_tails", "unavailable_sources", "bound_exceeded", "source_mutations", "uncovered_segments", "reconstructed_compaction", "unavailable_source", "candidate_limit", "unsupported_harness", "aggregate_usage_unreconciled", "unresolved_reviewer_usage"} {
 		if c.Counts[k] > 0 {
 			return false
 		}

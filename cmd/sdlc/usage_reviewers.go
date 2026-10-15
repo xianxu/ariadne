@@ -23,6 +23,7 @@ type usageReviewBinding struct {
 type usageReviewerScope struct {
 	Repository string
 	Issue      int
+	Agent      string // optional account scope for spend reconciliation
 }
 
 // loadUsageReviewers loads role-exclusion identities across all issues. scope
@@ -51,9 +52,6 @@ func loadUsageReviewers(ctx context.Context, repos []string, scope usageReviewer
 			}
 			for _, entry := range entries {
 				records = append(records, entry.Record)
-				if entry.Record.Phase != reviewusage.Finished {
-					coverage.Add("unfinished_reviewer_bindings", "")
-				}
 			}
 		} else {
 			coverage.Add("unavailable_reviewer_bindings", "")
@@ -143,35 +141,12 @@ func bindUsageReviewers(sessions []transcripts.SessionEvidence, records []review
 		byID[s.Harness+":"+s.ID] = s
 	}
 	out := map[string]usageReviewBinding{}
-	// The same attempt is retained independently and copied into ledgers. Collapse
-	// those copies before resolving mutually exclusive issue bindings.
-	best := map[string]reviewusage.Record{}
-	bad := map[string]bool{}
-	var conflicting []reviewusage.Record
-	for _, r := range records {
-		if reviewusage.Validate(r) != nil {
-			// Invalid accounting is not worker evidence. Retain any usable
-			// session/root identity as a quarantined binding below.
-			conflicting = append(conflicting, r)
-			bad[r.Intent.ID] = true
-			continue
-		}
-		old, ok := best[r.Intent.ID]
-		if ok && (old.Intent != r.Intent || old.SessionID != "" && r.SessionID != "" && old.SessionID != r.SessionID || old.StartedAt != "" && r.StartedAt != "" && old.StartedAt != r.StartedAt || old.FinishedAt != "" && r.FinishedAt != "" && old.FinishedAt != r.FinishedAt) {
-			bad[r.Intent.ID] = true
-			conflicting = append(conflicting, old, r)
-			continue
-		}
-		if !ok || r.Phase == reviewusage.Finished || old.Phase == reviewusage.Requested && r.Phase == reviewusage.Started {
-			best[r.Intent.ID] = r
-		}
-	}
-	var selected []reviewusage.Record
-	for _, r := range best {
-		selected = append(selected, r)
-	}
-	selected = append(selected, conflicting...)
+	selected, bad := selectUsageReviewerRecords(records)
 	for _, r := range selected {
+		if reviewusage.Validate(r) == nil && r.Phase == reviewusage.Finished && r.Outcome == "launch-failed" {
+			// A confirmed failed launch cannot claim a worker session by root.
+			continue
+		}
 		i := r.Intent
 		start, startErr := time.Parse(time.RFC3339Nano, i.RequestedAt)
 		end := now
@@ -242,4 +217,110 @@ func bindUsageReviewers(sessions []transcripts.SessionEvidence, records []review
 		inherit(key, map[string]bool{})
 	}
 	return out
+}
+
+// selectUsageReviewerRecords collapses confirmed phase-prefix copies, while
+// preserving invalid/conflicting evidence for quarantine and diagnostics.
+func selectUsageReviewerRecords(records []reviewusage.Record) ([]reviewusage.Record, map[string]bool) {
+	// The same attempt is retained independently and copied into ledgers. Collapse
+	// those copies before resolving mutually exclusive issue bindings.
+	best := map[string]reviewusage.Record{}
+	bad := map[string]bool{}
+	var conflicting []reviewusage.Record
+	for _, r := range records {
+		if reviewusage.Validate(r) != nil {
+			// Invalid accounting is not worker evidence. Retain any usable
+			// session/root identity as a quarantined binding below.
+			conflicting = append(conflicting, r)
+			bad[r.Intent.ID] = true
+			continue
+		}
+		old, ok := best[r.Intent.ID]
+		if ok && (old.Intent != r.Intent || old.SessionID != "" && r.SessionID != "" && old.SessionID != r.SessionID || old.StartedAt != "" && r.StartedAt != "" && old.StartedAt != r.StartedAt || old.FinishedAt != "" && r.FinishedAt != "" && old.FinishedAt != r.FinishedAt) {
+			bad[r.Intent.ID] = true
+			conflicting = append(conflicting, old, r)
+			continue
+		}
+		if !ok || r.Phase == reviewusage.Finished || old.Phase == reviewusage.Requested && r.Phase == reviewusage.Started {
+			best[r.Intent.ID] = r
+		}
+	}
+	var selected []reviewusage.Record
+	for _, r := range best {
+		selected = append(selected, r)
+	}
+	selected = append(selected, conflicting...)
+	return selected, bad
+}
+
+type usageReviewerAttemptKey struct{ Repository, Issue, Agent, ID string }
+
+// reviewerUsageCoverage accounts for every relevant retained dispatch attempt.
+// A receipt proves intent/progress, not a complete usage denominator. Only a
+// stable, completely decoded reported response bound inside its attempt window
+// can reconcile it; a confirmed launch failure is explicitly non-spending.
+func reviewerUsageCoverage(records []reviewusage.Record, bindings map[string]usageReviewBinding, responses []usage.Response, usableSources map[string]bool, now time.Time, scope usageReviewerScope, windows []usage.Window) usage.Coverage {
+	resolved := map[usageReviewerAttemptKey]bool{}
+	for _, response := range responses {
+		key := response.Agent + ":" + response.SourceID
+		binding, ok := bindings[key]
+		if !ok || binding.Conflict || !usableSources[key] || response.Provisional || response.Tokens.Validate() != nil || response.At.Before(binding.Since) || !response.At.Before(binding.Until) {
+			continue
+		}
+		resolved[usageReviewerAttemptKey{binding.Repository, binding.Issue, response.Agent, binding.Attempt}] = true
+	}
+	var coverage usage.Coverage
+	selected, _ := selectUsageReviewerRecords(records)
+	seen := map[usageReviewerAttemptKey]bool{}
+	for _, record := range selected {
+		if !usageReviewerAttemptRelevant(record, scope, windows, now) {
+			continue
+		}
+		if reviewusage.Validate(record) == nil && record.Phase == reviewusage.Finished && record.Outcome == "launch-failed" {
+			continue
+		}
+		intent := record.Intent
+		key := usageReviewerAttemptKey{intent.Repository, intent.IssueID, intent.Agent, intent.ID}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		if record.Phase != reviewusage.Finished {
+			coverage.Add("unfinished_reviewer_bindings", intent.Agent+"/"+intent.ID)
+		}
+		if !resolved[key] {
+			coverage.Add("unresolved_reviewer_usage", intent.Agent+"/"+intent.ID+": no usable bound response evidence")
+		}
+	}
+	return coverage
+}
+
+func usageReviewerAttemptRelevant(record reviewusage.Record, scope usageReviewerScope, windows []usage.Window, now time.Time) bool {
+	i := record.Intent
+	if scope.Repository != "" && i.Repository != scope.Repository || scope.Issue > 0 && i.IssueID != fmt.Sprintf("%06d", scope.Issue) {
+		return false
+	}
+	if scope.Agent != "" && i.Agent != scope.Agent && (i.Agent == "claude" || i.Agent == "codex" || i.Agent == "gemini") {
+		return false
+	}
+	start, err := time.Parse(time.RFC3339Nano, i.RequestedAt)
+	if err != nil {
+		return true
+	} // malformed uncertainty cannot prove irrelevance
+	end := now
+	if record.FinishedAt != "" {
+		end, err = time.Parse(time.RFC3339Nano, record.FinishedAt)
+		if err != nil {
+			return true
+		}
+	}
+	if !end.After(start) {
+		end = start.Add(time.Nanosecond)
+	}
+	for _, window := range windows {
+		if window.Until.After(window.Since) && start.Before(window.Until) && end.After(window.Since) {
+			return true
+		}
+	}
+	return false
 }

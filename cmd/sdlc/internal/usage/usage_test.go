@@ -376,7 +376,7 @@ func TestClaudeStructuredAggregateIsCoverageOnly(t *testing.T) {
 }
 
 func TestCompletenessIncludesAllSpendingAndReviewerGaps(t *testing.T) {
-	for _, kind := range []string{"source_mutations", "aggregate_usage_unreconciled"} {
+	for _, kind := range []string{"source_mutations", "aggregate_usage_unreconciled", "unresolved_reviewer_usage"} {
 		var c Coverage
 		c.Add(kind, "")
 		if c.Complete() || c.SpendComplete() {

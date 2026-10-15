@@ -507,3 +507,34 @@ selected-result filtering (ARCH-ORDER, ARCH-SECURE, ARCH-PURPOSE). Add productio
 collector matrix regressions and mutate the coverage wiring. The passing suite
 on006be910 remains evidence for that head only; behavior fixes need fresh suite
 and shared close.
+
+
+### 2026-10-15 01:55 — reviewer accounting reconciliation verified
+
+BR-7 now reconciles canonical per-attempt receipt copies after stable decoding
+and global normalization. The pure selectUsageReviewerRecords and
+reviewerUsageCoverage functions in usage_reviewers.go require a nonconflicting
+bound, complete reported response inside the attempt interval, or emit
+unresolved_reviewer_usage. collectUsage supplies stable-source evidence, merges
+issue/repository/window-scoped gaps into report and overall coverage, and merges
+agent/window-scoped gaps into fleet projections. Burn and meter intervals form
+the calibration window union; unrelated historical attempts do not poison it.
+Confirmed launch-failed receipts cannot claim worker activity. Requested prefixes
+superseded by Finished copies no longer create stale unfinished diagnostics.
+
+Production collector matrix:26 cases through private receipts, committed ledgers
+and comments after private cleanup, both issue/fleet modes; missing identity,
+absent/invalid/empty/malformed source evidence, zero/positive counters, confirmed
+failed launch and canonical phase prefixes. Clean GREEN74.284s; the earlier
+semantic GREEN was rejected only for concurrent test edits and is not acceptance
+evidence. Removing collector wiring fails2.917s. Focused resolver/binding/scope
+regressions pass14.198s; root pure reconciliation tests pass0.362s. Three core
+mutations fail0.434s/0.150s/0.540s. Usage/transcripts/reviewusage pass
+0.371s/0.432s/4.557s.
+
+A separately reproduced BR-5 model-context sibling is also fixed: turn_context
+before identity cannot mutate turn/legacy models. RED0.127s, full usage
+GREEN0.186s; four controls cover late/early/absent identity and local override.
+Missing owned model stays explicit unknown_model without discarding valid spend.
+All source edits are frozen. Commit, integrate main, and run fresh recorded suite
+before shared close. No prior suite is reused for this behavior change.

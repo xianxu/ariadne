@@ -47,7 +47,9 @@ usage has no cache and performs no tracker fetch or provider interaction.
 
 The scan is streaming and bounded (60s, 16384 sources, 4MiB lines, 250000
 response identities). Coverage names malformed/unsupported records, missing
-baselines, resets, provisional responses, truncation, and excluded attribution.
+baselines, resets, provisional responses, truncation, excluded attribution, and
+unresolved reviewer spend. A launched review without usable transcript evidence
+blocks complete coverage and the affected agent's calibrated projection.
 Codex usage before a valid executing-session identity is skipped with incomplete
 spend coverage; later headers cannot make that prefix safe retroactively. A
 missing working directory affects attribution, separately from spend coverage.

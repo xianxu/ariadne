@@ -1960,7 +1960,10 @@ recorded dispatch bindings, never guesses by repository overlap.
 receipts in the Git common directory's closed review-usage CAS namespace. The
 request persists before launch; cancellation uses a bounded cleanup context.
 An unfinished receipt is uncertainty, not evidence that the provider spent
-nothing. Typed copies enter round ledgers and sidecars after safe lock
+nothing. Canonical attempts need stable, complete bound response evidence or an
+explicit unresolved_reviewer_usage spend gap. These gaps follow issue/report
+windows and each agent's burn/calibration windows; confirmed launch failures are
+nonspending. Typed copies enter round ledgers and sidecars after safe lock
 reacquisition; accounting never advances a review gate or permits a retry.
 
 `sdlc usage calibrate --agent codex --remaining 29276 --unit credits` writes the
