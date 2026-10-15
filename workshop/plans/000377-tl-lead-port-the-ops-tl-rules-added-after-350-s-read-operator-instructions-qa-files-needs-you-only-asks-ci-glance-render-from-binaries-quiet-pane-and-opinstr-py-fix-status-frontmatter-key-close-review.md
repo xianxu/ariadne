@@ -74,3 +74,63 @@ findings:
     detail: |
       Matters only for a status file with CRLF line endings; strings.TrimRightFunc(unicode.IsSpace) would match the Python.
 ```
+
+---
+
+## Re-review — 2026-10-14T21:20:25-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 377 — tl-lead: port the ops TL rules added after #350's read (Operator instructions + QA files, Needs-you only asks, CI glance, render-from-binaries, quiet pane) and opinstr.py; fix status frontmatter key |
+| repo | ariadne |
+| issue file | workshop/issues/000377-tl-lead-port-the-ops-tl-rules-added-after-350-s-read-operator-instructions-qa-files-needs-you-only-asks-ci-glance-render-from-binaries-quiet-pane-and-opinstr-py-fix-status-frontmatter-key.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | d61f045ccd0821cdf86f26e2a8ff627cf162eea0..132a4e367c77022d1bbfa9badb1f1e7e204b05b6 |
+| command | sdlc close --issue 377 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-14T21:20:25-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both prior Minor findings are fixed in the interdiff, and each fix has a regression test that fails without it. In a disposable checkout I reverted only the two changes to `instructions.go` and ran `TestLinkBullet`. It failed in five places: the four bad TARGETs (`""`, `"qa/a b.md"`, a value containing a newline, `"qa/(x).md"`) were no longer refused, and the CRLF case returned `"1. a\r → [answer](…)"`. I then restored the file and confirmed the tree was clean. On the pinned head, `go test ./cmd/tl-lead` passes, and `gofmt` and `go vet` report nothing. Apart from the code, the interdiff adds only the generated gate ledger and the close-review record. `## Spec`, `## Revisions` and `## Done when` are unchanged, and no conflict resolutions are listed.
+
+1. **Strengths**
+   - `cmd/tl-lead/instructions.go:66` handles the whole class the finding names, not just newlines. Any `unicode.IsSpace` character (which covers newline, CR and tab), either parenthesis, and an empty target are all refused. That covers both ways the finding showed corruption: a fake bullet and a link that ends early.
+   - The check sits in the pure `linkBullet`, so `linkInstruction` reaches it after the hash check and before any write (`instructions.go:112`). A bad TARGET never reaches `WriteSection`.
+   - `instructions.go:79` now uses `TrimRightFunc(unicode.IsSpace)`, which matches Python's `rstrip()` on all whitespace, not only on CR.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings**
+   - Nit, not raised as a finding: the refusal message says TARGET "must be a relative path", but an absolute path with no whitespace or parentheses is accepted.
+
+5. **Test coverage notes:** `instructions_test.go:103-111` covers each rejection rule and the CRLF trim, and both go red when the fix is reverted.
+
+6. **Architectural notes (interdiff only)**
+   - **ARCH-DRY:** pass. The check lives in one place.
+   - **ARCH-PURE:** pass. The validation is in the pure linker and is tested without IO.
+   - **ARCH-PURPOSE:** pass. Both findings were fixed at the class level: all whitespace and both parentheses for BR-1, all Unicode whitespace for BR-2.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      instructions.go:66 refuses an empty TARGET, any unicode whitespace and either paren before linking; the refusal loop in instructions_test.go:103 goes red when the check is reverted.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      instructions.go:79 trims with TrimRightFunc(unicode.IsSpace), matching rstrip(); the CRLF test at instructions_test.go:109 goes red when reverted to TrimRight(" \t").
+```
