@@ -65,21 +65,29 @@ func (r *countedReader) Read(p []byte) (int, error) {
 // expected pins usage's preselected file identity and length; negative length
 // selects the current stat-sized prefix for actual discovery.
 func readQoderEvidence(ctx context.Context, path string, length int64, expected os.FileInfo) (SessionEvidence, error) {
+	s, _, err := readQoderEvidenceFor(ctx, path, length, expected, nil)
+	return s, err
+}
+
+// Relevance is conservative on failure: every recorded workspace remains a
+// possible owner after contradictory metadata. It never grants admission.
+func readQoderEvidenceFor(ctx context.Context, path string, length int64, expected os.FileInfo, requested map[string]bool) (SessionEvidence, bool, error) {
+	relevant := false
 	s := SessionEvidence{Harness: "qoder", File: path}
 	f, err := os.Open(path)
 	if err != nil {
-		return s, err
+		return s, relevant, err
 	}
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil {
-		return s, err
+		return s, relevant, err
 	}
 	if !info.Mode().IsRegular() {
-		return s, fmt.Errorf("nonregular qoder source")
+		return s, relevant, fmt.Errorf("nonregular qoder source")
 	}
 	if expected != nil && (!os.SameFile(expected, info) || info.Size() < length || info.Size() == length && !info.ModTime().Equal(expected.ModTime())) {
-		return s, fmt.Errorf("qoder source changed before metadata scan")
+		return s, relevant, fmt.Errorf("qoder source changed before metadata scan")
 	}
 	if length < 0 {
 		length = info.Size()
@@ -93,46 +101,62 @@ func readQoderEvidence(ctx context.Context, path string, length int64, expected 
 	records := 0
 	for scanner.Scan() {
 		if err := ctx.Err(); err != nil {
-			return s, err
+			return s, relevant, err
 		}
 		if strings.TrimSpace(scanner.Text()) == "" {
 			continue
 		}
 		records++
 		if records > qoderRecordLimit {
-			return s, fmt.Errorf("qoder metadata record limit exceeded")
+			return s, relevant, fmt.Errorf("qoder metadata record limit exceeded")
 		}
 		rec, err := qodertranscript.ParseRecord(scanner.Bytes())
 		if err != nil {
-			return s, err
+			return s, relevant, err
 		}
 		// Workspace ambiguity must not erase the known usage session. Sticky state
 		// retains contradictions; final Metadata decides actual admission.
+		if rec.Type == "workspace-directories" {
+			for _, cwd := range rec.Directories {
+				if requested[normalizedPath(cwd)] {
+					relevant = true
+				}
+			}
+		}
 		_ = state.Step(rec)
+		// Preserve partial proof for error classification, never successful admission.
+		if id, e := state.Identity(); e == nil {
+			s.ID = id
+		}
+		if m, _ := state.Metadata(); m.CWD != "" {
+			s.CWD, s.Started = m.CWD, m.StartedAt
+		}
 	}
 	if err := scanner.Err(); err != nil {
-		return s, fmt.Errorf("qoder metadata scan incomplete")
+		return s, relevant, fmt.Errorf("qoder metadata scan incomplete")
 	}
 	if err := ctx.Err(); err != nil {
-		return s, err
+		return s, relevant, err
 	}
 	if counted.n != length {
-		return s, fmt.Errorf("qoder source truncated during metadata scan")
+		return s, relevant, fmt.Errorf("qoder source truncated during metadata scan")
 	}
 	after, err := f.Stat()
 	if err != nil {
-		return s, err
+		return s, relevant, err
 	}
 	if after.Size() < length || after.Size() == info.Size() && !after.ModTime().Equal(info.ModTime()) {
-		return s, fmt.Errorf("qoder source changed during metadata scan")
+		return s, relevant, fmt.Errorf("qoder source changed during metadata scan")
 	}
 	s.Digest = fmt.Sprintf("%x", hash.Sum(nil))
 	id, idErr := state.Identity()
 	if idErr != nil {
-		return s, idErr
+		return s, relevant, idErr
 	}
 	s.ID = id
 	m, err := state.Metadata()
-	s.CWD, s.Started = m.CWD, m.StartedAt
-	return s, err
+	if err == nil {
+		s.CWD, s.Started = m.CWD, m.StartedAt
+	}
+	return s, relevant, err
 }

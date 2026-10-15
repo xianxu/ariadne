@@ -388,3 +388,23 @@ Mixed scopes retain their independently measured subtotal. Provider-local
 discovery diagnostics preserve agent isolation; candidate exhaustion marks the
 interrupted and later unscanned providers incomplete. These refine the approved
 truth/coverage contract without changing native units or ownership rules.
+
+### 2026-10-15 — delivered concept and file reconciliation
+
+Implementation uses qodertranscript.Record (the planned QoderRecord concept),
+SessionState.Step/Metadata/Identity/ConfigAt, and inline sanitized fixtures in
+record_test.go; no separate fixture directory or session_test.go was needed.
+decodeQoder performs one bounded scan plus pure reconciliation over retained
+response projections; there is no separate qoderState type. Identity's IO lives
+in agentid/qoder.go and Detect branches on QODER_CLI. Existing agentid.Env/Known
+and judge capability remain unchanged, preserving dispatch support without a
+new reviewer. Actual integration tests live in actual_qoder_test.go, and the
+existing shared actual/adoption production functions are reused. Coverage also
+retains possible owning-workspace relevance through source failures, refusing
+incomplete actual evidence rather than adopting partial hours.
+
+The initial function strategies map to these delivered functions; parser,
+config, arithmetic, normalization, projection, discovery and identity property
+checks plus production collector/actual/close fixtures pass. Remaining release
+steps are current-main integration, recorded full suite, shared close to SHIP,
+PR and merge. No new scope or deferred requested consumer.

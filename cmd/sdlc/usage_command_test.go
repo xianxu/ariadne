@@ -59,7 +59,7 @@ func TestUsageAuthorityPlanningNeedsNoCodeCommit(t *testing.T) {
 }
 func TestUsageFirstOutputFleetGlanceAndJSONNull(t *testing.T) {
 	now := time.Now().UTC()
-	out := usageOutput{SchemaVersion: 1, AgentGlance: []agentGlance{{Agent: "codex", LastHourTokens: 42, BurnTokensPerHour: 9, BurnWindow: usage.Window{Since: now.Add(-3 * time.Hour), Until: now}, Projection: usage.Projection{Status: "insufficient_calibration"}}}, Window: usage.Window{Since: now.Add(-time.Hour), Until: now}, IssueParts: []usageIssuePart{{Role: "worker", Tokens: 10}, {Role: "reviewer", Tokens: 32, Rounds: 2, Attempts: 3}, {Role: "total", Tokens: 42}}}
+	out := usageOutput{SchemaVersion: 1, AgentGlance: []agentGlance{{Agent: "codex", LastHourTokens: usageInt(42), BurnTokensPerHour: usageFloat(9), BurnWindow: usage.Window{Since: now.Add(-3 * time.Hour), Until: now}, Projection: usage.Projection{Status: "insufficient_calibration"}}}, Window: usage.Window{Since: now.Add(-time.Hour), Until: now}, IssueParts: []usageIssuePart{{Role: "worker", Tokens: usageInt(10)}, {Role: "reviewer", Tokens: usageInt(32), Rounds: 2, Attempts: 3}, {Role: "total", Tokens: usageInt(42)}}}
 	var b bytes.Buffer
 	if e := renderUsage(&b, out); e != nil {
 		t.Fatal(e)
@@ -131,10 +131,11 @@ func TestUsageSourcePinAllowsAppendButRefusesRewrites(t *testing.T) {
 
 func TestNormalizedUsageCoverageIsAgentScoped(t *testing.T) {
 	at := time.Now().UTC()
-	good := usage.Response{ID: "same", SourceID: "source", Agent: "codex", Model: "m", At: at, Tokens: usage.Counters{Input: 10, Output: 1}}
+	good := usage.Response{ID: "same", SourceID: "source", Agent: "codex", Model: "m", At: at, Tokens: &usage.Counters{Input: 10, Output: 1}}
 	bad := good
 	bad.Agent = "claude"
 	conflict := bad
+	conflict.Tokens = &usage.Counters{Input: bad.Tokens.Input, Output: bad.Tokens.Output}
 	conflict.Tokens.Input = 12
 	rows, global, byAgent, e := normalizeUsageEvidence([]usage.Response{good, bad, conflict})
 	if e != nil || len(rows) != 1 || !byAgent["codex"].SpendComplete() || byAgent["claude"].SpendComplete() || global.SpendComplete() {

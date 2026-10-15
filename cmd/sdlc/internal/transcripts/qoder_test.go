@@ -216,3 +216,35 @@ func TestQoderActualDiscoveryCandidateBoundIsVisible(t *testing.T) {
 		t.Fatalf("candidate bound accepted partial proof: %+v %v", got, err)
 	}
 }
+
+func TestQoderActualDiscoveryRefusesPartialOwnedEvidence(t *testing.T) {
+	for _, bad := range []string{
+		qoderRows("/repo") + "not-json\n",
+		qoderRows("/repo") + `{"type":"workspace-directories","sessionId":"S","directories":["/other"]}` + "\n",
+		qoderRows("/other") + `{"type":"workspace-directories","sessionId":"S","directories":["/repo"]}` + "\n",
+	} {
+		t.Run(fmt.Sprint(len(bad)), func(t *testing.T) {
+			root := t.TempDir()
+			good := strings.ReplaceAll(qoderRows("/repo"), `"S"`, `"good"`)
+			path := qoderFixture(t, root, good)
+			if err := os.WriteFile(filepath.Join(filepath.Dir(path), "bad-owned.jsonl"), []byte(bad), 0600); err != nil {
+				t.Fatal(err)
+			}
+			got, _, err := DiscoverEvidence(context.Background(), []string{"/repo"}, []Harness{QoderHarness(root)})
+			if err == nil || len(got) != 0 {
+				t.Fatalf("partial known-owner actual admitted: %+v err=%v", got, err)
+			}
+		})
+	}
+}
+func TestQoderActualDiscoveryUnrelatedMalformedSourceDoesNotBlock(t *testing.T) {
+	root := t.TempDir()
+	path := qoderFixture(t, root, qoderRows("/repo"))
+	if err := os.WriteFile(filepath.Join(filepath.Dir(path), "bad-unrelated.jsonl"), []byte(strings.ReplaceAll(qoderRows("/other"), `"S"`, `"other"`)+"not-json\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, warnings, err := DiscoverEvidence(context.Background(), []string{"/repo"}, []Harness{QoderHarness(root)})
+	if err != nil || len(got) != 1 || len(warnings) != 1 {
+		t.Fatalf("unrelated source blocks actual: %+v %v %v", got, warnings, err)
+	}
+}

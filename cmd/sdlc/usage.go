@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -25,19 +26,24 @@ type usageFlags struct {
 	Brain string
 }
 type agentGlance struct {
-	Agent             string           `json:"agent"`
-	LastHourTokens    int64            `json:"last_hour_tokens"`
-	BurnTokensPerHour float64          `json:"burn_tokens_per_hour"`
-	BurnWindow        usage.Window     `json:"burn_window"`
-	Scope             string           `json:"scope"`
-	Projection        usage.Projection `json:"projection"`
-	Coverage          usage.Coverage   `json:"coverage"`
+	LastHourCredits    *usage.CreditAmount `json:"last_hour_credits"`
+	BurnCreditsPerHour *float64            `json:"burn_credits_per_hour"`
+	Agent              string              `json:"agent"`
+	LastHourTokens     *int64              `json:"last_hour_tokens"`
+	BurnTokensPerHour  *float64            `json:"burn_tokens_per_hour"`
+	BurnWindow         usage.Window        `json:"burn_window"`
+	Scope              string              `json:"scope"`
+	Projection         usage.Projection    `json:"projection"`
+	Coverage           usage.Coverage      `json:"coverage"`
 }
 type usageIssuePart struct {
-	Role     string `json:"role"`
-	Tokens   int64  `json:"tokens"`
-	Rounds   int    `json:"rounds"`
-	Attempts int    `json:"attempts"`
+	Role            string              `json:"role"`
+	Tokens          *int64              `json:"tokens"`
+	Credits         *usage.CreditAmount `json:"credits"`
+	MeasuredTokens  *int64              `json:"measured_tokens"`
+	MeasuredCredits *usage.CreditAmount `json:"measured_credits"`
+	Rounds          int                 `json:"rounds"`
+	Attempts        int                 `json:"attempts"`
 }
 type usageOutput struct {
 	SchemaVersion int              `json:"schema_version"`
@@ -83,7 +89,7 @@ func NewUsageCmd() *cobra.Command {
 	cmd.Flags().StringVar(&f.Since, "since", "24h", "Detail window duration or RFC3339 timestamp; omitted with --issue means whole issue")
 	cmd.Flags().DurationVar(&f.Burn, "burn-window", 3*time.Hour, "Wall-clock burn window, 1h through 3h")
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "Issue ownership and reviewer token cost")
-	cmd.Flags().BoolVar(&f.JSON, "json", false, "Emit schema version 1 JSON")
+	cmd.Flags().BoolVar(&f.JSON, "json", false, "Emit schema version 2 JSON")
 	cmd.Flags().StringVar(&f.Brain, "brain-dir", "", "Explicit brain root for issue attribution")
 	cmd.PreRunE = func(cmd *cobra.Command, _ []string) error {
 		if cmd.Flags().Changed("since") && f.Since == "" {
@@ -112,13 +118,13 @@ func NewUsageCmd() *cobra.Command {
 			return e
 		}
 		writer := bufio.NewWriter(cmd.OutOrStdout())
-		fmt.Fprintf(writer, "Recorded %s %g %s (%d observations); two observations and complete token evidence are required for a projection.\n", agent, remaining, unit, len(usage.MeterPoints(m, agent, unit)))
+		fmt.Fprintf(writer, "Recorded %s %g %s (%d observations); two observations and complete native usage evidence are required for a projection.\n", agent, remaining, unit, len(usage.MeterPoints(m, agent, unit)))
 		if err := errors.Join(writer.Flush(), cmd.Context().Err()); err != nil {
 			return fmt.Errorf("meter observation recorded; summary output failed: %w", err)
 		}
 		return nil
 	}}
-	cal.Flags().StringVar(&agent, "agent", "", "codex or claude")
+	cal.Flags().StringVar(&agent, "agent", "", "claude, codex or qoder")
 	cal.Flags().StringVar(&unit, "unit", "", "credits or percent")
 	cal.Flags().Float64Var(&remaining, "remaining", 0, "Account meter remaining")
 	for _, flag := range []string{"agent", "unit", "remaining"} {
@@ -144,7 +150,7 @@ func usageSince(raw string, now time.Time) (time.Time, error) {
 	return t, nil
 }
 func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput, error) {
-	out := usageOutput{SchemaVersion: 1, CapturedAt: now, Issue: f.Issue, Provenance: "reported local response usage; account quota coverage may differ"}
+	out := usageOutput{SchemaVersion: 2, CapturedAt: now, Issue: f.Issue, Provenance: "reported local response usage; account quota coverage may differ"}
 	since, e := usageSince(f.Since, now)
 	if e != nil {
 		return out, e
@@ -190,7 +196,7 @@ func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput
 	if e != nil {
 		return out, e
 	}
-	for _, agent := range []string{"claude", "codex"} {
+	for _, agent := range usage.Agents() {
 		for _, unit := range []string{"credits", "percent"} {
 			points := usage.MeterPoints(meter, agent, unit)
 			if len(points) == 2 && now.Sub(points[0].At) <= 7*24*time.Hour && points[0].At.Before(scanSince) {
@@ -210,8 +216,20 @@ func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput
 		coverage.Counts[k] = int64(v)
 	}
 	var commonCoverage usage.Coverage
-	commonCoverage.Merge(coverage)
-	parserCoverage := map[string]*usage.Coverage{"codex": {}, "claude": {}}
+	commonCoverage.Counts = map[string]int64{}
+	for kind, n := range discovery.GlobalDiagnostics {
+		commonCoverage.Counts[kind] = int64(n)
+	}
+	parserCoverage := map[string]*usage.Coverage{}
+	for _, agent := range usage.Agents() {
+		parserCoverage[agent] = &usage.Coverage{Counts: map[string]int64{}}
+		for kind, n := range discovery.AgentDiagnostics[agent] {
+			if kind == "sources" {
+				kind = "discovered_sources"
+			}
+			parserCoverage[agent].Counts[kind] = int64(n)
+		}
+	}
 	var responses []usage.Response
 	usableSources := map[string]bool{}
 	for _, s := range discovery.Sources {
@@ -304,14 +322,14 @@ func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput
 	out.Report.Coverage.Merge(reviewerUsageCoverage(reviewers, reviewerMap, responses, usableSources, now, usageReviewerScope{Repository: authority.Repository, Issue: f.Issue}, []usage.Window{out.Window}))
 	coverage.Merge(out.Report.Coverage)
 	out.Coverage = coverage
-	for _, agent := range []string{"claude", "codex"} {
+	for _, agent := range usage.Agents() {
 		only := func(r usage.Response) usage.Attribution { a := fleetResolve(r); a.Include = r.Agent == agent; return a }
 		hour, e := usage.AggregateUsage(responses, usage.Window{Since: now.Add(-time.Hour), Until: now}, burn, only)
 		if e != nil {
 			return out, e
 		}
-		total, _ := hour.Totals.Total()
-		glance := agentGlance{Agent: agent, LastHourTokens: total, BurnTokensPerHour: hour.BurnTokensPerHour, BurnWindow: burn, Scope: "fleet"}
+		usageNativeEmpty(&hour, agent)
+		glance := agentGlance{Agent: agent, LastHourTokens: usageTokenTotal(hour.Totals), LastHourCredits: hour.Credits, BurnTokensPerHour: hour.BurnTokensPerHour, BurnCreditsPerHour: hour.BurnCreditsPerHour, BurnWindow: burn, Scope: "fleet"}
 		unit := "credits"
 		latest := time.Time{}
 		for _, o := range meter.Observations {
@@ -328,13 +346,27 @@ func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput
 		glance.Coverage.Merge(normalizedCoverage[agent])
 		viewCoverage := hour.Coverage
 		var calibrationTokens int64
+		var calibrationCredits usage.CreditAmount
+		calibrationComplete := true
 		if len(points) == 2 && now.Sub(points[0].At) <= 7*24*time.Hour {
 			report, e := usage.AggregateUsage(responses, usage.Window{Since: points[0].At, Until: points[1].At}, burn, only)
 			if e != nil {
 				return out, e
 			}
 			viewCoverage = report.Coverage
-			calibrationTokens, _ = report.Totals.Total()
+			if agent == "qoder" {
+				if report.Credits != nil {
+					calibrationCredits = *report.Credits
+				} else {
+					calibrationComplete = false
+				}
+			} else {
+				if report.Totals != nil {
+					calibrationTokens, _ = report.Totals.Total()
+				} else {
+					calibrationComplete = false
+				}
+			}
 		}
 		glance.Coverage.Merge(viewCoverage)
 		reviewerWindows := []usage.Window{burn}
@@ -342,7 +374,11 @@ func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput
 			reviewerWindows = append(reviewerWindows, usage.Window{Since: points[0].At, Until: points[1].At})
 		}
 		glance.Coverage.Merge(reviewerUsageCoverage(reviewers, reviewerMap, responses, usableSources, now, usageReviewerScope{Agent: agent}, reviewerWindows))
-		glance.Projection = usage.ProjectMeter(meter, agent, unit, now, calibrationTokens, hour.BurnTokensPerHour, glance.Coverage.SpendComplete())
+		if agent == "qoder" {
+			glance.Projection = usage.ProjectCreditMeter(meter, agent, unit, now, calibrationCredits, usageRate(hour.BurnCreditsPerHour), glance.Coverage.SpendComplete() && calibrationComplete)
+		} else {
+			glance.Projection = usage.ProjectMeter(meter, agent, unit, now, calibrationTokens, usageRate(hour.BurnTokensPerHour), glance.Coverage.SpendComplete() && calibrationComplete)
+		}
 		out.AgentGlance = append(out.AgentGlance, glance)
 	}
 	if f.Issue > 0 {
@@ -369,26 +405,121 @@ func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput
 	}
 	return out, ctx.Err()
 }
+func usageTokenTotal(c *usage.Counters) *int64 {
+	if c == nil {
+		return nil
+	}
+	n, _ := c.Total()
+	return &n
+}
+func usageRate(v *float64) float64 {
+	if v == nil {
+		return 0
+	}
+	return *v
+}
+
+// No responses still has a known native zero for each supported agent.
+func usageNativeEmpty(r *usage.Report, agent string) {
+	var responses int64
+	for _, g := range r.Groups {
+		responses += g.Responses
+	}
+	zero := float64(0)
+	if responses == 0 {
+		if agent == "qoder" {
+			r.Credits = &usage.CreditAmount{}
+		} else {
+			r.Totals = &usage.Counters{}
+		}
+	}
+	if len(r.Groups) == 0 {
+		if agent == "qoder" {
+			r.BurnCreditsPerHour = &zero
+		} else {
+			r.BurnTokensPerHour = &zero
+		}
+	}
+}
 func usageIssueParts(report usage.Report) []usageIssuePart {
 	parts := []usageIssuePart{{Role: "worker"}, {Role: "reviewer"}, {Role: "total"}}
 	rounds, attempts := map[string]bool{}, map[string]bool{}
+	tokenUnknown, creditUnknown := [3]bool{}, [3]bool{}
 	for _, g := range report.Groups {
 		if g.Responses == 0 {
 			continue
 		}
-		n, _ := g.Tokens.Total()
 		i := 0
 		if g.Role == "reviewer" {
 			i = 1
 			rounds[g.Round] = true
 			attempts[g.Attempt] = true
 		}
-		parts[i].Tokens += n
-		parts[2].Tokens += n
+		for _, idx := range []int{i, 2} {
+			p := &parts[idx]
+			if g.Tokens == nil {
+				tokenUnknown[idx] = true
+			}
+			if g.MeasuredDimensions != nil {
+				n, _ := g.MeasuredDimensions.Total()
+				if p.MeasuredTokens == nil {
+					p.MeasuredTokens = new(int64)
+				}
+				*p.MeasuredTokens += n
+			}
+			if g.Credits == nil {
+				creditUnknown[idx] = true
+			}
+			if g.MeasuredCredits != nil {
+				if p.MeasuredCredits == nil {
+					v := *g.MeasuredCredits
+					p.MeasuredCredits = &v
+				} else {
+					v, _ := p.MeasuredCredits.Add(*g.MeasuredCredits)
+					p.MeasuredCredits = &v
+				}
+			}
+		}
+	}
+	for i := range parts {
+		if !tokenUnknown[i] {
+			if parts[i].MeasuredTokens != nil {
+				parts[i].Tokens = parts[i].MeasuredTokens
+			}
+		}
+		if !creditUnknown[i] {
+			parts[i].Credits = parts[i].MeasuredCredits
+		}
 	}
 	parts[1].Rounds = len(rounds)
 	parts[1].Attempts = len(attempts)
 	return parts
+}
+
+// usageAmounts labels known native subtotals whenever a full total is unknown.
+func usageAmounts(tokens *int64, credits *usage.CreditAmount, knownTokens *int64, knownCredits *usage.CreditAmount) string {
+	var amounts []string
+	if tokens != nil {
+		amounts = append(amounts, fmt.Sprintf("%d tokens", *tokens))
+	} else if knownTokens != nil {
+		amounts = append(amounts, fmt.Sprintf("tokens unknown (known subtotal %d tokens)", *knownTokens))
+	} else {
+		amounts = append(amounts, "tokens unknown")
+	}
+	if credits != nil {
+		amounts = append(amounts, credits.String()+" credits")
+	} else if knownCredits != nil {
+		amounts = append(amounts, "credits unknown (known subtotal "+knownCredits.String()+" credits)")
+	} else if tokens == nil && knownTokens == nil {
+		amounts = append(amounts, "credits unknown")
+	}
+	if credits != nil && tokens == nil && knownTokens == nil {
+		amounts = append(amounts[1:], amounts[0])
+	}
+	return strings.Join(amounts, "; ")
+}
+func usageReportAmounts(r usage.Report) string {
+	return usageAmounts(usageTokenTotal(r.Totals), r.Credits, usageTokenTotal(r.MeasuredDimensions), r.MeasuredCredits)
 }
 func renderUsage(w io.Writer, out usageOutput) error {
 	writer := bufio.NewWriter(w)
@@ -398,29 +529,45 @@ func renderUsage(w io.Writer, out usageOutput) error {
 		if g.Projection.HoursRemaining != nil {
 			projection = fmt.Sprintf("%.1fh remaining (%s)", *g.Projection.HoursRemaining, g.Projection.Unit)
 		}
-		fmt.Fprintf(w, "%s: last hour %d tokens; burn %.0f tokens/h (%gh); %s\n", g.Agent, g.LastHourTokens, g.BurnTokensPerHour, g.BurnWindow.Until.Sub(g.BurnWindow.Since).Hours(), projection)
+		amount, rate, unit := "unknown", usageRate(g.BurnTokensPerHour), "tokens"
+		if g.LastHourTokens != nil {
+			amount = fmt.Sprint(*g.LastHourTokens)
+		}
+		if g.Agent == "qoder" {
+			unit = "credits"
+			rate = usageRate(g.BurnCreditsPerHour)
+			if g.LastHourCredits != nil {
+				amount = g.LastHourCredits.String()
+			}
+		}
+		rateText := fmt.Sprintf("%g", rate)
+		if g.Agent == "qoder" && g.BurnCreditsPerHour == nil || g.Agent != "qoder" && g.BurnTokensPerHour == nil {
+			rateText = "unknown"
+		}
+		fmt.Fprintf(w, "%s: last hour %s %s; burn %s %s/h (%gh); %s\n", g.Agent, amount, unit, rateText, unit, g.BurnWindow.Until.Sub(g.BurnWindow.Since).Hours(), projection)
 	}
 	fmt.Fprintf(w, "\n%s → %s\n%s\n", out.Window.Since.Format(time.RFC3339), out.Window.Until.Format(time.RFC3339), out.Provenance)
 	for _, p := range out.IssueParts {
-		fmt.Fprintf(w, "%s: %d tokens", p.Role, p.Tokens)
+		fmt.Fprintf(w, "%s: %s", p.Role, usageAmounts(p.Tokens, p.Credits, p.MeasuredTokens, p.MeasuredCredits))
 		if p.Role == "reviewer" {
 			fmt.Fprintf(w, " (%d rounds, %d attempts)", p.Rounds, p.Attempts)
 		}
 		fmt.Fprintln(w)
 	}
 	if out.Unbound != nil {
-		n, _ := out.Unbound.Totals.Total()
-		fmt.Fprintf(w, "Unbound fleet evidence: %d tokens (excluded from issue totals; %s → %s)\n", n, out.UnboundWindow.Since.Format(time.RFC3339), out.UnboundWindow.Until.Format(time.RFC3339))
+		fmt.Fprintf(w, "Unbound fleet evidence: %s (excluded from issue totals; %s → %s)\n", usageReportAmounts(*out.Unbound), out.UnboundWindow.Since.Format(time.RFC3339), out.UnboundWindow.Until.Format(time.RFC3339))
 	}
 	for _, g := range out.Report.Groups {
-		n, _ := g.Tokens.Total()
 		if g.Responses > 0 {
-			fmt.Fprintf(w, "%s %s %s %s: %d tokens (input %d, output %d; cache read %s, write %s; reasoning %s)\n", g.Slot, g.Agent, g.Model, g.Role, n, g.Tokens.Input, g.Tokens.Output, usageDimension(g.Tokens.CacheRead), usageDimension(g.Tokens.CacheWrite), usageDimension(g.Tokens.Reasoning))
+			fmt.Fprintf(w, "%s %s %s %s: %s", g.Slot, g.Agent, g.Model, g.Role, usageAmounts(usageTokenTotal(g.Tokens), g.Credits, usageTokenTotal(g.MeasuredDimensions), g.MeasuredCredits))
+			if g.Tokens != nil {
+				fmt.Fprintf(w, " (input %d, output %d; cache read %s, write %s; reasoning %s)", g.Tokens.Input, g.Tokens.Output, usageDimension(g.Tokens.CacheRead), usageDimension(g.Tokens.CacheWrite), usageDimension(g.Tokens.Reasoning))
+			}
+			fmt.Fprintln(w)
 		}
 	}
 	for _, h := range out.Report.Hourly {
-		n, _ := h.Tokens.Total()
-		fmt.Fprintf(w, "Hour %s (%gh): %d tokens\n", h.At.Format(time.RFC3339), h.DurationHours, n)
+		fmt.Fprintf(w, "Hour %s (%gh): %s\n", h.At.Format(time.RFC3339), h.DurationHours, usageAmounts(usageTokenTotal(h.Tokens), h.Credits, usageTokenTotal(h.MeasuredDimensions), h.MeasuredCredits))
 	}
 	if out.Actual != nil {
 		if out.Actual.Hours != nil {

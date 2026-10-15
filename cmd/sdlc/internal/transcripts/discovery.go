@@ -43,9 +43,16 @@ func discoverEvidence(ctx context.Context, cwds []string, hs []Harness, qoderLim
 			return nil
 		}
 		seen[path] = true
-		s, err := readEvidenceMetadata(ctx, path, harness, cwd)
+		var s SessionEvidence
+		var err error
+		relevant := false
+		if harness == "qoder" {
+			s, relevant, err = readQoderEvidenceFor(ctx, path, -1, nil, allowed)
+		} else {
+			s, err = readEvidenceMetadata(ctx, path, harness, cwd)
+		}
 		if err != nil {
-			if known || allowed[normalizedPath(s.CWD)] || ctx.Err() != nil {
+			if known || relevant || allowed[normalizedPath(s.CWD)] || ctx.Err() != nil {
 				return fmt.Errorf("source %s: %w", path, err)
 			}
 			warnings = append(warnings, fmt.Sprintf("skipped source %s: %v", path, err))

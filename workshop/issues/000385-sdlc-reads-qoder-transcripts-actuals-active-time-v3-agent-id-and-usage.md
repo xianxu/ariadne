@@ -58,7 +58,7 @@ Durable design: [Qoder transcript measurements](../plans/000385-qoder-transcript
   native-unit aggregation/calibration through existing usage primitives.
 - [x] Recorded-workspace discovery feeding ownership-proven actuals and close
   adoption, with retained-prefix and cross-checkout regression fixtures.
-- [ ] Measured invoking-session binding and Qoder identity; keep observed-agent
+- [x] Measured invoking-session binding and Qoder identity; keep observed-agent
   recognition separate from gate-reviewer CLI capability.
 - [ ] Native columns and coverage across fleet/slot/model/issue/hourly output;
   documentation, conformance, exact-head suite, close review and SHIP landing.
@@ -168,6 +168,38 @@ that decision before the gate rerun; no production code changed.
   unambiguous issue attribution. Final empty-role null regression is in progress.
 - Remaining: finish root output tests, reconcile inventory/docs, merge current
   main, record exact-head full suite, shared close review to SHIP, PR and merge.
+
+### 2026-10-15 — integrated candidate and targeted verification
+
+- Native output, issue/unknown scopes, minimal two-point credit calibration,
+  provider isolation, measured partial subtotals and empty-role null behavior
+  pass focused root tests (6.790s). Broader usage/reviewer tests pass (118.657s);
+  exact production boundary/planning review-accounting tests pass (7.597s).
+  Output-error and short-writer behavior remains covered.
+- Real-sample identity conformance through production Detector also passes:
+  qoder/auto/-. Both live checks use external read-only Go overlays; no private
+  JSONL is copied into this branch. Portable checked-in inline fixtures preserve
+  only the observed protocol shape and invented content/identifiers.
+- Late malformed owned evidence reproduced partial-adoption risk: a good owned
+  source was admitted while the bad owned source lost its relevance on error.
+  Discovery now retains possible workspace relevance through all failure paths;
+  requested-owner uncertainty refuses rather than yielding partial hours.
+  Unrelated malformed sources remain warnings. Full transcripts/race tests pass.
+- Temporary build volume /Volumes/AgentScratch filled; main Data volume has
+  space. No cleanup or global Go configuration changes performed. Final targeted
+  checks use a fresh temporary GOTMPDIR on main Data. Asked hub to coordinate
+  scratch relief or the full-suite environment; suite not started yet.
+
+Delivered concept/file reconciliation: typed Record/SessionState live in
+internal/qodertranscript/{record,session}.go with inline fixtures/property tests
+in record_test.go; native arithmetic/measurements/decoder/meter live in
+internal/usage/{credits,types,aggregate,qoder,calibration}.go; discovery owns
+internal/transcripts/qoder.go and scoped usage diagnostics. Invoking identity
+lives in internal/agentid/qoder.go plus Detect's native-marker branch. Existing
+Env/Known and judge dispatch capability remain unchanged; no Qoder reviewer CLI
+was added. Outer collector/renderers and issue parts live in usage.go; actual
+adoption integration lives in actual_qoder_test.go. This supersedes proposed
+file splits/names in the initial plan without adding another runtime owner.
 
 - Plan-quality round 2 CLEAN: PQ-1 and PQ-2 addressed, no new findings.
 

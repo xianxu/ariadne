@@ -1,9 +1,9 @@
-Report token usage from local Claude and Codex transcripts, without contacting
-or launching an agent. These are reported response counters; they are not an
+Report native usage from local Claude, Codex and Qoder transcripts, without contacting
+or launching an agent. These are reported response tokens or native Qoder credits; they are not an
 account quota or invoice. Cache reads/writes are included in input, and reasoning
 is included in output. Unsupported dimensions are null in JSON, not assumed zero.
 
-The first rows are a fleet glance per agent: tokens in the last hour, wall-clock
+The first rows are a fleet glance per agent: native tokens or credits in the last hour, wall-clock
 burn over --burn-window (default 3h, range 1h–3h), and a calibrated account
 projection when evidence supports one. These rows always cover the fleet's
 recent window, independently of the detail window or --issue.
@@ -13,12 +13,12 @@ DETAIL
   --since 2026-10-14T00:00:00Z
   --issue 365               whole issue unless --since was explicitly supplied
   --issue 365 --brain-dir /path/to/brain
-  --json                    schema_version 1, integer counters, explicit coverage
+  --json                    schema_version 2, nullable tokens, exact decimal credits, explicit coverage
 
 Issue usage follows the owning slot's claim→release intervals and explicitly
 bound descendants. A reclaim starts a fresh interval. A completed issue ends
 at its exact completion evidence commit. Worker, reviewer (rounds and attempts),
-and total tokens appear separately; reviewer bindings take precedence so spend
+and total native usage appear separately; reviewer bindings take precedence so spend
 is counted once. Active time is reported with its own provenance and window,
 which deliberately excludes the verification tail that token usage includes.
 The local tracker snapshot is read without fetching; refresh it separately when
@@ -32,9 +32,11 @@ appear in unknown-slot; ambiguity does not become guessed ownership.
 CALIBRATION
   sdlc usage calibrate --agent codex --remaining 29276 --unit credits
   sdlc usage calibrate --agent claude --remaining 70 --unit percent
+  sdlc usage calibrate --agent qoder --remaining 500 --unit credits
 
 Record two observations of the same agent and unit. The meter's decrease is
-calibrated against measured local tokens between those observations, across all
+calibrated against measured local tokens (Claude/Codex) or credits (Qoder)
+between those observations, across all
 slots. One observation, a refill, zero activity, stale readings (7 days), or
 incomplete spend evidence produces a status and null projection. A projected
 time is an empirical local rate, not a provider limit. Percent must be 0–100;
@@ -54,3 +56,16 @@ Codex usage before a valid executing-session identity is skipped with incomplete
 spend coverage; later headers cannot make that prefix safe retroactively. A
 missing working directory affects attribution, separately from spend coverage.
 A bound is a visible incomplete report; cancellation exits unsuccessfully.
+
+Qoder reads ~/.qoder/projects/*/*.jsonl. Workspace metadata supplies slot
+attribution, and the reported model (including auto) is preserved. Terminal
+billable usage.credits is native spend; original_credits is not added. Streaming
+snapshots and copied responses are deduplicated. Qoder placeholder token fields
+are unsupported and stay null, including measured_dimensions. A measured zero
+credit response is distinct from missing charge evidence.
+
+Mixed reports expose null full totals for any unit unknown in an included
+response. measured_dimensions and measured_credits retain only the known
+subtotals and are null when that unit has no measured response. Text labels
+these known subtotals; credits are never converted into tokens. Hourly, group,
+issue worker/reviewer/total and unbound evidence preserve the same distinction.
