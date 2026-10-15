@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: operator, spec: "e0dbb6a8", done: "c4c4b671"}
 ---
 
 # sdlc actuals fail machine-wide on a Qoder subagent transcript ('incomplete qoder session metadata') after #385
