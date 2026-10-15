@@ -58,6 +58,13 @@ func Decode(ctx context.Context, agent, sourceID string, reader io.Reader) ([]Re
 		var r record
 		if e := json.Unmarshal(scanner.Bytes(), &r); e != nil {
 			coverage.Add("malformed_records", "invalid JSON record")
+			if agent == "codex" && !state.metadataSeen {
+				// Discovery cannot recover identity across an unreadable prefix.
+				// It may contain the actual first header; a later copied header
+				// cannot safely replace that unknown executing identity.
+				state.metadataSeen = true
+				coverage.Add("unknown_metadata", "unreadable Codex metadata prefix")
+			}
 			if partialTail {
 				coverage.Add("truncated_tails", "incomplete final JSONL record")
 			}

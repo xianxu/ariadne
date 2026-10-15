@@ -20,7 +20,9 @@ type usageReviewBinding struct {
 	Exact                                   bool
 }
 
-func loadUsageReviewers(ctx context.Context, repos []string, issueFilter int) ([]reviewusage.Record, usage.Coverage, error) {
+// loadUsageReviewers loads role-exclusion identities across all issues. issueScope
+// limits legacy-gap diagnostics only; included totals are filtered after binding.
+func loadUsageReviewers(ctx context.Context, repos []string, issueScope int) ([]reviewusage.Record, usage.Coverage, error) {
 	var records []reviewusage.Record
 	var coverage usage.Coverage
 	seen := map[string]bool{}
@@ -63,9 +65,6 @@ func loadUsageReviewers(ctx context.Context, repos []string, issueFilter int) ([
 					return nil
 				}
 				name := d.Name()
-				if issueFilter > 0 && !strings.HasPrefix(name, fmt.Sprintf("%06d-", issueFilter)) {
-					return nil
-				}
 				if !strings.HasSuffix(name, "-gate.md") && !strings.HasSuffix(name, "-review.md") {
 					return nil
 				}
@@ -94,6 +93,15 @@ func loadUsageReviewers(ctx context.Context, repos []string, issueFilter int) ([
 					evidenceCoverage.Add("unavailable_reviewer_bindings", "reviewer ledger missing frontmatter")
 				}
 				records = append(records, retained...)
+				// Exclusive role selection needs every issue's retained identity,
+				// including reviewers executing inside an owned worker checkout.
+				// Legacy rounds without identity only diagnose the selected issue
+				// (or the whole fleet). Unreadable evidence remains visible for
+				// every issue because it may hide a required role exclusion.
+				if issueScope > 0 && !strings.HasPrefix(name, fmt.Sprintf("%06d-", issueScope)) {
+					delete(evidenceCoverage.Counts, "legacy_reviewer_binding_gaps")
+					delete(evidenceCoverage.Examples, "legacy_reviewer_binding_gaps")
+				}
 				coverage.Merge(evidenceCoverage)
 				return nil
 			})

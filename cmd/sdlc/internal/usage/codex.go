@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/transcripts"
 )
 
 type codexState struct {
 	source, model, thread string
+	metadataSeen          bool
 	models                map[string]string
 	modern                []Response
 	legacy                []Response
@@ -32,15 +35,16 @@ type codexUsage struct {
 func (s *codexState) step(r record, c *Coverage) error {
 	switch r.Type {
 	case "session_meta":
-		var q struct {
-			ID string `json:"id"`
+		if s.metadataSeen {
+			return nil
 		}
-		if e := json.Unmarshal(r.Payload, &q); e != nil {
-			return e
+		s.metadataSeen = true
+		id, err := transcripts.CodexExecutingID(r.Payload)
+		if err != nil {
+			c.Add("unknown_metadata", "invalid first Codex executing identity")
+			return err
 		}
-		if s.thread == "" {
-			s.thread = q.ID
-		}
+		s.thread = id
 	case "turn_context":
 		var q struct {
 			TurnID string `json:"turn_id"`
@@ -204,6 +208,9 @@ func rememberCumulativeMaximum(maximum **Counters, next Counters) {
 func (s *codexState) finish(c *Coverage) []Response {
 	if !s.modernSeen {
 		return s.legacy
+	}
+	if !s.metadataSeen {
+		c.Add("unknown_metadata", "Codex executing identity metadata absent")
 	}
 	// Cumulative snapshots are diagnostic only in modern files. Their initial
 	// baseline gap does not make authoritative response evidence incomplete.

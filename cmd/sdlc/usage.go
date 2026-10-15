@@ -246,7 +246,7 @@ func collectUsage(ctx context.Context, f usageFlags, now time.Time) (usageOutput
 	}
 	coverage.Merge(c)
 	slots := usageSessionSlots(discovery.Sessions, roots)
-	reviewers, reviewCoverage, e := loadUsageReviewers(ctx, reviewRepositories(root, repos, f.Issue), f.Issue)
+	reviewers, reviewCoverage, e := loadUsageReviewers(ctx, reviewRepositories(root, repos), f.Issue)
 	if e != nil {
 		return out, e
 	}
@@ -461,11 +461,21 @@ func actualUsageStatus(a actualResult) string {
 		return "error: " + a.Detail
 	}
 }
-func reviewRepositories(root string, repos []string, issue int) []string {
-	if issue > 0 {
-		return []string{root}
+
+// Reviewer dispatch can run in another issue's owned sessions, including bound
+// descendants working across repositories. Keep fleet identities for exclusion
+// before selecting an issue's totals, with the current repository first.
+func reviewRepositories(root string, repos []string) []string {
+	out := []string{root}
+	seen := map[string]bool{filepath.Clean(root): true}
+	for _, repo := range repos {
+		key := filepath.Clean(repo)
+		if !seen[key] {
+			seen[key] = true
+			out = append(out, repo)
+		}
 	}
-	return repos
+	return out
 }
 
 func usageSourceStable(pin, before, after os.FileInfo) bool {

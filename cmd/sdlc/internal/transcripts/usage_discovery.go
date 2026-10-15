@@ -314,8 +314,6 @@ func readUsageMetadata(ctx context.Context, c *usageCandidate) error {
 			CWD       string `json:"cwd"`
 			AgentID   string `json:"agentId"`
 			Payload   struct {
-				ID        string          `json:"id"`
-				ThreadID  string          `json:"thread_id"`
 				CWD       string          `json:"cwd"`
 				Timestamp string          `json:"timestamp"`
 				ParentID  string          `json:"parent_thread_id"`
@@ -329,10 +327,17 @@ func readUsageMetadata(ctx context.Context, c *usageCandidate) error {
 			if rec.Type != "session_meta" {
 				return nil
 			}
-			c.ID = rec.Payload.ID
-			if c.ID == "" {
-				c.ID = rec.Payload.ThreadID
+			var envelope struct {
+				Payload json.RawMessage `json:"payload"`
 			}
+			if err := json.Unmarshal(raw, &envelope); err != nil {
+				return fmt.Errorf("malformed metadata")
+			}
+			id, err := CodexExecutingID(envelope.Payload)
+			if err != nil {
+				return err
+			}
+			c.ID = id
 			c.CWD = rec.Payload.CWD
 			var source struct {
 				Subagent struct {

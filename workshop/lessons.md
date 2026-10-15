@@ -808,3 +808,10 @@ The simplest durable authority beats a clever scan of consequences.
 - Enumerate cumulative counter scopes as well as formats. Compare each turn's
   high-water evidence with that turn's response union; unrelated turns must not
   mask a missing segment (#365 BR-1).
+
+- Discovery and decoding must share one immutable executing-identity parser.
+  Preserve failed first metadata as uncertainty; later copied headers cannot
+  repair it. Exercise the production discovery→decoder pair (#365 BR-5).
+- Load exclusion evidence before filtering requested results. Reviewer identity
+  must survive cross-issue/repository selection and private-receipt cleanup;
+  test the committed artifact after the private copy is collected (#365 BR-6).

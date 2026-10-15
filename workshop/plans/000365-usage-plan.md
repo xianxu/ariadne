@@ -34,6 +34,7 @@ Paths below are relative to cmd/sdlc/. Status is relative to the issue's pinned 
 | Accounting artifact validation and quarantine decoding | reviewer_accounting.go; internal/reviewusage/store.go (ParseAccountingEvidence) | new; pure decoding functions alongside IO adapters |
 | Issue ownership interval derivation | internal/tracker/engagement.go | reused unchanged |
 | Session/source lineage eligibility | internal/transcripts/provenance.go | reused unchanged |
+| Immutable Codex executing identity | internal/transcripts/codex_identity.go | new; pure shared parser |
 | Slot, worker-window and role selection | usage_inputs.go; usage_reviewers.go; usage.go | new; pure selection functions share files with IO adapters |
 | Optional reviewer records on gate ledgers/rounds | internal/gatestate/ledger.go | modified |
 
@@ -45,6 +46,7 @@ Counters use checked int64 arithmetic and dimension presence. Canonical input in
 |---|---|---|---|
 | Usage source enumeration/streaming | internal/transcripts/usage_discovery.go | new | JSONL/meta files and harness registry; actual's root-only discovery unchanged |
 | Bounded normalized-record reader | internal/usage/read.go (Decode) | new | io.Reader, cancellation and line limits; delegates to pure record transitions |
+| Actual root metadata adapter | internal/transcripts/discovery.go | modified | same pure Codex identity parser; root-only discovery scope unchanged |
 | Command, collection and rendering | usage.go | new | Cobra/clock, fleet/source adapters, pure aggregation and rendering |
 | Shared issue source selection | actualinputs.go; actual.go; usage_inputs.go | modified/modified/new | pinned tracker history and ownershipSourceWindows |
 | Reviewer attempt capture | internal/judge/dispatch.go; internal/judge/stream.go | modified | existing Run process/onStart/return seam |
@@ -363,3 +365,25 @@ Task2's verification scope now includes production discovery→Decode identity
 conformance and production loader→role attribution with cross-issue/cross-repo
 persistence/cleanup. The passing36799280 suite remains true for its code, but
 these behavior fixes require a fresh recorded suite before the next close.
+
+
+### 2026-10-14 23:02 — round2 fixes verified
+
+BR-5 adds pure transcripts.CodexExecutingID, shared by actual discovery, usage
+discovery and usage decoding. It accepts id/thread_id fallback, requires equality
+when both are present, ignores ancestor session_id, and locks the first metadata
+result including errors. Malformed JSON before identity cannot be repaired by a
+later copied header. Twenty production cross-consumer cases pass; restoring the
+previous decoder/reader reproduces discovered child with132 tokens and complete
+coverage instead of12 (mutation fails0.166s). Usage/transcripts packages pass
+0.321s/0.382s; existing actual/provenance/ownership regressions pass103.888s after
+freezing edits (the earlier attempt's guard correctly detected concurrent edits).
+
+BR-6 retains all bounded artifact/private identities across fleet repositories,
+current root first. Exclusive role selection precedes issue inclusion. Legacy
+identity-gap diagnostics remain issue-scoped; unreadable possible exclusions and
+the4096-artifact bound stay explicit. Real cleanup lifecycle tests fail before
+fix for ledger/comment and cross-repository exclusion, then pass5.067s; broad
+usage, production dispatch, binding and accounting regressions pass21.340s. No
+aggregate counter or ownership interval behavior was changed. Fresh suite follows
+current-main integration; previous pass is not reused for changed code.

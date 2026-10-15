@@ -225,6 +225,20 @@ classes with production regressions; preserve all scan bounds and explicit
 coverage. Fresh recorded suite follows behavior changes. No disputed finding or
 waived guard; continue to SHIP.
 
+
+### 2026-10-14 23:02 — round2 fixes verified
+
+BR-5 shared immutable Codex parser now serves both discovery paths and Decode;
+20 cross-consumer cases cover aliases, conflicts and malformed/empty first
+metadata followed by copied headers. Old decoder mutation reproduces132 vs12
+with false completeness (0.166s). Usage/transcripts packages pass0.321s/0.382s;
+existing actual/provenance ownership regressions pass103.888s with frozen tree.
+BR-6 loads all bounded fleet reviewer identities before issue role selection;
+real committed cleanup parity for ledger/comment, cross-repo exclusion, invalid
+identity and scan-bound regressions pass5.067s; broad targeted tests pass21.340s.
+Both new classes have RED/GREEN evidence. Integrate main and run fresh recorded
+suite before shared close; maintain all previous dispositions.
+
 ## Revisions
 
 ### 2026-10-14 — whole-system bench cost
