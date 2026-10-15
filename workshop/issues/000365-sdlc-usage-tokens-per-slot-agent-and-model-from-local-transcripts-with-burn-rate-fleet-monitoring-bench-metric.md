@@ -203,6 +203,17 @@ group81248 after local-check parent SIGINT exited130; no owned suite remains.
 Fresh recorded suite follows this fix. Fleet/issue smoke25.02s/23.03s on the prior
 head retained explicit coverage and null uncalibrated projections.
 
+
+### 2026-10-14 22:49 — corrected suite passes
+
+Recorded sdlc-local/suite passes on3679928075e6e17e5448ffb355fe3324886ee2ab:
+1396 cmd/sdlc tests plus61 packages, zero failures,649.8s/10m50s;2392s queue wait.
+All12 shards/packages exit0, log SHA256 prefixec5f77327432. Final fleet/issue
+smokes pass40.92s/52.30s under load, with explicit coverage and null uncalibrated
+projections. Live conformance12.513s remains valid for unchanged CLI identity
+protocol. Plan function labels now match delivered seams. Shared close rerun is
+next; no candidate gate binary grades its own landing.
+
 ## Revisions
 
 ### 2026-10-14 — whole-system bench cost

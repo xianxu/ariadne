@@ -31,6 +31,7 @@ Paths below are relative to cmd/sdlc/. Status is relative to the issue's pinned 
 | Meter validation, transition and projection | internal/usage/calibration.go | new |
 | Reviewer Intent/Record/Event, Validate, Step and Advance | internal/reviewusage/model.go | new |
 | Reviewer CLI identity protocol decoding | internal/reviewusage/identity.go | new |
+| Accounting artifact validation and quarantine decoding | reviewer_accounting.go; internal/reviewusage/store.go (ParseAccountingEvidence) | new; pure decoding functions alongside IO adapters |
 | Issue ownership interval derivation | internal/tracker/engagement.go | reused unchanged |
 | Session/source lineage eligibility | internal/transcripts/provenance.go | reused unchanged |
 | Slot, worker-window and role selection | usage_inputs.go; usage_reviewers.go; usage.go | new; pure selection functions share files with IO adapters |
@@ -115,15 +116,15 @@ No usage cache. In-memory counters die with command. Meter latest pairs bound fi
 
 ## Verification by named risky function
 
-| Proposed function | Adversarial class and mechanical proof |
+| Delivered function/seam | Adversarial class and mechanical proof |
 |---|---|
-| NormalizeCodex / StepCodexCounter | modern+compaction copies, forks, stale/duplicate legacy totals, reset/no baseline; sequence/fuzz and mutation summing last snapshots |
-| NormalizeClaude / MergeResponse | repeated blocks, monotone partial→terminal, conflicting finals, absent dims; recorded fixtures, property and mutation adding block usage |
+| codexState.step / response / finish | modern+compaction copies, forks, stale/duplicate legacy totals, reset/no baseline; sequence/fuzz and mutation summing last snapshots |
+| decodeClaude / NormalizeResponses | repeated blocks, monotone partial→terminal, conflicting finals, absent dims; recorded fixtures, property and mutation adding block usage |
 | AggregateUsage | dedup across files before boundary selection, model switches, hour edges, overflow, unknown groups; pure properties and mutations wrong denominator/drop unknown |
-| ResolveUsageSources / shared ownership phase | moved roots, release/reclaim, dependencies, brain/Claude children, planning-only/completed issue; real Git/temp source conformance, mutation bypass owner or revive old dispatch |
-| CaptureReviewerRun / ValidateReviewerBinding | exact identity, retries, cancellation, failed protocol, in-place ambiguity; production dispatch→persistence→usage regression, mutate omitted binding persistence |
-| StepMeter / ProjectExhaustion | reorder/duplicate/unit mismatch/reset, one-point/zero/stale/partial; transition sequences and mutations one-point rate or wrong token interval |
-| MeterStore.Save | competing writers, interruption/truncated state/temp cleanup; portable state directory tests proving no lost pair/prior-file corruption |
+| resolveUsageAuthority / usageWorkerWindows / usageSessionSlots | moved roots, release/reclaim, dependencies, brain/Claude children, planning-only/completed issue; real Git/temp source conformance, mutation bypass owner or revive old dispatch |
+| attachReviewerAccounting / reviewusage.Step / Validate / bindUsageReviewers | exact identity, retries, cancellation, failed protocol, in-place ambiguity; production dispatch→persistence→usage regression, mutate omitted binding persistence |
+| ObserveMeter / ProjectMeter | reorder/duplicate/unit mismatch/reset, one-point/zero/stale/partial; transition sequences and mutations one-point rate or wrong token interval |
+| RecordMeter | competing writers, interruption/truncated state/temp cleanup; portable state directory tests proving no lost pair/prior-file corruption |
 
 ## Tasks — one atomic close boundary
 
@@ -324,3 +325,19 @@ but left Make/Python running; verified own disposable-root cwd and process group
 81248, then terminated that group and verified it was gone. A fresh suite must
 record the corrected code. Refreshed fleet/issue smokes on the previous fix head
 completed25.02s/23.03s and correctly exposed coverage/projection limits.
+
+
+### 2026-10-14 22:49 — corrected acceptance pass
+
+Recorded sdlc-local/suite succeeds on3679928075e6e17e5448ffb355fe3324886ee2ab:
+1396 cmd/sdlc tests/61 other packages, zero failures,649.8s (10m50s), after2392s
+queue wait. Log SHA256 prefixec5f77327432, hostMac.localdomain. All12 shards and
+packages exit0. Final read-only fleet/issue smokes on this code pass40.92s/52.30s
+under load; both stay within60s, expose incomplete coverage, and keep absent-meter
+projections null. Earlier live CLI identity conformance remains applicable: no
+identity protocol or provider argv changed in the review fixes.
+
+BR-3's concept-map reconciliation also includes the reporting-only accounting
+decoder and replaces conceptual function labels in the verification table with
+delivered functions/seams. These are documentation-only corrections; the passing
+suite's code is unchanged. Shared close remains the final review authority.
