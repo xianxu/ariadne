@@ -1,6 +1,6 @@
 ---
 id: 000377
-status: codecomplete
+status: done
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours: 1.259
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 132a4e367c77022d1bbfa9badb1f1e7e204b05b6
         evidence_commit: 66abb495e0bd83ea7f5d885bbfff7c52c13de718
+        landed_commit: 93fd3fd70c57705ae71936c2c9a04f628ba60921
 ---
 
 # tl-lead: port the ops TL rules added after #350's read (Operator instructions + QA files, Needs-you only asks, CI glance, render-from-binaries, quiet pane) and opinstr.py; fix status frontmatter key
