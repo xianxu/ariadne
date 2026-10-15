@@ -274,6 +274,18 @@ since the recorded suite.
 Standalone final --since6h fleet JSON smoke passes37.71s; final fleet/issue
 timings37.71s/48.18s on the passing suite code.
 
+
+### 2026-10-15 00:12 — round3 identity ordering REWORK
+
+Shared close verified BR-1/2/3/4/6 and retained only BR-5. A production
+discovery→Decode overlay admitted120 parent tokens before a late child metadata
+header, plus12 child tokens, with complete spend coverage; absent metadata also
+reported complete132. The plan now enumerates early/late/absent/invalid identity,
+both aliases, copied headers and ordinary/compacted records. Resolve identity
+before accounting or report uncertainty; absent executing identity must prevent
+complete spend coverage. Implement and verify the whole class before fresh suite
+and shared close. No passing gate or landing is claimed.
+
 ## Revisions
 
 ### 2026-10-14 — whole-system bench cost

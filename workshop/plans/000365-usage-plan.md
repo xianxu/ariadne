@@ -439,3 +439,20 @@ final fresh-context review authority.
 
 Standalone final --since6h fleet JSON smoke passes37.71s on this same code;
 latest final fleet/issue timings are37.71s/48.18s, both within60s.
+
+
+### 2026-10-15 00:12 — complete executing-identity ordering rule
+
+The third close review verified BR-1/2/3/4/6 and retained BR-5: a parent
+response before the child's first metadata was admitted as child spend, and
+absent metadata still allowed complete spend coverage. Enumerate the full
+session-identity-contract-must-be-shared family: valid early/late first headers,
+absent/invalid first headers, id/thread_id aliases and conflicts, copied later
+headers, ordinary/compacted responses, local/foreign response identities, and
+valid identity without cwd. Identity resolution must precede response admission
+and all cumulative/original-time bookkeeping, or uncertain ordering must be
+explicitly incomplete. Missing executing identity forbids SpendComplete; missing
+cwd alone affects attribution. Preserve the immutable shared parser and bounds
+(ARCH-DRY, ARCH-SECURE, ARCH-ORDER). Add production discovery→Decode matrix
+regressions and old-code mutation evidence, then run a fresh recorded suite and
+shared close; the prior code-head suite does not cover this behavior revision.

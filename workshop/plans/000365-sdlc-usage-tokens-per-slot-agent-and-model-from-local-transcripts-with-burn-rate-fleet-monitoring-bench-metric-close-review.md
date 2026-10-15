@@ -201,3 +201,102 @@ findings:
 7. **Plan revision recommendations**
 
    Append `## Revisions` entries establishing one immutable Codex identity contract across consumers and requiring reviewer exclusion evidence to survive issue filtering and receipt cleanup. Add both regressions to Task2’s verification scope.
+
+---
+
+## Re-review — 2026-10-15T00:05:25-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 365 — sdlc usage: tokens per slot, agent and model from local transcripts, with burn rate (fleet monitoring + bench metric) |
+| repo | ariadne |
+| issue file | workshop/issues/000365-sdlc-usage-tokens-per-slot-agent-and-model-from-local-transcripts-with-burn-rate-fleet-monitoring-bench-metric.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 1643ba28edb46a03318f90c89c225d1a33ac13a0..e7c54fe3ccb287e9a5a96464fd4055d426e0e34b |
+| command | sdlc close --issue 365 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-15T00:05:25-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-6 is fixed, and its cleanup-parity regression detects the original failure. BR-5’s alias handling is fixed, but executing-identity enforcement remains incomplete: responses preceding the first metadata header bypass filtering, and headerless files can report complete spend. A production discovery→Decode probe reproduced 132 tokens instead of the child’s 12. This keeps BR-5 blocking.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Cumulative reconciliation remains implemented; thread/turn high-water and reset regressions pass in the usage package.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Invalid accounting retains quarantine identities and explicit coverage; malformed-artifact, invalid-binding and cleanup-protection regressions pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The plan’s Core concepts tables identify delivered paths, statuses and pure versus integration ownership, including the shared Codex parser and mixed adapter files; inspected definitions match.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Production boundary, planning and cancellation tests enter real dispatch wiring through fake CLI processes, persist accounting and verify reviewer attribution; these tests pass.
+  - id: BR-5
+    disposition: not-addressed
+    note: |
+      cmd/sdlc/internal/usage/codex.go:145 filters only when s.thread is already known. A foreground overlay regression using production DiscoverUsageEvidence→Decode placed a 120-token parent response before the first child session_meta, followed by a 12-token child response: discovery verified child, but Decode returned 132 tokens with spend_complete=true and no diagnostics. Omitting the header also returned 132 with spend_complete=true. The alias regression correctly fails under the old-decoder mutation, but does not cover these identity-ordering cases. Complete the existing session-identity-contract-must-be-shared family rule across every response position and absent identity; filter pending records after identity resolution or visibly reject uncertain ordering. ARCH-SECURE, ARCH-ORDER.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      loadUsageReviewers retains cross-issue/repository identities before issue inclusion. Ledger/comment tests pass through actual committed receipt cleanup; restoring the early issue filter makes both fail by charging 20 reviewer tokens as the selected issue’s worker tokens.
+```
+
+1. **Strengths**
+
+   - Reviewer exclusion survives private-receipt cleanup into both ledger and comment artifacts.
+   - Accounting uses validated Requested→Started→Finished transitions and bounded CAS persistence.
+   - README, atlas and command help document the new surface and its coverage limits.
+   - Regression tests exercise production dispatch and persistence paths with isolated fake CLIs.
+
+2. **Critical findings**
+
+   **BR-5 remains open — identity filtering depends on record order.** At `cmd/sdlc/internal/usage/codex.go:145`, records arriving before `session_meta` enter the modern response collection unchecked. Resolving the identity later never revisits them. Discovery accepts that same late header, so copied parent spend can acquire the child’s attribution.
+
+   Enforce one rule across ordinary and compacted responses, before/after metadata, both aliases, and missing/invalid metadata. Buffer and reconcile against the immutable identity, or report uncertain ordering as incomplete. Missing executing identity must prevent confident spend coverage; missing cwd alone need not.
+
+3. **Important findings**
+
+   None additional.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - Usage, transcripts, reviewusage and judge packages passed.
+   - Targeted root usage/accounting tests passed; production dispatch and binding tests also passed.
+   - Old-decoder and early-issue-filter mutations both caused the intended regressions to fail.
+   - The new absent/late-header probe failed against pinned HEAD.
+   - Full-suite, live-provider and real-store performance checks were not rerun during this review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared identity parser and ownership-window helper.
+   - **ARCH-PURE — pass:** normalization, aggregation and transitions remain directly testable.
+   - **ARCH-PURPOSE — flag:** BR-5 still permits incorrect issue totals.
+   - **ARCH-MOCK — pass:** production dispatch uses fake CLI seams; opt-in live conformance exists.
+   - **ARCH-CONSTRAINTS — pass:** deadlines, scan bounds and incomplete-coverage paths are explicit.
+   - **ARCH-SECURE — flag:** pre-header records gain attribution without executing-identity validation.
+   - **ARCH-ORDER — flag:** identity resolution does not reconcile previously admitted responses.
+   - **ARCH-FUNERAL — pass:** meter retention is bounded; private receipts have committed-evidence cleanup and admission limits.
+
+7. **Plan revision recommendations**
+
+   Add a `## Revisions` entry enumerating the complete executing-identity rule: absent, invalid, early and late headers; both aliases; copied later headers; ordinary and compacted responses. Require production discovery→Decode regressions proving that record order cannot admit another thread’s spend as complete.

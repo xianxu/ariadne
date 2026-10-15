@@ -253,6 +253,150 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: e7c54fe3ccb287e9a5a96464fd4055d426e0e34b
+        tracker_head: 7163eb22588bb72115d4ce92c922e38dd184111b
+        branch_point: 1643ba28edb46a03318f90c89c225d1a33ac13a0
+        since: "2026-10-14T07:39:58-07:00"
+        until: "2026-10-15T00:01:25-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-14T07:39:58-07:00"
+              end: "2026-10-15T00:01:25-07:00"
+              began: "2026-10-14T07:39:58-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fd-1ac0-7a83-826e-60623c226386
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 735419897dc910dc9ba3006dbf90dec232e2f404862970e22a25e14ec02f7f6c
+              started: "2026-10-14T05:58:30.184Z"
+              spawned: false
+              bytes: 31073213
+              windows:
+                - start: "2026-10-14T07:39:58-07:00"
+                  end: "2026-10-15T00:01:25-07:00"
+            - harness: codex
+              id: 01a13b1c-bf44-71e2-81bd-5d24934b826e
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: e92e937bd36804a2b768db3419fb4733c214f05436d1f73f506d20e37182ed82
+              started: "2026-10-14T15:51:42.429Z"
+              spawned: false
+              bytes: 747338
+              windows:
+                - start: "2026-10-14T15:51:42.429Z"
+                  end: "2026-10-15T00:01:25-07:00"
+            - harness: codex
+              id: 01a13b23-a09c-7d03-9c26-d94c5e01b8a5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 30703dd1110e0f2b3d1f227c181abee39e19bca5930e07c83f34010170f69d20
+              started: "2026-10-14T15:59:13.3Z"
+              spawned: false
+              bytes: 442525
+              windows:
+                - start: "2026-10-14T15:59:13.3Z"
+                  end: "2026-10-15T00:01:25-07:00"
+            - harness: codex
+              id: 01a13b26-2c15-7842-8c20-78ad9adc63ca
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: fb19b09075ef1b879ef0d82858e34e66e2e8954dc02673929d4c561bb98c32a6
+              started: "2026-10-14T16:02:00.404Z"
+              spawned: false
+              bytes: 439211
+              windows:
+                - start: "2026-10-14T16:02:00.404Z"
+                  end: "2026-10-15T00:01:25-07:00"
+            - harness: codex
+              id: 01a13b26-c5e7-7711-8e4a-fc316e11fce7
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: deb59b626263063d9512ef2be32e8b120cd0d3e4b275cd73aab82b52717d5268
+              started: "2026-10-14T16:02:39.61Z"
+              spawned: false
+              bytes: 411362
+              windows:
+                - start: "2026-10-14T16:02:39.61Z"
+                  end: "2026-10-15T00:01:25-07:00"
+            - harness: codex
+              id: 01a13dc2-2285-7ce1-a8e9-4fa83a870304
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a138fd-1ac0-7a83-826e-60623c226386
+              digest: bb753de8a030b8a8fc60ee7a00ff24ee53369df23b1307a1d80daf51e340a80d
+              started: "2026-10-15T04:11:35.597Z"
+              spawned: true
+              bytes: 1203371
+              windows:
+                - start: "2026-10-15T04:11:35.597Z"
+                  end: "2026-10-15T00:01:25-07:00"
+            - harness: codex
+              id: 01a13dc2-37b9-7592-a8f7-eea3ca7eef4f
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a138fd-1ac0-7a83-826e-60623c226386
+              digest: 1e7f039dfac3a25c8d2a38c9dc927f7622da1a8085ea9db092ed5e4baae29463
+              started: "2026-10-15T04:11:41.014Z"
+              spawned: true
+              bytes: 1288930
+              windows:
+                - start: "2026-10-15T04:11:41.014Z"
+                  end: "2026-10-15T00:01:25-07:00"
+            - harness: codex
+              id: 01a13dc2-4abd-79a2-a84f-bc2a245a476e
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a138fd-1ac0-7a83-826e-60623c226386
+              digest: 17f8ae8862d46980c75978a376e67095ae86041c5bc4d2a4e429fa36b6515202
+              started: "2026-10-15T04:11:45.906Z"
+              spawned: true
+              bytes: 1353199
+              windows:
+                - start: "2026-10-15T04:11:45.906Z"
+                  end: "2026-10-15T00:01:25-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 75.24986666666666
+        cuts:
+            - dispatched: "2026-10-14T21:07:30-07:00"
+              finalized: "2026-10-14T21:11:21-07:00"
+              finalizing: false
+            - dispatched: "2026-10-14T22:50:24-07:00"
+              finalized: "2026-10-14T22:55:38-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-15T00:05:26-07:00"
+      dispatched: "2026-10-15T00:01:55-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Cumulative reconciliation remains implemented; thread/turn high-water and reset regressions pass in the usage package.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: Invalid accounting retains quarantine identities and explicit coverage; malformed-artifact, invalid-binding and cleanup-protection regressions pass.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: The plan’s Core concepts tables identify delivered paths, statuses and pure versus integration ownership, including the shared Codex parser and mixed adapter files; inspected definitions match.
+          round: 3
+        - id: BR-4
+          disposition: addressed
+          note: Production boundary, planning and cancellation tests enter real dispatch wiring through fake CLI processes, persist accounting and verify reviewer attribution; these tests pass.
+          round: 3
+        - id: BR-5
+          disposition: not-addressed
+          note: 'cmd/sdlc/internal/usage/codex.go:145 filters only when s.thread is already known. A foreground overlay regression using production DiscoverUsageEvidence→Decode placed a 120-token parent response before the first child session_meta, followed by a 12-token child response: discovery verified child, but Decode returned 132 tokens with spend_complete=true and no diagnostics. Omitting the header also returned 132 with spend_complete=true. The alias regression correctly fails under the old-decoder mutation, but does not cover these identity-ordering cases. Complete the existing session-identity-contract-must-be-shared family rule across every response position and absent identity; filter pending records after identity resolution or visibly reject uncertain ordering. ARCH-SECURE, ARCH-ORDER.'
+          round: 3
+        - id: BR-6
+          disposition: addressed
+          note: loadUsageReviewers retains cross-issue/repository identities before issue inclusion. Ledger/comment tests pass through actual committed receipt cleanup; restoring the early issue filter makes both fail by charging 20 reviewer tokens as the selected issue’s worker tokens.
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#365 (boundary-review)
@@ -289,7 +433,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Critical] `role-exclusion-requires-unfiltered-evidence` Issue filtering removes reviewer evidence before exclusive role selection
   cmd/sdlc/usage_reviewers.go:66-67 skips other issues’ accounting artifacts, and usage.go:249 supplies the selected issue as that filter. Once a private receipt is collected into its committed artifact, a known in-place reviewer for another issue can therefore become the selected issue’s worker during overlapping ownership intervals. A production-loader probe with a valid issue-366 plan-review ledger returned zero records, complete coverage and worker Include=true for issue 365. Load relevant reviewer identity evidence before issue filtering; filter included reviewer totals only after exclusive role selection. Cover ledger/sidecar persistence and receipt-cleanup parity. ARCH-PURPOSE, ARCH-SECURE.
 
+## Round 3 — 2026-10-15T00:05:26-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Cumulative reconciliation remains implemented; thread/turn high-water and reset regressions pass in the usage package.
+- BR-2 — addressed — Invalid accounting retains quarantine identities and explicit coverage; malformed-artifact, invalid-binding and cleanup-protection regressions pass.
+- BR-3 — addressed — The plan’s Core concepts tables identify delivered paths, statuses and pure versus integration ownership, including the shared Codex parser and mixed adapter files; inspected definitions match.
+- BR-4 — addressed — Production boundary, planning and cancellation tests enter real dispatch wiring through fake CLI processes, persist accounting and verify reviewer attribution; these tests pass.
+- BR-5 — not-addressed — cmd/sdlc/internal/usage/codex.go:145 filters only when s.thread is already known. A foreground overlay regression using production DiscoverUsageEvidence→Decode placed a 120-token parent response before the first child session_meta, followed by a 12-token child response: discovery verified child, but Decode returned 132 tokens with spend_complete=true and no diagnostics. Omitting the header also returned 132 with spend_complete=true. The alias regression correctly fails under the old-decoder mutation, but does not cover these identity-ordering cases. Complete the existing session-identity-contract-must-be-shared family rule across every response position and absent identity; filter pending records after identity resolution or visibly reject uncertain ordering. ARCH-SECURE, ARCH-ORDER.
+- BR-6 — addressed — loadUsageReviewers retains cross-issue/repository identities before issue inclusion. Ledger/comment tests pass through actual committed receipt cleanup; restoring the early issue filter makes both fail by charging 20 reviewer tokens as the selected issue’s worker tokens.
+
 ## Open findings
 
 - **BR-5** [Critical] `session-identity-contract-must-be-shared` Codex decoding ignores an executing identity accepted by discovery
-- **BR-6** [Critical] `role-exclusion-requires-unfiltered-evidence` Issue filtering removes reviewer evidence before exclusive role selection
