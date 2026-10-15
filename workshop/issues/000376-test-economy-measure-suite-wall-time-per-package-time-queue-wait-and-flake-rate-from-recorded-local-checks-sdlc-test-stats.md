@@ -1,12 +1,20 @@
 ---
 id: 000376
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
-card_mirror: 'c35033a5e677d323d0fa19ec7f0be14d1783dafc' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e037a35a6d79e19bdc78531dfa3c98fb9636095e' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-14T20:40:09-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Test economy: measure suite wall time, per-package time, queue wait and flake rate from recorded local checks (sdlc test-stats)
@@ -25,8 +33,14 @@ The operator (2026-10-14) made test health and performance a train ("test econom
 
 ## Plan
 
-- [ ]
+- [ ] Parse recorded suite logs and aggregate per-repository wall, queue, slow-unit and flake metrics; test pure calculations with ariadne and pair fixtures.
+- [ ] Preserve one compact record per future suite attempt so retries, queue waits and baseline runs are measurable; test retention and lost status posts.
+- [ ] Expose `sdlc test-stats --since 7d [--repo …] [--json]`, verify the real ariadne/pair output, update CLI documentation, run the suite and close review.
+
+Detailed design: [test-stats plan](../plans/000376-test-stats-plan.md). The TL is reviewing the recorder scope because current logs cannot reconstruct all requested metrics.
 
 ## Log
 
 ### 2026-10-14
+
+- Claimed in ariadne:1. Source inspection found ariadne's retained suite logs contain shard summaries and pair's contain Go package timings, but the single log per SHA is overwritten by a retry; queue tickets are ephemeral; pair logs lack total wall time. A per-attempt compact record is needed to measure the full Spec going forward. Historical fields that cannot be recovered will be marked unknown (ARCH-PURPOSE), not estimated from file times.
