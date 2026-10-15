@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "5b408f42", done: "55abce04"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # sdlc issue new --details FILE: file an issue with its body in one call (today: new, edit, publish)
@@ -51,6 +51,10 @@ Filing an issue with content takes three steps: `sdlc issue new "title"` (publis
 
 ## Log
 
+
+
+- 2026-10-15: closed — ParseDetails units (full, partial, fenced headings, 8 refusals) + Render-with-sections unit; 4 fake-origin tests in cmd/sdlc/issuenew_details_test.go: one creation commit carries card and full body with checkout untouched, bad file refused before reserving (main and tracker unchanged), from-github plus Problem conflict refused, stdin with dry-run, --no-claim from a numbered slot files unclaimed; live go run dry-run against this repo rendered the merged body; full make test green (12 shards, 1374 cmd/sdlc tests, 59 packages, 0 failed); review verdict: SHIP
+- 2026-10-15: flow upgraded quick → full — 138 added lines in code files (limit 100)
 ### 2026-10-14
 - Plan: parse the details into sections before reserving; `Render` takes the sections; `--no-claim` per the TL. Quick flow.
 - Built. Unit tests: `ParseDetails` (full body, fenced `## ` kept as body, an empty section, 8 refusals) and `Render` with sections. Fake-origin tests: one creation commit carrying card and body, checkout untouched; unknown section and `# ` title refused before reserving (main and issue-tracker unchanged); `--from-github` with a Problem refused; stdin with `--dry-run`; `--no-claim` from `pair:1` files unclaimed. `go test -run IssueNew` green. A live `--dry-run` against this repo renders the merged body. Docs: the `issue new` help, `sdlc issue --help`, AGENTS.base §2, the atlas.
