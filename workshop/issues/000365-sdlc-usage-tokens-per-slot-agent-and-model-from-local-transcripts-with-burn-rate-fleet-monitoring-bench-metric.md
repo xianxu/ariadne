@@ -287,7 +287,7 @@ complete spend coverage. Implement and verify the whole class before fresh suite
 and shared close. No passing gate or landing is claimed.
 
 
-### 2026-10-15 00:20 — identity ordering class verified
+### 2026-10-15 00:18 — identity ordering class verified
 
 BR-5 now rejects ordinary/compacted usage and cumulative snapshots before a
 valid executing identity, before counter, baseline, high-water, timestamp or

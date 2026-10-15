@@ -458,7 +458,7 @@ regressions and old-code mutation evidence, then run a fresh recorded suite and
 shared close; the prior code-head suite does not cover this behavior revision.
 
 
-### 2026-10-15 00:20 — identity ordering class verified
+### 2026-10-15 00:18 — identity ordering class verified
 
 BR-5 now rejects ordinary/compacted usage and cumulative snapshots before a
 valid executing identity, before counter, baseline, high-water, timestamp or
