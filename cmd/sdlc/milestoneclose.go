@@ -709,6 +709,11 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if p.Context != nil {
+		if err := attachReviewerAccounting(ctx, &opts, p.IssueNum, string(p.Category), len(ledger.Rounds)+1, p.Head); err != nil {
+			return notRun(err.Error())
+		}
+	}
 	dispatched := dispatchNow()
 	output, derr := judge.Dispatch(ctx, opts)
 	if derr != nil {

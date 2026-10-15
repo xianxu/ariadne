@@ -166,11 +166,12 @@ func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review revie
 	if review.Round == nil {
 		cwarn(stderr, "boundary review: no valid ```findings block — this round carries NO findings, so the gate cannot converge on it")
 		l = gatestate.Apply(l, gatestate.Round{
-			N: n, Timestamp: timestamp, Agent: review.Agent, Boundary: p.Milestone,
+			N: n, Timestamp: timestamp, Agent: review.Agent, Boundary: p.Milestone, ReviewerRuns: review.Evidence.ReviewerRuns,
 			ProtocolError: review.ProtocolError, Blocked: true, NoCap: neverRan,
 		})
 	} else {
 		round := gatestate.AssignIDsAt(l, *review.Round, n, timestamp, review.Agent, p.Milestone)
+		round.ReviewerRuns = review.Evidence.ReviewerRuns
 		applied, aerr := gatestate.ApplyChecked(l, round)
 		l = applied // ApplyChecked applies the round either way, keeping the valid dispositions
 		if aerr != nil {

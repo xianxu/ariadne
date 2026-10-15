@@ -26,7 +26,6 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/transcripts"
 )
 
@@ -238,7 +237,7 @@ func actualTrackerInputs(ctx context.Context, repoTop, issueNum string) (refs []
 	if repo == nil {
 		return nil, "", false, ""
 	}
-	rs, err := tracker.LoadRecords(ctx, repo, filepath.Join(repoTop, envOr("WF_ISSUES_DIR", "workshop/issues")), tracker.PreferFresh)
+	rs, err := actualInputRecords(ctx, repo, repoTop, filepath.Join(repoTop, envOr("WF_ISSUES_DIR", "workshop/issues")))
 	if err != nil {
 		return nil, "", false, "tracker unreadable, measured without its claim/close commits: " + err.Error()
 	}

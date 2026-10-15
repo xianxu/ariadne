@@ -140,7 +140,6 @@ func readEvidenceMetadata(ctx context.Context, path, harness, inferredCWD string
 			SessionID string `json:"sessionId"`
 			CWD       string `json:"cwd"`
 			Payload   struct {
-				ID        string          `json:"id"`
 				CWD       string          `json:"cwd"`
 				Timestamp string          `json:"timestamp"`
 				ParentID  string          `json:"parent_thread_id"`
@@ -154,7 +153,18 @@ func readEvidenceMetadata(ctx context.Context, path, harness, inferredCWD string
 			if rec.Type != "session_meta" {
 				continue
 			}
-			s.ID, s.CWD = rec.Payload.ID, rec.Payload.CWD
+			s.CWD = rec.Payload.CWD
+			var envelope struct {
+				Payload json.RawMessage `json:"payload"`
+			}
+			if err := json.Unmarshal(scanner.Bytes(), &envelope); err != nil {
+				return s, fmt.Errorf("malformed metadata")
+			}
+			id, err := CodexExecutingID(envelope.Payload)
+			if err != nil {
+				return s, err
+			}
+			s.ID = id
 			var source struct {
 				Subagent struct {
 					ThreadSpawn *struct {

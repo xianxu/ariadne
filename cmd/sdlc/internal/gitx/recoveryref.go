@@ -60,6 +60,8 @@ func NewRecoveryStoreFor(ctx context.Context, dir, kind string) (*RecoveryStore,
 	case "tracker":
 	case "actual-correction":
 		prefix = "refs/sdlc/actual-corrections/"
+	case "review-usage":
+		prefix = "refs/sdlc/review-usage/"
 	default:
 		return nil, errors.New("unknown recovery namespace")
 	}

@@ -22,6 +22,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewusage"
 	"strconv"
 	"strings"
 
@@ -62,6 +63,7 @@ type RoundReport struct {
 // Round is one gate invocation's durable record: what it disposed, what it raised, whether
 // the gate blocked, and whether the operator forced past it.
 type Round struct {
+	ReviewerRuns []reviewusage.Record `yaml:"reviewer_runs,omitempty"`
 	// ActualInputs pins the evidence adopted at this boundary (#335).
 	// Optional so every legacy ledger retains its original serialization.
 	ActualInputs *MeasurementInputs `yaml:"actual_inputs,omitempty"`
@@ -224,10 +226,12 @@ func CountedRounds(l Ledger) int {
 
 // Ledger is the accumulated state of ONE gate on ONE issue across every invocation.
 type Ledger struct {
-	Gate     string  `yaml:"gate"` // e.g. "plan-quality"
-	IssueNum int     `yaml:"issue"`
-	IDPrefix string  `yaml:"id_prefix"` // e.g. "PQ" — IDs are <prefix>-<n>
-	Rounds   []Round `yaml:"rounds,omitempty"`
+	// ReviewerRuns retains non-round dispatch accounting (estimate advisory).
+	ReviewerRuns []reviewusage.Record `yaml:"reviewer_runs,omitempty"`
+	Gate         string               `yaml:"gate"` // e.g. "plan-quality"
+	IssueNum     int                  `yaml:"issue"`
+	IDPrefix     string               `yaml:"id_prefix"` // e.g. "PQ" — IDs are <prefix>-<n>
+	Rounds       []Round              `yaml:"rounds,omitempty"`
 	// ContentHash is sha256(issue+plan) as of the last PASSING round — the pass-through
 	// key. Without it, moving the estimate gates below plan-quality (#187 B1) would make
 	// every estimate-gate failure cost a fresh multi-minute judge dispatch on the retry,
