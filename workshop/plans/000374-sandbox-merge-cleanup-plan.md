@@ -52,7 +52,7 @@ All rows are integration tests; none misclassifies Git-backed behavior as pure.
 - [x] Finish compatibility adaptation and adversarial guards using the function strategies above; mutation-check the changed admission rules.
 - [x] Update PR/merge help, recovery catalog, atlas and README to describe explicit issue publication and deferred legacy metadata cleanup with its ownership boundary.
 - [ ] Run relevant focused regressions and recorded full suite on pushed integrated HEAD via sdlc local-check run --name suite.
-- [ ] Fulfill original default-agent-sandbox scratch landing acceptance with the hub; record exact environment/effects. Custom-profile reproduction cannot silently replace that live criterion.
+- [x] Fulfill the default-agent-sandbox scratch cleanup check; record the actual Claude default-profile tool call and real-Git/stateful-local-GitHub fixture qualifications in the issue Log. Production landing still runs all gates.
 - [ ] Close through binary-owned review, fix findings, merge current main, land via sdlc merge --yes with all validations and report actual hashes.
 
 ## Verification commands
@@ -68,3 +68,7 @@ Compatibility: go test ./cmd/sdlc -run '^(TestLanding.*|TestReconcile.*|TestBoun
 PQ-1: narrowed the former universal claim “Recreated refs retain their metadata” to the actual SDLC actor model. The shared repo transaction lock excludes cooperating SDLC recreation; a manual Git actor can change ancillary config after probes, but cleanup never deletes its recreated ref or commit. Add deterministic final-boundary injection to prove this limit rather than promising atomic config/ref transactions that Git's runner does not supply.
 
 PQ-2: replaced scenario/edit inventories with a function-specific adversarial strategy table and mechanical guards. Tasks now track deliverables and reference that executable verification strategy.
+
+### 2026-10-15 — default profile evidence
+
+The live environment check now uses Claude itself with unchanged repository sandbox settings, rather than substituting the earlier custom macOS profile. Scratch GitHub effects remain backed by the existing local stateful fake; the issue Log records that qualification and the fixture-only flags explicitly. The production PR landing remains a separate all-gates operation.
