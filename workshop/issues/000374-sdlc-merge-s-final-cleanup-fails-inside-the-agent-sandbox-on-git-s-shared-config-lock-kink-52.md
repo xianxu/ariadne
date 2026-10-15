@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
-estimate_hours:
-card_mirror: '10d1c7097fe7a344245ab8abadaa61b1fba88308' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 1.94
+card_mirror: '850a058c400a99580b9725a2f436e5ea8d54ac97' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T23:06:07-07:00
 claimant:
     operator: Xian Xu
@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "ca17b890", done: "8e39b058"}
+flow: {kind: full, provenance: operator}
 ---
 
 # sdlc merge's final cleanup fails inside the agent sandbox on git's shared config lock (kink 52)
@@ -68,3 +68,20 @@ The first durable-plan write failed because workshop/plans did not exist on this
 ### 2026-10-14 — plan review refinements
 
 Full-flow plan-quality round 1 requested a precise concurrency guarantee (PQ-1) and function-specific test strategies (PQ-2). The revised durable plan explicitly limits metadata-preservation guarantees to cooperating SDLC commands under the shared repo lock; a manual Git recreation after the last probe may lose ancillary tracking config but never its ref/commits. This supersedes the earlier unqualified recreated-ref language. The plan now assigns an adversarial input/event class and mechanical regression guard to each risky integration function. Live acceptance question sent to hub as receipt 7ebef1e8-3e97-4a82-909f-3ad2fa2e16b3; original acceptance remains pending.
+
+## Estimate
+
+*Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only.* Calibration is marked stale by sdlc estimate-source, so these coefficients are provisional. Same Go/Git stack; existing Git runners and stateful GitHub fake avoid a novel-stack/library search. Familiarity 1.0. Issue authoring uses table design 0.5 / implementation 0.3; producer refactor and small cleanup module each use implementation 0.5, docs 0.2, review 0.5, Git sandbox discovery 0.6. Implementation values below apply v3.1's 40% scale. Settled plan/pattern design discounts: refactor 0.5 x0.2=0.10, module 0.3 x0.2=0.06, docs 0.1 x0.2=0.02; authoring/review remain 0.5/0.1. Thorough-plan buffer 15%. Total 0.78 x1.15 +1.04 =1.937h, rounded 1.94h.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.50 impl=0.12
+item: cross-cutting-refactor design=0.10 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0.10 impl=0.20
+item: real-api-discovery design=0.00 impl=0.24
+design-buffer: 0.15
+total: 1.94
+```
