@@ -1,6 +1,6 @@
 ---
 id: 000387
-status: codecomplete
+status: done
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 870f183161f3b9a02677cb355caeaa3afe7f99a2
         evidence_commit: f1a111faf6491fa81bb8bb81e22234e6fcea12a8
+        landed_commit: e4d003ceee27cd8fac013190c3d631daa062dc83
 ---
 
 # Agent: trailer says 'human' (not 'sdlc') for a commit made outside an agent session
