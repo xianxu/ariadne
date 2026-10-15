@@ -1,6 +1,6 @@
 ---
 id: 000387
-status: working
+status: codecomplete
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.11
+tracker:
+    version: 1
+    completion:
+        token: close-3fddd758849e
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 83cf89adaae2526d9c5d35ae228dda063a84f75a
+        evidence_commit: 060c365e739e6420b14cfdd131181b5f52f062f6
 ---
 
 # Agent: trailer says 'human' (not 'sdlc') for a commit made outside an agent session
