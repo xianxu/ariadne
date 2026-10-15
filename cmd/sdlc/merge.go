@@ -42,6 +42,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/pkg/vocab"
@@ -729,7 +730,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 			if out, gerr := mergeRunner.GitInDir(mainPath, archiveAddArgs(moves)...); gerr != nil {
 				die(stderr, fmt.Sprintf("git -C %s add: %v\n%s", mainPath, gerr, out))
 			}
-			commitArgs, cerr := archiveCommitArgs(archiveCommitMessage, moves)
+			commitArgs, cerr := archiveCommitArgs(agentid.StampCurrent(archiveCommitMessage), moves)
 			if cerr != nil {
 				die(stderr, cerr.Error())
 			}

@@ -29,6 +29,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
 
@@ -78,7 +79,7 @@ func locateSessionJSONL(homeDir, absRepoRoot, sessionArg string) (string, error)
 	if sessionArg != "current" {
 		return sessionArg, nil
 	}
-	projDir := filepath.Join(homeDir, ".claude", "projects", claudeProjectSlug(absRepoRoot))
+	projDir := filepath.Join(agentid.ClaudeProjects(homeDir), claudeProjectSlug(absRepoRoot))
 	if sid := os.Getenv("CLAUDE_CODE_SESSION_ID"); sid != "" {
 		p := filepath.Join(projDir, sid+".jsonl")
 		if _, err := os.Stat(p); err == nil {

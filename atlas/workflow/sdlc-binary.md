@@ -23,6 +23,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 |-------------------|-----------------------------|---------|
 | `close`           | `make close-issue`          | Issue close: actual + verified + atlas + plan ticked; on full-issue close auto-dispatches the one boundary review (#69, `--no-judge` to skip) |
 | `actual`          | (new #68)                   | Compute an issue's focused dev-hours (in-binary active-time-v3 engine over ownership-proven sessions with retained replay inputs), split into build vs converge at the boundary reviews; `--milestone Mx` measures one milestone's increment (#234) |
+| `agent-id`        | (new #367)                  | Print this session's `Agent: <agent>/<model>/<effort>` commit trailer (`cmd/sdlc/internal/agentid`): agent from the judge's env signals, model and effort from the tail of the session's own transcript, `SDLC_AGENT_ID` overrides. Every sdlc commit site stamps it through `agentid.StampCurrent` (`TestEveryCommitSiteStamps` refuses a new unstamped site); `close` warns about first-parent window commits without it |
 | `converge-report` | (new #234)                  | **Read-only** converge factor k = converge/build per model, flow and review recipe, over ledger rows that carry a split |
 | `active-time`     | (new #110; was active-time-v3.py) | Standalone CLI over the same engine — the per-segment attribution table for manual inspection; preserves the 2/3/0 loud-fail exit codes |
 | `state`           | (new)                       | Workflow state inspection + drift detection; per-issue owner and claim age, claims by slot and by operator (#284, claim times from tracker history via `tracker.Repository.ClaimTimes`) |
@@ -1734,6 +1735,18 @@ Parse time matters: a prerequisite would run after the test target's own
 prerequisites, which are pair's whole suite. Targeted runs (`go test -run …`, a
 single `make test-*` target) never take it; they go through the test gate below. A nested `make test` under a locked
 run passes through (`WF_TEST_LOCK_HELD_BY`), even while another slot is free.
+
+**`sdlc`'s own suite runs hold the slot for the run only (#383).** A local check
+(`sdlc local-check run`, and the suite `sdlc merge` runs) does not give the
+helper its own pid to watch. It starts a per-run holder, a `cat` on a pipe from
+`sdlc`, and passes that pid as `--watch`. Right after the suite's process group
+ends, it closes the pipe and reaps the holder. The helper's watcher frees the
+slot on that exit (at once on macOS's kqueue, within its 0.5 s poll elsewhere),
+so the status post, the CI poll, the PR merge, archiving and cleanup hold no slot. If `sdlc` dies,
+the kernel closes the pipe, and the slot is freed as well. A rerun in the same
+`sdlc` (a re-integrated head, the baseline diagnosis) starts a new holder and
+takes a ticket like any other waiter. The suite's `WF_TEST_LOCK_HELD_BY` is the
+holder's pid, so its nested `make test` passes through.
 
 **Weighted suites (#346).** A suite heavier than one slot declares its weight:
 `WF_TEST_WEIGHT ?= N` in the repo's root Makefile, before `Makefile.workflow`

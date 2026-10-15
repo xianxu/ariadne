@@ -663,6 +663,10 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		}
 	}
 
+	if windowBase != "" {
+		reportMissingAgent(commandContext(f.Context), stderr, windowBase, windowHead)
+	}
+
 	// ── Flow: the quick flow's hard shell + Done-when checks (#231) ──────────
 	// Same window as the atlas gate and the review. Writes nothing: an upgrade is
 	// composed into newFM below and recorded by applyClose at finalize.

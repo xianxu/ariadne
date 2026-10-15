@@ -170,6 +170,7 @@ func buildRoot() *cobra.Command {
 	add(NewMigrateCmd(), "migrate", "Move a markdown artifact to a peer repo, rewriting refs (#179)")
 	add(NewJudgeCmd(), "judge", "Run an LLM-judge check against the diff (fresh-context)")
 	add(NewFindingCmd(), "finding", "Answer a gate finding as the implementer: dispute it with evidence (#202)")
+	add(NewAgentIDCmd(), "agent-id", "Print this session's Agent: commit trailer (agent/model/effort, #367)")
 	add(NewArchPrinciplesCmd(), "arch-principles", "Print the ARCH-* architecture principles (single source; pull for non-gate work)")
 	add(NewEstimateSourceCmd(), "estimate-source", "Name the shared estimate method + the repo-local calibration source (pull)")
 	add(NewConvergeReportCmd(), "converge-report", "Converge factor k = converge/build per model, flow and review recipe (#234)")

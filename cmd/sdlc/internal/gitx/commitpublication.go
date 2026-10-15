@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 )
 
 // CommitChange includes deleted paths and both endpoints of renames. Empty modes
@@ -212,7 +214,7 @@ func (t *TrunkFile) ancestor(ctx context.Context, source, base string) (bool, er
 	return false, fmt.Errorf("publication reachability query: %v\n%s", err, diag)
 }
 func (t *TrunkFile) commitTree(tree, base, msg string, sign bool) (string, error) {
-	args := []string{"commit-tree", tree, "-p", base, "-m", msg}
+	args := []string{"commit-tree", tree, "-p", base, "-m", agentid.StampCurrent(msg)}
 	if sign {
 		args = append([]string{"commit-tree", "-S"}, args[1:]...)
 	}

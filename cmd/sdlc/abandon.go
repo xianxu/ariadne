@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
@@ -652,7 +653,7 @@ func unarchiveIssue(env *trackerEnv, base, issuesDir, message string) error {
 		if err := verifyAssetBundleOnDisk(env.ctx, env.root, liveRel, id, raw, bundle); err != nil {
 			return err
 		}
-		if _, err := env.git(append([]string{"commit", "-q", "--no-verify", "-m", message, "--"}, paths...)...); err != nil {
+		if _, err := env.git(append([]string{"commit", "-q", "--no-verify", "-m", agentid.StampCurrent(message), "--"}, paths...)...); err != nil {
 			return err
 		}
 	}
