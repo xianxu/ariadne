@@ -190,6 +190,71 @@ func TestRunLocalCheckRecordsEveryAttemptBeforeStatusPost(t *testing.T) {
 	}
 }
 
+func TestRunLocalCheckStatsInitializationFailureStillRunsAndPostsStatus(t *testing.T) {
+	d, sha, gh, stderr := localRunRepo(t, "acquired")
+	logDir, err := localCheckLogDir(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	storeRoot := filepath.Join(filepath.Dir(logDir), "test-stats")
+	if err := os.MkdirAll(storeRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(storeRoot, "inflight"), []byte("blocked"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(t.TempDir(), "ran")
+	check := localCheck{Name: "suite", Command: []string{"./marker-check.sh", marker}, TimeoutMinutes: 30}
+	rec, err := runLocalCheck(context.Background(), d, check, sha)
+	if err != nil || !rec.passed() {
+		t.Fatalf("check blocked by optional stats: %+v %v\n%s", rec, err, stderr)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("check did not run: %v", err)
+	}
+	if gh.statuses[sha]["sdlc-local/suite"] != "success" {
+		t.Fatalf("status not posted: %v", gh.statuses)
+	}
+	if rec.LogPath != filepath.Join(logDir, sha, "suite.log") {
+		t.Fatalf("legacy log fallback path: %s", rec.LogPath)
+	}
+	if _, err := os.Stat(rec.LogPath); err != nil {
+		t.Fatalf("fallback log missing: %v", err)
+	}
+	if !strings.Contains(stderr.String(), "attempt") {
+		t.Fatalf("stats failure not reported: %s", stderr)
+	}
+}
+
+func TestRunLocalCheckStatsPublicationFailureStillPostsStatus(t *testing.T) {
+	d, sha, gh, stderr := localRunRepo(t, "acquired")
+	logDir, err := localCheckLogDir(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	storeRoot := filepath.Join(filepath.Dir(logDir), "test-stats")
+	if err := os.MkdirAll(storeRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(storeRoot, "attempts"), []byte("blocked"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	check := localCheck{Name: "suite", Command: []string{"sh", "-c", "echo ran"}, TimeoutMinutes: 30}
+	rec, err := runLocalCheck(context.Background(), d, check, sha)
+	if err != nil || !rec.passed() {
+		t.Fatalf("check blocked by optional stats: %+v %v\n%s", rec, err, stderr)
+	}
+	if gh.statuses[sha]["sdlc-local/suite"] != "success" {
+		t.Fatalf("status not posted: %v", gh.statuses)
+	}
+	if b, err := os.ReadFile(rec.LogPath); err != nil || !strings.Contains(string(b), "ran") {
+		t.Fatalf("run log unavailable: %q %v", b, err)
+	}
+	if !strings.Contains(stderr.String(), "attempt result was not fully saved") {
+		t.Fatalf("stats failure not reported: %s", stderr)
+	}
+}
+
 func TestPruneLocalCheckLogs(t *testing.T) {
 	dir := t.TempDir()
 	base := time.Now().Add(-time.Hour)

@@ -320,3 +320,73 @@ findings:
     detail: |
       cmd/sdlc/teststats_store.go:194-197 accepts a unit's "seconds":null; decoding converts it to zero, validation at line 162 accepts it, and cmd/sdlc/teststats.go:127-130 includes it in samples and p90. TestBoundary376NullUnitTiming reproduced this on the pinned head. ARCH-SECURE: this violates the plan's unknown-value and malformed-record contracts. This is the 2nd finding in family persisted-evidence-canonical-decoding. State and enforce the schema-wide rule that required scalar fields at every depth reject null before zero-value decoding; sweep the field inventory and add regressions proving rejected records generate coverage diagnostics and never enter aggregates.
 ```
+
+---
+
+## Re-review — 2026-10-15T00:52:19-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 376 — Test economy: measure suite wall time, per-package time, queue wait and flake rate from recorded local checks (sdlc test-stats) |
+| repo | ariadne |
+| issue file | workshop/issues/000376-test-economy-measure-suite-wall-time-per-package-time-queue-wait-and-flake-rate-from-recorded-local-checks-sdlc-test-stats.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 18915f6c17d9b4aeb5e618d3f736705ec355d2b3..70b6dd5f23ebb0039b8c3776346e2d911a239cb7 |
+| command | sdlc close --issue 376 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-15T00:52:19-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+BR-8 is addressed with meaningful regression evidence. The focused tests pass, and README/atlas cover the new command. One Important issue remains: initializing optional statistics storage can prevent an otherwise runnable local check from executing or posting its status.
+
+```findings
+dispose:
+  - id: BR-8
+    disposition: addressed
+    note: |
+      Nested required scalars reject null before decoding. TestReadSuiteAttemptsRejectsNullNestedScalars verifies warnings, zero admitted records, and no aggregates. Removing the nested-null guard in a disposable copy makes the seconds:null regression fail.
+findings:
+  - id: new
+    severity: Important
+    kind: defect
+    family: optional-telemetry-failure-isolation
+    title: |
+      Statistics initialization failure prevents local checks from running
+    detail: |
+      cmd/sdlc/localcheck_run.go:101-103 returns immediately when beginSuiteAttempt fails, contradicting the Plan's warning-only persistence contract at workshop/plans/000376-test-stats-plan.md:37 (ARCH-PURPOSE, ARCH-CONSTRAINTS). A disposable regression fixture with test-stats/inflight occupied by a regular file reproduced exit=-1, no executed check, and no posted status despite usable legacy log storage. Warn and fall back to the existing local-check log path when statistics initialization fails; add regression coverage for initialization and publication failures.
+```
+
+1. **Strengths**
+   - Persisted records receive canonical-key, required-field, nested-null, and bounded-input validation.
+   - Pure aggregation tests independently check quantiles, coverage, ordering, and flake classification.
+   - Failed logs survive retries and status-post failures; retention tests cover active-owner protection and crash residue.
+   - README, atlas, and command help document the new surface and historical coverage limitations.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** Statistics initialization failure blocks local checks at `cmd/sdlc/localcheck_run.go:101-103`; fix as detailed above.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes:** Focused parser, aggregation, command, store, local-check, and hashing tests passed. `git diff --check` passed. Both reviewer experiments ran in disposable copies, which were removed. The full recorded suite was not rerun during this review.
+
+6. **Architectural notes**
+   - **ARCH-DRY — pass:** Shared parsing and failure extraction.
+   - **ARCH-PURE — pass:** Parsing and aggregation remain directly testable without IO.
+   - **ARCH-PURPOSE — flag:** Optional measurement failure can disable the underlying check.
+   - **ARCH-MOCK — pass:** Command dependencies are injected; existing stateful GitHub/workspace doubles support the integration seams.
+   - **ARCH-CONSTRAINTS — flag:** Statistics initialization lacks the declared failure fallback; reader and parser bounds otherwise have coverage.
+   - **ARCH-SECURE — pass:** Malformed persisted evidence is rejected with diagnostics.
+   - **ARCH-ORDER — pass:** Publication precedes status posting; controlled publication/pruning tests cover interrupted progress.
+   - **ARCH-FUNERAL — pass:** Retention and dead-owner cleanup cover the introduced artifact families.
+
+7. **Plan revision recommendation:** Add a `## Revisions` entry defining the fallback when statistics initialization fails, alongside regression coverage for both initialization and publication failures.

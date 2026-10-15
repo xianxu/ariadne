@@ -780,3 +780,4 @@ The simplest durable authority beats a clever scan of consequences.
 - A format matrix must cover both outcomes: a failing package can still report a duration, and omitting it biases slow-unit statistics (#376 BR-6).
 - Apply declared input bounds before every consumer of the input. A parser that checks only total bytes can still hand an oversized line to regex and failure extraction (#376 BR-7).
 - Exact JSON key validation does not prevent null from becoming a zero-valued nested scalar. Validate required fields, including nested measurement fields, before struct decoding and prove rejected rows never enter aggregates (#376 BR-8).
+- Optional telemetry must not become a precondition for the operation it observes. Test failures both before execution (store reservation) and after execution (publication), and assert the primary result and status still complete (#376 BR-9).

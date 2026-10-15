@@ -99,16 +99,17 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	defer cleanup()
 
 	writer, err := beginSuiteAttempt(storeRoot)
-	if err != nil {
-		return rec, fmt.Errorf("local check %s: attempt log: %w", c.Name, err)
-	}
 	publishing := false
-	defer func() {
-		if !publishing {
-			_ = os.RemoveAll(filepath.Dir(writer.LogPath))
-		}
-	}()
-	rec.LogPath = writer.LogPath
+	if err != nil {
+		fmt.Fprintf(d.Stderr, "[!] local check %s: attempt log unavailable; using legacy log path: %v\n", c.Name, err)
+	} else {
+		defer func() {
+			if !publishing {
+				_ = os.RemoveAll(filepath.Dir(writer.LogPath))
+			}
+		}()
+		rec.LogPath = writer.LogPath
+	}
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
 	queueStart := time.Now()
 	heldBy, err := acquireSuiteSlot(ctx, d, wt, c.Weight, helper)
@@ -162,39 +163,41 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		return rec, err
 	}
 	queueSeconds, wallSeconds := queueWait.Seconds(), rec.Duration.Seconds()
-	attempt := SuiteAttempt{Version: 1, ID: writer.ID, Repo: d.Repo, SHA: sha, Check: c.Name,
-		StartedAt: start.UTC(), FinishedAt: finished, MainBaseline: d.SkipRecord,
-		QueueSeconds: &queueSeconds, WallSeconds: &wallSeconds,
-		Exit: rec.Exit, TimedOut: rec.TimedOut, LogSHA256: rec.LogSHA256}
-	if identity, idErr := workspace.Resolve(execGitRunner{}, d.Root, ""); idErr == nil && identity.Address != nil {
-		attempt.Slot = *identity.Address
-	}
-	if trailer, trailerErr := d.Git("show", "-s", "--format=%(trailers:key=Agent,valueonly)", sha); trailerErr == nil {
-		attempt.Agent, attempt.Model, attempt.Effort = suiteAgentFields(trailer)
-	}
-	if info, statErr := os.Stat(writer.LogPath); statErr == nil && info.Size() <= 64<<20 {
-		if log, readErr := os.ReadFile(writer.LogPath); readErr == nil {
-			facts := parseSuiteLogFacts(string(log))
-			attempt.Failures, attempt.Units = facts.Failures, facts.Units
-			for _, warning := range facts.Warnings {
-				fmt.Fprintf(d.Stderr, "[!] local check %s: log parser: %s\n", c.Name, warning)
+	if writer != nil {
+		attempt := SuiteAttempt{Version: 1, ID: writer.ID, Repo: d.Repo, SHA: sha, Check: c.Name,
+			StartedAt: start.UTC(), FinishedAt: finished, MainBaseline: d.SkipRecord,
+			QueueSeconds: &queueSeconds, WallSeconds: &wallSeconds,
+			Exit: rec.Exit, TimedOut: rec.TimedOut, LogSHA256: rec.LogSHA256}
+		if identity, idErr := workspace.Resolve(execGitRunner{}, d.Root, ""); idErr == nil && identity.Address != nil {
+			attempt.Slot = *identity.Address
+		}
+		if trailer, trailerErr := d.Git("show", "-s", "--format=%(trailers:key=Agent,valueonly)", sha); trailerErr == nil {
+			attempt.Agent, attempt.Model, attempt.Effort = suiteAgentFields(trailer)
+		}
+		if info, statErr := os.Stat(writer.LogPath); statErr == nil && info.Size() <= 64<<20 {
+			if log, readErr := os.ReadFile(writer.LogPath); readErr == nil {
+				facts := parseSuiteLogFacts(string(log))
+				attempt.Failures, attempt.Units = facts.Failures, facts.Units
+				for _, warning := range facts.Warnings {
+					fmt.Fprintf(d.Stderr, "[!] local check %s: log parser: %s\n", c.Name, warning)
+				}
 			}
-		}
-	} else {
-		fmt.Fprintf(d.Stderr, "[!] local check %s: log too large for timing/failure parser; raw log retained\n", c.Name)
-	}
-	publishing = true // retain failure residue for dead-owner cleanup if save fails
-	if _, saveErr := publishSuiteAttempt(storeRoot, writer, attempt); saveErr != nil {
-		fmt.Fprintf(d.Stderr, "[!] local check %s: attempt result was not fully saved: %v\n", c.Name, saveErr)
-	} else {
-		if !rec.passed() {
-			rec.LogPath = filepath.Join(storeRoot, "failed", writer.ID+".log")
 		} else {
-			rec.LogPath = filepath.Join(logDir, sha, c.Name+".log")
+			fmt.Fprintf(d.Stderr, "[!] local check %s: log too large for timing/failure parser; raw log retained\n", c.Name)
 		}
-		fmt.Fprintf(d.Stderr, "    saved log %s\n", rec.LogPath)
-		if pruneErr := pruneSuiteAttempts(storeRoot, time.Now()); pruneErr != nil {
-			fmt.Fprintf(d.Stderr, "[!] local check %s: attempt pruning: %v\n", c.Name, pruneErr)
+		publishing = true // retain failure residue for dead-owner cleanup if save fails
+		if _, saveErr := publishSuiteAttempt(storeRoot, writer, attempt); saveErr != nil {
+			fmt.Fprintf(d.Stderr, "[!] local check %s: attempt result was not fully saved: %v\n", c.Name, saveErr)
+		} else {
+			if !rec.passed() {
+				rec.LogPath = filepath.Join(storeRoot, "failed", writer.ID+".log")
+			} else {
+				rec.LogPath = filepath.Join(logDir, sha, c.Name+".log")
+			}
+			fmt.Fprintf(d.Stderr, "    saved log %s\n", rec.LogPath)
+			if pruneErr := pruneSuiteAttempts(storeRoot, time.Now()); pruneErr != nil {
+				fmt.Fprintf(d.Stderr, "[!] local check %s: attempt pruning: %v\n", c.Name, pruneErr)
+			}
 		}
 	}
 	pruneLocalCheckLogs(logDir, localCheckLogKeep)

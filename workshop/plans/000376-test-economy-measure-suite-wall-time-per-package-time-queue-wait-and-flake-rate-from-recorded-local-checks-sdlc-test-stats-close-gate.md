@@ -405,6 +405,129 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 70b6dd5f23ebb0039b8c3776346e2d911a239cb7
+        tracker_head: f56a22abed454391c88e6d6efeb4e8c5032c9ad5
+        branch_point: 18915f6c17d9b4aeb5e618d3f736705ec355d2b3
+        since: "2026-10-14T20:40:09-07:00"
+        until: "2026-10-15T00:49:20-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-14T20:40:09-07:00"
+              end: "2026-10-15T00:49:20-07:00"
+              began: "2026-10-14T20:40:09-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 25883f6a818fae8f5a4c3387fefd5f3532654b890be29ee8f83b5e6a54e2fa7c
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 31338839
+              windows:
+                - start: "2026-10-14T20:40:09-07:00"
+                  end: "2026-10-15T00:49:20-07:00"
+            - harness: codex
+              id: 01a13db1-fa52-7b83-bef0-9e0cbb5fed94
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: c0835be6d127033fc4026a726d32df65eaca885e9c30d55e73bbd3e4e0338f45
+              started: "2026-10-15T03:53:57.198Z"
+              spawned: false
+              bytes: 540208
+              windows:
+                - start: "2026-10-15T03:53:57.198Z"
+                  end: "2026-10-15T00:49:20-07:00"
+            - harness: codex
+              id: 01a13db4-79e3-73e3-b1b7-22d2f5b5b8cb
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 722aea63397d119b0d35afbd59ef2b50f11c19572fad617d61b01bbd36d5e3ec
+              started: "2026-10-15T03:56:40.87Z"
+              spawned: false
+              bytes: 455430
+              windows:
+                - start: "2026-10-15T03:56:40.87Z"
+                  end: "2026-10-15T00:49:20-07:00"
+            - harness: codex
+              id: 01a13db6-157f-7013-8b8e-ee975fe00bbd
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 959dbf7a68dc268e0a4b1e520466c83d9a89997094e2ffc6602b21ed0ed76ec4
+              started: "2026-10-15T03:58:26.38Z"
+              spawned: false
+              bytes: 416762
+              windows:
+                - start: "2026-10-15T03:58:26.38Z"
+                  end: "2026-10-15T00:49:20-07:00"
+            - harness: codex
+              id: 01a13db6-8751-73b1-ac45-2cfd823cd708
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: d7d23c22a882b3c12e70d04c8dd72742f868eba3238cda10a48a3f1744fa6e56
+              started: "2026-10-15T03:58:55.257Z"
+              spawned: false
+              bytes: 406150
+              windows:
+                - start: "2026-10-15T03:58:55.257Z"
+                  end: "2026-10-15T00:49:20-07:00"
+            - harness: codex
+              id: 01a13db7-1c66-7172-bde5-115ba37d9e78
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              parent_id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              digest: f3d7fa22ea010167005b6e3c587966845e13959f95bdbc1ea9a62f72eb30c076
+              started: "2026-10-15T03:59:33.078Z"
+              spawned: true
+              bytes: 955056
+              windows:
+                - start: "2026-10-15T03:59:33.078Z"
+                  end: "2026-10-15T00:49:20-07:00"
+            - harness: codex
+              id: 01a13e03-2033-7943-b391-58d87df3dfcd
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              parent_id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              digest: ff664449fd00dc265405978063a82080dc930c582d10211680080c425ebf1dcb
+              started: "2026-10-15T05:22:34.734Z"
+              spawned: true
+              bytes: 626706
+              windows:
+                - start: "2026-10-15T05:22:34.734Z"
+                  end: "2026-10-15T00:49:20-07:00"
+        cuts:
+            - dispatched: "2026-10-14T22:19:15-07:00"
+              finalized: "2026-10-14T22:22:10-07:00"
+              finalizing: false
+            - dispatched: "2026-10-14T23:08:48-07:00"
+              finalized: "2026-10-14T23:12:22-07:00"
+              finalizing: false
+            - dispatched: "2026-10-14T23:50:41-07:00"
+              finalized: "2026-10-14T23:53:58-07:00"
+              finalizing: false
+      "n": 4
+      timestamp: "2026-10-15T00:52:19-07:00"
+      dispatched: "2026-10-15T00:49:57-07:00"
+      agent: codex
+      dispose:
+        - id: BR-8
+          disposition: addressed
+          note: Nested required scalars reject null before decoding. TestReadSuiteAttemptsRejectsNullNestedScalars verifies warnings, zero admitted records, and no aggregates. Removing the nested-null guard in a disposable copy makes the seconds:null regression fail.
+          round: 4
+      findings:
+        - kind: defect
+          id: BR-9
+          severity: Important
+          title: Statistics initialization failure prevents local checks from running
+          detail: cmd/sdlc/localcheck_run.go:101-103 returns immediately when beginSuiteAttempt fails, contradicting the Plan's warning-only persistence contract at workshop/plans/000376-test-stats-plan.md:37 (ARCH-PURPOSE, ARCH-CONSTRAINTS). A disposable regression fixture with test-stats/inflight occupied by a regular file reproduced exit=-1, no executed check, and no posted status despite usable legacy log storage. Warn and fall back to the existing local-check log path when statistics initialization fails; add regression coverage for initialization and publication failures.
+          family: optional-telemetry-failure-isolation
+          round: 4
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 70b6dd5f23ebb0039b8c3776346e2d911a239cb7
+      blocked: false
 ---
 
 # Gate ledger — ariadne#376 (boundary-review)
@@ -460,6 +583,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-8** [Important] `persisted-evidence-canonical-decoding` (kind: defect) Null nested durations become fabricated zero-second measurements
   cmd/sdlc/teststats_store.go:194-197 accepts a unit's "seconds":null; decoding converts it to zero, validation at line 162 accepts it, and cmd/sdlc/teststats.go:127-130 includes it in samples and p90. TestBoundary376NullUnitTiming reproduced this on the pinned head. ARCH-SECURE: this violates the plan's unknown-value and malformed-record contracts. This is the 2nd finding in family persisted-evidence-canonical-decoding. State and enforce the schema-wide rule that required scalar fields at every depth reject null before zero-value decoding; sweep the field inventory and add regressions proving rejected records generate coverage diagnostics and never enter aggregates.
 
+## Round 4 — 2026-10-15T00:52:19-07:00 (codex) — passed
+
+### Disposed
+
+- BR-8 — addressed — Nested required scalars reject null before decoding. TestReadSuiteAttemptsRejectsNullNestedScalars verifies warnings, zero admitted records, and no aggregates. Removing the nested-null guard in a disposable copy makes the seconds:null regression fail.
+
+### Raised
+
+- **BR-9** [Important] `optional-telemetry-failure-isolation` (kind: defect) Statistics initialization failure prevents local checks from running
+  cmd/sdlc/localcheck_run.go:101-103 returns immediately when beginSuiteAttempt fails, contradicting the Plan's warning-only persistence contract at workshop/plans/000376-test-stats-plan.md:37 (ARCH-PURPOSE, ARCH-CONSTRAINTS). A disposable regression fixture with test-stats/inflight occupied by a regular file reproduced exit=-1, no executed check, and no posted status despite usable legacy log storage. Warn and fall back to the existing local-check log path when statistics initialization fails; add regression coverage for initialization and publication failures.
+
 ## Open findings
 
-- **BR-8** [Important] `persisted-evidence-canonical-decoding` (kind: defect) Null nested durations become fabricated zero-second measurements
+- **BR-9** [Important] `optional-telemetry-failure-isolation` (kind: defect) Statistics initialization failure prevents local checks from running

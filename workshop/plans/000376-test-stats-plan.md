@@ -111,3 +111,7 @@ BR-5 tightened the persisted-input boundary: every top-level attempt field and n
 ### 2026-10-15 — close review round 3
 
 BR-8 found that Go's scalar decoder also maps nested JSON nulls to zero values. Required scalar fields reject null at every depth before decoding; only queue/wall measurements and agent/model/effort identity are nullable by schema. A record with a null duration kind, name or seconds now produces a coverage diagnostic and contributes no samples, and duration kind is validated against the emitted measurement kinds (ARCH-SECURE, ARCH-PURPOSE).
+
+### 2026-10-15 — close review round 4
+
+BR-9 found that optional statistics initialization could prevent the local check from running. If attempt-log reservation fails, the runner warns, uses its existing per-head legacy log path, and still executes and posts the check outcome. If later attempt publication fails, it warns, retains the private log for recovery, and still posts the outcome. Integration regressions block both initialization and publication paths and assert check execution, log retention, and status posting (ARCH-ERROR, ARCH-PURPOSE).
