@@ -82,15 +82,15 @@ Layout, `construct/local/universal-review/` (weave lowers it to `xx-universal-re
   - Members are sorted by role and then order, with no timestamps, so the file is deterministic.
 
 Tasks:
-- [ ] Author `SKILL.md`, `round.md` and `adapters/file-edit.md` via the superpowers-writing-skills workflow. Copy the six modes and add the grammar symlink.
-- [ ] Add a `pkg/reviewexport` validator:
+- [x] Author `SKILL.md`, `round.md` and `adapters/file-edit.md` via the superpowers-writing-skills workflow. Copy the six modes and add the grammar symlink.
+- [x] Add a `pkg/reviewexport` validator:
   - it parses mode frontmatter as parley does (flat keys; name equals basename; valid enum values);
   - it builds the manifest;
   - `TestExportCurrent` fails on a stale or missing member, and `UPDATE_REVIEW_EXPORT=1` regenerates the manifest;
   - a determinism test builds it twice and checks the two are identical.
-- [ ] A discovery test: an ariadne-derived fixture whose weave lowering yields `xx-universal-review` in both harness directories, with `review-convention.md` resolving through the harness path.
-- [ ] Point `tl-lead --help` and `tl-worker --help` at the skill for review requests, with phrase guards. The `xx-couch` skill gets the same one-line pointer.
-- [ ] Atlas: a short `atlas/workflow/universal-review.md`, linked from the indexes.
+- [x] A discovery test: an ariadne-derived fixture whose weave lowering yields `xx-universal-review` in both harness directories, with `review-convention.md` resolving through the harness path.
+- [x] Point `tl-lead --help` and `tl-worker --help` at the skill for review requests, with phrase guards. The `xx-couch` skill gets the same one-line pointer.
+- [x] Atlas: a short `atlas/workflow/universal-review.md`, linked from the indexes.
 - [ ] Live check, coordinated by the hub: one operator Alt+Return on a registered document is answered by the skill under the lock and the CAS.
 
 ## Log
@@ -99,3 +99,16 @@ Tasks:
 unclaimed for hub dispatch. See ops teams/devinfra/projects/universal-agent-input-interface/design.md
 S2 and project.md S2a. This is the shared-skill half; no Parley code belongs here.
 - 2026-10-15 (ariadne:2): claimed. TL decision (ops:0): Alt+Return sends ONLY 'submitted: PATH'; the skill carries the whole protocol (frontmatter process-instruction, couch --session-sync diff for changes since last read, review modes, marker grammar). parley.nvim:1 confirms #319 is submitted-only: it deletes the verbose Couch builder/diff baseline and keeps only the inline in-editor fallback outside Couch, so the export must serve both: the skill (in Couch) and the inline fallback (standalone).
+- 2026-10-15: TL approved the plan at 6c384550 (delivery 18480ed1). The TL also asked to keep round.md open for S2's section-mode step, which is now its §4 (reserved).
+- 2026-10-15: parley.nvim:1's consumer review (delivery 97b175aa) is folded in:
+  - **Direct edits:** a file is edited directly only on a confirmed-untracked lookup. A `type: session-sync` file always takes the lock and CAS path. An unknown lookup result writes nothing.
+  - **Snapshot:** the round reviews the `read --all` snapshot whose hash is H. It folds only the owed IDs captured in `status` before the diff; anything delivered later stays owed. With nothing owed, `--fold` is left out. On a lock, the pending ask carries over to the next submit, even if that submit's diff is empty.
+  - **Composition:** round.md names no Couch verb, so it works outside Couch. Parley's local prompt is round, grammar, the selected modes and its own `propose_edits` adapter; it excludes SKILL.md and the file-edit adapter.
+  - **Manifest pins:**
+    - sizes and hashes cover each file's resolved contents, including the grammar symlink;
+    - the order is total: role, then mode order with unordered modes last, then name, then path;
+    - an omitted mode flag takes parley's default.
+- 2026-10-15: built. These tests are green:
+  - `pkg/reviewexport`: ParseMode, its defaults and refusals; the build order; missing-member refusals; determinism; TestExportCurrent.
+  - `cmd/weave` TestUniversalReviewSkillDiscoveredInDerivedRepo: both harness directories, with the grammar bytes equal to the canonical file.
+  - The tl-lead and tl-worker phrase guards.

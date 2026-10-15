@@ -14,3 +14,4 @@ stage-clear	cited	`sdlc stage --clear`
 landing	own	`sdlc merge --yes` yourself
 landing-stop	own	report the merge with its PR number to the hub, and stop
 report-receipt	own	receipt reads `submitted`
+review-request	cited	answer it with the `xx-universal-review` skill

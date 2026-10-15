@@ -1,0 +1,83 @@
+# Review round
+
+One round answers one operator submit of a markdown document. This file is
+harness-neutral: it says what a round decides. How you read and write the file
+is the adapter's job (`adapters/`). The marker grammar is
+[review-convention.md](review-convention.md), the one authored copy; this file
+uses its terms and restates none of it.
+
+## 1. Inputs
+
+- **The document:** the path in the request.
+- **The instruction:** the document's frontmatter `process-instruction:` value,
+  read from the file itself on every round (the operator may change it between
+  rounds). Its form is `[name][name] free text`: each leading `[name]` names a
+  mode, and the rest is the operator's own instruction for this round. With no
+  frontmatter, no `process-instruction:`, or no `[name]`, the mode is
+  `free-form`.
+- **The changes since your last read:** what the operator (or anyone) changed
+  in the document since you last read or wrote it. The adapter says how to get
+  them. On a first read there are none: read the whole document.
+
+## 2. Modes
+
+The stock modes are the files in `modes/`, one per mode. Each has flat
+frontmatter (`name`, `order`, `scope`, `deletions`, `frontier`) and a prose
+brief.
+
+- **Resolve each `[name]`:** an exact mode name wins. Otherwise the name must
+  be a prefix of exactly one mode name (`[copy-edit]` is `copy-editing`). A
+  name that prefixes several modes is ambiguous, and one that prefixes none is
+  unknown. Either way, do no review: tell the operator which name failed and
+  list the known modes (`developmental, line-editing, copy-editing,
+  proofreading, fact-check, free-form`).
+- **Several modes:** apply every named mode's brief, in the order named. Only
+  the **first** mode's flags govern the round, since one round has one set of
+  directives.
+- **The operator's text** after the names is part of the brief and wins where it
+  is more specific than a mode's.
+
+## 3. Directives from the first mode's flags
+
+| Flag | Value | Directive |
+|---|---|---|
+| `scope` | `whole-doc` | Edit the whole document as the brief directs; markers are optional. |
+| `scope` | `markers-only` | Confine edits to text that 🤖 markers refer to; leave the rest untouched. |
+| `frontier` | `on` | Treat everything above the topmost human `🤖[…]` marker as settled: confine edits and findings to that marker and below. |
+| `frontier` | `off` | No settled region. |
+| `deletions` | `apply-with-gutter-why` | Apply removals directly, and say why each went (in your reply, or a `🤖{…}` note beside the cut). |
+| `deletions` | `apply` | Apply mechanical removals directly and silently. |
+| `deletions` | `propose-strike` | Apply no removal or replacement yourself: propose each as a `🤖~old~{new}` (or `🤖~old~`) marker for the operator to accept or reject. |
+
+## 4. Section modes (reserved)
+
+Today one resolved mode set governs the whole document. A later slice adds
+per-section modes (frontmatter `modes:`, such as a `chat` section answered one
+document per bullet); this step is where they will apply. Until then, ignore a
+`modes:` key.
+
+## 5. Markers
+
+Read every 🤖 marker in the round's scope (§3), outside fenced code, per the
+grammar.
+
+- **Ready:** the chain's last turn is human (`[…]`). Act on it: apply the asked
+  change to the text the marker refers to, or answer the question. A marker
+  with an anchor (`<X>` or `~D~`) refers to exactly that text; without one, to
+  the text just before it, back to the previous paragraph, bullet or heading.
+  Match the scale of the edit to the ask.
+- **Done:** a ready marker whose ask you have fully carried out is removed. An
+  answer is folded into clean prose (the grammar's §6 light-touch default), not
+  narrated as a reply.
+- **Unclear:** append a `{clarifying question}` turn to the marker and leave it.
+- **Pending:** the last turn is yours (`{…}`). Leave it for the operator.
+- **Proposals** (`🤖~D~`, `🤖~D~{N}`, `🤖<X>{N}`, `🤖{N}`): never ready by
+  themselves. Resolve them only when the operator asks (the grammar's §6).
+- Every marker you write is single-line (`<br>` inside a turn for a line break).
+
+## 6. The reply
+
+After the adapter has written the document, reply briefly in your own pane:
+what you changed and what you left for the operator (open questions, proposals
+to accept or reject). An error (an unknown mode, a refused write) is reported
+the same way and leaves the document unchanged.

@@ -20,6 +20,9 @@ your task calls for it, and only as `couch --skill` describes.
 protocol. It covers reporting to and asking the hub, and the exact form of a
 `couch` call that stays outside the sandbox. Read it there; it is not restated here.
 
+**A `submitted: PATH` message for a markdown document** is the operator's review
+request: answer it with the `xx-universal-review` skill.
+
 **If `couch` is not installed** (`command -v couch` finds nothing), stop. Tell
 the operator that Couch peer messaging is unavailable in this environment
 because the `couch` binary from the pair repository is not on `PATH`. Do not

@@ -57,6 +57,8 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		{"G1 Operator instructions is section 0", "0. `## Operator instructions`"},
 		{"G2 the TL only links answers", "Your only write is appending"},
 		{"G2 every bullet gets an answer", "every bullet gets one, questions and"},
+		// #399: other documents' submits are review requests.
+		{"review requests use the shared skill", "review request: answer it with the\n    `xx-universal-review` skill"},
 		// #388: a deleted bullet closes its QA file.
 		{"a deleted bullet closes its QA file", "A deleted bullet closes its QA file"},
 		{"follow-ups never reopen a closed file", "never into the closed file"},
