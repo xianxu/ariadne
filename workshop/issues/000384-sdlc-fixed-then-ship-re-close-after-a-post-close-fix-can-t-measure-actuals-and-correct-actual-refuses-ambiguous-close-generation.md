@@ -118,3 +118,5 @@ PR #255: https://github.com/xianxu/ariadne/pull/255. Fresh origin/main integrati
 ### 2026-10-15 — supersede queued pre-integration check
 
 While the recorded check on be92302c waited, main landed #371 (PR #253), changing issue/scaffold code. Canceled our still-queued pre-integration check with SIGINT (exit 130 after 2597s wait, test-lock remained waiting and ran no tests). No pass was recorded or claimed. Merged current origin/main f113e1e9fc9b7eac98bf7b3a644fc97f1095a360 cleanly, including compatible help/atlas edits. Requeue the required recorded suite on the combined pushed head; no tests or queue gates waived. This is one explicit replacement for a known code integration, not a custom wait/load loop.
+
+- Replacement recorded check pinned to pushed combined head e55eed0871ac4061db7f8fd22d3d18e4958c9a75 (git rev-parse), initially queue position 4. Detached checkout /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/sdlc-local-2717862169; log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/e55eed0871ac4061db7f8fd22d3d18e4958c9a75/suite.log. No result yet. Implementation and focused verification are committed; full-suite pass and close/landing remain.
