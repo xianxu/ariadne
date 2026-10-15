@@ -284,7 +284,7 @@ these code changes, then close to SHIP. Previous passing evidence remains an
 accurate record for its earlier head, not evidence for the pending fixes.
 
 
-### 2026-10-14 21:30 — round1 regression evidence
+### 2026-10-14 21:16 — round1 regression evidence
 
 BR-2 reporting now uses Store.AccountingEvidence for private receipts, retaining
 partial identity plus errors while strict gate-facing List/Load remain unchanged.
@@ -300,7 +300,7 @@ change-code verifies plan/estimate receipts and exact ledger copies through usag
 loading and worker0/reviewer20/total20 with one round/attempt. Cancellation after
 observed Started retains Finished/canceled accounting without semantic ledger or
 HEAD movement. All three tests pass across three runs15.261s. Independent Go
- overlays omitting boundary/plan/estimate attachment each fail the intended
+overlays omitting boundary/plan/estimate attachment each fail the intended
 missing-binding assertion (1.179s/2.389s/2.590s). Initial fixture agent-selection
 and duplicate-ID errors were corrected; every fallback CLI is now a failing local
 guard. Task2's reopened production row is complete on this evidence.

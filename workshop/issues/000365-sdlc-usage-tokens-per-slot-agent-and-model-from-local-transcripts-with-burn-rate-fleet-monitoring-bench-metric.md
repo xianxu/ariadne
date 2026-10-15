@@ -160,7 +160,7 @@ cannot be retroactively guessed into the new binding schema. Reports are local
 Next shared close to SHIP, PR and merge.
 
 
-### 2026-10-14 21:20 — boundary round1 REWORK
+### 2026-10-14 21:12 — boundary round1 REWORK
 
 Shared close reviewed2723e1f5892053ae932f5c86bf14818454ae62ad, measured5.70h,
 and returned three Critical/one Important findings. BR-1 reproduced mixed modern
@@ -175,7 +175,7 @@ integration checkbox reopened until the actual wiring tests pass. Prior suite
 pass remains evidence for08141717 only; rerun after these code fixes.
 
 
-### 2026-10-14 21:30 — round1 fixes verified
+### 2026-10-14 21:16 — round1 fixes verified
 
 BR-2 now validates and reports invalid ledger/comment/private accounting, retains
 usable identity solely for quarantine, and never authorizes cleanup from invalid
