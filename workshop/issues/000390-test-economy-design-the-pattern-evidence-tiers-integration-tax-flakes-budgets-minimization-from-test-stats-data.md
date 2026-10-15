@@ -74,3 +74,12 @@ The TL reported #391 waited fourth for a suite while it blocked `sdlc close`
 fleet-wide. The plan now specifies a logged, time-bounded operator/TL grant
 that lets a fleet-blocking candidate pass waiting normal candidates at the
 next admission; it never preempts a running suite or waives landing evidence.
+
+### 2026-10-15 13:49 PDT — Measurement precedes budgets and minimization
+
+Operator review withdrew the plan's proposed couchcore 600 s ceiling and
+240 s target pending several weekly trend snapshots. A new implementing issue
+will save a weekly per-repo test-stats summary in brain and link it from the
+ops project; full suites per landed issue is the headline evidence-tier metric.
+Minimization now follows #328's traceability map feature by feature: overlap
+nominates, mutation testing measures detection, and review decides removals.
