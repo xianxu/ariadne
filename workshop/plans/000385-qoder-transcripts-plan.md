@@ -351,3 +351,24 @@ strategies rather than prose test-case inventories. Replaced the inventories and
 procedural task detail with the function-level strategy table and compact TDD
 steps. The measurement, source and integration contracts above are unchanged.
 PQ-1 invocation provenance is being resolved with the hub before Task 4.
+
+### 2026-10-15 — PQ-1 exact identity policy approved by hub
+
+Supersedes all recency-based identity selection above. The hub approved the
+following exact policy: a valid SDLC_AGENT_ID override wins; otherwise nonempty
+QODER_CLI establishes Qoder invocation before competing native-agent markers.
+Only then may PAIR_SESSION_ID bind a transcript, and only when its sessionId
+and recorded workspace both match the launch context. Pair pins that same
+--session-id at launch. PAIR_AGENT/PAIR_SESSION_ID without QODER_CLI remains
+ordinary shell context. A supplied but mismatched binding cannot fall back to
+another session by recency.
+
+Native-only Qoder with one unambiguous workspace-matched session may read that
+session's metadata. Competing session identities, contradictory copies, missing
+or incomplete evidence leave qoder/-/-; SDLC_AGENT_ID is the explicit fallback.
+No modification time or activity timestamp can prefer one competing session
+identity. Retain the stated scan limits and shared metadata/config decoder.
+Detector.Detect/selectQoderSession property tests must preserve this policy
+under permutation of sessions and activity timestamps, including a newer
+noninvoking session. Task 4's decision prerequisite is complete; PQ-1 is addressed
+by the policy and its production-function verification strategy.

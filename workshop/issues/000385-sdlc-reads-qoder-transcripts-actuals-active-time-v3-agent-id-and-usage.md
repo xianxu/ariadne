@@ -128,3 +128,8 @@ Asked the hub to refine identity: QODER_CLI establishes invocation; a Pair-pinne
 PAIR_SESSION_ID can then bind the exact transcript only after cwd/sessionId
 validation; without launch binding, competing sessions remain unknown. Awaiting
 that decision before the gate rerun; no production code changed.
+
+- Hub approved the exact identity refinement: QODER_CLI proves invocation;
+  PAIR_SESSION_ID binds only after transcript sessionId/cwd validation. A missing
+  or mismatched binding cannot choose a competing session by recency; native-only
+  ambiguity remains qoder/-/-. Recorded the superseding plan revision for PQ-1.
