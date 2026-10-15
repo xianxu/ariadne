@@ -68,6 +68,7 @@ Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `
 - Focused tests prove parser/aggregation, malformed-record rejection, failure-log collision refusal, 30-day pruning, crash-orphan cleanup, same-head retry after a failed status POST, exact-head Agent trailer, measured lock wait, and long-line log hashing. `make -k tools` and `git diff --check` pass.
 - The real read-only CLI from ariadne:1 reports ariadne 20 historical suite runs (wall coverage 19/20, queue 0/20) and pair 20 (wall and queue 0/20), with slow-unit lists; historical unknowns remain `n/a`. A third sibling, parley.nvim, has 8 partial runs. No confirmed flake rate denominator exists until new per-attempt records accumulate.
 - The first recorded suite was queued behind two other runs; I cancelled it before it acquired the suite lock after spotting a total-reader-memory gap. The reader now streams directory entries and caps aggregate JSON intake at 64 MiB with an explicit warning. The suite will run on the corrected pushed head.
+- During the next queue wait, validation review found an omitted JSON `exit` defaulted to zero and could fabricate success. Added required-field and duplicate-key checks, with regression fixtures; cancelled before acquiring the suite lock again so final verification applies to the corrected head.
 
 ## Revisions
 

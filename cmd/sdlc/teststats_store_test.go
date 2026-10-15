@@ -24,17 +24,21 @@ func storedAttemptFixture(id string) SuiteAttempt {
 }
 
 func TestDecodeSuiteAttemptRejectsUntrustedRecords(t *testing.T) {
-	valid := `{"version":1,"id":"a1","repo":"x/ariadne","sha":"` + strings.Repeat("a", 40) + `","check":"suite","started_at":"2026-10-14T20:00:00Z","finished_at":"2026-10-14T20:00:01Z","exit":2,"log_sha256":"` + strings.Repeat("b", 64) + `","log_path":"failed/a1.log"}`
+	valid := `{"version":1,"id":"a1","repo":"x/ariadne","sha":"` + strings.Repeat("a", 40) + `","check":"suite","started_at":"2026-10-14T20:00:00Z","finished_at":"2026-10-14T20:00:01Z","main_baseline":false,"queue_seconds":null,"wall_seconds":null,"exit":2,"timed_out":false,"log_sha256":"` + strings.Repeat("b", 64) + `","log_path":"failed/a1.log"}`
 	if got, err := decodeSuiteAttempt([]byte(valid)); err != nil || got.ID != "a1" {
 		t.Fatalf("valid record: %+v %v", got, err)
 	}
 	for name, raw := range map[string]string{
-		"truncated":     valid[:len(valid)-1],
-		"version":       strings.Replace(valid, `"version":1`, `"version":2`, 1),
-		"traversal":     strings.Replace(valid, `failed/a1.log`, `../../outside`, 1),
-		"negative wall": strings.Replace(valid, `"exit":2`, `"wall_seconds":-1,"exit":2`, 1),
-		"false success": strings.Replace(valid, `"exit":2`, `"exit":0,"timed_out":true`, 1),
-		"unknown":       strings.Replace(valid, `"version":1`, `"version":1,"surprise":true`, 1),
+		"truncated":        valid[:len(valid)-1],
+		"version":          strings.Replace(valid, `"version":1`, `"version":2`, 1),
+		"traversal":        strings.Replace(valid, `failed/a1.log`, `../../outside`, 1),
+		"negative wall":    strings.Replace(valid, `"exit":2`, `"wall_seconds":-1,"exit":2`, 1),
+		"false success":    strings.Replace(valid, `"exit":2`, `"exit":0,"timed_out":true`, 1),
+		"unknown":          strings.Replace(valid, `"version":1`, `"version":1,"surprise":true`, 1),
+		"missing exit":     strings.Replace(valid, `"exit":2,`, ``, 1),
+		"missing baseline": strings.Replace(valid, `"main_baseline":false,`, ``, 1),
+		"duplicate exit":   strings.Replace(valid, `"exit":2,`, `"exit":0,"exit":2,`, 1),
+		"null exit":        strings.Replace(valid, `"exit":2,`, `"exit":null,`, 1),
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := decodeSuiteAttempt([]byte(raw)); err == nil {

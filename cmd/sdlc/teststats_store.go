@@ -58,6 +58,45 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 	if len(data) > suiteAttemptMaxJSON {
 		return a, fmt.Errorf("record exceeds %d bytes", suiteAttemptMaxJSON)
 	}
+	// Decode into tokens first: encoding/json otherwise accepts omitted scalar
+	// fields as zero values and silently keeps the last duplicate key. Either
+	// behavior could fabricate a successful run from damaged evidence.
+	keys := map[string]bool{}
+	probe := json.NewDecoder(bytes.NewReader(data))
+	start, err := probe.Token()
+	if err != nil || start != json.Delim('{') {
+		return a, errors.New("attempt must be one JSON object")
+	}
+	for probe.More() {
+		keyToken, err := probe.Token()
+		if err != nil {
+			return a, err
+		}
+		key, ok := keyToken.(string)
+		if !ok || keys[key] {
+			return a, errors.New("duplicate or invalid attempt field")
+		}
+		keys[key] = true
+		var value json.RawMessage
+		if err := probe.Decode(&value); err != nil {
+			return a, err
+		}
+		if key != "queue_seconds" && key != "wall_seconds" && key != "agent" && key != "model" && key != "effort" && bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+			return a, fmt.Errorf("null required attempt field %s", key)
+		}
+	}
+	end, err := probe.Token()
+	if err != nil || end != json.Delim('}') {
+		return a, errors.New("invalid attempt object")
+	}
+	if _, err := probe.Token(); !errors.Is(err, io.EOF) {
+		return a, errors.New("trailing JSON")
+	}
+	for _, key := range []string{"version", "id", "repo", "sha", "check", "started_at", "finished_at", "main_baseline", "queue_seconds", "wall_seconds", "exit", "timed_out", "log_sha256", "log_path"} {
+		if !keys[key] {
+			return a, fmt.Errorf("missing required attempt field %s", key)
+		}
+	}
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.DisallowUnknownFields()
 	if err := d.Decode(&a); err != nil {
