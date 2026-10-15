@@ -34,8 +34,9 @@ brief.
 - **Several modes:** apply every named mode's brief, in the order named. Only
   the **first** mode's flags govern the round, since one round has one set of
   directives.
-- **The operator's text** after the names is part of the brief and wins where it
-  is more specific than a mode's.
+- **The operator's text** after the names is part of the brief for the whole
+  round (what to edit, how much, how to reply), and wins where it is more
+  specific than a mode's.
 
 ## 3. Directives from the first mode's flags
 
@@ -47,7 +48,14 @@ brief.
 | `frontier` | `off` | No settled region. |
 | `deletions` | `apply-with-gutter-why` | Apply removals directly, and say why each went (in your reply, or a `🤖{…}` note beside the cut). |
 | `deletions` | `apply` | Apply mechanical removals directly and silently. |
-| `deletions` | `propose-strike` | Apply no removal or replacement yourself: propose each as a `🤖~old~{new}` (or `🤖~old~`) marker for the operator to accept or reject. |
+| `deletions` | `propose-strike` | Apply no removal or replacement yourself: propose each as a marker for the operator to accept or reject: a deletion as `🤖~D~`, a replacement in the form the grammar's §3 prefers. |
+
+The frontier's edges: the topmost human marker is found outside fenced code,
+and the text it refers to (§5) is on the open side. With no human marker, there
+is no settled region.
+
+The **edit region** is what these leave open: the whole document or only the
+markers' text (`scope`), minus the settled region (`frontier`).
 
 ## 4. Section modes (reserved)
 
@@ -58,19 +66,23 @@ document per bullet); this step is where they will apply. Until then, ignore a
 
 ## 5. Markers
 
-Read every 🤖 marker in the round's scope (§3), outside fenced code, per the
+Read every 🤖 marker in the edit region (§3), outside fenced code, per the
 grammar.
 
 - **Ready:** the chain's last turn is human (`[…]`). Act on it: apply the asked
   change to the text the marker refers to, or answer the question. A marker
   with an anchor (`<X>` or `~D~`) refers to exactly that text; without one, to
   the text just before it, back to the previous paragraph, bullet or heading.
-  Match the scale of the edit to the ask.
+  Match the scale of the edit to the ask. The ask is carried out under the
+  first mode's `deletions` directive: under `propose-strike`, the change it
+  asks for is written as a proposal marker in place of the human marker, and
+  that proposal is the answer.
 - **Done:** a ready marker whose ask you have fully carried out is removed. An
   answer is folded into clean prose (the grammar's §6 light-touch default), not
   narrated as a reply.
 - **Unclear:** append a `{clarifying question}` turn to the marker and leave it.
-- **Pending:** the last turn is yours (`{…}`). Leave it for the operator.
+- **Pending:** the last turn is an agent turn (`{…}`), whoever wrote it. Leave it
+  for the operator.
 - **Proposals** (`🤖~D~`, `🤖~D~{N}`, `🤖<X>{N}`, `🤖{N}`): never ready by
   themselves. Resolve them only when the operator asks (the grammar's §6).
 - Every marker you write is single-line (`<br>` inside a turn for a line break).

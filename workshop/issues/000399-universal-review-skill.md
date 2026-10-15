@@ -112,3 +112,15 @@ S2 and project.md S2a. This is the shared-skill half; no Parley code belongs her
   - `pkg/reviewexport`: ParseMode, its defaults and refusals; the build order; missing-member refusals; determinism; TestExportCurrent.
   - `cmd/weave` TestUniversalReviewSkillDiscoveredInDerivedRepo: both harness directories, with the grammar bytes equal to the canonical file.
   - The tl-lead and tl-worker phrase guards.
+- 2026-10-15: dry-run check. A fresh subagent, given only the skill, answered `submitted: note.md` (untracked, `[copy] keep it short`):
+  - it resolved `[copy]` to copy-editing by unique prefix;
+  - it left the typo above the frontier untouched;
+  - it turned the ready grammar ask and a misspelling below the frontier into strike proposals;
+  - it left the pending `{…}` marker and the marker inside a fence.
+  It also flagged ambiguities, so round.md now states:
+  - how an explicit ask works under propose-strike: the proposal replaces the human marker and is the answer;
+  - that replacement forms defer to the grammar's §3;
+  - the frontier's edges: fenced markers don't count, the referred text is open, and with no human marker nothing is settled;
+  - "edit region" in place of the overloaded word "scope";
+  - "pending" as any agent turn, whoever wrote it;
+  - where the operator's free text applies.
