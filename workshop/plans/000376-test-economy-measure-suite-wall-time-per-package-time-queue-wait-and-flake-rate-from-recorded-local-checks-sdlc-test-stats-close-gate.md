@@ -528,6 +528,124 @@ rounds:
       isolation: fenced
       reviewed: 70b6dd5f23ebb0039b8c3776346e2d911a239cb7
       blocked: false
+    - actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 3404563c7dd5c7f93a898ad8146d140f7037c75a
+        tracker_head: 49a3431b5724cf5bff285ae347a7499e5ce4486e
+        branch_point: 18915f6c17d9b4aeb5e618d3f736705ec355d2b3
+        since: "2026-10-14T20:40:09-07:00"
+        until: "2026-10-15T01:56:41-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-14T20:40:09-07:00"
+              end: "2026-10-15T01:56:41-07:00"
+              began: "2026-10-14T20:40:09-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 6b6929092ca85972fa9db8b997eb5e4e188120f668778e2d9767c56ed1457ddf
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 32873710
+              windows:
+                - start: "2026-10-14T20:40:09-07:00"
+                  end: "2026-10-15T01:56:41-07:00"
+            - harness: codex
+              id: 01a13db1-fa52-7b83-bef0-9e0cbb5fed94
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: c0835be6d127033fc4026a726d32df65eaca885e9c30d55e73bbd3e4e0338f45
+              started: "2026-10-15T03:53:57.198Z"
+              spawned: false
+              bytes: 540208
+              windows:
+                - start: "2026-10-15T03:53:57.198Z"
+                  end: "2026-10-15T01:56:41-07:00"
+            - harness: codex
+              id: 01a13db4-79e3-73e3-b1b7-22d2f5b5b8cb
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 722aea63397d119b0d35afbd59ef2b50f11c19572fad617d61b01bbd36d5e3ec
+              started: "2026-10-15T03:56:40.87Z"
+              spawned: false
+              bytes: 455430
+              windows:
+                - start: "2026-10-15T03:56:40.87Z"
+                  end: "2026-10-15T01:56:41-07:00"
+            - harness: codex
+              id: 01a13db6-157f-7013-8b8e-ee975fe00bbd
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 959dbf7a68dc268e0a4b1e520466c83d9a89997094e2ffc6602b21ed0ed76ec4
+              started: "2026-10-15T03:58:26.38Z"
+              spawned: false
+              bytes: 416762
+              windows:
+                - start: "2026-10-15T03:58:26.38Z"
+                  end: "2026-10-15T01:56:41-07:00"
+            - harness: codex
+              id: 01a13db6-8751-73b1-ac45-2cfd823cd708
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: d7d23c22a882b3c12e70d04c8dd72742f868eba3238cda10a48a3f1744fa6e56
+              started: "2026-10-15T03:58:55.257Z"
+              spawned: false
+              bytes: 406150
+              windows:
+                - start: "2026-10-15T03:58:55.257Z"
+                  end: "2026-10-15T01:56:41-07:00"
+            - harness: codex
+              id: 01a13db7-1c66-7172-bde5-115ba37d9e78
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              parent_id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              digest: f3d7fa22ea010167005b6e3c587966845e13959f95bdbc1ea9a62f72eb30c076
+              started: "2026-10-15T03:59:33.078Z"
+              spawned: true
+              bytes: 955056
+              windows:
+                - start: "2026-10-15T03:59:33.078Z"
+                  end: "2026-10-15T01:56:41-07:00"
+            - harness: codex
+              id: 01a13e03-2033-7943-b391-58d87df3dfcd
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              parent_id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              digest: ff664449fd00dc265405978063a82080dc930c582d10211680080c425ebf1dcb
+              started: "2026-10-15T05:22:34.734Z"
+              spawned: true
+              bytes: 626706
+              windows:
+                - start: "2026-10-15T05:22:34.734Z"
+                  end: "2026-10-15T01:56:41-07:00"
+        cuts:
+            - dispatched: "2026-10-14T22:19:15-07:00"
+              finalized: "2026-10-14T22:22:10-07:00"
+              finalizing: false
+            - dispatched: "2026-10-14T23:08:48-07:00"
+              finalized: "2026-10-14T23:12:22-07:00"
+              finalizing: false
+            - dispatched: "2026-10-14T23:50:41-07:00"
+              finalized: "2026-10-14T23:53:58-07:00"
+              finalizing: false
+            - dispatched: "2026-10-15T00:49:57-07:00"
+              finalized: "2026-10-15T00:52:19-07:00"
+              finalizing: true
+      "n": 5
+      timestamp: "2026-10-15T01:58:11-07:00"
+      dispatched: "2026-10-15T01:57:08-07:00"
+      agent: codex
+      dispose:
+        - id: BR-9
+          disposition: addressed
+          note: localcheck_run.go:101-112 falls back when statistics initialization fails. The new initialization regression fails with the base implementation restored in a disposable copy and passes at head. The publication-failure test also passes, confirming retained logs and successful status posting.
+          round: 5
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 3404563c7dd5c7f93a898ad8146d140f7037c75a
+      blocked: false
 ---
 
 # Gate ledger — ariadne#376 (boundary-review)
@@ -594,6 +712,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-9** [Important] `optional-telemetry-failure-isolation` (kind: defect) Statistics initialization failure prevents local checks from running
   cmd/sdlc/localcheck_run.go:101-103 returns immediately when beginSuiteAttempt fails, contradicting the Plan's warning-only persistence contract at workshop/plans/000376-test-stats-plan.md:37 (ARCH-PURPOSE, ARCH-CONSTRAINTS). A disposable regression fixture with test-stats/inflight occupied by a regular file reproduced exit=-1, no executed check, and no posted status despite usable legacy log storage. Warn and fall back to the existing local-check log path when statistics initialization fails; add regression coverage for initialization and publication failures.
 
+## Round 5 — 2026-10-15T01:58:11-07:00 (codex) — passed
+
+### Disposed
+
+- BR-9 — addressed — localcheck_run.go:101-112 falls back when statistics initialization fails. The new initialization regression fails with the base implementation restored in a disposable copy and passes at head. The publication-failure test also passes, confirming retained logs and successful status posting.
+
 ## Open findings
 
-- **BR-9** [Important] `optional-telemetry-failure-isolation` (kind: defect) Statistics initialization failure prevents local checks from running
+(none — every finding has been disposed)

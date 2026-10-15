@@ -390,3 +390,60 @@ findings:
    - **ARCH-FUNERAL — pass:** Retention and dead-owner cleanup cover the introduced artifact families.
 
 7. **Plan revision recommendation:** Add a `## Revisions` entry defining the fallback when statistics initialization fails, alongside regression coverage for both initialization and publication failures.
+
+---
+
+## Re-review — 2026-10-15T01:58:11-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 376 — Test economy: measure suite wall time, per-package time, queue wait and flake rate from recorded local checks (sdlc test-stats) |
+| repo | ariadne |
+| issue file | workshop/issues/000376-test-economy-measure-suite-wall-time-per-package-time-queue-wait-and-flake-rate-from-recorded-local-checks-sdlc-test-stats.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 92b61ae49111d2cf1201c40e895e80afce73c72e..3404563c7dd5c7f93a898ad8146d140f7037c75a |
+| command | sdlc close --issue 376 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-15T01:58:11-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+BR-9 is addressed. Statistics initialization failures now warn and fall back to the legacy log path, allowing check execution and status posting. The regression fails without the fix and passes at the pinned head. No new defects or scope changes were found in this interdiff.
+
+```findings
+dispose:
+  - id: BR-9
+    disposition: addressed
+    note: |
+      localcheck_run.go:101-112 falls back when statistics initialization fails. The new initialization regression fails with the base implementation restored in a disposable copy and passes at head. The publication-failure test also passes, confirming retained logs and successful status posting.
+```
+
+1. **Strengths**
+
+   - Initialization regression verifies actual execution, status posting, fallback log retention, and a warning (`cmd/sdlc/localcheck_run_test.go:193`).
+   - Publication regression verifies the outcome still posts and the private log remains readable (`cmd/sdlc/localcheck_run_test.go:229`).
+   - The plan revision accurately describes the correction without expanding scope.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes:** Focused runner, publication, and pruning tests passed. Restoring the base runner made the initialization regression fail with `Exit:-1`; publication coverage remained green, confirming existing behavior. `git diff --check` passed. The disposable copy was removed; the review checkout remains unchanged. The full suite was not rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — Pass:** Reuses existing log creation and execution paths.
+   - **ARCH-PURE — Pass:** Failure handling stays within the existing IO shell.
+   - **ARCH-PURPOSE — Pass:** Covers both initialization and publication failure isolation. No new CLI or architectural surface requires README or atlas changes.
+
+7. **Plan revision recommendations:** None.
