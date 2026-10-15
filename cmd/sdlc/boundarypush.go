@@ -55,7 +55,7 @@ func pushIssueBranch(env *trackerEnv, branch string) error {
 // remote's — but only the copy this checkout last saw: the lease is the
 // last-fetched remote-tracking ref (absent: the branch must not exist there
 // yet), never a fresh read that would turn it into a blind force (#284 BR-24).
-// It also records the upstream, so a plain `git push` works afterwards.
+// The explicit refspec publishes without configuring an issue-branch upstream.
 func leasedBranchPush(git gitFn, remote, branch string) error {
 	tracking := gitx.RemoteTrackingRef(remote, branch)
 	expect, err := git("for-each-ref", "--format=%(objectname)", tracking)
@@ -63,7 +63,7 @@ func leasedBranchPush(git gitFn, remote, branch string) error {
 		return err
 	}
 	ref := "refs/heads/" + branch
-	if _, err := git("push", "-q", "-u", "--force-with-lease="+ref+":"+expect, remote, ref+":"+ref); err != nil {
+	if _, err := git("push", "-q", "--force-with-lease="+ref+":"+expect, remote, ref+":"+ref); err != nil {
 		if strings.Contains(err.Error(), "stale info") {
 			return fmt.Errorf("%w (the remote's %s is not the copy this checkout last fetched; fetch and inspect it before the next push)", err, branch)
 		}
