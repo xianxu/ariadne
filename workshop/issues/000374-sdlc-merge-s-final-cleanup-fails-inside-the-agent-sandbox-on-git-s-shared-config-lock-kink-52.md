@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "ca17b890", done: "8e39b058"}
 ---
 
 # sdlc merge's final cleanup fails inside the agent sandbox on git's shared config lock (kink 52)
