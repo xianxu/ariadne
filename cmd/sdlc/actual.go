@@ -335,6 +335,7 @@ func printActualMeasurement(w io.Writer, res actualResult) {
 
 // printActual renders measured evidence or the action needed to recover it.
 func printActual(w io.Writer, res actualResult) {
+	issueStr := issue.CLIRef(res.Issue)
 	switch res.Status {
 	case actualMeasured:
 		printActualMeasurement(w, res)
@@ -343,21 +344,21 @@ func printActual(w io.Writer, res actualResult) {
 			fmt.Fprintf(w, "  (attributed across window issues: %s)\n", strings.Join(prefixHash(res.Peers), ", "))
 		}
 	case actualTelemetryGap:
-		cwarn(w, fmt.Sprintf("telemetry unavailable for #%s (window has commits but no transcript events).", res.Issue))
-		fmt.Fprintf(w, "  → ask the TL/hub to restore the owning slot's transcripts, then re-run sdlc actual --issue %s.\n", res.Issue)
+		cwarn(w, fmt.Sprintf("telemetry unavailable for #%s (window has commits but no transcript events).", issueStr))
+		fmt.Fprintf(w, "  → ask the TL/hub to restore the owning slot's transcripts, then re-run sdlc actual --issue %s.\n", issueStr)
 		if res.Detail != "" {
 			fmt.Fprintf(w, "  (%s)\n", res.Detail)
 		}
 	case actualEmptyWindow:
-		cwarn(w, fmt.Sprintf("found no measurable activity for #%s; ask the TL/hub to restore its ownership/source evidence, then re-run sdlc actual --issue %s.", res.Issue, res.Issue))
+		cwarn(w, fmt.Sprintf("found no measurable activity for #%s; ask the TL/hub to restore its ownership/source evidence, then re-run sdlc actual --issue %s.", issueStr, issueStr))
 	case actualNoWindow:
-		cwarn(w, fmt.Sprintf("no commits reference #%s yet; commit the issue's work with #%s in the subject, then re-run sdlc actual --issue %s.", res.Issue, res.Issue, res.Issue))
+		cwarn(w, fmt.Sprintf("no commits reference #%s yet; commit the issue's work with #%s in the subject, then re-run sdlc actual --issue %s.", issueStr, issueStr, issueStr))
 	case actualError:
 		cwarn(w, fmt.Sprintf("can't auto-compute (%s).", res.Detail))
 		if strings.Contains(res.Detail, "retained measurement code head differs") {
-			fmt.Fprintf(w, "  → run sdlc issue correct-actual --issue %s --reason 'repair inconsistent retained measurement' --dry-run; it names the exact target/exclusion action if numeric repair is unavailable.\n", res.Issue)
+			fmt.Fprintf(w, "  → run sdlc issue correct-actual --issue %s --reason 'repair inconsistent retained measurement' --dry-run; it names the exact target/exclusion action if numeric repair is unavailable.\n", issueStr)
 		} else {
-			fmt.Fprintf(w, "  → ask the TL/hub to restore the named measurement evidence, then re-run sdlc actual --issue %s.\n", res.Issue)
+			fmt.Fprintf(w, "  → ask the TL/hub to restore the named measurement evidence, then re-run sdlc actual --issue %s.\n", issueStr)
 		}
 	}
 }

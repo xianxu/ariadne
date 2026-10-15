@@ -123,6 +123,10 @@ While the recorded check on be92302c waited, main landed #371 (PR #253), changin
 
 - Replacement recorded check pinned to pushed combined head e55eed0871ac4061db7f8fd22d3d18e4958c9a75 (git rev-parse), initially queue position 4. Detached checkout /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/sdlc-local-2717862169; log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/e55eed0871ac4061db7f8fd22d3d18e4958c9a75/suite.log. No result yet. Implementation and focused verification are committed; full-suite pass and close/landing remain.
 
+### 2026-10-15 — full-suite guard failure and decimal hint repair
+
+Recorded suite on e55eed0871ac4061db7f8fd22d3d18e4958c9a75 exited 1 after 1438s queue and 503.4s execution (12 shards, 1394 cmd/sdlc tests, 60 other packages). The only failing test was TestIssueHintsRenderDecimalIDs: five new recovery hints used raw padded issue IDs. All other shards/packages passed; this is not a passing suite. Fixed the hints with the existing issue.CLIRef formatter (ARCH-DRY), preserving Cobra decimal parsing. The added padded-ID case and source guard first failed together, then both passed (0.598s). Re-run the recorded full suite on the pushed fix before close.
+
 ## Revisions
 
 - 2026-10-15T04:18:20-07:00 — Separate verification checkboxes from the later close/landing workflow so closing does not require pre-claiming its own success. Scope and acceptance unchanged.
