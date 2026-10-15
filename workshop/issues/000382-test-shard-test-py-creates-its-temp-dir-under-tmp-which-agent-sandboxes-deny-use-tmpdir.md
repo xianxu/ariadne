@@ -1,12 +1,12 @@
 ---
 id: 000382
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-14
 updated: 2026-10-14
 estimate_hours:
-card_mirror: '343f6315d1f97d8a8977e09912ab0b366ec0f010' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'fd707cee918c4d4eab01f1ddf349c1634e4843e2' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T21:42:00-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "c44738ca", done: "e42711c6"}
+actual_hours: 1.54
 ---
 
 # test-shard.test.py creates its temp dir under /tmp, which agent sandboxes deny; use TMPDIR
