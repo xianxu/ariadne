@@ -1,12 +1,20 @@
 ---
 id: 000412
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-16
 estimate_hours:
-card_mirror: 'bd4617a0cd42d8dff6863449893376f7c0f061bf' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e45fc8a300af185b7c0fd0f41a0b0da78171aa64' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-16T15:42:55-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # S2 M1: collaboration modes in xx-universal-review (discussion, collaboration, chat)
@@ -53,8 +61,12 @@ Deliverables:
 
 ## Plan
 
-- [ ]
+Durable plan: [workshop/plans/000412-s2-collaboration-modes-plan.md](../plans/000412-s2-collaboration-modes-plan.md). Tasks 1 to 9 there, one boundary (no Mx).
 
 ## Log
 
 ### 2026-10-16
+
+- Dispatched by the TL (ops:0, message 1cdf2024): S2 M1, the ariadne side; the design is ops db130ac0 01-s2-section-modes.md plus side docs 02 to 06. No existing issue, so this one was filed.
+- Asked the design owner parley.nvim:4 four points (56ce9462). Answered (971f4119): export role `collaboration-modes` at Version 1 (parley's #319 sync is strict about both role and version, so a bump spares nothing); examples not exported; `process-instruction:` copied into a side doc only when the parent has one; a chat follow-up is a diff hunk overlapping the item's extent minus its link. All folded into the plan.
+- Rejected a Go router (`sdlc review sections`): parley's standalone prompt has no binary, so the prose stays the one source (ARCH-DRY).
