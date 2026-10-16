@@ -83,6 +83,10 @@ After verification, close through SDLC and land on SHIP.
 
 - Close review returned REWORK: BR-1 found declaration-removal retirement still mutates protected settings; generalize protection to the destination across all actions and ownership retirement. BR-2 moves filesystem-backed managed ownership to the plan Integration table. BR-3 requires revised-head native host evidence because the reviewer cannot nest sandbox-exec. The obsolete queued third suite was interrupted before execution (owned CLI PID 84391, exit 130); no peer job or lock touched.
 
+- BR-1 fixed in 7c362a27c316ad14b3ba62889ae3510ff60480fb: always defer the protected destination; exclude alternate/generated writers; retain removed-declaration identity/backups, allow ancestor scaffolding, and detect retirement residue. New tests reproduced RED then passed. All go test -trimpath ./cmd/weave/... -count=1 -timeout 5m passed (main 67.806s, plan 33.485s, refresh 76.199s). BR-2 corrected in eb3923d4: ownership is an IO integration through weavefs.
+- Expanded native fixture initially lacked a backup because first adoption does not displace; corrected it with a real edit and second compile (aa326d59db8cf05a962daa7dc9f5e40764305f27). At that exact head, ARIADNE_NATIVE_SANDBOX=1 go test -trimpath ./cmd/sdlc -run Test(StartPlan|RunInstalledWeave|GateSettings) -count=1 -v -timeout 10m PASS 122.390s; native stale/current/retired PASS 56.41s, denied-write controls, first planning success, notice counts 1/0/1. Retired settings, backup and inventory remain byte-identical. Log /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne411-revised-native-9iww01mg.log. BR-3 dispute records this host evidence; reviewer nested-fence failure is not a production retry.
+- The 7c362a27 suite was canceled while queued (owned PID 12411, cwd verified, exit 130) after correcting the native fixture. Requeue the revised head through the normal gate; no failed or canceled suite is represented as passing.
+
 ## Estimate
 
 *Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only; source flagged stale, provisional.*
