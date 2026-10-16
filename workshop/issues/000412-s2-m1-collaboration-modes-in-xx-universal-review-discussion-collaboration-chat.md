@@ -65,7 +65,7 @@ Durable plan: [workshop/plans/000412-s2-collaboration-modes-plan.md](../plans/00
 
 - [ ] 1. collaboration-modes.md: the protocol (frontmatter, sections, the three modes, instructions that act, side docs, the state table)
 - [ ] 2. round.md §4 routes by collaboration mode; §5 opening, §6 reply, SKILL.md pointer, the adapter's side-doc paragraph
-- [ ] 3. examples/: discussion (and retry), collaboration, chat (and retry), errors
+- [ ] 3. examples/: ten cases, each with before/ and after/ trees and a case.md
 - [ ] 4. examples_test.go: the side-doc contract checker (TDD against a broken copy) and nextSideDocName
 - [ ] 5. export: the collaboration-modes member at Version 1, export.json regenerated
 - [ ] 6. tl-lead help: the session file's collaboration-mode line, chat mode cited, answer docs in tl-status-<op>.side/; topic tests
@@ -82,3 +82,4 @@ Durable plan: [workshop/plans/000412-s2-collaboration-modes-plan.md](../plans/00
 - Rejected a Go router (`sdlc review sections`): parley's standalone prompt has no binary, so the prose stays the one source (ARCH-DRY).
 - Plan approved by the TL (19edb7f1): full flow pinned (it changes how every agent answers every document); O1 decided, a 🤖[fold in] by a link is an imperative and becomes an edit in M1, marking the link folded; the session file line and moving the QA answers are the TL's after landing, with the exact line in the landing report.
 - parley.nvim:4 confirmed O1 (e2492347, folded into ops 7d0b425d): one fold-in with two triggers (an approval in the side doc, a 🤖[fold in] by the link in the parent), both marking the link folded. With no settled proposal to fold, the agent asks with a one-line clarifying turn, as for an ambiguous ok.
+- plan-quality round 1: FAILURE on PQ-1 (the examples layout cannot hold side docs before and after a round). Fixed by per-case before/ and after/ trees, swept across the plan; the three Minors fixed (gitignore in the landing report, old qa/ links followed, Non-goals). O2 (deleted chat link against reuse) and O3 (a fold-in under propose-strike) sent to parley.nvim:4.
