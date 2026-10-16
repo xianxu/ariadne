@@ -111,7 +111,8 @@ func openRepoLine(repo string) (*landingline.Line, error) {
 	if err != nil {
 		return nil, fmt.Errorf("--repo %s: not a git checkout: %w", repo, err)
 	}
-	return openLandingLine(dir, io.Discard)
+	line, _, err := openLandingLine(dir, io.Discard)
+	return line, err
 }
 
 func runLandingGrant(out io.Writer, repo string, issueN int, reason string, hours float64, revoke bool, d landingDeps) error {

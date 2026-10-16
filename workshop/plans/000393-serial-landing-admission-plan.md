@@ -44,7 +44,7 @@
 | `flock.Exclusive` | `cmd/sdlc/internal/flock/flock_unix.go` | new (lifted) | `syscall.Flock`, moved from reviewbox's `lockExclusive` |
 | `Log` | `cmd/sdlc/internal/landingline/log.go` | new | append-only `events.jsonl` and `grants.jsonl` |
 | `runDurableMerge` | `cmd/sdlc/landing.go` | modified | confirms, takes a turn when an open PR exists, observes everything after admission |
-| `landingTurn`, `enterLandingLine`, `openLandingLine`, `landingLineDir`, `logLine`, `anyOpenPR` | `cmd/sdlc/landingqueue.go` | new | the merge's glue to the line: production options, events, the turn's outcome, ending a landed grant |
+| `landingTurn`, `enterLandingLine`, `openLandingLine`, `landingLineDir`, `lineLog`, `resumeOnly` | `cmd/sdlc/landingqueue.go` | new | the merge's glue to the line: production options, events, the turn's outcome, ending a landed grant |
 | `sdlc landing` (`newLandingCmd`, `landingDeps`, `runLandingGrant`, `runLandingStatus`, `openRepoLine`) | `cmd/sdlc/landingcmd.go`, help `cmd/sdlc/helptext/landing.md` | new | `status`, `grant`, `revoke`; injected clock, caller and `$COUCH_TREE` |
 
 - **Line** (as built) — `Open(dir, Options{Now, Sleep, Poll, Grants, OnWait, OnAdmit})`; production uses `time.Now`, a context-aware sleep, 2 s, and the grants log's `ValidGrants`.
@@ -146,7 +146,7 @@ func NextHead(ts []Ticket, grants map[int]Grant, now time.Time) (Ticket, []Ticke
 
 **Order:** the interactive confirmation (`mergePrompter.Ask`, landing.go:372) moves before the enqueue, because its text depends on nothing it selects. An operator's prompt never holds the line's head (plan-quality minor).
 
-**Rule (from plan-quality PQ-1, class: stale observation after a wait):** every remote or GitHub observation the landing acts on is taken *after* admission, never before the wait. That covers the branch head, the PRs, PR selection and integration resume. Before admission, only local branch selection and checkout readiness run (`landingIssueBranch` and `landingCheckoutReady`); both concern the waiting process's own slot, and `revalidateLanding` checks them again under the repo lock. One cheap pre-read decides whether to queue at all: if `LandingPRs` already shows the branch's PR as MERGED, the run takes no ticket and resumes cleanup at once.
+**Rule (from plan-quality PQ-1, class: stale observation after a wait):** every remote or GitHub observation the landing acts on is taken *after* admission, never before the wait. That covers the branch head, the PRs, PR selection and integration resume. Before admission, only local branch selection and checkout readiness run (`landingIssueBranch` and `landingCheckoutReady`); both concern the waiting process's own slot, and `revalidateLanding` checks them again under the repo lock. One cheap pre-read decides whether to queue at all. As built after the M2 reviews, the run takes no ticket only when that read shows a merged PR and no open one (`resumeOnly`). The selected PR is then held to the rule that a merge without a turn acts only on an already-merged PR (see Revisions).
 
 - [ ] Write the tests on `landingFixture`:
   - **holds and waits:** a test-held handle on the fixture's line (the git common dir of `roots[0]`) is the head. `runMerge` runs in a goroutine; assert that `gh.merges == 0` and no integration push happens while the line is held. Advance remote main (a commit pushed to the bare remote, standing in for the head's landing), then release. The merge integrates once against the new main, posts `sdlc-local/suite` exactly once (count it through `afterStatus`), and lands. `gh.merges == 1`;
@@ -162,11 +162,11 @@ func NextHead(ts []Ticket, grants map[int]Grant, now time.Time) (Ticket, []Ticke
 // after gh is obtained, before head/LandingPRs/selectIntegrationPR:
 if pre, err := gh.LandingPRs(ctx, t.Repo, branch); err != nil {
 	return err
-} else if !anyMerged(pre) {
+} else if !resumeOnly(pre) { // as built (M2 review I-A); first drafted as !anyMerged(pre)
 	common, err := landingGit(r, t.Root, "rev-parse", "--path-format=absolute", "--git-common-dir")
 	if err != nil { return err }
 	// as built: enterLandingLine/landingTurn in landingqueue.go hold this, and
-	// the skip test is anyOpenPR (M2 review I-1), not "no merged PR".
+	// the skip test is resumeOnly, and the selected PR is held to the no-turn rule (M2 reviews).
 	line, err := landingLineOpen(filepath.Join(common, "sdlc", "landing"))
 	if err != nil { return err }
 	h, err := line.Enqueue(landingline.Ticket{Issue: issue.IDFromFilename(branch), Branch: branch, PID: os.Getpid()})
@@ -257,3 +257,14 @@ if pre, err := gh.LandingPRs(ctx, t.Repo, branch); err != nil {
 - **One clock:** `landingNow` serves merge and the commands.
 - **Commands:** `sdlc landing` is in `landingcmd.go`, with its help in `helptext/landing.md` (the `add(cmd, name)` convention) and merge's help in `helptext/merge.md` (step 0 and RECOVERY). Status prints grants sorted by issue.
 - **Tests** are in `landingqueue_test.go` and `landingcmd_test.go`. The fake GitHub gained `older`, earlier PRs on the same branch name.
+
+### 2026-10-16 — M2 review round 2: the no-turn rule is enforced on the selected PR
+
+**Reason:** round 1's skip decision (no open PR) came from the first GitHub read, while the landing acts on a second read. A lagging listing could hide an open PR at the first read and show it at the second, so it landed outside the line. This was the second finding in `gate-skip-predicate-divergence`.
+
+**Delta:**
+- **Rule:** a merge without a turn acts only on an already-merged PR.
+- **Skipping the line:** `resumeOnly` skips it only when the first listing shows a merged PR and no open one. An empty listing queues.
+- **Enforcement:** after selection, a merge without a turn that selected a PR that isn't merged refuses, having changed nothing. A mutation check confirms the test fails without this.
+- **Logging:** the merge's logging is a `lineLog` owned by the opened line (no process-global map). `leave` warns when it can't read grants to end a landed issue's priority.
+- **Docs:** README and the atlas command table now cover `sdlc landing`.

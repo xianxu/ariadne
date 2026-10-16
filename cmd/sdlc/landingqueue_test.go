@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"io"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -231,5 +235,71 @@ func TestLandingLinePushedWhileWaiting(t *testing.T) {
 	}
 	if included, err := integrationAncestor(mergeRunner, root, fix, tested[0]); err != nil || !included {
 		t.Fatalf("the landed head %s doesn't contain the fix %s pushed while waiting", tested[0], fix)
+	}
+}
+
+// The rule (M2 review I-A): a merge without a turn acts only on an already
+// merged PR. A lagging first listing that shows only an old merged PR skips
+// the line, so when the next read shows the open PR, the merge refuses having
+// changed nothing, instead of landing outside the line.
+func TestLandingLineLaggingListingRefusesOutsideTheLine(t *testing.T) {
+	root, server, gh := integrationFixture(t)
+	old := landingPR{Number: 0, State: "MERGED", Repo: gh.pr.Repo, HeadRef: landingTestBranch, HeadOID: gh.pr.BaseOID, BaseRef: "main", BaseOID: gh.pr.BaseOID, MergeOID: gh.pr.BaseOID}
+	gh.lagFirst, gh.firstListing = true, []landingPR{old}
+	line, _ := heldLine(t, root)
+	before := git(t, server, "ls-remote", "origin", "refs/heads/"+landingTestBranch)
+	err := finished(t, mergeAsync(landingFlags()))
+	if err == nil || !strings.Contains(err.Error(), "appeared open after this merge chose not to queue") {
+		t.Fatalf("err %v", err)
+	}
+	if gh.merges != 0 || git(t, server, "ls-remote", "origin", "refs/heads/"+landingTestBranch) != before {
+		t.Fatal("acted outside the line")
+	}
+	if events := lineEvents(t, line); len(events[landingline.EventEnqueue]) != 0 {
+		t.Fatalf("events %v", events)
+	}
+}
+
+// An empty first listing (GitHub not yet showing a new PR) is not a resume:
+// the merge queues.
+func TestLandingLineEmptyListingQueues(t *testing.T) {
+	root, _, gh := integrationFixture(t)
+	gh.lagFirst, gh.firstListing = true, nil
+	line, head := heldLine(t, root)
+	done := mergeAsync(landingFlags())
+	waitQueued(t, line, 1)
+	head.Release()
+	if err := finished(t, done); err != nil {
+		t.Fatal(err)
+	}
+	if gh.merges != 1 {
+		t.Fatalf("merges=%d", gh.merges)
+	}
+}
+
+// Lost audit data is visible: a log write failure warns once, and a landed
+// issue whose grants can't be read says its priority wasn't ended.
+func TestLandingLineLogFailuresWarn(t *testing.T) {
+	dir := t.TempDir()
+	var stderr bytes.Buffer
+	line, log, err := openLandingLine(dir, &stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{landingline.EventsFile, landingline.GrantsFile} {
+		if err := os.Mkdir(filepath.Join(dir, name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h, err := line.Enqueue(landingline.Ticket{Issue: 5, Branch: "000005-x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	turn := &landingTurn{line: line, handle: h, log: log, stderr: &stderr}
+	log.record(landingline.Event{Kind: landingline.EventEnqueue, Seq: 1})
+	turn.leave(nil)
+	out := stderr.String()
+	if strings.Count(out, "could not log") != 1 || !strings.Contains(out, "could not read grants to end #5's priority") {
+		t.Fatalf("stderr %q", out)
 	}
 }

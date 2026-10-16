@@ -34,8 +34,9 @@ func landingLineDir(r gitRunner, root string) (string, error) {
 
 // openLandingLine opens dir with production options; stderr receives the
 // waiting position whenever it changes.
-func openLandingLine(dir string, stderr io.Writer) (*landingline.Line, error) {
+func openLandingLine(dir string, stderr io.Writer) (*landingline.Line, *lineLog, error) {
 	var line *landingline.Line
+	log := &lineLog{stderr: stderr}
 	o := landingline.Options{
 		Now:  landingNow,
 		Poll: landingLinePoll,
@@ -54,11 +55,12 @@ func openLandingLine(dir string, stderr io.Writer) (*landingline.Line, error) {
 			for _, d := range displaced {
 				e.Displaced = append(e.Displaced, d.Seq)
 			}
-			logLine(line, e, stderr)
+			log.record(e)
 		},
 	}
 	line, err := landingline.Open(dir, o)
-	return line, err
+	log.line = line
+	return line, log, err
 }
 
 func describeTicket(t *landingline.Ticket) string {
@@ -76,21 +78,26 @@ func describeTicket(t *landingline.Ticket) string {
 type landingTurn struct {
 	line    *landingline.Line
 	handle  *landingline.Handle
+	log     *lineLog
 	stderr  io.Writer
 	PR      int  // set once the PR is selected, after admission
 	Resumed bool // the selected PR had already merged: a resume, not a landing
 }
 
-// logLine records an event. A write failure warns on stderr once per line, so
+// lineLog records a merge's events. A write failure warns on stderr once, so
 // lost audit and pilot data is visible without failing the landing.
-func logLine(line *landingline.Line, e landingline.Event, stderr io.Writer) {
-	if err := line.Record(e); err != nil && !warnedLines[line] {
-		warnedLines[line] = true
-		fmt.Fprintf(stderr, "landing line: could not log %s (%v); landing continues, unaudited\n", e.Kind, err)
-	}
+type lineLog struct {
+	line   *landingline.Line
+	stderr io.Writer
+	warned bool
 }
 
-var warnedLines = map[*landingline.Line]bool{}
+func (l *lineLog) record(e landingline.Event) {
+	if err := l.line.Record(e); err != nil && !l.warned {
+		l.warned = true
+		fmt.Fprintf(l.stderr, "landing line: could not log %s (%v); landing continues, unaudited\n", e.Kind, err)
+	}
+}
 
 // enterLandingLine takes a ticket and waits for this merge's turn. Nothing the
 // landing acts on (branch head, PRs, selection) may be observed before it
@@ -100,7 +107,7 @@ func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch 
 	if err != nil {
 		return nil, err
 	}
-	line, err := openLandingLine(dir, stderr)
+	line, log, err := openLandingLine(dir, stderr)
 	if err != nil {
 		return nil, err
 	}
@@ -108,9 +115,9 @@ func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch 
 	if err != nil {
 		return nil, err
 	}
-	turn := &landingTurn{line: line, handle: h, stderr: stderr}
+	turn := &landingTurn{line: line, handle: h, log: log, stderr: stderr}
 	tk := h.Ticket()
-	logLine(line, landingline.Event{Kind: landingline.EventEnqueue, Seq: tk.Seq, Issue: tk.Issue, Branch: tk.Branch}, stderr)
+	log.record(landingline.Event{Kind: landingline.EventEnqueue, Seq: tk.Seq, Issue: tk.Issue, Branch: tk.Branch})
 	if err := line.Wait(ctx, h); err != nil {
 		turn.leave(err)
 		return nil, err
@@ -129,9 +136,12 @@ func (lt *landingTurn) leave(err error) {
 	case lt.Resumed:
 		e.Kind = landingline.EventResumed // another merge landed it while this one waited
 	}
-	logLine(lt.line, e, lt.stderr)
+	lt.log.record(e)
 	if err == nil && tk.Issue != 0 {
-		if entries, _, rerr := lt.line.GrantEntries(); rerr == nil {
+		entries, _, rerr := lt.line.GrantEntries()
+		if rerr != nil {
+			fmt.Fprintf(lt.stderr, "landing line: could not read grants to end #%d's priority (%v); a grant expires on its own\n", tk.Issue, rerr)
+		} else {
 			if _, granted := landingline.ValidGrants(entries, landingNow())[tk.Issue]; granted {
 				if gerr := lt.line.AddGrant(landingline.Grant{Issue: tk.Issue, Grantor: landingline.Grantor{Address: "sdlc merge"}, Reason: "landed", Revoked: true}); gerr != nil {
 					fmt.Fprintf(lt.stderr, "landing line: could not end #%d's priority grant (%v); it expires on its own\n", tk.Issue, gerr)
@@ -142,12 +152,17 @@ func (lt *landingTurn) leave(err error) {
 	lt.handle.Release()
 }
 
-// anyOpenPR reports whether the branch has a PR still to land.
-func anyOpenPR(prs []landingPR) bool {
+// resumeOnly reports whether the branch's PRs leave only a resume: a merged PR
+// and no open one. An empty listing is not a resume (it may lag a new PR).
+func resumeOnly(prs []landingPR) bool {
+	merged := false
 	for _, p := range prs {
-		if p.State == "OPEN" {
-			return true
+		switch p.State {
+		case "OPEN":
+			return false
+		case "MERGED":
+			merged = true
 		}
 	}
-	return false
+	return merged
 }

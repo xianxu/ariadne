@@ -41,6 +41,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `push`            | `make push`                 | Direct-on-main ship + the #124 instance-conformance gate (`--no-validate`) + pre-flight judges (still available; not the default close path since #51) |
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
 | `merge`           | `make merge`                | PR landing with instance/publish gates and confirmation; :0/:N archive remotely and return to unchanged rest, ordinary worktrees/dependencies retain legacy cleanup |
+| `landing`         | (new #393)                  | The repository's landing line: `status` (the landing now, waiters in admission order, live grants, delay p50/p90); `grant` / `revoke` fleet-blocking priority, refused from a worker slot. `merge` waits in this line ([landing line](#landing-line-393)) |
 | `local-check run` | (new #345)                  | Run checks declared in main's `.sdlc/local-checks.json` on a pushed commit, in a detached worktree under the machine-wide suite lock, and record each as the commit status `sdlc-local/<name>`; merge's CI gate accepts it for a CI job that never got a runner and requires it for `required` checks ([ci-merge-check](ci-merge-check.md#recorded-local-checks-345)) |
 | `test-stats`      | (new #376)                  | **Read-only** local-fleet summary of recorded suite wall time, queue waits, slow package/shard p90, and same-head fail→pass flakes; `--since`, `--repo`, and `--json` filter or export it. Legacy per-head logs contribute partial rows with explicit missing-metric coverage. |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
@@ -367,9 +368,11 @@ the PRs or the integration state, and holds the turn until it returns. An
 admitted merge therefore never acts on an observation from before a possibly
 long wait. A duplicate invocation that waited behind the original resumes as
 already merged (logged `resumed`, which the delays skip), and a fix pushed
-while waiting is what lands. A merge takes a turn whenever its branch has an
-open PR; a branch with none can only resume a merged PR's cleanup, so it takes
-no turn. The turn logs enqueue, admit, and landed, refused or resumed; landing
+while waiting is what lands. Rule: a merge without a turn acts only on an
+already-merged PR. It skips the line only when the first listing shows a merged
+PR and no open one; an empty listing queues, since it may lag a new PR. The PR
+it selects is checked against the rule, so a lagging listing that hid an open
+PR refuses, having changed nothing. The turn logs enqueue, admit, and landed, refused or resumed; landing
 ends the issue's grant. A log write failure warns once on stderr. The landing's own recovery is unchanged, and the line
 adds ordering only. This lock-shaped line replaced #390's eight-state durable
 queue (#404 lock-first, TL-approved).

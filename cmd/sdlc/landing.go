@@ -360,16 +360,17 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 			return errors.New("aborted by operator")
 		}
 	}
-	// The landing line (#393). A branch with no open PR can only resume a
-	// merged one's cleanup, so it takes no turn; one with an open PR always
-	// does, even beside an old merged PR. Everything below is observed after
-	// admission (PQ-1).
+	// The landing line (#393). Rule: a merge without a turn acts only on an
+	// already-merged PR. So it skips the line only when the first read shows
+	// a merged PR and no open one (a resume), and the selected PR is checked
+	// against the rule below, because a later read can differ (a lagging
+	// listing). Everything else is observed after admission (PQ-1).
 	pre, err := gh.LandingPRs(ctx, t.Repo, branch)
 	if err != nil {
 		return err
 	}
 	var turn *landingTurn
-	if anyOpenPR(pre) {
+	if !resumeOnly(pre) {
 		if turn, err = enterLandingLine(ctx, r, t, branch, stderr); err != nil {
 			return err
 		}
@@ -389,6 +390,9 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 	pr, resumeIntegration, err := selectIntegrationPR(ctx, r, gh, t, branch, head, current, prs, f.withLock, stderr)
 	if err != nil {
 		return err
+	}
+	if turn == nil && pr.State != "MERGED" {
+		return fmt.Errorf("PR #%d appeared open after this merge chose not to queue (GitHub's listing lagged); nothing was changed, re-run sdlc merge --branch %s --yes", pr.Number, branch)
 	}
 	if turn != nil {
 		turn.PR, turn.Resumed = pr.Number, pr.State == "MERGED"

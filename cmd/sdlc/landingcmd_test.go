@@ -94,6 +94,15 @@ func TestLandingRevokeAndStatus(t *testing.T) {
 	if err != nil || !strings.Contains(out, "landing now: none") || !strings.Contains(out, "grant: #391 fleet-blocking") || !strings.Contains(out, "no landings recorded") {
 		t.Fatalf("status %q err %v", out, err)
 	}
+	if _, err := runLanding(t, hub, "grant", "--repo", repo, "--issue", "12", "--reason", "blocks merge"); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 5; i++ { // map order would vary between runs; the output must not
+		out, _ = runLanding(t, hub, "status", "--repo", repo)
+		if a, b := strings.Index(out, "grant: #12 "), strings.Index(out, "grant: #391 "); a < 0 || b < 0 || a > b {
+			t.Fatalf("grants not sorted by issue: %q", out)
+		}
+	}
 	if _, err := runLanding(t, testLandingDeps(slotPtr(1), nil), "revoke", "--repo", repo, "--issue", "391"); err == nil {
 		t.Fatal("a worker revoked")
 	}
