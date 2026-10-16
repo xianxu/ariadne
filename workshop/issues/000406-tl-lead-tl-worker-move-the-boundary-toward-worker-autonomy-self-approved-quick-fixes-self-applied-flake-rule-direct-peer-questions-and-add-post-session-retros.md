@@ -94,3 +94,11 @@ one-line proposals for the TL to file or fold, with same-repo filings direct.
 Guard Git-output hashes (the existing git rev-parse rule), session retros and
 agreed-rule-change ownership. Do not enable direct peer-repo filings or retain
 the superseded original peer-question boundary move.
+
+### 2026-10-16 — dispatch by kind of work
+
+Operator decision relayed in verified ops:0 delivery
+3114a443-08d3-4a92-a549-7f6a3edd839d: tl-lead dispatches design-heavy items
+(an invariant, a new mechanism, user-visible state) to a Claude slot; bounded
+execution against a fixed design goes to Codex. Add phrase guards alongside the
+boundary rules. This extends the acceptance contract for the lead help.
