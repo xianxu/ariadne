@@ -284,3 +284,54 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"be801d49-c5d3-4528-9945-ce847523910c","repository":"github.com/xianxu/ariadne","issue_id":"000405","recipe":"small-diff-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/b3a7c7f1ab837e00","reviewed_head":"14ab4a40905e79d5b9346a1ab10131cc8e2d9389","slot":"ariadne:2","requested_at":"2026-10-16T04:12:00.247055Z"},"phase":"finished","pid":25017,"started_at":"2026-10-16T04:12:00.529914Z","finished_at":"2026-10-16T04:13:25.128517Z","session_id":"02a57ce7-ade0-4096-b8a8-4e14c079a131","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-15T21:14:33-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 405 — dev-aliases: skip the rebuild in Couch agent shells (COUCH_TREE) and when the binary is not stale |
+| repo | ariadne |
+| issue file | workshop/issues/000405-dev-aliases-skip-the-rebuild-in-couch-agent-shells-couch-tree-and-when-the-binary-is-not-stale.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 2978b5bfac1c3fbb261f91dac633d144cad4642b..e772cdd5162cd8125de2bda2fe873679708226af |
+| command | sdlc close --issue 405 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-15T21:14:33-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This fix window doesn't change any code. Against the base, the only non-artifact change is to the issue file. The Spec bullet now reads "no file or directory outside `.git` and `bin` is newer than it, in the owner or in a local `go.mod` replace target outside it". That is what `fresh_scan` does in `construct/dev-aliases.sh:274-287`. It scans `.` plus each local replace root, prunes `.git` and `bin` in every root, and has no `-type f` filter, so it sees both files and directories. On any find error it echoes `stale`. The new bullet cites its source ("revised in close rounds 1 and 2; see Revisions"), so it records the BR-7 fix and does not change scope. The other edits to the issue file are frontmatter (`status: codecomplete`, the card mirror hash, `actual_hours`) and a close Log entry. The two added files under `workshop/plans/` are close-gate and close-review records with no runtime effect. I grepped the issue file, the script and the atlas for "regular file". No stale statement of the scan's scope remains; the only hits are unrelated passages in the atlas.
+
+1. **Strengths**
+   - The Spec now matches the code it describes, including the replace targets and the treatment of directories, and it points at Revisions instead of hiding that the scope was revised (`issue:34`).
+   - The rule for the `staleness-scan-scope` family is now applied in every place the scan's scope is stated: the script header, the `fresh_scan` comment, base-layer, Done when, the test header and the Spec.
+
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none.
+5. **Test coverage:** the window has no behavior change, so it needs no new regression test. The existing tests in `dev-aliases.test.sh` still cover the scan's behavior.
+6. **Architectural notes:** I checked all three principles against this window only.
+   - **ARCH-DRY:** pass. The window adds no logic.
+   - **ARCH-PURE:** pass. There is no code in the window.
+   - **ARCH-PURPOSE:** pass. The finding's whole class (every prose statement of the scan's scope) is now swept, not just the one site it named.
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Spec line 34 now states the scan as fresh_scan implements it (files and dirs, owner plus local replace targets, .git and bin pruned, construct/dev-aliases.sh:274-287); grep finds no remaining "regular file" scope claim.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"c8611ead-b990-4b86-a3ae-df11e0d35872","repository":"github.com/xianxu/ariadne","issue_id":"000405","recipe":"fix-review","round":4,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/5bc56f262bf76b21","reviewed_head":"e772cdd5162cd8125de2bda2fe873679708226af","slot":"ariadne:2","requested_at":"2026-10-16T04:14:11.818622Z"},"phase":"finished","pid":55408,"started_at":"2026-10-16T04:14:11.922953Z","finished_at":"2026-10-16T04:14:33.45375Z","session_id":"30efaf39-7f87-4df5-a1f8-a660a21d616c","outcome":"returned"}] -->

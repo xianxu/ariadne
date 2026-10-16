@@ -267,6 +267,80 @@ rounds:
       isolation: checkout
       reviewed: 14ab4a40905e79d5b9346a1ab10131cc8e2d9389
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: c8611ead-b990-4b86-a3ae-df11e0d35872
+            repository: github.com/xianxu/ariadne
+            issue_id: "000405"
+            recipe: fix-review
+            round: 4
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/5bc56f262bf76b21
+            reviewed_head: e772cdd5162cd8125de2bda2fe873679708226af
+            slot: ariadne:2
+            requested_at: "2026-10-16T04:14:11.818622Z"
+          phase: finished
+          pid: 55408
+          started_at: "2026-10-16T04:14:11.922953Z"
+          finished_at: "2026-10-16T04:14:33.45375Z"
+          session_id: 30efaf39-7f87-4df5-a1f8-a660a21d616c
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: e772cdd5162cd8125de2bda2fe873679708226af
+        tracker_head: 0a134d8643ba5b4c9de74204a65e959fbf45fd9e
+        branch_point: f0b5eb265f46a143d783d6bd39e836e71d0f265a
+        since: "2026-10-15T20:34:51-07:00"
+        until: "2026-10-15T21:13:52-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-15T20:34:51-07:00"
+              end: "2026-10-15T21:13:52-07:00"
+              began: "2026-10-15T20:34:51-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: a160fbc92af7d491a5f33f0ec30c806e5d76776749c2f6bc09a956c1252fc5ba
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 11445634
+              windows:
+                - start: "2026-10-15T20:34:51-07:00"
+                  end: "2026-10-15T21:13:52-07:00"
+        cuts:
+            - dispatched: "2026-10-15T21:00:42-07:00"
+              finalized: "2026-10-15T21:02:38-07:00"
+              finalizing: false
+            - dispatched: "2026-10-15T21:08:28-07:00"
+              finalized: "2026-10-15T21:10:17-07:00"
+              finalizing: false
+            - dispatched: "2026-10-15T21:12:00-07:00"
+              finalized: "2026-10-15T21:13:36-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-15T21:14:34-07:00"
+      dispatched: "2026-10-15T21:14:11-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: Spec line 34 now states the scan as fresh_scan implements it (files and dirs, owner plus local replace targets, .git and bin pruned, construct/dev-aliases.sh:274-287); grep finds no remaining "regular file" scope claim.
+          round: 4
+      recipe: fix-review
+      isolation: checkout
+      reviewed: e772cdd5162cd8125de2bda2fe873679708226af
+      blocked: false
 ---
 
 # Gate ledger — ariadne#405 (boundary-review)
@@ -315,6 +389,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-7** [Minor] `staleness-scan-scope` (kind: defect) Spec bullet still states the scan as "no regular file under the owner"
   This is the 4th finding in family staleness-scan-scope. Rule: every prose statement of what the freshness scan observes must match fresh_scan: files and directories, in the owner and in each local replace target outside it, excluding .git and bin. The only remaining instance in the window is the issue Spec at line 33. Every other one is already swept: dev-aliases.sh:19-22 and :267-269, base-layer.md:91-93, Done when bullet 1, and the test header at dev-aliases.test.sh:283-285. The Revisions entry records the change, so this is cosmetic.
 
+## Round 4 — 2026-10-15T21:14:34-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — Spec line 34 now states the scan as fresh_scan implements it (files and dirs, owner plus local replace targets, .git and bin pruned, construct/dev-aliases.sh:274-287); grep finds no remaining "regular file" scope claim.
+
 ## Open findings
 
-- **BR-7** [Minor] `staleness-scan-scope` (kind: defect) Spec bullet still states the scan as "no regular file under the owner"
+(none — every finding has been disposed)
