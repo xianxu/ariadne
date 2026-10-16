@@ -1,6 +1,6 @@
 ---
 id: 000408
-status: codecomplete
+status: done
 created: 2026-10-16
 updated: 2026-10-16
 estimate_hours: 0.94
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 9da64867cec00ab9d09b1d3391e4988262134d86
         evidence_commit: 7bd39a23deb9c7d397c6aab57a1c7e0a7ace54d5
+        landed_commit: b6c5f7fc146f293e83d4e719e72a22bd9c4311d3
 ---
 
 # issue publish of an archived issue creates an active twin under workshop/issues (pair#579)
