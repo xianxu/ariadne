@@ -17,10 +17,10 @@ actual_hours: 0.53
 tracker:
     version: 1
     completion:
-        token: close-f48b505852b7
+        token: close-f2911260c081
         repository: github.com/xianxu/ariadne
-        reviewed_head: 14ab4a40905e79d5b9346a1ab10131cc8e2d9389
-        evidence_commit: 52e2512857047a5a9f6a3495afee8e4e0ee02473
+        reviewed_head: e772cdd5162cd8125de2bda2fe873679708226af
+        evidence_commit: d83a96b914e030f5313bafbaa2ec87ee9d51e584
 ---
 
 # dev-aliases: skip the rebuild in Couch agent shells (COUCH_TREE) and when the binary is not stale
