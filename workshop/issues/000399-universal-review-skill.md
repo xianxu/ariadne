@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "9ac9bf24", done: "43b2372e"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Universal review skill and canonical round export
@@ -96,6 +96,10 @@ Tasks:
 
 ## Log
 
+
+
+- 2026-10-15: closed — Live Alt+Return check moves to parley.nvim#332 combined acceptance (the TL owns it and records the result on #399; TL decision f73c1f3a). Evidence: fresh-agent dry run answered a representative submitted: request using only the skill (mode by unique prefix, frontier, propose-strike, pending and fenced markers left), its ambiguities fixed in round.md; full make test green (12 shards, 1495 cmd/sdlc tests, 64 packages, 0 failed); parley.nvim:1 independently verified all 9 export member hashes and byte-identical modes and accepted the export shape. Plus pkg/reviewexport tests (parse, total order, refusals, determinism, TestExportCurrent with grammar hashed through the symlink) and cmd/weave discovery test (both harness dirs, grammar bytes equal canonical), tl-lead/tl-worker phrase guards.; review verdict: SHIP
+- 2026-10-15: flow upgraded quick → full — 311 added lines in code files (limit 100)
 2026-10-15 — filed from parley.nvim:1 while planning the operator-requested S2a;
 unclaimed for hub dispatch. See ops teams/devinfra/projects/universal-agent-input-interface/design.md
 S2 and project.md S2a. This is the shared-skill half; no Parley code belongs here.
