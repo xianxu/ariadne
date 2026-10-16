@@ -89,6 +89,8 @@ After verification, close through SDLC and land on SHIP.
 - Expanded native fixture initially lacked a backup because first adoption does not displace; corrected it with a real edit and second compile (aa326d59db8cf05a962daa7dc9f5e40764305f27). At that exact head, ARIADNE_NATIVE_SANDBOX=1 go test -trimpath ./cmd/sdlc -run Test(StartPlan|RunInstalledWeave|GateSettings) -count=1 -v -timeout 10m PASS 122.390s; native stale/current/retired PASS 56.41s, denied-write controls, first planning success, notice counts 1/0/1. Retired settings, backup and inventory remain byte-identical. Log /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne411-revised-native-9iww01mg.log. BR-3 dispute records this host evidence; reviewer nested-fence failure is not a production retry.
 - The 7c362a27 suite was canceled while queued (owned PID 12411, cwd verified, exit 130) after correcting the native fixture. Requeue the revised head through the normal gate; no failed or canceled suite is represented as passing.
 
+- Close round 2 SHIP: BR-1/BR-2 addressed, BR-3 withdrawn after reviewer inspected exact host log and executable-source parity. One advisory BR-4 corrected atlas wording from merge-only to destination-wide deferral, including removed declarations and alternate writers. Actual measured/adopted 1.94h; no gate waiver. Recorded suite on 1813e25d remains queued; CI and passing suite remain landing requirements.
+
 ## Estimate
 
 *Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only; source flagged stale, provisional.*
