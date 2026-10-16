@@ -38,11 +38,18 @@ flow: {kind: quick, provenance: inferred, spec: "62c3380d", done: "f3f27de4"}
 - Tests: publishing an archived issue updates the archive file and creates nothing under `workshop/issues/`; a
   done-card issue with no details refuses; the twin case refuses.
 
+- A local-only archive with no published details refuses, preserving its bytes,
+  leaving main unchanged and creating no active details.
+- Initial publication, retries after moved main and saved-receipt recovery
+  refuse archives introduced after preflight, for both archive layouts; no
+  active write occurs and the source is preserved.
+- Backup and non-Markdown entries are ignored by local details discovery.
+
 ## Plan
 
 - [x] Reproduce archive updates, missing terminal details and duplicate-location
   refusals in isolated real-Git publication fixtures; confirm red.
-- [x] Resolve details by ID across active and archive locations on pinned main,
+- [ ] Resolve details by ID across active and archive locations on pinned main,
   preserve republish safeguards, and recheck location before publication.
 - [x] Run focused and recorded full-suite verification; update Atlas and prepare
   the close review.
@@ -120,3 +127,14 @@ then rerun against a stable worktree; do not count that invocation as passing.
 The final Plan row records verification and readiness for close; publication
 follows the review verdict rather than being ticked before landing. No scope or
 behavior change.
+
+### 2026-10-16 — BR-1/BR-2/BR-3 full-flow checkpoint
+
+Complete location revalidation in the existing TransferOp.BeforePublish hook,
+which is shared by initial publication, retry and receipt recovery. Filter local
+entries by the same issue filename grammar as published entries. Append concrete
+Done-when clauses for these and the local-only archive state. The expanded fix
+is expected to leave the quick-flow diff shell; durable implementation plan:
+workshop/plans/000408-archive-location-plan.md. Await hub approval before changing
+implementation, then run change-code's full-flow plan gate and derive its estimate
+only after plan quality clears.
