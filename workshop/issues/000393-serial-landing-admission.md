@@ -1,12 +1,12 @@
 ---
 id: 000393
-status: working
+status: codecomplete
 deps: [392, 380]
 github_issue:
 created: 2026-10-15
-updated: 2026-10-15
+updated: 2026-10-16
 estimate_hours: 3.86
-card_mirror: '4c4ca82885b0d4550a442d453fd3f6bb252b8df9' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '538de9b7ca1292ec06ceb3b719ef3d00d8c96150' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-15T23:44:34-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.94
 ---
 
 # Serial per-repo landing admission with fleet-blocking priority
