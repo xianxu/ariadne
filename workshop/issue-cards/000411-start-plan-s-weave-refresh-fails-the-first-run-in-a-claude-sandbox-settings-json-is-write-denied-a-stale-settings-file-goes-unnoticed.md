@@ -1,6 +1,6 @@
 ---
 id: 000411
-status: working
+status: codecomplete
 created: 2026-10-16
 updated: 2026-10-16
 estimate_hours: 1.13
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.94
+tracker:
+    version: 1
+    completion:
+        token: close-e9b630d6188c
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 1813e25dbdb94a2e86e7f500c1950e6d89cf559a
+        evidence_commit: 2b7613cb16b69a9f4e285fb1892522c282f4ce3a
 ---
 
 # start-plan's weave refresh fails the first run in a Claude sandbox (settings.json is write-denied); a stale settings file goes unnoticed
