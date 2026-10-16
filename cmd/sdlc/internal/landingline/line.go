@@ -37,7 +37,8 @@ type Options struct {
 	Grants func() map[int]Grant
 	// OnWait reports a waiter's position (1 = next) when it changes.
 	OnWait func(position int, head *Ticket)
-	// OnAdmit reports an admission and the older tickets it went ahead of.
+	// OnAdmit reports an admission and the older tickets it went ahead of. It
+	// runs outside the line mutex, so it may call Record.
 	OnAdmit func(head Ticket, displaced []Ticket)
 }
 
@@ -146,6 +147,7 @@ func (l *Line) Wait(ctx context.Context, h *Handle) error {
 func (l *Line) tryAdmit(h *Handle) (int, *Ticket, error) {
 	pos := 0
 	var current *Ticket
+	var displaced []Ticket
 	err := l.withMutex(func() error {
 		live, err := l.scan()
 		if err != nil {
@@ -172,7 +174,7 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, error) {
 			}
 			return err
 		}
-		next, displaced, ok := NextHead(live, grants)
+		next, passed, ok := NextHead(live, grants)
 		if !ok || next.Seq != h.ticket.Seq {
 			head.Close()
 			return nil
@@ -187,12 +189,14 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, error) {
 		}
 		h.head = head
 		h.dropTicket()
-		pos = 0
-		if l.o.OnAdmit != nil {
-			l.o.OnAdmit(h.ticket, displaced)
-		}
+		pos, displaced = 0, passed
 		return nil
 	})
+	// After the mutex: the hook may log, which takes the mutex itself (flock is
+	// per open file, so a nested take in one process would deadlock).
+	if err == nil && pos == 0 && l.o.OnAdmit != nil {
+		l.o.OnAdmit(h.ticket, displaced)
+	}
 	return pos, current, err
 }
 
