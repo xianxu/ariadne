@@ -43,7 +43,7 @@ refusal reasons; a wrapper-held flock that dies with its process does the same i
 
 ## Plan
 
-- [ ] Extend existing help phrase guards for both commands; observe failure.
+- [x] Extend existing help phrase guards for both commands; observe failure.
 - [ ] Add role-specific planning prose for the third-delta tripwire and the
   owner-lifetime lock/lease question; run targeted guards and the full suite.
 - [ ] Close with the boundary review and land on SHIP.
@@ -66,3 +66,12 @@ issue and review records follow existing archive lifecycle.
 
 Plan sent to ops:0 for approval; #406's requested Revision published separately
 before implementation. No operator smoke needed for help-only wording.
+
+### 2026-10-16 — implementation verification
+
+ops:0 approved the short plan via verified delivery
+7218f7f2-b1b4-45fc-9d1b-96d8c3474575. Existing help tests failed on all four
+new phrases on both default and --help paths before implementation. After adding
+the planning section, `go test ./cmd/tl-worker ./cmd/tl-lead ./pkg/tlrules
+-count=1` passed; `git diff --check` passed. Full `make test` running in the
+background; log /tmp/ariadne-404-suite.log. Atlas maps the new planning rules.

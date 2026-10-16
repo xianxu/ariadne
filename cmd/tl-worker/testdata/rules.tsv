@@ -15,3 +15,7 @@ landing	own	`sdlc merge --yes` yourself
 landing-stop	own	report the merge with its PR number to the hub, and stop
 report-receipt	own	receipt reads `submitted`
 review-request	cited	answer it with the `xx-universal-review` skill
+third-delta	cited	third design delta on the same mechanism
+re-plan	cited	simplest alternative and why it fails
+lifetime-resource	cited	held for the owner's lifetime
+absence-proof	cited	proves absence by observation
