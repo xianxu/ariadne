@@ -17,8 +17,9 @@ Already stated elsewhere, and binding here; not repeated:
 
 ROLES
   - The product lead (today the operator) owns scope; escalate scope to them.
-  - The TL owns execution: what runs where, in which order, when it lands, and
-    what gets smoke-tested.
+  - The TL owns execution: dispatch, design stewardship, scope escalation and
+    smoke-test decisions. The landing line orders landings; the TL does not
+    manually sequence their admission.
   - Workers own one issue at a time.
   - One TL per operator, in that operator's ops slot. TLs coordinate only
     through the project file and the issue tracker.
@@ -36,8 +37,8 @@ RUNNING A PROJECT (the order of play; the project file holds the state)
      `executing`. Reference every issue in the Breakdown so closes tick it.
      The project's `mvp_scope` (ariadne#329) is the before-MVP set: triage is
      membership, not a tag.
-  4. Dispatch and steward. Review every plan as the product steward (see
-     STEWARDSHIP). The operator is pulled in only for taste and smoke tests.
+  4. Dispatch and steward. Apply the approval boundary in STEWARDSHIP. The
+     operator is pulled in only for taste and smoke tests.
   5. The smoke loop: a queue of the operator's attention and of dependencies
      (see LANDING AND SMOKE TESTS).
   6. Hardening. Real use surfaces bugs; triage each into `mvp_scope` or a
@@ -58,9 +59,9 @@ STEWARDSHIP
   - End in an educated, probabilistic guess with the top alternatives listed,
     rather than refusing for lack of proof.
   Plan review: full-flow plans get `sdlc change-code`'s plan-quality judge.
-  Quick-flow plans skip it, so review them yourself with a fresh-context
-  subagent, or pin `--flow full`. Write your reviews to the project's
-  `reviews/` directory.
+  Defer worker-approved quick fixes to `tl-worker --help`; do not hold them for
+  a TL review. Full-flow designs, design changes and scope revisions still
+  need TL approval. Write your reviews to the project's `reviews/` directory.
 
 {{PLANNING}}
 
@@ -251,6 +252,11 @@ GROOMING THE BACKLOG INTO TRAINS
     operator opens them. Small independent issues fill an idle slot.
 
 DISPATCH
+  - Dispatch design-heavy items to a Claude slot
+    (an invariant, a new mechanism, user-visible state); send
+    bounded execution against a fixed design to Codex.
+  - The TL files or folds cross-repo proposals from workers, preserving the
+    cross-repo picture. Workers keep filing within their own repository.
   - Pick parallel issues that touch separate code, and name any expected
     overlap up front. One issue, one branch, from main: work on unlanded code
     waits.
@@ -341,6 +347,13 @@ ATTENTION AND LOAD
     gate, ariadne#346); heavy couch verbs one at a time after checking
     `uptime`.
   - Under quota pressure, switch agents with briefs from durable state.
+
+SESSION RETROS
+  After a long session or at the operator's request, write a short retro to
+  the operator: what routed through the TL that needn't have, what went wrong,
+  and proposed boundary moves. File agreed retro items against tl-lead or
+  tl-worker; change the boundary only through those agreed items. The boundary
+  lives only in these command helps, not in a parallel rules document.
 
 BATCH EDGES
   - Workers stop after their item; restart slots only at clean points, and

@@ -1,7 +1,7 @@
 # One row per tl-worker rule: <rule>\t<scope>\t<phrase the help must contain>.
 # scope `own`: only tl-worker states it, and the tl-lead help must not contain the
-# phrase. scope `cited`: a command the lead's procedure names too (the TL's half of
-# the same step), so tl-lead may contain it.
+# phrase. scope `cited`: a shared planning rule or command that the lead also
+# states from its side, so tl-lead may contain it.
 permissions	own	bounded headless browser run
 permissions-ask	own	visible window, touch the :0 slot
 known-failure	own	`make -k`
@@ -19,3 +19,15 @@ third-delta	cited	third design delta on the same mechanism
 re-plan	cited	simplest alternative and why it fails
 lifetime-resource	cited	held for the owner's lifetime
 absence-proof	cited	proves absence by observation
+quick-fix	own	self-approve small fix plans
+plan-post	own	proceeding unless you object
+plan-approval	cited	Full-flow designs, design changes
+flake-evidence	own	file a flake issue with evidence
+flake-rerun	own	one unchanged rerun
+flake-stop	own	second unrelated flake on the same head
+cross-repo	own	one-line proposal to the TL
+same-repo	own	Same-repo filings stay direct
+hash-output	own	only from Git output
+landing-order	own	The landing line owns landing order
+approval-required	own	or mechanism), and scope revisions wait for the hub's approval.
+flake-escalation	own	means stop and ask the hub.

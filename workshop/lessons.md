@@ -897,3 +897,12 @@ The simplest durable authority beats a clever scan of consequences.
 - Run the pre-close full suite through `sdlc local-check run --name suite`
   on a pushed head so landing can reuse recorded evidence. A raw `make test`
   pass does not publish the suite status that the landing gate requires.
+
+- A help-contract phrase guard must include the required action or restriction,
+  not merely its subject. Reverse each approval, escalation and agreement
+  clause independently and verify the corresponding output guard fails
+  (#406 BR-1).
+
+- When an approved revision extends acceptance, append concrete Done-when
+  criteria in the same checkpoint. A Revision explaining the extension does
+  not make the acceptance checklist complete (#406 BR-2).

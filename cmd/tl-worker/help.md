@@ -1,9 +1,9 @@
 tl-worker: the rules for a worker slot in a TL-run Couch fleet
 
 In a Couch fleet the hub is the TL. It dispatches one issue at a time to each
-worker slot, reviews plans as the product steward, decides landing and smoke
-tests, and keeps the project file. You own one issue. Read this at the start
-of every dispatched item; it is the single source of these rules and always
+worker slot, stewards full-flow designs and scope, decides smoke tests, and
+keeps the project file. You own one issue. Read this at the start of every
+dispatched item; it is the single source of these rules and always
 current.
 
 Already stated elsewhere, and binding here; not repeated:
@@ -16,6 +16,13 @@ Already stated elsewhere, and binding here; not repeated:
 
 {{PLANNING}}
 
+PLAN APPROVAL
+  For quick-flow fixes inside the shell, self-approve small fix plans after
+  posting the plan to the hub: "proceeding unless you object". Proceed without
+  waiting for approval. Full-flow designs, design changes (a new state, refusal
+  or mechanism), and scope revisions wait for the hub's approval. The shared
+  third-delta re-plan rule still applies.
+
 PERMISSIONS
   You need no permission for targeted tests, a full suite before a close (the
   machine gate caps concurrency), or a bounded headless browser run (a
@@ -26,10 +33,17 @@ PERMISSIONS
 TESTS
   A known failure the dispatch or the issue cites never ends a suite early.
   Run the rest with `make -k` and report every other failure by name.
+  Apply the flake rule yourself: for an established intermittent failure,
+  file a flake issue with evidence (or link the existing open issue), retain
+  the failed attempt and log, then make one unchanged rerun of the full suite
+  on the same head and report both attempts. A passing issue-backed rerun may
+  count for landing. Unknown failures block until classified; fix reproducible
+  branch defects on the branch. A second unrelated flake on the same head
+  means stop and ask the hub. Never use a blind passing retry as evidence.
 
 EVIDENCE
-  Every commit hash you report comes from `git rev-parse`, never typed or
-  remembered. The TL checks each one against the branch.
+  Every commit hash you report comes only from Git output (`git rev-parse`),
+  never typed or remembered. The TL checks each one against the branch.
 
 THE PROJECT FILE
   The TL owns the project file. Never edit it, tick it or append to its Log,
@@ -37,6 +51,10 @@ THE PROJECT FILE
   records it.
 
 FILING ISSUES
+  Same-repo filings stay direct. Route a cross-repo finding as a
+  one-line proposal to the TL; the TL files it or folds it into existing work
+  to hold the cross-repo picture.
+  Do not file issues in peer repositories yourself.
   `sdlc issue new` from your numbered slot claims the new issue for you. A
   follow-up you will not work yourself is released right after filing
   (`sdlc unclaim --issue N`) so the TL can dispatch it.
@@ -54,6 +72,7 @@ LIVE CHECKS
   slot instead: run it there and tell the hub where.
 
 LANDING
+  The landing line owns landing order; follow its admission order.
   Landing is part of the item. On SHIP: merge main into the branch, run
   `sdlc merge --yes` yourself from the slot holding the branch (never
   `--no-validate`), report the merge with its PR number to the hub, and stop.

@@ -33,6 +33,14 @@ The shared body is embedded from `pkg/tlrules/planning.md` and composed into
 both command helps by `tlrules.ComposeHelp`. Existing help tests phrase-guard
 both outputs (ariadne#404).
 
+**Approval and dispatch boundary.** Worker help owns small-fix self-approval,
+issue-backed flake handling, Git-output hash evidence and direct same-repo
+filings. Lead help owns the TL side of cross-repo proposals, work-kind dispatch
+(Claude for design, Codex for fixed-design execution), landing-line ownership
+of admission order and operator-agreed session retros. Both outputs retain the
+shared planning tripwire; help tests guard new rules and retired central approval
+wording (ariadne#406).
+
 **`tl-lead` subcommands** replace the ops Python scripts (`ss.py`, `render-trains.py`, `opinstr.py`; `tl-status.py` was already dead and is retired, not ported):
 
 - `tl-lead status submit|section|thread|slots|seen|owed|clobbered` does the TL's status-file work over `couch --session-sync`, behind the `SessionSync` seam (`cmd/tl-lead/sessionsync.go`). Couch owns the guards: the operator's lock (exit 3, passed through) and compare-and-replace by section hash (exit 6 on stale; `tl-lead` re-reads, recomputes and retries up to 4 times). `--fold-owed` folds only owed events an earlier `submit`/`owed` listed: the seen-set `.<file>.ss-seen`, bounded by the owed set. Tests run against `fakeSessionSync`, a stateful model of couch's refusals. The opt-in `TestSessionSyncConformance` (`TL_LEAD_LIVE=1`) checks the model against the real couch. A delivery gap (owed events unknown) refuses a `--fold-owed` write with the next action, while a plain write still lands. `thread` places one `###` subsection in `## Threads`: it replaces the subsection with the same heading, or goes in before `### Miscellaneous`.
