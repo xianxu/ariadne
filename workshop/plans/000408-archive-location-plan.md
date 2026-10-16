@@ -16,6 +16,8 @@
 | publishedDetailPath | INTEGRATION | cmd/sdlc/issuepublish.go | new |
 | republishOwnedOnce | INTEGRATION | cmd/sdlc/republish.go | modified |
 | newIssueTransferOp.BeforePublish | INTEGRATION | cmd/sdlc/issuemovedetail.go | modified |
+| checkInitialPublication | INTEGRATION | cmd/sdlc/issuemovedetail.go | new |
+| localDetailPath | INTEGRATION | cmd/sdlc/issuepublish.go | new |
 
 The pure admission helper uses the vocabulary's terminal set, not a new enum. Add a direct table test without repository IO. The path resolver wraps existing pinned Git reads; it reuses the canonical filename parser and family classifier. Both publication flows consume that one resolver (ARCH-DRY, ARCH-PURE, ARCH-PURPOSE).
 
@@ -109,3 +111,7 @@ The new terminal and entry-point regressions failed without consolidation (113.7
 ### 2026-10-16 — consolidation broader verification
 
 The full targeted publication/transfer/recovery group passed in 479.139s. No worktree changes occurred during the run. The remaining gates are a fresh recorded full suite and close round 3, with the TL's bypass-stop instruction intact.
+
+### 2026-10-16 — final consolidation suite
+
+Recorded suite passed: 1,519 SDLC tests across 12 shards and 66 packages, zero failures, 653.6s. The approved consolidated functions are now reflected in the Core concepts table; no design change. Close round 3 is next, retaining the TL's stop-before-new-bypass instruction.

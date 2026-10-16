@@ -59,6 +59,11 @@ flow: {kind: full, provenance: operator}
 
 ## Log
 
+### 2026-10-16 — consolidated admission recorded suite
+
+Recorded sdlc-local/suite passed on 41fda42bb7da192e8875fdabc8428442e4ffb682: 1,519 SDLC tests across 12 shards plus 66 other packages, zero failures, 653.6s execution after 131s queue wait. Log sha256:595212ead6b1. BR-4 correction has red/green evidence (113.742s red; 111.931s green) and broader targeted PASS (479.139s). checkInitialPublication is the single authority consumed by BeforePublish and early preflight; current card, ID-wide main/local locations and existing asset rules are composed there. No new state/hook/receipt. Close round 3 follows; any new bypass is reported to the TL before changes.
+
+
 ### 2026-10-16 — consolidated admission broader verification
 
 Broader stable-worktree run passed in 479.139s: go test ./cmd/sdlc -run 'Test(Publish|MoveDetail|AssetRecovery|InitialPublication|InitialDetailsTerminalAdmission)' -count=1 -timeout 10m. Includes prior archive/filename cases, new terminal-transition and entry-point parity regressions, and confirmed-publication recovery. Full recorded suite follows on the pushed correction.
