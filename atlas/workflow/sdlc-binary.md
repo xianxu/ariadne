@@ -361,7 +361,21 @@ with reviewbox.
   but shares no code: it is a make-invoked Python helper, and its waiters aren't
   sdlc processes.
 
-M2 wires the line into `runDurableMerge` and adds `sdlc landing`.
+**In merge** (`landingqueue.go`): `runDurableMerge` confirms first, so a prompt
+never holds the line. It then takes a turn before it observes the branch head,
+the PRs or the integration state, and holds the turn until it returns. An
+admitted merge therefore never acts on an observation from before a possibly
+long wait. A duplicate invocation that waited behind the original resumes as
+already merged, and a fix pushed while waiting is what lands. An already-merged
+PR takes no turn. The turn logs enqueue, admit, and landed or refused; landing
+ends the issue's grant. The landing's own recovery is unchanged, and the line
+adds ordering only. This lock-shaped line replaced #390's eight-state durable
+queue (#404 lock-first, TL-approved).
+
+**`sdlc landing`** (`landingcmd.go`, help in `helptext/landing.md`): `status`
+shows the landing now, the waiters in admission order, live grants and the delay
+p50/p90. `grant` and `revoke` take `--repo DIR` and are refused from a worker
+slot.
 
 ## The quick flow at close (#231)
 

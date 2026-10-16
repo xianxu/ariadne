@@ -62,16 +62,8 @@ func newLandingCmd(d landingDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "landing",
 		Short: "Show a repository's landing line, and grant or revoke fleet-blocking priority (#393)",
-		Long: `Each repository has one landing line (#393): sdlc merge waits in it, so one
-merge at a time integrates and lands and each landing runs one integration
-suite. It lives in the repository's git common dir, shared by every slot.
-
-Fleet-blocking priority puts a named issue's merge ahead of waiting normal
-ones at the next admission. It never interrupts a running landing and waives
-no gate. Only the operator's shell or a :0 slot (the TL's hub) may grant it,
-for at most 24 hours; landing the issue ends it. Grants are cooperative: they
-guard against agents' mistakes on one machine, not against forgery.`,
-		Args: cobra.NoArgs, SilenceUsage: true, SilenceErrors: true,
+		Long:  "Placeholder — replaced by helptext.MustGet(\"landing\") in main.go.",
+		Args:  cobra.NoArgs, SilenceUsage: true, SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runLandingStatus(cmd.OutOrStdout(), repo, d)
 		},

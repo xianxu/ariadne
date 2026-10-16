@@ -16,6 +16,15 @@ DURABLE WORKSPACES (:0 AND :N)
   changed identity or ambiguous evidence refuse. Noncolliding untracked and
   ignored files survive; switch collisions refuse. Never stash/reset to finish.
 
+  0. Take a turn in the repository's landing line (#393; `sdlc landing`).
+     Confirmation comes first, so a prompt never holds the line. One merge
+     per repository integrates and lands at a time, so each landing runs one
+     integration suite. A waiting merge prints its position, holds only a
+     ticket, and observes nothing it will act on until admitted: branch head,
+     PRs and selection are read after its turn starts. Fleet-blocking grants
+     (operator or :0, at most 24 h) go first at the next admission and never
+     interrupt a running landing. An already-merged PR takes no turn. The line
+     lives in the git common dir, shared by every slot, and needs no Couch.
   1. If configured main moved, merge it into the issue branch locally. A
      conflict aborts and names the paths. A clean integration must pass the
      publish replay check before its leased push; a refusal resets this
@@ -61,6 +70,10 @@ RECOVERY
   writable config clears it automatically. Work created on the resting checkout
   is preserved during this ref-only cleanup, including staged/unstaged changes;
   active Git operations still refuse. No transaction journal is created.
+
+  A waiting merge leaves the line on Ctrl-C or process death: its ticket is
+  a flock the kernel releases, and the next waiter prunes it. A killed head
+  frees the line the same way; its retry queues again and resumes as below.
 
   An interrupted local integration may resume before its push: its merge commit
   must carry Integrated-Main, with the remote issue head as first parent and
