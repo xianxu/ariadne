@@ -54,7 +54,7 @@ Files: cmd/sdlc/issuepublish.go, cmd/sdlc/issuemovedetail.go.
 Files: atlas/workflow/issue-tracker.md and issue Log/Plan/Revisions.
 
 - [x] Update Atlas to include transfer/retry/recovery location revalidation and filename grammar.
-- [ ] Push with sdlc pr; run sdlc local-check run --name suite on the pushed fix head. Require a recorded pass; no gate overrides.
+- [x] Push with sdlc pr; run sdlc local-check run --name suite on the pushed fix head. Require a recorded pass; no gate overrides.
 - [ ] Run sdlc close --issue 408 with evidence disposing BR-1/BR-2/BR-3. Resolve any remaining findings; publish on SHIP through sdlc merge --yes and report PR #269 to the hub.
 
 ## Architecture and operating envelope
@@ -80,3 +80,7 @@ Compressed the test strategy into one line per risky function; the executable te
 ### 2026-10-16 — correction verified locally
 
 The new regression group passed in 84.718s. The broader Test(Publish|MoveDetail|AssetRecovery|InitialPublicationArchiveRevalidation|InitialDetailsTerminalAdmission) run passed in 207.171s with a stable worktree, including existing confirmed-publication recovery. The production correction remains one resolver and one existing publication hook, with no receipt/state changes.
+
+### 2026-10-16 — full-suite evidence
+
+Recorded suite on the pushed correction passed: 1,516 SDLC tests across 12 shards plus 66 packages, zero failures, 701.4s wall. Close review is the remaining boundary before landing PR #269.

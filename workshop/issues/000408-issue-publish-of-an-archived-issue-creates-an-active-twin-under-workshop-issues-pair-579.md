@@ -49,12 +49,17 @@ flow: {kind: full, provenance: operator}
 
 - [x] Reproduce archive updates, missing terminal details and duplicate-location
   refusals in isolated real-Git publication fixtures; confirm red.
-- [ ] Resolve details by ID across active and archive locations on pinned main,
+- [x] Resolve details by ID across active and archive locations on pinned main,
   preserve republish safeguards, and recheck location before publication.
 - [x] Run focused and recorded full-suite verification; update Atlas and prepare
   the close review.
 
 ## Log
+
+### 2026-10-16 — final correction full suite
+
+Recorded suite passed on 30acd23c1e70d785dacce6d86d09e851941d7145: 1,516 SDLC tests across 12 shards and 66 other packages, zero failures, 701.4s wall (11m42s recorded). Evidence: sdlc-local/suite success, log sha256:18c999319064. The final regression group passed in 84.718s and broader publication/transfer/recovery coverage in 207.171s. BR-1 is addressed through the existing BeforePublish hook shared by first/retry/recovery; BR-2 by filtering canonical filenames before family classification; BR-3 by the appended acceptance clauses. PQ-1 prose is compressed to function-specific strategies. No new receipt/state mechanism introduced.
+
 
 ### 2026-10-16 — recorded full-suite acceptance
 
