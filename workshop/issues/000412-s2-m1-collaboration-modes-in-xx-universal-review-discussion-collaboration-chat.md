@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-16
-estimate_hours:
-card_mirror: 'e45fc8a300af185b7c0fd0f41a0b0da78171aa64' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 4.33
+card_mirror: '345ce7efbb3b365627b38cbc94769dc9faead8d7' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-16T15:42:55-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # S2 M1: collaboration modes in xx-universal-review (discussion, collaboration, chat)
@@ -72,6 +73,34 @@ Durable plan: [workshop/plans/000412-s2-collaboration-modes-plan.md](../plans/00
 - [ ] 7. atlas: universal-review.md (and tl-skills.md)
 - [ ] 8. live check: rounds on the examples' before.md copies, and one tracked round through Couch
 - [ ] 9. full suite via sdlc local-check, then sdlc close
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec              design=1.0 impl=0.04
+item: skill-or-dispatcher     design=0.4 impl=0.2
+item: skill-or-dispatcher     design=0.3 impl=0.2
+item: smaller-go-module       design=0.2 impl=0.2
+item: smaller-go-module       design=0.1 impl=0.1
+item: atlas-docs              design=0.1 impl=0.08
+item: ux-rename-iteration     design=0.3 impl=0.1
+item: real-api-discovery      design=0.0 impl=0.25
+item: milestone-review        design=0.0 impl=0.2
+item: milestone-review        design=0.0 impl=0.2
+design-buffer: 0.15
+total: 4.33
+```
+
+- issue-spec: the S2 brainstorm is done (ops design, operator-decided); this is the issue, the plan and two plan-quality rounds, spent mostly before the code.
+- skill-or-dispatcher ×2: collaboration-modes.md with round.md §4, SKILL.md and the adapter (design ×0.2-ish, the design doc pre-resolves the decisions); the ten example cases, written to the test list.
+- smaller-go-module ×2: the examples checker with nextSideDocName and the export member; tl-lead help and its topic and link tests.
+- ux-rename-iteration: the rounds with the design owner (O1 to O3 so far).
+- real-api-discovery: the live check, real rounds on every case plus one tracked round through Couch.
+- milestone-review ×2: the close review, expected to take two rounds.
 
 ## Log
 
