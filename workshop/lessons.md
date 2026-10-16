@@ -906,3 +906,12 @@ The simplest durable authority beats a clever scan of consequences.
 - When an approved revision extends acceptance, append concrete Done-when
   criteria in the same checkpoint. A Revision explaining the extension does
   not make the acceptance checklist complete (#406 BR-2).
+
+- Keep the real worktree steady during direct cmd/sdlc test runs: its final
+  hermeticity guard compares repository state across the whole invocation.
+  Concurrent agent edits look like test leakage. Finish edits first, or run
+  verification through the isolated local-check checkout (#408).
+
+- #408: A publication invariant checked only at command preflight does not protect saved candidates or recovery. Put the rule in the existing shared publication admission hook and exercise first push, moved-base retry and durable receipt replay. Filter discovery by the canonical filename grammar before classifying an ID family; an ID prefix alone also matches backups.
+
+- #408 close round 2: A shared publication hook must enforce the complete eligibility rule, including current card state. Moving only path absence into the hook leaves preflight status eligibility stale on retry and receipt recovery. Define the conjunction before implementing its checks.

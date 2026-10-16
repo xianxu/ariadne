@@ -8,6 +8,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -85,6 +87,7 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 	if err != nil {
 		return err
 	}
+	locations := map[string]string{}
 	var first []int
 	var republish []string
 	for _, n := range nums {
@@ -93,13 +96,22 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 		if err != nil {
 			return err
 		}
-		onMain, err := view.Exists(path.Join(dirs.Rel[0], path.Base(card.Path)))
+		if _, err := localDetailPath(dirs, n); err != nil {
+			return err
+		}
+		rel, err := publishedDetailPath(view, dirs, id)
 		if err != nil {
 			return err
 		}
-		if onMain {
+		if rel != "" {
+			locations[id] = rel
 			republish = append(republish, id)
 		} else {
+			// Early admission only; the transfer checks the same rule again before push.
+			spec := tracker.ReceiptSpec{IssueID: id, DestinationPath: path.Join(dirs.Rel[0], path.Base(card.Path))}
+			if err := checkInitialPublication(env, spec, view); err != nil {
+				return err
+			}
 			first = append(first, n)
 		}
 	}
@@ -116,7 +128,7 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 	read := lazyDecl(func() (repoenum.Declaration, error) { return readTrackerRepoEnums(env) })
 	for _, id := range republish {
 		card, _ := snap.Require(id)
-		file := filepath.Join(env.root, filepath.FromSlash(path.Join(dirs.Rel[0], path.Base(card.Path))))
+		file := filepath.Join(env.root, filepath.FromSlash(locations[id]))
 		data, err := os.ReadFile(file)
 		if err != nil {
 			continue // republishOwned reports a missing details file
@@ -131,6 +143,77 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 		}
 	}
 	return republishOwned(env, stdout, stderr, republish, dirs.Rel[0], dryRun)
+}
+
+// localDetailPath applies the same canonical filename grammar before family
+// classification; an ID-prefixed backup is not an issue detail.
+func localDetailPath(dirs idDirs, n int) (string, error) {
+	local, _, err := issue.LocalPathsByID(dirs.Abs)
+	if err != nil {
+		return "", err
+	}
+	candidates := slices.DeleteFunc(local[n], func(p string) bool { return !issueFilename(filepath.Base(p)) })
+	var details []string
+	for _, f := range classifyFamily(n, candidates) {
+		if f.Kind == kindIssue {
+			details = append(details, f.Path)
+		}
+	}
+	if len(details) > 1 {
+		return "", fmt.Errorf("#%d has duplicate details: %s", n, strings.Join(details, ", "))
+	}
+	if len(details) == 1 {
+		return details[0], nil
+	}
+	return "", nil
+}
+
+// requireInitialDetails prevents first-publication recovery resurrecting closed work.
+func requireInitialDetails(card tracker.Record) error {
+	status, _ := issue.GetField(card.Card.Frontmatter, "status")
+	if vocab.Issue().IsTerminal(status) {
+		return fmt.Errorf("#%s is %s but has no published details; refusing to create an active copy", issue.CLIRef(card.ID), status)
+	}
+	return nil
+}
+
+// publishedDetailPath resolves one ID on a pinned main, including legacy archives.
+// Plans/reviews are classified by the same family reader as resolve.
+func publishedDetailPath(view *gitx.TrunkView, dirs idDirs, id string) (string, error) {
+	n, err := strconv.Atoi(id)
+	if err != nil {
+		return "", err
+	}
+	seen := map[string]bool{}
+	var paths []string
+	for _, dir := range dirs.Rel {
+		files, err := view.FilesSelected(dir, func(f gitx.TreeFile) bool {
+			got, _, ok := issue.ParseFilename(path.Base(f.Path))
+			return ok && got == id && path.Dir(f.Path) == dir
+		})
+		if err != nil {
+			return "", err
+		}
+		for _, f := range files {
+			if !seen[f.Path] {
+				seen[f.Path] = true
+				paths = append(paths, f.Path)
+			}
+		}
+	}
+	var details []string
+	for _, f := range classifyFamily(n, paths) {
+		if f.Kind == kindIssue {
+			details = append(details, f.Path)
+		}
+	}
+	if len(details) > 1 {
+		return "", fmt.Errorf("#%s has duplicate details on main: %s", issue.CLIRef(id), strings.Join(details, ", "))
+	}
+	if len(details) == 1 {
+		return details[0], nil
+	}
+	return "", nil
 }
 
 func publishIssueCommit(ctx context.Context, stdout, stderr io.Writer, root, source, issuesDir, historyDir string) error {

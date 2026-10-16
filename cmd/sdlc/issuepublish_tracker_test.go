@@ -429,3 +429,125 @@ func TestPublishMovedMainOnTheIssueBranchRemedy(t *testing.T) {
 		t.Fatalf("both changes must be on main:\n%s", onMain)
 	}
 }
+
+// #408: archive location is part of issue identity, not a new creation.
+func TestPublishArchivedDetails(t *testing.T) {
+	for _, dir := range []string{"workshop/history/issues", "workshop/history"} {
+		t.Run(dir, func(t *testing.T) {
+			cp, card, active, detail := seededIssue(t, "000012", "archived")
+			oldCard := card
+			card = strings.Replace(card, "status: open", "status: done\nactual_hours: N/A", 1)
+			raw, err := issue.RefreshMirror([]byte(detail), []byte(oldCard), []byte(card))
+			if err != nil {
+				t.Fatal(err)
+			}
+			archived := dir + "/" + filepath.Base(active)
+			cp2, card2, active2, detail2 := seededIssue(t, "000013", "active")
+			r := newTrackerRepo(t, map[string]string{cp: card, cp2: card2}, map[string]string{archived: string(raw), active2: detail2})
+			appendDetail(t, r, archived, "Archived log update.")
+			appendDetail(t, r, active2, "Active log update.")
+			before := r.originMain()
+			if out, err := publish(t, 12, 13); err != nil {
+				t.Fatalf("%v\n%s", err, out)
+			}
+			if !strings.Contains(r.git("show", r.originMain()+":"+archived), "Archived log update.") {
+				t.Fatal("archive update missing")
+			}
+			if !strings.Contains(r.git("show", r.originMain()+":"+active2), "Active log update.") {
+				t.Fatal("active update missing")
+			}
+			if paths := r.git("ls-tree", "--name-only", r.originMain(), "--", active); paths != "" {
+				t.Fatalf("active twin created: %s", paths)
+			}
+			if r.git("rev-parse", r.originMain()+"^") != before {
+				t.Fatal("mixed edits did not publish atomically")
+			}
+		})
+	}
+}
+
+func TestPublishTerminalCardWithoutDetailsRefuses(t *testing.T) {
+	cp, card, active, _ := seededIssue(t, "000012", "missing")
+	card = strings.Replace(card, "status: open", "status: done\nactual_hours: N/A", 1)
+	r := newTrackerRepo(t, map[string]string{cp: card}, nil)
+	before := r.originMain()
+	out, err := publish(t, 12)
+	if err == nil || !strings.Contains(err.Error(), "done") {
+		t.Fatalf("missing terminal details must refuse: %v\n%s", err, out)
+	}
+	if r.originMain() != before {
+		t.Fatal("refusal changed main")
+	}
+	if _, err := os.Stat(filepath.Join(r.root, active)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("created local twin: %v", err)
+	}
+}
+
+func TestPublishDuplicateLocationsRefuses(t *testing.T) {
+	for _, remoteTwin := range []bool{false, true} {
+		t.Run(fmt.Sprintf("remote=%v", remoteTwin), func(t *testing.T) {
+			cp, card, active, detail := seededIssue(t, "000012", "twin")
+			archived := "workshop/history/issues/" + filepath.Base(active)
+			details := map[string]string{archived: detail}
+			if remoteTwin {
+				details[active] = detail
+			}
+			r := newTrackerRepo(t, map[string]string{cp: card}, details)
+			if !remoteTwin {
+				writeRepoFile(t, r.root, active, detail)
+			}
+			before := r.originMain()
+			out, err := publish(t, 12)
+			if err == nil || !strings.Contains(err.Error(), active) || !strings.Contains(err.Error(), archived) {
+				t.Fatalf("twins must be named and refused: %v\n%s", err, out)
+			}
+			if r.originMain() != before {
+				t.Fatal("refusal changed main")
+			}
+		})
+	}
+}
+
+func TestPublishRefusesTwinIntroducedBeforeCandidate(t *testing.T) {
+	r, _ := claimSetRepo(t)
+	active := "workshop/issues/000009-s09.md"
+	archived := "workshop/history/issues/000009-s09.md"
+	detail := r.git("show", "HEAD:"+active) + "\n"
+	appendDetail(t, r, active, "Must not publish across a new twin.")
+	prev := mainPublish
+	t.Cleanup(func() { mainPublish = prev })
+	var peerHead string
+	mainPublish = func(env *trackerEnv, msg string, prepare func(*gitx.TrunkView) (gitx.TrunkWrite, error), before func(string, string) error) error {
+		peerAdd(t, r, archived, detail)
+		peerHead = r.originMain()
+		return prev(env, msg, prepare, before)
+	}
+	out, err := publish(t, 9)
+	if err == nil || !strings.Contains(err.Error(), active) || !strings.Contains(err.Error(), archived) {
+		t.Fatalf("a newly introduced twin must refuse: %v\n%s", err, out)
+	}
+	if peerHead == "" || r.originMain() != peerHead {
+		t.Fatal("refusal published beyond the peer's commit")
+	}
+}
+
+func TestPublishUnpublishedLocalArchiveRefuses(t *testing.T) {
+	cp, card, active, detail := seededIssue(t, "000012", "local-archive")
+	r := newTrackerRepo(t, map[string]string{cp: card}, nil)
+	archived := "workshop/history/issues/" + filepath.Base(active)
+	writeRepoFile(t, r.root, archived, detail)
+	before := r.originMain()
+	out, err := publish(t, 12)
+	if err == nil || !strings.Contains(err.Error(), archived) {
+		t.Fatalf("local archive must not become an active creation: %v\n%s", err, out)
+	}
+	if r.originMain() != before {
+		t.Fatal("refusal changed main")
+	}
+	if _, err := os.Stat(filepath.Join(r.root, active)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("local active twin: %v", err)
+	}
+	if raw, err := os.ReadFile(filepath.Join(r.root, archived)); err != nil || string(raw) != detail {
+		t.Fatal("archive changed on refusal")
+	}
+}
