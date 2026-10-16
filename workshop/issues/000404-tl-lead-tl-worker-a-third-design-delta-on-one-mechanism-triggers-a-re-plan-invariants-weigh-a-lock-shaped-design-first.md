@@ -1,12 +1,20 @@
 ---
 id: 000404
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-15
-updated: 2026-10-15
+updated: 2026-10-16
 estimate_hours:
-card_mirror: '8cb487f21a93a3a6a3238f740ae9bcb074437b97' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'bf9703714c7f6ce3b1ff137c57818f977e50b541' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-16T09:16:33-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead/tl-worker: a third design delta on one mechanism triggers a re-plan; invariants weigh a lock-shaped design first
@@ -34,8 +42,26 @@ refusal reasons; a wrapper-held flock that dies with its process does the same i
 
 ## Plan
 
-- [ ]
+- [ ] Extend existing help phrase guards for both commands; observe failure.
+- [ ] Add role-specific planning prose for the third-delta tripwire and the
+  owner-lifetime lock/lease question; run targeted guards and the full suite.
+- [ ] Close with the boundary review and land on SHIP.
 
 ## Log
 
 ### 2026-10-15
+
+### 2026-10-16 — design
+
+Quick-flow help-text change. ARCH-DRY: retain the existing embedded help and
+phrase-test mechanisms; each role states its action (TL stops approving, worker
+stops requesting incremental approval). ARCH-PURE: no runtime IO changes.
+ARCH-PURPOSE: guard both rules on both help surfaces, including why a lock/lease
+cannot work before absence-by-observation designs. ARCH-MOCK, ARCH-CONSTRAINTS,
+ARCH-SECURE: no external dependency, workload or trust-boundary changes.
+ARCH-ORDER: help holds no state between events; it instructs actors about the
+third-delta boundary. ARCH-FUNERAL: creates no new durable artifact family;
+issue and review records follow existing archive lifecycle.
+
+Plan sent to ops:0 for approval; #406's requested Revision published separately
+before implementation. No operator smoke needed for help-only wording.
