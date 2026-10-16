@@ -1,12 +1,22 @@
 ---
 id: 000399
-status: open
+status: codecomplete
 deps: [parley.nvim#332, pair#573]
 github_issue:
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
-card_mirror: '4d1322dd4e320147e1b1fea6afa626e9b3148e4b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '6a8a5648d052dd9877a01fb4b4a97587273dede0' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-15T16:24:58-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 0.63
 ---
 
 # Universal review skill and canonical round export
@@ -51,11 +61,93 @@ the same protocol. S1 is parley.nvim#332 plus pair#573.
 
 ## Plan
 
-- [ ] Confirm the shared export contract with parley.nvim#319, then author the
-  skill via the writing-skills workflow and land it before the consumer.
+Quick flow: prose plus one small Go validator; no Mx.
+
+Layout, `construct/local/universal-review/` (weave lowers it to `xx-universal-review` in `.claude/skills` and `.agents/skills`):
+- `SKILL.md`: the trigger is a `submitted: PATH` (or `review request: PATH`) delivery for a markdown document. The steps: read `round.md`, choose the adapter, and follow it. It is short and restates no protocol.
+- `round.md`: the harness-neutral round. It covers:
+  - the inputs: the document, the frontmatter `process-instruction: [mode][mode] text` (`free-form` when there is no mode), and the changes since your last read;
+  - mode resolution: an exact name, else a unique prefix; an ambiguous or unknown name is refused, naming the modes; several modes give every body but only the first mode's directives;
+  - what the mode flags mean as directives: scope, deletions, frontier;
+  - marker readiness and the reply rules. It refers to the grammar and restates none of it.
+- `modes/*.md`: the six stock modes, byte-for-byte from parley's `lua/parley/skills/review/modes/`. They become canonical here; parley regenerates its copy (#319).
+- `adapters/file-edit.md`: editing the file itself.
+  - A **registered** document (`couch --session-sync lookup`) goes `diff`, then `read --all` for the hash, then `write --all --if-hash H --fold <owed IDs>`. Exit 3 (the operator holds the lock) queues the write until the next submit, and a lock older than 30 minutes is pinged. Exit 6 (stale) re-reads. The CAS is never bypassed.
+  - An **unregistered** document is edited in place; changes since the last read come from your own last read, else the whole file.
+  - The `propose_edits` tool adapter stays parley-owned (#319's `local-adapter.md`).
+- `review-convention.md`: a symlink to `../fix/review-convention.md`, the one authored grammar. A relative link then works both lexically, through `.claude/skills/xx-universal-review/`, and physically.
+- `export.json`: the versioned manifest that parley's `sync-review-protocol.py` snapshots.
+  - Header: `{"schema":"ariadne/universal-review-export","version":1,"members":[…]}`.
+  - Each member has `role` (round | grammar | adapter | mode), `path` relative to the skill directory, `bytes` and `sha256`.
+  - The grammar member also has `source: construct/local/fix/review-convention.md`.
+  - Mode members are dense records: `name`, `order`, `scope`, `deletions`, `frontier`.
+  - Members are sorted by role and then order, with no timestamps, so the file is deterministic.
+
+Tasks:
+- [x] Author `SKILL.md`, `round.md` and `adapters/file-edit.md` via the superpowers-writing-skills workflow. Copy the six modes and add the grammar symlink.
+- [x] Add a `pkg/reviewexport` validator:
+  - it parses mode frontmatter as parley does (flat keys; name equals basename; valid enum values);
+  - it builds the manifest;
+  - `TestExportCurrent` fails on a stale or missing member, and `UPDATE_REVIEW_EXPORT=1` regenerates the manifest;
+  - a determinism test builds it twice and checks the two are identical.
+- [x] A discovery test: an ariadne-derived fixture whose weave lowering yields `xx-universal-review` in both harness directories, with `review-convention.md` resolving through the harness path.
+- [x] Point `tl-lead --help` and `tl-worker --help` at the skill for review requests, with phrase guards. The `xx-couch` skill gets the same one-line pointer.
+- [x] Atlas: a short `atlas/workflow/universal-review.md`, linked from the indexes.
+- [ ] Live check, coordinated by the hub: one operator Alt+Return on a registered document is answered by the skill under the lock and the CAS.
+
+## Revisions
+
+- 2026-10-15 (TL decision f73c1f3a): the Done-when live operator check, one Alt+Return on a registered document answered under the lock and CAS, moves to parley.nvim#332's combined acceptance. The TL owns it and records the result here, so this issue lands without it.
+- 2026-10-15 (TL, operator requirement 5ef50ef6): "changes since your last read" exclude the agent's own edits. For an untracked file, the adapter saves the file as it left it after each write and diffs against that copy next round.
 
 ## Log
 
+
+
+
+
+- 2026-10-15: closed — Round-3 Minors fixed: the adapter cites couch --skill that the diff baseline moves on the agent write; atlas states the own-edits rule for both paths. export.json regenerated; reviewexport and weave discovery tests green. Live Alt+Return check moves to parley.nvim#332 combined acceptance (TL owns it, records on #399). (fixed-then-ship); review verdict: SHIP
+- 2026-10-15: closed — Full re-close after the scope change (BR-5): folded the operator requirement (TL 5ef50ef6), so changes since the last read exclude the agent own edits and untracked files diff against the copy the agent left; the adapter states every temp file lifecycle; round-1 Minors fixed (modes from modes/, ParseMode parity edges pinned). Live Alt+Return check moves to parley.nvim#332 combined acceptance (the TL owns it and records the result on #399; TL decision f73c1f3a). Evidence: fresh-agent dry run of a representative submitted: request using only the skill; full make test green (12 shards, 1495 cmd/sdlc tests, 64 packages, 0 failed); parley.nvim:1 independently verified all 9 export member hashes and byte-identical modes; reviewexport and weave discovery tests green on HEAD with export.json regenerated.; review verdict: SHIP
+- 2026-10-15: closed — Live Alt+Return check moves to parley.nvim#332 combined acceptance (the TL owns it and records the result on #399; TL decision f73c1f3a). Evidence: fresh-agent dry run answered a representative submitted: request using only the skill (mode by unique prefix, frontier, propose-strike, pending and fenced markers left), its ambiguities fixed in round.md; full make test green (12 shards, 1495 cmd/sdlc tests, 64 packages, 0 failed); parley.nvim:1 independently verified all 9 export member hashes and byte-identical modes and accepted the export shape. Plus pkg/reviewexport tests (parse, total order, refusals, determinism, TestExportCurrent with grammar hashed through the symlink) and cmd/weave discovery test (both harness dirs, grammar bytes equal canonical), tl-lead/tl-worker phrase guards.; review verdict: SHIP
+- 2026-10-15: flow upgraded quick → full — 311 added lines in code files (limit 100)
 2026-10-15 — filed from parley.nvim:1 while planning the operator-requested S2a;
 unclaimed for hub dispatch. See ops teams/devinfra/projects/universal-agent-input-interface/design.md
 S2 and project.md S2a. This is the shared-skill half; no Parley code belongs here.
+- 2026-10-15 (ariadne:2): claimed. TL decision (ops:0): Alt+Return sends ONLY 'submitted: PATH'; the skill carries the whole protocol (frontmatter process-instruction, couch --session-sync diff for changes since last read, review modes, marker grammar). parley.nvim:1 confirms #319 is submitted-only: it deletes the verbose Couch builder/diff baseline and keeps only the inline in-editor fallback outside Couch, so the export must serve both: the skill (in Couch) and the inline fallback (standalone).
+- 2026-10-15: TL approved the plan at 6c384550 (delivery 18480ed1). The TL also asked to keep round.md open for S2's section-mode step, which is now its §4 (reserved).
+- 2026-10-15: parley.nvim:1's consumer review (delivery 97b175aa) is folded in:
+  - **Direct edits:** a file is edited directly only on a confirmed-untracked lookup. A `type: session-sync` file always takes the lock and CAS path. An unknown lookup result writes nothing.
+  - **Snapshot:** the round reviews the `read --all` snapshot whose hash is H. It folds only the owed IDs captured in `status` before the diff; anything delivered later stays owed. With nothing owed, `--fold` is left out. On a lock, the pending ask carries over to the next submit, even if that submit's diff is empty.
+  - **Composition:** round.md names no Couch verb, so it works outside Couch. Parley's local prompt is round, grammar, the selected modes and its own `propose_edits` adapter; it excludes SKILL.md and the file-edit adapter.
+  - **Manifest pins:**
+    - sizes and hashes cover each file's resolved contents, including the grammar symlink;
+    - the order is total: role, then mode order with unordered modes last, then name, then path;
+    - an omitted mode flag takes parley's default.
+- 2026-10-15: built. These tests are green:
+  - `pkg/reviewexport`: ParseMode, its defaults and refusals; the build order; missing-member refusals; determinism; TestExportCurrent.
+  - `cmd/weave` TestUniversalReviewSkillDiscoveredInDerivedRepo: both harness directories, with the grammar bytes equal to the canonical file.
+  - The tl-lead and tl-worker phrase guards.
+- 2026-10-15: dry-run check. A fresh subagent, given only the skill, answered `submitted: note.md` (untracked, `[copy] keep it short`):
+  - it resolved `[copy]` to copy-editing by unique prefix;
+  - it left the typo above the frontier untouched;
+  - it turned the ready grammar ask and a misspelling below the frontier into strike proposals;
+  - it left the pending `{…}` marker and the marker inside a fence.
+  It also flagged ambiguities, so round.md now states:
+  - how an explicit ask works under propose-strike: the proposal replaces the human marker and is the answer;
+  - that replacement forms defer to the grammar's §3;
+  - the frontier's edges: fenced markers don't count, the referred text is open, and with no human marker nothing is settled;
+  - "edit region" in place of the overloaded word "scope";
+  - "pending" as any agent turn, whoever wrote it;
+  - where the operator's free text applies.
+- 2026-10-15: parley.nvim:1 checked the pin at 8bead12b (delivery c732ec76): all 9 member hashes match, and the six modes are byte-identical to parley's. The export shape is accepted. Two corrections to the file-edit adapter followed:
+  - `type: session-sync` is tested first, before `COUCH_TREE`. A legacy session-sync file stays tracked outside a slot, and when its storage is unreachable the adapter refuses instead of editing directly.
+  - The write folds only the kept IDs whose asks it answers. A kept delivery that wasn't answered stays owed.
+- 2026-10-15: TL decision (delivery f73c1f3a): land now with --no-plan-check. The live Alt+Return check moves to parley.nvim#332's combined acceptance; the TL owns it and records the result here. The landing evidence is the fresh-agent dry run, the green full suite, and parley.nvim:1's independent verification of the export.
+- 2026-10-15: the close review was SHIP with 4 Minors, all fixed:
+  - round.md lists the known modes from `modes/` instead of hard-coding them;
+  - the adapter deletes BODYFILE after the write, and deletes the base copy it replaces;
+  - ParseMode's edges are pinned to parley's parser: CRLF is refused, values are taken literally, and an empty frontmatter parses but fails on the name;
+  - the Revisions entries above.
+  The operator's own-edits requirement (5ef50ef6) is folded into the adapter's Untracked section and round.md §1.
+- 2026-10-15: fixed-then-ship round 2 was REWORK. The Important (BR-5): the operator requirement was a scope change after close, so a full sdlc close follows. The Minor is fixed as a rule: the adapter now states when each temporary file is deleted, including the last base copy, deleted when you are done with the document.
+- 2026-10-15: re-close round 3 was SHIP, and its 2 Minors are fixed. The adapter now cites Couch's documented diff baseline, which moves on the agent's write, and the atlas states the own-edits rule for both paths.

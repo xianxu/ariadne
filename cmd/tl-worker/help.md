@@ -57,6 +57,12 @@ LANDING
   `--no-validate`), report the merge with its PR number to the hub, and stop.
   "Stop after this item" means stop after landing it.
 
+REVIEW REQUESTS
+  A `submitted: PATH` delivery for a markdown document is the operator's
+  review request: answer it with the `xx-universal-review` skill, which reads
+  the document's instruction and writes a Couch-tracked file under the
+  operator's lock.
+
 REPORTS
   An outcome report counts once its receipt reads `submitted`. On `expired` or
   `not-dispatched`, send it again. On an uncertain outcome, follow

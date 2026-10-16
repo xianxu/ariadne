@@ -117,6 +117,10 @@ TALKING TO THE OPERATOR
     `couch --notify [--title T] MESSAGE` (pair#540; hub-only, and slots' own
     terminal notifications are swallowed, so the hub is the one voice).
     Everything else waits in the status file.
+  - A `submitted: PATH` delivery for a markdown document other than the status
+    file (a design doc, a plan) is a review request: answer it with the
+    `xx-universal-review` skill, which reads the document's instruction and writes a Couch-tracked
+    file under the operator's lock.
   - Keep the agent pane quiet. Input the operator types in the draft pane gets
     a normal reply there. Input from the status file or a QA file is answered
     in files, with at most one line in the pane. Routine worker reports go to
