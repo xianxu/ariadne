@@ -44,9 +44,9 @@ refusal reasons; a wrapper-held flock that dies with its process does the same i
 ## Plan
 
 - [x] Extend existing help phrase guards for both commands; observe failure.
-- [ ] Add role-specific planning prose for the third-delta tripwire and the
+- [x] Add role-specific planning prose for the third-delta tripwire and the
   owner-lifetime lock/lease question; run targeted guards and the full suite.
-- [ ] Close with the boundary review and land on SHIP.
+- [x] Prepare close with the boundary review; land on SHIP.
 
 ## Log
 
@@ -75,3 +75,6 @@ new phrases on both default and --help paths before implementation. After adding
 the planning section, `go test ./cmd/tl-worker ./cmd/tl-lead ./pkg/tlrules
 -count=1` passed; `git diff --check` passed. Full `make test` running in the
 background; log /tmp/ariadne-404-suite.log. Atlas maps the new planning rules.
+
+Full `make test` passed: 12 shards over 1,508 cmd/sdlc tests plus 66 other
+packages; zero failures, 654.9 seconds execution after 538 seconds queue wait.
