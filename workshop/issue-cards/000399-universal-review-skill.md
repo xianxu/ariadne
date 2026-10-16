@@ -1,6 +1,6 @@
 ---
 id: 000399
-status: working
+status: codecomplete
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.46
+tracker:
+    version: 1
+    completion:
+        token: close-edbdbba106fe
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 087c8af70c4b394008aadbdbeaf7aba5e79b1169
+        evidence_commit: 9aef8083bf2df99a6cb78e6046ae031930858294
 ---
 
 # Universal review skill and canonical round export
