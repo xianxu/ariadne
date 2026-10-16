@@ -1,6 +1,6 @@
 ---
 id: 000406
-status: codecomplete
+status: done
 created: 2026-10-15
 updated: 2026-10-16
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: f7db597399e82c5e1501114293afa0ad5a35a700
         evidence_commit: 49a4014dc4a84b8e3136b9993267baf7a85f034a
+        landed_commit: 0cdead4fd94e313aa8650040cc4d43de84a6a77a
 ---
 
 # tl-lead/tl-worker: move the boundary toward worker autonomy (self-approved quick fixes, self-applied flake rule, direct peer questions) and add post-session retros
