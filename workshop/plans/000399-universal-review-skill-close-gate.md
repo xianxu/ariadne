@@ -185,6 +185,95 @@ rounds:
       recipe: fix-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: c3492e9a-334a-4b9c-afee-5702c000000b
+            repository: github.com/xianxu/ariadne
+            issue_id: "000399"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/da6b938cc9b8cc1d
+            reviewed_head: c33651b0a66ff6ad77fd4892325b1c139de64c66
+            slot: ariadne:2
+            requested_at: "2026-10-16T00:07:07.815549Z"
+          phase: finished
+          pid: 52598
+          started_at: "2026-10-16T00:07:07.97514Z"
+          finished_at: "2026-10-16T00:13:22.499672Z"
+          session_id: ce351baa-6b8e-4e73-bd1e-28db6cd6984c
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: c33651b0a66ff6ad77fd4892325b1c139de64c66
+        tracker_head: 09080a42ed142ce08345755f4f9bb6b0d473cfe3
+        branch_point: f3bc999f925ab5137d1de82c6b12c3511d746f83
+        since: "2026-10-15T16:24:58-07:00"
+        until: "2026-10-15T17:06:41-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-15T16:24:58-07:00"
+              end: "2026-10-15T17:06:41-07:00"
+              began: "2026-10-15T16:24:58-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: cb919bac600a61151a1913f9e58f435812fc7279a9dea7f1d799b9c26c8ad97e
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 9888677
+              windows:
+                - start: "2026-10-15T16:24:58-07:00"
+                  end: "2026-10-15T17:06:41-07:00"
+        cuts:
+            - dispatched: "2026-10-15T16:57:15-07:00"
+              finalized: "2026-10-15T17:03:29-07:00"
+              finalizing: true
+            - dispatched: "2026-10-15T17:05:13-07:00"
+              finalized: "2026-10-15T17:06:17-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-15T17:13:30-07:00"
+      dispatched: "2026-10-15T17:07:07-07:00"
+      agent: claude
+      dispose:
+        - id: BR-5
+          disposition: addressed
+          note: This review is the full close over the whole range f3bc999f..c33651b0 that BR-5 asked for. Requirement 5ef50ef6 is recorded under Revisions and is implemented in round.md section 1 and adapters/file-edit.md:71-81.
+          round: 3
+        - id: BR-6
+          disposition: addressed
+          note: file-edit.md:9-11 states the rule for every temp file. BODYFILE is deleted at :54-55; the review-base copies, including the last one, at :74-77. Orphans are confined to TMPDIR. Prose-only contract, verified against the diff.
+          round: 3
+      findings:
+        - kind: unverifiable
+          id: BR-7
+          severity: Minor
+          title: 'Tracked path: unverified that couch diff excludes the agent''s own write, as round.md section 1 now promises'
+          detail: round.md:18-19 says changes never include your own edits; the tracked adapter relies on couch --session-sync diff (file-edit.md:39), and this repo's fake Diff returns a canned string (sessionsync_fake_test.go:88). Answer by citing Couch's behavior or a test showing write --all advances the agent's seen baseline, or qualify the adapter text.
+          family: hand-maintained-restatement-of-source
+          round: 3
+        - id: BR-8
+          severity: Minor
+          title: Atlas omits the untracked base-copy diff and the own-edits rule
+          detail: atlas/workflow/universal-review.md:13-18 describes only the tracked flow; add a clause for the untracked review-base copy and diff -u COPY FILE workflow.
+          family: atlas-missing-new-surface
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: c33651b0a66ff6ad77fd4892325b1c139de64c66
+      blocked: false
 ---
 
 # Gate ledger — ariadne#399 (boundary-review)
@@ -221,7 +310,21 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Minor] `artifact-without-removal-path` (kind: defect) The untracked adapter's last review-base copy is never deleted
   file-edit.md:70-72 deletes each review-base.XXXXXX copy only when the next one replaces it, so the last copy of every conversation stays in TMPDIR. This is the 2nd finding in this family. Rule: every temp file an adapter creates must state when it is deleted, including the end of the conversation or session. Apply that rule to the whole adapter, not just this site.
 
+## Round 3 — 2026-10-15T17:13:30-07:00 (claude) — passed
+
+### Disposed
+
+- BR-5 — addressed — This review is the full close over the whole range f3bc999f..c33651b0 that BR-5 asked for. Requirement 5ef50ef6 is recorded under Revisions and is implemented in round.md section 1 and adapters/file-edit.md:71-81.
+- BR-6 — addressed — file-edit.md:9-11 states the rule for every temp file. BODYFILE is deleted at :54-55; the review-base copies, including the last one, at :74-77. Orphans are confined to TMPDIR. Prose-only contract, verified against the diff.
+
+### Raised
+
+- **BR-7** [Minor] `hand-maintained-restatement-of-source` (kind: unverifiable) Tracked path: unverified that couch diff excludes the agent's own write, as round.md section 1 now promises
+  round.md:18-19 says changes never include your own edits; the tracked adapter relies on couch --session-sync diff (file-edit.md:39), and this repo's fake Diff returns a canned string (sessionsync_fake_test.go:88). Answer by citing Couch's behavior or a test showing write --all advances the agent's seen baseline, or qualify the adapter text.
+- **BR-8** [Minor] `atlas-missing-new-surface` Atlas omits the untracked base-copy diff and the own-edits rule
+  atlas/workflow/universal-review.md:13-18 describes only the tracked flow; add a clause for the untracked review-base copy and diff -u COPY FILE workflow.
+
 ## Open findings
 
-- **BR-5** [Important] `scope-change-after-close` (kind: defect) Scope changed after close: run a full `sdlc close`
-- **BR-6** [Minor] `artifact-without-removal-path` (kind: defect) The untracked adapter's last review-base copy is never deleted
+- **BR-7** [Minor] `hand-maintained-restatement-of-source` (kind: unverifiable) Tracked path: unverified that couch diff excludes the agent's own write, as round.md section 1 now promises
+- **BR-8** [Minor] `atlas-missing-new-surface` Atlas omits the untracked base-copy diff and the own-edits rule

@@ -196,3 +196,96 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"438c7434-a49d-483b-b65d-c6bcc448e293","repository":"github.com/xianxu/ariadne","issue_id":"000399","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/da2ac20b4554708e","reviewed_head":"e40d16b5fc230bf36f13c69415f21905f96d0698","slot":"ariadne:2","requested_at":"2026-10-16T00:05:13.757063Z"},"phase":"finished","pid":36302,"started_at":"2026-10-16T00:05:14.072286Z","finished_at":"2026-10-16T00:06:07.030111Z","session_id":"c387247f-a9f9-448b-a918-d3bbea4ff4e7","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-15T17:13:30-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 399 — Universal review skill and canonical round export |
+| repo | ariadne |
+| issue file | workshop/issues/000399-universal-review-skill.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | f3bc999f925ab5137d1de82c6b12c3511d746f83..c33651b0a66ff6ad77fd4892325b1c139de64c66 |
+| command | sdlc close --issue 399 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-15T17:13:30-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I'm checking whether Couch's `diff` excludes the agent's own writes, then I'll run the tests.
+
+Tests pass for reviewexport, tl-lead and tl-worker. The weave failures look environmental, so I'm finishing with a check of the last parser change.
+
+```verdict
+verdict: SHIP
+confidence: medium
+```
+
+This is the full close review that BR-5 asked for. It covers the whole issue range (f3bc999f..c33651b0), including the operator requirement added after the first close (5ef50ef6, own edits excluded). The new contract is recorded as a `## Revisions` entry in the issue. It is implemented in `round.md` §1 and in the adapter's Untracked section (`adapters/file-edit.md:71-81`). BR-6 is fixed as a rule rather than one instance: the adapter now says once that every temporary file states when it is deleted. Both temp-file families it creates do so (BODYFILE at :54-55; review-base copies at :74-77, including the last one). The leftover cases are named and confined to `$TMPDIR`. `pkg/reviewexport` tests pass, and `TestExportCurrent` confirms the `export.json` hashes match the edited adapter. `cmd/tl-lead` and `cmd/tl-worker` are green. I found two new Minors and nothing blocking.
+
+**1. Strengths**
+- Ownership is decided "unknown → write nothing" (`adapters/file-edit.md:15-30`). A `type: session-sync` file is tracked even outside a slot. The design fails closed, never into a direct edit.
+- The temp-file rule is stated once, for the whole adapter (`file-edit.md:9-11`). That covers the `artifact-without-removal-path` family rather than one site.
+- `ParseMode` edge parity is now pinned by tests (`pkg/reviewexport/export_test.go:29-32`): CRLF is refused, quoted values are literal, and an empty frontmatter parses but fails on the name.
+- `round.md` lists the known modes from `modes/` instead of hard-coding them, so there is one source of truth for modes (ARCH-DRY).
+- The manifest is generated and checked for staleness (`TestExportCurrent`), so parley's copy is derived from the authored files and not kept by hand (ARCH-PURPOSE).
+
+**2. Critical:** none.
+
+**3. Important:** none.
+
+**4. Minor**
+- **Tracked path vs. the own-edits contract:** `round.md:18-19` now promises that "changes since your last read" never include your own edits. The tracked path (`file-edit.md:39-40`) relies on `couch --session-sync diff`. Nothing in this repo shows that a `write --all` moves the agent's seen-baseline: Couch lives outside this repo, and the fake's `Diff` (`cmd/tl-lead/sessionsync_fake_test.go:88`) returns a canned string. Impact is low, because markers are read from the snapshot and the diff only points at what moved. Even so, the contract should be confirmed against Couch or qualified in the adapter.
+- **Atlas:** `atlas/workflow/universal-review.md:13-18` describes the tracked flow only. It does not mention the untracked base-copy diff (`review-base.XXXXXX`, `diff -u COPY FILE`) or the own-edits rule added in this range.
+
+**5. Test coverage**
+- `go test ./pkg/reviewexport ./cmd/tl-lead ./cmd/tl-worker` passes.
+- `cmd/weave` fails in this sandbox, including tests that predate this issue (`TestCompile*`) as well as `TestUniversalReviewSkillDiscoveredInDerivedRepo`. All fail with `git rev-parse` reporting "not a git repository" in TMPDIR fixtures. That points to the review sandbox, not the diff; the implementer's full-suite run reports green.
+- The adapter and round contracts are prompt-level. Their behavioral evidence is the fresh-agent dry run recorded in the Log, not an automated test. That is acceptable here, since the live check moved to parley.nvim#332.
+
+**6. Architecture**
+- **ARCH-DRY:** pass. The grammar is a symlink to the one authored copy, and the mode list is derived from `modes/`.
+- **ARCH-PURE:** pass. `ParseMode` and the export builder are pure and tested without IO apart from fixture reads.
+- **ARCH-PURPOSE:** pass. Every export consumer is derived from the manifest, and the live check is formally moved to parley.nvim#332, not dropped.
+- **ARCH-MOCK:** pass with a note. Couch's diff-baseline behavior is not modeled by the fake (the first Minor).
+- **ARCH-CONSTRAINTS:** pass. These are per-submit document rounds, there is no hot path, and a lock held over 30 minutes is escalated to the operator.
+- **ARCH-SECURE:** pass. Lookup output that is malformed, an error, or an older Couch's usage message is treated as unknown, and nothing is written.
+- **ARCH-ORDER:** pass. Exit 3 (lock held) defers to the next submit; exit 6 (stale) recomputes from step 1; the diff runs before `read --all`. Folding is limited to the asks this write answers, so a delivery that arrives late stays owed.
+- **ARCH-FUNERAL:** pass. Every temp file has a stated end, and any orphan stays in `$TMPDIR`.
+
+**7. Plan revisions:** none beyond the two entries already added.
+
+```findings
+dispose:
+  - id: BR-5
+    disposition: addressed
+    note: |
+      This review is the full close over the whole range f3bc999f..c33651b0 that BR-5 asked for. Requirement 5ef50ef6 is recorded under Revisions and is implemented in round.md section 1 and adapters/file-edit.md:71-81.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      file-edit.md:9-11 states the rule for every temp file. BODYFILE is deleted at :54-55; the review-base copies, including the last one, at :74-77. Orphans are confined to TMPDIR. Prose-only contract, verified against the diff.
+findings:
+  - id: new
+    severity: Minor
+    kind: unverifiable
+    family: hand-maintained-restatement-of-source
+    title: |
+      Tracked path: unverified that couch diff excludes the agent's own write, as round.md section 1 now promises
+    detail: |
+      round.md:18-19 says changes never include your own edits; the tracked adapter relies on couch --session-sync diff (file-edit.md:39), and this repo's fake Diff returns a canned string (sessionsync_fake_test.go:88). Answer by citing Couch's behavior or a test showing write --all advances the agent's seen baseline, or qualify the adapter text.
+  - id: new
+    severity: Minor
+    family: atlas-missing-new-surface
+    title: |
+      Atlas omits the untracked base-copy diff and the own-edits rule
+    detail: |
+      atlas/workflow/universal-review.md:13-18 describes only the tracked flow; add a clause for the untracked review-base copy and diff -u COPY FILE workflow.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"c3492e9a-334a-4b9c-afee-5702c000000b","repository":"github.com/xianxu/ariadne","issue_id":"000399","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/da6b938cc9b8cc1d","reviewed_head":"c33651b0a66ff6ad77fd4892325b1c139de64c66","slot":"ariadne:2","requested_at":"2026-10-16T00:07:07.815549Z"},"phase":"finished","pid":52598,"started_at":"2026-10-16T00:07:07.97514Z","finished_at":"2026-10-16T00:13:22.499672Z","session_id":"ce351baa-6b8e-4e73-bd1e-28db6cd6984c","outcome":"returned"}] -->
