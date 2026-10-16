@@ -66,6 +66,10 @@ After verification, close through SDLC and land on SHIP.
 - Expanded start-plan assertions passed, but its first run's hermeticity guard correctly detected my checkpoint moving HEAD while it ran (0c5b2e11 to bf379af2). Reran without moving HEAD: go test -trimpath ./cmd/sdlc -run 'Test(StartPlan|RunInstalledWeave|GateSettings)' -count=1 -timeout 10m PASS 59.980s. No gate waiver or test weakening.
 - PR #270 opened; merge-check and local-gates-guard green. Recorded suite pinned to bf379af2 is queued first behind a remaining suite; no custom gate override. Current main already integrated.
 
+- Recorded suite on bf379af2 failed only in scripts/test TestConstructScripts/plain: runner hit its unchanged 120s ceiling while dev-aliases.test.sh was active. All 12 SDLC shards passed: 1522 tests; 66 other packages were attempted. Suite execution 1027.7s; log /Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/failed/68c1f404e315cdbc41260d1dd80c0308.log (sha256 prefix c36ed9ace6ec). No suite bypass.
+- Isolated candidate plain rerun reproduced the same 120.239s timeout. Runner, construct tests and emitter are byte-identical to current main. Current machine load observed 167.47, diagnostic only; no custom load gate introduced. A scratch main checkout control is running; its result will determine whether this is independent of #411.
+- Hub timeout question send returned uncertain receipt 28fc3ab8-32bc-4d6c-8ffe-901b8df59270; receipt query then unavailable after a restart and couch intermittently absent on PATH. Did not blindly resend or use another channel.
+
 ## Estimate
 
 *Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only; source flagged stale, provisional.*
