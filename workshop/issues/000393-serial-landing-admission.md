@@ -105,6 +105,21 @@ Filed from #390's approved design. Depends on the weekly baseline (#392) and sav
   2. Storage location. I recommend the git common dir rather than `COUCH_STORE_DIR`: that variable is set per shell, so an operator shell without it and a slot with it would use two different lines for one repo. Couch can still display the line by reading the git common dir.
   3. Build now while #380 and #392 are open. #380 isn't needed: a failed status post at worst reruns a suite inside the head. The pilot's before/after comparison waits for #392's baseline.
 
+### 2026-10-16
+
+- M1 build notes (deviations from the durable plan, each a simplification):
+  - `NextHead(tickets, grants)` has no `now`, because `ValidGrants` already applied the clock.
+  - A pure `Order` gives the full admission order, so the position line and `NextHead` derive from one function.
+  - `DelayStats` became `Delays`, which returns the raw seconds; `sdlc landing status` passes them to test-stats' `suiteQuantiles`, so there is still one nearest-rank implementation (ARCH-DRY).
+  - `Ticket` carries no PR, because the PR is chosen after admission (PQ-1); the `admit` event records it.
+  - The admitted head deletes its ticket and records itself in `head.lock`, so it can never be passed to `NextHead`.
+  - `OnAdmit` runs outside the line mutex: flock is per open file, so a hook that logged under the mutex would deadlock against its own process.
+- Two test pitfalls hit:
+  - a helper process with `select {}` dies as a Go deadlock, so it now sleeps until killed;
+  - the test grants map needed a mutex for the race detector.
+- landingline: `go test -race -count=3` green.
+
+
 ## Revisions
 
 - 2026-10-16, TL-approved design deltas from #390:
