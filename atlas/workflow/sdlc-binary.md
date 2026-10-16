@@ -345,8 +345,11 @@ with reviewbox.
 - **Events and retention.** `events.jsonl` records enqueue, admit (with the
   tickets it displaced), landed and refused. `Delays` gives the
   enqueue-to-landed samples for the pilot's p90, through test-stats'
-  nearest-rank helper. Both logs are appended under the mutex and swept of
-  entries older than 30 days, at most once a day.
+  nearest-rank helper. Both logs are appended under the mutex. A daily sweep
+  keeps only entries dated within the last 30 days and not in the future, and
+  counts the malformed lines it drops. A grant's age is the later of its grant
+  and expiry times, so a revoke outlives the grant it revokes. A future-dated
+  grant confers nothing.
 - **Relation to the suite line.** `scripts/test-lock.py`'s FIFO line for
   full-suite slots uses the same design (flock liveness, pruning under a mutex)
   but shares no code: it is a make-invoked Python helper, and its waiters aren't
