@@ -1,12 +1,20 @@
 ---
 id: 000408
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-16
 estimate_hours:
-card_mirror: '4e779e543ce434dec6a229294bb6df08705b3ecc' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '59c47dad70858f30b32467bfaf76c4403bc51b79' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-16T11:18:56-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # issue publish of an archived issue creates an active twin under workshop/issues (pair#579)
@@ -31,8 +39,31 @@ card_mirror: '4e779e543ce434dec6a229294bb6df08705b3ecc' # card fields mirrored f
 
 ## Plan
 
-- [ ]
+- [ ] Reproduce archive updates, missing terminal details and duplicate-location
+  refusals in isolated real-Git publication fixtures; confirm red.
+- [ ] Resolve details by ID across active and archive locations on pinned main,
+  preserve republish safeguards, and recheck location before publication.
+- [ ] Run focused and recorded full-suite verification; update Atlas and prepare
+  the close review, then land on SHIP.
 
 ## Log
 
 ### 2026-10-16
+
+### 2026-10-16 — design
+
+Root cause: the active-only existence probe classifies an archived record as an
+incomplete first publication; move-detail can then synthesize a new active body
+from the card. Resolve by ID against the three canonical issue directories
+(active, legacy flat history, history/issues), not by inventing the active path.
+Reuse existing pinned TrunkView, issue filename parser, republish transaction,
+stateful real-Git fixture and existing ownership/asset/concurrent-body checks
+(ARCH-DRY, ARCH-PURE, ARCH-MOCK, ARCH-PURPOSE). Re-resolve per candidate before
+publication; a concurrent archive or twin refuses, rather than resurrecting an
+active copy (ARCH-ORDER, ARCH-SECURE). A lifetime lock cannot reconcile stale
+branch/main locations; the existing repo lock already serializes local verbs.
+Metadata scans stay bounded to the existing three directories; fetch blobs only
+for the selected ID (ARCH-CONSTRAINTS). No new durable artifact family, process
+or handle; existing issue and review archive lifecycle applies (ARCH-FUNERAL).
+
+Short plan posted to ops:0 under the explicitly authorized small-fix flow.
