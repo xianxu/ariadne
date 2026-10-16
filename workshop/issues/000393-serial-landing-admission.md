@@ -40,7 +40,7 @@ Keep `sdlc merge` as the agent verb. Admit one ready PR per repository at a time
 
 Durable plan: [000393-serial-landing-admission-plan.md](../plans/000393-serial-landing-admission-plan.md) (TL-approved design, 2026-10-16).
 
-- [ ] M1 — landingline package: pure NextHead, grant validity and Authorize; flock-held tickets and head admission; events and grants logs with a 30-day sweep.
+- [x] M1 — landingline package: pure NextHead, grant validity and Authorize; flock-held tickets and head admission; events and grants logs with a 30-day sweep.
 - [ ] M2 — runDurableMerge holds the line for its lifetime; sdlc landing status, grant and revoke; integration tests on landingFakeGH; atlas and merge help.
 
 ## Estimate
@@ -106,6 +106,7 @@ Filed from #390's approved design. Depends on the weekly baseline (#392) and sav
   3. Build now while #380 and #392 are open. #380 isn't needed: a failed status post at worst reruns a suite inside the head. The pilot's before/after comparison waits for #392's baseline.
 
 ### 2026-10-16
+- 2026-10-16: closed M1 — M1 review round 2 answered: retention is pure (retention.go KeepGrants/KeepEvents), sweep only applies it; TestKeepGrantsPreservesValidity checks ValidGrants(kept)==ValidGrants(all) and nothing outside retention kept over 2000 random logs with out-of-order, old and future entries; TestSweepKeepsGrantsInForce is the round-2 regression (a sweep while grants are in force keeps all three); ticket counter is untrusted (malformed refuses, set back cannot overwrite a live ticket). Plan Task 1 sketch and Task 2 Status signature marked as built; Revisions and atlas updated. go test -race -count=3 green.; review verdict: FIX-THEN-SHIP
 
 - M1 build notes (deviations from the durable plan, each a simplification):
   - `NextHead(tickets, grants)` has no `now`, because `ValidGrants` already applied the clock.
