@@ -60,6 +60,7 @@ flow: {kind: full, provenance: operator}
 ## Log
 
 ### 2026-10-16 — consolidated admission recorded suite
+- 2026-10-16: closed — BR-4 complete rule consolidated in checkInitialPublication: fresh nonterminal card, no ID-wide main details, local location safeguards, existing ownership/assets. Early preflight and every unconfirmed first/retry/recovery push call it; confirmed recovery preserved. New regressions red 113.742s then green 111.931s; broader publication/transfer/recovery PASS 479.139s. Recorded suite PASS on 41fda42b: 1519 SDLC tests, 12 shards, 66 packages, zero failures, 653.6s. Atlas updated. No new state, receipt or hook.; review verdict: SHIP
 
 Recorded sdlc-local/suite passed on 41fda42bb7da192e8875fdabc8428442e4ffb682: 1,519 SDLC tests across 12 shards plus 66 other packages, zero failures, 653.6s execution after 131s queue wait. Log sha256:595212ead6b1. BR-4 correction has red/green evidence (113.742s red; 111.931s green) and broader targeted PASS (479.139s). checkInitialPublication is the single authority consumed by BeforePublish and early preflight; current card, ID-wide main/local locations and existing asset rules are composed there. No new state/hook/receipt. Close round 3 follows; any new bypass is reported to the TL before changes.
 

@@ -182,3 +182,84 @@ findings:
    Append a `## Revisions` entry defining initial-publication eligibility as **current nonterminal card plus absent ID-wide details**. Enumerate checks and regression coverage across first publication, moved-base retry and saved-candidate recovery, while retaining confirmed-publication recovery.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"b223f882-64e4-4c00-a786-1ed9ea257d6e","repository":"github.com/xianxu/ariadne","issue_id":"000408","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/fc9c54246fc5f9a6","reviewed_head":"411260a95cd22e012c9e0b74b5e73983b843001b","slot":"ariadne:3","requested_at":"2026-10-16T19:20:08.85452Z"},"phase":"finished","pid":57179,"started_at":"2026-10-16T19:20:09.200677Z","finished_at":"2026-10-16T19:25:19.349407Z","session_id":"01a14628-506c-7f80-b623-fe47c2be186c","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-16T13:02:44-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 408 — issue publish of an archived issue creates an active twin under workshop/issues (pair#579) |
+| repo | ariadne |
+| issue file | workshop/issues/000408-issue-publish-of-an-archived-issue-creates-an-active-twin-under-workshop-issues-pair-579.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 1a8c52756b74160f23240dd123ddc25f5b20ed32..9da64867cec00ab9d09b1d3391e4988262134d86 |
+| command | sdlc close --issue 408 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-16T13:02:44-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The implementation satisfies the documented archive-publication contract. BR-4 is addressed through shared publication-time admission, with regression evidence covering all terminal statuses across first publication, retry, and receipt recovery. No blocking findings remain.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Archive revalidation remains in the shared BeforePublish path; all six archive-layout and publication-phase regression cases passed.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      localDetailPath filters through the canonical filename parser before classification; all six backup/non-Markdown regression cases passed.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The pinned issue diff adds the local-only archive acceptance clause, matching TestPublishUnpublishedLocalArchiveRefuses and entry-point parity coverage.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      checkInitialPublication reads the current card and calls requireInitialDetails before unconfirmed publication. Removing only that call in a disposable pinned-head copy made all nine terminal-status/phase cases fail with publication accepted. The unchanged head passes, including confirmed-publication recovery.
+```
+
+1. **Strengths**
+
+   - One admission authority composes current-card eligibility, location checks, and existing asset safeguards (`cmd/sdlc/issuemovedetail.go:404`).
+   - Both publication flows resolve details by ID across active and archive locations (`cmd/sdlc/issuepublish.go:182`).
+   - Controlled transfer interruptions test retries and durable recovery through production code (`cmd/sdlc/issuepublish_archive_test.go:209`).
+   - Confirmed-publication recovery remains reachable after a terminal transition without republishing (`cmd/sdlc/issuepublish_archive_test.go:256`).
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Two focused runs passed: archive publication, twins, terminal admission, filename filtering, local archives, retry, and recovery (23.518s and 51.036s). The BR-4 mutation failed all nine intended cases; its disposable checkout was removed. The reviewed checkout remains clean. The full suite was not independently rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared location resolver and consolidated admission.
+   - **ARCH-PURE — pass:** terminal eligibility is directly tested without IO; integration remains in the boundary layer.
+   - **ARCH-PURPOSE — pass:** both entry points and first/retry/replay paths consume the shared rule.
+   - **ARCH-MOCK — pass:** existing Git seam, stateful fake, and real bare-Git conformance fixtures are retained.
+   - **ARCH-CONSTRAINTS — pass:** existing directory inventory and bounded Git reads; no added concurrency.
+   - **ARCH-SECURE — pass:** canonical filename filtering, repository containment, and visible read failures remain enforced.
+   - **ARCH-ORDER — pass:** existing transition model remains authoritative; reachability precedes admission, preserving confirmed recovery.
+   - **ARCH-FUNERAL — pass:** no new durable artifact family or cleanup obligation.
+
+   Core-concept locations and classifications match the code. Atlas documents the changed flow. No new command, flag, or configuration syntax requires a README addition.
+
+7. **Plan revision recommendations:** None. Remaining close/landing checkboxes appropriately await this boundary.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"21597bc7-f346-4c53-a1c3-cb8a6a7339db","repository":"github.com/xianxu/ariadne","issue_id":"000408","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/e080bcf673647fc0","reviewed_head":"9da64867cec00ab9d09b1d3391e4988262134d86","slot":"ariadne:3","requested_at":"2026-10-16T20:00:14.480152Z"},"phase":"finished","pid":69659,"started_at":"2026-10-16T20:00:14.636648Z","finished_at":"2026-10-16T20:02:44.484459Z","session_id":"01a1464d-046a-7882-98b1-1940f9bc2dfd","outcome":"returned"}] -->
