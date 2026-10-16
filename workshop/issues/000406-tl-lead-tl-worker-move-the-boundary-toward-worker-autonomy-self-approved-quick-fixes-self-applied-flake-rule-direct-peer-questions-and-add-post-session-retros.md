@@ -45,6 +45,17 @@ regular retros after long sessions, and agree to move the boundary so workers ar
 - `tl-worker --help` states moves 1–3; `tl-lead --help` states the retro and that the boundary is changed only through
   agreed retro items; help tests guard the phrases.
 
+- Worker help states the revised quick-fix approval and issue-backed flake
+  rules, including required design/scope approval and second-flake escalation.
+- Cross-repo findings route to the TL as one-line proposals for filing/folding;
+  same-repo filings stay direct. The landing line owns landing order; reported
+  hashes come only from Git output.
+- Lead help dispatches design-heavy work (an invariant, a new mechanism,
+  user-visible state) to Claude, and bounded execution against a fixed design
+  to Codex. Phrase guards cover both cases.
+- Guards cover required approval/escalation/agreement actions on both default
+  and --help output; retros change the boundary only through agreed items.
+
 ## Plan
 
 - [x] Add worker/lead phrase guards plus negative guards for retired approval
@@ -139,3 +150,12 @@ approval, TL approval, second-flake escalation, and retro agreement. Extend
 existing phrase guards to include the required actions/restrictions, and mutate
 each clause independently to prove removal or reversal fails both invocation
 paths. The help behavior and approved scope stay unchanged.
+
+### 2026-10-16 — BR-2: synchronize acceptance criteria
+
+Add the already-approved Revision requirements explicitly to Done when,
+including both work-kind dispatch cases and their phrase guards. Also spell
+out the revised filing, landing, hash and required-action criteria rather than
+leaving them implicit behind the old "moves 1–3" reference. This changes only
+acceptance documentation; help behavior and passing regression guards are
+unchanged. BR-1 is disposed as addressed by round 2.

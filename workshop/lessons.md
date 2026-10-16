@@ -902,3 +902,7 @@ The simplest durable authority beats a clever scan of consequences.
   not merely its subject. Reverse each approval, escalation and agreement
   clause independently and verify the corresponding output guard fails
   (#406 BR-1).
+
+- When an approved revision extends acceptance, append concrete Done-when
+  criteria in the same checkpoint. A Revision explaining the extension does
+  not make the acceptance checklist complete (#406 BR-2).

@@ -57,3 +57,79 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"0dddd7cb-bbf6-4c16-8915-11d6e1747d4c","repository":"github.com/xianxu/ariadne","issue_id":"000406","recipe":"small-diff-review","round":1,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/ea3760c53cef6d8e","reviewed_head":"96db44aad9a518755310e23096256893b7716c4b","slot":"ariadne:3","requested_at":"2026-10-16T17:46:19.560111Z"},"phase":"finished","pid":70411,"started_at":"2026-10-16T17:46:19.934412Z","finished_at":"2026-10-16T17:47:35.959295Z","session_id":"01a145d2-6b6e-7051-a24a-82d370f5bcdc","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-16T10:50:02-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 406 — tl-lead/tl-worker: move the boundary toward worker autonomy (self-approved quick fixes, self-applied flake rule, direct peer questions) and add post-session retros |
+| repo | ariadne |
+| issue file | workshop/issues/000406-tl-lead-tl-worker-move-the-boundary-toward-worker-autonomy-self-approved-quick-fixes-self-applied-flake-rule-direct-peer-questions-and-add-post-session-retros.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | dc2bf920f6d77385e51640cc040ab413542577db..3c49114ab3713d6aaa13c4c3d82ac2ca6dc20be5 |
+| command | sdlc close --issue 406 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-16T10:50:02-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The help changes implement the revised autonomy boundary, and BR-1 is addressed: independently reversing each of its four clauses fails the corresponding test on both default and `--help` output. One inexpensive acceptance-documentation gap remains before close.
+
+Done-when: stale — the dispatch-by-work-kind revision extends acceptance, but `## Done when` still covers only boundary moves and retros.
+
+1. **Strengths**
+   - Worker and lead help consistently preserve design/scope approval while allowing small-fix autonomy.
+   - Flake handling specifies retained evidence, one unchanged rerun, and second-flake escalation.
+   - Shared planning continues to derive from `pkg/tlrules/planning.md`.
+   - Atlas maps the revised approval, filing, landing, dispatch, and retro responsibilities.
+
+2. **Critical findings:** None.
+
+3. **Important findings**
+   - **Acceptance criteria omit dispatch by work kind.** Issue file `workshop/issues/000406-…retros.md:45–46` does not cover the additional acceptance requirement at lines 127–133, implemented in `cmd/tl-lead/help.md:255–257`. All instances of this omission are the two dispatch cases: design-heavy work to Claude and bounded execution against a fixed design to Codex. Add both cases and their phrase guards to `## Done when`.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+   - `go test ./cmd/tl-worker ./cmd/tl-lead ./pkg/tlrules -count=1` passed.
+   - All four independent BR-1 reversals failed on both invocation paths.
+   - Restored sources; tests passed again, working tree clean, pinned-range `git diff --check` passed.
+   - Full suite was not independently rerun.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass.** Shared planning has one composed source; role procedures retain clear ownership.
+   - **ARCH-PURE: pass.** No new business logic mixed with IO.
+   - **ARCH-PURPOSE: pass.** Revised behavior is delivered, including both dispatch cases.
+   - Docs gate: Atlas updated; no new command, flag, configuration key, or installation step requires a README change. No Core concepts table is present.
+
+7. **Plan revision recommendation**
+   - Record a `## Revisions` entry explaining synchronization of `## Done when` with the dispatch extension, and update the acceptance checklist accordingly.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Independently reversed worker approval, lead approval, second-flake escalation, and retro agreement in the embedded help sources. Each corresponding regression guard failed for both default and --help output; restored sources pass targeted tests.
+findings:
+  - id: new
+    severity: Important
+    kind: defect
+    family: acceptance-contract-synchronization
+    title: |
+      Include the dispatch extension in Done when
+    detail: |
+      workshop/issues/000406-tl-lead-tl-worker-move-the-boundary-toward-worker-autonomy-self-approved-quick-fixes-self-applied-flake-rule-direct-peer-questions-and-add-post-session-retros.md:45–46 covers boundary moves and retros, but the revision at lines 127–133 explicitly extends acceptance with dispatch by work kind. Both omitted cases are implemented at cmd/tl-lead/help.md:255–257: design-heavy work to Claude and bounded execution against a fixed design to Codex. Add both cases and their phrase guards to Done when, with a Revisions entry recording the synchronization.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"b3236b74-36a1-4b52-ac0e-43c0c5cd69a0","repository":"github.com/xianxu/ariadne","issue_id":"000406","recipe":"small-diff-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/822133c5545b2e96","reviewed_head":"3c49114ab3713d6aaa13c4c3d82ac2ca6dc20be5","slot":"ariadne:3","requested_at":"2026-10-16T17:49:03.052092Z"},"phase":"finished","pid":5586,"started_at":"2026-10-16T17:49:03.217901Z","finished_at":"2026-10-16T17:50:01.488959Z","session_id":"01a145d4-e894-79f2-895b-42183ecb7363","outcome":"returned"}] -->
