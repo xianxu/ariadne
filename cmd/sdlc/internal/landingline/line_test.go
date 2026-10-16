@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
@@ -317,5 +318,18 @@ func TestLineUnreadableHeadIsStillAHead(t *testing.T) {
 	waiter := enqueue(t, l, 2)
 	if pos, current, err := l.tryAdmit(waiter); err != nil || pos != 1 || current == nil || !current.Unreadable {
 		t.Fatalf("pos %d head %v err %v", pos, current, err)
+	}
+}
+
+// A long branch name still reads: a ticket isn't cut at a fixed small size.
+func TestLineLongTicketReads(t *testing.T) {
+	l := openLine(t, t.TempDir(), testOptions(nil))
+	long := strings.Repeat("b", 8192)
+	if _, err := l.Enqueue(Ticket{Issue: 1, Branch: long}); err != nil {
+		t.Fatal(err)
+	}
+	_, waiting, err := l.Status()
+	if err != nil || len(waiting) != 1 || waiting[0].Unreadable || waiting[0].Branch != long {
+		t.Fatalf("waiting %+v err %v", waiting, err)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -341,11 +342,14 @@ func heldTicket(f *os.File) *Ticket {
 	return &Ticket{Unreadable: true}
 }
 
+// maxTicket bounds a ticket read; a ticket is one small JSON object, so a file
+// past this is not one and reads as unreadable.
+const maxTicket = 1 << 20
+
 func readTicket(f *os.File) *Ticket {
-	data := make([]byte, 4096)
-	n, _ := f.ReadAt(data, 0)
+	data, err := io.ReadAll(io.NewSectionReader(f, 0, maxTicket))
 	var t Ticket
-	if n == 0 || json.Unmarshal(data[:n], &t) != nil {
+	if err != nil || len(data) == 0 || json.Unmarshal(data, &t) != nil {
 		return nil
 	}
 	return &t
