@@ -136,6 +136,13 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+disputes:
+    - id: BR-3
+      rationale: The reviewer cannot nest sandbox-exec inside its fence; host conformance is now measured on the revised source head, including retirement. This is test-only native fencing, not an unsandboxed production write retry.
+      evidence: 'At aa326d59db8cf05a962daa7dc9f5e40764305f27: ARIADNE_NATIVE_SANDBOX=1 go test -trimpath ./cmd/sdlc -run Test(StartPlan|RunInstalledWeave|GateSettings) -count=1 -v -timeout 10m passed 122.390s. Native subtest passed 56.41s: stale/current/retired all confirm denied write, real deferred refresh and first start-plan success, notice counts 1/0/1; retired settings, displaced backup and ownership inventory unchanged. Log /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne411-revised-native-9iww01mg.log records source head and controls.'
+      after: 1
+      timestamp: "2026-10-16T23:34:46Z"
+      by: Xian Xu on Xian’s MacBook Pro at ariadne:5 (/Users/xianxu/workspace/worktree/ariadne-slot5/ariadne)
 ---
 
 # Gate ledger — ariadne#411 (boundary-review)
@@ -154,8 +161,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-3** [Important] `native-boundary-conformance` (kind: unverifiable) Native protected-settings conformance could not execute at the pinned head
   ARIADNE_NATIVE_SANDBOX=1 go test -trimpath ./cmd/sdlc -run '^TestStartPlanProtectedSettingsNativeSandbox$' -count=1 -v -timeout 8m failed in both subtests because sandbox-exec exited 71 with "sandbox_apply: Operation not permitted", before launching the child. This prevents verification of the real OS-denial invariant (ARCH-MOCK). Supply a successful run on a host permitting sandbox-exec at the reviewed head, including denied-write controls and stale/current notice assertions, or enable that capability in the review environment.
 
+## Disputes
+
+Findings the implementer declined (`sdlc finding dispute`), each answered by the
+next review round.
+
+- **BR-3** — after round 1 (2026-10-16T23:34:46Z, Xian Xu on Xian’s MacBook Pro at ariadne:5 (/Users/xianxu/workspace/worktree/ariadne-slot5/ariadne))
+  rationale: The reviewer cannot nest sandbox-exec inside its fence; host conformance is now measured on the revised source head, including retirement. This is test-only native fencing, not an unsandboxed production write retry.
+  evidence: At aa326d59db8cf05a962daa7dc9f5e40764305f27: ARIADNE_NATIVE_SANDBOX=1 go test -trimpath ./cmd/sdlc -run Test(StartPlan|RunInstalledWeave|GateSettings) -count=1 -v -timeout 10m passed 122.390s. Native subtest passed 56.41s: stale/current/retired all confirm denied write, real deferred refresh and first start-plan success, notice counts 1/0/1; retired settings, displaced backup and ownership inventory unchanged. Log /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne411-revised-native-9iww01mg.log records source head and controls.
+
 ## Open findings
 
 - **BR-1** [Critical] `protected-output-exclusion` (kind: defect) Gate deferral misses retirement of previously managed settings
 - **BR-2** [Critical] `core-concept-purity-classification` (kind: defect) The Core concepts table labels filesystem ownership reconciliation PURE
-- **BR-3** [Important] `native-boundary-conformance` (kind: unverifiable) Native protected-settings conformance could not execute at the pinned head
