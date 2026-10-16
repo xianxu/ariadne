@@ -1,6 +1,6 @@
 ---
 id: 000393
-status: codecomplete
+status: done
 created: 2026-10-15
 updated: 2026-10-16
 estimate_hours: 3.86
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 850dd46399f456c196e419928e89205552410544
         evidence_commit: 3c2375614337b4da96c7a5e8f49edd8a917bb5a3
+        landed_commit: 596972c96bcdce1bf06a9c667d3874e96ddb69be
 ---
 
 # Serial per-repo landing admission with fleet-blocking priority
