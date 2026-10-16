@@ -31,7 +31,7 @@ Every call also pays a `go build`, even when nothing changed.
 
 The emitted function skips the build and runs the existing `OWNER/bin/X` when either of these holds:
 - `COUCH_TREE` is set (an agent shell in a Couch slot), and `bin/X` exists; or
-- `bin/X` is not stale: no regular file under the owner (outside `.git` and `bin`) is newer than it.
+- `bin/X` is not stale: no file or directory outside `.git` and `bin` is newer than it, in the owner or in a local `go.mod` replace target outside it (revised in close rounds 1 and 2; see Revisions).
 
 Otherwise it builds as it does today (dev-prepare, then a temp-directory build renamed into place, #355). A missing `bin/X` always builds. A skipped build also skips dev-prepare, which only feeds the build. The staleness scan is `find -newer -print -quit`: about 0.13s for a full scan of pair (7.6k files). A toolchain change alone doesn't count as stale.
 
