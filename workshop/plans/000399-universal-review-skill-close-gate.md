@@ -274,6 +274,84 @@ rounds:
       isolation: fenced
       reviewed: c33651b0a66ff6ad77fd4892325b1c139de64c66
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: a166f37e-4613-4026-b38d-548c990624a1
+            repository: github.com/xianxu/ariadne
+            issue_id: "000399"
+            recipe: fix-review
+            round: 4
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/a881e680fd5cb373
+            reviewed_head: 95dced13d8b1d1e29eb533b7d608733c8cc96d01
+            slot: ariadne:2
+            requested_at: "2026-10-16T00:14:18.976581Z"
+          phase: finished
+          pid: 20462
+          started_at: "2026-10-16T00:14:19.173424Z"
+          finished_at: "2026-10-16T00:14:50.852938Z"
+          session_id: 81cc8fa6-86d8-4f90-a250-693ad7792331
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 95dced13d8b1d1e29eb533b7d608733c8cc96d01
+        tracker_head: 9779182767ca09de87fd20eb9af9148ded3fd9a7
+        branch_point: f3bc999f925ab5137d1de82c6b12c3511d746f83
+        since: "2026-10-15T16:24:58-07:00"
+        until: "2026-10-15T17:13:56-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-15T16:24:58-07:00"
+              end: "2026-10-15T17:13:56-07:00"
+              began: "2026-10-15T16:24:58-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6eff1377d8f4302689aafa234eea92718afbb735536a8fe52415ee6adabaf791
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 9930095
+              windows:
+                - start: "2026-10-15T16:24:58-07:00"
+                  end: "2026-10-15T17:13:56-07:00"
+        cuts:
+            - dispatched: "2026-10-15T16:57:15-07:00"
+              finalized: "2026-10-15T17:03:29-07:00"
+              finalizing: true
+            - dispatched: "2026-10-15T17:05:13-07:00"
+              finalized: "2026-10-15T17:06:17-07:00"
+              finalizing: false
+            - dispatched: "2026-10-15T17:07:07-07:00"
+              finalized: "2026-10-15T17:13:30-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-15T17:15:06-07:00"
+      dispatched: "2026-10-15T17:14:18-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: 'file-edit.md:39-43 now cites Couch''s documented baseline. I checked it against the installed binary: couch --skill line 408 says diff is "anything outside what you last wrote or read with --all", so the agent''s own write is excluded.'
+          round: 4
+        - id: BR-8
+          disposition: addressed
+          note: atlas/workflow/universal-review.md:18-20 now states that changes since the last read never hold the agent's own edits. For tracked files Couch's baseline moves on the write; untracked files are diffed against the copy the agent saved after its last write.
+          round: 4
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 95dced13d8b1d1e29eb533b7d608733c8cc96d01
+      blocked: false
 ---
 
 # Gate ledger — ariadne#399 (boundary-review)
@@ -324,7 +402,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-8** [Minor] `atlas-missing-new-surface` Atlas omits the untracked base-copy diff and the own-edits rule
   atlas/workflow/universal-review.md:13-18 describes only the tracked flow; add a clause for the untracked review-base copy and diff -u COPY FILE workflow.
 
+## Round 4 — 2026-10-15T17:15:06-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — file-edit.md:39-43 now cites Couch's documented baseline. I checked it against the installed binary: couch --skill line 408 says diff is "anything outside what you last wrote or read with --all", so the agent's own write is excluded.
+- BR-8 — addressed — atlas/workflow/universal-review.md:18-20 now states that changes since the last read never hold the agent's own edits. For tracked files Couch's baseline moves on the write; untracked files are diffed against the copy the agent saved after its last write.
+
 ## Open findings
 
-- **BR-7** [Minor] `hand-maintained-restatement-of-source` (kind: unverifiable) Tracked path: unverified that couch diff excludes the agent's own write, as round.md section 1 now promises
-- **BR-8** [Minor] `atlas-missing-new-surface` Atlas omits the untracked base-copy diff and the own-edits rule
+(none — every finding has been disposed)

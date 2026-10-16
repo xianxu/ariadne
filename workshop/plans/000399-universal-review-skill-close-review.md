@@ -289,3 +289,64 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"c3492e9a-334a-4b9c-afee-5702c000000b","repository":"github.com/xianxu/ariadne","issue_id":"000399","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/da6b938cc9b8cc1d","reviewed_head":"c33651b0a66ff6ad77fd4892325b1c139de64c66","slot":"ariadne:2","requested_at":"2026-10-16T00:07:07.815549Z"},"phase":"finished","pid":52598,"started_at":"2026-10-16T00:07:07.97514Z","finished_at":"2026-10-16T00:13:22.499672Z","session_id":"ce351baa-6b8e-4e73-bd1e-28db6cd6984c","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-15T17:15:05-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 399 — Universal review skill and canonical round export |
+| repo | ariadne |
+| issue file | workshop/issues/000399-universal-review-skill.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | fe8b8e533eb5529d20bee69e18926ca4e7a1bed6..95dced13d8b1d1e29eb533b7d608733c8cc96d01 |
+| command | sdlc close --issue 399 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-15T17:15:05-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This window only fixes the two Minors left open by the round‑3 re‑close. The interdiff adds no behavior and does not touch `## Spec`, `## Revisions` or `## Done when`. Its only changes are prose in the adapter and the atlas, the regenerated manifest hash, a Log line, and the generated ledger and review files. **BR-7 is answered.** The adapter quotes Couch's own contract, and I checked that quote against the installed binary. `couch --skill` line 408 reads: "`diff FILE` | The operator's edits you haven't seen: anything outside what you last wrote or read with `--all`". **BR-8 is addressed.** `atlas/workflow/universal-review.md:18-20` now states the own-edits rule for both paths, including how untracked files are diffed against the agent's saved copy. The regenerated `export.json` entry matches the edited file: sha256 `c5c481fe…`, 4596 bytes. `go test ./pkg/reviewexport` passes, and that covers `TestExportCurrent`. Nothing blocks SHIP.
+
+1. **Strengths**
+   - `adapters/file-edit.md:39-43` cites the source contract word for word. It doesn't assert the behavior on its own authority, and the cited text matches the real Couch output.
+   - The manifest was regenerated along with the prose edit, so parley's copy stays derived from the source. The staleness test is green.
+   - The atlas clause covers the tracked and untracked paths together. It answers the finding as a class, not just the one site it named.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** none new.
+
+5. **Test coverage:** I ran `go test ./pkg/reviewexport`, which passed. I also checked the file's sha256 and byte count against `export.json`, and they match. The other changes are prose-only, and the Couch quote they rely on was checked against the binary.
+
+6. **Architecture, interdiff only**
+   - **ARCH-DRY:** pass. The adapter quotes Couch's contract and points to it, rather than restating the behavior in its own words.
+   - **ARCH-PURE:** pass. No code changed.
+   - **ARCH-PURPOSE:** pass. Both open findings are closed, and no scope was added.
+
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-7
+    disposition: addressed
+    note: |
+      file-edit.md:39-43 now cites Couch's documented baseline. I checked it against the installed binary: couch --skill line 408 says diff is "anything outside what you last wrote or read with --all", so the agent's own write is excluded.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      atlas/workflow/universal-review.md:18-20 now states that changes since the last read never hold the agent's own edits. For tracked files Couch's baseline moves on the write; untracked files are diffed against the copy the agent saved after its last write.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"a166f37e-4613-4026-b38d-548c990624a1","repository":"github.com/xianxu/ariadne","issue_id":"000399","recipe":"fix-review","round":4,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/a881e680fd5cb373","reviewed_head":"95dced13d8b1d1e29eb533b7d608733c8cc96d01","slot":"ariadne:2","requested_at":"2026-10-16T00:14:18.976581Z"},"phase":"finished","pid":20462,"started_at":"2026-10-16T00:14:19.173424Z","finished_at":"2026-10-16T00:14:50.852938Z","session_id":"81cc8fa6-86d8-4f90-a250-693ad7792331","outcome":"returned"}] -->
