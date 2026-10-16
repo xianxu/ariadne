@@ -163,3 +163,21 @@ func TestSweepKeepsGrantsInForce(t *testing.T) {
 		t.Fatalf("valid after sweep %v", got)
 	}
 }
+
+func TestLogReadsAnyLineLength(t *testing.T) {
+	l := openLine(t, t.TempDir(), Options{Now: func() time.Time { return t0 }})
+	long := make([]byte, 2<<20)
+	for i := range long {
+		long[i] = 'x'
+	}
+	if err := l.Record(Event{Kind: EventEnqueue, Seq: 1, Detail: string(long)}); err != nil {
+		t.Fatal(err)
+	}
+	if err := l.Record(Event{Kind: EventLanded, Seq: 1}); err != nil {
+		t.Fatal(err)
+	}
+	events, skipped, err := l.Events()
+	if err != nil || skipped != 0 || len(events) != 2 {
+		t.Fatalf("events %d skipped %d err %v", len(events), skipped, err)
+	}
+}

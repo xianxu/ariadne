@@ -4,8 +4,11 @@ import "time"
 
 // Retention is the pure rule for what a sweep keeps (ARCH-FUNERAL). Its
 // invariant, tested across random logs: a sweep never changes which grants
-// are valid, ValidGrants(kept, now) == ValidGrants(all, now), and it never
-// keeps an entry dated outside the last Retention.
+// are valid at the sweep's now, ValidGrants(kept, now) == ValidGrants(all,
+// now), and it never keeps an entry dated outside the last Retention. A
+// future-dated latest entry is dropped although it would become valid once its
+// time came: on one machine, clock skew is about zero, so such an entry is
+// forged, and dropping it is the intent.
 
 // fresh reports whether at lies within the last Retention: not older, and not
 // in the future (a future date is a forged or skewed entry).

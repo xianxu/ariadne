@@ -46,11 +46,17 @@
 | `runDurableMerge` | `cmd/sdlc/landing.go` | modified | takes and holds the line |
 | `sdlc landing` | `cmd/sdlc/landingcmd.go` | new | `status`, `grant`, `revoke` |
 
-- **Line** — `Open(dir)`. `Enqueue(t) (*Handle, error)` creates `tickets/<seq>.json` under the allocation mutex (`line.lock`, flock), writes it atomically (temp file plus rename), and keeps the ticket's flock until `Release`. `Wait(ctx, h)` loops, using what `Open(dir, Options{Now, Sleep, Poll, Grants func() map[int]Grant})` injected (production: `time.Now`, a context-aware sleep, 2 s, and the Log's `ValidGrants`): under the mutex it scans the live tickets (a ticket nobody holds is removed), drops the head file's owner if dead, and if `NextHead` names h and nobody holds `head.lock`, it takes `head.lock` and returns. It takes an injected clock and sleep, and polls every 2 s in production. `Release` drops `head.lock`, removes the ticket and closes it. Process death releases every flock.
+- **Line** (as built) — `Open(dir, Options{Now, Sleep, Poll, Grants, OnWait, OnAdmit})`; production uses `time.Now`, a context-aware sleep, 2 s, and the grants log's `ValidGrants`.
+  - `Enqueue(t) (*Handle, error)` takes the next number from the `seq` counter, which is untrusted input. It writes and flock-locks `tickets/<%020d seq>` (no extension) under a temporary name, then renames it into place, all under the allocation mutex (`line.lock`).
+  - `Wait(ctx, h)` repeats `tryAdmit`. Under the mutex, that scans the live tickets (an unheld ticket is removed; a held one counts even when its JSON doesn't parse, and its number comes from its file name). If `head.lock` is free and `NextHead` names h, it takes `head.lock`, writes h's ticket into it, and deletes h's ticket. The head therefore holds only `head.lock`.
+  - `Status() (head *Ticket, waiting []Ticket, err error)`.
+  - `Release` drops whichever flock the handle holds. Process death releases every flock.
   - **Injected into:** `runDurableMerge` through a package variable `landingLineOpen`, so tests can use a temp directory or a held line.
-  - **ARCH-ORDER:** the line holds no state between events beyond the live flocks. Each process is in one of `waiting` (ticket held) or `head` (ticket and `head.lock` held), and every exit ends in released. The race to watch is two waiters scanning at once. The allocation mutex serializes the scans, and `head.lock` is the only admission token. Process death mid-transition releases everything. A crash between taking `head.lock` and logging `admit` loses only an audit line.
-- **Log** — `Append(file, v)` uses `O_APPEND` with one JSON line per write, which is atomic under PIPE_BUF for our record sizes. `Sweep(file, now)` rewrites the file without entries older than 30 days, under the mutex, at most once a day (it checks a `.swept` stamp). Malformed lines are skipped and counted, never trusted (ARCH-SECURE).
-- **ARCH-FUNERAL:** a ticket is removed on Release, or by the next scan if its owner is dead. `head.lock` and `line.lock` are fixed files, two per repo, that are never deleted. Events and grants are swept after 30 days, which matches test-stats' retention. Size: about 200 B per event and 3 events per landing.
+  - **ARCH-ORDER:** the line holds no state between events beyond the live flocks. Each process is in one of `waiting` (its ticket held) or `head` (`head.lock` held, ticket gone), and every exit ends in released. The race to watch is two waiters scanning at once. The allocation mutex serializes the scans, and `head.lock` is the only admission token. Process death mid-transition releases everything. A crash between taking `head.lock` and logging `admit` loses only an audit line.
+- **Log** (as built) — methods on Line.
+  - `Record(Event)` and `AddGrant(Grant)` append one JSON line with `O_APPEND` under the line mutex. Each first runs the daily sweep (a `.swept` stamp), which applies the pure `KeepEvents` and `KeepGrants` (`retention.go`) and counts the malformed lines it drops in the stamp.
+  - `Events()` and `GrantEntries()` read without the mutex. A torn or malformed line is skipped and counted, never trusted, and a line of any length reads (ARCH-SECURE).
+- **ARCH-FUNERAL:** a ticket is removed on Release, or by the next scan if its owner is dead. `head.lock` and `line.lock` are fixed files, two per repo, that are never deleted. Events and grants are swept by the pure retention rules (30 days, matching test-stats' retention; a sweep never changes which grants are valid). Size: about 200 B per event and 3 events per landing.
 - **ARCH-CONSTRAINTS:** a scan takes O(waiters), a handful of files every 2 s per waiter. It is local IO only, and the wait is the queue's purpose. A waiter has no deadline of its own beyond its context; Ctrl-C releases it. The head's runtime is bounded by merge's existing gate and CI timeouts.
 - **ARCH-MOCK:** Git and GitHub reuse the existing stateful `landingFakeGH` on real temp repos, and the live read-only `TestLandingGHLiveConformance`. The line itself is real files in a temp directory, so it needs no fake. Process death is tested with a helper process (the test binary re-executed).
 
@@ -126,7 +132,7 @@ func NextHead(ts []Ticket, grants map[int]Grant, now time.Time) (Ticket, []Ticke
 - [ ] Write the tests:
   - append and read back;
   - a malformed line is skipped and counted;
-  - Sweep drops entries older than 30 days and keeps the rest;
+  - Sweep drops entries older than 30 days and keeps the rest (superseded by round 2's pure retention rules and their invariant test; see Revisions);
   - Sweep runs at most once a day (the stamp);
   - `Delays` over a known event set: landed seconds only, and none for a swept enqueue. The p50 and p90 are tested in Task 5 through `suiteQuantiles`.
 - [ ] Run, expect FAIL, implement, run, expect PASS.

@@ -299,3 +299,23 @@ func TestLineCounterIsUntrustedInput(t *testing.T) {
 		t.Fatalf("waiting %v", waiting)
 	}
 }
+
+// A held head.lock whose contents don't parse is a head that is present but
+// unreadable, never "no head".
+func TestLineUnreadableHeadIsStillAHead(t *testing.T) {
+	dir := t.TempDir()
+	l := openLine(t, dir, testOptions(nil))
+	head := enqueue(t, l, 1)
+	wantPos(t, l, head, 0)
+	if err := os.WriteFile(filepath.Join(dir, "head.lock"), []byte("{garbage"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, _, err := l.Status()
+	if err != nil || got == nil || !got.Unreadable {
+		t.Fatalf("head %v err %v", got, err)
+	}
+	waiter := enqueue(t, l, 2)
+	if pos, current, err := l.tryAdmit(waiter); err != nil || pos != 1 || current == nil || !current.Unreadable {
+		t.Fatalf("pos %d head %v err %v", pos, current, err)
+	}
+}

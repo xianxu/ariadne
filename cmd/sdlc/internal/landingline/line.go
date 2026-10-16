@@ -178,7 +178,7 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, error) {
 			return err
 		}
 		if err := flock.Exclusive(head, true); err != nil {
-			current = readTicket(head)
+			current = heldTicket(head)
 			head.Close()
 			if errors.Is(err, syscall.EWOULDBLOCK) {
 				return nil
@@ -228,7 +228,7 @@ func (l *Line) Status() (*Ticket, []Ticket, error) {
 		}
 		defer f.Close()
 		if err := flock.Exclusive(f, true); errors.Is(err, syscall.EWOULDBLOCK) {
-			head = readTicket(f)
+			head = heldTicket(f)
 		} else if err != nil {
 			return err
 		}
@@ -292,7 +292,7 @@ func (l *Line) scan() ([]Ticket, error) {
 			continue // not a ticket name: written by something else
 		}
 		if t == nil {
-			t = &Ticket{}
+			t = &Ticket{Unreadable: true}
 		}
 		t.Seq = seq
 		live = append(live, *t)
@@ -330,6 +330,15 @@ func (l *Line) withMutex(fn func() error) error {
 		return err
 	}
 	return fn()
+}
+
+// heldTicket reads a held lock's ticket; a held lock whose contents don't parse
+// is still a head, so it reads as present but unreadable.
+func heldTicket(f *os.File) *Ticket {
+	if t := readTicket(f); t != nil {
+		return t
+	}
+	return &Ticket{Unreadable: true}
 }
 
 func readTicket(f *os.File) *Ticket {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -166,18 +167,22 @@ func readLog[T any](path string) ([]T, int, error) {
 	defer f.Close()
 	var out []T
 	skipped := 0
-	sc := bufio.NewScanner(f)
-	sc.Buffer(make([]byte, 64*1024), 1024*1024)
-	for sc.Scan() {
-		if len(bytes.TrimSpace(sc.Bytes())) == 0 {
-			continue
+	r := bufio.NewReader(f) // no line limit, matching sweep's: a long line is an entry, not an error
+	for {
+		raw, err := r.ReadBytes('\n')
+		if line := bytes.TrimSpace(raw); len(line) > 0 {
+			var v T
+			if json.Unmarshal(line, &v) != nil {
+				skipped++
+			} else {
+				out = append(out, v)
+			}
 		}
-		var v T
-		if json.Unmarshal(sc.Bytes(), &v) != nil {
-			skipped++
-			continue
+		if errors.Is(err, io.EOF) {
+			return out, skipped, nil
 		}
-		out = append(out, v)
+		if err != nil {
+			return out, skipped, err
+		}
 	}
-	return out, skipped, sc.Err()
 }

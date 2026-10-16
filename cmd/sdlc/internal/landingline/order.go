@@ -24,6 +24,9 @@ type Ticket struct {
 	Branch   string    `json:"branch"`
 	PID      int       `json:"pid"`
 	Enqueued time.Time `json:"enqueued"`
+	// Unreadable marks a held ticket or head.lock whose contents don't parse:
+	// present, never reported as absent.
+	Unreadable bool `json:"-"`
 }
 
 // Grantor is who granted priority: a workspace address (or "operator shell")
