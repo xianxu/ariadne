@@ -73,6 +73,9 @@ After verification, close through SDLC and land on SHIP.
 - Main control at 87e0feeb63e41946936ccb316583629ce8eb6b8a passed the unchanged plain shell test in 66.861s; log /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne411-main-control-l273bo38.log. Scratch main worktree removed cleanly. This did not reproduce a main failure, so no claim of an established main bug.
 - Candidate plain rerun then passed in 80.640s (all six construct scripts, zero failures). Together with the earlier 120s timeouts and unchanged scripts, this supports a load-sensitive timeout. No code/test-budget change or waiver; rerun the normal recorded full suite.
 
+- Second recorded suite on 986653326c2242c56ef7a095a3ebab498f98918f is running; its plain construct-shell run passed in 93.84s, resolving the prior timeout in this run. A different unchanged package failed: TestConcurrentAcquireReclaimsDeadHolderOnce, repolock_test.go:415, sdlc.lock/meta.json ENOENT (0.03s).
+- Filed independent ariadne#413 unassigned with that captured failure and the suspect ProcessAlive fake (returns false for original dead holder and both new live contenders). Test blob matches main exactly: 9f1e403fe782fd03b405c2f2f9adb47f54b183f0. A scratch main 100-run control passed in 4.158s; log /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne411-lock-main-gezq_l3f.log; checkout removed. Do not claim a production lock bug or reliable main reproduction from this evidence. Hub blocker report 6d733704-0bca-4f42-b9d2-d64b494acf2b was admitted, but receipt query hit couch unavailable on PATH. No #413 code folded into #411, and no suite waiver.
+
 ## Estimate
 
 *Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only; source flagged stale, provisional.*
