@@ -67,6 +67,7 @@ regular retros after long sessions, and agree to move the boundary so workers ar
 ## Log
 
 ### 2026-10-16 — BR-1 verification
+- 2026-10-16: closed — BR-2: Done when explicitly includes both approved dispatch cases and their phrase guards plus revised filing/landing/hash/action criteria; documentation only. BR-1 four independent reversals each fail default and --help guards; targeted packages pass. Recorded full suite passed 1508 SDLC tests and 66 packages; current guard-test revision has a recorded suite queued.; review verdict: SHIP
 
 Independently reversed each of worker approval, TL approval, second-flake
 escalation and retro agreement in the actual help source. Each mutation was

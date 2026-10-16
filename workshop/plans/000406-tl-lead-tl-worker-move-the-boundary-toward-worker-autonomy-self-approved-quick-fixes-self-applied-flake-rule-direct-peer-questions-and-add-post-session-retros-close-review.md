@@ -133,3 +133,66 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"b3236b74-36a1-4b52-ac0e-43c0c5cd69a0","repository":"github.com/xianxu/ariadne","issue_id":"000406","recipe":"small-diff-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/822133c5545b2e96","reviewed_head":"3c49114ab3713d6aaa13c4c3d82ac2ca6dc20be5","slot":"ariadne:3","requested_at":"2026-10-16T17:49:03.052092Z"},"phase":"finished","pid":5586,"started_at":"2026-10-16T17:49:03.217901Z","finished_at":"2026-10-16T17:50:01.488959Z","session_id":"01a145d4-e894-79f2-895b-42183ecb7363","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-16T10:52:08-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 406 — tl-lead/tl-worker: move the boundary toward worker autonomy (self-approved quick fixes, self-applied flake rule, direct peer questions) and add post-session retros |
+| repo | ariadne |
+| issue file | workshop/issues/000406-tl-lead-tl-worker-move-the-boundary-toward-worker-autonomy-self-approved-quick-fixes-self-applied-flake-rule-direct-peer-questions-and-add-post-session-retros.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | dc2bf920f6d77385e51640cc040ab413542577db..f7db597399e82c5e1501114293afa0ad5a35a700 |
+| command | sdlc close --issue 406 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-16T10:52:08-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range implements the revised autonomy boundary and dispatch rules. BR-2’s acceptance-documentation correction is complete and matches the implemented help and tests. No new findings.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The pinned diff adds both dispatch cases and phrase guards to the issue’s Done when at lines 53–55, plus the synchronization Revision at lines 154–161. These match cmd/tl-lead/help.md:255–257 and the dispatch guards in cmd/tl-lead/main_test.go:52–54.
+```
+
+1. **Strengths**
+   - Worker help preserves required design/scope approval while allowing small quick-fix plans to proceed (`cmd/tl-worker/help.md:19–24`).
+   - Flake handling requires retained evidence, one unchanged rerun, and second-flake escalation (`cmd/tl-worker/help.md:36–42`).
+   - Lead and worker responsibilities agree on filing and landing ownership.
+   - Shared planning still derives from `pkg/tlrules/planning.md`; skill stubs point to the binaries.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+   - Passed `go test ./cmd/tl-worker ./cmd/tl-lead ./pkg/tlrules -count=1`.
+   - Positive contract guards exercise default and `--help` output, including both dispatch cases.
+   - Pinned-range `git diff --check` passed; working tree remains clean.
+   - Full suite was not independently rerun. BR-2 changes acceptance documentation only.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass.** Shared planning remains composed from one source; worker procedures retain clear ownership.
+   - **ARCH-PURE: pass.** No new business logic mixed with IO.
+   - **ARCH-PURPOSE: pass.** Revised approval, flake, filing, landing, dispatch, and retro requirements are delivered.
+   - Atlas documents the changed flow. No new command, flag, configuration key, or installation step requires a README update. No Core concepts table is present.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"1624d54f-e411-445d-9a26-e7c7025cfeb4","repository":"github.com/xianxu/ariadne","issue_id":"000406","recipe":"small-diff-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/43b177a19dd6cc03","reviewed_head":"f7db597399e82c5e1501114293afa0ad5a35a700","slot":"ariadne:3","requested_at":"2026-10-16T17:51:18.654044Z"},"phase":"finished","pid":15111,"started_at":"2026-10-16T17:51:18.888794Z","finished_at":"2026-10-16T17:52:06.521643Z","session_id":"01a145d6-fab1-7952-8319-b8b36b10b61b","outcome":"returned"}] -->

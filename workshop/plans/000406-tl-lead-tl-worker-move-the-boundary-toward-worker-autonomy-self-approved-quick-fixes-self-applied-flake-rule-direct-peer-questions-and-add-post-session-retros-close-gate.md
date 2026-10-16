@@ -144,6 +144,77 @@ rounds:
       recipe: small-diff-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 1624d54f-e411-445d-9a26-e7c7025cfeb4
+            repository: github.com/xianxu/ariadne
+            issue_id: "000406"
+            recipe: small-diff-review
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/43b177a19dd6cc03
+            reviewed_head: f7db597399e82c5e1501114293afa0ad5a35a700
+            slot: ariadne:3
+            requested_at: "2026-10-16T17:51:18.654044Z"
+          phase: finished
+          pid: 15111
+          started_at: "2026-10-16T17:51:18.888794Z"
+          finished_at: "2026-10-16T17:52:06.521643Z"
+          session_id: 01a145d6-fab1-7952-8319-b8b36b10b61b
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: f7db597399e82c5e1501114293afa0ad5a35a700
+        tracker_head: 1839303bb2ea1c81662e836d6e12ece5bc0ca506
+        branch_point: dc2bf920f6d77385e51640cc040ab413542577db
+        since: "2026-10-16T10:17:23-07:00"
+        until: "2026-10-16T10:50:59-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-16T10:17:23-07:00"
+              end: "2026-10-16T10:50:59-07:00"
+              began: "2026-10-16T10:17:23-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 0c3bb71f7d8055012dd4f4771713db8225bd682465e64b421b3fa5e67bc08a99
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 3316336
+              windows:
+                - start: "2026-10-16T10:17:23-07:00"
+                  end: "2026-10-16T10:50:59-07:00"
+        cuts:
+            - dispatched: "2026-10-16T10:46:19-07:00"
+              finalized: "2026-10-16T10:47:38-07:00"
+              finalizing: false
+            - dispatched: "2026-10-16T10:49:03-07:00"
+              finalized: "2026-10-16T10:50:02-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-16T10:52:09-07:00"
+      dispatched: "2026-10-16T10:51:18-07:00"
+      agent: codex
+      dispose:
+        - id: BR-2
+          disposition: addressed
+          note: The pinned diff adds both dispatch cases and phrase guards to the issue’s Done when at lines 53–55, plus the synchronization Revision at lines 154–161. These match cmd/tl-lead/help.md:255–257 and the dispatch guards in cmd/tl-lead/main_test.go:52–54.
+          round: 3
+      recipe: small-diff-review
+      isolation: fenced
+      reviewed: f7db597399e82c5e1501114293afa0ad5a35a700
+      blocked: false
 ---
 
 # Gate ledger — ariadne#406 (boundary-review)
@@ -169,6 +240,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-2** [Important] `acceptance-contract-synchronization` (kind: defect) Include the dispatch extension in Done when
   workshop/issues/000406-tl-lead-tl-worker-move-the-boundary-toward-worker-autonomy-self-approved-quick-fixes-self-applied-flake-rule-direct-peer-questions-and-add-post-session-retros.md:45–46 covers boundary moves and retros, but the revision at lines 127–133 explicitly extends acceptance with dispatch by work kind. Both omitted cases are implemented at cmd/tl-lead/help.md:255–257: design-heavy work to Claude and bounded execution against a fixed design to Codex. Add both cases and their phrase guards to Done when, with a Revisions entry recording the synchronization.
 
+## Round 3 — 2026-10-16T10:52:09-07:00 (codex) — passed
+
+### Disposed
+
+- BR-2 — addressed — The pinned diff adds both dispatch cases and phrase guards to the issue’s Done when at lines 53–55, plus the synchronization Revision at lines 154–161. These match cmd/tl-lead/help.md:255–257 and the dispatch guards in cmd/tl-lead/main_test.go:52–54.
+
 ## Open findings
 
-- **BR-2** [Important] `acceptance-contract-synchronization` (kind: defect) Include the dispatch extension in Done when
+(none — every finding has been disposed)
