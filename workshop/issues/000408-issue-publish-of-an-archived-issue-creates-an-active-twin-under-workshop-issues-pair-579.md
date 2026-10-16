@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-16
-estimate_hours:
-card_mirror: '59c47dad70858f30b32467bfaf76c4403bc51b79' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 0.94
+card_mirror: 'bcacd854d9ebf6ca374fb6920ff4398f5e9e821f' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-16T11:18:56-07:00
 claimant:
     operator: Xian Xu
@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "62c3380d", done: "f3f27de4"}
+flow: {kind: full, provenance: operator}
 ---
 
 # issue publish of an archived issue creates an active twin under workshop/issues (pair#579)
@@ -138,3 +138,21 @@ is expected to leave the quick-flow diff shell; durable implementation plan:
 workshop/plans/000408-archive-location-plan.md. Await hub approval before changing
 implementation, then run change-code's full-flow plan gate and derive its estimate
 only after plan quality clears.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. Calibration is provisional (source marked stale).
+
+Three smaller Go module extensions cover location resolution, republish and transfer admission. Each uses the upper implementation anchor 0.5h scaled to 40%, with 0.15h design discounted to 0.03h by the approved design. Existing Git/tracker facilities cover the stack; no greenfield library needed. Atlas uses 0.05h design ×0.2 and 0.1h implementation ×0.4; boundary review uses 0.1h design ×0.2 and 0.4h implementation ×0.4. Familiarity is 1.0 and the thorough-plan design buffer is 15%.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module design=0.03 impl=0.20
+item: smaller-go-module design=0.03 impl=0.20
+item: smaller-go-module design=0.03 impl=0.20
+item: atlas-docs design=0.01 impl=0.04
+item: milestone-review design=0.02 impl=0.16
+design-buffer: 0.15
+total: 0.94
+```
