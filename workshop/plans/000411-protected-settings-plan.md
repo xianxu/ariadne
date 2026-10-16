@@ -13,12 +13,12 @@
 | Pure entity | Lives in | Status |
 |---|---|---|
 | DeferredOutput action | cmd/weave/internal/plan/action.go | new |
-| Managed output ownership | cmd/weave/internal/plan/ownership.go | modified |
 
 DeferredOutput declares one produced path whose publication belongs to the operator. Its previous inventory entries remain unchanged; it cannot acquire desired-output ownership. Existing matching/retirement/displaced-copy rules remain authoritative (ARCH-DRY).
 
 | Integration | Lives in | Status | Wraps |
 |---|---|---|---|
+| Managed output ownership | cmd/weave/internal/plan/ownership.go | modified | weavefs inventory, displacement, publication and reclamation IO |
 | Settings check/defer | cmd/weave/settings.go | new | existing walk/planner, settingsx merge/compare, weavefs reads |
 | Gate refresh mode | cmd/weave/refresh.go | modified | existing refresh/compile transaction |
 | Planning settings observation | cmd/sdlc/catchup.go | modified | installed weave process |
@@ -62,3 +62,7 @@ Separate the final validation checkbox from its following close/landing actions;
 ### 2026-10-16 — recorded execution versus passing landing validation
 
 Two full suite runs completed with unrelated failures (shell timeout then reproduced main flake #413); all feature tests pass. Record the execution step complete and submit those exact outcomes to mandatory close review while an unchanged retry queues. Passing local-suite evidence remains required at merge.
+
+### 2026-10-16 — close review BR-1/BR-2
+
+Protect the settings destination even when its declaration disappears or uses an alternate writer, including generated actions. Always retain a deferred destination; observe its declared action and prior ownership/recovery residue without mutating it. Permit harmless ancestor directory scaffolding while rejecting actual overlapping writers. Test retirement, alternate actions and eventual ordinary operator cleanup. Managed ownership performs filesystem IO through weavefs and belongs in the Integration table (ARCH-PURE); only its deferred action value is pure. The earlier queued retry was canceled before execution because these changes require new verification.

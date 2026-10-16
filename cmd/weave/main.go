@@ -558,13 +558,13 @@ func compilePreparedSettings(ctx context.Context, fs weavefs.FS, root string, ta
 		fmt.Fprintln(out, "weave: generation and retirement are not previewed; dry-run changes nothing")
 		return nil
 	}
+	actions = append(actions, generated...)
 	if deferSettings {
 		actions, err = deferredClaudeSettings(fs, root, actions, out)
 		if err != nil {
 			return err
 		}
 	}
-	actions = append(actions, generated...)
 	for _, action := range actions {
 		if seed, ok := action.(plan.SeedOnce); ok {
 			instruction, err := plan.SeedOnceInstruction(fs, root, seed)

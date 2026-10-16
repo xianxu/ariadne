@@ -23,6 +23,7 @@ func TestStartPlanProtectedSettingsNativeSandbox(t *testing.T) {
 	type fixture struct {
 		Root    string
 		Current bool
+		Retired bool
 	}
 	if raw := os.Getenv(childEnv); raw != "" {
 		var f fixture
@@ -45,7 +46,7 @@ func TestStartPlanProtectedSettingsNativeSandbox(t *testing.T) {
 		if err := runInstalledWeave(context.Background(), f.Root, &refreshed); err != nil {
 			t.Fatalf("gate refresh under native settings denial: %v: %s", err, &refreshed)
 		}
-		if n := strings.Count(refreshed.String(), "settings.json is stale:"); !f.Current && n != 1 {
+		if n := strings.Count(refreshed.String(), "settings.json is stale:"); (!f.Current && n != 1) || (f.Current && n != 0) {
 			t.Fatalf("refresh stale notices=%d: %s", n, &refreshed)
 		}
 		out, errs, err := executeSDLCTestCommand("start-plan", "--issue", "9")
@@ -63,7 +64,7 @@ func TestStartPlanProtectedSettingsNativeSandbox(t *testing.T) {
 		if git(t, f.Root, "branch", "--show-current") != "000009-nine" {
 			t.Fatal("first start-plan did not create issue branch")
 		}
-		t.Logf("native denial confirmed; first start-plan succeeded; current=%v, stale notices=%d", f.Current, count)
+		t.Logf("native denial confirmed; first start-plan succeeded; current=%v retired=%v, stale notices=%d", f.Current, f.Retired, count)
 		return
 	}
 	if runtime.GOOS != "darwin" || os.Getenv("ARIADNE_NATIVE_SANDBOX") != "1" {
@@ -84,8 +85,9 @@ func TestStartPlanProtectedSettingsNativeSandbox(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, current := range []bool{false, true} {
-		t.Run(fmt.Sprint(current), func(t *testing.T) {
+	for _, state := range []string{"stale", "current", "retired"} {
+		t.Run(state, func(t *testing.T) {
+			current := state == "current"
 			f := newCatchUpFixture(t)
 			writeRepoFile(t, f.dep.root, "construct/base.manifest", "# fixture substrate\n")
 			writeRepoFile(t, f.slot.root, "construct/base.manifest", "merge .claude/settings.base.json .claude/settings.json\n")
@@ -95,13 +97,21 @@ func TestStartPlanProtectedSettingsNativeSandbox(t *testing.T) {
 				actual = `{"new":true}`
 			}
 			writeRepoFile(t, f.slot.root, ".claude/settings.json", actual)
+			if state == "retired" {
+				compile := exec.CommandContext(ctx, binary, "compile")
+				compile.Dir = f.slot.root
+				if out, err := compile.CombinedOutput(); err != nil {
+					t.Fatalf("prepare managed retirement: %v: %s", err, out)
+				}
+				writeRepoFile(t, f.slot.root, "construct/base.manifest", "# settings declaration removed\n")
+			}
 			for _, repo := range []*trackerRepo{f.slot, f.dep} {
 				repo.git("add", ".")
 				repo.git("commit", "-qm", "settings fixture")
 				repo.git("push", "-q", "origin", "main")
 			}
 			target := filepath.Join(f.slot.root, ".claude/settings.json")
-			payload, _ := json.Marshal(fixture{Root: f.slot.root, Current: current})
+			payload, _ := json.Marshal(fixture{Root: f.slot.root, Current: current, Retired: state == "retired"})
 			profile := fmt.Sprintf(`(version 1) (allow default) (deny file-write* (literal %q))`, target)
 			cmd := exec.CommandContext(ctx, "sandbox-exec", "-p", profile, executable, "-test.run=^TestStartPlanProtectedSettingsNativeSandbox$", "-test.v", "-test.timeout=3m")
 			cmd.Dir = t.TempDir()

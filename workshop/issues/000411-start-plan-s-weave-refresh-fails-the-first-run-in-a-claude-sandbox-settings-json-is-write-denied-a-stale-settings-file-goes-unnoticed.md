@@ -81,6 +81,8 @@ After verification, close through SDLC and land on SHIP.
 
 - Both required full-suite executions are recorded above with their failures, not represented as passing. The third unchanged run is queued on b0b8a2de. Start the mandatory close review with all feature/host evidence and the independent reproduced main failure explicitly disclosed; merge validation still requires a passing recorded suite, with no --no-validate or other waiver. The checked Plan row records execution and feature verification, not a clean whole-repository suite.
 
+- Close review returned REWORK: BR-1 found declaration-removal retirement still mutates protected settings; generalize protection to the destination across all actions and ownership retirement. BR-2 moves filesystem-backed managed ownership to the plan Integration table. BR-3 requires revised-head native host evidence because the reviewer cannot nest sandbox-exec. The obsolete queued third suite was interrupted before execution (owned CLI PID 84391, exit 130); no peer job or lock touched.
+
 ## Estimate
 
 *Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only; source flagged stale, provisional.*
@@ -116,3 +118,7 @@ The Plan's last checkbox now covers the verifiable checks; close and landing rem
 ### 2026-10-16 — review while unchanged validation retry queues
 
 The required suite was executed twice before close review; both outcomes remain recorded verbatim. Feature acceptance is proven by focused and native tests. Start fresh review while the unchanged full-suite retry waits, keeping merge's passing-suite requirement intact. No acceptance, scope or gate waiver.
+
+### 2026-10-16 — close-review scope refinement
+
+Protect the destination across declaration removal and alternate/generated writers, retaining prior identity and backup evidence until an ordinary operator refresh reconciles it. Correct the plan ownership IO classification; native retirement denial joins the existing stale/current controls. No permission inference, write retry, gate waiver or change to catchup HEAD safety.
