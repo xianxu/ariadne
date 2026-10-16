@@ -1,12 +1,12 @@
 ---
 id: 000411
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-16
 estimate_hours: 1.13
-card_mirror: '6144aa383e23659eca6be546b18ccbc64dd88206' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '0e93764886f03b76eee24680dbebd2dadf79b7e1' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-16T15:06:50-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 1.94
 ---
 
 # start-plan's weave refresh fails the first run in a Claude sandbox (settings.json is write-denied); a stale settings file goes unnoticed
