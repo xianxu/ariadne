@@ -1,12 +1,12 @@
 ---
 id: 000406
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-16
 estimate_hours:
-card_mirror: 'eb5756aee5a61fac923aa985c4eee0352edcbf54' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '6455abed9a707da2ea68efcc99d35c7471eb2e2e' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-16T10:17:23-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "b9f55260", done: "a044b6ed"}
+actual_hours: 0.56
 ---
 
 # tl-lead/tl-worker: move the boundary toward worker autonomy (self-approved quick fixes, self-applied flake rule, direct peer questions) and add post-session retros
