@@ -2,9 +2,17 @@
 id: 000404
 status: open
 created: 2026-10-15
-updated: 2026-10-15
+updated: 2026-10-16
 estimate_hours:
 github_issue:
+started: 2026-10-16T09:16:33-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead/tl-worker: a third design delta on one mechanism triggers a re-plan; invariants weigh a lock-shaped design first
