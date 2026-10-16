@@ -72,7 +72,7 @@ Durable plan: [workshop/plans/000412-s2-collaboration-modes-plan.md](../plans/00
 - [x] 6. tl-lead help: the session file's collaboration-mode line, chat mode cited, answer docs in tl-status-<op>.side/; topic tests
 - [x] 7. atlas: universal-review.md (and tl-skills.md)
 - [x] 8. live check: rounds on the examples' before.md copies, and one tracked round through Couch
-- [ ] 9. full suite via sdlc local-check, then sdlc close
+- [x] 9. full suite via sdlc local-check, then sdlc close
 
 ## Estimate
 
@@ -136,3 +136,4 @@ total: 4.33
   - diff was then empty, so the agent's write is outside the changes;
   - nothing was folded: the owed list was the slot's own message backlog, not this file's submit. The registration was forgotten afterwards.
 - Targeted tests green: ./pkg/... ./cmd/weave/... ./cmd/tl-lead/... ./cmd/tl-worker/....
+- Full suite green on d1199a4b (12 shards, 1519 cmd/sdlc tests plus 66 packages, 0 failed; sdlc-local/suite recorded).
