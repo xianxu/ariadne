@@ -52,7 +52,7 @@ type Member struct {
 	SHA256    string `json:"sha256"`
 }
 
-var roleRank = map[string]int{"round": 0, "grammar": 1, "adapter": 2, "mode": 3}
+var roleRank = map[string]int{"round": 0, "grammar": 1, "collaboration-modes": 2, "adapter": 3, "mode": 4}
 
 // defaults are parley's values for an omitted flag; the export records the
 // resolved value, so its mode records are dense.
@@ -125,7 +125,8 @@ func ParseMode(content, basename string) (Mode, error) {
 }
 
 // Build reads the skill directory and returns its manifest: round.md, the
-// grammar link, every adapters/*.md and every modes/*.md. Sizes and hashes
+// grammar link, collaboration-modes.md (#412), every adapters/*.md and every
+// modes/*.md. The examples/ fixtures are not exported. Sizes and hashes
 // cover each file's resolved contents (the grammar is a symlink). The order is
 // total: role, then mode order (unordered last), then name, then path, as
 // parley lists its modes.
@@ -145,6 +146,9 @@ func Build(skill fs.FS) (Manifest, error) {
 		return Manifest{}, err
 	}
 	if err := add(Member{Role: "grammar", Path: "review-convention.md", Source: GrammarSource}); err != nil {
+		return Manifest{}, err
+	}
+	if err := add(Member{Role: "collaboration-modes", Path: "collaboration-modes.md"}); err != nil {
 		return Manifest{}, err
 	}
 	adapters, err := fs.Glob(skill, "adapters/*.md")

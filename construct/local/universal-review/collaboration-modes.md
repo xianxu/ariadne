@@ -181,8 +181,9 @@ and the parent when a fold-in changes it. New side docs are new files.
    doc of a chat item whose link the operator deleted, or of an item re-added word for word, and then the reply
    says it was relinked.
 2. Write the new side docs.
-3. If the round folds into the parent, write the parent next. If that write is refused, stop there: the submitted
-   document is left as it is, so its ask is answered again after the operator's next submit.
+3. If the round folds into the parent, write the parent next. A stale write is recomputed, as the adapter says. If
+   the operator holds the parent's lock, stop there: the submitted document is left as it is, so its ask is
+   answered again after the operator's next submit.
 4. Write the submitted document. If that write is refused, the new side docs stay on disk, unlinked, and step 1
    finds them next round. If the parent's write had landed, the next round finds the parent's link already marked
    `(folded <date>)` with no matching closing note in the side doc: write the note and remove the marker, and don't
