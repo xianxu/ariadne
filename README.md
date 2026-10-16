@@ -420,6 +420,16 @@ refresh remains explicit. Resume interrupted landing with
 See [landing and recovery](atlas/workflow/workspace-branching.md#land-and-retain-the-workspace)
 for evidence checks, legacy dependency behavior and the intentionally old baseline.
 
+Merges in one repository land one at a time (#393). `sdlc merge` takes a turn in
+the repository's landing line and prints its position while it waits, so each
+landing integrates main once and runs one suite instead of rerunning whenever
+another slot lands. `sdlc landing status` shows the landing now, the merges
+waiting in order, and the ready-to-landed delay. For a fix that blocks the
+fleet, the operator or the TL (from a :0 slot) runs
+`sdlc landing grant --repo DIR --issue N --reason WHY [--hours H]` (at most 24
+hours; `sdlc landing revoke` ends it early). That puts the issue first at the
+next admission without interrupting a running landing or waiving any gate.
+
 Merge refuses red CI on the PR head. Durable workspaces wait up to 20 minutes
 for pending CI, integrate a moved main locally, and recheck main before landing
 (up to three integrations); conflicts abort with the paths to resolve. Legacy

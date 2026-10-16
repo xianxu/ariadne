@@ -41,6 +41,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `push`            | `make push`                 | Direct-on-main ship + the #124 instance-conformance gate (`--no-validate`) + pre-flight judges (still available; not the default close path since #51) |
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
 | `merge`           | `make merge`                | PR landing with instance/publish gates and confirmation; :0/:N archive remotely and return to unchanged rest, ordinary worktrees/dependencies retain legacy cleanup |
+| `landing`         | (new #393)                  | The repository's landing line: `status` (the landing now, waiters in admission order, live grants, delay p50/p90); `grant` / `revoke` fleet-blocking priority, refused from a worker slot. `merge` waits in this line ([landing line](#landing-line-393)) |
 | `local-check run` | (new #345)                  | Run checks declared in main's `.sdlc/local-checks.json` on a pushed commit, in a detached worktree under the machine-wide suite lock, and record each as the commit status `sdlc-local/<name>`; merge's CI gate accepts it for a CI job that never got a runner and requires it for `required` checks ([ci-merge-check](ci-merge-check.md#recorded-local-checks-345)) |
 | `test-stats`      | (new #376)                  | **Read-only** local-fleet summary of recorded suite wall time, queue waits, slow package/shard p90, and same-head fail→pass flakes; `--since`, `--repo`, and `--json` filter or export it. Legacy per-head logs contribute partial rows with explicit missing-metric coverage. |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
@@ -313,6 +314,73 @@ against it, then land Pair separately. There is no recursive publication.
 See [workspace branching and landing](workspace-branching.md) for the procedure;
 `landing_test.go` uses real Git plus a stateful GitHub fake for preservation and
 interruption/retry coverage.
+
+### Landing line (#393)
+
+Concurrent merges used to integrate against the same main. Each landing then forced
+the others to integrate again and rerun a full suite. The landing line orders a
+repository's landings, so one merge at a time integrates and lands.
+`cmd/sdlc/internal/landingline` is a pure core (`order.go`) inside a thin IO shell
+(`line.go`, `log.go`). The line directory is `<git-common-dir>/sdlc/landing/`,
+which every slot of a repository shares, beside #370's `sdlc.lock`. The repo lock
+is mkdir-based; the line uses flock(2) through `internal/flock`, which it shares
+with reviewbox.
+
+- **Tickets and the head.** A merge holds a flock on its own ticket file while it
+  waits. It holds `head.lock` once admitted, and leaves the ticket set at that
+  point. Every flock dies with its process: the next scan prunes a dead waiter's
+  ticket, and a dead head frees the line. Nothing is left that a crash can make
+  inconsistent, and there is no daemon. Scans and admission run under the
+  `line.lock` mutex. A ticket appears already locked (it is written under a
+  temporary name and renamed into place), so a scan never takes a new ticket for
+  a dead one.
+- **Order.** `Order` and `NextHead` put fleet-blocking tickets first, then normal
+  ones, FIFO by ticket number within each class. Waiters poll every 2 s. A
+  running head is never preempted: priority decides only who is admitted next.
+- **Grants.** `grants.jsonl` is the only source of priority. `ValidGrants` keeps
+  the latest entry per issue when it is unrevoked and unexpired (at most 24 h),
+  has a reason, and records a grantor that is the operator's shell or a :0 slot.
+  That check runs on read as well as on write. Trust is cooperative: it guards
+  against agents' mistakes on one machine, not against a process that forges the
+  grantor.
+- **Events and retention.** `events.jsonl` records enqueue, admit (with the
+  tickets it displaced), landed and refused. `Delays` gives the
+  enqueue-to-landed samples for the pilot's p90, through test-stats'
+  nearest-rank helper. Both logs are appended under the mutex. A daily sweep
+  applies the pure rules in `retention.go` and counts the malformed lines it
+  drops.
+  - Events stay while they are dated within the last 30 days and not in the
+    future.
+  - A grant entry stays while it and its issue's latest entry are fresh by
+    their grant time.
+  - Invariant (tested over random logs): a sweep never changes which grants are
+    valid.
+  - A revoke outlives its grant, because it is dated when it is made.
+  - A future-dated grant confers nothing.
+- **Relation to the suite line.** `scripts/test-lock.py`'s FIFO line for
+  full-suite slots uses the same design (flock liveness, pruning under a mutex)
+  but shares no code: it is a make-invoked Python helper, and its waiters aren't
+  sdlc processes.
+
+**In merge** (`landingqueue.go`): `runDurableMerge` confirms first, so a prompt
+never holds the line. It then takes a turn before it observes the branch head,
+the PRs or the integration state, and holds the turn until it returns. An
+admitted merge therefore never acts on an observation from before a possibly
+long wait. A duplicate invocation that waited behind the original resumes as
+already merged (logged `resumed`, which the delays skip), and a fix pushed
+while waiting is what lands. Rule: a merge without a turn acts only on an
+already-merged PR. It skips the line only when the first listing shows a merged
+PR and no open one; an empty listing queues, since it may lag a new PR. The PR
+it selects is checked against the rule, so a lagging listing that hid an open
+PR refuses, having changed nothing. The turn logs enqueue, admit, and landed, refused or resumed; landing
+ends the issue's grant. A log write failure warns once on stderr. The landing's own recovery is unchanged, and the line
+adds ordering only. This lock-shaped line replaced #390's eight-state durable
+queue (#404 lock-first, TL-approved).
+
+**`sdlc landing`** (`landingcmd.go`, help in `helptext/landing.md`): `status`
+shows the landing now, the waiters in admission order, live grants and the delay
+p50/p90. `grant` and `revoke` take `--repo DIR` and are refused from a worker
+slot.
 
 ## The quick flow at close (#231)
 

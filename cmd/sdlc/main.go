@@ -158,6 +158,7 @@ func buildRoot() *cobra.Command {
 	add(NewMilestoneCloseCmd(), "milestone-close", "Close one milestone + auto-dispatch its review")
 	add(NewPRCmd(), "pr", "Open a pull request from a feature branch")
 	add(NewMergeCmd(), "merge", "Merge the PR, archive done issues, clean up")
+	add(NewLandingCmd(), "landing", "Show the repository's landing line; grant or revoke fleet-blocking priority (#393)")
 	add(NewLocalCheckCmd(), "local-check", "Run declared local checks on a pushed head and record them as commit statuses (#345)")
 	add(NewTestStatsCmd(), "test-stats", "Summarize recorded suite times, queue waits, and flakes across the local fleet")
 	add(NewPushCmd(), "push", "Ship from main (clean tree + pre-merge judges + archive)")

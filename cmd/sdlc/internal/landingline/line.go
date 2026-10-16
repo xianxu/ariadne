@@ -1,0 +1,367 @@
+package landingline
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flock"
+)
+
+// A line directory holds:
+//
+//	line.lock        the allocation mutex: every scan and admission runs under it
+//	head.lock        the admission token, flock-held by the admitted head; it
+//	                 holds the head's ticket as JSON while held
+//	seq              the next ticket number
+//	tickets/<seq>    one per waiting merge, flock-held by that merge
+//
+// Every flock dies with its process, so a dead waiter's ticket is pruned by
+// the next scan and a dead head frees head.lock: the line keeps no state that
+// a crash can leave inconsistent. A process is either waiting (it holds its
+// ticket) or the head (it holds head.lock and its ticket is gone).
+
+// Options are the line's injected clock, sleep and grants; zero values take
+// the production defaults.
+type Options struct {
+	Now    func() time.Time
+	Sleep  func(context.Context, time.Duration) error
+	Poll   time.Duration
+	Grants func() map[int]Grant
+	// OnWait reports a waiter's position (1 = next) when it changes.
+	OnWait func(position int, head *Ticket)
+	// OnAdmit reports an admission and the older tickets it went ahead of. It
+	// runs outside the line mutex, so it may call Record.
+	OnAdmit func(head Ticket, displaced []Ticket)
+}
+
+// Line is one repository's landing line.
+type Line struct {
+	dir string
+	o   Options
+}
+
+// Handle is one merge's place in the line.
+type Handle struct {
+	ticket Ticket
+	path   string
+	file   *os.File // the ticket's flock while waiting
+	head   *os.File // head.lock's flock once admitted
+}
+
+func (h *Handle) Ticket() Ticket { return h.ticket }
+
+// Open prepares dir as a line; it creates nothing but directories.
+func Open(dir string, o Options) (*Line, error) {
+	if err := os.MkdirAll(filepath.Join(dir, "tickets"), 0o755); err != nil {
+		return nil, err
+	}
+	if o.Now == nil {
+		o.Now = time.Now
+	}
+	if o.Sleep == nil {
+		o.Sleep = sleepCtx
+	}
+	if o.Poll <= 0 {
+		o.Poll = 2 * time.Second
+	}
+	if o.Grants == nil {
+		o.Grants = func() map[int]Grant { return nil }
+	}
+	return &Line{dir: dir, o: o}, nil
+}
+
+// Enqueue takes the next ticket. The ticket file appears already locked: it is
+// written and locked under a temporary name, then renamed into place.
+func (l *Line) Enqueue(t Ticket) (*Handle, error) {
+	var h *Handle
+	err := l.withMutex(func() error {
+		seq, err := l.nextSeq()
+		if err != nil {
+			return err
+		}
+		t.Seq, t.Enqueued = seq, l.o.Now()
+		if t.PID == 0 {
+			t.PID = os.Getpid()
+		}
+		data, err := json.Marshal(t)
+		if err != nil {
+			return err
+		}
+		f, err := os.CreateTemp(filepath.Join(l.dir, "tickets"), ".tmp-")
+		if err != nil {
+			return err
+		}
+		if err := flock.Exclusive(f, true); err != nil {
+			f.Close()
+			os.Remove(f.Name())
+			return err
+		}
+		path := filepath.Join(l.dir, "tickets", fmt.Sprintf("%020d", seq))
+		if _, err := os.Lstat(path); err == nil {
+			err = fmt.Errorf("landing line: ticket %d already exists; the counter in %s went backwards", seq, filepath.Join(l.dir, "seq"))
+			f.Close()
+			os.Remove(f.Name())
+			return err
+		}
+		if _, err := f.Write(data); err == nil {
+			err = os.Rename(f.Name(), path)
+		}
+		if err != nil {
+			f.Close()
+			os.Remove(f.Name())
+			return err
+		}
+		h = &Handle{ticket: t, path: path, file: f}
+		return nil
+	})
+	return h, err
+}
+
+// Wait returns once h is the head: head.lock is free and Order puts h first
+// among the live tickets. Priority is read on every poll, so a grant made
+// while h waits counts at the next admission; a running head is never
+// interrupted. A cancelled ctx returns its error; the caller still releases.
+func (l *Line) Wait(ctx context.Context, h *Handle) error {
+	last := -1
+	for {
+		pos, head, err := l.tryAdmit(h)
+		if err != nil {
+			return err
+		}
+		if pos == 0 {
+			return nil
+		}
+		if pos != last && l.o.OnWait != nil {
+			l.o.OnWait(pos, head)
+		}
+		last = pos
+		if err := l.o.Sleep(ctx, l.o.Poll); err != nil {
+			return err
+		}
+	}
+}
+
+// tryAdmit admits h (position 0) or reports its position and the head.
+func (l *Line) tryAdmit(h *Handle) (int, *Ticket, error) {
+	pos := 0
+	var current *Ticket
+	var displaced []Ticket
+	err := l.withMutex(func() error {
+		live, err := l.scan()
+		if err != nil {
+			return err
+		}
+		if h.file == nil {
+			return errors.New("landing line: this ticket was released")
+		}
+		grants := l.o.Grants()
+		order := Order(live, grants)
+		pos = 0
+		for i, t := range order {
+			if t.Seq == h.ticket.Seq {
+				pos = i + 1
+			}
+		}
+		if pos == 0 {
+			return errors.New("landing line: this ticket is no longer in line")
+		}
+		head, err := os.OpenFile(filepath.Join(l.dir, "head.lock"), os.O_RDWR|os.O_CREATE, 0o644)
+		if err != nil {
+			return err
+		}
+		if err := flock.Exclusive(head, true); err != nil {
+			current = heldTicket(head)
+			head.Close()
+			if errors.Is(err, syscall.EWOULDBLOCK) {
+				return nil
+			}
+			return err
+		}
+		next, passed, ok := NextHead(live, grants)
+		if !ok || next.Seq != h.ticket.Seq {
+			head.Close()
+			return nil
+		}
+		data, _ := json.Marshal(h.ticket)
+		if err := head.Truncate(0); err == nil {
+			_, err = head.WriteAt(data, 0)
+		}
+		if err != nil {
+			head.Close()
+			return err
+		}
+		h.head = head
+		h.dropTicket()
+		pos, displaced = 0, passed
+		return nil
+	})
+	// After the mutex: the hook may log, which takes the mutex itself (flock is
+	// per open file, so a nested take in one process would deadlock).
+	if err == nil && pos == 0 && l.o.OnAdmit != nil {
+		l.o.OnAdmit(h.ticket, displaced)
+	}
+	return pos, current, err
+}
+
+// Status reports the admitted head (nil when none) and the waiting tickets in
+// admission order.
+func (l *Line) Status() (*Ticket, []Ticket, error) {
+	var head *Ticket
+	var waiting []Ticket
+	err := l.withMutex(func() error {
+		live, err := l.scan()
+		if err != nil {
+			return err
+		}
+		waiting = Order(live, l.o.Grants())
+		f, err := os.OpenFile(filepath.Join(l.dir, "head.lock"), os.O_RDWR|os.O_CREATE, 0o644)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		if err := flock.Exclusive(f, true); errors.Is(err, syscall.EWOULDBLOCK) {
+			head = heldTicket(f)
+		} else if err != nil {
+			return err
+		}
+		return nil
+	})
+	return head, waiting, err
+}
+
+// Release leaves the line, as head or waiter; it is idempotent.
+func (h *Handle) Release() {
+	if h.head != nil {
+		h.head.Close()
+		h.head = nil
+	}
+	h.dropTicket()
+}
+
+func (h *Handle) dropTicket() {
+	if h.file != nil {
+		os.Remove(h.path)
+		h.file.Close()
+		h.file = nil
+	}
+}
+
+// scan returns the live tickets, removing any a dead process left: a ticket
+// file nobody holds a lock on. A held ticket whose JSON doesn't parse still
+// counts, with its number from its name, so it is never silently skipped.
+func (l *Line) scan() ([]Ticket, error) {
+	dir := filepath.Join(l.dir, "tickets")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var live []Ticket
+	for _, e := range entries {
+		path := filepath.Join(dir, e.Name())
+		f, err := os.Open(path)
+		if err != nil {
+			continue // removed meanwhile
+		}
+		err = flock.Exclusive(f, true)
+		if err == nil {
+			os.Remove(path) // its owner is gone
+			f.Close()
+			continue
+		}
+		if !errors.Is(err, syscall.EWOULDBLOCK) {
+			f.Close()
+			return nil, err
+		}
+		if strings.HasPrefix(e.Name(), ".tmp-") {
+			f.Close()
+			continue // a temporary file is never a ticket
+		}
+		t := readTicket(f)
+		f.Close()
+		// The file name is the ticket's number; its JSON can't move it in line.
+		seq, perr := strconv.ParseInt(e.Name(), 10, 64)
+		if perr != nil {
+			continue // not a ticket name: written by something else
+		}
+		if t == nil {
+			t = &Ticket{Unreadable: true}
+		}
+		t.Seq = seq
+		live = append(live, *t)
+	}
+	return live, nil
+}
+
+func (l *Line) nextSeq() (int64, error) {
+	path := filepath.Join(l.dir, "seq")
+	data, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return 0, err
+	}
+	var n int64
+	if text := strings.TrimSpace(string(data)); text != "" {
+		if n, err = strconv.ParseInt(text, 10, 64); err != nil || n < 0 {
+			return 0, fmt.Errorf("landing line: %s is not a ticket counter (%q); fix or remove it", path, text)
+		}
+	}
+	n++
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, []byte(strconv.FormatInt(n, 10)+"\n"), 0o644); err != nil {
+		return 0, err
+	}
+	return n, os.Rename(tmp, path)
+}
+
+func (l *Line) withMutex(fn func() error) error {
+	f, err := os.OpenFile(filepath.Join(l.dir, "line.lock"), os.O_RDWR|os.O_CREATE, 0o644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if err := flock.Exclusive(f, false); err != nil {
+		return err
+	}
+	return fn()
+}
+
+// heldTicket reads a held lock's ticket; a held lock whose contents don't parse
+// is still a head, so it reads as present but unreadable.
+func heldTicket(f *os.File) *Ticket {
+	if t := readTicket(f); t != nil {
+		return t
+	}
+	return &Ticket{Unreadable: true}
+}
+
+// maxTicket bounds a ticket read; a ticket is one small JSON object, so a file
+// past this is not one and reads as unreadable.
+const maxTicket = 1 << 20
+
+func readTicket(f *os.File) *Ticket {
+	data, err := io.ReadAll(io.NewSectionReader(f, 0, maxTicket))
+	var t Ticket
+	if err != nil || len(data) == 0 || json.Unmarshal(data, &t) != nil {
+		return nil
+	}
+	return &t
+}
+
+func sleepCtx(ctx context.Context, d time.Duration) error {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}

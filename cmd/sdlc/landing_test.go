@@ -32,6 +32,10 @@ type landingFakeGH struct {
 	headLag          int       // reads before GitHub registers a newly pushed head
 	afterLaggedQuery func()
 	afterStatus      func(string)
+	older            []landingPR // earlier PRs on the same branch name (a reused branch)
+	firstListing     []landingPR // when lagFirst: the first LandingPRs answer, a lagging listing
+	lagFirst         bool
+	listings         int
 }
 
 func (g *landingFakeGH) PRHeadOID(ctx context.Context, repo string, n int) (string, error) {
@@ -55,6 +59,10 @@ func (g *landingFakeGH) LandingPRs(context.Context, string, string) ([]landingPR
 	if g.queryErr != nil {
 		return nil, g.queryErr
 	}
+	g.listings++
+	if g.lagFirst && g.listings == 1 {
+		return append([]landingPR(nil), g.firstListing...), nil
+	}
 	if g.followPush && g.pr.State == "OPEN" {
 		head := git(g.t, g.remote, "rev-parse", "refs/heads/"+g.pr.HeadRef)
 		g.pr.BaseOID = git(g.t, g.remote, "rev-parse", "refs/heads/main")
@@ -72,7 +80,7 @@ func (g *landingFakeGH) LandingPRs(context.Context, string, string) ([]landingPR
 			}
 		}
 	}
-	return []landingPR{g.pr}, nil
+	return append(append([]landingPR(nil), g.older...), g.pr), nil
 }
 
 func (g *landingFakeGH) PostStatus(ctx context.Context, repo, sha, statusContext, state, desc string) error {
