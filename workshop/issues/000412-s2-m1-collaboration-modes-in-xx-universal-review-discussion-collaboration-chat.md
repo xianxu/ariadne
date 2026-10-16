@@ -71,7 +71,7 @@ Durable plan: [workshop/plans/000412-s2-collaboration-modes-plan.md](../plans/00
 - [x] 5. export: the collaboration-modes member at Version 1, export.json regenerated
 - [x] 6. tl-lead help: the session file's collaboration-mode line, chat mode cited, answer docs in tl-status-<op>.side/; topic tests
 - [x] 7. atlas: universal-review.md (and tl-skills.md)
-- [ ] 8. live check: rounds on the examples' before.md copies, and one tracked round through Couch
+- [x] 8. live check: rounds on the examples' before.md copies, and one tracked round through Couch
 - [ ] 9. full suite via sdlc local-check, then sdlc close
 
 ## Estimate
@@ -116,3 +116,23 @@ total: 4.33
 - parley.nvim:4 answered O2 and O3 (f3608f76; ops 36157bcf): reuse by (parent, marker) always, a deleted link relinks its doc and the reply says so; a fold-in under propose-strike is proposals plus the folded mark in one write, and a fold-in on an already-folded link is honored again.
 - Built tasks 1 to 7 (76df89ed … 2a8b673b). Found while writing: an approval in a side doc changes two documents, so "one write per round" became one write per document, the parent first; a refused side-doc write after the fold landed must not fold twice (the next round sees the folded mark with no closing note). The adapter's exit 6 on the parent recomputes, exit 3 ends the round. The help now cites chat mode rather than restating it (ARCH-DRY), and the backlink rule moved into the skill.
 - Live check (task 8): five fresh-context subagents run real rounds on copies of the ten before/ trees, reading only the skill files (never examples/), with external effects simulated.
+- Live check (task 8), done. Five fresh-context agents ran real rounds on copies of all ten before/ trees, reading only the skill (never examples/), with external effects simulated. All ten matched after/ in structure: the same asks became edits, proposals, side docs, answer docs and clarifying turns, with the same links, names (summary slugs aside), frontmatter and untouched files. That includes both retry relinks, the closed doc left alone, and the fold-in proposal plus its folded mark. Wording differed, as expected.
+- The agents' notes found real gaps in the text, all fixed in the same round:
+  - a fold-in asked from the parent also writes the side doc's closing note, so the write order now covers every document a fold changes (parent first);
+  - the two-modes conflict compares names normalised;
+  - a failed round writes nothing untracked, and folds the submit when tracked;
+  - "ask afresh" means delete the link and reword; rewording a linked item is a follow-up;
+  - a closed doc is not an orphan;
+  - the slug names the question;
+  - a title-less parent's backlink uses the file name;
+  - an old qa/ file's frontmatter is left alone;
+  - a whole-doc review mode's own pass still runs;
+  - round.md points at the errors table.
+  Not changed: whether an insertion under propose-strike is a proposal is round.md §5's existing wording, older than S2.
+- Tracked round through Couch on a scratch type: session-sync document (scratchpad/tracked/s2-live.md, in ariadne:2):
+  - status, diff and read --all gave hash 19e244989b730621;
+  - the two side docs were written first, a numbered one for the Needs you question and a dated answer doc for the chat item;
+  - write --all with a wrong hash was refused with exit 6, and with the read hash it landed (cc18eac010564b02);
+  - diff was then empty, so the agent's write is outside the changes;
+  - nothing was folded: the owed list was the slot's own message backlog, not this file's submit. The registration was forgotten afterwards.
+- Targeted tests green: ./pkg/... ./cmd/weave/... ./cmd/tl-lead/... ./cmd/tl-worker/....

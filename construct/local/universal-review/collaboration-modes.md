@@ -40,11 +40,12 @@ collaboration-mode:
    take its mode unless they are named themselves, and then the nearer name wins.
 4. **Everything else** takes the default, including text above the first heading.
 
-Errors:
+Errors. A failed round writes nothing to an untracked document; a tracked one gets its snapshot written back as
+read, which folds the submit, since the reply answered it. When the review mode is bad too, report both.
 
 | Case | The round |
 |---|---|
-| a name listed under two modes | **fails**: change nothing, and name the heading and both modes in the reply |
+| a name listed under two modes, compared as in step 2 (`"Notes"` and `"notes"` are one name) | **fails**: change nothing, and name the heading and both modes in the reply |
 | a mode other than `discussion`, `collaboration`, `chat` (as a key, or as `default` or the bare scalar) | **fails**: change nothing, name the bad mode, and list the three |
 | a name that matches no heading | proceeds with the default there, and the reply names it: "`collaboration-mode.chat` names 'Operator instrucions', which matches no heading" |
 
@@ -54,6 +55,9 @@ What every mode keeps from round.md §5:
 - Proposals (`🤖~D~`, `🤖~D~{N}`, `🤖<X>{N}`, `🤖{N}`) are never ready by themselves.
 - A pending marker (its last turn is an agent turn) is left for the operator.
 - Every marker written is a single line.
+- A review mode with `scope: whole-doc` still makes its own pass, as its brief directs: that brief is the operator's
+  ask too. A collaboration mode changes only where a marker's or an item's answer goes, never whether the review
+  mode's pass runs.
 
 ### discussion
 
@@ -115,9 +119,10 @@ Each **item** of the section is an ask, not each marker.
   changed or deleted line inside it, a sub-item included). Append the follow-up and its answer to the end of that
   item's existing answer doc, under a `## Follow-up <date>` heading, and leave the link as it is. A change that only
   touches the link is not a follow-up. A deleted link makes the item a new ask again, answered by relinking its
-  matching answer doc (§4), and the reply says so. To ask afresh, the operator rewords the item.
+  matching answer doc (§4), and the reply says so. To ask afresh, the operator deletes the link and rewords the item;
+  rewording a linked item is a follow-up.
 - **A linked item's doc is wherever its link points**, an older `qa/…` file included: a follow-up extends that
-  file, never a new one in `<name>.side/`.
+  file, never a new one in `<name>.side/`, and leaves an older file's frontmatter as it is.
 - **A deleted item** closes its answer doc: never reopen or extend it. A later follow-up on that topic is a new item.
   One exception until a later slice adds a "closed" mark: a deleted item re-added word for word matches its old doc
   by `parent:` and `marker:`, so it is relinked (§4).
@@ -142,8 +147,8 @@ create a `.side/` inside a `.side/`.
 | side doc (discussion) | `NN-slug.md` | the next free number in the folder: two digits, widening as needed (`99`, then `100`); nothing is renamed |
 | answer doc (chat) | `YYYY-MM-DD-NN-slug.md` | the round's date, then the next free number among that day's answer docs |
 
-- The **slug** comes from the question: lowercase ASCII letters, digits and single hyphens, at most 40 characters,
-  cut at a hyphen; `question` if nothing is left.
+- The **slug** names the question in a few words (`lock-granularity`, `s4-cost`): lowercase ASCII letters, digits
+  and single hyphens, at most 40 characters; `question` if nothing is left.
 - The two kinds share a folder without colliding: a dated name starts with its date, and each kind counts its
   numbers apart (a dated name's year is never a side doc's number).
 
@@ -167,7 +172,8 @@ process-instruction: "[free-form]"           # only when the parent has one: cop
   question asked inside one opens a further side doc rather than an inline back-and-forth.
 
 **Body:** a `# ` title that is the question (or the item, shortened); a first line that links back to the parent and
-names the section, as `_From [<parent title>](<parent path>), section "<heading>"._`; then the answer. The backlink is
+names the section, as `_From [<parent title>](<parent path>), section "<heading>"._` (the parent's `# ` title, or
+its file name when it has none); then the answer. The backlink is
 a plain relative path with no `#anchor`, like `parent:`: an editor that opens links as files reads `#` as part of
 the name.
 
@@ -176,22 +182,24 @@ appends ` → [answer](<path>)` to the item's last line. The path is relative to
 link is applied directly, even under `deletions: propose-strike`: it removes only the marker, like any answered
 marker, so it is never shown as a strike-through proposal.
 
-**Writes and retries.** Each document a round changes gets one write, through the adapter: the submitted document,
-and the parent when a fold-in changes it. New side docs are new files.
+**Writes and retries.** Each document a round changes gets one write, through the adapter. A fold changes two: the
+parent it folds into, and the side doc whose closing note records it; one of them is the submitted document. Write in
+this order:
 1. Before allocating a name, look for an existing side doc in the folder whose `parent:` and `marker:` equal this
-   ask's. If one exists, link it and write no other. It is usually a refused round's (step 4); it may also be the
-   doc of a chat item whose link the operator deleted, or of an item re-added word for word, and then the reply
-   says it was relinked.
+   ask's. If one exists, link it and write no other, and the reply says it was relinked. It is usually a refused
+   round's (step 4); it may also be the doc of a chat item whose link the operator deleted, or of an item re-added
+   word for word.
 2. Write the new side docs.
-3. If the round folds into the parent, write the parent next. A stale write is recomputed, as the adapter says. If
-   the operator holds the parent's lock, stop there: the submitted document is left as it is, so its ask is
-   answered again after the operator's next submit.
-4. Write the submitted document. If that write is refused, the new side docs stay on disk, unlinked, and step 1
-   finds them next round. If the parent's write had landed, the next round finds the parent's link already marked
-   `(folded <date>)` with no matching closing note in the side doc: write the note and remove the marker, and don't
-   fold again.
-5. A side doc whose marker or item is gone (the operator deleted or rewrote it meanwhile) is an **orphan**. Keep it:
-   side docs are never pruned. Name it in the reply, so the operator can link it or let it go.
+3. Write the parent a fold changes. A stale write is recomputed, as the adapter says. If the operator holds the
+   parent's lock, stop there and write nothing else: the ask is answered again after the operator's next submit.
+4. Write the remaining documents: the side doc that records a fold, and the submitted document if it is not the
+   parent. If a write is refused, the new side docs stay on disk, unlinked, and step 1 finds them next round. If the
+   parent's write had landed, the next round finds the parent's link already marked `(folded <date>)` with no
+   matching closing note in the side doc: write the note and remove the marker, and don't fold again.
+5. A side doc that no link points to and whose marker or item is gone (a refused round wrote it, and the operator
+   deleted or rewrote the ask meanwhile) is an **orphan**. Keep it: side docs are never pruned. Name it in the
+   reply, so the operator can link it or let it go. A closed doc, whose linked item the operator deleted, is not an
+   orphan: leave it and don't name it.
 
 ## 5. States and actions
 
