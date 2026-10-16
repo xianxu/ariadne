@@ -1,12 +1,20 @@
 ---
 id: 000411
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-16
 estimate_hours:
-card_mirror: 'dd1b481dac7bea2207d42fa101201efdcc8aff50' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '4a7605f9c9b5a3a440ff90342cdd86957fc6a4e3' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-16T15:06:50-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # start-plan's weave refresh fails the first run in a Claude sandbox (settings.json is write-denied); a stale settings file goes unnoticed
@@ -33,8 +41,12 @@ then goes through, so the slot's `.claude/settings.json` may lag the woven one w
 
 ## Plan
 
-- [ ]
+- [ ] Reproduce denied settings publication and trace first-run/second-run behavior.
+- [ ] Make protected settings denial nonfatal with one actionable stale notice; retain ownership and unrelated error safeguards.
+- [ ] Verify settings recovery and start-plan behavior, run focused checks and the recorded suite, then close and land on SHIP.
 
 ## Log
 
 ### 2026-10-16
+
+- Root cause: catchUpBeforeWork only invokes refresh for behind HEADs. Refresh advances HEADs before compiling; publication denial fails the first run after Git progress, then the retry skips weave because HEADs are current. Preserve the independent moved-HEAD rebuilt-binary rerun (#303); no sandbox bypass. ARCH-DRY/PURE: reuse settingsx comparison, weavefs and managed ownership rather than classify arbitrary gate failures. Plan posted to hub; TL authorized proceeding after posting.
