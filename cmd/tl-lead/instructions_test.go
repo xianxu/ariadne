@@ -105,6 +105,11 @@ func TestLinkBullet(t *testing.T) {
 			t.Errorf("target %q: want a refusal", bad)
 		}
 	}
+	// #412: chat mode's answer docs live in the status file's .side/ folder.
+	const side = "tl-status-op.side/2026-10-16-01-s4-cost.md"
+	if got, err := linkBullet("1. what does S4 cost?", 1, side); err != nil || got != "1. what does S4 cost? → [answer]("+side+")" {
+		t.Errorf("a .side/ target: %q, %v", got, err)
+	}
 	// CRLF: the carriage return is trimmed before the link, as rstrip() does.
 	if got, _ := linkBullet("1. a\r", 1, target); got != "1. a → [answer]("+target+")" {
 		t.Errorf("CRLF line: %q", got)

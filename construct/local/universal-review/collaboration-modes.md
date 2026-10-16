@@ -167,7 +167,9 @@ process-instruction: "[free-form]"           # only when the parent has one: cop
   question asked inside one opens a further side doc rather than an inline back-and-forth.
 
 **Body:** a `# ` title that is the question (or the item, shortened); a first line that links back to the parent and
-names the section, as `_From [<parent title>](<parent path>), section "<heading>"._`; then the answer.
+names the section, as `_From [<parent title>](<parent path>), section "<heading>"._`; then the answer. The backlink is
+a plain relative path with no `#anchor`, like `parent:`: an editor that opens links as files reads `#` as part of
+the name.
 
 **In the parent:** discussion replaces the marker with `→ [discussion](<path>)` at the marker's own spot. Chat
 appends ` → [answer](<path>)` to the item's last line. The path is relative to the parent. Swapping a marker for its

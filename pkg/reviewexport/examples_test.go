@@ -415,6 +415,7 @@ func TestCollaborationModesProse(t *testing.T) {
 		"Never create a `.side/` inside a `.side/`",          // the flat folder
 		"Swapping a marker for its link is applied directly", // propose-strike
 		"don't fold again",                                   // a refused side-doc write after the fold landed
+		"a plain relative path with no `#anchor`",            // the body's backlink
 	} {
 		// Compared with whitespace collapsed, so rewrapping the prose doesn't break it.
 		if !strings.Contains(flat, phrase) {
