@@ -126,7 +126,8 @@ cannot parse
 stale binary fails, loudly and closed, naming the field. Each environment
 builds `sdlc` from its own ariadne checkout (the `construct/dev-aliases.sh`
 function). So after #277 lands, every environment's checkout has to advance:
-update ariadne:0, then run `weave refresh` on the resting branch of every :1+
+update ariadne:0 and rebuild its `bin/sdlc` (the alias never rebuilds in a
+Couch slot, #405), then run `weave refresh` on the resting branch of every :1+
 slot. Refresh fast-forwards the slot's private substrates and compiles.
 `weave compile` alone keeps existing Git revisions, so it does not pick the
 change up. Do this before the first claim from an updated environment. An

@@ -14,6 +14,10 @@ GEN="$ARIADNE_ROOT/construct/dev-aliases.sh"
 WS="$(mktemp -d "${TMPDIR:-/tmp}/devaliases57.XXXXXX")"
 trap 'rm -rf "$WS"' EXIT
 
+# A Couch slot's COUCH_TREE skips every build (#405); the cases that need one
+# set it themselves.
+unset COUCH_TREE
+
 pass=0; fail=0
 ok() { printf '  \033[32mPASS\033[0m %s\n' "$1"; pass=$((pass+1)); }
 ko() { printf '  \033[31mFAIL\033[0m %s\n' "$1"; fail=$((fail+1)); }
@@ -57,7 +61,9 @@ n_gmail="$(printf '%s\n' "$out" | grep -c '^gmail()')"
 [ "$n_gmail" = "1" ] && ok "exactly one gmail() emitted" || ko "expected 1 gmail(), got $n_gmail"
 
 # ── function-body shape (the defining property; fixture can't run go build) ───
-assert_contains 'cd '"$WS"'/ariadne && mkdir -p bin && d="$(mktemp -d bin/.sdlc.XXXXXX)" && { go build -trimpath -o "$d/sdlc" ./cmd/sdlc && mv -f "$d/sdlc" bin/sdlc;' "$out" "builds beside owner bin/ and renames into place (#355), owner cmd path"
+SKIP_SDLC='[ -x bin/sdlc ] && { [ -n "${COUCH_TREE:-}" ] || [ -z "$(find . \( -path ./.git -o -path ./bin \) -prune -o -newer bin/sdlc -type f -print -quit)" ]; }'
+assert_contains 'cd '"$WS"'/ariadne && { '"$SKIP_SDLC"' || { mkdir -p bin' "$out" "skips the build in a Couch slot or when bin/ is fresh (#405)"
+assert_contains '{ mkdir -p bin && d="$(mktemp -d bin/.sdlc.XXXXXX)" && { go build -trimpath -o "$d/sdlc" ./cmd/sdlc && mv -f "$d/sdlc" bin/sdlc;' "$out" "builds beside owner bin/ and renames into place (#355), owner cmd path"
 assert_contains "$WS/ariadne/bin/sdlc \"\$@\""                                                        "$out" "runs the owner-bin binary with caller args/cwd"
 
 # ── owner-declared preparation step (#299) ───────────────────────────────────
@@ -70,9 +76,9 @@ printf -- '-include Makefile.local\n' > "$WS/prepd/Makefile"
 printf '.PHONY: dev-prepare\ndev-prepare: assets/stamp\nassets/stamp:\n' > "$WS/prepd/Makefile.local"
 prep_out="$(bash "$GEN" --workspace "$WS" 2>/dev/null)"
 gen_line="$(printf '%s\n' "$prep_out" | grep '^gen()')"
-assert_contains 'cd '"$WS"'/prepd && make -s dev-prepare >&2 && mkdir -p bin && d="$(mktemp -d bin/.gen.XXXXXX)" && { go build -trimpath -o "$d/gen" ./cmd/gen' "$gen_line" "a declaring owner runs dev-prepare before go build"
+assert_contains ' || { make -s dev-prepare >&2 && mkdir -p bin && d="$(mktemp -d bin/.gen.XXXXXX)" && { go build -trimpath -o "$d/gen" ./cmd/gen' "$gen_line" "a declaring owner runs dev-prepare before go build"
 nous_line="$(printf '%s\n' "$prep_out" | grep '^nous()')"
-[ "$nous_line" = 'nous() { ( cd '"$WS"'/nous && mkdir -p bin && d="$(mktemp -d bin/.nous.XXXXXX)" && { go build -trimpath -o "$d/nous" ./cmd/nous && mv -f "$d/nous" bin/nous; s=$?; rm -rf "${d:?}"; exit $s; } ) || return; '"$WS"'/nous/bin/nous "$@"; }' ] \
+[ "$nous_line" = 'nous() { ( cd '"$WS"'/nous && { [ -x bin/nous ] && { [ -n "${COUCH_TREE:-}" ] || [ -z "$(find . \( -path ./.git -o -path ./bin \) -prune -o -newer bin/nous -type f -print -quit)" ]; } || { mkdir -p bin && d="$(mktemp -d bin/.nous.XXXXXX)" && { go build -trimpath -o "$d/nous" ./cmd/nous && mv -f "$d/nous" bin/nous; s=$?; rm -rf "${d:?}"; exit $s; }; }; } ) || return; '"$WS"'/nous/bin/nous "$@"; }' ] \
 	&& ok "an owner without dev-prepare keeps the exact plain form" || ko "plain form changed: [$nous_line]"
 # Make decides what declares the step: a rule (here, or via an include) does;
 # an assignment, a target-specific variable or a recipe line that merely
@@ -101,7 +107,7 @@ mkcmd "$WS/prepd/cmd/gen2"
 CNT="$WS/stubcount"; mkdir -p "$CNT"
 printf '#!/bin/sh\necho x >> "%s/calls"\nexit 1\n' "$CNT" > "$CNT/make"; chmod +x "$CNT/make"
 two_out="$(PATH="$CNT:$PATH" bash "$GEN" --workspace "$WS" 2>/dev/null)"
-assert_contains "gen2() { ( cd $WS/prepd && make -s dev-prepare" "$two_out" "the owner's second binary gets the cached answer"
+assert_contains " || { make -s dev-prepare" "$(printf '%s\n' "$two_out" | grep '^gen2()')" "the owner's second binary gets the cached answer"
 [ "$(wc -l < "$CNT/calls" | tr -d ' ')" = "1" ] && ok "one make detection per owner" || ko "make detections: $(wc -l < "$CNT/calls")"
 rm -rf "$CNT" "$WS/prepd/cmd/gen2"
 
@@ -239,6 +245,8 @@ STUBEOF
 chmod +x "$SLOW/go"
 nous_def="$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^nous()')"
 PATH="$SLOW:$PATH" bash -c "$nous_def; nous >/dev/null" || ko "the first build failed"
+# The first build is fresh; a later source edit makes the rebuilds below run.
+touch -t 203001010000 "$WS/nous/cmd/nous/main.go"
 MISS="$WS/misses"; : > "$MISS"
 ( end=$(( $(date +%s) + 3 )); while [ "$(date +%s)" -lt "$end" ]; do
 	got="$("$WS/nous/bin/nous" 2>>"$MISS")" || echo "exec failed" >> "$MISS"
@@ -270,6 +278,48 @@ fail_out="$(PATH="$FAILGO:$PATH" bash -c "$nous_def; nous" 2>/dev/null)"; fail_r
 left="$(ls -A "$WS/nous/bin" | grep -v '^nous$')"
 [ -z "$left" ] && ok "a failed build removes its build directory" || ko "left in bin/ after a failed build: $left"
 [ "$("$WS/nous/bin/nous")" = "built" ] && ok "a failed build keeps the previous binary" || ko "the previous binary was lost"
+
+# #405: the build runs only when needed. It is skipped when bin/X exists and
+# either COUCH_TREE is set (an agent shell in a Couch slot, which must never
+# build in the operator's :0 checkout) or no owner file outside .git and bin is
+# newer than bin/X. A skipped build skips dev-prepare too. A counting stub go
+# and make record what ran; file times are set explicitly, so no case depends
+# on timestamp resolution.
+OWN="$WS/skipd"; mkdir -p "$OWN/construct" "$OWN/.git" "$OWN/assets"; mkcmd "$OWN/cmd/skipd"
+printf '.PHONY: dev-prepare\ndev-prepare:\n' > "$OWN/Makefile"
+: > "$OWN/assets/page.md"; : > "$OWN/.git/index"
+CG="$WS/countbin"; mkdir -p "$CG"
+cat > "$CG/go" <<'STUBEOF'
+#!/bin/sh
+echo go >> "$TRACE"
+while [ "$#" -gt 0 ] && [ "$1" != -o ]; do shift; done
+[ "$#" -ge 2 ] || exit 2
+printf '#!/bin/sh\necho ran "$@"\n' > "$2"; chmod +x "$2"
+STUBEOF
+printf '#!/bin/sh\necho make >> "$TRACE"\n' > "$CG/make"
+chmod +x "$CG/go" "$CG/make"
+skipd_def="$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^skipd()')"
+export TRACE="$WS/skiptrace"
+# call [ENV=VAL…]: run the alias once; leaves what ran in $TRACE and the
+# alias's stdout in $got.
+call() { : > "$TRACE"; got="$(env "$@" PATH="$CG:$PATH" bash -c "$skipd_def; skipd x" 2>/dev/null)"; }
+age_all() { find "$OWN" -path "$OWN/bin" -prune -o -type f -exec touch -t 200001010000 {} +; }
+expect() { # expect TRACE-CONTENT LABEL
+	if [ "$(tr '\n' ' ' < "$TRACE")" = "$1" ] && [ "$got" = "ran x" ]; then ok "$2"; else ko "$2 — ran: [$(tr '\n' ' ' < "$TRACE")] stdout: [$got]"; fi
+}
+call; expect "make go " "a missing binary builds (dev-prepare, then go build)"
+age_all
+call; expect "" "a fresh binary skips dev-prepare and the build"
+touch -t 203001010000 "$OWN/.git/index" "$OWN/bin/.stray"
+call; expect "" "files under .git and bin never make it stale"
+touch -t 203001010000 "$OWN/assets/page.md"
+call; expect "make go " "any newer owner file, not only Go source, makes it stale"
+age_all; touch -t 203001010000 "$OWN/cmd/skipd/main.go"
+call COUCH_TREE=/some/slot; expect "" "in a Couch slot a stale binary is run, not rebuilt"
+rm -f "$OWN/bin/skipd"
+call COUCH_TREE=/some/slot; expect "make go " "in a Couch slot a missing binary still builds"
+unset TRACE
+rm -rf "$OWN" "$CG" "$WS/skiptrace"
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
