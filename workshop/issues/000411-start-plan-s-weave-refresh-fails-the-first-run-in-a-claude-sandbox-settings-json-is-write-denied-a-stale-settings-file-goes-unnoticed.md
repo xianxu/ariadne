@@ -51,3 +51,9 @@ then goes through, so the slot's `.claude/settings.json` may lag the woven one w
 ### 2026-10-16
 
 - Root cause: catchUpBeforeWork only invokes refresh for behind HEADs. Refresh advances HEADs before compiling; publication denial fails the first run after Git progress, then the retry skips weave because HEADs are current. Preserve the independent moved-HEAD rebuilt-binary rerun (#303); no sandbox bypass. ARCH-DRY/PURE: reuse settingsx comparison, weavefs and managed ownership rather than classify arbitrary gate failures. Plan posted to hub; TL authorized proceeding after posting.
+
+## Revisions
+
+### 2026-10-16 — choose operator settings publication
+
+Native denial reproduced before implementation. Simply swallowing publication errors is unsafe because managed displacement may already have removed an earlier backup. Choose the Spec's explicit operator-run settings write alternative: gate refresh defers settings and read-only observations report staleness even when Git is current. Preserve #303's independent rebuilt-binary rerun after HEAD advancement. Detailed implementation: workshop/plans/000411-protected-settings-plan.md. TL authorized posting the plan and proceeding.
