@@ -47,13 +47,22 @@ regular retros after long sessions, and agree to move the boundary so workers ar
 
 ## Plan
 
-- [ ] Add worker/lead phrase guards plus negative guards for retired approval
+- [x] Add worker/lead phrase guards plus negative guards for retired approval
   and landing-order wording; observe expected failures.
 - [ ] Update both help surfaces and Atlas for the approved boundary; run targeted
   tests, push the implementation, and record the full-suite check.
 - [ ] Prepare close with verification evidence and the boundary review.
 
 ## Log
+
+### 2026-10-16 — implementation
+
+All new worker/lead phrase guards failed before implementation on both default
+and --help output. The negative guard also caught all three retired central
+approval/order phrases. Updated both sides of the boundary, preserving the
+shared planning source. The hash rule already existed; strengthen its wording
+and add a phrase guard instead of duplicating it. Atlas maps the revised roles.
+
 
 ### 2026-10-15
 

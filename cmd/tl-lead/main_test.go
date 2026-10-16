@@ -42,6 +42,16 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		{"session-sync: the operator's lock", "The operator's lock is the only lock"},
 		{"dispatch judgment", "The dispatch message carries only"},
 		{"product stewardship", "STEWARDSHIP"},
+		{"worker approval", "worker-approved quick fixes"},
+		{"landing order", "The landing line orders landings"},
+		{"cross repo", "The TL files or folds cross-repo proposals"},
+		{"session retro", "After a long session or at the operator's request"},
+		{"retro approval", "agreed retro items"},
+		{"retro content", "what routed through the TL that needn't have"},
+		{"design dispatch", "design-heavy items to a Claude slot"},
+		{"design kinds", "an invariant, a new mechanism, user-visible state"},
+		{"bounded dispatch", "bounded execution against a fixed design to Codex"},
+
 		{"planning third-delta", "third design delta on the same mechanism"},
 		{"planning re-plan", "simplest alternative and why it fails"},
 		{"planning lifetime-resource", "held for the owner's lifetime"},
@@ -177,6 +187,19 @@ func TestLeadHelpNamesSubcommands(t *testing.T) {
 	for _, retired := range []string{"ss.py", "tl-status.py", "render-trains.py", "opinstr.py", "scripts/"} {
 		if strings.Contains(help, retired) {
 			t.Errorf("help names the retired %q", retired)
+		}
+	}
+}
+
+func TestLeadHelpRetiresCentralApprovalAndLandingOrder(t *testing.T) {
+	help := strings.Join(strings.Fields(helpOutput(t, "--help")), " ")
+	for _, retired := range []string{
+		"what runs where, in which order, when it lands",
+		"Review every plan as the product steward",
+		"Quick-flow plans skip it, so review them yourself",
+	} {
+		if strings.Contains(help, retired) {
+			t.Errorf("help retains superseded boundary: %q", retired)
 		}
 	}
 }
