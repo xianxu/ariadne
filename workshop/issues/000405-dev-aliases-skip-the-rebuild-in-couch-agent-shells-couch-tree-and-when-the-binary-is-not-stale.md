@@ -1,12 +1,12 @@
 ---
 id: 000405
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
-card_mirror: 'ae7347889e1a24d8fc21f9860810cb7e98ceb91b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '7bd2e0845a115766675744733a6b52d8051af512' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-15T20:34:51-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "dc91444b", done: "bf1822d9"}
+actual_hours: 0.53
 ---
 
 # dev-aliases: skip the rebuild in Couch agent shells (COUCH_TREE) and when the binary is not stale
