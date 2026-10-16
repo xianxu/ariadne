@@ -43,3 +43,21 @@ regular retros after long sessions, and agree to move the boundary so workers ar
 ## Log
 
 ### 2026-10-15
+
+## Revisions
+
+### 2026-10-16 — operator-approved boundary, relayed by ops:0
+
+- Approve self-applied flake handling and self-approved small fix plans within
+  the quick-flow shell; retain escalation for full-flow designs, design changes
+  and scope revisions.
+- Landing order belongs to the landing line; workers follow its admission order.
+- Replace move 3: cross-repo findings go to the TL as a one-line proposal. The TL
+  files or folds them to retain the cross-repo picture. Same-repo filings stay
+  direct. This supersedes the original peer-question boundary move above; workers
+  do not file peer-repo issues directly.
+- Report commit hashes only from Git output, never typed from memory; retain and
+  guard the existing worker rule using `git rev-parse`. Two overnight typed-hash
+  slips motivated this explicit requirement.
+- Preserve the post-session retro requirement. Source: verified Couch delivery
+  a98cba8c-06ec-4136-af9e-f797d7bd5418 from ops:0.
