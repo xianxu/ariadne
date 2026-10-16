@@ -38,7 +38,7 @@ Build-to-temp-then-rename is already on main (#355). The 20:28 `rm -f` came from
 
 ## Done when
 
-- The emitted function skips the build when `COUCH_TREE` is set and `bin/X` exists, and when `bin/X` is newer than every owner file. It builds when `bin/X` is missing or a file is newer.
+- The emitted function skips the build when `COUCH_TREE` is set and `bin/X` exists. It also skips it when `bin/X` is newer than every file and directory outside `.git` and `bin`, in the owner and in each local `go.mod` replace target outside it. It builds when `bin/X` is missing, a file is newer, or a file was added, deleted or renamed. A scan error counts as stale. A built binary carries its build's start time, so an edit made mid-build makes the next call rebuild.
 - `construct/scripts/test/dev-aliases.test.sh` runs the emitted function against a stub go and proves each case (stub-go call counts), plus the unchanged #355 rename and #299 dev-prepare shapes.
 - The script's header comment states the skip rules. The atlas sentence about "fresh every call" is corrected wherever it appears.
 
@@ -66,3 +66,4 @@ Build-to-temp-then-rename is already on main (#355). The 20:28 `rm -f` came from
 ## Revisions
 
 - 2026-10-15, close round 1: the freshness scan now also covers local go.mod replace targets outside the owner. A find error counts as stale, and a built binary is stamped with its build's start time. The docs now state the one write a slot can make in :0: building a missing binary.
+- 2026-10-15, close round 2: the scan counts directories too (no `-type f`), so an added, deleted or renamed file makes bin/X stale. Done when now covers round 1's replace targets, scan error and build-start stamp. The slot exception is now worded as an event: a slot writes to :0 only to build a missing binary, dev-prepare included. That replaces round 1's "the one write a slot can make".

@@ -16,12 +16,13 @@
 #   - COUCH_TREE is set: an agent shell in a Couch slot. The owner is the
 #     operator's :0 checkout, whose bin/ only the operator, the TL,
 #     `sdlc stage --build` or make rebuild, so a slot runs what :0 last built;
-#   - bin/X is fresh: no regular file outside .git and bin is newer than it,
-#     in the owner or in a local go.mod replace target outside it
+#   - bin/X is fresh: no file or directory outside .git and bin is newer than
+#     it, in the owner or in a local go.mod replace target outside it. A
+#     directory's time catches an added, deleted or renamed file
 #     (`find -newer -print -quit`, about 0.13s on 7.6k files; fresh_scan
 #     below). A find error counts as stale. A toolchain change alone doesn't.
-# A missing bin/X always builds, from a slot too, so the slot's first call on
-# a fresh :0 writes there; that is the one write a slot makes. A built bin/X
+# A missing bin/X always builds, from a slot too: a slot writes to :0 only to
+# build a missing binary, dev-prepare included. A built bin/X
 # takes the time its build started (.start), so a file edited mid-build reads
 # as newer on the next call.
 #
@@ -264,7 +265,8 @@ owner_prepares() {
 }
 
 # fresh_scan OWNER BIN: the emitted test (#405) that bin/BIN is fresh, i.e. no
-# regular file in the trees its build reads is newer. Those trees are the owner
+# file or directory in the trees its build reads is newer (a directory's time
+# records a deletion or rename). Those trees are the owner
 # and each local `replace` target in the owner's go.mod that lies outside it
 # (metis builds against ../ariadne). Only the main module's replaces apply to a
 # build, so the dependencies' own go.mod files are not followed. A find error
@@ -282,7 +284,7 @@ fresh_scan() {
 $(awk '{ sub(/\/\/.*/, "") } /^replace[ \t]*\(/ { blk=1; next } blk && /^\)/ { blk=0; next }
 	(blk || /^replace[ \t]/) && /=>/ { sub(/.*=>[ \t]*/, ""); split($0, f, /[ \t]+/); if (f[1] ~ /^(\.\.?\/|\/)/) print f[1] }' "$owner/go.mod" 2>/dev/null)
 REPLACES
-	printf '[ -z "$(find %s \\( %s \\) -prune -o -newer bin/%s -type f -print -quit 2>/dev/null || echo stale)" ]' "$roots" "$prune" "$bin"
+	printf '[ -z "$(find %s \\( %s \\) -prune -o -newer bin/%s -print -quit 2>/dev/null || echo stale)" ]' "$roots" "$prune" "$bin"
 }
 
 prepared="|"

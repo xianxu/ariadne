@@ -88,14 +88,16 @@ so it's safe for a service binary like `nous`) and runs it in
 the **caller's** cwd, so it works for both repo-bound tools
 (`sdlc`, operates on the repo you're in) and run-anywhere tools (`nous`). It
 builds only when it has to (#405). If `bin/X` exists, the build is skipped when
-no file outside `.git` and `bin` is newer than `bin/X`, in the owner or in a
+no file or directory outside `.git` and `bin` is newer than `bin/X` (a
+directory's time catches a deleted or renamed file), in the owner or in a
 local `go.mod` `replace` target outside it (metis builds against `../ariadne`).
 It is always skipped in a Couch slot (`COUCH_TREE` set). An owner is the
 operator's `:0` checkout, and **`:0`'s `bin/` is rebuilt only by the operator, the
 TL, `sdlc stage --build` or `make`**: an agent shell in a slot runs whatever
 `:0` last built and never rebuilds an existing binary. So fast-forwarding `:0`
 doesn't roll out a new binary until one of those builds it. A missing `bin/X`
-always builds, from a slot too, so that is the one write a slot can make in `:0`.
+always builds, from a slot too: a slot writes to `:0` only to build a missing
+binary, `dev-prepare` included.
 A built binary takes the time its build started, so a file edited mid-build reads
 as newer on the next call; a scan error counts as stale. When it builds, the emitted function builds into a per-call `mktemp -d bin/.X.XXXXXX` directory beside
 the target and renames the result over `bin/X` (#355); the exact form is the one
