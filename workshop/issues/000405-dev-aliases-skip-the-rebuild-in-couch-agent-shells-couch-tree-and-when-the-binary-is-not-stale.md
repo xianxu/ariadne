@@ -52,6 +52,7 @@ Build-to-temp-then-rename is already on main (#355). The 20:28 `rm -f` came from
 ## Log
 
 ### 2026-10-15
+- 2026-10-15: closed — Round 2 fixes: BR-4, the scan drops -type f so directory times catch added, deleted and renamed files; new tests for an added file and a deleted file fail when -type f is restored (mutation-checked); the real pair tree still scans fresh. BR-5: Done when covers the replace targets, scan error and build-start stamp. Minor: the slot exception reads as an event (a slot writes to :0 only to build a missing binary, dev-prepare included) in the script header, base-layer and Revisions. dev-aliases.test.sh 65 passed. Full make test green on round 0 (12 shards); rounds 1 and 2 touch only the dev-aliases script and its test, and the construct-scripts runner passed 6 of 6.; review verdict: SHIP
 
 - TL approved the plan and its consequence: slots run whatever :0 last built, and no slot rebuilds even when the binary is stale. The atlas states who rebuilds :0's bin/.
 - #355 already builds to a temporary name and renames, so that part of the request was done. The 20:28 rm -f came from an agent shell snapshot from 10-13, before #355. Sessions keep their snapshot's functions until they restart.
