@@ -47,7 +47,7 @@ Build-to-temp-then-rename is already on main (#355). The 20:28 `rm -f` came from
 - [x] Emit the skip guard in `construct/dev-aliases.sh` and update its header comment.
 - [x] Tests: behavioural cases with a stub go (COUCH_TREE with the binary present and missing, fresh, stale, dev-prepare skipped when fresh); update the exact-shape assertions.
 - [x] Atlas wording: base-layer (the rule that :0's bin/ is rebuilt only by the operator, the TL, sdlc stage --build or make) and the issue-tracker rollout sentence. README needed no change.
-- [ ] Full `make test`.
+- [x] Full `make test`: green, 12 shards, exit 0.
 
 ## Log
 
