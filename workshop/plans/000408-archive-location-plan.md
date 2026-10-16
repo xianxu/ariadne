@@ -84,3 +84,9 @@ The new regression group passed in 84.718s. The broader Test(Publish|MoveDetail|
 ### 2026-10-16 — full-suite evidence
 
 Recorded suite on the pushed correction passed: 1,516 SDLC tests across 12 shards plus 66 packages, zero failures, 701.4s wall. Close review is the remaining boundary before landing PR #269.
+
+### 2026-10-16 — BR-4 proposal, awaiting TL decision
+
+Close round 2 disposed BR-1/BR-2/BR-3, but reproduced stale terminal eligibility after preflight. This is the third mechanism correction, so implementation is stopped under the TL's explicit limit. Proposed rule: every unconfirmed initial publication requires a current nonterminal card AND no ID-wide details. Reuse BeforePublish: read the current tracker card, apply requireInitialDetails, then retain location/asset checks. The existing reachability-first recovery behavior is unchanged. No new hook, receipt or state.
+
+If approved, add terminal transition regressions at the existing first/retry/saved-receipt boundaries using the stateful Git fixture; assert refusal, unchanged main and source retention. Run red/green, the broader group and recorded full suite, then re-close. No code for BR-4 has been written.

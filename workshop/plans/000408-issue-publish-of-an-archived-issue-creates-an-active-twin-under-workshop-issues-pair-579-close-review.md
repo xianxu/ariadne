@@ -85,3 +85,100 @@ Atlas documents the correction. No new command, flag, or configuration surface r
 Append `## Revisions` entries covering complete transfer/recovery location revalidation and the missing local-only archive acceptance criteria. Reopen the candidate-recheck Plan item until those paths are covered.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"22ab9433-737e-4cb6-a283-c4155d8d806e","repository":"github.com/xianxu/ariadne","issue_id":"000408","recipe":"small-diff-review","round":1,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/abe73d1142956477","reviewed_head":"7ca9a41743d8986f4ee5211494eac15355da3737","slot":"ariadne:3","requested_at":"2026-10-16T18:49:51.637226Z"},"phase":"finished","pid":92349,"started_at":"2026-10-16T18:49:51.865379Z","finished_at":"2026-10-16T18:51:24.477328Z","session_id":"01a1460c-965f-7601-91f4-1c8509cf8602","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-16T12:25:23-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 408 — issue publish of an archived issue creates an active twin under workshop/issues (pair#579) |
+| repo | ariadne |
+| issue file | workshop/issues/000408-issue-publish-of-an-archived-issue-creates-an-active-twin-under-workshop-issues-pair-579.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 1a8c52756b74160f23240dd123ddc25f5b20ed32..411260a95cd22e012c9e0b74b5e73983b843001b |
+| command | sdlc close --issue 408 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-16T12:25:23-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The archive-location fixes work, and all three prior findings are addressed. One related correctness gap remains: terminal-card admission is checked only at preflight. A card becoming `done` before publication can still receive new active details, including through saved-receipt recovery.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The shared BeforePublish hook now rechecks ID-wide locations. All six archive regressions pass on head and fail when this guard is removed, covering both archive layouts across first publication, moved-main retry and receipt recovery.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      issuepublish.go:104 filters local candidates through the canonical filename parser before either local decision. All six discovery regressions pass on head and fail when the filter is removed.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The issue's Done when at lines 41–42 explicitly requires local-only archive refusal, byte preservation, unchanged main and no active details. This matches issuepublish.go:121–122 and TestPublishUnpublishedLocalArchiveRefuses, which passed.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: publication-location-revalidation
+    title: |
+      Terminal-card admission still bypasses publication-time revalidation
+    detail: |
+      cmd/sdlc/issuemovedetail.go:439–451 revalidates locations but never calls requireInitialDetails against the current card; that check remains confined to preflight. In a disposable pinned-head reproduction using archiveRaceTransfer, changing the card to done before transfer.main preparation made Drive return success, publish workshop/issues/000008-spin-off.md and remove the local source. Changing the card after saving the candidate also let recovery succeed; subsequent cleanup archived the newly published file instead of refusing. This violates Spec lines 32–33. This is the 2nd finding in family publication-location-revalidation: do not fix only this instance. State and enforce the shared rule that every unconfirmed initial publication requires both an eligible current card and no existing ID-wide details. Sweep first publication, candidate replay and moved-base retry, with terminal-status regressions and confirmed-publication recovery preserved. ARCH-PURPOSE, ARCH-ORDER.
+```
+
+1. **Strengths**
+
+   - `publishedDetailPath` provides one resolver shared by republish and transfer admission.
+   - Archive tests cover both layouts, mixed active/archive publication, duplicate refusal and source preservation.
+   - Removing the BR-1 and BR-2 fixes independently exposed their intended failures across all twelve regression cases.
+   - Atlas documents the changed resolution and recovery flow.
+
+2. **Critical findings**
+
+   - **Terminal-card revalidation**, `cmd/sdlc/issuemovedetail.go:439`: read the current card through the existing tracker seam and apply terminal admission before an unconfirmed publication. Preserve the existing reachability-first handling for already-published candidates.
+
+3. **Important findings**
+
+   None.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - Focused pinned-head tests passed in **117.139s**.
+   - Removing the two prior behavioral fixes produced the expected twelve failures.
+   - Additional terminal-card probes failed against unchanged production code: publication succeeded despite `status: done`. The first-publication probe confirmed an active main file and removed local source.
+   - Disposable checkout removed; reviewed checkout remains clean at the pinned head. The full suite was not independently rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared resolver and canonical filename grammar.
+   - **ARCH-PURE — pass:** the declared PURE admission helper and its direct test require no IO; Core concepts entities exist and match their stated changes.
+   - **ARCH-PURPOSE — flag:** the no-resurrection contract remains incomplete for terminal-card changes.
+   - **ARCH-MOCK — pass for this delta:** existing Git seam and isolated, stateful bare-origin fixtures exercise production operations.
+   - **ARCH-CONSTRAINTS — pass:** bounded snapshot facilities are reused; no added concurrency.
+   - **ARCH-SECURE — pass:** canonical paths and filename parsing are reused; read errors propagate.
+   - **ARCH-ORDER — flag:** preflight card eligibility becomes stale across publication and receipt replay.
+   - **ARCH-FUNERAL — pass:** no new durable artifact family.
+   
+   Atlas is updated. No new command, flag or configuration syntax requires a README addition.
+
+7. **Plan revision recommendations**
+
+   Append a `## Revisions` entry defining initial-publication eligibility as **current nonterminal card plus absent ID-wide details**. Enumerate checks and regression coverage across first publication, moved-base retry and saved-candidate recovery, while retaining confirmed-publication recovery.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"b223f882-64e4-4c00-a786-1ed9ea257d6e","repository":"github.com/xianxu/ariadne","issue_id":"000408","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/fc9c54246fc5f9a6","reviewed_head":"411260a95cd22e012c9e0b74b5e73983b843001b","slot":"ariadne:3","requested_at":"2026-10-16T19:20:08.85452Z"},"phase":"finished","pid":57179,"started_at":"2026-10-16T19:20:09.200677Z","finished_at":"2026-10-16T19:25:19.349407Z","session_id":"01a14628-506c-7f80-b623-fe47c2be186c","outcome":"returned"}] -->

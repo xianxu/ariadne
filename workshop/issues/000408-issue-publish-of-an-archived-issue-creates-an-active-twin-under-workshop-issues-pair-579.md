@@ -56,6 +56,13 @@ flow: {kind: full, provenance: operator}
 
 ## Log
 
+### 2026-10-16 — close round 2 stopped for TL decision
+
+Close returned REWORK, leaving the card working. The independent reviewer confirmed BR-1/BR-2/BR-3 addressed, including mutation evidence: removing each behavioral fix reproduced its six failures. New Critical BR-4 shows terminal-card admission can become stale between preflight and initial publication or saved-candidate recovery; the reviewer reproduced active creation and source removal after a card became done. No further code has been changed. Per the TL's explicit instruction to stop before a third mechanism change, the next correction waits for the TL decision.
+
+Proposed correction for review: retain the same BeforePublish seam and reachability-first behavior. Read the current card through env.repo.Snapshot/Require, then call the existing pure requireInitialDetails before the existing location/asset checks. The shared unconfirmed-publication rule becomes current nonterminal card AND absent ID-wide details. Extend the current stateful fixture to change card status across first/retry/saved-receipt boundaries; assert refusal, no active main write and source retention. No new state, receipt or hook. Re-run targeted tests, recorded suite and close after approval.
+
+
 ### 2026-10-16 — final correction full suite
 
 Recorded suite passed on 30acd23c1e70d785dacce6d86d09e851941d7145: 1,516 SDLC tests across 12 shards and 66 other packages, zero failures, 701.4s wall (11m42s recorded). Evidence: sdlc-local/suite success, log sha256:18c999319064. The final regression group passed in 84.718s and broader publication/transfer/recovery coverage in 207.171s. BR-1 is addressed through the existing BeforePublish hook shared by first/retry/recovery; BR-2 by filtering canonical filenames before family classification; BR-3 by the appended acceptance clauses. PQ-1 prose is compressed to function-specific strategies. No new receipt/state mechanism introduced.
