@@ -1,12 +1,12 @@
 ---
 id: 000399
-status: codecomplete
+status: done
 deps: [parley.nvim#332, pair#573]
 github_issue:
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
-card_mirror: '6a8a5648d052dd9877a01fb4b4a97587273dede0' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '4ded3e7820a8c1ea69e63cde8761115bfa701004' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-15T16:24:58-07:00
 claimant:
     operator: Xian Xu
