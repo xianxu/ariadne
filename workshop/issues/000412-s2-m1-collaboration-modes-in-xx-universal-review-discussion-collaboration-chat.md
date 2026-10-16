@@ -64,13 +64,13 @@ Deliverables:
 
 Durable plan: [workshop/plans/000412-s2-collaboration-modes-plan.md](../plans/000412-s2-collaboration-modes-plan.md). Tasks 1 to 9 there, one boundary (no Mx).
 
-- [ ] 1. collaboration-modes.md: the protocol (frontmatter, sections, the three modes, instructions that act, side docs, the state table)
-- [ ] 2. round.md §4 routes by collaboration mode; §5 opening, §6 reply, SKILL.md pointer, the adapter's side-doc paragraph
-- [ ] 3. examples/: ten cases, each with before/ and after/ trees and a case.md
-- [ ] 4. examples_test.go: the side-doc contract checker (TDD against a broken copy) and nextSideDocName
-- [ ] 5. export: the collaboration-modes member at Version 1, export.json regenerated
-- [ ] 6. tl-lead help: the session file's collaboration-mode line, chat mode cited, answer docs in tl-status-<op>.side/; topic tests
-- [ ] 7. atlas: universal-review.md (and tl-skills.md)
+- [x] 1. collaboration-modes.md: the protocol (frontmatter, sections, the three modes, instructions that act, side docs, the state table)
+- [x] 2. round.md §4 routes by collaboration mode; §5 opening, §6 reply, SKILL.md pointer, the adapter's side-doc paragraph
+- [x] 3. examples/: ten cases, each with before/ and after/ trees and a case.md
+- [x] 4. examples_test.go: the side-doc contract checker (TDD against a broken copy) and nextSideDocName
+- [x] 5. export: the collaboration-modes member at Version 1, export.json regenerated
+- [x] 6. tl-lead help: the session file's collaboration-mode line, chat mode cited, answer docs in tl-status-<op>.side/; topic tests
+- [x] 7. atlas: universal-review.md (and tl-skills.md)
 - [ ] 8. live check: rounds on the examples' before.md copies, and one tracked round through Couch
 - [ ] 9. full suite via sdlc local-check, then sdlc close
 
@@ -112,3 +112,7 @@ total: 4.33
 - Plan approved by the TL (19edb7f1): full flow pinned (it changes how every agent answers every document); O1 decided, a 🤖[fold in] by a link is an imperative and becomes an edit in M1, marking the link folded; the session file line and moving the QA answers are the TL's after landing, with the exact line in the landing report.
 - parley.nvim:4 confirmed O1 (e2492347, folded into ops 7d0b425d): one fold-in with two triggers (an approval in the side doc, a 🤖[fold in] by the link in the parent), both marking the link folded. With no settled proposal to fold, the agent asks with a one-line clarifying turn, as for an ambiguous ok.
 - plan-quality round 1: FAILURE on PQ-1 (the examples layout cannot hold side docs before and after a round). Fixed by per-case before/ and after/ trees, swept across the plan; the three Minors fixed (gitignore in the landing report, old qa/ links followed, Non-goals). O2 (deleted chat link against reuse) and O3 (a fold-in under propose-strike) sent to parley.nvim:4.
+- change-code passed (full flow pinned): plan-quality clean in round 2; estimate 4.33 h, estimate-quality INFO (it judged the examples' and the live check's impl light; kept, since it's advisory and the parallel live check offsets it).
+- parley.nvim:4 answered O2 and O3 (f3608f76; ops 36157bcf): reuse by (parent, marker) always, a deleted link relinks its doc and the reply says so; a fold-in under propose-strike is proposals plus the folded mark in one write, and a fold-in on an already-folded link is honored again.
+- Built tasks 1 to 7 (76df89ed … 2a8b673b). Found while writing: an approval in a side doc changes two documents, so "one write per round" became one write per document, the parent first; a refused side-doc write after the fold landed must not fold twice (the next round sees the folded mark with no closing note). The adapter's exit 6 on the parent recomputes, exit 3 ends the round. The help now cites chat mode rather than restating it (ARCH-DRY), and the backlink rule moved into the skill.
+- Live check (task 8): five fresh-context subagents run real rounds on copies of the ten before/ trees, reading only the skill files (never examples/), with external effects simulated.
