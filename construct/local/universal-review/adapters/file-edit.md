@@ -36,8 +36,11 @@ One round reviews one snapshot: the text whose hash you write against.
    submits): they are the asks this round answers. A `delivery-gap` or
    `not-recording` refusal means owed events are unknown, not zero: follow the
    refusal's advice before writing.
-2. **Changes since your last read:** `couch --session-sync diff FILE`. It must
-   come before step 3, which marks everything seen and empties it.
+2. **Changes since your last read:** `couch --session-sync diff FILE`. Couch
+   moves its baseline on your write, so the diff never holds your own edits
+   (`couch --skill`: "anything outside what you last wrote or read with
+   `--all`"). It must come before step 3, which marks everything seen and
+   empties it.
 3. **The snapshot:** `couch --session-sync read --all FILE` prints the text and
    its hash H. This text is the round's input: the instruction comes from its
    frontmatter, and the markers from its body. The diff only points at what

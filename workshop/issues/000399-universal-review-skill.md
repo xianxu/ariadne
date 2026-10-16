@@ -148,3 +148,4 @@ S2 and project.md S2a. This is the shared-skill half; no Parley code belongs her
   - the Revisions entries above.
   The operator's own-edits requirement (5ef50ef6) is folded into the adapter's Untracked section and round.md §1.
 - 2026-10-15: fixed-then-ship round 2 was REWORK. The Important (BR-5): the operator requirement was a scope change after close, so a full sdlc close follows. The Minor is fixed as a rule: the adapter now states when each temporary file is deleted, including the last base copy, deleted when you are done with the document.
+- 2026-10-15: re-close round 3 was SHIP, and its 2 Minors are fixed. The adapter now cites Couch's documented diff baseline, which moves on the agent's write, and the atlas states the own-edits rule for both paths.

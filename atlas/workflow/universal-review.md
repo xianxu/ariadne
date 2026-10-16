@@ -15,7 +15,9 @@ skill carries the rest.
   confirmed untracked lookup; a `type: session-sync` file (tracked even outside a slot) or a registered one goes through
   `couch --session-sync` status → diff → `read --all` (the snapshot, hash H) →
   `write --all --if-hash H --fold <the IDs from status that this write answers>`. Exit 3 (lock) defers to the
-  next submit; exit 6 (stale) recomputes.
+  next submit; exit 6 (stale) recomputes. "Changes since your last read" never hold the
+  agent's own edits: Couch's diff baseline moves on its write, and an untracked file is
+  diffed against the copy the agent saved after its last write (operator requirement).
 - **`review-convention.md`** — a symlink to `construct/local/fix/review-convention.md`, the
   one authored marker grammar.
 - **`export.json`** — the versioned manifest (`ariadne/universal-review-export` v1) parley's
