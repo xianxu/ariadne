@@ -126,7 +126,7 @@ It is checked by a grep assertion that the rule's sentence appears in `collabora
 | 7 | "ok" in a side doc | `examples/discussion/`: the parent's text holds the proposal, the link reads "(folded 2026-10-16)", and the side doc ends with the applied note |
 | 8 | an ambiguous "ok" | `examples/discussion/`: 🤖[ok]{which: …?} in a side doc that proposed two things |
 | 9 | "file this" | prose (filing is a real effect); the example shows the side doc's closing record line, with no issue filed |
-| 10 | an asked fold-in | **S3**, out of scope; collaboration-modes.md says so (prose). Open point O1 below |
+| 10 | an asked fold-in | `examples/discussion/`: a 🤖[fold in] by an existing link becomes an edit to the parent, with the link marked "(folded 2026-10-16)" (O1, decided). The index and closing stay S3 |
 | 11 | collaboration question | `examples/collaboration/`: the answer is folded into the prose, the marker is gone, and no side doc exists. Checker: no `.side/` link in collaboration sections |
 | 12 | a new chat item | `examples/chat/`: item 5 gains ` → [answer](before.side/2026-10-16-01-s4-cost.md)`. Checker: the dated name, numbered per day |
 | 13 | a chat instruction | `examples/chat/`: the answer doc records what was done and where |
@@ -202,9 +202,12 @@ The contract edges (D§2, D§4), each an example or a checker case:
 
   These go into `collaboration-modes.md` (task 1) and the examples: `chat/` gains a sub-item edit (row 14) and a
   deleted-link item (a new ask), and `chat/retry/` covers a relinked orphan answer doc (row 17b for chat).
-- **O1, row 10 before S3.** Under discussion, 🤖[fold in] beside a link is an imperative, so M1 would edit the parent
-  from the discussion without marking the link folded. Or M1 could leave it, pending, with a `{fold-in comes with
-  S3}` turn. I'd take the edit: it's the operator's literal ask, and S3 then adds the mark. This needs parley.nvim:4's
-  call.
+- **O1, row 10 before S3: decided by the TL (message 19edb7f1, 2026-10-16).** Under discussion, a 🤖[fold in] beside
+  a link in the parent is an imperative, so M1 carries it out as an edit to the parent from the discussion. It marks
+  the link "(folded <date>)", as row 7 does. S3 later adds the index and closing around it. Row 10's test-list entry
+  becomes `examples/discussion/`: a 🤖[fold in] beside an existing link, with the folded text in after.md and the
+  link marked.
+- **The flow: pinned to full by the TL.** The change alters how every agent answers every document, so it gets the
+  plan-quality review and a real estimate.
 - **The live session file.** Adding `collaboration-mode:` to `teams/devinfra/tl-status-xian-xu.md` is ops' file and
   the TL's write. The help states it, and the TL applies it once M1 lands.
