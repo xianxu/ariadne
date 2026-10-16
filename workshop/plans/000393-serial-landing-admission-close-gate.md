@@ -336,6 +336,354 @@ rounds:
       isolation: checkout
       reviewed: 60c6724cea01c7460dff564a5adf2af2097788bb
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: a30690e7-c055-4edb-9b15-eb23055729a8
+            repository: github.com/xianxu/ariadne
+            issue_id: "000393"
+            recipe: milestone-review
+            round: 1
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/2d8e850921a514d3
+            reviewed_head: 6619f0b44d6b0513d5554ac09b0406f642973dbf
+            slot: ariadne:2
+            requested_at: "2026-10-16T08:18:13.571086Z"
+          phase: finished
+          pid: 48633
+          started_at: "2026-10-16T08:18:14.375818Z"
+          finished_at: "2026-10-16T08:23:06.776724Z"
+          session_id: 73d6a3de-6b94-4d08-adc5-1656a874146c
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 6619f0b44d6b0513d5554ac09b0406f642973dbf
+        tracker_head: 7605116fdd0dddc1b6d6215484a89e883956bee6
+        branch_point: 655bda2e67d4fcb701adda3c88f3bc526fae1f05
+        since: "2026-10-15T23:44:34-07:00"
+        until: "2026-10-16T00:40:37-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-15T23:44:34-07:00"
+              end: "2026-10-16T00:40:37-07:00"
+              began: "2026-10-15T23:44:34-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 42a78a01-c26e-45f2-abad-7a5f8c34d21a
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 57542ed79e3a75603be304fa9a05a575f7ce08a4e3902f3ca08d54e8f50f9042
+              started: "2026-10-16T06:53:29.832Z"
+              spawned: false
+              bytes: 600670
+              windows:
+                - start: "2026-10-16T06:53:29.832Z"
+                  end: "2026-10-16T00:40:37-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 2a0b1ebe6ec75ca8d366d303154c53e170448e567b870fb97722a918a6ee56fd
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 13741374
+              windows:
+                - start: "2026-10-15T23:44:34-07:00"
+                  end: "2026-10-16T00:40:37-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-16T00:05:18-07:00"
+              finalized: "2026-10-16T00:07:33-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-16T00:10:49-07:00"
+              finalized: "2026-10-16T00:13:11-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-16T00:15:25-07:00"
+              finalized: "2026-10-16T00:17:35-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-16T01:23:08-07:00"
+      dispatched: "2026-10-16T01:18:13-07:00"
+      agent: claude
+      findings:
+        - kind: defect
+          id: BR-11
+          severity: Important
+          title: anyMergedPR lets a branch with an old merged PR plus a new open PR skip the landing line and land outside it
+          detail: 'landing.go:366-375 skips the line if any PR for the branch is MERGED, but gh pr list --state all also returns old merged PRs, and selectLandingPR (landing.go:191) later picks the OPEN PR at the current head and runs integrate/suite/merge without a turn, breaking Done-when 1 when a branch name is reused. Fix: skip only when the PR the landing would select (selectLandingPR with the local head) is MERGED, or when no OPEN PR exists; add a fake-GitHub test with an old merged PR and an open PR on the same branch that waits behind a held line.'
+          family: gate-skip-predicate-divergence
+          round: 4
+        - kind: defect
+          id: BR-12
+          severity: Important
+          title: Plan still claims a landingLineOpen seam and landing_line_test.go, and omits landingqueue.go and an M2 Revisions entry
+          detail: '3rd finding in this family, so fix the rule, not this instance: every entity and seam the diff adds or renames appears in the Core concepts tables at its built path, and every as-built deviation gets a dated Revisions entry in the same milestone. Instances: plan line 54 names a package variable landingLineOpen that does not exist (the seams are landingLinePoll and the real common dir); Task 4 names landing_line_test.go but the tests are in landingqueue_test.go; landingqueue.go (enterLandingLine, landingTurn, openLandingLine, landingLineDir) is missing from the Integration points table.'
+          family: plan-table-drift
+          round: 4
+        - kind: defect
+          id: BR-13
+          severity: Minor
+          title: sdlc landing status prints grants in random map order
+          detail: landingcmd.go loops over the ValidGrants map directly; sort by issue number.
+          family: deterministic-output
+          round: 4
+        - kind: defect
+          id: BR-14
+          severity: Minor
+          title: Errors from landing-line event and grant writes are ignored with no warning
+          detail: The enqueue, OnAdmit and leave writes in landingqueue.go discard errors from Record and AddGrant, so a disk that stays full or unwritable silently loses all audit and pilot data; warn once on stderr.
+          family: audit-write-failure-visibility
+          round: 4
+        - kind: defect
+          id: BR-15
+          severity: Minor
+          title: A duplicate merge admitted after the original landed logs a second landed event and skews the delay p90
+          detail: leave() logs EventLanded whenever err is nil, including when the admitted run only resumed cleanup of a PR that was already MERGED; use a distinct kind or skip it.
+          family: pilot-metric-fidelity
+          round: 4
+      boundary: M2
+      recipe: milestone-review
+      isolation: checkout
+      blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: a06f3992-9a80-4711-abea-018a15274d9b
+            repository: github.com/xianxu/ariadne
+            issue_id: "000393"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/3613a7274340dd53
+            reviewed_head: 5f7a88ff5e5bf298e12f774bcdd6cc09c5f01c4f
+            slot: ariadne:2
+            requested_at: "2026-10-16T08:29:17.033609Z"
+          phase: finished
+          pid: 69936
+          started_at: "2026-10-16T08:29:17.364371Z"
+          finished_at: "2026-10-16T08:59:56.216273Z"
+          session_id: e51e4dd9-c6a0-4a65-8d8d-98c38923666a
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 5f7a88ff5e5bf298e12f774bcdd6cc09c5f01c4f
+        tracker_head: 7605116fdd0dddc1b6d6215484a89e883956bee6
+        branch_point: 655bda2e67d4fcb701adda3c88f3bc526fae1f05
+        since: "2026-10-15T23:44:34-07:00"
+        until: "2026-10-16T01:28:10-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-15T23:44:34-07:00"
+              end: "2026-10-16T01:28:10-07:00"
+              began: "2026-10-15T23:44:34-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 42a78a01-c26e-45f2-abad-7a5f8c34d21a
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 57542ed79e3a75603be304fa9a05a575f7ce08a4e3902f3ca08d54e8f50f9042
+              started: "2026-10-16T06:53:29.832Z"
+              spawned: false
+              bytes: 600670
+              windows:
+                - start: "2026-10-16T06:53:29.832Z"
+                  end: "2026-10-16T01:28:10-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6279ed7ac64a7705cee5ba2a4b6ee66ec685b2805a43e30ecec68cc764f8a669
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 13901290
+              windows:
+                - start: "2026-10-15T23:44:34-07:00"
+                  end: "2026-10-16T01:28:10-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-16T00:05:18-07:00"
+              finalized: "2026-10-16T00:07:33-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-16T00:10:49-07:00"
+              finalized: "2026-10-16T00:13:11-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-16T00:15:25-07:00"
+              finalized: "2026-10-16T00:17:35-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-16T01:18:13-07:00"
+              finalized: "2026-10-16T01:23:08-07:00"
+              finalizing: false
+      "n": 5
+      timestamp: "2026-10-16T02:00:00-07:00"
+      dispatched: "2026-10-16T01:29:16-07:00"
+      agent: claude
+      dispose:
+        - id: BR-11
+          disposition: addressed
+          note: anyOpenPR replaces anyMergedPR; reverting it makes TestLandingLineReusedBranchStillQueues fail (no 1 waiting merges), restored it passes.
+          round: 5
+        - id: BR-12
+          disposition: addressed
+          note: Integration points table now lists landingqueue.go entities and landingcmd.go; Injected-into says seams are landingLinePoll and landingNow; dated M2 Revisions entry present.
+          round: 5
+        - id: BR-13
+          disposition: not-addressed
+          note: slices.Sorted added at landingcmd.go:182, but no status test has two or more grants, so nothing fails without the sort.
+          round: 5
+        - id: BR-14
+          disposition: not-addressed
+          note: logLine and the AddGrant warning exist but no test forces a write failure, and the GrantEntries read error in leave() still silently skips ending the grant.
+          round: 5
+        - id: BR-15
+          disposition: addressed
+          note: EventResumed logged when the selected PR was MERGED; TestLandingLineDuplicateResumesAsMerged asserts resumed==1 and landed==0, which would fail without the fix.
+          round: 5
+      findings:
+        - kind: defect
+          id: BR-16
+          severity: Important
+          title: Line skip is still decided on the pre-read; a turnless run can land an OPEN PR selected from the second read
+          detail: '2nd finding in this family, so state the rule: a run without a turn may only act on a PR that is MERGED when selected. landing.go decides the turn from pre (first LandingPRs) but selectIntegrationPR uses prs (second read); an OPEN PR in the second read lands with turn nil. Fix: after selection, refuse (or enter the line) when turn is nil and pr.State is not MERGED; test with a fake whose first LandingPRs omits the open PR.'
+          family: gate-skip-predicate-divergence
+          round: 5
+        - kind: defect
+          id: BR-17
+          severity: Important
+          title: README update appears missing for sdlc landing status/grant/revoke and for merge waiting in the landing line
+          detail: README.md:414-425 describes sdlc merge landing and concurrency but not the line, its waiting output, or the new sdlc landing subcommand; the atlas subcommand table near sdlc-binary.md:43 also lacks a landing row.
+          family: user-surface-docs
+          round: 5
+      boundary: M2
+      recipe: milestone-review
+      isolation: checkout
+      blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: b9ec6ee7-cdb2-48cf-a4c7-df9e6511bec9
+            repository: github.com/xianxu/ariadne
+            issue_id: "000393"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/1d6afce90fb8869f
+            reviewed_head: 2c61503b65a1ee4d777cbbda9f55d2f93959409a
+            slot: ariadne:2
+            requested_at: "2026-10-16T09:05:53.249075Z"
+          phase: finished
+          pid: 53389
+          started_at: "2026-10-16T09:05:53.51383Z"
+          finished_at: "2026-10-16T09:18:55.069056Z"
+          session_id: 7775c767-ff06-4eda-88cb-0ca1c2fd14aa
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 2c61503b65a1ee4d777cbbda9f55d2f93959409a
+        tracker_head: 7605116fdd0dddc1b6d6215484a89e883956bee6
+        branch_point: 655bda2e67d4fcb701adda3c88f3bc526fae1f05
+        since: "2026-10-15T23:44:34-07:00"
+        until: "2026-10-16T02:05:05-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-15T23:44:34-07:00"
+              end: "2026-10-16T02:05:05-07:00"
+              began: "2026-10-15T23:44:34-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 42a78a01-c26e-45f2-abad-7a5f8c34d21a
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 57542ed79e3a75603be304fa9a05a575f7ce08a4e3902f3ca08d54e8f50f9042
+              started: "2026-10-16T06:53:29.832Z"
+              spawned: false
+              bytes: 600670
+              windows:
+                - start: "2026-10-16T06:53:29.832Z"
+                  end: "2026-10-16T02:05:05-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 2a58ed802d7fed603c626f00f4e648cc04f3afd2c958d82f8eb618034cf580ce
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 14041553
+              windows:
+                - start: "2026-10-15T23:44:34-07:00"
+                  end: "2026-10-16T02:05:05-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-16T00:05:18-07:00"
+              finalized: "2026-10-16T00:07:33-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-16T00:10:49-07:00"
+              finalized: "2026-10-16T00:13:11-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-16T00:15:25-07:00"
+              finalized: "2026-10-16T00:17:35-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-16T01:18:13-07:00"
+              finalized: "2026-10-16T01:23:08-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-16T01:29:16-07:00"
+              finalized: "2026-10-16T02:00:00-07:00"
+              finalizing: false
+      "n": 6
+      timestamp: "2026-10-16T02:19:06-07:00"
+      dispatched: "2026-10-16T02:05:53-07:00"
+      agent: claude
+      dispose:
+        - id: BR-13
+          disposition: addressed
+          note: 'landingcmd.go:177 iterates slices.Sorted(maps.Keys(grants)); landingcmd_test.go asserts #12 precedes #391 across repeated runs.'
+          round: 6
+        - id: BR-14
+          disposition: addressed
+          note: lineLog.record (landingqueue.go:95) warns once per merge for enqueue/admit/leave writes; leave warns on grant read and AddGrant failures; TestLandingLineLogFailuresWarn pins it.
+          round: 6
+        - id: BR-16
+          disposition: addressed
+          note: Rule enforced on the selected PR at landing.go:394; reverting the guard turns TestLandingLineLaggingListingRefusesOutsideTheLine red (err nil); empty listing now queues.
+          round: 6
+        - id: BR-17
+          disposition: addressed
+          note: README.md:423-431 covers the line, waiting output and sdlc landing status/grant/revoke; atlas sdlc-binary.md command table gains a landing row.
+          round: 6
+      boundary: M2
+      recipe: milestone-review
+      isolation: checkout
+      reviewed: 2c61503b65a1ee4d777cbbda9f55d2f93959409a
+      blocked: false
 ---
 
 # Gate ledger — ariadne#393 (boundary-review)
@@ -392,6 +740,47 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - **BR-10** [Minor] `malformed-input-visibility` (kind: defect) Status reports no head when head.lock is held but its contents don't parse
   This is the 2nd finding in this family. In line.go:205-206, readTicket returns nil for a held but unparseable head.lock, so Status (and OnWait's head, line.go:174) says "no head" while one is running. Rule: a held lock whose contents are unreadable is reported as present but unreadable, never as absent (scan already does this for tickets). Fix: return a non-nil Ticket with an unreadable marker. Test: hold head.lock with garbage and assert head != nil.
+
+## Round 4 — 2026-10-16T01:23:08-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-11** [Important] `gate-skip-predicate-divergence` (kind: defect) anyMergedPR lets a branch with an old merged PR plus a new open PR skip the landing line and land outside it
+  landing.go:366-375 skips the line if any PR for the branch is MERGED, but gh pr list --state all also returns old merged PRs, and selectLandingPR (landing.go:191) later picks the OPEN PR at the current head and runs integrate/suite/merge without a turn, breaking Done-when 1 when a branch name is reused. Fix: skip only when the PR the landing would select (selectLandingPR with the local head) is MERGED, or when no OPEN PR exists; add a fake-GitHub test with an old merged PR and an open PR on the same branch that waits behind a held line.
+- **BR-12** [Important] `plan-table-drift` (kind: defect) Plan still claims a landingLineOpen seam and landing_line_test.go, and omits landingqueue.go and an M2 Revisions entry
+  3rd finding in this family, so fix the rule, not this instance: every entity and seam the diff adds or renames appears in the Core concepts tables at its built path, and every as-built deviation gets a dated Revisions entry in the same milestone. Instances: plan line 54 names a package variable landingLineOpen that does not exist (the seams are landingLinePoll and the real common dir); Task 4 names landing_line_test.go but the tests are in landingqueue_test.go; landingqueue.go (enterLandingLine, landingTurn, openLandingLine, landingLineDir) is missing from the Integration points table.
+- **BR-13** [Minor] `deterministic-output` (kind: defect) sdlc landing status prints grants in random map order
+  landingcmd.go loops over the ValidGrants map directly; sort by issue number.
+- **BR-14** [Minor] `audit-write-failure-visibility` (kind: defect) Errors from landing-line event and grant writes are ignored with no warning
+  The enqueue, OnAdmit and leave writes in landingqueue.go discard errors from Record and AddGrant, so a disk that stays full or unwritable silently loses all audit and pilot data; warn once on stderr.
+- **BR-15** [Minor] `pilot-metric-fidelity` (kind: defect) A duplicate merge admitted after the original landed logs a second landed event and skews the delay p90
+  leave() logs EventLanded whenever err is nil, including when the admitted run only resumed cleanup of a PR that was already MERGED; use a distinct kind or skip it.
+
+## Round 5 — 2026-10-16T02:00:00-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-11 — addressed — anyOpenPR replaces anyMergedPR; reverting it makes TestLandingLineReusedBranchStillQueues fail (no 1 waiting merges), restored it passes.
+- BR-12 — addressed — Integration points table now lists landingqueue.go entities and landingcmd.go; Injected-into says seams are landingLinePoll and landingNow; dated M2 Revisions entry present.
+- BR-13 — not-addressed — slices.Sorted added at landingcmd.go:182, but no status test has two or more grants, so nothing fails without the sort.
+- BR-14 — not-addressed — logLine and the AddGrant warning exist but no test forces a write failure, and the GrantEntries read error in leave() still silently skips ending the grant.
+- BR-15 — addressed — EventResumed logged when the selected PR was MERGED; TestLandingLineDuplicateResumesAsMerged asserts resumed==1 and landed==0, which would fail without the fix.
+
+### Raised
+
+- **BR-16** [Important] `gate-skip-predicate-divergence` (kind: defect) Line skip is still decided on the pre-read; a turnless run can land an OPEN PR selected from the second read
+  2nd finding in this family, so state the rule: a run without a turn may only act on a PR that is MERGED when selected. landing.go decides the turn from pre (first LandingPRs) but selectIntegrationPR uses prs (second read); an OPEN PR in the second read lands with turn nil. Fix: after selection, refuse (or enter the line) when turn is nil and pr.State is not MERGED; test with a fake whose first LandingPRs omits the open PR.
+- **BR-17** [Important] `user-surface-docs` (kind: defect) README update appears missing for sdlc landing status/grant/revoke and for merge waiting in the landing line
+  README.md:414-425 describes sdlc merge landing and concurrency but not the line, its waiting output, or the new sdlc landing subcommand; the atlas subcommand table near sdlc-binary.md:43 also lacks a landing row.
+
+## Round 6 — 2026-10-16T02:19:06-07:00 (claude) — passed
+
+### Disposed
+
+- BR-13 — addressed — landingcmd.go:177 iterates slices.Sorted(maps.Keys(grants)); landingcmd_test.go asserts #12 precedes #391 across repeated runs.
+- BR-14 — addressed — lineLog.record (landingqueue.go:95) warns once per merge for enqueue/admit/leave writes; leave warns on grant read and AddGrant failures; TestLandingLineLogFailuresWarn pins it.
+- BR-16 — addressed — Rule enforced on the selected PR at landing.go:394; reverting the guard turns TestLandingLineLaggingListingRefusesOutsideTheLine red (err nil); empty listing now queues.
+- BR-17 — addressed — README.md:423-431 covers the line, waiting output and sdlc landing status/grant/revoke; atlas sdlc-binary.md command table gains a landing row.
 
 ## Open findings
 
