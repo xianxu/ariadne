@@ -45,33 +45,22 @@ func (l *Line) Record(e Event) error {
 	if e.At.IsZero() {
 		e.At = l.o.Now()
 	}
-	return l.appendLog(EventsFile, e, func(raw []byte) (time.Time, bool) {
-		var e Event
-		return e.At, json.Unmarshal(raw, &e) == nil
-	})
+	return appendLog(l, EventsFile, e, KeepEvents)
 }
 
 // AddGrant appends a grant or a revoke, stamping Granted with the line's clock
-// when it is zero. The caller authorizes it first; the read side (ValidGrants)
-// checks the grantor again. Retention keys on the later of Granted and Expires,
-// so a revoke outlives the grant it revokes.
+// when it is zero (a revoke's Granted is when it was revoked). The caller
+// authorizes it first; the read side (ValidGrants) checks the grantor again.
 func (l *Line) AddGrant(g Grant) error {
 	if g.Granted.IsZero() {
 		g.Granted = l.o.Now()
 	}
-	return l.appendLog(GrantsFile, g, func(raw []byte) (time.Time, bool) {
-		var g Grant
-		if json.Unmarshal(raw, &g) != nil {
-			return time.Time{}, false
-		}
-		if g.Expires.After(g.Granted) {
-			return g.Expires, true
-		}
-		return g.Granted, true
-	})
+	return appendLog(l, GrantsFile, g, KeepGrants)
 }
 
-func (l *Line) Events() ([]Event, int, error) { return readLog[Event](filepath.Join(l.dir, EventsFile)) }
+func (l *Line) Events() ([]Event, int, error) {
+	return readLog[Event](filepath.Join(l.dir, EventsFile))
+}
 
 func (l *Line) GrantEntries() ([]Grant, int, error) {
 	return readLog[Grant](filepath.Join(l.dir, GrantsFile))
@@ -95,14 +84,14 @@ func Delays(events []Event) []float64 {
 	return out
 }
 
-func (l *Line) appendLog(name string, v any, at func([]byte) (time.Time, bool)) error {
+func appendLog[T any](l *Line, name string, v T, keep func([]T, time.Time) []bool) error {
 	data, err := json.Marshal(v)
 	if err != nil {
 		return err
 	}
 	return l.withMutex(func() error {
 		path := filepath.Join(l.dir, name)
-		if err := l.sweep(path, at); err != nil {
+		if err := sweep(l, path, keep); err != nil {
 			return err
 		}
 		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
@@ -117,10 +106,10 @@ func (l *Line) appendLog(name string, v any, at func([]byte) (time.Time, bool)) 
 	})
 }
 
-// sweep keeps the entries dated within Retention and not in the future, at most
-// once a day per log (its .swept stamp). A line it can't parse is dropped, and
-// the stamp records how many ("malformed=N"), so a damaged log is visible.
-func (l *Line) sweep(path string, at func([]byte) (time.Time, bool)) error {
+// sweep rewrites the log with the entries keep marks (retention.go owns that
+// rule), at most once a day per log (its .swept stamp). A line it can't parse
+// is dropped, and the stamp records how many ("malformed=N").
+func sweep[T any](l *Line, path string, keep func([]T, time.Time) []bool) error {
 	now := l.o.Now()
 	stamp := path + ".swept"
 	if fi, err := os.Stat(stamp); err == nil && now.Sub(fi.ModTime()) < 24*time.Hour && !fi.ModTime().After(now) {
@@ -130,23 +119,28 @@ func (l *Line) sweep(path string, at func([]byte) (time.Time, bool)) error {
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	var kept bytes.Buffer
+	var raws [][]byte
+	var entries []T
 	malformed := 0
 	for _, raw := range bytes.Split(data, []byte("\n")) {
 		if len(bytes.TrimSpace(raw)) == 0 {
 			continue
 		}
-		t, ok := at(raw)
-		if !ok {
+		var v T
+		if json.Unmarshal(raw, &v) != nil {
 			malformed++
 			continue
 		}
-		if age := now.Sub(t); age >= 0 && age <= Retention {
-			kept.Write(raw)
-			kept.WriteByte('\n')
-		}
+		raws, entries = append(raws, raw), append(entries, v)
 	}
 	if len(data) > 0 {
+		var kept bytes.Buffer
+		for i, k := range keep(entries, now) {
+			if k {
+				kept.Write(raws[i])
+				kept.WriteByte('\n')
+			}
+		}
 		tmp := path + ".tmp"
 		if err := os.WriteFile(tmp, kept.Bytes(), 0o644); err != nil {
 			return err

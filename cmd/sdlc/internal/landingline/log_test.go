@@ -138,3 +138,28 @@ func TestSweptRevokeKeepsTheGrantRevoked(t *testing.T) {
 		t.Fatalf("revoked grant valid again after a sweep: %v", entries)
 	}
 }
+
+// A sweep run while grants are in force keeps them (the M1 round-2 regression).
+func TestSweepKeepsGrantsInForce(t *testing.T) {
+	now := t0
+	l := openLine(t, t.TempDir(), Options{Now: func() time.Time { return now }})
+	if err := l.AddGrant(grant(391, now, 24)); err != nil {
+		t.Fatal(err)
+	}
+	now = t0.Add(23 * time.Hour)
+	if err := l.AddGrant(grant(392, now, 4)); err != nil { // no sweep yet: same day
+		t.Fatal(err)
+	}
+	now = t0.Add(23*time.Hour + 30*time.Minute)
+	stamp := filepath.Join(l.dir, GrantsFile+".swept")
+	if err := os.Chtimes(stamp, t0.Add(-time.Hour), t0.Add(-time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if err := l.AddGrant(grant(393, now, 4)); err != nil { // this write sweeps
+		t.Fatal(err)
+	}
+	entries, _, _ := l.GrantEntries()
+	if got := ValidGrants(entries, now); len(got) != 3 {
+		t.Fatalf("valid after sweep %v", got)
+	}
+}

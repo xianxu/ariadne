@@ -105,6 +105,12 @@ func (l *Line) Enqueue(t Ticket) (*Handle, error) {
 			return err
 		}
 		path := filepath.Join(l.dir, "tickets", fmt.Sprintf("%020d", seq))
+		if _, err := os.Lstat(path); err == nil {
+			err = fmt.Errorf("landing line: ticket %d already exists; the counter in %s went backwards", seq, filepath.Join(l.dir, "seq"))
+			f.Close()
+			os.Remove(f.Name())
+			return err
+		}
 		if _, err := f.Write(data); err == nil {
 			err = os.Rename(f.Name(), path)
 		}
@@ -300,7 +306,12 @@ func (l *Line) nextSeq() (int64, error) {
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return 0, err
 	}
-	n, _ := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
+	var n int64
+	if text := strings.TrimSpace(string(data)); text != "" {
+		if n, err = strconv.ParseInt(text, 10, 64); err != nil || n < 0 {
+			return 0, fmt.Errorf("landing line: %s is not a ticket counter (%q); fix or remove it", path, text)
+		}
+	}
 	n++
 	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, []byte(strconv.FormatInt(n, 10)+"\n"), 0o644); err != nil {

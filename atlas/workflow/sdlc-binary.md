@@ -346,10 +346,16 @@ with reviewbox.
   tickets it displaced), landed and refused. `Delays` gives the
   enqueue-to-landed samples for the pilot's p90, through test-stats'
   nearest-rank helper. Both logs are appended under the mutex. A daily sweep
-  keeps only entries dated within the last 30 days and not in the future, and
-  counts the malformed lines it drops. A grant's age is the later of its grant
-  and expiry times, so a revoke outlives the grant it revokes. A future-dated
-  grant confers nothing.
+  applies the pure rules in `retention.go` and counts the malformed lines it
+  drops.
+  - Events stay while they are dated within the last 30 days and not in the
+    future.
+  - A grant entry stays while it and its issue's latest entry are fresh by
+    their grant time.
+  - Invariant (tested over random logs): a sweep never changes which grants are
+    valid.
+  - A revoke outlives its grant, because it is dated when it is made.
+  - A future-dated grant confers nothing.
 - **Relation to the suite line.** `scripts/test-lock.py`'s FIFO line for
   full-suite slots uses the same design (flock liveness, pruning under a mutex)
   but shares no code: it is a make-invoked Python helper, and its waiters aren't

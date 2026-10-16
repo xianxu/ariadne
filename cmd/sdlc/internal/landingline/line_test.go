@@ -277,3 +277,25 @@ func TestLineAdmitHookReportsDisplacement(t *testing.T) {
 		t.Fatalf("admit hook head %v displaced %v", gotHead, gotDisplaced)
 	}
 }
+
+func TestLineCounterIsUntrustedInput(t *testing.T) {
+	dir := t.TempDir()
+	l := openLine(t, dir, testOptions(nil))
+	enqueue(t, l, 1)
+	if err := os.WriteFile(filepath.Join(dir, "seq"), []byte("garbage\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.Enqueue(Ticket{Issue: 2}); err == nil {
+		t.Fatal("a malformed counter was trusted")
+	}
+	// A counter set back can't overwrite a live ticket.
+	if err := os.WriteFile(filepath.Join(dir, "seq"), []byte("0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.Enqueue(Ticket{Issue: 3}); err == nil {
+		t.Fatal("a counter set back overwrote a live ticket")
+	}
+	if _, waiting, _ := l.Status(); len(waiting) != 1 || waiting[0].Issue != 1 {
+		t.Fatalf("waiting %v", waiting)
+	}
+}

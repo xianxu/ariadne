@@ -23,6 +23,7 @@
 | `ValidGrants` | `cmd/sdlc/internal/landingline/order.go` | new |
 | `Authorize` | `cmd/sdlc/internal/landingline/order.go` | new |
 | `Delays` | `cmd/sdlc/internal/landingline/log.go` | new |
+| `KeepGrants`, `KeepEvents` | `cmd/sdlc/internal/landingline/retention.go` | new |
 
 - **Ticket** — `{Seq int64, Issue int, Branch string, PID int, Enqueued time.Time}` (no PR: it is selected after admission, and the `admit` event records it). `Issue` is the normalised number from `issue.IDFromFilename(branch)` (cmd/sdlc/internal/issue/scaffold.go:41), the parse `tickOnLanding` already uses, so `0391` and `391` agree, a live waiter or the head. `Seq` comes from a per-line counter, so FIFO is a total order that clock skew can't break.
   - **Relationships:** N tickets per line, and at most one per process.
@@ -77,6 +78,8 @@
 type Class int
 const (Normal Class = iota; FleetBlocking)
 
+// Superseded as built (see Revisions): NextHead(ts, grants) takes no now, and
+// derives from Order.
 func NextHead(ts []Ticket, grants map[int]Grant, now time.Time) (Ticket, []Ticket, bool) {
 	if len(ts) == 0 { return Ticket{}, nil, false }
 	sorted := slices.SortedFunc(slices.Values(ts), func(a, b Ticket) int { return cmp.Compare(a.Seq, b.Seq) })
@@ -112,7 +115,7 @@ func NextHead(ts []Ticket, grants map[int]Grant, now time.Time) (Ticket, []Ticke
   - a hand-appended grant whose grantor slot is 3 confers nothing (the read-side check);
   - the head is not preempted: with the head admitted, a later grant doesn't affect `head.lock`, and `Wait` for the granted ticket returns only after `Release`.
 - [ ] Run `go test ./cmd/sdlc/internal/landingline/ -run TestLine`. Expect FAIL.
-- [ ] Implement `Open`, `Enqueue`, `Wait`, `Release` and `Status() ([]Ticket, headPID int)` as described in Core concepts. Seq is a counter file `seq` read and incremented under `line.lock`. Ticket writes are atomic (`os.CreateTemp` in the directory, then `os.Rename`). A Ticket whose JSON doesn't parse but whose lock is held counts as live with Seq taken from its file name, so it is never silently skipped.
+- [ ] Implement `Open`, `Enqueue`, `Wait`, `Release` and `Status() (head *Ticket, waiting []Ticket, err error)` (as built) as described in Core concepts. Seq is a counter file `seq` read and incremented under `line.lock`. Ticket writes are atomic (`os.CreateTemp` in the directory, then `os.Rename`). A Ticket whose JSON doesn't parse but whose lock is held counts as live with Seq taken from its file name, so it is never silently skipped.
 - [ ] Run the tests again. Expect PASS.
 - [ ] Commit `#393 M1: landingline: flock-held tickets and head admission`.
 
@@ -220,3 +223,15 @@ if pre, err := gh.LandingPRs(ctx, t.Repo, branch); err != nil {
 - The sweep counts the malformed lines it drops in its stamp.
 - `Wait` on a released or vanished ticket returns an error.
 - The line tests step admission through `tryAdmit`, with `Wait`'s sleep injected, so each interleaving is the test's choice rather than the scheduler's (ARCH-ORDER).
+
+### 2026-10-16 — M1 review round 2: retention is a pure rule with a tested invariant
+
+**Reason:** round 1 aged a grant by the later of its grant and expiry times, and also dropped anything dated in the future. Every grant still in force has its expiry ahead of now, so a daily sweep deleted it. The retention decision was buried in the IO routine, where no pure test reached it.
+
+**Delta:**
+- Retention is two pure functions in `retention.go`. `sweep` only applies them.
+  - `KeepEvents` keeps entries dated within the last 30 days and not in the future.
+  - `KeepGrants` ages by `Granted` only. It keeps an issue's fresh entries while the issue's latest entry is fresh. Otherwise it drops the issue's whole history, so an older entry can't become the latest.
+- **Invariant:** `ValidGrants(kept, now) == ValidGrants(all, now)`, and nothing outside retention is kept. `TestKeepGrantsPreservesValidity` checks it over 2000 random logs with out-of-order, old and future entries.
+- A revoke outlives its grant because a revoke's `Granted` is the time of the revoke, which is later than the grant's.
+- The ticket counter is untrusted input. A malformed `seq` refuses rather than resetting, and a counter set back can't overwrite a live ticket.
