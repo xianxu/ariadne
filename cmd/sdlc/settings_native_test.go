@@ -115,10 +115,15 @@ func TestStartPlanProtectedSettingsNativeSandbox(t *testing.T) {
 			}
 			writeRepoFile(t, f.slot.root, ".claude/settings.json", actual)
 			if state == "retired" {
-				compile := exec.CommandContext(ctx, binary, "compile")
-				compile.Dir = f.slot.root
-				if out, err := compile.CombinedOutput(); err != nil {
-					t.Fatalf("prepare managed retirement: %v: %s", err, out)
+				for pass := range 2 {
+					if pass == 1 {
+						writeRepoFile(t, f.slot.root, ".claude/settings.json", `{"edited":true}`)
+					}
+					compile := exec.CommandContext(ctx, binary, "compile")
+					compile.Dir = f.slot.root
+					if out, err := compile.CombinedOutput(); err != nil {
+						t.Fatalf("prepare managed retirement pass %d: %v: %s", pass, err, out)
+					}
 				}
 				writeRepoFile(t, f.slot.root, "construct/base.manifest", "# settings declaration removed\n")
 			}
