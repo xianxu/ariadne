@@ -368,6 +368,11 @@ nothing is released rather than re-rendered.
 ## Publishing details (#284)
 
 `sdlc issue publish --issue N[,N…]` (`issuepublish.go`, `republish.go`) is how details reach main without shipping a branch. Per issue:
+- **Location (#408):** resolve the ID on pinned main across the active directory,
+  legacy flat history and history/issues. Republish edits at that location,
+  including mixed active/archive sets. Duplicate details refuse and name their
+  paths; a terminal card without published details cannot synthesize a new active
+  copy. Candidate preparation checks the location again before writing.
 - **Finishing an incomplete creation** (details not on main: filed before #308, when `issue new` wrote them locally): the receipt-driven transfer (`move-detail` is its deprecated alias). It needs no owner, and the issue becomes claimable.
 - **Republish** (details on main): the owner, or anyone while the issue is unclaimed; never another workspace (#274, `mayNotEditDetails`). `republishDecision` judges the details *bodies*: the local copy against the one at this checkout's merge base with main, and main's. The frontmatter carries the card mirror, which differs by design.
   - main unchanged since the base → published;

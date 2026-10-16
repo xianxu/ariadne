@@ -131,10 +131,13 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 		return err
 	}
 	pinnedMain := mainView.Ref()
-	if present, err := mainView.Exists(dest); err != nil {
+	if rel, err := publishedDetailPath(mainView, dirs, id); err != nil {
 		return err
-	} else if present {
-		return fmt.Errorf("#%s's details (%s) are already on main: creation is complete and another thread may own them; nothing was changed", id, dest)
+	} else if rel != "" {
+		return fmt.Errorf("#%s's details (%s) are already on main: creation is complete and another thread may own them; nothing was changed", id, rel)
+	}
+	if err := requireInitialDetails(card); err != nil {
+		return err
 	}
 
 	spec := tracker.ReceiptSpec{Token: operationToken("move"), Repository: env.target.Repository, IssueID: id,

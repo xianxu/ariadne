@@ -83,6 +83,10 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 	if err != nil {
 		return fmt.Errorf("this checkout shares no history with main: %w", err)
 	}
+	dirs, err := resolveIDDirs(issuesRel, envOr("WF_HISTORY_DIR", "workshop/history"))
+	if err != nil {
+		return err
+	}
 	var items []republishItem
 	var written []string
 	var moved []movedDetail
@@ -94,7 +98,14 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 		if err := requireOwnedToPublish(env, card); err != nil {
 			return err
 		}
-		rel, abs := localDetail(env, issuesRel, card.Path)
+		rel, err := publishedDetailPath(view, dirs, id)
+		if err != nil {
+			return err
+		}
+		if rel == "" {
+			return fmt.Errorf("#%s has no published details; nothing was published", issue.CLIRef(id))
+		}
+		abs := filepath.Join(env.root, filepath.FromSlash(rel))
 		it := republishItem{id: id, path: rel}
 		if info, err := os.Lstat(abs); err != nil || !info.Mode().IsRegular() {
 			return fmt.Errorf("#%s: no local details at %s to publish", issue.CLIRef(id), it.path)
@@ -215,6 +226,13 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 			for _, it := range items {
 				if !it.write {
 					continue
+				}
+				rel, err := publishedDetailPath(v, dirs, it.id)
+				if err != nil {
+					return gitx.TrunkWrite{}, err
+				}
+				if rel != it.path {
+					return gitx.TrunkWrite{}, fmt.Errorf("#%s's details moved from %s to %s; rerun issue publish", issue.CLIRef(it.id), it.path, rel)
 				}
 				cur, err := v.Read(it.path)
 				if err != nil {

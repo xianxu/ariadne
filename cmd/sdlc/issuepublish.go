@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -85,6 +86,11 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 	if err != nil {
 		return err
 	}
+	local, _, err := issue.LocalPathsByID(dirs.Abs)
+	if err != nil {
+		return err
+	}
+	locations := map[string]string{}
 	var first []int
 	var republish []string
 	for _, n := range nums {
@@ -93,13 +99,29 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 		if err != nil {
 			return err
 		}
-		onMain, err := view.Exists(path.Join(dirs.Rel[0], path.Base(card.Path)))
+		var localDetails []string
+		for _, f := range classifyFamily(n, local[n]) {
+			if f.Kind == kindIssue {
+				localDetails = append(localDetails, f.Path)
+			}
+		}
+		if len(localDetails) > 1 {
+			return fmt.Errorf("#%s has duplicate details: %s", issue.CLIRef(id), strings.Join(localDetails, ", "))
+		}
+		rel, err := publishedDetailPath(view, dirs, id)
 		if err != nil {
 			return err
 		}
-		if onMain {
+		if rel != "" {
+			locations[id] = rel
 			republish = append(republish, id)
 		} else {
+			if len(localDetails) == 1 && filepath.Dir(localDetails[0]) != dirs.Abs[0] {
+				return fmt.Errorf("#%s has local archived details at %s but none on main; refusing active creation", issue.CLIRef(id), localDetails[0])
+			}
+			if err := requireInitialDetails(card); err != nil {
+				return err
+			}
 			first = append(first, n)
 		}
 	}
@@ -116,7 +138,7 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 	read := lazyDecl(func() (repoenum.Declaration, error) { return readTrackerRepoEnums(env) })
 	for _, id := range republish {
 		card, _ := snap.Require(id)
-		file := filepath.Join(env.root, filepath.FromSlash(path.Join(dirs.Rel[0], path.Base(card.Path))))
+		file := filepath.Join(env.root, filepath.FromSlash(locations[id]))
 		data, err := os.ReadFile(file)
 		if err != nil {
 			continue // republishOwned reports a missing details file
@@ -131,6 +153,54 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 		}
 	}
 	return republishOwned(env, stdout, stderr, republish, dirs.Rel[0], dryRun)
+}
+
+// requireInitialDetails prevents first-publication recovery resurrecting closed work.
+func requireInitialDetails(card tracker.Record) error {
+	status, _ := issue.GetField(card.Card.Frontmatter, "status")
+	if vocab.Issue().IsTerminal(status) {
+		return fmt.Errorf("#%s is %s but has no published details; refusing to create an active copy", issue.CLIRef(card.ID), status)
+	}
+	return nil
+}
+
+// publishedDetailPath resolves one ID on a pinned main, including legacy archives.
+// Plans/reviews are classified by the same family reader as resolve.
+func publishedDetailPath(view *gitx.TrunkView, dirs idDirs, id string) (string, error) {
+	n, err := strconv.Atoi(id)
+	if err != nil {
+		return "", err
+	}
+	seen := map[string]bool{}
+	var paths []string
+	for _, dir := range dirs.Rel {
+		files, err := view.FilesSelected(dir, func(f gitx.TreeFile) bool {
+			got, _, ok := issue.ParseFilename(path.Base(f.Path))
+			return ok && got == id && path.Dir(f.Path) == dir
+		})
+		if err != nil {
+			return "", err
+		}
+		for _, f := range files {
+			if !seen[f.Path] {
+				seen[f.Path] = true
+				paths = append(paths, f.Path)
+			}
+		}
+	}
+	var details []string
+	for _, f := range classifyFamily(n, paths) {
+		if f.Kind == kindIssue {
+			details = append(details, f.Path)
+		}
+	}
+	if len(details) > 1 {
+		return "", fmt.Errorf("#%s has duplicate details on main: %s", issue.CLIRef(id), strings.Join(details, ", "))
+	}
+	if len(details) == 1 {
+		return details[0], nil
+	}
+	return "", nil
 }
 
 func publishIssueCommit(ctx context.Context, stdout, stderr io.Writer, root, source, issuesDir, historyDir string) error {

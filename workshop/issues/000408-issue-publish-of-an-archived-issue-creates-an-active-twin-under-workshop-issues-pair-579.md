@@ -40,7 +40,7 @@ flow: {kind: quick, provenance: inferred, spec: "62c3380d", done: "f3f27de4"}
 
 ## Plan
 
-- [ ] Reproduce archive updates, missing terminal details and duplicate-location
+- [x] Reproduce archive updates, missing terminal details and duplicate-location
   refusals in isolated real-Git publication fixtures; confirm red.
 - [ ] Resolve details by ID across active and archive locations on pinned main,
   preserve republish safeguards, and recheck location before publication.
@@ -48,6 +48,27 @@ flow: {kind: quick, provenance: inferred, spec: "62c3380d", done: "f3f27de4"}
   the close review, then land on SHIP.
 
 ## Log
+
+### 2026-10-16 — focused verification
+
+Stable-worktree regression run passed: TestPublishArchivedDetails (both archive
+layouts and mixed-set atomicity), TestPublishTerminalCardWithoutDetailsRefuses,
+TestPublishDuplicateLocationsRefuses (local and published twins),
+TestPublishRefusesTwinIntroducedBeforeCandidate, and
+TestPublishUnpublishedLocalArchiveRefuses. Runtime 27.370s; diff check clean.
+The production delta is 98 added lines, inside the quick-flow shell.
+
+
+### 2026-10-16 — red reproduction and root correction
+
+Real-Git/bare-origin regressions reproduced both archive layouts losing the
+requested edit, done-card missing details synthesizing a new active file, and
+local or published twins being accepted. The root correction resolves a pinned
+main location before choosing creation versus republish, preserves mixed-set
+atomic publication and rechecks candidate locations. Terminal-status membership
+comes from vocab rather than a copied enum. Added a concurrent-twin regression
+and a local-only archive edge case to defend the no-resurrection invariant.
+
 
 ### 2026-10-16
 
@@ -68,3 +89,19 @@ for the selected ID (ARCH-CONSTRAINTS). No new durable artifact family, process
 or handle; existing issue and review archive lifecycle applies (ARCH-FUNERAL).
 
 Short plan posted to ops:0 under the explicitly authorized small-fix flow.
+
+## Revisions
+
+### 2026-10-16 — local-only archived source
+
+The no-twin invariant also applies when a local archive has not reached main.
+A regression reproduced first-creation recovery synthesizing an active twin in
+that state. Refuse and name the local archive instead; do not migrate or invent
+content. This is the same location-resolution root cause, not a new workflow.
+
+### 2026-10-16 — verification discipline
+
+The broad publish/move-detail assertions passed, but the real-repository
+hermeticity guard failed because the agent edited Atlas and issue records while
+the run was active. No fixture escaped its temporary repository. Finish edits,
+then rerun against a stable worktree; do not count that invocation as passing.
