@@ -99,9 +99,13 @@ Core concepts addition: checkInitialPublication — INTEGRATION — cmd/sdlc/iss
 
 - [x] checkInitialPublication: current-card terminal transitions at transfer boundaries → extend the existing real-Git fixture in TestInitialPublicationTerminalRevalidation; require refusal, unchanged main and retained source across first/retry/receipt replay. Retain existing confirmed-publication recovery coverage.
 - [x] checkInitialPublication preflight parity: local-only archived details supplied through either publication entry point → shared rule refuses without source or main mutation, in both archive layouts.
-- [ ] Run new regressions red; consolidate the shared admission and its early calls; run green plus broader publication/transfer/recovery coverage.
+- [x] Run new regressions red; consolidate the shared admission and its early calls; run green plus broader publication/transfer/recovery coverage.
 - [ ] Update Atlas and Log, record the final suite, then close round 3 and land only on SHIP. If that review identifies another bypass, stop and report before any change.
 
 ### 2026-10-16 — BR-4 red/green
 
 The new terminal and entry-point regressions failed without consolidation (113.742s): all nine terminal transitions were accepted, and the deprecated entry point accepted both local-only archive layouts. After consolidation the same run passed (111.931s), including confirmed-publication recovery after a terminal transition. One helper owns admission; early callers and BeforePublish consume it. Broader verification follows.
+
+### 2026-10-16 — consolidation broader verification
+
+The full targeted publication/transfer/recovery group passed in 479.139s. No worktree changes occurred during the run. The remaining gates are a fresh recorded full suite and close round 3, with the TL's bypass-stop instruction intact.

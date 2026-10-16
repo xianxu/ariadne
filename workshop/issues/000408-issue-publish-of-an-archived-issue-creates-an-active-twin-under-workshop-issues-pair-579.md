@@ -59,6 +59,11 @@ flow: {kind: full, provenance: operator}
 
 ## Log
 
+### 2026-10-16 — consolidated admission broader verification
+
+Broader stable-worktree run passed in 479.139s: go test ./cmd/sdlc -run 'Test(Publish|MoveDetail|AssetRecovery|InitialPublication|InitialDetailsTerminalAdmission)' -count=1 -timeout 10m. Includes prior archive/filename cases, new terminal-transition and entry-point parity regressions, and confirmed-publication recovery. Full recorded suite follows on the pushed correction.
+
+
 ### 2026-10-16 — BR-4 green evidence
 
 The same new regression group passed in 111.931s after consolidation. All terminal categories refuse across first/retry/recovery, moved-main retry asserts a second candidate preparation, both publication entry points preserve local archives, and confirmed-publication recovery still finishes after a done transition. Atlas maps the shared admission authority. Broader verification follows.
