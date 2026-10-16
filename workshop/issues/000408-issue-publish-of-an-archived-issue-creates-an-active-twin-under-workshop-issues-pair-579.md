@@ -42,12 +42,21 @@ flow: {kind: quick, provenance: inferred, spec: "62c3380d", done: "f3f27de4"}
 
 - [x] Reproduce archive updates, missing terminal details and duplicate-location
   refusals in isolated real-Git publication fixtures; confirm red.
-- [ ] Resolve details by ID across active and archive locations on pinned main,
+- [x] Resolve details by ID across active and archive locations on pinned main,
   preserve republish safeguards, and recheck location before publication.
-- [ ] Run focused and recorded full-suite verification; update Atlas and prepare
-  the close review, then land on SHIP.
+- [x] Run focused and recorded full-suite verification; update Atlas and prepare
+  the close review.
 
 ## Log
+
+### 2026-10-16 — recorded full-suite acceptance
+
+Isolated `sdlc local-check run --name suite` passed: 1,513 SDLC tests across
+12 shards plus 66 packages, zero failures, 685.4 seconds execution after 357
+seconds queue wait. This supplies a clean broad verification run after the
+earlier worktree-edit guard failure. Atlas maps archive resolution and refusal
+behavior. Close review follows; publication happens after SHIP.
+
 
 ### 2026-10-16 — focused verification
 
@@ -105,3 +114,9 @@ The broad publish/move-detail assertions passed, but the real-repository
 hermeticity guard failed because the agent edited Atlas and issue records while
 the run was active. No fixture escaped its temporary repository. Finish edits,
 then rerun against a stable worktree; do not count that invocation as passing.
+
+### 2026-10-16 — checkpoint wording
+
+The final Plan row records verification and readiness for close; publication
+follows the review verdict rather than being ticked before landing. No scope or
+behavior change.
