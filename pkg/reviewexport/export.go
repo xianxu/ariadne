@@ -72,15 +72,18 @@ type Mode struct {
 }
 
 // ParseMode reads a mode file's frontmatter by parley's rules: a leading
-// `---` fence, flat `key: value` lines, an omitted flag taking its default,
-// an invalid one refused, `order` optional. The name must equal the file's
+// `---\n` fence (so CRLF files are refused, as parley refuses them), flat
+// `key: value` lines with values taken literally (quotes included), an
+// omitted flag taking its default, an invalid one refused, `order` optional. The name must equal the file's
 // basename (parley drops such a file; the authored source refuses it).
 func ParseMode(content, basename string) (Mode, error) {
 	rest, ok := strings.CutPrefix(content, "---\n")
 	if !ok {
 		return Mode{}, fmt.Errorf("mode %s: missing frontmatter", basename)
 	}
-	fm, _, ok := strings.Cut(rest, "\n---")
+	// Searching from the opening fence's newline, as parley does, lets an
+	// empty block (`---\n---`) parse, and fail later for want of a name.
+	fm, _, ok := strings.Cut("\n"+rest, "\n---")
 	if !ok {
 		return Mode{}, fmt.Errorf("mode %s: unterminated frontmatter", basename)
 	}

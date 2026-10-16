@@ -26,6 +26,10 @@ func TestParseMode(t *testing.T) {
 		{"name mismatch", "---\nname: b\n---\n", "basename"},
 		{"bad flag", "---\nname: a\nscope: everything\n---\n", "scope="},
 		{"bad order", "---\nname: a\norder: first\n---\n", "order"},
+		// Parity with parley's parser at the edges.
+		{"crlf", "---\r\nname: a\r\n---\r\n", "missing frontmatter"},
+		{"quoted value is literal", "---\nname: \"a\"\n---\n", "basename"},
+		{"empty frontmatter", "---\n---\nBody\n", "basename"},
 	} {
 		if _, err := ParseMode(c.text, "a"); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: err %v, want %q", c.name, err, c.want)

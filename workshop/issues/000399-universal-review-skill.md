@@ -95,6 +95,11 @@ Tasks:
 - [x] Atlas: a short `atlas/workflow/universal-review.md`, linked from the indexes.
 - [ ] Live check, coordinated by the hub: one operator Alt+Return on a registered document is answered by the skill under the lock and the CAS.
 
+## Revisions
+
+- 2026-10-15 (TL decision f73c1f3a): the Done-when live operator check, one Alt+Return on a registered document answered under the lock and CAS, moves to parley.nvim#332's combined acceptance. The TL owns it and records the result here, so this issue lands without it.
+- 2026-10-15 (TL, operator requirement 5ef50ef6): "changes since your last read" exclude the agent's own edits. For an untracked file, the adapter saves the file as it left it after each write and diffs against that copy next round.
+
 ## Log
 
 
@@ -134,3 +139,9 @@ S2 and project.md S2a. This is the shared-skill half; no Parley code belongs her
   - `type: session-sync` is tested first, before `COUCH_TREE`. A legacy session-sync file stays tracked outside a slot, and when its storage is unreachable the adapter refuses instead of editing directly.
   - The write folds only the kept IDs whose asks it answers. A kept delivery that wasn't answered stays owed.
 - 2026-10-15: TL decision (delivery f73c1f3a): land now with --no-plan-check. The live Alt+Return check moves to parley.nvim#332's combined acceptance; the TL owns it and records the result here. The landing evidence is the fresh-agent dry run, the green full suite, and parley.nvim:1's independent verification of the export.
+- 2026-10-15: the close review was SHIP with 4 Minors, all fixed:
+  - round.md lists the known modes from `modes/` instead of hard-coding them;
+  - the adapter deletes BODYFILE after the write, and deletes the base copy it replaces;
+  - ParseMode's edges are pinned to parley's parser: CRLF is refused, values are taken literally, and an empty frontmatter parses but fails on the name;
+  - the Revisions entries above.
+  The operator's own-edits requirement (5ef50ef6) is folded into the adapter's Untracked section and round.md §1.

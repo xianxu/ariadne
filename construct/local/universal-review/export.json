@@ -5,8 +5,8 @@
     {
       "role": "round",
       "path": "round.md",
-      "bytes": 5083,
-      "sha256": "731d80c662c8c7c80cf4a23b2022cac56163e31ae9a4f45e155a75ba55a4ded4"
+      "bytes": 5058,
+      "sha256": "daf90002ea12a41dd7827d4e59dfbe66087f4966ecdc508399c5f909234058ab"
     },
     {
       "role": "grammar",
@@ -19,8 +19,8 @@
       "role": "adapter",
       "name": "file-edit",
       "path": "adapters/file-edit.md",
-      "bytes": 3687,
-      "sha256": "bcb9432a1f1a55668b49c339235a9acec379bc16432c0e6951aa9799106c179f"
+      "bytes": 4083,
+      "sha256": "2dd310b854d7ea321a2cbbd15e352a605f4cf8eb62b48f185553db990abd0678"
     },
     {
       "role": "mode",

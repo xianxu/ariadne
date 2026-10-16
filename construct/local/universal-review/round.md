@@ -16,8 +16,9 @@ uses its terms and restates none of it.
   frontmatter, no `process-instruction:`, or no `[name]`, the mode is
   `free-form`.
 - **The changes since your last read:** what the operator (or anyone) changed
-  in the document since you last read or wrote it. The adapter says how to get
-  them. On a first read there are none: read the whole document.
+  in the document since you last read or wrote it, never your own edits. The
+  adapter says how to get them. On a first read there are none: read the whole
+  document.
 
 ## 2. Modes
 
@@ -29,8 +30,7 @@ brief.
   be a prefix of exactly one mode name (`[copy-edit]` is `copy-editing`). A
   name that prefixes several modes is ambiguous, and one that prefixes none is
   unknown. Either way, do no review: tell the operator which name failed and
-  list the known modes (`developmental, line-editing, copy-editing,
-  proofreading, fact-check, free-form`).
+  list the known modes (the files in `modes/`, by `order`).
 - **Several modes:** apply every named mode's brief, in the order named. Only
   the **first** mode's flags govern the round, since one round has one set of
   directives.

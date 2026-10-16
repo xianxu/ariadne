@@ -47,7 +47,8 @@ One round reviews one snapshot: the text whose hash you write against.
    kept delivery you didn't answer, and one that arrived after step 1, stay
    owed for the next round. With no IDs to fold, leave out `--fold`. When the
    answer changes nothing, write the snapshot back as read, so its asks are
-   still folded.
+   still folded. Then delete BODYFILE, whether the write succeeded or was
+   refused.
 
 Refusals:
 
@@ -62,8 +63,14 @@ Refusals:
 
 ## Untracked
 
-Edit the file in place with your harness's file tools. The changes since your
-last read are the differences from the copy you last read in this
-conversation; on a first read there are none, so read the whole file. There is
-no lock, so read again right before writing if the operator may have edited
-since.
+Edit the file in place with your harness's file tools. There is no lock, so
+read the file again right before writing.
+
+**Changes since your last read** exclude your own edits. After each write,
+re-read the file and save that text, the file as you left it, to a copy made
+with `mktemp "${TMPDIR:-/tmp}/review-base.XXXXXX"`; remember the copy's path,
+and delete the copy it replaces.
+Next round, the changes are `diff -u COPY FILE`: the operator's edits since
+you left it, never your own, and never measured against the operator's
+previous send. Without a saved copy (a first read, or a new conversation),
+read the whole file instead.
