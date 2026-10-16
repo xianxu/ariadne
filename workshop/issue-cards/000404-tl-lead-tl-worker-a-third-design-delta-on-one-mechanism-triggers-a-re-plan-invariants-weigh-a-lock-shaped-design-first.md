@@ -1,6 +1,6 @@
 ---
 id: 000404
-status: working
+status: codecomplete
 created: 2026-10-15
 updated: 2026-10-16
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.44
+tracker:
+    version: 1
+    completion:
+        token: close-1662eeb1b218
+        repository: github.com/xianxu/ariadne
+        reviewed_head: f845245242b0895b87cdc1e688db15fb3f1750bc
+        evidence_commit: ce7b5b2edc0a22a0c6fcc37468f52f92c7f1a119
 ---
 
 # tl-lead/tl-worker: a third design delta on one mechanism triggers a re-plan; invariants weigh a lock-shaped design first
