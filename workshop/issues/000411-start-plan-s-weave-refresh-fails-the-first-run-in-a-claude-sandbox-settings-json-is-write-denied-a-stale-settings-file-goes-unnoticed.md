@@ -57,3 +57,7 @@ then goes through, so the slot's `.claude/settings.json` may lag the woven one w
 ### 2026-10-16 — choose operator settings publication
 
 Native denial reproduced before implementation. Simply swallowing publication errors is unsafe because managed displacement may already have removed an earlier backup. Choose the Spec's explicit operator-run settings write alternative: gate refresh defers settings and read-only observations report staleness even when Git is current. Preserve #303's independent rebuilt-binary rerun after HEAD advancement. Detailed implementation: workshop/plans/000411-protected-settings-plan.md. TL authorized posting the plan and proceeding.
+
+### 2026-10-16 — plan gate refinements
+
+PQ-1: use the single action weave refresh --substrate from your shell so operator correction works on an ahead issue branch; preserve issue branch/HEAD. PQ-2: plan names prepareManaged/commitManaged/ApplyManaged, deferredClaudeSettings/buildSettings and catchUpBeforeWork/startPlanBranch with adversarial strategies. The full plan gate was entered explicitly after the concrete code contour exceeded quick flow. Native red and CLI red recorded; current focused CLI and plan package tests pass; SDLC argv red shows refresh lacks --defer-settings.

@@ -4,7 +4,7 @@
 
 **Goal:** A protected Claude settings file cannot fail planning, and stale settings remain visible until an operator refreshes them.
 
-**Architecture:** Choose the Spec's operator-run-publication alternative. Gate refresh explicitly defers Claude settings; ordinary shell refresh publishes them. A read-only settings check runs even when Git is already current. Preserve the independent rebuilt-binary rerun after Git HEAD advancement.
+**Architecture:** Choose the Spec's operator-run-publication alternative. Gate refresh explicitly defers Claude settings; ordinary shell refresh --substrate publishes them. A read-only settings check runs even when Git is already current. Preserve the independent rebuilt-binary rerun after Git HEAD advancement.
 
 **Tech Stack:** Go, Cobra, existing weavefs/settingsx/managed ownership, local Git fixtures and native sandbox-exec conformance.
 
@@ -27,7 +27,7 @@ ARCH-PURE: reuse pure settingsx merge/equality; keep reads/output in the IO shel
 
 ## State and limits
 
-- Current settings: check emits no stale notice. Missing/different: emit exactly one line naming .claude/settings.json and run weave refresh from your shell. Operator refresh publishes, next check clears notice.
+- Current settings: check emits no stale notice. Missing/different: emit exactly one line naming .claude/settings.json and run weave refresh --substrate from your shell. Operator refresh publishes, next check clears notice.
 - Deferred ownership: desired source changes do not authorize settings displacement, publication or retirement; preserve prior records/backups. Ordinary apply later converges and retires by existing rules (ARCH-ORDER/FUNERAL).
 - Git catchup stays separate: changed HEAD still requires rerun with rebuilt sdlc. Settings never adds a failed gate or unsandboxed retry.
 - Read-only check starts no acquisition, dependency install, tools build or generators. It walks only declared present layers and reads existing manifest/settings inputs. Use existing process cancellation limits; no new persistent artifact or growing ledger.
@@ -36,9 +36,9 @@ ARCH-PURE: reuse pure settingsx merge/equality; keep reads/output in the IO shel
 ## Tasks
 
 - [ ] Reproduce native denial before code; record first/second-run root cause and preserve #303 rerun safety.
-- [ ] Add DeferredOutput tests, watch red, implement retention through managed apply, verify recovery/retirement/backups.
-- [ ] Add read-only settings command and explicit deferred-refresh option; tests stale/current/missing and no protected effects.
-- [ ] Wire start-plan to read-only observation when current, gate refresh to defer settings; test first successful planning, recurring notice, operator correction clearing notice, and unchanged moved-HEAD rerun.
+- [ ] Test prepareManaged/commitManaged through ApplyManaged with repeated/interrupted ownership inputs; assert identity and recovery evidence remains unchanged until actual publication or retirement.
+- [ ] Test deferredClaudeSettings and buildSettings against adversarial JSON/filesystem states; observe exact notice counts and deny all protected mutations. Add read-only observation and explicit deferred-refresh mode.
+- [ ] Test catchUpBeforeWork/startPlanBranch with stateful installed-weave fixtures; assert settings observation cannot fail planning or obscure genuine catchup errors. Wire gate deferral and retain the moved-HEAD rerun.
 - [ ] Run focused weave and SDLC catchup tests, mutation/negative controls and native denial conformance.
 - [ ] Update README and atlas; push, record full suite, close review, land on SHIP and report hub.
 
@@ -46,3 +46,9 @@ ARCH-PURE: reuse pure settingsx merge/equality; keep reads/output in the IO shel
 
 RED already observed on installed weave: native deny file-write* for exact .claude/settings.json makes compile exit 1 at rename with operation not permitted; control touch is denied, old settings retained. Temporary fixture was removed.
 Focused commands: go test -trimpath ./cmd/weave/... ; go test -trimpath ./cmd/sdlc -run 'TestStartPlan.*|TestGateSettings.*' -count=1 -timeout 10m. Native conformance uses a scratch-only sandbox with an explicit denied-write control. Full suite via sdlc local-check run --name suite on pushed head. No unsandboxed retry of a failed settings write.
+
+## Revisions
+
+### 2026-10-16 — PQ-1/PQ-2
+
+The single recovery action is run weave refresh --substrate from your shell: default refresh refuses normal ahead/divergent issue branches before compile (refresh.go), whereas --substrate preserves the consumer branch. Verify clearing through this real command on an issue branch, not by hand-copying expected bytes. Function-level adversarial strategies replace lossy scenario lists; tests own the detailed enumeration.
