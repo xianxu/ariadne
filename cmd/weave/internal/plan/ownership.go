@@ -124,6 +124,8 @@ type managedPass struct {
 	scope                   OwnershipScope
 	actions                 []Action
 	wanted, previous, other []outputIdentity
+	retained                []outputIdentity
+	deferred                map[string]bool
 	produced, displace      map[string]bool
 	ignore                  string
 	report                  ManagedReport
@@ -223,6 +225,7 @@ func prepareManaged(fs weavefs.FS, root string, actions []Action, scope Ownershi
 	retired := map[string]bool{}
 	for _, prior := range after {
 		old = append(slices.DeleteFunc(old, func(id outputIdentity) bool { return id.Scope == prior.scope }), prior.wanted...)
+		old = append(old, prior.retained...)
 		for _, id := range prior.retiring() {
 			retired[id.Path] = true
 		}
@@ -245,6 +248,30 @@ func prepareManaged(fs weavefs.FS, root string, actions []Action, scope Ownershi
 	if e != nil {
 		return nil, e
 	}
+	deferred := map[string]bool{}
+	for _, action := range actions {
+		if a, ok := action.(DeferredOutput); ok {
+			if !safeRelative(a.Path) || reservedOutput(a.Path) {
+				return nil, fmt.Errorf("invalid deferred output %q", a.Path)
+			}
+			if e := safeParents(fs, root, a.Path); e != nil {
+				return nil, e
+			}
+			deferred[a.Path] = true
+		}
+	}
+	for _, action := range actions {
+		if _, ok := action.(DeferredOutput); ok {
+			continue
+		}
+		for p := range ProducedPathSet([]Action{action}) {
+			for d := range deferred {
+				if p == d || strings.HasPrefix(p, d+string(filepath.Separator)) || strings.HasPrefix(d, p+string(filepath.Separator)) {
+					return nil, fmt.Errorf("output %s overlaps deferred output %s", p, d)
+				}
+			}
+		}
+	}
 	wanted, e := actionIdentities(root, actions, scope)
 	if e != nil {
 		return nil, e
@@ -257,8 +284,15 @@ func prepareManaged(fs weavefs.FS, root string, actions []Action, scope Ownershi
 	for _, id := range old {
 		oldAt[id.Path] = append(oldAt[id.Path], id)
 	}
-	var previous, other []outputIdentity
+	var previous, other, retained []outputIdentity
 	for _, id := range old {
+		if deferred[id.Path] {
+			if id.Scope != scope {
+				return nil, fmt.Errorf("output %s belongs to %s", id.Path, id.Scope)
+			}
+			retained = append(retained, id)
+			continue
+		}
 		if id.Scope != scope {
 			other = append(other, id)
 			continue
@@ -342,18 +376,20 @@ func prepareManaged(fs weavefs.FS, root string, actions []Action, scope Ownershi
 		}
 	}
 	next := append(append([]outputIdentity{}, other...), wanted...)
+	next = append(next, retained...)
 	gi, e := managedIgnore(fs, root, old, next, scope == ScopeArtifacts)
 	if e != nil {
 		return nil, e
 	}
 	return &managedPass{scope: scope, actions: actions, wanted: wanted, previous: previous, other: other,
-		produced: produced, displace: displace, ignore: gi, report: report}, nil
+		produced: produced, displace: displace, ignore: gi, report: report, retained: retained, deferred: deferred}, nil
 }
 
 func commitManaged(fs weavefs.FS, root string, pass *managedPass) (ManagedReport, error) {
 	actions, wanted, previous, other := pass.actions, pass.wanted, pass.previous, pass.other
 	displace, gi, report := pass.displace, pass.ignore, pass.report
 	prepared := append(append(append([]outputIdentity{}, other...), previous...), wanted...)
+	prepared = append(prepared, pass.retained...)
 	if e := saveInventory(fs, root, prepared); e != nil {
 		return report, e
 	}
@@ -408,6 +444,7 @@ func commitManaged(fs weavefs.FS, root string, pass *managedPass) (ManagedReport
 	}
 	// Keep only exact matches for this scope; other scope state is not ours to GC.
 	kept := append([]outputIdentity{}, other...)
+	kept = append(kept, pass.retained...)
 	for _, id := range wanted {
 		match, e := observe(fs, root, id)
 		if e != nil {
@@ -417,7 +454,7 @@ func commitManaged(fs weavefs.FS, root string, pass *managedPass) (ManagedReport
 			kept = append(kept, id)
 		}
 	}
-	if e = sweepDisplaced(fs, root, kept); e != nil {
+	if e = sweepDisplaced(fs, root, kept, pass.deferred); e != nil {
 		return fail(e)
 	}
 	if e = saveInventory(fs, root, kept); e != nil {
@@ -431,7 +468,7 @@ func commitManaged(fs weavefs.FS, root string, pass *managedPass) (ManagedReport
 
 // sweepDisplaced removes the displaced copy of every output that left the
 // inventory: a copy lives as long as the output it backs up (ARCH-FUNERAL).
-func sweepDisplaced(fs weavefs.FS, root string, live []outputIdentity) error {
+func sweepDisplaced(fs weavefs.FS, root string, live []outputIdentity, deferred map[string]bool) error {
 	dir := filepath.Join(root, weaveownership.DisplacedRel)
 	entries, err := fs.ReadDir(dir)
 	if os.IsNotExist(err) {
@@ -441,6 +478,9 @@ func sweepDisplaced(fs weavefs.FS, root string, live []outputIdentity) error {
 		return err
 	}
 	keep := map[string]bool{}
+	for path := range deferred {
+		keep[filepath.Base(DisplacedPath(path))] = true
+	}
 	for _, id := range live {
 		keep[filepath.Base(DisplacedPath(id.Path))] = true
 	}

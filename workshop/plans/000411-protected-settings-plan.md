@@ -35,10 +35,10 @@ ARCH-PURE: reuse pure settingsx merge/equality; keep reads/output in the IO shel
 
 ## Tasks
 
-- [ ] Reproduce native denial before code; record first/second-run root cause and preserve #303 rerun safety.
-- [ ] Test prepareManaged/commitManaged through ApplyManaged with repeated/interrupted ownership inputs; assert identity and recovery evidence remains unchanged until actual publication or retirement.
-- [ ] Test deferredClaudeSettings and buildSettings against adversarial JSON/filesystem states; observe exact notice counts and deny all protected mutations. Add read-only observation and explicit deferred-refresh mode.
-- [ ] Test catchUpBeforeWork/startPlanBranch with stateful installed-weave fixtures; assert settings observation cannot fail planning or obscure genuine catchup errors. Wire gate deferral and retain the moved-HEAD rerun.
+- [x] Reproduce native denial before code; record first/second-run root cause and preserve #303 rerun safety.
+- [x] Test prepareManaged/commitManaged through ApplyManaged with repeated/interrupted ownership inputs; assert identity and recovery evidence remains unchanged until actual publication or retirement.
+- [x] Test deferredClaudeSettings and buildSettings against adversarial JSON/filesystem states; observe exact notice counts and deny all protected mutations. Add read-only observation and explicit deferred-refresh mode.
+- [x] Test catchUpBeforeWork/startPlanBranch with stateful installed-weave fixtures; assert settings observation cannot fail planning or obscure genuine catchup errors. Wire gate deferral and retain the moved-HEAD rerun.
 - [ ] Run focused weave and SDLC catchup tests, mutation/negative controls and native denial conformance.
 - [ ] Update README and atlas; push, record full suite, close review, land on SHIP and report hub.
 

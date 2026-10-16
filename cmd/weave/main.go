@@ -81,6 +81,7 @@ func buildRoot() *cobra.Command {
 	}
 	cmd.AddCommand(buildCompile())
 	cmd.AddCommand(buildRefresh())
+	cmd.AddCommand(buildSettings())
 	cmd.AddCommand(buildGolden())
 	cmd.AddCommand(buildVerifyComplete())
 	cmd.AddCommand(buildSkills())
@@ -477,6 +478,10 @@ func runCompile(ctx context.Context, fs weavefs.FS, root string, target plan.Tar
 // compilePrepared composes under the caller-owned setup lease. Refresh reuses
 // this body without releasing or reacquiring that lease between Git and builds.
 func compilePrepared(ctx context.Context, fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Writer, client acquire.Client, runner weavefs.ExecRunner) (retErr error) {
+	return compilePreparedSettings(ctx, fs, root, target, dryRun, out, client, runner, false)
+}
+
+func compilePreparedSettings(ctx context.Context, fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Writer, client acquire.Client, runner weavefs.ExecRunner, deferSettings bool) (retErr error) {
 	// Preserve lexical numbered-environment evidence until discovery has
 	// rejected redirected checkouts; then normalize paths for composition.
 	if resolved, err := filepath.EvalSymlinks(root); err == nil {
@@ -552,6 +557,12 @@ func compilePrepared(ctx context.Context, fs weavefs.FS, root string, target pla
 		fmt.Fprint(out, formatActions(actions))
 		fmt.Fprintln(out, "weave: generation and retirement are not previewed; dry-run changes nothing")
 		return nil
+	}
+	if deferSettings {
+		actions, err = deferredClaudeSettings(fs, root, actions, out)
+		if err != nil {
+			return err
+		}
 	}
 	actions = append(actions, generated...)
 	for _, action := range actions {

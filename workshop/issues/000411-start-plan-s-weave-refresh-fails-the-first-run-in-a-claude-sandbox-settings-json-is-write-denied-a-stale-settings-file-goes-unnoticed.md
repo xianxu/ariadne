@@ -52,6 +52,14 @@ then goes through, so the slot's `.claude/settings.json` may lag the woven one w
 
 - Root cause: catchUpBeforeWork only invokes refresh for behind HEADs. Refresh advances HEADs before compiling; publication denial fails the first run after Git progress, then the retry skips weave because HEADs are current. Preserve the independent moved-HEAD rebuilt-binary rerun (#303); no sandbox bypass. ARCH-DRY/PURE: reuse settingsx comparison, weavefs and managed ownership rather than classify arbitrary gate failures. Plan posted to hub; TL authorized proceeding after posting.
 
+- Native RED: installed weave compile under sandbox-exec exact settings write denial exited 1 with EPERM at atomic rename; touch denial control failed and original bytes survived.
+- Root cause proved: catchup.go skips weave when HEAD is current; refresh advances HEAD before compile. Its independent rebuilt-binary rerun remains intact.
+- Plan-quality passed after addressing PQ-1 (issue-branch-compatible operator recovery) and PQ-2 (function-level strategies). Full change-code passed; estimate quality INFO notes a clean-review assumption and verification/landing variability. Each module allowance includes its focused regressions; native conformance and suite execution/landing share the integration allowance, while suite queue time is idle rather than active effort. Calibration source marked stale/provisional.
+- Ownership TDD RED unknown action/not-produced, then whole plan package GREEN. Root reviewed agent diff; no desired settings identity fabricated, old metadata/backups retained through repeated deferral.
+- CLI TDD RED unknown settings command/defer flag, then GREEN. SDLC TDD RED missing notice and un-deferred argv, then GREEN (23.351s including unchanged HEAD-move safety tests).
+- All weave packages passed (including refresh 211.384s); latest recovery regression passed (7.050s) through actual refresh --substrate on an ahead issue branch, preserving branch/HEAD and clearing notice.
+- Native production-seam GREEN: ARIADNE_NATIVE_SANDBOX=1 go test -trimpath ./cmd/sdlc -run '^TestStartPlanProtectedSettingsNativeSandbox$' -count=1 -v -timeout 10m passed in 18.402s. Candidate weave built from this source; exact settings denial confirmed; real gate refresh and first start-plan succeeded with stale notice count 1, current count 0. Private fixture substrate manifests and generated attributes were corrected before this green run. No sandbox bypass or production retry.
+
 ## Estimate
 
 *Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only; source flagged stale, provisional.*

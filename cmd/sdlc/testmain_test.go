@@ -163,6 +163,7 @@ func TestMain(m *testing.M) {
 	testfix.PinAgent() // #367
 	// #303: no test runs the installed weave; a test that reaches the catch-up
 	// installs its own fake.
+	weaveSettingsCheck = func(context.Context, string, io.Writer) error { return nil }
 	weaveRefresh = func(context.Context, string, io.Writer) error {
 		return errors.New("test: weave refresh is not faked in this test")
 	}

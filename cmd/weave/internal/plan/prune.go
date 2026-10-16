@@ -66,6 +66,8 @@ func ProducedPathSet(actions []Action) map[string]bool {
 	set := map[string]bool{}
 	for _, a := range actions {
 		switch act := outputAction(a).(type) {
+		case DeferredOutput:
+			set[filepath.Clean(act.Path)] = true
 		case Symlink:
 			set[filepath.Clean(act.Dst)] = true
 		case WriteFile:
