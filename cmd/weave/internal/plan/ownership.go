@@ -266,6 +266,9 @@ func prepareManaged(fs weavefs.FS, root string, actions []Action, scope Ownershi
 		}
 		for p := range ProducedPathSet([]Action{action}) {
 			for d := range deferred {
+				if _, scaffold := action.(Mkdir); scaffold && strings.HasPrefix(d, p+string(filepath.Separator)) {
+					continue // Creating a parent directory does not write its deferred child.
+				}
 				if p == d || strings.HasPrefix(p, d+string(filepath.Separator)) || strings.HasPrefix(d, p+string(filepath.Separator)) {
 					return nil, fmt.Errorf("output %s overlaps deferred output %s", p, d)
 				}

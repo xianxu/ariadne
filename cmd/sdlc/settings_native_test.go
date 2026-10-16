@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/pkg/weaveownership"
 )
 
 // Opt-in native conformance drives the real start-plan and installed-weave seam
@@ -40,6 +41,12 @@ func TestStartPlanProtectedSettingsNativeSandbox(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		backup := filepath.Join(f.Root, weaveownership.DisplacedPath(".claude/settings.json"))
+		backupBefore, backupErr := os.ReadFile(backup)
+		inventoryBefore, inventoryErr := os.ReadFile(filepath.Join(f.Root, weaveownership.InventoryPath))
+		if f.Retired && (backupErr != nil || inventoryErr != nil) {
+			t.Fatalf("missing managed retirement evidence: backup=%v inventory=%v", backupErr, inventoryErr)
+		}
 		weaveRefresh = runInstalledWeave
 		weaveSettingsCheck = runInstalledWeaveSettings
 		var refreshed bytes.Buffer
@@ -60,6 +67,16 @@ func TestStartPlanProtectedSettingsNativeSandbox(t *testing.T) {
 		after, err := os.ReadFile(target)
 		if err != nil || string(after) != string(before) {
 			t.Fatal("protected settings changed", err)
+		}
+		if f.Retired {
+			backupAfter, err := os.ReadFile(backup)
+			if err != nil || !bytes.Equal(backupBefore, backupAfter) {
+				t.Fatal("protected recovery copy changed", err)
+			}
+			inventoryAfter, err := os.ReadFile(filepath.Join(f.Root, weaveownership.InventoryPath))
+			if err != nil || !bytes.Equal(inventoryBefore, inventoryAfter) {
+				t.Fatal("deferred ownership evidence changed", err)
+			}
 		}
 		if git(t, f.Root, "branch", "--show-current") != "000009-nine" {
 			t.Fatal("first start-plan did not create issue branch")
@@ -112,7 +129,8 @@ func TestStartPlanProtectedSettingsNativeSandbox(t *testing.T) {
 			}
 			target := filepath.Join(f.slot.root, ".claude/settings.json")
 			payload, _ := json.Marshal(fixture{Root: f.slot.root, Current: current, Retired: state == "retired"})
-			profile := fmt.Sprintf(`(version 1) (allow default) (deny file-write* (literal %q))`, target)
+			backup := filepath.Join(f.slot.root, weaveownership.DisplacedPath(".claude/settings.json"))
+			profile := fmt.Sprintf(`(version 1) (allow default) (deny file-write* (literal %q) (literal %q))`, target, backup)
 			cmd := exec.CommandContext(ctx, "sandbox-exec", "-p", profile, executable, "-test.run=^TestStartPlanProtectedSettingsNativeSandbox$", "-test.v", "-test.timeout=3m")
 			cmd.Dir = t.TempDir()
 			cmd.Env = append(os.Environ(), childEnv+"="+string(payload))
