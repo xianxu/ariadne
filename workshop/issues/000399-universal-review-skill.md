@@ -145,3 +145,4 @@ S2 and project.md S2a. This is the shared-skill half; no Parley code belongs her
   - ParseMode's edges are pinned to parley's parser: CRLF is refused, values are taken literally, and an empty frontmatter parses but fails on the name;
   - the Revisions entries above.
   The operator's own-edits requirement (5ef50ef6) is folded into the adapter's Untracked section and round.md §1.
+- 2026-10-15: fixed-then-ship round 2 was REWORK. The Important (BR-5): the operator requirement was a scope change after close, so a full sdlc close follows. The Minor is fixed as a rule: the adapter now states when each temporary file is deleted, including the last base copy, deleted when you are done with the document.

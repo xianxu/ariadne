@@ -103,3 +103,96 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"4e42f121-e49f-47ce-bd4f-3f8e940ddb1a","repository":"github.com/xianxu/ariadne","issue_id":"000399","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/81476eaa8f017e33","reviewed_head":"087c8af70c4b394008aadbdbeaf7aba5e79b1169","slot":"ariadne:2","requested_at":"2026-10-15T23:57:15.441874Z"},"phase":"finished","pid":70098,"started_at":"2026-10-15T23:57:15.62149Z","finished_at":"2026-10-16T00:03:08.491485Z","session_id":"313ec06c-a55e-4137-9337-cbed3fffea00","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-15T17:06:17-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 399 — Universal review skill and canonical round export |
+| repo | ariadne |
+| issue file | workshop/issues/000399-universal-review-skill.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 08a09e4755aed877713fd0f4aa17c8d473f726fc..e40d16b5fc230bf36f13c69415f21905f96d0698 |
+| command | sdlc close --issue 399 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-15T17:06:17-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+All four prior Minors are fixed in this window, and `go test ./pkg/reviewexport/` passes. The problem is the rest of the window. It also delivers a new requirement that no prior finding asked for: operator requirement 5ef50ef6, "changes since your last read exclude the agent's own edits". That requirement adds a second `## Revisions` entry, rewrites the `## Untracked` section of `adapters/file-edit.md`, and changes the contract in `round.md` §1. It is new behavior added after close, so this narrow fix review doesn't cover it. Under the fix-review contract that is REWORK: run a full `sdlc close`. The new behavior also brings back a temp file that is never deleted, which repeats the family from BR-2.
+
+1. **Strengths**
+   - `pkg/reviewexport/export.go:86`: the `"\n"+rest` search is a minimal fix that makes an empty frontmatter block parse. The test `empty frontmatter` (`export_test.go:32`) expects a `basename` error; before this fix the code returned "unterminated", so the test would fail without the fix.
+   - The CRLF and quoted-value edges are now documented in the ParseMode doc comment and pinned by tests, so their scope is explicit.
+   - `export.json` hashes were regenerated for both edited members, and TestExportCurrent passes.
+
+2. **Critical:** none.
+
+3. **Important**
+   - **The scope changed after close.** The requirement 5ef50ef6 (Revisions entry 2) came in after close. It changed `construct/local/universal-review/adapters/file-edit.md:64-76` (a saved base copy and `diff -u COPY FILE`) and the "changes since your last read" contract in `round.md:18-21`. None of the four prior findings asked for this. It needs a full `sdlc close` review.
+
+4. **Minor**
+   - **The new `review-base.XXXXXX` copy is never deleted** (`file-edit.md:70-72`). Each copy is deleted only when the next one replaces it, so the last copy of every conversation stays in TMPDIR. **This is the 2nd finding in family `artifact-without-removal-path`.** The rule that covers both: every temp file an adapter creates must state when it is deleted, including the end of the conversation or session. Apply that rule to the whole adapter, not just this one site.
+
+5. **Test coverage**
+   - The ParseMode edges are pinned.
+   - The CRLF and quoted-value tests already passed before this change. They pin behavior, which is right for a parity claim. Parity with parley itself can't be checked from this repo.
+   - Nothing tests that `round.md` refers the agent to `modes/`. That's acceptable, because the list itself is gone and the manifest already hashes `modes/`.
+
+6. **Architecture**
+   - **ARCH-DRY: pass.** BR-1 removed the hard-coded mode list.
+   - **ARCH-PURE: pass.** The ParseMode change stays pure.
+   - **ARCH-PURPOSE: flag.** This is via the scope finding: the window adds behavior outside the fix set, and its temp-file handling repeats the BR-2 class instead of applying a rule to the whole adapter.
+
+7. **Plan revisions**
+   - Revisions entry 2 should stay, but it has to go through a full close review rather than this narrow one.
+   - Entry 1 (TL decision f73c1f3a) correctly records that the live check has moved.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      round.md:33 now says "list the known modes (the files in `modes/`, by `order`)"; the hand-kept list is removed.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      file-edit.md step 4 now says "Then delete BODYFILE, whether the write succeeded or was refused."
+  - id: BR-3
+    disposition: addressed
+    note: |
+      export.go:86 handles the empty block. Tests crlf, quoted-value-literal and empty-frontmatter pin the edges, and the doc comment records the CRLF and literal-value behavior. The empty-frontmatter test fails without the fix.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      A Revisions entry records TL decision f73c1f3a, moving the live Alt+Return check to parley.nvim#332's combined acceptance.
+findings:
+  - id: new
+    severity: Important
+    kind: defect
+    family: scope-change-after-close
+    title: |
+      Scope changed after close: run a full `sdlc close`
+    detail: |
+      The interdiff adds operator requirement 5ef50ef6, which no prior finding asked for. It adds a second Revisions entry, the base-copy diff workflow in adapters/file-edit.md (the Untracked section), and a new "never your own edits" contract in round.md section 1. This is new behavior after close, outside the narrow fix review.
+  - id: new
+    severity: Minor
+    kind: defect
+    family: artifact-without-removal-path
+    title: |
+      The untracked adapter's last review-base copy is never deleted
+    detail: |
+      file-edit.md:70-72 deletes each review-base.XXXXXX copy only when the next one replaces it, so the last copy of every conversation stays in TMPDIR. This is the 2nd finding in this family. Rule: every temp file an adapter creates must state when it is deleted, including the end of the conversation or session. Apply that rule to the whole adapter, not just this site.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"438c7434-a49d-483b-b65d-c6bcc448e293","repository":"github.com/xianxu/ariadne","issue_id":"000399","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/da2ac20b4554708e","reviewed_head":"e40d16b5fc230bf36f13c69415f21905f96d0698","slot":"ariadne:2","requested_at":"2026-10-16T00:05:13.757063Z"},"phase":"finished","pid":36302,"started_at":"2026-10-16T00:05:14.072286Z","finished_at":"2026-10-16T00:06:07.030111Z","session_id":"c387247f-a9f9-448b-a918-d3bbea4ff4e7","outcome":"returned"}] -->

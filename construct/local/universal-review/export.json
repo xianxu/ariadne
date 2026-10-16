@@ -19,8 +19,8 @@
       "role": "adapter",
       "name": "file-edit",
       "path": "adapters/file-edit.md",
-      "bytes": 4083,
-      "sha256": "2dd310b854d7ea321a2cbbd15e352a605f4cf8eb62b48f185553db990abd0678"
+      "bytes": 4428,
+      "sha256": "431e40cc7ab4f82951e338315ee2adc1961aadca54e9bccbd33e0dd33ea4bc1a"
     },
     {
       "role": "mode",

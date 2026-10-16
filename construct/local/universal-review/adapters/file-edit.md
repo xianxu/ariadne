@@ -6,6 +6,10 @@ tracked document directly: the operator's lock and the compare-and-swap below
 are what keep your write from overwriting their unsaved work. Every `couch`
 call is the whole shell command (AGENTS §15).
 
+**Temporary files.** Each temporary file below states when you delete it. All
+of them live under `$TMPDIR`, so one you could not delete (a refused tool
+call, a lost conversation) is left in scratch space, not in the repository.
+
 ## Is the document tracked?
 
 Decide in this order, and edit directly only on a confirmed **untracked**:
@@ -69,7 +73,8 @@ read the file again right before writing.
 **Changes since your last read** exclude your own edits. After each write,
 re-read the file and save that text, the file as you left it, to a copy made
 with `mktemp "${TMPDIR:-/tmp}/review-base.XXXXXX"`; remember the copy's path,
-and delete the copy it replaces.
+and delete the copy it replaces. Delete the last copy when you are done with
+the document: the operator says so, or you hand the slot to other work.
 Next round, the changes are `diff -u COPY FILE`: the operator's edits since
 you left it, never your own, and never measured against the operator's
 previous send. Without a saved copy (a first read, or a new conversation),
