@@ -1,6 +1,6 @@
 ---
 id: 000399
-status: codecomplete
+status: done
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 95dced13d8b1d1e29eb533b7d608733c8cc96d01
         evidence_commit: 003f1dbf1c67dd15f4f64c9c7912815f405a4908
+        landed_commit: f19623c46566c209a1b90c6d95a4714ce61212a9
 ---
 
 # Universal review skill and canonical round export
