@@ -17,6 +17,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -131,18 +132,14 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 		return err
 	}
 	pinnedMain := mainView.Ref()
-	if rel, err := publishedDetailPath(mainView, dirs, id); err != nil {
-		return err
-	} else if rel != "" {
-		return fmt.Errorf("#%s's details (%s) are already on main: creation is complete and another thread may own them; nothing was changed", id, rel)
-	}
-	if err := requireInitialDetails(card); err != nil {
-		return err
-	}
-
 	spec := tracker.ReceiptSpec{Token: operationToken("move"), Repository: env.target.Repository, IssueID: id,
 		CardPath: card.Path, SourcePath: dest, DestinationPath: dest, SourceBranch: env.branchRef(),
 		SourceHEAD: env.head, CardOID: card.BlobOID, TrackerBase: snap.Ref(), MainBase: pinnedMain}
+	// Fast refusal before source preparation; BeforePublish remains authoritative.
+	if err := checkInitialPublication(env, spec, mainView); err != nil {
+		return err
+	}
+
 	abs := filepath.Join(env.root, filepath.FromSlash(dest))
 	info, statErr := os.Lstat(abs)
 	var source []byte
@@ -189,13 +186,6 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 	}
 	var pins []tracker.EvidenceEntry
 	for p, b := range assetBundleWrite(bundle, dest) {
-		if err := verifyAssetAttributes(env.ctx, env.root, p); err != nil {
-			return err
-		}
-		if err := verifyAssetAttributesAt(env.ctx, env.root, p, pinnedMain); err != nil {
-			return err
-		}
-
 		if err := checkMoveSource(env, p, pinnedMain); err != nil {
 			return err
 		}
@@ -210,7 +200,7 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 	}
 	sort.Slice(pins, func(i, j int) bool { return pins[i].Path < pins[j].Path })
 	spec.SourceAssets = tracker.FormatEvidenceEntries(pins)
-	if err := checkTransferAssetAdmission(env, spec, env.main.ViewOf(pinnedMain)); err != nil {
+	if err := checkInitialPublication(env, spec, env.main.ViewOf(pinnedMain)); err != nil {
 		return err
 	}
 	if spec.SourceBase, err = moveSourceBase(env, dest, pinnedMain); err != nil {
@@ -409,10 +399,9 @@ func moveDetailRemover(env *trackerEnv) tracker.Remover {
 	}
 }
 
-func checkTransferAssetAdmission(env *trackerEnv, spec tracker.ReceiptSpec, view *gitx.TrunkView) error {
-	if spec.SourceAssets == "" {
-		return nil
-	}
+// checkInitialPublication is the admission authority for every unconfirmed
+// initial-details push. Preflight calls only provide the same refusal earlier.
+func checkInitialPublication(env *trackerEnv, spec tracker.ReceiptSpec, view *gitx.TrunkView) error {
 	snap, err := env.repo.Snapshot()
 	if err != nil {
 		return err
@@ -420,6 +409,34 @@ func checkTransferAssetAdmission(env *trackerEnv, spec tracker.ReceiptSpec, view
 	card, err := snap.Require(spec.IssueID)
 	if err != nil {
 		return err
+	}
+	if err := requireInitialDetails(card); err != nil {
+		return err
+	}
+	dirs, err := resolveIDDirs(filepath.Dir(spec.DestinationPath), envOr("WF_HISTORY_DIR", "workshop/history"))
+	if err != nil {
+		return err
+	}
+	rel, err := publishedDetailPath(view, dirs, spec.IssueID)
+	if err != nil {
+		return err
+	}
+	if rel != "" {
+		return fmt.Errorf("#%s's details (%s) are already on main: %w; refusing initial publication", issue.CLIRef(spec.IssueID), rel, tracker.ErrDestinationExists)
+	}
+	n, err := strconv.Atoi(spec.IssueID)
+	if err != nil {
+		return err
+	}
+	local, err := localDetailPath(dirs, n)
+	if err != nil {
+		return err
+	}
+	if local != "" && filepath.Dir(local) != dirs.Abs[0] {
+		return fmt.Errorf("#%s has local archived details at %s but none on main; refusing active creation", issue.CLIRef(spec.IssueID), local)
+	}
+	if spec.SourceAssets == "" {
+		return nil
 	}
 	if err := requireOwnedToPublish(env, card); err != nil {
 		return err
@@ -434,21 +451,11 @@ func checkTransferAssetAdmission(env *trackerEnv, spec tracker.ReceiptSpec, view
 	}
 	return requireAssetPublicationPolicy(env.ctx, env.root, view)
 }
+
 func newIssueTransferOp(env *trackerEnv) *tracker.TransferOp {
 	op := tracker.NewTransferOp(env.ctx, env.repo, env.main, env.root, env.branchRef(), moveDetailRemover(env))
 	op.BeforePublish = func(spec tracker.ReceiptSpec, view *gitx.TrunkView) error {
-		dirs, err := resolveIDDirs(filepath.Dir(spec.DestinationPath), envOr("WF_HISTORY_DIR", "workshop/history"))
-		if err != nil {
-			return err
-		}
-		rel, err := publishedDetailPath(view, dirs, spec.IssueID)
-		if err != nil {
-			return err
-		}
-		if rel != "" {
-			return fmt.Errorf("%w at %s; refusing initial publication", tracker.ErrDestinationExists, rel)
-		}
-		return checkTransferAssetAdmission(env, spec, view)
+		return checkInitialPublication(env, spec, view)
 	}
 	return op
 }

@@ -59,6 +59,16 @@ flow: {kind: full, provenance: operator}
 
 ## Log
 
+### 2026-10-16 — BR-4 green evidence
+
+The same new regression group passed in 111.931s after consolidation. All terminal categories refuse across first/retry/recovery, moved-main retry asserts a second candidate preparation, both publication entry points preserve local archives, and confirmed-publication recovery still finishes after a done transition. Atlas maps the shared admission authority. Broader verification follows.
+
+
+### 2026-10-16 — consolidated admission red evidence
+
+After the TL-approved plan cleared plan-quality CLEAN and estimate-quality INFO, new tests reproduced all nine terminal-status transitions across first/retry/recovery and both local-archive move-detail bypasses. Confirmed-publication recovery remains green. Run: TestInitialPublication(TerminalRevalidation|ConfirmedRecoveryAfterTerminalTransition|LocalArchiveEntryPointParity), 113.742s. Correction composes the complete rule in checkInitialPublication and demotes preflight to calls of the same function; no new hook/state/receipt.
+
+
 ### 2026-10-16 — close round 2 stopped for TL decision
 
 Close returned REWORK, leaving the card working. The independent reviewer confirmed BR-1/BR-2/BR-3 addressed, including mutation evidence: removing each behavioral fix reproduced its six failures. New Critical BR-4 shows terminal-card admission can become stale between preflight and initial publication or saved-candidate recovery; the reviewer reproduced active creation and source removal after a card became done. No further code has been changed. Per the TL's explicit instruction to stop before a third mechanism change, the next correction waits for the TL decision.

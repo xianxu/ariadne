@@ -87,10 +87,6 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 	if err != nil {
 		return err
 	}
-	local, _, err := issue.LocalPathsByID(dirs.Abs)
-	if err != nil {
-		return err
-	}
 	locations := map[string]string{}
 	var first []int
 	var republish []string
@@ -100,15 +96,8 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 		if err != nil {
 			return err
 		}
-		var localDetails []string
-		candidates := slices.DeleteFunc(local[n], func(p string) bool { return !issueFilename(filepath.Base(p)) })
-		for _, f := range classifyFamily(n, candidates) {
-			if f.Kind == kindIssue {
-				localDetails = append(localDetails, f.Path)
-			}
-		}
-		if len(localDetails) > 1 {
-			return fmt.Errorf("#%s has duplicate details: %s", issue.CLIRef(id), strings.Join(localDetails, ", "))
+		if _, err := localDetailPath(dirs, n); err != nil {
+			return err
 		}
 		rel, err := publishedDetailPath(view, dirs, id)
 		if err != nil {
@@ -118,10 +107,9 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 			locations[id] = rel
 			republish = append(republish, id)
 		} else {
-			if len(localDetails) == 1 && filepath.Dir(localDetails[0]) != dirs.Abs[0] {
-				return fmt.Errorf("#%s has local archived details at %s but none on main; refusing active creation", issue.CLIRef(id), localDetails[0])
-			}
-			if err := requireInitialDetails(card); err != nil {
+			// Early admission only; the transfer checks the same rule again before push.
+			spec := tracker.ReceiptSpec{IssueID: id, DestinationPath: path.Join(dirs.Rel[0], path.Base(card.Path))}
+			if err := checkInitialPublication(env, spec, view); err != nil {
 				return err
 			}
 			first = append(first, n)
@@ -155,6 +143,29 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 		}
 	}
 	return republishOwned(env, stdout, stderr, republish, dirs.Rel[0], dryRun)
+}
+
+// localDetailPath applies the same canonical filename grammar before family
+// classification; an ID-prefixed backup is not an issue detail.
+func localDetailPath(dirs idDirs, n int) (string, error) {
+	local, _, err := issue.LocalPathsByID(dirs.Abs)
+	if err != nil {
+		return "", err
+	}
+	candidates := slices.DeleteFunc(local[n], func(p string) bool { return !issueFilename(filepath.Base(p)) })
+	var details []string
+	for _, f := range classifyFamily(n, candidates) {
+		if f.Kind == kindIssue {
+			details = append(details, f.Path)
+		}
+	}
+	if len(details) > 1 {
+		return "", fmt.Errorf("#%d has duplicate details: %s", n, strings.Join(details, ", "))
+	}
+	if len(details) == 1 {
+		return details[0], nil
+	}
+	return "", nil
 }
 
 // requireInitialDetails prevents first-publication recovery resurrecting closed work.
