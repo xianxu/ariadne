@@ -333,7 +333,7 @@ func deleteLandingBranch(r gitRunner, t landingTarget, branch, head string, stde
 	cleanupBranchConfig(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, branch, stderr)
 	return nil
 }
-func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) error {
+func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (err error) {
 	ctx := commandContext(f.Context)
 	r := boundedLandingGit(ctx, mergeRunner)
 	branch, current, err := landingIssueBranch(r, t, f.Branch)
@@ -354,6 +354,25 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 	if !ok {
 		return errors.New("GitHub adapter does not support structured landing evidence")
 	}
+	// Confirm before queueing, so an operator's prompt never holds the line.
+	if !f.Yes {
+		if ans := mergePrompter.Ask("Land PR, archive remotely and return to unchanged baseline? [y/N] ", stderr); ans != "y" && ans != "Y" {
+			return errors.New("aborted by operator")
+		}
+	}
+	// The landing line (#393). An already-merged PR only resumes cleanup and
+	// takes no turn; everything below is observed after admission (PQ-1).
+	pre, err := gh.LandingPRs(ctx, t.Repo, branch)
+	if err != nil {
+		return err
+	}
+	var turn *landingTurn
+	if !anyMergedPR(pre) {
+		if turn, err = enterLandingLine(ctx, r, t, branch, stderr); err != nil {
+			return err
+		}
+		defer func() { turn.leave(err) }()
+	}
 	head, err := landingOptional(r, t.Root, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch)
 	if err != nil {
 		return err
@@ -369,10 +388,8 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 	if err != nil {
 		return err
 	}
-	if !f.Yes {
-		if ans := mergePrompter.Ask("Land PR, archive remotely and return to unchanged baseline? [y/N] ", stderr); ans != "y" && ans != "Y" {
-			return errors.New("aborted by operator")
-		}
+	if turn != nil {
+		turn.PR = pr.Number
 	}
 	fmt.Fprintf(stderr, "Recovery: sdlc merge --branch %s --yes\n", branch)
 	if pr.State != "MERGED" {
