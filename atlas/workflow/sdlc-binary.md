@@ -314,6 +314,46 @@ See [workspace branching and landing](workspace-branching.md) for the procedure;
 `landing_test.go` uses real Git plus a stateful GitHub fake for preservation and
 interruption/retry coverage.
 
+### Landing line (#393)
+
+Concurrent merges used to integrate against the same main. Each landing then forced
+the others to integrate again and rerun a full suite. The landing line orders a
+repository's landings, so one merge at a time integrates and lands.
+`cmd/sdlc/internal/landingline` is a pure core (`order.go`) inside a thin IO shell
+(`line.go`, `log.go`). The line directory is `<git-common-dir>/sdlc/landing/`,
+which every slot of a repository shares, beside #370's `sdlc.lock`. The repo lock
+is mkdir-based; the line uses flock(2) through `internal/flock`, which it shares
+with reviewbox.
+
+- **Tickets and the head.** A merge holds a flock on its own ticket file while it
+  waits. It holds `head.lock` once admitted, and leaves the ticket set at that
+  point. Every flock dies with its process: the next scan prunes a dead waiter's
+  ticket, and a dead head frees the line. Nothing is left that a crash can make
+  inconsistent, and there is no daemon. Scans and admission run under the
+  `line.lock` mutex. A ticket appears already locked (it is written under a
+  temporary name and renamed into place), so a scan never takes a new ticket for
+  a dead one.
+- **Order.** `Order` and `NextHead` put fleet-blocking tickets first, then normal
+  ones, FIFO by ticket number within each class. Waiters poll every 2 s. A
+  running head is never preempted: priority decides only who is admitted next.
+- **Grants.** `grants.jsonl` is the only source of priority. `ValidGrants` keeps
+  the latest entry per issue when it is unrevoked and unexpired (at most 24 h),
+  has a reason, and records a grantor that is the operator's shell or a :0 slot.
+  That check runs on read as well as on write. Trust is cooperative: it guards
+  against agents' mistakes on one machine, not against a process that forges the
+  grantor.
+- **Events and retention.** `events.jsonl` records enqueue, admit (with the
+  tickets it displaced), landed and refused. `Delays` gives the
+  enqueue-to-landed samples for the pilot's p90, through test-stats'
+  nearest-rank helper. Both logs are appended under the mutex and swept of
+  entries older than 30 days, at most once a day.
+- **Relation to the suite line.** `scripts/test-lock.py`'s FIFO line for
+  full-suite slots uses the same design (flock liveness, pruning under a mutex)
+  but shares no code: it is a make-invoked Python helper, and its waiters aren't
+  sdlc processes.
+
+M2 wires the line into `runDurableMerge` and adds `sdlc landing`.
+
 ## The quick flow at close (#231)
 
 `internal/flow` is the pure core: the one-line `flow:` record codec, `Decide`
