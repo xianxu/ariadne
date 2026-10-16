@@ -1,12 +1,22 @@
 ---
 id: 000404
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-15
-updated: 2026-10-15
+updated: 2026-10-16
 estimate_hours:
-card_mirror: '8cb487f21a93a3a6a3238f740ae9bcb074437b97' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'fc73596e6af7f3b15eb9d9d264a23036265f2ae4' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-16T09:16:33-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "89e3531d", done: "6fb4de37"}
+actual_hours: 0.44
 ---
 
 # tl-lead/tl-worker: a third design delta on one mechanism triggers a re-plan; invariants weigh a lock-shaped design first
@@ -34,8 +44,50 @@ refusal reasons; a wrapper-held flock that dies with its process does the same i
 
 ## Plan
 
-- [ ]
+- [x] Extend existing help phrase guards for both commands; observe failure.
+- [x] Add role-specific planning prose for the third-delta tripwire and the
+  owner-lifetime lock/lease question; run targeted guards and the full suite.
+- [x] Prepare close with the boundary review; land on SHIP.
 
 ## Log
 
 ### 2026-10-15
+
+### 2026-10-16 — design
+- 2026-10-16: closed — BR-1: shared embedded planning source composed into both help outputs; both existing phrase guards proved red after removing duplicate copies then green via composition; targeted tl-worker/tl-lead/tlrules pass. Full make test passed 1508 tests and 66 packages; recorded suite is running on the consolidation head. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+
+Quick-flow help-text change. ARCH-DRY: retain the existing embedded help and
+phrase-test mechanisms; each role states its action (TL stops approving, worker
+stops requesting incremental approval). ARCH-PURE: no runtime IO changes.
+ARCH-PURPOSE: guard both rules on both help surfaces, including why a lock/lease
+cannot work before absence-by-observation designs. ARCH-MOCK, ARCH-CONSTRAINTS,
+ARCH-SECURE: no external dependency, workload or trust-boundary changes.
+ARCH-ORDER: help holds no state between events; it instructs actors about the
+third-delta boundary. ARCH-FUNERAL: creates no new durable artifact family;
+issue and review records follow existing archive lifecycle.
+
+Plan sent to ops:0 for approval; #406's requested Revision published separately
+before implementation. No operator smoke needed for help-only wording.
+
+### 2026-10-16 — implementation verification
+
+ops:0 approved the short plan via verified delivery
+7218f7f2-b1b4-45fc-9d1b-96d8c3474575. Existing help tests failed on all four
+new phrases on both default and --help paths before implementation. After adding
+the planning section, `go test ./cmd/tl-worker ./cmd/tl-lead ./pkg/tlrules
+-count=1` passed; `git diff --check` passed. Full `make test` running in the
+background; log /tmp/ariadne-404-suite.log. Atlas maps the new planning rules.
+
+Full `make test` passed: 12 shards over 1,508 cmd/sdlc tests plus 66 other
+packages; zero failures, 654.9 seconds execution after 538 seconds queue wait.
+
+## Revisions
+
+### 2026-10-16 — BR-1: one shared planning source
+
+The close review identified the duplicated executable planning text in both
+command helps (the complete class in this window). Move it into embedded
+`pkg/tlrules/planning.md`, compose both help templates through the existing
+shared rules package, and retain independent phrase guards. Removing both
+copies first made the guards fail again; the shared composition restores them.
+No requirement or scope change; this enforces ARCH-DRY for the approved section.

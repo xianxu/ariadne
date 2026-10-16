@@ -62,6 +62,8 @@ STEWARDSHIP
   subagent, or pin `--flow full`. Write your reviews to the project's
   `reviews/` directory.
 
+{{PLANNING}}
+
 TWO MODES OF WORK IN OPS
   - Developing ops itself (tools, scripts): the normal sdlc process.
   - Operating (TL state, project files, releases): work directly on main.

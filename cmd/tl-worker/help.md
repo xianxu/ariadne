@@ -14,6 +14,8 @@ Already stated elsewhere, and binding here; not repeated:
   - `couch --skill`: sending (including --message-file for shell syntax),
     receipts, and labelling your slot after `sdlc claim`.
 
+{{PLANNING}}
+
 PERMISSIONS
   You need no permission for targeted tests, a full suite before a close (the
   machine gate caps concurrency), or a bounded headless browser run (a

@@ -42,6 +42,11 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		{"session-sync: the operator's lock", "The operator's lock is the only lock"},
 		{"dispatch judgment", "The dispatch message carries only"},
 		{"product stewardship", "STEWARDSHIP"},
+		{"planning third-delta", "third design delta on the same mechanism"},
+		{"planning re-plan", "simplest alternative and why it fails"},
+		{"planning lifetime-resource", "held for the owner's lifetime"},
+		{"planning absence-proof", "proves absence by observation"},
+
 		{"design rule 1", "reduce to a few visible states"},
 		{"design rule 2", "educated, probabilistic guess with the top alternatives"},
 		{"the smoke loop via sdlc stage", "THE SMOKE LOOP VIA `sdlc stage`"},

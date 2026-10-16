@@ -12,6 +12,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/pkg/tlrules"
 )
 
 //go:embed help.md
@@ -30,7 +31,7 @@ func buildRoot() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "tl-worker",
 		Short:         "The rules for a worker slot in a TL-run Couch fleet",
-		Long:          rootHelp,
+		Long:          tlrules.ComposeHelp(rootHelp),
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
