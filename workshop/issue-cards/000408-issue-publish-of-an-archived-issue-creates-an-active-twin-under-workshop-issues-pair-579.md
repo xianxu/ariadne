@@ -1,6 +1,6 @@
 ---
 id: 000408
-status: working
+status: codecomplete
 created: 2026-10-16
 updated: 2026-10-16
 estimate_hours: 0.94
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.72
+tracker:
+    version: 1
+    completion:
+        token: close-46109bac2e9c
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 9da64867cec00ab9d09b1d3391e4988262134d86
+        evidence_commit: 7bd39a23deb9c7d397c6aab57a1c7e0a7ace54d5
 ---
 
 # issue publish of an archived issue creates an active twin under workshop/issues (pair#579)
