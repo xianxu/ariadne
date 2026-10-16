@@ -40,7 +40,7 @@ ARCH-PURE: reuse pure settingsx merge/equality; keep reads/output in the IO shel
 - [x] Test deferredClaudeSettings and buildSettings against adversarial JSON/filesystem states; observe exact notice counts and deny all protected mutations. Add read-only observation and explicit deferred-refresh mode.
 - [x] Test catchUpBeforeWork/startPlanBranch with stateful installed-weave fixtures; assert settings observation cannot fail planning or obscure genuine catchup errors. Wire gate deferral and retain the moved-HEAD rerun.
 - [x] Run focused weave and SDLC catchup tests, negative controls and native denial conformance.
-- [ ] Update README and atlas; push and record the full suite.
+- [x] Update README and atlas; push and record the full suite.
 
 After all verification completes, close through SDLC, land on SHIP and report hub.
 
@@ -58,3 +58,7 @@ The single recovery action is run weave refresh --substrate from your shell: def
 ### 2026-10-16 — verification bookkeeping
 
 Separate the final validation checkbox from its following close/landing actions; no change to deliverables.
+
+### 2026-10-16 — recorded execution versus passing landing validation
+
+Two full suite runs completed with unrelated failures (shell timeout then reproduced main flake #413); all feature tests pass. Record the execution step complete and submit those exact outcomes to mandatory close review while an unchanged retry queues. Passing local-suite evidence remains required at merge.

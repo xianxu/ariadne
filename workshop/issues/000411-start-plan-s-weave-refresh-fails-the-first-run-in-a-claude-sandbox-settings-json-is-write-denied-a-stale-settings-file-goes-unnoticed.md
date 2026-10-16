@@ -44,7 +44,7 @@ then goes through, so the slot's `.claude/settings.json` may lag the woven one w
 
 - [x] Reproduce denied settings publication and trace first-run/second-run behavior.
 - [x] Make protected settings denial nonfatal with one actionable stale notice; retain ownership and unrelated error safeguards.
-- [ ] Verify settings recovery and start-plan behavior; run focused checks and the recorded suite.
+- [x] Verify settings recovery and start-plan behavior; run focused checks and the recorded suite.
 
 After verification, close through SDLC and land on SHIP.
 
@@ -79,6 +79,8 @@ After verification, close through SDLC and land on SHIP.
 - Confirmed #413 on main 35ba24e6cad39344c347af981de7ac8fcc1d1c31: 18/1000 repetitions failed with the same missing metadata in 47.462s; log /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne411-lock-main-1000-60b_vs0t.log. Reproduction published in unassigned #413; hub receipt 62726fe8-0389-4ff5-9a4b-6b888976fe06 confirmed submitted. Scratch checkout removed.
 - Second full suite finished: all 12 SDLC shards over 1522 tests and construct scripts passed; only independent #413 failed in the other-package job. Runtime 948.3s (15m49s), saved log /Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/failed/5f54a534ecf74f0c3b0c7af2873769a8.log, hash prefix 7f4685833154. Preserve the failed status; run one further unchanged full-suite retry through the standard gate. No code change, budget change, test exclusion or validation waiver.
 
+- Both required full-suite executions are recorded above with their failures, not represented as passing. The third unchanged run is queued on b0b8a2de. Start the mandatory close review with all feature/host evidence and the independent reproduced main failure explicitly disclosed; merge validation still requires a passing recorded suite, with no --no-validate or other waiver. The checked Plan row records execution and feature verification, not a clean whole-repository suite.
+
 ## Estimate
 
 *Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only; source flagged stale, provisional.*
@@ -110,3 +112,7 @@ PQ-1: use the single action weave refresh --substrate from your shell so operato
 ### 2026-10-16 — separate validation from future landing
 
 The Plan's last checkbox now covers the verifiable checks; close and landing remain subsequent SDLC actions rather than self-dependent checkbox claims. Acceptance and scope unchanged.
+
+### 2026-10-16 — review while unchanged validation retry queues
+
+The required suite was executed twice before close review; both outcomes remain recorded verbatim. Feature acceptance is proven by focused and native tests. Start fresh review while the unchanged full-suite retry waits, keeping merge's passing-suite requirement intact. No acceptance, scope or gate waiver.
