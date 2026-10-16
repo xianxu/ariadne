@@ -63,6 +63,16 @@ Deliverables:
 
 Durable plan: [workshop/plans/000412-s2-collaboration-modes-plan.md](../plans/000412-s2-collaboration-modes-plan.md). Tasks 1 to 9 there, one boundary (no Mx).
 
+- [ ] 1. collaboration-modes.md: the protocol (frontmatter, sections, the three modes, instructions that act, side docs, the state table)
+- [ ] 2. round.md §4 routes by collaboration mode; §5 opening, §6 reply, SKILL.md pointer, the adapter's side-doc paragraph
+- [ ] 3. examples/: discussion (and retry), collaboration, chat (and retry), errors
+- [ ] 4. examples_test.go: the side-doc contract checker (TDD against a broken copy) and nextSideDocName
+- [ ] 5. export: the collaboration-modes member at Version 1, export.json regenerated
+- [ ] 6. tl-lead help: the session file's collaboration-mode line, chat mode cited, answer docs in tl-status-<op>.side/; topic tests
+- [ ] 7. atlas: universal-review.md (and tl-skills.md)
+- [ ] 8. live check: rounds on the examples' before.md copies, and one tracked round through Couch
+- [ ] 9. full suite via sdlc local-check, then sdlc close
+
 ## Log
 
 ### 2026-10-16
@@ -71,3 +81,4 @@ Durable plan: [workshop/plans/000412-s2-collaboration-modes-plan.md](../plans/00
 - Asked the design owner parley.nvim:4 four points (56ce9462). Answered (971f4119): export role `collaboration-modes` at Version 1 (parley's #319 sync is strict about both role and version, so a bump spares nothing); examples not exported; `process-instruction:` copied into a side doc only when the parent has one; a chat follow-up is a diff hunk overlapping the item's extent minus its link. All folded into the plan.
 - Rejected a Go router (`sdlc review sections`): parley's standalone prompt has no binary, so the prose stays the one source (ARCH-DRY).
 - Plan approved by the TL (19edb7f1): full flow pinned (it changes how every agent answers every document); O1 decided, a 🤖[fold in] by a link is an imperative and becomes an edit in M1, marking the link folded; the session file line and moving the QA answers are the TL's after landing, with the exact line in the landing report.
+- parley.nvim:4 confirmed O1 (e2492347, folded into ops 7d0b425d): one fold-in with two triggers (an approval in the side doc, a 🤖[fold in] by the link in the parent), both marking the link folded. With no settled proposal to fold, the agent asks with a one-line clarifying turn, as for an ambiguous ok.

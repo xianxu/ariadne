@@ -207,6 +207,8 @@ The contract edges (D§2, D§4), each an example or a checker case:
   the link "(folded <date>)", as row 7 does. S3 later adds the index and closing around it. Row 10's test-list entry
   becomes `examples/discussion/`: a 🤖[fold in] beside an existing link, with the folded text in after.md and the
   link marked.
+  parley.nvim:4 agreed (e2492347; ops 7d0b425d): one fold-in, two triggers. If the discussion holds no settled
+  proposal, the agent asks with a one-line clarifying turn, as for an ambiguous ok (row 8).
 - **The flow: pinned to full by the TL.** The change alters how every agent answers every document, so it gets the
   plan-quality review and a real estimate.
 - **The live session file.** Adding `collaboration-mode:` to `teams/devinfra/tl-status-xian-xu.md` is ops' file and
