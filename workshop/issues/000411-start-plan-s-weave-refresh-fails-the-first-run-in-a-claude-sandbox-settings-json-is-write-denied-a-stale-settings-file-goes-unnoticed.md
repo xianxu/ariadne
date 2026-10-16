@@ -70,6 +70,9 @@ After verification, close through SDLC and land on SHIP.
 - Isolated candidate plain rerun reproduced the same 120.239s timeout. Runner, construct tests and emitter are byte-identical to current main. Current machine load observed 167.47, diagnostic only; no custom load gate introduced. A scratch main checkout control is running; its result will determine whether this is independent of #411.
 - Hub timeout question send returned uncertain receipt 28fc3ab8-32bc-4d6c-8ffe-901b8df59270; receipt query then unavailable after a restart and couch intermittently absent on PATH. Did not blindly resend or use another channel.
 
+- Main control at 87e0feeb63e41946936ccb316583629ce8eb6b8a passed the unchanged plain shell test in 66.861s; log /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne411-main-control-l273bo38.log. Scratch main worktree removed cleanly. This did not reproduce a main failure, so no claim of an established main bug.
+- Candidate plain rerun then passed in 80.640s (all six construct scripts, zero failures). Together with the earlier 120s timeouts and unchanged scripts, this supports a load-sensitive timeout. No code/test-budget change or waiver; rerun the normal recorded full suite.
+
 ## Estimate
 
 *Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only; source flagged stale, provisional.*
