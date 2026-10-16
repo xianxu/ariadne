@@ -1,12 +1,21 @@
 ---
 id: 000405
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
-card_mirror: '7d20c22c43e32c94758e82b7a33378dedcb83d47' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ae7347889e1a24d8fc21f9860810cb7e98ceb91b' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-15T20:34:51-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "dc91444b", done: "bf1822d9"}
 ---
 
 # dev-aliases: skip the rebuild in Couch agent shells (COUCH_TREE) and when the binary is not stale
@@ -35,11 +44,16 @@ Build-to-temp-then-rename is already on main (#355). The 20:28 `rm -f` came from
 
 ## Plan
 
-- [ ] Emit the skip guard in `construct/dev-aliases.sh` and update its header comment.
-- [ ] Tests: behavioural cases with a stub go (COUCH_TREE with the binary present and missing, fresh, stale, dev-prepare skipped when fresh); update the exact-shape assertions.
-- [ ] Atlas and README wording.
+- [x] Emit the skip guard in `construct/dev-aliases.sh` and update its header comment.
+- [x] Tests: behavioural cases with a stub go (COUCH_TREE with the binary present and missing, fresh, stale, dev-prepare skipped when fresh); update the exact-shape assertions.
+- [x] Atlas wording: base-layer (the rule that :0's bin/ is rebuilt only by the operator, the TL, sdlc stage --build or make) and the issue-tracker rollout sentence. README needed no change.
 - [ ] Full `make test`.
 
 ## Log
 
 ### 2026-10-15
+
+- TL approved the plan and its consequence: slots run whatever :0 last built, and no slot rebuilds even when the binary is stale. The atlas states who rebuilds :0's bin/.
+- #355 already builds to a temporary name and renames, so that part of the request was done. The 20:28 rm -f came from an agent shell snapshot from 10-13, before #355. Sessions keep their snapshot's functions until they restart.
+- side-quest 22a5ca01: weave's .gitignore lines for the xx-universal-review lowering, missed in #399. They dirtied every slot after a refresh and blocked start-plan.
+- the tests unset COUCH_TREE, because this slot's own environment would otherwise skip every build. File times are set with touch -t, so no case depends on mtime resolution. dev-aliases.test.sh: 55 passed.
