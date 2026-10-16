@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -30,7 +32,7 @@ func defaultLandingDeps() landingDeps {
 		return id, err == nil
 	}
 	return landingDeps{
-		now: time.Now,
+		now: func() time.Time { return landingNow() },
 		caller: func() (string, *int, bool) {
 			id, ok := resolve(".")
 			if !ok {
@@ -177,7 +179,8 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 		}
 		fmt.Fprintf(&b, "  %d. %s [%s] waiting since %s\n", i+1, describeTicket(&t), class, t.Enqueued.Format(time.RFC3339))
 	}
-	for issueN, g := range grants {
+	for _, issueN := range slices.Sorted(maps.Keys(grants)) {
+		g := grants[issueN]
 		fmt.Fprintf(&b, "grant: #%d fleet-blocking until %s, by %s: %s\n", issueN, g.Expires.Format(time.RFC3339), g.Grantor.Address, g.Reason)
 	}
 	if q := suiteQuantiles(landingline.Delays(events)); q != nil {

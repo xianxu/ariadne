@@ -112,8 +112,10 @@ func TestLandingLineWaitsThenIntegratesOnce(t *testing.T) {
 	if len(events[landingline.EventEnqueue]) != 1 || len(events[landingline.EventAdmit]) != 1 || len(events[landingline.EventLanded]) != 1 {
 		t.Fatalf("events %v", events)
 	}
-	if landed := events[landingline.EventLanded][0]; landed.PR != gh.pr.Number || landed.Branch != landingTestBranch {
-		t.Fatalf("landed event %+v", landed)
+	enq, adm, landed := events[landingline.EventEnqueue][0], events[landingline.EventAdmit][0], events[landingline.EventLanded][0]
+	if landed.PR != gh.pr.Number || landed.Branch != landingTestBranch || landed.Issue != 1 || enq.Issue != 1 ||
+		adm.Seq != enq.Seq || landed.Seq != enq.Seq || len(adm.Displaced) != 0 {
+		t.Fatalf("events enqueue %+v admit %+v landed %+v", enq, adm, landed)
 	}
 	if _, waiting, _ := line.Status(); len(waiting) != 0 {
 		t.Fatalf("left in line: %v", waiting)
@@ -136,6 +138,33 @@ func TestLandingLineDuplicateResumesAsMerged(t *testing.T) {
 	}
 	if gh.merges != 1 {
 		t.Fatalf("merges=%d", gh.merges)
+	}
+	// A resume isn't a landing: it mustn't count twice in the pilot's delays.
+	if events := lineEvents(t, line); len(events[landingline.EventResumed]) != 1 || len(events[landingline.EventLanded]) != 0 {
+		t.Fatalf("events %v", events)
+	}
+}
+
+// A reused branch name: an old merged PR beside the new open one. The open PR
+// is still to land, so the merge waits its turn (M2 review I-1). What happens
+// after admission is the landing's existing rule, not the line's: selection
+// without a head counts every live PR on the branch name, so the reused name
+// is refused at cleanup ("need one exact matching PR"); either way, nothing
+// happens outside the line.
+func TestLandingLineReusedBranchStillQueues(t *testing.T) {
+	root, _, gh := integrationFixture(t)
+	gh.older = []landingPR{{Number: 0, State: "MERGED", Repo: gh.pr.Repo, HeadRef: landingTestBranch, HeadOID: gh.pr.BaseOID, BaseRef: "main", BaseOID: gh.pr.BaseOID, MergeOID: gh.pr.BaseOID}}
+	line, head := heldLine(t, root)
+	done := mergeAsync(landingFlags())
+	waitQueued(t, line, 1)
+	time.Sleep(50 * time.Millisecond)
+	if gh.merges != 0 {
+		t.Fatal("landed outside the line")
+	}
+	head.Release()
+	_ = finished(t, done)
+	if events := lineEvents(t, line); len(events[landingline.EventAdmit]) != 1 {
+		t.Fatalf("the open PR's merge was never admitted: %v", events)
 	}
 }
 

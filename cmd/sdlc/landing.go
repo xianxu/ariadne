@@ -360,14 +360,16 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 			return errors.New("aborted by operator")
 		}
 	}
-	// The landing line (#393). An already-merged PR only resumes cleanup and
-	// takes no turn; everything below is observed after admission (PQ-1).
+	// The landing line (#393). A branch with no open PR can only resume a
+	// merged one's cleanup, so it takes no turn; one with an open PR always
+	// does, even beside an old merged PR. Everything below is observed after
+	// admission (PQ-1).
 	pre, err := gh.LandingPRs(ctx, t.Repo, branch)
 	if err != nil {
 		return err
 	}
 	var turn *landingTurn
-	if !anyMergedPR(pre) {
+	if anyOpenPR(pre) {
 		if turn, err = enterLandingLine(ctx, r, t, branch, stderr); err != nil {
 			return err
 		}
@@ -389,7 +391,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 		return err
 	}
 	if turn != nil {
-		turn.PR = pr.Number
+		turn.PR, turn.Resumed = pr.Number, pr.State == "MERGED"
 	}
 	fmt.Fprintf(stderr, "Recovery: sdlc merge --branch %s --yes\n", branch)
 	if pr.State != "MERGED" {

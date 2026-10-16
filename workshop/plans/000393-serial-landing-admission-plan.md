@@ -43,15 +43,16 @@
 | `Line` | `cmd/sdlc/internal/landingline/line.go` | new | flock(2) on files in `<common>/sdlc/landing/` |
 | `flock.Exclusive` | `cmd/sdlc/internal/flock/flock_unix.go` | new (lifted) | `syscall.Flock`, moved from reviewbox's `lockExclusive` |
 | `Log` | `cmd/sdlc/internal/landingline/log.go` | new | append-only `events.jsonl` and `grants.jsonl` |
-| `runDurableMerge` | `cmd/sdlc/landing.go` | modified | takes and holds the line |
-| `sdlc landing` | `cmd/sdlc/landingcmd.go` | new | `status`, `grant`, `revoke` |
+| `runDurableMerge` | `cmd/sdlc/landing.go` | modified | confirms, takes a turn when an open PR exists, observes everything after admission |
+| `landingTurn`, `enterLandingLine`, `openLandingLine`, `landingLineDir`, `logLine`, `anyOpenPR` | `cmd/sdlc/landingqueue.go` | new | the merge's glue to the line: production options, events, the turn's outcome, ending a landed grant |
+| `sdlc landing` (`newLandingCmd`, `landingDeps`, `runLandingGrant`, `runLandingStatus`, `openRepoLine`) | `cmd/sdlc/landingcmd.go`, help `cmd/sdlc/helptext/landing.md` | new | `status`, `grant`, `revoke`; injected clock, caller and `$COUCH_TREE` |
 
 - **Line** (as built) — `Open(dir, Options{Now, Sleep, Poll, Grants, OnWait, OnAdmit})`; production uses `time.Now`, a context-aware sleep, 2 s, and the grants log's `ValidGrants`.
   - `Enqueue(t) (*Handle, error)` takes the next number from the `seq` counter, which is untrusted input. It writes and flock-locks `tickets/<%020d seq>` (no extension) under a temporary name, then renames it into place, all under the allocation mutex (`line.lock`).
   - `Wait(ctx, h)` repeats `tryAdmit`. Under the mutex, that scans the live tickets (an unheld ticket is removed; a held one counts even when its JSON doesn't parse, and its number comes from its file name). If `head.lock` is free and `NextHead` names h, it takes `head.lock`, writes h's ticket into it, and deletes h's ticket. The head therefore holds only `head.lock`.
   - `Status() (head *Ticket, waiting []Ticket, err error)`.
   - `Release` drops whichever flock the handle holds. Process death releases every flock.
-  - **Injected into:** `runDurableMerge` through a package variable `landingLineOpen`, so tests can use a temp directory or a held line.
+  - **Injected into (as built):** `runDurableMerge` through `enterLandingLine` (landingqueue.go), which opens the repository's real line in its git common dir. The test seams are `landingLinePoll` and `landingNow`, plus a head the test holds in the fixture repository's own line (`heldLine` in landingqueue_test.go). There is no `landingLineOpen` variable.
   - **ARCH-ORDER:** the line holds no state between events beyond the live flocks. Each process is in one of `waiting` (its ticket held) or `head` (`head.lock` held, ticket gone), and every exit ends in released. The race to watch is two waiters scanning at once. The allocation mutex serializes the scans, and `head.lock` is the only admission token. Process death mid-transition releases everything. A crash between taking `head.lock` and logging `admit` loses only an audit line.
 - **Log** (as built) — methods on Line.
   - `Record(Event)` and `AddGrant(Grant)` append one JSON line with `O_APPEND` under the line mutex. Each first runs the daily sweep (a `.swept` stamp), which applies the pure `KeepEvents` and `KeepGrants` (`retention.go`) and counts the malformed lines it drops in the stamp.
@@ -141,7 +142,7 @@ func NextHead(ts []Ticket, grants map[int]Grant, now time.Time) (Ticket, []Ticke
 
 ### Task 4 (M2): merge holds the line
 
-**Files:** modify `cmd/sdlc/landing.go` (`runDurableMerge`, after `gh` is obtained (around :353) and **before** the `head` read, `LandingPRs` and `selectIntegrationPR`); test in `cmd/sdlc/landing_line_test.go`.
+**Files:** modify `cmd/sdlc/landing.go` (`runDurableMerge`, after `gh` is obtained (around :353) and **before** the `head` read, `LandingPRs` and `selectIntegrationPR`); test in `cmd/sdlc/landingqueue_test.go` (as built).
 
 **Order:** the interactive confirmation (`mergePrompter.Ask`, landing.go:372) moves before the enqueue, because its text depends on nothing it selects. An operator's prompt never holds the line's head (plan-quality minor).
 
@@ -164,6 +165,8 @@ if pre, err := gh.LandingPRs(ctx, t.Repo, branch); err != nil {
 } else if !anyMerged(pre) {
 	common, err := landingGit(r, t.Root, "rev-parse", "--path-format=absolute", "--git-common-dir")
 	if err != nil { return err }
+	// as built: enterLandingLine/landingTurn in landingqueue.go hold this, and
+	// the skip test is anyOpenPR (M2 review I-1), not "no merged PR".
 	line, err := landingLineOpen(filepath.Join(common, "sdlc", "landing"))
 	if err != nil { return err }
 	h, err := line.Enqueue(landingline.Ticket{Issue: issue.IDFromFilename(branch), Branch: branch, PID: os.Getpid()})
@@ -241,3 +244,16 @@ if pre, err := gh.LandingPRs(ctx, t.Repo, branch); err != nil {
 - **Invariant:** `ValidGrants(kept, now) == ValidGrants(all, now)`, and nothing outside retention is kept. `TestKeepGrantsPreservesValidity` checks it over 2000 random logs with out-of-order, old and future entries.
 - A revoke outlives its grant because a revoke's `Granted` is the time of the revoke, which is later than the grant's.
 - The ticket counter is untrusted input. A malformed `seq` refuses rather than resetting, and a counter set back can't overwrite a live ticket.
+
+### 2026-10-16 — M2 as built, and the M2 review (FIX-THEN-SHIP) answered
+
+**Reason:** M2's boundary review found a way to land outside the line (I-1). It also found that the Core concepts tables still described M2 as planned, not as built (I-2, the third `plan-table-drift` finding). The rule is now: every entity and seam the diff adds appears in the tables at its built path, and every as-built deviation gets a dated entry here in the same milestone.
+
+**Delta:**
+- **Skipping the line:** a merge skips the line only when its branch has no open PR, so all it can do is resume a merged PR's cleanup. Before, it skipped whenever any PR on the branch had merged, so a reused branch name with an old merged PR and a new open one landed outside the line. `TestLandingLineReusedBranchStillQueues` pins this, and a mutation check confirms it. What follows admission for a reused name is the landing's existing rule: cleanup refuses it as ambiguous, which is unchanged.
+- **The merge's glue lives in `landingqueue.go`:** `enterLandingLine` opens the repository's line with production options and takes the turn before any observation. `landingTurn.leave(err)` logs `landed`, `refused` or `resumed`, ends a landed issue's valid grant, and releases.
+- **`resumed`:** an admitted merge that finds its PR already landed by another invocation logs `resumed`, which `Delays` doesn't count, so one landing isn't counted twice.
+- **Event and grant write failures** warn once on stderr. The landing goes on, unaudited, rather than silently losing pilot data.
+- **One clock:** `landingNow` serves merge and the commands.
+- **Commands:** `sdlc landing` is in `landingcmd.go`, with its help in `helptext/landing.md` (the `add(cmd, name)` convention) and merge's help in `helptext/merge.md` (step 0 and RECOVERY). Status prints grants sorted by issue.
+- **Tests** are in `landingqueue_test.go` and `landingcmd_test.go`. The fake GitHub gained `older`, earlier PRs on the same branch name.

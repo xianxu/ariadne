@@ -19,6 +19,9 @@ import (
 // landingLinePoll is how often a waiting merge looks again; tests shorten it.
 var landingLinePoll = 2 * time.Second
 
+// landingNow is the line's clock in merge and the landing commands.
+var landingNow = time.Now
+
 // landingLineDir is the repository's line: in its git common dir, which every
 // slot of the repository shares, beside the repo transaction lock (#370).
 func landingLineDir(r gitRunner, root string) (string, error) {
@@ -34,13 +37,14 @@ func landingLineDir(r gitRunner, root string) (string, error) {
 func openLandingLine(dir string, stderr io.Writer) (*landingline.Line, error) {
 	var line *landingline.Line
 	o := landingline.Options{
+		Now:  landingNow,
 		Poll: landingLinePoll,
 		Grants: func() map[int]landingline.Grant {
 			entries, _, err := line.GrantEntries()
 			if err != nil {
 				return nil // an unreadable log confers no priority
 			}
-			return landingline.ValidGrants(entries, time.Now())
+			return landingline.ValidGrants(entries, landingNow())
 		},
 		OnWait: func(pos int, head *landingline.Ticket) {
 			fmt.Fprintf(stderr, "landing line: position %d; landing now: %s (sdlc landing status)\n", pos, describeTicket(head))
@@ -50,7 +54,7 @@ func openLandingLine(dir string, stderr io.Writer) (*landingline.Line, error) {
 			for _, d := range displaced {
 				e.Displaced = append(e.Displaced, d.Seq)
 			}
-			_ = line.Record(e)
+			logLine(line, e, stderr)
 		},
 	}
 	line, err := landingline.Open(dir, o)
@@ -70,10 +74,23 @@ func describeTicket(t *landingline.Ticket) string {
 
 // landingTurn is a merge's place in the line, from its ticket to its outcome.
 type landingTurn struct {
-	line   *landingline.Line
-	handle *landingline.Handle
-	PR     int // set once the PR is selected, after admission
+	line    *landingline.Line
+	handle  *landingline.Handle
+	stderr  io.Writer
+	PR      int  // set once the PR is selected, after admission
+	Resumed bool // the selected PR had already merged: a resume, not a landing
 }
+
+// logLine records an event. A write failure warns on stderr once per line, so
+// lost audit and pilot data is visible without failing the landing.
+func logLine(line *landingline.Line, e landingline.Event, stderr io.Writer) {
+	if err := line.Record(e); err != nil && !warnedLines[line] {
+		warnedLines[line] = true
+		fmt.Fprintf(stderr, "landing line: could not log %s (%v); landing continues, unaudited\n", e.Kind, err)
+	}
+}
+
+var warnedLines = map[*landingline.Line]bool{}
 
 // enterLandingLine takes a ticket and waits for this merge's turn. Nothing the
 // landing acts on (branch head, PRs, selection) may be observed before it
@@ -91,9 +108,9 @@ func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch 
 	if err != nil {
 		return nil, err
 	}
-	turn := &landingTurn{line: line, handle: h}
+	turn := &landingTurn{line: line, handle: h, stderr: stderr}
 	tk := h.Ticket()
-	_ = line.Record(landingline.Event{Kind: landingline.EventEnqueue, Seq: tk.Seq, Issue: tk.Issue, Branch: tk.Branch})
+	logLine(line, landingline.Event{Kind: landingline.EventEnqueue, Seq: tk.Seq, Issue: tk.Issue, Branch: tk.Branch}, stderr)
 	if err := line.Wait(ctx, h); err != nil {
 		turn.leave(err)
 		return nil, err
@@ -106,23 +123,29 @@ func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch 
 func (lt *landingTurn) leave(err error) {
 	tk := lt.handle.Ticket()
 	e := landingline.Event{Kind: landingline.EventLanded, Seq: tk.Seq, Issue: tk.Issue, Branch: tk.Branch, PR: lt.PR}
-	if err != nil {
+	switch {
+	case err != nil:
 		e.Kind, e.Detail = landingline.EventRefused, err.Error()
+	case lt.Resumed:
+		e.Kind = landingline.EventResumed // another merge landed it while this one waited
 	}
-	_ = lt.line.Record(e)
+	logLine(lt.line, e, lt.stderr)
 	if err == nil && tk.Issue != 0 {
 		if entries, _, rerr := lt.line.GrantEntries(); rerr == nil {
-			if _, granted := landingline.ValidGrants(entries, time.Now())[tk.Issue]; granted {
-				_ = lt.line.AddGrant(landingline.Grant{Issue: tk.Issue, Grantor: landingline.Grantor{Address: "sdlc merge"}, Reason: "landed", Revoked: true})
+			if _, granted := landingline.ValidGrants(entries, landingNow())[tk.Issue]; granted {
+				if gerr := lt.line.AddGrant(landingline.Grant{Issue: tk.Issue, Grantor: landingline.Grantor{Address: "sdlc merge"}, Reason: "landed", Revoked: true}); gerr != nil {
+					fmt.Fprintf(lt.stderr, "landing line: could not end #%d's priority grant (%v); it expires on its own\n", tk.Issue, gerr)
+				}
 			}
 		}
 	}
 	lt.handle.Release()
 }
 
-func anyMergedPR(prs []landingPR) bool {
+// anyOpenPR reports whether the branch has a PR still to land.
+func anyOpenPR(prs []landingPR) bool {
 	for _, p := range prs {
-		if p.State == "MERGED" {
+		if p.State == "OPEN" {
 			return true
 		}
 	}

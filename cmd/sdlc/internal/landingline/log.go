@@ -27,6 +27,9 @@ const (
 	EventAdmit   = "admit"
 	EventLanded  = "landed"
 	EventRefused = "refused"
+	// EventResumed: admitted, the merge found its PR already landed by another
+	// invocation, and finished cleanup. Not a landing, so Delays skips it.
+	EventResumed = "resumed"
 )
 
 // Event is one line of the audit and pilot log.

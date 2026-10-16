@@ -32,6 +32,7 @@ type landingFakeGH struct {
 	headLag          int       // reads before GitHub registers a newly pushed head
 	afterLaggedQuery func()
 	afterStatus      func(string)
+	older            []landingPR // earlier PRs on the same branch name (a reused branch)
 }
 
 func (g *landingFakeGH) PRHeadOID(ctx context.Context, repo string, n int) (string, error) {
@@ -72,7 +73,7 @@ func (g *landingFakeGH) LandingPRs(context.Context, string, string) ([]landingPR
 			}
 		}
 	}
-	return []landingPR{g.pr}, nil
+	return append(append([]landingPR(nil), g.older...), g.pr), nil
 }
 
 func (g *landingFakeGH) PostStatus(ctx context.Context, repo, sha, statusContext, state, desc string) error {

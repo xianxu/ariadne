@@ -366,9 +366,11 @@ never holds the line. It then takes a turn before it observes the branch head,
 the PRs or the integration state, and holds the turn until it returns. An
 admitted merge therefore never acts on an observation from before a possibly
 long wait. A duplicate invocation that waited behind the original resumes as
-already merged, and a fix pushed while waiting is what lands. An already-merged
-PR takes no turn. The turn logs enqueue, admit, and landed or refused; landing
-ends the issue's grant. The landing's own recovery is unchanged, and the line
+already merged (logged `resumed`, which the delays skip), and a fix pushed
+while waiting is what lands. A merge takes a turn whenever its branch has an
+open PR; a branch with none can only resume a merged PR's cleanup, so it takes
+no turn. The turn logs enqueue, admit, and landed, refused or resumed; landing
+ends the issue's grant. A log write failure warns once on stderr. The landing's own recovery is unchanged, and the line
 adds ordering only. This lock-shaped line replaced #390's eight-state durable
 queue (#404 lock-first, TL-approved).
 
