@@ -85,9 +85,21 @@ source <(~/workspace/ariadne/construct/dev-aliases.sh)
 
 Each function installs the **owner's** `bin/X` (the official, gitignored path,
 so it's safe for a service binary like `nous`) and runs it in
-the **caller's** cwd, so it's always fresh and works for both repo-bound tools
-(`sdlc`, operates on the repo you're in) and run-anywhere tools (`nous`). The
-emitted function builds into a per-call `mktemp -d bin/.X.XXXXXX` directory beside
+the **caller's** cwd, so it works for both repo-bound tools
+(`sdlc`, operates on the repo you're in) and run-anywhere tools (`nous`). It
+builds only when it has to (#405). If `bin/X` exists, the build is skipped when
+no file or directory outside `.git` and `bin` is newer than `bin/X` (a
+directory's time catches a deleted or renamed file), in the owner or in a
+local `go.mod` `replace` target outside it (metis builds against `../ariadne`).
+It is always skipped in a Couch slot (`COUCH_TREE` set). An owner is the
+operator's `:0` checkout, and **`:0`'s `bin/` is rebuilt only by the operator, the
+TL, `sdlc stage --build` or `make`**: an agent shell in a slot runs whatever
+`:0` last built and never rebuilds an existing binary. So fast-forwarding `:0`
+doesn't roll out a new binary until one of those builds it. A missing `bin/X`
+always builds, from a slot too: a slot writes to `:0` only to build a missing
+binary, `dev-prepare` included.
+A built binary takes the time its build started, so a file edited mid-build reads
+as newer on the next call; a scan error counts as stale. When it builds, the emitted function builds into a per-call `mktemp -d bin/.X.XXXXXX` directory beside
 the target and renames the result over `bin/X` (#355); the exact form is the one
 `printf` in `construct/dev-aliases.sh` (its header comment shows it), pinned by
 `dev-aliases.test.sh`. The rename is atomic, so
@@ -99,7 +111,7 @@ An owner whose build needs a generated
 input (pair's gitignored runtime-bundle embed tree) declares a `dev-prepare`
 rule in its `Makefile`, `Makefile.workflow` or `Makefile.local` (#299; make
 decides, via `make -q`, whether the rule exists); its functions then run `make
--s dev-prepare >&2` before `go build`, so a fresh slot builds without a manual
+-s dev-prepare >&2` before `go build` (a skipped build skips it too), so a fresh slot builds without a manual
 `make`. A failed step fails the call. The owner keeps the step cheap when its
 inputs are up to date, and owners without the rule keep the plain form. The
 function is emitted when the shell sources the aliases, so a newly declared
