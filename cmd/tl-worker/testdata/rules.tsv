@@ -29,3 +29,5 @@ cross-repo	own	one-line proposal to the TL
 same-repo	own	Same-repo filings stay direct
 hash-output	own	only from Git output
 landing-order	own	The landing line owns landing order
+approval-required	own	or mechanism), and scope revisions wait for the hub's approval.
+flake-escalation	own	means stop and ask the hub.

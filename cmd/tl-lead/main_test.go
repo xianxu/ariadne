@@ -43,6 +43,8 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		{"dispatch judgment", "The dispatch message carries only"},
 		{"product stewardship", "STEWARDSHIP"},
 		{"worker approval", "worker-approved quick fixes"},
+		{"required TL approval", "Full-flow designs, design changes and scope revisions still\n  need TL approval."},
+		{"retro agreement required", "change the boundary only through those agreed items."},
 		{"landing order", "The landing line orders landings"},
 		{"cross repo", "The TL files or folds cross-repo proposals"},
 		{"session retro", "After a long session or at the operator's request"},

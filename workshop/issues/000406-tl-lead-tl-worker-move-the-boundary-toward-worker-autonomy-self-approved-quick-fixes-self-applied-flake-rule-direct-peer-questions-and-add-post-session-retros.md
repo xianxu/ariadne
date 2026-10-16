@@ -55,6 +55,15 @@ regular retros after long sessions, and agree to move the boundary so workers ar
 
 ## Log
 
+### 2026-10-16 — BR-1 verification
+
+Independently reversed each of worker approval, TL approval, second-flake
+escalation and retro agreement in the actual help source. Each mutation was
+rejected by its corresponding guard on both default and --help paths. Restored
+the unchanged help text; all tl-worker/tl-lead/tlrules tests and diff checks pass.
+The correction changes tests only, not executable help behavior.
+
+
 ### 2026-10-16 — verification
 
 Targeted `go test ./cmd/tl-worker ./cmd/tl-lead ./pkg/tlrules -count=1`
@@ -122,3 +131,11 @@ Operator decision relayed in verified ops:0 delivery
 (an invariant, a new mechanism, user-visible state) to a Claude slot; bounded
 execution against a fixed design goes to Codex. Add phrase guards alongside the
 boundary rules. This extends the acceptance contract for the lead help.
+
+### 2026-10-16 — BR-1: guard required actions
+
+The first boundary review found the same test gap in four clauses: worker
+approval, TL approval, second-flake escalation, and retro agreement. Extend
+existing phrase guards to include the required actions/restrictions, and mutate
+each clause independently to prove removal or reversal fails both invocation
+paths. The help behavior and approved scope stay unchanged.
