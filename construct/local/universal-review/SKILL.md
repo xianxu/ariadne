@@ -11,7 +11,9 @@ from memory:
 
 1. **The round:** read [round.md](round.md) and follow it. It reads the
    document's `process-instruction:`, resolves the modes in [modes/](modes/),
-   and says how to treat the 🤖 markers.
+   and says how to treat the 🤖 markers. Its §4 routes each ask by the
+   section's collaboration mode, from
+   [collaboration-modes.md](collaboration-modes.md): read that too.
 2. **The grammar:** [review-convention.md](review-convention.md) is the marker
    grammar. Read it before writing any marker.
 3. **The adapter:** you edit the file yourself, so follow
