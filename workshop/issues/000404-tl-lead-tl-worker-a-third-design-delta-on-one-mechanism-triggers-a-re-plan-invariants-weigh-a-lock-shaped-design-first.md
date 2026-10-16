@@ -1,12 +1,12 @@
 ---
 id: 000404
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-16
 estimate_hours:
-card_mirror: 'bf9703714c7f6ce3b1ff137c57818f977e50b541' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'fc73596e6af7f3b15eb9d9d264a23036265f2ae4' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-16T09:16:33-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "89e3531d", done: "6fb4de37"}
+actual_hours: 0.44
 ---
 
 # tl-lead/tl-worker: a third design delta on one mechanism triggers a re-plan; invariants weigh a lock-shaped design first
