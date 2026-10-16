@@ -43,17 +43,17 @@ Files: cmd/sdlc/issuepublish_tracker_test.go, cmd/sdlc/issuemovedetail_test.go, 
 
 Files: cmd/sdlc/issuepublish.go, cmd/sdlc/issuemovedetail.go.
 
-- [ ] Filter local scan entries through issue.ParseFilename (via existing issueFilename) before classifyFamily, including both the duplicate and local-only archive decisions.
-- [ ] Extend newIssueTransferOp.BeforePublish: resolve directories from spec.DestinationPath and configured history, call publishedDetailPath on the supplied candidate-base view, refuse any existing details path, then run existing asset admission. The same hook is reconstructed by recovery and invoked before every actual main push.
-- [ ] Preserve confirmed-publication recovery: already reachable candidates finish without republishing; moved main triggers existing retry/reprepare, and the next candidate's base is checked before push. Never delete or rewrite an existing archive.
-- [ ] Add TestInitialDetailsTerminalAdmission as a direct pure test using validated card values for open versus terminal categories.
-- [ ] Run focused publication, transfer and recovery tests in a stable worktree; no edits during direct cmd/sdlc runs because of its hermeticity guard. Commit the fixes and review ledgers.
+- [x] Filter local scan entries through issue.ParseFilename (via existing issueFilename) before classifyFamily, including both the duplicate and local-only archive decisions.
+- [x] Extend newIssueTransferOp.BeforePublish: resolve directories from spec.DestinationPath and configured history, call publishedDetailPath on the supplied candidate-base view, refuse any existing details path, then run existing asset admission. The same hook is reconstructed by recovery and invoked before every actual main push.
+- [x] Preserve confirmed-publication recovery: already reachable candidates finish without republishing; moved main triggers existing retry/reprepare, and the next candidate's base is checked before push. Never delete or rewrite an existing archive.
+- [x] Add TestInitialDetailsTerminalAdmission as a direct pure test using validated card values for open versus terminal categories.
+- [x] Run focused publication, transfer and recovery tests in a stable worktree; no edits during direct cmd/sdlc runs because of its hermeticity guard. Commit the fixes and review ledgers.
 
 ### 3. Verify and land
 
 Files: atlas/workflow/issue-tracker.md and issue Log/Plan/Revisions.
 
-- [ ] Update Atlas to include transfer/retry/recovery location revalidation and filename grammar.
+- [x] Update Atlas to include transfer/retry/recovery location revalidation and filename grammar.
 - [ ] Push with sdlc pr; run sdlc local-check run --name suite on the pushed fix head. Require a recorded pass; no gate overrides.
 - [ ] Run sdlc close --issue 408 with evidence disposing BR-1/BR-2/BR-3. Resolve any remaining findings; publish on SHIP through sdlc merge --yes and report PR #269 to the hub.
 
@@ -76,3 +76,7 @@ The first correction fit the 100-line quick shell. Completing the common transfe
 ### 2026-10-16 — PQ-1 and red evidence
 
 Compressed the test strategy into one line per risky function; the executable tests own the scenario matrix. No behavior or mechanism changed. Red run: filename discovery fails all six cases; unguarded transfer publishes all six archive races (48.956s). The terminal-admission helper passes its pure category test.
+
+### 2026-10-16 — correction verified locally
+
+The new regression group passed in 84.718s. The broader Test(Publish|MoveDetail|AssetRecovery|InitialPublicationArchiveRevalidation|InitialDetailsTerminalAdmission) run passed in 207.171s with a stable worktree, including existing confirmed-publication recovery. The production correction remains one resolver and one existing publication hook, with no receipt/state changes.
