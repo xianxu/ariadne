@@ -23,14 +23,14 @@
 | `Authorize` | `cmd/sdlc/internal/landingline/order.go` | new |
 | `DelayStats` | `cmd/sdlc/internal/landingline/stats.go` | new |
 
-- **Ticket** — `{Seq int64, Issue string, PR int, Branch string, PID int, Enqueued time.Time}`, a live waiter or the head. `Seq` comes from a per-line counter, so FIFO is a total order that clock skew can't break.
+- **Ticket** — `{Seq int64, Issue int, PR int, Branch string, PID int, Enqueued time.Time}`. `Issue` is the normalised number from `issue.IDFromFilename(branch)` (cmd/sdlc/internal/issue/scaffold.go:41), the parse `tickOnLanding` already uses, so `0391` and `391` agree, a live waiter or the head. `Seq` comes from a per-line counter, so FIFO is a total order that clock skew can't break.
   - **Relationships:** N tickets per line, and at most one per process.
   - **DRY rationale:** this is the first Go line. scripts/test-lock.py keeps the suite's FIFO line, but the landing line needs sdlc's grants, and the waiter is the Go merge process itself (no helper process). The two lines share their design (flock liveness, pruning under a mutex), not code. The atlas notes this.
   - **Future extensions:** batching (#393 revision): `NextHead` widens to `NextBatch` and returns several tickets.
-- **Grant** — `{Issue, Grantor, Reason string, Granted, Expires time.Time, Revoked bool}`. One entry in `grants.jsonl`.
-- **ValidGrants(entries, now) map[issue]Grant** — the latest entry per issue counts if it is not revoked, not expired, has a grantor and a reason, and lasts at most 24 h. The log is the only source of grants, so an unlogged grant can't exist.
+- **Grant** — `{Issue int, Grantor Grantor, Reason string, Granted, Expires time.Time, Revoked bool}`, where `Grantor` is `{Address string, Slot *int, Name string}`. One entry in `grants.jsonl`.
+- **ValidGrants(entries, now) map[int]Grant** — the latest entry per issue counts if it is not revoked, not expired, has a reason, lasts at most 24 h, and records a grantor whose slot is nil or 0. Authority is checked when a grant is read as well as when it is written, so a hand-appended entry from a worker slot confers nothing. The log is the only source of grants, so an unlogged grant can't exist. **Trust model:** this is cooperative. It guards against agents' mistakes on one machine, not against an adversary. A process that forges the grantor fields can still grant, and the atlas says so.
 - **NextHead(tickets, grants, now) (head Ticket, displaced []Ticket, ok bool)** — the oldest live fleet-blocking ticket, otherwise the oldest normal one. `displaced` lists the normal tickets with a lower `Seq` than a fleet-blocking head, for the audit event. A head that is already admitted is not passed in (see Line), so nothing can preempt it.
-- **Authorize(callerSlot, treeSlot *int) error** — a grant is refused when the caller's workspace or `$COUCH_TREE`'s workspace resolves to a numbered slot (N ≥ 1). The operator's shell and :0 slots, including the TL's hub ops:0, may grant.
+- **Authorize(callerSlot, treeSlot *int) error** (the write-side check; `ValidGrants` repeats the slot rule on read) — a grant is refused when the caller's workspace or `$COUCH_TREE`'s workspace resolves to a numbered slot (N ≥ 1). The operator's shell and :0 slots, including the TL's hub ops:0, may grant.
 - **DelayStats(events) (n, p50, p90)** — enqueue-to-landed delay over the `landed` events, using nearest rank like test-stats.
 
 ### Integration points
@@ -38,6 +38,7 @@
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
 | `Line` | `cmd/sdlc/internal/landingline/line.go` | new | flock(2) on files in `<common>/sdlc/landing/` |
+| `flock.Exclusive` | `cmd/sdlc/internal/flock/flock_unix.go` | new (lifted) | `syscall.Flock`, moved from reviewbox's `lockExclusive` |
 | `Log` | `cmd/sdlc/internal/landingline/log.go` | new | append-only `events.jsonl` and `grants.jsonl` |
 | `runDurableMerge` | `cmd/sdlc/landing.go` | modified | takes and holds the line |
 | `sdlc landing` | `cmd/sdlc/landingcmd.go` | new | `status`, `grant`, `revoke` |
@@ -94,13 +95,19 @@ func NextHead(ts []Ticket, grants map[string]Grant, now time.Time) (Ticket, []Ti
 
 ### Task 2 (M1): Line over real files
 
-**Files:** create `cmd/sdlc/internal/landingline/line.go`, `line_unix.go` (flock) and `line_test.go`.
+**Files:**
+- Create: `cmd/sdlc/internal/flock/flock_unix.go` and `flock_other.go`, lifted from `cmd/sdlc/internal/reviewbox/lock_unix.go` and `lock_other.go`.
+- Modify: reviewbox, which now calls `flock.Exclusive`; delete its two lock files (ARCH-DRY).
+- Create: `cmd/sdlc/internal/landingline/line.go` and `line_test.go`.
+
+- [ ] Lift the helper first and run `go test ./cmd/sdlc/internal/reviewbox/` to confirm reviewbox is unchanged.
 
 - [ ] Write the tests:
   - two handles in one process: the second `Wait` blocks until the first `Release`. Use a context deadline and an injected sleep that counts polls;
   - a dead waiter: a helper process (`TestHelperHoldTicket`, run with `os.Args[0] -test.run=TestHelperHoldTicket` and an env var naming the directory) enqueues and blocks. Kill it with `SIGKILL`; the next scan prunes its ticket and the survivor is admitted;
   - a dead head: the helper takes `head.lock` and is killed; the next waiter is admitted;
   - a grant reorders: three tickets, grant the third, release the head; the third is admitted next;
+  - a hand-appended grant whose grantor slot is 3 confers nothing (the read-side check);
   - the head is not preempted: with the head admitted, a later grant doesn't affect `head.lock`, and `Wait` for the granted ticket returns only after `Release`.
 - [ ] Run `go test ./cmd/sdlc/internal/landingline/ -run TestLine`. Expect FAIL.
 - [ ] Implement `Open`, `Enqueue`, `Wait`, `Release` and `Status() ([]Ticket, headPID int)` as described in Core concepts. Seq is a counter file `seq` read and incremented under `line.lock`. Ticket writes are atomic (`os.CreateTemp` in the directory, then `os.Rename`). A Ticket whose JSON doesn't parse but whose lock is held counts as live with Seq taken from its file name, so it is never silently skipped.
@@ -123,27 +130,39 @@ func NextHead(ts []Ticket, grants map[string]Grant, now time.Time) (Ticket, []Ti
 
 ### Task 4 (M2): merge holds the line
 
-**Files:** modify `cmd/sdlc/landing.go` (`runDurableMerge`, in the `pr.State != "MERGED"` branch, before `state := newIntegrationState(...)`); test in `cmd/sdlc/landing_line_test.go`.
+**Files:** modify `cmd/sdlc/landing.go` (`runDurableMerge`, after `gh` is obtained (around :353) and **before** the `head` read, `LandingPRs` and `selectIntegrationPR`); test in `cmd/sdlc/landing_line_test.go`.
+
+**Rule (from plan-quality PQ-1, class: stale observation after a wait):** every remote or GitHub observation the landing acts on is taken *after* admission, never before the wait. That covers the branch head, the PRs, PR selection and integration resume. Before admission, only local branch selection and checkout readiness run (`landingIssueBranch` and `landingCheckoutReady`); both concern the waiting process's own slot, and `revalidateLanding` checks them again under the repo lock. One cheap pre-read decides whether to queue at all: if `LandingPRs` already shows the branch's PR as MERGED, the run takes no ticket and resumes cleanup at once.
 
 - [ ] Write the tests on `landingFixture`:
   - **holds and waits:** a test-held handle on the fixture's line (the git common dir of `roots[0]`) is the head. `runMerge` runs in a goroutine; assert that `gh.merges == 0` and no integration push happens while the line is held. Advance remote main (a commit pushed to the bare remote, standing in for the head's landing), then release. The merge integrates once against the new main, posts `sdlc-local/suite` exactly once (count it through `afterStatus`), and lands. `gh.merges == 1`;
   - **already-merged:** a PR with `State: "MERGED"` takes no ticket, so the line stays empty during the run;
+  - **duplicate while waiting (PQ-1):** a second invocation for the same PR waits while the test, standing in for the original, lands it (`gh.pr.State = "MERGED"` plus a remote main advance), then releases. The admitted duplicate re-reads the PR, takes the MERGED path, and finishes cleanup without a second merge (`gh.merges` unchanged) and without the "push selected branch" refusal;
+  - **pushed while waiting:** the branch gets a new commit on the remote and the PR head moves during the wait. After admission the landing selects the new head, integrates it once and lands it;
   - **refusal releases:** a gate refusal (`gh.checks` red) returns an error, and the line is empty afterwards;
   - **events:** enqueue, admit and landed are logged with PR, issue and Seq.
 - [ ] Run `go test ./cmd/sdlc/ -run TestLandingLine`. Expect FAIL.
 - [ ] Implement:
 
 ```go
-common, err := landingGit(r, t.Root, "rev-parse", "--path-format=absolute", "--git-common-dir")
-// error → return
-line, err := landingLineOpen(filepath.Join(common, "sdlc", "landing"))
-h, err := line.Enqueue(landingline.Ticket{Issue: issueOfBranch(branch), PR: pr.Number, Branch: branch, PID: os.Getpid()})
-defer h.Release()
-fmt.Fprintf(stderr, "landing line: waiting for this repository's landing turn (sdlc landing status)\n")
-if err := line.Wait(ctx, h); err != nil { return err }
+// after gh is obtained, before head/LandingPRs/selectIntegrationPR:
+if pre, err := gh.LandingPRs(ctx, t.Repo, branch); err != nil {
+	return err
+} else if !anyMerged(pre) {
+	common, err := landingGit(r, t.Root, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	if err != nil { return err }
+	line, err := landingLineOpen(filepath.Join(common, "sdlc", "landing"))
+	if err != nil { return err }
+	h, err := line.Enqueue(landingline.Ticket{Issue: issue.IDFromFilename(branch), Branch: branch, PID: os.Getpid()})
+	if err != nil { return err }
+	defer h.Release()
+	if err := line.Wait(ctx, h); err != nil { return err }
+}
+// the existing head read, LandingPRs and selectIntegrationPR follow unchanged,
+// so everything the landing acts on is observed after admission.
 ```
 
-  `issueOfBranch` reuses the issue-ID parse that `landingIssueBranch` already applies; confirm the helper's name while implementing, and don't add a second regexp (ARCH-DRY). `Wait` reads grants through the Log on each poll. It prints a position line (`position N in line; head: PR #M`) only when the position changes, like test-lock's waiting lines.
+  The ticket records the branch and issue; the PR number goes into the `admit` event once selection has run. `Wait` reads grants through the Log on each poll. It prints a position line (`position N in line; head: PR #M`) only when the position changes, like test-lock's waiting lines.
 - [ ] Run the tests again, then the existing `go test ./cmd/sdlc/ -run 'TestLanding'` to confirm nothing regressed.
 - [ ] Commit `#393 M2: merge holds the repository landing line for its lifetime`.
 
@@ -163,7 +182,7 @@ if err := line.Wait(ctx, h); err != nil { return err }
 
 ### Task 6 (M2): docs and the full suite
 
-- [ ] Atlas: add the landing line to `atlas/workflow/sdlc-binary.md` (the merge section): its purpose, storage, ordering, grants, retention, and how it relates to test-lock's suite line. Mention it in `sdlc merge --help`'s description and RECOVERY ("a waiting merge holds only a ticket; Ctrl-C or death leaves the line"). Link from `atlas/index.md` if a new page is added.
+- [ ] Atlas: add the landing line to `atlas/workflow/sdlc-binary.md` (the merge section): its purpose, storage, ordering, grants and their cooperative trust model, retention, and how it relates to test-lock's suite line. Note that #370's repo lock beside it is mkdir-based while the line uses flock, so the atlas doesn't describe them as one mechanism. Mention it in `sdlc merge --help`'s description and RECOVERY ("a waiting merge holds only a ticket; Ctrl-C or death leaves the line"). Link from `atlas/index.md` if a new page is added.
 - [ ] Run the full `make test` in the background.
 - [ ] Run `sdlc close --issue 393`.
 - [ ] The PR touches merge policy, so local-gates-guard applies. Stop there for the operator's `local-gates-verified` label (TL instruction) and report to the hub.
@@ -171,7 +190,7 @@ if err := line.Wait(ctx, h); err != nil { return err }
 ## Verification against Done when
 
 1. One integration per repo: Task 4 (holds and waits, one suite), and Task 2 (one head). Different repos use different git common dirs, so their lines are separate by construction; Task 2 tests two line directories, and neither blocks the other. Exact-head evidence is unchanged (cigate).
-2. Drift, failure, death, duplicates and uncertainty: death at each point is in Task 2 (helper SIGKILL as waiter and as head). A duplicate invocation queues behind the original because it is another process with its own ticket (Task 4 variant). A refusal releases the line (Task 4). Drift and uncertain outcomes keep the existing tests (TestLandingRefusesUncertainty, TestLandingInterruptedIntegration).
+2. Drift, failure, death, duplicates and uncertainty: death at each point is in Task 2 (helper SIGKILL as waiter and as head). A duplicate invocation queues behind the original, which is another process with its own ticket. After admission it re-reads the PR and resumes as MERGED (Task 4's duplicate-while-waiting test, PQ-1). A refusal releases the line (Task 4). Drift and uncertain outcomes keep the existing tests (TestLandingRefusesUncertainty, TestLandingInterruptedIntegration).
 3. Priority: Tasks 1, 2 and 5 cover granted overtaking, FIFO, no preemption, expired, unauthorized and unlogged grants, and the displacement audit.
 4. Couch down: the line never involves Couch. The git common dir is the only location (TL decision 2). Every test runs without Couch.
 5. Fakes and conformance: `landingFakeGH` and the existing live check. **Pilot data:** `events.jsonl` (delay p90) and test-stats (suites per landed issue). The seven-day before/after report is the TL's, recorded in test-economy (see the issue's Revisions).
