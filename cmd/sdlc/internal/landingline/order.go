@@ -45,7 +45,8 @@ type Grant struct {
 }
 
 // ValidGrants folds the log in order (the latest entry per issue wins) and keeps
-// the grants that confer priority at now. Authority is checked here as well as
+// the grants that confer priority at now: granted no later than now, unexpired,
+// and at most MaxGrant long, so a future-dated entry confers nothing. Authority is checked here as well as
 // when a grant is written, so an entry recorded from a numbered slot confers
 // nothing. Trust is cooperative: this guards against agents' mistakes on one
 // machine, not against a process that forges the grantor fields.
@@ -57,7 +58,7 @@ func ValidGrants(entries []Grant, now time.Time) map[int]Grant {
 	valid := map[int]Grant{}
 	for issue, g := range latest {
 		if !g.Revoked && g.Grantor.Address != "" && authorized(g.Grantor.Slot) && g.Reason != "" &&
-			now.Before(g.Expires) && g.Expires.Sub(g.Granted) <= MaxGrant {
+			!g.Granted.After(now) && now.Before(g.Expires) && g.Expires.Sub(g.Granted) <= MaxGrant {
 			valid[issue] = g
 		}
 	}
@@ -89,11 +90,11 @@ func NextHead(tickets []Ticket, grants map[int]Grant) (head Ticket, displaced []
 	}
 	head = order[0]
 	for _, t := range order[1:] {
-		if t.Seq < head.Seq {
+		if t.Seq < head.Seq { // normal tickets, already in Seq order
 			displaced = append(displaced, t)
 		}
 	}
-	return head, slices.SortedFunc(slices.Values(displaced), func(a, b Ticket) int { return cmp.Compare(a.Seq, b.Seq) }), true
+	return head, displaced, true
 }
 
 // Authorize is the write-side check for a grant: refused when the caller's

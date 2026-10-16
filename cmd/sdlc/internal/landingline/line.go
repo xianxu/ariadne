@@ -153,14 +153,19 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, error) {
 		if err != nil {
 			return err
 		}
+		if h.file == nil {
+			return errors.New("landing line: this ticket was released")
+		}
 		grants := l.o.Grants()
 		order := Order(live, grants)
-		pos = 1
-		for _, t := range order {
+		pos = 0
+		for i, t := range order {
 			if t.Seq == h.ticket.Seq {
-				break
+				pos = i + 1
 			}
-			pos++
+		}
+		if pos == 0 {
+			return errors.New("landing line: this ticket is no longer in line")
 		}
 		head, err := os.OpenFile(filepath.Join(l.dir, "head.lock"), os.O_RDWR|os.O_CREATE, 0o644)
 		if err != nil {
@@ -275,13 +280,15 @@ func (l *Line) scan() ([]Ticket, error) {
 		}
 		t := readTicket(f)
 		f.Close()
+		// The file name is the ticket's number; its JSON can't move it in line.
 		seq, perr := strconv.ParseInt(e.Name(), 10, 64)
-		if t == nil {
-			if perr != nil {
-				continue
-			}
-			t = &Ticket{Seq: seq}
+		if perr != nil {
+			continue // not a ticket name: written by something else
 		}
+		if t == nil {
+			t = &Ticket{}
+		}
+		t.Seq = seq
 		live = append(live, *t)
 	}
 	return live, nil

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -50,12 +51,23 @@ func (l *Line) Record(e Event) error {
 	})
 }
 
-// AddGrant appends a grant or a revoke. The caller authorizes it first; the
-// read side (ValidGrants) checks the grantor again.
+// AddGrant appends a grant or a revoke, stamping Granted with the line's clock
+// when it is zero. The caller authorizes it first; the read side (ValidGrants)
+// checks the grantor again. Retention keys on the later of Granted and Expires,
+// so a revoke outlives the grant it revokes.
 func (l *Line) AddGrant(g Grant) error {
+	if g.Granted.IsZero() {
+		g.Granted = l.o.Now()
+	}
 	return l.appendLog(GrantsFile, g, func(raw []byte) (time.Time, bool) {
 		var g Grant
-		return g.Granted, json.Unmarshal(raw, &g) == nil
+		if json.Unmarshal(raw, &g) != nil {
+			return time.Time{}, false
+		}
+		if g.Expires.After(g.Granted) {
+			return g.Expires, true
+		}
+		return g.Granted, true
 	})
 }
 
@@ -105,8 +117,9 @@ func (l *Line) appendLog(name string, v any, at func([]byte) (time.Time, bool)) 
 	})
 }
 
-// sweep drops entries older than Retention, at most once a day per log (its
-// .swept stamp); a line it can't parse is dropped with them.
+// sweep keeps the entries dated within Retention and not in the future, at most
+// once a day per log (its .swept stamp). A line it can't parse is dropped, and
+// the stamp records how many ("malformed=N"), so a damaged log is visible.
 func (l *Line) sweep(path string, at func([]byte) (time.Time, bool)) error {
 	now := l.o.Now()
 	stamp := path + ".swept"
@@ -118,8 +131,17 @@ func (l *Line) sweep(path string, at func([]byte) (time.Time, bool)) error {
 		return err
 	}
 	var kept bytes.Buffer
+	malformed := 0
 	for _, raw := range bytes.Split(data, []byte("\n")) {
-		if t, ok := at(raw); ok && now.Sub(t) <= Retention {
+		if len(bytes.TrimSpace(raw)) == 0 {
+			continue
+		}
+		t, ok := at(raw)
+		if !ok {
+			malformed++
+			continue
+		}
+		if age := now.Sub(t); age >= 0 && age <= Retention {
 			kept.Write(raw)
 			kept.WriteByte('\n')
 		}
@@ -133,7 +155,7 @@ func (l *Line) sweep(path string, at func([]byte) (time.Time, bool)) error {
 			return err
 		}
 	}
-	if err := os.WriteFile(stamp, nil, 0o644); err != nil {
+	if err := os.WriteFile(stamp, []byte(fmt.Sprintf("malformed=%d\n", malformed)), 0o644); err != nil {
 		return err
 	}
 	return os.Chtimes(stamp, now, now)

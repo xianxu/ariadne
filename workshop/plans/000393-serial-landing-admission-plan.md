@@ -18,20 +18,22 @@
 |------|----------|--------|
 | `Ticket` | `cmd/sdlc/internal/landingline/order.go` | new |
 | `Grant` | `cmd/sdlc/internal/landingline/order.go` | new |
+| `Order` | `cmd/sdlc/internal/landingline/order.go` | new |
 | `NextHead` | `cmd/sdlc/internal/landingline/order.go` | new |
 | `ValidGrants` | `cmd/sdlc/internal/landingline/order.go` | new |
 | `Authorize` | `cmd/sdlc/internal/landingline/order.go` | new |
-| `DelayStats` | `cmd/sdlc/internal/landingline/stats.go` | new |
+| `Delays` | `cmd/sdlc/internal/landingline/log.go` | new |
 
-- **Ticket** — `{Seq int64, Issue int, PR int, Branch string, PID int, Enqueued time.Time}`. `Issue` is the normalised number from `issue.IDFromFilename(branch)` (cmd/sdlc/internal/issue/scaffold.go:41), the parse `tickOnLanding` already uses, so `0391` and `391` agree, a live waiter or the head. `Seq` comes from a per-line counter, so FIFO is a total order that clock skew can't break.
+- **Ticket** — `{Seq int64, Issue int, Branch string, PID int, Enqueued time.Time}` (no PR: it is selected after admission, and the `admit` event records it). `Issue` is the normalised number from `issue.IDFromFilename(branch)` (cmd/sdlc/internal/issue/scaffold.go:41), the parse `tickOnLanding` already uses, so `0391` and `391` agree, a live waiter or the head. `Seq` comes from a per-line counter, so FIFO is a total order that clock skew can't break.
   - **Relationships:** N tickets per line, and at most one per process.
   - **DRY rationale:** this is the first Go line. scripts/test-lock.py keeps the suite's FIFO line, but the landing line needs sdlc's grants, and the waiter is the Go merge process itself (no helper process). The two lines share their design (flock liveness, pruning under a mutex), not code. The atlas notes this.
   - **Future extensions:** batching (#393 revision): `NextHead` widens to `NextBatch` and returns several tickets.
 - **Grant** — `{Issue int, Grantor Grantor, Reason string, Granted, Expires time.Time, Revoked bool}`, where `Grantor` is `{Address string, Slot *int, Name string}`. One entry in `grants.jsonl`.
 - **ValidGrants(entries, now) map[int]Grant** — the latest entry per issue counts if it is not revoked, not expired, has a reason, lasts at most 24 h, and records a grantor whose slot is nil or 0. Authority is checked when a grant is read as well as when it is written, so a hand-appended entry from a worker slot confers nothing. The log is the only source of grants, so an unlogged grant can't exist. **Trust model:** this is cooperative. It guards against agents' mistakes on one machine, not against an adversary. A process that forges the grantor fields can still grant, and the atlas says so.
-- **NextHead(tickets []Ticket, grants map[int]Grant, now time.Time) (head Ticket, displaced []Ticket, ok bool)** — the oldest live fleet-blocking ticket, otherwise the oldest normal one. `displaced` lists the normal tickets with a lower `Seq` than a fleet-blocking head, for the audit event. A head that is already admitted is not passed in (see Line), so nothing can preempt it.
+- **Order(tickets, grants) []Ticket** — the admission order: fleet-blocking tickets first, then normal ones, FIFO by Seq within each class. Both the waiting position and `NextHead` derive from it.
+- **NextHead(tickets []Ticket, grants map[int]Grant) (head Ticket, displaced []Ticket, ok bool)** — Order's first ticket. It takes no `now`, because `ValidGrants` already applied the clock. `displaced` lists the normal tickets with a lower `Seq` than a fleet-blocking head, for the audit event. A head that is already admitted is not passed in (see Line), so nothing can preempt it.
 - **Authorize(callerSlot, treeSlot *int) error** (the write-side check; `ValidGrants` repeats the slot rule on read) — a grant is refused when the caller's workspace or `$COUCH_TREE`'s workspace resolves to a numbered slot (N ≥ 1). The operator's shell and :0 slots, including the TL's hub ops:0, may grant.
-- **DelayStats(events) (n, p50, p90)** — enqueue-to-landed delay over the `landed` events, using nearest rank like test-stats.
+- **Delays(events) []float64** — enqueue-to-landed seconds over the `landed` events whose enqueue is still logged. `sdlc landing status` feeds them to test-stats' `suiteQuantiles`, so there is one nearest-rank implementation.
 
 ### Integration points
 
@@ -114,16 +116,16 @@ func NextHead(ts []Ticket, grants map[int]Grant, now time.Time) (Ticket, []Ticke
 - [ ] Run the tests again. Expect PASS.
 - [ ] Commit `#393 M1: landingline: flock-held tickets and head admission`.
 
-### Task 3 (M1): Log, sweep, DelayStats
+### Task 3 (M1): Log, sweep, Delays
 
-**Files:** create `cmd/sdlc/internal/landingline/log.go`, `stats.go` and `log_test.go`.
+**Files:** create `cmd/sdlc/internal/landingline/log.go` and `log_test.go`.
 
 - [ ] Write the tests:
   - append and read back;
   - a malformed line is skipped and counted;
   - Sweep drops entries older than 30 days and keeps the rest;
   - Sweep runs at most once a day (the stamp);
-  - `DelayStats` p50 and p90 over a known set match test-stats' nearest rank.
+  - `Delays` over a known event set: landed seconds only, and none for a swept enqueue. The p50 and p90 are tested in Task 5 through `suiteQuantiles`.
 - [ ] Run, expect FAIL, implement, run, expect PASS.
 - [ ] Commit `#393 M1: landingline: events and grants logs with 30-day sweep`.
 - [ ] Run `sdlc milestone-close --issue 393 --milestone M1`.
@@ -196,3 +198,25 @@ if pre, err := gh.LandingPRs(ctx, t.Repo, branch); err != nil {
 3. Priority: Tasks 1, 2 and 5 cover granted overtaking, FIFO, no preemption, expired, unauthorized and unlogged grants, and the displacement audit.
 4. Couch down: the line never involves Couch. The git common dir is the only location (TL decision 2). Every test runs without Couch.
 5. Fakes and conformance: `landingFakeGH` and the existing live check. **Pilot data:** `events.jsonl` (delay p90) and test-stats (suites per landed issue). The seven-day before/after report is the TL's, recorded in test-economy (see the issue's Revisions).
+
+## Revisions
+
+### 2026-10-16 — M1 as built, and the M1 review (REWORK) answered
+
+**Reason:** building M1 simplified four entities, and the M1 boundary review found that the table no longer matched the code. It also found two retention and validity bugs in grants.
+
+**Delta:**
+- **`Order` added:** the pure admission order; `NextHead` and the waiting position derive from it.
+- **`NextHead` drops `now`:** `ValidGrants` already applied the clock.
+- **`Ticket` drops `PR`:** the PR is selected after admission (PQ-1), so the `admit` event records it.
+- **`DelayStats` (stats.go) → `Delays` (log.go):** raw seconds that M2 feeds to test-stats' `suiteQuantiles`, keeping one nearest-rank implementation (ARCH-DRY).
+- **The admitted head leaves the ticket set** and records itself in `head.lock`, so an admitted head is never passed to `NextHead`.
+- **`OnAdmit` runs outside the line mutex:** flock is per open file, so a hook that logs under it would deadlock.
+
+**Review fixes:**
+- `ValidGrants` requires `Granted` to be no later than now, and the sweep drops future-dated entries, so a forged future grant confers nothing and doesn't live forever.
+- `AddGrant` stamps a zero `Granted`, and a grant's retention keys on the later of `Granted` and `Expires`, so a revoke outlives the grant it revokes.
+- A ticket's number comes from its file name, never its JSON.
+- The sweep counts the malformed lines it drops in its stamp.
+- `Wait` on a released or vanished ticket returns an error.
+- The line tests step admission through `tryAdmit`, with `Wait`'s sleep injected, so each interleaving is the test's choice rather than the scheduler's (ARCH-ORDER).

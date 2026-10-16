@@ -70,6 +70,7 @@ func TestValidGrants(t *testing.T) {
 		{"a live :0 grant counts", []Grant{grant(1, t0, 4)}, []int{1}},
 		{"an operator shell (no slot) counts", []Grant{shell}, []int{9}},
 		{"expired", []Grant{grant(2, t0.Add(-5*time.Hour), 4)}, nil},
+		{"future-dated", []Grant{grant(4, t0.Add(2*time.Hour), 4)}, nil},
 		{"longer than 24 h", []Grant{grant(3, t0, 25)}, nil},
 		{"a numbered-slot grantor confers nothing", []Grant{worker}, nil},
 		{"no grantor", []Grant{noGrantor}, nil},

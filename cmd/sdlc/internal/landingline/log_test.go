@@ -87,8 +87,54 @@ func TestAdmitHookMayRecord(t *testing.T) {
 		}
 	}}
 	l = openLine(t, t.TempDir(), o)
-	admitted(t, admitAsync(l, enqueue(t, l, 1)))
+	wantPos(t, l, enqueue(t, l, 1), 0)
 	if events, _, _ := l.Events(); len(events) != 1 || events[0].Kind != EventAdmit {
 		t.Fatalf("events %v", events)
+	}
+}
+
+func TestLogSweepDropsFutureDatedAndCountsMalformed(t *testing.T) {
+	now := t0
+	l := openLine(t, t.TempDir(), Options{Now: func() time.Time { return now }})
+	if err := l.Record(Event{Kind: EventEnqueue, Seq: 1, At: t0.Add(100 * 24 * time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	f, _ := os.OpenFile(filepath.Join(l.dir, EventsFile), os.O_APPEND|os.O_WRONLY, 0)
+	f.WriteString("{torn\n")
+	f.Close()
+	now = t0.Add(25 * time.Hour) // the next day's sweep
+	if err := l.Record(Event{Kind: EventEnqueue, Seq: 2}); err != nil {
+		t.Fatal(err)
+	}
+	events, skipped, _ := l.Events()
+	if len(events) != 1 || events[0].Seq != 2 || skipped != 0 {
+		t.Fatalf("after sweep: %v skipped %d", events, skipped)
+	}
+	stamp, _ := os.ReadFile(filepath.Join(l.dir, EventsFile+".swept"))
+	if string(stamp) != "malformed=1\n" {
+		t.Fatalf("stamp %q", stamp)
+	}
+}
+
+// A revoke must outlive the grant it revokes: AddGrant stamps it, and the
+// sweep keys a grant's age on the later of Granted and Expires.
+func TestSweptRevokeKeepsTheGrantRevoked(t *testing.T) {
+	now := t0
+	l := openLine(t, t.TempDir(), Options{Now: func() time.Time { return now }})
+	g := grant(391, t0, 24)
+	if err := l.AddGrant(g); err != nil {
+		t.Fatal(err)
+	}
+	now = t0.Add(time.Hour)
+	if err := l.AddGrant(Grant{Issue: 391, Grantor: g.Grantor, Reason: "landed", Revoked: true}); err != nil {
+		t.Fatal(err)
+	}
+	now = t0.Add(26 * time.Hour) // a daily sweep runs on this write
+	if err := l.AddGrant(grant(7, now, 1)); err != nil {
+		t.Fatal(err)
+	}
+	entries, _, _ := l.GrantEntries()
+	if _, ok := ValidGrants(entries, t0.Add(2*time.Hour))[391]; ok {
+		t.Fatalf("revoked grant valid again after a sweep: %v", entries)
 	}
 }

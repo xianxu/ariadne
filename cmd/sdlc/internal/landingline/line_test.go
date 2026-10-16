@@ -12,8 +12,7 @@ import (
 	"time"
 )
 
-// grantBox stands in for the grants log: the test changes it while waiters
-// read it on every poll.
+// grantBox stands in for the grants log, which waiters read on every poll.
 type grantBox struct {
 	mu sync.Mutex
 	m  map[int]Grant
@@ -22,9 +21,7 @@ type grantBox struct {
 func (b *grantBox) set(m map[int]Grant) { b.mu.Lock(); b.m = m; b.mu.Unlock() }
 func (b *grantBox) get() map[int]Grant  { b.mu.Lock(); defer b.mu.Unlock(); return b.m }
 
-// fastOptions polls every millisecond; grants (nil: none) is read on every
-// poll, like the production log.
-func fastOptions(grants *grantBox) Options {
+func testOptions(grants *grantBox) Options {
 	o := Options{Poll: time.Millisecond}
 	if grants != nil {
 		o.Grants = grants.get
@@ -51,98 +48,132 @@ func enqueue(t *testing.T, l *Line, issue int) *Handle {
 	return h
 }
 
-// admitAsync waits for h in a goroutine and reports on the channel.
-func admitAsync(l *Line, h *Handle) <-chan error {
-	done := make(chan error, 1)
-	go func() { done <- l.Wait(context.Background(), h) }()
-	return done
-}
-
-func admitted(t *testing.T, done <-chan error) {
+// step is one admission attempt, the unit Wait repeats: the tests drive it
+// directly, so each ordering is chosen by the test, not by the scheduler.
+func step(t *testing.T, l *Line, h *Handle) int {
 	t.Helper()
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatal(err)
-		}
-	case <-time.After(10 * time.Second):
-		t.Fatal("not admitted")
+	pos, _, err := l.tryAdmit(h)
+	if err != nil {
+		t.Fatal(err)
 	}
+	return pos
 }
 
-func notAdmitted(t *testing.T, done <-chan error) {
+func wantPos(t *testing.T, l *Line, h *Handle, want int) {
 	t.Helper()
-	select {
-	case err := <-done:
-		t.Fatalf("admitted early (err %v)", err)
-	case <-time.After(150 * time.Millisecond):
+	if got := step(t, l, h); got != want {
+		t.Fatalf("ticket %d: position %d, want %d (0 = admitted)", h.Ticket().Seq, got, want)
 	}
 }
 
 func TestLineOneHeadAtATime(t *testing.T) {
-	l := openLine(t, t.TempDir(), fastOptions(nil))
+	l := openLine(t, t.TempDir(), testOptions(nil))
 	a, b := enqueue(t, l, 1), enqueue(t, l, 2)
-	admitted(t, admitAsync(l, a))
-	second := admitAsync(l, b)
-	notAdmitted(t, second)
+	wantPos(t, l, a, 0)
+	wantPos(t, l, b, 1) // next, but the head holds the line
 	head, waiting, err := l.Status()
 	if err != nil || head == nil || head.Seq != a.Ticket().Seq || len(waiting) != 1 {
 		t.Fatalf("status head %v waiting %v err %v", head, waiting, err)
 	}
 	a.Release()
-	admitted(t, second)
+	wantPos(t, l, b, 0)
 }
 
 func TestLineFIFOAndSeqOrder(t *testing.T) {
-	l := openLine(t, t.TempDir(), fastOptions(nil))
-	first := enqueue(t, l, 1)
-	second := enqueue(t, l, 2)
+	l := openLine(t, t.TempDir(), testOptions(nil))
+	first, second := enqueue(t, l, 1), enqueue(t, l, 2)
 	if second.Ticket().Seq <= first.Ticket().Seq {
 		t.Fatalf("seq %d after %d", second.Ticket().Seq, first.Ticket().Seq)
 	}
-	// The younger ticket waits even when it asks first.
-	younger := admitAsync(l, second)
-	notAdmitted(t, younger)
-	admitted(t, admitAsync(l, first))
+	wantPos(t, l, second, 2) // asking first doesn't jump the line
+	wantPos(t, l, first, 0)
 	first.Release()
-	admitted(t, younger)
+	wantPos(t, l, second, 0)
 }
 
 func TestLineGrantReordersButNeverPreempts(t *testing.T) {
 	grants := &grantBox{}
-	l := openLine(t, t.TempDir(), fastOptions(grants))
+	l := openLine(t, t.TempDir(), testOptions(grants))
 	head := enqueue(t, l, 1)
-	admitted(t, admitAsync(l, head))
+	wantPos(t, l, head, 0)
 	normal, blocking := enqueue(t, l, 2), enqueue(t, l, 3)
-	n, b := admitAsync(l, normal), admitAsync(l, blocking)
+	wantPos(t, l, blocking, 2)
 	grants.set(map[int]Grant{3: grant(3, time.Now(), 4)})
-	// The granted ticket waits for the running head: no preemption.
-	notAdmitted(t, b)
+	wantPos(t, l, blocking, 1) // first in line, yet the running head keeps it
+	wantPos(t, l, normal, 2)
 	head.Release()
-	admitted(t, b)
-	notAdmitted(t, n)
+	wantPos(t, l, normal, 2) // the granted ticket goes first
+	wantPos(t, l, blocking, 0)
 	blocking.Release()
-	admitted(t, n)
+	wantPos(t, l, normal, 0)
 }
 
 func TestLineIndependentDirectories(t *testing.T) {
-	a := openLine(t, t.TempDir(), fastOptions(nil))
-	b := openLine(t, t.TempDir(), fastOptions(nil))
-	ha, hb := enqueue(t, a, 1), enqueue(t, b, 1)
-	admitted(t, admitAsync(a, ha))
-	admitted(t, admitAsync(b, hb))
+	a := openLine(t, t.TempDir(), testOptions(nil))
+	b := openLine(t, t.TempDir(), testOptions(nil))
+	wantPos(t, a, enqueue(t, a, 1), 0)
+	wantPos(t, b, enqueue(t, b, 1), 0)
+}
+
+func TestLineReleasedTicketCantWait(t *testing.T) {
+	l := openLine(t, t.TempDir(), testOptions(nil))
+	h := enqueue(t, l, 1)
+	h.Release()
+	if err := l.Wait(context.Background(), h); err == nil {
+		t.Fatal("a released ticket waited")
+	}
+}
+
+func TestLineTicketNumberComesFromItsName(t *testing.T) {
+	l := openLine(t, t.TempDir(), testOptions(nil))
+	h := enqueue(t, l, 1)
+	// Rewrite the held ticket's JSON with a lie, then with garbage: the name
+	// still decides its number, and a held ticket that doesn't parse still counts.
+	for _, body := range []string{`{"seq": 999, "issue": 1}`, `{not json`} {
+		if err := os.WriteFile(h.path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		_, waiting, err := l.Status()
+		if err != nil || len(waiting) != 1 || waiting[0].Seq != h.Ticket().Seq {
+			t.Fatalf("%s: waiting %v err %v", body, waiting, err)
+		}
+	}
+}
+
+// Wait is the poll loop over step: it reports position changes and admits once
+// the head leaves. Its sleep is injected, so the head's release happens at a
+// chosen poll rather than after real time passes.
+func TestLineWaitAdmitsAfterTheHeadReleases(t *testing.T) {
+	var positions []int
+	o := testOptions(nil)
+	o.OnWait = func(pos int, _ *Ticket) { positions = append(positions, pos) }
+	var head *Handle
+	polls := 0
+	o.Sleep = func(ctx context.Context, d time.Duration) error {
+		polls++
+		if polls == 2 {
+			head.Release()
+		}
+		return nil
+	}
+	l := openLine(t, t.TempDir(), o)
+	head = enqueue(t, l, 1)
+	wantPos(t, l, head, 0)
+	if err := l.Wait(context.Background(), enqueue(t, l, 2)); err != nil {
+		t.Fatal(err)
+	}
+	if polls != 2 || len(positions) != 1 || positions[0] != 1 {
+		t.Fatalf("polls %d positions %v", polls, positions)
+	}
 }
 
 func TestLineCancelledWaitLeavesTheLine(t *testing.T) {
-	l := openLine(t, t.TempDir(), fastOptions(nil))
-	head := enqueue(t, l, 1)
-	admitted(t, admitAsync(l, head))
+	o := testOptions(nil)
+	o.Sleep = func(ctx context.Context, d time.Duration) error { return context.Canceled }
+	l := openLine(t, t.TempDir(), o)
+	wantPos(t, l, enqueue(t, l, 1), 0)
 	waiter := enqueue(t, l, 2)
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { done <- l.Wait(ctx, waiter) }()
-	cancel()
-	if err := <-done; err == nil {
+	if err := l.Wait(context.Background(), waiter); err == nil {
 		t.Fatal("cancelled wait returned nil")
 	}
 	waiter.Release()
@@ -206,13 +237,11 @@ func kill(t *testing.T, cmd *exec.Cmd) {
 func TestLineDeadWaiterIsPruned(t *testing.T) {
 	dir := t.TempDir()
 	helper := startHelper(t, dir, "ticket")
-	l := openLine(t, dir, fastOptions(nil))
+	l := openLine(t, dir, testOptions(nil))
 	mine := enqueue(t, l, 1)
-	// The helper's ticket is older, so it is next while it lives.
-	done := admitAsync(l, mine)
-	notAdmitted(t, done)
+	wantPos(t, l, mine, 2) // the live helper's older ticket is next
 	kill(t, helper)
-	admitted(t, done)
+	wantPos(t, l, mine, 0)
 	if left, _ := filepath.Glob(filepath.Join(dir, "tickets", "*")); len(left) != 0 {
 		t.Fatalf("tickets left after admission: %v", left)
 	}
@@ -221,29 +250,29 @@ func TestLineDeadWaiterIsPruned(t *testing.T) {
 func TestLineDeadHeadReleasesTheLine(t *testing.T) {
 	dir := t.TempDir()
 	helper := startHelper(t, dir, "head")
-	l := openLine(t, dir, fastOptions(nil))
+	l := openLine(t, dir, testOptions(nil))
 	if head, _, err := l.Status(); err != nil || head == nil || head.Issue != 99 {
 		t.Fatalf("helper is not the head: %v %v", head, err)
 	}
-	done := admitAsync(l, enqueue(t, l, 1))
-	notAdmitted(t, done)
+	mine := enqueue(t, l, 1)
+	wantPos(t, l, mine, 1)
 	kill(t, helper)
-	admitted(t, done)
+	wantPos(t, l, mine, 0)
 }
 
 func TestLineAdmitHookReportsDisplacement(t *testing.T) {
 	grants := &grantBox{}
 	var gotHead Ticket
 	var gotDisplaced []Ticket
-	o := fastOptions(grants)
+	o := testOptions(grants)
 	o.OnAdmit = func(head Ticket, displaced []Ticket) { gotHead, gotDisplaced = head, displaced }
 	l := openLine(t, t.TempDir(), o)
 	busy := enqueue(t, l, 1)
-	admitted(t, admitAsync(l, busy))
+	wantPos(t, l, busy, 0)
 	older, granted := enqueue(t, l, 2), enqueue(t, l, 3)
 	grants.set(map[int]Grant{3: grant(3, time.Now(), 4)})
 	busy.Release()
-	admitted(t, admitAsync(l, granted))
+	wantPos(t, l, granted, 0)
 	if gotHead.Issue != 3 || len(gotDisplaced) != 1 || gotDisplaced[0].Seq != older.Ticket().Seq {
 		t.Fatalf("admit hook head %v displaced %v", gotHead, gotDisplaced)
 	}
