@@ -5,8 +5,8 @@ deps: [392, 380]
 github_issue:
 created: 2026-10-15
 updated: 2026-10-15
-estimate_hours:
-card_mirror: 'abceb82d523b1fc0851167a186147f3d1556e4d0' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 3.86
+card_mirror: '4c4ca82885b0d4550a442d453fd3f6bb252b8df9' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-15T23:44:34-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
 ---
 
 # Serial per-repo landing admission with fleet-blocking priority
@@ -41,6 +42,27 @@ Durable plan: [000393-serial-landing-admission-plan.md](../plans/000393-serial-l
 
 - [ ] M1 — landingline package: pure NextHead, grant validity and Authorize; flock-held tickets and head admission; events and grants logs with a 30-day sweep.
 - [ ] M2 — runDurableMerge holds the line for its lifetime; sdlc landing status, grant and revoke; integration tests on landingFakeGH; atlas and merge help.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module design=0.4 impl=0.32
+item: greenfield-go-module design=0.4 impl=0.32
+item: smaller-go-module design=0.1 impl=0.2
+item: smaller-go-module design=0.2 impl=0.2
+item: smaller-go-module design=0.1 impl=0.2
+item: smaller-go-module design=0.05 impl=0.05
+item: atlas-docs design=0.1 impl=0.08
+item: milestone-review design=0.1 impl=0.2
+item: milestone-review design=0.1 impl=0.2
+item: issue-spec design=0.2 impl=0.08
+design-buffer: 0.15
+total: 3.86
+```
+
+Derived against `brain/data/life/42shots/velocity/estimate-logic-v3.1.md`, Method A only, and provisional because the source reports stale. The items follow #376's pattern. Two greenfield Go concerns: the pure ordering and grant model, and the flock-held line with helper-process death tests. Four smaller modules, each extending existing code: the events and grants log with its sweep, merge wiring with the PQ-1 integration cases on `landingFakeGH`, the `sdlc landing` verbs, and the reviewbox flock lift. Then atlas, two milestone reviews, and the issue spec and plan already written.
 
 ## Log
 
