@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-16
-estimate_hours:
-card_mirror: '4a7605f9c9b5a3a440ff90342cdd86957fc6a4e3' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 1.13
+card_mirror: '6144aa383e23659eca6be546b18ccbc64dd88206' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-16T15:06:50-07:00
 claimant:
     operator: Xian Xu
@@ -51,6 +51,24 @@ then goes through, so the slot's `.claude/settings.json` may lag the woven one w
 ### 2026-10-16
 
 - Root cause: catchUpBeforeWork only invokes refresh for behind HEADs. Refresh advances HEADs before compiling; publication denial fails the first run after Git progress, then the retry skips weave because HEADs are current. Preserve the independent moved-HEAD rebuilt-binary rerun (#303); no sandbox bypass. ARCH-DRY/PURE: reuse settingsx comparison, weavefs and managed ownership rather than classify arbitrary gate failures. Plan posted to hub; TL authorized proceeding after posting.
+
+## Estimate
+
+*Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only; source flagged stale, provisional.*
+
+Three smaller Go extensions: managed deferred ownership, read-only settings/refresh CLI, and start-plan wiring. Existing planner, settingsx, weavefs and Git fixtures supply the implementation pattern; no novel library needed. Each uses v2's high-end 0.3 design x 0.2 thorough-spec discount = 0.06, and 0.5 implementation x 0.4 v3.1 = 0.20. Docs use 0.1 design x 0.2 = 0.02 and 0.2 implementation x 0.4 = 0.08. One boundary review uses 0.02 design and 0.5 implementation x 0.4 = 0.20. Familiarity 1.0, thorough-plan design buffer 15%; 0.22 x 1.15 + 0.88 = 1.133h, rounded 1.13h.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0.02 impl=0.20
+design-buffer: 0.15
+total: 1.13
+```
 
 ## Revisions
 

@@ -40,6 +40,40 @@ rounds:
           family: function-level-test-strategy
           round: 1
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 44bec24f-3207-4b97-b2e9-feb907b51d0c
+            repository: github.com/xianxu/ariadne
+            issue_id: "000411"
+            recipe: plan-quality
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+            reviewed_head: 5341315a45a4e1e97a08339beb559a1869111734
+            slot: ariadne:5
+            requested_at: "2026-10-16T22:14:08.394087Z"
+          phase: finished
+          pid: 80176
+          started_at: "2026-10-16T22:14:08.882313Z"
+          finished_at: "2026-10-16T22:14:35.469569Z"
+          session_id: 01a146c7-9d2c-7ad2-8f7a-84a895b8235d
+          outcome: returned
+      "n": 2
+      timestamp: "2026-10-16T15:14:36-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Recovery uses weave refresh --substrate and verifies notice clearing through that production command while preserving the issue branch.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: Tasks name the ownership, settings and catchup functions with adversarial strategies and mechanical invariant assertions.
+          round: 2
+      blocked: false
+content_hash: 32affa16072bf3fdabe4d389f1ad55ca3c02bd592fa4249570f5774fae5d3a38
 ---
 
 # Gate ledger — ariadne#411 (plan-quality)
@@ -56,7 +90,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-2** [Important] `function-level-test-strategy` Name the tested functions and their adversarial verification strategies
   Tasks at workshop/plans/000411-protected-settings-plan.md:39 describe outcome lists, while Verification supplies package commands without naming the production functions to unit-test. Identify the ownership reconciliation, settings observation/defer and catchup functions, with one strategy line each covering adversarial input or interrupted/repeated execution and the mechanical invariant guard; compress the existing case lists into those strategies.
 
+## Round 2 — 2026-10-16T15:14:36-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Recovery uses weave refresh --substrate and verifies notice clearing through that production command while preserving the issue branch.
+- PQ-2 — addressed — Tasks name the ownership, settings and catchup functions with adversarial strategies and mechanical invariant assertions.
+
 ## Open findings
 
-- **PQ-1** [Important] `recovery-action-preserves-workflow` Make the stale-settings recovery action executable on an issue branch
-- **PQ-2** [Important] `function-level-test-strategy` Name the tested functions and their adversarial verification strategies
+(none — every finding has been disposed)
