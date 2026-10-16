@@ -64,21 +64,36 @@ func ValidGrants(entries []Grant, now time.Time) map[int]Grant {
 	return valid
 }
 
-// NextHead picks who is admitted next: the oldest ticket whose issue holds a
-// valid grant, else the oldest ticket. displaced lists the older tickets a
-// fleet-blocking head goes ahead of, for the audit log. An admitted head is
-// never among the tickets passed in, so nothing here can preempt it.
+// Order is the admission order of the waiting tickets: the fleet-blocking ones
+// (whose issue holds a valid grant) first, then the rest, FIFO by Seq within
+// each class.
+func Order(tickets []Ticket, grants map[int]Grant) []Ticket {
+	rank := func(t Ticket) int {
+		if _, granted := grants[t.Issue]; granted {
+			return 0
+		}
+		return 1
+	}
+	return slices.SortedFunc(slices.Values(tickets), func(a, b Ticket) int {
+		return cmp.Or(cmp.Compare(rank(a), rank(b)), cmp.Compare(a.Seq, b.Seq))
+	})
+}
+
+// NextHead picks who is admitted next, Order's first ticket. displaced lists
+// the older tickets a fleet-blocking head goes ahead of, for the audit log. An
+// admitted head has left the waiting tickets, so nothing here can preempt it.
 func NextHead(tickets []Ticket, grants map[int]Grant) (head Ticket, displaced []Ticket, ok bool) {
-	if len(tickets) == 0 {
+	order := Order(tickets, grants)
+	if len(order) == 0 {
 		return Ticket{}, nil, false
 	}
-	sorted := slices.SortedFunc(slices.Values(tickets), func(a, b Ticket) int { return cmp.Compare(a.Seq, b.Seq) })
-	for i, t := range sorted {
-		if _, granted := grants[t.Issue]; granted {
-			return t, sorted[:i:i], true
+	head = order[0]
+	for _, t := range order[1:] {
+		if t.Seq < head.Seq {
+			displaced = append(displaced, t)
 		}
 	}
-	return sorted[0], nil, true
+	return head, slices.SortedFunc(slices.Values(displaced), func(a, b Ticket) int { return cmp.Compare(a.Seq, b.Seq) }), true
 }
 
 // Authorize is the write-side check for a grant: refused when the caller's
