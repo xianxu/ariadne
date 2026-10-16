@@ -78,3 +78,14 @@ background; log /tmp/ariadne-404-suite.log. Atlas maps the new planning rules.
 
 Full `make test` passed: 12 shards over 1,508 cmd/sdlc tests plus 66 other
 packages; zero failures, 654.9 seconds execution after 538 seconds queue wait.
+
+## Revisions
+
+### 2026-10-16 — BR-1: one shared planning source
+
+The close review identified the duplicated executable planning text in both
+command helps (the complete class in this window). Move it into embedded
+`pkg/tlrules/planning.md`, compose both help templates through the existing
+shared rules package, and retain independent phrase guards. Removing both
+copies first made the guards fail again; the shared composition restores them.
+No requirement or scope change; this enforces ARCH-DRY for the approved section.

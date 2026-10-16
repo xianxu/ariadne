@@ -889,3 +889,11 @@ The simplest durable authority beats a clever scan of consequences.
   layouts. Unclassifiable files need visible skipped-source diagnostics, not a
   fleet-wide close failure; reserve adoption refusal for positively owned broken
   evidence and test a real nested subagent fixture through close adoption (#391).
+
+- Shared rules in command help are executable contracts. If both roles must
+  read the same section, embed one shared source and compose each output;
+  independent wording copies will drift even when both have phrase guards
+  (#404 BR-1).
+- Run the pre-close full suite through `sdlc local-check run --name suite`
+  on a pushed head so landing can reuse recorded evidence. A raw `make test`
+  pass does not publish the suite status that the landing gate requires.

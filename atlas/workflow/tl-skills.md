@@ -29,7 +29,9 @@ AGENTS §15, test-budget rules in §5, and messaging mechanics in
 
 **Planning rules.** Both help surfaces carry the third-design-delta re-plan
 tripwire and the owner-lifetime lock/lease question before an absence proof.
-Their existing help tests phrase-guard both rules (ariadne#404).
+The shared body is embedded from `pkg/tlrules/planning.md` and composed into
+both command helps by `tlrules.ComposeHelp`. Existing help tests phrase-guard
+both outputs (ariadne#404).
 
 **`tl-lead` subcommands** replace the ops Python scripts (`ss.py`, `render-trains.py`, `opinstr.py`; `tl-status.py` was already dead and is retired, not ported):
 
