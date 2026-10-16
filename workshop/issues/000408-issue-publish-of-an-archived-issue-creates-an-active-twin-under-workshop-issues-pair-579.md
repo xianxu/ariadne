@@ -156,3 +156,11 @@ item: milestone-review design=0.02 impl=0.16
 design-buffer: 0.15
 total: 0.94
 ```
+
+### 2026-10-16 — full-flow implementation resumed
+
+The TL approved the durable plan and the existing BeforePublish hook, with no new state and a stop before any third mechanism change. change-code passed plan-quality and estimate-quality; full flow is recorded. New regressions reproduced BR-1 in all six publication/retry/recovery cases across both archive layouts, and BR-2 in all six backup/non-Markdown discovery cases (48.956s run). The direct pure terminal-admission test passes. Implementing the approved hook and existing filename-parser filter.
+
+Estimate scope clarification: the three module primitives cover the whole issue's resolution, republish and transfer changes, including their regression tests; module implementation anchors include focused and full-suite verification. The review primitive includes PR/landing checks. This is the original whole-issue model estimate, not a remaining-work forecast; full-suite and review latency may make the actual higher.
+
+New regression run passed (84.718s): TestPublishIgnoresNonDetailEntries, TestInitialPublicationArchiveRevalidation and TestInitialDetailsTerminalAdmission. BR-1 uses only the existing BeforePublish seam; BR-2 uses the existing issueFilename grammar; BR-3 acceptance clauses are appended. PQ-1 test strategy prose compressed into function-specific lines.

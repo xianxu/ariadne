@@ -911,3 +911,5 @@ The simplest durable authority beats a clever scan of consequences.
   hermeticity guard compares repository state across the whole invocation.
   Concurrent agent edits look like test leakage. Finish edits first, or run
   verification through the isolated local-check checkout (#408).
+
+- #408: A publication invariant checked only at command preflight does not protect saved candidates or recovery. Put the rule in the existing shared publication admission hook and exercise first push, moved-base retry and durable receipt replay. Filter discovery by the canonical filename grammar before classifying an ID family; an ID prefix alone also matches backups.

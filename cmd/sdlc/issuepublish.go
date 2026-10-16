@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -100,7 +101,8 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 			return err
 		}
 		var localDetails []string
-		for _, f := range classifyFamily(n, local[n]) {
+		candidates := slices.DeleteFunc(local[n], func(p string) bool { return !issueFilename(filepath.Base(p)) })
+		for _, f := range classifyFamily(n, candidates) {
 			if f.Kind == kindIssue {
 				localDetails = append(localDetails, f.Path)
 			}

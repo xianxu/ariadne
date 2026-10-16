@@ -34,10 +34,10 @@ The external seam is existing gitx/tracker Git IO. Reuse trackerRepo, spinOffOnC
 
 Files: cmd/sdlc/issuepublish_tracker_test.go, cmd/sdlc/issuemovedetail_test.go, workshop/issues/000408-*.md.
 
-- [ ] Append Done-when clauses for all review findings and the local-only archive refusal, preserving the original criteria and adding a Revision.
-- [ ] Add TestPublishIgnoresNonDetailEntries: backups and non-Markdown entries alongside active details and alone under archive must not cause duplicate/archive refusals; both archive layouts.
-- [ ] Add TestInitialPublicationArchiveRevalidation: use the existing transfer state machine with a real Git/bare-origin fixture; introduce an archive after preflight and cover initial preparation, retry after moved main, and replay of a saved prepared receipt. Exercise both archive layouts. Assert refusal names the archive, main retains only the peer archive, no active file is published, and source bytes survive.
-- [ ] Run only these new regressions with go test ./cmd/sdlc -run 'Test(PublishIgnoresNonDetailEntries|InitialPublicationArchiveRevalidation)$' -count=1 -timeout 5m. Confirm failures identify the missing guards, then checkpoint.
+- [x] Append Done-when clauses for all review findings and the local-only archive refusal, preserving the original criteria and adding a Revision.
+- [x] runTrackedPublish: adversarial ID-prefixed non-detail entries → TestPublishIgnoresNonDetailEntries uses real Git and asserts publication ignores them while preserving their bytes.
+- [x] newIssueTransferOp.BeforePublish: peer archives introduced across publication/retry/receipt-replay boundaries → TestInitialPublicationArchiveRevalidation uses real Git and asserts archive preservation, refusal, and source retention.
+- [x] Run only these new regressions with go test ./cmd/sdlc -run 'Test(PublishIgnoresNonDetailEntries|InitialPublicationArchiveRevalidation)$' -count=1 -timeout 5m. Confirm failures identify the missing guards, then checkpoint.
 
 ### 2. Apply the shared publication guard
 
@@ -72,3 +72,7 @@ ARCH-FUNERAL: no new durable data family. Existing receipts, local-check logs an
 ### 2026-10-16 — review-driven full-flow checkpoint
 
 The first correction fit the 100-line quick shell. Completing the common transfer/recovery guard and filename filtering is expected to exceed it. This plan captures the same no-twin invariant and the additional review evidence before further implementation; no independent feature is added.
+
+### 2026-10-16 — PQ-1 and red evidence
+
+Compressed the test strategy into one line per risky function; the executable tests own the scenario matrix. No behavior or mechanism changed. Red run: filename discovery fails all six cases; unguarded transfer publishes all six archive races (48.956s). The terminal-admission helper passes its pure category test.

@@ -437,6 +437,17 @@ func checkTransferAssetAdmission(env *trackerEnv, spec tracker.ReceiptSpec, view
 func newIssueTransferOp(env *trackerEnv) *tracker.TransferOp {
 	op := tracker.NewTransferOp(env.ctx, env.repo, env.main, env.root, env.branchRef(), moveDetailRemover(env))
 	op.BeforePublish = func(spec tracker.ReceiptSpec, view *gitx.TrunkView) error {
+		dirs, err := resolveIDDirs(filepath.Dir(spec.DestinationPath), envOr("WF_HISTORY_DIR", "workshop/history"))
+		if err != nil {
+			return err
+		}
+		rel, err := publishedDetailPath(view, dirs, spec.IssueID)
+		if err != nil {
+			return err
+		}
+		if rel != "" {
+			return fmt.Errorf("%w at %s; refusing initial publication", tracker.ErrDestinationExists, rel)
+		}
 		return checkTransferAssetAdmission(env, spec, view)
 	}
 	return op
