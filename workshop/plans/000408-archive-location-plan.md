@@ -90,3 +90,14 @@ Recorded suite on the pushed correction passed: 1,516 SDLC tests across 12 shard
 Close round 2 disposed BR-1/BR-2/BR-3, but reproduced stale terminal eligibility after preflight. This is the third mechanism correction, so implementation is stopped under the TL's explicit limit. Proposed rule: every unconfirmed initial publication requires a current nonterminal card AND no ID-wide details. Reuse BeforePublish: read the current tracker card, apply requireInitialDetails, then retain location/asset checks. The existing reachability-first recovery behavior is unchanged. No new hook, receipt or state.
 
 If approved, add terminal transition regressions at the existing first/retry/saved-receipt boundaries using the stateful Git fixture; assert refusal, unchanged main and source retention. Run red/green, the broader group and recorded full suite, then re-close. No code for BR-4 has been written.
+
+### 2026-10-16 — TL approval: one initial-publication authority
+
+The TL approved BR-4 with consolidation: checkInitialPublication in issuemovedetail.go is the single admission authority for unconfirmed initial publication. It reads the current card and applies requireInitialDetails, resolves canonical ID-wide main and local detail locations (including duplicate/local-only archive safeguards), and applies existing ownership/assets admission. BeforePublish calls it; preflight copies are removed or become early calls to that same function. No new hook, state, receipt or lock. Confirmed-publication recovery keeps its existing reachability-first behavior. Stop and report before changing anything if close round 3 finds another bypass.
+
+Core concepts addition: checkInitialPublication — INTEGRATION — cmd/sdlc/issuemovedetail.go — new composition of existing admission rules. localDetailPath — INTEGRATION — cmd/sdlc/issuepublish.go — extraction of existing canonical local discovery for both publication modes.
+
+- [ ] checkInitialPublication: current-card terminal transitions at transfer boundaries → extend the existing real-Git fixture in TestInitialPublicationTerminalRevalidation; require refusal, unchanged main and retained source across first/retry/receipt replay. Retain existing confirmed-publication recovery coverage.
+- [ ] checkInitialPublication preflight parity: local-only archived details supplied through either publication entry point → shared rule refuses without source or main mutation, in both archive layouts.
+- [ ] Run new regressions red; consolidate the shared admission and its early calls; run green plus broader publication/transfer/recovery coverage.
+- [ ] Update Atlas and Log, record the final suite, then close round 3 and land only on SHIP. If that review identifies another bypass, stop and report before any change.

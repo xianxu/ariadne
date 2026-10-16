@@ -45,6 +45,9 @@ flow: {kind: full, provenance: operator}
   active write occurs and the source is preserved.
 - Backup and non-Markdown entries are ignored by local details discovery.
 
+- A card becoming terminal after preflight is refused before any unconfirmed
+  initial publication, retry or saved-receipt replay; main and source are preserved.
+
 ## Plan
 
 - [x] Reproduce archive updates, missing terminal details and duplicate-location
@@ -178,3 +181,7 @@ Estimate scope clarification: the three module primitives cover the whole issue'
 New regression run passed (84.718s): TestPublishIgnoresNonDetailEntries, TestInitialPublicationArchiveRevalidation and TestInitialDetailsTerminalAdmission. BR-1 uses only the existing BeforePublish seam; BR-2 uses the existing issueFilename grammar; BR-3 acceptance clauses are appended. PQ-1 test strategy prose compressed into function-specific lines.
 
 Broader targeted verification passed: go test ./cmd/sdlc -run 'Test(Publish|MoveDetail|AssetRecovery|InitialPublicationArchiveRevalidation|InitialDetailsTerminalAdmission)' -count=1 -timeout 10m (207.171s). Stable worktree; no hermeticity failure. Existing confirmed-candidate recovery remains green. Starting the recorded full suite on the pushed correction.
+
+## Revisions — terminal admission consolidation
+
+2026-10-16: TL approval verified by Couch receipt a2384481-92d5-450d-8f8e-0fc5f324ba0d. Consolidate all initial-publication admission in the existing BeforePublish seam: current nonterminal card, no ID-wide main details, local location safeguards and asset rules. Preflight calls the same function as an early exit. No new state/hook/receipt. Add terminal-transition regressions and preserve confirmed recovery. Stop before reworking any new bypass from close round 3.
