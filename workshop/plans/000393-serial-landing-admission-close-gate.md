@@ -787,6 +787,192 @@ rounds:
       isolation: checkout
       reviewed: 36b7cb950a0ee92184939d5f88da33c4b484ec5a
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 73f65a9d-e4b6-4391-baeb-23a4cf9776b5
+            repository: github.com/xianxu/ariadne
+            issue_id: "000393"
+            recipe: fix-review
+            round: 8
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/867ab326465b532f
+            reviewed_head: 850dd46399f456c196e419928e89205552410544
+            slot: ariadne:2
+            requested_at: "2026-10-16T09:55:44.658515Z"
+          phase: finished
+          pid: 95479
+          started_at: "2026-10-16T09:55:44.84631Z"
+          finished_at: "2026-10-16T09:56:19.505274Z"
+          session_id: 70a51523-1400-4658-8847-2f9d2d750e71
+          outcome: returned
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 56508f11-83c2-4066-b734-179036adf3e1
+            repository: github.com/xianxu/ariadne
+            issue_id: "000393"
+            recipe: fix-review
+            round: 8
+            attempt: 2
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/867ab326465b532f
+            reviewed_head: 850dd46399f456c196e419928e89205552410544
+            slot: ariadne:2
+            requested_at: "2026-10-16T09:56:26.612669Z"
+          phase: finished
+          pid: 3447
+          started_at: "2026-10-16T09:56:26.888508Z"
+          finished_at: "2026-10-16T09:57:10.214797Z"
+          session_id: 8fc29e48-7e52-4cdf-8e3e-650354b9caf2
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 850dd46399f456c196e419928e89205552410544
+        tracker_head: 77667000bcbf7b1419aeeddfec4196e92df81a68
+        branch_point: 655bda2e67d4fcb701adda3c88f3bc526fae1f05
+        since: "2026-10-15T23:44:34-07:00"
+        until: "2026-10-16T02:55:06-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-15T23:44:34-07:00"
+              end: "2026-10-16T02:55:06-07:00"
+              began: "2026-10-15T23:44:34-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 42a78a01-c26e-45f2-abad-7a5f8c34d21a
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 57542ed79e3a75603be304fa9a05a575f7ce08a4e3902f3ca08d54e8f50f9042
+              started: "2026-10-16T06:53:29.832Z"
+              spawned: false
+              bytes: 600670
+              windows:
+                - start: "2026-10-16T06:53:29.832Z"
+                  end: "2026-10-16T02:55:06-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 2431069809747e656ed3b670c690063096d338d299b3d45b60b28c3abd24954d
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 14125783
+              windows:
+                - start: "2026-10-15T23:44:34-07:00"
+                  end: "2026-10-16T02:55:06-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-16T00:05:18-07:00"
+              finalized: "2026-10-16T00:07:33-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-16T00:10:49-07:00"
+              finalized: "2026-10-16T00:13:11-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-16T00:15:25-07:00"
+              finalized: "2026-10-16T00:17:35-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-16T01:18:13-07:00"
+              finalized: "2026-10-16T01:23:08-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-16T01:29:16-07:00"
+              finalized: "2026-10-16T02:00:00-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-16T02:05:53-07:00"
+              finalized: "2026-10-16T02:19:06-07:00"
+              finalizing: true
+            - dispatched: "2026-10-16T02:38:51-07:00"
+              finalized: "2026-10-16T02:54:12-07:00"
+              finalizing: true
+      "n": 8
+      timestamp: "2026-10-16T02:57:16-07:00"
+      dispatched: "2026-10-16T02:55:44-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Disposed in earlier rounds; nothing in this interdiff reverts it.
+          round: 8
+        - id: BR-2
+          disposition: addressed
+          note: Disposed in earlier rounds; nothing in this interdiff reverts it.
+          round: 8
+        - id: BR-3
+          disposition: addressed
+          note: Disposed in earlier rounds; nothing in this interdiff reverts it.
+          round: 8
+        - id: BR-4
+          disposition: addressed
+          note: Disposed in earlier rounds; nothing in this interdiff reverts it.
+          round: 8
+        - id: BR-5
+          disposition: addressed
+          note: Disposed in earlier rounds; nothing in this interdiff reverts it.
+          round: 8
+        - id: BR-6
+          disposition: addressed
+          note: Disposed in earlier rounds; nothing in this interdiff reverts it.
+          round: 8
+        - id: BR-7
+          disposition: addressed
+          note: Disposed in earlier rounds; nothing in this interdiff reverts it.
+          round: 8
+        - id: BR-8
+          disposition: addressed
+          note: Disposed in earlier rounds; nothing in this interdiff reverts it.
+          round: 8
+        - id: BR-9
+          disposition: addressed
+          note: Disposed in earlier rounds; nothing in this interdiff reverts it.
+          round: 8
+        - id: BR-10
+          disposition: addressed
+          note: heldTicket still returns Unreadable for an unparseable held head; readTicket now reads the whole ticket, bounded at 1 MiB; landingline tests pass.
+          round: 8
+        - id: BR-11
+          disposition: addressed
+          note: Disposed in earlier rounds; nothing in this interdiff reverts it.
+          round: 8
+        - id: BR-12
+          disposition: addressed
+          note: Disposed in earlier rounds; nothing in this interdiff reverts it.
+          round: 8
+        - id: BR-13
+          disposition: addressed
+          note: Disposed in earlier rounds; nothing in this interdiff reverts it.
+          round: 8
+        - id: BR-14
+          disposition: addressed
+          note: Disposed in earlier rounds; nothing in this interdiff reverts it.
+          round: 8
+        - id: BR-15
+          disposition: addressed
+          note: Disposed in earlier rounds; nothing in this interdiff reverts it.
+          round: 8
+        - id: BR-16
+          disposition: addressed
+          note: Disposed in earlier rounds; nothing in this interdiff reverts it.
+          round: 8
+        - id: BR-17
+          disposition: addressed
+          note: Disposed in earlier rounds; nothing in this interdiff reverts it.
+          round: 8
+      recipe: fix-review
+      isolation: checkout
+      reviewed: 850dd46399f456c196e419928e89205552410544
+      blocked: false
 ---
 
 # Gate ledger — ariadne#393 (boundary-review)
@@ -891,6 +1077,28 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - BR-9 — addressed — Plan lines 47-59 are now marked "as built" and give Status() (head *Ticket, waiting []Ticket, err error), matching line.go. Task 1's sketch at plan:88 is marked superseded (NextHead takes no now), and Task 2 line 125 uses the as-built Status signature.
 - BR-10 — addressed — line.go heldTicket returns Ticket{Unreadable: true} for a held but unparseable head.lock and is used in both Status and tryAdmit. TestLineUnreadableHeadIsStillAHead fails without the fix (it checks got != nil and Unreadable) and passes at head.
+
+## Round 8 — 2026-10-16T02:57:16-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — Disposed in earlier rounds; nothing in this interdiff reverts it.
+- BR-2 — addressed — Disposed in earlier rounds; nothing in this interdiff reverts it.
+- BR-3 — addressed — Disposed in earlier rounds; nothing in this interdiff reverts it.
+- BR-4 — addressed — Disposed in earlier rounds; nothing in this interdiff reverts it.
+- BR-5 — addressed — Disposed in earlier rounds; nothing in this interdiff reverts it.
+- BR-6 — addressed — Disposed in earlier rounds; nothing in this interdiff reverts it.
+- BR-7 — addressed — Disposed in earlier rounds; nothing in this interdiff reverts it.
+- BR-8 — addressed — Disposed in earlier rounds; nothing in this interdiff reverts it.
+- BR-9 — addressed — Disposed in earlier rounds; nothing in this interdiff reverts it.
+- BR-10 — addressed — heldTicket still returns Unreadable for an unparseable held head; readTicket now reads the whole ticket, bounded at 1 MiB; landingline tests pass.
+- BR-11 — addressed — Disposed in earlier rounds; nothing in this interdiff reverts it.
+- BR-12 — addressed — Disposed in earlier rounds; nothing in this interdiff reverts it.
+- BR-13 — addressed — Disposed in earlier rounds; nothing in this interdiff reverts it.
+- BR-14 — addressed — Disposed in earlier rounds; nothing in this interdiff reverts it.
+- BR-15 — addressed — Disposed in earlier rounds; nothing in this interdiff reverts it.
+- BR-16 — addressed — Disposed in earlier rounds; nothing in this interdiff reverts it.
+- BR-17 — addressed — Disposed in earlier rounds; nothing in this interdiff reverts it.
 
 ## Open findings
 
