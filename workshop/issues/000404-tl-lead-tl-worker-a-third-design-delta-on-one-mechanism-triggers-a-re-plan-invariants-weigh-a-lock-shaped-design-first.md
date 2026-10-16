@@ -53,6 +53,7 @@ refusal reasons; a wrapper-held flock that dies with its process does the same i
 ### 2026-10-15
 
 ### 2026-10-16 — design
+- 2026-10-16: closed — BR-1: shared embedded planning source composed into both help outputs; both existing phrase guards proved red after removing duplicate copies then green via composition; targeted tl-worker/tl-lead/tlrules pass. Full make test passed 1508 tests and 66 packages; recorded suite is running on the consolidation head. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 Quick-flow help-text change. ARCH-DRY: retain the existing embedded help and
 phrase-test mechanisms; each role states its action (TL stops approving, worker
