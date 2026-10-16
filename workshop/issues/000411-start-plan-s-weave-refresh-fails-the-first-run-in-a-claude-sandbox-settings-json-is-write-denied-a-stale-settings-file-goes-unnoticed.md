@@ -42,9 +42,11 @@ then goes through, so the slot's `.claude/settings.json` may lag the woven one w
 
 ## Plan
 
-- [ ] Reproduce denied settings publication and trace first-run/second-run behavior.
-- [ ] Make protected settings denial nonfatal with one actionable stale notice; retain ownership and unrelated error safeguards.
-- [ ] Verify settings recovery and start-plan behavior, run focused checks and the recorded suite, then close and land on SHIP.
+- [x] Reproduce denied settings publication and trace first-run/second-run behavior.
+- [x] Make protected settings denial nonfatal with one actionable stale notice; retain ownership and unrelated error safeguards.
+- [ ] Verify settings recovery and start-plan behavior; run focused checks and the recorded suite.
+
+After verification, close through SDLC and land on SHIP.
 
 ## Log
 
@@ -59,6 +61,10 @@ then goes through, so the slot's `.claude/settings.json` may lag the woven one w
 - CLI TDD RED unknown settings command/defer flag, then GREEN. SDLC TDD RED missing notice and un-deferred argv, then GREEN (23.351s including unchanged HEAD-move safety tests).
 - All weave packages passed (including refresh 211.384s); latest recovery regression passed (7.050s) through actual refresh --substrate on an ahead issue branch, preserving branch/HEAD and clearing notice.
 - Native production-seam GREEN: ARIADNE_NATIVE_SANDBOX=1 go test -trimpath ./cmd/sdlc -run '^TestStartPlanProtectedSettingsNativeSandbox$' -count=1 -v -timeout 10m passed in 18.402s. Candidate weave built from this source; exact settings denial confirmed; real gate refresh and first start-plan succeeded with stale notice count 1, current count 0. Private fixture substrate manifests and generated attributes were corrected before this green run. No sandbox bypass or production retry.
+
+- Exact-head host native conformance on bf379af2945f027cfc838fa0008b5dda406edd79 passed in 56.151s; saved log /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne411-native-14mgpyl6.log. Both native write-denial controls held; real refresh and first start-plan succeeded, stale/current notice counts 1/0.
+- Expanded start-plan assertions passed, but its first run's hermeticity guard correctly detected my checkpoint moving HEAD while it ran (0c5b2e11 to bf379af2). Reran without moving HEAD: go test -trimpath ./cmd/sdlc -run 'Test(StartPlan|RunInstalledWeave|GateSettings)' -count=1 -timeout 10m PASS 59.980s. No gate waiver or test weakening.
+- PR #270 opened; merge-check and local-gates-guard green. Recorded suite pinned to bf379af2 is queued first behind a remaining suite; no custom gate override. Current main already integrated.
 
 ## Estimate
 
@@ -87,3 +93,7 @@ Native denial reproduced before implementation. Simply swallowing publication er
 ### 2026-10-16 — plan gate refinements
 
 PQ-1: use the single action weave refresh --substrate from your shell so operator correction works on an ahead issue branch; preserve issue branch/HEAD. PQ-2: plan names prepareManaged/commitManaged/ApplyManaged, deferredClaudeSettings/buildSettings and catchUpBeforeWork/startPlanBranch with adversarial strategies. The full plan gate was entered explicitly after the concrete code contour exceeded quick flow. Native red and CLI red recorded; current focused CLI and plan package tests pass; SDLC argv red shows refresh lacks --defer-settings.
+
+### 2026-10-16 — separate validation from future landing
+
+The Plan's last checkbox now covers the verifiable checks; close and landing remain subsequent SDLC actions rather than self-dependent checkbox claims. Acceptance and scope unchanged.

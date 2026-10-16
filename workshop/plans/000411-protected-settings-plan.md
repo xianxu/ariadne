@@ -39,8 +39,10 @@ ARCH-PURE: reuse pure settingsx merge/equality; keep reads/output in the IO shel
 - [x] Test prepareManaged/commitManaged through ApplyManaged with repeated/interrupted ownership inputs; assert identity and recovery evidence remains unchanged until actual publication or retirement.
 - [x] Test deferredClaudeSettings and buildSettings against adversarial JSON/filesystem states; observe exact notice counts and deny all protected mutations. Add read-only observation and explicit deferred-refresh mode.
 - [x] Test catchUpBeforeWork/startPlanBranch with stateful installed-weave fixtures; assert settings observation cannot fail planning or obscure genuine catchup errors. Wire gate deferral and retain the moved-HEAD rerun.
-- [ ] Run focused weave and SDLC catchup tests, mutation/negative controls and native denial conformance.
-- [ ] Update README and atlas; push, record full suite, close review, land on SHIP and report hub.
+- [x] Run focused weave and SDLC catchup tests, negative controls and native denial conformance.
+- [ ] Update README and atlas; push and record the full suite.
+
+After all verification completes, close through SDLC, land on SHIP and report hub.
 
 ## Verification
 
@@ -52,3 +54,7 @@ Focused commands: go test -trimpath ./cmd/weave/... ; go test -trimpath ./cmd/sd
 ### 2026-10-16 — PQ-1/PQ-2
 
 The single recovery action is run weave refresh --substrate from your shell: default refresh refuses normal ahead/divergent issue branches before compile (refresh.go), whereas --substrate preserves the consumer branch. Verify clearing through this real command on an issue branch, not by hand-copying expected bytes. Function-level adversarial strategies replace lossy scenario lists; tests own the detailed enumeration.
+
+### 2026-10-16 — verification bookkeeping
+
+Separate the final validation checkbox from its following close/landing actions; no change to deliverables.

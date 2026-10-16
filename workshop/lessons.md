@@ -917,3 +917,4 @@ The simplest durable authority beats a clever scan of consequences.
 - #408 close round 2: A shared publication hook must enforce the complete eligibility rule, including current card state. Moving only path absence into the hook leaves preflight status eligibility stale on retry and receipt recovery. Define the conjunction before implementing its checks.
 
 - A permission-denied publication is not necessarily safe to ignore: ownership reconciliation may already displace an output or remove its old backup. Defer the effect before those mutations, retain original evidence, and test the real denied operation plus the supported recovery command on an issue branch (#411).
+- The real-repo hermeticity guard applies to targeted cmd/sdlc runs too. Keep branch/HEAD/status fixed until they exit; recorded local-check suites use a detached checkout and avoid that coupling (#411 verification).
