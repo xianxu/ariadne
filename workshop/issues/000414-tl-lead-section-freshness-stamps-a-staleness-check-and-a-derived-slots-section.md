@@ -68,7 +68,7 @@ bullet (the "operator guard"). Parse rule: line 1 of the body matches `^_updated
 anything else is content.
 
 **Staleness rule (`tl-lead status check FILE`, light: one couch read plus local git).** A table in code, one row per
-section: `Threads` and `Slots` have a 2 h budget and the landing rule; `Needs you` has 2 h; `Quota` has 12 h;
+section: `Threads` and `Slots` have a 2 h budget and the landing rule; `Needs you` has no budget (event-driven; flagged only when unstamped, TL 10-16); `Quota` has 12 h;
 `Operator instructions` has no check. A section is stale when (a) its stamp is older than its budget, (b) for the
 landing-rule sections, its stamp is older than the newest landing, or (c) it has no stamp ("unstamped"). Newest
 landing is the newest committer time of `refs/remotes/origin/main` across the fleet's repos, read from local refs with
@@ -106,3 +106,6 @@ replaced on each write; it creates no file, row or cache. `check` creates nothin
 ## Log
 
 ### 2026-10-16
+- TL approved the plan (ops:0): keep `check` light with the sibling-repo local refs; the couch-side ping goes to pair
+  (draft its text in the report; the TL files it); tl-lead runs unsandboxed and `?` is the right degraded render.
+  Change: `Needs you` has no time budget, flagged only when unstamped.
