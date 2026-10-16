@@ -19,6 +19,25 @@ reviewer_runs:
       finished_at: "2026-10-16T18:57:19.714186Z"
       session_id: 01a14613-017f-7ac0-8533-29575dd19183
       outcome: returned
+    - version: 1
+      intent:
+        id: 598f7066-ca9a-4afc-b876-3ff6feff062c
+        repository: github.com/xianxu/ariadne
+        issue_id: "000408"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: codex
+        root: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        reviewed_head: cc05d5107cfc3878c110f7fd6052cd063951f3de
+        slot: ariadne:3
+        requested_at: "2026-10-16T19:29:17.076392Z"
+      phase: finished
+      pid: 32456
+      started_at: "2026-10-16T19:29:17.362081Z"
+      finished_at: "2026-10-16T19:29:45.758801Z"
+      session_id: 01a14630-adfa-7cb1-870c-a59856084acb
+      outcome: returned
 gate: plan-quality
 issue: 408
 id_prefix: PQ
@@ -83,7 +102,36 @@ rounds:
           note: 'Plan lines 38–49 still enumerate test scenarios and assertions. Apply the existing rule throughout: one strategy line per risky production function, naming its adversarial input or event class and mechanical guard; keep the detailed matrix in executable tests. Remains Minor.'
           round: 2
       blocked: false
-content_hash: 2bb63611ad2c0ee78d24647761363f387b1c2798bc1153b2680e587c29aca9df
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 629cbdd9-1fa9-4fa3-8de5-29f6f7a2a0c7
+            repository: github.com/xianxu/ariadne
+            issue_id: "000408"
+            recipe: plan-quality
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+            reviewed_head: cc05d5107cfc3878c110f7fd6052cd063951f3de
+            slot: ariadne:3
+            requested_at: "2026-10-16T19:28:34.005509Z"
+          phase: finished
+          pid: 25664
+          started_at: "2026-10-16T19:28:34.463281Z"
+          finished_at: "2026-10-16T19:29:15.498892Z"
+          session_id: 01a14630-09d3-7033-b75e-5c5236168d01
+          outcome: returned
+      "n": 3
+      timestamp: "2026-10-16T12:29:15-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Test prose now names risky functions and concise strategies; executable tests own the detailed scenario matrix.
+          round: 3
+      blocked: false
+content_hash: 335a03c92b803387ab70ebc84d037281b43b08df64f9e536cc27ca5787a0b212
 ---
 
 # Gate ledger — ariadne#408 (plan-quality)
@@ -104,6 +152,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - PQ-1 — not-addressed — Plan lines 38–49 still enumerate test scenarios and assertions. Apply the existing rule throughout: one strategy line per risky production function, naming its adversarial input or event class and mechanical guard; keep the detailed matrix in executable tests. Remains Minor.
 
+## Round 3 — 2026-10-16T12:29:15-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Test prose now names risky functions and concise strategies; executable tests own the detailed scenario matrix.
+
 ## Open findings
 
-- **PQ-1** [Minor] `test-strategy-compression` Compress test scenarios into function-specific strategies
+(none — every finding has been disposed)
