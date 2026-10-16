@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flock"
 )
 
 // Checkout is one review round's disposable clone. Its lifecycle (ARCH-FUNERAL):
@@ -76,7 +78,7 @@ func Create(root, src, head string, overlays []string) (co *Checkout, err error)
 	if err != nil {
 		return nil, fmt.Errorf("create review checkout lock: %w", err)
 	}
-	if err := lockExclusive(f, false); err != nil {
+	if err := flock.Exclusive(f, false); err != nil {
 		f.Close()
 		os.Remove(tmp)
 		return nil, fmt.Errorf("lock review checkout: %w", err)
@@ -204,7 +206,7 @@ func reclaim(root, id, lockName string) (bool, error) {
 		return false, err
 	}
 	defer f.Close()
-	if err := lockExclusive(f, true); err != nil {
+	if err := flock.Exclusive(f, true); err != nil {
 		return false, nil // held: a live review owns it
 	}
 	if err := removeTree(filepath.Join(root, id)); err != nil {
