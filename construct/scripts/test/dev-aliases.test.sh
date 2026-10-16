@@ -61,9 +61,9 @@ n_gmail="$(printf '%s\n' "$out" | grep -c '^gmail()')"
 [ "$n_gmail" = "1" ] && ok "exactly one gmail() emitted" || ko "expected 1 gmail(), got $n_gmail"
 
 # ── function-body shape (the defining property; fixture can't run go build) ───
-SKIP_SDLC='[ -x bin/sdlc ] && { [ -n "${COUCH_TREE:-}" ] || [ -z "$(find . \( -path ./.git -o -path ./bin \) -prune -o -newer bin/sdlc -type f -print -quit)" ]; }'
+SKIP_SDLC='[ -x bin/sdlc ] && { [ -n "${COUCH_TREE:-}" ] || [ -z "$(find . \( -path ./.git -o -path ./bin \) -prune -o -newer bin/sdlc -type f -print -quit 2>/dev/null || echo stale)" ]; }'
 assert_contains 'cd '"$WS"'/ariadne && { '"$SKIP_SDLC"' || { mkdir -p bin' "$out" "skips the build in a Couch slot or when bin/ is fresh (#405)"
-assert_contains '{ mkdir -p bin && d="$(mktemp -d bin/.sdlc.XXXXXX)" && { go build -trimpath -o "$d/sdlc" ./cmd/sdlc && mv -f "$d/sdlc" bin/sdlc;' "$out" "builds beside owner bin/ and renames into place (#355), owner cmd path"
+assert_contains '{ mkdir -p bin && d="$(mktemp -d bin/.sdlc.XXXXXX)" && : > "$d/.start" && { go build -trimpath -o "$d/sdlc" ./cmd/sdlc && touch -r "$d/.start" "$d/sdlc" && mv -f "$d/sdlc" bin/sdlc;' "$out" "builds beside owner bin/ and renames into place (#355), owner cmd path"
 assert_contains "$WS/ariadne/bin/sdlc \"\$@\""                                                        "$out" "runs the owner-bin binary with caller args/cwd"
 
 # ── owner-declared preparation step (#299) ───────────────────────────────────
@@ -76,9 +76,9 @@ printf -- '-include Makefile.local\n' > "$WS/prepd/Makefile"
 printf '.PHONY: dev-prepare\ndev-prepare: assets/stamp\nassets/stamp:\n' > "$WS/prepd/Makefile.local"
 prep_out="$(bash "$GEN" --workspace "$WS" 2>/dev/null)"
 gen_line="$(printf '%s\n' "$prep_out" | grep '^gen()')"
-assert_contains ' || { make -s dev-prepare >&2 && mkdir -p bin && d="$(mktemp -d bin/.gen.XXXXXX)" && { go build -trimpath -o "$d/gen" ./cmd/gen' "$gen_line" "a declaring owner runs dev-prepare before go build"
+assert_contains ' || { make -s dev-prepare >&2 && mkdir -p bin && d="$(mktemp -d bin/.gen.XXXXXX)" && : > "$d/.start" && { go build -trimpath -o "$d/gen" ./cmd/gen' "$gen_line" "a declaring owner runs dev-prepare before go build"
 nous_line="$(printf '%s\n' "$prep_out" | grep '^nous()')"
-[ "$nous_line" = 'nous() { ( cd '"$WS"'/nous && { [ -x bin/nous ] && { [ -n "${COUCH_TREE:-}" ] || [ -z "$(find . \( -path ./.git -o -path ./bin \) -prune -o -newer bin/nous -type f -print -quit)" ]; } || { mkdir -p bin && d="$(mktemp -d bin/.nous.XXXXXX)" && { go build -trimpath -o "$d/nous" ./cmd/nous && mv -f "$d/nous" bin/nous; s=$?; rm -rf "${d:?}"; exit $s; }; }; } ) || return; '"$WS"'/nous/bin/nous "$@"; }' ] \
+[ "$nous_line" = 'nous() { ( cd '"$WS"'/nous && { [ -x bin/nous ] && { [ -n "${COUCH_TREE:-}" ] || [ -z "$(find . \( -path ./.git -o -path ./bin \) -prune -o -newer bin/nous -type f -print -quit 2>/dev/null || echo stale)" ]; } || { mkdir -p bin && d="$(mktemp -d bin/.nous.XXXXXX)" && : > "$d/.start" && { go build -trimpath -o "$d/nous" ./cmd/nous && touch -r "$d/.start" "$d/nous" && mv -f "$d/nous" bin/nous; s=$?; rm -rf "${d:?}"; exit $s; }; }; } ) || return; '"$WS"'/nous/bin/nous "$@"; }' ] \
 	&& ok "an owner without dev-prepare keeps the exact plain form" || ko "plain form changed: [$nous_line]"
 # Make decides what declares the step: a rule (here, or via an include) does;
 # an assignment, a target-specific variable or a recipe line that merely
@@ -280,9 +280,9 @@ left="$(ls -A "$WS/nous/bin" | grep -v '^nous$')"
 [ "$("$WS/nous/bin/nous")" = "built" ] && ok "a failed build keeps the previous binary" || ko "the previous binary was lost"
 
 # #405: the build runs only when needed. It is skipped when bin/X exists and
-# either COUCH_TREE is set (an agent shell in a Couch slot, which must never
-# build in the operator's :0 checkout) or no owner file outside .git and bin is
-# newer than bin/X. A skipped build skips dev-prepare too. A counting stub go
+# either COUCH_TREE is set (an agent shell in a Couch slot, which runs what the
+# operator's :0 checkout last built) or no file in the owner or its outside
+# local replace targets, outside .git and bin, is newer than bin/X. A skipped build skips dev-prepare too. A counting stub go
 # and make record what ran; file times are set explicitly, so no case depends
 # on timestamp resolution.
 OWN="$WS/skipd"; mkdir -p "$OWN/construct" "$OWN/.git" "$OWN/assets"; mkcmd "$OWN/cmd/skipd"
@@ -318,6 +318,34 @@ age_all; touch -t 203001010000 "$OWN/cmd/skipd/main.go"
 call COUCH_TREE=/some/slot; expect "" "in a Couch slot a stale binary is run, not rebuilt"
 rm -f "$OWN/bin/skipd"
 call COUCH_TREE=/some/slot; expect "make go " "in a Couch slot a missing binary still builds"
+# A find error (an unreadable directory) counts as stale, not fresh.
+age_all; mkdir -p "$OWN/locked"; chmod 000 "$OWN/locked"
+call; expect "make go " "a scan error counts as stale"
+chmod 755 "$OWN/locked"; rm -rf "$OWN/locked"
+# An edit made while the build runs is newer than the binary it produced, so
+# the next call rebuilds: the binary takes the time its build started.
+age_all
+printf '#!/bin/sh\necho go >> "$TRACE"\nsleep 1; touch "%s/cmd/skipd/main.go"\nwhile [ "$#" -gt 0 ] && [ "$1" != -o ]; do shift; done\nprintf "#!/bin/sh\\necho ran \\"\\$@\\"\\n" > "$2"; chmod +x "$2"\n' "$OWN" > "$CG/go"
+touch -t 203001010000 "$OWN/assets/page.md"
+call; expect "make go " "a stale tree rebuilds (the stub edits a source mid-build)"
+printf '#!/bin/sh\necho go >> "$TRACE"\nwhile [ "$#" -gt 0 ] && [ "$1" != -o ]; do shift; done\nprintf "#!/bin/sh\\necho ran \\"\\$@\\"\\n" > "$2"; chmod +x "$2"\n' > "$CG/go"
+touch -t 200001010000 "$OWN/assets/page.md"
+call; expect "make go " "an edit made during the build makes the next call rebuild"
+# A local replace target outside the owner is scanned too; its .git and bin are
+# not, and a replace inside the owner adds no second root.
+DEP="$WS/skipdep"; mkdir -p "$DEP/.git" "$DEP/bin" "$OWN/third_party/vt"
+: > "$DEP/lib.go"; : > "$DEP/.git/index"; : > "$DEP/bin/tool"
+printf 'module example.com/skipd\n\nreplace example.com/dep => ../skipdep // local\nreplace (\n\texample.com/vt => ./third_party/vt\n\texample.com/remote => example.com/fork v1.0.0\n)\n' > "$OWN/go.mod"
+skipd_def="$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^skipd()')"
+assert_contains "find . ../skipdep \\( -path ./.git -o -path ./bin -o -path ../skipdep/.git -o -path ../skipdep/bin \\)" "$skipd_def" "the scan roots are the owner and its outside local replace target"
+assert_not_contains "third_party" "$skipd_def" "a replace inside the owner adds no root"
+call; age_all; find "$DEP" -type f -exec touch -t 200001010000 {} +
+call; expect "" "an unchanged replace target keeps the binary fresh"
+touch -t 203001010000 "$DEP/.git/index" "$DEP/bin/tool"
+call; expect "" "a replace target's .git and bin never make it stale"
+touch -t 203001010000 "$DEP/lib.go"
+call; expect "make go " "a newer file in a replace target makes it stale"
+rm -rf "$DEP"
 unset TRACE
 rm -rf "$OWN" "$CG" "$WS/skiptrace"
 

@@ -57,3 +57,12 @@ Build-to-temp-then-rename is already on main (#355). The 20:28 `rm -f` came from
 - #355 already builds to a temporary name and renames, so that part of the request was done. The 20:28 rm -f came from an agent shell snapshot from 10-13, before #355. Sessions keep their snapshot's functions until they restart.
 - side-quest 22a5ca01: weave's .gitignore lines for the xx-universal-review lowering, missed in #399. They dirtied every slot after a refresh and blocked start-plan.
 - the tests unset COUCH_TREE, because this slot's own environment would otherwise skip every build. File times are set with touch -t, so no case depends on mtime resolution. dev-aliases.test.sh: 55 passed.
+- Close round 1 returned FIX-THEN-SHIP. Each finding was fixed as a class:
+  - BR-1: the docs claimed a slot never writes to :0, but a missing bin/X builds from a slot too. Swept every instance: base-layer, issue-tracker, the script header and my fleet memory note. Each now states that one exception.
+  - BR-2: the freshness scan missed local replace dependencies. fresh_scan now adds each local go.mod replace target outside the owner as a find root, with its .git and bin pruned. Targets inside the owner, like pair's ./third_party/vt, add none. Only the main module's replaces apply to a build.
+  - Minor: a find error now counts as stale. A built binary takes the time its build started (touch -r from a .start stamp), so an edit made mid-build makes the next call rebuild. A mutation check confirmed the test fails without the stamp.
+  - dev-aliases.test.sh: 63 passed.
+
+## Revisions
+
+- 2026-10-15, close round 1: the freshness scan now also covers local go.mod replace targets outside the owner. A find error counts as stale, and a built binary is stamped with its build's start time. The docs now state the one write a slot can make in :0: building a missing binary.

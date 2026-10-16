@@ -9,17 +9,21 @@
 # tools (nous), which `go run`/`go tool` can't (their cwd is pinned to the
 # module dir). Form, with SKIP the guard described next:
 #
-#   X() { ( cd OWNER && { SKIP || { mkdir -p bin && d="$(mktemp -d bin/.X.XXXXXX)" &&
-#     { go build -trimpath -o "$d/X" ./cmd/X && mv -f "$d/X" bin/X; s=$?; rm -rf "${d:?}"; exit $s; }; }; } ) || return; OWNER/bin/X "$@"; }
+#   X() { ( cd OWNER && { SKIP || { mkdir -p bin && d="$(mktemp -d bin/.X.XXXXXX)" && : > "$d/.start" &&
+#     { go build -trimpath -o "$d/X" ./cmd/X && touch -r "$d/.start" "$d/X" && mv -f "$d/X" bin/X; s=$?; rm -rf "${d:?}"; exit $s; }; }; } ) || return; OWNER/bin/X "$@"; }
 #
 # SKIP (#405) runs the existing bin/X without building when either holds:
 #   - COUCH_TREE is set: an agent shell in a Couch slot. The owner is the
 #     operator's :0 checkout, whose bin/ only the operator, the TL,
 #     `sdlc stage --build` or make rebuild, so a slot runs what :0 last built;
-#   - bin/X is fresh: no regular file under the owner, outside .git and bin, is
-#     newer than it (`find -newer -print -quit`, about 0.1s on a 7k-file tree).
-#     A toolchain change alone doesn't count.
-# A missing bin/X always builds.
+#   - bin/X is fresh: no regular file outside .git and bin is newer than it,
+#     in the owner or in a local go.mod replace target outside it
+#     (`find -newer -print -quit`, about 0.13s on 7.6k files; fresh_scan
+#     below). A find error counts as stale. A toolchain change alone doesn't.
+# A missing bin/X always builds, from a slot too, so the slot's first call on
+# a fresh :0 writes there; that is the one write a slot makes. A built bin/X
+# takes the time its build started (.start), so a file edited mid-build reads
+# as newer on the next call.
 #
 # An owner whose build needs a generated input (a gitignored embed tree, say)
 # declares a `dev-prepare` make rule (#299; what counts as declared is
@@ -259,6 +263,28 @@ owner_prepares() {
 	return 0
 }
 
+# fresh_scan OWNER BIN: the emitted test (#405) that bin/BIN is fresh, i.e. no
+# regular file in the trees its build reads is newer. Those trees are the owner
+# and each local `replace` target in the owner's go.mod that lies outside it
+# (metis builds against ../ariadne). Only the main module's replaces apply to a
+# build, so the dependencies' own go.mod files are not followed. A find error
+# (an unreadable directory) counts as stale, so the check fails toward building.
+fresh_scan() {
+	local owner="$1" bin="$2" roots="." prune="-path ./.git -o -path ./bin" t abs own
+	own="$(cd "$owner" 2>/dev/null && pwd -P)" || own="$owner"
+	while IFS= read -r t; do
+		[ -n "$t" ] || continue
+		abs="$(cd "$owner" 2>/dev/null && cd "$t" 2>/dev/null && pwd -P)" || continue
+		case "$abs/" in "$own"/*) continue ;; esac
+		t="$(printf '%q' "$t")"
+		roots="$roots $t"; prune="$prune -o -path $t/.git -o -path $t/bin"
+	done <<REPLACES
+$(awk '{ sub(/\/\/.*/, "") } /^replace[ \t]*\(/ { blk=1; next } blk && /^\)/ { blk=0; next }
+	(blk || /^replace[ \t]/) && /=>/ { sub(/.*=>[ \t]*/, ""); split($0, f, /[ \t]+/); if (f[1] ~ /^(\.\.?\/|\/)/) print f[1] }' "$owner/go.mod" 2>/dev/null)
+REPLACES
+	printf '[ -z "$(find %s \\( %s \\) -prune -o -newer bin/%s -type f -print -quit 2>/dev/null || echo stale)" ]' "$roots" "$prune" "$bin"
+}
+
 prepared="|"
 printf '%s\n' "$final" | while IFS="$(printf '\t')" read -r bin repo; do
 	[ -n "$bin" ] || continue
@@ -281,10 +307,12 @@ printf '%s\n' "$final" | while IFS="$(printf '\t')" read -r bin repo; do
 				fi ;;
 		esac
 		# The build is skipped (#405) when bin/X exists and either the caller is
-		# a Couch slot or nothing in the owner is newer than bin/X.
-		skip="[ -x bin/$bin ] && { [ -n \"\${COUCH_TREE:-}\" ] || [ -z \"\$(find . \\( -path ./.git -o -path ./bin \\) -prune -o -newer bin/$bin -type f -print -quit)\" ]; }"
-		printf '%s() { ( cd %s && { %s || { %smkdir -p bin && d="$(mktemp -d bin/.%s.XXXXXX)" && { go build -trimpath -o "$d/%s" ./cmd/%s && mv -f "$d/%s" bin/%s; s=$?; rm -rf "${d:?}"; exit $s; }; }; } ) || return; %s/bin/%s "$@"; }\n' \
-			"$bin" "$repo_q" "$skip" "$prep" "$bin" "$bin" "$bin" "$bin" "$bin" "$repo_q" "$bin"
+		# a Couch slot or bin/X is fresh. A built binary takes the time its build
+		# started (the .start stamp), so an edit made while it compiled still
+		# reads as newer on the next call.
+		skip="[ -x bin/$bin ] && { [ -n \"\${COUCH_TREE:-}\" ] || $(fresh_scan "$repo" "$bin"); }"
+		printf '%s() { ( cd %s && { %s || { %smkdir -p bin && d="$(mktemp -d bin/.%s.XXXXXX)" && : > "$d/.start" && { go build -trimpath -o "$d/%s" ./cmd/%s && touch -r "$d/.start" "$d/%s" && mv -f "$d/%s" bin/%s; s=$?; rm -rf "${d:?}"; exit $s; }; }; } ) || return; %s/bin/%s "$@"; }\n' \
+			"$bin" "$repo_q" "$skip" "$prep" "$bin" "$bin" "$bin" "$bin" "$bin" "$bin" "$repo_q" "$bin"
 	fi
 done
 
