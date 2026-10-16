@@ -684,6 +684,109 @@ rounds:
       isolation: checkout
       reviewed: 2c61503b65a1ee4d777cbbda9f55d2f93959409a
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: df00763e-3916-4bd4-a9e7-9271a5976258
+            repository: github.com/xianxu/ariadne
+            issue_id: "000393"
+            recipe: milestone-review
+            round: 7
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/4bffd9a6ba7776f9
+            reviewed_head: 36b7cb950a0ee92184939d5f88da33c4b484ec5a
+            slot: ariadne:2
+            requested_at: "2026-10-16T09:38:51.974656Z"
+          phase: finished
+          pid: 6354
+          started_at: "2026-10-16T09:38:53.678844Z"
+          finished_at: "2026-10-16T09:54:08.909256Z"
+          session_id: fd9fd84c-8c04-45ea-b801-6a93c05ff35d
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 36b7cb950a0ee92184939d5f88da33c4b484ec5a
+        tracker_head: 7605116fdd0dddc1b6d6215484a89e883956bee6
+        branch_point: 655bda2e67d4fcb701adda3c88f3bc526fae1f05
+        since: "2026-10-15T23:44:34-07:00"
+        until: "2026-10-16T02:19:08-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-15T23:44:34-07:00"
+              end: "2026-10-16T02:19:08-07:00"
+              began: "2026-10-15T23:44:34-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 42a78a01-c26e-45f2-abad-7a5f8c34d21a
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 57542ed79e3a75603be304fa9a05a575f7ce08a4e3902f3ca08d54e8f50f9042
+              started: "2026-10-16T06:53:29.832Z"
+              spawned: false
+              bytes: 600670
+              windows:
+                - start: "2026-10-16T06:53:29.832Z"
+                  end: "2026-10-16T02:19:08-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 8a2543ca4cf459ee2a92a35b940de048983b5ec788d76a30c7d329d9230ec65e
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 14081335
+              windows:
+                - start: "2026-10-15T23:44:34-07:00"
+                  end: "2026-10-16T02:19:08-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-16T00:05:18-07:00"
+              finalized: "2026-10-16T00:07:33-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-16T00:10:49-07:00"
+              finalized: "2026-10-16T00:13:11-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-16T00:15:25-07:00"
+              finalized: "2026-10-16T00:17:35-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-16T01:18:13-07:00"
+              finalized: "2026-10-16T01:23:08-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-16T01:29:16-07:00"
+              finalized: "2026-10-16T02:00:00-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-16T02:05:53-07:00"
+              finalized: "2026-10-16T02:19:06-07:00"
+              finalizing: true
+      "n": 7
+      timestamp: "2026-10-16T02:54:12-07:00"
+      dispatched: "2026-10-16T02:38:51-07:00"
+      agent: claude
+      dispose:
+        - id: BR-9
+          disposition: addressed
+          note: Plan lines 47-59 are now marked "as built" and give Status() (head *Ticket, waiting []Ticket, err error), matching line.go. Task 1's sketch at plan:88 is marked superseded (NextHead takes no now), and Task 2 line 125 uses the as-built Status signature.
+          round: 7
+        - id: BR-10
+          disposition: addressed
+          note: 'line.go heldTicket returns Ticket{Unreadable: true} for a held but unparseable head.lock and is used in both Status and tryAdmit. TestLineUnreadableHeadIsStillAHead fails without the fix (it checks got != nil and Unreadable) and passes at head.'
+          round: 7
+      recipe: milestone-review
+      isolation: checkout
+      reviewed: 36b7cb950a0ee92184939d5f88da33c4b484ec5a
+      blocked: false
 ---
 
 # Gate ledger — ariadne#393 (boundary-review)
@@ -782,7 +885,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-16 — addressed — Rule enforced on the selected PR at landing.go:394; reverting the guard turns TestLandingLineLaggingListingRefusesOutsideTheLine red (err nil); empty listing now queues.
 - BR-17 — addressed — README.md:423-431 covers the line, waiting output and sdlc landing status/grant/revoke; atlas sdlc-binary.md command table gains a landing row.
 
+## Round 7 — 2026-10-16T02:54:12-07:00 (claude) — passed
+
+### Disposed
+
+- BR-9 — addressed — Plan lines 47-59 are now marked "as built" and give Status() (head *Ticket, waiting []Ticket, err error), matching line.go. Task 1's sketch at plan:88 is marked superseded (NextHead takes no now), and Task 2 line 125 uses the as-built Status signature.
+- BR-10 — addressed — line.go heldTicket returns Ticket{Unreadable: true} for a held but unparseable head.lock and is used in both Status and tryAdmit. TestLineUnreadableHeadIsStillAHead fails without the fix (it checks got != nil and Unreadable) and passes at head.
+
 ## Open findings
 
-- **BR-9** [Minor] `plan-table-drift` (kind: defect) Plan Task 1 sketch still passes now to NextHead, and Task 2 gives a Status signature the code doesn't have
-- **BR-10** [Minor] `malformed-input-visibility` (kind: defect) Status reports no head when head.lock is held but its contents don't parse
+(none — every finding has been disposed)
