@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "62c3380d", done: "f3f27de4"}
 ---
 
 # issue publish of an archived issue creates an active twin under workshop/issues (pair#579)
