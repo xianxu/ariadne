@@ -1,4 +1,24 @@
 ---
+reviewer_runs:
+    - version: 1
+      intent:
+        id: 835a1e8b-a716-4b45-bb6f-19bd864946c6
+        repository: github.com/xianxu/ariadne
+        issue_id: "000411"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: codex
+        root: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        reviewed_head: 27c3a7c5709cd13e77f5b6b024617f78f55986b9
+        slot: ariadne:5
+        requested_at: "2026-10-16T22:15:52.009019Z"
+      phase: finished
+      pid: 12378
+      started_at: "2026-10-16T22:15:52.218383Z"
+      finished_at: "2026-10-16T22:16:17.187022Z"
+      session_id: 01a146c9-2fd7-76f1-80fa-e78d01c5de6a
+      outcome: returned
 gate: plan-quality
 issue: 411
 id_prefix: PQ
@@ -73,7 +93,40 @@ rounds:
           note: Tasks name the ownership, settings and catchup functions with adversarial strategies and mechanical invariant assertions.
           round: 2
       blocked: false
-content_hash: 32affa16072bf3fdabe4d389f1ad55ca3c02bd592fa4249570f5774fae5d3a38
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 7e3c2f41-7804-44f0-a68e-c0a1c3b0957c
+            repository: github.com/xianxu/ariadne
+            issue_id: "000411"
+            recipe: plan-quality
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+            reviewed_head: 27c3a7c5709cd13e77f5b6b024617f78f55986b9
+            slot: ariadne:5
+            requested_at: "2026-10-16T22:15:25.393741Z"
+          phase: finished
+          pid: 3224
+          started_at: "2026-10-16T22:15:26.019668Z"
+          finished_at: "2026-10-16T22:15:49.942536Z"
+          session_id: 01a146c8-cac0-7591-8d7e-d5e067bc1582
+          outcome: returned
+      "n": 3
+      timestamp: "2026-10-16T15:15:50-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Recovery explicitly uses weave refresh --substrate and verifies notice clearing on an issue branch while preserving its branch and HEAD.
+          round: 3
+        - id: PQ-2
+          disposition: addressed
+          note: The plan names ownership, settings and planning functions with adversarial input classes and mechanical verification guards.
+          round: 3
+      blocked: false
+content_hash: 0c01e4a033019ae858b7d3f31659d93a77a6dda097b3afc75cdd672c15904a98
 ---
 
 # Gate ledger — ariadne#411 (plan-quality)
@@ -96,6 +149,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - PQ-1 — addressed — Recovery uses weave refresh --substrate and verifies notice clearing through that production command while preserving the issue branch.
 - PQ-2 — addressed — Tasks name the ownership, settings and catchup functions with adversarial strategies and mechanical invariant assertions.
+
+## Round 3 — 2026-10-16T15:15:50-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Recovery explicitly uses weave refresh --substrate and verifies notice clearing on an issue branch while preserving its branch and HEAD.
+- PQ-2 — addressed — The plan names ownership, settings and planning functions with adversarial input classes and mechanical verification guards.
 
 ## Open findings
 
