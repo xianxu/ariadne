@@ -29,7 +29,7 @@
   - **Future extensions:** batching (#393 revision): `NextHead` widens to `NextBatch` and returns several tickets.
 - **Grant** — `{Issue int, Grantor Grantor, Reason string, Granted, Expires time.Time, Revoked bool}`, where `Grantor` is `{Address string, Slot *int, Name string}`. One entry in `grants.jsonl`.
 - **ValidGrants(entries, now) map[int]Grant** — the latest entry per issue counts if it is not revoked, not expired, has a reason, lasts at most 24 h, and records a grantor whose slot is nil or 0. Authority is checked when a grant is read as well as when it is written, so a hand-appended entry from a worker slot confers nothing. The log is the only source of grants, so an unlogged grant can't exist. **Trust model:** this is cooperative. It guards against agents' mistakes on one machine, not against an adversary. A process that forges the grantor fields can still grant, and the atlas says so.
-- **NextHead(tickets, grants, now) (head Ticket, displaced []Ticket, ok bool)** — the oldest live fleet-blocking ticket, otherwise the oldest normal one. `displaced` lists the normal tickets with a lower `Seq` than a fleet-blocking head, for the audit event. A head that is already admitted is not passed in (see Line), so nothing can preempt it.
+- **NextHead(tickets []Ticket, grants map[int]Grant, now time.Time) (head Ticket, displaced []Ticket, ok bool)** — the oldest live fleet-blocking ticket, otherwise the oldest normal one. `displaced` lists the normal tickets with a lower `Seq` than a fleet-blocking head, for the audit event. A head that is already admitted is not passed in (see Line), so nothing can preempt it.
 - **Authorize(callerSlot, treeSlot *int) error** (the write-side check; `ValidGrants` repeats the slot rule on read) — a grant is refused when the caller's workspace or `$COUCH_TREE`'s workspace resolves to a numbered slot (N ≥ 1). The operator's shell and :0 slots, including the TL's hub ops:0, may grant.
 - **DelayStats(events) (n, p50, p90)** — enqueue-to-landed delay over the `landed` events, using nearest rank like test-stats.
 
@@ -43,7 +43,7 @@
 | `runDurableMerge` | `cmd/sdlc/landing.go` | modified | takes and holds the line |
 | `sdlc landing` | `cmd/sdlc/landingcmd.go` | new | `status`, `grant`, `revoke` |
 
-- **Line** — `Open(dir)`. `Enqueue(t) (*Handle, error)` creates `tickets/<seq>.json` under the allocation mutex (`line.lock`, flock), writes it atomically (temp file plus rename), and keeps the ticket's flock until `Release`. `Wait(ctx, h, grantsFn, poll)` loops: under the mutex it scans the live tickets (a ticket nobody holds is removed), drops the head file's owner if dead, and if `NextHead` names h and nobody holds `head.lock`, it takes `head.lock` and returns. It takes an injected clock and sleep, and polls every 2 s in production. `Release` drops `head.lock`, removes the ticket and closes it. Process death releases every flock.
+- **Line** — `Open(dir)`. `Enqueue(t) (*Handle, error)` creates `tickets/<seq>.json` under the allocation mutex (`line.lock`, flock), writes it atomically (temp file plus rename), and keeps the ticket's flock until `Release`. `Wait(ctx, h)` loops, using what `Open(dir, Options{Now, Sleep, Poll, Grants func() map[int]Grant})` injected (production: `time.Now`, a context-aware sleep, 2 s, and the Log's `ValidGrants`): under the mutex it scans the live tickets (a ticket nobody holds is removed), drops the head file's owner if dead, and if `NextHead` names h and nobody holds `head.lock`, it takes `head.lock` and returns. It takes an injected clock and sleep, and polls every 2 s in production. `Release` drops `head.lock`, removes the ticket and closes it. Process death releases every flock.
   - **Injected into:** `runDurableMerge` through a package variable `landingLineOpen`, so tests can use a temp directory or a held line.
   - **ARCH-ORDER:** the line holds no state between events beyond the live flocks. Each process is in one of `waiting` (ticket held) or `head` (ticket and `head.lock` held), and every exit ends in released. The race to watch is two waiters scanning at once. The allocation mutex serializes the scans, and `head.lock` is the only admission token. Process death mid-transition releases everything. A crash between taking `head.lock` and logging `admit` loses only an audit line.
 - **Log** — `Append(file, v)` uses `O_APPEND` with one JSON line per write, which is atomic under PIPE_BUF for our record sizes. `Sweep(file, now)` rewrites the file without entries older than 30 days, under the mutex, at most once a day (it checks a `.swept` stamp). Malformed lines are skipped and counted, never trusted (ARCH-SECURE).
@@ -75,7 +75,7 @@
 type Class int
 const (Normal Class = iota; FleetBlocking)
 
-func NextHead(ts []Ticket, grants map[string]Grant, now time.Time) (Ticket, []Ticket, bool) {
+func NextHead(ts []Ticket, grants map[int]Grant, now time.Time) (Ticket, []Ticket, bool) {
 	if len(ts) == 0 { return Ticket{}, nil, false }
 	sorted := slices.SortedFunc(slices.Values(ts), func(a, b Ticket) int { return cmp.Compare(a.Seq, b.Seq) })
 	for _, t := range sorted {
@@ -89,7 +89,7 @@ func NextHead(ts []Ticket, grants map[string]Grant, now time.Time) (Ticket, []Ti
 }
 ```
 
-  `ValidGrants` folds the entries in log order (the last one per issue wins), then filters with `!Revoked && Grantor != "" && Reason != "" && now.Before(Expires) && Expires.Sub(Granted) <= 24*time.Hour`. Pass it `now` from the caller. Never call `time.Now` in this file.
+  `ValidGrants` folds the entries in log order (the last one per issue wins), then filters with `!Revoked && Grantor.Address != "" && (Grantor.Slot == nil || *Grantor.Slot == 0) && Reason != "" && now.Before(Expires) && Expires.Sub(Granted) <= 24*time.Hour`. Pass it `now` from the caller. Never call `time.Now` in this file.
 - [ ] Run the tests again. Expect PASS.
 - [ ] Commit `#393 M1: landingline: pure next-head ordering and grant validity`.
 
@@ -131,6 +131,8 @@ func NextHead(ts []Ticket, grants map[string]Grant, now time.Time) (Ticket, []Ti
 ### Task 4 (M2): merge holds the line
 
 **Files:** modify `cmd/sdlc/landing.go` (`runDurableMerge`, after `gh` is obtained (around :353) and **before** the `head` read, `LandingPRs` and `selectIntegrationPR`); test in `cmd/sdlc/landing_line_test.go`.
+
+**Order:** the interactive confirmation (`mergePrompter.Ask`, landing.go:372) moves before the enqueue, because its text depends on nothing it selects. An operator's prompt never holds the line's head (plan-quality minor).
 
 **Rule (from plan-quality PQ-1, class: stale observation after a wait):** every remote or GitHub observation the landing acts on is taken *after* admission, never before the wait. That covers the branch head, the PRs, PR selection and integration resume. Before admission, only local branch selection and checkout readiness run (`landingIssueBranch` and `landingCheckoutReady`); both concern the waiting process's own slot, and `revalidateLanding` checks them again under the repo lock. One cheap pre-read decides whether to queue at all: if `LandingPRs` already shows the branch's PR as MERGED, the run takes no ticket and resumes cleanup at once.
 
