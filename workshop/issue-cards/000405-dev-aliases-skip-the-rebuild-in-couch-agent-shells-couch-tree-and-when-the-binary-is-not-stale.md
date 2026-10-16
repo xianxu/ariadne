@@ -1,6 +1,6 @@
 ---
 id: 000405
-status: working
+status: codecomplete
 created: 2026-10-15
 updated: 2026-10-15
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.53
+tracker:
+    version: 1
+    completion:
+        token: close-f48b505852b7
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 14ab4a40905e79d5b9346a1ab10131cc8e2d9389
+        evidence_commit: 52e2512857047a5a9f6a3495afee8e4e0ee02473
 ---
 
 # dev-aliases: skip the rebuild in Couch agent shells (COUCH_TREE) and when the binary is not stale
