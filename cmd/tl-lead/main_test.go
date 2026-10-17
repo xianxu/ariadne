@@ -209,3 +209,18 @@ func TestLeadHelpRetiresCentralApprovalAndLandingOrder(t *testing.T) {
 		}
 	}
 }
+
+func TestLeadHelpKeepsIntegrationInLandingTurn(t *testing.T) {
+	help := strings.Join(strings.Fields(helpOutput(t, "--help")), " ")
+	for _, want := range []string{
+		"Do not hold main by hand or tell slots to integrate newer main before close",
+		"required branch suite, close that tested branch",
+		"merge integrates current main under its turn",
+		"Branch fixes and close's noon freshness gate still require verification",
+		"docs-only main writes use existing suite-record reuse",
+	} {
+		if !strings.Contains(help, want) {
+			t.Errorf("lead help omits landing safeguard %q", want)
+		}
+	}
+}

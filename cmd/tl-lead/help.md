@@ -331,6 +331,13 @@ WATCHING
     operator asks.
 
 LANDING AND SMOKE TESTS
+  - Let the landing line order integration and authoritative suites. Do not
+    hold main by hand or tell slots to integrate newer main before close.
+    Workers run the required branch suite, close that tested branch, and enter
+    `sdlc merge --yes` on SHIP; merge integrates current main under its turn and
+    runs the required integration suite. Branch fixes and close's noon
+    freshness gate still require verification. Ordinary docs-only main writes
+    use existing suite-record reuse; they do not need a fleet-wide freeze.
   - Workers land their own items on SHIP. For each issue, decide whether it
     needs an operator smoke test, can share one batched smoke test in :0, or
     needs none. When unsure, ask the operator, and record the decision and its
