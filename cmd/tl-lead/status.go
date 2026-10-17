@@ -278,8 +278,10 @@ refuses (exit 6) instead.`,
 		Short: "List the stale sections: unstamped, past their budget, or older than the fleet's newest landing",
 		Long: `Every write stamps its section's first line (_updated YYYY-MM-DD HH:MM_). check
 reads the stamps: Threads and Slots are stale after 2 h or once a fleet repo's
-origin/main (local refs, no fetch) is newer; Quota after 12 h; Needs you only
-when unstamped; Operator instructions never. It reports and never refuses;
+newest first-parent merge on origin/main (local refs, no fetch) is newer. Direct
+filing, publish, archive and tick commits do not count. The stale message names
+the repository, merge hash and time. Quota after 12 h; Needs you only when
+unstamped; Operator instructions never. It reports and never refuses;
 submit, owed and every write end with the same lines.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
