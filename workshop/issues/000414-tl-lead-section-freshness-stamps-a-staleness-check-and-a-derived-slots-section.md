@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "1ffb36c7", done: "0cb8d8b6"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # tl-lead: section freshness stamps, a staleness check, and a derived Slots section
@@ -107,6 +107,8 @@ replaced on each write; it creates no file, row or cache. `check` creates nothin
 ## Log
 
 ### 2026-10-16
+- 2026-10-16: closed — make test green (12 shards, 1519 cmd/sdlc tests + 66 packages, 0 failed). New tests: TestWriteStamps (a write stamps; a deleted stamp returns; a stamp in a body is not doubled; Operator instructions never stamped), TestStampIsNotABullet, TestSplitStamp, TestStatusCheck (stale by age, by landing, unstamped; Needs you only unstamped; fresh), TestGitNewestLanding (brain and non-SDLC excluded), TestGatherSlots (exact fixture render plus the ? degraded render), TestDecodeActors. Live (TL ops:0, branch build): status slots wrote a stamped Slots with agents and idle/working and printed the stale list; status check matched.; review verdict: SHIP
+- 2026-10-16: flow upgraded quick → full — 352 added lines in code files (limit 100)
 - TL approved the plan (ops:0): keep `check` light with the sibling-repo local refs; the couch-side ping goes to pair
   (draft its text in the report; the TL files it); tl-lead runs unsandboxed and `?` is the right degraded render.
   Change: `Needs you` has no time budget, flagged only when unstamped.
