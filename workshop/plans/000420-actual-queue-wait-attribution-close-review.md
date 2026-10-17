@@ -273,3 +273,92 @@ dispose:
    Append a `## Revisions` entry requiring one transition model for original calls and polls, with explicit identity uniqueness, terminal-state enforcement, and sequence tests for duplicate IDs, overlapping polls, and late results.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"710c6dda-e9a2-4dbd-9e86-c260fe6244b4","repository":"github.com/xianxu/ariadne","issue_id":"000420","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/dbf706a03bbfb60e","reviewed_head":"96da94cc8a46984bb2a8265cf991bb93cffb2b0f","slot":"ariadne:1","requested_at":"2026-10-17T11:49:22.097679Z"},"phase":"finished","pid":82020,"started_at":"2026-10-17T11:49:22.265368Z","finished_at":"2026-10-17T11:52:29.480943Z","session_id":"01a149b1-f84e-72b0-ae76-73827379e39e","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T06:07:23-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 420 — Actual: queued suite status polling bridges idle time into focused-hours samples |
+| repo | ariadne |
+| issue file | workshop/issues/000420-actual-queue-wait-attribution.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 2bfbc4fa27ed30da2455ad38d4eaea0ddf82a774..3290d6f0f592307fb36466b54a2e112bc81f1517 |
+| command | sdlc close --issue 420 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-17T06:07:23-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+Exact queue endpoints, slot attribution, phase splitting, and retained replay are implemented and tested. BR-1 and BR-3 are verified fixes. BR-2 remains blocking: the Claude result path still converts unconfirmed tool outcomes into completed work, restoring queue time to calibrated actuals.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      TestActualQueueMeasurementRetainsBindingSource passes; temporarily removing binding-source retention makes it fail because the zero-contribution source disappears.
+  - id: BR-2
+    disposition: not-addressed
+    note: |
+      The poll-based completion path was removed, but the confirmed-completion rule remains violated at cmd/sdlc/internal/activetime/queue.go:135. Claude tool_result content is passed as raw JSON, and is_error is ignored. Temporary regressions with empty, unknown-process and transport-error content all emit completed work. An end-to-end fixture with is_error:true and content:"unknown process" restores 11 minutes during a recorded 60-minute queue instead of refusing measurement. This remains family work-evidence-requires-confirmed-completion (ARCH-PURPOSE, ARCH-SECURE, ARCH-ORDER).
+  - id: BR-3
+    disposition: addressed
+    note: |
+      TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust passes; temporarily removing queue-v1 from the trust condition makes its queue case fail with false trust.
+```
+
+1. **Strengths**
+
+   - Recorder endpoints and decoder validation establish a consistent, replayable queue interval.
+   - Tests cover phase conservation, independent overlapping work, multiple sources, legacy evidence refusal, and replay without ambient attempt files.
+   - Binding-source retention and calibration trust both have regressions that fail when their fixes are removed.
+
+2. **Critical findings**
+
+   **BR-2 — Unconfirmed Claude results become completed work.** At [queue.go:135](/Users/xianxu/Library/Caches/sdlc/review-checkouts/c22bf0eed05685f4/cmd/sdlc/internal/activetime/queue.go:135), `string(b.Content)` retains JSON quotation marks. Consequently, empty content becomes `""`, and failure text begins with a quotation mark, bypassing `isFailedToolOutput`. The parser also drops `is_error`. The shared result handler then emits `toolWork`, which restores the interval during queue subtraction.
+
+   Fix the class: enumerate supported native result envelopes, decode them into shared typed completion/uncertainty outcomes, and preserve error metadata. Cover Claude strings, content blocks and error results alongside Codex scalar, object and block results. Unknown outcomes must produce uncertainty. **ARCH-DRY, ARCH-PURPOSE, ARCH-SECURE, ARCH-ORDER.**
+
+3. **Important findings**
+
+   None additional.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - Passed: full `activetime`, `gatestate`, and `transcripts` package tests; targeted SDLC queue, ownership, correction and endpoint tests; recorder integration regression; `git diff --check`.
+   - Temporary parser regressions failed for all three unconfirmed Claude outcomes.
+   - Temporary production-engine regression failed with **11 active minutes and 11 retained-work minutes**, demonstrating the measurement impact.
+   - BR-1/BR-3 counterfactual tests failed as expected. Temporary overlays were removed; tracked files remain unchanged.
+
+6. **Architectural notes for upcoming work**
+
+   - **ARCH-DRY — flag:** native result paths need shared outcome normalization; see BR-2.
+   - **ARCH-PURE — pass:** interval arithmetic and transcript interpretation remain directly testable without IO.
+   - **ARCH-PURPOSE — flag:** unconfirmed work can still contaminate focused effort; see BR-2.
+   - **ARCH-MOCK — pass:** this change introduces no new external dependency; recorder verification uses existing seams.
+   - **ARCH-CONSTRAINTS — pass:** existing bounded attempt readers and snapshot limits constrain the added evidence.
+   - **ARCH-SECURE — flag:** result provenance and error metadata are lost before interpretation; see BR-2.
+   - **ARCH-ORDER — flag:** failed/unknown outcomes still transition to completed work on one supported transcript path.
+   - **ARCH-FUNERAL — pass:** attempts retain their existing pruning lifecycle; snapshots retain existing size bounds and archival ownership.
+
+   Core-concept locations match the diff. Atlas documents the revised flow. No new command, flag or configuration syntax requires a README addition.
+
+7. **Plan revision recommendations**
+
+   Append a `## Revisions` entry enumerating every supported native result envelope and its completion/uncertainty contract. Require shared outcome decoding and cross-harness regression coverage for the complete BR-2 family before declaring it addressed.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"4311457e-973d-4b8e-bd74-ef51ce51e9db","repository":"github.com/xianxu/ariadne","issue_id":"000420","recipe":"milestone-review","round":4,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/c22bf0eed05685f4","reviewed_head":"3290d6f0f592307fb36466b54a2e112bc81f1517","slot":"ariadne:1","requested_at":"2026-10-17T13:02:39.137015Z"},"phase":"finished","pid":45750,"started_at":"2026-10-17T13:02:39.349373Z","finished_at":"2026-10-17T13:07:22.532649Z","session_id":"01a149f5-1100-76f3-aed9-894eae2881cc","outcome":"returned"}] -->

@@ -537,6 +537,47 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 4311457e-973d-4b8e-bd74-ef51ce51e9db
+            repository: github.com/xianxu/ariadne
+            issue_id: "000420"
+            recipe: milestone-review
+            round: 4
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/c22bf0eed05685f4
+            reviewed_head: 3290d6f0f592307fb36466b54a2e112bc81f1517
+            slot: ariadne:1
+            requested_at: "2026-10-17T13:02:39.137015Z"
+          phase: finished
+          pid: 45750
+          started_at: "2026-10-17T13:02:39.349373Z"
+          finished_at: "2026-10-17T13:07:22.532649Z"
+          session_id: 01a149f5-1100-76f3-aed9-894eae2881cc
+          outcome: returned
+      "n": 4
+      timestamp: "2026-10-17T06:07:23-07:00"
+      dispatched: "2026-10-17T06:02:39-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: TestActualQueueMeasurementRetainsBindingSource passes; temporarily removing binding-source retention makes it fail because the zero-contribution source disappears.
+          round: 4
+        - id: BR-2
+          disposition: not-addressed
+          note: The poll-based completion path was removed, but the confirmed-completion rule remains violated at cmd/sdlc/internal/activetime/queue.go:135. Claude tool_result content is passed as raw JSON, and is_error is ignored. Temporary regressions with empty, unknown-process and transport-error content all emit completed work. An end-to-end fixture with is_error:true and content:"unknown process" restores 11 minutes during a recorded 60-minute queue instead of refusing measurement. This remains family work-evidence-requires-confirmed-completion (ARCH-PURPOSE, ARCH-SECURE, ARCH-ORDER).
+          round: 4
+        - id: BR-3
+          disposition: addressed
+          note: TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust passes; temporarily removing queue-v1 from the trust condition makes its queue case fail with false trust.
+          round: 4
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#420 (boundary-review)
@@ -570,6 +611,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-1 — addressed — QueueBindingSourceIDs preserves binding transcripts even after all their activity is subtracted. TestActualQueueMeasurementRetainsBindingSource passes and verifies successful replay.
 - BR-2 — not-addressed — cmd/sdlc/internal/activetime/queue.go:133-142 registers polls without duplicate-ID validation and distinguishes polls from original results by comparing call IDs. A temporary pinned-head regression yielded stage command "stage" into session 7, then polled that session using call_id "stage" with output "unknown process". The parser emitted an 11-minute toolWork span without completion evidence. Existing unconfirmed-poll tests pass at head and fail against the pre-fix implementation, but omit this identity collision. This repeats family work-evidence-requires-confirmed-completion. Enforce the rule across every call registration: identities must be unique, poll status must be explicit, and yielded work may complete only on confirmed terminal evidence. Implement the requested transition model and cover duplicate IDs, concurrent poll aliases, and late results rather than adding another instance-specific guard (ARCH-ORDER, ARCH-SECURE, ARCH-PURPOSE).
 - BR-3 — addressed — actualcorrection.go includes QueueV1 in ownership-proven calibration trust. The parameterized legacy, engagement, and queue correction-trust regression passes; the production method-consumer sweep found no remaining omission.
+
+## Round 4 — 2026-10-17T06:07:23-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — TestActualQueueMeasurementRetainsBindingSource passes; temporarily removing binding-source retention makes it fail because the zero-contribution source disappears.
+- BR-2 — not-addressed — The poll-based completion path was removed, but the confirmed-completion rule remains violated at cmd/sdlc/internal/activetime/queue.go:135. Claude tool_result content is passed as raw JSON, and is_error is ignored. Temporary regressions with empty, unknown-process and transport-error content all emit completed work. An end-to-end fixture with is_error:true and content:"unknown process" restores 11 minutes during a recorded 60-minute queue instead of refusing measurement. This remains family work-evidence-requires-confirmed-completion (ARCH-PURPOSE, ARCH-SECURE, ARCH-ORDER).
+- BR-3 — addressed — TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust passes; temporarily removing queue-v1 from the trust condition makes its queue case fail with false trust.
 
 ## Open findings
 
