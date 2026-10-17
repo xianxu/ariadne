@@ -732,6 +732,40 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 2a4f540e-29f4-499c-bca3-9f5271cccfe7
+            repository: github.com/xianxu/ariadne
+            issue_id: "000420"
+            recipe: milestone-review
+            round: 8
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/8b9aae4a90e8e704
+            reviewed_head: 61af4a691cabb809460f5a08bc44f9e3ccb2812f
+            slot: ariadne:1
+            requested_at: "2026-10-17T15:55:47.833524Z"
+          phase: finished
+          pid: 7585
+          started_at: "2026-10-17T15:55:47.926836Z"
+          finished_at: "2026-10-17T15:58:20.616087Z"
+          session_id: 01a14a93-9467-7942-98e8-d3ac74da29dd
+          outcome: returned
+      "n": 8
+      timestamp: "2026-10-17T08:58:21-07:00"
+      dispatched: "2026-10-17T08:55:47-07:00"
+      agent: codex
+      dispose:
+        - id: BR-5
+          disposition: addressed
+          note: cmd/sdlc/actualinputs.go:328-340 rejects reader and selector warnings through the shared close/correction path. Tests at actualinputs_test.go:133 and :166 cover malformed, unreadable, missing-duration, missing-slot and late-legacy evidence, with explicit decoder admission and a valid-record control. Both tests pass on HEAD; independently disabling each refusal guard makes its regression fail.
+          round: 8
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 61af4a691cabb809460f5a08bc44f9e3ccb2812f
+      blocked: false
 ---
 
 # Gate ledger — ariadne#420 (boundary-review)
@@ -809,6 +843,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-4 — addressed — Queue-time call classification was removed; subtraction depends on exact intervals and source-slot ownership.
 - BR-5 — not-addressed — Production refusal appears corrected, but mandatory fail-without-the-fix evidence remains incomplete (ARCH-PURPOSE, ARCH-SECURE). Disabling only actualinputs.go:339's selector-note refusal leaves TestOwnedActualQueueCoverageRefusesUnknownRecordsForCloseAndCorrection, TestOwnedActualLateLegacyAttemptRefusesCloseAndCorrection, and the selector regressions green. The missing-field fixtures at actualinputs_test.go:157 fail decodeSuiteAttempt with "invalid repository" because saved.Repository is a file: identity; the late-legacy fixture at line 197 additionally uses a nonhex ID. These tests therefore exercise reader rejection rather than relevant missing-field or legacy completeness refusal.
 
+## Round 8 — 2026-10-17T08:58:21-07:00 (codex) — passed
+
+### Disposed
+
+- BR-5 — addressed — cmd/sdlc/actualinputs.go:328-340 rejects reader and selector warnings through the shared close/correction path. Tests at actualinputs_test.go:133 and :166 cover malformed, unreadable, missing-duration, missing-slot and late-legacy evidence, with explicit decoder admission and a valid-record control. Both tests pass on HEAD; independently disabling each refusal guard makes its regression fail.
+
 ## Open findings
 
-- **BR-5** [Critical] `queue-evidence-completeness-before-calibration` (kind: defect) Close admits calibration evidence after queue records become unreadable or unknown
+(none — every finding has been disposed)

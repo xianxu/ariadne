@@ -657,3 +657,72 @@ dispose:
    Add a `## Revisions` entry requiring decoder-admitted, ownership-matched resolver fixtures and mutation proof for selector-warning refusal across both measurement purposes.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"82e7c330-9915-49a2-9c9d-93c481fd2639","repository":"github.com/xianxu/ariadne","issue_id":"000420","recipe":"milestone-review","round":7,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/1e2d15e761c369c6","reviewed_head":"9763b1a039bb12cf51e3973d47b678674ef11028","slot":"ariadne:1","requested_at":"2026-10-17T15:27:15.33602Z"},"phase":"finished","pid":62993,"started_at":"2026-10-17T15:27:15.43169Z","finished_at":"2026-10-17T15:31:52.948348Z","session_id":"01a14a79-72e9-7b60-bec7-3bf95c8bbfb7","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T08:58:21-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 420 — Actual: queued suite status polling bridges idle time into focused-hours samples |
+| repo | ariadne |
+| issue file | workshop/issues/000420-actual-queue-wait-attribution.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 146796d884ccf9a9d589a8766d7627762b4571e6..61af4a691cabb809460f5a08bc44f9e3ccb2812f |
+| command | sdlc close --issue 420 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-17T08:58:21-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The implementation matches the revised Spec: exact queue intervals remove the owning slot’s activity, and unknown queue coverage blocks numeric adoption consistently. BR-5 now has meaningful regression evidence: both completeness guards were independently disabled through temporary Go overlays, and the corresponding tests failed. No new blocking findings; BR-1–4 remain disposed.
+
+```findings
+dispose:
+  - id: BR-5
+    disposition: addressed
+    note: |
+      cmd/sdlc/actualinputs.go:328-340 rejects reader and selector warnings through the shared close/correction path. Tests at actualinputs_test.go:133 and :166 cover malformed, unreadable, missing-duration, missing-slot and late-legacy evidence, with explicit decoder admission and a valid-record control. Both tests pass on HEAD; independently disabling each refusal guard makes its regression fail.
+```
+
+1. **Strengths**
+
+   - Queue subtraction is deterministic and source-scoped, with overlap merging and foreign-slot isolation (`cmd/sdlc/internal/activetime/queue.go:49`).
+   - Retained snapshots preserve binding transcripts even when subtraction removes all their activity (`cmd/sdlc/actualmeasurement.go:69`).
+   - The corrected BR-5 fixtures prove reader admission and selector reachability before asserting refusal (`cmd/sdlc/actualinputs_test.go:214`).
+   - #416’s retained tracker-card blob records `exclude: true`, `new_actual: N/A`, and its completion-bound correction token.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed focused owned-actual, queue selection, legacy-boundary, endpoint, recorder, publication and calibration-trust tests; full `activetime`, `gatestate` and `transcripts` package tests; and range `git diff --check`. Both completeness-guard mutations failed as expected. The full repository suite was not rerun during this review. Repository files remain unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — Pass:** close and correction share the completeness policy.
+   - **ARCH-PURE — Pass:** interval operations and snapshot validation have direct tests without IO.
+   - **ARCH-PURPOSE — Pass:** revised conservative subtraction, unknown-coverage refusal and retained replay are delivered.
+   - **ARCH-MOCK — Pass:** recorder changes retain existing injected Git/GitHub/helper seams.
+   - **ARCH-CONSTRAINTS — Pass:** existing record, byte and snapshot bounds remain enforced.
+   - **ARCH-SECURE — Pass:** malformed persisted evidence produces explicit refusal.
+   - **ARCH-ORDER — Pass:** queue attribution relies on recorded endpoints; poll outcomes cannot restore activity.
+   - **ARCH-FUNERAL — Pass:** attempt retention remains 30 days; retained evidence uses the existing bounded snapshot lifecycle.
+
+   Atlas and help describe the changed behavior. No new command, flag or configuration surface requires a README update.
+
+7. **Plan revision recommendations:** None; the latest revisions describe the implemented policy.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"2a4f540e-29f4-499c-bca3-9f5271cccfe7","repository":"github.com/xianxu/ariadne","issue_id":"000420","recipe":"milestone-review","round":8,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/8b9aae4a90e8e704","reviewed_head":"61af4a691cabb809460f5a08bc44f9e3ccb2812f","slot":"ariadne:1","requested_at":"2026-10-17T15:55:47.833524Z"},"phase":"finished","pid":7585,"started_at":"2026-10-17T15:55:47.926836Z","finished_at":"2026-10-17T15:58:20.616087Z","session_id":"01a14a93-9467-7942-98e8-d3ac74da29dd","outcome":"returned"}] -->

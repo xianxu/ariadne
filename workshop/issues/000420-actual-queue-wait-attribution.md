@@ -68,6 +68,8 @@ Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `
 
 ## Log
 
+
+- 2026-10-17: closed — Exact-head sdlc-local/suite passed on f02aade0d6ab5d4d13a1f51a15f63b38fa66e83f: 12 shards, 1556 sdlc tests and 66 other packages, zero failures, wall 473.4s, saved log SHA-256 prefix cad89f9dc94a. Decoder-valid selector-warning tests pass for close and correction; removing only the warning guard makes all three unknown-coverage cases fail. Focused tests, make -k build and git diff --check passed. Live staged actual previously refused legacy attempt a1e58a0cc16a26a44f96927be6753621 without exact endpoints, so this issue is N/A and excluded from calibration.; review verdict: SHIP
 - Found while closing #416; independent of its queue-helper lifecycle fix. The close prints active-time-v3-engagement-v1 and 2 admitted sessions, with the complete attribution segment covering the wait-heavy window.
 
 - TL decision, 2026-10-16 (receipt b6986b85-dc38-4def-a646-346c65ee6726): queue waiting is not active work; actuals should exclude recorded queue_seconds by subtracting those measured intervals, not guessing replacement hours. The issue stays unassigned. Implementation must handle overlap with real work honestly as described above.
