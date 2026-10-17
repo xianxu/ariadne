@@ -98,3 +98,9 @@ Verified TL receipt ced37b04-2d55-4a2a-ad4c-e1d0a4974d4c: #416 superseded the sh
 ### 2026-10-16 — integrate current main before close
 
 Main gained #414 and #415 code while the live landing was blocked. Merged origin/main cleanly into the issue branch and pushed combined head 59b68b975178173b451f0e33337e70676a078201. No #418 production changes or conflict resolutions. Started a new recorded suite for that combined head before close; this is required code-integration verification, not a retry of the already green test head. The staged sdlc remains untouched for pair:2.
+
+### 2026-10-16 — TL accepts live matching evidence and releases shared stage
+
+Verified TL receipt b9130677-9b77-414b-80ab-413c7a9b41af: pair:2 now uses the TL's separate copy at /Users/xianxu/.local/share/ops-tl/sdlc-418, and the TL states our live evidence stands because pair:2 passed PR matching, directing release of :0 now and continuation of #418's suite and landing. This revises the live acceptance dependency: successful live PR selection is accepted for #418; the actual pair merge remains with pair:2 rather than blocking this fix on pair-side test failures. The original Done when records the intended full-flow scenario; no claim is made that PR #387 has merged yet.
+
+Restored ariadne:0 with git checkout main and make build sdlc-build (no refresh). Clean Git HEAD f5927dfedbfb2e6dbc7d8c91ac56085732181b7b. All seven bin/* tools report exactly that vcs.revision and vcs.modified=false. Reported :0 FREE to the TL in submitted receipt 63e791d2-19f7-4815-9592-6bac431927dc. No further stage ownership is retained by this item.
