@@ -46,6 +46,7 @@ type pendingTool struct {
 }
 
 var sessionIDPattern = regexp.MustCompile(`(?i)(?:session|cell) ID\s+([A-Za-z0-9-]+)`)
+var processExitPattern = regexp.MustCompile(`(?i)^\s*process exited with code\s+-?[0-9]+\s*$`)
 var nestedCommandPattern = regexp.MustCompile(`tools\.exec_command\(\s*\{\s*cmd\s*:\s*("(?:\\.|[^"\\])*")`)
 var nativePollPattern = regexp.MustCompile(`(?s)^\s*(?:// @exec:[^\n]*\n)?\s*(?:text\(\s*|(?:const|let|var)\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*)await\s+tools\.write_stdin\(\s*\{\s*session_id\s*:\s*([0-9]+)`)
 
@@ -138,9 +139,9 @@ func workSpansFromTranscript(data []byte, source string) []ToolSpan {
 			case "function_call_output", "custom_tool_call_output":
 				out := toolOutputText(p.Output)
 				if ptr := pending[p.CallID]; ptr != nil {
-					if isRunningOutput(out) && ptr.id != p.CallID {
+					if ptr.id != p.CallID && !isConfirmedPollExit(out) {
 						delete(pending, p.CallID)
-						continue
+						continue // uncertain poll: retain the yielded invocation
 					}
 					for sid, active := range yielded {
 						if active == ptr {
@@ -199,6 +200,23 @@ func isPoll(name string) bool {
 func isRunningOutput(output string) bool {
 	low := strings.ToLower(output)
 	return strings.Contains(low, "still running") || strings.Contains(low, "script running") || strings.Contains(low, "process running") || yieldedSessionID(output) != ""
+}
+
+// A poll's tool result only proves that the poll returned. The yielded command
+// completes only when that result includes an explicit process exit.
+func isConfirmedPollExit(output string) bool {
+	for line := range strings.SplitSeq(output, "\n") {
+		if processExitPattern.MatchString(line) {
+			return true
+		}
+		var result struct {
+			ExitCode *int `json:"exit_code"`
+		}
+		if json.Unmarshal([]byte(line), &result) == nil && result.ExitCode != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func yieldedSessionID(output string) string {

@@ -208,6 +208,39 @@ func TestWorkSpansFromTranscriptYieldedWorkNeedsCompletion(t *testing.T) {
 	}
 }
 
+func TestWorkSpansFromTranscriptUnconfirmedPollKeepsYieldedWorkPending(t *testing.T) {
+	for name, uncertain := range map[string]string{
+		"transport error":              "transport-error",
+		"transport error quoting exit": "transport-error: previous poll said Process exited with code 0",
+		"empty":                        "",
+		"unknown process":              "unknown process",
+	} {
+		t.Run(name, func(t *testing.T) {
+			lines := []string{
+				`{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"stage","arguments":"{\"cmd\":\"sdlc stage --build\"}"}}`,
+				`{"timestamp":"2026-01-01T00:01:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"stage","output":"Process running with session ID 7"}}`,
+				`{"timestamp":"2026-01-01T00:10:00Z","type":"response_item","payload":{"type":"function_call","name":"write_stdin","call_id":"uncertain","arguments":"{\"session_id\":7}"}}`,
+			}
+			uncertainRecord, err := json.Marshal(map[string]any{"timestamp": "2026-01-01T00:11:00Z", "type": "response_item", "payload": map[string]any{"type": "function_call_output", "call_id": "uncertain", "output": uncertain}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			lines = append(lines, string(uncertainRecord))
+			if spans := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a"); len(spans) != 0 {
+				t.Fatalf("unconfirmed poll became work: %+v", spans)
+			}
+			lines = append(lines,
+				`{"timestamp":"2026-01-01T00:20:00Z","type":"response_item","payload":{"type":"function_call","name":"write_stdin","call_id":"done","arguments":"{\"session_id\":7}"}}`,
+				`{"timestamp":"2026-01-01T00:21:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"done","output":"Process exited with code 0"}}`,
+			)
+			spans := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a")
+			if len(spans) != 1 || spans[0].Kind != toolWork || !spans[0].Start.Equal(qt(0)) || !spans[0].End.Equal(qt(21)) {
+				t.Fatalf("confirmed completion not followed through uncertain poll: %+v", spans)
+			}
+		})
+	}
+}
+
 func TestWorkSpansFromTranscriptRejectsDuplicateAndIncomplete(t *testing.T) {
 	lines := []string{
 		`{"timestamp":"2026-01-01T00:00:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"dup","name":"Bash","input":{"command":"sdlc stage --build"}}]}}`,
