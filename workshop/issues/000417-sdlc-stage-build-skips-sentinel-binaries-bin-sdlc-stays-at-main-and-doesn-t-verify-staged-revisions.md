@@ -27,19 +27,27 @@ Found staging #416 on 2026-10-16. `sdlc stage --build` in ariadne:0 built every 
 
 In ariadne, `stage --build` should build each binary through its own build target: for a sentinel-skipped binary, the target its sentinel names. It should then verify that every staged `bin/*` carries the staged `vcs.revision`, and refuse when one doesn't.
 
+Clearing a stage must restore the same invariant for the resting branch: rebuild its binaries from that branch and verify their revisions. A failed rebuild or verification must remain retryable through `stage --clear`.
+
 ## Done when
 
 - `sdlc stage --build` in an ariadne-style repo leaves `bin/sdlc` at the staged revision.
 - The stage checks each built binary's `vcs.revision` and refuses, naming the binary, when one doesn't match; a test covers that refusal.
+- `sdlc stage --clear` rebuilds from the restored main HEAD, checks the same revision invariant, and can repair a prior failed clear on retry; tests cover both.
 
 ## Plan
 
 - [ ] Add a machine-readable stage build target to the sdlc sentinel, and document the marker in the generic build contract.
 - [ ] Make stage --build run declared sentinel targets after make build, then require every Go binary in bin/ to have the staged, unmodified VCS revision. Require each sentinel main package to have a matching staged binary, including differently named outputs.
 - [ ] Cover the stale sdlc binary, mismatched or unreadable revisions, and differently named sentinel outputs with tests; run the targeted package and make -k before closing.
+- [ ] Reuse the build-and-verify path after `stage --clear`, including a retry from an already-resting target, and test that the binaries return to the resting HEAD.
 
 ## Log
 
 ### 2026-10-16
 
 - Design: ARCH-DRY keeps build ownership in the existing Make target; the sentinel declares only the target. ARCH-PURE keeps revision and package matching separate from process execution. No new persistent state is created (ARCH-FUNERAL).
+
+## Revisions
+
+- 2026-10-16 19:45 PDT — TL observed that clear left staged binaries on main. Extend the same build-and-verify invariant to `stage --clear`, including retry after a failed clear; keep one shared check for both transitions.
