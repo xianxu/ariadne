@@ -1,13 +1,13 @@
 ---
 id: 000420
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-17
 estimate_hours: 4.92
 severity: medium
-card_mirror: 'be6cb820f9fa6906d6a742e48ffd00a4aacdaa69' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ab2c0335a2b9e8c9edeefea6db8f035e75823dce' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T00:53:13-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: N/A
 ---
 
 # Actual: queued suite status polling bridges idle time into focused-hours samples
