@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "3115a431", done: "832fc4bd"}
 ---
 
 # weave's dependency step runs brew bundle install from slots (start-plan auto-refresh), changing the machine unattended
