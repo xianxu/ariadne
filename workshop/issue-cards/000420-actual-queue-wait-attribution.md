@@ -1,6 +1,6 @@
 ---
 id: 000420
-status: working
+status: codecomplete
 created: 2026-10-16
 updated: 2026-10-17
 estimate_hours: 4.92
@@ -14,6 +14,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: N/A
+tracker:
+    version: 1
+    completion:
+        token: close-f79ace7f3dd1
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 61af4a691cabb809460f5a08bc44f9e3ccb2812f
+        evidence_commit: ce306d97ec959fe78cfa4ae487c3902fa804911e
 ---
 
 # Actual: queued suite status polling bridges idle time into focused-hours samples
