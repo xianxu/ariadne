@@ -284,10 +284,11 @@ func TestLocalCheckCancelOnlyOwnRun(t *testing.T) {
 		t.Errorf("want only B's lease, got %v", got)
 	}
 
-	// B cancels its own run the same way.
+	// B cancels its own run through the CLI's entry point, from its checkout.
 	out.Reset()
-	if n, err := cancelLocalChecks(runs, rootB, "", &out, testfix.HangCeiling); err != nil || n != 1 {
-		t.Fatalf("cancel from B: stopped %d, %v\n%s", n, err, out.String())
+	t.Chdir(rootB)
+	if err := runLocalCheckCancel(&out, ""); err != nil || !strings.Contains(out.String(), "cancelled local check suite") {
+		t.Fatalf("cancel from B: %v\n%s", err, out.String())
 	}
 	select {
 	case <-b.done:
@@ -296,5 +297,49 @@ func TestLocalCheckCancelOnlyOwnRun(t *testing.T) {
 	}
 	if got := leaseFiles(t, runs); len(got) != 0 {
 		t.Errorf("leases remain after both runs: %v", got)
+	}
+}
+
+// leaseProbeGH records, at the moment the run posts its status, which leases
+// are still held: signal ownership has ended by then, so none may be.
+type leaseProbeGH struct {
+	*ciFakeGH
+	t    *testing.T
+	runs string
+	seen []string
+}
+
+func (g *leaseProbeGH) PostStatus(ctx context.Context, repo, sha, statusContext, state, desc string) error {
+	g.seen = append(g.seen, leaseFiles(g.t, g.runs)...)
+	return g.ciFakeGH.PostStatus(ctx, repo, sha, statusContext, state, desc)
+}
+
+// The lease ends with SIGTERM ownership, before recording, and a run sweeps the
+// leases of dead runs before taking its own.
+func TestRunLocalCheckLeaseLifetime(t *testing.T) {
+	d, sha, gh, stderr := localRunRepo(t, "skipped")
+	logDir, err := localCheckLogDir(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runs := localCheckRunsDir(logDir)
+	if err := os.MkdirAll(runs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stale := filepath.Join(runs, "dead.json")
+	if err := os.WriteFile(stale, []byte(`{"root":"/gone","pid":1}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	probe := &leaseProbeGH{ciFakeGH: gh, t: t, runs: runs}
+	d.GH = probe
+	rec, err := runLocalCheck(context.Background(), d, localCheck{Name: "suite", Command: []string{"true"}, TimeoutMinutes: 1, Weight: 1}, sha)
+	if err != nil || !rec.passed() {
+		t.Fatalf("run: %+v %v\n%s", rec, err, stderr.String())
+	}
+	if len(probe.seen) != 0 {
+		t.Errorf("leases held while recording: %v", probe.seen)
+	}
+	if got := leaseFiles(t, runs); len(got) != 0 {
+		t.Errorf("leases remain after the run (stale one not swept?): %v", got)
 	}
 }

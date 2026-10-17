@@ -92,6 +92,15 @@ its whole life, and cancel acts only on a lease that is (a) held and (b) owned b
 - [x] Help: local-check.md cancel section; tl-worker help line + rules.tsv row
 - [x] Atlas: sdlc-binary local-check entry
 
+## Revisions
+
+- 2026-10-17 (boundary review round 1): the lease lives in `<git common dir>/sdlc/local-check-runs/` (not
+  `local-checks/runs/`, which log pruning sweeps), and cancel SIGTERMs the run's own pid: no PGID is recorded, because
+  the run's managed interruption terminates its check's process group itself. The lease now ends where the run's
+  SIGTERM ownership ends (once the check stops and the slot is freed), not at the run's return: a cancel during
+  recording would otherwise kill sdlc by the default action (BR-1). Every `run` sweeps stale leases before taking
+  its own, as the design said, not only `cancel` (BR-2).
+
 ## Log
 
 ### 2026-10-15
@@ -113,3 +122,8 @@ its whole life, and cancel acts only on a lease that is (a) held and (b) owned b
 - Tests: `TestLocalCheckCancelOnlyOwnRun` (two checkouts of one clone, real `runLocalCheck` children: cancel from A
   stops A — managed interruption, its check gone — while B and its check keep running; then B cancels its own),
   `TestCancelSweepsStaleLeaseWithoutSignal`, `TestClassifyRunLease`, `TestStartTime`, and the test-lock owner case.
+- Boundary review round 1 (FIX-THEN-SHIP): BR-1 (lease outlived signal ownership) and BR-2 (run never swept) fixed;
+  `TestRunLocalCheckLeaseLifetime` asserts no lease is held while the status posts and that a run sweeps a dead
+  lease. Minors fixed in the round: the Revisions entry above, and B's cancel in `TestLocalCheckCancelOnlyOwnRun` now
+  goes through `runLocalCheckCancel` from B's checkout. Slot release itself rides the existing #416 interruption path
+  (`TestLocalCheckSignalCancelsQueuedHelper`), which cancel's SIGTERM enters.

@@ -72,9 +72,9 @@ CANCEL (#400)
   `sdlc local-check cancel [--name N]` stops the runs started from this
   checkout, and only those, whether queued or running: every run holds a lease
   (<git common dir>/sdlc/local-check-runs/) naming its checkout, locked for the
-  run's life. Cancel sends SIGTERM to the run itself, which stops its check,
-  frees its suite slot and removes its worktree, recording nothing; cancel
-  waits for that. Another checkout's runs are never touched, a pid whose
+  run's queue and check. Cancel sends SIGTERM to the run itself, which stops
+  its check and frees its suite slot, recording nothing; cancel waits for
+  that, and the run then removes its worktree. Another checkout's runs are never touched, a pid whose
   process start time no longer matches is not signalled, and leases of dead
   runs are swept. Never stop a check by a PID picked from `ps`: every slot's
   suite looks the same there.

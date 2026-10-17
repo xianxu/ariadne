@@ -107,19 +107,37 @@ func holdRunLease(dir string, rec runLease) (func(), error) {
 	}, nil
 }
 
+// sweepStaleRunLeases removes the leases of runs that died without releasing
+// them (no holder), and temporary names a run killed before its rename left
+// behind. Every run and every cancel sweeps, so the directory holds about one
+// file per live run.
+func sweepStaleRunLeases(dir string) {
+	paths, _ := filepath.Glob(filepath.Join(dir, "*.json"))
+	for _, p := range paths {
+		f, err := os.OpenFile(p, os.O_RDWR, 0)
+		if err != nil {
+			continue
+		}
+		if flock.Exclusive(f, true) == nil {
+			_ = os.Remove(p) // removed while locked: no run holds it
+		}
+		_ = f.Close()
+	}
+	tmps, _ := filepath.Glob(filepath.Join(dir, ".lease-*.tmp"))
+	for _, p := range tmps {
+		if info, err := os.Stat(p); err == nil && time.Since(info.ModTime()) > localCheckStaleAge {
+			_ = os.Remove(p)
+		}
+	}
+}
+
 // cancelLocalChecks stops this checkout's live runs (only the check named, when
 // name is set), sweeps leases whose run is gone, and waits up to wait for each
 // stopped run to release its lease. Another checkout's runs are never touched.
 func cancelLocalChecks(dir, root, name string, out io.Writer, wait time.Duration) (int, error) {
 	root = canonicalRoot(root)
+	sweepStaleRunLeases(dir)
 	paths, _ := filepath.Glob(filepath.Join(dir, "*.json"))
-	if tmps, _ := filepath.Glob(filepath.Join(dir, ".lease-*.tmp")); len(tmps) > 0 {
-		for _, p := range tmps { // a run killed between create and rename
-			if info, err := os.Stat(p); err == nil && time.Since(info.ModTime()) > localCheckStaleAge {
-				_ = os.Remove(p)
-			}
-		}
-	}
 	type stopping struct {
 		f   *os.File
 		rec runLease
