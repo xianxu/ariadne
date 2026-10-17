@@ -1,6 +1,6 @@
 ---
 id: 000425
-status: working
+status: codecomplete
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: N/A
+tracker:
+    version: 1
+    completion:
+        token: close-957471c6d2b8
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 40142a581f1c75bc04c7af76240f45ce433d5db6
+        evidence_commit: 4ece206ebd6e3fbcfaa68814643bda1cf0a2ddd9
 ---
 
 # Landing suites invalidated by main moving during the 15–35 min queue; the TL held main by hand twice
