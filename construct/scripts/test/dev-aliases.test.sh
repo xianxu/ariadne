@@ -12,6 +12,7 @@ ARIADNE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd -P)"
 GEN="$ARIADNE_ROOT/construct/dev-aliases.sh"
 
 WS="$(mktemp -d "${TMPDIR:-/tmp}/devaliases57.XXXXXX")"
+WS="$(cd "$WS" && pwd -P)"
 trap 'rm -rf "$WS"' EXIT
 
 # A Couch slot's COUCH_TREE skips every build (#405); the cases that need one
@@ -197,9 +198,31 @@ assert_contains "$(printf 'sdlc\t%s' "$ARI_P")" "$np_out" "non-peer --list maps 
 rm -rf "$NP"
 
 # ── duplicate detection + --strict ───────────────────────────────────────────
+# A slot's substrate and the workspace sibling are two checkouts of one origin.
+# The substrate is last in sorted path order and remains the selected owner.
+SLOT="$WS/worktree/slot/deriv"
+SUBSTRATE="$WS/worktree/slot/ariadne"
+mkdir -p "$SLOT/construct" "$SUBSTRATE/construct"
+mkcmd "$SUBSTRATE/cmd/sdlc"
+printf 'substrate %s\n' "$SUBSTRATE" > "$SLOT/construct/deps"
+git -C "$WS/ariadne" init -q
+git -C "$SUBSTRATE" init -q
+git -C "$WS/ariadne" remote add origin https://github.com/example/ariadne.git
+git -C "$SUBSTRATE" remote add origin git@github.com:example/ariadne.git
+slot_out="$(cd "$SLOT" && bash "$GEN" --workspace "$WS" --list --strict 2>"$WS/slot.err")"; slot_rc=$?
+[ "$slot_rc" -eq 0 ] && ok "same-origin checkouts pass --strict" || ko "same-origin checkouts failed --strict"
+[ ! -s "$WS/slot.err" ] && ok "same-origin checkouts produce no warning" || ko "same-origin warning: [$(cat "$WS/slot.err")]"
+assert_contains "$(printf 'sdlc\t%s' "$SUBSTRATE")" "$slot_out" "slot substrate remains selected owner"
+slot_verbose="$(cd "$SLOT" && bash "$GEN" --workspace "$WS" --verbose --list 2>&1 >/dev/null)"
+assert_contains "same-origin" "$slot_verbose" "verbose mode explains suppressed duplicate"
+rm -rf "$WS/worktree"
+
 # two ACTIVE repos both owning a real cmd/dupe → collision
 mkdir -p "$WS/repoa/construct" "$WS/repob/construct"
 mkcmd "$WS/repoa/cmd/dupe"; mkcmd "$WS/repob/cmd/dupe"
+git -C "$WS/repoa" init -q; git -C "$WS/repob" init -q
+git -C "$WS/repoa" remote add origin https://github.com/example/repoa.git
+git -C "$WS/repob" remote add origin https://github.com/example/repob.git
 dup_err="$(bash "$GEN" --workspace "$WS" 2>&1 >/dev/null)"
 assert_contains "duplicate binary 'dupe'" "$dup_err" "warns on duplicate binary name"
 # last-win: repob sorts after repoa

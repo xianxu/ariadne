@@ -46,8 +46,8 @@ repos owning one binary name).
 
 ## Plan
 
-- [ ] Add hermetic Git fixtures for two checkouts of one origin in the slot layout, equivalent HTTPS/SSH origins, and two distinct origins. Assert the selected slot owner, stderr, and `--strict` status.
-- [ ] Normalize each candidate owner's origin once at the IO boundary; group candidates by binary and normalized origin for warnings only. Keep the existing deterministic last-path-wins mapping. Missing or unrecognized origins stay distinct by path so a real collision cannot be hidden. `--verbose` explains a suppressed same-origin duplicate.
+- [x] Add hermetic Git fixtures for two checkouts of one origin in the slot layout, equivalent HTTPS/SSH origins, and two distinct origins. Assert the selected slot owner, stderr, and `--strict` status.
+- [x] Normalize each candidate owner's origin once at the IO boundary; group candidates by binary and normalized origin for warnings only. Keep the existing deterministic last-path-wins mapping. Missing or unrecognized origins stay distinct by path so a real collision cannot be hidden. `--verbose` explains a suppressed same-origin duplicate.
 - [ ] Run the focused shell test, `make -k build`, and the recorded full suite; update the script's contract documentation and close on verified evidence.
 
 ## Log
@@ -57,3 +57,5 @@ repos owning one binary name).
 ### 2026-10-17
 
 Claimed and started from current main. The current duplicate check counts paths, while final selection is last sorted path. The shell's sibling plus substrate scan deliberately finds both checkouts. ARCH-PURE: normalize Git origin URLs at collection time, then make the warning decision from data; leave command emission and owner selection alone. This stays inside the quick-flow shell.
+
+The new fixture failed before implementation on the same-origin warning and strict status, then passed after the identity change (69/69). The test also exposed `/var` and `/private/var` spelling of one macOS temp directory; canonicalizing `--workspace` preserves deterministic owner selection. Read-only check from parley.nvim:4 selected its ariadne substrate and emitted no warning in `--strict --list`. `bash -n`, `git diff --check`, and `make -k build` passed.
