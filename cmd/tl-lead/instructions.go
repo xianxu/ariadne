@@ -37,7 +37,8 @@ type Bullet struct {
 // until a blank line followed by prose indented no deeper than that indent
 // (prose belongs to no bullet). Fenced code starts no bullet; a tab indents to
 // the next multiple of four. Trailing blank lines are dropped. A bullet is
-// answered by a link ending its last line; `→ done:` is the older form.
+// answered by a link ending any of its lines outside fences, so a follow-up
+// added after the link keeps it answered; `→ done:` is the older form.
 func instructionBullets(section string) []Bullet {
 	lines := strings.Split(section, "\n")
 	fenced := make([]bool, len(lines))
@@ -90,7 +91,11 @@ func instructionBullets(section string) []Bullet {
 		for len(b.Lines) > 1 && strings.TrimSpace(b.Lines[len(b.Lines)-1]) == "" {
 			b.Lines = b.Lines[:len(b.Lines)-1]
 		}
-		b.Answered = answeredRE.MatchString(b.Lines[len(b.Lines)-1])
+		for j, l := range b.Lines {
+			if !fenced[b.Start+j] && answeredRE.MatchString(l) {
+				b.Answered = true
+			}
+		}
 	}
 	return out
 }

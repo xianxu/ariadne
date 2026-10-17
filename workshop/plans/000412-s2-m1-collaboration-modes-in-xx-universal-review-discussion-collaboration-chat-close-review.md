@@ -206,3 +206,98 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"13685de5-96b5-4f53-b099-6306401ad4b3","repository":"github.com/xianxu/ariadne","issue_id":"000412","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/4da3b878f24d1b3b","reviewed_head":"255314b4ec7bd08fa70b031805fab03b12f29a06","slot":"ariadne:2","requested_at":"2026-10-17T00:01:22.89563Z"},"phase":"finished","pid":91621,"started_at":"2026-10-17T00:01:23.124489Z","finished_at":"2026-10-17T00:02:47.849521Z","session_id":"8f9eacdf-f967-44c3-9986-b3b01587aee4","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-16T17:06:57-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 412 — S2 M1: collaboration modes in xx-universal-review (discussion, collaboration, chat) |
+| repo | ariadne |
+| issue file | workshop/issues/000412-s2-m1-collaboration-modes-in-xx-universal-review-discussion-collaboration-chat.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 35ba24e6cad39344c347af981de7ac8fcc1d1c31..e123c3ca7429ac6e50381f13a646c024a08ea631 |
+| command | sdlc close --issue 412 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-16T17:06:57-07:00 |
+| verdict | REWORK |
+
+## Review
+
+Focus first on BR-5: the last commit claims the checker enforces every reuse invariant.
+
+Now revert the fix to confirm the regression test goes red.
+
+BR-5 is addressed. Now the issue, plan, and core spec.
+
+Item 3 in the chat example has its link on the first line and a follow-up sub-item after it. Testing how the new "link ending the last line" rule handles that.
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-5 is fixed. I re-ran the reviewer's regression: in `discussion-same-marker/after`, I pointed both asks at `01-why-per-file.md` and deleted `02`. `TestExamples` now fails with "two links point to design.side/01-why-per-file.md". I then disabled the at-most-one-link check (`targets[t] == 2` changed to `== 99`), and the mutation case "a linked doc reused" in `TestCheckCaseCatches` went red. Both changes were restored afterwards. The fix covers the whole class, not one instance: no side doc may be the target of two links (`examples_test.go:147`), and every link must come from the document its `parent:` names (`examples_test.go:150`).
+
+The same commit (e123c3ca) also brought in a new correctness regression. The "parser edges" Minor changed what makes a chat item linked: both the skill and tl-lead now count only an answer link that ends the item's **last** line. When an operator adds a follow-up sub-item under a linked item (state-table row 14), the link is no longer on the last line, so the item reads as unlinked. That contradicts the committed `chat` example and row 14. In tl-lead it means `list` shows the item as open again, and `link` adds a second answer link to the operator's sub-item. This blocks SHIP. The fix is cheap.
+
+**Strengths**
+- The BR-5 fix states the invariant rather than patching the one case, and it has both a mutation test and an end-to-end check against the fixtures (`pkg/reviewexport/examples_test.go:136-153`, `:403-409`).
+- The checker is a pure function over `fs.FS`, and `TestCheckCaseCatches` breaks a known-good case one way at a time. That is good evidence that each rule is actually enforced (ARCH-PURE).
+- The export gains exactly one new member, with a rank and doc comment, and `examples/` is explicitly left out (`pkg/reviewexport/export.go:55,151`).
+- `tl-lead --help` now points to the skill's chat mode instead of restating its rules, which keeps one source for them (ARCH-DRY, `cmd/tl-lead/help.md:171-199`).
+
+**Critical**
+1. **A linked chat item that gets a follow-up sub-item now reads as unlinked.**
+   - **Where:** the rule is defined in `construct/local/universal-review/collaboration-modes.md:115-116` and implemented in `cmd/tl-lead/instructions.go:21,96`.
+   - **Repro:** run `instructionBullets` on `3. how big is the backlog? → [answer](status.side/2026-10-15-01-backlog.md)\n   - and by repo?`. This is the exact shape of item 3 in `examples/chat`. It returns `answered=false`, and `linkBullet(sec,1,…)` writes `   - and by repo? → [answer](tl-status-op.side/…)`, a second link on the operator's line.
+   - **Why it's wrong:** by the skill's own wording, the committed example's item 3 is a "new ask", yet the example and row 14 call it a follow-up that keeps its link. Before e123c3ca, `answeredRE` matched anywhere in the item, so this worked.
+   - **Fix:** define "linked" so a link stays valid when lines are added after it. For example: "a ` → [answer](…)` ending a line of the item at the item's own indent, outside fences", or simply the item's first answer link. Update §3 and `answeredRE` together.
+   - **Regression test:** add a tl-lead test built from the `chat` example's Operator-instructions section (read from `examples/chat/after/status.md`). That ties tl-lead's parser to the skill's reference fixture, so the two can't drift apart again.
+
+**Important**
+- None beyond the Critical above.
+
+**Minor**
+- `instructions_test.go:85` pins `2. r\n   - see → [answer](x.md)\n   more text` as unanswered. Re-check that expectation once "linked" is redefined.
+
+**Test coverage notes**
+- `go test ./cmd/tl-lead/ ./pkg/reviewexport/` passes at head. No test exercises row 14's item shape (a link followed by an added sub-item) against the item parser, and that is exactly why the regression went unnoticed.
+
+**Architecture**
+- **ARCH-DRY: pass.** The help cites the skill, and one item rule is shared by the skill and the parser. They do agree, but they agree on a definition that contradicts the skill's own example.
+- **ARCH-PURE: pass.** The checker and `instructionBullets` are both pure.
+- **ARCH-PURPOSE: flag (the Critical above).** Done-when 2 says the session file runs on chat mode "with no change in what the operator sees". Re-listing an answered item and double-linking it is such a change.
+- **ARCH-MOCK: pass.** No new external dependency; Couch is reached only through the adapter's existing seam.
+- **ARCH-CONSTRAINTS: pass.** Each new side doc costs one file write.
+- **ARCH-SECURE: pass.** The marker must be a double-quoted YAML string, the link target is validated, and a parent path may not carry an anchor.
+- **ARCH-ORDER: pass.** Retry and relink states are covered by `discussion-retry`, `chat-retry` and `discussion-same-marker`.
+- **ARCH-FUNERAL: pass.** The skill now states the side docs' lifetime: no round prunes one, the operator deletes it, and a later slice adds closing.
+
+**Docs**
+- The atlas is updated (`atlas/workflow/universal-review.md`, `tl-skills.md`, the indexes). `README.md` never documented this skill's frontmatter, so no README gap.
+
+**Plan revisions**
+- Add to the round-2 Revisions entry: "an item is linked by its answer link wherever later lines put it, not only on its last line (row 14)", along with the regression test built from the chat example.
+
+```findings
+dispose:
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Reviewer's regression (both asks -> 01, 02 deleted) now fails TestExamples; disabling the targets check turns "a linked doc reused" red.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: spec-contradicts-own-example
+    title: |
+      "Linked = answer link ending the item's last line" makes a row-14 follow-up item read as unlinked; tl-lead double-links it
+    detail: |
+      e123c3ca changed collaboration-modes.md:115-116 and instructions.go answeredRE (line 21, used at 96) so only a link on the last line counts. examples/chat item 3 ("3. ... → [answer](...)" then "   - and by repo?") is then a new ask by the spec's own rule, which contradicts row 14 and the example. Probe: instructionBullets gives answered=false, and linkBullet appends a second → [answer] to the operator's sub-item. Fix: redefine linked so lines added after the link don't unlink it (in both the skill and the regex), and add a tl-lead test that parses the chat example's Operator-instructions section.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"2aaa082b-6e39-4a43-967a-2e206e39407b","repository":"github.com/xianxu/ariadne","issue_id":"000412","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/1676c00243d2f2c8","reviewed_head":"e123c3ca7429ac6e50381f13a646c024a08ea631","slot":"ariadne:2","requested_at":"2026-10-17T00:04:39.693039Z"},"phase":"finished","pid":26230,"started_at":"2026-10-17T00:04:39.893494Z","finished_at":"2026-10-17T00:06:56.755001Z","session_id":"e99fcf6d-5336-48db-94dd-b43f505f70d6","outcome":"returned"}] -->

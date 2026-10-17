@@ -12,5 +12,3 @@ _From [Lock design](../design.md), section "Cache"._
 
 A day is longer than any round needs: a snapshot is stale once the operator submits again, and that happens within
 the hour. **Proposal:** keep entries for an hour.
-
-Folded into the parent 2026-10-16, as a proposal to accept or reject: the cache keeps entries for an hour.

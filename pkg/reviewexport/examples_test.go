@@ -22,7 +22,7 @@ import (
 var (
 	datedNameRE    = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2})-(\d{2,6})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$`)
 	numberedNameRE = regexp.MustCompile(`^(\d{2,6})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$`)
-	sideLinkRE     = regexp.MustCompile(`→ \[(?:discussion|answer)\]\(([^)\s]+)\)`)
+	sideLinkRE     = regexp.MustCompile(`→ \[(?:discussion|answer|notes)\]\(([^)\s]+)\)`)
 	backlinkRE     = regexp.MustCompile(`(?m)^_From \[[^\]]*\]\([^)#\s]+\), section "([^"]+)"\._`)
 	foldedRE       = regexp.MustCompile(`^ \(folded \d{4}-\d{2}-\d{2}\)`)
 )
@@ -197,8 +197,8 @@ func checkTree(fsys fs.FS) (sides map[string]sideDoc, errs []string) {
 		link := "](" + filepath.ToSlash(rel) + ")"
 		at := strings.Index(ptext, link)
 		sides[p] = sideDoc{Key: dir + "\x00" + pp + "\x00" + marker + "\x00" + section[1], Linked: at >= 0}
-		// A fold marks the parent's link to the side doc that records it.
-		if strings.Contains(text, "Folded into the parent") && (at < 0 || !foldedRE.MatchString(ptext[at+len(link):])) {
+		// An approval's fold marks the parent's link to the side doc it folded.
+		if (strings.Contains(text, "; folded into the parent.") || strings.Contains(text, "; proposed in the parent")) && (at < 0 || !foldedRE.MatchString(ptext[at+len(link):])) {
 			bad("%s: records a fold, but the parent's link to it is not marked (folded <date>)", p)
 		}
 		return nil
@@ -405,7 +405,7 @@ func TestCheckCaseCatches(t *testing.T) {
 			m["after/e.md"] = &fstest.MapFile{Data: []byte("# E\n\n→ [discussion](d.side/01-why.md)\n")}
 		}, "whose parent is"},
 		{"no backlink", edit(side, "_From [D](../d.md), section \"D\"._", "From D."), "no backlink"},
-		{"a fold whose link is not marked", edit(side, "# Why?\n", "# Why?\n\nFolded into the parent 2026-10-16: x.\n"), "not marked (folded"},
+		{"a fold whose link is not marked", edit(side, "# Why?\n", "# Why?\n\nDecided (operator): x; folded into the parent.\n"), "not marked (folded"},
 		{"a pruned side doc", func(m fstest.MapFS) { m["before/d.side/01-why.md"] = m[side]; delete(m, side) }, "never pruned"},
 		{"a failed round that changed the document", edit("case.md", "outcome: ok", "outcome: fails"), "changes nothing"},
 	} {
@@ -431,16 +431,16 @@ func TestExamples(t *testing.T) {
 	}
 	n := 0
 	for _, c := range cases {
-		if !c.IsDir() {
-			continue
+		if !c.IsDir() || strings.HasPrefix(c.Name(), ".") {
+			continue // README.md, and a tool's hidden state directory
 		}
 		n++
 		for _, e := range checkCase(os.DirFS(filepath.Join(root, c.Name()))) {
 			t.Errorf("%s: %s", c.Name(), e)
 		}
 	}
-	if n < 11 {
-		t.Errorf("%d cases, want the eleven the plan's test list names", n)
+	if n < 12 {
+		t.Errorf("%d cases, want the twelve the plan's test list names", n)
 	}
 }
 
@@ -453,7 +453,7 @@ func TestCollaborationModesProse(t *testing.T) {
 	}
 	doc := string(b)
 	flat := strings.Join(strings.Fields(doc), " ")
-	for i := 1; i <= 19; i++ {
+	for i := 1; i <= 20; i++ {
 		if !strings.Contains(doc, fmt.Sprintf("\n| %d | ", i)) {
 			t.Errorf("the state table lacks row %d", i)
 		}

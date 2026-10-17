@@ -271,3 +271,21 @@ The contract edges (D§2, D§4):
   - Minors fixed: tl-lead's parser skips fenced code, expands tabs, and counts a bullet answered only by a link
     ending its last line. The skill states the same. The skill also says how side docs end: no round prunes one,
     the operator deletes it, and a later slice adds closing.
+- **2026-10-16, close review round 3 (REWORK: BR-6, Critical, family spec-contradicts-own-example).** Round 2's
+  parser Minor had redefined "linked" as a link ending the item's last line. That contradicted row 14 and the `chat`
+  example: an item with a follow-up sub-item read as open, and tl-lead would link it twice. Now an item is linked by
+  an answer link ending any of its lines outside fenced code, in both the skill and tl-lead.
+  `TestInstructionBulletsReadTheChatExample` runs tl-lead's parser on the skill's own `chat` fixture (before/: items
+  1 and 2 open; after/: none), so the parser and the reference can't drift again. Under the last-line rule it
+  fails.
+- **2026-10-16, an operator-approved addition from the TL (message 0b6032ca; source: ops
+  qa/xian-xu/2026-10-16-19-session-file-freshness.side/02-when-a-reply-needs-a-side-doc.md).**
+  - In discussion, a decision or approval becomes one `Decided (operator): <restated>.` line at the marker's spot,
+    and is carried out. Anything the agent adds goes to a side doc linked `→ [notes](…)`. A bare acknowledgement
+    gets the line alone.
+  - The source doc says "just the one line" for an acknowledgement; the TL's summary says "no reply at all". The
+    approved source is followed, and the TL is told.
+  - An approval's Decided line replaces the side doc's closing note (`…; folded into the parent.`), and a fold
+    asked from the parent writes only the parent. The third write a parent-asked fold needed is gone.
+  - State-table row 20 and a twelfth case, `discussion-decision`. The checker reads `→ [notes]` links and the new
+    fold record.

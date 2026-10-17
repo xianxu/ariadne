@@ -15,4 +15,4 @@ collaboration and the branching mode discussion.
 
 Old files keep working under either name. → [discussion](02-renames.md)
 
-Folded into the parent 2026-10-16: the modes renamed to collaboration and discussion.
+Decided (operator): call the modes collaboration and discussion; folded into the parent.

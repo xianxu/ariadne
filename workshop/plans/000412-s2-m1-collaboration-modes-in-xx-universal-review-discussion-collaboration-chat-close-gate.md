@@ -259,6 +259,126 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 2aaa082b-6e39-4a43-967a-2e206e39407b
+            repository: github.com/xianxu/ariadne
+            issue_id: "000412"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/1676c00243d2f2c8
+            reviewed_head: e123c3ca7429ac6e50381f13a646c024a08ea631
+            slot: ariadne:2
+            requested_at: "2026-10-17T00:04:39.693039Z"
+          phase: finished
+          pid: 26230
+          started_at: "2026-10-17T00:04:39.893494Z"
+          finished_at: "2026-10-17T00:06:56.755001Z"
+          session_id: e99fcf6d-5336-48db-94dd-b43f505f70d6
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: e123c3ca7429ac6e50381f13a646c024a08ea631
+        tracker_head: 27a568ffc9e65d519a006f41cc07fbe5af3f0e35
+        branch_point: 35ba24e6cad39344c347af981de7ac8fcc1d1c31
+        since: "2026-10-16T15:42:55-07:00"
+        until: "2026-10-16T17:04:01-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-16T15:42:55-07:00"
+              end: "2026-10-16T17:04:01-07:00"
+              began: "2026-10-16T15:42:55-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 6681a7b6-a1e9-4bf6-8743-64ae382a6945
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: a01d2d2e30cdee9e2ab0f79bd4c475b0767f8fb71bde51c321f0d54701105ed7
+              started: "2026-10-16T22:49:11.289Z"
+              spawned: false
+              bytes: 542081
+              windows:
+                - start: "2026-10-16T22:49:11.289Z"
+                  end: "2026-10-16T17:04:01-07:00"
+            - harness: claude
+              id: a3c26c68-b277-41fb-8571-456fa2883740
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 5320c188df9f1d072a2c1e3788ff32b5cea4f732e8e180b077700b714d95ba8f
+              started: "2026-10-16T22:55:51.076Z"
+              spawned: false
+              bytes: 509821
+              windows:
+                - start: "2026-10-16T22:55:51.076Z"
+                  end: "2026-10-16T17:04:01-07:00"
+            - harness: claude
+              id: c16f9f99-f7dc-493c-80e6-9950883fe1cf
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 56c17381f2e60fc56f2ae5acb83b94366afd3a2dea497b7c768fec2238d6894b
+              started: "2026-10-16T22:53:46.176Z"
+              spawned: false
+              bytes: 499558
+              windows:
+                - start: "2026-10-16T22:53:46.176Z"
+                  end: "2026-10-16T17:04:01-07:00"
+            - harness: claude
+              id: e1a45820-de66-478e-bdce-95f833a64410
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 84b46a5b1ffbb97690e35548a8500ac62e056483b444935a24569d2a8335bc77
+              started: "2026-10-16T22:56:14.41Z"
+              spawned: false
+              bytes: 394689
+              windows:
+                - start: "2026-10-16T22:56:14.41Z"
+                  end: "2026-10-16T17:04:01-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: e158affd1686ccbf9ef37ac3f0cd60e180e3db935ce5a4b2f14b15f9413d53c3
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 17415023
+              windows:
+                - start: "2026-10-16T15:42:55-07:00"
+                  end: "2026-10-16T17:04:01-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 6.5026
+        cuts:
+            - dispatched: "2026-10-16T16:55:50-07:00"
+              finalized: "2026-10-16T16:57:45-07:00"
+              finalizing: false
+            - dispatched: "2026-10-16T17:01:22-07:00"
+              finalized: "2026-10-16T17:02:49-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-16T17:06:58-07:00"
+      dispatched: "2026-10-16T17:04:39-07:00"
+      agent: claude
+      dispose:
+        - id: BR-5
+          disposition: addressed
+          note: Reviewer's regression (both asks -> 01, 02 deleted) now fails TestExamples; disabling the targets check turns "a linked doc reused" red.
+          round: 3
+      findings:
+        - kind: defect
+          id: BR-6
+          severity: Critical
+          title: '"Linked = answer link ending the item''s last line" makes a row-14 follow-up item read as unlinked; tl-lead double-links it'
+          detail: 'e123c3ca changed collaboration-modes.md:115-116 and instructions.go answeredRE (line 21, used at 96) so only a link on the last line counts. examples/chat item 3 ("3. ... → [answer](...)" then "   - and by repo?") is then a new ask by the spec''s own rule, which contradicts row 14 and the example. Probe: instructionBullets gives answered=false, and linkBullet appends a second → [answer] to the operator''s sub-item. Fix: redefine linked so lines added after the link don''t unlink it (in both the skill and the regex), and add a tl-lead test that parses the chat example''s Operator-instructions section.'
+          family: spec-contradicts-own-example
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#412 (boundary-review)
@@ -291,6 +411,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Important] `checker-coverage-gap` (kind: defect) Example checker does not enforce row 19: a side doc that is already linked can be reused with no failure
   I edited discussion-same-marker/after so both asks link to 01-why-per-file.md and deleted 02, which is the BR-1 defect, and TestExamples still passed. This is the 2nd finding in the family. The rule covering the class: in a parent, each side doc is the target of at most one link. Enforce it in checkTree and add a test that links two asks to one doc and expects a failure.
 
+## Round 3 — 2026-10-16T17:06:58-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-5 — addressed — Reviewer's regression (both asks -> 01, 02 deleted) now fails TestExamples; disabling the targets check turns "a linked doc reused" red.
+
+### Raised
+
+- **BR-6** [Critical] `spec-contradicts-own-example` (kind: defect) "Linked = answer link ending the item's last line" makes a row-14 follow-up item read as unlinked; tl-lead double-links it
+  e123c3ca changed collaboration-modes.md:115-116 and instructions.go answeredRE (line 21, used at 96) so only a link on the last line counts. examples/chat item 3 ("3. ... → [answer](...)" then "   - and by repo?") is then a new ask by the spec's own rule, which contradicts row 14 and the example. Probe: instructionBullets gives answered=false, and linkBullet appends a second → [answer] to the operator's sub-item. Fix: redefine linked so lines added after the link don't unlink it (in both the skill and the regex), and add a tl-lead test that parses the chat example's Operator-instructions section.
+
 ## Open findings
 
-- **BR-5** [Important] `checker-coverage-gap` (kind: defect) Example checker does not enforce row 19: a side doc that is already linked can be reused with no failure
+- **BR-6** [Critical] `spec-contradicts-own-example` (kind: defect) "Linked = answer link ending the item's last line" makes a row-14 follow-up item read as unlinked; tl-lead double-links it

@@ -12,13 +12,14 @@ skill carries the rest.
   verb, so it works outside Couch. §4 resolves the collaboration modes and routes each ask (#412).
 - **`collaboration-modes.md`** — where an ask's answer goes, per section, by frontmatter `collaboration-mode:`
   (separate from the review mode, which says how an edit is made): **discussion** (the default; an imperative is an
-  edit, an instruction that only acts is honored, a question opens a linked side doc), **collaboration** (answered in
+  edit, an instruction that only acts is honored, a decision becomes one `Decided (operator): …` line with any notes in a
+  linked side doc, a question opens a linked side doc), **collaboration** (answered in
   place), **chat** (each list item gets a dated answer doc). It holds the heading matching and its error cases, the
   side-doc contract (one flat `<name>.side/` folder per document, `NN-slug` and `YYYY-MM-DD-NN-slug` names,
   frontmatter, the write order: side docs, then a folded parent, then the submitted document; retries relink an
   unlinked doc by `parent:` + `marker:` + section, never one already linked), and the state table. Design: ops universal-agent-input-interface, S2.
 - **`modes/*.md`** — the six stock modes, canonical here since #399; parley snapshots them.
-- **`examples/`** — ten reference rounds, one per case: `before/` and `after/` trees plus `case.md` (the submitted
+- **`examples/`** — twelve reference rounds, one per case: `before/` and `after/` trees plus `case.md` (the submitted
   document, the outcome, the changes, the reply). A live check runs a round on a copy of `before/` and compares it
   with `after/`. `pkg/reviewexport`'s `TestExamples` holds every case to the side-doc contract (a test-only checker,
   mutation-tested); the examples are not exported.

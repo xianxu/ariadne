@@ -139,3 +139,4 @@ total: 4.33
 - Full suite green on d1199a4b (12 shards, 1519 cmd/sdlc tests plus 66 packages, 0 failed; sdlc-local/suite recorded).
 - Close review round 1: FIX-THEN-SHIP with BR-1 (reuse identity too coarse) and BR-2 (tl-lead parser vs chat mode item), plus two Minors; all fixed by class, see the plan's Revisions. Targeted tests green.
 - Close review round 2: BR-1 to BR-4 disposed; BR-5 (the checker did not enforce row 19) fixed by the class: at most one link per side doc, only from its parent; plus the parser and lifetime Minors. See the plan's Revisions.
+- Close review round 3: REWORK on BR-6 (linked = last-line link broke row 14). Fixed in skill and tl-lead, with a test tying tl-lead to the chat fixture (fails under the old rule). Folded in the TL's operator-approved decision rule (0b6032ca): row 20, case discussion-decision; approvals record a Decided line instead of a closing note.

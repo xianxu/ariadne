@@ -12,4 +12,4 @@ the imperative and the fold-in are written as proposals, while the markers swapp
 - Locking: your question opened design.side/02-lock-granularity.md.
 - Numbers: asked which numbers you mean.
 - Retries: opened design.side/03-retry-story.md, proposing what is off.
-- Cache: folded design.side/01-cache-ttl.md in as a proposal (accept or reject); the link is marked folded.
+- Cache: folded design.side/01-cache-ttl.md in as a proposal (accept or reject); the link is marked folded, and the side doc is unchanged.

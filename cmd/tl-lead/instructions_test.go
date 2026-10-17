@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -81,9 +83,11 @@ A note, not a bullet.
 	}
 	// Fenced code starts no bullet, a tab indents, and only a link ending
 	// the bullet's last line answers it.
-	const edge = "1. q\n   ```\n- not an item\n   ```\n\t- tabbed sub-item\n2. r\n   - see → [answer](x.md)\n   more text\n3. s → [answer](y.md)"
+	// A link ending any line answers a bullet, so a follow-up added after it
+	// keeps it answered (row 14); a link inside a fence is code, not an answer.
+	const edge = "1. q\n   ```\n- not an item\n   x → [answer](z.md)\n   ```\n\t- tabbed sub-item\n2. r → [answer](x.md)\n   - and by repo?\n3. s → [answer](y.md)"
 	bs := instructionBullets(edge)
-	if len(bs) != 3 || len(bs[0].Lines) != 5 || len(bs[1].Lines) != 3 || bs[1].Answered || !bs[2].Answered {
+	if len(bs) != 3 || len(bs[0].Lines) != 6 || bs[0].Answered || !bs[1].Answered || !bs[2].Answered {
 		t.Errorf("edges: %+v", bs)
 	}
 	// Indented items only: the shallowest indent present is the item level.
@@ -209,5 +213,33 @@ func TestInstructionsLinkRefusals(t *testing.T) {
 	f.holder = "operator"
 	if _, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "2", "qa/op/a.md", "--hash", h); exitCode(err) != 3 || f.writes != 0 {
 		t.Errorf("under the operator's lock: exit %d, writes %d; want exit 3, no write", exitCode(err), f.writes)
+	}
+}
+
+// The parser reads the skill's own chat example as the skill means it: in
+// before/, items 1 and 2 are open and the rest answered (item 3 keeps its
+// link under a follow-up sub-item); in after/, every item is answered. This
+// ties tl-lead to the reference fixture so the two can't drift (#412).
+func TestInstructionBulletsReadTheChatExample(t *testing.T) {
+	for tree, want := range map[string]string{"before": "1. 2.", "after": ""} {
+		b, err := os.ReadFile(filepath.Join("..", "..", "construct", "local", "universal-review", "examples", "chat", tree, "status.md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, sec, ok := strings.Cut(string(b), "### Operator instructions (open)\n")
+		sec, _, _ = strings.Cut(sec, "\n#")
+		if !ok {
+			t.Fatalf("%s: no Operator instructions section", tree)
+		}
+		bs := instructionBullets(sec)
+		var open []string
+		for _, bl := range bs {
+			if !bl.Answered {
+				open = append(open, strings.Fields(bl.Lines[0])[0])
+			}
+		}
+		if len(bs) != 5 || strings.Join(open, " ") != want {
+			t.Errorf("%s: %d bullets, open %q, want 5 and %q", tree, len(bs), open, want)
+		}
 	}
 }
