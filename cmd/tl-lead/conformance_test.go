@@ -72,8 +72,38 @@ func TestSessionSyncConformance(t *testing.T) {
 		t.Errorf("a refused fold changed A to %q", got)
 	}
 
+	// The whole-file read and write the index uses (#424): a hash, a stale
+	// refusal, a write that replaces the frontmatter and keeps the sections.
+	text, all, err := ss.ReadAll(file)
+	if err != nil || all == "" || !strings.Contains(text, "## A") {
+		t.Fatalf("read --all: hash=%q err=%v\n%s", all, err, text)
+	}
+	whole := filepath.Join(dir, "whole.md")
+	next := strings.Replace(text, "type: session-sync\n", "type: session-sync\ndiscussions:\n  - doc: s.side/01-x.md\n", 1)
+	if err := os.WriteFile(whole, []byte(next), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ss.WriteAll(file, whole, "0000000000000000"); !errors.Is(err, ErrStale) {
+		t.Errorf("write --all with a wrong hash: err = %v, want ErrStale (exit 6)", err)
+	}
+	if err := ss.WriteAll(file, whole, all); err != nil {
+		t.Fatalf("write --all naming the read hash: %v", err)
+	}
+	if text, _, _ := ss.ReadAll(file); !strings.Contains(text, "  - doc: s.side/01-x.md") {
+		t.Errorf("after write --all:\n%s", text)
+	}
+	if got, _, _ := ss.ReadSection(file, "A"); strings.TrimSpace(got) != "new" {
+		t.Errorf("write --all changed A to %q", got)
+	}
+
 	if err := os.WriteFile(file+".lock", []byte("holder: operator\n"), 0o644); err != nil {
 		t.Fatal(err)
+	}
+	if _, all, err = ss.ReadAll(file); err != nil {
+		t.Fatal(err)
+	}
+	if err := ss.WriteAll(file, whole, all); !errors.Is(err, ErrLocked) {
+		t.Errorf("write --all under the operator's lock: err = %v, want ErrLocked (exit 3)", err)
 	}
 	_, hash, err = ss.ReadSection(file, "B")
 	if err != nil {

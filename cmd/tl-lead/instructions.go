@@ -163,7 +163,12 @@ func renderOpen(bs []Bullet, hash string) string {
 // linkInstruction writes one answer link, pinned to the read `list` reported.
 // Unlike writeSection it never retries on stale: positions come from that
 // read, and recomputing against a newer one could link a different bullet.
-func linkInstruction(ss SessionSync, out io.Writer, file string, pos int, target, hash string) error {
+// The answer doc's index entry is written first and the link second (#424):
+// a split leaves an entry without a link, which rerunning link completes and
+// a reconcile otherwise drops, never a link without its entry, which would
+// read as the operator's "reviewed".
+func linkInstruction(d deps, out io.Writer, file string, pos int, target, hash string) error {
+	ss := d.ss
 	cur, h, err := ss.ReadSection(file, instructionsHeading)
 	if err != nil {
 		return refusal(file, instructionsHeading, err)
@@ -178,6 +183,9 @@ func linkInstruction(ss SessionSync, out io.Writer, file string, pos int, target
 		return nil
 	}
 	if err != nil {
+		return err
+	}
+	if err := syncIndex(d, out, file, []string{target}); err != nil {
 		return err
 	}
 	err = writeBody(body, func(path string) error { return ss.WriteSection(file, instructionsHeading, path, hash, nil) })
@@ -212,14 +220,14 @@ func newInstructionsCmd(d deps) *cobra.Command {
 	var hash string
 	link := &cobra.Command{
 		Use:   "link FILE POS TARGET --hash H",
-		Short: "Append ' → [answer](TARGET)' to bullet POS, if the section still has the hash list printed",
+		Short: "List TARGET in the discussions: index, then append ' → [answer](TARGET)' to bullet POS, if the section still has the hash list printed",
 		Args:  cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pos, err := strconv.Atoi(args[1])
 			if err != nil {
 				return fmt.Errorf("refused: POS %q is not a number", args[1])
 			}
-			return linkInstruction(d.ss, cmd.OutOrStdout(), args[0], pos, args[2], hash)
+			return linkInstruction(d, cmd.OutOrStdout(), args[0], pos, args[2], hash)
 		},
 	}
 	link.Flags().StringVar(&hash, "hash", "", "the section hash `list` printed (required)")

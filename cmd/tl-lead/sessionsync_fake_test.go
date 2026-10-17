@@ -24,6 +24,15 @@ type fakeSessionSync struct {
 
 	gap bool // status refuses with a delivery gap
 
+	// The whole-file view (#424): the frontmatter's lines and the sections in
+	// order (sorted by heading when unset), rendered by text() and replaced by
+	// WriteAll, so a section write and a whole-file write conflict as in couch.
+	front         string
+	order         []string
+	editAllBefore map[int]map[string]string // WriteAll call number → heading → new body
+	allWriteCalls int
+	allWrites     int
+
 	writeCalls int // every WriteSection call
 	writes     int // successful writes
 	seenAll    bool
@@ -89,5 +98,75 @@ func (f *fakeSessionSync) Diff(string) (string, error) { return f.diff, nil }
 
 func (f *fakeSessionSync) MarkAllSeen(string) error {
 	f.seenAll = true
+	return nil
+}
+
+
+func (f *fakeSessionSync) headings() []string {
+	if f.order != nil {
+		return f.order
+	}
+	hs := make([]string, 0, len(f.sections))
+	for h := range f.sections {
+		hs = append(hs, h)
+	}
+	slices.Sort(hs)
+	return hs
+}
+
+// text renders the whole file the way couch stores it.
+func (f *fakeSessionSync) text() string {
+	var b strings.Builder
+	if f.front != "" {
+		b.WriteString("---\n" + f.front + "\n---\n")
+	}
+	// Exactly invertible: WriteAll's parse returns each body byte for byte,
+	// so a section the whole-file write leaves alone keeps its hash, as in couch.
+	for _, h := range f.headings() {
+		b.WriteString("\n## " + h + "\n" + f.sections[h])
+	}
+	return b.String()
+}
+
+func (f *fakeSessionSync) ReadAll(string) (string, string, error) {
+	t := f.text()
+	return t, fakeHash(t), nil
+}
+
+func (f *fakeSessionSync) WriteAll(_, bodyPath, hash string) error {
+	f.allWriteCalls++
+	for h, b := range f.editAllBefore[f.allWriteCalls] {
+		f.sections[h] = b
+	}
+	if f.holder == "operator" {
+		return ErrLocked
+	}
+	if hash == "" {
+		return errors.New("couch --session-sync write: --if-hash is required")
+	}
+	if fakeHash(f.text()) != hash {
+		return ErrStale
+	}
+	raw, err := os.ReadFile(bodyPath)
+	if err != nil {
+		return err
+	}
+	text := string(raw)
+	f.front = ""
+	if rest, ok := strings.CutPrefix(text, "---\n"); ok {
+		fm, after, found := strings.Cut(rest, "\n---\n")
+		if !found {
+			return errors.New("fake: unterminated frontmatter")
+		}
+		f.front, text = fm, after
+	}
+	f.sections, f.order = map[string]string{}, nil
+	parts := strings.Split("\n"+text, "\n## ")
+	for _, part := range parts[1:] {
+		h, body, _ := strings.Cut(part, "\n")
+		f.sections[h] = body
+		f.order = append(f.order, h)
+	}
+	f.allWrites++
 	return nil
 }

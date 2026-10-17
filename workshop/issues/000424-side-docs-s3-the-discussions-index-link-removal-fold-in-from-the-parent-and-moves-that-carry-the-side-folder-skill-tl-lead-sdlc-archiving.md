@@ -54,7 +54,7 @@ The work, by place:
 Durable plan: [workshop/plans/000424-…-plan.md](../plans/000424-side-docs-s3-the-discussions-index-link-removal-fold-in-from-the-parent-and-moves-that-carry-the-side-folder-skill-tl-lead-sdlc-archiving-plan.md).
 
 - [x] M1 — the skill: `pkg/sidedoc` (links, index), `collaboration-modes.md` (index, no closing, fold-in from the parent, moves; rows 21 to 31), six new examples and the existing ones updated, checker invariants, move fixtures exported (version 2)
-- [ ] M2 — tl-lead: the session file's `discussions:` index (`instructions link` adds, `status submit` and `status index` reconcile) through `write --all`
+- [x] M2 — tl-lead: the session file's `discussions:` index (`instructions link` adds, `status submit` and `status index` reconcile) through `write --all`
 - [ ] M3 — sdlc: the three archive paths move a document's `.side/` folder with it
 
 ## Estimate
@@ -100,3 +100,4 @@ Items in order: M1 `pkg/sidedoc` (links, index; greenfield, design mostly settle
   - **Fold-in from the parent:** `→ [discussion](…/01-go-flags.md) 🤖[fold in]` became `… (folded 2026-10-17)` plus `Decided (operator): roll the slot restarts, each slot relaunched at the earliest moment it is idle, …` at the link's spot. 01 gained `Folded into the parent on 2026-10-17: the rolling slot restarts (after **Next**).` No entry was added; 01's existing entry stayed.
   - **Link deletion:** with the folded link to 01 deleted by the operator, the round dropped `  - doc: …/01-go-flags.md`, leaving only 02's entry. 01 is unchanged and stays.
   - Found on the way: the real `01-go-flags.md` has no `_From […], section "…"` backlink (S2's contract), a gap in the hand-written side doc. It exposed a checker bug: a malformed side doc's number wasn't counted, so the checker asked for a new `01-…` that would collide. Numbering now counts every file in the folder, with a mutation test.
+- M2 built: `ReadAll`/`WriteAll` on the `SessionSync` seam; the fake gained a whole-file view over the same state, exactly invertible, so an untouched section keeps its hash across a whole-file write, as in couch. `syncIndex` (`cmd/tl-lead/index.go`) wraps `sidedoc.ReconcileIndex` in a retried CAS write. `instructions link` writes the entry, then the link. `submit` reconciles (a refusal is reported, not fatal). `status index FILE [--add DOC]` is new. The live `TestSessionSyncConformance` (TL_LEAD_LIVE=1) confirms `read --all`/`write --all --if-hash` with stale and lock refusals.
