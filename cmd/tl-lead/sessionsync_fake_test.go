@@ -27,14 +27,16 @@ type fakeSessionSync struct {
 	// The whole-file view (#424): the frontmatter's lines and the sections in
 	// order (sorted by heading when unset), rendered by text() and replaced by
 	// WriteAll, so a section write and a whole-file write conflict as in couch.
-	front         string
-	order         []string
+	front string
+	order []string
 	// shadow is couch's diff baseline: what the agent last read or wrote,
 	// per section ("" key: the frontmatter). Diff reports what differs from
 	// it; a whole-file read or write resets all of it, a section write only
 	// its section. nil until first used: the starting state counts as seen.
-	shadow map[string]string
+	shadow        map[string]string
 	editAllBefore map[int]map[string]string // WriteAll call number → heading → new body
+	editOnReadAll map[int]map[string]string // ReadAll call number → edits landing just before it
+	readAllCalls  int
 	allWriteCalls int
 	allWrites     int
 
@@ -162,6 +164,10 @@ func (f *fakeSessionSync) text() string {
 }
 
 func (f *fakeSessionSync) ReadAll(string) (string, string, error) {
+	f.readAllCalls++
+	for h, b := range f.editOnReadAll[f.readAllCalls] {
+		f.sections[h] = b
+	}
 	t := f.text()
 	if f.shadow != nil {
 		f.seeAll()

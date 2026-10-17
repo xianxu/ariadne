@@ -153,10 +153,34 @@ func TestUnreadChanges(t *testing.T) {
 	for in, want := range map[string]string{
 		"lock: none\n": "", "lock: none": "", "": "",
 		"lock: none\n--- shadow\n+++ file\n": "--- shadow\n+++ file\n",
-		"## Needs you changed\n":              "## Needs you changed\n",
+		"## Needs you changed\n":             "## Needs you changed\n",
 	} {
 		if got := unreadChanges(in); got != want {
 			t.Errorf("unreadChanges(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// Every read of the whole file shows what it marks seen (BR-8, round 2): an
+// edit that makes the write stale is shown on the retry, and one landing
+// between the diff and the read is shown as changed lines.
+func TestIndexShowsEditsOnEveryRead(t *testing.T) {
+	why := "tl-status-op.side/01-why.md"
+	f, file := indexFake(t)
+	f.seen()
+	f.editAllBefore = map[int]map[string]string{1: {"Needs you": "- an edit that races the write"}}
+	out, err := run(t, deps{ss: f}, "status", "index", file, "--add", why)
+	if err != nil || !strings.Contains(out, "## Needs you changed") || f.allWriteCalls != 2 {
+		t.Fatalf("the edit that made the write stale was not shown: %v, calls %d\n%s", err, f.allWriteCalls, out)
+	}
+	if diff, _ := f.Diff(file); diff != "" {
+		t.Fatalf("diff after the write: %q", diff)
+	}
+	f, file = indexFake(t)
+	f.seen()
+	f.editOnReadAll = map[int]map[string]string{1: {"Needs you": "- an edit in the window"}}
+	out, err = run(t, deps{ss: f}, "status", "index", file, "--add", why)
+	if err != nil || !strings.Contains(out, "changed while reading") || !strings.Contains(out, "+- an edit in the window") {
+		t.Fatalf("an edit between the diff and the read was not shown: %v\n%s", err, out)
 	}
 }
