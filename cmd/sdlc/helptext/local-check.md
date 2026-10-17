@@ -57,8 +57,15 @@ THE SUITE (#332)
     sdlc local-check run --name suite      # on the pushed head
 
   A record on an ancestor still counts when everything changed since is
-  docs-only (close's own Log and card commits), so merge reruns the suite only
-  when code changed after it: an integration of main, or a fix.
+  docs-only (including close's Log/card commits and docs-only main integration).
+  Embedded help under cmd/, code, tests and configuration invalidate reuse.
+
+  After the branch suite passes, close that tested branch without manually
+  integrating each newer main and requeueing pre-close suites. Branch code
+  fixes still need verification; close's noon freshness gate still applies.
+  On SHIP, run `sdlc merge --yes`: it owns a landing turn while integrating
+  current main and testing the resulting code when the earlier pass cannot
+  cover it. Explicit local-check runs do not reserve the landing line.
 
 HOW MERGE USES IT
 

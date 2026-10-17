@@ -31,6 +31,13 @@ PERMISSIONS
   services), or change the item's scope.
 
 TESTS
+  Run the required recorded pre-close suite on the pushed issue branch. Once
+  it passes, close that tested branch without chasing newer main with manual
+  integrations and repeated pre-close suites. Branch code fixes still need
+  fresh verification, and close's existing noon freshness gate still applies.
+  On SHIP, enter `sdlc merge --yes` promptly: its landing turn integrates current
+  main and runs the authoritative integration suite when the integrated code
+  needs it. A branch pass does not authorize untested integrated code.
   A known failure the dispatch or the issue cites never ends a suite early.
   Run the rest with `make -k` and report every other failure by name.
   Apply the flake rule yourself: for an established intermittent failure,
@@ -73,8 +80,8 @@ LIVE CHECKS
 
 LANDING
   The landing line owns landing order; follow its admission order.
-  Landing is part of the item. On SHIP: merge main into the branch, run
-  `sdlc merge --yes` yourself from the slot holding the branch (never
+  Landing is part of the item. On SHIP: run `sdlc merge --yes` yourself
+  from the slot holding the branch; let its turn integrate current main (never
   `--no-validate`), report the merge with its PR number to the hub, and stop.
   "Stop after this item" means stop after landing it.
 

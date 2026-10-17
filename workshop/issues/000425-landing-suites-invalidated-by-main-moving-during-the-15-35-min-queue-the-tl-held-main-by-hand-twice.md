@@ -40,12 +40,14 @@ Options to evaluate:
 - With the chosen fix, a landing whose suite is running is not invalidated by another slot's landing; a test simulates two landings.
 - Docs-only drift during a landing's suite does not force a rerun, if that option is chosen and justified by the measurement.
 
+- Worker and TL guidance distinguish branch verification from authoritative integration: neither the hub nor workers manually chase newer main or hold main through pre-close suites; the existing freshness gate and real code-change verification remain in force.
+
 ## Plan
 
 - [x] Measure the last ten successful landings, separating integration-only code drift, docs-only drift, branch changes/mixed cases and failed-run recovery.
 - [ ] Characterize the existing protected phase with a deterministic two-landing integration test in cmd/sdlc/landingqueue_test.go: hold the first landing's suite, enqueue the second, prove it cannot integrate/test/merge until admission, then prove each integrates current main and tests its own integrated tree. Reuse the real-Git fixture and stateful GitHub fake (extend its per-branch PR state as needed); use channels at the suite seam for ordering, not scheduler timing as an oracle.
 - [ ] Characterize docs-only advancement during the first landing's suite using the actual main-publication fixture, and assert the same recorded suite is inherited after integration. Unit-test localRecordsOnAncestors with adversarial cumulative code/config/embedded-help changes to mechanically prevent unsafe inheritance. Reuse publishGateHasCodeSurface; add no second classifier or fingerprint.
-- [ ] Update cmd/tl-worker/help.md (TESTS/LANDING), cmd/sdlc/helptext/local-check.md and atlas/workflow/sdlc-binary.md to distinguish pre-close branch verification from authoritative current-main integration under the landing turn: retain the required pre-close recorded suite; after it passes, close that tested branch rather than manually chasing newer main with repeated pre-close suites. Branch code fixes still require their own tests and suite; the existing noon freshness gate still applies. On SHIP enter sdlc merge promptly, which integrates current main under admission and reruns only when the integrated code requires it. Do not hold other slots or issue filing by hand for ordinary prose drift.
+- [x] Update cmd/tl-lead/help.md (LANDING AND SMOKE TESTS), cmd/tl-worker/help.md (TESTS/LANDING), cmd/sdlc/helptext/local-check.md and atlas/workflow/sdlc-binary.md to distinguish pre-close branch verification from authoritative current-main integration under the landing turn: retain the required pre-close recorded suite; after it passes, close that tested branch rather than manually chasing newer main with repeated pre-close suites. Branch code fixes still require their own tests and suite; the existing noon freshness gate still applies. On SHIP enter sdlc merge promptly, which integrates current main under admission and reruns only when the integrated code requires it. Do not hold other slots or issue filing by hand for ordinary prose drift.
 - [ ] Run focused queue/CI/integration tests, then the required recorded full suite. Stage a bounded native help/landing check only with a fresh hub grant. Close through SDLC, land on SHIP and report verified hashes/PR.
 
 
@@ -113,3 +115,9 @@ Only completed retained attempt records are counted; cancelled/unrecorded runs a
 | #423 | c896f6a83d2fce9a92d66e0558871d4d | bfcfa3954220 | 0 | no |
 | #423 | 566a8fde2ee05a22964093a6b59cc9da | 2cf29e61ee88 | 0 | no |
 | #423 | b001e0f5ace18ddda5bab3e855d83785 | 5aa359483460 | 0 | no |
+
+### 2026-10-17 — TL approval
+
+TL approved the measured choice: retain the branch suite before close, close without chasing newer main, and leave authoritative current-main integration/suite to merge's existing turn. No new lease or freeze. Added the TL-side instruction in cmd/tl-lead/help.md: do not hold main by hand or direct pre-close integration. Quick flow admitted; production changes are embedded workflow guidance plus controlled characterization tests, not a new synchronization mechanism.
+
+- Guidance implementation: worker TESTS/LANDING, lead LANDING AND SMOKE TESTS, local-check help, and landing atlas now state the approved phase ownership and exceptions. Existing rendered help-contract tests for tl-worker/tl-lead pass (0.132s/0.142s); no local-gates configuration or ops files changed. Concurrent behavior coverage is being added separately before any cmd/sdlc test run.
