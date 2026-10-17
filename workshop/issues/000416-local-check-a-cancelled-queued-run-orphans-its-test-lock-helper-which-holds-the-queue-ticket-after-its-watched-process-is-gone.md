@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "b59c9a1c", done: "9912e973"}
 ---
 
 # local-check: a cancelled queued run orphans its test-lock helper, which holds the queue ticket after its watched process is gone
