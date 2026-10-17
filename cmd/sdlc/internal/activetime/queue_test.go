@@ -78,6 +78,13 @@ func TestSubtractQueueIdleReportsFullRecordedWait(t *testing.T) {
 	}
 }
 
+func TestQueueRawMinutesIncludesRecordedWaitWithoutActivity(t *testing.T) {
+	waits := []QueueInterval{{Start: qt(10), End: qt(20), AttemptID: "one"}}
+	if got := queueRawMinutes(waits); got != 10 {
+		t.Fatalf("recorded queue wait lost when no activity source overlaps: %v", got)
+	}
+}
+
 func TestSubtractQueueIdleOneAttemptAcrossTwoOwnedSources(t *testing.T) {
 	runs := []ActivityRun{{Start: qt(0), End: qt(30), Source: "a"}, {Start: qt(0), End: qt(30), Source: "b"}}
 	wait := QueueInterval{Start: qt(10), End: qt(20), Slot: "ariadne:1", AttemptID: "one"}

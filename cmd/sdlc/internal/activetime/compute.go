@@ -199,6 +199,7 @@ func Compute(opts Options) (Result, error) {
 			tools = append(tools, ToolSpan{Start: sp.Start, End: sp.End, Source: sp.Source, Kind: toolWork})
 		}
 		runs, res.QueueAttribution = subtractQueueIdle(runs, bound, tools)
+		res.QueueAttribution.RawMinutes = queueRawMinutes(opts.QueueIntervals)
 	}
 	res.Segments = claimActivityRuns(runs, commits, opts.CommitWeight, prefixWeight)
 	seenSources := map[string]bool{}

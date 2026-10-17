@@ -337,20 +337,7 @@ func subtractQueueIdle(runs []ActivityRun, waits []QueueInterval, work []ToolSpa
 		workBySource[source] = mergeIntervals(ivs)
 	}
 	var out []ActivityRun
-	var stats QueueAttribution
-	// Raw queue time belongs to attempts, not to the number of concurrent
-	// transcript sources from the owning slot.
-	raw := map[string]interval{}
-	for _, w := range waits {
-		raw[w.AttemptID] = interval{w.Start, w.End}
-	}
-	var rawIntervals []interval
-	for _, iv := range raw {
-		rawIntervals = append(rawIntervals, iv)
-	}
-	for _, iv := range mergeIntervals(rawIntervals) {
-		stats.RawMinutes += iv.e.Sub(iv.s).Minutes()
-	}
+	stats := QueueAttribution{RawMinutes: queueRawMinutes(waits)}
 	for _, run := range runs {
 		if !run.End.After(run.Start) {
 			continue
@@ -386,6 +373,24 @@ func subtractQueueIdle(runs []ActivityRun, waits []QueueInterval, work []ToolSpa
 		return out[i].Start.Before(out[j].Start)
 	})
 	return out, stats
+}
+
+// queueRawMinutes reports recorded wall-clock queue time once, irrespective of
+// how many admitted sources had activity during the interval.
+func queueRawMinutes(waits []QueueInterval) float64 {
+	raw := map[string]interval{}
+	for _, w := range waits {
+		raw[w.AttemptID] = interval{w.Start, w.End}
+	}
+	var rawIntervals []interval
+	for _, iv := range raw {
+		rawIntervals = append(rawIntervals, iv)
+	}
+	var minutes float64
+	for _, iv := range mergeIntervals(rawIntervals) {
+		minutes += iv.e.Sub(iv.s).Minutes()
+	}
+	return minutes
 }
 
 func intersect(a, b interval) interval {
