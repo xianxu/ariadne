@@ -67,6 +67,18 @@ THE SUITE (#332)
   current main and testing the resulting code when the earlier pass cannot
   cover it. Explicit local-check runs do not reserve the landing line.
 
+CANCEL (#400)
+
+  `sdlc local-check cancel [--name N]` stops the runs started from this
+  checkout, and only those, whether queued or running: every run holds a lease
+  (<git common dir>/sdlc/local-check-runs/) naming its checkout, locked for the
+  run's life. Cancel sends SIGTERM to the run itself, which stops its check,
+  frees its suite slot and removes its worktree, recording nothing; cancel
+  waits for that. Another checkout's runs are never touched, a pid whose
+  process start time no longer matches is not signalled, and leases of dead
+  runs are swept. Never stop a check by a PID picked from `ps`: every slot's
+  suite looks the same there.
+
 HOW MERGE USES IT
 
   A CI job that GitHub cancelled before any runner took it (no runner, zero
@@ -80,3 +92,4 @@ USAGE
 
   sdlc local-check run --name zellij        # one check on HEAD
   sdlc local-check run --all --rev <sha>    # every check on a pushed commit
+  sdlc local-check cancel                   # stop this checkout's runs

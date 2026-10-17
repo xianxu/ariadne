@@ -193,4 +193,12 @@ check "preflight: none at the default path changes nothing" '[ ! -e tests/host-p
 release $ph
 check "preflight: a passing preflight takes the free lock" 'WF_TEST_PREFLIGHT="$tmp/pf-ok.sh" make -n test >/dev/null 2>&1'
 
+# #400: a run in a temp worktree names its owning checkout, so waiters see the slot.
+export WF_TEST_LOCK_FILE="$tmp/owner" WF_TEST_SUITES=1
+sleep 30 & o=$!; sleep 30 & ow=$!
+WF_TEST_LOCK_OWNER=/work/slot7/repo lock $o >/dev/null
+out=$(WF_TEST_LOCK_TIMEOUT=1 lock $ow 2>"$tmp/o.err")
+check "owner: the held-by line names the owning checkout" '[ "$out" = timeout ] && grep -q "  - repo (/work/slot7/repo), make pid $o" "$tmp/o.err"'
+kill $o $ow
+
 [ $fails -eq 0 ] && echo "all passed" || { echo "$fails failed"; exit 1; }

@@ -5,6 +5,7 @@
 permissions	own	bounded headless browser run
 permissions-ask	own	visible window, touch the :0 slot
 known-failure	own	`make -k`
+cancel-own-check	own	`sdlc local-check cancel`
 real-hashes	own	`git rev-parse`
 project-file	own	The TL owns the project file
 filing	own	`sdlc unclaim --issue N`

@@ -31,7 +31,8 @@
 # WF_TEST_SUITES=<n> sets the slot count (default 2); WF_TEST_LOCK=off skips the
 # lock; WF_TEST_LOCK_TIMEOUT=<seconds> bounds the wait; WF_TEST_LOCK_FILE
 # overrides slot 0's path (tests). WF_TEST_LOCK_HELD_BY marks a nested run under
-# a locked make.
+# a locked make. WF_TEST_LOCK_OWNER names the checkout a run belongs to when it
+# runs elsewhere (sdlc local-check's temp worktree).
 
 import argparse
 import contextlib
@@ -234,7 +235,9 @@ def acquire(watch, weight=1):
     fds = [os.open(p, os.O_RDWR | os.O_CREAT, 0o644) for p in paths]
     queue = os.open(paths[0] + ".queue", os.O_RDWR | os.O_CREAT, 0o644)
     want = min(max(1, weight), len(fds))
-    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip() or os.getcwd()
+    # sdlc local-check runs in a temp worktree and names its checkout here (#400).
+    top = os.environ.get("WF_TEST_LOCK_OWNER") or subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip() or os.getcwd()
     rec = {"repo": os.path.basename(top), "worktree": top, "pid": watch,
            "started": datetime.now().isoformat(timespec="seconds")}
     # Makefile.workflow exports the holder's make pid to its children, so a nested

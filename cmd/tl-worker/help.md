@@ -47,6 +47,8 @@ TESTS
   count for landing. Unknown failures block until classified; fix reproducible
   branch defects on the branch. A second unrelated flake on the same head
   means stop and ask the hub. Never use a blind passing retry as evidence.
+  Stop your own check with `sdlc local-check cancel`; never kill a PID found
+  by `ps`, where every slot's suite looks the same.
 
 EVIDENCE
   Every commit hash you report comes only from Git output (`git rev-parse`),

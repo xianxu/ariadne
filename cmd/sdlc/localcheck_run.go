@@ -83,6 +83,10 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	if cleanupGit == nil {
 		cleanupGit = d.Git
 	}
+	// Registered before the worktree's cleanup so the lease (#400) is released
+	// last: a cancel waiting on it returns once the run has fully unwound.
+	releaseLease := func() {}
+	defer func() { releaseLease() }()
 	wt, cleanup, err := detachedWorktreeWithCleanup(d.Git, cleanupGit, sha)
 	if err != nil {
 		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
@@ -107,6 +111,14 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	// Git/network preparation and bookkeeping retain default termination.
 	ownedCtx, stopSignals := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stopSignals()
+	// The lease is taken once SIGTERM is ours, so `local-check cancel` always
+	// lands on the managed interruption path.
+	pidStarted, _ := processStartTime(os.Getpid())
+	lease := runLease{Root: canonicalRoot(d.Root), Check: c.Name, SHA: sha, PID: os.Getpid(), PIDStarted: pidStarted, Started: time.Now().UTC()}
+	if releaseLease, err = holdRunLease(localCheckRunsDir(logDir), lease); err != nil {
+		releaseLease = func() {}
+		fmt.Fprintf(d.Stderr, "[!] local check %s: no run lease, so `sdlc local-check cancel` cannot find this run: %v\n", c.Name, err)
+	}
 	heldBy, release, err := acquireSuiteSlot(ownedCtx, d, wt, c.Weight, helper)
 	if err != nil {
 		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
@@ -324,6 +336,9 @@ func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight in
 	cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
 	cmd.WaitDelay = time.Second
 	cmd.Dir = dir
+	// The run's worktree is a temp directory; name the owning checkout in the
+	// slot record so the queue's held-by lines identify the slot (#400).
+	cmd.Env = append(os.Environ(), "WF_TEST_LOCK_OWNER="+d.Root)
 	cmd.Stderr = d.Stderr
 	out, err := cmd.Output()
 	state := strings.TrimSpace(string(out))
