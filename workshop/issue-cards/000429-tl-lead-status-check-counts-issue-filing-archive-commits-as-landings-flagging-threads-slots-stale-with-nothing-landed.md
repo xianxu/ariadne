@@ -1,6 +1,6 @@
 ---
 id: 000429
-status: codecomplete
+status: done
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 7c6717dc1c3c2f923bfc8b981b9d752ab1b2b61c
         evidence_commit: 8d3f2f70fa648bafc1365f84af94ea57144b2aef
+        landed_commit: 9050e283f57c0e609488cc1b25162a95d77c006b
 ---
 
 # tl-lead status check counts issue-filing/archive commits as landings, flagging Threads/Slots stale with nothing landed
