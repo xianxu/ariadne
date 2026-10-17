@@ -225,29 +225,6 @@ func checkTree(fsys fs.FS) (sides map[string]sideDoc, errs []string) {
 	return sides, errs
 }
 
-// caseFields reads case.md's `submitted:` and `outcome:` lines.
-func caseFields(text string) (submitted, outcome string) {
-	submitted, outcome, _ = caseMove(text)
-	return submitted, outcome
-}
-
-// caseMove reads case.md's fields, and its `move: OLD NEW` line when the case
-// is a move (collaboration-modes.md §5).
-func caseMove(text string) (submitted, outcome string, move []string) {
-	for _, l := range strings.Split(text, "\n") {
-		if v, ok := strings.CutPrefix(l, "move: "); ok {
-			move = strings.Fields(v)
-		}
-		if v, ok := strings.CutPrefix(l, "submitted: "); ok {
-			submitted = v
-		}
-		if v, ok := strings.CutPrefix(l, "outcome: "); ok {
-			outcome = v
-		}
-	}
-	return submitted, outcome, move
-}
-
 // checkCase checks one case directory: both trees, what the round may change
 // between them, and its case.md.
 func checkCase(fsys fs.FS) []string {
@@ -257,7 +234,7 @@ func checkCase(fsys fs.FS) []string {
 	if err != nil {
 		return []string{"no case.md"}
 	}
-	submitted, outcome, move := caseMove(string(cm))
+	submitted, outcome, move := ParseCase(string(cm))
 	if outcome != "ok" && outcome != "fails" {
 		bad("case.md: outcome %q, want ok or fails", outcome)
 	}
