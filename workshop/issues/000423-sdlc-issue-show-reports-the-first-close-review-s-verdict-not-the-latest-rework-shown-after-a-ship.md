@@ -49,7 +49,7 @@ A reader of `issue show`, whether the TL, the operator or an agent deciding whet
 - [x] Verify text/JSON through the collector and archived evidence and run the recorded suite; proceed to the close/landing gates on this evidence.
 
 - [x] BR-1: separate binding presence from freshness and verify all four fresh/stale × present/absent cases.
-- [ ] BR-2: implement the approved round-identity plan and verify native checks plus the recorded suite.
+- [x] BR-2: implement the approved round-identity plan and verify native checks plus the recorded suite.
 
 ## Estimate
 
@@ -117,3 +117,5 @@ PQ-1 confirmed that the collector reads mutable refs independently, which can mi
 Final pure observer package passes (0.094s); focused observer/collector/writer tests pass (69.130s). Controlled real-Git ref advancement is RED before pinning and GREEN after; its ledger also proves nonfinal retained reviewer-run identity despite timestamp drift. The real close/archive lifecycle reports ledger rounds 4 and 6 before and after branch deletion. Unknown round identity remains independent of the readable verdict, exposed as round_error in JSON and round unknown in text. No writer or durable artifact format changes. Current origin/main 2bfbc4fa27ed30da2455ad38d4eaea0ddf82a774 is already integrated. Next: recorded suite on pushed head, then re-close.
 
 - Final TL-granted native conformance: staged 5aa3594834602a3bea91ca50774cdd50ca135763; all seven binaries exact revision, modified=false. Native text/JSON issue 416 selects completion-bound SHIP round 2 with earlier round 1 REWORK; issue 423 selects latest REWORK round 2 with earlier round 1 despite its real sidecar/ledger timestamp mismatch. Cleared :0 to clean main 2bfbc4fa27ed30da2455ad38d4eaea0ddf82a774, rebuilt/verified all seven exact revision, modified=false; hub notified free. Recorded suite b001e0f5ace18ddda5bab3e855d83785 remains queued on the same code head.
+
+- BR-2 recorded suite b001e0f5ace18ddda5bab3e855d83785 passed on 5aa3594834602a3bea91ca50774cdd50ca135763: all 12 shards over 1548 cmd/sdlc tests and 66 other packages, zero failures, 523.836s wall and 924.195s queued. Log SHA256 3e981496dfd7394d901ca7b1d583534f77485dfb6eb1f002a0fd927bc7a0303a. Current main remains integrated; CI was green. Re-close uses actual N/A because #420 is still deferred and queue polling contaminates attribution; no hours are guessed or hand-subtracted.
