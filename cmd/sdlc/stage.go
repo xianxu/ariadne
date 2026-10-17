@@ -96,6 +96,11 @@ func runStage(ctx context.Context, dir, address string, build, dryRun bool, stdo
 	}
 	if to.Head != commit || to.Branch != "" {
 		if out, err := r.GitInDir(to.Root, "-c", "submodule.recurse=false", "switch", "--detach", "--no-overwrite-ignore", commit); err != nil {
+			// A failed switch leaves the target as it was, so it gives back
+			// the lease it held before; a refusal never leaves it held.
+			if rerr := restoreStageLease(r, to.Root, held); rerr != nil {
+				return fmt.Errorf("switch %s to %s: %v\n%s\nnothing was staged, but restoring its stage lease failed: %v; run sdlc stage --clear %s", to.Address, shortOID(commit), err, out, rerr, to.Address)
+			}
 			return fmt.Errorf("switch %s to %s: %v\n%s\nnothing was staged", to.Address, shortOID(commit), err, out)
 		}
 	}
@@ -137,6 +142,16 @@ func runUnstage(ctx context.Context, dir, address, abandoned string, dryRun bool
 	if err != nil {
 		return fmt.Errorf("resolve %s: %w", address, err)
 	}
+	// The target is observed under the stage lock, so what --clear decides on
+	// is what it changes.
+	unlock, err := fleet.LockStage(r, id.WorktreeRoot)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	if id, err = workspace.Resolve(r, dir, address); err != nil {
+		return fmt.Errorf("resolve %s: %w", address, err)
+	}
 	to, err := observeMoveSide(r, id)
 	if err != nil {
 		return err
@@ -148,11 +163,6 @@ func runUnstage(ctx context.Context, dir, address, abandoned string, dryRun bool
 	if err != nil {
 		return err
 	}
-	unlock, err := fleet.LockStage(r, to.Root)
-	if err != nil {
-		return err
-	}
-	defer unlock()
 	held, err := readStageLease(r, to)
 	if err != nil {
 		return err
@@ -171,6 +181,10 @@ func runUnstage(ctx context.Context, dir, address, abandoned string, dryRun bool
 		}
 		if err := verifyMaterializedAssets(to.Root, assets.main.ViewOf(to.Head), issuesDir); err != nil {
 			return err
+		}
+		if dryRun && held.Holder != "" {
+			fmt.Fprintf(stdout, "Would release %s's stage lease on %s (already on its resting branch %s)\n", held.Holder, to.Address, to.Resting)
+			return nil
 		}
 		if !dryRun {
 			if held.Holder != "" {
@@ -291,6 +305,22 @@ func takeStageLease(r execGitRunner, to moveSide, holder string) (fleet.StageLea
 		return fleet.StageLease{}, nil, err
 	}
 	return held, unlock, nil
+}
+
+// restoreStageLease puts back the lease root held before this run: the same
+// record, or none.
+func restoreStageLease(r execGitRunner, root string, held fleet.StageLease) error {
+	if held == (fleet.StageLease{}) {
+		p, err := fleet.StagedRecordPath(r, root)
+		if err != nil {
+			return err
+		}
+		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		return nil
+	}
+	return fleet.WriteStageLease(r, root, held)
 }
 
 // readStageLease reads to's lease; a damaged one is never read as free.

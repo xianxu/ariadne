@@ -250,7 +250,7 @@ var Catalog = []Contract{
 			{"stages, keeps the branch, replaces and clears", []string{"TestStageKeepsTheBranchAndReplaces"}},
 			{"refusals change nothing", []string{"TestStageRefusalsChangeNothing"}},
 			{"a move replaces a staged slot", []string{"TestMoveReplacesAStagedSlot"}},
-			{"one stage at a time: another holder refuses; --abandoned frees", []string{"TestStageLeaseOneStageAtATime", "TestStageLeaseEdges"}},
+			{"one stage at a time: another holder refuses; --abandoned frees", []string{"TestStageLeaseOneStageAtATime", "TestStageLeaseEdges", "TestStageLeaseSwitchFailureRestores"}},
 		},
 	},
 	{

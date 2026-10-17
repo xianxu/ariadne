@@ -348,6 +348,13 @@ func TestStageLeaseEdges(t *testing.T) {
 		t.Fatalf("stage: %v\n%s", err, out)
 	}
 	testfix.Git(t, roots[0], "switch", "-q", "main")
+	var dry bytes.Buffer
+	if err := runUnstage(context.Background(), roots[1], ":0", "", true, &dry, &dry); err != nil || !strings.Contains(dry.String(), "Would release #1's stage lease") {
+		t.Fatalf("dry-run clear of a lease on a resting :0: %v\n%s", err, dry.String())
+	}
+	if l, _ := fleet.ReadStageLease(execGitRunner{}, roots[0]); l.Holder != "#1" {
+		t.Fatalf("a dry run released the lease: %+v", l)
+	}
 	if out, err := runUnstageTest(t, roots[1], ":0"); err != nil || !strings.Contains(out, "released #1's stage lease") {
 		t.Fatalf("clearing a lease on a resting :0: %v\n%s", err, out)
 	}
@@ -374,5 +381,33 @@ func TestStageLeaseEdges(t *testing.T) {
 	defer unlock()
 	if out, err := runStageTest(t, roots[1], ":0", false); err == nil || !strings.Contains(err.Error(), "another sdlc stage or move") {
 		t.Fatalf("a stage while another holds the lock: %v\n%s", err, out)
+	}
+}
+
+// #421 review BR-1: a failed switch leaves the target as it was, and gives back
+// the lease it held (here none), so it is not left held by the refused stage.
+func TestStageLeaseSwitchFailureRestores(t *testing.T) {
+	roots, _ := moveFixture(t)
+	lock := strings.TrimSpace(testfix.Capture(t, roots[0], "rev-parse", "--git-path", "HEAD.lock"))
+	if !filepath.IsAbs(lock) {
+		lock = filepath.Join(roots[0], lock)
+	}
+	if err := os.WriteFile(lock, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out, err := runStageTest(t, roots[1], ":0", false)
+	if err == nil || !strings.Contains(err.Error(), "nothing was staged") {
+		t.Fatalf("a stage whose switch fails: %v\n%s", err, out)
+	}
+	if l, err := fleet.ReadStageLease(execGitRunner{}, roots[0]); err != nil || l != (fleet.StageLease{}) {
+		t.Fatalf("the refused stage left a lease: %+v %v", l, err)
+	}
+	if err := os.Remove(lock); err != nil {
+		t.Fatal(err)
+	}
+	// git updated the index and tree before HEAD failed; put :0 back by hand.
+	testfix.Git(t, roots[0], "reset", "-q", "--hard")
+	if out, err := runStageTest(t, roots[2], ":0", false); err != nil {
+		t.Fatalf("another issue stages after the failed switch: %v\n%s", err, out)
 	}
 }

@@ -102,3 +102,10 @@ as today.
   site. Exempted it as a field name (48a2bc9f).
 - Merged main with #417 (42c2184e). `stage.go` and `helptext/stage.md` conflicted; kept #417's rebuild on `--clear`,
   and a resting target with a held lease now frees the lease, then rebuilds. Suite green on 42c2184e.
+- Close review round 1 (FIX-THEN-SHIP), all four fixed:
+  - BR-1: a failed switch now restores the lease the target held before (or none), so a refused stage never leaves it
+    held. `TestStageLeaseSwitchFailureRestores` forces the switch to fail with a `HEAD.lock`. git updates the index and
+    tree before failing on HEAD, so "nothing was staged" is about HEAD; the lease no longer lingers.
+  - BR-2: README's Concurrent issue work names the lease, the refusal and `--abandoned`.
+  - Minor: `--clear --dry-run` on a resting target with a held lease says it would release it.
+  - Minor: `--clear` takes the stage lock before observing the target.
