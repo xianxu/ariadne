@@ -1,8 +1,8 @@
 ---
 id: 000417
-status: codecomplete
+status: done
 created: 2026-10-16
-updated: 2026-10-16
+updated: 2026-10-17
 estimate_hours:
 github_issue:
 started: 2026-10-16T19:43:25-07:00
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 448595c97a127ed6d1bcd5d6e9b6906ea3018f55
         evidence_commit: 386c4cb919c5a0fa4797c385c126a7a9653f7738
+        landed_commit: 7e181784f5ee9f3c64c152c1a2d9692b7dd5ae51
 ---
 
 # sdlc stage --build skips sentinel binaries (bin/sdlc stays at main) and doesn't verify staged revisions
