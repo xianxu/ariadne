@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "ea3c6446", done: "85448d29"}
 ---
 
 # sdlc stage: one stage at a time in :0, a lease naming the holder; staging over another issue's live stage refuses
