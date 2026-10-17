@@ -101,7 +101,6 @@ func (f *fakeSessionSync) MarkAllSeen(string) error {
 	return nil
 }
 
-
 func (f *fakeSessionSync) headings() []string {
 	if f.order != nil {
 		return f.order
