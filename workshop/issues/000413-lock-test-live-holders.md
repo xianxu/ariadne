@@ -1,13 +1,13 @@
 ---
 id: 000413
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-16
 estimate_hours:
 severity: medium
-card_mirror: '2262f798d369b457e1d72efa73ea0b238ee9c19e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '3310edc0070dd1ac2b5cfb17a329646c9c0cd878' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-16T17:13:13-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "0bb87194", done: "7f1ba37e"}
+actual_hours: 0.82
 ---
 
 # Concurrent dead-holder lock test marks its live contenders dead and flakes with missing metadata
