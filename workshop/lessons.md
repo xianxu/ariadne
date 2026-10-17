@@ -37,6 +37,11 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- A strict identity check is defeated when a fallback or polling loop drops one
+  of its binding fields. Carry the current branch head through every PR selector,
+  retain competing OPEN records regardless of head, and test integration/recovery
+  with historical completed records still in the external service (#418).
+
 - A selected repository path is data, but Git pathspecs are patterns. Pass
   selected filenames with literal pathspec syntax at every Git operation,
   including status and cleanup; a wildcard filename otherwise expands to
