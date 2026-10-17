@@ -6,7 +6,7 @@ github_issue:
 created: 2026-10-16
 updated: 2026-10-16
 estimate_hours:
-card_mirror: '2499698616f1522c22046e03cfb16eb01bd48c70' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '60569104a3fc8936b7972e75776bb0d60fab23e6' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-16T18:46:26-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
-actual_hours: 0.22
+actual_hours: 0.55
 ---
 
 # S2 M2: every managed document type declares a default collaboration-mode
