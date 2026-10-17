@@ -417,6 +417,117 @@ func TestConcurrentAcquireReclaimsDeadHolderOnce(t *testing.T) {
 	}
 }
 
+func TestAcquireDelayedDeadObservationPreservesNewLiveHolder(t *testing.T) {
+	gitDir := filepath.Join(t.TempDir(), ".git")
+	lockDir := filepath.Join(gitDir, "sdlc.lock")
+	if err := os.MkdirAll(lockDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(lockDir, "meta.json"), Encode(Metadata{PID: 555, Hostname: "host-a", StartedAt: time.Now()}), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), testfix.HangCeiling)
+	sawDead, resume, released := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	waiting := make(chan struct{}, 1)
+	type result struct {
+		lock *Lock
+		err  error
+	}
+	done := make(chan result, 1)
+	var resumeOnce sync.Once
+	var workers sync.WaitGroup
+	var first, second *Lock
+	t.Cleanup(func() {
+		cancel()
+		resumeOnce.Do(func() { close(resume) })
+		if first != nil {
+			_ = first.Release()
+		}
+		workers.Wait()
+		select {
+		case r := <-done:
+			second = r.lock
+		default:
+		}
+		if second != nil {
+			_ = second.Release()
+		}
+	})
+	opts := Options{GitCommonDir: gitDir, Hostname: "host-a", PID: 222, CallerHandlesSignals: true,
+		ProcessAlive: func(pid int) bool { return pid != 555 }, Stderr: &bytes.Buffer{}, WaitTimeout: testfix.HangCeiling}
+	delayed := opts
+	delayed.ProcessAlive = func(pid int) bool {
+		if pid == 555 {
+			close(sawDead)
+			select {
+			case <-resume:
+			case <-ctx.Done():
+			}
+		}
+		return pid != 555 // Only the original holder is dead.
+	}
+	delayed.Sleep = func(ctx context.Context, _ time.Duration) error {
+		select {
+		case waiting <- struct{}{}:
+		default:
+		}
+		select {
+		case <-released:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	workers.Add(1)
+	go func() {
+		defer workers.Done()
+		lock, err := Acquire(ctx, delayed)
+		done <- result{lock, err}
+	}()
+	select {
+	case <-sawDead:
+	case <-ctx.Done():
+		t.Fatal("contender did not observe the dead holder")
+	}
+	opts.PID = 111
+	var err error
+	first, err = Acquire(ctx, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resumeOnce.Do(func() { close(resume) })
+	select {
+	case <-waiting:
+	case r := <-done:
+		second = r.lock
+		t.Fatalf("delayed contender completed while live PID 111 still held the lock: %v", r.err)
+	case <-ctx.Done():
+		t.Fatal("delayed contender neither waited nor completed")
+	}
+	meta, err := ReadMetadata(lockDir)
+	if err != nil || meta.PID != 111 {
+		t.Fatalf("live ownership changed: %+v, %v", meta, err)
+	}
+	if err := first.Release(); err != nil {
+		t.Fatal(err)
+	}
+	first = nil
+	close(released)
+	select {
+	case r := <-done:
+		second = r.lock
+		if r.err != nil {
+			t.Fatal(r.err)
+		}
+	case <-ctx.Done():
+		t.Fatal("contender did not acquire after release")
+	}
+	meta, err = ReadMetadata(lockDir)
+	if err != nil || meta.PID != 222 {
+		t.Fatalf("new ownership missing: %+v, %v", meta, err)
+	}
+}
+
 func TestAcquireCancelledContextDoesNotCreateLock(t *testing.T) {
 	dir := t.TempDir()
 	ctx, cancel := context.WithCancel(context.Background())

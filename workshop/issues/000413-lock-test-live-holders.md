@@ -52,3 +52,13 @@ Model the original dead holder separately from the two live contenders, and asse
 ### 2026-10-16 — plan
 
 Claimed and started from current main on its own branch. ARCH-MOCK/ORDER: liveness is PID-specific, ordering is controlled through existing ProcessAlive/Sleep seams, and every worker is canceled/joined before fixture teardown. ARCH-PURE/DRY: reuse Observe/Acquire and real filesystem ownership rather than another lock model. No new persistent family or production surface is intended. Inspect the stale-observation-to-rename boundary too: fixing the oracle alone must not conceal a real reclamation race. If the faithful model fails, record the counterexample and revise scope with the TL before changing production.
+
+### 2026-10-16 — faithful-model counterexample
+
+The unchanged blanket-dead test passed count=1000 in 24.539s at the new main-based branch; this does not erase the earlier 18/1000 RED. A new deterministic test, TestAcquireDelayedDeadObservationPreservesNewLiveHolder, failed immediately (0.01s): delayed contender completed while live PID 111 still held the lock, with nil acquisition error. PID-specific ProcessAlive marks only original PID 555 dead. Contender 222 reads 555 and pauses its liveness answer; contender 111 reclaims 555 and acquires; resume 222, which renames the current lock based on its stale 555 observation, then acquires concurrently. Real filesystem, no time sleeps, workers canceled/joined on teardown. This is a production stale-observation-to-rename race, not solely an invalid fake. Stop before production edits and revise with TL.
+
+## Revisions
+
+### 2026-10-16 — faithful ordering disproves test-only hypothesis
+
+The specified production-bug control fails under accurate liveness. The pending fix must guard reclamation against the lock generation changing after observation; changing only ProcessAlive would hide a reproducible safety defect. Scope proposal goes to the TL before production changes.
