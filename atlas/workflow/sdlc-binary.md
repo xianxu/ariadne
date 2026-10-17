@@ -299,7 +299,7 @@ Identity validation still applies before history is filtered.
 `gitx.TrunkFile.UpdateMany`: PR-owned close anchors select completed records
 (in a tracked repository, card completion bindings whose evidence commit is in
 the PR, #252 — their details archive with the done card mirrored in, #275), and one conditional commit
-moves issue/plan/review artifacts. Retry verifies
+moves issue/plan/review artifacts and their side folders (#424). Retry verifies
 reachable provenance and the complete archived generation before cleanup.
 Landing returns the selected checkout to unchanged `main` or `main-slotN`, then
 compare-and-deletes only the proven local issue ref and removes its configuration.

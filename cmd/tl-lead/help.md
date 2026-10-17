@@ -181,7 +181,8 @@ TALKING TO THE OPERATOR
       hash; `link` refuses (exit 6) if the section changed since that hash,
       because the positions may now name other bullets: list again. `list`
       shows only unlinked bullets; follow-ups on linked ones are in the
-      changes since your last read.
+      changes since your last read. `link` also lists TARGET in the file's
+      discussions: index (the operator's review queue), before the link.
     - A later follow-up on a deleted bullet's topic goes to Needs you if it
       needs the operator, else into Threads or a new bullet's answer.
   - Answer docs live in teams/<team>/tl-status-<operator>.side/, named
@@ -194,7 +195,13 @@ TALKING TO THE OPERATOR
   - The rest of the status file (Needs you, Threads, …) is discussion: an
     instruction there is carried out, and a 🤖 question opens a side doc in
     the same tl-status-<operator>.side/ folder (NN-<slug>.md), linked in place
-    of the marker. Write the status file only through `tl-lead status`
+    of the marker. List such a side doc in the index yourself:
+        tl-lead status index FILE --add tl-status-<operator>.side/NN-<slug>.md
+    The index is one-way (ariadne#424): the operator removes an entry to mark
+    it reviewed (never add it back unless you write something new for them in
+    that side doc: then --add it again), and deleting a bullet or a link drops
+    its entry: `submit` reconciles the index on each submit (or run `index FILE`).
+    Write the status file only through `tl-lead status`
     (below), never by the skill's whole-document write: the collaboration
     mode changes where your answers go, not how you write them.
   - Render sections from binaries wherever possible, on every pass. Hand-write

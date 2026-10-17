@@ -19,10 +19,12 @@ import (
 )
 
 // Schema and Version identify the manifest format. A consumer refuses any
-// other pair, so a change to the member shape bumps Version.
+// other pair, so a change to the member shape bumps Version. Version 2 adds
+// the fixture role (#424): the move cases' files, which parley's mover is
+// tested against (parley.nvim#373).
 const (
 	Schema  = "ariadne/universal-review-export"
-	Version = 1
+	Version = 2
 )
 
 // GrammarSource is the repository path of the one authored marker grammar,
@@ -52,7 +54,7 @@ type Member struct {
 	SHA256    string `json:"sha256"`
 }
 
-var roleRank = map[string]int{"round": 0, "grammar": 1, "collaboration-modes": 2, "adapter": 3, "mode": 4}
+var roleRank = map[string]int{"round": 0, "grammar": 1, "collaboration-modes": 2, "adapter": 3, "mode": 4, "fixture": 5}
 
 // defaults are parley's values for an omitted flag; the export records the
 // resolved value, so its mode records are dense.
@@ -125,8 +127,9 @@ func ParseMode(content, basename string) (Mode, error) {
 }
 
 // Build reads the skill directory and returns its manifest: round.md, the
-// grammar link, collaboration-modes.md (#412), every adapters/*.md and every
-// modes/*.md. The examples/ fixtures are not exported. Sizes and hashes
+// grammar link, collaboration-modes.md (#412), every adapters/*.md, every
+// modes/*.md, and every file of each move case under examples/ (role
+// fixture, named by its case). The other examples are not exported. Sizes and hashes
 // cover each file's resolved contents (the grammar is a symlink). The order is
 // total: role, then mode order (unordered last), then name, then path, as
 // parley lists its modes.
@@ -183,6 +186,29 @@ func Build(skill fs.FS) (Manifest, error) {
 			return Manifest{}, err
 		}
 	}
+	cases, err := fs.Glob(skill, "examples/*/case.md")
+	if err != nil {
+		return Manifest{}, err
+	}
+	for _, c := range cases {
+		b, err := fs.ReadFile(skill, c)
+		if err != nil {
+			return Manifest{}, err
+		}
+		if _, _, move := ParseCase(string(b)); move == nil {
+			continue
+		}
+		dir := path.Dir(c)
+		err = fs.WalkDir(skill, dir, func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return err
+			}
+			return add(Member{Role: "fixture", Name: path.Base(dir), Path: p})
+		})
+		if err != nil {
+			return Manifest{}, err
+		}
+	}
 	slices.SortFunc(m.Members, func(a, b Member) int {
 		if d := roleRank[a.Role] - roleRank[b.Role]; d != 0 {
 			return d
@@ -213,4 +239,22 @@ func Marshal(m Manifest) ([]byte, error) {
 		return nil, err
 	}
 	return append(b, '\n'), nil
+}
+
+// ParseCase reads an example's case.md: its `submitted:` and `outcome:`
+// lines, and its `move: OLD NEW` fields when the case is a move
+// (collaboration-modes.md §5).
+func ParseCase(text string) (submitted, outcome string, move []string) {
+	for _, l := range strings.Split(text, "\n") {
+		if v, ok := strings.CutPrefix(l, "move: "); ok {
+			move = strings.Fields(v)
+		}
+		if v, ok := strings.CutPrefix(l, "submitted: "); ok {
+			submitted = v
+		}
+		if v, ok := strings.CutPrefix(l, "outcome: "); ok {
+			outcome = v
+		}
+	}
+	return submitted, outcome, move
 }

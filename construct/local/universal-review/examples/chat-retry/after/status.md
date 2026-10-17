@@ -1,5 +1,7 @@
 ---
 collaboration-mode: {chat: ["Operator instructions"]}
+discussions:
+  - doc: status.side/2026-10-16-01-s4-cost.md
 ---
 
 # TL status

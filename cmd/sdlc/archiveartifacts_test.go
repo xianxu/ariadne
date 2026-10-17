@@ -464,7 +464,7 @@ func TestPreparedArchiveMovesFinishesPartialAssetMove(t *testing.T) {
 	}
 	for _, m := range moves {
 		if m.IssuePath == src {
-			if err := finishAssetArchiveMoves(".", []preparedArchiveMove{m}); err != nil {
+			if err := finishArchiveMemberMoves(".", []preparedArchiveMove{m}); err != nil {
 				t.Fatal(err)
 			}
 		}

@@ -737,6 +737,9 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 			if err := verifyArchivedAssetMoves(ctx, mainPath, moves); err != nil {
 				die(stderr, err.Error())
 			}
+			if err := verifyArchivedSideMoves(mainPath, moves); err != nil {
+				die(stderr, err.Error())
+			}
 			if out, gerr := mergeRunner.GitInDir(mainPath, commitArgs...); gerr != nil {
 				die(stderr, fmt.Sprintf("git -C %s commit: %v\n%s", mainPath, gerr, out))
 			}
@@ -881,6 +884,13 @@ func archiveDoneIssuesInDir(ctx context.Context, stderr io.Writer, repo, mainPat
 		if err != nil {
 			return moves, err
 		}
+		// #424: the issue's and its plans' side folders move with them;
+		// prepared (and refused) before anything moves.
+		sideDocs := issueArchiveDocs(filepath.Join(issuesDir, base), archiveDestination(historyDir, vocab.ArchiveIssues, base), plansFull, plansDir, historyDir)
+		sideMoves, err := prepareSideArchive(mainPath, sideDocs, gitSrcUntracked(func(a ...string) ([]byte, error) { return mergeRunner.GitInDir(mainPath, a...) }))
+		if err != nil {
+			return moves, err
+		}
 		if err := os.MkdirAll(issuesSubFull, 0o755); err != nil {
 			return moves, fmt.Errorf("mkdir %s: %v", issuesSubFull, err)
 		}
@@ -896,7 +906,7 @@ func archiveDoneIssuesInDir(ctx context.Context, stderr io.Writer, repo, mainPat
 			IssuePath:   filepath.Join(issuesDir, base),
 			HistoryPath: archiveDestination(historyDir, vocab.ArchiveIssues, base),
 		})
-		if err := finishAssetArchiveMoves(mainPath, assetMoves); err != nil {
+		if err := finishArchiveMemberMoves(mainPath, assetMoves); err != nil {
 			return moves, err
 		}
 		moves = append(moves, assetMoves...)
@@ -910,6 +920,10 @@ func archiveDoneIssuesInDir(ctx context.Context, stderr io.Writer, repo, mainPat
 			return moves, perr
 		}
 		moves = append(moves, planMoves...)
+		if err := finishSideArchive(mainPath, sideDocs, sideMoves); err != nil {
+			return moves, err
+		}
+		moves = append(moves, sideMoves...)
 	}
 	// #304 D4: the archived issues ended; so do their reviewed-head pins.
 	unpinArchived(stderr, mainPath, moves)

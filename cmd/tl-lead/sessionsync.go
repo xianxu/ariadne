@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -22,6 +23,15 @@ type SessionSync interface {
 	// MarkAllSeen reads the whole file (`read --all`), which tells Couch the
 	// agent has now seen every edit.
 	MarkAllSeen(file string) error
+	// ReadAll reads the whole file and its hash (`read --all --json`), for a
+	// write outside every section: the frontmatter's discussions: index (#424).
+	ReadAll(file string) (text, hash string, err error)
+	// WriteAll replaces the whole file with bodyPath if it still has hash.
+	WriteAll(file, bodyPath, hash string) error
+	// Peek reads the whole file without moving couch's diff baseline (read
+	// --all and write --all both mark every edit seen), for a decision that
+	// must not consume the operator's unread edits.
+	Peek(file string) (string, error)
 }
 
 // SyncStatus is the part of `status --json` tl-lead reads.
@@ -151,4 +161,31 @@ func (c couchSessionSync) Diff(file string) (string, error) {
 func (c couchSessionSync) MarkAllSeen(file string) error {
 	_, err := c.run("read", "--all", file)
 	return err
+}
+
+func (c couchSessionSync) ReadAll(file string) (string, string, error) {
+	raw, err := c.run("read", "--all", file, "--json")
+	if err != nil {
+		return "", "", err
+	}
+	r, err := decodeReply("read", raw)
+	if err != nil {
+		return "", "", err
+	}
+	if r.Read == nil || r.Read.Hash == "" {
+		return "", "", fmt.Errorf("couch --session-sync read --all: no hash in the reply")
+	}
+	return r.Read.Body, r.Read.Hash, nil
+}
+
+func (c couchSessionSync) WriteAll(file, bodyPath, hash string) error {
+	_, err := c.run("write", "--all", bodyPath, file, "--if-hash", hash)
+	return err
+}
+
+// Peek reads the file on disk, as submit does for its markers: couch keeps
+// the file current and only its own reads move the baseline.
+func (c couchSessionSync) Peek(file string) (string, error) {
+	raw, err := os.ReadFile(file)
+	return string(raw), err
 }

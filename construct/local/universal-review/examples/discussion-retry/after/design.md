@@ -1,3 +1,7 @@
+---
+discussions:
+  - doc: design.side/01-why-per-file.md
+---
 # Locks
 
 ## Locks

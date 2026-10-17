@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+
+	"github.com/xianxu/ariadne/pkg/sidedoc"
 )
 
 // The examples (#412) are reference rounds for collaboration-modes.md: one
@@ -22,9 +24,9 @@ import (
 var (
 	datedNameRE    = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2})-(\d{2,6})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$`)
 	numberedNameRE = regexp.MustCompile(`^(\d{2,6})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$`)
-	sideLinkRE     = regexp.MustCompile(`→ \[(?:discussion|answer|notes)\]\(([^)\s]+)\)`)
 	backlinkRE     = regexp.MustCompile(`(?m)^_From \[[^\]]*\]\([^)#\s]+\), section "([^"]+)"\._`)
 	foldedRE       = regexp.MustCompile(`^ \(folded \d{4}-\d{2}-\d{2}\)`)
+	foldNoteRE     = regexp.MustCompile(`(?m)^(?:Folded into|Proposed in) the parent on \d{4}-\d{2}-\d{2}: `)
 )
 
 // sideDocName classifies a side doc's file name. A dated answer doc is tried
@@ -58,23 +60,7 @@ func nextSideDocName(names []string, date, slug string) string {
 }
 
 // frontmatter returns a document's flat `key: value` lines, values raw.
-func frontmatter(text string) (map[string]string, bool) {
-	rest, ok := strings.CutPrefix(text, "---\n")
-	if !ok {
-		return nil, false
-	}
-	fm, _, ok := strings.Cut(rest, "\n---\n")
-	if !ok {
-		return nil, false
-	}
-	out := map[string]string{}
-	for _, l := range strings.Split(fm, "\n") {
-		if k, v, ok := strings.Cut(l, ":"); ok && !strings.HasPrefix(l, " ") {
-			out[k] = strings.TrimSpace(v)
-		}
-	}
-	return out, true
-}
+var frontmatter = sidedoc.Fields
 
 // quotedMarker checks a marker's YAML form: double-quoted, one line, with
 // only the \\ and \" escapes, so operator text can't become frontmatter.
@@ -135,20 +121,37 @@ func checkTree(fsys fs.FS) (sides map[string]sideDoc, errs []string) {
 		// tree can show: a side doc is the target of at most one link (an
 		// already-linked doc is never reused), and only from its own parent.
 		targets := map[string]int{}
-		for _, m := range sideLinkRE.FindAllStringSubmatch(text, -1) {
-			t := path.Join(dir, m[1])
+		for _, link := range sidedoc.SideLinks(text) {
+			t := path.Join(dir, link)
 			if _, err := fs.Stat(fsys, t); err != nil {
-				bad("%s: link %s does not resolve", p, m[1])
+				bad("%s: link %s does not resolve", p, link)
 				continue
 			}
 			if !strings.HasSuffix(path.Dir(t), ".side") {
 				continue // an older qa/ answer file, not a side doc
 			}
 			if targets[t]++; targets[t] == 2 {
-				bad("%s: two links point to %s; a linked side doc is never reused", p, m[1])
+				bad("%s: two links point to %s; a linked side doc is never reused", p, link)
 			}
 			if tfm, _ := frontmatter(read(t)); path.Join(path.Dir(t), tfm["parent"]) != p {
-				bad("%s: links %s, whose parent is %q", p, m[1], tfm["parent"])
+				bad("%s: links %s, whose parent is %q", p, link, tfm["parent"])
+			}
+		}
+		// Every index entry names a side doc whose parent: is this document
+		// (collaboration-modes.md §4, "The index").
+		entries, err := sidedoc.Entries(text)
+		if err != nil {
+			bad("%s: %v", p, err)
+		}
+		for _, e := range entries {
+			t := path.Join(dir, e)
+			ttext := read(t)
+			if ttext == "" {
+				bad("%s: index entry %s does not resolve", p, e)
+				continue
+			}
+			if tfm, _ := frontmatter(ttext); path.Join(path.Dir(t), tfm["parent"]) != p {
+				bad("%s: index entry %s names a side doc whose parent is %q", p, e, tfm["parent"])
 			}
 		}
 		if !strings.HasSuffix(dir, ".side") {
@@ -198,25 +201,12 @@ func checkTree(fsys fs.FS) (sides map[string]sideDoc, errs []string) {
 		at := strings.Index(ptext, link)
 		sides[p] = sideDoc{Key: dir + "\x00" + pp + "\x00" + marker + "\x00" + section[1], Linked: at >= 0}
 		// An approval's fold marks the parent's link to the side doc it folded.
-		if (strings.Contains(text, "; folded into the parent.") || strings.Contains(text, "; proposed in the parent")) && (at < 0 || !foldedRE.MatchString(ptext[at+len(link):])) {
+		if foldNoteRE.MatchString(text) && (at < 0 || !foldedRE.MatchString(ptext[at+len(link):])) {
 			bad("%s: records a fold, but the parent's link to it is not marked (folded <date>)", p)
 		}
 		return nil
 	})
 	return sides, errs
-}
-
-// caseFields reads case.md's `submitted:` and `outcome:` lines.
-func caseFields(text string) (submitted, outcome string) {
-	for _, l := range strings.Split(text, "\n") {
-		if v, ok := strings.CutPrefix(l, "submitted: "); ok {
-			submitted = v
-		}
-		if v, ok := strings.CutPrefix(l, "outcome: "); ok {
-			outcome = v
-		}
-	}
-	return submitted, outcome
 }
 
 // checkCase checks one case directory: both trees, what the round may change
@@ -228,7 +218,7 @@ func checkCase(fsys fs.FS) []string {
 	if err != nil {
 		return []string{"no case.md"}
 	}
-	submitted, outcome := caseFields(string(cm))
+	submitted, outcome, move := ParseCase(string(cm))
 	if outcome != "ok" && outcome != "fails" {
 		bad("case.md: outcome %q, want ok or fails", outcome)
 	}
@@ -239,11 +229,20 @@ func checkCase(fsys fs.FS) []string {
 			bad("%s: %v", t, err)
 			continue
 		}
-		if _, err := fs.Stat(sub, submitted); err != nil {
-			bad("%s: the submitted document %q is missing", t, submitted)
+		doc := submitted
+		if t == "after" && len(move) == 2 && submitted == move[0] {
+			doc = move[1] // the move renamed it
+		}
+		if _, err := fs.Stat(sub, doc); err != nil {
+			bad("%s: the submitted document %q is missing", t, doc)
 		}
 		sides, tErrs := checkTree(sub)
 		for _, e := range tErrs {
+			// A move's orphan folder has no document by definition, so its
+			// side docs' parent: does not resolve.
+			if len(move) == 2 && isOrphanPath(t, e, move[1]) {
+				continue
+			}
 			bad("%s/%s", t, e)
 		}
 		trees[t] = sides
@@ -254,19 +253,50 @@ func checkCase(fsys fs.FS) []string {
 		}
 		return errs
 	}
+	if move != nil {
+		// A move is checked whole: after/ is exactly the move contract applied
+		// to before/, so parley's mover and the agent share one fixture.
+		if len(move) != 2 {
+			bad("case.md: move %v, want `move: OLD NEW`", move)
+			return errs
+		}
+		want := projectMove(treeFiles(fsys, "before"), move[0], move[1])
+		got := treeFiles(fsys, "after")
+		for p, b := range want {
+			if g, ok := got[p]; !ok {
+				bad("after/%s: missing; the move produces it", p)
+			} else if g != b {
+				bad("after/%s: differs from the move's projection:\n%s", p, b)
+			}
+		}
+		for p := range got {
+			if _, ok := want[p]; !ok {
+				bad("after/%s: the move does not produce it", p)
+			}
+		}
+		return errs
+	}
+	errs = append(errs, checkIndexTransitions(fsys)...)
 	// Side docs are never pruned; new ones take the next free numbers; and an
 	// unlinked doc for the same ask is relinked rather than duplicated.
 	before, after := trees["before"], trees["after"]
+	// Numbering counts every file in a folder, a malformed side doc's too:
+	// its number is taken whether or not it meets the contract.
+	beforeFiles := treeFiles(fsys, "before")
 	byDir := map[string][]string{}
+	for p := range beforeFiles {
+		if strings.HasSuffix(path.Dir(p), ".side") {
+			byDir[path.Dir(p)] = append(byDir[path.Dir(p)], path.Base(p))
+		}
+	}
 	for p := range before {
-		byDir[path.Dir(p)] = append(byDir[path.Dir(p)], path.Base(p))
 		if _, ok := after[p]; !ok {
 			bad("after/ dropped the side doc %s (side docs are never pruned)", p)
 		}
 	}
 	var added []string
 	for p := range after {
-		if _, ok := before[p]; !ok {
+		if _, ok := beforeFiles[p]; !ok {
 			added = append(added, p)
 		}
 	}
@@ -287,19 +317,97 @@ func checkCase(fsys fs.FS) []string {
 	return errs
 }
 
-func sameTree(fsys fs.FS) bool {
-	files := func(t string) map[string]string {
-		out := map[string]string{}
-		_ = fs.WalkDir(fsys, t, func(p string, d fs.DirEntry, err error) error {
-			if err == nil && !d.IsDir() {
-				b, _ := fs.ReadFile(fsys, p)
-				out[strings.TrimPrefix(p, t+"/")] = string(b)
+// treeFiles reads one tree's files by their path inside it.
+func treeFiles(fsys fs.FS, t string) map[string]string {
+	out := map[string]string{}
+	_ = fs.WalkDir(fsys, t, func(p string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			b, _ := fs.ReadFile(fsys, p)
+			out[strings.TrimPrefix(p, t+"/")] = string(b)
+		}
+		return nil
+	})
+	return out
+}
+
+// checkIndexTransitions checks what a round may do to the links and index
+// entries between before/ and after/ (collaboration-modes.md §4, "The
+// index"): it never removes a link; it drops an entry only when its link is
+// gone; every entry it leaves is linked; and it adds an entry only for a side
+// doc it wrote or linked this round (a relink adds the entry back), and never
+// for a fold.
+func checkIndexTransitions(fsys fs.FS) []string {
+	var errs []string
+	bad := func(f string, a ...any) { errs = append(errs, fmt.Sprintf(f, a...)) }
+	before, after := treeFiles(fsys, "before"), treeFiles(fsys, "after")
+	for p, a := range after {
+		if !strings.HasSuffix(p, ".md") {
+			continue
+		}
+		dir := path.Dir(p)
+		linked := map[string]bool{}
+		for _, l := range sidedoc.SideLinks(a) {
+			linked[path.Join(dir, l)] = true
+		}
+		b, existed := before[p]
+		wasLinked := map[string]bool{}
+		if existed {
+			for _, l := range sidedoc.SideLinks(b) {
+				wasLinked[path.Join(dir, l)] = true
+				if !linked[path.Join(dir, l)] {
+					bad("after/%s: the link to %s is gone; a round never removes a link", p, l)
+				}
 			}
-			return nil
-		})
-		return out
+		}
+		was := map[string]bool{}
+		if existed {
+			old, _ := sidedoc.Entries(b)
+			for _, e := range old {
+				was[path.Join(dir, e)] = true
+				if linked[path.Join(dir, e)] && !slices.Contains(mustEntries(a), e) {
+					bad("after/%s: dropped the entry %s while its link remains", p, e)
+				}
+			}
+		}
+		for _, e := range mustEntries(a) {
+			t := path.Join(dir, e)
+			if !linked[t] {
+				bad("after/%s: the entry %s has no link; a deleted link drops its entry", p, e)
+			}
+			if !was[t] && before[t] == after[t] && wasLinked[t] {
+				bad("after/%s: added the entry %s, but the round neither wrote that side doc nor linked it", p, e)
+			}
+			// A fold's closing note is a record that needs nothing from the
+			// operator: the fold adds no entry.
+			if !was[t] && len(foldNoteRE.FindAllString(after[t], -1)) > len(foldNoteRE.FindAllString(before[t], -1)) {
+				bad("after/%s: added the entry %s for a fold; a fold adds no index entry", p, e)
+			}
+		}
 	}
-	b, a := files("before"), files("after")
+	return errs
+}
+
+// isOrphanPath reports whether a tree error is about a file in the orphan
+// folder a move to newPath displaces: NEW.side/ before the move, NEW_N.side/
+// after it.
+func isOrphanPath(tree, e, newPath string) bool {
+	base := strings.TrimSuffix(newPath, ".md")
+	if tree == "before" {
+		return strings.HasPrefix(e, base+".side/")
+	}
+	rest, ok := strings.CutPrefix(e, base+"_")
+	n, _, _ := strings.Cut(rest, ".side/")
+	_, err := strconv.Atoi(n)
+	return ok && err == nil && strings.Contains(rest, ".side/")
+}
+
+func mustEntries(doc string) []string {
+	e, _ := sidedoc.Entries(doc)
+	return e
+}
+
+func sameTree(fsys fs.FS) bool {
+	b, a := treeFiles(fsys, "before"), treeFiles(fsys, "after")
 	if len(a) != len(b) {
 		return false
 	}
@@ -405,7 +513,56 @@ func TestCheckCaseCatches(t *testing.T) {
 			m["after/e.md"] = &fstest.MapFile{Data: []byte("# E\n\n→ [discussion](d.side/01-why.md)\n")}
 		}, "whose parent is"},
 		{"no backlink", edit(side, "_From [D](../d.md), section \"D\"._", "From D."), "no backlink"},
-		{"a fold whose link is not marked", edit(side, "# Why?\n", "# Why?\n\nDecided (operator): x; folded into the parent.\n"), "not marked (folded"},
+		{"a fold whose link is not marked", edit(side, "# Why?\n", "# Why?\n\nFolded into the parent on 2026-10-17: the reason.\n"), "not marked (folded"},
+		{"an entry naming a side doc of another document", func(m fstest.MapFS) {
+			m["after/d.md"] = &fstest.MapFile{Data: []byte("---\ndiscussions:\n  - doc: d.side/01-why.md\n---\n# D\n\nText. → [discussion](d.side/01-why.md)\n")}
+			edit(side, "../d.md", "../e.md")(m)
+			m["after/e.md"] = &fstest.MapFile{Data: []byte("# E\n")}
+		}, "names a side doc whose parent is"},
+		{"an entry that does not resolve", func(m fstest.MapFS) {
+			edit("after/d.md", "# D", "---\ndiscussions:\n  - doc: d.side/09-gone.md\n---\n# D")(m)
+		}, "does not resolve"},
+		{"an entry left without its link", func(m fstest.MapFS) {
+			m["before/d.side/01-why.md"] = m[side]
+			m["before/d.md"] = &fstest.MapFile{Data: []byte("---\ndiscussions:\n  - doc: d.side/01-why.md\n---\n# D\n\nText.\n")}
+			m["after/d.md"] = m["before/d.md"]
+		}, "has no link"},
+		{"an entry dropped while its link remains", func(m fstest.MapFS) {
+			m["before/d.side/01-why.md"] = m[side]
+			m["before/d.md"] = &fstest.MapFile{Data: []byte("---\ndiscussions:\n  - doc: d.side/01-why.md\n---\n# D\n\nText. → [discussion](d.side/01-why.md) 🤖[tighten]\n")}
+			m["after/d.md"] = &fstest.MapFile{Data: []byte("---\ndiscussions:\n---\n# D\n\nText. → [discussion](d.side/01-why.md)\n")}
+		}, "while its link remains"},
+		{"a link removed by the round", func(m fstest.MapFS) {
+			m["before/d.side/01-why.md"] = m[side]
+			m["before/d.md"] = &fstest.MapFile{Data: []byte("# D\n\nText. → [discussion](d.side/01-why.md)\n")}
+			m["after/d.md"] = &fstest.MapFile{Data: []byte("# D\n\nText.\n")}
+		}, "never removes a link"},
+		{"an entry added for a side doc the round neither wrote nor linked", func(m fstest.MapFS) {
+			m["before/d.side/01-why.md"] = m[side]
+			m["before/d.md"] = &fstest.MapFile{Data: []byte("# D\n\nText. → [discussion](d.side/01-why.md)\n")}
+			m["after/d.md"] = &fstest.MapFile{Data: []byte("---\ndiscussions:\n  - doc: d.side/01-why.md\n---\n# D\n\nText. → [discussion](d.side/01-why.md)\n")}
+		}, "neither wrote"},
+		{"a number taken by a malformed side doc", func(m fstest.MapFS) {
+			m["before/d.side/01-old.md"] = &fstest.MapFile{Data: []byte("---\ntype: side-doc\n---\nno backlink\n")}
+			m["after/d.side/01-old.md"] = m["before/d.side/01-old.md"]
+		}, "named 02-why.md"},
+		{"an entry added by a fold", func(m fstest.MapFS) {
+			m["before/d.side/01-why.md"] = m[side]
+			m["before/d.md"] = &fstest.MapFile{Data: []byte("# D\n\nText. → [discussion](d.side/01-why.md) 🤖[fold in]\n")}
+			m["after/d.md"] = &fstest.MapFile{Data: []byte("---\ndiscussions:\n  - doc: d.side/01-why.md\n---\n# D\n\nFolded. → [discussion](d.side/01-why.md) (folded 2026-10-17)\n")}
+			edit(side, "section \"D\"._\n", "section \"D\"._\n\nFolded into the parent on 2026-10-17: the reason.\n")(m)
+		}, "a fold adds no index entry"},
+		{"a move whose after/ is not the projection", func(m fstest.MapFS) {
+			for k := range m {
+				delete(m, k)
+			}
+			f := func(s string) *fstest.MapFile { return &fstest.MapFile{Data: []byte(s)} }
+			m["case.md"] = f("submitted: d.md\noutcome: ok\nmove: d.md e.md\n")
+			m["before/d.md"] = f("# D\n\n→ [discussion](d.side/01-why.md)\n")
+			m["before/d.side/01-why.md"] = f(string(goodCase()[side].Data))
+			m["after/e.md"] = f("# D\n\n→ [discussion](d.side/01-why.md)\n")
+			m["after/e.side/01-why.md"] = m["before/d.side/01-why.md"]
+		}, "differs from the move's projection"},
 		{"a pruned side doc", func(m fstest.MapFS) { m["before/d.side/01-why.md"] = m[side]; delete(m, side) }, "never pruned"},
 		{"a failed round that changed the document", edit("case.md", "outcome: ok", "outcome: fails"), "changes nothing"},
 	} {
@@ -445,7 +602,7 @@ func TestExamples(t *testing.T) {
 }
 
 // The state table has its rows, and the rules a static case can't show are
-// stated (rows 9, 15 and 17: a real effect, a closed doc, the lock).
+// stated (rows 9, 15 and 17: a real effect, a deleted item's doc, the lock).
 func TestCollaborationModesProse(t *testing.T) {
 	b, err := os.ReadFile(filepath.Join(skillDir(t), "collaboration-modes.md"))
 	if err != nil {
@@ -453,19 +610,22 @@ func TestCollaborationModesProse(t *testing.T) {
 	}
 	doc := string(b)
 	flat := strings.Join(strings.Fields(doc), " ")
-	for i := 1; i <= 20; i++ {
+	for i := 1; i <= 29; i++ {
 		if !strings.Contains(doc, fmt.Sprintf("\n| %d | ", i)) {
 			t.Errorf("the state table lacks row %d", i)
 		}
 	}
 	for _, phrase := range []string{
-		"add a closing record at the end of the side doc",    // row 9
-		"never reopen or extend it",                          // row 15
-		"the adapter's exit 3",                               // row 17
-		"Never create a `.side/` inside a `.side/`",          // the flat folder
-		"Swapping a marker for its link is applied directly", // propose-strike
-		"don't fold again",                                   // a refused side-doc write after the fold landed
-		"a plain relative path with no `#anchor`",            // the body's backlink
+		"add a closing record at the end of the side doc",                           // row 9
+		"leaves its answer doc in place",                                            // row 15
+		"Deleting a link drops its entry; removing an entry never touches the link", // the one-way rule
+		"Rename the orphan to `spec_1.side/`",                                       // the orphan suffix
+		"Folded into the parent on <date>:",                                         // the fold's closing note the checker reads
+		"the adapter's exit 3",                                                      // row 17
+		"Never create a `.side/` inside a `.side/`",                                 // the flat folder
+		"Swapping a marker for its link is applied directly",                        // propose-strike
+		"don't fold again",                                                          // a refused side-doc write after the fold landed
+		"a plain relative path with no `#anchor`",                                   // the body's backlink
 	} {
 		// Compared with whitespace collapsed, so rewrapping the prose doesn't break it.
 		if !strings.Contains(flat, phrase) {
