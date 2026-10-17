@@ -84,6 +84,7 @@ Items in order: M1 `pkg/sidedoc` (links, index; greenfield, design mostly settle
 ## Log
 
 ### 2026-10-17
+- 2026-10-17: closed M2 — BR-8 fixed for the class: every whole-file read goes through readAllShowingUnread (diff, Peek, read, changed lines shown); TestIndexShowsEditsOnEveryRead (stale retry shows the racing edit; an edit between diff and read shown as lines), TestIndexKeepsUnreadEdits, the M2 sequence tests pass; live conformance passes. BR-10: plan Integration points/ARCH-ORDER/Revisions updated with the class rule.; review verdict: SHIP
 - 2026-10-17: closed M1 — BR-7 fixed by rule: ReconcileIndex and Entries decode the frontmatter with yaml.v3 before and after the rewrite and refuse on any disagreement; TestReconcileIndexRefuses adds the column-0 comment, tab and extra-key inputs; FuzzReconcileIndex 3m/4.6M execs against the YAML oracle; pkg/reviewexport (18 examples, export current) passes.; review verdict: SHIP
 - Filed from the S3 design (ops 07, final at cf0f0ebf); parley's half is parley.nvim#373 (filed by the TL from this slot's draft).
 - 07's rows 18 to 28 become 21 to 31: the skill's states table already runs to 20.
