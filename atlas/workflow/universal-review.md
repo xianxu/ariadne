@@ -18,6 +18,12 @@ skill carries the rest.
   side-doc contract (one flat `<name>.side/` folder per document, `NN-slug` and `YYYY-MM-DD-NN-slug` names,
   frontmatter, the write order: side docs, then a folded parent, then the submitted document; retries relink an
   unlinked doc by `parent:` + `marker:` + section, never one already linked), and the state table. Design: ops universal-agent-input-interface, S2.
+  **S3 (#424):** a side doc has no closed state; the parent's `discussions:` frontmatter is the operator's review
+  queue, under a one-way rule (deleting a link drops its entry; removing an entry means reviewed); fold-in is asked
+  from the parent by 🤖[fold in] at the link (an approval inside a side doc only records its Decided line); and §5
+  is the move contract (the `.side/` tree moves with its document, a name change rewrites the parent's references,
+  a taken folder name suffixes the orphan). `pkg/sidedoc` is the Go home of the links, the index and the tree, shared
+  by the checker, tl-lead and sdlc's archiving.
   **Per-type defaults (#415):** every managed type declares its default where the type is defined. Issues and
   projects get theirs from `scaffold.collaboration_mode` in their CUE model, which `sdlc issue new` and
   `sdlc project new` write. Datatypes declare it in their prototype's Frontmatter shape table
@@ -25,10 +31,11 @@ skill carries the rest.
   and answer docs follow §4 of collaboration-modes.md (discussion). The TL session file follows tl-lead's help.
   `vocab.CollaborationModes` is the Go copy of the three values.
 - **`modes/*.md`** — the six stock modes, canonical here since #399; parley snapshots them.
-- **`examples/`** — twelve reference rounds, one per case: `before/` and `after/` trees plus `case.md` (the submitted
-  document, the outcome, the changes, the reply). A live check runs a round on a copy of `before/` and compares it
-  with `after/`. `pkg/reviewexport`'s `TestExamples` holds every case to the side-doc contract (a test-only checker,
-  mutation-tested); the examples are not exported.
+- **`examples/`** — eighteen reference rounds, one per case: `before/` and `after/` trees plus `case.md` (the
+  submitted document, the outcome, the changes, the reply; a move case adds `move: OLD NEW`). A live check runs a round
+  on a copy of `before/` and compares it with `after/`. `pkg/reviewexport`'s `TestExamples` holds every case to the
+  side-doc contract and the index rules (a test-only checker, mutation-tested), and a move case to an exact projection
+  of the move contract. Only the move cases are exported, as parley's fixtures.
 - **`adapters/file-edit.md`** — editing the file. A document is edited directly only on a
   confirmed untracked lookup; a `type: session-sync` file (tracked even outside a slot) or a registered one goes through
   `couch --session-sync` status → diff → `read --all` (the snapshot, hash H) →
@@ -38,8 +45,9 @@ skill carries the rest.
   diffed against the copy the agent saved after its last write (operator requirement).
 - **`review-convention.md`** — a symlink to `construct/local/fix/review-convention.md`, the
   one authored marker grammar.
-- **`export.json`** — the versioned manifest (`ariadne/universal-review-export` v1) parley's
-  sync script snapshots: round, grammar (with `source`), collaboration-modes (exactly one, #412), adapters, and dense mode records,
+- **`export.json`** — the versioned manifest (`ariadne/universal-review-export` v2) parley's
+  sync script snapshots: round, grammar (with `source`), collaboration-modes (exactly one, #412), adapters, dense mode
+  records, and (v2, #424) the move cases' files as `fixture` members for parley's mover (parley.nvim#373),
   each with the resolved file's bytes and sha256, in a total order. Built by
   `pkg/reviewexport`; `TestExportCurrent` fails when it is stale, and
   `UPDATE_REVIEW_EXPORT=1 go test ./pkg/reviewexport` regenerates it.

@@ -53,7 +53,7 @@ The work, by place:
 
 Durable plan: [workshop/plans/000424-…-plan.md](../plans/000424-side-docs-s3-the-discussions-index-link-removal-fold-in-from-the-parent-and-moves-that-carry-the-side-folder-skill-tl-lead-sdlc-archiving-plan.md).
 
-- [ ] M1 — the skill: `pkg/sidedoc` (links, index), `collaboration-modes.md` (index, no closing, fold-in from the parent, moves; rows 21 to 31), six new examples and the existing ones updated, checker invariants, move fixtures exported (version 2)
+- [x] M1 — the skill: `pkg/sidedoc` (links, index), `collaboration-modes.md` (index, no closing, fold-in from the parent, moves; rows 21 to 31), six new examples and the existing ones updated, checker invariants, move fixtures exported (version 2)
 - [ ] M2 — tl-lead: the session file's `discussions:` index (`instructions link` adds, `status submit` and `status index` reconcile) through `write --all`
 - [ ] M3 — sdlc: the three archive paths move a document's `.side/` folder with it
 
@@ -89,3 +89,8 @@ Items in order: M1 `pkg/sidedoc` (links, index; greenfield, design mostly settle
 - sdlc never renames an issue or plan file (`set-title` keeps the slug), and archiving keeps the base name, so sdlc's part is a same-name move of the `.side/` folder, with no link rewriting.
 - parley's `scripts/sync-review-protocol.py` refuses a role it doesn't know and any version but 1, so exporting the move fixtures bumps the export to version 2, which parley.nvim#373 accepts. Parley's committed snapshot is unaffected until it syncs.
 - Plan approved by the TL; plan-quality cleared in 2 rounds (PQ-1: M3 now follows the asset archive's four stages; the Minors fixed). Estimate 4.13h (v3.1). The estimate-quality judge flagged M2 (CAS and conformance tests) and M3 (six archive paths) as thin and the smoke round as unitemized; kept as derived, to compare at close.
+- M1 built: `pkg/sidedoc` (links, the index; fuzzed: it found a leading-space path that didn't round-trip, now refused), the contract (07 sections 3 to 7), six new examples plus the five updated, checker invariants, export v2 with the move fixtures.
+- Rows: 07's row 23 (fold in from the parent) and row 24 (an approval in a side doc) update the skill's rows 10 and 7 instead of duplicating them, so the new rows are 21 to 29, not 21 to 31.
+- The fold's closing note has a fixed form (`Folded into the parent on <date>: …`, or `Proposed in the parent on …` under propose-strike) so the checker can tie it to the folded link.
+- Two invariants I first wrote were wrong and are not in the checker: "every new side doc gets an entry" (an answer doc that only records an action adds none, 07 section 4), and "an entry is added only for a changed side doc" (a relink adds the entry back without changing the doc).
+- Move cases: the per-tree check skips the orphan folder (no document by definition); a link from another document into a folder isn't a fixture, because the tree rules allow a link only from the side doc's parent (TestProjectMove covers non-rewriting).
