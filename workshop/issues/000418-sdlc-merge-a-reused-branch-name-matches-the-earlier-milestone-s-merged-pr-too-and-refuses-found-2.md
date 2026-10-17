@@ -45,7 +45,7 @@ Rule: match only PRs whose head is this branch's current head, or that are OPEN.
 
 - [x] Add fake-GitHub regressions through the real landing flow for completed older heads beside the open PR and ambiguous open PRs; confirm red.
 - [x] Reuse one head-aware candidate rule in strict selection, interrupted integration and head-registration polling (ARCH-DRY); preserve identity validation and stale-open push guidance.
-- [ ] Run targeted tests, stage the binary for pair#618 live verification through the hub, record the full suite, then close and land.
+- [x] Run targeted tests, stage the binary for pair#618 live verification through the hub, record the full suite, then close and land.
 
 ## Log
 
@@ -104,3 +104,7 @@ Main gained #414 and #415 code while the live landing was blocked. Merged origin
 Verified TL receipt b9130677-9b77-414b-80ab-413c7a9b41af: pair:2 now uses the TL's separate copy at /Users/xianxu/.local/share/ops-tl/sdlc-418, and the TL states our live evidence stands because pair:2 passed PR matching, directing release of :0 now and continuation of #418's suite and landing. This revises the live acceptance dependency: successful live PR selection is accepted for #418; the actual pair merge remains with pair:2 rather than blocking this fix on pair-side test failures. The original Done when records the intended full-flow scenario; no claim is made that PR #387 has merged yet.
 
 Restored ariadne:0 with git checkout main and make build sdlc-build (no refresh). Clean Git HEAD f5927dfedbfb2e6dbc7d8c91ac56085732181b7b. All seven bin/* tools report exactly that vcs.revision and vcs.modified=false. Reported :0 FREE to the TL in submitted receipt 63e791d2-19f7-4815-9592-6bac431927dc. No further stage ownership is retained by this item.
+
+### 2026-10-16 — combined-head verification green; entering close and landing
+
+Recorded suite on integrated head 59b68b975178173b451f0e33337e70676a078201 passed all 1,525 SDLC tests and 66 other packages across 12 shards, exit 0 in 493.2s after 3,822s queue wait. Saved .git/sdlc/local-checks/59b68b975178173b451f0e33337e70676a078201/suite.log, sha256 prefix 5663b9463967. No code changed since that run. The verification work in the final Plan row is complete; its close/land clause is the workflow now being entered, with final outcome to be recorded by the gates. The original failed attempt, corrected green attempt, live matching proof, TL acceptance revision and all-bin restoration remain recorded above. PR #387 remains open at this checkpoint; do not claim its merge.
