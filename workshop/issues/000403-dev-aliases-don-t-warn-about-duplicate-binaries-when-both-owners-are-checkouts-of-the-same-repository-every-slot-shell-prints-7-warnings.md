@@ -59,3 +59,11 @@ repos owning one binary name).
 Claimed and started from current main. The current duplicate check counts paths, while final selection is last sorted path. The shell's sibling plus substrate scan deliberately finds both checkouts. ARCH-PURE: normalize Git origin URLs at collection time, then make the warning decision from data; leave command emission and owner selection alone. This stays inside the quick-flow shell.
 
 The new fixture failed before implementation on the same-origin warning and strict status, then passed after the identity change (69/69). The test also exposed `/var` and `/private/var` spelling of one macOS temp directory; canonicalizing `--workspace` preserves deterministic owner selection. Read-only check from parley.nvim:4 selected its ariadne substrate and emitted no warning in `--strict --list`. `bash -n`, `git diff --check`, and `make -k build` passed.
+
+Before the queued full suite began, I compared the shell normalization with `gitx.PublicationRepository`: GitHub owner/repo is case-insensitive, while other hosts cannot safely be folded across transports. I interrupted the queued attempt, added the mixed-case GitHub regression, and changed the identity rule accordingly. I also added a missing-origin strict collision assertion; no unmeasured success is inferred from a missing remote.
+
+## Revisions
+
+### 2026-10-17 — Preserve non-GitHub identity conservatively
+
+The original plan said to normalize origin URLs generically. GitHub's known identity semantics support SSH/HTTPS and case folding; arbitrary Git hosts may distinguish those. Normalize only GitHub's recognized forms, compare other hosts by exact URL, and keep unknown origins distinct by path. The selected binary remains last sorted checkout.

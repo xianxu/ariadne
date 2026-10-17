@@ -208,7 +208,7 @@ printf 'substrate %s\n' "$SUBSTRATE" > "$SLOT/construct/deps"
 git -C "$WS/ariadne" init -q
 git -C "$SUBSTRATE" init -q
 git -C "$WS/ariadne" remote add origin https://github.com/example/ariadne.git
-git -C "$SUBSTRATE" remote add origin git@github.com:example/ariadne.git
+git -C "$SUBSTRATE" remote add origin git@github.com:Example/Ariadne.git
 slot_out="$(cd "$SLOT" && bash "$GEN" --workspace "$WS" --list --strict 2>"$WS/slot.err")"; slot_rc=$?
 [ "$slot_rc" -eq 0 ] && ok "same-origin checkouts pass --strict" || ko "same-origin checkouts failed --strict"
 [ ! -s "$WS/slot.err" ] && ok "same-origin checkouts produce no warning" || ko "same-origin warning: [$(cat "$WS/slot.err")]"
@@ -233,6 +233,13 @@ if bash "$GEN" --workspace "$WS" --strict >/dev/null 2>&1; then
 	ko "--strict should exit non-zero on duplicate"
 else
 	ok "--strict exits non-zero on duplicate"
+fi
+# Missing origin cannot prove sameness, so it must not hide a collision.
+git -C "$WS/repoa" remote remove origin; git -C "$WS/repob" remote remove origin
+if bash "$GEN" --workspace "$WS" --strict >/dev/null 2>&1; then
+	ko "unknown origins should not suppress a duplicate"
+else
+	ok "unknown origins keep --strict collision"
 fi
 # without the dup, --strict is clean (remove repob's dupe)
 rm -rf "$WS/repob" "$WS/repoa"

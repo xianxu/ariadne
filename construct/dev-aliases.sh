@@ -200,12 +200,14 @@ skip_repo() {
 	return 1
 }
 
-# A Git origin identifies checkouts of one repository. Recognized HTTPS and SSH
-# forms normalize to host/path; an absent or unfamiliar origin remains unique by
-# checkout path, so uncertainty never suppresses a real collision.
+# A Git origin identifies checkouts of one repository. GitHub HTTPS and SSH
+# forms normalize to the same case-insensitive owner/repo. Other hosts keep
+# their exact URL: transport and path case may matter there. An absent or
+# unfamiliar origin remains unique by checkout path.
 repo_identity() {
-	local repo="$1" url host path
+	local repo="$1" url raw host path
 	url="$(git -C "$repo" config --get remote.origin.url 2>/dev/null)" || url=""
+	raw="$url"
 	case "$url" in
 		git@*:* ) url="${url#git@}"; host="${url%%:*}"; path="${url#*:}" ;;
 		ssh://git@*/* ) url="${url#ssh://git@}"; host="${url%%/*}"; path="${url#*/}" ;;
@@ -213,8 +215,13 @@ repo_identity() {
 		* ) printf 'path:%s\n' "$repo"; return ;;
 	esac
 	[ -n "$host" ] && [ -n "$path" ] || { printf 'path:%s\n' "$repo"; return; }
+	host="$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')"
+	if [ "$host" != github.com ]; then
+		printf 'origin:%s\n' "$raw"
+		return
+	fi
 	path="${path%/}"; path="${path%.git}"
-	printf 'origin:%s/%s\n' "$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')" "$path"
+	printf 'origin:github.com/%s\n' "$(printf '%s' "$path" | tr '[:upper:]' '[:lower:]')"
 }
 
 # scan_repo emits "bin<TAB>repo<TAB>identity" for every owned binary in ONE repo: cmd dirs
