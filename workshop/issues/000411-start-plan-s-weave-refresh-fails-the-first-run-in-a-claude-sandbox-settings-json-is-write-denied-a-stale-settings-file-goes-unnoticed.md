@@ -91,6 +91,8 @@ After verification, close through SDLC and land on SHIP.
 
 - Close round 2 SHIP: BR-1/BR-2 addressed, BR-3 withdrawn after reviewer inspected exact host log and executable-source parity. One advisory BR-4 corrected atlas wording from merge-only to destination-wide deferral, including removed declarations and alternate writers. Actual measured/adopted 1.94h; no gate waiver. Recorded suite on 1813e25d remains queued; CI and passing suite remain landing requirements.
 
+- Revised recorded full suite PASSED on 1813e25dbdb94a2e86e7f500c1950e6d89cf559a: 12 shards over 1522 cmd/sdlc tests and all 66 other packages exit 0, zero failures. Runtime 713.7s (11m54s) after 1294s gate wait. Saved log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/1813e25dbdb94a2e86e7f500c1950e6d89cf559a/suite.log; sha256 prefix 5beefc489588; recorded sdlc-local/suite pass. Subsequent changes are documentation and close/review records only. SHIP and CI green; proceed through normal validated landing.
+
 ## Estimate
 
 *Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only; source flagged stale, provisional.*
