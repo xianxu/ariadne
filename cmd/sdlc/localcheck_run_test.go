@@ -298,7 +298,7 @@ func TestSuiteAgentFieldsKeepsKnownAgentWithoutModel(t *testing.T) {
 }
 
 func TestRunLocalCheckMeasuresLockWaitAndExactHeadAgent(t *testing.T) {
-	d, _, gh, _ := localRunRepo(t, "acquired")
+	d, _, gh, stderr := localRunRepo(t, "acquired")
 	helper := filepath.Join(d.Root, "scripts", "test-lock.py")
 	body := fakeSuiteLockHelper("import time\ntime.sleep(0.12)\nprint('acquired')\n")
 	if err := os.WriteFile(helper, []byte(body), 0o755); err != nil {
@@ -322,11 +322,14 @@ func TestRunLocalCheckMeasuresLockWaitAndExactHeadAgent(t *testing.T) {
 	}
 	rows, warnings, err := readSuiteAttempts(filepath.Join(d.Root, ".git", "sdlc", "test-stats"), 10)
 	if err != nil || len(warnings) != 0 || len(rows) != 1 {
-		t.Fatalf("rows: %+v %v %v", rows, warnings, err)
+		t.Fatalf("rows: %+v %v %v; log=%s; stderr=%s", rows, warnings, err, rec.LogPath, stderr.String())
 	}
 	a := rows[0]
 	if a.QueueSeconds == nil || *a.QueueSeconds < 0.1 {
 		t.Fatalf("queue wait not measured around lock: %+v", a.QueueSeconds)
+	}
+	if a.QueuedAt == nil || a.AcquiredAt == nil || !a.AcquiredAt.After(*a.QueuedAt) || a.AcquiredAt.After(a.StartedAt) {
+		t.Fatalf("queue endpoints do not precede the run: %+v", a)
 	}
 	if a.SHA != sha || a.Agent == nil || *a.Agent != "codex" || a.Model == nil || *a.Model != "gpt-6-sol" || a.Effort == nil || *a.Effort != "medium" {
 		t.Fatalf("exact-head identity: %+v", a)

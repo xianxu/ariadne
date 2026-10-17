@@ -71,6 +71,7 @@ type contentBlock struct {
 	Name      string          `json:"name"`        // tool_use: tool name (e.g. "Agent")
 	ID        string          `json:"id"`          // tool_use: id matched by a later tool_result
 	ToolUseID string          `json:"tool_use_id"` // tool_result: id of the dispatch it answers
+	Input     json.RawMessage `json:"input"`
 }
 
 type codexPayload struct {
@@ -80,6 +81,8 @@ type codexPayload struct {
 	Name      string          `json:"name"`
 	Arguments string          `json:"arguments"`
 	Input     json.RawMessage `json:"input"`
+	CallID    string          `json:"call_id"`
+	Output    json.RawMessage `json:"output"`
 }
 
 // walkSessionEvents parses one session .jsonl file into the events we attribute.

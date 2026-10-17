@@ -19,6 +19,8 @@ type SuiteAttempt struct {
 	Model        *string         `json:"model,omitempty"`
 	Effort       *string         `json:"effort,omitempty"`
 	StartedAt    time.Time       `json:"started_at"`
+	QueuedAt     *time.Time      `json:"queued_at,omitempty"`
+	AcquiredAt   *time.Time      `json:"acquired_at,omitempty"`
 	FinishedAt   time.Time       `json:"finished_at"`
 	MainBaseline bool            `json:"main_baseline"`
 	QueueSeconds *float64        `json:"queue_seconds"`

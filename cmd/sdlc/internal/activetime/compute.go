@@ -58,6 +58,10 @@ type Options struct {
 	// for each transcript source. The gap/span calculation runs before clipping.
 	ActivityWindows map[string][]ActivityWindow
 	SourcePrefixes  map[string]SourcePrefix
+	// QueueIntervals are validated exact attempt evidence; Compute applies each
+	// wait to admitted activity sources of the attempt's owning slot.
+	QueueIntervals []QueueInterval
+	SourceSlots    map[string]string
 }
 
 // Result is the structured outcome of a Compute run — the single value consumed
@@ -79,6 +83,10 @@ type Result struct {
 	// SourceIDs identifies actual contributing runs, excluding old same-cwd
 	// sessions with no activity in the admitted sample.
 	SourceIDs []string
+	// QueueBindingSourceIDs identifies transcripts required to replay selected
+	// queue waits, even when subtraction removes all their activity.
+	QueueBindingSourceIDs []string
+	QueueAttribution      QueueAttribution
 }
 
 const suspiciousSpanMin = 120.0
@@ -156,6 +164,26 @@ func Compute(opts Options) (Result, error) {
 	runs, err := ClipActivity(activityRuns(events, spans, opts.ThresholdMin), opts.ActivityWindows)
 	if err != nil {
 		return Result{}, err
+	}
+	if len(opts.QueueIntervals) > 0 {
+		bound := make([]QueueInterval, 0, len(opts.QueueIntervals))
+		bindingSources := map[string]bool{}
+		for _, wait := range opts.QueueIntervals {
+			forSources, err := bindQueueSources(wait, runs, opts.SourceSlots)
+			if err != nil {
+				return Result{}, err
+			}
+			for _, b := range forSources {
+				bound = append(bound, b)
+				if !bindingSources[b.Source] {
+					bindingSources[b.Source] = true
+					res.QueueBindingSourceIDs = append(res.QueueBindingSourceIDs, b.Source)
+				}
+			}
+		}
+		slices.Sort(res.QueueBindingSourceIDs)
+		runs, res.QueueAttribution = subtractQueueIdle(runs, bound)
+		res.QueueAttribution.RawMinutes = queueRawMinutes(opts.QueueIntervals)
 	}
 	res.Segments = claimActivityRuns(runs, commits, opts.CommitWeight, prefixWeight)
 	seenSources := map[string]bool{}

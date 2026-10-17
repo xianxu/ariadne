@@ -16,6 +16,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 const (
@@ -34,7 +36,7 @@ var suiteRepo = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 var suiteAttemptJSONFields = map[string]bool{
 	"version": true, "id": true, "repo": true, "sha": true, "check": true,
 	"slot": true, "agent": true, "model": true, "effort": true,
-	"started_at": true, "finished_at": true, "main_baseline": true,
+	"started_at": true, "finished_at": true, "queued_at": true, "acquired_at": true, "main_baseline": true,
 	"queue_seconds": true, "wall_seconds": true, "exit": true, "timed_out": true,
 	"log_sha256": true, "log_path": true, "failures": true, "units": true,
 }
@@ -136,11 +138,25 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 	if !localCheckName.MatchString(a.Check) {
 		return a, errors.New("invalid check name")
 	}
+	if a.Slot != "" {
+		address, err := workspace.ParseAddress(a.Slot)
+		if err != nil || address.Repo == "" || address.String() != a.Slot {
+			return a, errors.New("invalid attempt slot")
+		}
+	}
 	if !suiteHex.MatchString(a.LogSHA256) || len(a.LogSHA256) != 64 {
 		return a, errors.New("invalid log hash")
 	}
 	if a.StartedAt.IsZero() || a.FinishedAt.IsZero() || a.FinishedAt.Before(a.StartedAt) || a.StartedAt.Location() != time.UTC || a.FinishedAt.Location() != time.UTC {
 		return a, errors.New("invalid UTC time window")
+	}
+	if (a.QueuedAt == nil) != (a.AcquiredAt == nil) {
+		return a, errors.New("queue endpoints must be an all-or-none pair")
+	}
+	if a.QueuedAt != nil {
+		if a.QueuedAt.IsZero() || a.AcquiredAt.IsZero() || a.QueuedAt.Location() != time.UTC || a.AcquiredAt.Location() != time.UTC || a.AcquiredAt.Before(*a.QueuedAt) || a.AcquiredAt.After(a.StartedAt) || a.QueueSeconds == nil || math.Abs(a.AcquiredAt.Sub(*a.QueuedAt).Seconds()-*a.QueueSeconds) > 1e-6 {
+			return a, errors.New("invalid queue endpoints or duration")
+		}
 	}
 	if a.Exit < -1 || a.TimedOut && a.Exit == 0 {
 		return a, errors.New("invalid exit/timeout")
@@ -168,6 +184,20 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 	}
 	return a, nil
 }
+
+// suiteAttemptQueueWindow preserves the documented late-shifted convention for
+// old records: StartedAt follows post-acquisition setup, not lock acquisition.
+func suiteAttemptQueueWindow(a SuiteAttempt) (time.Time, time.Time, bool) {
+	if a.QueuedAt != nil && a.AcquiredAt != nil {
+		return *a.QueuedAt, *a.AcquiredAt, true
+	}
+	if a.QueueSeconds == nil {
+		return time.Time{}, time.Time{}, false
+	}
+	return a.StartedAt.Add(-time.Duration(*a.QueueSeconds * float64(time.Second))), a.StartedAt, false
+}
+
+func ptrTime(t time.Time) *time.Time { return &t }
 
 func validateSuiteUnitsJSON(data []byte) error {
 	var units []json.RawMessage

@@ -655,8 +655,11 @@ func TestActualCorrectionCompleteRepeatRefusesIncompleteProof(t *testing.T) {
 }
 
 func TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust(t *testing.T) {
-	for _, engagement := range []bool{false, true} {
-		t.Run(fmt.Sprintf("engagement=%v", engagement), func(t *testing.T) {
+	for _, tc := range []struct {
+		name, method string
+		trusted      bool
+	}{{"legacy", gatestate.MeasurementMethodLegacyV1, false}, {"engagement", gatestate.MeasurementMethodEngagementV1, true}, {"queue", gatestate.MeasurementMethodQueueV1, true}} {
+		t.Run(tc.name, func(t *testing.T) {
 			r, ledger, _, inputs := actualCorrectionFixture(t)
 			data, err := os.ReadFile(ledger)
 			if err != nil {
@@ -671,7 +674,7 @@ func TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust(t *testing.T) {
 				t.Fatal(err)
 			}
 			ctx := context.Background()
-			if engagement {
+			if tc.trusted {
 				env, err := openTracker(ctx)
 				if err != nil {
 					t.Fatal(err)
@@ -680,9 +683,12 @@ func TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				inputs.Method = gatestate.MeasurementMethodEngagementV1
+				inputs.Method = tc.method
 				inputs.TrackerHead = snapshot.Ref()
 				inputs.Engagements = []gatestate.MeasurementEngagement{{Start: inputs.Since, End: inputs.Until, Began: inputs.Since, Roots: []string{r.root}}}
+				if tc.method == gatestate.MeasurementMethodQueueV1 {
+					inputs.QueueWaits = []gatestate.MeasurementQueueWait{{AttemptID: "aabb", Slot: "ariadne:1", RecordDigest: strings.Repeat("d", 64), Start: inputs.Since, End: "2026-10-14T00:01:00Z", QueueSeconds: 60, RawSeconds: 60, Exact: true}}
+				}
 			}
 			if err := inputs.Validate(); err != nil {
 				t.Fatal(err)
@@ -705,8 +711,8 @@ func TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust(t *testing.T) {
 			if err != nil || len(resolved) != 1 {
 				t.Fatalf("resolved %+v: %v", resolved, err)
 			}
-			if resolved[0].WindowTrusted != engagement {
-				t.Fatalf("correction trust %v, want %v", resolved[0].WindowTrusted, engagement)
+			if resolved[0].WindowTrusted != tc.trusted {
+				t.Fatalf("correction trust %v, want %v", resolved[0].WindowTrusted, tc.trusted)
 			}
 		})
 	}
