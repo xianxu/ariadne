@@ -54,6 +54,7 @@ Investigate how native task spans and frequent assistant/tool polling turn queue
 - TL decision, 2026-10-16 (receipt b6986b85-dc38-4def-a646-346c65ee6726): queue waiting is not active work; actuals should exclude recorded queue_seconds by subtracting those measured intervals, not guessing replacement hours. The issue stays unassigned. Implementation must handle overlap with real work honestly as described above.
 
 - 2026-10-17: Claimed in ariadne:1. Current `sdlc actual --issue 416` replays 5.07h (2.41h build, 2.66h converge); the native engine admits assistant status/poll events into one 304.2-minute attribution segment. Four validated suite records on ariadne:5 lie in that window, including the staged-check overlap. The issue is full-flow work because measurement inputs must retain queue evidence for later correction replay.
+- 2026-10-17: TL approved the full-flow plan. Legacy attempt windows reconstructed from `started_at` carry a documented post-lock setup shift; new attempts will retain the actual queue start and acquisition timestamps. The plan includes a regression for both formats.
 
 ## Revisions
 
