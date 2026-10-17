@@ -1,6 +1,6 @@
 ---
 id: 000415
-status: codecomplete
+status: done
 created: 2026-10-16
 updated: 2026-10-16
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: c812b6e5e3756aa302676ecfb1f576a791ac0287
         evidence_commit: ef03e6759b537ca0312da794763085c9a597cef3
+        landed_commit: 3565e2706d91332501c9670956eaef6c9d213b28
 ---
 
 # S2 M2: every managed document type declares a default collaboration-mode
