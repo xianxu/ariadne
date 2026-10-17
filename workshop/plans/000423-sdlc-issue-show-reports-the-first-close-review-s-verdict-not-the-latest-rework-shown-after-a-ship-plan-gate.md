@@ -1,4 +1,24 @@
 ---
+reviewer_runs:
+    - version: 1
+      intent:
+        id: 1d8f6846-e131-4028-852c-c91cf52fa907
+        repository: github.com/xianxu/ariadne
+        issue_id: "000423"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: codex
+        root: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        reviewed_head: 4d6d2e51afb44754f42b127488085601638efd03
+        slot: ariadne:5
+        requested_at: "2026-10-17T12:38:05.302368Z"
+      phase: finished
+      pid: 62289
+      started_at: "2026-10-17T12:38:05.660084Z"
+      finished_at: "2026-10-17T12:38:29.743692Z"
+      session_id: 01a149de-941b-7e10-816b-37abe3202d36
+      outcome: returned
 gate: plan-quality
 issue: 423
 id_prefix: PQ
@@ -73,7 +93,31 @@ rounds:
           note: assignReviewRounds has a named generated-input unit strategy with mechanical matching and ambiguity guards; collector lifecycle integration coverage remains.
           round: 2
       blocked: false
-content_hash: 168ecd01676026387af48f83d92f50b54f3b065813f3ab5bf605e409dc99924e
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 2ebcd94f-d954-46ac-87a6-50a3cf72c842
+            repository: github.com/xianxu/ariadne
+            issue_id: "000423"
+            recipe: plan-quality
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+            reviewed_head: 4d6d2e51afb44754f42b127488085601638efd03
+            slot: ariadne:5
+            requested_at: "2026-10-17T12:37:41.102942Z"
+          phase: finished
+          pid: 56006
+          started_at: "2026-10-17T12:37:41.483443Z"
+          finished_at: "2026-10-17T12:38:03.724422Z"
+          session_id: 01a149de-3582-74b2-8e00-383b44721aef
+          outcome: returned
+      "n": 3
+      timestamp: "2026-10-17T05:38:04-07:00"
+      agent: codex
+      blocked: false
+content_hash: 3ca460d9d8763b5d991ece8add97a22818e921a2862d4d558c29854315e44350
 ---
 
 # Gate ledger — ariadne#423 (plan-quality)
@@ -96,6 +140,8 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - PQ-1 — addressed — Every evidence ref is pinned once to an immutable commit, with shared resolution and controlled ref-advance integration coverage.
 - PQ-2 — addressed — assignReviewRounds has a named generated-input unit strategy with mechanical matching and ambiguity guards; collector lifecycle integration coverage remains.
+
+## Round 3 — 2026-10-17T05:38:04-07:00 (codex) — passed
 
 ## Open findings
 
