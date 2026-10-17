@@ -288,6 +288,13 @@ PR to exact head/base identity, submits an expected-head server merge, and check
 MERGED plus reachable integration. Queue admission is not integration; already
 merged squash/rebase PRs use the original PR head and integration evidence.
 
+PR candidate selection (`selectLandingCandidate`, #418) retains OPEN PRs even
+when their heads are stale, so two OPEN records refuse and name both. Completed
+older heads are history once the branch head is known. The same rule governs
+strict selection, interrupted integration and PR-head registration polling;
+closed PRs remain ineligible. A sole stale OPEN PR retains the named push remedy.
+Identity validation still applies before history is filtered.
+
 `landingarchive.go` owns the scoped remote-main archive through
 `gitx.TrunkFile.UpdateMany`: PR-owned close anchors select completed records
 (in a tracked repository, card completion bindings whose evidence commit is in

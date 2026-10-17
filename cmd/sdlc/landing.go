@@ -173,42 +173,48 @@ func landingIssueBranch(r gitRunner, t landingTarget, requested string) (string,
 	return branch, current, nil
 }
 
-// liveLandingPRs refuses any PR whose identity (repository, head ref, base)
-// differs from the landing target and drops closed ones.
-func liveLandingPRs(prs []landingPR, t landingTarget, branch string) ([]landingPR, error) {
+// liveLandingPRs validates every identity before filtering completed history.
+// OPEN PRs remain candidates even at stale heads, so ambiguity cannot be hidden.
+func liveLandingPRs(prs []landingPR, t landingTarget, branch, head string) ([]landingPR, error) {
 	var live []landingPR
 	for _, pr := range prs {
 		if pr.Repo != t.Repo || pr.HeadRef != branch || pr.BaseRef != "main" {
 			return nil, errors.New("GitHub PR identity does not match landing target")
 		}
-		if pr.State != "CLOSED" {
+		if pr.State == "OPEN" || pr.State == "MERGED" && (head == "" || pr.HeadOID == head) {
 			live = append(live, pr)
 		}
 	}
 	return live, nil
 }
 
-func selectLandingPR(prs []landingPR, t landingTarget, branch, head string) (landingPR, error) {
-	live, err := liveLandingPRs(prs, t, branch)
+// selectLandingCandidate is shared by strict selection and integration recovery
+// and polling, where the sole OPEN PR may still show its previous head.
+func selectLandingCandidate(prs []landingPR, t landingTarget, branch, head string) (landingPR, error) {
+	live, err := liveLandingPRs(prs, t, branch, head)
 	if err != nil {
 		return landingPR{}, err
 	}
-	var matches, stale []landingPR
-	for _, pr := range live {
-		if head == "" || pr.HeadOID == head {
-			matches = append(matches, pr)
-		} else if pr.State == "OPEN" {
-			stale = append(stale, pr)
+	if len(live) != 1 {
+		var names []string
+		for _, pr := range live {
+			names = append(names, fmt.Sprintf("#%d", pr.Number))
 		}
+		return landingPR{}, fmt.Errorf("need one exact matching PR for %s; found %d, candidates [%s] (preserving local work)", branch, len(live), strings.Join(names, ", "))
 	}
-	// #267: the branch's open PR behind local work is still its PR; name the push.
-	if len(matches) == 0 && len(stale) == 1 {
-		return landingPR{}, fmt.Errorf("PR #%d for %s is at %s but the local branch is at %s; push it with `sdlc pr`, then retry (preserving local work)", stale[0].Number, branch, shortOID(stale[0].HeadOID), shortOID(head))
+	return live[0], nil
+}
+
+func selectLandingPR(prs []landingPR, t landingTarget, branch, head string) (landingPR, error) {
+	pr, err := selectLandingCandidate(prs, t, branch, head)
+	if err != nil {
+		return landingPR{}, err
 	}
-	if len(matches) != 1 {
-		return landingPR{}, fmt.Errorf("need one exact matching PR for %s; found %d (preserving local work)", branch, len(matches))
+	// #267: the branch's sole stale OPEN PR needs a push, not a new PR.
+	if head != "" && pr.HeadOID != head {
+		return landingPR{}, fmt.Errorf("PR #%d for %s is at %s but the local branch is at %s; push it with `sdlc pr`, then retry (preserving local work)", pr.Number, branch, shortOID(pr.HeadOID), shortOID(head))
 	}
-	return matches[0], nil
+	return pr, nil
 }
 
 type landingAction string
@@ -693,7 +699,7 @@ func runDurablePR(stdout, stderr io.Writer, f *prFlags, t landingTarget) error {
 	if err != nil {
 		return err
 	}
-	live, err := liveLandingPRs(prs, t, branch)
+	live, err := liveLandingPRs(prs, t, branch, head)
 	if err != nil {
 		return err
 	}
