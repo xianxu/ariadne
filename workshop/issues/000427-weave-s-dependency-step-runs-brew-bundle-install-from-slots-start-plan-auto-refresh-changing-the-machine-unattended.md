@@ -60,7 +60,7 @@ Wanted:
 - [x] Reproduce the unattended install with stateful fake-brew regression tests; include numbered setup, Couch and SDLC contexts, missing/satisfied/failure, dry-run/no-bundle and hand controls.
 - [x] Select check-only mode once for both dependency callers; restrict both SDLC weave subprocess paths; force no-auto-update on every dependency brew call and print safe operator recovery.
 - [x] Update command help, README and relevant atlas provisioning passages; run focused weave/SDLC caller tests.
-- [ ] Run the required recorded branch suite and the TL-granted native check.
+- [x] Run the required recorded branch suite and the TL-granted native check.
 
 After verification, close the tested branch, then let merge integrate main under its turn and test integrated code as required; report landing to the hub.
 
@@ -80,3 +80,7 @@ After verification, close the tested branch, then let merge integrate main under
 - GREEN: new dependency-policy tests pass for numbered/Couch/SDLC/hand contexts across all three weave commands; dry-run/no-Brewfile/probe-failure controls pass. Operator recovery is actually executed against fake brew from a different directory with an apostrophe in the Brewfile path, then a fresh check succeeds without a second install or metadata update. All cmd/weave/... packages pass (main 56.347s, refresh 86.060s); focused SDLC installed-weave/catch-up/propagation checks pass (11.233s). Caller environment stays unchanged. Command help, README and provisioning atlas passages now describe the restriction.
 
 - TL-granted native check at staged 3a0fb958905a0b6199cf4af3d5afff7cbc7d0b0f: the actual slot's dependencies --dry-run selected verbose check with no-auto-update; the native binary against isolated fake brew refused missing go/cue with an operator command and passed with preinstalled packages. Exactly two checks, zero installs, unchanged package bytes/metadata. No real brew invoked. Cleared :0 and rebuilt/verified all seven tools at Git-verified clean main b7f6441803150d613d68a829190dab9a71a369eb, vcs.modified=false; hub notified free. Required recorded suite 0eb556ddcf632542756a1eeee7c0681c queued on the implementation head.
+
+- Recorded branch suite 0eb556ddcf632542756a1eeee7c0681c passed on 3a0fb958905a0b6199cf4af3d5afff7cbc7d0b0f: 12 shards, 1,564 cmd/sdlc tests and 67 other packages; 472.573 seconds execution after 599.061 seconds queued, log SHA256 a2ddacf7232523ec449aca73ca0ccc9797241a093e32a5fc45d305ad0b4398c7. Only issue evidence changed after the tested code head.
+
+- Actual preview refused calibration: legacy suite attempt 0eb556ddcf632542756a1eeee7c0681c lacks exact queue endpoints; queue idle is unknown and this sample is not calibration evidence. This run began with the older record writer before the #420 rollout. Close uses --no-actual to retain N/A rather than invent queue endpoints or hours. The tool names the TL/hub as owner of restoring measurement evidence; the final landing report will include that exact attempt and refusal.
