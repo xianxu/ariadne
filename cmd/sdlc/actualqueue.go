@@ -38,15 +38,44 @@ func selectOwnedQueueAttempts(attempts []SuiteAttempt, engagements []tracker.Eng
 			}
 			continue
 		}
-		if a.Slot == "" {
-			start, _, _ := suiteAttemptQueueWindow(a)
-			if !a.StartedAt.Before(since) && (start.Before(until) || a.StartedAt.Before(until)) {
-				warnings = append(warnings, fmt.Sprintf("suite attempt %s has unknown slot provenance", a.ID))
+		if a.QueuedAt == nil || a.AcquiredAt == nil {
+			// StartedAt follows acquisition and an unrecorded amount of setup.
+			// Reconstructing a queue start from it cannot prove non-overlap,
+			// even when the apparent wait starts after release or measurement.
+			if a.StartedAt.Before(since) {
+				continue
+			}
+			relevant := false
+			for _, e := range engagements {
+				if a.StartedAt.Before(e.Start) {
+					continue
+				}
+				for _, owner := range e.Owners {
+					if a.Slot == "" || owner.Workspace == a.Slot {
+						relevant = true
+						break
+					}
+				}
+				if relevant {
+					break
+				}
+			}
+			if relevant {
+				warnings = append(warnings, fmt.Sprintf("legacy suite attempt %s lacks exact queue endpoints; queue idle is unknown and this sample is not calibration evidence", a.ID))
 			}
 			continue
 		}
-		start, end, exact := suiteAttemptQueueWindow(a)
-		if end.Before(since) || !start.Before(until) || !end.After(start) {
+		start, end := *a.QueuedAt, *a.AcquiredAt
+		if !end.After(since) || !start.Before(until) || !end.After(start) {
+			continue
+		}
+		if a.Slot == "" {
+			for _, e := range engagements {
+				if start.Before(e.End) && end.After(e.Start) && len(e.Owners) > 0 {
+					warnings = append(warnings, fmt.Sprintf("suite attempt %s has unknown slot provenance", a.ID))
+					break
+				}
+			}
 			continue
 		}
 		owners, overlaps := 0, 0
@@ -67,10 +96,6 @@ func selectOwnedQueueAttempts(attempts []SuiteAttempt, engagements []tracker.Eng
 		if owners != 1 {
 			return nil, nil, fmt.Errorf("suite attempt %s has %d matching pinned slot engagements", a.ID, owners)
 		}
-		if !exact {
-			warnings = append(warnings, fmt.Sprintf("legacy suite attempt %s lacks exact queue endpoints; queue idle is unknown and this sample is not calibration evidence", a.ID))
-			continue
-		}
 		selectedStart, selectedEnd := start, end
 		if selectedStart.Before(since) {
 			selectedStart = since
@@ -86,7 +111,7 @@ func selectOwnedQueueAttempts(attempts []SuiteAttempt, engagements []tracker.Eng
 			return nil, nil, err
 		}
 		digest := sha256.Sum256(canonical)
-		q := gatestate.MeasurementQueueWait{AttemptID: a.ID, Slot: a.Slot, RecordDigest: fmt.Sprintf("%x", digest), Start: selectedStart.UTC().Format(time.RFC3339Nano), End: selectedEnd.UTC().Format(time.RFC3339Nano), QueueSeconds: selectedEnd.Sub(selectedStart).Seconds(), RawSeconds: *a.QueueSeconds, Exact: exact}
+		q := gatestate.MeasurementQueueWait{AttemptID: a.ID, Slot: a.Slot, RecordDigest: fmt.Sprintf("%x", digest), Start: selectedStart.UTC().Format(time.RFC3339Nano), End: selectedEnd.UTC().Format(time.RFC3339Nano), QueueSeconds: selectedEnd.Sub(selectedStart).Seconds(), RawSeconds: *a.QueueSeconds, Exact: true}
 		if q.QueueSeconds > q.RawSeconds && q.QueueSeconds-q.RawSeconds <= 1e-6 {
 			q.RawSeconds = q.QueueSeconds
 		}

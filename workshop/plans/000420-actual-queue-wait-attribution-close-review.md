@@ -465,3 +465,98 @@ findings:
    Add `## Revisions` entries defining conservative poll classification across literal, computed and spread arguments, and one queue-evidence completeness policy shared by close and correction, with the adversarial regressions listed above.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"b59b7f5c-bff0-4899-8fdd-25d5a7bce1fc","repository":"github.com/xianxu/ariadne","issue_id":"000420","recipe":"milestone-review","round":5,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/0a9959ba0c418399","reviewed_head":"6d1a922964acbd953d95d14c54a1733abf4f004f","slot":"ariadne:1","requested_at":"2026-10-17T13:39:12.327163Z"},"phase":"finished","pid":72415,"started_at":"2026-10-17T13:39:12.421765Z","finished_at":"2026-10-17T13:50:08.216318Z","session_id":"01a14a16-8692-7d43-9b76-f81b6a4d1518","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T07:41:37-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 420 — Actual: queued suite status polling bridges idle time into focused-hours samples |
+| repo | ariadne |
+| issue file | workshop/issues/000420-actual-queue-wait-attribution.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 146796d884ccf9a9d589a8766d7627762b4571e6..810f01f1fbfffe23408f631f172f3691c6d94971 |
+| command | sdlc close --issue 420 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-17T07:41:37-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The conservative subtraction policy is implemented and tested, and BR-4 is addressed by removing queue-time call classification. BR-5 remains open: legacy attempts can still be silently excluded using estimated endpoints that do not prove irrelevance.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Prior disposition retained. Queue-binding sources survive activity subtraction; TestActualQueueMeasurementRetainsBindingSource passes and verifies replay.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Prior disposition retained. Queue subtraction no longer derives work completion from polls or results; native yielded-work and Claude-result regressions pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Prior disposition retained. Queue-aware corrections establish ownership trust; TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust passes.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The revised Spec removes tool-call classification entirely. TestQueueNativeTranscript passes on HEAD and fails when the pre-fix production queue path is restored in a disposable copy.
+  - id: BR-5
+    disposition: not-addressed
+    note: |
+      cmd/sdlc/actualqueue.go:48-71 still filters legacy attempts by reconstructed time and engagement overlap before checking exact endpoints. For an engagement ending at 12:01:00, a legacy attempt with started_at=12:01:05 and queue_seconds=1 is silently skipped: its reconstructed wait is 12:01:04–05, although an actual wait at 12:00:58–59 followed by six seconds of setup is compatible with the record. A disposable TestReviewLegacyUnknownEndpointCannotProveNoOwnershipOverlap fails on HEAD because selection returns no wait, warning or error. Close can consequently adopt numeric hours without excluding that queue activity. This continues family queue-evidence-completeness-before-calibration: determine irrelevance from proven bounds across every incomplete-record form, never from reconstructed legacy endpoints (ARCH-PURPOSE, ARCH-SECURE).
+```
+
+1. **Strengths**
+
+   - Queue subtraction is a pure interval operation with source isolation and overlap merging.
+   - Selected evidence and source slots survive snapshot replay, including sources whose activity becomes zero.
+   - Close and correction now share rejection of malformed, unreadable and missing-field records.
+   - Atlas and help explain conservative undercount and historical replay semantics.
+
+2. **Critical findings**
+
+   - **BR-5 remains open**, at `cmd/sdlc/actualqueue.go:48`. Check legacy uncertainty before using inferred intervals to exclude records. Apply one proof-based relevance policy to legacy endpoints, missing duration and missing ownership. Add release-boundary and measurement-boundary regressions for both close and correction.
+
+3. **Important findings**
+
+   None additional.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - Passed the full `activetime`, `gatestate` and `transcripts` package tests.
+   - Passed targeted SDLC queue, owned-actual, correction, endpoint and local-check tests.
+   - Existing incomplete-record regressions fail against pre-fix production code.
+   - The temporary legacy-relevance regression fails on HEAD.
+   - Range whitespace checks pass; disposable copies were removed.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared selection and completeness checks serve close and correction.
+   - **ARCH-PURE — pass:** interval arithmetic and selection have direct tests without IO.
+   - **ARCH-PURPOSE — flag:** BR-5 leaves part of the promised completeness rule unenforced.
+   - **ARCH-MOCK — pass:** recorder integration retains existing injected seams and fake lock helper.
+   - **ARCH-CONSTRAINTS — pass:** bounded attempt reading and snapshot limits remain enforced.
+   - **ARCH-SECURE — flag:** reconstructed legacy timestamps are treated as evidence of irrelevance.
+   - **ARCH-ORDER — pass:** queue attribution removes poll-completion state; interval unions handle duplicates deterministically.
+   - **ARCH-FUNERAL — pass:** attempts retain existing pruning; selected evidence uses bounded snapshots.
+
+7. **Plan revision recommendations**
+
+   Add a `## Revisions` entry stating that legacy reconstructed endpoints may support diagnostics but cannot establish non-overlap. Name the release-boundary and measurement-boundary regressions required to enforce that rule.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"e3689e53-7b31-48f4-b356-b1f9016ad52f","repository":"github.com/xianxu/ariadne","issue_id":"000420","recipe":"milestone-review","round":6,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/bd557a818b181ec1","reviewed_head":"810f01f1fbfffe23408f631f172f3691c6d94971","slot":"ariadne:1","requested_at":"2026-10-17T14:38:55.503086Z"},"phase":"finished","pid":50983,"started_at":"2026-10-17T14:38:55.597116Z","finished_at":"2026-10-17T14:41:36.28009Z","session_id":"01a14a4d-3348-74a3-aa40-4dc18ef0dcfc","outcome":"returned"}] -->

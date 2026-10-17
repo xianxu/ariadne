@@ -178,6 +178,38 @@ func TestOwnedActualQueueCoverageRefusesUnknownRecordsForCloseAndCorrection(t *t
 	}
 }
 
+func TestOwnedActualLateLegacyAttemptRefusesCloseAndCorrection(t *testing.T) {
+	r, saved, _ := ownedCompletedFixture(t, false)
+	common := strings.TrimSpace(testfix.Capture(t, r.root, "rev-parse", "--git-common-dir"))
+	if !filepath.IsAbs(common) {
+		common = filepath.Join(r.root, common)
+	}
+	dir := filepath.Join(common, "sdlc", "test-stats", "attempts")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	until, err := time.Parse(time.RFC3339, saved.Until)
+	if err != nil {
+		t.Fatal(err)
+	}
+	queue := 1.0
+	started := until.Add(5 * time.Second)
+	a := SuiteAttempt{Version: 1, ID: "late-legacy", Repo: strings.TrimPrefix(saved.Repository, "github.com/"), SHA: saved.CodeHead, Check: "suite", Slot: "ariadne:1", StartedAt: started, FinishedAt: started.Add(time.Minute), QueueSeconds: &queue, LogSHA256: strings.Repeat("b", 64)}
+	raw, err := json.Marshal(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "late-legacy.json"), raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, purpose := range []actualInputPurpose{actualCloseCandidate, actualCorrectionCandidate} {
+		_, err := resolveOwnedActualInputsFor(context.Background(), r.root, "", "335", "", purpose)
+		if err == nil || !strings.Contains(err.Error(), "queue evidence incomplete") {
+			t.Fatalf("purpose %d adopted a late legacy attempt: %v", purpose, err)
+		}
+	}
+}
+
 func TestOwnedActualResolverReleaseReclaimSplitsEngagements(t *testing.T) {
 	r, cardPath, _, owner, _ := ownedResolverFixture(t)
 	ownedFixtureAt(t, 4)

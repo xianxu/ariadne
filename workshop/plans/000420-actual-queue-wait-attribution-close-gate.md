@@ -634,6 +634,55 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: e3689e53-7b31-48f4-b356-b1f9016ad52f
+            repository: github.com/xianxu/ariadne
+            issue_id: "000420"
+            recipe: milestone-review
+            round: 6
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/bd557a818b181ec1
+            reviewed_head: 810f01f1fbfffe23408f631f172f3691c6d94971
+            slot: ariadne:1
+            requested_at: "2026-10-17T14:38:55.503086Z"
+          phase: finished
+          pid: 50983
+          started_at: "2026-10-17T14:38:55.597116Z"
+          finished_at: "2026-10-17T14:41:36.28009Z"
+          session_id: 01a14a4d-3348-74a3-aa40-4dc18ef0dcfc
+          outcome: returned
+      "n": 6
+      timestamp: "2026-10-17T07:41:37-07:00"
+      dispatched: "2026-10-17T07:38:55-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Prior disposition retained. Queue-binding sources survive activity subtraction; TestActualQueueMeasurementRetainsBindingSource passes and verifies replay.
+          round: 6
+        - id: BR-2
+          disposition: addressed
+          note: Prior disposition retained. Queue subtraction no longer derives work completion from polls or results; native yielded-work and Claude-result regressions pass.
+          round: 6
+        - id: BR-3
+          disposition: addressed
+          note: Prior disposition retained. Queue-aware corrections establish ownership trust; TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust passes.
+          round: 6
+        - id: BR-4
+          disposition: addressed
+          note: The revised Spec removes tool-call classification entirely. TestQueueNativeTranscript passes on HEAD and fails when the pre-fix production queue path is restored in a disposable copy.
+          round: 6
+        - id: BR-5
+          disposition: not-addressed
+          note: 'cmd/sdlc/actualqueue.go:48-71 still filters legacy attempts by reconstructed time and engagement overlap before checking exact endpoints. For an engagement ending at 12:01:00, a legacy attempt with started_at=12:01:05 and queue_seconds=1 is silently skipped: its reconstructed wait is 12:01:04–05, although an actual wait at 12:00:58–59 followed by six seconds of setup is compatible with the record. A disposable TestReviewLegacyUnknownEndpointCannotProveNoOwnershipOverlap fails on HEAD because selection returns no wait, warning or error. Close can consequently adopt numeric hours without excluding that queue activity. This continues family queue-evidence-completeness-before-calibration: determine irrelevance from proven bounds across every incomplete-record form, never from reconstructed legacy endpoints (ARCH-PURPOSE, ARCH-SECURE).'
+          round: 6
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#420 (boundary-review)
@@ -691,7 +740,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Critical] `queue-evidence-completeness-before-calibration` (kind: defect) Close admits calibration evidence after queue records become unreadable or unknown
   cmd/sdlc/actualinputs.go:328-355 rejects malformed-record and unknown-provenance warnings only for correction candidates; close rejects only reader limits and warnings containing legacy suite attempt. A temporary production-resolver regression with a truncated attempts/aabb.json fails: actualCloseCandidate succeeds with active-time-v3-engagement-v1 and an invalid-record warning. Likewise, actualqueue.go:32-36 skips missing queue_seconds or slot evidence with only a warning. The sample can therefore retain unexcluded queue activity and reach numeric adoption. Apply one completeness policy across close and correction: evidence that cannot establish relevant queue coverage must prevent calibration, unless it can be proven irrelevant. Add regressions for malformed, unreadable and missing-field records (ARCH-PURPOSE, ARCH-SECURE).
 
+## Round 6 — 2026-10-17T07:41:37-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Prior disposition retained. Queue-binding sources survive activity subtraction; TestActualQueueMeasurementRetainsBindingSource passes and verifies replay.
+- BR-2 — addressed — Prior disposition retained. Queue subtraction no longer derives work completion from polls or results; native yielded-work and Claude-result regressions pass.
+- BR-3 — addressed — Prior disposition retained. Queue-aware corrections establish ownership trust; TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust passes.
+- BR-4 — addressed — The revised Spec removes tool-call classification entirely. TestQueueNativeTranscript passes on HEAD and fails when the pre-fix production queue path is restored in a disposable copy.
+- BR-5 — not-addressed — cmd/sdlc/actualqueue.go:48-71 still filters legacy attempts by reconstructed time and engagement overlap before checking exact endpoints. For an engagement ending at 12:01:00, a legacy attempt with started_at=12:01:05 and queue_seconds=1 is silently skipped: its reconstructed wait is 12:01:04–05, although an actual wait at 12:00:58–59 followed by six seconds of setup is compatible with the record. A disposable TestReviewLegacyUnknownEndpointCannotProveNoOwnershipOverlap fails on HEAD because selection returns no wait, warning or error. Close can consequently adopt numeric hours without excluding that queue activity. This continues family queue-evidence-completeness-before-calibration: determine irrelevance from proven bounds across every incomplete-record form, never from reconstructed legacy endpoints (ARCH-PURPOSE, ARCH-SECURE).
+
 ## Open findings
 
-- **BR-4** [Critical] `work-evidence-requires-confirmed-completion` (kind: defect) Native wrapper classification treats unknown interactive input as an empty poll
 - **BR-5** [Critical] `queue-evidence-completeness-before-calibration` (kind: defect) Close admits calibration evidence after queue records become unreadable or unknown

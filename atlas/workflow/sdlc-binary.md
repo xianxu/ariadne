@@ -1455,7 +1455,9 @@ claim.
 Recorded suite queue waits (#420) are a separate input to owned actuals. The
 local-check recorder stores exact queue start and acquisition instants beside
 `queue_seconds`; legacy records without exact endpoints remain unknown and
-cannot support a calibrated numeric actual. The actual resolver selects validated records for the pinned
+cannot support a calibrated numeric actual. A legacy `started_at` follows an
+unrecorded setup delay, so a reconstructed wait never proves non-overlap with
+an engagement or measurement boundary. The actual resolver selects validated records for the pinned
 repository, owner slot and engagement, then retains the selected intervals,
 record digests and source slots in the bounded measurement snapshot. The native
 engine applies each wait to admitted activity sources mapped to the attempt's
