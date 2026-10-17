@@ -299,7 +299,7 @@ Identity validation still applies before history is filtered.
 `gitx.TrunkFile.UpdateMany`: PR-owned close anchors select completed records
 (in a tracked repository, card completion bindings whose evidence commit is in
 the PR, #252 — their details archive with the done card mirrored in, #275), and one conditional commit
-moves issue/plan/review artifacts. Retry verifies
+moves issue/plan/review artifacts and their side folders (#424). Retry verifies
 reachable provenance and the complete archived generation before cleanup.
 Landing returns the selected checkout to unchanged `main` or `main-slotN`, then
 compare-and-deletes only the proven local issue ref and removes its configuration.
@@ -323,6 +323,22 @@ See [workspace branching and landing](workspace-branching.md) for the procedure;
 interruption/retry coverage.
 
 ### Landing line (#393)
+
+The pre-close suite verifies the pushed issue branch; it does not reserve a
+landing turn. After that pass, close the tested branch and enter `sdlc merge`
+on SHIP. Do not manually chase each newer main with another pre-close suite.
+The existing noon freshness gate and verification after branch code fixes
+still apply. Merge integrates current main after admission and runs the
+required suite on that integrated code when the earlier record cannot cover
+it. An unchanged branch record is not proof of newly integrated code.
+
+The hub lets this turn order integration instead of holding main by hand or
+asking workers to integrate newer main before close (#425). Ordinary docs-only
+main publication can continue: the existing first-parent record search reuses
+a pass only when the cumulative difference has no code surface, including
+embedded help. Code, tests and configuration still require a new suite. The
+line coordinates SDLC merges; independent Git pushes remain subject to main
+revalidation and bounded integration retries.
 
 Concurrent merges used to integrate against the same main. Each landing then forced
 the others to integrate again and rerun a full suite. The landing line orders a

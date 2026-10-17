@@ -34,6 +34,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/pkg/sidedoc"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -212,6 +213,9 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 		if err := verifyArchivedAssetMoves(ctx, ".", moves); err != nil {
 			die(stderr, err.Error())
 		}
+		if err := verifyArchivedSideMoves(".", moves); err != nil {
+			die(stderr, err.Error())
+		}
 		if out, gerr := pushRunner.Git(commitArgs...); gerr != nil {
 			die(stderr, fmt.Sprintf("commit archive failed: %v\n%s", gerr, out))
 		}
@@ -339,6 +343,11 @@ func archivePlanArtifacts(issueBase, plansFull, historyFull, recPlansDir, recHis
 		if !planArtifactBelongsToIssue(issueBase, base) {
 			continue
 		}
+		// A plan's side folder moves member by member with the side stages
+		// (#424), never as one directory rename recovery can't see.
+		if info, err := os.Lstat(p); err == nil && info.IsDir() {
+			continue
+		}
 		dest := archiveDestination(historyFull, vocab.ArchivePlans, base)
 		recSrc := filepath.Join(recPlansDir, base)
 		untracked := srcUntracked != nil && srcUntracked(recSrc)
@@ -423,10 +432,15 @@ func recoverInterruptedArchive(ctx context.Context, stdout, stderr io.Writer, f 
 		if isIssuePath(m.IssuePath, f.IssuesDir) {
 			mirrors.refresh(m.HistoryPath)
 		} // assets stay opaque
-		if strings.HasPrefix(m.IssuePath, filepath.Join(f.IssuesDir, "assets")+string(filepath.Separator)) {
-			if err := finishAssetArchiveMoves(".", []preparedArchiveMove{m}); err != nil {
+		if strings.HasPrefix(m.IssuePath, filepath.Join(f.IssuesDir, "assets")+string(filepath.Separator)) || sidedoc.InSideDir(filepath.ToSlash(m.IssuePath)) {
+			if err := finishArchiveMemberMoves(".", []preparedArchiveMove{m}); err != nil {
 				return false, err
 			}
+		}
+	}
+	for _, m := range moves {
+		if strings.HasSuffix(m.IssuePath, ".md") && !sidedoc.InSideDir(filepath.ToSlash(m.IssuePath)) {
+			removeEmptyDirs(sidedoc.SideDir(m.IssuePath))
 		}
 	}
 	if out, gerr := pushRunner.Git(archiveAddArgs(moves)...); gerr != nil {
@@ -437,6 +451,9 @@ func recoverInterruptedArchive(ctx context.Context, stdout, stderr io.Writer, f 
 		return false, cerr
 	}
 	if err := verifyArchivedAssetMoves(ctx, ".", moves); err != nil {
+		return false, err
+	}
+	if err := verifyArchivedSideMoves(".", moves); err != nil {
 		return false, err
 	}
 	if out, gerr := pushRunner.Git(commitArgs...); gerr != nil {
@@ -471,12 +488,16 @@ func preparedArchiveMoves(ctx context.Context, entries []gitx.StatusEntry, issue
 		return h
 	}
 	var other []string
-	var assetEntries []gitx.StatusEntry
+	var assetEntries, sideEntries []gitx.StatusEntry
 	for _, e := range entries {
 		assetRoot := filepath.Join(issuesDir, "assets") + string(filepath.Separator)
 		archiveRoot := filepath.Join(vocab.ArchiveSubdir(historyDir, vocab.ArchiveIssues), "assets") + string(filepath.Separator)
 		if strings.HasPrefix(e.Path, assetRoot) || strings.HasPrefix(e.Path, archiveRoot) || strings.HasPrefix(e.Orig, assetRoot) {
 			assetEntries = append(assetEntries, e)
+			continue
+		}
+		if sidedoc.InSideDir(filepath.ToSlash(e.Path)) || (e.Orig != "" && sidedoc.InSideDir(filepath.ToSlash(e.Orig))) {
+			sideEntries = append(sideEntries, e)
 			continue
 		}
 		line := statusLine(e)
@@ -540,8 +561,14 @@ func preparedArchiveMoves(ctx context.Context, entries []gitx.StatusEntry, issue
 	if err != nil {
 		return nil, nil, err
 	}
+	sides, sideOther, err := recoverSideArchiveMoves(moves, sideEntries, gitSrcUntracked(pushRunner.Git))
+	if err != nil {
+		return nil, nil, err
+	}
 	moves = append(moves, assets...)
+	moves = append(moves, sides...)
 	other = append(other, assetOther...)
+	other = append(other, sideOther...)
 	sort.Slice(moves, func(i, j int) bool { return moves[i].IssuePath < moves[j].IssuePath })
 	sort.Strings(other)
 	return moves, other, nil
@@ -692,6 +719,13 @@ func archiveDoneIssues(ctx context.Context, stderr io.Writer, repo, issuesDir, h
 			}
 		}
 
+		// #424: the issue's and its plans' side folders move with them;
+		// prepared (and refused) before anything moves.
+		sideDocs := issueArchiveDocs(ref.Path, dest, plansDir, plansDir, historyDir)
+		sideMoves, err := prepareSideArchive(".", sideDocs, gitSrcUntracked(pushRunner.Git))
+		if err != nil {
+			return moves, err
+		}
 		// #181: issue files archive into the issues/ subdir (plans + sidecars
 		// go to plans/ via archivePlanArtifacts); reads stay flat-tolerant.
 		issuesSub := vocab.ArchiveSubdir(historyDir, vocab.ArchiveIssues)
@@ -704,7 +738,7 @@ func archiveDoneIssues(ctx context.Context, stderr io.Writer, repo, issuesDir, h
 		}
 		mirrors.refresh(dest)
 		moves = append(moves, preparedArchiveMove{IssuePath: ref.Path, HistoryPath: dest})
-		if err := finishAssetArchiveMoves(".", assetMoves); err != nil {
+		if err := finishArchiveMemberMoves(".", assetMoves); err != nil {
 			return moves, err
 		}
 		moves = append(moves, assetMoves...)
@@ -716,6 +750,10 @@ func archiveDoneIssues(ctx context.Context, stderr io.Writer, repo, issuesDir, h
 			return moves, perr
 		}
 		moves = append(moves, planMoves...)
+		if err := finishSideArchive(".", sideDocs, sideMoves); err != nil {
+			return moves, err
+		}
+		moves = append(moves, sideMoves...)
 	}
 	// #304 D4: the archived issues ended; so do their reviewed-head pins.
 	unpinArchived(stderr, "", moves)

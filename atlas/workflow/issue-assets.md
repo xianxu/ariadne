@@ -112,6 +112,15 @@ back with the details. A slot move carries committed assets through the branch
 checkout; commit local attachments before moving. Tightening policy does not
 prevent archive or restore of existing evidence.
 
+A document's side folder (`<name>.side/`, the review skill's side docs, #424)
+travels the same way, through the same four stages (`cmd/sdlc/archiveside.go`):
+every archive path (merge, push and its interrupted-archive recovery, the trunk
+archive and its retry and successor episode, the landing archive) moves the
+issue's and each plan's folder beside the archived document, bytes unchanged,
+refusing an occupied destination or a symlink before anything moves; reopen
+brings the folders back. Archiving keeps the base name, so no link inside the
+folder is rewritten.
+
 Cross-repository `sdlc migrate` continues to refuse issue-family artifacts.
 Issue renumbering was deferred by #179; asset-aware cross-repository issue
 migration is deferred to #347. `sdlc issue migrate` is the distinct one-time
