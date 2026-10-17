@@ -1,6 +1,6 @@
 ---
 id: 000428
-status: working
+status: codecomplete
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.58
+tracker:
+    version: 1
+    completion:
+        token: close-c678504dd5f5
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 7534616855a6c0538ab48ad1cea189e77dbf5eac
+        evidence_commit: ab332311a85c6d058a0b2388d1be0e3d3b11225a
 ---
 
 # Legacy-attempt actuals refusal should name --no-actual (exclude), not 'ask the TL to restore evidence'
