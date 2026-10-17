@@ -93,7 +93,8 @@ func TestPrintActualWarnings(t *testing.T) {
 }
 
 func TestLegacyQueueActualRefusalNamesBoundarySpecificExclusion(t *testing.T) {
-	legacy := actualResult{Status: actualError, Issue: "428", Detail: "queue evidence incomplete; actual is not calibration evidence: legacy suite attempt a1e58a0cc16a26a44f96927be6753621 lacks exact queue endpoints; queue idle is unknown and this sample is not calibration evidence"}
+	legacyWarning := "legacy suite attempt a1e58a0cc16a26a44f96927be6753621 lacks exact queue endpoints; queue idle is unknown and this sample is not calibration evidence"
+	legacy := actualErrorResult("428", &queueEvidenceError{Blockers: []string{legacyWarning}})
 	for _, tc := range []struct {
 		name, want string
 		render     func(*bytes.Buffer)

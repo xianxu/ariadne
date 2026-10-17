@@ -47,9 +47,10 @@ OUTPUT
                             Ask the TL/hub to restore the owning slot's transcripts,
                             then re-run sdlc actual --issue N.
   - legacy suite attempt → exact queue endpoints were never recorded. The
-                            refusal names the attempt and the matching close or
-                            milestone-close --no-actual command for exclusion;
-                            include the reason with verification evidence.
+                            refusal names every legacy attempt and the matching
+                            close or milestone-close --no-actual command only
+                            when all blockers are legacy; include the reason
+                            with verification evidence.
   - malformed suite data → restore the named recoverable evidence and re-run.
   - no window           → commit the issue's work with #N in its subject, then
                             re-run sdlc actual --issue N. Do not invent hours.

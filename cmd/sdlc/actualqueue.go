@@ -16,6 +16,14 @@ import (
 
 const legacyQueueWarningPrefix = "legacy suite attempt "
 
+// queueEvidenceError keeps every blocker so the actual renderer can distinguish
+// an all-legacy exclusion from a window that still needs evidence restored.
+type queueEvidenceError struct{ Blockers []string }
+
+func (e *queueEvidenceError) Error() string {
+	return "queue evidence incomplete; actual is not calibration evidence: " + strings.Join(e.Blockers, " | ")
+}
+
 // selectOwnedQueueAttempts admits a queue wait only when a single pinned
 // engagement owns its slot for the entire original wait. A partial measurement
 // window clips the selected interval, never the ownership proof.

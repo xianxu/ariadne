@@ -1774,7 +1774,7 @@ func adoptOmittedActual(stderr io.Writer, f *closeFlags, issueStr, mode string) 
 // needs recovery. Hours must not be invented to get past this refusal.
 func explainActual(stderr io.Writer, issueStr, mode, milestone string, res actualResult) {
 	var head []string
-	legacy := legacyQueueAttemptID(res.Detail) != ""
+	legacy := len(legacyQueueAttemptIDs(res.QueueBlockers)) > 0
 	if legacy {
 		head = append(head, fmt.Sprintf("%sMeasured actual unavailable for %s close — use the documented exclusion below.%s", ansiRed, mode, ansiReset), "")
 	} else {

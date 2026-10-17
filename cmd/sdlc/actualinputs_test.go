@@ -254,6 +254,50 @@ func TestOwnedActualSelectorWarningsRefuseCloseAndCorrection(t *testing.T) {
 	}
 }
 
+func TestAttachOwnedQueueEvidencePreservesEveryMixedBlocker(t *testing.T) {
+	r, cardPath, _, owner, _ := ownedResolverFixture(t)
+	out, err := resolveOwnedActualInputsFor(context.Background(), r.root, "", "335", "", actualCloseCandidate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	common := strings.TrimSpace(testfix.Capture(t, r.root, "rev-parse", "--git-common-dir"))
+	if !filepath.IsAbs(common) {
+		common = filepath.Join(r.root, common)
+	}
+	dir := filepath.Join(common, "sdlc", "test-stats", "attempts")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	queue := 60.0
+	started := time.Date(2026, 10, 14, 0, 5, 0, 0, time.UTC)
+	queued, acquired := started.Add(-2*time.Minute), started.Add(-time.Minute)
+	legacy := SuiteAttempt{Version: 1, ID: "aabb", Repo: "xianxu/ariadne", SHA: out.Snapshot.CodeHead, Check: "suite", Slot: owner.Workspace, StartedAt: started, FinishedAt: started.Add(time.Minute), QueueSeconds: &queue, LogSHA256: strings.Repeat("b", 64)}
+	unknownSlot := legacy
+	unknownSlot.ID, unknownSlot.Slot = "ccdd", ""
+	unknownSlot.QueuedAt, unknownSlot.AcquiredAt = &queued, &acquired
+	for _, a := range []SuiteAttempt{legacy, unknownSlot} {
+		raw, err := json.Marshal(a)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, a.ID+".json"), raw, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	repo, err := tracker.NewRepository(context.Background(), r.root, "origin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = attachOwnedQueueEvidence(context.Background(), r.root, repo, cardPath, "github.com/xianxu/ariadne", out, actualCloseCandidate)
+	if err == nil {
+		t.Fatal("mixed queue blockers were admitted")
+	}
+	res := actualErrorResult("335", err)
+	if len(res.QueueBlockers) != 2 || !strings.Contains(res.Detail, "aabb") || !strings.Contains(res.Detail, "ccdd") || len(legacyQueueAttemptIDs(res.QueueBlockers)) != 0 {
+		t.Fatalf("attachment lost a mixed blocker: %+v", res)
+	}
+}
+
 func TestOwnedActualResolverReleaseReclaimSplitsEngagements(t *testing.T) {
 	r, cardPath, _, owner, _ := ownedResolverFixture(t)
 	ownedFixtureAt(t, 4)

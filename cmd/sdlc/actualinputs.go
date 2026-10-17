@@ -326,7 +326,7 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 		return err
 	}
 	if len(attemptWarnings) > 0 {
-		return fmt.Errorf("queue evidence incomplete; actual is not calibration evidence: %s", attemptWarnings[0])
+		return &queueEvidenceError{Blockers: attemptWarnings}
 	}
 	since, err := time.Parse(time.RFC3339Nano, out.Snapshot.Since)
 	if err != nil {
@@ -337,7 +337,7 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 		return err
 	}
 	if len(notes) > 0 {
-		return fmt.Errorf("queue evidence incomplete; actual is not calibration evidence: %s", notes[0])
+		return &queueEvidenceError{Blockers: notes}
 	}
 	if purpose == actualCorrectionCandidate && len(waits) == 0 {
 		return fmt.Errorf("correction candidate has no complete, owned suite queue records for the completion window")
