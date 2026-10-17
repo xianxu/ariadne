@@ -1,6 +1,6 @@
 ---
 id: 000414
-status: codecomplete
+status: done
 created: 2026-10-16
 updated: 2026-10-16
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 87b44df497231d27fb4ec1a473f4efa0f0864aa3
         evidence_commit: 9fb8f7ff9f793875a9c28e48caac5e19bbaf8193
+        landed_commit: 8b6d9eb6bf1f1b3a829bba052ae9ded2cfb3d4f1
 ---
 
 # tl-lead: section freshness stamps, a staleness check, and a derived Slots section
