@@ -30,13 +30,17 @@ help: $(WF_HELP_TARGETS)
 .PHONY: tools sdlc-build datatype-build vocabulary-build doc-review-build tl-worker-build tl-lead-build weave-build vocab-embed
 tools: sdlc-build datatype-build vocabulary-build doc-review-build tl-worker-build tl-lead-build
 
+# Each publishes with one rename (WF_GO_PUBLISH, #419): agents run :0's bin/
+# while the TL rebuilds it.
 sdlc-build datatype-build vocabulary-build doc-review-build tl-worker-build tl-lead-build:
 	@mkdir -p bin
-	go build -o bin/$(@:-build=) ./cmd/$(@:-build=)
+	@echo "go build ./cmd/$(@:-build=) → bin/$(@:-build=)"
+	@$(WF_GO_PUBLISH) bin/$(@:-build=) ./cmd/$(@:-build=)
 
 weave-build:
 	@mkdir -p bin
-	go build -o bin/weave ./cmd/weave
+	@echo "go build ./cmd/weave → bin/weave"
+	@$(WF_GO_PUBLISH) bin/weave ./cmd/weave
 
 # Explicit regeneration guard; never a prerequisite of owner tools.
 vocab-embed: vocabulary-build
