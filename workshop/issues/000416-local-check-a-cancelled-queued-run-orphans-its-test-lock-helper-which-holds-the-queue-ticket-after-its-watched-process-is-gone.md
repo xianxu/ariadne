@@ -46,7 +46,7 @@ Related to, but not covered by, #400 (cancel must stop only your own run).
 
 ## Plan
 
-- [ ] BR-1: scope managed signals to the owned queue/suite phase, restore default handling outside it, and give detached cleanup an independent bounded Git runner.
+- [x] BR-1: scope managed signals to the owned queue/suite phase, restore default handling outside it, and give detached cleanup an independent bounded Git runner.
 - [ ] Verify the unchanged production handler with blocked-fetch SIGINT/SIGTERM, queued cancellation, bounded cleanup, live stage and a fresh recorded suite before re-close.
 
 - [x] Reproduce queued cancellation and watched-process SIGKILL with private lock files; show the successor is admitted and unrelated holders survive.
@@ -77,6 +77,8 @@ Related to, but not covered by, #400 (cancel must stop only your own run).
 
 - Close round 1 REWORK: BR-1 Critical reproduced that command-wide NotifyContext suppresses SIGTERM during context-free Git/network preamble. Initial queued tests replaced RunE and missed that family. TL approved the narrower resource-lifetime fix (receipt b6986b85-dc38-4def-a646-346c65ee6726): preserve default handling outside owned queue/suite effects, add the blocked-fetch case; do not generalize all subprocess seams in #416.
 - Independent #420 filed unassigned for actual-time attribution. TL decision: queue waiting is not active work; exclude/subtract recorded queue_seconds because they are measured, not guessed. Both retained attempts contain 6,951.058874s queued in total; no replacement numeric actual was entered.
+
+- BR-1 RED: unchanged production handler swallowed SIGINT/SIGTERM at blocked fetch and postrun trailer reads (four failures). After scoping signal ownership, all native signal cases passed; the added stalled-cleanup case then failed only with queued cancellation exceeding five seconds. GREEN: go test -trimpath ./cmd/sdlc -run ^Test(LocalCheckSignal|RunLocalCheck|CLISignal) -count=1 -timeout 5m passed (65.021s), including independent cleanup deadline and successor admission. Cleanup reuses boundedLandingGit with the existing recovery ceiling in all three production constructors (ARCH-DRY); no command-wide subprocess refactor.
 
 ## Revisions
 

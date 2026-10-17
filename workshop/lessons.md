@@ -926,3 +926,5 @@ The simplest durable authority beats a clever scan of consequences.
 - The real-repo hermeticity guard applies to targeted cmd/sdlc runs too. Keep branch/HEAD/status fixed until they exit; recorded local-check suites use a detached checkout and avoid that coupling (#411 verification).
 - Protect an operator-owned destination independently of its current declaration: removing a declaration still triggers retirement, and alternate/generated writers can reach the same path. Verify preserved ownership and recovery evidence plus eventual operator cleanup across those transitions (#411 BR-1).
 - When review generalizes a behavior, update its atlas description in the same change; a merge-only description became stale when protection expanded to a destination across retirement and alternate writers (#411 BR-4).
+
+- Signal ownership must match the lifetime of cancellable resources. A command-wide NotifyContext can swallow termination in context-free Git/network calls; scope it to owned queue/suite effects, bound cleanup independently, and test the unchanged production handler through blocked preamble and bookkeeping calls (#416 BR-1).

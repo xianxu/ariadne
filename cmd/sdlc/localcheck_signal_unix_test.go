@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
@@ -26,25 +26,17 @@ func TestLocalCheckSignalProcess(t *testing.T) {
 	if os.Getenv("SDLC_QUEUE_SIGNAL_CHILD") != "1" {
 		return
 	}
-	rootDir, sha := os.Getenv("SDLC_QUEUE_ROOT"), os.Getenv("SDLC_QUEUE_SHA")
-	d := localRunDeps{Root: rootDir, Repo: "o/r", GH: newCIFakeGH(), Stderr: os.Stderr,
-		Git: func(args ...string) (string, error) {
-			out, err := exec.Command("git", append([]string{"-C", rootDir}, args...)...).CombinedOutput()
-			return string(out), err
-		},
+	// TestMain prefers the real Git directory; restore this fixture's
+	// transport shim after that setup, without replacing the handler.
+	if bin := os.Getenv("SDLC_QUEUE_BIN"); bin != "" {
+		_ = os.Setenv("PATH", testfix.PrependPath(bin, os.Getenv("PATH")))
 	}
-	root := &cobra.Command{Use: "sdlc"}
-	local := NewLocalCheckCmd()
-	run, _, err := local.Find([]string{"run"})
-	if err != nil {
-		t.Fatal(err)
+	if os.Getenv("SDLC_BLOCK_PHASE") == "cleanup" {
+		localCheckCleanupTimeout = 50 * time.Millisecond
 	}
-	run.RunE = func(cmd *cobra.Command, _ []string) error {
-		_, err := runLocalCheck(cmd.Context(), d, localCheck{Name: "suite", Command: []string{"true"}, TimeoutMinutes: 30}, sha)
-		return err
-	}
-	root.AddCommand(local)
-	os.Exit(executeCLI(root, []string{"local-check", "run", "--name", "suite"}))
+	os.Args = []string{"sdlc", "local-check", "run", "--name", "suite"}
+	main()
+	os.Exit(0)
 }
 
 func TestLocalCheckSignalCancelsQueuedHelper(t *testing.T) {
@@ -52,11 +44,20 @@ func TestLocalCheckSignalCancelsQueuedHelper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, sig := range []syscall.Signal{syscall.SIGINT, syscall.SIGTERM} {
-		t.Run(sig.String(), func(t *testing.T) {
+	for _, tc := range []struct {
+		sig   syscall.Signal
+		phase string
+	}{{syscall.SIGINT, ""}, {syscall.SIGTERM, ""}, {syscall.SIGTERM, "cleanup"}} {
+		sig := tc.sig
+		name := sig.String()
+		if tc.phase != "" {
+			name += "/" + tc.phase
+		}
+		t.Run(name, func(t *testing.T) {
 			d, _, _, _ := localRunRepo(t, "unused")
 			temp := t.TempDir()
 			lockPath, helperPIDPath := filepath.Join(temp, "lock"), filepath.Join(temp, "helper.pid")
+			cleanupPIDPath := filepath.Join(temp, "cleanup.pid")
 			// Record the exact helper we created: never find a global PID to stop.
 			prefix := "import os, sys\nif '--help' not in sys.argv:\n    open(os.environ['SDLC_QUEUE_HELPER_PID'], 'w').write(str(os.getpid()))\n"
 			if err := os.WriteFile(filepath.Join(d.Root, "scripts", "test-lock.py"), append([]byte(prefix), helper...), 0700); err != nil {
@@ -67,6 +68,7 @@ func TestLocalCheckSignalCancelsQueuedHelper(t *testing.T) {
 					t.Fatalf("git: %s %v", out, err)
 				}
 			}
+			wireLocalCheckSignalCLI(t, d.Root)
 			rawSHA, err := d.Git("rev-parse", "HEAD")
 			if err != nil {
 				t.Fatal(err)
@@ -89,8 +91,9 @@ func TestLocalCheckSignalCancelsQueuedHelper(t *testing.T) {
 			}
 			cmd := exec.Command(os.Args[0], "-test.run=^TestLocalCheckSignalProcess$")
 			processgroup.Configure(cmd)
+			cmd.Dir = d.Root
 			cmd.WaitDelay = time.Second
-			cmd.Env = append(os.Environ(), "SDLC_QUEUE_SIGNAL_CHILD=1", "SDLC_QUEUE_ROOT="+d.Root, "SDLC_QUEUE_SHA="+sha, "SDLC_QUEUE_HELPER_PID="+helperPIDPath)
+			cmd.Env = append(os.Environ(), "SDLC_QUEUE_SIGNAL_CHILD=1", "SDLC_QUEUE_ROOT="+d.Root, "SDLC_QUEUE_SHA="+sha, "SDLC_QUEUE_HELPER_PID="+helperPIDPath, "SDLC_BLOCK_PHASE="+tc.phase, "SDLC_PHASE_READY="+cleanupPIDPath)
 			var output bytes.Buffer
 			cmd.Stdout, cmd.Stderr = &output, &output
 			if err := cmd.Start(); err != nil {
@@ -100,6 +103,12 @@ func TestLocalCheckSignalCancelsQueuedHelper(t *testing.T) {
 			go func() { done <- cmd.Wait() }()
 			finished, helperPID, ownerPID := false, 0, 0
 			t.Cleanup(func() {
+				if raw, _ := os.ReadFile(cleanupPIDPath); len(raw) > 0 {
+					if pid, _ := strconv.Atoi(string(raw)); pid > 0 {
+						_ = syscall.Kill(-pid, syscall.SIGKILL)
+						_ = syscall.Kill(pid, syscall.SIGKILL)
+					}
+				}
 				_ = processgroup.Terminate(cmd, true)
 				for _, pid := range []int{helperPID, ownerPID} {
 					if pid > 0 {
@@ -117,6 +126,12 @@ func TestLocalCheckSignalCancelsQueuedHelper(t *testing.T) {
 			ticketDir := lockPath + ".tickets"
 			deadline := time.Now().Add(testfix.HangCeiling)
 			for time.Now().Before(deadline) {
+				select {
+				case err := <-done:
+					finished = true
+					t.Fatalf("production handler exited before queue: %v %s", err, output.String())
+				default:
+				}
 				raw, _ := os.ReadFile(helperPIDPath)
 				helperPID, _ = strconv.Atoi(string(raw))
 				paths, _ := filepath.Glob(filepath.Join(ticketDir, "[0-9]*"))
@@ -148,6 +163,15 @@ func TestLocalCheckSignalCancelsQueuedHelper(t *testing.T) {
 				}
 			case <-time.After(5 * time.Second):
 				t.Fatal("queued cancellation exceeded five seconds")
+			}
+			if tc.phase == "cleanup" {
+				raw, _ := os.ReadFile(cleanupPIDPath)
+				pid, _ := strconv.Atoi(string(raw))
+				if pid == 0 {
+					t.Error("cleanup never reached its blocked Git seam")
+				} else if err := testfix.AwaitExit(pid, time.Second); err != nil {
+					t.Errorf("cleanup Git survived its independent deadline: %v", err)
+				}
 			}
 			if err := testfix.AwaitExit(helperPID, time.Second); err != nil {
 				t.Errorf("orphan helper: %v", err)
@@ -203,6 +227,152 @@ func TestLocalCheckSignalCancelsQueuedHelper(t *testing.T) {
 			if len(paths) != 0 {
 				t.Errorf("retained queue tickets: %v", paths)
 			}
+		})
+	}
+}
+
+// Keep the production handler intact. Only GitHub transport and the private
+// fixture's public-shaped URL are substituted; queueing/cleanup are real.
+func wireLocalCheckSignalCLI(t *testing.T, root string) {
+	t.Helper()
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	call := func(at string, args ...string) {
+		t.Helper()
+		cmd := exec.Command(realGit, args...)
+		cmd.Dir = at
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s %v", args, out, err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".sdlc"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".sdlc", "local-checks.json"), []byte(`{"version":1,"checks":[{"name":"suite","command":["true"],"timeout_minutes":1,"weight":1}]}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	call(root, "add", ".sdlc")
+	call(root, "commit", "-qm", "production command declaration")
+	remote := t.TempDir()
+	call(remote, "init", "--bare", "-q")
+	call(root, "remote", "add", "origin", remote)
+	call(root, "push", "-q", "origin", "main")
+	bin := t.TempDir()
+	script := `#!/bin/sh
+if [ "$SDLC_BLOCK_PHASE" = fetch ] && case " $* " in *" fetch "*) true;; *) false;; esac; then
+  printf '%s' "$$" > "$SDLC_PHASE_READY"
+  exec sleep 60
+fi
+if [ "$SDLC_BLOCK_PHASE" = cleanup ] && case " $* " in *" worktree remove --force "*) true;; *) false;; esac; then
+  printf '%s' "$$" > "$SDLC_PHASE_READY"
+  exec sleep 60
+fi
+if [ "$SDLC_BLOCK_PHASE" = trailer ] && case " $* " in *" show -s --format="*) true;; *) false;; esac; then
+  printf '%s' "$$" > "$SDLC_PHASE_READY"
+  exec sleep 60
+fi
+if case " $* " in *" remote get-url origin "*) true;; *) false;; esac; then
+  echo https://github.com/fixture/queue.git
+  exit 0
+fi
+exec ` + strconv.Quote(realGit) + ` "$@"
+`
+	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bin, "gh"), []byte("#!/bin/sh\nexit 0\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("SDLC_QUEUE_BIN", bin)
+	t.Cleanup(func() {
+		canonical, err := filepath.EvalSymlinks(root)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		cmd := exec.Command(realGit, "-C", root, "worktree", "list", "--porcelain")
+		out, _ := cmd.Output()
+		for _, line := range strings.Split(string(out), "\n") {
+			if at, ok := strings.CutPrefix(line, "worktree "); ok && at != canonical {
+				if out, err := exec.Command(realGit, "-C", root, "worktree", "remove", "--force", at).CombinedOutput(); err != nil {
+					t.Errorf("fixture worktree cleanup: %s %v", out, err)
+				}
+			}
+		}
+	})
+}
+
+func TestLocalCheckSignalPreservesOutsideOwnedPhase(t *testing.T) {
+	for _, phase := range []string{"fetch", "trailer"} {
+		t.Run(phase, func(t *testing.T) {
+			for _, sig := range []syscall.Signal{syscall.SIGINT, syscall.SIGTERM} {
+				t.Run(sig.String(), func(t *testing.T) {
+					d, _, _, _ := localRunRepo(t, "skipped")
+					wireLocalCheckSignalCLI(t, d.Root)
+					ready := filepath.Join(t.TempDir(), "fetch.pid")
+					cmd := exec.Command(os.Args[0], "-test.run=^TestLocalCheckSignalProcess$")
+					processgroup.Configure(cmd)
+					cmd.Dir = d.Root
+					cmd.WaitDelay = time.Second
+					cmd.Env = append(os.Environ(), "SDLC_QUEUE_SIGNAL_CHILD=1", "SDLC_BLOCK_PHASE="+phase, "SDLC_PHASE_READY="+ready)
+					var output bytes.Buffer
+					cmd.Stdout = &output
+					cmd.Stderr = &output
+					if err := cmd.Start(); err != nil {
+						t.Fatal(err)
+					}
+					done := make(chan error, 1)
+					go func() { done <- cmd.Wait() }()
+					finished := false
+					t.Cleanup(func() {
+						_ = processgroup.Terminate(cmd, true)
+						if !finished {
+							select {
+							case <-done:
+							case <-time.After(testfix.HangCeiling):
+								t.Error("production CLI did not finish cleanup")
+							}
+						}
+					})
+					deadline := time.Now().Add(testfix.HangCeiling)
+					for {
+						if raw, _ := os.ReadFile(ready); len(raw) > 0 {
+							break
+						}
+						select {
+						case err := <-done:
+							finished = true
+							t.Fatalf("production handler exited before blocked phase: %v %s", err, output.String())
+						default:
+						}
+						if time.Now().After(deadline) {
+							t.Fatal("production blocking phase did not start")
+						}
+						time.Sleep(5 * time.Millisecond)
+					}
+					if err := cmd.Process.Signal(sig); err != nil {
+						t.Fatal(err)
+					}
+					select {
+					case err := <-done:
+						finished = true
+						var exit *exec.ExitError
+						if !errors.As(err, &exit) {
+							t.Fatalf("signal did not terminate CLI: %v", err)
+						}
+						status, ok := exit.Sys().(syscall.WaitStatus)
+						if !ok || !status.Signaled() || status.Signal() != sig {
+							t.Fatalf("default termination changed: %v %s", err, output.String())
+						}
+					case <-time.After(3 * time.Second):
+						t.Fatal("production CLI swallowed termination outside owned phase")
+					}
+				})
+			}
+
 		})
 	}
 }

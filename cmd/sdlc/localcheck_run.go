@@ -13,11 +13,13 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
@@ -27,12 +29,13 @@ import (
 // localRunDeps is what a local run touches: GitHub (to record), git in the
 // repository root (worktree and log location), and where to report.
 type localRunDeps struct {
-	GH     ghCaller
-	Repo   string // owner/name
-	Root   string // the checkout's top level; Makefile.workflow resolves from here
-	Git    func(args ...string) (string, error)
-	PR     int // 0: no PR known, so a failure posts no comment
-	Stderr io.Writer
+	GH         ghCaller
+	Repo       string // owner/name
+	Root       string // the checkout's top level; Makefile.workflow resolves from here
+	Git        func(args ...string) (string, error)
+	CleanupGit func(args ...string) (string, error) // independent bounded recovery IO
+	PR         int                                  // 0: no PR known, so a failure posts no comment
+	Stderr     io.Writer
 	// SkipRecord is for a diagnostic baseline on main. It keeps the log but
 	// never publishes a commit status or PR comment for that baseline.
 	SkipRecord bool
@@ -46,6 +49,8 @@ const (
 	localCheckTmpPrefix = "sdlc-local-"
 	localCheckTailLines = 200
 )
+
+var localCheckCleanupTimeout = landingRecoveryTimeout // tests shrink the existing recovery ceiling
 
 // errUnboundedSuite: the machine-wide suite lock could not be taken, so the
 // check does not run (#319/#341 bound heavy suites machine-wide).
@@ -74,7 +79,11 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	storeRoot := filepath.Join(filepath.Dir(logDir), "test-stats")
 	sweepStaleLocalWorktrees(d)
 
-	wt, cleanup, err := detachedWorktree(d.Git, sha)
+	cleanupGit := d.CleanupGit
+	if cleanupGit == nil {
+		cleanupGit = d.Git
+	}
+	wt, cleanup, err := detachedWorktreeWithCleanup(d.Git, cleanupGit, sha)
 	if err != nil {
 		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
 	}
@@ -94,7 +103,11 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	}
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
 	queueStart := time.Now()
-	heldBy, release, err := acquireSuiteSlot(ctx, d, wt, c.Weight, helper)
+	// Own signals only while our queue/suite resources exist. The surrounding
+	// Git/network preparation and bookkeeping retain default termination.
+	ownedCtx, stopSignals := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
+	heldBy, release, err := acquireSuiteSlot(ownedCtx, d, wt, c.Weight, helper)
 	if err != nil {
 		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
 	}
@@ -108,7 +121,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	if err != nil {
 		return rec, err
 	}
-	runCtx, cancel := context.WithTimeout(ctx, time.Duration(c.TimeoutMinutes)*d.minute)
+	runCtx, cancel := context.WithTimeout(ownedCtx, time.Duration(c.TimeoutMinutes)*d.minute)
 	defer cancel()
 	cmd := exec.CommandContext(runCtx, c.Command[0], c.Command[1:]...)
 	processgroup.Configure(cmd)
@@ -131,6 +144,8 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	// watcher frees it on the holder's exit (at once with kqueue, within its
 	// 0.5 s poll elsewhere).
 	release()
+	interrupted := ownedCtx.Err() // stopSignals itself cancels ownedCtx.
+	stopSignals()
 	rec.Duration = time.Since(start)
 	finished := time.Now().UTC()
 	_ = logf.Close()
@@ -138,8 +153,8 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	switch {
 	case runCtx.Err() == context.DeadlineExceeded:
 		rec.TimedOut = true
-	case ctx.Err() != nil:
-		return rec, fmt.Errorf("local check %s interrupted: %w", c.Name, ctx.Err())
+	case interrupted != nil:
+		return rec, fmt.Errorf("local check %s interrupted: %w", c.Name, interrupted)
 	case runErr == nil:
 		rec.Exit = 0
 	case errors.As(runErr, &exitErr):
@@ -217,18 +232,32 @@ func suiteAgentFields(raw string) (*string, *string, *string) {
 	return &parts[0], &parts[1], &parts[2]
 }
 
+// localCheckCleanupGit preserves the existing Git seam with an independent
+// recovery budget: cancellation must not skip or indefinitely stall retirement.
+func localCheckCleanupGit(ctx context.Context, r gitRunner, root string) func(...string) (string, error) {
+	r = newBoundedLandingGit(context.WithoutCancel(commandContext(ctx)), r, localCheckCleanupTimeout)
+	return func(args ...string) (string, error) {
+		out, err := r.GitInDir(root, args...)
+		return string(out), err
+	}
+}
+
 // detachedWorktree checks sha out in a fresh temporary worktree and returns
 // its path and a cleanup that removes it (a run's, or a probe's, view of an
 // exact commit whatever the slot has checked out).
 func detachedWorktree(git func(args ...string) (string, error), sha string) (string, func(), error) {
+	return detachedWorktreeWithCleanup(git, git, sha)
+}
+
+func detachedWorktreeWithCleanup(git, cleanupGit func(args ...string) (string, error), sha string) (string, func(), error) {
 	wt, err := os.MkdirTemp("", localCheckTmpPrefix+"*")
 	if err != nil {
 		return "", nil, err
 	}
 	cleanup := func() {
-		_, _ = git("worktree", "remove", "--force", wt)
+		_, _ = cleanupGit("worktree", "remove", "--force", wt)
 		_ = os.RemoveAll(wt)
-		_, _ = git("worktree", "prune")
+		_, _ = cleanupGit("worktree", "prune")
 	}
 	if out, err := git("worktree", "add", "--detach", wt, sha); err != nil {
 		cleanup()
