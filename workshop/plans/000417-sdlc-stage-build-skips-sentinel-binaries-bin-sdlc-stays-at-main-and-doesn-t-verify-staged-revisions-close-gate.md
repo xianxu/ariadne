@@ -264,6 +264,98 @@ rounds:
       isolation: fenced
       reviewed: a7f66f308e6a2e5348d6d55929844f39fe935043
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: ad42ca81-b758-4cfc-84e1-796e7cc4561a
+            repository: github.com/xianxu/ariadne
+            issue_id: "000417"
+            recipe: milestone-review
+            round: 4
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/e40fcdbb105325c6
+            reviewed_head: 448595c97a127ed6d1bcd5d6e9b6906ea3018f55
+            slot: ariadne:1
+            requested_at: "2026-10-17T05:34:55.16199Z"
+          phase: finished
+          pid: 42411
+          started_at: "2026-10-17T05:34:55.259661Z"
+          finished_at: "2026-10-17T05:36:38.315907Z"
+          session_id: 01a1485b-2625-7201-a178-da38d531d10a
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 448595c97a127ed6d1bcd5d6e9b6906ea3018f55
+        tracker_head: 63ac306f943076f2d747e11e8eeaca6fe1b94c64
+        branch_point: f5927dfedbfb2e6dbc7d8c91ac56085732181b7b
+        since: "2026-10-16T19:43:25-07:00"
+        until: "2026-10-16T22:34:04-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-16T19:43:25-07:00"
+              end: "2026-10-16T22:34:04-07:00"
+              began: "2026-10-16T19:43:25-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: d7276a5c00140900572dab98d9a65a12c607cca562c24ed2bfd93b4f3bd56d0f
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 43892169
+              windows:
+                - start: "2026-10-16T19:43:25-07:00"
+                  end: "2026-10-16T22:34:04-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 0.036066666666666664
+        cuts:
+            - dispatched: "2026-10-16T20:52:36-07:00"
+              finalized: "2026-10-16T20:54:18-07:00"
+              finalizing: false
+            - dispatched: "2026-10-16T20:58:47-07:00"
+              finalized: "2026-10-16T21:01:01-07:00"
+              finalizing: false
+            - dispatched: "2026-10-16T21:03:29-07:00"
+              finalized: "2026-10-16T21:05:23-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-16T22:36:46-07:00"
+      dispatched: "2026-10-16T22:34:55-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Verification requires an explicit clean stamp and rejects unreadable native executables. Removing these guards made the clean-stamp, ELF, XCOFF, Plan 9 and Mach-O regressions fail.
+          round: 4
+        - id: BR-2
+          disposition: addressed
+          note: sentinelBuildTarget restricts declarations to target names. Removing grammar validation made the option, dry-run and assignment regression cases fail.
+          round: 4
+        - id: BR-3
+          disposition: addressed
+          note: Production and tests share stageBuildWithMake. Stateful owner-failure/retry and real-Make fixtures passed; skipping owner execution made the retry regression fail.
+          round: 4
+        - id: BR-4
+          disposition: addressed
+          note: README.md:17-25 documents sentinel targets, verification refusal, clear rebuilding and retry. These statements match stage.go:130-182 and stagebuild.go:32-105; atlas documents the same flow.
+          round: 4
+        - id: BR-5
+          disposition: addressed
+          note: The plan's Concepts table classifies the sentinel reader/parser as INTEGRATION and records the correction under Revisions. This matches sentinelBuildTarget's filesystem read at stagebuild.go:172; the correction is prose-only.
+          round: 4
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 448595c97a127ed6d1bcd5d6e9b6906ea3018f55
+      blocked: false
 ---
 
 # Gate ledger — ariadne#417 (boundary-review)
@@ -307,6 +399,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-2 — addressed — The target grammar at stagebuild.go:175 rejects options and assignments; the existing regression cases passed.
 - BR-3 — addressed — Production and tests share stageBuildWithMake. The stateful owner-failure/retry fixture and real-Make sequencing fixtures passed.
 - BR-4 — addressed — README.md:17-24 documents owner targets, verification refusals, clear rebuilding, and retry. These statements match the implementation; atlas/workflow/workspace-branching.md:100-109 describes the same flow.
+
+## Round 4 — 2026-10-16T22:36:46-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — Verification requires an explicit clean stamp and rejects unreadable native executables. Removing these guards made the clean-stamp, ELF, XCOFF, Plan 9 and Mach-O regressions fail.
+- BR-2 — addressed — sentinelBuildTarget restricts declarations to target names. Removing grammar validation made the option, dry-run and assignment regression cases fail.
+- BR-3 — addressed — Production and tests share stageBuildWithMake. Stateful owner-failure/retry and real-Make fixtures passed; skipping owner execution made the retry regression fail.
+- BR-4 — addressed — README.md:17-25 documents sentinel targets, verification refusal, clear rebuilding and retry. These statements match stage.go:130-182 and stagebuild.go:32-105; atlas documents the same flow.
+- BR-5 — addressed — The plan's Concepts table classifies the sentinel reader/parser as INTEGRATION and records the correction under Revisions. This matches sentinelBuildTarget's filesystem read at stagebuild.go:172; the correction is prose-only.
 
 ## Open findings
 

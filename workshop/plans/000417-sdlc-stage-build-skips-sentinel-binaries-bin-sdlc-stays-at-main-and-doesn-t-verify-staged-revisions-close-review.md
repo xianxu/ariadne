@@ -290,3 +290,89 @@ dispose:
 7. **Plan revision recommendations:** None. The existing revisions accurately record the corrections and deferred live check.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"cc596950-4998-4c2e-a750-66520c7caf77","repository":"github.com/xianxu/ariadne","issue_id":"000417","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/a45d4bf521a8f985","reviewed_head":"a7f66f308e6a2e5348d6d55929844f39fe935043","slot":"ariadne:1","requested_at":"2026-10-17T04:03:29.865435Z"},"phase":"finished","pid":36910,"started_at":"2026-10-17T04:03:29.966868Z","finished_at":"2026-10-17T04:05:22.660275Z","session_id":"01a14807-7312-7ab2-8500-9c63e74c981e","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-16T22:36:46-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 417 — sdlc stage --build skips sentinel binaries (bin/sdlc stays at main) and doesn't verify staged revisions |
+| repo | ariadne |
+| issue file | workshop/issues/000417-sdlc-stage-build-skips-sentinel-binaries-bin-sdlc-stays-at-main-and-doesn-t-verify-staged-revisions.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | f5927dfedbfb2e6dbc7d8c91ac56085732181b7b..448595c97a127ed6d1bcd5d6e9b6906ea3018f55 |
+| command | sdlc close --issue 417 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-16T22:36:46-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range implements the issue’s stage and clear contracts, including recovery when resting main predates the sentinel directive. Targeted tests passed, and removing the fixes in disposable copies made their regression tests fail. No new findings block shipping.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Verification requires an explicit clean stamp and rejects unreadable native executables. Removing these guards made the clean-stamp, ELF, XCOFF, Plan 9 and Mach-O regressions fail.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      sentinelBuildTarget restricts declarations to target names. Removing grammar validation made the option, dry-run and assignment regression cases fail.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Production and tests share stageBuildWithMake. Stateful owner-failure/retry and real-Make fixtures passed; skipping owner execution made the retry regression fail.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      README.md:17-25 documents sentinel targets, verification refusal, clear rebuilding and retry. These statements match stage.go:130-182 and stagebuild.go:32-105; atlas documents the same flow.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      The plan's Concepts table classifies the sentinel reader/parser as INTEGRATION and records the correction under Revisions. This matches sentinelBuildTarget's filesystem read at stagebuild.go:172; the correction is prose-only.
+```
+
+1. **Strengths**
+
+   - Stage and clear share one build-and-verify implementation, keeping revision checks consistent (`cmd/sdlc/stagebuild.go:26`).
+   - Sentinel outputs are matched by Go package path, supporting differently named binaries while detecting missing outputs (`stagebuild.go:95-99`).
+   - Clear preserves the restored checkout after build failure and supports repair through an already-resting retry (`cmd/sdlc/stage.go:130-166`).
+   - The legacy fallback is conditional: an already-current generic output avoids unnecessary owner-target execution (`stagebuild.go:64`).
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Passed `go test ./cmd/sdlc -run '^(TestStage|TestSentinel|TestRebuildRestingStage)' -count=1` in 37.889 seconds.
+   - Passed pinned-range `git diff --check`.
+   - Mutation checks confirmed regressions detect removal of clean-stamp enforcement, corrupt-container rejection, target validation, owner execution and the legacy fallback.
+   - Both disposable copies were removed. The full suite and live slot staging were not rerun during this review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared verifier; build recipes remain owned by Make.
+   - **ARCH-PURE — pass:** stamp extraction remains pure; filesystem parsing is correctly classified as integration.
+   - **ARCH-PURPOSE — pass:** staged builds, restored builds, missing sentinel outputs and legacy-main recovery are covered.
+   - **ARCH-MOCK — pass:** shared Make seam has stateful failure/retry coverage and real-Make fixtures.
+   - **ARCH-CONSTRAINTS — pass:** owner targets execute sequentially over the finite sentinel set.
+   - **ARCH-SECURE — pass:** declarations are validated; incomplete provenance refuses visibly.
+   - **ARCH-ORDER — pass:** failed post-switch builds preserve actual checkout state and permit retry.
+   - **ARCH-FUNERAL — pass:** runtime changes introduce no durable artifact family.
+
+7. **Plan revision recommendations:** None; the recorded revisions match the implementation.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"ad42ca81-b758-4cfc-84e1-796e7cc4561a","repository":"github.com/xianxu/ariadne","issue_id":"000417","recipe":"milestone-review","round":4,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/e40fcdbb105325c6","reviewed_head":"448595c97a127ed6d1bcd5d6e9b6906ea3018f55","slot":"ariadne:1","requested_at":"2026-10-17T05:34:55.16199Z"},"phase":"finished","pid":42411,"started_at":"2026-10-17T05:34:55.259661Z","finished_at":"2026-10-17T05:36:38.315907Z","session_id":"01a1485b-2625-7201-a178-da38d531d10a","outcome":"returned"}] -->

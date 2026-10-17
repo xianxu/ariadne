@@ -47,6 +47,7 @@ Clearing a stage must restore the same invariant for the resting branch: rebuild
 ## Log
 
 ### 2026-10-16
+- 2026-10-16: closed — Live staging verified all seven bin/* at aa955df9 with vcs.modified=false; clear exposed and refused stale bin/sdlc on older main f5927dfe, which was manually rebuilt and all seven binaries verified clean at main. A red-first regression for the legacy sentinel now passes with targeted stage/clear tests. The previous exact-head suite passed 12 shards, 1532 cmd/sdlc tests and 66 packages; the new code head suite is queued. A repeat live clear on the fixed head awaits a fresh stage grant.; review verdict: SHIP
 - 2026-10-16: closed — Targeted TestStage and TestSentinel tests passed, including red-first corrupt XCOFF, Plan 9 and Mach-O cases; missing clean stamps, Make argument injection, stateful target retry and real Make conformance are also covered. The exact-head local-check suite is queued on pushed commit a7f66f30; earlier make -k passed before the review fixes. Live ariadne:0 stage and clear awaits a fresh TL grant before landing.; review verdict: SHIP
 - 2026-10-16: flow upgraded quick → full — 167 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
