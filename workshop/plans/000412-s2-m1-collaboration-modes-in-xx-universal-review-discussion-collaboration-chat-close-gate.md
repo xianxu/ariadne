@@ -130,6 +130,135 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 13685de5-96b5-4f53-b099-6306401ad4b3
+            repository: github.com/xianxu/ariadne
+            issue_id: "000412"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/4da3b878f24d1b3b
+            reviewed_head: 255314b4ec7bd08fa70b031805fab03b12f29a06
+            slot: ariadne:2
+            requested_at: "2026-10-17T00:01:22.89563Z"
+          phase: finished
+          pid: 91621
+          started_at: "2026-10-17T00:01:23.124489Z"
+          finished_at: "2026-10-17T00:02:47.849521Z"
+          session_id: 8f9eacdf-f967-44c3-9986-b3b01587aee4
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 255314b4ec7bd08fa70b031805fab03b12f29a06
+        tracker_head: 27a568ffc9e65d519a006f41cc07fbe5af3f0e35
+        branch_point: 35ba24e6cad39344c347af981de7ac8fcc1d1c31
+        since: "2026-10-16T15:42:55-07:00"
+        until: "2026-10-16T17:00:38-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-16T15:42:55-07:00"
+              end: "2026-10-16T17:00:38-07:00"
+              began: "2026-10-16T15:42:55-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 6681a7b6-a1e9-4bf6-8743-64ae382a6945
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: a01d2d2e30cdee9e2ab0f79bd4c475b0767f8fb71bde51c321f0d54701105ed7
+              started: "2026-10-16T22:49:11.289Z"
+              spawned: false
+              bytes: 542081
+              windows:
+                - start: "2026-10-16T22:49:11.289Z"
+                  end: "2026-10-16T17:00:38-07:00"
+            - harness: claude
+              id: a3c26c68-b277-41fb-8571-456fa2883740
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 5320c188df9f1d072a2c1e3788ff32b5cea4f732e8e180b077700b714d95ba8f
+              started: "2026-10-16T22:55:51.076Z"
+              spawned: false
+              bytes: 509821
+              windows:
+                - start: "2026-10-16T22:55:51.076Z"
+                  end: "2026-10-16T17:00:38-07:00"
+            - harness: claude
+              id: c16f9f99-f7dc-493c-80e6-9950883fe1cf
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 56c17381f2e60fc56f2ae5acb83b94366afd3a2dea497b7c768fec2238d6894b
+              started: "2026-10-16T22:53:46.176Z"
+              spawned: false
+              bytes: 499558
+              windows:
+                - start: "2026-10-16T22:53:46.176Z"
+                  end: "2026-10-16T17:00:38-07:00"
+            - harness: claude
+              id: e1a45820-de66-478e-bdce-95f833a64410
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 84b46a5b1ffbb97690e35548a8500ac62e056483b444935a24569d2a8335bc77
+              started: "2026-10-16T22:56:14.41Z"
+              spawned: false
+              bytes: 394689
+              windows:
+                - start: "2026-10-16T22:56:14.41Z"
+                  end: "2026-10-16T17:00:38-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 613de9bf66a6b721b188ca36b5fbaa0b8d3a6c6f253961de92244a8dec846321
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 17302042
+              windows:
+                - start: "2026-10-16T15:42:55-07:00"
+                  end: "2026-10-16T17:00:38-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 6.5026
+        cuts:
+            - dispatched: "2026-10-16T16:55:50-07:00"
+              finalized: "2026-10-16T16:57:45-07:00"
+              finalizing: false
+      "n": 2
+      timestamp: "2026-10-16T17:02:49-07:00"
+      dispatched: "2026-10-16T17:01:22-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Spec §4 step 1 and row 19 now require the same section and an unlinked doc; case discussion-same-marker added. Checker enforcement gap raised separately as checker-coverage-gap.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: instructionBullets now follows the §3 item rule; TestInstructionBulletsAreChatItems fails on the old N.-only parser.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: Plan revisions (plan line ~264) record Done-when 2 as owed by the TL in the landing report.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: foldedRE check added, with a test that breaks a fixture's fold mark and expects the checker to fail.
+          round: 2
+      findings:
+        - kind: defect
+          id: BR-5
+          severity: Important
+          title: 'Example checker does not enforce row 19: a side doc that is already linked can be reused with no failure'
+          detail: 'I edited discussion-same-marker/after so both asks link to 01-why-per-file.md and deleted 02, which is the BR-1 defect, and TestExamples still passed. This is the 2nd finding in the family. The rule covering the class: in a parent, each side doc is the target of at most one link. Enforce it in checkTree and add a test that links two asks to one doc and expects a failure.'
+          family: checker-coverage-gap
+          round: 2
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#412 (boundary-review)
@@ -148,9 +277,20 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-3** [Minor] `done-when-deferred` (kind: defect) Done-when 2 (session file runs on collaboration-mode) depends on the TL's ops write; record it as owed in the landing report
 - **BR-4** [Minor] `checker-coverage-gap` (kind: defect) Examples checker does not assert the (folded <date>) link mark for fold cases (rows 7 and 10)
 
+## Round 2 — 2026-10-16T17:02:49-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Spec §4 step 1 and row 19 now require the same section and an unlinked doc; case discussion-same-marker added. Checker enforcement gap raised separately as checker-coverage-gap.
+- BR-2 — addressed — instructionBullets now follows the §3 item rule; TestInstructionBulletsAreChatItems fails on the old N.-only parser.
+- BR-3 — addressed — Plan revisions (plan line ~264) record Done-when 2 as owed by the TL in the landing report.
+- BR-4 — addressed — foldedRE check added, with a test that breaks a fixture's fold mark and expects the checker to fail.
+
+### Raised
+
+- **BR-5** [Important] `checker-coverage-gap` (kind: defect) Example checker does not enforce row 19: a side doc that is already linked can be reused with no failure
+  I edited discussion-same-marker/after so both asks link to 01-why-per-file.md and deleted 02, which is the BR-1 defect, and TestExamples still passed. This is the 2nd finding in the family. The rule covering the class: in a parent, each side doc is the target of at most one link. Enforce it in checkTree and add a test that links two asks to one doc and expects a failure.
+
 ## Open findings
 
-- **BR-1** [Important] `reuse-identity-too-coarse` (kind: defect) Side-doc reuse by (parent, marker) alone can link a new ask to an unrelated, already-linked discussion
-- **BR-2** [Important] `cited-rule-restated-divergently` (kind: defect) tl-lead's instructionBullets defines an item differently from the chat mode tl-lead --help now cites as the rule
-- **BR-3** [Minor] `done-when-deferred` (kind: defect) Done-when 2 (session file runs on collaboration-mode) depends on the TL's ops write; record it as owed in the landing report
-- **BR-4** [Minor] `checker-coverage-gap` (kind: defect) Examples checker does not assert the (folded <date>) link mark for fold cases (rows 7 and 10)
+- **BR-5** [Important] `checker-coverage-gap` (kind: defect) Example checker does not enforce row 19: a side doc that is already linked can be reused with no failure

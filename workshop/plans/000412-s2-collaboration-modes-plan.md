@@ -263,3 +263,11 @@ The contract edges (D§2, D§4):
   - **Minors:** the checker now asserts that a fold marks the parent's link `(folded <date>)` (rows 7 and 10), and
     numbers are capped at six digits. Done-when 2 (the live session file) goes into the landing report as owed by
     the TL, with the exact line.
+- **2026-10-16, close review round 2 (BR-5, family checker-coverage-gap, its second finding).** The checker caught a
+  missed relink but not a linked doc reused. The rule now covers the class: the checker enforces every reuse
+  invariant a tree can show, not the cases seen so far. A side doc is the target of at most one link, and only from
+  the document its `parent:` names. Two new mutation cases cover them, and the reviewer's own regression on
+  `discussion-same-marker` (both asks linked to 01) now fails `TestExamples`.
+  - Minors fixed: tl-lead's parser skips fenced code, expands tabs, and counts a bullet answered only by a link
+    ending its last line. The skill states the same. The skill also says how side docs end: no round prunes one,
+    the operator deletes it, and a later slice adds closing.

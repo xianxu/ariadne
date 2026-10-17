@@ -112,3 +112,97 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"18bcd2c0-3703-4b84-8353-59b03ee47297","repository":"github.com/xianxu/ariadne","issue_id":"000412","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/a271c0b6d57e2f38","reviewed_head":"031ea5c641fd81964c0e613178f1bd93dced516c","slot":"ariadne:2","requested_at":"2026-10-16T23:55:50.847012Z"},"phase":"finished","pid":21500,"started_at":"2026-10-16T23:55:51.782743Z","finished_at":"2026-10-16T23:57:40.343763Z","session_id":"ca937b3c-788e-48c2-a03c-5828a970022d","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-16T17:02:48-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 412 — S2 M1: collaboration modes in xx-universal-review (discussion, collaboration, chat) |
+| repo | ariadne |
+| issue file | workshop/issues/000412-s2-m1-collaboration-modes-in-xx-universal-review-discussion-collaboration-chat.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 35ba24e6cad39344c347af981de7ac8fcc1d1c31..255314b4ec7bd08fa70b031805fab03b12f29a06 |
+| command | sdlc close --issue 412 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-16T17:02:48-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Focus first on the last commit, which addresses prior findings.
+
+Checking how the last open prior finding (BR-3) was handled; then I'll write the verdict.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+All four prior findings are dealt with. One gap remains, and it is cheap to close. BR-1's rule is now in the spec: reuse needs the same parent, marker and section, and the side doc must be unlinked (`collaboration-modes.md` §4 step 1, state-table row 19). There is a reference case for it (`examples/discussion-same-marker`). BR-2 is fixed: tl-lead's parser now follows chat mode's item rule, and a test fails without the fix. BR-4's fold-mark check has its own test that breaks the fixture on purpose and expects the checker to catch it. BR-3 is recorded as owed in the plan. The gap is that the example checker does not enforce row 19. I edited the row-19 case so both asks linked to the old `01-why-per-file.md` and deleted `02-…`, which is exactly the BR-1 defect. `go test ./pkg/reviewexport/ -run TestExamples` still **passed**. The new case shows the right answer, but nothing stops a regression to the defect. Both `go test ./cmd/tl-lead/ ./pkg/reviewexport/` packages are green at head.
+
+1. **Strengths**
+   - `cmd/tl-lead/instructions.go:40-79`: the parser now matches the §3 item rule (shallowest indent; sub-items and continuation lines included; prose after a blank line belongs to no item). `TestInstructionBulletsAreChatItems` checks mixed `-`/`*`/`N.` lists, including that a link lands on the right line. The old parser would fail it.
+   - `examples_test.go`: identifying reuse by folder, parent, marker and section, plus whether the doc is linked, matches the spec exactly. The "unlinked doc not relinked" check is narrow and correct.
+   - Two new cases in `TestCheckCaseCatches` (no backlink; a fold without its mark) each break a valid fixture and expect the checker to catch it, so they test the checker itself.
+   - The spec now settles two identical asks in one section in the same round ("each candidate is reused at most once per round").
+
+2. **Critical:** none.
+
+3. **Important**
+   - **This is the 2nd finding in family `checker-coverage-gap`.** At `pkg/reviewexport/examples_test.go` (around lines 176-184 and 262-270), the checker catches a missed relink but not the opposite: a doc that is already linked being reused. **Rule to fix the whole class:** the checker should derive every §4 step-1 invariant, not only the ones examples have shown so far. One rule covers row 19 and the same-round case: *in a parent, each side doc is the target of at most one `→ [discussion|answer]` link.* Count the links per target while checking the parent and fail on more than one. Then add a test that links two asks to one doc and expects the checker to fail.
+
+4. **Minor**
+   - `instructionBullets` works out `shallow` and the item lines without skipping fenced code blocks, so a `- x` inside a fence becomes a bullet. Indentation also counts spaces only, so a tab-indented item matches nothing.
+   - `Answered` matches `→ done:` or `→ [answer](` anywhere in a bullet, including its sub-items. §3 talks about a *trailing* link on the item.
+   - **ARCH-FUNERAL:** side docs are "never pruned". That is a deliberate choice and costs one small file per ask, but the spec does not say what bounds them or removes them.
+
+5. **Test coverage**
+   - tl-lead is well covered: the new table test plus the existing link/list tests.
+   - The example checker has the row-19 gap above. Every other row's invariant I traced is covered, either by a case or by a test that breaks a fixture and expects a failure.
+
+6. **Architecture**
+   - **ARCH-DRY:** pass, with a note. The chat-item rule now exists as English in §3 and as Go in tl-lead. A future Go consumer should import the parser rather than copy it again.
+   - **ARCH-PURE:** pass. Parsing, linking and checking are pure functions over strings or `fs.FS`; the IO lives in the `SessionSync` seam.
+   - **ARCH-PURPOSE:** pass. tl-lead now follows the rule its help cites. Done-when 2 (the live session file) is explicitly owed to the TL.
+   - **ARCH-MOCK:** N/A. The change adds no external dependency; tests use `fstest` and the existing fakes.
+   - **ARCH-CONSTRAINTS:** N/A. These are small documents parsed in linear time.
+   - **ARCH-SECURE:** pass. `linkBullet` refuses targets with whitespace or parentheses, and the checker rejects absolute or `#` parent paths.
+   - **ARCH-ORDER:** pass for the spec (the refused-write retry is row 18, write order is in §4) and for the code (`link` is pinned to the hash `list` returned and never retried). The finding above is about the checker, not the protocol.
+   - **ARCH-FUNERAL:** see the Minor note.
+
+7. **Plan revisions:** add a "## Revisions" entry saying the checker enforces "at most one link per side doc", which covers row 19 and same-round identical asks.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Spec §4 step 1 and row 19 now require the same section and an unlinked doc; case discussion-same-marker added. Checker enforcement gap raised separately as checker-coverage-gap.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      instructionBullets now follows the §3 item rule; TestInstructionBulletsAreChatItems fails on the old N.-only parser.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Plan revisions (plan line ~264) record Done-when 2 as owed by the TL in the landing report.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      foldedRE check added, with a test that breaks a fixture's fold mark and expects the checker to fail.
+findings:
+  - id: new
+    severity: Important
+    kind: defect
+    family: checker-coverage-gap
+    title: |
+      Example checker does not enforce row 19: a side doc that is already linked can be reused with no failure
+    detail: |
+      I edited discussion-same-marker/after so both asks link to 01-why-per-file.md and deleted 02, which is the BR-1 defect, and TestExamples still passed. This is the 2nd finding in the family. The rule covering the class: in a parent, each side doc is the target of at most one link. Enforce it in checkTree and add a test that links two asks to one doc and expects a failure.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"13685de5-96b5-4f53-b099-6306401ad4b3","repository":"github.com/xianxu/ariadne","issue_id":"000412","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/4da3b878f24d1b3b","reviewed_head":"255314b4ec7bd08fa70b031805fab03b12f29a06","slot":"ariadne:2","requested_at":"2026-10-17T00:01:22.89563Z"},"phase":"finished","pid":91621,"started_at":"2026-10-17T00:01:23.124489Z","finished_at":"2026-10-17T00:02:47.849521Z","session_id":"8f9eacdf-f967-44c3-9986-b3b01587aee4","outcome":"returned"}] -->

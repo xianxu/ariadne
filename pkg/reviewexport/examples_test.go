@@ -131,9 +131,24 @@ func checkTree(fsys fs.FS) (sides map[string]sideDoc, errs []string) {
 			return nil
 		}
 		text := read(p)
+		// Every reuse invariant of collaboration-modes.md §4 step 1 that a
+		// tree can show: a side doc is the target of at most one link (an
+		// already-linked doc is never reused), and only from its own parent.
+		targets := map[string]int{}
 		for _, m := range sideLinkRE.FindAllStringSubmatch(text, -1) {
-			if _, err := fs.Stat(fsys, path.Join(dir, m[1])); err != nil {
+			t := path.Join(dir, m[1])
+			if _, err := fs.Stat(fsys, t); err != nil {
 				bad("%s: link %s does not resolve", p, m[1])
+				continue
+			}
+			if !strings.HasSuffix(path.Dir(t), ".side") {
+				continue // an older qa/ answer file, not a side doc
+			}
+			if targets[t]++; targets[t] == 2 {
+				bad("%s: two links point to %s; a linked side doc is never reused", p, m[1])
+			}
+			if tfm, _ := frontmatter(read(t)); path.Join(path.Dir(t), tfm["parent"]) != p {
+				bad("%s: links %s, whose parent is %q", p, m[1], tfm["parent"])
 			}
 		}
 		if !strings.HasSuffix(dir, ".side") {
@@ -382,6 +397,13 @@ func TestCheckCaseCatches(t *testing.T) {
 			m["after/d.side/02-why.md"] = m[side]
 			edit("after/d.md", "01-why", "02-why")(m)
 		}, "should have been relinked"},
+		{"a linked doc reused", func(m fstest.MapFS) {
+			edit("before/d.md", "🤖[why?]", "🤖[why?] Again. 🤖[why?]")(m)
+			edit("after/d.md", "(d.side/01-why.md)", "(d.side/01-why.md) Again. → [discussion](d.side/01-why.md)")(m)
+		}, "two links point to"},
+		{"a link from a document that is not the parent", func(m fstest.MapFS) {
+			m["after/e.md"] = &fstest.MapFile{Data: []byte("# E\n\n→ [discussion](d.side/01-why.md)\n")}
+		}, "whose parent is"},
 		{"no backlink", edit(side, "_From [D](../d.md), section \"D\"._", "From D."), "no backlink"},
 		{"a fold whose link is not marked", edit(side, "# Why?\n", "# Why?\n\nFolded into the parent 2026-10-16: x.\n"), "not marked (folded"},
 		{"a pruned side doc", func(m fstest.MapFS) { m["before/d.side/01-why.md"] = m[side]; delete(m, side) }, "never pruned"},

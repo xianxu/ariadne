@@ -138,3 +138,4 @@ total: 4.33
 - Targeted tests green: ./pkg/... ./cmd/weave/... ./cmd/tl-lead/... ./cmd/tl-worker/....
 - Full suite green on d1199a4b (12 shards, 1519 cmd/sdlc tests plus 66 packages, 0 failed; sdlc-local/suite recorded).
 - Close review round 1: FIX-THEN-SHIP with BR-1 (reuse identity too coarse) and BR-2 (tl-lead parser vs chat mode item), plus two Minors; all fixed by class, see the plan's Revisions. Targeted tests green.
+- Close review round 2: BR-1 to BR-4 disposed; BR-5 (the checker did not enforce row 19) fixed by the class: at most one link per side doc, only from its parent; plus the parser and lifetime Minors. See the plan's Revisions.

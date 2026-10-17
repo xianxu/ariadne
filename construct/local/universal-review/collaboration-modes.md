@@ -111,8 +111,9 @@ Each **item** of the section is an ask, not each marker.
 
 - **An item** starts at a `-`, `*` or `N.` line at the section's shallowest list indent. It runs over its
   sub-items and continuation lines until the next such line, or until a blank line followed by prose indented no
-  deeper than that indent: prose in the section belongs to no item and is ignored. Its **extent** is all of that
-  except a trailing ` → [answer](…)` link.
+  deeper than that indent: prose in the section belongs to no item and is ignored. Fenced code starts no item, and a
+  tab indents to the next multiple of four. Its **extent** is all of that except a ` → [answer](…)` link ending its
+  last line, which is what makes an item linked.
 - **A new ask:** an item with no `→ [answer](…)` link. Write an answer doc (§4) and append ` → [answer](<path>)`
   to the item's last line. For a question the doc answers it. For an instruction you carry it out, and the doc
   records what was done and where.
@@ -136,6 +137,9 @@ Each **item** of the section is an ask, not each marker.
 ## 4. Side docs and answer docs
 
 A discussion's side doc and a chat item's answer doc are both **side docs**; only their names and link text differ.
+
+**Lifetime:** a side doc is one small file per ask. No round prunes one: the operator deletes a side doc they are
+done with (with its link), and a later slice adds closing. The folder grows by one file per question or chat item.
 
 **Where:** every side doc of `<name>.md` lives in `<name>.side/`, beside it: one flat folder per document. A side
 doc opened from another side doc goes in the **same folder**, with `parent:` naming the side doc it came from. Never
