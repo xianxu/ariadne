@@ -54,6 +54,43 @@ func TestSelectOwnedQueueAttempts(t *testing.T) {
 	}
 }
 
+func TestQueueWaitCrossingLastIssueCommitUsesPinnedPortion(t *testing.T) {
+	claimed := time.Date(2026, 10, 17, 19, 13, 30, 0, time.UTC)
+	queued := time.Date(2026, 10, 17, 19, 24, 30, 0, time.UTC)
+	until := time.Date(2026, 10, 17, 19, 26, 8, 0, time.UTC)
+	acquired := time.Date(2026, 10, 17, 19, 48, 27, 0, time.UTC)
+	owner := issue.Claimant{Operator: "test", Machine: strings.Repeat("a", 32), MachineName: "test machine", Workspace: "pair:8", Worktree: "/repo/slot8", Repository: "github.com/xianxu/pair"}
+	q := acquired.Sub(queued).Seconds()
+	attempt := SuiteAttempt{Version: 1, ID: "2a875dd8cd12fd8a37285519857d2012", Repo: "xianxu/pair", Check: "suite", Slot: owner.Workspace, SHA: strings.Repeat("b", 40), StartedAt: acquired, QueueSeconds: &q, QueuedAt: &queued, AcquiredAt: &acquired}
+	for _, tc := range []struct {
+		name    string
+		events  []tracker.OwnershipEvent
+		wantErr bool
+	}{
+		{"claim through cutoff", []tracker.OwnershipEvent{{At: claimed, Owner: &owner, Operation: tracker.OpClaim}}, false},
+		{"release after cutoff", []tracker.OwnershipEvent{{At: claimed, Owner: &owner, Operation: tracker.OpClaim}, {At: until.Add(time.Minute), Operation: "unclaim"}}, false},
+		{"release inside measured wait", []tracker.OwnershipEvent{{At: claimed, Owner: &owner, Operation: tracker.OpClaim}, {At: queued.Add(time.Minute), Operation: "unclaim"}}, true},
+		{"gap inside measured wait", []tracker.OwnershipEvent{{At: claimed, Owner: &owner, Operation: tracker.OpClaim}, {At: queued.Add(30 * time.Second), Operation: "unclaim"}, {At: queued.Add(time.Minute), Owner: &owner, Operation: tracker.OpClaim}}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			engagements, err := tracker.DeriveEngagements(tc.events, until)
+			if err != nil {
+				t.Fatal(err)
+			}
+			waits, notes, err := selectOwnedQueueAttempts([]SuiteAttempt{attempt}, engagements, "github.com/xianxu/pair", claimed, until)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("release inside measured wait was admitted: waits=%+v notes=%+v", waits, notes)
+				}
+				return
+			}
+			if err != nil || len(notes) != 0 || len(waits) != 1 || waits[0].QueueSeconds != until.Sub(queued).Seconds() || waits[0].RawSeconds != q {
+				t.Fatalf("pinned queue portion: waits=%+v notes=%+v err=%v", waits, notes, err)
+			}
+		})
+	}
+}
+
 func TestMixedQueueBlockersNeverSuggestLegacyExclusion(t *testing.T) {
 	start := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
 	q := 60.0

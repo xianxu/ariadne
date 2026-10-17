@@ -1474,7 +1474,9 @@ local-check recorder stores exact queue start and acquisition instants beside
 cannot support a calibrated numeric actual. A legacy `started_at` follows an
 unrecorded setup delay, so a reconstructed wait never proves non-overlap with
 an engagement or measurement boundary. The actual resolver selects validated records for the pinned
-repository, owner slot and engagement, then retains the selected intervals,
+repository, owner slot and engagement. An exact wait crossing the measurement's
+last issue commit is clipped there before ownership is checked; only the part
+inside the measured window needs one pinned owner (#430). It then retains the selected intervals,
 record digests and source slots in the bounded measurement snapshot. The native
 engine applies each wait to admitted activity sources mapped to the attempt's
 owning slot and subtracts the entire interval. No tool call, result or task

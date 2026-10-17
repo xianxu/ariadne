@@ -25,8 +25,7 @@ func (e *queueEvidenceError) Error() string {
 }
 
 // selectOwnedQueueAttempts admits a queue wait only when a single pinned
-// engagement owns its slot for the entire original wait. A partial measurement
-// window clips the selected interval, never the ownership proof.
+// engagement owns its slot for the portion inside the measurement window.
 func selectOwnedQueueAttempts(attempts []SuiteAttempt, engagements []tracker.EngagementWindow, repository string, since, until time.Time) ([]gatestate.MeasurementQueueWait, []string, error) {
 	var waits []gatestate.MeasurementQueueWait
 	var warnings []string
@@ -79,33 +78,6 @@ func selectOwnedQueueAttempts(attempts []SuiteAttempt, engagements []tracker.Eng
 		if !end.After(since) || !start.Before(until) || !end.After(start) {
 			continue
 		}
-		if a.Slot == "" {
-			for _, e := range engagements {
-				if start.Before(e.End) && end.After(e.Start) && len(e.Owners) > 0 {
-					warnings = append(warnings, fmt.Sprintf("suite attempt %s has unknown slot provenance", a.ID))
-					break
-				}
-			}
-			continue
-		}
-		owners, overlaps := 0, 0
-		for _, e := range engagements {
-			for _, owner := range e.Owners {
-				if owner.Workspace != a.Slot || !start.Before(e.End) || !end.After(e.Start) {
-					continue
-				}
-				overlaps++
-				if !start.Before(e.Start) && !end.After(e.End) {
-					owners++
-				}
-			}
-		}
-		if overlaps == 0 {
-			continue
-		} // other slots and unowned gaps are not this issue's waits
-		if owners != 1 {
-			return nil, nil, fmt.Errorf("suite attempt %s has %d matching pinned slot engagements", a.ID, owners)
-		}
 		selectedStart, selectedEnd := start, end
 		if selectedStart.Before(since) {
 			selectedStart = since
@@ -115,6 +87,33 @@ func selectOwnedQueueAttempts(attempts []SuiteAttempt, engagements []tracker.Eng
 		}
 		if !selectedEnd.After(selectedStart) {
 			continue
+		}
+		if a.Slot == "" {
+			for _, e := range engagements {
+				if selectedStart.Before(e.End) && selectedEnd.After(e.Start) && len(e.Owners) > 0 {
+					warnings = append(warnings, fmt.Sprintf("suite attempt %s has unknown slot provenance", a.ID))
+					break
+				}
+			}
+			continue
+		}
+		owners, overlaps := 0, 0
+		for _, e := range engagements {
+			for _, owner := range e.Owners {
+				if owner.Workspace != a.Slot || !selectedStart.Before(e.End) || !selectedEnd.After(e.Start) {
+					continue
+				}
+				overlaps++
+				if !selectedStart.Before(e.Start) && !selectedEnd.After(e.End) {
+					owners++
+				}
+			}
+		}
+		if overlaps == 0 {
+			continue
+		} // other slots and unowned gaps are not this issue's waits
+		if owners != 1 {
+			return nil, nil, fmt.Errorf("suite attempt %s has %d matching pinned slot engagements", a.ID, owners)
 		}
 		canonical, err := json.Marshal(a)
 		if err != nil {
