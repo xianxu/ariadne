@@ -40,6 +40,7 @@ A reader of `issue show`, whether the TL, the operator or an agent deciding whet
 - `issue show`, text and JSON, reports the verdict of the review bound to the issue's completion, or the latest review when there is no completion, along with its round. A test covers an issue with a REWORK round 1 and a SHIP round 2.
 - Earlier rounds stay visible as history, labelled as earlier.
 - Fresh and stale tracker reads each preserve latest-review selection without a completion and bound-review selection with one.
+- Round identity uses reviewed commits, tolerates independently sampled timestamps, and reports unknown when neither identity nor complete legacy alignment is provable. History labels follow entry order.
 
 ## Plan
 
@@ -82,3 +83,7 @@ A reader of `issue show`, whether the TL, the operator or an agent deciding whet
 ### 2026-10-17 — BR-1: binding presence is independent of read quality
 
 Round 1 REWORK reproduced a stale working card with no completion: assembleCompletion retains a stale Read but has no parsed binding, so a valued-read guard matched an empty reviewed head and suppressed the latest verdict. Require parsed binding presence as well as readable provenance; enumerate fresh/stale × present/absent for the shared text/JSON selection (ARCH-PURPOSE). No new state or mechanism. TL approved this revision.
+
+### 2026-10-17 — BR-2: stable round identity
+
+Round 2 addressed BR-1 but found timestamp equality is not identity: the actual round-1 sidecar is stamped 04:24:25 and ledger 04:24:26. A RED probe with ledger rounds 4 and 6 reported round 2 and called earlier round 4 later. TL approved joining sidecar window heads with existing ledger Reviewed/ReviewerRuns heads, complete known-head-compatible sequence alignment for legacy entries, otherwise explicit round unknown. Labels derive from entry positions, never round-number magnitude. No writer changes or durable state. Durable implementation plan: workshop/plans/000423-review-round-identity-plan.md. Use full flow if the final patch leaves the shell.

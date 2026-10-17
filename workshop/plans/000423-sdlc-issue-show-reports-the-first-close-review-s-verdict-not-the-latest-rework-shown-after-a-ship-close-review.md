@@ -65,3 +65,87 @@ findings:
    - Add a `## Revisions` entry distinguishing completion-binding presence from tracker freshness, with fresh/stale × present/absent regression coverage.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"e2b7f2f1-a74d-4196-937d-412659227373","repository":"github.com/xianxu/ariadne","issue_id":"000423","recipe":"small-diff-review","round":1,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/8975df82cc57282c","reviewed_head":"4bea66dbd7c3275d35560124f274834b1505e16b","slot":"ariadne:5","requested_at":"2026-10-17T11:23:17.606778Z"},"phase":"finished","pid":88350,"started_at":"2026-10-17T11:23:17.763941Z","finished_at":"2026-10-17T11:24:25.184821Z","session_id":"01a1499a-1936-71b1-bd81-4532363ae12c","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T05:29:35-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 423 — sdlc issue show reports the first close review's verdict, not the latest (REWORK shown after a SHIP) |
+| repo | ariadne |
+| issue file | workshop/issues/000423-sdlc-issue-show-reports-the-first-close-review-s-verdict-not-the-latest-rework-shown-after-a-ship.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 2bfbc4fa27ed30da2455ad38d4eaea0ddf82a774..ea1a9ee9a2c0855563cc269aac6dd3cd8e216565 |
+| command | sdlc close --issue 423 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-17T05:29:35-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-1 is addressed, with a regression test confirmed to fail without its fix. The main verdict-selection and archival paths pass. One blocking defect remains: independently sampled timestamps can produce incorrect round numbers and reverse history labels, violating the Done-when contract.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The guard now requires comp.Token alongside valued read quality. The four fresh/stale × binding-present/absent cases pass. Removing the token guard in a disposable pinned-head copy makes TestReviewRoundsSelectCompletionOrLatest/stale_absent fail with the original unknown-verdict error.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: review-provenance-requires-stable-identity
+    title: |
+      Timestamp drift corrupts review round numbers and history labels
+    detail: |
+      cmd/sdlc/internal/observe/checkpoints.go:238-255 joins entries to ledger rounds by exact timestamp, silently substituting entry order on a miss. Sidecar persistence samples nowRFC3339 separately from ledger persistence (reviewsidecar.go:211 and close.go:1526); the pinned #423 sidecar records 04:24:25 while its ledger records 04:24:26. A disposable regression probe with ledger rounds 4 and 6 and a one-second mismatch on the completion-bound second entry reports round 2 and labels the earlier round 4 “later, not completion-bound.” The complete family is the collector’s timestamp map (observe.go:318-322), both historical/current number lookups, and the numeric relation comparison (checkpoints.go:197), affecting close and milestone reviews and their shared text/JSON consumers. Use stable review identity with compatibility handling for existing artifacts; derive chronological labels from entry order. Add coverage for timestamp drift where ledger numbers differ from entry ordinals.
+```
+
+1. **Strengths**
+
+   - Completion-bound selection preserves current blocking-finding counts.
+   - Fresh/stale binding coverage verifies BR-1’s full matrix.
+   - The lifecycle test exercises the real writer, collector, archival, and branch deletion.
+   - Fence handling reuses `markdoc.StripFenced`.
+
+2. **Critical findings**
+
+   - The timestamp-identity defect above blocks shipment. Entry-order fallback cannot reliably identify ledger rounds.
+
+3. **Important findings**
+
+   - None.
+
+4. **Minor findings**
+
+   - None.
+
+5. **Test coverage notes**
+
+   - Observer package passed.
+   - Targeted lifecycle and sidecar tests passed.
+   - BR-1 mutation test failed as expected.
+   - Timestamp-drift probe failed, reproducing incorrect numbering and history labels.
+   - `git diff --check` passed. Disposable copies were removed; checkout remains clean.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY: pass.** Existing fence processing is reused.
+   - **ARCH-PURE: pass.** Selection remains deterministic; collection stays at the IO boundary.
+   - **ARCH-PURPOSE: flag.** Required round identity and earlier-history labels remain unreliable.
+   - Atlas was updated. No new command, flag, configuration, or usage step requires a README change.
+
+7. **Plan revision recommendations**
+
+   - Add a `## Revisions` entry requiring stable sidecar-to-ledger identity, compatibility for existing timestamp differences, and regression coverage with nonconsecutive ledger numbers.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"232ab55e-a8d6-4bd9-935d-82c57640c5e0","repository":"github.com/xianxu/ariadne","issue_id":"000423","recipe":"small-diff-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/31c8cc98ca1f4ce2","reviewed_head":"ea1a9ee9a2c0855563cc269aac6dd3cd8e216565","slot":"ariadne:5","requested_at":"2026-10-17T12:28:08.51601Z"},"phase":"finished","pid":62630,"started_at":"2026-10-17T12:28:08.613898Z","finished_at":"2026-10-17T12:29:35.460322Z","session_id":"01a149d5-7708-7312-96c4-6374b766dbd6","outcome":"returned"}] -->
