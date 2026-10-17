@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+
+	"github.com/xianxu/ariadne/pkg/sidedoc"
 )
 
 // The examples (#412) are reference rounds for collaboration-modes.md: one
@@ -22,7 +24,6 @@ import (
 var (
 	datedNameRE    = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2})-(\d{2,6})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$`)
 	numberedNameRE = regexp.MustCompile(`^(\d{2,6})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$`)
-	sideLinkRE     = regexp.MustCompile(`→ \[(?:discussion|answer|notes)\]\(([^)\s]+)\)`)
 	backlinkRE     = regexp.MustCompile(`(?m)^_From \[[^\]]*\]\([^)#\s]+\), section "([^"]+)"\._`)
 	foldedRE       = regexp.MustCompile(`^ \(folded \d{4}-\d{2}-\d{2}\)`)
 )
@@ -135,20 +136,20 @@ func checkTree(fsys fs.FS) (sides map[string]sideDoc, errs []string) {
 		// tree can show: a side doc is the target of at most one link (an
 		// already-linked doc is never reused), and only from its own parent.
 		targets := map[string]int{}
-		for _, m := range sideLinkRE.FindAllStringSubmatch(text, -1) {
-			t := path.Join(dir, m[1])
+		for _, link := range sidedoc.SideLinks(text) {
+			t := path.Join(dir, link)
 			if _, err := fs.Stat(fsys, t); err != nil {
-				bad("%s: link %s does not resolve", p, m[1])
+				bad("%s: link %s does not resolve", p, link)
 				continue
 			}
 			if !strings.HasSuffix(path.Dir(t), ".side") {
 				continue // an older qa/ answer file, not a side doc
 			}
 			if targets[t]++; targets[t] == 2 {
-				bad("%s: two links point to %s; a linked side doc is never reused", p, m[1])
+				bad("%s: two links point to %s; a linked side doc is never reused", p, link)
 			}
 			if tfm, _ := frontmatter(read(t)); path.Join(path.Dir(t), tfm["parent"]) != p {
-				bad("%s: links %s, whose parent is %q", p, m[1], tfm["parent"])
+				bad("%s: links %s, whose parent is %q", p, link, tfm["parent"])
 			}
 		}
 		if !strings.HasSuffix(dir, ".side") {
