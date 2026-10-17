@@ -14,6 +14,8 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/transcripts"
 )
 
+const legacyQueueWarningPrefix = "legacy suite attempt "
+
 // selectOwnedQueueAttempts admits a queue wait only when a single pinned
 // engagement owns its slot for the entire original wait. A partial measurement
 // window clips the selected interval, never the ownership proof.
@@ -61,7 +63,7 @@ func selectOwnedQueueAttempts(attempts []SuiteAttempt, engagements []tracker.Eng
 				}
 			}
 			if relevant {
-				warnings = append(warnings, fmt.Sprintf("legacy suite attempt %s lacks exact queue endpoints; queue idle is unknown and this sample is not calibration evidence", a.ID))
+				warnings = append(warnings, fmt.Sprintf("%s%s lacks exact queue endpoints; queue idle is unknown and this sample is not calibration evidence", legacyQueueWarningPrefix, a.ID))
 			}
 			continue
 		}

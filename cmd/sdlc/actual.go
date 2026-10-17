@@ -341,8 +341,23 @@ func printActualMeasurement(w io.Writer, res actualResult) {
 	}
 }
 
+// legacyQueueAttemptID recognizes only the selector's controlled legacy warning.
+// Other evidence errors must keep their recovery guidance.
+func legacyQueueAttemptID(detail string) string {
+	rest, ok := strings.CutPrefix(detail, "queue evidence incomplete; actual is not calibration evidence: "+legacyQueueWarningPrefix)
+	if !ok {
+		return ""
+	}
+	id, suffix, ok := strings.Cut(rest, " ")
+	if !ok || len(id) < 2 || len(id) > 64 || !suiteHex.MatchString(id) || !strings.HasPrefix(suffix, "lacks exact queue endpoints;") {
+		return ""
+	}
+	return id
+}
+
 // printActual renders measured evidence or the action needed to recover it.
-func printActual(w io.Writer, res actualResult) {
+// The milestone selects the exact close verb for an actual preview or refusal.
+func printActual(w io.Writer, res actualResult, milestone string) {
 	issueStr := issue.CLIRef(res.Issue)
 	switch res.Status {
 	case actualMeasured:
@@ -363,7 +378,9 @@ func printActual(w io.Writer, res actualResult) {
 		cwarn(w, fmt.Sprintf("no commits reference #%s yet; commit the issue's work with #%s in the subject, then re-run sdlc actual --issue %s.", issueStr, issueStr, issueStr))
 	case actualError:
 		cwarn(w, fmt.Sprintf("can't auto-compute (%s).", res.Detail))
-		if strings.Contains(res.Detail, "retained measurement code head differs") {
+		if id := legacyQueueAttemptID(res.Detail); id != "" {
+			fmt.Fprintf(w, "  → legacy suite attempt %s lacks exact queue endpoints; those timestamps were never recorded and cannot be restored. Exclude this actual from calibration with:\n    %s\n  Include that attempt ID and reason with the verification evidence.\n", id, rerunCmd(issueStr, milestone, " --no-actual"))
+		} else if strings.Contains(res.Detail, "retained measurement code head differs") {
 			fmt.Fprintf(w, "  → run sdlc issue correct-actual --issue %s --reason 'repair inconsistent retained measurement' --dry-run; it names the exact target/exclusion action if numeric repair is unavailable.\n", issueStr)
 		} else {
 			fmt.Fprintf(w, "  → ask the TL/hub to restore the named measurement evidence, then re-run sdlc actual --issue %s.\n", issueStr)
@@ -400,7 +417,7 @@ func NewActualCmd() *cobra.Command {
 			}
 			brainAbs, _ := filepath.Abs(brainDir)
 			res := computeActualFor(cmd.Context(), repoTop, brainAbs, strconv.Itoa(issue), milestone, "")
-			printActual(stderr, res)
+			printActual(stderr, res, milestone)
 			return nil
 		},
 	}

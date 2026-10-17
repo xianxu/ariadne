@@ -67,7 +67,7 @@ func TestActualRefusalsRequireEvidenceInsteadOfInventedHours(t *testing.T) {
 	for _, status := range []actualStatus{actualTelemetryGap, actualEmptyWindow, actualNoWindow, actualError} {
 		res := actualResult{Issue: "000401", Status: status, Detail: "retained measurement code head differs from the completion's reviewed generation"}
 		var output bytes.Buffer
-		printActual(&output, res)
+		printActual(&output, res, "")
 		explainActual(&output, "401", "issue", "", res)
 		text := output.String()
 		for _, forbidden := range []string{"judgment", "--actual <", "ACTUAL=<hours>", "--issue 000401"} {
