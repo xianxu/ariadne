@@ -25,6 +25,20 @@ ko() { printf '  \033[31mFAIL\033[0m %s\n' "$1"; fail=$((fail+1)); }
 assert_contains()     { case "$2" in *"$1"*) ok "$3" ;; *) ko "$3 — missing: $1";; esac; }
 assert_not_contains() { case "$2" in *"$1"*) ko "$3 — unexpected: $1" ;; *) ok "$3";; esac; }
 
+# A diagnostic flag may add stderr, but must preserve machine-readable --list
+# stdout and status, in both ordinary and strict modes.
+assert_verbose_list_unchanged() {
+	local label="$1" cwd="$2" strict="$3" expected="$4" ordinary_rc verbose_rc
+	( cd "$cwd" && bash "$GEN" --workspace "$WS" --list ${strict:+--strict} > "$WS/ordinary.list" 2> "$WS/ordinary.err" ); ordinary_rc=$?
+	( cd "$cwd" && bash "$GEN" --workspace "$WS" --list ${strict:+--strict} --verbose > "$WS/verbose.list" 2> "$WS/verbose.err" ); verbose_rc=$?
+	if [ "$ordinary_rc" -eq "$verbose_rc" ] && cmp -s "$WS/ordinary.list" "$WS/verbose.list"; then
+		ok "$label preserves --list stdout and status"
+	else
+		ko "$label changed --list stdout or status"
+	fi
+	assert_contains "$expected" "$(cat "$WS/verbose.err")" "$label reports diagnostics on stderr"
+}
+
 mkcmd() { mkdir -p "$1"; printf 'package main\nfunc main() {}\n' > "$1/main.go"; }
 
 # ── fixture workspace ────────────────────────────────────────────────────────
@@ -213,8 +227,8 @@ slot_out="$(cd "$SLOT" && bash "$GEN" --workspace "$WS" --list --strict 2>"$WS/s
 [ "$slot_rc" -eq 0 ] && ok "same-origin checkouts pass --strict" || ko "same-origin checkouts failed --strict"
 [ ! -s "$WS/slot.err" ] && ok "same-origin checkouts produce no warning" || ko "same-origin warning: [$(cat "$WS/slot.err")]"
 assert_contains "$(printf 'sdlc\t%s' "$SUBSTRATE")" "$slot_out" "slot substrate remains selected owner"
-slot_verbose="$(cd "$SLOT" && bash "$GEN" --workspace "$WS" --verbose --list 2>&1 >/dev/null)"
-assert_contains "same-origin" "$slot_verbose" "verbose mode explains suppressed duplicate"
+assert_verbose_list_unchanged "same-origin verbose" "$SLOT" "" "same-origin"
+assert_verbose_list_unchanged "same-origin strict verbose" "$SLOT" "strict" "same-origin"
 git -C "$SUBSTRATE" remote set-url origin ssh://git@github.com/example/ariadne.git
 if (cd "$SLOT" && bash "$GEN" --workspace "$WS" --strict --list >"$WS/ssh-list" 2>"$WS/ssh.err"); then
 	[ ! -s "$WS/ssh.err" ] && ok "GitHub ssh:// origin is equivalent and quiet under --strict" || ko "GitHub ssh:// warned: [$(cat "$WS/ssh.err")]"
@@ -231,6 +245,8 @@ git -C "$WS/repoa" remote add origin https://github.com/example/repoa.git
 git -C "$WS/repob" remote add origin https://github.com/example/repob.git
 dup_err="$(bash "$GEN" --workspace "$WS" 2>&1 >/dev/null)"
 assert_contains "duplicate binary 'dupe'" "$dup_err" "warns on duplicate binary name"
+assert_verbose_list_unchanged "distinct-origin verbose" "$WS" "" "duplicate binary 'dupe'"
+assert_verbose_list_unchanged "distinct-origin strict verbose" "$WS" "strict" "duplicate binary 'dupe'"
 # last-win: repob sorts after repoa
 dup_line="$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^dupe()')"
 assert_contains "cd $WS/repob " "$dup_line" "duplicate resolves last-win (repob)"

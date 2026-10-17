@@ -45,6 +45,7 @@ repos owning one binary name).
   and maps binaries to the slot's clone; two different repos owning one name still warn, and fail under `--strict`.
 - Equivalent GitHub HTTPS, scp-style SSH and `ssh://` origins, including path case, suppress warnings and pass strict mode. Identical non-GitHub URLs also suppress warnings; differing transport or path case, absent origins, and unrecognized relative origins warn and fail strict mode. `--verbose` explains a suppressed collision without changing `--list` output.
 - README and atlas describe the diagnostic flag and strict collision rule.
+- Diagnostic fixtures compare complete `--list` stdout and exit status with and without `--verbose`, in ordinary and strict modes, while asserting stderr separately.
 
 ## Plan
 
@@ -68,6 +69,8 @@ Final focused test: 70 passed, 0 failed. Recorded `sdlc-local/suite` on c64466ea
 
 Close review round 1 returned FIX-THEN-SHIP with two blocking Important findings: README omitted the new user-facing flag, and acceptance plus fixture coverage omitted parts of the revised origin policy. A Minor ARCH-DRY finding identified duplicate warning/strict classification. I enumerated the policy matrix in Done when and fixtures, documented the flag in README, and made both warning and strict status consume one classification. This requires another exact-head suite and close review.
 
+Close review round 2 disposed of the three earlier findings but found that the verbose fixture discarded stdout, leaving the machine-readable `--list` promise untested. I added ordinary and strict stdout/status equivalence assertions for both same-origin and distinct-origin cases, alongside separate stderr assertions. The finding is in the acceptance-contract-coverage family; the added checks cover that whole diagnostic mode rather than only the named call site.
+
 ## Revisions
 
 ### 2026-10-17 — Preserve non-GitHub identity conservatively
@@ -77,3 +80,7 @@ The original plan said to normalize origin URLs generically. GitHub's known iden
 ### 2026-10-17 — Cover the complete origin policy
 
 Review round 1 showed that the original Done when and test matrix described only the motivating collision. The accepted policy also covers GitHub `ssh://`, identical non-GitHub URLs, non-GitHub transport and path-case differences, and unrecognized origins. These are now explicit acceptance cases; README documentation and one shared collision classification are in scope.
+
+### 2026-10-17 — Assert diagnostic stream separation
+
+Review round 2 showed that checking only the presence of a verbose stderr message does not prove `--list` stdout remains machine-readable. The diagnostic-mode acceptance now requires full stdout and exit-status equivalence with and without `--verbose` for ordinary and strict invocations, with stderr checked independently.
