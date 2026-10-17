@@ -73,11 +73,11 @@ commit it` so the refreshed copy reaches the shipped plugin.
 **Durable state (ARCH-CONSTRAINTS at-plan):** one sidecar per declared output: weave writes it, the consumer's git
 tracks it, and it changes only when the output changes. It is removed when the declaration goes (weave's retirement).
 
-- [ ] `ship` manifest verb; sidecar write; ownership by committed digest in `prepareManaged`.
-- [ ] Tests (cmd/weave plan): the parley case — a cold checkout (no inventory), a declared output plus a matching
+- [x] `ship` manifest verb; sidecar write; ownership by committed digest in `prepareManaged`.
+- [x] Tests (cmd/weave plan): the parley case — a cold checkout (no inventory), a declared output plus a matching
       sidecar, and a changed upstream output → regenerated with the report line; a hand-edited declared output → still
       refused; an undeclared output → refused as today; a warm checkout → unchanged.
-- [ ] Atlas: weave ownership and tracked outputs.
+- [x] Atlas: weave ownership and tracked outputs.
 - [ ] parley follow-up proposal to the TL (declaration and sidecar commit).
 
 ## Estimate
@@ -111,3 +111,13 @@ because the durable plan settles the decisions (+15% buffer); impl is at 40% of 
   vocabulary outputs are `stagedOutput`s in ScopeArtifacts; the inventory is gitignored
   `construct/generated/weave/ownership.json`. The existing printManagedReport already prints "regenerated tracked
   output X: commit it".
+- Implemented (c9bebdcb, 89bbdfbc, e1d79fbe, d727deed). `TestShippedOutputOwnership` covers the matrix (7 rows); the
+  parley and pulled-copy rows failed before the pair rule, and the pulled-copy failure showed the sidecar being
+  displaced, as plan-quality PQ-1 predicted. `TestCompileRegeneratesShippedOutputCold` (e2e) fails without the
+  main.go wiring.
+- Live, parley's real tree (a scratch `git archive` of parley origin/main, with issue.json from parley bdfbefa7, i.e.
+  #326's older vocabulary, next to this branch's ariadne; no inventory = cold). Without the `ship` row: weave compile
+  refuses issue.json, the exact parley CI failure. With the row and a committed sidecar: exit 0, issue.json
+  regenerated (07911d2a → 8e951335), sidecar updated, and "regenerated tracked output …: commit it" printed for both.
+  A hand edit then (cold, inventory removed): refused, bytes untouched. weave's block adds the sidecar to the ignore
+  list, so parley needs its authored negation, as parley#371 specifies.
