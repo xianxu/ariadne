@@ -3,10 +3,12 @@ package repolock
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -383,18 +385,23 @@ func TestConcurrentAcquireReclaimsDeadHolderOnce(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
+	var held atomic.Int32
+	ctx, cancel := context.WithTimeout(context.Background(), testfix.HangCeiling)
+	defer cancel()
+	start := make(chan struct{})
 	errs := make(chan error, 2)
 	for _, pid := range []int{111, 222} {
 		wg.Add(1)
 		go func(pid int) {
 			defer wg.Done()
-			lock, err := Acquire(context.Background(), Options{
+			<-start
+			lock, err := Acquire(ctx, Options{
 				GitCommonDir:  gitDir,
 				Command:       "sdlc claim",
 				Hostname:      "host-a",
 				PID:           pid,
 				Now:           time.Now,
-				ProcessAlive:  func(int) bool { return false },
+				ProcessAlive:  func(pid int) bool { return pid != 555 },
 				Stderr:        &bytes.Buffer{},
 				WaitTimeout:   testfix.HangCeiling, // not under test (#325)
 				StaleDuration: time.Hour,
@@ -404,16 +411,30 @@ func TestConcurrentAcquireReclaimsDeadHolderOnce(t *testing.T) {
 				errs <- err
 				return
 			}
-			time.Sleep(20 * time.Millisecond)
-			errs <- lock.Release()
+			if n := held.Add(1); n != 1 {
+				err = fmt.Errorf("%d concurrent lock holders", n)
+			}
+			meta, readErr := ReadMetadata(lockDir)
+			if readErr != nil || meta.PID != pid {
+				err = fmt.Errorf("PID %d holds mismatched metadata %+v: %v", pid, meta, readErr)
+			}
+			held.Add(-1)
+			if releaseErr := lock.Release(); releaseErr != nil {
+				err = releaseErr
+			}
+			errs <- err
 		}(pid)
 	}
+	close(start)
 	wg.Wait()
 	close(errs)
 	for err := range errs {
 		if err != nil {
 			t.Fatal(err)
 		}
+	}
+	if _, err := os.Stat(lockDir); !os.IsNotExist(err) {
+		t.Fatalf("lock remains after both releases: %v", err)
 	}
 }
 

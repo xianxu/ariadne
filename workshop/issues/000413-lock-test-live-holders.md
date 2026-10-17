@@ -62,3 +62,5 @@ The unchanged blanket-dead test passed count=1000 in 24.539s at the new main-bas
 ### 2026-10-16 — faithful ordering disproves test-only hypothesis
 
 The specified production-bug control fails under accurate liveness. The pending fix must guard reclamation against the lock generation changing after observation; changing only ProcessAlive would hide a reproducible safety defect. Scope proposal goes to the TL before production changes.
+
+- Faithful delayed-observation RED repeated 20/20 in 1.260s. Corrected original fake to mark only 555 dead, replaced the 20ms sleep with a synchronized start plus exclusive-holder/metadata/release assertions. With that fake fix, original test passes and delayed-observation test still fails (nil acquisition while live 111 holds). Sent proposed inode/flock revalidation scope to TL, receipt cc1a6b5e-3370-407a-a0e6-484f60394873 submitted. Production remains unchanged while TL chooses scope.
