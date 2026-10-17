@@ -1,13 +1,21 @@
 ---
 id: 000420
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-16
-updated: 2026-10-16
+updated: 2026-10-17
 estimate_hours:
 severity: medium
-card_mirror: '74a82fbea998203f3b0afc860f66c8301b20e894' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '89d23f54acff2cb613a743cc1705204c2bc16d35' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-17T00:53:13-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Actual: queued suite status polling bridges idle time into focused-hours samples
@@ -34,10 +42,19 @@ Investigate how native task spans and frequent assistant/tool polling turn queue
 
 ## Plan
 
-- [ ]
+- [ ] Pin each eligible suite queue record to this issue's repository, owning slot, engagement and measurement window; retain the exact evidence used by a close or correction.
+- [ ] In the native active-time engine, remove queued idle intervals from the owning session's activity while retaining timestamped work inside them; preserve phase splits and uncounted review tails.
+- [ ] Cover a polled queue, overlapping live work, duplicate/foreign/missing records and replay with deterministic native-transcript tests; run targeted tests and the recorded suite before close.
+- [ ] Re-measure #416 from the corrected implementation and give the TL/operator the measured result and evidence for generation-bound correct-actual or explicit exclusion.
 
 ## Log
 
 - Found while closing #416; independent of its queue-helper lifecycle fix. The close prints active-time-v3-engagement-v1 and 2 admitted sessions, with the complete attribution segment covering the wait-heavy window.
 
 - TL decision, 2026-10-16 (receipt b6986b85-dc38-4def-a646-346c65ee6726): queue waiting is not active work; actuals should exclude recorded queue_seconds by subtracting those measured intervals, not guessing replacement hours. The issue stays unassigned. Implementation must handle overlap with real work honestly as described above.
+
+- 2026-10-17: Claimed in ariadne:1. Current `sdlc actual --issue 416` replays 5.07h (2.41h build, 2.66h converge); the native engine admits assistant status/poll events into one 304.2-minute attribution segment. Four validated suite records on ariadne:5 lie in that window, including the staged-check overlap. The issue is full-flow work because measurement inputs must retain queue evidence for later correction replay.
+
+## Revisions
+
+- 2026-10-17 — TL clarified that "subtract exactly" means use recorded queue intervals, remove only idle portions, and retain genuinely overlapping work evidenced by transcripts or another task; no estimated replacement hours. This resolves the Spec's overlap question and makes retained queue provenance part of the implementation contract.
