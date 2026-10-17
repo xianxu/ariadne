@@ -10,7 +10,7 @@
 
 | Name | Kind | Lives in | Status |
 |------|------|----------|--------|
-| Sentinel build declaration and parser | PURE | `cmd/<name>/.skip-make-build`, `cmd/sdlc/stagebuild.go` | modified |
+| Sentinel declaration reader and parser | INTEGRATION | `cmd/<name>/.skip-make-build`, `cmd/sdlc/stagebuild.go` | modified |
 | Stage build orchestration | INTEGRATION | `cmd/sdlc/stagebuild.go` | modified |
 | Build revision validation | PURE | `cmd/sdlc/stagebuild.go` | modified |
 
@@ -52,3 +52,4 @@ The TL requested the close review before the live check while #418 holds ariadne
 - 2026-10-16 19:45 PDT — TL approved the sentinel and refusal design and added the reverse transition: `stage --clear` must rebuild the resting binaries and reuse the same revision check, including an already-resting retry. Add the clear fixture and call site; no separate verifier.
 - 2026-10-16 — Full suite passed; TL requested the close review while #418 still holds ariadne:0. Move the live check after the review and before landing, with a fresh :0 grant.
 - 2026-10-16 — Boundary review found incomplete evidence validation and untrusted Make arguments. Require an explicit `vcs.modified=false`, fail closed for native executable files whose Go metadata is unreadable, and accept only simple Make target names in sentinel declarations. Extract the Make invocation as an injected boundary; test the generic→owner→verify sequence, failures and retry with a stateful fake, while retaining a real-Make conformance fixture. Add README usage and recovery guidance. These corrections preserve the same stage/clear contract (ARCH-PURPOSE, ARCH-MOCK, ARCH-SECURE).
+- 2026-10-16 — Close round 2 found that the native-format guard omitted XCOFF, Plan 9 and a Mach-O variant supported by Go's build-info reader; cover the reader's complete executable-format set with regression fixtures. The table also incorrectly called the file-reading sentinel parser PURE; classify that combined reader/parser as INTEGRATION instead (ARCH-PURE, ARCH-PURPOSE).

@@ -127,6 +127,33 @@ func TestStageBuildRejectsNativeExecutableWithUnreadableBuildInfo(t *testing.T) 
 	}
 }
 
+func TestStageBuildRejectsCorruptSupportedExecutableFormats(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		header []byte
+	}{
+		{"aix-xcoff32", []byte{0x01, 0xdf}},
+		{"aix-xcoff64", []byte{0x01, 0xf7}},
+		{"plan9-amd64", []byte{0x00, 0x00, 0x8a, 0x97}},
+		{"macho-little-32", []byte{0xce, 0xfa, 0xed, 0xfe}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			bin := filepath.Join(root, "bin", "tool")
+			makeTarget := func(_ context.Context, _ string, _ string, _ io.Writer) error {
+				if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
+					return err
+				}
+				return os.WriteFile(bin, append(tc.header, make([]byte, 32)...), 0o755)
+			}
+			var out bytes.Buffer
+			if err := stageBuildWithMake(context.Background(), root, "1234567890123456789012345678901234567890", &out, &out, makeTarget); err == nil || !strings.Contains(err.Error(), "bin/tool") {
+				t.Fatalf("stageBuild = %v; want named refusal", err)
+			}
+		})
+	}
+}
+
 func TestStageBuildMakeBoundaryRetriesAfterOwnerFailure(t *testing.T) {
 	const commit = "1234567890123456789012345678901234567890"
 	root := t.TempDir()

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"debug/buildinfo"
+	"debug/plan9obj"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
@@ -111,9 +113,20 @@ func nativeExecutable(path string) bool {
 		return true
 	}
 	b := prefix[:n]
-	return bytes.HasPrefix(b, []byte("\x7fELF")) || bytes.HasPrefix(b, []byte("MZ")) ||
-		bytes.HasPrefix(b, []byte("\xfe\xed\xfa")) || bytes.HasPrefix(b, []byte("\xcf\xfa\xed\xfe")) ||
-		bytes.HasPrefix(b, []byte("\xca\xfe\xba\xbe")) || bytes.HasPrefix(b, []byte("\xca\xfe\xba\xbf"))
+	if bytes.HasPrefix(b, []byte("\x7fELF")) || bytes.HasPrefix(b, []byte("MZ")) ||
+		bytes.HasPrefix(b, []byte("\xfe\xed\xfa")) || bytes.HasPrefix(b[1:], []byte("\xfa\xed\xfe")) ||
+		bytes.HasPrefix(b, []byte("\xca\xfe\xba\xbe")) || bytes.HasPrefix(b, []byte("\xca\xfe\xba\xbf")) ||
+		bytes.HasPrefix(b, []byte{0x01, 0xdf}) || bytes.HasPrefix(b, []byte{0x01, 0xf7}) {
+		return true
+	}
+	if n < 4 {
+		return false
+	}
+	switch binary.BigEndian.Uint32(b) {
+	case plan9obj.Magic386, plan9obj.MagicAMD64, plan9obj.MagicARM:
+		return true
+	}
+	return false
 }
 
 func runStageMake(ctx context.Context, root, target string, stderr io.Writer) error {

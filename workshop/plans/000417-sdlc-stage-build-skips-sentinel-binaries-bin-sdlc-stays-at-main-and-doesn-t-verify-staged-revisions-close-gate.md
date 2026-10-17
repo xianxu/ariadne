@@ -90,6 +90,93 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 1b59809e-d3e2-4e7f-8c01-97b9561e5bf3
+            repository: github.com/xianxu/ariadne
+            issue_id: "000417"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/53d1649bb259f34b
+            reviewed_head: d46d47bfcf07ad9faffc142091bf1e01582b37b7
+            slot: ariadne:1
+            requested_at: "2026-10-17T03:58:47.184689Z"
+          phase: finished
+          pid: 53705
+          started_at: "2026-10-17T03:58:47.407823Z"
+          finished_at: "2026-10-17T04:01:00.463466Z"
+          session_id: 01a14803-2473-7312-aef6-9e5783335943
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: d46d47bfcf07ad9faffc142091bf1e01582b37b7
+        tracker_head: 07925b6a5d6bbc8bf3fb7321a58cb0a888d3ef7a
+        branch_point: f5927dfedbfb2e6dbc7d8c91ac56085732181b7b
+        since: "2026-10-16T19:43:25-07:00"
+        until: "2026-10-16T20:57:26-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-16T19:43:25-07:00"
+              end: "2026-10-16T20:57:26-07:00"
+              began: "2026-10-16T19:43:25-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 032ca5bf75139f7fad798aca3fc62b5d1f59bcf11ec613ef1ac58a9767f24a2c
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 42115430
+              windows:
+                - start: "2026-10-16T19:43:25-07:00"
+                  end: "2026-10-16T20:57:26-07:00"
+        cuts:
+            - dispatched: "2026-10-16T20:52:36-07:00"
+              finalized: "2026-10-16T20:54:18-07:00"
+              finalizing: false
+      "n": 2
+      timestamp: "2026-10-16T21:01:01-07:00"
+      dispatched: "2026-10-16T20:58:47-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: not-addressed
+          note: 'Clean-stamp validation is fixed, and removing either new guard makes its regression fail. However, cmd/sdlc/stagebuild.go:114-116 omits XCOFF and Plan 9 formats recognized by debug/buildinfo. Independently cross-built an AIX/ppc64 Go executable, corrupted its build-info magic, and exercised production verification through a temporary test overlay: readBuildInfo returned "not a Go executable", nativeExecutable returned false, and verification succeeded. Enumerate every supported executable format and its variants, fail closed across that enumeration, and add regressions (ARCH-PURPOSE, ARCH-SECURE).'
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: stagebuild.go:154 and :162 reject options and assignments through an explicit target grammar. The malformed and duplicate declaration tests pass; removing grammar validation makes the option, dry-run and assignment regressions fail.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: Production and tests share stageBuildWithMake. The fake persists stale output through owner failure and verifies retry order; the real-Make fixture exercises owner execution and renamed outputs. Removing the owner-target call makes the failure/retry regression fail.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: README.md:17-24 now documents sentinel targets, verification refusal, clear rebuilding, and retry recovery, linking to the atlas. These statements match stage.go:135-176 and stagebuild.go:30-90.
+          round: 2
+      findings:
+        - kind: defect
+          id: BR-5
+          severity: Critical
+          title: Sentinel parser contradicts the plan's PURE classification
+          detail: 'The plan''s concepts table at workshop/plans/000417-sdlc-stage-build-skips-sentinel-binaries-bin-sdlc-stays-at-main-and-doesn-t-verify-staged-revisions-plan.md:13 labels the sentinel parser PURE, but sentinelBuildTarget at cmd/sdlc/stagebuild.go:142-145 reads the filesystem, and its tests create temporary files. Extract parsing into a deterministic text-to-target function with direct tests and retain file reading in the INTEGRATION shell, or classify the existing entity INTEGRATION. Add a ## Revisions entry correcting the contract (ARCH-PURE).'
+          family: pure-core-io-separation
+          round: 2
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#417 (boundary-review)
@@ -110,9 +197,21 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-4** [Important] `user-facing-docs-gate` (kind: defect) README update is missing for changed stage behavior and sentinel syntax
   The range changes stage --build to refuse unverifiable revisions, makes stage --clear rebuild and verify binaries, and introduces # stage-build: <target>. Atlas and help text explain these changes, but README.md is unchanged. Add concise usage and recovery guidance, linking to the updated atlas documentation.
 
+## Round 2 — 2026-10-16T21:01:01-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — not-addressed — Clean-stamp validation is fixed, and removing either new guard makes its regression fail. However, cmd/sdlc/stagebuild.go:114-116 omits XCOFF and Plan 9 formats recognized by debug/buildinfo. Independently cross-built an AIX/ppc64 Go executable, corrupted its build-info magic, and exercised production verification through a temporary test overlay: readBuildInfo returned "not a Go executable", nativeExecutable returned false, and verification succeeded. Enumerate every supported executable format and its variants, fail closed across that enumeration, and add regressions (ARCH-PURPOSE, ARCH-SECURE).
+- BR-2 — addressed — stagebuild.go:154 and :162 reject options and assignments through an explicit target grammar. The malformed and duplicate declaration tests pass; removing grammar validation makes the option, dry-run and assignment regressions fail.
+- BR-3 — addressed — Production and tests share stageBuildWithMake. The fake persists stale output through owner failure and verifies retry order; the real-Make fixture exercises owner execution and renamed outputs. Removing the owner-target call makes the failure/retry regression fail.
+- BR-4 — addressed — README.md:17-24 now documents sentinel targets, verification refusal, clear rebuilding, and retry recovery, linking to the atlas. These statements match stage.go:135-176 and stagebuild.go:30-90.
+
+### Raised
+
+- **BR-5** [Critical] `pure-core-io-separation` (kind: defect) Sentinel parser contradicts the plan's PURE classification
+  The plan's concepts table at workshop/plans/000417-sdlc-stage-build-skips-sentinel-binaries-bin-sdlc-stays-at-main-and-doesn-t-verify-staged-revisions-plan.md:13 labels the sentinel parser PURE, but sentinelBuildTarget at cmd/sdlc/stagebuild.go:142-145 reads the filesystem, and its tests create temporary files. Extract parsing into a deterministic text-to-target function with direct tests and retain file reading in the INTEGRATION shell, or classify the existing entity INTEGRATION. Add a ## Revisions entry correcting the contract (ARCH-PURE).
+
 ## Open findings
 
 - **BR-1** [Critical] `fail-closed-build-verification` (kind: defect) Missing or corrupt build evidence can pass verification
-- **BR-2** [Important] `target-declaration-validation` (kind: defect) Sentinel declarations accept Make options and assignments
-- **BR-3** [Important] `external-dependency-test-seam` (kind: defect) Owner-target execution lacks an injected stateful fake and conformance check
-- **BR-4** [Important] `user-facing-docs-gate` (kind: defect) README update is missing for changed stage behavior and sentinel syntax
+- **BR-5** [Critical] `pure-core-io-separation` (kind: defect) Sentinel parser contradicts the plan's PURE classification

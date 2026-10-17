@@ -51,6 +51,7 @@ Clearing a stage must restore the same invariant for the resting branch: rebuild
 - Targeted stage/clear tests passed after watching the stale-revision, skipped-sentinel and unrepaired-clear cases fail first. A real `make build` skipped sdlc; `make sdlc-build` produced `bin/sdlc` at the branch HEAD with `vcs.modified=false`.
 - Full `make -k test` passed: 12 shards, 1,527 `cmd/sdlc` tests, 66 other packages, zero failures, 505.7s suite wall time. The live :0 stage/clear check awaits the TL's fresh grant because #418 currently holds that slot. TL requested the close review first.
 - Close boundary review round 1 returned REWORK: corrupt native binaries or missing `vcs.modified` could pass, marker values could become Make options, Make sequencing lacked a stateful fake, and README omitted the changed user flow. Added red-first regressions for the validation gaps, an injected Make boundary with failure/retry state, a real-Make fixture, and README/atlas guidance. Re-running targeted and full checks before close round 2.
+- Close round 2 disposed the Make argument, process-seam and README findings. It caught XCOFF, Plan 9 and a Mach-O variant omitted from the native-format guard, plus a mistaken PURE label for a file-reading parser. Added a red-first cross-format regression, completed the format set and corrected the plan classification. The exact-head suite queued on the earlier commit cannot cover this fix; a new run is required after publication.
 
 ## Revisions
 
