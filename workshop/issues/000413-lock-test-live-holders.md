@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "0bb87194", done: "7f1ba37e"}
 ---
 
 # Concurrent dead-holder lock test marks its live contenders dead and flakes with missing metadata
