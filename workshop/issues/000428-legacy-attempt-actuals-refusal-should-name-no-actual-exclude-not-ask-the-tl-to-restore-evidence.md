@@ -1,13 +1,23 @@
 ---
 id: 000428
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '5e0e23dd3726724f0ff4421959a405664f4028bc' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '169a7e3e0f95e20cddb84dc7b194c5e5e1e8a5b8' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-17T11:19:16-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "868d4ca2", done: "91934a0e"}
+actual_hours: 0.58
 ---
 
 # Legacy-attempt actuals refusal should name --no-actual (exclude), not 'ask the TL to restore evidence'
@@ -27,8 +37,23 @@ Wanted: when every blocking attempt is legacy, the refusal says so and names the
 
 ## Plan
 
-- [ ]
+- [x] Add red rendering tests for legacy `actual --issue`, `close`, and `milestone-close --milestone` refusals, plus malformed-new-format and unrelated-error controls.
+- [x] Recognize only the controlled legacy-attempt warning and validated attempt ID; reuse the existing boundary-aware `rerunCmd` to print the matching verb and `--no-actual` with an explicit reason. Keep restore advice for other errors (ARCH-DRY, ARCH-PURE, ARCH-PURPOSE).
+- [x] Run focused tests, `make -k build`, `git diff --check`, and the recorded pushed-head suite.
 
 ## Log
 
 ### 2026-10-17
+- 2026-10-17: closed — Focused and saved-record mixed-blocker tests pass in both orders across preview and close; make -k build and make sdlc-build pass; exact-head suite on 7534616855a6c0538ab48ad1cea189e77dbf5eac passes 12 shards, 67 packages, zero failures; staged live sdlc actual on ariadne:0 succeeded and stage clear verified seven main binaries. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+
+- Claimed in ariadne:1. `printActual` currently gives every `actualError` the same restore message; `explainActual` already knows the refused boundary and has `rerunCmd`. The TL approved the quick-flow plan with explicit milestone and preview coverage.
+- The red rendering test reproduced the misleading restore advice for preview, close, and milestone-close. The focused suite now passes, including new-format and unrelated-error controls. `make -k build` and the sentinel-owned `make sdlc-build` pass. The atlas and CLI help now describe the exclusion path.
+- PR #286 has a recorded passing suite on d600913a2cf0f9cb4ce86db827b281d662754ffa: all 12 sdlc shards and 67 other packages passed, zero failed tests. On ariadne:0, `stage --build` verified all seven binaries at that head; staged `sdlc actual --issue 428` ran, and `stage --clear` rebuilt all seven at main 0c268805c1c547b42a45e0792c5493e5d0a79c4d. The first close attempt stopped before review solely because the final checklist row included future close/land work.
+- The exact-head suite on b0119e262de3e2a86679ddc24182bc970f1ace75 also passed all shards after a 28-minute queue wait. Close review round 1 returned REWORK (BR-1): only the first selector warning reached the renderer, so a legacy-first mixed window could incorrectly suggest exclusion. This is a complete-blocker classification defect; the selector emits all warnings, but the resolver dropped all except the first.
+- BR-1 fix: the queue evidence error carries every blocker through the actual result. Exclusion advice requires every blocker to be a validated legacy warning; mixed windows retain the full diagnostic and restore guidance. Regression tests cover unknown queue and unknown slot provenance in both orders across actual previews and both close verbs, plus multiple legacy IDs, wrapped errors, and a saved-record attachment fixture. Focused tests, `make -k build`, and `make sdlc-build` pass.
+
+## Revisions
+
+- 2026-10-17 — Clarify the Spec's example command: `--no-actual` is a boolean switch; the human-readable reason belongs beside the command and in `--verified`, which also needs the issue's verification evidence. An `actual --issue N` preview points to `sdlc close --issue N`; an issue close points to `sdlc close`, and a milestone refusal points to `sdlc milestone-close --issue N --milestone M`. The ID and non-restorable legacy reason accompany each. Other actuals errors retain restore guidance; no gate semantics change (TL decision, ARCH-PURPOSE).
+- 2026-10-17 — Separate verification from the future close and landing actions in the final checklist row. The close gate requires every Plan checkbox to be complete before it can run its review; verification is complete, while close and landing follow the gate.
+- 2026-10-17 — BR-1: carry the complete queue blocker set from the resolver to the actual result as structured data, preserving every diagnostic in the error text. Offer `--no-actual` only if every blocker is a validated legacy attempt; any malformed or unknown-provenance blocker retains restoration guidance. Add mixed-blocker regression cases in both orders for unknown queue and unknown slot provenance, then exercise preview, close, and milestone rendering (ARCH-PURPOSE).

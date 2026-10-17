@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -49,6 +51,70 @@ func TestSelectOwnedQueueAttempts(t *testing.T) {
 	_, warnings, err = selectOwnedQueueAttempts([]SuiteAttempt{attempt}, engagements, "github.com/xianxu/ariadne", start, start.Add(3*time.Minute))
 	if err != nil || len(warnings) == 0 {
 		t.Fatalf("unknown queue start after window was treated as irrelevant: %+v %v", warnings, err)
+	}
+}
+
+func TestMixedQueueBlockersNeverSuggestLegacyExclusion(t *testing.T) {
+	start := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	q := 60.0
+	owner := issue.Claimant{Workspace: "ariadne:1", Worktree: "/repo/slot1"}
+	engagements := []tracker.EngagementWindow{{Start: start, End: start.Add(3 * time.Minute), Owners: []issue.Claimant{owner}}}
+	queued, acquired := start, start.Add(time.Minute)
+	legacy := SuiteAttempt{ID: "aabb", Repo: "xianxu/ariadne", Check: "suite", Slot: owner.Workspace, StartedAt: start.Add(65 * time.Second), QueueSeconds: &q}
+	unknownQueue := SuiteAttempt{ID: "ccdd", Repo: legacy.Repo, Check: "suite", Slot: owner.Workspace, StartedAt: legacy.StartedAt}
+	unknownSlot := SuiteAttempt{ID: "eeff", Repo: legacy.Repo, Check: "suite", StartedAt: legacy.StartedAt, QueueSeconds: &q, QueuedAt: &queued, AcquiredAt: &acquired}
+	for _, other := range []struct {
+		name    string
+		attempt SuiteAttempt
+	}{
+		{"unknown queue", unknownQueue},
+		{"unknown slot", unknownSlot},
+	} {
+		for _, order := range []struct {
+			name     string
+			attempts []SuiteAttempt
+		}{
+			{"legacy first", []SuiteAttempt{legacy, other.attempt}},
+			{"other first", []SuiteAttempt{other.attempt, legacy}},
+		} {
+			t.Run(other.name+"/"+order.name, func(t *testing.T) {
+				_, blockers, err := selectOwnedQueueAttempts(order.attempts, engagements, "github.com/xianxu/ariadne", start, start.Add(3*time.Minute))
+				if err != nil || len(blockers) != 2 {
+					t.Fatalf("expected both blockers: %v %v", blockers, err)
+				}
+				res := actualErrorResult("428", &queueEvidenceError{Blockers: blockers})
+				for _, render := range []struct {
+					name string
+					fn   func(*bytes.Buffer)
+				}{
+					{"preview", func(out *bytes.Buffer) { printActual(out, res, "") }},
+					{"milestone preview", func(out *bytes.Buffer) { printActual(out, res, "M2") }},
+					{"close", func(out *bytes.Buffer) { explainActual(out, "428", "issue", "", res) }},
+					{"milestone close", func(out *bytes.Buffer) { explainActual(out, "428", "milestone", "M2", res) }},
+				} {
+					var out bytes.Buffer
+					render.fn(&out)
+					got := out.String()
+					if !strings.Contains(got, "ask the TL/hub to restore") || strings.Contains(got, "Exclude this actual from calibration") || !strings.Contains(got, legacy.ID) || !strings.Contains(got, other.attempt.ID) {
+						t.Fatalf("%s lost mixed blocker recovery: %s", render.name, got)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestAllLegacyQueueBlockersNameEveryAttempt(t *testing.T) {
+	blockers := []string{
+		"legacy suite attempt aabb lacks exact queue endpoints; queue idle is unknown",
+		"legacy suite attempt ccdd lacks exact queue endpoints; queue idle is unknown",
+	}
+	res := actualErrorResult("428", fmt.Errorf("owned queue: %w", &queueEvidenceError{Blockers: blockers}))
+	var out bytes.Buffer
+	printActual(&out, res, "M2")
+	got := out.String()
+	if !strings.Contains(got, "aabb, ccdd") || !strings.Contains(got, "sdlc milestone-close --issue 428 --milestone M2 --no-actual") || strings.Contains(got, "ask the TL/hub to restore") {
+		t.Fatalf("all-legacy refusal lost complete exclusion guidance: %s", got)
 	}
 }
 

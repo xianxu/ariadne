@@ -82,13 +82,47 @@ func TestPrintActualWarnings(t *testing.T) {
 		Warnings: []string{
 			"#8 10.0m/100% mention fallback without issue commit boundary",
 		},
-	})
+	}, "")
 	s := out.String()
 	if !strings.Contains(s, "attribution warning:") || !strings.Contains(s, "fallback") {
 		t.Fatalf("actual output missing warning:\n%s", s)
 	}
 	if !strings.Contains(s, "ADOPTS") || !strings.Contains(s, "milestone-close") {
 		t.Fatalf("actual output should state that close and milestone-close adopt it (#178, #234):\n%s", s)
+	}
+}
+
+func TestLegacyQueueActualRefusalNamesBoundarySpecificExclusion(t *testing.T) {
+	legacyWarning := "legacy suite attempt a1e58a0cc16a26a44f96927be6753621 lacks exact queue endpoints; queue idle is unknown and this sample is not calibration evidence"
+	legacy := actualErrorResult("428", &queueEvidenceError{Blockers: []string{legacyWarning}})
+	for _, tc := range []struct {
+		name, want string
+		render     func(*bytes.Buffer)
+	}{
+		{"preview", "sdlc close --issue 428 --no-actual --verified", func(out *bytes.Buffer) { printActual(out, legacy, "") }},
+		{"milestone preview", "sdlc milestone-close --issue 428 --milestone M2 --no-actual --verified", func(out *bytes.Buffer) { printActual(out, legacy, "M2") }},
+		{"issue close", "sdlc close --issue 428 --no-actual --verified", func(out *bytes.Buffer) { explainActual(out, "428", "issue", "", legacy) }},
+		{"milestone close", "sdlc milestone-close --issue 428 --milestone M2 --no-actual --verified", func(out *bytes.Buffer) { explainActual(out, "428", "milestone", "M2", legacy) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var out bytes.Buffer
+			tc.render(&out)
+			got := out.String()
+			if !strings.Contains(got, tc.want) || !strings.Contains(got, "a1e58a0cc16a26a44f96927be6753621") || !strings.Contains(got, "cannot be restored") || strings.Contains(got, "ask the TL/hub to restore") {
+				t.Fatalf("legacy refusal did not give the correct exclusion command:\n%s", got)
+			}
+		})
+	}
+	for _, detail := range []string{
+		"queue evidence incomplete; actual is not calibration evidence: invalid queue endpoints in a new-format attempt",
+		"measurement transcript source is unreadable",
+	} {
+		var out bytes.Buffer
+		printActual(&out, actualResult{Status: actualError, Issue: "428", Detail: detail}, "")
+		got := out.String()
+		if !strings.Contains(got, "ask the TL/hub to restore") || strings.Contains(got, "--no-actual") {
+			t.Fatalf("recoverable error lost its restore guidance:\n%s", got)
+		}
 	}
 }
 

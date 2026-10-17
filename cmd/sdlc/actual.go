@@ -14,6 +14,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -58,14 +59,15 @@ const (
 )
 
 type actualResult struct {
-	Status   actualStatus
-	Hours    float64
-	Issue    string
-	Peers    []string
-	Dirs     []string
-	Window   string // "<start ISO> → HEAD": the resolved left edge (#254)
-	Detail   string // diagnostic for the error path
-	Warnings []string
+	Status        actualStatus
+	Hours         float64
+	Issue         string
+	Peers         []string
+	Dirs          []string
+	Window        string // "<start ISO> → HEAD": the resolved left edge (#254)
+	Detail        string // diagnostic for the error path
+	Warnings      []string
+	QueueBlockers []string // complete queue refusal diagnostics, when present
 	// Split divides Hours at the boundary reviews (#234); nil unless measured.
 	Split *actualSplit
 	// Inputs is the exact admitted evidence retained by close/correction.
@@ -93,7 +95,7 @@ func computeActualFor(ctx context.Context, repoTop, brainAbs, issueNum, mileston
 func computeActualForPurpose(ctx context.Context, repoTop, brainAbs, issueNum, milestone, plans string, purpose actualInputPurpose) actualResult {
 	owned, err := resolveOwnedActualInputsFor(ctx, repoTop, brainAbs, issueNum, plans, purpose, milestone)
 	if err != nil {
-		return actualResult{Status: actualError, Issue: issueNum, Detail: err.Error()}
+		return actualErrorResult(issueNum, err)
 	}
 	if owned != nil {
 		return computeOwnedActualFor(ctx, repoTop, issueNum, milestone, owned)
@@ -101,6 +103,15 @@ func computeActualForPurpose(ctx context.Context, repoTop, brainAbs, issueNum, m
 	result := computeLegacyActualFor(ctx, repoTop, brainAbs, issueNum, milestone, plans)
 	result.Warnings = append(result.Warnings, "legacy no-tracker attribution heuristic: repository cwd plus brain; ownership provenance unavailable")
 	return result
+}
+
+func actualErrorResult(issueNum string, err error) actualResult {
+	res := actualResult{Status: actualError, Issue: issueNum, Detail: err.Error()}
+	var queueErr *queueEvidenceError
+	if errors.As(err, &queueErr) {
+		res.QueueBlockers = append([]string(nil), queueErr.Blockers...)
+	}
+	return res
 }
 
 func computeLegacyActualFor(ctx context.Context, repoTop, brainAbs, issueNum, milestone, plans string) actualResult {
@@ -341,8 +352,30 @@ func printActualMeasurement(w io.Writer, res actualResult) {
 	}
 }
 
+// legacyQueueAttemptIDs returns IDs only when every queue blocker is a
+// controlled legacy warning. A mixed window must retain recovery guidance.
+func legacyQueueAttemptIDs(blockers []string) []string {
+	if len(blockers) == 0 {
+		return nil
+	}
+	ids := make([]string, 0, len(blockers))
+	for _, blocker := range blockers {
+		rest, ok := strings.CutPrefix(blocker, legacyQueueWarningPrefix)
+		if !ok {
+			return nil
+		}
+		id, suffix, ok := strings.Cut(rest, " ")
+		if !ok || len(id) < 2 || len(id) > 64 || !suiteHex.MatchString(id) || !strings.HasPrefix(suffix, "lacks exact queue endpoints;") {
+			return nil
+		}
+		ids = append(ids, id)
+	}
+	return ids
+}
+
 // printActual renders measured evidence or the action needed to recover it.
-func printActual(w io.Writer, res actualResult) {
+// The milestone selects the exact close verb for an actual preview or refusal.
+func printActual(w io.Writer, res actualResult, milestone string) {
 	issueStr := issue.CLIRef(res.Issue)
 	switch res.Status {
 	case actualMeasured:
@@ -363,7 +396,13 @@ func printActual(w io.Writer, res actualResult) {
 		cwarn(w, fmt.Sprintf("no commits reference #%s yet; commit the issue's work with #%s in the subject, then re-run sdlc actual --issue %s.", issueStr, issueStr, issueStr))
 	case actualError:
 		cwarn(w, fmt.Sprintf("can't auto-compute (%s).", res.Detail))
-		if strings.Contains(res.Detail, "retained measurement code head differs") {
+		if ids := legacyQueueAttemptIDs(res.QueueBlockers); len(ids) > 0 {
+			subject := "legacy suite attempt " + ids[0] + " lacks"
+			if len(ids) > 1 {
+				subject = "legacy suite attempts " + strings.Join(ids, ", ") + " lack"
+			}
+			fmt.Fprintf(w, "  → %s exact queue endpoints; those timestamps were never recorded and cannot be restored. Exclude this actual from calibration with:\n    %s\n  Include the attempt ID(s) and reason with the verification evidence.\n", subject, rerunCmd(issueStr, milestone, " --no-actual"))
+		} else if strings.Contains(res.Detail, "retained measurement code head differs") {
 			fmt.Fprintf(w, "  → run sdlc issue correct-actual --issue %s --reason 'repair inconsistent retained measurement' --dry-run; it names the exact target/exclusion action if numeric repair is unavailable.\n", issueStr)
 		} else {
 			fmt.Fprintf(w, "  → ask the TL/hub to restore the named measurement evidence, then re-run sdlc actual --issue %s.\n", issueStr)
@@ -400,7 +439,7 @@ func NewActualCmd() *cobra.Command {
 			}
 			brainAbs, _ := filepath.Abs(brainDir)
 			res := computeActualFor(cmd.Context(), repoTop, brainAbs, strconv.Itoa(issue), milestone, "")
-			printActual(stderr, res)
+			printActual(stderr, res, milestone)
 			return nil
 		},
 	}

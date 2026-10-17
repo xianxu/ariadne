@@ -14,6 +14,16 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/transcripts"
 )
 
+const legacyQueueWarningPrefix = "legacy suite attempt "
+
+// queueEvidenceError keeps every blocker so the actual renderer can distinguish
+// an all-legacy exclusion from a window that still needs evidence restored.
+type queueEvidenceError struct{ Blockers []string }
+
+func (e *queueEvidenceError) Error() string {
+	return "queue evidence incomplete; actual is not calibration evidence: " + strings.Join(e.Blockers, " | ")
+}
+
 // selectOwnedQueueAttempts admits a queue wait only when a single pinned
 // engagement owns its slot for the entire original wait. A partial measurement
 // window clips the selected interval, never the ownership proof.
@@ -61,7 +71,7 @@ func selectOwnedQueueAttempts(attempts []SuiteAttempt, engagements []tracker.Eng
 				}
 			}
 			if relevant {
-				warnings = append(warnings, fmt.Sprintf("legacy suite attempt %s lacks exact queue endpoints; queue idle is unknown and this sample is not calibration evidence", a.ID))
+				warnings = append(warnings, fmt.Sprintf("%s%s lacks exact queue endpoints; queue idle is unknown and this sample is not calibration evidence", legacyQueueWarningPrefix, a.ID))
 			}
 			continue
 		}
