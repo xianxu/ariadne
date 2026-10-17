@@ -1,12 +1,12 @@
 ---
 id: 000418
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-16
 estimate_hours:
-card_mirror: 'fdde79c8b471882b44e5ad379f993acbd78f7cab' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e50175b10517304ea2dd0883875db811ef4f62bc' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-16T20:02:46-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: operator, spec: "1951640a", done: "575d4647"}
+actual_hours: 3.61
 ---
 
 # sdlc merge: a reused branch name matches the earlier milestone's MERGED PR too and refuses ('found 2')
