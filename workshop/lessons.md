@@ -953,3 +953,5 @@ The simplest durable authority beats a clever scan of consequences.
 - Read quality does not establish value presence: a stale snapshot can truthfully contain no completion binding. Check the parsed binding identity independently and cover fresh/stale × present/absent whenever read-quality predicates guard optional values (#423 BR-1).
 
 - Independently sampled timestamps are not stable identity. Join retained review evidence by reviewed commit, admit legacy ordering only with a fully anchored compatible sequence, and keep uncertain rounds unknown. History labels follow entry positions. Pin mutable refs before reading related artifacts; otherwise even matching sequences may mix generations (#423 BR-2/PQ-1).
+
+- Measure which workflow phase paid for a rerun before adding ownership. A pre-close branch suite does not own the landing line: close its tested branch, then let merge integrate current main under its existing turn. Repeatedly chasing newer main before close can spend suites that the owned final integration would coalesce; ordinary docs-only publication already inherits eligible suite records (#425).
