@@ -27,16 +27,19 @@ func stageBuild(ctx context.Context, root, commit string, stdout, stderr io.Writ
 	if err != nil {
 		return err
 	}
-	module, err := stageModulePath(root)
-	if err != nil && len(sentinels) > 0 {
-		return err
-	}
+	var module string
 	expected := map[string]string{}
 	for _, marker := range sentinels {
 		if _, err := os.Stat(filepath.Join(filepath.Dir(marker), "main.go")); os.IsNotExist(err) {
 			continue
 		} else if err != nil {
 			return err
+		}
+		if module == "" {
+			module, err = stageModulePath(root)
+			if err != nil {
+				return err
+			}
 		}
 		target, err := sentinelBuildTarget(marker)
 		if err != nil {

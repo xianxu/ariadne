@@ -96,3 +96,23 @@ func TestStageBuildRefusesUnverifiableBinary(t *testing.T) {
 		})
 	}
 }
+
+func TestStageBuildIgnoresSentinelWithoutGoCommand(t *testing.T) {
+	root := t.TempDir()
+	commandDir := filepath.Join(root, "cmd", "shell-tool")
+	if err := os.MkdirAll(commandDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for path, data := range map[string]string{
+		filepath.Join(root, "Makefile"):               "build:\n\ttrue\n",
+		filepath.Join(commandDir, ".skip-make-build"): "# local shell packaging\n",
+	} {
+		if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var out bytes.Buffer
+	if err := stageBuild(context.Background(), root, "1234567890123456789012345678901234567890", &out, &out); err != nil {
+		t.Fatalf("non-Go sentinel requires go.mod: %v\n%s", err, &out)
+	}
+}
