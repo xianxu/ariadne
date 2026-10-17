@@ -78,7 +78,20 @@ driver, so parallel landings never conflict on them (#320). It is committed, not
 generated runtime output; authored attribute lines after the block override it.
 A rewrite of a listed file (a lessons.md compaction) must land alone, since union
 would interleave it with a parallel append instead of conflicting.
-Without prior inventory, compilation does not guess historical ownership. Compile dry-run
+Without prior inventory, compilation does not guess historical ownership, with one
+declared exception (#422): a repository that commits a generated output on purpose
+(parley ships `construct/generated/vocabulary/issue.json`: its plugin reads it from
+the installed tree, with no weave run) says so with a `ship <path>` manifest row
+(`plan.ShippedPaths`). weave then also writes `<path>.weave-sha256`, the digest of
+what it wrote (`plan.ShipStaged`), for the repository to commit beside the output
+and un-ignore with an authored negation after weave's block. When the output's
+bytes match that committed sidecar, the pair is weave's own (`vouched` in
+`prepareManaged`), so a cold CI checkout regenerates it after an upstream
+vocabulary change instead of refusing it, and a pulled refresh isn't displaced. A
+hand edit doesn't match its sidecar, so it is still refused (cold) or displaced
+(warm). Dropping the row retires the sidecar on a warm checkout; on a cold one it
+isn't inventoried, so the commit that drops the row also runs `git rm` on it.
+Compile dry-run
 performs no writes, package operations, builds, or generators and explicitly
 omits generator output and retirement from the preview.
 

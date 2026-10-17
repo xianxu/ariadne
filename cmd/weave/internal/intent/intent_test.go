@@ -68,6 +68,19 @@ func TestParseManifestSeedOnce(t *testing.T) {
 	}
 }
 
+// #422: `ship PATH` declares a generated output the repository commits.
+func TestParseManifestShip(t *testing.T) {
+	got, err := ParseManifest("internal ship construct/generated/vocabulary/issue.json\n")
+	if err != nil {
+		t.Fatalf("ParseManifest: unexpected error: %v", err)
+	}
+	p := "construct/generated/vocabulary/issue.json"
+	want := []Intent{{Kind: Ship, Visibility: Internal, Source: p, Target: p}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ParseManifest = %v, want %v", got, want)
+	}
+}
+
 func TestParseManifestSkipsRetiredToolVerb(t *testing.T) {
 	// `tool` was retired in #95 M5 (Go-tool ownership is location-based via
 	// construct/dev-aliases.sh, not a go.mod edit). A stale `tool` row must fall
