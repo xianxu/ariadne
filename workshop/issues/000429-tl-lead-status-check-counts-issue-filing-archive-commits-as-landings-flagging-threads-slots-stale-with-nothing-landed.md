@@ -36,8 +36,8 @@ A landing is a merged PR: a merge commit from `sdlc merge`, or a landing ledger 
 
 ## Plan
 
-- [ ] Reproduce direct-main false landings with real Git; cover first-parent merges and identity in stale output.
-- [ ] Select the latest first-parent merge, render its hash, and synchronize help/atlas.
+- [x] Reproduce direct-main false landings with real Git; cover first-parent merges and identity in stale output.
+- [x] Select the latest first-parent merge, render its hash, and synchronize help/atlas.
 - [ ] Run focused checks and the recorded suite, close, and land on SHIP.
 
 ## Log
@@ -45,3 +45,5 @@ A landing is a merged PR: a merge commit from `sdlc merge`, or a landing ledger 
 ### 2026-10-17
 
 - Root cause: gitNewestLanding reads the origin/main tip timestamp without filtering. Use first-parent merge shape, which sdlc merge emits via gh pr merge --merge; no subject heuristics. The landing-line ledger is local, has 30-day retention, and records completion rather than the immutable merge commit. Existing Git seam and stale renderer remain the owners (ARCH-DRY, ARCH-PURE). No new durable state or lifecycle.
+
+- RED: TestGitNewestLanding selected the direct-only repo at 9003 after filing/publish/archive/tick commits. GREEN: go test ./cmd/tl-lead -count=1 passed (2.690s), including no-merge/message-spoof controls, nested merge with newer timestamp, newest fleet selection, skipped brain/non-SDLC/no-origin refs, command-rendered merge identity/time and help contracts. git diff --check passed. Requested a short :0 grant for the read-only native check; no :0 access before grant.

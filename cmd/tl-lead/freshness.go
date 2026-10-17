@@ -33,11 +33,12 @@ var sectionBudgets = []sectionBudget{
 	{"Slots", 2 * time.Hour, true},
 }
 
-// Landing is the fleet's newest landing: the newest origin/main commit among
+// Landing is the fleet's newest first-parent merge on origin/main among
 // the SDLC repositories next to the status file's.
 type Landing struct {
-	Repo string
-	At   time.Time
+	Repo   string
+	Commit string
+	At     time.Time
 }
 
 // staleLines reports each budgeted section that is unstamped, past its
@@ -68,7 +69,7 @@ func staleLines(d deps, file string) []string {
 				why = append(why, fmt.Sprintf("%s old, budget %s", hm(age), hm(b.budget)))
 			}
 			if b.landing && land.At.Truncate(time.Minute).After(at) { // the stamp has minutes only
-				why = append(why, fmt.Sprintf("%s landed %s", land.Repo, land.At.Format("01-02 15:04")))
+				why = append(why, fmt.Sprintf("%s merge %.12s landed %s", land.Repo, land.Commit, land.At.Format("01-02 15:04")))
 			}
 		}
 		if len(why) > 0 {
@@ -114,10 +115,12 @@ func (d deps) newestLanding(file string) (Landing, error) {
 	return d.landing(file)
 }
 
-// gitNewestLanding reads origin/main's commit time, from local refs (no
+// gitNewestLanding reads origin/main's latest first-parent merge, from local refs (no
 // fetch), in every SDLC repository beside the status file's repository: one
 // with workshop/issues/ and no .brain/ (a brain's auto-commits are captures,
-// not landings; sdlc's spine guard draws the same line).
+// not landings; sdlc's spine guard draws the same line). sdlc merges PRs with
+// gh pr merge --merge. The first-parent restriction excludes issue-branch
+// integrations; direct-main filing, publish, archive and tick commits are skipped.
 func gitNewestLanding(file string) (Landing, error) {
 	top, err := git(filepath.Dir(file), "rev-parse", "--show-toplevel")
 	if err != nil {
@@ -134,16 +137,20 @@ func gitNewestLanding(file string) (Landing, error) {
 		if !isDir(filepath.Join(dir, "workshop", "issues")) || isDir(filepath.Join(dir, ".brain")) {
 			continue
 		}
-		ct, err := git(dir, "log", "-1", "--format=%ct", "refs/remotes/origin/main")
+		ct, err := git(dir, "log", "--first-parent", "--merges", "-1", "--format=%ct %H", "refs/remotes/origin/main")
 		if err != nil {
 			continue // no origin/main: nothing lands there
 		}
-		sec, err := strconv.ParseInt(ct, 10, 64)
+		fields := strings.Fields(ct)
+		if len(fields) != 2 {
+			continue // no merge: no landing
+		}
+		sec, err := strconv.ParseInt(fields[0], 10, 64)
 		if err != nil {
 			continue
 		}
 		if at := time.Unix(sec, 0); at.After(newest.At) {
-			newest = Landing{Repo: e.Name(), At: at}
+			newest = Landing{Repo: e.Name(), Commit: fields[1], At: at}
 		}
 	}
 	return newest, nil
