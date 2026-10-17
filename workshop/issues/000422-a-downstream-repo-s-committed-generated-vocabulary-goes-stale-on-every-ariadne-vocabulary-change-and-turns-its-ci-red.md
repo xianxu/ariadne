@@ -39,7 +39,7 @@ Preserving a committed file that differs from weave's output is the right defaul
 
 ## Plan
 
-Approved by the TL (ops:0, 10-17), full flow. Durable plan: `workshop/plans/000422-shipped-generated-outputs-plan.md`.
+Approved by the TL (ops:0, 10-17), full flow. Durable plan: `workshop/plans/000422-a-downstream-repo-s-committed-generated-vocabulary-goes-stale-on-every-ariadne-vocabulary-change-and-turns-its-ci-red-plan.md`.
 
 **Why parley commits issue.json (parley#208, 3e2daf45):** parley is a Neovim plugin that users install straight from
 GitHub through a plugin manager, so they never run weave or bootstrap. It reads its issue vocabulary from the installed
