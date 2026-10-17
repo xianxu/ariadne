@@ -296,16 +296,23 @@ func checkCase(fsys fs.FS) []string {
 	// Side docs are never pruned; new ones take the next free numbers; and an
 	// unlinked doc for the same ask is relinked rather than duplicated.
 	before, after := trees["before"], trees["after"]
+	// Numbering counts every file in a folder, a malformed side doc's too:
+	// its number is taken whether or not it meets the contract.
+	beforeFiles := treeFiles(fsys, "before")
 	byDir := map[string][]string{}
+	for p := range beforeFiles {
+		if strings.HasSuffix(path.Dir(p), ".side") {
+			byDir[path.Dir(p)] = append(byDir[path.Dir(p)], path.Base(p))
+		}
+	}
 	for p := range before {
-		byDir[path.Dir(p)] = append(byDir[path.Dir(p)], path.Base(p))
 		if _, ok := after[p]; !ok {
 			bad("after/ dropped the side doc %s (side docs are never pruned)", p)
 		}
 	}
 	var added []string
 	for p := range after {
-		if _, ok := before[p]; !ok {
+		if _, ok := beforeFiles[p]; !ok {
 			added = append(added, p)
 		}
 	}
@@ -551,6 +558,10 @@ func TestCheckCaseCatches(t *testing.T) {
 			m["before/d.md"] = &fstest.MapFile{Data: []byte("# D\n\nText. → [discussion](d.side/01-why.md)\n")}
 			m["after/d.md"] = &fstest.MapFile{Data: []byte("---\ndiscussions:\n  - doc: d.side/01-why.md\n---\n# D\n\nText. → [discussion](d.side/01-why.md)\n")}
 		}, "neither wrote"},
+		{"a number taken by a malformed side doc", func(m fstest.MapFS) {
+			m["before/d.side/01-old.md"] = &fstest.MapFile{Data: []byte("---\ntype: side-doc\n---\nno backlink\n")}
+			m["after/d.side/01-old.md"] = m["before/d.side/01-old.md"]
+		}, "named 02-why.md"},
 		{"an entry added by a fold", func(m fstest.MapFS) {
 			m["before/d.side/01-why.md"] = m[side]
 			m["before/d.md"] = &fstest.MapFile{Data: []byte("# D\n\nText. → [discussion](d.side/01-why.md) 🤖[fold in]\n")}
