@@ -47,7 +47,7 @@ Related to, but not covered by, #400 (cancel must stop only your own run).
 ## Plan
 
 - [x] BR-1: scope managed signals to the owned queue/suite phase, restore default handling outside it, and give detached cleanup an independent bounded Git runner.
-- [ ] Verify the unchanged production handler with blocked-fetch SIGINT/SIGTERM, queued cancellation, bounded cleanup and a fresh recorded suite before re-close; repeat the live check when the TL grants the stage.
+- [x] Verify the unchanged production handler with blocked-fetch SIGINT/SIGTERM, queued cancellation, bounded cleanup and a fresh recorded suite before re-close; repeat the live check when the TL grants the stage.
 
 - [x] Reproduce queued cancellation and watched-process SIGKILL with private lock files; show the successor is admitted and unrelated holders survive.
 - [x] Reuse CLI signal-context ownership for local-check run, and bound cancellation of its owned helper process group; retain the existing per-run pipe holder.
@@ -88,6 +88,11 @@ Related to, but not covered by, #400 (cancel must stop only your own run).
 - Revised suite ef42644f9ff6b93a2aa217acc8a0dbc2 was admitted after about 3,458s queued. Its queued-cancellation and bounded-cleanup native cases passed, but the new outside-phase SIGINT assertions failed (fetch and trailer); SIGTERM passed. This is a deterministic test precondition error, not an unrelated flake retry: the asynchronous suite inherits SIGINT=SIG_IGN, which Go intentionally preserves. Explicit ignored-SIGINT launch of the same compiled test reproduced both failures (9.33s); explicit SIG_DFL launch passed all four cases (2.98s). The owned fixture now sets SIGINT=SIG_DFL in an exec launcher before entering the unchanged production handler. Under an outer SIG_IGN, go test -trimpath ./cmd/sdlc -run ^TestLocalCheckSignal -count=1 -timeout 3m passed (8.359s). No production change; retain the failed suite and run a new recorded suite on the fixture fix.
 
 - Full failed result retained: ef42644f9ff6b93a2aa217acc8a0dbc2 on e7a8db930a2b2bbffbb903cc4b4743ef693415e8, queue_seconds=3458.271406708, wall_seconds=496.335932, 12 shards / 1,525 cmd/sdlc tests plus 66 other packages. Only TestLocalCheckSignalPreservesOutsideOwnedPhase failed (the two SIGINT leaves); saved failed/ef42644f9ff6b93a2aa217acc8a0dbc2.log, SHA256 8825fc8a7eea1f45d493c0a6d7cd4d9ed939f8b475c741095d0360aeb49416f7. Fixture correction and docs-only main integration pushed at 6fe57a8f910e0f4d1b8cb8ca7f3eaa2c93b40145; fresh run c069e6e8e842f9cf532752c50aec50b7 queued at position ten, detached sdlc-local-457918715.
+
+### 2026-10-17
+
+- Corrected recorded suite PASS on 6fe57a8f910e0f4d1b8cb8ca7f3eaa2c93b40145: run c069e6e8e842f9cf532752c50aec50b7, 12 shards / 1,525 cmd/sdlc tests plus 66 other packages, all exit 0, zero failures, wall 496.3s (8m16s). Every native signal case passed, including the explicit-default SIGINT fixture under asynchronous suite launch. Saved local-checks/6fe57a8f910e0f4d1b8cb8ca7f3eaa2c93b40145/suite.log; SHA256 5e98a43572c0df9f5b874c8f6717f267596f62ac1a0d0e0a5e0a8108468c3921. PR #274 CI and sdlc-local/suite green.
+- This attempt recorded queue_seconds=3780.555839292 and wall_seconds=496.459387833. All four pre-close suite attempts (d5ecb880e188a182590c4815cf749537, 0bbae3af1b6112bb7cb13acbc505a1ca, ef42644f9ff6b93a2aa217acc8a0dbc2, c069e6e8e842f9cf532752c50aec50b7) total 14189.88612 measured queue seconds (3.941635033333333h). Per the TL decision in #420, subtract these recorded waits from the fresh measured actual; preserve the raw measurement and arithmetic in close evidence rather than guessing hours. #420 remains unassigned.
 
 ## Revisions
 
