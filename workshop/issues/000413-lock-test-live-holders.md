@@ -35,3 +35,5 @@ Model the original dead holder separately from the two live contenders, and asse
 
 - Found while verifying #411; file independently and leave unassigned.
 - Scratch main control at 87e0feeb63e41946936ccb316583629ce8eb6b8a, go test -trimpath ./cmd/sdlc/internal/repolock -run '^TestConcurrentAcquireReclaimsDeadHolderOnce$' -count=100 -timeout 5m, passed in 4.158s. This did not reproduce the intermittent failure. Log /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne411-lock-main-gezq_l3f.log; scratch checkout removed.
+
+- Confirmed main reproduction: at 35ba24e6cad39344c347af981de7ac8fcc1d1c31, the same command with -count=1000 failed 18/1000 repetitions in 47.462s, each with missing .git/sdlc.lock/meta.json at repolock_test.go:415. Log /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne411-lock-main-1000-60b_vs0t.log. Both test blobs are 9f1e403fe782fd03b405c2f2f9adb47f54b183f0. Scratch worktree removed cleanly. This establishes a main test failure; it does not establish a production lock bug because the fixture's liveness oracle marks the new live contenders dead. Hub notified with #413 reference.

@@ -20,6 +20,11 @@ import "os"
 // deps come from `weave link`, so weave never edits go.mod.
 type Action interface{ isAction() }
 
+// DeferredOutput retains an output and its ownership evidence without writing it.
+type DeferredOutput struct{ Path string }
+
+func (DeferredOutput) isAction() {}
+
 // Symlink creates a symlink at Dst pointing to Src. Lowered from an
 // intent.Symlink (walk_manifest: create_symlink "$upstream/$source"
 // "$TARGET_DIR/$target"). Src is the absolute upstream path; Dst the

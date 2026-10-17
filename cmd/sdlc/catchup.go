@@ -22,15 +22,24 @@ import (
 // weaveRefresh is the catch-up seam. Tests replace it; TestMain stubs it so no
 // test runs a real weave.
 var weaveRefresh = runInstalledWeave
+var weaveSettingsCheck = runInstalledWeaveSettings
 
-// runInstalledWeave runs the installed `weave refresh` in root, writing its output
+// runInstalledWeave runs gate refresh with protected settings deferred, writing its output
 // to out.
 func runInstalledWeave(ctx context.Context, root string, out io.Writer) error {
+	return runInstalledWeaveArgs(ctx, root, out, "refresh", "--defer-settings")
+}
+
+func runInstalledWeaveSettings(ctx context.Context, root string, out io.Writer) error {
+	return runInstalledWeaveArgs(ctx, root, out, "settings")
+}
+
+func runInstalledWeaveArgs(ctx context.Context, root string, out io.Writer, args ...string) error {
 	bin, err := exec.LookPath("weave")
 	if err != nil {
 		return fmt.Errorf("find installed weave: %w", err)
 	}
-	cmd := exec.CommandContext(ctx, bin, "refresh")
+	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Dir, cmd.Stdout, cmd.Stderr = root, out, out
 	return cmd.Run()
 }
@@ -65,6 +74,9 @@ func catchUpBeforeWork(ctx context.Context, stdout io.Writer, root string, issue
 		heads[dir] = headOf(ctx, dir)
 	}
 	if len(behind) == 0 {
+		if err := weaveSettingsCheck(ctx, root, stdout); err != nil {
+			cwarn(stdout, fmt.Sprintf("settings check unavailable (%s): run weave refresh --substrate from your shell", firstLine(err.Error())))
+		}
 		return nil
 	}
 	rerun := fmt.Sprintf("sdlc start-plan --issue %d", issueID)

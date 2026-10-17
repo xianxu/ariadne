@@ -231,8 +231,8 @@ func TestRunInstalledWeaveRunsRefreshInRoot(t *testing.T) {
 	if err := runInstalledWeave(context.Background(), root, &out); err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.TrimSpace(out.String()); got != root+" refresh" {
-		t.Fatalf("ran %q, want %q", got, root+" refresh")
+	if got := strings.TrimSpace(out.String()); got != root+" refresh --defer-settings" {
+		t.Fatalf("ran %q, want %q", got, root+" refresh --defer-settings")
 	}
 	t.Setenv("PATH", t.TempDir())
 	if err := runInstalledWeave(context.Background(), root, &out); err == nil || !strings.Contains(err.Error(), "find installed weave") {
