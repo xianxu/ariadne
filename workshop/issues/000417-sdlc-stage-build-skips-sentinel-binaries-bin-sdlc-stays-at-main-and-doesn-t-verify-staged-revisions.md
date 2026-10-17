@@ -48,6 +48,7 @@ Clearing a stage must restore the same invariant for the resting branch: rebuild
 ### 2026-10-16
 
 - Design: ARCH-DRY keeps build ownership in the existing Make target; the sentinel declares only the target. ARCH-PURE keeps revision and package matching separate from process execution. No new persistent state is created (ARCH-FUNERAL).
+- Targeted stage/clear tests passed after watching the stale-revision, skipped-sentinel and unrepaired-clear cases fail first. A real `make build` skipped sdlc; `make sdlc-build` produced `bin/sdlc` at the branch HEAD with `vcs.modified=false`. The full `make -k test` is waiting in the weighted suite queue. TL authorized a short :0 live stage/clear window after the suite passes.
 
 ## Revisions
 

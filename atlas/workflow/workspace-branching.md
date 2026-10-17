@@ -89,16 +89,21 @@ From the slot holding the branch:
 
 ```sh
 sdlc stage --dry-run   # check both slots, print the stage
-sdlc stage --build     # :0 detached at this HEAD, then :0's `make build`
-sdlc stage --clear     # later: :0 back to its resting branch
+sdlc stage --build     # :0 detached at this HEAD; build and verify its binaries
+sdlc stage --clear     # later: :0 back to rest; rebuild and verify those binaries
 ```
 
 `sdlc stage` (#344) puts this slot's HEAD on the target as a **detached
 commit**. The slot keeps its branch, keeps working, re-stages each new head the
 same way, and closes and lands from its own slot; landing never needs `:0`
 cleared. The behaviour:
-- **Output:** it prints the staged commit; with `--build`, each `bin/*` Go
-  binary's `vcs.revision`, warning on a mismatch. One step verifies it.
+- **Build check:** `--build` runs the target's `make build`, then any owner
+  targets declared by `cmd/*/.skip-make-build` with `# stage-build: <target>`.
+  It prints each `bin/*` Go binary's `vcs.revision` and refuses a missing,
+  modified or mismatched stamp, naming the binary. Each sentinel command must
+  have a verified output, even when its binary name differs from the source
+  directory. `--clear` runs that same build check against the resting HEAD;
+  repeating it repairs a failed post-switch rebuild.
 - **Refusals:** a dirty target or one mid-operation; a target on another branch;
   a detached commit no ref contains and sdlc did not stage. None of them changes
   anything.
