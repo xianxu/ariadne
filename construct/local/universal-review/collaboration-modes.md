@@ -79,7 +79,7 @@ Each ready 🤖 marker is an ask. Classify it, then act:
 - **Fold-in is asked from the parent:** a 🤖[fold in] at or beside a `→ [discussion](…)` link is the one trigger.
   It is an imperative: edit the parent at the link's spot from what the side doc settled (its `Decided (operator): …`
   line, or its single proposal), through the parent's own write; mark the link `(folded <date>)`; and add a closing
-  note at the end of the side doc saying what was applied. The fold adds no index entry (§4, "The index"): the
+  note at the end of the side doc, `Folded into the parent on <date>: <what was applied>.` The fold adds no index entry (§4, "The index"): the
   parent's changed text is its record, as a `Decided (operator): …` line when the side doc settled a decision.
   - **A fold-in beside an already-folded link** is honored again, so a fold whose proposals the operator rejected
     can be redone.
@@ -103,7 +103,7 @@ an action, never for a question that needs continued discussion. These usually a
   to the marker rather than guessing.
 - **A fold-in is an edit**, made under the parent's review mode. Under `deletions: propose-strike` its replacements
   and deletions are proposals in the parent; the link is still marked `(folded <date>)` in that same write, and the
-  side doc's closing note says the fold was proposed, to accept or reject.
+  side doc's closing note reads `Proposed in the parent on <date>: …`, to accept or reject there.
 
 **A decision is recorded in one line.** Wherever the operator writes a decision or an approval, replace the marker
 with one line at its spot, `Decided (operator): <the decision, restated>.`, and carry it out when it asks for an edit

@@ -4,6 +4,8 @@ parent: ../design.md
 marker: "what should the modes be called?"
 collaboration-mode: discussion
 process-instruction: "[developmental]"
+discussions:
+  - doc: 02-renames.md
 ---
 
 # What should the modes be called?
@@ -15,4 +17,4 @@ collaboration and the branching mode discussion.
 
 Old files keep working under either name. → [discussion](02-renames.md)
 
-Decided (operator): call the modes collaboration and discussion; folded into the parent.
+Decided (operator): call the modes collaboration and discussion.

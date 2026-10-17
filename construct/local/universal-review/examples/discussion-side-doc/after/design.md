@@ -7,4 +7,4 @@ process-instruction: "[developmental]"
 
 ## Names
 
-The two modes are called collaboration and discussion. → [discussion](design.side/01-naming.md) (folded 2026-10-16)
+The two modes are called inline and branching. → [discussion](design.side/01-naming.md)

@@ -1,6 +1,9 @@
 ---
 collaboration-mode: {default: discussion}
 process-instruction: "[free-form]"
+discussions:
+  - doc: design.side/02-lock-granularity.md
+  - doc: design.side/03-retry-story.md
 ---
 
 # Lock design

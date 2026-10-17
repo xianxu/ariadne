@@ -3,6 +3,10 @@ type: session-sync
 collaboration-mode:
   chat: ["operator  instructions", "Operatr notes"]
 process-instruction: "[copy-editing]"
+discussions:
+  - doc: status.side/2026-10-16-01-s4-cost.md
+  - doc: status.side/2026-10-15-01-backlog.md
+  - doc: status.side/01-why-now.md
 ---
 
 Updated 2026-10-16 15:00
