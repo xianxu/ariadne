@@ -6,7 +6,7 @@ github_issue:
 created: 2026-10-16
 updated: 2026-10-17
 estimate_hours:
-card_mirror: '1acd67864661b90e175e643d7f17e9f185e57a75' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '499e994aa077f022ba0172cd956f99d799d5660b' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-16T22:20:44-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
-actual_hours: 1.79
+actual_hours: 1.85
 ---
 
 # sdlc stage: one stage at a time in :0, a lease naming the holder; staging over another issue's live stage refuses
