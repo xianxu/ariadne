@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-17
-estimate_hours:
+estimate_hours: 4.92
 severity: medium
-card_mirror: '89d23f54acff2cb613a743cc1705204c2bc16d35' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'be6cb820f9fa6906d6a742e48ffd00a4aacdaa69' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T00:53:13-07:00
 claimant:
     operator: Xian Xu
@@ -46,6 +46,24 @@ Investigate how native task spans and frequent assistant/tool polling turn queue
 - [ ] In the native active-time engine, remove queued idle intervals from the owning session's activity while retaining timestamped work inside them; preserve phase splits and uncounted review tails.
 - [ ] Cover a polled queue, overlapping live work, duplicate/foreign/missing records and replay with deterministic native-transcript tests; run targeted tests and the recorded suite before close.
 - [ ] Re-measure #416 from the corrected implementation and give the TL/operator the measured result and evidence for generation-bound correct-actual or explicit exclusion.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module design=1.0 impl=0.3
+item: greenfield-go-module design=1.0 impl=0.3
+item: smaller-go-module design=0.2 impl=0.16
+item: smaller-go-module design=0.2 impl=0.16
+item: smaller-go-module design=0.2 impl=0.16
+item: issue-spec design=0.5 impl=0.1
+item: atlas-docs design=0.1 impl=0.06
+design-buffer: 0.15
+total: 4.92
+```
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. Two novel concerns are queue attribution and structural native-tool evidence; the three smaller extensions are attempt recording, snapshot/correction wiring and phase/report integration. This uses the already available Go and SDLC libraries, so no novel-stack library discount applies. The calibration is marked stale, hence provisional.
 
 ## Log
 
