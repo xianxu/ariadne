@@ -44,7 +44,7 @@ A reader of `issue show`, whether the TL, the operator or an agent deciding whet
 
 - [x] Reproduce appended REWORK→SHIP readout with completion selection, round/history, and quoted metadata coverage.
 - [x] Select the completion-bound entry (latest without completion), using ledger round numbers when available; preserve legacy sidecars and explicit unknown reads.
-- [ ] Verify text/JSON through the collector and archived evidence, run the recorded suite, close and land on SHIP.
+- [x] Verify text/JSON through the collector and archived evidence and run the recorded suite; proceed to the close/landing gates on this evidence.
 
 ## Log
 
@@ -61,3 +61,5 @@ A reader of `issue show`, whether the TL, the operator or an agent deciding whet
 - Corrected head ac4f0623f60856d090eff40ece50deafbf55fa7d passed the observer package and all targeted collector/writer tests (40.920s). Recorded suite attempt 26619cadc5bf3d0eec52a5e8bd03c4f0 is queued through the weighted gate; no suite failure occurred. Local-gates guard passes; no protected configuration changed.
 
 - Recorded suite 26619cadc5bf3d0eec52a5e8bd03c4f0 passed on ac4f0623: all 12 shards over 1543 cmd/sdlc tests and 66 other packages, 516.414s wall, 1724.956s queued, log SHA256 dd62414f23cb11ee2007cacad4f2fe8c622aee16336f91419623b9e75bed74d6. Main advanced with #421 while it ran; merged current main cleanly and re-running the recorded suite on the integrated head before close. Actual preview measured 0.16h through the last work checkpoint; no hand-entered actual.
+
+- Integrated recorded suite 2e0137236f6c98802b3328f0539ac922 passed on 0227eeb1ddb632300d3ca903bb616cd4b37c9bcc: all 12 shards over 1547 cmd/sdlc tests and 66 other packages, 552.651s wall, 2107.431s queued, log SHA256 f4ebb7d127d3e74bc386eff278a23a92c56389fd84423ef90f4db2068ea9aad9. CI is green. All implementation/verification plan items are complete; close review and landing are the remaining gates.
