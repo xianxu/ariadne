@@ -208,6 +208,12 @@ refuses (exit 6) instead.`,
 				return err
 			}
 			fmt.Fprintln(out, "owed:", orNone(strings.Join(owed, ", ")))
+			// A submit is when the operator's deleted links arrive: reconcile
+			// the index now (#424). A refusal is reported, not fatal: the
+			// submit's other lines still stand, and the next submit retries.
+			if err := syncIndexAfter(d, out, file, nil, diff); err != nil {
+				fmt.Fprintln(out, "index: not reconciled:", err)
+			}
 			printStale(d, out, file)
 			return nil
 		},
@@ -295,7 +301,7 @@ submit, owed and every write end with the same lines.`,
 	}
 	thread.Flags().StringArrayVar(&drop, "drop", nil, "drop subsections whose heading starts with this prefix, e.g. '### Train: old' (repeatable)")
 	clobbered.Flags().BoolVar(&done, "done", false, "the TL has merged it; remove the copy")
-	status.AddCommand(append([]*cobra.Command{submit, section, thread, seen, owed, check, clobbered, newInstructionsCmd(d)}, rendered...)...)
+	status.AddCommand(append([]*cobra.Command{submit, section, thread, seen, owed, check, clobbered, newInstructionsCmd(d), newIndexCmd(d)}, rendered...)...)
 	return status
 }
 

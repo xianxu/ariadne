@@ -10,9 +10,10 @@ with a clean tree. In order, each step skipped when already done:
   2. the tip is pushed to `refs/ariadne/abandoned/NNNNNN` on the publication
      remote — the work is kept for wontfix and punt alike;
   3. the card goes terminal, recording that ref, the branch and the tip;
-  4. the details (mirroring the terminal card), their asset bundle and the
-     issue's plan artifacts move to history in one narrow main commit;
-     the kept branch supplies its final evidence, with body links unchanged;
+  4. the details (mirroring the terminal card), their asset bundle, the
+     issue's plan artifacts and each document's side folder (`<name>.side/`,
+     #424) move to history in one narrow main commit; the kept branch
+     supplies its final evidence and side docs, with links unchanged;
   5. the branch is deleted on the remote (leased on the kept tip), the checkout
      returns to its resting branch, and the local branch is deleted.
 
@@ -22,7 +23,7 @@ record and the details, with the reason in their Log, are archived on main.
 
 REOPEN. `sdlc issue set-status working --issue N` on an abandoned issue fetches
 the archive ref, recreates the branch at the kept tip, merges main, moves the
-details, indexed assets and plans back out of the archive in one commit, pushes the branch,
+details, indexed assets, plans and their side folders back out of the archive in one commit, pushes the branch,
 reopens the card and deletes the archive ref. A merge conflict stops before
 the card changes; resolve it, commit, and rerun.
 

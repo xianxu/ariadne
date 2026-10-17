@@ -1,5 +1,7 @@
 ---
 collaboration-mode: discussion
+discussions:
+  - doc: design.side/02-why-release-on-submit.md
 ---
 
 # Locks

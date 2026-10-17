@@ -74,6 +74,39 @@ func TestBuildOrder(t *testing.T) {
 	}
 }
 
+// The move cases' files are exported as fixtures, for parley's mover
+// (#424); the other examples are not. Fixtures sort last, by case, then path.
+func TestBuildFixtures(t *testing.T) {
+	fs := fixture()
+	f := func(s string) *fstest.MapFile { return &fstest.MapFile{Data: []byte(s)} }
+	fs["examples/move-b/case.md"] = f("submitted: d.md\noutcome: ok\nmove: d.md e.md\n")
+	fs["examples/move-b/before/d.md"] = f("D\n")
+	fs["examples/move-b/after/e.md"] = f("D\n")
+	fs["examples/move-a/case.md"] = f("move: x.md y.md\n")
+	fs["examples/chat/case.md"] = f("submitted: s.md\noutcome: ok\n")
+	fs["examples/chat/before/s.md"] = f("S\n")
+	m, err := Build(fs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Version != 2 {
+		t.Errorf("version %d, want 2 (the fixture role)", m.Version)
+	}
+	var got []string
+	for _, mem := range m.Members {
+		if mem.Role == "fixture" {
+			got = append(got, mem.Name+":"+mem.Path)
+		}
+	}
+	want := "move-a:examples/move-a/case.md move-b:examples/move-b/after/e.md move-b:examples/move-b/before/d.md move-b:examples/move-b/case.md"
+	if strings.Join(got, " ") != want {
+		t.Errorf("fixtures\n got %s\nwant %s", strings.Join(got, " "), want)
+	}
+	if last := m.Members[len(m.Members)-1]; last.Role != "fixture" {
+		t.Errorf("fixtures do not sort last: %+v", last)
+	}
+}
+
 func TestBuildRefusesMissingMembers(t *testing.T) {
 	for _, drop := range []string{"round.md", "review-convention.md", "collaboration-modes.md", "adapters/file-edit.md"} {
 		fs := fixture()
@@ -153,8 +186,9 @@ func TestExportCurrent(t *testing.T) {
 		case "collaboration-modes":
 			collab++
 		}
-		if strings.HasPrefix(mem.Path, "examples/") {
-			t.Errorf("the examples are fixtures, not exported: %s", mem.Path)
+		// Only the move cases are exported, as parley's fixtures (#424).
+		if strings.HasPrefix(mem.Path, "examples/") != (mem.Role == "fixture") || mem.Role == "fixture" && !strings.HasPrefix(mem.Name, "move-") {
+			t.Errorf("%s exported as %s/%s; only the move cases are, as fixtures", mem.Path, mem.Role, mem.Name)
 		}
 	}
 	// #412: parley's sync requires exactly one collaboration-modes member.

@@ -120,7 +120,11 @@ func prepareAssetArchive(ctx context.Context, root, detail, archived string, bod
 	return moves, nil
 }
 
-func finishAssetArchiveMoves(root string, moves []preparedArchiveMove) error {
+// finishArchiveMemberMoves moves the prepared members of a folder that travels
+// with its issue: its assets, and its documents' side folders (#424). It
+// links then removes, never replacing a destination, and skips a member whose
+// source is already gone, which makes a resumed archive idempotent.
+func finishArchiveMemberMoves(root string, moves []preparedArchiveMove) error {
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
 		return err
@@ -160,10 +164,10 @@ func finishAssetArchiveMoves(root string, moves []preparedArchiveMove) error {
 		}
 		// No replacement: an independently created destination must never be lost.
 		if err := os.Link(src, dst); err != nil {
-			return fmt.Errorf("asset archive retained %s: %w; reconcile the two paths then rerun sdlc push --yes", m.IssuePath, err)
+			return fmt.Errorf("archive retained %s: %w; reconcile the two paths then rerun sdlc push --yes", m.IssuePath, err)
 		}
 		if err := os.Remove(src); err != nil {
-			return fmt.Errorf("asset archive retained both %s and %s: %w; remove the duplicate active file then rerun sdlc push --yes", m.IssuePath, m.HistoryPath, err)
+			return fmt.Errorf("archive retained both %s and %s: %w; remove the duplicate active file then rerun sdlc push --yes", m.IssuePath, m.HistoryPath, err)
 		}
 	}
 	return nil

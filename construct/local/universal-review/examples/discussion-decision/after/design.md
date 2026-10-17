@@ -1,5 +1,7 @@
 ---
 collaboration-mode: discussion
+discussions:
+  - doc: design.side/01-stamp-first.md
 ---
 
 # Session file

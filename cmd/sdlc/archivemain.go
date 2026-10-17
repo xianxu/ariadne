@@ -10,6 +10,9 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -34,6 +37,7 @@ type mainArchive struct {
 	Assets  *issueassets.Bundle // validated kept-branch assets; nil reads main
 	Final   []byte              // the details to archive; nil archives main's copy
 	Plans   map[string][]byte   // plan contents by basename, replacing main's copies
+	Sides   []gitx.TreeFile     // kept-branch side-folder files at their live paths (#424); nil reads main
 	Note    string              // a ## Log line added to main's copy (Final nil only)
 	Allow   func(tracker.Record) error
 }
@@ -69,6 +73,12 @@ func archiveIssueOnMain(env *trackerEnv, stderr io.Writer, id, detailRel string,
 			if _, err := assetFilesFromView(view, detailRel, id, nil); err != nil {
 				return gitx.TrunkWrite{}, fmt.Errorf("active asset residue for %s: %w", detailRel, err)
 			}
+			// #424: likewise a side folder left behind by the details' move.
+			if residue, err := trunkSideResidue(view, detailRel, a.Dirs.Plans); err != nil {
+				return gitx.TrunkWrite{}, err
+			} else if residue != "" {
+				return gitx.TrunkWrite{}, fmt.Errorf("active side-doc residue for %s: %s; move it beside the archived details, or remove it, before retrying", detailRel, residue)
+			}
 			raw, err := view.Read(archivedDetail)
 			if err != nil {
 				return gitx.TrunkWrite{}, fmt.Errorf("cannot confirm archived issue %s: %w; restore the archived details before retrying", archivedDetail, err)
@@ -89,6 +99,11 @@ func archiveIssueOnMain(env *trackerEnv, stderr io.Writer, id, detailRel string,
 					}
 					w := gitx.TrunkWrite{Write: assetBundleWrite(*a.Assets, archivedDetail), ExactBytes: true}
 					w.Write[archivedDetail] = mirrorTerminal(env, a.Final, card.Raw)
+					// The archived side folders become this episode's, as its
+					// assets do (#424).
+					if err := trunkSideReplace(view, archivedDetail, a, &w); err != nil {
+						return gitx.TrunkWrite{}, err
+					}
 					for p := range bundle.Files {
 						if _, keep := a.Assets.Files[p]; !keep {
 							w.Delete = append(w.Delete, path.Join(path.Dir(archivedDetail), p))
@@ -171,11 +186,25 @@ func archiveIssueOnMain(env *trackerEnv, stderr io.Writer, id, detailRel string,
 		if err != nil {
 			return gitx.TrunkWrite{}, err
 		}
+		sideDocs := []sideArchiveDoc{{detailRel, archivedDetail}}
 		for _, p := range plans {
 			if planArtifactBelongsToIssue(base, path.Base(p.Path)) {
-				w.Write[archiveDestination(a.Dirs.History, vocab.ArchivePlans, path.Base(p.Path))] = p.Content
+				dest := archiveDestination(a.Dirs.History, vocab.ArchivePlans, path.Base(p.Path))
+				w.Write[dest] = p.Content
 				w.Delete = append(w.Delete, p.Path)
+				if strings.HasSuffix(p.Path, ".md") {
+					sideDocs = append(sideDocs, sideArchiveDoc{p.Path, filepath.ToSlash(dest)})
+				}
 			}
+		}
+		for name := range a.Plans {
+			if strings.HasSuffix(name, ".md") && !slices.ContainsFunc(sideDocs, func(d sideArchiveDoc) bool { return path.Base(d.Src) == name }) {
+				sideDocs = append(sideDocs, sideArchiveDoc{path.Join(a.Dirs.Plans, name), filepath.ToSlash(archiveDestination(a.Dirs.History, vocab.ArchivePlans, name))})
+			}
+		}
+		// #424: the issue's and its plans' side folders move with them.
+		if err := trunkSideArchive(view, sideDocs, &w, a.Sides); err != nil {
+			return gitx.TrunkWrite{}, err
 		}
 		for name, content := range a.Plans {
 			w.Write[archiveDestination(a.Dirs.History, vocab.ArchivePlans, name)] = content

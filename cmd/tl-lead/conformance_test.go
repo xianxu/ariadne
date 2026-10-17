@@ -72,8 +72,56 @@ func TestSessionSyncConformance(t *testing.T) {
 		t.Errorf("a refused fold changed A to %q", got)
 	}
 
+	// The whole-file read and write the index uses (#424): a hash, a stale
+	// refusal, a write that replaces the frontmatter and keeps the sections.
+	text, all, err := ss.ReadAll(file)
+	if err != nil || all == "" || !strings.Contains(text, "## A") {
+		t.Fatalf("read --all: hash=%q err=%v\n%s", all, err, text)
+	}
+	// What the fake models and syncIndex relies on: a whole-file read marks
+	// every edit seen, so the diff after it is empty, while Peek reads the
+	// same text without touching the baseline.
+	if peek, err := ss.Peek(file); err != nil || peek != text {
+		t.Errorf("Peek differs from read --all: %v\n%q\n%q", err, peek, text)
+	}
+	if err := os.WriteFile(file, []byte(strings.Replace(text, "\nb\n", "\nb edited\n", 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if diff, err := ss.Diff(file); err != nil || unreadChanges(diff) == "" {
+		t.Errorf("an edit after read --all: diff %q, %v; want it reported", diff, err)
+	}
+	if text, all, err = ss.ReadAll(file); err != nil {
+		t.Fatal(err)
+	}
+	if diff, err := ss.Diff(file); err != nil || unreadChanges(diff) != "" {
+		t.Errorf("after read --all: diff %q, %v; want no changes (read --all marks every edit seen)", diff, err)
+	}
+	whole := filepath.Join(dir, "whole.md")
+	next := strings.Replace(text, "type: session-sync\n", "type: session-sync\ndiscussions:\n  - doc: s.side/01-x.md\n", 1)
+	if err := os.WriteFile(whole, []byte(next), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ss.WriteAll(file, whole, "0000000000000000"); !errors.Is(err, ErrStale) {
+		t.Errorf("write --all with a wrong hash: err = %v, want ErrStale (exit 6)", err)
+	}
+	if err := ss.WriteAll(file, whole, all); err != nil {
+		t.Fatalf("write --all naming the read hash: %v", err)
+	}
+	if text, _, _ := ss.ReadAll(file); !strings.Contains(text, "  - doc: s.side/01-x.md") {
+		t.Errorf("after write --all:\n%s", text)
+	}
+	if got, _, _ := ss.ReadSection(file, "A"); strings.TrimSpace(got) != "new" {
+		t.Errorf("write --all changed A to %q", got)
+	}
+
 	if err := os.WriteFile(file+".lock", []byte("holder: operator\n"), 0o644); err != nil {
 		t.Fatal(err)
+	}
+	if _, all, err = ss.ReadAll(file); err != nil {
+		t.Fatal(err)
+	}
+	if err := ss.WriteAll(file, whole, all); !errors.Is(err, ErrLocked) {
+		t.Errorf("write --all under the operator's lock: err = %v, want ErrLocked (exit 3)", err)
 	}
 	_, hash, err = ss.ReadSection(file, "B")
 	if err != nil {
