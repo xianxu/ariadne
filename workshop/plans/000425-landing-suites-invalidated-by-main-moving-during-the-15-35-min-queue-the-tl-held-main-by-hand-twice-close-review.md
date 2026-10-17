@@ -78,3 +78,73 @@ findings:
    Append a `## Revisions` entry adding README synchronization and executable-guidance regression checks. Also correct the planned test location from `landingqueue_test.go` to `landingeconomy_test.go` and describe the actual readiness/release file protocol.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"8adc1145-9547-4852-903b-1cee43ff154f","repository":"github.com/xianxu/ariadne","issue_id":"000425","recipe":"small-diff-review","round":1,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/626dcca66105ab49","reviewed_head":"7d30d9a34392db47163f8225152dc4d1a4a31b25","slot":"ariadne:5","requested_at":"2026-10-17T14:08:30.996756Z"},"phase":"finished","pid":39858,"started_at":"2026-10-17T14:08:31.181331Z","finished_at":"2026-10-17T14:10:58.80651Z","session_id":"01a14a31-5dd6-7133-84d6-57bd37e5723a","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T07:56:33-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 425 — Landing suites invalidated by main moving during the 15–35 min queue; the TL held main by hand twice |
+| repo | ariadne |
+| issue file | workshop/issues/000425-landing-suites-invalidated-by-main-moving-during-the-15-35-min-queue-the-tl-held-main-by-hand-twice.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 146796d884ccf9a9d589a8766d7627762b4571e6..40142a581f1c75bc04c7af76240f45ce433d5db6 |
+| command | sdlc close --issue 425 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-17T07:56:33-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range delivers the approved workflow correction and covers concurrent landings, docs-only publication, and unsafe suite reuse. Both prior findings are addressed. No new blocking findings were found.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      README.md:444–449 distinguishes branch verification from admitted integration; lines 468–479 preserve freshness, branch-fix verification, and conservative reuse. These match landing.go admission/gating and cigate.go ancestor-reuse behavior.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Rendered-help checks cover worker, lead, and local-check guidance. All pass at pinned head and all fail when the three help files are restored to base versions in a temporary copy, removed after verification.
+```
+
+1. **Strengths**
+
+   - Two real merge invocations verify admission order, integrated ancestry, and tested-head identity.
+   - Docs-publication coverage uses the actual `TrunkFile.UpdateMany` transaction.
+   - Cumulative code, configuration, and embedded-help changes correctly invalidate reuse.
+   - README, atlas, and embedded guidance consistently preserve freshness and branch-fix requirements.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None remaining.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - All six new tests passed.
+   - Both concurrent integration scenarios passed under `-race`.
+   - Broader rendered-help and flag checks passed.
+   - Old-guidance mutation confirmed all three regression checks fail.
+   - `git diff --check` passed. Full suite was not rerun during review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY: pass.** Reuses existing admission, fixtures, CI seams, and classifier.
+   - **ARCH-PURE: pass.** Integration coverage uses existing injected boundaries; no production logic gains IO coupling.
+   - **ARCH-PURPOSE: pass.** Delivers the approved measured scope without adding another reservation mechanism.
+
+7. **Plan revision recommendations:** None. Existing revisions document the corrected test location, synchronization protocol, README updates, and guidance regression checks.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"921afc49-2378-48e2-b1c1-3c556afe97d3","repository":"github.com/xianxu/ariadne","issue_id":"000425","recipe":"small-diff-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/a74746d19fbbafd6","reviewed_head":"40142a581f1c75bc04c7af76240f45ce433d5db6","slot":"ariadne:5","requested_at":"2026-10-17T14:55:11.582659Z"},"phase":"finished","pid":30153,"started_at":"2026-10-17T14:55:11.683823Z","finished_at":"2026-10-17T14:56:32.691828Z","session_id":"01a14a5c-1823-7da1-a011-c39f6de459e6","outcome":"returned"}] -->

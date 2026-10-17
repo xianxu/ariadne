@@ -56,6 +56,7 @@ After verification: close through SDLC, land on SHIP and report verified hashes/
 ## Log
 
 ### 2026-10-17
+- 2026-10-17: closed — Post-review recorded suite 02d000f565da8adcdb52e1be66d98d53 passed on 82e1b8a1: 12 shards, 1552 SDLC tests, 66 packages, 487.289s; focused help contracts green and all three reject pre-feature guidance. BR-1 README passages synchronized; BR-2 worker/lead/local-check rendered checks added. Earlier landing tests passed including reviewer race check; staged native help passed, all seven tools restored. No actual: open #420 counts measured queue waiting as active work. Atlas updated; close tested branch, merge owns current-main integration.; review verdict: SHIP
 
 - Measurement scope: last 10 successful local landing-line events (PRs 272,273,275,276,277,278,274,280,282,281), 25 completed recorded suites, from 62 retained attempt records. No unreadable attempt records or missing Git objects. Group attempts by nearest issue-prefixed first-parent commit; pin each issue's main comparison to its PR merge's first parent (today's main would incorrectly contain the issue's own commits). Compare successive attempts, identifying main-base advancement separately from branch code edits; prior failures are a separate cause, and mixed branch/main changes are not attributed solely to main. Classifier matches publishGateHasCodeSurface: tests/config/embedded cmd markdown count as code; ordinary documentation/process paths do not.
 
