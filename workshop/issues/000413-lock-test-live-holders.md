@@ -1,13 +1,21 @@
 ---
 id: 000413
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-16
 estimate_hours:
 severity: medium
-card_mirror: '3cb738432fcc5785cf69e3563cbec8f7de7f0b1e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '2262f798d369b457e1d72efa73ea0b238ee9c19e' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-16T17:13:13-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Concurrent dead-holder lock test marks its live contenders dead and flakes with missing metadata
@@ -29,7 +37,9 @@ Model the original dead holder separately from the two live contenders, and asse
 
 ## Plan
 
-- [ ]
+- [ ] Reproduce the existing failure, then replace sleeps with controlled contender ordering; assert exclusivity, metadata ownership and release with only PID 555 dead.
+- [ ] Run repeated and race-enabled repolock tests, including a delayed stale observation against a newly live holder; retain production unchanged only if the faithful model passes.
+- [ ] Record the full suite, close review and validated landing.
 
 ## Log
 
@@ -37,3 +47,7 @@ Model the original dead holder separately from the two live contenders, and asse
 - Scratch main control at 87e0feeb63e41946936ccb316583629ce8eb6b8a, go test -trimpath ./cmd/sdlc/internal/repolock -run '^TestConcurrentAcquireReclaimsDeadHolderOnce$' -count=100 -timeout 5m, passed in 4.158s. This did not reproduce the intermittent failure. Log /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne411-lock-main-gezq_l3f.log; scratch checkout removed.
 
 - Confirmed main reproduction: at 35ba24e6cad39344c347af981de7ac8fcc1d1c31, the same command with -count=1000 failed 18/1000 repetitions in 47.462s, each with missing .git/sdlc.lock/meta.json at repolock_test.go:415. Log /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne411-lock-main-1000-60b_vs0t.log. Both test blobs are 9f1e403fe782fd03b405c2f2f9adb47f54b183f0. Scratch worktree removed cleanly. This establishes a main test failure; it does not establish a production lock bug because the fixture's liveness oracle marks the new live contenders dead. Hub notified with #413 reference.
+
+### 2026-10-16 — plan
+
+Claimed and started from current main on its own branch. ARCH-MOCK/ORDER: liveness is PID-specific, ordering is controlled through existing ProcessAlive/Sleep seams, and every worker is canceled/joined before fixture teardown. ARCH-PURE/DRY: reuse Observe/Acquire and real filesystem ownership rather than another lock model. No new persistent family or production surface is intended. Inspect the stale-observation-to-rename boundary too: fixing the oracle alone must not conceal a real reclamation race. If the faithful model fails, record the counterexample and revise scope with the TL before changing production.
