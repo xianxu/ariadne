@@ -7,7 +7,7 @@ created: 2026-10-16
 updated: 2026-10-17
 estimate_hours: 1.82
 collaboration-mode: collaboration
-card_mirror: 'da7df850bfe30200e77005c763ddd8f7067250bc' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9b8e3b51030547fc6ed0c20e70b06b5ab4217498' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T01:34:29-07:00
 claimant:
     operator: Xian Xu
@@ -17,7 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
-actual_hours: 0.67
+actual_hours: 1.03
 ---
 
 # A downstream repo's committed generated vocabulary goes stale on every ariadne vocabulary change and turns its CI red
