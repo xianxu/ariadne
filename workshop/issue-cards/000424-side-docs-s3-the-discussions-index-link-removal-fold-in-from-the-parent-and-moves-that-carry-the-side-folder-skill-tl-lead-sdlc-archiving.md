@@ -1,6 +1,6 @@
 ---
 id: 000424
-status: codecomplete
+status: done
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours: 4.13
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 5990bf04a5d7cebb58dcf279b19e142ae3f2fe5f
         evidence_commit: f362cbf7898d41641235f3001ffd36879312cd06
+        landed_commit: 5fa50f084f8062fafb493bec86b8207fc8f5617a
 ---
 
 # side docs S3: the discussions index, link removal, fold-in from the parent, and moves that carry the .side folder (skill, tl-lead, sdlc archiving)
