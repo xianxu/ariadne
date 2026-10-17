@@ -21,6 +21,7 @@ This file is itself a prototype with `type: type`, so it self-hosts: applying `t
 | Field | Required | Notes |
 |---|---|---|
 | `type` | yes | The type name. Matches the filename without `.md`. For this meta-prototype, `type: type`. |
+| `collaboration-mode` | yes | `discussion`: the default xx-universal-review collaboration mode for a prototype document itself (ariadne#415). |
 | `name` | yes | Same as `type` for now. Reserved for future divergence (e.g., a single type spanning multiple variants). |
 | `description` | yes | One sentence. Starts with "Use when...". Used by the dispatcher for fuzzy intent matching against conversational triggers. |
 
@@ -30,7 +31,7 @@ A prototype's body MUST contain these sections, in order:
 
 1. **Title** — `# <name>` matching the filename.
 2. **Lede paragraph** — one short paragraph explaining what this type captures and when it applies.
-3. **Frontmatter shape** — table of fields the *instances* must carry, with required/optional and notes.
+3. **Frontmatter shape** — table of fields the *instances* must carry, with required/optional and notes. It always includes a `collaboration-mode` row whose notes start with the type's default collaboration mode (`discussion`, `collaboration` or `chat`; see xx-universal-review), so every new instance declares it (ariadne#415).
 4. **Body skeleton** — the section structure of an *instance* of this type, with guidance about each section.
 5. **Authoring instructions** — what the dispatcher should do when applying this prototype. Specific to this type's domain.
 6. **Search recipes** (recommended) — `rg` examples for finding instances of this type by common attributes. See "Greppability" rule below.

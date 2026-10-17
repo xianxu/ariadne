@@ -13,6 +13,7 @@ A sequence of steps to follow, written so a future self (or a different person) 
 | Field | Required | Notes |
 |---|---|---|
 | `type` | yes | `procedure` |
+| `collaboration-mode` | yes | `collaboration`: the default xx-universal-review collaboration mode for this type's documents (ariadne#415). |
 | `goal` | yes | One sentence: what you achieve by following this. Used as title. |
 | `prerequisites` | no | List of things that must be true before starting (access, credentials, tools installed). |
 | `last-run` | no | ISO date of the most recent execution. Useful for procedures that touch external systems where things drift. |

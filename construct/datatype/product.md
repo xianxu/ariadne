@@ -20,6 +20,7 @@ In short: **product describes what is built; project describes what we're workin
 | Field | Required | Notes |
 |---|---|---|
 | `type` | yes | `product` |
+| `collaboration-mode` | yes | `discussion`: the default xx-universal-review collaboration mode for this type's documents (ariadne#415). |
 | `name` | yes | Slug form, lowercase-hyphenated. Matches the filename without `.md`. Single namespace per brain — no two products with the same slug. |
 | `repos` | yes | List of peer repository names — `[ariadne, parley.nvim]`. Empty list `[]` is valid for a product without any repo yet. Each name resolves to `<workspace-root>/<name>` where workspace-root is the parent of the brain's git root. |
 | `created` | yes | ISO date. |

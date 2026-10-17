@@ -30,15 +30,23 @@ const writeTries = 4
 // stale read and recompute again. A held lock refuses at once (no retry: the
 // update waits for the operator's submit). With foldOwed, the write also folds
 // the owed events the TL has already seen, and drops them from the seen-set.
-func writeSection(ss SessionSync, out io.Writer, file, heading string, compute func(current string) (string, error), foldOwed bool) error {
+// Every section but the operator's gets a fresh freshness stamp (stamp.go).
+func writeSection(d deps, out io.Writer, file, heading string, compute func(current string) (string, error), foldOwed bool) error {
+	ss := d.ss
 	for range writeTries {
 		current, hash, err := ss.ReadSection(file, heading)
 		if err != nil {
 			return refusal(file, heading, err)
 		}
+		if stampedSection(heading) {
+			_, current = splitStamp(current)
+		}
 		body, err := compute(current)
 		if err != nil {
 			return err
+		}
+		if stampedSection(heading) {
+			body = stamped(body, d.clock())
 		}
 		var fold, seen []string
 		if foldOwed {
@@ -66,6 +74,7 @@ func writeSection(ss SessionSync, out io.Writer, file, heading string, compute f
 			msg += fmt.Sprintf(", folded %d", len(fold))
 		}
 		fmt.Fprintln(out, msg)
+		printStale(d, out, file)
 		return nil
 	}
 	return exitError{6, fmt.Errorf("refused: ## %s in %s is still stale after %d reads; someone is editing it", heading, file, writeTries)}
@@ -199,6 +208,7 @@ refuses (exit 6) instead.`,
 				return err
 			}
 			fmt.Fprintln(out, "owed:", orNone(strings.Join(owed, ", ")))
+			printStale(d, out, file)
 			return nil
 		},
 	}
@@ -211,7 +221,7 @@ refuses (exit 6) instead.`,
 			if err != nil {
 				return err
 			}
-			return writeSection(d.ss, cmd.OutOrStdout(), args[0], args[1], func(string) (string, error) { return body, nil }, foldOwed)
+			return writeSection(d, cmd.OutOrStdout(), args[0], args[1], func(string) (string, error) { return body, nil }, foldOwed)
 		},
 	}
 	thread := &cobra.Command{
@@ -226,7 +236,7 @@ refuses (exit 6) instead.`,
 			if _, err := upsertThread("", entry, nil); err != nil {
 				return err
 			}
-			return writeSection(d.ss, cmd.OutOrStdout(), args[0], "Threads", func(cur string) (string, error) {
+			return writeSection(d, cmd.OutOrStdout(), args[0], "Threads", func(cur string) (string, error) {
 				return upsertThread(cur, entry, drop)
 			}, foldOwed)
 		},
@@ -253,6 +263,21 @@ refuses (exit 6) instead.`,
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), orNone(strings.Join(ids, "\n")))
+			printStale(d, cmd.OutOrStdout(), args[0])
+			return nil
+		},
+	}
+	check := &cobra.Command{
+		Use:   "check FILE",
+		Short: "List the stale sections: unstamped, past their budget, or older than the fleet's newest landing",
+		Long: `Every write stamps its section's first line (_updated YYYY-MM-DD HH:MM_). check
+reads the stamps: Threads and Slots are stale after 2 h or once a fleet repo's
+origin/main (local refs, no fetch) is newer; Quota after 12 h; Needs you only
+when unstamped; Operator instructions never. It reports and never refuses;
+submit, owed and every write end with the same lines.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			printStale(d, cmd.OutOrStdout(), args[0])
 			return nil
 		},
 	}
@@ -270,7 +295,7 @@ refuses (exit 6) instead.`,
 	}
 	thread.Flags().StringArrayVar(&drop, "drop", nil, "drop subsections whose heading starts with this prefix, e.g. '### Train: old' (repeatable)")
 	clobbered.Flags().BoolVar(&done, "done", false, "the TL has merged it; remove the copy")
-	status.AddCommand(append([]*cobra.Command{submit, section, thread, seen, owed, clobbered, newInstructionsCmd(d)}, rendered...)...)
+	status.AddCommand(append([]*cobra.Command{submit, section, thread, seen, owed, check, clobbered, newInstructionsCmd(d)}, rendered...)...)
 	return status
 }
 
@@ -285,7 +310,7 @@ type renderedSection struct {
 
 var renderedSections = []renderedSection{
 	{"slots", "Slots", "Render ## Slots (every numbered slot: issue, phase, bar; then the free ones) and write it",
-		func(d deps, file string) (string, error) { return gatherSlots(d.sdlc, filepath.Dir(file)) }},
+		func(d deps, file string) (string, error) { return gatherSlots(d.sdlc, d.actors, filepath.Dir(file)) }},
 }
 
 func renderedSectionCmds(d deps, foldOwed *bool) []*cobra.Command {
@@ -300,7 +325,7 @@ func renderedSectionCmds(d deps, foldOwed *bool) []*cobra.Command {
 				if err != nil {
 					return err
 				}
-				return writeSection(d.ss, cmd.OutOrStdout(), args[0], rs.heading, func(string) (string, error) { return body, nil }, *foldOwed)
+				return writeSection(d, cmd.OutOrStdout(), args[0], rs.heading, func(string) (string, error) { return body, nil }, *foldOwed)
 			},
 		})
 	}

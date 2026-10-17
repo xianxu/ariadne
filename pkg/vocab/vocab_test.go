@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -263,5 +264,36 @@ func TestOwnershipAxis(t *testing.T) {
 	}
 	if m.TransitionForEvent("open", "start") == nil || m.TransitionForEvent("working", "start") != nil {
 		t.Fatal("start must leave open only")
+	}
+}
+
+// #415: the Go-written document types declare a valid default collaboration
+// mode in their model's scaffold.
+func TestScaffoldsDeclareACollaborationMode(t *testing.T) {
+	for name, mode := range map[string]string{"issue": Issue().CollaborationMode(), "project": Project().CollaborationMode()} {
+		if !slices.Contains(CollaborationModes, mode) {
+			t.Errorf("%s scaffold.collaboration_mode is %q, want one of %v", name, mode, CollaborationModes)
+		}
+	}
+}
+
+// #415: the collaboration-mode values are stated in three places; they must
+// be the same three. pensive.cue's closed schema enumerates them, and
+// collaboration-modes.md (the protocol) names them in its errors table.
+func TestCollaborationModesAgreeAcrossSources(t *testing.T) {
+	cue, err := os.ReadFile("../../construct/vocabulary/pensive.cue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `"collaboration-mode"?: "` + strings.Join(CollaborationModes, `" | "`) + `"`
+	if !strings.Contains(string(cue), want) {
+		t.Errorf("pensive.cue's collaboration-mode enum differs from %v", CollaborationModes)
+	}
+	md, err := os.ReadFile("../../construct/local/universal-review/collaboration-modes.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(md), "a mode other than `"+strings.Join(CollaborationModes, "`, `")+"`") {
+		t.Errorf("collaboration-modes.md's errors table names other modes than %v", CollaborationModes)
 	}
 }
