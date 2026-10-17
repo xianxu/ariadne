@@ -102,6 +102,7 @@ github_issue:
 created: 2026-05-31
 updated: 2026-05-31
 estimate_hours:
+collaboration-mode: collaboration
 ---
 
 # Some new thing
@@ -142,6 +143,7 @@ github_issue: 42
 created: 2026-05-31
 updated: 2026-05-31
 estimate_hours:
+collaboration-mode: collaboration
 ---
 
 # Imported
@@ -347,7 +349,7 @@ func TestRender_AreaSeverity(t *testing.T) {
 		t.Fatalf("unset fields rendered:\n%s", bare)
 	}
 	out := Render(ScaffoldSpec{ID: "000057", Title: "x", Today: "2026-05-31", Area: []string{"a/b", "c"}, Severity: "low"})
-	if !strings.Contains(out, "estimate_hours:\narea: [a/b, c]\nseverity: low\n---") {
+	if !strings.Contains(out, "estimate_hours:\narea: [a/b, c]\nseverity: low\ncollaboration-mode: collaboration\n---") {
 		t.Fatalf("classification not rendered:\n%s", out)
 	}
 	if _, _, err := SplitCard([]byte(out)); err != nil {

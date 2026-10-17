@@ -16,6 +16,7 @@ func TestRenderScaffoldDerivesProjectModel(t *testing.T) {
 		"type: project",
 		"status: " + vocab.Project().InitialStatus(),
 		"created: 2026-07-16", "updated: 2026-07-16",
+		"collaboration-mode: " + vocab.Project().CollaborationMode(), // #415
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("scaffold missing %q:\n%s", want, got)

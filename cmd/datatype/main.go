@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +16,7 @@ import (
 //
 //	datatype list                 — print each DAG-resolved type's name + description
 //	datatype show <name>          — print the leaf-winning prototype body
+//	datatype lint                 — fail on a type with no default collaboration mode (#415)
 //	datatype --output <dir> [...] — render the per-repo SKILL.md (the render command)
 //
 // The render command (no subcommand, --output given) finds the repo root from
@@ -37,6 +39,12 @@ func main() {
 				os.Exit(1)
 			}
 			return
+		case "lint":
+			if err := runLint(os.Stdout); err != nil {
+				fmt.Fprintln(os.Stderr, "datatype:", err)
+				os.Exit(1)
+			}
+			return
 		case "show":
 			if len(args) < 2 {
 				fmt.Fprintln(os.Stderr, "datatype: show <name> requires a type name")
@@ -51,7 +59,7 @@ func main() {
 			}
 			return
 		default:
-			fmt.Fprintf(os.Stderr, "datatype: unknown subcommand %q (want list, show, or --output)\n", args[0])
+			fmt.Fprintf(os.Stderr, "datatype: unknown subcommand %q (want list, show, lint, or --output)\n", args[0])
 			os.Exit(2)
 		}
 	}
@@ -63,7 +71,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "datatype: --output <dir> is required (or use the `list` / `show <name>` subcommand)")
 		os.Exit(2)
 	}
-	if err := renderToOutput(*output); err != nil {
+	if err := renderToOutput(*output, os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, "datatype:", err)
 		os.Exit(1)
 	}
@@ -72,7 +80,7 @@ func main() {
 // renderToOutput resolves the repo root from cwd, DAG-merges its prototypes,
 // renders the SKILL.md, and writes it to <output>/SKILL.md. The thin IO shell
 // over findRepoRoot + layergraph.Walk + mergeTypes + renderSkill.
-func renderToOutput(output string) error {
+func renderToOutput(output string, warn io.Writer) error {
 	protos, err := resolveTypes()
 	if err != nil {
 		return err
@@ -80,6 +88,12 @@ func renderToOutput(output string) error {
 	names := make([]string, len(protos))
 	for i, p := range protos {
 		names[i] = p.Name
+	}
+	// Every repository's weave compile runs this render, so it is where a
+	// derived repository's own prototypes meet the #415 lint: warn, don't
+	// fail the compile.
+	for _, p := range lintTypes(layergraph.OSFS{}, protos) {
+		fmt.Fprintln(warn, "datatype: warning:", p, "(run `datatype lint`)")
 	}
 	out := renderSkill(names)
 	// The binary OWNS creating its output dir (#115 M3): the marker passes a
