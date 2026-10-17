@@ -513,7 +513,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 					return err
 				}
 			}
-			localDeps := localRunDeps{GH: ghClient, Repo: t.Repo, Root: t.Root, Git: landingGitCall, PR: pr.Number, Stderr: stderr}
+			localDeps := localRunDeps{GH: ghClient, Repo: t.Repo, Root: t.Root, Git: landingGitCall, CleanupGit: localCheckCleanupGit(ctx, r, t.Root), PR: pr.Number, Stderr: stderr}
 			localRun := newLocalCheckRunner(localDeps)
 			if err = waitCIGate(ctx, ghClient, t.Repo, pr.Number, targetMain, head, landingGitCall, localRun, f.NoCI, stderr, func(ioCtx context.Context) func(...string) (string, error) {
 				readRunner := withLandingGitContext(ioCtx, r)

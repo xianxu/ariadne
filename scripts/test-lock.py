@@ -195,6 +195,22 @@ def describe(rec):
     return f"{rec['repo']} ({rec['worktree']}), make pid {rec['pid']}, since {rec['started']}"
 
 
+def process_alive(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:  # alive, owned by someone else
+        pass
+    return True
+
+
+def require_watch(watch):
+    if not process_alive(watch):
+        log(f"watched process {watch} exited; cancelling suite lock wait")
+        raise SystemExit(1)
+
+
 def wait_for_exit(pid):
     if hasattr(select, "kqueue"):
         kq = select.kqueue()
@@ -204,13 +220,7 @@ def wait_for_exit(pid):
             return
         except OSError:  # already gone
             return
-    while True:
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
-            return
-        except PermissionError:  # alive, owned by someone else
-            pass
+    while process_alive(pid):
         time.sleep(0.5)
 
 
@@ -218,6 +228,7 @@ def acquire(watch, weight=1):
     if os.environ.get("WF_TEST_LOCK", "").lower() in ("off", "0", "no"):
         log("WF_TEST_LOCK=off: NOT taking the machine-wide full-suite lock; this run may collide with another")
         return "skipped"
+    require_watch(watch)
     paths = lock_paths()
     os.makedirs(os.path.dirname(paths[0]), exist_ok=True)
     fds = [os.open(p, os.O_RDWR | os.O_CREAT, 0o644) for p in paths]
@@ -244,6 +255,7 @@ def acquire(watch, weight=1):
     first, head = True, False
     try:
         while True:
+            require_watch(watch)
             ahead = [] if head else line.ahead()
             # Only the oldest live waiter may take the head; an older copy of this
             # script may still hold the queue file, and goes first.
