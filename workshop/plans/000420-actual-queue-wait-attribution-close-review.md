@@ -362,3 +362,106 @@ dispose:
    Append a `## Revisions` entry enumerating every supported native result envelope and its completion/uncertainty contract. Require shared outcome decoding and cross-harness regression coverage for the complete BR-2 family before declaring it addressed.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"4311457e-973d-4b8e-bd74-ef51ce51e9db","repository":"github.com/xianxu/ariadne","issue_id":"000420","recipe":"milestone-review","round":4,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/c22bf0eed05685f4","reviewed_head":"3290d6f0f592307fb36466b54a2e112bc81f1517","slot":"ariadne:1","requested_at":"2026-10-17T13:02:39.137015Z"},"phase":"finished","pid":45750,"started_at":"2026-10-17T13:02:39.349373Z","finished_at":"2026-10-17T13:07:22.532649Z","session_id":"01a149f5-1100-76f3-aed9-894eae2881cc","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T06:50:08-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 420 — Actual: queued suite status polling bridges idle time into focused-hours samples |
+| repo | ariadne |
+| issue file | workshop/issues/000420-actual-queue-wait-attribution.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 146796d884ccf9a9d589a8766d7627762b4571e6..6d1a922964acbd953d95d14c54a1733abf4f004f |
+| command | sdlc close --issue 420 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-17T06:50:08-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The revised dispatch-only policy resolves BR-2’s result-completion problem, and the existing targeted tests pass. Two correctness gaps still allow unsupported calibration samples: native wrappers can hide interactive input behind a poll classification, and close can proceed despite incomplete queue evidence.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      QueueBindingSourceIDs preserves fully subtracted sources; TestActualQueueMeasurementRetainsBindingSource passes and verifies replay.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Queue attribution no longer derives work from results or poll completion. Yielded-work and Claude-error regression tests pass; disabling dispatch refusal in a temporary overlay makes both fail.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      QueueV1 participates in correction calibration trust; TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust passes for legacy, engagement and queue methods.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: work-evidence-requires-confirmed-completion
+    title: |
+      Native wrapper classification treats unknown interactive input as an empty poll
+    detail: |
+      cmd/sdlc/internal/activetime/queue.go:51-54 defaults to Poll=true when chars is present but is not a quoted literal. For example, const r=await tools.write_stdin({session_id:7,chars:String.fromCharCode(121)});text(r) sends nonempty input but bypasses overlapping-work refusal. A temporary regression asserting this is not a poll fails on head. This is the 2nd finding in family work-evidence-requires-confirmed-completion. State and enforce the class-wide rule: exempt only calls proven to contain exclusively empty-input polling; unknown expressions, spreads and other unrecognized argument forms must remain non-polls. Cover that enumeration rather than adding another isolated regex exception (ARCH-PURPOSE, ARCH-SECURE).
+  - id: new
+    severity: Critical
+    kind: defect
+    family: queue-evidence-completeness-before-calibration
+    title: |
+      Close admits calibration evidence after queue records become unreadable or unknown
+    detail: |
+      cmd/sdlc/actualinputs.go:328-355 rejects malformed-record and unknown-provenance warnings only for correction candidates; close rejects only reader limits and warnings containing legacy suite attempt. A temporary production-resolver regression with a truncated attempts/aabb.json fails: actualCloseCandidate succeeds with active-time-v3-engagement-v1 and an invalid-record warning. Likewise, actualqueue.go:32-36 skips missing queue_seconds or slot evidence with only a warning. The sample can therefore retain unexcluded queue activity and reach numeric adoption. Apply one completeness policy across close and correction: evidence that cannot establish relevant queue coverage must prevent calibration, unless it can be proven irrelevant. Add regressions for malformed, unreadable and missing-field records (ARCH-PURPOSE, ARCH-SECURE).
+```
+
+1. **Strengths**
+
+   - Exact queue endpoints and duration share the same recorded instants, avoiding serialization disagreement.
+   - Source-scoped interval subtraction preserves foreign-slot activity and unions overlapping waits.
+   - Retained source prefixes support replay even when queue subtraction removes all activity from a source.
+   - Removing result decoding substantially simplifies the queue-attribution contract.
+
+2. **Critical findings**
+
+   - `queue.go:51-54`: require positive evidence that a wrapper performs only empty-input polling.
+   - `actualinputs.go:328-355`: enforce queue-evidence completeness consistently before numeric adoption.
+
+3. **Important findings**
+
+   None additional.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   Passed the full `activetime`, `gatestate` and `transcripts` package tests, targeted SDLC queue/ownership/correction/recorder tests, and range `git diff --check`. Both new adversarial overlay tests failed as described. Disabling dispatch refusal also made the existing yielded-work and Claude-error regressions fail, confirming meaningful BR-2 coverage. Temporary overlays were removed; tracked files remain unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** existing attempt validation and interval helpers are reused.
+   - **ARCH-PURE — pass:** classification and interval arithmetic are independently testable without IO.
+   - **ARCH-PURPOSE — flag:** the two findings leave incomplete coverage of the calibration contract.
+   - **ARCH-MOCK — pass:** no new external dependency seam; recorder tests use existing injected infrastructure.
+   - **ARCH-CONSTRAINTS — pass:** bounded attempt reading and snapshot limits remain enforced.
+   - **ARCH-SECURE — flag:** unknown input and damaged persisted evidence can become trusted measurement inputs.
+   - **ARCH-ORDER — pass:** queue attribution no longer carries yielded-call completion state.
+   - **ARCH-FUNERAL — pass:** endpoint fields use the existing attempt retention lifecycle; snapshots retain compact selected evidence.
+
+   Core-concept entities exist at their documented paths. Atlas and help describe the revised policy. No new command, flag or configuration key requires a README addition.
+
+7. **Plan revision recommendations**
+
+   Add `## Revisions` entries defining conservative poll classification across literal, computed and spread arguments, and one queue-evidence completeness policy shared by close and correction, with the adversarial regressions listed above.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"b59b7f5c-bff0-4899-8fdd-25d5a7bce1fc","repository":"github.com/xianxu/ariadne","issue_id":"000420","recipe":"milestone-review","round":5,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/0a9959ba0c418399","reviewed_head":"6d1a922964acbd953d95d14c54a1733abf4f004f","slot":"ariadne:1","requested_at":"2026-10-17T13:39:12.327163Z"},"phase":"finished","pid":72415,"started_at":"2026-10-17T13:39:12.421765Z","finished_at":"2026-10-17T13:50:08.216318Z","session_id":"01a14a16-8692-7d43-9b76-f81b6a4d1518","outcome":"returned"}] -->

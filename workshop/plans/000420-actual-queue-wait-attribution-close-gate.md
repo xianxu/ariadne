@@ -578,6 +578,62 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: b59b7f5c-bff0-4899-8fdd-25d5a7bce1fc
+            repository: github.com/xianxu/ariadne
+            issue_id: "000420"
+            recipe: milestone-review
+            round: 5
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/0a9959ba0c418399
+            reviewed_head: 6d1a922964acbd953d95d14c54a1733abf4f004f
+            slot: ariadne:1
+            requested_at: "2026-10-17T13:39:12.327163Z"
+          phase: finished
+          pid: 72415
+          started_at: "2026-10-17T13:39:12.421765Z"
+          finished_at: "2026-10-17T13:50:08.216318Z"
+          session_id: 01a14a16-8692-7d43-9b76-f81b6a4d1518
+          outcome: returned
+      "n": 5
+      timestamp: "2026-10-17T06:50:08-07:00"
+      dispatched: "2026-10-17T06:39:12-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: QueueBindingSourceIDs preserves fully subtracted sources; TestActualQueueMeasurementRetainsBindingSource passes and verifies replay.
+          round: 5
+        - id: BR-2
+          disposition: addressed
+          note: Queue attribution no longer derives work from results or poll completion. Yielded-work and Claude-error regression tests pass; disabling dispatch refusal in a temporary overlay makes both fail.
+          round: 5
+        - id: BR-3
+          disposition: addressed
+          note: QueueV1 participates in correction calibration trust; TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust passes for legacy, engagement and queue methods.
+          round: 5
+      findings:
+        - kind: defect
+          id: BR-4
+          severity: Critical
+          title: Native wrapper classification treats unknown interactive input as an empty poll
+          detail: 'cmd/sdlc/internal/activetime/queue.go:51-54 defaults to Poll=true when chars is present but is not a quoted literal. For example, const r=await tools.write_stdin({session_id:7,chars:String.fromCharCode(121)});text(r) sends nonempty input but bypasses overlapping-work refusal. A temporary regression asserting this is not a poll fails on head. This is the 2nd finding in family work-evidence-requires-confirmed-completion. State and enforce the class-wide rule: exempt only calls proven to contain exclusively empty-input polling; unknown expressions, spreads and other unrecognized argument forms must remain non-polls. Cover that enumeration rather than adding another isolated regex exception (ARCH-PURPOSE, ARCH-SECURE).'
+          family: work-evidence-requires-confirmed-completion
+          round: 5
+        - kind: defect
+          id: BR-5
+          severity: Critical
+          title: Close admits calibration evidence after queue records become unreadable or unknown
+          detail: 'cmd/sdlc/actualinputs.go:328-355 rejects malformed-record and unknown-provenance warnings only for correction candidates; close rejects only reader limits and warnings containing legacy suite attempt. A temporary production-resolver regression with a truncated attempts/aabb.json fails: actualCloseCandidate succeeds with active-time-v3-engagement-v1 and an invalid-record warning. Likewise, actualqueue.go:32-36 skips missing queue_seconds or slot evidence with only a warning. The sample can therefore retain unexcluded queue activity and reach numeric adoption. Apply one completeness policy across close and correction: evidence that cannot establish relevant queue coverage must prevent calibration, unless it can be proven irrelevant. Add regressions for malformed, unreadable and missing-field records (ARCH-PURPOSE, ARCH-SECURE).'
+          family: queue-evidence-completeness-before-calibration
+          round: 5
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#420 (boundary-review)
@@ -620,6 +676,22 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-2 — not-addressed — The poll-based completion path was removed, but the confirmed-completion rule remains violated at cmd/sdlc/internal/activetime/queue.go:135. Claude tool_result content is passed as raw JSON, and is_error is ignored. Temporary regressions with empty, unknown-process and transport-error content all emit completed work. An end-to-end fixture with is_error:true and content:"unknown process" restores 11 minutes during a recorded 60-minute queue instead of refusing measurement. This remains family work-evidence-requires-confirmed-completion (ARCH-PURPOSE, ARCH-SECURE, ARCH-ORDER).
 - BR-3 — addressed — TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust passes; temporarily removing queue-v1 from the trust condition makes its queue case fail with false trust.
 
+## Round 5 — 2026-10-17T06:50:08-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — QueueBindingSourceIDs preserves fully subtracted sources; TestActualQueueMeasurementRetainsBindingSource passes and verifies replay.
+- BR-2 — addressed — Queue attribution no longer derives work from results or poll completion. Yielded-work and Claude-error regression tests pass; disabling dispatch refusal in a temporary overlay makes both fail.
+- BR-3 — addressed — QueueV1 participates in correction calibration trust; TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust passes for legacy, engagement and queue methods.
+
+### Raised
+
+- **BR-4** [Critical] `work-evidence-requires-confirmed-completion` (kind: defect) Native wrapper classification treats unknown interactive input as an empty poll
+  cmd/sdlc/internal/activetime/queue.go:51-54 defaults to Poll=true when chars is present but is not a quoted literal. For example, const r=await tools.write_stdin({session_id:7,chars:String.fromCharCode(121)});text(r) sends nonempty input but bypasses overlapping-work refusal. A temporary regression asserting this is not a poll fails on head. This is the 2nd finding in family work-evidence-requires-confirmed-completion. State and enforce the class-wide rule: exempt only calls proven to contain exclusively empty-input polling; unknown expressions, spreads and other unrecognized argument forms must remain non-polls. Cover that enumeration rather than adding another isolated regex exception (ARCH-PURPOSE, ARCH-SECURE).
+- **BR-5** [Critical] `queue-evidence-completeness-before-calibration` (kind: defect) Close admits calibration evidence after queue records become unreadable or unknown
+  cmd/sdlc/actualinputs.go:328-355 rejects malformed-record and unknown-provenance warnings only for correction candidates; close rejects only reader limits and warnings containing legacy suite attempt. A temporary production-resolver regression with a truncated attempts/aabb.json fails: actualCloseCandidate succeeds with active-time-v3-engagement-v1 and an invalid-record warning. Likewise, actualqueue.go:32-36 skips missing queue_seconds or slot evidence with only a warning. The sample can therefore retain unexcluded queue activity and reach numeric adoption. Apply one completeness policy across close and correction: evidence that cannot establish relevant queue coverage must prevent calibration, unless it can be proven irrelevant. Add regressions for malformed, unreadable and missing-field records (ARCH-PURPOSE, ARCH-SECURE).
+
 ## Open findings
 
-- **BR-2** [Critical] `work-evidence-requires-confirmed-completion` (kind: defect) A still-running poll finalizes yielded work as completed evidence
+- **BR-4** [Critical] `work-evidence-requires-confirmed-completion` (kind: defect) Native wrapper classification treats unknown interactive input as an empty poll
+- **BR-5** [Critical] `queue-evidence-completeness-before-calibration` (kind: defect) Close admits calibration evidence after queue records become unreadable or unknown
