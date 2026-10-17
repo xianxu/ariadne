@@ -87,6 +87,9 @@ func TestReconcileIndexRefuses(t *testing.T) {
 		"discussions:\n  - doc: /abs/01-a.md\n",
 		"discussions:\n  - doc: ../other.side/01-a.md\n",
 		"discussions:\n  - doc:\n",
+		"discussions:\n  - doc: d.side/01-a.md\n# c\n  - doc: d.side/09-gone.md\n", // a column-0 comment inside the list
+		"discussions:\n\t- doc: d.side/01-a.md\n",                                  // a tab: not YAML
+		"discussions:\n  - doc: d.side/01-a.md\n    extra: x\n",                    // an item YAML reads differently
 	} {
 		in := doc(index)
 		got, _, err := ReconcileIndex(in, []string{"d.side/02-b.md"})

@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"go.yaml.in/yaml/v3"
 )
 
 // The `discussions:` index (#424, collaboration-modes.md "The index") lists
@@ -153,7 +155,13 @@ func Entries(doc string) ([]string, error) {
 		return nil, errFrontmatter(doc)
 	}
 	_, _, entries, err := indexBlock(lines)
-	return entries, err
+	if err == nil {
+		err = agreesWithYAML(lines, entries)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return entries, nil
 }
 
 // ReconcileIndex applies the one-way rule to a document: it drops each entry
@@ -176,6 +184,12 @@ func ReconcileIndex(doc string, add []string) (string, Report, error) {
 	}
 	start, end, entries, err := indexBlock(lines)
 	if err != nil {
+		return doc, Report{}, err
+	}
+	// The line parser locates the block so the rest of the frontmatter stays
+	// byte for byte; YAML is the authority on what the index says. Any input
+	// it reads differently (a comment, a tab, an indicator) is refused.
+	if err := agreesWithYAML(lines, entries); err != nil {
 		return doc, Report{}, err
 	}
 	linked := linkedSet(body)
@@ -202,11 +216,36 @@ func ReconcileIndex(doc string, add []string) (string, Report, error) {
 	}
 	switch {
 	case !hasFM:
-		return "---\n" + strings.Join(block, "\n") + "\n---\n" + doc, r, nil
+		lines, body = block, doc
 	case start < 0:
-		lines = append(lines, block...)
+		lines = append(slices.Clone(lines), block...)
 	default:
 		lines = slices.Concat(lines[:start], block, lines[end:])
 	}
+	// And what it writes must read back as the entries it reports.
+	if err := agreesWithYAML(lines, r.Entries); err != nil {
+		return doc, Report{}, fmt.Errorf("the rewritten index would not read back: %v", err)
+	}
 	return "---\n" + strings.Join(lines, "\n") + "\n---\n" + body, r, nil
+}
+
+// agreesWithYAML decodes frontmatter lines with a YAML parser and refuses
+// unless its discussions[].doc are exactly entries.
+func agreesWithYAML(lines []string, entries []string) error {
+	var fm struct {
+		Discussions []struct {
+			Doc string `yaml:"doc"`
+		} `yaml:"discussions"`
+	}
+	if err := yaml.Unmarshal([]byte(strings.Join(lines, "\n")), &fm); err != nil {
+		return fmt.Errorf("the frontmatter is not YAML this index can read: %v", err)
+	}
+	var got []string
+	for _, d := range fm.Discussions {
+		got = append(got, d.Doc)
+	}
+	if !slices.Equal(got, entries) {
+		return fmt.Errorf("YAML reads the discussions: index as %q, not %q; rewrite it as `- doc: PATH` lines", got, entries)
+	}
+	return nil
 }
