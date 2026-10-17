@@ -105,7 +105,7 @@ func TestWriteSectionRetries(t *testing.T) {
 			if f.writeCalls != tc.wantCalls || f.writes != tc.wantWrites {
 				t.Errorf("calls=%d writes=%d, want %d/%d", f.writeCalls, f.writes, tc.wantCalls, tc.wantWrites)
 			}
-			if got := f.sections["Threads"]; got != tc.wantBody {
+			if got := unstamped(f.sections["Threads"]); got != tc.wantBody {
 				t.Errorf("Threads = %q, want %q", got, tc.wantBody)
 			}
 		})
@@ -190,7 +190,7 @@ func TestThreadDropAndPlace(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := "### Priorities\n1. a\n\n### Project: p\nstate\n\n### Train: new\ncars\n\n### Miscellaneous\n- ask"
-	if got := f.sections["Threads"]; got != want {
+	if got := unstamped(f.sections["Threads"]); got != want {
 		t.Errorf("Threads = %q, want %q", got, want)
 	}
 }
@@ -298,7 +298,7 @@ func TestDeliveryGapRefusesFoldOnly(t *testing.T) {
 	if _, err := run(t, deps{ss: f}, "status", "section", file, "Needs you", body("z")); err != nil {
 		t.Fatalf("plain write under a gap: %v", err)
 	}
-	if f.sections["Needs you"] != "z" {
+	if unstamped(f.sections["Needs you"]) != "z" {
 		t.Errorf("plain write did not land: %q", f.sections["Needs you"])
 	}
 }

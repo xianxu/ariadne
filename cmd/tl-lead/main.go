@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/pkg/tlrules"
@@ -19,15 +20,26 @@ import (
 //go:embed help.md
 var rootHelp string
 
-// deps are the seams to the world: couch's session-sync verbs and sdlc's JSON
-// contracts. Tests pass stateful fakes.
+// deps are the seams to the world: couch's session-sync verbs and actor list,
+// sdlc's JSON contracts, the clock. Tests pass stateful fakes.
 type deps struct {
-	ss   SessionSync
-	sdlc SDLC
+	ss     SessionSync
+	sdlc   SDLC
+	actors CouchActors
+	now    func() time.Time // nil: the wall clock
+	// landing reads the fleet's newest landing; nil: no landing.
+	landing func(file string) (Landing, error)
+}
+
+func (d deps) clock() time.Time {
+	if d.now == nil {
+		return time.Now()
+	}
+	return d.now()
 }
 
 func main() {
-	d := deps{ss: couchSessionSync{bin: "couch"}, sdlc: execSDLC{bin: "sdlc"}}
+	d := deps{ss: couchSessionSync{bin: "couch"}, sdlc: execSDLC{bin: "sdlc"}, actors: execActors{bin: "couch"}, landing: gitNewestLanding}
 	if err := buildRoot(d).Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		var ee exitError
