@@ -51,6 +51,8 @@ INT/TERM to exit through it. Callers:
 
 ## Log
 
+
+- 2026-10-17: closed — make test green at 2420f13a (12 shards, 1525 cmd/sdlc tests + 66 packages, 0 failed). New TestMakeBuildPublishesByRename / FailureKeepsOldBinary / InterruptKeepsOldBinary (fake go writing a partial -o file) fail on the old in-place build and pass now; real make tl-lead-build leaves no .go-build dir; pkg/shelllint and portable-makefile.test.sh pass.; review verdict: SHIP
 ### 2026-10-16
 - The tests fail against the old in-place build (`bin/x` reads "partial" mid-build and after a failure), and pass with
   the publisher.
