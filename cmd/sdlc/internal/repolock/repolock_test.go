@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flock"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
@@ -436,6 +437,9 @@ func TestConcurrentAcquireReclaimsDeadHolderOnce(t *testing.T) {
 	if _, err := os.Stat(lockDir); !os.IsNotExist(err) {
 		t.Fatalf("lock remains after both releases: %v", err)
 	}
+	if entries, err := os.ReadDir(gitDir); err != nil || len(entries) != 0 {
+		t.Fatalf("reclamation left artifacts: %v, %v", entries, err)
+	}
 }
 
 func TestAcquireDelayedDeadObservationPreservesNewLiveHolder(t *testing.T) {
@@ -546,6 +550,143 @@ func TestAcquireDelayedDeadObservationPreservesNewLiveHolder(t *testing.T) {
 	meta, err = ReadMetadata(lockDir)
 	if err != nil || meta.PID != 222 {
 		t.Fatalf("new ownership missing: %+v, %v", meta, err)
+	}
+}
+
+func TestDeadReclamationHonorsCancellationAndBusyBudget(t *testing.T) {
+	for _, state := range []string{"cancel probe", "cancel guarded probe", "timeout guarded probe", "revived holder", "busy cancel", "busy timeout"} {
+		t.Run(state, func(t *testing.T) {
+			gitDir := filepath.Join(t.TempDir(), ".git")
+			lockDir := filepath.Join(gitDir, "sdlc.lock")
+			if err := os.MkdirAll(lockDir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			now := time.Now()
+			holder := Metadata{PID: 555, Hostname: "host-a", StartedAt: now}
+			if err := os.WriteFile(filepath.Join(lockDir, "meta.json"), Encode(holder), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if strings.HasPrefix(state, "busy") {
+				guard, err := os.Open(lockDir)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer guard.Close()
+				if err := flock.Exclusive(guard, true); err != nil {
+					t.Fatal(err)
+				}
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			probes := 0
+			lock, err := Acquire(ctx, Options{
+				GitCommonDir: gitDir, PID: 111, Hostname: "host-a", CallerHandlesSignals: true,
+				Now: func() time.Time { return now }, WaitTimeout: time.Second,
+				ProcessAlive: func(pid int) bool {
+					probes++
+					if state == "cancel probe" || (state == "cancel guarded probe" && probes == 2) {
+						cancel()
+					}
+					if state == "timeout guarded probe" && probes == 2 {
+						now = now.Add(2 * time.Second)
+					}
+					if state == "revived holder" && probes >= 2 {
+						return true
+					}
+					return pid != 555
+				},
+				Sleep: func(ctx context.Context, _ time.Duration) error {
+					if state == "busy timeout" {
+						now = now.Add(2 * time.Second)
+						return nil
+					}
+					cancel()
+					return ctx.Err()
+				},
+			})
+			if lock != nil {
+				defer lock.Release()
+				t.Fatal("acquired while cancellation or reclaim guard should prevent mutation")
+			}
+			if strings.Contains(state, "timeout") {
+				if err == nil || !strings.Contains(err.Error(), "timed out") {
+					t.Fatalf("expected existing wait budget to expire: %v", err)
+				}
+			} else if err != context.Canceled {
+				t.Fatalf("expected cancellation: %v", err)
+			}
+			meta, err := ReadMetadata(lockDir)
+			if err != nil || meta.PID != holder.PID || !meta.StartedAt.Equal(holder.StartedAt) {
+				t.Fatalf("canceled/busy reclamation changed original owner: %+v, %v", meta, err)
+			}
+			entries, err := os.ReadDir(gitDir)
+			if err != nil || len(entries) != 1 || entries[0].Name() != "sdlc.lock" {
+				t.Fatalf("unexpected reclaim residue: %v, %v", entries, err)
+			}
+		})
+	}
+}
+
+func TestReclaimRechecksInodeAfterProbeAndClosesGuard(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "sdlc.lock")
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	holder := Metadata{PID: 555, Hostname: "host-a", StartedAt: time.Now()}
+	if err := os.WriteFile(filepath.Join(dir, "meta.json"), Encode(holder), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	retired := dir + ".retired"
+	opts := Options{PID: 222, Hostname: "host-a", ProcessAlive: func(int) bool {
+		// A late observation must not authorize mutation of a replacement inode.
+		if err := os.Rename(dir, retired); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Mkdir(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "meta.json"), Encode(Metadata{PID: 111, Hostname: "host-a"}), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return false
+	}}
+	reclaimed, err := reclaimDead(context.Background(), dir, holder, opts.withDefaults(), time.Now().Add(testfix.HangCeiling))
+	if err != nil || reclaimed {
+		t.Fatalf("reclaimed replacement: %v, %v", reclaimed, err)
+	}
+	meta, err := ReadMetadata(dir)
+	if err != nil || meta.PID != 111 {
+		t.Fatalf("replacement owner changed: %+v, %v", meta, err)
+	}
+	guard, err := os.Open(retired)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer guard.Close()
+	if err := flock.Exclusive(guard, true); err != nil {
+		t.Fatalf("old candidate descriptor retained its guard after return: %v", err)
+	}
+}
+
+func TestReclaimUninitializedReplacementRetriesWithoutMutation(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "sdlc.lock")
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	// A new owner has created its generation and started writing metadata.
+	if err := os.WriteFile(filepath.Join(dir, "meta.json"), []byte("{"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	opts := Options{PID: 222, Hostname: "host-a", ProcessAlive: func(int) bool {
+		t.Fatal("unproven metadata must never authorize a liveness decision")
+		return false
+	}}.withDefaults()
+	reclaimed, err := reclaimDead(context.Background(), dir, Metadata{PID: 555, Hostname: "host-a"}, opts, time.Now().Add(testfix.HangCeiling))
+	if err != nil || reclaimed {
+		t.Fatalf("expected ordinary observation/grace retry: reclaimed=%v err=%v", reclaimed, err)
+	}
+	if b, err := os.ReadFile(filepath.Join(dir, "meta.json")); err != nil || string(b) != "{" {
+		t.Fatalf("initializing replacement changed: %q, %v", b, err)
 	}
 }
 

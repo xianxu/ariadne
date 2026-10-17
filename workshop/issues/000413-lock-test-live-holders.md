@@ -40,9 +40,12 @@ Model the original dead holder separately from the two live contenders, and asse
 
 ## Plan
 
-- [ ] Reproduce the existing failure, then replace sleeps with controlled contender ordering; assert exclusivity, metadata ownership and release with only PID 555 dead.
-- [ ] Run repeated and race-enabled repolock tests, including a delayed stale observation against a newly live holder; retain production unchanged only if the faithful model passes.
-- [ ] Record the full suite, close review and validated landing.
+- [x] Reproduce the existing failure, then replace sleeps with controlled contender ordering; assert exclusivity, metadata ownership and release with only PID 555 dead.
+- [x] Guard reclamation with candidate-directory flock, generation/inode and liveness rechecks, and cancellation/deadline checks before rename.
+- [ ] Run repeated and race-enabled repolock tests, including delayed stale observations, busy guards, late cancellation, changed generations and initializing metadata.
+- [ ] Update atlas and record the full suite on the pushed head.
+
+Then close through SDLC, land on SHIP and report the hub.
 
 ## Log
 
@@ -58,6 +61,8 @@ Claimed and started from current main on its own branch. ARCH-MOCK/ORDER: livene
 ### 2026-10-16 — faithful-model counterexample
 
 The unchanged blanket-dead test passed count=1000 in 24.539s at the new main-based branch; this does not erase the earlier 18/1000 RED. A new deterministic test, TestAcquireDelayedDeadObservationPreservesNewLiveHolder, failed immediately (0.01s): delayed contender completed while live PID 111 still held the lock, with nil acquisition error. PID-specific ProcessAlive marks only original PID 555 dead. Contender 222 reads 555 and pauses its liveness answer; contender 111 reclaims 555 and acquires; resume 222, which renames the current lock based on its stale 555 observation, then acquires concurrently. Real filesystem, no time sleeps, workers canceled/joined on teardown. This is a production stale-observation-to-rename race, not solely an invalid fake. Stop before production edits and revise with TL.
+
+- Guarded implementation passes the repolock package. RED controls confirmed initial-probe cancellation could mutate the lock and busy guards ignored cancellation/budget. Added guarded-probe cancellation/deadline, revived-holder and final-inode/descriptor-release controls. A partial replacement metadata test also failed before its fix: reclaim now returns to ordinary observation/grace rather than failing on an unproven new generation. Production addition is 80 lines, preserving quick-flow scope. Repeated and race-enabled checks are running.
 
 ## Revisions
 
