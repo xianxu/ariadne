@@ -160,7 +160,7 @@
 - Create: `cmd/tl-lead/index.go`, `cmd/tl-lead/index_test.go`
 
 - [ ] **Step 1: failing tests** against the fake, one strategy per risk: the one-way rule as event sequences over link, the operator's deletion, the operator's entry removal and submit (the removal is never undone); the two-write split (entry written, link refused) rerun to completion; the lock (exit 3, nothing written) and a whole-file write racing a section write (stale, recompute); an unparseable index refuses, naming the line.
-- [ ] **Step 2:** implement `syncIndex(d, out, file, add)`: `ReadAll` → `sidedoc.ReconcileIndex` → `WriteAll --if-hash` when changed, retried by `writeTries` like `writeSection`, printing what it dropped, added, and any missing file. `instructions link` calls it with the target before its section write (ARCH-ORDER above). `status submit` calls it with no adds after its fold.
+- [ ] **Step 2:** implement `syncIndex(d, out, file, add)`: `ReadAll` → `sidedoc.ReconcileIndex` → `WriteAll --if-hash` when changed, retried by `writeTries` like `writeSection`, printing what it dropped, added, and any missing file. `instructions link` calls it with the target before its section write (ARCH-ORDER above). `status submit` calls it with no adds after its fold. A new `status index FILE [--add DOC]...` subcommand (in `index.go`, registered beside `section` and `thread`) calls it directly: `--add` for a discussion side doc the TL linked in another section (Needs you, Threads), and no flags to reconcile.
 - [ ] **Step 3:** conformance: the `--all` read and CAS write against a live Couch where the existing conformance test runs.
 - [ ] **Step 4:** `help.md`: the index paragraph (the operator removes an entry as reviewed; deleting a bullet or a link drops its entry; `status index`).
 - [ ] **Step 5:** `go test ./cmd/tl-lead/`; commit `#424 M2: tl-lead status: the session file's discussions index`.
@@ -184,7 +184,7 @@
 
 - The skill's `collaboration-modes.md` and examples carry 07 sections 3 to 7 and its rows (21 to 31 here), and the checker enforces the index invariant and the move fixtures.
 - `tl-lead status` writes and prunes the session file's index by the one-way rule, with tests against the fake and the conformance check.
-- sdlc archiving an issue or plan with a `.side/` folder moves the folder and keeps every link and index entry resolving, on all three archive paths, with tests.
+- sdlc archiving an issue or plan with a `.side/` folder moves the folder and keeps every link and index entry resolving, on archive paths (a) to (f), with tests, including a resumed interrupted archive.
 - On a real document (a round on ops' design.md after M1): a question opens a side doc and its index entry; the operator's removal of the entry sticks until the agent next writes there; deleting the link drops the entry; a `🤖[fold in]` by the link folds the outcome and marks the link.
 
 ## Revisions

@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-17
 updated: 2026-10-17
-estimate_hours:
+estimate_hours: 4.13
 collaboration-mode: collaboration
-card_mirror: '156a4cd16a6ccb5b58c9989a287449f8ac93d118' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '06f2f44606833961f144cddea840a623f3f1ded8' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T03:02:14-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
 ---
 
 # side docs S3: the discussions index, link removal, fold-in from the parent, and moves that carry the .side folder (skill, tl-lead, sdlc archiving)
@@ -55,6 +56,30 @@ Durable plan: [workshop/plans/000424-…-plan.md](../plans/000424-side-docs-s3-t
 - [ ] M1 — the skill: `pkg/sidedoc` (links, index), `collaboration-modes.md` (index, no closing, fold-in from the parent, moves; rows 21 to 31), six new examples and the existing ones updated, checker invariants, move fixtures exported (version 2)
 - [ ] M2 — tl-lead: the session file's `discussions:` index (`instructions link` adds, `status submit` and `status index` reconcile) through `write --all`
 - [ ] M3 — sdlc: the three archive paths move a document's `.side/` folder with it
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module   design=0.3 impl=0.24
+item: skill-or-dispatcher    design=0.3 impl=0.16
+item: skill-or-dispatcher    design=0.2 impl=0.2
+item: smaller-go-module      design=0.1 impl=0.2
+item: smaller-go-module      design=0.05 impl=0.12
+item: smaller-go-module      design=0.2 impl=0.2
+item: greenfield-go-module   design=0.5 impl=0.32
+item: atlas-docs             design=0.1 impl=0.08
+item: milestone-review       design=0.0 impl=0.2
+item: milestone-review       design=0.0 impl=0.2
+item: milestone-review       design=0.0 impl=0.2
+design-buffer: 0.15
+total: 4.13
+```
+
+Items in order: M1 `pkg/sidedoc` (links, index; greenfield, design mostly settled by 07); M1 `collaboration-modes.md` contract; M1 the six examples and the updates to existing ones; M1 checker invariants and `projectMove`; M1 export version 2; M2 tl-lead index over the existing seam; M3 the `.side/` counterparts of the four asset archive stages across paths (a) to (f), the riskiest part; atlas and help; three milestone reviews. impl at 40% of the v2 table (v3.1); design buffer 15% for the thorough plan.
+
+> *Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Log
 
