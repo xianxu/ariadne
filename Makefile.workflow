@@ -670,11 +670,14 @@ endef
 # the new one, never a missing or partial file (go build -o writes its target
 # in place). The staging dir sits beside OUTPUT, so the rename stays on one
 # filesystem, and each call owns its own, so concurrent builds don't collide.
-# A failed or interrupted build leaves OUTPUT as it was and removes the dir.
+# A failed or interrupted build leaves OUTPUT as it was and removes the dir; a
+# dir a SIGKILL left behind is swept by the next publish once it is an hour old
+# (no build runs that long, so a live one is never swept).
 # pair#624's scripts/build-go-atomic.sh and dev-aliases.sh's rebuild publish
 # the same way. OUTPUT's directory must exist.
 WF_GO_PUBLISH = wf_go_publish() { ( out="$$1"; shift; \
     p=$$(dirname "$$out") && d=$$(mktemp -d "$$p/.go-build.XXXXXX") || exit 1; \
+    find "$$p" -maxdepth 1 -name '.go-build.*' -type d -mmin +60 -exec rm -rf {} + 2>/dev/null; \
     trap 'rm -rf "$${d:?}"' EXIT; trap 'exit 130' INT; trap 'exit 143' TERM; \
     go build -o "$$d/binary" "$$@" && mv -f "$$d/binary" "$$out" ); }; wf_go_publish
 

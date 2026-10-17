@@ -68,3 +68,6 @@ INT/TERM to exit through it. Callers:
   fake `go` only `touch`ed its output; in place, that kept the old 0755 mode, but a renamed new file is 0644, and
   `sdlc-install.sh` checks `-x`. Real `go build` output is executable, so the fake now `chmod +x`s. The trimpath test
   now copies `Makefile.workflow`, writes the output, and matches the staging path.
+- Close review (round 1): SHIP, 2 Minors, both fixed in-round. `WF_GO_PUBLISH` sweeps `.go-build.*` dirs over an
+  hour old (a SIGKILL'd build's; no build runs that long), tested by `TestMakeBuildSweepsStaleStaging`, which also
+  checks a recent dir is kept. The publish-by-rename guarantee is now in `atlas/workflow/setup-and-replication.md`.

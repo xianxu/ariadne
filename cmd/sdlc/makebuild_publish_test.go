@@ -175,3 +175,32 @@ func TestMakeBuildInterruptKeepsOldBinary(t *testing.T) {
 	}
 	noStaging(t, repo)
 }
+
+// #419: a staging dir a SIGKILL left behind is swept by the next build once it
+// is an hour old; a recent one (a build still running) is kept.
+func TestMakeBuildSweepsStaleStaging(t *testing.T) {
+	repo, _, env := makeBuildRepo(t)
+	stale := filepath.Join(repo, "bin", ".go-build.stale1")
+	recent := filepath.Join(repo, "bin", ".go-build.recent")
+	for _, d := range []string{stale, recent} {
+		if err := os.Mkdir(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	old := time.Now().Add(-2 * time.Hour)
+	if err := os.Chtimes(stale, old, old); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("make", "build")
+	cmd.Dir = repo
+	cmd.Env = env
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("make build: %v\n%s", err, out)
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Errorf("an hour-old staging dir survived the build: %v", err)
+	}
+	if _, err := os.Stat(recent); err != nil {
+		t.Errorf("a recent staging dir (a live build's) was swept: %v", err)
+	}
+}

@@ -213,7 +213,9 @@ sentinels. Layers without tools need no target. Keep signing, service restarts,
 and other product development actions in separate explicit targets; bootstrap
 prepares dependencies and ordinary local builds. The separate generic
 `make build` command retains its `cmd/*` scanner and `.skip-make-build` opt-out;
-it is not part of startup.
+it is not part of startup. It and ariadne's own tool targets publish through
+`WF_GO_PUBLISH` (#419): build into a `.go-build.*` dir beside `bin/<name>`, then
+one rename, so a reader never sees a missing or partial binary mid-rebuild.
 
 ## Generated artifacts and local extensions
 
