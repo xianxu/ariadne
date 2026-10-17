@@ -70,3 +70,5 @@ Related to, but not covered by, #400 (cancel must stop only your own run).
 ### 2026-10-16 — pre-close checklist wording
 
 Clarify the final Plan checkbox as pre-close verification only. Close review and merge remain subsequent binary-owned gates, so checking the implementation plan does not falsely claim those future actions are already complete. No behavior or acceptance change.
+
+- Final integrated suite queued on 1b31e6fc1f288e278b1f1c69fc921726c03cd142, run 0bbae3af1b6112bb7cb13acbc505a1ca, detached sdlc-local-880418815; admitted queue position 9. The prior full pass remains valid evidence for #416's unchanged branch patch but is not presented as an integrated-head pass.
