@@ -1,13 +1,13 @@
 ---
 id: 000422
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-17
 estimate_hours: 1.82
 collaboration-mode: collaboration
-card_mirror: 'abe74ca9187c69df5e3d7af5df1f41950b7357e0' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9621e071d4ad368063907cff436c4a0f4241d054' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T01:34:29-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 0.65
 ---
 
 # A downstream repo's committed generated vocabulary goes stale on every ariadne vocabulary change and turns its CI red
