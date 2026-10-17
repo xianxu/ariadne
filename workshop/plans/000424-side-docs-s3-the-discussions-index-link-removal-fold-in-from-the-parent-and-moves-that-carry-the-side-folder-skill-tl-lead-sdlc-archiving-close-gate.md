@@ -560,6 +560,247 @@ rounds:
       isolation: fenced
       reviewed: 1b2e41e1e7ecffbf7a7759fd2e4287e917ff8087
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 1665dc7a-b4c4-434b-ad7c-3d1fc73d0542
+            repository: github.com/xianxu/ariadne
+            issue_id: "000424"
+            recipe: milestone-review
+            round: 1
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/4518a87842d7857a
+            reviewed_head: e43b38b3d644683b23be83ae14df7b5aa4fa2b41
+            slot: ariadne:2
+            requested_at: "2026-10-17T12:30:55.777778Z"
+          phase: finished
+          pid: 99199
+          started_at: "2026-10-17T12:30:55.873821Z"
+          finished_at: "2026-10-17T12:45:25.689999Z"
+          session_id: 8a578e7c-5ff2-422a-a084-fc7b4176d6b7
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: e43b38b3d644683b23be83ae14df7b5aa4fa2b41
+        tracker_head: beffdc90c4c28c72051d300c3570a00d31384efd
+        branch_point: 409e789d83910de366d11b8a536c2c6d8dc9900e
+        since: "2026-10-17T03:02:14-07:00"
+        until: "2026-10-17T05:05:49-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-17T03:02:14-07:00"
+              end: "2026-10-17T05:05:49-07:00"
+              began: "2026-10-17T03:02:14-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 7b1ccc5ada53cb48249c94d6b6f6f9c5ec790985cf54f42f01ae8e4167f59b2e
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 67464411
+              windows:
+                - start: "2026-10-17T03:02:14-07:00"
+                  end: "2026-10-17T05:05:49-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-17T03:25:46-07:00"
+              finalized: "2026-10-17T03:31:29-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-17T03:40:40-07:00"
+              finalized: "2026-10-17T03:52:02-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-17T03:56:13-07:00"
+              finalized: "2026-10-17T03:57:31-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-17T04:04:05-07:00"
+              finalized: "2026-10-17T04:07:12-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-17T04:10:24-07:00"
+              finalized: "2026-10-17T04:12:53-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-17T04:14:40-07:00"
+              finalized: "2026-10-17T04:16:02-07:00"
+              finalizing: true
+      "n": 7
+      timestamp: "2026-10-17T05:45:27-07:00"
+      dispatched: "2026-10-17T05:30:55-07:00"
+      agent: claude
+      findings:
+        - kind: defect
+          id: BR-13
+          severity: Important
+          title: 'verifyArchivedSideMoves judges operator-written parent: lines only after every move, stranding push/merge mid-archive'
+          detail: 'An archive keeps the base name and moves the folder whole, so a parent: resolves after the move exactly when it resolved before. The verify (archiveside.go:166, called at push.go:216, merge.go:740 and in recovery) can only fail on a parent: already broken by hand, and it fails after every file has moved; recovery repeats the same die. Probe: parent: ../000143-old.md gives archiveDoneIssues err=nil, the file already in history, then a verify error. Check parent: in prepareSideArchive before anything moves (or warn), and keep the post-move check to "each prepared member exists at its destination". ARCH-SECURE / ARCH-ORDER.'
+          family: refuse-before-effects
+          round: 7
+        - kind: defect
+          id: BR-14
+          severity: Important
+          title: trunk successor episode replaces only the issue's side folder; the kept branch's plan side folders are dropped
+          detail: 'trunkSideReplace (archiveside.go:310) maps only the live issue folder, so the plan side files in a.Sides (abandon.go:301-315) never match and are skipped silently, while archivemain.go:113 rewrites the archived plans from the kept branch. The plans'' links then point at the old episode''s folder. trunkSideReplace has no test. The retry residue check (archivemain.go:78) likewise covers only the issue''s folder, though plan (e) says "the issue or its plans". Rule (Revisions'' own): every move of an issue or plan document carries its folder. Map each a.Plans doc too, extend the residue check, add a successor test with a plan side doc. ARCH-PURPOSE.'
+          family: move-carries-side-folder
+          round: 7
+        - kind: defect
+          id: BR-15
+          severity: Important
+          title: sdlc help text not updated for side folders moving on archive/abandon/reopen
+          detail: Plan Task 7 lists cmd/sdlc/helptext/ and Step 4 says "atlas and help text". The atlas was updated, but push.md:48, merge.md:45 and abandon.md:13,25 still describe only details, assets and plans moving.
+          family: docs-update-for-surface
+          round: 7
+        - kind: defect
+          id: BR-16
+          severity: Minor
+          title: sideFolderOf duplicates sidedoc.InSideDir; sideParent is a third ad-hoc frontmatter reader
+          detail: 'This is the 2nd finding in family reuse-existing-helper. Class rule: side-doc path and frontmatter facts (folder of a path, parent: of a side doc) live in pkg/sidedoc and every cmd/ and checker consumer calls them. Sites: landingarchive.go:373 sideFolderOf vs pkg/sidedoc/tree.go InSideDir; archiveside.go:189 sideParent vs pkg/sidedoc/index.go:40 frontmatter and pkg/reviewexport/examples_test.go:63. sideParent also returns "" on CRLF frontmatter.'
+          family: reuse-existing-helper
+          round: 7
+        - kind: defect
+          id: BR-17
+          severity: Minor
+          title: prepareSideArchive ignores readDirNames errors; recovery ignores ReadFile errors
+          detail: 'archiveside.go:67: a destination .side that exists as a file is not refused at prepare, so it fails inside the finisher after the issue has moved. archiveside.go:130-131: an unreadable pair is reported as "duplicate" instead of as an IO error.'
+          family: silent-error-swallow
+          round: 7
+        - kind: defect
+          id: BR-18
+          severity: Minor
+          title: reopen git-rm's a differing live side doc without comparing bytes
+          detail: abandon.go:646-670 compares bytes only for assets. A live side doc at a reopen destination is replaced by the archived copy without a check, unlike the forward archive's never-replace rule.
+          family: move-carries-side-folder
+          round: 7
+      boundary: M3
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 741192ce-6cd5-4430-94e8-e7ef12726ebf
+            repository: github.com/xianxu/ariadne
+            issue_id: "000424"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/f1fbd20b085e3f78
+            reviewed_head: aef20f75848fbb1eec0a69dd0f9578cf2941085d
+            slot: ariadne:2
+            requested_at: "2026-10-17T13:20:07.450478Z"
+          phase: finished
+          pid: 8843
+          started_at: "2026-10-17T13:20:07.62553Z"
+          finished_at: "2026-10-17T13:33:24.568103Z"
+          session_id: ad6a30a1-f646-44ae-81a0-0e79149341ad
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: aef20f75848fbb1eec0a69dd0f9578cf2941085d
+        tracker_head: 1cc8358108942a062db4c1b5675bd2968a0b6394
+        branch_point: 409e789d83910de366d11b8a536c2c6d8dc9900e
+        since: "2026-10-17T03:02:14-07:00"
+        until: "2026-10-17T06:19:41-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-17T03:02:14-07:00"
+              end: "2026-10-17T06:19:41-07:00"
+              began: "2026-10-17T03:02:14-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 89e4ff4aad86a1e6be268d44849182f6c88c705053fec24a8d3068190e8a2e7b
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 71050112
+              windows:
+                - start: "2026-10-17T03:02:14-07:00"
+                  end: "2026-10-17T06:19:41-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-17T03:25:46-07:00"
+              finalized: "2026-10-17T03:31:29-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-17T03:40:40-07:00"
+              finalized: "2026-10-17T03:52:02-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-17T03:56:13-07:00"
+              finalized: "2026-10-17T03:57:31-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-17T04:04:05-07:00"
+              finalized: "2026-10-17T04:07:12-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-17T04:10:24-07:00"
+              finalized: "2026-10-17T04:12:53-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-17T04:14:40-07:00"
+              finalized: "2026-10-17T04:16:02-07:00"
+              finalizing: true
+            - boundary: M3
+              dispatched: "2026-10-17T05:30:55-07:00"
+              finalized: "2026-10-17T05:45:27-07:00"
+              finalizing: false
+      "n": 8
+      timestamp: "2026-10-17T06:33:25-07:00"
+      dispatched: "2026-10-17T06:20:07-07:00"
+      agent: claude
+      dispose:
+        - id: BR-13
+          disposition: addressed
+          note: Verify now checks arrival only (archiveside.go:188); TestVerifyArchivedSideMoves goes red with e43b38b3's verify restored.
+          round: 8
+        - id: BR-14
+          disposition: addressed
+          note: trunkSideReplace maps every .md plan and trunkSideResidue covers plan folders; the successor and residue tests go red when reverted.
+          round: 8
+        - id: BR-15
+          disposition: addressed
+          note: push.md:46-50, merge.md:44-46 and abandon.md:13-16 and 26 now name side folders moving; matches atlas/workflow/issue-assets.md.
+          round: 8
+        - id: BR-16
+          disposition: addressed
+          note: sideFolderOf replaced by sidedoc.Folder; sideParent deleted; examples_test uses sidedoc.Fields; one frontmatter reader remains.
+          round: 8
+        - id: BR-17
+          disposition: not-addressed
+          note: Code fix present (archiveside.go:69-82, 141-148), but no test covers a destination that is a file or a ReadFile error.
+          round: 8
+        - id: BR-18
+          disposition: not-addressed
+          note: Reopen now compares side-doc bytes (abandon.go:665), but no test reopens over a differing live side doc.
+          round: 8
+      boundary: M3
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: aef20f75848fbb1eec0a69dd0f9578cf2941085d
+      blocked: false
 ---
 
 # Gate ledger — ariadne#424 (boundary-review)
@@ -641,7 +882,37 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-12** [Minor] `duplicate-output` (kind: defect) submit prints the unread diff twice when the index reconcile needs a write
   status.go:185-189 prints Diff, then syncIndex's readAllShowingUnread prints the same unread changes again under its own header. The output is redundant but nothing is lost; the second print could be skipped when submit has just shown the same diff.
 
+## Round 7 — 2026-10-17T05:45:27-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-13** [Important] `refuse-before-effects` (kind: defect) verifyArchivedSideMoves judges operator-written parent: lines only after every move, stranding push/merge mid-archive
+  An archive keeps the base name and moves the folder whole, so a parent: resolves after the move exactly when it resolved before. The verify (archiveside.go:166, called at push.go:216, merge.go:740 and in recovery) can only fail on a parent: already broken by hand, and it fails after every file has moved; recovery repeats the same die. Probe: parent: ../000143-old.md gives archiveDoneIssues err=nil, the file already in history, then a verify error. Check parent: in prepareSideArchive before anything moves (or warn), and keep the post-move check to "each prepared member exists at its destination". ARCH-SECURE / ARCH-ORDER.
+- **BR-14** [Important] `move-carries-side-folder` (kind: defect) trunk successor episode replaces only the issue's side folder; the kept branch's plan side folders are dropped
+  trunkSideReplace (archiveside.go:310) maps only the live issue folder, so the plan side files in a.Sides (abandon.go:301-315) never match and are skipped silently, while archivemain.go:113 rewrites the archived plans from the kept branch. The plans' links then point at the old episode's folder. trunkSideReplace has no test. The retry residue check (archivemain.go:78) likewise covers only the issue's folder, though plan (e) says "the issue or its plans". Rule (Revisions' own): every move of an issue or plan document carries its folder. Map each a.Plans doc too, extend the residue check, add a successor test with a plan side doc. ARCH-PURPOSE.
+- **BR-15** [Important] `docs-update-for-surface` (kind: defect) sdlc help text not updated for side folders moving on archive/abandon/reopen
+  Plan Task 7 lists cmd/sdlc/helptext/ and Step 4 says "atlas and help text". The atlas was updated, but push.md:48, merge.md:45 and abandon.md:13,25 still describe only details, assets and plans moving.
+- **BR-16** [Minor] `reuse-existing-helper` (kind: defect) sideFolderOf duplicates sidedoc.InSideDir; sideParent is a third ad-hoc frontmatter reader
+  This is the 2nd finding in family reuse-existing-helper. Class rule: side-doc path and frontmatter facts (folder of a path, parent: of a side doc) live in pkg/sidedoc and every cmd/ and checker consumer calls them. Sites: landingarchive.go:373 sideFolderOf vs pkg/sidedoc/tree.go InSideDir; archiveside.go:189 sideParent vs pkg/sidedoc/index.go:40 frontmatter and pkg/reviewexport/examples_test.go:63. sideParent also returns "" on CRLF frontmatter.
+- **BR-17** [Minor] `silent-error-swallow` (kind: defect) prepareSideArchive ignores readDirNames errors; recovery ignores ReadFile errors
+  archiveside.go:67: a destination .side that exists as a file is not refused at prepare, so it fails inside the finisher after the issue has moved. archiveside.go:130-131: an unreadable pair is reported as "duplicate" instead of as an IO error.
+- **BR-18** [Minor] `move-carries-side-folder` (kind: defect) reopen git-rm's a differing live side doc without comparing bytes
+  abandon.go:646-670 compares bytes only for assets. A live side doc at a reopen destination is replaced by the archived copy without a check, unlike the forward archive's never-replace rule.
+
+## Round 8 — 2026-10-17T06:33:25-07:00 (claude) — passed
+
+### Disposed
+
+- BR-13 — addressed — Verify now checks arrival only (archiveside.go:188); TestVerifyArchivedSideMoves goes red with e43b38b3's verify restored.
+- BR-14 — addressed — trunkSideReplace maps every .md plan and trunkSideResidue covers plan folders; the successor and residue tests go red when reverted.
+- BR-15 — addressed — push.md:46-50, merge.md:44-46 and abandon.md:13-16 and 26 now name side folders moving; matches atlas/workflow/issue-assets.md.
+- BR-16 — addressed — sideFolderOf replaced by sidedoc.Folder; sideParent deleted; examples_test uses sidedoc.Fields; one frontmatter reader remains.
+- BR-17 — not-addressed — Code fix present (archiveside.go:69-82, 141-148), but no test covers a destination that is a file or a ReadFile error.
+- BR-18 — not-addressed — Reopen now compares side-doc bytes (abandon.go:665), but no test reopens over a differing live side doc.
+
 ## Open findings
 
 - **BR-11** [Minor] `reuse-existing-helper` (kind: defect) lineChanges in cmd/tl-lead/index.go re-implements the package's existing lineDiff (ARCH-DRY)
 - **BR-12** [Minor] `duplicate-output` (kind: defect) submit prints the unread diff twice when the index reconcile needs a write
+- **BR-17** [Minor] `silent-error-swallow` (kind: defect) prepareSideArchive ignores readDirNames errors; recovery ignores ReadFile errors
+- **BR-18** [Minor] `move-carries-side-folder` (kind: defect) reopen git-rm's a differing live side doc without comparing bytes

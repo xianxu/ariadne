@@ -55,7 +55,7 @@ Durable plan: [workshop/plans/000424-…-plan.md](../plans/000424-side-docs-s3-t
 
 - [x] M1 — the skill: `pkg/sidedoc` (links, index), `collaboration-modes.md` (index, no closing, fold-in from the parent, moves; rows 21 to 31), six new examples and the existing ones updated, checker invariants, move fixtures exported (version 2)
 - [x] M2 — tl-lead: the session file's `discussions:` index (`instructions link` adds, `status submit` and `status index` reconcile) through `write --all`
-- [ ] M3 — sdlc: the three archive paths move a document's `.side/` folder with it
+- [x] M3 — sdlc: the three archive paths move a document's `.side/` folder with it
 
 ## Estimate
 
@@ -84,6 +84,7 @@ Items in order: M1 `pkg/sidedoc` (links, index; greenfield, design mostly settle
 ## Log
 
 ### 2026-10-17
+- 2026-10-17: closed M3 — Round-1 fixes on cbdc8c55+: targeted run of every Abandon|Reopen|Archive|Landing|Recover|Interrupted|Restore|Help|Side test passes except an unrelated load flake (TestLocalCheckSignalCancelsQueuedHelper, passes 3/3 alone); new TestAbandonSuccessorReplacesPlanSideFolder, TestAbandonRetryRefusesPlanSideResidue, TestVerifyArchivedSideMoves; pkg/sidedoc and pkg/reviewexport pass.; review verdict: SHIP
 - 2026-10-17: closed M2 — BR-8 fixed for the class: every whole-file read goes through readAllShowingUnread (diff, Peek, read, changed lines shown); TestIndexShowsEditsOnEveryRead (stale retry shows the racing edit; an edit between diff and read shown as lines), TestIndexKeepsUnreadEdits, the M2 sequence tests pass; live conformance passes. BR-10: plan Integration points/ARCH-ORDER/Revisions updated with the class rule.; review verdict: SHIP
 - 2026-10-17: closed M1 — BR-7 fixed by rule: ReconcileIndex and Entries decode the frontmatter with yaml.v3 before and after the rewrite and refuse on any disagreement; TestReconcileIndexRefuses adds the column-0 comment, tab and extra-key inputs; FuzzReconcileIndex 3m/4.6M execs against the YAML oracle; pkg/reviewexport (18 examples, export current) passes.; review verdict: SHIP
 - Filed from the S3 design (ops 07, final at cf0f0ebf); parley's half is parley.nvim#373 (filed by the TL from this slot's draft).
