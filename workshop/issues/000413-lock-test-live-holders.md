@@ -33,6 +33,8 @@ Model the original dead holder separately from the two live contenders, and asse
 
 ## Done when
 
+- A delayed stale observation cannot reclaim a replacement live holder; reclamation is serialized and revalidated against the current directory generation before mutation. Busy/changed-generation retries honor the existing timeout and cancellation, and successful reclamation leaves no new durable artifact.
+
 - The concurrent-dead-holder test represents live contenders correctly and repeatedly passes while checking exclusive ownership and successful release.
 - The observed ENOENT regression is addressed without weakening lock safety or merely increasing timeouts.
 
@@ -66,3 +68,7 @@ The specified production-bug control fails under accurate liveness. The pending 
 - Faithful delayed-observation RED repeated 20/20 in 1.260s. Corrected original fake to mark only 555 dead, replaced the 20ms sleep with a synchronized start plus exclusive-holder/metadata/release assertions. With that fake fix, original test passes and delayed-observation test still fails (nil acquisition while live 111 holds). Sent proposed inode/flock revalidation scope to TL, receipt cc1a6b5e-3370-407a-a0e6-484f60394873 submitted. Production remains unchanged while TL chooses scope.
 
 - With the accurate fake and no delayed-observation seam, the original concurrent test failed 19/1000 in 62.377s: mismatched/disappearing live-holder metadata and two simultaneous holders. This independently confirms normal-scheduler exposure. Read-only guard design review requires final inode revalidation after liveness, changed-metadata rejection, cancellation before rename, bounded nonblocking contention retries, and descriptor closure on every path. The existing internal/flock helper fails closed outside Unix; no unsafe fallback is proposed.
+
+### 2026-10-16 — TL-approved production scope
+
+TL confirmed the same-mechanism expansion (receipt f16a10f7-e717-475d-a199-61b14f8f1993). Add a thin reclamation IO helper: open the candidate directory, take the existing nonblocking flock, verify inode identity, reread the original holder generation and recheck liveness, then verify inode and cancellation/deadline again before rename. Close the descriptor on every outcome, before retry/sleep. Preserve pure Observe classification and foreign-host/age-only refusal (ARCH-DRY/PURE/ORDER). Busy or changed candidates reuse the existing acquisition budget; the guard creates no durable artifact and dies with its descriptor/process (ARCH-CONSTRAINTS/FUNERAL). The faithful counterexample and 19/1000 normal-scheduler failures above are the reason; a fake-only fix is insufficient. Add cancellation/busy-budget controls, then repeated/race tests and recorded full suite before close.
