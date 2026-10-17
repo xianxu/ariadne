@@ -4,9 +4,10 @@ closes and lands from here as usual. Landing never needs the stage cleared.
 
   sdlc stage                  stage HEAD on :0
   sdlc stage :2               stage on slot 2
-  sdlc stage --build          then run :0's `make build` and print each bin/*
-                              binary's vcs.revision against the staged commit
-  sdlc stage --clear          return :0 to its resting branch
+  sdlc stage --build          build generic and sentinel Go binaries on :0;
+                              refuse any stale or unverifiable Go revision
+  sdlc stage --clear          return :0 to its resting branch, rebuild its
+                              binaries, and verify their resting revision
   sdlc stage --clear --abandoned 418
                               free :0 from issue #418's abandoned stage
   sdlc stage --dry-run        check both slots and print the stage; change nothing

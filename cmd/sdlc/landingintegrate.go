@@ -92,7 +92,7 @@ func selectIntegrationPR(ctx context.Context, r gitRunner, gh landingGH, t landi
 	if selectionErr == nil {
 		return pr, false, nil
 	}
-	candidate, err := selectLandingPR(prs, t, branch, "")
+	candidate, err := selectLandingCandidate(prs, t, branch, head)
 	if err != nil || candidate.State != "OPEN" || current != branch {
 		return landingPR{}, false, selectionErr
 	}
@@ -138,7 +138,7 @@ func syncIntegrationPR(ctx context.Context, gh landingGH, t landingTarget, branc
 		if err != nil {
 			return landingPR{}, err
 		}
-		pr, err := selectLandingPR(prs, t, branch, "")
+		pr, err := selectLandingCandidate(prs, t, branch, head)
 		if err != nil {
 			return landingPR{}, err
 		}

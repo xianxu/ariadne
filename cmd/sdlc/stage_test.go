@@ -166,7 +166,7 @@ func TestStageBuildReportsRevisions(t *testing.T) {
 	t.Cleanup(func() { readBuildInfo = prev })
 	revision := selected
 	readBuildInfo = func(string) (*debug.BuildInfo, error) {
-		return &debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: revision}}}, nil
+		return &debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: revision}, {Key: "vcs.modified", Value: "false"}}}, nil
 	}
 	makefile := filepath.Join(roots[0], "Makefile")
 	if err := os.WriteFile(makefile, []byte("build:\n\tmkdir -p bin && printf x > bin/tool\n"), 0o644); err != nil {
@@ -177,8 +177,8 @@ func TestStageBuildReportsRevisions(t *testing.T) {
 		t.Fatalf("build at the staged commit: %v\n%s", err, out)
 	}
 	revision = "0000000000000000000000000000000000000000"
-	if out, err = runStageTest(t, roots[1], ":0", true); err != nil || !strings.Contains(out, "bin/tool was not built from the staged") {
-		t.Fatalf("a mismatched revision did not warn: %v\n%s", err, out)
+	if out, err = runStageTest(t, roots[1], ":0", true); err == nil || !strings.Contains(err.Error(), "bin/tool") {
+		t.Fatalf("a mismatched revision did not refuse and name its binary: %v\n%s", err, out)
 	}
 	if err := os.WriteFile(makefile, []byte("build:\n\texit 3\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -187,6 +187,56 @@ func TestStageBuildReportsRevisions(t *testing.T) {
 		t.Fatalf("a failed build was not reported: %v\n%s", err, out)
 	}
 	assertStaged(t, roots[0], selected)
+}
+
+func TestStageClearRebuildsRestingRevisionAndRetries(t *testing.T) {
+	roots, selected := moveFixture(t)
+	rest := strings.TrimSpace(testfix.Capture(t, roots[0], "rev-parse", "HEAD"))
+	prev := readBuildInfo
+	t.Cleanup(func() { readBuildInfo = prev })
+	readBuildInfo = func(path string) (*debug.BuildInfo, error) {
+		stamp, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		return &debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: strings.TrimSpace(string(stamp))}, {Key: "vcs.modified", Value: "false"}}}, nil
+	}
+	makefile := filepath.Join(roots[0], "Makefile")
+	if err := os.WriteFile(makefile, []byte("build:\n\tmkdir -p bin && git rev-parse HEAD > bin/tool\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := runStageTest(t, roots[1], ":0", true); err != nil {
+		t.Fatalf("stage build: %v\n%s", err, out)
+	}
+	if got, err := os.ReadFile(filepath.Join(roots[0], "bin", "tool")); err != nil || strings.TrimSpace(string(got)) != selected {
+		t.Fatalf("staged binary = %q, err %v; want %s", got, err, selected)
+	}
+	if err := os.WriteFile(makefile, []byte("build:\n\texit 3\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := runUnstageTest(t, roots[1], ":0"); err == nil || !strings.Contains(err.Error(), "make build") || !strings.Contains(err.Error(), "back on main") || !strings.Contains(err.Error(), "rerun sdlc stage --clear") {
+		t.Fatalf("clear must report restored checkout and retry after failed rebuild: %v\n%s", err, out)
+	}
+	if got := procedureHead(t, roots[0]); got != rest {
+		t.Fatalf("clear did not restore resting HEAD: %s, want %s", got, rest)
+	}
+	if err := os.WriteFile(makefile, []byte("build:\n\tmkdir -p bin && git rev-parse HEAD > bin/tool\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := runUnstageTest(t, roots[1], ":0"); err != nil || !strings.Contains(out, "bin/tool vcs.revision="+rest) {
+		t.Fatalf("retry did not rebuild resting revision: %v\n%s", err, out)
+	}
+	if got, err := os.ReadFile(filepath.Join(roots[0], "bin", "tool")); err != nil || strings.TrimSpace(string(got)) != rest {
+		t.Fatalf("restored binary = %q, err %v; want %s", got, err, rest)
+	}
+}
+
+func TestStageClearRefusesDirtyRestingCheckout(t *testing.T) {
+	roots, _ := moveFixture(t)
+	procedureWrite(t, roots[0], "README", "operator edit\n")
+	if out, err := runUnstageTest(t, roots[1], ":0"); err == nil || !strings.Contains(err.Error(), "uncommitted changes") {
+		t.Fatalf("clear built a dirty resting checkout: %v\n%s", err, out)
+	}
 }
 
 // #344 (BR-1): a target detached at a commit a ref contains, with no staged
