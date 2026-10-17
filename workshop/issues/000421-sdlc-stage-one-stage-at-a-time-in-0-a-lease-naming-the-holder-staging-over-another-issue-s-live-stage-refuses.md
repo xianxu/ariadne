@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "ea3c6446", done: "85448d29"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # sdlc stage: one stage at a time in :0, a lease naming the holder; staging over another issue's live stage refuses
@@ -98,6 +98,8 @@ as today.
   recovery command can be copied from any slot.
 
 ### 2026-10-17
+- 2026-10-17: closed — Suite green on 42c2184e (merged main with #417); round-1 fixes verified by targeted runs: TestStageLeaseSwitchFailureRestores (new, forced switch failure restores the lease), TestStageLeaseEdges (clear dry run names the lease), TestStageLeaseOneStageAtATime, TestCheckLease, every Stage/Move/Unstage/Help/Catalog/Recovery test; the full suite reruns on the final head before merge.; review verdict: SHIP
+- 2026-10-17: flow upgraded quick → full — 291 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Suite 1 on d260ae08 failed one test: `TestEveryCommitSiteStamps` read `leaseKeys`' "commit" field name as a commit
   site. Exempted it as a field name (48a2bc9f).
 - Merged main with #417 (42c2184e). `stage.go` and `helptext/stage.md` conflicted; kept #417's rebuild on `--clear`,
