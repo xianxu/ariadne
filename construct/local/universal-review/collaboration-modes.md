@@ -105,7 +105,8 @@ line is the record, and it keeps the text clean:
 - **Anything you add beyond the decision** (why it works, a consequence, a caveat, what you filed or dispatched)
   goes in a new side doc (§4) linked from that line: `Decided (operator): … → [notes](<path>)`. Its `marker:` is the
   operator's decision as written.
-- **A bare acknowledgement** ("ok", "sounds good", with nothing for you to add) gets the one line and no side doc.
+- **A bare acknowledgement** ("ok", "sounds good", with nothing for you to add) gets the one line and nothing else:
+  no side doc, and no reply prose about it.
 - **An approval changes the parent through the parent's own write**, under its lock, like any edit (the adapter),
   and before the side doc's write (§4, "Writes and retries").
 

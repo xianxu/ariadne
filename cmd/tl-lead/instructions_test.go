@@ -81,10 +81,9 @@ A note, not a bullet.
 	if out, err := linkBullet(sec, 2, "x.side/2026-10-16-01-ci.md"); err != nil || !strings.Contains(out, "- check CI → [answer](x.side/2026-10-16-01-ci.md)") || !strings.Contains(out, "   - a sub-item\n") {
 		t.Errorf("link 2: %v\n%s", err, out)
 	}
-	// Fenced code starts no bullet, a tab indents, and only a link ending
-	// the bullet's last line answers it.
-	// A link ending any line answers a bullet, so a follow-up added after it
-	// keeps it answered (row 14); a link inside a fence is code, not an answer.
+	// Fenced code starts no bullet and a tab indents. A link ending any line
+	// answers a bullet, so a follow-up added after it keeps it answered
+	// (row 14); a link inside a fence is code, not an answer.
 	const edge = "1. q\n   ```\n- not an item\n   x → [answer](z.md)\n   ```\n\t- tabbed sub-item\n2. r → [answer](x.md)\n   - and by repo?\n3. s → [answer](y.md)"
 	bs := instructionBullets(edge)
 	if len(bs) != 3 || len(bs[0].Lines) != 6 || bs[0].Answered || !bs[1].Answered || !bs[2].Answered {
