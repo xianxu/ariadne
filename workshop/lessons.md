@@ -3,6 +3,12 @@
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
 
+- Correcting a liveness fake is not proof that reclamation is safe. Pause a
+  stale observation until another holder acquires, then assert its generation
+  survives. Serialize reapers and revalidate before the destructive rename;
+  faithful scheduling exposed a production race behind the original test flake
+  (#413).
+
 - CLI fakes must locate named option operands and model read-only queries.
   Adding `-trimpath` shifted Go's `-o` operand, while `go env GOFLAGS` was
   incorrectly counted as a build. Preserve assertions about real build effects

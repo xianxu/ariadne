@@ -1,13 +1,23 @@
 ---
 id: 000413
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-16
 estimate_hours:
 severity: medium
-card_mirror: '3cb738432fcc5785cf69e3563cbec8f7de7f0b1e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '3310edc0070dd1ac2b5cfb17a329646c9c0cd878' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-16T17:13:13-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "0bb87194", done: "7f1ba37e"}
+actual_hours: 0.82
 ---
 
 # Concurrent dead-holder lock test marks its live contenders dead and flakes with missing metadata
@@ -24,12 +34,19 @@ Model the original dead holder separately from the two live contenders, and asse
 
 ## Done when
 
+- A delayed stale observation cannot reclaim a replacement live holder; reclamation is serialized and revalidated against the current directory generation before mutation. Busy/changed-generation retries honor the existing timeout and cancellation, and successful reclamation leaves no new durable artifact.
+
 - The concurrent-dead-holder test represents live contenders correctly and repeatedly passes while checking exclusive ownership and successful release.
 - The observed ENOENT regression is addressed without weakening lock safety or merely increasing timeouts.
 
 ## Plan
 
-- [ ]
+- [x] Reproduce the existing failure, then replace sleeps with controlled contender ordering; assert exclusivity, metadata ownership and release with only PID 555 dead.
+- [x] Guard reclamation with candidate-directory flock, generation/inode and liveness rechecks, and cancellation/deadline checks before rename.
+- [x] Run repeated and race-enabled repolock tests, including delayed stale observations, busy guards, late cancellation, changed generations and initializing metadata.
+- [x] Update atlas and record the full suite on the pushed head.
+
+Then close through SDLC, land on SHIP and report the hub.
 
 ## Log
 
@@ -37,3 +54,48 @@ Model the original dead holder separately from the two live contenders, and asse
 - Scratch main control at 87e0feeb63e41946936ccb316583629ce8eb6b8a, go test -trimpath ./cmd/sdlc/internal/repolock -run '^TestConcurrentAcquireReclaimsDeadHolderOnce$' -count=100 -timeout 5m, passed in 4.158s. This did not reproduce the intermittent failure. Log /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne411-lock-main-gezq_l3f.log; scratch checkout removed.
 
 - Confirmed main reproduction: at 35ba24e6cad39344c347af981de7ac8fcc1d1c31, the same command with -count=1000 failed 18/1000 repetitions in 47.462s, each with missing .git/sdlc.lock/meta.json at repolock_test.go:415. Log /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne411-lock-main-1000-60b_vs0t.log. Both test blobs are 9f1e403fe782fd03b405c2f2f9adb47f54b183f0. Scratch worktree removed cleanly. This establishes a main test failure; it does not establish a production lock bug because the fixture's liveness oracle marks the new live contenders dead. Hub notified with #413 reference.
+
+### 2026-10-16 — plan
+- 2026-10-16: closed — Confirmed real production reclamation race with accurate liveness: delayed-dead-observation RED 20/20, normal-scheduler ownership failures 19/1000. TL approved same-mechanism expansion in Revisions. Candidate-directory nonblocking flock serializes reapers, verifies inode and original holder generation, rereads/rechecks liveness, and revalidates inode, cancellation and deadline before rename. FD close releases guard with no new persistent lock file; busy/changed/initializing retries honor original budget. Fixed PID-specific fake; explicit exclusivity/metadata/release, late-probe cancellation/deadline, revived holder, busy guard, replacement inode/guard release, and partial-initialization controls. Both ownership regressions passed 1000 repetitions each on a33f212f (42.797s); entire repolock package race count20 passed 10.040s; CLI lock integration passed 26.146s. Current main integrated. Recorded full suite on 6786ebd9f3edc783d953364cd80c4f999f4cb474 passed all 12 shards/1522 SDLC tests and 66 other packages with zero failures, 658.9s; log sha256 prefix 44d5ecceb6e0. Interrupted restart run has no result and is not counted. Atlas and lessons updated, PR272 CI green; no gate waivers.; review verdict: SHIP
+
+Claimed and started from current main on its own branch. ARCH-MOCK/ORDER: liveness is PID-specific, ordering is controlled through existing ProcessAlive/Sleep seams, and every worker is canceled/joined before fixture teardown. ARCH-PURE/DRY: reuse Observe/Acquire and real filesystem ownership rather than another lock model. No new persistent family or production surface is intended. Inspect the stale-observation-to-rename boundary too: fixing the oracle alone must not conceal a real reclamation race. If the faithful model fails, record the counterexample and revise scope with the TL before changing production.
+
+### 2026-10-16 — faithful-model counterexample
+
+The unchanged blanket-dead test passed count=1000 in 24.539s at the new main-based branch; this does not erase the earlier 18/1000 RED. A new deterministic test, TestAcquireDelayedDeadObservationPreservesNewLiveHolder, failed immediately (0.01s): delayed contender completed while live PID 111 still held the lock, with nil acquisition error. PID-specific ProcessAlive marks only original PID 555 dead. Contender 222 reads 555 and pauses its liveness answer; contender 111 reclaims 555 and acquires; resume 222, which renames the current lock based on its stale 555 observation, then acquires concurrently. Real filesystem, no time sleeps, workers canceled/joined on teardown. This is a production stale-observation-to-rename race, not solely an invalid fake. Stop before production edits and revise with TL.
+
+- Guarded implementation passes the repolock package. RED controls confirmed initial-probe cancellation could mutate the lock and busy guards ignored cancellation/budget. Added guarded-probe cancellation/deadline, revived-holder and final-inode/descriptor-release controls. A partial replacement metadata test also failed before its fix: reclaim now returns to ordinary observation/grace rather than failing on an unproven new generation. Production addition is 80 lines, preserving quick-flow scope. Repeated and race-enabled checks are running.
+
+- Verification on the guarded source (9a7e6898f5ad4699f39549e35d8fe1ca72b3870f): both ownership regressions count=1000 PASS 145.904s; go test -race -trimpath ./cmd/sdlc/internal/repolock -count=20 -timeout 5m PASS 30.084s; CLI lock integration selection PASS 14.047s. Full repolock package PASS. Final-inode check preserves a replacement created during the probe and releases the old descriptor guard. Late cancellation/deadline, revived holders and busy-guard budget are asserted. Atlas and lessons updated; next is PR plus recorded full suite before close.
+
+- Opened PR #272: https://github.com/xianxu/ariadne/pull/272. Recorded suite queued on 0ff3794b1b5a88835e8a59cb9f92460111c4ec2b through the normal weighted gate, initially position 5; run 2cbfb290cfffd8a6046812d4c30a8e25, checkout sdlc-local-3780256829. No full-suite result or close yet. Current main was integrated before queuing; no validation override.
+
+- Budget RED: initializing metadata after a stale retry outlived a 1s acquisition budget (four 750ms sleeps, then initialization-grace error). Added TestReclaimInitializationRetryUsesOriginalDeadline and enforce the original deadline at each acquisition-loop entry; the existing grace cannot extend the caller budget. Canceled only owned queued suite CLI PID 7484 after cwd/identity verification (exit 130, no test execution). Requeue on corrected source; no peer process or lock touched.
+
+- Revised exact source a33f212fe6e4f264d36f34ca208cc6bbdd8bd5a4 passed both ownership regressions count=1000 in 42.797s, race-enabled entire repolock package count=20 in 10.040s, and CLI lock integration selection in 26.146s. The package also passes its initialization-budget control. Corrected recorded suite queued on that pushed head: run e01c72569a487e640cee4c881fa0f4ca, checkout sdlc-local-152192141, initial position 6. Old queued run exited 130 without executing tests; it is not passing evidence.
+
+- Couch restart at 17:35 detached the thread; resumed at 18:45 by TL. Prior suite e01c72569a487e640cee4c881fa0f4ca has no surviving CLI/worker cwd, inflight owner, saved attempt, local log or posted suite status. Treat it as interrupted without a result, not a pass. Fetched and merged current main 94aae475501975b79bff7772e787a79efa1900d4 (#412 landed); lock implementation is unchanged. Start a fresh recorded suite on the integrated pushed head as directed by TL receipt 9e07b620-5181-4b04-a692-e0d37872a268.
+
+- Fresh post-restart suite is running on integrated 6786ebd9f3edc783d953364cd80c4f999f4cb474 with no queue wait. Run 93c674dedb3a38a1784c253884b2aa4b, checkout sdlc-local-2827700544, log /Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/inflight/93c674dedb3a38a1784c253884b2aa4b/run.log. Await completion before close; subsequent checkpoint changes are issue prose only.
+
+- Recorded integrated full suite PASSED on 6786ebd9f3edc783d953364cd80c4f999f4cb474: all 12 shards over 1522 cmd/sdlc tests and all 66 other packages exit 0, zero failures. Wall 658.9s (10m59s), no queue wait. Log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/6786ebd9f3edc783d953364cd80c4f999f4cb474/suite.log, sha256 prefix 44d5ecceb6e0; posted sdlc-local/suite pass. Atlas and all Plan implementation/verification steps complete. Proceed to mandatory close review with no gate waiver.
+
+- Mandatory quick-flow close review SHIP, zero findings, window 94aae475..80dc826e; measured/adopted actual 0.82h. Reviewer passed the reclamation package 30 repetitions and 10 race repetitions, plus relevant CLI integration. An unchanged isolation-path assertion failed only because the review harness nests temp repos under its checkout; host CLI selection and recorded full suite include that test and passed. Reviewer inspected the clean full-suite log and issued SHIP without a waiver. No code changed after the reviewed head.
+
+## Revisions
+
+### 2026-10-16 — faithful ordering disproves test-only hypothesis
+
+The specified production-bug control fails under accurate liveness. The pending fix must guard reclamation against the lock generation changing after observation; changing only ProcessAlive would hide a reproducible safety defect. Scope proposal goes to the TL before production changes.
+
+- Faithful delayed-observation RED repeated 20/20 in 1.260s. Corrected original fake to mark only 555 dead, replaced the 20ms sleep with a synchronized start plus exclusive-holder/metadata/release assertions. With that fake fix, original test passes and delayed-observation test still fails (nil acquisition while live 111 holds). Sent proposed inode/flock revalidation scope to TL, receipt cc1a6b5e-3370-407a-a0e6-484f60394873 submitted. Production remains unchanged while TL chooses scope.
+
+- With the accurate fake and no delayed-observation seam, the original concurrent test failed 19/1000 in 62.377s: mismatched/disappearing live-holder metadata and two simultaneous holders. This independently confirms normal-scheduler exposure. Read-only guard design review requires final inode revalidation after liveness, changed-metadata rejection, cancellation before rename, bounded nonblocking contention retries, and descriptor closure on every path. The existing internal/flock helper fails closed outside Unix; no unsafe fallback is proposed.
+
+### 2026-10-16 — TL-approved production scope
+
+TL confirmed the same-mechanism expansion (receipt f16a10f7-e717-475d-a199-61b14f8f1993). Add a thin reclamation IO helper: open the candidate directory, take the existing nonblocking flock, verify inode identity, reread the original holder generation and recheck liveness, then verify inode and cancellation/deadline again before rename. Close the descriptor on every outcome, before retry/sleep. Preserve pure Observe classification and foreign-host/age-only refusal (ARCH-DRY/PURE/ORDER). Busy or changed candidates reuse the existing acquisition budget; the guard creates no durable artifact and dies with its descriptor/process (ARCH-CONSTRAINTS/FUNERAL). The faithful counterexample and 19/1000 normal-scheduler failures above are the reason; a fake-only fix is insufficient. Add cancellation/busy-budget controls, then repeated/race tests and recorded full suite before close.
+
+### 2026-10-16 — preserve global acquisition budget across initialization
+
+The new uncertain-candidate retry re-enters metadata initialization, so enforce the existing acquisition deadline at the loop boundary as well as before reclamation mutation. This is the approved bounded-retry contract, not a longer grace or timeout. The dedicated regression reproduced four sleeps past the original budget before the fix.
