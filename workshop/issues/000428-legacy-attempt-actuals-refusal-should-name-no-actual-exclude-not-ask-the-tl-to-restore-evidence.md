@@ -43,6 +43,7 @@ Wanted: when every blocking attempt is legacy, the refusal says so and names the
 ## Log
 
 ### 2026-10-17
+- 2026-10-17: closed — Focused and saved-record mixed-blocker tests pass in both orders across preview and close; make -k build and make sdlc-build pass; exact-head suite on 7534616855a6c0538ab48ad1cea189e77dbf5eac passes 12 shards, 67 packages, zero failures; staged live sdlc actual on ariadne:0 succeeded and stage clear verified seven main binaries. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 - Claimed in ariadne:1. `printActual` currently gives every `actualError` the same restore message; `explainActual` already knows the refused boundary and has `rerunCmd`. The TL approved the quick-flow plan with explicit milestone and preview coverage.
 - The red rendering test reproduced the misleading restore advice for preview, close, and milestone-close. The focused suite now passes, including new-format and unrelated-error controls. `make -k build` and the sentinel-owned `make sdlc-build` pass. The atlas and CLI help now describe the exclusion path.
