@@ -37,8 +37,8 @@ func NewStageCmd() *cobra.Command {
 			return runStage(commandContext(cmd.Context()), ".", address, build, dryRun, cmd.OutOrStdout(), cmd.ErrOrStderr())
 		},
 	})
-	cmd.Flags().BoolVar(&build, "build", false, "then run the target's `make build` and report its binaries' vcs.revision")
-	cmd.Flags().BoolVar(&clear, "clear", false, "return the target from a staged commit to its resting branch")
+	cmd.Flags().BoolVar(&build, "build", false, "build and verify the target's Go binaries against the staged commit")
+	cmd.Flags().BoolVar(&clear, "clear", false, "return the target to its resting branch, then rebuild and verify its Go binaries")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "check both slots and print the stage; change nothing")
 	return cmd
 }
