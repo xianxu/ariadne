@@ -41,7 +41,13 @@ Related to, but not covered by, #400 (cancel must stop only your own run).
 - Cancelling a queued `local-check run` stops its helper and releases its ticket; a test shows the next run admitted.
 - A helper whose watched PID is gone releases its ticket and exits within a bounded time; a test kills the watched process with SIGKILL and checks that the ticket is released.
 
+- The Git/network preamble retains default SIGINT/SIGTERM termination; a production-handler blocked-fetch regression proves it.
+- Queued cancellation still retires only the owned helper/holder/ticket; cleanup has an independent finite Git budget after cancellation.
+
 ## Plan
+
+- [ ] BR-1: scope managed signals to the owned queue/suite phase, restore default handling outside it, and give detached cleanup an independent bounded Git runner.
+- [ ] Verify the unchanged production handler with blocked-fetch SIGINT/SIGTERM, queued cancellation, bounded cleanup, live stage and a fresh recorded suite before re-close.
 
 - [x] Reproduce queued cancellation and watched-process SIGKILL with private lock files; show the successor is admitted and unrelated holders survive.
 - [x] Reuse CLI signal-context ownership for local-check run, and bound cancellation of its owned helper process group; retain the existing per-run pipe holder.
@@ -69,9 +75,17 @@ Related to, but not covered by, #400 (cancel must stop only your own run).
 
 - Integrated recorded suite PASS on 1b31e6fc1f288e278b1f1c69fc921726c03cd142: 12 shards / 1,524 cmd/sdlc tests plus 66 other packages, all exit 0, zero failures, wall 635.6s (10m36s). GitHub sdlc-local/suite recorded; saved log .git/sdlc/local-checks/1b31e6fc1f288e278b1f1c69fc921726c03cd142/suite.log, SHA256 prefix 82bb97803186. CI on the current PR head also passed. All Done-when behaviors are covered by the permanent native signal/private-lock regressions and staged-binary live check; proceeding to the binary-owned close review.
 
+- Close round 1 REWORK: BR-1 Critical reproduced that command-wide NotifyContext suppresses SIGTERM during context-free Git/network preamble. Initial queued tests replaced RunE and missed that family. TL approved the narrower resource-lifetime fix (receipt b6986b85-dc38-4def-a646-346c65ee6726): preserve default handling outside owned queue/suite effects, add the blocked-fetch case; do not generalize all subprocess seams in #416.
+- Independent #420 filed unassigned for actual-time attribution. TL decision: queue waiting is not active work; exclude/subtract recorded queue_seconds because they are measured, not guessed. Both retained attempts contain 6,951.058874s queued in total; no replacement numeric actual was entered.
+
 ## Revisions
 
 ### 2026-10-16 — pre-close checklist wording
 
 Clarify the final Plan checkbox as pre-close verification only. Close review and merge remain subsequent binary-owned gates, so checking the implementation plan does not falsely claim those future actions are already complete. No behavior or acceptance change.
 
+### 2026-10-16 — BR-1: signal scope follows owned resources
+
+The command-wide registration is superseded: create the signal context only after preparation, immediately around queue acquisition and suite execution; release the holder and restore signals before status/Git/network bookkeeping. Preserve the parent cancellation cause before stopping the signal context. Existing helper-group cancellation and watched-PID recovery stay. Detached worktree cleanup uses a separate bounded Git seam (the existing recovery ceiling, independent of the cancelled operation) in all production runner constructors. Outside this resource lifetime the command retains its former default signal behavior, avoiding the newly demonstrated swallowed termination across all preamble/postrun seams (ARCH-STATE/ARCH-PURPOSE).
+
+Tests execute the original production command handler, rather than replacing RunE, and reproduce blocked fetch, queued cancellation and stalled cleanup with private fixtures. This replaces only the initial signal-ownership approach; no new protocol state, global cancellation selector or general Git/network refactor. Expected additional production code is below the quick-flow remainder; if it exceeds the shell, stop for the full workflow.
