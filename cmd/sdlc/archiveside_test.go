@@ -316,3 +316,48 @@ func TestVerifyArchivedSideMoves(t *testing.T) {
 		t.Errorf("a member that did not arrive: %v", err)
 	}
 }
+
+// BR-17: a destination that exists as a file refuses at prepare, before
+// anything moves, rather than inside the finisher.
+func TestPrepareSideArchiveRefusesFileDestination(t *testing.T) {
+	root := t.TempDir()
+	mkArtifact(t, filepath.Join(root, "i/x.side/01-a.md"), "a")
+	mkArtifact(t, filepath.Join(root, "h/x.side"), "a file where the folder goes")
+	_, err := prepareSideArchive(root, []sideArchiveDoc{{"i/x.md", "h/x.md"}}, nil)
+	if err == nil || !strings.Contains(err.Error(), "not a folder") {
+		t.Fatalf("a file destination: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "i/x.side/01-a.md")); err != nil {
+		t.Fatal("the refusal moved the source")
+	}
+}
+
+// Reopening a done issue (cut from main, no merge) brings its archived side
+// folder back; over a live side doc that differs from the archived one it
+// refuses, as it does for an asset, instead of replacing it (BR-18).
+func TestReopenDoneSideFolder(t *testing.T) {
+	for _, differing := range []bool{false, true} {
+		r, _, _ := doneArchived(t)
+		archived := "workshop/history/issues/000330-e2e.side/01-q.md"
+		live := "workshop/issues/000330-e2e.side/01-q.md"
+		peerAdd(t, r, archived, "---\ntype: side-doc\nparent: ../000330-e2e.md\n---\narchived\n")
+		if differing {
+			peerAdd(t, r, live, "---\ntype: side-doc\nparent: ../000330-e2e.md\n---\nrecreated\n")
+		}
+		r.git("pull", "-q", "--ff-only", "origin", "main")
+		writeReopenEntry(t, r)
+		out, err := reopen330()
+		if differing {
+			if err == nil || !strings.Contains(err.Error()+out, "differs from the archive") {
+				t.Fatalf("a differing live side doc was replaced: %v\n%s", err, out)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatalf("reopen: %v\n%s", err, out)
+		}
+		if got := r.git("show", "HEAD:"+live); !strings.Contains(got, "archived") || gitSucceeds(r.root, "cat-file", "-e", "HEAD:"+archived) {
+			t.Fatalf("the side doc was not moved back: %q", got)
+		}
+	}
+}
