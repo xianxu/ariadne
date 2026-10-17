@@ -38,7 +38,7 @@ Preserving a committed file that differs from weave's output is the right defaul
 
 ## Plan
 
-Proposed, waiting for the TL's approval (a change to weave's ownership rule).
+Approved by the TL (ops:0, 10-17), full flow. Durable plan: `workshop/plans/000422-shipped-generated-outputs-plan.md`.
 
 **Why parley commits issue.json (parley#208, 3e2daf45):** parley is a Neovim plugin that users install straight from
 GitHub through a plugin manager, so they never run weave or bootstrap. It reads its issue vocabulary from the installed
@@ -82,3 +82,10 @@ tracks it, and it changes only when the output changes. It is removed when the d
 ## Log
 
 ### 2026-10-16
+- TL approved the plan (full flow). Closed ariadne#368 wontfix as superseded (pointer in its Log, published) and told
+  parley.nvim:2. Filed parley#371 (unclaimed, deps ariadne#422) for parley's side: the manifest row, the committed
+  sidecar, the `.gitignore` line and the reason.
+- Code map (subagent): the refusal is `prepareManaged`'s `strict` case in `cmd/weave/internal/plan/ownership.go`;
+  vocabulary outputs are `stagedOutput`s in ScopeArtifacts; the inventory is gitignored
+  `construct/generated/weave/ownership.json`. The existing printManagedReport already prints "regenerated tracked
+  output X: commit it".
