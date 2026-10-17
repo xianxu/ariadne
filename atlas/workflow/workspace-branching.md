@@ -116,6 +116,13 @@ cleared. The behaviour:
   names the staged commit. It lets a re-stage, `--clear` or `sdlc move` replace a
   staged commit the slot has since amended away. It is trusted only when it
   equals HEAD exactly.
+- **The lease (#421):** the record is also the stage's lease. It names the
+  holder (the issue), its branch, slot and time, so one stage at a time holds a
+  target. It is taken under a flock and written before the switch. Another
+  issue's stage, `--clear` and `sdlc move` into a held target refuse, naming the
+  holder. The holder re-stages and clears freely. For an abandoned stage,
+  `sdlc stage --clear :0 --abandoned <holder>` frees the lease only when it
+  names the current holder. A legacy one-line record has no holder.
 - **The fleet view** shows a staged slot as the hold `staged`, not as a detached
   checkout needing recovery.
 

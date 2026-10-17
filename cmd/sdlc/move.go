@@ -51,6 +51,13 @@ func runMove(ctx context.Context, dir, address string, dryRun bool, stdout, stde
 		return err
 	}
 	from, to, branch := facts.From, facts.To, facts.From.Branch
+	// A move into a slot replaces its stage, so it takes the stage lease's
+	// rule (#421): another issue's live stage refuses.
+	_, unlock, err := takeStageLease(execGitRunner{}, to, stageHolder(from))
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	// Both switches materialize assets under the destination slot's own Git
 	// configuration and the incoming tree's attributes. Inspect before either
 	// checkout or the relocation receipt is written.
