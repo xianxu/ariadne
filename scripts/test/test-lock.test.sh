@@ -153,6 +153,29 @@ kill $oldhead; wait $oldhead 2>/dev/null
 check "fifo: then the new waiter takes the free slot" '[ "$(WF_TEST_LOCK_TIMEOUT=3 lock $gn)" = acquired ]'
 release $gn
 
+# #416: the watched make can die while queued even if its helper survives.
+# Keep the holder alive until the orphan has exited: admission alone would miss
+# a stale head that only leaves after acquiring the newly free slot.
+export WF_TEST_LOCK_FILE="$tmp/watched" WF_TEST_SUITES=1
+await_exit() { local i=0; while kill -0 "$1" 2>/dev/null && [ $i -lt 80 ]; do sleep 0.05; i=$((i + 1)); done; }
+sleep 60 & wh=$!; sleep 60 & deadwatch=$!; sleep 60 & nextwatch=$!
+lock $wh >/dev/null
+python3 scripts/test-lock.py acquire --watch $deadwatch >"$tmp/deadwatch.out" 2>"$tmp/deadwatch.err" & deadhelper=$!; await_tickets 1
+python3 scripts/test-lock.py acquire --watch $nextwatch >"$tmp/nextwatch.out" 2>"$tmp/nextwatch.err" & nexthelper=$!; await_tickets 2
+kill -9 $deadwatch; wait $deadwatch 2>/dev/null
+await_exit $deadhelper
+check "watch: SIGKILL of a queued make exits its surviving helper" '! kill -0 $deadhelper 2>/dev/null && [ ! -s "$tmp/deadwatch.out" ] && grep -q "watched process $deadwatch exited" "$tmp/deadwatch.err"'
+check "watch: dead make releases only its ticket while the holder stays live" '[ "$(tickets)" = 1 ] && kill -0 $wh 2>/dev/null && kill -0 $nexthelper 2>/dev/null && [ ! -s "$tmp/nextwatch.out" ]'
+# Keep a failing regression bounded, and clean only the helper started here.
+kill $deadhelper 2>/dev/null; wait $deadhelper 2>/dev/null
+release $wh
+await_exit $nexthelper
+check "watch: the next queued run is admitted" '! kill -0 $nexthelper 2>/dev/null && [ "$(cat "$tmp/nextwatch.out")" = acquired ]'
+kill $nexthelper 2>/dev/null; wait $nexthelper 2>/dev/null
+release $nextwatch
+check "watch: a make already gone never acquires a free slot" '! lock $deadwatch >"$tmp/gone.out" 2>"$tmp/gone.err" && [ ! -s "$tmp/gone.out" ] && grep -q "watched process $deadwatch exited" "$tmp/gone.err"'
+check "watch: cancellation leaves no queue tickets" '[ "$(tickets)" = 0 ]'
+
 # #333: a repo's host preflight runs before the lock. A failing one stops make
 # test at once with its own message, without taking or waiting for the lock
 # (held here by another run); a passing one leaves the lock path as it was.

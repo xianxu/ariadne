@@ -43,9 +43,9 @@ Related to, but not covered by, #400 (cancel must stop only your own run).
 
 ## Plan
 
-- [ ] Reproduce queued cancellation and watched-process SIGKILL with private lock files; show the successor is admitted and unrelated holders survive.
-- [ ] Reuse CLI signal-context ownership for local-check run, and bound cancellation of its owned helper process group; retain the existing per-run pipe holder.
-- [ ] Check the watched process before admission and while queued; leave through the existing ticket cleanup when it is gone.
+- [x] Reproduce queued cancellation and watched-process SIGKILL with private lock files; show the successor is admitted and unrelated holders survive.
+- [x] Reuse CLI signal-context ownership for local-check run, and bound cancellation of its owned helper process group; retain the existing per-run pipe holder.
+- [x] Check the watched process before admission and while queued; leave through the existing ticket cleanup when it is gone.
 - [ ] Run focused cancellation/helper checks, the recorded full suite, close review and CI; merge on SHIP.
 
 ## Log
@@ -54,3 +54,7 @@ Related to, but not covered by, #400 (cancel must stop only your own run).
 
 - Investigation: executeCLI only manages signals for review/calibration verbs, so local-check run receives a background context and exits before its defers unwind. acquire() checks no watched PID until after acquiring slots. #400 remains independent: this change only stops a child/group created by this run, never discovers or signals other runs.
 - Design: ARCH-STATE/ARCH-FUNERAL — reuse existing per-run pipe holder, context and ticket-finally cleanup; no new durable state or cancellation selector. Cancelling during queue/acquisition unwinds only this run; sudden owner death is independently detected by the queued helper within its existing one-second poll. Expected cost: two small targeted process checks plus the required recorded suite; no extra hot-path subprocess probes.
+
+- RED: private helper script regressions failed exactly for surviving helper exit, own ticket release, and an already-dead watched PID acquiring a free slot. Native CLI SIGINT/SIGTERM regression failed both modes with no managed cancellation (Python fix independently recovered tickets).
+- GREEN: go test -trimpath ./cmd/sdlc -run '^Test(LocalCheckSignal|RunLocalCheck|CLISignal)' -count=1 -timeout 5m passed (67.045s), then the updated ownership/worktree/successor regression and all RunLocalCheck tests passed three times (44.983s). Full bash scripts/test/test-lock.test.sh passed, including queued SIGKILL, bounded helper exit, unrelated holder/successor preservation, successor admission, already-dead watch and no retained tickets.
+- Implementation stays within quick flow: local-check run opts into the existing signal context; its helper uses the existing owned process-group cancellation and one-second pipe-drain bound. Interrupted acquisition preserves context-cancelled diagnostics. The helper checks liveness before allocation and each one-second queue poll, using the same liveness probe as its polling watcher. No stdout protocol state, extra durable artifact, global PID search or foreign-run signal is added.

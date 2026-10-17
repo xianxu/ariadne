@@ -286,12 +286,18 @@ func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight in
 	}
 	pid := fmt.Sprint(holder.Process.Pid)
 	cmd := exec.CommandContext(ctx, "python3", helper, "acquire", "--watch", pid, "--slots", strconv.Itoa(max(weight, 1)))
+	processgroup.Configure(cmd)
+	cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
+	cmd.WaitDelay = time.Second
 	cmd.Dir = dir
 	cmd.Stderr = d.Stderr
 	out, err := cmd.Output()
 	state := strings.TrimSpace(string(out))
 	if err != nil {
 		release()
+		if ctx.Err() != nil {
+			return "", nil, fmt.Errorf("%w: suite lock interrupted: %w", errUnboundedSuite, ctx.Err())
+		}
 		return "", nil, fmt.Errorf("%w: suite lock helper: %v", errUnboundedSuite, err)
 	}
 	switch state {

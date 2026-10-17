@@ -73,13 +73,16 @@ func main() {
 	}
 }
 
-// Only reviewer commands take ownership of signal shutdown: their isolated
+// Commands with context-aware subprocesses own signal shutdown: their isolated
 // subprocess groups must be cancelled and reaped before the CLI exits. Other
 // commands retain their existing signal behavior, including Git/network tools
 // whose runners do not yet consume contexts.
 type cliSignalContextKey struct{}
 
-func cliOwnsReviewSignals(cmd *cobra.Command) bool {
+func cliOwnsSignals(cmd *cobra.Command) bool {
+	if cmd.Name() == "run" && cmd.Parent() != nil && cmd.Parent().Name() == "local-check" {
+		return true
+	}
 	switch cmd.Name() {
 	case "change-code", "close", "milestone-close", "judge", "usage", "calibrate":
 		return true
@@ -89,7 +92,7 @@ func cliOwnsReviewSignals(cmd *cobra.Command) bool {
 
 func executeCLI(root *cobra.Command, args []string) int {
 	ctx := context.Background()
-	if cmd, _, err := root.Find(args); err == nil && cliOwnsReviewSignals(cmd) {
+	if cmd, _, err := root.Find(args); err == nil && cliOwnsSignals(cmd) {
 		signalCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 		defer stop()                           // executeCLI returns before main calls os.Exit.
 		unregister := registerDieCleanup(stop) // legacy validation paths use die().
