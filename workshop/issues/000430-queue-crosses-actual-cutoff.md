@@ -39,7 +39,7 @@ An exact queue wait that crosses the measurement cutoff contributes only its int
 
 - [x] Add a failing selector regression using a queue wait that starts before and acquires after the last issue commit; derive the engagement with the same cutoff used by actuals.
 - [x] Select the clipped interval first, then prove sole slot ownership for that interval; retain the release/gap and foreign-slot guards (ARCH-DRY).
-- [ ] Run focused tests and build, then record a passing exact-head suite before close.
+- [x] Run focused tests and build, then record a passing exact-head suite before close.
 
 ## Log
 
@@ -48,3 +48,4 @@ An exact queue wait that crosses the measurement cutoff contributes only its int
 - Root-cause evidence: the saved attempt is exact and names `pair:8`; tracker commits at 12:13:30 and 12:14:35 PDT pin the same claimant. The code-head's last issue commit is 12:26:08, inside the queue wait. `DeriveEngagements(events, until)` truncates its owner window there, then the selector requires acquisition at 12:48:27 to precede that truncated end. Read-only inspection only; pair:8's checkout was not changed.
 - TDD: the pair#650-shaped case failed with `0 matching pinned slot engagements` before the change, then passed after clipping. It covers a continuing claim, a release after the cutoff, a release inside the measured wait, and a release/reclaim gap inside it. The existing selector and legacy controls plus owned-actual resolver tests passed (60.6s). `make -k build` and `make sdlc-build` passed; the former correctly skipped the sentinel-owned `sdlc` binary, which the latter built.
 - Read-only sweep of recorded exact attempts since October 16 across pair, ariadne, and parley.nvim found same-issue commits during a queue wait for pair#622, pair#628, pair#648, pair#650, ariadne#429, and parley.nvim#373. These are potential instances of the cutoff shape, not confirmed numeric-actual failures; a later measurement endpoint can remove the crossing. The bug is harness-independent.
+- Recorded suite on pushed code head `fa36207fca59a0363cc740d130b0acd0e3ad867d` passed in 9m39s: 12 shards over 1,577 sdlc tests and 67 other packages, zero failures; saved log hash `a030590b5101`. The stage/live check follows SHIP, as granted by the hub.
