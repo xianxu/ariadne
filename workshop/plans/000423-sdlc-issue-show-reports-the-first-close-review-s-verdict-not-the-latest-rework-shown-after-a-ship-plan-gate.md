@@ -40,6 +40,40 @@ rounds:
           family: function-level-adversarial-test-strategy
           round: 1
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 61a6dea3-4485-4bc1-9838-1fd71e191daa
+            repository: github.com/xianxu/ariadne
+            issue_id: "000423"
+            recipe: plan-quality
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+            reviewed_head: 5cb4c5e0c21c4f52e34ed67d67a1ecc4f6b13b6f
+            slot: ariadne:5
+            requested_at: "2026-10-17T12:36:46.927707Z"
+          phase: finished
+          pid: 45709
+          started_at: "2026-10-17T12:36:47.366079Z"
+          finished_at: "2026-10-17T12:37:13.510264Z"
+          session_id: 01a149dd-61f3-7f70-949d-c3f57e4db6d8
+          outcome: returned
+      "n": 2
+      timestamp: "2026-10-17T05:37:14-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Every evidence ref is pinned once to an immutable commit, with shared resolution and controlled ref-advance integration coverage.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: assignReviewRounds has a named generated-input unit strategy with mechanical matching and ambiguity guards; collector lifecycle integration coverage remains.
+          round: 2
+      blocked: false
+content_hash: 168ecd01676026387af48f83d92f50b54f3b065813f3ab5bf605e409dc99924e
 ---
 
 # Gate ledger — ariadne#423 (plan-quality)
@@ -56,7 +90,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-2** [Important] `function-level-adversarial-test-strategy` Replace the test-case inventory with a named function and mechanical guard
   The coverage step at workshop/plans/000423-review-round-identity-plan.md:38 enumerates cases instead of stating the required function-level strategy. Explicitly name assignReviewRounds as unit-tested and give one concise adversarial input class plus a mechanical guard, such as generated incomplete/conflicting identity sequences checked against the matching invariants; retain the collector lifecycle fixture as integration coverage.
 
+## Round 2 — 2026-10-17T05:37:14-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Every evidence ref is pinned once to an immutable commit, with shared resolution and controlled ref-advance integration coverage.
+- PQ-2 — addressed — assignReviewRounds has a named generated-input unit strategy with mechanical matching and ambiguity guards; collector lifecycle integration coverage remains.
+
 ## Open findings
 
-- **PQ-1** [Important] `coherent-evidence-snapshot` Establish the immutable snapshot required by sequence alignment
-- **PQ-2** [Important] `function-level-adversarial-test-strategy` Replace the test-case inventory with a named function and mechanical guard
+(none — every finding has been disposed)

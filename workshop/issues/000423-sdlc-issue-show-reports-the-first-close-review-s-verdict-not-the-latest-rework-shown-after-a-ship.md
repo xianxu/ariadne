@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-17
 updated: 2026-10-17
-estimate_hours:
+estimate_hours: 1.05
 collaboration-mode: collaboration
-card_mirror: 'ca4867a1cdb6ac087c0157ee9ee7f88e48e86e4f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '33c22e1e0e6ee6d778fceb1469415f3d2b9e3591' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T02:22:23-07:00
 claimant:
     operator: Xian Xu
@@ -49,6 +49,22 @@ A reader of `issue show`, whether the TL, the operator or an agent deciding whet
 - [x] Verify text/JSON through the collector and archived evidence and run the recorded suite; proceed to the close/landing gates on this evidence.
 
 - [x] BR-1: separate binding presence from freshness and verify all four fresh/stale × present/absent cases.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. Calibration is provisional/stale (#127). This estimates the final full-flow issue scope, including already implemented parsing/selection; it is not fitted to elapsed suite queues or an actual preview. Three existing Go extensions cover entry parsing/selection, pure round identity, and coherent collection/rendering. Each uses v2 design 0.2h discounted ×0.2 for the settled spec, and implementation 0.5h ×0.40. Existing Go/Git seams require no new-library discovery; familiarity 1.0. Docs use design 0.1h ×0.2 and implementation 0.1h ×0.40; one review uses design 0.2h ×0.2 and implementation 0.5h ×0.40. Thorough-plan buffer 15% applies to design only. Design 0.18h ×1.15 + implementation 0.84h = 1.047h, rounded to 1.05h. This forward model does not legitimize the known queue-polluted actual (#420).
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: atlas-docs design=0.02 impl=0.04
+item: milestone-review design=0.04 impl=0.20
+design-buffer: 0.15
+total: 1.05
+```
 
 ## Log
 
