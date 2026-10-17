@@ -102,7 +102,7 @@ replaced on each write; it creates no file, row or cache. `check` creates nothin
 - [x] Slots: `CouchActors` seam + fake; agent and liveness columns; `?` on failure. Test: fixture fleet + actors renders
       exactly.
 - [x] help.md: stamps, `check`, slots inputs; atlas entry.
-- [ ] Live: run on the ops file (stamps appear, `slots` renders today's fleet, `check` flags a stale Threads).
+- [x] Live: run on the ops file (stamps appear, `slots` renders today's fleet, `check` flags a stale Threads).
 
 ## Log
 
@@ -117,3 +117,7 @@ replaced on each write; it creates no file, row or cache. `check` creates nothin
 - Live, read-only: `tl-lead status check` on the ops file → all four budgeted sections `unstamped` (correct: nothing has
   stamped yet). The live writes (stamps, `slots`) are the TL's: the ops file is ops:0's, so I don't write it from
   ariadne:4.
+- Live (TL, ops:0, branch build, unsandboxed): `status slots` wrote Slots stamped `_updated 2026-10-16 17:02_`, agent
+  kinds and idle or working, 12 working slots and a `free:` line, then printed `stale:` for Needs you, Quota and
+  Threads (unstamped); `status check` printed the same three. 37 s wall, mostly the inventory; the per-event check stays
+  inventory-free.
