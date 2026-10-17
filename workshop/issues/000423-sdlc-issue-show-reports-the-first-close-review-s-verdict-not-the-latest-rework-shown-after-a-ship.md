@@ -73,6 +73,8 @@ A reader of `issue show`, whether the TL, the operator or an agent deciding whet
 
 - BR-1 RED: stale absent case returned unknown with an empty completion head. GREEN after checking the parsed token as well as valued read quality: full observe package and targeted collector/writer tests pass (43.977s). Four-case matrix covers both stale-with-binding and stale-without-binding through the shared text/JSON selection. Added the read-quality/presence lesson. Waiting only for #420 to land, per TL correction; integrate it before the next recorded suite, then re-close.
 
+- TL released the #420 dependency because it needs a re-plan. Current main is already integrated; queued the post-BR-1 recorded suite on pushed head 2cf29e61ee883d6316d625b7364292d2a55e5586. Continue to re-close and land on SHIP without waiting for #420.
+
 ## Revisions
 
 ### 2026-10-17 — BR-1: binding presence is independent of read quality
