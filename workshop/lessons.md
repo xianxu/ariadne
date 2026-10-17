@@ -37,6 +37,11 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- When an approved revision changes acceptance, synchronize the current Done when
+  clause and preserve the original wording in Revisions. Leaving contradictory
+  current criteria makes the close evidence stale even when the revised live
+  observation is valid (#418 BR-1).
+
 - Choose focused tests by the changed helper's callers, not just a shared test
   name prefix. The landing selection change also affected IntegrationPRSync;
   omitting that caller's controls delayed an obsolete diagnostic expectation

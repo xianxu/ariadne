@@ -39,7 +39,7 @@ Rule: match only PRs whose head is this branch's current head, or that are OPEN.
 
 - With a fake GitHub holding one MERGED PR (an older head) and one OPEN PR (the current head) for the same branch, `sdlc merge` picks the OPEN one; a test covers it.
 - Two OPEN PRs for the branch still refuse, naming both.
-- pair#618 M2's PR #387 lands through `sdlc merge` with no manual gh merge.
+- In the live pair#618 M2 check, `sdlc merge` selects OPEN PR #387 despite historical MERGED PR #380 sharing its branch and advances into the pre-merge local suite, with no manual gh merge. Pair:2 owns the eventual landing separately (TL acceptance revision below).
 
 ## Plan
 
@@ -108,3 +108,7 @@ Restored ariadne:0 with git checkout main and make build sdlc-build (no refresh)
 ### 2026-10-16 — combined-head verification green; entering close and landing
 
 Recorded suite on integrated head 59b68b975178173b451f0e33337e70676a078201 passed all 1,525 SDLC tests and 66 other packages across 12 shards, exit 0 in 493.2s after 3,822s queue wait. Saved .git/sdlc/local-checks/59b68b975178173b451f0e33337e70676a078201/suite.log, sha256 prefix 5663b9463967. No code changed since that run. The verification work in the final Plan row is complete; its close/land clause is the workflow now being entered, with final outcome to be recorded by the gates. The original failed attempt, corrected green attempt, live matching proof, TL acceptance revision and all-bin restoration remain recorded above. PR #387 remains open at this checkpoint; do not claim its merge.
+
+### 2026-10-16 — BR-1: synchronize the current acceptance contract
+
+The original live criterion was: "pair#618 M2's PR #387 lands through sdlc merge with no manual gh merge." The TL's later acceptance (receipt b9130677-9b77-414b-80ab-413c7a9b41af) accepts successful live selection and directs this issue to continue independently of pair-side suite failures. BR-1 correctly found that the unchanged current criterion contradicted that revision. Updated the final Done when clause to the observable accepted check: OPEN #387 selected beside historical MERGED #380 and progression into the pre-merge suite. Pair:2 retains responsibility for eventual landing; its submitted receipt 6d25a454-5e7d-401f-bd63-24495feeca50 supplies the live observation. Original criterion and rationale are retained here. No production or test changes; full-suite evidence still applies. The first close did not finalize because the ledger requires explicit BR-1 disposition; next action is to rerun close with this correction.
