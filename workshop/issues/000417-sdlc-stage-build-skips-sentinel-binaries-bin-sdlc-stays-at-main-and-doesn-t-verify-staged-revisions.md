@@ -38,17 +38,18 @@ Clearing a stage must restore the same invariant for the resting branch: rebuild
 
 ## Plan
 
-- [ ] Add a machine-readable stage build target to the sdlc sentinel, and document the marker in the generic build contract.
-- [ ] Make stage --build run declared sentinel targets after make build, then require every Go binary in bin/ to have the staged, unmodified VCS revision. Require each sentinel main package to have a matching staged binary, including differently named outputs.
-- [ ] Cover the stale sdlc binary, mismatched or unreadable revisions, and differently named sentinel outputs with tests; run the targeted package and make -k before closing.
-- [ ] Reuse the build-and-verify path after `stage --clear`, including a retry from an already-resting target, and test that the binaries return to the resting HEAD.
+- [x] Add a machine-readable stage build target to the sdlc sentinel, and document the marker in the generic build contract.
+- [x] Make stage --build run declared sentinel targets after make build, then require every Go binary in bin/ to have the staged, unmodified VCS revision. Require each sentinel main package to have a matching staged binary, including differently named outputs.
+- [x] Cover the stale sdlc binary, mismatched or unreadable revisions, and differently named sentinel outputs with tests; run the targeted package and make -k before closing.
+- [x] Reuse the build-and-verify path after `stage --clear`, including a retry from an already-resting target, and test that the binaries return to the resting HEAD.
 
 ## Log
 
 ### 2026-10-16
 
 - Design: ARCH-DRY keeps build ownership in the existing Make target; the sentinel declares only the target. ARCH-PURE keeps revision and package matching separate from process execution. No new persistent state is created (ARCH-FUNERAL).
-- Targeted stage/clear tests passed after watching the stale-revision, skipped-sentinel and unrepaired-clear cases fail first. A real `make build` skipped sdlc; `make sdlc-build` produced `bin/sdlc` at the branch HEAD with `vcs.modified=false`. The full `make -k test` is waiting in the weighted suite queue. TL authorized a short :0 live stage/clear window after the suite passes.
+- Targeted stage/clear tests passed after watching the stale-revision, skipped-sentinel and unrepaired-clear cases fail first. A real `make build` skipped sdlc; `make sdlc-build` produced `bin/sdlc` at the branch HEAD with `vcs.modified=false`.
+- Full `make -k test` passed: 12 shards, 1,527 `cmd/sdlc` tests, 66 other packages, zero failures, 505.7s suite wall time. The live :0 stage/clear check awaits the TL's fresh grant because #418 currently holds that slot. TL requested the close review first.
 
 ## Revisions
 

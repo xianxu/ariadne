@@ -25,27 +25,28 @@ The stage switch and record remain intact on build or verification failure. Clea
 
 **Files:** `cmd/sdlc/stage_test.go`, `cmd/sdlc/stagebuild_test.go`
 
-- [ ] Replace the old mismatch-warning assertion with a refusal that names `bin/tool`; add missing revision and `vcs.modified=true` cases.
-- [ ] In a staged fixture with `cmd/sdlc/.skip-make-build`, make the generic build leave an old `bin/sdlc` and a `sdlc-build` target create a new one. Assert that the declared target runs and the final revision matches the staged commit.
-- [ ] Add a sentinel command with a different output name and build-info `Path` matching its source (`cmd/pair-go` → `bin/pair`); assert that it passes after generic build. Make that output absent and assert a named refusal.
-- [ ] Add a clear fixture with staged-version binaries, switch to resting HEAD, and assert clear rebuilds and verifies resting-version binaries. Make the first clear build fail and assert a repeat repairs it while already resting.
-- [ ] Run `go test ./cmd/sdlc -run '^TestStage(Build|Sentinel)' -count=1` and confirm the intended red results before implementation.
+- [x] Replace the old mismatch-warning assertion with a refusal that names `bin/tool`; add missing revision and `vcs.modified=true` cases.
+- [x] In a staged fixture with `cmd/sdlc/.skip-make-build`, make the generic build leave an old `bin/sdlc` and a `sdlc-build` target create a new one. Assert that the declared target runs and the final revision matches the staged commit.
+- [x] Add a sentinel command with a different output name and build-info `Path` matching its source (`cmd/pair-go` → `bin/pair`); assert that it passes after generic build. Make that output absent and assert a named refusal.
+- [x] Add a clear fixture with staged-version binaries, switch to resting HEAD, and assert clear rebuilds and verifies resting-version binaries. Make the first clear build fail and assert a repeat repairs it while already resting.
+- [x] Run `go test ./cmd/sdlc -run '^TestStage(Build|Sentinel)' -count=1` and confirm the intended red results before implementation.
 
 ### 2. Build each declared sentinel and verify final contents
 
 **Files:** `cmd/sdlc/stagebuild.go`, `cmd/sdlc/stage.go`, `cmd/sdlc/.skip-make-build`, `Makefile.workflow`, `cmd/sdlc/helptext/stage.md`
 
-- [ ] Add `# stage-build: sdlc-build` to the sdlc sentinel. Document the optional directive beside `.skip-make-build` in `Makefile.workflow`.
-- [ ] After `make build`, enumerate `cmd/*/.skip-make-build` with `main.go`; parse at most one target token per marker and invoke `make <target>` for each declared target. A malformed or duplicate declaration refuses, naming the marker.
-- [ ] Scan final `bin/*` once. For each Go binary, inspect build-info; refuse on missing/mismatched revision or modified stamp and include its path. Match build-info `Path` to each sentinel package and refuse if any sentinel has no verified output.
-- [ ] Call the same build-and-verify path from clear after the target returns to its resting branch. Make a repeated clear perform the build check too, so interrupted or failed post-switch work converges.
-- [ ] Update stage help to say that `--build` verifies and refuses, rather than merely reporting revision lines.
+- [x] Add `# stage-build: sdlc-build` to the sdlc sentinel. Document the optional directive beside `.skip-make-build` in `Makefile.workflow`.
+- [x] After `make build`, enumerate `cmd/*/.skip-make-build` with `main.go`; parse at most one target token per marker and invoke `make <target>` for each declared target. A malformed or duplicate declaration refuses, naming the marker.
+- [x] Scan final `bin/*` once. For each Go binary, inspect build-info; refuse on missing/mismatched revision or modified stamp and include its path. Match build-info `Path` to each sentinel package and refuse if any sentinel has no verified output.
+- [x] Call the same build-and-verify path from clear after the target returns to its resting branch. Make a repeated clear perform the build check too, so interrupted or failed post-switch work converges.
+- [x] Update stage help to say that `--build` verifies and refuses, rather than merely reporting revision lines.
 - [ ] Re-run targeted tests; run `git diff --check` and `make -k` (full suite), then close through the SDLC gate.
 
 ## Live check and landing
 
-Do not stage into ariadne:0 while #416 is there. Once the TL releases it, build this branch's sdlc binary and request permission for a live `sdlc stage --build` into :0, inspect the printed `bin/sdlc` revision, clear and inspect the restored revision if directed, then close and land on SHIP. If :0 remains occupied, test a dedicated slot or fixture and tell the TL the live check is pending.
+The TL requested the close review before the live check while #418 holds ariadne:0. Once the TL grants :0, build this branch's sdlc binary, run a live `sdlc stage --build` into :0, inspect every printed `bin/*` revision, clear, and inspect every restored revision. Do not stage without a fresh grant. Land after the live check passes.
 
 ## Revisions
 
 - 2026-10-16 19:45 PDT — TL approved the sentinel and refusal design and added the reverse transition: `stage --clear` must rebuild the resting binaries and reuse the same revision check, including an already-resting retry. Add the clear fixture and call site; no separate verifier.
+- 2026-10-16 — Full suite passed; TL requested the close review while #418 still holds ariadne:0. Move the live check after the review and before landing, with a fresh :0 grant.
