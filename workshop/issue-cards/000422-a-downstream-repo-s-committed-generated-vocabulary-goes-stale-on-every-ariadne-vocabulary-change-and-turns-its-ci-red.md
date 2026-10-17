@@ -1,6 +1,6 @@
 ---
 id: 000422
-status: codecomplete
+status: done
 created: 2026-10-16
 updated: 2026-10-17
 estimate_hours: 1.82
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 56e759185daf86d09a2e64b29762ddf2fd1a276d
         evidence_commit: 4d4dcee612f70d829520a1be99f2929d93b70cb6
+        landed_commit: 664ff7938b85a79b04c80cf1e1c90279f06342bc
 ---
 
 # A downstream repo's committed generated vocabulary goes stale on every ariadne vocabulary change and turns its CI red
