@@ -24,6 +24,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/pkg/sidedoc"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -297,6 +298,21 @@ func archiveAbandoned(env *trackerEnv, stderr io.Writer, id, detailRel string, f
 			return err
 		}
 		spec.Assets = &bundle
+		// #424: the kept tip's side folders, the issue's and its plans'.
+		docs := []string{detailRel}
+		for name := range spec.Plans {
+			if strings.HasSuffix(name, ".md") {
+				docs = append(docs, path.Join(plansDir(), name))
+			}
+		}
+		spec.Sides = []gitx.TreeFile{}
+		for _, doc := range docs {
+			files, err := env.main.ViewOf(rec.Head).Files(sidedoc.SideDir(doc))
+			if err != nil {
+				return err
+			}
+			spec.Sides = append(spec.Sides, files...)
+		}
 		spec.Note = ""
 	}
 	return archiveIssueOnMain(env, stderr, id, detailRel, spec)
@@ -595,9 +611,26 @@ func unarchiveIssue(env *trackerEnv, base, issuesDir, message string) error {
 		if err != nil {
 			return err
 		}
+		sideDocs := [][2]string{{archivedRel, liveRel}}
 		for _, p := range strings.Fields(plans) {
-			if planArtifactBelongsToIssue(base, path.Base(p)) {
+			if planArtifactBelongsToIssue(base, path.Base(p)) && !strings.HasSuffix(p, ".side") {
 				moves = append(moves, [2]string{p, path.Join(plansDir(), path.Base(p))})
+				if strings.HasSuffix(p, ".md") {
+					sideDocs = append(sideDocs, [2]string{p, path.Join(plansDir(), path.Base(p))})
+				}
+			}
+		}
+		// #424: each document's side folder comes back with it, file by file
+		// (a reopen is a move too: collaboration-modes.md §5).
+		for _, d := range sideDocs {
+			files, err := env.git("ls-tree", "-r", "--name-only", "HEAD", sidedoc.SideDir(d[0])+"/")
+			if err != nil {
+				return err
+			}
+			for _, f := range splitNonEmptyLines(files) {
+				if live, ok := sidedoc.MoveMember(f, d[0], d[1]); ok {
+					moves = append(moves, [2]string{f, live})
+				}
 			}
 		}
 		// Validate every asset destination before any restore mutation.

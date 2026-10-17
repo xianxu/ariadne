@@ -15,6 +15,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/pkg/sidedoc"
 	"github.com/xianxu/ariadne/pkg/vocab"
 	"go.yaml.in/yaml/v3"
 )
@@ -349,8 +350,39 @@ func landingAssetRelated(name string, selected []landingOwnedIssue, dirs landing
 	}
 	return false
 }
+// landingSideRelated reports whether name lies in the side folder of a
+// selected issue or of one of its plan documents, active or archived (#424).
+func landingSideRelated(name string, selected []landingOwnedIssue, dirs landingArchiveRoots) bool {
+	folder, ok := sideFolderOf(name)
+	if !ok {
+		return false
+	}
+	for _, ref := range selected {
+		base := path.Base(ref.path)
+		if folder == sidedoc.SideDir(ref.path) || folder == sidedoc.SideDir(archiveDestination(dirs.history, vocab.ArchiveIssues, base)) {
+			return true
+		}
+		parent := path.Dir(folder)
+		if (parent == dirs.plans || parent == vocab.ArchiveSubdir(dirs.history, vocab.ArchivePlans)) && planArtifactBelongsToIssue(base, path.Base(folder)) {
+			return true
+		}
+	}
+	return false
+}
+
+// sideFolderOf returns the side folder (`<name>.side`) a slash path lies in.
+func sideFolderOf(name string) (string, bool) {
+	segs := strings.Split(name, "/")
+	for i, seg := range segs[:len(segs)-1] {
+		if strings.HasSuffix(seg, ".side") && seg != ".side" {
+			return strings.Join(segs[:i+1], "/"), true
+		}
+	}
+	return "", false
+}
+
 func archiveRelated(name string, selected []landingOwnedIssue, dirs landingArchiveRoots) bool {
-	if landingAssetRelated(name, selected, dirs) {
+	if landingAssetRelated(name, selected, dirs) || landingSideRelated(name, selected, dirs) {
 		return true
 	}
 	for _, ref := range selected {
@@ -494,17 +526,56 @@ func planLandingArchive(selected []landingOwnedIssue, current landingArchiveSnap
 			}
 		}
 		sort.Strings(names)
+		sideDocs := []sideArchiveDoc{{owned.path, archiveDestination(dirs.history, vocab.ArchiveIssues, path.Base(owned.path))}}
 		for _, name := range names {
 			b := current[name]
 			if b.mode != "100644" {
 				return plan, fmt.Errorf("unsafe plan mode at %s", name)
 			}
-			if err := add(name, archiveDestination(dirs.history, vocab.ArchivePlans, path.Base(name)), b.content); err != nil {
+			dst := archiveDestination(dirs.history, vocab.ArchivePlans, path.Base(name))
+			if err := add(name, dst, b.content); err != nil {
 				return plan, err
 			}
+			if strings.HasSuffix(name, ".md") {
+				sideDocs = append(sideDocs, sideArchiveDoc{name, dst})
+			}
+		}
+		// #424: each document's side folder moves with it, bytes unchanged.
+		if err := planLandingSideMoves(current, sideDocs, add); err != nil {
+			return plan, err
 		}
 	}
 	return plan, nil
+}
+
+// planLandingSideMoves adds each document's side-folder members to a landing
+// archive plan: a destination folder holding anything, or a member that is
+// not a regular file, refuses.
+func planLandingSideMoves(current landingArchiveSnapshot, docs []sideArchiveDoc, add func(src, dst string, body []byte) error) error {
+	for _, d := range docs {
+		src, dst := sidedoc.SideDir(d.Src)+"/", sidedoc.SideDir(d.Dst)+"/"
+		var members []string
+		for name := range current {
+			if strings.HasPrefix(name, dst) {
+				return fmt.Errorf("archive destination occupied: %s; reconcile or remove that archived side doc before retrying", name)
+			}
+			if strings.HasPrefix(name, src) {
+				members = append(members, name)
+			}
+		}
+		sort.Strings(members)
+		for _, name := range members {
+			b := current[name]
+			if b.mode != "100644" {
+				return fmt.Errorf("unsafe side doc mode at %s: restore a regular file", name)
+			}
+			moved, _ := sidedoc.MoveMember(name, d.Src, d.Dst)
+			if err := add(name, moved, b.content); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 func archiveProvenance(repo string, pr landingPR) string {
 	return fmt.Sprintf("Landing-PR: %s#%d\nLanding-Head: %s", repo, pr.Number, pr.HeadOID)
