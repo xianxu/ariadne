@@ -3,6 +3,7 @@ package repolock
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +13,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flock"
 )
 
 const LockRelPath = ".git/sdlc.lock"
@@ -158,6 +161,9 @@ func Acquire(ctx context.Context, opts Options) (*Lock, error) {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
+		if !opts.Now().Before(deadline) {
+			return nil, fmt.Errorf("timed out waiting for sdlc repo lock %s; inspect it and remove it only if no transaction is running", lockDir)
+		}
 		err := os.Mkdir(lockDir, 0o700)
 		if err == nil {
 			initDeadline = time.Time{}
@@ -199,14 +205,18 @@ func Acquire(ctx context.Context, opts Options) (*Lock, error) {
 		initDeadline = time.Time{}
 		obs := Observe(holder, opts.Now(), opts.Hostname, opts.ProcessAlive, opts.StaleDuration)
 		if obs.Kind == ObservationStaleMissingProcess {
-			graveyard := fmt.Sprintf("%s.dead.%d", lockDir, opts.PID)
-			if err := os.Rename(lockDir, graveyard); err != nil {
-				if os.IsNotExist(err) {
-					continue
-				}
-				return nil, fmt.Errorf("%s; additionally failed to claim stale lock %s: %w", obs.Message, lockDir, err)
+			reclaimed, err := reclaimDead(ctx, lockDir, holder, opts, deadline)
+			if err != nil {
+				return nil, err
 			}
-			_ = os.RemoveAll(graveyard)
+			if !opts.Now().Before(deadline) {
+				return nil, fmt.Errorf("timed out waiting to reclaim sdlc repo lock %s; inspect it and remove it only if no transaction is running", lockDir)
+			}
+			if !reclaimed {
+				if err := opts.Sleep(ctx, opts.PollInterval); err != nil {
+					return nil, err
+				}
+			}
 			reported = false
 			continue
 		}
@@ -224,6 +234,73 @@ func Acquire(ctx context.Context, opts Options) (*Lock, error) {
 			return nil, err
 		}
 	}
+}
+
+// Reclaim only the observed generation. The directory flock serializes reapers;
+// inode checks also reject replacement while a liveness probe was in flight.
+func reclaimDead(ctx context.Context, dir string, observed Metadata, opts Options, deadline time.Time) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	candidate, err := os.Open(dir)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("open stale sdlc repo lock %s: %w", dir, err)
+	}
+	defer candidate.Close() // Releases the guard before any caller retry/sleep.
+	if err := flock.Exclusive(candidate, true); err != nil {
+		if errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.EINTR) {
+			return false, nil
+		}
+		return false, fmt.Errorf("guard stale sdlc repo lock %s: %w", dir, err)
+	}
+	opened, err := candidate.Stat()
+	if err != nil {
+		return false, err
+	}
+	current := func() (bool, error) {
+		info, err := os.Lstat(dir)
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return err == nil && os.SameFile(opened, info), err
+	}
+	if same, err := current(); err != nil || !same {
+		return false, err
+	}
+	holder, err := ReadMetadata(dir)
+	if err != nil {
+		// A replacement may still be initializing. The ordinary observation
+		// loop owns its grace period and reports persistent metadata errors.
+		return false, nil
+	}
+	if holder.PID != observed.PID || holder.Hostname != observed.Hostname || !holder.StartedAt.Equal(observed.StartedAt) {
+		return false, nil
+	}
+	obs := Observe(holder, opts.Now(), opts.Hostname, opts.ProcessAlive, opts.StaleDuration)
+	if obs.Kind != ObservationStaleMissingProcess {
+		return false, nil
+	}
+	if same, err := current(); err != nil || !same {
+		return false, err
+	}
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	if !opts.Now().Before(deadline) {
+		return false, fmt.Errorf("timed out reclaiming sdlc repo lock %s; inspect it and remove it only if no transaction is running", dir)
+	}
+	graveyard := fmt.Sprintf("%s.dead.%d", dir, opts.PID)
+	if err := os.Rename(dir, graveyard); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("claim stale sdlc repo lock %s: %w", dir, err)
+	}
+	_ = os.RemoveAll(graveyard)
+	return true, nil
 }
 
 func (l *Lock) Release() error {
