@@ -33,7 +33,7 @@ type ArtifactFacts struct {
 	SidecarErr   error
 	OpenBlocking int
 	LedgerErr    error
-	Rounds       map[string][]int // ledger timestamp -> boundary round numbers in append order
+	Rounds       []ReviewRound // boundary rounds in ledger order
 }
 
 // Evidence is where checkpoints are read: the issue branch's committed tree
@@ -193,7 +193,7 @@ func assembleCheckpoints(in Inputs, c Card) Checkpoints {
 						for j, other := range entries {
 							if j != i {
 								other.Relation = "earlier"
-								if other.Round > selected.Round {
+								if j > i {
 									other.Relation = "later, not completion-bound"
 								}
 								other.History = nil
@@ -234,25 +234,12 @@ func review(boundary string, a ArtifactFacts, expected bool, source string) Revi
 		r.Read = Read{State: Absent, Source: source}
 	default:
 		parts := sidecarEntryRE.Split(markdoc.StripFenced(a.Sidecar), -1)
-		used := map[string]int{}
-		number := func(at string, fallback int) int {
-			ns, i := a.Rounds[at], used[at]
-			used[at]++
-			if i < len(ns) {
-				return ns[i]
-			}
-			return fallback
-		}
-		for i, part := range parts[:len(parts)-1] {
+		for _, part := range parts[:len(parts)-1] {
 			prior := review(boundary, ArtifactFacts{Found: true, Sidecar: part}, false, source)
-			prior.Round = i + 1
 			prior.Relation = "earlier"
-			prior.Round = number(prior.At, prior.Round)
 			r.History = append(r.History, prior)
 		}
 		rows := sidecarRows(parts[len(parts)-1])
-		r.Round = len(parts)
-		r.Round = number(rows["timestamp"], r.Round)
 		r.Read = Read{State: Present, Source: source}
 		r.Window, r.At = rows["window"], rows["timestamp"]
 		switch v := strings.TrimSpace(rows["verdict"]); {
@@ -263,6 +250,82 @@ func review(boundary string, a ArtifactFacts, expected bool, source string) Revi
 		default:
 			r.Verdict = v
 		}
+		entries := make([]*Review, 0, len(parts))
+		for i := range r.History {
+			entries = append(entries, &r.History[i])
+		}
+		assignReviewRounds(append(entries, &r), a.Rounds)
 	}
 	return r
+}
+
+// ReviewRound is a boundary ledger round's retained reviewed identity. Error
+// distinguishes conflicting evidence from a genuinely headless legacy round.
+type ReviewRound struct {
+	Number int
+	Head   string
+	Error  string
+}
+
+var reviewedCommitRE = regexp.MustCompile(`^[0-9a-f]{40}([0-9a-f]{24})?$`)
+
+func reviewHead(window string) string {
+	_, head, ok := strings.Cut(window, "..")
+	if !ok || !reviewedCommitRE.MatchString(head) {
+		return ""
+	}
+	return head
+}
+
+// assignReviewRounds joins identities, never clocks. Positional legacy mapping
+// requires the entire sequence to agree with at least one retained commit.
+func assignReviewRounds(entries []*Review, rounds []ReviewRound) {
+	compatible, anchored := len(entries) == len(rounds), false
+	completeIdentities := true
+	counts := map[string]int{}
+	groups := map[string][]int{}
+	for _, e := range entries {
+		e.Round, e.RoundError = 0, "ledger round cannot be identified from retained reviewed commits"
+		if h := reviewHead(e.Window); h != "" {
+			counts[h]++
+		} else {
+			compatible = false
+		}
+	}
+	for i, r := range rounds {
+		if r.Error != "" || r.Number <= 0 || (r.Head != "" && !reviewedCommitRE.MatchString(r.Head)) {
+			compatible = false
+			completeIdentities = false
+			continue
+		}
+		if r.Head == "" {
+			completeIdentities = false
+		}
+		if r.Head != "" {
+			anchored = true
+			groups[r.Head] = append(groups[r.Head], r.Number)
+			if i >= len(entries) || reviewHead(entries[i].Window) != r.Head {
+				compatible = false
+			}
+		}
+	}
+	if compatible && anchored {
+		for i, e := range entries {
+			e.Round, e.RoundError = rounds[i].Number, ""
+		}
+		return
+	}
+	// Unknown ledger heads may belong to any commit group; their multiplicity
+	// cannot be proved outside a complete aligned sequence.
+	if !completeIdentities {
+		return
+	}
+	used := map[string]int{}
+	for _, e := range entries {
+		h := reviewHead(e.Window)
+		if h != "" && len(groups[h]) == counts[h] {
+			e.Round, e.RoundError = groups[h][used[h]], ""
+			used[h]++
+		}
+	}
 }

@@ -49,6 +49,7 @@ A reader of `issue show`, whether the TL, the operator or an agent deciding whet
 - [x] Verify text/JSON through the collector and archived evidence and run the recorded suite; proceed to the close/landing gates on this evidence.
 
 - [x] BR-1: separate binding presence from freshness and verify all four fresh/stale × present/absent cases.
+- [ ] BR-2: complete the approved durable plan, recorded suite, re-close and landing.
 
 ## Estimate
 
@@ -67,6 +68,9 @@ total: 1.05
 ```
 
 ## Log
+
+- BR-2: full flow admitted after plan-quality CLEAN (PQ-1/PQ-2 addressed) and estimate-quality INFO. Estimate item implementation budgets include each extension's direct tests; the review item includes one planned close and the measured ~8–9-minute suite execution, excluding inactive queue waiting. The model is a final-scope baseline, not a reconstruction of already spent review/reintegration cycles; those repeats are variance rather than silently back-fitting the estimate. Actual stays N/A pending #420.
+- RED confirmed the collector mixes generations when a ref advances between reads. GREEN: pure observer tests cover stable commits, gaps, duplicates, absent identity and headless legacy alignment. A headless/conflicting ledger outside complete compatible alignment cannot prove any group's multiplicity, so it remains unknown. The focused collector/writer suite passed in 77.048s before the final conservative partial-legacy guard and retained-run assertion; rerun follows on final code.
 
 ### 2026-10-17
 
@@ -107,3 +111,7 @@ Round 2 addressed BR-1 but found timestamp equality is not identity: the actual 
 ### 2026-10-17 — plan-quality snapshot refinement
 
 PQ-1 confirmed that the collector reads mutable refs independently, which can mix generations during a concurrent update. Refine BR-2 by resolving each evidence ref once and using its immutable commit for all artifacts; add controlled ref-advance integration proof (ARCH-ORDER). PQ-2 compresses test prose into named adversarial strategies. The reviewed-commit matching contract is unchanged; hub notified before implementation.
+
+### BR-2 implementation verification
+
+Final pure observer package passes (0.094s); focused observer/collector/writer tests pass (69.130s). Controlled real-Git ref advancement is RED before pinning and GREEN after; its ledger also proves nonfinal retained reviewer-run identity despite timestamp drift. The real close/archive lifecycle reports ledger rounds 4 and 6 before and after branch deletion. Unknown round identity remains independent of the readable verdict, exposed as round_error in JSON and round unknown in text. No writer or durable artifact format changes. Current origin/main 2bfbc4fa27ed30da2455ad38d4eaea0ddf82a774 is already integrated. Next: recorded suite on pushed head, then re-close.

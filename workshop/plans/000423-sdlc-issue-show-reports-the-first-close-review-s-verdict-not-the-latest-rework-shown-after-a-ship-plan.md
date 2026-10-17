@@ -35,10 +35,10 @@ ReviewRound is a ledger number plus the reviewed commit, not a timestamp. One bo
 ## Steps
 
 - [x] Reproduce the timestamp drift counterexample with nonconsecutive rounds 4 and 6 using the current implementation; expected round 6 and earlier history, observed round 2 and reversed label.
-- [ ] Unit-test assignReviewRounds over generated partial, malformed, conflicting and duplicate identity sequences; mechanically assert the matching contract and that ambiguous assignments remain unknown. Unit-test completion history selection using adversarial ledger numbering and assert labels follow entry position.
-- [ ] Replace ArtifactFacts timestamp maps with typed ordered ReviewRound facts. Derive the reviewed head from finalized or retained review evidence in collectEvidence; retain current open-finding counts.
-- [ ] Implement assignReviewRounds under the matching contract above; expose round errors independently of verdict read quality. Label history by entry indices. Remove old timestamp lookups and ordinal fallbacks.
-- [ ] Integration-test collectEvidence in controlled Git repositories: advance the source ref between artifact reads and assert the pinned snapshot remains coherent. Retain the collector lifecycle fixture as proof of identity through archive/branch deletion. Update golden output and atlas for explicit unknown identity.
+- [x] Unit-test assignReviewRounds over generated partial, malformed, conflicting and duplicate identity sequences; mechanically assert the matching contract and that ambiguous assignments remain unknown. Unit-test completion history selection using adversarial ledger numbering and assert labels follow entry position.
+- [x] Replace ArtifactFacts timestamp maps with typed ordered ReviewRound facts. Derive the reviewed head from finalized or retained review evidence in collectEvidence; retain current open-finding counts.
+- [x] Implement assignReviewRounds under the matching contract above; expose round errors independently of verdict read quality. Label history by entry indices. Remove old timestamp lookups and ordinal fallbacks.
+- [x] Integration-test collectEvidence in controlled Git repositories: advance the source ref between artifact reads and assert the pinned snapshot remains coherent. Retain the collector lifecycle fixture as proof of identity through archive/branch deletion. Update golden output and atlas for explicit unknown identity.
 - [ ] Run `go test -trimpath ./cmd/sdlc/internal/observe -count=1` and focused collector/writer tests, then commit/push and run `sdlc local-check run --name suite`.
 - [ ] Re-close through the binary, resolve all blocking findings, integrate current main and land on SHIP using `sdlc merge --yes`. Record measured evidence and report the real merge hash/PR to the hub.
 

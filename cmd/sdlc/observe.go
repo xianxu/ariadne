@@ -243,9 +243,20 @@ func collectEvidence(root, issuesRel, remote, stem, status string, branch observ
 	if branch.Ref != "" {
 		places = append(places, place{branch.Ref, d.Plans, path.Join(issuesRel, issueFile)})
 	}
+	pinned := map[string]string{}
 	for _, p := range places {
 		ev := observe.Evidence{Source: p.ref + ":" + p.plans, Artifacts: map[string]observe.ArtifactFacts{}}
-		listing, err := observeGit(root, "ls-tree", "--name-only", p.ref, "--", p.plans+"/", p.details)
+		commit := pinned[p.ref]
+		if commit == "" {
+			var err error
+			commit, err = gitLine(root, "rev-parse", "--verify", p.ref+"^{commit}")
+			if err != nil {
+				ev.Err = fmt.Errorf("resolve %s: %w", p.ref, err)
+				return ev
+			}
+			pinned[p.ref] = commit
+		}
+		listing, err := observeGit(root, "ls-tree", "--name-only", commit, "--", p.plans+"/", p.details)
 		if err != nil {
 			ev.Err = fmt.Errorf("list %s: %w", ev.Source, err)
 			return ev
@@ -272,7 +283,7 @@ func collectEvidence(root, issuesRel, remote, stem, status string, branch observ
 			continue // nothing of this issue here; try the next place
 		}
 		show := func(file string) (string, error) {
-			out, err := observeGit(root, "show", p.ref+":"+file)
+			out, err := observeGit(root, "show", commit+":"+file)
 			return string(out), err
 		}
 		if present[p.details] {
@@ -315,10 +326,20 @@ func collectEvidence(root, issuesRel, remote, stem, status string, branch observ
 				if boundary == "close" {
 					milestone = ""
 				}
-				art.Rounds = map[string][]int{}
 				for _, round := range ledger.Rounds {
 					if round.Boundary == milestone && !round.NoCap {
-						art.Rounds[round.Timestamp] = append(art.Rounds[round.Timestamp], round.N)
+						identity := observe.ReviewRound{Number: round.N, Head: round.Reviewed}
+						for _, run := range round.ReviewerRuns {
+							h := run.Intent.ReviewedHEAD
+							if h == "" {
+								continue
+							}
+							if identity.Head != "" && identity.Head != h {
+								identity.Error = "conflicting retained reviewed commits"
+							}
+							identity.Head = h
+						}
+						art.Rounds = append(art.Rounds, identity)
 					}
 				}
 				art.OpenBlocking = openBlocking(gatestate.DecideScoped(gatestate.FilterBoundary(*ledger, milestone), openScopeFor(*ledger, milestone), gatestate.DefaultRoundCap))

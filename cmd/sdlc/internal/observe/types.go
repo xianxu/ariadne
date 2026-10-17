@@ -159,9 +159,10 @@ type Plan struct {
 // Review is one review boundary's evidence: its verdict from the review
 // artifact and the boundary's open blocking findings from its gate ledger.
 type Review struct {
-	Relation string   `json:"relation,omitempty"` // history relative to the selected review
-	Round    int      `json:"round,omitempty"`
-	History  []Review `json:"history,omitempty"`
+	Relation   string   `json:"relation,omitempty"` // history relative to the selected review
+	Round      int      `json:"round,omitempty"`
+	RoundError string   `json:"round_error,omitempty"`
+	History    []Review `json:"history,omitempty"`
 	Read
 	Boundary     string `json:"boundary"` // "plan", "close", "M1", …
 	Verdict      string `json:"verdict,omitempty"`
