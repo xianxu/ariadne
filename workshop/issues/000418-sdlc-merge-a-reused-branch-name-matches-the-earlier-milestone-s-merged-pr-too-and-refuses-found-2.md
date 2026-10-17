@@ -66,3 +66,13 @@ TL approval receipt c1e7dd46-bed9-4d58-a8ec-486bdada872c also requires an explic
 ### 2026-10-16 — targeted green
 
 New fake-GitHub regressions and existing stale-head/interrupted-integration controls passed in 124.900s. The single pure candidate selector now retains all OPEN candidates, filters older completed heads against the known branch head, and identifies ambiguous PR numbers. Both recovery fallback and registration polling pass that head instead of broadening to a name-only match. Atlas updated. No new IO seam, state, lock or permission rule.
+
+### 2026-10-16 — full-suite diagnostic expectation
+
+The recorded suite on 13d40cf05375e9ad8ffbe9ce699d4fe76d64bf39 surfaced TestIntegrationPRSync/merged: the existing test expected "state changed" for a MERGED record at the older head. Under the approved #418 rule that record is historical, so zero candidates is the correct refusal. Updating that control to expect "found 0" and adding a MERGED-at-current-head control requiring the existing state-change refusal. No production code changes. The first suite continues through all shards and its failed attempt/log will be retained; a recorded run of the corrected test head will follow.
+
+## Revisions
+
+### 2026-10-16 — align polling diagnostics with head-qualified history
+
+The old polling test assumed a name-only MERGED record remained eligible. The approved rule deliberately removes completed older heads. Split its test into historical-head (no candidate) and current-head (state change) controls, keeping refusal and no-merge assertions in both. This changes no acceptance criterion or production mechanism.
