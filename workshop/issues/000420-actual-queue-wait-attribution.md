@@ -45,7 +45,7 @@ Investigate how native task spans and frequent assistant/tool polling turn queue
 
 - [x] Pin each eligible suite queue record to this issue's repository, owning slot, engagement and measurement window; retain the exact evidence used by a close or correction.
 - [x] In the native active-time engine, remove queued idle intervals from the owning session's activity while retaining timestamped work inside them; preserve phase splits and uncounted review tails.
-- [x] Cover a polled queue, overlapping live work, duplicate/foreign/missing records and replay with deterministic native-transcript tests; run targeted tests and the recorded suite before close.
+- [ ] Cover a polled queue, overlapping live work, duplicate/foreign/missing records and replay with deterministic native-transcript tests; run targeted tests and the recorded suite before close.
 - [x] Re-measure #416 from the corrected implementation and give the TL/operator the measured result and evidence for generation-bound correct-actual or explicit exclusion.
 
 ## Estimate
@@ -81,6 +81,7 @@ Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `
 - 2026-10-17: #416's read-only correction preview found no uniquely bound owning suite invocation for recorded attempt d5ecb880. The TL confirmed its adopted 1.12h was a hand subtraction of the whole queue wait, not a verified interval result, and approved exclusion. `sdlc issue correct-actual --exclude` completed operation `actual-correction-c6c9f528ea66`, changing the effective sample from 1.12h to N/A with the original and reason retained in correction history. No numeric replacement was typed.
 - 2026-10-17: Queue replay now tests a wait crossing build, converge and tail cuts: the corrected 25-minute attribution partitions 10/5/10 minutes. Targeted sdlc and internal-engine tests, `make -k build`, and `git diff --check` pass; the recorded full suite remains before close.
 - 2026-10-17: Pushed integrated head b21211102c6611f499527d26f1623aa487f75af0 to PR #279. The recorded `sdlc-local/suite` on that exact head passed: `make test` ran 12 sdlc shards (1,544 tests) and 66 other packages, all exit 0, wall 511.1 seconds after 1,380 seconds in the machine queue; saved log SHA-256 begins 427a981e0cf2. The standalone `make -k test` was not duplicated: its earlier queued invocation was cancelled before taking slots, and this recorded full suite is the required test evidence.
+- 2026-10-17: Exercising branch code against that attempt exposed two missed native forms. Real Codex `exec` calls carry raw JavaScript and return arrays of text blocks; the initial parser expected a JSON code wrapper and a scalar result. The new native-wrapper regression failed with no span, then passed after decoding the raw input, nested suite command, session ID and polls. A second red/green integration test showed that the excluded-brain diagnostic inherited an unrelated issue queue interval; it now clears queue inputs for that separate population. Branch-code `sdlc actual --issue 420` preview then measured 0.99h with queue-v1 provenance: 23.01 raw queue minutes, 23.01 excluded idle, 0.00 overlapping work. A fresh full suite is required on this code change.
 
 ## Revisions
 

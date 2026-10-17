@@ -105,14 +105,20 @@ func TestActualQueueMeasurementReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := transcripts.SessionEvidence{Harness: "codex", ID: "owner", CWD: root, File: file, Digest: fmt.Sprintf("%x", sha256.Sum256(data)), Length: int64(len(data)), Started: start}
+	brainFile := filepath.Join(t.TempDir(), "brain.jsonl")
+	brainData := []byte("{\"timestamp\":\"2026-01-01T00:02:00Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":\"#335\"}}\n{\"timestamp\":\"2026-01-01T00:08:00Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":\"#335\"}}\n")
+	if err := os.WriteFile(brainFile, brainData, 0600); err != nil {
+		t.Fatal(err)
+	}
+	brain := transcripts.SessionEvidence{Harness: "codex", ID: "brain", CWD: t.TempDir(), File: brainFile, Digest: fmt.Sprintf("%x", sha256.Sum256(brainData)), Length: int64(len(brainData)), Started: start}
 	m := gatestate.MeasurementInputs{Version: 1, Method: gatestate.MeasurementMethodQueueV1, Repository: "x/ariadne", CodeHead: head, TrackerHead: head, Since: start.Format(time.RFC3339), Until: start.Add(time.Hour).Format(time.RFC3339), GapMinutes: 120, CommitWeight: 1, IncludeAssistant: true,
 		Engagements: []gatestate.MeasurementEngagement{{Start: start.Format(time.RFC3339), End: start.Add(time.Hour).Format(time.RFC3339), Began: start.Format(time.RFC3339), Roots: []string{root}}},
 		Cuts: []gatestate.MeasurementCut{
 			{Dispatched: start.Add(20 * time.Minute).Format(time.RFC3339), Finalized: start.Add(30 * time.Minute).Format(time.RFC3339)},
 			{Dispatched: start.Add(50 * time.Minute).Format(time.RFC3339), Finalized: start.Add(time.Hour).Format(time.RFC3339), Finalizing: true},
 		},
-		QueueWaits:  []gatestate.MeasurementQueueWait{{AttemptID: "aabb", Slot: "ariadne:1", RecordDigest: strings.Repeat("d", 64), Start: start.Add(10 * time.Minute).Format(time.RFC3339), End: start.Add(50 * time.Minute).Format(time.RFC3339), QueueSeconds: 2400, RawSeconds: 2400, Exact: true}}}
-	in := &ownedActualInputs{Snapshot: m, Files: []string{file}, Prefixes: map[string]activetime.SourcePrefix{file: {Bytes: s.Length, Digest: s.Digest}}, Windows: map[string][]activetime.ActivityWindow{file: {{Start: start, End: start.Add(time.Hour), Began: start}}}, SourceSlots: map[string]string{file: "ariadne:1"}, Scope: activetime.Scope{Head: head, Issue: "335"}, TrackerRefs: []string{head}, Sessions: []transcripts.SessionEvidence{s}}
+		QueueWaits: []gatestate.MeasurementQueueWait{{AttemptID: "aabb", Slot: "ariadne:1", RecordDigest: strings.Repeat("d", 64), Start: start.Add(10 * time.Minute).Format(time.RFC3339), End: start.Add(50 * time.Minute).Format(time.RFC3339), QueueSeconds: 2400, RawSeconds: 2400, Exact: true}}}
+	in := &ownedActualInputs{Snapshot: m, Files: []string{file}, Prefixes: map[string]activetime.SourcePrefix{file: {Bytes: s.Length, Digest: s.Digest}}, Windows: map[string][]activetime.ActivityWindow{file: {{Start: start, End: start.Add(time.Hour), Began: start}}}, SourceSlots: map[string]string{file: "ariadne:1"}, Scope: activetime.Scope{Head: head, Issue: "335"}, TrackerRefs: []string{head}, Sessions: []transcripts.SessionEvidence{s}, ExcludedBrain: []transcripts.SessionEvidence{brain}}
 	got := computeOwnedActualFor(context.Background(), root, "335", "", in)
 	if got.Status != actualMeasured || got.Inputs == nil || len(got.Inputs.QueueWaits) != 1 || got.Inputs.Sources[0].Slot != "ariadne:1" {
 		t.Fatalf("queue candidate: %+v", got)

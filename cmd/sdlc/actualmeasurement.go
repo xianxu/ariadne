@@ -85,6 +85,8 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 		if len(inputs.ExcludedBrain) > 0 {
 			excluded := options
 			excluded.Files = nil
+			excluded.QueueIntervals = nil // excluded sources are a separate diagnostic population
+			excluded.SourceSlots = nil
 			excluded.ActivityWindows = nil
 			if len(m.Engagements) > 0 {
 				excluded.ActivityWindows = make(map[string][]activetime.ActivityWindow)

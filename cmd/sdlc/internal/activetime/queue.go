@@ -47,6 +47,7 @@ type pendingTool struct {
 
 var sessionIDPattern = regexp.MustCompile(`(?i)(?:session|cell) ID\s+([A-Za-z0-9-]+)`)
 var nestedCommandPattern = regexp.MustCompile(`tools\.exec_command\(\s*\{\s*cmd\s*:\s*("(?:\\.|[^"\\])*")`)
+var nativePollPattern = regexp.MustCompile(`(?s)^\s*(?:// @exec:[^\n]*\n)?\s*text\(\s*await\s+tools\.write_stdin\(\s*\{\s*session_id\s*:\s*([0-9]+)`)
 
 // workSpansFromTranscript recognizes only structurally paired native tool
 // calls. Incomplete calls, duplicate IDs, polls and unknown commands confer no
@@ -104,19 +105,26 @@ func workSpansFromTranscript(data []byte, source string) []ToolSpan {
 			case "function_call", "custom_tool_call":
 				input := p.Arguments
 				if input == "" {
-					input = string(p.Input)
+					if json.Unmarshal(p.Input, &input) != nil {
+						input = string(p.Input)
+					}
 				}
-				if isPoll(p.Name) {
+				if isPoll(p.Name) || nativePollPattern.MatchString(input) && (p.Name == "exec" || p.Name == "functions.exec") {
 					// The poll's result carries the final status, so retain its
 					// session association under this call ID.
-					var args struct {
-						SessionID json.RawMessage `json:"session_id"`
-						CellID    string          `json:"cell_id"`
-					}
-					_ = json.Unmarshal([]byte(input), &args)
-					sid := strings.Trim(string(args.SessionID), `"`)
-					if sid == "" {
-						sid = args.CellID
+					sid := ""
+					if match := nativePollPattern.FindStringSubmatch(input); len(match) == 2 {
+						sid = match[1]
+					} else {
+						var args struct {
+							SessionID json.RawMessage `json:"session_id"`
+							CellID    string          `json:"cell_id"`
+						}
+						_ = json.Unmarshal([]byte(input), &args)
+						sid = strings.Trim(string(args.SessionID), `"`)
+						if sid == "" {
+							sid = args.CellID
+						}
 					}
 					if sid != "" {
 						pending[p.CallID] = yielded[sid]
@@ -125,13 +133,7 @@ func workSpansFromTranscript(data []byte, source string) []ToolSpan {
 					call(p.CallID, p.Name, input, ts)
 				}
 			case "function_call_output", "custom_tool_call_output":
-				out := string(p.Output)
-				if p.Output != nil {
-					var s string
-					if json.Unmarshal(p.Output, &s) == nil {
-						out = s
-					}
-				}
+				out := toolOutputText(p.Output)
 				if ptr := pending[p.CallID]; ptr != nil {
 					if isRunningOutput(out) && ptr.kind == toolWait && ptr.id != p.CallID {
 						delete(pending, p.CallID)
@@ -169,6 +171,24 @@ func workSpansFromTranscript(data []byte, source string) []ToolSpan {
 	return valid
 }
 
+func toolOutputText(raw json.RawMessage) string {
+	var s string
+	if json.Unmarshal(raw, &s) == nil {
+		return s
+	}
+	var blocks []struct {
+		Text string `json:"text"`
+	}
+	if json.Unmarshal(raw, &blocks) == nil {
+		var parts []string
+		for _, b := range blocks {
+			parts = append(parts, b.Text)
+		}
+		return strings.Join(parts, "\n")
+	}
+	return string(raw)
+}
+
 func isPoll(name string) bool {
 	return name == "write_stdin" || name == "functions.wait" || name == "wait"
 }
@@ -182,6 +202,15 @@ func yieldedSessionID(output string) string {
 	if match := sessionIDPattern.FindStringSubmatch(output); len(match) == 2 && strings.Contains(strings.ToLower(output), "running") {
 		return match[1]
 	}
+	for line := range strings.SplitSeq(output, "\n") {
+		if id := yieldedJSONSessionID(line); id != "" {
+			return id
+		}
+	}
+	return ""
+}
+
+func yieldedJSONSessionID(output string) string {
 	var obj map[string]json.RawMessage
 	if json.Unmarshal([]byte(output), &obj) != nil || obj["exit_code"] != nil {
 		return ""
@@ -208,15 +237,16 @@ func classifyTool(name, input string) toolKind {
 	if name == "apply_patch" || name == "Edit" || name == "Write" || name == "MultiEdit" {
 		return toolWork
 	}
-	if name == "functions.exec" {
+	if name == "functions.exec" || name == "exec" {
 		var args struct {
 			Code string `json:"code"`
 		}
-		if json.Unmarshal([]byte(input), &args) != nil {
-			return toolUnknown
+		code := input
+		if json.Unmarshal([]byte(input), &args) == nil && args.Code != "" {
+			code = args.Code
 		}
 		kind := toolUnknown
-		for _, match := range nestedCommandPattern.FindAllStringSubmatch(args.Code, -1) {
+		for _, match := range nestedCommandPattern.FindAllStringSubmatch(code, -1) {
 			var command string
 			if json.Unmarshal([]byte(match[1]), &command) != nil {
 				continue
@@ -229,7 +259,7 @@ func classifyTool(name, input string) toolKind {
 				kind = toolWork
 			}
 		}
-		if kind == toolUnknown && strings.Contains(args.Code, "tools.apply_patch(") {
+		if kind == toolUnknown && strings.Contains(code, "tools.apply_patch(") {
 			return toolWork
 		}
 		return kind
