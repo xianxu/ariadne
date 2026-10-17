@@ -82,6 +82,7 @@ Write each risky unit against its named function before implementation. The adve
 
 ## Revisions
 
+- 2026-10-17 — The standalone `make -k test` attempt was cancelled while queued, before acquiring suite slots. The required pushed-head `sdlc local-check run --name suite` subsequently ran the full `make test` sharded suite with all shards passing, so a second unrecorded full run would duplicate the same verification and queue cost. `make -k build`, targeted regressions and `git diff --check` were run separately.
 - 2026-10-17 — Initial full-flow design following the TL's interval/exact-evidence policy and the existing retained-replay contract.
 - 2026-10-17 — TL approved the plan and corrected the legacy-time assumption: `started_at` is after post-lock setup, so using it as the queue endpoint shifts the old interval late. Keep the explicit legacy convention and test its bias; store both real queue endpoints in new records. No other design change.
 - 2026-10-17 — Plan-quality PQ-1–4 required exact work-span exclusion (including yielded suite calls), a distinct correction-candidate purpose, the recorder/schema contract, and named adversarial test boundaries. Added those before implementation; the same issue scope and TL queue policy remain.
