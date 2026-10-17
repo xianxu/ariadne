@@ -39,6 +39,7 @@ A reader of `issue show`, whether the TL, the operator or an agent deciding whet
 
 - `issue show`, text and JSON, reports the verdict of the review bound to the issue's completion, or the latest review when there is no completion, along with its round. A test covers an issue with a REWORK round 1 and a SHIP round 2.
 - Earlier rounds stay visible as history, labelled as earlier.
+- Fresh and stale tracker reads each preserve latest-review selection without a completion and bound-review selection with one.
 
 ## Plan
 
@@ -67,3 +68,9 @@ A reader of `issue show`, whether the TL, the operator or an agent deciding whet
 - Main advanced with #422 during the integrated suite. Merged it cleanly; a third recorded suite will verify current main. TL has coordinated a hold on main writes through #423 landing to prevent another drift cycle. Actual preview now says 1.49h, including the queue-polling interval tracked by #420; do not adopt that as focused work or hand-subtract an unbound wait.
 
 - Final integrated suite c896f6a83d2fce9a92d66e0558871d4d passed on bfcfa3954220dcaa401c095717a5f73f8a632393: 12 shards over 1547 cmd/sdlc tests, 66 other packages, 533.026s wall, 1254.843s queued; log SHA256 131323a7722899993361ed4e6ffe854d8bb0ffb3c6633870f14c8840d5fbfb90. This includes current main (#421 and #422). Close records actual_hours N/A via the precise no-actual acknowledgment: preview had expanded from 0.16h to 1.49h while queue polling bridged idle time (#420); adopting that sample or hand-subtracting waits without retained ownership provenance would misstate focused work. No numeric actual is invented.
+
+## Revisions
+
+### 2026-10-17 — BR-1: binding presence is independent of read quality
+
+Round 1 REWORK reproduced a stale working card with no completion: assembleCompletion retains a stale Read but has no parsed binding, so a valued-read guard matched an empty reviewed head and suppressed the latest verdict. Require parsed binding presence as well as readable provenance; enumerate fresh/stale × present/absent for the shared text/JSON selection (ARCH-PURPOSE). No new state or mechanism. TL approved this revision.
