@@ -1,20 +1,28 @@
 ---
 id: 000424
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'e05d3017ca5d9a78309d89fe6e80362382ce2789' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '156a4cd16a6ccb5b58c9989a287449f8ac93d118' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-17T03:02:14-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # side docs S3: the discussions index, link removal, fold-in from the parent, and moves that carry the .side folder (skill, tl-lead, sdlc archiving)
 
 ## Problem
 
-S2 of the universal agent input interface (ops `teams/devinfra/projects/universal-agent-input-interface/design.md`) built how a side doc starts. S3 covers the rest of its life, and the operator approved its design, now final: ops `design.side/07-s3-side-docs.md` (cf0f0ebf), with threads 08 and 09. ariadne holds three parts of it: the `xx-universal-review` skill, `tl-lead status`, and sdlc's archiving. parley's mover is a separate parley issue.
+S2 of the universal agent input interface (ops `teams/devinfra/projects/universal-agent-input-interface/design.md`) built how a side doc starts. S3 covers the rest of its life, and the operator approved its design, now final: ops `design.side/07-s3-side-docs.md` (cf0f0ebf), with threads 08 and 09. ariadne holds three parts of it: the `xx-universal-review` skill, `tl-lead status`, and sdlc's archiving. parley's mover is parley.nvim#373.
 
 ## Spec
 
@@ -42,8 +50,16 @@ The work, by place:
 
 ## Plan
 
-- [ ]
+Durable plan: [workshop/plans/000424-…-plan.md](../plans/000424-side-docs-s3-the-discussions-index-link-removal-fold-in-from-the-parent-and-moves-that-carry-the-side-folder-skill-tl-lead-sdlc-archiving-plan.md).
+
+- [ ] M1 — the skill: `pkg/sidedoc` (links, index), `collaboration-modes.md` (index, no closing, fold-in from the parent, moves; rows 21 to 31), six new examples and the existing ones updated, checker invariants, move fixtures exported (version 2)
+- [ ] M2 — tl-lead: the session file's `discussions:` index (`instructions link` adds, `status submit` and `status index` reconcile) through `write --all`
+- [ ] M3 — sdlc: the three archive paths move a document's `.side/` folder with it
 
 ## Log
 
 ### 2026-10-17
+- Filed from the S3 design (ops 07, final at cf0f0ebf); parley's half is parley.nvim#373 (filed by the TL from this slot's draft).
+- 07's rows 18 to 28 become 21 to 31: the skill's states table already runs to 20.
+- sdlc never renames an issue or plan file (`set-title` keeps the slug), and archiving keeps the base name, so sdlc's part is a same-name move of the `.side/` folder, with no link rewriting.
+- parley's `scripts/sync-review-protocol.py` refuses a role it doesn't know and any version but 1, so exporting the move fixtures bumps the export to version 2, which parley.nvim#373 accepts. Parley's committed snapshot is unaffected until it syncs.
