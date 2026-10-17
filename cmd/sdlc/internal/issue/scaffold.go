@@ -247,6 +247,9 @@ func Render(s ScaffoldSpec) string {
 	if s.Severity != "" {
 		fmt.Fprintf(&b, "severity: %s\n", s.Severity)
 	}
+	// The model's default collaboration mode (#415): a details field, never
+	// a card field, so the card split leaves it here.
+	fmt.Fprintf(&b, "collaboration-mode: %s\n", m.CollaborationMode())
 	b.WriteString("---\n\n")
 	fmt.Fprintf(&b, "# %s\n\n", s.Title)
 

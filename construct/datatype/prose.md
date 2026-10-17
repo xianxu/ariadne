@@ -13,6 +13,7 @@ A *prose* artifact is a journal of pre-manuscript fragments — sentences and ha
 | Field | Required | Notes |
 |---|---|---|
 | `type` | yes | `prose` |
+| `collaboration-mode` | yes | `discussion`: the default xx-universal-review collaboration mode for this type's documents (ariadne#415). |
 | `parent` | yes | Relative path to the parent artifact this prose belongs to. Typically a `product` file in the same folder (e.g. `book-4.md`). One parent per prose file. |
 | `created` | yes | ISO date the prose file was first written. |
 | `updated` | yes | ISO date of the most recent entry. Bumped on each append. |

@@ -19,7 +19,8 @@ func RenderScaffold(s ScaffoldSpec) string {
 	var b strings.Builder
 	b.WriteString("---\n")
 	fmt.Fprintf(&b, "type: project\nname: %s\ngoal: %s\ndone_when: %s\n", yamlString(s.Name), yamlString(s.Goal), yamlString(s.DoneWhen))
-	fmt.Fprintf(&b, "status: %s\ncreated: %s\nupdated: %s\n---\n\n# %s\n", m.InitialStatus(), s.Today, s.Today, s.Name)
+	fmt.Fprintf(&b, "status: %s\ncreated: %s\nupdated: %s\n", m.InitialStatus(), s.Today, s.Today)
+	fmt.Fprintf(&b, "collaboration-mode: %s\n---\n\n# %s\n", m.CollaborationMode(), s.Name) // #415
 	for _, section := range m.Sections() {
 		fmt.Fprintf(&b, "\n## %s\n", section.Name)
 		if section.Seed != "" {

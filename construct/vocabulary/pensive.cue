@@ -21,4 +21,6 @@ package pensive
 	mode:        #Mode
 	description: string
 	references?: [...string]
+	// the default collaboration mode a new pensive declares (#415)
+	"collaboration-mode"?: "discussion" | "collaboration" | "chat"
 }
