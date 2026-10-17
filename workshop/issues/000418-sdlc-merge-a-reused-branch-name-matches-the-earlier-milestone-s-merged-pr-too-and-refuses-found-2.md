@@ -88,3 +88,9 @@ After pair#618 PR #387 lands, clear the stage, run make build sdlc-build in /Use
 ### 2026-10-16 — live PR selection confirmed; pair suite blocks landing
 
 Verified submitted peer receipt 6d25a454-5e7d-401f-bd63-24495feeca50 from pair:2: the staged binary selected OPEN PR #387 despite historical MERGED PR #380 sharing its branch, advancing into the pre-merge suite where the prior binary refused with found 2. That suite failed on pair-side test causes (a timing bug and couchtty flake tracked as pair#637). There is no merge commit yet. Pair:2 will retry after its corrected recorded suite and explicitly requests keeping the #418 stage. This satisfies the live matching observation but not the issue's final live-landing acceptance criterion. Our corrected recorded suite remains queued.
+
+### 2026-10-16 — corrected full suite green; stage checkout superseded
+
+Recorded suite on 21951f780aeeffcf1f648c999e768086f4eb503a passed all 1,525 SDLC tests and 66 other packages across 12 shards: 656.7s execution after 4,150s queue wait. Exit 0; suite.log SHA256 prefix ade094b7676b. Log: .git/sdlc/local-checks/21951f780aeeffcf1f648c999e768086f4eb503a/suite.log. The first failed attempt remains retained and classified above.
+
+Verified TL receipt ced37b04-2d55-4a2a-ad4c-e1d0a4974d4c: #416 superseded the shared :0 checkout without a grant. Read-only verification confirms its Git HEAD is e7a8db930a2b2bbffbb903cc4b4743ef693415e8 while bin/sdlc still has #418 revision 13d40cf05375e9ad8ffbe9ce699d4fe76d64bf39 and modified=false. Do not rebuild or restage until pair:2 lands. The TL now explicitly directs cleanup as checkout main, rebuild every bin/* from main, verify revisions, and report completion. PR #387 is still open.
