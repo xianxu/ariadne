@@ -17,8 +17,8 @@ import (
 const instructionsHeading = "Operator instructions"
 
 var (
-	bulletStartRE = regexp.MustCompile(`^\d+\.\s`)
-	answeredRE    = regexp.MustCompile(`→\s*(\[answer\]\(|done:)`)
+	itemStartRE = regexp.MustCompile(`^( *)(?:[-*]|\d+\.)\s`)
+	answeredRE  = regexp.MustCompile(`→\s*(\[answer\]\(|done:)`)
 )
 
 // Bullet is one operator bullet. Pos is its 1-based position in the section:
@@ -30,19 +30,43 @@ type Bullet struct {
 	Answered bool
 }
 
-// instructionBullets splits the section body into bullets. A bullet starts at
-// a line `N. ` and runs to the next one or the end of the section, with its
-// trailing blank lines dropped; lines before the first bullet belong to none.
+// instructionBullets splits the section body into bullets, by the chat-mode
+// item of xx-universal-review's collaboration-modes.md §3 (#412): a `-`, `*`
+// or `N.` line at the section's shallowest list indent starts one, and it
+// runs over its sub-items and continuation lines until the next such line, or
+// until a blank line followed by prose indented no deeper than that indent
+// (prose belongs to no bullet). Trailing blank lines are dropped. An
+// `→ done:` ending is the older answered form, still read.
 func instructionBullets(section string) []Bullet {
+	lines := strings.Split(section, "\n")
+	shallow := -1
+	for _, l := range lines {
+		if m := itemStartRE.FindStringSubmatch(l); m != nil && (shallow < 0 || len(m[1]) < shallow) {
+			shallow = len(m[1])
+		}
+	}
 	var out []Bullet
-	for i, l := range strings.Split(section, "\n") {
+	open, blank := false, false
+	for i, l := range lines {
+		indent := len(l) - len(strings.TrimLeft(l, " "))
 		switch {
-		case bulletStartRE.MatchString(l):
+		case strings.TrimSpace(l) == "":
+			blank = true
+			if open {
+				b := &out[len(out)-1]
+				b.Lines = append(b.Lines, l)
+			}
+			continue
+		case itemStartRE.MatchString(l) && indent == shallow:
 			out = append(out, Bullet{Pos: len(out) + 1, Start: i, Lines: []string{l}})
-		case len(out) > 0:
+			open = true
+		case open && blank && indent <= shallow:
+			open = false
+		case open:
 			b := &out[len(out)-1]
 			b.Lines = append(b.Lines, l)
 		}
+		blank = false
 	}
 	for i := range out {
 		b := &out[i]

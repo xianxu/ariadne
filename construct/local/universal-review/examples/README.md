@@ -18,7 +18,9 @@ must not: which asks became edits, side docs, answer docs or clarifying turns; t
 docs' names and frontmatter; and which files are unchanged.
 
 `pkg/reviewexport`'s `TestExamples` checks every case's side docs against the contract in collaboration-modes.md §4:
-- names, frontmatter, parent links and the uniqueness of `(parent, marker)`;
+- names, frontmatter, parent links and backlinks;
+- that an unlinked side doc for the same ask (parent, marker, section) is relinked, never duplicated, and that a
+  fold marks the parent's link `(folded <date>)`;
 - that no side doc is pruned and new ones take the next free number;
 - that a failed round leaves `after/` identical to `before/`.
 

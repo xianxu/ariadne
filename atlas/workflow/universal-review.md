@@ -15,8 +15,8 @@ skill carries the rest.
   edit, an instruction that only acts is honored, a question opens a linked side doc), **collaboration** (answered in
   place), **chat** (each list item gets a dated answer doc). It holds the heading matching and its error cases, the
   side-doc contract (one flat `<name>.side/` folder per document, `NN-slug` and `YYYY-MM-DD-NN-slug` names,
-  frontmatter, the write order: side docs, then a folded parent, then the submitted document; retries relink by
-  `parent:` + `marker:`), and the state table. Design: ops universal-agent-input-interface, S2.
+  frontmatter, the write order: side docs, then a folded parent, then the submitted document; retries relink an
+  unlinked doc by `parent:` + `marker:` + section, never one already linked), and the state table. Design: ops universal-agent-input-interface, S2.
 - **`modes/*.md`** — the six stock modes, canonical here since #399; parley snapshots them.
 - **`examples/`** — ten reference rounds, one per case: `before/` and `after/` trees plus `case.md` (the submitted
   document, the outcome, the changes, the reply). A live check runs a round on a copy of `before/` and compares it

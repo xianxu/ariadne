@@ -248,3 +248,18 @@ The contract edges (D§2, D§4):
   - Minors: the `.side/` folder's gitignore goes in the landing report; old `qa/` links are followed for
     follow-ups (task 6 and a chat edge); a Non-goals section.
   - O2 and O3 came from drafting the examples.
+- **2026-10-16, close review round 1 (FIX-THEN-SHIP: BR-1, BR-2 and two Minors).**
+  - **BR-1** (ARCH-ORDER): reuse matched `(parent, marker)` alone, so a short question asked again in another section,
+    or after its first discussion, could be linked to the wrong discussion. Reuse now requires the same section,
+    from the backlink, and a doc that no link in the parent points to. Each candidate is reused at most once per
+    round. That adds state-table row 19 and an eleventh case, `discussion-same-marker`. In the checker, the old
+    strict uniqueness becomes "an unlinked doc for the same ask is relinked, never duplicated", and backlinks are
+    required. Swept: row 18, the closed-item exception, the README, discussion-retry's case.md and the atlas.
+  - **BR-2** (ARCH-DRY): tl-lead's `instructionBullets` defined an item differently from the chat mode its help
+    cites. It now uses chat mode's item: `-`, `*` and `N.` at the shallowest indent, sub-items inside, prose after a
+    blank line belonging to no item. A table test pins it. The skill's item definition gained the same exact
+    boundary, and the legacy `→ done:` ending is in the skill's older-documents section, so both consumers read one
+    rule.
+  - **Minors:** the checker now asserts that a fold marks the parent's link `(folded <date>)` (rows 7 and 10), and
+    numbers are capped at six digits. Done-when 2 (the live session file) goes into the landing report as owed by
+    the TL, with the exact line.

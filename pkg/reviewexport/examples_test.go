@@ -20,9 +20,11 @@ import (
 // fixtures true to the side-doc contract of collaboration-modes.md §4.
 
 var (
-	datedNameRE    = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2})-(\d{2,})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$`)
-	numberedNameRE = regexp.MustCompile(`^(\d{2,})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$`)
+	datedNameRE    = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2})-(\d{2,6})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$`)
+	numberedNameRE = regexp.MustCompile(`^(\d{2,6})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$`)
 	sideLinkRE     = regexp.MustCompile(`→ \[(?:discussion|answer)\]\(([^)\s]+)\)`)
+	backlinkRE     = regexp.MustCompile(`(?m)^_From \[[^\]]*\]\([^)#\s]+\), section "([^"]+)"\._`)
+	foldedRE       = regexp.MustCompile(`^ \(folded \d{4}-\d{2}-\d{2}\)`)
 )
 
 // sideDocName classifies a side doc's file name. A dated answer doc is tried
@@ -99,12 +101,20 @@ func quotedMarker(raw string) (string, error) {
 	return sb.String(), nil
 }
 
+// sideDoc is one side doc as a tree holds it. Key is what reuse matches on
+// (collaboration-modes.md §4 step 1): its folder, parent, marker and section.
+// Linked says a link in the parent points to it.
+type sideDoc struct {
+	Key    string
+	Linked bool
+}
+
 // checkTree checks one example tree against the side-doc contract and
-// returns its side docs' paths.
-func checkTree(fsys fs.FS) (sides []string, errs []string) {
+// returns its side docs by path.
+func checkTree(fsys fs.FS) (sides map[string]sideDoc, errs []string) {
 	bad := func(f string, a ...any) { errs = append(errs, fmt.Sprintf(f, a...)) }
 	read := func(p string) string { b, _ := fs.ReadFile(fsys, p); return string(b) }
-	owners := map[string]string{} // folder + parent + marker → the side doc holding it
+	sides = map[string]sideDoc{}
 	_ = fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			bad("%s: %v", p, err)
@@ -129,7 +139,6 @@ func checkTree(fsys fs.FS) (sides []string, errs []string) {
 		if !strings.HasSuffix(dir, ".side") {
 			return nil
 		}
-		sides = append(sides, p)
 		if _, _, _, ok := sideDocName(path.Base(p)); !ok {
 			bad("%s: not an NN-slug or YYYY-MM-DD-NN-slug name", p)
 		}
@@ -164,11 +173,19 @@ func checkTree(fsys fs.FS) (sides []string, errs []string) {
 			bad("%s: %v", p, err)
 			return nil
 		}
-		key := dir + "\x00" + pp + "\x00" + marker
-		if other, dup := owners[key]; dup {
-			bad("%s: same parent and marker as %s", p, other)
+		section := backlinkRE.FindStringSubmatch(text)
+		if section == nil {
+			bad("%s: no backlink line naming the section", p)
+			return nil
 		}
-		owners[key] = p
+		rel, _ := filepath.Rel(path.Dir(pp), p)
+		link := "](" + filepath.ToSlash(rel) + ")"
+		at := strings.Index(ptext, link)
+		sides[p] = sideDoc{Key: dir + "\x00" + pp + "\x00" + marker + "\x00" + section[1], Linked: at >= 0}
+		// A fold marks the parent's link to the side doc that records it.
+		if strings.Contains(text, "Folded into the parent") && (at < 0 || !foldedRE.MatchString(ptext[at+len(link):])) {
+			bad("%s: records a fold, but the parent's link to it is not marked (folded <date>)", p)
+		}
 		return nil
 	})
 	return sides, errs
@@ -200,7 +217,7 @@ func checkCase(fsys fs.FS) []string {
 	if outcome != "ok" && outcome != "fails" {
 		bad("case.md: outcome %q, want ok or fails", outcome)
 	}
-	trees := map[string][]string{}
+	trees := map[string]map[string]sideDoc{}
 	for _, t := range []string{"before", "after"} {
 		sub, err := fs.Sub(fsys, t)
 		if err != nil {
@@ -222,17 +239,19 @@ func checkCase(fsys fs.FS) []string {
 		}
 		return errs
 	}
-	// Side docs are never pruned, and new ones take the next free numbers.
+	// Side docs are never pruned; new ones take the next free numbers; and an
+	// unlinked doc for the same ask is relinked rather than duplicated.
+	before, after := trees["before"], trees["after"]
 	byDir := map[string][]string{}
-	for _, p := range trees["before"] {
+	for p := range before {
 		byDir[path.Dir(p)] = append(byDir[path.Dir(p)], path.Base(p))
-		if !slices.Contains(trees["after"], p) {
+		if _, ok := after[p]; !ok {
 			bad("after/ dropped the side doc %s (side docs are never pruned)", p)
 		}
 	}
 	var added []string
-	for _, p := range trees["after"] {
-		if !slices.Contains(trees["before"], p) {
+	for p := range after {
+		if _, ok := before[p]; !ok {
 			added = append(added, p)
 		}
 	}
@@ -244,6 +263,11 @@ func checkCase(fsys fs.FS) []string {
 			bad("after/%s: a new side doc here is named %s", p, want)
 		}
 		byDir[dir] = append(byDir[dir], name)
+		for q, d := range before {
+			if d.Key == after[p].Key && !d.Linked && !after[q].Linked {
+				bad("after/%s duplicates %s, an unlinked side doc for the same ask that should have been relinked", p, q)
+			}
+		}
 	}
 	return errs
 }
@@ -312,7 +336,7 @@ func TestQuotedMarker(t *testing.T) {
 // goodCase is a minimal valid case the mutation test breaks one way at a time.
 func goodCase() fstest.MapFS {
 	f := func(s string) *fstest.MapFile { return &fstest.MapFile{Data: []byte(s)} }
-	side := "---\ntype: side-doc\nparent: ../d.md\nmarker: \"why?\"\ncollaboration-mode: discussion\n---\n\n# Why?\n"
+	side := "---\ntype: side-doc\nparent: ../d.md\nmarker: \"why?\"\ncollaboration-mode: discussion\n---\n\n# Why?\n\n_From [D](../d.md), section \"D\"._\n"
 	return fstest.MapFS{
 		"case.md":                f("submitted: d.md\noutcome: ok\n"),
 		"before/d.md":            f("# D\n\nText. 🤖[why?]\n"),
@@ -353,9 +377,13 @@ func TestCheckCaseCatches(t *testing.T) {
 			edit("after/d.md", "01-why", "02-why")(m)
 		}, "named 01-why.md"},
 		{"nested .side", func(m fstest.MapFS) { m["after/d.side/x.side/01-a.md"] = m[side] }, ".side/ inside"},
-		{"duplicate parent and marker", func(m fstest.MapFS) {
-			m["after/d.side/02-again.md"] = m[side]
-		}, "same parent and marker"},
+		{"an unlinked doc for the same ask not relinked", func(m fstest.MapFS) {
+			m["before/d.side/01-why.md"] = m[side]
+			m["after/d.side/02-why.md"] = m[side]
+			edit("after/d.md", "01-why", "02-why")(m)
+		}, "should have been relinked"},
+		{"no backlink", edit(side, "_From [D](../d.md), section \"D\"._", "From D."), "no backlink"},
+		{"a fold whose link is not marked", edit(side, "# Why?\n", "# Why?\n\nFolded into the parent 2026-10-16: x.\n"), "not marked (folded"},
 		{"a pruned side doc", func(m fstest.MapFS) { m["before/d.side/01-why.md"] = m[side]; delete(m, side) }, "never pruned"},
 		{"a failed round that changed the document", edit("case.md", "outcome: ok", "outcome: fails"), "changes nothing"},
 	} {
@@ -389,8 +417,8 @@ func TestExamples(t *testing.T) {
 			t.Errorf("%s: %s", c.Name(), e)
 		}
 	}
-	if n < 10 {
-		t.Errorf("%d cases, want the ten the plan's test list names", n)
+	if n < 11 {
+		t.Errorf("%d cases, want the eleven the plan's test list names", n)
 	}
 }
 
@@ -403,7 +431,7 @@ func TestCollaborationModesProse(t *testing.T) {
 	}
 	doc := string(b)
 	flat := strings.Join(strings.Fields(doc), " ")
-	for i := 1; i <= 18; i++ {
+	for i := 1; i <= 19; i++ {
 		if !strings.Contains(doc, fmt.Sprintf("\n| %d | ", i)) {
 			t.Errorf("the state table lacks row %d", i)
 		}

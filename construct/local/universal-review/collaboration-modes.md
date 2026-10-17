@@ -109,9 +109,10 @@ answer into clean prose. Never open a side doc unasked.
 
 Each **item** of the section is an ask, not each marker.
 
-- **An item** is a `-`, `*` or `N.` line at the section's shallowest list indent, with its sub-items and
-  continuation lines. Its **extent** is all of that except a trailing ` → [answer](…)` link. Prose in the section
-  that is not a list item is ignored.
+- **An item** starts at a `-`, `*` or `N.` line at the section's shallowest list indent. It runs over its
+  sub-items and continuation lines until the next such line, or until a blank line followed by prose indented no
+  deeper than that indent: prose in the section belongs to no item and is ignored. Its **extent** is all of that
+  except a trailing ` → [answer](…)` link.
 - **A new ask:** an item with no `→ [answer](…)` link. Write an answer doc (§4) and append ` → [answer](<path>)`
   to the item's last line. For a question the doc answers it. For an instruction you carry it out, and the doc
   records what was done and where.
@@ -125,7 +126,7 @@ Each **item** of the section is an ask, not each marker.
   file, never a new one in `<name>.side/`, and leaves an older file's frontmatter as it is.
 - **A deleted item** closes its answer doc: never reopen or extend it. A later follow-up on that topic is a new item.
   One exception until a later slice adds a "closed" mark: a deleted item re-added word for word matches its old doc
-  by `parent:` and `marker:`, so it is relinked (§4).
+  by `parent:`, `marker:` and section, and is unlinked, so it is relinked (§4).
 - **Never** edit, reorder or delete the operator's items, or add 🤖 markers to them. Your only write to the section
   is the appended link.
 - **Items are always answered**, whatever the review mode's `scope` or `frontier`: they are the operator's asks,
@@ -185,10 +186,13 @@ marker, so it is never shown as a strike-through proposal.
 **Writes and retries.** Each document a round changes gets one write, through the adapter. A fold changes two: the
 parent it folds into, and the side doc whose closing note records it; one of them is the submitted document. Write in
 this order:
-1. Before allocating a name, look for an existing side doc in the folder whose `parent:` and `marker:` equal this
-   ask's. If one exists, link it and write no other, and the reply says it was relinked. It is usually a refused
-   round's (step 4); it may also be the doc of a chat item whose link the operator deleted, or of an item re-added
-   word for word.
+1. Before allocating a name, look for a side doc to reuse: one in the folder whose `parent:` and `marker:` equal
+   this ask's, whose backlink names this ask's section, and that **no link in the parent points to**. If one
+   exists, link it and write no other, and the reply says it was relinked. It is usually a refused round's
+   (step 4); it may also be the doc of a chat item whose link the operator deleted, or of an item re-added word for
+   word. A doc already linked from elsewhere is never reused: the same short question in another section, or asked
+   again after its first discussion, gets its own doc. Each candidate is reused at most once per round, so two
+   identical asks in one section get one reused doc and one new doc, the second's slug saying how it differs.
 2. Write the new side docs.
 3. Write the parent a fold changes. A stale write is recomputed, as the adapter says. If the operator holds the
    parent's lock, stop there and write nothing else: the ask is answered again after the operator's next submit.
@@ -225,11 +229,13 @@ before/after documents.
 | 15 | chat | deletes an item | nothing: its answer doc is closed and never reopened | the item gone; the doc kept |
 | 16 | any | a name in `collaboration-mode:` matches no heading | do the round with the default there; name the dangling entry in the reply | the reply line |
 | 17 | any | holds the lock past your write | defer to their next submit (the adapter's exit 3) | the locked state; past 30 minutes, a one-line ping |
-| 18 | any | (a previous round's write was refused) | link the side docs that round wrote, found by `parent:` and `marker:`; create no duplicates | the links, as if the first write had landed |
+| 18 | any | (a previous round's write was refused) | link the side docs that round wrote, found by `parent:`, `marker:` and section among the unlinked ones; create no duplicates | the links, as if the first write had landed |
+| 19 | discussion | 🤖[why?] in a section, when an earlier 🤖[why?] elsewhere already has its linked side doc | open a new side doc: a linked doc is never reused | a new `→ [discussion]` link; the earlier discussion untouched |
 
 ## 6. Older documents
 
-Documents with no `collaboration-mode:` are discussion, and nothing is migrated. A document whose
+Documents with no `collaboration-mode:` are discussion, and nothing is migrated. In a chat section, an item that
+ends in `→ done: …` (the TL's older form of an answered instruction) counts as answered, like a linked one. A document whose
 `process-instruction:` free text says "answer the operator's 🤖 comments in place" still opens side docs for
 questions: free text governs how edits are made, not where answers go, so it cannot reroute an answer. Give such a
 document `collaboration-mode: collaboration` to keep answers in place.

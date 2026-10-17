@@ -137,3 +137,4 @@ total: 4.33
   - nothing was folded: the owed list was the slot's own message backlog, not this file's submit. The registration was forgotten afterwards.
 - Targeted tests green: ./pkg/... ./cmd/weave/... ./cmd/tl-lead/... ./cmd/tl-worker/....
 - Full suite green on d1199a4b (12 shards, 1519 cmd/sdlc tests plus 66 packages, 0 failed; sdlc-local/suite recorded).
+- Close review round 1: FIX-THEN-SHIP with BR-1 (reuse identity too coarse) and BR-2 (tl-lead parser vs chat mode item), plus two Minors; all fixed by class, see the plan's Revisions. Targeted tests green.

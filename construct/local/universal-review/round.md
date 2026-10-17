@@ -65,9 +65,9 @@ doc. [collaboration-modes.md](collaboration-modes.md) holds the modes; this
 step applies them.
 
 1. **Resolve** the frontmatter's `collaboration-mode:` (collaboration-modes.md
-   §1, and §2 with its errors table). With no key, the whole document is discussion. A name listed under
-   two modes, or a mode that is not one of the three, fails the round: change
-   nothing and report it (§6).
+   §1, and §2 with its errors table). With no key, the whole document is
+   discussion. A name listed under two modes, or a mode that is not one of the
+   three, fails the round: change nothing and report it (§6).
 2. **Give each section its mode**, by its heading (collaboration-modes.md §2).
 3. **Find the asks** by each section's mode: the ready markers of §5 in the
    edit region, and, in a chat section, its new and changed items, whatever

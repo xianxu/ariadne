@@ -51,7 +51,37 @@ func TestInstructionBullets(t *testing.T) {
 		t.Errorf("inner blank line lost: %q", got)
 	}
 	if len(instructionBullets("")) != 0 || len(instructionBullets("no bullets here\n")) != 0 {
-		t.Error("a section with no `N. ` line has no bullets")
+		t.Error("a section with no item line has no bullets")
+	}
+}
+
+// #412: a bullet is chat mode's item: -, * and N. lines at the section's
+// shallowest list indent, sub-items inside it, and prose after a blank line
+// belonging to no bullet.
+func TestInstructionBulletsAreChatItems(t *testing.T) {
+	const sec = `1. first
+   - a sub-item
+- check CI
+* and the trains
+  continued here
+
+A note, not a bullet.
+2. last`
+	var got []string
+	for _, b := range instructionBullets(sec) {
+		got = append(got, strings.Join(b.Lines, "|"))
+	}
+	want := []string{"1. first|   - a sub-item", "- check CI", "* and the trains|  continued here", "2. last"}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("bullets\n got %q\nwant %q", got, want)
+	}
+	// Linking bullet 2 lands on its own line, never on the line before it.
+	if out, err := linkBullet(sec, 2, "x.side/2026-10-16-01-ci.md"); err != nil || !strings.Contains(out, "- check CI → [answer](x.side/2026-10-16-01-ci.md)") || !strings.Contains(out, "   - a sub-item\n") {
+		t.Errorf("link 2: %v\n%s", err, out)
+	}
+	// Indented items only: the shallowest indent present is the item level.
+	if bs := instructionBullets("  - a\n    - b\n  - c"); len(bs) != 2 || len(bs[0].Lines) != 2 {
+		t.Errorf("indented items: %+v", bs)
 	}
 }
 
