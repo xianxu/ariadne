@@ -43,6 +43,7 @@ A landing is a merged PR: a merge commit from `sdlc merge`, or a landing ledger 
 ## Log
 
 ### 2026-10-17
+- 2026-10-17: closed — RED reproduced direct-only main commits being selected as landings; all tl-lead tests pass, including real Git publication/nested-merge/fleet controls, merge identity/time output and rendered help. UTC freshness checks pass. Granted native read-only check at d84f950421459df3f6181bc9864d2e4aa32af62b returned fresh on the real hub status file, checksum unchanged; stage cleared and seven tools verified on main. Recorded suite ef3ae307b3f44247e87c0c956dc32cd1 passed on 83c6878dd3ea5b258004319d06822bb041236f97: 12 shards, 1572 SDLC tests, 67 other packages, 513.4s wall, no failures. Help and atlas synchronized; no code changes since suite.; review verdict: SHIP
 
 - Root cause: gitNewestLanding reads the origin/main tip timestamp without filtering. Use first-parent merge shape, which sdlc merge emits via gh pr merge --merge; no subject heuristics. The landing-line ledger is local, has 30-day retention, and records completion rather than the immutable merge commit. Existing Git seam and stale renderer remain the owners (ARCH-DRY, ARCH-PURE). No new durable state or lifecycle.
 
