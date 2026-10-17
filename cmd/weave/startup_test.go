@@ -357,7 +357,7 @@ func TestCompileRegeneratesShippedOutputCold(t *testing.T) {
 				if string(got) != "older vocabulary\n" {
 					t.Errorf("a refused compile changed SKILL.md to %q", got)
 				}
-				warned := strings.Contains(log.String(), "weave: warning: ship row construct/generated/example/SKIL.md names no generated output")
+				warned := strings.Contains(log.String(), "weave: warning: ship row construct/generated/example/SKIL.md matches no file this compile generates")
 				if warned != strings.Contains(tc.want, "warned") {
 					t.Errorf("warning printed = %v:\n%s", warned, log.String())
 				}

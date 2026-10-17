@@ -1,6 +1,8 @@
 package plan
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -93,6 +95,7 @@ func TestShippedOutputOwnership(t *testing.T) {
 		{"cold hand edit", true, false, "edited", sum("old"), "refused"},
 		{"cold, no sidecar", true, false, "old", "", "refused"},
 		{"cold, malformed sidecar", true, false, "old", "not a digest\n", "refused"},
+		{"cold, sidecar is a symlink to a matching digest", true, false, "old", "link:" + sum("old"), "refused"},
 		{"cold, undeclared", false, false, "old", sum("old"), "refused"},
 		{"warm, pulled a newer committed pair", true, true, "pulled", sum("pulled"), "regenerated"},
 		{"warm hand edit", true, true, "edited", sum(generated), "displaced"},
@@ -109,7 +112,13 @@ func TestShippedOutputOwnership(t *testing.T) {
 			}
 			managedWrite(t, root, shippedIssue, tc.output)
 			side := SidecarPath(shippedIssue)
-			if tc.sidecar != "" {
+			switch target, link := strings.CutPrefix(tc.sidecar, "link:"); {
+			case link:
+				managedWrite(t, root, "elsewhere", target)
+				if err := os.Symlink(filepath.Join(root, "elsewhere"), filepath.Join(root, side)); err != nil {
+					t.Fatal(err)
+				}
+			case tc.sidecar != "":
 				managedWrite(t, root, side, tc.sidecar)
 			}
 			report, err := ApplyManaged(weavefs.OSFS{}, root, actions, ScopeArtifacts)

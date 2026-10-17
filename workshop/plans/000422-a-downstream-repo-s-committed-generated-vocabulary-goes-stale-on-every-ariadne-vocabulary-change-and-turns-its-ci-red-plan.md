@@ -56,21 +56,21 @@ collaboration-mode: discussion
 
 **Files:** Modify `cmd/weave/internal/intent/intent.go` (Kind const, String), `cmd/weave/internal/intent/manifest.go` (`kindByVerb`), `cmd/weave/internal/plan/plan.go` (lowering switch: `case intent.Ship:` no action, with a comment), `cmd/weave/internal/golden/completeness.go` (`coverIntent`, `verbName`). Test: `cmd/weave/internal/intent/intent_test.go`.
 
-- [ ] Failing test `TestParseManifestShip`: `internal ship construct/generated/vocabulary/issue.json` parses to `Intent{Kind: Ship, Visibility: Internal, Source: "construct/generated/vocabulary/issue.json", Target: same}`.
-- [ ] `go test -run TestParseManifestShip ./cmd/weave/internal/intent/` → FAIL (unknown verb skipped).
-- [ ] Add `Ship` to the Kind iota, `"ship": Ship` to `kindByVerb`, the no-op lowering case and the golden cases.
-- [ ] `go test ./cmd/weave/internal/intent/ ./cmd/weave/internal/plan/ ./cmd/weave/internal/golden/` → PASS.
+- [x] Failing test `TestParseManifestShip`: `internal ship construct/generated/vocabulary/issue.json` parses to `Intent{Kind: Ship, Visibility: Internal, Source: "construct/generated/vocabulary/issue.json", Target: same}`.
+- [x] `go test -run TestParseManifestShip ./cmd/weave/internal/intent/` → FAIL (unknown verb skipped).
+- [x] Add `Ship` to the Kind iota, `"ship": Ship` to `kindByVerb`, the no-op lowering case and the golden cases.
+- [x] `go test ./cmd/weave/internal/intent/ ./cmd/weave/internal/plan/ ./cmd/weave/internal/golden/` → PASS.
 
 ### Task 2: `ShippedPaths`, `ShipStaged`, `SidecarPath`
 
 **Files:** Create `cmd/weave/internal/plan/shipped.go`, `cmd/weave/internal/plan/shipped_test.go`; modify `cmd/weave/internal/plan/staged.go` (`Sidecar` field, keyed literals).
 
-- [ ] Failing tests. Strategy: `ShippedPaths` over (row visibility × leaf/ancestor × safe/unsafe path), guard = only `Selected` safe rows; `ShipStaged` over (declared/undeclared/unmatched path), guard = exactly one sidecar per declared staged `WriteFile`, holding `digest(content)+"
+- [x] Failing tests. Strategy: `ShippedPaths` over (row visibility × leaf/ancestor × safe/unsafe path), guard = only `Selected` safe rows; `ShipStaged` over (declared/undeclared/unmatched path), guard = exactly one sidecar per declared staged `WriteFile`, holding `digest(content)+"
 "`, and unmatched paths returned.
-- [ ] Run → FAIL (undefined).
-- [ ] Implement (pure; no FS).
-- [ ] `go test -run 'Shipped|ShipStaged' ./cmd/weave/internal/plan/` → PASS.
-- [ ] Commit `#422: weave: ship manifest verb and sidecar staging`.
+- [x] Run → FAIL (undefined).
+- [x] Implement (pure; no FS).
+- [x] `go test -run 'Shipped|ShipStaged' ./cmd/weave/internal/plan/` → PASS.
+- [x] Commit `#422: weave: ship manifest verb and sidecar staging`.
 
 ## Chunk 2: ownership
 
@@ -78,12 +78,12 @@ collaboration-mode: discussion
 
 **Files:** Modify `cmd/weave/internal/plan/ownership.go` (`prepareManaged` collects the shipped wrappers before `materializeManaged`, as `strict` is, and builds `paired` from `vouched`; `vouched` helper). Test: `cmd/weave/internal/plan/shipped_test.go`.
 
-- [ ] Failing tests (`stagedFixture` + `ShipStaged`, `managedApply` in ScopeArtifacts). Strategy: the matrix (output bytes: generated / committed-old / hand-edited) × (sidecar: matching / stale / missing) × (inventory: none / recorded older pair) × (declared / undeclared), guard = overwrite only when the pair vouches or the inventory owns it; otherwise refuse cold, displace warm, bytes untouched. Named rows: the parley case (cold, old pair → regenerated, both rewritten); the pulled copy (warm, newer committed pair → regenerated, `Displaced` empty); cold hand edit → refused.
-- [ ] Run → the parley and pulled-copy rows FAIL.
-- [ ] Implement the rule and `vouched`.
-- [ ] `go test ./cmd/weave/internal/plan/` → PASS.
+- [x] Failing tests (`stagedFixture` + `ShipStaged`, `managedApply` in ScopeArtifacts). Strategy: the matrix (output bytes: generated / committed-old / hand-edited) × (sidecar: matching / stale / missing) × (inventory: none / recorded older pair) × (declared / undeclared), guard = overwrite only when the pair vouches or the inventory owns it; otherwise refuse cold, displace warm, bytes untouched. Named rows: the parley case (cold, old pair → regenerated, both rewritten); the pulled copy (warm, newer committed pair → regenerated, `Displaced` empty); cold hand edit → refused.
+- [x] Run → the parley and pulled-copy rows FAIL.
+- [x] Implement the rule and `vouched`.
+- [x] `go test ./cmd/weave/internal/plan/` → PASS.
 
-- [ ] Commit `#422: weave: a vouched output and sidecar pair is weave's own`.
+- [x] Commit `#422: weave: a vouched output and sidecar pair is weave's own`.
 
 ## Chunk 3: compile wiring, e2e, atlas
 
@@ -91,22 +91,22 @@ collaboration-mode: discussion
 
 **Files:** Modify `cmd/weave/main.go` (~548: `ShipStaged` + unmatched warning). Test: `cmd/weave/startup_test.go`, modelled on `TestCompileRefusalLeavesCheckoutUntouched`.
 
-- [ ] Failing e2e `TestCompileRegeneratesShippedOutputCold` (base layer with a dynamic skill writing `SKILL.md`; leaf manifest `internal ship construct/generated/example/SKILL.md`; no inventory). Strategy: (committed pair vouches / no `ship` row / `ship` row naming nothing generated), guard = regenerate / today's refusal / the warning line.
-- [ ] Run → FAIL; implement; `go test -run 'TestCompile' ./cmd/weave/` → PASS.
-- [ ] Commit `#422: weave: compile ships declared outputs`.
+- [x] Failing e2e `TestCompileRegeneratesShippedOutputCold` (base layer with a dynamic skill writing `SKILL.md`; leaf manifest `internal ship construct/generated/example/SKILL.md`; no inventory). Strategy: (committed pair vouches / no `ship` row / `ship` row naming nothing generated), guard = regenerate / today's refusal / the warning line.
+- [x] Run → FAIL; implement; `go test -run 'TestCompile' ./cmd/weave/` → PASS.
+- [x] Commit `#422: weave: compile ships declared outputs`.
 
 ### Task 5: atlas and help
 
 **Files:** `atlas/workflow/weave.md` (ownership section: the `ship` row, the sidecar, the vouching rule, why), the manifest format comment in `construct/base.manifest` (verb list).
 
-- [ ] Document; commit `#422: atlas: shipped generated outputs`.
+- [x] Document; commit `#422: atlas: shipped generated outputs`.
 
 ### Task 6: verification
 
-- [ ] `go test ./cmd/weave/...` and `go vet ./cmd/weave/...`.
-- [ ] Full `make test` in the background before the close.
-- [ ] Live, against parley's real case, without writing parley: copy parley's tracked tree into a scratch dir (`git archive`), add the `ship` row and a sidecar of the committed issue.json, and run this branch's weave compile cold (no inventory) against current ariadne → issue.json regenerates, and the refresh line prints. Record in the issue Log.
-- [ ] Hand parley#371 (filed, depends on #422) to the TL for routing after landing.
+- [x] `go test ./cmd/weave/...` and `go vet ./cmd/weave/...`.
+- [x] Full `make test` in the background before the close.
+- [x] Live, against parley's real case, without writing parley: copy parley's tracked tree into a scratch dir (`git archive`), add the `ship` row and a sidecar of the committed issue.json, and run this branch's weave compile cold (no inventory) against current ariadne → issue.json regenerates, and the refresh line prints. Record in the issue Log.
+- [x] Hand parley#371 (filed, depends on #422) to the TL for routing after landing.
 
 ## Revisions
 
@@ -115,3 +115,8 @@ collaboration-mode: discussion
   Minors: dropped the `.gitignore` keep set (Task 4) in favour of the existing authored-negation mechanism, the one
   parley already uses and parley#371 specifies; the removal note is scoped to warm checkouts and filed under
   ARCH-FUNERAL; test lists compressed to strategy lines.
+- 2026-10-17, close review round 1 (SHIP, 3 Minors, all fixed): `ShippedPaths` takes `[]layer.Layer` and returns
+  `([]string, error)` (an unsafe `ship` path refuses), not `walk.Layer` → `[]string` as Core concepts says. The
+  unmatched-row warning names the reason ("matches no file this compile generates (only generated regular files
+  ship)"), covering a symlink output and an exported row reaching a consumer that doesn't generate it. A symlinked
+  sidecar is tested (refused cold).

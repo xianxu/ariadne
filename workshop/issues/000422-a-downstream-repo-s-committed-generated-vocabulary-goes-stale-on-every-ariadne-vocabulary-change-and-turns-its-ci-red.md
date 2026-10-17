@@ -124,3 +124,8 @@ because the durable plan settles the decisions (+15% buffer); impl is at 40% of 
   regenerated (07911d2a → 8e951335), sidecar updated, and "regenerated tracked output …: commit it" printed for both.
   A hand edit then (cold, inventory removed): refused, bytes untouched. weave's block adds the sidecar to the ignore
   list, so parley needs its authored negation, as parley#371 specifies.
+- Close review round 1: SHIP, 3 Minors, fixed in-round: a `TestShippedOutputOwnership` row for a symlinked sidecar
+  (refused cold); the plan's Revisions record the `ShippedPaths` signature, and its checkboxes are ticked; the
+  unmatched-row warning now names the reason. The reviewer's two `cmd/weave` failures came from its review checkout
+  (`GIT_CEILING_DIRECTORIES` hides git under `.sdlc-review/`; one of them predates this change); both pass here and in
+  `make test`.

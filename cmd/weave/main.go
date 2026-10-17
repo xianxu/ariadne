@@ -556,7 +556,7 @@ func compilePreparedSettings(ctx context.Context, fs weavefs.FS, root string, ta
 		var unmatched []string
 		generated, unmatched = plan.ShipStaged(generated, shipped)
 		for _, p := range unmatched {
-			fmt.Fprintf(out, "weave: warning: ship row %s names no generated output\n", p)
+			fmt.Fprintf(out, "weave: warning: ship row %s matches no file this compile generates (only generated regular files ship)\n", p)
 		}
 	}
 	actions, err := planActions(fs, layers, target)
