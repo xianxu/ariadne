@@ -96,8 +96,6 @@ func TestActualQueueMeasurementReplay(t *testing.T) {
 	data := []byte(strings.Join([]string{
 		`{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"message","role":"user","content":"#335 start"}}`,
 		`{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"suite","arguments":"{\"cmd\":\"sdlc local-check run --name suite\"}"}}`,
-		`{"timestamp":"2026-01-01T00:25:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"stage","arguments":"{\"cmd\":\"sdlc stage --build\"}"}}`,
-		`{"timestamp":"2026-01-01T00:30:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"stage","output":"done"}}`,
 		`{"timestamp":"2026-01-01T01:00:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"suite","output":"done"}}`,
 		`{"timestamp":"2026-01-01T01:00:00Z","type":"response_item","payload":{"type":"message","role":"user","content":"#335 done"}}`,
 	}, "\n") + "\n")
@@ -123,7 +121,7 @@ func TestActualQueueMeasurementReplay(t *testing.T) {
 	if got.Status != actualMeasured || got.Inputs == nil || len(got.Inputs.QueueWaits) != 1 || got.Inputs.Sources[0].Slot != "ariadne:1" {
 		t.Fatalf("queue candidate: %+v", got)
 	}
-	if got.Split == nil || math.Abs(got.Split.Build-10.0/60) > .00001 || math.Abs(got.Split.Converge-5.0/60) > .00001 || math.Abs(got.Split.Tail-10.0/60) > .00001 || math.Abs(got.Hours-.25) > .00001 {
+	if got.Split == nil || math.Abs(got.Split.Build-10.0/60) > .00001 || math.Abs(got.Split.Converge) > .00001 || math.Abs(got.Split.Tail-10.0/60) > .00001 || math.Abs(got.Hours-10.0/60) > .00001 {
 		t.Fatalf("queue crossing phase cuts did not partition build/converge/tail: %+v", got)
 	}
 	replay, err := ownedReplaySources(*got.Inputs, []transcripts.SessionEvidence{s})
@@ -164,7 +162,7 @@ func TestActualQueueMeasurementRetainsBindingSource(t *testing.T) {
 	peer := makeSource("peer", peerData)
 	m := gatestate.MeasurementInputs{Version: 1, Method: gatestate.MeasurementMethodQueueV1, Repository: "x/ariadne", CodeHead: head, TrackerHead: head, Since: start.Format(time.RFC3339), Until: start.Add(time.Hour).Format(time.RFC3339), GapMinutes: 120, CommitWeight: 1, IncludeAssistant: true,
 		Engagements: []gatestate.MeasurementEngagement{{Start: start.Format(time.RFC3339), End: start.Add(time.Hour).Format(time.RFC3339), Began: start.Format(time.RFC3339), Roots: []string{root}}},
-		QueueWaits:  []gatestate.MeasurementQueueWait{{AttemptID: "aabb", Slot: "ariadne:1", RecordDigest: strings.Repeat("d", 64), Start: start.Format(time.RFC3339), End: start.Add(time.Hour).Format(time.RFC3339), QueueSeconds: 3600, RawSeconds: 3600, Exact: true}}}
+		QueueWaits:  []gatestate.MeasurementQueueWait{{AttemptID: "aabb", Slot: "ariadne:1", RecordDigest: strings.Repeat("d", 64), Start: start.Add(time.Minute).Format(time.RFC3339), End: start.Add(59 * time.Minute).Format(time.RFC3339), QueueSeconds: 3480, RawSeconds: 3480, Exact: true}}}
 	files := []string{queue.File, peer.File}
 	in := &ownedActualInputs{Snapshot: m, Files: files, Prefixes: map[string]activetime.SourcePrefix{}, Windows: map[string][]activetime.ActivityWindow{}, SourceSlots: map[string]string{queue.File: "ariadne:1", peer.File: "ariadne:2"}, Scope: activetime.Scope{Head: head, Issue: "335"}, TrackerRefs: []string{head}, Sessions: []transcripts.SessionEvidence{queue, peer}}
 	for _, s := range in.Sessions {

@@ -118,7 +118,7 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 	res.Inputs = &m
 	res.Warnings = append(res.Warnings, fmt.Sprintf("provenance: %s; %d ownership intervals; %d admitted sessions; unbound brain excluded: %d sessions, %.2f minutes; code %s; tracker %s", m.Method, len(m.Engagements), len(m.Sources), m.ExcludedBrainSessions, m.ExcludedBrainMinutes, m.CodeHead, m.TrackerHead))
 	if len(m.QueueWaits) > 0 {
-		res.Warnings = append(res.Warnings, fmt.Sprintf("suite queue: %.2f raw minutes, %.2f excluded idle minutes, %.2f retained overlapping work minutes across %d recorded waits", out.QueueAttribution.RawMinutes, out.QueueAttribution.ExcludedMinutes, out.QueueAttribution.RetainedWorkMinutes, len(m.QueueWaits)))
+		res.Warnings = append(res.Warnings, fmt.Sprintf("suite queue: %.2f raw minutes, %.2f excluded activity minutes across %d recorded waits", out.QueueAttribution.RawMinutes, out.QueueAttribution.ExcludedMinutes, len(m.QueueWaits)))
 	}
 	for _, warning := range out.Warnings {
 		res.Warnings = append(res.Warnings, formatAttributionWarning(warning))

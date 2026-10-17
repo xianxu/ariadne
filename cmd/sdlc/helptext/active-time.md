@@ -80,11 +80,12 @@ ISSUE MEASUREMENT (#335)
   Owned `sdlc actual` and close measurements also use recorded machine-suite
   queue attempts (#420). A wait must belong to the pinned issue engagement
   and have exact queue start/acquisition timestamps. Its interval is removed
-  from activity sources mapped to that slot, except for directly paired work
-  and admitted task spans. A yielded suite command is a wait; polls do not
-  establish completion of yielded work. If such work overlaps the queue, or a
-  legacy attempt lacks exact endpoints, the numeric actual is unavailable for
-  calibration. The selected attempt facts and source slots are saved with the
+  from activity sources mapped to that slot in full. A non-poll tool call
+  dispatched inside the wait, or an admitted task span crossing it, marks the
+  sample `overlapping work, unmeasured`; no tool result restores queue time.
+  Polls and the enclosing suite invocation dispatched before queue start do
+  not trigger refusal. Legacy attempts without exact endpoints also make the
+  numeric actual unavailable for calibration. The selected attempt facts and source slots are saved with the
   measurement for replay. Completed issues keep
   their old snapshot until an explicit `sdlc issue correct-actual` candidate;
   if queue/source provenance is incomplete, correction refuses rather than

@@ -1459,10 +1459,12 @@ cannot support a calibrated numeric actual. The actual resolver selects validate
 repository, owner slot and engagement, then retains the selected intervals,
 record digests and source slots in the bounded measurement snapshot. The native
 engine applies each wait to admitted activity sources mapped to the attempt's
-owning slot and subtracts only queued idle; directly paired non-yielded stage,
-edit and admitted subagent work inside the wait remains. Polls do not prove
-completion of yielded work; overlapping yielded work makes the measurement
-incomplete. Unknown source ownership refuses a correction. Old completed snapshots replay unchanged; explicit
+owning slot and subtracts the entire interval. A non-poll tool call dispatched
+inside the wait, or an admitted task span crossing it, makes the sample
+`overlapping work, unmeasured` and excludes it from calibration. Poll calls
+and a suite invocation dispatched before its own queue start do not trigger
+refusal. Tool results are not parsed to restore time. Unknown source ownership
+refuses a correction. Old completed snapshots replay unchanged; explicit
 `correct-actual` builds a new candidate against the completion generation and
 can exclude an unverifiable calibration sample without inventing hours.
 The retained snapshot keeps a wait's binding transcript even when all of that

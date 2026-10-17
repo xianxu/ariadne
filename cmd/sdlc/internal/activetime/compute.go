@@ -168,23 +168,28 @@ func Compute(opts Options) (Result, error) {
 		return Result{}, err
 	}
 	if len(opts.QueueIntervals) > 0 {
-		tools, err := loadToolSpans(opts)
+		calls, err := loadQueueToolCalls(opts)
 		if err != nil {
 			return Result{}, err
 		}
 		bound := make([]QueueInterval, 0, len(opts.QueueIntervals))
 		bindingSources := map[string]bool{}
 		for _, wait := range opts.QueueIntervals {
+			for _, call := range calls {
+				if opts.SourceSlots[call.Source] == wait.Slot && !call.Poll && !call.At.Before(wait.Start) && call.At.Before(wait.End) {
+					return Result{}, fmt.Errorf("queue attempt %s: overlapping work, unmeasured in source %s", wait.AttemptID, call.Source)
+				}
+			}
+			for _, sp := range spans {
+				if opts.SourceSlots[sp.Source] == wait.Slot && sp.Start.Before(wait.End) && sp.End.After(wait.Start) {
+					return Result{}, fmt.Errorf("queue attempt %s: overlapping work, unmeasured in source %s", wait.AttemptID, sp.Source)
+				}
+			}
 			forSources, err := bindQueueSources(wait, runs, opts.SourceSlots)
 			if err != nil {
 				return Result{}, err
 			}
 			for _, b := range forSources {
-				for _, tool := range tools {
-					if tool.Kind == toolUncertainWork && tool.Source == b.Source && tool.Start.Before(b.End) {
-						return Result{}, fmt.Errorf("queue attempt %s overlaps yielded or incomplete work in source %s", b.AttemptID, b.Source)
-					}
-				}
 				bound = append(bound, b)
 				if !bindingSources[b.Source] {
 					bindingSources[b.Source] = true
@@ -193,12 +198,7 @@ func Compute(opts Options) (Result, error) {
 			}
 		}
 		slices.Sort(res.QueueBindingSourceIDs)
-		// A subagent dispatch is independent work only within its admitted
-		// engagement. It cannot restore any time after release/reclaim.
-		for _, sp := range spans {
-			tools = append(tools, ToolSpan{Start: sp.Start, End: sp.End, Source: sp.Source, Kind: toolWork})
-		}
-		runs, res.QueueAttribution = subtractQueueIdle(runs, bound, tools)
+		runs, res.QueueAttribution = subtractQueueIdle(runs, bound)
 		res.QueueAttribution.RawMinutes = queueRawMinutes(opts.QueueIntervals)
 	}
 	res.Segments = claimActivityRuns(runs, commits, opts.CommitWeight, prefixWeight)
@@ -225,7 +225,7 @@ func Compute(opts Options) (Result, error) {
 	return res, nil
 }
 
-func loadToolSpans(opts Options) ([]ToolSpan, error) {
+func loadQueueToolCalls(opts Options) ([]QueueToolCall, error) {
 	paths := map[string]bool{}
 	for _, path := range opts.Files {
 		paths[path] = true
@@ -244,7 +244,7 @@ func loadToolSpans(opts Options) ([]ToolSpan, error) {
 		ordered = append(ordered, path)
 	}
 	slices.Sort(ordered)
-	var out []ToolSpan
+	var out []QueueToolCall
 	for _, path := range ordered {
 		var pins []SourcePrefix
 		if opts.SourcePrefixes != nil {
@@ -261,7 +261,7 @@ func loadToolSpans(opts Options) ([]ToolSpan, error) {
 			}
 			continue
 		}
-		out = append(out, workSpansFromTranscript(data, path)...)
+		out = append(out, queueToolCallsFromTranscript(data, path)...)
 	}
 	return out, nil
 }

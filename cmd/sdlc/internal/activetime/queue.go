@@ -18,109 +18,69 @@ type QueueInterval struct {
 
 // QueueAttribution describes minutes intersecting admitted activity runs.
 type QueueAttribution struct {
-	RawMinutes, ExcludedMinutes, RetainedWorkMinutes float64
+	RawMinutes, ExcludedMinutes float64
 }
 
-type toolKind uint8
-
-const (
-	toolUnknown toolKind = iota
-	toolWait
-	toolWork
-	toolUncertainWork
-)
-
-// ToolSpan is direct work evidence, or an incomplete work invocation that
-// prevents an uncertain queue overlap from becoming a calibrated actual.
-type ToolSpan struct {
-	Start, End time.Time
-	Source     string
-	Kind       toolKind
-	id         string
+// QueueToolCall records dispatch only. Results cannot establish work during a
+// queue wait and are deliberately not decoded for this decision.
+type QueueToolCall struct {
+	At     time.Time
+	Source string
+	Poll   bool
 }
 
-type pendingTool struct {
-	start   time.Time
-	kind    toolKind
-	invalid bool
-	id      string
-}
-
-var sessionIDPattern = regexp.MustCompile(`(?i)(?:session|cell) ID\s+([A-Za-z0-9-]+)`)
-var nestedCommandPattern = regexp.MustCompile(`tools\.exec_command\(\s*\{\s*cmd\s*:\s*("(?:\\.|[^"\\])*")`)
 var nativePollPattern = regexp.MustCompile(`(?s)^\s*(?:// @exec:[^\n]*\n)?\s*(?:text\(\s*|(?:const|let|var)\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*)await\s+tools\.write_stdin\(\s*\{\s*session_id\s*:\s*([0-9]+)`)
+var jsCharsPattern = regexp.MustCompile(`\bchars\s*:\s*("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')`)
 
-// workSpansFromTranscript recognizes only structurally paired native tool
-// calls. Polls and yielded commands confer no positive work evidence; yielded
-// or otherwise incomplete work is explicit uncertainty for queue attribution.
-func workSpansFromTranscript(data []byte, source string) []ToolSpan {
-	pending := map[string]*pendingTool{}
-	seen := map[string]*pendingTool{}
-	invalidIDs := map[string]bool{}
-	var spans []ToolSpan
-	call := func(id, name, input string, ts time.Time) {
-		if id == "" {
-			return
+func isQueuePoll(name, input string) bool {
+	if name == "write_stdin" {
+		var args struct {
+			Chars *string `json:"chars"`
 		}
-		if prior := seen[id]; prior != nil {
-			invalidIDs[id] = true
-			prior.invalid = true
-			if prior.kind != toolWork && classifyTool(name, input) == toolWork {
-				seen[id] = &pendingTool{start: ts, kind: toolWork, invalid: true, id: id}
-			}
-			return
-		}
-		p := &pendingTool{start: ts, kind: classifyTool(name, input), id: id}
-		seen[id] = p
-		pending[id] = p
+		return json.Unmarshal([]byte(input), &args) == nil && (args.Chars == nil || *args.Chars == "")
 	}
-	result := func(id, output string, ts time.Time) {
-		p := pending[id]
-		if p == nil {
-			return
+	if name == "functions.wait" || name == "wait" {
+		var args struct {
+			Terminate bool `json:"terminate"`
 		}
-		delete(pending, id)
-		if p.invalid || p.kind == toolUnknown {
-			return
-		}
-		if !ts.After(p.start) || isRunningOutput(output) || isFailedToolOutput(output) {
-			if p.kind == toolWork {
-				spans = append(spans, ToolSpan{Start: p.start, Source: source, Kind: toolUncertainWork, id: p.id})
-			}
-			return // a poll cannot prove this command's completion
-		}
-		spans = append(spans, ToolSpan{Start: p.start, End: ts, Source: source, Kind: p.kind, id: p.id})
+		return json.Unmarshal([]byte(input), &args) == nil && !args.Terminate
 	}
+	if name != "exec" && name != "functions.exec" || !nativePollPattern.MatchString(input) {
+		return false
+	}
+	if chars := jsCharsPattern.FindStringSubmatch(input); len(chars) == 2 {
+		return chars[1] == `""` || chars[1] == `''`
+	}
+	return true // write_stdin defaults to an empty write
+}
+
+func queueToolCallsFromTranscript(data []byte, source string) []QueueToolCall {
+	var calls []QueueToolCall
 	for line := range strings.SplitSeq(string(data), "\n") {
 		var d rawLine
 		if json.Unmarshal([]byte(line), &d) != nil || d.Timestamp == "" {
 			continue
 		}
-		ts, err := parseISO(d.Timestamp)
+		at, err := parseISO(d.Timestamp)
 		if err != nil {
 			continue
 		}
 		if d.Type == "response_item" {
 			var p codexPayload
-			if json.Unmarshal(d.Payload, &p) != nil {
+			if json.Unmarshal(d.Payload, &p) != nil || (p.Type != "function_call" && p.Type != "custom_tool_call") {
 				continue
 			}
-			switch p.Type {
-			case "function_call", "custom_tool_call":
-				input := p.Arguments
-				if input == "" {
-					if json.Unmarshal(p.Input, &input) != nil {
-						input = string(p.Input)
-					}
+			input := p.Arguments
+			if input == "" {
+				if json.Unmarshal(p.Input, &input) != nil {
+					input = string(p.Input)
 				}
-				if isPoll(p.Name) || nativePollPattern.MatchString(input) && (p.Name == "exec" || p.Name == "functions.exec") {
-					call(p.CallID, "poll", input, ts) // reserve ID; never pair poll output to a command
-				} else {
-					call(p.CallID, p.Name, input, ts)
-				}
-			case "function_call_output", "custom_tool_call_output":
-				result(p.CallID, toolOutputText(p.Output), ts)
 			}
+			poll := isQueuePoll(p.Name, input)
+			calls = append(calls, QueueToolCall{At: at, Source: source, Poll: poll})
+			continue
+		}
+		if d.Type != "assistant" {
 			continue
 		}
 		blocks, ok := decodeBlocks(d.Message.Content)
@@ -128,166 +88,12 @@ func workSpansFromTranscript(data []byte, source string) []ToolSpan {
 			continue
 		}
 		for _, b := range blocks {
-			switch {
-			case d.Type == "assistant" && b.Type == "tool_use":
-				call(b.ID, b.Name, string(b.Input), ts)
-			case d.Type == "user" && b.Type == "tool_result":
-				result(b.ToolUseID, string(b.Content), ts)
+			if b.Type == "tool_use" {
+				calls = append(calls, QueueToolCall{At: at, Source: source, Poll: isQueuePoll(b.Name, string(b.Input))})
 			}
 		}
 	}
-	var valid []ToolSpan
-	for _, span := range spans {
-		if !invalidIDs[span.id] {
-			valid = append(valid, span)
-		}
-	}
-	for id, p := range pending {
-		if p.kind == toolWork && !invalidIDs[id] {
-			valid = append(valid, ToolSpan{Start: p.start, Source: source, Kind: toolUncertainWork, id: id})
-		}
-	}
-	for id := range invalidIDs {
-		if p := seen[id]; p != nil && p.kind == toolWork {
-			valid = append(valid, ToolSpan{Start: p.start, Source: source, Kind: toolUncertainWork, id: id})
-		}
-	}
-	return valid
-}
-
-func toolOutputText(raw json.RawMessage) string {
-	var s string
-	if json.Unmarshal(raw, &s) == nil {
-		return s
-	}
-	var blocks []struct {
-		Text string `json:"text"`
-	}
-	if json.Unmarshal(raw, &blocks) == nil {
-		var parts []string
-		for _, b := range blocks {
-			parts = append(parts, b.Text)
-		}
-		return strings.Join(parts, "\n")
-	}
-	return string(raw)
-}
-
-func isPoll(name string) bool {
-	return name == "write_stdin" || name == "functions.wait" || name == "wait"
-}
-
-func isRunningOutput(output string) bool {
-	low := strings.ToLower(output)
-	return strings.Contains(low, "still running") || strings.Contains(low, "script running") || strings.Contains(low, "process running") || yieldedSessionID(output) != ""
-}
-
-func isFailedToolOutput(output string) bool {
-	trimmed := strings.TrimSpace(strings.ToLower(output))
-	return trimmed == "" || strings.HasPrefix(trimmed, "transport-error") || strings.HasPrefix(trimmed, "unknown process")
-}
-
-func yieldedSessionID(output string) string {
-	if match := sessionIDPattern.FindStringSubmatch(output); len(match) == 2 && strings.Contains(strings.ToLower(output), "running") {
-		return match[1]
-	}
-	for line := range strings.SplitSeq(output, "\n") {
-		if id := yieldedJSONSessionID(line); id != "" {
-			return id
-		}
-	}
-	return ""
-}
-
-func yieldedJSONSessionID(output string) string {
-	var obj map[string]json.RawMessage
-	if json.Unmarshal([]byte(output), &obj) != nil || obj["exit_code"] != nil {
-		return ""
-	}
-	for _, field := range []string{"session_id", "cell_id"} {
-		if raw := obj[field]; raw != nil && string(raw) != "null" {
-			var id string
-			if json.Unmarshal(raw, &id) == nil && id != "" {
-				return id
-			}
-			var num json.Number
-			if json.Unmarshal(raw, &num) == nil {
-				return num.String()
-			}
-		}
-	}
-	return ""
-}
-
-func classifyTool(name, input string) toolKind {
-	if isPoll(name) {
-		return toolUnknown
-	}
-	if name == "apply_patch" || name == "Edit" || name == "Write" || name == "MultiEdit" {
-		return toolWork
-	}
-	if name == "functions.exec" || name == "exec" {
-		var args struct {
-			Code string `json:"code"`
-		}
-		code := input
-		if json.Unmarshal([]byte(input), &args) == nil && args.Code != "" {
-			code = args.Code
-		}
-		kind := toolUnknown
-		for _, match := range nestedCommandPattern.FindAllStringSubmatch(code, -1) {
-			var command string
-			if json.Unmarshal([]byte(match[1]), &command) != nil {
-				continue
-			}
-			classified := classifyCommand(command)
-			if classified == toolWait {
-				return toolWait
-			}
-			if classified == toolWork {
-				kind = toolWork
-			}
-		}
-		if kind == toolUnknown && strings.Contains(code, "tools.apply_patch(") {
-			return toolWork
-		}
-		return kind
-	}
-	if name != "exec_command" && name != "Bash" {
-		return toolUnknown
-	}
-	var args struct {
-		Cmd     string `json:"cmd"`
-		Command string `json:"command"`
-	}
-	if json.Unmarshal([]byte(input), &args) != nil {
-		return toolUnknown
-	}
-	command := strings.TrimSpace(args.Cmd)
-	if command == "" {
-		command = strings.TrimSpace(args.Command)
-	}
-	return classifyCommand(command)
-}
-
-func classifyCommand(command string) toolKind {
-	// A cwd wrapper is common in native transcripts. Admit only the trailing
-	// executable command, never quoted mentions of a command in echo/log text.
-	if strings.HasPrefix(command, "cd ") {
-		parts := strings.SplitN(command, "&&", 2)
-		if len(parts) != 2 {
-			return toolUnknown
-		}
-		command = strings.TrimSpace(parts[1])
-	}
-	low := strings.ToLower(command)
-	if (strings.HasPrefix(low, "sdlc local-check run ") && strings.Contains(low, "--name suite")) || strings.HasPrefix(low, "sdlc merge ") || low == "sdlc merge" {
-		return toolWait
-	}
-	if low == "sdlc stage --build" || strings.HasPrefix(low, "sdlc stage --build ") || low == "sdlc stage --clear" || strings.HasPrefix(low, "sdlc stage --clear ") {
-		return toolWork
-	}
-	return toolUnknown
+	return calls
 }
 
 // bindQueueSources applies a recorded wait to admitted activity sources in its
@@ -316,25 +122,15 @@ func bindQueueSources(wait QueueInterval, runs []ActivityRun, slots map[string]s
 	return bound, nil
 }
 
-// subtractQueueIdle removes the union of source-bound waits from activity runs,
-// preserving only the independently paired work inside each wait. Other source
-// runs are unaffected. All intervals are half-open.
-func subtractQueueIdle(runs []ActivityRun, waits []QueueInterval, work []ToolSpan) ([]ActivityRun, QueueAttribution) {
+// subtractQueueIdle removes the union of source-bound waits from activity runs.
+// Other source runs are unaffected. All intervals are half-open.
+func subtractQueueIdle(runs []ActivityRun, waits []QueueInterval) ([]ActivityRun, QueueAttribution) {
 	bySource := map[string][]interval{}
 	for _, w := range waits {
 		bySource[sourceKey(w.Source)] = append(bySource[sourceKey(w.Source)], interval{w.Start, w.End})
 	}
 	for source, ivs := range bySource {
 		bySource[source] = mergeIntervals(ivs)
-	}
-	workBySource := map[string][]interval{}
-	for _, w := range work {
-		if w.Kind == toolWork && w.End.After(w.Start) {
-			workBySource[sourceKey(w.Source)] = append(workBySource[sourceKey(w.Source)], interval{w.Start, w.End})
-		}
-	}
-	for source, ivs := range workBySource {
-		workBySource[source] = mergeIntervals(ivs)
 	}
 	var out []ActivityRun
 	stats := QueueAttribution{RawMinutes: queueRawMinutes(waits)}
@@ -348,17 +144,8 @@ func subtractQueueIdle(runs []ActivityRun, waits []QueueInterval, work []ToolSpa
 			if !overlap.e.After(overlap.s) {
 				continue
 			}
-			for _, active := range workBySource[sourceKey(run.Source)] {
-				kept := intersect(overlap, active)
-				if kept.e.After(kept.s) {
-					stats.RetainedWorkMinutes += kept.e.Sub(kept.s).Minutes()
-				}
-			}
-			idle := subtractIntervals([]interval{overlap}, workBySource[sourceKey(run.Source)])
-			for _, gap := range idle {
-				stats.ExcludedMinutes += gap.e.Sub(gap.s).Minutes()
-				pieces = subtractIntervals(pieces, []interval{gap})
-			}
+			stats.ExcludedMinutes += overlap.e.Sub(overlap.s).Minutes()
+			pieces = subtractIntervals(pieces, []interval{overlap})
 		}
 		for _, part := range pieces {
 			copy := run
