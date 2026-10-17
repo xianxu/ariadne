@@ -44,6 +44,7 @@ An exact queue wait that crosses the measurement cutoff contributes only its int
 ## Log
 
 ### 2026-10-17
+- 2026-10-17: closed — pair#650-shaped exact queue cutoff test failed before the fix and passes after; release/gap inside the clipped wait still refuses, release after cutoff does not; focused selector and owned-actual resolver tests pass; make -k build and make sdlc-build pass; recorded suite on fa36207fca59a0363cc740d130b0acd0e3ad867d passes 12 shards, 67 packages, zero failures.; review verdict: SHIP
 
 - Root-cause evidence: the saved attempt is exact and names `pair:8`; tracker commits at 12:13:30 and 12:14:35 PDT pin the same claimant. The code-head's last issue commit is 12:26:08, inside the queue wait. `DeriveEngagements(events, until)` truncates its owner window there, then the selector requires acquisition at 12:48:27 to precede that truncated end. Read-only inspection only; pair:8's checkout was not changed.
 - TDD: the pair#650-shaped case failed with `0 matching pinned slot engagements` before the change, then passed after clipping. It covers a continuing claim, a release after the cutoff, a release inside the measured wait, and a release/reclaim gap inside it. The existing selector and legacy controls plus owned-actual resolver tests passed (60.6s). `make -k build` and `make sdlc-build` passed; the former correctly skipped the sentinel-owned `sdlc` binary, which the latter built.
