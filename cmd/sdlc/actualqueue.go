@@ -29,9 +29,19 @@ func selectOwnedQueueAttempts(attempts []SuiteAttempt, engagements []tracker.Eng
 			return nil, nil, fmt.Errorf("duplicate suite attempt %s", a.ID)
 		}
 		seen[a.ID] = true
-		if a.QueueSeconds == nil || a.Slot == "" {
-			if !a.StartedAt.Before(since) && a.StartedAt.Before(until) {
-				warnings = append(warnings, fmt.Sprintf("suite attempt %s has unknown queue or slot provenance", a.ID))
+		if a.QueueSeconds == nil {
+			// Acquisition before the window proves the wait is irrelevant. An
+			// acquisition after it does not: the missing duration could have
+			// queued across the window's end.
+			if !a.StartedAt.Before(since) {
+				warnings = append(warnings, fmt.Sprintf("suite attempt %s has unknown queue provenance", a.ID))
+			}
+			continue
+		}
+		if a.Slot == "" {
+			start, _, _ := suiteAttemptQueueWindow(a)
+			if !a.StartedAt.Before(since) && (start.Before(until) || a.StartedAt.Before(until)) {
+				warnings = append(warnings, fmt.Sprintf("suite attempt %s has unknown slot provenance", a.ID))
 			}
 			continue
 		}

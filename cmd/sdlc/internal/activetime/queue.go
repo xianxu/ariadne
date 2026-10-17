@@ -1,11 +1,8 @@
 package activetime
 
 import (
-	"encoding/json"
 	"fmt"
-	"regexp"
 	"sort"
-	"strings"
 	"time"
 )
 
@@ -19,81 +16,6 @@ type QueueInterval struct {
 // QueueAttribution describes minutes intersecting admitted activity runs.
 type QueueAttribution struct {
 	RawMinutes, ExcludedMinutes float64
-}
-
-// QueueToolCall records dispatch only. Results cannot establish work during a
-// queue wait and are deliberately not decoded for this decision.
-type QueueToolCall struct {
-	At     time.Time
-	Source string
-	Poll   bool
-}
-
-var nativePollPattern = regexp.MustCompile(`(?s)^\s*(?:// @exec:[^\n]*\n)?\s*(?:text\(\s*|(?:const|let|var)\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*)await\s+tools\.write_stdin\(\s*\{\s*session_id\s*:\s*([0-9]+)`)
-var jsCharsPattern = regexp.MustCompile(`\bchars\s*:\s*("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')`)
-
-func isQueuePoll(name, input string) bool {
-	if name == "write_stdin" {
-		var args struct {
-			Chars *string `json:"chars"`
-		}
-		return json.Unmarshal([]byte(input), &args) == nil && (args.Chars == nil || *args.Chars == "")
-	}
-	if name == "functions.wait" || name == "wait" {
-		var args struct {
-			Terminate bool `json:"terminate"`
-		}
-		return json.Unmarshal([]byte(input), &args) == nil && !args.Terminate
-	}
-	if name != "exec" && name != "functions.exec" || !nativePollPattern.MatchString(input) || strings.Count(input, "tools.") != 1 {
-		return false
-	}
-	if chars := jsCharsPattern.FindStringSubmatch(input); len(chars) == 2 {
-		return chars[1] == `""` || chars[1] == `''`
-	}
-	return true // write_stdin defaults to an empty write
-}
-
-func queueToolCallsFromTranscript(data []byte, source string) []QueueToolCall {
-	var calls []QueueToolCall
-	for line := range strings.SplitSeq(string(data), "\n") {
-		var d rawLine
-		if json.Unmarshal([]byte(line), &d) != nil || d.Timestamp == "" {
-			continue
-		}
-		at, err := parseISO(d.Timestamp)
-		if err != nil {
-			continue
-		}
-		if d.Type == "response_item" {
-			var p codexPayload
-			if json.Unmarshal(d.Payload, &p) != nil || (p.Type != "function_call" && p.Type != "custom_tool_call") {
-				continue
-			}
-			input := p.Arguments
-			if input == "" {
-				if json.Unmarshal(p.Input, &input) != nil {
-					input = string(p.Input)
-				}
-			}
-			poll := isQueuePoll(p.Name, input)
-			calls = append(calls, QueueToolCall{At: at, Source: source, Poll: poll})
-			continue
-		}
-		if d.Type != "assistant" {
-			continue
-		}
-		blocks, ok := decodeBlocks(d.Message.Content)
-		if !ok {
-			continue
-		}
-		for _, b := range blocks {
-			if b.Type == "tool_use" {
-				calls = append(calls, QueueToolCall{At: at, Source: source, Poll: isQueuePoll(b.Name, string(b.Input))})
-			}
-		}
-	}
-	return calls
 }
 
 // bindQueueSources applies a recorded wait to admitted activity sources in its

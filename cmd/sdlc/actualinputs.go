@@ -325,13 +325,8 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 	if err != nil {
 		return err
 	}
-	for _, note := range attemptWarnings {
-		if strings.Contains(note, "limit reached") || strings.Contains(note, "budget reached") {
-			return fmt.Errorf("suite queue records are incomplete: %s", note)
-		}
-	}
-	if purpose == actualCorrectionCandidate && len(attemptWarnings) > 0 {
-		return fmt.Errorf("correction candidate cannot prove complete suite records: %s", attemptWarnings[0])
+	if len(attemptWarnings) > 0 {
+		return fmt.Errorf("queue evidence incomplete; actual is not calibration evidence: %s", attemptWarnings[0])
 	}
 	since, err := time.Parse(time.RFC3339Nano, out.Snapshot.Since)
 	if err != nil {
@@ -341,13 +336,8 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 	if err != nil {
 		return err
 	}
-	for _, note := range notes {
-		if strings.Contains(note, "legacy suite attempt") {
-			return fmt.Errorf("queue evidence incomplete; actual is not calibration evidence: %s", note)
-		}
-	}
-	if purpose == actualCorrectionCandidate && len(notes) > 0 {
-		return fmt.Errorf("correction candidate has unknown queue provenance: %s", notes[0])
+	if len(notes) > 0 {
+		return fmt.Errorf("queue evidence incomplete; actual is not calibration evidence: %s", notes[0])
 	}
 	if purpose == actualCorrectionCandidate && len(waits) == 0 {
 		return fmt.Errorf("correction candidate has no complete, owned suite queue records for the completion window")

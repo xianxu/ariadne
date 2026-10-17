@@ -43,4 +43,11 @@ func TestSelectOwnedQueueAttempts(t *testing.T) {
 	if err != nil || len(waits) != 0 || len(warnings) == 0 {
 		t.Fatalf("missing queue evidence: %+v %+v %v", waits, warnings, err)
 	}
+	// Without a duration, an acquisition after the measurement could still
+	// have queued across its end; its irrelevance is not established.
+	attempt.StartedAt = start.Add(4 * time.Minute)
+	_, warnings, err = selectOwnedQueueAttempts([]SuiteAttempt{attempt}, engagements, "github.com/xianxu/ariadne", start, start.Add(3*time.Minute))
+	if err != nil || len(warnings) == 0 {
+		t.Fatalf("unknown queue start after window was treated as irrelevant: %+v %v", warnings, err)
+	}
 }

@@ -2,7 +2,6 @@ package activetime
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -97,13 +96,13 @@ func TestQueueNativeTranscript(t *testing.T) {
 	}
 	base.QueueIntervals = []QueueInterval{{Start: qt(10), End: qt(50), Slot: "ariadne:1", AttemptID: "one"}}
 	base.SourceSlots = map[string]string{first: "ariadne:1", second: "ariadne:2"}
-	_, err = Compute(base)
-	if old.TotalActive != 120 || err == nil || !strings.Contains(err.Error(), "overlapping work, unmeasured") {
-		t.Fatalf("a stage call inside the wait must exclude the sample; old=%v err=%v", old.TotalActive, err)
+	got, err := Compute(base)
+	if err != nil || old.TotalActive != 120 || got.TotalActive != 80 || got.QueueAttribution.ExcludedMinutes != 40 {
+		t.Fatalf("stage work during the wait is conservatively undercounted; old=%v got=%+v err=%v", old.TotalActive, got, err)
 	}
 }
 
-func TestQueueNativeTranscriptRefusesYieldedWorkOverlap(t *testing.T) {
+func TestQueueNativeTranscriptUndercountsYieldedWorkOverlap(t *testing.T) {
 	repo := gitInit(t)
 	gitCommit(t, repo, "2026-01-01T01:00:00Z", "#8 queue work")
 	file := filepath.Join(t.TempDir(), "session.jsonl")
@@ -115,10 +114,10 @@ func TestQueueNativeTranscriptRefusesYieldedWorkOverlap(t *testing.T) {
 		`{"timestamp":"2026-01-01T00:28:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"stage","output":"unknown process"}}`,
 		`{"timestamp":"2026-01-01T01:00:00Z","type":"user","message":{"content":"#8 done"}}`,
 	})
-	_, err := Compute(Options{Files: []string{file}, GitRepo: repo, SinceISO: "2026-01-01T00:00:00Z", UntilISO: "2026-01-01T01:00:00Z", Issues: []string{"8"}, CommitWeight: 1, ThresholdMin: 120, IncludeAssistant: true,
+	got, err := Compute(Options{Files: []string{file}, GitRepo: repo, SinceISO: "2026-01-01T00:00:00Z", UntilISO: "2026-01-01T01:00:00Z", Issues: []string{"8"}, CommitWeight: 1, ThresholdMin: 120, IncludeAssistant: true,
 		QueueIntervals: []QueueInterval{{Start: qt(10), End: qt(50), Slot: "ariadne:1", AttemptID: "one"}}, SourceSlots: map[string]string{file: "ariadne:1"}})
-	if err == nil || !strings.Contains(err.Error(), "overlapping work, unmeasured") {
-		t.Fatalf("yielded work must make queue attribution incomplete: %v", err)
+	if err != nil || got.TotalActive != 20 || got.QueueAttribution.ExcludedMinutes != 40 {
+		t.Fatalf("yielded work cannot restore wait time: result=%+v err=%v", got, err)
 	}
 }
 
@@ -141,29 +140,7 @@ func TestQueueNativeTranscriptPollsDoNotRestoreWait(t *testing.T) {
 	}
 }
 
-func TestQueueToolCallsTreatInteractiveInputAsWork(t *testing.T) {
-	lines := []string{
-		`{"timestamp":"2026-01-01T00:10:00Z","type":"response_item","payload":{"type":"function_call","name":"write_stdin","call_id":"empty","arguments":"{\"session_id\":7,\"chars\":\"\"}"}}`,
-		`{"timestamp":"2026-01-01T00:11:00Z","type":"response_item","payload":{"type":"function_call","name":"write_stdin","call_id":"input","arguments":"{\"session_id\":7,\"chars\":\"yes\\n\"}"}}`,
-		`{"timestamp":"2026-01-01T00:12:00Z","type":"response_item","payload":{"type":"custom_tool_call","name":"exec","call_id":"wrapped","input":"text(await tools.write_stdin({session_id:7,chars:\"yes\"}))"}}`,
-	}
-	calls := queueToolCallsFromTranscript([]byte(strings.Join(lines, "\n")), "a")
-	if len(calls) != 3 || !calls[0].Poll || calls[1].Poll || calls[2].Poll {
-		t.Fatalf("only empty-input polls may be ignored: %+v", calls)
-	}
-}
-
-func TestQueueToolCallsMixedWrapperIsNotAPoll(t *testing.T) {
-	lines := []string{
-		`{"timestamp":"2026-01-01T00:10:00Z","type":"response_item","payload":{"type":"custom_tool_call","name":"exec","call_id":"mixed","input":"const r=await tools.write_stdin({session_id:7,chars:\"\"}); await tools.exec_command({cmd:\"sdlc stage --build\"}); text(r)"}}`,
-	}
-	calls := queueToolCallsFromTranscript([]byte(strings.Join(lines, "\n")), "a")
-	if len(calls) != 1 || calls[0].Poll {
-		t.Fatalf("wrapper containing another tool dispatch must exclude the sample: %+v", calls)
-	}
-}
-
-func TestQueueClaudeCallRefusesWithoutInspectingResult(t *testing.T) {
+func TestQueueClaudeCallDoesNotRestoreWait(t *testing.T) {
 	repo := gitInit(t)
 	gitCommit(t, repo, "2026-01-01T01:00:00Z", "#8 queue work")
 	file := filepath.Join(t.TempDir(), "claude.jsonl")
@@ -173,10 +150,10 @@ func TestQueueClaudeCallRefusesWithoutInspectingResult(t *testing.T) {
 		`{"timestamp":"2026-01-01T00:26:00Z","type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"edit","is_error":true,"content":"done"}]}}`,
 		`{"timestamp":"2026-01-01T01:00:00Z","type":"user","message":{"content":"#8 done"}}`,
 	})
-	_, err := Compute(Options{Files: []string{file}, GitRepo: repo, SinceISO: "2026-01-01T00:00:00Z", UntilISO: "2026-01-01T01:00:00Z", Issues: []string{"8"}, CommitWeight: 1, ThresholdMin: 120, IncludeAssistant: true,
+	got, err := Compute(Options{Files: []string{file}, GitRepo: repo, SinceISO: "2026-01-01T00:00:00Z", UntilISO: "2026-01-01T01:00:00Z", Issues: []string{"8"}, CommitWeight: 1, ThresholdMin: 120, IncludeAssistant: true,
 		QueueIntervals: []QueueInterval{{Start: qt(10), End: qt(50), Slot: "ariadne:1", AttemptID: "one"}}, SourceSlots: map[string]string{file: "ariadne:1"}})
-	if err == nil || !strings.Contains(err.Error(), "overlapping work, unmeasured") {
-		t.Fatalf("Claude call inside wait must exclude the sample regardless of result: %v", err)
+	if err != nil || got.TotalActive != 20 || got.QueueAttribution.ExcludedMinutes != 40 {
+		t.Fatalf("Claude call and result cannot restore wait time: result=%+v err=%v", got, err)
 	}
 }
 

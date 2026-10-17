@@ -3,8 +3,6 @@ package activetime
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"slices"
 	"time"
 
@@ -168,23 +166,9 @@ func Compute(opts Options) (Result, error) {
 		return Result{}, err
 	}
 	if len(opts.QueueIntervals) > 0 {
-		calls, err := loadQueueToolCalls(opts)
-		if err != nil {
-			return Result{}, err
-		}
 		bound := make([]QueueInterval, 0, len(opts.QueueIntervals))
 		bindingSources := map[string]bool{}
 		for _, wait := range opts.QueueIntervals {
-			for _, call := range calls {
-				if opts.SourceSlots[call.Source] == wait.Slot && !call.Poll && !call.At.Before(wait.Start) && call.At.Before(wait.End) {
-					return Result{}, fmt.Errorf("queue attempt %s: overlapping work, unmeasured in source %s", wait.AttemptID, call.Source)
-				}
-			}
-			for _, sp := range spans {
-				if opts.SourceSlots[sp.Source] == wait.Slot && sp.Start.Before(wait.End) && sp.End.After(wait.Start) {
-					return Result{}, fmt.Errorf("queue attempt %s: overlapping work, unmeasured in source %s", wait.AttemptID, sp.Source)
-				}
-			}
 			forSources, err := bindQueueSources(wait, runs, opts.SourceSlots)
 			if err != nil {
 				return Result{}, err
@@ -223,47 +207,6 @@ func Compute(opts Options) (Result, error) {
 		return Result{}, err
 	}
 	return res, nil
-}
-
-func loadQueueToolCalls(opts Options) ([]QueueToolCall, error) {
-	paths := map[string]bool{}
-	for _, path := range opts.Files {
-		paths[path] = true
-	}
-	for _, dir := range opts.Dirs {
-		matches, err := filepath.Glob(filepath.Join(expandUser(dir), "*.jsonl"))
-		if err != nil {
-			return nil, err
-		}
-		for _, path := range matches {
-			paths[path] = true
-		}
-	}
-	var ordered []string
-	for path := range paths {
-		ordered = append(ordered, path)
-	}
-	slices.Sort(ordered)
-	var out []QueueToolCall
-	for _, path := range ordered {
-		var pins []SourcePrefix
-		if opts.SourcePrefixes != nil {
-			pin, ok := opts.SourcePrefixes[path]
-			if !ok {
-				return nil, fmt.Errorf("source %s lacks pinned queue evidence", path)
-			}
-			pins = append(pins, pin)
-		}
-		data, err := readSessionPrefixContext(opts.Context, expandUser(path), pins)
-		if err != nil {
-			if opts.SourcePrefixes != nil || !os.IsNotExist(err) {
-				return nil, err
-			}
-			continue
-		}
-		out = append(out, queueToolCallsFromTranscript(data, path)...)
-	}
-	return out, nil
 }
 
 // foreignRefWarnings reports cross-repo refs the window contained and this engine deliberately

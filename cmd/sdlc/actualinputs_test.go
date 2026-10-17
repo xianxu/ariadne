@@ -129,6 +129,55 @@ func TestOwnedActualResolverUsesClaimantRatherThanCaller(t *testing.T) {
 	}
 }
 
+func TestOwnedActualQueueCoverageRefusesUnknownRecordsForCloseAndCorrection(t *testing.T) {
+	for _, kind := range []string{"malformed", "unreadable", "missing queue", "missing slot"} {
+		t.Run(kind, func(t *testing.T) {
+			r, saved, _ := ownedCompletedFixture(t, false)
+			common := strings.TrimSpace(testfix.Capture(t, r.root, "rev-parse", "--git-common-dir"))
+			if !filepath.IsAbs(common) {
+				common = filepath.Join(r.root, common)
+			}
+			dir := filepath.Join(common, "sdlc", "test-stats", "attempts")
+			if err := os.MkdirAll(dir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(dir, "aabb.json")
+			switch kind {
+			case "malformed":
+				if err := os.WriteFile(path, []byte(`{"broken":`), 0600); err != nil {
+					t.Fatal(err)
+				}
+			case "unreadable":
+				if err := os.Symlink(filepath.Join(dir, "missing-target"), path); err != nil {
+					t.Fatal(err)
+				}
+			default:
+				started := time.Date(2026, 10, 14, 0, 5, 0, 0, time.UTC)
+				q := 0.0
+				a := SuiteAttempt{Version: 1, ID: "aabb", Repo: strings.TrimPrefix(saved.Repository, "github.com/"), SHA: saved.CodeHead, Check: "suite", Slot: "ariadne:1", StartedAt: started, FinishedAt: started.Add(time.Minute), QueueSeconds: &q, LogSHA256: strings.Repeat("b", 64)}
+				if kind == "missing queue" {
+					a.QueueSeconds = nil
+				} else {
+					a.Slot = ""
+				}
+				raw, err := json.Marshal(a)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, raw, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			for _, purpose := range []actualInputPurpose{actualCloseCandidate, actualCorrectionCandidate} {
+				_, err := resolveOwnedActualInputsFor(context.Background(), r.root, "", "335", "", purpose)
+				if err == nil || !strings.Contains(err.Error(), "queue evidence incomplete") {
+					t.Fatalf("%s purpose %d adopted unknown queue coverage: %v", kind, purpose, err)
+				}
+			}
+		})
+	}
+}
+
 func TestOwnedActualResolverReleaseReclaimSplitsEngagements(t *testing.T) {
 	r, cardPath, _, owner, _ := ownedResolverFixture(t)
 	ownedFixtureAt(t, 4)

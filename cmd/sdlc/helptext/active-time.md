@@ -80,11 +80,11 @@ ISSUE MEASUREMENT (#335)
   Owned `sdlc actual` and close measurements also use recorded machine-suite
   queue attempts (#420). A wait must belong to the pinned issue engagement
   and have exact queue start/acquisition timestamps. Its interval is removed
-  from activity sources mapped to that slot in full. A non-poll tool call
-  dispatched inside the wait, or an admitted task span crossing it, marks the
-  sample `overlapping work, unmeasured`; no tool result restores queue time.
-  Polls and the enclosing suite invocation dispatched before queue start do
-  not trigger refusal. Legacy attempts without exact endpoints also make the
+  from activity sources mapped to that slot in full. Tool calls, results and
+  task spans inside the wait are not classified or used to restore time;
+  overlapping real work can therefore slightly undercount. A malformed or
+  unreadable attempt record, a relevant attempt missing queue or slot fields,
+  or a legacy attempt without exact endpoints makes coverage unknown and the
   numeric actual unavailable for calibration. The selected attempt facts and source slots are saved with the
   measurement for replay. Completed issues keep
   their old snapshot until an explicit `sdlc issue correct-actual` candidate;
