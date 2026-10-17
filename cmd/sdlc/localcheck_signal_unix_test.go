@@ -313,7 +313,13 @@ func TestLocalCheckSignalPreservesOutsideOwnedPhase(t *testing.T) {
 					d, _, _, _ := localRunRepo(t, "skipped")
 					wireLocalCheckSignalCLI(t, d.Root)
 					ready := filepath.Join(t.TempDir(), "fetch.pid")
-					cmd := exec.Command(os.Args[0], "-test.run=^TestLocalCheckSignalProcess$")
+					// An asynchronous suite can inherit SIGINT=SIG_IGN. The
+					// production CLI correctly preserves that precondition;
+					// this case tests default termination, so establish SIG_DFL
+					// before exec without changing the production handler.
+					cmd := exec.Command("python3", "-c",
+						"import os, signal, sys; signal.signal(signal.SIGINT, signal.SIG_DFL); os.execv(sys.argv[1], sys.argv[1:])",
+						os.Args[0], "-test.run=^TestLocalCheckSignalProcess$")
 					processgroup.Configure(cmd)
 					cmd.Dir = d.Root
 					cmd.WaitDelay = time.Second
