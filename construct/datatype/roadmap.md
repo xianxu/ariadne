@@ -17,6 +17,7 @@ A roadmap is per-product and lives in that product's center-of-gravity repo, und
 | Field | Required | Notes |
 |---|---|---|
 | `type` | yes | `roadmap` |
+| `collaboration-mode` | yes | `collaboration`: the default xx-universal-review collaboration mode for this type's documents (ariadne#415). |
 | `product` | yes | The product slug. Must reference an existing `data/product/<product>.md` in the same center-of-gravity repo. |
 | `month` | yes | `YYYYMM`. Target end-of-period. |
 | `target_event` | optional | Free-form short tag if this month is gated to a specific external event (e.g., `external launch`, `investor meeting`). |

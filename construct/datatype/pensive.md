@@ -13,6 +13,7 @@ A timestamped record of thinking-out-loud — an insight, a half-formed idea, a 
 | Field | Required | Notes |
 |---|---|---|
 | `type` | yes | `pensive` |
+| `collaboration-mode` | yes | `discussion`: the default xx-universal-review collaboration mode for this type's documents (ariadne#415). |
 | `date` | yes | ISO date (`YYYY-MM-DD`) the thought was captured. |
 | `topic` | yes | Short phrase. Used in the title and as part of the filename slug. |
 | `mode` | yes | One of: `ideas`, `eureka`, `thoughts`. `ideas` = exploratory; `eureka` = sudden insight; `thoughts` = reflective musing. |

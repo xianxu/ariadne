@@ -15,6 +15,7 @@ import (
 //
 //	datatype list                 — print each DAG-resolved type's name + description
 //	datatype show <name>          — print the leaf-winning prototype body
+//	datatype lint                 — fail on a type with no default collaboration mode (#415)
 //	datatype --output <dir> [...] — render the per-repo SKILL.md (the render command)
 //
 // The render command (no subcommand, --output given) finds the repo root from
@@ -37,6 +38,12 @@ func main() {
 				os.Exit(1)
 			}
 			return
+		case "lint":
+			if err := runLint(os.Stdout); err != nil {
+				fmt.Fprintln(os.Stderr, "datatype:", err)
+				os.Exit(1)
+			}
+			return
 		case "show":
 			if len(args) < 2 {
 				fmt.Fprintln(os.Stderr, "datatype: show <name> requires a type name")
@@ -51,7 +58,7 @@ func main() {
 			}
 			return
 		default:
-			fmt.Fprintf(os.Stderr, "datatype: unknown subcommand %q (want list, show, or --output)\n", args[0])
+			fmt.Fprintf(os.Stderr, "datatype: unknown subcommand %q (want list, show, lint, or --output)\n", args[0])
 			os.Exit(2)
 		}
 	}

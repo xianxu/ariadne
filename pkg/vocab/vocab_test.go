@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -263,5 +264,15 @@ func TestOwnershipAxis(t *testing.T) {
 	}
 	if m.TransitionForEvent("open", "start") == nil || m.TransitionForEvent("working", "start") != nil {
 		t.Fatal("start must leave open only")
+	}
+}
+
+// #415: the Go-written document types declare a valid default collaboration
+// mode in their model's scaffold.
+func TestScaffoldsDeclareACollaborationMode(t *testing.T) {
+	for name, mode := range map[string]string{"issue": Issue().CollaborationMode(), "project": Project().CollaborationMode()} {
+		if !slices.Contains(CollaborationModes, mode) {
+			t.Errorf("%s scaffold.collaboration_mode is %q, want one of %v", name, mode, CollaborationModes)
+		}
 	}
 }

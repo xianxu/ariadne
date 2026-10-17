@@ -69,17 +69,18 @@ Out of scope:
 - Parley chats: parley's writer, so it goes to the TL as a one-line cross-repo proposal.
 - Past documents: no migration (operator decision).
 
-- [ ] 1. `vocab.CollaborationModes` and `Issue()/Project().CollaborationMode()`, read from `scaffold.collaboration_mode` in issue.cue and project.cue, `make vocab-embed`; a vocab test that each is one of the three.
-- [ ] 2. `issue.Render` and `DetailsFromCard` write `collaboration-mode: <default>` (details only; it never reaches the card, which `SplitCard` already filters). Update the two byte goldens. `project.RenderScaffold` writes it. Tests: a new issue and a new project carry the model's default.
-- [ ] 3. pensive.cue (closed) gains the optional `"collaboration-mode"?` with the three values, so the pensive corpus test keeps passing. #Project stays open.
-- [ ] 4. A `collaboration-mode` row in each datatype prototype's Frontmatter shape table. type.md also says every prototype's table carries one.
-- [ ] 5. The writing-plans skill header gains `---\ncollaboration-mode: discussion\n---`. Check that sdlc's plan readers (plan-quality judge, design-limit line count, resolve) tolerate a frontmatter block.
-- [ ] 6. The lint, a test in cmd/datatype:
+- [x] 1. `vocab.CollaborationModes` and `Issue()/Project().CollaborationMode()`, read from `scaffold.collaboration_mode` in issue.cue and project.cue, `make vocab-embed`; a vocab test that each is one of the three.
+- [x] 2. `issue.Render` and `DetailsFromCard` write `collaboration-mode: <default>` (details only; it never reaches the card, which `SplitCard` already filters). Update the two byte goldens. `project.RenderScaffold` writes it. Tests: a new issue and a new project carry the model's default.
+- [x] 3. pensive.cue (closed) gains the optional `"collaboration-mode"?` with the three values, so the pensive corpus test keeps passing. #Project stays open.
+- [x] 4. A `collaboration-mode` row in each datatype prototype's Frontmatter shape table. type.md also says every prototype's table carries one.
+- [x] 5. The writing-plans skill header gains `---\ncollaboration-mode: discussion\n---`. Check that sdlc's plan readers (plan-quality judge, design-limit line count, resolve) tolerate a frontmatter block.
+- [x] 6. The lint, a test in cmd/datatype:
   - every merged prototype over this repo (`mergeTypes`, so a new prototype is caught automatically) has a `collaboration-mode` row whose first backticked value is one of the three;
   - the writing-plans header declares one;
   - project.md's row equals project.cue's default.
-- [ ] 7. The atlas: universal-review.md (per-type defaults) and the datatype page. The full suite, then close.
+- [x] 7. The atlas: universal-review.md (per-type defaults) and the datatype page. The full suite, then close.
 
 ## Log
 
 ### 2026-10-16
+- Built tasks 1 to 7. The lint became a real `datatype lint` subcommand, not only a test, so a derived repository's own prototypes can be checked too (ARCH-PURPOSE); the test runs the same function over this repository. A stray `datatype` binary from go build at the repo root briefly shadowed the leaf datatype/ dir; removed. Targeted: ./cmd/datatype ./pkg/vocab ./cmd/vocabulary ./cmd/sdlc/internal/... green; vet_test.sh run.
