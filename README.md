@@ -443,8 +443,10 @@ for evidence checks, legacy dependency behavior and the intentionally old baseli
 
 Merges in one repository land one at a time (#393). `sdlc merge` takes a turn in
 the repository's landing line and prints its position while it waits, so each
-landing integrates main once and runs one suite instead of rerunning whenever
-another slot lands. `sdlc landing status` shows the landing now, the merges
+admitted landing integrates current main and verifies the resulting code before
+another slot can land. A separate pre-close suite verifies the issue branch; it
+does not reserve a landing turn. The hub does not hold main by hand or direct
+workers to chase newer main before close. `sdlc landing status` shows the landing now, the merges
 waiting in order, and the ready-to-landed delay. For a fix that blocks the
 fleet, the operator or the TL (from a :0 slot) runs
 `sdlc landing grant --repo DIR --issue N --reason WHY [--hours H]` (at most 24
@@ -463,13 +465,18 @@ a CI job that never got a runner (never one that ran and failed), requires it
 for checks declared `required`, and runs a missing one itself. See
 [recorded local checks](atlas/workflow/ci-merge-check.md#recorded-local-checks-345).
 
-Run `sdlc local-check run --name suite` on the pushed head before close. Merge
-requires this suite's recorded pass: a declaration named `suite` overrides its
+Run `sdlc local-check run --name suite` on the pushed issue head before close.
+After it passes, close that tested branch without manually integrating each
+newer main and repeating pre-close suites. Branch code fixes still require fresh
+verification, and close's noon freshness gate still applies. On SHIP, enter
+`sdlc merge --yes`: its landing turn integrates current main and runs the
+authoritative suite when the integrated code needs it. Merge requires this suite's recorded pass: a declaration named `suite` overrides its
 command, timeout and `weight`, but cannot make it optional. Without a declared
 suite, main's `Makefile` supplies `make test` and `WF_TEST_WEIGHT` when it has a
 test target. The optional declaration `weight` (default 1) reserves that many
 machine-wide suite slots. A passing record on an ancestor remains valid through
-docs-only changes such as close's bookkeeping; code changes require another run.
+docs-only changes such as close's bookkeeping or main prose publication. Code,
+tests, configuration and embedded help invalidate reuse and require another run.
 When the integrated head's suite fails, merge runs an unrecorded copy on main
 and labels the named failures as introduced or pre-existing in its refusal.
 

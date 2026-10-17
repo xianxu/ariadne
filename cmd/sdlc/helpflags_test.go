@@ -83,3 +83,20 @@ func TestEveryFlagAppearsInItsHelp(t *testing.T) {
 	}
 	walk(buildRoot())
 }
+
+func TestLocalCheckHelpKeepsIntegrationInLandingTurn(t *testing.T) {
+	help := strings.Join(strings.Fields(renderLong("local-check")), " ")
+	for _, want := range []string{
+		"After the branch suite passes, close that tested branch without manually integrating each newer main",
+		"Branch code fixes still need verification",
+		"noon freshness gate still applies",
+		"it owns a landing turn while integrating current main",
+		"Explicit local-check runs do not reserve the landing line",
+		"docs-only main integration",
+		"Embedded help under cmd/, code, tests and configuration invalidate reuse",
+	} {
+		if !strings.Contains(help, want) {
+			t.Errorf("local-check help omits landing safeguard %q", want)
+		}
+	}
+}
