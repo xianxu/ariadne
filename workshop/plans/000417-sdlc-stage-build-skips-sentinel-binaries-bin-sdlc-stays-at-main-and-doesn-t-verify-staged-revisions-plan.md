@@ -41,7 +41,7 @@ The stage switch and record remain intact on build or verification failure. Clea
 - [x] Scan final `bin/*` once. For each Go binary, inspect build-info; refuse on missing/mismatched revision or modified stamp and include its path. Match build-info `Path` to each sentinel package and refuse if any sentinel has no verified output.
 - [x] Call the same build-and-verify path from clear after the target returns to its resting branch. Make a repeated clear perform the build check too, so interrupted or failed post-switch work converges.
 - [x] Update stage help to say that `--build` verifies and refuses, rather than merely reporting revision lines.
-- [ ] Re-run targeted tests; run `git diff --check` and `make -k` (full suite), then close through the SDLC gate.
+- [x] Re-run targeted tests; run `git diff --check` and `make -k` (full suite), then close through the SDLC gate.
 
 ## Live check and landing
 
