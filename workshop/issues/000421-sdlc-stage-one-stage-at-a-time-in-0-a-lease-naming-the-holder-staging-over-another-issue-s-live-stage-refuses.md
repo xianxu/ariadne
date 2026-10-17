@@ -96,3 +96,9 @@ as today.
   `TestStageLease*`, `TestCheckLease`, `TestStageLeaseParse`, and every existing Stage and Move test.
 - The refusals print the target's full address (`sample:0`, `ariadne:0`), not the `:0` the operator typed, so the
   recovery command can be copied from any slot.
+
+### 2026-10-17
+- Suite 1 on d260ae08 failed one test: `TestEveryCommitSiteStamps` read `leaseKeys`' "commit" field name as a commit
+  site. Exempted it as a field name (48a2bc9f).
+- Merged main with #417 (42c2184e). `stage.go` and `helptext/stage.md` conflicted; kept #417's rebuild on `--clear`,
+  and a resting target with a held lease now frees the lease, then rebuilds. Suite green on 42c2184e.
