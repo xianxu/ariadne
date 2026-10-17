@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: operator, spec: "1951640a", done: "575d4647"}
 ---
 
 # sdlc merge: a reused branch name matches the earlier milestone's MERGED PR too and refuses ('found 2')
