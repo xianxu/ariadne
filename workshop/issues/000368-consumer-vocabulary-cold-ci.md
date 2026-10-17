@@ -1,20 +1,14 @@
 ---
 id: 000368
-status: open
+status: wontfix
 deps: []
 github_issue:
 created: 2026-10-14
-updated: 2026-10-14
+updated: 2026-10-17
 estimate_hours:
-card_mirror: '72eec97b3650b7bac671c6dc600b501c442e6bac' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '4a485d5f5aeceaf8b4870373a660e19c0aa62fb6' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-14T09:58:17-07:00
-claimant:
-    operator: Xian Xu
-    machine: 4716879978a7b90f6b583da1716fd0e9
-    machine_name: Xian’s MacBook Pro
-    workspace: parley.nvim:2
-    worktree: /Users/xianxu/workspace/worktree/parley.nvim-slot2/ariadne
-    repository: github.com/xianxu/ariadne
+
 ---
 
 # Cold consumer CI cannot prove committed generated vocabulary ownership across substrate updates
@@ -42,3 +36,4 @@ Define a reproducible consumer generation contract that preserves authored-file 
 ## Log
 
 ### 2026-10-14
+- 2026-10-17: closed wontfix, superseded by ariadne#422 (TL decision, ops:0). #422 implements this spec: consumers declare the generated outputs they ship (`internal ship PATH` in their construct/base.manifest), weave writes a committed digest sidecar as provenance, and a cold checkout regenerates a declared output only when its bytes match the sidecar, so hand edits stay refused.
