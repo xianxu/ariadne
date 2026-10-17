@@ -1,6 +1,6 @@
 ---
 id: 000423
-status: working
+status: codecomplete
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours: 1.05
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: N/A
+tracker:
+    version: 1
+    completion:
+        token: close-040fc25919df
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 8838469f4f7e1a03761b118b16e19f7e3a5fa314
+        evidence_commit: 40e1f0d4949546cb265991c0c531d36da874ded4
 ---
 
 # sdlc issue show reports the first close review's verdict, not the latest (REWORK shown after a SHIP)
