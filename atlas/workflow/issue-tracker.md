@@ -160,7 +160,18 @@ ways) and `Assemble`. `cmd/sdlc/observe.go` collects the inputs.
   `workshop/plans` before landing, and from main's `history/plans` after.
   Review artifacts are archived with the issue, so squash merges and deleted
   branches don't strand them.
-  - A review's `verdict` comes from its prose sidecar's verdict row.
+  - A review's `verdict`, window and timestamp come from the close entry matching
+    the completion's reviewed head, or the latest entry without a completion
+    (#423). A missing completion match is `unknown`. `round` uses the gate
+    ledger's number matched by reviewed commit. Legacy order is used only for
+    a complete sequence compatible with every known head and at least one
+    anchoring head; ambiguous or missing identity reports `round_error` and
+    text says round unknown. Timestamps never identify rounds. Evidence refs
+    are pinned once per collection so sidecars and ledgers share a commit.
+    `history` keeps the
+    other entries labelled earlier or later/unbound. Text shows the same
+    selected verdict and labelled rounds. Metadata is read before each entry's
+    review prose, ignoring fenced examples.
   - `open_blocking` comes from the gate ledgers. The plan-quality ledger
     covers the plan boundary. The issue-wide boundary ledger is scoped as its
     gate scopes it (`FilterBoundary` / `openScopeFor`), and counted as

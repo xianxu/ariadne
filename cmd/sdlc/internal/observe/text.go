@@ -92,7 +92,21 @@ func RenderText(w io.Writer, o Observation) {
 		if r.Boundary == "plan" {
 			verdict = "plan-quality"
 		}
-		fmt.Fprintf(w, "    %-7s %s, %d open blocking%s\n", r.Boundary+":", verdict, r.OpenBlocking, quality(r.Read))
+		round := ""
+		if r.Round > 0 {
+			round = fmt.Sprintf(" (round %d)", r.Round)
+		} else if r.RoundError != "" {
+			round = " (round unknown: " + r.RoundError + ")"
+		}
+		fmt.Fprintf(w, "    %-7s %s%s, %d open blocking%s\n", r.Boundary+":", verdict, round, r.OpenBlocking, quality(r.Read))
+		for _, h := range r.History {
+			label := h.Relation
+			number := fmt.Sprint(h.Round)
+			if h.RoundError != "" {
+				number = "unknown: " + h.RoundError
+			}
+			fmt.Fprintf(w, "      %s round %s: %s%s\n", label, number, h.Verdict, quality(h.Read))
+		}
 	}
 	fmt.Fprintln(w, "  (worktree activity is not progress; a working card proves a claim, not execution)")
 }
