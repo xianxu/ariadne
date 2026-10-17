@@ -250,12 +250,13 @@ func runPropagateBase(ctx context.Context, ownerRoot, ref string, dryRun bool, o
 	return nil
 }
 
-// run executes a command in dir, streaming output to w; returns its error.
+// run executes the installed weave in dir, streaming output to w.
 func run(w io.Writer, dir, name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
 	cmd.Stdout = w
 	cmd.Stderr = w
+	cmd.Env = weaveDependencyCheckEnv(cmd)
 	return cmd.Run()
 }
 

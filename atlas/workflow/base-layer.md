@@ -16,7 +16,8 @@ weave compile
 ```
 
 The link records a source-aware edge in `construct/deps`. Compile restores
-missing sources, provisions root Brewfiles, builds owner-local tools, mounts
+missing sources, prepares root Brewfiles (check-only in slots/SDLC; install for
+other hand calls), builds owner-local tools, mounts
 data, and generates the leaf's context. Existing matching checkouts are reused
 without pull/reset. There is no vendor mode or go.mod substrate declaration.
 See [Setup & Replication](setup-and-replication.md) for phase and ownership rules.

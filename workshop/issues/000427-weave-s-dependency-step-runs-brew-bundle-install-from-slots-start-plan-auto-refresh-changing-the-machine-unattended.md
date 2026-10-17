@@ -1,20 +1,40 @@
 ---
 id: 000427
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'caa058e3c0846aef1fa37992449cf74042b32f4b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'de4e5874136f0e4011e03a933db7c4771557a21a' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-17T08:56:11-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "3115a431", done: "832fc4bd"}
+actual_hours: N/A
 ---
 
 # weave's dependency step runs brew bundle install from slots (start-plan auto-refresh), changing the machine unattended
 
 ## Problem
 
+A start-plan auto-refresh in pair:6 invoked weave dependency provisioning, which ran brew bundle install and auto-updated Homebrew metadata. Automated slot work must not change machine packages or metadata without the operator.
+
 ## Spec
+
+Weave's shared dependency step checks packages instead of installing when its existing Git-proved setup policy identifies a numbered slot (including its private dependency checkouts), when COUCH_TREE identifies an active Couch context, or when an SDLC caller supplies the check-only subprocess context. Both compile/refresh and the dependencies subcommand derive this one policy. SDLC catch-up and propagate-base pass that context without mutating their parent environment.
+
+Checks use brew bundle check --no-upgrade --verbose --file=Brewfile, streaming the missing-package diagnostics. A failed check stops before tools/composition and names the layer plus one shell-quoted absolute Brewfile install command for the operator. A failed probe is reported as failed, never as proven missing or success. Layers without Brewfiles still do nothing; dry runs print the selected operation without running it. Outside those automated contexts, hand runs keep the existing install --no-upgrade behavior. Every weave-owned brew invocation overrides HOMEBREW_NO_AUTO_UPDATE=1, including hand installs. No installer fallback, unsandboxed retry or new approval prompt.
+
+Keep the fix in the existing startup/runner seam (ARCH-DRY/ARCH-PURE); use a stateful fake brew with an installed-package directory, call log and metadata-update sentinel (ARCH-MOCK). Existing discovery proves slot identity rather than adding a path heuristic. The policy creates no durable runtime records or workers (ARCH-FUNERAL); effects stay synchronous in existing bounded callers, with no new concurrency or workload (ARCH-CONSTRAINTS/ARCH-ORDER). Context only restricts effects, never grants installation (ARCH-SECURE); cover both SDLC subprocess paths, both weave entry points, and positive hand controls (ARCH-PURPOSE).
+
+Alternatives: globally checking would remove existing operator provisioning; guarding only start-plan would leave slot compile/dependencies and propagate-base installing. Shared check selection plus restricted subprocess context covers the actual callers with no generic machine-permission framework.
 
 2026-10-17: in pair:6, `sdlc start-plan`'s automatic refresh ran `weave compile`. Its dependency step ran `brew bundle install --no-upgrade --file=Brewfile` (see `cmd/weave/internal/startup/dependencies.go` and the README section on `weave dependencies`). Homebrew auto-updated its own and its taps' metadata before pair:6 interrupted the run, ahead of any package install.
 
@@ -27,14 +47,42 @@ Wanted:
 
 ## Done when
 
+- Slot compile/refresh and dependencies only check Brewfiles, list missing packages and name the operator's quoted install command; package/metadata state stays unchanged and failed checks prevent later tools/composition.
+- SDLC refresh and propagation enforce checks even outside Couch/numbered paths. Check-only context does not leak into the parent.
+- Every dependency brew invocation has HOMEBREW_NO_AUTO_UPDATE=1; hand calls outside restricted contexts still install missing packages and remain repeatable.
+- No-Brewfile and dry-run controls remain effect-free; focused tests and recorded full suite pass; help, README and atlas describe the policy.
+
 - A test runs the dependency step with `COUCH_TREE` set and a fake brew: it never sees `bundle install`, only a check, and a missing package fails with the package name and the operator command.
 - Brew invocations carry `HOMEBREW_NO_AUTO_UPDATE=1`; a test asserts the environment.
 - A hand run outside a slot still installs, as today.
 
 ## Plan
 
+- [x] Reproduce the unattended install with stateful fake-brew regression tests; include numbered setup, Couch and SDLC contexts, missing/satisfied/failure, dry-run/no-bundle and hand controls.
+- [x] Select check-only mode once for both dependency callers; restrict both SDLC weave subprocess paths; force no-auto-update on every dependency brew call and print safe operator recovery.
+- [x] Update command help, README and relevant atlas provisioning passages; run focused weave/SDLC caller tests.
+- [x] Run the required recorded branch suite and the TL-granted native check.
+
+After verification, close the tested branch, then let merge integrate main under its turn and test integrated code as required; report landing to the hub.
+
 - [ ]
 
 ## Log
 
 ### 2026-10-17
+- 2026-10-17: closed — Recorded suite 0eb556ddcf632542756a1eeee7c0681c passed on 3a0fb958: 12 shards, 1564 SDLC tests, 67 packages, 472.573s. All weave packages and focused SDLC context tests pass after RED. TL-granted native dry-run/fake-brew check proved missing/satisfied checks, zero installs/metadata changes; all seven tools restored cleanly and :0 free. README/help/atlas updated. Actual preview refused this legacy attempt for missing exact queue endpoints; N/A preserves invalid calibration evidence without guessed hours or endpoints.; review verdict: SHIP
+
+- Claimed and started from freshly fetched main 0408d048433e0073f5914787eb3f093480cfbf64. start-plan did not need auto-refresh, so no real brew was invoked. Issue initially had empty sections; the dispatch supplies the contract above.
+- Root cause: startup.Dependencies unconditionally invokes install; compilePreparedSettings and buildDependencies share it. runInstalledWeaveArgs supplies no restricting environment; propagate-base has a second weave subprocess runner. prepareSetup already discovers the numbered environment and carries acquire.Policy, including private dependency and feature worktrees; reuse it.
+- Homebrew's official bundle documentation confirms check --verbose reports unmet dependencies and --no-upgrade preserves installed versions: https://docs.brew.sh/Brew-Bundle-and-Brewfile . Tests will use the existing runner seam and fake binaries only; no real package install/update is authorized.
+
+### 2026-10-17
+
+- RED verified before production edits: all automated compile/refresh/dependencies contexts installed packages instead of refusing, and hand controls changed the metadata sentinel. The SDLC stateful process test observed absent/0 context on refresh, settings, propagation compile and verify-complete instead of required 1.
+- GREEN: new dependency-policy tests pass for numbered/Couch/SDLC/hand contexts across all three weave commands; dry-run/no-Brewfile/probe-failure controls pass. Operator recovery is actually executed against fake brew from a different directory with an apostrophe in the Brewfile path, then a fresh check succeeds without a second install or metadata update. All cmd/weave/... packages pass (main 56.347s, refresh 86.060s); focused SDLC installed-weave/catch-up/propagation checks pass (11.233s). Caller environment stays unchanged. Command help, README and provisioning atlas passages now describe the restriction.
+
+- TL-granted native check at staged 3a0fb958905a0b6199cf4af3d5afff7cbc7d0b0f: the actual slot's dependencies --dry-run selected verbose check with no-auto-update; the native binary against isolated fake brew refused missing go/cue with an operator command and passed with preinstalled packages. Exactly two checks, zero installs, unchanged package bytes/metadata. No real brew invoked. Cleared :0 and rebuilt/verified all seven tools at Git-verified clean main b7f6441803150d613d68a829190dab9a71a369eb, vcs.modified=false; hub notified free. Required recorded suite 0eb556ddcf632542756a1eeee7c0681c queued on the implementation head.
+
+- Recorded branch suite 0eb556ddcf632542756a1eeee7c0681c passed on 3a0fb958905a0b6199cf4af3d5afff7cbc7d0b0f: 12 shards, 1,564 cmd/sdlc tests and 67 other packages; 472.573 seconds execution after 599.061 seconds queued, log SHA256 a2ddacf7232523ec449aca73ca0ccc9797241a093e32a5fc45d305ad0b4398c7. Only issue evidence changed after the tested code head.
+
+- Actual preview refused calibration: legacy suite attempt 0eb556ddcf632542756a1eeee7c0681c lacks exact queue endpoints; queue idle is unknown and this sample is not calibration evidence. This run began with the older record writer before the #420 rollout. Close uses --no-actual to retain N/A rather than invent queue endpoints or hours. The tool names the TL/hub as owner of restoring measurement evidence; the final landing report will include that exact attempt and refusal.

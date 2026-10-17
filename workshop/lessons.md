@@ -967,3 +967,5 @@ The simplest durable authority beats a clever scan of consequences.
 - Measure which workflow phase paid for a rerun before adding ownership. A pre-close branch suite does not own the landing line: close its tested branch, then let merge integrate current main under its existing turn. Repeatedly chasing newer main before close can spend suites that the owned final integration would coalesce; ordinary docs-only publication already inherits eligible suite records (#425).
 
 - When changed embedded help is the shipped behavior, characterize its execution mechanism and protect the rendered instructions with focused contract checks. Synchronize README usage alongside help and atlas in the same review window.
+
+- Keep Agent and Co-Authored-By trailers together in the final Git message paragraph. A blank line between them makes the earlier Agent line ordinary body text, so trailer readers report it missing even when a grep finds the literal line.
