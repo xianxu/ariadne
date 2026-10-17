@@ -28,8 +28,8 @@ func TestSelectOwnedQueueAttempts(t *testing.T) {
 	}
 	foreign := attempt
 	foreign.Slot = "ariadne:2"
-	if _, _, err := selectOwnedQueueAttempts([]SuiteAttempt{foreign}, engagements, "github.com/xianxu/ariadne", start, start.Add(3*time.Minute)); err == nil {
-		t.Fatal("foreign slot admitted")
+	if foreignWaits, _, err := selectOwnedQueueAttempts([]SuiteAttempt{foreign}, engagements, "github.com/xianxu/ariadne", start, start.Add(3*time.Minute)); err != nil || len(foreignWaits) != 0 {
+		t.Fatalf("foreign slot was not excluded: %+v %v", foreignWaits, err)
 	}
 	released := []tracker.EngagementWindow{{Start: start, End: start.Add(30 * time.Second), Owners: []issue.Claimant{owner}}, {Start: start.Add(40 * time.Second), End: start.Add(3 * time.Minute), Owners: []issue.Claimant{owner}}}
 	if _, _, err := selectOwnedQueueAttempts([]SuiteAttempt{attempt}, released, "github.com/xianxu/ariadne", start, start.Add(3*time.Minute)); err == nil {

@@ -30,24 +30,30 @@ func selectOwnedQueueAttempts(attempts []SuiteAttempt, engagements []tracker.Eng
 		}
 		seen[a.ID] = true
 		if a.QueueSeconds == nil || a.Slot == "" {
-			warnings = append(warnings, fmt.Sprintf("suite attempt %s has unknown queue or slot provenance", a.ID))
+			if !a.StartedAt.Before(since) && a.StartedAt.Before(until) {
+				warnings = append(warnings, fmt.Sprintf("suite attempt %s has unknown queue or slot provenance", a.ID))
+			}
 			continue
 		}
 		start, end, exact := suiteAttemptQueueWindow(a)
 		if end.Before(since) || !start.Before(until) || !end.After(start) {
 			continue
 		}
-		owners := 0
+		owners, overlaps := 0, 0
 		for _, e := range engagements {
-			if start.Before(e.Start) || end.After(e.End) {
-				continue
-			}
 			for _, owner := range e.Owners {
-				if owner.Workspace == a.Slot {
+				if owner.Workspace != a.Slot || !start.Before(e.End) || !end.After(e.Start) {
+					continue
+				}
+				overlaps++
+				if !start.Before(e.Start) && !end.After(e.End) {
 					owners++
 				}
 			}
 		}
+		if overlaps == 0 {
+			continue
+		} // other slots and unowned gaps are not this issue's waits
 		if owners != 1 {
 			return nil, nil, fmt.Errorf("suite attempt %s has %d matching pinned slot engagements", a.ID, owners)
 		}

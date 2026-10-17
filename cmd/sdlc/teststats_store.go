@@ -16,6 +16,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 const (
@@ -135,6 +137,12 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 	}
 	if !localCheckName.MatchString(a.Check) {
 		return a, errors.New("invalid check name")
+	}
+	if a.Slot != "" {
+		address, err := workspace.ParseAddress(a.Slot)
+		if err != nil || address.Repo == "" || address.String() != a.Slot {
+			return a, errors.New("invalid attempt slot")
+		}
 	}
 	if !suiteHex.MatchString(a.LogSHA256) || len(a.LogSHA256) != 64 {
 		return a, errors.New("invalid log hash")

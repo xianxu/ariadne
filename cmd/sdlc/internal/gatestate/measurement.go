@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 const (
@@ -89,7 +91,8 @@ type MeasurementQueueWait struct {
 }
 
 func (q MeasurementQueueWait) Validate() error {
-	if len(q.AttemptID) < 2 || len(q.AttemptID) > 64 || len(q.AttemptID)%2 != 0 || !measurementHex(q.AttemptID, len(q.AttemptID)) || !measurementHex(q.RecordDigest, 64) || strings.TrimSpace(q.Slot) == "" {
+	address, addressErr := workspace.ParseAddress(q.Slot)
+	if len(q.AttemptID) < 2 || len(q.AttemptID) > 64 || len(q.AttemptID)%2 != 0 || !measurementHex(q.AttemptID, len(q.AttemptID)) || !measurementHex(q.RecordDigest, 64) || addressErr != nil || address.Repo == "" || address.String() != q.Slot {
 		return fmt.Errorf("measurement queue identity, slot or digest is invalid")
 	}
 	start, err := measurementTime("queue start", q.Start)

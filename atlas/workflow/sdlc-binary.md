@@ -1452,6 +1452,19 @@ wins even when the first `#N` commit (the filing) is earlier (#270, folding
 would otherwise claim every other piece of work the slot did between filing and
 claim.
 
+Recorded suite queue waits (#420) are a separate input to owned actuals. The
+local-check recorder stores exact queue start and acquisition instants beside
+`queue_seconds`; legacy records use a documented late-shifted window ending at
+`started_at`. The actual resolver selects validated records for the pinned
+repository, owner slot and engagement, then retains the selected intervals,
+record digests and source slots in the bounded measurement snapshot. The native
+engine binds each wait to one enclosing suite invocation in that source and
+subtracts only queued idle from its activity runs; structurally paired stage,
+edit and subagent work inside the wait remains. Unknown or ambiguous binding
+refuses a correction. Old completed snapshots replay unchanged; explicit
+`correct-actual` builds a new candidate against the completion generation and
+can exclude an unverifiable calibration sample without inventing hours.
+
 `sdlc active-time` (#110) is the standalone CLI over the same engine — the
 manual-inspection sibling that prints the full attribution table and warnings. It preserves
 the #68 loud-fail exit-code contract: **2** = misinvoke (no `--dir`/`--issue`/

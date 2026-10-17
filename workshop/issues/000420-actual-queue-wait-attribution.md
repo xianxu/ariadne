@@ -43,10 +43,10 @@ Investigate how native task spans and frequent assistant/tool polling turn queue
 
 ## Plan
 
-- [ ] Pin each eligible suite queue record to this issue's repository, owning slot, engagement and measurement window; retain the exact evidence used by a close or correction.
-- [ ] In the native active-time engine, remove queued idle intervals from the owning session's activity while retaining timestamped work inside them; preserve phase splits and uncounted review tails.
+- [x] Pin each eligible suite queue record to this issue's repository, owning slot, engagement and measurement window; retain the exact evidence used by a close or correction.
+- [x] In the native active-time engine, remove queued idle intervals from the owning session's activity while retaining timestamped work inside them; preserve phase splits and uncounted review tails.
 - [ ] Cover a polled queue, overlapping live work, duplicate/foreign/missing records and replay with deterministic native-transcript tests; run targeted tests and the recorded suite before close.
-- [ ] Re-measure #416 from the corrected implementation and give the TL/operator the measured result and evidence for generation-bound correct-actual or explicit exclusion.
+- [x] Re-measure #416 from the corrected implementation and give the TL/operator the measured result and evidence for generation-bound correct-actual or explicit exclusion.
 
 ## Estimate
 
@@ -78,6 +78,8 @@ Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `
 - 2026-10-17: Plan-quality round 2 cleared three findings. For the remaining test-strategy finding, the durable plan now names a unit target, adversarial input and mechanical guard for every risky function, with the native transcript and correction replay reserved for end-to-end acceptance.
 - 2026-10-17: Full-flow `change-code` passed plan-quality and estimate-quality (info only). Endpoint TDD exposed that `time.Sub` on live values can use monotonic readings that differ from serialized UTC endpoints; the recorder now derives `queue_seconds` from those persisted endpoints. New v1 records contain exact queue start/acquisition times; legacy records retain the documented late-shift window.
 - 2026-10-17: Queue-aware measurement now pins validated attempts to an owning slot and engagement, retains selected waits with the snapshot, and subtracts only queued idle from the bound native source. Paired stage/edit/task work survives; polls and the enclosing suite wait do not. Native, source-binding, snapshot and replay regressions pass. A completed issue's ordinary historical read still uses its old snapshot; a correction candidate requires fresh complete owned queue evidence. The parser also follows numeric JSON session IDs from yielded tool results.
+- 2026-10-17: #416's read-only correction preview found no uniquely bound owning suite invocation for recorded attempt d5ecb880. The TL confirmed its adopted 1.12h was a hand subtraction of the whole queue wait, not a verified interval result, and approved exclusion. `sdlc issue correct-actual --exclude` completed operation `actual-correction-c6c9f528ea66`, changing the effective sample from 1.12h to N/A with the original and reason retained in correction history. No numeric replacement was typed.
+- 2026-10-17: Queue replay now tests a wait crossing build, converge and tail cuts: the corrected 25-minute attribution partitions 10/5/10 minutes. Targeted sdlc and internal-engine tests, `make -k build`, and `git diff --check` pass; the recorded full suite remains before close.
 
 ## Revisions
 

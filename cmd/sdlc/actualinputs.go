@@ -330,6 +330,9 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 			return fmt.Errorf("suite queue records are incomplete: %s", note)
 		}
 	}
+	if purpose == actualCorrectionCandidate && len(attemptWarnings) > 0 {
+		return fmt.Errorf("correction candidate cannot prove complete suite records: %s", attemptWarnings[0])
+	}
 	since, err := time.Parse(time.RFC3339Nano, out.Snapshot.Since)
 	if err != nil {
 		return err
@@ -337,6 +340,9 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 	waits, notes, err := selectOwnedQueueAttempts(attempts, engagements, repository, since, until)
 	if err != nil {
 		return err
+	}
+	if purpose == actualCorrectionCandidate && len(notes) > 0 {
+		return fmt.Errorf("correction candidate has unknown queue provenance: %s", notes[0])
 	}
 	if purpose == actualCorrectionCandidate && len(waits) == 0 {
 		return fmt.Errorf("correction candidate has no complete, owned suite queue records for the completion window")
