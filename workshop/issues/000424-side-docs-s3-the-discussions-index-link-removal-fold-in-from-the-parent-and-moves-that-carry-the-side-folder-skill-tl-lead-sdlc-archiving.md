@@ -88,3 +88,4 @@ Items in order: M1 `pkg/sidedoc` (links, index; greenfield, design mostly settle
 - 07's rows 18 to 28 become 21 to 31: the skill's states table already runs to 20.
 - sdlc never renames an issue or plan file (`set-title` keeps the slug), and archiving keeps the base name, so sdlc's part is a same-name move of the `.side/` folder, with no link rewriting.
 - parley's `scripts/sync-review-protocol.py` refuses a role it doesn't know and any version but 1, so exporting the move fixtures bumps the export to version 2, which parley.nvim#373 accepts. Parley's committed snapshot is unaffected until it syncs.
+- Plan approved by the TL; plan-quality cleared in 2 rounds (PQ-1: M3 now follows the asset archive's four stages; the Minors fixed). Estimate 4.13h (v3.1). The estimate-quality judge flagged M2 (CAS and conformance tests) and M3 (six archive paths) as thin and the smoke round as unitemized; kept as derived, to compare at close.
