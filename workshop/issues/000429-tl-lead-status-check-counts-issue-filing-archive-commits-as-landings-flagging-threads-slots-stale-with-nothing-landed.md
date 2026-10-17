@@ -1,13 +1,21 @@
 ---
 id: 000429
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'f621a3a1d5f0521b9bcf708373e24f9117e4c6f6' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '3a97ea3b66cace39b614fbd5477d416c5dbde65c' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-17T12:28:10-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead status check counts issue-filing/archive commits as landings, flagging Threads/Slots stale with nothing landed
@@ -27,8 +35,12 @@ A landing is a merged PR: a merge commit from `sdlc merge`, or a landing ledger 
 
 ## Plan
 
-- [ ]
+- [ ] Reproduce direct-main false landings with real Git; cover first-parent merges and identity in stale output.
+- [ ] Select the latest first-parent merge, render its hash, and synchronize help/atlas.
+- [ ] Run focused checks and the recorded suite, close, and land on SHIP.
 
 ## Log
 
 ### 2026-10-17
+
+- Root cause: gitNewestLanding reads the origin/main tip timestamp without filtering. Use first-parent merge shape, which sdlc merge emits via gh pr merge --merge; no subject heuristics. The landing-line ledger is local, has 30-day retention, and records completion rather than the immutable merge commit. Existing Git seam and stale renderer remain the owners (ARCH-DRY, ARCH-PURE). No new durable state or lifecycle.
