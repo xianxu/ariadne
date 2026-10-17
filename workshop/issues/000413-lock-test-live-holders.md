@@ -72,6 +72,8 @@ The unchanged blanket-dead test passed count=1000 in 24.539s at the new main-bas
 
 - Revised exact source a33f212fe6e4f264d36f34ca208cc6bbdd8bd5a4 passed both ownership regressions count=1000 in 42.797s, race-enabled entire repolock package count=20 in 10.040s, and CLI lock integration selection in 26.146s. The package also passes its initialization-budget control. Corrected recorded suite queued on that pushed head: run e01c72569a487e640cee4c881fa0f4ca, checkout sdlc-local-152192141, initial position 6. Old queued run exited 130 without executing tests; it is not passing evidence.
 
+- Couch restart at 17:35 detached the thread; resumed at 18:45 by TL. Prior suite e01c72569a487e640cee4c881fa0f4ca has no surviving CLI/worker cwd, inflight owner, saved attempt, local log or posted suite status. Treat it as interrupted without a result, not a pass. Fetched and merged current main 94aae475501975b79bff7772e787a79efa1900d4 (#412 landed); lock implementation is unchanged. Start a fresh recorded suite on the integrated pushed head as directed by TL receipt 9e07b620-5181-4b04-a692-e0d37872a268.
+
 ## Revisions
 
 ### 2026-10-16 — faithful ordering disproves test-only hypothesis
