@@ -376,3 +376,146 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"b5b9ed1f-8e13-41cd-a135-19b40c710dfd","repository":"github.com/xianxu/ariadne","issue_id":"000412","recipe":"milestone-review","round":4,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/ef3323cd3bb5078b","reviewed_head":"6fec11e686a4fa6b3ac37980884247ea46258ec8","slot":"ariadne:2","requested_at":"2026-10-17T00:10:19.464592Z"},"phase":"finished","pid":4003,"started_at":"2026-10-17T00:10:19.761703Z","finished_at":"2026-10-17T00:11:30.2375Z","session_id":"6da505a9-d2e3-43ce-a7aa-58fc98f299b4","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-16T17:14:00-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 412 — S2 M1: collaboration modes in xx-universal-review (discussion, collaboration, chat) |
+| repo | ariadne |
+| issue file | workshop/issues/000412-s2-m1-collaboration-modes-in-xx-universal-review-discussion-collaboration-chat.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | a1348d57372a0ba4aae75d7a474a32a30f9adca1..d82914a9f3bf3ef2dc7b5d4147d4f17b3f10b130 |
+| command | sdlc close --issue 412 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-16T17:14:00-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-7 is fixed. The interdiff deletes the two stale comment lines at `cmd/tl-lead/instructions_test.go:84-85`, and the comment left there matches the current rule. The verdict is still REWORK, because the interdiff also changes behavior that no prior finding asked for. `collaboration-modes.md:108-109` now says a bare acknowledgement gets "no reply prose about it". Before, it got "the one line and no side doc". The `discussion-decision` example's reply was rewritten to match: the "recorded your two decisions" clause is gone. This file is the skill prompt. It is exported to parley through `export.json`, so it is an executable contract, and this is a new rule about what the agent says in its reply. The only basis given is a later TL confirmation (2c4faa9e), recorded in the issue Log. This narrow review does not cover that kind of change. Tests pass (`go test ./cmd/tl-lead/ ./pkg/reviewexport/` is green), and the new `export.json` size and sha256 match the file (20746 bytes, `2ccd78b5…`).
+
+1. **Strengths**
+   - BR-7 is fixed cleanly. The merged comment at `instructions_test.go:84-86` states the any-line rule and the fence exclusion, and no copy of the old rule is left.
+   - The `export.json` manifest was regenerated along with the skill edit, and its hash and size match.
+   - The skill rule and its reference example (`examples/discussion-decision/case.md`) were changed together, so they agree with each other.
+
+2. **Critical:** none.
+
+3. **Important**
+   - **Scope changed after close.** At `collaboration-modes.md:108-109`, the bare-acknowledgement rule now forbids reply prose about it, and `examples/discussion-decision/case.md:8,12` was changed to match. This is new behavior, not a fix for any open finding.
+   - It also leaves the plan contradicting itself. `## Revisions` (plan:286-287) still says the source's "just the one line" was followed over the TL's "no reply at all". The code now follows the TL's wording.
+   - Fix: run a full `sdlc close`, with a Revisions entry recording the TL confirmation 2c4faa9e. The alternative is to revert this part and ship only the BR-7 comment fix.
+
+4. **Minor:** none.
+
+5. **Test coverage notes:** BR-7 only touches a comment, so no regression test is needed. The new "no reply prose" rule has no check that enforces it. The example checker does not read reply content, so it holds only as prose and example text.
+
+6. **Architecture** (applied to the interdiff only)
+   - **ARCH-DRY:** pass. The rule lives in one place in the skill, and the example matches it.
+   - **ARCH-PURE:** pass. No code logic changed.
+   - **ARCH-PURPOSE:** flag. The behavior change goes beyond fixing findings, and the plan's Revisions entry, which is the record of decisions, was not updated to match. That is the scope finding above.
+
+7. **Plan revision recommendations:** replace the plan:286-287 bullet with an entry saying that the TL confirmed (2c4faa9e) a bare acknowledgement gets its Decided line and no reply prose, and that the skill and the `discussion-decision` example follow it.
+
+```findings
+dispose:
+  - id: BR-7
+    disposition: addressed
+    note: |
+      instructions_test.go:84-86 now holds one comment stating the any-line rule and the fence exclusion; the stale last-line lines are deleted (comment-only, no test needed).
+findings:
+  - id: new
+    severity: Important
+    kind: defect
+    family: scope-changed-after-close
+    title: |
+      scope changed after close — run a full `sdlc close`
+    detail: |
+      d82914a9 changes collaboration-modes.md:108-109 (exported skill prompt) so a bare acknowledgement also gets "no reply prose", and rewrites the discussion-decision example reply to match. No prior finding asked for this; the source is a post-close TL confirmation (2c4faa9e). The plan's Revisions (plan:286-287) still says the "one line" source wording was followed over the TL's "no reply at all", so the plan now contradicts the code. Run a full close with a Revisions entry for 2c4faa9e, or revert this part and ship the BR-7 fix alone.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"bdb93b75-3737-460d-b77f-51b89ddf2c61","repository":"github.com/xianxu/ariadne","issue_id":"000412","recipe":"fix-review","round":5,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/61cec1278371b358","reviewed_head":"d82914a9f3bf3ef2dc7b5d4147d4f17b3f10b130","slot":"ariadne:2","requested_at":"2026-10-17T00:13:13.46521Z"},"phase":"finished","pid":60498,"started_at":"2026-10-17T00:13:13.656123Z","finished_at":"2026-10-17T00:13:55.922418Z","session_id":"8d3592af-4019-46c2-8025-442b966a1c78","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-16T17:15:21-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 412 — S2 M1: collaboration modes in xx-universal-review (discussion, collaboration, chat) |
+| repo | ariadne |
+| issue file | workshop/issues/000412-s2-m1-collaboration-modes-in-xx-universal-review-discussion-collaboration-chat.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 35ba24e6cad39344c347af981de7ac8fcc1d1c31..5fdc9f3521d89f638a5ac7bcca822c808f286500 |
+| command | sdlc close --issue 412 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-16T17:15:21-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I'm finishing the close review of ariadne#412. The targeted tests pass and the one open finding (BR-8) is resolved, so the verdict is SHIP.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The only finding left open was BR-8. Commit d82914a9 had changed the exported skill prompt after close, following the TL's message 2c4faa9e, without recording it in the plan. Commit 5fdc9f35 now adds a Revisions entry (plan:292-297). That entry records the ruling that a bare acknowledgement gets one `Decided` line and nothing else: no side doc and no reply prose. It also says this replaces the previous entry's "the approved source is followed" for that case, so the plan no longer contradicts the code.
+
+I checked the code against that entry:
+- The skill text says the same thing (`collaboration-modes.md:108-109`).
+- The `discussion-decision` example's reply no longer mentions the acknowledgement (`examples/discussion-decision/case.md`).
+- In its `after/design.md`, the second decision is a bare line with no link and no side doc.
+- `export.json` was updated to the new bytes and sha256.
+- `go test ./pkg/reviewexport/ ./cmd/tl-lead/` passes.
+
+This review covers the full window from 35ba24e6 to 5fdc9f35, so it is the full close BR-8 asked for. There are no new findings.
+
+1. **Strengths**
+   - The Revisions entry names its source message, says which earlier entry it supersedes, and points to the exact commit that applied it, so you can trace the change from start to finish.
+   - The change is small and stays consistent. The skill bullet, the state table's row 20 ("a bare acknowledgement gets only the line") and the example's reply all agree.
+   - `round.md:38` says a collaboration mode's rules take precedence over the general reply rule in `round.md` §6 where they are more specific. So the new "no reply prose" rule doesn't conflict with §6's "what you changed".
+   - The test fix in `instructions_test.go:84-86` deletes the two stale comment lines left from the old last-line rule; it doesn't just add a correction next to them.
+
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none new.
+
+5. **Test coverage**
+   - The reply rule is prose in `case.md`. `examples_test.go` doesn't check it, and no checker covers any reply in the examples, so that's consistent with the rest of the suite.
+   - Reply wording is meant to be checked by the live round against `before/`. For a rule that only says what to leave out of the reply, that's adequate. It doesn't need a test of its wording.
+
+6. **Architecture**
+   - **ARCH-DRY:** pass. The rule is stated once in the skill, and the state table and example restate it consistently.
+   - **ARCH-PURE:** pass. The change touches no code.
+   - **ARCH-PURPOSE:** pass. Every place that states the rule (skill bullet, row 20, example reply, plan) was updated in the same round.
+   - **ARCH-MOCK:** pass. No external dependencies were added.
+   - **ARCH-CONSTRAINTS:** pass. Runtime behaviour doesn't change.
+   - **ARCH-SECURE:** pass. The change touches no untrusted input and no secrets.
+   - **ARCH-ORDER:** pass. The change doesn't add any state carried between events.
+   - **ARCH-FUNERAL:** pass. The change actually creates less durable output, since a bare acknowledgement now produces no side doc.
+
+7. **Plan revisions:** none. The plan matches the code.
+
+```findings
+dispose:
+  - id: BR-8
+    disposition: addressed
+    note: |
+      5fdc9f35 adds the Revisions entry for 2c4faa9e (plan:292-297), superseding the earlier "approved source is followed" entry; collaboration-modes.md:108-109 and the discussion-decision example match it; this review covers the full window as the full close.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"aa34c238-5b2a-4830-9a91-8fadc3159ec7","repository":"github.com/xianxu/ariadne","issue_id":"000412","recipe":"milestone-review","round":6,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/e13c377cc2b07922","reviewed_head":"5fdc9f3521d89f638a5ac7bcca822c808f286500","slot":"ariadne:2","requested_at":"2026-10-17T00:14:31.405046Z"},"phase":"finished","pid":82064,"started_at":"2026-10-17T00:14:31.502633Z","finished_at":"2026-10-17T00:15:21.094604Z","session_id":"277c36a8-6b08-496c-9684-777e9996bc99","outcome":"returned"}] -->

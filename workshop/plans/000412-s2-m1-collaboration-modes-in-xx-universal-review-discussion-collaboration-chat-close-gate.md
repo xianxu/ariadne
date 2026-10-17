@@ -503,6 +503,254 @@ rounds:
       isolation: fenced
       reviewed: 6fec11e686a4fa6b3ac37980884247ea46258ec8
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: bdb93b75-3737-460d-b77f-51b89ddf2c61
+            repository: github.com/xianxu/ariadne
+            issue_id: "000412"
+            recipe: fix-review
+            round: 5
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/61cec1278371b358
+            reviewed_head: d82914a9f3bf3ef2dc7b5d4147d4f17b3f10b130
+            slot: ariadne:2
+            requested_at: "2026-10-17T00:13:13.46521Z"
+          phase: finished
+          pid: 60498
+          started_at: "2026-10-17T00:13:13.656123Z"
+          finished_at: "2026-10-17T00:13:55.922418Z"
+          session_id: 8d3592af-4019-46c2-8025-442b966a1c78
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: d82914a9f3bf3ef2dc7b5d4147d4f17b3f10b130
+        tracker_head: a6e93c5ed0b4e9451cd9a5e83e30508f2a5b9484
+        branch_point: 35ba24e6cad39344c347af981de7ac8fcc1d1c31
+        since: "2026-10-16T15:42:55-07:00"
+        until: "2026-10-16T17:12:29-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-16T15:42:55-07:00"
+              end: "2026-10-16T17:12:29-07:00"
+              began: "2026-10-16T15:42:55-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 6681a7b6-a1e9-4bf6-8743-64ae382a6945
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: a01d2d2e30cdee9e2ab0f79bd4c475b0767f8fb71bde51c321f0d54701105ed7
+              started: "2026-10-16T22:49:11.289Z"
+              spawned: false
+              bytes: 542081
+              windows:
+                - start: "2026-10-16T22:49:11.289Z"
+                  end: "2026-10-16T17:12:29-07:00"
+            - harness: claude
+              id: a3c26c68-b277-41fb-8571-456fa2883740
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 5320c188df9f1d072a2c1e3788ff32b5cea4f732e8e180b077700b714d95ba8f
+              started: "2026-10-16T22:55:51.076Z"
+              spawned: false
+              bytes: 509821
+              windows:
+                - start: "2026-10-16T22:55:51.076Z"
+                  end: "2026-10-16T17:12:29-07:00"
+            - harness: claude
+              id: c16f9f99-f7dc-493c-80e6-9950883fe1cf
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 56c17381f2e60fc56f2ae5acb83b94366afd3a2dea497b7c768fec2238d6894b
+              started: "2026-10-16T22:53:46.176Z"
+              spawned: false
+              bytes: 499558
+              windows:
+                - start: "2026-10-16T22:53:46.176Z"
+                  end: "2026-10-16T17:12:29-07:00"
+            - harness: claude
+              id: e1a45820-de66-478e-bdce-95f833a64410
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 84b46a5b1ffbb97690e35548a8500ac62e056483b444935a24569d2a8335bc77
+              started: "2026-10-16T22:56:14.41Z"
+              spawned: false
+              bytes: 394689
+              windows:
+                - start: "2026-10-16T22:56:14.41Z"
+                  end: "2026-10-16T17:12:29-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 48923e512facd0482c5cc7964fd7ba8297c54da4525dcb7d0736692564fb4bd8
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 17756812
+              windows:
+                - start: "2026-10-16T15:42:55-07:00"
+                  end: "2026-10-16T17:12:29-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 6.5026
+        cuts:
+            - dispatched: "2026-10-16T16:55:50-07:00"
+              finalized: "2026-10-16T16:57:45-07:00"
+              finalizing: false
+            - dispatched: "2026-10-16T17:01:22-07:00"
+              finalized: "2026-10-16T17:02:49-07:00"
+              finalizing: false
+            - dispatched: "2026-10-16T17:04:39-07:00"
+              finalized: "2026-10-16T17:06:58-07:00"
+              finalizing: false
+            - dispatched: "2026-10-16T17:10:19-07:00"
+              finalized: "2026-10-16T17:11:58-07:00"
+              finalizing: true
+      "n": 5
+      timestamp: "2026-10-16T17:14:00-07:00"
+      dispatched: "2026-10-16T17:13:13-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: instructions_test.go:84-86 now holds one comment stating the any-line rule and the fence exclusion; the stale last-line lines are deleted (comment-only, no test needed).
+          round: 5
+      findings:
+        - kind: defect
+          id: BR-8
+          severity: Important
+          title: scope changed after close — run a full `sdlc close`
+          detail: d82914a9 changes collaboration-modes.md:108-109 (exported skill prompt) so a bare acknowledgement also gets "no reply prose", and rewrites the discussion-decision example reply to match. No prior finding asked for this; the source is a post-close TL confirmation (2c4faa9e). The plan's Revisions (plan:286-287) still says the "one line" source wording was followed over the TL's "no reply at all", so the plan now contradicts the code. Run a full close with a Revisions entry for 2c4faa9e, or revert this part and ship the BR-7 fix alone.
+          family: scope-changed-after-close
+          round: 5
+      recipe: fix-review
+      isolation: fenced
+      blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: aa34c238-5b2a-4830-9a91-8fadc3159ec7
+            repository: github.com/xianxu/ariadne
+            issue_id: "000412"
+            recipe: milestone-review
+            round: 6
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/e13c377cc2b07922
+            reviewed_head: 5fdc9f3521d89f638a5ac7bcca822c808f286500
+            slot: ariadne:2
+            requested_at: "2026-10-17T00:14:31.405046Z"
+          phase: finished
+          pid: 82064
+          started_at: "2026-10-17T00:14:31.502633Z"
+          finished_at: "2026-10-17T00:15:21.094604Z"
+          session_id: 277c36a8-6b08-496c-9684-777e9996bc99
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 5fdc9f3521d89f638a5ac7bcca822c808f286500
+        tracker_head: 15644a3923c6fa87ab6eb5e4a439b5372d703f9a
+        branch_point: 35ba24e6cad39344c347af981de7ac8fcc1d1c31
+        since: "2026-10-16T15:42:55-07:00"
+        until: "2026-10-16T17:14:08-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-16T15:42:55-07:00"
+              end: "2026-10-16T17:14:08-07:00"
+              began: "2026-10-16T15:42:55-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 6681a7b6-a1e9-4bf6-8743-64ae382a6945
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: a01d2d2e30cdee9e2ab0f79bd4c475b0767f8fb71bde51c321f0d54701105ed7
+              started: "2026-10-16T22:49:11.289Z"
+              spawned: false
+              bytes: 542081
+              windows:
+                - start: "2026-10-16T22:49:11.289Z"
+                  end: "2026-10-16T17:14:08-07:00"
+            - harness: claude
+              id: a3c26c68-b277-41fb-8571-456fa2883740
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 5320c188df9f1d072a2c1e3788ff32b5cea4f732e8e180b077700b714d95ba8f
+              started: "2026-10-16T22:55:51.076Z"
+              spawned: false
+              bytes: 509821
+              windows:
+                - start: "2026-10-16T22:55:51.076Z"
+                  end: "2026-10-16T17:14:08-07:00"
+            - harness: claude
+              id: c16f9f99-f7dc-493c-80e6-9950883fe1cf
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 56c17381f2e60fc56f2ae5acb83b94366afd3a2dea497b7c768fec2238d6894b
+              started: "2026-10-16T22:53:46.176Z"
+              spawned: false
+              bytes: 499558
+              windows:
+                - start: "2026-10-16T22:53:46.176Z"
+                  end: "2026-10-16T17:14:08-07:00"
+            - harness: claude
+              id: e1a45820-de66-478e-bdce-95f833a64410
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 84b46a5b1ffbb97690e35548a8500ac62e056483b444935a24569d2a8335bc77
+              started: "2026-10-16T22:56:14.41Z"
+              spawned: false
+              bytes: 394689
+              windows:
+                - start: "2026-10-16T22:56:14.41Z"
+                  end: "2026-10-16T17:14:08-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 5b524e2c28ee18464a146f8ce3694e9ad590406a7ff2a74c24e87bbabdfe7d59
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 17778627
+              windows:
+                - start: "2026-10-16T15:42:55-07:00"
+                  end: "2026-10-16T17:14:08-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 6.5026
+        cuts:
+            - dispatched: "2026-10-16T16:55:50-07:00"
+              finalized: "2026-10-16T16:57:45-07:00"
+              finalizing: false
+            - dispatched: "2026-10-16T17:01:22-07:00"
+              finalized: "2026-10-16T17:02:49-07:00"
+              finalizing: false
+            - dispatched: "2026-10-16T17:04:39-07:00"
+              finalized: "2026-10-16T17:06:58-07:00"
+              finalizing: false
+            - dispatched: "2026-10-16T17:10:19-07:00"
+              finalized: "2026-10-16T17:11:58-07:00"
+              finalizing: true
+            - dispatched: "2026-10-16T17:13:13-07:00"
+              finalized: "2026-10-16T17:14:00-07:00"
+              finalizing: false
+      "n": 6
+      timestamp: "2026-10-16T17:15:21-07:00"
+      dispatched: "2026-10-16T17:14:31-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: addressed
+          note: 5fdc9f35 adds the Revisions entry for 2c4faa9e (plan:292-297), superseding the earlier "approved source is followed" entry; collaboration-modes.md:108-109 and the discussion-decision example match it; this review covers the full window as the full close.
+          round: 6
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 5fdc9f3521d89f638a5ac7bcca822c808f286500
+      blocked: false
 ---
 
 # Gate ledger — ariadne#412 (boundary-review)
@@ -557,6 +805,23 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-7** [Minor] `cited-rule-restated-divergently` (kind: defect) Stale test comment still states the old last-line rule
   cmd/tl-lead/instructions_test.go:84-85 still says only a link ending the bullet's last line answers it, directly above the new comment saying any line does. Delete the stale two lines.
 
+## Round 5 — 2026-10-16T17:14:00-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — instructions_test.go:84-86 now holds one comment stating the any-line rule and the fence exclusion; the stale last-line lines are deleted (comment-only, no test needed).
+
+### Raised
+
+- **BR-8** [Important] `scope-changed-after-close` (kind: defect) scope changed after close — run a full `sdlc close`
+  d82914a9 changes collaboration-modes.md:108-109 (exported skill prompt) so a bare acknowledgement also gets "no reply prose", and rewrites the discussion-decision example reply to match. No prior finding asked for this; the source is a post-close TL confirmation (2c4faa9e). The plan's Revisions (plan:286-287) still says the "one line" source wording was followed over the TL's "no reply at all", so the plan now contradicts the code. Run a full close with a Revisions entry for 2c4faa9e, or revert this part and ship the BR-7 fix alone.
+
+## Round 6 — 2026-10-16T17:15:21-07:00 (claude) — passed
+
+### Disposed
+
+- BR-8 — addressed — 5fdc9f35 adds the Revisions entry for 2c4faa9e (plan:292-297), superseding the earlier "approved source is followed" entry; collaboration-modes.md:108-109 and the discussion-decision example match it; this review covers the full window as the full close.
+
 ## Open findings
 
-- **BR-7** [Minor] `cited-rule-restated-divergently` (kind: defect) Stale test comment still states the old last-line rule
+(none — every finding has been disposed)
