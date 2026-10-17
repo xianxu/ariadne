@@ -6,7 +6,7 @@ github_issue:
 created: 2026-10-16
 updated: 2026-10-17
 estimate_hours:
-card_mirror: 'c7026676c7beebf25af73ebfd0a66824254219cf' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e74bebf4096230960c4c1c85268667a0a5ced4d1' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-16T21:39:37-07:00
 claimant:
     operator: Xian Xu
@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.60
+actual_hours: 0.61
 ---
 
 # Makefile.workflow: the generic Go build publishes bin/<name> in place; readers see missing or partial binaries
