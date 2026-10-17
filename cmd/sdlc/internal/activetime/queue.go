@@ -47,7 +47,7 @@ type pendingTool struct {
 
 var sessionIDPattern = regexp.MustCompile(`(?i)(?:session|cell) ID\s+([A-Za-z0-9-]+)`)
 var nestedCommandPattern = regexp.MustCompile(`tools\.exec_command\(\s*\{\s*cmd\s*:\s*("(?:\\.|[^"\\])*")`)
-var nativePollPattern = regexp.MustCompile(`(?s)^\s*(?:// @exec:[^\n]*\n)?\s*text\(\s*await\s+tools\.write_stdin\(\s*\{\s*session_id\s*:\s*([0-9]+)`)
+var nativePollPattern = regexp.MustCompile(`(?s)^\s*(?:// @exec:[^\n]*\n)?\s*(?:text\(\s*|(?:const|let|var)\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*)await\s+tools\.write_stdin\(\s*\{\s*session_id\s*:\s*([0-9]+)`)
 
 // workSpansFromTranscript recognizes only structurally paired native tool
 // calls. Incomplete calls, duplicate IDs, polls and unknown commands confer no

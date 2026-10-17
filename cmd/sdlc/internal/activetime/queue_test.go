@@ -48,17 +48,24 @@ func TestWorkSpansFromTranscriptNativeExecWrapper(t *testing.T) {
 	output := func(id, body string) map[string]any {
 		return map[string]any{"type": "custom_tool_call_output", "call_id": id, "output": []map[string]string{{"type": "input_text", "text": "Script completed\nOutput:\n"}, {"type": "input_text", "text": body}}}
 	}
-	lines := []string{
-		record(0, map[string]any{"type": "custom_tool_call", "name": "exec", "call_id": "suite", "input": `text(await tools.exec_command({cmd:"sdlc local-check run --name suite",yield_time_ms:30000}))`}),
-		record(1, output("suite", `{"session_id":7,"output":"queued"}`)),
-		record(10, map[string]any{"type": "custom_tool_call", "name": "exec", "call_id": "poll", "input": `text(await tools.write_stdin({session_id:7,chars:""}))`}),
-		record(11, output("poll", `{"session_id":7,"output":"waiting"}`)),
-		record(20, map[string]any{"type": "custom_tool_call", "name": "exec", "call_id": "done", "input": `text(await tools.write_stdin({session_id:7,chars:""}))`}),
-		record(21, output("done", `{"exit_code":0,"output":"passed"}`)),
-	}
-	spans := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a")
-	if len(spans) != 1 || spans[0].Kind != toolWait || !spans[0].Start.Equal(qt(0)) || !spans[0].End.Equal(qt(21)) {
-		t.Fatalf("native wrapper lost wait: %+v", spans)
+	for name, pollInput := range map[string]string{
+		"direct":   `text(await tools.write_stdin({session_id:7,chars:""}))`,
+		"assigned": `const r=await tools.write_stdin({session_id:7,chars:"",yield_time_ms:30000});text(r)`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			lines := []string{
+				record(0, map[string]any{"type": "custom_tool_call", "name": "exec", "call_id": "suite", "input": `text(await tools.exec_command({cmd:"sdlc local-check run --name suite",yield_time_ms:30000}))`}),
+				record(1, output("suite", `{"session_id":7,"output":"queued"}`)),
+				record(10, map[string]any{"type": "custom_tool_call", "name": "exec", "call_id": "poll", "input": pollInput}),
+				record(11, output("poll", `{"session_id":7,"output":"waiting"}`)),
+				record(20, map[string]any{"type": "custom_tool_call", "name": "exec", "call_id": "done", "input": pollInput}),
+				record(21, output("done", `{"exit_code":0,"output":"passed"}`)),
+			}
+			spans := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a")
+			if len(spans) != 1 || spans[0].Kind != toolWait || !spans[0].Start.Equal(qt(0)) || !spans[0].End.Equal(qt(21)) {
+				t.Fatalf("native wrapper lost wait: %+v", spans)
+			}
+		})
 	}
 }
 
