@@ -1324,7 +1324,7 @@ else `TrunkRef` after `git fetch`. The probe is tri-state:
 
 **Catch-up before new work (#303, `catchup.go`).** `start-plan --issue N` on the
 resting branch fetches origin/main for the slot and each `substrateChain` repo.
-If any trails it, start-plan runs the installed `weave refresh` (the `weaveRefresh`
+If any trails it, start-plan runs the installed `weave refresh --defer-settings` (the `weaveRefresh`
 seam; TestMain stubs it), which owns the all-or-nothing fast-forward and compile.
 sdlc never fast-forwards a dependency itself. A successful catch-up stops before
 the branch or card changes, because the running binary predates it; the re-run
@@ -1335,6 +1335,19 @@ that moved nothing refuses only for a checkout `freshness.Check` calls Stale,
 and otherwise warns. `claim` keeps only its #284 fast-forward of the slot's own
 rest. `couch --prepare` (pair#434) is the TL-side twin: same refresh, plus an idle
 check and a context reload.
+
+Protected Claude settings are operator-published (#411). Gate refresh excludes
+every action producing `.claude/settings.json` and always adds
+`plan.DeferredOutput`, even after its declaration disappears. It retains
+previous inventory identities and displaced backups without publication or retirement.
+When Git is current, `weaveSettingsCheck` invokes read-only `weave settings`,
+which reuses composition and output observation and prints one stale notice
+for changed declared outputs or retained retirement evidence.
+Observation failures warn rather than fail planning. `weave refresh --substrate`
+from the operator's shell performs normal publication on an issue branch;
+subsequent observation clears the notice. Neither path retries unsandboxed.
+`settings.go`, `plan/deferred_test.go`, `settings_notice_test.go` and the native
+protected-settings start-plan conformance test own the regression coverage.
 
 The cutoff is a past instant, so a landing after it never moves the requirement.
 A fast-forwarded landing counts from its own commit date, which is stricter but

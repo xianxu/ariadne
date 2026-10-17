@@ -73,16 +73,20 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		// The rules #377 ported from the ops draft, one phrase each.
 		{"G1 Operator instructions is section 0", "0. `## Operator instructions`"},
 		{"G2 the TL only links answers", "Your only write is appending"},
-		{"G2 every bullet gets an answer", "every bullet gets one, questions and"},
+		// #412: the session file runs on the skill's chat mode, cited not restated.
+		{"the session file declares chat mode", "`collaboration-mode: {chat: [\"Operator instructions\"]}`"},
+		{"chat mode is the rule", "xx-universal-review's chat mode is the\n    rule for it"},
+		{"the body is discussion", "The rest of the status file (Needs you, Threads, …) is discussion"},
+		{"the TL writes only through tl-lead", "never by the skill's whole-document write"},
+		{"follow-ups come from the changes", "follow-ups on linked ones are in the\n      changes since your last read"},
 		// #399: other documents' submits are review requests.
 		{"review requests use the shared skill", "review request: answer it with the\n    `xx-universal-review` skill"},
-		// #388: a deleted bullet closes its QA file.
-		{"a deleted bullet closes its QA file", "A deleted bullet closes its QA file"},
-		{"follow-ups never reopen a closed file", "never into the closed file"},
-		{"G3 QA file path", "teams/<team>/qa/<operator>/YYYY-MM-DD-NN-<slug>.md"},
-		{"G3 QA frontmatter", "`process-instruction: \"[free-form] answer the operator's 🤖 comments in place\"`"},
-		{"G3 backlink without anchor", "with no `#anchor`"},
-		{"G3 answers only the question", "answers only the question asked"},
+		// #388: a deleted bullet closes its answer doc; where a later follow-up goes.
+		{"a closed bullet's follow-up", "A later follow-up on a deleted bullet's topic goes to Needs you"},
+		{"G3 answer doc folder", "teams/<team>/tl-status-<operator>.side/"},
+		{"G3 answer docs are gitignored", "The folder is\n    gitignored like the status file"},
+		{"G3 older qa links are kept", "keep their links, and a follow-up\n    extends the file its link names"},
+		{"G3 answers only the question", "answers only the question\n    asked"},
 		{"G4 Needs you holds only asks", "only asks, a decision or an action"},
 		{"G4 remove when done", "Remove an\n       item the moment it is done"},
 		{"G5 CI glance on main", "Glance at CI on main every pass"},

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -51,7 +53,45 @@ func TestInstructionBullets(t *testing.T) {
 		t.Errorf("inner blank line lost: %q", got)
 	}
 	if len(instructionBullets("")) != 0 || len(instructionBullets("no bullets here\n")) != 0 {
-		t.Error("a section with no `N. ` line has no bullets")
+		t.Error("a section with no item line has no bullets")
+	}
+}
+
+// #412: a bullet is chat mode's item: -, * and N. lines at the section's
+// shallowest list indent, sub-items inside it, and prose after a blank line
+// belonging to no bullet.
+func TestInstructionBulletsAreChatItems(t *testing.T) {
+	const sec = `1. first
+   - a sub-item
+- check CI
+* and the trains
+  continued here
+
+A note, not a bullet.
+2. last`
+	var got []string
+	for _, b := range instructionBullets(sec) {
+		got = append(got, strings.Join(b.Lines, "|"))
+	}
+	want := []string{"1. first|   - a sub-item", "- check CI", "* and the trains|  continued here", "2. last"}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("bullets\n got %q\nwant %q", got, want)
+	}
+	// Linking bullet 2 lands on its own line, never on the line before it.
+	if out, err := linkBullet(sec, 2, "x.side/2026-10-16-01-ci.md"); err != nil || !strings.Contains(out, "- check CI → [answer](x.side/2026-10-16-01-ci.md)") || !strings.Contains(out, "   - a sub-item\n") {
+		t.Errorf("link 2: %v\n%s", err, out)
+	}
+	// Fenced code starts no bullet and a tab indents. A link ending any line
+	// answers a bullet, so a follow-up added after it keeps it answered
+	// (row 14); a link inside a fence is code, not an answer.
+	const edge = "1. q\n   ```\n- not an item\n   x → [answer](z.md)\n   ```\n\t- tabbed sub-item\n2. r → [answer](x.md)\n   - and by repo?\n3. s → [answer](y.md)"
+	bs := instructionBullets(edge)
+	if len(bs) != 3 || len(bs[0].Lines) != 6 || bs[0].Answered || !bs[1].Answered || !bs[2].Answered {
+		t.Errorf("edges: %+v", bs)
+	}
+	// Indented items only: the shallowest indent present is the item level.
+	if bs := instructionBullets("  - a\n    - b\n  - c"); len(bs) != 2 || len(bs[0].Lines) != 2 {
+		t.Errorf("indented items: %+v", bs)
 	}
 }
 
@@ -104,6 +144,11 @@ func TestLinkBullet(t *testing.T) {
 		if _, err := linkBullet(opSection, 1, bad); err == nil {
 			t.Errorf("target %q: want a refusal", bad)
 		}
+	}
+	// #412: chat mode's answer docs live in the status file's .side/ folder.
+	const side = "tl-status-op.side/2026-10-16-01-s4-cost.md"
+	if got, err := linkBullet("1. what does S4 cost?", 1, side); err != nil || got != "1. what does S4 cost? → [answer]("+side+")" {
+		t.Errorf("a .side/ target: %q, %v", got, err)
 	}
 	// CRLF: the carriage return is trimmed before the link, as rstrip() does.
 	if got, _ := linkBullet("1. a\r", 1, target); got != "1. a → [answer]("+target+")" {
@@ -167,5 +212,33 @@ func TestInstructionsLinkRefusals(t *testing.T) {
 	f.holder = "operator"
 	if _, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "2", "qa/op/a.md", "--hash", h); exitCode(err) != 3 || f.writes != 0 {
 		t.Errorf("under the operator's lock: exit %d, writes %d; want exit 3, no write", exitCode(err), f.writes)
+	}
+}
+
+// The parser reads the skill's own chat example as the skill means it: in
+// before/, items 1 and 2 are open and the rest answered (item 3 keeps its
+// link under a follow-up sub-item); in after/, every item is answered. This
+// ties tl-lead to the reference fixture so the two can't drift (#412).
+func TestInstructionBulletsReadTheChatExample(t *testing.T) {
+	for tree, want := range map[string]string{"before": "1. 2.", "after": ""} {
+		b, err := os.ReadFile(filepath.Join("..", "..", "construct", "local", "universal-review", "examples", "chat", tree, "status.md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, sec, ok := strings.Cut(string(b), "### Operator instructions (open)\n")
+		sec, _, _ = strings.Cut(sec, "\n#")
+		if !ok {
+			t.Fatalf("%s: no Operator instructions section", tree)
+		}
+		bs := instructionBullets(sec)
+		var open []string
+		for _, bl := range bs {
+			if !bl.Answered {
+				open = append(open, strings.Fields(bl.Lines[0])[0])
+			}
+		}
+		if len(bs) != 5 || strings.Join(open, " ") != want {
+			t.Errorf("%s: %d bullets, open %q, want 5 and %q", tree, len(bs), open, want)
+		}
 	}
 }

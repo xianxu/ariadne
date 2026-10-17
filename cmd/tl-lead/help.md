@@ -125,14 +125,16 @@ TALKING TO THE OPERATOR
     `xx-universal-review` skill, which reads the document's instruction and writes a Couch-tracked
     file under the operator's lock.
   - Keep the agent pane quiet. Input the operator types in the draft pane gets
-    a normal reply there. Input from the status file or a QA file is answered
+    a normal reply there. Input from the status file or an answer doc is answered
     in files, with at most one line in the pane. Routine worker reports go to
     the status file and the digest; the pane carries decisions and act-now
     items.
   - Keep a live status file for the operator's right pane:
     teams/<team>/tl-status-<operator>.md, frontmatter `type: session-sync`,
     `couch-owner: <hub slot>` (couch still reads the older `owner:`),
-    `operator: <slug>`. It is state, not a log:
+    `operator: <slug>`, and
+    `collaboration-mode: {chat: ["Operator instructions"]}` (ariadne#412).
+    It is state, not a log:
     rewrite it in place, about one screen, gitignored. Update it whenever a
     thread changes state, and every worker report updates it in the same
     turn, before you reply to the operator.
@@ -166,30 +168,35 @@ TALKING TO THE OPERATOR
        model where it matters), then the free slots.
     Per-issue detail lives in the issue file; the digest carries landed lists
     and friction.
-  - `## Operator instructions` belongs to the operator: their questions and
-    instructions, numbered. Never edit, delete or reorder those lines, and add
-    no 🤖 markers there. Your only write is appending
-    ` → [answer](qa/…)` to a bullet, and every bullet gets one, questions and
-    instructions alike (an instruction's file records what was done and
-    where). An unlinked bullet is open; the operator deletes a bullet when
-    satisfied. A deleted bullet closes its QA file: the operator has read it
-    and won't reopen it. A later follow-up on that topic goes to Needs you if
-    it needs the operator, else into Threads or a new bullet's answer, and
-    never into the closed file. Bullets are
-    addressed by position, since the operator reuses numbers:
-      tl-lead status instructions list FILE
-      tl-lead status instructions link FILE POS TARGET --hash H
-    `list` prints the open bullets with their positions and the section's
-    hash; `link` refuses (exit 6) if the section changed since that hash,
-    because the positions may now name other bullets: list again.
-  - QA files hold the answers: teams/<team>/qa/<operator>/YYYY-MM-DD-NN-<slug>.md,
-    gitignored like the status file. Each opens with the frontmatter
-    `process-instruction: "[free-form] answer the operator's 🤖 comments in place"`
-    (so a send needs no prompt), the question as its title, and a plain
-    relative backlink to the status file, with no `#anchor` (parley's open
-    falls back to gf, which reads `#` as part of the filename). An answer file
-    answers only the question asked; Needs you and status stay in the status
-    file.
+  - `## Operator instructions` belongs to the operator. It is a chat section
+    (the frontmatter line above), so xx-universal-review's chat mode is the
+    rule for it: its collaboration-modes.md says what a bullet is, its answer
+    doc, follow-ups, closing, and what you never do to the operator's lines.
+    What is yours to add:
+    - Your only write is appending ` → [answer](…)` to a bullet, through
+      tl-lead, by position, since the operator reuses numbers:
+        tl-lead status instructions list FILE
+        tl-lead status instructions link FILE POS TARGET --hash H
+      `list` prints the open bullets with their positions and the section's
+      hash; `link` refuses (exit 6) if the section changed since that hash,
+      because the positions may now name other bullets: list again. `list`
+      shows only unlinked bullets; follow-ups on linked ones are in the
+      changes since your last read.
+    - A later follow-up on a deleted bullet's topic goes to Needs you if it
+      needs the operator, else into Threads or a new bullet's answer.
+  - Answer docs live in teams/<team>/tl-status-<operator>.side/, named
+    YYYY-MM-DD-NN-<slug>.md, with the skill's side-doc frontmatter. They carry no
+    process-instruction, since the status file has none. The folder is
+    gitignored like the status file. Bullets already linked to the older
+    teams/<team>/qa/<operator>/ files keep their links, and a follow-up
+    extends the file its link names. An answer doc answers only the question
+    asked; Needs you and status stay in the status file.
+  - The rest of the status file (Needs you, Threads, …) is discussion: an
+    instruction there is carried out, and a 🤖 question opens a side doc in
+    the same tl-status-<operator>.side/ folder (NN-<slug>.md), linked in place
+    of the marker. Write the status file only through `tl-lead status`
+    (below), never by the skill's whole-document write: the collaboration
+    mode changes where your answers go, not how you write them.
   - Render sections from binaries wherever possible, on every pass. Hand-write
     only judgment (Operator instructions answers, Needs you, the why of a
     thread), and take even its facts from `sdlc`. A fact you retype every pass
