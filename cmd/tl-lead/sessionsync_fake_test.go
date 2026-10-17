@@ -40,7 +40,7 @@ func fakeHash(body string) string {
 func (f *fakeSessionSync) ReadSection(_, heading string) (string, string, error) {
 	b, ok := f.sections[heading]
 	if !ok {
-		return "", "", fmt.Errorf("couch --session-sync read refused (no-section): no ## %s", heading)
+		return "", "", fmt.Errorf("couch --session-sync read refused (session-sync): expected exactly one `## %s` heading line, found 0", heading)
 	}
 	return b, fakeHash(b), nil
 }

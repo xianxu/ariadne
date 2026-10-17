@@ -1,0 +1,55 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os/exec"
+	"strings"
+)
+
+// CouchActors is the seam over `couch --actors --json`: which agent runs in
+// each slot and whether it is working. It needs the running Couch's socket,
+// so a sandboxed call fails; callers render `?` then, never block on it.
+type CouchActors interface {
+	Actors() (map[string]Actor, error) // by slot address, repo:N
+}
+
+// Actor is the part of one actor row tl-lead reads.
+type Actor struct {
+	Agent   string // claude, codex, qoder, …
+	Resting bool   // idle at its prompt
+}
+
+type execActors struct{ bin string }
+
+func (c execActors) Actors() (map[string]Actor, error) {
+	cmd := exec.Command(c.bin, "--actors", "--json")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("couch --actors: %v: %s", err, strings.TrimSpace(stderr.String()))
+	}
+	return decodeActors(stdout.Bytes())
+}
+
+func decodeActors(raw []byte) (map[string]Actor, error) {
+	var r struct {
+		Code, Error string
+		Actors      []struct {
+			Binding struct{ Slot, Agent string }
+			Resting bool
+		}
+	}
+	if err := json.Unmarshal(raw, &r); err != nil {
+		return nil, fmt.Errorf("couch --actors: unreadable reply: %v", err)
+	}
+	if r.Code != "ok" {
+		return nil, fmt.Errorf("couch --actors refused (%s): %s", r.Code, r.Error)
+	}
+	out := map[string]Actor{}
+	for _, a := range r.Actors {
+		out[a.Binding.Slot] = Actor{Agent: a.Binding.Agent, Resting: a.Resting}
+	}
+	return out, nil
+}

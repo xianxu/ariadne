@@ -124,15 +124,16 @@ func TestRenderSlots(t *testing.T) {
 	}}
 	lines := slotLines(fleet)
 	for i := range lines {
+		lines[i].Agent = "codex"
 		if lines[i].ID == 350 {
 			lines[i].Phase, lines[i].Bar = "working", "▉▕ M 1/2"
 		}
 	}
 	want := "```\n" +
-		"ariadne:2      ariadne#350      working       ▉▕ M 1/2  lift-the-tl-skill\n" +
-		"pair:3         on operator-experiment\n" +
-		"pair:4         detached\n" +
-		"free: ariadne:1, pair:2\n" +
+		"ariadne:2      ariadne#350      working       codex        ▉▕ M 1/2  lift-the-tl-skill\n" +
+		"pair:3         on operator-experiment  codex\n" +
+		"pair:4         detached  codex\n" +
+		"free: ariadne:1 (codex), pair:2 (codex)\n" +
 		"```"
 	if got := renderSlots(lines); got != want {
 		t.Errorf("renderSlots:\n%s\nwant:\n%s", got, want)
@@ -142,8 +143,10 @@ func TestRenderSlots(t *testing.T) {
 	}
 }
 
-// gatherSlots over the fakes: the phase from the slot's issue observation, the
-// bar from its checkout's issue file; a failed observation reads `?`.
+// gatherSlots over the fakes renders a fixture fleet exactly: the phase from
+// the slot's issue observation (`?` when it failed), the agent from couch's
+// actors (`none` where no agent runs), the bar from the checkout's issue file,
+// then the free slots with their agents.
 func TestGatherSlots(t *testing.T) {
 	root := t.TempDir()
 	slot2 := filepath.Join(root, "ariadne-slot2", "ariadne")
@@ -158,21 +161,42 @@ func TestGatherSlots(t *testing.T) {
 	}
 	sd := &fakeSDLC{
 		fleet: Fleet{Slots: []FleetSlot{
+			{Address: "ariadne:0", Repo: "ariadne", Slot: 0, RestingBranch: "main", HostBranch: "main"},
+			{Address: "ariadne:1", Repo: "ariadne", Slot: 1, RestingBranch: "main-slot1", HostBranch: "main-slot1"},
 			{Address: "ariadne:2", Repo: "ariadne", Slot: 2, RestingBranch: "main-slot2", HostPath: slot2, HostBranch: "000350-lift"},
 			{Address: "ariadne:3", Repo: "ariadne", Slot: 3, RestingBranch: "main-slot3", HostPath: slot3, HostBranch: "000351-gone"},
+			{Address: "ariadne:4", Repo: "ariadne", Slot: 4, RestingBranch: "main-slot4", HostBranch: "spike"},
 		}},
 		obs: map[string]Observation{slot2 + "#350": {Status: "working"}},
 	}
-	got, err := gatherSlots(sd, root)
+	actors := fakeActors{actors: map[string]Actor{
+		"ariadne:0": {Agent: "claude", Resting: true},
+		"ariadne:1": {Agent: "codex", Resting: true},
+		"ariadne:2": {Agent: "claude"},
+		"ariadne:4": {Agent: "qoder", Resting: true},
+	}}
+	got, err := gatherSlots(sd, actors, root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{
-		"ariadne:2      ariadne#350      working       ▉▕ tasks 1/2  lift",
-		"ariadne:3      ariadne#351      ?             no issue file  gone",
-	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("Slots lacks %q:\n%s", want, got)
+	want := "```\n" +
+		"ariadne:2      ariadne#350      working       claude       ▉▕ tasks 1/2  lift\n" +
+		"ariadne:3      ariadne#351      ?             none         no issue file  gone\n" +
+		"ariadne:4      on spike  qoder·idle\n" +
+		"free: ariadne:1 (codex·idle)\n" +
+		"```"
+	if got != want {
+		t.Errorf("Slots:\n%s\nwant:\n%s", got, want)
+	}
+
+	// Couch unreadable (a sandboxed call can't reach its socket): `?`, still rendered.
+	got, err = gatherSlots(sd, fakeActors{err: fmt.Errorf("couch --actors: connect: operation not permitted")}, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, w := range []string{"working       ?            ▉▕", "free: ariadne:1 (?)"} {
+		if !strings.Contains(got, w) {
+			t.Errorf("degraded Slots lacks %q:\n%s", w, got)
 		}
 	}
 }

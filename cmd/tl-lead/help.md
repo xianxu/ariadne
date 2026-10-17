@@ -202,8 +202,18 @@ TALKING TO THE OPERATOR
     thread), and take even its facts from `sdlc`. A fact you retype every pass
     is the next piece to lift into a binary.
     `tl-lead status slots FILE` renders `## Slots` from `sdlc fleet inventory`,
-    each slot's issue (`sdlc issue show`) and its checkout's issue file, and
-    writes it; it takes about as long as the inventory, ten-odd seconds.
+    `couch --actors` (each slot's agent, `·idle` at its prompt; `?` when couch
+    can't be read), each slot's issue (`sdlc issue show`) and its checkout's
+    issue file, and writes it; it takes about as long as the inventory,
+    ten to forty seconds.
+  - Every write stamps its section's first line, `_updated YYYY-MM-DD HH:MM_`
+    (not Operator instructions). The operator may delete a stamp; the next
+    write puts it back. `tl-lead status check FILE` lists the stale sections:
+    Threads and Slots after 2 h or once a fleet repository's origin/main is
+    newer than the stamp (local refs: as fresh as your last fetch), Quota
+    after 12 h, Needs you only when unstamped. `submit`, `owed` and every
+    write end with the same lines, so each event shows what is stale: refresh
+    it in that turn, or queue it if the operator holds the lock.
     `tl-lead trains PROJECT` prints a project's trains block (cars: ✓ landed,
     ◑ landing, ◐ in flight with its bar, ○ waiting; counted in cars, not
     hours) for its `### Project` thread. A bar counts `Mx` milestones, or
@@ -221,6 +231,7 @@ TALKING TO THE OPERATOR
       tl-lead status section FILE HEADING BODYFILE [--fold-owed]
       tl-lead status thread FILE TEXTFILE [--drop PREFIX]... [--fold-owed]
       tl-lead status slots FILE [--fold-owed]
+      tl-lead status check FILE
     A thread entry is one `###` subsection: it replaces the subsection with
     the same heading, or goes in before `### Miscellaneous`.
     Never write the file any other way.
