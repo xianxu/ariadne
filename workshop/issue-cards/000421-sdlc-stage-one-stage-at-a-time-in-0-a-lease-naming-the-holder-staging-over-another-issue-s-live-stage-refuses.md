@@ -1,6 +1,6 @@
 ---
 id: 000421
-status: codecomplete
+status: done
 created: 2026-10-16
 updated: 2026-10-17
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 3c3595670b25cdd17754154983e3634a6c603d3d
         evidence_commit: 2a225e25b72a91abbd854bd92dfa43be4dc541dc
+        landed_commit: e61a3a8c86de90fea1c409ca59470a9200555b69
 ---
 
 # sdlc stage: one stage at a time in :0, a lease naming the holder; staging over another issue's live stage refuses
