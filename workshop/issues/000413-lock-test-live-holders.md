@@ -70,6 +70,8 @@ The unchanged blanket-dead test passed count=1000 in 24.539s at the new main-bas
 
 - Budget RED: initializing metadata after a stale retry outlived a 1s acquisition budget (four 750ms sleeps, then initialization-grace error). Added TestReclaimInitializationRetryUsesOriginalDeadline and enforce the original deadline at each acquisition-loop entry; the existing grace cannot extend the caller budget. Canceled only owned queued suite CLI PID 7484 after cwd/identity verification (exit 130, no test execution). Requeue on corrected source; no peer process or lock touched.
 
+- Revised exact source a33f212fe6e4f264d36f34ca208cc6bbdd8bd5a4 passed both ownership regressions count=1000 in 42.797s, race-enabled entire repolock package count=20 in 10.040s, and CLI lock integration selection in 26.146s. The package also passes its initialization-budget control. Corrected recorded suite queued on that pushed head: run e01c72569a487e640cee4c881fa0f4ca, checkout sdlc-local-152192141, initial position 6. Old queued run exited 130 without executing tests; it is not passing evidence.
+
 ## Revisions
 
 ### 2026-10-16 — faithful ordering disproves test-only hypothesis
