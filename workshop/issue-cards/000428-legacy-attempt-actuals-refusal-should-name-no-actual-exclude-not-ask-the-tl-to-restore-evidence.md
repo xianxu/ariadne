@@ -1,6 +1,6 @@
 ---
 id: 000428
-status: codecomplete
+status: done
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 7534616855a6c0538ab48ad1cea189e77dbf5eac
         evidence_commit: ab332311a85c6d058a0b2388d1be0e3d3b11225a
+        landed_commit: 53aae8940ebf0df9c4f0d110f31e0e9f1397e37d
 ---
 
 # Legacy-attempt actuals refusal should name --no-actual (exclude), not 'ask the TL to restore evidence'
