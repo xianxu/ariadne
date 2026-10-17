@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "41ba7d15", done: "bceb593f"}
+flow: {kind: full, provenance: operator}
 ---
 
 # A downstream repo's committed generated vocabulary goes stale on every ariadne vocabulary change and turns its CI red
