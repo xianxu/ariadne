@@ -131,3 +131,6 @@ because the durable plan settles the decisions (+15% buffer); impl is at 40% of 
   unmatched-row warning now names the reason. The reviewer's two `cmd/weave` failures came from its review checkout
   (`GIT_CEILING_DIRECTORIES` hides git under `.sdlc-review/`; one of them predates this change); both pass here and in
   `make test`.
+- Merge stopped on `local-gates-guard`: `construct/base.manifest` is a protected local-gates path, and my change there
+  was only a comment (the `ship` verb in its verb list). Reverted it rather than ask for the operator's label; the
+  `ship` row is documented in `atlas/workflow/weave.md`.

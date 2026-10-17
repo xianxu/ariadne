@@ -26,13 +26,6 @@
 #               no-op when identical. (Was write-once through #45; that left
 #               derivatives stranded on stale entrypoints — now it converges.)
 #               See #42.
-#   ship      — declare a GENERATED output the repository commits on purpose
-#               (#422; e.g. parley's construct/generated/vocabulary/issue.json,
-#               which its plugin reads from the installed tree). No action of
-#               its own: weave also writes <path>.weave-sha256, the digest of what
-#               it wrote, for the repository to commit beside it, and an output
-#               matching that sidecar is weave's own even in a cold checkout.
-#               Usually `internal ship <path>` in the consumer's own manifest.
 #
 # `copy` was retired in #38 — substrate is symlink-only. For operator-
 # divergent customization, use per-operator branches in the source repo
