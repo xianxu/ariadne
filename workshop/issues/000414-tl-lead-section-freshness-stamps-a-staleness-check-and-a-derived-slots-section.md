@@ -115,6 +115,7 @@ replaced on each write; it creates no file, row or cache. `check` creates nothin
 ## Log
 
 ### 2026-10-16
+- 2026-10-16: closed — Round-1 SHIP minors fixed: go test ./cmd/tl-lead green incl. TestStatusCheckEdges; TL_LEAD_LIVE=1 conformance (session-sync missing-section text, couch --actors shape) passes live. Earlier: make test green (12 shards, 0 failed); TL live run of status slots and check matched.; review verdict: SHIP
 - 2026-10-16: closed — make test green (12 shards, 1519 cmd/sdlc tests + 66 packages, 0 failed). New tests: TestWriteStamps (a write stamps; a deleted stamp returns; a stamp in a body is not doubled; Operator instructions never stamped), TestStampIsNotABullet, TestSplitStamp, TestStatusCheck (stale by age, by landing, unstamped; Needs you only unstamped; fresh), TestGitNewestLanding (brain and non-SDLC excluded), TestGatherSlots (exact fixture render plus the ? degraded render), TestDecodeActors. Live (TL ops:0, branch build): status slots wrote a stamped Slots with agents and idle/working and printed the stale list; status check matched.; review verdict: SHIP
 - 2026-10-16: flow upgraded quick → full — 352 added lines in code files (limit 100)
 - TL approved the plan (ops:0): keep `check` light with the sibling-repo local refs; the couch-side ping goes to pair

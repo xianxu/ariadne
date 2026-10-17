@@ -123,3 +123,95 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"56c4edc5-aa25-44aa-969d-98da2848a151","repository":"github.com/xianxu/ariadne","issue_id":"000414","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/f0defb8211d44440","reviewed_head":"78490f1455b440e25bf2c8f6848e9eb002e00826","slot":"ariadne:4","requested_at":"2026-10-17T00:40:10.461601Z"},"phase":"finished","pid":56019,"started_at":"2026-10-17T00:40:10.570033Z","finished_at":"2026-10-17T00:42:18.980192Z","session_id":"b998f0b5-b665-4faf-ad0d-3f1ca29aaa6b","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-16T17:44:41-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 414 — tl-lead: section freshness stamps, a staleness check, and a derived Slots section |
+| repo | ariadne |
+| issue file | workshop/issues/000414-tl-lead-section-freshness-stamps-a-staleness-check-and-a-derived-slots-section.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | e1bb1ba557be3270d16129e8d9dd311cf1b22ccd..2059abecb29b36c46b1e01b733adba7b26abfb87 |
+| command | sdlc close --issue 414 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-16T17:44:41-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Prior-round fixes check out on read and the tests pass. Next I'm reverting the BR-1 fix to confirm its regression test goes red.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All four findings from round one are fixed, and I found no new ones. I re-checked each fix against the code. The BR-1 regression test fails when the fix is reverted. The tl-lead package tests pass at the pinned head (`go test ./cmd/tl-lead/`). The issue promised four things — section stamps through the one write path, a light `status check`, the stale lines appended to every status verb, and agent and idle labels in Slots from couch — and all four are delivered and covered by tests. The atlas and help.md cover the new `check` verb, the stamps and the couch actors input. The plan's Revisions entry now matches what the code does.
+
+**1. Strengths**
+- **One stamp owner.** `writeSection` (`cmd/tl-lead/status.go:41-50`) removes the old stamp before `compute` runs and adds a fresh one after. So `section`, `thread` and the rendered sections can't produce a doubled stamp, and Operator instructions is left out through `stampedSection`.
+- **Visible failures.** `staleLines` (`cmd/tl-lead/freshness.go:46-83`) reports a failed couch read or an unknown landing as a `check:` line. It does not quietly call the section fresh. `TestStatusCheckEdges` pins both lines.
+- **Couch's error text is pinned.** The missing-section text is now one constant, `missingSection` (`freshness.go:27`). The fake returns couch's real refusal text (`sessionsync_fake_test.go:43`), and the opt-in live conformance test checks it against the real couch.
+- **Graceful degradation in Slots.** A failed or missing actors read renders `?` and never blocks the section (`slots.go:26-38`, `readActors`).
+- **No new durable state.** The stamp lives inside the section it describes. `check` writes nothing.
+
+**2. Critical findings**
+None.
+
+**3. Important findings**
+None.
+
+**4. Minor findings**
+None new.
+- BR-3 is only partly covered: an empty `deps.now` still falls back to the wall clock. That is the usual Go pattern and reads no outside state, so I consider it addressed. Details are in the disposition below.
+
+**5. Test coverage notes**
+- **BR-1:** I reverted the `Truncate(time.Minute)` fix and `TestStatusCheckEdges` failed with `a landing in the stamp's minute: ["stale: ## Slots (... pair landed 10-16 17:05)"]`. I then restored the file.
+- **BR-2:** both conformance checks only run with `TL_LEAD_LIVE=1`, as round one asked. I did not run them live here; the issue log says both passed against the real couch.
+- **Stamp tests:** they test pure functions directly (`TestSplitStamp`, `TestStampIsNotABullet`). The status-check tests inject the clock and the landing reader, so they need no real IO.
+
+**6. Architectural notes for upcoming work**
+- **ARCH-DRY: pass.** The existing Slots renderer was extended rather than duplicated, and there is one stamp helper and one write path.
+- **ARCH-PURE: pass.** Stamp parsing and the budget rules are pure functions. git and couch sit behind injected seams.
+- **ARCH-PURPOSE: pass.** All four spec items are delivered. The couch-side ping was deferred to pair with the TL's approval, and that ping isn't the main point of this issue.
+- **ARCH-MOCK: pass.**
+  - Couch actors has a seam, a fake and a live conformance check.
+  - The session-sync fake now returns couch's real error text.
+  - `gitNewestLanding` is tested against real temporary git repos, which is acceptable for local reads.
+- **ARCH-CONSTRAINTS: pass.** `check` is limited to 4 couch reads plus one local git call per sibling repo, with no inventory read, and the help text says so.
+- **ARCH-SECURE: pass.**
+  - A stamp the operator hand-edits or deletes counts as unknown age, not as a parse failure.
+  - git runs with an argument array, not a shell string.
+  - Couch's JSON reply is decoded into a typed value and checked against `Code`.
+- **ARCH-ORDER: pass.** The command keeps no state between runs except the stamp itself. The existing compare-and-replace retry still controls concurrent writes, and a fresh stamp is computed on each retry.
+- **ARCH-FUNERAL: pass.** Nothing durable is added: each write replaces the section's single stamp line.
+
+**7. Plan revision recommendations**
+None. The 2026-10-16 Revisions entry already matches the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      freshness.go:70 now compares land.At.Truncate(time.Minute) with the stamp time. Reverting it turns TestStatusCheckEdges red (verified in this checkout).
+  - id: BR-2
+    disposition: addressed
+    note: |
+      missingSection is a named constant. TestSessionSyncConformance reads a missing section against it, and TestCouchActorsConformance pins the --actors shape. Both run only with TL_LEAD_LIVE=1, as round one asked.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      main.go now wires landing to gitNewestLanding, and an empty landing seam returns no landing, so tests no longer run git. An empty clock still falls back to time.Now; that is the usual Go pattern and reads no outside state.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The plan's Revisions entry (2026-10-16 close review) records the 4 session-sync reads, the agent and agent-idle labels, none for an empty slot, and that only SDLC siblings count as landing sources. This matches freshness.go and slots.go.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"6c28ce3b-abe5-42c6-a3e7-593a675eb99b","repository":"github.com/xianxu/ariadne","issue_id":"000414","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/cc9d3235aabb704b","reviewed_head":"2059abecb29b36c46b1e01b733adba7b26abfb87","slot":"ariadne:4","requested_at":"2026-10-17T00:43:41.072807Z"},"phase":"finished","pid":77017,"started_at":"2026-10-17T00:43:41.404855Z","finished_at":"2026-10-17T00:44:40.920161Z","session_id":"c9ea44d6-3002-4ccd-a435-c383448f6ddc","outcome":"returned"}] -->

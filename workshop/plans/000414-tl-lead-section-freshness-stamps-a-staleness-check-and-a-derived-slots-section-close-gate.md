@@ -91,6 +91,88 @@ rounds:
       isolation: fenced
       reviewed: 78490f1455b440e25bf2c8f6848e9eb002e00826
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 6c28ce3b-abe5-42c6-a3e7-593a675eb99b
+            repository: github.com/xianxu/ariadne
+            issue_id: "000414"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/cc9d3235aabb704b
+            reviewed_head: 2059abecb29b36c46b1e01b733adba7b26abfb87
+            slot: ariadne:4
+            requested_at: "2026-10-17T00:43:41.072807Z"
+          phase: finished
+          pid: 77017
+          started_at: "2026-10-17T00:43:41.404855Z"
+          finished_at: "2026-10-17T00:44:40.920161Z"
+          session_id: c9ea44d6-3002-4ccd-a435-c383448f6ddc
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 2059abecb29b36c46b1e01b733adba7b26abfb87
+        tracker_head: b317b912078cb7a47a3ca8934862983b6f8e0e5b
+        branch_point: e1bb1ba557be3270d16129e8d9dd311cf1b22ccd
+        since: "2026-10-16T16:53:29-07:00"
+        until: "2026-10-16T17:43:08-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-16T16:53:29-07:00"
+              end: "2026-10-16T17:43:08-07:00"
+              began: "2026-10-16T16:53:29-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+        sources:
+            - harness: claude
+              id: 299d33d0-1f10-4950-b82c-b729d6c107a0
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: 632e7d510ccdd7c4422d0652166f5d74d725d8ba3d73176a4ba7e2a1065828a7
+              started: "2026-10-16T06:28:11.678Z"
+              spawned: false
+              bytes: 4445122
+              windows:
+                - start: "2026-10-16T16:53:29-07:00"
+                  end: "2026-10-16T17:43:08-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 0.042216666666666666
+        cuts:
+            - dispatched: "2026-10-16T17:40:10-07:00"
+              finalized: "2026-10-16T17:42:20-07:00"
+              finalizing: true
+      "n": 2
+      timestamp: "2026-10-16T17:44:42-07:00"
+      dispatched: "2026-10-16T17:43:41-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: freshness.go:70 now compares land.At.Truncate(time.Minute) with the stamp time. Reverting it turns TestStatusCheckEdges red (verified in this checkout).
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: missingSection is a named constant. TestSessionSyncConformance reads a missing section against it, and TestCouchActorsConformance pins the --actors shape. Both run only with TL_LEAD_LIVE=1, as round one asked.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: main.go now wires landing to gitNewestLanding, and an empty landing seam returns no landing, so tests no longer run git. An empty clock still falls back to time.Now; that is the usual Go pattern and reads no outside state.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: The plan's Revisions entry (2026-10-16 close review) records the 4 session-sync reads, the agent and agent-idle labels, none for an empty slot, and that only SDLC siblings count as landing sources. This matches freshness.go and slots.go.
+          round: 2
+      recipe: milestone-review
+      isolation: checkout
+      reviewed: 2059abecb29b36c46b1e01b733adba7b26abfb87
+      blocked: false
 ---
 
 # Gate ledger — ariadne#414 (boundary-review)
@@ -111,9 +193,15 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-4** [Minor] `plan-text-drift` (kind: defect) Plan says check is one couch read and shows a claude·working label; code does 4 reads and renders claude / claude·idle
   Add a Revisions entry so the plan matches the delivered behavior.
 
+## Round 2 — 2026-10-16T17:44:42-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — freshness.go:70 now compares land.At.Truncate(time.Minute) with the stamp time. Reverting it turns TestStatusCheckEdges red (verified in this checkout).
+- BR-2 — addressed — missingSection is a named constant. TestSessionSyncConformance reads a missing section against it, and TestCouchActorsConformance pins the --actors shape. Both run only with TL_LEAD_LIVE=1, as round one asked.
+- BR-3 — addressed — main.go now wires landing to gitNewestLanding, and an empty landing seam returns no landing, so tests no longer run git. An empty clock still falls back to time.Now; that is the usual Go pattern and reads no outside state.
+- BR-4 — addressed — The plan's Revisions entry (2026-10-16 close review) records the 4 session-sync reads, the agent and agent-idle labels, none for an empty slot, and that only SDLC siblings count as landing sources. This matches freshness.go and slots.go.
+
 ## Open findings
 
-- **BR-1** [Minor] `timestamp-precision-mismatch` (kind: defect) Landing rule compares a minute-truncated stamp against a second-precision landing time
-- **BR-2** [Minor] `unpinned-external-contract` (kind: defect) Missing-section detection matches couch's error text with no conformance check pinning it
-- **BR-3** [Minor] `nil-seam-defaults-to-production` (kind: defect) Empty deps.landing and deps.now fall back to real git and the wall clock in tests
-- **BR-4** [Minor] `plan-text-drift` (kind: defect) Plan says check is one couch read and shows a claude·working label; code does 4 reads and renders claude / claude·idle
+(none — every finding has been disposed)
