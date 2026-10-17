@@ -81,3 +81,68 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"bb4f756e-2747-4ce1-89f6-e1b592bff97b","repository":"github.com/xianxu/ariadne","issue_id":"000419","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/d56aac107d4bea50","reviewed_head":"2420f13a7f7530398a412a04c188c46c8f265260","slot":"ariadne:4","requested_at":"2026-10-17T07:18:01.054879Z"},"phase":"finished","pid":51547,"started_at":"2026-10-17T07:18:01.151282Z","finished_at":"2026-10-17T07:19:03.292084Z","session_id":"0b097383-0f45-4c77-916d-ae464cffe30f","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T00:20:37-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 419 — Makefile.workflow: the generic Go build publishes bin/<name> in place; readers see missing or partial binaries |
+| repo | ariadne |
+| issue file | workshop/issues/000419-makefile-workflow-the-generic-go-build-publishes-bin-name-in-place-readers-see-missing-or-partial-binaries.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 0a1dceef3874eeb58c0040536ed62beac1bf2961..054ef001de6dd434de2f3bd3a5294ba7595d69c5 |
+| command | sdlc close --issue 419 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-17T00:20:37-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Tests pass. Now I'll confirm the new test fails without the sweep.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both prior findings are fixed, and the fix window adds no new defects. `WF_GO_PUBLISH` now sweeps any `.go-build.*` staging dir beside the output that is more than an hour old. A new test pins that behaviour. I deleted the sweep line in the disposable checkout and the test failed (`an hour-old staging dir survived the build`). With the line restored, all `TestMakeBuild*` tests pass. The atlas now has one line saying that `make build` and the owner tool targets publish by a single rename. The window doesn't touch Spec, Revisions or Done-when. Apart from the review and ledger files, it only changes the macro, its test and the atlas line.
+
+**1. Strengths**
+- **The sweep sits inside the shared publisher** (`Makefile.workflow:680`). Both `make build` and the owner `Makefile` targets get it, so it fixes the whole class of leftover dirs, not just one caller. It runs after `mktemp`, so a build's own fresh dir is never older than 60 minutes and can't be swept.
+- **The sweep is narrow.** It only looks one level deep, only matches the `.go-build.*` prefix on directories, and only removes ones older than an hour. Errors are discarded, so a failed sweep can't fail the build.
+- **The test checks both sides** (`cmd/sdlc/makebuild_publish_test.go:181-206`). An old dir is removed and a recent one (standing in for a live build) is kept. Without the sweep line, the test fails.
+- **The atlas line is accurate** (`atlas/workflow/setup-and-replication.md:216-218`). It names both callers and the guarantee readers rely on, and adds no new surface.
+
+**2. Critical findings:** none.
+
+**3. Important findings:** none.
+
+**4. Minor findings:** none new. One residual, not raised: the sweep runs before the cleanup trap is installed. A SIGKILL in that short gap could leave a dir behind, but the next build's sweep removes it once it is an hour old. The one-hour cutoff assumes no live build takes that long, which the code comment states.
+
+**5. Test coverage notes**
+- `TestMakeBuildSweepsStaleStaging` covers the sweep through the real `make build`. The owner targets use the same macro, so they are covered too.
+
+**6. Architecture (interdiff only)**
+- **ARCH-DRY: pass.** The sweep exists only in the shared macro and is not repeated in either caller.
+- **ARCH-PURE: pass.** This is a build shell with no business logic.
+- **ARCH-PURPOSE: pass.** The fix covers every caller of `WF_GO_PUBLISH`, not just the `make build` site the finding named. The atlas line covers both callers.
+
+**7. Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      WF_GO_PUBLISH now sweeps .go-build.* dirs older than 60 min beside OUTPUT (Makefile.workflow:680), covering every caller; TestMakeBuildSweepsStaleStaging goes red when that line is removed and green at head.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      atlas/workflow/setup-and-replication.md:216-218 now states make build and the owner tool targets publish via WF_GO_PUBLISH (staging dir plus one rename), matching Makefile.workflow:676-682.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"782b47f1-bb21-4c15-a8de-0ca3295f31c8","repository":"github.com/xianxu/ariadne","issue_id":"000419","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/7be05430e97d18bd","reviewed_head":"054ef001de6dd434de2f3bd3a5294ba7595d69c5","slot":"ariadne:4","requested_at":"2026-10-17T07:20:06.060427Z"},"phase":"finished","pid":67200,"started_at":"2026-10-17T07:20:06.155519Z","finished_at":"2026-10-17T07:20:36.913765Z","session_id":"69f1f8e7-5f4f-4223-976f-b5d4c5a6eb00","outcome":"returned"}] -->
