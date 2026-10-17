@@ -1,13 +1,21 @@
 ---
 id: 000423
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'e8cc600d2fa8c37d930a7c46e57847372725e28d' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ca4867a1cdb6ac087c0157ee9ee7f88e48e86e4f' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-17T02:22:23-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # sdlc issue show reports the first close review's verdict, not the latest (REWORK shown after a SHIP)
@@ -33,8 +41,12 @@ A reader of `issue show`, whether the TL, the operator or an agent deciding whet
 
 ## Plan
 
-- [ ]
+- [ ] Reproduce appended REWORK→SHIP readout with completion selection, round/history, and quoted metadata coverage.
+- [ ] Select the completion-bound entry (latest without completion), using ledger round numbers when available; preserve legacy sidecars and explicit unknown reads.
+- [ ] Verify text/JSON through the collector and archived evidence, run the recorded suite, close and land on SHIP.
 
 ## Log
 
 ### 2026-10-17
+
+- Root cause: observe.sidecarRows deliberately keeps the first metadata table, but the writer appends Re-review sections. Chosen fix parses only each entry’s metadata before its Review body, reuses markdoc fence filtering (ARCH-DRY), and keeps selection pure (ARCH-PURE). Match completion ReviewedHEAD for close; unmatched bound evidence is unknown rather than silently substituting a later review. No new persisted state or artifacts; ledger timestamps map entries to existing round numbers, with entry order for legacy files.
