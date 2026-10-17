@@ -801,6 +801,115 @@ rounds:
       isolation: fenced
       reviewed: aef20f75848fbb1eec0a69dd0f9578cf2941085d
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: a346d263-89c0-4b8a-997b-33364c3098e1
+            repository: github.com/xianxu/ariadne
+            issue_id: "000424"
+            recipe: milestone-review
+            round: 9
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/92c7a101ea4e6a3a
+            reviewed_head: 5990bf04a5d7cebb58dcf279b19e142ae3f2fe5f
+            slot: ariadne:2
+            requested_at: "2026-10-17T14:14:56.438235Z"
+          phase: finished
+          pid: 38154
+          started_at: "2026-10-17T14:14:56.694041Z"
+          finished_at: "2026-10-17T14:29:11.581166Z"
+          session_id: febcb445-8b80-4f9a-af60-2a3e616ef19d
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 5990bf04a5d7cebb58dcf279b19e142ae3f2fe5f
+        tracker_head: 1cc8358108942a062db4c1b5675bd2968a0b6394
+        branch_point: 146796d884ccf9a9d589a8766d7627762b4571e6
+        since: "2026-10-17T03:02:14-07:00"
+        until: "2026-10-17T06:36:01-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-17T03:02:14-07:00"
+              end: "2026-10-17T06:36:01-07:00"
+              began: "2026-10-17T03:02:14-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 4604b4628718f17303bf6fb9175e791da07919259c1872d453110d2035c632b3
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 74275415
+              windows:
+                - start: "2026-10-17T03:02:14-07:00"
+                  end: "2026-10-17T06:36:01-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-17T03:25:46-07:00"
+              finalized: "2026-10-17T03:31:29-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-17T03:40:40-07:00"
+              finalized: "2026-10-17T03:52:02-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-17T03:56:13-07:00"
+              finalized: "2026-10-17T03:57:31-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-17T04:04:05-07:00"
+              finalized: "2026-10-17T04:07:12-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-17T04:10:24-07:00"
+              finalized: "2026-10-17T04:12:53-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-17T04:14:40-07:00"
+              finalized: "2026-10-17T04:16:02-07:00"
+              finalizing: true
+            - boundary: M3
+              dispatched: "2026-10-17T05:30:55-07:00"
+              finalized: "2026-10-17T05:45:27-07:00"
+              finalizing: false
+            - boundary: M3
+              dispatched: "2026-10-17T06:20:07-07:00"
+              finalized: "2026-10-17T06:33:25-07:00"
+              finalizing: true
+      "n": 9
+      timestamp: "2026-10-17T07:29:12-07:00"
+      dispatched: "2026-10-17T07:14:56-07:00"
+      agent: claude
+      dispose:
+        - id: BR-11
+          disposition: addressed
+          note: index.go windowChanges now filters lineDiff output; lineChanges removed (f83186dd).
+          round: 9
+        - id: BR-12
+          disposition: addressed
+          note: submit passes its printed diff to syncIndexAfter, which skips an identical reprint; TestSubmitPrintsUnreadOnce pins it.
+          round: 9
+        - id: BR-17
+          disposition: addressed
+          note: archiveside.go refuses a non-folder destination and a readDirNames error at prepare; recovery returns ReadFile errors; TestPrepareSideArchiveRefusesFileDestination passes.
+          round: 9
+        - id: BR-18
+          disposition: addressed
+          note: reopen byte-compares side docs like assets; reverting the InSideDir clause makes TestReopenDoneSideFolder fail (verified).
+          round: 9
+      recipe: milestone-review
+      isolation: checkout
+      reviewed: 5990bf04a5d7cebb58dcf279b19e142ae3f2fe5f
+      blocked: false
 ---
 
 # Gate ledger — ariadne#424 (boundary-review)
@@ -910,9 +1019,15 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-17 — not-addressed — Code fix present (archiveside.go:69-82, 141-148), but no test covers a destination that is a file or a ReadFile error.
 - BR-18 — not-addressed — Reopen now compares side-doc bytes (abandon.go:665), but no test reopens over a differing live side doc.
 
+## Round 9 — 2026-10-17T07:29:12-07:00 (claude) — passed
+
+### Disposed
+
+- BR-11 — addressed — index.go windowChanges now filters lineDiff output; lineChanges removed (f83186dd).
+- BR-12 — addressed — submit passes its printed diff to syncIndexAfter, which skips an identical reprint; TestSubmitPrintsUnreadOnce pins it.
+- BR-17 — addressed — archiveside.go refuses a non-folder destination and a readDirNames error at prepare; recovery returns ReadFile errors; TestPrepareSideArchiveRefusesFileDestination passes.
+- BR-18 — addressed — reopen byte-compares side docs like assets; reverting the InSideDir clause makes TestReopenDoneSideFolder fail (verified).
+
 ## Open findings
 
-- **BR-11** [Minor] `reuse-existing-helper` (kind: defect) lineChanges in cmd/tl-lead/index.go re-implements the package's existing lineDiff (ARCH-DRY)
-- **BR-12** [Minor] `duplicate-output` (kind: defect) submit prints the unread diff twice when the index reconcile needs a write
-- **BR-17** [Minor] `silent-error-swallow` (kind: defect) prepareSideArchive ignores readDirNames errors; recovery ignores ReadFile errors
-- **BR-18** [Minor] `move-carries-side-folder` (kind: defect) reopen git-rm's a differing live side doc without comparing bytes
+(none — every finding has been disposed)
