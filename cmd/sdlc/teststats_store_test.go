@@ -55,6 +55,53 @@ func TestDecodeSuiteAttemptRejectsUntrustedRecords(t *testing.T) {
 	}
 }
 
+func TestSuiteAttemptQueueEndpoints(t *testing.T) {
+	base := storedAttemptFixture("a1")
+	q := 8.0
+	base.QueueSeconds = &q
+	base.StartedAt = base.StartedAt.Add(10 * time.Second)
+	base.FinishedAt = base.StartedAt.Add(time.Second)
+	queued := base.StartedAt.Add(-10 * time.Second)
+	acquired := queued.Add(8 * time.Second)
+	base.QueuedAt, base.AcquiredAt = &queued, &acquired
+	for name, mutate := range map[string]func(*SuiteAttempt){
+		"one endpoint":          func(a *SuiteAttempt) { a.AcquiredAt = nil },
+		"reversed":              func(a *SuiteAttempt) { at := queued.Add(-time.Second); a.AcquiredAt = &at },
+		"after run start":       func(a *SuiteAttempt) { at := base.StartedAt.Add(time.Second); a.AcquiredAt = &at },
+		"inconsistent duration": func(a *SuiteAttempt) { at := acquired.Add(time.Second); a.AcquiredAt = &at },
+		"non UTC":               func(a *SuiteAttempt) { at := queued.In(time.FixedZone("offset", 3600)); a.QueuedAt = &at },
+	} {
+		t.Run(name, func(t *testing.T) {
+			a := base
+			mutate(&a)
+			raw, err := json.Marshal(a)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := decodeSuiteAttempt(raw); err == nil {
+				t.Fatal("accepted invalid queue endpoints")
+			}
+		})
+	}
+	raw, err := json.Marshal(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := decodeSuiteAttempt(raw); err != nil {
+		t.Fatalf("exact endpoints rejected: %v", err)
+	}
+	legacy := base
+	legacy.QueuedAt, legacy.AcquiredAt = nil, nil
+	start, end, exact := suiteAttemptQueueWindow(legacy)
+	if exact || !start.Equal(base.StartedAt.Add(-8*time.Second)) || !end.Equal(base.StartedAt) {
+		t.Fatalf("legacy window = %v %v exact=%v; want late-shifted window", start, end, exact)
+	}
+	start, end, exact = suiteAttemptQueueWindow(base)
+	if !exact || !start.Equal(queued) || !end.Equal(acquired) {
+		t.Fatalf("exact window = %v %v exact=%v", start, end, exact)
+	}
+}
+
 func TestPublishSuiteAttemptKeepsFailureAcrossRetry(t *testing.T) {
 	root := t.TempDir()
 	one, err := beginSuiteAttempt(root)

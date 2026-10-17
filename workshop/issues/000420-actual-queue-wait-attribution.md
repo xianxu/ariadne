@@ -64,7 +64,7 @@ design-buffer: 0.15
 total: 4.92
 ```
 
-Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. Two novel concerns are queue attribution and structural native-tool evidence; the three smaller extensions are attempt recording, snapshot/correction wiring and phase/report integration. This uses the already available Go and SDLC libraries, so no novel-stack library discount applies. The calibration is marked stale, hence provisional.
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. Two novel concerns are queue attribution and structural native-tool evidence; the three smaller extensions are attempt recording, snapshot/correction wiring (including #416's generation-bound dry-run, evidence assessment and correction/exclusion handoff), and phase/report integration. This uses the already available Go and SDLC libraries, so no novel-stack library discount applies. The calibration is marked stale, hence provisional.
 
 ## Log
 
@@ -76,6 +76,7 @@ Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `
 - 2026-10-17: TL approved the full-flow plan. Legacy attempt windows reconstructed from `started_at` carry a documented post-lock setup shift; new attempts will retain the actual queue start and acquisition timestamps. The plan includes a regression for both formats.
 - 2026-10-17: Plan-quality round 1 returned REWORK on four executable-design gaps: an enclosing suite call could restore its own queue wait, historical replay needed a separate correction purpose, exact timestamps lacked a recorder/schema path, and risky functions needed named tests. Revised the durable plan to classify wait/work spans structurally, pin a generation-bound correction candidate, extend v1 attempt records compatibly, and test those seams adversarially (ARCH-PURPOSE, ARCH-ORDER, ARCH-SECURE).
 - 2026-10-17: Plan-quality round 2 cleared three findings. For the remaining test-strategy finding, the durable plan now names a unit target, adversarial input and mechanical guard for every risky function, with the native transcript and correction replay reserved for end-to-end acceptance.
+- 2026-10-17: Full-flow `change-code` passed plan-quality and estimate-quality (info only). Endpoint TDD exposed that `time.Sub` on live values can use monotonic readings that differ from serialized UTC endpoints; the recorder now derives `queue_seconds` from those persisted endpoints. New v1 records contain exact queue start/acquisition times; legacy records retain the documented late-shift window.
 
 ## Revisions
 
