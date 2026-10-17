@@ -66,6 +66,8 @@ The unchanged blanket-dead test passed count=1000 in 24.539s at the new main-bas
 
 - Verification on the guarded source (9a7e6898f5ad4699f39549e35d8fe1ca72b3870f): both ownership regressions count=1000 PASS 145.904s; go test -race -trimpath ./cmd/sdlc/internal/repolock -count=20 -timeout 5m PASS 30.084s; CLI lock integration selection PASS 14.047s. Full repolock package PASS. Final-inode check preserves a replacement created during the probe and releases the old descriptor guard. Late cancellation/deadline, revived holders and busy-guard budget are asserted. Atlas and lessons updated; next is PR plus recorded full suite before close.
 
+- Opened PR #272: https://github.com/xianxu/ariadne/pull/272. Recorded suite queued on 0ff3794b1b5a88835e8a59cb9f92460111c4ec2b through the normal weighted gate, initially position 5; run 2cbfb290cfffd8a6046812d4c30a8e25, checkout sdlc-local-3780256829. No full-suite result or close yet. Current main was integrated before queuing; no validation override.
+
 ## Revisions
 
 ### 2026-10-16 — faithful ordering disproves test-only hypothesis
