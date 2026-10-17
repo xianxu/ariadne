@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "c8e01053", done: "6c610154"}
 ---
 
 # Landing suites invalidated by main moving during the 15–35 min queue; the TL held main by hand twice
