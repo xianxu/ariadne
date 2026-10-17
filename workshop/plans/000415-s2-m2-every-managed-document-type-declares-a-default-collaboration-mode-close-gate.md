@@ -91,6 +91,94 @@ rounds:
       isolation: fenced
       reviewed: 614b8f11f0eb8bd986d57eac0df1963831c3eaf9
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 0a7260da-9e79-46e1-95cb-1991e40df217
+            repository: github.com/xianxu/ariadne
+            issue_id: "000415"
+            recipe: fix-review
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/d3075f6a596001ae
+            reviewed_head: 21ba3b6c13b4123a639a58666228c4764436ee22
+            slot: ariadne:2
+            requested_at: "2026-10-17T02:46:43.158057Z"
+          phase: finished
+          pid: 25086
+          started_at: "2026-10-17T02:46:43.273768Z"
+          finished_at: "2026-10-17T02:47:43.271045Z"
+          session_id: b61a53e8-fe0f-45f7-b7df-29d05fedb13c
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 21ba3b6c13b4123a639a58666228c4764436ee22
+        tracker_head: 68c38c877e3096c702db121c5abb87214fc40e4a
+        branch_point: 63b1a010fc175881b8311e8588676a70991a8ad3
+        since: "2026-10-16T18:46:26-07:00"
+        until: "2026-10-16T19:46:16-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-16T18:46:26-07:00"
+              end: "2026-10-16T19:46:16-07:00"
+              began: "2026-10-16T18:46:26-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: ba6e248f3f997cb8ea4f82674690bea8b2b191333cbb9f0b3f52448f87f3aedf
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 18761838
+              windows:
+                - start: "2026-10-16T18:46:26-07:00"
+                  end: "2026-10-16T19:46:16-07:00"
+        cuts:
+            - dispatched: "2026-10-16T19:43:21-07:00"
+              finalized: "2026-10-16T19:45:26-07:00"
+              finalizing: true
+      "n": 2
+      timestamp: "2026-10-16T19:47:53-07:00"
+      dispatched: "2026-10-16T19:46:43-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: renderToOutput (run by every repo's weave compile via construct/local/datatype/.dynamic-skill) now calls lintTypes and warns on stderr (main.go:91-96).
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: TestCollaborationModesAgreeAcrossSources binds pensive.cue's enum and collaboration-modes.md's error text to vocab.CollaborationModes. The scaffold value still has no CUE type; TestScaffoldsDeclareACollaborationMode covers that in Go, which is acceptable at Minor.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: CRLF is normalized and the notes must start with the default (CutPrefix on the trimmed cell). Reverting either fix makes TestCollaborationModeDefault fail (CRLF case, and the not-at-the-start case).
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: collabmode_test.go:71-73 calls t.Fatal when the project lookup returns i < 0.
+          round: 2
+      findings:
+        - kind: defect
+          id: BR-5
+          severity: Minor
+          title: The new compile-time warning loop in renderToOutput has no test
+          detail: lintTypes is tested, but no test checks that the render step prints a warning, so the BR-1 wiring could be dropped without any test failing. Acceptable as thin IO glue; a small test of renderToOutput against a fixture tree with a prototype lacking a collaboration-mode row would pin it.
+          family: lint-not-wired-to-gate
+          round: 2
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 21ba3b6c13b4123a639a58666228c4764436ee22
+      blocked: false
 ---
 
 # Gate ledger — ariadne#415 (boundary-review)
@@ -111,9 +199,20 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-4** [Minor] `test-guards-lookup` (kind: defect) TestEveryTypeDeclaresACollaborationMode indexes protos[i] without checking i != -1
   If project ever stops resolving, the test panics instead of reporting a failure.
 
+## Round 2 — 2026-10-16T19:47:53-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — renderToOutput (run by every repo's weave compile via construct/local/datatype/.dynamic-skill) now calls lintTypes and warns on stderr (main.go:91-96).
+- BR-2 — addressed — TestCollaborationModesAgreeAcrossSources binds pensive.cue's enum and collaboration-modes.md's error text to vocab.CollaborationModes. The scaffold value still has no CUE type; TestScaffoldsDeclareACollaborationMode covers that in Go, which is acceptable at Minor.
+- BR-3 — addressed — CRLF is normalized and the notes must start with the default (CutPrefix on the trimmed cell). Reverting either fix makes TestCollaborationModeDefault fail (CRLF case, and the not-at-the-start case).
+- BR-4 — addressed — collabmode_test.go:71-73 calls t.Fatal when the project lookup returns i < 0.
+
+### Raised
+
+- **BR-5** [Minor] `lint-not-wired-to-gate` (kind: defect) The new compile-time warning loop in renderToOutput has no test
+  lintTypes is tested, but no test checks that the render step prints a warning, so the BR-1 wiring could be dropped without any test failing. Acceptable as thin IO glue; a small test of renderToOutput against a fixture tree with a prototype lacking a collaboration-mode row would pin it.
+
 ## Open findings
 
-- **BR-1** [Minor] `lint-not-wired-to-gate` (kind: defect) datatype lint is not invoked by any make target, gate, or CI in derived repositories
-- **BR-2** [Minor] `enum-single-source` (kind: defect) The collaboration-mode value set is restated in Go, pensive.cue and collaboration-modes.md; the CUE scaffold value is untyped
-- **BR-3** [Minor] `parser-matches-stated-contract` (kind: defect) collaborationModeDefault accepts the first backticked token anywhere in the notes, not at the start; CRLF prototypes report a misleading error
-- **BR-4** [Minor] `test-guards-lookup` (kind: defect) TestEveryTypeDeclaresACollaborationMode indexes protos[i] without checking i != -1
+- **BR-5** [Minor] `lint-not-wired-to-gate` (kind: defect) The new compile-time warning loop in renderToOutput has no test

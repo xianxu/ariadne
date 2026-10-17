@@ -99,3 +99,88 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"9f699c5f-e7f1-489f-a49c-126afeef5ca2","repository":"github.com/xianxu/ariadne","issue_id":"000415","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/6daf07d4d8089694","reviewed_head":"614b8f11f0eb8bd986d57eac0df1963831c3eaf9","slot":"ariadne:2","requested_at":"2026-10-17T02:43:21.74706Z"},"phase":"finished","pid":37113,"started_at":"2026-10-17T02:43:21.883985Z","finished_at":"2026-10-17T02:45:26.004376Z","session_id":"283abace-6516-4233-8215-cc8a4f1b8d71","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-16T19:47:52-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 415 — S2 M2: every managed document type declares a default collaboration-mode |
+| repo | ariadne |
+| issue file | workshop/issues/000415-s2-m2-every-managed-document-type-declares-a-default-collaboration-mode.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 5a4dbf182040b89e2050c906b21502eb3006274e..21ba3b6c13b4123a639a58666228c4764436ee22 |
+| command | sdlc close --issue 415 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-16T19:47:52-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I've finished checking the fixes and confirmed both parser regressions by reverting them. The verdict follows.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All four Minor findings from round 1 are fixed in this window, and the fixes add no Critical or Important problem. I reverted each of the two parser fixes separately in the disposable checkout and ran the tests, and each revert made `TestCollaborationModeDefault` fail. With the old code the CRLF test fails with "no Frontmatter shape section", and the "not at the start" test fails because no error is returned. With both fixes in place, `./cmd/datatype` and `./pkg/vocab` pass. Nothing in the issue file's Spec, Revisions or Done-when changed. The only edits there are Log lines, the status, `actual_hours` and the flow upgrade, so the scope did not change after close. No main conflict resolutions are listed for this window.
+
+1. **Strengths**
+   - **BR-1 is fixed without extra setup.** The lint now runs inside `renderToOutput` (`cmd/datatype/main.go:91-96`), which `construct/local/datatype/.dynamic-skill:6` calls during every repository's weave compile. So a derived repository's own prototypes get checked with no extra wiring. It warns rather than failing, so a bad prototype in a derived repo can't break its compile.
+   - **The parser now does what the docs say.** It normalizes CRLF first (`collabmode.go:18`), then requires the notes to *start* with the backticked default (`collabmode.go:29`). Each of the two new test cases fails if its fix is removed.
+   - **One test ties all three copies of the mode list to the Go list.** `TestCollaborationModesAgreeAcrossSources` (`pkg/vocab/vocab_test.go:280-299`) checks `pensive.cue` and `collaboration-modes.md` against `vocab.CollaborationModes`, so the three can't drift apart unnoticed.
+   - **The lookup guard turns a possible panic into a clear failure** (`collabmode_test.go:71-73`).
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - No test covers the new warning in `renderToOutput`. It is thin IO glue around `lintTypes`, which is tested, so this is acceptable.
+
+5. **Test coverage notes**
+   - Both BR-3 regressions are confirmed red without their fixes.
+   - BR-2 is guarded by a drift test, not by one shared enum. That catches drift, but the CUE scaffold value still has no type of its own (see the BR-2 note below).
+   - BR-4 is a test-only guard and needs no further evidence.
+
+6. **Architectural notes**
+   - **ARCH-DRY:** pass. The mode list is still written out in three places, but a test now binds them to the Go list. A shared CUE enum, exported to Go, would remove the copies entirely if this area is reworked.
+   - **ARCH-PURE:** pass. The parser stays a pure function on a string, and the new IO is one loop in the existing IO shell.
+   - **ARCH-PURPOSE:** pass. BR-1 is fixed at the point every repository's compile passes through, not only for ariadne. BR-3 fixes both parts of its finding (start-of-notes and CRLF). BR-2 binds every copy of the list, not just the one the finding named.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      renderToOutput (run by every repo's weave compile via construct/local/datatype/.dynamic-skill) now calls lintTypes and warns on stderr (main.go:91-96).
+  - id: BR-2
+    disposition: addressed
+    note: |
+      TestCollaborationModesAgreeAcrossSources binds pensive.cue's enum and collaboration-modes.md's error text to vocab.CollaborationModes. The scaffold value still has no CUE type; TestScaffoldsDeclareACollaborationMode covers that in Go, which is acceptable at Minor.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      CRLF is normalized and the notes must start with the default (CutPrefix on the trimmed cell). Reverting either fix makes TestCollaborationModeDefault fail (CRLF case, and the not-at-the-start case).
+  - id: BR-4
+    disposition: addressed
+    note: |
+      collabmode_test.go:71-73 calls t.Fatal when the project lookup returns i < 0.
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: lint-not-wired-to-gate
+    title: |
+      The new compile-time warning loop in renderToOutput has no test
+    detail: |
+      lintTypes is tested, but no test checks that the render step prints a warning, so the BR-1 wiring could be dropped without any test failing. Acceptable as thin IO glue; a small test of renderToOutput against a fixture tree with a prototype lacking a collaboration-mode row would pin it.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"0a7260da-9e79-46e1-95cb-1991e40df217","repository":"github.com/xianxu/ariadne","issue_id":"000415","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/d3075f6a596001ae","reviewed_head":"21ba3b6c13b4123a639a58666228c4764436ee22","slot":"ariadne:2","requested_at":"2026-10-17T02:46:43.158057Z"},"phase":"finished","pid":25086,"started_at":"2026-10-17T02:46:43.273768Z","finished_at":"2026-10-17T02:47:43.271045Z","session_id":"b61a53e8-fe0f-45f7-b7df-29d05fedb13c","outcome":"returned"}] -->
