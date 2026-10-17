@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -70,7 +71,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "datatype: --output <dir> is required (or use the `list` / `show <name>` subcommand)")
 		os.Exit(2)
 	}
-	if err := renderToOutput(*output); err != nil {
+	if err := renderToOutput(*output, os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, "datatype:", err)
 		os.Exit(1)
 	}
@@ -79,7 +80,7 @@ func main() {
 // renderToOutput resolves the repo root from cwd, DAG-merges its prototypes,
 // renders the SKILL.md, and writes it to <output>/SKILL.md. The thin IO shell
 // over findRepoRoot + layergraph.Walk + mergeTypes + renderSkill.
-func renderToOutput(output string) error {
+func renderToOutput(output string, warn io.Writer) error {
 	protos, err := resolveTypes()
 	if err != nil {
 		return err
@@ -92,7 +93,7 @@ func renderToOutput(output string) error {
 	// derived repository's own prototypes meet the #415 lint: warn, don't
 	// fail the compile.
 	for _, p := range lintTypes(layergraph.OSFS{}, protos) {
-		fmt.Fprintln(os.Stderr, "datatype: warning:", p, "(run `datatype lint`)")
+		fmt.Fprintln(warn, "datatype: warning:", p, "(run `datatype lint`)")
 	}
 	out := renderSkill(names)
 	// The binary OWNS creating its output dir (#115 M3): the marker passes a

@@ -96,3 +96,29 @@ func TestPlanHeaderDeclaresACollaborationMode(t *testing.T) {
 		t.Errorf("the plan header declares no valid collaboration mode")
 	}
 }
+
+// #415: every repository's weave compile runs the render, which warns on a
+// type without a default collaboration mode, and still renders.
+func TestRenderWarnsOnATypeWithoutADefault(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "construct", "datatype")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string]string{"good": proto(shapeRow), "bare": proto("")} {
+		if err := os.WriteFile(filepath.Join(dir, name+".md"), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Chdir(root)
+	var warn strings.Builder
+	if err := renderToOutput(filepath.Join(root, "out"), &warn); err != nil {
+		t.Fatal(err)
+	}
+	if got := warn.String(); !strings.Contains(got, "warning: bare ") || strings.Contains(got, "good ") {
+		t.Errorf("warnings %q, want one for bare only", got)
+	}
+	if _, err := os.Stat(filepath.Join(root, "out", "SKILL.md")); err != nil {
+		t.Errorf("the render must still write SKILL.md: %v", err)
+	}
+}

@@ -95,3 +95,4 @@ Out of scope:
   - the parser requires the notes to start with the default and accepts CRLF files;
   - the test guards the project lookup.
 - A noted design point, not changed: issues default to collaboration (the operator's first cut), while an issue's `## Spec` is design. A per-section `collaboration-mode: {discussion: ["Spec"]}` on an issue is the lever if the operator wants Spec questions to branch.
+- Fixed-then-ship round: SHIP; its one advisory (the compile-time warning was untested) fixed: renderToOutput takes its warning writer, and TestRenderWarnsOnATypeWithoutADefault renders a fixture tree with a prototype lacking a default.
