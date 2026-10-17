@@ -137,7 +137,7 @@ func runUnstage(ctx context.Context, dir, address string, dryRun bool, stdout, s
 		}
 		if !dryRun {
 			if err := rebuildRestingStage(ctx, to.Root, to.Head, stdout, stderr); err != nil {
-				return err
+				return fmt.Errorf("%s is on %s at %s, but binary rebuild failed: %w; rerun sdlc stage --clear %s", to.Address, to.Resting, shortOID(to.Head), err, to.Address)
 			}
 		}
 		cok(stderr, fmt.Sprintf("%s is on its resting branch %s; nothing staged", to.Address, to.Resting))
@@ -161,7 +161,7 @@ func runUnstage(ctx context.Context, dir, address string, dryRun bool, stdout, s
 	}
 	removeStaged(r, to.Root)
 	if err := rebuildRestingStage(ctx, to.Root, to.RestHead, stdout, stderr); err != nil {
-		return err
+		return fmt.Errorf("%s is back on %s at %s, but binary rebuild failed: %w; rerun sdlc stage --clear %s", to.Address, to.Resting, shortOID(to.RestHead), err, to.Address)
 	}
 	fmt.Fprintf(stdout, "%s is back on %s (was staged at %s)\n", to.Address, to.Resting, shortOID(to.Head))
 	return nil

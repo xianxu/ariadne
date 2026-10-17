@@ -214,8 +214,8 @@ func TestStageClearRebuildsRestingRevisionAndRetries(t *testing.T) {
 	if err := os.WriteFile(makefile, []byte("build:\n\texit 3\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if out, err := runUnstageTest(t, roots[1], ":0"); err == nil || !strings.Contains(err.Error(), "make build") {
-		t.Fatalf("clear must report failed rebuild: %v\n%s", err, out)
+	if out, err := runUnstageTest(t, roots[1], ":0"); err == nil || !strings.Contains(err.Error(), "make build") || !strings.Contains(err.Error(), "back on main") || !strings.Contains(err.Error(), "rerun sdlc stage --clear") {
+		t.Fatalf("clear must report restored checkout and retry after failed rebuild: %v\n%s", err, out)
 	}
 	if got := procedureHead(t, roots[0]); got != rest {
 		t.Fatalf("clear did not restore resting HEAD: %s, want %s", got, rest)
