@@ -1,0 +1,62 @@
+---
+gate: plan-quality
+issue: 423
+id_prefix: PQ
+rounds:
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 5f7e1674-5288-419a-8118-19248873bae0
+            repository: github.com/xianxu/ariadne
+            issue_id: "000423"
+            recipe: plan-quality
+            round: 1
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+            reviewed_head: 15e43d9f7e30ce2d33c96e808efdb67c521ae568
+            slot: ariadne:5
+            requested_at: "2026-10-17T12:33:17.123215Z"
+          phase: finished
+          pid: 22421
+          started_at: "2026-10-17T12:33:17.319998Z"
+          finished_at: "2026-10-17T12:34:06.398495Z"
+          session_id: 01a149da-2cf6-78a0-bb82-2002cb7aa24f
+          outcome: returned
+      "n": 1
+      timestamp: "2026-10-17T05:34:06-07:00"
+      agent: codex
+      findings:
+        - id: PQ-1
+          severity: Important
+          title: Establish the immutable snapshot required by sequence alignment
+          detail: The plan claims one immutable committed snapshot, but collectEvidence lists and reads artifacts through mutable refs (cmd/sdlc/observe.go:237–275). Specify pinning each evidence location to one commit before reading its artifacts, with a controlled ref-advance test proving collection cannot mix generations; this is the missing ARCH-ORDER guarantee behind complete-sequence alignment.
+          family: coherent-evidence-snapshot
+          round: 1
+        - id: PQ-2
+          severity: Important
+          title: Replace the test-case inventory with a named function and mechanical guard
+          detail: The coverage step at workshop/plans/000423-review-round-identity-plan.md:38 enumerates cases instead of stating the required function-level strategy. Explicitly name assignReviewRounds as unit-tested and give one concise adversarial input class plus a mechanical guard, such as generated incomplete/conflicting identity sequences checked against the matching invariants; retain the collector lifecycle fixture as integration coverage.
+          family: function-level-adversarial-test-strategy
+          round: 1
+      blocked: true
+---
+
+# Gate ledger — ariadne#423 (plan-quality)
+
+Findings this gate raised, the stable ids the binary assigned them, and how
+later rounds disposed of them. Generated — edit the gate, not this file.
+
+## Round 1 — 2026-10-17T05:34:06-07:00 (codex) — BLOCKED
+
+### Raised
+
+- **PQ-1** [Important] `coherent-evidence-snapshot` Establish the immutable snapshot required by sequence alignment
+  The plan claims one immutable committed snapshot, but collectEvidence lists and reads artifacts through mutable refs (cmd/sdlc/observe.go:237–275). Specify pinning each evidence location to one commit before reading its artifacts, with a controlled ref-advance test proving collection cannot mix generations; this is the missing ARCH-ORDER guarantee behind complete-sequence alignment.
+- **PQ-2** [Important] `function-level-adversarial-test-strategy` Replace the test-case inventory with a named function and mechanical guard
+  The coverage step at workshop/plans/000423-review-round-identity-plan.md:38 enumerates cases instead of stating the required function-level strategy. Explicitly name assignReviewRounds as unit-tested and give one concise adversarial input class plus a mechanical guard, such as generated incomplete/conflicting identity sequences checked against the matching invariants; retain the collector lifecycle fixture as integration coverage.
+
+## Open findings
+
+- **PQ-1** [Important] `coherent-evidence-snapshot` Establish the immutable snapshot required by sequence alignment
+- **PQ-2** [Important] `function-level-adversarial-test-strategy` Replace the test-case inventory with a named function and mechanical guard
