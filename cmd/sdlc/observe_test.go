@@ -13,6 +13,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/observe"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewusage"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
@@ -177,12 +178,25 @@ func TestObserveCheckpointsAcrossTheLifecycle(t *testing.T) {
 		t.Fatalf("holding: %+v", o.Workspaces)
 	}
 
+	// #423: the real writer appends a second review; the collector must not
+	// retain the first verdict, including after archive and branch deletion.
+	priorAt := "2026-10-01T00:00:00Z"
+	params := boundaryReviewParams{IssueNum: 394, IssuesDir: filepath.Join(r.root, "workshop/issues"), PlansDir: filepath.Join(r.root, "workshop/plans"), BaseLong: r.git("rev-parse", "origin/main"), Head: r.git("rev-parse", "HEAD"), Agent: "codex"}
+	if _, err := writeReviewSidecar(params, "REWORK", "first review", priorAt); err != nil {
+		t.Fatal(err)
+	}
+	ledger := gatestate.Ledger{Gate: "boundary-review", IssueNum: 394, IDPrefix: "BR", Rounds: []gatestate.Round{{N: 1, Boundary: gatestate.BoundaryAll, NoCap: true}, {N: 2, Boundary: "M1"}, {N: 3, Boundary: "M1"}, {N: 4, Timestamp: "2026-10-01T00:00:01Z", Agent: "codex", Blocked: true}, {N: 5, Boundary: "M2"}}}
+	if err := writeBoundaryGateLedger(params.PlansDir, filepath.Base(detailPath), ledger, "ariadne"); err != nil {
+		t.Fatal(err)
+	}
+	r.git("add", "workshop")
+	r.git("commit", "-qm", "#394: record first REWORK")
 	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "394", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}
 	o = look()
-	if rv, ok := reviewOf(o, "close"); !ok || rv.Verdict != "SHIP" || rv.State != observe.Present || o.Completion.State != observe.Present {
+	if rv, ok := reviewOf(o, "close"); !ok || rv.Verdict != "SHIP" || rv.Round != 6 || len(rv.History) != 1 || rv.History[0].Round != 4 || rv.History[0].Relation != "earlier" || rv.History[0].Verdict != "REWORK" || rv.State != observe.Present || o.Completion.State != observe.Present {
 		t.Fatalf("closed: %+v %+v", o.Checkpoints.Reviews, o.Completion)
 	}
 
@@ -225,7 +239,7 @@ func TestObserveCheckpointsAcrossTheLifecycle(t *testing.T) {
 	if o.Landing.Outcome != observe.OutcomeLanded || o.Landing.Archived == "" || o.Branch.State != observe.Absent {
 		t.Fatalf("landed: %+v %+v", o.Landing, o.Branch)
 	}
-	if rv, ok := reviewOf(o, "close"); !ok || rv.Verdict != "SHIP" || !strings.Contains(o.Checkpoints.Source, "history/plans") {
+	if rv, ok := reviewOf(o, "close"); !ok || rv.Verdict != "SHIP" || rv.Round != 6 || len(rv.History) != 1 || rv.History[0].Round != 4 || rv.History[0].Relation != "earlier" || !strings.Contains(o.Checkpoints.Source, "history/plans") {
 		t.Fatalf("verdict after a squash landing: %+v from %s", rv, o.Checkpoints.Source)
 	}
 }
@@ -392,5 +406,48 @@ func TestObserveAcrossTrackerRepositories(t *testing.T) {
 	}
 	if o := observeIssue(t, 398, ""); !strings.Contains(o.Card.Source, "alpha") {
 		t.Fatalf("without --repo: %+v", o.Card)
+	}
+}
+
+func TestObserveEvidencePinsRefDuringCollection(t *testing.T) {
+	r, _, detailPath := closeReady(t, 397)
+	params := boundaryReviewParams{IssueNum: 397, IssuesDir: filepath.Join(r.root, "workshop/issues"), PlansDir: filepath.Join(r.root, "workshop/plans"), Head: r.git("rev-parse", "HEAD"), BaseLong: r.git("rev-parse", "origin/main")}
+	file, err := writeReviewSidecar(params, "REWORK", "old generation", "2026-10-01T00:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := usageAttributionRecord(t, "observe-round", usageAttributionReviewerID, r.root, 1, 1)
+	run.Intent.ReviewedHEAD = params.Head
+	ledger := gatestate.Ledger{Gate: "boundary-review", IssueNum: 397, IDPrefix: "BR", Rounds: []gatestate.Round{{N: 4, Timestamp: "2026-10-01T00:00:01Z", ReviewerRuns: []reviewusage.Record{run}}}}
+	if err := writeBoundaryGateLedger(params.PlansDir, filepath.Base(detailPath), ledger, "ariadne"); err != nil {
+		t.Fatal(err)
+	}
+	r.git("add", "workshop")
+	r.git("commit", "-qm", "old evidence")
+	old := r.git("rev-parse", "HEAD")
+	writeRepoFile(t, r.root, strings.TrimPrefix(file, r.root+"/"), "new generation")
+	r.git("add", "workshop")
+	r.git("commit", "-qm", "new evidence")
+	next := r.git("rev-parse", "HEAD")
+	ref := "refs/heads/evidence-snapshot"
+	r.git("update-ref", ref, old)
+	prev := observeGit
+	t.Cleanup(func() { observeGit = prev })
+	advanced := false
+	observeGit = func(dir string, args ...string) ([]byte, error) {
+		out, err := prev(dir, args...)
+		if len(args) > 0 && args[0] == "show" && !advanced {
+			advanced = true
+			r.git("update-ref", ref, next)
+		}
+		return out, err
+	}
+	ev := collectEvidence(r.root, "workshop/issues", "origin", strings.TrimSuffix(filepath.Base(detailPath), ".md"), "working", observe.BranchFacts{Ref: ref})
+	art := ev.Artifacts["close"]
+	if len(art.Rounds) != 1 || art.Rounds[0].Number != 4 || art.Rounds[0].Head != params.Head || art.Rounds[0].Error != "" {
+		t.Fatalf("lost nonfinal retained reviewed head: %+v", art)
+	}
+	if !advanced || ev.Err != nil || !strings.Contains(art.Sidecar, "old generation") {
+		t.Fatalf("mixed snapshot after ref advance: %+v", ev)
 	}
 }

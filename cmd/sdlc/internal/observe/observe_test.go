@@ -182,9 +182,9 @@ func TestObservationGolden(t *testing.T) {
 	in.Evidence = Evidence{Source: "refs/remotes/origin/main:workshop/history/plans", Details: details("- [x] M1 — contract\n- [x] M2 — the rest\n"),
 		PlanGate: &ArtifactFacts{Found: true},
 		Artifacts: map[string]ArtifactFacts{
-			"M1":    {Found: true, Sidecar: sidecar("SHIP", "a..b")},
-			"M2":    {Found: true, Sidecar: sidecar("FIX-THEN-SHIP", "b..c"), OpenBlocking: 1},
-			"close": {Found: true, Sidecar: sidecar("SHIP", "a..d")},
+			"M1":    {Found: true, Sidecar: sidecar("SHIP", "a.."+strings.Repeat("b", 40)), Rounds: []ReviewRound{{Number: 1, Head: strings.Repeat("b", 40)}}},
+			"M2":    {Found: true, Sidecar: sidecar("FIX-THEN-SHIP", "b.."+strings.Repeat("c", 40)), Rounds: []ReviewRound{{Number: 2, Head: strings.Repeat("c", 40)}}, OpenBlocking: 1},
+			"close": {Found: true, Sidecar: sidecar("SHIP", "a.."+strings.Repeat("a", 40)), Rounds: []ReviewRound{{Number: 3, Head: strings.Repeat("a", 40)}}},
 		}}
 	got, err := json.MarshalIndent(Assemble(in), "", "  ")
 	if err != nil {
@@ -226,7 +226,7 @@ func sidecar(verdict, window string) string {
 func TestAssembleCheckpoints(t *testing.T) {
 	in := base(card(t, "codecomplete", &me, false))
 	in.Evidence = Evidence{Source: "refs/heads/000279-observe:workshop/plans", Details: details("- [x] M1 — a\n- [ ] M2 — b\n"),
-		Artifacts: map[string]ArtifactFacts{"M1": {Found: true, Sidecar: sidecar("SHIP", "a..b"), OpenBlocking: 0}}}
+		Artifacts: map[string]ArtifactFacts{"M1": {Found: true, Sidecar: sidecar("SHIP", "a.."+strings.Repeat("b", 40)), Rounds: []ReviewRound{{Number: 1, Head: strings.Repeat("b", 40)}}, OpenBlocking: 0}}}
 	o := Assemble(in)
 	if err := o.Validate(); err != nil {
 		t.Fatal(err)
@@ -239,7 +239,7 @@ func TestAssembleCheckpoints(t *testing.T) {
 	for _, r := range cp.Reviews {
 		got[r.Boundary] = r
 	}
-	if got["M1"].Verdict != "SHIP" || got["M1"].Window != "a..b" {
+	if got["M1"].Verdict != "SHIP" || got["M1"].Window != "a.."+strings.Repeat("b", 40) {
 		t.Fatalf("M1: %+v", got["M1"])
 	}
 	if _, reached := got["M2"]; reached {
@@ -319,7 +319,7 @@ func TestValidateRejectsEveryUnknownEnum(t *testing.T) {
 // A review artifact whose verdict is not a verdict is unknown, not a verdict.
 func TestCheckpointsDegradeOnFailedReads(t *testing.T) {
 	ok := Evidence{Source: "refs/heads/x:workshop/plans", Details: details("- [x] M1 — a\n"),
-		Artifacts: map[string]ArtifactFacts{"M1": {Found: true, Sidecar: sidecar("SHIP", "a..b")}}}
+		Artifacts: map[string]ArtifactFacts{"M1": {Found: true, Sidecar: sidecar("SHIP", "a.."+strings.Repeat("b", 40)), Rounds: []ReviewRound{{Number: 1, Head: strings.Repeat("b", 40)}}}}}
 	for name, c := range map[string]struct {
 		ev   func(Evidence) Evidence
 		want string
@@ -345,7 +345,7 @@ func TestCheckpointsDegradeOnFailedReads(t *testing.T) {
 	if rv, _ := reviewFor(Assemble(in), "close"); rv.State != Unknown || rv.Verdict != "" {
 		t.Fatalf("a recorded non-verdict: %+v", rv)
 	}
-	quoted := sidecar("SHIP", "a..b") + "\n| verdict | REWORK |\n"
+	quoted := sidecar("SHIP", "a.."+strings.Repeat("a", 40)) + "\n| verdict | REWORK |\n"
 	in.Evidence.Artifacts = map[string]ArtifactFacts{"close": {Found: true, Sidecar: quoted}}
 	if rv, _ := reviewFor(Assemble(in), "close"); rv.Verdict != "SHIP" {
 		t.Fatalf("a table quoted in the review body overrode the metadata: %+v", rv)

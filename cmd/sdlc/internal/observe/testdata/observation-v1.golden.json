@@ -76,29 +76,32 @@
         "open_blocking": 0
       },
       {
+        "round": 1,
         "state": "present",
         "source": "refs/remotes/origin/main:workshop/history/plans",
         "boundary": "M1",
         "verdict": "SHIP",
-        "window": "a..b",
+        "window": "a..bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         "at": "2026-10-02T08:30:00-07:00",
         "open_blocking": 0
       },
       {
+        "round": 2,
         "state": "present",
         "source": "refs/remotes/origin/main:workshop/history/plans",
         "boundary": "M2",
         "verdict": "FIX-THEN-SHIP",
-        "window": "b..c",
+        "window": "b..cccccccccccccccccccccccccccccccccccccccc",
         "at": "2026-10-02T08:30:00-07:00",
         "open_blocking": 1
       },
       {
+        "round": 3,
         "state": "present",
         "source": "refs/remotes/origin/main:workshop/history/plans",
         "boundary": "close",
         "verdict": "SHIP",
-        "window": "a..d",
+        "window": "a..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "at": "2026-10-02T08:30:00-07:00",
         "open_blocking": 0
       }

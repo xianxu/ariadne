@@ -949,3 +949,7 @@ The simplest durable authority beats a clever scan of consequences.
 - A marker passed to a build tool is still an argument to that tool. Restrict it to the intended target grammar, and test options and variable assignments as well as shell metacharacters (#417 BR-2).
 - When a workflow adds more external process steps, put the process call behind one injectable boundary and test order, failure state and retry with a stateful fake, alongside a real-tool conformance fixture (#417 BR-3).
 - When classifying executable formats around a standard-library parser, match its full supported format set, including cross-platform formats. A host-only ELF/Mach-O/PE list let corrupt XCOFF and Plan 9 Go binaries bypass verification (#417 BR-1 round 2).
+
+- Read quality does not establish value presence: a stale snapshot can truthfully contain no completion binding. Check the parsed binding identity independently and cover fresh/stale × present/absent whenever read-quality predicates guard optional values (#423 BR-1).
+
+- Independently sampled timestamps are not stable identity. Join retained review evidence by reviewed commit, admit legacy ordering only with a fully anchored compatible sequence, and keep uncertain rounds unknown. History labels follow entry positions. Pin mutable refs before reading related artifacts; otherwise even matching sequences may mix generations (#423 BR-2/PQ-1).
