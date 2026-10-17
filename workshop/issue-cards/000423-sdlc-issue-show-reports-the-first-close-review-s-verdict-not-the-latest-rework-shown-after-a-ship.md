@@ -1,6 +1,6 @@
 ---
 id: 000423
-status: codecomplete
+status: done
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours: 1.05
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 8838469f4f7e1a03761b118b16e19f7e3a5fa314
         evidence_commit: 40e1f0d4949546cb265991c0c531d36da874ded4
+        landed_commit: e9eb977da8312bb41f07fae5a664e9bb9cc96918
 ---
 
 # sdlc issue show reports the first close review's verdict, not the latest (REWORK shown after a SHIP)
