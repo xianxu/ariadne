@@ -1,0 +1,45 @@
+# #417 — Stage builds and verifies sentinel binaries
+
+**Goal:** `sdlc stage --build` prepares every Go command declared by the staged checkout and refuses any stale, modified, missing, or unverifiable Go binary it would present for a live check.
+
+**Architecture:** Keep `make build` as the generic build owner. A sentinel can name an additional target in a narrow machine-readable comment (`# stage-build: sdlc-build`); stage runs each declared target after the generic build. A final inspection of `bin/*` compares every Go binary's `vcs.revision` with the staged HEAD and connects each sentinel command to a binary by Go build-info package path, so output names may differ from source directory names.
+
+**Tech stack:** Go `debug/buildinfo`, `os/exec`; existing Make targets and test fixtures.
+
+## Concepts and integration points
+
+| Name | Lives in | Status |
+|------|----------|--------|
+| Sentinel build declaration | `cmd/<name>/.skip-make-build` | modified |
+| Stage build verification | `cmd/sdlc/stagebuild.go` | modified |
+
+The sentinel is already the opt-out from the generic scanner. A `stage-build` declaration adds only the Make target that owns its special build; it does not duplicate a build recipe. An older sentinel with no declaration remains valid when the generic `make build` itself produced a matching, current binary (for example a Makefile.local target with a differently named output). Otherwise stage refuses and names the source command, asking for an explicit target. No shell is used to execute a declaration: accept exactly one Make target token and pass it as an argv element. This keeps the marker data, not code.
+
+The final scan treats scripts and non-Go executables as outside the VCS-stamp contract, but an unreadable Go build-info candidate cannot be waved through. A Go binary in `bin/*` must have `vcs.revision == staged HEAD` and `vcs.modified == false`. A sentinel's main package must occur as one verified binary's build-info `Path`; `bin/pair` can thus satisfy `cmd/pair-go`. If no Go binaries exist and no sentinel main packages exist, preserve the existing informational no-op for non-Go repositories.
+
+The stage switch and record remain intact on build or verification failure. The return error names the offending binary or sentinel and the staged commit. No new durable files or ledgers are created (ARCH-FUNERAL). This changes only the stage gate; it does not alter protected close or merge gates (ARCH-PURPOSE, ARCH-ORDER). Target execution is bounded by the finite staged `cmd/*` set and the Make process, as existing `make build` is (ARCH-CONSTRAINTS).
+
+## Tasks
+
+### 1. Tests first: stale and differently named binaries
+
+**Files:** `cmd/sdlc/stage_test.go`, `cmd/sdlc/stagebuild_test.go`
+
+- [ ] Replace the old mismatch-warning assertion with a refusal that names `bin/tool`; add missing revision and `vcs.modified=true` cases.
+- [ ] In a staged fixture with `cmd/sdlc/.skip-make-build`, make the generic build leave an old `bin/sdlc` and a `sdlc-build` target create a new one. Assert that the declared target runs and the final revision matches the staged commit.
+- [ ] Add a sentinel command with a different output name and build-info `Path` matching its source (`cmd/pair-go` → `bin/pair`); assert that it passes after generic build. Make that output absent and assert a named refusal.
+- [ ] Run `go test ./cmd/sdlc -run '^TestStage(Build|Sentinel)' -count=1` and confirm the intended red results before implementation.
+
+### 2. Build each declared sentinel and verify final contents
+
+**Files:** `cmd/sdlc/stagebuild.go`, `cmd/sdlc/.skip-make-build`, `Makefile.workflow`, `cmd/sdlc/helptext/stage.md`
+
+- [ ] Add `# stage-build: sdlc-build` to the sdlc sentinel. Document the optional directive beside `.skip-make-build` in `Makefile.workflow`.
+- [ ] After `make build`, enumerate `cmd/*/.skip-make-build` with `main.go`; parse at most one target token per marker and invoke `make <target>` for each declared target. A malformed or duplicate declaration refuses, naming the marker.
+- [ ] Scan final `bin/*` once. For each Go binary, inspect build-info; refuse on missing/mismatched revision or modified stamp and include its path. Match build-info `Path` to each sentinel package and refuse if any sentinel has no verified output.
+- [ ] Update stage help to say that `--build` verifies and refuses, rather than merely reporting revision lines.
+- [ ] Re-run targeted tests; run `git diff --check` and `make -k` (full suite), then close through the SDLC gate.
+
+## Live check and landing
+
+Do not stage into ariadne:0 while #416 is there. Once the TL releases it, build this branch's sdlc binary and request permission for a live `sdlc stage --build` into :0, inspect the printed `bin/sdlc` revision, clear if directed, then close and land on SHIP. If :0 remains occupied, test a dedicated slot or fixture and tell the TL the live check is pending.

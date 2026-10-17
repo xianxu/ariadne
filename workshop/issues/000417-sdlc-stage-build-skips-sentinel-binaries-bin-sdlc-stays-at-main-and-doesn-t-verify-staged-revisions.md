@@ -1,12 +1,20 @@
 ---
 id: 000417
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-16
 estimate_hours:
-card_mirror: 'c0ceb06f0fc5ced72609ea9e1ab040acfb973b76' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '02db92c51cda4f44cef860b0b3e415e97d0b0e92' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-16T19:43:25-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # sdlc stage --build skips sentinel binaries (bin/sdlc stays at main) and doesn't verify staged revisions
@@ -26,8 +34,12 @@ In ariadne, `stage --build` should build each binary through its own build targe
 
 ## Plan
 
-- [ ]
+- [ ] Add a machine-readable stage build target to the sdlc sentinel, and document the marker in the generic build contract.
+- [ ] Make stage --build run declared sentinel targets after make build, then require every Go binary in bin/ to have the staged, unmodified VCS revision. Require each sentinel main package to have a matching staged binary, including differently named outputs.
+- [ ] Cover the stale sdlc binary, mismatched or unreadable revisions, and differently named sentinel outputs with tests; run the targeted package and make -k before closing.
 
 ## Log
 
 ### 2026-10-16
+
+- Design: ARCH-DRY keeps build ownership in the existing Make target; the sentinel declares only the target. ARCH-PURE keeps revision and package matching separate from process execution. No new persistent state is created (ARCH-FUNERAL).
