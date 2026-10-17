@@ -461,7 +461,7 @@ func TestIntegrationPRSync(t *testing.T) {
 	oldHead, newHead := strings.Repeat("a", 40), strings.Repeat("b", 40)
 	target := landingTarget{Repo: "test/repo"}
 	previous := landingPR{Number: 1, Repo: target.Repo, HeadRef: landingTestBranch, HeadOID: oldHead, BaseRef: "main", State: "OPEN"}
-	for _, mode := range []string{"timeout", "cancelled", "identity", "other-head", "merged"} {
+	for _, mode := range []string{"timeout", "cancelled", "identity", "other-head", "merged-history", "merged-current-head"} {
 		t.Run(mode, func(t *testing.T) {
 			gh := &landingFakeGH{pr: previous}
 			ctx, cancel := context.WithCancel(context.Background())
@@ -479,8 +479,12 @@ func TestIntegrationPRSync(t *testing.T) {
 			case "other-head":
 				gh.pr.HeadOID = strings.Repeat("c", 40)
 				want = "concurrently"
-			case "merged":
+			case "merged-history":
 				gh.pr.State = "MERGED"
+				// #418: completed older heads are history, not candidates.
+				want = "found 0"
+			case "merged-current-head":
+				gh.pr.State, gh.pr.HeadOID = "MERGED", newHead
 				want = "state changed"
 			}
 			var out bytes.Buffer

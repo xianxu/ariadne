@@ -20,3 +20,4 @@
 #
 # To build sdlc: `make sdlc-build`.
 # To install it on PATH: `make sdlc-bootstrap`.
+# stage-build: sdlc-build

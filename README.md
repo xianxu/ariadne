@@ -14,6 +14,15 @@ current or supplied session transcript, invoke `session-retro`; see
 
 ## Concurrent issue work
 
+For a live slot check, `sdlc stage --build` switches the target to this
+commit, runs `make build` plus targets declared as `# stage-build: <target>` in
+Go commands' `.skip-make-build` files, and refuses missing, modified or
+wrong-revision `bin/*` binaries. The target must be a simple Make target name,
+not an option or variable assignment. `sdlc stage --clear` returns the target
+to its resting branch, then rebuilds and checks its binaries at that HEAD.
+If that post-switch build fails, fix it and repeat `sdlc stage --clear`; the
+retry works from the resting branch. See [stage and clear](atlas/workflow/workspace-branching.md#stage-this-branch-on-0-for-a-smoke-test).
+
 In an issue tracker repository (#252; `workshop/issue-tracker.json` on main),
 each issue's card — id, status, dates, hours, title — lives on the
 `issue-tracker` branch and changes only through sdlc's verbs. `sdlc claim --issue

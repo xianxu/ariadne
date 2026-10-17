@@ -149,15 +149,11 @@ func TestLandingLineDuplicateResumesAsMerged(t *testing.T) {
 	}
 }
 
-// A reused branch name: an old merged PR beside the new open one. The open PR
-// is still to land, so the merge waits its turn (M2 review I-1). What happens
-// after admission is the landing's existing rule, not the line's: selection
-// without a head counts every live PR on the branch name, so the reused name
-// is refused at cleanup ("need one exact matching PR"); either way, nothing
-// happens outside the line.
+// A reused branch name still queues the current OPEN PR. Historical completed
+// heads cannot bypass admission or block integration and cleanup afterwards.
 func TestLandingLineReusedBranchStillQueues(t *testing.T) {
 	root, _, gh := integrationFixture(t)
-	gh.older = []landingPR{{Number: 0, State: "MERGED", Repo: gh.pr.Repo, HeadRef: landingTestBranch, HeadOID: gh.pr.BaseOID, BaseRef: "main", BaseOID: gh.pr.BaseOID, MergeOID: gh.pr.BaseOID}}
+	gh.older = []landingPR{{Number: 380, State: "MERGED", Repo: gh.pr.Repo, HeadRef: landingTestBranch, HeadOID: gh.pr.BaseOID, BaseRef: "main", BaseOID: gh.pr.BaseOID, MergeOID: gh.pr.BaseOID}}
 	line, head := heldLine(t, root)
 	done := mergeAsync(landingFlags())
 	waitQueued(t, line, 1)
@@ -166,7 +162,9 @@ func TestLandingLineReusedBranchStillQueues(t *testing.T) {
 		t.Fatal("landed outside the line")
 	}
 	head.Release()
-	_ = finished(t, done)
+	if err := finished(t, done); err != nil {
+		t.Fatal(err)
+	}
 	if events := lineEvents(t, line); len(events[landingline.EventAdmit]) != 1 {
 		t.Fatalf("the open PR's merge was never admitted: %v", events)
 	}
