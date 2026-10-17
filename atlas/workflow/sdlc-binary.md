@@ -559,7 +559,13 @@ conservative but not wedging:
 `die()` drains the active lock cleanup registry before `os.Exit`, missing
 `meta.json` during the tiny mkdir-before-write window is treated as holder
 initialization and polled through, and a confirmed-dead same-host holder is
-reclaimed by atomically renaming the stale lock directory before removal.
+reclaimed under a nonblocking flock on the opened candidate directory (#413).
+Reclaimers verify its inode and holder generation, recheck liveness under the
+guard, then revalidate the inode, cancellation and deadline before atomically
+renaming it for removal. Busy, changed or initializing candidates return to the
+existing bounded observation loop. Closing the descriptor releases the guard;
+no additional durable lock file is created. Unsupported flock or permission
+errors refuse rather than falling back to unguarded reclamation.
 "Dead" means `kill(pid, 0)` answers ESRCH; EPERM is a live process this one may
 not signal, which is every peer slot's process when sdlc runs in an agent
 sandbox (#330: counting it dead let a sandboxed verb take a live peer's lock).
