@@ -43,7 +43,7 @@ Model the original dead holder separately from the two live contenders, and asse
 - [x] Reproduce the existing failure, then replace sleeps with controlled contender ordering; assert exclusivity, metadata ownership and release with only PID 555 dead.
 - [x] Guard reclamation with candidate-directory flock, generation/inode and liveness rechecks, and cancellation/deadline checks before rename.
 - [x] Run repeated and race-enabled repolock tests, including delayed stale observations, busy guards, late cancellation, changed generations and initializing metadata.
-- [ ] Update atlas and record the full suite on the pushed head.
+- [x] Update atlas and record the full suite on the pushed head.
 
 Then close through SDLC, land on SHIP and report the hub.
 
@@ -75,6 +75,8 @@ The unchanged blanket-dead test passed count=1000 in 24.539s at the new main-bas
 - Couch restart at 17:35 detached the thread; resumed at 18:45 by TL. Prior suite e01c72569a487e640cee4c881fa0f4ca has no surviving CLI/worker cwd, inflight owner, saved attempt, local log or posted suite status. Treat it as interrupted without a result, not a pass. Fetched and merged current main 94aae475501975b79bff7772e787a79efa1900d4 (#412 landed); lock implementation is unchanged. Start a fresh recorded suite on the integrated pushed head as directed by TL receipt 9e07b620-5181-4b04-a692-e0d37872a268.
 
 - Fresh post-restart suite is running on integrated 6786ebd9f3edc783d953364cd80c4f999f4cb474 with no queue wait. Run 93c674dedb3a38a1784c253884b2aa4b, checkout sdlc-local-2827700544, log /Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/inflight/93c674dedb3a38a1784c253884b2aa4b/run.log. Await completion before close; subsequent checkpoint changes are issue prose only.
+
+- Recorded integrated full suite PASSED on 6786ebd9f3edc783d953364cd80c4f999f4cb474: all 12 shards over 1522 cmd/sdlc tests and all 66 other packages exit 0, zero failures. Wall 658.9s (10m59s), no queue wait. Log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/6786ebd9f3edc783d953364cd80c4f999f4cb474/suite.log, sha256 prefix 44d5ecceb6e0; posted sdlc-local/suite pass. Atlas and all Plan implementation/verification steps complete. Proceed to mandatory close review with no gate waiver.
 
 ## Revisions
 
