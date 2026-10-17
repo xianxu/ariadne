@@ -40,13 +40,14 @@ func TestParseMode(t *testing.T) {
 func fixture() fstest.MapFS {
 	f := func(s string) *fstest.MapFile { return &fstest.MapFile{Data: []byte(s)} }
 	return fstest.MapFS{
-		"round.md":              f("round\n"),
-		"review-convention.md":  f("grammar\n"),
-		"adapters/file-edit.md": f("adapter\n"),
-		"modes/zeta.md":         f("---\nname: zeta\n---\nZ\n"),
-		"modes/beta.md":         f("---\nname: beta\norder: 2\n---\nB\n"),
-		"modes/alpha.md":        f("---\nname: alpha\norder: 2\n---\nA\n"),
-		"modes/first.md":        f("---\nname: first\norder: 1\n---\nF\n"),
+		"round.md":               f("round\n"),
+		"review-convention.md":   f("grammar\n"),
+		"collaboration-modes.md": f("collaboration modes\n"),
+		"adapters/file-edit.md":  f("adapter\n"),
+		"modes/zeta.md":          f("---\nname: zeta\n---\nZ\n"),
+		"modes/beta.md":          f("---\nname: beta\norder: 2\n---\nB\n"),
+		"modes/alpha.md":         f("---\nname: alpha\norder: 2\n---\nA\n"),
+		"modes/first.md":         f("---\nname: first\norder: 1\n---\nF\n"),
 	}
 }
 
@@ -61,20 +62,20 @@ func TestBuildOrder(t *testing.T) {
 	for _, mem := range m.Members {
 		got = append(got, mem.Role+":"+mem.Path)
 	}
-	want := "round:round.md grammar:review-convention.md adapter:adapters/file-edit.md mode:modes/first.md mode:modes/alpha.md mode:modes/beta.md mode:modes/zeta.md"
+	want := "round:round.md grammar:review-convention.md collaboration-modes:collaboration-modes.md adapter:adapters/file-edit.md mode:modes/first.md mode:modes/alpha.md mode:modes/beta.md mode:modes/zeta.md"
 	if strings.Join(got, " ") != want {
 		t.Errorf("order\n got %s\nwant %s", strings.Join(got, " "), want)
 	}
 	if g := m.Members[1]; g.Source != GrammarSource || g.Bytes != len("grammar\n") {
 		t.Errorf("grammar member %+v", g)
 	}
-	if z := m.Members[6]; z.Scope != "markers-only" || z.Order != 0 {
+	if z := m.Members[7]; z.Scope != "markers-only" || z.Order != 0 {
 		t.Errorf("an unordered mode records its defaults: %+v", z)
 	}
 }
 
 func TestBuildRefusesMissingMembers(t *testing.T) {
-	for _, drop := range []string{"round.md", "review-convention.md", "adapters/file-edit.md"} {
+	for _, drop := range []string{"round.md", "review-convention.md", "collaboration-modes.md", "adapters/file-edit.md"} {
 		fs := fixture()
 		delete(fs, drop)
 		if _, err := Build(fs); err == nil {
@@ -144,10 +145,21 @@ func TestExportCurrent(t *testing.T) {
 		t.Errorf("grammar member covers %d bytes, the source has %d", m.Members[1].Bytes, len(canon))
 	}
 	var modes []string
+	collab := 0
 	for _, mem := range m.Members {
-		if mem.Role == "mode" {
+		switch mem.Role {
+		case "mode":
 			modes = append(modes, mem.Name)
+		case "collaboration-modes":
+			collab++
 		}
+		if strings.HasPrefix(mem.Path, "examples/") {
+			t.Errorf("the examples are fixtures, not exported: %s", mem.Path)
+		}
+	}
+	// #412: parley's sync requires exactly one collaboration-modes member.
+	if collab != 1 {
+		t.Errorf("%d collaboration-modes members, want exactly one", collab)
 	}
 	if got := strings.Join(modes, ","); got != "developmental,line-editing,copy-editing,proofreading,fact-check,free-form" {
 		t.Errorf("stock modes in order: %s", got)
