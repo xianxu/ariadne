@@ -99,6 +99,7 @@ as today.
   recovery command can be copied from any slot.
 
 ### 2026-10-17
+- 2026-10-17: closed — Round-2 SHIP Minors fixed: TestStageLeaseEdges now holds the stage lock and expects --clear to refuse with it (BR-4); the failed-switch comment and message say HEAD did not move. Targeted Stage/StageLease/Unstage/Move tests pass; full suite reruns on the final head before merge. (fixed-then-ship); review verdict: SHIP
 - 2026-10-17: closed — Suite green on 42c2184e (merged main with #417); round-1 fixes verified by targeted runs: TestStageLeaseSwitchFailureRestores (new, forced switch failure restores the lease), TestStageLeaseEdges (clear dry run names the lease), TestStageLeaseOneStageAtATime, TestCheckLease, every Stage/Move/Unstage/Help/Catalog/Recovery test; the full suite reruns on the final head before merge.; review verdict: SHIP
 - 2026-10-17: flow upgraded quick → full — 291 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Suite 1 on d260ae08 failed one test: `TestEveryCommitSiteStamps` read `leaseKeys`' "commit" field name as a commit

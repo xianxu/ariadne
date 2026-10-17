@@ -202,3 +202,66 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"2b986523-e6d8-482f-abae-cc81d1f6a0e9","repository":"github.com/xianxu/ariadne","issue_id":"000421","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/c2a9a885c9fb8914","reviewed_head":"767320e0dc23de298cf54b1951404f7efd6f2863","slot":"ariadne:2","requested_at":"2026-10-17T08:50:03.668699Z"},"phase":"finished","pid":3284,"started_at":"2026-10-17T08:50:03.787787Z","finished_at":"2026-10-17T08:59:04.942463Z","session_id":"254a28b6-ee42-445c-8f38-29ef6048e1e0","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T02:05:46-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 421 — sdlc stage: one stage at a time in :0, a lease naming the holder; staging over another issue's live stage refuses |
+| repo | ariadne |
+| issue file | workshop/issues/000421-sdlc-stage-one-stage-at-a-time-in-0-a-lease-naming-the-holder-staging-over-another-issue-s-live-stage-refuses.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 1970c691cf4df8eedc2ee7c7735afe8756171a6b..3c3595670b25cdd17754154983e3634a6c603d3d |
+| command | sdlc close --issue 421 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-17T02:05:46-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checking BR-4: the reorder is in the code, so I'm reverting it in the disposable checkout to see whether the new test goes red.
+
+Now revert the reorder (observe + checks before the lock).
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The one open finding, BR-4, is now fixed and has a test that proves it. At the reviewed head, `runUnstage` already took the stage lock, re-resolved the target and then observed it, but no test failed without that order. This window adds that test. I moved the observation back in front of the lock in the disposable checkout, and `TestStageLeaseEdges` failed at `stage_test.go:389` with "sample:0 is on elsewhere, not a staged commit; nothing to clear". With the code restored, the stage tests pass (`go test ./cmd/sdlc -run 'TestStageLease|TestUnstage|TestStage'`, 51.6s). Apart from that test, the window does two things. It changes the wording of the failed-switch comment and error message, which the close review raised as an unlisted Minor. It also adds close-gate and close-review records under `workshop/plans/`, plus a status and log update in the issue file. It does not change `## Spec`, `## Revisions` or `## Done when`, and there are no conflict resolutions to judge.
+
+1. **Strengths**
+   - **The test checks the order, not just that the code runs** (`cmd/sdlc/stage_test.go:385-390`). It holds `LockStage` and puts `:0` on a different branch. The old order would then return a "nothing to clear" verdict, and the new order returns the lock refusal. I confirmed both outcomes by reverting the fix.
+   - **The failed-switch message is now accurate** (`cmd/sdlc/stage.go:99-105`). It no longer says the target "was left as it was". It says HEAD did not move and suggests `git status`, because git can update the index and work tree before the switch fails. The recovery hint for a failed lease restore (`run sdlc stage --clear`) is unchanged.
+   - **The diff is small.** It touches 9 lines of code and 6 lines of test, and adds nothing the earlier findings didn't ask for.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none new.
+
+5. **Test coverage notes**
+   - Revert check: with the observation moved back in front of `LockStage`, `TestStageLeaseEdges` fails. With the code restored, the targeted stage tests pass.
+   - The new assertion runs while the test still holds the lock taken at line 377, after the stage-refusal check. Its own branch switch (`elsewhere`) is what makes the old order visibly fail.
+
+6. **Architecture notes (interdiff only)**
+   - **ARCH-DRY: pass.** No logic is duplicated. The two error messages share their wording on purpose, with one variant for each outcome of the lease restore.
+   - **ARCH-PURE: pass.** No new logic is mixed with IO. The change is message text plus a test that drives an existing integration path.
+   - **ARCH-PURPOSE: pass.** The `observe-outside-lock` problem is closed for all three callers: `runStage` and `runMove` already re-observed under the lock, and `runUnstage` now does too and has a test.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: addressed
+    note: |
+      runUnstage locks, re-resolves and then observes (stage.go:146-159). The new TestStageLeaseEdges assertion (stage_test.go:385-390) fails when the observation is moved in front of the lock ("sample:0 is on elsewhere, not a staged commit; nothing to clear") and passes with the fix.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"fe33d539-e8e9-4c72-80d1-26a28e222412","repository":"github.com/xianxu/ariadne","issue_id":"000421","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/830168282ae0a492","reviewed_head":"3c3595670b25cdd17754154983e3634a6c603d3d","slot":"ariadne:2","requested_at":"2026-10-17T09:03:34.613354Z"},"phase":"finished","pid":11268,"started_at":"2026-10-17T09:03:34.824576Z","finished_at":"2026-10-17T09:05:45.841523Z","session_id":"e896fdae-4fba-490d-9cea-1f7abd6b927f","outcome":"returned"}] -->

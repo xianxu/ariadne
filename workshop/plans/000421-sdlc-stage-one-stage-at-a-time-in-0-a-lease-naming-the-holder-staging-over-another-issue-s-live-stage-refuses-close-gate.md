@@ -174,6 +174,79 @@ rounds:
       isolation: fenced
       reviewed: 767320e0dc23de298cf54b1951404f7efd6f2863
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: fe33d539-e8e9-4c72-80d1-26a28e222412
+            repository: github.com/xianxu/ariadne
+            issue_id: "000421"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/830168282ae0a492
+            reviewed_head: 3c3595670b25cdd17754154983e3634a6c603d3d
+            slot: ariadne:2
+            requested_at: "2026-10-17T09:03:34.613354Z"
+          phase: finished
+          pid: 11268
+          started_at: "2026-10-17T09:03:34.824576Z"
+          finished_at: "2026-10-17T09:05:45.841523Z"
+          session_id: e896fdae-4fba-490d-9cea-1f7abd6b927f
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 3c3595670b25cdd17754154983e3634a6c603d3d
+        tracker_head: fd36c69198cd3279b116e3c3d46f3aa54ab0324c
+        branch_point: 3dd288111bc10a361618e7f167abb864bd687b63
+        since: "2026-10-16T22:20:44-07:00"
+        until: "2026-10-17T02:03:07-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-16T22:20:44-07:00"
+              end: "2026-10-17T02:03:07-07:00"
+              began: "2026-10-16T22:20:44-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6e767767347ea9466fd9ecba3bd04dbc10efc6795a726185f454ae47cd2aa701
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 21752383
+              windows:
+                - start: "2026-10-16T22:20:44-07:00"
+                  end: "2026-10-17T02:03:07-07:00"
+        excluded_brain_sessions: 2
+        excluded_brain_minutes: 102.94318333333334
+        cuts:
+            - dispatched: "2026-10-17T01:38:46-07:00"
+              finalized: "2026-10-17T01:44:42-07:00"
+              finalizing: false
+            - dispatched: "2026-10-17T01:50:03-07:00"
+              finalized: "2026-10-17T01:59:06-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-17T02:05:46-07:00"
+      dispatched: "2026-10-17T02:03:34-07:00"
+      agent: claude
+      dispose:
+        - id: BR-4
+          disposition: addressed
+          note: runUnstage locks, re-resolves and then observes (stage.go:146-159). The new TestStageLeaseEdges assertion (stage_test.go:385-390) fails when the observation is moved in front of the lock ("sample:0 is on elsewhere, not a staged commit; nothing to clear") and passes with the fix.
+          round: 3
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 3c3595670b25cdd17754154983e3634a6c603d3d
+      blocked: false
 ---
 
 # Gate ledger — ariadne#421 (boundary-review)
@@ -203,6 +276,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-3 — addressed — stage.go:185-188 prints Would release; disabling it makes TestStageLeaseEdges fail with nothing staged output.
 - BR-4 — not-addressed — Code reorder is correct (lock, re-resolve, observe at stage.go:145-158) but no test fails without it; add one holding LockStage on a dirty :0 and asserting the lock refusal, not the dirty-target error.
 
+## Round 3 — 2026-10-17T02:05:46-07:00 (claude) — passed
+
+### Disposed
+
+- BR-4 — addressed — runUnstage locks, re-resolves and then observes (stage.go:146-159). The new TestStageLeaseEdges assertion (stage_test.go:385-390) fails when the observation is moved in front of the lock ("sample:0 is on elsewhere, not a staged commit; nothing to clear") and passes with the fix.
+
 ## Open findings
 
-- **BR-4** [Minor] `observe-outside-lock` (kind: defect) runUnstage observes the target before taking the stage lock and never re-reads it under the lock
+(none — every finding has been disposed)
