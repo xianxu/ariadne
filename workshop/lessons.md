@@ -969,3 +969,4 @@ The simplest durable authority beats a clever scan of consequences.
 - When changed embedded help is the shipped behavior, characterize its execution mechanism and protect the rendered instructions with focused contract checks. Synchronize README usage alongside help and atlas in the same review window.
 
 - Keep Agent and Co-Authored-By trailers together in the final Git message paragraph. A blank line between them makes the earlier Agent line ordinary body text, so trailer readers report it missing even when a grep finds the literal line.
+- Special-case advice for an evidence refusal must classify the full blocker set, not the first diagnostic. Preserve all selector warnings through the error boundary and test mixed blocker orders before suggesting an irreversible exclusion (#428 BR-1).
