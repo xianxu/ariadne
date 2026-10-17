@@ -289,3 +289,9 @@ The contract edges (D§2, D§4):
     asked from the parent writes only the parent. The third write a parent-asked fold needed is gone.
   - State-table row 20 and a twelfth case, `discussion-decision`. The checker reads `→ [notes]` links and the new
     fold record.
+- **2026-10-16, after round 4's SHIP: the TL settled the acknowledgement reading (message 2c4faa9e).** A bare
+  acknowledgement becomes one Decided line, the record of what was approved in place of the marker, and nothing
+  else: no notes side doc and no reply prose. This supersedes the previous entry's "the approved source is followed"
+  for that case. The source's "just the one line" and the TL's "no reply at all" are now one rule: the line in the
+  document, and nothing in the reply. Applied in collaboration-modes.md (the bare-acknowledgement bullet) and the
+  `discussion-decision` case's reply (d82914a9), together with round 4's Minor (a stale test comment).
