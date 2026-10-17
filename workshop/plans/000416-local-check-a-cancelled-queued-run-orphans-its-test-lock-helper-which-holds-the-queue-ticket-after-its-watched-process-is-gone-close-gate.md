@@ -80,6 +80,40 @@ rounds:
       recipe: small-diff-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 86f7b099-0944-4c63-949c-4d7979270099
+            repository: github.com/xianxu/ariadne
+            issue_id: "000416"
+            recipe: small-diff-review
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/ec385bd069c88189
+            reviewed_head: 412b0dc4db97e5531f54ebd596b37627b9b40459
+            slot: ariadne:5
+            requested_at: "2026-10-17T07:38:21.485816Z"
+          phase: finished
+          pid: 35597
+          started_at: "2026-10-17T07:38:21.661626Z"
+          finished_at: "2026-10-17T07:40:54.598834Z"
+          session_id: 01a148cc-2a2c-7701-ab08-82b21a857815
+          outcome: returned
+      "n": 2
+      timestamp: "2026-10-17T00:40:56-07:00"
+      dispatched: "2026-10-17T00:38:21-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Signal ownership is limited to queue/suite execution; all three production constructors use independent bounded cleanup. Production-handler tests pass. Restoring command-wide signal ownership reproduces swallowed SIGINT/SIGTERM in both fetch and trailer reads; removing bounded cleanup reproduces cancellation exceeding five seconds.
+          round: 2
+      recipe: small-diff-review
+      isolation: fenced
+      reviewed: 412b0dc4db97e5531f54ebd596b37627b9b40459
+      blocked: false
 ---
 
 # Gate ledger — ariadne#416 (boundary-review)
@@ -94,6 +128,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-1** [Critical] `signal-ownership-requires-cancellable-io` (kind: defect) Command-wide signal ownership suppresses termination during context-free subprocess calls
   cmd/sdlc/main.go:83 enables NotifyContext for all of local-check run, but its production Git/network preamble still uses subprocesses that ignore that context. Using the pinned-head test binary's real CLI entry point with a private Git fixture blocked in fetch, the CLI remained alive after SIGTERM and swallowed a second SIGTERM; the fixture required SIGKILL cleanup. The affected family comprises RepoTopLevel and detectRepo queries, the localcheck_cmd.go Git closure and its consumers (declaration/default-suite reads, revision/branch checks, log-directory discovery, worktree add/remove/prune, and trailer reads), workspace.Resolve's execGitRunner binding, and PRListForBranch. Make these subprocess seams cancellable through existing bounded context-aware helpers, give cleanup a separate bounded context, and add production-command signal regressions. The new signal test replaces RunE at localcheck_signal_unix_test.go:42, bypassing the demonstrated preamble failure.
 
+## Round 2 — 2026-10-17T00:40:56-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — Signal ownership is limited to queue/suite execution; all three production constructors use independent bounded cleanup. Production-handler tests pass. Restoring command-wide signal ownership reproduces swallowed SIGINT/SIGTERM in both fetch and trailer reads; removing bounded cleanup reproduces cancellation exceeding five seconds.
+
 ## Open findings
 
-- **BR-1** [Critical] `signal-ownership-requires-cancellable-io` (kind: defect) Command-wide signal ownership suppresses termination during context-free subprocess calls
+(none — every finding has been disposed)
