@@ -1,13 +1,21 @@
 ---
 id: 000428
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '5e0e23dd3726724f0ff4421959a405664f4028bc' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '863c8f54b86818c4b81755e51e8c2a8a229ec870' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-17T11:19:16-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Legacy-attempt actuals refusal should name --no-actual (exclude), not 'ask the TL to restore evidence'
@@ -27,8 +35,16 @@ Wanted: when every blocking attempt is legacy, the refusal says so and names the
 
 ## Plan
 
-- [ ]
+- [ ] Add red rendering tests for legacy `actual --issue`, `close`, and `milestone-close --milestone` refusals, plus malformed-new-format and unrelated-error controls.
+- [ ] Recognize only the controlled legacy-attempt warning and validated attempt ID; reuse the existing boundary-aware `rerunCmd` to print the matching verb and `--no-actual` with an explicit reason. Keep restore advice for other errors (ARCH-DRY, ARCH-PURE, ARCH-PURPOSE).
+- [ ] Run focused tests, `make -k build`, `git diff --check`, and the recorded pushed-head suite; close and land on SHIP.
 
 ## Log
 
 ### 2026-10-17
+
+- Claimed in ariadne:1. `printActual` currently gives every `actualError` the same restore message; `explainActual` already knows the refused boundary and has `rerunCmd`. The TL approved the quick-flow plan with explicit milestone and preview coverage.
+
+## Revisions
+
+- 2026-10-17 — Clarify the Spec's example command: `--no-actual` is a boolean switch; the human-readable reason belongs beside the command and in `--verified`, which also needs the issue's verification evidence. An `actual --issue N` preview points to `sdlc close --issue N`; an issue close points to `sdlc close`, and a milestone refusal points to `sdlc milestone-close --issue N --milestone M`. The ID and non-restorable legacy reason accompany each. Other actuals errors retain restore guidance; no gate semantics change (TL decision, ARCH-PURPOSE).
