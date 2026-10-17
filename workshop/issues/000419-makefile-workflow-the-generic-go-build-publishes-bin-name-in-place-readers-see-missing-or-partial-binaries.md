@@ -44,11 +44,19 @@ INT/TERM to exit through it. Callers:
 - ariadne's own `Makefile` `tools`/`weave-build` targets: the same in-place `go build -o bin/X` into :0's `bin/`, which
   every agent alias runs. It's the same defect and two lines (ARCH-DRY: one publisher, not a second copy).
 
-- [ ] `WF_GO_PUBLISH` + both callers.
-- [ ] Test (`cmd/sdlc/makebuild_publish_test.go`, a fake `go` on PATH that writes a partial `-o` file): paused build →
+- [x] `WF_GO_PUBLISH` + both callers.
+- [x] Test (`cmd/sdlc/makebuild_publish_test.go`, a fake `go` on PATH that writes a partial `-o` file): paused build →
       `bin/x` still the old complete bytes, then the new ones after release; failing build → old bytes, no
       `.go-build.*` left; a temp dir is never left after success.
 
 ## Log
 
 ### 2026-10-16
+- The tests fail against the old in-place build (`bin/x` reads "partial" mid-build and after a failure), and pass with
+  the publisher.
+- Added an interrupt test (SIGTERM to the build's process group). make exits on the signal without waiting for its
+  recipe shell, so the staging dir is removed by that shell's EXIT trap just after make returns (~20 ms). The test waits
+  for it, bounded at 5 s.
+- `pkg/shelllint` (#342) refused `mktemp -d "$(dirname …)/…XXXXXX"`. The staging dir must sit beside the target for the
+  rename to be atomic, so the directory is assigned to a variable first (`p=$(dirname "$out")`, then
+  `mktemp -d "$p/.go-build.XXXXXX"`), which is the rooted-template form the lint accepts.
