@@ -315,6 +315,12 @@ func collectEvidence(root, issuesRel, remote, stem, status string, branch observ
 				if boundary == "close" {
 					milestone = ""
 				}
+				art.Rounds = map[string]int{}
+				for _, round := range ledger.Rounds {
+					if round.Boundary == milestone && !round.NoCap {
+						art.Rounds[round.Timestamp] = round.N
+					}
+				}
 				art.OpenBlocking = openBlocking(gatestate.DecideScoped(gatestate.FilterBoundary(*ledger, milestone), openScopeFor(*ledger, milestone), gatestate.DefaultRoundCap))
 			}
 			ev.Artifacts[boundary] = art

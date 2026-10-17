@@ -184,7 +184,7 @@ func TestObservationGolden(t *testing.T) {
 		Artifacts: map[string]ArtifactFacts{
 			"M1":    {Found: true, Sidecar: sidecar("SHIP", "a..b")},
 			"M2":    {Found: true, Sidecar: sidecar("FIX-THEN-SHIP", "b..c"), OpenBlocking: 1},
-			"close": {Found: true, Sidecar: sidecar("SHIP", "a..d")},
+			"close": {Found: true, Sidecar: sidecar("SHIP", "a.."+strings.Repeat("a", 40))},
 		}}
 	got, err := json.MarshalIndent(Assemble(in), "", "  ")
 	if err != nil {
@@ -345,7 +345,7 @@ func TestCheckpointsDegradeOnFailedReads(t *testing.T) {
 	if rv, _ := reviewFor(Assemble(in), "close"); rv.State != Unknown || rv.Verdict != "" {
 		t.Fatalf("a recorded non-verdict: %+v", rv)
 	}
-	quoted := sidecar("SHIP", "a..b") + "\n| verdict | REWORK |\n"
+	quoted := sidecar("SHIP", "a.."+strings.Repeat("a", 40)) + "\n| verdict | REWORK |\n"
 	in.Evidence.Artifacts = map[string]ArtifactFacts{"close": {Found: true, Sidecar: quoted}}
 	if rv, _ := reviewFor(Assemble(in), "close"); rv.Verdict != "SHIP" {
 		t.Fatalf("a table quoted in the review body overrode the metadata: %+v", rv)

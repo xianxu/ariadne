@@ -177,12 +177,25 @@ func TestObserveCheckpointsAcrossTheLifecycle(t *testing.T) {
 		t.Fatalf("holding: %+v", o.Workspaces)
 	}
 
+	// #423: the real writer appends a second review; the collector must not
+	// retain the first verdict, including after archive and branch deletion.
+	priorAt := "2026-10-01T00:00:00Z"
+	params := boundaryReviewParams{IssueNum: 394, IssuesDir: filepath.Join(r.root, "workshop/issues"), PlansDir: filepath.Join(r.root, "workshop/plans"), BaseLong: r.git("rev-parse", "origin/main"), Head: r.git("rev-parse", "HEAD"), Agent: "codex"}
+	if _, err := writeReviewSidecar(params, "REWORK", "first review", priorAt); err != nil {
+		t.Fatal(err)
+	}
+	ledger := gatestate.Ledger{Gate: "boundary-review", IssueNum: 394, IDPrefix: "BR", Rounds: []gatestate.Round{{N: 1, Timestamp: priorAt, Agent: "codex", Blocked: true}}}
+	if err := writeBoundaryGateLedger(params.PlansDir, filepath.Base(detailPath), ledger, "ariadne"); err != nil {
+		t.Fatal(err)
+	}
+	r.git("add", "workshop")
+	r.git("commit", "-qm", "#394: record first REWORK")
 	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "394", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}
 	o = look()
-	if rv, ok := reviewOf(o, "close"); !ok || rv.Verdict != "SHIP" || rv.State != observe.Present || o.Completion.State != observe.Present {
+	if rv, ok := reviewOf(o, "close"); !ok || rv.Verdict != "SHIP" || rv.Round != 2 || len(rv.History) != 1 || rv.History[0].Verdict != "REWORK" || rv.State != observe.Present || o.Completion.State != observe.Present {
 		t.Fatalf("closed: %+v %+v", o.Checkpoints.Reviews, o.Completion)
 	}
 
@@ -225,7 +238,7 @@ func TestObserveCheckpointsAcrossTheLifecycle(t *testing.T) {
 	if o.Landing.Outcome != observe.OutcomeLanded || o.Landing.Archived == "" || o.Branch.State != observe.Absent {
 		t.Fatalf("landed: %+v %+v", o.Landing, o.Branch)
 	}
-	if rv, ok := reviewOf(o, "close"); !ok || rv.Verdict != "SHIP" || !strings.Contains(o.Checkpoints.Source, "history/plans") {
+	if rv, ok := reviewOf(o, "close"); !ok || rv.Verdict != "SHIP" || rv.Round != 2 || len(rv.History) != 1 || !strings.Contains(o.Checkpoints.Source, "history/plans") {
 		t.Fatalf("verdict after a squash landing: %+v from %s", rv, o.Checkpoints.Source)
 	}
 }

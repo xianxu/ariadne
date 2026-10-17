@@ -6,6 +6,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/pkg/markdoc"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -32,6 +33,7 @@ type ArtifactFacts struct {
 	SidecarErr   error
 	OpenBlocking int
 	LedgerErr    error
+	Rounds       map[string]int // ledger timestamp -> boundary round number
 }
 
 // Evidence is where checkpoints are read: the issue branch's committed tree
@@ -107,6 +109,8 @@ func expectedBoundaries(ticked map[string]bool, status string) map[string]bool {
 	return want
 }
 
+var sidecarEntryRE = regexp.MustCompile(`(?m)^## Re-review — .*\n`)
+
 var sidecarRowRE = regexp.MustCompile(`(?m)^\|\s*(verdict|window|timestamp)\s*\|\s*(.*?)\s*\|\s*$`)
 
 // sidecarRows reads the metadata table a review sidecar opens with: the first
@@ -114,6 +118,7 @@ var sidecarRowRE = regexp.MustCompile(`(?m)^\|\s*(verdict|window|timestamp)\s*\|
 // override it.
 func sidecarRows(text string) map[string]string {
 	rows := map[string]string{}
+	text = strings.SplitN(text, "\n## Review\n", 2)[0]
 	for _, m := range sidecarRowRE.FindAllStringSubmatch(text, -1) {
 		if _, seen := rows[m[1]]; !seen {
 			rows[m[1]] = m[2]
@@ -175,7 +180,39 @@ func assembleCheckpoints(in Inputs, c Card) Checkpoints {
 		if !has && !expected[boundary] {
 			continue // not reached: no evidence expected, none present
 		}
-		cp.Reviews = append(cp.Reviews, review(boundary, art, expected[boundary], ev.Source))
+		r := review(boundary, art, expected[boundary], ev.Source)
+		if boundary == "close" && art.Found && art.SidecarErr == nil && art.LedgerErr == nil {
+			comp := assembleCompletion(in, c)
+			if comp.State == Present {
+				entries := append(append([]Review{}, r.History...), r)
+				found := false
+				for i := len(entries) - 1; i >= 0; i-- {
+					if strings.HasSuffix(entries[i].Window, ".."+comp.ReviewedHead) {
+						selected := entries[i]
+						selected.History = nil
+						for j, other := range entries {
+							if j != i {
+								other.Relation = "earlier"
+								if other.Round > selected.Round {
+									other.Relation = "later, not completion-bound"
+								}
+								other.History = nil
+								selected.History = append(selected.History, other)
+							}
+						}
+						selected.OpenBlocking = r.OpenBlocking
+						r, found = selected, true
+						break
+					}
+				}
+				if !found {
+					r.Read.State = Unknown
+					r.Read.Error = "no review entry matches the completion reviewed head " + comp.ReviewedHead
+					r.Verdict = ""
+				}
+			}
+		}
+		cp.Reviews = append(cp.Reviews, r)
 	}
 	return cp
 }
@@ -196,7 +233,21 @@ func review(boundary string, a ArtifactFacts, expected bool, source string) Revi
 	case !a.Found:
 		r.Read = Read{State: Absent, Source: source}
 	default:
-		rows := sidecarRows(a.Sidecar)
+		parts := sidecarEntryRE.Split(markdoc.StripFenced(a.Sidecar), -1)
+		for i, part := range parts[:len(parts)-1] {
+			prior := review(boundary, ArtifactFacts{Found: true, Sidecar: part}, false, source)
+			prior.Round = i + 1
+			prior.Relation = "earlier"
+			if n := a.Rounds[prior.At]; n != 0 {
+				prior.Round = n
+			}
+			r.History = append(r.History, prior)
+		}
+		rows := sidecarRows(parts[len(parts)-1])
+		r.Round = len(parts)
+		if n := a.Rounds[rows["timestamp"]]; n != 0 {
+			r.Round = n
+		}
 		r.Read = Read{State: Present, Source: source}
 		r.Window, r.At = rows["window"], rows["timestamp"]
 		switch v := strings.TrimSpace(rows["verdict"]); {

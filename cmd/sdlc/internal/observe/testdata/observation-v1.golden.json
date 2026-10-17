@@ -76,6 +76,7 @@
         "open_blocking": 0
       },
       {
+        "round": 1,
         "state": "present",
         "source": "refs/remotes/origin/main:workshop/history/plans",
         "boundary": "M1",
@@ -85,6 +86,7 @@
         "open_blocking": 0
       },
       {
+        "round": 1,
         "state": "present",
         "source": "refs/remotes/origin/main:workshop/history/plans",
         "boundary": "M2",
@@ -94,11 +96,12 @@
         "open_blocking": 1
       },
       {
+        "round": 1,
         "state": "present",
         "source": "refs/remotes/origin/main:workshop/history/plans",
         "boundary": "close",
         "verdict": "SHIP",
-        "window": "a..d",
+        "window": "a..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "at": "2026-10-02T08:30:00-07:00",
         "open_blocking": 0
       }
