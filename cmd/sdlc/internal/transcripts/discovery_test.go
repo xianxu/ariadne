@@ -29,6 +29,38 @@ func TestDiscoverEvidencePinsCodexIdentityAndPrefix(t *testing.T) {
 	}
 }
 
+func TestDiscoverEvidencePinsResumedCodexSessionInOriginalDateFolder(t *testing.T) {
+	root := t.TempDir()
+	day := filepath.Join(root, "2026", "10", "13")
+	if err := os.MkdirAll(day, 0700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(day, "rollout-root.jsonl")
+	first := `{"timestamp":"2026-10-13T22:56:13Z","type":"session_meta","payload":{"id":"root","cwd":"/repo","source":"cli"}}` + "\n"
+	if err := os.WriteFile(path, []byte(first), 0600); err != nil {
+		t.Fatal(err)
+	}
+	appended := `{"timestamp":"2026-10-17T09:59:24Z","type":"response_item","payload":{"type":"custom_tool_call","name":"exec","call_id":"suite","input":"text(await tools.exec_command({cmd:\"sdlc local-check run --name suite\"}))"}}` + "\n"
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString(appended); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	got, _, err := DiscoverEvidence(context.Background(), []string{"/repo"}, []Harness{CodexHarness(root)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	all := first + appended
+	if len(got) != 1 || got[0].File != path || got[0].ID != "root" || got[0].Length != int64(len(all)) || got[0].Digest != fmt.Sprintf("%x", sha256.Sum256([]byte(all))) {
+		t.Fatalf("resumed source in old date folder not pinned with appended bytes: %+v", got)
+	}
+}
+
 func TestDiscoverEvidenceClaudeDoesNotRecurseSubagents(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, cwdToClaudeDir("/repo"))

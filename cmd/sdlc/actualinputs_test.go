@@ -70,6 +70,7 @@ func ownedResolverFixture(t *testing.T) (*trackerRepo, string, string, issue.Cla
 	ownerRoot := filepath.Join(t.TempDir(), "owner")
 	testfix.Git(t, r.root, "worktree", "add", "-q", "-b", "000335-owned", ownerRoot)
 	owner := hostClaimant(t, ownerRoot)
+	owner.Workspace = "ariadne:1"
 	ownedFixtureAt(t, 1)
 	ownedFixtureCard(t, r, cardPath, "claim-first", func(raw []byte) ([]byte, error) {
 		raw, err := issue.SetCardClaimant(raw, owner)
@@ -129,6 +130,130 @@ func TestOwnedActualResolverUsesClaimantRatherThanCaller(t *testing.T) {
 	}
 }
 
+func TestOwnedActualQueueCoverageRefusesUnknownRecordsForCloseAndCorrection(t *testing.T) {
+	for _, kind := range []string{"malformed", "unreadable"} {
+		t.Run(kind, func(t *testing.T) {
+			r, _, _ := ownedCompletedFixture(t, false)
+			common := strings.TrimSpace(testfix.Capture(t, r.root, "rev-parse", "--git-common-dir"))
+			if !filepath.IsAbs(common) {
+				common = filepath.Join(r.root, common)
+			}
+			dir := filepath.Join(common, "sdlc", "test-stats", "attempts")
+			if err := os.MkdirAll(dir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(dir, "aabb.json")
+			switch kind {
+			case "malformed":
+				if err := os.WriteFile(path, []byte(`{"broken":`), 0600); err != nil {
+					t.Fatal(err)
+				}
+			case "unreadable":
+				if err := os.Symlink(filepath.Join(dir, "missing-target"), path); err != nil {
+					t.Fatal(err)
+				}
+			}
+			for _, purpose := range []actualInputPurpose{actualCloseCandidate, actualCorrectionCandidate} {
+				_, err := resolveOwnedActualInputsFor(context.Background(), r.root, "", "335", "", purpose)
+				if err == nil || !strings.Contains(err.Error(), "queue evidence incomplete") {
+					t.Fatalf("%s purpose %d adopted unknown queue coverage: %v", kind, purpose, err)
+				}
+			}
+		})
+	}
+}
+
+func TestOwnedActualSelectorWarningsRefuseCloseAndCorrection(t *testing.T) {
+	for _, kind := range []string{"missing queue", "exact missing slot", "late legacy", "valid exact"} {
+		t.Run(kind, func(t *testing.T) {
+			r, cardPath, _, owner, _ := ownedResolverFixture(t)
+			out, err := resolveOwnedActualInputsFor(context.Background(), r.root, "", "335", "", actualCloseCandidate)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if owner.Workspace != "ariadne:1" {
+				t.Fatalf("fixture has no pinned workspace: %+v", owner)
+			}
+			until, err := time.Parse(time.RFC3339Nano, out.Snapshot.Until)
+			if err != nil {
+				t.Fatal(err)
+			}
+			common := strings.TrimSpace(testfix.Capture(t, r.root, "rev-parse", "--git-common-dir"))
+			if !filepath.IsAbs(common) {
+				common = filepath.Join(r.root, common)
+			}
+			dir := filepath.Join(common, "sdlc", "test-stats", "attempts")
+			if err := os.MkdirAll(dir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			queue := 60.0
+			started := time.Date(2026, 10, 14, 0, 5, 0, 0, time.UTC)
+			queued := started.Add(-2 * time.Minute)
+			acquired := queued.Add(time.Minute)
+			a := SuiteAttempt{Version: 1, ID: "aabb", Repo: "xianxu/ariadne", SHA: out.Snapshot.CodeHead, Check: "suite", Slot: owner.Workspace, StartedAt: started, FinishedAt: started.Add(time.Minute), QueueSeconds: &queue, LogSHA256: strings.Repeat("b", 64)}
+			switch kind {
+			case "missing queue":
+				a.QueueSeconds = nil
+			case "exact missing slot":
+				a.Slot = ""
+				a.QueuedAt, a.AcquiredAt = &queued, &acquired
+			case "late legacy":
+				queue = 1
+				a.StartedAt = until.Add(5 * time.Second)
+				a.FinishedAt = a.StartedAt.Add(time.Minute)
+			case "valid exact":
+				a.QueuedAt, a.AcquiredAt = &queued, &acquired
+			}
+			raw, err := json.Marshal(a)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, a.ID+".json"), raw, 0600); err != nil {
+				t.Fatal(err)
+			}
+			attempts, warnings, err := readSuiteAttempts(filepath.Join(common, "sdlc", "test-stats"), testStatsRecordLimit)
+			if err != nil || len(warnings) != 0 || len(attempts) != 1 || attempts[0].ID != a.ID {
+				t.Fatalf("fixture did not pass the production reader: attempts=%+v warnings=%+v err=%v", attempts, warnings, err)
+			}
+			repo, err := tracker.NewRepository(context.Background(), r.root, "origin")
+			if err != nil {
+				t.Fatal(err)
+			}
+			engagementEvents, err := repo.EngagementHistory(out.Snapshot.TrackerHead, cardPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			engagements, err := tracker.DeriveEngagements(engagementEvents, until)
+			if err != nil {
+				t.Fatal(err)
+			}
+			since, err := time.Parse(time.RFC3339Nano, out.Snapshot.Since)
+			if err != nil {
+				t.Fatal(err)
+			}
+			waits, notes, err := selectOwnedQueueAttempts(attempts, engagements, "github.com/xianxu/ariadne", since, until)
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantWarning := kind != "valid exact"
+			if wantWarning && (len(notes) != 1 || len(waits) != 0) || !wantWarning && (len(notes) != 0 || len(waits) != 1) {
+				t.Fatalf("fixture did not reach intended selector path: waits=%+v notes=%+v", waits, notes)
+			}
+			for _, purpose := range []actualInputPurpose{actualCloseCandidate, actualCorrectionCandidate} {
+				candidate := *out
+				err := attachOwnedQueueEvidence(context.Background(), r.root, repo, cardPath, "github.com/xianxu/ariadne", &candidate, purpose)
+				if wantWarning {
+					if err == nil || !strings.Contains(err.Error(), "queue evidence incomplete") {
+						t.Fatalf("purpose %d adopted selector-warning evidence: %v", purpose, err)
+					}
+				} else if err != nil || len(candidate.Snapshot.QueueWaits) != 1 {
+					t.Fatalf("purpose %d refused valid exact evidence: waits=%+v err=%v", purpose, candidate.Snapshot.QueueWaits, err)
+				}
+			}
+		})
+	}
+}
+
 func TestOwnedActualResolverReleaseReclaimSplitsEngagements(t *testing.T) {
 	r, cardPath, _, owner, _ := ownedResolverFixture(t)
 	ownedFixtureAt(t, 4)
@@ -178,6 +303,18 @@ func ownedCompletedFixture(t *testing.T, mismatch bool) (*trackerRepo, gatestate
 		return issue.SetCardField(raw, "status", "codecomplete")
 	})
 	return r, saved, source
+}
+
+func TestActualQueueCorrectionCandidateRequiresRecordedWait(t *testing.T) {
+	r, saved, _ := ownedCompletedFixture(t, false)
+	historical, err := resolveOwnedActualInputsFor(context.Background(), r.root, "", "335", "", actualHistorical)
+	if err != nil || !historical.Replay || historical.Snapshot.CodeHead != saved.CodeHead {
+		t.Fatalf("historical replay changed: %+v %v", historical, err)
+	}
+	_, err = resolveOwnedActualInputsFor(context.Background(), r.root, "", "335", "", actualCorrectionCandidate)
+	if err == nil || !strings.Contains(err.Error(), "no complete, owned suite queue records") {
+		t.Fatalf("candidate without records should refuse: %v", err)
+	}
 }
 
 func TestOwnedActualResolverReplaysCompletionDespiteAppends(t *testing.T) {

@@ -111,7 +111,11 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	if err != nil {
 		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
 	}
-	queueWait := time.Since(queueStart)
+	queueAcquired := time.Now()
+	// Derive the recorded duration from the same wall-clock endpoints that are
+	// serialized. time.Sub on live values can use their monotonic readings,
+	// which need not equal the persisted timestamp difference.
+	queueWait := queueAcquired.UTC().Sub(queueStart.UTC())
 	defer release()
 
 	if err := os.MkdirAll(filepath.Dir(rec.LogPath), 0o755); err != nil {
@@ -169,6 +173,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	if writer != nil {
 		attempt := SuiteAttempt{Version: 1, ID: writer.ID, Repo: d.Repo, SHA: sha, Check: c.Name,
 			StartedAt: start.UTC(), FinishedAt: finished, MainBaseline: d.SkipRecord,
+			QueuedAt: ptrTime(queueStart.UTC()), AcquiredAt: ptrTime(queueAcquired.UTC()),
 			QueueSeconds: &queueSeconds, WallSeconds: &wallSeconds,
 			Exit: rec.Exit, TimedOut: rec.TimedOut, LogSHA256: rec.LogSHA256}
 		if identity, idErr := workspace.Resolve(execGitRunner{}, d.Root, ""); idErr == nil && identity.Address != nil {

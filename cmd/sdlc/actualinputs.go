@@ -35,6 +35,7 @@ type ownedActualInputs struct {
 	ExcludedBrain []transcripts.SessionEvidence
 	Ledger        *gatestate.Ledger
 	Warnings      []string
+	SourceSlots   map[string]string
 	Replay        bool
 }
 
@@ -43,6 +44,7 @@ type actualInputPurpose uint8
 const (
 	actualHistorical actualInputPurpose = iota
 	actualCloseCandidate
+	actualCorrectionCandidate
 )
 
 func resolveOwnedActualInputs(ctx context.Context, repoTop, brainAbs, issueNum, plans string, milestones ...string) (*ownedActualInputs, error) {
@@ -50,7 +52,7 @@ func resolveOwnedActualInputs(ctx context.Context, repoTop, brainAbs, issueNum, 
 }
 
 func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNum, plans string, purpose actualInputPurpose, milestones ...string) (*ownedActualInputs, error) {
-	if purpose != actualHistorical && purpose != actualCloseCandidate {
+	if purpose != actualHistorical && purpose != actualCloseCandidate && purpose != actualCorrectionCandidate {
 		return nil, fmt.Errorf("unsupported measurement purpose %d", purpose)
 	}
 	milestone := ""
@@ -115,7 +117,7 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 	// A new close reviews today's candidate, even when the card still carries
 	// an earlier completion or correction. Historical consumers must instead
 	// replay that completion's immutable measurement generation.
-	completed = completed && purpose == actualHistorical
+	completed = completed && purpose != actualCloseCandidate
 	if purpose == actualCloseCandidate {
 		warnings = append(warnings, "measurement purpose: close candidate (fresh code/tracker inputs)")
 	}
@@ -124,7 +126,7 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 		if err != nil {
 			return nil, err
 		}
-		if corrected {
+		if corrected && purpose == actualHistorical {
 			if correction.CompletionToken != completion.Token || correction.Repository != completion.Repository || correction.EvidenceCommit != completion.EvidenceCommit || correction.ReviewedHEAD != completion.ReviewedHEAD {
 				return nil, fmt.Errorf("actual correction belongs to a different completion binding")
 			}
@@ -185,6 +187,18 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 				if saved.CodeHead != completion.ReviewedHEAD {
 					return nil, fmt.Errorf("retained measurement code head differs from the completion's reviewed generation")
 				}
+				if purpose == actualCorrectionCandidate {
+					out, err := resolveOwnedReplay(ctx, repoTop, issueNum, saved, ledger)
+					if err != nil {
+						return nil, err
+					}
+					out.Warnings = append(out.Warnings, "measurement purpose: correction candidate (completion-pinned authority with fresh queue evidence)")
+					if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, out, purpose); err != nil {
+						return nil, err
+					}
+					out.Replay = false
+					return out, nil
+				}
 				return resolveOwnedReplay(ctx, repoTop, issueNum, saved, ledger)
 			}
 		}
@@ -193,7 +207,12 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 		if err != nil {
 			return nil, err
 		}
-		warnings = append(warnings, "completed issue has no retained measurement inputs; reconstructed historical authority from its exact completion binding")
+		if purpose == actualHistorical {
+			warnings = append(warnings, "completed issue has no retained measurement inputs; reconstructed historical authority from its exact completion binding")
+		}
+		if purpose == actualCorrectionCandidate {
+			warnings = append(warnings, "measurement purpose: correction candidate (completion-pinned authority with fresh queue evidence)")
+		}
 	} else {
 		var found bool
 		ledger, found, err = issueBoundaryLedger(repoTop, plans, id)
@@ -267,7 +286,69 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 		out.Snapshot.Sources = append(out.Snapshot.Sources, ownedMeasurementSource(s, windows[s.File]))
 	}
 	out.Snapshot.Cuts = ownedMeasurementCuts(ledger)
+	if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, out, purpose); err != nil {
+		return nil, err
+	}
 	return out, nil
+}
+
+func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker.Repository, cardPath, repository string, out *ownedActualInputs, purpose actualInputPurpose) error {
+	until, err := time.Parse(time.RFC3339Nano, out.Snapshot.Until)
+	if err != nil {
+		return err
+	}
+	engagementEvents, err := repo.EngagementHistory(out.Snapshot.TrackerHead, cardPath)
+	if err != nil {
+		return err
+	}
+	engagements, err := tracker.DeriveEngagements(engagementEvents, until)
+	if err != nil {
+		return err
+	}
+	out.SourceSlots = ownedQueueSourceSlots(out.Sessions, engagements)
+	for i := range out.Snapshot.Sources {
+		for _, session := range out.Sessions {
+			if session.Harness == out.Snapshot.Sources[i].Harness && session.ID == out.Snapshot.Sources[i].ID {
+				out.Snapshot.Sources[i].Slot = out.SourceSlots[session.File]
+			}
+		}
+	}
+	common, err := ownedActualGit(ctx, repoTop, "rev-parse", "--git-common-dir")
+	if err != nil {
+		return err
+	}
+	common = strings.TrimSpace(common)
+	if !filepath.IsAbs(common) {
+		common = filepath.Join(repoTop, common)
+	}
+	attempts, attemptWarnings, err := readSuiteAttempts(filepath.Join(common, "sdlc", "test-stats"), testStatsRecordLimit)
+	if err != nil {
+		return err
+	}
+	if len(attemptWarnings) > 0 {
+		return fmt.Errorf("queue evidence incomplete; actual is not calibration evidence: %s", attemptWarnings[0])
+	}
+	since, err := time.Parse(time.RFC3339Nano, out.Snapshot.Since)
+	if err != nil {
+		return err
+	}
+	waits, notes, err := selectOwnedQueueAttempts(attempts, engagements, repository, since, until)
+	if err != nil {
+		return err
+	}
+	if len(notes) > 0 {
+		return fmt.Errorf("queue evidence incomplete; actual is not calibration evidence: %s", notes[0])
+	}
+	if purpose == actualCorrectionCandidate && len(waits) == 0 {
+		return fmt.Errorf("correction candidate has no complete, owned suite queue records for the completion window")
+	}
+	out.Warnings = append(out.Warnings, attemptWarnings...)
+	out.Warnings = append(out.Warnings, notes...)
+	if len(waits) > 0 {
+		out.Snapshot.Method = gatestate.MeasurementMethodQueueV1
+		out.Snapshot.QueueWaits = waits
+	}
+	return nil
 }
 
 func ownedMeasurementSource(s transcripts.SessionEvidence, windows []activetime.ActivityWindow) gatestate.MeasurementSource {
@@ -401,7 +482,7 @@ func ownedSourceWindows(ctx context.Context, engagements []tracker.EngagementWin
 }
 
 func ownedReplaySources(saved gatestate.MeasurementInputs, found []transcripts.SessionEvidence) (*ownedActualInputs, error) {
-	out := &ownedActualInputs{Snapshot: saved, Prefixes: map[string]activetime.SourcePrefix{}, Windows: map[string][]activetime.ActivityWindow{}, Scope: activetime.Scope{Head: saved.CodeHead, BranchPoint: saved.BranchPoint}, TrackerRefs: nonEmpty(saved.TrackerHead), Replay: true}
+	out := &ownedActualInputs{Snapshot: saved, Prefixes: map[string]activetime.SourcePrefix{}, Windows: map[string][]activetime.ActivityWindow{}, SourceSlots: map[string]string{}, Scope: activetime.Scope{Head: saved.CodeHead, BranchPoint: saved.BranchPoint}, TrackerRefs: nonEmpty(saved.TrackerHead), Replay: true}
 	byID := map[[2]string]transcripts.SessionEvidence{}
 	for _, s := range found {
 		key := [2]string{s.Harness, s.ID}
@@ -422,6 +503,7 @@ func ownedReplaySources(saved gatestate.MeasurementInputs, found []transcripts.S
 		s.Started, _ = time.Parse(time.RFC3339Nano, pin.Started)
 		out.Files = append(out.Files, s.File)
 		out.Sessions = append(out.Sessions, s)
+		out.SourceSlots[s.File] = pin.Slot
 		out.Prefixes[s.File] = activetime.SourcePrefix{Bytes: pin.Bytes, Digest: pin.Digest}
 		for _, interval := range pin.Windows {
 			start, err := time.Parse(time.RFC3339Nano, interval.Start)
@@ -433,7 +515,7 @@ func ownedReplaySources(saved gatestate.MeasurementInputs, found []transcripts.S
 				return nil, err
 			}
 			var began time.Time
-			if saved.Method == gatestate.MeasurementMethodEngagementV1 {
+			if saved.Method == gatestate.MeasurementMethodEngagementV1 || saved.Method == gatestate.MeasurementMethodQueueV1 {
 				for _, engagement := range saved.Engagements {
 					left, err := time.Parse(time.RFC3339Nano, engagement.Start)
 					if err != nil {

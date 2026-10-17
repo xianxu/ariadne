@@ -31,7 +31,7 @@ import (
 // The seam returns production measured inputs; tests supply a bounded known
 // snapshot while exercising real tracker/calibration/main publication.
 var measureActualCorrection = func(ctx context.Context, root, brain, id, milestone, plans string) actualResult {
-	return computeActualFor(ctx, root, brain, id, milestone, plans)
+	return computeActualForPurpose(ctx, root, brain, id, milestone, plans, actualCorrectionCandidate)
 }
 
 func newIssueCorrectActualCmd() *cobra.Command {
@@ -817,7 +817,7 @@ func runActualCorrection(ctx context.Context, stdout, stderr io.Writer, issuesDi
 	row := target
 	row.RawID = ""
 	row.Actual = measured.Hours
-	if !exclude && inputs.Method == gatestate.MeasurementMethodEngagementV1 {
+	if !exclude && (inputs.Method == gatestate.MeasurementMethodEngagementV1 || inputs.Method == gatestate.MeasurementMethodQueueV1) {
 		row.WindowTrusted = true
 	}
 	row.Date = time.Now().Format("2006-01-02")

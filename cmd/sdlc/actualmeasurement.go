@@ -28,7 +28,18 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 	res.Peers = peers
 	options := activetime.Options{Context: ctx, Files: inputs.Files, GitRepo: root, ExtraRefs: inputs.TrackerRefs, Scope: inputs.Scope,
 		SinceISO: m.Since, UntilISO: m.Until, Issues: peers, CommitWeight: m.CommitWeight, ThresholdMin: m.GapMinutes,
-		IncludeAssistant: m.IncludeAssistant, ActivityWindows: inputs.Windows, SourcePrefixes: inputs.Prefixes}
+		IncludeAssistant: m.IncludeAssistant, ActivityWindows: inputs.Windows, SourcePrefixes: inputs.Prefixes, SourceSlots: inputs.SourceSlots}
+	for _, q := range m.QueueWaits {
+		start, err := time.Parse(time.RFC3339Nano, q.Start)
+		if err != nil {
+			return fail(err)
+		}
+		end, err := time.Parse(time.RFC3339Nano, q.End)
+		if err != nil {
+			return fail(err)
+		}
+		options.QueueIntervals = append(options.QueueIntervals, activetime.QueueInterval{Start: start, End: end, Slot: q.Slot, AttemptID: q.AttemptID})
+	}
 	out, err := activetime.Compute(options)
 	if err != nil {
 		return fail(err)
@@ -55,13 +66,16 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 		for _, file := range out.SourceIDs {
 			contributing[file] = true
 		}
+		for _, file := range out.QueueBindingSourceIDs {
+			contributing[file] = true // queue replay still needs this prefix when its activity is zero
+		}
 		m.Sources = nil
 		for _, s := range inputs.Sessions {
 			if !contributing[s.File] {
 				continue
 			}
 			item := gatestate.MeasurementSource{Harness: s.Harness, ID: s.ID, CWD: s.CWD, ParentID: s.ParentID, Digest: s.Digest,
-				Started: s.Started.Format(time.RFC3339Nano), Spawned: s.Spawned, Bytes: s.Length}
+				Started: s.Started.Format(time.RFC3339Nano), Spawned: s.Spawned, Bytes: s.Length, Slot: inputs.SourceSlots[s.File]}
 			for _, w := range inputs.Windows[s.File] {
 				item.Windows = append(item.Windows, gatestate.MeasurementInterval{Start: w.Start.Format(time.RFC3339Nano), End: w.End.Format(time.RFC3339Nano)})
 			}
@@ -74,6 +88,8 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 		if len(inputs.ExcludedBrain) > 0 {
 			excluded := options
 			excluded.Files = nil
+			excluded.QueueIntervals = nil // excluded sources are a separate diagnostic population
+			excluded.SourceSlots = nil
 			excluded.ActivityWindows = nil
 			if len(m.Engagements) > 0 {
 				excluded.ActivityWindows = make(map[string][]activetime.ActivityWindow)
@@ -101,6 +117,9 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 	}
 	res.Inputs = &m
 	res.Warnings = append(res.Warnings, fmt.Sprintf("provenance: %s; %d ownership intervals; %d admitted sessions; unbound brain excluded: %d sessions, %.2f minutes; code %s; tracker %s", m.Method, len(m.Engagements), len(m.Sources), m.ExcludedBrainSessions, m.ExcludedBrainMinutes, m.CodeHead, m.TrackerHead))
+	if len(m.QueueWaits) > 0 {
+		res.Warnings = append(res.Warnings, fmt.Sprintf("suite queue: %.2f raw minutes, %.2f excluded activity minutes across %d recorded waits", out.QueueAttribution.RawMinutes, out.QueueAttribution.ExcludedMinutes, len(m.QueueWaits)))
+	}
 	for _, warning := range out.Warnings {
 		res.Warnings = append(res.Warnings, formatAttributionWarning(warning))
 	}

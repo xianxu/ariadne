@@ -1468,6 +1468,28 @@ wins even when the first `#N` commit (the filing) is earlier (#270, folding
 would otherwise claim every other piece of work the slot did between filing and
 claim.
 
+Recorded suite queue waits (#420) are a separate input to owned actuals. The
+local-check recorder stores exact queue start and acquisition instants beside
+`queue_seconds`; legacy records without exact endpoints remain unknown and
+cannot support a calibrated numeric actual. A legacy `started_at` follows an
+unrecorded setup delay, so a reconstructed wait never proves non-overlap with
+an engagement or measurement boundary. The actual resolver selects validated records for the pinned
+repository, owner slot and engagement, then retains the selected intervals,
+record digests and source slots in the bounded measurement snapshot. The native
+engine applies each wait to admitted activity sources mapped to the attempt's
+owning slot and subtracts the entire interval. No tool call, result or task
+span inside it is classified or used to restore time; overlapping real work
+may therefore slightly undercount. A malformed or unreadable attempt record
+whose relevance cannot be ruled out, a relevant attempt missing queue or slot
+fields, or a legacy attempt without exact endpoints makes coverage unknown for
+both close and correction. Unknown source ownership also refuses a numeric
+measurement. Old completed snapshots replay unchanged; explicit
+`correct-actual` builds a new candidate against the completion generation and
+can exclude an unverifiable calibration sample without inventing hours.
+The retained snapshot keeps a wait's binding transcript even when all of that
+source's activity was subtracted, and queue-aware corrections carry the same
+ownership-proven calibration trust as engagement measurements.
+
 `sdlc active-time` (#110) is the standalone CLI over the same engine — the
 manual-inspection sibling that prints the full attribution table and warnings. It preserves
 the #68 loud-fail exit-code contract: **2** = misinvoke (no `--dir`/`--issue`/
