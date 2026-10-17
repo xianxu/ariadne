@@ -12,7 +12,13 @@ import (
 func buildDependencies() *cobra.Command {
 	var dryRun bool
 	cmd := &cobra.Command{
-		Use: "dependencies", Short: "Restore base repositories and install their Brewfiles",
+		Use: "dependencies", Short: "Restore base repositories and prepare their Brewfiles",
+		Long: `Restore transitive sources and prepare layer Brewfiles, foundation-first.
+Numbered slots, Couch contexts and SDLC calls only check packages, never install.
+Missing packages are listed with one install command for the operator's shell.
+Hand runs outside these contexts retain bundle install --no-upgrade behavior.
+Every brew call disables metadata auto-update with HOMEBREW_NO_AUTO_UPDATE=1.
+Compile and refresh use this same policy. --dry-run reports without running brew.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) (retErr error) {
 			root, err := os.Getwd()
@@ -28,7 +34,7 @@ func buildDependencies() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return startup.Dependencies(weavefs.OSFS{}, restored.Layers, runner, dryRun, cmd.OutOrStdout())
+			return startup.Dependencies(weavefs.OSFS{}, restored.Layers, runner, dependencyChecksOnly(client), dryRun, cmd.OutOrStdout())
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "report known dependency operations without cloning or installing")

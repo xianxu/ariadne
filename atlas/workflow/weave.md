@@ -16,9 +16,16 @@ checkout, setup records the origin of each sourceless row's checkout the same wa
 in a slot, a sourceless row's source is recovered from the primary-side sibling
 (#296, see setup-and-replication.md).
 
-`weave dependencies [--dry-run]` restores transitive sources and installs each
-layer's root Brewfile through `brew bundle install --no-upgrade --file=Brewfile`
-on macOS and Linux. Layers without a Brewfile need no package operation. Package/build
+`weave dependencies [--dry-run]` restores transitive sources and prepares each
+layer's root Brewfile on macOS and Linux. Numbered environments, Couch contexts
+and SDLC children run verbose `brew bundle check --no-upgrade`; other hand runs
+retain `brew bundle install --no-upgrade`. Every brew call gets
+`HOMEBREW_NO_AUTO_UPDATE=1`. Failed checks name packages and a quoted absolute
+Brewfile install command for the operator, and stop before builds/composition.
+`cmd/weave/environment.go` selects the policy once per caller from existing
+setup policy and context; `startup.Dependencies` executes it through the runner.
+SDLC's shared child environment restricts both catch-up and propagation via
+`WEAVE_DEPENDENCIES_CHECK_ONLY=1`, without changing the invoking environment. Layers without a Brewfile need no package operation. Package/build
 semantics belong to Homebrew/Make, not a weave-specific recipe language. This
 command does not build tools, mount data, or generate artifacts.
 

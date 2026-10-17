@@ -103,8 +103,9 @@ func buildCompile() *cobra.Command {
 	var targetFlag string
 	cmd := &cobra.Command{
 		Use:   "compile",
-		Short: "Install dependencies, build layer tools, and compile artifacts",
-		Long: "Restores base sources, installs layer Brewfiles, runs owner make tools,\n" +
+		Short: "Prepare dependencies, build layer tools, and compile artifacts",
+		Long: "Restores base sources, prepares layer Brewfiles, runs owner make tools,\n" +
+			"Package policy is described by `weave dependencies --help`: slots and SDLC only check.\n" +
 			"then generates and reconciles artifacts. Default = every harness face.\n" +
 			"`--target {claude|codex|gemini}` selects a face. `--dry-run` previews\n" +
 			"known operations without cloning, installing, building or generating.",
@@ -491,7 +492,7 @@ func compilePreparedSettings(ctx context.Context, fs weavefs.FS, root string, ta
 	if err != nil {
 		return err
 	}
-	if err := startup.Dependencies(fs, restored.Layers, runner, dryRun, out); err != nil {
+	if err := startup.Dependencies(fs, restored.Layers, runner, dependencyChecksOnly(client), dryRun, out); err != nil {
 		return err
 	}
 	runner.Env = startup.ToolEnvironment(os.Environ(), restored.Layers)

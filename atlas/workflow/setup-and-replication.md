@@ -32,7 +32,11 @@ mount. Paths and sources cannot contain whitespace or `#` in this format.
 ## Preparation and compilation
 
 `weave dependencies` restores transitive sources and runs each layer's root
-`Brewfile` foundation-first with `brew bundle install --no-upgrade --file=Brewfile`.
+`Brewfile` foundation-first. Numbered slot and Couch contexts, and every SDLC
+weave child, check with `brew bundle check --no-upgrade --verbose --file=Brewfile`;
+missing packages stop preparation and name the operator's quoted install command.
+Hand calls outside these contexts retain `brew bundle install --no-upgrade`.
+Every brew call sets `HOMEBREW_NO_AUTO_UPDATE=1`; there is no installer fallback.
 Homebrew is the package manager on both macOS and Linux. This command does not
 build tools, mount data, or generate artifacts. Layers without a Brewfile need
 no package operation. A dry-run mutates nothing and reports an incomplete preview
@@ -40,7 +44,7 @@ with failure when a missing source prevents reading its declarations.
 
 `weave compile` performs these phases in order:
 
-1. Restore sources and provision layer Brewfiles.
+1. Restore sources and prepare layer Brewfiles (check in automated contexts; install in other hand calls).
 2. Run each participating owner's `make tools`, foundation-first.
 3. Reconcile data mounts in each declaring owner.
 4. Run selected generators with leaf cwd and isolated output directories, then

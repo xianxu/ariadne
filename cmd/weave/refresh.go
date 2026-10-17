@@ -42,7 +42,9 @@ reconcile those declarations and prepare any missing checkouts separately.
 staleness without publishing them. Run weave refresh --substrate from your shell
 to publish protected settings while preserving an issue branch.
 
-Refresh does not reserve an issue or change machine-wide tool installation policy.
+Refresh does not reserve an issue. Package policy follows weave dependencies:
+numbered slots, Couch contexts and SDLC calls only check packages and print the
+operator's install command when missing. No brew call auto-updates metadata.
 Ordinary weave compile preserves existing Git revisions; refresh is explicit.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) (retErr error) {

@@ -237,8 +237,13 @@ not cloned beside the worktree: check it out beside the primary (a
 [setup-and-replication](atlas/workflow/setup-and-replication.md#linked-worktrees).
 
 With Homebrew on PATH (macOS or Linux), `weave dependencies` restores transitive sources
-and runs each layer's committed root `Brewfile` through `brew bundle install
---no-upgrade --file=Brewfile`, foundation-first. Homebrew manages package state;
+and prepares each layer's committed root `Brewfile`, foundation-first. Numbered
+slots (including private dependency checkouts), Couch contexts and SDLC-invoked
+weave only run `brew bundle check --no-upgrade --verbose --file=Brewfile`.
+Missing packages stop preparation and print their names plus an absolute,
+shell-quoted install command for the operator. Hand runs outside those contexts
+retain `brew bundle install --no-upgrade --file=Brewfile`. Every brew invocation
+sets `HOMEBREW_NO_AUTO_UPDATE=1`, including hand installs. Homebrew manages package state;
 weave does not build tools, mount data or generate artifacts in this command.
 Linux CI uses Homebrew and the same layer Brewfiles.
 `weave dependencies --dry-run` makes no changes. If a missing source prevents

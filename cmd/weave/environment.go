@@ -37,3 +37,9 @@ func prepareSetup(ctx context.Context, root string, dryRun bool, out, errOut io.
 	}
 	return client, runner, closeSetup, nil
 }
+
+// Slot identity and invoking context only restrict package effects; neither
+// environment marker grants machine provisioning inside a numbered workspace.
+func dependencyChecksOnly(client acquire.Client) bool {
+	return client.Policy != nil || os.Getenv("COUCH_TREE") != "" || os.Getenv("WEAVE_DEPENDENCIES_CHECK_ONLY") != ""
+}

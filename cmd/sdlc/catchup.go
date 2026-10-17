@@ -41,7 +41,21 @@ func runInstalledWeaveArgs(ctx context.Context, root string, out io.Writer, args
 	}
 	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Dir, cmd.Stdout, cmd.Stderr = root, out, out
+	cmd.Env = weaveDependencyCheckEnv(cmd)
 	return cmd.Run()
+}
+
+// SDLC may refresh repository state, but machine dependencies belong to the
+// operator. Keep this permission local to each child, including nested weave.
+func weaveDependencyCheckEnv(cmd *exec.Cmd) []string {
+	env := cmd.Environ()
+	out := make([]string, 0, len(env)+1)
+	for _, entry := range env {
+		if !strings.HasPrefix(entry, "WEAVE_DEPENDENCIES_CHECK_ONLY=") {
+			out = append(out, entry)
+		}
+	}
+	return append(out, "WEAVE_DEPENDENCIES_CHECK_ONLY=1")
 }
 
 // catchUpFetchTimeout bounds each probe's fetch: an unresponsive remote leaves

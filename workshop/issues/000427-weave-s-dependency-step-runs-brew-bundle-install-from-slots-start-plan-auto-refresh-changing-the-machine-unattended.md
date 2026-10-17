@@ -57,10 +57,12 @@ Wanted:
 
 ## Plan
 
-- [ ] Reproduce the unattended install with stateful fake-brew regression tests; include numbered setup, Couch and SDLC contexts, missing/satisfied/failure, dry-run/no-bundle and hand controls.
-- [ ] Select check-only mode once for both dependency callers; restrict both SDLC weave subprocess paths; force no-auto-update on every dependency brew call and print safe operator recovery.
-- [ ] Update command help, README and relevant atlas provisioning passages; run focused weave/SDLC caller tests.
-- [ ] Run the required recorded branch suite. Close the tested branch, then let merge integrate main under its turn and test integrated code as required; report landing to the hub.
+- [x] Reproduce the unattended install with stateful fake-brew regression tests; include numbered setup, Couch and SDLC contexts, missing/satisfied/failure, dry-run/no-bundle and hand controls.
+- [x] Select check-only mode once for both dependency callers; restrict both SDLC weave subprocess paths; force no-auto-update on every dependency brew call and print safe operator recovery.
+- [x] Update command help, README and relevant atlas provisioning passages; run focused weave/SDLC caller tests.
+- [ ] Run the required recorded branch suite and the TL-granted native check.
+
+After verification, close the tested branch, then let merge integrate main under its turn and test integrated code as required; report landing to the hub.
 
 - [ ]
 
@@ -73,3 +75,6 @@ Wanted:
 - Homebrew's official bundle documentation confirms check --verbose reports unmet dependencies and --no-upgrade preserves installed versions: https://docs.brew.sh/Brew-Bundle-and-Brewfile . Tests will use the existing runner seam and fake binaries only; no real package install/update is authorized.
 
 ### 2026-10-17
+
+- RED verified before production edits: all automated compile/refresh/dependencies contexts installed packages instead of refusing, and hand controls changed the metadata sentinel. The SDLC stateful process test observed absent/0 context on refresh, settings, propagation compile and verify-complete instead of required 1.
+- GREEN: new dependency-policy tests pass for numbered/Couch/SDLC/hand contexts across all three weave commands; dry-run/no-Brewfile/probe-failure controls pass. Operator recovery is actually executed against fake brew from a different directory with an apostrophe in the Brewfile path, then a fresh check succeeds without a second install or metadata update. All cmd/weave/... packages pass (main 56.347s, refresh 86.060s); focused SDLC installed-weave/catch-up/propagation checks pass (11.233s). Caller environment stays unchanged. Command help, README and provisioning atlas passages now describe the restriction.
