@@ -47,7 +47,7 @@ Related to, but not covered by, #400 (cancel must stop only your own run).
 ## Plan
 
 - [x] BR-1: scope managed signals to the owned queue/suite phase, restore default handling outside it, and give detached cleanup an independent bounded Git runner.
-- [ ] Verify the unchanged production handler with blocked-fetch SIGINT/SIGTERM, queued cancellation, bounded cleanup, live stage and a fresh recorded suite before re-close.
+- [ ] Verify the unchanged production handler with blocked-fetch SIGINT/SIGTERM, queued cancellation, bounded cleanup and a fresh recorded suite before re-close; repeat the live check when the TL grants the stage.
 
 - [x] Reproduce queued cancellation and watched-process SIGKILL with private lock files; show the successor is admitted and unrelated holders survive.
 - [x] Reuse CLI signal-context ownership for local-check run, and bound cancellation of its owned helper process group; retain the existing per-run pipe holder.
@@ -79,6 +79,9 @@ Related to, but not covered by, #400 (cancel must stop only your own run).
 - Independent #420 filed unassigned for actual-time attribution. TL decision: queue waiting is not active work; exclude/subtract recorded queue_seconds because they are measured, not guessed. Both retained attempts contain 6,951.058874s queued in total; no replacement numeric actual was entered.
 
 - BR-1 RED: unchanged production handler swallowed SIGINT/SIGTERM at blocked fetch and postrun trailer reads (four failures). After scoping signal ownership, all native signal cases passed; the added stalled-cleanup case then failed only with queued cancellation exceeding five seconds. GREEN: go test -trimpath ./cmd/sdlc -run ^Test(LocalCheckSignal|RunLocalCheck|CLISignal) -count=1 -timeout 5m passed (65.021s), including independent cleanup deadline and successor admission. Cleanup reuses boundedLandingGit with the existing recovery ceiling in all three production constructors (ARCH-DRY); no command-wide subprocess refactor.
+
+- Integrated current main at e7a8db930a2b2bbffbb903cc4b4743ef693415e8 and pushed PR #274. Fresh recorded suite run ef42644f9ff6b93a2aa217acc8a0dbc2 is queued (private detached checkout sdlc-local-3069687343). Full bash scripts/test/test-lock.test.sh passed again, including queued watched-PID SIGKILL and successor preservation/admission.
+- Staging error: I replaced ariadne:0's staged checkout without a grant while #418 owned it; #417 sentinel left bin/sdlc unchanged at 13d40cf0. TL receipt 08ff844e-92e2-4033-8ab5-00ea4936111b says leave :0 untouched, finish suite and close review, then await a grant after #417 for the repeated live check. Acknowledged; no further :0 mutation or stage clear. Prepared independent live fixture at /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne-416-br1-live-usblptdb/live.py; not run against a stale binary.
 
 ## Revisions
 
