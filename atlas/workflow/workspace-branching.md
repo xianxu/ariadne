@@ -106,7 +106,9 @@ cleared. The behaviour:
   Each sentinel command must
   have a verified output, even when its binary name differs from the source
   directory. `--clear` runs that same build check against the resting HEAD;
-  repeating it repairs a failed post-switch rebuild.
+  repeating it repairs a failed post-switch rebuild. For a resting main that
+  predates the `sdlc` declaration, clear also uses the existing `sdlc-build`
+  target when generic Make left `bin/sdlc` stale.
 - **Refusals:** a dirty target or one mid-operation; a target on another branch;
   a detached commit no ref contains and sdlc did not stage. None of them changes
   anything.

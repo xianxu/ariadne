@@ -66,6 +66,52 @@ func TestStageBuildSentinelTargetAndRenamedOutput(t *testing.T) {
 	}
 }
 
+func TestRebuildRestingStageLegacySDLCSentinel(t *testing.T) {
+	const commit = "1234567890123456789012345678901234567890"
+	for _, tc := range []struct {
+		name, makefile string
+	}{
+		{"legacy owner target", "build:\n\tmkdir -p bin && printf old > bin/sdlc\nsdlc-build:\n\tprintf " + commit + " > bin/sdlc\n"},
+		{"generic already current", "build:\n\tmkdir -p bin && printf " + commit + " > bin/sdlc\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			commandDir := filepath.Join(root, "cmd", "sdlc")
+			if err := os.MkdirAll(commandDir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			for path, data := range map[string]string{
+				filepath.Join(root, "go.mod"):                 "module example.com/test\n",
+				filepath.Join(root, "Makefile"):               tc.makefile,
+				filepath.Join(commandDir, "main.go"):          "package main\n",
+				filepath.Join(commandDir, ".skip-make-build"): "# legacy marker without stage-build\n",
+			} {
+				if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			prev := readBuildInfo
+			t.Cleanup(func() { readBuildInfo = prev })
+			readBuildInfo = func(path string) (*debug.BuildInfo, error) {
+				data, err := os.ReadFile(path)
+				if err != nil {
+					return nil, err
+				}
+				return &debug.BuildInfo{Path: "example.com/test/cmd/sdlc", Settings: []debug.BuildSetting{
+					{Key: "vcs.revision", Value: strings.TrimSpace(string(data))}, {Key: "vcs.modified", Value: "false"},
+				}}, nil
+			}
+			var out bytes.Buffer
+			if err := rebuildRestingStage(context.Background(), root, commit, &out, &out); err != nil {
+				t.Fatalf("legacy clear rebuild: %v\n%s", err, &out)
+			}
+			if !strings.Contains(out.String(), "bin/sdlc vcs.revision="+commit) {
+				t.Fatalf("output = %s", &out)
+			}
+		})
+	}
+}
+
 func TestSentinelBuildTargetRejectsMakeArguments(t *testing.T) {
 	for _, tc := range []struct{ name, contents, want string }{
 		{"option", "# stage-build: --version\n", "stage-build"},

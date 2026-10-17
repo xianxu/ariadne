@@ -56,7 +56,14 @@ func stageBuildWithMake(ctx context.Context, root, commit string, stdout, stderr
 			return err
 		}
 		command := filepath.Base(filepath.Dir(marker))
-		expected[module+"/cmd/"+command] = "cmd/" + command
+		packagePath := module + "/cmd/" + command
+		expected[packagePath] = "cmd/" + command
+		// Resting main may predate the sdlc marker's stage-build directive.
+		// Its existing Make target still owns the skipped binary. Rebuild it
+		// only when the generic build did not already produce a clean one.
+		if target == "" && command == "sdlc" && !stageBinaryMatches(filepath.Join(root, "bin", "sdlc"), packagePath, commit) {
+			target = "sdlc-build"
+		}
 		if target != "" {
 			if err := makeTarget(ctx, root, target, stderr); err != nil {
 				return fmt.Errorf("%s: %w", marker, err)
@@ -96,6 +103,15 @@ func stageBuildWithMake(ctx context.Context, root, commit string, stdout, stderr
 		cinfo(stderr, fmt.Sprintf("`make build` left no Go binaries in %s to verify", filepath.Join(root, "bin")))
 	}
 	return nil
+}
+
+func stageBinaryMatches(path, packagePath, commit string) bool {
+	info, err := readBuildInfo(path)
+	if err != nil || info == nil || info.Path != packagePath {
+		return false
+	}
+	rev, modified := buildRevision(info)
+	return rev == commit && modified == "false"
 }
 
 // nativeExecutable recognizes executable container headers even when their
