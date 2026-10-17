@@ -78,6 +78,24 @@ func TestSessionSyncConformance(t *testing.T) {
 	if err != nil || all == "" || !strings.Contains(text, "## A") {
 		t.Fatalf("read --all: hash=%q err=%v\n%s", all, err, text)
 	}
+	// What the fake models and syncIndex relies on: a whole-file read marks
+	// every edit seen, so the diff after it is empty, while Peek reads the
+	// same text without touching the baseline.
+	if peek, err := ss.Peek(file); err != nil || peek != text {
+		t.Errorf("Peek differs from read --all: %v\n%q\n%q", err, peek, text)
+	}
+	if err := os.WriteFile(file, []byte(strings.Replace(text, "\nb\n", "\nb edited\n", 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if diff, err := ss.Diff(file); err != nil || unreadChanges(diff) == "" {
+		t.Errorf("an edit after read --all: diff %q, %v; want it reported", diff, err)
+	}
+	if text, all, err = ss.ReadAll(file); err != nil {
+		t.Fatal(err)
+	}
+	if diff, err := ss.Diff(file); err != nil || unreadChanges(diff) != "" {
+		t.Errorf("after read --all: diff %q, %v; want no changes (read --all marks every edit seen)", diff, err)
+	}
 	whole := filepath.Join(dir, "whole.md")
 	next := strings.Replace(text, "type: session-sync\n", "type: session-sync\ndiscussions:\n  - doc: s.side/01-x.md\n", 1)
 	if err := os.WriteFile(whole, []byte(next), 0o644); err != nil {

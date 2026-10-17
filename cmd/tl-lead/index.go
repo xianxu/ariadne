@@ -20,7 +20,30 @@ import (
 // named by the hash of the read it was computed from, and retried like
 // writeSection. An entry whose file is missing is named, never dropped: the
 // operator removes it.
+//
+// Couch's whole-file read and write mark every edit seen, so they would empty
+// the TL's "changes since your last read". So the decision whether anything
+// changes is a Peek, which leaves couch's baseline alone; and when a
+// write is needed, the pending changes are printed first, so the write
+// consumes nothing unread. (A frontmatter-scoped couch read and write would
+// remove the need: proposed to pair.)
 func syncIndex(d deps, out io.Writer, file string, add []string) error {
+	if text, err := d.ss.Peek(file); err == nil {
+		if _, r, err := sidedoc.ReconcileIndex(text, add); err == nil && !r.Changed() {
+			reportIndex(out, file, r)
+			return nil
+		}
+	}
+	raw, err := d.ss.Diff(file)
+	if err != nil {
+		return err
+	}
+	if diff := unreadChanges(raw); diff != "" {
+		fmt.Fprintf(out, "changes since your last read (the index write marks them seen):\n%s", diff)
+		if !strings.HasSuffix(diff, "\n") {
+			fmt.Fprintln(out)
+		}
+	}
 	for range writeTries {
 		text, hash, err := d.ss.ReadAll(file)
 		if err != nil {
@@ -77,4 +100,18 @@ section (Needs you, Threads), with the path as the link writes it.`,
 	}
 	c.Flags().StringArrayVar(&add, "add", nil, "a side doc to list, relative to FILE (repeatable)")
 	return c
+}
+
+// unreadChanges is a couch diff without its `lock:` header line, which it
+// prints even when nothing changed: "" means no unread edits.
+func unreadChanges(diff string) string {
+	if first, rest, ok := strings.Cut(diff, "\n"); ok && strings.HasPrefix(first, "lock:") {
+		diff = rest
+	} else if strings.HasPrefix(diff, "lock:") {
+		diff = ""
+	}
+	if strings.TrimSpace(diff) == "" {
+		return ""
+	}
+	return diff
 }

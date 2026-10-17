@@ -29,6 +29,11 @@ type fakeSessionSync struct {
 	// WriteAll, so a section write and a whole-file write conflict as in couch.
 	front         string
 	order         []string
+	// shadow is couch's diff baseline: what the agent last read or wrote,
+	// per section ("" key: the frontmatter). Diff reports what differs from
+	// it; a whole-file read or write resets all of it, a section write only
+	// its section. nil until first used: the starting state counts as seen.
+	shadow map[string]string
 	editAllBefore map[int]map[string]string // WriteAll call number → heading → new body
 	allWriteCalls int
 	allWrites     int
@@ -82,6 +87,9 @@ func (f *fakeSessionSync) WriteSection(_, heading, bodyPath, hash string, fold [
 		return err
 	}
 	f.sections[heading] = strings.TrimSuffix(string(raw), "\n")
+	if f.shadow != nil {
+		f.shadow[heading] = f.sections[heading]
+	}
 	f.owed = without(f.owed, fold)
 	f.writes++
 	return nil
@@ -94,10 +102,36 @@ func (f *fakeSessionSync) Status(string) (SyncStatus, error) {
 	return SyncStatus{Holder: f.holder, Owed: slices.Clone(f.owed)}, nil
 }
 
-func (f *fakeSessionSync) Diff(string) (string, error) { return f.diff, nil }
+func (f *fakeSessionSync) Diff(string) (string, error) {
+	if f.diff != "" || f.shadow == nil {
+		return f.diff, nil
+	}
+	var b strings.Builder
+	if f.shadow[""] != f.front {
+		b.WriteString("frontmatter changed\n")
+	}
+	for _, h := range f.headings() {
+		if f.shadow[h] != f.sections[h] {
+			b.WriteString("## " + h + " changed\n")
+		}
+	}
+	return b.String(), nil
+}
+
+// seen starts the baseline at the current state (call before simulating an
+// operator edit), and seeAll resets it to the current state.
+func (f *fakeSessionSync) seen() { f.seeAll() }
+
+func (f *fakeSessionSync) seeAll() {
+	f.shadow = map[string]string{"": f.front}
+	for h, b := range f.sections {
+		f.shadow[h] = b
+	}
+}
 
 func (f *fakeSessionSync) MarkAllSeen(string) error {
 	f.seenAll = true
+	f.seeAll()
 	return nil
 }
 
@@ -129,6 +163,9 @@ func (f *fakeSessionSync) text() string {
 
 func (f *fakeSessionSync) ReadAll(string) (string, string, error) {
 	t := f.text()
+	if f.shadow != nil {
+		f.seeAll()
+	}
 	return t, fakeHash(t), nil
 }
 
@@ -167,5 +204,10 @@ func (f *fakeSessionSync) WriteAll(_, bodyPath, hash string) error {
 		f.order = append(f.order, h)
 	}
 	f.allWrites++
+	if f.shadow != nil {
+		f.seeAll()
+	}
 	return nil
 }
+
+func (f *fakeSessionSync) Peek(string) (string, error) { return f.text(), nil }

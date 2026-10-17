@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -27,6 +28,10 @@ type SessionSync interface {
 	ReadAll(file string) (text, hash string, err error)
 	// WriteAll replaces the whole file with bodyPath if it still has hash.
 	WriteAll(file, bodyPath, hash string) error
+	// Peek reads the whole file without moving couch's diff baseline (read
+	// --all and write --all both mark every edit seen), for a decision that
+	// must not consume the operator's unread edits.
+	Peek(file string) (string, error)
 }
 
 // SyncStatus is the part of `status --json` tl-lead reads.
@@ -176,4 +181,11 @@ func (c couchSessionSync) ReadAll(file string) (string, string, error) {
 func (c couchSessionSync) WriteAll(file, bodyPath, hash string) error {
 	_, err := c.run("write", "--all", bodyPath, file, "--if-hash", hash)
 	return err
+}
+
+// Peek reads the file on disk, as submit does for its markers: couch keeps
+// the file current and only its own reads move the baseline.
+func (c couchSessionSync) Peek(file string) (string, error) {
+	raw, err := os.ReadFile(file)
+	return string(raw), err
 }

@@ -128,3 +128,35 @@ func TestIndexCommand(t *testing.T) {
 		t.Errorf("an unreadable index: %v", err)
 	}
 }
+
+// Couch's whole-file read and write mark every edit seen (#424 review,
+// BR-8). The index must never consume the operator's unread edits: a
+// reconcile with nothing to write leaves the baseline alone, and a write
+// prints the pending changes before it consumes them.
+func TestIndexKeepsUnreadEdits(t *testing.T) {
+	f, file := indexFake(t)
+	f.seen()
+	f.sections["Needs you"] = "- the operator's new line"
+	if _, err := run(t, deps{ss: f}, "status", "index", file); err != nil || f.allWriteCalls != 0 {
+		t.Fatalf("a no-op reconcile wrote: %v, calls %d", err, f.allWriteCalls)
+	}
+	if diff, _ := f.Diff(file); !strings.Contains(diff, "## Needs you changed") {
+		t.Fatalf("a no-op reconcile consumed the operator's edit; diff %q", diff)
+	}
+	out, err := link(t, f, file, "1", "tl-status-op.side/2026-10-17-01-s4.md")
+	if err != nil || !strings.Contains(out, "changes since your last read") || !strings.Contains(out, "## Needs you changed") {
+		t.Fatalf("the index write consumed an edit it did not print: %v\n%s", err, out)
+	}
+}
+
+func TestUnreadChanges(t *testing.T) {
+	for in, want := range map[string]string{
+		"lock: none\n": "", "lock: none": "", "": "",
+		"lock: none\n--- shadow\n+++ file\n": "--- shadow\n+++ file\n",
+		"## Needs you changed\n":              "## Needs you changed\n",
+	} {
+		if got := unreadChanges(in); got != want {
+			t.Errorf("unreadChanges(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
