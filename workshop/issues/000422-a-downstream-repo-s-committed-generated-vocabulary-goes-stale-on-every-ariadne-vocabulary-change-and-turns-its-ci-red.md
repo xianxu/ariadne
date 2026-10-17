@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-17
-estimate_hours:
+estimate_hours: 1.82
 collaboration-mode: collaboration
-card_mirror: '1a1c3909605f049622573e5ab56dd3a402c1b353' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'abe74ca9187c69df5e3d7af5df1f41950b7357e0' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T01:34:29-07:00
 claimant:
     operator: Xian Xu
@@ -79,6 +79,27 @@ tracks it, and it changes only when the output changes. It is removed when the d
       refused; an undeclared output → refused as today; a warm checkout → unchanged.
 - [ ] Atlas: weave ownership and tracked outputs.
 - [ ] parley follow-up proposal to the TL (declaration and sidecar commit).
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec           design=0.6 impl=0.08
+item: smaller-go-module    design=0.1 impl=0.14
+item: smaller-go-module    design=0.2 impl=0.16
+item: smaller-go-module    design=0.05 impl=0.12
+item: atlas-docs           design=0.05 impl=0.05
+item: milestone-review     design=0.0 impl=0.12
+design-buffer: 0.15
+total: 1.82
+```
+
+Items: the spec and investigation (parley#208, the cold-checkout mechanism, #368); the `ship` verb with `ShipStaged`;
+the pair rule in `prepareManaged`; compile wiring with the e2e test; the atlas entry; the close review. Design is low
+because the durable plan settles the decisions (+15% buffer); impl is at 40% of the v2.1 ranges.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Log
 
