@@ -129,8 +129,16 @@ func runUnstage(ctx context.Context, dir, address string, dryRun bool, stdout, s
 	}
 	issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
 	if !staged {
+		if err := checkTargetClean(to); err != nil {
+			return err
+		}
 		if err := verifyMaterializedAssets(to.Root, assets.main.ViewOf(to.Head), issuesDir); err != nil {
 			return err
+		}
+		if !dryRun {
+			if err := rebuildRestingStage(ctx, to.Root, to.Head, stdout, stderr); err != nil {
+				return err
+			}
 		}
 		cok(stderr, fmt.Sprintf("%s is on its resting branch %s; nothing staged", to.Address, to.Resting))
 		return nil
@@ -152,8 +160,23 @@ func runUnstage(ctx context.Context, dir, address string, dryRun bool, stdout, s
 		return err
 	}
 	removeStaged(r, to.Root)
+	if err := rebuildRestingStage(ctx, to.Root, to.RestHead, stdout, stderr); err != nil {
+		return err
+	}
 	fmt.Fprintf(stdout, "%s is back on %s (was staged at %s)\n", to.Address, to.Resting, shortOID(to.Head))
 	return nil
+}
+
+func rebuildRestingStage(ctx context.Context, root, commit string, stdout, stderr io.Writer) error {
+	if _, err := os.Stat(filepath.Join(root, "Makefile")); os.IsNotExist(err) {
+		if _, binErr := os.Stat(filepath.Join(root, "bin")); os.IsNotExist(binErr) {
+			return nil // non-buildable fixture/repository with no binaries
+		}
+		return fmt.Errorf("%s has bin/ but no Makefile to rebuild it after clear", root)
+	} else if err != nil {
+		return err
+	}
+	return stageBuild(ctx, root, commit, stdout, stderr)
 }
 
 func slotAssetEnvironment(ctx context.Context, root string) (*trackerEnv, error) {

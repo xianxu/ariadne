@@ -650,6 +650,9 @@ endef
 #     doesn't know any derivative's binary names — each opted-out binary
 #     drops its own sentinel and documents the rationale inside the file
 #     (free-form prose, for future operators).
+#     A special build target for `sdlc stage --build`/`--clear` may be declared
+#     as `# stage-build: name-build` in that sentinel. Stage verifies the
+#     resulting Go binaries against the checked-out commit.
 #
 #     Sentinels exist for binaries with distribution semantics that the
 #     generic scan would break — e.g., signed + notarized binaries
