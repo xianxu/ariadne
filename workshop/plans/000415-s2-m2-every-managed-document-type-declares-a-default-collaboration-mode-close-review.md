@@ -1,0 +1,101 @@
+# Boundary Review — ariadne#415 (whole-issue close)
+
+| field | value |
+|-------|-------|
+| issue | 415 — S2 M2: every managed document type declares a default collaboration-mode |
+| repo | ariadne |
+| issue file | workshop/issues/000415-s2-m2-every-managed-document-type-declares-a-default-collaboration-mode.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 63b1a010fc175881b8311e8588676a70991a8ad3..614b8f11f0eb8bd986d57eac0df1963831c3eaf9 |
+| command | sdlc close --issue 415 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-16T19:45:26-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Inspecting done; now running the targeted test suites to check behavior.
+
+Checking whether plan readers tolerate the new frontmatter block, then writing the verdict.
+
+Last check: whether `datatype lint` is actually run anywhere (Makefile/CI).
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The issue asked for one declared default collaboration mode per managed type, a writer that puts it into new documents, and a lint. The diff delivers all three, matching the plan table. Issues and projects take their default from `scaffold.collaboration_mode` in their CUE models. `issue.Render`, `DetailsFromCard` and `project.RenderScaffold` all write that value, and tests compare it to the model rather than to a hard-coded string. The ten datatype prototypes each declare theirs in a Frontmatter-shape row. The new `datatype lint` reads every type the registry resolves, and running it here prints "10 types, each declares a default collaboration mode". The plan header in the writing-plans skill now has frontmatter, and a regex test pins it. The TL session file (`cmd/tl-lead/help.md:136`) and the side and answer docs (`collaboration-modes.md` §4, around line 187) already declared their defaults before this change. The targeted suites pass: `./pkg/vocab`, `./cmd/vocabulary`, `./cmd/sdlc/internal/issue`, `./cmd/sdlc/internal/project` and `./cmd/datatype`. `TestFindRepoRoot_GitFallback` failed until I set `TMPDIR=/tmp`. That test is older than this change; it fails because the review checkout puts its temp directory inside the repo. Nothing blocks shipping; the findings below are all Minor.
+
+1. **Strengths**
+   - **One source per type.** Go reads the default from the CUE model (`pkg/vocab/vocab.go:105-114`, `project.go:55-57`). The project prototype row is checked against `project.cue` (`cmd/datatype/collabmode_test.go:190-199`), so the two can't drift apart.
+   - **The lint catches new prototypes automatically.** It runs over whatever `resolveTypes()` returns, not a hand-kept list (`collabmode_test.go:179-188`). It is also a real subcommand, not just a test.
+   - **The parser is pure.** `collaborationModeDefault` works on a string and is tested with no IO. It ignores a decoy row in the Body skeleton section (`collabmode_test.go:144`).
+   - **The writer tests compare against the model**, e.g. `"collaboration-mode: " + vocab.Issue().CollaborationMode()` (`handoff_test.go:64`, `project/scaffold_test.go:19`).
+   - **The `pkg/vocab/issue.json` setter change is not scope creep.** The embed was stale relative to `issue.cue:108`, and regenerating it fixed that.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - **Lint not run in derived repos** (ARCH-PURPOSE): no make target, gate or CI step runs `datatype lint`. In ariadne the Go test covers it, but a derived repo's own prototypes are only checked if someone runs the command by hand.
+   - **Three copies of the mode list** (ARCH-DRY): the values appear in `vocab.CollaborationModes`, inline in `pensive.cue:25` and in `collaboration-modes.md`. Also, `scaffold: collaboration_mode` has no type in CUE, so only the Go test rejects a typo.
+   - **Parser vs. stated contract:** `collaborationModeDefault` accepts the first backticked value anywhere in the notes, though the docs say "notes start with". It also fails on CRLF prototypes with the misleading message "no Frontmatter shape section".
+   - **Possible test panic:** `TestEveryTypeDeclaresACollaborationMode` indexes `protos[i]` without checking for `i == -1`, so it panics instead of failing if `project` ever stops resolving.
+   - **Task 5 evidence not logged:** the plan asked to check that plan readers tolerate a frontmatter block, but the Log doesn't record the result. I looked: `issueTitleFromContent` and the flow line counter are fine with it; the line counter now counts four more lines per durable plan.
+   - **Spec vs. issue default:** the Spec says "design docs → discussion", but in ariadne the design lives in the issue's `## Spec` section, and issues default to `collaboration`. A per-section override could reconcile this later.
+
+5. **Test coverage notes:** the lint has both positive and negative tests. All three writers are pinned. The plan header and the drift between `project.md` and `project.cue` are both tested. `runLint`, the IO wrapper, has no test, which is acceptable for thin glue.
+
+6. **Architectural notes**
+   - **ARCH-DRY:** pass, apart from the Minor note on the copied mode list.
+   - **ARCH-PURE:** pass. The parser is pure and the IO sits in `runLint`.
+   - **ARCH-PURPOSE:** pass. Every row of the plan table derives from its declaration; the derived-repo lint is the separable extension noted above.
+   - **ARCH-MOCK:** N/A. No external binary or service is involved.
+   - **ARCH-CONSTRAINTS:** N/A. The lint reads about 10 files per run.
+   - **ARCH-SECURE:** pass. The prototypes are repo-local, and a malformed one produces a visible error rather than a made-up default.
+   - **ARCH-ORDER:** N/A. Nothing holds state between events; each writer is a single render.
+   - **ARCH-FUNERAL:** N/A. The change adds no new durable artifact family; existing documents just gain one frontmatter line.
+
+7. **Plan revision recommendations:** none. The plan matches the code.
+
+```findings
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: lint-not-wired-to-gate
+    title: |
+      datatype lint is not invoked by any make target, gate, or CI in derived repositories
+    detail: |
+      Only TestEveryTypeDeclaresACollaborationMode exercises it in ariadne; a derived repo's local prototype without a collaboration-mode row passes unless the operator runs the command by hand.
+  - id: new
+    severity: Minor
+    kind: defect
+    family: enum-single-source
+    title: |
+      The collaboration-mode value set is restated in Go, pensive.cue and collaboration-modes.md; the CUE scaffold value is untyped
+    detail: |
+      Only the Go vocab test rejects a typo in scaffold.collaboration_mode; a shared CUE enum would make the CUE model enforce it too.
+  - id: new
+    severity: Minor
+    kind: defect
+    family: parser-matches-stated-contract
+    title: |
+      collaborationModeDefault accepts the first backticked token anywhere in the notes, not at the start; CRLF prototypes report a misleading error
+    detail: |
+      The docs say the notes start with the default. A CRLF file fails with "no Frontmatter shape section".
+  - id: new
+    severity: Minor
+    kind: defect
+    family: test-guards-lookup
+    title: |
+      TestEveryTypeDeclaresACollaborationMode indexes protos[i] without checking i != -1
+    detail: |
+      If project ever stops resolving, the test panics instead of reporting a failure.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"9f699c5f-e7f1-489f-a49c-126afeef5ca2","repository":"github.com/xianxu/ariadne","issue_id":"000415","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/6daf07d4d8089694","reviewed_head":"614b8f11f0eb8bd986d57eac0df1963831c3eaf9","slot":"ariadne:2","requested_at":"2026-10-17T02:43:21.74706Z"},"phase":"finished","pid":37113,"started_at":"2026-10-17T02:43:21.883985Z","finished_at":"2026-10-17T02:45:26.004376Z","session_id":"283abace-6516-4233-8215-cc8a4f1b8d71","outcome":"returned"}] -->

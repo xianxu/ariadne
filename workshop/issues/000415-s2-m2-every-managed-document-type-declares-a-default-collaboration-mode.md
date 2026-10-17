@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "2f58d671", done: "f2ff7f71"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # S2 M2: every managed document type declares a default collaboration-mode
@@ -83,4 +83,6 @@ Out of scope:
 ## Log
 
 ### 2026-10-16
+- 2026-10-16: closed — Full suite green on 614b8f11 (12 shards, 0 failed; sdlc-local/suite recorded). Every managed type declares a default collaboration-mode at its defining artifact. Issue and project: scaffold.collaboration_mode in their CUE models, written by issue.Render, DetailsFromCard and project.RenderScaffold (byte goldens, TestDetailsFromCard, TestRenderScaffoldDerivesProjectModel, TestScaffoldsDeclareACollaborationMode). The ten datatype prototypes: a collaboration-mode row each. `datatype lint` passes (10 types), and TestEveryTypeDeclaresACollaborationMode runs it over the registry and checks project.md against project.cue; TestLintTypesNamesTheTypeWithoutADefault and TestCollaborationModeDefault cover the failure paths. Durable plans: the writing-plans header (TestPlanHeaderDeclaresACollaborationMode). pensive.cue accepts the key, and the corpus test passes. Side docs and the session file were already declared by #412. No past document migrated.; review verdict: SHIP
+- 2026-10-16: flow upgraded quick → full — 114 added lines in code files (limit 100)
 - Built tasks 1 to 7. The lint became a real `datatype lint` subcommand, not only a test, so a derived repository's own prototypes can be checked too (ARCH-PURPOSE); the test runs the same function over this repository. A stray `datatype` binary from go build at the repo root briefly shadowed the leaf datatype/ dir; removed. Targeted: ./cmd/datatype ./pkg/vocab ./cmd/vocabulary ./cmd/sdlc/internal/... green; vet_test.sh run.
