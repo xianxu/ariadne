@@ -105,3 +105,78 @@ The full `go test ./cmd/weave/...` run has finished, and the SHIP verdict still 
 The rest of `cmd/weave` passed. I didn't run `make test`.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"ca8c0394-73c6-4091-8443-b054b3fd9eb8","repository":"github.com/xianxu/ariadne","issue_id":"000422","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/b900e5bf7e217d3a","reviewed_head":"62afe6f15e4672de6f38d1ba55a22c683bdcf24d","slot":"ariadne:4","requested_at":"2026-10-17T09:27:34.140536Z"},"phase":"finished","pid":61921,"started_at":"2026-10-17T09:27:34.234664Z","finished_at":"2026-10-17T09:33:05.626077Z","session_id":"3b982b31-71b9-4769-ac3e-de6df77ca595","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T02:35:36-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 422 — A downstream repo's committed generated vocabulary goes stale on every ariadne vocabulary change and turns its CI red |
+| repo | ariadne |
+| issue file | workshop/issues/000422-a-downstream-repo-s-committed-generated-vocabulary-goes-stale-on-every-ariadne-vocabulary-change-and-turns-its-ci-red.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 40c97854a539fbf1f4ee82473a87c3521733eed1..147749d445f663fe46ac149680952844683e0771 |
+| command | sdlc close --issue 422 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-17T02:35:36-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Now revert the regular-file guard and check the new row goes red.
+
+The end-to-end test fails here because of `GIT_CEILING_DIRECTORIES`, as in round 1. I'll retry with that variable unset.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All three prior Minor findings are addressed, and this interdiff introduces no new defect. The window is small: one new test row (`cmd/weave/internal/plan/shipped_test.go:98`), one reworded warning (`cmd/weave/main.go:559`) with its test assertion updated to match (`cmd/weave/startup_test.go:360`), the plan's checkboxes ticked, a `## Revisions` entry, and two generated gate and review artifacts. There are no conflict resolutions. Nothing changes the Spec or Done-when, and the new Revisions entry only records the round-1 fixes, so this is not a scope change.
+
+I confirmed BR-1 by breaking the code under test. I replaced the `!info.Mode().IsRegular()` guard in `vouched` (`cmd/weave/internal/plan/ownership.go:421`) with a no-op. Only the new row, "cold, sidecar is a symlink to a matching digest", went red (`err = <nil>, want the refusal`). After restoring the file, `TestShippedOutputOwnership` passes again and `go vet` is clean.
+
+`TestCompileRegeneratesShippedOutputCold` passes all three cases, including the typo case that asserts the reworded warning. It only passes with `GIT_CEILING_DIRECTORIES` unset. With that variable set, git can't find a repository in the review checkout's temp dir; this comes from the environment, not the code, and it is the same failure round 1 saw.
+
+1. **Strengths**
+   - The symlink row builds a real symlink whose target holds a *matching* digest (`shipped_test.go:115-121`). Only the regular-file guard stops it from vouching, which is why removing that guard turned exactly this row red.
+   - The warning now says why the row didn't match ("only generated regular files ship"). It covers both cases BR-3 named without making `ShipStaged` more complicated.
+   - No copy of the old warning text remains anywhere outside the workshop files, so no other test or doc still expects it.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none new.
+
+5. **Test coverage notes**
+   - The new row fails when the guard is removed, which I verified directly.
+   - The e2e test pins the new warning prefix. The "exported row reaching a consumer that doesn't generate it" case named in the Revisions entry still has no test of its own, but only the wording changed there, not the behavior, so that's acceptable.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass.** The test reuses the existing `managedWrite` and `sum` helpers, and the warning is emitted from one place.
+   - **ARCH-PURE: pass.** No logic moved. The change in `main.go` is a string in the thin IO layer.
+   - **ARCH-PURPOSE: pass.** Each fix covers the class its finding named, not just the cited site. BR-3's reason covers both the symlink output and the exported row. BR-2's checkboxes are now all ticked and the signature is recorded in Revisions.
+
+7. **Plan revision recommendations:** none. The new Revisions entry records the `ShippedPaths` signature. The Core concepts table itself (plan line 26) only names the entity and its file, so it no longer contradicts the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      New symlinked-sidecar row at shipped_test.go:98; reverting the IsRegular guard in vouched turns exactly that row red, restoring it passes.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Plan Revisions entry records ShippedPaths([]layer.Layer) ([]string, error); all task checkboxes ticked.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      main.go:559 warning now names the reason (only generated regular files ship); startup_test.go typo case asserts the new text and passes.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"f13c5954-2d12-448b-832b-96c35b91a569","repository":"github.com/xianxu/ariadne","issue_id":"000422","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/967341d4e520c427","reviewed_head":"147749d445f663fe46ac149680952844683e0771","slot":"ariadne:4","requested_at":"2026-10-17T09:33:59.524604Z"},"phase":"finished","pid":9464,"started_at":"2026-10-17T09:33:59.726299Z","finished_at":"2026-10-17T09:35:25.65217Z","session_id":"b80cbba2-0918-408c-b489-e95bd08e9e63","outcome":"returned"}] -->
