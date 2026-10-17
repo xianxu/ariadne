@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"go.yaml.in/yaml/v3"
 )
 
 func TestSideLinks(t *testing.T) {
@@ -42,6 +44,8 @@ func TestReconcileIndex(t *testing.T) {
 		{"no key and nothing added", "", nil, "", nil},
 		{"an empty flow list", "discussions: []\n", []string{"d.side/02-b.md"}, "discussions:\n  - doc: d.side/02-b.md\n", nil},
 		{"a quoted entry reads", "discussions:\n  - doc: \"d.side/01-a.md\"\n", nil, "", nil},
+		{"a blank line inside the list is part of it", "discussions:\n  - doc: d.side/01-a.md\n\n  - doc: d.side/09-gone.md\n", []string{"d.side/02-b.md"},
+			"discussions:\n  - doc: d.side/01-a.md\n  - doc: d.side/02-b.md\n", []string{"d.side/09-gone.md"}},
 	} {
 		in := doc(c.index)
 		got, r, err := ReconcileIndex(in, c.add)
@@ -93,6 +97,19 @@ func TestReconcileIndexRefuses(t *testing.T) {
 	if _, _, err := ReconcileIndex(doc(""), []string{"../x.md"}); err == nil {
 		t.Error("an add climbing out accepted")
 	}
+	// A frontmatter it can't split is refused, never read as absent (which
+	// would put a second block in front of it).
+	for _, in := range []string{
+		"---\r\ntype: design\r\n---\r\n" + linked,
+		"---\ntype: design\n" + linked,
+	} {
+		if got, _, err := ReconcileIndex(in, []string{"d.side/01-a.md"}); err == nil || got != in {
+			t.Errorf("%q accepted: %v", in[:12], err)
+		}
+		if _, err := Entries(in); err == nil {
+			t.Errorf("Entries read %q", in[:12])
+		}
+	}
 }
 
 // Whatever the frontmatter holds, a reconcile either refuses with the document
@@ -111,9 +128,29 @@ func FuzzReconcileIndex(f *testing.F) {
 			}
 			return
 		}
-		entries, err := Entries(got)
-		if err != nil || !slices.Equal(entries, r.Entries) && len(r.Entries)+len(entries) > 0 {
-			t.Fatalf("index reads back %v (%v), report says %v", entries, err, r.Entries)
+		// The oracle is an independent YAML decode, not this package's parser,
+		// applied when the input itself is YAML (the reconcile leaves other
+		// lines alone, so it can't repair them).
+		var any map[string]interface{}
+		inFM, _, _ := strings.Cut(strings.TrimPrefix(in, "---\n"), "\n---\n")
+		if yaml.Unmarshal([]byte(inFM), &any) != nil {
+			return
+		}
+		fm, _, _ := strings.Cut(strings.TrimPrefix(got, "---\n"), "\n---\n")
+		var decoded struct {
+			Discussions []struct {
+				Doc string `yaml:"doc"`
+			} `yaml:"discussions"`
+		}
+		if err := yaml.Unmarshal([]byte(fm), &decoded); err != nil {
+			t.Fatalf("the reconciled frontmatter is not YAML: %v\n%s", err, fm)
+		}
+		var entries []string
+		for _, d := range decoded.Discussions {
+			entries = append(entries, d.Doc)
+		}
+		if !slices.Equal(entries, r.Entries) {
+			t.Fatalf("YAML reads the index as %v, the report says %v\n%s", entries, r.Entries, fm)
 		}
 		for _, keep := range []string{"type: design\n", "marker: \"x: y\"\n", "process-instruction: \"[free-form]\"\n", linked} {
 			if strings.Contains(in, keep) && !strings.Contains(got, keep) {

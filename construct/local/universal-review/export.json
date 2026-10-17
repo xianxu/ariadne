@@ -203,8 +203,8 @@
       "role": "fixture",
       "name": "move-rename",
       "path": "examples/move-rename/case.md",
-      "bytes": 752,
-      "sha256": "9a69f0ce6f2ffcffdc07b6f96658bc909f8c74d618e1022aa8547a9078fd8b7d"
+      "bytes": 670,
+      "sha256": "5795c10c41d81aa3f391263b7f611d7522c20d787dc12c1e743e499afb33c437"
     }
   ]
 }

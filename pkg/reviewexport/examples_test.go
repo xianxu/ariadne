@@ -343,7 +343,8 @@ func treeFiles(fsys fs.FS, t string) map[string]string {
 // entries between before/ and after/ (collaboration-modes.md §4, "The
 // index"): it never removes a link; it drops an entry only when its link is
 // gone; every entry it leaves is linked; and it adds an entry only for a side
-// doc it wrote or linked this round (a relink adds the entry back).
+// doc it wrote or linked this round (a relink adds the entry back), and never
+// for a fold.
 func checkIndexTransitions(fsys fs.FS) []string {
 	var errs []string
 	bad := func(f string, a ...any) { errs = append(errs, fmt.Sprintf(f, a...)) }
@@ -384,6 +385,11 @@ func checkIndexTransitions(fsys fs.FS) []string {
 			}
 			if !was[t] && before[t] == after[t] && wasLinked[t] {
 				bad("after/%s: added the entry %s, but the round neither wrote that side doc nor linked it", p, e)
+			}
+			// A fold's closing note is a record that needs nothing from the
+			// operator: the fold adds no entry.
+			if !was[t] && len(foldNoteRE.FindAllString(after[t], -1)) > len(foldNoteRE.FindAllString(before[t], -1)) {
+				bad("after/%s: added the entry %s for a fold; a fold adds no index entry", p, e)
 			}
 		}
 	}
@@ -545,6 +551,12 @@ func TestCheckCaseCatches(t *testing.T) {
 			m["before/d.md"] = &fstest.MapFile{Data: []byte("# D\n\nText. → [discussion](d.side/01-why.md)\n")}
 			m["after/d.md"] = &fstest.MapFile{Data: []byte("---\ndiscussions:\n  - doc: d.side/01-why.md\n---\n# D\n\nText. → [discussion](d.side/01-why.md)\n")}
 		}, "neither wrote"},
+		{"an entry added by a fold", func(m fstest.MapFS) {
+			m["before/d.side/01-why.md"] = m[side]
+			m["before/d.md"] = &fstest.MapFile{Data: []byte("# D\n\nText. → [discussion](d.side/01-why.md) 🤖[fold in]\n")}
+			m["after/d.md"] = &fstest.MapFile{Data: []byte("---\ndiscussions:\n  - doc: d.side/01-why.md\n---\n# D\n\nFolded. → [discussion](d.side/01-why.md) (folded 2026-10-17)\n")}
+			edit(side, "section \"D\"._\n", "section \"D\"._\n\nFolded into the parent on 2026-10-17: the reason.\n")(m)
+		}, "a fold adds no index entry"},
 		{"a move whose after/ is not the projection", func(m fstest.MapFS) {
 			for k := range m {
 				delete(m, k)

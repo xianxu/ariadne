@@ -3,6 +3,7 @@ package sidedoc
 import (
 	"fmt"
 	"path"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -20,6 +21,10 @@ import (
 
 const indexKey = "discussions:"
 
+// plainPathRE is an entry path that YAML reads back as the same plain scalar:
+// no leading indicator (`!`, `&`, `*`, `-`, quotes…), no `: ` or ` #`.
+var plainPathRE = regexp.MustCompile(`^[\p{L}\p{N}._][\p{L}\p{N}._/ -]*$`)
+
 // Report is what ReconcileIndex changed, and the entries it kept.
 type Report struct {
 	Dropped, Added, Entries []string
@@ -32,20 +37,28 @@ func (r Report) Changed() bool { return len(r.Dropped)+len(r.Added) > 0 }
 // is false when it has none.
 func frontmatter(doc string) (lines []string, body string, ok bool) {
 	rest, ok := strings.CutPrefix(doc, "---\n")
-	if !ok {
-		return nil, doc, false
+	if !ok || strings.ContainsRune(doc, '\r') {
+		return nil, doc, false // YAML breaks lines at a bare CR; this parser doesn't
 	}
 	if after, empty := strings.CutPrefix(rest, "---\n"); empty {
 		return nil, after, true
 	}
 	fm, body, ok := strings.Cut(rest, "\n---\n")
 	if !ok {
-		if fm2, found := strings.CutSuffix(rest, "\n---"); found {
-			return strings.Split(fm2, "\n"), "", true
+		if fm, ok = strings.CutSuffix(rest, "\n---"); !ok {
+			return nil, doc, false
 		}
-		return nil, doc, false
+		body = ""
 	}
-	return strings.Split(fm, "\n"), body, true
+	lines = strings.Split(fm, "\n")
+	for _, l := range lines {
+		// A document marker or directive inside would hide what follows it
+		// from YAML: refuse rather than write past it.
+		if l == "..." || l == "---" || strings.HasPrefix(l, "--- ") || strings.HasPrefix(l, "... ") || strings.HasPrefix(l, "%") {
+			return nil, doc, false
+		}
+	}
+	return lines, body, true
 }
 
 // indexBlock finds the `discussions:` key in frontmatter lines and returns
@@ -55,7 +68,7 @@ func frontmatter(doc string) (lines []string, body string, ok bool) {
 func indexBlock(lines []string) (start, end int, entries []string, err error) {
 	start = -1
 	for i, l := range lines {
-		if l == indexKey || strings.HasPrefix(l, indexKey+" ") {
+		if rest, ok := strings.CutPrefix(l, indexKey); ok && (rest == "" || rest[0] == ' ' || rest[0] == '\t') {
 			start = i
 			break
 		}
@@ -68,17 +81,24 @@ func indexBlock(lines []string) (start, end int, entries []string, err error) {
 	default:
 		return 0, 0, nil, fmt.Errorf("discussions: has the value %q; want a list of `- doc: PATH` items", v)
 	}
+	// The block runs to its last item: a blank line between items is part of
+	// it (YAML reads the list through it), and one before the next key is not.
 	end = start + 1
-	for ; end < len(lines); end++ {
-		l := lines[end]
+	for i := start + 1; i < len(lines); i++ {
+		l := lines[i]
 		t := strings.TrimLeft(l, " \t")
-		if l == t && !strings.HasPrefix(t, "- ") {
-			break // the next top-level key
-		}
 		if t == "" {
 			continue
 		}
-		item, ok := strings.CutPrefix(t, "- doc:")
+		if l == t && t != "-" && !strings.HasPrefix(t, "- ") {
+			break // the next top-level key
+		}
+		end = i + 1
+		// YAML needs the space: `- doc:x` is a string, not a doc: key.
+		item, ok := strings.CutPrefix(t, "- doc: ")
+		if t == "- doc:" {
+			item, ok = "", true
+		}
 		if !ok {
 			return 0, 0, nil, fmt.Errorf("discussions: line %q is not a `- doc: PATH` item", l)
 		}
@@ -106,9 +126,8 @@ func entryPath(raw string) (string, error) {
 
 func checkEntry(p string) error {
 	switch {
-	case p == "" || p != strings.TrimSpace(p) || strings.ContainsAny(p, "\"'") || strings.Contains(p, " #") ||
-		strings.ContainsFunc(p, func(r rune) bool { return r < 0x20 || r == 0x7f }):
-		return fmt.Errorf("want a plain relative path")
+	case !plainPathRE.MatchString(p) || p != strings.TrimSpace(p):
+		return fmt.Errorf("want a plain relative path: letters, digits, `.`, `_`, `-`, `/` and inner spaces, starting with a letter, digit, `.` or `_`")
 	case path.IsAbs(p):
 		return fmt.Errorf("an absolute path; want one relative to the document")
 	case path.Clean(p) == ".." || strings.HasPrefix(path.Clean(p), "../"):
@@ -117,11 +136,21 @@ func checkEntry(p string) error {
 	return nil
 }
 
+// errFrontmatter refuses a document that opens a frontmatter block it can't
+// split (CRLF line endings, no closing fence): reading it as having none would
+// put a second block in front of it.
+func errFrontmatter(doc string) error {
+	if strings.HasPrefix(doc, "---") {
+		return fmt.Errorf("the frontmatter can't be read: it must open with `---` and close with a `---` line, with LF line endings")
+	}
+	return nil
+}
+
 // Entries returns a document's index entries, in order.
 func Entries(doc string) ([]string, error) {
 	lines, _, ok := frontmatter(doc)
 	if !ok {
-		return nil, nil
+		return nil, errFrontmatter(doc)
 	}
 	_, _, entries, err := indexBlock(lines)
 	return entries, err
@@ -140,6 +169,11 @@ func ReconcileIndex(doc string, add []string) (string, Report, error) {
 		}
 	}
 	lines, body, hasFM := frontmatter(doc)
+	if !hasFM {
+		if err := errFrontmatter(doc); err != nil {
+			return doc, Report{}, err
+		}
+	}
 	start, end, entries, err := indexBlock(lines)
 	if err != nil {
 		return doc, Report{}, err
