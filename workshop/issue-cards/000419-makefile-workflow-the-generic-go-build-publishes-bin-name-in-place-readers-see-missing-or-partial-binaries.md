@@ -1,6 +1,6 @@
 ---
 id: 000419
-status: codecomplete
+status: done
 created: 2026-10-16
 updated: 2026-10-17
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 054ef001de6dd434de2f3bd3a5294ba7595d69c5
         evidence_commit: 6f71e7ebbfe5e3f0e11d8d6633d6a1e6bea62ec3
+        landed_commit: df14121435146aa068563978214243ff0615ee93
 ---
 
 # Makefile.workflow: the generic Go build publishes bin/<name> in place; readers see missing or partial binaries
