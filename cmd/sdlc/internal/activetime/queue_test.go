@@ -335,6 +335,18 @@ func TestWorkSpansFromTranscriptRejectsReusedCompletedID(t *testing.T) {
 	}
 }
 
+func TestWorkSpansFromTranscriptDuplicateIDCannotHideLaterWork(t *testing.T) {
+	lines := []string{
+		`{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"function_call","name":"write_stdin","call_id":"again","arguments":"{\"session_id\":7}"}}`,
+		`{"timestamp":"2026-01-01T00:01:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"again","arguments":"{\"cmd\":\"sdlc stage --build\"}"}}`,
+		`{"timestamp":"2026-01-01T00:02:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"again","output":"done"}}`,
+	}
+	got := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a")
+	if len(got) != 1 || got[0].Kind != toolUncertainWork || !got[0].Start.Equal(qt(1)) {
+		t.Fatalf("duplicate ID hid later work: %+v", got)
+	}
+}
+
 func TestClassifyToolRequiresExecutableCommand(t *testing.T) {
 	for _, input := range []string{
 		`{"cmd":"echo 'sdlc stage --build'"}`,

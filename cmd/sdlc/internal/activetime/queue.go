@@ -65,6 +65,9 @@ func workSpansFromTranscript(data []byte, source string) []ToolSpan {
 		if prior := seen[id]; prior != nil {
 			invalidIDs[id] = true
 			prior.invalid = true
+			if prior.kind != toolWork && classifyTool(name, input) == toolWork {
+				seen[id] = &pendingTool{start: ts, kind: toolWork, invalid: true, id: id}
+			}
 			return
 		}
 		p := &pendingTool{start: ts, kind: classifyTool(name, input), id: id}
