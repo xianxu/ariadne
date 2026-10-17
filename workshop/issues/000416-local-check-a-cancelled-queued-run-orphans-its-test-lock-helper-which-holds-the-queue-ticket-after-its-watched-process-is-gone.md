@@ -46,7 +46,7 @@ Related to, but not covered by, #400 (cancel must stop only your own run).
 - [x] Reproduce queued cancellation and watched-process SIGKILL with private lock files; show the successor is admitted and unrelated holders survive.
 - [x] Reuse CLI signal-context ownership for local-check run, and bound cancellation of its owned helper process group; retain the existing per-run pipe holder.
 - [x] Check the watched process before admission and while queued; leave through the existing ticket cleanup when it is gone.
-- [ ] Complete focused cancellation/helper checks, the recorded full suite and CI before close review.
+- [x] Complete focused cancellation/helper checks, the recorded full suite and CI before close review.
 
 ## Log
 
@@ -65,10 +65,13 @@ Related to, but not covered by, #400 (cancel must stop only your own run).
 - Recorded suite PASS on 005587765f51a3baf610fd3f70b1bed72f0b1a65: 12 shards / 1,524 cmd/sdlc tests plus 66 other packages, all exit 0, zero failures, wall 532.8s (8m53s). GitHub sdlc-local/suite recorded; saved log .git/sdlc/local-checks/005587765f51a3baf610fd3f70b1bed72f0b1a65/suite.log, SHA256 prefix 61836047642c. New queued-signal regression passed under suite load.
 - Merged current origin/main (aa856d15a3b5037eab593919a089578df56f2a4f), including #414's independent tl-lead implementation, without conflicts. The required suite must run again for this integrated code generation; the prior pass is retained, not reused across code changes.
 
+- Final integrated suite queued on 1b31e6fc1f288e278b1f1c69fc921726c03cd142, run 0bbae3af1b6112bb7cb13acbc505a1ca, detached sdlc-local-880418815; admitted queue position 9. The prior full pass remains valid evidence for #416's unchanged branch patch but is not presented as an integrated-head pass.
+
+- Integrated recorded suite PASS on 1b31e6fc1f288e278b1f1c69fc921726c03cd142: 12 shards / 1,524 cmd/sdlc tests plus 66 other packages, all exit 0, zero failures, wall 635.6s (10m36s). GitHub sdlc-local/suite recorded; saved log .git/sdlc/local-checks/1b31e6fc1f288e278b1f1c69fc921726c03cd142/suite.log, SHA256 prefix 82bb97803186. CI on the current PR head also passed. All Done-when behaviors are covered by the permanent native signal/private-lock regressions and staged-binary live check; proceeding to the binary-owned close review.
+
 ## Revisions
 
 ### 2026-10-16 — pre-close checklist wording
 
 Clarify the final Plan checkbox as pre-close verification only. Close review and merge remain subsequent binary-owned gates, so checking the implementation plan does not falsely claim those future actions are already complete. No behavior or acceptance change.
 
-- Final integrated suite queued on 1b31e6fc1f288e278b1f1c69fc921726c03cd142, run 0bbae3af1b6112bb7cb13acbc505a1ca, detached sdlc-local-880418815; admitted queue position 9. The prior full pass remains valid evidence for #416's unchanged branch patch but is not presented as an integrated-head pass.
