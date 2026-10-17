@@ -94,14 +94,14 @@ existing `status slots FILE`; I'd keep the verb and not add a flag. The registry
 **Durable state (ARCH-CONSTRAINTS at-plan):** the stamp lives in the section it describes, one line per section,
 replaced on each write; it creates no file, row or cache. `check` creates nothing.
 
-- [ ] Stamp in `writeSection`: strip on read, prepend on write; `instructions` skips a stamp line. Tests: a write
+- [x] Stamp in `writeSection`: strip on read, prepend on write; `instructions` skips a stamp line. Tests: a write
       stamps; a deleted stamp comes back; a stamp in a body file isn't doubled; a thread upsert keeps one stamp;
       instructions list ignores it.
-- [ ] `status check FILE`: budget table, landing reader (seam + fake), report; appended to submit/owed/write output.
+- [x] `status check FILE`: budget table, landing reader (seam + fake), report; appended to submit/owed/write output.
       Tests: stale by age, stale by landing, unstamped, fresh, Operator instructions skipped.
-- [ ] Slots: `CouchActors` seam + fake; agent and liveness columns; `?` on failure. Test: fixture fleet + actors renders
+- [x] Slots: `CouchActors` seam + fake; agent and liveness columns; `?` on failure. Test: fixture fleet + actors renders
       exactly.
-- [ ] help.md: stamps, `check`, slots inputs; atlas entry.
+- [x] help.md: stamps, `check`, slots inputs; atlas entry.
 - [ ] Live: run on the ops file (stamps appear, `slots` renders today's fleet, `check` flags a stale Threads).
 
 ## Log
@@ -110,3 +110,10 @@ replaced on each write; it creates no file, row or cache. `check` creates nothin
 - TL approved the plan (ops:0): keep `check` light with the sibling-repo local refs; the couch-side ping goes to pair
   (draft its text in the report; the TL files it); tl-lead runs unsandboxed and `?` is the right degraded render.
   Change: `Needs you` has no time budget, flagged only when unstamped.
+- Implemented. Landing source narrowed during the live check: siblings with `workshop/issues/` and no `.brain/`. Brain
+  and ops auto-commit to origin/main many times a day and would keep Threads permanently stale; this is the same line
+  sdlc's spine guard draws (test: `TestGitNewestLanding`). The missing-section read is matched on couch's real refusal
+  text ("heading line, found 0", pair `sessionsync/file.go`); the fake now returns the same text.
+- Live, read-only: `tl-lead status check` on the ops file → all four budgeted sections `unstamped` (correct: nothing has
+  stamped yet). The live writes (stamps, `slots`) are the TL's: the ops file is ops:0's, so I don't write it from
+  ariadne:4.
