@@ -23,14 +23,21 @@ func MoveMember(member, fromDoc, toDoc string) (string, bool) {
 	return to + "/" + rel, true
 }
 
-// InSideDir reports whether a slash path lies inside some document's side
-// folder: a path segment ending in `.side` before its last one.
-func InSideDir(p string) bool {
+// Folder returns the side folder (`<name>.side`) a slash path lies in: the
+// path up to its first segment ending in `.side`, before its last segment.
+func Folder(p string) (string, bool) {
 	segs := strings.Split(path.Clean(p), "/")
-	for _, s := range segs[:len(segs)-1] {
+	for i, s := range segs[:len(segs)-1] {
 		if strings.HasSuffix(s, ".side") && s != ".side" {
-			return true
+			return strings.Join(segs[:i+1], "/"), true
 		}
 	}
-	return false
+	return "", false
+}
+
+// InSideDir reports whether a slash path lies inside some document's side
+// folder.
+func InSideDir(p string) bool {
+	_, ok := Folder(p)
+	return ok
 }

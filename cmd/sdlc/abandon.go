@@ -337,12 +337,12 @@ func abandonedDetails(env *trackerEnv, rec issue.Abandoned, detailRel string) ([
 
 // keptPlans is the kept tip's plan artifacts for the issue, by basename.
 func keptPlans(env *trackerEnv, rec issue.Abandoned, base string) (map[string][]byte, error) {
-	listed, err := env.git("ls-tree", "--name-only", rec.Head, plansDir()+"/")
+	listed, err := lsTreeFiles(env, rec.Head, plansDir()+"/")
 	if err != nil {
 		return nil, err
 	}
 	out := map[string][]byte{}
-	for _, p := range strings.Fields(listed) {
+	for _, p := range listed {
 		if !planArtifactBelongsToIssue(base, path.Base(p)) {
 			continue
 		}
@@ -351,6 +351,22 @@ func keptPlans(env *trackerEnv, rec issue.Abandoned, base string) (map[string][]
 			return nil, err
 		}
 		out[path.Base(p)] = content
+	}
+	return out, nil
+}
+
+// lsTreeFiles lists the files (blobs) directly in a tree directory: a
+// folder there (a plan's `.side/`, #424) is never read as a plan.
+func lsTreeFiles(env *trackerEnv, rev, dir string) ([]string, error) {
+	listed, err := env.git("ls-tree", "--format=%(objecttype) %(path)", rev, dir)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, line := range splitNonEmptyLines(listed) {
+		if p, ok := strings.CutPrefix(line, "blob "); ok {
+			out = append(out, p)
+		}
 	}
 	return out, nil
 }
@@ -607,13 +623,13 @@ func unarchiveIssue(env *trackerEnv, base, issuesDir, message string) error {
 		for rel := range bundle.Files {
 			moves = append(moves, [2]string{path.Join(path.Dir(archivedRel), rel), path.Join(path.Dir(liveRel), rel)})
 		}
-		plans, err := env.git("ls-tree", "--name-only", "HEAD", vocab.ArchiveSubdir(historyDir(), vocab.ArchivePlans)+"/")
+		plans, err := lsTreeFiles(env, "HEAD", vocab.ArchiveSubdir(historyDir(), vocab.ArchivePlans)+"/")
 		if err != nil {
 			return err
 		}
 		sideDocs := [][2]string{{archivedRel, liveRel}}
-		for _, p := range strings.Fields(plans) {
-			if planArtifactBelongsToIssue(base, path.Base(p)) && !strings.HasSuffix(p, ".side") {
+		for _, p := range plans {
+			if planArtifactBelongsToIssue(base, path.Base(p)) {
 				moves = append(moves, [2]string{p, path.Join(plansDir(), path.Base(p))})
 				if strings.HasSuffix(p, ".md") {
 					sideDocs = append(sideDocs, [2]string{p, path.Join(plansDir(), path.Base(p))})
@@ -646,7 +662,7 @@ func unarchiveIssue(env *trackerEnv, base, issuesDir, message string) error {
 			if live, err := env.has("HEAD", m[1]); err != nil {
 				return err
 			} else if live {
-				if strings.Contains(m[1], "/assets/") {
+				if strings.Contains(m[1], "/assets/") || sidedoc.InSideDir(m[1]) {
 					current, err := env.main.ViewOf(head).Read(m[1])
 					if err != nil {
 						return err
@@ -656,7 +672,7 @@ func unarchiveIssue(env *trackerEnv, base, issuesDir, message string) error {
 						return err
 					}
 					if !bytes.Equal(current, want) {
-						return fmt.Errorf("asset destination %s differs from the archive: reconcile that file before reopening", m[1])
+						return fmt.Errorf("destination %s differs from the archive: reconcile that file before reopening", m[1])
 					}
 				}
 			}

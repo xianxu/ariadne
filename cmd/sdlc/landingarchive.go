@@ -353,7 +353,7 @@ func landingAssetRelated(name string, selected []landingOwnedIssue, dirs landing
 // landingSideRelated reports whether name lies in the side folder of a
 // selected issue or of one of its plan documents, active or archived (#424).
 func landingSideRelated(name string, selected []landingOwnedIssue, dirs landingArchiveRoots) bool {
-	folder, ok := sideFolderOf(name)
+	folder, ok := sidedoc.Folder(name)
 	if !ok {
 		return false
 	}
@@ -368,17 +368,6 @@ func landingSideRelated(name string, selected []landingOwnedIssue, dirs landingA
 		}
 	}
 	return false
-}
-
-// sideFolderOf returns the side folder (`<name>.side`) a slash path lies in.
-func sideFolderOf(name string) (string, bool) {
-	segs := strings.Split(name, "/")
-	for i, seg := range segs[:len(segs)-1] {
-		if strings.HasSuffix(seg, ".side") && seg != ".side" {
-			return strings.Join(segs[:i+1], "/"), true
-		}
-	}
-	return "", false
 }
 
 func archiveRelated(name string, selected []landingOwnedIssue, dirs landingArchiveRoots) bool {

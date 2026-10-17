@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -65,8 +66,19 @@ func prepareSideArchive(root string, docs []sideArchiveDoc, untracked func(strin
 		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 			return nil, fmt.Errorf("side folder %s is not a regular directory; replace it with one before archiving", src)
 		}
-		if names, _ := readDirNames(dstFull); len(names) > 0 {
-			return nil, fmt.Errorf("archive destination occupied: %s holds %s; reconcile or remove that folder before retrying", dst, names[0])
+		if dinfo, err := os.Lstat(dstFull); err == nil {
+			if !dinfo.IsDir() || dinfo.Mode()&os.ModeSymlink != 0 {
+				return nil, fmt.Errorf("archive destination occupied: %s is not a folder; reconcile or remove it before retrying", dst)
+			}
+			names, err := readDirNames(dstFull)
+			if err != nil && !errors.Is(err, io.EOF) {
+				return nil, fmt.Errorf("read archive destination %s: %w; repair it before retrying", dst, err)
+			}
+			if len(names) > 0 {
+				return nil, fmt.Errorf("archive destination occupied: %s holds %s; reconcile or remove that folder before retrying", dst, names[0])
+			}
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
 		}
 		members, err := sideFiles(srcFull)
 		if err != nil {
@@ -126,8 +138,14 @@ func recoverSideArchiveMoves(moves []preparedArchiveMove, entries []gitx.StatusE
 		union := append([]string{}, active...)
 		for _, rel := range archived {
 			if inActive[rel] {
-				a, _ := os.ReadFile(filepath.Join(src, rel))
-				b, _ := os.ReadFile(filepath.Join(dst, rel))
+				a, err := os.ReadFile(filepath.Join(src, rel))
+				if err != nil {
+					return nil, nil, err
+				}
+				b, err := os.ReadFile(filepath.Join(dst, rel))
+				if err != nil {
+					return nil, nil, err
+				}
 				if !bytes.Equal(a, b) {
 					return nil, nil, fmt.Errorf("conflicting active and archived side doc %s: restore the original bytes before recovery", filepath.Join(src, rel))
 				}
@@ -162,42 +180,24 @@ func recoverSideArchiveMoves(moves []preparedArchiveMove, entries []gitx.StatusE
 }
 
 // verifyArchivedSideMoves checks, before the archive commit, that every
-// archived side doc's parent: still resolves: the folder moved whole, beside
-// its document.
+// side-folder member arrived: present at its destination as a regular file,
+// gone from its source. Nothing here judges a side doc's content: archiving
+// keeps the base name and moves the folder whole, so a parent: resolves after
+// the move exactly when it did before, and a check that could only fail after
+// every move would strand the archive halfway.
 func verifyArchivedSideMoves(root string, moves []preparedArchiveMove) error {
 	for _, m := range moves {
-		if !sidedoc.InSideDir(filepath.ToSlash(m.HistoryPath)) || !strings.HasSuffix(m.HistoryPath, ".md") {
+		if !sidedoc.InSideDir(filepath.ToSlash(m.HistoryPath)) {
 			continue
 		}
-		full := underRoot(root, m.HistoryPath)
-		raw, err := os.ReadFile(full)
-		if err != nil {
-			return fmt.Errorf("read archived side doc %s: %w; restore it before retrying", m.HistoryPath, err)
+		if info, err := os.Lstat(underRoot(root, m.HistoryPath)); err != nil || !info.Mode().IsRegular() {
+			return fmt.Errorf("archived side doc %s is missing or not a regular file; rerun sdlc push --yes to finish the archive", m.HistoryPath)
 		}
-		parent := sideParent(string(raw))
-		if parent == "" {
-			continue // not a side doc (a note kept in the folder); nothing to resolve
-		}
-		if _, err := os.Stat(filepath.Join(filepath.Dir(full), filepath.FromSlash(parent))); err != nil {
-			return fmt.Errorf("archived side doc %s: its parent %s does not resolve; restore the folder beside its document before retrying", m.HistoryPath, parent)
+		if _, err := os.Lstat(underRoot(root, m.IssuePath)); err == nil {
+			return fmt.Errorf("side doc %s is still at its source; remove the duplicate active copy, then rerun sdlc push --yes", m.IssuePath)
 		}
 	}
 	return nil
-}
-
-// sideParent reads a side doc's `parent:` from its frontmatter.
-func sideParent(text string) string {
-	rest, ok := strings.CutPrefix(text, "---\n")
-	if !ok {
-		return ""
-	}
-	fm, _, _ := strings.Cut(rest, "\n---")
-	for _, l := range strings.Split(fm, "\n") {
-		if v, ok := strings.CutPrefix(l, "parent:"); ok {
-			return strings.Trim(strings.TrimSpace(v), `"`)
-		}
-	}
-	return ""
 }
 
 func underRoot(root, p string) string {
@@ -307,31 +307,55 @@ func trunkSideArchive(view *gitx.TrunkView, docs []sideArchiveDoc, w *gitx.Trunk
 	return nil
 }
 
-// trunkSideReplace makes the archived issue's side folder the kept branch's
-// (abandon's successor episode): kept members are written, archived members
-// the branch no longer has are removed.
+// trunkSideReplace makes the archived documents' side folders the kept
+// branch's (abandon's successor episode), for the issue and every plan the
+// episode rewrites: kept members are written, archived members the branch no
+// longer has are removed.
 func trunkSideReplace(view *gitx.TrunkView, archivedDetail string, a mainArchive, w *gitx.TrunkWrite) error {
-	live := path.Join(a.Dirs.Issues, path.Base(archivedDetail))
-	keep := map[string]bool{}
-	for _, f := range a.Sides {
-		if t, ok := sidedoc.MoveMember(f.Path, live, archivedDetail); ok {
-			if f.Mode == "120000" {
-				return fmt.Errorf("%s is a symlink; side folders hold regular files only", f.Path)
-			}
-			w.Write[t] = f.Content
-			keep[t] = true
+	docs := []sideArchiveDoc{{path.Join(a.Dirs.Issues, path.Base(archivedDetail)), archivedDetail}}
+	for name := range a.Plans {
+		if strings.HasSuffix(name, ".md") {
+			docs = append(docs, sideArchiveDoc{path.Join(a.Dirs.Plans, name), filepath.ToSlash(archiveDestination(a.Dirs.History, vocab.ArchivePlans, name))})
 		}
 	}
-	old, err := view.Files(sidedoc.SideDir(archivedDetail))
-	if err != nil {
-		return err
-	}
-	for _, f := range old {
-		if !keep[f.Path] {
-			w.Delete = append(w.Delete, f.Path)
+	for _, d := range docs {
+		keep := map[string]bool{}
+		for _, f := range a.Sides {
+			if t, ok := sidedoc.MoveMember(f.Path, d.Src, d.Dst); ok {
+				if f.Mode == "120000" {
+					return fmt.Errorf("%s is a symlink; side folders hold regular files only", f.Path)
+				}
+				w.Write[t] = f.Content
+				keep[t] = true
+			}
+		}
+		old, err := view.Files(sidedoc.SideDir(d.Dst))
+		if err != nil {
+			return err
+		}
+		for _, f := range old {
+			if !keep[f.Path] {
+				w.Delete = append(w.Delete, f.Path)
+			}
 		}
 	}
 	return nil
+}
+
+// trunkSideResidue names an active side-doc file of the issue or of one of
+// its plans ("" when none): what a retry must refuse once the details moved.
+func trunkSideResidue(view *gitx.TrunkView, detailRel, plansDir string) (string, error) {
+	if r, err := trunkFirstFile(view, sidedoc.SideDir(detailRel)); err != nil || r != "" {
+		return r, err
+	}
+	base, first := path.Base(detailRel), ""
+	_, err := view.FilesSelected(plansDir, func(f gitx.TreeFile) bool {
+		if folder, ok := sidedoc.Folder(f.Path); ok && first == "" && path.Dir(folder) == plansDir && planArtifactBelongsToIssue(base, path.Base(folder)) {
+			first = f.Path
+		}
+		return false
+	})
+	return first, err
 }
 
 // trunkFirstFile names one file under dir on the trunk ("" when none),

@@ -18,7 +18,6 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
-	"github.com/xianxu/ariadne/pkg/sidedoc"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -75,7 +74,7 @@ func archiveIssueOnMain(env *trackerEnv, stderr io.Writer, id, detailRel string,
 				return gitx.TrunkWrite{}, fmt.Errorf("active asset residue for %s: %w", detailRel, err)
 			}
 			// #424: likewise a side folder left behind by the details' move.
-			if residue, err := trunkFirstFile(view, sidedoc.SideDir(detailRel)); err != nil {
+			if residue, err := trunkSideResidue(view, detailRel, a.Dirs.Plans); err != nil {
 				return gitx.TrunkWrite{}, err
 			} else if residue != "" {
 				return gitx.TrunkWrite{}, fmt.Errorf("active side-doc residue for %s: %s; move it beside the archived details, or remove it, before retrying", detailRel, residue)

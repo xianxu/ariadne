@@ -63,6 +63,23 @@ func frontmatter(doc string) (lines []string, body string, ok bool) {
 	return lines, body, true
 }
 
+// Fields returns a document's flat top-level frontmatter fields, `key: value`
+// with the value raw (quotes kept): the one frontmatter reader for side-doc
+// facts such as `parent:` and `marker:`. ok is false when it has none.
+func Fields(doc string) (map[string]string, bool) {
+	lines, _, ok := frontmatter(doc)
+	if !ok {
+		return nil, false
+	}
+	out := map[string]string{}
+	for _, l := range lines {
+		if k, v, ok := strings.Cut(l, ":"); ok && !strings.HasPrefix(l, " ") && !strings.HasPrefix(l, "\t") {
+			out[k] = strings.TrimSpace(v)
+		}
+	}
+	return out, true
+}
+
 // indexBlock finds the `discussions:` key in frontmatter lines and returns
 // the line span [start, end) it owns and its entries. start is -1 when the
 // key is absent. A hand-edited index it can't read is an error, never an

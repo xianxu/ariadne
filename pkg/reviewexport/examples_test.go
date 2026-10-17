@@ -60,23 +60,7 @@ func nextSideDocName(names []string, date, slug string) string {
 }
 
 // frontmatter returns a document's flat `key: value` lines, values raw.
-func frontmatter(text string) (map[string]string, bool) {
-	rest, ok := strings.CutPrefix(text, "---\n")
-	if !ok {
-		return nil, false
-	}
-	fm, _, ok := strings.Cut(rest, "\n---\n")
-	if !ok {
-		return nil, false
-	}
-	out := map[string]string{}
-	for _, l := range strings.Split(fm, "\n") {
-		if k, v, ok := strings.Cut(l, ":"); ok && !strings.HasPrefix(l, " ") {
-			out[k] = strings.TrimSpace(v)
-		}
-	}
-	return out, true
-}
+var frontmatter = sidedoc.Fields
 
 // quotedMarker checks a marker's YAML form: double-quoted, one line, with
 // only the \\ and \" escapes, so operator text can't become frontmatter.

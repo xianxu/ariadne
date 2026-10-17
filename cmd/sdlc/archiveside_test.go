@@ -244,3 +244,75 @@ func TestAbandonRetryRefusesSideResidue(t *testing.T) {
 		t.Fatal("refusal changed main")
 	}
 }
+
+// A successor episode (abandon, reopen, abandon again) replaces the plan's
+// archived side folder with the kept branch's, as it replaces assets (M3
+// review): the plan's links never point at the old episode's folder.
+func TestAbandonSuccessorReplacesPlanSideFolder(t *testing.T) {
+	r, _, _ := startedHere(t)
+	plan, side := "workshop/plans/000009-s09-plan.md", "workshop/plans/000009-s09-plan.side/01-p.md"
+	archived := "workshop/history/plans/000009-s09-plan.side/01-p.md"
+	writeRepoFile(t, r.root, plan, "the plan → [discussion](000009-s09-plan.side/01-p.md)\n")
+	writeRepoFile(t, r.root, side, "---\ntype: side-doc\nparent: ../000009-s09-plan.md\n---\nfirst\n")
+	r.git("add", ".")
+	r.git("commit", "-qm", "plan and side doc")
+	if err := abandon9("punt", "later"); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := reopen9(); err != nil {
+		t.Fatalf("reopen: %v %s", err, out)
+	}
+	if got := r.git("show", "HEAD:"+side); !strings.Contains(got, "first") {
+		t.Fatalf("reopen did not restore the plan's side doc: %q", got)
+	}
+	writeRepoFile(t, r.root, side, "---\ntype: side-doc\nparent: ../000009-s09-plan.md\n---\nsecond\n")
+	writeRepoFile(t, r.root, "workshop/plans/000009-s09-plan.side/02-new.md", "---\ntype: side-doc\nparent: ../000009-s09-plan.md\n---\nnew\n")
+	r.git("add", ".")
+	r.git("commit", "-qm", "second episode")
+	if err := abandon9("wontfix", "finished"); err != nil {
+		t.Fatal(err)
+	}
+	r.git("fetch", "-q", "origin")
+	if got := r.git("show", "origin/main:"+archived); !strings.Contains(got, "second") {
+		t.Fatalf("the plan's archived side doc kept the old episode: %q", got)
+	}
+	if !gitSucceeds(r.root, "cat-file", "-e", "origin/main:workshop/history/plans/000009-s09-plan.side/02-new.md") {
+		t.Fatal("the new episode's plan side doc was not archived")
+	}
+}
+
+func TestAbandonRetryRefusesPlanSideResidue(t *testing.T) {
+	r, _, _ := startedHere(t)
+	if err := abandon9("punt", "later"); err != nil {
+		t.Fatal(err)
+	}
+	r.git("pull", "-q", "--ff-only")
+	writeRepoFile(t, r.root, "workshop/plans/000009-s09-plan.side/01-left.md", "left behind\n")
+	r.git("add", ".")
+	r.git("commit", "-qm", "plan side residue")
+	r.git("push", "-q", "origin", "main")
+	before := r.originMain()
+	if err := abandon9("punt", "later"); err == nil || !strings.Contains(err.Error(), "side-doc residue") {
+		t.Fatalf("plan side residue accepted: %v", err)
+	}
+	if r.originMain() != before {
+		t.Fatal("refusal changed main")
+	}
+}
+
+// The pre-commit verify checks that every member arrived, nothing else.
+func TestVerifyArchivedSideMoves(t *testing.T) {
+	root := t.TempDir()
+	mkArtifact(t, filepath.Join(root, "h/x.side/01-a.md"), "---\nparent: ../gone.md\n---\n")
+	m := []preparedArchiveMove{{IssuePath: "i/x.side/01-a.md", HistoryPath: "h/x.side/01-a.md"}}
+	if err := verifyArchivedSideMoves(root, m); err != nil {
+		t.Fatalf("a hand-broken parent: is not the archive's to judge: %v", err)
+	}
+	mkArtifact(t, filepath.Join(root, "i/x.side/01-a.md"), "duplicate")
+	if err := verifyArchivedSideMoves(root, m); err == nil || !strings.Contains(err.Error(), "still at its source") {
+		t.Errorf("a duplicate source: %v", err)
+	}
+	if err := verifyArchivedSideMoves(root, []preparedArchiveMove{{IssuePath: "i/y.side/01.md", HistoryPath: "h/y.side/01.md"}}); err == nil || !strings.Contains(err.Error(), "missing") {
+		t.Errorf("a member that did not arrive: %v", err)
+	}
+}
