@@ -928,3 +928,4 @@ The simplest durable authority beats a clever scan of consequences.
 - When review generalizes a behavior, update its atlas description in the same change; a merge-only description became stale when protection expanded to a destination across retirement and alternate writers (#411 BR-4).
 
 - Signal ownership must match the lifetime of cancellable resources. A command-wide NotifyContext can swallow termination in context-free Git/network calls; scope it to owned queue/suite effects, bound cleanup independently, and test the unchanged production handler through blocked preamble and bookkeeping calls (#416 BR-1).
+- Shared staging needs a TL grant even when the target is clean or already staged: a different issue may be using its binary while awaiting a live check. Confirm ownership before replacing :0, then clear and rebuild the full main tool set before reporting it free (#416 staging error; #421 tracks enforcement).
