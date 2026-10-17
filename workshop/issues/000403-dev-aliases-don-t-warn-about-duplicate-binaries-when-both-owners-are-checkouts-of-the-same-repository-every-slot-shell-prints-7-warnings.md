@@ -1,12 +1,20 @@
 ---
 id: 000403
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-15
-updated: 2026-10-15
+updated: 2026-10-17
 estimate_hours:
-card_mirror: '0b4295fe45d1ee657a065881bcd69f0cdd725d63' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '6992460b802bdfde97043cc911efdf892ca58c40' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-17T15:20:14-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # dev-aliases: don't warn about duplicate binaries when both owners are checkouts of the same repository (every slot shell prints 7 warnings)
@@ -37,8 +45,14 @@ repos owning one binary name).
 
 ## Plan
 
-- [ ]
+- [ ] Add hermetic Git fixtures for two checkouts of one origin in the slot layout, equivalent HTTPS/SSH origins, and two distinct origins. Assert the selected slot owner, stderr, and `--strict` status.
+- [ ] Normalize each candidate owner's origin once at the IO boundary; group candidates by binary and normalized origin for warnings only. Keep the existing deterministic last-path-wins mapping. Missing or unrecognized origins stay distinct by path so a real collision cannot be hidden. `--verbose` explains a suppressed same-origin duplicate.
+- [ ] Run the focused shell test, `make -k build`, and the recorded full suite; update the script's contract documentation and close on verified evidence.
 
 ## Log
 
 ### 2026-10-15
+
+### 2026-10-17
+
+Claimed and started from current main. The current duplicate check counts paths, while final selection is last sorted path. The shell's sibling plus substrate scan deliberately finds both checkouts. ARCH-PURE: normalize Git origin URLs at collection time, then make the warning decision from data; leave command emission and owner selection alone. This stays inside the quick-flow shell.
