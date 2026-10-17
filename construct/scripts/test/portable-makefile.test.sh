@@ -21,6 +21,7 @@ printf '%s\\n' "${GOFLAGS-}" >> "$FIXTURE/flags"
 [ "$2" = -o ]
 mkdir -p "$(dirname "$3")"
 touch "$3"
+chmod +x "$3"
 ''''''''')
     executable(commands/'weave','printf "weave:%s:%s\\n" "$PWD" "$*" >> "$FIXTURE/events"\nexit "${FAIL_WEAVE:-0}"\n')
     env=dict(os.environ,PATH=f'{commands}:'+os.environ['PATH'],FIXTURE=str(root))

@@ -60,3 +60,8 @@ INT/TERM to exit through it. Callers:
 - `pkg/shelllint` (#342) refused `mktemp -d "$(dirname …)/…XXXXXX"`. The staging dir must sit beside the target for the
   rename to be atomic, so the directory is assigned to a variable first (`p=$(dirname "$out")`, then
   `mktemp -d "$p/.go-build.XXXXXX"`), which is the rooted-template form the lint accepts.
+- First full suite: `scripts/test` failed in 2 fixtures that assumed an in-place build. `TestOwnerMakeCommandsUseTrimpath`
+  copied only `Makefile`, so `WF_GO_PUBLISH` was empty, and its fake `go` wrote no output. `portable-makefile.test.sh`'s
+  fake `go` only `touch`ed its output; in place, that kept the old 0755 mode, but a renamed new file is 0644, and
+  `sdlc-install.sh` checks `-x`. Real `go build` output is executable, so the fake now `chmod +x`s. The trimpath test
+  now copies `Makefile.workflow`, writes the output, and matches the staging path.
