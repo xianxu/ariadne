@@ -237,10 +237,23 @@ func prepareManaged(fs weavefs.FS, root string, actions []Action, scope Ownershi
 		return nil, nil
 	}
 	strict := map[string]bool{}
+	// paired holds a shipped output and its sidecar when the output's current
+	// bytes match the committed sidecar (#422): weave wrote both, so a cold
+	// checkout (no inventory) or a pulled refresh (a stale one) still proves it.
+	paired := map[string]bool{}
 	for _, action := range actions {
 		if staged, ok := action.(stagedOutput); ok {
 			for path := range ProducedPathSet([]Action{staged.Action}) {
 				strict[path] = true
+			}
+			if w, ok := staged.Action.(WriteFile); ok && staged.Sidecar != "" {
+				ok, e := vouched(fs, root, w.Path, staged.Sidecar)
+				if e != nil {
+					return nil, e
+				}
+				if ok {
+					paired[filepath.Clean(w.Path)], paired[filepath.Clean(staged.Sidecar)] = true, true
+				}
 			}
 		}
 	}
@@ -354,6 +367,7 @@ func prepareManaged(fs weavefs.FS, root string, actions []Action, scope Ownershi
 			}
 			own = own || match
 		}
+		own = own || paired[id.Path]
 		recorded := len(oldAt[id.Path]) > 0
 		switch {
 		case own:
@@ -386,6 +400,39 @@ func prepareManaged(fs weavefs.FS, root string, actions []Action, scope Ownershi
 	}
 	return &managedPass{scope: scope, actions: actions, wanted: wanted, previous: previous, other: other,
 		produced: produced, displace: displace, ignore: gi, report: report, retained: retained, deferred: deferred}, nil
+}
+
+// vouched reports whether a shipped output's current bytes match its committed
+// sidecar's digest. Either file absent, or not a regular file, or a malformed
+// sidecar, vouches for nothing.
+func vouched(fs weavefs.FS, root, output, sidecar string) (bool, error) {
+	read := func(rel string) ([]byte, bool, error) {
+		if e := safeParents(fs, root, rel); e != nil {
+			return nil, false, e
+		}
+		p := filepath.Join(root, rel)
+		info, e := fs.Lstat(p)
+		if os.IsNotExist(e) {
+			return nil, false, nil
+		}
+		if e != nil {
+			return nil, false, e
+		}
+		if !info.Mode().IsRegular() {
+			return nil, false, nil
+		}
+		b, e := fs.ReadFile(p)
+		return b, e == nil, e
+	}
+	out, ok, e := read(output)
+	if e != nil || !ok {
+		return false, e
+	}
+	sum, ok, e := read(sidecar)
+	if e != nil || !ok {
+		return false, e
+	}
+	return strings.TrimSpace(string(sum)) == digest(out), nil
 }
 
 func commitManaged(fs weavefs.FS, root string, pass *managedPass) (ManagedReport, error) {

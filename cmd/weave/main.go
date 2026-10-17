@@ -548,6 +548,16 @@ func compilePreparedSettings(ctx context.Context, fs weavefs.FS, root string, ta
 				generated = append(generated, outputs...)
 			}
 		}
+		// Generated outputs a layer ships in git get a committed digest sidecar (#422).
+		shipped, err := plan.ShippedPaths(layers)
+		if err != nil {
+			return err
+		}
+		var unmatched []string
+		generated, unmatched = plan.ShipStaged(generated, shipped)
+		for _, p := range unmatched {
+			fmt.Fprintf(out, "weave: warning: ship row %s matches no file this compile generates (only generated regular files ship)\n", p)
+		}
 	}
 	actions, err := planActions(fs, layers, target)
 	if err != nil {
