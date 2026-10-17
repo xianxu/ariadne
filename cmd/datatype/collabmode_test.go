@@ -22,12 +22,16 @@ func TestCollaborationModeDefault(t *testing.T) {
 	if got, err := collaborationModeDefault(proto(shapeRow)); err != nil || got != "discussion" {
 		t.Fatalf("got %q, %v", got, err)
 	}
+	if got, err := collaborationModeDefault(strings.ReplaceAll(proto(shapeRow), "\n", "\r\n")); err != nil || got != "discussion" {
+		t.Fatalf("CRLF: got %q, %v", got, err)
+	}
 	for name, c := range map[string]struct{ text, want string }{
 		// A row outside the Frontmatter shape section doesn't count.
-		"no row":          {proto(""), "no collaboration-mode row"},
-		"not a mode":      {proto("| `collaboration-mode` | yes | `debate` |\n"), "names no default"},
-		"no value":        {proto("| `collaboration-mode` | yes | the default |\n"), "names no default"},
-		"no shape at all": {"---\n---\n# x\n", "no Frontmatter shape"},
+		"no row":           {proto(""), "no collaboration-mode row"},
+		"not a mode":       {proto("| `collaboration-mode` | yes | `debate` |\n"), "names no default"},
+		"no value":         {proto("| `collaboration-mode` | yes | the default |\n"), "names no default"},
+		"not at the start": {proto("| `collaboration-mode` | yes | see `discussion` |\n"), "names no default"},
+		"no shape at all":  {"---\n---\n# x\n", "no Frontmatter shape"},
 	} {
 		if _, err := collaborationModeDefault(c.text); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: err %v, want %q", name, err, c.want)
@@ -64,6 +68,9 @@ func TestEveryTypeDeclaresACollaborationMode(t *testing.T) {
 	// project is also written by `sdlc project new` from its model; the two
 	// declarations must agree.
 	i := slices.IndexFunc(protos, func(p TypeProto) bool { return p.Name == "project" })
+	if i < 0 {
+		t.Fatal("the project type did not resolve")
+	}
 	b, err := os.ReadFile(protos[i].BodyPath)
 	if err != nil {
 		t.Fatal(err)

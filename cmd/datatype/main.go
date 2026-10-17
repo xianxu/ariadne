@@ -88,6 +88,12 @@ func renderToOutput(output string) error {
 	for i, p := range protos {
 		names[i] = p.Name
 	}
+	// Every repository's weave compile runs this render, so it is where a
+	// derived repository's own prototypes meet the #415 lint: warn, don't
+	// fail the compile.
+	for _, p := range lintTypes(layergraph.OSFS{}, protos) {
+		fmt.Fprintln(os.Stderr, "datatype: warning:", p, "(run `datatype lint`)")
+	}
 	out := renderSkill(names)
 	// The binary OWNS creating its output dir (#115 M3): the marker passes a
 	// repo-relative --output construct/generated/<dir> that does not yet exist on a

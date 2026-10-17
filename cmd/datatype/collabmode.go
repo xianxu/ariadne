@@ -11,10 +11,11 @@ import (
 )
 
 // collaborationModeDefault reads a prototype's declared default collaboration
-// mode (#415): the first backticked value in the notes of its Frontmatter
-// shape table's `collaboration-mode` row, one of vocab.CollaborationModes.
-// That row is what makes xx-datatype emit the key into every new instance.
+// mode (#415): the backticked value the notes of its Frontmatter shape table's
+// `collaboration-mode` row start with, one of vocab.CollaborationModes. That
+// row is what makes xx-datatype emit the key into every new instance.
 func collaborationModeDefault(content string) (string, error) {
+	content = strings.ReplaceAll(content, "\r\n", "\n")
 	_, shape, ok := strings.Cut(content, "\n## Frontmatter shape\n")
 	if !ok {
 		return "", fmt.Errorf("no Frontmatter shape section")
@@ -25,7 +26,7 @@ func collaborationModeDefault(content string) (string, error) {
 		if len(cells) < 5 || strings.TrimSpace(cells[1]) != "`collaboration-mode`" {
 			continue
 		}
-		_, rest, ok := strings.Cut(cells[3], "`")
+		rest, ok := strings.CutPrefix(strings.TrimSpace(cells[3]), "`")
 		mode, _, ok2 := strings.Cut(rest, "`")
 		if !ok || !ok2 || !slices.Contains(vocab.CollaborationModes, mode) {
 			return "", fmt.Errorf("its collaboration-mode row names no default among %s", strings.Join(vocab.CollaborationModes, ", "))
