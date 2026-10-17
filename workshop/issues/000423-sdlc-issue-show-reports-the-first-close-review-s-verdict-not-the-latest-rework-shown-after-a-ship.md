@@ -49,7 +49,7 @@ A reader of `issue show`, whether the TL, the operator or an agent deciding whet
 - [x] Verify text/JSON through the collector and archived evidence and run the recorded suite; proceed to the close/landing gates on this evidence.
 
 - [x] BR-1: separate binding presence from freshness and verify all four fresh/stale × present/absent cases.
-- [ ] BR-2: complete the approved durable plan, recorded suite, re-close and landing.
+- [ ] BR-2: implement the approved round-identity plan and verify native checks plus the recorded suite.
 
 ## Estimate
 
