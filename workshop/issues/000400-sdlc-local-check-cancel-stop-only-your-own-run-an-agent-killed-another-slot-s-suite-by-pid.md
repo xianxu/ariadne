@@ -70,6 +70,8 @@ its whole life, and cancel acts only on a lease that is (a) held and (b) owned b
   `ps` (a `rules.tsv` phrase row). local-check help documents the verb.
 - Residual: between the start-time check and `kill`, the run could exit and its PID be reused within microseconds;
   accepted (macOS has no pidfd), and the window is far narrower than today's hand-picked PID.
+  Likewise, a cancel that saw the lease held may SIGTERM the run in the microseconds after it released the lease and
+  dropped signal ownership, which kills that run by the default action; same window, same acceptance.
 - ARCH-SECURE: the lease is read from a directory shared by all slots of the clone; a malformed record is skipped
   (reported), and only a record whose lock is held *and* whose root equals ours is ever signalled.
   ARCH-CONSTRAINTS: N/A beyond the bounded 2-minute wait — a handful of files per scan. ARCH-MOCK: real processes
@@ -127,3 +129,6 @@ its whole life, and cancel acts only on a lease that is (a) held and (b) owned b
   lease. Minors fixed in the round: the Revisions entry above, and B's cancel in `TestLocalCheckCancelOnlyOwnRun` now
   goes through `runLocalCheckCancel` from B's checkout. Slot release itself rides the existing #416 interruption path
   (`TestLocalCheckSignalCancelsQueuedHelper`), which cancel's SIGTERM enters.
+- Boundary review round 2 (FIX-THEN-SHIP, BR-1..4 disposed addressed): BR-5 README gains the cancel sentence; Minors
+  fixed in the round: a lease pid ≤ 1 is never signalled (tested for -1, 0, 1), and the cancel/run-end race joins the
+  residual note.

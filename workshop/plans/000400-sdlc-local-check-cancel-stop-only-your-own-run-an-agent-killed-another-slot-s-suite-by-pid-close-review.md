@@ -104,3 +104,121 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"13c0eaf4-0fae-4dff-930f-7f171f1c9c44","repository":"github.com/xianxu/ariadne","issue_id":"000400","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/a29bae60eb39ed26","reviewed_head":"7d17e9481d46572fc438a665404b73397230ee43","slot":"ariadne:2","requested_at":"2026-10-17T22:40:28.740704Z"},"phase":"finished","pid":50590,"started_at":"2026-10-17T22:40:28.869159Z","finished_at":"2026-10-17T22:47:38.293164Z","session_id":"6a9844fa-865f-4865-a495-5134587059cd","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T16:43:09-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 400 — sdlc local-check cancel: stop only your own run (an agent killed another slot's suite by PID) |
+| repo | ariadne |
+| issue file | workshop/issues/000400-sdlc-local-check-cancel-stop-only-your-own-run-an-agent-killed-another-slot-s-suite-by-pid.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 78403958cf4a69d55a1fafdd76cc95b303419fa6..5575e0caf791d4f856c756e6304ef1ee8935f58c |
+| command | sdlc close --issue 400 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-17T16:43:09-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+I'm reading the fix commit and its tests now. Next I'll run them and revert each fix to confirm the tests fail without it.
+
+Tests pass. Now I'll revert each fix and run the lifetime test.
+
+Both fixes go red when reverted. Next I'm checking whether README covers `local-check`, and how `kill` handles a pid of 0 or below.
+
+README documents `local-check run` but has no mention of `cancel`. I'm writing up the verdict now.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+Both round-1 defects are fixed, and each fix has a regression test that I confirmed goes red when the fix is reverted. BR-1: the lease is now released right after `release()` and before `stopSignals()` (`cmd/sdlc/localcheck_run.go:165`). Removing that call makes `TestRunLocalCheckLeaseLifetime` fail with "leases held while recording". BR-2: every run now calls `sweepStaleRunLeases` before it takes its lease (`localcheck_run.go:115`). Removing that call leaves `dead.json` behind and the same test fails. BR-3 is covered by the new Revisions entry, and BR-4 by B's cancel, which now goes through `runLocalCheckCancel` from its own checkout. The lease and cancel tests pass (`go test -run 'Lease|ClassifyRunLease|CancelSweeps|CancelChecks|LocalCheckCancel|LocalCheckSignal'`: ok in 296 s), and so do the processgroup tests. One cheap Important gap is left: README.md documents `local-check run` but not the new `cancel` subcommand.
+
+Done-when: current — the Revisions entry changes paths, drops the PGID and moves where the lease ends. "Cancel one, the other keeps running, slot released, lease gone, stale lease swept" still describes what is built and tested.
+
+1. **Strengths**
+   - The lease is published already locked (write and lock under `.lease-*.tmp`, then rename; `localcheck_lease.go:79-108`). This removes the "visible but unlocked reads as stale" race, and `TestHoldRunLeaseLockedBeforeVisible` stress-tests it.
+   - Ownership is held, not observed. A kernel-released flock plus a kernel start-time match (`processgroup.StartTime`, read via sysctl or `/proc`, never `ps`) replaces hand-picked PIDs.
+   - `classifyRunLease` is a small pure function with table tests. The shell around it is thin.
+   - The lease now spans exactly the stretch where SIGTERM is owned, and `leaseProbeGH` checks that from inside `PostStatus`.
+   - The two-checkout process test uses real `runLocalCheck` children, real flock and real signals.
+
+2. **Critical:** none.
+
+3. **Important**
+   - README.md (around lines 464-473) is missing the new `sdlc local-check cancel` subcommand. Its local-check paragraph covers only `run`. Fix: add one sentence, e.g. "stop your own run with `sdlc local-check cancel [--name N]`, never by a PID from `ps`."
+
+4. **Minor**
+   - **Residual race:** cancel finds the lock held, checks the start time, then calls `Kill`. If the run releases its lease and calls `stopSignals` in that gap, the default SIGTERM action kills sdlc mid-record or mid-merge. The window is microseconds. It is the inverse of BR-1 rather than a repeat of it, so I'm noting it, not raising it. The residual note in the Spec should name it next to the PID-reuse residual.
+   - **ARCH-SECURE:** `rec.PID` comes from a directory every slot shares, and nothing rejects `pid <= 1`. `syscall.Kill(0 or -1, …)` would signal a process group or every process. The start-time match and the held-lock-plus-root check make this hard to reach, but reject `PID <= 1` when parsing.
+   - `cancelLocalChecks` still has its own `leaseStale` removal branch right after `sweepStaleRunLeases`. It is harmless (it covers leases released between the two scans).
+
+5. **Test coverage notes**
+   - Both BR-1 and BR-2 fail without their fix (verified).
+   - Slot release on cancel isn't asserted directly. But cancel returns only once the lease is released, which now happens after `release()`, so a successful cancel implies the slot was freed. That is acceptable.
+   - No test can control the ordering of the cancel-versus-run-end race (ARCH-ORDER). It is a single-interleaving gap, noted above.
+
+6. **Architectural notes**
+   - ARCH-DRY: pass. The sweep is now one shared helper.
+   - ARCH-PURE: pass. `classifyRunLease` is pure, and the shell is thin.
+   - ARCH-PURPOSE: pass. The verb, the lease, the attribution via `WF_TEST_LOCK_OWNER` and the rule are all delivered. The merge path shares `runLocalCheck`.
+   - ARCH-MOCK: pass. Tests use real flock and processes, and GitHub goes through the existing fake.
+   - ARCH-CONSTRAINTS: pass. The wait is bounded at 2 minutes, and a scan touches a handful of files.
+   - ARCH-SECURE: pass, apart from the pid-bound Minor. Foreign leases are never signalled, and a malformed held lease is left alone and reported.
+   - ARCH-ORDER: pass, with the Minor above. The lease nests strictly inside signal ownership.
+   - ARCH-FUNERAL: pass. A lease is removed on release, every run and cancel sweeps dead ones, and leftover `.tmp` files are removed after 24 h.
+
+7. **Plan revisions:** none beyond adding the cancel/run-end race to the Spec's residual note.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      releaseLease() now precedes stopSignals() (localcheck_run.go:165); reverting it makes TestRunLocalCheckLeaseLifetime fail with "leases held while recording".
+  - id: BR-2
+    disposition: addressed
+    note: |
+      runLocalCheck calls sweepStaleRunLeases before holdRunLease; reverting it leaves dead.json and TestRunLocalCheckLeaseLifetime fails.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The Revisions entry (2026-10-17) records local-check-runs/ and pid-only SIGTERM with no PGID, matching localCheckRunsDir and cancelLocalChecks.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      TestLocalCheckCancelOnlyOwnRun now cancels B through runLocalCheckCancel after t.Chdir(rootB); cancel returning implies release() ran, since the lease now ends after it.
+findings:
+  - id: new
+    severity: Important
+    kind: defect
+    family: user-surface-docs-gate
+    title: |
+      README update appears missing for the new `sdlc local-check cancel` subcommand
+    detail: |
+      README.md's local-check paragraph (around lines 464-473) documents only `local-check run`; the new user-typed `cancel` verb, the way to stop your own run instead of killing a PID from ps, is absent. Add one sentence there.
+  - id: new
+    severity: Minor
+    kind: defect
+    family: untrusted-lease-fields-unvalidated
+    title: |
+      Cancel passes the shared-directory lease's pid to syscall.Kill without bounding it
+    detail: |
+      rec.PID is read from a directory every slot shares; pid 0 or -1 would signal a process group or every process. The start-time and held-lock checks make this hard to reach, but reject PID <= 1 when parsing the lease (ARCH-SECURE).
+  - id: new
+    severity: Minor
+    kind: defect
+    family: lease-outlives-signal-ownership
+    title: |
+      A cancel that saw the lock held can SIGTERM the run just after it dropped signal ownership
+    detail: |
+      This is the inverse of BR-1, not a repeat: between cancel's flock probe and Kill, the run can call releaseLease and stopSignals, so the default action kills sdlc during recording or merge. The window is microseconds. Name it in the Spec's residual note beside PID reuse; no ordering seam tests it (ARCH-ORDER).
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"fa56c63f-3b2c-44ae-acf8-fcb5445e8ee8","repository":"github.com/xianxu/ariadne","issue_id":"000400","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/7606c4fc25496e37","reviewed_head":"5575e0caf791d4f856c756e6304ef1ee8935f58c","slot":"ariadne:2","requested_at":"2026-10-17T23:36:02.338205Z"},"phase":"finished","pid":60911,"started_at":"2026-10-17T23:36:02.543868Z","finished_at":"2026-10-17T23:43:09.158091Z","session_id":"84330501-9939-4150-af12-4a88b2748797","outcome":"returned"}] -->

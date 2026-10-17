@@ -90,6 +90,117 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: fa56c63f-3b2c-44ae-acf8-fcb5445e8ee8
+            repository: github.com/xianxu/ariadne
+            issue_id: "000400"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/7606c4fc25496e37
+            reviewed_head: 5575e0caf791d4f856c756e6304ef1ee8935f58c
+            slot: ariadne:2
+            requested_at: "2026-10-17T23:36:02.338205Z"
+          phase: finished
+          pid: 60911
+          started_at: "2026-10-17T23:36:02.543868Z"
+          finished_at: "2026-10-17T23:43:09.158091Z"
+          session_id: 84330501-9939-4150-af12-4a88b2748797
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 5575e0caf791d4f856c756e6304ef1ee8935f58c
+        tracker_head: 5b6dcd4f78c4b9c3d10bff111bdc0a66f78fd38e
+        branch_point: 78403958cf4a69d55a1fafdd76cc95b303419fa6
+        since: "2026-10-17T15:01:16-07:00"
+        until: "2026-10-17T15:59:27-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-17T15:01:16-07:00"
+              end: "2026-10-17T15:59:27-07:00"
+              began: "2026-10-17T15:01:16-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 0f74ad76f17c6b83afcb90eabe94125a0a2702bf4f05cf21bf39e9634bf8333b
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 80033999
+              windows:
+                - start: "2026-10-17T15:01:16-07:00"
+                  end: "2026-10-17T15:59:27-07:00"
+        queue_waits:
+            - attempt_id: 45d14dba8f50875257459913725b41fc
+              slot: ariadne:2
+              record_digest: 2580a62a6756ab8e87a1f4184177dc7473b127b744922afe0db934987b083189
+              start: "2026-10-17T22:14:54.62581Z"
+              end: "2026-10-17T22:28:48.383154Z"
+              queue_seconds: 833.757344
+              raw_seconds: 833.757344
+              exact: true
+        cuts:
+            - dispatched: "2026-10-17T15:40:28-07:00"
+              finalized: "2026-10-17T15:47:48-07:00"
+              finalizing: false
+      "n": 2
+      timestamp: "2026-10-17T16:43:09-07:00"
+      dispatched: "2026-10-17T16:36:02-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: releaseLease() now precedes stopSignals() (localcheck_run.go:165); reverting it makes TestRunLocalCheckLeaseLifetime fail with "leases held while recording".
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: runLocalCheck calls sweepStaleRunLeases before holdRunLease; reverting it leaves dead.json and TestRunLocalCheckLeaseLifetime fails.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: The Revisions entry (2026-10-17) records local-check-runs/ and pid-only SIGTERM with no PGID, matching localCheckRunsDir and cancelLocalChecks.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: TestLocalCheckCancelOnlyOwnRun now cancels B through runLocalCheckCancel after t.Chdir(rootB); cancel returning implies release() ran, since the lease now ends after it.
+          round: 2
+      findings:
+        - kind: defect
+          id: BR-5
+          severity: Important
+          title: README update appears missing for the new `sdlc local-check cancel` subcommand
+          detail: README.md's local-check paragraph (around lines 464-473) documents only `local-check run`; the new user-typed `cancel` verb, the way to stop your own run instead of killing a PID from ps, is absent. Add one sentence there.
+          family: user-surface-docs-gate
+          round: 2
+        - kind: defect
+          id: BR-6
+          severity: Minor
+          title: Cancel passes the shared-directory lease's pid to syscall.Kill without bounding it
+          detail: rec.PID is read from a directory every slot shares; pid 0 or -1 would signal a process group or every process. The start-time and held-lock checks make this hard to reach, but reject PID <= 1 when parsing the lease (ARCH-SECURE).
+          family: untrusted-lease-fields-unvalidated
+          round: 2
+        - kind: defect
+          id: BR-7
+          severity: Minor
+          title: A cancel that saw the lock held can SIGTERM the run just after it dropped signal ownership
+          detail: 'This is the inverse of BR-1, not a repeat: between cancel''s flock probe and Kill, the run can call releaseLease and stopSignals, so the default action kills sdlc during recording or merge. The window is microseconds. Name it in the Spec''s residual note beside PID reuse; no ordering seam tests it (ARCH-ORDER).'
+          family: lease-outlives-signal-ownership
+          round: 2
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#400 (boundary-review)
@@ -109,9 +220,26 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   The code uses local-check-runs/ and SIGTERMs the run pid without recording a PGID; add a Revisions entry.
 - **BR-4** [Minor] `cli-wiring-untested` (kind: defect) runLocalCheckCancel (top-level resolution plus runs dir) has no test; the slot-release Done-when is not asserted
 
+## Round 2 — 2026-10-17T16:43:09-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — releaseLease() now precedes stopSignals() (localcheck_run.go:165); reverting it makes TestRunLocalCheckLeaseLifetime fail with "leases held while recording".
+- BR-2 — addressed — runLocalCheck calls sweepStaleRunLeases before holdRunLease; reverting it leaves dead.json and TestRunLocalCheckLeaseLifetime fails.
+- BR-3 — addressed — The Revisions entry (2026-10-17) records local-check-runs/ and pid-only SIGTERM with no PGID, matching localCheckRunsDir and cancelLocalChecks.
+- BR-4 — addressed — TestLocalCheckCancelOnlyOwnRun now cancels B through runLocalCheckCancel after t.Chdir(rootB); cancel returning implies release() ran, since the lease now ends after it.
+
+### Raised
+
+- **BR-5** [Important] `user-surface-docs-gate` (kind: defect) README update appears missing for the new `sdlc local-check cancel` subcommand
+  README.md's local-check paragraph (around lines 464-473) documents only `local-check run`; the new user-typed `cancel` verb, the way to stop your own run instead of killing a PID from ps, is absent. Add one sentence there.
+- **BR-6** [Minor] `untrusted-lease-fields-unvalidated` (kind: defect) Cancel passes the shared-directory lease's pid to syscall.Kill without bounding it
+  rec.PID is read from a directory every slot shares; pid 0 or -1 would signal a process group or every process. The start-time and held-lock checks make this hard to reach, but reject PID <= 1 when parsing the lease (ARCH-SECURE).
+- **BR-7** [Minor] `lease-outlives-signal-ownership` (kind: defect) A cancel that saw the lock held can SIGTERM the run just after it dropped signal ownership
+  This is the inverse of BR-1, not a repeat: between cancel's flock probe and Kill, the run can call releaseLease and stopSignals, so the default action kills sdlc during recording or merge. The window is microseconds. Name it in the Spec's residual note beside PID reuse; no ordering seam tests it (ARCH-ORDER).
+
 ## Open findings
 
-- **BR-1** [Important] `lease-outlives-signal-ownership` (kind: defect) Run lease stays held after stopSignals, so cancel during record/post/cleanup kills sdlc by default SIGTERM
-- **BR-2** [Important] `artifact-removal-path-undelivered` (kind: defect) Stale leases are swept only by cancel, not by run as the design states
-- **BR-3** [Minor] `plan-text-drift` (kind: defect) Spec/Design text still says local-checks/runs/ and process-group signalling with PGID
-- **BR-4** [Minor] `cli-wiring-untested` (kind: defect) runLocalCheckCancel (top-level resolution plus runs dir) has no test; the slot-release Done-when is not asserted
+- **BR-5** [Important] `user-surface-docs-gate` (kind: defect) README update appears missing for the new `sdlc local-check cancel` subcommand
+- **BR-6** [Minor] `untrusted-lease-fields-unvalidated` (kind: defect) Cancel passes the shared-directory lease's pid to syscall.Kill without bounding it
+- **BR-7** [Minor] `lease-outlives-signal-ownership` (kind: defect) A cancel that saw the lock held can SIGTERM the run just after it dropped signal ownership

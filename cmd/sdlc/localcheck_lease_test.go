@@ -154,6 +154,18 @@ func TestCancelChecksProcessStartTime(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 	release()
+	// A pid that would signal a group or every process is refused outright.
+	for _, pid := range []int{-1, 0, 1} {
+		release, err := holdRunLease(filepath.Join(dir, "runs"), runLease{Root: root, Check: "suite", PID: pid, PIDStarted: started})
+		if err != nil {
+			t.Fatal(err)
+		}
+		out.Reset()
+		if n, _ := cancelLocalChecks(filepath.Join(dir, "runs"), dir, "", &out, 200*time.Millisecond); n != 0 || !strings.Contains(out.String(), "not signalled") {
+			t.Errorf("pid %d: stopped %d\n%s", pid, n, out.String())
+		}
+		release()
+	}
 	release, err = holdRunLease(filepath.Join(dir, "runs"), runLease{Root: root, Check: "suite", PID: victim.Process.Pid, PIDStarted: started})
 	if err != nil {
 		t.Fatal(err)

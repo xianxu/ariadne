@@ -469,6 +469,8 @@ the commit status `sdlc-local/X`. Merge accepts that recorded pass in place of
 a CI job that never got a runner (never one that ran and failed), requires it
 for checks declared `required`, and runs a missing one itself. See
 [recorded local checks](atlas/workflow/ci-merge-check.md#recorded-local-checks-345).
+`sdlc local-check cancel` stops this checkout's own queued or running checks and
+never another slot's; never stop one by a PID picked from `ps`.
 
 Run `sdlc local-check run --name suite` on the pushed issue head before close.
 After it passes, close that tested branch without manually integrating each

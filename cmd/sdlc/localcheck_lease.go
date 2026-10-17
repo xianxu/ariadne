@@ -168,6 +168,10 @@ func cancelLocalChecks(dir, root, name string, out io.Writer, wait time.Duration
 		case leaseForeign:
 			foreign++
 		case leaseTarget:
+			if rec.PID <= 1 { // 0 and -1 would signal a group or every process
+				fmt.Fprintf(out, "[!] lease %s names pid %d; not signalled\n", p, rec.PID)
+				break
+			}
 			if started, err := processStartTime(rec.PID); err != nil || started == "" || started != rec.PIDStarted {
 				fmt.Fprintf(out, "[!] lease %s names pid %d, which is no longer that run; not signalled\n", p, rec.PID)
 				break
