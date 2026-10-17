@@ -69,6 +69,7 @@ After verification, close the tested branch, then let merge integrate main under
 ## Log
 
 ### 2026-10-17
+- 2026-10-17: closed — Recorded suite 0eb556ddcf632542756a1eeee7c0681c passed on 3a0fb958: 12 shards, 1564 SDLC tests, 67 packages, 472.573s. All weave packages and focused SDLC context tests pass after RED. TL-granted native dry-run/fake-brew check proved missing/satisfied checks, zero installs/metadata changes; all seven tools restored cleanly and :0 free. README/help/atlas updated. Actual preview refused this legacy attempt for missing exact queue endpoints; N/A preserves invalid calibration evidence without guessed hours or endpoints.; review verdict: SHIP
 
 - Claimed and started from freshly fetched main 0408d048433e0073f5914787eb3f093480cfbf64. start-plan did not need auto-refresh, so no real brew was invoked. Issue initially had empty sections; the dispatch supplies the contract above.
 - Root cause: startup.Dependencies unconditionally invokes install; compilePreparedSettings and buildDependencies share it. runInstalledWeaveArgs supplies no restricting environment; propagate-base has a second weave subprocess runner. prepareSetup already discovers the numbered environment and carries acquire.Policy, including private dependency and feature worktrees; reuse it.
