@@ -161,6 +161,9 @@ func Acquire(ctx context.Context, opts Options) (*Lock, error) {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
+		if !opts.Now().Before(deadline) {
+			return nil, fmt.Errorf("timed out waiting for sdlc repo lock %s; inspect it and remove it only if no transaction is running", lockDir)
+		}
 		err := os.Mkdir(lockDir, 0o700)
 		if err == nil {
 			initDeadline = time.Time{}

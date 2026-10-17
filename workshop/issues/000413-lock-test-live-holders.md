@@ -68,6 +68,8 @@ The unchanged blanket-dead test passed count=1000 in 24.539s at the new main-bas
 
 - Opened PR #272: https://github.com/xianxu/ariadne/pull/272. Recorded suite queued on 0ff3794b1b5a88835e8a59cb9f92460111c4ec2b through the normal weighted gate, initially position 5; run 2cbfb290cfffd8a6046812d4c30a8e25, checkout sdlc-local-3780256829. No full-suite result or close yet. Current main was integrated before queuing; no validation override.
 
+- Budget RED: initializing metadata after a stale retry outlived a 1s acquisition budget (four 750ms sleeps, then initialization-grace error). Added TestReclaimInitializationRetryUsesOriginalDeadline and enforce the original deadline at each acquisition-loop entry; the existing grace cannot extend the caller budget. Canceled only owned queued suite CLI PID 7484 after cwd/identity verification (exit 130, no test execution). Requeue on corrected source; no peer process or lock touched.
+
 ## Revisions
 
 ### 2026-10-16 — faithful ordering disproves test-only hypothesis
@@ -81,3 +83,7 @@ The specified production-bug control fails under accurate liveness. The pending 
 ### 2026-10-16 — TL-approved production scope
 
 TL confirmed the same-mechanism expansion (receipt f16a10f7-e717-475d-a199-61b14f8f1993). Add a thin reclamation IO helper: open the candidate directory, take the existing nonblocking flock, verify inode identity, reread the original holder generation and recheck liveness, then verify inode and cancellation/deadline again before rename. Close the descriptor on every outcome, before retry/sleep. Preserve pure Observe classification and foreign-host/age-only refusal (ARCH-DRY/PURE/ORDER). Busy or changed candidates reuse the existing acquisition budget; the guard creates no durable artifact and dies with its descriptor/process (ARCH-CONSTRAINTS/FUNERAL). The faithful counterexample and 19/1000 normal-scheduler failures above are the reason; a fake-only fix is insufficient. Add cancellation/busy-budget controls, then repeated/race tests and recorded full suite before close.
+
+### 2026-10-16 — preserve global acquisition budget across initialization
+
+The new uncertain-candidate retry re-enters metadata initialization, so enforce the existing acquisition deadline at the loop boundary as well as before reclamation mutation. This is the approved bounded-retry contract, not a longer grace or timeout. The dedicated regression reproduced four sleeps past the original budget before the fix.

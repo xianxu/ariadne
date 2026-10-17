@@ -690,6 +690,41 @@ func TestReclaimUninitializedReplacementRetriesWithoutMutation(t *testing.T) {
 	}
 }
 
+func TestReclaimInitializationRetryUsesOriginalDeadline(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "sdlc.lock")
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	metaPath := filepath.Join(dir, "meta.json")
+	if err := os.WriteFile(metaPath, Encode(Metadata{PID: 555, Hostname: "host-a"}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	sleeps := 0
+	lock, err := Acquire(context.Background(), Options{
+		GitCommonDir: filepath.Dir(dir), PID: 222, Hostname: "host-a", CallerHandlesSignals: true,
+		WaitTimeout: time.Second, Now: func() time.Time { return now },
+		ProcessAlive: func(int) bool {
+			if err := os.WriteFile(metaPath, []byte("{"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			return false
+		},
+		Sleep: func(context.Context, time.Duration) error {
+			sleeps++
+			now = now.Add(750 * time.Millisecond)
+			return nil
+		},
+	})
+	if lock != nil {
+		defer lock.Release()
+		t.Fatal("acquired unproven initializing generation")
+	}
+	if err == nil || !strings.Contains(err.Error(), "timed out") || sleeps != 2 {
+		t.Fatalf("original wait budget lost to initialization grace: sleeps=%d err=%v", sleeps, err)
+	}
+}
+
 func TestAcquireCancelledContextDoesNotCreateLock(t *testing.T) {
 	dir := t.TempDir()
 	ctx, cancel := context.WithCancel(context.Background())
