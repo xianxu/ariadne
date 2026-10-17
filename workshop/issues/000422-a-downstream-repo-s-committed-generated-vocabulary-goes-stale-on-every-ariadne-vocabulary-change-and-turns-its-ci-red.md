@@ -56,8 +56,8 @@ spec asks to keep authored-replacement protection intact (ARCH-SECURE) and to va
 recorded provenance. Proposal: #422 implements it and #368 closes as superseded (the TL's call).
 
 **Recommended: option 2 with committed provenance, not a blanket overwrite.** A repository declares the generated
-outputs it ships, in a list weave reads, e.g. `tracked: [construct/generated/vocabulary/issue.json]` in its weave
-settings. For each declared output, weave also writes a committed digest sidecar, `<path>.weave-sha256` (the sha256 of
+outputs it ships in its own `construct/base.manifest`, as a new row `internal ship <path>` (parley:
+`internal ship construct/generated/vocabulary/issue.json`). For each declared output, weave also writes a committed digest sidecar, `<path>.weave-sha256` (the sha256 of
 what weave wrote). In `prepareManaged`, an occupied declared output whose bytes match its committed sidecar counts as
 weave's own, even with no inventory, so a cold checkout regenerates it. Apply prints `refreshed tracked output <path>:
 commit it` so the refreshed copy reaches the shipped plugin.
@@ -72,7 +72,7 @@ commit it` so the refreshed copy reaches the shipped plugin.
 **Durable state (ARCH-CONSTRAINTS at-plan):** one sidecar per declared output: weave writes it, the consumer's git
 tracks it, and it changes only when the output changes. It is removed when the declaration goes (weave's retirement).
 
-- [ ] Declaration read from weave settings; sidecar write; ownership by committed digest in `prepareManaged`.
+- [ ] `ship` manifest verb; sidecar write; ownership by committed digest in `prepareManaged`.
 - [ ] Tests (cmd/weave plan): the parley case — a cold checkout (no inventory), a declared output plus a matching
       sidecar, and a changed upstream output → regenerated with the report line; a hand-edited declared output → still
       refused; an undeclared output → refused as today; a warm checkout → unchanged.
