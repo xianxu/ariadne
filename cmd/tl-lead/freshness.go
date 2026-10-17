@@ -22,6 +22,10 @@ type sectionBudget struct {
 	landing bool
 }
 
+// missingSection is in couch's refusal to read a section the file lacks
+// (pair sessionsync/file.go); TestSessionSyncConformance pins it.
+const missingSection = "heading line, found 0"
+
 var sectionBudgets = []sectionBudget{
 	{"Needs you", 0, false},
 	{"Quota", 12 * time.Hour, false},
@@ -49,7 +53,7 @@ func staleLines(d deps, file string) []string {
 	for _, b := range sectionBudgets {
 		body, _, err := d.ss.ReadSection(file, b.heading)
 		if err != nil {
-			if !strings.Contains(err.Error(), "heading line, found 0") { // couch's refusal for a missing section
+			if !strings.Contains(err.Error(), missingSection) {
 				out = append(out, fmt.Sprintf("check: ## %s unread: %v", b.heading, err))
 			}
 			continue
@@ -63,7 +67,7 @@ func staleLines(d deps, file string) []string {
 			if age := now.Sub(at); b.budget > 0 && age > b.budget {
 				why = append(why, fmt.Sprintf("%s old, budget %s", hm(age), hm(b.budget)))
 			}
-			if b.landing && land.At.After(at) {
+			if b.landing && land.At.Truncate(time.Minute).After(at) { // the stamp has minutes only
 				why = append(why, fmt.Sprintf("%s landed %s", land.Repo, land.At.Format("01-02 15:04")))
 			}
 		}
@@ -101,11 +105,13 @@ func hm(d time.Duration) string {
 	return fmt.Sprintf("%dh%02dm", h, m)
 }
 
+// newestLanding reads the landing seam; without one there is no landing (main
+// wires gitNewestLanding).
 func (d deps) newestLanding(file string) (Landing, error) {
-	if d.landing != nil {
-		return d.landing(file)
+	if d.landing == nil {
+		return Landing{}, nil
 	}
-	return gitNewestLanding(file)
+	return d.landing(file)
 }
 
 // gitNewestLanding reads origin/main's commit time, from local refs (no

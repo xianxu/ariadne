@@ -27,7 +27,7 @@ type deps struct {
 	sdlc   SDLC
 	actors CouchActors
 	now    func() time.Time // nil: the wall clock
-	// landing reads the fleet's newest landing; nil: gitNewestLanding.
+	// landing reads the fleet's newest landing; nil: no landing.
 	landing func(file string) (Landing, error)
 }
 
@@ -39,7 +39,7 @@ func (d deps) clock() time.Time {
 }
 
 func main() {
-	d := deps{ss: couchSessionSync{bin: "couch"}, sdlc: execSDLC{bin: "sdlc"}, actors: execActors{bin: "couch"}}
+	d := deps{ss: couchSessionSync{bin: "couch"}, sdlc: execSDLC{bin: "sdlc"}, actors: execActors{bin: "couch"}, landing: gitNewestLanding}
 	if err := buildRoot(d).Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		var ee exitError

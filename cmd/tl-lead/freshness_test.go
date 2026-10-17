@@ -162,3 +162,36 @@ func TestGitNewestLanding(t *testing.T) {
 		t.Errorf("newest landing = %+v, want pair at 2000", got)
 	}
 }
+
+// A landing in the same minute as the stamp is not newer (the stamp has
+// minutes only); an unreadable landing source or section is reported, not
+// silently fresh.
+func TestStatusCheckEdges(t *testing.T) {
+	f := newFake(map[string]string{"Slots": "\n_updated 2026-10-16 17:05_\n\nbody"})
+	file, _ := statusFile(t, "")
+	sameMinute := func(string) (Landing, error) {
+		return Landing{Repo: "pair", At: time.Date(2026, 10, 16, 17, 5, 40, 0, time.Local)}, nil
+	}
+	if got := staleLines(deps{ss: f, now: fixedNow, landing: sameMinute}, file); len(got) != 0 {
+		t.Errorf("a landing in the stamp's minute: %q", got)
+	}
+	broken := func(string) (Landing, error) { return Landing{}, fmt.Errorf("git: not a repository") }
+	got := staleLines(deps{ss: failingRead{f, "Threads"}, now: fixedNow, landing: broken}, file)
+	want := []string{"check: newest landing unknown: git: not a repository", "check: ## Threads unread: couch: timed out"}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("check lines = %q, want %q", got, want)
+	}
+}
+
+// failingRead fails reads of one section with something other than a missing heading.
+type failingRead struct {
+	*fakeSessionSync
+	heading string
+}
+
+func (r failingRead) ReadSection(file, heading string) (string, string, error) {
+	if heading == r.heading {
+		return "", "", fmt.Errorf("couch: timed out")
+	}
+	return r.fakeSessionSync.ReadSection(file, heading)
+}

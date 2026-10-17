@@ -105,6 +105,13 @@ replaced on each write; it creates no file, row or cache. `check` creates nothin
 - [x] help.md: stamps, `check`, slots inputs; atlas entry.
 - [x] Live: run on the ops file (stamps appear, `slots` renders today's fleet, `check` flags a stale Threads).
 
+## Revisions
+
+- 2026-10-16 (close review): `check` does one session-sync read per budgeted section (4) plus one local git call per
+  sibling SDLC repository, not "one couch read"; still inventory-free. The Slots agent label is `agent` (working) or
+  `agent·idle`, `none` where no agent runs, and the free line shows each free slot's agent. The landing source is SDLC
+  siblings only (`workshop/issues/`, no `.brain/`).
+
 ## Log
 
 ### 2026-10-16
@@ -124,3 +131,8 @@ replaced on each write; it creates no file, row or cache. `check` creates nothin
   kinds and idle or working, 12 working slots and a `free:` line, then printed `stale:` for Needs you, Quota and
   Threads (unstamped); `status check` printed the same three. 37 s wall, mostly the inventory; the per-event check stays
   inventory-free.
+- Close review (round 1): SHIP, 4 Minor, all fixed in-round: the landing compare truncates to the stamp's minute
+  (`TestStatusCheckEdges`); couch's missing-section text is a named constant pinned by `TestSessionSyncConformance`,
+  and `TestCouchActorsConformance` pins the `--actors` shape (both pass live, TL_LEAD_LIVE=1); main wires
+  `gitNewestLanding` explicitly and an empty seam means no landing; this Revisions entry fixes the plan text. Also added:
+  the landing-unknown and section-unread lines are tested.

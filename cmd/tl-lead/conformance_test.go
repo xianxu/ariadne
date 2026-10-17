@@ -38,6 +38,11 @@ func TestSessionSyncConformance(t *testing.T) {
 	if err != nil || hash == "" || strings.TrimSpace(got) != "old" {
 		t.Fatalf("read: body=%q hash=%q err=%v", got, hash, err)
 	}
+	// status check tells a missing section (no finding) from a failed read by
+	// this text.
+	if _, _, err := ss.ReadSection(file, "Missing"); err == nil || !strings.Contains(err.Error(), missingSection) {
+		t.Errorf("a missing section: err = %v, want it to contain %q", err, missingSection)
+	}
 	if err := ss.WriteSection(file, "A", body, "0000000000000000", nil); !errors.Is(err, ErrStale) {
 		t.Errorf("a wrong hash: err = %v, want ErrStale (exit 6)", err)
 	}
@@ -76,5 +81,30 @@ func TestSessionSyncConformance(t *testing.T) {
 	}
 	if err := ss.WriteSection(file, "B", body, hash, nil); !errors.Is(err, ErrLocked) {
 		t.Errorf("under the operator's lock: err = %v, want ErrLocked (exit 3)", err)
+	}
+}
+
+// TestCouchActorsConformance checks decodeActors against the running Couch:
+// the reply decodes and names at least one slot with an agent. Opt-in like
+// TestSessionSyncConformance; it needs the Couch socket (unsandboxed).
+func TestCouchActorsConformance(t *testing.T) {
+	if os.Getenv("TL_LEAD_LIVE") != "1" {
+		t.Skip("set TL_LEAD_LIVE=1 to run against the real couch")
+	}
+	bin, err := exec.LookPath("couch")
+	if err != nil {
+		t.Skip("couch is not on PATH")
+	}
+	actors, err := execActors{bin: bin}.Actors()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for slot, a := range actors {
+		if !strings.Contains(slot, ":") || a.Agent == "" {
+			t.Errorf("actor %q = %+v: want a repo:N slot and an agent", slot, a)
+		}
+	}
+	if len(actors) == 0 {
+		t.Error("no actors from a running Couch")
 	}
 }
