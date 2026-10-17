@@ -28,6 +28,12 @@ import (
 // consumes nothing unread. (A frontmatter-scoped couch read and write would
 // remove the need: proposed to pair.)
 func syncIndex(d deps, out io.Writer, file string, add []string) error {
+	return syncIndexAfter(d, out, file, add, "")
+}
+
+// syncIndexAfter is syncIndex for a caller that has just printed couch's
+// diff (submit): the same unread changes aren't printed twice.
+func syncIndexAfter(d deps, out io.Writer, file string, add []string, printed string) error {
 	if text, err := d.ss.Peek(file); err == nil {
 		if _, r, err := sidedoc.ReconcileIndex(text, add); err == nil && !r.Changed() {
 			reportIndex(out, file, r)
@@ -35,7 +41,7 @@ func syncIndex(d deps, out io.Writer, file string, add []string) error {
 		}
 	}
 	for range writeTries {
-		text, hash, err := readAllShowingUnread(d, out, file)
+		text, hash, err := readAllShowingUnread(d, out, file, printed)
 		if err != nil {
 			return err
 		}
@@ -64,12 +70,12 @@ func syncIndex(d deps, out io.Writer, file string, add []string) error {
 // landed between the diff and the read) it prints those lines too: nothing is
 // marked seen without being shown. Every attempt of the write loop comes
 // through here, so an edit that made a write stale is shown on the retry.
-func readAllShowingUnread(d deps, out io.Writer, file string) (string, string, error) {
+func readAllShowingUnread(d deps, out io.Writer, file, printed string) (string, string, error) {
 	raw, err := d.ss.Diff(file)
 	if err != nil {
 		return "", "", err
 	}
-	if diff := unreadChanges(raw); diff != "" {
+	if diff := unreadChanges(raw); diff != "" && diff != unreadChanges(printed) {
 		fmt.Fprintf(out, "changes since your last read (the index write marks them seen):\n%s", diff)
 		if !strings.HasSuffix(diff, "\n") {
 			fmt.Fprintln(out)
@@ -81,35 +87,21 @@ func readAllShowingUnread(d deps, out io.Writer, file string) (string, string, e
 		return "", "", refusal(file, "discussions: index", err)
 	}
 	if perr == nil && shown != text {
-		fmt.Fprintf(out, "changed while reading (also marked seen):\n%s", lineChanges(shown, text))
+		fmt.Fprintf(out, "changed while reading (also marked seen):\n%s", windowChanges(shown, text))
 	}
 	return text, hash, nil
 }
 
-// lineChanges lists the lines new has that old lacks (+) and the reverse
-// (-), counted as multisets: enough to show an edit that landed in the
-// window between a diff and a read.
-func lineChanges(old, new string) string {
-	count := map[string]int{}
-	for _, l := range strings.Split(old, "\n") {
-		count[l]++
-	}
-	var added []string
-	for _, l := range strings.Split(new, "\n") {
-		if count[l] > 0 {
-			count[l]--
-		} else {
-			added = append(added, "+"+l)
+// windowChanges is the changed lines of lineDiff: an edit that landed in
+// the window between a diff and a read.
+func windowChanges(old, new string) string {
+	var b strings.Builder
+	for _, l := range strings.Split(lineDiff(old, new), "\n") {
+		if strings.HasPrefix(l, "+") || strings.HasPrefix(l, "-") {
+			b.WriteString(l + "\n")
 		}
 	}
-	var removed []string
-	for _, l := range strings.Split(old, "\n") {
-		if count[l] > 0 {
-			count[l]--
-			removed = append(removed, "-"+l)
-		}
-	}
-	return strings.Join(append(removed, added...), "\n") + "\n"
+	return b.String()
 }
 
 func reportIndex(out io.Writer, file string, r sidedoc.Report) {

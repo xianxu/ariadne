@@ -184,3 +184,19 @@ func TestIndexShowsEditsOnEveryRead(t *testing.T) {
 		t.Fatalf("an edit between the diff and the read was not shown: %v\n%s", err, out)
 	}
 }
+
+// submit prints couch's diff itself; the index write it triggers doesn't
+// print the same changes again (M2 review, Minor).
+func TestSubmitPrintsUnreadOnce(t *testing.T) {
+	f, file := indexFake(t)
+	s4 := "tl-status-op.side/2026-10-17-01-s4.md"
+	if _, err := link(t, f, file, "1", s4); err != nil {
+		t.Fatal(err)
+	}
+	f.seen()
+	f.sections[instructionsHeading] = "2. how big is the backlog?" // bullet 1 and its link deleted
+	out, err := run(t, deps{ss: f}, "status", "submit", file)
+	if err != nil || strings.Count(out, "## Operator instructions changed") != 1 || !strings.Contains(out, "index: dropped "+s4) {
+		t.Fatalf("submit: %v\n%s", err, out)
+	}
+}
