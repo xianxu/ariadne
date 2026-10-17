@@ -13,6 +13,7 @@
 ## Scope and what is not here
 
 - **In:** 07 sections 3 to 7 in the skill, its rows 18 to 28 (renumbered 21 to 31 here, since the skill's table already runs to 20), the examples and checker invariants of 07 section 10, `tl-lead status`'s index, sdlc archiving.
+- **Landing order with parley.nvim#373:** ariadne lands first. Until #373 lands, parley's sync script refuses the version-2 export, and parley keeps its committed snapshot, so nothing breaks. #373 accepts version 2 and syncs. This is an ordering note, not a blocking dependency, so `deps:` stays empty.
 - **Not here:** parley's mover, the orphan suffix in parley, Alt+o registration (parley.nvim#373). Couch needs nothing new (`--session-sync rename` and `write --all` exist).
 - **Renames by sdlc:** sdlc never renames an issue or plan file (`set-title` keeps the path's slug, `cardsetters.go:114`), and archiving keeps the base name, so sdlc only ever moves a `.side/` folder with no rewriting: every link inside it is relative and survives a same-name move (07 section 6).
 
@@ -43,10 +44,18 @@
 |------|----------|--------|-------|
 | `SessionSync.ReadAll` / `WriteAll` | `cmd/tl-lead/sessionsync.go` | modified | `couch --session-sync read --all` / `write --all … --if-hash H` |
 | `fakeSessionSync` (whole-file read and CAS write) | `cmd/tl-lead/sessionsync_fake_test.go` | modified | the stateful fake behind the same seam |
-| sdlc archive movers (working tree and trunk write) | `cmd/sdlc/merge.go`, `cmd/sdlc/push.go`, `cmd/sdlc/archivemain.go` | modified | `os.Rename`, `gitx.TrunkWrite` |
+| `prepareSideArchive` / `recoverSideArchiveMoves` / `verifyArchivedSideMoves` | `cmd/sdlc/archiveside.go` | new | the working tree (`os.Lstat`, `os.Link`), git status entries |
+| `finishArchiveMemberMoves` (today `finishAssetArchiveMoves`, renamed and shared) | `cmd/sdlc/archiveassets.go` | modified | `os.Link` then `os.Remove` |
+| sdlc archive paths (working tree, recovery, trunk write) | `cmd/sdlc/merge.go`, `cmd/sdlc/push.go`, `cmd/sdlc/archivemain.go` | modified | `os.Rename`, `gitx.TrunkWrite` |
 
 - **tl-lead:** the session file's frontmatter is outside every section, so the index write uses `write --all` with the hash from `read --all`, retried like `writeSection` (stale → re-read and recompute, held lock → exit 3, still stale → exit 6). The fake gains a whole-file view over the same state it already keeps per section, so a section write and a whole-file write conflict as they do in Couch (ARCH-MOCK). The existing conformance test (`conformance_test.go`) gains the `--all` round trip.
-- **sdlc:** each of the three archive paths already moves the issue file, its plan artifacts and its assets. Each gains the same step through `sidedoc.SideTree`: for the issue file and for each plan artifact it moves, move that document's `.side/` tree to the matching destination. The working-tree paths (`merge.go`, `push.go`) record each move as a `preparedArchiveMove`, so the existing staging and rollback cover them. The trunk path (`archivemain.go`) adds the tree's files to `w.Write` and `w.Delete`. A destination `.side/` that already exists refuses, as an occupied archive destination does today.
+- **tl-lead's Couch dependency:** `couch --session-sync write --all BODYFILE FILE --if-hash H [--fold …]` is in Couch's usage today (checked 2026-10-17); tl-lead only calls `read --all` so far. M2's conformance step proves the CAS write before the fake models it.
+- **sdlc:** a `.side/` folder travels with its document the way an issue's `assets/<id>/` folder already does, so M3 follows the asset archive's four stages (`cmd/sdlc/archiveassets.go`) rather than inventing a fifth mechanism (ARCH-DRY). There is no rollback in those paths: an archive stopped midway is finished by `sdlc push`'s recovery, which today classifies every path it does not recognize as unrelated and refuses. Each stage gets a `.side/` counterpart:
+  1. **Prepare** (`prepareSideArchive`, beside `prepareAssetArchive`): for each document the archive moves (the issue file, each plan artifact), list its `.side/` tree with `sidedoc.SideTree`; refuse a symlink in it, and refuse a destination `.side/` holding any entry ("archive destination occupied", as for assets). Returns `preparedArchiveMove`s.
+  2. **Finish** (`finishArchiveMemberMoves`): the asset finisher renamed and shared. It links, then removes, never replaces, and skips a member already moved, which is what makes a resumed archive idempotent.
+  3. **Recover** (`recoverSideArchiveMoves`, called from `preparedArchiveMoves` beside `recoverAssetArchiveMoves`): status entries under `<issues>/*.side/`, `<plans>/*.side/` and the history subdirs' `*.side/` are routed to it instead of to `other`. A moved document (its history half present) is the authority: its expected members are the union of its active and archived `.side/` trees. The same path in both with different bytes refuses ("restore the original"), and a duplicate refuses ("remove the active copy"), as for assets. Anything else stays in `other`.
+  4. **Verify** (`verifyArchivedSideMoves`, before each archive commit, beside `verifyArchivedAssetMoves`): every archived side doc's `parent:` resolves to its archived document.
+  - **The archive paths, enumerated:** (a) merge-time legacy archive, `merge.go` around line 875; (b) push-time legacy archive, `push.go` around line 690 for the issue and around line 330 for plan artifacts; (c) push's recovery of an interrupted archive, `preparedArchiveMoves`; (d) the trunk archive's first write, `archiveIssueOnMain`, which adds the `.side/` files to `w.Write` and `w.Delete`, refusing an occupied destination; (e) the trunk retry with the live details already gone (`archivemain.go:63-110`), which refuses active `.side/` residue for the issue or its plans, as it already refuses active asset residue; (f) the trunk successor episode (`archivemain.go:80-102`), which leaves an archived `.side/` tree as it is: side docs belong to the document, not to an episode.
 
 ## Operating envelope (ARCH-CONSTRAINTS)
 
@@ -61,7 +70,7 @@
 ## Ordering (ARCH-ORDER)
 
 - **tl-lead:** the index holds no state between events beyond the file itself: each command re-reads the file and acts on that read, so a stale observation never acts. `instructions link` makes two writes, and their order is chosen so a split leaves nothing lost: **the entry first** (`write --all`), **the link second** (the section write, pinned to `list`'s hash as today). A crash or refusal between them leaves an entry without a link. The TL reruns `link` for that bullet: the entry already present stays, and the link is written. If the TL never reruns it, the next reconcile drops the entry as a removed link would, so nothing lingers. The reverse order would leave a link with no entry, which no later command could tell apart from the operator's "reviewed", so it is not used. The event most likely to be mishandled is the operator's submit landing between the two writes: the link's write is pinned to `list`'s section hash, refuses with exit 6, and `list` runs again, as today.
-- **sdlc:** the archive moves already run as one prepared set with rollback; the `.side/` tree is more moves in the same set, not a new phase.
+- **sdlc:** the event most likely to be mishandled is the process dying midway through an archive's renames (or a link failing between two members). There is no rollback; recovery is forward. The next `sdlc push` resumes through stage 3: a moved document is the authority, its members are re-derived from both trees, and the shared finisher skips members already moved. The other interleavings: a second actor creating the destination folder meanwhile (the finisher links, never replaces, and so refuses); the operator editing a side doc between an interrupted run and its resume (recovery compares bytes and refuses a conflict). The trunk path is one CAS write, retried by `mainPublish`; its retry branch (e) is what keeps a repeat from writing twice.
 
 ## Lifecycle (ARCH-FUNERAL)
 
@@ -85,12 +94,7 @@
 - Create: `pkg/sidedoc/links.go`, `pkg/sidedoc/index.go`, `pkg/sidedoc/links_test.go`, `pkg/sidedoc/index_test.go`
 - Modify: `pkg/reviewexport/examples_test.go` (use `sidedoc.SideLinks` instead of `sideLinkRE`)
 
-- [ ] **Step 1: failing tests.** `TestSideLinks`: discussion, answer and notes links; a link inside a code fence is ignored; a `(folded <date>)` mark after a link keeps it a link. `TestReconcileIndex`, table-driven:
-  - an entry whose link is gone is dropped; one whose link remains stays;
-  - an add not present is appended at the end; one present stays where it is;
-  - an entry whose file is missing is kept and reported;
-  - every other frontmatter line, its order and its quoting is unchanged; a document without `discussions:` gains the key only when something is added;
-  - an unparseable index (a scalar value, an item without `doc:`, an absolute path, a path climbing out) returns an error and the input unchanged.
+- [ ] **Step 1: failing tests.** `SideLinks`: table over link kinds, fences and fold marks. `ReconcileIndex` over hand-edited frontmatter: a table for the one-way rule (drop on a gone link, append once, keep order, keep a missing file), plus a fuzz test seeded with malformed `discussions:` values; guard: an unparseable index returns an error and the input unchanged, and any other frontmatter is byte-identical.
 - [ ] **Step 2:** run `go test ./pkg/sidedoc/` and see them fail.
 - [ ] **Step 3:** implement. The parse reads the frontmatter block between the `---` fences, finds the `discussions:` key at column 0, and takes its indented `- doc: PATH` items; rendering writes the same shape (`discussions:` then `  - doc: PATH`).
 - [ ] **Step 4:** tests pass; the examples checker still passes with `SideLinks` (`go test ./pkg/reviewexport/`).
@@ -131,13 +135,7 @@
 - Modify: `pkg/reviewexport/examples_test.go`
 - Create: `pkg/reviewexport/move_test.go`
 
-- [ ] **Step 1: failing mutations** in `TestCheckCaseCatches` (each breaks the good case one way):
-  - an index entry naming a side doc whose `parent:` is another document;
-  - an entry naming a missing file;
-  - an entry dropped while its link remains in after/;
-  - a link present in before/ and gone in after/ (the agent never removes a link);
-  - an entry added for a side doc that after/ did not change;
-  - for a `move:` case, any byte of after/ that `projectMove(before)` does not produce.
+- [ ] **Step 1: failing mutations** in `TestCheckCaseCatches`, one per new invariant (entry resolution, the one-way rule across the trees, no link removal, an entry added only for a written side doc, a move case's exact projection): each breaks the good case one way and must be caught.
 - [ ] **Step 2:** implement in `checkTree` (per tree: each entry resolves to a side doc whose `parent:` resolves back) and `checkCase` (across trees: the four transition rules; for a `move:` case, `after == projectMove(before, OLD, NEW)` exactly). `projectMove` renames the document and its folder, rewrites `OLD.side/` to `NEW.side/` in the parent's links and index entries, rewrites side docs' `parent:` and `_From [..](..)` backlinks that name `OLD.md`, and first suffixes an existing `NEW.side/` to the first free `NEW_N.side/`.
 - [ ] **Step 3:** `go test ./pkg/reviewexport/` passes on every committed case.
 - [ ] **Step 4:** commit `#424 M1: examples and checker: the index, link removal, fold-in, moves`.
@@ -161,11 +159,7 @@
 - Modify: `cmd/tl-lead/sessionsync.go` (`ReadAll`, `WriteAll` on the interface and the couch implementation), `cmd/tl-lead/sessionsync_fake_test.go`, `cmd/tl-lead/conformance_test.go`, `cmd/tl-lead/instructions.go`, `cmd/tl-lead/status.go`, `cmd/tl-lead/help.md`
 - Create: `cmd/tl-lead/index.go`, `cmd/tl-lead/index_test.go`
 
-- [ ] **Step 1: failing tests** against the fake:
-  - `instructions link FILE POS TARGET` adds `TARGET` to the session file's `discussions:` (paths relative to the session file, as the link) and then links the bullet; a second link of another bullet appends after it.
-  - `status submit` after the operator deleted a linked bullet drops its entry; an entry whose link remains stays; the operator's own removal of an entry is not undone by any later command.
-  - `status index FILE --add DOC` appends an entry for a discussion side doc the TL linked in another section (Needs you, Threads), and `status index FILE` alone reconciles.
-  - the operator's lock refuses with exit 3 and writes nothing; a whole-file write racing a section write goes stale and recomputes; an unparseable index refuses, naming the line.
+- [ ] **Step 1: failing tests** against the fake, one strategy per risk: the one-way rule as event sequences over link, the operator's deletion, the operator's entry removal and submit (the removal is never undone); the two-write split (entry written, link refused) rerun to completion; the lock (exit 3, nothing written) and a whole-file write racing a section write (stale, recompute); an unparseable index refuses, naming the line.
 - [ ] **Step 2:** implement `syncIndex(d, out, file, add)`: `ReadAll` → `sidedoc.ReconcileIndex` → `WriteAll --if-hash` when changed, retried by `writeTries` like `writeSection`, printing what it dropped, added, and any missing file. `instructions link` calls it with the target before its section write (ARCH-ORDER above). `status submit` calls it with no adds after its fold.
 - [ ] **Step 3:** conformance: the `--all` read and CAS write against a live Couch where the existing conformance test runs.
 - [ ] **Step 4:** `help.md`: the index paragraph (the operator removes an entry as reviewed; deleting a bullet or a link drops its entry; `status index`).
@@ -177,15 +171,12 @@
 ### Task 7: archiving carries `.side/`
 
 **Files:**
-- Create: `pkg/sidedoc/tree.go`, `pkg/sidedoc/tree_test.go`
-- Modify: `cmd/sdlc/merge.go` (issue archive, around line 875), `cmd/sdlc/push.go` (plan artifacts around line 330, issue around line 690), `cmd/sdlc/archivemain.go` (`archiveIssueOnMain`), their tests, `atlas/workflow/` (the archive entry), `cmd/sdlc/helptext/` where archiving is described
+- Create: `pkg/sidedoc/tree.go`, `pkg/sidedoc/tree_test.go`, `cmd/sdlc/archiveside.go`, `cmd/sdlc/archiveside_test.go`
+- Modify: `cmd/sdlc/archiveassets.go` (the shared finisher), `cmd/sdlc/merge.go` (issue archive, around line 875), `cmd/sdlc/push.go` (plan artifacts around line 330, issue around line 690), `cmd/sdlc/archivemain.go` (`archiveIssueOnMain`), their tests, `atlas/workflow/` (the archive entry), `cmd/sdlc/helptext/` where archiving is described
 
-- [ ] **Step 1: failing tests.** `TestSideTree` (pure): the folder for `x.md` is `x.side/`; members listed; a member's destination under a new directory; nothing for a document without one. Then one test per archive path, each with an issue and a plan that have `.side/` folders holding a side doc of a side doc:
-  - after the archive, both folders sit beside their archived documents, every side doc's `parent:` and backlink resolve, and the source folders are gone;
-  - a destination `.side/` that already exists refuses, as an occupied archive destination does, and moves nothing;
-  - a symlink inside a `.side/` refuses.
-- [ ] **Step 2:** implement `SideTree` and call it from the three paths, adding moves to each path's existing move set (working tree) or write set (trunk).
-- [ ] **Step 3:** targeted runs: `go test ./pkg/sidedoc/ ./cmd/sdlc -run 'Archive|Merge|Push'`.
+- [ ] **Step 1: failing tests.** `SideTree`: a pure table. Then, per archive path (a) to (f) above, a fixture issue and plan with `.side/` folders holding a side doc of a side doc: after the archive both folders sit beside their archived documents and every `parent:` and backlink resolves. Adversarial: an occupied destination and a symlink refuse with nothing moved; **an archive interrupted after some `.side/` members moved is finished by `sdlc push`** (stage 3), and a conflicting edit made meanwhile refuses; the trunk retry with active `.side/` residue refuses.
+- [ ] **Step 2:** implement stages 1 to 4 and wire them into paths (a) to (f); rename `finishAssetArchiveMoves` to `finishArchiveMemberMoves` and use it for both.
+- [ ] **Step 3:** targeted runs: `go test ./pkg/sidedoc/ ./cmd/sdlc -run 'Archive|Merge|Push|Recover'`.
 - [ ] **Step 4:** atlas and help text; commit `#424 M3: sdlc archiving moves a document's .side folder with it`.
 - [ ] **Close:** full suite in the background (`sdlc local-check run --name suite`), then `sdlc close --issue 424`.
 
@@ -195,3 +186,7 @@
 - `tl-lead status` writes and prunes the session file's index by the one-way rule, with tests against the fake and the conformance check.
 - sdlc archiving an issue or plan with a `.side/` folder moves the folder and keeps every link and index entry resolving, on all three archive paths, with tests.
 - On a real document (a round on ops' design.md after M1): a question opens a side doc and its index entry; the operator's removal of the entry sticks until the agent next writes there; deleting the link drops the entry; a `🤖[fold in]` by the link folds the outcome and marks the link.
+
+## Revisions
+
+- **2026-10-17, plan-quality round 1 (PQ-1).** M3 had assumed a rollback that the archive paths don't have, and it missed push's interrupted-archive recovery and the trunk retry and successor branches. M3 now follows the asset archive's four stages (prepare, a shared finisher, recovery, verify), lists archive paths (a) to (f), and tests a resumed interrupted archive. The test steps now give one strategy line per risk. The landing order with parley.nvim#373 is stated, and the Couch `write --all` claim names its evidence.
