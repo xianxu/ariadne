@@ -244,6 +244,8 @@ func verbName(k intent.Kind) string {
 		return "prose"
 	case intent.Skill:
 		return "skill"
+	case intent.Ship:
+		return "ship"
 	default:
 		return "?"
 	}
