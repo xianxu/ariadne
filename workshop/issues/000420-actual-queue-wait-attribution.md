@@ -39,3 +39,5 @@ Investigate how native task spans and frequent assistant/tool polling turn queue
 ## Log
 
 - Found while closing #416; independent of its queue-helper lifecycle fix. The close prints active-time-v3-engagement-v1 and 2 admitted sessions, with the complete attribution segment covering the wait-heavy window.
+
+- TL decision, 2026-10-16 (receipt b6986b85-dc38-4def-a646-346c65ee6726): queue waiting is not active work; actuals should exclude recorded queue_seconds by subtracting those measured intervals, not guessing replacement hours. The issue stays unassigned. Implementation must handle overlap with real work honestly as described above.
