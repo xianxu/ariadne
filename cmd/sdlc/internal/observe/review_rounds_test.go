@@ -18,13 +18,14 @@ func TestReviewRoundsSelectCompletionOrLatest(t *testing.T) {
 		round, history                      int
 	}{
 		{"latest", "working", first + second, "SHIP", "base.." + head, 2, 1},
+		{"stale absent", "working", first + second, "SHIP", "base.." + head, 2, 1},
 		{"bound", "codecomplete", first + second + third, "SHIP", "base.." + head, 2, 2},
 		{"stale bound", "codecomplete", first + second + third, "SHIP", "base.." + head, 2, 2},
 		{"latest can rework", "working", first + second + third, "REWORK", "base..later", 3, 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			in := base(card(t, tc.status, &me, false))
-			if tc.name == "stale bound" {
+			if strings.HasPrefix(tc.name, "stale") {
 				in.TrackerStale = true
 				in.TrackerErr = errors.New("offline")
 			}

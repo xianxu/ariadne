@@ -47,6 +47,8 @@ A reader of `issue show`, whether the TL, the operator or an agent deciding whet
 - [x] Select the completion-bound entry (latest without completion), using ledger round numbers when available; preserve legacy sidecars and explicit unknown reads.
 - [x] Verify text/JSON through the collector and archived evidence and run the recorded suite; proceed to the close/landing gates on this evidence.
 
+- [x] BR-1: separate binding presence from freshness and verify all four fresh/stale × present/absent cases.
+
 ## Log
 
 ### 2026-10-17
@@ -68,6 +70,8 @@ A reader of `issue show`, whether the TL, the operator or an agent deciding whet
 - Main advanced with #422 during the integrated suite. Merged it cleanly; a third recorded suite will verify current main. TL has coordinated a hold on main writes through #423 landing to prevent another drift cycle. Actual preview now says 1.49h, including the queue-polling interval tracked by #420; do not adopt that as focused work or hand-subtract an unbound wait.
 
 - Final integrated suite c896f6a83d2fce9a92d66e0558871d4d passed on bfcfa3954220dcaa401c095717a5f73f8a632393: 12 shards over 1547 cmd/sdlc tests, 66 other packages, 533.026s wall, 1254.843s queued; log SHA256 131323a7722899993361ed4e6ffe854d8bb0ffb3c6633870f14c8840d5fbfb90. This includes current main (#421 and #422). Close records actual_hours N/A via the precise no-actual acknowledgment: preview had expanded from 0.16h to 1.49h while queue polling bridged idle time (#420); adopting that sample or hand-subtracting waits without retained ownership provenance would misstate focused work. No numeric actual is invented.
+
+- BR-1 RED: stale absent case returned unknown with an empty completion head. GREEN after checking the parsed token as well as valued read quality: full observe package and targeted collector/writer tests pass (43.977s). Four-case matrix covers both stale-with-binding and stale-without-binding through the shared text/JSON selection. Added the read-quality/presence lesson. Waiting only for #420 to land, per TL correction; integrate it before the next recorded suite, then re-close.
 
 ## Revisions
 

@@ -183,7 +183,7 @@ func assembleCheckpoints(in Inputs, c Card) Checkpoints {
 		r := review(boundary, art, expected[boundary], ev.Source)
 		if boundary == "close" && art.Found && art.SidecarErr == nil && art.LedgerErr == nil {
 			comp := assembleCompletion(in, c)
-			if valued(comp.Read) {
+			if valued(comp.Read) && comp.Token != "" {
 				entries := append(append([]Review{}, r.History...), r)
 				found := false
 				for i := len(entries) - 1; i >= 0; i-- {
