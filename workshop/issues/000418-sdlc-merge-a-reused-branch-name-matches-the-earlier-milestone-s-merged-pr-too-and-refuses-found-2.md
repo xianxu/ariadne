@@ -50,6 +50,7 @@ Rule: match only PRs whose head is this branch's current head, or that are OPEN.
 ## Log
 
 ### 2026-10-16
+- 2026-10-16: closed — BR-1 corrected: current Done when now matches TL-accepted live PR selection, original criterion preserved in Revisions. Fake-GitHub regressions red then green across fresh, retry, recovery, delayed registration and queued landing; two OPEN refuse naming both. Corrected recorded suite passed 1525 SDLC tests plus 66 packages, then integrated-main recorded suite passed 1525 tests plus 66 packages in 493.2s (log sha256:5663b9463967). No code changed since that run. Live pair:2 selected OPEN PR387 beside historical MERGED PR380 and entered its suite; TL accepted this proof and directed continuation. Shared root restored to clean main; all seven binary revisions verified modified=false. Atlas and lessons updated.; review verdict: SHIP
 
 ### 2026-10-16 — bounded diagnosis and plan
 
