@@ -33,7 +33,7 @@ type ArtifactFacts struct {
 	SidecarErr   error
 	OpenBlocking int
 	LedgerErr    error
-	Rounds       map[string]int // ledger timestamp -> boundary round number
+	Rounds       map[string][]int // ledger timestamp -> boundary round numbers in append order
 }
 
 // Evidence is where checkpoints are read: the issue branch's committed tree
@@ -183,7 +183,7 @@ func assembleCheckpoints(in Inputs, c Card) Checkpoints {
 		r := review(boundary, art, expected[boundary], ev.Source)
 		if boundary == "close" && art.Found && art.SidecarErr == nil && art.LedgerErr == nil {
 			comp := assembleCompletion(in, c)
-			if comp.State == Present {
+			if valued(comp.Read) {
 				entries := append(append([]Review{}, r.History...), r)
 				found := false
 				for i := len(entries) - 1; i >= 0; i-- {
@@ -234,20 +234,25 @@ func review(boundary string, a ArtifactFacts, expected bool, source string) Revi
 		r.Read = Read{State: Absent, Source: source}
 	default:
 		parts := sidecarEntryRE.Split(markdoc.StripFenced(a.Sidecar), -1)
+		used := map[string]int{}
+		number := func(at string, fallback int) int {
+			ns, i := a.Rounds[at], used[at]
+			used[at]++
+			if i < len(ns) {
+				return ns[i]
+			}
+			return fallback
+		}
 		for i, part := range parts[:len(parts)-1] {
 			prior := review(boundary, ArtifactFacts{Found: true, Sidecar: part}, false, source)
 			prior.Round = i + 1
 			prior.Relation = "earlier"
-			if n := a.Rounds[prior.At]; n != 0 {
-				prior.Round = n
-			}
+			prior.Round = number(prior.At, prior.Round)
 			r.History = append(r.History, prior)
 		}
 		rows := sidecarRows(parts[len(parts)-1])
 		r.Round = len(parts)
-		if n := a.Rounds[rows["timestamp"]]; n != 0 {
-			r.Round = n
-		}
+		r.Round = number(rows["timestamp"], r.Round)
 		r.Read = Read{State: Present, Source: source}
 		r.Window, r.At = rows["window"], rows["timestamp"]
 		switch v := strings.TrimSpace(rows["verdict"]); {

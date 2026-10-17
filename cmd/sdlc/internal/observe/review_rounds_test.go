@@ -3,6 +3,7 @@ package observe
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -18,10 +19,15 @@ func TestReviewRoundsSelectCompletionOrLatest(t *testing.T) {
 	}{
 		{"latest", "working", first + second, "SHIP", "base.." + head, 2, 1},
 		{"bound", "codecomplete", first + second + third, "SHIP", "base.." + head, 2, 2},
+		{"stale bound", "codecomplete", first + second + third, "SHIP", "base.." + head, 2, 2},
 		{"latest can rework", "working", first + second + third, "REWORK", "base..later", 3, 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			in := base(card(t, tc.status, &me, false))
+			if tc.name == "stale bound" {
+				in.TrackerStale = true
+				in.TrackerErr = errors.New("offline")
+			}
 			in.Evidence = Evidence{Source: "branch:plans", Details: details(""), Artifacts: map[string]ArtifactFacts{"close": {Found: true, Sidecar: tc.text}}}
 			o := Assemble(in)
 			r, _ := reviewFor(o, "close")
@@ -84,7 +90,7 @@ func TestReviewRoundsKeepLedgerNumberAndCurrentFindings(t *testing.T) {
 	in := base(card(t, "codecomplete", &me, false))
 	first := sidecar("SHIP", "base.."+strings.Repeat("a", 40))
 	second := "\n---\n\n## Re-review — later\n\n" + strings.TrimPrefix(strings.ReplaceAll(sidecar("REWORK", "base..later"), "08:30:00", "09:30:00"), "# Boundary Review\n\n")
-	in.Evidence = Evidence{Source: "branch:plans", Details: details(""), Artifacts: map[string]ArtifactFacts{"close": {Found: true, Sidecar: first + second, OpenBlocking: 1, Rounds: map[string]int{"2026-10-02T08:30:00-07:00": 4, "2026-10-02T09:30:00-07:00": 6}}}}
+	in.Evidence = Evidence{Source: "branch:plans", Details: details(""), Artifacts: map[string]ArtifactFacts{"close": {Found: true, Sidecar: first + second, OpenBlocking: 1, Rounds: map[string][]int{"2026-10-02T08:30:00-07:00": {4}, "2026-10-02T09:30:00-07:00": {6}}}}}
 	r, _ := reviewFor(Assemble(in), "close")
 	if r.Round != 4 || r.OpenBlocking != 1 || len(r.History) != 1 || r.History[0].Round != 6 || r.History[0].Relation != "later, not completion-bound" {
 		t.Fatalf("lost ledger provenance/current findings: %+v", r)
@@ -96,5 +102,14 @@ func TestReviewRoundsKeepLedgerNumberAndCurrentFindings(t *testing.T) {
 	var back Observation
 	if err := json.Unmarshal(raw, &back); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestReviewRoundsKeepDistinctNumbersWithinOneSecond(t *testing.T) {
+	first := sidecar("REWORK", "base..old")
+	second := "\n---\n\n## Re-review — same second\n\n" + strings.TrimPrefix(sidecar("SHIP", "base..new"), "# Boundary Review\n\n")
+	r := review("close", ArtifactFacts{Found: true, Sidecar: first + second, Rounds: map[string][]int{"2026-10-02T08:30:00-07:00": {4, 6}}}, false, "plans")
+	if r.Round != 6 || len(r.History) != 1 || r.History[0].Round != 4 {
+		t.Fatalf("duplicate timestamp conflated rounds: %+v", r)
 	}
 }
