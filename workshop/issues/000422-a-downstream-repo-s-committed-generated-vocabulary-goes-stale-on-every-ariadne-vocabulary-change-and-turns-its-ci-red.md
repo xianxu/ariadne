@@ -78,7 +78,7 @@ tracks it, and it changes only when the output changes. It is removed when the d
       sidecar, and a changed upstream output → regenerated with the report line; a hand-edited declared output → still
       refused; an undeclared output → refused as today; a warm checkout → unchanged.
 - [x] Atlas: weave ownership and tracked outputs.
-- [ ] parley follow-up proposal to the TL (declaration and sidecar commit).
+- [x] parley follow-up proposal to the TL (declaration and sidecar commit): filed as parley#371 (deps ariadne#422), for the TL to route after landing.
 
 ## Estimate
 
