@@ -1,13 +1,13 @@
 ---
 id: 000428
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '863c8f54b86818c4b81755e51e8c2a8a229ec870' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '169a7e3e0f95e20cddb84dc7b194c5e5e1e8a5b8' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T11:19:16-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "868d4ca2", done: "91934a0e"}
+actual_hours: 0.58
 ---
 
 # Legacy-attempt actuals refusal should name --no-actual (exclude), not 'ask the TL to restore evidence'
