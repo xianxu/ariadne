@@ -166,7 +166,7 @@ func TestStageBuildReportsRevisions(t *testing.T) {
 	t.Cleanup(func() { readBuildInfo = prev })
 	revision := selected
 	readBuildInfo = func(string) (*debug.BuildInfo, error) {
-		return &debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: revision}}}, nil
+		return &debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: revision}, {Key: "vcs.modified", Value: "false"}}}, nil
 	}
 	makefile := filepath.Join(roots[0], "Makefile")
 	if err := os.WriteFile(makefile, []byte("build:\n\tmkdir -p bin && printf x > bin/tool\n"), 0o644); err != nil {
@@ -199,7 +199,7 @@ func TestStageClearRebuildsRestingRevisionAndRetries(t *testing.T) {
 		if err != nil {
 			return nil, err
 		}
-		return &debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: strings.TrimSpace(string(stamp))}}}, nil
+		return &debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: strings.TrimSpace(string(stamp))}, {Key: "vcs.modified", Value: "false"}}}, nil
 	}
 	makefile := filepath.Join(roots[0], "Makefile")
 	if err := os.WriteFile(makefile, []byte("build:\n\tmkdir -p bin && git rev-parse HEAD > bin/tool\n"), 0o644); err != nil {

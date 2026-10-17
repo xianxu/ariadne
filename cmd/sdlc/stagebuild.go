@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"debug/buildinfo"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime/debug"
 	"sort"
 	"strings"
@@ -20,7 +22,13 @@ var readBuildInfo = buildinfo.ReadFile
 // stageBuild runs the checkout's build targets and verifies every resulting Go
 // binary against the checkout commit. Both stage and clear use this contract.
 func stageBuild(ctx context.Context, root, commit string, stdout, stderr io.Writer) error {
-	if err := runStageMake(ctx, root, "build", stderr); err != nil {
+	return stageBuildWithMake(ctx, root, commit, stdout, stderr, runStageMake)
+}
+
+// stageBuildWithMake keeps the external process boundary injectable while the
+// production path and tests share the same sequencing and verification logic.
+func stageBuildWithMake(ctx context.Context, root, commit string, stdout, stderr io.Writer, makeTarget func(context.Context, string, string, io.Writer) error) error {
+	if err := makeTarget(ctx, root, "build", stderr); err != nil {
 		return err
 	}
 	sentinels, err := filepath.Glob(filepath.Join(root, "cmd", "*", ".skip-make-build"))
@@ -48,7 +56,7 @@ func stageBuild(ctx context.Context, root, commit string, stdout, stderr io.Writ
 		command := filepath.Base(filepath.Dir(marker))
 		expected[module+"/cmd/"+command] = "cmd/" + command
 		if target != "" {
-			if err := runStageMake(ctx, root, target, stderr); err != nil {
+			if err := makeTarget(ctx, root, target, stderr); err != nil {
 				return fmt.Errorf("%s: %w", marker, err)
 			}
 		}
@@ -63,7 +71,7 @@ func stageBuild(ctx context.Context, root, commit string, stdout, stderr io.Writ
 		}
 		info, err := readBuildInfo(bin)
 		if err != nil {
-			if !notGoBinary(err) {
+			if !notGoBinary(err) || nativeExecutable(bin) {
 				return fmt.Errorf("%s: build info unreadable: %w", bin, err)
 			}
 			continue
@@ -71,9 +79,9 @@ func stageBuild(ctx context.Context, root, commit string, stdout, stderr io.Writ
 		built++
 		rev, modified := buildRevision(info)
 		rel, _ := filepath.Rel(root, bin)
-		fmt.Fprintf(stdout, "  %s vcs.revision=%s%s\n", rel, orNone(rev), map[bool]string{true: " (modified)"}[modified])
-		if rev != commit || modified {
-			return fmt.Errorf("%s was not built from HEAD %s exactly (vcs.revision=%s, modified=%t)", rel, shortOID(commit), orNone(rev), modified)
+		fmt.Fprintf(stdout, "  %s vcs.revision=%s vcs.modified=%s\n", rel, orNone(rev), orNone(modified))
+		if rev != commit || modified != "false" {
+			return fmt.Errorf("%s was not built from HEAD %s exactly (vcs.revision=%s, vcs.modified=%s)", rel, shortOID(commit), orNone(rev), orNone(modified))
 		}
 		seen[info.Path] = true
 	}
@@ -86,6 +94,26 @@ func stageBuild(ctx context.Context, root, commit string, stdout, stderr io.Writ
 		cinfo(stderr, fmt.Sprintf("`make build` left no Go binaries in %s to verify", filepath.Join(root, "bin")))
 	}
 	return nil
+}
+
+// nativeExecutable recognizes executable container headers even when their
+// build-info payload is corrupt. Scripts and other non-Go files remain outside
+// the Go revision contract.
+func nativeExecutable(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return true // a failed read is not proof that the file is safe to skip
+	}
+	defer f.Close()
+	var prefix [4]byte
+	n, err := io.ReadFull(f, prefix[:])
+	if err != nil && n == 0 {
+		return true
+	}
+	b := prefix[:n]
+	return bytes.HasPrefix(b, []byte("\x7fELF")) || bytes.HasPrefix(b, []byte("MZ")) ||
+		bytes.HasPrefix(b, []byte("\xfe\xed\xfa")) || bytes.HasPrefix(b, []byte("\xcf\xfa\xed\xfe")) ||
+		bytes.HasPrefix(b, []byte("\xca\xfe\xba\xbe")) || bytes.HasPrefix(b, []byte("\xca\xfe\xba\xbf"))
 }
 
 func runStageMake(ctx context.Context, root, target string, stderr io.Writer) error {
@@ -123,7 +151,7 @@ func sentinelBuildTarget(marker string) (string, error) {
 			continue
 		}
 		fields := strings.Fields(strings.TrimPrefix(line, "# stage-build:"))
-		if target != "" || len(fields) != 1 || strings.ContainsAny(fields[0], ";$`|&<>\\") {
+		if target != "" || len(fields) != 1 || !stageTargetName.MatchString(fields[0]) {
 			return "", fmt.Errorf("%s: stage-build must name exactly one Make target", marker)
 		}
 		target = fields[0]
@@ -131,15 +159,17 @@ func sentinelBuildTarget(marker string) (string, error) {
 	return target, nil
 }
 
+var stageTargetName = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_./-]*$`)
+
 // buildRevision is a binary's VCS stamp: the revision and whether the tree
 // was modified (pure).
-func buildRevision(info *debug.BuildInfo) (rev string, modified bool) {
+func buildRevision(info *debug.BuildInfo) (rev, modified string) {
 	for _, s := range info.Settings {
 		switch s.Key {
 		case "vcs.revision":
 			rev = s.Value
 		case "vcs.modified":
-			modified = s.Value == "true"
+			modified = s.Value
 		}
 	}
 	return rev, modified

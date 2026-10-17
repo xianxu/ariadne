@@ -98,9 +98,12 @@ commit**. The slot keeps its branch, keeps working, re-stages each new head the
 same way, and closes and lands from its own slot; landing never needs `:0`
 cleared. The behaviour:
 - **Build check:** `--build` runs the target's `make build`, then any owner
-  targets declared by `cmd/*/.skip-make-build` with `# stage-build: <target>`.
-  It prints each `bin/*` Go binary's `vcs.revision` and refuses a missing,
-  modified or mismatched stamp, naming the binary. Each sentinel command must
+  targets declared by `cmd/*/.skip-make-build` with `# stage-build: <target>`;
+  the declaration accepts a simple Make target name, not an option or variable
+  assignment. It prints each `bin/*` Go binary's `vcs.revision` and refuses a
+  missing, malformed, modified or mismatched stamp, naming the binary. A native
+  executable with unreadable build info also refuses; scripts are skipped.
+  Each sentinel command must
   have a verified output, even when its binary name differs from the source
   directory. `--clear` runs that same build check against the resting HEAD;
   repeating it repairs a failed post-switch rebuild.

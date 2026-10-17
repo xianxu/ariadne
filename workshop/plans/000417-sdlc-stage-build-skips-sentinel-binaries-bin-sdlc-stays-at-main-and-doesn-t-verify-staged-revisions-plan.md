@@ -8,14 +8,15 @@
 
 ## Concepts and integration points
 
-| Name | Lives in | Status |
-|------|----------|--------|
-| Sentinel build declaration | `cmd/<name>/.skip-make-build` | modified |
-| Stage build verification | `cmd/sdlc/stagebuild.go` | modified |
+| Name | Kind | Lives in | Status |
+|------|------|----------|--------|
+| Sentinel build declaration and parser | PURE | `cmd/<name>/.skip-make-build`, `cmd/sdlc/stagebuild.go` | modified |
+| Stage build orchestration | INTEGRATION | `cmd/sdlc/stagebuild.go` | modified |
+| Build revision validation | PURE | `cmd/sdlc/stagebuild.go` | modified |
 
 The sentinel is already the opt-out from the generic scanner. A `stage-build` declaration adds only the Make target that owns its special build; it does not duplicate a build recipe. An older sentinel with no declaration remains valid when the generic `make build` itself produced a matching, current binary (for example a Makefile.local target with a differently named output). Otherwise stage refuses and names the source command, asking for an explicit target. No shell is used to execute a declaration: accept exactly one Make target token and pass it as an argv element. This keeps the marker data, not code.
 
-The final scan treats scripts and non-Go executables as outside the VCS-stamp contract, but an unreadable Go build-info candidate cannot be waved through. A Go binary in `bin/*` must have `vcs.revision == staged HEAD` and `vcs.modified == false`. A sentinel's main package must occur as one verified binary's build-info `Path`; `bin/pair` can thus satisfy `cmd/pair-go`. If no Go binaries exist and no sentinel main packages exist, preserve the existing informational no-op for non-Go repositories.
+The final scan treats scripts and non-executable data as outside the VCS-stamp contract. A native executable with unreadable build info refuses, because corrupt Go metadata cannot safely be distinguished from a native non-Go binary at this boundary. A Go binary in `bin/*` must have `vcs.revision == staged HEAD` and an explicit `vcs.modified == false`. A sentinel's main package must occur as one verified binary's build-info `Path`; `bin/pair` can thus satisfy `cmd/pair-go`. If no Go binaries exist and no sentinel main packages exist, preserve the existing informational no-op for non-Go repositories.
 
 The stage switch and record remain intact on build or verification failure. Clear first switches to the resting branch, then uses the same build-and-verify path against its resting HEAD; a failed clear can be retried even though the target is already resting. The return error names the offending binary or sentinel and expected commit. No new durable files or ledgers are created (ARCH-FUNERAL). This changes only the stage gate; it does not alter protected close or merge gates (ARCH-PURPOSE, ARCH-ORDER). Target execution is bounded by the finite checked-out `cmd/*` set and the Make process, as existing `make build` is (ARCH-CONSTRAINTS).
 
@@ -50,3 +51,4 @@ The TL requested the close review before the live check while #418 holds ariadne
 
 - 2026-10-16 19:45 PDT — TL approved the sentinel and refusal design and added the reverse transition: `stage --clear` must rebuild the resting binaries and reuse the same revision check, including an already-resting retry. Add the clear fixture and call site; no separate verifier.
 - 2026-10-16 — Full suite passed; TL requested the close review while #418 still holds ariadne:0. Move the live check after the review and before landing, with a fresh :0 grant.
+- 2026-10-16 — Boundary review found incomplete evidence validation and untrusted Make arguments. Require an explicit `vcs.modified=false`, fail closed for native executable files whose Go metadata is unreadable, and accept only simple Make target names in sentinel declarations. Extract the Make invocation as an injected boundary; test the generic→owner→verify sequence, failures and retry with a stateful fake, while retaining a real-Make conformance fixture. Add README usage and recovery guidance. These corrections preserve the same stage/clear contract (ARCH-PURPOSE, ARCH-MOCK, ARCH-SECURE).
