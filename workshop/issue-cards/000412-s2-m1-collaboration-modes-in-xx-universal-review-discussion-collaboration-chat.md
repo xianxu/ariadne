@@ -1,6 +1,6 @@
 ---
 id: 000412
-status: working
+status: codecomplete
 created: 2026-10-16
 updated: 2026-10-16
 estimate_hours: 4.33
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.97
+tracker:
+    version: 1
+    completion:
+        token: close-391fd8eafa25
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 6fec11e686a4fa6b3ac37980884247ea46258ec8
+        evidence_commit: 9f9027ec5484eb9d84e6fb428c137eb9daadc4d8
 ---
 
 # S2 M1: collaboration modes in xx-universal-review (discussion, collaboration, chat)
