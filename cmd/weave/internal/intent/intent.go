@@ -43,6 +43,11 @@ const (
 	// Skill — a skill directory aggregated into the agent-agnostic skill
 	// index. New in weave; serving deferred to M3.
 	Skill
+	// Ship — a generated output the repository commits on purpose (a plugin's
+	// shipped vocabulary, #422). A declaration with no filesystem action: weave
+	// writes a committed digest sidecar beside the output, and an output that
+	// matches its sidecar is weave's own even in a cold checkout.
+	Ship
 )
 
 // Visibility is the composition-algebra axis (workshop/targets/weave-composition-
