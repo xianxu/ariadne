@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.22
+actual_hours: 0.55
 tracker:
     version: 1
     completion:
-        token: close-a64845c2bd4b
+        token: close-d3f65789b4ae
         repository: github.com/xianxu/ariadne
-        reviewed_head: 21ba3b6c13b4123a639a58666228c4764436ee22
-        evidence_commit: 95fd233e3ab7529ae9571bf9c053e266fe9adcbc
+        reviewed_head: c812b6e5e3756aa302676ecfb1f576a791ac0287
+        evidence_commit: ef03e6759b537ca0312da794763085c9a597cef3
 ---
 
 # S2 M2: every managed document type declares a default collaboration-mode
