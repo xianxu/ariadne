@@ -350,6 +350,7 @@ func landingAssetRelated(name string, selected []landingOwnedIssue, dirs landing
 	}
 	return false
 }
+
 // landingSideRelated reports whether name lies in the side folder of a
 // selected issue or of one of its plan documents, active or archived (#424).
 func landingSideRelated(name string, selected []landingOwnedIssue, dirs landingArchiveRoots) bool {
