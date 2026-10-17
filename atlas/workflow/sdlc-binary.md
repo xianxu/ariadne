@@ -1877,6 +1877,17 @@ the kernel closes the pipe, and the slot is freed as well. A rerun in the same
 takes a ticket like any other waiter. The suite's `WF_TEST_LOCK_HELD_BY` is the
 holder's pid, so its nested `make test` passes through.
 
+Queued cancellation follows the same lifecycle (#416). The runner owns
+SIGINT/SIGTERM shutdown only during queue acquisition and suite execution:
+it cancels its helper group and reaps the holder, restoring default signal
+handling before result bookkeeping. Git/network preparation retains default
+termination as well. Detached checkout cleanup uses independent bounded Git
+recovery IO. If the runner dies without unwinding,
+the holder's pipe closes; the queued helper checks its watched PID before
+admission and on each one-second queue poll, exits when it is gone, and
+releases its own ticket. A killed helper's unlocked ticket is pruned by the
+next waiter. Neither path discovers or stops another run (#400).
+
 **Weighted suites (#346).** A suite heavier than one slot declares its weight:
 `WF_TEST_WEIGHT ?= N` in the repo's root Makefile, before `Makefile.workflow`
 is included. The default is 1. ariadne declares 2, because its sharded suite
