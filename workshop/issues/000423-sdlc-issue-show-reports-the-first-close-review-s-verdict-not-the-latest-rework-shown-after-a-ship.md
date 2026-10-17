@@ -1,13 +1,13 @@
 ---
 id: 000423
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours: 1.05
 collaboration-mode: collaboration
-card_mirror: '33c22e1e0e6ee6d778fceb1469415f3d2b9e3591' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '8bb316ae61a9983e31425c5322de5d8e4918f4ff' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T02:22:23-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: N/A
 ---
 
 # sdlc issue show reports the first close review's verdict, not the latest (REWORK shown after a SHIP)
