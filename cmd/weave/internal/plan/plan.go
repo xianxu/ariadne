@@ -131,6 +131,9 @@ func Plan(layers []layer.Layer, entryFiles []string) ([]Action, error) {
 			case intent.Skill:
 				// TODO(M3): feeds the SkillIndex (agent-agnostic skill serving),
 				// not the filesystem-op list. No Action here.
+			case intent.Ship:
+				// A declaration over generated outputs (ShippedPaths, ShipStaged);
+				// no Action of its own.
 			}
 		}
 	}

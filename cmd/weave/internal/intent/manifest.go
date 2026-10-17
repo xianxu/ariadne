@@ -19,6 +19,7 @@ var kindByVerb = map[string]Kind{
 	"merge":     Merge,
 	"prose":     Prose,
 	"skill":     Skill,
+	"ship":      Ship,
 }
 
 // visByToken maps the OPTIONAL leading visibility token to its Visibility. A row

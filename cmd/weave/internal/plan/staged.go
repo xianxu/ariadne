@@ -14,7 +14,11 @@ import (
 // stagedOutput requires proven ownership before replacing an occupied slot,
 // including a cold compile with no previous inventory. ApplyManaged unwraps it
 // only after recording this policy; ordinary composition retains migration rules.
-type stagedOutput struct{ Action }
+// Sidecar, when set, names a shipped output's committed digest (shipped.go).
+type stagedOutput struct {
+	Action
+	Sidecar string
+}
 
 func outputAction(action Action) Action {
 	if staged, ok := action.(stagedOutput); ok {
@@ -112,7 +116,7 @@ func StagedActions(fs weavefs.FS, root, stageDir, outputRel string) ([]Action, e
 				} else if !filepath.IsAbs(target) || targetWithinAnyRoot(resolved, []string{filepath.Join(root, filepath.Dir(InventoryPath))}) {
 					return fmt.Errorf("generated link %s escapes staging output", path)
 				}
-				actions = append(actions, stagedOutput{Symlink{Src: resolved, Dst: dest}})
+				actions = append(actions, stagedOutput{Action: Symlink{Src: resolved, Dst: dest}})
 			case info.IsDir():
 				if err := visit(path); err != nil {
 					return err
@@ -123,7 +127,7 @@ func StagedActions(fs weavefs.FS, root, stageDir, outputRel string) ([]Action, e
 					return err
 				}
 				mode := info.Mode().Perm()
-				actions = append(actions, stagedOutput{WriteFile{Path: dest, Content: string(content), Mode: &mode}})
+				actions = append(actions, stagedOutput{Action: WriteFile{Path: dest, Content: string(content), Mode: &mode}})
 			default:
 				return fmt.Errorf("unsupported staged output type: %s", source)
 			}
