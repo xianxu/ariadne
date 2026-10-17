@@ -301,3 +301,78 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"2aaa082b-6e39-4a43-967a-2e206e39407b","repository":"github.com/xianxu/ariadne","issue_id":"000412","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/1676c00243d2f2c8","reviewed_head":"e123c3ca7429ac6e50381f13a646c024a08ea631","slot":"ariadne:2","requested_at":"2026-10-17T00:04:39.693039Z"},"phase":"finished","pid":26230,"started_at":"2026-10-17T00:04:39.893494Z","finished_at":"2026-10-17T00:06:56.755001Z","session_id":"e99fcf6d-5336-48db-94dd-b43f505f70d6","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-16T17:11:58-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 412 — S2 M1: collaboration modes in xx-universal-review (discussion, collaboration, chat) |
+| repo | ariadne |
+| issue file | workshop/issues/000412-s2-m1-collaboration-modes-in-xx-universal-review-discussion-collaboration-chat.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 35ba24e6cad39344c347af981de7ac8fcc1d1c31..6fec11e686a4fa6b3ac37980884247ea46258ec8 |
+| command | sdlc close --issue 412 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-16T17:11:58-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I've confirmed the BR-6 fix: undoing it makes two tests fail. Next I'm checking for stale comments and leftover old "closing note" uses in the examples.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Verdict: SHIP.** The BR-6 fix is real, it is applied in both places that define the rule, and a test catches it if it is removed. The skill (`collaboration-modes.md:124-126`) and the parser (`cmd/tl-lead/instructions.go:94-98`) now agree: a `→ [answer](…)` at the end of any of an item's lines outside fenced code makes the item linked. A follow-up added later (row 14) leaves it linked. I undid the parser change in the review checkout and two tests failed. `TestInstructionBulletsReadTheChatExample` reported items 1–3 open instead of 1–2, and item 3 open in `after/`, which is the double-link BR-6 described. With the fix back in place, `go test ./cmd/tl-lead/ ./pkg/reviewexport/` passes. The same commit also adds the "Decided (operator)" one-line record for decisions. That change is in scope: the plan's `## Revisions` lists it (plan:283-290), and it comes with row 20, the `discussion-decision` example, and checker updates. Nothing blocks. The only finding is one stale test comment.
+
+1. **Strengths**
+   - `cmd/tl-lead/instructions_test.go:222-245` makes tl-lead parse the skill's own chat example (both `before/` and `after/`). This links the parser to the reference example, so the two can't drift apart. That is the class-level fix for the `spec-contradicts-own-example` and `cited-rule-restated-divergently` families, not just a patch for this one case.
+   - The edge-case test now covers a link inside a fence that must not count as an answer (`instructions_test.go:88-90`, `bs[0].Answered == false`). The fence exclusion is pinned, not just implemented.
+   - A sweep for wording left over from the old rule ("last line" as the linked test, "Folded into the parent", "closing note") finds no stale copies in the skill, atlas, checker or examples. The remaining "last line" mentions only say where a link is *appended*, which is correct.
+   - The atlas (`atlas/workflow/universal-review.md`) was updated in the same commit for the Decided line and for the example count going to twelve.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - `cmd/tl-lead/instructions_test.go:84-85`: the old comment "only a link ending the bullet's last line answers it" is still there, directly above the new comment that says the opposite. Delete the two old lines.
+
+5. **Test coverage notes:** BR-6 now has a regression test in two forms: a synthetic edge case and the real chat example. Reverting the fix turns both red. The fold-mark check in `examples_test.go` now looks for the new Decided-line wording, and `TestCheckCaseCatches` still includes the case that should trigger it.
+
+6. **Architecture**
+   - **ARCH-DRY:** pass. There is one linked rule, and the example test holds the parser to it.
+   - **ARCH-PURE:** pass. `instructionBullets` is a pure function, tested without IO apart from reading the example file.
+   - **ARCH-PURPOSE:** pass. The fix covers both the skill and the parser, and the class is enforced through the example.
+   - **ARCH-MOCK:** pass. No new external calls; writes still go through the existing adapter and the faked lock.
+   - **ARCH-CONSTRAINTS:** pass. Parsing is linear in the section's line count, and sections are small.
+   - **ARCH-SECURE:** pass. Operator-edited markdown is parsed into typed bullets, and an already-linked bullet is refused (`errAlreadyLinked`), not double-written.
+   - **ARCH-ORDER:** pass. The retry path (row 18, plus step 4's "folded today, approval still present") is written as explicit state checks.
+   - **ARCH-FUNERAL:** pass. Side docs are never pruned by design, and orphans are named in the reply.
+
+7. **Plan revision recommendations:** none. The Revisions section already records the Decided-line change.
+
+```findings
+dispose:
+  - id: BR-6
+    disposition: addressed
+    note: |
+      instructions.go:94-98 + collaboration-modes.md:124-126 now link on any non-fenced line; reverting the parser makes TestInstructionBulletsAreChatItems and TestInstructionBulletsReadTheChatExample fail (open 1-3 / after item 3 open); restored, suite green.
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: cited-rule-restated-divergently
+    title: |
+      Stale test comment still states the old last-line rule
+    detail: |
+      cmd/tl-lead/instructions_test.go:84-85 still says only a link ending the bullet's last line answers it, directly above the new comment saying any line does. Delete the stale two lines.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"b5b9ed1f-8e13-41cd-a135-19b40c710dfd","repository":"github.com/xianxu/ariadne","issue_id":"000412","recipe":"milestone-review","round":4,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/ef3323cd3bb5078b","reviewed_head":"6fec11e686a4fa6b3ac37980884247ea46258ec8","slot":"ariadne:2","requested_at":"2026-10-17T00:10:19.464592Z"},"phase":"finished","pid":4003,"started_at":"2026-10-17T00:10:19.761703Z","finished_at":"2026-10-17T00:11:30.2375Z","session_id":"6da505a9-d2e3-43ce-a7aa-58fc98f299b4","outcome":"returned"}] -->
