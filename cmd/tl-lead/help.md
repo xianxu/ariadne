@@ -216,8 +216,10 @@ TALKING TO THE OPERATOR
   - Every write stamps its section's first line, `_updated YYYY-MM-DD HH:MM_`
     (not Operator instructions). The operator may delete a stamp; the next
     write puts it back. `tl-lead status check FILE` lists the stale sections:
-    Threads and Slots after 2 h or once a fleet repository's origin/main is
-    newer than the stamp (local refs: as fresh as your last fetch), Quota
+    Threads and Slots after 2 h or once a fleet repository's newest first-parent merge
+    on origin/main is newer than the stamp (local refs: as fresh as your last
+    fetch). Direct filing, publish, archive and tick commits do not count; the
+    stale message names the repository, merge hash and time. Quota
     after 12 h, Needs you only when unstamped. `submit`, `owed` and every
     write end with the same lines, so each event shows what is stale: refresh
     it in that turn, or queue it if the operator holds the lock.

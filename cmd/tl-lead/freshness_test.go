@@ -96,15 +96,15 @@ func TestStatusCheck(t *testing.T) {
 	})
 	file, _ := statusFile(t, "")
 	land := func(string) (Landing, error) {
-		return Landing{Repo: "pair", At: time.Date(2026, 10, 16, 16, 55, 0, 0, time.Local)}, nil
+		return Landing{Repo: "pair", Commit: "0123456789abcdef", At: time.Date(2026, 10, 16, 16, 55, 0, 0, time.Local)}, nil
 	}
 	d := deps{ss: f, now: fixedNow, landing: land}
 	out, err := run(t, d, "status", "check", file)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "stale: ## Threads (updated 10-16 14:00; 3h05m old, budget 2h; pair landed 10-16 16:55)\n" +
-		"stale: ## Slots (updated 10-16 16:30; pair landed 10-16 16:55)\n"
+	want := "stale: ## Threads (updated 10-16 14:00; 3h05m old, budget 2h; pair merge 0123456789ab landed 10-16 16:55)\n" +
+		"stale: ## Slots (updated 10-16 16:30; pair merge 0123456789ab landed 10-16 16:55)\n"
 	if out != want {
 		t.Errorf("check:\n%s\nwant:\n%s", out, want)
 	}
@@ -123,12 +123,11 @@ func TestStatusCheck(t *testing.T) {
 	}
 }
 
-// The landing source reads origin/main in the SDLC repositories beside the
-// status file's (from local refs) and skips a brain and a non-SDLC directory,
-// however new their commits.
+// The landing source selects actual mainline merges, ignoring direct main
+// publications and merges made inside an issue branch before it was landed.
 func TestGitNewestLanding(t *testing.T) {
 	parent := t.TempDir()
-	repo := func(name string, unix int64, marks ...string) {
+	makeRepo := func(name string, marks ...string) (string, func(int64, string, ...string) string) {
 		t.Helper()
 		dir := filepath.Join(parent, name)
 		for _, m := range append(marks, ".") {
@@ -136,30 +135,89 @@ func TestGitNewestLanding(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		date := fmt.Sprintf("@%d +0000", unix)
-		for _, args := range [][]string{
-			{"init", "-q"},
-			{"-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x"},
-			{"update-ref", "refs/remotes/origin/main", "HEAD"},
-		} {
+		runGit := func(unix int64, args ...string) string {
+			t.Helper()
 			cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
-			cmd.Env = append(os.Environ(), "GIT_COMMITTER_DATE="+date, "GIT_AUTHOR_DATE="+date)
-			if out, err := cmd.CombinedOutput(); err != nil {
+			date := fmt.Sprintf("@%d +0000", unix)
+			cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull,
+				"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t", "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t",
+				"GIT_COMMITTER_DATE="+date, "GIT_AUTHOR_DATE="+date)
+			out, err := cmd.CombinedOutput()
+			if err != nil {
 				t.Fatalf("git %v: %v\n%s", args, err, out)
 			}
+			return strings.TrimSpace(string(out))
+		}
+		runGit(1, "init", "-q")
+		tree := runGit(1, "write-tree")
+		return dir, func(unix int64, message string, parents ...string) string {
+			t.Helper()
+			args := []string{"commit-tree", tree, "-m", message}
+			for _, p := range parents {
+				args = append(args, "-p", p)
+			}
+			head := runGit(unix, args...)
+			runGit(unix, "update-ref", "refs/remotes/origin/main", head)
+			return head
 		}
 	}
-	repo("ops", 3000, "teams")
-	repo("ariadne", 1000, "workshop/issues")
-	repo("pair", 2000, "workshop/issues")
-	repo("brain", 9000, "workshop/issues", ".brain")
-	repo("notes", 9000)
-	got, err := gitNewestLanding(filepath.Join(parent, "ops", "teams", "tl-status-op.md"))
+	_, _ = makeRepo("ops", "teams")
+	file := filepath.Join(parent, "ops", "teams", "tl-status-op.md")
+	_, direct := makeRepo("direct", "workshop/issues")
+	base := direct(500, "initial")
+	for i, msg := range []string{"#1: issue: new", "#1: issue: publish", "archive completed issues to history", "project: tick", "Merge pull request #99"} {
+		base = direct(int64(9000+i), msg, base)
+	}
+	if got, err := gitNewestLanding(file); err != nil || !got.At.IsZero() {
+		t.Fatalf("without a merged PR: %+v, %v; want no landing", got, err)
+	}
+	for _, name := range []string{"ariadne", "pair", "brain", "notes", "missing-ref"} {
+		marks := []string{"workshop/issues"}
+		if name == "brain" {
+			marks = append(marks, ".brain")
+		}
+		if name == "notes" {
+			marks = nil
+		}
+		_, commit := makeRepo(name, marks...)
+		if name == "missing-ref" {
+			continue
+		}
+		root := commit(500, "initial")
+		main := commit(600, "main", root)
+		branch := commit(700, "issue", root)
+		// Deliberately newer nested merge: it must not become the landing.
+		nested := commit(10000, "merge main into issue", branch, main)
+		at := int64(1000)
+		if name == "pair" {
+			at = 2000
+		}
+		if name == "brain" || name == "notes" {
+			at = 11000
+		}
+		merge := commit(at, "Merge pull request #42", main, nested)
+		commit(12000, "archive completed issues to history", merge)
+	}
+	got, err := gitNewestLanding(file)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got.Repo != "pair" || got.At.Unix() != 2000 {
-		t.Errorf("newest landing = %+v, want pair at 2000", got)
+		t.Fatalf("newest landing = %+v, want pair at 2000", got)
+	}
+	merge, err := git(filepath.Join(parent, "pair"), "rev-parse", "refs/remotes/origin/main^")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := newFake(map[string]string{"Slots": "_updated " + time.Unix(1000, 0).Format("2006-01-02 15:04") + "_\n\nbody"})
+	out, err := run(t, deps{ss: f, now: func() time.Time { return time.Unix(2001, 0) }, landing: gitNewestLanding}, "status", "check", file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"pair", merge[:12], got.At.Format("01-02 15:04")} {
+		if !strings.Contains(out, want) {
+			t.Errorf("stale diagnostic lacks %q: %s", want, out)
+		}
 	}
 }
 
@@ -170,7 +228,7 @@ func TestStatusCheckEdges(t *testing.T) {
 	f := newFake(map[string]string{"Slots": "\n_updated 2026-10-16 17:05_\n\nbody"})
 	file, _ := statusFile(t, "")
 	sameMinute := func(string) (Landing, error) {
-		return Landing{Repo: "pair", At: time.Date(2026, 10, 16, 17, 5, 40, 0, time.Local)}, nil
+		return Landing{Repo: "pair", Commit: "0123456789abcdef", At: time.Date(2026, 10, 16, 17, 5, 40, 0, time.Local)}, nil
 	}
 	if got := staleLines(deps{ss: f, now: fixedNow, landing: sameMinute}, file); len(got) != 0 {
 		t.Errorf("a landing in the stamp's minute: %q", got)
@@ -194,4 +252,15 @@ func (r failingRead) ReadSection(file, heading string) (string, string, error) {
 		return "", "", fmt.Errorf("couch: timed out")
 	}
 	return r.fakeSessionSync.ReadSection(file, heading)
+}
+
+func TestLandingHelp(t *testing.T) {
+	for _, args := range [][]string{{"--help"}, {"status", "check", "--help"}} {
+		out := helpOutput(t, args...)
+		for _, want := range []string{"first-parent merge", "filing", "merge hash"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("help %v lacks %q", args, want)
+			}
+		}
+	}
 }
