@@ -33,19 +33,19 @@ Together these are 115.85 minutes queued and 19.48 minutes executing suites insi
 
 ## Spec
 
-Investigate how native task spans and frequent assistant/tool polling turn queue idle time into focused dev-hours. Make the metric's treatment of queue waits explicit, preserve genuine overlapping work, and keep raw elapsed/queue evidence separate from focused effort. Repair or exclude affected samples through the existing generation-bound correct-actual path with honest provenance, never guessed numeric replacements.
+Investigate how native task spans and frequent assistant/tool polling turn queue idle time into focused dev-hours. Make the metric's treatment of queue waits explicit: the waiting slot gets zero activity during an exact recorded queue interval. If a non-poll tool call occurs inside that interval, the sample is overlapping work, unmeasured, and excluded from calibration. Keep raw elapsed/queue evidence separate from focused effort. Repair or exclude affected samples through the existing generation-bound correct-actual path with honest provenance, never guessed numeric replacements.
 
 ## Done when
 
-- A deterministic native-transcript regression reproduces a long queued suite with periodic tool polls/status updates and meaningful work overlapping part of the wait.
-- The measurement distinguishes idle queue time from genuine overlapping work according to the documented metric, with retained evidence that supports replay and correction.
+- An exact recorded `queued_at` to `acquired_at` interval removes all attributed activity for its owning slot, including periodic tool polls/status updates. The selected attempt, slot/source binding and interval remain pinned for replay and correction; legacy attempts without exact endpoints stay unknown and cannot calibrate a numeric actual.
+- Any non-poll tool call by the owning slot dispatched inside that interval makes the sample `overlapping work, unmeasured` and excludes it from calibration. A suite invocation dispatched before its own queue begins and ordinary polls do not trigger that refusal. No tool result is decoded to restore queue time. Deterministic native-transcript regressions cover these cases, source isolation, and replay.
 - #416's adopted actual is evaluated by the TL/operator and corrected or explicitly excluded if the sample is invalid; no hand-typed hour estimate is used.
 
 ## Plan
 
 - [x] Pin each eligible suite queue record to this issue's repository, owning slot, engagement and measurement window; retain the exact evidence used by a close or correction.
-- [x] In the native active-time engine, remove queued idle intervals from the owning session's activity while retaining timestamped work inside them; preserve phase splits and uncounted review tails.
-- [x] Cover a polled queue, overlapping live work, duplicate/foreign/missing records and replay with deterministic native-transcript tests; run targeted tests and the recorded suite before close.
+- [ ] In the native active-time engine, remove the entire exact queue interval from the owning slot's activity; refuse measurement if it contains a non-poll tool call. Preserve phase splits and uncounted review tails.
+- [ ] Cover a polled queue, overlapping call refusal, the enclosing suite invocation, duplicate/foreign/missing records and replay with deterministic native-transcript tests; run targeted tests and the recorded suite before close.
 - [x] Re-measure #416 from the corrected implementation and give the TL/operator the measured result and evidence for generation-bound correct-actual or explicit exclusion.
 
 ## Estimate
@@ -97,4 +97,5 @@ Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `
 
 ## Revisions
 
+- 2026-10-17 — TL superseded the result-decoder design after four failed close reviews. Exact queue endpoints remain the source of truth, but no work is credited inside a waiting slot's queue interval. A non-poll tool call dispatched inside it makes that sample `overlapping work, unmeasured`; ordinary polls and the enclosing suite invocation dispatched before the wait do not. This trades sample coverage for a conservative metric without harness-specific result parsing. The two reopened Plan steps and revised Done when are the current contract (ARCH-PURPOSE, ARCH-SECURE).
 - 2026-10-17 — TL clarified that "subtract exactly" means use recorded queue intervals, remove only idle portions, and retain genuinely overlapping work evidenced by transcripts or another task; no estimated replacement hours. This resolves the Spec's overlap question and makes retained queue provenance part of the implementation contract.
