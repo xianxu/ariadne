@@ -46,7 +46,7 @@ Related to, but not covered by, #400 (cancel must stop only your own run).
 - [x] Reproduce queued cancellation and watched-process SIGKILL with private lock files; show the successor is admitted and unrelated holders survive.
 - [x] Reuse CLI signal-context ownership for local-check run, and bound cancellation of its owned helper process group; retain the existing per-run pipe holder.
 - [x] Check the watched process before admission and while queued; leave through the existing ticket cleanup when it is gone.
-- [ ] Run focused cancellation/helper checks, the recorded full suite, close review and CI; merge on SHIP.
+- [ ] Complete focused cancellation/helper checks, the recorded full suite and CI before close review.
 
 ## Log
 
@@ -61,3 +61,12 @@ Related to, but not covered by, #400 (cancel must stop only your own run).
 
 - Live check: TL rebuilt staged ariadne:0 bin/sdlc; go version -m verified vcs.revision=005587765f51a3baf610fd3f70b1bed72f0b1a65, vcs.modified=false. Invoked that binary's real local-check command twice against a local fixture remote with a private flock and GitHub transport stub. SIGINT to the first owned queued runner returned nonzero with context-cancelled diagnostic in 1.014s, reaped its pipe holder, removed its detached worktree, and left only the queued successor's ticket while the unrelated slot remained locked. Releasing that slot admitted the successor, ran its command, and left zero tickets/detached worktrees. Evidence: /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne-416-live-x6esbb2g/{live.py,cancelled.log,successor.log}. Earlier fixture URL/setup attempt failed before queue allocation; no production failure. Stage's skipped binary sentinel is tracked independently as #417.
 - Recorded suite launched on pushed 005587765f51a3baf610fd3f70b1bed72f0b1a65; run d5ecb880e188a182590c4815cf749537, detached sdlc-local-2369331256. Awaiting weighted FIFO admission; no gate bypass or peer cancellation.
+
+- Recorded suite PASS on 005587765f51a3baf610fd3f70b1bed72f0b1a65: 12 shards / 1,524 cmd/sdlc tests plus 66 other packages, all exit 0, zero failures, wall 532.8s (8m53s). GitHub sdlc-local/suite recorded; saved log .git/sdlc/local-checks/005587765f51a3baf610fd3f70b1bed72f0b1a65/suite.log, SHA256 prefix 61836047642c. New queued-signal regression passed under suite load.
+- Merged current origin/main (aa856d15a3b5037eab593919a089578df56f2a4f), including #414's independent tl-lead implementation, without conflicts. The required suite must run again for this integrated code generation; the prior pass is retained, not reused across code changes.
+
+## Revisions
+
+### 2026-10-16 — pre-close checklist wording
+
+Clarify the final Plan checkbox as pre-close verification only. Close review and merge remain subsequent binary-owned gates, so checking the implementation plan does not falsely claim those future actions are already complete. No behavior or acceptance change.
