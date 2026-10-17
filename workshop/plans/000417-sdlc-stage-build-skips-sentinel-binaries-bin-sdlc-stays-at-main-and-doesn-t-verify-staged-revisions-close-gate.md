@@ -177,6 +177,93 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: cc596950-4998-4c2e-a750-66520c7caf77
+            repository: github.com/xianxu/ariadne
+            issue_id: "000417"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/a45d4bf521a8f985
+            reviewed_head: a7f66f308e6a2e5348d6d55929844f39fe935043
+            slot: ariadne:1
+            requested_at: "2026-10-17T04:03:29.865435Z"
+          phase: finished
+          pid: 36910
+          started_at: "2026-10-17T04:03:29.966868Z"
+          finished_at: "2026-10-17T04:05:22.660275Z"
+          session_id: 01a14807-7312-7ab2-8500-9c63e74c981e
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: a7f66f308e6a2e5348d6d55929844f39fe935043
+        tracker_head: 07925b6a5d6bbc8bf3fb7321a58cb0a888d3ef7a
+        branch_point: f5927dfedbfb2e6dbc7d8c91ac56085732181b7b
+        since: "2026-10-16T19:43:25-07:00"
+        until: "2026-10-16T21:02:58-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-16T19:43:25-07:00"
+              end: "2026-10-16T21:02:58-07:00"
+              began: "2026-10-16T19:43:25-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: b2c95369467d4379c248c9e4ac9728cbbe3e401384e75e3e8c7cd49cafbab0f2
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 42578740
+              windows:
+                - start: "2026-10-16T19:43:25-07:00"
+                  end: "2026-10-16T21:02:58-07:00"
+        cuts:
+            - dispatched: "2026-10-16T20:52:36-07:00"
+              finalized: "2026-10-16T20:54:18-07:00"
+              finalizing: false
+            - dispatched: "2026-10-16T20:58:47-07:00"
+              finalized: "2026-10-16T21:01:01-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-16T21:05:23-07:00"
+      dispatched: "2026-10-16T21:03:29-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: stagebuild.go:76 rejects unreadable native executables, and :85 requires an explicit vcs.modified=false. Targeted tests pass. In a disposable pinned-head tree, restoring the previous format guard made all four new cross-format cases fail; removing the explicit-clean requirement made all three missing/invalid-stamp cases fail. The disposable tree was removed.
+          round: 3
+        - id: BR-5
+          disposition: addressed
+          note: The pinned plan changes the sentinel reader/parser classification from PURE to INTEGRATION at line 13 and records the correction under Revisions at line 55. This accurately describes sentinelBuildTarget's filesystem read at stagebuild.go:156; no executable behavior changed.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: The target grammar at stagebuild.go:175 rejects options and assignments; the existing regression cases passed.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: Production and tests share stageBuildWithMake. The stateful owner-failure/retry fixture and real-Make sequencing fixtures passed.
+          round: 3
+        - id: BR-4
+          disposition: addressed
+          note: README.md:17-24 documents owner targets, verification refusals, clear rebuilding, and retry. These statements match the implementation; atlas/workflow/workspace-branching.md:100-109 describes the same flow.
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: a7f66f308e6a2e5348d6d55929844f39fe935043
+      blocked: false
 ---
 
 # Gate ledger — ariadne#417 (boundary-review)
@@ -211,7 +298,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Critical] `pure-core-io-separation` (kind: defect) Sentinel parser contradicts the plan's PURE classification
   The plan's concepts table at workshop/plans/000417-sdlc-stage-build-skips-sentinel-binaries-bin-sdlc-stays-at-main-and-doesn-t-verify-staged-revisions-plan.md:13 labels the sentinel parser PURE, but sentinelBuildTarget at cmd/sdlc/stagebuild.go:142-145 reads the filesystem, and its tests create temporary files. Extract parsing into a deterministic text-to-target function with direct tests and retain file reading in the INTEGRATION shell, or classify the existing entity INTEGRATION. Add a ## Revisions entry correcting the contract (ARCH-PURE).
 
+## Round 3 — 2026-10-16T21:05:23-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — stagebuild.go:76 rejects unreadable native executables, and :85 requires an explicit vcs.modified=false. Targeted tests pass. In a disposable pinned-head tree, restoring the previous format guard made all four new cross-format cases fail; removing the explicit-clean requirement made all three missing/invalid-stamp cases fail. The disposable tree was removed.
+- BR-5 — addressed — The pinned plan changes the sentinel reader/parser classification from PURE to INTEGRATION at line 13 and records the correction under Revisions at line 55. This accurately describes sentinelBuildTarget's filesystem read at stagebuild.go:156; no executable behavior changed.
+- BR-2 — addressed — The target grammar at stagebuild.go:175 rejects options and assignments; the existing regression cases passed.
+- BR-3 — addressed — Production and tests share stageBuildWithMake. The stateful owner-failure/retry fixture and real-Make sequencing fixtures passed.
+- BR-4 — addressed — README.md:17-24 documents owner targets, verification refusals, clear rebuilding, and retry. These statements match the implementation; atlas/workflow/workspace-branching.md:100-109 describes the same flow.
+
 ## Open findings
 
-- **BR-1** [Critical] `fail-closed-build-verification` (kind: defect) Missing or corrupt build evidence can pass verification
-- **BR-5** [Critical] `pure-core-io-separation` (kind: defect) Sentinel parser contradicts the plan's PURE classification
+(none — every finding has been disposed)

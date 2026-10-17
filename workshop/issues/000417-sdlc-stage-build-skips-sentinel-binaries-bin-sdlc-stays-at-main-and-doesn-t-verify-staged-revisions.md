@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "e927786e", done: "dd155f60"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # sdlc stage --build skips sentinel binaries (bin/sdlc stays at main) and doesn't verify staged revisions
@@ -46,6 +46,8 @@ Clearing a stage must restore the same invariant for the resting branch: rebuild
 ## Log
 
 ### 2026-10-16
+- 2026-10-16: closed — Targeted TestStage and TestSentinel tests passed, including red-first corrupt XCOFF, Plan 9 and Mach-O cases; missing clean stamps, Make argument injection, stateful target retry and real Make conformance are also covered. The exact-head local-check suite is queued on pushed commit a7f66f30; earlier make -k passed before the review fixes. Live ariadne:0 stage and clear awaits a fresh TL grant before landing.; review verdict: SHIP
+- 2026-10-16: flow upgraded quick → full — 167 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 - Design: ARCH-DRY keeps build ownership in the existing Make target; the sentinel declares only the target. ARCH-PURE keeps revision and package matching separate from process execution. No new persistent state is created (ARCH-FUNERAL).
 - Targeted stage/clear tests passed after watching the stale-revision, skipped-sentinel and unrepaired-clear cases fail first. A real `make build` skipped sdlc; `make sdlc-build` produced `bin/sdlc` at the branch HEAD with `vcs.modified=false`.

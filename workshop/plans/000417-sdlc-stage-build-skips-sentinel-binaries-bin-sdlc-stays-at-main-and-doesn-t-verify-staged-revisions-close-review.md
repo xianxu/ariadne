@@ -205,3 +205,88 @@ findings:
    Append `## Revisions` entries defining the complete executable-format enumeration and correcting the sentinel parser’s PURE/INTEGRATION boundary. Keep the documented live check pending until it is performed.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"1b59809e-d3e2-4e7f-8c01-97b9561e5bf3","repository":"github.com/xianxu/ariadne","issue_id":"000417","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/53d1649bb259f34b","reviewed_head":"d46d47bfcf07ad9faffc142091bf1e01582b37b7","slot":"ariadne:1","requested_at":"2026-10-17T03:58:47.184689Z"},"phase":"finished","pid":53705,"started_at":"2026-10-17T03:58:47.407823Z","finished_at":"2026-10-17T04:01:00.463466Z","session_id":"01a14803-2473-7312-aef6-9e5783335943","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-16T21:05:23-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 417 — sdlc stage --build skips sentinel binaries (bin/sdlc stays at main) and doesn't verify staged revisions |
+| repo | ariadne |
+| issue file | workshop/issues/000417-sdlc-stage-build-skips-sentinel-binaries-bin-sdlc-stays-at-main-and-doesn-t-verify-staged-revisions.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | f5927dfedbfb2e6dbc7d8c91ac56085732181b7b..a7f66f308e6a2e5348d6d55929844f39fe935043 |
+| command | sdlc close --issue 417 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-16T21:05:23-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range satisfies the stage/clear build-verification contract. Both open findings are addressed, including demonstrated regression failures when the behavioral fixes are removed. No new blocking findings emerged. The documented full-suite rerun and granted live-slot check remain separate verification steps before landing.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      stagebuild.go:76 rejects unreadable native executables, and :85 requires an explicit vcs.modified=false. Targeted tests pass. In a disposable pinned-head tree, restoring the previous format guard made all four new cross-format cases fail; removing the explicit-clean requirement made all three missing/invalid-stamp cases fail. The disposable tree was removed.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      The pinned plan changes the sentinel reader/parser classification from PURE to INTEGRATION at line 13 and records the correction under Revisions at line 55. This accurately describes sentinelBuildTarget's filesystem read at stagebuild.go:156; no executable behavior changed.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The target grammar at stagebuild.go:175 rejects options and assignments; the existing regression cases passed.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Production and tests share stageBuildWithMake. The stateful owner-failure/retry fixture and real-Make sequencing fixtures passed.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      README.md:17-24 documents owner targets, verification refusals, clear rebuilding, and retry. These statements match the implementation; atlas/workflow/workspace-branching.md:100-109 describes the same flow.
+```
+
+1. **Strengths**
+
+   - Stage and clear reuse one build-and-verify path, avoiding divergent revision checks (`cmd/sdlc/stage.go:179`).
+   - Sentinel outputs match build-info package paths, supporting renamed binaries (`cmd/sdlc/stagebuild.go:59,88-92`).
+   - Failed clear rebuilding leaves the restored checkout retryable; the integration test verifies recovery from the resting branch (`cmd/sdlc/stage_test.go:192`).
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Passed `go test ./cmd/sdlc -run 'Test(Stage|Sentinel)' -count=1`.
+   - Passed pinned-range `git diff --check`.
+   - Mutation checks confirmed that cross-format rejection and explicit clean-stamp regressions fail without their fixes.
+   - Full suite and live-slot checks were not rerun during this review. The plan explicitly leaves those verification steps pending.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared verifier and existing owner build recipes.
+   - **ARCH-PURE — pass:** stamp extraction remains deterministic; filesystem-reading entities are accurately classified INTEGRATION.
+   - **ARCH-PURPOSE — pass:** sentinel builds, renamed outputs, revision refusal, and clear recovery are delivered.
+   - **ARCH-MOCK — pass:** injected Make boundary, stateful retry fake, and real-Make fixtures exercise the production sequence.
+   - **ARCH-CONSTRAINTS — pass:** sequential execution over the finite command set; no added concurrency or fan-out.
+   - **ARCH-SECURE — pass:** declarations use restricted argv values; invalid stamps and recognized corrupt containers refuse.
+   - **ARCH-ORDER — pass:** switch/build ordering preserves actual checkout progress, and already-resting retries reconcile failed rebuilding.
+   - **ARCH-FUNERAL — pass:** no new durable artifact family; existing binary outputs and stage-record lifecycle remain in use.
+
+7. **Plan revision recommendations:** None. The existing revisions accurately record the corrections and deferred live check.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"cc596950-4998-4c2e-a750-66520c7caf77","repository":"github.com/xianxu/ariadne","issue_id":"000417","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/a45d4bf521a8f985","reviewed_head":"a7f66f308e6a2e5348d6d55929844f39fe935043","slot":"ariadne:1","requested_at":"2026-10-17T04:03:29.865435Z"},"phase":"finished","pid":36910,"started_at":"2026-10-17T04:03:29.966868Z","finished_at":"2026-10-17T04:05:22.660275Z","session_id":"01a14807-7312-7ab2-8500-9c63e74c981e","outcome":"returned"}] -->
