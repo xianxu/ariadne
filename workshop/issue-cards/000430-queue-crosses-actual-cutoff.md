@@ -1,6 +1,6 @@
 ---
 id: 000430
-status: working
+status: codecomplete
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.27
+tracker:
+    version: 1
+    completion:
+        token: close-391bdd1b8a14
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 8a38f04a21ecc4c4fa660a32530bbfea77e93c66
+        evidence_commit: 0bf900750cd4e0a6f4828c25db6e200a48819de0
 ---
 
 # Actual refuses a queue wait crossing the measurement cutoff
