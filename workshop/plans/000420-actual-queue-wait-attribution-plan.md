@@ -41,11 +41,24 @@ No new long-lived files: the recorder already creates attempt JSON and prunes it
 
 ## Tasks
 
+Write each risky unit against its named function before implementation. The adversarial input and mechanical guard are the test contract; keep the native transcript and correction replay as end-to-end acceptance tests.
+
+| Unit-test target | Adversarial input class | Mechanical guard |
+|---|---|---|
+| `TestSelectOwnedQueueAttempts` → `selectOwnedQueueAttempts` | foreign slot, release/reclaim crossing, duplicated or incomplete record | exact slot and pinned engagement intersection; ambiguity refuses selection |
+| `TestMeasurementQueueWaitValidate` → `MeasurementQueueWait.Validate` | empty identity/digest, invalid interval, negative or inconsistent duration, duplicate attempt | validated, bounded, unique evidence before snapshot adoption |
+| `TestSuiteAttemptQueueEndpoints` → `decodeSuiteAttempt` and recorder | one endpoint, reversed/future/inconsistent endpoints, delayed setup, legacy record | reject malformed new pair; exact new endpoints; legacy late-shift bias exposed |
+| `TestWorkSpansFromTranscriptSequence` → `workSpansFromTranscript` | duplicate IDs, missing final result, yielded call and polls, wrappers | only paired allowlisted independent work yields a span; suite/merge/polls yield none |
+| `TestBindQueueSource` → `bindQueueSource` | two covering sources, wrong slot, absent enclosing wait, clipped wait | exactly one owning-session wait call covers the selected interval or refuse |
+| `TestSubtractQueueIdleIntervals` → `subtractQueueIdle` | overlapping/duplicate waits, nested work, clipped intervals, other source | union subtraction, source isolation, nonnegative time and conservation |
+| `TestActualQueueCorrectionReplay` → `actualCorrectionCandidate` and replay wiring | completed old snapshot, changed/missing attempt files, generation drift | old replay unchanged; candidate pinned to completion; adopted snapshot replays without ambient files |
+| `TestActualQueuePhaseSplit` → queue-aware `computeOwnedActualFor` and `splitActual` | queue crossing phase cuts and independent work | corrected total partitions into nonnegative build/converge/tail without loss |
+
 ### 1. Pin queue evidence for fresh measurement and replay
 
 **Files:** `cmd/sdlc/actualqueue.go` (new), `cmd/sdlc/actualinputs.go`, `cmd/sdlc/internal/gatestate/measurement.go`, `cmd/sdlc/localcheck_run.go`, `teststats.go`, `teststats_store.go`, corresponding `_test.go` files.
 
-- [ ] Write failing `TestSelectOwnedQueueAttempts` with a foreign slot, interval crossing release/reclaim, duplicate record, and an incomplete record; the mechanical guard is an exact slot plus pinned engagement intersection, never the current checkout's owner. Write `TestSuiteAttemptQueueEndpoints` with only-one/reversed/inconsistent endpoints and a recorder fixture that delays post-acquisition setup. A legacy fixture must expose its late-window bias; a new-format fixture must use the actual acquisition endpoints.
+- [ ] Write the Task 1 table's failing unit tests for selection, validation and endpoint decoding/recording.
 - [ ] Run `go test ./cmd/sdlc -run 'TestActualQueue|TestOwnedActual' -count=1` and confirm the new cases fail for the intended reason.
 - [ ] Implement `selectOwnedQueueAttempts` and `MeasurementQueueWait.Validate` using the existing suite-attempt decoder and pinned engagement owners; retain attempt identity, digest, interval and exact seconds. Add the endpoint writer and compatible strict decoder. Old snapshots without queue evidence keep their recorded historical semantics; new snapshots declare the queue-aware method.
 - [ ] Make replay use only the saved queue evidence, not ambient attempt files; run the targeted tests green and commit.
@@ -54,7 +67,7 @@ No new long-lived files: the recorder already creates attempt JSON and prunes it
 
 **Files:** `cmd/sdlc/internal/activetime/event.go`, `compute.go`, `queue.go` (new), native fixture/test files.
 
-- [ ] Write `TestQueueNativeTranscript` with one long suite wait, 45–60 second `write_stdin` polls/status turns, a timestamped stage command during the wait, and an independently active source. Assert the queue-only stretch contributes zero while both real-work intervals survive; assert no queue record preserves old behavior. Write `TestWorkSpansFromTranscriptSequence` with a yielded call, polls and final result plus ambiguous/incomplete wrappers; write `TestSubtractQueueIdleIntervals` with overlapping waits and work to prove the conservation invariant.
+- [ ] Write the Task 2 table's failing parser, binding and interval tests. Keep `TestQueueNativeTranscript` as the end-to-end native fixture: a long suite wait with polls, timestamped independent stage work, a second active source, and the old no-queue behavior.
 - [ ] Run `go test ./cmd/sdlc/internal/activetime -run 'TestQueue' -count=1` red.
 - [ ] Implement `workSpansFromTranscript`, `bindQueueSource` and `subtractQueueIdle` for supported native transcript forms. The classifier denies a suite/merge invocation and all poll-only operations before considering any allowlisted work, including through wrappers and yielded executions. Run targeted tests green; commit.
 
@@ -62,7 +75,7 @@ No new long-lived files: the recorder already creates attempt JSON and prunes it
 
 **Files:** `cmd/sdlc/actualmeasurement.go`, `cmd/sdlc/actualcorrection_test.go`, `cmd/sdlc/actualwiring_test.go`, `cmd/sdlc/helptext/active-time.md`, `atlas/workflow/` map.
 
-- [ ] Add failing `TestActualQueueCorrectionReplay`: a completed issue's ordinary historical read stays unchanged, `correct-actual` uses `actualCorrectionCandidate` against the existing generation, and the new retained snapshot replays the same hours after attempt files disappear. Add `TestActualQueuePhaseSplit` for build/converge/tail and nonnegative hours; a fresh omitted-`--actual` close must use the same queue-aware engine.
+- [ ] Write the Task 3 table's failing correction and phase tests; verify a fresh omitted-`--actual` close uses the same queue-aware engine.
 - [ ] Wire queue evidence through `activetime.Options` and `MeasurementInputs`; show raw queue seconds, excluded idle seconds and retained work seconds in bounded diagnostics without changing the raw test-stats record. Update help and atlas; run targeted tests green.
 - [ ] Run `git diff --check`, targeted `go test`, `make -k test`, then `sdlc local-check run --name suite` on the pushed code head; close through `sdlc close --issue 420 --verified '<evidence>'` and honor its fresh-context review.
 - [ ] Preview #416's queue-aware correction with the generation-bound `sdlc issue correct-actual` dry-run, report the measured value or a specific evidence gap to the TL/operator, and use the correction or exclusion flow only with their decision. Do not type a replacement number from the worked example; ordinary `sdlc actual --issue 416` remains its historical replay until correction succeeds.
@@ -72,3 +85,4 @@ No new long-lived files: the recorder already creates attempt JSON and prunes it
 - 2026-10-17 — Initial full-flow design following the TL's interval/exact-evidence policy and the existing retained-replay contract.
 - 2026-10-17 — TL approved the plan and corrected the legacy-time assumption: `started_at` is after post-lock setup, so using it as the queue endpoint shifts the old interval late. Keep the explicit legacy convention and test its bias; store both real queue endpoints in new records. No other design change.
 - 2026-10-17 — Plan-quality PQ-1–4 required exact work-span exclusion (including yielded suite calls), a distinct correction-candidate purpose, the recorder/schema contract, and named adversarial test boundaries. Added those before implementation; the same issue scope and TL queue policy remain.
+- 2026-10-17 — Follow-up PQ-4 review: replaced repeated case inventories with one unit-test contract table covering every risky named function, including source binding and snapshot validation, while retaining native and correction acceptance tests.
