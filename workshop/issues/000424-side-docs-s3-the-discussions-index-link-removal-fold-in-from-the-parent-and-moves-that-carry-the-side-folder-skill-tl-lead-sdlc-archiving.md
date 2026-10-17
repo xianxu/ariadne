@@ -84,6 +84,7 @@ Items in order: M1 `pkg/sidedoc` (links, index; greenfield, design mostly settle
 ## Log
 
 ### 2026-10-17
+- 2026-10-17: closed M1 — BR-7 fixed by rule: ReconcileIndex and Entries decode the frontmatter with yaml.v3 before and after the rewrite and refuse on any disagreement; TestReconcileIndexRefuses adds the column-0 comment, tab and extra-key inputs; FuzzReconcileIndex 3m/4.6M execs against the YAML oracle; pkg/reviewexport (18 examples, export current) passes.; review verdict: SHIP
 - Filed from the S3 design (ops 07, final at cf0f0ebf); parley's half is parley.nvim#373 (filed by the TL from this slot's draft).
 - 07's rows 18 to 28 become 21 to 31: the skill's states table already runs to 20.
 - sdlc never renames an issue or plan file (`set-title` keeps the slug), and archiving keeps the base name, so sdlc's part is a same-name move of the `.side/` folder, with no link rewriting.
