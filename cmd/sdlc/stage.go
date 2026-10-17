@@ -96,12 +96,13 @@ func runStage(ctx context.Context, dir, address string, build, dryRun bool, stdo
 	}
 	if to.Head != commit || to.Branch != "" {
 		if out, err := r.GitInDir(to.Root, "-c", "submodule.recurse=false", "switch", "--detach", "--no-overwrite-ignore", commit); err != nil {
-			// A failed switch leaves the target as it was, so it gives back
-			// the lease it held before; a refusal never leaves it held.
+			// A failed switch leaves the target's HEAD where it was (git may
+			// have updated its index and tree first), so it gives back the
+			// lease it held before; a refusal never leaves it held.
 			if rerr := restoreStageLease(r, to.Root, held); rerr != nil {
-				return fmt.Errorf("switch %s to %s: %v\n%s\nnothing was staged, but restoring its stage lease failed: %v; run sdlc stage --clear %s", to.Address, shortOID(commit), err, out, rerr, to.Address)
+				return fmt.Errorf("switch %s to %s: %v\n%s\nHEAD did not move (check its tree with git status), and restoring its stage lease failed: %v; run sdlc stage --clear %s", to.Address, shortOID(commit), err, out, rerr, to.Address)
 			}
-			return fmt.Errorf("switch %s to %s: %v\n%s\nnothing was staged", to.Address, shortOID(commit), err, out)
+			return fmt.Errorf("switch %s to %s: %v\n%s\nnothing was staged: HEAD did not move (check its tree with git status)", to.Address, shortOID(commit), err, out)
 		}
 	}
 	if err := verifySlot(r, to.Root, "", commit); err != nil {

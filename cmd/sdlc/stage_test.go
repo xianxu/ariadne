@@ -382,6 +382,12 @@ func TestStageLeaseEdges(t *testing.T) {
 	if out, err := runStageTest(t, roots[1], ":0", false); err == nil || !strings.Contains(err.Error(), "another sdlc stage or move") {
 		t.Fatalf("a stage while another holds the lock: %v\n%s", err, out)
 	}
+	// --clear observes under the lock: while it is held, :0 on another branch
+	// answers with the lock refusal, not a verdict on a state that may change.
+	testfix.Git(t, roots[0], "switch", "-q", "-c", "elsewhere")
+	if out, err := runUnstageTest(t, roots[1], ":0"); err == nil || !strings.Contains(err.Error(), "another sdlc stage or move") {
+		t.Fatalf("a clear while another holds the lock: %v\n%s", err, out)
+	}
 }
 
 // #421 review BR-1: a failed switch leaves the target as it was, and gives back
