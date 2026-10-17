@@ -184,3 +184,92 @@ dispose:
    Add a `## Revisions` entry specifying that failed, empty, and unrecognized poll outcomes remain unconfirmed, preserve their yielded association, and cannot restore work. Name regression sequences covering both absent and eventual confirmed completion.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"9d6d4e65-fa0b-4d35-a569-6dcab083436f","repository":"github.com/xianxu/ariadne","issue_id":"000420","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/c1e66e49e965bbea","reviewed_head":"1b66ce929c739364bea85940917c7d571fbf5bde","slot":"ariadne:1","requested_at":"2026-10-17T11:12:57.16443Z"},"phase":"finished","pid":41574,"started_at":"2026-10-17T11:12:57.377331Z","finished_at":"2026-10-17T11:16:38.5981Z","session_id":"01a14990-a2f0-7c21-a6c0-ed96d348eab8","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T04:52:29-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 420 — Actual: queued suite status polling bridges idle time into focused-hours samples |
+| repo | ariadne |
+| issue file | workshop/issues/000420-actual-queue-wait-attribution.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 2bfbc4fa27ed30da2455ad38d4eaea0ddf82a774..96da94cc8a46984bb2a8265cf991bb93cffb2b0f |
+| command | sdlc close --issue 420 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-17T04:52:29-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+Queue evidence retention, replay, phase splitting, and calibration trust are well covered. However, BR-2 remains reproducible: a poll reusing its yielded command’s call ID bypasses completion verification and fabricates work evidence. This blocks shipping.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      QueueBindingSourceIDs preserves binding transcripts even after all their activity is subtracted. TestActualQueueMeasurementRetainsBindingSource passes and verifies successful replay.
+  - id: BR-2
+    disposition: not-addressed
+    note: |
+      cmd/sdlc/internal/activetime/queue.go:133-142 registers polls without duplicate-ID validation and distinguishes polls from original results by comparing call IDs. A temporary pinned-head regression yielded stage command "stage" into session 7, then polled that session using call_id "stage" with output "unknown process". The parser emitted an 11-minute toolWork span without completion evidence. Existing unconfirmed-poll tests pass at head and fail against the pre-fix implementation, but omit this identity collision. This repeats family work-evidence-requires-confirmed-completion. Enforce the rule across every call registration: identities must be unique, poll status must be explicit, and yielded work may complete only on confirmed terminal evidence. Implement the requested transition model and cover duplicate IDs, concurrent poll aliases, and late results rather than adding another instance-specific guard (ARCH-ORDER, ARCH-SECURE, ARCH-PURPOSE).
+  - id: BR-3
+    disposition: addressed
+    note: |
+      actualcorrection.go includes QueueV1 in ownership-proven calibration trust. The parameterized legacy, engagement, and queue correction-trust regression passes; the production method-consumer sweep found no remaining omission.
+```
+
+1. **Strengths**
+
+   - Queue subtraction uses source-scoped interval unions, preserving independent work without double-subtracting overlapping waits.
+   - Retained snapshots preserve queue-binding sources with zero corrected activity, supporting replay.
+   - Exact queue endpoints have strict validation while legacy records retain their documented interval convention.
+   - #416’s referenced tracker-card blob confirms generation-bound exclusion: previous actual `1.12`, new actual `N/A`, with reason and completion binding preserved.
+
+2. **Critical findings**
+
+   - **BR-2 remains open — `cmd/sdlc/internal/activetime/queue.go:133–142`.** Poll registration bypasses the identity checks at lines 66–74. Reusing the original ID makes `ptr.id != p.CallID` false, allowing an unconfirmed result to finalize work. Separate operation state from call identity and route all registrations/results through an explicit transition model.
+
+3. **Important findings**
+
+   None newly raised.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - Passed full `activetime`, `gatestate`, and `transcripts` package tests.
+   - Passed targeted SDLC measurement, correction, selection, decoding, and recorder tests.
+   - Confirmed the committed unconfirmed-poll regression fails against the pre-fix parser.
+   - A temporary Go-overlay regression fails at pinned head with an unexpected 11-minute work span for the duplicate-ID sequence.
+   - `git diff --check` passed; the reviewed checkout remains unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared decoder, interval helpers, and measurement path.
+   - **ARCH-PURE — pass:** parsing and interval logic are directly testable without IO.
+   - **ARCH-PURPOSE — flag:** unfinished work can still restore excluded queue time.
+   - **ARCH-MOCK — pass:** inspected integration changes reuse existing dependency boundaries and portable fixtures.
+   - **ARCH-CONSTRAINTS — pass:** bounded attempt reads and snapshots remain enforced.
+   - **ARCH-SECURE — flag:** duplicate persisted identities can fabricate completion evidence.
+   - **ARCH-ORDER — flag:** poll identity substitutes for explicit operation state.
+   - **ARCH-FUNERAL — pass:** existing attempt retention and snapshot lifecycle cover the additions.
+
+   Atlas documentation covers the new measurement flow. No new command, flag, or configuration key requires a README update.
+
+7. **Plan revision recommendations**
+
+   Append a `## Revisions` entry requiring one transition model for original calls and polls, with explicit identity uniqueness, terminal-state enforcement, and sequence tests for duplicate IDs, overlapping polls, and late results.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"710c6dda-e9a2-4dbd-9e86-c260fe6244b4","repository":"github.com/xianxu/ariadne","issue_id":"000420","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/dbf706a03bbfb60e","reviewed_head":"96da94cc8a46984bb2a8265cf991bb93cffb2b0f","slot":"ariadne:1","requested_at":"2026-10-17T11:49:22.097679Z"},"phase":"finished","pid":82020,"started_at":"2026-10-17T11:49:22.265368Z","finished_at":"2026-10-17T11:52:29.480943Z","session_id":"01a149b1-f84e-72b0-ae76-73827379e39e","outcome":"returned"}] -->

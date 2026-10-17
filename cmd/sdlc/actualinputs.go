@@ -341,6 +341,11 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 	if err != nil {
 		return err
 	}
+	for _, note := range notes {
+		if strings.Contains(note, "legacy suite attempt") {
+			return fmt.Errorf("queue evidence incomplete; actual is not calibration evidence: %s", note)
+		}
+	}
 	if purpose == actualCorrectionCandidate && len(notes) > 0 {
 		return fmt.Errorf("correction candidate has unknown queue provenance: %s", notes[0])
 	}

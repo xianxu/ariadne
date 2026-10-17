@@ -166,7 +166,7 @@ func TestActualQueueMeasurementRetainsBindingSource(t *testing.T) {
 		Engagements: []gatestate.MeasurementEngagement{{Start: start.Format(time.RFC3339), End: start.Add(time.Hour).Format(time.RFC3339), Began: start.Format(time.RFC3339), Roots: []string{root}}},
 		QueueWaits:  []gatestate.MeasurementQueueWait{{AttemptID: "aabb", Slot: "ariadne:1", RecordDigest: strings.Repeat("d", 64), Start: start.Format(time.RFC3339), End: start.Add(time.Hour).Format(time.RFC3339), QueueSeconds: 3600, RawSeconds: 3600, Exact: true}}}
 	files := []string{queue.File, peer.File}
-	in := &ownedActualInputs{Snapshot: m, Files: files, Prefixes: map[string]activetime.SourcePrefix{}, Windows: map[string][]activetime.ActivityWindow{}, SourceSlots: map[string]string{queue.File: "ariadne:1", peer.File: "ariadne:1"}, Scope: activetime.Scope{Head: head, Issue: "335"}, TrackerRefs: []string{head}, Sessions: []transcripts.SessionEvidence{queue, peer}}
+	in := &ownedActualInputs{Snapshot: m, Files: files, Prefixes: map[string]activetime.SourcePrefix{}, Windows: map[string][]activetime.ActivityWindow{}, SourceSlots: map[string]string{queue.File: "ariadne:1", peer.File: "ariadne:2"}, Scope: activetime.Scope{Head: head, Issue: "335"}, TrackerRefs: []string{head}, Sessions: []transcripts.SessionEvidence{queue, peer}}
 	for _, s := range in.Sessions {
 		in.Prefixes[s.File] = activetime.SourcePrefix{Bytes: s.Length, Digest: s.Digest}
 		in.Windows[s.File] = []activetime.ActivityWindow{{Start: start, End: start.Add(time.Hour), Began: start}}

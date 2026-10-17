@@ -62,8 +62,8 @@ func TestWorkSpansFromTranscriptNativeExecWrapper(t *testing.T) {
 				record(21, output("done", `{"exit_code":0,"output":"passed"}`)),
 			}
 			spans := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a")
-			if len(spans) != 1 || spans[0].Kind != toolWait || !spans[0].Start.Equal(qt(0)) || !spans[0].End.Equal(qt(21)) {
-				t.Fatalf("native wrapper lost wait: %+v", spans)
+			if len(spans) != 0 {
+				t.Fatalf("yielded suite must not depend on poll pairing: %+v", spans)
 			}
 		})
 	}
@@ -78,6 +78,27 @@ func TestSubtractQueueIdleReportsFullRecordedWait(t *testing.T) {
 	}
 }
 
+func TestSubtractQueueIdleOneAttemptAcrossTwoOwnedSources(t *testing.T) {
+	runs := []ActivityRun{{Start: qt(0), End: qt(30), Source: "a"}, {Start: qt(0), End: qt(30), Source: "b"}}
+	wait := QueueInterval{Start: qt(10), End: qt(20), Slot: "ariadne:1", AttemptID: "one"}
+	bound, err := bindQueueSources(wait, runs, map[string]string{"a": "ariadne:1", "b": "ariadne:1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, stats := subtractQueueIdle(runs, bound, []ToolSpan{{Start: qt(12), End: qt(15), Source: "b", Kind: toolWork}})
+	var a, b float64
+	for _, run := range got {
+		if run.Source == "a" {
+			a += run.Active
+		} else {
+			b += run.Active
+		}
+	}
+	if a != 20 || b != 23 || stats.RawMinutes != 10 || stats.ExcludedMinutes != 17 || stats.RetainedWorkMinutes != 3 {
+		t.Fatalf("one recorded wait across owned sources: a=%v b=%v stats=%+v", a, b, stats)
+	}
+}
+
 func TestQueueNativeTranscript(t *testing.T) {
 	repo := gitInit(t)
 	gitCommit(t, repo, "2026-01-01T01:00:00Z", "#8 queue work")
@@ -89,7 +110,7 @@ func TestQueueNativeTranscript(t *testing.T) {
 		`{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"suite","arguments":"{\"cmd\":\"sdlc local-check run --name suite\"}"}}`,
 		`{"timestamp":"2026-01-01T00:25:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"stage","arguments":"{\"cmd\":\"sdlc stage --build\"}"}}`,
 		`{"timestamp":"2026-01-01T00:30:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"stage","output":"done"}}`,
-		`{"timestamp":"2026-01-01T01:00:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"suite","output":"done"}}`,
+		`{"timestamp":"2026-01-01T01:00:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"suite","output":"Process running with session ID 7"}}`,
 		`{"timestamp":"2026-01-01T01:00:00Z","type":"user","message":{"content":"#8 done"}}`,
 	})
 	writeJSONL(t, second, []string{
@@ -112,27 +133,34 @@ func TestQueueNativeTranscript(t *testing.T) {
 	}
 }
 
-func TestBindQueueSource(t *testing.T) {
+func TestQueueNativeTranscriptRefusesYieldedWorkOverlap(t *testing.T) {
+	repo := gitInit(t)
+	gitCommit(t, repo, "2026-01-01T01:00:00Z", "#8 queue work")
+	file := filepath.Join(t.TempDir(), "session.jsonl")
+	writeJSONL(t, file, []string{
+		`{"timestamp":"2026-01-01T00:00:00Z","type":"user","message":{"content":"#8 start"}}`,
+		`{"timestamp":"2026-01-01T00:25:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"stage","arguments":"{\"cmd\":\"sdlc stage --build\"}"}}`,
+		`{"timestamp":"2026-01-01T00:26:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"stage","output":"Process running with session ID 8"}}`,
+		`{"timestamp":"2026-01-01T00:27:00Z","type":"response_item","payload":{"type":"function_call","name":"write_stdin","call_id":"stage","arguments":"{\"session_id\":8}"}}`,
+		`{"timestamp":"2026-01-01T00:28:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"stage","output":"unknown process"}}`,
+		`{"timestamp":"2026-01-01T01:00:00Z","type":"user","message":{"content":"#8 done"}}`,
+	})
+	_, err := Compute(Options{Files: []string{file}, GitRepo: repo, SinceISO: "2026-01-01T00:00:00Z", UntilISO: "2026-01-01T01:00:00Z", Issues: []string{"8"}, CommitWeight: 1, ThresholdMin: 120, IncludeAssistant: true,
+		QueueIntervals: []QueueInterval{{Start: qt(10), End: qt(50), Slot: "ariadne:1", AttemptID: "one"}}, SourceSlots: map[string]string{file: "ariadne:1"}})
+	if err == nil || !strings.Contains(err.Error(), "incomplete work") {
+		t.Fatalf("yielded work must make queue attribution incomplete: %v", err)
+	}
+}
+
+func TestBindQueueSources(t *testing.T) {
 	wait := QueueInterval{Start: qt(10), End: qt(20), Slot: "ariadne:1", AttemptID: "one"}
-	spans := []ToolSpan{{Start: qt(0), End: qt(30), Source: "a", Kind: toolWait}}
-	got, err := bindQueueSource(wait, spans, map[string]string{"a": "ariadne:1"})
-	if err != nil || got.Source != "a" {
-		t.Fatalf("want unique source a: %+v, %v", got, err)
+	runs := []ActivityRun{{Start: qt(0), End: qt(30), Source: "a"}, {Start: qt(5), End: qt(25), Source: "b"}, {Start: qt(0), End: qt(30), Source: "foreign"}}
+	got, err := bindQueueSources(wait, runs, map[string]string{"a": "ariadne:1", "b": "ariadne:1", "foreign": "ariadne:2"})
+	if err != nil || len(got) != 2 || got[0].Source != "a" || got[1].Source != "b" {
+		t.Fatalf("want both owned sources only: %+v, %v", got, err)
 	}
-	for name, candidate := range map[string][]ToolSpan{
-		"ambiguous":  append(append([]ToolSpan{}, spans...), ToolSpan{Start: qt(0), End: qt(30), Source: "b", Kind: toolWait}),
-		"clipped":    {{Start: qt(11), End: qt(30), Source: "a", Kind: toolWait}},
-		"wrong kind": {{Start: qt(0), End: qt(30), Source: "a", Kind: toolWork}},
-	} {
-		t.Run(name, func(t *testing.T) {
-			_, err := bindQueueSource(wait, candidate, map[string]string{"a": "ariadne:1", "b": "ariadne:1"})
-			if err == nil {
-				t.Fatal("want provenance refusal")
-			}
-		})
-	}
-	if _, err := bindQueueSource(wait, spans, map[string]string{"a": "ariadne:2"}); err == nil {
-		t.Fatal("wrong slot admitted")
+	if _, err := bindQueueSources(wait, runs, map[string]string{"a": "ariadne:1", "foreign": "ariadne:2"}); err == nil {
+		t.Fatal("unmapped overlapping source admitted")
 	}
 }
 
@@ -163,8 +191,8 @@ func TestWorkSpansFromTranscriptSequence(t *testing.T) {
 			}
 		}
 	}
-	if waits != 1 || works != 1 {
-		t.Fatalf("want one wait and one work, got %+v", spans)
+	if waits != 0 || works != 1 {
+		t.Fatalf("want only direct work, got %+v", spans)
 	}
 }
 
@@ -178,8 +206,8 @@ func TestWorkSpansFromTranscriptJSONSessionID(t *testing.T) {
 		`{"timestamp":"2026-01-01T00:21:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"done","output":{"exit_code":0,"output":"ok"}}}`,
 	}
 	spans := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a")
-	if len(spans) != 1 || spans[0].Kind != toolWait || !spans[0].Start.Equal(qt(0)) || !spans[0].End.Equal(qt(21)) {
-		t.Fatalf("JSON session polling lost wait: %+v", spans)
+	if len(spans) != 0 {
+		t.Fatalf("yielded suite/polls should not supply queue evidence: %+v", spans)
 	}
 }
 
@@ -188,8 +216,8 @@ func TestWorkSpansFromTranscriptYieldedWorkNeedsCompletion(t *testing.T) {
 		`{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"stage","arguments":"{\"cmd\":\"sdlc stage --build\"}"}}`,
 		`{"timestamp":"2026-01-01T00:01:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"stage","output":"still running"}}`,
 	}
-	if spans := workSpansFromTranscript([]byte(strings.Join(unknownSession, "\n")), "a"); len(spans) != 0 {
-		t.Fatalf("untrackable running command became work: %+v", spans)
+	if spans := workSpansFromTranscript([]byte(strings.Join(unknownSession, "\n")), "a"); len(spans) != 1 || spans[0].Kind != toolUncertainWork {
+		t.Fatalf("untrackable running command not marked uncertain: %+v", spans)
 	}
 	lines := []string{
 		`{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"stage","arguments":"{\"cmd\":\"sdlc stage --build\"}"}}`,
@@ -199,12 +227,38 @@ func TestWorkSpansFromTranscriptYieldedWorkNeedsCompletion(t *testing.T) {
 		`{"timestamp":"2026-01-01T00:20:00Z","type":"response_item","payload":{"type":"function_call","name":"write_stdin","call_id":"done","arguments":"{\"session_id\":7}"}}`,
 		`{"timestamp":"2026-01-01T00:21:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"done","output":"Process exited with code 0"}}`,
 	}
-	if spans := workSpansFromTranscript([]byte(strings.Join(lines[:4], "\n")), "a"); len(spans) != 0 {
-		t.Fatalf("unfinished work became positive evidence: %+v", spans)
+	if spans := workSpansFromTranscript([]byte(strings.Join(lines[:4], "\n")), "a"); len(spans) != 1 || spans[0].Kind != toolUncertainWork {
+		t.Fatalf("unfinished work not marked uncertain: %+v", spans)
 	}
 	spans := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a")
-	if len(spans) != 1 || spans[0].Kind != toolWork || !spans[0].Start.Equal(qt(0)) || !spans[0].End.Equal(qt(21)) {
-		t.Fatalf("completed work not followed through polls: %+v", spans)
+	if len(spans) != 1 || spans[0].Kind != toolUncertainWork {
+		t.Fatalf("yielded work cannot be proven by poll: %+v", spans)
+	}
+}
+
+func TestQueueEvidenceDoesNotDependOnYieldedSuitePolls(t *testing.T) {
+	lines := []string{
+		`{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"suite","arguments":"{\"cmd\":\"sdlc local-check run --name suite\"}"}}`,
+		`{"timestamp":"2026-01-01T00:01:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"suite","output":"Process running with session ID 7"}}`,
+		`{"timestamp":"2026-01-01T00:10:00Z","type":"response_item","payload":{"type":"function_call","name":"write_stdin","call_id":"suite","arguments":"{\"session_id\":7}"}}`,
+		`{"timestamp":"2026-01-01T00:11:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"suite","output":"unknown process"}}`,
+	}
+	spans := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a")
+	for _, span := range spans {
+		if span.Kind == toolWork {
+			t.Fatalf("yielded suite or reused poll became work: %+v", spans)
+		}
+	}
+	runs := []ActivityRun{{Start: qt(0), End: qt(20), Source: "a"}}
+	if _, err := bindQueueSources(QueueInterval{Start: qt(2), End: qt(9), Slot: "ariadne:1", AttemptID: "one"}, runs, map[string]string{"a": "ariadne:1"}); err != nil {
+		t.Fatalf("recorded queue should not need a terminal suite poll: %v", err)
+	}
+	unfinished := workSpansFromTranscript([]byte(strings.Join(lines[:2], "\n")), "a")
+	if len(unfinished) != 0 {
+		t.Fatalf("yielded suite must not be uncertain work: %+v", unfinished)
+	}
+	if _, err := bindQueueSources(QueueInterval{Start: qt(2), End: qt(9), Slot: "ariadne:1", AttemptID: "one"}, runs, map[string]string{"a": "ariadne:1"}); err != nil {
+		t.Fatalf("recorded queue should bind while suite has no poll at all: %v", err)
 	}
 }
 
@@ -226,18 +280,35 @@ func TestWorkSpansFromTranscriptUnconfirmedPollKeepsYieldedWorkPending(t *testin
 				t.Fatal(err)
 			}
 			lines = append(lines, string(uncertainRecord))
-			if spans := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a"); len(spans) != 0 {
-				t.Fatalf("unconfirmed poll became work: %+v", spans)
+			if spans := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a"); len(spans) != 1 || spans[0].Kind != toolUncertainWork {
+				t.Fatalf("unconfirmed poll lost uncertainty: %+v", spans)
 			}
 			lines = append(lines,
 				`{"timestamp":"2026-01-01T00:20:00Z","type":"response_item","payload":{"type":"function_call","name":"write_stdin","call_id":"done","arguments":"{\"session_id\":7}"}}`,
 				`{"timestamp":"2026-01-01T00:21:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"done","output":"Process exited with code 0"}}`,
 			)
 			spans := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a")
-			if len(spans) != 1 || spans[0].Kind != toolWork || !spans[0].Start.Equal(qt(0)) || !spans[0].End.Equal(qt(21)) {
-				t.Fatalf("confirmed completion not followed through uncertain poll: %+v", spans)
+			if len(spans) != 1 || spans[0].Kind != toolUncertainWork {
+				t.Fatalf("poll completion must not establish work: %+v", spans)
 			}
 		})
+	}
+}
+
+func TestWorkSpansFromTranscriptFailedDirectResultIsUncertain(t *testing.T) {
+	for _, output := range []string{"", "transport-error", "unknown process"} {
+		lines := []string{
+			`{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"stage","arguments":"{\"cmd\":\"sdlc stage --build\"}"}}`,
+		}
+		record, err := json.Marshal(map[string]any{"timestamp": "2026-01-01T00:01:00Z", "type": "response_item", "payload": map[string]any{"type": "function_call_output", "call_id": "stage", "output": output}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		lines = append(lines, string(record))
+		got := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a")
+		if len(got) != 1 || got[0].Kind != toolUncertainWork {
+			t.Fatalf("failed direct result %q became work: %+v", output, got)
+		}
 	}
 }
 
@@ -248,8 +319,8 @@ func TestWorkSpansFromTranscriptRejectsDuplicateAndIncomplete(t *testing.T) {
 		`{"timestamp":"2026-01-01T00:02:00Z","type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"dup","content":"done"}]}}`,
 		`{"timestamp":"2026-01-01T00:03:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"missing","name":"Bash","input":{"command":"sdlc stage --build"}}]}}`,
 	}
-	if got := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a"); len(got) != 0 {
-		t.Fatalf("ambiguous/incomplete spans admitted: %+v", got)
+	if got := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a"); len(got) != 2 || got[0].Kind != toolUncertainWork || got[1].Kind != toolUncertainWork {
+		t.Fatalf("ambiguous/incomplete calls need uncertainty evidence: %+v", got)
 	}
 }
 
@@ -259,8 +330,8 @@ func TestWorkSpansFromTranscriptRejectsReusedCompletedID(t *testing.T) {
 		`{"timestamp":"2026-01-01T00:01:00Z","type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"again","content":"done"}]}}`,
 		`{"timestamp":"2026-01-01T00:02:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"again","name":"Bash","input":{"command":"sdlc stage --clear"}}]}}`,
 	}
-	if got := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a"); len(got) != 0 {
-		t.Fatalf("reused tool ID must invalidate earlier span: %+v", got)
+	if got := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a"); len(got) != 1 || got[0].Kind != toolUncertainWork {
+		t.Fatalf("reused tool ID must invalidate earlier span as uncertain: %+v", got)
 	}
 }
 

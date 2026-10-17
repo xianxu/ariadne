@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// QueueInterval is a measured machine-suite wait. Source is resolved from a
-// uniquely covering native tool invocation, not inferred from a transcript path.
+// QueueInterval is a recorded machine-suite wait. Source is assigned only to
+// admitted activity from the attempt's pinned owner slot.
 type QueueInterval struct {
 	Start, End              time.Time
 	Source, Slot, AttemptID string
@@ -27,10 +27,11 @@ const (
 	toolUnknown toolKind = iota
 	toolWait
 	toolWork
+	toolUncertainWork
 )
 
-// ToolSpan is one complete, uniquely paired invocation in a native transcript.
-// Poll-only calls have no span; they may close a yielded wait instead.
+// ToolSpan is direct work evidence, or an incomplete work invocation that
+// prevents an uncertain queue overlap from becoming a calibrated actual.
 type ToolSpan struct {
 	Start, End time.Time
 	Source     string
@@ -46,32 +47,29 @@ type pendingTool struct {
 }
 
 var sessionIDPattern = regexp.MustCompile(`(?i)(?:session|cell) ID\s+([A-Za-z0-9-]+)`)
-var processExitPattern = regexp.MustCompile(`(?i)^\s*process exited with code\s+-?[0-9]+\s*$`)
 var nestedCommandPattern = regexp.MustCompile(`tools\.exec_command\(\s*\{\s*cmd\s*:\s*("(?:\\.|[^"\\])*")`)
 var nativePollPattern = regexp.MustCompile(`(?s)^\s*(?:// @exec:[^\n]*\n)?\s*(?:text\(\s*|(?:const|let|var)\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*)await\s+tools\.write_stdin\(\s*\{\s*session_id\s*:\s*([0-9]+)`)
 
 // workSpansFromTranscript recognizes only structurally paired native tool
-// calls. Incomplete calls, duplicate IDs, polls and unknown commands confer no
-// positive work evidence. A yielded wait is extended through its final poll.
+// calls. Polls and yielded commands confer no positive work evidence; yielded
+// or otherwise incomplete work is explicit uncertainty for queue attribution.
 func workSpansFromTranscript(data []byte, source string) []ToolSpan {
 	pending := map[string]*pendingTool{}
-	yielded := map[string]*pendingTool{}
-	seen := map[string]bool{}
+	seen := map[string]*pendingTool{}
 	invalidIDs := map[string]bool{}
 	var spans []ToolSpan
 	call := func(id, name, input string, ts time.Time) {
 		if id == "" {
 			return
 		}
-		if seen[id] {
+		if prior := seen[id]; prior != nil {
 			invalidIDs[id] = true
-			if p := pending[id]; p != nil {
-				p.invalid = true
-			}
+			prior.invalid = true
 			return
 		}
-		seen[id] = true
-		pending[id] = &pendingTool{start: ts, kind: classifyTool(name, input), id: id}
+		p := &pendingTool{start: ts, kind: classifyTool(name, input), id: id}
+		seen[id] = p
+		pending[id] = p
 	}
 	result := func(id, output string, ts time.Time) {
 		p := pending[id]
@@ -79,15 +77,14 @@ func workSpansFromTranscript(data []byte, source string) []ToolSpan {
 			return
 		}
 		delete(pending, id)
-		if p.invalid || p.kind == toolUnknown || !ts.After(p.start) {
+		if p.invalid || p.kind == toolUnknown {
 			return
 		}
-		if sid := yieldedSessionID(output); sid != "" {
-			yielded[sid] = p
-			return
-		}
-		if isRunningOutput(output) {
-			return // no terminal result and no session to follow
+		if !ts.After(p.start) || isRunningOutput(output) || isFailedToolOutput(output) {
+			if p.kind == toolWork {
+				spans = append(spans, ToolSpan{Start: p.start, Source: source, Kind: toolUncertainWork, id: p.id})
+			}
+			return // a poll cannot prove this command's completion
 		}
 		spans = append(spans, ToolSpan{Start: p.start, End: ts, Source: source, Kind: p.kind, id: p.id})
 	}
@@ -114,42 +111,12 @@ func workSpansFromTranscript(data []byte, source string) []ToolSpan {
 					}
 				}
 				if isPoll(p.Name) || nativePollPattern.MatchString(input) && (p.Name == "exec" || p.Name == "functions.exec") {
-					// The poll's result carries the final status, so retain its
-					// session association under this call ID.
-					sid := ""
-					if match := nativePollPattern.FindStringSubmatch(input); len(match) == 2 {
-						sid = match[1]
-					} else {
-						var args struct {
-							SessionID json.RawMessage `json:"session_id"`
-							CellID    string          `json:"cell_id"`
-						}
-						_ = json.Unmarshal([]byte(input), &args)
-						sid = strings.Trim(string(args.SessionID), `"`)
-						if sid == "" {
-							sid = args.CellID
-						}
-					}
-					if sid != "" {
-						pending[p.CallID] = yielded[sid]
-					}
+					call(p.CallID, "poll", input, ts) // reserve ID; never pair poll output to a command
 				} else {
 					call(p.CallID, p.Name, input, ts)
 				}
 			case "function_call_output", "custom_tool_call_output":
-				out := toolOutputText(p.Output)
-				if ptr := pending[p.CallID]; ptr != nil {
-					if ptr.id != p.CallID && !isConfirmedPollExit(out) {
-						delete(pending, p.CallID)
-						continue // uncertain poll: retain the yielded invocation
-					}
-					for sid, active := range yielded {
-						if active == ptr {
-							delete(yielded, sid)
-						}
-					}
-					result(p.CallID, out, ts)
-				}
+				result(p.CallID, toolOutputText(p.Output), ts)
 			}
 			continue
 		}
@@ -170,6 +137,16 @@ func workSpansFromTranscript(data []byte, source string) []ToolSpan {
 	for _, span := range spans {
 		if !invalidIDs[span.id] {
 			valid = append(valid, span)
+		}
+	}
+	for id, p := range pending {
+		if p.kind == toolWork && !invalidIDs[id] {
+			valid = append(valid, ToolSpan{Start: p.start, Source: source, Kind: toolUncertainWork, id: id})
+		}
+	}
+	for id := range invalidIDs {
+		if p := seen[id]; p != nil && p.kind == toolWork {
+			valid = append(valid, ToolSpan{Start: p.start, Source: source, Kind: toolUncertainWork, id: id})
 		}
 	}
 	return valid
@@ -202,21 +179,9 @@ func isRunningOutput(output string) bool {
 	return strings.Contains(low, "still running") || strings.Contains(low, "script running") || strings.Contains(low, "process running") || yieldedSessionID(output) != ""
 }
 
-// A poll's tool result only proves that the poll returned. The yielded command
-// completes only when that result includes an explicit process exit.
-func isConfirmedPollExit(output string) bool {
-	for line := range strings.SplitSeq(output, "\n") {
-		if processExitPattern.MatchString(line) {
-			return true
-		}
-		var result struct {
-			ExitCode *int `json:"exit_code"`
-		}
-		if json.Unmarshal([]byte(line), &result) == nil && result.ExitCode != nil {
-			return true
-		}
-	}
-	return false
+func isFailedToolOutput(output string) bool {
+	trimmed := strings.TrimSpace(strings.ToLower(output))
+	return trimmed == "" || strings.HasPrefix(trimmed, "transport-error") || strings.HasPrefix(trimmed, "unknown process")
 }
 
 func yieldedSessionID(output string) string {
@@ -322,30 +287,30 @@ func classifyCommand(command string) toolKind {
 	return toolUnknown
 }
 
-// bindQueueSource requires one covering suite/merge invocation from the exact
-// owning slot. Source path and adjacent timestamps alone are not provenance.
-func bindQueueSource(wait QueueInterval, spans []ToolSpan, slots map[string]string) (QueueInterval, error) {
+// bindQueueSources applies a recorded wait to admitted activity sources in its
+// pinned slot. No transcript poll or enclosing command supplies queue time.
+func bindQueueSources(wait QueueInterval, runs []ActivityRun, slots map[string]string) ([]QueueInterval, error) {
 	if wait.AttemptID == "" || wait.Slot == "" || wait.Start.IsZero() || !wait.End.After(wait.Start) {
-		return QueueInterval{}, fmt.Errorf("invalid queue interval or identity")
+		return nil, fmt.Errorf("invalid queue interval or identity")
 	}
-	var found string
-	for _, span := range spans {
-		if span.Kind != toolWait || slots[span.Source] != wait.Slot || span.Start.After(wait.Start) || span.End.Before(wait.End) {
+	seen := map[string]bool{}
+	var bound []QueueInterval
+	for _, run := range runs {
+		if !run.Start.Before(wait.End) || !run.End.After(wait.Start) || seen[run.Source] {
 			continue
 		}
-		if wait.Source != "" && wait.Source != span.Source {
-			continue
+		seen[run.Source] = true
+		slot := slots[run.Source]
+		if slot == "" {
+			return nil, fmt.Errorf("queue attempt %s overlaps source %s without unique slot ownership", wait.AttemptID, run.Source)
 		}
-		if found != "" {
-			return QueueInterval{}, fmt.Errorf("queue attempt %s has ambiguous wait invocation", wait.AttemptID)
+		if slot == wait.Slot {
+			copy := wait
+			copy.Source = run.Source
+			bound = append(bound, copy)
 		}
-		found = span.Source
 	}
-	if found == "" {
-		return QueueInterval{}, fmt.Errorf("queue attempt %s has no owning wait invocation", wait.AttemptID)
-	}
-	wait.Source = found
-	return wait, nil
+	return bound, nil
 }
 
 // subtractQueueIdle removes the union of source-bound waits from activity runs,
@@ -370,10 +335,18 @@ func subtractQueueIdle(runs []ActivityRun, waits []QueueInterval, work []ToolSpa
 	}
 	var out []ActivityRun
 	var stats QueueAttribution
-	for _, ivs := range bySource {
-		for _, iv := range ivs {
-			stats.RawMinutes += iv.e.Sub(iv.s).Minutes()
-		}
+	// Raw queue time belongs to attempts, not to the number of concurrent
+	// transcript sources from the owning slot.
+	raw := map[string]interval{}
+	for _, w := range waits {
+		raw[w.AttemptID] = interval{w.Start, w.End}
+	}
+	var rawIntervals []interval
+	for _, iv := range raw {
+		rawIntervals = append(rawIntervals, iv)
+	}
+	for _, iv := range mergeIntervals(rawIntervals) {
+		stats.RawMinutes += iv.e.Sub(iv.s).Minutes()
 	}
 	for _, run := range runs {
 		if !run.End.After(run.Start) {

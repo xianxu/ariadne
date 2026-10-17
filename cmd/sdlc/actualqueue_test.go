@@ -15,9 +15,9 @@ func TestSelectOwnedQueueAttempts(t *testing.T) {
 	attempt := SuiteAttempt{Version: 1, ID: "aabb", Repo: "xianxu/ariadne", Check: "suite", Slot: "ariadne:1", SHA: strings.Repeat("a", 40), StartedAt: start.Add(65 * time.Second), QueueSeconds: &q}
 	owner := issue.Claimant{Workspace: "ariadne:1", Worktree: "/repo/slot1"}
 	engagements := []tracker.EngagementWindow{{Start: start, End: start.Add(3 * time.Minute), Owners: []issue.Claimant{owner}}}
-	waits, _, err := selectOwnedQueueAttempts([]SuiteAttempt{attempt}, engagements, "github.com/xianxu/ariadne", start, start.Add(3*time.Minute))
-	if err != nil || len(waits) != 1 || waits[0].Exact || waits[0].Start != start.Add(5*time.Second).Format(time.RFC3339Nano) || waits[0].End != attempt.StartedAt.Format(time.RFC3339Nano) {
-		t.Fatalf("legacy shifted wait: %+v %v", waits, err)
+	waits, notes, err := selectOwnedQueueAttempts([]SuiteAttempt{attempt}, engagements, "github.com/xianxu/ariadne", start, start.Add(3*time.Minute))
+	if err != nil || len(waits) != 0 || len(notes) != 1 || !strings.Contains(notes[0], "legacy") {
+		t.Fatalf("legacy wait must remain unknown: waits=%+v notes=%+v err=%v", waits, notes, err)
 	}
 	queued := start
 	acquired := start.Add(time.Minute)

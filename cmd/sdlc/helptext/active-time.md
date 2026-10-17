@@ -78,14 +78,14 @@ ISSUE MEASUREMENT (#335)
   when comparing adopted actuals or correcting calibration.
 
   Owned `sdlc actual` and close measurements also use recorded machine-suite
-  queue attempts (#420). A wait must belong to the pinned issue engagement and
-  bind to one enclosing suite invocation in an admitted native transcript;
-  idle queue overlap is excluded, while paired independent work inside it is
-  retained. Polls and the enclosing suite invocation are wait evidence, not
-  work. New attempts store queue start/acquisition timestamps; old attempts
-  reconstruct `[started_at - queue_seconds, started_at]`, a late-shifted window
-  because post-lock setup precedes `started_at`. The selected attempt facts and
-  source slots are saved with the measurement for replay. Completed issues keep
+  queue attempts (#420). A wait must belong to the pinned issue engagement
+  and have exact queue start/acquisition timestamps. Its interval is removed
+  from activity sources mapped to that slot, except for directly paired work
+  and admitted task spans. A yielded suite command is a wait; polls do not
+  establish completion of yielded work. If such work overlaps the queue, or a
+  legacy attempt lacks exact endpoints, the numeric actual is unavailable for
+  calibration. The selected attempt facts and source slots are saved with the
+  measurement for replay. Completed issues keep
   their old snapshot until an explicit `sdlc issue correct-actual` candidate;
   if queue/source provenance is incomplete, correction refuses rather than
   guessing hours. Standalone `sdlc active-time` has no attempt selection.

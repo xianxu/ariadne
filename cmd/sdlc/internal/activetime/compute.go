@@ -60,8 +60,8 @@ type Options struct {
 	// for each transcript source. The gap/span calculation runs before clipping.
 	ActivityWindows map[string][]ActivityWindow
 	SourcePrefixes  map[string]SourcePrefix
-	// QueueIntervals are validated attempt evidence; Compute binds each to one
-	// native wait invocation from the owning slot before excluding idle time.
+	// QueueIntervals are validated exact attempt evidence; Compute applies each
+	// wait to admitted activity sources of the attempt's owning slot.
 	QueueIntervals []QueueInterval
 	SourceSlots    map[string]string
 }
@@ -175,14 +175,21 @@ func Compute(opts Options) (Result, error) {
 		bound := make([]QueueInterval, 0, len(opts.QueueIntervals))
 		bindingSources := map[string]bool{}
 		for _, wait := range opts.QueueIntervals {
-			b, err := bindQueueSource(wait, tools, opts.SourceSlots)
+			forSources, err := bindQueueSources(wait, runs, opts.SourceSlots)
 			if err != nil {
 				return Result{}, err
 			}
-			bound = append(bound, b)
-			if !bindingSources[b.Source] {
-				bindingSources[b.Source] = true
-				res.QueueBindingSourceIDs = append(res.QueueBindingSourceIDs, b.Source)
+			for _, b := range forSources {
+				for _, tool := range tools {
+					if tool.Kind == toolUncertainWork && tool.Source == b.Source && tool.Start.Before(b.End) {
+						return Result{}, fmt.Errorf("queue attempt %s overlaps yielded or incomplete work in source %s", b.AttemptID, b.Source)
+					}
+				}
+				bound = append(bound, b)
+				if !bindingSources[b.Source] {
+					bindingSources[b.Source] = true
+					res.QueueBindingSourceIDs = append(res.QueueBindingSourceIDs, b.Source)
+				}
 			}
 		}
 		slices.Sort(res.QueueBindingSourceIDs)

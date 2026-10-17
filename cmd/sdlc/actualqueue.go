@@ -57,6 +57,10 @@ func selectOwnedQueueAttempts(attempts []SuiteAttempt, engagements []tracker.Eng
 		if owners != 1 {
 			return nil, nil, fmt.Errorf("suite attempt %s has %d matching pinned slot engagements", a.ID, owners)
 		}
+		if !exact {
+			warnings = append(warnings, fmt.Sprintf("legacy suite attempt %s lacks exact queue endpoints; queue idle is unknown and this sample is not calibration evidence", a.ID))
+			continue
+		}
 		selectedStart, selectedEnd := start, end
 		if selectedStart.Before(since) {
 			selectedStart = since

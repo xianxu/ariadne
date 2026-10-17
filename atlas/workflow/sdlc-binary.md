@@ -1454,14 +1454,15 @@ claim.
 
 Recorded suite queue waits (#420) are a separate input to owned actuals. The
 local-check recorder stores exact queue start and acquisition instants beside
-`queue_seconds`; legacy records use a documented late-shifted window ending at
-`started_at`. The actual resolver selects validated records for the pinned
+`queue_seconds`; legacy records without exact endpoints remain unknown and
+cannot support a calibrated numeric actual. The actual resolver selects validated records for the pinned
 repository, owner slot and engagement, then retains the selected intervals,
 record digests and source slots in the bounded measurement snapshot. The native
-engine binds each wait to one enclosing suite invocation in that source and
-subtracts only queued idle from its activity runs; structurally paired stage,
-edit and subagent work inside the wait remains. Unknown or ambiguous binding
-refuses a correction. Old completed snapshots replay unchanged; explicit
+engine applies each wait to admitted activity sources mapped to the attempt's
+owning slot and subtracts only queued idle; directly paired non-yielded stage,
+edit and admitted subagent work inside the wait remains. Polls do not prove
+completion of yielded work; overlapping yielded work makes the measurement
+incomplete. Unknown source ownership refuses a correction. Old completed snapshots replay unchanged; explicit
 `correct-actual` builds a new candidate against the completion generation and
 can exclude an unverifiable calibration sample without inventing hours.
 The retained snapshot keeps a wait's binding transcript even when all of that
