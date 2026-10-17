@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "30e3fd0d", done: "bddbf887"}
 ---
 
 # sdlc local-check cancel: stop only your own run (an agent killed another slot's suite by PID)
@@ -67,7 +68,7 @@ its whole life, and cancel acts only on a lease that is (a) held and (b) owned b
   owning slot.
 - **Rule** — tl-worker help gains: stop your own checks with `sdlc local-check cancel`, never `kill` a PID found by
   `ps` (a `rules.tsv` phrase row). local-check help documents the verb.
-- Residual: between the held-lock check and `kill`, the run could exit and its PID be reused within microseconds;
+- Residual: between the start-time check and `kill`, the run could exit and its PID be reused within microseconds;
   accepted (macOS has no pidfd), and the window is far narrower than today's hand-picked PID.
 - ARCH-SECURE: the lease is read from a directory shared by all slots of the clone; a malformed record is skipped
   (reported), and only a record whose lock is held *and* whose root equals ours is ever signalled.
@@ -85,11 +86,11 @@ its whole life, and cancel acts only on a lease that is (a) held and (b) owned b
 
 ## Plan
 
-- [ ] Lease: `localcheck_lease.go` (create/hold/remove, scan, `classifyRunLease`) + unit tests
-- [ ] Hook the lease into `runLocalCheck`; pass `WF_TEST_LOCK_OWNER` to the helper; test-lock.py honours it (+ shell test)
-- [ ] `local-check cancel` verb + two-checkout process test (cancel one, the other keeps running; stale lease swept)
-- [ ] Help: local-check.md cancel section; tl-worker help line + rules.tsv row
-- [ ] Atlas: sdlc-binary local-check entry
+- [x] Lease: `localcheck_lease.go` (create/hold/remove, scan, `classifyRunLease`) + unit tests
+- [x] Hook the lease into `runLocalCheck`; pass `WF_TEST_LOCK_OWNER` to the helper; test-lock.py honours it (+ shell test)
+- [x] `local-check cancel` verb + two-checkout process test (cancel one, the other keeps running; stale lease swept)
+- [x] Help: local-check.md cancel section; tl-worker help line + rules.tsv row
+- [x] Atlas: sdlc-binary local-check entry
 
 ## Log
 
@@ -98,3 +99,17 @@ its whole life, and cancel acts only on a lease that is (a) held and (b) owned b
 ### 2026-10-17
 
 - Claimed by ariadne:2; design above sent to the hub before code (a new mechanism: a run lease and a verb).
+- Hub approved with two changes, both folded in: (1) creation race — a visible-but-unlocked lease reads as stale, so
+  `holdRunLease` writes and locks it under a `.lease-*.tmp` name cancel ignores, then renames it into place
+  (`TestHoldRunLeaseLockedBeforeVisible`: four concurrent foreign cancels sweep throughout 300 lease lifetimes and
+  none disappears); a crashed run's leftover temp name is swept after 24 h. (2) PID reuse — the lease records the
+  run's process start time and cancel signals only on a match (`TestCancelChecksProcessStartTime`).
+- Start time is read from the kernel (`processgroup.StartTime`: sysctl `kern.proc.pid` on darwin, `/proc/<pid>/stat`
+  field 22 on linux), not `ps -o lstart`: the first test run showed `fork/exec /bin/ps: operation not permitted` in
+  the agent sandbox, so a sandboxed agent's cancel would never have matched.
+- The lease is released last (its defer registered before the worktree cleanup), so cancel returns after the run
+  fully unwound; it lives in `local-check-runs/` beside the per-head logs, never among them, because
+  `pruneLocalCheckLogs` deletes all but the newest 20 directories there.
+- Tests: `TestLocalCheckCancelOnlyOwnRun` (two checkouts of one clone, real `runLocalCheck` children: cancel from A
+  stops A — managed interruption, its check gone — while B and its check keep running; then B cancels its own),
+  `TestCancelSweepsStaleLeaseWithoutSignal`, `TestClassifyRunLease`, `TestStartTime`, and the test-lock owner case.
