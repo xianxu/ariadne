@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "66fd2d89", done: "70b81bcc"}
 ---
 
 # sdlc issue show reports the first close review's verdict, not the latest (REWORK shown after a SHIP)
