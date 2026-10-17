@@ -1483,7 +1483,9 @@ may therefore slightly undercount. A malformed or unreadable attempt record
 whose relevance cannot be ruled out, a relevant attempt missing queue or slot
 fields, or a legacy attempt without exact endpoints makes coverage unknown for
 both close and correction. Unknown source ownership also refuses a numeric
-measurement. Old completed snapshots replay unchanged; explicit
+measurement. A legacy refusal names the attempt and the matching `close` or
+`milestone-close --no-actual` command, with its exclusion reason; malformed
+new-format evidence retains the restore guidance. Old completed snapshots replay unchanged; explicit
 `correct-actual` builds a new candidate against the completion generation and
 can exclude an unverifiable calibration sample without inventing hours.
 The retained snapshot keeps a wait's binding transcript even when all of that

@@ -36,8 +36,8 @@ Wanted: when every blocking attempt is legacy, the refusal says so and names the
 
 ## Plan
 
-- [ ] Add red rendering tests for legacy `actual --issue`, `close`, and `milestone-close --milestone` refusals, plus malformed-new-format and unrelated-error controls.
-- [ ] Recognize only the controlled legacy-attempt warning and validated attempt ID; reuse the existing boundary-aware `rerunCmd` to print the matching verb and `--no-actual` with an explicit reason. Keep restore advice for other errors (ARCH-DRY, ARCH-PURE, ARCH-PURPOSE).
+- [x] Add red rendering tests for legacy `actual --issue`, `close`, and `milestone-close --milestone` refusals, plus malformed-new-format and unrelated-error controls.
+- [x] Recognize only the controlled legacy-attempt warning and validated attempt ID; reuse the existing boundary-aware `rerunCmd` to print the matching verb and `--no-actual` with an explicit reason. Keep restore advice for other errors (ARCH-DRY, ARCH-PURE, ARCH-PURPOSE).
 - [ ] Run focused tests, `make -k build`, `git diff --check`, and the recorded pushed-head suite; close and land on SHIP.
 
 ## Log
@@ -45,6 +45,7 @@ Wanted: when every blocking attempt is legacy, the refusal says so and names the
 ### 2026-10-17
 
 - Claimed in ariadne:1. `printActual` currently gives every `actualError` the same restore message; `explainActual` already knows the refused boundary and has `rerunCmd`. The TL approved the quick-flow plan with explicit milestone and preview coverage.
+- The red rendering test reproduced the misleading restore advice for preview, close, and milestone-close. The focused suite now passes, including new-format and unrelated-error controls. `make -k build` and the sentinel-owned `make sdlc-build` pass. The atlas and CLI help now describe the exclusion path.
 
 ## Revisions
 

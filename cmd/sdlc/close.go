@@ -1774,7 +1774,12 @@ func adoptOmittedActual(stderr io.Writer, f *closeFlags, issueStr, mode string) 
 // needs recovery. Hours must not be invented to get past this refusal.
 func explainActual(stderr io.Writer, issueStr, mode, milestone string, res actualResult) {
 	var head []string
-	head = append(head, fmt.Sprintf("%sMeasured actual unavailable for %s close — recover the evidence below.%s", ansiRed, mode, ansiReset), "")
+	legacy := legacyQueueAttemptID(res.Detail) != ""
+	if legacy {
+		head = append(head, fmt.Sprintf("%sMeasured actual unavailable for %s close — use the documented exclusion below.%s", ansiRed, mode, ansiReset), "")
+	} else {
+		head = append(head, fmt.Sprintf("%sMeasured actual unavailable for %s close — recover the evidence below.%s", ansiRed, mode, ansiReset), "")
+	}
 	head = append(head, fmt.Sprintf("  %sSemantic:%s  focused dev-hours on this %s (#%s) — not wall-clock.", ansiCyan, ansiReset, mode, issueStr))
 	head = append(head, "             (a measured value is adopted automatically; you only land here", "             when the engine can't measure — the status below says why)", "")
 	fmt.Fprintln(stderr, strings.Join(head, "\n"))
@@ -1782,7 +1787,10 @@ func explainActual(stderr io.Writer, issueStr, mode, milestone string, res actua
 	// #68 M2: render the engine's diagnosis (telemetry gap / no window / error)
 	// with its next-action guidance. Same engine as `sdlc actual`; the caller
 	// already ran it — no re-measure.
-	printActual(stderr, res)
+	printActual(stderr, res, milestone)
+	if legacy {
+		return
+	}
 
 	var tail []string
 	tail = append(tail, "", fmt.Sprintf("  %sThen re-run:%s", ansiCyan, ansiReset))
