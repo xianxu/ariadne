@@ -13,7 +13,7 @@ import (
 )
 
 func buildRefresh() *cobra.Command {
-	var rebase, substrate bool
+	var rebase, substrate, deferSettings bool
 	cmd := &cobra.Command{
 		Use:   "refresh",
 		Short: "Explicitly refresh this repository and its substrate dependencies",
@@ -38,6 +38,10 @@ shared peers. No other slot is refreshed. Data mount repositories are not Git
 refresh subjects. Changed dependency declarations refuse before branch updates;
 reconcile those declarations and prepare any missing checkouts separately.
 
+--defer-settings is the planning-gate mode: compare Claude settings and report
+staleness without publishing them. Run weave refresh --substrate from your shell
+to publish protected settings while preserving an issue branch.
+
 Refresh does not reserve an issue or change machine-wide tool installation policy.
 Ordinary weave compile preserves existing Git revisions; refresh is explicit.`,
 		Args: cobra.NoArgs,
@@ -59,12 +63,13 @@ Ordinary weave compile preserves existing Git revisions; refresh is explicit.`,
 			return refresh.RunWithOptions(cmd.Context(), root, client, refresh.Options{Rebase: rebase, SubstrateOnly: substrate}, cmd.OutOrStdout(), func() error {
 				compileClient := client
 				compileClient.Git = acquire.ExecGit{ExtraFiles: runner.ExtraFiles}
-				return compilePrepared(cmd.Context(), weavefs.OSFS{}, root, plan.TargetAll, false, cmd.OutOrStdout(), compileClient, runner)
+				return compilePreparedSettings(cmd.Context(), weavefs.OSFS{}, root, plan.TargetAll, false, cmd.OutOrStdout(), compileClient, runner, deferSettings)
 			})
 		},
 	}
 	cmd.Flags().BoolVar(&rebase, "rebase", false, "allow rebasing local commits onto captured origin/main instead of fast-forward only")
 	cmd.Flags().BoolVar(&substrate, "substrate", false, "refresh only declared substrates and compile, preserving this repository's branch and HEAD")
+	cmd.Flags().BoolVar(&deferSettings, "defer-settings", false, "planning gate: check Claude settings without writing them; operator refresh publishes them")
 	cmd.MarkFlagsMutuallyExclusive("substrate", "rebase")
 	return cmd
 }

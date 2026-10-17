@@ -49,6 +49,8 @@ func Apply(fs weavefs.FS, repoRoot string, actions []Action) error {
 	for _, a := range actions {
 		var err error
 		switch act := a.(type) {
+		case DeferredOutput:
+			// The caller owns refreshing this output; do not mutate it.
 		case Symlink:
 			err = applySymlink(fs, filepath.Join(repoRoot, act.Dst), act.Src)
 		case Mkdir:
@@ -156,6 +158,11 @@ func SeedOnceInstruction(fs weavefs.FS, root string, action SeedOnce) (string, e
 // correctly. A missing source is an error; a missing local takes the
 // source-only path (sources with meta stripped at the end). All IO lives here
 // (ARCH-PURE); the merge itself is pure.
+// SettingsContent composes settings without publishing or changing ownership.
+func SettingsContent(fs weavefs.FS, repoRoot string, act MergeSettings) ([]byte, error) {
+	return mergedSettings(fs, repoRoot, act)
+}
+
 func mergedSettings(fs weavefs.FS, repoRoot string, act MergeSettings) ([]byte, error) {
 	if len(act.Sources) == 0 {
 		return nil, fmt.Errorf("apply merge: %s: no sources", act.Target)

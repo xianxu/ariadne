@@ -278,6 +278,14 @@ and origin/main remain unchanged; compilation can update generated composition.
 It cannot be combined with `--rebase`. Numbered slots refresh only their private
 substrates, with the same ownership, cleanliness and preflight safeguards.
 
+Planning gates use `weave refresh --defer-settings`: they never write the
+sandbox-protected `.claude/settings.json`. When the checkout is already current,
+`weave settings` checks it read-only without installing dependencies, building
+tools or generating outputs. Stale settings produce one notice: run
+`weave refresh --substrate` from your shell. This publishes settings while
+preserving your issue branch; the next settings check clears the notice.
+The normal rebuilt-binary rerun after Git catch-up still applies.
+
 SDLC checks the resolved suite-lock helper before acquisition. An incompatible
 substrate names its checkout and HEAD and directs you to `weave refresh --substrate`,
 then retry the original local-check command. If the helper belongs to the consumer
