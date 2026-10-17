@@ -683,6 +683,55 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 82e7c330-9915-49a2-9c9d-93c481fd2639
+            repository: github.com/xianxu/ariadne
+            issue_id: "000420"
+            recipe: milestone-review
+            round: 7
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/1e2d15e761c369c6
+            reviewed_head: 9763b1a039bb12cf51e3973d47b678674ef11028
+            slot: ariadne:1
+            requested_at: "2026-10-17T15:27:15.33602Z"
+          phase: finished
+          pid: 62993
+          started_at: "2026-10-17T15:27:15.43169Z"
+          finished_at: "2026-10-17T15:31:52.948348Z"
+          session_id: 01a14a79-72e9-7b60-bec7-3bf95c8bbfb7
+          outcome: returned
+      "n": 7
+      timestamp: "2026-10-17T08:31:54-07:00"
+      dispatched: "2026-10-17T08:27:15-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Queue binding sources survive zero-activity filtering; TestActualQueueMeasurementRetainsBindingSource passes and verifies replay.
+          round: 7
+        - id: BR-2
+          disposition: addressed
+          note: Queue subtraction no longer uses tool results or poll completion; native regressions confirm yielded work cannot restore queue minutes.
+          round: 7
+        - id: BR-3
+          disposition: addressed
+          note: actualcorrection.go accepts QueueV1 as ownership-proven; the queue case in TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust passes.
+          round: 7
+        - id: BR-4
+          disposition: addressed
+          note: Queue-time call classification was removed; subtraction depends on exact intervals and source-slot ownership.
+          round: 7
+        - id: BR-5
+          disposition: not-addressed
+          note: 'Production refusal appears corrected, but mandatory fail-without-the-fix evidence remains incomplete (ARCH-PURPOSE, ARCH-SECURE). Disabling only actualinputs.go:339''s selector-note refusal leaves TestOwnedActualQueueCoverageRefusesUnknownRecordsForCloseAndCorrection, TestOwnedActualLateLegacyAttemptRefusesCloseAndCorrection, and the selector regressions green. The missing-field fixtures at actualinputs_test.go:157 fail decodeSuiteAttempt with "invalid repository" because saved.Repository is a file: identity; the late-legacy fixture at line 197 additionally uses a nonhex ID. These tests therefore exercise reader rejection rather than relevant missing-field or legacy completeness refusal.'
+          round: 7
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#420 (boundary-review)
@@ -749,6 +798,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-3 — addressed — Prior disposition retained. Queue-aware corrections establish ownership trust; TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust passes.
 - BR-4 — addressed — The revised Spec removes tool-call classification entirely. TestQueueNativeTranscript passes on HEAD and fails when the pre-fix production queue path is restored in a disposable copy.
 - BR-5 — not-addressed — cmd/sdlc/actualqueue.go:48-71 still filters legacy attempts by reconstructed time and engagement overlap before checking exact endpoints. For an engagement ending at 12:01:00, a legacy attempt with started_at=12:01:05 and queue_seconds=1 is silently skipped: its reconstructed wait is 12:01:04–05, although an actual wait at 12:00:58–59 followed by six seconds of setup is compatible with the record. A disposable TestReviewLegacyUnknownEndpointCannotProveNoOwnershipOverlap fails on HEAD because selection returns no wait, warning or error. Close can consequently adopt numeric hours without excluding that queue activity. This continues family queue-evidence-completeness-before-calibration: determine irrelevance from proven bounds across every incomplete-record form, never from reconstructed legacy endpoints (ARCH-PURPOSE, ARCH-SECURE).
+
+## Round 7 — 2026-10-17T08:31:54-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Queue binding sources survive zero-activity filtering; TestActualQueueMeasurementRetainsBindingSource passes and verifies replay.
+- BR-2 — addressed — Queue subtraction no longer uses tool results or poll completion; native regressions confirm yielded work cannot restore queue minutes.
+- BR-3 — addressed — actualcorrection.go accepts QueueV1 as ownership-proven; the queue case in TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust passes.
+- BR-4 — addressed — Queue-time call classification was removed; subtraction depends on exact intervals and source-slot ownership.
+- BR-5 — not-addressed — Production refusal appears corrected, but mandatory fail-without-the-fix evidence remains incomplete (ARCH-PURPOSE, ARCH-SECURE). Disabling only actualinputs.go:339's selector-note refusal leaves TestOwnedActualQueueCoverageRefusesUnknownRecordsForCloseAndCorrection, TestOwnedActualLateLegacyAttemptRefusesCloseAndCorrection, and the selector regressions green. The missing-field fixtures at actualinputs_test.go:157 fail decodeSuiteAttempt with "invalid repository" because saved.Repository is a file: identity; the late-legacy fixture at line 197 additionally uses a nonhex ID. These tests therefore exercise reader rejection rather than relevant missing-field or legacy completeness refusal.
 
 ## Open findings
 

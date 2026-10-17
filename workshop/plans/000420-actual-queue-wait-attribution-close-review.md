@@ -560,3 +560,100 @@ dispose:
    Add a `## Revisions` entry stating that legacy reconstructed endpoints may support diagnostics but cannot establish non-overlap. Name the release-boundary and measurement-boundary regressions required to enforce that rule.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"e3689e53-7b31-48f4-b356-b1f9016ad52f","repository":"github.com/xianxu/ariadne","issue_id":"000420","recipe":"milestone-review","round":6,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/bd557a818b181ec1","reviewed_head":"810f01f1fbfffe23408f631f172f3691c6d94971","slot":"ariadne:1","requested_at":"2026-10-17T14:38:55.503086Z"},"phase":"finished","pid":50983,"started_at":"2026-10-17T14:38:55.597116Z","finished_at":"2026-10-17T14:41:36.28009Z","session_id":"01a14a4d-3348-74a3-aa40-4dc18ef0dcfc","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T08:31:53-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 420 — Actual: queued suite status polling bridges idle time into focused-hours samples |
+| repo | ariadne |
+| issue file | workshop/issues/000420-actual-queue-wait-attribution.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 146796d884ccf9a9d589a8766d7627762b4571e6..9763b1a039bb12cf51e3973d47b678674ef11028 |
+| command | sdlc close --issue 420 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-17T08:31:53-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The implementation follows the revised conservative policy: exact queue intervals remove owning-slot activity, and close/correction share a completeness check. BR-5 remains open because its required regression evidence does not exercise the selector-warning refusal. Mutation testing confirmed that this guard can be disabled while all named regressions remain green.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Queue binding sources survive zero-activity filtering; TestActualQueueMeasurementRetainsBindingSource passes and verifies replay.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Queue subtraction no longer uses tool results or poll completion; native regressions confirm yielded work cannot restore queue minutes.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      actualcorrection.go accepts QueueV1 as ownership-proven; the queue case in TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust passes.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Queue-time call classification was removed; subtraction depends on exact intervals and source-slot ownership.
+  - id: BR-5
+    disposition: not-addressed
+    note: |
+      Production refusal appears corrected, but mandatory fail-without-the-fix evidence remains incomplete (ARCH-PURPOSE, ARCH-SECURE). Disabling only actualinputs.go:339's selector-note refusal leaves TestOwnedActualQueueCoverageRefusesUnknownRecordsForCloseAndCorrection, TestOwnedActualLateLegacyAttemptRefusesCloseAndCorrection, and the selector regressions green. The missing-field fixtures at actualinputs_test.go:157 fail decodeSuiteAttempt with "invalid repository" because saved.Repository is a file: identity; the late-legacy fixture at line 197 additionally uses a nonhex ID. These tests therefore exercise reader rejection rather than relevant missing-field or legacy completeness refusal.
+```
+
+1. **Strengths**
+
+   - Interval subtraction unions overlapping waits and preserves foreign-source activity, with direct pure tests in `internal/activetime/queue_test.go`.
+   - Measurement snapshots retain sources needed for replay even when queue subtraction removes all their activity.
+   - Legacy-boundary selector regressions fail when the boundary fix is reverted.
+   - Atlas/help describe the current policy; #416’s archived card records `actual_hours: N/A`.
+
+2. **Critical findings**
+
+   **BR-5 — incomplete regression proof**, `cmd/sdlc/actualinputs_test.go:157` and `:197`; refusal at `cmd/sdlc/actualinputs.go:339`.
+
+   Repair the fixtures across family `queue-evidence-completeness-before-calibration`: use decoder-valid repository/attempt identities and a matching pinned workspace. Assert reader admission before testing selector warnings. Cover missing queue, exact missing slot, and late legacy records for both close and correction, with valid-evidence controls. Those regressions must fail when selector-note refusal is removed. This maintains the existing finding; no new production defect is asserted.
+
+3. **Important findings**
+
+   None newly raised.
+
+4. **Minor findings**
+
+   None newly raised.
+
+5. **Test coverage notes**
+
+   Targeted SDLC tests passed. Full `activetime`, `gatestate`, and `transcripts` package suites passed; `git diff --check` passed. Disposable mutation copies were removed. The full repository suite was not rerun.
+
+   Removing reader-warning refusal makes the malformed/unreadable regressions fail. Removing selector-warning refusal leaves the named regressions green, establishing the remaining coverage gap.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared selection/completeness path and interval helpers.
+   - **ARCH-PURE — pass:** declared pure entities exist; direct interval and validation tests require no IO.
+   - **ARCH-PURPOSE — flag:** BR-5’s consumer-level regression proof remains incomplete.
+   - **ARCH-MOCK — pass:** no new external dependency; existing seams and isolated fixtures are reused.
+   - **ARCH-CONSTRAINTS — pass:** bounded attempt reader and snapshot validation remain enforced.
+   - **ARCH-SECURE — flag:** BR-5’s malformed-record tests mask the intended provenance checks.
+   - **ARCH-ORDER — pass:** queue attribution no longer carries poll-completion state.
+   - **ARCH-FUNERAL — pass:** existing attempt pruning and bounded retained snapshots cover the added evidence.
+
+   Atlas is updated. No new command, flag, or configuration key requires a README update.
+
+7. **Plan revision recommendations**
+
+   Add a `## Revisions` entry requiring decoder-admitted, ownership-matched resolver fixtures and mutation proof for selector-warning refusal across both measurement purposes.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"82e7c330-9915-49a2-9c9d-93c481fd2639","repository":"github.com/xianxu/ariadne","issue_id":"000420","recipe":"milestone-review","round":7,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/1e2d15e761c369c6","reviewed_head":"9763b1a039bb12cf51e3973d47b678674ef11028","slot":"ariadne:1","requested_at":"2026-10-17T15:27:15.33602Z"},"phase":"finished","pid":62993,"started_at":"2026-10-17T15:27:15.43169Z","finished_at":"2026-10-17T15:31:52.948348Z","session_id":"01a14a79-72e9-7b60-bec7-3bf95c8bbfb7","outcome":"returned"}] -->
