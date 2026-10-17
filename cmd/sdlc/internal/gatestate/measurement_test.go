@@ -46,6 +46,35 @@ func TestMeasurementInputsRoundTrip(t *testing.T) {
 	}
 }
 
+func TestMeasurementQueueWaitValidate(t *testing.T) {
+	m := validMeasurementInputs()
+	m.Method = MeasurementMethodQueueV1
+	q := MeasurementQueueWait{AttemptID: "aabb", Slot: "ariadne:1", RecordDigest: strings.Repeat("d", 64), Start: "2026-10-01T01:10:00Z", End: "2026-10-01T01:11:00Z", QueueSeconds: 60, RawSeconds: 60, Exact: true}
+	m.QueueWaits = []MeasurementQueueWait{q}
+	if err := m.Validate(); err != nil {
+		t.Fatalf("valid queue snapshot: %v", err)
+	}
+	for name, mutate := range map[string]func(*MeasurementInputs){
+		"identity":   func(m *MeasurementInputs) { m.QueueWaits[0].AttemptID = "" },
+		"digest":     func(m *MeasurementInputs) { m.QueueWaits[0].RecordDigest = "bad" },
+		"reverse":    func(m *MeasurementInputs) { m.QueueWaits[0].End = "2026-10-01T01:09:00Z" },
+		"duration":   func(m *MeasurementInputs) { m.QueueWaits[0].QueueSeconds = 59 },
+		"negative":   func(m *MeasurementInputs) { m.QueueWaits[0].QueueSeconds = -1 },
+		"outside":    func(m *MeasurementInputs) { m.QueueWaits[0].Start = "2026-10-01T00:10:00Z" },
+		"duplicate":  func(m *MeasurementInputs) { m.QueueWaits = append(m.QueueWaits, m.QueueWaits[0]) },
+		"old method": func(m *MeasurementInputs) { m.Method = MeasurementMethodEngagementV1 },
+	} {
+		t.Run(name, func(t *testing.T) {
+			bad := m
+			bad.QueueWaits = append([]MeasurementQueueWait(nil), m.QueueWaits...)
+			mutate(&bad)
+			if err := bad.Validate(); err == nil {
+				t.Fatal("accepted invalid queue evidence")
+			}
+		})
+	}
+}
+
 func TestMeasurementInputsValidation(t *testing.T) {
 	cases := []struct {
 		name, field string

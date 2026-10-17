@@ -31,7 +31,7 @@ import (
 // The seam returns production measured inputs; tests supply a bounded known
 // snapshot while exercising real tracker/calibration/main publication.
 var measureActualCorrection = func(ctx context.Context, root, brain, id, milestone, plans string) actualResult {
-	return computeActualFor(ctx, root, brain, id, milestone, plans)
+	return computeActualForPurpose(ctx, root, brain, id, milestone, plans, actualCorrectionCandidate)
 }
 
 func newIssueCorrectActualCmd() *cobra.Command {

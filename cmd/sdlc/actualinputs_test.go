@@ -180,6 +180,18 @@ func ownedCompletedFixture(t *testing.T, mismatch bool) (*trackerRepo, gatestate
 	return r, saved, source
 }
 
+func TestActualQueueCorrectionCandidateRequiresRecordedWait(t *testing.T) {
+	r, saved, _ := ownedCompletedFixture(t, false)
+	historical, err := resolveOwnedActualInputsFor(context.Background(), r.root, "", "335", "", actualHistorical)
+	if err != nil || !historical.Replay || historical.Snapshot.CodeHead != saved.CodeHead {
+		t.Fatalf("historical replay changed: %+v %v", historical, err)
+	}
+	_, err = resolveOwnedActualInputsFor(context.Background(), r.root, "", "335", "", actualCorrectionCandidate)
+	if err == nil || !strings.Contains(err.Error(), "no complete, owned suite queue records") {
+		t.Fatalf("candidate without records should refuse: %v", err)
+	}
+}
+
 func TestOwnedActualResolverReplaysCompletionDespiteAppends(t *testing.T) {
 	r, saved, source := ownedCompletedFixture(t, false)
 	ownedFixtureAt(t, 20)

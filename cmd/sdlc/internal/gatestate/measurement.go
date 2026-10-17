@@ -13,6 +13,7 @@ import (
 const (
 	MeasurementInputsVersion      = 1
 	MeasurementMethodEngagementV1 = "active-time-v3-engagement-v1"
+	MeasurementMethodQueueV1      = "active-time-v3-engagement-queue-v1"
 	MeasurementMethodLegacyV1     = "legacy-v1"
 	SnapshotLimitSources          = 128
 	SnapshotLimitBytes            = 64 * 1024
@@ -36,6 +37,7 @@ type MeasurementInputs struct {
 	IncludeAssistant      bool                    `json:"include_assistant" yaml:"include_assistant"`
 	Engagements           []MeasurementEngagement `json:"engagements,omitempty" yaml:"engagements,omitempty"`
 	Sources               []MeasurementSource     `json:"sources,omitempty" yaml:"sources,omitempty"`
+	QueueWaits            []MeasurementQueueWait  `json:"queue_waits,omitempty" yaml:"queue_waits,omitempty"`
 	ExcludedBrainSessions int                     `json:"excluded_brain_sessions,omitempty" yaml:"excluded_brain_sessions,omitempty"`
 	ExcludedBrainMinutes  float64                 `json:"excluded_brain_minutes,omitempty" yaml:"excluded_brain_minutes,omitempty"`
 	Cuts                  []MeasurementCut        `json:"cuts,omitempty" yaml:"cuts,omitempty"`
@@ -56,6 +58,7 @@ type MeasurementInterval struct {
 type MeasurementSource struct {
 	Harness  string                `json:"harness" yaml:"harness"`
 	ID       string                `json:"id" yaml:"id"`
+	Slot     string                `json:"slot,omitempty" yaml:"slot,omitempty"`
 	CWD      string                `json:"cwd" yaml:"cwd"`
 	ParentID string                `json:"parent_id,omitempty" yaml:"parent_id,omitempty"`
 	Digest   string                `json:"digest" yaml:"digest"`
@@ -70,6 +73,37 @@ type MeasurementCut struct {
 	Dispatched string `json:"dispatched,omitempty" yaml:"dispatched,omitempty"`
 	Finalized  string `json:"finalized" yaml:"finalized"`
 	Finalizing bool   `json:"finalizing" yaml:"finalizing"`
+}
+
+// MeasurementQueueWait pins selected, validated suite queue evidence. The
+// transcript sources in the same snapshot bind each wait during computation.
+type MeasurementQueueWait struct {
+	AttemptID    string  `json:"attempt_id" yaml:"attempt_id"`
+	Slot         string  `json:"slot" yaml:"slot"`
+	RecordDigest string  `json:"record_digest" yaml:"record_digest"`
+	Start        string  `json:"start" yaml:"start"`
+	End          string  `json:"end" yaml:"end"`
+	QueueSeconds float64 `json:"queue_seconds" yaml:"queue_seconds"`
+	RawSeconds   float64 `json:"raw_seconds" yaml:"raw_seconds"`
+	Exact        bool    `json:"exact" yaml:"exact"`
+}
+
+func (q MeasurementQueueWait) Validate() error {
+	if len(q.AttemptID) < 2 || len(q.AttemptID) > 64 || len(q.AttemptID)%2 != 0 || !measurementHex(q.AttemptID, len(q.AttemptID)) || !measurementHex(q.RecordDigest, 64) || strings.TrimSpace(q.Slot) == "" {
+		return fmt.Errorf("measurement queue identity, slot or digest is invalid")
+	}
+	start, err := measurementTime("queue start", q.Start)
+	if err != nil {
+		return err
+	}
+	end, err := measurementTime("queue end", q.End)
+	if err != nil {
+		return err
+	}
+	if end.Before(start) || q.QueueSeconds < 0 || math.IsNaN(q.QueueSeconds) || math.IsInf(q.QueueSeconds, 0) || math.Abs(end.Sub(start).Seconds()-q.QueueSeconds) > 1e-6 || q.RawSeconds < q.QueueSeconds || math.IsNaN(q.RawSeconds) || math.IsInf(q.RawSeconds, 0) {
+		return fmt.Errorf("measurement queue interval and seconds disagree")
+	}
+	return nil
 }
 
 // ValidateMeasurementInputs accepts old rounds without snapshots, but never
@@ -88,7 +122,7 @@ func (m MeasurementInputs) Validate() error {
 	if m.Version != MeasurementInputsVersion {
 		return fmt.Errorf("measurement version %d is unsupported", m.Version)
 	}
-	if m.Method != MeasurementMethodEngagementV1 && m.Method != MeasurementMethodLegacyV1 {
+	if m.Method != MeasurementMethodEngagementV1 && m.Method != MeasurementMethodQueueV1 && m.Method != MeasurementMethodLegacyV1 {
 		return fmt.Errorf("measurement method %q is unsupported", m.Method)
 	}
 	if strings.TrimSpace(m.Repository) == "" || strings.ContainsAny(m.Repository, "\x00\r\n\t ") {
@@ -100,7 +134,7 @@ func (m MeasurementInputs) Validate() error {
 	if m.TrackerHead != "" && !measurementHex(m.TrackerHead, 40, 64) {
 		return fmt.Errorf("measurement tracker_head must be a Git OID")
 	}
-	if m.Method == MeasurementMethodEngagementV1 && m.TrackerHead == "" {
+	if (m.Method == MeasurementMethodEngagementV1 || m.Method == MeasurementMethodQueueV1) && m.TrackerHead == "" {
 		return fmt.Errorf("measurement tracker_head is required for engagement method")
 	}
 	if m.BranchPoint != "" && !measurementHex(m.BranchPoint, 40, 64) {
@@ -129,8 +163,26 @@ func (m MeasurementInputs) Validate() error {
 	if m.CommitWeight < 0 || math.IsNaN(m.CommitWeight) || math.IsInf(m.CommitWeight, 0) {
 		return fmt.Errorf("measurement commit_weight must be finite and nonnegative")
 	}
-	if m.Method == MeasurementMethodEngagementV1 && len(m.Engagements) == 0 {
+	if (m.Method == MeasurementMethodEngagementV1 || m.Method == MeasurementMethodQueueV1) && len(m.Engagements) == 0 {
 		return fmt.Errorf("measurement engagements are required for engagement method")
+	}
+	if m.Method != MeasurementMethodQueueV1 && len(m.QueueWaits) != 0 {
+		return fmt.Errorf("measurement queue waits require queue-aware method")
+	}
+	seenWaits := map[string]bool{}
+	for i, q := range m.QueueWaits {
+		if err := q.Validate(); err != nil {
+			return fmt.Errorf("measurement queue_waits[%d]: %w", i, err)
+		}
+		if seenWaits[q.AttemptID] {
+			return fmt.Errorf("measurement duplicate queue attempt %s", q.AttemptID)
+		}
+		seenWaits[q.AttemptID] = true
+		start, _ := time.Parse(time.RFC3339Nano, q.Start)
+		end, _ := time.Parse(time.RFC3339Nano, q.End)
+		if start.Before(since) || end.After(until) {
+			return fmt.Errorf("measurement queue_waits[%d] outside sample window", i)
+		}
 	}
 	if len(m.Sources) > SnapshotLimitSources {
 		return fmt.Errorf("measurement sources exceed snapshot limit %d", SnapshotLimitSources)

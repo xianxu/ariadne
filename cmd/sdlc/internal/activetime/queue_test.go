@@ -1,0 +1,195 @@
+package activetime
+
+import (
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+func qt(min int) time.Time { return time.Date(2026, 1, 1, 0, min, 0, 0, time.UTC) }
+
+func TestSubtractQueueIdleIntervals(t *testing.T) {
+	runs := []ActivityRun{
+		{Start: qt(0), End: qt(60), Active: 60, Source: "a", Mentions: map[string]int{"8": 1}},
+		{Start: qt(0), End: qt(60), Active: 60, Source: "b"},
+	}
+	waits := []QueueInterval{
+		{Start: qt(10), End: qt(50), Source: "a", AttemptID: "one"},
+		{Start: qt(20), End: qt(40), Source: "a", AttemptID: "two"},
+	}
+	work := []ToolSpan{{Start: qt(25), End: qt(30), Source: "a", Kind: toolWork}}
+	got, attribution := subtractQueueIdle(runs, waits, work)
+	if len(got) != 4 {
+		t.Fatalf("want 3 retained a pieces and unchanged b, got %+v", got)
+	}
+	var a, b float64
+	for _, run := range got {
+		if run.Source == "a" {
+			a += run.Active
+		} else {
+			b += run.Active
+		}
+	}
+	if a != 25 || b != 60 || attribution.RawMinutes != 40 || attribution.ExcludedMinutes != 35 || attribution.RetainedWorkMinutes != 5 {
+		t.Fatalf("bad source-scoped conservation: a=%v b=%v attribution=%+v", a, b, attribution)
+	}
+}
+
+func TestSubtractQueueIdleReportsFullRecordedWait(t *testing.T) {
+	runs := []ActivityRun{{Start: qt(20), End: qt(30), Active: 10, Source: "a"}}
+	waits := []QueueInterval{{Start: qt(10), End: qt(50), Source: "a", AttemptID: "one"}}
+	_, stats := subtractQueueIdle(runs, waits, nil)
+	if stats.RawMinutes != 40 || stats.ExcludedMinutes != 10 {
+		t.Fatalf("raw wait is record duration while excluded idle intersects activity: %+v", stats)
+	}
+}
+
+func TestQueueNativeTranscript(t *testing.T) {
+	repo := gitInit(t)
+	gitCommit(t, repo, "2026-01-01T01:00:00Z", "#8 queue work")
+	dir := t.TempDir()
+	first := filepath.Join(dir, "first.jsonl")
+	second := filepath.Join(dir, "second.jsonl")
+	writeJSONL(t, first, []string{
+		`{"timestamp":"2026-01-01T00:00:00Z","type":"user","message":{"content":"#8 start"}}`,
+		`{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"suite","arguments":"{\"cmd\":\"sdlc local-check run --name suite\"}"}}`,
+		`{"timestamp":"2026-01-01T00:25:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"stage","arguments":"{\"cmd\":\"sdlc stage --build\"}"}}`,
+		`{"timestamp":"2026-01-01T00:30:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"stage","output":"done"}}`,
+		`{"timestamp":"2026-01-01T01:00:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"suite","output":"done"}}`,
+		`{"timestamp":"2026-01-01T01:00:00Z","type":"user","message":{"content":"#8 done"}}`,
+	})
+	writeJSONL(t, second, []string{
+		`{"timestamp":"2026-01-01T00:00:00Z","type":"user","message":{"content":"#8 other source"}}`,
+		`{"timestamp":"2026-01-01T01:00:00Z","type":"user","message":{"content":"#8 other source done"}}`,
+	})
+	base := Options{Files: []string{first, second}, GitRepo: repo, SinceISO: "2026-01-01T00:00:00Z", UntilISO: "2026-01-01T01:00:00Z", Issues: []string{"8"}, CommitWeight: 1, ThresholdMin: 120, IncludeAssistant: true}
+	old, err := Compute(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base.QueueIntervals = []QueueInterval{{Start: qt(10), End: qt(50), Slot: "ariadne:1", AttemptID: "one"}}
+	base.SourceSlots = map[string]string{first: "ariadne:1", second: "ariadne:2"}
+	got, err := Compute(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if old.TotalActive != 120 || got.TotalActive != 85 || got.QueueAttribution.ExcludedMinutes != 35 || got.QueueAttribution.RetainedWorkMinutes != 5 {
+		t.Fatalf("queue attribution old=%v new=%v diagnostics=%+v", old.TotalActive, got.TotalActive, got.QueueAttribution)
+	}
+}
+
+func TestBindQueueSource(t *testing.T) {
+	wait := QueueInterval{Start: qt(10), End: qt(20), Slot: "ariadne:1", AttemptID: "one"}
+	spans := []ToolSpan{{Start: qt(0), End: qt(30), Source: "a", Kind: toolWait}}
+	got, err := bindQueueSource(wait, spans, map[string]string{"a": "ariadne:1"})
+	if err != nil || got.Source != "a" {
+		t.Fatalf("want unique source a: %+v, %v", got, err)
+	}
+	for name, candidate := range map[string][]ToolSpan{
+		"ambiguous":  append(append([]ToolSpan{}, spans...), ToolSpan{Start: qt(0), End: qt(30), Source: "b", Kind: toolWait}),
+		"clipped":    {{Start: qt(11), End: qt(30), Source: "a", Kind: toolWait}},
+		"wrong kind": {{Start: qt(0), End: qt(30), Source: "a", Kind: toolWork}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := bindQueueSource(wait, candidate, map[string]string{"a": "ariadne:1", "b": "ariadne:1"})
+			if err == nil {
+				t.Fatal("want provenance refusal")
+			}
+		})
+	}
+	if _, err := bindQueueSource(wait, spans, map[string]string{"a": "ariadne:2"}); err == nil {
+		t.Fatal("wrong slot admitted")
+	}
+}
+
+func TestWorkSpansFromTranscriptSequence(t *testing.T) {
+	lines := []string{
+		`{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"suite","arguments":"{\"cmd\":\"cd repo && sdlc local-check run --name suite\"}"}}`,
+		`{"timestamp":"2026-01-01T00:01:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"suite","output":"Process running with session ID 7"}}`,
+		`{"timestamp":"2026-01-01T00:03:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"stage","arguments":"{\"cmd\":\"sdlc stage --build\"}"}}`,
+		`{"timestamp":"2026-01-01T00:06:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"stage","output":"done"}}`,
+		`{"timestamp":"2026-01-01T00:07:00Z","type":"response_item","payload":{"type":"function_call","name":"write_stdin","call_id":"poll","arguments":"{\"session_id\":7,\"chars\":\"\"}"}}`,
+		`{"timestamp":"2026-01-01T00:08:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"poll","output":"still running"}}`,
+		`{"timestamp":"2026-01-01T00:30:00Z","type":"response_item","payload":{"type":"function_call","name":"write_stdin","call_id":"end","arguments":"{\"session_id\":7,\"chars\":\"\"}"}}`,
+		`{"timestamp":"2026-01-01T00:31:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"end","output":"Process exited with code 0"}}`,
+	}
+	spans := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a")
+	var waits, works int
+	for _, sp := range spans {
+		switch sp.Kind {
+		case toolWait:
+			waits++
+			if !sp.Start.Equal(qt(0)) || !sp.End.Equal(qt(31)) {
+				t.Errorf("suite wait not followed through polls: %+v", sp)
+			}
+		case toolWork:
+			works++
+			if !sp.Start.Equal(qt(3)) || !sp.End.Equal(qt(6)) {
+				t.Errorf("unexpected work span %+v", sp)
+			}
+		}
+	}
+	if waits != 1 || works != 1 {
+		t.Fatalf("want one wait and one work, got %+v", spans)
+	}
+}
+
+func TestWorkSpansFromTranscriptJSONSessionID(t *testing.T) {
+	lines := []string{
+		`{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"suite","arguments":"{\"cmd\":\"sdlc local-check run --name suite\"}"}}`,
+		`{"timestamp":"2026-01-01T00:01:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"suite","output":{"session_id":7,"output":""}}}`,
+		`{"timestamp":"2026-01-01T00:10:00Z","type":"response_item","payload":{"type":"function_call","name":"write_stdin","call_id":"poll","arguments":"{\"session_id\":7}"}}`,
+		`{"timestamp":"2026-01-01T00:11:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"poll","output":{"session_id":7,"output":""}}}`,
+		`{"timestamp":"2026-01-01T00:20:00Z","type":"response_item","payload":{"type":"function_call","name":"write_stdin","call_id":"done","arguments":"{\"session_id\":7}"}}`,
+		`{"timestamp":"2026-01-01T00:21:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"done","output":{"exit_code":0,"output":"ok"}}}`,
+	}
+	spans := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a")
+	if len(spans) != 1 || spans[0].Kind != toolWait || !spans[0].Start.Equal(qt(0)) || !spans[0].End.Equal(qt(21)) {
+		t.Fatalf("JSON session polling lost wait: %+v", spans)
+	}
+}
+
+func TestWorkSpansFromTranscriptRejectsDuplicateAndIncomplete(t *testing.T) {
+	lines := []string{
+		`{"timestamp":"2026-01-01T00:00:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"dup","name":"Bash","input":{"command":"sdlc stage --build"}}]}}`,
+		`{"timestamp":"2026-01-01T00:01:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"dup","name":"Bash","input":{"command":"sdlc stage --clear"}}]}}`,
+		`{"timestamp":"2026-01-01T00:02:00Z","type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"dup","content":"done"}]}}`,
+		`{"timestamp":"2026-01-01T00:03:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"missing","name":"Bash","input":{"command":"sdlc stage --build"}}]}}`,
+	}
+	if got := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a"); len(got) != 0 {
+		t.Fatalf("ambiguous/incomplete spans admitted: %+v", got)
+	}
+}
+
+func TestWorkSpansFromTranscriptRejectsReusedCompletedID(t *testing.T) {
+	lines := []string{
+		`{"timestamp":"2026-01-01T00:00:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"again","name":"Bash","input":{"command":"sdlc stage --build"}}]}}`,
+		`{"timestamp":"2026-01-01T00:01:00Z","type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"again","content":"done"}]}}`,
+		`{"timestamp":"2026-01-01T00:02:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"again","name":"Bash","input":{"command":"sdlc stage --clear"}}]}}`,
+	}
+	if got := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a"); len(got) != 0 {
+		t.Fatalf("reused tool ID must invalidate earlier span: %+v", got)
+	}
+}
+
+func TestClassifyToolRequiresExecutableCommand(t *testing.T) {
+	for _, input := range []string{
+		`{"cmd":"echo 'sdlc stage --build'"}`,
+		`{"cmd":"printf 'sdlc merge'"}`,
+		`{"cmd":"git log --grep 'sdlc local-check run'"}`,
+	} {
+		if got := classifyTool("exec_command", input); got != toolUnknown {
+			t.Fatalf("quoted/prose command classified as work or wait: %q -> %v", input, got)
+		}
+	}
+	if got := classifyTool("exec_command", `{"cmd":"cd repo && sdlc local-check run --name suite"}`); got != toolWait {
+		t.Fatalf("wrapped suite should be wait, got %v", got)
+	}
+	if got := classifyTool("functions.exec", `{"code":"const r=await tools.exec_command({cmd:\"sdlc local-check run --name suite\"});"}`); got != toolWait {
+		t.Fatalf("native JS shell wrapper should be wait, got %v", got)
+	}
+	if got := classifyTool("functions.exec", `{"code":"await tools.apply_patch(\"*** Begin Patch\");"}`); got != toolWork {
+		t.Fatalf("native JS edit wrapper should be work, got %v", got)
+	}
+}

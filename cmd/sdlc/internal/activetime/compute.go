@@ -3,6 +3,8 @@ package activetime
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"time"
 
@@ -58,6 +60,10 @@ type Options struct {
 	// for each transcript source. The gap/span calculation runs before clipping.
 	ActivityWindows map[string][]ActivityWindow
 	SourcePrefixes  map[string]SourcePrefix
+	// QueueIntervals are validated attempt evidence; Compute binds each to one
+	// native wait invocation from the owning slot before excluding idle time.
+	QueueIntervals []QueueInterval
+	SourceSlots    map[string]string
 }
 
 // Result is the structured outcome of a Compute run — the single value consumed
@@ -78,7 +84,8 @@ type Result struct {
 	IssueCommitTimes []time.Time
 	// SourceIDs identifies actual contributing runs, excluding old same-cwd
 	// sessions with no activity in the admitted sample.
-	SourceIDs []string
+	SourceIDs        []string
+	QueueAttribution QueueAttribution
 }
 
 const suspiciousSpanMin = 120.0
@@ -157,6 +164,26 @@ func Compute(opts Options) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+	if len(opts.QueueIntervals) > 0 {
+		tools, err := loadToolSpans(opts)
+		if err != nil {
+			return Result{}, err
+		}
+		bound := make([]QueueInterval, 0, len(opts.QueueIntervals))
+		for _, wait := range opts.QueueIntervals {
+			b, err := bindQueueSource(wait, tools, opts.SourceSlots)
+			if err != nil {
+				return Result{}, err
+			}
+			bound = append(bound, b)
+		}
+		// A subagent dispatch is independent work only within its admitted
+		// engagement. It cannot restore any time after release/reclaim.
+		for _, sp := range spans {
+			tools = append(tools, ToolSpan{Start: sp.Start, End: sp.End, Source: sp.Source, Kind: toolWork})
+		}
+		runs, res.QueueAttribution = subtractQueueIdle(runs, bound, tools)
+	}
 	res.Segments = claimActivityRuns(runs, commits, opts.CommitWeight, prefixWeight)
 	seenSources := map[string]bool{}
 	for _, run := range runs {
@@ -179,6 +206,47 @@ func Compute(opts Options) (Result, error) {
 		return Result{}, err
 	}
 	return res, nil
+}
+
+func loadToolSpans(opts Options) ([]ToolSpan, error) {
+	paths := map[string]bool{}
+	for _, path := range opts.Files {
+		paths[path] = true
+	}
+	for _, dir := range opts.Dirs {
+		matches, err := filepath.Glob(filepath.Join(expandUser(dir), "*.jsonl"))
+		if err != nil {
+			return nil, err
+		}
+		for _, path := range matches {
+			paths[path] = true
+		}
+	}
+	var ordered []string
+	for path := range paths {
+		ordered = append(ordered, path)
+	}
+	slices.Sort(ordered)
+	var out []ToolSpan
+	for _, path := range ordered {
+		var pins []SourcePrefix
+		if opts.SourcePrefixes != nil {
+			pin, ok := opts.SourcePrefixes[path]
+			if !ok {
+				return nil, fmt.Errorf("source %s lacks pinned queue evidence", path)
+			}
+			pins = append(pins, pin)
+		}
+		data, err := readSessionPrefixContext(opts.Context, expandUser(path), pins)
+		if err != nil {
+			if opts.SourcePrefixes != nil || !os.IsNotExist(err) {
+				return nil, err
+			}
+			continue
+		}
+		out = append(out, workSpansFromTranscript(data, path)...)
+	}
+	return out, nil
 }
 
 // foreignRefWarnings reports cross-repo refs the window contained and this engine deliberately
