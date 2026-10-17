@@ -75,6 +75,8 @@ A reader of `issue show`, whether the TL, the operator or an agent deciding whet
 
 - TL released the #420 dependency because it needs a re-plan. Current main is already integrated; queued the post-BR-1 recorded suite on pushed head 2cf29e61ee883d6316d625b7364292d2a55e5586. Continue to re-close and land on SHIP without waiting for #420.
 
+- Post-BR-1 recorded suite 566a8fde2ee05a22964093a6b59cc9da passed on 2cf29e61ee883d6316d625b7364292d2a55e5586: 12 shards over 1547 cmd/sdlc tests, 66 other packages, 495.778s wall, 1550.958s queued, log SHA256 101f015fa77fbd02772ccc4375ebf555fac1f59240724dc191ccea92da6973db. Re-close now reviews the four-state presence/freshness fix. Actual remains N/A because #420 is deferred and the existing engine attributes queue polling as focused work.
+
 ## Revisions
 
 ### 2026-10-17 — BR-1: binding presence is independent of read quality
