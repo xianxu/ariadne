@@ -87,6 +87,8 @@ Related to, but not covered by, #400 (cancel must stop only your own run).
 
 - Revised suite ef42644f9ff6b93a2aa217acc8a0dbc2 was admitted after about 3,458s queued. Its queued-cancellation and bounded-cleanup native cases passed, but the new outside-phase SIGINT assertions failed (fetch and trailer); SIGTERM passed. This is a deterministic test precondition error, not an unrelated flake retry: the asynchronous suite inherits SIGINT=SIG_IGN, which Go intentionally preserves. Explicit ignored-SIGINT launch of the same compiled test reproduced both failures (9.33s); explicit SIG_DFL launch passed all four cases (2.98s). The owned fixture now sets SIGINT=SIG_DFL in an exec launcher before entering the unchanged production handler. Under an outer SIG_IGN, go test -trimpath ./cmd/sdlc -run ^TestLocalCheckSignal -count=1 -timeout 3m passed (8.359s). No production change; retain the failed suite and run a new recorded suite on the fixture fix.
 
+- Full failed result retained: ef42644f9ff6b93a2aa217acc8a0dbc2 on e7a8db930a2b2bbffbb903cc4b4743ef693415e8, queue_seconds=3458.271406708, wall_seconds=496.335932, 12 shards / 1,525 cmd/sdlc tests plus 66 other packages. Only TestLocalCheckSignalPreservesOutsideOwnedPhase failed (the two SIGINT leaves); saved failed/ef42644f9ff6b93a2aa217acc8a0dbc2.log, SHA256 8825fc8a7eea1f45d493c0a6d7cd4d9ed939f8b475c741095d0360aeb49416f7. Fixture correction and docs-only main integration pushed at 6fe57a8f910e0f4d1b8cb8ca7f3eaa2c93b40145; fresh run c069e6e8e842f9cf532752c50aec50b7 queued at position ten, detached sdlc-local-457918715.
+
 ## Revisions
 
 ### 2026-10-16 — pre-close checklist wording
