@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "ceedcb63", done: "71e20541"}
 ---
 
 # tl-lead status check counts issue-filing/archive commits as landings, flagging Threads/Slots stale with nothing landed
