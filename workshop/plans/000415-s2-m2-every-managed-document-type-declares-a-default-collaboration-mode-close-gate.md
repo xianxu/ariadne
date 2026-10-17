@@ -179,6 +179,77 @@ rounds:
       isolation: fenced
       reviewed: 21ba3b6c13b4123a639a58666228c4764436ee22
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: f94fe7c2-3bb0-4aee-b7bf-aa25a0e5c363
+            repository: github.com/xianxu/ariadne
+            issue_id: "000415"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/c38d9cbf89291776
+            reviewed_head: c812b6e5e3756aa302676ecfb1f576a791ac0287
+            slot: ariadne:2
+            requested_at: "2026-10-17T02:49:05.417384Z"
+          phase: finished
+          pid: 48653
+          started_at: "2026-10-17T02:49:05.594496Z"
+          finished_at: "2026-10-17T02:49:46.988917Z"
+          session_id: c393b803-80f3-44ab-8211-d37f6f0a3a67
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: c812b6e5e3756aa302676ecfb1f576a791ac0287
+        tracker_head: 31666ad49dedf9c42685e429ac123807edea0a76
+        branch_point: 63b1a010fc175881b8311e8588676a70991a8ad3
+        since: "2026-10-16T18:46:26-07:00"
+        until: "2026-10-16T19:48:32-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-16T18:46:26-07:00"
+              end: "2026-10-16T19:48:32-07:00"
+              began: "2026-10-16T18:46:26-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 96b304dc7d3fbf5e8d1948937ee13412541276a00707ad93500012fb2d6f024d
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 18817079
+              windows:
+                - start: "2026-10-16T18:46:26-07:00"
+                  end: "2026-10-16T19:48:32-07:00"
+        cuts:
+            - dispatched: "2026-10-16T19:43:21-07:00"
+              finalized: "2026-10-16T19:45:26-07:00"
+              finalizing: true
+            - dispatched: "2026-10-16T19:46:43-07:00"
+              finalized: "2026-10-16T19:47:53-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-16T19:49:54-07:00"
+      dispatched: "2026-10-16T19:49:05-07:00"
+      agent: claude
+      dispose:
+        - id: BR-5
+          disposition: addressed
+          note: TestRenderWarnsOnATypeWithoutADefault (collabmode_test.go:100-124) runs renderToOutput, now taking an io.Writer, on a fixture tree; making the warning print a no-op turns it red ("warnings \"\", want one for bare only").
+          round: 3
+      recipe: fix-review
+      isolation: fenced
+      reviewed: c812b6e5e3756aa302676ecfb1f576a791ac0287
+      blocked: false
 ---
 
 # Gate ledger — ariadne#415 (boundary-review)
@@ -213,6 +284,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Minor] `lint-not-wired-to-gate` (kind: defect) The new compile-time warning loop in renderToOutput has no test
   lintTypes is tested, but no test checks that the render step prints a warning, so the BR-1 wiring could be dropped without any test failing. Acceptable as thin IO glue; a small test of renderToOutput against a fixture tree with a prototype lacking a collaboration-mode row would pin it.
 
+## Round 3 — 2026-10-16T19:49:54-07:00 (claude) — passed
+
+### Disposed
+
+- BR-5 — addressed — TestRenderWarnsOnATypeWithoutADefault (collabmode_test.go:100-124) runs renderToOutput, now taking an io.Writer, on a fixture tree; making the warning print a no-op turns it red ("warnings \"\", want one for bare only").
+
 ## Open findings
 
-- **BR-5** [Minor] `lint-not-wired-to-gate` (kind: defect) The new compile-time warning loop in renderToOutput has no test
+(none — every finding has been disposed)

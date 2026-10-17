@@ -184,3 +184,59 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"0a7260da-9e79-46e1-95cb-1991e40df217","repository":"github.com/xianxu/ariadne","issue_id":"000415","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/d3075f6a596001ae","reviewed_head":"21ba3b6c13b4123a639a58666228c4764436ee22","slot":"ariadne:2","requested_at":"2026-10-17T02:46:43.158057Z"},"phase":"finished","pid":25086,"started_at":"2026-10-17T02:46:43.273768Z","finished_at":"2026-10-17T02:47:43.271045Z","session_id":"b61a53e8-fe0f-45f7-b7df-29d05fedb13c","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-16T19:49:54-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 415 — S2 M2: every managed document type declares a default collaboration-mode |
+| repo | ariadne |
+| issue file | workshop/issues/000415-s2-m2-every-managed-document-type-declares-a-default-collaboration-mode.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 1c03779ee7ef6f700657c3f61b556fb3bad263df..c812b6e5e3756aa302676ecfb1f576a791ac0287 |
+| command | sdlc close --issue 415 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-16T19:49:54-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The only open finding, BR-5, is fixed. `renderToOutput` now takes an `io.Writer` for its warnings (`cmd/datatype/main.go:83,96`). `main` passes in `os.Stderr`, so what the binary does is unchanged. The new test `TestRenderWarnsOnATypeWithoutADefault` (`cmd/datatype/collabmode_test.go:100-124`) checks three things: the warning appears for a prototype with no collaboration-mode row, it doesn't appear for a prototype that has one, and `SKILL.md` is still written.
+
+I checked that the test fails without the fix. In the disposable checkout I replaced the warning print with a no-op and ran the test. It failed with `warnings "", want one for bare only` (collabmode_test.go:119). After restoring the file, the tree is clean and the test passes. `./cmd/datatype` passes in full with `TMPDIR=/tmp`. With the default sandbox `TMPDIR`, which sits inside the checkout, `TestFindRepoRoot_GitFallback` fails. This window doesn't touch that test. The failure comes from the temp directory being nested inside the repository.
+
+The scope did not change. The window only touches `main.go`, `collabmode_test.go` and the two generated gate/review ledgers. The Spec, Revisions and Done-when are untouched, and no conflict resolutions are listed.
+
+1. **Strengths**
+   - BR-5 is fixed as the finding suggested: a fixture tree with one good and one bare prototype runs through the real render path. The test checks for missing warnings and for extra ones.
+   - Passing the writer in (`main.go:83`) makes the warning testable without capturing `os.Stderr`. The IO shell stays thin, and the caller decides where warnings go.
+   - The test also checks that a warning doesn't block the render, which pins the "warn, don't fail the compile" design.
+
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none new.
+5. **Test coverage notes:** The new test fails with the warning print replaced by a no-op and passes with it restored. `t.Chdir` limits the cwd change to this test.
+6. **Architectural notes:**
+   - **ARCH-DRY: pass.** The test reuses the existing `proto` and `shapeRow` helpers.
+   - **ARCH-PURE: pass.** The writer passed into the IO shell keeps the logic in `lintTypes`, which is pure.
+   - **ARCH-PURPOSE: pass.** The finding's class was "the lint call in the compile has no test", and that call is the only one in this window, so the whole class is covered.
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-5
+    disposition: addressed
+    note: |
+      TestRenderWarnsOnATypeWithoutADefault (collabmode_test.go:100-124) runs renderToOutput, now taking an io.Writer, on a fixture tree; making the warning print a no-op turns it red ("warnings \"\", want one for bare only").
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"f94fe7c2-3bb0-4aee-b7bf-aa25a0e5c363","repository":"github.com/xianxu/ariadne","issue_id":"000415","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/c38d9cbf89291776","reviewed_head":"c812b6e5e3756aa302676ecfb1f576a791ac0287","slot":"ariadne:2","requested_at":"2026-10-17T02:49:05.417384Z"},"phase":"finished","pid":48653,"started_at":"2026-10-17T02:49:05.594496Z","finished_at":"2026-10-17T02:49:46.988917Z","session_id":"c393b803-80f3-44ab-8211-d37f6f0a3a67","outcome":"returned"}] -->
