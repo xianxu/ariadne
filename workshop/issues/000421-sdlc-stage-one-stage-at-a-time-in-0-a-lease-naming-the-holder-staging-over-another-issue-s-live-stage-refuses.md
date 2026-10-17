@@ -70,11 +70,11 @@ stage or move is changing :N now"). Nothing is decided from observing `:N`'s HEA
 **Lifetime (ARCH-FUNERAL):** one file per slot, removed by `--clear` (holder or abandoned) or by a move into the slot,
 as today.
 
-- [ ] fleet/staged.go: `StageLease` with parse and format; `ReadStageLease`, `WriteStageLease` (temp file then
+- [x] fleet/staged.go: `StageLease` with parse and format; `ReadStageLease`, `WriteStageLease` (temp file then
   rename) and `LockStage`. `StagedCommit` reads the lease's commit. Unit tests: round trip, legacy, damaged.
-- [ ] stageplan.go: `checkLease` and `checkClearLease`, plus the holder of a branch. Table tests.
-- [ ] stage.go and move.go: the flock, lease reads and writes in that order; `--abandoned`.
-- [ ] Integration tests for each Done-when line, run on `moveFixture`'s three slots:
+- [x] stageplan.go: `checkLease` and `checkClearLease`, plus the holder of a branch. Table tests.
+- [x] stage.go and move.go: the flock, lease reads and writes in that order; `--abandoned`.
+- [x] Integration tests for each Done-when line, run on `moveFixture`'s three slots:
   - A staged, B refused (naming A, its slot and its time), and `:0` unchanged;
   - B's `--clear` refused;
   - `--abandoned` with the wrong holder refused, and with the right one clearing;
@@ -83,7 +83,7 @@ as today.
   - a move from B into A's stage refused;
   - a damaged lease refused;
   - a busy flock refused.
-- [ ] Recovery catalog entry, atlas (sdlc-binary staging), and `sdlc stage --help` text.
+- [x] Recovery catalog entry, atlas (sdlc-binary staging), and `sdlc stage --help` text.
 
 ## Log
 
@@ -91,3 +91,8 @@ as today.
 - Coordination with #417 (ariadne:1, which builds and verifies every binary in `stagebuild.go`): this issue touches
   `stage.go` (`runStage`, `runUnstage`), `stageplan.go`, `fleet/staged.go` and `move.go`, not `stagebuild.go`. The one
   shared line is the `stageBuild` call at the end of `runStage`.
+- Built: the lease in `fleet/staged.go`, the rules in `stageplan.go` (`checkLease`, `checkClearLease`, `stageHolder`), the
+  flock and lease writes in `stage.go`, and the same check in `move.go` through `takeStageLease`. Targeted runs pass:
+  `TestStageLease*`, `TestCheckLease`, `TestStageLeaseParse`, and every existing Stage and Move test.
+- The refusals print the target's full address (`sample:0`, `ariadne:0`), not the `:0` the operator typed, so the
+  recovery command can be copied from any slot.

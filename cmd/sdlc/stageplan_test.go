@@ -3,7 +3,9 @@ package main
 import (
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/fleet"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
@@ -66,5 +68,39 @@ func expect(t *testing.T, what string, err error, want string) {
 	}
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("%s: err = %v, want it to contain %q", what, err, want)
+	}
+}
+
+// #421: the lease rule, pure.
+func TestCheckLease(t *testing.T) {
+	at := time.Date(2026, 10, 16, 22, 0, 0, 0, time.UTC)
+	held := fleet.StageLease{Commit: "c", Holder: "#418", Branch: "000418-x", Slot: "ariadne:3", At: at}
+	if err := checkLease(fleet.StageLease{}, "#416", ":0"); err != nil {
+		t.Fatalf("no lease: %v", err)
+	}
+	if err := checkLease(fleet.StageLease{Commit: "c"}, "#416", ":0"); err != nil {
+		t.Fatalf("a legacy record has no holder: %v", err)
+	}
+	if err := checkLease(held, "#418", ":0"); err != nil {
+		t.Fatalf("the holder restages: %v", err)
+	}
+	err := checkLease(held, "#416", ":0")
+	for _, want := range []string{"staged for #418", "000418-x", "ariadne:3", "2026-10-16 22:00", "`sdlc stage --clear :0 --abandoned #418`"} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Fatalf("refusal lacks %q: %v", want, err)
+		}
+	}
+	for abandoned, ok := range map[string]bool{"418": true, "#418": true, "000418": true, "416": false, "": false} {
+		if err := checkClearLease(held, "#416", abandoned, ":0"); (err == nil) != ok {
+			t.Fatalf("--abandoned %q: %v", abandoned, err)
+		}
+	}
+	if err := checkClearLease(fleet.StageLease{}, "#416", "418", ":0"); err == nil {
+		t.Fatal("--abandoned freed a lease nobody holds")
+	}
+	for branch, want := range map[string]string{"000421-slug": "#421", "main-slot2": "branch:main-slot2", "": "slot:ariadne:2"} {
+		if got := stageHolder(moveSide{Branch: branch, Address: "ariadne:2"}); got != want {
+			t.Fatalf("stageHolder(%q) = %q, want %q", branch, got, want)
+		}
 	}
 }
