@@ -43,12 +43,14 @@ repos owning one binary name).
 
 - A fixture test: a slot layout (workspace sibling plus the slot's substrate clone of the same origin) prints nothing
   and maps binaries to the slot's clone; two different repos owning one name still warn, and fail under `--strict`.
+- Equivalent GitHub HTTPS, scp-style SSH and `ssh://` origins, including path case, suppress warnings and pass strict mode. Identical non-GitHub URLs also suppress warnings; differing transport or path case, absent origins, and unrecognized relative origins warn and fail strict mode. `--verbose` explains a suppressed collision without changing `--list` output.
+- README and atlas describe the diagnostic flag and strict collision rule.
 
 ## Plan
 
 - [x] Add hermetic Git fixtures for two checkouts of one origin in the slot layout, equivalent HTTPS/SSH origins, and two distinct origins. Assert the selected slot owner, stderr, and `--strict` status.
 - [x] Normalize each candidate owner's origin once at the IO boundary; group candidates by binary and normalized origin for warnings only. Keep the existing deterministic last-path-wins mapping. Missing or unrecognized origins stay distinct by path so a real collision cannot be hidden. `--verbose` explains a suppressed same-origin duplicate.
-- [ ] Run the focused shell test, `make -k build`, and the recorded full suite; update the script's contract documentation and close on verified evidence.
+- [x] Run the focused shell test, `make -k build`, and the recorded full suite; update the script's contract documentation and close on verified evidence.
 
 ## Log
 
@@ -62,8 +64,16 @@ The new fixture failed before implementation on the same-origin warning and stri
 
 Before the queued full suite began, I compared the shell normalization with `gitx.PublicationRepository`: GitHub owner/repo is case-insensitive, while other hosts cannot safely be folded across transports. I interrupted the queued attempt, added the mixed-case GitHub regression, and changed the identity rule accordingly. I also added a missing-origin strict collision assertion; no unmeasured success is inferred from a missing remote.
 
+Final focused test: 70 passed, 0 failed. Recorded `sdlc-local/suite` on c64466ea43415a2281cd773e9aa50be67d1c6451: 12 shards / 1577 sdlc tests and 67 other packages, exit 0, wall 496s, log sha256:5aea23be8769. PR #289's merge-check and local-gates-guard passed. The live parley.nvim:4 read-only `--strict --list` check selected all seven tools from its slot substrate with no warnings.
+
+Close review round 1 returned FIX-THEN-SHIP with two blocking Important findings: README omitted the new user-facing flag, and acceptance plus fixture coverage omitted parts of the revised origin policy. A Minor ARCH-DRY finding identified duplicate warning/strict classification. I enumerated the policy matrix in Done when and fixtures, documented the flag in README, and made both warning and strict status consume one classification. This requires another exact-head suite and close review.
+
 ## Revisions
 
 ### 2026-10-17 — Preserve non-GitHub identity conservatively
 
 The original plan said to normalize origin URLs generically. GitHub's known identity semantics support SSH/HTTPS and case folding; arbitrary Git hosts may distinguish those. Normalize only GitHub's recognized forms, compare other hosts by exact URL, and keep unknown origins distinct by path. The selected binary remains last sorted checkout.
+
+### 2026-10-17 — Cover the complete origin policy
+
+Review round 1 showed that the original Done when and test matrix described only the motivating collision. The accepted policy also covers GitHub `ssh://`, identical non-GitHub URLs, non-GitHub transport and path-case differences, and unrecognized origins. These are now explicit acceptance cases; README documentation and one shared collision classification are in scope.

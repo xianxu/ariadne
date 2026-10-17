@@ -215,6 +215,12 @@ slot_out="$(cd "$SLOT" && bash "$GEN" --workspace "$WS" --list --strict 2>"$WS/s
 assert_contains "$(printf 'sdlc\t%s' "$SUBSTRATE")" "$slot_out" "slot substrate remains selected owner"
 slot_verbose="$(cd "$SLOT" && bash "$GEN" --workspace "$WS" --verbose --list 2>&1 >/dev/null)"
 assert_contains "same-origin" "$slot_verbose" "verbose mode explains suppressed duplicate"
+git -C "$SUBSTRATE" remote set-url origin ssh://git@github.com/example/ariadne.git
+if (cd "$SLOT" && bash "$GEN" --workspace "$WS" --strict --list >"$WS/ssh-list" 2>"$WS/ssh.err"); then
+	[ ! -s "$WS/ssh.err" ] && ok "GitHub ssh:// origin is equivalent and quiet under --strict" || ko "GitHub ssh:// warned: [$(cat "$WS/ssh.err")]"
+else
+	ko "GitHub ssh:// origin should pass --strict"
+fi
 rm -rf "$WS/worktree"
 
 # two ACTIVE repos both owning a real cmd/dupe → collision
@@ -241,6 +247,30 @@ if bash "$GEN" --workspace "$WS" --strict >/dev/null 2>&1; then
 else
 	ok "unknown origins keep --strict collision"
 fi
+same_origin_check() {
+	local label="$1" err rc
+	err="$(bash "$GEN" --workspace "$WS" --strict --list 2>&1 >/dev/null)"; rc=$?
+	[ "$rc" -eq 0 ] && [ -z "$err" ] && ok "$label" || ko "$label: rc=$rc stderr=[$err]"
+}
+different_origin_check() {
+	local label="$1" err rc
+	err="$(bash "$GEN" --workspace "$WS" --strict --list 2>&1 >/dev/null)"; rc=$?
+	if [ "$rc" -ne 0 ]; then
+		assert_contains "duplicate binary 'dupe'" "$err" "$label"
+	else
+		ko "$label: rc=$rc stderr=[$err]"
+	fi
+}
+git -C "$WS/repoa" remote add origin https://git.example.com/group/shared.git
+git -C "$WS/repob" remote add origin https://git.example.com/group/shared.git
+same_origin_check "identical non-GitHub origins are quiet under --strict"
+git -C "$WS/repob" remote set-url origin git@git.example.com:group/shared.git
+different_origin_check "non-GitHub transport difference remains a collision"
+git -C "$WS/repob" remote set-url origin https://git.example.com/group/Shared.git
+different_origin_check "non-GitHub path case difference remains a collision"
+git -C "$WS/repoa" remote set-url origin ../shared.git
+git -C "$WS/repob" remote set-url origin ../shared.git
+different_origin_check "unrecognized relative origins remain distinct by checkout"
 # without the dup, --strict is clean (remove repob's dupe)
 rm -rf "$WS/repob" "$WS/repoa"
 if bash "$GEN" --workspace "$WS" --strict >/dev/null 2>&1; then

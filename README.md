@@ -342,6 +342,11 @@ each peer owner's tools; reload existing shell functions from the checkout root
 with `source <(construct/dev-aliases.sh)`. For direct Go commands, use
 `go build -trimpath` or `go test -trimpath`. See the
 [build and test details](atlas/workflow/sdlc-binary.md#build--install).
+When diagnosing duplicate dev-alias owners, run
+`construct/dev-aliases.sh --list --verbose`: it names same-origin checkouts
+whose warning was suppressed. `--strict` fails only when a binary name has
+owners from distinct Git origins; GitHub HTTPS and SSH forms identify the
+same repository, while unknown origins remain distinct.
 
 For host checks required by `make test`, provide `tests/host-preflight.sh`, or
 set `WF_TEST_PREFLIGHT ?= path/to/preflight.sh` before including

@@ -257,23 +257,25 @@ collect() {
 
 candidates="$(collect)"
 
-# Warn only when one binary name has owners from distinct Git repositories.
+# Classify each binary once: checkout count, distinct identity count, owner paths.
+# Warnings and strict status consume the same classification (ARCH-DRY).
+classifications="$(printf '%s\n' "$candidates" | awk -F'\t' 'NF>=3 {
+	checkouts[$1]++; owners[$1]=owners[$1] $2 " "; key=$1 SUBSEP $3
+	if (!seen[key]++) identities[$1]++
+} END {for (b in checkouts) printf "%s\t%d\t%d\t%s\n", b, checkouts[b], identities[b], owners[b]}' | LC_ALL=C sort)"
 had_dup=0
-dups="$(printf '%s\n' "$candidates" | awk -F'\t' 'NF{print $1}' | LC_ALL=C sort | uniq -d)"
-if [ -n "$dups" ]; then
-	printf '%s\n' "$dups" | while IFS= read -r d; do
-		[ -n "$d" ] || continue
-		owners="$(printf '%s\n' "$candidates" | awk -F'\t' -v b="$d" '$1==b{printf "%s ", $2}')"
-		identities="$(printf '%s\n' "$candidates" | awk -F'\t' -v b="$d" '$1==b{print $3}' | LC_ALL=C sort -u | wc -l | tr -d ' ')"
-		if [ "$identities" -gt 1 ]; then
-			warn "duplicate binary '$d' owned by: ${owners}(last in sorted order wins)"
-		elif [ "$verbose" -eq 1 ]; then
-			warn "same-origin checkouts own '$d': ${owners}(last in sorted order wins)"
-		fi
-	done
-	had_dup="$(printf '%s\n' "$candidates" | awk -F'\t' 'NF>=3 {k=$1 SUBSEP $3; if (!seen[k]++) count[$1]++} END {for (b in count) if (count[b]>1) {print 1; exit}}')"
-	had_dup="${had_dup:-0}"
-fi
+while IFS="$(printf '\t')" read -r bin checkout_count identity_count owners; do
+	[ -n "$bin" ] || continue
+	[ "$checkout_count" -gt 1 ] || continue
+	if [ "$identity_count" -gt 1 ]; then
+		had_dup=1
+		warn "duplicate binary '$bin' owned by: ${owners}(last in sorted order wins)"
+	elif [ "$verbose" -eq 1 ]; then
+		warn "same-origin checkouts own '$bin': ${owners}(last in sorted order wins)"
+	fi
+done <<EOF
+$classifications
+EOF
 
 # Final mapping: last-win per binary (deterministic since walk order is sorted),
 # emitted sorted by binary name.
