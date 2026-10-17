@@ -6,8 +6,9 @@ github_issue:
 created: 2026-10-16
 updated: 2026-10-17
 estimate_hours:
-card_mirror: 'c39daea6fbe64417a736e41e1091f427539bc7a2' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'dc678791e3a0d3df98006c333b899eb27133f0ad' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-16T19:36:21-07:00
+actual_hours: N/A
 claimant:
     operator: Xian Xu
     machine: 4716879978a7b90f6b583da1716fd0e9
@@ -16,7 +17,6 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "b59c9a1c", done: "9912e973"}
-actual_hours: 1.12
 ---
 
 # local-check: a cancelled queued run orphans its test-lock helper, which holds the queue ticket after its watched process is gone
@@ -98,6 +98,8 @@ Related to, but not covered by, #400 (cancel must stop only your own run).
 
 - Close round 2 returned SHIP, high confidence, no new findings; BR-1 addressed. Reviewer independently passed focused Go checks (65.980s), the full helper script and mutation checks that reproduced the five relevant failures without the fixes. Close evidence cd3fbe49f9dd58c3765e62f6e379aed7dd3871a4 published codecomplete and actual 1.12h (raw measured 5.06h at 412b0dc4 minus 14189.88612 recorded queue seconds, rounded).
 - Integrated origin/main including landed #418 cleanly at 4378adae99d6e3e72c0fa1e33185196e5b32c9e9; bounded cleanup wiring retained. sdlc merge --yes entered the landing line. TL hold receipt d5342059-2f43-46fe-a646-3351768702fd forbids main writes until #417 lands and the TL releases the hold. Stopped only my verified queued merge PID 43991 (parent 84708, exact command); session exited 143. Read-only landing status confirms #416 removed, #417 still active and #419 retained. Checkout clean. No active owned suite; wait for TL release, then integrate new main and rerun normal sdlc merge --yes (no validation bypass). The recorded pass on 6fe57a8f is retained; the new main code integration owes fresh suite evidence.
+
+- After the hold released, integrated #417 cleanly and rejoined the normal landing line behind #419. Once #419 landed, the gate named the missing branch push. Integrating that main produced only a generated frontmatter conflict: published actual correction actual-correction-c6c9f528ea66 supersedes the historical 1.12h with N/A. Restored main's exact authoritative mirror (dc678791e3a0d3df98006c333b899eb27133f0ad), preserving both issue bodies, the existing branch-local flow record and close provenance; no tracker fields were changed by hand. Continue with sdlc pr and normal sdlc merge --yes; fresh integration suite remains required.
 
 ## Revisions
 
