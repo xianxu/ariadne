@@ -176,6 +176,31 @@ func TestWorkSpansFromTranscriptJSONSessionID(t *testing.T) {
 	}
 }
 
+func TestWorkSpansFromTranscriptYieldedWorkNeedsCompletion(t *testing.T) {
+	unknownSession := []string{
+		`{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"stage","arguments":"{\"cmd\":\"sdlc stage --build\"}"}}`,
+		`{"timestamp":"2026-01-01T00:01:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"stage","output":"still running"}}`,
+	}
+	if spans := workSpansFromTranscript([]byte(strings.Join(unknownSession, "\n")), "a"); len(spans) != 0 {
+		t.Fatalf("untrackable running command became work: %+v", spans)
+	}
+	lines := []string{
+		`{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"stage","arguments":"{\"cmd\":\"sdlc stage --build\"}"}}`,
+		`{"timestamp":"2026-01-01T00:01:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"stage","output":"Process running with session ID 7"}}`,
+		`{"timestamp":"2026-01-01T00:10:00Z","type":"response_item","payload":{"type":"function_call","name":"write_stdin","call_id":"poll","arguments":"{\"session_id\":7}"}}`,
+		`{"timestamp":"2026-01-01T00:11:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"poll","output":"still running"}}`,
+		`{"timestamp":"2026-01-01T00:20:00Z","type":"response_item","payload":{"type":"function_call","name":"write_stdin","call_id":"done","arguments":"{\"session_id\":7}"}}`,
+		`{"timestamp":"2026-01-01T00:21:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"done","output":"Process exited with code 0"}}`,
+	}
+	if spans := workSpansFromTranscript([]byte(strings.Join(lines[:4], "\n")), "a"); len(spans) != 0 {
+		t.Fatalf("unfinished work became positive evidence: %+v", spans)
+	}
+	spans := workSpansFromTranscript([]byte(strings.Join(lines, "\n")), "a")
+	if len(spans) != 1 || spans[0].Kind != toolWork || !spans[0].Start.Equal(qt(0)) || !spans[0].End.Equal(qt(21)) {
+		t.Fatalf("completed work not followed through polls: %+v", spans)
+	}
+}
+
 func TestWorkSpansFromTranscriptRejectsDuplicateAndIncomplete(t *testing.T) {
 	lines := []string{
 		`{"timestamp":"2026-01-01T00:00:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"dup","name":"Bash","input":{"command":"sdlc stage --build"}}]}}`,

@@ -1464,6 +1464,9 @@ edit and subagent work inside the wait remains. Unknown or ambiguous binding
 refuses a correction. Old completed snapshots replay unchanged; explicit
 `correct-actual` builds a new candidate against the completion generation and
 can exclude an unverifiable calibration sample without inventing hours.
+The retained snapshot keeps a wait's binding transcript even when all of that
+source's activity was subtracted, and queue-aware corrections carry the same
+ownership-proven calibration trust as engagement measurements.
 
 `sdlc active-time` (#110) is the standalone CLI over the same engine — the
 manual-inspection sibling that prints the full attribution table and warnings. It preserves

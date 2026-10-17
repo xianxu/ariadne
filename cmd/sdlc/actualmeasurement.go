@@ -66,6 +66,9 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 		for _, file := range out.SourceIDs {
 			contributing[file] = true
 		}
+		for _, file := range out.QueueBindingSourceIDs {
+			contributing[file] = true // queue replay still needs this prefix when its activity is zero
+		}
 		m.Sources = nil
 		for _, s := range inputs.Sessions {
 			if !contributing[s.File] {

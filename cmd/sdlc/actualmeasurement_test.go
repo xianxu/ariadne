@@ -137,6 +137,58 @@ func TestActualQueueMeasurementReplay(t *testing.T) {
 	}
 }
 
+func TestActualQueueMeasurementRetainsBindingSource(t *testing.T) {
+	t.Setenv("GIT_AUTHOR_DATE", "2026-01-01T00:00:00Z")
+	t.Setenv("GIT_COMMITTER_DATE", "2026-01-01T00:00:00Z")
+	root := testfix.Repo(t, testfix.InitialCommit())
+	t.Setenv("GIT_AUTHOR_DATE", "2026-01-01T00:40:00Z")
+	t.Setenv("GIT_COMMITTER_DATE", "2026-01-01T00:40:00Z")
+	testfix.Git(t, root, "commit", "--allow-empty", "-qm", "#335: peer work")
+	head := strings.TrimSpace(testfix.Capture(t, root, "rev-parse", "HEAD"))
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	queueData := []byte(strings.Join([]string{
+		`{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"suite","arguments":"{\"cmd\":\"sdlc local-check run --name suite\"}"}}`,
+		`{"timestamp":"2026-01-01T00:10:00Z","type":"response_item","payload":{"type":"message","role":"user","content":"#335 waiting"}}`,
+		`{"timestamp":"2026-01-01T00:50:00Z","type":"response_item","payload":{"type":"message","role":"user","content":"#335 still waiting"}}`,
+		`{"timestamp":"2026-01-01T01:00:00Z","type":"response_item","payload":{"type":"function_call_output","call_id":"suite","output":"done"}}`,
+	}, "\n") + "\n")
+	peerData := []byte("{\"timestamp\":\"2026-01-01T00:20:00Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":\"#335 work\"}}\n{\"timestamp\":\"2026-01-01T00:30:00Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":\"#335 work\"}}\n")
+	makeSource := func(id string, data []byte) transcripts.SessionEvidence {
+		path := filepath.Join(t.TempDir(), id+".jsonl")
+		if err := os.WriteFile(path, data, 0600); err != nil {
+			t.Fatal(err)
+		}
+		return transcripts.SessionEvidence{Harness: "codex", ID: id, CWD: root, File: path, Digest: fmt.Sprintf("%x", sha256.Sum256(data)), Length: int64(len(data)), Started: start}
+	}
+	queue := makeSource("queue", queueData)
+	peer := makeSource("peer", peerData)
+	m := gatestate.MeasurementInputs{Version: 1, Method: gatestate.MeasurementMethodQueueV1, Repository: "x/ariadne", CodeHead: head, TrackerHead: head, Since: start.Format(time.RFC3339), Until: start.Add(time.Hour).Format(time.RFC3339), GapMinutes: 120, CommitWeight: 1, IncludeAssistant: true,
+		Engagements: []gatestate.MeasurementEngagement{{Start: start.Format(time.RFC3339), End: start.Add(time.Hour).Format(time.RFC3339), Began: start.Format(time.RFC3339), Roots: []string{root}}},
+		QueueWaits:  []gatestate.MeasurementQueueWait{{AttemptID: "aabb", Slot: "ariadne:1", RecordDigest: strings.Repeat("d", 64), Start: start.Format(time.RFC3339), End: start.Add(time.Hour).Format(time.RFC3339), QueueSeconds: 3600, RawSeconds: 3600, Exact: true}}}
+	files := []string{queue.File, peer.File}
+	in := &ownedActualInputs{Snapshot: m, Files: files, Prefixes: map[string]activetime.SourcePrefix{}, Windows: map[string][]activetime.ActivityWindow{}, SourceSlots: map[string]string{queue.File: "ariadne:1", peer.File: "ariadne:1"}, Scope: activetime.Scope{Head: head, Issue: "335"}, TrackerRefs: []string{head}, Sessions: []transcripts.SessionEvidence{queue, peer}}
+	for _, s := range in.Sessions {
+		in.Prefixes[s.File] = activetime.SourcePrefix{Bytes: s.Length, Digest: s.Digest}
+		in.Windows[s.File] = []activetime.ActivityWindow{{Start: start, End: start.Add(time.Hour), Began: start}}
+	}
+	got := computeOwnedActualFor(context.Background(), root, "335", "", in)
+	if got.Status != actualMeasured || got.Inputs == nil {
+		t.Fatalf("queue candidate: %+v", got)
+	}
+	if len(got.Inputs.Sources) != 2 {
+		t.Fatalf("queue binding source lost when its corrected activity is zero: %+v", got.Inputs.Sources)
+	}
+	replay, err := ownedReplaySources(*got.Inputs, in.Sessions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replay.Scope.Issue = "335"
+	again := computeOwnedActualFor(context.Background(), root, "335", "", replay)
+	if again.Status != actualMeasured || again.Hours != got.Hours {
+		t.Fatalf("queue binding replay failed: %+v candidate=%+v", again, got)
+	}
+}
+
 func TestOwnedActualProductionConsumersShareBrainAndOwnership(t *testing.T) {
 	r, _, _, _, path := ownedResolverFixture(t)
 	appendEvents := func(path string, minutes ...int) {

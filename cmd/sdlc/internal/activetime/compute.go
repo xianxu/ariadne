@@ -84,8 +84,11 @@ type Result struct {
 	IssueCommitTimes []time.Time
 	// SourceIDs identifies actual contributing runs, excluding old same-cwd
 	// sessions with no activity in the admitted sample.
-	SourceIDs        []string
-	QueueAttribution QueueAttribution
+	SourceIDs []string
+	// QueueBindingSourceIDs identifies transcripts required to replay selected
+	// queue waits, even when subtraction removes all their activity.
+	QueueBindingSourceIDs []string
+	QueueAttribution      QueueAttribution
 }
 
 const suspiciousSpanMin = 120.0
@@ -170,13 +173,19 @@ func Compute(opts Options) (Result, error) {
 			return Result{}, err
 		}
 		bound := make([]QueueInterval, 0, len(opts.QueueIntervals))
+		bindingSources := map[string]bool{}
 		for _, wait := range opts.QueueIntervals {
 			b, err := bindQueueSource(wait, tools, opts.SourceSlots)
 			if err != nil {
 				return Result{}, err
 			}
 			bound = append(bound, b)
+			if !bindingSources[b.Source] {
+				bindingSources[b.Source] = true
+				res.QueueBindingSourceIDs = append(res.QueueBindingSourceIDs, b.Source)
+			}
 		}
+		slices.Sort(res.QueueBindingSourceIDs)
 		// A subagent dispatch is independent work only within its admitted
 		// engagement. It cannot restore any time after release/reclaim.
 		for _, sp := range spans {

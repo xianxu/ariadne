@@ -1,0 +1,195 @@
+---
+gate: boundary-review
+issue: 420
+id_prefix: BR
+rounds:
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 42c1741a-9784-4319-b090-3f12c52210e2
+            repository: github.com/xianxu/ariadne
+            issue_id: "000420"
+            recipe: milestone-review
+            round: 1
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/eb5e6ff16e87a774
+            reviewed_head: fe2155eda0572e95b2e5243c164698decddfcf3a
+            slot: ariadne:1
+            requested_at: "2026-10-17T09:46:59.009541Z"
+          phase: finished
+          pid: 45129
+          started_at: "2026-10-17T09:46:59.129733Z"
+          finished_at: "2026-10-17T09:51:31.199571Z"
+          session_id: 01a14941-ec21-71e2-8cb9-f6e498416133
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: fe2155eda0572e95b2e5243c164698decddfcf3a
+        tracker_head: e989ed358facd8920cdc63dc245c4430d85beace
+        branch_point: 0a1f6a454d8192e798fade61106cedede1774795
+        since: "2026-10-17T00:53:13-07:00"
+        until: "2026-10-17T02:45:41-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-17T00:53:13-07:00"
+              end: "2026-10-17T02:45:41-07:00"
+              began: "2026-10-17T00:53:13-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 12aac8a3cd1d5022f28fa23ae553df3e399267a2dafacfc3593c66195d984778
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 52193671
+              windows:
+                - start: "2026-10-17T00:53:13-07:00"
+                  end: "2026-10-17T02:45:41-07:00"
+            - harness: codex
+              id: 01a148dd-d9dc-7b41-8ff5-37fb3d72ae46
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 87ed2689fe0f0571ac966d9c43d9baed2e6b74b7b96fef94d0b83b5589259f28
+              started: "2026-10-17T07:57:41.883Z"
+              spawned: false
+              bytes: 603729
+              windows:
+                - start: "2026-10-17T07:57:41.883Z"
+                  end: "2026-10-17T02:45:41-07:00"
+            - harness: codex
+              id: 01a148df-e9ee-7061-9d8d-4bd9f106aedf
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: f4e79066b008f729a28d08b863f1a8623c12b7287055544ff958dd0ca78bc478
+              started: "2026-10-17T07:59:56.888Z"
+              spawned: false
+              bytes: 450509
+              windows:
+                - start: "2026-10-17T07:59:56.888Z"
+                  end: "2026-10-17T02:45:41-07:00"
+            - harness: codex
+              id: 01a148e1-33c7-7f21-8981-aa85a762079f
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 6e71a79536593227c575c21f9b579b4c1fefab82e87d3e63525cdf0f96f255d0
+              started: "2026-10-17T08:01:21.375Z"
+              spawned: false
+              bytes: 459559
+              windows:
+                - start: "2026-10-17T08:01:21.375Z"
+                  end: "2026-10-17T02:45:41-07:00"
+            - harness: codex
+              id: 01a148e2-2b49-7230-8d38-9b246eb10ef1
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: f9e3d27cc800f5eacab8e808fdf5b07f5ab675fd515d4ae79355dac67d6873e9
+              started: "2026-10-17T08:02:24.452Z"
+              spawned: false
+              bytes: 452872
+              windows:
+                - start: "2026-10-17T08:02:24.452Z"
+                  end: "2026-10-17T02:45:41-07:00"
+            - harness: codex
+              id: 01a148e2-90ae-7eb0-8e51-7f557d118b67
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 6fa9d67313428b1a35c9c30f44ffbb549985879b80f5cfc31b2601cbfc37c256
+              started: "2026-10-17T08:02:50.754Z"
+              spawned: false
+              bytes: 393000
+              windows:
+                - start: "2026-10-17T08:02:50.754Z"
+                  end: "2026-10-17T02:45:41-07:00"
+            - harness: codex
+              id: 01a148e7-2483-7b31-8228-d6ebed426406
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              parent_id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              digest: c9dd33e0dfde2d70c72ba1a88b8e941aaca55a0b99026745a8bdedd23be5e3fb
+              started: "2026-10-17T08:07:50.283Z"
+              spawned: true
+              bytes: 930638
+              windows:
+                - start: "2026-10-17T08:07:50.283Z"
+                  end: "2026-10-17T02:45:41-07:00"
+        queue_waits:
+            - attempt_id: 56ea53f8bb5c486b2893c1a4c559c90b
+              slot: ariadne:1
+              record_digest: bbe728c9cb16e05f781896337d7de57a7f43b48590c48a05fe0d5ea8a491ed88
+              start: "2026-10-17T08:35:47.220135416Z"
+              end: "2026-10-17T08:58:47.970797Z"
+              queue_seconds: 1380.750661584
+              raw_seconds: 1380.750661584
+              exact: false
+            - attempt_id: a7d113f3e8f9ba1aea28d0c7763c013a
+              slot: ariadne:1
+              record_digest: a87e3a5eb82e1a266e0a302dc7837817bf2a98304b095b62a5bdadd915b1a502
+              start: "2026-10-17T09:16:34.852656042Z"
+              end: "2026-10-17T09:36:53.266773Z"
+              queue_seconds: 1218.414116958
+              raw_seconds: 1218.414116958
+              exact: false
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 18.58065
+      "n": 1
+      timestamp: "2026-10-17T02:51:32-07:00"
+      dispatched: "2026-10-17T02:46:59-07:00"
+      agent: codex
+      findings:
+        - kind: defect
+          id: BR-1
+          severity: Critical
+          title: Snapshot filtering drops sources required to replay queue exclusions
+          detail: 'cmd/sdlc/actualmeasurement.go:65-79 retains only sources contributing activity after subtraction, while retaining every QueueWait. When a wait removes all activity from its source and another source contributes work, measurement succeeds but drops the wait''s binding transcript. A temporary regression reproduced successful measurement followed by replay failure: "queue attempt aabb has no owning wait invocation". Retain all queue-binding source prefixes and provenance, including sources contributing zero corrected activity (ARCH-PURPOSE).'
+          family: retained-evidence-covers-replay-dependencies
+          round: 1
+        - kind: defect
+          id: BR-2
+          severity: Critical
+          title: A still-running poll finalizes yielded work as completed evidence
+          detail: cmd/sdlc/internal/activetime/queue.go:138 preserves running polls only for toolWait. A yielded stage command followed by a poll returning "still running" instead loses its yielded association and reaches result(), which emits a work span without completion evidence. A temporary regression produced an 11-minute work span from an unfinished invocation. Preserve running state for both kinds and emit work only after confirmed completion; cover repeated polls, missing completion and eventual completion through an explicit transition model (ARCH-ORDER, ARCH-SECURE).
+          family: work-evidence-requires-confirmed-completion
+          round: 1
+        - kind: defect
+          id: BR-3
+          severity: Important
+          title: Queue-aware corrections fail to establish calibration trust
+          detail: cmd/sdlc/actualinputs.go:353 introduces MeasurementMethodQueueV1, but cmd/sdlc/actualcorrection.go:820 sets WindowTrusted only for MeasurementMethodEngagementV1. Correcting an untrusted sample with ownership-proven queue evidence therefore leaves it excluded from calibration. Substituting QueueV1 into the existing TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust reproduced "correction trust false, want true". Include the new method in this consumer and parameterize the regression across both ownership-proven methods (ARCH-PURPOSE).
+          family: measurement-method-consumer-completeness
+          round: 1
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
+---
+
+# Gate ledger — ariadne#420 (boundary-review)
+
+Findings this gate raised, the stable ids the binary assigned them, and how
+later rounds disposed of them. Generated — edit the gate, not this file.
+
+## Round 1 — 2026-10-17T02:51:32-07:00 (codex) — BLOCKED
+
+### Raised
+
+- **BR-1** [Critical] `retained-evidence-covers-replay-dependencies` (kind: defect) Snapshot filtering drops sources required to replay queue exclusions
+  cmd/sdlc/actualmeasurement.go:65-79 retains only sources contributing activity after subtraction, while retaining every QueueWait. When a wait removes all activity from its source and another source contributes work, measurement succeeds but drops the wait's binding transcript. A temporary regression reproduced successful measurement followed by replay failure: "queue attempt aabb has no owning wait invocation". Retain all queue-binding source prefixes and provenance, including sources contributing zero corrected activity (ARCH-PURPOSE).
+- **BR-2** [Critical] `work-evidence-requires-confirmed-completion` (kind: defect) A still-running poll finalizes yielded work as completed evidence
+  cmd/sdlc/internal/activetime/queue.go:138 preserves running polls only for toolWait. A yielded stage command followed by a poll returning "still running" instead loses its yielded association and reaches result(), which emits a work span without completion evidence. A temporary regression produced an 11-minute work span from an unfinished invocation. Preserve running state for both kinds and emit work only after confirmed completion; cover repeated polls, missing completion and eventual completion through an explicit transition model (ARCH-ORDER, ARCH-SECURE).
+- **BR-3** [Important] `measurement-method-consumer-completeness` (kind: defect) Queue-aware corrections fail to establish calibration trust
+  cmd/sdlc/actualinputs.go:353 introduces MeasurementMethodQueueV1, but cmd/sdlc/actualcorrection.go:820 sets WindowTrusted only for MeasurementMethodEngagementV1. Correcting an untrusted sample with ownership-proven queue evidence therefore leaves it excluded from calibration. Substituting QueueV1 into the existing TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust reproduced "correction trust false, want true". Include the new method in this consumer and parameterize the regression across both ownership-proven methods (ARCH-PURPOSE).
+
+## Open findings
+
+- **BR-1** [Critical] `retained-evidence-covers-replay-dependencies` (kind: defect) Snapshot filtering drops sources required to replay queue exclusions
+- **BR-2** [Critical] `work-evidence-requires-confirmed-completion` (kind: defect) A still-running poll finalizes yielded work as completed evidence
+- **BR-3** [Important] `measurement-method-consumer-completeness` (kind: defect) Queue-aware corrections fail to establish calibration trust

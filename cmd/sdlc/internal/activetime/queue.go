@@ -85,6 +85,9 @@ func workSpansFromTranscript(data []byte, source string) []ToolSpan {
 			yielded[sid] = p
 			return
 		}
+		if isRunningOutput(output) {
+			return // no terminal result and no session to follow
+		}
 		spans = append(spans, ToolSpan{Start: p.start, End: ts, Source: source, Kind: p.kind, id: p.id})
 	}
 	for line := range strings.SplitSeq(string(data), "\n") {
@@ -135,7 +138,7 @@ func workSpansFromTranscript(data []byte, source string) []ToolSpan {
 			case "function_call_output", "custom_tool_call_output":
 				out := toolOutputText(p.Output)
 				if ptr := pending[p.CallID]; ptr != nil {
-					if isRunningOutput(out) && ptr.kind == toolWait && ptr.id != p.CallID {
+					if isRunningOutput(out) && ptr.id != p.CallID {
 						delete(pending, p.CallID)
 						continue
 					}

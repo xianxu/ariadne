@@ -817,7 +817,7 @@ func runActualCorrection(ctx context.Context, stdout, stderr io.Writer, issuesDi
 	row := target
 	row.RawID = ""
 	row.Actual = measured.Hours
-	if !exclude && inputs.Method == gatestate.MeasurementMethodEngagementV1 {
+	if !exclude && (inputs.Method == gatestate.MeasurementMethodEngagementV1 || inputs.Method == gatestate.MeasurementMethodQueueV1) {
 		row.WindowTrusted = true
 	}
 	row.Date = time.Now().Format("2006-01-02")
