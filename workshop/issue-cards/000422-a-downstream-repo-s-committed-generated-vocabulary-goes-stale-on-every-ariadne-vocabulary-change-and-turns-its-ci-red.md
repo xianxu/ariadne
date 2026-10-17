@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.67
+actual_hours: 1.03
 tracker:
     version: 1
     completion:
-        token: close-64cd532022e7
+        token: close-76c22e43a1dd
         repository: github.com/xianxu/ariadne
-        reviewed_head: 147749d445f663fe46ac149680952844683e0771
-        evidence_commit: 6edbe1130325b35388f617d596b9b9d386266097
+        reviewed_head: 56e759185daf86d09a2e64b29762ddf2fd1a276d
+        evidence_commit: 4d4dcee612f70d829520a1be99f2929d93b70cb6
 ---
 
 # A downstream repo's committed generated vocabulary goes stale on every ariadne vocabulary change and turns its CI red
