@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -30,9 +31,10 @@ func TestOwnerMakeCommandsUseTrimpath(t *testing.T) {
 			if len(rows) != 3 {
 				t.Fatalf("want two tool builds and the sharder, got %q", rows)
 			}
-			for i, want := range []string{"go\tbuild -o bin/sdlc ./cmd/sdlc", "go\tbuild -o bin/weave ./cmd/weave", "python3\tscripts/test-shard.py"} {
+			// Each tool builds into its own staging dir beside bin/X, then renames (#419).
+			for i, want := range []string{"go\tbuild -o bin/.go-build.*/binary ./cmd/sdlc", "go\tbuild -o bin/.go-build.*/binary ./cmd/weave", "python3\tscripts/test-shard.py"} {
 				parts := strings.Split(rows[i], "\t")
-				if len(parts) != 3 || strings.Join(parts[:2], "\t") != want {
+				if ok, _ := path.Match(want, strings.Join(parts[:min(2, len(parts))], "\t")); len(parts) != 3 || !ok {
 					t.Fatalf("unexpected recipe: %q; want %q", rows[i], want)
 				}
 				if got := strings.Fields(parts[2]); !reflect.DeepEqual(got, tc.want) {
@@ -80,7 +82,7 @@ func TestRecordedSuiteUsesOwnerTrimpathDefaults(t *testing.T) {
 func runOwnerMakeTrace(t *testing.T, args, extraEnv []string) []string {
 	t.Helper()
 	dir := t.TempDir()
-	for _, name := range []string{"Makefile", "Makefile.local"} {
+	for _, name := range []string{"Makefile", "Makefile.local", "Makefile.workflow"} {
 		data, err := os.ReadFile(filepath.Join("..", "..", name))
 		if err != nil {
 			t.Fatal(err)
@@ -100,6 +102,7 @@ if [ "$1" = env ] && [ "${2:-}" = GOFLAGS ]; then
     exit 0
 fi
 printf 'go\t%s\t%s\n' "$*" "${GOFLAGS-}" >> "${TRACE:?}"
+[ "$1" = build ] && [ "$2" = -o ] && : > "$3"
 `,
 		"python3": "#!/bin/sh\nprintf 'python3\\t%s\\t%s\\n' \"$*\" \"${GOFLAGS-}\" >> \"${TRACE:?}\"\n",
 	} {

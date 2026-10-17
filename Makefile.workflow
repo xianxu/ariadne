@@ -668,6 +668,22 @@ endef
 # Designed to be a no-op in repos that don't have a go.mod (brain
 # repos without authored binaries), so it's safe to define in the
 # shared base layer.
+# WF_GO_PUBLISH OUTPUT GO-BUILD-ARGS... builds a Go binary and publishes it
+# with one rename (#419): a reader of OUTPUT sees the old complete binary or
+# the new one, never a missing or partial file (go build -o writes its target
+# in place). The staging dir sits beside OUTPUT, so the rename stays on one
+# filesystem, and each call owns its own, so concurrent builds don't collide.
+# A failed or interrupted build leaves OUTPUT as it was and removes the dir; a
+# dir a SIGKILL left behind is swept by the next publish once it is an hour old
+# (no build runs that long, so a live one is never swept).
+# pair#624's scripts/build-go-atomic.sh and dev-aliases.sh's rebuild publish
+# the same way. OUTPUT's directory must exist.
+WF_GO_PUBLISH = wf_go_publish() { ( out="$$1"; shift; \
+    p=$$(dirname "$$out") && d=$$(mktemp -d "$$p/.go-build.XXXXXX") || exit 1; \
+    find "$$p" -maxdepth 1 -name '.go-build.*' -type d -mmin +60 -exec rm -rf {} + 2>/dev/null; \
+    trap 'rm -rf "$${d:?}"' EXIT; trap 'exit 130' INT; trap 'exit 143' TERM; \
+    go build -o "$$d/binary" "$$@" && mv -f "$$d/binary" "$$out" ); }; wf_go_publish
+
 .PHONY: build local-build
 build:
 	@if [ -f go.mod ]; then \
@@ -683,7 +699,7 @@ build:
 	        if [ -f "$$d/main.go" ]; then \
 	            mkdir -p bin; \
 	            echo "==> Building $$name..."; \
-	            go build -o "bin/$$name" "./$$d" || exit 1; \
+	            $(WF_GO_PUBLISH) "bin/$$name" "./$$d" || exit 1; \
 	            found=1; \
 	        fi; \
 	    done; \
