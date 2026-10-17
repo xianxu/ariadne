@@ -17,8 +17,8 @@ import (
 const instructionsHeading = "Operator instructions"
 
 var (
-	bulletStartRE = regexp.MustCompile(`^\d+\.\s`)
-	answeredRE    = regexp.MustCompile(`→\s*(\[answer\]\(|done:)`)
+	itemStartRE = regexp.MustCompile(`^(?:[-*]|\d+\.)\s`)
+	answeredRE  = regexp.MustCompile(`→\s*(\[answer\]\([^)]*\)\s*$|done:)`)
 )
 
 // Bullet is one operator bullet. Pos is its 1-based position in the section:
@@ -30,28 +30,91 @@ type Bullet struct {
 	Answered bool
 }
 
-// instructionBullets splits the section body into bullets. A bullet starts at
-// a line `N. ` and runs to the next one or the end of the section, with its
-// trailing blank lines dropped; lines before the first bullet belong to none.
+// instructionBullets splits the section body into bullets, by the chat-mode
+// item of xx-universal-review's collaboration-modes.md §3 (#412): a `-`, `*`
+// or `N.` line at the section's shallowest list indent starts one, and it
+// runs over its sub-items and continuation lines until the next such line, or
+// until a blank line followed by prose indented no deeper than that indent
+// (prose belongs to no bullet). Fenced code starts no bullet; a tab indents to
+// the next multiple of four. Trailing blank lines are dropped. A bullet is
+// answered by a link ending any of its lines outside fences, so a follow-up
+// added after the link keeps it answered; `→ done:` is the older form.
 func instructionBullets(section string) []Bullet {
+	lines := strings.Split(section, "\n")
+	fenced := make([]bool, len(lines))
+	in := false
+	for i, l := range lines {
+		t := strings.TrimSpace(l)
+		if strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~") {
+			fenced[i], in = true, !in
+			continue
+		}
+		fenced[i] = in
+	}
+	start := func(i int) (int, bool) {
+		if fenced[i] || !itemStartRE.MatchString(strings.TrimLeft(lines[i], " \t")) {
+			return 0, false
+		}
+		return indentOf(lines[i]), true
+	}
+	shallow := -1
+	for i := range lines {
+		if n, ok := start(i); ok && (shallow < 0 || n < shallow) {
+			shallow = n
+		}
+	}
 	var out []Bullet
-	for i, l := range strings.Split(section, "\n") {
+	open, blank := false, false
+	for i, l := range lines {
+		n, isItem := start(i)
 		switch {
-		case bulletStartRE.MatchString(l):
+		case strings.TrimSpace(l) == "" && !fenced[i]:
+			blank = true
+			if open {
+				b := &out[len(out)-1]
+				b.Lines = append(b.Lines, l)
+			}
+			continue
+		case isItem && n == shallow:
 			out = append(out, Bullet{Pos: len(out) + 1, Start: i, Lines: []string{l}})
-		case len(out) > 0:
+			open = true
+		case open && blank && !fenced[i] && indentOf(l) <= shallow:
+			open = false
+		case open:
 			b := &out[len(out)-1]
 			b.Lines = append(b.Lines, l)
 		}
+		blank = false
 	}
 	for i := range out {
 		b := &out[i]
 		for len(b.Lines) > 1 && strings.TrimSpace(b.Lines[len(b.Lines)-1]) == "" {
 			b.Lines = b.Lines[:len(b.Lines)-1]
 		}
-		b.Answered = answeredRE.MatchString(strings.Join(b.Lines, "\n"))
+		for j, l := range b.Lines {
+			if !fenced[b.Start+j] && answeredRE.MatchString(l) {
+				b.Answered = true
+			}
+		}
 	}
 	return out
+}
+
+// indentOf is a line's leading indent in columns, a tab reaching the next
+// multiple of four.
+func indentOf(l string) int {
+	n := 0
+	for _, r := range l {
+		switch r {
+		case ' ':
+			n++
+		case '\t':
+			n += 4 - n%4
+		default:
+			return n
+		}
+	}
+	return n
 }
 
 // errAlreadyLinked: the bullet already carries an answer; nothing to write.

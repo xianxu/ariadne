@@ -68,6 +68,19 @@ Refusals:
 - **Exit 6, stale:** the document changed since your read. Go back to step 1,
   refresh every input, and recompute on the new snapshot.
 
+## Side docs and a parent
+
+A round in discussion or chat mode may create side docs and may fold into a
+parent document (`../collaboration-modes.md` §4 orders the writes). Write a new
+side doc as a new file, directly: no one holds a lock on a file that doesn't
+exist yet. Every existing document the round changes, the submitted one and a
+parent alike, takes its own path above or below by its own tracked or untracked
+lookup. A tracked parent gets its own snapshot (`read --all`, its hash) and its
+own `write --all --if-hash`, with no `--fold`: its owed events belong to its
+own rounds. On exit 6 (stale), read the parent again and recompute the fold.
+On exit 3 (the operator holds the parent's lock), end the round before the
+submitted document is written, so its ask stays for the next submit.
+
 ## Untracked
 
 Edit the file in place with your harness's file tools. There is no lock, so
