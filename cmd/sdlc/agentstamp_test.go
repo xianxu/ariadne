@@ -21,6 +21,7 @@ func TestEveryCommitSiteStamps(t *testing.T) {
 		`internal/gitx/rebasedpatch.go|"commit-tree"`:              "a throwaway commit for a patch-id",
 		`issuepublish.go|StringVar(&source, "commit"`:              "a flag name, not a git call",
 		`activetime.go|"commit", "issues"`:                         "a table header",
+		`internal/fleet/staged.go|var leaseKeys`:                   "the stage lease's field names",
 		`internal/testfix/testfix.go|"commit", "-q", "-m", "init"`: "test fixture helper",
 		`migrate.go|return []string{"commit", "-q", "-m", msg`:     "argv builder shared with the --no-commit hint; the executing callers stamp msg",
 		`push.go|args := []string{"commit", "-m", msg, "--"}`:      "archiveCommitArgs, shared with the dry-run hint; push and merge stamp msg before calling it",

@@ -240,16 +240,17 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"stage"},
 		Class:         ConvergentRetry,
-		Effects:       "detaches the target slot at this slot's HEAD, verifies it, then writes the target's staged record (#344); --build runs the target's `make build`; --clear returns the target to its resting branch and drops the record.",
+		Effects:       "under a flock on the target's lease, writes the holder into the target's staged record (the stage lease, #421), detaches the target at this slot's HEAD, verifies it, then records the commit (#344); --build runs the target's `make build`; --clear returns the target to its resting branch and drops the record.",
 		Evidence:      "`sdlc fleet` (the target's hold `staged`) and `git -C <target> rev-parse HEAD`.",
-		Preconditions: "same repository; the target clean, with no git operation in progress, and resting or detached at a commit a ref contains or sdlc staged.",
+		Preconditions: "same repository; the target clean, with no git operation in progress, and resting or detached at a commit a ref contains or sdlc staged; its lease free or held by this issue (another holder refuses stage, --clear and a move into it; `--clear --abandoned HOLDER` frees an abandoned one).",
 		Repeat:        "the same HEAD again is already staged: nothing switches, and the record is rewritten; a new HEAD replaces the staged one.",
-		LostResponse:  "rerun: a switch whose record was not written leaves the target at a commit this slot's branch contains, which the rerun accepts and records.",
+		LostResponse:  "rerun: the lease is written before the switch, so the target stays held by this issue; a switch whose commit was not recorded leaves the target at a commit this slot's branch contains, which the rerun accepts and records.",
 		Ends:          "a later stage, `sdlc stage --clear` or a move into the target replaces it; landing never needs it.",
 		Proofs: []Proof{
 			{"stages, keeps the branch, replaces and clears", []string{"TestStageKeepsTheBranchAndReplaces"}},
 			{"refusals change nothing", []string{"TestStageRefusalsChangeNothing"}},
 			{"a move replaces a staged slot", []string{"TestMoveReplacesAStagedSlot"}},
+			{"one stage at a time: another holder refuses; --abandoned frees", []string{"TestStageLeaseOneStageAtATime", "TestStageLeaseEdges", "TestStageLeaseSwitchFailureRestores"}},
 		},
 	},
 	{
