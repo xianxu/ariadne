@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "2f58d671", done: "f2ff7f71"}
 ---
 
 # S2 M2: every managed document type declares a default collaboration-mode
