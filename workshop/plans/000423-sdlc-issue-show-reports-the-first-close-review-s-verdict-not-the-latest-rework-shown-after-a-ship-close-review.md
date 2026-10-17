@@ -149,3 +149,77 @@ findings:
    - Add a `## Revisions` entry requiring stable sidecar-to-ledger identity, compatibility for existing timestamp differences, and regression coverage with nonconsecutive ledger numbers.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"232ab55e-a8d6-4bd9-935d-82c57640c5e0","repository":"github.com/xianxu/ariadne","issue_id":"000423","recipe":"small-diff-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/31c8cc98ca1f4ce2","reviewed_head":"ea1a9ee9a2c0855563cc269aac6dd3cd8e216565","slot":"ariadne:5","requested_at":"2026-10-17T12:28:08.51601Z"},"phase":"finished","pid":62630,"started_at":"2026-10-17T12:28:08.613898Z","finished_at":"2026-10-17T12:29:35.460322Z","session_id":"01a149d5-7708-7312-96c4-6374b766dbd6","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T06:13:35-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 423 — sdlc issue show reports the first close review's verdict, not the latest (REWORK shown after a SHIP) |
+| repo | ariadne |
+| issue file | workshop/issues/000423-sdlc-issue-show-reports-the-first-close-review-s-verdict-not-the-latest-rework-shown-after-a-ship.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 2bfbc4fa27ed30da2455ad38d4eaea0ddf82a774..8838469f4f7e1a03761b118b16e19f7e3a5fa314 |
+| command | sdlc close --issue 423 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-17T06:13:35-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range satisfies the issue’s selection, round-identity, and history requirements. BR-2 is addressed with reachable regression coverage; no new blocking findings were found. One broader test exits identically on both pinned base and head, so that failure is pre-existing.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Confirmed the binding-presence guard and passing fresh/stale × present/absent regression matrix.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Reviewed-commit matching replaces timestamp identity across collection and assembly; history labels use entry order. The timestamp-drift regression passes at head and fails with assignment disabled. The snapshot regression passes at head and fails with mutable-ref reads. Both disposable checkouts were removed.
+```
+
+1. **Strengths**
+   - Conservative matching preserves unknown round identity instead of inventing numbers (`cmd/sdlc/internal/observe/checkpoints.go:282`).
+   - Completion selection preserves chronological history and current blocking counts (`checkpoints.go:184`).
+   - Evidence reads share a pinned commit, with a controlled ref-advance regression (`cmd/sdlc/observe.go:246`).
+   - Atlas documentation describes compatibility handling and additive JSON fields.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage**
+   - Passed the full pure observer package.
+   - Passed lifecycle/archive, snapshot, milestone, and collector command-bound tests.
+   - Both negative controls failed as expected.
+   - Broader testing encountered `TestObserveAnchorsOnTheIssuesDir` exiting without an assertion message; isolated runs reproduce this on both base and head.
+   - Full repository suite was not independently rerun.
+
+6. **Architecture**
+   - **ARCH-DRY — pass:** one shared round-assignment rule.
+   - **ARCH-PURE — pass:** matching and selection remain IO-free; collection supplies facts.
+   - **ARCH-PURPOSE — pass:** collector, historical/current numbering, and text/JSON consumers use the correction.
+   - **ARCH-MOCK — pass:** existing injected Git seam and portable repository fixtures remain in use.
+   - **ARCH-CONSTRAINTS — pass:** bounded local ref resolution; command-bound test passes.
+   - **ARCH-SECURE — pass:** malformed or conflicting identities remain explicitly unknown.
+   - **ARCH-ORDER — pass:** immutable snapshots prevent mixed-generation evidence; controlled ordering test proves it.
+   - **ARCH-FUNERAL — pass:** no new durable artifacts or background work.
+
+   Core-concept paths and classifications match the code. Atlas is updated; no new command, flag, or configuration requires a README usage update.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"cb4c4b0b-c096-4c49-a464-23b4c1d13c76","repository":"github.com/xianxu/ariadne","issue_id":"000423","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/b85b9c4da9ab46d5","reviewed_head":"8838469f4f7e1a03761b118b16e19f7e3a5fa314","slot":"ariadne:5","requested_at":"2026-10-17T13:10:50.396948Z"},"phase":"finished","pid":95110,"started_at":"2026-10-17T13:10:50.572298Z","finished_at":"2026-10-17T13:13:34.897437Z","session_id":"01a149fc-8f1e-75e3-93ad-bb536ba6e7e9","outcome":"returned"}] -->

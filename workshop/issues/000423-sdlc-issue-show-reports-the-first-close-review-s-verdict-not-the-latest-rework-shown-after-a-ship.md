@@ -73,6 +73,7 @@ total: 1.05
 - RED confirmed the collector mixes generations when a ref advances between reads. GREEN: pure observer tests cover stable commits, gaps, duplicates, absent identity and headless legacy alignment. A headless/conflicting ledger outside complete compatible alignment cannot prove any group's multiplicity, so it remains unknown. The focused collector/writer suite passed in 77.048s before the final conservative partial-legacy guard and retained-run assertion; rerun follows on final code.
 
 ### 2026-10-17
+- 2026-10-17: closed — Recorded suite b001e0f5ace18ddda5bab3e855d83785 on 5aa35948: 12 shards, 1548 cmd/sdlc tests, 66 other packages, zero failures (523.836s); observer unit and focused collector/writer tests pass; native text/JSON checks on 416 and 423 verify completion/latest and retained commit identities. Main integrated. Actual N/A: deferred #420 attributes suite queue polling as active work; no guessed subtraction or contaminated calibration sample.; review verdict: SHIP
 
 - Root cause: observe.sidecarRows deliberately keeps the first metadata table, but the writer appends Re-review sections. Chosen fix parses only each entry’s metadata before its Review body, reuses markdoc fence filtering (ARCH-DRY), and keeps selection pure (ARCH-PURE). Match completion ReviewedHEAD for close; unmatched bound evidence is unknown rather than silently substituting a later review. No new persisted state or artifacts; ledger timestamps map entries to existing round numbers, with entry order for legacy files.
 
