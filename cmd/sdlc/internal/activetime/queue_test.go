@@ -153,6 +153,16 @@ func TestQueueToolCallsTreatInteractiveInputAsWork(t *testing.T) {
 	}
 }
 
+func TestQueueToolCallsMixedWrapperIsNotAPoll(t *testing.T) {
+	lines := []string{
+		`{"timestamp":"2026-01-01T00:10:00Z","type":"response_item","payload":{"type":"custom_tool_call","name":"exec","call_id":"mixed","input":"const r=await tools.write_stdin({session_id:7,chars:\"\"}); await tools.exec_command({cmd:\"sdlc stage --build\"}); text(r)"}}`,
+	}
+	calls := queueToolCallsFromTranscript([]byte(strings.Join(lines, "\n")), "a")
+	if len(calls) != 1 || calls[0].Poll {
+		t.Fatalf("wrapper containing another tool dispatch must exclude the sample: %+v", calls)
+	}
+}
+
 func TestQueueClaudeCallRefusesWithoutInspectingResult(t *testing.T) {
 	repo := gitInit(t)
 	gitCommit(t, repo, "2026-01-01T01:00:00Z", "#8 queue work")

@@ -45,7 +45,7 @@ func isQueuePoll(name, input string) bool {
 		}
 		return json.Unmarshal([]byte(input), &args) == nil && !args.Terminate
 	}
-	if name != "exec" && name != "functions.exec" || !nativePollPattern.MatchString(input) {
+	if name != "exec" && name != "functions.exec" || !nativePollPattern.MatchString(input) || strings.Count(input, "tools.") != 1 {
 		return false
 	}
 	if chars := jsCharsPattern.FindStringSubmatch(input); len(chars) == 2 {
