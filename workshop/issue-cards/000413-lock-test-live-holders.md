@@ -1,6 +1,6 @@
 ---
 id: 000413
-status: codecomplete
+status: done
 created: 2026-10-16
 updated: 2026-10-16
 estimate_hours:
@@ -22,6 +22,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 80dc826eab72c75f93a56a9265ce4b65359b638e
         evidence_commit: 15f66a9c6e6f5a0659c94f879d3b99ccf51165d0
+        landed_commit: 2db60fb00161512dc3d38a3e87ca044d6a9404f2
 ---
 
 # Concurrent dead-holder lock test marks its live contenders dead and flakes with missing metadata
