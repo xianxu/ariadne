@@ -215,3 +215,74 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"6c28ce3b-abe5-42c6-a3e7-593a675eb99b","repository":"github.com/xianxu/ariadne","issue_id":"000414","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/cc9d3235aabb704b","reviewed_head":"2059abecb29b36c46b1e01b733adba7b26abfb87","slot":"ariadne:4","requested_at":"2026-10-17T00:43:41.072807Z"},"phase":"finished","pid":77017,"started_at":"2026-10-17T00:43:41.404855Z","finished_at":"2026-10-17T00:44:40.920161Z","session_id":"c9ea44d6-3002-4ccd-a435-c383448f6ddc","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-16T19:24:07-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 414 — tl-lead: section freshness stamps, a staleness check, and a derived Slots section |
+| repo | ariadne |
+| issue file | workshop/issues/000414-tl-lead-section-freshness-stamps-a-staleness-check-and-a-derived-slots-section.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 73ebe5ff59c2024dd02f2b02e460d90913e5aa13..87b44df497231d27fb4ec1a473f4efa0f0864aa3 |
+| command | sdlc close --issue 414 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-16T19:24:07-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checking the merge resolution is clean, then I'll write up the verdict.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This fix review covers only three changes: the atlas conflict resolution, the generated ledger and review plan files, and the issue's Log/mirror bookkeeping. The four earlier findings (BR-1 to BR-4) were already disposed `addressed` in round 2, and that note says reverting the BR-1 fix was seen to turn `TestStatusCheckEdges` red. There are no code changes in this window, so there is nothing new to fix. The one conflict resolution, in `atlas/workflow/tl-skills.md`, is correct.
+
+1. **Strengths**
+   - The conflict in `atlas/workflow/tl-skills.md:47-49` keeps both sides. It keeps this branch's **Freshness (ariadne#414)** bullet (line 48) as it was. It also takes main's newer **Operator instructions** text (#412 chat-mode items, the `.side/` answer docs, the ariadne#388 close). It drops the branch's older version of that bullet, which still described the `qa/<operator>/` layout. Each bullet now appears once and in order, and `git grep` finds no conflict markers left anywhere at head.
+   - The ledger changes are only generated data: the round-2 record, the dispositions, and an empty "Open findings" list. None of them touches `## Spec`, `## Revisions` or `## Done when`.
+   - The issue file adds only a close Log entry and the `card_mirror` / `actual_hours` bookkeeping. The scope did not change.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none.
+
+5. **Test coverage:** No executable code changed in this window, so it needs no new tests. BR-1's regression evidence (`TestStatusCheckEdges`) was established in round 2.
+
+6. **Architecture:** All three principles pass for this window.
+   - **ARCH-DRY:** The atlas text has one bullet per topic and nothing duplicated.
+   - **ARCH-PURE:** No code changed.
+   - **ARCH-PURPOSE:** The resolution keeps the #414 surface documented in the atlas and keeps main's #412 change intact.
+
+7. **Plan revisions:** none needed.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Already disposed in round 2; the window has no code change that reverses the minute-truncation fix.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Already disposed in round 2; the missingSection constant and the conformance tests are unchanged in this window.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Already disposed in round 2; the seam wiring is unchanged in this window.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Already disposed in round 2; the plan Revisions entry stands and the window does not edit it.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"914fcde3-b88a-4b75-aeea-2a3a1a64285c","repository":"github.com/xianxu/ariadne","issue_id":"000414","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/f7c3c50102111df8","reviewed_head":"87b44df497231d27fb4ec1a473f4efa0f0864aa3","slot":"ariadne:4","requested_at":"2026-10-17T02:23:05.195304Z"},"phase":"finished","pid":93006,"started_at":"2026-10-17T02:23:05.304299Z","finished_at":"2026-10-17T02:24:06.253653Z","session_id":"794e6073-dbda-4ab2-a93d-9009fb651564","outcome":"returned"}] -->
