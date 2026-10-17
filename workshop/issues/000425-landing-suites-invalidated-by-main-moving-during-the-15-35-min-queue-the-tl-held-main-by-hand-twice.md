@@ -1,13 +1,21 @@
 ---
 id: 000425
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '3e835ba942489b9bffdd63d9b2742628230c1b0b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f80593cdfac36565b5c66a6e8c5add334b4eacd7' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-17T06:17:40-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Landing suites invalidated by main moving during the 15–35 min queue; the TL held main by hand twice
@@ -38,3 +46,22 @@ Options to evaluate:
 ## Log
 
 ### 2026-10-17
+
+- Measurement scope: last 10 successful local landing-line events (PRs 272,273,275,276,277,278,274,280,282,281), 25 completed recorded suites, from 62 retained attempt records. No unreadable attempt records or missing Git objects. Group attempts by nearest issue-prefixed first-parent commit; pin each issue's main comparison to its PR merge's first parent (today's main would incorrectly contain the issue's own commits). Compare successive attempts, identifying main-base advancement separately from branch code edits; prior failures are a separate cause, and mixed branch/main changes are not attributed solely to main. Classifier matches publishGateHasCodeSurface: tests/config/embedded cmd markdown count as code; ordinary documentation/process paths do not.
+
+| Issue | Completed suites | Integration-only code drift repeats | Docs-only drift repeats | Branch changes/mixed | Previous failure |
+|---|---:|---:|---:|---:|---:|
+| #413 | 1 | 0 | 0 | 0 | 0 |
+| #414 | 1 | 0 | 0 | 0 | 0 |
+| #415 | 2 | 0 | 0 | 1 | 0 |
+| #418 | 3 | 1 | 0 | 0 | 1 |
+| #417 | 3 | 1 | 0 | 1 | 0 |
+| #419 | 1 | 0 | 0 | 0 | 0 |
+| #416 | 5 | 1 | 0 | 2 | 1 |
+| #421 | 3 | 0 | 0 | 1 | 1 |
+| #422 | 1 | 0 | 0 | 0 | 0 |
+| #423 | 5 | 2 | 0 | 2 | 0 |
+
+- Totals: 15 repeat runs = 5 integration-only code drift, 0 docs-only drift, 7 branch-change/mixed, 3 after failures. The 5 integration-only repeats consumed 46.197 minutes execution plus 231.472 minutes queue waiting. These costs describe observed repeats, not guaranteed recoverable savings. In all 5, the preceding passed suite was a pre-close local-check run, outside landing admission. Newly incorporated main code landed during the prior queue in 3 cases (#418, #416, first #423), during execution in 1 (second #423), and after the suite in 1 (#417); some bases were already stale before queueing as well. Seven sampled suites ran after landing admission; none has a demonstrated docs-only integration rerun in this sample.
+- #423 specifically had five passing suites: two repeated solely for main code (#421 then #422), and two for BR-1/BR-2 branch fixes. Its two integration-only repeats account for 18.095 execution minutes and 56.038 queue minutes. The assertion that all five were invalidated by main would be incorrect.
+- Existing boundaries: local-check never takes a landing turn (cmd/sdlc/localcheck_cmd.go:76–144); merge holds the turn from admission through its suite, server merge and archive (cmd/sdlc/landing.go:380–644). Existing first-parent ancestor reuse already accepts docs-only cumulative differences through publishGateHasCodeSurface (cmd/sdlc/cigate.go:480–535). Thus extending only main-publication exclusion inside merge does not protect the pre-close suites that produced the measured repeats.
