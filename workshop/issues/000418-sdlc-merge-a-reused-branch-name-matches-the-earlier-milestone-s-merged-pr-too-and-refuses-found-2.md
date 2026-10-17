@@ -76,3 +76,11 @@ The recorded suite on 13d40cf05375e9ad8ffbe9ce699d4fe76d64bf39 surfaced TestInte
 ### 2026-10-16 — align polling diagnostics with head-qualified history
 
 The old polling test assumed a name-only MERGED record remained eligible. The approved rule deliberately removes completed older heads. Split its test into historical-head (no candidate) and current-head (state change) controls, keeping refusal and no-merge assertions in both. This changes no acceptance criterion or production mechanism.
+
+### 2026-10-16 — first suite retained; live stage and corrected run pending
+
+The first recorded suite completed all 12 shards over 1,525 SDLC tests plus 66 packages (565.2s execution). Its sole failure was TestIntegrationPRSync/merged's obsolete diagnostic expectation; no unrelated failures were reported. Retained failed log: .git/sdlc/test-stats/failed/cab81ce40ebedccd0ad82da2e1e71892.log, sha256:76b1b467c262. This is a deterministic test-contract correction, not a flake. The split historical/current-head polling controls and pure candidate controls pass (0.433s). A new recorded suite on the corrected test commit is queued; production code is unchanged.
+
+Live-check state: TL grant 07a351da-5846-47d9-93c3-9c96a9e04e71 authorizes shared ariadne:0 for #418. It is staged at 13d40cf05375e9ad8ffbe9ce699d4fe76d64bf39; manual make sdlc-build repaired the known #417 skip. bin/sdlc revision equals that Git HEAD with vcs.modified=false. The TL received proof (807ca3aa-46db-4415-83ac-489d321d3dd4, submitted) and pair:2 launched the staged binary's merge for PR #387. Await its result. The later change is test/documentation only; do not restage or interrupt the in-flight live check.
+
+After pair#618 PR #387 lands, clear the stage, run make build sdlc-build in /Users/xianxu/workspace/ariadne, verify every bin/* revision equals its restored main HEAD with modified=false, and tell the TL ariadne:0 is free. This restoration is explicitly authorized; do not refresh main or change other slots. Source PR is #276. Close and land #418 only after live acceptance and a recorded green suite.
