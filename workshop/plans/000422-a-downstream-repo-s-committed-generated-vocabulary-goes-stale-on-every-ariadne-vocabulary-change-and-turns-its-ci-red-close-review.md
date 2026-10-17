@@ -180,3 +180,66 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"f13c5954-2d12-448b-832b-96c35b91a569","repository":"github.com/xianxu/ariadne","issue_id":"000422","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/967341d4e520c427","reviewed_head":"147749d445f663fe46ac149680952844683e0771","slot":"ariadne:4","requested_at":"2026-10-17T09:33:59.524604Z"},"phase":"finished","pid":9464,"started_at":"2026-10-17T09:33:59.726299Z","finished_at":"2026-10-17T09:35:25.65217Z","session_id":"b80cbba2-0918-408c-b489-e95bd08e9e63","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T03:03:04-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 422 — A downstream repo's committed generated vocabulary goes stale on every ariadne vocabulary change and turns its CI red |
+| repo | ariadne |
+| issue file | workshop/issues/000422-a-downstream-repo-s-committed-generated-vocabulary-goes-stale-on-every-ariadne-vocabulary-change-and-turns-its-ci-red.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | a99cc93028427e0964156ea7601bebf0770c2211..56e759185daf86d09a2e64b29762ddf2fd1a276d |
+| command | sdlc close --issue 422 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-17T03:03:04-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This window changes no behaviour, so it ships. All three earlier findings (BR-1 through BR-3) were already marked addressed in round 2, and nothing here undoes them. The window has three parts:
+- **A comment removal in `construct/base.manifest`.** The 7-line note describing the `ship` verb is gone. Only comment lines change, and every manifest row is the same as before.
+- **Two generated tracker files.** These are the close-gate ledger, which records the round-2 disposals, and the close-review log, which adds the round-2 review.
+- **One `## Log` entry in the issue.** It explains why the comment was removed: `construct/base.manifest` is a protected "local-gates" file, and merging was blocked on it, so the implementer pulled the comment rather than ask the operator for approval.
+
+The `ship` verb is still documented in the docs folder: `atlas/workflow/weave.md:81-90` covers the `ship <path>` row, `plan.ShippedPaths`, and the `<path>.weave-sha256` sidecar file. So removing the comment does not leave the feature undocumented. The window does not touch `## Spec`, `## Revisions` or `## Done when`, so the scope has not changed. No conflict resolutions are listed; the main-merge commit `92a632ba` brings in main's changes but none of them land on paths in this window.
+
+1. **Strengths**
+   - The implementer avoided an operator approval by backing out a change that was only a comment, instead of pushing a protected-file edit through. The issue log records why.
+   - The feature's documentation stays in one place, the atlas (`atlas/workflow/weave.md:81-90`).
+2. **Critical findings:** none.
+3. **Important findings:** none.
+4. **Minor findings:** none. The manifest's verb list in its header comment no longer mentions `ship`, even though the walk accepts it. This is acceptable because the atlas is the documentation for it, and `ship` rows normally sit in each consumer's own manifest, not in the base one.
+5. **Test coverage notes:** no executable change, so no regression test is needed. The tests from round 2 are untouched.
+6. **Architectural notes**
+   - **ARCH-DRY: pass.** Removing the comment leaves one description of `ship` instead of two.
+   - **ARCH-PURE: pass.** No code changed.
+   - **ARCH-PURPOSE: pass.** Nothing that depends on the `ship` feature changed; only a comment did.
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Disposed in round 2; this window touches no code, so the symlinked-sidecar test row at shipped_test.go:98 is still in place.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Disposed in round 2; this window leaves the plan Revisions entry for ShippedPaths unchanged.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Disposed in round 2; the reworded warning in main.go is not touched by this window, which only removes a comment from the manifest.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"4b54d745-9b1b-4540-be12-f9563b8f9564","repository":"github.com/xianxu/ariadne","issue_id":"000422","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/60db0af8eeea8e61","reviewed_head":"56e759185daf86d09a2e64b29762ddf2fd1a276d","slot":"ariadne:4","requested_at":"2026-10-17T10:02:05.807514Z"},"phase":"finished","pid":71789,"started_at":"2026-10-17T10:02:05.991582Z","finished_at":"2026-10-17T10:03:03.813189Z","session_id":"4e0edd8a-4b76-4080-9567-d075bfdde07d","outcome":"returned"}] -->

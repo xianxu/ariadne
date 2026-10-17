@@ -160,6 +160,85 @@ rounds:
       isolation: checkout
       reviewed: 147749d445f663fe46ac149680952844683e0771
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 4b54d745-9b1b-4540-be12-f9563b8f9564
+            repository: github.com/xianxu/ariadne
+            issue_id: "000422"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/60db0af8eeea8e61
+            reviewed_head: 56e759185daf86d09a2e64b29762ddf2fd1a276d
+            slot: ariadne:4
+            requested_at: "2026-10-17T10:02:05.807514Z"
+          phase: finished
+          pid: 71789
+          started_at: "2026-10-17T10:02:05.991582Z"
+          finished_at: "2026-10-17T10:03:03.813189Z"
+          session_id: 4e0edd8a-4b76-4080-9567-d075bfdde07d
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 56e759185daf86d09a2e64b29762ddf2fd1a276d
+        tracker_head: 2c6398aea742978c34b1662ae75531bb0322b94a
+        branch_point: dcdbb66620ef8a30a54219f51d80ad550161c1c1
+        since: "2026-10-17T01:34:29-07:00"
+        until: "2026-10-17T03:00:49-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-17T01:34:29-07:00"
+              end: "2026-10-17T03:00:49-07:00"
+              began: "2026-10-17T01:34:29-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+        sources:
+            - harness: claude
+              id: 299d33d0-1f10-4950-b82c-b729d6c107a0
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: afd967c63fe0ba38026a2841b6bd420eb08a642aed1bcafcfb33d8303efe6f2d
+              started: "2026-10-16T06:28:11.678Z"
+              spawned: false
+              bytes: 32324575
+              windows:
+                - start: "2026-10-17T01:34:29-07:00"
+                  end: "2026-10-17T03:00:49-07:00"
+        cuts:
+            - dispatched: "2026-10-17T02:27:34-07:00"
+              finalized: "2026-10-17T02:33:08-07:00"
+              finalizing: true
+            - dispatched: "2026-10-17T02:33:59-07:00"
+              finalized: "2026-10-17T02:35:37-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-17T03:03:04-07:00"
+      dispatched: "2026-10-17T03:02:05-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Disposed in round 2; this window touches no code, so the symlinked-sidecar test row at shipped_test.go:98 is still in place.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: Disposed in round 2; this window leaves the plan Revisions entry for ShippedPaths unchanged.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: Disposed in round 2; the reworded warning in main.go is not touched by this window, which only removes a comment from the manifest.
+          round: 3
+      recipe: fix-review
+      isolation: checkout
+      reviewed: 56e759185daf86d09a2e64b29762ddf2fd1a276d
+      blocked: false
 ---
 
 # Gate ledger — ariadne#422 (boundary-review)
@@ -185,6 +264,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-1 — addressed — New symlinked-sidecar row at shipped_test.go:98; reverting the IsRegular guard in vouched turns exactly that row red, restoring it passes.
 - BR-2 — addressed — Plan Revisions entry records ShippedPaths([]layer.Layer) ([]string, error); all task checkboxes ticked.
 - BR-3 — addressed — main.go:559 warning now names the reason (only generated regular files ship); startup_test.go typo case asserts the new text and passes.
+
+## Round 3 — 2026-10-17T03:03:04-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — Disposed in round 2; this window touches no code, so the symlinked-sidecar test row at shipped_test.go:98 is still in place.
+- BR-2 — addressed — Disposed in round 2; this window leaves the plan Revisions entry for ShippedPaths unchanged.
+- BR-3 — addressed — Disposed in round 2; the reworded warning in main.go is not touched by this window, which only removes a comment from the manifest.
 
 ## Open findings
 

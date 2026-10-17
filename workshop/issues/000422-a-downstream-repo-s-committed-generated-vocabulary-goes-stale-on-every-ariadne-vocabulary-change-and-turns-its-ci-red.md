@@ -106,6 +106,8 @@ because the durable plan settles the decisions (+15% buffer); impl is at 40% of 
 
 
 
+
+- 2026-10-17: closed — Only change since the reviewed close: reverted the comment-only construct/base.manifest edit (a local-gates path that tripped local-gates-guard); the ship row stays documented in atlas/workflow/weave.md. No code change; go test ./cmd/weave/... green. (fixed-then-ship); review verdict: SHIP
 - 2026-10-17: closed — Round-1 SHIP minors fixed: symlinked-sidecar row in TestShippedOutputOwnership (refused cold), warning names its reason (TestCompileRegeneratesShippedOutputCold updated), plan Revisions + ticks; go test ./cmd/weave/internal/plan and ./cmd/weave pass. Full suite green earlier at 18c4a983. (fixed-then-ship); review verdict: SHIP
 - 2026-10-17: closed — make test green at 18c4a983 (12 shards, 1540 cmd/sdlc tests + 66 packages, 0 failed). TestShippedOutputOwnership (7-row matrix: cold parley pair regenerated; cold hand edit / no / malformed sidecar / undeclared refused; warm pulled pair regenerated with nothing displaced; warm hand edit displaced) and TestCompileRegeneratesShippedOutputCold (e2e) fail before the change. Live on a scratch copy of parley origin/main with #326-era issue.json, cold: without the ship row compile refuses (the parley CI failure); with row + committed sidecar it regenerates and prints commit-it lines; a hand edit is refused.; review verdict: SHIP
 ### 2026-10-16
