@@ -1,12 +1,12 @@
 ---
 id: 000402
-status: working
+status: codecomplete
 deps: [ariadne#392]
 github_issue:
 created: 2026-10-15
 updated: 2026-10-18
 estimate_hours:
-card_mirror: '0b20b0481a39833a19da352924f28cbfb5881d85' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9d47913073ab2994b23188c4788d7491843288ec' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T21:36:12-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.28
 ---
 
 # Weekly resource trend: sizes per data family and suite durations, with deltas, in #392's snapshot
