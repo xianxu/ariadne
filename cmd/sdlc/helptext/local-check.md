@@ -106,8 +106,9 @@ HOW MERGE USES IT
   steps) passes the CI gate when its declared substitute has a recorded pass
   on the PR head. A job that ran and failed or was cancelled still blocks. A
   `required` check needs its recorded pass whatever CI reports. When a needed
-  run is missing, `sdlc merge` runs it itself through the same path, then reads
-  the checks again before merging.
+  run is missing, `sdlc merge` posts a saved pass on that head if one stands
+  (see REPUBLISH), and otherwise runs it itself through the same path, then
+  reads the checks again before merging.
 
 USAGE
 

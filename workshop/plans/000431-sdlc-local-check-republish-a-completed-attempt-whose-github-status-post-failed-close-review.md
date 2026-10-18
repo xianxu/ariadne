@@ -113,3 +113,111 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"c73562b8-3aa6-4689-b9c1-a2b6d004e780","repository":"github.com/xianxu/ariadne","issue_id":"000431","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/514707126d234259","reviewed_head":"98bb4a04bde03b3e74e1736ee4b3917101154416","slot":"ariadne:2","requested_at":"2026-10-18T02:35:17.936734Z"},"phase":"finished","pid":41616,"started_at":"2026-10-18T02:35:18.060769Z","finished_at":"2026-10-18T02:43:03.853961Z","session_id":"ecc61eb5-39f4-4793-b767-4d02c929af1c","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T20:14:18-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 431 — sdlc local-check: republish a completed attempt whose GitHub status post failed |
+| repo | ariadne |
+| issue file | workshop/issues/000431-sdlc-local-check-republish-a-completed-attempt-whose-github-status-post-failed.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 32fb3f7d056d59bc46d88e2b2d81cb035c4f2d51..906790a75819bfb7cc96924294914a61955e6e2b |
+| command | sdlc close --issue 431 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-17T20:14:18-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Targeted tests pass. Now checking the README section on local-check and doing a revert check on the claimed fixes.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The change does what the issue asks. `savedAttemptRecord` refuses an attempt from another repo, commit or check, a main baseline, an incomplete record, or a log whose hash no longer matches. The run path retries the status post and, if it still fails, names the exact republish command. Merge's runner only reuses a saved pass when it verifies and is the newest attempt on that head. The new verb is now tested end to end. All five prior findings are fixed. I re-ran the targeted tests and `go vet`: both clean. I removed the `!newest` guard, and `TestLocalCheckRunnerSavedPassEdges` failed, then passed again with the guard back. One thing should be fixed before shipping: the docs a user reads were not updated. README.md doesn't mention `local-check republish`, and `atlas/workflow/ci-merge-check.md` still says merge always runs a missing check itself.
+
+Done-when: current. The three bullets still cover the core contract: publish without a rerun, only for the attempt's own commit and result; the refusal tests; and the recovery command in the failure message. The later spec additions (merge reusing a saved pass, the newest-attempt rule) are separate Plan items and are tested, so leaving them out of Done-when doesn't hide any deliverable.
+
+1. **Strengths**
+   - The pure core is separate from IO: `savedAttemptRecord` (`cmd/sdlc/localcheck_republish.go:25`) takes the log hash and tail as arguments, and its table test has 9 rows and does no IO.
+   - The run path and the verb post through one function, `postLocalCheckRecord`, which holds the retry and the PR comment (ARCH-DRY).
+   - When merge's republish post fails, it returns `ok=true` with an error, so merge stops with the recovery line instead of starting a 12-minute rerun. `TestLocalCheckRunnerSavedPassEdges` pins this.
+   - The layout knowledge now lives next to the store (`suiteAttemptLogFile`, `teststats_store.go:245`), and the branch-to-PR lookup is one shared function (`currentBranchPR`).
+   - TestMain shrinks the backoff to 1 ms, so the failing fakes don't sleep.
+
+2. **Critical findings**: none.
+
+3. **Important findings**
+   - **The docs a user reads don't cover the new verb.** README.md:471-478 documents `local-check run` and `cancel` but not `republish`. `atlas/workflow/ci-merge-check.md:160` ("When a needed run is missing, merge runs it itself") no longer matches merge's behavior. Fix: add one README sentence for `sdlc local-check republish --name N [--rev SHA]`, and change the ci-merge-check Merge bullet to say merge first posts a saved, verified pass if it is the newest attempt on the exact head.
+
+4. **Minor findings**
+   - In `localcheck_republish_test.go:257-271`, the pass still verifies only because `true` and `false` write identical (empty) logs. A failed attempt also overwrites the shared `local-checks/<sha>/<check>.log`, so if the two logs differed, the pass would stop verifying and the test would no longer exercise the `!newest` branch. Write distinct output and assert the guard explicitly.
+   - Every attempt on a commit shares one log file, so after a later run on the same head an earlier pass can't be republished. That is safe, but the help text doesn't say so.
+
+5. **Test coverage notes**
+   - BR-1: `TestLocalCheckRepublishCmd` drives `runLocalCheckRepublish` through the swapped-in `ghClient` and `detectRepo`. It covers a missing `--name`, a failure posted as a failure with its PR comment, another commit refused, and a bad `--rev`.
+   - BR-3: the edges test's first subtest covers merge's republish post failing.
+   - BR-5: the second subtest covers the newest-attempt rule; the revert check above confirms it catches a regression.
+   - No test runs the verb on a saved pass. That path goes through the same `postLocalCheckRecord` as the failure case, so the risk is low.
+
+6. **Architectural notes**
+   - **ARCH-DRY:** pass. The layout is still written in two places in `teststats_store.go` (`publishSuiteAttempt` writes it, `suiteAttemptLogFile` resolves it), but they sit next to each other.
+   - **ARCH-PURE:** pass.
+   - **ARCH-PURPOSE:** pass on code; the docs gap is the Important finding above.
+   - **ARCH-MOCK:** pass. GitHub is reached through the `ghCaller` seam with the stateful `ciFakeGH`, and `flakyPostGH` wraps it.
+   - **ARCH-CONSTRAINTS:** pass. The about 2.5-minute backoff, including that it holds the landing turn under merge, is now stated in the spec, help text and code comment.
+   - **ARCH-SECURE:** pass. Records go through `decodeSuiteAttempt`, the log hash ties the result to the bytes on disk, and the exact commit and check are enforced even with `--attempt`.
+   - **ARCH-ORDER:** pass. Reposting a status overwrites it with the same state, and merge's newest-attempt rule covers a later attempt whose log was pruned.
+   - **ARCH-FUNERAL:** pass. Nothing durable is created; it reads the existing store, which is pruned.
+
+7. **Plan revision recommendations**: none. Revisions already records the round-1 changes.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      TestLocalCheckRepublishCmd calls runLocalCheckRepublish with a swapped ghClient/detectRepo: missing --name, failure posts failure plus PR comment, other commit and bad --rev refuse; passes at head.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Spec, help text (local-check.md REPUBLISH) and the localCheckPostBackoff comment now state the wait holds the landing turn under merge; prose-only correction verified against cigate.go newLocalCheckRunner.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      TestLocalCheckRunnerSavedPassEdges subtest 1 makes the republish post fail and asserts the recovery line and no rerun.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      suiteAttemptLogFile now sits beside publishSuiteAttempt in teststats_store.go; currentBranchPR is shared by run and republish.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Merge requires newest (loadSavedAttempt reports it); help text documents the verb's newest-that-verifies caveat; removing the !newest guard turns TestLocalCheckRunnerSavedPassEdges red.
+findings:
+  - id: new
+    severity: Important
+    kind: defect
+    family: docs-surface-not-updated
+    title: |
+      README and atlas ci-merge-check.md not updated for local-check republish and merge's saved-pass reuse
+    detail: |
+      README.md:471-478 documents local-check run and cancel but not the new republish subcommand; atlas/workflow/ci-merge-check.md:160 still says merge runs a missing check itself, though newLocalCheckRunner now first posts a saved verified newest pass. Add a README sentence for the verb and update the ci-merge-check Merge bullet.
+  - id: new
+    severity: Minor
+    kind: defect
+    family: untested-error-path
+    title: |
+      The newest-attempt edge test passes only because the true and false checks write identical empty logs
+    detail: |
+      This is the 2nd finding in family untested-error-path. The rule: every guard branch needs a fixture that reaches it on purpose, not by chance. Here a failed attempt overwrites the shared local-checks/<sha>/<check>.log, so the earlier pass verifies only because both logs are empty. Use distinct output and assert the not-newest branch explicitly (localcheck_republish_test.go:257-271).
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"e8b024d2-76e2-4d90-9a7c-307013a4e8bb","repository":"github.com/xianxu/ariadne","issue_id":"000431","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/16a783c437ec35a6","reviewed_head":"906790a75819bfb7cc96924294914a61955e6e2b","slot":"ariadne:2","requested_at":"2026-10-18T03:12:28.228565Z"},"phase":"finished","pid":22613,"started_at":"2026-10-18T03:12:28.321564Z","finished_at":"2026-10-18T03:14:17.853227Z","session_id":"98f8c616-8a4a-4839-927e-cccf505ce969","outcome":"returned"}] -->

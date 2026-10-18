@@ -256,26 +256,44 @@ func TestLocalCheckRunnerSavedPassEdges(t *testing.T) {
 	})
 	t.Run("a pass with a later unverifiable attempt is rerun", func(t *testing.T) {
 		d, sha, gh, _ := localRunRepo(t, "skipped")
-		d.GH = &flakyPostGH{ciFakeGH: gh, fails: 1 + len(localCheckPostBackoff)}
-		_, _ = runLocalCheck(ctx, d, suiteCheck("true"), sha)
-		_, _ = runLocalCheck(ctx, d, suiteCheck("false"), sha)
+		d.GH = &flakyPostGH{ciFakeGH: gh, fails: 2 * (1 + len(localCheckPostBackoff))}
 		logDir, _ := localCheckLogDir(d)
-		store := suiteStoreRoot(logDir)
-		// Prune the later failure's log: the pass still verifies, but is not the newest.
-		failed, _ := filepath.Glob(filepath.Join(store, "failed", "*.log"))
-		for _, f := range failed {
-			_ = os.Remove(f)
+		store, passLog := suiteStoreRoot(logDir), filepath.Join(logDir, sha, "suite.log")
+		_, _ = runLocalCheck(ctx, d, suiteCheck("sh", "-c", "echo pass output"), sha)
+		passBytes, err := os.ReadFile(passLog)
+		if err != nil {
+			t.Fatal(err)
 		}
-		if _, newest, err := loadSavedAttempt(store, d.Repo, sha, "suite", "", "h"); err != nil || newest {
-			t.Fatalf("the pass should verify but not be newest: newest=%v %v", newest, err)
+		// The later failure overwrites the shared per-head log and keeps its own copy.
+		_, _ = runLocalCheck(ctx, d, suiteCheck("sh", "-c", "echo fail output; exit 1"), sha)
+		// Reach the guard on purpose: the pass verifies again (its bytes restored),
+		// the later failure cannot (its own log pruned).
+		if err := os.WriteFile(passLog, passBytes, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		failed, _ := filepath.Glob(filepath.Join(store, "failed", "*.log"))
+		if len(failed) != 1 {
+			t.Fatalf("want the failure's own log, got %v", failed)
+		}
+		if err := os.Remove(failed[0]); err != nil {
+			t.Fatal(err)
+		}
+		rec, newest, err := loadSavedAttempt(store, d.Repo, sha, "suite", "", "h")
+		if err != nil || !rec.passed() || newest {
+			t.Fatalf("want a verifying pass that is not the newest: %+v newest=%v %v", rec, newest, err)
 		}
 		d.GH = gh
+		var stderr strings.Builder
+		d.Stderr = &stderr
 		marker := filepath.Join(t.TempDir(), "ran")
 		if _, err := newLocalCheckRunner(d)(ctx, suiteCheck("./marker-check.sh", marker), sha); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := os.Stat(marker); err != nil {
 			t.Error("an older pass stood in although a later attempt exists")
+		}
+		if !strings.Contains(stderr.String(), "a later attempt exists and does not verify") {
+			t.Errorf("the not-newest branch did not report itself:\n%s", stderr.String())
 		}
 	})
 }

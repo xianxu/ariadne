@@ -116,3 +116,8 @@ later, and merge reusing a saved green attempt before it reruns anything.
   Minors fixed in the round: the backoff claim, `TestLocalCheckRunnerSavedPassEdges` (a failed republish stops with
   the recovery line and never reruns; a pass with a later unverifiable attempt is rerun), the layout/PR-lookup
   duplication, and the newest-attempt rule (Revisions).
+- Close review round 2 (FIX-THEN-SHIP; BR-1..5 disposed addressed): BR-6 swept every doc stating that merge runs a
+  missing check itself (README, atlas ci-merge-check, local-check help HOW MERGE USES IT) to say it first posts a
+  saved pass; README also names `local-check republish`. Minor (untested-error-path, 2nd in family): the
+  newest-attempt test now reaches the guard deliberately (distinct pass/fail output, the pass's bytes restored, the
+  failure's own log pruned) and asserts the guard's message.
