@@ -30,11 +30,14 @@ A publication-only retry: republish the saved result of a completed attempt for 
 
 ### Design (2026-10-17)
 
-**Why the POST fails** (see Log for the measurement): every agent Bash call gets its own proxy credential in
-`HTTPS_PROXY` (`user:pass@localhost:port`, distinct per call). A long-lived `sdlc` hands the credential it was born
-with to every `gh` it spawns, so once that credential stops working, no in-process retry can succeed; only a *new*
-command (a fresh Bash call) gets a working path. So the recovery is a verb run as a new process, and merge reuses a
-saved green attempt before it reruns anything. No in-process POST retry loop (it would only delay the failure).
+**Why the POST fails** (measurements in Log): not a stale proxy credential. `sdlc` runs outside the agent sandbox
+(the whole-call exemption), with no proxy in its environment, so its `gh` and `git` connect to GitHub directly; the
+failures are direct connects timing out (`Failed to connect to github.com port 443 after 75008 ms`, `error
+connecting to api.github.com`). A fresh `sdlc pr` failed the same way, so age of the process is not the cause; a
+sandboxed background call kept a working path through the proxy for 16 minutes. The direct path has outages lasting
+a minute or more, and every long-running command is likely to straddle one at its end. So the remedies are time and
+a saved result: a bounded retry spanning a couple of minutes, then a recovery verb that posts the saved result
+later, and merge reusing a saved green attempt before it reruns anything.
 
 - **Pure core** — `savedAttemptRecord(a SuiteAttempt, log []byte, repo, sha, check) (localRunRecord, error)` in a new
   `localcheck_republish.go`: refuses unless the attempt is for this repo, exact commit and check, is not a main
@@ -47,9 +50,9 @@ saved green attempt before it reruns anything. No in-process POST retry loop (it
 - **Verb** — `sdlc local-check republish --name N [--rev HEAD] [--attempt ID]`: posts the saved outcome of that
   commit's attempt as `sdlc-local/N` (a failure posts as a failure, plus its PR comment), never runs anything. No
   attempt, or one that fails verification, refuses with what it found.
-- **Run path** — when the POST fails after a completed run, the error names the recovery exactly:
-  `run "sdlc local-check republish --name N --rev <sha>" as a new command (this process's network path may be
-  stale); the result is saved`. No rerun is needed.
+- **Run path** — the status POST retries with backoff (15 s, 45 s, 90 s: about 2.5 minutes, after the suite slot is
+  already released, so it holds nothing scarce). When it still fails, the error names the recovery exactly:
+  `the result is saved; publish it with "sdlc local-check republish --name N --rev <sha>" (no rerun needed)`.
 - **Merge** — `newLocalCheckRunner` (the one seam both merge paths use for a missing run) first looks for a saved
   *passing*, verified attempt for the exact head and check and republishes it; only without one does it run. A
   saved failure is never reused (merge reruns, as today). If the republish POST fails, merge stops with the same
@@ -71,10 +74,20 @@ saved green attempt before it reruns anything. No in-process POST retry loop (it
 
 - [ ] `savedAttemptRecord` + `newestSavedAttempt` with table tests
 - [ ] `local-check republish` verb (fake-GH test: posts the saved outcome, refuses mismatches)
-- [ ] Run path: the POST-failure error names the republish command (test with a failing fake POST)
+- [ ] Run path: bounded POST retry; the final error names the republish command (fake POST failing n times)
 - [ ] Merge: `newLocalCheckRunner` republishes a saved green attempt for the exact head before running (test: no rerun)
 - [ ] Help (local-check.md), atlas row
 
 ## Log
 
 ### 2026-10-17
+
+### 2026-10-17 (ariadne:2)
+
+- Hub hypothesis (stale per-call proxy credential) tested. Each sandboxed Bash call does get a distinct credential
+  in `HTTPS_PROXY` (fingerprints differ between two calls). But a background sandboxed call probing
+  `gh api rate_limit` at t+0, 31, 60, 121, 240, 381, 540, 721, 960 s succeeded at every point except one
+  `Bad Gateway` at 240 s, so the credential is neither revoked when the call returns nor after ~16 minutes.
+- An unsandboxed call has no proxy variables at all (`env | grep -ci proxy` → 0) and reaches api.github.com
+  directly (5/5 in 0.08–0.18 s). The failing `sdlc` errors are direct-connect timeouts, and the fresh `sdlc pr` that
+  opened PR #290 failed with one, so long-lived processes are not the cause; direct-path outages are.
