@@ -422,7 +422,8 @@ REVIEWER (#310, #409)
              (plan-quality, planning review, a full-flow close) tries claude,
              codex, gemini; a bounded (quick-flow) change tries codex, claude,
              gemini; the author's family is skipped, so claude and codex review
-             each other and gemini is the fallback
+             each other and gemini is the fallback (#409 M2: until it lands, a
+             boundary review uses the bounded order and the first agent only)
   explicit — reviewer_pairs[main agent]; an unpaired main agent reviews itself
 
   reviewer_order overrides a kind's order (design-heavy | bounded; agents of at

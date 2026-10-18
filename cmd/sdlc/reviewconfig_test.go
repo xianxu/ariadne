@@ -124,3 +124,46 @@ func TestBoundaryReviewInvalidPolicyDoesNotRun(t *testing.T) {
 		t.Fatalf("ran=%v verdict=%s reason=%q", ran, res.Verdict, res.Reason)
 	}
 }
+
+// #409: a reviewer_models entry reaches the dispatched reviewer's argv, and a
+// reviewer with no entry runs with its CLI's default model.
+func TestBoundaryReviewPassesTheConfiguredModel(t *testing.T) {
+	for _, tc := range []struct{ config, want string }{
+		{`{"boundary_reviewer": "other", "reviewer_models": {"claude": "claude-opus-5-5"}}`, "--model claude-opus-5-5"},
+		{`{"boundary_reviewer": "other", "reviewer_models": {"codex": "gpt-6-astra"}}`, ""},
+	} {
+		t.Run(tc.want, func(t *testing.T) {
+			t.Setenv("WF_REVIEW_CHECKOUT_ROOT", t.TempDir())
+			t.Setenv("AGENT_CMD", "")
+			t.Setenv("CODEX_CI", "")
+			t.Setenv("CODEX_THREAD_ID", "")
+			t.Setenv("PAIR_AGENT", "codex") // reviewed by claude under `other`
+			p := boundaryWindow(t)
+			p.PlansDir = t.TempDir()
+			writeReviewConfig(t, ".", tc.config)
+			origProbe := reviewbox.Probe
+			t.Cleanup(func() { reviewbox.Probe = origProbe })
+			reviewbox.Probe = func() (reviewbox.Fence, string) { return reviewbox.FenceNone, "test" }
+
+			(&fakeReviewer{}).install(t)
+			inner := judge.Run
+			var args []string
+			judge.Run = func(ctx context.Context, onStart func(int), n string, a ...string) (judge.ProcessOutput, error) {
+				_, args, _ = unwrapReviewArgv(t, n, a)
+				return inner(ctx, onStart, n, a...)
+			}
+			var errb bytes.Buffer
+			res := dispatchBoundaryReview(&bytes.Buffer{}, &errb, p)
+			joined := strings.Join(args, " ")
+			if res.Agent != "claude" {
+				t.Fatalf("dispatched %q, want claude\n%s", res.Agent, errb.String())
+			}
+			if tc.want != "" && !strings.Contains(joined, tc.want) {
+				t.Errorf("reviewer argv lacks %q: %q", tc.want, joined)
+			}
+			if tc.want == "" && strings.Contains(joined, "--model") {
+				t.Errorf("a reviewer with no reviewer_models entry got a model: %q", joined)
+			}
+		})
+	}
+}

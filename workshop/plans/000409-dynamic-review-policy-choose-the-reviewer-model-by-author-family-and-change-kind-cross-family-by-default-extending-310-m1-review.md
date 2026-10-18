@@ -157,3 +157,119 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"c4bc4de4-13e2-4ce2-b0f5-a06f4142d8e3","repository":"github.com/xianxu/ariadne","issue_id":"000409","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/76308b093647e048","reviewed_head":"7fe6c39b917990a37c04efa94aa6b96e954646c9","slot":"ariadne:2","requested_at":"2026-10-18T12:32:24.753047Z"},"phase":"finished","pid":18367,"started_at":"2026-10-18T12:32:24.914333Z","finished_at":"2026-10-18T12:35:51.678033Z","session_id":"0b2d6a50-30f4-45a0-a498-d2d2c3bafad4","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T05:55:37-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 409 — Dynamic review policy: choose the reviewer model by author family and change kind (cross-family by default), extending #310 |
+| repo | ariadne |
+| issue file | workshop/issues/000409-dynamic-review-policy-choose-the-reviewer-model-by-author-family-and-change-kind-cross-family-by-default-extending-310.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | d3ebb55260c6647fbc70b423efed20cd8c734c5b..948d85dd7dce63dd71cc6514dbf37b8b6f5dcd21 |
+| command | sdlc milestone-close --issue 409 --milestone M1 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-18T05:55:37-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Checking the prior-round fixes: running the tests and reverting the Reviewer() fallback to see if any test catches it.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: medium
+```
+
+M1's pure core is solid. `family.go` holds `FamilyOf`, `ChangeKind`, `ReviewPlan`, `Unavailable` and `LocalAvailability` with no IO. `Validate` now rejects empty, single-family and duplicate orders and flag-like model values. Model flags reach each CLI in `agentArgs`. Help, atlas and the plan Revisions were all corrected. The judge and `cmd/sdlc` test suites pass at head.
+
+One prior finding fails the revert check, so this is not SHIP yet. With `Model: policy.Models[reviewer]` removed from `cmd/sdlc/milestoneclose.go:874`, every test stays green. That line is the entire BR-4 symptom ("a configured model is silently ignored"), so BR-4 stays `not-addressed`. One test of `boundaryReviewOptionsFor` that asserts `opts.Model` fixes it. I did the same revert test on the `Reviewer()` default-order fallback for BR-1, and it also stays green. That one doesn't block: `Validate` makes the branch unreachable for any policy loaded from the file, and the `Validate` tests do pin the real fix.
+
+1. **Strengths**
+   - `ReviewPlan` (`cmd/sdlc/internal/judge/family.go:88`) is pure and checks `availability` before launch. Its table test also checks an invariant on every case: under `other`, no candidate shares an author's family. That is stated separately from the expected lists, not copied from them.
+   - `Unavailable` (`family.go:141`) treats unclear evidence as "the review started": an unparseable stream, any codex activity line, or a 400 all count as started. It reads codex's cause only from `ERROR:` lines because codex echoes the prompt to stderr, and a test pins that case.
+   - `LocalAvailability` (`family.go:211`) takes `lookPath` as a parameter, so its tests need no IO.
+   - It reuses `apiFailureRE`, `lineAt`, `firstLine` and `valueOrDefault` instead of copying them (ARCH-DRY).
+   - `Validate` (`agent_resolver.go:124-150`) checks the new config keys when the file is loaded, and refuses flag-like model values before they reach an argv (ARCH-SECURE).
+
+2. **Critical:** none.
+
+3. **Important**
+   - BR-4 is still open (see below). The wiring at `cmd/sdlc/milestoneclose.go:874` has no test. Fix: a test that loads a policy with `reviewer_models`, calls `boundaryReviewOptionsFor`, and asserts `opts.Model`. It should also cover the `--agent` forced path.
+
+4. **Minor**
+   - The close help (`cmd/sdlc/helptext/close.md:415-421`) and the atlas describe behaviour that only lands in M2: the order depends on the change kind, a full-flow close tries claude first, and gemini is a fallback chosen by availability. Today the boundary review goes through `Reviewer()`, which always uses `KindBounded` and ignores availability. So a gemini main agent on a full-flow close gets codex, not the claude the help promises. This is the 2nd finding in `docs-track-behavior-change`; the rule is in the findings block.
+   - `TestReviewerOtherNeverSameFamily` passes on the pre-fix code. None of its orders leaves `ReviewPlan` empty, so the default-order fallback is never run.
+   - Unclassified edge cases in `Unavailable`:
+     - A claude non-stream plain-text error on stdout.
+     - `agent == ""`, which `Dispatch` treats as claude but which goes to the gemini branch here.
+
+     Both are conservative (they halt), so they're fine for now.
+
+5. **Test coverage notes**
+   - Each test below fails if its fix is reverted:
+     - The `Validate` cases for an empty order, a single-family order, a duplicate agent and a flag-like model.
+     - `TestAgentArgsPassTheModel`.
+     - The codex and gemini cases in `TestUnavailable`.
+   - What does not go red when reverted: the call site at `milestoneclose.go:874` (BR-4) and the fallback inside `Reviewer()`.
+   - `Unavailable`, `ReviewPlan` and `LocalAvailability` have no production consumer yet. That is expected: the M2 dispatch loop is their consumer.
+
+6. **Architecture notes**
+   - ARCH-DRY: pass. `Reviewer()` derives from `ReviewPlan`, and the regex and line helpers are reused.
+   - ARCH-PURE: pass. `family.go` is pure and `lookPath` is injected.
+   - ARCH-PURPOSE: pass for M1's scope. Under the plan, M2 must make every review site use one resolver and pass `Model` from the `Candidate`, not from `policy.Models[reviewer]` read again at each site.
+   - ARCH-MOCK: pass for now; nothing new calls an external service directly. M2's loop needs the fake-runner tests the plan promises: skip then run, all unavailable, and a started run never switching.
+   - ARCH-CONSTRAINTS: N/A. At most 3 candidates.
+   - ARCH-SECURE: pass. Models are validated and argv arrays are used. Author trailers come into play in M2, and the plan's rule to always include the closer's own family should be tested there.
+   - ARCH-ORDER: pass. `Began` marks the point a review started, and uncertainty halts rather than switching.
+   - ARCH-FUNERAL: pass. Nothing durable is created in M1.
+
+7. **Plan revision recommendations**
+   - Add a note that until M2, a boundary review under `other` uses the bounded order and ignores availability, or mark the related help and atlas text as M2.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Validate rejects empty, single-family and duplicate orders (agent_resolver.go:124-142), pinned by TestValidateOrdersAndModels; with Validate, Reviewer() cannot reach same-family. The default-order fallback in Reviewer() is unpinned: reverting it leaves the suite green.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Unavailable now classifies codex (ERROR lines, activity blocks) and gemini (empty stdout, non-zero exit); TestUnavailable has codex quota, bad-model, echoed-prompt and began cases and the gemini IneligibleTierError case; the plan Revision records the per-CLI evidence.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      close.md REVIEWER now describes the family-based other mode, reviewer_order and reviewer_models; atlas sdlc-binary.md:1191 no longer says claude and codex only.
+  - id: BR-4
+    disposition: not-addressed
+    note: |
+      agentArgs passes the flags (pinned by TestAgentArgsPassTheModel), but deleting Model from milestoneclose.go:874 leaves go test ./cmd/sdlc green, so a configured model can again be silently ignored. Add a boundaryReviewOptionsFor test that asserts opts.Model.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      The M1 round-1 Revisions entry corrects the paths (family.go, stream.go, dispatch.go) and the signatures of FamilyOf, ReviewPlan and Unavailable, and adds LocalAvailability and AgentRun.Began; checked against the code.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      trimReason is gone; grep finds no definition or caller.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Validate rejects a model starting with '-' and an agent listed twice; both are pinned in TestValidateOrdersAndModels.
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: docs-track-behavior-change
+    title: |
+      Close help and atlas describe M2 behaviour (kind order, availability fallback) that the boundary review does not do yet
+    detail: |
+      This is the 2nd finding in docs-track-behavior-change. Rule: help and atlas text must describe what the reviewed head does, and anything that lands later is marked with its milestone. Here close.md:415-421 says a full-flow close tries claude first and that gemini is the fallback, but boundaryReviewOptionsFor resolves through Reviewer(), which always uses KindBounded and ignores availability, so a gemini main agent on a full-flow close gets codex. Mark these as (M2) or land the kind with M2 and sweep both docs together.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"f2f8d12a-9a73-4926-b20d-9022c59bf6bf","repository":"github.com/xianxu/ariadne","issue_id":"000409","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/2d32b7370fc25891","reviewed_head":"948d85dd7dce63dd71cc6514dbf37b8b6f5dcd21","slot":"ariadne:2","requested_at":"2026-10-18T12:40:21.851335Z"},"phase":"finished","pid":69034,"started_at":"2026-10-18T12:40:21.997522Z","finished_at":"2026-10-18T12:55:36.714862Z","session_id":"28e965e1-250f-4b52-8f6c-0784b1160796","outcome":"returned"}] -->

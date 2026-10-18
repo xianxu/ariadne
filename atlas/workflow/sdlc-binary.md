@@ -1217,7 +1217,9 @@ missing or codex under checkout containment on macOS. `judge.Unavailable` counts
 tool event (`AgentRun.Began`), or codex/gemini exiting non-zero with nothing on stdout (codex:
 no activity block on stderr, and the cause read only from its `ERROR:` lines, since it echoes
 the prompt), each with an unreachable, quota, sign-in or CLI-refused cause (a 400 bad model is
-a misconfiguration and halts); only that may move a review to the next candidate.
+a misconfiguration and halts); only that may move a review to the next candidate. (#409 M1 lands the policy, the plan and these checks; M2
+wires the candidate loop and the change kind into every review site, until which a boundary
+review takes the bounded order's first agent.)
 `reviewer_order` needs two families with no repeats, so `Reviewer()` can never return the
 main agent's own family under `other`, and a model reaches each CLI's flag (`DispatchOptions.Model`). The default for a repo with no policy is the single constant
 `judge.DefaultReviewerMode` (`same` until the operator decides the fleet default).

@@ -96,3 +96,8 @@ Durable plan: `workshop/plans/000409-dynamic-review-policy-choose-the-reviewer-m
   gemini samples (gemini refuses entirely on this machine: `IneligibleTierError`); the model flag wired through
   `DispatchOptions.Model`; help and atlas updated; the plan table corrected; dead `trimReason` removed; flag-like
   models and duplicate order entries refused.
+- M1 boundary review round 2: BR-1..3, 5 and both Minors disposed addressed. BR-4 stayed open, because nothing tested
+  that the boundary review passes the configured model: `TestBoundaryReviewPassesTheConfiguredModel` (a configured
+  model reaches the reviewer's argv; an unconfigured one adds no flag) fails with the wiring removed, checked by
+  revert. The new Minor (help and atlas described M2 behaviour) is fixed by marking the kind order and the fallback
+  as landing in M2.
