@@ -273,3 +273,82 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"f2f8d12a-9a73-4926-b20d-9022c59bf6bf","repository":"github.com/xianxu/ariadne","issue_id":"000409","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/2d32b7370fc25891","reviewed_head":"948d85dd7dce63dd71cc6514dbf37b8b6f5dcd21","slot":"ariadne:2","requested_at":"2026-10-18T12:40:21.851335Z"},"phase":"finished","pid":69034,"started_at":"2026-10-18T12:40:21.997522Z","finished_at":"2026-10-18T12:55:36.714862Z","session_id":"28e965e1-250f-4b52-8f6c-0784b1160796","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T06:00:31-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 409 — Dynamic review policy: choose the reviewer model by author family and change kind (cross-family by default), extending #310 |
+| repo | ariadne |
+| issue file | workshop/issues/000409-dynamic-review-policy-choose-the-reviewer-model-by-author-family-and-change-kind-cross-family-by-default-extending-310.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | d3ebb55260c6647fbc70b423efed20cd8c734c5b..7753ca91157a2705e04fad8ec4e694835bd36089 |
+| command | sdlc milestone-close --issue 409 --milestone M1 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-18T06:00:31-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Tests pass. Next I'll revert the model wiring to check that the regression test fails without it.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+M1 is ready to ship. The two findings still open from round 2 are both fixed, and I checked each one against the code rather than the commit messages.
+
+- **BR-4 (configured model ignored):** a `reviewer_models` entry now reaches the reviewer's command line through `DispatchOptions.Model`. I removed the fix in two places and ran the tests each time:
+  - Without the `Model:` line in `milestoneclose.go:874`, `TestBoundaryReviewPassesTheConfiguredModel` fails (`reviewer argv lacks "--model claude-opus-5-5"`).
+  - Without the `--model` argument in `agentArgs`, `TestAgentArgsPassTheModel` fails.
+  - With the fix in place, `go vet ./...`, `go test ./internal/judge/` and the targeted `cmd/sdlc` tests all pass.
+- **BR-8 (docs describing M2 behaviour):** `close.md` and the atlas now say that until M2 lands, a boundary review uses the bounded order and its first agent only. That matches the code: `Reviewer()` always uses `KindBounded` and ignores availability.
+
+I found nothing new that blocks the boundary.
+
+**1. Strengths**
+- `Reviewer()` gets its answer from `ReviewPlan`, so there is one source for who reviews. A second pass over the default orders means `other` can never return the main agent's own family (`agent_resolver.go:152-156`). `TestReviewerOtherNeverSameFamily` tests that rule directly, not specific outputs.
+- The model is wired from the policy into the dispatched command line, and it is tested end-to-end through the fake reviewer, including the negative case where a reviewer with no entry gets no model flag (`reviewconfig_test.go:817-856`).
+- Each CLI's flag is placed before the prompt, and the test asserts the prompt stays the last argument (`family_test.go:681-696`).
+- `Unavailable` treats a review as begun whenever there is any doubt, so the fallback cannot quietly swap a review that partly ran for a second opinion. The codex case reads only `ERROR:` lines, because codex echoes the prompt to stderr.
+
+**2. Critical findings:** none.
+
+**3. Important findings:** none.
+
+**4. Minor findings:** none raised. One note that is not a finding: a forced `--agent` or `AGENT_CMD` reviewer also gets `policy.Models[reviewer]`. That behaviour is reasonable but not documented; M2's resolver should state it on purpose.
+
+**5. Test coverage notes:** the removal checks above confirm the model wiring is tested at both the CLI-argument layer and the boundary-review layer. M2 still owes the fake-runner tests of the dispatch loop: skip then run, all candidates unavailable, started but never switched.
+
+**6. Architecture**
+| Principle | Result | Why |
+|---|---|---|
+| ARCH-DRY | pass | `Reviewer()` reuses `ReviewPlan` |
+| ARCH-PURE | pass | `family.go` does no IO; `lookPath` and `goos` are passed in |
+| ARCH-PURPOSE | pass | the remaining review sites (`changecode.go:725` and `:965`, `judge.go:148`) still call `ResolveAgentCLI`, but the plan gives them to M2 explicitly |
+| ARCH-MOCK | pass | tests run against the existing fake reviewer |
+| ARCH-CONSTRAINTS | N/A | M1 has no loop; at most 3 candidates |
+| ARCH-SECURE | pass | model names that start with `-` or contain spaces are refused |
+| ARCH-ORDER | pass for M1 | no state is kept between events yet; M2's loop is where this applies |
+| ARCH-FUNERAL | pass | nothing new is written to disk |
+
+**7. Plan revisions:** none needed; the second Revisions entry matches the code.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: addressed
+    note: |
+      DispatchOptions.Model is set from policy.Models at milestoneclose.go:874 and agentArgs emits --model or -m; removing either one makes TestBoundaryReviewPassesTheConfiguredModel or TestAgentArgsPassTheModel fail.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      close.md:72-73 and the atlas paragraph now mark the kind order and fallback as M2, and say a boundary review uses the bounded order's first agent, which matches Reviewer() always using KindBounded.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"aa384400-3112-4490-bac5-df118069e10f","repository":"github.com/xianxu/ariadne","issue_id":"000409","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/98ff97a217b8180e","reviewed_head":"7753ca91157a2705e04fad8ec4e694835bd36089","slot":"ariadne:2","requested_at":"2026-10-18T12:57:38.404728Z"},"phase":"finished","pid":35806,"started_at":"2026-10-18T12:57:38.527913Z","finished_at":"2026-10-18T13:00:12.116973Z","session_id":"c99ef9a6-6af1-47e0-9ed1-c994bf6656aa","outcome":"returned"}] -->

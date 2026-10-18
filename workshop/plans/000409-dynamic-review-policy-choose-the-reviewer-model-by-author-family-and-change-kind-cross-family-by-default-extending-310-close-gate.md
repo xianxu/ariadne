@@ -302,6 +302,129 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: aa384400-3112-4490-bac5-df118069e10f
+            repository: github.com/xianxu/ariadne
+            issue_id: "000409"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/98ff97a217b8180e
+            reviewed_head: 7753ca91157a2705e04fad8ec4e694835bd36089
+            slot: ariadne:2
+            requested_at: "2026-10-18T12:57:38.404728Z"
+          phase: finished
+          pid: 35806
+          started_at: "2026-10-18T12:57:38.527913Z"
+          finished_at: "2026-10-18T13:00:12.116973Z"
+          session_id: c99ef9a6-6af1-47e0-9ed1-c994bf6656aa
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 7753ca91157a2705e04fad8ec4e694835bd36089
+        tracker_head: 93fdc011a774cc68b1b0d0721e364a8c638dca8f
+        branch_point: d3ebb55260c6647fbc70b423efed20cd8c734c5b
+        since: "2026-10-18T05:16:36-07:00"
+        until: "2026-10-18T05:57:06-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T05:16:36-07:00"
+              end: "2026-10-18T05:57:06-07:00"
+              began: "2026-10-18T05:16:36-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 144a7ee5-cc37-41c5-ac73-b88bbf5223ba
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 5f3da10d43be251869bdafd6a98084e32ec627ca1a5a4b930a44fbe4f280c081
+              started: "2026-10-18T12:25:28.29Z"
+              spawned: false
+              bytes: 482080
+              windows:
+                - start: "2026-10-18T12:25:28.29Z"
+                  end: "2026-10-18T05:57:06-07:00"
+            - harness: claude
+              id: 5ca5160d-491c-4aec-b8f5-f5e40a69efb5
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 42052d978d0f33bca789480a4b74830893f6dd041d8d8d097390922c5c9823d6
+              started: "2026-10-18T12:21:14.242Z"
+              spawned: false
+              bytes: 563079
+              windows:
+                - start: "2026-10-18T12:21:14.242Z"
+                  end: "2026-10-18T05:57:06-07:00"
+            - harness: claude
+              id: 6be380fe-6c30-4408-b5b9-026237f91e30
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 70f6e935edb05d9fad671da7d73d9b88df89415544fb98457e596558f0fb3332
+              started: "2026-10-18T12:23:49.894Z"
+              spawned: false
+              bytes: 497183
+              windows:
+                - start: "2026-10-18T12:23:49.894Z"
+                  end: "2026-10-18T05:57:06-07:00"
+            - harness: claude
+              id: 946b723a-6614-4e42-8189-fff378170870
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 18bbe8b8ed1e1d030e367159b09a2e30f9b27a75f8dcc5f5048ff5d6d9bb34f1
+              started: "2026-10-18T12:25:42.657Z"
+              spawned: false
+              bytes: 366511
+              windows:
+                - start: "2026-10-18T12:25:42.657Z"
+                  end: "2026-10-18T05:57:06-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 95ce8d58368232d5e9444b72635bedbcfec934bbd530a0f2202fcedc6079dc67
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 154538580
+              windows:
+                - start: "2026-10-18T05:16:36-07:00"
+                  end: "2026-10-18T05:57:06-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-18T05:32:24-07:00"
+              finalized: "2026-10-18T05:35:52-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T05:40:21-07:00"
+              finalized: "2026-10-18T05:55:37-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-18T06:00:31-07:00"
+      dispatched: "2026-10-18T05:57:38-07:00"
+      agent: claude
+      dispose:
+        - id: BR-4
+          disposition: addressed
+          note: DispatchOptions.Model is set from policy.Models at milestoneclose.go:874 and agentArgs emits --model or -m; removing either one makes TestBoundaryReviewPassesTheConfiguredModel or TestAgentArgsPassTheModel fail.
+          round: 3
+        - id: BR-8
+          disposition: addressed
+          note: close.md:72-73 and the atlas paragraph now mark the kind order and fallback as M2, and say a boundary review uses the bounded order's first agent, which matches Reviewer() always using KindBounded.
+          round: 3
+      boundary: M1
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 7753ca91157a2705e04fad8ec4e694835bd36089
+      blocked: false
 ---
 
 # Gate ledger — ariadne#409 (boundary-review)
@@ -344,7 +467,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-8** [Minor] `docs-track-behavior-change` (kind: defect) Close help and atlas describe M2 behaviour (kind order, availability fallback) that the boundary review does not do yet
   This is the 2nd finding in docs-track-behavior-change. Rule: help and atlas text must describe what the reviewed head does, and anything that lands later is marked with its milestone. Here close.md:415-421 says a full-flow close tries claude first and that gemini is the fallback, but boundaryReviewOptionsFor resolves through Reviewer(), which always uses KindBounded and ignores availability, so a gemini main agent on a full-flow close gets codex. Mark these as (M2) or land the kind with M2 and sweep both docs together.
 
+## Round 3 — 2026-10-18T06:00:31-07:00 (claude) — passed
+
+### Disposed
+
+- BR-4 — addressed — DispatchOptions.Model is set from policy.Models at milestoneclose.go:874 and agentArgs emits --model or -m; removing either one makes TestBoundaryReviewPassesTheConfiguredModel or TestAgentArgsPassTheModel fail.
+- BR-8 — addressed — close.md:72-73 and the atlas paragraph now mark the kind order and fallback as M2, and say a boundary review uses the bounded order's first agent, which matches Reviewer() always using KindBounded.
+
 ## Open findings
 
-- **BR-4** [Important] `config-key-without-consumer` (kind: defect) reviewer_models is accepted and validated but has no consumer, and no milestone owns the agentArgs wiring
-- **BR-8** [Minor] `docs-track-behavior-change` (kind: defect) Close help and atlas describe M2 behaviour (kind order, availability fallback) that the boundary review does not do yet
+(none — every finding has been disposed)
