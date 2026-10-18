@@ -37,8 +37,17 @@ func TestReadPreviousResourceSectionExactWeek(t *testing.T) {
 	if got := readPreviousResourceSection(root, window); got.State != "unknown" || !strings.Contains(got.Reason, "window") {
 		t.Fatalf("mismatched window = %+v", got)
 	}
-	write(`{"schema_version":2,"window":{"start":"2026-10-05T00:00:00Z","end":"2026-10-12T00:00:00Z"},"resources":{"families":[{"kind":"couch-ledgers","definition":"v1","bytes":100,"complete":true}]}}`)
+	write(`{"schema_version":2,"window":{"start":"2026-10-05T00:00:00Z","end":"2026-10-12T00:00:00Z"},"resources":{"observed_at":"2026-10-12T01:00:00Z","families":[{"kind":"couch-ledgers","definition":"v1","bytes":100,"complete":true}]}}`)
 	got := readPreviousResourceSection(root, window)
+	if got.State != "unknown" || !strings.Contains(got.Reason, "incomplete") {
+		t.Fatalf("v2 predecessor without machine coverage = %+v", got)
+	}
+	write(`{"schema_version":2,"window":{"start":"2026-10-05T00:00:00Z","end":"2026-10-12T00:00:00Z"},"resources":{"families":[{"kind":"couch-ledgers","definition":"v1","bytes":100,"complete":true}],"suites":[],"machine":{"go_cache":{"kind":"go-cache","complete":true},"agentscratch_free":{"kind":"agentscratch-free","complete":true},"agentscratch_total":{"kind":"agentscratch-total","complete":true},"bytes_written":{"device":"disk0","state":"observed"},"ssd_wear":{"device":"disk0","state":"observed"}}}}`)
+	if got := readPreviousResourceSection(root, window); got.State != "unknown" || !strings.Contains(got.Reason, "observed_at") {
+		t.Fatalf("missing point-observation time = %+v", got)
+	}
+	write(`{"schema_version":2,"window":{"start":"2026-10-05T00:00:00Z","end":"2026-10-12T00:00:00Z"},"resources":{"observed_at":"2026-10-12T01:00:00Z","families":[{"kind":"couch-ledgers","definition":"v1","bytes":100,"complete":true}],"suites":[],"machine":{"go_cache":{"kind":"go-cache","complete":true},"agentscratch_free":{"kind":"agentscratch-free","complete":true},"agentscratch_total":{"kind":"agentscratch-total","complete":true},"bytes_written":{"device":"disk0","state":"observed"},"ssd_wear":{"device":"disk0","state":"observed"}}}}`)
+	got = readPreviousResourceSection(root, window)
 	if got.State != "complete" || got.Section == nil || len(got.Section.Families) != 1 || got.Section.Families[0].Bytes != 100 {
 		t.Fatalf("valid predecessor = %+v", got)
 	}

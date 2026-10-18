@@ -37,18 +37,20 @@ resource-observability wants a weekly trend so growth is visible as a delta.
 
 ## Done when
 
-- A fixture-backed test produces the section and its deltas; a live run on this machine writes one snapshot.
+- A fixture-backed test produces the section and its deltas; a live run on this machine writes and inspects one temp-brain snapshot. The first permanent resource snapshot is the completed 2026-10-19 week, run by the TL by hand after 00:00 UTC from the landed binary.
 
 Depends on ariadne#392.
 
 ## Plan
 
 - [x] After #392 lands, bind its weekly window, immutable writer, previous-snapshot reader and brain destination to the resource section in `workshop/plans/000402-weekly-resource-trend-plan.md`.
-- [ ] Test the inventory-backed, read-only collector and pure delta/alert renderer with complete, missing and first-week fixtures; include Go cache, AgentScratch capacity and largest ledgers.
-- [ ] Integrate the section into #392's snapshot, run focused tests and the recorded suite, then write and inspect one live snapshot before close.
+- [x] Test the inventory-backed, read-only collector and pure delta/alert renderer with complete, missing and first-week fixtures; include Go cache, AgentScratch capacity and largest ledgers.
+- [ ] Integrate the section into #392's snapshot, run focused tests and the recorded suite, then write and inspect one live temp-brain snapshot before close.
 
 ## Log
 
+- 2026-10-18: Post-fix live temp-brain snapshot at `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne402-observed.yXKoFD/memory/work/devinfra/test-economy/weekly/2026-10-12.json` is schema v2, 41,887 bytes, sha256 `b4d1c143405bb2f8d549b9114173dd23c0f1135b6b91b4eb19ffa53f930b1681`. The suite window is Oct 5–12, while `resources.observed_at` is 2026-10-18T09:34:28.073975Z. All 17 families have complete metadata; ten ledger rows and 16 repo suite rows appear; Go cache is 155,134,309,459 bytes, AgentScratch free/total is 39,597,510,656/200,000,000,000 bytes, disk0 writes 35,779,148,959,744 bytes and wear 8%. Both device deltas correctly say baseline. `make -k build`, `make -k sdlc-build`, focused tests and diff check passed. The pilot is temporary; the TL runs the first permanent resource snapshot after Oct 19 00:00 UTC.
+- 2026-10-18: A red test showed the historical pilot lacked a point-observation time. Schema v2 now records `observed_at` and suppresses family, ledger and machine deltas outside a measured 6–8-day observation gap; suite-duration comparisons remain tied to exact weekly windows. Focused temporal tests pass, including both interval boundaries and a predecessor missing `observed_at`.
 - 2026-10-18: Live temp-brain pilot at `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne402-pilot.TIwyUv/memory/work/devinfra/test-economy/weekly/2026-10-12.json` produced schema v2 (41,837 bytes; sha256 `d2b9fca6dcad837c71c76075ac2c9ce39c3f7f2fee527fb3c947db60baa8fb5a`). All 17 declared families were complete; the largest ten ledgers, 154,897,415,411-byte Go cache, 39,613,689,856-byte AgentScratch free gauge, disk0 write counter and 8% wear were present. The date is the historical suite window; the resource gauge was measured today, so the pilot is not published to the real brain.
 - 2026-10-18: #392 producer now attaches schema-v2 resources through its one immutable writer. Fake-backed machine probing, prior-week reader, root resolution (global Pair store despite slot-specific PAIR_DATA_DIR), and command fixture passed focused tests. A v2 predecessor with a missing machine section is unknown, not an invented baseline. Build, live temp-brain check, suite and close remain.
 - 2026-10-18: TDD slices for exact prior-week reading, byte comparison, declared-source collection, ledger ranking, suite duration comparison and device parsing are green in focused cmd/sdlc tests. A live read-only probe found ioreg Bytes (Write) for internal disk0; smartctl prints Percentage Used without root but exits 4 after an unrelated error-log query, so usable wear output must be parsed independently of that exit code. The bounded ioreg form is `-r -c IOBlockStorageDriver -w 0 -l -d 2`.

@@ -514,6 +514,12 @@ landings, unknowns and top coverage reasons. Missing, expired or contradictory
 evidence makes the ratio `null`, and the snapshot keeps physical suite statistics
 separate from exact landing attribution. Publish only after reviewing the pilot
 output because the dated artifact is not replaced in place.
+Schema v2 adds a resource section with Pair-inventory family sizes, the largest
+Couch ledgers, suite wall trends and machine gauges. Its `observed_at` records
+when point resources were measured; their numeric weekly deltas require a 6–8
+day gap between observations. Suite durations compare their exact seven-day
+windows. The TL runs this snapshot manually after Monday 00:00 UTC; there is
+no scheduled producer yet.
 
 ## Fleet queries
 

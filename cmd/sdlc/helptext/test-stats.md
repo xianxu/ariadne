@@ -53,3 +53,17 @@ Snapshot collection fetches main and tracker evidence. Git commands have a
 10,000-record limit. Unavailable or over-limit sources are reported as unknown
 coverage. Snapshot publication always covers the discovered SDLC fleet so a
 partial `--repo` run cannot claim the immutable weekly path.
+
+Schema v2 adds `resources`: metadata-only byte totals for Pair's declared
+backup-source families, the ten largest Couch ledgers, per-repo suite wall
+durations, Go build-cache size, AgentScratch free/total bytes, and unprivileged
+disk write/wear gauges. Pair's `sources.json` supplies the family definitions;
+`--resource-inventory`, `--resource-pair-data`, `--resource-scratch`, and
+`--resource-disk` select the source paths when defaults do not fit. The section's
+`observed_at` is the actual UTC collection time, distinct from the suite window.
+Point-resource deltas and growth alerts require complete observations 6–8 days
+apart; otherwise they are unknown with the actual interval. Suite-duration
+deltas use the fixed weekly windows. Missing tools, source paths, prior weeks,
+or readable gauges remain named unknowns or first-week baselines, never zeros.
+No scheduler is installed for this command; the TL runs the completed-week
+snapshot after each Monday 00:00 UTC boundary.

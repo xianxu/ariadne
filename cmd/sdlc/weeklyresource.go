@@ -1,6 +1,10 @@
 package main
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+	"time"
+)
 
 // ResourceObservation is a metadata-only measurement of one declared source.
 // An incomplete observation keeps its reason and never supplies a numeric delta.
@@ -23,9 +27,12 @@ type ResourceComparison struct {
 }
 
 type WeeklyResourceSection struct {
-	Families       []ResourceComparison     `json:"families"`
-	LargestLedgers []ResourceFileComparison `json:"largest_ledgers"`
-	Suites         []WeeklyResourceSuite    `json:"suites"`
+	ObservedAt      time.Time                `json:"observed_at"`
+	Families        []ResourceComparison     `json:"families"`
+	LargestLedgers  []ResourceFileComparison `json:"largest_ledgers"`
+	Suites          []WeeklyResourceSuite    `json:"suites"`
+	Machine         ResourceMachineTrend     `json:"machine"`
+	CoverageUnknown []string                 `json:"coverage_unknown,omitempty"`
 }
 
 type ResourceFileComparison struct {
@@ -80,8 +87,22 @@ func compareResourceBytes(current ResourceObservation, prior *ResourceObservatio
 	return result
 }
 
-func renderWeeklyResourceSection(current ResourceCollection, repos []WeeklyRepoStats, prior previousResourceResult, threshold float64) WeeklyResourceSection {
-	section := WeeklyResourceSection{Families: []ResourceComparison{}, LargestLedgers: []ResourceFileComparison{}, Suites: []WeeklyResourceSuite{}}
+// Point measurements compare by collection time; suite durations compare by
+// their exact seven-day windows, independently of collection time.
+func resourcePointPrior(prior previousResourceResult, observedAt time.Time) previousResourceResult {
+	if prior.State != "complete" || prior.Section == nil {
+		return prior
+	}
+	gap := observedAt.Sub(prior.Section.ObservedAt)
+	if gap < 6*24*time.Hour || gap > 8*24*time.Hour {
+		return previousResourceResult{State: "unknown", Reason: fmt.Sprintf("resource observations %s apart; weekly delta requires 6–8 days", gap)}
+	}
+	return prior
+}
+
+func renderWeeklyResourceSection(current ResourceCollection, repos []WeeklyRepoStats, prior previousResourceResult, observedAt time.Time, threshold float64) WeeklyResourceSection {
+	section := WeeklyResourceSection{ObservedAt: observedAt, Families: []ResourceComparison{}, LargestLedgers: []ResourceFileComparison{}, Suites: []WeeklyResourceSuite{}, CoverageUnknown: current.CoverageUnknown}
+	pointPrior := resourcePointPrior(prior, observedAt)
 	priorFamilies := map[string]*ResourceObservation{}
 	priorLedgers := map[string]ResourceFile{}
 	priorSuites := map[string]WeeklyResourceSuite{}
@@ -99,8 +120,8 @@ func renderWeeklyResourceSection(current ResourceCollection, repos []WeeklyRepoS
 	}
 	for _, row := range current.Families {
 		comparison := compareResourceBytes(row, priorFamilies[row.Kind], threshold)
-		if prior.State == "unknown" {
-			comparison.State, comparison.Reason = "unknown", prior.Reason
+		if pointPrior.State == "unknown" {
+			comparison.State, comparison.Reason = "unknown", pointPrior.Reason
 			comparison.PreviousBytes, comparison.DeltaBytes, comparison.GrowthShare = nil, nil, nil
 			comparison.Alert = false
 		}
@@ -109,11 +130,11 @@ func renderWeeklyResourceSection(current ResourceCollection, repos []WeeklyRepoS
 	for _, row := range current.LargestLedgers {
 		comparison := ResourceFileComparison{ResourceFile: row}
 		switch {
-		case prior.State == "unknown":
-			comparison.State, comparison.Reason = "unknown", prior.Reason
-		case prior.State == "baseline":
+		case pointPrior.State == "unknown":
+			comparison.State, comparison.Reason = "unknown", pointPrior.Reason
+		case pointPrior.State == "baseline":
 			comparison.State = "baseline"
-		case prior.State == "complete":
+		case pointPrior.State == "complete":
 			old, ok := priorLedgers[row.Path]
 			if !ok {
 				comparison.State, comparison.Reason = "unknown", "not in previous top ten"

@@ -53,5 +53,12 @@ func readPreviousResourceSection(brainRoot string, window WeeklyWindow) previous
 	if prior.SchemaVersion != 2 || prior.Resources == nil {
 		return previousResourceResult{State: "unknown", Reason: "previous week schema or resources missing"}
 	}
+	resources := prior.Resources
+	if resources.ObservedAt.IsZero() {
+		return previousResourceResult{State: "unknown", Reason: "previous week resource observed_at missing"}
+	}
+	if resources.Families == nil || resources.Suites == nil || resources.Machine.GoCache.Kind != "go-cache" || resources.Machine.AgentScratchFree.Kind != "agentscratch-free" || resources.Machine.AgentScratchTotal.Kind != "agentscratch-total" || resources.Machine.BytesWritten.Device == "" || resources.Machine.SSDWear.Device == "" || len(resources.CoverageUnknown) != 0 {
+		return previousResourceResult{State: "unknown", Reason: "previous week resource section incomplete"}
+	}
 	return previousResourceResult{State: "complete", Section: prior.Resources}
 }

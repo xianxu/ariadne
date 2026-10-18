@@ -38,10 +38,13 @@ type ResourceFile struct {
 }
 
 type ResourceCollection struct {
-	Families       []ResourceObservation
-	LargestLedgers []ResourceFile
-	Visited        int
+	Families        []ResourceObservation
+	LargestLedgers  []ResourceFile
+	Visited         int
+	CoverageUnknown []string
 }
+
+const resourceFamilyEntryLimit = 2_000_000
 
 func collectResourceFamilies(inventoryJSON []byte, roots []ResourceRoot) ([]ResourceObservation, int, error) {
 	result, err := collectResourceDetails(inventoryJSON, roots)
@@ -51,6 +54,10 @@ func collectResourceFamilies(inventoryJSON []byte, roots []ResourceRoot) ([]Reso
 // collectResourceDetails walks each resolved root once. Selectors are Pair's
 // slash-separated path.Match patterns; a selected directory owns descendants.
 func collectResourceDetails(inventoryJSON []byte, roots []ResourceRoot) (ResourceCollection, error) {
+	return collectResourceDetailsWithLimit(inventoryJSON, roots, resourceFamilyEntryLimit)
+}
+
+func collectResourceDetailsWithLimit(inventoryJSON []byte, roots []ResourceRoot, limit int) (ResourceCollection, error) {
 	var inventory resourceInventory
 	if err := json.Unmarshal(inventoryJSON, &inventory); err != nil || inventory.Version != 1 || len(inventory.Sources) == 0 {
 		return ResourceCollection{}, fmt.Errorf("invalid resource inventory: %v", err)
@@ -110,6 +117,9 @@ func collectResourceDetails(inventoryJSON []byte, roots []ResourceRoot) (Resourc
 				return walkErr
 			}
 			visited++
+			if visited > limit {
+				return fmt.Errorf("resource metadata walk limit of %d entries reached", limit)
+			}
 			if entry.Type()&os.ModeSymlink != 0 || entry.IsDir() {
 				return nil
 			}

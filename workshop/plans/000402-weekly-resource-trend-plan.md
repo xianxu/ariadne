@@ -68,7 +68,7 @@ The TL should tell the operator that a published partial week stays partial and 
 ### 3. Attach, verify, and publish
 
 - [x] Add a failing #392 producer fixture proving one weekly snapshot contains both test-economy and resource sections and that a same-week rerun is stable. Implement the attachment and pass targeted tests.
-- [ ] Update atlas with the source inventory and snapshot flow, then run `make -k build`, `git diff --check`, and the relevant focused packages. Commit and push.
+- [x] Update atlas with the source inventory and snapshot flow, then run `make -k build`, `git diff --check`, and the relevant focused packages. Commit and push.
 - [ ] Run `sdlc local-check run --name suite` on the pushed head. Run the producer into a temp brain and inspect its source coverage, largest ledgers, cache bytes, AgentScratch free/total, device gauges, `observed_at`, suite durations and comparison status. Give the exact pilot output/hash to the close reviewer; do not fabricate prior-week deltas for the first run.
 - [ ] After SHIP review, open the PR and merge through the landing line. Report the result to the hub with the temp pilot path/hash and the manual first-real-publication command for the TL after 2026-10-19T00:00:00Z. The TL updates the ops project.
 

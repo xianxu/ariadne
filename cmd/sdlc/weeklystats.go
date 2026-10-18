@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const weeklySnapshotSchemaVersion = 1
+const weeklySnapshotSchemaVersion = 2
 
 // WeeklyWindow is a fixed, half-open seven-day interval in UTC.
 type WeeklyWindow struct {
@@ -33,9 +33,10 @@ func (w WeeklyWindow) Contains(at time.Time) bool {
 // WeeklySnapshot is the stable, versioned brain artifact. Later schema changes
 // increment SchemaVersion rather than silently changing historical meaning.
 type WeeklySnapshot struct {
-	SchemaVersion int               `json:"schema_version"`
-	Window        WeeklyWindow      `json:"window"`
-	Repos         []WeeklyRepoStats `json:"repos"`
+	SchemaVersion int                    `json:"schema_version"`
+	Window        WeeklyWindow           `json:"window"`
+	Repos         []WeeklyRepoStats      `json:"repos"`
+	Resources     *WeeklyResourceSection `json:"resources"`
 }
 
 // WeeklyRepoStats keeps physical in-window suite measurements separate from

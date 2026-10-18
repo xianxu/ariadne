@@ -121,3 +121,17 @@ func TestCollectResourceDetailsVisitsLinearly(t *testing.T) {
 		t.Fatalf("walk work must scale with entries: n=%d 2n=%d", n, twice)
 	}
 }
+
+func TestCollectResourceDetailsBoundsLargeWalk(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"a.bin", "b.bin", "c.bin", "d.bin"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	inventory := []byte(`{"version":1,"sources":[{"kind":"files","root_token":"data","patterns":["*.bin"]}]}`)
+	got, err := collectResourceDetailsWithLimit(inventory, []ResourceRoot{{Token: "data", Path: root}}, 3)
+	if err != nil || len(got.Families) != 1 || got.Families[0].Complete || !strings.Contains(got.Families[0].Reason, "limit") {
+		t.Fatalf("bounded walk must keep named partial coverage: %+v %v", got, err)
+	}
+}
