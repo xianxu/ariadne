@@ -149,7 +149,10 @@ func wireStrictDecode(f *ast.File, context *CheckContext) []ast.Node {
 					if ok && len(value.Names) == 1 && len(value.Values) == 1 && isPackageCall(value.Values[0], jsonPkg, "NewDecoder") {
 						decoders[value.Names[0].Name] = false
 					}
-					if ok && (context.markedType(f, value.Type) || len(value.Values) == 1 && isWireConstructor(value.Values[0], f, context)) {
+					// An explicit interface type erases an initializer's wire
+					// identity. Infer from a constructor only when no type was
+					// declared and that initializer belongs to one name.
+					if ok && (context.markedType(f, value.Type) || value.Type == nil && len(value.Names) == 1 && len(value.Values) == 1 && isWireConstructor(value.Values[0], f, context)) {
 						for _, name := range value.Names {
 							variables[name.Name] = true
 						}
@@ -160,8 +163,16 @@ func wireStrictDecode(f *ast.File, context *CheckContext) []ast.Node {
 					checkCall(v.Rhs[0])
 				}
 				for _, lhs := range v.Lhs {
-					id, ok := lhs.(*ast.Ident)
-					if !ok || id.Name == "_" {
+					id := assignedRoot(lhs)
+					if id == nil || id.Name == "_" {
+						continue
+					}
+					// A write can replace either the target value or the
+					// decoder's strict configuration. Establish a new binding
+					// only from a simple, direct constructor assignment.
+					delete(variables, id.Name)
+					delete(decoders, id.Name)
+					if _, ok := lhs.(*ast.Ident); !ok {
 						continue
 					}
 					if len(v.Lhs) == 1 && len(v.Rhs) == 1 && v.Tok == token.DEFINE && isWireConstructor(v.Rhs[0], f, context) {
@@ -169,8 +180,6 @@ func wireStrictDecode(f *ast.File, context *CheckContext) []ast.Node {
 					}
 					if len(v.Lhs) == 1 && len(v.Rhs) == 1 && isPackageCall(v.Rhs[0], jsonPkg, "NewDecoder") {
 						decoders[id.Name] = false
-					} else {
-						delete(decoders, id.Name)
 					}
 				}
 			case *ast.ExprStmt:
@@ -185,30 +194,46 @@ func wireStrictDecode(f *ast.File, context *CheckContext) []ast.Node {
 				if init, ok := v.Init.(*ast.AssignStmt); ok && len(init.Rhs) == 1 {
 					checkCall(init.Rhs[0])
 				}
-				invalidateAssigned(v, decoders)
+				invalidateAssigned(v, decoders, variables)
 			default:
-				invalidateAssigned(stmt, decoders)
+				invalidateAssigned(stmt, decoders, variables)
 			}
 		}
 	}
 	return out
 }
 
-// A branch may rebind a known decoder on only one path. Drop that decoder
-// rather than guessing which instance a later Decode uses.
-func invalidateAssigned(node ast.Node, decoders map[string]bool) {
+// A branch may replace a known decoder or target on only one path. Drop both
+// identities rather than guessing which value a later Decode uses.
+func invalidateAssigned(node ast.Node, decoders, variables map[string]bool) {
 	ast.Inspect(node, func(n ast.Node) bool {
 		assignment, ok := n.(*ast.AssignStmt)
 		if !ok {
 			return true
 		}
 		for _, lhs := range assignment.Lhs {
-			if id, ok := lhs.(*ast.Ident); ok {
+			if id := assignedRoot(lhs); id != nil {
 				delete(decoders, id.Name)
+				delete(variables, id.Name)
 			}
 		}
 		return true
 	})
+}
+
+// A direct assignment or a write through a tracked pointer can replace the
+// value whose provenance justified a finding. Other expressions have no
+// single known local root and are outside this bounded matcher.
+func assignedRoot(e ast.Expr) *ast.Ident {
+	switch v := e.(type) {
+	case *ast.Ident:
+		return v
+	case *ast.ParenExpr:
+		return assignedRoot(v.X)
+	case *ast.StarExpr:
+		return assignedRoot(v.X)
+	}
+	return nil
 }
 
 func isWireConstructor(e ast.Expr, f *ast.File, context *CheckContext) bool {

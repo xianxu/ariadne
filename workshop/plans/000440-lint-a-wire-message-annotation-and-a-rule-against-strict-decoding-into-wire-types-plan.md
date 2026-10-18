@@ -137,3 +137,10 @@ to the hub. The TL owns any project update.
   map entry. Index and matcher were committed as one coherent increment after
   red/green rounds. The close checklist now stops at pre-close evidence so the
   gate need not check its own future outcome.
+- 2026-10-18, close review round 1: BR-1/BR-2 exposed stale provenance after
+  writes. Keep the conservative contract: an explicitly unmarked interface
+  type cannot inherit wire identity from its initializer; direct, multiple,
+  and conditional target reassignments clear that identity; direct and
+  conditional writes through a decoder pointer clear its strictness. Red
+  fixtures for each case precede the correction. BR-3 adds the annotation
+  convention to README beside its atlas detail.

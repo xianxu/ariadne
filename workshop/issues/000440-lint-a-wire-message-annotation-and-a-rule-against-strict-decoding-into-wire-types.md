@@ -94,6 +94,12 @@ Then close and land on SHIP.
   `/Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/1d23973db231db212070027117c9a5f96438546e/suite.log`
   (SHA-256 prefix `a48425cc3d24`). CI `merge-check` and
   `local-gates-guard` passed on the PR head.
+- The first close review returned REWORK: BR-1 target provenance, BR-2
+  decoder strictness provenance, and BR-3 README coverage. Seven new source
+  fixtures failed before the fix, then `go test ./pkg/golint -count=1` passed
+  with the correction. Target and decoder writes now invalidate their proof;
+  explicit interface destinations do not inherit a wire type from their
+  initializer. README now gives the annotation syntax and links the atlas.
 
 ## Revisions
 
