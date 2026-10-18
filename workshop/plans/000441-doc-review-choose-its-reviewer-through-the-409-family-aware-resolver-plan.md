@@ -1,0 +1,52 @@
+# doc-review through the #409 policy Implementation Plan
+
+> **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy) to determine the appropriate execution approach: use superpowers-subagent-driven-development (if subagents are suitable per AGENTS.md) or superpowers-executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** One reviewer policy shared by `sdlc` and `doc-review`. doc-review then picks its second-vendor reviewer from the document's authors, and never reviews a document with its author's own family.
+
+**Architecture:** Move #409's pure policy out of `cmd/sdlc/internal/judge` into `pkg/reviewpolicy`, so `cmd/doc-review` can import it. Go's `internal` rule is what blocks that today. `judge` keeps type aliases and re-exported names, so no sdlc caller changes, and keeps everything run-shaped. doc-review gets a thin IO shell: the document's trailers, PATH availability, and a launch-failure fallback.
+
+**Tech Stack:** Go standard library; `git` (already used by doc-review's tests via a real repo).
+
+---
+
+## Decisions (approved by the hub, 2026-10-18)
+
+- **doc-review never self-reviews.** A repo's `same` mode, or the default, counts as `other` for doc-review, because a second vendor is its whole purpose. `explicit` pairs are honored, and an explicit agent argument (`doc-review gemini file.md`) still wins. The help says so.
+- **Quota detection for doc-review runs is out of scope.** Its run shape (codex `-o` report capture) differs from judge's, so a failure there keeps today's message. Only a missing CLI or a failed launch moves it to the next candidate.
+
+## Core concepts
+
+### Pure entities
+
+| Name | Lives in | Status |
+|------|----------|--------|
+| `Agent`, `Family`, `FamilyOf`, `ChangeKind` (+ `KindDesignHeavy`, `KindBounded`), `defaultOrders` | `pkg/reviewpolicy/policy.go` | new (moved from judge `family.go`) |
+| `Mode` (+ `Same`, `Other`, `Explicit`), `DefaultMode`, `Policy` (`Validate`, `Reviewer`, orders, models) | `pkg/reviewpolicy/policy.go` | new (moved from judge `agent_resolver.go`) |
+| `Candidate`, `Skip`, `Availability`, `Plan` | `pkg/reviewpolicy/policy.go` | new (moved; `judge.ReviewPlan` becomes a thin wrapper) |
+| `AuthorFamilies(session Family, trailerValues []string) []Family` | `pkg/reviewpolicy/policy.go` | new (the trailer → family step of `authorFamiliesFromLog`, shared) |
+| `Record(used, authors, skips, forced, degraded)` | `pkg/reviewpolicy/record.go` | new (moved from `judge.ReviewerRecord`, which wraps it) |
+| judge aliases (`AgentCLI = reviewpolicy.Agent`, `ReviewerPolicy = reviewpolicy.Policy`, `Family`, `Candidate`, …) and re-exported constants | `cmd/sdlc/internal/judge/policyalias.go` | new |
+| doc-review's reviewer choice (`chooseReviewers`: never-same mode, explicit arg) | `cmd/doc-review/choose.go` | new |
+
+- **Unchanged in judge** (run-shaped, not shared): `Unavailable`, `LocalAvailability` (with the containment rule), `DispatchChoice`, `UnavailableError`, `NoReviewerError`, `AgentRun.Began`.
+- **ARCH-DRY:** doc-review's own `AgentCLI` and its agent constants are deleted; it uses `reviewpolicy.Agent`.
+
+### Integration points
+
+| Name | Lives in | Status | Wraps |
+|------|----------|--------|-------|
+| `reviewpolicy.Load(root)` | `pkg/reviewpolicy/load.go` | new (moved from `cmd/sdlc/reviewconfig.go`; the sdlc loader calls it) | `workshop/review.json` |
+| doc-review authors (`git log --format=%(trailers:key=Agent,valueonly) -- <file>`) | `cmd/doc-review/choose.go` | new | `git` |
+| doc-review availability (`exec.LookPath`, a package var for tests) and launch-failure fallback in `runReview` | `cmd/doc-review/review.go` | modified | agent CLIs (the existing `runAgent` seam) |
+
+- ARCH-MOCK: doc-review's existing `runAgent` fake keeps serving the tests; git runs against a temp repo, as in the sdlc tests.
+- ARCH-SECURE: trailers are untrusted. The same rule as #409 applies: the session's family is always among the authors, so a forged trailer can only narrow the candidates. `review.json` stays local-gates; this moves its loader only.
+- ARCH-CONSTRAINTS: N/A beyond one `git log` per run (a single file's history).
+- ARCH-FUNERAL: creates nothing durable beyond the existing report file, whose `reviewer:` field gains the record.
+- ARCH-ORDER: holds no state between events; it's one run with an ordered fallback list.
+
+## Plan
+
+- [ ] M1 — Extract `pkg/reviewpolicy` (policy, plan, author families, record, loader) with its tests moved from judge's family/agent_resolver/reviewchoice tests. judge gets aliases and thin wrappers; cmd/sdlc's `reviewconfig.go` and `authorFamiliesFromLog` delegate. Verification: every existing judge and cmd/sdlc test passes unchanged, and `go vet` is clean. An atlas note says where the policy lives.
+- [ ] M2 — doc-review: delete its agent list and use `reviewpolicy.Agent`. `chooseReviewers` takes the doc's trailer authors plus the session, applies never-same (same/default count as other; explicit honored; an explicit arg wins), uses the design-heavy order and PATH availability. `runReview` tries candidates in order, announcing a skip on a missing CLI or failed launch, refuses naming each candidate when none is left, and writes the record into the report's `reviewer:` field. Tests: a claude-authored doc is reviewed by codex; a codex-authored doc by claude; with codex missing, gemini runs and the record says degraded; nothing available refuses; an explicit arg wins; `same` in review.json still cross-reviews. Update the help (with the never-self-review sentence) and the atlas.

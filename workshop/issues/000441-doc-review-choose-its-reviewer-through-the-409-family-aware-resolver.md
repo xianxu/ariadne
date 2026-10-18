@@ -56,11 +56,13 @@ keeps `cmd/doc-review` out. Both proper routes move code, so this item is outsid
 
 ## Plan
 
-- [ ] `pkg/reviewpolicy` extracted (moved tests follow), with `judge` aliases; sdlc tests unchanged and green
-- [ ] doc-review: author families from the file's trailers, the plan, the PATH availability, the launch-failure fallback, the refusal, and the report's reviewer record; tests with its `runAgent` fake
-- [ ] Help (doc-review), atlas
+Durable plan: `workshop/plans/000441-doc-review-choose-its-reviewer-through-the-409-family-aware-resolver-plan.md` (full flow, per the hub).
+
+- [ ] M1 — extract `pkg/reviewpolicy` (judge keeps aliases; every existing test passes unchanged)
+- [ ] M2 — doc-review plans, falls back and records its reviewer through it; never self-review; help and atlas
 
 ## Log
 
 ### 2026-10-18
 - Claimed by ariadne:2. The `internal` boundary makes this a move plus wiring, not a one-liner, so the plan goes to the hub before code.
+- Hub approved the extraction (full flow) and the never-self-review decision for doc-review (same and the default count as other, explicit honored, stated in its help). Quota detection out of scope.
