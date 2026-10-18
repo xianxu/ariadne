@@ -211,7 +211,7 @@ refuses (exit 6) instead.`,
 			// A submit is when the operator's deleted links arrive: reconcile
 			// the index now (#424). A refusal is reported, not fatal: the
 			// submit's other lines still stand, and the next submit retries.
-			if err := syncIndexAfter(d, out, file, nil, diff); err != nil {
+			if err := syncIndex(d, out, file, nil); err != nil {
 				fmt.Fprintln(out, "index: not reconciled:", err)
 			}
 			printStale(d, out, file)

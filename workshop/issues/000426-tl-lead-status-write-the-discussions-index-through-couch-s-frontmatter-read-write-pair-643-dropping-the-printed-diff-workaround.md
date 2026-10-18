@@ -40,17 +40,17 @@ ariadne#424 (M2) writes the TL session file's `discussions:` index through couch
 
 Quick flow: about 40 added code lines, and index.go shrinks.
 
-- [ ] **Seam:** `SessionSync.ReadAll`/`WriteAll` become `ReadFrontmatter(file) (block, hash, err)` and `WriteFrontmatter(file, bodyPath, hash)` over `read --frontmatter --json` and `write --frontmatter … --if-hash`. The reply decodes like a section read. No other caller used the whole-file pair, so it goes (ARCH-DRY). `Peek` and `MarkAllSeen` (status seen) stay.
-- [ ] **Pure split:** `sidedoc.FrontBlock(doc) (block, rest, ok)` has couch's projection: the closed leading `---` block without its final line ending, and the rest verbatim. `syncIndex` composes `block + rest` from the frontmatter read and the peeked body, reconciles it, and writes `FrontBlock(next)`. ReconcileIndex is unchanged. Tests cover FrontBlock (round trip; an unclosed block or none refuses; CRLF).
-- [ ] **syncIndex:** keeps the Peek no-op shortcut. Then, up to `writeTries` times: ReadFrontmatter, then Peek for the body's links, reconcile, and on a change `WriteFrontmatter` with the read's hash; stale means retry, and the lock means a refusal. `syncIndexAfter`, `readAllShowingUnread`, `windowChanges` and submit's `printed` plumbing are removed.
-- [ ] **Fake:** a frontmatter read or write resets only the frontmatter's shadow (`shadow[""]`). The CAS hash covers the frontmatter block. `editBeforeFront` simulates a racing frontmatter edit.
-- [ ] **Tests:**
+- [x] **Seam:** `SessionSync.ReadAll`/`WriteAll` become `ReadFrontmatter(file) (block, hash, err)` and `WriteFrontmatter(file, bodyPath, hash)` over `read --frontmatter --json` and `write --frontmatter … --if-hash`. The reply decodes like a section read. No other caller used the whole-file pair, so it goes (ARCH-DRY). `Peek` and `MarkAllSeen` (status seen) stay.
+- [x] **Pure split:** `sidedoc.FrontBlock(doc) (block, rest, ok)` has couch's projection: the closed leading `---` block without its final line ending, and the rest verbatim. `syncIndex` composes `block + rest` from the frontmatter read and the peeked body, reconciles it, and writes `FrontBlock(next)`. ReconcileIndex is unchanged. Tests cover FrontBlock (round trip; an unclosed block or none refuses; CRLF).
+- [x] **syncIndex:** keeps the Peek no-op shortcut. Then, up to `writeTries` times: ReadFrontmatter, then Peek for the body's links, reconcile, and on a change `WriteFrontmatter` with the read's hash; stale means retry, and the lock means a refusal. `syncIndexAfter`, `readAllShowingUnread`, `windowChanges` and submit's `printed` plumbing are removed.
+- [x] **Fake:** a frontmatter read or write resets only the frontmatter's shadow (`shadow[""]`). The CAS hash covers the frontmatter block. `editBeforeFront` simulates a racing frontmatter edit.
+- [x] **Tests:**
   - TestIndexKeepsUnreadEdits becomes a write that leaves the operator's `## Needs you` edit in the diff and prints nothing about it.
   - A racing frontmatter edit goes stale, then is recomputed.
   - Under the lock, nothing is written.
   - The workaround tests (`TestIndexShowsEditsOnEveryRead`, `TestSubmitPrintsUnreadOnce`) are replaced by a check that submit prints the diff once and the index adds nothing.
   - Live `TestSessionSyncConformance`: read --frontmatter returns the block with its hash; an operator edit in `## B` stays in the diff after the frontmatter read and after the frontmatter write; a wrong hash gives exit 6; the write keeps every section byte for byte; the lock gives exit 3.
-- [ ] Help (`status index`, the syncIndex comment) and the atlas (collaboration-modes "The index") describe the frontmatter write.
+- [x] Help (`status index`, the syncIndex comment) and the atlas (collaboration-modes "The index") describe the frontmatter write.
 
 Design notes:
 - **Body staleness is benign:** the CAS covers only the frontmatter, so a body edit after the Peek can only delay a drop to the next reconcile. Entries are never added from links.
@@ -60,3 +60,6 @@ Design notes:
 ## Log
 
 ### 2026-10-17
+- 2026-10-18: the hub approved the plan, on condition that the live conformance runs only against a scratch session-sync file. `TestSessionSyncConformance` writes its file under `t.TempDir()` with a dummy owner, never a real session file.
+- Implemented as planned. `unreadChanges` lost its only production caller, so it moved into conformance_test.go, its one user. `newFake` now starts with `type: session-sync` frontmatter, since couch serves only such files; three instruction tests had used a frontmatter-less file that real couch refuses.
+- Verified: `go test ./cmd/tl-lead ./pkg/sidedoc` passes (TestFrontBlock, TestIndexKeepsUnreadEdits with an exact diff after the write, a racing frontmatter edit in TestIndexCommand recomputed and kept, the lock). `TL_LEAD_LIVE=1 go test ./cmd/tl-lead -run TestSessionSyncConformance` passed against the real couch (pair#643).
