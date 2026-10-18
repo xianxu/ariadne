@@ -322,6 +322,108 @@ rounds:
       isolation: fenced
       reviewed: 5b2d792df73a42e43e6d71d6e1b22121a54e5462
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 15c82fa1-3078-4147-9a01-6b42811c30a6
+            repository: github.com/xianxu/ariadne
+            issue_id: "000431"
+            recipe: fix-review
+            round: 4
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/2a187b74d4b551c4
+            reviewed_head: 391c17e163125b715265c3952ba0c1e1c14722c4
+            slot: ariadne:2
+            requested_at: "2026-10-18T03:49:06.310078Z"
+          phase: finished
+          pid: 81027
+          started_at: "2026-10-18T03:49:06.504335Z"
+          finished_at: "2026-10-18T03:50:03.437823Z"
+          session_id: 815fe8de-8afc-4d34-8ec8-5507dbda03c0
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 391c17e163125b715265c3952ba0c1e1c14722c4
+        tracker_head: cf0da49e86f8663accedae7646a7e26ce72cfaa6
+        branch_point: b6a22b0bff4b6f37deb3046f3c2faf92552784dc
+        since: "2026-10-17T18:23:15-07:00"
+        until: "2026-10-17T20:47:46-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-17T18:23:15-07:00"
+              end: "2026-10-17T20:47:46-07:00"
+              began: "2026-10-17T18:23:15-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6e84f528f85d3399c0e189e98d06a219140b024bb43c932ea66865f1154c8abd
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 92597778
+              windows:
+                - start: "2026-10-17T18:23:15-07:00"
+                  end: "2026-10-17T20:47:46-07:00"
+        queue_waits:
+            - attempt_id: 5c416e294bba78f2ce49c64c087a31fb
+              slot: ariadne:2
+              record_digest: 9aeda882ff0ad3c99a95d32773e4464fc46e4056cd5b12e37f29a62a56227219
+              start: "2026-10-18T02:08:21.946098Z"
+              end: "2026-10-18T02:26:06.484583Z"
+              queue_seconds: 1064.538485
+              raw_seconds: 1064.538485
+              exact: true
+            - attempt_id: 04f0a8ee91a1b328c28b0d687ea87055
+              slot: ariadne:2
+              record_digest: dc16a7b09a9fc2f2adb30ca37ae1b4d33006c8086770ae036abd8f28fe5052eb
+              start: "2026-10-18T02:45:49.932166Z"
+              end: "2026-10-18T03:03:15.535511Z"
+              queue_seconds: 1045.603345
+              raw_seconds: 1045.603345
+              exact: true
+            - attempt_id: d0a0275e7866123956e54049f9aa54fb
+              slot: ariadne:2
+              record_digest: b5a6ac0a3bc843ddc198a77ba6a3fbff70c72ab345a57530b336bc4229ea0e07
+              start: "2026-10-18T03:15:21.136995Z"
+              end: "2026-10-18T03:31:11.65677Z"
+              queue_seconds: 950.519775
+              raw_seconds: 950.519775
+              exact: true
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 45.42231666666667
+        cuts:
+            - dispatched: "2026-10-17T19:35:17-07:00"
+              finalized: "2026-10-17T19:43:06-07:00"
+              finalizing: false
+            - dispatched: "2026-10-17T20:12:28-07:00"
+              finalized: "2026-10-17T20:14:18-07:00"
+              finalizing: false
+            - dispatched: "2026-10-17T20:40:34-07:00"
+              finalized: "2026-10-17T20:47:03-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-17T20:50:04-07:00"
+      dispatched: "2026-10-17T20:49:06-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: addressed
+          note: localcheck_republish.go:65,97 sets newest=false whenever readSuiteAttempts warns (any limit, budget, open, read or decode warning); the new subtest at localcheck_republish_test.go:299 goes red with newest=true when the guard is reverted.
+          round: 4
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 391c17e163125b715265c3952ba0c1e1c14722c4
+      blocked: false
 ---
 
 # Gate ledger — ariadne#431 (boundary-review)
@@ -373,6 +475,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-8** [Minor] `attempt-selection-semantics` (kind: defect) loadSavedAttempt computes "newest" over a possibly truncated store read and discards the reader's warnings
   2nd in family attempt-selection-semantics. Rule: when the store read is incomplete, the newest attempt is unknown, not absent. readSuiteAttempts stops at testStatsRecordLimit or the byte budget, reading in directory order, and returns warnings that loadSavedAttempt (localcheck_republish.go:277) drops, so merge could treat an older pass as newest. Fix: report newest=false when warnings are present.
 
+## Round 4 — 2026-10-17T20:50:04-07:00 (claude) — passed
+
+### Disposed
+
+- BR-8 — addressed — localcheck_republish.go:65,97 sets newest=false whenever readSuiteAttempts warns (any limit, budget, open, read or decode warning); the new subtest at localcheck_republish_test.go:299 goes red with newest=true when the guard is reverted.
+
 ## Open findings
 
-- **BR-8** [Minor] `attempt-selection-semantics` (kind: defect) loadSavedAttempt computes "newest" over a possibly truncated store read and discards the reader's warnings
+(none — every finding has been disposed)

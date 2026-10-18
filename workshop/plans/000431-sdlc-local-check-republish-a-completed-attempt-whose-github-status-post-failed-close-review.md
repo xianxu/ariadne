@@ -303,3 +303,61 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"ef69055e-db06-484e-991c-2042eb84bfb8","repository":"github.com/xianxu/ariadne","issue_id":"000431","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/a6d15915ed9f7f19","reviewed_head":"5b2d792df73a42e43e6d71d6e1b22121a54e5462","slot":"ariadne:2","requested_at":"2026-10-18T03:40:34.054194Z"},"phase":"finished","pid":60751,"started_at":"2026-10-18T03:40:34.21089Z","finished_at":"2026-10-18T03:47:01.468032Z","session_id":"fc157129-5341-4ccf-8cca-1c2dfbf0c6c8","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T20:50:04-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 431 — sdlc local-check: republish a completed attempt whose GitHub status post failed |
+| repo | ariadne |
+| issue file | workshop/issues/000431-sdlc-local-check-republish-a-completed-attempt-whose-github-status-post-failed.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 0eb63a95c6a205f2e287929bdee7ed905cfcef76..391c17e163125b715265c3952ba0c1e1c14722c4 |
+| command | sdlc close --issue 431 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-17T20:50:04-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+BR-8 is fixed, and I checked that against the code and a test run, not the commit message. `loadSavedAttempt` now keeps the warnings from `readSuiteAttempts`. When that list is not empty, it reports `newest=false` (`cmd/sdlc/localcheck_republish.go:62-65,97`). That covers every way the store read can come up short: the record limit, either byte-budget stop, a file that fails to open or read, and a record that won't decode. So the fix covers the whole family rule ("an incomplete read means the newest attempt is unknown, not absent"), not just the record-limit case the finding named. The new subtest writes a corrupt attempt record. It then checks two things: `loadSavedAttempt` returns a pass that still verifies but has `newest=false`, and merge's runner really reruns the check, because the marker file appears. I reverted the fix in the disposable checkout (keeping it compilable). The subtest then failed with `newest=true <nil>` at `localcheck_republish_test.go:310`. I restored the file afterwards. The test passes at head and `go vet` is clean. Outside the BR-8 fix, the window only adds generated gate and review records for round 3. It does not change the Spec, Revisions or Done-when, and it has no conflict resolutions.
+
+1. **Strengths**
+   - The fix uses the warnings `readSuiteAttempts` already returns. There is no second check for "was the read complete?" (ARCH-DRY).
+   - The incomplete case fails safe: merge reruns the check rather than letting a saved pass stand in. The `republish` verb (`localcheck_cmd.go:204`) ignores `newest`, so it is unaffected, which is correct.
+   - The test checks both the pure result and the end-to-end merge behaviour, and it goes red without the fix.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - Not raised as a finding: one corrupt record anywhere in the store stops merge from reusing a saved pass for every check. That lasts until the store's 30-day pruning removes the record. It is the conservative choice and only costs a rerun. A one-line remark in the help text would make it easier to diagnose.
+
+5. **Test coverage notes:** the new subtest reaches the "store read incomplete" branch through the invalid-record path, on purpose. The limit and byte-budget paths add to the same warnings list, so the same guard covers them.
+
+6. **Architectural notes**
+   - **ARCH-DRY:** pass. It reuses the reader's existing warnings.
+   - **ARCH-PURE:** pass. The change is one boolean inside the existing load function, with no new IO.
+   - **ARCH-PURPOSE:** pass. The fix covers the family rule for every warning source, not only the site the finding named.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-8
+    disposition: addressed
+    note: |
+      localcheck_republish.go:65,97 sets newest=false whenever readSuiteAttempts warns (any limit, budget, open, read or decode warning); the new subtest at localcheck_republish_test.go:299 goes red with newest=true when the guard is reverted.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"15c82fa1-3078-4147-9a01-6b42811c30a6","repository":"github.com/xianxu/ariadne","issue_id":"000431","recipe":"fix-review","round":4,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/2a187b74d4b551c4","reviewed_head":"391c17e163125b715265c3952ba0c1e1c14722c4","slot":"ariadne:2","requested_at":"2026-10-18T03:49:06.310078Z"},"phase":"finished","pid":81027,"started_at":"2026-10-18T03:49:06.504335Z","finished_at":"2026-10-18T03:50:03.437823Z","session_id":"815fe8de-8afc-4d34-8ec8-5507dbda03c0","outcome":"returned"}] -->

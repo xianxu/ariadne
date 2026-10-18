@@ -91,6 +91,7 @@ later, and merge reusing a saved green attempt before it reruns anything.
 ## Log
 
 ### 2026-10-17
+- 2026-10-17: closed — Round-3 advisory fixed: an incomplete attempt-store read (reader warnings) makes newest false, so merge reruns instead of trusting an older pass. TestLocalCheckRunnerSavedPassEdges/an_incomplete_store_read_leaves_newest_unknown (unreadable record in the store: the pass verifies, newest=false, merge reruns); other republish/runner tests still pass. (fixed-then-ship); review verdict: SHIP
 - 2026-10-17: closed — sdlc-local/suite green on 5b2d792d (exit 0, 8m47s). TestLocalCheckRepublishCmd: the verb from the checkout posts a saved failure as a failure with its PR comment and refuses missing --name, another commit and a bad --rev. TestRunLocalCheckPostRetryAndRecovery: 2 failed posts ridden out; a lasting outage leaves the result saved and names sdlc local-check republish. TestLoadSavedAttemptRefuses, TestSavedAttemptRecord (9 rows), TestLocalCheckRunnerReusesSavedPass, TestLocalCheckRunnerSavedPassEdges (newest-attempt guard reached deliberately; failed republish stops with the recovery line). README, atlas ci-merge-check and help swept. Root cause measured: direct-path outages, not a stale proxy credential. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 - 2026-10-17: flow upgraded quick → full — 289 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
