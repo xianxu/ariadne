@@ -1,12 +1,12 @@
 ---
 id: 000403
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-17
 estimate_hours:
-card_mirror: '6992460b802bdfde97043cc911efdf892ca58c40' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f662770c11e8a42c178cd013ef1ce7b9d765ba10' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T15:20:14-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "97be0099", done: "11138338"}
+actual_hours: 0.52
 ---
 
 # dev-aliases: don't warn about duplicate binaries when both owners are checkouts of the same repository (every slot shell prints 7 warnings)
