@@ -90,7 +90,15 @@ The skill never guesses success from an exit status it did not receive. For a lo
 
 After the evidence is complete, close with the mandatory review, land via `sdlc merge --yes`, and report the PR/merge hash to the hub. The TL owns the project tick.
 
+### Task 5: close-review convergence
+
+- [ ] Add red examples and contract checks for untracked `propose` refusal, marker-free proposed links and index cleanup after rejection, and lost-response recovery with an older current round; keep the Pair engine's marker-present fixtures intact.
+- [ ] Update both review adapters, round and collaboration guidance, and the README to the approved recovery and presentation rules. Prove the new cases and the full examples checker pass.
+- [ ] Re-run the recorded suite if code changes, then close review and merge without waiving the fresh-context verdict.
+
 ## Revisions
+
+- 2026-10-18, close review round 1 (BR-1 through BR-4): the document-level `presentation: propose` promise cannot silently become a direct write on an untracked file. Refuse that combination with the exact Couch-tracking or hosted Pair workbench next action; direct/highlight untracked edits retain the local file path and report their observed before/after diff rather than claiming a Couch round. A marker-free large rewrite or chat answer may create its side doc and propose its link: put the matching `discussions:` entry in the same apply, regard the proposal as pending, and remove the entry in the next round if the operator rejects the link. A lost Pair apply reply does not authorize committing the last current round: compare its `base_hash` with the attempted H, require `Current`, then read the file and check that the spans, explanations and result match the attempted edit; stop without commit or retry if any part is uncertain. Add a compact README pointer for the new presentation and apply surface. Red fixtures cover untracked propose refusal, marker-free proposal and rejection, and an old-current versus newly-landed lost response before skill edits.
 
 - 2026-10-18, initial plan: incorporate Pair M2's exact review-workbench delta and the hub's parley-first export order. The `presentation:` source remains document frontmatter, not a copied round flag. A tracked Couch document uses `write --frontmatter` for a frontmatter-only change under `propose`; body edits use apply.
 - 2026-10-18, proposal-link conformance: Pair M1's converter proposed even the link replacing an operator request, leaving no active side-doc link; a later large fold would hit the same size refusal. The hub assigned Pair #661 M2 a base-text-checked exception: under `presentation: propose`, a record that answers the operator's own ready request marker (including `🤖[fold in]` beside a side-doc link) applies directly. No agent-declared exception exists; unrelated edits still become proposals. Update the skill and fixture to that landed contract before close.
