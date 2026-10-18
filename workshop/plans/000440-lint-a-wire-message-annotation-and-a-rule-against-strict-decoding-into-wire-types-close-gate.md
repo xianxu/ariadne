@@ -855,6 +855,13 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+disputes:
+    - id: BR-6
+      rationale: 'The missing expression-form if initializer is a true false negative, but the hub capped coverage widening in #440 after round 6. #440 now explicitly supports assignment-form if initializers; expression-form initializers are filed as unclaimed ariadne#445 with red-fixture acceptance. Keeping a conservative syntax-only rule at this boundary avoids another unplanned coverage expansion; false positives, crashes and misparses remain blockers.'
+      evidence: 'go run /tmp/ariadne-440-if-init-probe.go on the current matcher printed assignment-form if err := d.Decode(&m): 1 findings and expression-form if d.Decode(&m): 0 findings. The former is a passing supported control; the latter is the exact #445 follow-up. go test ./pkg/golint -count=1 passed, and the recorded suite on 01d74b7238484230f10740292abf606575f52c52 passed all 12 shards and 68 other packages.'
+      after: 7
+      timestamp: "2026-10-18T16:52:29Z"
+      by: Xian Xu on Xian’s MacBook Pro at ariadne:1 (/Users/xianxu/workspace/worktree/ariadne-slot1/ariadne)
 ---
 
 # Gate ledger — ariadne#440 (boundary-review)
@@ -938,6 +945,15 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - **BR-6** [Critical] `wire-direct-call-coverage` (kind: defect) Direct expression calls in if initializers bypass the rule
   pkg/golint/wire.go:200 only checks an if initializer when it is an AssignStmt. With an eligible strict decoder and marked destination, `if d.Decode(&m); true {}` produces no finding. Likewise, `if d.DisallowUnknownFields(); true {}; return d.Decode(&m)` loses the unconditional strictness call. Both were reproduced against the pinned head without parse errors; the assignment-initializer control reports correctly. ARCH-PURPOSE: the plan and atlas explicitly include direct calls in if initializers. This is the 2nd finding in family `wire-direct-call-coverage`. Do NOT fix only these instances: state the rule for every supported direct-call position, route supported initializer statements through shared handling, and test the expression/assignment forms with strictness-order controls.
+
+## Disputes
+
+Findings the implementer declined (`sdlc finding dispute`), each answered by the
+next review round.
+
+- **BR-6** — after round 7 (2026-10-18T16:52:29Z, Xian Xu on Xian’s MacBook Pro at ariadne:1 (/Users/xianxu/workspace/worktree/ariadne-slot1/ariadne))
+  rationale: The missing expression-form if initializer is a true false negative, but the hub capped coverage widening in #440 after round 6. #440 now explicitly supports assignment-form if initializers; expression-form initializers are filed as unclaimed ariadne#445 with red-fixture acceptance. Keeping a conservative syntax-only rule at this boundary avoids another unplanned coverage expansion; false positives, crashes and misparses remain blockers.
+  evidence: go run /tmp/ariadne-440-if-init-probe.go on the current matcher printed assignment-form if err := d.Decode(&m): 1 findings and expression-form if d.Decode(&m): 0 findings. The former is a passing supported control; the latter is the exact #445 follow-up. go test ./pkg/golint -count=1 passed, and the recorded suite on 01d74b7238484230f10740292abf606575f52c52 passed all 12 shards and 68 other packages.
 
 ## Open findings
 
