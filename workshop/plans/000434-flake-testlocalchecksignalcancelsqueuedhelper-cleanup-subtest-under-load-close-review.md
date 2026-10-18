@@ -142,3 +142,61 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"af1dde4b-7107-456f-aa90-ac2696d0a007","repository":"github.com/xianxu/ariadne","issue_id":"000434","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/b6d34d571a64bcd4","reviewed_head":"80083a7ce362c383bd88a562d6eaf69f80e6ffc9","slot":"ariadne:2","requested_at":"2026-10-18T05:18:20.609933Z"},"phase":"finished","pid":76992,"started_at":"2026-10-18T05:18:20.701165Z","finished_at":"2026-10-18T05:19:38.822621Z","session_id":"4059df4f-5862-49c0-aea3-e69708538989","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T22:34:25-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 434 — flake: TestLocalCheckSignalCancelsQueuedHelper cleanup subtest under load |
+| repo | ariadne |
+| issue file | workshop/issues/000434-flake-testlocalchecksignalcancelsqueuedhelper-cleanup-subtest-under-load.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 6def1730db8ece5a51fd68c0f6bdad707d170186..41f0e729593a39a5a1aa2635aa622646dbc5a04e |
+| command | sdlc close --issue 434 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-17T22:34:25-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The fixes in this window are correct and stay in scope, so this ships. Two test files changed. `localcheck_run_process_test.go` and `cli_signal_unix_test.go` each had their own pid-file polling loop, and both now call `testfix.AwaitPIDFile`. That fixes the one site the last round left open, plus another copy of the same loop in the same package. The plan edits only add the round-2 ledger and re-review records. Spec, Revisions and Done-when are unchanged, and there are no conflict resolutions to judge. `go vet ./cmd/sdlc/` is clean. `go test -count=1 -run 'TestCLISignalCancelsOwnedReviewer|TestRunLocalCheckTerminatesDescendants' ./cmd/sdlc/` passed (ok, 49.4s).
+
+1. **Strengths**
+   - `cmd/sdlc/cli_signal_unix_test.go:121-136`: the old `select` on the CLI exiting early is now the helper's `stop` hook. It captures the exit error and sets `finished`, so cleanup still skips the kill/wait path when the CLI has already exited. The two failure messages ("exited before review", "reviewer did not start") are still reported separately.
+   - `cmd/sdlc/localcheck_run_process_test.go:48`: an 11-line loop is now one line, and the unused `os` and `strconv` imports were removed.
+   - The cleanup went past the site the finding named. The CLI signal test is a second copy of the loop in the same package, and it was fixed in the same round.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:**
+   - In `cli_signal_unix_test.go`, malformed pid-file content used to fail at once with the `strconv.Atoi` error. Now the helper keeps polling and the test reports "CLI reviewer did not start" after the time limit. The test still fails, just later and less specifically. Not worth a finding.
+
+5. **Test coverage:** both touched tests pass. `AwaitPIDFile` still has no unit test of its own, but it now has six callers.
+
+6. **Architecture (interdiff only):**
+   - **ARCH-DRY:** pass. Within `cmd/sdlc`, the remaining single-file wait loops that are the same shape now use the shared helper. `localcheck_lease_test.go` waits on several conditions at once (lease files plus two pid files), and the parent-file reads in `landingpublish` are single reads, not polling loops. Both are reasonably left as they are.
+   - **ARCH-PURE:** pass. No logic was added; the callers pass in a `stop` predicate.
+   - **ARCH-PURPOSE:** pass for the class the finding defined. Copies of the same loop still exist in test files outside this window: `internal/processgroup/process_unix_test.go:52-60` and `:122-130`, `internal/gitx/lifetime_test.go:47,95`, `internal/gitx/rebasedpatch_context_test.go:43` and `internal/judge/cancellation_unix_test.go:122`. Those packages can import `cmd/sdlc/internal/testfix`. That would be a separate cleanup; I'm not raising it here because this window didn't touch that code.
+
+7. **Plan revisions:** none. The Log's claim that the pid-file waits share the helper is now accurate within `cmd/sdlc`.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: addressed
+    note: |
+      localcheck_run_process_test.go:48 and cli_signal_unix_test.go:122 now use testfix.AwaitPIDFile, closing the last cmd/sdlc copy of the loop that BR-2 named; vet clean, touched tests green. Similar loops in internal/{processgroup,gitx,judge} tests are outside this window.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"8c5282b8-0c40-4255-aff1-74d39f0cb688","repository":"github.com/xianxu/ariadne","issue_id":"000434","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/1723f06f80018cef","reviewed_head":"41f0e729593a39a5a1aa2635aa622646dbc5a04e","slot":"ariadne:2","requested_at":"2026-10-18T05:32:01.563036Z"},"phase":"finished","pid":43652,"started_at":"2026-10-18T05:32:01.727825Z","finished_at":"2026-10-18T05:34:25.019232Z","session_id":"2eaa68b6-ca88-4bf4-b538-d375af735d7d","outcome":"returned"}] -->

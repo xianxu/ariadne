@@ -185,6 +185,95 @@ rounds:
       isolation: fenced
       reviewed: 80083a7ce362c383bd88a562d6eaf69f80e6ffc9
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 8c5282b8-0c40-4255-aff1-74d39f0cb688
+            repository: github.com/xianxu/ariadne
+            issue_id: "000434"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/1723f06f80018cef
+            reviewed_head: 41f0e729593a39a5a1aa2635aa622646dbc5a04e
+            slot: ariadne:2
+            requested_at: "2026-10-18T05:32:01.563036Z"
+          phase: finished
+          pid: 43652
+          started_at: "2026-10-18T05:32:01.727825Z"
+          finished_at: "2026-10-18T05:34:25.019232Z"
+          session_id: 2eaa68b6-ca88-4bf4-b538-d375af735d7d
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 41f0e729593a39a5a1aa2635aa622646dbc5a04e
+        tracker_head: 5729268e2b7ba2b8e581a0584fa6c75f6bca0658
+        branch_point: d6be01d5c70701215c16224ead1834f66e587576
+        since: "2026-10-17T21:15:30-07:00"
+        until: "2026-10-17T22:31:35-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-17T21:15:30-07:00"
+              end: "2026-10-17T22:31:35-07:00"
+              began: "2026-10-17T21:15:30-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 9a44cf3a3fe0078b9cd778b88c6589eb79b5ed71c25047bc3cbedcb34d291eaa
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 103451986
+              windows:
+                - start: "2026-10-17T21:15:30-07:00"
+                  end: "2026-10-17T22:31:35-07:00"
+        queue_waits:
+            - attempt_id: fd3257c5944743de8e7ffe2885a526aa
+              slot: ariadne:2
+              record_digest: 710ce5a943bc6674c841209741279cd89af0d3c0509ea76b7201351085e2127e
+              start: "2026-10-18T04:32:34.684523Z"
+              end: "2026-10-18T04:42:05.667398Z"
+              queue_seconds: 570.982875
+              raw_seconds: 570.982875
+              exact: true
+            - attempt_id: e2567b2317dc1070ec0a982a85f9cb0d
+              slot: ariadne:2
+              record_digest: 7be03dced4bcf1749acde420529d969ddb60f4187c0684de23c89b27c0de2e40
+              start: "2026-10-18T04:55:36.890988Z"
+              end: "2026-10-18T05:04:07.210632Z"
+              queue_seconds: 510.319644
+              raw_seconds: 510.319644
+              exact: true
+        cuts:
+            - dispatched: "2026-10-17T22:14:47-07:00"
+              finalized: "2026-10-17T22:16:23-07:00"
+              finalizing: true
+            - dispatched: "2026-10-17T22:18:20-07:00"
+              finalized: "2026-10-17T22:19:40-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-17T22:34:25-07:00"
+      dispatched: "2026-10-17T22:32:01-07:00"
+      agent: claude
+      dispose:
+        - id: BR-2
+          disposition: addressed
+          note: localcheck_run_process_test.go:48 and cli_signal_unix_test.go:122 now use testfix.AwaitPIDFile, closing the last cmd/sdlc copy of the loop that BR-2 named; vet clean, touched tests green. Similar loops in internal/{processgroup,gitx,judge} tests are outside this window.
+          round: 3
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 41f0e729593a39a5a1aa2635aa622646dbc5a04e
+      blocked: false
 ---
 
 # Gate ledger — ariadne#434 (boundary-review)
@@ -208,6 +297,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-1 — addressed — localchecks_make_process_test.go:61-65 asserts errors.Is(err, context.DeadlineExceeded) for hanging-shell; exited-parent rightly keeps err != nil (it ends on the drain bound), as the issue Log records. Ran -count=3 green.
 - BR-2 — not-addressed — testfix.AwaitPIDFile now covers awaitLandingGitChild, the make-probe wait and the signal-test cleanup wait, but localcheck_run_process_test.go:50-61 is still a hand-written copy of the same pid-file loop; switch it to AwaitPIDFile(pidfile, testfix.HangCeiling, nil). Minor, non-blocking.
 
+## Round 3 — 2026-10-17T22:34:25-07:00 (claude) — passed
+
+### Disposed
+
+- BR-2 — addressed — localcheck_run_process_test.go:48 and cli_signal_unix_test.go:122 now use testfix.AwaitPIDFile, closing the last cmd/sdlc copy of the loop that BR-2 named; vet clean, touched tests green. Similar loops in internal/{processgroup,gitx,judge} tests are outside this window.
+
 ## Open findings
 
-- **BR-2** [Minor] `test-poll-loop-duplication` (kind: defect) Hand-written pid-file polling loop repeated (ARCH-DRY)
+(none — every finding has been disposed)
