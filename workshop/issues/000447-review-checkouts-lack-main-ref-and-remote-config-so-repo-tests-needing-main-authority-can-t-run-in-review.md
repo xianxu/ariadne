@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "9b7402a5", done: "6d550762"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # review checkouts lack main ref and remote config, so repo tests needing main authority can't run in review
@@ -67,5 +67,7 @@ Design notes:
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed — Suite green on 126eb88b (sdlc-local/suite, 8m27s). reviewbox: TestMainAuthority (allowlist; URL, insteadOf and pushurl refused; malformed rows refuse), TestCheckoutCarriesMainAuthorityReadOnly in the pair#665 shape (branch.main config, origin/main, a single merge base and main@{upstream} equal the slot; push and fetch fail against the inert readonly URL; slot snapshot and bare origin refs unchanged), which fails with copyMainAuthority disabled; TestCheckoutWithoutRemoteHasNoRemoteMain. cmd/sdlc isolation tests pass. Atlas sdlc-binary updated.; review verdict: SHIP
+- 2026-10-18: flow upgraded quick → full — 143 added lines in code files (limit 100)
 - 2026-10-18: the hub approved the plan. Implemented as planned: `reviewbox/authority.go` (`mainAuthority`, `authorityKeys`, `inertURL`) and `Checkout.copyMainAuthority`, called by `populate` after the detached checkout, so Reset gets it too.
 - Verified: `go test ./cmd/sdlc/internal/reviewbox` passes. That covers `TestMainAuthority` (nine rows, hostile keys refused), `TestCheckoutCarriesMainAuthorityReadOnly` (the pair#665 shape: config, origin/main, a single merge base and main@{upstream} all equal the slot's; push and fetch fail; slot and bare origin unchanged) and `TestCheckoutWithoutRemoteHasNoRemoteMain`. The regression fails with the copy disabled (`config --get-regexp ^branch.main.` exits 1) and passes with it restored. The cmd/sdlc isolation tests pass.
