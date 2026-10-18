@@ -19,20 +19,6 @@ func suiteStoreRoot(logDir string) string {
 	return filepath.Join(filepath.Dir(logDir), "test-stats")
 }
 
-// savedAttemptLog resolves an attempt's log path, which the store keeps
-// relative: failed/<id>.log under the store, local-checks/<sha>/<check>.log
-// beside it. Empty for a record that names none.
-func savedAttemptLog(storeRoot string, a SuiteAttempt) string {
-	switch {
-	case a.LogPath == "":
-		return ""
-	case strings.HasPrefix(a.LogPath, "failed"+string(filepath.Separator)):
-		return filepath.Join(storeRoot, a.LogPath)
-	default:
-		return filepath.Join(filepath.Dir(storeRoot), a.LogPath)
-	}
-}
-
 // savedAttemptRecord turns a saved attempt into the record its run would have
 // posted, refusing unless it is this repository's complete attempt of this
 // check on this exact commit and its log still hashes to the recorded value.
@@ -66,20 +52,25 @@ func hostName() string {
 }
 
 // loadSavedAttempt finds the attempt to publish: the one named by id, else the
-// newest of this check on this commit whose log still verifies.
-func loadSavedAttempt(storeRoot, repo, sha, check, id, host string) (localRunRecord, error) {
+// newest of this check on this commit whose log still verifies. newest reports
+// whether no later attempt of it exists (one that failed to verify, say), which
+// merge requires before it lets a saved pass stand in for a run.
+func loadSavedAttempt(storeRoot, repo, sha, check, id, host string) (rec localRunRecord, newest bool, err error) {
 	attempts, _, err := readSuiteAttempts(storeRoot, testStatsRecordLimit)
 	if err != nil {
-		return localRunRecord{}, err
+		return localRunRecord{}, false, err
 	}
 	var best *localRunRecord
-	var bestAt time.Time
+	var bestAt, latest time.Time
 	var refusals []string
 	for _, a := range attempts {
 		if id != "" && a.ID != id || id == "" && (a.SHA != sha || a.Check != check) {
 			continue
 		}
-		path := savedAttemptLog(storeRoot, a)
+		if a.FinishedAt.After(latest) {
+			latest = a.FinishedAt
+		}
+		path := suiteAttemptLogFile(storeRoot, a)
 		if path == "" {
 			refusals = append(refusals, "attempt "+a.ID+" names no log")
 			continue
@@ -100,12 +91,12 @@ func loadSavedAttempt(storeRoot, repo, sha, check, id, host string) (localRunRec
 		}
 	}
 	if best != nil {
-		return *best, nil
+		return *best, !latest.After(bestAt), nil
 	}
 	if len(refusals) > 0 {
-		return localRunRecord{}, fmt.Errorf("%w for %s on %s: %s", errSavedAttemptRefused, check, abbrevSHA(sha), strings.Join(refusals, "; "))
+		return localRunRecord{}, false, fmt.Errorf("%w for %s on %s: %s", errSavedAttemptRefused, check, abbrevSHA(sha), strings.Join(refusals, "; "))
 	}
-	return localRunRecord{}, fmt.Errorf("%w for %s on %s", errNoSavedAttempt, check, abbrevSHA(sha))
+	return localRunRecord{}, false, fmt.Errorf("%w for %s on %s", errNoSavedAttempt, check, abbrevSHA(sha))
 }
 
 // republishCommand is the recovery a failed post names.
@@ -114,8 +105,9 @@ func republishCommand(check, sha string) string {
 }
 
 // localCheckPostBackoff spaces the status post's retries: the direct path to
-// GitHub has outages of a minute or more (#431), and the suite slot is already
-// released, so waiting holds nothing scarce. Tests shrink it.
+// GitHub has outages (#431). The suite slot is already released by then; under
+// merge the wait holds the landing turn, which still beats a 12-minute rerun.
+// Tests shrink it.
 var localCheckPostBackoff = []time.Duration{15 * time.Second, 45 * time.Second, 90 * time.Second}
 
 // postLocalCheckRecord posts rec as its commit status, retrying through
@@ -154,11 +146,14 @@ func republishSavedPass(ctx context.Context, d localRunDeps, check, sha string) 
 		return localRunRecord{}, false, nil
 	}
 	host := hostName()
-	rec, err := loadSavedAttempt(suiteStoreRoot(logDir), d.Repo, sha, check, "", host)
-	if errors.Is(err, errSavedAttemptRefused) {
+	rec, newest, err := loadSavedAttempt(suiteStoreRoot(logDir), d.Repo, sha, check, "", host)
+	switch {
+	case errors.Is(err, errSavedAttemptRefused):
 		fmt.Fprintf(d.Stderr, "[!] local check %s: not reusing a saved attempt: %v\n", check, err)
+	case err == nil && rec.passed() && !newest:
+		fmt.Fprintf(d.Stderr, "[!] local check %s: not reusing the saved pass on %s: a later attempt exists and does not verify\n", check, abbrevSHA(sha))
 	}
-	if err != nil || !rec.passed() {
+	if err != nil || !rec.passed() || !newest {
 		return localRunRecord{}, false, nil
 	}
 	fmt.Fprintf(d.Stderr, "==> local check %s: publishing the saved pass on %s instead of rerunning (log %s)\n", check, abbrevSHA(sha), rec.LogPath)

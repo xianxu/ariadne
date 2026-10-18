@@ -80,10 +80,13 @@ REPUBLISH (#431)
   pass, a failure as a failure. It never reruns anything, and it refuses an
   attempt for another commit, check or repository, a diagnostic baseline, an
   incomplete record, or one whose log no longer hashes to the recorded value.
-  --attempt ID picks one attempt; the default is the newest that verifies.
-  `sdlc merge` does the same before running a missing check: a saved,
-  verified pass on the exact head is posted instead of rerun (a saved failure
-  never is).
+  --attempt ID picks one attempt; the default is the newest that verifies
+  (with a flaky check that may be an older pass, so name the attempt when it
+  matters). `sdlc merge` does the same before running a missing check, but
+  stricter: it posts a saved pass on the exact head instead of rerunning only
+  when that pass is the newest attempt there and verifies (a saved failure
+  never stands in). Under merge the post's retry holds the landing turn, which
+  still beats a rerun.
 
 CANCEL (#400)
 

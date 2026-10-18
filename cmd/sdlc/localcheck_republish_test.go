@@ -102,7 +102,7 @@ func TestRunLocalCheckPostRetryAndRecovery(t *testing.T) {
 		// The recovery, as the republish verb runs it: load and post the saved result.
 		d.GH = gh
 		logDir, _ := localCheckLogDir(d)
-		rec, err := loadSavedAttempt(suiteStoreRoot(logDir), d.Repo, sha, "suite", "", "host1")
+		rec, _, err := loadSavedAttempt(suiteStoreRoot(logDir), d.Repo, sha, "suite", "", "host1")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -123,33 +123,33 @@ func TestLoadSavedAttemptRefuses(t *testing.T) {
 	}
 	logDir, _ := localCheckLogDir(d)
 	store := suiteStoreRoot(logDir)
-	if _, err := loadSavedAttempt(store, d.Repo, sha, "suite", "", "h"); err != nil {
+	if _, _, err := loadSavedAttempt(store, d.Repo, sha, "suite", "", "h"); err != nil {
 		t.Fatalf("the saved attempt should verify: %v", err)
 	}
 	other := strings.Repeat("0", len(sha))
-	if _, err := loadSavedAttempt(store, d.Repo, other, "suite", "", "h"); !errors.Is(err, errNoSavedAttempt) {
+	if _, _, err := loadSavedAttempt(store, d.Repo, other, "suite", "", "h"); !errors.Is(err, errNoSavedAttempt) {
 		t.Errorf("other commit: %v", err)
 	}
-	if _, err := loadSavedAttempt(store, d.Repo, sha, "e2e", "", "h"); !errors.Is(err, errNoSavedAttempt) {
+	if _, _, err := loadSavedAttempt(store, d.Repo, sha, "e2e", "", "h"); !errors.Is(err, errNoSavedAttempt) {
 		t.Errorf("other check: %v", err)
 	}
-	if _, err := loadSavedAttempt(store, d.Repo, sha, "suite", "0123456789abcdef0123456789abcdef", "h"); !errors.Is(err, errNoSavedAttempt) {
+	if _, _, err := loadSavedAttempt(store, d.Repo, sha, "suite", "0123456789abcdef0123456789abcdef", "h"); !errors.Is(err, errNoSavedAttempt) {
 		t.Errorf("missing attempt id: %v", err)
 	}
-	if _, err := loadSavedAttempt(store, "x/y", sha, "suite", "", "h"); !errors.Is(err, errSavedAttemptRefused) {
+	if _, _, err := loadSavedAttempt(store, "x/y", sha, "suite", "", "h"); !errors.Is(err, errSavedAttemptRefused) {
 		t.Errorf("other repository: %v", err)
 	}
 	log := filepath.Join(logDir, sha, "suite.log")
 	if err := os.WriteFile(log, []byte("tampered\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := loadSavedAttempt(store, d.Repo, sha, "suite", "", "h"); !errors.Is(err, errSavedAttemptRefused) || !strings.Contains(err.Error(), "no longer hashes") {
+	if _, _, err := loadSavedAttempt(store, d.Repo, sha, "suite", "", "h"); !errors.Is(err, errSavedAttemptRefused) || !strings.Contains(err.Error(), "no longer hashes") {
 		t.Errorf("tampered log: %v", err)
 	}
 	if err := os.Remove(log); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := loadSavedAttempt(store, d.Repo, sha, "suite", "", "h"); !errors.Is(err, errSavedAttemptRefused) {
+	if _, _, err := loadSavedAttempt(store, d.Repo, sha, "suite", "", "h"); !errors.Is(err, errSavedAttemptRefused) {
 		t.Errorf("missing log: %v", err)
 	}
 }
@@ -188,6 +188,94 @@ func TestLocalCheckRunnerReusesSavedPass(t *testing.T) {
 		}
 		if _, err := os.Stat(marker); err != nil {
 			t.Error("a saved failure must not stand in for a run")
+		}
+	})
+}
+
+// prFakeGH answers the branch's PR, so a republished failure also comments.
+type prFakeGH struct {
+	*ciFakeGH
+	pr string
+}
+
+func (g prFakeGH) PRListForBranch(string, string) (string, error) { return g.pr, nil }
+
+// The verb, end to end from the checkout: --rev resolution, the store path,
+// the PR lookup, and its refusals.
+func TestLocalCheckRepublishCmd(t *testing.T) {
+	ctx := context.Background()
+	d, sha, gh, stderr := localRunRepo(t, "skipped")
+	d.GH = &flakyPostGH{ciFakeGH: gh, fails: 1 + len(localCheckPostBackoff)}
+	if _, err := runLocalCheck(ctx, d, suiteCheck("sh", "-c", "echo boom; exit 3"), sha); err == nil {
+		t.Fatalf("the post should have failed\n%s", stderr.String())
+	}
+	previousGH, previousRepo := ghClient, detectRepo
+	ghClient = prFakeGH{ciFakeGH: gh, pr: "9"}
+	detectRepo = func() (string, error) { return d.Repo, nil }
+	t.Cleanup(func() { ghClient, detectRepo = previousGH, previousRepo })
+	t.Chdir(d.Root)
+	var out strings.Builder
+	if err := runLocalCheckRepublish(ctx, &out, republishFlags{}); err == nil || !strings.Contains(err.Error(), "give --name") {
+		t.Errorf("missing --name: %v", err)
+	}
+	if err := runLocalCheckRepublish(ctx, &out, republishFlags{Name: "suite", Rev: "HEAD"}); err != nil {
+		t.Fatalf("republish: %v\n%s", err, out.String())
+	}
+	if gh.statuses[sha][localStatusContext("suite")] != "failure" {
+		t.Errorf("a saved failure posts as a failure: %v", gh.statuses[sha])
+	}
+	if len(gh.comments[9]) != 1 || !strings.Contains(gh.comments[9][0], "boom") {
+		t.Errorf("failure comment on the branch's PR: %v", gh.comments[9])
+	}
+	if out, err := d.Git("commit", "-q", "--allow-empty", "-m", "later"); err != nil {
+		t.Fatal(out, err)
+	}
+	if err := runLocalCheckRepublish(ctx, &out, republishFlags{Name: "suite", Rev: "HEAD"}); !errors.Is(err, errNoSavedAttempt) {
+		t.Errorf("another commit has no saved attempt: %v", err)
+	}
+	if err := runLocalCheckRepublish(ctx, &out, republishFlags{Name: "suite", Rev: "no-such-rev"}); err == nil || !strings.Contains(err.Error(), "not a commit") {
+		t.Errorf("bad --rev: %v", err)
+	}
+}
+
+func TestLocalCheckRunnerSavedPassEdges(t *testing.T) {
+	ctx := context.Background()
+	t.Run("a failed republish stops with the recovery line, never reruns", func(t *testing.T) {
+		d, sha, gh, _ := localRunRepo(t, "skipped")
+		d.GH = &flakyPostGH{ciFakeGH: gh, fails: 1 + len(localCheckPostBackoff)}
+		_, _ = runLocalCheck(ctx, d, suiteCheck("true"), sha)
+		d.GH = &flakyPostGH{ciFakeGH: gh, fails: 1 + len(localCheckPostBackoff)}
+		marker := filepath.Join(t.TempDir(), "ran")
+		_, err := newLocalCheckRunner(d)(ctx, suiteCheck("./marker-check.sh", marker), sha)
+		if err == nil || !strings.Contains(err.Error(), republishCommand("suite", sha)) {
+			t.Errorf("want the recovery line: %v", err)
+		}
+		if _, statErr := os.Stat(marker); statErr == nil {
+			t.Error("a failed republish fell back to rerunning")
+		}
+	})
+	t.Run("a pass with a later unverifiable attempt is rerun", func(t *testing.T) {
+		d, sha, gh, _ := localRunRepo(t, "skipped")
+		d.GH = &flakyPostGH{ciFakeGH: gh, fails: 1 + len(localCheckPostBackoff)}
+		_, _ = runLocalCheck(ctx, d, suiteCheck("true"), sha)
+		_, _ = runLocalCheck(ctx, d, suiteCheck("false"), sha)
+		logDir, _ := localCheckLogDir(d)
+		store := suiteStoreRoot(logDir)
+		// Prune the later failure's log: the pass still verifies, but is not the newest.
+		failed, _ := filepath.Glob(filepath.Join(store, "failed", "*.log"))
+		for _, f := range failed {
+			_ = os.Remove(f)
+		}
+		if _, newest, err := loadSavedAttempt(store, d.Repo, sha, "suite", "", "h"); err != nil || newest {
+			t.Fatalf("the pass should verify but not be newest: newest=%v %v", newest, err)
+		}
+		d.GH = gh
+		marker := filepath.Join(t.TempDir(), "ran")
+		if _, err := newLocalCheckRunner(d)(ctx, suiteCheck("./marker-check.sh", marker), sha); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := os.Stat(marker); err != nil {
+			t.Error("an older pass stood in although a later attempt exists")
 		}
 	})
 }

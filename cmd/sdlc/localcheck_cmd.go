@@ -153,12 +153,7 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 	if err != nil {
 		return err
 	}
-	pr := 0
-	if branch, _ := git("branch", "--show-current"); strings.TrimSpace(branch) != "" {
-		if n, err := ghClient.PRListForBranch(repo, strings.TrimSpace(branch)); err == nil {
-			pr, _ = strconv.Atoi(strings.TrimSpace(n))
-		}
-	}
+	pr := currentBranchPR(git, repo)
 	d := localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: git, CleanupGit: localCheckCleanupGit(ctx, mergeRunner, root), PR: pr, Stderr: stderr}
 	var failed []string
 	for _, c := range checks {
@@ -206,18 +201,29 @@ func runLocalCheckRepublish(ctx context.Context, stderr io.Writer, f republishFl
 	if err != nil {
 		return err
 	}
-	rec, err := loadSavedAttempt(suiteStoreRoot(logDir), repo, sha, f.Name, f.Attempt, hostName())
+	rec, _, err := loadSavedAttempt(suiteStoreRoot(logDir), repo, sha, f.Name, f.Attempt, hostName())
 	if err != nil {
 		return fmt.Errorf("local-check republish: %w", err)
 	}
-	if branch, _ := git("branch", "--show-current"); strings.TrimSpace(branch) != "" {
-		if n, err := ghClient.PRListForBranch(repo, strings.TrimSpace(branch)); err == nil {
-			d.PR, _ = strconv.Atoi(strings.TrimSpace(n))
-		}
-	}
+	d.PR = currentBranchPR(git, repo)
 	if err := postLocalCheckRecord(ctx, d, rec); err != nil {
 		return fmt.Errorf("local-check republish: %s on %s was NOT recorded: %w", f.Name, abbrevSHA(sha), err)
 	}
 	fmt.Fprintf(stderr, "==> local check %s: saved result (%s) recorded as %s on %s\n", f.Name, rec.statusDescription(), localStatusContext(f.Name), abbrevSHA(sha))
 	return nil
+}
+
+// currentBranchPR is the open PR for the checked-out branch, 0 when none is
+// known (a failed check then posts no PR comment).
+func currentBranchPR(git func(args ...string) (string, error), repo string) int {
+	branch, _ := git("branch", "--show-current")
+	if strings.TrimSpace(branch) == "" {
+		return 0
+	}
+	n, err := ghClient.PRListForBranch(repo, strings.TrimSpace(branch))
+	if err != nil {
+		return 0
+	}
+	pr, _ := strconv.Atoi(strings.TrimSpace(n))
+	return pr
 }

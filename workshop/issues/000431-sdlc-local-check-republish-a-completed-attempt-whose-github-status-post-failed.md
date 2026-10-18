@@ -52,7 +52,7 @@ later, and merge reusing a saved green attempt before it reruns anything.
   commit's attempt as `sdlc-local/N` (a failure posts as a failure, plus its PR comment), never runs anything. No
   attempt, or one that fails verification, refuses with what it found.
 - **Run path** — the status POST retries with backoff (15 s, 45 s, 90 s: about 2.5 minutes, after the suite slot is
-  already released, so it holds nothing scarce). When it still fails, the error names the recovery exactly:
+  already released; under merge it holds the landing turn, which still beats a rerun). When it still fails, the error names the recovery exactly:
   `the result is saved; publish it with "sdlc local-check republish --name N --rev <sha>" (no rerun needed)`.
 - **Merge** — `newLocalCheckRunner` (the one seam both merge paths use for a missing run) first looks for a saved
   *passing*, verified attempt for the exact head and check and republishes it; only without one does it run. A
@@ -79,6 +79,14 @@ later, and merge reusing a saved green attempt before it reruns anything.
 - [x] Merge: `newLocalCheckRunner` republishes a saved green attempt for the exact head before running (test: no rerun)
 - [x] Help (local-check.md), atlas row
 
+## Revisions
+
+- 2026-10-17 (close review round 1): merge reuses a saved pass only when it is the *newest* attempt of that check on
+  that head (`loadSavedAttempt` reports it), so a later attempt whose log was pruned blocks reuse; the verb keeps
+  "newest that verifies" and documents it. The backoff note now says that under merge it holds the landing turn.
+  The log-path resolver moved beside the store (`suiteAttemptLogFile` in teststats_store.go) and the branch-PR lookup
+  is shared (`currentBranchPR`).
+
 ## Log
 
 ### 2026-10-17
@@ -103,3 +111,8 @@ later, and merge reusing a saved green attempt before it reruns anything.
 - 30-minute direct probe (unsandboxed curl to api.github.com/rate_limit every 15 s, 18:40–19:10 PT): 119/119 returned
   200, max 0.15 s. Outages are intermittent episodes (this slot's were ~16:20–16:50 PT), duration unmeasured; the hub
   declined a standing probe since #431 makes an outage cheap whatever its length.
+- Close review round 1 (FIX-THEN-SHIP): BR-1 fixed with `TestLocalCheckRepublishCmd` (the verb from the checkout:
+  missing --name, a saved failure posts as a failure with a PR comment, another commit and a bad --rev refuse).
+  Minors fixed in the round: the backoff claim, `TestLocalCheckRunnerSavedPassEdges` (a failed republish stops with
+  the recovery line and never reruns; a pass with a later unverifiable attempt is rerun), the layout/PR-lookup
+  duplication, and the newest-attempt rule (Revisions).
