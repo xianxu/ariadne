@@ -427,6 +427,150 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: cbe342c3-4ee6-4d58-90b3-3d4db48692a4
+            repository: github.com/xianxu/ariadne
+            issue_id: "000441"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/2d82673fb6471c63
+            reviewed_head: 208ed53a35799b810557fc46986d7ebbc659495f
+            slot: ariadne:2
+            requested_at: "2026-10-18T17:18:39.156824Z"
+          phase: finished
+          pid: 98105
+          started_at: "2026-10-18T17:18:39.332472Z"
+          finished_at: "2026-10-18T17:20:20.029283Z"
+          session_id: fdb320cd-8668-48bb-aee5-6dc42f92fdb8
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 208ed53a35799b810557fc46986d7ebbc659495f
+        tracker_head: 5381acd2b80ee58e81dcb189bf9e63fa564f8880
+        branch_point: 4c2fa13e834dfdf4caec56b2c47b864b5465cefe
+        since: "2026-10-18T09:10:46-07:00"
+        until: "2026-10-18T10:18:10-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T09:10:46-07:00"
+              end: "2026-10-18T10:18:10-07:00"
+              began: "2026-10-18T09:10:46-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 4945cf1c-b2de-4b88-8487-960125262396
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: bfd2a2a02db84fc7901f95f82e724d16044f613e3e25965fc5af0641a010abe9
+              started: "2026-10-18T16:13:07.152Z"
+              spawned: false
+              bytes: 540455
+              windows:
+                - start: "2026-10-18T16:13:07.152Z"
+                  end: "2026-10-18T10:18:10-07:00"
+            - harness: claude
+              id: 96feb223-0a1d-41a2-8c6b-18fb25b1e8b2
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: ade489c7ff729c62ba31b994f6802871c1ef39e98009ca682757e66f4736e55d
+              started: "2026-10-18T16:16:05.648Z"
+              spawned: false
+              bytes: 383034
+              windows:
+                - start: "2026-10-18T16:16:05.648Z"
+                  end: "2026-10-18T10:18:10-07:00"
+            - harness: claude
+              id: 99ead2dc-ffdc-4e2f-8618-76195520d5d3
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: c0666deb100115d75698688ba06499b1733b8839bcf0db3bfa61cc5854749768
+              started: "2026-10-18T16:14:46.747Z"
+              spawned: false
+              bytes: 499870
+              windows:
+                - start: "2026-10-18T16:14:46.747Z"
+                  end: "2026-10-18T10:18:10-07:00"
+            - harness: claude
+              id: d0a88980-85ac-4e44-a6cb-cfc8b055a1be
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: cd9d07196f3ec139376dc4c68d4eeae203fbf2cd7ab5520f6c3e4ba6dcc74d58
+              started: "2026-10-18T16:15:41.447Z"
+              spawned: false
+              bytes: 476863
+              windows:
+                - start: "2026-10-18T16:15:41.447Z"
+                  end: "2026-10-18T10:18:10-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6cd9aca0446c731069c5a962f30648dc2bd85df5dda6b60ff302aa1cd9e4dd15
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 194517799
+              windows:
+                - start: "2026-10-18T09:10:46-07:00"
+                  end: "2026-10-18T10:18:10-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-18T09:23:57-07:00"
+              finalized: "2026-10-18T09:44:18-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T09:46:45-07:00"
+              finalized: "2026-10-18T10:09:30-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-18T10:14:35-07:00"
+              finalized: "2026-10-18T10:17:07-07:00"
+              finalizing: false
+      "n": 4
+      timestamp: "2026-10-18T10:20:20-07:00"
+      dispatched: "2026-10-18T10:18:39-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: choose.go:60-74 skips non-forced author-family candidates; reverting it turns TestChooseReviewers (2 explicit cases) and TestChooseReviewersRecordsTheSelfReviewSkip red.
+          round: 4
+        - id: BR-8
+          disposition: addressed
+          note: plan.md:90 Choice row now lists only First; all as-built identifiers grepped present at head; Revisions entry records the Refusal removal and the same-commit rule.
+          round: 4
+        - id: BR-9
+          disposition: addressed
+          note: main.go:2-4,16 rewritten; rg 'codex by default|defaults to codex|DefaultAgent' over cmd/doc-review, fix SKILL.md and docflow atlas returns nothing.
+          round: 4
+        - id: BR-10
+          disposition: addressed
+          note: review.go:99-101 returns launchErr when Forced; removing it turns TestRunReviewForcedLaunchFailure red with the old name-one-explicitly text.
+          round: 4
+      findings:
+        - kind: defect
+          id: BR-11
+          severity: Minor
+          title: A refusal caused by the never-self-review skip still advises retry later, though only a config change or a named agent can help
+          detail: 'This is the 2nd finding in family refusal-names-applicable-remedy. Rule: the remedy a NoReviewerError names comes from its skip reasons: transient skips (not on PATH, failed launch, usage limit) suggest retry later; policy skips (shares the author family) suggest fixing reviewer_pairs or naming an agent; forced failures return their own error. help.md:26-27 should also say that an explicit pair into the author''s family, or an unpaired session, refuses.'
+          family: refusal-names-applicable-remedy
+          round: 4
+      boundary: M2
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 208ed53a35799b810557fc46986d7ebbc659495f
+      blocked: false
 ---
 
 # Gate ledger — ariadne#441 (boundary-review)
@@ -477,10 +621,21 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-10** [Minor] `refusal-names-applicable-remedy` (kind: defect) When an explicitly named agent fails to launch, the refusal tells the user to name one explicitly
   A forced candidate that fails to launch ends in NoReviewerError, whose text says "name one explicitly", though the user already did. Return the launch error directly when choice.Forced.
 
+## Round 4 — 2026-10-18T10:20:20-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — choose.go:60-74 skips non-forced author-family candidates; reverting it turns TestChooseReviewers (2 explicit cases) and TestChooseReviewersRecordsTheSelfReviewSkip red.
+- BR-8 — addressed — plan.md:90 Choice row now lists only First; all as-built identifiers grepped present at head; Revisions entry records the Refusal removal and the same-commit rule.
+- BR-9 — addressed — main.go:2-4,16 rewritten; rg 'codex by default|defaults to codex|DefaultAgent' over cmd/doc-review, fix SKILL.md and docflow atlas returns nothing.
+- BR-10 — addressed — review.go:99-101 returns launchErr when Forced; removing it turns TestRunReviewForcedLaunchFailure red with the old name-one-explicitly text.
+
+### Raised
+
+- **BR-11** [Minor] `refusal-names-applicable-remedy` (kind: defect) A refusal caused by the never-self-review skip still advises retry later, though only a config change or a named agent can help
+  This is the 2nd finding in family refusal-names-applicable-remedy. Rule: the remedy a NoReviewerError names comes from its skip reasons: transient skips (not on PATH, failed launch, usage limit) suggest retry later; policy skips (shares the author family) suggest fixing reviewer_pairs or naming an agent; forced failures return their own error. help.md:26-27 should also say that an explicit pair into the author's family, or an unpaired session, refuses.
+
 ## Open findings
 
 - **BR-6** [Minor] `move-preserves-contract` (kind: defect) reviewpolicy Choice.Refusal() stays callable through the judge.ReviewChoice alias and drops judge's refusal contract
-- **BR-7** [Critical] `never-self-review-holds-in-every-mode` (kind: defect) doc-review self-reviews under explicit mode when the session agent has no pair, and the record does not mark it degraded
-- **BR-8** [Important] `plan-table-matches-code` (kind: defect) The plan's as-built table still lists Choice.Refusal, which this window deleted from pkg/reviewpolicy/choice.go
-- **BR-9** [Minor] `stale-identifier-in-comment` (kind: defect) cmd/doc-review/main.go:2-3 and :15 still say the reviewer defaults to codex
-- **BR-10** [Minor] `refusal-names-applicable-remedy` (kind: defect) When an explicitly named agent fails to launch, the refusal tells the user to name one explicitly
+- **BR-11** [Minor] `refusal-names-applicable-remedy` (kind: defect) A refusal caused by the never-self-review skip still advises retry later, though only a config change or a named agent can help

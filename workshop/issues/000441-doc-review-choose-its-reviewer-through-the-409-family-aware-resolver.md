@@ -83,6 +83,7 @@ Durable plan: `workshop/plans/000441-doc-review-choose-its-reviewer-through-the-
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed M2 — M2 round-1 fixes: chooseReviewers moves any non-forced candidate of an author family to the skips (explicit with no session pair, explicit pair back into the authors), so the choice refuses; TestChooseReviewers covers both with the no-shared-family property for every non-forced choice, TestChooseReviewersRecordsTheSelfReviewSkip pins the reason; a forced launch failure returns its own error (TestRunReviewForcedLaunchFailure); as-built table drops Choice.Refusal; stale codex-default comments fixed. go test ./cmd/doc-review passes.; review verdict: SHIP
 - 2026-10-18: closed M1 — M1 round-1 fixes: judge.Refusal keeps the ErrReviewDidNotRun contract and --agent remedy at every sdlc site (TestRefusalKeepsJudgesContract); pkg/agentenv (TestEnvMain, TestParseLog) and pkg/reviewpolicy (TestLoad, TestAuthorFamilies, moved policy tests) pass; judge and cmd/sdlc policy, boundary, per-site and loader tests pass; gofmt clean; plan as-built table.; review verdict: SHIP
 - Claimed by ariadne:2. The `internal` boundary makes this a move plus wiring, not a one-liner, so the plan goes to the hub before code.
 - Hub approved the extraction (full flow) and the never-self-review decision for doc-review (same and the default count as other, explicit honored, stated in its help). Quota detection out of scope.

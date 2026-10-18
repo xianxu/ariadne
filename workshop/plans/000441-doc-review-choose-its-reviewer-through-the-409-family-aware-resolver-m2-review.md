@@ -105,3 +105,92 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"9ed6e410-73b7-4476-9541-8520fc9569ac","repository":"github.com/xianxu/ariadne","issue_id":"000441","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/5b0857c0d46fe800","reviewed_head":"a57f01df3f2eb012cc6a88a2e394da92b9383909","slot":"ariadne:2","requested_at":"2026-10-18T17:14:35.019626Z"},"phase":"finished","pid":55612,"started_at":"2026-10-18T17:14:35.193984Z","finished_at":"2026-10-18T17:17:06.542053Z","session_id":"9effd4c5-06be-4db4-9c56-c178602c9f7b","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T10:20:20-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 441 — doc-review: choose its reviewer through the #409 family-aware resolver |
+| repo | ariadne |
+| issue file | workshop/issues/000441-doc-review-choose-its-reviewer-through-the-409-family-aware-resolver.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 60461c842629b1fcb6889bba8989cf474a39c940..208ed53a35799b810557fc46986d7ebbc659495f |
+| command | sdlc milestone-close --issue 441 --milestone M2 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-18T10:20:20-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Now revert each fix and confirm its regression test goes red.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All four open findings from round 1 are fixed, and I checked each against the code rather than the commit message. `chooseReviewers` (`cmd/doc-review/choose.go:53-75`) now moves any candidate whose family is among the authors into the skips, unless the user named the agent. That covers explicit mode where the session has no pair, and a pair that maps back to an author's family. I put the pre-fix `choose.go` back and ran the tests: `TestChooseReviewers` (both new explicit cases) and `TestChooseReviewersRecordsTheSelfReviewSkip` failed. I then removed the forced-launch early return in `review.go:99-101`: `TestRunReviewForcedLaunchFailure` failed and printed the old "name one explicitly" text. With the head code restored, `go build ./...` passes, `go vet` and `gofmt -l` are clean on the touched packages, and the tests pass for `cmd/doc-review`, `pkg/reviewpolicy`, `pkg/agentenv` and `cmd/sdlc/internal/judge`. The checkout is clean afterwards. I grepped every identifier in the plan's as-built table against the head and all of them exist; `Choice.Refusal` is gone from the table. Nothing blocks SHIP. One new Minor is below: one refusal now gives the wrong advice.
+
+1. **Strengths**
+   - `cmd/doc-review/choose.go:60-74`: the self-review filter runs after `Resolve`. So whatever the shared policy plans (`same`, `other` or `explicit`), the never-self-review guarantee comes from one place, and the shared package doesn't change (ARCH-DRY, ARCH-PURPOSE).
+   - `cmd/doc-review/choose_test.go:49`: the family check now runs for every non-forced choice, including explicit mode. That is where the bug was hiding.
+   - `cmd/doc-review/review.go:99-101`: a forced launch failure returns its own launch error, which is the right remedy for an agent the user named.
+   - The plan's Revisions entry (plan.md:102-117) states the as-built rule ("an identifier added, renamed or removed updates the as-built table in the same commit"), so the whole family is covered, not just this instance.
+
+2. **Critical** — none.
+
+3. **Important** — none.
+
+4. **Minor**
+   - The skip added for BR-7 is a policy outcome, so retrying can't fix it. But the refusal it produces (`pkg/reviewpolicy/choice.go:62-72`) still ends "retry later, or name one explicitly". The real remedy for an explicit-mode refusal is to fix `reviewer_pairs`, or to name an agent. **This is the 2nd finding in family `refusal-names-applicable-remedy`.** Rule: the remedy a refusal names comes from its skip reasons. A transient skip (missing CLI, failed launch, usage limit) gets "retry later"; a policy skip gets "change the config, or name one explicitly"; a forced failure gets its own error. Related: `help.md:26-27` says explicit `reviewer_pairs` "are honored", but doesn't say a pair into the author's family, or an unpaired session, now refuses.
+
+5. **Test coverage**
+   - Every regression test for BR-7 and BR-10 fails without its fix (checked by revert).
+   - Still open from round 1, not blocking: no test for the `docAuthors` "authors unread" path, and none checking that the dry run's `record:` line matches the record a real run writes.
+
+6. **Architecture**
+   - ARCH-DRY: pass. The filter builds its own author set where `reviewpolicy.containsFamily` already exists but isn't exported. Trivial.
+   - ARCH-PURE: pass. `chooseReviewers` is still pure; git, PATH and the agent runner are injected package vars.
+   - ARCH-PURPOSE: pass. Never-self-review now holds for `same`, `other`, `explicit` and the default. Only a named agent can bypass it, and the record marks that "same-family by choice". sdlc's own explicit mode keeps #310's floor on purpose, which is outside this issue.
+   - ARCH-MOCK: pass. A real temporary git repo, plus `runAgent`/`lookPath` fakes behind the production seam.
+   - ARCH-CONSTRAINTS: pass. One `git log` and one PATH lookup per candidate.
+   - ARCH-SECURE: pass. The session's family is always among the authors, so a forged trailer can only narrow the candidates. `review.json` goes through `Load`/`Validate`.
+   - ARCH-ORDER: pass. Nothing is kept between runs; each run is one ordered fallback loop, and the forced case ends early.
+   - ARCH-FUNERAL: pass. Each attempt's temp file is removed with `defer`; the sidecar report is the only durable output, as before.
+
+7. **Plan revisions** — none needed. The M2 round-1 Revisions entry matches the code.
+
+```findings
+dispose:
+  - id: BR-7
+    disposition: addressed
+    note: |
+      choose.go:60-74 skips non-forced author-family candidates; reverting it turns TestChooseReviewers (2 explicit cases) and TestChooseReviewersRecordsTheSelfReviewSkip red.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      plan.md:90 Choice row now lists only First; all as-built identifiers grepped present at head; Revisions entry records the Refusal removal and the same-commit rule.
+  - id: BR-9
+    disposition: addressed
+    note: |
+      main.go:2-4,16 rewritten; rg 'codex by default|defaults to codex|DefaultAgent' over cmd/doc-review, fix SKILL.md and docflow atlas returns nothing.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      review.go:99-101 returns launchErr when Forced; removing it turns TestRunReviewForcedLaunchFailure red with the old name-one-explicitly text.
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: refusal-names-applicable-remedy
+    title: |
+      A refusal caused by the never-self-review skip still advises retry later, though only a config change or a named agent can help
+    detail: |
+      This is the 2nd finding in family refusal-names-applicable-remedy. Rule: the remedy a NoReviewerError names comes from its skip reasons: transient skips (not on PATH, failed launch, usage limit) suggest retry later; policy skips (shares the author family) suggest fixing reviewer_pairs or naming an agent; forced failures return their own error. help.md:26-27 should also say that an explicit pair into the author's family, or an unpaired session, refuses.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"cbe342c3-4ee6-4d58-90b3-3d4db48692a4","repository":"github.com/xianxu/ariadne","issue_id":"000441","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/2d82673fb6471c63","reviewed_head":"208ed53a35799b810557fc46986d7ebbc659495f","slot":"ariadne:2","requested_at":"2026-10-18T17:18:39.156824Z"},"phase":"finished","pid":98105,"started_at":"2026-10-18T17:18:39.332472Z","finished_at":"2026-10-18T17:20:20.029283Z","session_id":"fdb320cd-8668-48bb-aee5-6dc42f92fdb8","outcome":"returned"}] -->
