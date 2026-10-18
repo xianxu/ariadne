@@ -220,3 +220,94 @@ findings:
    Append a `## Revisions` entry defining the cohort-wide identity invariant and collision-test enumeration. Reconcile the post-SHIP publication sequence with the issue’s durable-capture acceptance requirement so the boundary has one explicit completion rule.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"6b5af64f-5c34-4e7b-a48d-c8bf57fceb8c","repository":"github.com/xianxu/ariadne","issue_id":"000392","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/2201d26168ab239c","reviewed_head":"336692bd0b707fbdc6e14d64605fd7ca19b4b84a","slot":"ariadne:1","requested_at":"2026-10-18T07:27:35.753578Z"},"phase":"finished","pid":17415,"started_at":"2026-10-18T07:27:35.853541Z","finished_at":"2026-10-18T07:30:05.31033Z","session_id":"01a14de8-aa9a-7d71-a325-e2fb39d06ea3","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T01:26:34-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 392 — Weekly test-economy snapshot from local checks and landings |
+| repo | ariadne |
+| issue file | workshop/issues/000392-weekly-test-economy-snapshot.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 826a55dd130c59a4ae255c147ffafb3e7a2f2c1b..3a70481a5df29d2e61a0740945abfb0999a2f81f |
+| command | sdlc close --issue 392 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-18T01:26:34-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation satisfies the revised measurement contract, and BR-7 has effective regression coverage. BR-5’s pilot evidence checks out; the documented publication sequence places durable brain capture and the ops link after this review and before merge. No new blocking findings.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Retained-history validation and its regression tests reject expired, missing and late-starting source history.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Every prior admission is validated against the original successful enqueue; reordered intermediate-retry regressions pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Physical aggregation and reconciliation use suiteAttemptCompletedAt; the legacy reconciliation regression passes.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      README.md now documents snapshot invocation, flags, immutable output and nullable coverage, consistent with the command implementation.
+  - id: BR-5
+    disposition: withdrawn
+    note: |
+      Independently verified the supplied a61b66845c242a8ef3bb8333faecdd289b45f1d953dedf727746cc5048b16634 pilot hash, 15-repo contents and ariadne/pair coverage counts. Also verified the final-code pilot hash be787f22c0d64e866fb9536eb7d09c6ca108d69da5b2ddb16af0fce1a01e11df and its 16-repo contents. The plan explicitly orders immutable brain publication and the TL-owned project link after SHIP and before merge; these remain operational completion steps.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Git inventory and graph collection are restricted to the requested cohort; the real-Git weekly-inventory regression passes.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      weeklyattribution.go:194–229 checks cohort-wide issue, ticket, branch, PR and merge uniqueness before accepting claimants. The reordered collision matrix passes. Temporarily removing enforcement made shared-branch, shared-PR and shared-merge regressions fail; restoring the pinned implementation returned the focused suite to green.
+```
+
+1. **Strengths**
+
+   - Cohort-wide validation rejects conflicting claimants without choosing an order-dependent winner (`cmd/sdlc/weeklyattribution.go:194`).
+   - Numerator ownership is independent of the physical week, preserving unknown coverage for ambiguous cross-week attempts (`cmd/sdlc/weeklyattribution.go:357`).
+   - Publication uses atomic no-replace creation, byte comparison and stale-temp cleanup; concurrent-writer tests exercise the production writer (`cmd/sdlc/weeklystats_write.go:18`).
+   - README, atlas and embedded help document the new surface.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   The focused weekly tests passed after restoring both temporary mutations. Separately restricting ambiguity detection to in-week attempts made the outside-week regression and reordered ownership matrix fail, confirming that correction’s reachability. `git diff --check` passed; the checkout is unchanged. I did not rerun the full repository suite.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** reuses attempt readers, statistics and vocabulary.
+   - **ARCH-PURE — pass:** aggregation and attribution run without IO; command dependencies isolate integration work.
+   - **ARCH-PURPOSE — pass:** preserves distinct physical and landing-cohort populations and explicit unknowns.
+   - **ARCH-MOCK — pass:** production readers run against portable Git/tracker fixtures; measured pilots provide live conformance evidence.
+   - **ARCH-CONSTRAINTS — pass:** bounded inputs, Git output and command duration; cohort-scoped graph collection.
+   - **ARCH-SECURE — pass:** persisted evidence is validated before certification; contradictions null coverage.
+   - **ARCH-ORDER — pass:** reordered evidence tests and concurrent publication tests cover relevant ordering invariants.
+   - **ARCH-FUNERAL — pass:** temporary artifacts have cleanup; permanent snapshots have documented ownership and retention.
+
+7. **Plan revision recommendations:** None. Complete the already-recorded brain publication, capture commit and ops-project link before merge.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"4a62e698-bc07-4e17-a26e-aff8a92812f4","repository":"github.com/xianxu/ariadne","issue_id":"000392","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/744e722e5719143c","reviewed_head":"3a70481a5df29d2e61a0740945abfb0999a2f81f","slot":"ariadne:1","requested_at":"2026-10-18T08:24:20.353459Z"},"phase":"finished","pid":4012,"started_at":"2026-10-18T08:24:20.45226Z","finished_at":"2026-10-18T08:26:34.330657Z","session_id":"01a14e1c-9dc5-7800-85d4-dc0bc014dcd2","outcome":"returned"}] -->
