@@ -1,6 +1,6 @@
 ---
 id: 000444
-status: codecomplete
+status: done
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: def348ccd85a7abe8b9255a048023e45369550a0
         evidence_commit: 4e208c83a3947a2d024da1d77fd9afd6605b9b85
+        landed_commit: a2b5d0a2641a1b9880d4f41d01848c23a6762468
 ---
 
 # review convention: one turn per marker; a longer exchange moves to a side doc
