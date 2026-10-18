@@ -36,7 +36,6 @@ The #434 close review found hand-written pid-file wait loops outside cmd/sdlc th
 
 - [x] Convert processgroup (2), gitx lifetime (2), gitx rebasedpatch (1), judge `waitReviewChild` (1)
 
-- [ ]
 
 ## Log
 
@@ -46,3 +45,4 @@ The #434 close review found hand-written pid-file wait loops outside cmd/sdlc th
 
 - Converted six loops; left the judge child's `exiting-parent` wait (it waits for any content, not a pid, inside the
   child process). processgroup, judge and the touched gitx tests pass.
+- Close review: SHIP. Removed the stray empty Plan item. Kept: `waitReviewChild` now retries a non-numeric pid file until the ceiling instead of failing at once (tolerates a partial write; the reviewer judged it acceptable).
