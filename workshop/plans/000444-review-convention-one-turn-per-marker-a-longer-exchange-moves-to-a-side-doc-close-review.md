@@ -77,3 +77,71 @@ findings:
    Add a `## Revisions` entry expanding verification to cover unchanged legacy chains in renamed parents, moved side docs, and displaced orphan folders.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"eaeafdcc-5e85-4baa-9beb-f422f4cc07c6","repository":"github.com/xianxu/ariadne","issue_id":"000444","recipe":"small-diff-review","round":1,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/0152b5d1bc9a9d28","reviewed_head":"89d3effe978c89d08f872c9b78425ad53f4d1d40","slot":"ariadne:1","requested_at":"2026-10-18T22:18:56.338672Z"},"phase":"finished","pid":83495,"started_at":"2026-10-18T22:18:56.432008Z","finished_at":"2026-10-18T22:20:32.166272Z","session_id":"01a15118-b725-7131-9a8c-4c6a1525342b","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T15:52:23-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 444 — review convention: one turn per marker; a longer exchange moves to a side doc |
+| repo | ariadne |
+| issue file | workshop/issues/000444-review-convention-one-turn-per-marker-a-longer-exchange-moves-to-a-side-doc.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | cf565ef7914b53b0485a587586f4b094643cf13f..def348ccd85a7abe8b9255a048023e45369550a0 |
+| command | sdlc close --issue 444 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-18T15:52:23-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned changes satisfy the one-turn writer rule, side-doc escalation, and legacy-reader compatibility. Both prior findings are addressed; no new blocking findings emerged.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      examples_test.go:257–292 checks moves against projectMove before applying the emission guard. TestMovePreservesLegacyChains covers the renamed parent, both moved side docs, and displaced orphan, plus rejection of an appended turn. Moving the guard back before projection made this regression fail on all four files; restoring the fix passed.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      README.md:29–32 now documents “at most one” commentary turn, indexed discussion side docs, and legacy compatibility, linking the canonical convention. These statements match review-convention.md:45–55 and round.md:99–119.
+```
+
+1. **Strengths**
+
+   - Ambiguous parent and side-doc asks now produce valid links, index entries, and backlinks.
+   - The convention consistently separates restricted writing from compatible legacy reading.
+   - The move fix reuses exact projection validation and covers the complete affected family.
+   - Atlas and README document the changed surface; export hashes pass validation.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed `go test ./pkg/reviewexport -count=1`, `git diff --check`, and Parley’s `make test-spec SPEC=modes/review`, including 48 parser tests covering human-ended and agent-ended legacy chains. Confirmed BR-1’s regression fails without the fix in a disposable copy.
+
+   The additional derived-repository weave test failed because its temporary fixture was outside Git discovery under the review ceiling; the pinned base failed identically. Full suite not rerun. Reviewed checkout remains unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** canonical grammar remains shared through the symlink and generated export; moves reuse projection validation.
+   - **ARCH-PURE — pass:** no new business logic is buried in IO; fixture validation uses an injected filesystem.
+   - **ARCH-PURPOSE — pass:** both skills route continued exchanges into indexed side docs while preserving legacy reading.
+
+7. **Plan revision recommendations:** None; the existing revision records both corrections and their verification scope.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"cf75b681-91d0-43af-b5f3-ec87efa88208","repository":"github.com/xianxu/ariadne","issue_id":"000444","recipe":"small-diff-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/fdd348b5f46af8b0","reviewed_head":"def348ccd85a7abe8b9255a048023e45369550a0","slot":"ariadne:1","requested_at":"2026-10-18T22:50:32.341002Z"},"phase":"finished","pid":88058,"started_at":"2026-10-18T22:50:32.491154Z","finished_at":"2026-10-18T22:52:22.985217Z","session_id":"01a15135-a62c-7d13-88bd-b52ac9fc9ac6","outcome":"returned"}] -->

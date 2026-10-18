@@ -45,6 +45,7 @@ Change the review convention (construct/local/fix/review-convention.md and the x
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed — BR-1 move-preservation regression is red-to-green for renamed parent, moved side docs and displaced orphan; changed move output still refused. BR-2 README links the one-turn rule. reviewexport and Parley modes/review passed; Pair propose-mode scratch link/index apply passed; exact-head recorded suite on def348cc passed 12 shards and 70 packages, zero failures (log f1f6e3400770).; review verdict: SHIP
 
 - Started on the landed #437 edit path. The current convention permits indefinite chains, and three agent instructions still append a clarification turn; the new rule changes emission while retaining legacy reading.
 - TDD: `TestCheckCaseCatches` first failed on an appended second turn; after adding the fixture guard, `TestExamples` failed on the two old append outputs. Those examples now open indexed side docs. A new ready legacy-chain case resolves by its final human turn; an unchanged legacy chain remains allowed in the fixture test.
