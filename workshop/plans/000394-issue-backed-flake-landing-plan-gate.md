@@ -1,4 +1,24 @@
 ---
+reviewer_runs:
+    - version: 1
+      intent:
+        id: da1ec734-d5d1-4f87-97c4-bf04a6df7f28
+        repository: github.com/xianxu/ariadne
+        issue_id: "000394"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: claude
+        root: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        reviewed_head: 061f593ef3b658dbd459c0df0b780f4ce8d54f49
+        slot: ariadne:2
+        requested_at: "2026-10-18T22:59:29.75893Z"
+      phase: finished
+      pid: 73033
+      started_at: "2026-10-18T22:59:29.92282Z"
+      finished_at: "2026-10-18T22:59:58.624242Z"
+      session_id: 0191d03b-74fe-4185-8091-8374ef70c0c9
+      outcome: returned
 gate: plan-quality
 issue: 394
 id_prefix: PQ
@@ -129,6 +149,32 @@ rounds:
           note: 'The issue''s Revisions records Done-when 3''s CI coverage moving to #451, with CI shown as not covered.'
           round: 2
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: db1b9715-4b13-4a6d-b54a-d7e967cbf481
+            repository: github.com/xianxu/ariadne
+            issue_id: "000394"
+            recipe: plan-quality
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+            reviewed_head: 061f593ef3b658dbd459c0df0b780f4ce8d54f49
+            slot: ariadne:2
+            requested_at: "2026-10-18T22:59:15.709084Z"
+          phase: finished
+          pid: 70638
+          started_at: "2026-10-18T22:59:15.959369Z"
+          finished_at: "2026-10-18T22:59:28.422406Z"
+          session_id: aa450fd7-6a6d-4cd2-abcc-3339322077dc
+          outcome: returned
+      "n": 3
+      timestamp: "2026-10-18T15:59:28-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      blocked: false
+      protocol_error: no valid findings block
 content_hash: d40b3dcca003fc1ccb87bd475512e425298af9d2e35a132754b28977c0714c0c
 ---
 
@@ -164,6 +210,10 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - PQ-5 — addressed — The revision gives one strategy line per risky function; the earlier prose lists are superseded.
 - PQ-6 — addressed — flake_tests is added to card.fields in issue.cue (kind and setter), as severity is at issue.cue:119.
 - PQ-7 — addressed — The issue's Revisions records Done-when 3's CI coverage moving to #451, with CI shown as not covered.
+
+## Round 3 — 2026-10-18T15:59:28-07:00 (claude) — passed
+
+**Protocol error:** no valid findings block — this round contributed no findings.
 
 ## Open findings
 
