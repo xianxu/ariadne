@@ -35,8 +35,9 @@ tl-worker help states it as a rule: an early draft PR for CI overlap needs no hu
 
 ## Plan
 
-- [ ] Add a worker rules-table assertion for the early draft PR permission and confirm it fails against current help.
-- [ ] Add one help rule beside the existing permissions, then run the focused tests and recorded suite.
+- [x] Add a worker rules-table assertion for the early draft PR permission and confirm it fails against current help.
+- [x] Add one help rule beside the existing permissions and run the focused tests.
+- [ ] Run the recorded suite on the pushed head.
 - [ ] Close with the review gate and land through the normal PR and merge gates.
 
 ## Log
@@ -44,3 +45,5 @@ tl-worker help states it as a rule: an early draft PR for CI overlap needs no hu
 ### 2026-10-17
 
 The hub approved quick flow. The existing embedded help and `rules.tsv` remain the single source and coverage pattern (ARCH-DRY); no PR or landing behavior changes.
+
+The new rule failed twice against the old help (both invocation forms), then `go test ./cmd/tl-worker -count=1` passed after the help change. `make -k build` passed, and the built `bin/tl-worker --help` prints the permission and landing-gate condition.
