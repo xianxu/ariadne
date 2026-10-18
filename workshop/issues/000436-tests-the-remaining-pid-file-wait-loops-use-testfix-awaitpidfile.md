@@ -39,6 +39,8 @@ The #434 close review found hand-written pid-file wait loops outside cmd/sdlc th
 
 ## Log
 
+
+- 2026-10-18: closed — sdlc-local/suite green on 00be65f9 (exit 0, 10m7s). Six pid-file wait loops in internal/processgroup (2), gitx lifetime (2), gitx rebasedpatch (1) and judge waitReviewChild (1) now use testfix.AwaitPIDFile; processgroup, judge and the touched gitx tests pass.; review verdict: SHIP
 ### 2026-10-17
 
 - Converted six loops; left the judge child's `exiting-parent` wait (it waits for any content, not a pid, inside the
