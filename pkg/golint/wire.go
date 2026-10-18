@@ -376,21 +376,36 @@ func (context *CheckContext) markedType(f *ast.File, e ast.Expr) bool {
 		return context.Index.marked[wirePackage{context.Package, context.PackageName}][t.Name]
 	case *ast.SelectorExpr:
 		alias, ok := t.X.(*ast.Ident)
-		if !ok || context.Module == "" {
+		if !ok || alias.Obj != nil || context.Module == "" {
 			return false
 		}
 		for _, imp := range f.Imports {
 			importPath, err := strconv.Unquote(imp.Path.Value)
-			if err != nil || !strings.HasPrefix(importPath, context.Module+"/") {
+			if err != nil {
 				continue
 			}
-			dir := strings.TrimPrefix(importPath, context.Module+"/")
-			name := context.Index.packageByDir[dir]
+			// path.Dir of a root source is ".". Only an exact module
+			// import or its slash-separated descendants belong to this
+			// index; a lookalike prefix is another module.
+			var dir string
+			switch {
+			case importPath == context.Module:
+				dir = "."
+			case strings.HasPrefix(importPath, context.Module+"/"):
+				dir = strings.TrimPrefix(importPath, context.Module+"/")
+			default:
+				continue
+			}
+			declaredName, known := context.Index.packageByDir[dir]
+			if !known {
+				continue
+			}
+			name := declaredName
 			if imp.Name != nil {
 				name = imp.Name.Name
 			}
 			if name == alias.Name {
-				return context.Index.marked[wirePackage{dir, context.Index.packageByDir[dir]}][t.Sel.Name]
+				return context.Index.marked[wirePackage{dir, declaredName}][t.Sel.Name]
 			}
 		}
 	}

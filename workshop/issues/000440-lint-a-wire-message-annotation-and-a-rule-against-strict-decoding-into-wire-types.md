@@ -126,6 +126,12 @@ Then close and land on SHIP.
   declared at the module root bypasses the `Module+"/"` selector path. The
   durable plan now defines one root/subpackage import resolution rule and a
   matrix for alias, prefix, and shadowing cases before code changes.
+- The matrix was red for both module-root import forms and a shadowed
+  subpackage alias, while same-file, cross-file, and subpackage controls
+  already passed. The resolver now maps an exact module import to `"."`, a
+  slash-descendant to its directory, and rejects every other prefix and
+  locally bound qualifier. `go test ./pkg/golint -count=1` passed with the
+  complete matrix; atlas describes the supported target identities.
 - Close review round 3 retained BR-2 with a binding-escape sequence: `ref :=
   &d` can overwrite a later decoder assigned to `d`. The durable plan now
   disqualifies address-taken or closure-captured bindings for the whole

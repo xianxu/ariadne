@@ -1919,9 +1919,11 @@ Mark a named type with `// wire: <why it can evolve separately>` in its type-doc
 comment when it receives JSON from a peer binary, agent or toolchain that may
 add fields before this binary upgrades. The lint scans all tracked Go sources
 once to index marked types, then flags a direct `json.NewDecoder` →
-`DisallowUnknownFields` → `Decode` chain into one. It follows same-package and
-imported marked types and reports at `Decode`; ambiguous branches and helper
-decoders are outside this conservative syntax-only rule. A decoder remains
+`DisallowUnknownFields` → `Decode` chain into one. It reports at `Decode`;
+ambiguous branches and helper decoders are outside this conservative
+syntax-only rule. A marked target resolves in the same package, the module
+root, or an imported subpackage when its declared package name or explicit
+alias matches the selector; a shadowed qualifier is not an import. A decoder remains
 proven only if its local name has exactly one direct `json.NewDecoder`
 assignment in the function, no reassignment or address or closure escape,
 and no use outside the two direct method calls. Copying it or passing it to a
