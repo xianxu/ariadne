@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -281,6 +282,53 @@ func TestAttributeWeeklyAttemptsCountsCrossBoundaryAndDuplicateUnknown(t *testin
 	partial := attributeWeeklyAttempts(append(rows[:3], legacy), landings, w, nil)
 	if partial.AttemptsPerLandedIssue != nil || len(partial.CoverageUnknown) == 0 {
 		t.Fatalf("legacy attempt on cohort head must make coverage unknown: %+v", partial)
+	}
+}
+
+func TestAttributeWeeklyAttemptsRejectsAmbiguousOutsideWeekCohortAttempt(t *testing.T) {
+	start := time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)
+	w := WeeklyWindow{Start: start, End: start.Add(7 * 24 * time.Hour)}
+	landings := []weeklyLandingEvidence{
+		{Issue: 42, EnqueuedAt: start.Add(-48 * time.Hour), LandedAt: start.Add(time.Hour), BranchSHAs: map[string]bool{"shared-head": true}},
+		{Issue: 43, EnqueuedAt: start.Add(-48 * time.Hour), LandedAt: start.Add(2 * time.Hour), BranchSHAs: map[string]bool{"shared-head": true}},
+	}
+	attempt := SuiteAttempt{ID: "cross-week", Check: suiteCheckName, SHA: "shared-head", FinishedAt: start.Add(-time.Hour)}
+	got := attributeWeeklyAttempts([]SuiteAttempt{attempt}, landings, w, nil)
+	if got.AttemptsPerLandedIssue != nil || !strings.Contains(strings.Join(got.CoverageUnknown, "\n"), "ambiguous branch ancestry") {
+		t.Fatalf("outside-week ambiguous cohort attempt certified: %+v", got)
+	}
+}
+
+func TestAttributeWeeklyAttemptsNeverCountsOneAttemptForTwoLandings(t *testing.T) {
+	start := time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)
+	w := WeeklyWindow{Start: start, End: start.Add(7 * 24 * time.Hour)}
+	for count := 1; count <= 4; count++ {
+		for _, when := range []time.Time{start.Add(-time.Hour), start.Add(time.Hour)} {
+			for _, reverse := range []bool{false, true} {
+				t.Run(fmt.Sprintf("claimants=%d/inside=%t/reverse=%t", count, w.Contains(when), reverse), func(t *testing.T) {
+					landings := make([]weeklyLandingEvidence, count)
+					for i := range landings {
+						landings[i] = weeklyLandingEvidence{Issue: 42 + i, EnqueuedAt: start.Add(-24 * time.Hour), LandedAt: start.Add(2 * time.Hour), BranchSHAs: map[string]bool{"same-head": true}}
+					}
+					if reverse {
+						for left, right := 0, len(landings)-1; left < right; left, right = left+1, right-1 {
+							landings[left], landings[right] = landings[right], landings[left]
+						}
+					}
+					got := attributeWeeklyAttempts([]SuiteAttempt{{ID: "one", Check: suiteCheckName, SHA: "same-head", FinishedAt: when}}, landings, w, nil)
+					if got.AttributedAttempts > 1 {
+						t.Fatalf("one attempt counted twice: %+v", got)
+					}
+					if count == 1 {
+						if got.AttributedAttempts != 1 || got.AttemptsPerLandedIssue == nil || *got.AttemptsPerLandedIssue != 1 {
+							t.Fatalf("unique attempt not counted once: %+v", got)
+						}
+					} else if got.AttributedAttempts != 0 || got.AttemptsPerLandedIssue != nil || !strings.Contains(strings.Join(got.CoverageUnknown, "\n"), "ambiguous branch ancestry") {
+						t.Fatalf("ambiguous attempt certified: %+v", got)
+					}
+				})
+			}
+		}
 	}
 }
 

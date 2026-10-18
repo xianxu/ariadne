@@ -8,6 +8,10 @@ Detailed incidents remain in their owning issue or review artifact.
   from claiming one PR, branch or merge and doubling a weekly denominator.
   Reject every claimant on a collision, and test each identity in both input
   orders (#392 BR-7).
+- A metric with a physical window and a cross-window cohort must classify
+  ownership across the entire cohort before using the window for diagnostics.
+  An ambiguous attempt just before the week must still null the headline ratio;
+  otherwise a partial numerator can look exact (#392).
 
 - When a bug fix adds a diagnostic flag or revises an identity policy, enumerate
   the full input matrix in Done when and committed fixtures, then check the

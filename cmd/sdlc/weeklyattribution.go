@@ -366,6 +366,9 @@ func attributeWeeklyAttempts(attempts []SuiteAttempt, landings []weeklyLandingEv
 			matches++
 		}
 		if matches != 1 {
+			if matches > 1 {
+				out.CoverageUnknown = append(out.CoverageUnknown, "attempt "+a.ID+": ambiguous branch ancestry")
+			}
 			if inWeek {
 				out.UnassignableAttempts++
 				reason := "outside confirmed landing cohort"
@@ -377,7 +380,6 @@ func attributeWeeklyAttempts(attempts []SuiteAttempt, landings []weeklyLandingEv
 				}
 				if matches > 1 {
 					reason = "ambiguous branch ancestry"
-					out.CoverageUnknown = append(out.CoverageUnknown, "attempt "+a.ID+": "+reason)
 				}
 				out.UnknownAttempts = append(out.UnknownAttempts, weeklyUnknownAttempt{a.ID, reason})
 			}
