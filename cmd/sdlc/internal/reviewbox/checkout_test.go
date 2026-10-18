@@ -385,3 +385,21 @@ func TestCheckoutWithoutRemoteHasNoRemoteMain(t *testing.T) {
 		t.Errorf("remotes %q", got)
 	}
 }
+
+// Only the slot's own config is its main authority: a user-level
+// branch.main or fetch refspec is not copied (#447 close review).
+func TestCheckoutCopiesOnlyTheSlotsConfig(t *testing.T) {
+	src, _, h2 := sourceRepo(t)
+	global := filepath.Join(t.TempDir(), "gitconfig")
+	write(t, global, "[branch \"main\"]\n\tremote = elsewhere\n\tmerge = refs/heads/main\n")
+	t.Setenv("GIT_CONFIG_GLOBAL", global)
+	co, err := Create(t.TempDir(), src, h2, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer co.Close()
+	out, err := exec.Command("git", "-C", co.Dir, "config", "--local", "--get-regexp", `^(branch|remote)\.`).Output()
+	if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 1 {
+		t.Errorf("copied the user's config: %q (%v)", out, err)
+	}
+}

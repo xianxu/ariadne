@@ -137,7 +137,7 @@ func (c *Checkout) populate() error {
 // push nor fetch. It runs after the detached checkout, so updating
 // refs/heads/main never moves a checked-out branch.
 func (c *Checkout) copyMainAuthority() error {
-	config, err := gitOutput(c.src, "config", "--get-regexp", authorityKeys)
+	config, err := gitOutput(c.src, "config", "--local", "--get-regexp", authorityKeys) // the slot's own, not the user's
 	var exit *exec.ExitError
 	if errors.As(err, &exit) && exit.ExitCode() == 1 {
 		config, err = "", nil // no such keys

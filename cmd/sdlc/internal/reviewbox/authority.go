@@ -29,7 +29,7 @@ type authority struct {
 
 // mainAuthority parses the source's `git config --get-regexp authorityKeys`
 // output and its `for-each-ref --format='%(objectname) %(refname)'` rows into
-// the authority to copy. Only refs/heads/main and refs/remotes/<R>/main pass,
+// the authority to copy. Only refs/heads/main and refs/remotes/<R>/main (R one segment) pass,
 // and only the fetch refspecs of a remote that branch.main or such a ref
 // names. A malformed row refuses rather than copying a guess.
 func mainAuthority(config, refs string) (authority, error) {
@@ -46,8 +46,8 @@ func mainAuthority(config, refs string) (authority, error) {
 		}
 		switch {
 		case ref == "refs/heads/main":
-		case strings.HasPrefix(ref, "refs/remotes/") && strings.HasSuffix(ref, "/main") && len(ref) > len("refs/remotes//main"):
-			addRemote(strings.TrimSuffix(strings.TrimPrefix(ref, "refs/remotes/"), "/main"))
+		case remoteMain(ref) != "":
+			addRemote(remoteMain(ref))
 		default:
 			continue
 		}
@@ -77,6 +77,20 @@ func mainAuthority(config, refs string) (authority, error) {
 		}
 	}
 	return a, nil
+}
+
+// remoteMain is R for refs/remotes/R/main where R is one path segment, the
+// shape a fetch refspec gives a remote's main; "" otherwise (a branch named
+// feature/main under origin is not a remote called origin/feature).
+func remoteMain(ref string) string {
+	r, ok := strings.CutPrefix(ref, "refs/remotes/")
+	if !ok {
+		return ""
+	}
+	if r, ok = strings.CutSuffix(r, "/main"); !ok || r == "" || strings.Contains(r, "/") {
+		return ""
+	}
+	return r
 }
 
 func lines(s string) []string {

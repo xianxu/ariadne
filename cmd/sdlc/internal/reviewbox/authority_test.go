@@ -32,6 +32,7 @@ func TestMainAuthority(t *testing.T) {
 			config: [][2]string{{"branch.main.remote", "."}, {"branch.main.merge", "refs/heads/trunk"}},
 			refs:   [][2]string{{"refs/heads/main", sha}},
 		}, false},
+		{"a branch named feature/main is not a remote", "remote.origin/feature.fetch x\n", sha + " refs/remotes/origin/feature/main\n", authority{}, false},
 		{"a URL never passes", "remote.origin.url git@github.com:x/y.git\n", "", authority{}, true},
 		{"an insteadOf never passes", "url.https://x.insteadof git@x\n", "", authority{}, true},
 		{"a push setting never passes", "remote.origin.pushurl git@github.com:x/y.git\n", "", authority{}, true},
