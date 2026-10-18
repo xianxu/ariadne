@@ -1,6 +1,6 @@
 ---
 id: 000403
-status: working
+status: codecomplete
 created: 2026-10-15
 updated: 2026-10-17
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.52
+tracker:
+    version: 1
+    completion:
+        token: close-20e9579f196f
+        repository: github.com/xianxu/ariadne
+        reviewed_head: c4815824a6b8a59fcc673bf7a7e6e5cdd2550109
+        evidence_commit: 81885d820f5111e98f1aa539a4869f3982d9b486
 ---
 
 # dev-aliases: don't warn about duplicate binaries when both owners are checkouts of the same repository (every slot shell prints 7 warnings)
