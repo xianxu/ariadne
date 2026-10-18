@@ -135,6 +135,7 @@ var unavailableRE = regexp.MustCompile(`(?i)` + apiFailureRE.String() +
 //     unavailable cause on stderr: for codex only its `ERROR:` lines, since
 //     codex echoes the prompt (which may contain any word) to stderr, and
 //     only when stderr shows none of codex's activity blocks.
+//
 // Anything else (a run that began, an unparseable stream, a cause outside the
 // list) is not evidence of absence: RunFailure decides it and it halts as
 // before.
