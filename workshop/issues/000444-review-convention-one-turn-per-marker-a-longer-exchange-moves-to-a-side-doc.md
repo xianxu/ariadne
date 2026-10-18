@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "9a740603", done: "4223225d"}
 ---
 
 # review convention: one turn per marker; a longer exchange moves to a side doc
