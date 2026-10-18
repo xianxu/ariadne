@@ -201,3 +201,92 @@ findings:
    Add a `## Revisions` entry defining device observation validity separately from comparison status, including recovery after reboot, missing samples, invalid prior evidence and timing gaps. Require multiweek sequence tests for both write and wear gauges.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"169a0263-61e7-4f0b-8fa6-adef344430a5","repository":"github.com/xianxu/ariadne","issue_id":"000402","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/4cbcc6c7a059796a","reviewed_head":"9ffb0ecdcc9faa408f39ee0edb7819de0b8594f6","slot":"ariadne:1","requested_at":"2026-10-18T11:00:31.757132Z"},"phase":"finished","pid":32612,"started_at":"2026-10-18T11:00:31.845585Z","finished_at":"2026-10-18T11:03:28.370063Z","session_id":"01a14eab-9ccb-7710-98e8-4767140526de","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T04:33:55-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 402 — Weekly resource trend: sizes per data family and suite durations, with deltas, in #392's snapshot |
+| repo | ariadne |
+| issue file | workshop/issues/000402-weekly-resource-trend-sizes-per-data-family-and-suite-durations-with-deltas-in-392-s-snapshot.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | c1e63fe96e857efb9ef65c7135361fc2d7db21db..a8f715692083efa7fcedc984606430e858a65677 |
+| command | sdlc close --issue 402 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-18T04:33:55-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation fulfills the resource-trend scope, and BR-6 is addressed with meaningful regression evidence. Focused tests pass; restoring the old comparison guards makes all four recovery scenarios fail. No new blocking findings were identified.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Blocked files invalidate later claimants; the three-claimant fixture passes in both root orders.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Exact-week validation precedes collection; advancing-clock retry and concurrent-publication fixtures pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Previous-week and existing-week readers share persisted-resource validation; missing-field and semantic-corruption fixtures pass.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The plan's Core concepts table at lines 27–33 names existing entities at their declared paths; PURE functions contain no IO.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Plan line 41 explicitly specifies permanent brain retention and annual growth costs; the inspected 41,939-byte pilot supports the stated total-size estimate.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Device comparisons consume prior.Observed independently of comparison state. JSON-round-trip recovery tests pass at head and fail when the former prior-state guards are restored, reproducing lost write and wear deltas.
+```
+
+1. **Strengths**
+
+   - Device validity survives comparison failure in `weeklyresource_device.go:62` and `weeklyresource_machine.go:116`.
+   - Shared validation protects both persisted comparison evidence and immutable retries.
+   - Collection fixtures cover overlap, symlink avoidance, ledger ranking, and traversal limits.
+   - README and atlas document schema v2, observation timing, and manual publication.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Focused resource, device, previous-week, and snapshot-command tests passed. The BR-6 mutation check failed as expected; restoring head returned tests to green. `git diff --check` passed.
+
+   Independently inspected the recorded temp-brain pilot: its SHA-256 matches the issue, with 17 complete families, ten ledgers, 16 suite rows, and observed device baselines. The full suite was not rerun during this review. The disposable checkout was removed; the reviewed checkout remains unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** Reuses the inventory, suite metrics, writer, and validator.
+   - **ARCH-PURE — pass:** Comparison logic is deterministic and tested without IO.
+   - **ARCH-PURPOSE — pass:** Delivers the declared resource and suite trends, including recovery.
+   - **ARCH-MOCK — pass:** Machine probes use an injected runner; fixtures and the live pilot exercise the boundary.
+   - **ARCH-CONSTRAINTS — pass:** Traversals, subprocess execution, output, and prior-file reads have explicit limits.
+   - **ARCH-SECURE — pass:** Persisted evidence is validated; subprocess arguments remain structured.
+   - **ARCH-ORDER — pass:** Observation validity and comparison outcome are separate; recovery sequences are tested.
+   - **ARCH-FUNERAL — pass:** Permanent snapshot retention and its measured growth cost are explicit.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"696e6e5e-722d-4487-acc5-715172e0a7a8","repository":"github.com/xianxu/ariadne","issue_id":"000402","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/bf9d2c394e51393e","reviewed_head":"a8f715692083efa7fcedc984606430e858a65677","slot":"ariadne:1","requested_at":"2026-10-18T11:32:08.364288Z"},"phase":"finished","pid":85468,"started_at":"2026-10-18T11:32:08.456669Z","finished_at":"2026-10-18T11:33:55.055272Z","session_id":"01a14ec8-8d76-7e43-adb5-294ac7e4cb04","outcome":"returned"}] -->

@@ -217,6 +217,122 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 696e6e5e-722d-4487-acc5-715172e0a7a8
+            repository: github.com/xianxu/ariadne
+            issue_id: "000402"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/bf9d2c394e51393e
+            reviewed_head: a8f715692083efa7fcedc984606430e858a65677
+            slot: ariadne:1
+            requested_at: "2026-10-18T11:32:08.364288Z"
+          phase: finished
+          pid: 85468
+          started_at: "2026-10-18T11:32:08.456669Z"
+          finished_at: "2026-10-18T11:33:55.055272Z"
+          session_id: 01a14ec8-8d76-7e43-adb5-294ac7e4cb04
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: a8f715692083efa7fcedc984606430e858a65677
+        tracker_head: 829b7947f22644849f7dc8bbd03c61a827b19b4a
+        branch_point: c1e63fe96e857efb9ef65c7135361fc2d7db21db
+        since: "2026-10-17T21:36:12-07:00"
+        until: "2026-10-18T04:10:42-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-17T21:36:12-07:00"
+              end: "2026-10-17T21:39:45-07:00"
+              began: "2026-10-17T21:36:12-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+            - start: "2026-10-18T02:10:12-07:00"
+              end: "2026-10-18T04:10:42-07:00"
+              began: "2026-10-18T02:10:12-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: fe7c8ccb7a4601217e2e0c3e4644048cc7901976989646f94ad3f5150dcc62bd
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 97634822
+              windows:
+                - start: "2026-10-17T21:36:12-07:00"
+                  end: "2026-10-17T21:39:45-07:00"
+                - start: "2026-10-18T02:10:12-07:00"
+                  end: "2026-10-18T04:10:42-07:00"
+        queue_waits:
+            - attempt_id: 4e02d8879bb372c94db5eb2b9dbc8a22
+              slot: ariadne:1
+              record_digest: b65a25ebb76bdd426621ac53b80ae800d79de22cc41657188b3e6d3678a6436b
+              start: "2026-10-18T09:37:18.15096Z"
+              end: "2026-10-18T09:57:38.487823Z"
+              queue_seconds: 1220.336863
+              raw_seconds: 1220.336863
+              exact: true
+            - attempt_id: bcd876f87a239feb60716ada43bb379d
+              slot: ariadne:1
+              record_digest: 7b00147a4c5ed7d8634117118bb8aade9742f995d6304c3a8d0ded4fb2c6f898
+              start: "2026-10-18T10:25:05.549855Z"
+              end: "2026-10-18T10:51:54.501875Z"
+              queue_seconds: 1608.95202
+              raw_seconds: 1608.95202
+              exact: true
+        cuts:
+            - dispatched: "2026-10-18T03:07:26-07:00"
+              finalized: "2026-10-18T03:11:04-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T04:00:31-07:00"
+              finalized: "2026-10-18T04:03:28-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-18T04:33:55-07:00"
+      dispatched: "2026-10-18T04:32:08-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Blocked files invalidate later claimants; the three-claimant fixture passes in both root orders.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: Exact-week validation precedes collection; advancing-clock retry and concurrent-publication fixtures pass.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: Previous-week and existing-week readers share persisted-resource validation; missing-field and semantic-corruption fixtures pass.
+          round: 3
+        - id: BR-4
+          disposition: addressed
+          note: The plan's Core concepts table at lines 27–33 names existing entities at their declared paths; PURE functions contain no IO.
+          round: 3
+        - id: BR-5
+          disposition: addressed
+          note: Plan line 41 explicitly specifies permanent brain retention and annual growth costs; the inspected 41,939-byte pilot supports the stated total-size estimate.
+          round: 3
+        - id: BR-6
+          disposition: addressed
+          note: Device comparisons consume prior.Observed independently of comparison state. JSON-round-trip recovery tests pass at head and fail when the former prior-state guards are restored, reproducing lost write and wear deltas.
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: a8f715692083efa7fcedc984606430e858a65677
+      blocked: false
 ---
 
 # Gate ledger — ariadne#402 (boundary-review)
@@ -254,6 +370,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Critical] `observation-comparison-state-separation` (kind: defect) Device trends remain unknown permanently after a recoverable comparison failure
   cmd/sdlc/weeklyresource_device.go:70–78 changes a valid current observation to unknown after an epoch change; the next week rejects that stored observation because its state is unknown, and repeats indefinitely. weeklyresource_machine.go:113–124 has the same failure for wear after a missing sample, while lines 100–107 propagate it after invalid prior evidence or an observation-time gap. Two disposable regression probes fail at head: boot2 values 10 then 30 never yield delta 20, and readable wear values 8 then 9 after a missing sample never yield delta 1. Preserve measurement validity separately from comparison status across both gauge types, and test recovery sequences through persisted weekly sections (ARCH-ORDER, ARCH-PURPOSE).
 
+## Round 3 — 2026-10-18T04:33:55-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — Blocked files invalidate later claimants; the three-claimant fixture passes in both root orders.
+- BR-2 — addressed — Exact-week validation precedes collection; advancing-clock retry and concurrent-publication fixtures pass.
+- BR-3 — addressed — Previous-week and existing-week readers share persisted-resource validation; missing-field and semantic-corruption fixtures pass.
+- BR-4 — addressed — The plan's Core concepts table at lines 27–33 names existing entities at their declared paths; PURE functions contain no IO.
+- BR-5 — addressed — Plan line 41 explicitly specifies permanent brain retention and annual growth costs; the inspected 41,939-byte pilot supports the stated total-size estimate.
+- BR-6 — addressed — Device comparisons consume prior.Observed independently of comparison state. JSON-round-trip recovery tests pass at head and fail when the former prior-state guards are restored, reproducing lost write and wear deltas.
+
 ## Open findings
 
-- **BR-6** [Critical] `observation-comparison-state-separation` (kind: defect) Device trends remain unknown permanently after a recoverable comparison failure
+(none — every finding has been disposed)
