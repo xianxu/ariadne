@@ -79,6 +79,7 @@ type reviewResult struct {
 	SidecarPath   string // #136: durable final-review-response path ("" when no review ran)
 	Output        string // semantic review body, retained when sidecar writing is deferred
 	Agent         string // resolved reviewer CLI, retained for deferred sidecar metadata
+	Reviewer      string // #409: judge.ReviewerRecord, the Review-Reviewer trailer and ledger value; "" when no reviewer ran
 	Isolation     string // #204: reviewbox.LevelFenced | LevelCheckout; "" when no reviewer ran
 	// Round is the findings block this review emitted (#194 M2), parsed but NOT yet
 	// applied: dispatch runs with the repo transaction lock released, and the ledger is
@@ -485,6 +486,10 @@ func reviewTrailers(r reviewResult) []string {
 	if r.Reason != "" {
 		lines = append(lines, fmt.Sprintf("Review-Reason: %s", r.Reason))
 	}
+	// #409: who reviewed and whose work, so a week's closes tally by family.
+	if r.Reviewer != "" {
+		lines = append(lines, fmt.Sprintf("Review-Reviewer: %s", r.Reviewer))
+	}
 	return lines
 }
 
@@ -675,7 +680,7 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 			cwarn(stderr, cerr.Error())
 		}
 	}()
-	opts, ok, reason := boundaryReviewOptionsFor(stdout, stderr, p, manifest, &iso)
+	opts, choice, ok, reason := boundaryReviewOptionsFor(stdout, stderr, p, manifest, &iso)
 	if !ok {
 		return notRun(reason)
 	}
@@ -715,7 +720,14 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 		}
 	}
 	dispatched := dispatchNow()
-	output, derr := judge.Dispatch(ctx, opts)
+	output, used, skips, derr := judge.DispatchChoice(ctx, opts, choice)
+	if used.Agent != "" {
+		agent = used.Agent
+	}
+	reviewer := ""
+	if used.Agent != "" {
+		reviewer = judge.ReviewerRecord(used, choice, skips)
+	}
 	if derr != nil {
 		if output != "" { // a failed retry still carries the first attempt (#300)
 			fmt.Fprint(stdout, output)
@@ -726,7 +738,7 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 		r := res(judge.VerdictNotRun, derr.Error())
 		r.DispatchError = derr
 		r.Evidence = evidence
-		r.Agent, r.Dispatched, r.Isolation = string(agent), dispatched, iso.Level()
+		r.Agent, r.Dispatched, r.Isolation, r.Reviewer = string(agent), dispatched, iso.Level(), reviewer
 		if p.PlansDir != "" {
 			p.Agent, p.Isolation, p.Evidence = r.Agent, r.Isolation, evidence
 			r.SidecarPath = persistReviewSidecar(stderr, p, r)
@@ -750,7 +762,7 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 		cwarn(stderr, fmt.Sprintf("boundary review: no '%s' verdict found (block or line) — recording verdict as 'unknown'",
 			strings.Join(vocab.Verdict().Emitted(), " | ")))
 	}
-	rr := reviewResult{Evidence: evidence, Verdict: verdict, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong, WindowBase: p.WindowBase, Output: output, Agent: string(agent), Dispatched: dispatched, Isolation: iso.Level()}
+	rr := reviewResult{Evidence: evidence, Verdict: verdict, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong, WindowBase: p.WindowBase, Output: output, Agent: string(agent), Dispatched: dispatched, Isolation: iso.Level(), Reviewer: reviewer}
 	// #194 M2: capture the structured findings handoff. Persisting it is the caller's
 	// job (it holds the lock); parsing here keeps the raw output in one place.
 	if round, ok := gatestate.ParseFindingsBlock(output); ok {
@@ -785,7 +797,7 @@ func plannedBoundaryReviewOptions(stdout, stderr io.Writer, p boundaryReviewPara
 	if err != nil {
 		return judge.DispatchOptions{}, err
 	}
-	opts, ok, reason := boundaryReviewOptionsFor(stdout, stderr, p, manifest, &iso)
+	opts, _, ok, reason := boundaryReviewOptionsFor(stdout, stderr, p, manifest, &iso)
 	if !ok {
 		return judge.DispatchOptions{}, errors.New(reason)
 	}
@@ -831,7 +843,7 @@ func boundaryReviewManifest(p boundaryReviewParams) (judge.ReviewWindowManifest,
 // boundaryReviewOptionsFor builds the dispatch for manifest. With iso, the
 // reviewer runs in iso's checkout (#204): the prompt's repository root and Git
 // recipes name the checkout, and the argv carries the wrap and fence.
-func boundaryReviewOptionsFor(stdout, stderr io.Writer, p boundaryReviewParams, manifest judge.ReviewWindowManifest, iso *reviewbox.Isolation) (judge.DispatchOptions, bool, string) {
+func boundaryReviewOptionsFor(stdout, stderr io.Writer, p boundaryReviewParams, manifest judge.ReviewWindowManifest, iso *reviewbox.Isolation) (judge.DispatchOptions, judge.ReviewChoice, bool, string) {
 	// Orient the fresh reviewer to the ACTUAL repo (#137) — derived from the live
 	// git context, not a hardcoded "ariadne". Computed once here, the single site
 	// both close and milestone-close funnel through (ARCH-DRY). The name comes
@@ -840,20 +852,20 @@ func boundaryReviewOptionsFor(stdout, stderr io.Writer, p boundaryReviewParams, 
 	var err error
 	o.Repo, err = workspaceRepoName(manifest.RepoRoot)
 	if err != nil {
-		return judge.DispatchOptions{}, false, fmt.Sprintf("resolve review repository: %v", err)
+		return judge.DispatchOptions{}, judge.ReviewChoice{}, false, fmt.Sprintf("resolve review repository: %v", err)
 	}
 	// The repo's reviewer policy (#310) is read from the source checkout, the
 	// operator's config, before the root moves to the review checkout.
 	policy, err := loadReviewerPolicy(manifest.RepoRoot)
 	if err != nil {
-		return judge.DispatchOptions{}, false, err.Error()
+		return judge.DispatchOptions{}, judge.ReviewChoice{}, false, err.Error()
 	}
 	if iso != nil {
 		manifest.RepoRoot = iso.Dir
 	}
 	reviewWindow, err := judge.RenderReviewWindow(manifest)
 	if err != nil {
-		return judge.DispatchOptions{}, false, fmt.Sprintf("render review manifest: %v", err)
+		return judge.DispatchOptions{}, judge.ReviewChoice{}, false, fmt.Sprintf("render review manifest: %v", err)
 	}
 	o.RepoRoot = manifest.RepoRoot
 	o.IssueFile = manifest.IssueFile
@@ -869,7 +881,6 @@ func boundaryReviewOptionsFor(stdout, stderr io.Writer, p boundaryReviewParams, 
 	prompt := judge.BuildPrompt(cat, in)
 
 	opts := judge.DispatchOptions{
-		Agent:        judge.ResolveReviewerCLI(p.Agent, p.AgentExplicit, judge.CurrentAgentDefaultEnv(), policy),
 		Prompt:       prompt,
 		AllowedTools: cat.AllowedTools(),
 		Stdout:       stdout,
@@ -883,7 +894,16 @@ func boundaryReviewOptionsFor(stdout, stderr io.Writer, p boundaryReviewParams, 
 			opts.Containment = judge.ContainFenced
 		}
 	}
-	return opts, true, ""
+	// #409: the reviewers, from the window's authors, the kind of change and
+	// what can launch under this containment; the first is the one a dry run
+	// shows and the one a direct Dispatch would run.
+	choice := resolveReviewChoiceWith(commandContext(p.Context), policy, p.BaseLong, p.Head, p.Agent, p.AgentExplicit, boundaryChangeKind(cat), opts.Containment)
+	first, ok := choice.First()
+	if !ok {
+		return judge.DispatchOptions{}, judge.ReviewChoice{}, false, choice.Refusal().Error()
+	}
+	opts.Agent, opts.Model = first.Agent, first.Model
+	return opts, choice, true, ""
 }
 
 // recipe is the review recipe these params dispatch: Category, defaulting to the

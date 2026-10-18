@@ -56,7 +56,7 @@ func TestReplaySmallDiff(t *testing.T) {
 		t.Fatalf("review checkout: %v", err)
 	}
 	defer checkout.Close()
-	opts, ok, why := boundaryReviewOptionsFor(io.Discard, os.Stderr, p, manifest, &iso)
+	opts, _, ok, why := boundaryReviewOptionsFor(io.Discard, os.Stderr, p, manifest, &iso)
 	if !ok {
 		t.Fatalf("dispatch options: %s", why)
 	}

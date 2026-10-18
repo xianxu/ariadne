@@ -1009,8 +1009,8 @@ spawns a new subprocess; the agent has no doer-session state.
 
 **Judge agent defaults (#129).** Every judge dispatch (`sdlc judge`,
 `change-code` plan/estimate quality, close and milestone boundary reviews, plus
-push/merge preflight) resolves through `internal/judge.ResolveAgentCLI`. The
-precedence is: explicit `--agent`, then `AGENT_CMD` (operator/script override,
+push/merge preflight) resolves through `internal/judge.ResolveReview` (#409; it
+replaced `ResolveAgentCLI`). The precedence is: explicit `--agent`, then `AGENT_CMD` (operator/script override,
 including invalid values so dispatch validation still fails loudly), then
 `PAIR_AGENT`, then conservative process/session signals such as `CODEX_CI` /
 `CODEX_THREAD_ID`, then `claude`. Command flags stay empty by default so
@@ -1188,19 +1188,48 @@ plus `<id>.lock`.
 Bound: one clone per live review, plus whatever the sweep has warned about.
 
 **Which agent reviews, and its permission mode (#310).** `workshop/review.json`
-(repo-local) sets `boundary_reviewer`: `same` (default), `other` (claude and
-codex review each other) or `explicit` with `reviewer_pairs`. The pure
+(repo-local) sets `boundary_reviewer`: `same` (default), `other` (a reviewer of
+another vendor family, #409 below) or `explicit` with `reviewer_pairs`. The pure
 `judge.ReviewerPolicy` maps the main agent (`judge.MainAgent`: `PAIR_AGENT`,
 codex env, claude) to its reviewer; `--agent` and `AGENT_CMD` stay above it, and
-`ResolveAgentCLI` is the `same` case. `loadReviewerPolicy` reads the source
-checkout's file in `boundaryReviewOptionsFor`; an invalid file halts the review.
-The ledger round's `agent` records who reviewed. `DispatchOptions.Containment`
+`same` is the default (`judge.DefaultReviewerMode`). `loadReviewerPolicy` reads the
+source checkout's file; an invalid file halts the review. The ledger round's
+`agent` names the reviewer CLI and its `reviewer` field the full #409 record
+(model, families, degraded). `DispatchOptions.Containment`
 (none / checkout / fenced) replaced `IsSandbox` + `Fenced`, and `agentArgs` maps
 it to each CLI's own mode: claude `--permission-mode dontAsk` (the tool list
 is enforced, so Edit/Write are refused; Bash stays unrestricted, so shell
 writes are stopped only by the #204 fence), codex `--sandbox read-only | workspace-write |
 danger-full-access`, gemini without `--yolo`. No judge gets an auto-approve mode;
 `--sandbox` on `judge`/`change-code` is a deprecated no-op.
+
+**Reviewer families (#409).** `judge.FamilyOf` maps each agent to its vendor (claude →
+anthropic, codex → openai, gemini → google; anything else is unknown, never guessed), and a
+review's `judge.ChangeKind` is `design-heavy` (a design: plan-quality, planning review, a
+full-flow boundary) or `bounded` (a quick-flow boundary). Under `other` the pure
+`judge.ReviewPlan(policy, main, authorFamilies, kind, availability)` lists every agent whose
+family authored none of the window, in the kind's order (design-heavy: claude, codex, gemini;
+bounded: codex, claude, gemini, so #310's claude ↔ codex pairing holds and gemini is the
+fallback). `reviewer_order` and `reviewer_models` in `workshop/review.json` override the
+orders and pass a model per reviewer. `same` and `explicit` stay #310's floor.
+`judge.LocalAvailability` skips, before launch and with a reason, an agent whose CLI is
+missing or codex under checkout containment on macOS. `judge.Unavailable` counts a run as
+"could not review" only on a failed launch, claude's stream failing before any assistant or
+tool event (`AgentRun.Began`), or codex/gemini exiting non-zero with nothing on stdout (codex:
+no activity block on stderr, and the cause read only from its `ERROR:` lines, since it echoes
+the prompt), each with an unreachable, quota, sign-in or CLI-refused cause (a 400 bad model is
+a misconfiguration and halts); only that may move a review to the next candidate. Every review site (close, milestone-close, fix review,
+plan-quality, estimate-quality, planning review, `sdlc judge`) resolves through
+`resolveReviewChoice` (cmd/sdlc/reviewchoice.go: the window's trailer families plus the
+session's, the kind, `reviewAvailability`) and runs `judge.DispatchChoice`, which announces each
+skip and ends in `judge.NoReviewerError` (naming every candidate) when none can review. The
+result is `judge.ReviewerRecord`: the close's `Review-Reviewer:` trailer, the ledger round's
+`reviewer` and the sidecar's reviewer row. A week's tally is the git one-liner in `close
+--help` (REVIEWER); the trailer's form is pinned by a test that parses it back through
+`git interpret-trailers`.
+`reviewer_order` needs two families with no repeats, so `Reviewer()` can never return the
+main agent's own family under `other`, and a model reaches each CLI's flag (`DispatchOptions.Model`). The default for a repo with no policy is the single constant
+`judge.DefaultReviewerMode` (`same` until the operator decides the fleet default).
 
 **Dispatch progress heartbeat (#140).** A boundary review can run silently for
 minutes; `internal/judge.Dispatch` now emits a heartbeat to `opts.Stderr` every
