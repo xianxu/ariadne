@@ -16,6 +16,12 @@ import (
 // correction. The resolver supplies pinned authority; the engine only measures.
 func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inputs *ownedActualInputs) actualResult {
 	m := inputs.Snapshot
+	if !inputs.Replay {
+		m.Protected = nil
+		for _, credit := range inputs.Protected {
+			m.Protected = append(m.Protected, gatestate.MeasurementCredit{Issue: credit.Issue, Slot: credit.Slot, Start: credit.Start.Format(time.RFC3339Nano), End: credit.End.Format(time.RFC3339Nano)})
+		}
+	}
 	res := actualResult{Issue: id, Window: m.Since + " → " + m.Until, Warnings: actualExclusionWarnings(inputs.Warnings)}
 	fail := func(err error) actualResult { res.Status, res.Detail = actualError, err.Error(); return res }
 	if err := ctx.Err(); err != nil {

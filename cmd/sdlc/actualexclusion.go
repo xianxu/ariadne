@@ -171,6 +171,12 @@ func loadAdoptedExclusions(ctx context.Context, root, brain, issueNum, plans str
 		}
 		for _, interval := range credited {
 			if _, _, ok := overlappingSlotInterval(interval.Slot, interval.Start, interval.End, windows); ok {
+				if interval.Start.Before(since) {
+					interval.Start = since
+				}
+				if interval.End.After(until) {
+					interval.End = until
+				}
 				protected = append(protected, interval)
 			}
 		}

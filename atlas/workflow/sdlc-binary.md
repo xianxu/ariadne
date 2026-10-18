@@ -1286,7 +1286,9 @@ candidate's commit attribution. The report names each removed interval and its
 adopted issue. Missing replay or slot evidence refuses a numeric actual and
 names the potentially overlapping interval. A fractionally credited run protects
 its full time span, conservatively, rather than claiming an invented split.
-Historical completed actuals still replay their pinned generation.
+The chosen intervals are retained inside the candidate's bounded
+`MeasurementInputs`; historical completed actuals replay that same protected
+generation even after other cards or transcripts change.
 
 `computeActualForCloseFn` explicitly selects `actualCloseCandidate`: a close
 derives new ownership-proven inputs at current HEAD/current tracker, even when

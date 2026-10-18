@@ -51,3 +51,4 @@ Active time a slot spends is attributed once. When measuring an issue, exclude i
 ## Revisions
 
 - 2026-10-18 11:12 PDT — The integration fixture uses one intervening adopted issue and a later transcript append; the pure core separately tests the union of two adopted issues. This keeps the tracker fixture focused while still defending the multi-issue rule. Close and preview share `computeActualForPurpose`; correction enters the same resolver and measurement path.
+- 2026-10-18 11:15 PDT — A queued suite exposed a replay gap during self-review: new exclusions must travel with the existing completion-pinned `MeasurementInputs` or a later historical preview would drop them. Cancelled that queued suite before it acquired the machine lock, and will rerun it on the corrected head. The plan now adds an optional, bounded snapshot field and a candidate-to-replay test; no separate ledger is created.

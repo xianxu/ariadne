@@ -15,6 +15,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/transcripts"
 )
 
 func TestCreditedIntervalsNeedPinnedSlotAndPositiveAllocation(t *testing.T) {
@@ -178,6 +179,16 @@ func TestParkedClaimExcludesOtherAdoptedIssueInSameSlot(t *testing.T) {
 	allWarnings := strings.Join(got.Warnings, "\n")
 	if got.Status != actualMeasured || !(got.Hours < baseline.Hours) || !strings.Contains(allWarnings, "issue #649") || !strings.Contains(allWarnings, "ariadne:6") || !strings.Contains(allWarnings, "2026-10-14T00:20:00Z") {
 		t.Fatalf("parked actual=%+v baseline=%+v", got, baseline)
+	}
+	found := append([]transcripts.SessionEvidence(nil), current.Sessions...)
+	replay, err := ownedReplaySources(*got.Inputs, found)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replay.Scope.Issue = "636"
+	again := computeOwnedActualFor(context.Background(), r.root, "636", "", replay)
+	if again.Status != actualMeasured || again.Hours != got.Hours || len(again.Exclusions) != len(got.Exclusions) {
+		t.Fatalf("historical replay moved the adopted actual: replay=%+v candidate=%+v", again, got)
 	}
 	if err := os.WriteFile(file, []byte("lost retained transcript\n"), 0600); err != nil {
 		t.Fatal(err)

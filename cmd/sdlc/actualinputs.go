@@ -484,6 +484,17 @@ func ownedSourceWindows(ctx context.Context, engagements []tracker.EngagementWin
 
 func ownedReplaySources(saved gatestate.MeasurementInputs, found []transcripts.SessionEvidence) (*ownedActualInputs, error) {
 	out := &ownedActualInputs{Snapshot: saved, Prefixes: map[string]activetime.SourcePrefix{}, Windows: map[string][]activetime.ActivityWindow{}, SourceSlots: map[string]string{}, Scope: activetime.Scope{Head: saved.CodeHead, BranchPoint: saved.BranchPoint}, TrackerRefs: nonEmpty(saved.TrackerHead), Replay: true}
+	for _, credit := range saved.Protected {
+		start, err := time.Parse(time.RFC3339Nano, credit.Start)
+		if err != nil {
+			return nil, err
+		}
+		end, err := time.Parse(time.RFC3339Nano, credit.End)
+		if err != nil {
+			return nil, err
+		}
+		out.Protected = append(out.Protected, activetime.CreditedInterval{Issue: credit.Issue, Slot: credit.Slot, Start: start, End: end})
+	}
 	byID := map[[2]string]transcripts.SessionEvidence{}
 	for _, s := range found {
 		key := [2]string{s.Harness, s.ID}
