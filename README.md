@@ -472,10 +472,13 @@ checks in `.sdlc/local-checks.json` on main: `sdlc local-check run --name X`
 runs one on a pushed head under the machine-wide suite lock and records it as
 the commit status `sdlc-local/X`. Merge accepts that recorded pass in place of
 a CI job that never got a runner (never one that ran and failed), requires it
-for checks declared `required`, and runs a missing one itself. See
+for checks declared `required`, and runs a missing one itself, unless a saved
+pass of it on that exact head can be posted instead. See
 [recorded local checks](atlas/workflow/ci-merge-check.md#recorded-local-checks-345).
 `sdlc local-check cancel` stops this checkout's own queued or running checks and
-never another slot's; never stop one by a PID picked from `ps`.
+never another slot's; never stop one by a PID picked from `ps`. When a finished
+check's status post can't reach GitHub, `sdlc local-check republish --name X`
+posts the saved result later, with no rerun.
 
 Run `sdlc local-check run --name suite` on the pushed issue head before close.
 After it passes, close that tested branch without manually integrating each

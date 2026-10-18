@@ -157,7 +157,9 @@ first-class evidence, recorded on the commit it ran on:
   it). A runnerless job with a declared substitute passes on that substitute's
   recorded pass. A `required` check needs its recorded pass whatever CI says.
   A job that ran and failed or was cancelled stays red. When a needed run is
-  missing, merge runs it itself through the same path, then re-reads the head
+  missing, merge first posts a saved pass of that check on the exact head (the
+  newest attempt there, its log hash verified, #431); without one it runs the
+  check itself through the same path, then re-reads the head
   and checks (a push during the run, or a pass that never reached GitHub,
   refuses). Red, unknown and pending CI outrank a needed local run, so nothing
   runs locally while CI is red or still running.

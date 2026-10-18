@@ -396,6 +396,10 @@ func (e *localCheckFailure) Error() string {
 // newLocalCheckRunner binds runLocalCheck to a checkout for the CI gate.
 func newLocalCheckRunner(d localRunDeps) localCheckRunner {
 	return func(ctx context.Context, c localCheck, sha string) (localRunRecord, error) {
+		// #431: a saved, verified pass on this exact head is posted, not rerun.
+		if rec, ok, err := republishSavedPass(ctx, d, c.Name, sha); ok {
+			return rec, err
+		}
 		return runLocalCheck(ctx, d, c, sha)
 	}
 }

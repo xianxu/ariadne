@@ -63,7 +63,7 @@ var errUnboundedSuite = errors.New("refusing to run an unbounded suite")
 // is for a run that could not happen or, when required, could not be recorded.
 func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string) (localRunRecord, error) {
 	rec := localRunRecord{Name: c.Name, SHA: sha, Exit: -1}
-	rec.Host, _ = os.Hostname()
+	rec.Host = hostName()
 	if d.minute == 0 {
 		d.minute = time.Minute
 	}
@@ -76,7 +76,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		return rec, err
 	}
 	rec.LogPath = filepath.Join(logDir, sha, c.Name+".log")
-	storeRoot := filepath.Join(filepath.Dir(logDir), "test-stats")
+	storeRoot := suiteStoreRoot(logDir)
 	sweepStaleLocalWorktrees(d)
 
 	cleanupGit := d.CleanupGit
@@ -185,6 +185,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		return rec, err
 	}
 	queueSeconds, wallSeconds := queueWait.Seconds(), rec.Duration.Seconds()
+	saved := false // a saved attempt is what `local-check republish` can post later
 	if writer != nil {
 		attempt := SuiteAttempt{Version: 1, ID: writer.ID, Repo: d.Repo, SHA: sha, Check: c.Name,
 			StartedAt: start.UTC(), FinishedAt: finished, MainBaseline: d.SkipRecord,
@@ -212,6 +213,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		if _, saveErr := publishSuiteAttempt(storeRoot, writer, attempt); saveErr != nil {
 			fmt.Fprintf(d.Stderr, "[!] local check %s: attempt result was not fully saved: %v\n", c.Name, saveErr)
 		} else {
+			saved = true
 			if !rec.passed() {
 				rec.LogPath = filepath.Join(storeRoot, "failed", writer.ID+".log")
 			} else {
@@ -229,13 +231,11 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		return rec, nil
 	}
 
-	if err := d.GH.PostStatus(ctx, d.Repo, sha, localStatusContext(c.Name), rec.state(), rec.statusDescription()); err != nil {
-		return rec, fmt.Errorf("local check %s %s but was NOT recorded on %s: %w", c.Name, rec.state(), abbrevSHA(sha), err)
-	}
-	if !rec.passed() && d.PR > 0 {
-		if err := d.GH.PRComment(ctx, d.Repo, d.PR, rec.failureComment()); err != nil {
-			fmt.Fprintf(d.Stderr, "[!] local check %s: failure recorded, but the PR comment failed: %v\n", c.Name, err)
+	if err := postLocalCheckRecord(ctx, d, rec); err != nil {
+		if saved {
+			return rec, fmt.Errorf("local check %s %s but was NOT recorded on %s: %w; the result is saved: publish it with %q (no rerun needed)", c.Name, rec.state(), abbrevSHA(sha), err, republishCommand(c.Name, sha))
 		}
+		return rec, fmt.Errorf("local check %s %s but was NOT recorded on %s: %w", c.Name, rec.state(), abbrevSHA(sha), err)
 	}
 	fmt.Fprintf(d.Stderr, "==> local check %s: %s, recorded as %s on %s\n", c.Name, rec.statusDescription(), localStatusContext(c.Name), abbrevSHA(sha))
 	return rec, nil
