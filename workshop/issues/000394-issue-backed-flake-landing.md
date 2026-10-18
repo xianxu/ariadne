@@ -51,3 +51,4 @@ Filed from #390's operator-approved flake/landing decision. The weekly snapshot 
 ### 2026-10-18
 
 - Dispatched by the hub (ops:0): the registry of known flakes is tied to their issues, and a rerun of just the registered tests replaces the whole suite. #449 builds on this. Plan drafted; it surfaces D1 (the targeted rerun amends #390's approved full-rerun rule), D2 (the accept policy), D3 (the daily view's scope: CI to a follow-up) and D4 (the registry lives in issue frontmatter).
+- The hub decided D1–D4 as proposed: the targeted rerun counts (the operator's 10-18 ask); `accept`/`off` are built with the guarded config left at its default; CI in the daily view goes to a follow-up; the registry is issue frontmatter. Side doc 02 got a Revision note.

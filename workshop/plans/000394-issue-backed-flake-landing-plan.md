@@ -121,3 +121,12 @@ Design notes:
   - Reading the registry costs one `git ls-tree` plus `git show` per issue that lists `flake_tests`, bounded by the number of issue files, which is in the hundreds. It is cached per command.
 - **Schema v2 rollout:** test-stats readers use `DisallowUnknownFields`. Agent slots run :0's binaries, so the TL rebuilds :0 and a v2 store is read by v2 binaries. A v1 binary refuses a v2 attempt loudly rather than misreading it.
 - **Size:** about 450 added code lines, full flow, with three review boundaries.
+
+## Revisions
+
+### 2026-10-18 — hub decisions D1–D4
+
+- **D1, approved:** the targeted rerun counts, the lever the operator asked for on 2026-10-18 ("bypass it during landing"). By the union argument, every test has passed once on the exact head. Side doc 02's rule 2 and the tl-worker help are amended to match, citing that ask, with a Revision note appended to the side doc, which is not overwritten. The tl-worker help changes in M3.
+- **D2, approved:** `known_flakes` with `rerun` (the default), `accept` and `off` is built and tested. The guarded `.sdlc/local-checks.json` stays at its default (the field is absent, meaning `rerun`), so this issue needs no `local-gates-verified` label.
+- **D3, approved:** a local `sdlc flake list`, with CI shown as `not covered` until #451 (filed, unclaimed) lands.
+- **D4, approved:** the registry is issue frontmatter read from origin/main, so closing the issue unregisters it, and registration requires same-head fail→pass evidence.
