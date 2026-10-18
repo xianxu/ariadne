@@ -1,6 +1,6 @@
 ---
 id: 000431
-status: codecomplete
+status: done
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 391c17e163125b715265c3952ba0c1e1c14722c4
         evidence_commit: d5a0c0b7c98fc9d7ea834e2ae4aae9d398bb9a1c
+        landed_commit: 32add85db64eb55961a3609716882a79c3b568cb
 ---
 
 # sdlc local-check: republish a completed attempt whose GitHub status post failed
