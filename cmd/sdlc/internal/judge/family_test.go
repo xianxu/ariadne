@@ -6,10 +6,6 @@ import (
 	"testing"
 )
 
-
-
-
-
 func TestUnavailable(t *testing.T) {
 	quota := `{"type":"result","subtype":"error","is_error":true,"result":"API Error: 429 rate limit exceeded"}`
 	began := `{"type":"assistant","message":{"content":[{"type":"text","text":"Reading the diff."}]}}` + "\n" + quota
@@ -57,7 +53,6 @@ func TestUnavailable(t *testing.T) {
 	}
 }
 
-
 func TestLocalAvailability(t *testing.T) {
 	onPath := func(name string) (string, error) {
 		if name == "gemini" {
@@ -83,7 +78,6 @@ func TestLocalAvailability(t *testing.T) {
 		}
 	}
 }
-
 
 // The reviewer's model reaches each CLI's own flag.
 func TestAgentArgsPassTheModel(t *testing.T) {

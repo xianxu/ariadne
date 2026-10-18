@@ -94,3 +94,7 @@ Durable plan: `workshop/plans/000441-doc-review-choose-its-reviewer-through-the-
   `loadReviewerPolicy` and `authorFamiliesFromLog` delegate. The pure policy tests moved to
   `pkg/reviewpolicy/policy_test.go`; the run-shaped ones stay in judge. judge, cmd/sdlc (policy, boundary, per-site,
   loader, context guard), agentid, gitx and golint tests pass.
+- M1 boundary review round 1 (FIX-THEN-SHIP): BR-1 (`judge.Refusal` keeps the `ErrReviewDidNotRun` contract and the
+  `--agent` remedy at every sdlc site; `TestRefusalKeepsJudgesContract`), BR-2 (an as-built table in plan Revisions),
+  BR-3 (gofmt). Minors: stale comments renamed; `pkg/agentenv` and `pkg/reviewpolicy` (Load, AuthorFamilies) have
+  their own tests.

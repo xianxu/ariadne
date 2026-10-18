@@ -79,3 +79,22 @@
   the `runAgent` fake covers a missing CLI skipped (degraded record), a failed launch moving on, all unavailable
   refusing, and a crash not switching.
 - Core concepts additions: `pkg/agentenv` (env, log parsing), new; `reviewpolicy.Resolve`/`Choice`, new.
+
+### 2026-10-18 — M1 boundary review round 1 (BR-1..3, Minors)
+
+**As built, each row grepped against the head** (supersedes the Core concepts table above):
+
+| Entity | Lives in |
+|---|---|
+| `Agent`, `Family`, `FamilyOf`, `ChangeKind`, `defaultOrders`, `Mode`, `DefaultMode`, `Policy` (`EffectiveMode`, `Reviewer`, `Validate`), `Candidate`, `Skip`, `Availability`, `Plan`, `AuthorFamilies(session Family, commits []agentenv.Commit)` | `pkg/reviewpolicy/policy.go` |
+| `Choice` (`First`, `Refusal`), `Resolve`, `ErrNoReviewer`, `NoReviewerError`, `Record(used, choice, skips)` | `pkg/reviewpolicy/choice.go` (there is no `record.go`) |
+| `ConfigPath`, `Load` | `pkg/reviewpolicy/load.go` |
+| `Env`, `EnvFrom`, `Known`, `Main`, `InSession`, agent names, `TrailerKey`, `Commit`, `LogFormat`, `ParseLog` | `pkg/agentenv/agentenv.go` |
+| judge's aliases and wrappers: `AgentCLI` and the agent constants (`dispatch.go`); `ReviewerMode`, `ReviewerPolicy` and the mode constants (`agent_resolver.go`); `Family`, `ChangeKind`, `Candidate`, `Skip`, `Availability`, the family and kind constants, `FamilyOf`, `ReviewPlan` (`family.go`); `ReviewChoice`, `NoReviewerError`, `ResolveReview`, `ReviewerRecord`, `Refusal` (`reviewchoice.go`) | `cmd/sdlc/internal/judge/` (there is no `policyalias.go`) |
+
+- **The move keeps judge's contract (BR-1):** `reviewpolicy.NoReviewerError` unwraps to the package's own
+  `ErrNoReviewer`. Every sdlc site reports a refusal through `judge.Refusal(choice)`, which matches both
+  `*NoReviewerError` and `judge.ErrReviewDidNotRun` and names `--agent` as the remedy, as it did before the move.
+  `TestRefusalKeepsJudgesContract` pins this in judge.
+- The shared packages carry their own tests: `pkg/agentenv` (`TestEnvMain`, `TestParseLog`) and `pkg/reviewpolicy`
+  (`TestLoad`, `TestAuthorFamilies`, and the moved policy tests).

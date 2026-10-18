@@ -163,7 +163,7 @@ func runJudge(stdout, stderr io.Writer, categoryArg string, f *judgeFlags) error
 	}
 	first, ok := choice.First()
 	if !ok {
-		die(stderr, choice.Refusal().Error())
+		die(stderr, judge.Refusal(choice).Error())
 	}
 	agent := first.Agent
 	tools := f.Tools

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/xianxu/ariadne/pkg/reviewpolicy"
 )
@@ -51,11 +52,19 @@ func ReviewerRecord(used Candidate, choice ReviewChoice, skips []Skip) string {
 	return reviewpolicy.Record(used, choice, skips)
 }
 
-// noReviewer is DispatchChoice's refusal: a NoReviewerError that is also a
-// review that did not run, for callers matching either.
+// noReviewer is judge's refusal: a NoReviewerError that is also a review that
+// did not run, for callers matching either, naming sdlc's --agent as the way
+// to pick one anyway.
 type noReviewer struct{ *NoReviewerError }
 
+func (e noReviewer) Error() string {
+	return strings.Replace(e.NoReviewerError.Error(), "name one explicitly", "name one with --agent", 1)
+}
 func (e noReviewer) Unwrap() []error { return []error{e.NoReviewerError, ErrReviewDidNotRun} }
+
+// Refusal is the error for a choice with no candidate, as every sdlc review
+// site reports it: it matches both *NoReviewerError and ErrReviewDidNotRun.
+func Refusal(c ReviewChoice) error { return noReviewer{&NoReviewerError{Skips: c.Skips}} }
 
 // DispatchChoice runs the review with the first candidate that can review,
 // announcing each one passed over. It returns the output, the reviewer that

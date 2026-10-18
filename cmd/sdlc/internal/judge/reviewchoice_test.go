@@ -113,8 +113,6 @@ func TestDispatchChoice(t *testing.T) {
 	})
 }
 
-
-
 // A reviewer whose first attempt ran and whose retry could not run did review:
 // the review ends there and never hands over to another family (#409 BR-9).
 func TestUnavailableRetryNeverHandsOver(t *testing.T) {
@@ -137,5 +135,18 @@ func TestUnavailableRetryNeverHandsOver(t *testing.T) {
 	}
 }
 
-
-
+// The refusal every sdlc site reports keeps judge's contract across the move
+// to pkg/reviewpolicy (#441 BR-1): a NoReviewerError, a review that did not
+// run, and the --agent remedy.
+func TestRefusalKeepsJudgesContract(t *testing.T) {
+	choice := ResolveReview("", false, AgentDefaultEnv{ClaudeCode: "1"}, ReviewerPolicy{Mode: ReviewerOther}, []Family{FamilyAnthropic}, KindBounded,
+		func(a AgentCLI) (string, bool) { return string(a) + " missing", false })
+	err := Refusal(choice)
+	var none *NoReviewerError
+	if !errors.As(err, &none) || !errors.Is(err, ErrReviewDidNotRun) {
+		t.Fatalf("refusal %v does not match both", err)
+	}
+	if !strings.Contains(err.Error(), "name one with --agent") || !strings.Contains(err.Error(), "codex: codex missing") {
+		t.Errorf("refusal text %q", err)
+	}
+}

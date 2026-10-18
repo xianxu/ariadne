@@ -165,7 +165,7 @@ func TestResolve(t *testing.T) {
 		t.Errorf("refusal %v", err)
 	}
 }
-func TestReviewerRecordRoundTrip(t *testing.T) {
+func TestRecordRoundTrip(t *testing.T) {
 	codex := Candidate{Agent: Codex, Model: "gpt-6-astra", Family: OpenAI}
 	gemini := Candidate{Agent: Gemini, Family: Google}
 	claude := Candidate{Agent: Claude, Family: Anthropic}
@@ -206,8 +206,8 @@ func TestReviewerRecordRoundTrip(t *testing.T) {
 	}
 }
 
-// ParseReviewerRecord reads a Review-Reviewer value back; ok is false for a
-// value not in ReviewerRecord's form.
+// ParseRecord reads a Review-Reviewer value back; ok is false for a
+// value not in Record's form.
 func ParseRecord(v string) (ReviewerEntry, bool) {
 	head, _, degraded := strings.Cut(v, "; degraded:")
 	open := strings.Index(head, " (")
