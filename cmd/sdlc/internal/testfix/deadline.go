@@ -2,7 +2,11 @@ package testfix
 
 import (
 	"context"
+	"os"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
 )
 
 // cueDeadline is a context that expires, as a deadline, only when the test
@@ -32,4 +36,23 @@ func (c *cueDeadline) Err() error {
 func DeadlineOnCue(parent context.Context) (ctx context.Context, expire func()) {
 	c := &cueDeadline{Context: parent, done: make(chan struct{})}
 	return c, func() { c.once.Do(func() { close(c.done) }) }
+}
+
+// AwaitPIDFile waits for a fixture to write its pid to path: the readiness
+// signal a deadline or cancellation test cues on. It gives up when stop
+// reports true (the process under test ended first; nil never stops) or after
+// ceiling, returning 0 either way.
+func AwaitPIDFile(path string, ceiling time.Duration, stop func() bool) int {
+	until := time.Now().Add(ceiling)
+	for time.Now().Before(until) {
+		raw, _ := os.ReadFile(path)
+		if pid, _ := strconv.Atoi(strings.TrimSpace(string(raw))); pid > 0 {
+			return pid
+		}
+		if stop != nil && stop() {
+			return 0
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	return 0
 }

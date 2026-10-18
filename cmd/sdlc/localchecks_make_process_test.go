@@ -4,9 +4,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -48,16 +48,7 @@ func TestMakeProbeBoundsDescendantPipes(t *testing.T) {
 					}
 				}
 			})
-			deadline := time.Now().Add(testfix.HangCeiling)
-			for time.Now().Before(deadline) {
-				raw, _ := os.ReadFile(filepath.Join(dir, "child.pid"))
-				child, _ = strconv.Atoi(string(raw))
-				if child > 0 {
-					break
-				}
-				time.Sleep(5 * time.Millisecond)
-			}
-			if child == 0 {
+			if child = testfix.AwaitPIDFile(filepath.Join(dir, "child.pid"), testfix.HangCeiling, nil); child == 0 {
 				t.Fatal("descendant never started")
 			}
 			expire()
@@ -66,6 +57,11 @@ func TestMakeProbeBoundsDescendantPipes(t *testing.T) {
 				finished = true
 				if err == nil {
 					t.Error("probe with hanging descendant succeeded")
+				}
+				// A hanging shell keeps make alive until the cue's deadline; an
+				// exited parent ends on the pipe-drain bound instead.
+				if mode == "hanging-shell" && !errors.Is(err, context.DeadlineExceeded) {
+					t.Errorf("hanging probe ended without its deadline: %v", err)
 				}
 			case <-time.After(3 * time.Second):
 				t.Fatal("probe exceeded deadline plus bounded pipe-drain interval")

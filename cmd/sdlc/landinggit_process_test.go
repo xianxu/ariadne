@@ -7,7 +7,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strconv"
 	"syscall"
 	"testing"
 	"time"
@@ -17,18 +16,12 @@ import (
 
 func awaitLandingGitChild(t *testing.T, pidfile string) int {
 	t.Helper()
-	until := time.Now().Add(testfix.HangCeiling)
-	for time.Now().Before(until) {
-		raw, _ := os.ReadFile(pidfile)
-		pid, _ := strconv.Atoi(string(raw))
-		if pid > 0 {
-			t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
-			return pid
-		}
-		time.Sleep(5 * time.Millisecond)
+	pid := testfix.AwaitPIDFile(pidfile, testfix.HangCeiling, nil)
+	if pid == 0 {
+		t.Fatal("git fixture descendant never started")
 	}
-	t.Fatal("git fixture descendant never started")
-	return 0
+	t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
+	return pid
 }
 
 func TestBoundedLandingGitTerminatesDescendants(t *testing.T) {
@@ -48,7 +41,7 @@ func TestBoundedLandingGitTerminatesDescendants(t *testing.T) {
 			// (#434): a clock would race the fixture's startup under load.
 			var expire func()
 			if mode == "deadline" {
-				ctx, expire = testfix.DeadlineOnCue(context.Background())
+				ctx, expire = testfix.DeadlineOnCue(ctx)
 			}
 			r := newBoundedLandingGit(ctx, execGitRunner{}, 5*time.Second)
 			done := make(chan error, 1)

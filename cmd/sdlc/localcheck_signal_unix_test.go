@@ -176,20 +176,21 @@ func TestLocalCheckSignalCancelsQueuedHelper(t *testing.T) {
 			if tc.phase == "cleanup" {
 				// Cancellation must not skip retirement: the cancelled run is
 				// still waiting on its cleanup Git when that Git reports in.
-				until := time.Now().Add(testfix.HangCeiling)
-				for cleanupPID == 0 {
+				var exited error
+				cleanupPID = testfix.AwaitPIDFile(cleanupPIDPath, testfix.HangCeiling, func() bool {
 					select {
-					case err := <-done:
+					case exited = <-done:
 						finished = true
-						t.Fatalf("cancelled run exited without its cleanup Git: %v\n%s", err, output.String())
+						return true
 					default:
+						return false
 					}
-					if time.Now().After(until) {
-						t.Fatal("cleanup never reached its Git")
-					}
-					raw, _ := os.ReadFile(cleanupPIDPath)
-					cleanupPID, _ = strconv.Atoi(string(raw))
-					time.Sleep(5 * time.Millisecond)
+				})
+				if finished {
+					t.Fatalf("cancelled run exited without its cleanup Git: %v\n%s", exited, output.String())
+				}
+				if cleanupPID == 0 {
+					t.Fatal("cleanup never reached its Git")
 				}
 				select {
 				case err := <-done:

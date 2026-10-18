@@ -93,3 +93,7 @@ boundary-push and integrate-gate timeout tests assert only that the deadline bou
 - Recorded suite on 0389da34 failed on one test only: `TestVerbContextsReachTrackerReads` (the context guard)
   refused `context.Background` in `testfix/deadline.go`. `DeadlineOnCue` now takes the caller's context (it carries
   its values; only the cue ends it). Failed attempt kept: test-stats/failed/fd3257c5944743de8e7ffe2885a526aa.log.
+- Close review round 1: SHIP, two advisory Minors fixed in the round. The make-probe test asserts
+  `DeadlineExceeded` in hanging-shell mode (exited-parent ends on the pipe-drain bound, not the deadline, so it keeps
+  `err != nil`); the three pid-file wait loops now share `testfix.AwaitPIDFile` (ARCH-DRY), and the bounded-git test
+  derives its cue context from its own ctx.
