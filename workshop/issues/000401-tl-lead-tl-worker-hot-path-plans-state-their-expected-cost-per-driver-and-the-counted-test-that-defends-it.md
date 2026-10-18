@@ -1,12 +1,12 @@
 ---
 id: 000401
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-17
 estimate_hours:
-card_mirror: '1298dcb3904e5921fca87932852421a982253a6e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '8846110f63c7674d85511e372c6fb4e075ac414b' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T20:07:31-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "dd9f3c53", done: "d118cb10"}
+actual_hours: 0.04
 ---
 
 # tl-lead/tl-worker: hot-path plans state their expected cost per driver and the counted test that defends it
