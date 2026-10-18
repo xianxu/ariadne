@@ -502,6 +502,19 @@ view. Historical per-head logs are marked partial because overwritten retries
 and queue waits cannot be reconstructed. The command does not run tests or
 contact GitHub.
 
+For a permanent weekly baseline, run `sdlc test-stats snapshot` from an SDLC
+checkout. It uses the latest completed Monday 00:00 UTC boundary by default;
+`sdlc test-stats snapshot --end 2026-10-18T00:00:00Z` selects another completed
+seven-day UTC window. `--brain-root /path/to/brain` overrides the sibling brain
+capture repo. The command writes one immutable, versioned JSON file at
+`brain/memory/work/devinfra/test-economy/weekly/<end-date>.json`. An identical
+rerun returns that path; changed bytes refuse instead of overwriting it. Each
+repository headline puts full suites per landed issue beside covered/observed
+landings, unknowns and top coverage reasons. Missing, expired or contradictory
+evidence makes the ratio `null`, and the snapshot keeps physical suite statistics
+separate from exact landing attribution. Publish only after reviewing the pilot
+output because the dated artifact is not replaced in place.
+
 ## Fleet queries
 
 Inspect every Git worktree in the sibling-repository fleet from a caller path,

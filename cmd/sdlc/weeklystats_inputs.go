@@ -30,6 +30,7 @@ const weeklyInputLimit = 64 << 20
 
 type weeklyCardEvidence struct {
 	Status     string
+	CreatedAt  time.Time
 	Completion *issue.Completion
 }
 
@@ -45,6 +46,7 @@ var weeklyPullMergeSubject = regexp.MustCompile(`^Merge pull request #([1-9][0-9
 
 type weeklyRepoEvidence struct {
 	Repo, Root, MainRef, TrackerRef string
+	CollectedAt                     time.Time
 	Attempts                        []SuiteAttempt
 	Events                          []landingline.Event
 	Cards                           map[int]weeklyCardEvidence
@@ -169,7 +171,7 @@ func weeklyGit(ctx context.Context, root string, args ...string) ([]byte, error)
 	return out.Bytes(), nil
 }
 
-func readWeeklyEvidence(ctx context.Context, repo, root string) weeklyRepoEvidence {
+func readWeeklyEvidence(ctx context.Context, repo, root string, window WeeklyWindow) weeklyRepoEvidence {
 	e := weeklyRepoEvidence{Repo: repo, Root: root, Cards: map[int]weeklyCardEvidence{}, Graphs: map[string]weeklyMergeGraph{}, RecentMainMerges: map[string]time.Time{}}
 	commonOut, err := weeklyGit(ctx, root, "rev-parse", "--path-format=absolute", "--git-common-dir")
 	if err != nil {
@@ -188,7 +190,7 @@ func readWeeklyEvidence(ctx context.Context, repo, root string) weeklyRepoEviden
 		e.MainRef = strings.TrimSpace(string(mainOut))
 	}
 	if e.MainRef != "" {
-		mergeOut, err := weeklyGit(ctx, root, "log", "--merges", "--format=%H%x09%cI", e.MainRef)
+		mergeOut, err := weeklyGit(ctx, root, "log", "--merges", "--since="+window.Start.Format(time.RFC3339), "--until="+window.End.Format(time.RFC3339), "--format=%H%x09%cI", e.MainRef)
 		if err != nil {
 			e.CoverageUnknown = append(e.CoverageUnknown, "main merge inventory: "+err.Error())
 		} else {
@@ -206,7 +208,9 @@ func readWeeklyEvidence(ctx context.Context, repo, root string) weeklyRepoEviden
 					e.CoverageUnknown = append(e.CoverageUnknown, "malformed main merge time: "+fields[0])
 					continue
 				}
-				e.RecentMainMerges[fields[0]] = at
+				if window.Contains(at) {
+					e.RecentMainMerges[fields[0]] = at
+				}
 			}
 		}
 	}
@@ -245,7 +249,7 @@ func readWeeklyEvidence(ctx context.Context, repo, root string) weeklyRepoEviden
 	}
 	landedInLog := map[int]bool{}
 	for _, event := range e.Events {
-		if event.Kind == landingline.EventLanded {
+		if event.Kind == landingline.EventLanded && window.Contains(event.At) {
 			landedInLog[event.Issue] = true
 		}
 	}
@@ -272,12 +276,20 @@ func readWeeklyEvidence(ctx context.Context, repo, root string) weeklyRepoEviden
 		}
 		status, _ := issue.GetField(record.Card.Frontmatter, "status")
 		card := weeklyCardEvidence{Status: status}
+		created, _ := issue.GetField(record.Card.Frontmatter, "created")
+		card.CreatedAt, _ = time.Parse("2006-01-02", created)
 		completion, ok, err := issue.CardCompletion(record.Raw)
 		if err != nil {
-			e.CoverageUnknown = append(e.CoverageUnknown, fmt.Sprintf("tracker card #%d completion: %v", id, err))
+			if landedInLog[id] {
+				e.CoverageUnknown = append(e.CoverageUnknown, fmt.Sprintf("tracker card #%d completion: %v", id, err))
+			}
 		} else if ok {
 			card.Completion = &completion
 			if completion.LandedCommit != "" && landedInLog[id] {
+				if _, inWindow := e.RecentMainMerges[completion.LandedCommit]; !inWindow {
+					e.Cards[id] = card
+					continue
+				}
 				if _, exists := e.Graphs[completion.LandedCommit]; !exists {
 					graph, err := weeklyReadGraph(ctx, root, e.MainRef, completion)
 					if err != nil {

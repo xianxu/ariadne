@@ -23,7 +23,7 @@ type weeklySnapshotDeps struct {
 	now      func() time.Time
 	identity func() (workspace.Identity, error)
 	discover func(workspace.Identity) ([]string, error)
-	read     func(context.Context, string, string) weeklyRepoEvidence
+	read     func(context.Context, string, string, WeeklyWindow) weeklyRepoEvidence
 	publish  func(string, time.Time, []byte) (string, error)
 }
 
@@ -95,7 +95,8 @@ func runWeeklySnapshot(ctx context.Context, out io.Writer, flags weeklySnapshotF
 	snapshot := WeeklySnapshot{SchemaVersion: weeklySnapshotSchemaVersion, Window: window, Repos: []WeeklyRepoStats{}}
 	for _, root := range paths {
 		repo := filepath.Base(root)
-		evidence := deps.read(ctx, repo, root)
+		evidence := deps.read(ctx, repo, root, window)
+		evidence.CollectedAt = deps.now().UTC()
 		stats := aggregateWeeklyRepo(repo, evidence.Attempts, window)
 		landings, invalid := validateLandingEvidence(evidence, window)
 		unknown := append(append([]string{}, evidence.CoverageUnknown...), invalid...)

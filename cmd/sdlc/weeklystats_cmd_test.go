@@ -29,7 +29,7 @@ func TestRunWeeklySnapshotPublishesVersionedPartialCoverage(t *testing.T) {
 		now:      func() time.Time { return end.Add(time.Hour) },
 		identity: func() (workspace.Identity, error) { return workspace.Identity{}, nil },
 		discover: func(workspace.Identity) ([]string, error) { return []string{"/fake/ariadne"}, nil },
-		read: func(context.Context, string, string) weeklyRepoEvidence {
+		read: func(context.Context, string, string, WeeklyWindow) weeklyRepoEvidence {
 			return weeklyRepoEvidence{Repo: "ariadne", Root: "/fake/ariadne", CoverageUnknown: []string{"tracker unavailable"}}
 		},
 		publish: publishBrainSnapshot,

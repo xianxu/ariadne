@@ -108,6 +108,85 @@ func TestValidateLandingEvidenceStartsAtFirstEnqueueAfterRefusal(t *testing.T) {
 	}
 }
 
+func TestValidateLandingEvidenceChecksEveryPriorAdmission(t *testing.T) {
+	start := time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)
+	w := WeeklyWindow{Start: start, End: start.Add(7 * 24 * time.Hour)}
+	merge := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	events := []landingline.Event{
+		{Kind: landingline.EventEnqueue, Seq: 1, Issue: 42, Branch: "issue-42", At: start.Add(time.Hour)},
+		{Kind: landingline.EventRefused, Seq: 1, Issue: 42, Branch: "issue-42", At: start.Add(90 * time.Minute)},
+		{Kind: landingline.EventEnqueue, Seq: 2, Issue: 42, Branch: "issue-42", At: start.Add(2 * time.Hour)}, // terminal missing
+		{Kind: landingline.EventEnqueue, Seq: 3, Issue: 42, Branch: "issue-42", At: start.Add(3 * time.Hour)},
+		{Kind: landingline.EventLanded, Seq: 3, Issue: 42, Branch: "issue-42", PR: 9, At: start.Add(4 * time.Hour)},
+	}
+	base := weeklyRepoEvidence{
+		Cards:  map[int]weeklyCardEvidence{42: {Status: "done", Completion: &issue.Completion{LandedCommit: merge}}},
+		Graphs: map[string]weeklyMergeGraph{merge: {MergeSHA: merge, MainParent: "main", IssueParent: "issue", PR: 9, Branch: "issue-42", BranchSHAs: map[string]bool{"issue": true}, EvidenceReachable: true, ReachableFromMain: true}},
+	}
+	for _, order := range [][]landingline.Event{events, {events[2], events[4], events[0], events[3], events[1]}} {
+		base.Events = order
+		if got, reasons := validateLandingEvidence(base, w); len(got) != 0 || !strings.Contains(strings.Join(reasons, "\n"), "prior enqueue") {
+			t.Fatalf("intermediate unrefused ticket escaped validation: %v, %v", got, reasons)
+		}
+	}
+}
+
+func TestLegacyWeeklyAttemptUsesPhysicalCompletionForReconciliation(t *testing.T) {
+	start := time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)
+	w := WeeklyWindow{Start: start, End: start.Add(7 * 24 * time.Hour)}
+	legacy := SuiteAttempt{Legacy: true, Check: suiteCheckName, Repo: "ariadne", SHA: "old", StartedAt: start.Add(time.Hour)}
+	physical := aggregateWeeklyRepo("ariadne", []SuiteAttempt{legacy}, w)
+	reconciled := attributeWeeklyAttempts([]SuiteAttempt{legacy}, nil, w, nil)
+	if physical.Suite.Runs != 1 || reconciled.UnassignableAttempts != 1 || len(reconciled.UnknownAttempts) != 1 {
+		t.Fatalf("legacy physical/reconciliation mismatch: runs=%d attribution=%+v", physical.Suite.Runs, reconciled)
+	}
+}
+
+func TestValidateLandingEvidenceRequiresRetainedWholeIssueHistory(t *testing.T) {
+	start := time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)
+	w := WeeklyWindow{Start: start, End: start.Add(7 * 24 * time.Hour)}
+	merge := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	base := weeklyRepoEvidence{
+		CollectedAt: start.Add(8 * 24 * time.Hour),
+		Attempts:    []SuiteAttempt{{ID: "older", Check: suiteCheckName, FinishedAt: start.Add(-2 * 24 * time.Hour)}},
+		Events: []landingline.Event{
+			{Kind: landingline.EventEnqueue, Seq: 1, Issue: 9, Branch: "older", At: start.Add(-2 * 24 * time.Hour)},
+			{Kind: landingline.EventEnqueue, Seq: 2, Issue: 42, Branch: "issue-42", At: start.Add(time.Hour)},
+			{Kind: landingline.EventLanded, Seq: 2, Issue: 42, Branch: "issue-42", PR: 9, At: start.Add(2 * time.Hour)},
+		},
+		Cards:  map[int]weeklyCardEvidence{42: {Status: "done", CreatedAt: start, Completion: &issue.Completion{LandedCommit: merge}}},
+		Graphs: map[string]weeklyMergeGraph{merge: {MergeSHA: merge, MainParent: "main", IssueParent: "issue", PR: 9, Branch: "issue-42", BranchSHAs: map[string]bool{"issue": true}, EvidenceReachable: true, ReachableFromMain: true}},
+	}
+	if got, reasons := validateLandingEvidence(base, w); len(got) != 1 || len(reasons) != 0 {
+		t.Fatalf("fresh issue with earlier event history rejected: %v, %v", got, reasons)
+	}
+	expired := base
+	expired.CollectedAt = start.Add(40 * 24 * time.Hour)
+	if got, reasons := validateLandingEvidence(expired, w); len(got) != 0 || !strings.Contains(strings.Join(reasons, "\n"), "history") {
+		t.Fatalf("expired attempts/admissions certified: %v, %v", got, reasons)
+	}
+	truncated := base
+	truncated.Events = append([]landingline.Event{}, base.Events[1:]...)
+	if got, reasons := validateLandingEvidence(truncated, w); len(got) != 0 || !strings.Contains(strings.Join(reasons, "\n"), "history") {
+		t.Fatalf("issue older than retained event log certified: %v, %v", got, reasons)
+	}
+	missing := base
+	missing.Cards = map[int]weeklyCardEvidence{42: {Status: "done", Completion: &issue.Completion{LandedCommit: merge}}}
+	if got, reasons := validateLandingEvidence(missing, w); len(got) != 0 || !strings.Contains(strings.Join(reasons, "\n"), "history") {
+		t.Fatalf("missing creation date certified: %v, %v", got, reasons)
+	}
+	noRecorder := base
+	noRecorder.Attempts = nil
+	if got, reasons := validateLandingEvidence(noRecorder, w); len(got) != 0 || !strings.Contains(strings.Join(reasons, "\n"), "history") {
+		t.Fatalf("source with no structured attempt history certified: %v, %v", got, reasons)
+	}
+	lateRecorder := base
+	lateRecorder.Attempts = []SuiteAttempt{{ID: "first", Check: suiteCheckName, FinishedAt: start.Add(24 * time.Hour)}}
+	if got, reasons := validateLandingEvidence(lateRecorder, w); len(got) != 0 || !strings.Contains(strings.Join(reasons, "\n"), "history") {
+		t.Fatalf("issue predating structured recorder certified: %v, %v", got, reasons)
+	}
+}
+
 func TestAttributeWeeklyAttemptsCountsCrossBoundaryAndDuplicateUnknown(t *testing.T) {
 	start := time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)
 	w := WeeklyWindow{Start: start, End: start.Add(7 * 24 * time.Hour)}

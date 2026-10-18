@@ -112,6 +112,51 @@ type weeklyAttribution struct {
 	CoverageUnknown        []string               `json:"coverage_unknown"`
 }
 
+// retainedHistoryFloor is the last date on which an issue might have existed
+// before a retained source begins. Both the attempt recorder and landing log
+// sweep at 30 days; the first retained event and structured attempt also bound
+// observable admissions and suites.
+func retainedHistoryFloor(raw weeklyRepoEvidence) (time.Time, bool) {
+	if raw.CollectedAt.IsZero() {
+		return time.Time{}, false
+	}
+	floor := raw.CollectedAt.Add(-suiteAttemptKeep)
+	if eventCutoff := raw.CollectedAt.Add(-landingline.Retention); eventCutoff.After(floor) {
+		floor = eventCutoff
+	}
+	var firstEvent time.Time
+	for _, event := range raw.Events {
+		if event.At.IsZero() || event.At.After(raw.CollectedAt) {
+			continue
+		}
+		if firstEvent.IsZero() || event.At.Before(firstEvent) {
+			firstEvent = event.At
+		}
+	}
+	if firstEvent.IsZero() {
+		return time.Time{}, false
+	}
+	if firstEvent.After(floor) {
+		floor = firstEvent
+	}
+	var firstAttempt time.Time
+	for _, attempt := range raw.Attempts {
+		if attempt.Check != suiteCheckName || attempt.Legacy || attempt.ID == "" || attempt.FinishedAt.IsZero() || attempt.FinishedAt.After(raw.CollectedAt) {
+			continue
+		}
+		if firstAttempt.IsZero() || attempt.FinishedAt.Before(firstAttempt) {
+			firstAttempt = attempt.FinishedAt
+		}
+	}
+	if firstAttempt.IsZero() {
+		return time.Time{}, false
+	}
+	if firstAttempt.After(floor) {
+		floor = firstAttempt
+	}
+	return floor.UTC().Truncate(24 * time.Hour), true
+}
+
 // validateLandingEvidence refuses to turn syntactically valid but contradictory
 // landing records into a metric. A single bad record can make the cohort partial.
 func validateLandingEvidence(raw weeklyRepoEvidence, window WeeklyWindow) ([]weeklyLandingEvidence, []string) {
@@ -189,8 +234,9 @@ func validateLandingEvidence(raw weeklyRepoEvidence, window WeeklyWindow) ([]wee
 		}
 		// Earlier refused admissions belong to the same integration-tax window.
 		priorInvalid := false
+		successfulEnqueue := enqueued
 		for _, prior := range byIssue[e.Issue] {
-			if prior.Kind == landingline.EventEnqueue && prior.Branch == e.Branch && !prior.At.IsZero() && prior.At.Before(enqueued) {
+			if prior.Kind == landingline.EventEnqueue && prior.Branch == e.Branch && !prior.At.IsZero() && prior.At.Before(successfulEnqueue) {
 				if prior.Seq <= 0 {
 					priorInvalid = true
 					continue
@@ -213,7 +259,9 @@ func validateLandingEvidence(raw weeklyRepoEvidence, window WeeklyWindow) ([]wee
 				if priorEnqueue != 1 || priorRefused != 1 || priorTerminal != 1 {
 					priorInvalid = true
 				}
-				enqueued = prior.At
+				if prior.At.Before(enqueued) {
+					enqueued = prior.At
+				}
 			}
 		}
 		if priorInvalid {
@@ -224,6 +272,13 @@ func validateLandingEvidence(raw weeklyRepoEvidence, window WeeklyWindow) ([]wee
 		if !ok || mergedStatus == nil || card.Status != mergedStatus.To || card.Completion == nil || card.Completion.LandedCommit == "" {
 			fail("no done completion binding")
 			continue
+		}
+		if !raw.CollectedAt.IsZero() {
+			floor, known := retainedHistoryFloor(raw)
+			if !known || card.CreatedAt.IsZero() || !card.CreatedAt.UTC().Truncate(24*time.Hour).After(floor) {
+				fail("history does not cover issue creation and all possible admissions")
+				continue
+			}
 		}
 		graph, ok := raw.Graphs[card.Completion.LandedCommit]
 		if !ok || graph.MergeSHA != card.Completion.LandedCommit || graph.MainParent == "" || graph.IssueParent == "" || graph.PR != e.PR || graph.Branch != e.Branch || !graph.ReachableFromMain || !graph.EvidenceReachable || len(graph.BranchSHAs) == 0 {
@@ -259,7 +314,7 @@ func attributeWeeklyAttempts(attempts []SuiteAttempt, landings []weeklyLandingEv
 		if a.Check != suiteCheckName {
 			continue
 		}
-		inWeek := window.Contains(a.FinishedAt)
+		inWeek := window.Contains(suiteAttemptCompletedAt(a))
 		if a.Legacy || a.ID == "" || a.FinishedAt.IsZero() || ids[a.ID] != 1 {
 			for _, landing := range landings {
 				if landing.BranchSHAs[a.SHA] {

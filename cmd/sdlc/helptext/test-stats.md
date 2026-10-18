@@ -36,6 +36,11 @@ exactly attributable attempts from first enqueue through landing, including
 attempts before the week. These populations can differ. The report separates
 outside-week attribution, in-week attempts outside the landing cohort and
 pre-enqueue attempts; absent or contradictory evidence makes the ratio null.
+The ratio also stays null for an issue whose creation day is not strictly after
+the retained source-history floor: the 30-day attempt/event cutoff, the
+first retained landing event and the first retained structured suite attempt.
+An older issue could have earlier admission or
+suite records that were swept, even when its latest ticket looks complete.
 Each repository's headline puts the ratio beside its covered and observed
 landed-issue counts, unknown count and three most common coverage reasons.
 An incomplete source makes the observed count a lower bound and the covered
