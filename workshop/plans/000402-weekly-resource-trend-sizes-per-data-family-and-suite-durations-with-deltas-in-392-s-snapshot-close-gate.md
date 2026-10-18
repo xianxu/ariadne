@@ -109,6 +109,114 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 169a0263-61e7-4f0b-8fa6-adef344430a5
+            repository: github.com/xianxu/ariadne
+            issue_id: "000402"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/4cbcc6c7a059796a
+            reviewed_head: 9ffb0ecdcc9faa408f39ee0edb7819de0b8594f6
+            slot: ariadne:1
+            requested_at: "2026-10-18T11:00:31.757132Z"
+          phase: finished
+          pid: 32612
+          started_at: "2026-10-18T11:00:31.845585Z"
+          finished_at: "2026-10-18T11:03:28.370063Z"
+          session_id: 01a14eab-9ccb-7710-98e8-4767140526de
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 9ffb0ecdcc9faa408f39ee0edb7819de0b8594f6
+        tracker_head: 829b7947f22644849f7dc8bbd03c61a827b19b4a
+        branch_point: c1e63fe96e857efb9ef65c7135361fc2d7db21db
+        since: "2026-10-17T21:36:12-07:00"
+        until: "2026-10-18T03:24:44-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-17T21:36:12-07:00"
+              end: "2026-10-17T21:39:45-07:00"
+              began: "2026-10-17T21:36:12-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+            - start: "2026-10-18T02:10:12-07:00"
+              end: "2026-10-18T03:24:44-07:00"
+              began: "2026-10-18T02:10:12-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 29c52c16b0c8871c8d606f4f03b27fccf25abf654dc73f929bbe70f3096be82f
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 96258357
+              windows:
+                - start: "2026-10-17T21:36:12-07:00"
+                  end: "2026-10-17T21:39:45-07:00"
+                - start: "2026-10-18T02:10:12-07:00"
+                  end: "2026-10-18T03:24:44-07:00"
+        queue_waits:
+            - attempt_id: 4e02d8879bb372c94db5eb2b9dbc8a22
+              slot: ariadne:1
+              record_digest: b65a25ebb76bdd426621ac53b80ae800d79de22cc41657188b3e6d3678a6436b
+              start: "2026-10-18T09:37:18.15096Z"
+              end: "2026-10-18T09:57:38.487823Z"
+              queue_seconds: 1220.336863
+              raw_seconds: 1220.336863
+              exact: true
+        cuts:
+            - dispatched: "2026-10-18T03:07:26-07:00"
+              finalized: "2026-10-18T03:11:04-07:00"
+              finalizing: false
+      "n": 2
+      timestamp: "2026-10-18T04:03:28-07:00"
+      dispatched: "2026-10-18T04:00:31-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: weeklyresource_collect.go marks later blocked-file claimants incomplete. The committed regression passes at head and fails with the pre-fix collector restored; existing fixtures also cover earlier assignments and multiple claimants.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: weeklystats_cmd.go returns validated existing publications before collection and recovers a concurrent winner. Clock-advance and concurrent-publication tests pass at head and both fail with the pre-fix command restored.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: Both persisted readers call validatePersistedWeeklyResources. Malformed-measurement fixtures pass at head and fail with the pre-fix previous-week reader restored, including negative values, duplicate identities and invalid quantiles.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: The pinned plan diff replaces the five nonexistent names with actual functions. Every Core concepts row now resolves to its declared file; the PURE functions have direct tests without IO. The first-boundary-review Revisions entry records the reconciliation.
+          round: 2
+        - id: BR-5
+          disposition: addressed
+          note: Plan line 40 explicitly states permanent retention, no cleanup job, estimated incremental and total annual growth, and the measurement directory. weeklystats_write.go retains dated publications; the inspected pilot is 41,887 bytes, consistent with the documented total.
+          round: 2
+      findings:
+        - kind: defect
+          id: BR-6
+          severity: Critical
+          title: Device trends remain unknown permanently after a recoverable comparison failure
+          detail: 'cmd/sdlc/weeklyresource_device.go:70–78 changes a valid current observation to unknown after an epoch change; the next week rejects that stored observation because its state is unknown, and repeats indefinitely. weeklyresource_machine.go:113–124 has the same failure for wear after a missing sample, while lines 100–107 propagate it after invalid prior evidence or an observation-time gap. Two disposable regression probes fail at head: boot2 values 10 then 30 never yield delta 20, and readable wear values 8 then 9 after a missing sample never yield delta 1. Preserve measurement validity separately from comparison status across both gauge types, and test recovery sequences through persisted weekly sections (ARCH-ORDER, ARCH-PURPOSE).'
+          family: observation-comparison-state-separation
+          round: 2
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#402 (boundary-review)
@@ -131,10 +239,21 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Important] `durable-artifact-lifecycle` Larger weekly artifacts have no explicit retention or permanent-growth contract
   workshop/plans/000402-weekly-resource-trend-plan.md:40 delegates retention to the brain charter without identifying a removal routine, bound, or explicit permanent-retention cost. The new resources payload adds approximately 13.4 KB of formatted JSON to the inspected weekly artifact, while cmd/sdlc/weeklystats_write.go retains dated publications indefinitely. Name the applicable cleanup policy or explicitly document permanent retention, expected growth and its measurement location (ARCH-FUNERAL).
 
+## Round 2 — 2026-10-18T04:03:28-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — weeklyresource_collect.go marks later blocked-file claimants incomplete. The committed regression passes at head and fails with the pre-fix collector restored; existing fixtures also cover earlier assignments and multiple claimants.
+- BR-2 — addressed — weeklystats_cmd.go returns validated existing publications before collection and recovers a concurrent winner. Clock-advance and concurrent-publication tests pass at head and both fail with the pre-fix command restored.
+- BR-3 — addressed — Both persisted readers call validatePersistedWeeklyResources. Malformed-measurement fixtures pass at head and fail with the pre-fix previous-week reader restored, including negative values, duplicate identities and invalid quantiles.
+- BR-4 — addressed — The pinned plan diff replaces the five nonexistent names with actual functions. Every Core concepts row now resolves to its declared file; the PURE functions have direct tests without IO. The first-boundary-review Revisions entry records the reconciliation.
+- BR-5 — addressed — Plan line 40 explicitly states permanent retention, no cleanup job, estimated incremental and total annual growth, and the measurement directory. weeklystats_write.go retains dated publications; the inspected pilot is 41,887 bytes, consistent with the documented total.
+
+### Raised
+
+- **BR-6** [Critical] `observation-comparison-state-separation` (kind: defect) Device trends remain unknown permanently after a recoverable comparison failure
+  cmd/sdlc/weeklyresource_device.go:70–78 changes a valid current observation to unknown after an epoch change; the next week rejects that stored observation because its state is unknown, and repeats indefinitely. weeklyresource_machine.go:113–124 has the same failure for wear after a missing sample, while lines 100–107 propagate it after invalid prior evidence or an observation-time gap. Two disposable regression probes fail at head: boot2 values 10 then 30 never yield delta 20, and readable wear values 8 then 9 after a missing sample never yield delta 1. Preserve measurement validity separately from comparison status across both gauge types, and test recovery sequences through persisted weekly sections (ARCH-ORDER, ARCH-PURPOSE).
+
 ## Open findings
 
-- **BR-1** [Critical] `overlap-invalidates-all-claimants` Later claimants of an already-blocked file remain falsely complete
-- **BR-2** [Critical] `immutable-publication-retry` Advancing the observation clock breaks same-week publication retries
-- **BR-3** [Critical] `persisted-measurement-validation` Invalid persisted measurements are accepted as complete comparison evidence
-- **BR-4** [Critical] `core-concepts-match-implementation` Five Core concepts entries do not exist at their declared locations
-- **BR-5** [Important] `durable-artifact-lifecycle` Larger weekly artifacts have no explicit retention or permanent-growth contract
+- **BR-6** [Critical] `observation-comparison-state-separation` (kind: defect) Device trends remain unknown permanently after a recoverable comparison failure
