@@ -236,7 +236,7 @@ func TestReviewSkillApplyContract(t *testing.T) {
 		obsolete   []string
 	}{
 		{"tracked adapter", adapter,
-			[]string{"couch --session-sync apply EDITS.json FILE", "couch --session-sync round FILE --json", "edits-invalid", "propose-too-large", "propose-unencodable", "Exit 3", "Exit 6", "next submit"},
+			[]string{"couch --session-sync apply EDITS.json FILE", "couch --session-sync round FILE --json", "edits-invalid", "propose-too-large", "propose-unencodable", "Exit 3", "Exit 6", "next submit", "Ordinary prose edits still become proposals"},
 			[]string{"couch --session-sync write --all BODYFILE FILE"}},
 		{"Pair workbench", workbench,
 			[]string{"pair review apply EDITS.json FILE", "docflow round --side agent", "propose-too-large", "operator-lock", "stale", "Body"},

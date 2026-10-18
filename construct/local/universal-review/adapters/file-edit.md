@@ -59,10 +59,11 @@ One round reviews one snapshot: the text whose hash you write against.
    leave out `--fold`. Delete EDITS.json after success or refusal. Couch
    applies the entire batch or none of it, converts proposals when the
    document says `presentation: propose`, and derives the round. Never type
-   proposal-marker syntax into `new`. A record answering the operator's own
-   ready request marker in the base text (including a side-doc link or fold-in)
-   applies directly even under `propose`; the engine checks this, and unrelated
-   edits still become proposals. When that answer opens a side doc, include
+   proposal-marker syntax into `new`. A record replacing the operator's own
+   ready request marker with a side-doc link, or answering a `🤖[fold in]` at
+   that link, applies directly even under `propose`; the engine checks the
+   marker and link in the base text. Ordinary prose edits still become proposals,
+   even when they answer a ready marker. When the link opens a side doc, include
    its matching `discussions:` frontmatter entry in the same batch as the link.
    Pair checks the association and lands both atomically; do not split them
    into two writes.

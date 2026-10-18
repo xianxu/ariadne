@@ -102,8 +102,9 @@ an action, never for a question that needs continued discussion. These usually a
 - **Unclear what an approval approves** (the side doc proposed two things): append a one-line `{which: …?}` turn
   to the marker rather than guessing.
 - **A fold-in is an edit**, made under the parent's review mode. When the record answers the
-  operator's own ready `🤖[fold in]` marker by the link, Couch applies it directly even under
-  `presentation: propose`; unrelated edits are still proposed. The link gets `(folded <date>)`,
+  operator's own ready `🤖[fold in]` marker by the side-doc link, the editing path applies
+  it directly even under `presentation: propose`; ordinary prose edits remain proposals.
+  The link gets `(folded <date>)`,
   and the side doc's closing note reads `Folded into the parent on <date>: …`.
 
 **A decision is recorded in one line.** Wherever the operator writes a decision or an approval, replace the marker
@@ -203,12 +204,13 @@ the name.
 **In the parent:** discussion replaces the marker with `→ [discussion](<path>)` at the marker's own spot, and a
 decision's notes are linked as `→ [notes](<path>)` at the end of its Decided line. Chat appends ` → [answer](<path>)`
 to the item's last line. The path is relative to the parent. Swapping a marker for its
-link is an edit through `apply`. A record answering the operator's own ready
-request marker applies directly even under `presentation: propose`, so the link
-is usable at once; Couch checks that marker in the base text. Other edits are
-proposed by Couch, never hand-written as markers by the agent. For a side doc
+link is an edit through `apply`. A record replacing the operator's own ready
+request marker with a side-doc link applies directly even under
+`presentation: propose`, so the link is usable at once; the adapter checks the
+marker and link in the base text. Ordinary prose edits still become proposals,
+never hand-written as markers by the agent. For a side doc
 opened by that request, include its matching `discussions:` index entry in the
-same `apply` batch as the link; Pair permits that frontmatter change only as
+  same `apply` batch as the link; Pair permits that frontmatter change only as
 part of this checked, atomic exception.
 
 **Writes and retries.** Each document a round changes gets one write, through the adapter. A fold-in changes two:

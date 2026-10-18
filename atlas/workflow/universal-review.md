@@ -44,9 +44,10 @@ skill carries the rest.
   atomic `apply` records with per-edit `explain` and answered fold IDs → `round --json`
   for the reply. Exit 1 invalid/proposal refusals either rebuild the full batch or open a
   linked side doc; exit 3 (lock) defers to the next submit without polling; exit 6 (stale)
-  re-reads and rebuilds. Under `presentation: propose`, a record answering the
-  operator's own ready marker applies directly, so a large side-doc link or fold
-  is usable; its matching `discussions:` entry rides in the same atomic apply.
+  re-reads and rebuilds. Under `presentation: propose`, a record replacing the
+  operator's ready marker with a side-doc link, or answering a fold-in marker at
+  that link, applies directly; ordinary prose edits still become proposals. Its
+  matching `discussions:` entry rides in the same atomic apply.
   Generated content and frontmatter-only edits retain `write`.
   "Changes since your last read" never hold the agent's own edits: Couch's diff baseline moves on its write, and an untracked file is
   diffed against the copy the agent saved after its last write (operator requirement).

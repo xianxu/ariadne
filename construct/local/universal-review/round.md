@@ -50,15 +50,16 @@ brief.
 `presentation:` is a separate value in the **document's** frontmatter, read on
 every round: `direct`, `highlight` (the default when absent), or `propose`.
 It controls how the operator sees edits; it does not change a review mode's
-scope or frontier. Build the intended clean edit as records in every case.
-Under `propose`, Couch converts those edits to marker proposals; never type
-proposal marker syntax yourself. A rewrite it cannot encode becomes a linked
-side-doc proposal by the adapter's refusal path. Frontmatter-only changes use
-`write --frontmatter`, because proposals cannot be placed inside frontmatter.
-When a record answers the operator's own ready request marker in the base text,
-Couch applies that record directly even under `propose`: the request already
-authorized the link or fold it asks for. The engine checks the marker; an agent
-cannot declare another edit exempt. Unrelated records still become proposals.
+scope or frontier. Build the intended clean edit before the adapter writes it.
+Under `propose`, ordinary prose edits become marker proposals; never type
+proposal marker syntax yourself. A rewrite too large or unencodable as markers
+becomes a linked side-doc proposal by the adapter's refusal path. A side-doc
+link that replaces the operator's ready request marker, or a fold-in requested
+by `🤖[fold in]` at that link, applies directly: the operator already authorized
+that structural action. The adapter checks the link or fold marker in the base
+text; a normal `🤖[tighten this]` prose edit still becomes a proposal.
+Frontmatter-only changes follow the adapter's dedicated path because
+proposals cannot be placed inside frontmatter.
 
 The frontier's edges: the topmost human marker is found outside fenced code,
 and the text it refers to (§5) is on the open side. With no human marker, there
