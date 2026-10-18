@@ -49,7 +49,7 @@ skill carries the rest.
   that link, applies directly; ordinary prose edits still become proposals. Its
   matching `discussions:` entry rides in the same atomic apply. A marker-free
   link can be a pending proposal while that entry applies directly; the shared
-  side-doc parser recognizes Pair's escaped pending-link bytes so the index
+  side-doc parser extracts every Pair-escaped link inside a pending marker so the index
   remains until the operator accepts or rejects. Untracked `propose` documents
   refuse a direct write; untracked direct/highlight rounds report an observed
   before/after diff instead of claiming a Couch round.

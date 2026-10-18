@@ -231,6 +231,21 @@ you the pane is open.
 | 3 `operator-lock` | the operator is editing | say you are waiting for their next "finished my edits" poke; do not poll in a tight loop |
 | 6 `stale` | H no longer names the file's bytes | read again, rebuild every record, and apply again |
 
+### Apply recovery decisions
+
+Only after a lost apply reply or an interrupted commit, run
+`pair review round FILE --json` and read back FILE on the current review
+branch. `Round` names the last recorded round, which may predate the attempt.
+Use the first matching row; no uncertain state authorizes a commit or replay.
+
+| Case | Action | Required evidence |
+|---|---|---|
+| matching landed | commit Body | base hash, Current, readback and spans match |
+| old current | stop | base hash differs |
+| null unchanged | fresh read then retry | file still equals attempted base |
+| null changed | stop | file changed without matching round |
+| stale or uncertain | stop | Current false or readback mismatch |
+
 An absent reply is not an exit code. If the response is lost, run
 `pair review round FILE --json` and verify the current review branch and file.
 Its last round may be older than this attempt. Commit its stored `Body`

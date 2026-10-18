@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -274,10 +275,96 @@ func TestReviewSkillCloseRecoveryContract(t *testing.T) {
 	} {
 		t.Run(tc.file, func(t *testing.T) {
 			body, err := os.ReadFile(filepath.Join(root, tc.file))
-			if err != nil { t.Fatal(err) }
+			if err != nil {
+				t.Fatal(err)
+			}
 			for _, phrase := range tc.want {
-				if !strings.Contains(string(body), phrase) { t.Errorf("missing %q", phrase) }
+				if !strings.Contains(string(body), phrase) {
+					t.Errorf("missing %q", phrase)
+				}
 			}
 		})
+	}
+}
+
+// The adapters are agent instructions, so their routing and recovery tables
+// are the executable contract. A keyword elsewhere cannot rescue an unsafe row.
+func TestReviewSkillDecisionScenarios(t *testing.T) {
+	root := moduleRoot(t)
+	read := func(name string) string {
+		t.Helper()
+		b, err := os.ReadFile(filepath.Join(root, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	rows := func(doc, heading string) map[string][]string {
+		t.Helper()
+		start := strings.Index(doc, heading)
+		if start < 0 {
+			t.Fatalf("missing decision table %q", heading)
+		}
+		section := doc[start+len(heading):]
+		out := map[string][]string{}
+		inside := false
+		for _, line := range strings.Split(section, "\n") {
+			line = strings.TrimSpace(line)
+			if !strings.HasPrefix(line, "|") {
+				if inside {
+					break
+				}
+				continue
+			}
+			inside = true
+			cells := strings.Split(strings.Trim(line, "|"), "|")
+			if len(cells) != 3 {
+				continue
+			}
+			for i := range cells {
+				cells[i] = strings.Trim(strings.TrimSpace(cells[i]), "`")
+			}
+			if cells[0] == "Case" || strings.HasPrefix(cells[0], "---") {
+				continue
+			}
+			if _, duplicate := out[cells[0]]; duplicate {
+				t.Fatalf("duplicate case %q", cells[0])
+			}
+			out[cells[0]] = cells[1:]
+		}
+		return out
+	}
+	routing := rows(read("construct/local/universal-review/adapters/file-edit.md"), "## Routing decisions")
+	if len(routing) != 5 {
+		t.Fatalf("routing has %d rows, want 5 unambiguous cases", len(routing))
+	}
+	for _, role := range []string{"submitted", "parent"} {
+		for _, tc := range []struct{ state, action, evidence string }{
+			{"tracked direct/highlight", "apply", "round spans"},
+			{"tracked propose", "apply", "round spans"},
+			{"untracked direct/highlight", "file tools", "observed diff"},
+			{"untracked propose", "refuse", "track or Pair workbench"},
+			{"unknown owner", "refuse", "lookup error"},
+		} {
+			key := tc.state + " (submitted or parent)"
+			if got := routing[key]; !slices.Equal(got, []string{tc.action, tc.evidence}) {
+				t.Errorf("%s routing %q = %v, want %q / %q", role, tc.state, got, tc.action, tc.evidence)
+			}
+		}
+	}
+	recovery := rows(read("construct/local/fix/SKILL.md"), "### Apply recovery decisions")
+	if len(recovery) != 5 {
+		t.Fatalf("recovery has %d rows, want 5 unambiguous cases", len(recovery))
+	}
+	for _, tc := range []struct{ scenario, action, evidence string }{
+		{"matching landed", "commit Body", "base hash, Current, readback and spans match"},
+		{"old current", "stop", "base hash differs"},
+		{"null unchanged", "fresh read then retry", "file still equals attempted base"},
+		{"null changed", "stop", "file changed without matching round"},
+		{"stale or uncertain", "stop", "Current false or readback mismatch"},
+	} {
+		if got := recovery[tc.scenario]; !slices.Equal(got, []string{tc.action, tc.evidence}) {
+			t.Errorf("recovery %q = %v, want %q / %q", tc.scenario, got, tc.action, tc.evidence)
+		}
 	}
 }

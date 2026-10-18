@@ -27,6 +27,20 @@ Decide in this order, and edit directly only on a confirmed **untracked**:
    Couch) is **unknown**: write nothing, and tell the operator the lookup
    failed. Unknown ownership is never permission to edit directly.
 
+## Routing decisions
+
+Apply this table to **every existing document changed by the round**, including
+the submitted file and any parent. The action is the body-write path; a tracked
+frontmatter-only exception remains in the Tracked section below.
+
+| Case | Action | Reply evidence |
+|---|---|---|
+| tracked direct/highlight (submitted or parent) | apply | round spans |
+| tracked propose (submitted or parent) | apply | round spans |
+| untracked direct/highlight (submitted or parent) | file tools | observed diff |
+| untracked propose (submitted or parent) | refuse | track or Pair workbench |
+| unknown owner (submitted or parent) | refuse | lookup error |
+
 ## Tracked
 
 One round reviews one snapshot: the text whose hash you write against.

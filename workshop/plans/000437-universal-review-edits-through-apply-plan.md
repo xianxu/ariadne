@@ -92,8 +92,8 @@ After the evidence is complete, close with the mandatory review, land via `sdlc 
 
 ### Task 5: close-review convergence
 
-- [ ] Defend the skill's actual decisions, not keywords: put compact route and recovery state tables in the agent-facing adapters, and test their rows for tracked/untracked submitted documents and parents, an old current round, a matching landed round, and changed bytes without a round. Run live temp-document probes for the same paths.
-- [ ] Parse every escaped side-doc link inside each recognized pending marker and test retention and rejection with multiple labels and paths. Keep the Pair-measured marker shape as the boundary.
+- [x] Defend the skill's actual decisions, not keywords: put compact route and recovery state tables in the agent-facing adapters, and test their rows for tracked/untracked submitted documents and parents, an old current round, a matching landed round, and changed bytes without a round. Run live temp-document probes for the same paths.
+- [x] Parse every escaped side-doc link inside each recognized pending marker and test retention and rejection with multiple labels and paths. Keep the Pair-measured marker shape as the boundary.
 - [ ] Re-run the recorded suite after code changes and collect its exact-head status for the fresh close review.
 
 ## Revisions
