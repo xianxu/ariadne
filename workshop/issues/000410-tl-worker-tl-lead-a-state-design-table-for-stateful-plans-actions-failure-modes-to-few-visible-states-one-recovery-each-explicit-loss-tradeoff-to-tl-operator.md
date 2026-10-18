@@ -1,12 +1,12 @@
 ---
 id: 000410
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-17
 estimate_hours:
-card_mirror: '7eab5a1cf3d499623a8849c46eb540adadf0ecea' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f82c7be2c130e225d6dd9d616aeb79b37fa0b269' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T19:34:20-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "8f2289a4", done: "81a913b1"}
+actual_hours: 0.06
 ---
 
 # tl-worker/tl-lead: a state design table for stateful plans (actions, failure modes to few visible states, one recovery each, explicit loss, tradeoff to TL/operator)
