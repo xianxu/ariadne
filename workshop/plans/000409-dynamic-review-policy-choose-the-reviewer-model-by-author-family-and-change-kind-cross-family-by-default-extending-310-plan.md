@@ -80,3 +80,59 @@ ARCH-MOCK: the dispatch loop is tested with the existing fake runners. A fake pe
 
 - [ ] M1 — `Family`/`FamilyOf`, `ChangeKind`, policy mode `cross` (the default) with per-kind overrides and `models`, and the pure `ReviewPlan`, with table tests (modes × author sets, including mixed and unknown, × kinds). `Unavailable` classification, with tests for the quota and auth texts each CLI prints (from their docs or a captured sample) and for launch failures.
 - [ ] M2 — Dispatch loop with visible fallback and refusal. Every review site (close, milestone-close, fix review, plan-quality, estimate-quality, planning review, `sdlc judge`) goes through `ResolveReview`. Ledger/sidecar fields and the `Review-Reviewer:` trailer. Fake-runner tests: first unavailable then second runs; all unavailable refuses; started-but-garbled doesn't switch; forced same-family recorded as degraded. Help (close.md REVIEWER), atlas (#310 paragraph), and doc-review's hard-coded codex noted for a follow-up if it should derive from the policy.
+
+## Revisions
+
+### 2026-10-18 — plan-quality round 1 (PQ-1..5 and minors), and the hub's decisions
+
+The hub approved the design: one resolver for every review site, a switch only on a confirmed could-not-run, the
+`Review-Reviewer:` trailer, and the order openai, google, anthropic as the overridable bounded order. doc-review stays
+as is (#441). Changing the fleet default is **the operator's call**, so the default is one constant, kept at `same`
+until they answer. Changes to the design above:
+
+- **The #310 policy is the floor (PQ-3); no new `cross` mode.** `same` and `explicit` keep their meaning, and the
+  dynamic layer never overrides them. `other` *becomes* the dynamic, family-aware mode: today it means "claude ↔
+  codex"; now it means "a family absent from the authors, in the order for this change kind". That generalizes
+  without breaking anything, since a claude-authored change under `other` still goes to codex first.
+  `Validate` accepts the same three modes plus optional `order` (per kind) and `models`. The default is one constant,
+  `defaultBoundaryReviewer = "same"`. The operator's answer is a one-line change to `"other"`, and it won't land
+  without that answer.
+- **Change kind is the spec's (PQ-2):** `design-heavy` (a new mechanism, state or invariant) or `bounded`. It comes from
+  what sdlc already decides: plan-quality and planning review always review a design, so they're design-heavy. A
+  boundary review takes the issue's flow, so a full flow (Mx milestones, or a design over the shell's limit) is
+  design-heavy and a quick flow is bounded. Fix reviews inherit their close's kind. **The default rule uses kind:**
+  design-heavy prefers anthropic, then openai, then google; bounded prefers openai, then google, then anthropic. In
+  both, the author's families are removed first. The spec's evidence motivates this: Claude's reviews caught Codex
+  designs over-engineering, and Codex reviews caught bugs in Claude code. Each kind's order can be overridden in
+  review.json.
+- **"Could not run" is evidence that no review began (PQ-1).** `Unavailable(run AgentRun, stderr string, launchErr
+  error) (reason string, ok bool)` returns true only if:
+  - (a) the process failed to launch (a missing binary or an exec error), or
+  - (b) it exited non-zero **and its parsed stream holds no assistant or tool event**, **and** its output or stderr
+    matches the unreachable, quota or auth patterns.
+  A run whose stream can't be parsed counts as started (conservative). `RunFailure` is unchanged and still decides
+  `VerdictNotRun` for everything else. The loop calls `Unavailable` first, and switches only on its yes.
+  `Dispatch`'s swallowed non-zero exit means quota and auth text arrive in the output, which is why `Unavailable`
+  reads the run rather than an `err`.
+- **Pre-launch skips (PQ-4):** a candidate known not to work here is skipped before launch, with the reason recorded:
+  codex under `ContainCheckout` on darwin (its Seatbelt sandbox fails where the fence probe did, as
+  `milestoneclose.go:699` already warns), or a CLI absent from PATH. `ReviewPlan` takes an `available(agent)
+  (reason, ok)` predicate, and the shell supplies it.
+- **Author families are untrusted (minor):** a forged `Agent:` trailer could make the window look like another
+  family's work. Author families are therefore the union of the window's trailers **and** the closing session's own
+  `agentid.Detect` family. A forged trailer can add a family (narrowing the candidates) but can't remove the closer's
+  family, so it can't steer the review back to the closer's own family.
+- **Non-goals (PQ-5):**
+  - Budget or quota *accounting*: only reactive detection of a quota error is built, and there's no "over budget"
+    prediction, because reviewusage records usage but holds no budget.
+  - doc-review's hard-coded codex (#441).
+  - Semantic kind detection from the diff: kind comes from the flow decision.
+  - Detecting a vendor that quietly degrades its model.
+- **Tests (minor):** one strategy per risky function: table tests for `ReviewPlan` (mode × author set × kind ×
+  availability) and `Unavailable` (captured outputs per agent: launch failure, unreachable, quota, auth, started then
+  failed); one fake-runner test of the loop's three outcomes (skip then run, all unavailable refuses, started never
+  switches).
+- **Done-when's weekly tally (minor):** `Review-Reviewer:` is a git trailer in a fixed form, `<agent>/<model>
+  (<reviewer family>; author <families>)[; degraded: …]`. A test parses it back with `git log
+  --format=%(trailers:key=Review-Reviewer)` and a tally helper, `sdlc review-tally` style, counts by author and reviewer
+  family. Help documents the git one-liner.

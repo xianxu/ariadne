@@ -48,10 +48,8 @@ bugs in Claude-authored code too.
 
 Durable plan: `workshop/plans/000409-dynamic-review-policy-choose-the-reviewer-model-by-author-family-and-change-kind-cross-family-by-default-extending-310-plan.md`.
 
-- [ ] M1 — family, change kind, `cross` policy (default), pure `ReviewPlan`, `Unavailable` classification
+- [ ] M1 — family, change kind (design-heavy/bounded), family-aware `other` + one default constant (still `same`), pure `ReviewPlan`, `Unavailable` (no-review-began evidence), pre-launch skips
 - [ ] M2 — dispatch loop with visible fallback/refusal at every review site; ledger, sidecar, `Review-Reviewer:` trailer; help and atlas
-
-- [ ]
 
 ## Log
 
@@ -60,3 +58,4 @@ Durable plan: `workshop/plans/000409-dynamic-review-policy-choose-the-reviewer-m
 ### 2026-10-18
 
 - Claimed by ariadne:2 (card was unowned). Current-state map in the durable plan; plan sent to the hub before code.
+- Hub approved; plan-quality round 1 raised PQ-1..5 (I had missed the issue's Spec: kind = design-heavy/bounded, #310 as floor, the over-budget fallback). All folded in as plan Revisions; the default stays `same` behind one constant until the operator decides the flip.
