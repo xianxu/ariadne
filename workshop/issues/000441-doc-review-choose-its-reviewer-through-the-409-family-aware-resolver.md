@@ -111,3 +111,4 @@ Durable plan: `workshop/plans/000441-doc-review-choose-its-reviewer-through-the-
   property) and `TestRunReviewChoosesFallsBackAndRecords` (codex-authored → claude; codex missing → gemini, degraded;
   launch failure moves on; crash doesn't; nobody refuses; a repo's same still cross-reviews), plus the existing
   doc-review tests. Help (with the never-self-review sentence), the fix skill and the atlas (docflow) updated.
+- M2 boundary review round 1 (REWORK): BR-7, the Critical one (an explicit policy with no pair for the session self-reviewed), is fixed by moving any non-forced candidate of an author family to the skips, so the choice refuses; tested. BR-8: the as-built table drops `Choice.Refusal`. Minors: a forced launch failure returns its own error; stale comments fixed.

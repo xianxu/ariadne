@@ -39,12 +39,14 @@ func TestChooseReviewers(t *testing.T) {
 		{"a missing CLI is a skip", reviewpolicy.Policy{}, "", []reviewpolicy.Family{anth}, noCodex, agentenv.Env{}, "gemini"},
 		{"the command-line agent wins", reviewpolicy.Policy{}, "claude", []reviewpolicy.Family{anth}, all, agentenv.Env{}, "claude"},
 		{"AGENT_CMD is sdlc's, not doc-review's", reviewpolicy.Policy{}, "", []reviewpolicy.Family{anth}, all, agentenv.Env{AgentCmd: "claude"}, "codex,gemini"},
+		{"explicit, the session has no pair: no self-review", reviewpolicy.Policy{Mode: reviewpolicy.Explicit, Pairs: map[reviewpolicy.Agent]reviewpolicy.Agent{AgentCodex: AgentClaude}}, "", []reviewpolicy.Family{anth}, all, agentenv.Env{PairAgent: "claude"}, ""},
+		{"explicit pair back into an author family is skipped", reviewpolicy.Policy{Mode: reviewpolicy.Explicit, Pairs: map[reviewpolicy.Agent]reviewpolicy.Agent{AgentClaude: AgentClaude}}, "", []reviewpolicy.Family{anth}, all, agentenv.Env{PairAgent: "claude"}, ""},
 	} {
 		c := chooseReviewers(tc.policy, tc.explicit, tc.explicit != "", tc.env, tc.authors, tc.avail)
 		var got []string
 		for _, cand := range c.Candidates {
 			got = append(got, string(cand.Agent))
-			if !c.Forced && tc.policy.EffectiveMode() != reviewpolicy.Explicit {
+			if !c.Forced {
 				for _, f := range tc.authors {
 					if cand.Family == f {
 						t.Errorf("%s: %s shares the author family %s", tc.name, cand.Agent, f)
@@ -201,4 +203,24 @@ func TestRunReviewChoosesFallsBackAndRecords(t *testing.T) {
 			t.Fatalf("ran %v, want codex", *ran)
 		}
 	})
+}
+
+// A refused explicit choice says why: the self-review candidate is a skip.
+func TestChooseReviewersRecordsTheSelfReviewSkip(t *testing.T) {
+	c := chooseReviewers(reviewpolicy.Policy{Mode: reviewpolicy.Explicit, Pairs: map[reviewpolicy.Agent]reviewpolicy.Agent{AgentCodex: AgentClaude}}, "", false,
+		agentenv.Env{PairAgent: "claude"}, []reviewpolicy.Family{reviewpolicy.Anthropic}, func(reviewpolicy.Agent) (string, bool) { return "", true })
+	if len(c.Candidates) != 0 || len(c.Skips) != 1 || !strings.Contains(c.Skips[0].Reason, "never self-reviews") {
+		t.Fatalf("choice %+v", c)
+	}
+}
+
+// A named agent that cannot start reports its own launch failure, not advice
+// to name one.
+func TestRunReviewForcedLaunchFailure(t *testing.T) {
+	doc := docRepo(t, "claude", "claude", "")
+	agentsBehave(t, map[string]string{"gemini": "launch"})
+	err := runReview(&bytes.Buffer{}, &bytes.Buffer{}, &reviewFlags{Agent: AgentGemini, AgentSet: true, File: doc})
+	if err == nil || !strings.Contains(err.Error(), "gemini failed to run") || strings.Contains(err.Error(), "name one explicitly") {
+		t.Fatalf("err %v", err)
+	}
 }

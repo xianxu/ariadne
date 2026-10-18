@@ -87,7 +87,7 @@
 | Entity | Lives in |
 |---|---|
 | `Agent`, `Family`, `FamilyOf`, `ChangeKind`, `defaultOrders`, `Mode`, `DefaultMode`, `Policy` (`EffectiveMode`, `Reviewer`, `Validate`), `Candidate`, `Skip`, `Availability`, `Plan`, `AuthorFamilies(session Family, commits []agentenv.Commit)` | `pkg/reviewpolicy/policy.go` |
-| `Choice` (`First`, `Refusal`), `Resolve`, `ErrNoReviewer`, `NoReviewerError`, `Record(used, choice, skips)` | `pkg/reviewpolicy/choice.go` (there is no `record.go`) |
+| `Choice` (`First`), `Resolve`, `ErrNoReviewer`, `NoReviewerError`, `Record(used, choice, skips)` | `pkg/reviewpolicy/choice.go` (there is no `record.go`) |
 | `ConfigPath`, `Load` | `pkg/reviewpolicy/load.go` |
 | `Env`, `EnvFrom`, `Known`, `Main`, `InSession`, agent names, `TrailerKey`, `Commit`, `LogFormat`, `ParseLog` | `pkg/agentenv/agentenv.go` |
 | judge's aliases and wrappers: `AgentCLI` and the agent constants (`dispatch.go`); `ReviewerMode`, `ReviewerPolicy` and the mode constants (`agent_resolver.go`); `Family`, `ChangeKind`, `Candidate`, `Skip`, `Availability`, the family and kind constants, `FamilyOf`, `ReviewPlan` (`family.go`); `ReviewChoice`, `NoReviewerError`, `ResolveReview`, `ReviewerRecord`, `Refusal` (`reviewchoice.go`) | `cmd/sdlc/internal/judge/` (there is no `policyalias.go`) |
@@ -98,3 +98,20 @@
   `TestRefusalKeepsJudgesContract` pins this in judge.
 - The shared packages carry their own tests: `pkg/agentenv` (`TestEnvMain`, `TestParseLog`) and `pkg/reviewpolicy`
   (`TestLoad`, `TestAuthorFamilies`, and the moved policy tests).
+
+### 2026-10-18 — M2 boundary review round 1 (REWORK: BR-7, BR-8, Minors)
+
+- **Never self-review holds in every mode (BR-7, Critical):** after `Resolve`, `chooseReviewers` moves any non-forced
+  candidate of an author family to the skips, with the reason `shares the author family …`. This covers an
+  `explicit` pair that maps back to the authors and a session with no pair, both of which `Policy.Reviewer` answers
+  with the main agent. An empty choice then refuses. Only an agent named on the command line can review its own
+  family's document, and `Record` marks that `same-family by choice`. `TestChooseReviewers` gains both explicit
+  cases, the no-shared-family property drops its explicit exemption, and `TestChooseReviewersRecordsTheSelfReviewSkip`
+  pins the skip reason.
+- **`reviewpolicy.Choice.Refusal()` was removed (BR-8):** M1's advisory, since it bypassed judge's refusal contract
+  through the alias. Refusals are `judge.Refusal(choice)` in sdlc and `&reviewpolicy.NoReviewerError{Skips: …}` in
+  doc-review; the as-built table above is corrected. Rule: an identifier added, renamed or removed updates the
+  as-built table in the same commit.
+- **A named agent that can't start returns its own launch error** (minor); the refusal's "name one explicitly" would
+  be wrong advice there. `TestRunReviewForcedLaunchFailure`.
+- doc-review's package comments no longer say the reviewer defaults to codex (minor; grepped across the package).

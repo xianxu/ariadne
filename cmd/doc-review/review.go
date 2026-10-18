@@ -96,6 +96,9 @@ func runReview(stdout, stderr io.Writer, f *reviewFlags) error {
 	}
 	for _, c := range choice.Candidates {
 		report, launchErr, err := reviewOnce(stderr, c.Agent, prompt, abs, f.File)
+		if launchErr != nil && choice.Forced {
+			return launchErr // the agent the user named could not start; there is no other to try
+		}
 		if launchErr != nil {
 			// The CLI could not start, so no review began: the next family.
 			s := reviewpolicy.Skip{Agent: c.Agent, Reason: "could not launch: " + launchErr.Error()}

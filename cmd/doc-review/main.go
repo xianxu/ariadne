@@ -1,6 +1,7 @@
 // Command doc-review runs a fresh-context, read-only fact + reference review
-// of a Markdown document using a SECOND agent from a DIFFERENT vendor (codex by
-// default), then writes the reviewer's findings to a sidecar report.
+// of a Markdown document using a SECOND agent from a DIFFERENT vendor than the
+// document's authors (#441: the shared reviewer policy; it never self-reviews),
+// then writes the reviewer's findings to a sidecar report.
 //
 // It is the fact-check path embedded in the `xx-fix` skill. Per AGENTS.md §3,
 // the co-authoring agent carries confirmation bias, so a fresh-eyes review must
@@ -12,7 +13,7 @@
 // Help is the operational contract referenced by xx-fix:
 //
 //	doc-review --help        what it does, usage, agents, output, the triage step
-//	doc-review <agent> <file>   run the review (agent optional; defaults to codex)
+//	doc-review <agent> <file>   run the review (agent optional; the policy chooses)
 package main
 
 import (
