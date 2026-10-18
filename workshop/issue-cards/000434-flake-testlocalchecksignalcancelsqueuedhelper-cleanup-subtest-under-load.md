@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.52
+actual_hours: 0.55
 tracker:
     version: 1
     completion:
-        token: close-008439745942
+        token: close-7f6667df44e1
         repository: github.com/xianxu/ariadne
-        reviewed_head: 0e15fbe282dc936b12296577e873e4ab353603b0
-        evidence_commit: f7b70ea92733be0b86993429096d81a0a3b4075f
+        reviewed_head: 80083a7ce362c383bd88a562d6eaf69f80e6ffc9
+        evidence_commit: 5f9eb588f5a4871f285c9a0d8183f25ac0a75ef5
 ---
 
 # flake: TestLocalCheckSignalCancelsQueuedHelper cleanup subtest under load
