@@ -1203,7 +1203,11 @@ writes are stopped only by the #204 fence), codex `--sandbox read-only | workspa
 danger-full-access`, gemini without `--yolo`. No judge gets an auto-approve mode;
 `--sandbox` on `judge`/`change-code` is a deprecated no-op.
 
-**Reviewer families (#409).** `judge.FamilyOf` maps each agent to its vendor (claude →
+**Reviewer families (#409).** The pure policy (families, change kinds, modes and orders,
+`Plan`, `Resolve`, `Record`, the `workshop/review.json` loader) lives in `pkg/reviewpolicy`,
+and the session-agent detection and `Agent:` trailer parsing in `pkg/agentenv`, so
+`cmd/doc-review` shares them (#441); `judge` and `agentid` re-export them under their
+historical names and keep the run-shaped parts. `judge.FamilyOf` maps each agent to its vendor (claude →
 anthropic, codex → openai, gemini → google; anything else is unknown, never guessed), and a
 review's `judge.ChangeKind` is `design-heavy` (a design: plan-quality, planning review, a
 full-flow boundary) or `bounded` (a quick-flow boundary). Under `other` the pure

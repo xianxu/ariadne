@@ -77,7 +77,7 @@ with aliases (cross-cutting refactor, 0.35 → 0.14); doc-review's choice, fallb
 
 Durable plan: `workshop/plans/000441-doc-review-choose-its-reviewer-through-the-409-family-aware-resolver-plan.md` (full flow, per the hub).
 
-- [ ] M1 — extract `pkg/reviewpolicy` (+ `Resolve`) and `pkg/agentenv` (env, trailer log parsing); judge/agentid keep aliases; every existing test passes unchanged
+- [x] M1 — extract `pkg/reviewpolicy` (+ `Resolve`) and `pkg/agentenv` (env, trailer log parsing); judge/agentid keep aliases; every existing test passes unchanged
 - [ ] M2 — doc-review plans, falls back and records its reviewer through it; never self-review; help and atlas
 
 ## Log
@@ -85,3 +85,12 @@ Durable plan: `workshop/plans/000441-doc-review-choose-its-reviewer-through-the-
 ### 2026-10-18
 - Claimed by ariadne:2. The `internal` boundary makes this a move plus wiring, not a one-liner, so the plan goes to the hub before code.
 - Hub approved the extraction (full flow) and the never-self-review decision for doc-review (same and the default count as other, explicit honored, stated in its help). Quota detection out of scope.
+- M1 implemented: `pkg/agentenv` (Env, EnvFrom, Known, Main, InSession, the agent names, TrailerKey, Commit,
+  LogFormat, ParseLog; `agentid` re-exports them) and `pkg/reviewpolicy` (Agent, Family, FamilyOf, ChangeKind, orders,
+  Mode, DefaultMode, Policy with Validate/Reviewer/EffectiveMode, Candidate, Skip, Availability, Plan, AuthorFamilies,
+  Choice with First/Refusal, Resolve, NoReviewerError, Record, ConfigPath, Load). `judge` aliases them
+  (`AgentCLI = reviewpolicy.Agent`, `ReviewerPolicy`, `ReviewChoice`, …) and wraps `ReviewPlan`, `ResolveReview` and
+  `ReviewerRecord`. `DispatchChoice`'s refusal still matches both `NoReviewerError` and `ErrReviewDidNotRun`. cmd/sdlc's
+  `loadReviewerPolicy` and `authorFamiliesFromLog` delegate. The pure policy tests moved to
+  `pkg/reviewpolicy/policy_test.go`; the run-shaped ones stay in judge. judge, cmd/sdlc (policy, boundary, per-site,
+  loader, context guard), agentid, gitx and golint tests pass.

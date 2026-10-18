@@ -10,10 +10,12 @@ package agentid
 import (
 	"regexp"
 	"strings"
+
+	"github.com/xianxu/ariadne/pkg/agentenv"
 )
 
 // TrailerKey is the git trailer every agent-authored or sdlc-made commit carries.
-const TrailerKey = "Agent"
+const TrailerKey = agentenv.TrailerKey
 
 // Human is the trailer value when no agent session was found: the operator
 // ran sdlc, or committed, in a plain shell (#387).
@@ -78,12 +80,8 @@ func Stamp(msg string, id Identity) string {
 	return body + "\n\n" + id.Trailer() + "\n"
 }
 
-// Commit is one commit as a window report sees it.
-type Commit struct {
-	SHA, Subject string
-	Agents       []string // values of its Agent trailers
-	Merge        bool
-}
+// Commit is one commit as a window report sees it (agentenv.Commit).
+type Commit = agentenv.Commit
 
 // MissingAgent is the non-merge commits that carry no Agent trailer.
 func MissingAgent(commits []Commit) []Commit {
@@ -110,25 +108,8 @@ func undash(s string) string {
 	return s
 }
 
-// LogFormat is the `git log --format` whose output ParseLog reads: hash,
-// parent hashes, subject and the Agent trailer values, one record per commit.
-const LogFormat = "%H%x1f%P%x1f%s%x1f%(trailers:key=" + TrailerKey + ",valueonly,separator=%x1e)%x1d"
+// LogFormat is the `git log --format` whose output ParseLog reads (agentenv).
+const LogFormat = agentenv.LogFormat
 
 // ParseLog reads `git log --format=LogFormat` output into commits.
-func ParseLog(out string) []Commit {
-	var commits []Commit
-	for _, rec := range strings.Split(out, "\x1d") {
-		f := strings.Split(strings.TrimLeft(rec, "\n"), "\x1f")
-		if len(f) != 4 {
-			continue
-		}
-		c := Commit{SHA: f[0], Subject: f[2], Merge: len(strings.Fields(f[1])) > 1}
-		for _, v := range strings.Split(f[3], "\x1e") {
-			if v = strings.TrimSpace(v); v != "" {
-				c.Agents = append(c.Agents, v)
-			}
-		}
-		commits = append(commits, c)
-	}
-	return commits
-}
+func ParseLog(out string) []Commit { return agentenv.ParseLog(out) }

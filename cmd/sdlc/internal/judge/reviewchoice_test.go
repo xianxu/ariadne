@@ -113,35 +113,7 @@ func TestDispatchChoice(t *testing.T) {
 	})
 }
 
-func firstOf(c ReviewChoice) Candidate {
-	f, _ := c.First()
-	return f
-}
 
-func TestResolveReview(t *testing.T) {
-	other := ReviewerPolicy{Mode: ReviewerOther, Models: map[AgentCLI]string{AgentClaude: "opus"}}
-	claudeEnv := AgentDefaultEnv{ClaudeCode: "1"}
-	c := ResolveReview("", false, claudeEnv, other, []Family{FamilyAnthropic}, KindBounded, nil)
-	if c.Forced || firstOf(c).Agent != AgentCodex {
-		t.Errorf("planned choice: %+v", c)
-	}
-	c = ResolveReview("claude", true, claudeEnv, other, []Family{FamilyAnthropic}, KindBounded, nil)
-	if !c.Forced || len(c.Candidates) != 1 || firstOf(c).Agent != AgentClaude || firstOf(c).Model != "opus" {
-		t.Errorf("--agent choice: %+v", c)
-	}
-	c = ResolveReview("", false, AgentDefaultEnv{AgentCmd: "gemini"}, other, nil, KindBounded, nil)
-	if !c.Forced || firstOf(c).Agent != AgentGemini {
-		t.Errorf("AGENT_CMD choice: %+v", c)
-	}
-	// An empty choice reports no first candidate, and its refusal names the skips.
-	none := ResolveReview("", false, claudeEnv, other, []Family{FamilyAnthropic}, KindBounded, func(a AgentCLI) (string, bool) { return string(a) + " missing", false })
-	if _, ok := none.First(); ok {
-		t.Error("an empty choice offered a first candidate")
-	}
-	if err := none.Refusal(); !errors.Is(err, ErrReviewDidNotRun) || !strings.Contains(err.Error(), "codex: codex missing") {
-		t.Errorf("refusal %v", err)
-	}
-}
 
 // A reviewer whose first attempt ran and whose retry could not run did review:
 // the review ends there and never hands over to another family (#409 BR-9).
@@ -165,93 +137,5 @@ func TestUnavailableRetryNeverHandsOver(t *testing.T) {
 	}
 }
 
-func TestReviewerRecordRoundTrip(t *testing.T) {
-	codex := Candidate{Agent: AgentCodex, Model: "gpt-6-astra", Family: FamilyOpenAI}
-	gemini := Candidate{Agent: AgentGemini, Family: FamilyGoogle}
-	claude := Candidate{Agent: AgentClaude, Family: FamilyAnthropic}
-	for _, tc := range []struct {
-		name   string
-		used   Candidate
-		choice ReviewChoice
-		skips  []Skip
-		want   string
-	}{
-		{"plain", codex, ReviewChoice{Authors: []Family{FamilyAnthropic}}, nil, "codex/gpt-6-astra (openai; author anthropic)"},
-		{"fallback", gemini, ReviewChoice{Authors: []Family{FamilyOpenAI, FamilyAnthropic}}, []Skip{{Agent: AgentCodex, Reason: "usage limit\nmore"}}, "gemini (google; author anthropic,openai); degraded: codex unavailable: usage limit"},
-		{"forced same family", claude, ReviewChoice{Authors: []Family{FamilyAnthropic}, Forced: true}, nil, "claude (anthropic; author anthropic); degraded: same-family by choice"},
-		{"unknown authors", codex, ReviewChoice{}, nil, "codex/gpt-6-astra (openai; author unknown)"},
-	} {
-		got := ReviewerRecord(tc.used, tc.choice, tc.skips)
-		if got != tc.want {
-			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
-			continue
-		}
-		e, ok := ParseReviewerRecord(got)
-		if !ok || e.Agent != string(tc.used.Agent) || e.Family != tc.used.Family || e.Degraded != strings.Contains(tc.want, "degraded") {
-			t.Errorf("%s: parsed %+v %v", tc.name, e, ok)
-		}
-	}
-	tally := TallyReviewers([]string{
-		"codex/gpt-6-astra (openai; author anthropic)",
-		"codex (openai; author anthropic)",
-		"claude (anthropic; author openai)",
-		"gemini (google; author anthropic); degraded: codex unavailable: quota",
-		"not a record",
-	})
-	want := map[string]int{"anthropic → openai": 2, "openai → anthropic": 1, "anthropic → google (degraded)": 1, "unparsed": 1}
-	for k, n := range want {
-		if tally[k] != n {
-			t.Errorf("tally[%q] = %d, want %d (all %v)", k, tally[k], n, tally)
-		}
-	}
-}
 
-// ReviewerEntry is one parsed Review-Reviewer trailer.
-type ReviewerEntry struct {
-	Agent, Model string
-	Family       Family
-	Authors      []Family
-	Degraded     bool
-}
 
-// ParseReviewerRecord reads a Review-Reviewer value back; ok is false for a
-// value not in ReviewerRecord's form.
-func ParseReviewerRecord(v string) (ReviewerEntry, bool) {
-	head, _, degraded := strings.Cut(v, "; degraded:")
-	open := strings.Index(head, " (")
-	if open < 0 || !strings.HasSuffix(head, ")") {
-		return ReviewerEntry{}, false
-	}
-	who, inner := head[:open], head[open+2:len(head)-1]
-	fam, authors, ok := strings.Cut(inner, "; author ")
-	if !ok {
-		return ReviewerEntry{}, false
-	}
-	e := ReviewerEntry{Family: Family(fam), Degraded: degraded}
-	e.Agent, e.Model, _ = strings.Cut(who, "/")
-	if authors != "unknown" {
-		for _, a := range strings.Split(authors, ",") {
-			e.Authors = append(e.Authors, Family(a))
-		}
-	}
-	return e, e.Agent != ""
-}
-
-// TallyReviewers counts Review-Reviewer values by "author → reviewer" family
-// pair, for a week's retro; values not in the form are counted as "unparsed".
-func TallyReviewers(values []string) map[string]int {
-	out := map[string]int{}
-	for _, v := range values {
-		e, ok := ParseReviewerRecord(strings.TrimSpace(v))
-		if !ok {
-			out["unparsed"]++
-			continue
-		}
-		key := valueOrDefault(familyList(e.Authors), "unknown") + " → " + valueOrDefault(string(e.Family), "unknown")
-		if e.Degraded {
-			key += " (degraded)"
-		}
-		out[key]++
-	}
-	return out
-}
