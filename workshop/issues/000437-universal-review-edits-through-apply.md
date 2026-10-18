@@ -44,9 +44,9 @@ The skill's contract and examples use `apply` for edits, cover exit-1 invalid/pr
 
 - [x] Design the two apply adapters, Pair workbench transition and v3 export compatibility in `workshop/plans/000437-universal-review-edits-through-apply-plan.md`; get hub approval.
 - [x] Update the skill and exporter with focused red/green contract tests, regenerate the manifest, and verify the examples checker.
-- [ ] Verify the landed Pair engine in live tracked and hosted review rounds, record the suite on the pushed head, and confirm parley#383's dual-version consumer has landed.
+- [x] Verify the landed Pair engine in live tracked and hosted review rounds and confirm parley#383's dual-version consumer has landed.
 
-After that evidence is complete, close and land through the SDLC gates.
+Record the suite on the pushed head, then close and land through the SDLC gates.
 
 ## Log
 
@@ -60,6 +60,7 @@ After that evidence is complete, close and land through the SDLC gates.
 - The first Pair M2 proposal exception was too broad: any ready marker would make an ordinary requested prose edit direct. The hub narrowed it to a side-doc link or its requested fold-in, plus the matching index entry. Pair is adding a regression for `🤖[tighten this]` under `propose`; the skill states that normal prose changes remain proposals.
 - Pair clarified that frontmatter-only records under `propose` go through `pair review apply` directly, while `presentation:` and `collaboration-mode:` refuse as operator-owned on every write path. Both adapters now name that exit-1 recovery without trying another verb.
 - Pair M2's conformance fixtures now use #437's exact large side-doc link and retained-link fold bytes, and #437 adds Pair's ordinary tighten-request bytes. Pair does not validate that the frontmatter index path matches the new link, so the skill checks it before the atomic apply. The hosted skill uses `pair review round FILE --json` for uncertain apply recovery, committing only a current stored Body on the same review branch/file.
+- Live conformance after the Couch restart: a `type: session-sync` scratch document accepted `couch --session-sync apply` from hash `6da842e56acb1f53` to `80661924b4e47df1`; `round --json` reported the `rough` → `clear` span with its operator-readable `explain`. Reusing the old hash refused `stale` (exit 6), and a missing old span on the current hash refused `edits-invalid` (exit 1), each without a partial write. The installed `pair review apply` returned a derived round and Body; `pair review round` returned the same Body with `Current: true`. A scratch review-branch `docflow round --side agent --body` commit preserved the returned fenced `review-records` body verbatim. The bare `pair review --help` is not a registered command, but both two-word verbs work; the hub will file the help gap. Parley #383's dual-version consumer is on main (PR #306, merge `27773aed76013c9609752f99339d3e749b0cd879`).
 
 ## Revisions
 
@@ -67,3 +68,4 @@ After that evidence is complete, close and land through the SDLC gates.
 - 2026-10-18, proposal side docs: keep a checked, atomic direct-apply exception for a record answering the operator's own ready marker, including a link and its matching `discussions:` entry or a large fold under `presentation: propose`. Pair #661 M2 owns the engine check; #437 documents and verifies it. This prevents a proposed-but-not-linked side doc and a fold that cannot pass the proposal size limit.
 - 2026-10-18, exception narrowed: only the operator-marker-to-side-doc-link edit or a `🤖[fold in]` at that link is direct under `propose`; a normal prose edit with a ready marker remains a proposal. The matching index entry can ride with the direct link.
 - 2026-10-18, close checklist: the final checkbox now names the evidence that must exist before `sdlc close`; close and merge follow it as workflow actions, so the gate can check a completed plan without a self-referential item.
+- 2026-10-18, live conformance: the final checkbox records the completed live checks and Parley prerequisite. The recorded suite follows the checkpoint commit on its exact pushed head, without making a later checklist edit invalidate that evidence.
