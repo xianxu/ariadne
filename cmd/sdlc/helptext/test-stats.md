@@ -36,6 +36,10 @@ exactly attributable attempts from first enqueue through landing, including
 attempts before the week. These populations can differ. The report separates
 outside-week attribution, in-week attempts outside the landing cohort and
 pre-enqueue attempts; absent or contradictory evidence makes the ratio null.
+Each repository's headline puts the ratio beside its covered and observed
+landed-issue counts, unknown count and three most common coverage reasons.
+An incomplete source makes the observed count a lower bound and the covered
+count zero; the snapshot never presents a partial numerator as a full ratio.
 Named failed tests include an explicit unknown class. Slow packages have their
 own top-five list and coverage count, distinct from shard durations.
 

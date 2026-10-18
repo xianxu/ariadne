@@ -1,12 +1,48 @@
 package main
 
 import (
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 )
+
+func TestWeeklyHeadlineShowsObservedCoverageAndTopReasons(t *testing.T) {
+	start := time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)
+	w := WeeklyWindow{Start: start, End: start.Add(7 * 24 * time.Hour)}
+	raw := weeklyRepoEvidence{
+		Events: []landingline.Event{
+			{Kind: landingline.EventLanded, Issue: 42, At: start.Add(time.Hour)},
+			{Kind: landingline.EventLanded, Issue: 43, At: start.Add(time.Hour)},
+		},
+		Cards:            map[int]weeklyCardEvidence{44: {Completion: &issue.Completion{LandedCommit: "merge"}}},
+		RecentMainMerges: map[string]time.Time{"merge": start.Add(time.Hour)},
+	}
+	attribution := weeklyAttribution{LandedIssues: 1, AttributedAttempts: 2, CoverageUnknown: []string{
+		"issue 42 ticket 1: no done completion binding",
+		"issue 43 ticket 2: no done completion binding",
+		"issue 44: main landing has no landed event",
+	}}
+	got := weeklyHeadline(raw, w, attribution)
+	if got.ObservedLandedIssues != 3 || got.CoveredLandedIssues != 0 || got.UnknownLandedIssues != 3 || got.AttemptsPerLandedIssue != nil {
+		t.Fatalf("headline coverage = %+v", got)
+	}
+	if len(got.TopUnknownReasons) != 2 || got.TopUnknownReasons[0].Reason != "no done completion binding" || got.TopUnknownReasons[0].Count != 2 {
+		t.Fatalf("top reasons = %+v", got.TopUnknownReasons)
+	}
+	if !strings.Contains(got.Text, "0 of 3 observed landed issues") || !strings.Contains(got.Text, "3 unknown") {
+		t.Fatalf("headline not glanceable: %q", got.Text)
+	}
+	ratio := 2.0
+	attribution.CoverageUnknown = nil
+	attribution.AttemptsPerLandedIssue = &ratio
+	got = weeklyHeadline(raw, w, attribution)
+	if got.CoveredLandedIssues != 1 || got.UnknownLandedIssues != 2 || got.AttemptsPerLandedIssue == nil {
+		t.Fatalf("numeric headline coverage = %+v", got)
+	}
+}
 
 func TestValidateLandingEvidenceRejectsConflictingIdentity(t *testing.T) {
 	start := time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)

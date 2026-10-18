@@ -42,6 +42,7 @@ type WeeklySnapshot struct {
 // cohort attribution, whose attempts may straddle the week's boundaries.
 type WeeklyRepoStats struct {
 	Repo                    string                 `json:"repo"`
+	Headline                WeeklyHeadline         `json:"headline"`
 	Source                  WeeklySource           `json:"source"`
 	Suite                   RepoStats              `json:"suite"`
 	SlowPackages            []SuiteSlowUnit        `json:"slow_packages"`
@@ -59,6 +60,22 @@ type WeeklyRepoStats struct {
 	AttemptsPerLandedIssue  *float64               `json:"attempts_per_landed_issue"`
 	UnknownAttempts         []weeklyUnknownAttempt `json:"unknown_attempts"`
 	CoverageUnknown         []string               `json:"coverage_unknown,omitempty"`
+}
+
+// WeeklyHeadline makes the metric's evidence coverage visible beside its value.
+// Observed landings are a lower bound when source coverage is incomplete.
+type WeeklyHeadline struct {
+	Text                   string                `json:"text"`
+	AttemptsPerLandedIssue *float64              `json:"attempts_per_landed_issue"`
+	ObservedLandedIssues   int                   `json:"observed_landed_issues"`
+	CoveredLandedIssues    int                   `json:"covered_landed_issues"`
+	UnknownLandedIssues    int                   `json:"unknown_landed_issues"`
+	TopUnknownReasons      []WeeklyUnknownReason `json:"top_unknown_reasons"`
+}
+
+type WeeklyUnknownReason struct {
+	Reason string `json:"reason"`
+	Count  int    `json:"count"`
 }
 
 type WeeklySource struct {

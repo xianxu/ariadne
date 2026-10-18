@@ -113,6 +113,7 @@ func runWeeklySnapshot(ctx context.Context, out io.Writer, flags weeklySnapshotF
 		stats.UnknownAttempts = attribution.UnknownAttempts
 		stats.CoverageUnknown = attribution.CoverageUnknown
 		stats.AttemptsPerLandedIssue = attribution.AttemptsPerLandedIssue
+		stats.Headline = weeklyHeadline(evidence, window, attribution)
 		snapshot.Repos = append(snapshot.Repos, stats)
 	}
 	if len(snapshot.Repos) == 0 {

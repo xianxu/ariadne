@@ -3,11 +3,83 @@ package main
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
+
+// weeklyHeadline counts distinct observed landing identities, then places the
+// ratio beside its coverage. A source gap makes the covered count zero: we
+// cannot certify the numerator for even an otherwise validated landing.
+func weeklyHeadline(raw weeklyRepoEvidence, window WeeklyWindow, attribution weeklyAttribution) WeeklyHeadline {
+	observed := map[int]bool{}
+	for _, e := range raw.Events {
+		if e.Kind == landingline.EventLanded && e.Issue > 0 && window.Contains(e.At) {
+			observed[e.Issue] = true
+		}
+	}
+	for id, card := range raw.Cards {
+		if card.Completion == nil || card.Completion.LandedCommit == "" {
+			continue
+		}
+		if at, ok := raw.RecentMainMerges[card.Completion.LandedCommit]; ok && window.Contains(at) {
+			observed[id] = true
+		}
+	}
+	covered := attribution.LandedIssues
+	if attribution.AttemptsPerLandedIssue == nil {
+		covered = 0
+	}
+	if covered > len(observed) {
+		covered = len(observed)
+	}
+	counts := map[string]int{}
+	for _, reason := range attribution.CoverageUnknown {
+		if strings.HasPrefix(reason, "issue ") {
+			if i := strings.Index(reason, ": "); i >= 0 {
+				reason = reason[i+2:]
+			}
+		}
+		counts[reason]++
+	}
+	result := WeeklyHeadline{
+		AttemptsPerLandedIssue: attribution.AttemptsPerLandedIssue,
+		ObservedLandedIssues:   len(observed),
+		CoveredLandedIssues:    covered,
+		UnknownLandedIssues:    len(observed) - covered,
+		TopUnknownReasons:      []WeeklyUnknownReason{},
+	}
+	for reason, count := range counts {
+		result.TopUnknownReasons = append(result.TopUnknownReasons, WeeklyUnknownReason{Reason: reason, Count: count})
+	}
+	sort.Slice(result.TopUnknownReasons, func(i, j int) bool {
+		a, b := result.TopUnknownReasons[i], result.TopUnknownReasons[j]
+		if a.Count != b.Count {
+			return a.Count > b.Count
+		}
+		return a.Reason < b.Reason
+	})
+	if len(result.TopUnknownReasons) > 3 {
+		result.TopUnknownReasons = result.TopUnknownReasons[:3]
+	}
+	value := "n/a"
+	if result.AttemptsPerLandedIssue != nil {
+		value = fmt.Sprintf("%.2f", *result.AttemptsPerLandedIssue)
+	}
+	result.Text = fmt.Sprintf("full suites per landed issue = %s over %d of %d observed landed issues (%d unknown)", value, covered, len(observed), result.UnknownLandedIssues)
+	if len(result.TopUnknownReasons) > 0 {
+		result.Text += "; top reasons: "
+		for i, reason := range result.TopUnknownReasons {
+			if i > 0 {
+				result.Text += ", "
+			}
+			result.Text += fmt.Sprintf("%s (%d)", reason.Reason, reason.Count)
+		}
+	}
+	return result
+}
 
 // weeklyLandingEvidence is a validated landing window and its issue-only Git
 // ancestry. Construction, rather than attribution, owns cross-source trust.

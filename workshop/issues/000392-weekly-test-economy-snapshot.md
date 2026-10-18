@@ -79,3 +79,5 @@ A second pilot revealed brain repos with a retained issue-home directory. The di
 Adversarial attribution tests then exposed two partial-evidence paths: an earlier enqueue without its refusal and a legacy attempt on the landed branch. Both now null the ratio. The suite queued on the preceding head was likewise cancelled before it acquired the machine lock (ARCH-SECURE, ARCH-PURPOSE).
 
 The snapshot CLI no longer accepts a repo filter: a filtered pilot could have occupied the immutable fleet-wide date path. The read-only test-stats command still offers per-repo inspection. This keeps one path equal to one denominator (ARCH-ORDER).
+
+The hub approved the evidence-boundary revisions, then required the snapshot headline to show coverage alongside the ratio. A TDD check exposed that the pilot JSON had only a nullable ratio and dispersed warning strings. The repository headline now states covered/observed landed issues, unknown count and top reasons; incomplete source evidence remains a null ratio. The prior queued suite was cancelled before acquisition and will be re-run on the corrected head.

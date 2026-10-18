@@ -50,6 +50,9 @@ func TestRunWeeklySnapshotPublishesVersionedPartialCoverage(t *testing.T) {
 	if got.SchemaVersion != weeklySnapshotSchemaVersion || len(got.Repos) != 1 || got.Repos[0].AttemptsPerLandedIssue != nil || len(got.Repos[0].CoverageUnknown) == 0 {
 		t.Fatalf("partial snapshot = %+v", got)
 	}
+	if h := got.Repos[0].Headline; h.AttemptsPerLandedIssue != nil || h.ObservedLandedIssues != 0 || !strings.Contains(h.Text, "0 of 0 observed landed issues") || len(h.TopUnknownReasons) != 1 || h.TopUnknownReasons[0].Reason != "tracker unavailable" {
+		t.Fatalf("headline must expose source coverage: %+v", h)
+	}
 	out.Reset()
 	if err := runWeeklySnapshot(context.Background(), &out, weeklySnapshotFlags{End: end.Format(time.RFC3339), BrainRoot: brain}, deps); err != nil || strings.TrimSpace(out.String()) != path {
 		t.Fatalf("stable rerun: %v, %s", err, out.String())
