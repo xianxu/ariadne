@@ -1,6 +1,6 @@
 ---
 id: 000402
-status: working
+status: codecomplete
 created: 2026-10-15
 updated: 2026-10-18
 estimate_hours:
@@ -13,8 +13,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.28
 tracker:
     version: 1
+    completion:
+        token: close-e40b523d41a4
+        repository: github.com/xianxu/ariadne
+        reviewed_head: a8f715692083efa7fcedc984606430e858a65677
+        evidence_commit: 6b38c63629d80e65561c49d5a4926c034cf44b94
 ---
 
 # Weekly resource trend: sizes per data family and suite durations, with deltas, in #392's snapshot
