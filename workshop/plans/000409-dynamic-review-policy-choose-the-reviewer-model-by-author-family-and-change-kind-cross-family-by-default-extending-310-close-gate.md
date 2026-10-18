@@ -599,6 +599,169 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: f70a3154-0e64-444f-a601-ff0a54cea014
+            repository: github.com/xianxu/ariadne
+            issue_id: "000409"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/7001651fbb040aee
+            reviewed_head: fdd8bffbce40de361f3b14cb5491ce644efca54f
+            slot: ariadne:2
+            requested_at: "2026-10-18T13:39:11.416407Z"
+          phase: finished
+          pid: 14858
+          started_at: "2026-10-18T13:39:11.615862Z"
+          finished_at: "2026-10-18T14:02:14.836676Z"
+          session_id: 292b62a9-9001-4c51-b895-95fd8f20e2b3
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: fdd8bffbce40de361f3b14cb5491ce644efca54f
+        tracker_head: 1a31cd21076641eae870767c5dec2d09a37559ca
+        branch_point: d3ebb55260c6647fbc70b423efed20cd8c734c5b
+        since: "2026-10-18T05:16:36-07:00"
+        until: "2026-10-18T06:38:38-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T05:16:36-07:00"
+              end: "2026-10-18T06:38:38-07:00"
+              began: "2026-10-18T05:16:36-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 144a7ee5-cc37-41c5-ac73-b88bbf5223ba
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 5f3da10d43be251869bdafd6a98084e32ec627ca1a5a4b930a44fbe4f280c081
+              started: "2026-10-18T12:25:28.29Z"
+              spawned: false
+              bytes: 482080
+              windows:
+                - start: "2026-10-18T12:25:28.29Z"
+                  end: "2026-10-18T06:38:38-07:00"
+            - harness: claude
+              id: 5ca5160d-491c-4aec-b8f5-f5e40a69efb5
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 42052d978d0f33bca789480a4b74830893f6dd041d8d8d097390922c5c9823d6
+              started: "2026-10-18T12:21:14.242Z"
+              spawned: false
+              bytes: 563079
+              windows:
+                - start: "2026-10-18T12:21:14.242Z"
+                  end: "2026-10-18T06:38:38-07:00"
+            - harness: claude
+              id: 6be380fe-6c30-4408-b5b9-026237f91e30
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 70f6e935edb05d9fad671da7d73d9b88df89415544fb98457e596558f0fb3332
+              started: "2026-10-18T12:23:49.894Z"
+              spawned: false
+              bytes: 497183
+              windows:
+                - start: "2026-10-18T12:23:49.894Z"
+                  end: "2026-10-18T06:38:38-07:00"
+            - harness: claude
+              id: 946b723a-6614-4e42-8189-fff378170870
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 18bbe8b8ed1e1d030e367159b09a2e30f9b27a75f8dcc5f5048ff5d6d9bb34f1
+              started: "2026-10-18T12:25:42.657Z"
+              spawned: false
+              bytes: 366511
+              windows:
+                - start: "2026-10-18T12:25:42.657Z"
+                  end: "2026-10-18T06:38:38-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 23ac47880d79a7416b069767232f8cd29cd6334d3f92f320e794592ad623b119
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 167772871
+              windows:
+                - start: "2026-10-18T05:16:36-07:00"
+                  end: "2026-10-18T06:38:38-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-18T05:32:24-07:00"
+              finalized: "2026-10-18T05:35:52-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T05:40:21-07:00"
+              finalized: "2026-10-18T05:55:37-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T05:57:38-07:00"
+              finalized: "2026-10-18T06:00:31-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-18T06:18:55-07:00"
+              finalized: "2026-10-18T06:32:31-07:00"
+              finalizing: false
+      "n": 5
+      timestamp: "2026-10-18T07:02:18-07:00"
+      dispatched: "2026-10-18T06:39:11-07:00"
+      agent: claude
+      dispose:
+        - id: BR-9
+          disposition: addressed
+          note: dispatch.go:388-394 turns an unavailable attempt-2 failure into ErrReviewDidNotRun. With the fix reverted, TestUnavailableRetryNeverHandsOver fails with called [codex codex gemini].
+          round: 5
+        - id: BR-10
+          disposition: addressed
+          note: The 2026-10-18 Revisions as-built table supersedes the old tables. Every row checked at the head (family.go, reviewchoice.go, stream.go Began, ledger.go Round.Reviewer, milestoneclose.go reviewTrailers).
+          round: 5
+        - id: BR-11
+          disposition: addressed
+          note: First() returns (Candidate, bool) and all four production callers refuse with Refusal(). TestResolveReview pins the empty-choice result.
+          round: 5
+        - id: BR-12
+          disposition: addressed
+          note: The three tests in reviewsites_test.go fail when planningReviewChoice and runJudge resolve with an empty policy (checked by revert).
+          round: 5
+        - id: BR-13
+          disposition: addressed
+          note: The atlas at sdlc-binary.md:1012 and 1195 now names ResolveReview and the ledger's reviewer field. A grep of atlas/ and helptext/ finds no live mention of a retired symbol.
+          round: 5
+        - id: BR-14
+          disposition: addressed
+          note: The deviation (fix reviews are always bounded) is recorded in Revisions with its reason.
+          round: 5
+        - id: BR-15
+          disposition: addressed
+          note: ResolveAgentCLI and ResolveReviewerCLI are deleted. The parse and tally helpers moved into a test file and are documented as test-only.
+          round: 5
+        - id: BR-16
+          disposition: not-addressed
+          note: 'The code fix is right (Reason holds runErr, Detail holds PATH), but no test pins it: no _test.go mentions could not launch. Minor, non-blocking.'
+          round: 5
+      findings:
+        - kind: defect
+          id: BR-17
+          severity: Minor
+          title: reviewchoice_test.go in internal/judge is not gofmt-clean
+          detail: gofmt -l lists it. There is no blank line between TestReviewerRecordRoundTrip and the ReviewerEntry comment, and a trailing blank line at end of file. Run gofmt -w.
+          family: gofmt-clean-diff
+          round: 5
+      boundary: M2
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: fdd8bffbce40de361f3b14cb5491ce644efca54f
+      blocked: false
 ---
 
 # Gate ledger — ariadne#409 (boundary-review)
@@ -669,13 +832,25 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-16** [Minor] `parse-config-to-typed-value` (kind: defect) A launch-failure reason truncated to 100 characters puts local PATH text into the trailer and ledger and drops the cause
   dispatch.go:242-245 builds the reason as "could not launch: dispatch X (owner bin ... PATH=...)", and oneLine cuts it to 100 characters. Put the underlying runErr first.
 
+## Round 5 — 2026-10-18T07:02:18-07:00 (claude) — passed
+
+### Disposed
+
+- BR-9 — addressed — dispatch.go:388-394 turns an unavailable attempt-2 failure into ErrReviewDidNotRun. With the fix reverted, TestUnavailableRetryNeverHandsOver fails with called [codex codex gemini].
+- BR-10 — addressed — The 2026-10-18 Revisions as-built table supersedes the old tables. Every row checked at the head (family.go, reviewchoice.go, stream.go Began, ledger.go Round.Reviewer, milestoneclose.go reviewTrailers).
+- BR-11 — addressed — First() returns (Candidate, bool) and all four production callers refuse with Refusal(). TestResolveReview pins the empty-choice result.
+- BR-12 — addressed — The three tests in reviewsites_test.go fail when planningReviewChoice and runJudge resolve with an empty policy (checked by revert).
+- BR-13 — addressed — The atlas at sdlc-binary.md:1012 and 1195 now names ResolveReview and the ledger's reviewer field. A grep of atlas/ and helptext/ finds no live mention of a retired symbol.
+- BR-14 — addressed — The deviation (fix reviews are always bounded) is recorded in Revisions with its reason.
+- BR-15 — addressed — ResolveAgentCLI and ResolveReviewerCLI are deleted. The parse and tally helpers moved into a test file and are documented as test-only.
+- BR-16 — not-addressed — The code fix is right (Reason holds runErr, Detail holds PATH), but no test pins it: no _test.go mentions could not launch. Minor, non-blocking.
+
+### Raised
+
+- **BR-17** [Minor] `gofmt-clean-diff` (kind: defect) reviewchoice_test.go in internal/judge is not gofmt-clean
+  gofmt -l lists it. There is no blank line between TestReviewerRecordRoundTrip and the ReviewerEntry comment, and a trailing blank line at end of file. Run gofmt -w.
+
 ## Open findings
 
-- **BR-9** [Critical] `switch-only-before-review-began` (kind: defect) A reviewer whose first attempt ran but whose no-verdict retry is unavailable hands the review to another family
-- **BR-10** [Critical] `plan-table-matches-code` (kind: defect) The plan's integration table and recording section describe entities and ledger fields the code does not have
-- **BR-11** [Important] `no-silent-same-family-review` (kind: defect) An empty ReviewChoice becomes agent "" and so claude: a dry run shows a same-family command the real run would refuse
-- **BR-12** [Important] `each-wired-site-has-a-test` (kind: defect) No test pins that plan-quality, estimate-quality or sdlc judge choose their reviewer through the policy
-- **BR-13** [Important] `docs-track-behavior-change` (kind: defect) The atlas still says every judge dispatch resolves through ResolveAgentCLI, and that the ledger's agent field records the reviewer
-- **BR-14** [Minor] `plan-decision-matches-code` (kind: defect) Fix reviews are always bounded, but the plan says they inherit their close's kind
-- **BR-15** [Minor] `dead-code` (kind: defect) ResolveAgentCLI, ResolveReviewerCLI, TallyReviewers and ParseReviewerRecord have no production caller
 - **BR-16** [Minor] `parse-config-to-typed-value` (kind: defect) A launch-failure reason truncated to 100 characters puts local PATH text into the trailer and ledger and drops the cause
+- **BR-17** [Minor] `gofmt-clean-diff` (kind: defect) reviewchoice_test.go in internal/judge is not gofmt-clean

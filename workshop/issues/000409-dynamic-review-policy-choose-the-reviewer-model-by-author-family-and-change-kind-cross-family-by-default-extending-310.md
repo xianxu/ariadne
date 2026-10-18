@@ -77,6 +77,7 @@ Durable plan: `workshop/plans/000409-dynamic-review-policy-choose-the-reviewer-m
 ### 2026-10-16
 
 ### 2026-10-18
+- 2026-10-18: closed M2 — M2 round-1 REWORK fixed: TestUnavailableRetryNeverHandsOver (fails without the attempt-2 demotion, checked by revert); empty choice refuses at every site (TestResolveReview empty case); per-site policy tests TestPlanQualityChoosesThroughThePolicy, TestEstimateQualityChoosesThroughThePolicy, TestSdlcJudgeChoosesThroughThePolicy; TestDispatchChoice, TestBoundaryReviewSkipsAnUnavailableReviewerVisibly, TestBoundaryReviewRefusesWithNoOtherFamily, TestReviewReviewerTrailerParsesAsAGitTrailer; retired resolvers deleted with tests moved; atlas and help grepped for retired symbols; plan as-built table.; review verdict: SHIP
 - 2026-10-18: closed M1 — M1 tests pass, plus TestBoundaryReviewPassesTheConfiguredModel (a configured model reaches the reviewer argv; fails with the wiring removed, checked by revert). TestReviewPlan, TestUnavailable (14 rows, measured codex and gemini samples), TestReviewerOtherNeverSameFamily, TestAgentArgsPassTheModel, TestValidateOrdersAndModels, TestLocalAvailability, TestLoadReviewerPolicy, #310 tests. Docs mark the M2 parts.; review verdict: SHIP
 
 - Claimed by ariadne:2 (card was unowned). Current-state map in the durable plan; plan sent to the hub before code.
