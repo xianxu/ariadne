@@ -727,11 +727,15 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 	if err != nil {
 		return err
 	}
-	agent := choice.First().Agent
+	first, ok := choice.First()
+	if !ok {
+		return fmt.Errorf("plan-quality: %w", choice.Refusal())
+	}
+	agent := first.Agent
 	tools := judge.PlanQuality.AllowedTools()
 	opts := judge.DispatchOptions{
 		Agent:        agent,
-		Model:        choice.First().Model,
+		Model:        first.Model,
 		Prompt:       prompt,
 		AllowedTools: tools,
 		Stdout:       stdout,
@@ -979,10 +983,14 @@ func runEstimateQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name,
 	if err != nil {
 		return err
 	}
-	agent := choice.First().Agent
+	first, ok := choice.First()
+	if !ok {
+		return fmt.Errorf("estimate-quality: %w", choice.Refusal())
+	}
+	agent := first.Agent
 	opts := judge.DispatchOptions{
 		Agent:        agent,
-		Model:        choice.First().Model,
+		Model:        first.Model,
 		Prompt:       prompt,
 		AllowedTools: judge.EstimateQuality.AllowedTools(),
 		Stdout:       stdout,

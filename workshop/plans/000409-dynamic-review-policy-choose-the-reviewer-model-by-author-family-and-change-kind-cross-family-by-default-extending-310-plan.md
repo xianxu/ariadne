@@ -164,3 +164,41 @@ Core concepts, corrected to the code:
   `-m` or gemini `-m`. The boundary review sets it from the policy for the resolved reviewer, and M2's resolver sets
   it at every site. A model value starting with `-` is refused (ARCH-SECURE).
 - The help (close.md REVIEWER) and the atlas describe the new `other`, `reviewer_order` and `reviewer_models` (BR-3).
+
+### 2026-10-18 — M2 boundary review round 1 (REWORK: BR-9..13 and Minors)
+
+**As built, each row checked by grep against the head** (BR-10; this table supersedes the Core concepts and
+integration tables above):
+
+| Entity | Lives in |
+|---|---|
+| `Family`, `FamilyOf`, `ChangeKind`, `defaultOrders`, `Candidate`, `Skip`, `Availability`, `ReviewPlan`, `Unavailable`, `LocalAvailability` | `cmd/sdlc/internal/judge/family.go` |
+| `ResolveReview`, `ReviewChoice` (`First() (Candidate, bool)`, `Refusal()`), `DispatchChoice`, `UnavailableError` (short `Reason`, operator-only `Detail`), `NoReviewerError`, `ReviewerRecord` | `cmd/sdlc/internal/judge/reviewchoice.go` |
+| `ReviewerPolicy.Orders`/`Models`, `DefaultReviewerMode` | `cmd/sdlc/internal/judge/agent_resolver.go` |
+| `AgentRun.Began` | `cmd/sdlc/internal/judge/stream.go` |
+| `DispatchOptions.Model`, per-CLI model flags, `UnavailableError` from `classifyRunResult`, the attempt-2 demotion | `cmd/sdlc/internal/judge/dispatch.go` |
+| `resolveReviewChoice`, `reviewAuthorFamilies`, `branchWindowBase`, `boundaryChangeKind`, `reviewAvailability` (test seam) | `cmd/sdlc/reviewchoice.go` |
+| `planningReviewChoice` | `cmd/sdlc/changecode.go` |
+| `judgeChangeKind` | `cmd/sdlc/judge.go` |
+| ledger `Round.Reviewer` (one string, the trailer's text; not separate family/model/author/degraded fields) | `cmd/sdlc/internal/gatestate/ledger.go` |
+| `Review-Reviewer:` trailer | `cmd/sdlc/milestoneclose.go` (`reviewTrailers`) |
+
+Retired: `ResolveAgentCLI` and `ResolveReviewerCLI` are deleted, and their tests now run through `ResolveReview`. The
+parse and tally helpers are test-only (the tally is the git one-liner in `close --help`).
+
+Decisions in this round:
+- **A reviewer that began never hands over (BR-9, Critical):** an `UnavailableError` from attempt 2 means attempt 1
+  ran, so `dispatchAttempts` demotes it to `ErrReviewDidNotRun`. `TestUnavailableRetryNeverHandsOver` fails without
+  this; checked by revert.
+- **An empty choice is never dispatched (BR-11):** `First()` reports emptiness, and every site refuses with
+  `Refusal()`: the boundary review as not-run, plan-quality and estimate-quality as an error, and `sdlc judge` by
+  dying.
+- **Every site is pinned (BR-12):** `TestPlanQualityChoosesThroughThePolicy`, `TestEstimateQualityChoosesThroughThePolicy`
+  and `TestSdlcJudgeChoosesThroughThePolicy` each run in an `other` repo with a claude session and expect codex.
+- **Docs (BR-13):** the atlas no longer names `ResolveAgentCLI` as live, and says the ledger round's `reviewer`
+  carries the record. The rule followed: every retired symbol is grepped across atlas/ and helptext/ in the same
+  commit.
+- **Fix reviews are bounded, a deliberate deviation from "inherit their close's kind":** a fix review judges only
+  the fix's small interdiff, whatever the close's flow was, so `boundaryChangeKind` maps FixReview to bounded.
+- **A launch-failure reason leads with the cause** (`could not launch: <exec error>`). The owner bin and PATH stay in
+  the error's `Detail` for the operator, never in the trailer or ledger.

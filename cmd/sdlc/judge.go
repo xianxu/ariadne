@@ -161,14 +161,18 @@ func runJudge(stdout, stderr io.Writer, categoryArg string, f *judgeFlags) error
 	if err != nil {
 		die(stderr, err.Error())
 	}
-	agent := choice.First().Agent
+	first, ok := choice.First()
+	if !ok {
+		die(stderr, choice.Refusal().Error())
+	}
+	agent := first.Agent
 	tools := f.Tools
 	if tools == "" {
 		tools = cat.AllowedTools()
 	}
 	opts := judge.DispatchOptions{
 		Agent:        agent,
-		Model:        choice.First().Model,
+		Model:        first.Model,
 		Prompt:       prompt,
 		AllowedTools: tools,
 		Stdout:       stdout,

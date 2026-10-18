@@ -100,20 +100,55 @@ func TestDispatchChoice(t *testing.T) {
 	})
 }
 
+func firstOf(c ReviewChoice) Candidate {
+	f, _ := c.First()
+	return f
+}
+
 func TestResolveReview(t *testing.T) {
 	other := ReviewerPolicy{Mode: ReviewerOther, Models: map[AgentCLI]string{AgentClaude: "opus"}}
 	claudeEnv := AgentDefaultEnv{ClaudeCode: "1"}
 	c := ResolveReview("", false, claudeEnv, other, []Family{FamilyAnthropic}, KindBounded, nil)
-	if c.Forced || c.First().Agent != AgentCodex {
+	if c.Forced || firstOf(c).Agent != AgentCodex {
 		t.Errorf("planned choice: %+v", c)
 	}
 	c = ResolveReview("claude", true, claudeEnv, other, []Family{FamilyAnthropic}, KindBounded, nil)
-	if !c.Forced || len(c.Candidates) != 1 || c.First().Agent != AgentClaude || c.First().Model != "opus" {
+	if !c.Forced || len(c.Candidates) != 1 || firstOf(c).Agent != AgentClaude || firstOf(c).Model != "opus" {
 		t.Errorf("--agent choice: %+v", c)
 	}
 	c = ResolveReview("", false, AgentDefaultEnv{AgentCmd: "gemini"}, other, nil, KindBounded, nil)
-	if !c.Forced || c.First().Agent != AgentGemini {
+	if !c.Forced || firstOf(c).Agent != AgentGemini {
 		t.Errorf("AGENT_CMD choice: %+v", c)
+	}
+	// An empty choice reports no first candidate, and its refusal names the skips.
+	none := ResolveReview("", false, claudeEnv, other, []Family{FamilyAnthropic}, KindBounded, func(a AgentCLI) (string, bool) { return string(a) + " missing", false })
+	if _, ok := none.First(); ok {
+		t.Error("an empty choice offered a first candidate")
+	}
+	if err := none.Refusal(); !errors.Is(err, ErrReviewDidNotRun) || !strings.Contains(err.Error(), "codex: codex missing") {
+		t.Errorf("refusal %v", err)
+	}
+}
+
+// A reviewer whose first attempt ran and whose retry could not run did review:
+// the review ends there and never hands over to another family (#409 BR-9).
+func TestUnavailableRetryNeverHandsOver(t *testing.T) {
+	var called []string
+	prev := Run
+	Run = func(ctx context.Context, onStart func(int), name string, args ...string) (ProcessOutput, error) {
+		called = append(called, name)
+		if len(called) == 1 { // attempt 1 reviewed, but without a verdict
+			return ProcessOutput{Stdout: []byte("reviewed some files, no verdict")}, nil
+		}
+		return ProcessOutput{Stderr: []byte(`ERROR: {"type":"error","status":429}`)}, &exec.ExitError{}
+	}
+	t.Cleanup(func() { Run = prev })
+	_, used, skips, err := DispatchChoice(context.Background(), DispatchOptions{Prompt: "review", AllowedTools: "Read"}, choiceOf(AgentCodex, AgentGemini))
+	if strings.Join(called, ",") != "codex,codex" || used.Agent != AgentCodex || len(skips) != 0 {
+		t.Fatalf("called %v, used %s, skips %+v, err %v", called, used.Agent, skips, err)
+	}
+	if err == nil || errors.Is(err, ErrReviewerUnavailable) {
+		t.Errorf("the retry's failure should end the review as did-not-run, got %v", err)
 	}
 }
 
@@ -157,3 +192,53 @@ func TestReviewerRecordRoundTrip(t *testing.T) {
 		}
 	}
 }
+// ReviewerEntry is one parsed Review-Reviewer trailer.
+type ReviewerEntry struct {
+	Agent, Model string
+	Family       Family
+	Authors      []Family
+	Degraded     bool
+}
+
+// ParseReviewerRecord reads a Review-Reviewer value back; ok is false for a
+// value not in ReviewerRecord's form.
+func ParseReviewerRecord(v string) (ReviewerEntry, bool) {
+	head, _, degraded := strings.Cut(v, "; degraded:")
+	open := strings.Index(head, " (")
+	if open < 0 || !strings.HasSuffix(head, ")") {
+		return ReviewerEntry{}, false
+	}
+	who, inner := head[:open], head[open+2:len(head)-1]
+	fam, authors, ok := strings.Cut(inner, "; author ")
+	if !ok {
+		return ReviewerEntry{}, false
+	}
+	e := ReviewerEntry{Family: Family(fam), Degraded: degraded}
+	e.Agent, e.Model, _ = strings.Cut(who, "/")
+	if authors != "unknown" {
+		for _, a := range strings.Split(authors, ",") {
+			e.Authors = append(e.Authors, Family(a))
+		}
+	}
+	return e, e.Agent != ""
+}
+
+// TallyReviewers counts Review-Reviewer values by "author → reviewer" family
+// pair, for a week's retro; values not in the form are counted as "unparsed".
+func TallyReviewers(values []string) map[string]int {
+	out := map[string]int{}
+	for _, v := range values {
+		e, ok := ParseReviewerRecord(strings.TrimSpace(v))
+		if !ok {
+			out["unparsed"]++
+			continue
+		}
+		key := valueOrDefault(familyList(e.Authors), "unknown") + " → " + valueOrDefault(string(e.Family), "unknown")
+		if e.Degraded {
+			key += " (degraded)"
+		}
+		out[key]++
+	}
+	return out
+}
+

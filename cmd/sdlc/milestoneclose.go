@@ -898,7 +898,11 @@ func boundaryReviewOptionsFor(stdout, stderr io.Writer, p boundaryReviewParams, 
 	// what can launch under this containment; the first is the one a dry run
 	// shows and the one a direct Dispatch would run.
 	choice := resolveReviewChoiceWith(commandContext(p.Context), policy, p.BaseLong, p.Head, p.Agent, p.AgentExplicit, boundaryChangeKind(cat), opts.Containment)
-	opts.Agent, opts.Model = choice.First().Agent, choice.First().Model
+	first, ok := choice.First()
+	if !ok {
+		return judge.DispatchOptions{}, judge.ReviewChoice{}, false, choice.Refusal().Error()
+	}
+	opts.Agent, opts.Model = first.Agent, first.Model
 	return opts, choice, true, ""
 }
 

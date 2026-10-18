@@ -425,6 +425,180 @@ rounds:
       isolation: fenced
       reviewed: 7753ca91157a2705e04fad8ec4e694835bd36089
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: a459a5a4-a640-42a5-a9f4-5960476d53db
+            repository: github.com/xianxu/ariadne
+            issue_id: "000409"
+            recipe: milestone-review
+            round: 1
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/583459365d7fc14b
+            reviewed_head: b616aee0de69c94aa54dcbb4832c7e498e6a0ea3
+            slot: ariadne:2
+            requested_at: "2026-10-18T13:18:55.68487Z"
+          phase: finished
+          pid: 96620
+          started_at: "2026-10-18T13:18:55.856823Z"
+          finished_at: "2026-10-18T13:32:28.88951Z"
+          session_id: 7b029d83-e311-4e05-a0cf-bf8ad53c264b
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: b616aee0de69c94aa54dcbb4832c7e498e6a0ea3
+        tracker_head: 1a31cd21076641eae870767c5dec2d09a37559ca
+        branch_point: d3ebb55260c6647fbc70b423efed20cd8c734c5b
+        since: "2026-10-18T05:16:36-07:00"
+        until: "2026-10-18T06:18:27-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T05:16:36-07:00"
+              end: "2026-10-18T06:18:27-07:00"
+              began: "2026-10-18T05:16:36-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 144a7ee5-cc37-41c5-ac73-b88bbf5223ba
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 5f3da10d43be251869bdafd6a98084e32ec627ca1a5a4b930a44fbe4f280c081
+              started: "2026-10-18T12:25:28.29Z"
+              spawned: false
+              bytes: 482080
+              windows:
+                - start: "2026-10-18T12:25:28.29Z"
+                  end: "2026-10-18T06:18:27-07:00"
+            - harness: claude
+              id: 5ca5160d-491c-4aec-b8f5-f5e40a69efb5
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 42052d978d0f33bca789480a4b74830893f6dd041d8d8d097390922c5c9823d6
+              started: "2026-10-18T12:21:14.242Z"
+              spawned: false
+              bytes: 563079
+              windows:
+                - start: "2026-10-18T12:21:14.242Z"
+                  end: "2026-10-18T06:18:27-07:00"
+            - harness: claude
+              id: 6be380fe-6c30-4408-b5b9-026237f91e30
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 70f6e935edb05d9fad671da7d73d9b88df89415544fb98457e596558f0fb3332
+              started: "2026-10-18T12:23:49.894Z"
+              spawned: false
+              bytes: 497183
+              windows:
+                - start: "2026-10-18T12:23:49.894Z"
+                  end: "2026-10-18T06:18:27-07:00"
+            - harness: claude
+              id: 946b723a-6614-4e42-8189-fff378170870
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 18bbe8b8ed1e1d030e367159b09a2e30f9b27a75f8dcc5f5048ff5d6d9bb34f1
+              started: "2026-10-18T12:25:42.657Z"
+              spawned: false
+              bytes: 366511
+              windows:
+                - start: "2026-10-18T12:25:42.657Z"
+                  end: "2026-10-18T06:18:27-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 543e1a378de2981427f9d1421877c5c98dfb80357b617e5c54e8b3455be02d00
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 163389692
+              windows:
+                - start: "2026-10-18T05:16:36-07:00"
+                  end: "2026-10-18T06:18:27-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-18T05:32:24-07:00"
+              finalized: "2026-10-18T05:35:52-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T05:40:21-07:00"
+              finalized: "2026-10-18T05:55:37-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T05:57:38-07:00"
+              finalized: "2026-10-18T06:00:31-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-18T06:32:31-07:00"
+      dispatched: "2026-10-18T06:18:55-07:00"
+      agent: claude
+      findings:
+        - kind: defect
+          id: BR-9
+          severity: Critical
+          title: A reviewer whose first attempt ran but whose no-verdict retry is unavailable hands the review to another family
+          detail: 'dispatchAttempts (internal/judge/dispatch.go:386-395) returns attempt 2''s UnavailableError unchanged (directly, or via retryFailure). DispatchChoice (reviewchoice.go:98-104) then treats it as a skip, discards attempt 1''s output and runs the next candidate. Reproduced with a probe test: codex call 1 gives a no-verdict review with exit 0, call 2 gives a 429 ERROR line with a non-zero exit; result called=[codex codex gemini], used=gemini, err=nil. This violates the plan''s state-table row "started ... no switch to another family" (ARCH-ORDER). Fix: on attempt 2, demote UnavailableError to a plain did-not-run error, and add this two-call fake as a regression test.'
+          family: switch-only-before-review-began
+          round: 4
+        - kind: defect
+          id: BR-10
+          severity: Critical
+          title: The plan's integration table and recording section describe entities and ledger fields the code does not have
+          detail: 'This is the 2nd finding in family plan-table-matches-code. Rule: at every boundary close, each Core concepts row and each named persisted field is checked by grep against the head, and any mismatch goes into a Revisions entry in the same commit. Instances now: a dispatchReview loop in dispatch.go (actually judge.DispatchChoice and ResolveReview in internal/judge/reviewchoice.go, plus resolveReviewChoice in cmd/sdlc/reviewchoice.go); ledger fields family/model/author_families/degraded (actually one Round.Reviewer string).'
+          family: plan-table-matches-code
+          round: 4
+        - kind: defect
+          id: BR-11
+          severity: Important
+          title: 'An empty ReviewChoice becomes agent "" and so claude: a dry run shows a same-family command the real run would refuse'
+          detail: 'This is the 2nd finding in family no-silent-same-family-review. Rule: a ReviewChoice with no candidates must never become a dispatchable zero value; First() returns (Candidate, bool), and every caller (boundaryReviewOptionsFor at milestoneclose.go:897, the changecode.go plan/estimate sites, judge.go) reports the NoReviewerError refusal instead. Today agentArgs maps "" to claude (dispatch.go:224), so close --dry-run prints a claude argv for a claude-authored window.'
+          family: no-silent-same-family-review
+          round: 4
+        - kind: defect
+          id: BR-12
+          severity: Important
+          title: No test pins that plan-quality, estimate-quality or sdlc judge choose their reviewer through the policy
+          detail: Only the boundary review has a policy-driven test (reviewchoice_test.go, reviewconfig_test.go). If changecode.go:726/978 or judge.go:685 went back to ResolveAgentCLI, every test would still pass. Add one test per site under boundary_reviewer=other with a claude session, asserting codex is dispatched.
+          family: each-wired-site-has-a-test
+          round: 4
+        - kind: defect
+          id: BR-13
+          severity: Important
+          title: The atlas still says every judge dispatch resolves through ResolveAgentCLI, and that the ledger's agent field records the reviewer
+          detail: 'This is the 3rd finding in family docs-track-behavior-change. Rule: a change that retires or replaces a symbol greps atlas/ and helptext/ for that symbol in the same commit (ideally a test that every backticked judge.* identifier in atlas exists and has a non-test caller). Instances: atlas/workflow/sdlc-binary.md:1010-1012 and 1195-1197. Measured prevalence this round: 2 stale passages.'
+          family: docs-track-behavior-change
+          round: 4
+        - kind: defect
+          id: BR-14
+          severity: Minor
+          title: Fix reviews are always bounded, but the plan says they inherit their close's kind
+          detail: boundaryChangeKind (cmd/sdlc/reviewchoice.go:97) maps FixReview to KindBounded even for a full-flow close. Either inherit the kind or record the deviation in Revisions.
+          family: plan-decision-matches-code
+          round: 4
+        - kind: defect
+          id: BR-15
+          severity: Minor
+          title: ResolveAgentCLI, ResolveReviewerCLI, TallyReviewers and ParseReviewerRecord have no production caller
+          detail: 'This is the 2nd finding in family dead-code. Rule: a migration that moves every caller off an exported function deletes it, or names its remaining consumer, in the same change. Tally helpers that only tests use should either back a command or be documented as test-only.'
+          family: dead-code
+          round: 4
+        - kind: defect
+          id: BR-16
+          severity: Minor
+          title: A launch-failure reason truncated to 100 characters puts local PATH text into the trailer and ledger and drops the cause
+          detail: 'dispatch.go:242-245 builds the reason as "could not launch: dispatch X (owner bin ... PATH=...)", and oneLine cuts it to 100 characters. Put the underlying runErr first.'
+          family: parse-config-to-typed-value
+          round: 4
+      boundary: M2
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#409 (boundary-review)
@@ -474,6 +648,34 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-4 — addressed — DispatchOptions.Model is set from policy.Models at milestoneclose.go:874 and agentArgs emits --model or -m; removing either one makes TestBoundaryReviewPassesTheConfiguredModel or TestAgentArgsPassTheModel fail.
 - BR-8 — addressed — close.md:72-73 and the atlas paragraph now mark the kind order and fallback as M2, and say a boundary review uses the bounded order's first agent, which matches Reviewer() always using KindBounded.
 
+## Round 4 — 2026-10-18T06:32:31-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-9** [Critical] `switch-only-before-review-began` (kind: defect) A reviewer whose first attempt ran but whose no-verdict retry is unavailable hands the review to another family
+  dispatchAttempts (internal/judge/dispatch.go:386-395) returns attempt 2's UnavailableError unchanged (directly, or via retryFailure). DispatchChoice (reviewchoice.go:98-104) then treats it as a skip, discards attempt 1's output and runs the next candidate. Reproduced with a probe test: codex call 1 gives a no-verdict review with exit 0, call 2 gives a 429 ERROR line with a non-zero exit; result called=[codex codex gemini], used=gemini, err=nil. This violates the plan's state-table row "started ... no switch to another family" (ARCH-ORDER). Fix: on attempt 2, demote UnavailableError to a plain did-not-run error, and add this two-call fake as a regression test.
+- **BR-10** [Critical] `plan-table-matches-code` (kind: defect) The plan's integration table and recording section describe entities and ledger fields the code does not have
+  This is the 2nd finding in family plan-table-matches-code. Rule: at every boundary close, each Core concepts row and each named persisted field is checked by grep against the head, and any mismatch goes into a Revisions entry in the same commit. Instances now: a dispatchReview loop in dispatch.go (actually judge.DispatchChoice and ResolveReview in internal/judge/reviewchoice.go, plus resolveReviewChoice in cmd/sdlc/reviewchoice.go); ledger fields family/model/author_families/degraded (actually one Round.Reviewer string).
+- **BR-11** [Important] `no-silent-same-family-review` (kind: defect) An empty ReviewChoice becomes agent "" and so claude: a dry run shows a same-family command the real run would refuse
+  This is the 2nd finding in family no-silent-same-family-review. Rule: a ReviewChoice with no candidates must never become a dispatchable zero value; First() returns (Candidate, bool), and every caller (boundaryReviewOptionsFor at milestoneclose.go:897, the changecode.go plan/estimate sites, judge.go) reports the NoReviewerError refusal instead. Today agentArgs maps "" to claude (dispatch.go:224), so close --dry-run prints a claude argv for a claude-authored window.
+- **BR-12** [Important] `each-wired-site-has-a-test` (kind: defect) No test pins that plan-quality, estimate-quality or sdlc judge choose their reviewer through the policy
+  Only the boundary review has a policy-driven test (reviewchoice_test.go, reviewconfig_test.go). If changecode.go:726/978 or judge.go:685 went back to ResolveAgentCLI, every test would still pass. Add one test per site under boundary_reviewer=other with a claude session, asserting codex is dispatched.
+- **BR-13** [Important] `docs-track-behavior-change` (kind: defect) The atlas still says every judge dispatch resolves through ResolveAgentCLI, and that the ledger's agent field records the reviewer
+  This is the 3rd finding in family docs-track-behavior-change. Rule: a change that retires or replaces a symbol greps atlas/ and helptext/ for that symbol in the same commit (ideally a test that every backticked judge.* identifier in atlas exists and has a non-test caller). Instances: atlas/workflow/sdlc-binary.md:1010-1012 and 1195-1197. Measured prevalence this round: 2 stale passages.
+- **BR-14** [Minor] `plan-decision-matches-code` (kind: defect) Fix reviews are always bounded, but the plan says they inherit their close's kind
+  boundaryChangeKind (cmd/sdlc/reviewchoice.go:97) maps FixReview to KindBounded even for a full-flow close. Either inherit the kind or record the deviation in Revisions.
+- **BR-15** [Minor] `dead-code` (kind: defect) ResolveAgentCLI, ResolveReviewerCLI, TallyReviewers and ParseReviewerRecord have no production caller
+  This is the 2nd finding in family dead-code. Rule: a migration that moves every caller off an exported function deletes it, or names its remaining consumer, in the same change. Tally helpers that only tests use should either back a command or be documented as test-only.
+- **BR-16** [Minor] `parse-config-to-typed-value` (kind: defect) A launch-failure reason truncated to 100 characters puts local PATH text into the trailer and ledger and drops the cause
+  dispatch.go:242-245 builds the reason as "could not launch: dispatch X (owner bin ... PATH=...)", and oneLine cuts it to 100 characters. Put the underlying runErr first.
+
 ## Open findings
 
-(none — every finding has been disposed)
+- **BR-9** [Critical] `switch-only-before-review-began` (kind: defect) A reviewer whose first attempt ran but whose no-verdict retry is unavailable hands the review to another family
+- **BR-10** [Critical] `plan-table-matches-code` (kind: defect) The plan's integration table and recording section describe entities and ledger fields the code does not have
+- **BR-11** [Important] `no-silent-same-family-review` (kind: defect) An empty ReviewChoice becomes agent "" and so claude: a dry run shows a same-family command the real run would refuse
+- **BR-12** [Important] `each-wired-site-has-a-test` (kind: defect) No test pins that plan-quality, estimate-quality or sdlc judge choose their reviewer through the policy
+- **BR-13** [Important] `docs-track-behavior-change` (kind: defect) The atlas still says every judge dispatch resolves through ResolveAgentCLI, and that the ledger's agent field records the reviewer
+- **BR-14** [Minor] `plan-decision-matches-code` (kind: defect) Fix reviews are always bounded, but the plan says they inherit their close's kind
+- **BR-15** [Minor] `dead-code` (kind: defect) ResolveAgentCLI, ResolveReviewerCLI, TallyReviewers and ParseReviewerRecord have no production caller
+- **BR-16** [Minor] `parse-config-to-typed-value` (kind: defect) A launch-failure reason truncated to 100 characters puts local PATH text into the trailer and ledger and drops the cause

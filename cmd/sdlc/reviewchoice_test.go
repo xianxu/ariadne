@@ -108,8 +108,8 @@ func TestReviewReviewerTrailerParsesAsAGitTrailer(t *testing.T) {
 			values = append(values, v)
 		}
 	}
-	tally := judge.TallyReviewers(values)
-	if len(values) != 2 || tally["anthropic → openai"] != 1 || tally["anthropic → google (degraded)"] != 1 {
-		t.Fatalf("parsed %q, tally %v", values, tally)
+	want := []string{"codex/gpt-6-astra (openai; author anthropic)", "gemini (google; author anthropic); degraded: codex unavailable: usage limit"}
+	if strings.Join(values, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("parsed %q, want %q", values, want)
 	}
 }

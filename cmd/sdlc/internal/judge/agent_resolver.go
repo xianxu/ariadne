@@ -15,26 +15,6 @@ type AgentDefaultEnv = agentid.Env
 // CurrentAgentDefaultEnv reads the process environment at the IO boundary.
 func CurrentAgentDefaultEnv() AgentDefaultEnv { return agentid.EnvFrom(os.Getenv) }
 
-// ResolveAgentCLI selects the judge agent: the main agent's own CLI (the `same`
-// reviewer policy). Explicit --agent and AGENT_CMD are operator/script
-// overrides, so unknown values are returned as-is for BuildArgs to reject
-// instead of being silently hidden by auto-detection.
-func ResolveAgentCLI(explicit string, explicitSet bool, env AgentDefaultEnv) AgentCLI {
-	return ResolveReviewerCLI(explicit, explicitSet, env, ReviewerPolicy{})
-}
-
-// ResolveReviewerCLI selects the reviewer under a repo's policy (#310). The
-// overrides stay above the policy; otherwise the policy maps the main agent.
-func ResolveReviewerCLI(explicit string, explicitSet bool, env AgentDefaultEnv, policy ReviewerPolicy) AgentCLI {
-	if explicitSet {
-		return AgentCLI(explicit)
-	}
-	if env.AgentCmd != "" {
-		return AgentCLI(env.AgentCmd)
-	}
-	return policy.Reviewer(MainAgent(env))
-}
-
 // MainAgent is the agent driving this session, from its environment signals.
 func MainAgent(env AgentDefaultEnv) AgentCLI { return AgentCLI(env.Main()) }
 

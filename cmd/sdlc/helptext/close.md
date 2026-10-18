@@ -449,7 +449,8 @@ REVIEWER (#310, #409)
   and the ledger round's reviewer field and the sidecar's reviewer row carry
   the same text. A week's tally by family:
 
-    git log --since=1.week --format='%(trailers:key=Review-Reviewer,valueonly)'
+    git log --since=1.week --format='%(trailers:key=Review-Reviewer,valueonly)' \
+      | sed -E 's/^[^ ]+ \(([a-z]+); author ([^)]+)\).*/\2 -> \1/' | sort | uniq -c
 
   The main agent is detected from PAIR_AGENT, then codex's env, then claude.
   --agent and AGENT_CMD override the file. An unknown mode, agent or key halts

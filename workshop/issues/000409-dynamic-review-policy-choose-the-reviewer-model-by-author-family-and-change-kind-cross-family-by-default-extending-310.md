@@ -117,3 +117,10 @@ Durable plan: `workshop/plans/000409-dynamic-review-policy-choose-the-reviewer-m
   Help and atlas updated.
 - The tally is a git one-liner (`git log --format='%(trailers:key=Review-Reviewer,valueonly)'`), with
   `judge.TallyReviewers` as the tested counter. No new verb, since the trailer form is the contract.
+- M2 boundary review round 1: REWORK. Fixed: BR-9 (an unavailable retry is demoted to did-not-run; regression test
+  checked by revert), BR-10 (an as-built table in plan Revisions, each row grepped), BR-11 (`First()` reports
+  emptiness and every site refuses), BR-12 (per-site policy tests for plan-quality, estimate-quality and `sdlc
+  judge`), BR-13 (stale atlas passages; retired symbols grepped across atlas and help). Minors: fix-review kind
+  recorded as a deliberate deviation; `ResolveAgentCLI`/`ResolveReviewerCLI` deleted; parse and tally made test-only,
+  with the help's one-liner (now ending in `sort | uniq -c`, checked on sample values) as the tally; launch reasons
+  lead with the cause, keeping PATH out of the trailer.

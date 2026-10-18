@@ -385,6 +385,13 @@ func dispatchAttempts(ctx context.Context, opts DispatchOptions, conf *reviewbox
 		}
 		output, err := dispatchOnce(ctx, current)
 		if err != nil {
+			// #409: the first attempt ran, so this reviewer began reviewing; an
+			// unavailable retry is a review that did not finish, never a reason
+			// to hand the review to another family.
+			var unavailable *UnavailableError
+			if attempt == 2 && errors.As(err, &unavailable) {
+				err = fmt.Errorf("%w: the retry could not run (%s)", ErrReviewDidNotRun, unavailable.Reason)
+			}
 			if attempt == 1 || opts.ValidateResponse != nil {
 				return output, err
 			}
@@ -657,7 +664,7 @@ func classifyRunResult(ctx context.Context, out ProcessOutput, runErr error, nam
 		launchErr = fmt.Errorf("dispatch %s (owner bin %q prepended to PATH=%s): %w", name, dir, os.Getenv("PATH"), runErr)
 	}
 	if launchErr != nil {
-		return run.Text(), &UnavailableError{Agent: agentOrClaude(agent), Reason: "could not launch: " + launchErr.Error()}
+		return run.Text(), &UnavailableError{Agent: agentOrClaude(agent), Reason: "could not launch: " + runErr.Error(), Detail: launchErr.Error()}
 	}
 	if reason, ok := Unavailable(agent, run, out.Stderr, exited, nil); ok {
 		return run.Text(), &UnavailableError{Agent: agentOrClaude(agent), Reason: reason}

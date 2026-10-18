@@ -16,14 +16,21 @@ import (
 // Unavailable): trying the next one duplicates no review.
 var ErrReviewerUnavailable = errors.New("reviewer unavailable")
 
-// UnavailableError names the candidate and the evidence.
+// UnavailableError names the candidate and the evidence. Reason is short and
+// is what a skip, the trailer and the ledger record; Detail is the full
+// diagnosis (a launch failure's owner bin and PATH) for the operator only.
 type UnavailableError struct {
 	Agent  AgentCLI
 	Reason string
+	Detail string
 }
 
 func (e *UnavailableError) Error() string {
-	return fmt.Sprintf("%s: %s: %s", ErrReviewerUnavailable, e.Agent, e.Reason)
+	s := fmt.Sprintf("%s: %s: %s", ErrReviewerUnavailable, e.Agent, e.Reason)
+	if e.Detail != "" {
+		s += " (" + e.Detail + ")"
+	}
+	return s
 }
 func (e *UnavailableError) Unwrap() error { return ErrReviewerUnavailable }
 
@@ -36,7 +43,8 @@ type ReviewChoice struct {
 	Forced     bool // --agent or AGENT_CMD named the reviewer
 }
 
-// ResolveReview is ResolveReviewerCLI for every review site: an explicit
+// ResolveReview resolves every review site's reviewers (it replaced #310's
+// ResolveReviewerCLI and ResolveAgentCLI): an explicit
 // --agent or AGENT_CMD is one forced candidate; otherwise the policy plans the
 // candidates from the authors' families and the change kind.
 func ResolveReview(explicit string, explicitSet bool, env AgentDefaultEnv, policy ReviewerPolicy, authors []Family, kind ChangeKind, available Availability) ReviewChoice {
@@ -59,12 +67,17 @@ func ResolveReview(explicit string, explicitSet bool, env AgentDefaultEnv, polic
 }
 
 // First is the reviewer a dry run shows and a single-reviewer caller uses.
-func (c ReviewChoice) First() Candidate {
+// ok is false when no candidate is left; a caller then reports Refusal, never
+// dispatching the zero Candidate (whose empty agent would run claude).
+func (c ReviewChoice) First() (Candidate, bool) {
 	if len(c.Candidates) == 0 {
-		return Candidate{}
+		return Candidate{}, false
 	}
-	return c.Candidates[0]
+	return c.Candidates[0], true
 }
+
+// Refusal is the error for a choice with no candidate: every skip, named.
+func (c ReviewChoice) Refusal() error { return &NoReviewerError{Skips: c.Skips} }
 
 // NoReviewerError is a review that could not run because every candidate was
 // unavailable: it names each one and why, never quietly reviewing with the
@@ -138,56 +151,6 @@ func ReviewerRecord(used Candidate, choice ReviewChoice, skips []Skip) string {
 		s += "; degraded: " + strings.Join(degraded, "; ")
 	}
 	return s
-}
-
-// ReviewerEntry is one parsed Review-Reviewer trailer.
-type ReviewerEntry struct {
-	Agent, Model string
-	Family       Family
-	Authors      []Family
-	Degraded     bool
-}
-
-// ParseReviewerRecord reads a Review-Reviewer value back; ok is false for a
-// value not in ReviewerRecord's form.
-func ParseReviewerRecord(v string) (ReviewerEntry, bool) {
-	head, _, degraded := strings.Cut(v, "; degraded:")
-	open := strings.Index(head, " (")
-	if open < 0 || !strings.HasSuffix(head, ")") {
-		return ReviewerEntry{}, false
-	}
-	who, inner := head[:open], head[open+2:len(head)-1]
-	fam, authors, ok := strings.Cut(inner, "; author ")
-	if !ok {
-		return ReviewerEntry{}, false
-	}
-	e := ReviewerEntry{Family: Family(fam), Degraded: degraded}
-	e.Agent, e.Model, _ = strings.Cut(who, "/")
-	if authors != "unknown" {
-		for _, a := range strings.Split(authors, ",") {
-			e.Authors = append(e.Authors, Family(a))
-		}
-	}
-	return e, e.Agent != ""
-}
-
-// TallyReviewers counts Review-Reviewer values by "author → reviewer" family
-// pair, for a week's retro; values not in the form are counted as "unparsed".
-func TallyReviewers(values []string) map[string]int {
-	out := map[string]int{}
-	for _, v := range values {
-		e, ok := ParseReviewerRecord(strings.TrimSpace(v))
-		if !ok {
-			out["unparsed"]++
-			continue
-		}
-		key := valueOrDefault(familyList(e.Authors), "unknown") + " → " + valueOrDefault(string(e.Family), "unknown")
-		if e.Degraded {
-			key += " (degraded)"
-		}
-		out[key]++
-	}
-	return out
 }
 
 func familyList(fs []Family) string {
