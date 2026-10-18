@@ -1,6 +1,6 @@
 ---
 id: 000400
-status: working
+status: codecomplete
 created: 2026-10-15
 updated: 2026-10-17
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.71
+tracker:
+    version: 1
+    completion:
+        token: close-99e934756083
+        repository: github.com/xianxu/ariadne
+        reviewed_head: c36adf9fb0c7378c3922916dfe8506985e6b0ace
+        evidence_commit: a26d83c21d279e0d39d8541c8da596a3a2ec06e3
 ---
 
 # sdlc local-check cancel: stop only your own run (an agent killed another slot's suite by PID)
