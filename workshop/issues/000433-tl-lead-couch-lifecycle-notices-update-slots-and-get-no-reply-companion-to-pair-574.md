@@ -38,7 +38,11 @@ tl-lead help: Couch system notices are information, not requests. The hub update
 
 - [x] Add a phrase guard to the existing tl-lead help test and confirm it fails against current help.
 - [x] Add one rule under WATCHING for authentic Couch lifecycle system notices, then verify the focused tests and built help.
-- [ ] Run the recorded suite, close review, and normal landing gates before pair#574 closes.
+- [x] Run the recorded suite and submit the tested branch to close review and normal landing gates before pair#574 closes.
+
+## Revisions
+
+- 2026-10-17: The close review identified the new TL operational flow as missing from the atlas map. Add a concise pointer in `atlas/workflow/tl-skills.md`; the embedded help remains authoritative.
 
 ## Log
 
@@ -47,3 +51,7 @@ tl-lead help: Couch system notices are information, not requests. The hub update
 The hub dispatched this as a quick-flow rule change. Embedded `cmd/tl-lead/help.md` and its existing phrase-guard test keep the instruction in one place (ARCH-DRY). No Couch protocol or status-file command changes.
 
 The four new phrase guards failed against the old help for both invocation forms, then `go test ./cmd/tl-lead -count=1` passed. `make -k build` passed; built `bin/tl-lead --help` states the notice rule. The existing post-disruption polling paragraph now defers to the restart summary when one is available.
+
+Opened PR #292 as a draft while the suite queued. `sdlc-local/suite` passed on 358d53dfffbcd2cbdb548aaf81d0cc9d7ed8b587: 12 shards, 1584 sdlc tests, 67 other packages, zero failures (log sha256:ded296cdc67d). No new atlas surface is introduced by the help wording.
+
+Close review round 1 returned FIX-THEN-SHIP with Important finding BR-1: map the new lifecycle-notice procedure in atlas. Added the brief map in `atlas/workflow/tl-skills.md`, pointing to embedded help as the rule source. The branch suite still covers unchanged code.
