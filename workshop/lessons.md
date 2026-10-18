@@ -3,6 +3,15 @@
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
 
+- When a bug fix adds a diagnostic flag or revises an identity policy, enumerate
+  the full input matrix in Done when and committed fixtures, then check the
+  README for the new user-facing command. A motivating fixture alone can pass
+  while adjacent identity forms remain undocumented or untested (#403).
+- A diagnostic flag that promises stable machine-readable output needs a
+  byte-for-byte stdout comparison and exit-status check with the flag off and
+  on. Capture stderr separately; discarding stdout proves only the message,
+  not the interface contract (#403 BR-4).
+
 - Correcting a liveness fake is not proof that reclamation is safe. Pause a
   stale observation until another holder acquires, then assert its generation
   survives. Serialize reapers and revalidate before the destructive rename;

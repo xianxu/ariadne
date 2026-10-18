@@ -12,6 +12,7 @@ ARIADNE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd -P)"
 GEN="$ARIADNE_ROOT/construct/dev-aliases.sh"
 
 WS="$(mktemp -d "${TMPDIR:-/tmp}/devaliases57.XXXXXX")"
+WS="$(cd "$WS" && pwd -P)"
 trap 'rm -rf "$WS"' EXIT
 
 # A Couch slot's COUCH_TREE skips every build (#405); the cases that need one
@@ -23,6 +24,20 @@ ok() { printf '  \033[32mPASS\033[0m %s\n' "$1"; pass=$((pass+1)); }
 ko() { printf '  \033[31mFAIL\033[0m %s\n' "$1"; fail=$((fail+1)); }
 assert_contains()     { case "$2" in *"$1"*) ok "$3" ;; *) ko "$3 — missing: $1";; esac; }
 assert_not_contains() { case "$2" in *"$1"*) ko "$3 — unexpected: $1" ;; *) ok "$3";; esac; }
+
+# A diagnostic flag may add stderr, but must preserve machine-readable --list
+# stdout and status, in both ordinary and strict modes.
+assert_verbose_list_unchanged() {
+	local label="$1" cwd="$2" strict="$3" expected="$4" ordinary_rc verbose_rc
+	( cd "$cwd" && bash "$GEN" --workspace "$WS" --list ${strict:+--strict} > "$WS/ordinary.list" 2> "$WS/ordinary.err" ); ordinary_rc=$?
+	( cd "$cwd" && bash "$GEN" --workspace "$WS" --list ${strict:+--strict} --verbose > "$WS/verbose.list" 2> "$WS/verbose.err" ); verbose_rc=$?
+	if [ "$ordinary_rc" -eq "$verbose_rc" ] && cmp -s "$WS/ordinary.list" "$WS/verbose.list"; then
+		ok "$label preserves --list stdout and status"
+	else
+		ko "$label changed --list stdout or status"
+	fi
+	assert_contains "$expected" "$(cat "$WS/verbose.err")" "$label reports diagnostics on stderr"
+}
 
 mkcmd() { mkdir -p "$1"; printf 'package main\nfunc main() {}\n' > "$1/main.go"; }
 
@@ -197,11 +212,41 @@ assert_contains "$(printf 'sdlc\t%s' "$ARI_P")" "$np_out" "non-peer --list maps 
 rm -rf "$NP"
 
 # ── duplicate detection + --strict ───────────────────────────────────────────
+# A slot's substrate and the workspace sibling are two checkouts of one origin.
+# The substrate is last in sorted path order and remains the selected owner.
+SLOT="$WS/worktree/slot/deriv"
+SUBSTRATE="$WS/worktree/slot/ariadne"
+mkdir -p "$SLOT/construct" "$SUBSTRATE/construct"
+mkcmd "$SUBSTRATE/cmd/sdlc"
+printf 'substrate %s\n' "$SUBSTRATE" > "$SLOT/construct/deps"
+git -C "$WS/ariadne" init -q
+git -C "$SUBSTRATE" init -q
+git -C "$WS/ariadne" remote add origin https://github.com/example/ariadne.git
+git -C "$SUBSTRATE" remote add origin git@github.com:Example/Ariadne.git
+slot_out="$(cd "$SLOT" && bash "$GEN" --workspace "$WS" --list --strict 2>"$WS/slot.err")"; slot_rc=$?
+[ "$slot_rc" -eq 0 ] && ok "same-origin checkouts pass --strict" || ko "same-origin checkouts failed --strict"
+[ ! -s "$WS/slot.err" ] && ok "same-origin checkouts produce no warning" || ko "same-origin warning: [$(cat "$WS/slot.err")]"
+assert_contains "$(printf 'sdlc\t%s' "$SUBSTRATE")" "$slot_out" "slot substrate remains selected owner"
+assert_verbose_list_unchanged "same-origin verbose" "$SLOT" "" "same-origin"
+assert_verbose_list_unchanged "same-origin strict verbose" "$SLOT" "strict" "same-origin"
+git -C "$SUBSTRATE" remote set-url origin ssh://git@github.com/example/ariadne.git
+if (cd "$SLOT" && bash "$GEN" --workspace "$WS" --strict --list >"$WS/ssh-list" 2>"$WS/ssh.err"); then
+	[ ! -s "$WS/ssh.err" ] && ok "GitHub ssh:// origin is equivalent and quiet under --strict" || ko "GitHub ssh:// warned: [$(cat "$WS/ssh.err")]"
+else
+	ko "GitHub ssh:// origin should pass --strict"
+fi
+rm -rf "$WS/worktree"
+
 # two ACTIVE repos both owning a real cmd/dupe → collision
 mkdir -p "$WS/repoa/construct" "$WS/repob/construct"
 mkcmd "$WS/repoa/cmd/dupe"; mkcmd "$WS/repob/cmd/dupe"
+git -C "$WS/repoa" init -q; git -C "$WS/repob" init -q
+git -C "$WS/repoa" remote add origin https://github.com/example/repoa.git
+git -C "$WS/repob" remote add origin https://github.com/example/repob.git
 dup_err="$(bash "$GEN" --workspace "$WS" 2>&1 >/dev/null)"
 assert_contains "duplicate binary 'dupe'" "$dup_err" "warns on duplicate binary name"
+assert_verbose_list_unchanged "distinct-origin verbose" "$WS" "" "duplicate binary 'dupe'"
+assert_verbose_list_unchanged "distinct-origin strict verbose" "$WS" "strict" "duplicate binary 'dupe'"
 # last-win: repob sorts after repoa
 dup_line="$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^dupe()')"
 assert_contains "cd $WS/repob " "$dup_line" "duplicate resolves last-win (repob)"
@@ -211,6 +256,37 @@ if bash "$GEN" --workspace "$WS" --strict >/dev/null 2>&1; then
 else
 	ok "--strict exits non-zero on duplicate"
 fi
+# Missing origin cannot prove sameness, so it must not hide a collision.
+git -C "$WS/repoa" remote remove origin; git -C "$WS/repob" remote remove origin
+if bash "$GEN" --workspace "$WS" --strict >/dev/null 2>&1; then
+	ko "unknown origins should not suppress a duplicate"
+else
+	ok "unknown origins keep --strict collision"
+fi
+same_origin_check() {
+	local label="$1" err rc
+	err="$(bash "$GEN" --workspace "$WS" --strict --list 2>&1 >/dev/null)"; rc=$?
+	[ "$rc" -eq 0 ] && [ -z "$err" ] && ok "$label" || ko "$label: rc=$rc stderr=[$err]"
+}
+different_origin_check() {
+	local label="$1" err rc
+	err="$(bash "$GEN" --workspace "$WS" --strict --list 2>&1 >/dev/null)"; rc=$?
+	if [ "$rc" -ne 0 ]; then
+		assert_contains "duplicate binary 'dupe'" "$err" "$label"
+	else
+		ko "$label: rc=$rc stderr=[$err]"
+	fi
+}
+git -C "$WS/repoa" remote add origin https://git.example.com/group/shared.git
+git -C "$WS/repob" remote add origin https://git.example.com/group/shared.git
+same_origin_check "identical non-GitHub origins are quiet under --strict"
+git -C "$WS/repob" remote set-url origin git@git.example.com:group/shared.git
+different_origin_check "non-GitHub transport difference remains a collision"
+git -C "$WS/repob" remote set-url origin https://git.example.com/group/Shared.git
+different_origin_check "non-GitHub path case difference remains a collision"
+git -C "$WS/repoa" remote set-url origin ../shared.git
+git -C "$WS/repob" remote set-url origin ../shared.git
+different_origin_check "unrecognized relative origins remain distinct by checkout"
 # without the dup, --strict is clean (remove repob's dupe)
 rm -rf "$WS/repob" "$WS/repoa"
 if bash "$GEN" --workspace "$WS" --strict >/dev/null 2>&1; then
