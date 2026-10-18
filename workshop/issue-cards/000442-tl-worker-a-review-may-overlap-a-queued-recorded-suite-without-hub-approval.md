@@ -1,6 +1,6 @@
 ---
 id: 000442
-status: codecomplete
+status: done
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: f4dee0dcde01fb7d590b79c65ce9c2c641176f2c
         evidence_commit: 8b53118fb0bea36d724331015a6586f09e3cce92
+        landed_commit: 1b24cffbc8bdfa8a1b4e3ad59de895d751804f0b
 ---
 
 # tl-worker: a review may overlap a queued recorded suite without hub approval
