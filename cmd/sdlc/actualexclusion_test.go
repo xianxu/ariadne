@@ -190,6 +190,11 @@ func TestParkedClaimExcludesOtherAdoptedIssueInSameSlot(t *testing.T) {
 	if again.Status != actualMeasured || again.Hours != got.Hours || len(again.Exclusions) != len(got.Exclusions) {
 		t.Fatalf("historical replay moved the adopted actual: replay=%+v candidate=%+v", again, got)
 	}
+	unbound := *current
+	unbound.SourceSlots = map[string]string{}
+	if _, err := loadAdoptedExclusions(context.Background(), r.root, "", "636", "", &unbound); err == nil || !strings.Contains(err.Error(), "has no pinned slot") {
+		t.Fatalf("relevant adopted issue accepted an unbound candidate source: %v", err)
+	}
 	if err := os.WriteFile(file, []byte("lost retained transcript\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
