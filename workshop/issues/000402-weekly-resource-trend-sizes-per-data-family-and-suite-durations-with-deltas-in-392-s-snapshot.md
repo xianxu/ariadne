@@ -49,6 +49,8 @@ Depends on ariadne#392.
 
 ## Log
 
+- 2026-10-18: Live temp-brain pilot at `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne402-pilot.TIwyUv/memory/work/devinfra/test-economy/weekly/2026-10-12.json` produced schema v2 (41,837 bytes; sha256 `d2b9fca6dcad837c71c76075ac2c9ce39c3f7f2fee527fb3c947db60baa8fb5a`). All 17 declared families were complete; the largest ten ledgers, 154,897,415,411-byte Go cache, 39,613,689,856-byte AgentScratch free gauge, disk0 write counter and 8% wear were present. The date is the historical suite window; the resource gauge was measured today, so the pilot is not published to the real brain.
+- 2026-10-18: #392 producer now attaches schema-v2 resources through its one immutable writer. Fake-backed machine probing, prior-week reader, root resolution (global Pair store despite slot-specific PAIR_DATA_DIR), and command fixture passed focused tests. A v2 predecessor with a missing machine section is unknown, not an invented baseline. Build, live temp-brain check, suite and close remain.
 - 2026-10-18: TDD slices for exact prior-week reading, byte comparison, declared-source collection, ledger ranking, suite duration comparison and device parsing are green in focused cmd/sdlc tests. A live read-only probe found ioreg Bytes (Write) for internal disk0; smartctl prints Percentage Used without root but exits 4 after an unrelated error-log query, so usable wear output must be parsed independently of that exit code. The bounded ioreg form is `-r -c IOBlockStorageDriver -w 0 -l -d 2`.
 
 - 2026-10-17: unclaimed: Plan approved by hub, including weekly device gauges. Waiting for prerequisite ariadne#392 to land; ariadne:1 takes #392 first, then resumes this branch and binds the landed snapshot interface before code.
@@ -73,3 +75,7 @@ The hub approved the plan, directed this slot to land #392 first, and replaced t
 ### 2026-10-18 — hub approval
 
 The hub approved the schema-binding revision. If `smartctl` is absent or requires root, SSD wear is unknown with the reason; no install or sudo. `ioreg` writes remain a separate unprivileged gauge.
+
+### 2026-10-18 — point-observation time and first real run
+
+The hub approved recording `observed_at` and allowing a numeric point-resource delta only for observations 6–8 days apart, with the actual gap in an unknown reason otherwise. The Oct 12 run remains a temp-brain probe; the first real resource snapshot is the completed 2026-10-19 week. The TL will run `sdlc test-stats snapshot` by hand from the landed binary after 2026-10-19T00:00:00Z, since no weekly scheduler exists. Suite-duration deltas still use the exact historical windows.
