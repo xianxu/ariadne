@@ -34,6 +34,10 @@ Keep the exact-head full-suite landing gate. When a test fails, retain the attem
 - [ ] The TL's daily view lists unowned or older-than-one-day intermittent failures from local attempts and CI with source coverage and issue links; CI failure classes remain distinct from confirmed same-head flakes.
 - [ ] Tests use recorded attempts and stateful gate behavior to prove failure, issue filing, retry and head drift; no retry or timeout change silently turns red evidence green.
 
+## Revisions
+
+- 2026-10-18 (hub D3): Done-when 3's CI failure classes move to #451. Here the daily view covers local attempts, and CI is shown as `not covered` until #451 lands, never as zero.
+
 ## Plan
 
 Durable plan: `workshop/plans/000394-issue-backed-flake-landing-plan.md`, with the state table. It awaits the hub's decisions D1–D4 before code.
@@ -52,3 +56,4 @@ Filed from #390's operator-approved flake/landing decision. The weekly snapshot 
 
 - Dispatched by the hub (ops:0): the registry of known flakes is tied to their issues, and a rerun of just the registered tests replaces the whole suite. #449 builds on this. Plan drafted; it surfaces D1 (the targeted rerun amends #390's approved full-rerun rule), D2 (the accept policy), D3 (the daily view's scope: CI to a follow-up) and D4 (the registry lives in issue frontmatter).
 - The hub decided D1–D4 as proposed: the targeted rerun counts (the operator's 10-18 ask); `accept`/`off` are built with the guarded config left at its default; CI in the daily view goes to a follow-up; the registry is issue frontmatter. Side doc 02 got a Revision note.
+- Plan-quality round 1 answered in the plan's Revisions. PQ-4 changes the registry's storage from details frontmatter to a card field, with `sdlc flake register` as its setter, with no owner check and read via Fresh tracker records; the hub is told of the delta. PQ-1: the rerun takes its own slot, lease and signals through the shared `runUnderSlot`. PQ-2: classification happens in runLocalCheck; the main baseline stays merge's unrecorded diagnosis. PQ-3: the decoder reads v1 and v2, and the success guard fails closed.

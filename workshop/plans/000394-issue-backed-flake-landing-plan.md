@@ -130,3 +130,48 @@ Design notes:
 - **D2, approved:** `known_flakes` with `rerun` (the default), `accept` and `off` is built and tested. The guarded `.sdlc/local-checks.json` stays at its default (the field is absent, meaning `rerun`), so this issue needs no `local-gates-verified` label.
 - **D3, approved:** a local `sdlc flake list`, with CI shown as `not covered` until #451 (filed, unclaimed) lands.
 - **D4, approved:** the registry is issue frontmatter read from origin/main, so closing the issue unregisters it, and registration requires same-head fail→pass evidence.
+
+### 2026-10-18 — plan-quality round 1 (PQ-1..4, three Minors)
+
+**Core concepts, revised** (supersedes the tables above where they differ):
+
+| Name | Lives in | Status |
+|------|----------|--------|
+| `FlakeEntry{Test, Issue, Status}`, `Registry` (`Lookup`), `BuildRegistry(records)` | `cmd/sdlc/internal/flakes/registry.go` | new |
+| `Outcome` (tagged) and `Classify(ClassifyInput) Outcome` | `cmd/sdlc/internal/flakes/classify.go` | new |
+| `SameHeadFailPass(attempts, sha, test)` (extracted from `aggregateSuiteAttempts`, which then calls it) | `cmd/sdlc/internal/flakes/evidence.go` | new |
+| `RerunCommand(tests) []string` (one `go test -count=1 -run '^(A\|B)$' pkg…` argv) | `cmd/sdlc/internal/flakes/rerun.go` | new |
+| card field `flake_tests` (kind `test-list`, setter `sdlc flake register`) | `construct/vocabulary/issue.cue`, `cmd/sdlc/internal/issue/card.go` | modified |
+| `SuiteLogFacts.Unattributed` | `cmd/sdlc/teststats_parse.go` | modified |
+| `SuiteAttempt` v2 (`known_flakes`, `rerun_of`, `outcome`); the decoder accepts v1 and v2 | `cmd/sdlc/teststats.go`, `cmd/sdlc/teststats_store.go` | modified |
+| `localCheck.KnownFlakes` | `cmd/sdlc/localchecks.go` | modified |
+| `runUnderSlot(ctx, d, wt, weight, argv, log)`: the slot, lease and signal block, shared by the suite and the rerun | `cmd/sdlc/localcheck_run.go` | new (extracted) |
+| `sdlc flake register`, `sdlc flake list` | `cmd/sdlc/flake_cmd.go` | new |
+
+- **PQ-4, the registry is a card field (revises D4's storage, not its properties).** `flake_tests` is a tracker-card field mirrored into the details frontmatter, like `severity`. `sdlc flake register --issue N --test T` is its setter, through `runCardUpdate`. That compare-and-swap path has no owner check, so a worker registers on a flake issue whatever slot claims it, as with any card setter. With no `--issue`, `register` files a new unclaimed flake issue with the field set, through the creation path, which needs no owner. The registry is built from `loadIssueRecords(…, tracker.Fresh)`, the same read that gives status. A stale or unreadable tracker means the rule is unavailable, and the failure is unknown; a stale snapshot is never used, since it could still list a closed issue. A branch cannot excuse itself: the PR doesn't carry the tracker branch, and closing the issue unregisters it. This is simpler than scanning origin/main's issue files (ARCH-DRY: one record for status and tests). I'm telling the hub about it as a delta.
+- **PQ-1, locks:**
+  - The rerun takes a new slot, a new lease and new signals through `runUnderSlot`, the block extracted from `runLocalCheck`, so #383's release right after a run holds for both runs.
+  - Its weight is 1: a targeted `go test` of at most 5 tests is light, unlike the weight-2 sharded suite.
+  - Its lease names check `suite` and the SHA, so `local-check cancel` reaches it.
+  - It sets `WF_TEST_LOCK_HELD_BY` to its holder, so `pkg/testgate` in the test binaries stands aside.
+  - An interrupt during the rerun behaves like one during the suite: no record, the failed attempt stays.
+- **PQ-2, effect order:**
+  - `runLocalCheck` classifies in both `local-check run` and merge, once the failed attempt is saved. A known-flake outcome runs the rerun, and `runLocalCheck` then posts one final status (success with the issue, or failure).
+  - merge needs nothing new on that path. A passing known-flake rerun returns success, so `diagnoseSuiteFailure`'s baseline doesn't run.
+  - An `Unknown` failure returns `localCheckFailure` as today, and `diagnoseSuiteFailure` runs the unrecorded main baseline and reuses `classifyFailures`. A test that fails on both is labelled `persistent main failure` in merge's error. That is a label, not a second status.
+  - `Classify` takes the baseline result as an optional input, so the table tests cover `PersistentMain` with no IO.
+- **PQ-3, schema and fail-closed:**
+  - `decodeSuiteAttempt` accepts version 1 (the old key allowlist) and version 2 (plus `known_flakes`, `rerun_of`, `outcome`), so the 30-day history stays readable.
+  - The success-post guard reads every attempt for (repo, SHA, check). An attempt it cannot decode, or a store read flagged incomplete, refuses the success post with that attempt's path. It is never skipped, so an unreadable failure cannot turn green. Recovery: inspect the named file, then remove it or keep it.
+  - **Rollout:** card parsing refuses unknown fields, so a binary from before this lands would quarantine a flake card. The field can only be written by `sdlc flake register`, which exists only in the new binary, and agents run :0's binaries once the TL rebuilds :0 after landing. So no old binary sees a `flake_tests` card in the fleet. Other machines follow the same rebuild.
+- **Tests, one line per risky function (minor):**
+  - `Classify`: a table over every state-table row.
+  - `BuildRegistry`: open, terminal, ambiguous and malformed entries.
+  - `SameHeadFailPass`: same and different SHA, a baseline attempt, ordering.
+  - `RerunCommand`: validated identifiers only.
+  - `runLocalCheck`'s known-flake path: e2e with `ciFakeGH` and the scripted command runner (rerun passes, rerun fails, unknown, accept, registry unavailable, interrupt).
+  - The success guard: a full rerun after an unknown failure is not green; register then republish is green; an unreadable attempt blocks.
+  - The decoder: v1 and v2 fixtures.
+  - The card field: round trip and setter.
+- **Vocabulary (minor):** `flake_tests` is added to `card.fields` in `issue.cue` with its kind and setter, so the ownership list and refusals derive from the model.
+- **Done-when (minor):** the issue's `## Revisions` records that Done-when 3's CI coverage moved to #451 (D3).
