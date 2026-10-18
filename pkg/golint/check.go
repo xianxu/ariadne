@@ -17,6 +17,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"path"
 	"strings"
 )
 
@@ -26,7 +27,7 @@ type Rule struct {
 	Incident string // the issue that taught it, cited in every finding
 	Message  string // what to do instead
 	TestOnly bool   // applies to _test.go files only
-	Match    func(f *ast.File) []ast.Node
+	Match    func(f *ast.File, context *CheckContext) []ast.Node
 }
 
 // Finding is one rule firing at one line.
@@ -57,6 +58,36 @@ func Check(filename string, src []byte, rules []Rule) ([]Finding, error) {
 	if err != nil {
 		return nil, err
 	}
+	index := newWireTypeIndex(map[string]*ast.File{filename: f})
+	return checkParsed(fset, filename, f, rules, &CheckContext{Path: filename, Package: path.Dir(filename), PackageName: f.Name.Name, Index: index})
+}
+
+// CheckSources shares one parsed source set and wire-type index across files.
+// The caller owns the thin IO seam; this function only sees bytes.
+func CheckSources(module string, sources map[string][]byte, rules []Rule) (map[string][]Finding, error) {
+	fset := token.NewFileSet()
+	parsed := make(map[string]*ast.File, len(sources))
+	for filename, src := range sources {
+		f, err := parser.ParseFile(fset, filename, src, parser.ParseComments)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", filename, err)
+		}
+		parsed[filename] = f
+	}
+	index := newWireTypeIndex(parsed)
+	findings := make(map[string][]Finding, len(parsed))
+	for filename, f := range parsed {
+		got, err := checkParsed(fset, filename, f, rules,
+			&CheckContext{Path: filename, Package: path.Dir(filename), PackageName: f.Name.Name, Module: module, Index: index})
+		if err != nil {
+			return nil, err
+		}
+		findings[filename] = got
+	}
+	return findings, nil
+}
+
+func checkParsed(fset *token.FileSet, filename string, f *ast.File, rules []Rule, context *CheckContext) ([]Finding, error) {
 	if ast.IsGenerated(f) {
 		return nil, nil // a generator's output is fixed in the generator
 	}
@@ -90,7 +121,7 @@ func Check(filename string, src []byte, rules []Rule) ([]Finding, error) {
 		if r.TestOnly && !isTest {
 			continue
 		}
-		for _, n := range r.Match(f) {
+		for _, n := range r.Match(f, context) {
 			line := fset.Position(n.Pos()).Line
 			if allowed(allows, r.Name, line) {
 				continue

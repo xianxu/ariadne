@@ -23,6 +23,8 @@ type codexState struct {
 	legacyExpected        *Counters
 	turnExpected          map[string]*Counters
 }
+
+// wire: Codex usage payloads may add fields between agent releases.
 type codexUsage struct {
 	ResponseID  string          `json:"response_id"`
 	ThreadID    string          `json:"thread_id"`
