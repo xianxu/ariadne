@@ -18,7 +18,7 @@ collaboration-mode: discussion
 
 The already published `2026-10-18.json` is immutable and remains v1. The first real #402 publication uses #392's default latest completed Monday boundary (`2026-10-12` if completed before 2026-10-19 UTC); that path is presently unused. The prior path is `2026-10-05.json`, so resource deltas correctly say baseline. A temp brain fixture proves the changed schema before the real write; a real write happens only after close review approves it.
 
-The hub replaced the ops project's proposed daily points with weekly read-only device gauges: `ioreg` `Bytes (Write)` and SSD percentage used if `smartctl` can read it without root. No daily producer or inferred daily series is part of #402. The `ioreg` counter may reset at boot; identify its device and counter epoch and suppress a delta across resets rather than presenting a negative or false TB/week value.
+The hub replaced the ops project's proposed daily points with weekly read-only device gauges: `ioreg` `Bytes (Write)` and SSD percentage used if `smartctl` can read it without root. If `smartctl` is missing or denied, record wear as unknown with the exact reason; do not install it or invoke sudo. No daily producer or inferred daily series is part of #402. The `ioreg` counter may reset at boot; identify its device and counter epoch and suppress a delta across resets rather than presenting a negative or false TB/week value.
 
 ## Core concepts
 
@@ -81,3 +81,7 @@ Replace the unassigned daily device-write concept with `ioreg` `Bytes (Write)` a
 ### 2026-10-18 — bind to landed #392
 
 #392 landed at PR #297; its v1 model, fleet producer, suite wall quantiles and immutable writer are now in `weeklystats.go`, `weeklystats_cmd.go` and `weeklystats_write.go`. There is no previous-week reader, contrary to the provisional plan; #402 adds an exact-date, version/window-validating reader. The new top-level resource section requires schema v2. The published 2026-10-18 v1 pilot cannot be changed. The first real resource snapshot will use an unused completed Monday boundary after SHIP, with baseline rather than an invented delta if its exact predecessor is absent or v1. Current suite duration samples come from #392's `WeeklyRepoStats.Suite.Wall`; #402 computes only the comparison. These changes preserve one producer and one immutable writer (ARCH-DRY, ARCH-FUNERAL).
+
+### 2026-10-18 — hub approval and device access
+
+The hub approved the landed-schema delta. An absent or root-only `smartctl` is a named unknown wear measurement; neither a tool install nor sudo is part of this issue. `ioreg` supplies the separate write counter without that dependency.

@@ -67,3 +67,7 @@ The hub approved the plan, directed this slot to land #392 first, and replaced t
 ### 2026-10-18 — re-plan on #392's landed schema
 
 #392's v1 snapshot, producer and immutable writer are now on this branch. It has no previous-week reader, so #402 must add the exact-date, bounded reader itself and issue schema v2. The already published 2026-10-18 v1 pilot remains untouched; the first real resource snapshot uses an unused completed Monday boundary after SHIP review. Current suite wall statistics come from #392's existing per-repo model, while #402 computes the previous-week comparison. The durable plan names the actual files and failure states.
+
+### 2026-10-18 — hub approval
+
+The hub approved the schema-binding revision. If `smartctl` is absent or requires root, SSD wear is unknown with the reason; no install or sudo. `ioreg` writes remain a separate unprivileged gauge.
