@@ -100,6 +100,12 @@ Then close and land on SHIP.
   with the correction. Target and decoder writes now invalidate their proof;
   explicit interface destinations do not inherit a wire type from their
   initializer. README now gives the annotation syntax and links the atlas.
+- The corrected pushed head `1e51be0651aa59d71f4f50019969efc20ea54e06`
+  passed `sdlc local-check run --name suite`: 12 SDLC shards, 1,642
+  `cmd/sdlc` tests, 68 other packages, zero failures, 583.8 s suite wall.
+  Saved log: `/Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/1e51be0651aa59d71f4f50019969efc20ea54e06/suite.log`
+  (SHA-256 prefix `263eae950dbb`). PR #304 checks `merge-check` and
+  `local-gates-guard` also passed on that head.
 
 ## Revisions
 
