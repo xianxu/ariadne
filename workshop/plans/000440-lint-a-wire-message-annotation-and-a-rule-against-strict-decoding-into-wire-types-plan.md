@@ -188,3 +188,14 @@ to the hub. The TL owns any project update.
   runtime sequence stays a no-finding fixture, alongside construction after
   a prior escape, closure capture, range/pointer writes, ordinary aliases,
   and a clean one-assignment positive fixture.
+- 2026-10-18, close review round 4, target-identity matrix: BR-2 is
+  addressed. BR-4 found that an import equal to the module path never maps
+  to the index's root directory (`"."`). Resolve imports by one rule:
+  exact module path → `"."`; module plus slash → the suffix directory;
+  every other import → outside this source index. Then require the selected
+  directory's declared package name (or its explicit import alias) and a
+  marked type in that package. A qualifier resolved to a local binding cannot
+  stand for an import. Red source-map fixtures cover same-file, cross-file,
+  root and subpackage imports, explicit/default aliases, a lookalike module
+  prefix, and shadowed identities in one matrix. This is a rule for the
+  whole supported identity space, not a special case at one Decode site.

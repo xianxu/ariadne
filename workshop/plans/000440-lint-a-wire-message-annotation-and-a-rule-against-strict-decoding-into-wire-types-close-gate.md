@@ -290,6 +290,129 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: a07c7163-0fa0-4934-b10f-86cc1b19e050
+            repository: github.com/xianxu/ariadne
+            issue_id: "000440"
+            recipe: milestone-review
+            round: 4
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/f643b9c0c33e06b1
+            reviewed_head: a60a6e6028c110b556781920e1b6cc2ed6a5b8cf
+            slot: ariadne:1
+            requested_at: "2026-10-18T15:09:38.35845Z"
+          phase: finished
+          pid: 77485
+          started_at: "2026-10-18T15:09:38.473035Z"
+          finished_at: "2026-10-18T15:11:48.628032Z"
+          session_id: 01a14f8f-ae14-78c2-8a4c-52dddc1a0cbe
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: a60a6e6028c110b556781920e1b6cc2ed6a5b8cf
+        tracker_head: ddb13de8f3ffaba6c8e3b79b55fa0cf525bc98bd
+        branch_point: 3ba12c88814b92d93a6e30300fc8061940382d14
+        since: "2026-10-18T05:43:21-07:00"
+        until: "2026-10-18T08:09:07-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T05:43:21-07:00"
+              end: "2026-10-18T08:09:07-07:00"
+              began: "2026-10-18T05:43:21-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: ca1506e205a382519f8aaac07ebf2e104ef11cfde338df965816df1f98f96853
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 107386444
+              windows:
+                - start: "2026-10-18T05:43:21-07:00"
+                  end: "2026-10-18T08:09:07-07:00"
+        queue_waits:
+            - attempt_id: 97e9c79d9d1d102df2d40c32801f3864
+              slot: ariadne:1
+              record_digest: 302427f7fcd59fc6f235b929456fe28e0d9dee2ebfd0c5ec057a740997e6047c
+              start: "2026-10-18T13:00:46.040063Z"
+              end: "2026-10-18T13:09:43.849079Z"
+              queue_seconds: 537.809016
+              raw_seconds: 537.809016
+              exact: true
+            - attempt_id: 8c5a5e18aa58707db347c709c810f563
+              slot: ariadne:1
+              record_digest: e3d4f017eb327e3efee5b4d6035c7cfc077e114ad6e05dcb010f951cd3ff0b17
+              start: "2026-10-18T13:27:17.095135Z"
+              end: "2026-10-18T13:38:49.768584Z"
+              queue_seconds: 692.673449
+              raw_seconds: 692.673449
+              exact: true
+            - attempt_id: 90320ab29b17a67bea80a2671c62c12a
+              slot: ariadne:1
+              record_digest: 2d18cf65a08f926a2e69fb28f4d9985e7505b65b6ed8c309fe046dc6d1471a51
+              start: "2026-10-18T13:54:20.761552Z"
+              end: "2026-10-18T14:15:05.235935Z"
+              queue_seconds: 1244.474383
+              raw_seconds: 1244.474383
+              exact: true
+            - attempt_id: 4a60e90cc408df07a4638b2c53e283ac
+              slot: ariadne:1
+              record_digest: b4058fa81683863384dde7421a488aa896deb34a4d79ace8aeaa02202c45ca6e
+              start: "2026-10-18T14:32:04.166177Z"
+              end: "2026-10-18T14:59:49.477614Z"
+              queue_seconds: 1665.311437
+              raw_seconds: 1665.311437
+              exact: true
+        cuts:
+            - dispatched: "2026-10-18T06:21:43-07:00"
+              finalized: "2026-10-18T06:24:38-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T06:49:21-07:00"
+              finalized: "2026-10-18T06:51:14-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T07:26:15-07:00"
+              finalized: "2026-10-18T07:27:56-07:00"
+              finalizing: false
+      "n": 4
+      timestamp: "2026-10-18T08:11:49-07:00"
+      dispatched: "2026-10-18T08:09:38-07:00"
+      agent: codex
+      dispose:
+        - id: BR-2
+          disposition: addressed
+          note: Whole-function eligibility rejects pointer writes, aliases, escapes, range assignments, and repeated assignments. The pinned-head regression matrix passes; substituting wire.go from 826f9776 makes the original indirect-overwrite fixtures fail, and substituting 848565fa makes the later binding-escape fixtures fail.
+          round: 4
+        - id: BR-1
+          disposition: addressed
+          note: Target reassignment and explicit-interface negative fixtures pass at the pinned head; these fixtures fail with the original matcher from 826f9776.
+          round: 4
+        - id: BR-3
+          disposition: addressed
+          note: README.md:11 documents the wire annotation, independently evolving producers, and local-store exclusion, and links the supporting convention in atlas/workflow/sdlc-binary.md.
+          round: 4
+      findings:
+        - kind: defect
+          id: BR-4
+          severity: Critical
+          title: Imported marked types at the module root bypass the rule
+          detail: pkg/golint/wire.go:384 accepts only imports beginning with Module+"/", excluding an import equal to Module. A source-map probe with annotated Message in message.go and a direct strict decode into peer.Message from reader/read.go importing peer "example.test/module" returns no finding; moving the declaration and import to the wire subpackage produces the expected finding. This violates the Spec's module-wide imported-type coverage (ARCH-PURPOSE). This is the 2nd finding in family `wire-target-provenance`. Earlier rounds fixed instances; state and enforce the rule that every supported target identity resolves consistently. Sweep same-file, cross-file, module-root and subpackage imports, explicit/default aliases, and shadowed identities. Normalize an exact module import to the index's "." directory key and add regression coverage; that correction made the root/subpackage control probe pass.
+          family: wire-target-provenance
+          round: 4
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#440 (boundary-review)
@@ -324,6 +447,19 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-1 — addressed — Retained: wire.go:159 excludes initializer inference for explicitly typed interface destinations; assignment and range invalidation clear target identity. The corresponding interface and reassignment fixtures pass.
 - BR-3 — addressed — Retained: README.md:11-17 documents the annotation syntax, producer rationale, local-store exclusion, and atlas link. These agree with markedWireTypes and the atlas convention.
 
+## Round 4 — 2026-10-18T08:11:49-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-2 — addressed — Whole-function eligibility rejects pointer writes, aliases, escapes, range assignments, and repeated assignments. The pinned-head regression matrix passes; substituting wire.go from 826f9776 makes the original indirect-overwrite fixtures fail, and substituting 848565fa makes the later binding-escape fixtures fail.
+- BR-1 — addressed — Target reassignment and explicit-interface negative fixtures pass at the pinned head; these fixtures fail with the original matcher from 826f9776.
+- BR-3 — addressed — README.md:11 documents the wire annotation, independently evolving producers, and local-store exclusion, and links the supporting convention in atlas/workflow/sdlc-binary.md.
+
+### Raised
+
+- **BR-4** [Critical] `wire-target-provenance` (kind: defect) Imported marked types at the module root bypass the rule
+  pkg/golint/wire.go:384 accepts only imports beginning with Module+"/", excluding an import equal to Module. A source-map probe with annotated Message in message.go and a direct strict decode into peer.Message from reader/read.go importing peer "example.test/module" returns no finding; moving the declaration and import to the wire subpackage produces the expected finding. This violates the Spec's module-wide imported-type coverage (ARCH-PURPOSE). This is the 2nd finding in family `wire-target-provenance`. Earlier rounds fixed instances; state and enforce the rule that every supported target identity resolves consistently. Sweep same-file, cross-file, module-root and subpackage imports, explicit/default aliases, and shadowed identities. Normalize an exact module import to the index's "." directory key and add regression coverage; that correction made the root/subpackage control probe pass.
+
 ## Open findings
 
-- **BR-2** [Critical] `wire-decoder-strictness-provenance` (kind: defect) Overwriting a decoder leaves stale strictness in the matcher
+- **BR-4** [Critical] `wire-target-provenance` (kind: defect) Imported marked types at the module root bypass the rule

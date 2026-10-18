@@ -277,3 +277,99 @@ dispose:
    Add a `## Revisions` entry distinguishing decoder-object aliases from variable-binding aliases. State when proof may safely resume, and extend the regression matrix to escapes occurring before initial construction and before reassignment. Update the atlas’s “until a fresh direct assignment” claim to match that corrected rule.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"88d7039d-6900-402d-96a5-4583527aa1dc","repository":"github.com/xianxu/ariadne","issue_id":"000440","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/828ff8ebde57f8f1","reviewed_head":"ebc57fade3ae567df3aec3f1268a9782b73611c6","slot":"ariadne:1","requested_at":"2026-10-18T14:26:15.537793Z"},"phase":"finished","pid":29657,"started_at":"2026-10-18T14:26:15.766551Z","finished_at":"2026-10-18T14:27:54.686121Z","session_id":"01a14f67-f86c-7b51-a0bd-1010b9ca566d","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T08:11:49-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 440 — lint: a wire-message annotation and a rule against strict decoding into wire types |
+| repo | ariadne |
+| issue file | workshop/issues/000440-lint-a-wire-message-annotation-and-a-rule-against-strict-decoding-into-wire-types.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 3ba12c88814b92d93a6e30300fc8061940382d14..a60a6e6028c110b556781920e1b6cc2ed6a5b8cf |
+| command | sdlc close --issue 440 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-18T08:11:49-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-2 is fixed, with regression tests that fail against the earlier implementation. The pure index, conservative decoder proof, annotations, and documentation are sound. One verified coverage defect remains: imported wire types declared at the module root silently bypass the rule.
+
+Done-when: current — it still covers the revised conservative matcher, imported targets, annotations, documentation, and counted index workload.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Whole-function eligibility rejects pointer writes, aliases, escapes, range assignments, and repeated assignments. The pinned-head regression matrix passes; substituting wire.go from 826f9776 makes the original indirect-overwrite fixtures fail, and substituting 848565fa makes the later binding-escape fixtures fail.
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Target reassignment and explicit-interface negative fixtures pass at the pinned head; these fixtures fail with the original matcher from 826f9776.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README.md:11 documents the wire annotation, independently evolving producers, and local-store exclusion, and links the supporting convention in atlas/workflow/sdlc-binary.md.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: wire-target-provenance
+    title: |
+      Imported marked types at the module root bypass the rule
+    detail: |
+      pkg/golint/wire.go:384 accepts only imports beginning with Module+"/", excluding an import equal to Module. A source-map probe with annotated Message in message.go and a direct strict decode into peer.Message from reader/read.go importing peer "example.test/module" returns no finding; moving the declaration and import to the wire subpackage produces the expected finding. This violates the Spec's module-wide imported-type coverage (ARCH-PURPOSE). This is the 2nd finding in family `wire-target-provenance`. Earlier rounds fixed instances; state and enforce the rule that every supported target identity resolves consistently. Sweep same-file, cross-file, module-root and subpackage imports, explicit/default aliases, and shadowed identities. Normalize an exact module import to the index's "." directory key and add regression coverage; that correction made the root/subpackage control probe pass.
+```
+
+1. **Strengths**
+
+   - `singleOwnerDecoders` establishes eligibility before ordered matching, preventing stale strictness from being restored after an escape.
+   - `CheckSources` shares parsing and indexing across files while keeping matcher tests free of IO.
+   - All four required producer types carry annotations. README and atlas explain the convention and conservative coverage limits.
+
+2. **Critical findings**
+
+   - `pkg/golint/wire.go:384`: module-root imports are excluded. Reproduction and fix sketch appear above.
+
+3. **Important findings**
+
+   None.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - `go test ./pkg/golint -count=1` passed.
+   - BR-2 regression tests failed with earlier matcher versions in disposable copies.
+   - The additional root-import probe failed on pinned head; the subpackage control passed. Normalizing root imports made both pass.
+   - Range whitespace checks passed. Disposable copies were removed; the reviewed checkout remains unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY: pass** — shared index and suppression machinery.
+   - **ARCH-PURE: pass** — declared pure entities exist and their direct tests require no IO.
+   - **ARCH-PURPOSE: flag** — imported-type coverage excludes the module root.
+   - **ARCH-MOCK: pass** — no new external dependency; tracked-source collection retains its existing IO boundary.
+   - **ARCH-CONSTRAINTS: pass** — counted N/2N indexing tests and a passing repository scan support the intended workload.
+   - **ARCH-SECURE: pass** — parse errors propagate; no new credential handling or unsafe external effects.
+   - **ARCH-ORDER: pass** — decoder eligibility and ordered matching use explicit function-local state; no cross-event state is introduced.
+   - **ARCH-FUNERAL: pass** — no durable runtime artifact is created.
+
+7. **Plan revision recommendations**
+
+   Append a `## Revisions` entry defining module-root and subpackage imports as supported target identities and recording the expanded identity-resolution regression matrix.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"a07c7163-0fa0-4934-b10f-86cc1b19e050","repository":"github.com/xianxu/ariadne","issue_id":"000440","recipe":"milestone-review","round":4,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/f643b9c0c33e06b1","reviewed_head":"a60a6e6028c110b556781920e1b6cc2ed6a5b8cf","slot":"ariadne:1","requested_at":"2026-10-18T15:09:38.35845Z"},"phase":"finished","pid":77485,"started_at":"2026-10-18T15:09:38.473035Z","finished_at":"2026-10-18T15:11:48.628032Z","session_id":"01a14f8f-ae14-78c2-8a4c-52dddc1a0cbe","outcome":"returned"}] -->
