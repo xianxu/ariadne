@@ -979,3 +979,4 @@ The simplest durable authority beats a clever scan of consequences.
 
 - Keep Agent and Co-Authored-By trailers together in the final Git message paragraph. A blank line between them makes the earlier Agent line ordinary body text, so trailer readers report it missing even when a grep finds the literal line.
 - Special-case advice for an evidence refusal must classify the full blocker set, not the first diagnostic. Preserve all selector warnings through the error boundary and test mixed blocker orders before suggesting an irreversible exclusion (#428 BR-1).
+- A numeric metric over retained logs needs an explicit history floor proving its whole cohort is still observable. Test expired records, every retry in an admission chain, and legacy rows through one shared time selector before calling coverage complete; restrict source collection to the requested cohort so unrelated old failures cannot null it (#392 BR-1/2/3/6).
