@@ -79,6 +79,89 @@ rounds:
       isolation: fenced
       reviewed: 126eb88b52d3a8b4b671895272ba6b2214d418e1
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 0acfb2cd-1b7e-4feb-8def-4df842a90477
+            repository: github.com/xianxu/ariadne
+            issue_id: "000447"
+            recipe: fix-review
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/7b14e37e3794c2bd
+            reviewed_head: 12b3eb3f91cc603aaf142a10d8730f0a20bb6f9d
+            slot: ariadne:2
+            requested_at: "2026-10-18T21:57:57.712906Z"
+          phase: finished
+          pid: 94327
+          started_at: "2026-10-18T21:57:57.803854Z"
+          finished_at: "2026-10-18T21:58:37.964554Z"
+          session_id: dbec5979-e9e6-48b7-b51b-c7ca58995cf1
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 12b3eb3f91cc603aaf142a10d8730f0a20bb6f9d
+        tracker_head: 0e6efae87ae8f6ae2b87a160848ea6bd71776bcb
+        branch_point: 60ed08fd6e643c0bd38cdbe164c39497224c7766
+        since: "2026-10-18T13:57:34-07:00"
+        until: "2026-10-18T14:31:46-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T13:57:34-07:00"
+              end: "2026-10-18T14:31:46-07:00"
+              began: "2026-10-18T13:57:34-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 2f9e80856821f1a2d9704b73b325edca749ebc4a968ce5280d6fa35fe3dfe091
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 206712866
+              windows:
+                - start: "2026-10-18T13:57:34-07:00"
+                  end: "2026-10-18T14:31:46-07:00"
+        queue_waits:
+            - attempt_id: 2c28a8b33d5a808b8e75731906e150cb
+              slot: ariadne:2
+              record_digest: 70b3dbc0b79d0b0dc25051653ded55e292e34a10444008ef3744d05cce8ca631
+              start: "2026-10-18T21:01:41.142009Z"
+              end: "2026-10-18T21:19:20.638179Z"
+              queue_seconds: 1059.49617
+              raw_seconds: 1059.49617
+              exact: true
+        cuts:
+            - dispatched: "2026-10-18T14:28:27-07:00"
+              finalized: "2026-10-18T14:30:04-07:00"
+              finalizing: true
+      "n": 2
+      timestamp: "2026-10-18T14:58:38-07:00"
+      dispatched: "2026-10-18T14:57:57-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: remoteMain (authority.go:85) admits only a one-segment R; new TestMainAuthority row goes red when the slash check is reverted.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: checkout.go:140 now passes --local; TestCheckoutCopiesOnlyTheSlotsConfig goes red (copies remote.elsewhere and branch.main) when --local is reverted.
+          round: 2
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 12b3eb3f91cc603aaf142a10d8730f0a20bb6f9d
+      blocked: false
 ---
 
 # Gate ledger — ariadne#447 (boundary-review)
@@ -95,7 +178,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-2** [Minor] `authority-source-scope` (kind: defect) The main-authority config read covers global and system scope, not just the slot's repository
   checkout.go:140 runs git config --get-regexp without --local, so a user-level branch.main.* or remote.*.fetch is copied as if it were the slot's. A valueless key anywhere in scope makes checkout creation fail and blocks the review; add --local.
 
+## Round 2 — 2026-10-18T14:58:38-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — remoteMain (authority.go:85) admits only a one-segment R; new TestMainAuthority row goes red when the slash check is reverted.
+- BR-2 — addressed — checkout.go:140 now passes --local; TestCheckoutCopiesOnlyTheSlotsConfig goes red (copies remote.elsewhere and branch.main) when --local is reverted.
+
 ## Open findings
 
-- **BR-1** [Minor] `allowlist-shape-too-loose` (kind: defect) A remote branch named feature/main creates a stray remote origin/feature in the review checkout
-- **BR-2** [Minor] `authority-source-scope` (kind: defect) The main-authority config read covers global and system scope, not just the slot's repository
+(none — every finding has been disposed)

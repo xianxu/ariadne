@@ -73,3 +73,67 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"7e377110-ae60-4ef1-8559-65139d46009a","repository":"github.com/xianxu/ariadne","issue_id":"000447","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/9207fed21adc0d72","reviewed_head":"126eb88b52d3a8b4b671895272ba6b2214d418e1","slot":"ariadne:2","requested_at":"2026-10-18T21:28:27.97644Z"},"phase":"finished","pid":78431,"started_at":"2026-10-18T21:28:28.183367Z","finished_at":"2026-10-18T21:30:02.907021Z","session_id":"16988d97-20d6-4b89-b7b9-dc28c42796a2","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T14:58:38-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 447 — review checkouts lack main ref and remote config, so repo tests needing main authority can't run in review |
+| repo | ariadne |
+| issue file | workshop/issues/000447-review-checkouts-lack-main-ref-and-remote-config-so-repo-tests-needing-main-authority-can-t-run-in-review.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 8f6b8118be4100a5624db67b735f3707b76b6a73..12b3eb3f91cc603aaf142a10d8730f0a20bb6f9d |
+| command | sdlc close --issue 447 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-18T14:58:38-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Now revert each fix and confirm its test goes red.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both prior Minor findings are fixed, and each fix has a regression test that I confirmed fails without it. The interdiff changes two code lines plus their tests. The only other files are the generated gate ledger and the close-review record. `## Spec`, `## Revisions` and `## Done when` are unchanged, nothing beyond the two findings was added, and there are no conflict resolutions in this window. `go test ./cmd/sdlc/internal/reviewbox/` passes at head. I reverted each fix in the disposable checkout, saw its test fail, and restored it; `git status` came back clean.
+
+1. **Strengths**
+   - **BR-1 is fixed by a rule, not a special case.** The new `remoteMain` (`cmd/sdlc/internal/reviewbox/authority.go:85`) only accepts `refs/remotes/R/main` where R is a single path segment, which is the shape a fetch refspec gives a remote's main. Before, the check was an inline prefix/suffix test; now it is one named helper.
+   - **BR-2 is fixed at the one place config is read.** `--local` at `cmd/sdlc/internal/reviewbox/checkout.go:140` scopes the read to the repository. The other read, `for-each-ref`, only sees the repository's own refs, so the class is covered.
+   - **The tests prove the fixes.** Without `--local`, `TestCheckoutCopiesOnlyTheSlotsConfig` fails: the checkout picks up `remote.elsewhere.*` and `branch.main.remote elsewhere` from a fake `GIT_CONFIG_GLOBAL`. Without the slash check, the new `TestMainAuthority` row fails and produces `remotes:[origin/feature]`.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - This is a note, not a finding. Git does allow remote names that contain a slash. For such a remote, `branch.main.remote` and its fetch refspec are still copied, but its `refs/remotes/a/b/main` is now skipped. That trade-off was intended and the case is very rare. If it ever matters, a more exact rule would be to take the remote names from the `remote.<R>.fetch` keys rather than from the ref's shape.
+
+5. **Test coverage notes:** the parser table gained a row for the nested-branch shape. The new integration test uses real git with an isolated global config, which is the package's existing pattern.
+
+6. **Architecture (interdiff only)**
+   - **ARCH-DRY:** pass. `remoteMain` replaces the inline check. It is called twice in a row in the switch, which costs nothing.
+   - **ARCH-PURE:** pass. `remoteMain` is pure and tested through the pure `mainAuthority` table. The `--local` change stays inside the thin git layer.
+   - **ARCH-PURPOSE:** pass. Each fix covers its whole class (the shape of an allowed ref; the scope of the authority source), not just the site the finding named.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      remoteMain (authority.go:85) admits only a one-segment R; new TestMainAuthority row goes red when the slash check is reverted.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      checkout.go:140 now passes --local; TestCheckoutCopiesOnlyTheSlotsConfig goes red (copies remote.elsewhere and branch.main) when --local is reverted.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"0acfb2cd-1b7e-4feb-8def-4df842a90477","repository":"github.com/xianxu/ariadne","issue_id":"000447","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/7b14e37e3794c2bd","reviewed_head":"12b3eb3f91cc603aaf142a10d8730f0a20bb6f9d","slot":"ariadne:2","requested_at":"2026-10-18T21:57:57.712906Z"},"phase":"finished","pid":94327,"started_at":"2026-10-18T21:57:57.803854Z","finished_at":"2026-10-18T21:58:37.964554Z","session_id":"dbec5979-e9e6-48b7-b51b-c7ca58995cf1","outcome":"returned"}] -->

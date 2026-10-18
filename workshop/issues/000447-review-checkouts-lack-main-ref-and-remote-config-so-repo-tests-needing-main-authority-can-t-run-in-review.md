@@ -68,6 +68,7 @@ Design notes:
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed — Close Minors fixed: remoteMain accepts only a one-segment remote name (a branch feature/main under origin adds no remote; parser row); the config read is --local (TestCheckoutCopiesOnlyTheSlotsConfig with GIT_CONFIG_GLOBAL, which fails without --local). reviewbox tests pass; suite green on 12b3eb3f (8m39s). (fixed-then-ship); review verdict: SHIP
 - 2026-10-18: closed — Suite green on 126eb88b (sdlc-local/suite, 8m27s). reviewbox: TestMainAuthority (allowlist; URL, insteadOf and pushurl refused; malformed rows refuse), TestCheckoutCarriesMainAuthorityReadOnly in the pair#665 shape (branch.main config, origin/main, a single merge base and main@{upstream} equal the slot; push and fetch fail against the inert readonly URL; slot snapshot and bare origin refs unchanged), which fails with copyMainAuthority disabled; TestCheckoutWithoutRemoteHasNoRemoteMain. cmd/sdlc isolation tests pass. Atlas sdlc-binary updated.; review verdict: SHIP
 - 2026-10-18: flow upgraded quick → full — 143 added lines in code files (limit 100)
 - 2026-10-18: the hub approved the plan. Implemented as planned: `reviewbox/authority.go` (`mainAuthority`, `authorityKeys`, `inertURL`) and `Checkout.copyMainAuthority`, called by `populate` after the detached checkout, so Reset gets it too.
