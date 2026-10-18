@@ -225,15 +225,38 @@ func invalidateAssigned(node ast.Node, decoders, variables map[string]bool) {
 	})
 }
 
-// A decoder name is eligible only when the whole function assigns it once from
-// json.NewDecoder and otherwise uses it solely as a direct method receiver.
+// A decoder name is eligible only when a direct statement in the function
+// declares it once from json.NewDecoder and every other use is a direct method
+// receiver. An assignment to a package global has no local ownership proof.
 // This whole-function decision avoids restoring proof after an alias to the
 // variable binding escapes. Name-based rejection can miss a finding when a
 // nested scope shadows a name; it cannot create a false finding.
 func singleOwnerDecoders(fn *ast.FuncDecl, jsonPkg string) map[string]bool {
 	writes := map[string]int{}
 	constructors := map[string]int{}
+	localConstructors := map[string]bool{}
 	allowed := map[*ast.Ident]bool{}
+	for _, stmt := range fn.Body.List {
+		switch v := stmt.(type) {
+		case *ast.DeclStmt:
+			group, ok := v.Decl.(*ast.GenDecl)
+			if !ok || group.Tok != token.VAR {
+				continue
+			}
+			for _, spec := range group.Specs {
+				value, ok := spec.(*ast.ValueSpec)
+				if ok && len(value.Names) == 1 && len(value.Values) == 1 && isPackageCall(value.Values[0], jsonPkg, "NewDecoder") {
+					localConstructors[value.Names[0].Name] = true
+				}
+			}
+		case *ast.AssignStmt:
+			if v.Tok == token.DEFINE && len(v.Lhs) == 1 && len(v.Rhs) == 1 && isPackageCall(v.Rhs[0], jsonPkg, "NewDecoder") {
+				if id, ok := v.Lhs[0].(*ast.Ident); ok {
+					localConstructors[id.Name] = true
+				}
+			}
+		}
+	}
 	markWrite := func(e ast.Expr, constructor bool) {
 		if id := assignedRoot(e); id != nil && id.Name != "_" {
 			writes[id.Name]++
@@ -299,7 +322,7 @@ func singleOwnerDecoders(fn *ast.FuncDecl, jsonPkg string) map[string]bool {
 	})
 	eligible := map[string]bool{}
 	for name, count := range writes {
-		if count == 1 && constructors[name] == 1 && !disqualified[name] {
+		if count == 1 && constructors[name] == 1 && localConstructors[name] && !disqualified[name] {
 			eligible[name] = true
 		}
 	}

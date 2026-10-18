@@ -158,6 +158,12 @@ Then close and land on SHIP.
   (SHA-256 prefix `5834d9bff3a3`). PR #304's `merge-check` and
   `local-gates-guard` passed on that code head.
 
+- The round-5 global-reset fixtures failed before the correction in both
+  same-file and cross-file layouts. A direct local declaration now gates the
+  single-owner proof; the local-shadowing and local `var` controls still flag.
+  `go test ./pkg/golint -count=1`, `make -k tools`, and `git diff --check`
+  passed after the correction.
+
 ## Revisions
 
 - 2026-10-18, close review round 5: BR-2 showed that a package-global

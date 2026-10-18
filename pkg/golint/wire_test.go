@@ -270,6 +270,50 @@ func read(r io.Reader) error {
 	}
 }
 
+func TestWireStrictDecodeRequiresLocalDecoderBinding(t *testing.T) {
+	for _, tc := range []struct {
+		name, global, reader string
+		want                 bool
+	}{
+		{"global reset in same file", "same", "d = json.NewDecoder(r)", false},
+		{"global reset in another file", "other", "d = json.NewDecoder(r)", false},
+		{"local binding shadows global", "other", "d := json.NewDecoder(r)", true},
+		{"local var initializer", "other", "var d = json.NewDecoder(r)", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			const header = "package p\nimport (\"encoding/json\"; \"io\")\n"
+			global := header + `
+var d *json.Decoder
+func reset(r io.Reader) { d = json.NewDecoder(r) }
+`
+			read := header + `
+// wire: peer messages can gain fields.
+type Peer struct{}
+func read(r io.Reader) error {
+	` + tc.reader + `
+	d.DisallowUnknownFields()
+	reset(r)
+	var m Peer
+	return d.Decode(&m)
+}`
+			sources := map[string][]byte{"read.go": []byte(read)}
+			if tc.global == "same" {
+				sources["read.go"] = []byte(global + strings.TrimPrefix(read, header))
+			} else {
+				sources["global.go"] = []byte(global)
+			}
+			got, err := CheckSources("example.test/module", sources, Catalog)
+			if err != nil {
+				t.Fatal(err)
+			}
+			findings := got["read.go"]
+			if (len(findings) == 1 && findings[0].Rule == "wire-strict-decode") != tc.want {
+				t.Errorf("findings = %v; want wire-strict-decode=%v", findings, tc.want)
+			}
+		})
+	}
+}
+
 func TestWireStrictDecodeDoesNotGuessFlowOrTarget(t *testing.T) {
 	for _, tc := range []struct {
 		name, body string

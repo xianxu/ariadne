@@ -1924,11 +1924,12 @@ ambiguous branches and helper decoders are outside this conservative
 syntax-only rule. A marked target resolves in the same package, the module
 root, or an imported subpackage when its declared package name or explicit
 alias matches the selector; a shadowed qualifier is not an import. A decoder remains
-proven only if its local name has exactly one direct `json.NewDecoder`
-assignment in the function, no reassignment or address or closure escape,
+proven only if its function-local binding is declared by its sole direct
+`json.NewDecoder` assignment, with no reassignment or address or closure escape,
 and no use outside the two direct method calls. Copying it or passing it to a
 helper disqualifies the name, as does a second assignment even when the new
-value is another decoder. This can miss a strict decode after aliasing, but
+value is another decoder. A package-global decoder is outside the proof
+because a helper can replace it. This can miss a strict decode after aliasing, but
 cannot guess that the decoder remains strict. The current examples
 are Claude stream events, `go test -json` events, and Codex/Claude usage
 records (#440). Do not mark local configuration, tracker receipts, fleet policy,
