@@ -1,6 +1,6 @@
 ---
 id: 000410
-status: codecomplete
+status: done
 created: 2026-10-16
 updated: 2026-10-17
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 64fb664c8382195a5e9755955523d5ef56780c4d
         evidence_commit: 87cb24ffb76d2f68c6deae3b5659ee94bfd950e9
+        landed_commit: 3906d291f197e4aeddf7da6c0d6f68b77eb0b993
 ---
 
 # tl-worker/tl-lead: a state design table for stateful plans (actions, failure modes to few visible states, one recovery each, explicit loss, tradeoff to TL/operator)
