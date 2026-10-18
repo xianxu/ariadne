@@ -31,9 +31,6 @@ func TestLocalCheckSignalProcess(t *testing.T) {
 	if bin := os.Getenv("SDLC_QUEUE_BIN"); bin != "" {
 		_ = os.Setenv("PATH", testfix.PrependPath(bin, os.Getenv("PATH")))
 	}
-	if os.Getenv("SDLC_BLOCK_PHASE") == "cleanup" {
-		localCheckCleanupTimeout = 50 * time.Millisecond
-	}
 	os.Args = []string{"sdlc", "local-check", "run", "--name", "suite"}
 	main()
 	os.Exit(0)
@@ -58,6 +55,26 @@ func TestLocalCheckSignalCancelsQueuedHelper(t *testing.T) {
 			temp := t.TempDir()
 			lockPath, helperPIDPath := filepath.Join(temp, "lock"), filepath.Join(temp, "helper.pid")
 			cleanupPIDPath := filepath.Join(temp, "cleanup.pid")
+			// The cleanup phase's shim waits on this gate after reporting itself,
+			// so the test, not a clock, decides when cleanup Git returns (#434).
+			cleanupGate := filepath.Join(temp, "cleanup.gate")
+			if err := syscall.Mkfifo(cleanupGate, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			// Opening the write end waits for the shim to open the read end,
+			// so the release lands whichever side gets there first.
+			releaseCleanup := func() {
+				go func() {
+					if f, err := os.OpenFile(cleanupGate, os.O_WRONLY, 0); err == nil {
+						_ = f.Close()
+					}
+				}()
+			}
+			t.Cleanup(func() {
+				if f, err := os.OpenFile(cleanupGate, os.O_WRONLY|syscall.O_NONBLOCK, 0); err == nil {
+					_ = f.Close()
+				}
+			})
 			// Record the exact helper we created: never find a global PID to stop.
 			prefix := "import os, sys\nif '--help' not in sys.argv:\n    open(os.environ['SDLC_QUEUE_HELPER_PID'], 'w').write(str(os.getpid()))\n"
 			if err := os.WriteFile(filepath.Join(d.Root, "scripts", "test-lock.py"), append([]byte(prefix), helper...), 0700); err != nil {
@@ -93,7 +110,7 @@ func TestLocalCheckSignalCancelsQueuedHelper(t *testing.T) {
 			processgroup.Configure(cmd)
 			cmd.Dir = d.Root
 			cmd.WaitDelay = time.Second
-			cmd.Env = append(os.Environ(), "SDLC_QUEUE_SIGNAL_CHILD=1", "SDLC_QUEUE_ROOT="+d.Root, "SDLC_QUEUE_SHA="+sha, "SDLC_QUEUE_HELPER_PID="+helperPIDPath, "SDLC_BLOCK_PHASE="+tc.phase, "SDLC_PHASE_READY="+cleanupPIDPath)
+			cmd.Env = append(os.Environ(), "SDLC_QUEUE_SIGNAL_CHILD=1", "SDLC_QUEUE_ROOT="+d.Root, "SDLC_QUEUE_SHA="+sha, "SDLC_QUEUE_HELPER_PID="+helperPIDPath, "SDLC_BLOCK_PHASE="+tc.phase, "SDLC_PHASE_READY="+cleanupPIDPath, "SDLC_CLEANUP_GATE="+cleanupGate)
 			var output bytes.Buffer
 			cmd.Stdout, cmd.Stderr = &output, &output
 			if err := cmd.Start(); err != nil {
@@ -155,6 +172,33 @@ func TestLocalCheckSignalCancelsQueuedHelper(t *testing.T) {
 			if err := cmd.Process.Signal(sig); err != nil {
 				t.Fatal(err)
 			}
+			cleanupPID := 0
+			if tc.phase == "cleanup" {
+				// Cancellation must not skip retirement: the cancelled run is
+				// still waiting on its cleanup Git when that Git reports in.
+				until := time.Now().Add(testfix.HangCeiling)
+				for cleanupPID == 0 {
+					select {
+					case err := <-done:
+						finished = true
+						t.Fatalf("cancelled run exited without its cleanup Git: %v\n%s", err, output.String())
+					default:
+					}
+					if time.Now().After(until) {
+						t.Fatal("cleanup never reached its Git")
+					}
+					raw, _ := os.ReadFile(cleanupPIDPath)
+					cleanupPID, _ = strconv.Atoi(string(raw))
+					time.Sleep(5 * time.Millisecond)
+				}
+				select {
+				case err := <-done:
+					finished = true
+					t.Fatalf("cancelled run did not wait for its cleanup Git: %v", err)
+				default:
+				}
+				releaseCleanup()
+			}
 			select {
 			case err := <-done:
 				finished = true
@@ -164,13 +208,9 @@ func TestLocalCheckSignalCancelsQueuedHelper(t *testing.T) {
 			case <-time.After(5 * time.Second):
 				t.Fatal("queued cancellation exceeded five seconds")
 			}
-			if tc.phase == "cleanup" {
-				raw, _ := os.ReadFile(cleanupPIDPath)
-				pid, _ := strconv.Atoi(string(raw))
-				if pid == 0 {
-					t.Error("cleanup never reached its blocked Git seam")
-				} else if err := testfix.AwaitExit(pid, time.Second); err != nil {
-					t.Errorf("cleanup Git survived its independent deadline: %v", err)
+			if cleanupPID > 0 {
+				if err := testfix.AwaitExit(cleanupPID, time.Second); err != nil {
+					t.Errorf("cleanup Git outlived its run: %v", err)
 				}
 			}
 			if err := testfix.AwaitExit(helperPID, time.Second); err != nil {
@@ -267,7 +307,7 @@ if [ "$SDLC_BLOCK_PHASE" = fetch ] && case " $* " in *" fetch "*) true;; *) fals
 fi
 if [ "$SDLC_BLOCK_PHASE" = cleanup ] && case " $* " in *" worktree remove --force "*) true;; *) false;; esac; then
   printf '%s' "$$" > "$SDLC_PHASE_READY"
-  exec sleep 60
+  cat "$SDLC_CLEANUP_GATE" >/dev/null
 fi
 if [ "$SDLC_BLOCK_PHASE" = trailer ] && case " $* " in *" show -s --format="*) true;; *) false;; esac; then
   printf '%s' "$$" > "$SDLC_PHASE_READY"

@@ -64,10 +64,10 @@ boundary-push and integrate-gate timeout tests assert only that the deadline bou
 
 ## Plan
 
-- [ ] `testfix.DeadlineOnCue` + its unit test
-- [ ] Bounded-git deadline test and make-probe test fire the deadline on cue after readiness
-- [ ] Signal test cleanup phase: FIFO-gated shim, no global 50 ms; `localCheckCleanupGit` unit test for the bound
-- [ ] Loaded verification: six concurrent loops of all three tests, plus the shrunk-deadline repro now passing
+- [x] `testfix.DeadlineOnCue` + its unit test
+- [x] Bounded-git deadline test and make-probe test fire the deadline on cue after readiness
+- [x] Signal test cleanup phase: FIFO-gated shim, no global 50 ms; `localCheckCleanupGit` unit test for the bound
+- [x] Loaded verification: six concurrent loops of all three tests, plus the shrunk-deadline repro now passing
 
 ## Log
 
@@ -78,3 +78,13 @@ boundary-push and integrate-gate timeout tests assert only that the deadline bou
   load average 17. Six concurrent loops of 15 (`-test.count`, a compiled test binary) hit a different failure once,
   "cancelled run retained its worktree" (a registry entry with HEAD 0000 left behind), which is the same 50 ms
   budget killing the ordinary `git worktree prune`: `boundedLandingGitRunner.run` applies the timeout per call.
+- Implemented. `testfix.DeadlineOnCue` (+ `TestDeadlineOnCue`: a derived WithTimeout stays live until the cue, then
+  reports DeadlineExceeded). The bounded-git `deadline` mode and both make-probe modes now expire on cue after the
+  child pid appears, with production-length limits. The signal test's cleanup phase has no global 50 ms: its shim
+  reports in, then waits on a FIFO; the test asserts the cancelled run is still waiting, releases the FIFO (a
+  blocking writer open in a goroutine, since a non-blocking one fails when the shim has not opened the read end yet:
+  the first attempt hung 3/3 for exactly that reason), and asserts the run exits, its Git is gone and the worktree is
+  retired. `TestLocalCheckCleanupGitIsIndependentAndBounded` covers what the 50 ms used to: cleanup Git runs after
+  cancellation and a hung one returns DeadlineExceeded within its budget.
+- Loaded verification: six concurrent loops of the four affected tests, 10 iterations each (60 per test), at load
+  average 60–72: 6/6 PASS.

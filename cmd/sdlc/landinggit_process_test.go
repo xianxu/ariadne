@@ -44,16 +44,21 @@ func TestBoundedLandingGitTerminatesDescendants(t *testing.T) {
 			}
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			limit := 5 * time.Second
+			// The deadline passes on cue once the descendant has reported itself
+			// (#434): a clock would race the fixture's startup under load.
+			var expire func()
 			if mode == "deadline" {
-				limit = 500 * time.Millisecond
+				ctx, expire = testfix.DeadlineOnCue()
 			}
-			r := newBoundedLandingGit(ctx, execGitRunner{}, limit)
+			r := newBoundedLandingGit(ctx, execGitRunner{}, 5*time.Second)
 			done := make(chan error, 1)
 			go func() { _, err := r.GitInDir(root, "-c", "alias.hang="+alias, "hang"); done <- err }()
 			child := awaitLandingGitChild(t, pidfile)
-			if mode == "cancel" {
+			switch mode {
+			case "cancel":
 				cancel()
+			case "deadline":
+				expire()
 			}
 			select {
 			case err := <-done:
@@ -140,5 +145,29 @@ func TestBoundedLandingGitUncertainPushPreservesPublishedHead(t *testing.T) {
 	got, err = recovery.GitInDir(root, "rev-parse", "HEAD")
 	if err != nil || string(got) != head+"\n" {
 		t.Fatalf("retained local = %q, error = %v", got, err)
+	}
+}
+
+// A local check's cleanup Git outlives the run's cancellation but not its own
+// budget (#434: asserted here directly, so the signal test need not race a
+// shrunk deadline against fixture startup).
+func TestLocalCheckCleanupGitIsIndependentAndBounded(t *testing.T) {
+	root := t.TempDir()
+	git(t, root, "init", "-q")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := localCheckCleanupGit(ctx, execGitRunner{}, root)("rev-parse", "--git-dir"); err != nil {
+		t.Fatalf("cleanup Git refused after the run's cancellation: %v", err)
+	}
+	prev := localCheckCleanupTimeout
+	localCheckCleanupTimeout = 200 * time.Millisecond
+	t.Cleanup(func() { localCheckCleanupTimeout = prev })
+	start := time.Now()
+	_, err := localCheckCleanupGit(ctx, execGitRunner{}, root)("-c", "alias.hang=!sleep 60", "hang")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("hung cleanup Git: %v", err)
+	}
+	if took := time.Since(start); took > 3*time.Second {
+		t.Fatalf("cleanup Git exceeded its budget plus drain: %s", took)
 	}
 }

@@ -17,9 +17,9 @@ import (
 func TestMakeProbeBoundsDescendantPipes(t *testing.T) {
 	for _, mode := range []string{"hanging-shell", "exited-parent"} {
 		t.Run(mode, func(t *testing.T) {
-			old := suiteProbeTimeout
-			suiteProbeTimeout = 500 * time.Millisecond
-			t.Cleanup(func() { suiteProbeTimeout = old })
+			// The probe's deadline passes on cue once the descendant has reported
+			// itself (#434); its own timeout stays at production length.
+			ctx, expire := testfix.DeadlineOnCue()
 			dir := t.TempDir()
 			procedureWrite(t, dir, "Makefile", "HANG := $(shell sh ./hang.sh)\ntest:; @true\n")
 			procedureWrite(t, dir, "hang.sh", "sleep 60 &\nprintf '%s' \"$!\" > child.pid\nwait\n")
@@ -32,7 +32,7 @@ func TestMakeProbeBoundsDescendantPipes(t *testing.T) {
 				t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 			}
 			done := make(chan error, 1)
-			go func() { _, _, err := probeMakeTestFacts(dir); done <- err }()
+			go func() { _, _, err := probeMakeTestFactsContext(ctx, dir); done <- err }()
 			child := 0
 			finished := false
 			t.Cleanup(func() {
@@ -59,6 +59,7 @@ func TestMakeProbeBoundsDescendantPipes(t *testing.T) {
 			if child == 0 {
 				t.Fatal("descendant never started")
 			}
+			expire()
 			select {
 			case err := <-done:
 				finished = true
