@@ -1,13 +1,21 @@
 ---
 id: 000426
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-17
-updated: 2026-10-17
+updated: 2026-10-18
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'c89951ea05adcf38721e4b79c76467ba473e8966' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '877a55f26a87e760be175426a93befc779dd7437' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-17T07:33:33-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead status: write the discussions index through couch's frontmatter read/write (pair#643), dropping the printed-diff workaround
@@ -30,7 +38,24 @@ ariadne#424 (M2) writes the TL session file's `discussions:` index through couch
 
 ## Plan
 
-- [ ]
+Quick flow: about 40 added code lines, and index.go shrinks.
+
+- [ ] **Seam:** `SessionSync.ReadAll`/`WriteAll` become `ReadFrontmatter(file) (block, hash, err)` and `WriteFrontmatter(file, bodyPath, hash)` over `read --frontmatter --json` and `write --frontmatter … --if-hash`. The reply decodes like a section read. No other caller used the whole-file pair, so it goes (ARCH-DRY). `Peek` and `MarkAllSeen` (status seen) stay.
+- [ ] **Pure split:** `sidedoc.FrontBlock(doc) (block, rest, ok)` has couch's projection: the closed leading `---` block without its final line ending, and the rest verbatim. `syncIndex` composes `block + rest` from the frontmatter read and the peeked body, reconciles it, and writes `FrontBlock(next)`. ReconcileIndex is unchanged. Tests cover FrontBlock (round trip; an unclosed block or none refuses; CRLF).
+- [ ] **syncIndex:** keeps the Peek no-op shortcut. Then, up to `writeTries` times: ReadFrontmatter, then Peek for the body's links, reconcile, and on a change `WriteFrontmatter` with the read's hash; stale means retry, and the lock means a refusal. `syncIndexAfter`, `readAllShowingUnread`, `windowChanges` and submit's `printed` plumbing are removed.
+- [ ] **Fake:** a frontmatter read or write resets only the frontmatter's shadow (`shadow[""]`). The CAS hash covers the frontmatter block. `editBeforeFront` simulates a racing frontmatter edit.
+- [ ] **Tests:**
+  - TestIndexKeepsUnreadEdits becomes a write that leaves the operator's `## Needs you` edit in the diff and prints nothing about it.
+  - A racing frontmatter edit goes stale, then is recomputed.
+  - Under the lock, nothing is written.
+  - The workaround tests (`TestIndexShowsEditsOnEveryRead`, `TestSubmitPrintsUnreadOnce`) are replaced by a check that submit prints the diff once and the index adds nothing.
+  - Live `TestSessionSyncConformance`: read --frontmatter returns the block with its hash; an operator edit in `## B` stays in the diff after the frontmatter read and after the frontmatter write; a wrong hash gives exit 6; the write keeps every section byte for byte; the lock gives exit 3.
+- [ ] Help (`status index`, the syncIndex comment) and the atlas (collaboration-modes "The index") describe the frontmatter write.
+
+Design notes:
+- **Body staleness is benign:** the CAS covers only the frontmatter, so a body edit after the Peek can only delay a drop to the next reconcile. Entries are never added from links.
+- **Not covered:** an unread frontmatter edit (for example, the operator removing an entry, which means reviewed) is acknowledged by the frontmatter read when the index changes. The index is the only frontmatter field the TL writes, and the reconcile honors the removal, so nothing is lost. The Done-when scopes the guarantee to section edits.
+- ARCH-MOCK: the fake and the live conformance check move together. ARCH-ORDER: holds no state between events beyond couch's CAS; a lost race is a stale write, then a reread. ARCH-FUNERAL: creates nothing durable. ARCH-SECURE: the frontmatter block comes from couch and is parsed by sidedoc, which refuses what YAML reads differently.
 
 ## Log
 
