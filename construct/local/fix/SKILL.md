@@ -226,21 +226,30 @@ you the pane is open.
 |---|---|---|
 | 0 | Applied; reply has `Hash`, `Round`, `Body` | commit `Body` verbatim as rule 2 says |
 | 1 `edits-invalid` | `Invalid` lists 1-based bad records; nothing written | fix them and retry the whole batch |
-| 1 `propose-too-large` / `propose-unencodable` | change cannot be short marker proposals | write it in a side doc proposal, then link `→ [proposal](…)` through apply; keep any needed frontmatter-only change as records for `pair review apply` |
+| 1 `propose-too-large` / `propose-unencodable` | change cannot be short marker proposals | write it in a side doc proposal, then link `→ [proposal](…)` through apply; include the matching `discussions:` entry as a frontmatter record in the same batch |
 | 1 `operator-owned` | batch tried to change `presentation:` or `collaboration-mode:` | leave it unchanged and ask the operator to set that key; do not retry through another verb |
 | 3 `operator-lock` | the operator is editing | say you are waiting for their next "finished my edits" poke; do not poll in a tight loop |
 | 6 `stale` | H no longer names the file's bytes | read again, rebuild every record, and apply again |
 
 An absent reply is not an exit code. If the response is lost, run
 `pair review round FILE --json` and verify the current review branch and file.
-If `Current` is true, commit its stored `Body` verbatim; if `Round` is null,
-nothing landed and the batch may be retried; otherwise re-read the changed
-file and rebuild the records. Never blindly replay records that may have
-landed. Pair's hash and operator lock own the edit conflict, so no parallel
-reconciliation protocol is needed.
+Its last round may be older than this attempt. Commit its stored `Body`
+verbatim only when `Current` is true, `Round.base_hash` equals the attempted
+H, and you read back the file to verify the result bytes, spans and `explain`
+reasons against the intended records. An older current round, mismatched
+base_hash, or uncertain readback is not proof that this apply landed: stop
+without a commit or retry and report the uncertainty. If `Round` is null,
+nothing landed and the batch may be retried after a fresh read. Never blindly
+replay records that may have landed. Pair's hash and operator lock own the
+edit conflict, so no parallel reconciliation protocol is needed.
 Under `presentation: propose`, a record wholly within frontmatter is applied
 directly through `pair review apply`; a record crossing the frontmatter boundary
 is refused. The operator-owned keys above remain protected on every path.
+Without a ready operator marker, a side-doc link may land as a pending
+`🤖{…}` proposal, while its matching `discussions:` entry lands directly in
+the same apply. Count that pending link as linked and do not duplicate the
+answer. If the operator rejects the proposed link, remove its index entry in
+the next round. Pair does not check the link and index paths for you.
 
 **2. You own all the git** — the new Pair apply path writes the file, and nvim
 only reloads and decorates it. Use the review branch and tracked file selected
@@ -258,7 +267,9 @@ by the readiness probe; do not switch branches to make a stale round fit.
 **Commit only after successful apply.** Never commit an agent round from your
 own proposed records. If apply succeeded but the commit was interrupted, use
 `pair review round FILE --json` and commit its stored `Body` only while
-`Current` is true and the review branch and file still match. ("ship it" →
+`Current` is true, its `Round.base_hash` equals attempted H, the read back
+file and spans match the attempted edit, and the review branch still matches.
+If any of those checks fails, stop without committing. ("ship it" →
 `docflow ship` is **M4b**.)
 
 **Preparing & resuming a review (M4a' — the propose poke, before the pane opens).**

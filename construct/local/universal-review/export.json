@@ -5,8 +5,8 @@
     {
       "role": "round",
       "path": "round.md",
-      "bytes": 6598,
-      "sha256": "cfe993e4f1e33dbf30149848c491616af018813e1dba44dcb00efc289f3473a5"
+      "bytes": 7040,
+      "sha256": "db7cff550c87ca9049fb79a7a74291dbf3ce6ff448355463c251f8ca955cdf95"
     },
     {
       "role": "grammar",
@@ -18,15 +18,15 @@
     {
       "role": "collaboration-modes",
       "path": "collaboration-modes.md",
-      "bytes": 27193,
-      "sha256": "fe670aad485a50b88967cbbe90db21feca64ff364cea3a4082f39c39031468b8"
+      "bytes": 27676,
+      "sha256": "385eab1441dc07d39f9b76d416c67f8e709241ec452d9e2bfb432fcfe3a38c41"
     },
     {
       "role": "adapter",
       "name": "file-edit",
       "path": "adapters/file-edit.md",
-      "bytes": 8202,
-      "sha256": "1bd6a19a42c2de56afb690667cadc2f2c7d9b69034ba3570ef6fe2af6ce8b87f"
+      "bytes": 9055,
+      "sha256": "a81496d6b8133d3be2c90533d6cb9a87353b459b74573fde1ea1f51d2fbc6dce"
     },
     {
       "role": "mode",

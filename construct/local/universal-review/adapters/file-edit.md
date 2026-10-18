@@ -96,7 +96,12 @@ Refusals:
   express this rewrite as short markers. Write the intended new text in a
   side doc proposal (`../collaboration-modes.md` §4), then use a fresh
   snapshot and `apply` to link it in place as `→ [proposal](…)`. The operator
-  can later ask `🤖[fold in]` beside that link. Do not hand-write markers.
+  can later ask `🤖[fold in]` beside that link. Without a ready operator marker,
+  Pair writes the link as a pending proposal (`🤖{ → \\[proposal\\](…)}`), while
+  the matching `discussions:` entry applies directly in that same batch. Treat
+  the pending link as linked: do not create another side doc or answer. If the
+  operator rejects it, remove its index entry in the next round. Do not
+  hand-write markers.
 - **Exit 1, `operator-owned`:** the batch tried to change `presentation:` or
   `collaboration-mode:`. These choices belong to the operator. Leave the
   document unchanged and ask the operator to set the key; do not retry that
@@ -123,8 +128,15 @@ submitted document is written, so its ask stays for the next submit.
 
 ## Untracked
 
-Edit the file in place with your harness's file tools. There is no lock, so
-read the file again right before writing.
+Read the document's frontmatter before any write. If it says
+`presentation: propose`, refuse a direct edit: Couch cannot enforce proposals
+on an untracked file. Tell the operator to track it as `type: session-sync` or
+register it with Couch, or use a hosted Pair review workbench. Do not change
+its presentation on the operator's behalf. For `direct` or `highlight`, edit
+the file in place with your harness's file tools. There is no lock, so read
+the file again right before writing. Save the pre-write text, then read back
+the result and report the observed before/after diff; there is no Couch round
+to cite for this path.
 
 **Changes since your last read** exclude your own edits. After each write,
 re-read the file and save that text, the file as you left it, to a copy made

@@ -259,3 +259,25 @@ func TestReviewSkillApplyContract(t *testing.T) {
 		})
 	}
 }
+
+func TestReviewSkillCloseRecoveryContract(t *testing.T) {
+	root := moduleRoot(t)
+	for _, tc := range []struct {
+		file string
+		want []string
+	}{
+		{"construct/local/universal-review/adapters/file-edit.md", []string{"untracked", "presentation: propose", "refuse", "observed before/after diff", "pending", "operator rejects"}},
+		{"construct/local/universal-review/round.md", []string{"untracked", "observed before/after diff", "pending"}},
+		{"construct/local/universal-review/collaboration-modes.md", []string{"pending", "operator rejects", "discussions:"}},
+		{"construct/local/fix/SKILL.md", []string{"base_hash", "Current", "read back", "pending", "operator rejects"}},
+		{"README.md", []string{"universal review", "presentation: propose", "atlas/workflow/universal-review.md"}},
+	} {
+		t.Run(tc.file, func(t *testing.T) {
+			body, err := os.ReadFile(filepath.Join(root, tc.file))
+			if err != nil { t.Fatal(err) }
+			for _, phrase := range tc.want {
+				if !strings.Contains(string(body), phrase) { t.Errorf("missing %q", phrase) }
+			}
+		})
+	}
+}

@@ -60,6 +60,10 @@ that structural action. The adapter checks the link or fold marker in the base
 text; a normal `🤖[tighten this]` prose edit still becomes a proposal.
 Frontmatter-only changes follow the adapter's dedicated path because
 proposals cannot be placed inside frontmatter.
+For an untracked document under `presentation: propose`, the adapter refuses
+the write until Couch tracks it or a hosted Pair workbench owns it. A link
+made without a ready marker may itself be a pending proposal; its side doc and
+index entry remain until the operator accepts or rejects it.
 
 The frontier's edges: the topmost human marker is found outside fenced code,
 and the text it refers to (§5) is on the open side. With no human marker, there
@@ -112,7 +116,9 @@ grammar.
 ## 6. The reply
 
 After the adapter has written the document, reply briefly in your own pane.
-List the round's edits from `round --json` spans, then what you left for the operator (open questions, proposals
+For a tracked document, list the round's edits from `round --json` spans. For
+an untracked `direct` or `highlight` document, report the observed before/after diff
+instead; no Couch round exists. Then name what you left for the operator (open questions, proposals
 to accept or reject), each side doc or answer doc you created, extended or
 relinked, every `collaboration-mode:` name that matches no heading, and every
 orphan side doc (collaboration-modes.md §4). An error (an unknown review or

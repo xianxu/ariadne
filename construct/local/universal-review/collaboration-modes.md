@@ -213,6 +213,13 @@ opened by that request, include its matching `discussions:` index entry in the
 same `apply` batch as the link. A record wholly inside frontmatter applies
 directly; check that the entry's path matches the link so both land atomically.
 Pair does not verify that pairing for you.
+Without a ready marker, Pair may write the link as a pending `🤖{…}` proposal
+while the frontmatter index entry applies directly. The pending link still
+counts as linked: neither relink nor answer the ask again while it waits for
+the operator. If the operator rejects the proposed link, remove that
+`discussions:` entry in the next round; keep the side doc as an orphan for
+possible later reuse. An accepted link keeps the entry. The agent never
+hand-writes the proposal marker.
 
 **Writes and retries.** Each document a round changes gets one write, through the adapter. A fold-in changes two:
 the parent it folds into, and the side doc that gets the closing note. A new side doc's index entry rides the

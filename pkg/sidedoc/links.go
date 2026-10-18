@@ -8,15 +8,23 @@ package sidedoc
 import (
 	"path"
 	"regexp"
+	"sort"
 	"strings"
 )
 
-var linkRE = regexp.MustCompile(`→ \[(?:discussion|answer|notes|proposal)\]\(([^)\s]+)\)`)
+var (
+	linkRE = regexp.MustCompile(`→ \[(?:discussion|answer|notes|proposal)\]\(([^)\s]+)\)`)
+	// Pair's proposal converter escapes Markdown brackets in a bare 🤖{…}
+	// marker. The pending link still owns its side doc and index entry until
+	// the operator accepts or rejects it. Match only this marker shape, not
+	// arbitrary escaped Markdown in prose.
+	pendingLinkRE = regexp.MustCompile(`🤖\{[^}\n]*?→ \\\[(?:discussion|answer|notes|proposal)\\\]\(([^)\s]+)\)[^}\n]*\}`)
+)
 
 // SideLinks returns the targets of a document's side-doc links
 // (`→ [discussion](…)`, `→ [answer](…)`, `→ [notes](…)`,
-// `→ [proposal](…)`), as written and in
-// order, skipping fenced code: a link shown in an example is not a link.
+// `→ [proposal](…)`), including Pair's escaped pending-link marker, as written
+// and in order. Fenced examples are not links.
 func SideLinks(text string) []string {
 	var out []string
 	fence := ""
@@ -32,8 +40,20 @@ func SideLinks(text string) []string {
 			}
 			continue
 		}
-		for _, m := range linkRE.FindAllStringSubmatch(line, -1) {
-			out = append(out, m[1])
+		type found struct {
+			at     int
+			target string
+		}
+		var links []found
+		for _, m := range linkRE.FindAllStringSubmatchIndex(line, -1) {
+			links = append(links, found{m[0], line[m[2]:m[3]]})
+		}
+		for _, m := range pendingLinkRE.FindAllStringSubmatchIndex(line, -1) {
+			links = append(links, found{m[0], line[m[2]:m[3]]})
+		}
+		sort.Slice(links, func(i, j int) bool { return links[i].at < links[j].at })
+		for _, link := range links {
+			out = append(out, link.target)
 		}
 	}
 	return out

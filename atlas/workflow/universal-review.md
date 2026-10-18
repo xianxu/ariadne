@@ -33,7 +33,7 @@ skill carries the rest.
   and answer docs follow §4 of collaboration-modes.md (discussion). The TL session file follows tl-lead's help.
   `vocab.CollaborationModes` is the Go copy of the three values.
 - **`modes/*.md`** — the six stock modes, canonical here since #399; parley snapshots them.
-- **`examples/`** — twenty-one reference rounds, one per case: `before/` and `after/` trees plus `case.md` (the
+- **`examples/`** — twenty-four reference rounds, one per case: `before/` and `after/` trees plus `case.md` (the
   submitted document, the outcome, the changes, the reply; a move case adds `move: OLD NEW`). A live check runs a round
   on a copy of `before/` and compares it with `after/`. `pkg/reviewexport`'s `TestExamples` holds every case to the
   side-doc contract and the index rules (a test-only checker, mutation-tested), and a move case to an exact projection
@@ -47,7 +47,12 @@ skill carries the rest.
   re-reads and rebuilds. Under `presentation: propose`, a record replacing the
   operator's ready marker with a side-doc link, or answering a fold-in marker at
   that link, applies directly; ordinary prose edits still become proposals. Its
-  matching `discussions:` entry rides in the same atomic apply.
+  matching `discussions:` entry rides in the same atomic apply. A marker-free
+  link can be a pending proposal while that entry applies directly; the shared
+  side-doc parser recognizes Pair's escaped pending-link bytes so the index
+  remains until the operator accepts or rejects. Untracked `propose` documents
+  refuse a direct write; untracked direct/highlight rounds report an observed
+  before/after diff instead of claiming a Couch round.
   Generated content and frontmatter-only edits retain `write`.
   "Changes since your last read" never hold the agent's own edits: Couch's diff baseline moves on its write, and an untracked file is
   diffed against the copy the agent saved after its last write (operator requirement).
@@ -68,3 +73,6 @@ The hosted Pair review workbench instead follows `construct/local/fix/SKILL.md`:
 immediate docflow round commit. It has no handoff or landed-file step (#437).
 An uncertain apply response is resolved with `pair review round FILE --json`,
 whose `Current` flag says whether its stored `Body` still describes the file.
+Before committing that Body, also match `Round.base_hash` to the attempted H
+and read back the result and spans: an older current round is not proof the
+last request reached Pair.
