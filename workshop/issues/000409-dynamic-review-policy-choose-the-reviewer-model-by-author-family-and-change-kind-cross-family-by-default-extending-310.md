@@ -1,12 +1,20 @@
 ---
 id: 000409
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-16
-updated: 2026-10-16
+updated: 2026-10-18
 estimate_hours:
-card_mirror: 'a27256d687d7cf74594fb3c2b14e9d4e84e6e545' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'eb01620b3331f757da9b9cddc960b3d8fd014c0b' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-18T05:16:36-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Dynamic review policy: choose the reviewer model by author family and change kind (cross-family by default), extending #310
@@ -38,8 +46,17 @@ bugs in Claude-authored code too.
 
 ## Plan
 
+Durable plan: `workshop/plans/000409-dynamic-review-policy-choose-the-reviewer-model-by-author-family-and-change-kind-cross-family-by-default-extending-310-plan.md`.
+
+- [ ] M1 — family, change kind, `cross` policy (default), pure `ReviewPlan`, `Unavailable` classification
+- [ ] M2 — dispatch loop with visible fallback/refusal at every review site; ledger, sidecar, `Review-Reviewer:` trailer; help and atlas
+
 - [ ]
 
 ## Log
 
 ### 2026-10-16
+
+### 2026-10-18
+
+- Claimed by ariadne:2 (card was unowned). Current-state map in the durable plan; plan sent to the hub before code.
