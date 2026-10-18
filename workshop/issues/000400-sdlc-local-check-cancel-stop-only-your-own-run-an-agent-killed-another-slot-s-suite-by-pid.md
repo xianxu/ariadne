@@ -1,12 +1,12 @@
 ---
 id: 000400
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-17
 estimate_hours:
-card_mirror: '8a602b1bfc996cb83e467bd68082d2a088aee09a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '19e29a7dda1fe190428e59d3813f6f69c56ca323' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T15:01:16-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.71
 ---
 
 # sdlc local-check cancel: stop only your own run (an agent killed another slot's suite by PID)
