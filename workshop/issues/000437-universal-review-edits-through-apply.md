@@ -57,6 +57,7 @@ The skill's contract and examples use `apply` for edits, cover exit-1 invalid/pr
 - Pair #661 M2 found that a hosted review file is not Couch-registered, so `couch --session-sync write --frontmatter` cannot serve that path. The hosted skill now names frontmatter records through `pair review apply`; Pair is settling its exact frontmatter rule before live conformance.
 - The first Pair M2 proposal exception was too broad: any ready marker would make an ordinary requested prose edit direct. The hub narrowed it to a side-doc link or its requested fold-in, plus the matching index entry. Pair is adding a regression for `🤖[tighten this]` under `propose`; the skill states that normal prose changes remain proposals.
 - Pair clarified that frontmatter-only records under `propose` go through `pair review apply` directly, while `presentation:` and `collaboration-mode:` refuse as operator-owned on every write path. Both adapters now name that exit-1 recovery without trying another verb.
+- Pair M2's conformance fixtures now use #437's exact large side-doc link and retained-link fold bytes, and #437 adds Pair's ordinary tighten-request bytes. Pair does not validate that the frontmatter index path matches the new link, so the skill checks it before the atomic apply. The hosted skill uses `pair review round FILE --json` for uncertain apply recovery, committing only a current stored Body on the same review branch/file.
 
 ## Revisions
 

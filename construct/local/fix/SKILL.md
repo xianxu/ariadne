@@ -231,8 +231,11 @@ you the pane is open.
 | 3 `operator-lock` | the operator is editing | say you are waiting for their next "finished my edits" poke; do not poll in a tight loop |
 | 6 `stale` | H no longer names the file's bytes | read again, rebuild every record, and apply again |
 
-An absent reply is not an exit code. If the response is lost, read the file
-and Pair's round before retrying; never blindly replay records that may have
+An absent reply is not an exit code. If the response is lost, run
+`pair review round FILE --json` and verify the current review branch and file.
+If `Current` is true, commit its stored `Body` verbatim; if `Round` is null,
+nothing landed and the batch may be retried; otherwise re-read the changed
+file and rebuild the records. Never blindly replay records that may have
 landed. Pair's hash and operator lock own the edit conflict, so no parallel
 reconciliation protocol is needed.
 Under `presentation: propose`, a record wholly within frontmatter is applied
@@ -253,9 +256,10 @@ by the readiness probe; do not switch branches to make a stale round fit.
   edits — `docflow round --side human`.
 
 **Commit only after successful apply.** Never commit an agent round from your
-own proposed records. If apply succeeded but the commit was interrupted,
-re-read Pair's round/body and confirm the document and review branch still
-match before committing. ("ship it" → `docflow ship` is **M4b**.)
+own proposed records. If apply succeeded but the commit was interrupted, use
+`pair review round FILE --json` and commit its stored `Body` only while
+`Current` is true and the review branch and file still match. ("ship it" →
+`docflow ship` is **M4b**.)
 
 **Preparing & resuming a review (M4a' — the propose poke, before the pane opens).**
 `:PairReview <file>` (or the operator naming a doc) **proposes** a target and pokes you to

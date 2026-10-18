@@ -212,6 +212,7 @@ never hand-written as markers by the agent. For a side doc
 opened by that request, include its matching `discussions:` index entry in the
 same `apply` batch as the link. A record wholly inside frontmatter applies
 directly; check that the entry's path matches the link so both land atomically.
+Pair does not verify that pairing for you.
 
 **Writes and retries.** Each document a round changes gets one write, through the adapter. A fold-in changes two:
 the parent it folds into, and the side doc that gets the closing note. A new side doc's index entry rides the

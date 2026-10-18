@@ -33,7 +33,7 @@ skill carries the rest.
   and answer docs follow §4 of collaboration-modes.md (discussion). The TL session file follows tl-lead's help.
   `vocab.CollaborationModes` is the Go copy of the three values.
 - **`modes/*.md`** — the six stock modes, canonical here since #399; parley snapshots them.
-- **`examples/`** — twenty reference rounds, one per case: `before/` and `after/` trees plus `case.md` (the
+- **`examples/`** — twenty-one reference rounds, one per case: `before/` and `after/` trees plus `case.md` (the
   submitted document, the outcome, the changes, the reply; a move case adds `move: OLD NEW`). A live check runs a round
   on a copy of `before/` and compares it with `after/`. `pkg/reviewexport`'s `TestExamples` holds every case to the
   side-doc contract and the index rules (a test-only checker, mutation-tested), and a move case to an exact projection
@@ -66,3 +66,5 @@ Parley's standalone prompt is round + grammar + the selected modes + its own
 The hosted Pair review workbench instead follows `construct/local/fix/SKILL.md`:
 `pair review apply` owns its file write and returns the exact Body for the agent's
 immediate docflow round commit. It has no handoff or landed-file step (#437).
+An uncertain apply response is resolved with `pair review round FILE --json`,
+whose `Current` flag says whether its stored `Body` still describes the file.

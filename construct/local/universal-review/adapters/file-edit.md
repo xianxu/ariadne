@@ -66,7 +66,7 @@ One round reviews one snapshot: the text whose hash you write against.
    even when they answer a ready marker. When the link opens a side doc, include
    its matching `discussions:` frontmatter entry in the same batch as the link.
    Check that both paths match; Pair lands the batch atomically. Do not split
-   them into two writes.
+   them into two writes. Pair does not verify that path pairing for you.
 6. **Report the landed edits:** `couch --session-sync round FILE --json` gives
    the round's spans and their `explain` reasons; list those edits in the
    reply. A no-op answer can use `write --all` with the unchanged snapshot
