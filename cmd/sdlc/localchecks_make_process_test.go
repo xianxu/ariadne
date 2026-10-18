@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -19,7 +20,7 @@ func TestMakeProbeBoundsDescendantPipes(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			// The probe's deadline passes on cue once the descendant has reported
 			// itself (#434); its own timeout stays at production length.
-			ctx, expire := testfix.DeadlineOnCue()
+			ctx, expire := testfix.DeadlineOnCue(context.Background())
 			dir := t.TempDir()
 			procedureWrite(t, dir, "Makefile", "HANG := $(shell sh ./hang.sh)\ntest:; @true\n")
 			procedureWrite(t, dir, "hang.sh", "sleep 60 &\nprintf '%s' \"$!\" > child.pid\nwait\n")

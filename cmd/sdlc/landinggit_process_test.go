@@ -48,7 +48,7 @@ func TestBoundedLandingGitTerminatesDescendants(t *testing.T) {
 			// (#434): a clock would race the fixture's startup under load.
 			var expire func()
 			if mode == "deadline" {
-				ctx, expire = testfix.DeadlineOnCue()
+				ctx, expire = testfix.DeadlineOnCue(context.Background())
 			}
 			r := newBoundedLandingGit(ctx, execGitRunner{}, 5*time.Second)
 			done := make(chan error, 1)

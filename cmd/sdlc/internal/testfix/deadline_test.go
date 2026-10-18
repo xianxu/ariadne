@@ -8,7 +8,7 @@ import (
 )
 
 func TestDeadlineOnCue(t *testing.T) {
-	ctx, expire := DeadlineOnCue()
+	ctx, expire := DeadlineOnCue(context.Background())
 	derived, cancel := context.WithTimeout(ctx, time.Hour)
 	defer cancel()
 	select {

@@ -24,12 +24,12 @@ func (c *cueDeadline) Err() error {
 	}
 }
 
-// DeadlineOnCue returns a context whose deadline passes when expire is called,
-// not on a clock. Hand it to code that derives its own WithTimeout and call
-// expire once the fixture has signalled readiness: the code sees a real
-// deadline (DeadlineExceeded), and a slow machine can no longer make it fire
-// before the fixture is ready.
-func DeadlineOnCue() (ctx context.Context, expire func()) {
-	c := &cueDeadline{Context: context.Background(), done: make(chan struct{})}
+// DeadlineOnCue returns a context, carrying parent's values, whose deadline
+// passes when expire is called, not on a clock. Hand it to code that derives
+// its own WithTimeout and call expire once the fixture has signalled
+// readiness: the code sees a real deadline (DeadlineExceeded), and a slow
+// machine can no longer make it fire before the fixture is ready.
+func DeadlineOnCue(parent context.Context) (ctx context.Context, expire func()) {
+	c := &cueDeadline{Context: parent, done: make(chan struct{})}
 	return c, func() { c.once.Do(func() { close(c.done) }) }
 }

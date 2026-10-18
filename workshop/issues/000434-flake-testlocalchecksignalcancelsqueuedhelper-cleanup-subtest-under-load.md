@@ -88,3 +88,6 @@ boundary-push and integrate-gate timeout tests assert only that the deadline bou
   cancellation and a hung one returns DeadlineExceeded within its budget.
 - Loaded verification: six concurrent loops of the four affected tests, 10 iterations each (60 per test), at load
   average 60–72: 6/6 PASS.
+- Recorded suite on 0389da34 failed on one test only: `TestVerbContextsReachTrackerReads` (the context guard)
+  refused `context.Background` in `testfix/deadline.go`. `DeadlineOnCue` now takes the caller's context (it carries
+  its values; only the cue ends it). Failed attempt kept: test-stats/failed/fd3257c5944743de8e7ffe2885a526aa.log.
