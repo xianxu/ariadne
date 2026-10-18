@@ -58,7 +58,8 @@
 #
 # Flags:
 #   --list           print "binary <TAB> owner-repo" instead of function defs
-#   --strict         exit non-zero if any binary name is owned by >1 repo
+#   --strict         exit non-zero if a binary name has distinct Git owners
+#   --verbose        explain same-origin checkout duplicates suppressed as noise
 #   --workspace DIR  scan siblings under DIR (default: parent of the ariadne root)
 #
 # stdout = function defs (or --list table); stderr = warnings. Bash 3.2-safe
@@ -72,12 +73,14 @@ SKIP_GLOBS='*legacy* *.original *[0-9]'
 
 list=0
 strict=0
+verbose=0
 workspace=""
 workspace_set=0
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--list) list=1 ;;
 		--strict) strict=1 ;;
+		--verbose) verbose=1 ;;
 		--workspace) shift; workspace="${1-}"; workspace_set=1 ;;
 		--workspace=*) workspace="${1#*=}"; workspace_set=1 ;;
 		-h|--help) awk 'NR==1{next} /^#/{print; next} {exit}' "$0"; exit 0 ;;
@@ -129,6 +132,7 @@ if [ -z "$workspace" ] || [ ! -d "$workspace" ]; then
 	warn "workspace not found: ${workspace:-<empty>} (--workspace needs an existing dir)"
 	exit 2
 fi
+workspace="$(cd "$workspace" && pwd -P)"
 
 # current_repo: the repo whose construct/deps substrate graph we ALSO follow for
 # owners (directory-agnostic, #95). It's the repo the caller is in — find it by
@@ -196,19 +200,44 @@ skip_repo() {
 	return 1
 }
 
-# scan_repo emits "bin<TAB>repo" for every owned binary in ONE repo: cmd dirs
+# A Git origin identifies checkouts of one repository. GitHub HTTPS and SSH
+# forms normalize to the same case-insensitive owner/repo. Other hosts keep
+# their exact URL: transport and path case may matter there. An absent or
+# unfamiliar origin remains unique by checkout path.
+repo_identity() {
+	local repo="$1" url raw host path
+	url="$(git -C "$repo" config --get remote.origin.url 2>/dev/null)" || url=""
+	raw="$url"
+	case "$url" in
+		git@*:* ) url="${url#git@}"; host="${url%%:*}"; path="${url#*:}" ;;
+		ssh://git@*/* ) url="${url#ssh://git@}"; host="${url%%/*}"; path="${url#*/}" ;;
+		https://*/* ) url="${url#https://}"; host="${url%%/*}"; path="${url#*/}" ;;
+		* ) printf 'path:%s\n' "$repo"; return ;;
+	esac
+	[ -n "$host" ] && [ -n "$path" ] || { printf 'path:%s\n' "$repo"; return; }
+	host="$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')"
+	if [ "$host" != github.com ]; then
+		printf 'origin:%s\n' "$raw"
+		return
+	fi
+	path="${path%/}"; path="${path%.git}"
+	printf 'origin:github.com/%s\n' "$(printf '%s' "$path" | tr '[:upper:]' '[:lower:]')"
+}
+
+# scan_repo emits "bin<TAB>repo<TAB>identity" for every owned binary in ONE repo: cmd dirs
 # that are real dirs (not re-export symlinks), buildable (>=1 .go), not .private.
 scan_repo() {
-	local repo="$1" cmddir
+	local repo="$1" cmddir identity
 	[ -d "$repo/construct" ] || return 0
 	skip_repo "$(basename "$repo")" && return 0
 	[ -d "$repo/cmd" ] || return 0
+	identity="$(repo_identity "$repo")"
 	find "$repo/cmd" -mindepth 1 -maxdepth 1 | LC_ALL=C sort | while IFS= read -r cmddir; do
 		[ -L "$cmddir" ] && continue          # re-export symlink → owner only
 		[ -d "$cmddir" ] || continue
 		ls "$cmddir"/*.go >/dev/null 2>&1 || continue   # buildable
 		[ -e "$cmddir/.private" ] && continue # opt-out marker
-		printf '%s\t%s\n' "$(basename "$cmddir")" "$repo"
+		printf '%s\t%s\t%s\n' "$(basename "$cmddir")" "$repo" "$identity"
 	done
 }
 
@@ -228,17 +257,25 @@ collect() {
 
 candidates="$(collect)"
 
-# Warn on duplicate binary names (same name owned by >1 active repo).
+# Classify each binary once: checkout count, distinct identity count, owner paths.
+# Warnings and strict status consume the same classification (ARCH-DRY).
+classifications="$(printf '%s\n' "$candidates" | awk -F'\t' 'NF>=3 {
+	checkouts[$1]++; owners[$1]=owners[$1] $2 " "; key=$1 SUBSEP $3
+	if (!seen[key]++) identities[$1]++
+} END {for (b in checkouts) printf "%s\t%d\t%d\t%s\n", b, checkouts[b], identities[b], owners[b]}' | LC_ALL=C sort)"
 had_dup=0
-dups="$(printf '%s\n' "$candidates" | awk -F'\t' 'NF{print $1}' | LC_ALL=C sort | uniq -d)"
-if [ -n "$dups" ]; then
-	had_dup=1
-	printf '%s\n' "$dups" | while IFS= read -r d; do
-		[ -n "$d" ] || continue
-		owners="$(printf '%s\n' "$candidates" | awk -F'\t' -v b="$d" '$1==b{printf "%s ", $2}')"
-		warn "duplicate binary '$d' owned by: ${owners}(last in sorted order wins)"
-	done
-fi
+while IFS="$(printf '\t')" read -r bin checkout_count identity_count owners; do
+	[ -n "$bin" ] || continue
+	[ "$checkout_count" -gt 1 ] || continue
+	if [ "$identity_count" -gt 1 ]; then
+		had_dup=1
+		warn "duplicate binary '$bin' owned by: ${owners}(last in sorted order wins)"
+	elif [ "$verbose" -eq 1 ]; then
+		warn "same-origin checkouts own '$bin': ${owners}(last in sorted order wins)"
+	fi
+done <<EOF
+$classifications
+EOF
 
 # Final mapping: last-win per binary (deterministic since walk order is sorted),
 # emitted sorted by binary name.

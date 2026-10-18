@@ -131,6 +131,12 @@ check run with the other `construct/scripts/test/*.test.sh` (#362, through
 `scripts/test/construct-scripts.test.sh`). Like the other substrate scripts
 it's documented by header comment + test, not a `SKILL.md` (those are for agent
 skills, not dev-env helpers).
+When the sibling and a slot substrate clone own the same binary from the same
+normalized GitHub origin, they count as one owner for warnings and `--strict`;
+the last sorted checkout still supplies the binary. `--verbose` explains a
+suppressed same-origin duplicate. Distinct or unverifiable origins still warn;
+other Git hosts use the exact origin URL because transport and path case may
+matter there.
 
 ## Pushing Updates to All Consumers
 
