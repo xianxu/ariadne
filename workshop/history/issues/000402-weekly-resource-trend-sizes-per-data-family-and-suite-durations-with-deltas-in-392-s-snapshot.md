@@ -1,0 +1,94 @@
+---
+id: 000402
+status: done
+deps: [ariadne#392]
+github_issue:
+created: 2026-10-15
+updated: 2026-10-18
+estimate_hours:
+card_mirror: '565022672ac6e8eb27d23b50af180e5e29679637' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-17T21:36:12-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 1.28
+---
+
+# Weekly resource trend: sizes per data family and suite durations, with deltas, in #392's snapshot
+
+## Problem
+
+Slow growth never feels urgent day to day (21 MB Couch ledgers, 64 GB of captures, 54.8 GB of event logs). Ops project
+resource-observability wants a weekly trend so growth is visible as a delta.
+
+## Spec
+
+- Extend the weekly snapshot that ariadne#392 builds for test stats (same schedule, same brain destination, same
+  format conventions) with a resource section: sizes per directory family (pair `repos/*` by artifact family,
+  `couch/`, agent transcript dirs), the largest Couch ledgers, and full-suite durations per repo, each with its delta
+  from the previous week.
+- Read-only and cheap: `stat`-based sizes, no file contents. Sources come from one declared list (shared with ops
+  project history-backup's source inventory once that exists).
+- Flag any family that grew by more than a configurable share (default 25%) week on week.
+
+## Done when
+
+- A fixture-backed test produces the section and its deltas; a live run on this machine writes and inspects one temp-brain snapshot. The first permanent resource snapshot is the completed 2026-10-19 week, run by the TL by hand after 00:00 UTC from the landed binary.
+
+Depends on ariadne#392.
+
+## Plan
+
+- [x] After #392 lands, bind its weekly window, immutable writer, previous-snapshot reader and brain destination to the resource section in `workshop/plans/000402-weekly-resource-trend-plan.md`.
+- [x] Test the inventory-backed, read-only collector and pure delta/alert renderer with complete, missing and first-week fixtures; include Go cache, AgentScratch capacity and largest ledgers.
+- [x] Integrate the section into #392's snapshot, run focused tests and the recorded suite, then write and inspect one live temp-brain snapshot before close.
+
+## Log
+
+
+
+- 2026-10-18: closed — Focused device recovery and persisted-section tests pass; make -k build and make -k sdlc-build pass; sdlc-local/suite passed on a8f715692083efa7fcedc984606430e858a65677 with 1642 cmd/sdlc tests, 67 other packages and zero failures; the temp-brain schema-v2 pilot at /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne402-observed-fix.EDyZl1/memory/work/devinfra/test-economy/weekly/2026-10-12.json has 17 complete families and observed device baselines. The durable plan landing row waits for merge, so no-plan-check applies; the first real brain snapshot is run by the TL after 2026-10-19 00:00 UTC.; review verdict: SHIP
+- 2026-10-18: flow upgraded quick → full — 1324 added lines in code files (limit 100); an earlier round of this close already ran the full review
+- 2026-10-18: BR-6 fixed under the approved re-plan. Persisted device gauges now carry `observed` separately from comparison `state`; a valid reading stays available after reboot, an unavailable prior reading, an invalid prior snapshot, or a 6–8-day timing gap. The shared validator requires the flag and rejects impossible observation/state pairs. Three-week JSON round trips recover write and wear deltas, and focused tests passed. `make -k build` and `make -k sdlc-build` passed. A new live temp-brain snapshot at `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne402-observed-fix.EDyZl1/memory/work/devinfra/test-economy/weekly/2026-10-12.json` is schema v2, 41,939 bytes, sha256 `c2ab743ad45b898ceede957c9824a1bea9218f03253a1a88d411fe894a5944af`, with 17 complete families and disk0 write/wear baselines both marked `observed: true`. It remains temp-only; the TL runs the first real resource snapshot after Oct 19 00:00 UTC.
+- 2026-10-18: Second full close review disposed BR-1 through BR-5 and returned REWORK for BR-6: a reboot or missing prior reading changes the current device gauge to unknown, and the next week cannot recover because comparison status is being used as observation validity. The durable plan now preserves an explicit observed boolean alongside comparison state, requires it in persisted v2 rows, and tests three-week recovery sequences. Code waits for hub approval of this revision.
+- 2026-10-18: Review fixes: BR-1 now marks each later claimant of a blocked physical file unknown; a two-order, three-claimant fixture passes. BR-2 returns a bounded validated existing v2 exact-week file before fleet reads, and rechecks it after a concurrent publish winner; a clock-advance test and a live second invocation pass without recollection. BR-3 uses one persisted-resource validator for the prior week and existing-week retry, checking required JSON fields, nonnegative measurements, unique identities, suite quantiles and machine/device states; malformed-but-valid-JSON fixtures pass. BR-4's Core concepts table now names the actual functions; BR-5 explicitly records permanent brain retention at ~13.4 KB/week added resource payload (~0.7 MB/year) and ~2.2 MB/year total at pilot size. The post-fix temp-brain artifact is `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne402-reviewfix.PPZc6f/memory/work/devinfra/test-economy/weekly/2026-10-12.json`, 41,887 bytes, sha256 `df3f21f55d3392a95c2b6b7c377efb78e2797a0141c9596758466fdc6ead21bc`, `observed_at` 2026-10-18T10:19:52.523413Z, 17 complete families, disk0 write and wear baselines. A second live invocation returned the same path in 0.1s; the latest validator also accepted the existing artifact. The artifact is temp-only; the TL runs the first real resource snapshot after Oct 19 00:00 UTC.
+- 2026-10-18: First full close review returned REWORK with BR-1 through BR-5: later overlap claimants can look complete, advancing `observed_at` breaks immutable retry, semantically invalid prior rows can create numeric deltas, the plan's conceptual names did not match code, and retention cost was implicit. The durable plan now defines order-independent unknowns, validated existing-week retry, semantic prior validation, actual entity names and permanent-retention cost. Code changes wait for hub approval of this revision.
+- 2026-10-18: Recorded `sdlc-local/suite` passed on `a33abd645bd84004816c2ea56b1b404c21ac3240` (12 shards, 1,635 cmd/sdlc tests and 67 other packages, zero failed; wall 514.8s; saved log SHA prefix `e63dd56306ac`). PR #301's `merge-check` and `local-gates-guard` passed. This only tests the branch head; close review and landing remain.
+- 2026-10-18: Pre-suite review found that two root tokens resolving to one physical file could leave a prior family counted when a later token matched two kinds. A red fixture reproduced it; the collector now removes the earlier assignment and marks all claimants unknown. I canceled only this checkout's queued suite on the superseded head and will rerun it on the corrected commit.
+- 2026-10-18: Post-fix live temp-brain snapshot at `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne402-observed.yXKoFD/memory/work/devinfra/test-economy/weekly/2026-10-12.json` is schema v2, 41,887 bytes, sha256 `b4d1c143405bb2f8d549b9114173dd23c0f1135b6b91b4eb19ffa53f930b1681`. The suite window is Oct 5–12, while `resources.observed_at` is 2026-10-18T09:34:28.073975Z. All 17 families have complete metadata; ten ledger rows and 16 repo suite rows appear; Go cache is 155,134,309,459 bytes, AgentScratch free/total is 39,597,510,656/200,000,000,000 bytes, disk0 writes 35,779,148,959,744 bytes and wear 8%. Both device deltas correctly say baseline. `make -k build`, `make -k sdlc-build`, focused tests and diff check passed. The pilot is temporary; the TL runs the first permanent resource snapshot after Oct 19 00:00 UTC.
+- 2026-10-18: A red test showed the historical pilot lacked a point-observation time. Schema v2 now records `observed_at` and suppresses family, ledger and machine deltas outside a measured 6–8-day observation gap; suite-duration comparisons remain tied to exact weekly windows. Focused temporal tests pass, including both interval boundaries and a predecessor missing `observed_at`.
+- 2026-10-18: Live temp-brain pilot at `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne402-pilot.TIwyUv/memory/work/devinfra/test-economy/weekly/2026-10-12.json` produced schema v2 (41,837 bytes; sha256 `d2b9fca6dcad837c71c76075ac2c9ce39c3f7f2fee527fb3c947db60baa8fb5a`). All 17 declared families were complete; the largest ten ledgers, 154,897,415,411-byte Go cache, 39,613,689,856-byte AgentScratch free gauge, disk0 write counter and 8% wear were present. The date is the historical suite window; the resource gauge was measured today, so the pilot is not published to the real brain.
+- 2026-10-18: #392 producer now attaches schema-v2 resources through its one immutable writer. Fake-backed machine probing, prior-week reader, root resolution (global Pair store despite slot-specific PAIR_DATA_DIR), and command fixture passed focused tests. A v2 predecessor with a missing machine section is unknown, not an invented baseline. Build, live temp-brain check, suite and close remain.
+- 2026-10-18: TDD slices for exact prior-week reading, byte comparison, declared-source collection, ledger ranking, suite duration comparison and device parsing are green in focused cmd/sdlc tests. A live read-only probe found ioreg Bytes (Write) for internal disk0; smartctl prints Percentage Used without root but exits 4 after an unrelated error-log query, so usable wear output must be parsed independently of that exit code. The bounded ioreg form is `-r -c IOBlockStorageDriver -w 0 -l -d 2`.
+
+- 2026-10-17: unclaimed: Plan approved by hub, including weekly device gauges. Waiting for prerequisite ariadne#392 to land; ariadne:1 takes #392 first, then resumes this branch and binds the landed snapshot interface before code.
+### 2026-10-15
+
+2026-10-17: Claimed and entered planning. #392 is still open and unclaimed, with no snapshot producer, schema or weekly writer on main; #402 cannot safely bind to it yet. Pair's history-backup source inventory now exists at `cmd/internal/historyarchive/sources.json`; use its declared data families instead of duplicating source patterns (ARCH-DRY). The hub additionally requested Go build cache size and AgentScratch free space. Those are machine gauges, not backup source families.
+
+## Revisions
+
+### 2026-10-17 — hub dispatch and dependency survey
+
+Add Go build cache size and AgentScratch free/total space to the planned weekly resource section. Treat #392's landed snapshot interface as a prerequisite for implementation and a live write. Keep family sizes sourced from pair's existing backup inventory; machine gauges have separate explicit paths.
+
+### 2026-10-17 — weekly device gauges replace daily points
+
+The hub approved the plan, directed this slot to land #392 first, and replaced the ops project's unassigned daily device-write points with two weekly gauges: the `ioreg` `Bytes (Write)` counter and SSD percentage used when readable without root. Compare weekly observations only when the device and counter epoch remain comparable; a reset yields an unknown delta. The TL owns the resource-observability project Log and will record the daily-to-weekly replacement there.
+
+### 2026-10-18 — re-plan on #392's landed schema
+
+#392's v1 snapshot, producer and immutable writer are now on this branch. It has no previous-week reader, so #402 must add the exact-date, bounded reader itself and issue schema v2. The already published 2026-10-18 v1 pilot remains untouched; the first real resource snapshot uses an unused completed Monday boundary after SHIP review. Current suite wall statistics come from #392's existing per-repo model, while #402 computes the previous-week comparison. The durable plan names the actual files and failure states.
+
+### 2026-10-18 — hub approval
+
+The hub approved the schema-binding revision. If `smartctl` is absent or requires root, SSD wear is unknown with the reason; no install or sudo. `ioreg` writes remain a separate unprivileged gauge.
+
+### 2026-10-18 — point-observation time and first real run
+
+The hub approved recording `observed_at` and allowing a numeric point-resource delta only for observations 6–8 days apart, with the actual gap in an unknown reason otherwise. The Oct 12 run remains a temp-brain probe; the first real resource snapshot is the completed 2026-10-19 week. The TL will run `sdlc test-stats snapshot` by hand from the landed binary after 2026-10-19T00:00:00Z, since no weekly scheduler exists. Suite-duration deltas still use the exact historical windows.
