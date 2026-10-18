@@ -327,6 +327,156 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 2a2cafb7-c774-4abd-9cb6-7c16c4ebd1ac
+            repository: github.com/xianxu/ariadne
+            issue_id: "000394"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/ea18e1af9ed61283
+            reviewed_head: 9baa43c83bf3abb2623fd48cdd7acec651730e05
+            slot: ariadne:2
+            requested_at: "2026-10-18T23:54:42.537406Z"
+          phase: finished
+          pid: 27945
+          started_at: "2026-10-18T23:54:42.646538Z"
+          finished_at: "2026-10-18T23:56:18.771914Z"
+          session_id: dbb666a8-4eb0-499d-9bdb-08e228ed9f4e
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 9baa43c83bf3abb2623fd48cdd7acec651730e05
+        tracker_head: 56f80c2788ea9f42471eb8dd56476107b4ec697b
+        branch_point: 046e0ebb03d7c78bf46c8511fa6d6084d42137f4
+        since: "2026-10-18T15:44:55-07:00"
+        until: "2026-10-18T16:54:26-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T15:44:55-07:00"
+              end: "2026-10-18T16:54:26-07:00"
+              began: "2026-10-18T15:44:55-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0191d03b-74fe-4185-8091-8374ef70c0c9
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6f878e4449d6a70c6d117dcc8e3e2dc7eb921bedd5cb164ae329d9abc8dbd463
+              started: "2026-10-18T22:59:31.062Z"
+              spawned: false
+              bytes: 393720
+              windows:
+                - start: "2026-10-18T22:59:31.062Z"
+                  end: "2026-10-18T16:54:26-07:00"
+            - harness: claude
+              id: 1baa8f6b-092f-413a-83f9-0b25ed003914
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 15568299dbfd540e29417f414005c5fb2212d08913ca02800e9b5f9ab1030c6c
+              started: "2026-10-18T22:57:31.956Z"
+              spawned: false
+              bytes: 519489
+              windows:
+                - start: "2026-10-18T22:57:31.956Z"
+                  end: "2026-10-18T16:54:26-07:00"
+            - harness: claude
+              id: 23a2a6e8-f430-49c9-938f-6a09729f7067
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6c2a2ebaf3bf9384772532e724d4644737187d5f9aab48909773ef49f7eecb93
+              started: "2026-10-18T22:53:00.413Z"
+              spawned: false
+              bytes: 571220
+              windows:
+                - start: "2026-10-18T22:53:00.413Z"
+                  end: "2026-10-18T16:54:26-07:00"
+            - harness: claude
+              id: aa450fd7-6a6d-4cd2-abcc-3339322077dc
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 776fdfac606030c3cf04f41a719a0ad32e2a31cec8e0f54a07ed46e3daf64dd0
+              started: "2026-10-18T22:59:17.58Z"
+              spawned: false
+              bytes: 502106
+              windows:
+                - start: "2026-10-18T22:59:17.58Z"
+                  end: "2026-10-18T16:54:26-07:00"
+            - harness: claude
+              id: d11b9adb-1d2c-4872-81c3-b6aa47a04715
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: fb35a51e74ad315fa11eb15dc5dd4cd0f8c6a8a811c7d9cafac6943d15e78dfc
+              started: "2026-10-18T22:56:29.354Z"
+              spawned: false
+              bytes: 556087
+              windows:
+                - start: "2026-10-18T22:56:29.354Z"
+                  end: "2026-10-18T16:54:26-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: d682fc4e8261d27d3fce922c8332e621296fefa18aad017e2f2b0c01501911ee
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 231550677
+              windows:
+                - start: "2026-10-18T15:44:55-07:00"
+                  end: "2026-10-18T16:54:26-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-18T16:42:59-07:00"
+              finalized: "2026-10-18T16:45:21-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T16:49:32-07:00"
+              finalized: "2026-10-18T16:52:51-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-18T16:56:28-07:00"
+      dispatched: "2026-10-18T16:54:42-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-2
+          disposition: addressed
+          note: addFlakeTests merges, caps and checks closed status on the card the CAS hands to decide (cardsetters.go:68); making it ignore the card's tests turns TestAddFlakeTestsMergesOntoTheCard and TestFlakeRegistryFromTrackerCards red.
+          round: 3
+        - id: BR-8
+          disposition: addressed
+          note: registry dep now calls loadFlakeRegistry (which returns cards); suiteStoreDir (flake_cmd.go:128) is the single store-dir helper used by attempts and logPath.
+          round: 3
+      findings:
+        - kind: defect
+          id: BR-9
+          severity: Minor
+          title: The one-owner-per-test check reads the registry, not the card under compare-and-swap, so concurrent registrations on two issues can both pass
+          detail: 'This is the 2nd finding in family cas-mutator-uses-stale-read. The rule: an invariant a mutator enforces must either be checked on the snapshot the CAS protects, or be enforced again where the data is read. The cross-card uniqueness here can only be the second kind. BuildRegistry (registry.go:71) already refuses a test named by two issues, which fails closed and visibly. The fix is to state that rule in the register help and atlas row, not to add another check at the write site. Measured prevalence: 1 cross-card site (flake_cmd.go:294-304).'
+          family: cas-mutator-uses-stale-read
+          round: 3
+        - kind: defect
+          id: BR-10
+          severity: Minor
+          title: The suite-attempt writer now records version 2, which older sdlc binaries reject as an unsupported version
+          detail: 'teststats_store.go:50 and localcheck_run.go:190: an older binary reading the same store skips or flags v2 records. Note this as a breaking change for downstream repos when the release ships.'
+          family: breaking-change-undocumented
+          round: 3
+      boundary: M1
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 9baa43c83bf3abb2623fd48cdd7acec651730e05
+      blocked: false
 ---
 
 # Gate ledger — ariadne#394 (boundary-review)
@@ -370,7 +520,21 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-8** [Minor] `duplicated-io-glue` (kind: defect) defaultFlakeDeps.registry duplicates loadFlakeRegistry, and attempts/logPath duplicate the store-dir setup (ARCH-DRY)
   flake_cmd.go:159-170 repeats loadFlakeRegistry (:104-114) except for returning the cards; :130-157 builds localCheckLogDir twice. Have loadFlakeRegistry return the cards and pull out a suiteStoreDir helper.
 
+## Round 3 — 2026-10-18T16:56:28-07:00 (claude) — passed
+
+### Disposed
+
+- BR-2 — addressed — addFlakeTests merges, caps and checks closed status on the card the CAS hands to decide (cardsetters.go:68); making it ignore the card's tests turns TestAddFlakeTestsMergesOntoTheCard and TestFlakeRegistryFromTrackerCards red.
+- BR-8 — addressed — registry dep now calls loadFlakeRegistry (which returns cards); suiteStoreDir (flake_cmd.go:128) is the single store-dir helper used by attempts and logPath.
+
+### Raised
+
+- **BR-9** [Minor] `cas-mutator-uses-stale-read` (kind: defect) The one-owner-per-test check reads the registry, not the card under compare-and-swap, so concurrent registrations on two issues can both pass
+  This is the 2nd finding in family cas-mutator-uses-stale-read. The rule: an invariant a mutator enforces must either be checked on the snapshot the CAS protects, or be enforced again where the data is read. The cross-card uniqueness here can only be the second kind. BuildRegistry (registry.go:71) already refuses a test named by two issues, which fails closed and visibly. The fix is to state that rule in the register help and atlas row, not to add another check at the write site. Measured prevalence: 1 cross-card site (flake_cmd.go:294-304).
+- **BR-10** [Minor] `breaking-change-undocumented` (kind: defect) The suite-attempt writer now records version 2, which older sdlc binaries reject as an unsupported version
+  teststats_store.go:50 and localcheck_run.go:190: an older binary reading the same store skips or flags v2 records. Note this as a breaking change for downstream repos when the release ships.
+
 ## Open findings
 
-- **BR-2** [Important] `cas-mutator-uses-stale-read` (kind: defect) flake register computes the merged flake_tests from an earlier read than its compare-and-swap snapshot, so concurrent registrations are lost (ARCH-ORDER)
-- **BR-8** [Minor] `duplicated-io-glue` (kind: defect) defaultFlakeDeps.registry duplicates loadFlakeRegistry, and attempts/logPath duplicate the store-dir setup (ARCH-DRY)
+- **BR-9** [Minor] `cas-mutator-uses-stale-read` (kind: defect) The one-owner-per-test check reads the registry, not the card under compare-and-swap, so concurrent registrations on two issues can both pass
+- **BR-10** [Minor] `breaking-change-undocumented` (kind: defect) The suite-attempt writer now records version 2, which older sdlc binaries reject as an unsupported version

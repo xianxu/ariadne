@@ -274,3 +274,96 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"e48c0ccd-fa0e-42bb-bf56-99e70549daea","repository":"github.com/xianxu/ariadne","issue_id":"000394","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/2ccbf0b21a1c09d2","reviewed_head":"93687c932b8b1220194fa048d949abdab7bc99d7","slot":"ariadne:2","requested_at":"2026-10-18T23:49:32.691167Z"},"phase":"finished","pid":76127,"started_at":"2026-10-18T23:49:32.922656Z","finished_at":"2026-10-18T23:52:49.010462Z","session_id":"fa33b215-2823-4fd1-b6c8-9d7016d91b53","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T16:56:28-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 394 — Issue-backed flake landing and daily triage |
+| repo | ariadne |
+| issue file | workshop/issues/000394-issue-backed-flake-landing.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 046e0ebb03d7c78bf46c8511fa6d6084d42137f4..9baa43c83bf3abb2623fd48cdd7acec651730e05 |
+| command | sdlc milestone-close --issue 394 --milestone M1 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-18T16:56:28-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Both prior fixes check out: reverting the BR-2 fix makes two tests fail. Now skimming the rest of the pure core and the plan.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both open findings are fixed, and I checked the BR-2 fix by reverting it. `addFlakeTests` (`cmd/sdlc/flake_cmd.go:82-93`) now makes the merge, the 5-test cap and the closed-issue check on the card that `runCardUpdate`'s compare-and-swap snapshot passes to `decide` (`cmd/sdlc/cardsetters.go:48-68`). In the disposable checkout I made `addFlakeTests` ignore the card's existing tests. `TestAddFlakeTestsMergesOntoTheCard` and `TestFlakeRegistryFromTrackerCards` both failed, and I restored the file afterwards. The BR-8 cleanup also holds: `loadFlakeRegistry` returns the cards, and one `suiteStoreDir` helper is shared by `attempts` and `logPath`. The flake-related tests pass in `cmd/sdlc`, `internal/flakes` and `internal/issue`. Nothing blocks SHIP. Two Minor notes follow.
+
+1. **Strengths**
+   - Production and the test fake make the same decision. The fake's `addTests` calls `mergeFlakeTests` directly (`flake_cmd_test.go:62`), so the race test checks production logic rather than a copy of it.
+   - `flakes.Confirmed` is now the single same-head fail→pass rule, used by both test-stats (`teststats.go:148`) and registration (`flakes.SameHeadFailPass`). This is ARCH-DRY done right.
+   - `Classify` is pure and fails closed. A registry error, an unnamed failure or the rule being off all block; none is treated as an empty registry.
+   - Card validation (`issue/card.go:309`) and v2 record decoding (`teststats_store.go:141-164`) parse input that comes from outside the process into checked values: names are validated, outcomes come from an enum, and counts are bounded (ARCH-SECURE).
+   - The README and atlas both cover the `flake` verbs.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - The check that a test is "already registered on another issue" (`flake_cmd.go:294-304`) uses the registry read, not the card being written. Two registrations of the same test on different issues at the same time can both pass. `BuildRegistry` then refuses the whole registry, which fails closed and visibly.
+   - `cmd/sdlc/internal/flakes/evidence.go:84-86`: the `// Sort orders attempts…` comment sits above `neverExplained` instead of above `Sort`.
+   - The writer now records `version: 2` (`teststats_store.go:50`, `localcheck_run.go:190`). An older `sdlc` binary reading the same store will reject those records as an unsupported version. That is safe, but it is not written down as a breaking change for downstream repos.
+
+5. **Test coverage**
+   - The card merge, the cap, closed-issue refusal and a racing registration on the same card are covered, both on real tracker cards and through the fake.
+   - Nothing covers a race between two different cards. That is a known limit of a per-card compare-and-swap; reading the registry is the backstop.
+
+6. **Architecture, marker by marker**
+   - **ARCH-DRY: pass.** BR-8 is resolved.
+   - **ARCH-PURE: pass.** `internal/flakes` does no IO, and the verbs reach IO through `flakeDeps`.
+   - **ARCH-PURPOSE: pass for M1's scope.** The gate itself is M2 work.
+   - **ARCH-MOCK: pass.** `flakeWorld` keeps state across calls, and the tracker-card test runs against `newTrackerRepo`.
+   - **ARCH-CONSTRAINTS: pass.** The cap is `MaxRerun` (5), and the store is read with `testStatsRecordLimit`.
+   - **ARCH-SECURE: pass.** BR-1 still holds: import-path segments cannot start with `-` or `.`, and the rerun command is built as an argv list.
+   - **ARCH-ORDER: pass for the card itself.** Writes go through the compare-and-swap, and a changed card gives `ErrCardChanged` and asks for a rerun. The cross-card limit is the first Minor above.
+   - **ARCH-FUNERAL: pass.** A registration ends when its issue closes. The temporary details directory is removed with `defer os.RemoveAll`.
+   - **For M2:** the gate must check the new `flake_tests` field at the moment it decides, not rely on an earlier list. The fail-closed `BuildRegistry` already gives it that.
+
+7. **Plan revisions:** none needed. M1's checklist matches the code: `flakes` package, v2 attempt fields, `register` and `list`.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: addressed
+    note: |
+      addFlakeTests merges, caps and checks closed status on the card the CAS hands to decide (cardsetters.go:68); making it ignore the card's tests turns TestAddFlakeTestsMergesOntoTheCard and TestFlakeRegistryFromTrackerCards red.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      registry dep now calls loadFlakeRegistry (which returns cards); suiteStoreDir (flake_cmd.go:128) is the single store-dir helper used by attempts and logPath.
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: cas-mutator-uses-stale-read
+    title: |
+      The one-owner-per-test check reads the registry, not the card under compare-and-swap, so concurrent registrations on two issues can both pass
+    detail: |
+      This is the 2nd finding in family cas-mutator-uses-stale-read. The rule: an invariant a mutator enforces must either be checked on the snapshot the CAS protects, or be enforced again where the data is read. The cross-card uniqueness here can only be the second kind. BuildRegistry (registry.go:71) already refuses a test named by two issues, which fails closed and visibly. The fix is to state that rule in the register help and atlas row, not to add another check at the write site. Measured prevalence: 1 cross-card site (flake_cmd.go:294-304).
+  - id: new
+    severity: Minor
+    kind: defect
+    family: breaking-change-undocumented
+    title: |
+      The suite-attempt writer now records version 2, which older sdlc binaries reject as an unsupported version
+    detail: |
+      teststats_store.go:50 and localcheck_run.go:190: an older binary reading the same store skips or flags v2 records. Note this as a breaking change for downstream repos when the release ships.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"2a2cafb7-c774-4abd-9cb6-7c16c4ebd1ac","repository":"github.com/xianxu/ariadne","issue_id":"000394","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/ea18e1af9ed61283","reviewed_head":"9baa43c83bf3abb2623fd48cdd7acec651730e05","slot":"ariadne:2","requested_at":"2026-10-18T23:54:42.537406Z"},"phase":"finished","pid":27945,"started_at":"2026-10-18T23:54:42.646538Z","finished_at":"2026-10-18T23:56:18.771914Z","session_id":"dbb666a8-4eb0-499d-9bdb-08e228ed9f4e","outcome":"returned"}] -->

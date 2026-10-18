@@ -81,6 +81,7 @@ Durable plan: `workshop/plans/000394-issue-backed-flake-landing-plan.md`, with t
 Filed from #390's operator-approved flake/landing decision. The weekly snapshot #392 supplies the baseline and durable measurement view.
 
 ### 2026-10-18
+- 2026-10-18: closed M1 — M1 round-2: mergeFlakeTests is the one pure decision production and the fake share; TestAddFlakeTestsMergesOntoTheCard on a real card (existing tests survive, cap counts them, closed refuses) and the real-card registry test asserts the old test survives; replacing the merge with tests := add fails four tests. loadFlakeRegistry returns cards; suiteStoreDir dedupes store setup. Flake tests pass.; review verdict: SHIP
 
 - Dispatched by the hub (ops:0): the registry of known flakes is tied to their issues, and a rerun of just the registered tests replaces the whole suite. #449 builds on this. Plan drafted; it surfaces D1 (the targeted rerun amends #390's approved full-rerun rule), D2 (the accept policy), D3 (the daily view's scope: CI to a follow-up) and D4 (the registry lives in issue frontmatter).
 - The hub decided D1–D4 as proposed: the targeted rerun counts (the operator's 10-18 ask); `accept`/`off` are built with the guarded config left at its default; CI in the daily view goes to a follow-up; the registry is issue frontmatter. Side doc 02 got a Revision note.
