@@ -1,13 +1,13 @@
 ---
 id: 000447
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '9e27db0fc60d06f5f50ba7a3dab657fa26670b11' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '2e0136d3a3365a5cc324eeda837b8bc049e8c374' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-18T13:57:34-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.06
 ---
 
 # review checkouts lack main ref and remote config, so repo tests needing main authority can't run in review
