@@ -125,3 +125,9 @@ Durable plan: `workshop/plans/000409-dynamic-review-policy-choose-the-reviewer-m
   recorded as a deliberate deviation; `ResolveAgentCLI`/`ResolveReviewerCLI` deleted; parse and tally made test-only,
   with the help's one-liner (now ending in `sort | uniq -c`, checked on sample values) as the tally; launch reasons
   lead with the cause, keeping PATH out of the trailer.
+- Close review round 1 (FIX-THEN-SHIP): BR-18 fixed by extracting the pure `authorFamiliesFromLog`
+  (`TestAuthorFamiliesFromLog`: a model-suffixed codex trailer, two families, a merge and an unknown agent ignored, a
+  bare name, no trailers) and testing the git path in a real repo (`TestReviewAuthorFamiliesReadsTheWindow`). The
+  Minor in the same round: a window that can't be read, or a missing origin/main, now records `degraded: authors
+  unread: …` in the reviewer record (`ReviewChoice.Degraded`) instead of quietly narrowing the exclusion. The class
+  rule: any input the cross-family exclusion depends on that can't be read is recorded, never dropped.

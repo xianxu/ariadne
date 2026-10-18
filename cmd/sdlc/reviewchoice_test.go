@@ -113,3 +113,64 @@ func TestReviewReviewerTrailerParsesAsAGitTrailer(t *testing.T) {
 		t.Fatalf("parsed %q, want %q", values, want)
 	}
 }
+
+func TestAuthorFamiliesFromLog(t *testing.T) {
+	rec := func(sha, parents, subject string, agents ...string) string {
+		return sha + "\x1f" + parents + "\x1f" + subject + "\x1f" + strings.Join(agents, "\x1e") + "\x1d"
+	}
+	families := func(fs []judge.Family) string {
+		var s []string
+		for _, f := range fs {
+			s = append(s, string(f))
+		}
+		return strings.Join(s, ",")
+	}
+	for _, tc := range []struct {
+		name string
+		log  string
+		want string // the session family is always first
+	}{
+		{"codex trailer with model and effort", rec("a1", "p0", "x", "codex/gpt-6-astra/medium"), "anthropic,openai"},
+		{"two commits, two families", rec("a1", "p0", "x", "codex/gpt/med") + "\n" + rec("a2", "a1", "y", "gemini/g/high"), "anthropic,openai,google"},
+		{"a merge contributes nothing", rec("m1", "p0 p1", "merge", "codex/gpt/med"), "anthropic"},
+		{"an unknown agent contributes nothing", rec("a1", "p0", "x", "qoder/q/low"), "anthropic"},
+		{"a bare agent name counts", rec("a1", "p0", "x", "gemini"), "anthropic,google"},
+		{"no trailers", rec("a1", "p0", "x"), "anthropic"},
+	} {
+		if got := families(authorFamiliesFromLog(tc.log, judge.FamilyAnthropic)); got != tc.want {
+			t.Errorf("%s: %s, want %s", tc.name, got, tc.want)
+		}
+	}
+}
+
+// The git path end to end: a codex-trailered commit in the window counts, and
+// a window that cannot be read is recorded as degraded rather than ignored.
+func TestReviewAuthorFamiliesReadsTheWindow(t *testing.T) {
+	t.Setenv("AGENT_CMD", "")
+	t.Setenv("CODEX_CI", "")
+	t.Setenv("CODEX_THREAD_ID", "")
+	t.Setenv("PAIR_AGENT", "claude")
+	boundaryWindow(t) // a committed repository, the working directory
+	run := func(args ...string) string {
+		t.Helper()
+		out, err := exec.Command("git", args...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	base := run("rev-parse", "HEAD")
+	run("commit", "-q", "--allow-empty", "-m", "codex wrote this", "--trailer", "Agent: codex/gpt-6-astra/medium")
+	fams, unread := reviewAuthorFamilies(context.Background(), base, "HEAD")
+	if unread != "" || len(fams) != 2 || fams[0] != judge.FamilyAnthropic || fams[1] != judge.FamilyOpenAI {
+		t.Fatalf("families %v (unread %q), want anthropic,openai", fams, unread)
+	}
+	if _, unread := reviewAuthorFamilies(context.Background(), "no-such-base", "HEAD"); !strings.HasPrefix(unread, "authors unread") {
+		t.Errorf("an unreadable window was not reported: %q", unread)
+	}
+	choice := resolveReviewChoiceWith(context.Background(), judge.ReviewerPolicy{Mode: judge.ReviewerOther}, "", "HEAD", "", false, judge.KindBounded, judge.ContainNone)
+	first, _ := choice.First()
+	if rec := judge.ReviewerRecord(first, choice, nil); !strings.Contains(rec, "degraded: authors unread") {
+		t.Errorf("unread authors not recorded as degraded: %q", rec)
+	}
+}

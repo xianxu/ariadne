@@ -19,17 +19,29 @@ import (
 // window's own commits' Agent: trailers (first parent, no merges, as #367's
 // report reads them) and always the session running the review. The trailers
 // are untrusted, so a forged one can add a family but never remove the
-// closer's own, and so can never steer the review back to it.
-func reviewAuthorFamilies(ctx context.Context, base, head string) []judge.Family {
-	families := []judge.Family{judge.FamilyOf(string(judge.MainAgent(judge.CurrentAgentDefaultEnv())))}
+// closer's own. When the window cannot be read, unread says why: the caller
+// records it as degraded rather than quietly narrowing the exclusion.
+func reviewAuthorFamilies(ctx context.Context, base, head string) (families []judge.Family, unread string) {
+	session := judge.FamilyOf(string(judge.MainAgent(judge.CurrentAgentDefaultEnv())))
 	if base == "" || head == "" {
-		return families
+		return []judge.Family{session}, "authors unread: no window base (origin/main unknown)"
 	}
 	out, err := gitx.GitOutputContext(ctx, "log", "--first-parent", "--no-merges", "--format="+agentid.LogFormat, base+".."+head)
 	if err != nil {
-		return families
+		return []judge.Family{session}, "authors unread: " + strings.TrimSpace(firstLineOf(err.Error()))
 	}
-	for _, c := range agentid.ParseLog(string(out)) {
+	return authorFamiliesFromLog(string(out), session), ""
+}
+
+// authorFamiliesFromLog is the families an agentid.LogFormat log names in its
+// Agent: trailers (`<agent>/<model>/<effort>`), plus the session's: merges and
+// agents sdlc does not know contribute nothing.
+func authorFamiliesFromLog(log string, session judge.Family) []judge.Family {
+	families := []judge.Family{session}
+	for _, c := range agentid.ParseLog(log) {
+		if c.Merge {
+			continue
+		}
 		for _, v := range c.Agents {
 			agent, _, _ := strings.Cut(strings.TrimSpace(v), "/")
 			if f := judge.FamilyOf(agent); f != "" {
@@ -38,6 +50,11 @@ func reviewAuthorFamilies(ctx context.Context, base, head string) []judge.Family
 		}
 	}
 	return families
+}
+
+func firstLineOf(s string) string {
+	line, _, _ := strings.Cut(s, "\n")
+	return line
 }
 
 // resolveReviewChoice is a review site's reviewers: the repo policy read from
@@ -52,8 +69,12 @@ func resolveReviewChoice(ctx context.Context, root, base, head, explicit string,
 }
 
 func resolveReviewChoiceWith(ctx context.Context, policy judge.ReviewerPolicy, base, head, explicit string, explicitSet bool, kind judge.ChangeKind, containment judge.Containment) judge.ReviewChoice {
-	return judge.ResolveReview(explicit, explicitSet, judge.CurrentAgentDefaultEnv(), policy,
-		reviewAuthorFamilies(ctx, base, head), kind, reviewAvailability(containment))
+	authors, unread := reviewAuthorFamilies(ctx, base, head)
+	choice := judge.ResolveReview(explicit, explicitSet, judge.CurrentAgentDefaultEnv(), policy, authors, kind, reviewAvailability(containment))
+	if unread != "" {
+		choice.Degraded = append(choice.Degraded, unread)
+	}
+	return choice
 }
 
 // reviewAvailability is what can launch here: the host's PATH and platform.

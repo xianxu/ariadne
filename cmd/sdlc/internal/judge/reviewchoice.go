@@ -40,7 +40,8 @@ type ReviewChoice struct {
 	Candidates []Candidate
 	Skips      []Skip
 	Authors    []Family
-	Forced     bool // --agent or AGENT_CMD named the reviewer
+	Forced     bool     // --agent or AGENT_CMD named the reviewer
+	Degraded   []string // inputs the choice could not read (the window's authors), recorded with the review
 }
 
 // ResolveReview resolves every review site's reviewers (it replaced #310's
@@ -140,7 +141,7 @@ func ReviewerRecord(used Candidate, choice ReviewChoice, skips []Skip) string {
 	}
 	authors := familyList(choice.Authors)
 	s := fmt.Sprintf("%s (%s; author %s)", who, valueOrDefault(string(used.Family), "unknown"), valueOrDefault(authors, "unknown"))
-	var degraded []string
+	degraded := append([]string(nil), choice.Degraded...)
 	for _, k := range skips {
 		degraded = append(degraded, fmt.Sprintf("%s unavailable: %s", k.Agent, oneLine(k.Reason)))
 	}

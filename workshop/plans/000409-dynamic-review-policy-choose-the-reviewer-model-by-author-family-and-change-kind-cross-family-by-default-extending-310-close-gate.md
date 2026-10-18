@@ -762,6 +762,152 @@ rounds:
       isolation: fenced
       reviewed: fdd8bffbce40de361f3b14cb5491ce644efca54f
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: cc4effe3-dcb7-4d0b-bec4-cca56ce00f0a
+            repository: github.com/xianxu/ariadne
+            issue_id: "000409"
+            recipe: milestone-review
+            round: 6
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/c05b825593fbc47e
+            reviewed_head: e5dca284acc7c1d10d3b354130fac751304ceca2
+            slot: ariadne:2
+            requested_at: "2026-10-18T14:34:49.347125Z"
+          phase: finished
+          pid: 97088
+          started_at: "2026-10-18T14:34:49.435409Z"
+          finished_at: "2026-10-18T14:51:44.314908Z"
+          session_id: 48f48ad3-5673-4dd3-aab1-722acf4a3624
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: e5dca284acc7c1d10d3b354130fac751304ceca2
+        tracker_head: 1a31cd21076641eae870767c5dec2d09a37559ca
+        branch_point: d3ebb55260c6647fbc70b423efed20cd8c734c5b
+        since: "2026-10-18T05:16:36-07:00"
+        until: "2026-10-18T07:03:22-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T05:16:36-07:00"
+              end: "2026-10-18T07:03:22-07:00"
+              began: "2026-10-18T05:16:36-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 144a7ee5-cc37-41c5-ac73-b88bbf5223ba
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 5f3da10d43be251869bdafd6a98084e32ec627ca1a5a4b930a44fbe4f280c081
+              started: "2026-10-18T12:25:28.29Z"
+              spawned: false
+              bytes: 482080
+              windows:
+                - start: "2026-10-18T12:25:28.29Z"
+                  end: "2026-10-18T07:03:22-07:00"
+            - harness: claude
+              id: 5ca5160d-491c-4aec-b8f5-f5e40a69efb5
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 42052d978d0f33bca789480a4b74830893f6dd041d8d8d097390922c5c9823d6
+              started: "2026-10-18T12:21:14.242Z"
+              spawned: false
+              bytes: 563079
+              windows:
+                - start: "2026-10-18T12:21:14.242Z"
+                  end: "2026-10-18T07:03:22-07:00"
+            - harness: claude
+              id: 6be380fe-6c30-4408-b5b9-026237f91e30
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 70f6e935edb05d9fad671da7d73d9b88df89415544fb98457e596558f0fb3332
+              started: "2026-10-18T12:23:49.894Z"
+              spawned: false
+              bytes: 497183
+              windows:
+                - start: "2026-10-18T12:23:49.894Z"
+                  end: "2026-10-18T07:03:22-07:00"
+            - harness: claude
+              id: 946b723a-6614-4e42-8189-fff378170870
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 18bbe8b8ed1e1d030e367159b09a2e30f9b27a75f8dcc5f5048ff5d6d9bb34f1
+              started: "2026-10-18T12:25:42.657Z"
+              spawned: false
+              bytes: 366511
+              windows:
+                - start: "2026-10-18T12:25:42.657Z"
+                  end: "2026-10-18T07:03:22-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 781d274e610a2b5bf56ed5a3f832125a7126f412512648422173b0564e45fcf7
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 169885287
+              windows:
+                - start: "2026-10-18T05:16:36-07:00"
+                  end: "2026-10-18T07:03:22-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-18T05:32:24-07:00"
+              finalized: "2026-10-18T05:35:52-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T05:40:21-07:00"
+              finalized: "2026-10-18T05:55:37-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T05:57:38-07:00"
+              finalized: "2026-10-18T06:00:31-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-18T06:18:55-07:00"
+              finalized: "2026-10-18T06:32:31-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-18T06:39:11-07:00"
+              finalized: "2026-10-18T07:02:18-07:00"
+              finalizing: true
+      "n": 6
+      timestamp: "2026-10-18T07:51:45-07:00"
+      dispatched: "2026-10-18T07:34:49-07:00"
+      agent: claude
+      dispose:
+        - id: BR-16
+          disposition: not-addressed
+          note: Code is correct at dispatch.go:667 (Reason holds runErr, Detail holds PATH) but still no test asserts that Reason excludes PATH and leads with the cause.
+          round: 6
+        - id: BR-17
+          disposition: addressed
+          note: gofmt -l cmd/ at e5dca284 no longer lists internal/judge/reviewchoice_test.go.
+          round: 6
+      findings:
+        - id: BR-18
+          severity: Important
+          title: 'reviewAuthorFamilies, the Spec''s author-family input from Agent: trailers, has no test'
+          detail: 'cmd/sdlc/reviewchoice.go:23-41 turns the window''s first-parent Agent: trailers into families, but every site test runs a trailer-less window and only the pure ReviewPlan is tested with hand-made author sets. A regression in agentid parsing or the cut at the slash would silently send codex-authored work to codex. Add a temp-repo table test (codex trailer with a model suffix, merge commit ignored, unknown agent), or extract a pure log-text to families function and test that.'
+          family: io-input-path-tested
+          round: 6
+        - id: BR-19
+          severity: Minor
+          title: A failed git log or a missing origin/main silently drops the trailer authors from the exclusion
+          detail: 'This is the 3rd finding in family no-silent-same-family-review. reviewchoice.go:29-31 returns only the session family when git log fails (confirmed with a bad base, which gave anthropic only), and branchWindowBase returns empty without origin/main, so a codex-authored change can be reviewed by codex and the trailer records author anthropic. Rule for the class: any input the cross-family exclusion depends on (policy, order, authors) that cannot be read must refuse or be recorded as degraded in ReviewerRecord, never silently narrow the excluded families.'
+          family: no-silent-same-family-review
+          round: 6
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#409 (boundary-review)
@@ -850,7 +996,22 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-17** [Minor] `gofmt-clean-diff` (kind: defect) reviewchoice_test.go in internal/judge is not gofmt-clean
   gofmt -l lists it. There is no blank line between TestReviewerRecordRoundTrip and the ReviewerEntry comment, and a trailing blank line at end of file. Run gofmt -w.
 
+## Round 6 — 2026-10-18T07:51:45-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-16 — not-addressed — Code is correct at dispatch.go:667 (Reason holds runErr, Detail holds PATH) but still no test asserts that Reason excludes PATH and leads with the cause.
+- BR-17 — addressed — gofmt -l cmd/ at e5dca284 no longer lists internal/judge/reviewchoice_test.go.
+
+### Raised
+
+- **BR-18** [Important] `io-input-path-tested` reviewAuthorFamilies, the Spec's author-family input from Agent: trailers, has no test
+  cmd/sdlc/reviewchoice.go:23-41 turns the window's first-parent Agent: trailers into families, but every site test runs a trailer-less window and only the pure ReviewPlan is tested with hand-made author sets. A regression in agentid parsing or the cut at the slash would silently send codex-authored work to codex. Add a temp-repo table test (codex trailer with a model suffix, merge commit ignored, unknown agent), or extract a pure log-text to families function and test that.
+- **BR-19** [Minor] `no-silent-same-family-review` A failed git log or a missing origin/main silently drops the trailer authors from the exclusion
+  This is the 3rd finding in family no-silent-same-family-review. reviewchoice.go:29-31 returns only the session family when git log fails (confirmed with a bad base, which gave anthropic only), and branchWindowBase returns empty without origin/main, so a codex-authored change can be reviewed by codex and the trailer records author anthropic. Rule for the class: any input the cross-family exclusion depends on (policy, order, authors) that cannot be read must refuse or be recorded as degraded in ReviewerRecord, never silently narrow the excluded families.
+
 ## Open findings
 
 - **BR-16** [Minor] `parse-config-to-typed-value` (kind: defect) A launch-failure reason truncated to 100 characters puts local PATH text into the trailer and ledger and drops the cause
-- **BR-17** [Minor] `gofmt-clean-diff` (kind: defect) reviewchoice_test.go in internal/judge is not gofmt-clean
+- **BR-18** [Important] `io-input-path-tested` reviewAuthorFamilies, the Spec's author-family input from Agent: trailers, has no test
+- **BR-19** [Minor] `no-silent-same-family-review` A failed git log or a missing origin/main silently drops the trailer authors from the exclusion
