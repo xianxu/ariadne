@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.06
+actual_hours: 0.09
 tracker:
     version: 1
     completion:
-        token: close-735e9ea9ead1
+        token: close-0f98eb3420c8
         repository: github.com/xianxu/ariadne
-        reviewed_head: 126eb88b52d3a8b4b671895272ba6b2214d418e1
-        evidence_commit: 93d0ea60d3865c499041e4fa2645ae3d61b38dc5
+        reviewed_head: 12b3eb3f91cc603aaf142a10d8730f0a20bb6f9d
+        evidence_commit: b6271a6e94109b4b8a7bd9ce0f4eabdfffee0fe6
 ---
 
 # review checkouts lack main ref and remote config, so repo tests needing main authority can't run in review
