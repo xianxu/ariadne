@@ -132,6 +132,12 @@ Then close and land on SHIP.
   slash-descendant to its directory, and rejects every other prefix and
   locally bound qualifier. `go test ./pkg/golint -count=1` passed with the
   complete matrix; atlas describes the supported target identities.
+- The pushed code head `364505a51273f7c31835bf39e7bd3795d4161cdd`
+  passed `sdlc local-check run --name suite`: all 12 SDLC shards, 1,642
+  `cmd/sdlc` tests, 68 other packages, zero failures, 481.1 s suite wall.
+  Saved log: `/Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/364505a51273f7c31835bf39e7bd3795d4161cdd/suite.log`
+  (SHA-256 prefix `6c72e7599f2f`). PR #304's `merge-check` and
+  `local-gates-guard` passed on that code head.
 - Close review round 3 retained BR-2 with a binding-escape sequence: `ref :=
   &d` can overwrite a later decoder assigned to `d`. The durable plan now
   disqualifies address-taken or closure-captured bindings for the whole
