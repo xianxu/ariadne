@@ -67,6 +67,24 @@ THE SUITE (#332)
   current main and testing the resulting code when the earlier pass cannot
   cover it. Explicit local-check runs do not reserve the landing line.
 
+REPUBLISH (#431)
+
+  A run saves its attempt (outcome, duration, log and its sha256, under
+  <git common dir>/sdlc/test-stats) before it posts the status. The post
+  retries for about 2.5 minutes (15 s, 45 s, 90 s; the suite slot is already
+  free); if GitHub is still unreachable, the run says so and names
+
+    sdlc local-check republish --name N --rev <sha>
+
+  which posts that saved result, as it was, on that exact commit: a pass as a
+  pass, a failure as a failure. It never reruns anything, and it refuses an
+  attempt for another commit, check or repository, a diagnostic baseline, an
+  incomplete record, or one whose log no longer hashes to the recorded value.
+  --attempt ID picks one attempt; the default is the newest that verifies.
+  `sdlc merge` does the same before running a missing check: a saved,
+  verified pass on the exact head is posted instead of rerun (a saved failure
+  never is).
+
 CANCEL (#400)
 
   `sdlc local-check cancel [--name N]` stops the runs started from this
@@ -93,3 +111,4 @@ USAGE
   sdlc local-check run --name zellij        # one check on HEAD
   sdlc local-check run --all --rev <sha>    # every check on a pushed commit
   sdlc local-check cancel                   # stop this checkout's runs
+  sdlc local-check republish --name suite   # post HEAD's saved result

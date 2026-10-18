@@ -50,7 +50,21 @@ func NewLocalCheckCmd() *cobra.Command {
 		},
 	}
 	cancel.Flags().StringVar(&cancelName, "name", "", "stop only this check (default: every check this checkout runs)")
-	cmd.AddCommand(run, cancel)
+	var rp republishFlags
+	republish := &cobra.Command{
+		Use:           "republish",
+		Short:         "Post a completed check's saved result on its exact commit, without rerunning it",
+		Long:          renderLong("local-check"),
+		Args:          cobra.NoArgs,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runLocalCheckRepublish(commandContext(cmd.Context()), cmd.ErrOrStderr(), rp)
+		},
+	}
+	republish.Flags().StringVar(&rp.Name, "name", "", "the check whose saved result to post (required)")
+	republish.Flags().StringVar(&rp.Rev, "rev", "HEAD", "the commit the saved attempt ran on")
+	republish.Flags().StringVar(&rp.Attempt, "attempt", "", "a specific attempt id (default: the newest that verifies)")
+	cmd.AddCommand(run, cancel, republish)
 	return cmd
 }
 
@@ -159,5 +173,51 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 	if len(failed) > 0 {
 		return fmt.Errorf("local-check run: failed on %s: %s", abbrevSHA(sha), strings.Join(failed, "; "))
 	}
+	return nil
+}
+
+type republishFlags struct{ Name, Rev, Attempt string }
+
+// runLocalCheckRepublish posts a saved attempt's outcome (#431): the recovery
+// for a completed run whose status post could not reach GitHub.
+func runLocalCheckRepublish(ctx context.Context, stderr io.Writer, f republishFlags) error {
+	if f.Name == "" {
+		return errors.New("local-check republish: give --name")
+	}
+	root, err := gitx.RepoTopLevel()
+	if err != nil {
+		return err
+	}
+	git := func(args ...string) (string, error) {
+		out, err := mergeRunner.GitInDir(root, args...)
+		return string(out), err
+	}
+	out, err := git("rev-parse", "--verify", f.Rev+"^{commit}")
+	if err != nil {
+		return fmt.Errorf("local-check republish: %s is not a commit: %w", f.Rev, err)
+	}
+	sha := strings.TrimSpace(out)
+	repo, err := detectRepo()
+	if err != nil {
+		return err
+	}
+	d := localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: git, Stderr: stderr}
+	logDir, err := localCheckLogDir(d)
+	if err != nil {
+		return err
+	}
+	rec, err := loadSavedAttempt(suiteStoreRoot(logDir), repo, sha, f.Name, f.Attempt, hostName())
+	if err != nil {
+		return fmt.Errorf("local-check republish: %w", err)
+	}
+	if branch, _ := git("branch", "--show-current"); strings.TrimSpace(branch) != "" {
+		if n, err := ghClient.PRListForBranch(repo, strings.TrimSpace(branch)); err == nil {
+			d.PR, _ = strconv.Atoi(strings.TrimSpace(n))
+		}
+	}
+	if err := postLocalCheckRecord(ctx, d, rec); err != nil {
+		return fmt.Errorf("local-check republish: %s on %s was NOT recorded: %w", f.Name, abbrevSHA(sha), err)
+	}
+	fmt.Fprintf(stderr, "==> local check %s: saved result (%s) recorded as %s on %s\n", f.Name, rec.statusDescription(), localStatusContext(f.Name), abbrevSHA(sha))
 	return nil
 }

@@ -1,0 +1,193 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+)
+
+func TestSavedAttemptRecord(t *testing.T) {
+	wall := 61.4
+	base := SuiteAttempt{ID: "a1", Repo: "o/r", SHA: "abc123", Check: "suite", Exit: 0, WallSeconds: &wall, LogSHA256: "feed"}
+	with := func(f func(*SuiteAttempt)) SuiteAttempt { a := base; f(&a); return a }
+	for _, tc := range []struct {
+		name   string
+		a      SuiteAttempt
+		logSHA string
+		want   string // "" publishes
+	}{
+		{"matching record publishes", base, "feed", ""},
+		{"a failure publishes as a failure", with(func(a *SuiteAttempt) { a.Exit = 2 }), "feed", ""},
+		{"tampered log", base, "beef", "no longer hashes"},
+		{"other commit", with(func(a *SuiteAttempt) { a.SHA = "def456" }), "feed", "not abc123"},
+		{"other check", with(func(a *SuiteAttempt) { a.Check = "e2e" }), "feed", "not suite"},
+		{"other repository", with(func(a *SuiteAttempt) { a.Repo = "x/y" }), "feed", "not o/r"},
+		{"main baseline", with(func(a *SuiteAttempt) { a.MainBaseline = true }), "feed", "baseline"},
+		{"incomplete: no duration", with(func(a *SuiteAttempt) { a.WallSeconds = nil }), "feed", "incomplete"},
+		{"incomplete: no log hash", with(func(a *SuiteAttempt) { a.LogSHA256 = "" }), "", "incomplete"},
+	} {
+		rec, err := savedAttemptRecord(tc.a, tc.logSHA, []string{"tail"}, "o/r", "abc123", "suite", "host1")
+		if tc.want == "" {
+			if err != nil {
+				t.Errorf("%s: %v", tc.name, err)
+				continue
+			}
+			if rec.Exit != tc.a.Exit || rec.SHA != "abc123" || rec.Name != "suite" || rec.Host != "host1" || rec.Duration != 61400*time.Millisecond || rec.LogSHA256 != "feed" {
+				t.Errorf("%s: record %+v", tc.name, rec)
+			}
+			continue
+		}
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: got %v, want an error containing %q", tc.name, err, tc.want)
+		}
+	}
+}
+
+// flakyPostGH fails the first n status posts, as an unreachable GitHub does.
+type flakyPostGH struct {
+	*ciFakeGH
+	mu    sync.Mutex
+	fails int
+	posts int
+}
+
+func (g *flakyPostGH) PostStatus(ctx context.Context, repo, sha, statusContext, state, desc string) error {
+	g.mu.Lock()
+	g.posts++
+	failing := g.fails > 0
+	if failing {
+		g.fails--
+	}
+	g.mu.Unlock()
+	if failing {
+		return errors.New("error connecting to api.github.com")
+	}
+	return g.ciFakeGH.PostStatus(ctx, repo, sha, statusContext, state, desc)
+}
+
+func suiteCheck(command ...string) localCheck {
+	return localCheck{Name: "suite", Command: command, TimeoutMinutes: 1, Weight: 1}
+}
+
+// A brief outage is ridden out by the bounded retry; a longer one leaves the
+// result saved, and the failure names the command that publishes it.
+func TestRunLocalCheckPostRetryAndRecovery(t *testing.T) {
+	ctx := context.Background()
+	t.Run("retry rides out a brief outage", func(t *testing.T) {
+		d, sha, gh, stderr := localRunRepo(t, "skipped")
+		flaky := &flakyPostGH{ciFakeGH: gh, fails: 2}
+		d.GH = flaky
+		if _, err := runLocalCheck(ctx, d, suiteCheck("true"), sha); err != nil {
+			t.Fatalf("run: %v\n%s", err, stderr.String())
+		}
+		if flaky.posts != 3 || gh.statuses[sha][localStatusContext("suite")] != "success" {
+			t.Errorf("posts %d, statuses %v", flaky.posts, gh.statuses[sha])
+		}
+	})
+	t.Run("a lasting outage names the republish command", func(t *testing.T) {
+		d, sha, gh, stderr := localRunRepo(t, "skipped")
+		d.GH = &flakyPostGH{ciFakeGH: gh, fails: 1 + len(localCheckPostBackoff)}
+		_, err := runLocalCheck(ctx, d, suiteCheck("true"), sha)
+		if err == nil || !strings.Contains(err.Error(), republishCommand("suite", sha)) || !strings.Contains(err.Error(), "no rerun needed") {
+			t.Fatalf("want the recovery command in: %v\n%s", err, stderr.String())
+		}
+		if gh.statuses[sha] != nil {
+			t.Fatalf("nothing should be recorded yet: %v", gh.statuses[sha])
+		}
+		// The recovery, as the republish verb runs it: load and post the saved result.
+		d.GH = gh
+		logDir, _ := localCheckLogDir(d)
+		rec, err := loadSavedAttempt(suiteStoreRoot(logDir), d.Repo, sha, "suite", "", "host1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := postLocalCheckRecord(ctx, d, rec); err != nil {
+			t.Fatal(err)
+		}
+		if gh.statuses[sha][localStatusContext("suite")] != "success" {
+			t.Errorf("republished status: %v", gh.statuses[sha])
+		}
+	})
+}
+
+func TestLoadSavedAttemptRefuses(t *testing.T) {
+	ctx := context.Background()
+	d, sha, _, stderr := localRunRepo(t, "skipped")
+	if _, err := runLocalCheck(ctx, d, suiteCheck("sh", "-c", "echo suite output"), sha); err != nil {
+		t.Fatalf("run: %v\n%s", err, stderr.String())
+	}
+	logDir, _ := localCheckLogDir(d)
+	store := suiteStoreRoot(logDir)
+	if _, err := loadSavedAttempt(store, d.Repo, sha, "suite", "", "h"); err != nil {
+		t.Fatalf("the saved attempt should verify: %v", err)
+	}
+	other := strings.Repeat("0", len(sha))
+	if _, err := loadSavedAttempt(store, d.Repo, other, "suite", "", "h"); !errors.Is(err, errNoSavedAttempt) {
+		t.Errorf("other commit: %v", err)
+	}
+	if _, err := loadSavedAttempt(store, d.Repo, sha, "e2e", "", "h"); !errors.Is(err, errNoSavedAttempt) {
+		t.Errorf("other check: %v", err)
+	}
+	if _, err := loadSavedAttempt(store, d.Repo, sha, "suite", "0123456789abcdef0123456789abcdef", "h"); !errors.Is(err, errNoSavedAttempt) {
+		t.Errorf("missing attempt id: %v", err)
+	}
+	if _, err := loadSavedAttempt(store, "x/y", sha, "suite", "", "h"); !errors.Is(err, errSavedAttemptRefused) {
+		t.Errorf("other repository: %v", err)
+	}
+	log := filepath.Join(logDir, sha, "suite.log")
+	if err := os.WriteFile(log, []byte("tampered\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadSavedAttempt(store, d.Repo, sha, "suite", "", "h"); !errors.Is(err, errSavedAttemptRefused) || !strings.Contains(err.Error(), "no longer hashes") {
+		t.Errorf("tampered log: %v", err)
+	}
+	if err := os.Remove(log); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadSavedAttempt(store, d.Repo, sha, "suite", "", "h"); !errors.Is(err, errSavedAttemptRefused) {
+		t.Errorf("missing log: %v", err)
+	}
+}
+
+// Merge's runner posts a saved, verified pass for the exact head instead of
+// rerunning; a saved failure is never reused.
+func TestLocalCheckRunnerReusesSavedPass(t *testing.T) {
+	ctx := context.Background()
+	t.Run("saved pass is posted, not rerun", func(t *testing.T) {
+		d, sha, gh, stderr := localRunRepo(t, "skipped")
+		d.GH = &flakyPostGH{ciFakeGH: gh, fails: 1 + len(localCheckPostBackoff)}
+		if _, err := runLocalCheck(ctx, d, suiteCheck("true"), sha); err == nil {
+			t.Fatal("the first post should have failed")
+		}
+		d.GH = gh
+		marker := filepath.Join(t.TempDir(), "ran")
+		rec, err := newLocalCheckRunner(d)(ctx, suiteCheck("./marker-check.sh", marker), sha)
+		if err != nil || !rec.passed() {
+			t.Fatalf("runner: %+v %v\n%s", rec, err, stderr.String())
+		}
+		if _, err := os.Stat(marker); err == nil {
+			t.Error("the check was rerun despite a saved pass")
+		}
+		if gh.statuses[sha][localStatusContext("suite")] != "success" {
+			t.Errorf("saved pass not posted: %v", gh.statuses[sha])
+		}
+	})
+	t.Run("saved failure is rerun", func(t *testing.T) {
+		d, sha, gh, stderr := localRunRepo(t, "skipped")
+		d.GH = &flakyPostGH{ciFakeGH: gh, fails: 1 + len(localCheckPostBackoff)}
+		_, _ = runLocalCheck(ctx, d, suiteCheck("false"), sha)
+		d.GH = gh
+		marker := filepath.Join(t.TempDir(), "ran")
+		if _, err := newLocalCheckRunner(d)(ctx, suiteCheck("./marker-check.sh", marker), sha); err != nil {
+			t.Fatalf("runner: %v\n%s", err, stderr.String())
+		}
+		if _, err := os.Stat(marker); err != nil {
+			t.Error("a saved failure must not stand in for a run")
+		}
+	})
+}

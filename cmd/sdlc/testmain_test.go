@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/repolock"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewbox"
@@ -161,6 +162,8 @@ func TestMain(m *testing.M) {
 	cleanupQuietGit := testfix.QuietBackgroundGit()
 	cleanupReviewBox := hermeticReviewBox()
 	testfix.PinAgent() // #367
+	// #431: a failing fake status post retries without the real backoff.
+	localCheckPostBackoff = []time.Duration{time.Millisecond, time.Millisecond, time.Millisecond}
 	// #303: no test runs the installed weave; a test that reaches the catch-up
 	// installs its own fake.
 	weaveSettingsCheck = func(context.Context, string, io.Writer) error { return nil }

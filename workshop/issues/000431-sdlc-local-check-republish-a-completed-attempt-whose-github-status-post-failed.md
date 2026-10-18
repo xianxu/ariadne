@@ -73,11 +73,11 @@ later, and merge reusing a saved green attempt before it reruns anything.
 
 ## Plan
 
-- [ ] `savedAttemptRecord` + `newestSavedAttempt` with table tests
-- [ ] `local-check republish` verb (fake-GH test: posts the saved outcome, refuses mismatches)
-- [ ] Run path: bounded POST retry; the final error names the republish command (fake POST failing n times)
-- [ ] Merge: `newLocalCheckRunner` republishes a saved green attempt for the exact head before running (test: no rerun)
-- [ ] Help (local-check.md), atlas row
+- [x] `savedAttemptRecord` + `newestSavedAttempt` with table tests
+- [x] `local-check republish` verb (fake-GH test: posts the saved outcome, refuses mismatches)
+- [x] Run path: bounded POST retry; the final error names the republish command (fake POST failing n times)
+- [x] Merge: `newLocalCheckRunner` republishes a saved green attempt for the exact head before running (test: no rerun)
+- [x] Help (local-check.md), atlas row
 
 ## Log
 
@@ -92,3 +92,11 @@ later, and merge reusing a saved green attempt before it reruns anything.
 - An unsandboxed call has no proxy variables at all (`env | grep -ci proxy` → 0) and reaches api.github.com
   directly (5/5 in 0.08–0.18 s). The failing `sdlc` errors are direct-connect timeouts, and the fresh `sdlc pr` that
   opened PR #290 failed with one, so long-lived processes are not the cause; direct-path outages are.
+- Implemented: `localcheck_republish.go` (`savedAttemptRecord`, `loadSavedAttempt`, `postLocalCheckRecord` with the
+  retry, `republishSavedPass`), the verb in `localcheck_cmd.go`, `newLocalCheckRunner` reuse. `runLocalCheck`'s post
+  now goes through `postLocalCheckRecord` (ARCH-DRY with the verb). TestMain shrinks the backoff to 1 ms so failing
+  fakes don't sleep. Tests: `TestSavedAttemptRecord` (9 rows), `TestRunLocalCheckPostRetryAndRecovery`,
+  `TestLoadSavedAttemptRefuses` (other commit/check/id/repo, tampered and missing log),
+  `TestLocalCheckRunnerReusesSavedPass` (pass reused without rerun; failure rerun).
+- A broad targeted run hit `TestLocalCheckSignalCancelsQueuedHelper/terminated/cleanup` ("cleanup never reached its
+  blocked Git seam") under load; 3/3 alone. Second sighting (first during #424), so filed as flake #434, unclaimed.
