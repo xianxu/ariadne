@@ -625,7 +625,7 @@ func dispatchOnce(ctx context.Context, opts DispatchOptions) (string, error) {
 // synchronous and heartbeat paths (ARCH-DRY). It forwards diagnostic stderr,
 // returns semantic stdout, and applies Dispatch's existing exit-code policy: a
 // non-zero exit is swallowed so Classify can interpret the response, while a
-// real launch failure returns a diagnosable error naming owner bin/ + PATH.
+// real launch failure is an UnavailableError naming owner bin/ + PATH (#409).
 func classifyRunResult(ctx context.Context, out ProcessOutput, runErr error, name string, agent AgentCLI, diagnostics io.Writer) (string, error) {
 	if diagnostics != nil && len(out.Stderr) > 0 {
 		_, _ = diagnostics.Write(out.Stderr)
@@ -645,20 +645,27 @@ func classifyRunResult(ctx context.Context, out ProcessOutput, runErr error, nam
 		run = ReadStream(out.Stdout)
 	}
 	_, exited := runErr.(*exec.ExitError)
-	if err := RunFailure(agent, run, out.Stderr, exited); err != nil {
-		return "", err
-	}
-	if exited {
-		return run.Text(), nil
-	}
-	if runErr != nil {
+	// #409: a reviewer that could not review at all is not a failed review;
+	// DispatchChoice moves to the next candidate on exactly this error.
+	var launchErr error
+	if runErr != nil && !exited {
+		// Keep the launch diagnosis (owner bin, PATH) as the evidence.
 		dir, derr := ownerBinDir()
 		if derr != nil || dir == "" {
 			dir = "?"
 		}
-		return run.Text(), fmt.Errorf("dispatch %s (owner bin %q prepended to PATH=%s): %w", name, dir, os.Getenv("PATH"), runErr)
+		launchErr = fmt.Errorf("dispatch %s (owner bin %q prepended to PATH=%s): %w", name, dir, os.Getenv("PATH"), runErr)
 	}
-	return run.Text(), nil
+	if launchErr != nil {
+		return run.Text(), &UnavailableError{Agent: agentOrClaude(agent), Reason: "could not launch: " + launchErr.Error()}
+	}
+	if reason, ok := Unavailable(agent, run, out.Stderr, exited, nil); ok {
+		return run.Text(), &UnavailableError{Agent: agentOrClaude(agent), Reason: reason}
+	}
+	if err := RunFailure(agent, run, out.Stderr, exited); err != nil {
+		return "", err
+	}
+	return run.Text(), nil // a non-zero exit is swallowed; a launch failure returned above
 }
 
 // FormatCommandLine returns a shell-safe rendering of the would-be
@@ -720,4 +727,11 @@ func reviewTimeout(value string) (time.Duration, error) {
 		return 0, fmt.Errorf("WF_REVIEW_TIMEOUT must be a Go duration from 1s through 2h (unset, the limit scales with the review window)")
 	}
 	return d, nil
+}
+
+func agentOrClaude(a AgentCLI) AgentCLI {
+	if a == "" {
+		return AgentClaude
+	}
+	return a
 }
