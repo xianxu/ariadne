@@ -495,6 +495,15 @@ never another slot's; never stop one by a PID picked from `ps`. When a finished
 check's status post can't reach GitHub, `sdlc local-check republish --name X`
 posts the saved result later, with no rerun.
 
+Known flaky tests are registered on their issues (#394). A test is a known flake
+while an open issue's card lists it in `flake_tests`. `sdlc flake register --test
+PKG.TestX [--issue N]` writes the field only with same-head fail→pass evidence
+from this machine's test-stats store (or `--evidence TEXT` for a CI run); without
+`--issue` it files an unclaimed flake issue. Closing the issue unregisters its
+tests. `sdlc flake list` is the TL's local daily view: the registry with each
+issue's owner and age, same-head flakes not yet registered, and failures nothing
+explains, each with its log. CI failures are shown as not covered until #451.
+
 Run `sdlc local-check run --name suite` on the pushed issue head before close.
 After it passes, close that tested branch without manually integrating each
 newer main and repeating pre-close suites. Branch code fixes still require fresh

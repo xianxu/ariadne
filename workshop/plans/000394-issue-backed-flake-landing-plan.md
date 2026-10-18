@@ -175,3 +175,12 @@ Design notes:
   - The card field: round trip and setter.
 - **Vocabulary (minor):** `flake_tests` is added to `card.fields` in `issue.cue` with its kind and setter, so the ownership list and refusals derive from the model.
 - **Done-when (minor):** the issue's `## Revisions` records that Done-when 3's CI coverage moved to #451 (D3).
+
+### 2026-10-18 — M1 boundary review round 1 (FIX-THEN-SHIP: BR-1..4, three Minors)
+
+- **BR-1, argv identifiers:** an import-path segment must start with a letter, digit or underscore, so no registered name can become a `go test` flag (`-exec`) or a relative path (`.`/`..`). The hostile cases are in TestBuildRegistry and TestRerunCommand, and the card check shares the rule.
+- **BR-2, merging on the compare-and-swap snapshot:** `register` now passes only the tests to add. `addFlakeTests` merges them onto the tests on the card that `runCardUpdate` hands it, checks the 5-test cap there, and refuses a closed issue there (a Minor), so a racing registration on the same card is kept. Covered by TestFlakeRegisterKeepsARacingRegistration and the real-card setter case.
+- **BR-3, the daily view's fields:** `flake list` prints each registered test's issue owner (claimant slot or operator) and age (from the card's created date), and each listed attempt's log path.
+- **BR-4:** a README paragraph on `sdlc flake`.
+- **Minor, evidence text:** a newly filed flake issue keeps `--evidence` in its body. With `--issue N`, the text is printed for N's Log, since only an issue's owner publishes its details. The store evidence (attempt IDs) stays in test-stats. The help says so; this replaces the core concepts' "recorded verbatim".
+- **Minor, Unexplained policy (decided now, not in M3):** a later registration explains only a failure the rule never judged (unknown, persistent-main, registry unavailable, or pre-#394). A failure it judged and rejected stays unexplained whatever is registered later: failed twice, too many, rule off, or unattributable. Pinned in TestEvidence.

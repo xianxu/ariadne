@@ -44,6 +44,10 @@ func TestBuildRegistry(t *testing.T) {
 		"a subtest":      {{ID: "1", Status: "open", Tests: []string{"github.com/x/r/pkg.TestA/sub"}}},
 		"not a Test fn":  {{ID: "1", Status: "open", Tests: []string{"github.com/x/r/pkg.Helper"}}},
 		"shell metachar": {{ID: "1", Status: "open", Tests: []string{"github.com/x/r/p;rm.TestA"}}},
+		"a flag":         {{ID: "1", Status: "open", Tests: []string{"-exec.TestA"}}},
+		"a flag segment": {{ID: "1", Status: "open", Tests: []string{"github.com/-exec.TestA"}}},
+		"a relative pkg": {{ID: "1", Status: "open", Tests: []string{"./x.TestB"}}},
+		"a parent seg":   {{ID: "1", Status: "open", Tests: []string{"github.com/x/../y.TestB"}}},
 	} {
 		if _, err := BuildRegistry(cards, open); err == nil {
 			t.Errorf("%s: no refusal", name)
@@ -138,6 +142,12 @@ func TestEvidence(t *testing.T) {
 	if u := Unexplained(known, "s4", r); len(u) != 1 {
 		t.Errorf("unattributable is never explained by registration: %+v", u)
 	}
+	for _, k := range []Kind{KnownFlakeTwice, TooManyKnownFlaky, RuleOff} {
+		judged := append(attempts, Attempt{ID: "5", SHA: "s5", Failures: []string{tA}, Kind: k, FinishedAt: at(7)}, Attempt{ID: "6", SHA: "s5", Passed: true, FinishedAt: at(8)})
+		if u := Unexplained(judged, "s5", r); len(u) != 1 {
+			t.Errorf("%s then a full rerun pass: a rejected failure is explained by registration: %+v", k, u)
+		}
+	}
 }
 
 func TestRerunCommand(t *testing.T) {
@@ -146,7 +156,7 @@ func TestRerunCommand(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Errorf("%v %v", got, err)
 	}
-	for _, bad := range [][]string{nil, {"TestA"}, {"github.com/x.Test$(rm)"}} {
+	for _, bad := range [][]string{nil, {"TestA"}, {"github.com/x.Test$(rm)"}, {"-exec.TestA"}, {"./x.TestB"}, {"x/.hidden.TestC"}} {
 		if _, err := RerunCommand(bad); err == nil {
 			t.Errorf("%q: no refusal", bad)
 		}

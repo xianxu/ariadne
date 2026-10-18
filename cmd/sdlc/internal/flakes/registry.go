@@ -14,8 +14,10 @@ import (
 // testName is a top-level Go test as the suite log names it: an import path,
 // a dot, and a Test function. Subtests are represented by their parent.
 var (
-	testFunc   = regexp.MustCompile(`^Test[A-Za-z0-9_]*$`)
-	importPath = regexp.MustCompile(`^[A-Za-z0-9_.~-]+(/[A-Za-z0-9_.~-]+)*$`)
+	testFunc = regexp.MustCompile(`^Test[A-Za-z0-9_]*$`)
+	// Each segment starts with a letter, digit or underscore: never "-" (a
+	// go test flag in the rerun argv) and never "." or ".." (a relative path).
+	importPath = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.~-]*(/[A-Za-z0-9_][A-Za-z0-9_.~-]*)*$`)
 )
 
 // SplitTest splits "<import path>.<TestName>" at its last dot. ok is false
@@ -42,9 +44,11 @@ func ValidTest(name string) error {
 
 // Card is the part of an issue card the registry reads.
 type Card struct {
-	ID     string
-	Status string
-	Tests  []string
+	ID      string
+	Status  string
+	Tests   []string
+	Owner   string // the claimant's workspace or operator; "" when unclaimed
+	Created string // the issue's created date, for the registration's age
 }
 
 // Registry maps each registered test to the open issue that owns it.

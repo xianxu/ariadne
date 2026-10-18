@@ -94,3 +94,4 @@ Filed from #390's operator-approved flake/landing decision. The weekly snapshot 
   - The `flake_tests` card field (vocabulary kind `test-list`, at most 5 exact names).
   - `sdlc flake register` and `sdlc flake list`.
   - Tests: TestBuildRegistry, TestClassify, TestEvidence, TestRerunCommand, TestUnattributedFailures, TestParseCardFlakeTests, the v2 decoder cases, TestFlakeRegisterNeedsSameHeadEvidence, TestFlakeRegisterRules, TestFlakeList, and TestFlakeRegistryFromTrackerCards (real tracker cards). The cmd/sdlc tests on this surface pass (749s, targeted).
+- M1 boundary review round 1 (FIX-THEN-SHIP): BR-1 (a test name can't become a go test flag or a relative path), BR-2 (the merge happens on the compare-and-swap card; racing registrations kept), BR-3 (list shows owner, age and log), BR-4 (README), and the three Minors (evidence text, closed issue refused, Unexplained policy) fixed in the plan's Revisions with tests.

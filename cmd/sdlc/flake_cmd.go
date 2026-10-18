@@ -54,10 +54,45 @@ func flakeCards(rs tracker.Records) ([]flakes.Card, error) {
 			return nil, fmt.Errorf("issue %s: %v", r.ID, err)
 		}
 		if len(tests) > 0 {
-			cards = append(cards, flakes.Card{ID: r.ID, Status: r.Status(), Tests: tests})
+			created, _ := r.Field("created")
+			cards = append(cards, flakes.Card{ID: r.ID, Status: r.Status(), Tests: tests, Owner: flakeCardOwner(r.Card.Raw), Created: created})
 		}
 	}
 	return cards, nil
+}
+
+// flakeCardOwner names who holds a card: the claimant's slot, else its operator.
+func flakeCardOwner(raw []byte) string {
+	c, ok, err := issue.CardClaimant(raw)
+	switch {
+	case err != nil:
+		return "unreadable claimant"
+	case !ok:
+		return ""
+	case c.Workspace != "":
+		return c.Workspace
+	}
+	return c.Operator
+}
+
+// addFlakeTests is the setter's decision, made on the card the compare-and-
+// swap hands it (#394 M1 review): the tests already on that card plus add,
+// so a registration racing this one is kept, never overwritten from an
+// earlier read. A closed issue refuses: its tests would never register.
+func addFlakeTests(card tracker.Record, add []string) ([]byte, error) {
+	status, _ := issue.GetField(card.Card.Frontmatter, "status")
+	if vocab.Issue().IsTerminal(status) {
+		return nil, fmt.Errorf("issue #%s is %s: a closed issue registers nothing; reopen it or file a new one", card.ID, status)
+	}
+	have, _, err := issue.FieldList(card.Card.Frontmatter, flakeTestsField)
+	if err != nil {
+		return nil, err
+	}
+	tests := mergeTests(have, add)
+	if len(tests) > flakes.MaxRerun {
+		return nil, fmt.Errorf("issue #%s would register %d tests (at most %d): file another issue", card.ID, len(tests), flakes.MaxRerun)
+	}
+	return issue.SetCardField(card.Raw, flakeTestsField, issue.FlowList(tests))
 }
 
 // flakeIssueOpen is the registry's status rule: anything not terminal.
@@ -82,9 +117,10 @@ func loadFlakeRegistry(ctx context.Context, issuesDir string) (flakes.Registry, 
 type flakeDeps struct {
 	now      func() time.Time
 	attempts func() ([]SuiteAttempt, []string, error) // this clone's test-stats store
+	logPath  func(SuiteAttempt) string                // where an attempt's log is kept
 	repo     func() (string, error)
 	registry func(ctx context.Context) (flakes.Registry, []flakes.Card, error)
-	setTests func(ctx context.Context, stdout, stderr io.Writer, id int, tests []string) error
+	addTests func(ctx context.Context, stdout, stderr io.Writer, id int, add []string) error // merges onto the card's current tests
 	newIssue func(ctx context.Context, stdout, stderr io.Writer, title, body string) (int, error)
 }
 
@@ -105,6 +141,20 @@ func defaultFlakeDeps(issuesDir string) flakeDeps {
 			}
 			return readSuiteAttempts(suiteStoreRoot(logDir), testStatsRecordLimit)
 		},
+		logPath: func(a SuiteAttempt) string {
+			root, err := gitx.RepoTopLevel()
+			if err != nil {
+				return a.LogPath
+			}
+			logDir, err := localCheckLogDir(localRunDeps{Root: root, Git: func(args ...string) (string, error) {
+				out, err := mergeRunner.GitInDir(root, args...)
+				return string(out), err
+			}})
+			if p := suiteAttemptLogFile(suiteStoreRoot(logDir), a); err == nil && p != "" {
+				return p
+			}
+			return valueOr(a.LogPath, "(none kept)")
+		},
 		repo: detectRepo,
 		registry: func(ctx context.Context) (flakes.Registry, []flakes.Card, error) {
 			rs, err := loadIssueRecords(ctx, issuesDir, tracker.Fresh)
@@ -118,11 +168,9 @@ func defaultFlakeDeps(issuesDir string) flakeDeps {
 			r, err := flakes.BuildRegistry(cards, flakeIssueOpen)
 			return r, cards, err
 		},
-		setTests: func(ctx context.Context, stdout, stderr io.Writer, id int, tests []string) error {
-			return runCardUpdate(ctx, stdout, stderr, issuesDir, id, "flake_tests → "+issue.FlowList(tests), false,
-				func(_ *trackerEnv, card tracker.Record, _ string) ([]byte, error) {
-					return issue.SetCardField(card.Raw, flakeTestsField, issue.FlowList(tests))
-				})
+		addTests: func(ctx context.Context, stdout, stderr io.Writer, id int, add []string) error {
+			return runCardUpdate(ctx, stdout, stderr, issuesDir, id, "flake_tests + "+issue.FlowList(add), false,
+				func(_ *trackerEnv, card tracker.Record, _ string) ([]byte, error) { return addFlakeTests(card, add) })
 		},
 		newIssue: func(ctx context.Context, stdout, stderr io.Writer, title, body string) (int, error) {
 			return fileFlakeIssue(ctx, stdout, stderr, issuesDir, title, body)
@@ -160,8 +208,9 @@ failure blocks. Closing the issue unregisters its tests.
 Each test needs same-exact-head fail→pass evidence (#390): an attempt on this
 machine's test-stats store where it failed, followed by a passing suite on the
 same commit. A failure seen elsewhere (a CI run) can be registered with
---evidence TEXT naming the runs; the text is printed and kept in the new
-issue's body when one is filed.
+--evidence TEXT naming the runs. A newly filed issue keeps the text in its
+body; with --issue N it is printed for N's Log, since only an issue's owner
+publishes its details. Store evidence (attempt IDs) stays in test-stats.
 
 --issue N adds the tests to issue N's card. Any slot may (a card setter has no
 owner). Without --issue, a new unclaimed flake issue is filed with the tests
@@ -237,11 +286,12 @@ func runFlakeRegister(ctx context.Context, stdout, stderr io.Writer, f flakeRegi
 			"  A flake is registered only once the same commit failed on it and then passed (#390).\n"+
 			"  Rerun the suite on the failing head, or give --evidence naming the runs elsewhere (CI)", strings.Join(missing, ", "))
 	}
-	reg, cards, err := d.registry(ctx)
+	reg, _, err := d.registry(ctx)
 	if err != nil {
 		return fmt.Errorf("flake register: %w", err)
 	}
 	id := fmt.Sprintf("%06d", f.Issue)
+	filed := f.Issue <= 0
 	for _, t := range tests {
 		if owner, ok := reg.Lookup(t); ok && owner != id {
 			return fmt.Errorf("flake register: %s is already registered on issue #%s; add evidence there", t, owner)
@@ -263,20 +313,14 @@ func runFlakeRegister(ctx context.Context, stdout, stderr io.Writer, f flakeRegi
 			return fmt.Errorf("flake register: file the flake issue: %w", err)
 		}
 		f.Issue, id = n, fmt.Sprintf("%06d", n)
-	} else {
-		for _, c := range cards {
-			if c.ID == id {
-				tests = mergeTests(c.Tests, tests)
-			}
-		}
 	}
-	if len(tests) > flakes.MaxRerun {
-		return fmt.Errorf("flake register: issue #%s would register %d tests (at most %d): file another issue", id, len(tests), flakes.MaxRerun)
-	}
-	if err := d.setTests(ctx, stdout, stderr, f.Issue, tests); err != nil {
+	if err := d.addTests(ctx, stdout, stderr, f.Issue, tests); err != nil {
 		return fmt.Errorf("flake register: %w", err)
 	}
 	fmt.Fprintf(stdout, "registered on #%s:\n%s\n", id, strings.Join(lines, "\n"))
+	if f.Evidence != "" && f.Issue > 0 && !filed {
+		fmt.Fprintf(stdout, "the --evidence text is not on the card: add it to #%s's Log (its owner publishes details)\n", id)
+	}
 	return nil
 }
 
@@ -316,21 +360,24 @@ func runFlakeList(ctx context.Context, out io.Writer, d flakeDeps) error {
 	case len(reg.Entries()) == 0:
 		fmt.Fprintln(out, "  (no open flake issue lists a test)")
 	}
-	status := map[string]string{}
+	byID := map[string]flakes.Card{}
 	for _, c := range cards {
-		status[c.ID] = c.Status
+		byID[c.ID] = c
 	}
 	for _, e := range reg.Entries() {
-		fmt.Fprintf(out, "  %s  #%s (%s)\n", e.Test, e.Issue, status[e.Issue])
+		c := byID[e.Issue]
+		fmt.Fprintf(out, "  %s  #%s (%s, owner %s, %s)\n", e.Test, e.Issue, c.Status, valueOr(c.Owner, "unclaimed"), flakeAge(c.Created, d.now()))
 	}
 	attempts, warnings, err := d.attempts()
 	if err != nil {
 		return fmt.Errorf("flake list: read test-stats: %w", err)
 	}
 	var mine []SuiteAttempt
+	logs := map[string]SuiteAttempt{}
 	for _, a := range attempts {
 		if a.Repo == repo && a.Check == suiteCheckName {
 			mine = append(mine, a)
+			logs[a.ID] = a
 		}
 	}
 	order := flakes.Sort(flakeAttempts(mine))
@@ -346,7 +393,7 @@ func runFlakeList(ctx context.Context, out io.Writer, d flakeDeps) error {
 		if confirmed[a.ID] {
 			for _, t := range a.Failures {
 				if _, known := reg.Lookup(t); !known {
-					unregistered = append(unregistered, fmt.Sprintf("  %s  attempt %s on %s, %s", t, a.ID, abbrevSHA(a.SHA), a.FinishedAt.Format(time.RFC3339)))
+					unregistered = append(unregistered, fmt.Sprintf("  %s  attempt %s on %s, %s, log %s", t, a.ID, abbrevSHA(a.SHA), a.FinishedAt.Format(time.RFC3339), d.logPath(logs[a.ID])))
 				}
 			}
 		}
@@ -356,7 +403,7 @@ func runFlakeList(ctx context.Context, out io.Writer, d flakeDeps) error {
 		seenSHA[a.SHA] = true
 		for _, u := range flakes.Unexplained(order, a.SHA, reg) {
 			if !confirmed[u.ID] && d.now().Sub(u.FinishedAt) >= 24*time.Hour {
-				unexplained = append(unexplained, fmt.Sprintf("  attempt %s on %s, %s: %s", u.ID, abbrevSHA(u.SHA), u.FinishedAt.Format(time.RFC3339), orNone(strings.Join(u.Failures, ", "))))
+				unexplained = append(unexplained, fmt.Sprintf("  attempt %s on %s, %s: %s, log %s", u.ID, abbrevSHA(u.SHA), u.FinishedAt.Format(time.RFC3339), orNone(strings.Join(u.Failures, ", ")), d.logPath(logs[u.ID])))
 			}
 		}
 	}
@@ -407,4 +454,13 @@ func fileFlakeIssue(ctx context.Context, stdout, stderr io.Writer, issuesDir, ti
 		return 0, fmt.Errorf("issue new printed %q, not an issue path", strings.TrimSpace(printed.String()))
 	}
 	return strconv.Atoi(id)
+}
+
+// flakeAge is how long a flake issue has been open, from its created date.
+func flakeAge(created string, now time.Time) string {
+	t, err := time.Parse("2006-01-02", created)
+	if err != nil {
+		return "age unknown"
+	}
+	return fmt.Sprintf("open %dd", int(now.Sub(t).Hours()/24))
 }

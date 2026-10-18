@@ -57,6 +57,12 @@ func SameHeadFailPass(all []Attempt, test string) (failedID, passedID string, ok
 // recorded known-flake outcome, and not every failure a test registered now.
 // A success may not be posted for sha while any remain (#394): that is what
 // stops a blind full rerun from turning an unknown failure green.
+//
+// Registering later explains only a failure the rule never judged (unknown,
+// persistent-main, registry unavailable, or an attempt from before #394). A
+// failure the rule judged and rejected stays unexplained whatever is
+// registered later: a known flake that failed twice, too many at once, the
+// rule turned off, or a failure that names no test.
 func Unexplained(all []Attempt, sha string, r Registry) []Attempt {
 	var out []Attempt
 	for _, a := range Sort(all) {
@@ -69,7 +75,7 @@ func Unexplained(all []Attempt, sha string, r Registry) []Attempt {
 				explained = false
 			}
 		}
-		if a.Kind == Unattributable || !explained {
+		if neverExplained[a.Kind] || !explained {
 			out = append(out, a)
 		}
 	}
@@ -77,6 +83,8 @@ func Unexplained(all []Attempt, sha string, r Registry) []Attempt {
 }
 
 // Sort orders attempts by finish time, then ID, without changing all.
+var neverExplained = map[Kind]bool{Unattributable: true, KnownFlakeTwice: true, TooManyKnownFlaky: true, RuleOff: true}
+
 func Sort(all []Attempt) []Attempt {
 	s := slices.Clone(all)
 	sort.SliceStable(s, func(i, j int) bool {

@@ -27,6 +27,9 @@ type flakeWorld struct {
 	cards    []flakes.Card
 	filed    []string // bodies of issues filed
 	regErr   error
+	// raceAdd is a registration another slot lands on a card between this
+	// verb's registry read and its write.
+	raceAdd map[string]string
 }
 
 func (w *flakeWorld) deps() flakeDeps {
@@ -35,19 +38,34 @@ func (w *flakeWorld) deps() flakeDeps {
 		now:      func() time.Time { return now },
 		attempts: func() ([]SuiteAttempt, []string, error) { return w.attempts, nil, nil },
 		repo:     func() (string, error) { return flakeRepo, nil },
+		logPath:  func(a SuiteAttempt) string { return "/store/failed/" + a.ID + ".log" },
 		registry: func(context.Context) (flakes.Registry, []flakes.Card, error) {
 			if w.regErr != nil {
 				return flakes.Registry{}, nil, w.regErr
 			}
-			r, err := flakes.BuildRegistry(w.cards, flakeIssueOpen)
-			return r, w.cards, err
-		},
-		setTests: func(_ context.Context, _, _ io.Writer, id int, tests []string) error {
+			snapshot := append([]flakes.Card(nil), w.cards...)
 			for i := range w.cards {
-				if w.cards[i].ID == sixDigits(id) {
-					w.cards[i].Tests = tests
-					return nil
+				if t, ok := w.raceAdd[w.cards[i].ID]; ok {
+					w.cards[i].Tests = append(append([]string(nil), w.cards[i].Tests...), t)
 				}
+			}
+			r, err := flakes.BuildRegistry(snapshot, flakeIssueOpen)
+			return r, snapshot, err
+		},
+		addTests: func(_ context.Context, _, _ io.Writer, id int, add []string) error {
+			for i := range w.cards {
+				if w.cards[i].ID != sixDigits(id) {
+					continue
+				}
+				if !flakeIssueOpen(w.cards[i].Status) {
+					return errors.New("a closed issue registers nothing")
+				}
+				tests := mergeTests(w.cards[i].Tests, add)
+				if len(tests) > flakes.MaxRerun {
+					return errors.New("too many tests")
+				}
+				w.cards[i].Tests = tests
+				return nil
 			}
 			return errors.New("no such card")
 		},
@@ -110,8 +128,25 @@ func TestFlakeRegisterRules(t *testing.T) {
 	}
 }
 
+// Another slot registers on the same card between this verb's read and its
+// write: both registrations survive (#394 M1 review, BR-2).
+func TestFlakeRegisterKeepsARacingRegistration(t *testing.T) {
+	racer := "github.com/xianxu/ariadne/pkg/r.TestRacer"
+	w := &flakeWorld{cards: []flakes.Card{{ID: "000448", Status: "open", Tests: []string{flakeT1}}}, raceAdd: map[string]string{"000448": racer}}
+	if err := runFlakeRegister(context.Background(), io.Discard, io.Discard, flakeRegisterFlags{Issue: 448, Tests: []string{flakeT2}, Evidence: "ci"}, w.deps()); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(w.cards[0].Tests, []string{flakeT1, racer, flakeT2}) {
+		t.Fatalf("a racing registration was lost: %v", w.cards[0].Tests)
+	}
+	w.cards = append(w.cards, flakes.Card{ID: "000450", Status: "done"})
+	if err := runFlakeRegister(context.Background(), io.Discard, io.Discard, flakeRegisterFlags{Issue: 450, Tests: []string{"github.com/xianxu/ariadne/pkg/z.TestZ"}, Evidence: "ci"}, w.deps()); err == nil {
+		t.Error("registered on a closed issue")
+	}
+}
+
 func TestFlakeList(t *testing.T) {
-	w := &flakeWorld{cards: []flakes.Card{{ID: "000448", Status: "working", Tests: []string{flakeT1}}}}
+	w := &flakeWorld{cards: []flakes.Card{{ID: "000448", Status: "working", Tests: []string{flakeT1}, Owner: "ariadne:3", Created: "2026-10-16"}}}
 	w.attempts = []SuiteAttempt{
 		attemptAt("a1", "s1", 1, 1, flakeT2), attemptAt("a2", "s1", 2, 0), // a same-head flake nobody registered
 		attemptAt("a3", "s2", 3, 1, "github.com/xianxu/ariadne/pkg/y.TestBroken"), // unexplained, over a day old
@@ -121,9 +156,9 @@ func TestFlakeList(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		flakeT1 + "  #000448 (working)",
-		flakeT2 + "  attempt a1 on s1",
-		"attempt a3 on s2",
+		flakeT1 + "  #000448 (working, owner ariadne:3, open 3d)",
+		flakeT2 + "  attempt a1 on s1, 2026-10-18T10:01:00Z, log /store/failed/a1.log",
+		"attempt a3 on s2, 2026-10-18T10:03:00Z: github.com/xianxu/ariadne/pkg/y.TestBroken, log /store/failed/a3.log",
 		"CI failures: not covered (#451)",
 	} {
 		if !strings.Contains(out.String(), want) {
@@ -162,8 +197,11 @@ func TestFlakeRegistryFromTrackerCards(t *testing.T) {
 		t.Error("a closed card's test is registered")
 	}
 	d := defaultFlakeDeps("workshop/issues")
-	if err := d.setTests(ctx, io.Discard, io.Discard, 51, []string{flakeT1, flakeT2}); err != nil {
+	if err := d.addTests(ctx, io.Discard, io.Discard, 51, []string{flakeT2}); err != nil {
 		t.Fatal(err)
+	}
+	if err := d.addTests(ctx, io.Discard, io.Discard, 52, []string{flakeT1}); err == nil || !strings.Contains(err.Error(), "a closed issue registers nothing") {
+		t.Errorf("the setter on a closed card: %v", err)
 	}
 	invalidateIssueRecords(ctx)
 	if reg, err = loadFlakeRegistry(ctx, "workshop/issues"); err != nil {
