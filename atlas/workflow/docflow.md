@@ -77,3 +77,8 @@ artifacts; the producer revalidates that context before Git effects and preserve
 artifacts on mismatch. The authoritative checks live in `construct/local/fix/SKILL.md`.
 The mode vocabulary for that hosted flow is Generate / Edit / Proofread; fact-check remains an instruction
 that dispatches `doc-review` and folds accepted findings back through records.
+`doc-review` chooses its reviewer through the shared policy (`pkg/reviewpolicy`, #409/#441):
+another vendor family than the document's commit authors and the session, never the
+author's own (a repo's `same` counts as `other` for it), skipping a reviewer whose CLI is
+missing or fails to launch and refusing when none is left; the report's `reviewer_record`
+says who reviewed whose work.

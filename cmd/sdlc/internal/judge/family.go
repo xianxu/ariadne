@@ -1,120 +1,39 @@
-// family.go — who reviews whom (#409): a reviewer is chosen by the vendor
-// family of the change's authors and by the kind of change, within a repo's
-// #310 policy. Everything here is pure; the dispatch loop supplies
-// availability and records what was skipped.
+// family.go — who reviews whom (#409), judge's side: the policy and the plan
+// are pkg/reviewpolicy's (#441); here are the run-shaped checks the dispatch
+// loop uses (what counts as unavailable, what can launch here).
 package judge
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/xianxu/ariadne/pkg/reviewpolicy"
 )
 
-// Family is a model vendor. Two agents of one family share blind spots, which
-// is what cross-family review is for.
-type Family string
+// Families, change kinds, candidates and the plan are pkg/reviewpolicy's
+// (#441); judge keeps their historical names and the run-shaped parts below.
+type (
+	Family       = reviewpolicy.Family
+	ChangeKind   = reviewpolicy.ChangeKind
+	Candidate    = reviewpolicy.Candidate
+	Skip         = reviewpolicy.Skip
+	Availability = reviewpolicy.Availability
+)
 
 const (
-	FamilyAnthropic Family = "anthropic"
-	FamilyOpenAI    Family = "openai"
-	FamilyGoogle    Family = "google"
+	FamilyAnthropic = reviewpolicy.Anthropic
+	FamilyOpenAI    = reviewpolicy.OpenAI
+	FamilyGoogle    = reviewpolicy.Google
+	KindDesignHeavy = reviewpolicy.DesignHeavy
+	KindBounded     = reviewpolicy.Bounded
 )
 
-// FamilyOf is an agent's vendor, or "" for one sdlc does not know (a human,
-// an unrecognized CLI): an unknown author is never guessed into a family.
-func FamilyOf(agent string) Family {
-	switch AgentCLI(agent) {
-	case AgentClaude:
-		return FamilyAnthropic
-	case AgentCodex:
-		return FamilyOpenAI
-	case AgentGemini:
-		return FamilyGoogle
-	}
-	return ""
-}
+// FamilyOf is an agent's vendor ("" when unknown).
+func FamilyOf(agent string) Family { return reviewpolicy.FamilyOf(agent) }
 
-// ChangeKind is what the review judges: a design (a new mechanism, state or
-// invariant) or a bounded change.
-type ChangeKind string
-
-const (
-	KindDesignHeavy ChangeKind = "design-heavy"
-	KindBounded     ChangeKind = "bounded"
-)
-
-// defaultOrders is the preference among candidate reviewers per kind, before
-// the authors' families are removed. Designs go first to Claude, whose reviews
-// caught Codex designs over-engineering; bounded code goes first to Codex,
-// whose reviews caught bugs in Claude code (#409's evidence). Claude and Codex
-// lead both, so #310's `other` (claude and codex review each other) holds;
-// Gemini is the fallback when neither can.
-var defaultOrders = map[ChangeKind][]AgentCLI{
-	KindDesignHeavy: {AgentClaude, AgentCodex, AgentGemini},
-	KindBounded:     {AgentCodex, AgentClaude, AgentGemini},
-}
-
-// Candidate is one reviewer to try, with the model to ask for ("" is the
-// CLI's own default).
-type Candidate struct {
-	Agent  AgentCLI
-	Model  string
-	Family Family
-}
-
-func (c Candidate) String() string {
-	s := string(c.Agent)
-	if c.Model != "" {
-		s += "/" + c.Model
-	}
-	return fmt.Sprintf("%s (%s)", s, valueOrDefault(string(c.Family), "unknown family"))
-}
-
-// Skip is a candidate passed over before or instead of reviewing, and why.
-type Skip struct {
-	Agent  AgentCLI
-	Reason string
-}
-
-// Availability reports, before launch, whether an agent can review here, and
-// why not when it cannot (its CLI missing, its sandbox known to fail).
-type Availability func(AgentCLI) (reason string, ok bool)
-
-// ReviewPlan is the ordered reviewers to try for a change by authors of the
-// given families, under policy. `same` and `explicit` are the #310 floor and
-// name one reviewer; the dynamic `other` lists every agent whose family is
-// not among the authors, in the kind's order. Candidates available rejects
-// are returned as skips; an empty plan means none can review here.
+// ReviewPlan is reviewpolicy.Plan.
 func ReviewPlan(policy ReviewerPolicy, main AgentCLI, authors []Family, kind ChangeKind, available Availability) ([]Candidate, []Skip) {
-	var agents []AgentCLI
-	switch policy.mode() {
-	case ReviewerOther:
-		excluded := map[Family]bool{}
-		for _, f := range authors {
-			excluded[f] = true
-		}
-		for _, a := range policy.order(kind) {
-			if !excluded[FamilyOf(string(a))] {
-				agents = append(agents, a)
-			}
-		}
-	case ReviewerExplicit:
-		agents = []AgentCLI{policy.Reviewer(main)}
-	default:
-		agents = []AgentCLI{main}
-	}
-	var plan []Candidate
-	var skips []Skip
-	for _, a := range agents {
-		if available != nil {
-			if reason, ok := available(a); !ok {
-				skips = append(skips, Skip{Agent: a, Reason: reason})
-				continue
-			}
-		}
-		plan = append(plan, Candidate{Agent: a, Model: policy.Models[a], Family: FamilyOf(string(a))})
-	}
-	return plan, skips
+	return reviewpolicy.Plan(policy, main, authors, kind, available)
 }
 
 // unavailableRE are the causes that mean the reviewer could not review at all:

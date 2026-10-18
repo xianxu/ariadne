@@ -900,7 +900,7 @@ func boundaryReviewOptionsFor(stdout, stderr io.Writer, p boundaryReviewParams, 
 	choice := resolveReviewChoiceWith(commandContext(p.Context), policy, p.BaseLong, p.Head, p.Agent, p.AgentExplicit, boundaryChangeKind(cat), opts.Containment)
 	first, ok := choice.First()
 	if !ok {
-		return judge.DispatchOptions{}, judge.ReviewChoice{}, false, choice.Refusal().Error()
+		return judge.DispatchOptions{}, judge.ReviewChoice{}, false, judge.Refusal(choice).Error()
 	}
 	opts.Agent, opts.Model = first.Agent, first.Model
 	return opts, choice, true, ""
