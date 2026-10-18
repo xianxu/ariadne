@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 const (
@@ -57,12 +59,9 @@ func (w *flakeWorld) deps() flakeDeps {
 				if w.cards[i].ID != sixDigits(id) {
 					continue
 				}
-				if !flakeIssueOpen(w.cards[i].Status) {
-					return errors.New("a closed issue registers nothing")
-				}
-				tests := mergeTests(w.cards[i].Tests, add)
-				if len(tests) > flakes.MaxRerun {
-					return errors.New("too many tests")
+				tests, err := mergeFlakeTests(w.cards[i].ID, w.cards[i].Status, w.cards[i].Tests, add) // the production decision
+				if err != nil {
+					return err
 				}
 				w.cards[i].Tests = tests
 				return nil
@@ -186,7 +185,7 @@ func TestFlakeRegistryFromTrackerCards(t *testing.T) {
 	newTrackerRepo(t, map[string]string{openPath: openCard, donePath: doneCard},
 		map[string]string{openDetailPath: openDetail, doneDetailPath: doneDetail})
 	ctx := withIssueRecordsScope(context.Background())
-	reg, err := loadFlakeRegistry(ctx, "workshop/issues")
+	reg, _, err := loadFlakeRegistry(ctx, "workshop/issues")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,10 +203,45 @@ func TestFlakeRegistryFromTrackerCards(t *testing.T) {
 		t.Errorf("the setter on a closed card: %v", err)
 	}
 	invalidateIssueRecords(ctx)
-	if reg, err = loadFlakeRegistry(ctx, "workshop/issues"); err != nil {
+	if reg, _, err = loadFlakeRegistry(ctx, "workshop/issues"); err != nil {
 		t.Fatal(err)
 	}
 	if id, ok := reg.Lookup(flakeT2); !ok || id != "000051" {
 		t.Errorf("after the setter: %q %v", id, ok)
+	}
+	if id, ok := reg.Lookup(flakeT1); !ok || id != "000051" {
+		t.Errorf("the setter dropped the card's existing test: %q %v (BR-2)", id, ok)
+	}
+}
+
+// The setter's decision on a real card: the tests already there survive, the
+// cap holds against them, and a closed card refuses (#394 M1 review, BR-2).
+func TestAddFlakeTestsMergesOntoTheCard(t *testing.T) {
+	path, card, _, _ := seededIssue(t, "000061", "flaky")
+	parse := func(raw string) tracker.Record {
+		t.Helper()
+		c, err := issue.ParseCard([]byte(raw))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return tracker.Record{ID: "000061", Path: path, Card: c, Raw: []byte(raw)}
+	}
+	withTests := strings.Replace(card, "status: open", "status: working\nflake_tests: ["+flakeT1+"]", 1)
+	out, err := addFlakeTests(parse(withTests), []string{flakeT2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _, err := issue.FieldList(parse(string(out)).Card.Frontmatter, flakeTestsField)
+	if err != nil || !slices.Equal(got, []string{flakeT1, flakeT2}) {
+		t.Fatalf("merged %v %v, want the existing test kept", got, err)
+	}
+	five := "github.com/x/p.TestA, github.com/x/p.TestB, github.com/x/p.TestC, github.com/x/p.TestD, github.com/x/p.TestE"
+	full := strings.Replace(card, "status: open", "status: working\nflake_tests: ["+five+"]", 1)
+	if _, err := addFlakeTests(parse(full), []string{flakeT2}); err == nil || !strings.Contains(err.Error(), "at most 5") {
+		t.Errorf("the cap counts the card's tests: %v", err)
+	}
+	closed := strings.Replace(card, "status: open", "status: done\nactual_hours: 1", 1)
+	if _, err := addFlakeTests(parse(closed), []string{flakeT2}); err == nil || !strings.Contains(err.Error(), "a closed issue registers nothing") {
+		t.Errorf("a closed card: %v", err)
 	}
 }

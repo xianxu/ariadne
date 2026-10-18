@@ -153,3 +153,124 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"86e468cc-1abc-40f2-9b8e-6476db969e02","repository":"github.com/xianxu/ariadne","issue_id":"000394","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/6f0fffb25c67a2a1","reviewed_head":"1a2e64e114bcf3f97920592e4a4f9350be51c5ca","slot":"ariadne:2","requested_at":"2026-10-18T23:42:59.604244Z"},"phase":"finished","pid":15555,"started_at":"2026-10-18T23:42:59.697805Z","finished_at":"2026-10-18T23:45:20.68225Z","session_id":"a95c51ac-f943-44e8-9dc9-1eb426ba6e61","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T16:52:50-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 394 — Issue-backed flake landing and daily triage |
+| repo | ariadne |
+| issue file | workshop/issues/000394-issue-backed-flake-landing.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 046e0ebb03d7c78bf46c8511fa6d6084d42137f4..93687c932b8b1220194fa048d949abdab7bc99d7 |
+| command | sdlc milestone-close --issue 394 --milestone M1 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-18T16:52:50-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Prior findings BR-1 and BR-7 look fixed. Now I'm checking the tests for BR-2 and BR-3, then running the suite.
+
+Now a revert experiment: make `addFlakeTests` ignore the card's existing tests.
+
+The revert stays green, so BR-2's production merge has no regression test. Next I'm checking BR-3's real owner and created-date paths.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The fix commit `93687c93` correctly handles six of the seven round-1 findings. One prior finding stays open: BR-2. Its production code is correct: `addFlakeTests` merges onto the card that `runCardUpdate`'s compare-and-swap snapshot hands it. But nothing tests that merge. I changed `addFlakeTests` to write only the new tests (`tests := add`, dropping the card's existing ones), and every flake test stayed green, including `TestFlakeRegisterKeepsARacingRegistration` and `TestFlakeRegistryFromTrackerCards`. That racing test runs against `flakeWorld.addTests`, a fake that has its own copy of the merge and cap logic. The real-card test only checks that the new test was added; it never checks that the old one survived. The fix is cheap: add one assertion on the real card. Nothing else blocks.
+
+Checks run:
+- `go test ./cmd/sdlc/internal/flakes ./cmd/sdlc/internal/issue ./pkg/vocab` passes.
+- `go test ./cmd/sdlc -run 'Flake|TestStats|SuiteAttempt|…'` passes.
+- `go vet ./cmd/sdlc/...` is clean.
+- Three reverts, each restored afterwards:
+  - Dropping the merge (BR-2): tests stay green.
+  - Disabling the closed-issue guard (BR-6): goes red.
+  - Making the decoder accept only v1: goes red.
+
+1. **Strengths**
+   - `flakes.Confirmed` (`cmd/sdlc/internal/flakes/evidence.go:28`) is now the one same-head fail→pass rule. `aggregateSuiteAttempts` calls it at `teststats.go:148` instead of keeping its own loop (ARCH-DRY delivered).
+   - The import-path regex (`registry.go:20`) rejects a segment that starts with `-` or `.`. The card check (`validateTestListNode`) and `RerunCommand` share that rule, and both test tables have the hostile cases (BR-1).
+   - The decoder (`teststats_store.go:141-164`) is strict about versions: a v2 field in a v1 record, an unknown outcome, a malformed known flake and a rerun that points at itself are all rejected and tested.
+   - `Unexplained` now writes the policy for rejected outcomes down in code and tests it (`neverExplained`, TestEvidence), in M1 rather than M3 (BR-7).
+   - The closed-issue refusal is checked on a real tracker card inside the compare-and-swap callback. The revert showed that test fails without the guard (BR-6).
+
+2. **Critical findings:** none.
+
+3. **Important findings:**
+   - BR-2 stays open (see dispositions). Fix sketch: in `TestFlakeRegistryFromTrackerCards`, after `d.addTests(ctx, …, 51, []string{flakeT2})`, assert that `reg.Lookup(flakeT1)` still returns `000051`. Better still, test `addFlakeTests` directly on a real card that already lists tests, and on one that already has `MaxRerun` tests (the cap check is also exercised only through the fake). Have `flakeWorld.addTests` call the production `addFlakeTests`/`mergeTests` rules instead of re-implementing them (ARCH-MOCK).
+
+4. **Minor findings:**
+   - ARCH-DRY: `defaultFlakeDeps.registry` (`flake_cmd.go:159-170`) repeats `loadFlakeRegistry` (`:104-114`) line for line except for returning the cards. The `attempts` and `logPath` closures (`:130-157`) each rebuild the same `localCheckLogDir` setup. Have `loadFlakeRegistry` return the cards and pull out a `suiteStoreDir()` helper.
+   - `flakeCardOwner` and the `created` lookup are only exercised through `flakeWorld`, which fills in `Owner` and `Created` itself. No real-card test checks what `flake list` prints for owner and age.
+
+5. **Test coverage notes**
+   - `TestUnattributedFailures` covers every shape of unattributable failure.
+   - `TestClassify` covers every row of the state table.
+   - The v1/v2 decoder fixtures are in place.
+   - The gap is the one in BR-2: the fake re-implements the production compare-and-swap decision, so the race test can only pass.
+
+6. **Architectural notes for upcoming work**
+   - ARCH-DRY: flagged (Minor, above).
+   - ARCH-PURE: pass. `internal/flakes` does no IO and is tested without mocks.
+   - ARCH-PURPOSE: pass for M1's scope. The gate itself is M2.
+   - ARCH-MOCK: flagged, via BR-2. The fake must sit behind the seam and call the production decision, not copy it.
+   - ARCH-CONSTRAINTS: pass. The 5-test cap is enforced on both the card and the rerun.
+   - ARCH-SECURE: pass after BR-1. `--evidence` is operator text that goes into an issue body, which is acceptable.
+   - ARCH-ORDER: a racing registration on the same card is now handled by the compare-and-swap. A race across cards is not: two slots registering the same test on different issues both pass the earlier one-owner check. `BuildRegistry` then refuses as ambiguous, which fails closed (every known flake blocks until someone fixes it). M2/M3 should name this, and the recovery, in the state table.
+   - ARCH-FUNERAL: pass. The temp details file is removed, and the new attempt fields ride the store's 30-day pruning.
+   - Rollout: the writer now records `Version: 2` (`localcheck_run.go:190`) before M2 fills in any v2 field, so binaries built before this land will refuse new attempts from now on. The plan's ":0 rebuild" rollout covers this; just be aware it starts at M1, not M2.
+
+7. **Plan revision recommendations**
+   - Under the BR-2 revision, say that the regression evidence is a real-card setter test that asserts the existing tests survive the merge, not the `flakeWorld` race test alone.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      registry.go:20 segment regex rejects leading - and . ; hostile cases in TestBuildRegistry and TestRerunCommand; card check shares ValidTest.
+  - id: BR-2
+    disposition: not-addressed
+    note: |
+      Code is right (addFlakeTests merges onto the CAS card) but nothing tests it: changing it to tests := add keeps every flake test green, because the race test's fake re-implements the merge and the real-card test never checks that the old test survives. Add that assertion on a real card.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      flake list prints owner, age and log path (flake_cmd.go:369,396,406); TestFlakeList asserts all three.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      README.md:498-505 documents flake register and flake list, matching the help and code.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Plan Revisions replace 'recorded verbatim' with filed-issue body or printed for N's Log; help (flake_cmd.go:210-213) and code (:321-323) match.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      addFlakeTests refuses a terminal status inside the CAS callback; TestFlakeRegistryFromTrackerCards goes red when the guard is reverted.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      neverExplained in evidence.go writes the policy down; TestEvidence covers failed-twice, too-many, rule-off and unattributable.
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: duplicated-io-glue
+    title: |
+      defaultFlakeDeps.registry duplicates loadFlakeRegistry, and attempts/logPath duplicate the store-dir setup (ARCH-DRY)
+    detail: |
+      flake_cmd.go:159-170 repeats loadFlakeRegistry (:104-114) except for returning the cards; :130-157 builds localCheckLogDir twice. Have loadFlakeRegistry return the cards and pull out a suiteStoreDir helper.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"e48c0ccd-fa0e-42bb-bf56-99e70549daea","repository":"github.com/xianxu/ariadne","issue_id":"000394","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/2ccbf0b21a1c09d2","reviewed_head":"93687c932b8b1220194fa048d949abdab7bc99d7","slot":"ariadne:2","requested_at":"2026-10-18T23:49:32.691167Z"},"phase":"finished","pid":76127,"started_at":"2026-10-18T23:49:32.922656Z","finished_at":"2026-10-18T23:52:49.010462Z","session_id":"fa33b215-2823-4fd1-b6c8-9d7016d91b53","outcome":"returned"}] -->

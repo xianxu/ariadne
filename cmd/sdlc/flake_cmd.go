@@ -81,18 +81,28 @@ func flakeCardOwner(raw []byte) string {
 // earlier read. A closed issue refuses: its tests would never register.
 func addFlakeTests(card tracker.Record, add []string) ([]byte, error) {
 	status, _ := issue.GetField(card.Card.Frontmatter, "status")
-	if vocab.Issue().IsTerminal(status) {
-		return nil, fmt.Errorf("issue #%s is %s: a closed issue registers nothing; reopen it or file a new one", card.ID, status)
-	}
 	have, _, err := issue.FieldList(card.Card.Frontmatter, flakeTestsField)
 	if err != nil {
 		return nil, err
 	}
-	tests := mergeTests(have, add)
-	if len(tests) > flakes.MaxRerun {
-		return nil, fmt.Errorf("issue #%s would register %d tests (at most %d): file another issue", card.ID, len(tests), flakes.MaxRerun)
+	tests, err := mergeFlakeTests(card.ID, status, have, add)
+	if err != nil {
+		return nil, err
 	}
 	return issue.SetCardField(card.Raw, flakeTestsField, issue.FlowList(tests))
+}
+
+// mergeFlakeTests is the registration's pure decision on one card's current
+// state: its tests plus add, at most flakes.MaxRerun, never on a closed issue.
+func mergeFlakeTests(id, status string, have, add []string) ([]string, error) {
+	if vocab.Issue().IsTerminal(status) {
+		return nil, fmt.Errorf("issue #%s is %s: a closed issue registers nothing; reopen it or file a new one", id, status)
+	}
+	tests := mergeTests(have, add)
+	if len(tests) > flakes.MaxRerun {
+		return nil, fmt.Errorf("issue #%s would register %d tests (at most %d): file another issue", id, len(tests), flakes.MaxRerun)
+	}
+	return tests, nil
 }
 
 // flakeIssueOpen is the registry's status rule: anything not terminal.
@@ -101,16 +111,33 @@ func flakeIssueOpen(status string) bool { return !vocab.Issue().IsTerminal(statu
 
 // loadFlakeRegistry builds the registry from a fresh tracker read, the same
 // read that gives each issue's status (#394 D4).
-func loadFlakeRegistry(ctx context.Context, issuesDir string) (flakes.Registry, error) {
+func loadFlakeRegistry(ctx context.Context, issuesDir string) (flakes.Registry, []flakes.Card, error) {
 	rs, err := loadIssueRecords(ctx, issuesDir, tracker.Fresh)
 	if err != nil {
-		return flakes.Registry{}, fmt.Errorf("read the known-flake registry: %w", err)
+		return flakes.Registry{}, nil, fmt.Errorf("read the known-flake registry: %w", err)
 	}
 	cards, err := flakeCards(rs)
 	if err != nil {
-		return flakes.Registry{}, fmt.Errorf("read the known-flake registry: %w", err)
+		return flakes.Registry{}, nil, fmt.Errorf("read the known-flake registry: %w", err)
 	}
-	return flakes.BuildRegistry(cards, flakeIssueOpen)
+	r, err := flakes.BuildRegistry(cards, flakeIssueOpen)
+	return r, cards, err
+}
+
+// suiteStoreDir is this clone's test-stats store.
+func suiteStoreDir() (string, error) {
+	root, err := gitx.RepoTopLevel()
+	if err != nil {
+		return "", err
+	}
+	logDir, err := localCheckLogDir(localRunDeps{Root: root, Git: func(args ...string) (string, error) {
+		out, err := mergeRunner.GitInDir(root, args...)
+		return string(out), err
+	}})
+	if err != nil {
+		return "", err
+	}
+	return suiteStoreRoot(logDir), nil
 }
 
 // flakeDeps are the IO seams the verbs use; tests replace them.
@@ -128,45 +155,23 @@ func defaultFlakeDeps(issuesDir string) flakeDeps {
 	return flakeDeps{
 		now: time.Now,
 		attempts: func() ([]SuiteAttempt, []string, error) {
-			root, err := gitx.RepoTopLevel()
+			store, err := suiteStoreDir()
 			if err != nil {
 				return nil, nil, err
 			}
-			logDir, err := localCheckLogDir(localRunDeps{Root: root, Git: func(args ...string) (string, error) {
-				out, err := mergeRunner.GitInDir(root, args...)
-				return string(out), err
-			}})
-			if err != nil {
-				return nil, nil, err
-			}
-			return readSuiteAttempts(suiteStoreRoot(logDir), testStatsRecordLimit)
+			return readSuiteAttempts(store, testStatsRecordLimit)
 		},
 		logPath: func(a SuiteAttempt) string {
-			root, err := gitx.RepoTopLevel()
-			if err != nil {
-				return a.LogPath
-			}
-			logDir, err := localCheckLogDir(localRunDeps{Root: root, Git: func(args ...string) (string, error) {
-				out, err := mergeRunner.GitInDir(root, args...)
-				return string(out), err
-			}})
-			if p := suiteAttemptLogFile(suiteStoreRoot(logDir), a); err == nil && p != "" {
-				return p
+			if store, err := suiteStoreDir(); err == nil {
+				if p := suiteAttemptLogFile(store, a); p != "" {
+					return p
+				}
 			}
 			return valueOr(a.LogPath, "(none kept)")
 		},
 		repo: detectRepo,
 		registry: func(ctx context.Context) (flakes.Registry, []flakes.Card, error) {
-			rs, err := loadIssueRecords(ctx, issuesDir, tracker.Fresh)
-			if err != nil {
-				return flakes.Registry{}, nil, err
-			}
-			cards, err := flakeCards(rs)
-			if err != nil {
-				return flakes.Registry{}, nil, err
-			}
-			r, err := flakes.BuildRegistry(cards, flakeIssueOpen)
-			return r, cards, err
+			return loadFlakeRegistry(ctx, issuesDir)
 		},
 		addTests: func(ctx context.Context, stdout, stderr io.Writer, id int, add []string) error {
 			return runCardUpdate(ctx, stdout, stderr, issuesDir, id, "flake_tests + "+issue.FlowList(add), false,
