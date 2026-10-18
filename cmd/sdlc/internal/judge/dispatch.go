@@ -41,6 +41,8 @@ type DispatchEvidence struct {
 
 // DispatchOptions configures one invocation.
 type DispatchOptions struct {
+	// Model asks the reviewer CLI for one model (#409); "" is its own default.
+	Model string
 	// Usage accounting is independent of semantic gate admission. Requested
 	// persistence must succeed before launch; later failures retain partial
 	// receipts and are surfaced in Evidence without advancing a gate round.
@@ -229,6 +231,9 @@ func agentArgs(opts DispatchOptions) (name string, args []string, err error) {
 			// #310: only the allowed tools run; Edit/Write are refused.
 			"--permission-mode", "dontAsk",
 		}
+		if opts.Model != "" {
+			args = append(args, "--model", opts.Model)
+		}
 		if opts.Containment == ContainFenced {
 			args = append(args, "--settings", fencedClaudeSettings)
 		}
@@ -242,7 +247,11 @@ func agentArgs(opts DispatchOptions) (name string, args []string, err error) {
 		case ContainFenced:
 			sandbox = "danger-full-access"
 		}
-		return "codex", []string{"exec", "--sandbox", sandbox, opts.Prompt}, nil
+		args = []string{"exec", "--sandbox", sandbox}
+		if opts.Model != "" {
+			args = append(args, "-m", opts.Model)
+		}
+		return "codex", append(args, opts.Prompt), nil
 
 	case AgentGemini:
 		// Headless gemini refuses every tool that needs approval, and a
@@ -250,6 +259,9 @@ func agentArgs(opts DispatchOptions) (name string, args []string, err error) {
 		args = []string{}
 		if opts.Containment == ContainFenced {
 			args = append(args, "--sandbox=false")
+		}
+		if opts.Model != "" {
+			args = append(args, "-m", opts.Model)
 		}
 		args = append(args, "-p", opts.Prompt)
 		return "gemini", args, nil

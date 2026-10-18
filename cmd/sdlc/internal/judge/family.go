@@ -118,28 +118,53 @@ func ReviewPlan(policy ReviewerPolicy, main AgentCLI, authors []Family, kind Cha
 }
 
 // unavailableRE are the causes that mean the reviewer could not review at all:
-// its API unreachable (apiFailureRE), its quota spent, or its sign-in missing.
+// its API unreachable (apiFailureRE) or erroring, its quota spent, its sign-in
+// missing, or the CLI itself refused (gemini's IneligibleTierError, measured
+// 2026-10-18). A bad model or request (HTTP 400) is a misconfiguration, not
+// unavailability, so it halts rather than moving on.
 var unavailableRE = regexp.MustCompile(`(?i)` + apiFailureRE.String() +
-	`|rate.?limit|usage limit|quota|insufficient_quota|credit balance|\b429\b|unauthori[sz]ed|\b401\b|invalid api key|not logged in|please (log|sign) in|authentication (failed|required|error)`)
+	`|rate.?limit|usage limit|quota|insufficient_quota|credit balance|\b429\b|unauthori[sz]ed|\b401\b|\b403\b|"status":\s*5\d\d|invalid api key|not logged in|please (log|sign) in|authentication (failed|required|error)|IneligibleTierError|no longer supported`)
 
 // Unavailable reports whether a run is evidence that the reviewer could not
-// review at all, so trying another reviewer duplicates no review. Only a
-// failed launch, or a stream that failed before any assistant or tool event
-// with an unreachable, quota or sign-in cause, qualifies. A run whose output
-// is not a parseable stream, or that began reviewing, is not evidence of
-// absence: it is left to RunFailure and halts as before.
-func Unavailable(run AgentRun, stderr []byte, nonZeroExit bool, launchErr error) (string, bool) {
+// review at all, so trying another reviewer duplicates no review:
+//   - a failed launch;
+//   - claude's stream that failed before any assistant or tool event
+//     (AgentRun.Began) with an unavailable cause in its result or stderr;
+//   - codex or gemini (plain output) that exited non-zero having printed
+//     nothing at all on stdout, where a review's text would be, with an
+//     unavailable cause on stderr: for codex only its `ERROR:` lines, since
+//     codex echoes the prompt (which may contain any word) to stderr, and
+//     only when stderr shows none of codex's activity blocks.
+// Anything else (a run that began, an unparseable stream, a cause outside the
+// list) is not evidence of absence: RunFailure decides it and it halts as
+// before.
+func Unavailable(agent AgentCLI, run AgentRun, stderr []byte, nonZeroExit bool, launchErr error) (string, bool) {
 	if launchErr != nil {
 		return "could not launch: " + firstLine(launchErr.Error()), true
 	}
-	if HasVerdict(run.Text()) || !run.Stream || run.Began {
+	if HasVerdict(run.Text()) {
 		return "", false
 	}
-	failed := nonZeroExit || run.Result != nil && run.Result.IsError
-	if !failed {
+	var causes []string
+	switch {
+	case run.Stream:
+		if run.Began || !nonZeroExit && (run.Result == nil || !run.Result.IsError) {
+			return "", false
+		}
+		causes = []string{resultText(run), string(stderr)}
+	case nonZeroExit && strings.TrimSpace(run.Tail) == "":
+		if agent == AgentCodex {
+			if codexBegan(string(stderr)) {
+				return "", false
+			}
+			causes = errorLines(string(stderr))
+		} else {
+			causes = []string{string(stderr)}
+		}
+	default:
 		return "", false
 	}
-	for _, text := range []string{resultText(run), string(stderr), run.Tail} {
+	for _, text := range causes {
 		if loc := unavailableRE.FindStringIndex(text); loc != nil {
 			return lineAt(text, loc[0]), true
 		}
@@ -147,20 +172,35 @@ func Unavailable(run AgentRun, stderr []byte, nonZeroExit bool, launchErr error)
 	return "", false
 }
 
+// codexBegan reports codex's activity blocks on stderr: a message ("codex"),
+// a command ("exec") or reasoning ("thinking") each open with a line of their
+// own after the echoed prompt, so any of them means the review began.
+func codexBegan(stderr string) bool {
+	for _, line := range strings.Split(stderr, "\n") {
+		switch strings.TrimSpace(line) {
+		case "codex", "exec", "thinking":
+			return true
+		}
+	}
+	return false
+}
+
+// errorLines are codex's own error reports on stderr.
+func errorLines(stderr string) []string {
+	var out []string
+	for _, line := range strings.Split(stderr, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "ERROR:") {
+			out = append(out, line)
+		}
+	}
+	return out
+}
+
 func resultText(run AgentRun) string {
 	if run.Result == nil {
 		return ""
 	}
 	return run.Result.Text
-}
-
-// trimReason keeps a skip reason to one short line for a trailer.
-func trimReason(s string) string {
-	s = firstLine(s)
-	if len(s) > 120 {
-		s = s[:120] + "…"
-	}
-	return strings.TrimSpace(s)
 }
 
 // LocalAvailability is the pre-launch check the dispatch loop uses: an agent

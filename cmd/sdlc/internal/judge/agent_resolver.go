@@ -84,8 +84,12 @@ func (p ReviewerPolicy) order(kind ChangeKind) []AgentCLI {
 func (p ReviewerPolicy) Reviewer(main AgentCLI) AgentCLI {
 	switch p.mode() {
 	case ReviewerOther:
-		if plan, _ := ReviewPlan(p, main, []Family{FamilyOf(string(main))}, KindBounded, nil); len(plan) > 0 {
-			return plan[0].Agent
+		// Never the main agent's own family: Validate keeps two families in
+		// every order, and the default orders hold all three besides.
+		for _, q := range []ReviewerPolicy{p, {Mode: ReviewerOther}} {
+			if plan, _ := ReviewPlan(q, main, []Family{FamilyOf(string(main))}, KindBounded, nil); len(plan) > 0 {
+				return plan[0].Agent
+			}
 		}
 	case ReviewerExplicit:
 		if r, ok := p.Pairs[main]; ok {
@@ -121,17 +125,26 @@ func (p ReviewerPolicy) Validate() error {
 		if kind != KindDesignHeavy && kind != KindBounded {
 			return fmt.Errorf("reviewer_order: unknown change kind %q (%s | %s)", kind, KindDesignHeavy, KindBounded)
 		}
+		seen, families := map[AgentCLI]bool{}, map[Family]bool{}
 		for _, a := range order {
 			if _, ok := knownAgent(string(a)); !ok {
 				return fmt.Errorf("reviewer_order: unknown agent %q (supported: claude, codex, gemini)", a)
 			}
+			if seen[a] {
+				return fmt.Errorf("reviewer_order: %s lists %s twice", kind, a)
+			}
+			seen[a], families[FamilyOf(string(a))] = true, true
+		}
+		// One family cannot review its own authors cross-family (#409).
+		if len(families) < 2 {
+			return fmt.Errorf("reviewer_order: %s needs agents of at least two families, so another family can always review", kind)
 		}
 	}
 	for a, model := range p.Models {
 		if _, ok := knownAgent(string(a)); !ok {
 			return fmt.Errorf("reviewer_models: unknown agent %q (supported: claude, codex, gemini)", a)
 		}
-		if strings.TrimSpace(model) == "" || strings.ContainsAny(model, " \t\n") {
+		if strings.TrimSpace(model) == "" || strings.ContainsAny(model, " \t\n") || strings.HasPrefix(model, "-") {
 			return fmt.Errorf("reviewer_models: %s names no usable model %q", a, model)
 		}
 	}

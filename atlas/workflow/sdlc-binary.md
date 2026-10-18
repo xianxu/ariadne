@@ -1188,8 +1188,8 @@ plus `<id>.lock`.
 Bound: one clone per live review, plus whatever the sweep has warned about.
 
 **Which agent reviews, and its permission mode (#310).** `workshop/review.json`
-(repo-local) sets `boundary_reviewer`: `same` (default), `other` (claude and
-codex review each other) or `explicit` with `reviewer_pairs`. The pure
+(repo-local) sets `boundary_reviewer`: `same` (default), `other` (a reviewer of
+another vendor family, #409 below) or `explicit` with `reviewer_pairs`. The pure
 `judge.ReviewerPolicy` maps the main agent (`judge.MainAgent`: `PAIR_AGENT`,
 codex env, claude) to its reviewer; `--agent` and `AGENT_CMD` stay above it, and
 `ResolveAgentCLI` is the `same` case. `loadReviewerPolicy` reads the source
@@ -1213,9 +1213,13 @@ fallback). `reviewer_order` and `reviewer_models` in `workshop/review.json` over
 orders and pass a model per reviewer. `same` and `explicit` stay #310's floor.
 `judge.LocalAvailability` skips, before launch and with a reason, an agent whose CLI is
 missing or codex under checkout containment on macOS. `judge.Unavailable` counts a run as
-"could not review" only on a failed launch, or a stream that failed before any assistant or
-tool event (`AgentRun.Began`) with an unreachable, quota or sign-in cause; only that may move
-a review to the next candidate. The default for a repo with no policy is the single constant
+"could not review" only on a failed launch, claude's stream failing before any assistant or
+tool event (`AgentRun.Began`), or codex/gemini exiting non-zero with nothing on stdout (codex:
+no activity block on stderr, and the cause read only from its `ERROR:` lines, since it echoes
+the prompt), each with an unreachable, quota, sign-in or CLI-refused cause (a 400 bad model is
+a misconfiguration and halts); only that may move a review to the next candidate.
+`reviewer_order` needs two families with no repeats, so `Reviewer()` can never return the
+main agent's own family under `other`, and a model reaches each CLI's flag (`DispatchOptions.Model`). The default for a repo with no policy is the single constant
 `judge.DefaultReviewerMode` (`same` until the operator decides the fleet default).
 
 **Dispatch progress heartbeat (#140).** A boundary review can run silently for

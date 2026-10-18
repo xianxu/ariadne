@@ -136,3 +136,31 @@ until they answer. Changes to the design above:
   (<reviewer family>; author <families>)[; degraded: …]`. A test parses it back with `git log
   --format=%(trailers:key=Review-Reviewer)` and a tally helper, `sdlc review-tally` style, counts by author and reviewer
   family. Help documents the git one-liner.
+
+### 2026-10-18 — M1 boundary review round 1 (BR-1..5, two Minors)
+
+Core concepts, corrected to the code:
+- `Family`, `FamilyOf(agent)` (by agent only; qoder and anything unknown map to "", never guessed through a model),
+  `ChangeKind`, `defaultOrders`, `Candidate`, `Skip`, `Availability`, `ReviewPlan(policy, main, authors, kind,
+  available)`, `Unavailable(agent, run, stderr, nonZeroExit, launchErr)` and `LocalAvailability(containment, goos,
+  lookPath)` all live in `cmd/sdlc/internal/judge/family.go`. `AgentRun.Began` is in `stream.go`.
+  `DispatchOptions.Model` and the per-CLI model flags are in `dispatch.go`. There is no `reviewplan.go`.
+- **The bounded default order is codex, claude, gemini.** This keeps #310's claude ↔ codex pairing under `other`, as
+  the floor requires. With gemini second, a codex-authored bounded change would go to gemini. Gemini is the fallback
+  in both kinds. The hub had approved openai, google, anthropic, so this deviation is reported to them.
+- **Unavailability evidence per CLI (BR-2):**
+  - claude: a stream with no assistant or tool event.
+  - codex and gemini: non-stream, a non-zero exit, and nothing at all on stdout, where their review text would be.
+    For codex, its stderr must also show no activity block (`codex`/`exec`/`thinking` lines), and the cause is read
+    only from its `ERROR:` lines, because codex echoes the prompt to stderr.
+  The patterns gain HTTP 403, 5xx and the CLI refusing (`IneligibleTierError`, `no longer supported`). A 400 (bad
+  model) is a misconfiguration and halts. The samples were measured on this machine: codex with a bad model, and
+  gemini, which refuses entirely here (`IneligibleTierError: This client is no longer supported…`). So on this
+  machine gemini can't be a fallback; that's a fact for the operator.
+- **No silent same-family review (BR-1):** `Validate` requires every `reviewer_order` to name agents of at least two
+  families, with no repeats. `Reviewer()` under `other` falls back to the default orders, and never returns the main
+  agent's family. Tested by `TestReviewerOtherNeverSameFamily`.
+- **`reviewer_models` now reaches the CLI (BR-4):** `DispatchOptions.Model` is passed as claude `--model`, codex
+  `-m` or gemini `-m`. The boundary review sets it from the policy for the resolved reviewer, and M2's resolver sets
+  it at every site. A model value starting with `-` is refused (ARCH-SECURE).
+- The help (close.md REVIEWER) and the atlas describe the new `other`, `reviewer_order` and `reviewer_models` (BR-3).

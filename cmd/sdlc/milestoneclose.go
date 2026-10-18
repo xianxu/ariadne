@@ -868,8 +868,10 @@ func boundaryReviewOptionsFor(stdout, stderr io.Writer, p boundaryReviewParams, 
 	cat := p.recipe()
 	prompt := judge.BuildPrompt(cat, in)
 
+	reviewer := judge.ResolveReviewerCLI(p.Agent, p.AgentExplicit, judge.CurrentAgentDefaultEnv(), policy)
 	opts := judge.DispatchOptions{
-		Agent:        judge.ResolveReviewerCLI(p.Agent, p.AgentExplicit, judge.CurrentAgentDefaultEnv(), policy),
+		Agent:        reviewer,
+		Model:        policy.Models[reviewer], // #409: reviewer_models
 		Prompt:       prompt,
 		AllowedTools: cat.AllowedTools(),
 		Stdout:       stdout,

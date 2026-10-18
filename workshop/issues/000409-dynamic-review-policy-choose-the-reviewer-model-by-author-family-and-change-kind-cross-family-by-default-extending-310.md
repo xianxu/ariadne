@@ -91,3 +91,8 @@ Durable plan: `workshop/plans/000409-dynamic-review-policy-choose-the-reviewer-m
   gemini (not codex, gemini, claude). #310's `other` promised that claude and codex review each other, and with
   gemini second a codex-authored bounded change would have gone to gemini. Gemini is the fallback in both kinds. The
   one behaviour change under `other` is a gemini-driven session, now reviewed by codex rather than claude.
+- M1 boundary review round 1 (FIX-THEN-SHIP): BR-1..5 and both Minors fixed (see the plan's second Revisions entry):
+  order validation and a never-same-family `Reviewer()`; per-CLI unavailability evidence with measured codex and
+  gemini samples (gemini refuses entirely on this machine: `IneligibleTierError`); the model flag wired through
+  `DispatchOptions.Model`; help and atlas updated; the plan table corrected; dead `trimReason` removed; flag-like
+  models and duplicate order entries refused.
