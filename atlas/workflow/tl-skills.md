@@ -38,6 +38,8 @@ For state that a user or automation can act on, that shared body also requires
 an action and failure-mode table: internal cases map to a few visible states,
 each with one recovery and stated possible loss; the tradeoff goes to the TL,
 then to the operator when user-facing (ariadne#410).
+For hot paths, the same shared rule asks for expected operations per growth
+driver and a counted test at N and 2N rather than timing alone (ariadne#401).
 
 **Approval and dispatch boundary.** Worker help owns small-fix self-approval,
 issue-backed flake handling, Git-output hash evidence and direct same-repo

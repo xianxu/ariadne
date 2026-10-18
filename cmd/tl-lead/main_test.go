@@ -66,6 +66,12 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		{"state design tradeoff", "covered, not covered, and why"},
 		{"state design escalation", "TL brings user-facing tradeoffs to the operator before code"},
 		{"state design example", "check process dies after starting"},
+		{"hot-path cost", "HOT-PATH COST"},
+		{"hot-path drivers", "per byte, event, launch, or scan"},
+		{"hot-path expected cost", "expected operations per unit of each growth driver"},
+		{"hot-path counted test", "counted test at N and 2N"},
+		{"hot-path rejects timing-only test", "timing alone is not the defense"},
+		{"hot-path example", "rescan per entry costs O(N^2)"},
 
 		{"design rule 1", "reduce to a few visible states"},
 		{"design rule 2", "educated, probabilistic guess with the top alternatives"},
