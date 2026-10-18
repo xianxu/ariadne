@@ -381,6 +381,13 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+disputes:
+    - id: BR-5
+      rationale: 'The requested durable immutable brain artifact cannot safely precede the SHIP boundary: review can still require code changes, and a wrong dated snapshot cannot be replaced. The hub explicitly ordered publication after SHIP and before merge; it owns the project link after the worker reports the path. The temporary pilot and cross-checkout conformance are already review evidence, so this is a publication-order tradeoff, not an untested command.'
+      evidence: On corrected head 225cbeac, bin/sdlc test-stats snapshot --end 2026-10-18T00:00:00Z --brain-root /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne392-review.i4C0Om wrote the 15-repo JSON; shasum -a 256 returned a61b66845c242a8ef3bb8333faecdd289b45f1d953dedf727746cc5048b16634. The same binary invoked from /Users/xianxu/workspace/pair returned the existing path without conflict. ariadne coverage was 0/110 observed and pair 0/180 observed, both null ratios with named missing history. The issue Log records the command, hash, source counts and post-SHIP publication step.
+      after: 2
+      timestamp: "2026-10-18T07:33:02Z"
+      by: Xian Xu on Xian’s MacBook Pro at ariadne:1 (/Users/xianxu/workspace/worktree/ariadne-slot1/ariadne)
 ---
 
 # Gate ledger — ariadne#392 (boundary-review)
@@ -421,7 +428,15 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-7** [Critical] `evidence-boundary-validation` (kind: defect) Different issues can certify the same landing identity twice.
   cmd/sdlc/weeklyattribution.go:194–211 detects repeated issue IDs but does not enforce uniqueness of PR, branch or bound merge across issues. A disposable regression fixture with two done cards and separate valid tickets claiming the same PR/branch/merge produces landed_issues=2, ratio=0 and no coverage warnings, violating plan line 23. This is the 2nd finding in family evidence-boundary-validation: state and enforce the cohort-wide identity rule across sequence, issue, branch, PR and merge bindings, reject conflicting aliases as unknown, and test reordered cross-record collisions rather than fixing only this fixture (ARCH-SECURE, ARCH-PURPOSE).
 
+## Disputes
+
+Findings the implementer declined (`sdlc finding dispute`), each answered by the
+next review round.
+
+- **BR-5** — after round 2 (2026-10-18T07:33:02Z, Xian Xu on Xian’s MacBook Pro at ariadne:1 (/Users/xianxu/workspace/worktree/ariadne-slot1/ariadne))
+  rationale: The requested durable immutable brain artifact cannot safely precede the SHIP boundary: review can still require code changes, and a wrong dated snapshot cannot be replaced. The hub explicitly ordered publication after SHIP and before merge; it owns the project link after the worker reports the path. The temporary pilot and cross-checkout conformance are already review evidence, so this is a publication-order tradeoff, not an untested command.
+  evidence: On corrected head 225cbeac, bin/sdlc test-stats snapshot --end 2026-10-18T00:00:00Z --brain-root /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne392-review.i4C0Om wrote the 15-repo JSON; shasum -a 256 returned a61b66845c242a8ef3bb8333faecdd289b45f1d953dedf727746cc5048b16634. The same binary invoked from /Users/xianxu/workspace/pair returned the existing path without conflict. ariadne coverage was 0/110 observed and pair 0/180 observed, both null ratios with named missing history. The issue Log records the command, hash, source counts and post-SHIP publication step.
+
 ## Open findings
 
-- **BR-5** [Important] `default-rollout-completeness` The durable pilot snapshot and rollout acceptance evidence are still outstanding.
 - **BR-7** [Critical] `evidence-boundary-validation` (kind: defect) Different issues can certify the same landing identity twice.
