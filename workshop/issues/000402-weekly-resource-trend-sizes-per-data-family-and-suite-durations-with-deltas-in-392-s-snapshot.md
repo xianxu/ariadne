@@ -50,10 +50,14 @@ Depends on ariadne#392.
 
 ### 2026-10-15
 
-2026-10-17: Claimed and entered planning. #392 is still open and unclaimed, with no snapshot producer, schema or weekly writer on main; #402 cannot safely bind to it yet. Pair's history-backup source inventory now exists at `cmd/internal/historyarchive/sources.json`; use its declared data families instead of duplicating source patterns (ARCH-DRY). The hub additionally requested Go build cache size and AgentScratch free space. Those are machine gauges, not backup source families. The ops resource project also requests daily device-write and SSD Data Units Written observations; a weekly run alone cannot manufacture daily observations, so this plan flags that scope for the TL rather than inferring it.
+2026-10-17: Claimed and entered planning. #392 is still open and unclaimed, with no snapshot producer, schema or weekly writer on main; #402 cannot safely bind to it yet. Pair's history-backup source inventory now exists at `cmd/internal/historyarchive/sources.json`; use its declared data families instead of duplicating source patterns (ARCH-DRY). The hub additionally requested Go build cache size and AgentScratch free space. Those are machine gauges, not backup source families.
 
 ## Revisions
 
 ### 2026-10-17 — hub dispatch and dependency survey
 
 Add Go build cache size and AgentScratch free/total space to the planned weekly resource section. Treat #392's landed snapshot interface as a prerequisite for implementation and a live write. Keep family sizes sourced from pair's existing backup inventory; machine gauges have separate explicit paths.
+
+### 2026-10-17 — weekly device gauges replace daily points
+
+The hub approved the plan, directed this slot to land #392 first, and replaced the ops project's unassigned daily device-write points with two weekly gauges: the `ioreg` `Bytes (Write)` counter and SSD percentage used when readable without root. Compare weekly observations only when the device and counter epoch remain comparable; a reset yields an unknown delta. The TL owns the resource-observability project Log and will record the daily-to-weekly replacement there.
