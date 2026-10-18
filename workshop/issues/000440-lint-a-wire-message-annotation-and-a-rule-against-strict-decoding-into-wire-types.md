@@ -193,6 +193,12 @@ Then close and land on SHIP.
   expression-form `if d.Decode(&m)`. The latter is filed as ariadne#445;
   the supported #440 scope is now explicit in Spec and atlas.
 
+- The BR-7 jump matrix failed before the correction for unconditional and
+  conditional jumps over strictness, and for a jump after strictness that the
+  conservative rule also excludes. A straight-line control stayed positive.
+  The matcher now omits goto-bearing functions; `go test ./pkg/golint
+  -count=1` passed with the correction.
+
 ## Revisions
 
 - 2026-10-18, close review round 8: BR-6 was withdrawn. BR-7 found a real

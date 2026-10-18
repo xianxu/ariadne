@@ -1923,7 +1923,7 @@ once to index marked types, then flags a direct `json.NewDecoder` →
 statements, assignment RHS, `var` initializers, returns, and assignment-form
 `if` initializers are covered. Expression-form `if` initializers are tracked
 in #445. It reports at `Decode`;
-ambiguous branches and helper decoders are outside this conservative
+ambiguous branches, goto-bearing functions, and helper decoders are outside this conservative
 syntax-only rule. A marked target resolves in the same package, the module
 root, or an imported subpackage when its declared package name or explicit
 alias matches the selector; a shadowed qualifier is not an import. A decoder remains

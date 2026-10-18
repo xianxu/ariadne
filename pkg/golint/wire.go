@@ -107,6 +107,18 @@ func wireStrictDecode(f *ast.File, context *CheckContext) []ast.Node {
 		if !ok || fn.Body == nil {
 			continue
 		}
+		// A goto can enter the direct statement list after the strictness
+		// call. This lexical matcher has no path proof for such a function.
+		hasGoto := false
+		ast.Inspect(fn.Body, func(n ast.Node) bool {
+			if branch, ok := n.(*ast.BranchStmt); ok && branch.Tok == token.GOTO {
+				hasGoto = true
+			}
+			return true
+		})
+		if hasGoto {
+			continue
+		}
 		// Only the function's direct statement list is an unconditional flow.
 		// A flag set inside a branch cannot prove a later decode is strict.
 		eligible := singleOwnerDecoders(fn, jsonPkg)

@@ -353,6 +353,43 @@ func read(r io.Reader) {
 	}
 }
 
+func TestWireStrictDecodeGotoDisqualifiesLexicalProof(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		want       bool
+	}{
+		{"unconditional jump over flag", `goto decode; d.DisallowUnknownFields(); decode: ; _ = d.Decode(&m)`, false},
+		{"conditional jump over flag", `if skip { goto decode }; d.DisallowUnknownFields(); decode: ; _ = d.Decode(&m)`, false},
+		{"jump after flag still excluded", `d.DisallowUnknownFields(); goto decode; decode: ; _ = d.Decode(&m)`, false},
+		{"straight line", `d.DisallowUnknownFields(); _ = d.Decode(&m)`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			src := `package p
+import ("encoding/json"; "io")
+// wire: peer messages can gain fields.
+type Peer struct{}
+func read(r io.Reader, skip bool) {
+	d := json.NewDecoder(r)
+	var m Peer
+	` + tc.body + `
+}`
+			got, err := Check("p.go", []byte(src), Catalog)
+			if err != nil {
+				t.Fatal(err)
+			}
+			hits := 0
+			for _, finding := range got {
+				if finding.Rule == "wire-strict-decode" {
+					hits++
+				}
+			}
+			if (hits == 1) != tc.want || hits > 1 {
+				t.Errorf("findings = %v; want wire-strict-decode=%v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestWireStrictDecodeDoesNotGuessFlowOrTarget(t *testing.T) {
 	for _, tc := range []struct {
 		name, body string
