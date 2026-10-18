@@ -36,9 +36,9 @@ Active time a slot spends is attributed once. When measuring an issue, exclude i
 
 ## Plan
 
-- [ ] Use another issue's adopted actual and pinned measurement inputs as exclusion authority, never a live claim or an unscoped main commit. For each overlapping same-slot adopted issue, replay its pinned inputs, take the source-scoped activity runs credited to that issue, and subtract their time interval from the candidate before attribution. An ambiguous/missing pin refuses a numeric actual rather than silently counting overlap. The exclusion is conservative when a credited run was split fractionally among issues; report its issue, slot and interval.
-- [ ] Add a red #636-shaped integration fixture: a parked issue and two intervening adopted issues in the same slot. Assert preview, close adoption and correction share the rule; no credited interval is counted again. Exercise differing slots, missing historical evidence and replay after a later transcript grows.
-- [ ] Implement the pure interval subtraction in `internal/activetime`, the pinned adopted-issue evidence loader in the `actualinputs` IO seam, and concise interval/refusal diagnostics. Preserve current branch commit scoping (#270).
+- [x] Use another issue's adopted actual and pinned measurement inputs as exclusion authority, never a live claim or an unscoped main commit. For each overlapping same-slot adopted issue, replay its pinned inputs, take the source-scoped activity runs credited to that issue, and subtract their time interval from the candidate before attribution. An ambiguous/missing pin refuses a numeric actual rather than silently counting overlap. The exclusion is conservative when a credited run was split fractionally among issues; report its issue, slot and interval.
+- [x] Add a red #636-shaped integration fixture: a parked issue with intervening adopted work in the same slot. Assert preview and close candidates use the shared measurement path; no credited interval is counted again. Exercise differing slots and overlapping adopted intervals in the pure core, missing historical evidence in the integration fixture, and replay after a later transcript append.
+- [x] Implement the pure interval subtraction in `internal/activetime`, the pinned adopted-issue evidence loader in the actual-time IO seam, and concise interval/refusal diagnostics. Preserve current branch commit scoping (#270).
 - [ ] Run targeted tests, `make -k`, the recorded full suite on the pushed head, then close review and land on SHIP.
 
 ## Log
@@ -46,3 +46,8 @@ Active time a slot spends is attributed once. When measuring an issue, exclude i
 ### 2026-10-18
 
 - Planning choice: branch-only attribution cannot guarantee exclusivity because #270 intentionally hides unrelated main commits from a branch's segment boundaries. Reusing completion-pinned actual inputs needs no new durable ledger (ARCH-DRY, ARCH-FUNERAL). A replay gap remains unknown, not zero (ARCH-PURE). This can conservatively undercount activity where two issues genuinely overlap in the same slot; the report names every excluded interval.
+- The #636-shaped fixture measured 20 minutes for the parked issue before exclusion and less after replaying #649's adopted 10-minute run. The transcript grows after #649's close, so its saved byte prefix is the replay authority. Removing that source makes the candidate refuse and names #649 plus the overlapping time window. A fully excluded candidate reports `--no-actual` with the protected interval instead of telling the slot to restore evidence.
+
+## Revisions
+
+- 2026-10-18 11:12 PDT — The integration fixture uses one intervening adopted issue and a later transcript append; the pure core separately tests the union of two adopted issues. This keeps the tracker fixture focused while still defending the multi-issue rule. Close and preview share `computeActualForPurpose`; correction enters the same resolver and measurement path.

@@ -37,6 +37,7 @@ type ownedActualInputs struct {
 	Warnings      []string
 	SourceSlots   map[string]string
 	Replay        bool
+	Protected     []activetime.CreditedInterval
 }
 
 type actualInputPurpose uint8

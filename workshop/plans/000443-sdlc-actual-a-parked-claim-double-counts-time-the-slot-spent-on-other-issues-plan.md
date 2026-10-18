@@ -61,3 +61,7 @@ The loader reads the already fetched tracker snapshot, selects cards with numeri
 - [ ] Update the issue Log with measured exclusions and the conservative-overlap tradeoff. Map the changed actual-time flow in the relevant atlas page.
 - [ ] Run `make -k`, push the reviewed head, then `sdlc local-check run --name suite`; inspect its recorded result.
 - [ ] Run `sdlc close --issue 443 --verified '<specific checks and output>'`, answer blocking findings, and merge on SHIP. Report the PR and exact merge commit to the hub.
+
+## Revisions
+
+- 2026-10-18 11:12 PDT — The integration fixture uses one adopted issue plus a later transcript append to test the pinned-replay boundary. The pure interval tests separately cover a union of two adopted issues and different slots. The same `computeActualForPurpose` path supplies preview, close and correction candidates, so the integration assertion is made at that shared seam.

@@ -28,7 +28,8 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 	res.Peers = peers
 	options := activetime.Options{Context: ctx, Files: inputs.Files, GitRepo: root, ExtraRefs: inputs.TrackerRefs, Scope: inputs.Scope,
 		SinceISO: m.Since, UntilISO: m.Until, Issues: peers, CommitWeight: m.CommitWeight, ThresholdMin: m.GapMinutes,
-		IncludeAssistant: m.IncludeAssistant, ActivityWindows: inputs.Windows, SourcePrefixes: inputs.Prefixes, SourceSlots: inputs.SourceSlots}
+		IncludeAssistant: m.IncludeAssistant, ActivityWindows: inputs.Windows, SourcePrefixes: inputs.Prefixes, SourceSlots: inputs.SourceSlots,
+		ProtectedIntervals: inputs.Protected}
 	for _, q := range m.QueueWaits {
 		start, err := time.Parse(time.RFC3339Nano, q.Start)
 		if err != nil {
@@ -48,6 +49,8 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 		return fail(err)
 	}
 	res.Status, res.Hours = statusFromResult(out, id)
+	res.Segments = out.Segments
+	res.Exclusions = out.Exclusions
 	if res.Status != actualMeasured {
 		res.Detail = "no activity from ownership-proven transcript sources"
 		return res
@@ -122,6 +125,9 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 	}
 	for _, warning := range out.Warnings {
 		res.Warnings = append(res.Warnings, formatAttributionWarning(warning))
+	}
+	for _, exclusion := range out.Exclusions {
+		res.Warnings = append(res.Warnings, fmt.Sprintf("excluded %.2f minutes from %s during %s → %s: already adopted by issue #%s in slot %s", exclusion.Minutes, exclusion.Source, exclusion.Start.Format(time.RFC3339Nano), exclusion.End.Format(time.RFC3339Nano), exclusion.Issue, exclusion.Slot))
 	}
 	return res
 }

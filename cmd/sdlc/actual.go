@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
@@ -72,6 +73,9 @@ type actualResult struct {
 	Split *actualSplit
 	// Inputs is the exact admitted evidence retained by close/correction.
 	Inputs *gatestate.MeasurementInputs
+	// Segments are transient replay evidence, never persisted in the close card.
+	Segments   []activetime.Segment
+	Exclusions []activetime.Exclusion
 }
 
 // computeActual is the engine glue: resolve the commit window + peer issues + the
@@ -98,6 +102,13 @@ func computeActualForPurpose(ctx context.Context, repoTop, brainAbs, issueNum, m
 		return actualErrorResult(issueNum, err)
 	}
 	if owned != nil {
+		if !owned.Replay {
+			protected, err := loadAdoptedExclusions(ctx, repoTop, brainAbs, issueNum, plans, owned)
+			if err != nil {
+				return actualErrorResult(issueNum, err)
+			}
+			owned.Protected = protected
+		}
 		return computeOwnedActualFor(ctx, repoTop, issueNum, milestone, owned)
 	}
 	result := computeLegacyActualFor(ctx, repoTop, brainAbs, issueNum, milestone, plans)
@@ -391,7 +402,15 @@ func printActual(w io.Writer, res actualResult, milestone string) {
 			fmt.Fprintf(w, "  (%s)\n", res.Detail)
 		}
 	case actualEmptyWindow:
-		cwarn(w, fmt.Sprintf("found no measurable activity for #%s; ask the TL/hub to restore its ownership/source evidence, then re-run sdlc actual --issue %s.", issueStr, issueStr))
+		if len(res.Exclusions) > 0 {
+			cwarn(w, fmt.Sprintf("found no uncredited activity for #%s; its parked claim overlapped already adopted time.", issueStr))
+			for _, exclusion := range res.Exclusions {
+				fmt.Fprintf(w, "  excluded %.2f minutes during %s → %s: already adopted by issue #%s in slot %s\n", exclusion.Minutes, exclusion.Start.Format(time.RFC3339Nano), exclusion.End.Format(time.RFC3339Nano), exclusion.Issue, exclusion.Slot)
+			}
+			fmt.Fprintf(w, "  → close with %s and record this exclusion.\n", rerunCmd(issueStr, milestone, " --no-actual"))
+		} else {
+			cwarn(w, fmt.Sprintf("found no measurable activity for #%s; ask the TL/hub to restore its ownership/source evidence, then re-run sdlc actual --issue %s.", issueStr, issueStr))
+		}
 	case actualNoWindow:
 		cwarn(w, fmt.Sprintf("no commits reference #%s yet; commit the issue's work with #%s in the subject, then re-run sdlc actual --issue %s.", issueStr, issueStr, issueStr))
 	case actualError:
