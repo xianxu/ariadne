@@ -46,14 +46,14 @@ It writes the same refs and the same keys into the checkout. The objects are alr
 
 `remote.<R>.url` and `remote.<R>.pushurl` are set to an inert `readonly://review-checkout` URL, so no remote can push or fetch: git refuses with "unable to find remote helper", and nothing in the checkout points back at SRC or GitHub. SRC's real URL, credentials, `insteadOf` and push settings are never copied. A SRC with no main authority gives a checkout with none, so a test refuses in review exactly as it would in the slot.
 
-- [ ] **Pure:** `mainAuthority(config, refs) authority` in `reviewbox/authority.go` parses SRC's `git config --get-regexp` lines and the `for-each-ref` rows into the keys and refs to write. Only the allowed keys pass: `branch.main.{remote,merge}` and `remote.<R>.fetch` for a remote named by branch.main or by a `refs/remotes/<R>/main` ref. A malformed row refuses. Tests cover a slot shape, no authority, two remotes, a `.` remote, and a hostile key (`remote.origin.url`, `url.*.insteadOf`) never passing.
-- [ ] **IO:** `populate` reads SRC (two git calls), applies the authority with `git config` and `git update-ref`, and sets the inert URLs. Reset reuses populate, so a retried attempt gets the same authority.
-- [ ] **Regression, the pair#665 shape** (real git, temp repos, as the existing checkout tests do): SRC is a clone of a bare `origin` whose main has moved, on an issue branch. In the checkout:
+- [x] **Pure:** `mainAuthority(config, refs) authority` in `reviewbox/authority.go` parses SRC's `git config --get-regexp` lines and the `for-each-ref` rows into the keys and refs to write. Only the allowed keys pass: `branch.main.{remote,merge}` and `remote.<R>.fetch` for a remote named by branch.main or by a `refs/remotes/<R>/main` ref. A malformed row refuses. Tests cover a slot shape, no authority, two remotes, a `.` remote, and a hostile key (`remote.origin.url`, `url.*.insteadOf`) never passing.
+- [x] **IO:** `populate` reads SRC (two git calls), applies the authority with `git config` and `git update-ref`, and sets the inert URLs. Reset reuses populate, so a retried attempt gets the same authority.
+- [x] **Regression, the pair#665 shape** (real git, temp repos, as the existing checkout tests do): SRC is a clone of a bare `origin` whose main has moved, on an issue branch. In the checkout:
   - pair's three facts resolve: `branch.main.*` is configured, `refs/remotes/origin/main` equals SRC's, and `git merge-base --all HEAD refs/remotes/origin/main` gives one base equal to SRC's;
   - `git rev-parse main@{upstream}` works;
   - `git push origin HEAD:refs/heads/x` and `git fetch origin` both fail, and SRC's and the bare origin's refs are unchanged after them;
   - a SRC with no remote gives a checkout with no main authority.
-- [ ] Atlas (review isolation) says the checkout carries the slot's main authority, read-only.
+- [x] Atlas (review isolation) says the checkout carries the slot's main authority, read-only.
 
 Design notes:
 - ARCH-SECURE: SRC's config is our own but copied through an allowlist, never wholesale. The checkout's remote URL is inert, so the "cannot push or change the real repository" guarantee is structural, not a convention. The fence and confinement are unchanged.
@@ -66,3 +66,5 @@ Design notes:
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: the hub approved the plan. Implemented as planned: `reviewbox/authority.go` (`mainAuthority`, `authorityKeys`, `inertURL`) and `Checkout.copyMainAuthority`, called by `populate` after the detached checkout, so Reset gets it too.
+- Verified: `go test ./cmd/sdlc/internal/reviewbox` passes. That covers `TestMainAuthority` (nine rows, hostile keys refused), `TestCheckoutCarriesMainAuthorityReadOnly` (the pair#665 shape: config, origin/main, a single merge base and main@{upstream} all equal the slot's; push and fetch fail; slot and bare origin unchanged) and `TestCheckoutWithoutRemoteHasNoRemoteMain`. The regression fails with the copy disabled (`config --get-regexp ^branch.main.` exits 1) and passes with it restored. The cmd/sdlc isolation tests pass.

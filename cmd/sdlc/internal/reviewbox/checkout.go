@@ -52,7 +52,8 @@ func Root() (string, error) {
 // Create makes a fresh shared clone of src at head under root. The clone
 // reads objects through alternates (no copy) and has its own refs, config,
 // index and hooks; its origin remote is removed so nothing in it points back at
-// src. overlays are repository-relative paths copied from src's working tree
+// src. It keeps src's main authority (#447), read-only: copyMainAuthority.
+// overlays are repository-relative paths copied from src's working tree
 // (the live issue and plan text, which may be uncommitted). On error nothing it
 // made is left behind. Callers Sweep root first; Create itself never fails on
 // another checkout's debris.
@@ -118,8 +119,54 @@ func (c *Checkout) populate() error {
 	if err := git(c.Dir, "checkout", "--quiet", "--detach", c.head); err != nil {
 		return err
 	}
+	if err := c.copyMainAuthority(); err != nil {
+		return err
+	}
 	for _, rel := range c.overlays {
 		if err := overlay(c.src, c.Dir, rel); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// copyMainAuthority gives the checkout the source's main authority (#447):
+// main's upstream config, each named remote's fetch refspec, and the main
+// refs, so a repository test that resolves main and the merge base runs as it
+// does in the slot. Each remote's URL is inert, so the checkout can neither
+// push nor fetch. It runs after the detached checkout, so updating
+// refs/heads/main never moves a checked-out branch.
+func (c *Checkout) copyMainAuthority() error {
+	config, err := gitOutput(c.src, "config", "--get-regexp", authorityKeys)
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == 1 {
+		config, err = "", nil // no such keys
+	}
+	if err != nil {
+		return fmt.Errorf("review checkout: read main authority: %w", err)
+	}
+	refs, err := gitOutput(c.src, "for-each-ref", "--format=%(objectname) %(refname)", "refs/remotes/", "refs/heads/main")
+	if err != nil {
+		return fmt.Errorf("review checkout: read main authority: %w", err)
+	}
+	a, err := mainAuthority(config, refs)
+	if err != nil {
+		return err
+	}
+	for _, r := range a.remotes {
+		for _, k := range []string{"url", "pushurl"} {
+			if err := git(c.Dir, "config", "remote."+r+"."+k, inertURL); err != nil {
+				return err
+			}
+		}
+	}
+	for _, kv := range a.config {
+		if err := git(c.Dir, "config", "--add", kv[0], kv[1]); err != nil {
+			return err
+		}
+	}
+	for _, r := range a.refs {
+		if err := git(c.Dir, "update-ref", r[0], r[1]); err != nil {
 			return err
 		}
 	}
