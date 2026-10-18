@@ -623,7 +623,7 @@ func TestCollaborationModesProse(t *testing.T) {
 		"Folded into the parent on <date>:",                                         // the fold's closing note the checker reads
 		"the adapter's exit 3",                                                      // row 17
 		"Never create a `.side/` inside a `.side/`",                                 // the flat folder
-		"Swapping a marker for its link is applied directly",                        // propose-strike
+		"Swapping a marker for its link is an edit through `apply`",                // presentation owns proposals
 		"don't fold again",                                                          // a refused side-doc write after the fold landed
 		"a plain relative path with no `#anchor`",                                   // the body's backlink
 	} {

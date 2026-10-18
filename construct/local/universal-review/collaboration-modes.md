@@ -65,7 +65,7 @@ Each ready 🤖 marker is an ask. Classify it, then act:
 
 | The ask | What you do |
 |---|---|
-| an **imperative**: a change to the text ("tighten this", "add an example", "can you shorten this?", "fold in" beside a `→ [discussion]` link) | edit the text the marker refers to (round.md §5), under the review mode's directives, and remove the marker. Under `deletions: propose-strike` the edit becomes a proposal marker, as round.md §5 says |
+| an **imperative**: a change to the text ("tighten this", "add an example", "can you shorten this?", "fold in" beside a `→ [discussion]` link) | build the clean edit to the text the marker refers to (round.md §5), under the review mode's scope and frontier, and remove the marker. The document's `presentation:` determines whether Couch writes direct text or proposals |
 | an imperative that is **unclear in a small way**, whose readings fit in one line | append a `{clarifying question}` turn to the marker ("{the latency numbers or the cost numbers?}") and leave it |
 | an **instruction that only acts** | honor it (below) |
 | a **decision** or an approval: an answer to a question the text put to the operator ("first in the section", "yes, Friday", "ok") | record it in one line and carry it out (below) |
@@ -101,9 +101,10 @@ an action, never for a question that needs continued discussion. These usually a
 
 - **Unclear what an approval approves** (the side doc proposed two things): append a one-line `{which: …?}` turn
   to the marker rather than guessing.
-- **A fold-in is an edit**, made under the parent's review mode. Under `deletions: propose-strike` its replacements
-  and deletions are proposals in the parent; the link is still marked `(folded <date>)` in that same write, and the
-  side doc's closing note reads `Proposed in the parent on <date>: …`, to accept or reject there.
+- **A fold-in is an edit**, made under the parent's review mode. When the record answers the
+  operator's own ready `🤖[fold in]` marker by the link, Couch applies it directly even under
+  `presentation: propose`; unrelated edits are still proposed. The link gets `(folded <date>)`,
+  and the side doc's closing note reads `Folded into the parent on <date>: …`.
 
 **A decision is recorded in one line.** Wherever the operator writes a decision or an approval, replace the marker
 with one line at its spot, `Decided (operator): <the decision, restated>.`, and carry it out when it asks for an edit
@@ -202,8 +203,13 @@ the name.
 **In the parent:** discussion replaces the marker with `→ [discussion](<path>)` at the marker's own spot, and a
 decision's notes are linked as `→ [notes](<path>)` at the end of its Decided line. Chat appends ` → [answer](<path>)`
 to the item's last line. The path is relative to the parent. Swapping a marker for its
-link is applied directly, even under `deletions: propose-strike`: it removes only the marker, like any answered
-marker, so it is never shown as a strike-through proposal.
+link is an edit through `apply`. A record answering the operator's own ready
+request marker applies directly even under `presentation: propose`, so the link
+is usable at once; Couch checks that marker in the base text. Other edits are
+proposed by Couch, never hand-written as markers by the agent. For a side doc
+opened by that request, include its matching `discussions:` index entry in the
+same `apply` batch as the link; Pair permits that frontmatter change only as
+part of this checked, atomic exception.
 
 **Writes and retries.** Each document a round changes gets one write, through the adapter. A fold-in changes two:
 the parent it folds into, and the side doc that gets the closing note. A new side doc's index entry rides the
@@ -235,7 +241,7 @@ A side doc has one **attachment** and up to two **references** in its parent:
 | What | Where | What it means | When it is removed |
 |---|---|---|---|
 | **the attachment** | the side doc's own `parent:` and `marker:` | which document, and which ask, it belongs to | never: reuse (above) and moves (§5) key on it |
-| **the link** | `→ [discussion](…)`, `→ [answer](…)` or `→ [notes](…)` in the parent's text | where the thread sits | by the operator; you then drop its entry |
+| **the link** | `→ [discussion](…)`, `→ [answer](…)`, `→ [notes](…)` or `→ [proposal](…)` in the parent's text | where the thread sits | by the operator; you then drop its entry |
 | **the index entry** | the parent's `discussions:` frontmatter | the side doc waits for the operator's review | by the operator: reviewed; the link stays |
 
 ```yaml
@@ -290,7 +296,7 @@ before/after documents.
 | # | Situation | The operator does | You do | The operator sees |
 |---|---|---|---|---|
 | 1 | any section | edits text directly, submits | read the changes since your last read; find no ask; write the snapshot back unchanged, folding the submit | the reply "read your edits; no asks" |
-| 2 | discussion | 🤖[tighten this paragraph] | edit the paragraph under the review mode's deletions directive, and remove the marker; under propose-strike, write it as a proposal marker instead (round.md §5) | the changed paragraph, or a proposal to accept or reject |
+| 2 | discussion | 🤖[tighten this paragraph] | apply the clean paragraph edit and remove the marker; under `presentation: propose`, Couch writes proposal markers instead (round.md §5) | the changed paragraph, or a proposal to accept or reject |
 | 3 | discussion | 🤖[why do we lock per file, not per section?] | create `<name>.side/NN-lock-granularity.md` holding the question and its answer; replace the marker with `→ [discussion](…)` | the link where the marker was; the text otherwise unchanged |
 | 4 | discussion | 🤖[add the numbers], with two readings | append `{the latency numbers or the cost numbers?}` | the marker, pending them |
 | 5 | discussion, unsure | 🤖[the retry story feels off] | treat it as a question: a side doc proposing what is off | a `→ [discussion]` link |

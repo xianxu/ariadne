@@ -11,10 +11,11 @@ import (
 	"strings"
 )
 
-var linkRE = regexp.MustCompile(`→ \[(?:discussion|answer|notes)\]\(([^)\s]+)\)`)
+var linkRE = regexp.MustCompile(`→ \[(?:discussion|answer|notes|proposal)\]\(([^)\s]+)\)`)
 
 // SideLinks returns the targets of a document's side-doc links
-// (`→ [discussion](…)`, `→ [answer](…)`, `→ [notes](…)`), as written and in
+// (`→ [discussion](…)`, `→ [answer](…)`, `→ [notes](…)`,
+// `→ [proposal](…)`), as written and in
 // order, skipping fenced code: a link shown in an example is not a link.
 func SideLinks(text string) []string {
 	var out []string

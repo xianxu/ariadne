@@ -42,8 +42,8 @@ The skill's contract and examples use `apply` for edits, cover exit-1 invalid/pr
 
 ## Plan
 
-- [ ] Design the two apply adapters, Pair workbench transition and v3 export compatibility in `workshop/plans/000437-universal-review-edits-through-apply-plan.md`; get hub approval.
-- [ ] Update the skill and exporter with focused red/green contract tests, regenerate the manifest, and verify the examples checker.
+- [x] Design the two apply adapters, Pair workbench transition and v3 export compatibility in `workshop/plans/000437-universal-review-edits-through-apply-plan.md`; get hub approval.
+- [x] Update the skill and exporter with focused red/green contract tests, regenerate the manifest, and verify the examples checker.
 - [ ] Run a live tracked-document apply round with reasons using the landed Pair engine, run the recorded suite, close and land after parley#383's dual-version consumer is in place.
 
 ## Log
@@ -51,7 +51,11 @@ The skill's contract and examples use `apply` for edits, cover exit-1 invalid/pr
 ### 2026-10-18
 
 - Claimed and started in ariadne:1. pair#661 M1's Couch apply and round are on main; pair:2 is building the M2 pair-level apply. Its exact JSON and exit-code contracts are recorded in the durable plan. The hub added the xx-fix hosted workbench migration to this issue, with pair#664 retiring the legacy pane only after #437 lands. The hub assigned parley#383 to accept both export v2 and v3 before #437 publishes v3.
+- The first tests failed on the retired mode flag and old adapter path, then passed after the authored skill/export changes. A large-proposal fixture exposed that the shared `pkg/sidedoc` parser did not count `→ [proposal](…)` as a link; a red test reproduced it, then the parser, examples checker and fixture passed. `go test ./pkg/reviewexport -count=1`, targeted `pkg/sidedoc` checks, `go test ./cmd/weave/... -count=1` and `make -k build` passed.
+- Pair confirmed that M1 would propose the structural link itself. The hub extended Pair #661 M2: a body record answering the operator's own ready marker applies directly under `presentation: propose`, including a large fold, and the matching `discussions:` entry rides atomically with that link. The skill and fixtures now describe that contract; live conformance waits for Pair M2. Parley #383 must land before this branch's v3 export.
+- A read-only skill pressure scenario compared the old and edited adapters: the old path rewrites through `write --all` and has no refusal path for a large proposal; the edited path uses records, the engine's refusal, a checked link/index, and explicit exit-6 rebuild and exit-3 wait. The remaining threshold discovery is deliberately owned by Pair's `propose-too-large` refusal, so the skill does not duplicate a tunable limit.
 
 ## Revisions
 
 - 2026-10-18, M2 scope coordination: extend the original skill-only issue to migrate the hosted Pair review-workbench protocol in `construct/local/fix/SKILL.md`; preserve the legacy pane until pair#664 follows. Remove mode-level `deletions` from the authored skill and v3 export only after parley#383 accepts both versions. Pair's propose converter requires `write --frontmatter` for frontmatter-only changes, so that existing dedicated verb remains a narrow exception to body edits through `apply`.
+- 2026-10-18, proposal side docs: keep a checked, atomic direct-apply exception for a record answering the operator's own ready marker, including a link and its matching `discussions:` entry or a large fold under `presentation: propose`. Pair #661 M2 owns the engine check; #437 documents and verifies it. This prevents a proposed-but-not-linked side doc and a fold that cannot pass the proposal size limit.

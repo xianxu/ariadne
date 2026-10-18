@@ -11,13 +11,13 @@ import (
 )
 
 func TestParseMode(t *testing.T) {
-	m, err := ParseMode("---\nname: a\norder: 2\nscope: whole-doc\ndeletions: apply\nfrontier: off\n---\nBrief.\n", "a")
-	if err != nil || m != (Mode{Name: "a", Order: 2, Scope: "whole-doc", Deletions: "apply", Frontier: "off"}) {
+	m, err := ParseMode("---\nname: a\norder: 2\nscope: whole-doc\nfrontier: off\n---\nBrief.\n", "a")
+	if err != nil || m != (Mode{Name: "a", Order: 2, Scope: "whole-doc", Frontier: "off"}) {
 		t.Fatalf("got %+v, %v", m, err)
 	}
 	// Omitted flags take parley's defaults; order is optional.
 	m, err = ParseMode("---\nname: b\n---\nBrief.\n", "b")
-	if err != nil || m != (Mode{Name: "b", Scope: "markers-only", Deletions: "propose-strike", Frontier: "on"}) {
+	if err != nil || m != (Mode{Name: "b", Scope: "markers-only", Frontier: "on"}) {
 		t.Fatalf("defaults: got %+v, %v", m, err)
 	}
 	for _, c := range []struct{ name, text, want string }{
@@ -25,6 +25,7 @@ func TestParseMode(t *testing.T) {
 		{"unterminated", "---\nname: a\n", "unterminated"},
 		{"name mismatch", "---\nname: b\n---\n", "basename"},
 		{"bad flag", "---\nname: a\nscope: everything\n---\n", "scope="},
+		{"retired deletion flag", "---\nname: a\ndeletions: propose-strike\n---\n", "deletions"},
 		{"bad order", "---\nname: a\norder: first\n---\n", "order"},
 		// Parity with parley's parser at the edges.
 		{"crlf", "---\r\nname: a\r\n---\r\n", "missing frontmatter"},
@@ -89,8 +90,8 @@ func TestBuildFixtures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m.Version != 2 {
-		t.Errorf("version %d, want 2 (the fixture role)", m.Version)
+	if m.Version != 3 {
+		t.Errorf("version %d, want 3 (mode deletion flag retired)", m.Version)
 	}
 	var got []string
 	for _, mem := range m.Members {
@@ -104,6 +105,20 @@ func TestBuildFixtures(t *testing.T) {
 	}
 	if last := m.Members[len(m.Members)-1]; last.Role != "fixture" {
 		t.Errorf("fixtures do not sort last: %+v", last)
+	}
+}
+
+func TestV3ExportOmitsModeDeletionKnob(t *testing.T) {
+	m, err := Build(fixture())
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(data, []byte(`"deletions"`)) || !bytes.Contains(data, []byte(`"version": 3`)) {
+		t.Fatalf("v3 still exports the retired deletion knob: %s", data)
 	}
 }
 
@@ -197,5 +212,50 @@ func TestExportCurrent(t *testing.T) {
 	}
 	if got := strings.Join(modes, ","); got != "developmental,line-editing,copy-editing,proofreading,fact-check,free-form" {
 		t.Errorf("stock modes in order: %s", got)
+	}
+}
+
+// These are the two agent-facing adapters for the same Pair edit engine.
+// Guard the migration's refusal and recovery paths, not just manifest hashes.
+func TestReviewSkillApplyContract(t *testing.T) {
+	root := moduleRoot(t)
+	read := func(relative string) string {
+		t.Helper()
+		b, err := os.ReadFile(filepath.Join(root, relative))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	adapter := read("construct/local/universal-review/adapters/file-edit.md")
+	workbench := read("construct/local/fix/SKILL.md")
+	round := read("construct/local/universal-review/round.md")
+	for _, tc := range []struct {
+		name, body string
+		want       []string
+		obsolete   []string
+	}{
+		{"tracked adapter", adapter,
+			[]string{"couch --session-sync apply EDITS.json FILE", "couch --session-sync round FILE --json", "edits-invalid", "propose-too-large", "propose-unencodable", "Exit 3", "Exit 6", "next submit"},
+			[]string{"couch --session-sync write --all BODYFILE FILE"}},
+		{"Pair workbench", workbench,
+			[]string{"pair review apply EDITS.json FILE", "docflow round --side agent", "propose-too-large", "operator-lock", "stale", "Body"},
+			[]string{"PAIR_REVIEW_HANDOFF_PATH", "PAIR_REVIEW_LANDED_PATH", "[reconcile —", "applied N edits"}},
+		{"review round", round,
+			[]string{"presentation:", "highlight", "propose", "never type"},
+			[]string{"deletions:", "propose-strike"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, phrase := range tc.want {
+				if !strings.Contains(tc.body, phrase) {
+					t.Errorf("missing %q", phrase)
+				}
+			}
+			for _, phrase := range tc.obsolete {
+				if strings.Contains(tc.body, phrase) {
+					t.Errorf("retired instruction %q remains", phrase)
+				}
+			}
+		})
 	}
 }

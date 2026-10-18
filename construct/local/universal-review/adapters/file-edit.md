@@ -46,38 +46,73 @@ One round reviews one snapshot: the text whose hash you write against.
    frontmatter, and the markers from its body. The diff only points at what
    moved; an edit made between steps 2 and 3 is in the snapshot even though
    the diff missed it, so read the markers from the snapshot, not the diff.
-4. **Compute** the round (`../round.md`) on the snapshot, and write the whole
-   new document, frontmatter kept, to a body file made with
-   `mktemp "${TMPDIR:-/tmp}/review.XXXXXX"`.
-5. **Write:** `couch --session-sync write --all BODYFILE FILE --if-hash H --fold ID[,ID]`,
-   folding only those IDs kept in step 1 whose asks this write answers. A
-   kept delivery you didn't answer, and one that arrived after step 1, stay
-   owed for the next round. With no IDs to fold, leave out `--fold`. When the
-   answer changes nothing, write the snapshot back as read, so its asks are
-   still folded. Then delete BODYFILE, whether the write succeeded or was
-   refused.
+4. **Compute** the clean result (`../round.md`) on the snapshot. For every
+   change to the body, write `{old, occurrence, new, explain}` records to an
+   EDITS.json file made with `mktemp "${TMPDIR:-/tmp}/review-edits.XXXXXX"`.
+   `old` is nonempty; `occurrence` counts plain, non-overlapping matches from
+   1 (omit it for the first); to insert, repeat nearby text in `new`. Write
+   each `explain` for the operator: say why that edit helps, not what the
+   record syntax does. Resolve every record against this one snapshot.
+5. **Apply:** `couch --session-sync apply EDITS.json FILE --if-hash H --fold ID[,ID] --json`.
+   Fold only IDs from step 1 whose asks this edit answers. A kept delivery you
+   didn't answer, and one arriving after step 1, stay owed. With no IDs,
+   leave out `--fold`. Delete EDITS.json after success or refusal. Couch
+   applies the entire batch or none of it, converts proposals when the
+   document says `presentation: propose`, and derives the round. Never type
+   proposal-marker syntax into `new`. A record answering the operator's own
+   ready request marker in the base text (including a side-doc link or fold-in)
+   applies directly even under `propose`; the engine checks this, and unrelated
+   edits still become proposals. When that answer opens a side doc, include
+   its matching `discussions:` frontmatter entry in the same batch as the link.
+   Pair checks the association and lands both atomically; do not split them
+   into two writes.
+6. **Report the landed edits:** `couch --session-sync round FILE --json` gives
+   the round's spans and their `explain` reasons; list those edits in the
+   reply. A no-op answer can use `write --all` with the unchanged snapshot
+   solely to fold its owed IDs; it makes no body edit. Generated content and
+   frontmatter-only changes use their `write` verbs, whose changes also get
+   a derived round. `write --frontmatter` is the only path for a needed
+   frontmatter change under `presentation: propose`: Pair refuses markers
+   inside frontmatter.
 
 Refusals:
 
 - **Exit 3, the operator holds the lock:** they are still editing. Don't wait
-  in a loop or force it. Keep the pending ask, and answer it after their next
-  submit, starting again from step 1. The ask stays yours to answer even if
+  in a polling loop or force it. Say plainly that you are waiting for the
+  operator's next submit. Keep the pending ask, and answer it after that submit,
+  starting again from step 1. The ask stays yours to answer even if
   that round's diff is empty. If `status` shows the lock held for more than 30
   minutes, ping the operator in one line in your pane (for the TL's session
   file, a Needs you item instead).
 - **Exit 6, stale:** the document changed since your read. Go back to step 1,
-  refresh every input, and recompute on the new snapshot.
+  refresh every input, and rebuild every record on the new snapshot. Do not
+  replay records based on the old bytes.
+- **Exit 1, `edits-invalid`:** `Invalid` lists the bad record indices and
+  reasons (`empty old`, `not found`, `overlap`); malformed JSON has an error
+  instead. Nothing was written. Fix the listed records and retry the full
+  batch, never a partial subset.
+- **Exit 1, `propose-too-large` or `propose-unencodable`:** Pair could not
+  express this rewrite as short markers. Write the intended new text in a
+  side doc proposal (`../collaboration-modes.md` §4), then use a fresh
+  snapshot and `apply` to link it in place as `→ [proposal](…)`. The operator
+  can later ask `🤖[fold in]` beside that link. Do not hand-write markers.
+
+If an apply response is lost, read the file and its round before retrying;
+an exit code you did not receive is not proof that nothing changed. If the
+round read itself fails after a successful apply, name that uncertainty in
+the reply rather than inventing a list of edits.
 
 ## Side docs and a parent
 
 A round in discussion or chat mode may create side docs and may fold into a
-parent document (`../collaboration-modes.md` §4 orders the writes). Write a new
-side doc as a new file, directly: no one holds a lock on a file that doesn't
-exist yet. Every existing document the round changes, the submitted one and a
-parent alike, takes its own path above or below by its own tracked or untracked
-lookup. A tracked parent gets its own snapshot (`read --all`, its hash) and its
-own `write --all --if-hash`, with no `--fold`: its owed events belong to its
-own rounds. On exit 6 (stale), read the parent again and recompute the fold.
+parent document (`../collaboration-modes.md` §4 orders the writes). A new side
+doc keeps the existing create/write path: no one holds a lock on a file that
+doesn't exist yet. Every existing document the round changes, the submitted
+one and a parent alike, takes its own path above or below by its own tracked
+or untracked lookup. A tracked parent gets its own snapshot (`read --all`, its
+hash) and its own `apply --if-hash`, with no `--fold`: its owed events belong
+to its own rounds. On exit 6 (stale), read the parent again and rebuild the
+fold records.
 On exit 3 (the operator holds the parent's lock), end the round before the
 submitted document is written, so its ask stays for the next submit.
 

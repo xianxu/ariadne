@@ -61,24 +61,24 @@ The skill never guesses success from an exit status it did not receive. For a lo
 
 **Files:** `pkg/reviewexport/export_test.go`, `pkg/reviewexport/examples_test.go`; add a focused skill-contract test in `pkg/reviewexport` if the existing checker cannot express the cases.
 
-- [ ] Write red tests: v3 mode files without `deletions` parse and a mode still carrying that obsolete flag is rejected; v3 manifest mode records omit the field; `round.md` names document `presentation:` and no active `propose-strike` directive; adapter and workbench name apply, exit 1/3/6, and their distinct round/body outputs. Existing example checker should reject a case that still asserts the old proposal rule.
-- [ ] Run `go test ./pkg/reviewexport -count=1` and record the expected failures.
+- [x] Write red tests: v3 mode files without `deletions` parse and a mode still carrying that obsolete flag is rejected; v3 manifest mode records omit the field; `round.md` names document `presentation:` and no active `propose-strike` directive; adapter and workbench name apply, exit 1/3/6, and their distinct round/body outputs. Existing example checker should reject a case that still asserts the old proposal rule.
+- [x] Run `go test ./pkg/reviewexport -count=1` and record the expected failures.
 
 ### Task 2: authored universal-review skill and examples
 
 **Files:** `construct/local/universal-review/{round.md,collaboration-modes.md,adapters/file-edit.md,modes/*.md,examples/discussion-parent/{case.md,after/design.md},SKILL.md}` and any other example case whose expected output depended on `propose-strike`.
 
-- [ ] Remove the mode deletion flag and its directives. In `round.md`, read `presentation:` from each document's frontmatter every round; the mode still governs scope/frontier. Proposal markers come only from Pair's converter, never hand-written by the agent. Under `propose`, keep small changes as records and route `propose-too-large`/`propose-unencodable` to a linked side doc.
-- [ ] Replace the tracked adapter's body-file `write --all` step with EDITS.json records and `couch --session-sync apply EDITS.json FILE --if-hash H --fold ID[,ID] --json`. Every record has an operator-readable `explain`; `occurrence` is 1-based and `old` nonempty. On exit 1 invalid, fix the list and retry the entire batch; on exit 6 re-read/rebuild; on exit 3 defer. A successful round is read with `couch --session-sync round FILE --json`, and the reply lists its spans. Keep `write` only for generated content, no-op fold, and the converter's frontmatter-only exception.
-- [ ] Preserve side-doc ordering and move/fold semantics; rewrite examples and checker expectations to the new presentation rule, including a proposal-too-large side doc linked then folded. Run `go test ./pkg/reviewexport -count=1` until green. The live fixture must not require the agent to type marker syntax for a proposal.
+- [x] Remove the mode deletion flag and its directives. In `round.md`, read `presentation:` from each document's frontmatter every round; the mode still governs scope/frontier. Proposal markers come only from Pair's converter, never hand-written by the agent. Under `propose`, keep small changes as records and route `propose-too-large`/`propose-unencodable` to a linked side doc.
+- [x] Replace the tracked adapter's body-file `write --all` step with EDITS.json records and `couch --session-sync apply EDITS.json FILE --if-hash H --fold ID[,ID] --json`. Every record has an operator-readable `explain`; `occurrence` is 1-based and `old` nonempty. On exit 1 invalid, fix the list and retry the entire batch; on exit 6 re-read/rebuild; on exit 3 defer. A successful round is read with `couch --session-sync round FILE --json`, and the reply lists its spans. Keep `write` only for generated content, no-op fold, and the converter's frontmatter-only exception.
+- [x] Preserve side-doc ordering and move/fold semantics; rewrite examples and checker expectations to the new presentation rule, including a proposal-too-large side doc linked then folded. Run `go test ./pkg/reviewexport -count=1` until green. The live fixture must not require the agent to type marker syntax for a proposal.
 
 ### Task 3: hosted Pair workbench protocol
 
 **Files:** `construct/local/fix/SKILL.md`, `atlas/workflow/universal-review.md`; add a focused phrase/contract test if none guards this section.
 
-- [ ] Replace handoff-writing with `pair review apply EDITS.json FILE --if-hash H --json` and its 0/1/3/6 table. Delete the activation-context envelope, landed artifact, applied-poke and reconciliation instructions. Commit `Body` from a successful reply verbatim via `docflow round --side agent -m SUMMARY --body BODY` immediately; human-round and readiness rules stay.
-- [ ] Remove the Edit/Generate instructions to hand-write proposal markers; preserve their distinct scope/voice behavior and direct mechanical proofreading. Update the skill's description/pointers so agents find the current path. Add an explicit lost-response read-before-retry rule.
-- [ ] Test the workbench contract text and its Pair CLI example; run the focused checker.
+- [x] Replace handoff-writing with `pair review apply EDITS.json FILE --if-hash H --json` and its 0/1/3/6 table. Delete the activation-context envelope, landed artifact, applied-poke and reconciliation instructions. Commit `Body` from a successful reply verbatim via `docflow round --side agent -m SUMMARY --body BODY` immediately; human-round and readiness rules stay.
+- [x] Remove the Edit/Generate instructions to hand-write proposal markers; preserve their distinct scope/voice behavior and direct mechanical proofreading. Update the skill's description/pointers so agents find the current path. Add an explicit lost-response read-before-retry rule.
+- [x] Test the workbench contract text and its Pair CLI example; run the focused checker.
 
 ### Task 4: export, conformance, and landing
 
@@ -91,3 +91,5 @@ The skill never guesses success from an exit status it did not receive. For a lo
 ## Revisions
 
 - 2026-10-18, initial plan: incorporate Pair M2's exact review-workbench delta and the hub's parley-first export order. The `presentation:` source remains document frontmatter, not a copied round flag. The `write --frontmatter` exception follows Pair's converter contract; body edits use apply.
+- 2026-10-18, proposal-link conformance: Pair M1's converter proposed even the link replacing an operator request, leaving no active side-doc link; a later large fold would hit the same size refusal. The hub assigned Pair #661 M2 a base-text-checked exception: under `presentation: propose`, a record that answers the operator's own ready request marker (including `🤖[fold in]` beside a side-doc link) applies directly. No agent-declared exception exists; unrelated edits still become proposals. Update the skill and fixture to that landed contract before close.
+- 2026-10-18, atomic side-doc index: a new link also adds the matching `discussions:` frontmatter entry. Pair M1 rejects body plus frontmatter in a proposed write; the hub chose a Pair-level extension to the same operator-marker exception so the matching link and index entry ride one `apply` atomically. Keep the skill's one-write rule and verify it against Pair #661 M2 rather than adding a two-write recovery state.

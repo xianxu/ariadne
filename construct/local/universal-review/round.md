@@ -23,7 +23,7 @@ uses its terms and restates none of it.
 ## 2. Modes
 
 The stock modes are the files in `modes/`, one per mode. Each has flat
-frontmatter (`name`, `order`, `scope`, `deletions`, `frontier`) and a prose
+frontmatter (`name`, `order`, `scope`, `frontier`) and a prose
 brief.
 
 - **Resolve each `[name]`:** an exact mode name wins. Otherwise the name must
@@ -46,9 +46,19 @@ brief.
 | `scope` | `markers-only` | Confine edits to text that 🤖 markers refer to; leave the rest untouched. |
 | `frontier` | `on` | Treat everything above the topmost human `🤖[…]` marker as settled: confine edits and findings to that marker and below. |
 | `frontier` | `off` | No settled region. |
-| `deletions` | `apply-with-gutter-why` | Apply removals directly, and say why each went (in your reply, or a `🤖{…}` note beside the cut). |
-| `deletions` | `apply` | Apply mechanical removals directly and silently. |
-| `deletions` | `propose-strike` | Apply no removal or replacement yourself: propose each as a marker for the operator to accept or reject: a deletion as `🤖~D~`, a replacement in the form the grammar's §3 prefers. |
+
+`presentation:` is a separate value in the **document's** frontmatter, read on
+every round: `direct`, `highlight` (the default when absent), or `propose`.
+It controls how the operator sees edits; it does not change a review mode's
+scope or frontier. Build the intended clean edit as records in every case.
+Under `propose`, Couch converts those edits to marker proposals; never type
+proposal marker syntax yourself. A rewrite it cannot encode becomes a linked
+side-doc proposal by the adapter's refusal path. Frontmatter-only changes use
+`write --frontmatter`, because proposals cannot be placed inside frontmatter.
+When a record answers the operator's own ready request marker in the base text,
+Couch applies that record directly even under `propose`: the request already
+authorized the link or fold it asks for. The engine checks the marker; an agent
+cannot declare another edit exempt. Unrelated records still become proposals.
 
 The frontier's edges: the topmost human marker is found outside fenced code,
 and the text it refers to (§5) is on the open side. With no human marker, there
@@ -86,10 +96,8 @@ grammar.
   asked change to the text the marker refers to, or answer the question. A marker
   with an anchor (`<X>` or `~D~`) refers to exactly that text; without one, to
   the text just before it, back to the previous paragraph, bullet or heading.
-  Match the scale of the edit to the ask. The ask is carried out under the
-  first mode's `deletions` directive: under `propose-strike`, the change it
-  asks for is written as a proposal marker in place of the human marker, and
-  that proposal is the answer.
+  Match the scale of the edit to the ask. Build the clean result; the document's
+  `presentation:` governs whether Couch writes it directly or as a proposal.
 - **Done:** a ready marker whose ask you have fully carried out is removed. An
   answer is folded into clean prose (the grammar's §6 light-touch default), not
   narrated as a reply.
@@ -102,8 +110,8 @@ grammar.
 
 ## 6. The reply
 
-After the adapter has written the document, reply briefly in your own pane:
-what you changed and what you left for the operator (open questions, proposals
+After the adapter has written the document, reply briefly in your own pane.
+List the round's edits from `round --json` spans, then what you left for the operator (open questions, proposals
 to accept or reject), each side doc or answer doc you created, extended or
 relinked, every `collaboration-mode:` name that matches no heading, and every
 orphan side doc (collaboration-modes.md §4). An error (an unknown review or

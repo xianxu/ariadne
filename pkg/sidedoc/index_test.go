@@ -11,9 +11,10 @@ import (
 func TestSideLinks(t *testing.T) {
 	doc := "# D\n\nA → [discussion](d.side/01-a.md) and → [answer](d.side/2026-10-17-01-b.md).\n" +
 		"Decided (operator): x → [notes](d.side/02-c.md) (folded 2026-10-17)\n" +
+		"A large rewrite → [proposal](d.side/03-rewrite.md)\n" +
 		"```\n→ [discussion](d.side/99-shown.md)\n```\n" +
 		"→ [link](d.side/03-not-a-side-link.md)\n"
-	want := []string{"d.side/01-a.md", "d.side/2026-10-17-01-b.md", "d.side/02-c.md"}
+	want := []string{"d.side/01-a.md", "d.side/2026-10-17-01-b.md", "d.side/02-c.md", "d.side/03-rewrite.md"}
 	if got := SideLinks(doc); !slices.Equal(got, want) {
 		t.Errorf("SideLinks = %v, want %v", got, want)
 	}
