@@ -56,6 +56,7 @@ func TestJudgeControlledProcess(t *testing.T) {
 
 func TestReviewProcessCancellationKillsGroupAndReaps(t *testing.T) {
 	oldGrace := reviewShutdownGrace
+	//lint:allow test-shrunk-deadline — the grace starts at cancellation, after the child reported ready
 	reviewShutdownGrace = 50 * time.Millisecond
 	t.Cleanup(func() { reviewShutdownGrace = oldGrace })
 	ready := filepath.Join(t.TempDir(), "ready")
@@ -119,6 +120,7 @@ func waitReviewChild(t *testing.T, path string, parent int) int {
 
 func TestReviewProcessBoundsPipeDrainAfterNormalExit(t *testing.T) {
 	oldGrace := reviewShutdownGrace
+	//lint:allow test-shrunk-deadline — the grace starts at cancellation, after the child reported ready
 	reviewShutdownGrace = 50 * time.Millisecond
 	t.Cleanup(func() { reviewShutdownGrace = oldGrace })
 	ready := filepath.Join(t.TempDir(), "ready")

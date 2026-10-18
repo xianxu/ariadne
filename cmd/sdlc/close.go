@@ -239,6 +239,7 @@ func warmupStatePath() string {
 	// during a transition period where both binaries co-exist. /tmp is
 	// world-writable on every Unix; if it's not, the WriteFile in
 	// warmupIncrement swallows the error silently (best-effort).
+	//lint:allow tmp-literal — shared with scripts/close-issue.py, which still runs from Makefile.workflow
 	return filepath.Join("/tmp", fmt.Sprintf("close-issue-warmup-%d", pgid))
 }
 

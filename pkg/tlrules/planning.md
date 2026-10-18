@@ -24,3 +24,8 @@ HOT-PATH COST
   Example: a log reader with N entries takes one pass, O(N); rescan per entry costs O(N^2).
   Count scans for 8 and 16 entries; assert scans <= 2*entries (rescan costs 36/136).
 
+
+MISTAKE CLASSES
+  A fix for a mechanical mistake class (a flake pattern, a misused API, a
+  hardcoded path) adds its rule to the Go lint catalog in `pkg/golint`, citing
+  the incident, so the suite catches the next instance.

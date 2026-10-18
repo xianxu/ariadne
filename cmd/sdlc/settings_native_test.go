@@ -92,6 +92,7 @@ func TestStartPlanProtectedSettingsNativeSandbox(t *testing.T) {
 	binary := filepath.Join(bin, "weave")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
+	//lint:allow test-go-build — an end-to-end test of the built binary; building once per process is #438
 	build := exec.CommandContext(ctx, "go", "build", "-trimpath", "-o", binary, "./cmd/weave")
 	build.Dir = source
 	if out, err := build.CombinedOutput(); err != nil {

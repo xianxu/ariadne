@@ -138,6 +138,7 @@ func TestCancellationStopsProducerBeforeStageRemoval(t *testing.T) {
 		t.Fatal("cancelled release published output")
 	}
 	os.WriteFile(filepath.Join(root, "release-producer"), nil, 0644)
+	//lint:allow test-fixed-sleep — a window for a cancelled producer's forbidden late write to appear
 	time.Sleep(150 * time.Millisecond)
 	if _, err := os.Stat(filepath.Join(root, "producer-done")); !os.IsNotExist(err) {
 		t.Fatal("cancelled producer survived to finish")

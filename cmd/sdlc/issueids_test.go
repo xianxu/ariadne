@@ -869,6 +869,7 @@ func TestRunIssueNew_FromASubdirectoryFilesToTheRepoIssueDir(t *testing.T) {
 // separable from exit 1's "found a collision".
 func TestLintIDs_DegradedReadExitsNonZero(t *testing.T) {
 	bin := filepath.Join(t.TempDir(), "sdlc")
+	//lint:allow test-go-build — an end-to-end test of the built binary; building once per process is #438
 	build := exec.Command("go", "build", "-o", bin, ".")
 	build.Dir = "."
 	if out, err := build.CombinedOutput(); err != nil {
