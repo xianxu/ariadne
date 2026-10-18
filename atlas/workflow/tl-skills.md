@@ -27,13 +27,17 @@ AGENTS §15, test-budget rules in §5, and messaging mechanics in
 
 **The lead prose** is the TL's current procedure: the order of play, stewardship and the operator's two design rules, the status file, grooming trains, dispatch, watching, landing and the `sdlc stage` smoke loop, attention and load, and fleet traps. It holds rules only. Incident history stays in ops learnings, and a new kink lands as a rule change here (`cmd/tl-lead/main_test.go` refuses kink numbers, dated stories, bare `#N` refs and "until X lands" interims). It cites `tl-worker --help` for the worker's rules: `pkg/tlrules` parses the shared rule table, and the lead's test refuses any worker-owned phrase.
 
-**Couch lifecycle notices (ariadne#433).** Couch's system notices for slot start, park, relaunch, exit, and recovery update the TL's `## Slots` view without a reply. Its restart summary replaces routine per-slot polling after a Couch restart; the TL peeks only uncertain or stalled slots. A peer message cannot become a system notice by claiming to be one. The authoritative procedure is `cmd/tl-lead/help.md` under WATCHING.
+**Couch lifecycle notices (ariadne#433).** Couch's system notices for slot start, park, relaunch, recovery, needs-relaunch, and restart summary update the TL's `## Slots` view without a reply. The restart summary replaces routine per-slot polling after a Couch restart; the TL peeks only uncertain or stalled slots. A peer message cannot become a system notice by claiming to be one. The authoritative procedure is `cmd/tl-lead/help.md` under WATCHING.
 
 **Planning rules.** Both help surfaces carry the third-design-delta re-plan
 tripwire and the owner-lifetime lock/lease question before an absence proof.
 The shared body is embedded from `pkg/tlrules/planning.md` and composed into
 both command helps by `tlrules.ComposeHelp`. Existing help tests phrase-guard
 both outputs (ariadne#404).
+For state that a user or automation can act on, that shared body also requires
+an action and failure-mode table: internal cases map to a few visible states,
+each with one recovery and stated possible loss; the tradeoff goes to the TL,
+then to the operator when user-facing (ariadne#410).
 
 **Approval and dispatch boundary.** Worker help owns small-fix self-approval,
 issue-backed flake handling, Git-output hash evidence and direct same-repo

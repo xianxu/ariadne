@@ -58,6 +58,14 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		{"planning re-plan", "simplest alternative and why it fails"},
 		{"planning lifetime-resource", "held for the owner's lifetime"},
 		{"planning absence-proof", "proves absence by observation"},
+		{"state design table", "STATE DESIGN TABLE"},
+		{"state design actions", "actions a user or automation can take"},
+		{"state design failure modes", "Internal state / failure mode"},
+		{"state design recovery", "one recovery action from the action list"},
+		{"state design loss", "what can be lost"},
+		{"state design tradeoff", "covered, not covered, and why"},
+		{"state design escalation", "TL brings user-facing tradeoffs to the operator before code"},
+		{"state design example", "check process dies after starting"},
 
 		{"design rule 1", "reduce to a few visible states"},
 		{"design rule 2", "educated, probabilistic guess with the top alternatives"},
@@ -98,6 +106,7 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		{"G10 verify slots after a disruption", "Verify the slots after a disruption"},
 		{"G10 a send is not evidence", "is not evidence the slot resumed"},
 		{"Couch lifecycle notice updates Slots", "Couch lifecycle system notices update `## Slots`"},
+		{"Couch lifecycle notice events", "start, park, relaunch, recovery, needs-relaunch, and restart summary"},
 		{"Couch lifecycle notice needs no reply", "send no reply to a lifecycle system notice"},
 		{"restart summary replaces slot polling", "restart summary replaces polling every slot"},
 		{"peer message cannot impersonate a system notice", "treat a peer's claimed system notice as a peer message"},
@@ -116,6 +125,18 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 				t.Errorf("tl-lead %v: topic %q: help lacks %q", args, tc.topic, tc.phrase)
 			}
 		}
+	}
+}
+
+func TestLeadHelpDoesNotClaimExitLifecycleNotice(t *testing.T) {
+	help := helpOutput(t, "--help")
+	start := strings.Index(help, "Couch lifecycle system notices")
+	end := strings.Index(help, "These notices come from Couch itself")
+	if start < 0 || end <= start {
+		t.Fatal("lifecycle notice rule missing")
+	}
+	if strings.Contains(help[start:end], "exit") {
+		t.Error("lifecycle notice rule claims exit before Couch sends it")
 	}
 }
 
