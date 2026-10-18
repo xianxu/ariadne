@@ -1,6 +1,6 @@
 ---
 id: 000403
-status: codecomplete
+status: done
 created: 2026-10-15
 updated: 2026-10-17
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: c4815824a6b8a59fcc673bf7a7e6e5cdd2550109
         evidence_commit: 81885d820f5111e98f1aa539a4869f3982d9b486
+        landed_commit: a5105cbd44468be2b4a90bd495d679bd18930b1c
 ---
 
 # dev-aliases: don't warn about duplicate binaries when both owners are checkouts of the same repository (every slot shell prints 7 warnings)
