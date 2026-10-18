@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-17
-estimate_hours:
-card_mirror: '43f465e35c614cc4ba1092fa808abd432789a32d' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 4.26
+card_mirror: 'cab30c82d9025e928df1f7c1faca8276a238bf9d' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T21:39:59-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # Weekly test-economy snapshot from local checks and landings
@@ -39,6 +40,23 @@ Produce one dated, immutable weekly per-repo summary from #376's per-attempt loc
 - [ ] Design the evidence join and snapshot schema in `workshop/plans/000392-weekly-test-economy-snapshot-plan.md` under #390's approved measurement revision; obtain hub approval before code.
 - [ ] Build the pure weekly model and exact attempt-to-landing join with fixture-backed red/green tests.
 - [ ] Add the brain writer and CLI, test immutable reruns and partial evidence, then save the first ariadne/pair snapshot and give its link to the TL for the ops project.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. The two greenfield modules are the weekly metric and exact attribution; the API integration is the bounded Git/tracker/landing evidence reader; the remaining module is the atomic brain writer and CLI. Existing Go libraries and local primitives cover the stack, so no new-library design allowance is needed. The source reports stale calibration, so these hours are provisional.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module design=0.5 impl=0.32
+item: greenfield-go-module design=0.5 impl=0.32
+item: api-integration design=0.6 impl=0.6
+item: greenfield-go-module design=0.3 impl=0.32
+item: atlas-docs design=0.1 impl=0.08
+item: milestone-review design=0.1 impl=0.2
+design-buffer: 0.15
+total: 4.26
+```
 
 ## Log
 
