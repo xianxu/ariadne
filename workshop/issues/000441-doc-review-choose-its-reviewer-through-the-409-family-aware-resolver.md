@@ -54,6 +54,24 @@ keeps `cmd/doc-review` out. Both proper routes move code, so this item is outsid
 
 - doc-review chooses its reviewer through the #409 resolver (the document author family when known, else the policy order), with the same visible degradation; or a decision records why it stays fixed.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: cross-cutting-refactor design=0.05 impl=0.14
+item: smaller-go-module      design=0.05 impl=0.14
+item: atlas-docs             design=0.0 impl=0.06
+item: milestone-review       design=0.0 impl=0.14
+item: milestone-review       design=0.0 impl=0.14
+design-buffer: 0.15
+total: 0.735
+```
+
+Derivation: design settled by two plan-quality rounds. impl= is 40% of the v2 midpoints (v3.1): the two-package move
+with aliases (cross-cutting refactor, 0.35 → 0.14); doc-review's choice, fallback and record (smaller module, 0.35 →
+0.14); help and atlas (0.15 → 0.06); two milestone reviews (0.35 → 0.14 each). The calibration doc is flagged stale.
+
 ## Plan
 
 Durable plan: `workshop/plans/000441-doc-review-choose-its-reviewer-through-the-409-family-aware-resolver-plan.md` (full flow, per the hub).
