@@ -1202,6 +1202,22 @@ writes are stopped only by the #204 fence), codex `--sandbox read-only | workspa
 danger-full-access`, gemini without `--yolo`. No judge gets an auto-approve mode;
 `--sandbox` on `judge`/`change-code` is a deprecated no-op.
 
+**Reviewer families (#409).** `judge.FamilyOf` maps each agent to its vendor (claude →
+anthropic, codex → openai, gemini → google; anything else is unknown, never guessed), and a
+review's `judge.ChangeKind` is `design-heavy` (a design: plan-quality, planning review, a
+full-flow boundary) or `bounded` (a quick-flow boundary). Under `other` the pure
+`judge.ReviewPlan(policy, main, authorFamilies, kind, availability)` lists every agent whose
+family authored none of the window, in the kind's order (design-heavy: claude, codex, gemini;
+bounded: codex, claude, gemini, so #310's claude ↔ codex pairing holds and gemini is the
+fallback). `reviewer_order` and `reviewer_models` in `workshop/review.json` override the
+orders and pass a model per reviewer. `same` and `explicit` stay #310's floor.
+`judge.LocalAvailability` skips, before launch and with a reason, an agent whose CLI is
+missing or codex under checkout containment on macOS. `judge.Unavailable` counts a run as
+"could not review" only on a failed launch, or a stream that failed before any assistant or
+tool event (`AgentRun.Began`) with an unreachable, quota or sign-in cause; only that may move
+a review to the next candidate. The default for a repo with no policy is the single constant
+`judge.DefaultReviewerMode` (`same` until the operator decides the fleet default).
+
 **Dispatch progress heartbeat (#140).** A boundary review can run silently for
 minutes; `internal/judge.Dispatch` now emits a heartbeat to `opts.Stderr` every
 `heartbeatInterval` (30s) while the agent subprocess runs — elapsed + agent +
