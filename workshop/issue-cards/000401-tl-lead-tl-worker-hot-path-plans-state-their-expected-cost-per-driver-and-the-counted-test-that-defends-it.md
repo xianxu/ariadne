@@ -1,6 +1,6 @@
 ---
 id: 000401
-status: codecomplete
+status: done
 created: 2026-10-15
 updated: 2026-10-17
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 649edd3f741c7747fc505fca35d4849fc47cea40
         evidence_commit: 02ba712183082fae121e5a1761265bd6b266a986
+        landed_commit: 814cd00fd8070b59d967097d722dba4f0643dfe4
 ---
 
 # tl-lead/tl-worker: hot-path plans state their expected cost per driver and the counted test that defends it
