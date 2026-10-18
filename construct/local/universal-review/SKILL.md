@@ -18,7 +18,7 @@ from memory:
    grammar. Read it before writing any marker.
 3. **The adapter:** you edit the file yourself, so follow
    [adapters/file-edit.md](adapters/file-edit.md). For a Couch-tracked
-   document it goes through the operator's lock and a compare-and-swap write;
+   document it goes through the operator's lock and a compare-and-swap apply;
    never edit one directly.
 
 `export.json` lists these files with their hashes, for parley's standalone

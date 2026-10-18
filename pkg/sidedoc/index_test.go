@@ -11,11 +11,59 @@ import (
 func TestSideLinks(t *testing.T) {
 	doc := "# D\n\nA → [discussion](d.side/01-a.md) and → [answer](d.side/2026-10-17-01-b.md).\n" +
 		"Decided (operator): x → [notes](d.side/02-c.md) (folded 2026-10-17)\n" +
+		"A large rewrite → [proposal](d.side/03-rewrite.md)\n" +
 		"```\n→ [discussion](d.side/99-shown.md)\n```\n" +
 		"→ [link](d.side/03-not-a-side-link.md)\n"
-	want := []string{"d.side/01-a.md", "d.side/2026-10-17-01-b.md", "d.side/02-c.md"}
+	want := []string{"d.side/01-a.md", "d.side/2026-10-17-01-b.md", "d.side/02-c.md", "d.side/03-rewrite.md"}
 	if got := SideLinks(doc); !slices.Equal(got, want) {
 		t.Errorf("SideLinks = %v, want %v", got, want)
+	}
+}
+
+func TestSideLinksIncludeOnlyEnginePendingMarkers(t *testing.T) {
+	doc := "The release is slow. 🤖{ → \\[proposal\\](design.side/01-release.md)}\n" +
+		"- Ask → [discussion](design.side/02-clean.md) then 🤖{ → \\[answer\\](design.side/03-answer.md)}\n" +
+		"Literal escaped Markdown: → \\[proposal\\](design.side/not-a-marker.md)\n" +
+		"```md\n🤖{ → \\[proposal\\](design.side/fenced.md)}\n```\n"
+	want := []string{"design.side/01-release.md", "design.side/02-clean.md", "design.side/03-answer.md"}
+	if got := SideLinks(doc); !slices.Equal(got, want) {
+		t.Fatalf("SideLinks pending markers = %v, want %v", got, want)
+	}
+}
+
+func TestReconcileIndexKeepsPendingLinkThenDropsRejectedLink(t *testing.T) {
+	const index = "discussions:\n  - doc: design.side/01-release.md\n"
+	base := "---\npresentation: propose\n" + index + "---\n# Design\n\nThe release is slow."
+	pending := base + " 🤖{ → \\[proposal\\](design.side/01-release.md)}\n"
+	kept, report, err := ReconcileIndex(pending, nil)
+	if err != nil || kept != pending || report.Changed() {
+		t.Fatalf("pending link lost its index: changed=%v report=%+v err=%v", kept != pending, report, err)
+	}
+	rejected := base + "\n"
+	cleaned, report, err := ReconcileIndex(rejected, nil)
+	if err != nil || !slices.Equal(report.Dropped, []string{"design.side/01-release.md"}) || strings.Contains(cleaned, "  - doc: design.side/01-release.md") {
+		t.Fatalf("rejected link kept its index: report=%+v err=%v doc=%q", report, err, cleaned)
+	}
+}
+
+func TestPendingMarkerKeepsEverySideLinkUntilRejection(t *testing.T) {
+	const a = "design.side/01-a.md"
+	const b = "design.side/02-b.md"
+	const c = "design.side/03-c.md"
+	const d = "design.side/04-d.md"
+	marker := "🤖{ → \\[proposal\\](" + a + ") and → \\[answer\\](" + b + ") plus → \\[notes\\](" + c + ") and → \\[discussion\\](" + d + ")}"
+	pending := "---\ndiscussions:\n  - doc: " + a + "\n  - doc: " + b + "\n  - doc: " + c + "\n  - doc: " + d + "\n---\n# Design\n\n" + marker + "\n"
+	if got := SideLinks(pending); !slices.Equal(got, []string{a, b, c, d}) {
+		t.Fatalf("pending links = %v, want all four", got)
+	}
+	kept, report, err := ReconcileIndex(pending, nil)
+	if err != nil || kept != pending || report.Changed() {
+		t.Fatalf("pending marker lost an index entry: report=%+v err=%v doc=%q", report, err, kept)
+	}
+	rejected := strings.Replace(pending, marker, "The answer was rejected.", 1)
+	cleaned, report, err := ReconcileIndex(rejected, nil)
+	if err != nil || !slices.Equal(report.Dropped, []string{a, b, c, d}) || strings.Contains(cleaned, "  - doc:") {
+		t.Fatalf("rejected marker kept an index entry: report=%+v err=%v doc=%q", report, err, cleaned)
 	}
 }
 

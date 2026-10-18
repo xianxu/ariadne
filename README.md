@@ -20,6 +20,13 @@ For an evidence-backed retrospective of development-process friction in a
 current or supplied session transcript, invoke `session-retro`; see
 [`atlas/workflow/session-retro.md`](atlas/workflow/session-retro.md).
 
+In universal review, the document's `presentation: propose` asks the edit
+engine to show prose changes as proposals. Tracked Couch documents use
+`couch --session-sync apply`; a hosted Pair workbench uses `pair review apply`.
+An untracked document with that presentation must be tracked before editing.
+Both apply paths accept one atomic batch of explained edits and derive the
+round; see [universal review](atlas/workflow/universal-review.md).
+
 ## Concurrent issue work
 
 For a live slot check, `sdlc stage --build` switches the target to this

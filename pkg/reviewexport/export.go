@@ -19,12 +19,12 @@ import (
 )
 
 // Schema and Version identify the manifest format. A consumer refuses any
-// other pair, so a change to the member shape bumps Version. Version 2 adds
-// the fixture role (#424): the move cases' files, which parley's mover is
-// tested against (parley.nvim#373).
+// other pair, so a change to the member shape bumps Version. Version 3
+// retires the mode-level deletions field (#437); document presentation now
+// controls proposals. Version 2 added the fixture role (#424).
 const (
 	Schema  = "ariadne/universal-review-export"
-	Version = 2
+	Version = 3
 )
 
 // GrammarSource is the repository path of the one authored marker grammar,
@@ -48,7 +48,6 @@ type Member struct {
 	Source    string `json:"source,omitempty"`
 	Order     int    `json:"order,omitempty"`
 	Scope     string `json:"scope,omitempty"`
-	Deletions string `json:"deletions,omitempty"`
 	Frontier  string `json:"frontier,omitempty"`
 	Bytes     int    `json:"bytes"`
 	SHA256    string `json:"sha256"`
@@ -58,18 +57,17 @@ var roleRank = map[string]int{"round": 0, "grammar": 1, "collaboration-modes": 2
 
 // defaults are parley's values for an omitted flag; the export records the
 // resolved value, so its mode records are dense.
-var defaults = map[string]string{"scope": "markers-only", "deletions": "propose-strike", "frontier": "on"}
+var defaults = map[string]string{"scope": "markers-only", "frontier": "on"}
 
 var valid = map[string][]string{
 	"scope":     {"whole-doc", "markers-only"},
-	"deletions": {"apply-with-gutter-why", "propose-strike", "apply"},
 	"frontier":  {"on", "off"},
 }
 
 // Mode is a parsed modes/<name>.md frontmatter. Order 0 means the mode has
 // none, and sorts after every ordered mode.
 type Mode struct {
-	Name, Scope, Deletions, Frontier string
+	Name, Scope, Frontier string
 	Order                            int
 }
 
@@ -96,6 +94,9 @@ func ParseMode(content, basename string) (Mode, error) {
 		}
 	}
 	m := Mode{Name: flags["name"]}
+	if _, old := flags["deletions"]; old {
+		return Mode{}, fmt.Errorf("mode %s: deletions is retired; use document presentation", basename)
+	}
 	if m.Name != basename {
 		return Mode{}, fmt.Errorf("mode %s: name %q must equal the file's basename", basename, m.Name)
 	}
@@ -110,8 +111,6 @@ func ParseMode(content, basename string) (Mode, error) {
 		switch key {
 		case "scope":
 			m.Scope = v
-		case "deletions":
-			m.Deletions = v
 		case "frontier":
 			m.Frontier = v
 		}
@@ -182,7 +181,7 @@ func Build(skill fs.FS) (Manifest, error) {
 		if err != nil {
 			return Manifest{}, err
 		}
-		if err := add(Member{Role: "mode", Name: md.Name, Path: p, Order: md.Order, Scope: md.Scope, Deletions: md.Deletions, Frontier: md.Frontier}); err != nil {
+		if err := add(Member{Role: "mode", Name: md.Name, Path: p, Order: md.Order, Scope: md.Scope, Frontier: md.Frontier}); err != nil {
 			return Manifest{}, err
 		}
 	}
