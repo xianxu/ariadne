@@ -1,6 +1,6 @@
 ---
 id: 000436
-status: codecomplete
+status: done
 created: 2026-10-17
 updated: 2026-10-18
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 00be65f9fe57f03a85b0b3c76df0827877f2bbd9
         evidence_commit: 43a86f4b3c3bebe5cf15e0dd368d70a2ae4202a9
+        landed_commit: 72ae62473c2e732d746b7a2a6e0092f39a8f0c59
 ---
 
 # tests: the remaining pid-file wait loops use testfix.AwaitPIDFile
