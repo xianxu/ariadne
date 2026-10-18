@@ -8,6 +8,14 @@ AI runs the loops. Humans steer. AI learns. `Ariadne` forms a base of all my tin
 
 Check `atlas/workflow/index.md` for how to use it (TODO).
 
+When a Go type represents JSON from an independently evolving producer, put
+`// wire: <why it can evolve separately>` in the type's doc comment. The
+repository lint then flags direct strict JSON decoding into that type. For
+example, `// wire: peer releases may add fields.` belongs directly above a
+peer-message type; version-pinned local stores should remain unmarked. See the
+[wire-message lint convention](atlas/workflow/sdlc-binary.md#the-go-lint-catalog-407)
+for the covered decoder chain and reasoned exceptions.
+
 For an evidence-backed retrospective of development-process friction in a
 current or supplied session transcript, invoke `session-retro`; see
 [`atlas/workflow/session-retro.md`](atlas/workflow/session-retro.md).

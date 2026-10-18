@@ -1938,7 +1938,8 @@ end-to-end tests: 18 builds (310 MB of binaries) became 2 (20.9 MB).
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
 that taught it (`test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
-`test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes). Packages are matched by the
+`test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, and
+`wire-strict-decode` pair#594). Packages are matched by the
 name the file imports them under, and generated files are skipped. Rules read only the syntax tree (stdlib
 `go/parser`, no type-checking, no external linter), and `TestTrackedGoFilesPassTheCatalog`
 runs them over every tracked Go file in the suite, so every landing enforces them (well under
@@ -1946,8 +1947,34 @@ a second over about 1,140 files). A finding that doesn't apply is suppressed on 
 above with `//lint:allow <rule> — <reason>`; a suppression without a reason, naming an
 unknown rule, or matching nothing is itself a finding. A fix for a mechanical mistake class
 adds its rule here (the shared planning block in `tl-worker`/`tl-lead` help says so).
-Follow-ups: golangci-lint for off-the-shelf linters (#439, operator), wire-decode (#440),
-one build per test binary (#438).
+
+Mark a named type with `// wire: <why it can evolve separately>` in its type-doc
+comment when it receives JSON from a peer binary, agent or toolchain that may
+add fields before this binary upgrades. The lint scans all tracked Go sources
+once to index marked types, then flags a direct `json.NewDecoder` →
+`DisallowUnknownFields` → `Decode` chain into one. Direct calls in expression
+statements, assignment RHS, `var` initializers, returns, and assignment-form
+`if` initializers are covered. Expression-form `if` initializers are tracked
+in #445. It reports at `Decode`;
+ambiguous branches, goto-bearing functions, and helper decoders are outside this conservative
+syntax-only rule. A marked target resolves in the same package, the module
+root, or an imported subpackage when its declared package name or explicit
+alias matches the selector; a shadowed qualifier is not an import. A decoder remains
+proven only if its function-local binding is declared by its sole direct
+`json.NewDecoder` assignment, with no reassignment or address or closure escape,
+and no use outside the two direct method calls. Copying it or passing it to a
+helper disqualifies the name, as does a second assignment even when the new
+value is another decoder. A package-global decoder is outside the proof
+because a helper can replace it. This can miss a strict decode after aliasing, but
+cannot guess that the decoder remains strict. The current examples
+are Claude stream events, `go test -json` events, and Codex/Claude usage
+records (#440). Do not mark local configuration, tracker receipts, fleet policy,
+or version-pinned issue observations: their unknown keys are errors, so strict
+decoding remains correct. A real exception at a flagged decode uses the normal
+reasoned `//lint:allow wire-strict-decode — <why>` on that line or the one above.
+
+Follow-ups: golangci-lint for off-the-shelf linters (#439, operator), one build
+per test binary (#438).
 
 ### Two full suites per machine (#319, #341)
 

@@ -12,6 +12,12 @@ import (
 // with the fix for the mistake class it catches (tl-worker, tl-lead).
 var Catalog = []Rule{
 	{
+		Name:     "wire-strict-decode",
+		Incident: "pair#594",
+		Message:  "strict JSON decoding rejects newer fields in a wire message; use a tolerant decoder for annotated wire types",
+		Match:    wireStrictDecode,
+	},
+	{
 		Name:     "test-shrunk-deadline",
 		Incident: "ariadne#434",
 		Message:  "a sub-second deadline races fixture startup under load; fire it on cue after readiness (testfix.DeadlineOnCue), or suppress where the test only asserts the bound",
@@ -150,7 +156,7 @@ func calls(f *ast.File, path string, names []string, visit func(*ast.CallExpr)) 
 // shrunkDeadlines flags an override (=, not a declaration) of a variable or
 // field named for a deadline. Without type-checking a local cannot be told
 // from a package variable; locals so named are rare, and suppressible.
-func shrunkDeadlines(f *ast.File) []ast.Node {
+func shrunkDeadlines(f *ast.File, _ *CheckContext) []ast.Node {
 	timePkg := localName(f, "time")
 	var out []ast.Node
 	ast.Inspect(f, func(n ast.Node) bool {
@@ -176,7 +182,7 @@ func shrunkDeadlines(f *ast.File) []ast.Node {
 	return out
 }
 
-func tmpLiterals(f *ast.File) []ast.Node {
+func tmpLiterals(f *ast.File, _ *CheckContext) []ast.Node {
 	var out []ast.Node
 	visit := func(call *ast.CallExpr) {
 		for _, arg := range call.Args {
@@ -193,7 +199,7 @@ func tmpLiterals(f *ast.File) []ast.Node {
 	return out
 }
 
-func goBuilds(f *ast.File) []ast.Node {
+func goBuilds(f *ast.File, _ *CheckContext) []ast.Node {
 	var out []ast.Node
 	calls(f, "", nil, func(call *ast.CallExpr) {
 		for i := 0; i+1 < len(call.Args); i++ {
@@ -208,7 +214,7 @@ func goBuilds(f *ast.File) []ast.Node {
 	return out
 }
 
-func fixedSleeps(f *ast.File) []ast.Node {
+func fixedSleeps(f *ast.File, _ *CheckContext) []ast.Node {
 	timePkg := localName(f, "time")
 	var out []ast.Node
 	calls(f, "time", []string{"Sleep"}, func(call *ast.CallExpr) {
@@ -227,7 +233,7 @@ func fixedSleeps(f *ast.File) []ast.Node {
 // tightWallclock flags an upper bound under 1s on elapsed time: time.Since(x)
 // itself, or a variable assigned from it, compared against a constant. Lower
 // bounds (proof that a wait happened) and loose hang bounds are fine.
-func tightWallclock(f *ast.File) []ast.Node {
+func tightWallclock(f *ast.File, _ *CheckContext) []ast.Node {
 	timePkg := localName(f, "time")
 	if timePkg == "" {
 		return nil

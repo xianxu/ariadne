@@ -13,6 +13,7 @@ import (
 const MaxLineBytes = 4 << 20
 const MaxResponses = 250000
 
+// wire: Codex and Claude transcript records evolve with their producers.
 type record struct {
 	Type        string          `json:"type"`
 	Timestamp   string          `json:"timestamp"`
