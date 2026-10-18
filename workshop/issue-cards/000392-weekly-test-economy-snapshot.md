@@ -1,6 +1,6 @@
 ---
 id: 000392
-status: codecomplete
+status: done
 created: 2026-10-15
 updated: 2026-10-18
 estimate_hours: 4.26
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 3a70481a5df29d2e61a0740945abfb0999a2f81f
         evidence_commit: d9790d1e9fa9a8126e36c044e84bfb930af566b6
+        landed_commit: c4fb5ba6355194ba626685b223338d9110608e82
 ---
 
 # Weekly test-economy snapshot from local checks and landings
