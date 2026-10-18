@@ -109,25 +109,12 @@ func TestReviewProcessCancellationKillsGroupAndReaps(t *testing.T) {
 
 func waitReviewChild(t *testing.T, path string, parent int) int {
 	t.Helper()
-	deadline := time.NewTimer(testfix.HangCeiling)
-	defer deadline.Stop()
-	tick := time.NewTicker(5 * time.Millisecond)
-	defer tick.Stop()
-	for {
-		select {
-		case <-deadline.C:
-			_ = syscall.Kill(parent, syscall.SIGKILL)
-			t.Fatal("controlled reviewer did not become ready")
-		case <-tick.C:
-			if raw, err := os.ReadFile(path); err == nil && len(raw) > 0 {
-				pid, err := strconv.Atoi(string(raw))
-				if err != nil {
-					t.Fatal(err)
-				}
-				return pid
-			}
-		}
+	pid := testfix.AwaitPIDFile(path, testfix.HangCeiling, nil)
+	if pid == 0 {
+		_ = syscall.Kill(parent, syscall.SIGKILL)
+		t.Fatal("controlled reviewer did not become ready")
 	}
+	return pid
 }
 
 func TestReviewProcessBoundsPipeDrainAfterNormalExit(t *testing.T) {

@@ -3,9 +3,10 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -17,9 +18,9 @@ import (
 func TestMakeProbeBoundsDescendantPipes(t *testing.T) {
 	for _, mode := range []string{"hanging-shell", "exited-parent"} {
 		t.Run(mode, func(t *testing.T) {
-			old := suiteProbeTimeout
-			suiteProbeTimeout = 500 * time.Millisecond
-			t.Cleanup(func() { suiteProbeTimeout = old })
+			// The probe's deadline passes on cue once the descendant has reported
+			// itself (#434); its own timeout stays at production length.
+			ctx, expire := testfix.DeadlineOnCue(context.Background())
 			dir := t.TempDir()
 			procedureWrite(t, dir, "Makefile", "HANG := $(shell sh ./hang.sh)\ntest:; @true\n")
 			procedureWrite(t, dir, "hang.sh", "sleep 60 &\nprintf '%s' \"$!\" > child.pid\nwait\n")
@@ -32,7 +33,7 @@ func TestMakeProbeBoundsDescendantPipes(t *testing.T) {
 				t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 			}
 			done := make(chan error, 1)
-			go func() { _, _, err := probeMakeTestFacts(dir); done <- err }()
+			go func() { _, _, err := probeMakeTestFactsContext(ctx, dir); done <- err }()
 			child := 0
 			finished := false
 			t.Cleanup(func() {
@@ -47,23 +48,20 @@ func TestMakeProbeBoundsDescendantPipes(t *testing.T) {
 					}
 				}
 			})
-			deadline := time.Now().Add(testfix.HangCeiling)
-			for time.Now().Before(deadline) {
-				raw, _ := os.ReadFile(filepath.Join(dir, "child.pid"))
-				child, _ = strconv.Atoi(string(raw))
-				if child > 0 {
-					break
-				}
-				time.Sleep(5 * time.Millisecond)
-			}
-			if child == 0 {
+			if child = testfix.AwaitPIDFile(filepath.Join(dir, "child.pid"), testfix.HangCeiling, nil); child == 0 {
 				t.Fatal("descendant never started")
 			}
+			expire()
 			select {
 			case err := <-done:
 				finished = true
 				if err == nil {
 					t.Error("probe with hanging descendant succeeded")
+				}
+				// A hanging shell keeps make alive until the cue's deadline; an
+				// exited parent ends on the pipe-drain bound instead.
+				if mode == "hanging-shell" && !errors.Is(err, context.DeadlineExceeded) {
+					t.Errorf("hanging probe ended without its deadline: %v", err)
 				}
 			case <-time.After(3 * time.Second):
 				t.Fatal("probe exceeded deadline plus bounded pipe-drain interval")

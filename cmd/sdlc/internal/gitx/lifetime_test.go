@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"syscall"
 	"testing"
 	"time"
@@ -41,16 +40,7 @@ func TestGitDefaultRunnerAndContextRunnerBoundDescendants(t *testing.T) {
 					done <- err
 				}
 			}()
-			pid := 0
-			until := time.Now().Add(testfix.HangCeiling)
-			for time.Now().Before(until) {
-				raw, _ := os.ReadFile(pidfile)
-				pid, _ = strconv.Atoi(string(raw))
-				if pid > 0 {
-					break
-				}
-				time.Sleep(5 * time.Millisecond)
-			}
+			pid := testfix.AwaitPIDFile(pidfile, testfix.HangCeiling, nil)
 			if pid == 0 {
 				t.Fatal("git descendant never started")
 			}
@@ -89,16 +79,7 @@ func TestGitHistoryStreamBoundsInheritedPipes(t *testing.T) {
 	}
 	done := make(chan error, 1)
 	go func() { _, _ = io.Copy(io.Discard, reader); done <- finish(false) }()
-	pid := 0
-	until := time.Now().Add(testfix.HangCeiling)
-	for time.Now().Before(until) {
-		raw, _ := os.ReadFile(pidfile)
-		pid, _ = strconv.Atoi(string(raw))
-		if pid > 0 {
-			break
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
+	pid := testfix.AwaitPIDFile(pidfile, testfix.HangCeiling, nil)
 	if pid == 0 {
 		t.Fatal("history descendant never started")
 	}
