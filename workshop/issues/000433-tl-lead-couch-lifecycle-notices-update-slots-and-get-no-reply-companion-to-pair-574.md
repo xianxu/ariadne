@@ -36,8 +36,8 @@ tl-lead help: Couch system notices are information, not requests. The hub update
 
 ## Plan
 
-- [ ] Add a phrase guard to the existing tl-lead help test and confirm it fails against current help.
-- [ ] Add one rule under WATCHING for authentic Couch lifecycle system notices, then verify the focused tests and built help.
+- [x] Add a phrase guard to the existing tl-lead help test and confirm it fails against current help.
+- [x] Add one rule under WATCHING for authentic Couch lifecycle system notices, then verify the focused tests and built help.
 - [ ] Run the recorded suite, close review, and normal landing gates before pair#574 closes.
 
 ## Log
@@ -45,3 +45,5 @@ tl-lead help: Couch system notices are information, not requests. The hub update
 ### 2026-10-17
 
 The hub dispatched this as a quick-flow rule change. Embedded `cmd/tl-lead/help.md` and its existing phrase-guard test keep the instruction in one place (ARCH-DRY). No Couch protocol or status-file command changes.
+
+The four new phrase guards failed against the old help for both invocation forms, then `go test ./cmd/tl-lead -count=1` passed. `make -k build` passed; built `bin/tl-lead --help` states the notice rule. The existing post-disruption polling paragraph now defers to the restart summary when one is available.
