@@ -1,4 +1,24 @@
 ---
+reviewer_runs:
+    - version: 1
+      intent:
+        id: f357cc04-ceac-42ca-bf95-711c9727c5b2
+        repository: github.com/xianxu/ariadne
+        issue_id: "000409"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: claude
+        root: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        reviewed_head: a473a96cd0c9381ed0e45d3bf47c8879b49e7a0a
+        slot: ariadne:2
+        requested_at: "2026-10-18T12:25:41.24688Z"
+      phase: finished
+      pid: 20056
+      started_at: "2026-10-18T12:25:41.375837Z"
+      finished_at: "2026-10-18T12:26:10.365991Z"
+      session_id: 946b723a-6614-4e42-8189-fff378170870
+      outcome: returned
 gate: plan-quality
 issue: 409
 id_prefix: PQ
@@ -82,6 +102,89 @@ rounds:
           family: done-when-unbacked
           round: 1
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: b349ca88-6c16-40d2-a92c-0080d007b2ae
+            repository: github.com/xianxu/ariadne
+            issue_id: "000409"
+            recipe: plan-quality
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+            reviewed_head: 62a097b594a8dc8dfd7cb7c076f107684e6515b4
+            slot: ariadne:2
+            requested_at: "2026-10-18T12:23:48.66276Z"
+          phase: finished
+          pid: 4267
+          started_at: "2026-10-18T12:23:48.796479Z"
+          finished_at: "2026-10-18T12:24:09.459244Z"
+          session_id: 6be380fe-6c30-4408-b5b9-026237f91e30
+          outcome: returned
+      "n": 2
+      timestamp: "2026-10-18T05:24:09-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Unavailable(run, stderr, launchErr) requires no assistant or tool event plus a pattern match; a stream that can't be parsed counts as started; RunFailure unchanged and its relation stated.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: Kind is design-heavy or bounded, taken from the plan/flow decision; the default order differs by kind and can be overridden per kind.
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          note: No cross mode; other is generalized and backward compatible; the default stays same behind one constant; recorded as a Revision.
+          round: 2
+        - id: PQ-4
+          disposition: addressed
+          note: ReviewPlan takes an available(agent) predicate; codex under ContainCheckout on darwin and binaries missing from PATH are skipped before launch, with the reason recorded.
+          round: 2
+        - id: PQ-5
+          disposition: addressed
+          note: 'Non-goals list added: quota accounting, doc-review (#441), semantic kind detection, a vendor quietly degrading its model.'
+          round: 2
+        - id: PQ-6
+          disposition: addressed
+          note: Author families are the union of the trailers and the closer's agentid.Detect, so a forged trailer can't remove the closer's own family.
+          round: 2
+        - id: PQ-7
+          disposition: addressed
+          note: Compressed to one strategy line per risky function in the Revisions.
+          round: 2
+        - id: PQ-8
+          disposition: addressed
+          note: Fixed trailer format, a test that parses it via git log trailers, and a tally helper.
+          round: 2
+      blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 02678ba6-1a49-46b4-8b04-feff6ccc2f2e
+            repository: github.com/xianxu/ariadne
+            issue_id: "000409"
+            recipe: plan-quality
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+            reviewed_head: a473a96cd0c9381ed0e45d3bf47c8879b49e7a0a
+            slot: ariadne:2
+            requested_at: "2026-10-18T12:25:26.663011Z"
+          phase: finished
+          pid: 17399
+          started_at: "2026-10-18T12:25:26.76627Z"
+          finished_at: "2026-10-18T12:25:39.955954Z"
+          session_id: 144a7ee5-cc37-41c5-ac73-b88bbf5223ba
+          outcome: returned
+      "n": 3
+      timestamp: "2026-10-18T05:25:40-07:00"
+      agent: claude
+      blocked: false
+      protocol_error: no valid findings block
+content_hash: f6132a9a0331bdfee3d5b308bbedfd8e17cf739058bea7b9bd6fcd3ff33714bb
 ---
 
 # Gate ledger — ariadne#409 (plan-quality)
@@ -108,13 +211,23 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-7** [Minor] `test-prose-enumeration` (kind: defect) M2 lists fake-runner test cases one by one in prose; compress to one strategy line per risky function
 - **PQ-8** [Minor] `done-when-unbacked` (kind: defect) Done-when's "one week of trailers can be tallied" has no tally test or command; at least test that Review-Reviewer parses via git interpret-trailers
 
+## Round 2 — 2026-10-18T05:24:09-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Unavailable(run, stderr, launchErr) requires no assistant or tool event plus a pattern match; a stream that can't be parsed counts as started; RunFailure unchanged and its relation stated.
+- PQ-2 — addressed — Kind is design-heavy or bounded, taken from the plan/flow decision; the default order differs by kind and can be overridden per kind.
+- PQ-3 — addressed — No cross mode; other is generalized and backward compatible; the default stays same behind one constant; recorded as a Revision.
+- PQ-4 — addressed — ReviewPlan takes an available(agent) predicate; codex under ContainCheckout on darwin and binaries missing from PATH are skipped before launch, with the reason recorded.
+- PQ-5 — addressed — Non-goals list added: quota accounting, doc-review (#441), semantic kind detection, a vendor quietly degrading its model.
+- PQ-6 — addressed — Author families are the union of the trailers and the closer's agentid.Detect, so a forged trailer can't remove the closer's own family.
+- PQ-7 — addressed — Compressed to one strategy line per risky function in the Revisions.
+- PQ-8 — addressed — Fixed trailer format, a test that parses it via git log trailers, and a tally helper.
+
+## Round 3 — 2026-10-18T05:25:40-07:00 (claude) — passed
+
+**Protocol error:** no valid findings block — this round contributed no findings.
+
 ## Open findings
 
-- **PQ-1** [Important] `unconfirmed-outcome-treated-as-confirmed` (kind: defect) The fallback's "could not run, never started" test doesn't match how dispatch classifies failures
-- **PQ-2** [Important] `deferred-purpose` (kind: defect) ChangeKind is the review stage, not the spec's design-heavy vs bounded kind, and no rule uses it
-- **PQ-3** [Important] `unstated-contract-change` (kind: defect) Plan reverses the spec's "static #310 policy is the floor" and adds `cross` next to the existing `other` mode without deciding `other`'s fate
-- **PQ-4** [Important] `known-unavailability-not-prefiltered` (kind: defect) Default cross sends claude-authored closes to codex, which milestoneclose.go:699 already says fails on darwin ContainCheckout, and the fallback won't skip it
-- **PQ-5** [Important] `missing-non-goals` (kind: defect) No stated non-goals; the spec's "over budget" fallback is silently dropped
-- **PQ-6** [Minor] `untrusted-input-claim` (kind: defect) The ARCH-SECURE claim that forged Agent trailers can only steer the reviewer toward another family is false
-- **PQ-7** [Minor] `test-prose-enumeration` (kind: defect) M2 lists fake-runner test cases one by one in prose; compress to one strategy line per risky function
-- **PQ-8** [Minor] `done-when-unbacked` (kind: defect) Done-when's "one week of trailers can be tallied" has no tally test or command; at least test that Review-Reviewer parses via git interpret-trailers
+(none — every finding has been disposed)

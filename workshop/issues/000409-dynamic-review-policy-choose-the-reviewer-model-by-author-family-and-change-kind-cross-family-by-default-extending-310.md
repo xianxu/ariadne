@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-18
-estimate_hours:
-card_mirror: 'eb01620b3331f757da9b9cddc960b3d8fd014c0b' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 1.17
+card_mirror: '2cee3e4ed193aa2c6dc68ce88d986d033dd17790' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-18T05:16:36-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
 ---
 
 # Dynamic review policy: choose the reviewer model by author family and change kind (cross-family by default), extending #310
