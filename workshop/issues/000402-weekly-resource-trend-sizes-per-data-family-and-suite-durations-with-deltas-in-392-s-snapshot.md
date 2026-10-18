@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "5a306d96", done: "d65ad378"}
 ---
 
 # Weekly resource trend: sizes per data family and suite durations, with deltas, in #392's snapshot
