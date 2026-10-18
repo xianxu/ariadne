@@ -115,3 +115,107 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"19c0be95-9d9e-4532-9946-2c2512e4431e","repository":"github.com/xianxu/ariadne","issue_id":"000407","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/44cf1ce3178f19f8","reviewed_head":"21453b203f07329e7153db3fa97a171fde0f6be2","slot":"ariadne:2","requested_at":"2026-10-18T07:57:06.375852Z"},"phase":"finished","pid":93630,"started_at":"2026-10-18T07:57:06.475688Z","finished_at":"2026-10-18T07:59:40.540887Z","session_id":"dcb316aa-c569-4dab-9ae1-28e6b6a381e7","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T01:45:56-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 407 — A curated Go lint catalog: golangci-lint + shared ruleguard rules for known mistakes (per-test builds, sleeps, wall-clock asserts, temp dirs, strict wire decode) |
+| repo | ariadne |
+| issue file | workshop/issues/000407-a-curated-go-lint-catalog-golangci-lint-shared-ruleguard-rules-for-known-mistakes-per-test-builds-sleeps-wall-clock-asserts-temp-dirs-strict-wire-decode.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | e5f48d8326eab4ce46e7c8fae2d89ae96498f431..e8a9c84116b1901d7f6e56d741816c74143d4f25 |
+| command | sdlc close --issue 407 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-18T01:45:56-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checking BR-3's fix now: I'll revert the ceiling in a scratch copy and confirm the new test fails, then run the golint suite.
+
+Checking the new suppressions in the sweep, then I'll write the verdict.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All six prior findings are fixed, and I found nothing new that should block close. I checked the claims against the code myself rather than relying on the commit messages:
+- **BR-1:** the plan's new Revisions entry now matches the code: `check.go` holds Rule, Finding, Check and the suppression parser, `Match` is `func(*ast.File) []ast.Node`, the walk uses `git ls-files`, and generated files are skipped with `ast.IsGenerated`.
+- **BR-2:** the wall-clock seed is delivered as a fifth rule, `test-tight-wallclock`, with tests that expect a finding and tests that expect none. Its two existing hits carry reasons.
+- **BR-3:** I removed the `gitCommandTimeout` ceiling in `cmd/sdlc/internal/gitx/lifetime.go` and confirmed the new `TestBoundedGitCommandAppliesDefaultCeiling` fails ("a context-free Git command has no deadline"). I then put it back, and the `gitx` and `judge` packages pass.
+- **BR-4 / BR-5:** field targets and aliased imports are now matched, with tests. The leftover precision limits (locals, a `go` binary held in a variable) are written down in the Revisions entry.
+- **BR-6:** the "review a rule that never fires" clause is declared deferred to #439.
+
+`go test ./pkg/golint/` passes: 1,143 files checked against 5 rules in 304ms, well inside the plan's 3s budget.
+
+**1. Strengths**
+- The code is a pure core: `Check(filename, src, rules)` in `pkg/golint/check.go` does no IO. The only IO is in `repo_test.go`, and all rule tests run on in-memory source.
+- Problems with suppressions are themselves findings (missing reason, unknown rule, unused suppression), so stale `//lint:allow` lines can't pile up (`check.go:68-104`). Table tests in `rules_test.go` cover each case.
+- `localName` resolves a package by the name the file imports it under (`rules.go`). So an aliased import is still caught, and an unimported identifier that happens to be called `time` is not (`TestRulesFollowImportNames`).
+- The sweep is honest: all 19 suppressions in `cmd/` give a specific reason, and the three deadlines that raced fixture readiness were converted to `testfix.DeadlineOnCue`, not suppressed.
+- The process rule is guarded by a phrase in `cmd/tl-worker/testdata/rules.tsv`, which the tests check, and the atlas has an entry next to the shell-lint one.
+
+**2. Critical findings:** none.
+
+**3. Important findings:** none.
+
+**4. Minor findings:** none newly raised. Three observations, kept out of the findings block so they don't repeat the `lint-rule-matcher-precision` family:
+- A dot-import (`import . "time"`) makes `localName` return `"."`, so the rules quietly miss that file.
+- `tightWallclock` tracks "elapsed" variables by name across the whole file, so an unrelated `elapsed` in another function could be flagged. That would be a false positive, which can be suppressed.
+
+The rule that covers both: matching is syntax-only (no type-checking), and its precision limits are declared and suppressible. That rule is already in the Revisions entry.
+
+**5. Test coverage notes**
+- Every rule has cases that should and shouldn't fire, and each test checks that the message cites its incident.
+- Suppression handling is covered: same line, the line above, too far away, the wrong rule, no reason, and unused.
+- The generated-file skip and import-alias handling have their own tests.
+- The BR-3 regression test fails when the fix is reverted (confirmed above).
+- I could not confirm the follow-ups #438, #439 and #440 exist: no ref in this checkout has those issue files. They may have been filed on trunk after this branch split off. Worth a glance at close.
+
+**6. Architecture notes**
+- **ARCH-DRY: pass.** It reuses the `pkg/shelllint` shape, and the shared `calls`/`localName`/`constDuration` helpers prevent per-rule copies.
+- **ARCH-PURE: pass.** Logic is in `Check` and the rules; IO is only in the repo test.
+- **ARCH-PURPOSE: pass.** All Spec seeds are delivered or declared deferred with follow-ups (engine, pair, wire decode, rule hygiene).
+- **ARCH-MOCK: pass.** The only external call is `git ls-files` in the repo test, reading the repo's own files, the same as shelllint.
+- **ARCH-CONSTRAINTS: pass.** About 300ms measured against a 3s budget, and the timing line is logged.
+- **ARCH-SECURE: pass.** It reads only tracked source, a parse error is reported rather than swallowed, and no secrets are involved.
+- **ARCH-ORDER: pass.** It holds no state between files; each file is checked on its own.
+- **ARCH-FUNERAL: pass.** It writes nothing durable. Suppressions are self-cleaning because an unused one is a finding.
+
+**7. Plan revision recommendations:** none. The Revisions entry matches the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Plan Revisions entry (close review round 1) now matches check.go/rules.go, Match signature, git ls-files walk; ast.IsGenerated skip added in check.go with TestGeneratedFilesAreSkipped.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      test-tight-wallclock added in rules.go with flag/no-flag cases in rules_test.go; two existing hits carry reasons.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Verified by revert: replacing WithTimeout(ctx, gitCommandTimeout) with WithCancel in lifetime.go makes TestBoundedGitCommandAppliesDefaultCeiling fail; restored, gitx passes.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      SelectorExpr field targets now matched (cfg.ShutdownGrace test case); local-vs-package limitation declared in Revisions.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Import-alias resolution via localName with TestRulesFollowImportNames; variable go binary limitation declared in Revisions.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Plan Revisions declares the never-fires review clause deferred to #439 with the reason (needs a recorded firing count).
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"107842cb-6e35-4373-b5dd-a982af787bb3","repository":"github.com/xianxu/ariadne","issue_id":"000407","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/217836079e861855","reviewed_head":"e8a9c84116b1901d7f6e56d741816c74143d4f25","slot":"ariadne:2","requested_at":"2026-10-18T08:42:49.155215Z"},"phase":"finished","pid":57520,"started_at":"2026-10-18T08:42:49.272634Z","finished_at":"2026-10-18T08:45:55.995525Z","session_id":"ea26b0b0-ee62-43a8-937a-8989ea780f00","outcome":"returned"}] -->

@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "3e0be510", done: "eb2712c8"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # A curated Go lint catalog: golangci-lint + shared ruleguard rules for known mistakes (per-test builds, sleeps, wall-clock asserts, temp dirs, strict wire decode)
@@ -59,6 +59,8 @@ deviations from the Spec are listed there for approval).
 ### 2026-10-15
 
 ### 2026-10-18
+- 2026-10-18: closed — sdlc-local/suite green on e8a9c841 (exit 0, 8m4s), including TestTrackedGoFilesPassTheCatalog: ~1,140 tracked Go files pass 5 rules in well under a second. TestRules (flag/no-flag per rule, incident cited), TestSuppressions, TestCatalogHygiene, TestRulesFollowImportNames, TestGeneratedFilesAreSkipped. Round-1 REWORK fixed: plan Revisions match the code (BR-1), test-tight-wallclock delivers the wall-clock seed (BR-2), TestBoundedGitCommandAppliesDefaultCeiling restores the default-ceiling check (BR-3). Follow-ups #438/#439/#440.; review verdict: SHIP
+- 2026-10-18: flow upgraded quick → full — 402 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 - Claimed by ariadne:2; plan drafted and sent to the hub before code.
 - Hub approved the plan with all three deviations (stdlib engine in the suite, pair via the TL, wire-decode deferred).
