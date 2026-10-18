@@ -221,3 +221,85 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"e8b024d2-76e2-4d90-9a7c-307013a4e8bb","repository":"github.com/xianxu/ariadne","issue_id":"000431","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/16a783c437ec35a6","reviewed_head":"906790a75819bfb7cc96924294914a61955e6e2b","slot":"ariadne:2","requested_at":"2026-10-18T03:12:28.228565Z"},"phase":"finished","pid":22613,"started_at":"2026-10-18T03:12:28.321564Z","finished_at":"2026-10-18T03:14:17.853227Z","session_id":"98f8c616-8a4a-4839-927e-cccf505ce969","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T20:47:03-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 431 — sdlc local-check: republish a completed attempt whose GitHub status post failed |
+| repo | ariadne |
+| issue file | workshop/issues/000431-sdlc-local-check-republish-a-completed-attempt-whose-github-status-post-failed.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 32fb3f7d056d59bc46d88e2b2d81cb035c4f2d51..5b2d792df73a42e43e6d71d6e1b22121a54e5462 |
+| command | sdlc close --issue 431 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-17T20:47:03-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Prior-round fixes look in place; now running the new tests, then reverting the newest-attempt guard to confirm its test goes red.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The two open findings from round 2 are both fixed, and I checked each against the code rather than the commit messages. For BR-6, all three docs now say merge first posts a saved pass before rerunning a missing check: README.md:472-481 (which also names `local-check republish`), atlas/workflow/ci-merge-check.md:160-162, and the help text's "HOW MERGE USES IT" section. For BR-7, the newest-attempt edge test now reaches its guard on purpose. The pass and the failure write different output, the pass's log bytes are put back, and the failure's own log is deleted. The test then checks the guard's stderr message. I reverted the guard (`|| !newest` in `republishSavedPass`) in the disposable checkout and `TestLocalCheckRunnerSavedPassEdges` failed with "an older pass stood in although a later attempt exists". I then restored the file. `go vet` is clean. The six new tests pass, and the wider `LocalCheck|CIGate|TestStats|SuiteAttempt|Help` subset passes too (283 s). Only one Minor finding remains, so it does not block.
+
+Done-when: current — the three bullets (publish without a rerun only on the attempt's own commit and with its own result; tests for match, tampered log, other commit and incomplete or missing record; the failure message naming the recovery command) all match what this diff builds. The merge-reuse rule from Revisions only adds to them, has its own tests, and no bullet contradicts it.
+
+1. **Strengths**
+   - `savedAttemptRecord` (localcheck_republish.go:243) is a pure function that refuses on repo, commit, check, baseline, incomplete record or log hash. It is tested with a 9-row table and no IO.
+   - `postLocalCheckRecord` is now the only place that posts a status. The run path and the verb share it, so the retry and the PR comment can't drift apart (ARCH-DRY).
+   - `suiteAttemptLogFile` sits next to `publishSuiteAttempt` in teststats_store.go:777, so the layout and its reverse live in one file.
+   - Merge is stricter than the verb: it needs the saved attempt to be the newest one, and it never reuses a saved failure. When the republish post fails, merge stops with the recovery line instead of quietly rerunning. The tests check that the marker file is absent.
+   - The fake GitHub stays stateful: `flakyPostGH` wraps `ciFakeGH` and tracks call counts, and the production seam is used throughout (ARCH-MOCK).
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - localcheck_republish.go:277: `loadSavedAttempt` throws away the warnings from `readSuiteAttempts`. That reader stops at the record limit or byte budget and reads in directory order, so "newest" can be computed from a partial set. This is the 2nd finding in family `attempt-selection-semantics`. The rule: if the store read is incomplete, the newest attempt is unknown, not absent. The fix is to return `newest=false` whenever there are warnings, so merge reruns. The risk is low: the limit is 10000 records and the store is pruned at 30 days.
+
+5. **Test coverage notes:** every guard in `republishSavedPass` has a fixture that reaches it on purpose: a refused attempt, a saved failure, a pass that isn't the newest, and a failed post. The verb is tested end to end from the checkout. The retry is tested by failing the first N posts. `TestMain` shrinks the backoff to 1 ms, so these tests don't sleep.
+
+6. **Architectural notes**
+   - ARCH-DRY: pass. The PR lookup, host name, store root and post path are each shared.
+   - ARCH-PURE: pass. Record validation is pure, and the lookup and post are a thin IO layer.
+   - ARCH-PURPOSE: pass. The verb, the run-path retry, merge reuse and the docs are all delivered.
+   - ARCH-MOCK: pass. Tests use the `ciFakeGH` seam; there are no direct `gh` calls.
+   - ARCH-CONSTRAINTS: pass. The roughly 2.5-minute backoff, and the fact that it holds the landing turn under merge, are written down in the help text and the code comment.
+   - ARCH-SECURE: pass. Store records go through `decodeSuiteAttempt`, and the log hash ties the result to the bytes on disk. The truncated-read case is the Minor finding above.
+   - ARCH-ORDER: pass. A republish is an idempotent overwrite. A run still in progress overwrites the shared log, which makes the hash check fail, so merge reruns under the lock instead of reusing.
+   - ARCH-FUNERAL: pass. Nothing new is created on disk; this only reads the existing store, which is pruned at 30 days.
+
+7. **Plan revision recommendations:** none. The plan matches the code.
+
+```findings
+dispose:
+  - id: BR-6
+    disposition: addressed
+    note: |
+      README.md:472-481 names the republish verb and merge's saved-pass-first rule; atlas ci-merge-check.md:160-162 and help HOW MERGE USES IT updated likewise.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Test uses distinct pass/fail output, restores pass bytes, prunes the failure log, asserts the guard message; reverting the newest guard turns it red (localcheck_republish_test.go:293).
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: attempt-selection-semantics
+    title: |
+      loadSavedAttempt computes "newest" over a possibly truncated store read and discards the reader's warnings
+    detail: |
+      2nd in family attempt-selection-semantics. Rule: when the store read is incomplete, the newest attempt is unknown, not absent. readSuiteAttempts stops at testStatsRecordLimit or the byte budget, reading in directory order, and returns warnings that loadSavedAttempt (localcheck_republish.go:277) drops, so merge could treat an older pass as newest. Fix: report newest=false when warnings are present.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"ef69055e-db06-484e-991c-2042eb84bfb8","repository":"github.com/xianxu/ariadne","issue_id":"000431","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/a6d15915ed9f7f19","reviewed_head":"5b2d792df73a42e43e6d71d6e1b22121a54e5462","slot":"ariadne:2","requested_at":"2026-10-18T03:40:34.054194Z"},"phase":"finished","pid":60751,"started_at":"2026-10-18T03:40:34.21089Z","finished_at":"2026-10-18T03:47:01.468032Z","session_id":"fc157129-5341-4ccf-8cca-1c2dfbf0c6c8","outcome":"returned"}] -->

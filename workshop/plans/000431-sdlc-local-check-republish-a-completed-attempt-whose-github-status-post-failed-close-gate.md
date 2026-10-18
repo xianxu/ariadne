@@ -219,6 +219,109 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: ef69055e-db06-484e-991c-2042eb84bfb8
+            repository: github.com/xianxu/ariadne
+            issue_id: "000431"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/a6d15915ed9f7f19
+            reviewed_head: 5b2d792df73a42e43e6d71d6e1b22121a54e5462
+            slot: ariadne:2
+            requested_at: "2026-10-18T03:40:34.054194Z"
+          phase: finished
+          pid: 60751
+          started_at: "2026-10-18T03:40:34.21089Z"
+          finished_at: "2026-10-18T03:47:01.468032Z"
+          session_id: fc157129-5341-4ccf-8cca-1c2dfbf0c6c8
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 5b2d792df73a42e43e6d71d6e1b22121a54e5462
+        tracker_head: 948dd11dd59e2d2412bbe183781b3194004170e2
+        branch_point: 32fb3f7d056d59bc46d88e2b2d81cb035c4f2d51
+        since: "2026-10-17T18:23:15-07:00"
+        until: "2026-10-17T20:15:18-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-17T18:23:15-07:00"
+              end: "2026-10-17T20:15:18-07:00"
+              began: "2026-10-17T18:23:15-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: f1481145e1337b7bdd98337559e39fcef334b109fc58d0bd6abf237b4386e2a7
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 91515816
+              windows:
+                - start: "2026-10-17T18:23:15-07:00"
+                  end: "2026-10-17T20:15:18-07:00"
+        queue_waits:
+            - attempt_id: 5c416e294bba78f2ce49c64c087a31fb
+              slot: ariadne:2
+              record_digest: 9aeda882ff0ad3c99a95d32773e4464fc46e4056cd5b12e37f29a62a56227219
+              start: "2026-10-18T02:08:21.946098Z"
+              end: "2026-10-18T02:26:06.484583Z"
+              queue_seconds: 1064.538485
+              raw_seconds: 1064.538485
+              exact: true
+            - attempt_id: 04f0a8ee91a1b328c28b0d687ea87055
+              slot: ariadne:2
+              record_digest: dc16a7b09a9fc2f2adb30ca37ae1b4d33006c8086770ae036abd8f28fe5052eb
+              start: "2026-10-18T02:45:49.932166Z"
+              end: "2026-10-18T03:03:15.535511Z"
+              queue_seconds: 1045.603345
+              raw_seconds: 1045.603345
+              exact: true
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 45.42231666666667
+        cuts:
+            - dispatched: "2026-10-17T19:35:17-07:00"
+              finalized: "2026-10-17T19:43:06-07:00"
+              finalizing: false
+            - dispatched: "2026-10-17T20:12:28-07:00"
+              finalized: "2026-10-17T20:14:18-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-17T20:47:03-07:00"
+      dispatched: "2026-10-17T20:40:34-07:00"
+      agent: claude
+      dispose:
+        - id: BR-6
+          disposition: addressed
+          note: README.md:472-481 names the republish verb and merge's saved-pass-first rule; atlas ci-merge-check.md:160-162 and help HOW MERGE USES IT updated likewise.
+          round: 3
+        - id: BR-7
+          disposition: addressed
+          note: Test uses distinct pass/fail output, restores pass bytes, prunes the failure log, asserts the guard message; reverting the newest guard turns it red (localcheck_republish_test.go:293).
+          round: 3
+      findings:
+        - kind: defect
+          id: BR-8
+          severity: Minor
+          title: loadSavedAttempt computes "newest" over a possibly truncated store read and discards the reader's warnings
+          detail: '2nd in family attempt-selection-semantics. Rule: when the store read is incomplete, the newest attempt is unknown, not absent. readSuiteAttempts stops at testStatsRecordLimit or the byte budget, reading in directory order, and returns warnings that loadSavedAttempt (localcheck_republish.go:277) drops, so merge could treat an older pass as newest. Fix: report newest=false when warnings are present.'
+          family: attempt-selection-semantics
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 5b2d792df73a42e43e6d71d6e1b22121a54e5462
+      blocked: false
 ---
 
 # Gate ledger — ariadne#431 (boundary-review)
@@ -258,7 +361,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-7** [Minor] `untested-error-path` (kind: defect) The newest-attempt edge test passes only because the true and false checks write identical empty logs
   This is the 2nd finding in family untested-error-path. The rule: every guard branch needs a fixture that reaches it on purpose, not by chance. Here a failed attempt overwrites the shared local-checks/<sha>/<check>.log, so the earlier pass verifies only because both logs are empty. Use distinct output and assert the not-newest branch explicitly (localcheck_republish_test.go:257-271).
 
+## Round 3 — 2026-10-17T20:47:03-07:00 (claude) — passed
+
+### Disposed
+
+- BR-6 — addressed — README.md:472-481 names the republish verb and merge's saved-pass-first rule; atlas ci-merge-check.md:160-162 and help HOW MERGE USES IT updated likewise.
+- BR-7 — addressed — Test uses distinct pass/fail output, restores pass bytes, prunes the failure log, asserts the guard message; reverting the newest guard turns it red (localcheck_republish_test.go:293).
+
+### Raised
+
+- **BR-8** [Minor] `attempt-selection-semantics` (kind: defect) loadSavedAttempt computes "newest" over a possibly truncated store read and discards the reader's warnings
+  2nd in family attempt-selection-semantics. Rule: when the store read is incomplete, the newest attempt is unknown, not absent. readSuiteAttempts stops at testStatsRecordLimit or the byte budget, reading in directory order, and returns warnings that loadSavedAttempt (localcheck_republish.go:277) drops, so merge could treat an older pass as newest. Fix: report newest=false when warnings are present.
+
 ## Open findings
 
-- **BR-6** [Important] `docs-surface-not-updated` (kind: defect) README and atlas ci-merge-check.md not updated for local-check republish and merge's saved-pass reuse
-- **BR-7** [Minor] `untested-error-path` (kind: defect) The newest-attempt edge test passes only because the true and false checks write identical empty logs
+- **BR-8** [Minor] `attempt-selection-semantics` (kind: defect) loadSavedAttempt computes "newest" over a possibly truncated store read and discards the reader's warnings
