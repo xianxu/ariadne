@@ -100,6 +100,7 @@ func TestCompileCancellationStopsLateGeneratorChild(t *testing.T) {
 	// If cancellation left a live child, it can now recreate the removed stage.
 	// The delay only gives a forbidden effect time to appear; readiness/cancel
 	// ordering above is controlled by files and the compile return.
+	//lint:allow test-fixed-sleep — a window for a forbidden late effect to appear; ordering above is file-driven
 	time.Sleep(150 * time.Millisecond)
 	if _, err := os.Stat(filepath.Join(leaf, "child-done")); !os.IsNotExist(err) {
 		t.Errorf("generator child wrote after cancelled compile returned: %v", err)

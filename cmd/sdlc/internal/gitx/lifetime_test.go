@@ -25,17 +25,24 @@ func TestGitDefaultRunnerAndContextRunnerBoundDescendants(t *testing.T) {
 			old := gitCommandTimeout
 			gitCommandTimeout = 5 * time.Second
 			t.Cleanup(func() { gitCommandTimeout = old })
+			// The deadline passes on cue once the descendant has reported itself
+			// (#434, #407): the bounded runner under the default ceiling derives
+			// its timeout from this context, so a clock cannot race the fixture.
+			deadline, expire := testfix.DeadlineOnCue(context.Background())
 			if mode == "default-deadline" {
 				alias = `!sleep 60 & printf '%s' "$!" > "$SDLC_GIT_CHILD_PID"; wait`
-				gitCommandTimeout = 500 * time.Millisecond
 			}
 			done := make(chan error, 1)
 			go func() {
 				args := []string{"-c", "alias.hang=" + alias, "hang"}
-				if mode == "context-exited-parent" {
+				switch mode {
+				case "context-exited-parent":
 					var out, diag bytes.Buffer
 					done <- executeGitInputContext(context.Background(), "", nil, nil, &out, &diag, args...)
-				} else {
+				case "default-deadline":
+					_, err := boundedGitOutput(deadline, nil, "git", args...)
+					done <- err
+				default:
 					_, err := run("git", args...)
 					done <- err
 				}
@@ -44,6 +51,7 @@ func TestGitDefaultRunnerAndContextRunnerBoundDescendants(t *testing.T) {
 			if pid == 0 {
 				t.Fatal("git descendant never started")
 			}
+			expire()
 			t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
 			select {
 			case err := <-done:
@@ -69,10 +77,9 @@ func TestGitHistoryStreamBoundsInheritedPipes(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "git"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	old := gitCommandTimeout
-	gitCommandTimeout = 500 * time.Millisecond
-	t.Cleanup(func() { gitCommandTimeout = old })
-	trunk := &TrunkFile{dir: root, remote: "origin", branch: "main"}
+	// The stream's deadline passes on cue after the descendant reports in (#434).
+	deadline, expire := testfix.DeadlineOnCue(context.Background())
+	trunk := &TrunkFile{dir: root, remote: "origin", branch: "main", ctx: deadline}
 	reader, finish, err := trunk.HistoryStream("%H", "workshop/issues", 10)
 	if err != nil {
 		t.Fatal(err)
@@ -83,6 +90,7 @@ func TestGitHistoryStreamBoundsInheritedPipes(t *testing.T) {
 	if pid == 0 {
 		t.Fatal("history descendant never started")
 	}
+	expire()
 	t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
 	select {
 	case err := <-done:

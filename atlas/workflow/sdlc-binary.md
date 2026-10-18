@@ -1893,6 +1893,20 @@ fire before the fixture reports its pid (#434). Hand the code under test
 readiness; the code's own `WithTimeout` then sees a real `DeadlineExceeded`. Where
 the deadline lives in a child process, gate the fixture on a FIFO the test releases.
 
+### The Go lint catalog (#407)
+
+`pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
+that taught it (`test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
+`test-fixed-sleep` the 2026-10-15 flakes). Rules read only the syntax tree (stdlib
+`go/parser`, no type-checking, no external linter), and `TestTrackedGoFilesPassTheCatalog`
+runs them over every tracked Go file in the suite, so every landing enforces them (about
+0.7 s over 1,139 files). A finding that doesn't apply is suppressed on its line or the line
+above with `//lint:allow <rule> — <reason>`; a suppression without a reason, naming an
+unknown rule, or matching nothing is itself a finding. A fix for a mechanical mistake class
+adds its rule here (the shared planning block in `tl-worker`/`tl-lead` help says so).
+Follow-ups: golangci-lint for off-the-shelf linters (#439, operator), wire-decode (#440),
+one build per test binary (#438).
+
 ### Two full suites per machine (#319, #341)
 
 The rule: a full `make test` takes one of `WF_TEST_SUITES` (default 2) full-suite

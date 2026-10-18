@@ -153,6 +153,7 @@ func TestLocalCheckCleanupGitIsIndependentAndBounded(t *testing.T) {
 		t.Fatalf("cleanup Git refused after the run's cancellation: %v", err)
 	}
 	prev := localCheckCleanupTimeout
+	//lint:allow test-shrunk-deadline — asserts only that the hung cleanup Git is bounded (#434); no readiness is awaited
 	localCheckCleanupTimeout = 200 * time.Millisecond
 	t.Cleanup(func() { localCheckCleanupTimeout = prev })
 	start := time.Now()

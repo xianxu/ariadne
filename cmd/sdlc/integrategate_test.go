@@ -256,6 +256,7 @@ func TestIntegrateGate_FetchTimeoutIsInconclusive(t *testing.T) {
 	}
 	testfix.Git(t, fx.work, "config", "remote.origin.uploadpack", hang)
 	prev := integrateFetchTimeout
+	//lint:allow test-shrunk-deadline — asserts only that the hung fetch is bounded; no fixture readiness is awaited
 	integrateFetchTimeout = 500 * time.Millisecond
 	t.Cleanup(func() { integrateFetchTimeout = prev })
 	start := time.Now()

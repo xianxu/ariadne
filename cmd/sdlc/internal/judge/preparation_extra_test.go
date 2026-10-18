@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -105,23 +104,35 @@ func TestPreparationDeadlineKillsDescendant(t *testing.T) {
 	dir := preparationRepo(t)
 	calls := fakeRuns(t, ProcessOutput{Stdout: []byte("VERDICT: SHIP")})
 	old := reviewShutdownGrace
+	//lint:allow test-shrunk-deadline — the grace starts at the cued deadline, after the child reported ready
 	reviewShutdownGrace = 50 * time.Millisecond
 	t.Cleanup(func() { reviewShutdownGrace = old })
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	out, err := Dispatch(ctx, DispatchOptions{Agent: AgentCodex, Checkout: dir, Preparation: &reviewprepare.Config{Command: []string{"sh", "-c", "sleep 60 & echo $! > child.pid; wait"}, TimeoutMinutes: 1}})
-	if err == nil || out != "" || *calls != 0 {
-		t.Fatalf("out=%q err=%v calls=%d", out, err, *calls)
+	// The preparation's deadline passes on cue once its child reports in (#434).
+	ctx, expire := testfix.DeadlineOnCue(context.Background())
+	type result struct {
+		out string
+		err error
 	}
-	raw, err := os.ReadFile(filepath.Join(dir, "child.pid"))
-	if err != nil {
-		t.Fatal("child never started", err)
-	}
-	pid, err := strconv.Atoi(strings.TrimSpace(string(raw)))
-	if err != nil {
-		t.Fatal(err)
+	done := make(chan result, 1)
+	go func() {
+		out, err := Dispatch(ctx, DispatchOptions{Agent: AgentCodex, Checkout: dir, Preparation: &reviewprepare.Config{Command: []string{"sh", "-c", "sleep 60 & echo $! > child.pid; wait"}, TimeoutMinutes: 1}})
+		done <- result{out, err}
+	}()
+	pid := testfix.AwaitPIDFile(filepath.Join(dir, "child.pid"), testfix.HangCeiling, nil)
+	if pid == 0 {
+		t.Fatal("child never started")
 	}
 	t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
+	expire()
+	var r result
+	select {
+	case r = <-done:
+	case <-time.After(testfix.HangCeiling):
+		t.Fatal("preparation did not end at its deadline")
+	}
+	if r.err == nil || r.out != "" || *calls != 0 {
+		t.Fatalf("out=%q err=%v calls=%d", r.out, r.err, *calls)
+	}
 	if err := testfix.AwaitExit(pid, testfix.HangCeiling); err != nil {
 		t.Fatal("preparation descendant survived deadline", err)
 	}

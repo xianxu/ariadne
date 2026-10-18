@@ -49,10 +49,10 @@ Operator (2026-10-15): "we need to curate a list of 'stupid mistakes'". Part of 
 
 ## Plan
 
-Durable plan: `workshop/plans/000407-a-curated-go-lint-catalog-plan.md` (engine, seed rules, sweep, follow-ups; three
+Durable plan: `workshop/plans/000407-a-curated-go-lint-catalog-golangci-lint-shared-ruleguard-rules-for-known-mistakes-per-test-builds-sleeps-wall-clock-asserts-temp-dirs-strict-wire-decode-plan.md` (engine, seed rules, sweep, follow-ups; three
 deviations from the Spec are listed there for approval).
 
-- [ ] Tasks 1–6 of the durable plan
+- [x] Tasks 1–6 of the durable plan
 
 ## Log
 
@@ -61,3 +61,11 @@ deviations from the Spec are listed there for approval).
 ### 2026-10-18
 
 - Claimed by ariadne:2; plan drafted and sent to the hub before code.
+- Hub approved the plan with all three deviations (stdlib engine in the suite, pair via the TL, wire-decode deferred).
+- Implemented `pkg/golint` (Check with suppression hygiene; four rules; `TestTrackedGoFilesPassTheCatalog`: 1,139
+  tracked Go files, about 0.7 s). Initial scan: 20 findings, all now fixed or suppressed with a reason (see the plan's
+  Revisions). Three deadline tests converted to `testfix.DeadlineOnCue`, and they pass with -count=3.
+- Follow-ups filed, unclaimed: #438 one build per test binary, #439 golangci-lint (operator: install and gates), #440
+  wire-message annotation plus a strict-decode rule. pair adoption goes to the hub.
+- The process line lives once in the shared planning block (`pkg/tlrules/planning.md`, MISTAKE CLASSES), so
+  tl-worker and tl-lead both carry it, with a phrase guard in rules.tsv.

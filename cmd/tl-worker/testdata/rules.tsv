@@ -52,3 +52,4 @@ hash-output	own	only from Git output
 landing-order	own	The landing line owns landing order
 approval-required	own	or mechanism), and scope revisions wait for the hub's approval.
 flake-escalation	own	means stop and ask the hub.
+golint-rule	cited	adds its rule to the Go lint catalog in `pkg/golint`

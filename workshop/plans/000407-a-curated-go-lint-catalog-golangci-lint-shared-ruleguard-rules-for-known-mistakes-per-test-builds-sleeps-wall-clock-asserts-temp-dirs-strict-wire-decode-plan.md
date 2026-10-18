@@ -59,9 +59,20 @@ The repo test is the only IO: it walks `cmd/` and `pkg/`, skips `testdata/` and 
 
 ## Plan
 
-- [ ] Task 1: `pkg/golint` core: `Rule`, `Finding`, `Check`, and the suppression parser, with table tests (a valid suppression, a missing reason, an unknown rule, an unused suppression, `TestOnly` scoping).
-- [ ] Task 2: the four rules, each with flag/no-flag cases in `rules_test.go`. Each test asserts the incident appears in the message.
-- [ ] Task 3: `repo_test.go`: walk the module, run `Check`, report every finding with its incident.
-- [ ] Task 4: sweep existing hits. Fix `close.go`'s `/tmp` warmup path to use `os.TempDir()`. Review the 8 shrunk deadlines: convert any that race readiness, and suppress any that only bound a call, with a reason. Suppress the 6 per-test builds with reasons and file their follow-up.
-- [ ] Task 5: process rule. tl-worker and tl-lead help say "a fix for a mechanical mistake class adds its rule to pkg/golint", guarded by a phrase in `rules.tsv` (cited scope). The atlas gets an entry beside shelllint, and lessons.md points at the catalog.
-- [ ] Task 6: file follow-ups. golangci-lint adoption, with the operator, for the install. pair adoption, routed through the TL. The wire-decode annotation rule. Sharing a built binary across the 6 per-test builds.
+- [x] Task 1: `pkg/golint` core: `Rule`, `Finding`, `Check`, and the suppression parser, with table tests (a valid suppression, a missing reason, an unknown rule, an unused suppression, `TestOnly` scoping).
+- [x] Task 2: the four rules, each with flag/no-flag cases in `rules_test.go`. Each test asserts the incident appears in the message.
+- [x] Task 3: `repo_test.go`: walk the module, run `Check`, report every finding with its incident.
+- [x] Task 4: sweep existing hits. Fix `close.go`'s `/tmp` warmup path to use `os.TempDir()`. Review the 8 shrunk deadlines: convert any that race readiness, and suppress any that only bound a call, with a reason. Suppress the 6 per-test builds with reasons and file their follow-up.
+- [x] Task 5: process rule. tl-worker and tl-lead help say "a fix for a mechanical mistake class adds its rule to pkg/golint", guarded by a phrase in `rules.tsv` (cited scope). The atlas gets an entry beside shelllint, and lessons.md points at the catalog.
+- [x] Task 6: file follow-ups. golangci-lint adoption, with the operator, for the install. pair adoption, routed through the TL. The wire-decode annotation rule. Sharing a built binary across the 6 per-test builds.
+
+## Revisions
+
+- 2026-10-18 (implementation): `close.go`'s `/tmp` warmup path is shared on purpose with `scripts/close-issue.py`, which
+  `Makefile.workflow` still runs, so it carries a reasoned suppression rather than a fix. Of the 8 shrunk deadlines,
+  three (both `gitx/lifetime_test.go` tests and `judge/preparation_extra_test.go`) awaited readiness after starting a
+  clock and now expire on cue (`testfix.DeadlineOnCue`); the judge grace overrides start after readiness, and the
+  boundary-push, integrate-gate and cleanup-bound tests assert only a bound, so those carry reasons. `tmp-literal`
+  matches only `filepath.Join` among the filepath functions (FromSlash and the like only transform strings). The four
+  existing fixed sleeps carry reasons (a one-second git timestamp, a real 1s child timeout, two late-effect windows).
+  No lessons.md entry: the rule is now enforced in code (the catalog), which is the point.
