@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-18
 updated: 2026-10-18
-estimate_hours:
+estimate_hours: 0.735
 collaboration-mode: collaboration
-card_mirror: 'e79a2bc0934b23f285c077c08d2ab43da4514c70' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '737a8db96a9943e0b1a506a742f9dd5408b3bc73' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-18T09:10:46-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
 ---
 
 # doc-review: choose its reviewer through the #409 family-aware resolver
