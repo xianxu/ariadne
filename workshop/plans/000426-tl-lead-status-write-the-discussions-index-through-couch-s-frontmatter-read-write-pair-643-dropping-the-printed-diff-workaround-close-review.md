@@ -86,3 +86,64 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"df736ab6-ca82-4315-977e-34b329d0f70a","repository":"github.com/xianxu/ariadne","issue_id":"000426","recipe":"small-diff-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/dced4f9afdca824c","reviewed_head":"1278a02061304bf1509f3a016e0be5922e872539","slot":"ariadne:2","requested_at":"2026-10-18T20:07:35.370427Z"},"phase":"finished","pid":30792,"started_at":"2026-10-18T20:07:35.462545Z","finished_at":"2026-10-18T20:08:52.138448Z","session_id":"cee08e22-3c6e-4862-9f10-119db1b8b584","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T13:52:32-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 426 — tl-lead status: write the discussions index through couch's frontmatter read/write (pair#643), dropping the printed-diff workaround |
+| repo | ariadne |
+| issue file | workshop/issues/000426-tl-lead-status-write-the-discussions-index-through-couch-s-frontmatter-read-write-pair-643-dropping-the-printed-diff-workaround.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 0b9fc54447680ed998bf0cf22acd7087861aa42e..219cb76ce811ac966ab6585e1cc5ce7a7d3872be |
+| command | sdlc close --issue 426 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-18T13:52:32-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Tests pass, and the new test fails when the guard is reverted. Next I'm checking for leftover references to the removed API.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All three prior Minors are fixed in this interdiff, and the fixes add no new defects. `unreadChanges` and its test are gone, and nothing still refers to them. The fake's stale `WriteAll` comment now describes what the fake does today. `syncIndex` now refuses when `FrontBlock(next)` and the reconcile end the block in different places, and a regression test covers it. I checked that test is real: with the guard disabled in this checkout, `TestIndexRefusesADelimiterCouchReadsDifferently` fails (`err <nil>, writes 1`). With the guard restored, `go test ./cmd/tl-lead ./pkg/sidedoc` and `go vet ./cmd/tl-lead` both pass, and the checkout is clean again. The only change under `workshop/issues/` is close bookkeeping: the status, the hours and a Log entry. It does not touch the Spec, the Revisions or Done when, so this is not a scope change.
+
+1. **Strengths**
+   - The guard at `cmd/tl-lead/index.go:55-58` checks the actual invariant: the part of `next` after the block must equal `body` exactly. That covers every way the two delimiter rules can disagree, not just the indented `  ---` case that was reported.
+   - The regression test goes through the real disagreement. The fake's `block()` ends at the trimmed `  ---`, while `ReconcileIndex`'s `frontmatter()` reads past it to the exact `\n---\n`, so the test reaches the guard rather than some earlier refusal. It also asserts `frontWrites == 0`.
+   - The rewritten comment at `sessionsync_fake_test.go:162-163` is accurate and short.
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none new. `index_test.go:16` says "couch's whole-file shape". That describes the file's layout, not the removed API, so it is not stale.
+5. **Test coverage:** the guard has a test that fails without the fix. The removal of a dead helper and a comment fix change no behaviour.
+6. **Architecture:**
+   - ARCH-DRY passes: the fix reuses `sidedoc.FrontBlock` and adds no parallel parser.
+   - ARCH-PURE passes: the check is a pure string comparison inside an existing IO loop, and it is tested through the existing injected fake.
+   - ARCH-PURPOSE passes: the delimiter-divergence fix guards the whole class (`rest != body`), not only the cited input, and the stale-comment sweep left no remaining `WriteAll` or `unreadChanges` references in `cmd/tl-lead`.
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      unreadChanges (conformance_test.go) and TestUnreadChanges (index_test.go) are both deleted; grep finds no remaining references; vet and tests pass.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      sessionsync_fake_test.go:162-163 now says a frontmatter write leaves section hashes alone; no WriteAll mentions remain in cmd/tl-lead.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      index.go:55-58 refuses unless ok and rest == body; TestIndexRefusesADelimiterCouchReadsDifferently goes red with the guard disabled (err nil, writes 1) and green with it restored.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"f54c903e-efd6-4755-a2cd-043765527908","repository":"github.com/xianxu/ariadne","issue_id":"000426","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/18036cfaff099227","reviewed_head":"219cb76ce811ac966ab6585e1cc5ce7a7d3872be","slot":"ariadne:2","requested_at":"2026-10-18T20:51:34.099061Z"},"phase":"finished","pid":69924,"started_at":"2026-10-18T20:51:34.355896Z","finished_at":"2026-10-18T20:52:31.667749Z","session_id":"831c0077-6498-447f-8fde-7c079ae8dfe9","outcome":"returned"}] -->

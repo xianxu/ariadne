@@ -62,6 +62,8 @@ Design notes:
 ## Log
 
 
+
+- 2026-10-18: closed — Close Minors fixed: unreadChanges and TestUnreadChanges removed (no caller); the fake text() comment no longer cites WriteAll; syncIndex refuses when FrontBlock(next) disagrees with the reconcile block (indented ---), pinned by TestIndexRefusesADelimiterCouchReadsDifferently. go test ./cmd/tl-lead passes; suite green on 219cb76c (9m53s). (fixed-then-ship); review verdict: SHIP
 - 2026-10-18: closed — Suite green on 1278a020 (sdlc-local/suite, 8m31s). go test ./cmd/tl-lead ./pkg/sidedoc pass: TestFrontBlock; TestIndexKeepsUnreadEdits (a no-op reconcile reads nothing through couch; after a link writes the index the diff is exactly the operator section edit, nothing printed); TestIndexCommand (a racing frontmatter edit goes stale, is recomputed and kept; nothing written under the lock); one-way sequence and link split unchanged. Live TL_LEAD_LIVE=1 TestSessionSyncConformance passed against the real couch (pair#643) on a t.TempDir scratch file with a dummy owner, as the hub required: read/write --frontmatter keep a section edit in the diff, keep every body byte, stale gives exit 6, lock gives exit 3. Printed-diff workaround removed; help and atlas updated.; review verdict: SHIP
 ### 2026-10-17
 - 2026-10-18: the hub approved the plan, on condition that the live conformance runs only against a scratch session-sync file. `TestSessionSyncConformance` writes its file under `t.TempDir()` with a dummy owner, never a real session file.
