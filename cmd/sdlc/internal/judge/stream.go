@@ -32,6 +32,7 @@ type Result struct {
 	Text    string
 }
 
+// wire: Claude stream-json events may add fields before this binary upgrades.
 type streamEvent struct {
 	Type    string `json:"type"`
 	Subtype string `json:"subtype"`

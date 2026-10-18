@@ -37,6 +37,7 @@ var (
 	shardWall     = regexp.MustCompile(`^wall\s+([0-9]+(?:\.[0-9]+)?)s(?:\s|$)`)
 )
 
+// wire: go test -json events may add fields in a newer Go toolchain.
 type goTestJSONEvent struct {
 	Action  string   `json:"Action"`
 	Package string   `json:"Package"`
