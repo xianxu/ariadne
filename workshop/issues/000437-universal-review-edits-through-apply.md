@@ -44,7 +44,9 @@ The skill's contract and examples use `apply` for edits, cover exit-1 invalid/pr
 
 - [x] Design the two apply adapters, Pair workbench transition and v3 export compatibility in `workshop/plans/000437-universal-review-edits-through-apply-plan.md`; get hub approval.
 - [x] Update the skill and exporter with focused red/green contract tests, regenerate the manifest, and verify the examples checker.
-- [ ] Run a live tracked-document apply round with reasons using the landed Pair engine, run the recorded suite, close and land after parley#383's dual-version consumer is in place.
+- [ ] Verify the landed Pair engine in live tracked and hosted review rounds, record the suite on the pushed head, and confirm parley#383's dual-version consumer has landed.
+
+After that evidence is complete, close and land through the SDLC gates.
 
 ## Log
 
@@ -64,3 +66,4 @@ The skill's contract and examples use `apply` for edits, cover exit-1 invalid/pr
 - 2026-10-18, M2 scope coordination: extend the original skill-only issue to migrate the hosted Pair review-workbench protocol in `construct/local/fix/SKILL.md`; preserve the legacy pane until pair#664 follows. Remove mode-level `deletions` from the authored skill and v3 export only after parley#383 accepts both versions. Pair's propose converter requires `write --frontmatter` for frontmatter-only changes, so that existing dedicated verb remains a narrow exception to body edits through `apply`.
 - 2026-10-18, proposal side docs: keep a checked, atomic direct-apply exception for a record answering the operator's own ready marker, including a link and its matching `discussions:` entry or a large fold under `presentation: propose`. Pair #661 M2 owns the engine check; #437 documents and verifies it. This prevents a proposed-but-not-linked side doc and a fold that cannot pass the proposal size limit.
 - 2026-10-18, exception narrowed: only the operator-marker-to-side-doc-link edit or a `🤖[fold in]` at that link is direct under `propose`; a normal prose edit with a ready marker remains a proposal. The matching index entry can ride with the direct link.
+- 2026-10-18, close checklist: the final checkbox now names the evidence that must exist before `sdlc close`; close and merge follow it as workflow actions, so the gate can check a completed plan without a self-referential item.
