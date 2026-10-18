@@ -27,6 +27,7 @@ var (
 	backlinkRE     = regexp.MustCompile(`(?m)^_From \[[^\]]*\]\([^)#\s]+\), section "([^"]+)"\._`)
 	foldedRE       = regexp.MustCompile(`^ \(folded \d{4}-\d{2}-\d{2}\)`)
 	foldNoteRE     = regexp.MustCompile(`(?m)^(?:Folded into|Proposed in) the parent on \d{4}-\d{2}-\d{2}: `)
+	multiTurnRE    = regexp.MustCompile(`🤖(?:<[^>\n]*>|~[^~\n]*~)?(?:\[[^]\n]*\]|\{[^}\n]*\}){2,}`)
 )
 
 // sideDocName classifies a side doc's file name. A dated answer doc is tried
@@ -253,6 +254,17 @@ func checkCase(fsys fs.FS) []string {
 		}
 		return errs
 	}
+	// Readers keep old chains; a round must never write a new one. This
+	// checks the simple markers used by the reference cases, not the full
+	// nested/escaped marker grammar owned by the editor.
+	beforeText, afterText := treeFiles(fsys, "before"), treeFiles(fsys, "after")
+	for p, body := range afterText {
+		for _, chain := range multiTurnRE.FindAllString(body, -1) {
+			if !strings.Contains(beforeText[p], chain) {
+				bad("after/%s: agent wrote a second turn in %q", p, chain)
+			}
+		}
+	}
 	if move != nil {
 		// A move is checked whole: after/ is exactly the move contract applied
 		// to before/, so parley's mover and the agent share one fixture.
@@ -472,6 +484,13 @@ func TestCheckCaseCatches(t *testing.T) {
 	if errs := checkCase(goodCase()); len(errs) != 0 {
 		t.Fatalf("the good case fails: %v", errs)
 	}
+	legacy := goodCase()
+	for _, p := range []string{"before/d.md", "after/d.md"} {
+		legacy[p] = &fstest.MapFile{Data: append(append([]byte(nil), legacy[p].Data...), []byte("\nLegacy 🤖[first]{answer}[follow-up]\n")...)}
+	}
+	if errs := checkCase(legacy); len(errs) != 0 {
+		t.Fatalf("an unchanged legacy chain must stay readable: %v", errs)
+	}
 	side := "after/d.side/01-why.md"
 	edit := func(p, old, new string) func(fstest.MapFS) {
 		return func(m fstest.MapFS) {
@@ -565,6 +584,13 @@ func TestCheckCaseCatches(t *testing.T) {
 		}, "differs from the move's projection"},
 		{"a pruned side doc", func(m fstest.MapFS) { m["before/d.side/01-why.md"] = m[side]; delete(m, side) }, "never pruned"},
 		{"a failed round that changed the document", edit("case.md", "outcome: ok", "outcome: fails"), "changes nothing"},
+		{"an agent appends a second turn", func(m fstest.MapFS) {
+			m["after/d.md"] = &fstest.MapFile{Data: []byte("# D\n\nText. 🤖[why?]{which case?}\n")}
+		}, "second turn"},
+		{"an agent appends to a legacy chain", func(m fstest.MapFS) {
+			m["before/d.md"] = &fstest.MapFile{Data: []byte("# D\n\nText. 🤖[why?]{answer}[follow-up]\n")}
+			m["after/d.md"] = &fstest.MapFile{Data: []byte("# D\n\nText. 🤖[why?]{answer}[follow-up]{more}\n")}
+		}, "second turn"},
 	} {
 		m := goodCase()
 		c.mutate(m)
@@ -623,7 +649,7 @@ func TestCollaborationModesProse(t *testing.T) {
 		"Folded into the parent on <date>:",                                         // the fold's closing note the checker reads
 		"the adapter's exit 3",                                                      // row 17
 		"Never create a `.side/` inside a `.side/`",                                 // the flat folder
-		"Swapping a marker for its link is an edit through `apply`",                // presentation owns proposals
+		"Swapping a marker for its link is an edit through `apply`",                 // presentation owns proposals
 		"don't fold again",                                                          // a refused side-doc write after the fold landed
 		"a plain relative path with no `#anchor`",                                   // the body's backlink
 	} {

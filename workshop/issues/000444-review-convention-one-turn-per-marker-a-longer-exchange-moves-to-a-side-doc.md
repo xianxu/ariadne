@@ -37,9 +37,9 @@ Change the review convention (construct/local/fix/review-convention.md and the x
 
 ## Plan
 
-- [ ] Record the single-turn emission rule and legacy-reading rule in the canonical convention.
-- [ ] Update xx-fix and xx-universal-review so clarification, disagreement, and continued exchange use linked side docs rather than appended marker turns.
-- [ ] Add before/after scenarios for an ambiguous ask, an ambiguous approval in a side doc, and a legacy chain; verify the agent's result never adds a second turn.
+- [x] Record the single-turn emission rule and legacy-reading rule in the canonical convention.
+- [x] Update xx-fix and xx-universal-review so clarification, disagreement, and continued exchange use linked side docs rather than appended marker turns.
+- [x] Add before/after scenarios for an ambiguous ask, an ambiguous approval in a side doc, and a legacy chain; verify the agent's result never adds a second turn.
 - [ ] Confirm parley's existing parser still reads legacy chains, run targeted tests and the recorded suite, then close and land.
 
 ## Log
@@ -47,3 +47,6 @@ Change the review convention (construct/local/fix/review-convention.md and the x
 ### 2026-10-18
 
 - Started on the landed #437 edit path. The current convention permits indefinite chains, and three agent instructions still append a clarification turn; the new rule changes emission while retaining legacy reading.
+- TDD: `TestCheckCaseCatches` first failed on an appended second turn; after adding the fixture guard, `TestExamples` failed on the two old append outputs. Those examples now open indexed side docs. A new ready legacy-chain case resolves by its final human turn; an unchanged legacy chain remains allowed in the fixture test.
+- `go test ./pkg/reviewexport -count=1` passed. Parley's `make test-spec SPEC=modes/review` passed, including its three-turn parser case (`tests/unit/review_spec.lua`). `make -k` returned the Makefile help successfully.
+- Live scratch Pair apply under `presentation: propose` returned `Code: ok` and a derived round: the ready `🤖[add the numbers]` became a direct `→ [discussion](note.side/01-numbers.md)` link while the matching `discussions:` entry landed in the same batch; readback and `pair review round` reported the new hash and `Current: true`.

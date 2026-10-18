@@ -15,7 +15,7 @@ Links resolve relative to the file inside its own tree, exactly as on disk.
 
 **A live check against a case:** copy its `before/` tree to a scratch directory, run a round on the `submitted:`
 document as if its changes were the operator's, and compare the tree with `after/`. Wording may differ. Structure
-must not: which asks became edits, side docs, answer docs or clarifying turns; the link texts and paths; the side
+must not: which asks became edits, side docs or answer docs; the link texts and paths; the side
 docs' names and frontmatter; and which files are unchanged.
 
 `pkg/reviewexport`'s `TestExamples` checks every case's side docs against the contract in collaboration-modes.md §4:
@@ -28,6 +28,7 @@ docs' names and frontmatter; and which files are unchanged.
   never removes a link, drops an entry only when its link is gone, leaves no entry without its link, and adds one
   only for a side doc it wrote or linked;
 - that a failed round leaves `after/` identical to `before/`;
+- that a round never adds a second commentary turn to a marker, while unchanged legacy chains remain readable;
 - that a move case's `after/` is exactly the move contract applied to `before/`. The move cases are also parley's
   fixtures: `export.json` lists their files.
 

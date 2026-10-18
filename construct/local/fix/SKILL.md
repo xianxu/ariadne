@@ -58,7 +58,7 @@ the operator finish to avoid interleaved, intention-blurring edits.
 ## Marker Format
 
 ```
-marker     ::= 🤖 reference? section*
+marker     ::= 🤖 reference? section*   -- reader accepts old chains
 reference  ::= "<" TEXT ">" | "~" TEXT "~"     -- optional, at most one, first slot only
 section    ::= "[" TEXT "]" | "{" TEXT "}"
 ```
@@ -69,22 +69,22 @@ Two **reference** enclosures (anchor to prior text):
   by a single agent `{}` suggestion on accept.
 - `~X~` — text marked for deletion; markdown strikethrough renders the preview.
 
-Two **commentary** enclosures (alternate freely):
+Two **commentary** enclosures:
 
 - `[]` = **always human** (comments, corrections, instructions, replacements).
 - `{}` = **always agent** (findings, suggestions, questions, responses).
 
-After the optional reference, any chain of `[]`/`{}` sections in any order:
+**Write at most one commentary enclosure per marker.** The reader still accepts old multi-turn chains. Read their last block to find the operator's current ask, but never extend them:
 
 ```
-🤖{agent finding}[human response]{agent follow-up}[human reply]...
-🤖[human comment]{agent response}[human reply]{agent response}...
 🤖<quoted text>[human instruction about that text]
 🤖<old phrase>{new phrase}          -- robot proposes replacement (preferred for copy edits)
 🤖~old text~                       -- robot proposes deletion
 🤖~old text~{new text}             -- robot proposes replacement
 🤖~old text~[new text]             -- human-authored replacement
 ```
+
+For a clarification, disagreement, or other exchange that cannot finish with a clean edit, open a linked side doc instead of appending `{…}`. Replace the ready marker with `→ [discussion](<name>.side/NN-slug.md)` and add the matching `discussions:` frontmatter entry; use the side-doc layout and backlink contract in `../universal-review/collaboration-modes.md` §4. Another question inside that side doc opens a further doc in the same flat folder. An old chain ending in an agent `{…}` stays pending; do not resolve it without an operator response.
 
 **One line** (review-convention §3, §5). Every marker you write opens and
 closes on the same line; never let a marker span lines. Inside a `[]`/`{}`
@@ -101,15 +101,15 @@ them, but write single-line ones.)
 | Marker | Meaning |
 |--------|---------|
 | `🤖{needs citation}` | Agent flagged an issue, awaiting human |
-| `🤖{needs citation}[added ref to Smith 2024]` | Human responded — **actionable** |
-| `🤖{needs citation}[]` | Human says "go ahead" — **actionable** |
+| legacy `🤖{needs citation}[added ref to Smith 2024]` | Human responded — **actionable**; resolve, never extend |
+| legacy `🤖{needs citation}[]` | Human says "go ahead" — **actionable**; resolve, never extend |
 | `🤖[fix this typo]` | Human comment — **actionable** |
 | `🤖<foo_bar>[rename to foo_baz]` | Human scopes instruction to the quoted text — **actionable** |
 | `🤖<old phrase>{new phrase}` | Robot proposed a replacement, awaiting human |
 | `🤖~old phrase~[new phrase]` | Human-authored replacement — **actionable** (apply per §5) |
 | `🤖~old phrase~` | Robot proposed a deletion, awaiting human — skip |
 | `🤖~old phrase~{better phrase}` | Robot proposed a replacement, awaiting human — skip |
-| `🤖[fix this typo]{did you mean "their" → "there"?}` | Agent asked for clarification, awaiting human |
+| `🤖[fix this typo]` when two words fit | Open a side doc asking which word; replace this marker with its link |
 | `🤖[]` | Bare empty marker with no prior context — skip |
 | `🤖{}` | Empty agent marker — skip |
 
@@ -150,11 +150,11 @@ Markers inside fenced code blocks are ignored.
      `H` may be "yes apply R" (→ apply R and remove the marker) or a new
      instruction overriding R (→ apply H, remove the marker).
    - **Disagreement**: if you disagree with the operator's instruction, leave
-     the surrounding text unchanged, append a concise `{agent feedback}` to the
-     marker (so it ends in `{}` — non-actionable until the human responds), and
-     send the verbose reasoning in the coding-session reply.
-   - **Need clarification** (genuinely ambiguous, not disagreement): add
-     `{your question here}` to the marker.
+     the surrounding text unchanged and move the reasoning into a linked side
+     doc. Replace the ready marker with the link and index the doc so the
+     operator can answer there; name the disagreement in the session reply.
+   - **Need clarification** (genuinely ambiguous): ask in a linked side doc,
+     replacing the ready marker with its link; never append a second turn.
    - **Acknowledged, no doc change needed**: remove the marker entirely.
 5. **Write the modified file** back to the same path.
 6. **Report** in the session what changed, what you disagreed with (with
@@ -316,8 +316,9 @@ the pair binary's; you act on it:
 **The human's 🤖[] markers are requests (M4b) — fulfill or punt, as records.** While
 reviewing, treat each `🤖[…]` the human left in the doc as a task: if you can do it
 (e.g. `🤖[add an example here]` → find one in the repo / web), **fulfill** it — a record
-that inserts the content and removes the marker. If you can't, **punt** — a record that
-appends `🤖[…]{…}` (your reason/question), leaving it for the human to tweak. Your `🤖{…}`
+that inserts the content and removes the marker. If you can't, **punt** to a linked
+side doc: write the reason or question there, then apply a record replacing the
+ready marker with `→ [discussion](…)` and a matching `discussions:` entry. Your `🤖{…}`
 *suggestions* (where you want the human's call rather than editing outright) are also
 records that add the marker; the human resolves them in the pane (accept/reject, §5
 above) — you don't accept/reject your own.
@@ -466,6 +467,6 @@ once, and keeps intent legible — the operator always knows which region is liv
 ### General
 
 - When removing a marker, leave the corrected text in place with no trace of the marker.
-- When adding an agent question, append `{question}` to the marker.
+- When an answer needs another turn, replace the ready marker with a linked side doc containing the question; never append another block to the marker.
 - Respect existing voice and style in the surrounding document.
 - Do not rewrite sections that have no markers and are not referenced by any marker's instruction.
