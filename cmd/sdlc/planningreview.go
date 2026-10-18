@@ -102,28 +102,38 @@ func (t *planningReviewTransaction) refreshOwnLedger() error {
 	return t.validate()
 }
 
-func dispatchPlanningReview(f *changeCodeFlags, opts judge.DispatchOptions) (string, error) {
+// dispatchPlanningReview runs a planning review (plan-quality,
+// estimate-quality) through #409's reviewer choice, returning the reviewer
+// that produced the output as its ReviewerRecord.
+func dispatchPlanningReview(f *changeCodeFlags, opts judge.DispatchOptions, choice judge.ReviewChoice) (string, judge.Candidate, string, error) {
+	record := func(used judge.Candidate, skips []judge.Skip) string {
+		if used.Agent == "" {
+			return ""
+		}
+		return judge.ReviewerRecord(used, choice, skips)
+	}
 	if f.review == nil {
-		return judge.Dispatch(context.Background(), opts)
+		out, used, skips, err := judge.DispatchChoice(context.Background(), opts, choice)
+		return out, used, record(used, skips), err
 	}
 	t := f.review
 	if err := t.validate(); err != nil {
-		return "", err
+		return "", judge.Candidate{}, "", err
 	}
 	if err := t.unlock(); err != nil {
-		return "", planningReviewUnsafe(fmt.Errorf("release review lock: %w", err))
+		return "", judge.Candidate{}, "", planningReviewUnsafe(fmt.Errorf("release review lock: %w", err))
 	}
-	output, dispatchErr := judge.Dispatch(t.context(), opts)
+	output, used, skips, dispatchErr := judge.DispatchChoice(t.context(), opts, choice)
 	if err := t.lock(); err != nil {
-		return "", err
+		return "", used, "", err
 	}
 	// Validate before any verdict, fallback round, cache, or subsequent gate.
 	if err := t.validate(); err != nil {
-		return "", err
+		return "", used, "", err
 	}
 	if dispatchErr != nil {
 		// The text a failed retry carries (#300) goes back with the error.
-		return output, planningReviewUnsafe(fmt.Errorf("review dispatch failed: %w", dispatchErr))
+		return output, used, record(used, skips), planningReviewUnsafe(fmt.Errorf("review dispatch failed: %w", dispatchErr))
 	}
-	return output, nil
+	return output, used, record(used, skips), nil
 }

@@ -983,9 +983,9 @@ func TestResolveAgentCLI_Precedence(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ResolveAgentCLI(tt.explicit, tt.explicitSet, tt.env)
+			got := resolveFirst(tt.explicit, tt.explicitSet, tt.env, ReviewerPolicy{})
 			if got != tt.want {
-				t.Errorf("ResolveAgentCLI() = %q, want %q", got, tt.want)
+				t.Errorf("ResolveReview() = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -1333,7 +1333,7 @@ func TestResolveReviewerCLI_Policy(t *testing.T) {
 		{"same", "", false, claudeMain, ReviewerPolicy{Mode: ReviewerSame}, AgentClaude},
 		{"other: claude reviewed by codex", "", false, claudeMain, other, AgentCodex},
 		{"other: codex reviewed by claude", "", false, codexMain, other, AgentClaude},
-		{"other: gemini reviewed by claude", "", false, geminiMain, other, AgentClaude},
+		{"other: gemini reviewed by codex, the first other family for a bounded change (#409)", "", false, geminiMain, other, AgentCodex},
 		{"explicit pair", "", false, claudeMain, pairs, AgentGemini},
 		{"explicit, unpaired main reviews itself", "", false, codexMain, pairs, AgentCodex},
 		{"--agent beats the policy", "claude", true, claudeMain, other, AgentClaude},
@@ -1341,8 +1341,8 @@ func TestResolveReviewerCLI_Policy(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ResolveReviewerCLI(tt.explicit, tt.explicitSet, tt.env, tt.policy); got != tt.want {
-				t.Errorf("ResolveReviewerCLI() = %q, want %q", got, tt.want)
+			if got := resolveFirst(tt.explicit, tt.explicitSet, tt.env, tt.policy); got != tt.want {
+				t.Errorf("ResolveReview() = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -1362,4 +1362,12 @@ func TestReviewerPolicy_Validate(t *testing.T) {
 			t.Errorf("%+v validated", bad)
 		}
 	}
+}
+
+// resolveFirst is ResolveReview's first reviewer for a bounded change by the
+// main agent's own family, every agent available: #310's resolution.
+func resolveFirst(explicit string, explicitSet bool, env AgentDefaultEnv, policy ReviewerPolicy) AgentCLI {
+	main := MainAgent(env)
+	c, _ := ResolveReview(explicit, explicitSet, env, policy, []Family{FamilyOf(string(main))}, KindBounded, nil).First()
+	return c.Agent
 }
