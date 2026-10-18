@@ -70,7 +70,7 @@ milestone reviews (0.35 → 0.14 each). Calibration doc flagged stale; numbers p
 Durable plan: `workshop/plans/000409-dynamic-review-policy-choose-the-reviewer-model-by-author-family-and-change-kind-cross-family-by-default-extending-310-plan.md`.
 
 - [x] M1 — family, change kind (design-heavy/bounded), family-aware `other` + one default constant (still `same`), pure `ReviewPlan`, `Unavailable` (no-review-began evidence), pre-launch skips
-- [ ] M2 — dispatch loop with visible fallback/refusal at every review site; ledger, sidecar, `Review-Reviewer:` trailer; help and atlas
+- [x] M2 — dispatch loop with visible fallback/refusal at every review site; ledger, sidecar, `Review-Reviewer:` trailer; help and atlas
 
 ## Log
 
@@ -102,3 +102,18 @@ Durable plan: `workshop/plans/000409-dynamic-review-policy-choose-the-reviewer-m
   model reaches the reviewer's argv; an unconfigured one adds no flag) fails with the wiring removed, checked by
   revert. The new Minor (help and atlas described M2 behaviour) is fixed by marking the kind order and the fallback
   as landing in M2.
+- M2 implemented. In judge: `ResolveReview` (a forced `--agent`/`AGENT_CMD` candidate, else `ReviewPlan`),
+  `DispatchChoice` (tries candidates in order; an `UnavailableError` from `classifyRunResult`, which now classifies
+  launch failures and `Unavailable` runs, moves on with an announced skip; anything else ends as before; none left
+  gives `NoReviewerError` naming each), and `ReviewerRecord`/`ParseReviewerRecord`/`TallyReviewers`. In cmd/sdlc:
+  `resolveReviewChoice` (trailer families plus the session's, `boundaryChangeKind`, `reviewAvailability`, a test seam
+  stubbed to all-available in TestMain), used by close/milestone-close/fix (`boundaryReviewOptionsFor` now returns
+  the choice), plan-quality and estimate-quality (`planningReviewChoice`, design-heavy, through
+  `dispatchPlanningReview`), and `sdlc judge` (`judgeChangeKind`). Recording: the `Review-Reviewer:` trailer, the
+  ledger round's `reviewer`, and the sidecar's reviewer row. Tests: TestDispatchChoice (fallback, launch failure, all
+  unavailable refuses, began never hands over, no candidates), TestResolveReview, TestReviewerRecordRoundTrip (and
+  the tally), TestBoundaryReviewSkipsAnUnavailableReviewerVisibly, TestBoundaryReviewRefusesWithNoOtherFamily, and
+  TestReviewReviewerTrailerParsesAsAGitTrailer (via `git interpret-trailers`). The #310 boundary test still passes.
+  Help and atlas updated.
+- The tally is a git one-liner (`git log --format='%(trailers:key=Review-Reviewer,valueonly)'`), with
+  `judge.TallyReviewers` as the tested counter. No new verb, since the trailer form is the contract.

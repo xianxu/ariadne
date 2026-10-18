@@ -74,8 +74,12 @@ type Round struct {
 	// taken after it returns. A boundary's first Dispatched is its build/converge
 	// cut. Empty on plan-quality rounds, never-ran rounds and every round before
 	// #234; omitempty keeps those ledgers byte-identical.
-	Dispatched   string        `yaml:"dispatched,omitempty"`
-	Agent        string        `yaml:"agent"`
+	Dispatched string `yaml:"dispatched,omitempty"`
+	Agent      string `yaml:"agent"`
+	// Reviewer is #409's record of who reviewed: agent/model, its family, the
+	// authors' families and anything degraded (judge.ReviewerRecord), the same
+	// text as the close's Review-Reviewer trailer. Empty before #409.
+	Reviewer     string        `yaml:"reviewer,omitempty"`
 	Dispositions []Disposition `yaml:"dispose,omitempty"`
 	New          []Finding     `yaml:"findings,omitempty"`
 	// Boundary names which review boundary this round belongs to — "M1", "M2", "" for

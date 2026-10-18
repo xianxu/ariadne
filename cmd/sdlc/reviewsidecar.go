@@ -208,6 +208,12 @@ func persistReviewSidecar(stderr io.Writer, p boundaryReviewParams, r reviewResu
 	if r.Output == "" && diagnostics == "" {
 		return ""
 	}
+	// #409: the reviewer row carries the full record (model, families, degraded).
+	if r.Reviewer != "" {
+		p.Agent = r.Reviewer
+	} else if r.Agent != "" {
+		p.Agent = r.Agent
+	}
 	path, err := writeReviewSidecar(p, string(r.Verdict), r.Output, nowRFC3339())
 	if err != nil {
 		cwarn(stderr, fmt.Sprintf("review sidecar not written: %v", err))
