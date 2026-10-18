@@ -116,6 +116,12 @@ Then close and land on SHIP.
   range bindings clear both kinds of provenance. A fresh direct decoder
   assignment restores a non-strict proof. Focused `go test ./pkg/golint
   -count=1` passed with these cases; atlas now states the bounded coverage.
+- The pushed code head `5a78af6a0d728e307208b106fab47036a100c051`
+  passed `sdlc local-check run --name suite`: all 12 SDLC shards, 1,642
+  `cmd/sdlc` tests, 68 other packages, zero failures, 604.1 s suite wall.
+  Saved log: `/Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/5a78af6a0d728e307208b106fab47036a100c051/suite.log`
+  (SHA-256 prefix `e92698feb1ba`). PR #304's `merge-check` and
+  `local-gates-guard` passed on that code head.
 
 ## Revisions
 
