@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"syscall"
 	"testing"
 	"time"
@@ -48,16 +47,7 @@ func TestCancellationKillsDescendants(t *testing.T) {
 			t.Error("fixture parent did not finish after cleanup")
 		}
 	})
-	deadline := time.Now().Add(testfix.HangCeiling)
-	child := 0
-	for time.Now().Before(deadline) {
-		raw, _ := os.ReadFile(ready)
-		child, _ = strconv.Atoi(string(raw))
-		if child > 0 {
-			break
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
+	child := testfix.AwaitPIDFile(ready, testfix.HangCeiling, nil)
 	if child == 0 {
 		t.Fatal("child did not become ready")
 	}
@@ -118,16 +108,7 @@ func TestForcedTerminationRetiresMemberMissedByFirstSignal(t *testing.T) {
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
-	child := 0
-	deadline := time.Now().Add(testfix.HangCeiling)
-	for time.Now().Before(deadline) {
-		raw, _ := os.ReadFile(ready)
-		child, _ = strconv.Atoi(string(raw))
-		if child > 0 {
-			break
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
+	child := testfix.AwaitPIDFile(ready, testfix.HangCeiling, nil)
 	if child == 0 {
 		cmd.Process.Kill()
 		cmd.Wait()
