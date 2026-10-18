@@ -58,6 +58,7 @@ repos owning one binary name).
 ### 2026-10-15
 
 ### 2026-10-17
+- 2026-10-17: closed — 82/82 focused dev-aliases regressions pass, including ordinary/strict verbose stdout and status equivalence; live parley.nvim:4 strict read selects all seven substrate tools without warnings; make -k build and recorded suite on c4815824 pass (12 shards, 67 packages); PR #289 CI green; review verdict: SHIP
 
 Claimed and started from current main. The current duplicate check counts paths, while final selection is last sorted path. The shell's sibling plus substrate scan deliberately finds both checkouts. ARCH-PURE: normalize Git origin URLs at collection time, then make the warning decision from data; leave command emission and owner selection alone. This stays inside the quick-flow shell.
 
