@@ -719,6 +719,153 @@ rounds:
       isolation: fenced
       reviewed: b7c033ab62cfa957c71465574ff4aaa93a74468b
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: cd925a86-601e-40e3-8333-f489212d8c97
+            repository: github.com/xianxu/ariadne
+            issue_id: "000441"
+            recipe: fix-review
+            round: 6
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/955bb8f0ad98c697
+            reviewed_head: bfe6b7b53ab4e5b9bbf0b8b600105bdfa03fbda7
+            slot: ariadne:2
+            requested_at: "2026-10-18T18:20:37.905909Z"
+          phase: finished
+          pid: 45754
+          started_at: "2026-10-18T18:20:38.041052Z"
+          finished_at: "2026-10-18T18:31:37.480103Z"
+          session_id: a73d562a-ef29-4ba9-85d8-19a82084f1db
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: bfe6b7b53ab4e5b9bbf0b8b600105bdfa03fbda7
+        tracker_head: c5bc654a3c3906d0d5a8589cd8414418906c27e1
+        branch_point: 4c2fa13e834dfdf4caec56b2c47b864b5465cefe
+        since: "2026-10-18T09:10:46-07:00"
+        until: "2026-10-18T11:20:07-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T09:10:46-07:00"
+              end: "2026-10-18T11:20:07-07:00"
+              began: "2026-10-18T09:10:46-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 4945cf1c-b2de-4b88-8487-960125262396
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: bfd2a2a02db84fc7901f95f82e724d16044f613e3e25965fc5af0641a010abe9
+              started: "2026-10-18T16:13:07.152Z"
+              spawned: false
+              bytes: 540455
+              windows:
+                - start: "2026-10-18T16:13:07.152Z"
+                  end: "2026-10-18T11:20:07-07:00"
+            - harness: claude
+              id: 96feb223-0a1d-41a2-8c6b-18fb25b1e8b2
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: ade489c7ff729c62ba31b994f6802871c1ef39e98009ca682757e66f4736e55d
+              started: "2026-10-18T16:16:05.648Z"
+              spawned: false
+              bytes: 383034
+              windows:
+                - start: "2026-10-18T16:16:05.648Z"
+                  end: "2026-10-18T11:20:07-07:00"
+            - harness: claude
+              id: 99ead2dc-ffdc-4e2f-8618-76195520d5d3
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: c0666deb100115d75698688ba06499b1733b8839bcf0db3bfa61cc5854749768
+              started: "2026-10-18T16:14:46.747Z"
+              spawned: false
+              bytes: 499870
+              windows:
+                - start: "2026-10-18T16:14:46.747Z"
+                  end: "2026-10-18T11:20:07-07:00"
+            - harness: claude
+              id: d0a88980-85ac-4e44-a6cb-cfc8b055a1be
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: cd9d07196f3ec139376dc4c68d4eeae203fbf2cd7ab5520f6c3e4ba6dcc74d58
+              started: "2026-10-18T16:15:41.447Z"
+              spawned: false
+              bytes: 476863
+              windows:
+                - start: "2026-10-18T16:15:41.447Z"
+                  end: "2026-10-18T11:20:07-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 7a6749fdf5eaa6ab8856fe2d1dda44569977501e842c3fddcde67f587ddf7f8c
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 195534019
+              windows:
+                - start: "2026-10-18T09:10:46-07:00"
+                  end: "2026-10-18T11:20:07-07:00"
+        queue_waits:
+            - attempt_id: dd86d2996958c8e19e84dd8b9c49ee61
+              slot: ariadne:2
+              record_digest: 88fa31cfbfa77f1a36dc434f4bfe5ef427dff08c61f6e632b59666f877c498f6
+              start: "2026-10-18T17:18:16.439065Z"
+              end: "2026-10-18T17:28:43.782497Z"
+              queue_seconds: 627.343432
+              raw_seconds: 627.343432
+              exact: true
+            - attempt_id: 10198095994e6d8393a71c772d1394a8
+              slot: ariadne:2
+              record_digest: 01ae4d7c848e52567d67a2575155157e827906ef6c72a49256cc0ae1a95e706e
+              start: "2026-10-18T17:48:09.203869Z"
+              end: "2026-10-18T18:04:52.954882Z"
+              queue_seconds: 1003.751013
+              raw_seconds: 1003.751013
+              exact: true
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-18T09:23:57-07:00"
+              finalized: "2026-10-18T09:44:18-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T09:46:45-07:00"
+              finalized: "2026-10-18T10:09:30-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-18T10:14:35-07:00"
+              finalized: "2026-10-18T10:17:07-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-18T10:18:39-07:00"
+              finalized: "2026-10-18T10:20:20-07:00"
+              finalizing: true
+            - dispatched: "2026-10-18T11:17:29-07:00"
+              finalized: "2026-10-18T11:18:54-07:00"
+              finalizing: true
+      "n": 6
+      timestamp: "2026-10-18T11:31:38-07:00"
+      dispatched: "2026-10-18T11:20:37-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-12
+          disposition: addressed
+          note: Skip.Policy replaced by the SkipCause enum (policy.go:204-215); the empty plan has its own reason and only the name-one remedy (choice.go:68-85); doc-review reports the policy cause over the transient one (choose.go:66-76); TestRefusalRemedyFollowsTheCause covers all four causes, validates each policy, and fails when either fix is reverted in this checkout.
+          round: 6
+      recipe: fix-review
+      isolation: fenced
+      reviewed: bfe6b7b53ab4e5b9bbf0b8b600105bdfa03fbda7
+      blocked: false
 ---
 
 # Gate ledger — ariadne#441 (boundary-review)
@@ -795,6 +942,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-12** [Minor] `refusal-names-applicable-remedy` (kind: defect) An empty refusal under other mode recommends reviewer_pairs, which Validate rejects outside explicit mode
   This is the 3rd finding in family refusal-names-applicable-remedy. Earlier rounds fixed instances: a fixed sentence, then a single Policy boolean. Rule: every cause of refusal carries its own remedy, chosen by the cause together with the effective mode. Cause 1, a CLI that is unavailable: retry later. Cause 2, an explicit pair into the author family, or an unpaired session: fix reviewer_pairs. Cause 3, an other-mode plan that leaves no family (all families authored, or reviewer_order covers only author families): no config remedy except widening reviewer_order; name one explicitly. Cause 4, a skip for availability whose candidate would also have been policy-skipped: report the policy cause, not the transient one. Fix the rule: replace the Policy bool with a remedy or cause enum on Skip, plus an explicit cause for an empty plan. choice.go:68 currently sets policy=true when there are no skips. A probe in this checkout (chooseReviewers under Other with authors anthropic, openai and google) printed "pair this agent with another family in reviewer_pairs", and Policy{Mode: Other, Pairs: ...}.Validate() fails with "reviewer_pairs applies only to boundary_reviewer explicit". The same text reaches sdlc through judge.noReviewer. Add a table test that covers all four causes.
 
+## Round 6 — 2026-10-18T11:31:38-07:00 (claude) — passed
+
+### Disposed
+
+- BR-12 — addressed — Skip.Policy replaced by the SkipCause enum (policy.go:204-215); the empty plan has its own reason and only the name-one remedy (choice.go:68-85); doc-review reports the policy cause over the transient one (choose.go:66-76); TestRefusalRemedyFollowsTheCause covers all four causes, validates each policy, and fails when either fix is reverted in this checkout.
+
 ## Open findings
 
-- **BR-12** [Minor] `refusal-names-applicable-remedy` (kind: defect) An empty refusal under other mode recommends reviewer_pairs, which Validate rejects outside explicit mode
+(none — every finding has been disposed)
