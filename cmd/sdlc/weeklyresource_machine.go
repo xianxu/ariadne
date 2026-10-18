@@ -104,6 +104,9 @@ func compareResourceMachine(current ResourceMachine, prior previousResourceResul
 			row.Alert = false
 		}
 		for _, row := range []*DeviceGauge{&result.BytesWritten, &result.SSDWear} {
+			if !row.Observed {
+				continue // The failed current probe has the more specific reason.
+			}
 			row.State, row.Reason, row.Delta = "unknown", prior.Reason, nil
 		}
 	}
@@ -111,7 +114,7 @@ func compareResourceMachine(current ResourceMachine, prior previousResourceResul
 }
 
 func compareWearGauge(current DeviceGauge, prior *DeviceGauge) DeviceGauge {
-	if current.State != "observed" {
+	if !current.Observed {
 		current.State = "unknown"
 		return current
 	}
@@ -119,7 +122,7 @@ func compareWearGauge(current DeviceGauge, prior *DeviceGauge) DeviceGauge {
 		current.State = "baseline"
 		return current
 	}
-	if prior.Device != current.Device || (prior.State != "observed" && prior.State != "compared" && prior.State != "baseline") || current.Value < prior.Value || current.Value-prior.Value > math.MaxInt64 {
+	if prior.Device != current.Device || !prior.Observed || current.Value < prior.Value || current.Value-prior.Value > math.MaxInt64 {
 		current.State, current.Reason = "unknown", "previous wear unavailable, device changed, or counter reset"
 		return current
 	}
@@ -171,6 +174,7 @@ func collectResourceMachine(ctx context.Context, deps resourceMachineDeps, scrat
 	result.BytesWritten = DeviceGauge{Device: disk, State: "unknown"}
 	if bytes, err := parseIORegWriteBytes(string(ioregOutput), disk); err == nil && ioregErr == nil {
 		result.BytesWritten.Value = bytes
+		result.BytesWritten.Observed = true
 		result.BytesWritten.State = "observed"
 		if bootErr == nil {
 			if match := resourceBootSeconds.FindStringSubmatch(string(bootOutput)); len(match) == 2 {
@@ -186,7 +190,7 @@ func collectResourceMachine(ctx context.Context, deps resourceMachineDeps, scrat
 	smartOutput, smartErr := deps.Runner.Run(ctx, "smartctl", "-a", "/dev/"+disk)
 	result.SSDWear = DeviceGauge{Device: disk, State: "unknown"}
 	if wear, err := parseSmartWear(string(smartOutput)); err == nil {
-		result.SSDWear.Value, result.SSDWear.State = wear, "observed"
+		result.SSDWear.Value, result.SSDWear.Observed, result.SSDWear.State = wear, true, "observed"
 	} else {
 		result.SSDWear.Reason = fmt.Sprintf("smartctl wear: %v %v", err, smartErr)
 	}

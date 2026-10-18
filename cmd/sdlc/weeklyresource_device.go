@@ -14,12 +14,13 @@ var (
 )
 
 type DeviceGauge struct {
-	Device string `json:"device"`
-	Epoch  string `json:"epoch,omitempty"`
-	Value  uint64 `json:"value"`
-	State  string `json:"state"`
-	Reason string `json:"reason,omitempty"`
-	Delta  *int64 `json:"delta"`
+	Device   string `json:"device"`
+	Epoch    string `json:"epoch,omitempty"`
+	Value    uint64 `json:"value"`
+	Observed bool   `json:"observed"`
+	State    string `json:"state"`
+	Reason   string `json:"reason,omitempty"`
+	Delta    *int64 `json:"delta"`
 }
 
 // parseIORegWriteBytes binds a driver statistic to its whole, nonremovable
@@ -59,7 +60,7 @@ func parseSmartWear(output string) (uint64, error) {
 }
 
 func compareDeviceCounter(current DeviceGauge, prior *DeviceGauge) DeviceGauge {
-	if current.State != "observed" {
+	if !current.Observed {
 		current.State = "unknown"
 		return current
 	}
@@ -67,7 +68,7 @@ func compareDeviceCounter(current DeviceGauge, prior *DeviceGauge) DeviceGauge {
 		current.State = "baseline"
 		return current
 	}
-	if prior.State != "observed" && prior.State != "compared" && prior.State != "baseline" {
+	if !prior.Observed {
 		current.State = "unknown"
 		current.Reason = "previous device counter unknown"
 		return current

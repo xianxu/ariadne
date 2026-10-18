@@ -37,17 +37,17 @@ func TestParseDeviceGauges(t *testing.T) {
 }
 
 func TestCompareDeviceCounterRequiresSameEpoch(t *testing.T) {
-	prior := DeviceGauge{Device: "disk0", Epoch: "boot-1", Value: 100, State: "observed"}
+	prior := DeviceGauge{Device: "disk0", Epoch: "boot-1", Value: 100, Observed: true, State: "baseline"}
 	for _, tc := range []struct {
 		name    string
 		current DeviceGauge
 		state   string
 		delta   *int64
 	}{
-		{"comparable", DeviceGauge{Device: "disk0", Epoch: "boot-1", Value: 130, State: "observed"}, "compared", ptrInt64(30)},
-		{"reboot", DeviceGauge{Device: "disk0", Epoch: "boot-2", Value: 130, State: "observed"}, "unknown", nil},
-		{"reset", DeviceGauge{Device: "disk0", Epoch: "boot-1", Value: 90, State: "observed"}, "unknown", nil},
-		{"device", DeviceGauge{Device: "disk1", Epoch: "boot-1", Value: 130, State: "observed"}, "unknown", nil},
+		{"comparable", DeviceGauge{Device: "disk0", Epoch: "boot-1", Value: 130, Observed: true, State: "observed"}, "compared", ptrInt64(30)},
+		{"reboot", DeviceGauge{Device: "disk0", Epoch: "boot-2", Value: 130, Observed: true, State: "observed"}, "unknown", nil},
+		{"reset", DeviceGauge{Device: "disk0", Epoch: "boot-1", Value: 90, Observed: true, State: "observed"}, "unknown", nil},
+		{"device", DeviceGauge{Device: "disk1", Epoch: "boot-1", Value: 130, Observed: true, State: "observed"}, "unknown", nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := compareDeviceCounter(tc.current, &prior)

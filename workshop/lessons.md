@@ -993,3 +993,4 @@ The simplest durable authority beats a clever scan of consequences.
 
 - For a set of overlapping source claims, record every later claimant of a blocked physical file as unknown too; vary root order and add a third claimant in tests so a first-conflict-only fix cannot leave a false complete zero (#402 BR-1).
 - An immutable dated artifact with an observation timestamp needs an existence check before recollection and a race check after publication. Test retries with an advancing clock, and validate persisted numeric semantics before accepting either a retry or prior-week comparison (#402 BR-2/BR-3).
+- Persist observation validity independently of comparison status. A valid device reading can have an unknown weekly delta after a reboot, missing prior, or timing gap; serializing that status as the only validity signal prevents every later week from recovering. Test three-week sequences across the real JSON boundary (#402 BR-6).

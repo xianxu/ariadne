@@ -67,5 +67,8 @@ Point-resource deltas and growth alerts require complete observations 6–8 days
 apart; otherwise they are unknown with the actual interval. Suite-duration
 deltas use the fixed weekly windows. Missing tools, source paths, prior weeks,
 or readable gauges remain named unknowns or first-week baselines, never zeros.
+Each device gauge stores `observed` separately from its comparison `state`:
+an unknown delta after a reboot, missing prior reading, or timing gap keeps a
+valid current reading available to compare with the following week.
 No scheduler is installed for this command; the TL runs the completed-week
 snapshot after each Monday 00:00 UTC boundary.

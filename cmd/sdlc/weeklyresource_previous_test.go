@@ -47,7 +47,7 @@ func TestReadPreviousResourceSectionExactWeek(t *testing.T) {
 	if got := readPreviousResourceSection(root, window); got.State != "unknown" || !strings.Contains(got.Reason, "observed_at") {
 		t.Fatalf("missing point-observation time = %+v", got)
 	}
-	validBody := `{"schema_version":2,"window":{"start":"2026-10-05T00:00:00Z","end":"2026-10-12T00:00:00Z"},"resources":{"observed_at":"2026-10-12T01:00:00Z","families":[{"kind":"couch-ledgers","definition":"v1","bytes":100,"files":1,"complete":true,"state":"baseline"}],"largest_ledgers":[],"suites":[],"machine":{"go_cache":{"kind":"go-cache","definition":"/cache","bytes":0,"files":0,"complete":true,"state":"baseline"},"agentscratch_free":{"kind":"agentscratch-free","definition":"/scratch","bytes":0,"files":0,"complete":true,"state":"baseline"},"agentscratch_total":{"kind":"agentscratch-total","definition":"/scratch","bytes":0,"files":0,"complete":true,"state":"baseline"},"bytes_written":{"device":"disk0","value":0,"state":"baseline"},"ssd_wear":{"device":"disk0","value":0,"state":"baseline"}}}}`
+	validBody := `{"schema_version":2,"window":{"start":"2026-10-05T00:00:00Z","end":"2026-10-12T00:00:00Z"},"resources":{"observed_at":"2026-10-12T01:00:00Z","families":[{"kind":"couch-ledgers","definition":"v1","bytes":100,"files":1,"complete":true,"state":"baseline"}],"largest_ledgers":[],"suites":[],"machine":{"go_cache":{"kind":"go-cache","definition":"/cache","bytes":0,"files":0,"complete":true,"state":"baseline"},"agentscratch_free":{"kind":"agentscratch-free","definition":"/scratch","bytes":0,"files":0,"complete":true,"state":"baseline"},"agentscratch_total":{"kind":"agentscratch-total","definition":"/scratch","bytes":0,"files":0,"complete":true,"state":"baseline"},"bytes_written":{"device":"disk0","value":0,"observed":true,"state":"baseline"},"ssd_wear":{"device":"disk0","value":0,"observed":true,"state":"baseline"}}}}`
 	write(validBody)
 	got = readPreviousResourceSection(root, window)
 	if got.State != "complete" || got.Section == nil || len(got.Section.Families) != 1 || got.Section.Families[0].Bytes != 100 {
@@ -57,6 +57,7 @@ func TestReadPreviousResourceSectionExactWeek(t *testing.T) {
 		{strings.Replace(validBody, `"bytes":100,`, "", 1), "bytes"},
 		{strings.Replace(validBody, `"files":1,`, "", 1), "files"},
 		{strings.Replace(validBody, `"value":0,`, "", 1), "value"},
+		{strings.Replace(validBody, `"observed":true,`, "", 1), "observed"},
 		{strings.Replace(validBody, `"suites":[]`, `"suites":[{"repo":"ariadne","wall":{"p50_seconds":1,"p90_seconds":2},"state":"baseline"}]`, 1), "samples"},
 	} {
 		write(tc.body)
@@ -95,7 +96,7 @@ func TestReadPreviousResourceSectionRejectsSemanticCorruption(t *testing.T) {
 			Families:       []ResourceComparison{obs("family")},
 			LargestLedgers: []ResourceFileComparison{{ResourceFile: ResourceFile{Path: "/ledger", Bytes: 100}, State: "baseline"}},
 			Suites:         []WeeklyResourceSuite{{Repo: "ariadne", Wall: &SuiteQuantiles{P50: 10, P90: 20, Samples: 2}, State: "baseline"}},
-			Machine:        ResourceMachineTrend{GoCache: obs("go-cache"), AgentScratchFree: obs("agentscratch-free"), AgentScratchTotal: obs("agentscratch-total"), BytesWritten: DeviceGauge{Device: "disk0", Epoch: "123", Value: 100, State: "baseline"}, SSDWear: DeviceGauge{Device: "disk0", Value: 8, State: "baseline"}},
+			Machine:        ResourceMachineTrend{GoCache: obs("go-cache"), AgentScratchFree: obs("agentscratch-free"), AgentScratchTotal: obs("agentscratch-total"), BytesWritten: DeviceGauge{Device: "disk0", Epoch: "123", Value: 100, Observed: true, State: "baseline"}, SSDWear: DeviceGauge{Device: "disk0", Value: 8, Observed: true, State: "baseline"}},
 		}}
 	}
 	for _, tc := range []struct {

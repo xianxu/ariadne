@@ -78,7 +78,7 @@ func validatePersistedWeeklyResources(data []byte, section *WeeklyResourceSectio
 		if err != nil {
 			return err
 		}
-		if err := resourceRequired(row, "device "+key, "device", "value", "state"); err != nil {
+		if err := resourceRequired(row, "device "+key, "device", "value", "observed", "state"); err != nil {
 			return err
 		}
 	}
@@ -252,6 +252,12 @@ func validFinitePointer(value *float64) bool {
 func validateDeviceGauge(row DeviceGauge, label string) error {
 	if row.Device == "" {
 		return fmt.Errorf("device %s identity missing", label)
+	}
+	if row.Observed && row.State == "unknown" && row.Reason == "" {
+		return fmt.Errorf("device %s unknown comparison without reason", label)
+	}
+	if !row.Observed && row.State != "unknown" {
+		return fmt.Errorf("device %s unobserved value has numeric state", label)
 	}
 	switch row.State {
 	case "unknown", "baseline":

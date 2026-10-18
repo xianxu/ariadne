@@ -162,8 +162,8 @@ func fakeWeeklyResourceMachine() ResourceMachine {
 	}
 	return ResourceMachine{
 		GoCache: obs("go-cache"), AgentScratchFree: obs("agentscratch-free"), AgentScratchTotal: obs("agentscratch-total"),
-		BytesWritten: DeviceGauge{Device: "disk0", Epoch: "123", State: "observed"},
-		SSDWear:      DeviceGauge{Device: "disk0", State: "observed"},
+		BytesWritten: DeviceGauge{Device: "disk0", Epoch: "123", Observed: true, State: "observed"},
+		SSDWear:      DeviceGauge{Device: "disk0", Observed: true, State: "observed"},
 	}
 }
 
