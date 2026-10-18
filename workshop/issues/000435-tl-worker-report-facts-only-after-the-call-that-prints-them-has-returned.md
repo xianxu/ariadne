@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "c5ec2b93", done: "6acb0d5f"}
 ---
 
 # tl-worker: report facts only after the call that prints them has returned
