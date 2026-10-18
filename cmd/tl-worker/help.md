@@ -29,6 +29,8 @@ PERMISSIONS
   temporary profile, no foreground window). Ask the hub before you open a
   visible window, touch the :0 slot, change the machine (installs, settings,
   services), or change the item's scope.
+  Opening an early draft PR for CI overlap needs no hub approval. The recorded
+  suite, close review, and `sdlc merge` gates still precede landing.
 
 TESTS
   Run the required recorded pre-close suite on the pushed issue branch. Once
