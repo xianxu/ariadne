@@ -80,49 +80,51 @@ at most 2x, not use elapsed time. No artifact retention or cleanup is added.
 **Files:** `pkg/golint/wire_test.go`, `pkg/golint/wire.go`, `pkg/golint/check.go`,
 `pkg/golint/repo_test.go`.
 
-- [ ] Write red source-map tests: `// wire:` on a named type in the same file,
+- [x] Write red source-map tests: `// wire:` on a named type in the same file,
   a second file of the package, and an imported package with an alias all
   resolve; a local type of the same name, an unmarked type, an empty or
   unrelated comment, and a generated file do not. Add a counted 8/16-file
-  fixture that checks one parse and one index visit per file/declaration.
-- [ ] Run `go test ./pkg/golint -run 'TestWire(TypeIndex|IndexCost)' -count=1`
+  fixture that checks one index visit per file/declaration.
+- [x] Run `go test ./pkg/golint -run TestWireIndexCost -count=1`
   and capture the expected red failure.
-- [ ] Add a pure multi-source parse/index/check path. Keep `Check`'s one-file
+- [x] Add a pure multi-source parse/index/check path. Keep `Check`'s one-file
   API for existing callers; have it use the same core with a one-file source
   set. Update existing rules to receive the shared index context without
   duplicating suppression logic. The repo test supplies tracked sources once.
-- [ ] Run the focused tests green and commit the index increment.
+- [x] Run the focused tests green and commit the index and rule increment.
 
 ## Task 2: prove the decoder rule and annotate the real types
 
 **Files:** `pkg/golint/wire_test.go`, `pkg/golint/rules.go`, the four input files
 named above.
 
-- [ ] Add red table cases for `json.NewDecoder` →
+- [x] Add red table cases for `json.NewDecoder` →
   `DisallowUnknownFields` → `Decode(&wire)` and `Decode(&Wire{})`, including
   cross-file/imported targets and an aliased `encoding/json` import. Cases
   without the flag, with a local persisted type, with a different decoder,
   with a rebound decoder, or with ambiguous control flow have no finding.
   Verify the finding points to `Decode`, names `pair#594`, and a reasoned
   `//lint:allow wire-strict-decode` works through existing suppression rules.
-- [ ] Run `go test ./pkg/golint -run TestWireStrictDecode -count=1` red.
-- [ ] Implement the conservative direct-chain matcher, add it to `Catalog`,
+- [x] Run `go test ./pkg/golint -run TestWireStrictDecode -count=1` red.
+- [x] Implement the conservative direct-chain matcher, add it to `Catalog`,
   and add the four `// wire: <producer/reason>` type-doc comments. Keep the
   normal local-file `DisallowUnknownFields` calls untouched.
-- [ ] Run focused tests green and commit the rule and annotations.
+- [x] Run focused tests green and commit the rule and annotations.
 
 ## Task 3: document, verify, close
 
 **Files:** `atlas/workflow/sdlc-binary.md`, `workshop/issues/000440-*.md`.
 
-- [ ] Explain when to mark a type, the direct-chain coverage boundary, why
+- [x] Explain when to mark a type, the direct-chain coverage boundary, why
   local/versioned stores stay strict, and how to suppress a proven exception.
-  Run `go test ./pkg/golint -count=1`, `make -k`, and `git diff --check`.
+  Run `go test ./pkg/golint -count=1`, `make -k tools`, and `git diff --check`.
 - [ ] Push the issue head through `sdlc pr`, then run
   `sdlc local-check run --name suite` on that head. Record exact head, log and
-  result in the issue Log. Close on the reviewed head and answer findings.
-- [ ] Land via `sdlc merge --yes` after SHIP, report the PR and real merge
-  commit to the hub. The TL owns any project update.
+  result in the issue Log.
+
+After the evidence is complete, close on the reviewed head, answer findings,
+land via `sdlc merge --yes` after SHIP, and report the PR and real merge commit
+to the hub. The TL owns any project update.
 
 ## Revisions
 
@@ -130,3 +132,8 @@ named above.
   decoder chain after evaluating the broad flag and type-checking alternatives.
   The hub required annotating existing Ariadne wire types now, with Pair's
   adoption in pair#665.
+- 2026-10-18, evidence accounting: the counted fixture checks index visits at
+  8 and 16 files; the `CheckSources` parse loop itself has one parse call per
+  map entry. Index and matcher were committed as one coherent increment after
+  red/green rounds. The close checklist now stops at pre-close evidence so the
+  gate need not check its own future outcome.

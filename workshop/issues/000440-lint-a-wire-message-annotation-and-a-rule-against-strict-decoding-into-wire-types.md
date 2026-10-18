@@ -61,11 +61,13 @@ version-pinned persisted contracts where strict decode is intentional.
 
 ## Plan
 
-- [ ] Approve the durable plan and pass `sdlc change-code`.
-- [ ] Add the red lint fixtures, implement the pure index and decoder matcher,
+- [x] Approve the durable plan and pass `sdlc change-code`.
+- [x] Add the red lint fixtures, implement the pure index and decoder matcher,
   and annotate Ariadne's current tolerant input types.
-- [ ] Update atlas, run focused tests and `make -k`, record the pushed-head
-  suite, close and land.
+- [ ] Update atlas, run focused tests and `make -k`, and record the pushed-head
+  suite for close.
+
+Then close and land on SHIP.
 
 ## Log
 
@@ -74,3 +76,20 @@ version-pinned persisted contracts where strict decode is intentional.
 - Claimed and started in ariadne:1. The hub approved a syntax-only source
   index and direct decoder-chain rule, and asked that Ariadne's existing wire
   types be annotated in this issue; Pair adopts the rule in pair#665.
+- `sdlc change-code` admitted the quick flow, with the boundary review set to
+  upgrade if the implementation leaves its size shell. Red tests first showed
+  the missing same-file and cross-file findings, then caught false positives
+  from decoder reassignment, conditional flags, shadowed targets, mixed
+  packages, and shadowed `encoding/json`. The matcher now keeps only proven
+  direct chains; unsupported helper/control-flow cases remain unflagged.
+- Focused `go test ./pkg/golint -count=1` passes after the four annotations;
+  the repository scan checked 1,172 tracked Go files against six rules in
+  331 ms in a measured run. `make -k tools` built all six tools, and
+  `git diff --check` passed. The index's counted N=8 and 2N=16 fixture
+  confirms one file and one type-declaration visit per fixture file.
+
+## Revisions
+
+- 2026-10-18, close checklist: the last Plan checkbox now names evidence
+  attainable before `sdlc close`; close and merge remain mandatory workflow
+  actions immediately after that evidence, not a self-referential checkbox.
