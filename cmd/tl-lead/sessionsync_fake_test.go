@@ -159,8 +159,8 @@ func (f *fakeSessionSync) text() string {
 	if f.front != "" {
 		b.WriteString("---\n" + f.front + "\n---\n")
 	}
-	// Exactly invertible: WriteAll's parse returns each body byte for byte,
-	// so a section the whole-file write leaves alone keeps its hash, as in couch.
+	// Sections render byte for byte, so a frontmatter write leaves every
+	// section's hash alone, as in couch.
 	for _, h := range f.headings() {
 		b.WriteString("\n## " + h + "\n" + f.sections[h])
 	}

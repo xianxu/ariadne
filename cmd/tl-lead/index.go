@@ -48,7 +48,14 @@ func syncIndex(d deps, out io.Writer, file string, add []string) error {
 			return fmt.Errorf("refused: %s's discussions: index: %v", file, err)
 		}
 		if r.Changed() {
-			front, _, _ := sidedoc.FrontBlock(next)
+			// Couch ends the block at the first line that trims to `---`; the
+			// reconcile reads only an exact one. Where they disagree (an
+			// indented `  ---` inside), part of the new index would fall
+			// outside what the write replaces: refuse rather than report it.
+			front, rest, ok := sidedoc.FrontBlock(next)
+			if !ok || rest != body {
+				return fmt.Errorf("refused: %s's frontmatter has a line couch reads as its end (`---` with spaces); fix it by hand", file)
+			}
 			err = writeBody(front, func(path string) error { return d.ss.WriteFrontmatter(file, path, hash) })
 			if errors.Is(err, ErrStale) {
 				continue

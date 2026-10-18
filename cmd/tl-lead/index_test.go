@@ -153,18 +153,6 @@ func TestIndexKeepsUnreadEdits(t *testing.T) {
 	}
 }
 
-func TestUnreadChanges(t *testing.T) {
-	for in, want := range map[string]string{
-		"lock: none\n": "", "lock: none": "", "": "",
-		"lock: none\n--- shadow\n+++ file\n": "--- shadow\n+++ file\n",
-		"## Needs you changed\n":             "## Needs you changed\n",
-	} {
-		if got := unreadChanges(in); got != want {
-			t.Errorf("unreadChanges(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
-
 // submit prints couch's diff once; the index write it triggers prints only
 // its own report.
 func TestSubmitPrintsUnreadOnce(t *testing.T) {
@@ -178,5 +166,17 @@ func TestSubmitPrintsUnreadOnce(t *testing.T) {
 	out, err := run(t, deps{ss: f}, "status", "submit", file)
 	if err != nil || strings.Count(out, "## Operator instructions changed") != 1 || !strings.Contains(out, "index: dropped "+s4) {
 		t.Fatalf("submit: %v\n%s", err, out)
+	}
+}
+
+// A frontmatter line couch reads as the block's end but the reconcile does
+// not (an indented "  ---") would leave part of the new index outside the
+// write: syncIndex refuses instead of reporting an entry it never wrote.
+func TestIndexRefusesADelimiterCouchReadsDifferently(t *testing.T) {
+	f, file := indexFake(t)
+	f.front = "type: session-sync\nnote: |\n  ---\n  text"
+	_, err := link(t, f, file, "1", "tl-status-op.side/2026-10-17-01-s4.md")
+	if err == nil || !strings.Contains(err.Error(), "couch reads as its end") || f.frontWrites != 0 {
+		t.Fatalf("err %v, writes %d", err, f.frontWrites)
 	}
 }

@@ -160,17 +160,3 @@ func TestCouchActorsConformance(t *testing.T) {
 		t.Error("no actors from a running Couch")
 	}
 }
-
-// unreadChanges is a couch diff without its `lock:` header line, which it
-// prints even when nothing changed: "" means no unread edits.
-func unreadChanges(diff string) string {
-	if first, rest, ok := strings.Cut(diff, "\n"); ok && strings.HasPrefix(first, "lock:") {
-		diff = rest
-	} else if strings.HasPrefix(diff, "lock:") {
-		diff = ""
-	}
-	if strings.TrimSpace(diff) == "" {
-		return ""
-	}
-	return diff
-}
