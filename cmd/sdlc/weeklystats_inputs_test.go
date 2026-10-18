@@ -1,0 +1,180 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/pkg/vocab"
+)
+
+func TestWeeklyIsSDLCRepoRequiresIssueHome(t *testing.T) {
+	root := t.TempDir()
+	if weeklyIsSDLCRepo(root) {
+		t.Fatal("unrelated sibling counted as SDLC repository")
+	}
+	if err := os.MkdirAll(filepath.Join(root, vocab.Issue().Discovery().Home), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if !weeklyIsSDLCRepo(root) {
+		t.Fatal("issue repository omitted")
+	}
+	if err := os.Mkdir(filepath.Join(root, ".brain"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".brain", "config.md"), []byte("capture"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if weeklyIsSDLCRepo(root) {
+		t.Fatal("brain capture repository counted as SDLC despite its spine guard")
+	}
+}
+
+func TestWeeklyGitRequiresCallerContext(t *testing.T) {
+	if _, err := weeklyGit(nil, t.TempDir(), "status"); err == nil || !strings.Contains(err.Error(), "caller's context") {
+		t.Fatalf("nil context should fail before launching Git: %v", err)
+	}
+}
+
+func TestWeeklyReadLandingEventsSkipsMalformedWithoutCreatingState(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "events.jsonl")
+	if err := os.WriteFile(path, []byte("{\"kind\":\"enqueue\",\"seq\":4,\"issue\":392}\nnot json\n{\"kind\":\"landed\",\"seq\":4,\"issue\":392}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	events, skipped, err := weeklyReadLandingEvents(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if skipped != 1 || len(events) != 2 || events[0].Kind != landingline.EventEnqueue || events[1].Kind != landingline.EventLanded {
+		t.Fatalf("events=%+v skipped=%d", events, skipped)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "tickets")); !os.IsNotExist(err) {
+		t.Fatalf("reader created landing state: %v", err)
+	}
+}
+
+func TestWeeklyReadGraphUsesIssueSideOnly(t *testing.T) {
+	root := testfix.Repo(t, testfix.InitialCommit())
+	base := strings.TrimSpace(testfix.Capture(t, root, "rev-parse", "HEAD"))
+	testfix.Git(t, root, "checkout", "-q", "-b", "issue")
+	if err := os.WriteFile(filepath.Join(root, "issue.txt"), []byte("issue"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, root, "add", "issue.txt")
+	testfix.Git(t, root, "commit", "-q", "-m", "issue")
+	issueSHA := strings.TrimSpace(testfix.Capture(t, root, "rev-parse", "HEAD"))
+	testfix.Git(t, root, "checkout", "-q", "main")
+	if err := os.WriteFile(filepath.Join(root, "main.txt"), []byte("main"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, root, "add", "main.txt")
+	testfix.Git(t, root, "commit", "-q", "-m", "main")
+	mainParent := strings.TrimSpace(testfix.Capture(t, root, "rev-parse", "HEAD"))
+	testfix.Git(t, root, "merge", "--no-ff", "-q", "issue", "-m", "Merge pull request #9 from xianxu/issue")
+	mergeSHA := strings.TrimSpace(testfix.Capture(t, root, "rev-parse", "HEAD"))
+	graph, err := weeklyReadGraph(context.Background(), root, mergeSHA, issue.Completion{ReviewedHEAD: issueSHA, EvidenceCommit: issueSHA, LandedCommit: mergeSHA})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if graph.MainParent != mainParent || graph.IssueParent != issueSHA || graph.PR != 9 || graph.Branch != "issue" || !graph.BranchSHAs[issueSHA] || graph.BranchSHAs[mainParent] || graph.BranchSHAs[base] || !graph.EvidenceReachable || !graph.ReachableFromMain {
+		t.Fatalf("wrong graph: %+v", graph)
+	}
+	if _, err := weeklyReadGraph(context.Background(), root, mergeSHA, issue.Completion{ReviewedHEAD: mainParent, EvidenceCommit: issueSHA, LandedCommit: mergeSHA}); err == nil {
+		t.Fatal("reviewed main-side commit accepted as issue evidence")
+	}
+}
+
+func TestReadWeeklyEvidenceMarksMalformedInputsAsUnknown(t *testing.T) {
+	root := testfix.Repo(t, testfix.InitialCommit())
+	origin := filepath.Join(t.TempDir(), "origin.git")
+	testfix.Git(t, root, "init", "--bare", "-q", origin)
+	testfix.Git(t, root, "remote", "add", "origin", origin)
+	testfix.Git(t, root, "push", "-q", "origin", "main")
+	common := strings.TrimSpace(testfix.Capture(t, root, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+	attempts := filepath.Join(common, "sdlc", "test-stats", "attempts")
+	landing := filepath.Join(common, "sdlc", "landing")
+	if err := os.MkdirAll(attempts, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(landing, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(attempts, "bad.json"), []byte(`{"exit":0}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(landing, "events.jsonl"), []byte("bad event\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	e := readWeeklyEvidence(context.Background(), "fixture", root, WeeklyWindow{Start: time.Now().UTC().Add(-7 * 24 * time.Hour), End: time.Now().UTC()})
+	joined := strings.Join(e.CoverageUnknown, "\n")
+	if !strings.Contains(joined, "invalid attempt record") || !strings.Contains(joined, "landing events: 1 malformed lines") {
+		t.Fatalf("unknown coverage missing malformed inputs: %s", joined)
+	}
+}
+
+func TestReadWeeklyEvidenceInventoriesOnlyRequestedWeek(t *testing.T) {
+	root := testfix.Repo(t, testfix.InitialCommit())
+	origin := filepath.Join(t.TempDir(), "origin.git")
+	testfix.Git(t, root, "init", "--bare", "-q", origin)
+	testfix.Git(t, root, "remote", "add", "origin", origin)
+	start := time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)
+	mergeAt := func(branch string, at time.Time) string {
+		t.Setenv("GIT_AUTHOR_DATE", at.Format(time.RFC3339))
+		t.Setenv("GIT_COMMITTER_DATE", at.Format(time.RFC3339))
+		testfix.Git(t, root, "checkout", "-q", "-b", branch)
+		testfix.Git(t, root, "commit", "-q", "--allow-empty", "-m", branch)
+		testfix.Git(t, root, "checkout", "-q", "main")
+		testfix.Git(t, root, "merge", "--no-ff", "-q", branch, "-m", "Merge pull request #9 from xianxu/"+branch)
+		return strings.TrimSpace(testfix.Capture(t, root, "rev-parse", "HEAD"))
+	}
+	old := mergeAt("old-issue", start.Add(-72*time.Hour))
+	fresh := mergeAt("new-issue", start.Add(time.Hour))
+	testfix.Git(t, root, "push", "-q", "origin", "main")
+	card, err := issue.SetCardCompletion([]byte("---\nid: 000041\nstatus: done\nactual_hours: N/A\ncreated: 2026-10-01\n---\n\n# old issue\n\n## Problem\n\nold report\n"), issue.Completion{Token: "old-close", Repository: "fixture", ReviewedHEAD: old, EvidenceCommit: old, LandedCommit: old})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bootstrapTracker(t, root, map[string]string{tracker.CardPath("000041", "old-issue"): string(card)})
+	common := strings.TrimSpace(testfix.Capture(t, root, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+	landingDir := filepath.Join(common, "sdlc", "landing")
+	if err := os.MkdirAll(landingDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	oldEvent := fmt.Sprintf("{\"kind\":\"landed\",\"at\":%q,\"seq\":1,\"issue\":41,\"branch\":\"old-issue\",\"pr\":9}\n", start.Add(-72*time.Hour).Format(time.RFC3339))
+	if err := os.WriteFile(filepath.Join(landingDir, landingline.EventsFile), []byte(oldEvent), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	w := WeeklyWindow{Start: start, End: start.Add(7 * 24 * time.Hour)}
+	e := readWeeklyEvidence(context.Background(), "fixture", root, w)
+	if _, ok := e.RecentMainMerges[old]; ok {
+		t.Fatalf("historical merge entered weekly inventory: %+v", e.RecentMainMerges)
+	}
+	if _, ok := e.RecentMainMerges[fresh]; !ok {
+		t.Fatalf("weekly merge omitted: %+v (warnings %v)", e.RecentMainMerges, e.CoverageUnknown)
+	}
+	if _, ok := e.Graphs[old]; ok || strings.Contains(strings.Join(e.CoverageUnknown, "\n"), "card #41 Git graph") {
+		t.Fatalf("historical landing graph entered weekly work: graphs=%v warnings=%v", e.Graphs, e.CoverageUnknown)
+	}
+	if card := e.Cards[41]; !card.CreatedAt.Equal(time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("tracker creation date missing from history coverage: %+v", card)
+	}
+}
+
+func TestWeeklyReadLandingEventsRejectsOversizedLog(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "events.jsonl")
+	if err := os.WriteFile(path, []byte(strings.Repeat("x", (64<<20)+1)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := weeklyReadLandingEvents(path); err == nil {
+		t.Fatal("oversized event log accepted")
+	}
+}

@@ -3,6 +3,16 @@
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
 
+- Before counting joined records, check that the identity is unique across the
+  whole cohort. Per-record card/event/Git validity did not prevent two issues
+  from claiming one PR, branch or merge and doubling a weekly denominator.
+  Reject every claimant on a collision, and test each identity in both input
+  orders (#392 BR-7).
+- A metric with a physical window and a cross-window cohort must classify
+  ownership across the entire cohort before using the window for diagnostics.
+  An ambiguous attempt just before the week must still null the headline ratio;
+  otherwise a partial numerator can look exact (#392).
+
 - When a bug fix adds a diagnostic flag or revises an identity policy, enumerate
   the full input matrix in Done when and committed fixtures, then check the
   README for the new user-facing command. A motivating fixture alone can pass
@@ -979,3 +989,4 @@ The simplest durable authority beats a clever scan of consequences.
 
 - Keep Agent and Co-Authored-By trailers together in the final Git message paragraph. A blank line between them makes the earlier Agent line ordinary body text, so trailer readers report it missing even when a grep finds the literal line.
 - Special-case advice for an evidence refusal must classify the full blocker set, not the first diagnostic. Preserve all selector warnings through the error boundary and test mixed blocker orders before suggesting an irreversible exclusion (#428 BR-1).
+- A numeric metric over retained logs needs an explicit history floor proving its whole cohort is still observable. Test expired records, every retry in an admission chain, and legacy rows through one shared time selector before calling coverage complete; restrict source collection to the requested cohort so unrelated old failures cannot null it (#392 BR-1/2/3/6).
