@@ -109,6 +109,7 @@ func wireStrictDecode(f *ast.File, context *CheckContext) []ast.Node {
 		}
 		// Only the function's direct statement list is an unconditional flow.
 		// A flag set inside a branch cannot prove a later decode is strict.
+		eligible := singleOwnerDecoders(fn, jsonPkg)
 		decoders := map[string]bool{} // value says DisallowUnknownFields ran
 		variables := map[string]bool{}
 		checkCall := func(e ast.Expr) {
@@ -138,10 +139,6 @@ func wireStrictDecode(f *ast.File, context *CheckContext) []ast.Node {
 			}
 		}
 		for _, stmt := range fn.Body.List {
-			// A decoder copied, passed, captured, or otherwise used beyond
-			// these direct calls may be overwritten through an alias. Syntax
-			// alone cannot prove it still has the strict setting afterward.
-			discardEscapedDecoders(stmt, decoders)
 			switch v := stmt.(type) {
 			case *ast.DeclStmt:
 				group, ok := v.Decl.(*ast.GenDecl)
@@ -150,7 +147,7 @@ func wireStrictDecode(f *ast.File, context *CheckContext) []ast.Node {
 				}
 				for _, spec := range group.Specs {
 					value, ok := spec.(*ast.ValueSpec)
-					if ok && len(value.Names) == 1 && len(value.Values) == 1 && isPackageCall(value.Values[0], jsonPkg, "NewDecoder") {
+					if ok && len(value.Names) == 1 && len(value.Values) == 1 && eligible[value.Names[0].Name] && isPackageCall(value.Values[0], jsonPkg, "NewDecoder") {
 						decoders[value.Names[0].Name] = false
 					}
 					// An explicit interface type erases an initializer's wire
@@ -182,7 +179,7 @@ func wireStrictDecode(f *ast.File, context *CheckContext) []ast.Node {
 					if len(v.Lhs) == 1 && len(v.Rhs) == 1 && v.Tok == token.DEFINE && isWireConstructor(v.Rhs[0], f, context) {
 						variables[id.Name] = true
 					}
-					if len(v.Lhs) == 1 && len(v.Rhs) == 1 && isPackageCall(v.Rhs[0], jsonPkg, "NewDecoder") {
+					if eligible[id.Name] && len(v.Lhs) == 1 && len(v.Rhs) == 1 && isPackageCall(v.Rhs[0], jsonPkg, "NewDecoder") {
 						decoders[id.Name] = false
 					}
 				}
@@ -228,44 +225,85 @@ func invalidateAssigned(node ast.Node, decoders, variables map[string]bool) {
 	})
 }
 
-// Keep a decoder proof only while its local name is used as the receiver of
-// the two modeled calls. Any other use can expose an alias; proving the alias
-// graph would require type/flow analysis outside this syntax-only rule.
-func discardEscapedDecoders(node ast.Node, decoders map[string]bool) {
+// A decoder name is eligible only when the whole function assigns it once from
+// json.NewDecoder and otherwise uses it solely as a direct method receiver.
+// This whole-function decision avoids restoring proof after an alias to the
+// variable binding escapes. Name-based rejection can miss a finding when a
+// nested scope shadows a name; it cannot create a false finding.
+func singleOwnerDecoders(fn *ast.FuncDecl, jsonPkg string) map[string]bool {
+	writes := map[string]int{}
+	constructors := map[string]int{}
 	allowed := map[*ast.Ident]bool{}
-	ast.Inspect(node, func(n ast.Node) bool {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return true
+	markWrite := func(e ast.Expr, constructor bool) {
+		if id := assignedRoot(e); id != nil && id.Name != "_" {
+			writes[id.Name]++
+			if constructor {
+				constructors[id.Name]++
+			}
+			if direct, ok := e.(*ast.Ident); ok {
+				allowed[direct] = true
+			}
 		}
-		sel, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok || sel.Sel.Name != "Decode" && sel.Sel.Name != "DisallowUnknownFields" {
-			return true
+	}
+	for _, fields := range []*ast.FieldList{fn.Recv, fn.Type.Params, fn.Type.Results} {
+		if fields != nil {
+			for _, field := range fields.List {
+				for _, id := range field.Names {
+					markWrite(id, false)
+				}
+			}
 		}
-		if id, ok := sel.X.(*ast.Ident); ok {
-			allowed[id] = true
+	}
+	ast.Inspect(fn.Body, func(n ast.Node) bool {
+		switch v := n.(type) {
+		case *ast.ValueSpec:
+			constructor := len(v.Names) == 1 && len(v.Values) == 1 && isPackageCall(v.Values[0], jsonPkg, "NewDecoder")
+			for _, id := range v.Names {
+				markWrite(id, constructor)
+			}
+		case *ast.AssignStmt:
+			constructor := len(v.Lhs) == 1 && len(v.Rhs) == 1 && isPackageCall(v.Rhs[0], jsonPkg, "NewDecoder")
+			for _, lhs := range v.Lhs {
+				_, direct := lhs.(*ast.Ident)
+				markWrite(lhs, constructor && direct)
+			}
+		case *ast.RangeStmt:
+			markWrite(v.Key, false)
+			markWrite(v.Value, false)
+		case *ast.IncDecStmt:
+			markWrite(v.X, false)
+		case *ast.CallExpr:
+			if sel, ok := v.Fun.(*ast.SelectorExpr); ok && (sel.Sel.Name == "Decode" || sel.Sel.Name == "DisallowUnknownFields") {
+				if id, ok := sel.X.(*ast.Ident); ok {
+					allowed[id] = true
+				}
+			}
 		}
 		return true
 	})
-	escaped := map[string]bool{}
-	ast.Inspect(node, func(n ast.Node) bool {
+	disqualified := map[string]bool{}
+	ast.Inspect(fn.Body, func(n ast.Node) bool {
 		if closure, ok := n.(*ast.FuncLit); ok {
-			ast.Inspect(closure.Body, func(inner ast.Node) bool {
+			ast.Inspect(closure, func(inner ast.Node) bool {
 				if id, ok := inner.(*ast.Ident); ok {
-					escaped[id.Name] = true
+					disqualified[id.Name] = true
 				}
 				return true
 			})
 			return false
 		}
 		if id, ok := n.(*ast.Ident); ok && !allowed[id] {
-			escaped[id.Name] = true
+			disqualified[id.Name] = true
 		}
 		return true
 	})
-	for name := range escaped {
-		delete(decoders, name)
+	eligible := map[string]bool{}
+	for name, count := range writes {
+		if count == 1 && constructors[name] == 1 && !disqualified[name] {
+			eligible[name] = true
+		}
 	}
+	return eligible
 }
 
 // A direct assignment or a write through a tracked pointer can replace the

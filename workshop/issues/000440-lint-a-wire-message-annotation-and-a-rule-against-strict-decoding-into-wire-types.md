@@ -126,6 +126,15 @@ Then close and land on SHIP.
   &d` can overwrite a later decoder assigned to `d`. The durable plan now
   disqualifies address-taken or closure-captured bindings for the whole
   function and distinguishes them from aliases to the old decoder object.
+- The hub narrowed the round-3 re-plan to an at-most-one-assignment proof:
+  exactly one direct `json.NewDecoder` assignment, no address or closure
+  escape, and receiver-only uses. A second assignment disqualifies the name
+  permanently. This supersedes proof restoration after fresh assignment.
+- The reviewer's `ref := &d` sequence and five companion cases failed before
+  the change. `singleOwnerDecoders` now checks whole-function writes and uses
+  before ordered matching, so no later assignment can restore proof. The
+  focused `go test ./pkg/golint -count=1` passes; atlas now says that aliases
+  and any second assignment leave the name unproven.
 
 ## Revisions
 

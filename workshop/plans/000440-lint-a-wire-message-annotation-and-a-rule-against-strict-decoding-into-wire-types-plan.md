@@ -175,3 +175,16 @@ to the hub. The TL owns any project update.
   construction, before and after reassignment, closure capture across
   reassignment, object alias followed by safe fresh assignment, and the
   original `&d` runtime counterexample. Any uncertainty stays unflagged.
+- 2026-10-18, hub decision after round 3: simplify further. A decoder local
+  qualifies only if its name has exactly one assignment in the entire
+  function, that assignment is a direct `json.NewDecoder`, its address is
+  never taken, it never occurs in a closure, and every other use is a direct
+  receiver of `DisallowUnknownFields` or `Decode`. Any reassignment,
+  including a second fresh constructor, permanently disqualifies that name;
+  there is no proof restoration. A pre-scan decides eligibility before the
+  ordered matcher sees a call. This supersedes round 2's fresh-assignment
+  restoration and round 3's eligible-binding restoration. It loses some
+  findings but has no temporal alias state. The reviewer's address-alias
+  runtime sequence stays a no-finding fixture, alongside construction after
+  a prior escape, closure capture, range/pointer writes, ordinary aliases,
+  and a clean one-assignment positive fixture.
