@@ -176,11 +176,7 @@ func TestInvisibleBranchWithCardEditsRecovers(t *testing.T) {
 // An issue that exists only on a branch the dry run never saw has no card:
 // reconcile refuses with the way forward, and CI's id check refuses to land it.
 func TestInvisibleBranchOnlyIssueCannotLand(t *testing.T) {
-	bin := filepath.Join(t.TempDir(), "sdlc")
-	//lint:allow test-go-build — an end-to-end test of the built binary; building once per process is #438
-	if out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput(); err != nil {
-		t.Fatalf("build sdlc: %v\n%s", err, out)
-	}
+	bin := testfix.BuiltBinary(t, ".", ".")
 	r := legacyRepo(t)
 	other := filepath.Join(t.TempDir(), "other")
 	testfix.Git(t, "", "clone", "-q", r.origin, other)

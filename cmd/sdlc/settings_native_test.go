@@ -88,16 +88,10 @@ func TestStartPlanProtectedSettingsNativeSandbox(t *testing.T) {
 		t.Skip("host conformance: ARIADNE_NATIVE_SANDBOX=1 on macOS")
 	}
 	source := realRepoRoot()
-	bin := t.TempDir()
-	binary := filepath.Join(bin, "weave")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	//lint:allow test-go-build — an end-to-end test of the built binary; building once per process is #438
-	build := exec.CommandContext(ctx, "go", "build", "-trimpath", "-o", binary, "./cmd/weave")
-	build.Dir = source
-	if out, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build candidate weave: %v %s", err, out)
-	}
+	binary := testfix.BuiltBinary(t, source, "./cmd/weave", "-trimpath")
+	bin := filepath.Dir(binary)
 	t.Setenv("PATH", testfix.PrependPath(bin, os.Getenv("PATH")))
 	executable, err := os.Executable()
 	if err != nil {

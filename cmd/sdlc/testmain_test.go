@@ -173,6 +173,7 @@ func TestMain(m *testing.M) {
 	root := realRepoRoot()
 	before := readSnapshot(root)
 	code := m.Run()
+	testfix.RemoveBuiltBinaries() // #438: one build per process, removed with it
 	after := readSnapshot(root)
 	exit, mutations := guardVerdict(before, after, code)
 	if len(mutations) > 0 {

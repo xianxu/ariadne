@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/fleet"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 func TestFleetEndToEnd(t *testing.T) {
@@ -298,17 +300,7 @@ func validateFleetE2ERefusal(stdout, stderr string, exitCode int, diagnosticCode
 func buildFleetE2EBinary(t *testing.T) string {
 	t.Helper()
 
-	name := "sdlc"
-	if runtime.GOOS == "windows" {
-		name += ".exe"
-	}
-	binary := filepath.Join(t.TempDir(), name)
-	//lint:allow test-go-build — an end-to-end test of the built binary; building once per process is #438
-	result := runFleetE2ESubprocess(t, time.Minute, "", true, "go", "build", "-o", binary, ".")
-	if result.err != nil {
-		t.Fatalf("build fleet end-to-end binary: %v\n%s", result.err, result.combined)
-	}
-	return binary
+	return testfix.BuiltBinary(t, ".", ".")
 }
 
 func runFleetE2ECommand(t *testing.T, binary string, args ...string) (string, string, error) {

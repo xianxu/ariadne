@@ -27,7 +27,7 @@ var Catalog = []Rule{
 	{
 		Name:     "test-go-build",
 		Incident: "pair#602",
-		Message:  "building a binary per test costs a compile each run; build it once per package (TestMain) or test the code in-process",
+		Message:  "building a binary per test costs a compile each run; use testfix.BuiltBinary (one build per test process) or test the code in-process",
 		TestOnly: true,
 		Match:    goBuilds,
 	},
