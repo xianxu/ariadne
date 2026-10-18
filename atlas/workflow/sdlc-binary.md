@@ -1046,7 +1046,15 @@ milestone boundary review round runs its reviewer in a fresh shared clone of the
 pinned Head (`internal/reviewbox`). It is made by `git clone --shared
 --no-checkout`, then `remote remove origin`, then `checkout --detach <head>`.
 Objects are read through alternates. Refs, config, index and hooks are the
-clone's own, and it has no remote back to the source. The live issue and plan
+clone's own, and it has no remote back to the source. It keeps the source's
+main authority, read-only (#447, `copyMainAuthority`, allowlisted by the pure
+`mainAuthority`): `branch.main.{remote,merge}`, each named remote's fetch
+refspec, and `refs/heads/main` plus every `refs/remotes/<R>/main` at the
+source's commits. A repository test that resolves main and the merge base (pair's
+repolint) then runs as it does in the slot. Each copied remote's URL and push
+URL is the inert `readonly://review-checkout`, so a push or fetch fails. The
+source's real URL, credentials, `insteadOf` and push settings are never copied.
+The live issue and plan
 files are overlaid at their paths, since they can be uncommitted at close. The
 prompt's `repository root:` and its `git -C` recipes name the clone, and only
 such an isolated prompt (`PromptInput.Isolated`) tells the reviewer to revert
