@@ -1027,6 +1027,186 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 6b7b655d-97c3-41e9-a40c-00970a7fbb1a
+            repository: github.com/xianxu/ariadne
+            issue_id: "000440"
+            recipe: milestone-review
+            round: 9
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/80cae1d51693b982
+            reviewed_head: a35fbd0b408119d01476b230a632d2fff0219fde
+            slot: ariadne:1
+            requested_at: "2026-10-18T17:16:27.9124Z"
+          phase: finished
+          pid: 17853
+          started_at: "2026-10-18T17:16:28.008795Z"
+          finished_at: "2026-10-18T17:18:15.090736Z"
+          session_id: 01a15003-cad6-7261-ac45-c1c67aa82fc3
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: a35fbd0b408119d01476b230a632d2fff0219fde
+        tracker_head: 45358b7114d2340036d1d059390e3203f97f259d
+        branch_point: 3ba12c88814b92d93a6e30300fc8061940382d14
+        since: "2026-10-18T05:43:21-07:00"
+        until: "2026-10-18T10:16:01-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T05:43:21-07:00"
+              end: "2026-10-18T10:16:01-07:00"
+              began: "2026-10-18T05:43:21-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: d667a07b1737c625e37bdb5bde48bc46b54d83a1edfd6198a09cb23cb3aa9281
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 110384628
+              windows:
+                - start: "2026-10-18T05:43:21-07:00"
+                  end: "2026-10-18T10:16:01-07:00"
+        queue_waits:
+            - attempt_id: 97e9c79d9d1d102df2d40c32801f3864
+              slot: ariadne:1
+              record_digest: 302427f7fcd59fc6f235b929456fe28e0d9dee2ebfd0c5ec057a740997e6047c
+              start: "2026-10-18T13:00:46.040063Z"
+              end: "2026-10-18T13:09:43.849079Z"
+              queue_seconds: 537.809016
+              raw_seconds: 537.809016
+              exact: true
+            - attempt_id: 8c5a5e18aa58707db347c709c810f563
+              slot: ariadne:1
+              record_digest: e3d4f017eb327e3efee5b4d6035c7cfc077e114ad6e05dcb010f951cd3ff0b17
+              start: "2026-10-18T13:27:17.095135Z"
+              end: "2026-10-18T13:38:49.768584Z"
+              queue_seconds: 692.673449
+              raw_seconds: 692.673449
+              exact: true
+            - attempt_id: 90320ab29b17a67bea80a2671c62c12a
+              slot: ariadne:1
+              record_digest: 2d18cf65a08f926a2e69fb28f4d9985e7505b65b6ed8c309fe046dc6d1471a51
+              start: "2026-10-18T13:54:20.761552Z"
+              end: "2026-10-18T14:15:05.235935Z"
+              queue_seconds: 1244.474383
+              raw_seconds: 1244.474383
+              exact: true
+            - attempt_id: 4a60e90cc408df07a4638b2c53e283ac
+              slot: ariadne:1
+              record_digest: b4058fa81683863384dde7421a488aa896deb34a4d79ace8aeaa02202c45ca6e
+              start: "2026-10-18T14:32:04.166177Z"
+              end: "2026-10-18T14:59:49.477614Z"
+              queue_seconds: 1665.311437
+              raw_seconds: 1665.311437
+              exact: true
+            - attempt_id: 28f483f4799341fd56dad2c463677506
+              slot: ariadne:1
+              record_digest: 1f189210f8493e3900895b7da9b87104d5b38c60a7c2af139e525891aeeb29dc
+              start: "2026-10-18T15:15:06.25148Z"
+              end: "2026-10-18T15:39:30.12085Z"
+              queue_seconds: 1463.86937
+              raw_seconds: 1463.86937
+              exact: true
+            - attempt_id: 77d0c88769993b116c9a81f17f6899e5
+              slot: ariadne:1
+              record_digest: 691c68f7041c15337939e4f7fd16375e059cabd17226d2133de3bd4015692592
+              start: "2026-10-18T15:53:13.613306Z"
+              end: "2026-10-18T16:18:19.150532Z"
+              queue_seconds: 1505.537226
+              raw_seconds: 1505.537226
+              exact: true
+            - attempt_id: 632f45e915f1038d4da0444be6b2d4c6
+              slot: ariadne:1
+              record_digest: 8a092f4b63f32315462d1158109232274b3edd8788c472a9da1038c1571854a3
+              start: "2026-10-18T16:31:45.679488Z"
+              end: "2026-10-18T16:38:32.998977Z"
+              queue_seconds: 407.319489
+              raw_seconds: 407.319489
+              exact: true
+            - attempt_id: 9a4b90a9e4ed50c8436c7b67033a7564
+              slot: ariadne:1
+              record_digest: 8798a38cb345ca670dbcb83cab1f00bc65d041520ca0e11680a189d636482f99
+              start: "2026-10-18T16:58:08.688864Z"
+              end: "2026-10-18T17:06:12.210667Z"
+              queue_seconds: 483.521803
+              raw_seconds: 483.521803
+              exact: true
+        cuts:
+            - dispatched: "2026-10-18T06:21:43-07:00"
+              finalized: "2026-10-18T06:24:38-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T06:49:21-07:00"
+              finalized: "2026-10-18T06:51:14-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T07:26:15-07:00"
+              finalized: "2026-10-18T07:27:56-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T08:09:38-07:00"
+              finalized: "2026-10-18T08:11:49-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T08:48:25-07:00"
+              finalized: "2026-10-18T08:50:11-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T09:27:49-07:00"
+              finalized: "2026-10-18T09:29:49-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T09:48:18-07:00"
+              finalized: "2026-10-18T09:50:00-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T09:53:13-07:00"
+              finalized: "2026-10-18T09:56:17-07:00"
+              finalizing: false
+      "n": 9
+      timestamp: "2026-10-18T10:18:16-07:00"
+      dispatched: "2026-10-18T10:16:27-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Prior disposition retained; target reassignment and interface-erasure regression fixtures remain present and pass.
+          round: 9
+        - id: BR-2
+          disposition: addressed
+          note: Prior disposition retained; whole-function local ownership checks and alias, escape, reassignment, and global-reset fixtures remain present and pass.
+          round: 9
+        - id: BR-3
+          disposition: addressed
+          note: README's added annotation passage gives the syntax and links atlas guidance consistent with the implemented convention.
+          round: 9
+        - id: BR-4
+          disposition: addressed
+          note: Exact module imports resolve to "."; root/subpackage, alias, prefix, and shadowing matrix tests pass.
+          round: 9
+        - id: BR-5
+          disposition: addressed
+          note: Declaration initializers and every assignment RHS share checkCall; corresponding regression fixtures pass.
+          round: 9
+        - id: BR-6
+          disposition: withdrawn
+          note: Prior withdrawal retained; the Spec explicitly excludes expression-form if initializers from this issue's shipped coverage.
+          round: 9
+        - id: BR-7
+          disposition: addressed
+          note: wire.go:110-121 excludes goto-bearing functions. Removing that guard in a disposable pinned-head copy makes all three jump regressions fail while the straight-line control passes; the unmodified head passes all four. The disposable copy was removed.
+          round: 9
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: a35fbd0b408119d01476b230a632d2fff0219fde
+      blocked: false
 disputes:
     - id: BR-6
       rationale: 'The missing expression-form if initializer is a true false negative, but the hub capped coverage widening in #440 after round 6. #440 now explicitly supports assignment-form if initializers; expression-form initializers are filed as unclaimed ariadne#445 with red-fixture acceptance. Keeping a conservative syntax-only rule at this boundary avoids another unplanned coverage expansion; false positives, crashes and misparses remain blockers.'
@@ -1134,6 +1314,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-7** [Critical] `wire-decoder-strictness-provenance` (kind: defect) A goto that bypasses strictness produces a false wire-decode finding
   pkg/golint/wire.go:110-141 assumes the direct statement list executes in lexical order; lines 205-207 only invalidate assignments. With an eligible decoder and marked target, `goto decode; d.DisallowUnknownFields(); decode: ; return d.Decode(&m)` reports one finding although strictness never executes. A compiled runtime probe accepts an unknown field with no error; a conditional-jump variant also reports despite ambiguous strictness. This violates Spec lines 39-42 (ARCH-PURPOSE). This is the 2nd finding in family `wire-decoder-strictness-provenance`: enumerate the proof-invalidating control transfers and enforce that rule, rather than patching only this example. Conservatively rejecting functions containing goto is sufficient without adding control-flow analysis; add unconditional/conditional jump regressions and a straight-line positive control.
 
+## Round 9 — 2026-10-18T10:18:16-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — Prior disposition retained; target reassignment and interface-erasure regression fixtures remain present and pass.
+- BR-2 — addressed — Prior disposition retained; whole-function local ownership checks and alias, escape, reassignment, and global-reset fixtures remain present and pass.
+- BR-3 — addressed — README's added annotation passage gives the syntax and links atlas guidance consistent with the implemented convention.
+- BR-4 — addressed — Exact module imports resolve to "."; root/subpackage, alias, prefix, and shadowing matrix tests pass.
+- BR-5 — addressed — Declaration initializers and every assignment RHS share checkCall; corresponding regression fixtures pass.
+- BR-6 — withdrawn — Prior withdrawal retained; the Spec explicitly excludes expression-form if initializers from this issue's shipped coverage.
+- BR-7 — addressed — wire.go:110-121 excludes goto-bearing functions. Removing that guard in a disposable pinned-head copy makes all three jump regressions fail while the straight-line control passes; the unmodified head passes all four. The disposable copy was removed.
+
 ## Disputes
 
 Findings the implementer declined (`sdlc finding dispute`), each answered by the
@@ -1145,4 +1337,4 @@ next review round.
 
 ## Open findings
 
-- **BR-7** [Critical] `wire-decoder-strictness-provenance` (kind: defect) A goto that bypasses strictness produces a false wire-decode finding
+(none — every finding has been disposed)

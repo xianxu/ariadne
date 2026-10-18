@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "6499ed27", done: "0f940315"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # lint: a wire-message annotation and a rule against strict decoding into wire types
@@ -77,6 +77,8 @@ Then close and land on SHIP.
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed — BR-7 goto false-positive matrix red before fix and green after; straight-line positive remains. #445 tracks deferred expression-form if initializer missed finding. go test ./pkg/golint and make -k tools passed; recorded suite passed on 80975015e0a33c09f1ddeede3eb5950e2beaa370 (12 shards, 1642 SDLC tests, 68 packages, zero failures); PR #304 checks passed. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-18: flow upgraded quick → full — 504 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 - Claimed and started in ariadne:1. The hub approved a syntax-only source
   index and direct decoder-chain rule, and asked that Ariadne's existing wire

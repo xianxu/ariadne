@@ -768,3 +768,96 @@ findings:
    Append a `## Revisions` entry defining which control transfers invalidate lexical strictness proof, the conservative exclusion policy, and the regression matrix for jumps plus supported straight-line controls.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"5e7575af-c635-4e55-886a-6f6651d60817","repository":"github.com/xianxu/ariadne","issue_id":"000440","recipe":"milestone-review","round":8,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/0b8bfdbf6eec1396","reviewed_head":"31846daad25883cbd11e26ba451171ccb8acaee8","slot":"ariadne:1","requested_at":"2026-10-18T16:53:13.155843Z"},"phase":"finished","pid":88307,"started_at":"2026-10-18T16:53:13.285483Z","finished_at":"2026-10-18T16:56:17.019925Z","session_id":"01a14fee-82ff-7eb1-9a31-5a8d2838a6fa","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T10:18:15-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 440 — lint: a wire-message annotation and a rule against strict decoding into wire types |
+| repo | ariadne |
+| issue file | workshop/issues/000440-lint-a-wire-message-annotation-and-a-rule-against-strict-decoding-into-wire-types.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 3ba12c88814b92d93a6e30300fc8061940382d14..a35fbd0b408119d01476b230a632d2fff0219fde |
+| command | sdlc close --issue 440 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-18T10:18:15-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The implementation matches the revised Spec and Plan. BR-7 is addressed with a conservative whole-function exclusion and regression tests that demonstrably fail without the fix. No new blocking findings were identified. README and atlas cover the annotation and matcher limits.
+
+Done-when: current — it still covers the annotation, four existing input types, conservative matching, identity cases, and counted index workload.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Prior disposition retained; target reassignment and interface-erasure regression fixtures remain present and pass.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Prior disposition retained; whole-function local ownership checks and alias, escape, reassignment, and global-reset fixtures remain present and pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README's added annotation passage gives the syntax and links atlas guidance consistent with the implemented convention.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Exact module imports resolve to "."; root/subpackage, alias, prefix, and shadowing matrix tests pass.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Declaration initializers and every assignment RHS share checkCall; corresponding regression fixtures pass.
+  - id: BR-6
+    disposition: withdrawn
+    note: |
+      Prior withdrawal retained; the Spec explicitly excludes expression-form if initializers from this issue's shipped coverage.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      wire.go:110-121 excludes goto-bearing functions. Removing that guard in a disposable pinned-head copy makes all three jump regressions fail while the straight-line control passes; the unmodified head passes all four. The disposable copy was removed.
+```
+
+1. **Strengths**
+
+   - One parsed source set and shared annotation index serve all matchers, preserving the existing suppression logic.
+   - Decoder eligibility checks ownership across the whole function before relying on lexical statement order.
+   - Source-map fixtures test real parsing and matching without filesystem or command mocks.
+   - Documentation explicitly describes conservative exclusions and preserves strict decoding for version-pinned local stores.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   `go test ./pkg/golint -count=1` passed, including the repository catalog scan. A separate verbose scan checked 1,174 Go files against six rules in 319 ms. BR-7’s mutation check established meaningful regression coverage. The pinned-range whitespace check passed. The full repository suite was not rerun during this review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared index and direct-call checker avoid parallel implementations.
+   - **ARCH-PURE — pass:** indexing and matching consume ASTs/source bytes; IO stays in the collector.
+   - **ARCH-PURPOSE — pass:** the documented bounded coverage is delivered, including all four required annotations.
+   - **ARCH-MOCK — pass:** no new external dependency or stateful interaction was introduced.
+   - **ARCH-CONSTRAINTS — pass:** counted N/2N index tests and the measured repository scan support the declared workload.
+   - **ARCH-SECURE — pass:** parse errors propagate; ambiguous provenance is conservatively excluded; no credentials are touched.
+   - **ARCH-ORDER — pass:** lexical proof now rejects goto-bearing functions; matcher state exists only within a synchronous invocation.
+   - **ARCH-FUNERAL — pass:** no durable runtime artifacts or background processes are created.
+
+7. **Plan revision recommendations:** None; the existing revisions accurately describe the implemented guard and supported scope.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"6b7b655d-97c3-41e9-a40c-00970a7fbb1a","repository":"github.com/xianxu/ariadne","issue_id":"000440","recipe":"milestone-review","round":9,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/80cae1d51693b982","reviewed_head":"a35fbd0b408119d01476b230a632d2fff0219fde","slot":"ariadne:1","requested_at":"2026-10-18T17:16:27.9124Z"},"phase":"finished","pid":17853,"started_at":"2026-10-18T17:16:28.008795Z","finished_at":"2026-10-18T17:18:15.090736Z","session_id":"01a15003-cad6-7261-ac45-c1c67aa82fc3","outcome":"returned"}] -->
