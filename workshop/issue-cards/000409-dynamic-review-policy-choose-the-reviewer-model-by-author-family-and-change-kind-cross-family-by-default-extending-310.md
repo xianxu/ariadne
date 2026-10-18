@@ -1,6 +1,6 @@
 ---
 id: 000409
-status: working
+status: codecomplete
 created: 2026-10-16
 updated: 2026-10-18
 estimate_hours: 1.17
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.65
+tracker:
+    version: 1
+    completion:
+        token: close-3dbf9b699b06
+        repository: github.com/xianxu/ariadne
+        reviewed_head: ead57057e46998084852812ab4da05659271872c
+        evidence_commit: 02bec7e2933dbe81a1db48ad166fd9181105dbc9
 ---
 
 # Dynamic review policy: choose the reviewer model by author family and change kind (cross-family by default), extending #310
