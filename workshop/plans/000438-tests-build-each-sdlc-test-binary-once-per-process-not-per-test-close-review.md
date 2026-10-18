@@ -246,3 +246,62 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"62fcab04-6d4a-44ae-b10a-b2e50fa7fd7e","repository":"github.com/xianxu/ariadne","issue_id":"000438","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/6150bcda6c7799b7","reviewed_head":"a1bf416f615f715f56953d949d3c0d5c3c66eed1","slot":"ariadne:2","requested_at":"2026-10-18T11:27:58.58051Z"},"phase":"finished","pid":88026,"started_at":"2026-10-18T11:27:58.735592Z","finished_at":"2026-10-18T11:29:52.164621Z","session_id":"3906baf3-4068-4960-8852-01e0fdc9300e","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T04:43:24-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 438 — tests: build each sdlc test binary once per process, not per test |
+| repo | ariadne |
+| issue file | workshop/issues/000438-tests-build-each-sdlc-test-binary-once-per-process-not-per-test.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | fa385f513e266f98254225e3fa16be48e9484359..f2f3d2ebb4f7cfab41bfbcaf229af02b3f786c11 |
+| command | sdlc close --issue 438 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-18T04:43:24-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Now I'll revert the fix (remove WaitDelay and ownGroup) and confirm the test goes red.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+BR-3 is now addressed. It was the only open finding. The fix is two small edits in `cmd/sdlc/internal/testfix/`. The hang test's fixture now runs past every ceiling (`sleep 600`). The test also checks a tight elapsed bound, `limit + WaitDelay + 5s`, where it used to check against `HangCeiling`. And `runBounded` now marks an error as "exceeded" only when `Wait` actually returned one. I removed `cmd.WaitDelay = time.Second` and `ownGroup(cmd)` from this disposable checkout and ran the test. `TestRunBoundedKillsTheGroupAtItsLimit` failed: it hung on the descendant holding the output pipe until go test's 10-minute timeout, then reported `FAIL … 600.059s`. With the fix restored, `go test -race -run 'RunBounded|Built' ./internal/testfix/` passes in 1.5s. The checkout is clean again. Apart from the fix, the window changes only the gate-ledger and review bookkeeping files under `workshop/plans/`. Spec, Revisions and Done-when are unchanged, and the window has no conflict resolutions.
+
+1. **Strengths**
+   - `build_unix_test.go:17-28`: the fixture can now end only through the bound, so the test fails without the fix. I checked this by removing the fix and running it.
+   - `build.go:68`: `expired.Load() && err != nil` stops a build that finished on time from being reported as failed when it races the timer. This also clears the `%!w(<nil>)` message noted in round 3.
+   - The elapsed-time assertion spells out what it allows for (limit, then the one-second pipe drain, plus slack), so the numbers can be checked against `runBounded`.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** none new.
+
+5. **Test coverage:** reverting the fix turns the hang test red; restoring it turns it green. The test for a command that finishes normally still passes. No test drives the race between the timer and a timely finish. That would be hard to make deterministic, and the one-line guard is easy to check by reading.
+
+6. **Architecture**
+   - **ARCH-DRY:** pass. `runBounded` is still the only bounded-run helper, and nothing is duplicated.
+   - **ARCH-PURE:** pass. This is IO glue behind the `buildCommand` seam, and the window adds no logic to it.
+   - **ARCH-PURPOSE:** pass. Both parts of the `subprocess-bounded-deadline` rule now hold for `buildCommand`, the only bounded subprocess in scope: it sets `WaitDelay` along with the group kill, and a fake hanging build shows the bound holds.
+
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: addressed
+    note: |
+      build_unix_test.go now uses sleep 600 and asserts took within limit+1s+5s; removing WaitDelay and ownGroup from build.go makes TestRunBoundedKillsTheGroupAtItsLimit hang to the 600s go test timeout (FAIL), and with the fix it passes under -race in 1.5s. build.go:68 now wraps exceeded only when Wait returned an error.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"700d0f7d-95cf-42b6-bb6b-8c6582d35f90","repository":"github.com/xianxu/ariadne","issue_id":"000438","recipe":"fix-review","round":4,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/6a862d0468693995","reviewed_head":"f2f3d2ebb4f7cfab41bfbcaf229af02b3f786c11","slot":"ariadne:2","requested_at":"2026-10-18T11:32:20.130214Z"},"phase":"finished","pid":87798,"started_at":"2026-10-18T11:32:20.227424Z","finished_at":"2026-10-18T11:43:02.531999Z","session_id":"6bc12a8a-41dd-4746-80ed-06f1ef58827c","outcome":"returned"}] -->
