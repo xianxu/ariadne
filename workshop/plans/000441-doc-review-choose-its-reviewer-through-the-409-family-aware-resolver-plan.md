@@ -50,3 +50,32 @@
 
 - [ ] M1 — Extract `pkg/reviewpolicy` (policy, plan, author families, record, loader) with its tests moved from judge's family/agent_resolver/reviewchoice tests. judge gets aliases and thin wrappers; cmd/sdlc's `reviewconfig.go` and `authorFamiliesFromLog` delegate. Verification: every existing judge and cmd/sdlc test passes unchanged, and `go vet` is clean. An atlas note says where the policy lives.
 - [ ] M2 — doc-review: delete its agent list and use `reviewpolicy.Agent`. `chooseReviewers` takes the doc's trailer authors plus the session, applies never-same (same/default count as other; explicit honored; an explicit arg wins), uses the design-heavy order and PATH availability. `runReview` tries candidates in order, announcing a skip on a missing CLI or failed launch, refuses naming each candidate when none is left, and writes the record into the report's `reviewer:` field. Tests: a claude-authored doc is reviewed by codex; a codex-authored doc by claude; with codex missing, gemini runs and the record says degraded; nothing available refuses; an explicit arg wins; `same` in review.json still cross-reviews. Update the help (with the never-self-review sentence) and the atlas.
+
+## Revisions
+
+### 2026-10-18 — plan-quality round 1 (PQ-1 and four Minors)
+
+- **PQ-1: the session agent and trailer parsing also cross the `internal` boundary.** `cmd/sdlc/internal/agentid`'s
+  environment and log parsing move to a new `pkg/agentenv`. The environment part is `Env`, `EnvFrom`, `Known`,
+  `Main`, `InSession` and the `Claude`/`Codex`/`Gemini` names; the log part is `TrailerKey`, `Commit`, `LogFormat` and
+  `ParseLog`. `agentid` keeps them as aliases and wrappers, so no sdlc caller changes; its transcript detection,
+  stamping and `Identity` stay put. doc-review reads the session with `agentenv.EnvFrom(os.Getenv).Main()` and the
+  document's authors with `git log --format=agentenv.LogFormat -- <file>` and `agentenv.ParseLog`: one parser,
+  nothing hand-rolled. **An unknown session** (no agent signals) resolves to claude, as `Env.Main` already does. That
+  is conservative for never-self-review: doc-review then excludes anthropic, as it does today by defaulting to codex.
+- **The forced path is extracted too (minor):** `reviewpolicy.Resolve(explicit, explicitSet, env, policy, authors,
+  kind, available) Choice` holds the `--agent`/`AGENT_CMD` precedence and the `Forced` flag, and `judge.ResolveReview`
+  wraps it. doc-review passes its positional agent as `explicit`, and applies never-same by mapping `same` and the
+  default to `other` before calling `Resolve`.
+- **Fallback rule, one only (minor):** doc-review moves to the next candidate only when the CLI is missing (a
+  pre-launch skip) or `runAgent` returns a non-`*exec.ExitError` error, which is a failed launch. A codex crash is a
+  run that exits non-zero (an `*exec.ExitError` under `CombinedOutput`), so it keeps today's hint message and doesn't
+  switch. The Spec's "the codex-crash hint becomes the automatic fallback" is corrected to that.
+- **Derived from the candidate that ran (minor):** `buildArgs`' codex `-o` temp file is made per attempt, and
+  `reportPath` and the report's `reviewer:` record are computed from the candidate that produced the report. `--out`
+  still overrides the path.
+- **Tests, compressed (minor):** `chooseReviewers` is table-tested over (policy mode × document authors × explicit arg ×
+  availability), with the property that no candidate shares an author family unless forced. One `runReview` test with
+  the `runAgent` fake covers a missing CLI skipped (degraded record), a failed launch moving on, all unavailable
+  refusing, and a crash not switching.
+- Core concepts additions: `pkg/agentenv` (env, log parsing), new; `reviewpolicy.Resolve`/`Choice`, new.

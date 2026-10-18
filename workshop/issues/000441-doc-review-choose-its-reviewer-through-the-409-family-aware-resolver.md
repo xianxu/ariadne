@@ -44,8 +44,8 @@ keeps `cmd/doc-review` out. Both proper routes move code, so this item is outsid
   - An explicit agent argument still wins.
   - doc-review exists to get a *second vendor*, so a repo's `same` (or the default) counts as `other` for it; we never
     regress to self-review. `explicit` pairs are honoured.
-- **Visible degradation:** a candidate whose CLI is missing or fails to launch is announced and skipped. Its existing
-  codex-crash hint becomes the automatic fallback. With no other family available, it refuses and names each
+- **Visible degradation:** a candidate whose CLI is missing or fails to launch is announced and skipped. A codex crash (a non-zero run) keeps
+  today's hint; only a missing CLI or a failed launch moves on (plan Revisions). With no other family available, it refuses and names each
   candidate. The report's frontmatter records `reviewer:` as #409's record (`agent (family; author …)[; degraded: …]`).
 - **Not in scope:** quota detection for doc-review's runs. Its run shape differs (codex `-o` capture), and a failure
   there keeps today's message.
@@ -58,7 +58,7 @@ keeps `cmd/doc-review` out. Both proper routes move code, so this item is outsid
 
 Durable plan: `workshop/plans/000441-doc-review-choose-its-reviewer-through-the-409-family-aware-resolver-plan.md` (full flow, per the hub).
 
-- [ ] M1 — extract `pkg/reviewpolicy` (judge keeps aliases; every existing test passes unchanged)
+- [ ] M1 — extract `pkg/reviewpolicy` (+ `Resolve`) and `pkg/agentenv` (env, trailer log parsing); judge/agentid keep aliases; every existing test passes unchanged
 - [ ] M2 — doc-review plans, falls back and records its reviewer through it; never self-review; help and atlas
 
 ## Log
