@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "6e340b9c", done: "4ee7ab6b"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # tests: build each sdlc test binary once per process, not per test
@@ -66,6 +66,8 @@ at most once per test process and hands every caller the same path.
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed — sdlc-local/suite green on 81c832d5 (exit 0, 8m18s). Before/after with logging go/make wrappers on the same tests in one process: 18 sdlc go builds plus 1 go run (310 MB of binaries) became 1 sdlc build plus 1 vocabulary build (20.9 MB); no sdlc-testbin dir left after exit. TestBuiltBinaryBuildsOncePerProcess (16 parallel callers and an absolute spelling -> 1 build), TestBuiltBinaryFailureIsSharedNotRetried, TestSweepBuiltDirsRemovesOnlyStaleOnes; the six test-go-build suppressions removed and pkg/golint clean. Round-1 fixes: atlas paragraph, 5-minute build bound, lint message names testfix.BuiltBinary. (done-when: contract moved since change-code; judged by the close review); review verdict: FIX-THEN-SHIP
+- 2026-10-18: flow upgraded quick → full — 148 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 - Implemented `testfix.BuiltBinary` and `RemoveBuiltBinaries` (called from cmd/sdlc's TestMain after `m.Run`), with a
   sweep of stale `sdlc-testbin-*` directories. Tests: `TestBuiltBinaryBuildsOncePerProcess` (16 parallel callers, 1
@@ -81,3 +83,10 @@ at most once per test process and hands every caller the same path.
   fixed in the round: the `test-go-build` message names `testfix.BuiltBinary`; builds have a 5-minute bound again
   (the weave site had one); the doc comment says a build runs under the first caller's environment; a test covers
   two spellings of one directory sharing a build. Tidied the issue file's duplicate headings and empty plan item.
+- Close review round 2: FIX-THEN-SHIP. The advisory BR-3 was real: the bound killed only `go`, so a hung compile or
+  link child holding the output pipe could stretch the wait, and no test exercised it. Now `runBounded` starts the
+  build in its own process group, kills the whole group at the limit (and after exit, for leftovers), sets
+  `WaitDelay`, and decides "exceeded" from a flag the timer sets, so no race with a timely finish.
+  `TestRunBoundedKillsTheGroupAtItsLimit` (a shell whose child holds the pipe: returns at the limit, the child dies)
+  and `TestRunBoundedReportsAFinishedCommandAsItIs`. Non-unix gets a direct-child fallback (`build_other.go`, vet
+  clean for windows).

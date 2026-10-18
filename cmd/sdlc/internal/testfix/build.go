@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -41,15 +42,31 @@ const buildTimeout = 5 * time.Minute
 var buildCommand = func(dir string, args ...string) ([]byte, error) {
 	cmd := exec.Command("go", args...)
 	cmd.Dir = dir
+	return runBounded(cmd, buildTimeout)
+}
+
+// runBounded runs cmd with its combined output captured, for at most limit:
+// past it the whole process group is killed (a compiler or linker child, not
+// only go itself), and WaitDelay stops a descendant still holding the output
+// pipe from stretching the wait.
+func runBounded(cmd *exec.Cmd, limit time.Duration) ([]byte, error) {
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out
+	cmd.WaitDelay = time.Second
+	ownGroup(cmd)
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
-	timer := time.AfterFunc(buildTimeout, func() { _ = cmd.Process.Kill() })
+	var expired atomic.Bool
+	timer := time.AfterFunc(limit, func() {
+		expired.Store(true)
+		killGroup(cmd)
+	})
 	err := cmd.Wait()
-	if !timer.Stop() {
-		err = fmt.Errorf("build exceeded %s: %w", buildTimeout, err)
+	timer.Stop()
+	killGroup(cmd) // reclaim descendants a finished parent left behind
+	if expired.Load() {
+		err = fmt.Errorf("exceeded %s: %w", limit, err)
 	}
 	return out.Bytes(), err
 }
