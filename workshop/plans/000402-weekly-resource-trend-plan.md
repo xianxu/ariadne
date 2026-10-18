@@ -57,8 +57,8 @@ The TL should tell the operator that a published partial week stays partial and 
 ### 1. Bind to #392 and pin semantics
 
 - [x] Verify #392 is landed; inspect its schema, lack of previous-week lookup, immutable rerun behavior, and brain path. Record the actual files and interface change in a dated Revision here before code.
-- [ ] Write a failing fixture test for baseline, positive/negative deltas, prior zero, changed source definition, >25% growth, unknown coverage, ledger top ten, suite p50/p90 deltas, counter resets and unreadable wear. Run its targeted `go test` and observe the expected failures.
-- [ ] Implement the pure model/renderer and pass the targeted test. Commit.
+- [x] Write failing fixture tests for baseline, positive/negative deltas, prior zero, changed source definition, >25% growth, unknown coverage, ledger ordering, suite p50/p90 deltas, counter resets and unreadable wear. Run targeted `go test` and observe expected failures.
+- [x] Implement the pure model/renderer and pass the targeted tests. Commit.
 
 ### 2. Collect metadata from declared sources
 

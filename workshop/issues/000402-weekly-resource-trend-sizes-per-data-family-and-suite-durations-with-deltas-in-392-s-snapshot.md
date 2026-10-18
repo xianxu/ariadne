@@ -49,6 +49,7 @@ Depends on ariadne#392.
 
 ## Log
 
+- 2026-10-18: TDD slices for exact prior-week reading, byte comparison, declared-source collection, ledger ranking, suite duration comparison and device parsing are green in focused cmd/sdlc tests. A live read-only probe found ioreg Bytes (Write) for internal disk0; smartctl prints Percentage Used without root but exits 4 after an unrelated error-log query, so usable wear output must be parsed independently of that exit code. The bounded ioreg form is `-r -c IOBlockStorageDriver -w 0 -l -d 2`.
 
 - 2026-10-17: unclaimed: Plan approved by hub, including weekly device gauges. Waiting for prerequisite ariadne#392 to land; ariadne:1 takes #392 first, then resumes this branch and binds the landed snapshot interface before code.
 ### 2026-10-15
