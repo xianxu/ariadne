@@ -24,6 +24,15 @@ func TestWeeklyIsSDLCRepoRequiresIssueHome(t *testing.T) {
 	if !weeklyIsSDLCRepo(root) {
 		t.Fatal("issue repository omitted")
 	}
+	if err := os.Mkdir(filepath.Join(root, ".brain"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".brain", "config.md"), []byte("capture"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if weeklyIsSDLCRepo(root) {
+		t.Fatal("brain capture repository counted as SDLC despite its spine guard")
+	}
 }
 
 func TestWeeklyReadLandingEventsSkipsMalformedWithoutCreatingState(t *testing.T) {

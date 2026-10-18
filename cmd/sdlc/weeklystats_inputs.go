@@ -80,6 +80,9 @@ func discoverWeeklyRepos(id workspace.Identity) ([]string, error) {
 }
 
 func weeklyIsSDLCRepo(root string) bool {
+	if _, err := os.Stat(filepath.Join(root, ".brain", "config.md")); err == nil {
+		return false // brain is capture-only, even if an old issue directory remains
+	}
 	info, err := os.Stat(filepath.Join(root, vocab.Issue().Discovery().Home))
 	return err == nil && info.IsDir()
 }
