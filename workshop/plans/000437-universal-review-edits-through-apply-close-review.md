@@ -181,3 +181,83 @@ findings:
    Add `## Revisions` entries requiring all pending links to survive reconciliation and meaningful scenario tests for untracked routing and operation-correlated recovery. Correct Task 5’s completed regression claim until those scenarios are demonstrated.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"e93b6f0c-c23f-4d71-82ca-e7137aea2f37","repository":"github.com/xianxu/ariadne","issue_id":"000437","recipe":"small-diff-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/e44f26f54729c2ce","reviewed_head":"0db63032d318ffa5a1da0b8b10f36153f8b15e15","slot":"ariadne:1","requested_at":"2026-10-18T20:27:54.411325Z"},"phase":"finished","pid":62758,"started_at":"2026-10-18T20:27:54.597469Z","finished_at":"2026-10-18T20:30:32.327017Z","session_id":"01a150b3-10e0-7c21-9222-bbb4a8f0d812","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T14:06:19-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 437 — xx-universal-review edits through couch --session-sync apply; retire deletions: propose-strike |
+| repo | ariadne |
+| issue file | workshop/issues/000437-universal-review-edits-through-apply.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 2e783ac22e1a79d3a6cddce34016f5353679415c..67ca24ea443cd3d8628bf7a32aba4980f2bd11b6 |
+| command | sdlc close --issue 437 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-18T14:06:19-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: medium
+```
+
+The pinned changes address the open findings, and no new defects were identified. Focused tests pass, and mutation checks confirm the regressions fail when the fixes are removed. The broader weave integration run was inconclusive because fixtures failed Git repository discovery.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      adapters/file-edit.md:30-42 routes both submitted documents and parents; lines 145-153 refuse untracked propose writes. Changing that decision to file tools made TestReviewSkillDecisionScenarios fail for both roles.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      fix/SKILL.md:234-260 requires attempted-base correlation, Current, readback and matching spans; lines 284-289 apply these checks to interrupted commits. Tests cover matching-landed and old-current states; changing old-current to commit Body made the regression fail.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      sidedoc/links.go extracts every escaped link within each recognized pending marker. TestPendingMarkerKeepsEverySideLinkUntilRejection verifies all four labels survive reconciliation and disappear after rejection. Restoring the previous parser failed with one link instead of four.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The marker-free fallback remains documented in adapters/file-edit.md's proposal-refusal path and collaboration-modes.md's pending-link rules. The marker-free and rejected-index examples pass the checker.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      README.md:15-20 documents presentation: propose and both apply commands, matching adapters/file-edit.md:68-90 and fix/SKILL.md:211-229, and links the updated atlas.
+```
+
+1. **Strengths**
+
+   - Routing explicitly covers submitted documents, parents and unknown ownership.
+   - Recovery distinguishes an old current round from the attempted operation.
+   - Multi-link retention and rejection exercise the shared parser through `ReconcileIndex`.
+   - Export v3 rejects retired mode flags and verifies the generated manifest.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   `go test ./pkg/reviewexport ./pkg/sidedoc -count=1` and the pinned diff whitespace check passed. Three independent regression mutations failed as expected; the disposable copy was removed.
+
+   `go test ./cmd/weave/... -count=1` failed on fixture Git discovery, including `TestUniversalReviewSkillDiscoveredInDerivedRepo`. The environment sets `GIT_CEILING_DIRECTORIES`; this run provides no passing integration evidence. The full suite and external live conformance were not rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared link parsing and generated export remain the common owners.
+   - **ARCH-PURE — pass:** parser logic stays pure; adapters describe the IO seams.
+   - **ARCH-PURPOSE — pass:** both writer paths, all six stock modes, proposal fallback and hosted recovery match the revised plan. Core-concept locations and classifications agree with the implementation.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"1c342093-7f85-4953-9bb8-3ef7fae2d5e2","repository":"github.com/xianxu/ariadne","issue_id":"000437","recipe":"small-diff-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/02dcfbff0feaa6c5","reviewed_head":"67ca24ea443cd3d8628bf7a32aba4980f2bd11b6","slot":"ariadne:1","requested_at":"2026-10-18T21:00:39.604028Z"},"phase":"finished","pid":60806,"started_at":"2026-10-18T21:00:39.703618Z","finished_at":"2026-10-18T21:06:11.67789Z","session_id":"01a150d1-0c98-7630-b0d8-c7fc9684e536","outcome":"returned"}] -->

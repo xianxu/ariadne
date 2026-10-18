@@ -427,6 +427,232 @@ rounds:
       recipe: small-diff-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 1c342093-7f85-4953-9bb8-3ef7fae2d5e2
+            repository: github.com/xianxu/ariadne
+            issue_id: "000437"
+            recipe: small-diff-review
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/02dcfbff0feaa6c5
+            reviewed_head: 67ca24ea443cd3d8628bf7a32aba4980f2bd11b6
+            slot: ariadne:1
+            requested_at: "2026-10-18T21:00:39.604028Z"
+          phase: finished
+          pid: 60806
+          started_at: "2026-10-18T21:00:39.703618Z"
+          finished_at: "2026-10-18T21:06:11.67789Z"
+          session_id: 01a150d1-0c98-7630-b0d8-c7fc9684e536
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 67ca24ea443cd3d8628bf7a32aba4980f2bd11b6
+        tracker_head: cdd0fdde501f918460df960bd0853d795b91446f
+        branch_point: 2e783ac22e1a79d3a6cddce34016f5353679415c
+        since: "2026-10-18T04:55:12-07:00"
+        until: "2026-10-18T14:00:16-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T04:55:12-07:00"
+              end: "2026-10-18T14:00:16-07:00"
+              began: "2026-10-18T04:55:12-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: a4be266a1e051d1858db74bd66692871562c2d44fb35de5ef5bd0d11f6a34dcf
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 119147125
+              windows:
+                - start: "2026-10-18T04:55:12-07:00"
+                  end: "2026-10-18T14:00:16-07:00"
+            - harness: codex
+              id: 01a14eea-4c39-71d2-b9c8-8735b8b58509
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              parent_id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              digest: f270f489ab6fd0ce4c6f068ee3444f317a7e530f737c7281b8517abdf1f0a650
+              started: "2026-10-18T12:09:00.431Z"
+              spawned: true
+              bytes: 543162
+              windows:
+                - start: "2026-10-18T12:09:00.431Z"
+                  end: "2026-10-18T14:00:16-07:00"
+            - harness: codex
+              id: 01a1502d-d103-7d90-a966-36555f34085d
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              parent_id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              digest: 1ac460d124eac981ad596f0d48705823e1c2f7bbba9a8812ee061446b28e6fba
+              started: "2026-10-18T18:02:22.443Z"
+              spawned: true
+              bytes: 610760
+              windows:
+                - start: "2026-10-18T18:02:22.443Z"
+                  end: "2026-10-18T14:00:16-07:00"
+        queue_waits:
+            - attempt_id: 167ef685d14ef984a1ccc9b83a28a5b1
+              slot: ariadne:1
+              record_digest: 0e39c9d6338f94cf910a2bfc8d333312439b3c7acfaa80702d390a1cee843b1a
+              start: "2026-10-18T12:21:07.418501Z"
+              end: "2026-10-18T12:28:33.48289Z"
+              queue_seconds: 446.064389
+              raw_seconds: 446.064389
+              exact: true
+            - attempt_id: 97e9c79d9d1d102df2d40c32801f3864
+              slot: ariadne:1
+              record_digest: 302427f7fcd59fc6f235b929456fe28e0d9dee2ebfd0c5ec057a740997e6047c
+              start: "2026-10-18T13:00:46.040063Z"
+              end: "2026-10-18T13:09:43.849079Z"
+              queue_seconds: 537.809016
+              raw_seconds: 537.809016
+              exact: true
+            - attempt_id: 8c5a5e18aa58707db347c709c810f563
+              slot: ariadne:1
+              record_digest: e3d4f017eb327e3efee5b4d6035c7cfc077e114ad6e05dcb010f951cd3ff0b17
+              start: "2026-10-18T13:27:17.095135Z"
+              end: "2026-10-18T13:38:49.768584Z"
+              queue_seconds: 692.673449
+              raw_seconds: 692.673449
+              exact: true
+            - attempt_id: 90320ab29b17a67bea80a2671c62c12a
+              slot: ariadne:1
+              record_digest: 2d18cf65a08f926a2e69fb28f4d9985e7505b65b6ed8c309fe046dc6d1471a51
+              start: "2026-10-18T13:54:20.761552Z"
+              end: "2026-10-18T14:15:05.235935Z"
+              queue_seconds: 1244.474383
+              raw_seconds: 1244.474383
+              exact: true
+            - attempt_id: 4a60e90cc408df07a4638b2c53e283ac
+              slot: ariadne:1
+              record_digest: b4058fa81683863384dde7421a488aa896deb34a4d79ace8aeaa02202c45ca6e
+              start: "2026-10-18T14:32:04.166177Z"
+              end: "2026-10-18T14:59:49.477614Z"
+              queue_seconds: 1665.311437
+              raw_seconds: 1665.311437
+              exact: true
+            - attempt_id: 28f483f4799341fd56dad2c463677506
+              slot: ariadne:1
+              record_digest: 1f189210f8493e3900895b7da9b87104d5b38c60a7c2af139e525891aeeb29dc
+              start: "2026-10-18T15:15:06.25148Z"
+              end: "2026-10-18T15:39:30.12085Z"
+              queue_seconds: 1463.86937
+              raw_seconds: 1463.86937
+              exact: true
+            - attempt_id: 77d0c88769993b116c9a81f17f6899e5
+              slot: ariadne:1
+              record_digest: 691c68f7041c15337939e4f7fd16375e059cabd17226d2133de3bd4015692592
+              start: "2026-10-18T15:53:13.613306Z"
+              end: "2026-10-18T16:18:19.150532Z"
+              queue_seconds: 1505.537226
+              raw_seconds: 1505.537226
+              exact: true
+            - attempt_id: 632f45e915f1038d4da0444be6b2d4c6
+              slot: ariadne:1
+              record_digest: 8a092f4b63f32315462d1158109232274b3edd8788c472a9da1038c1571854a3
+              start: "2026-10-18T16:31:45.679488Z"
+              end: "2026-10-18T16:38:32.998977Z"
+              queue_seconds: 407.319489
+              raw_seconds: 407.319489
+              exact: true
+            - attempt_id: 9a4b90a9e4ed50c8436c7b67033a7564
+              slot: ariadne:1
+              record_digest: 8798a38cb345ca670dbcb83cab1f00bc65d041520ca0e11680a189d636482f99
+              start: "2026-10-18T16:58:08.688864Z"
+              end: "2026-10-18T17:06:12.210667Z"
+              queue_seconds: 483.521803
+              raw_seconds: 483.521803
+              exact: true
+            - attempt_id: 8f7bced5bdd91f8b15a622646731b7f4
+              slot: ariadne:1
+              record_digest: 177a6a087cdf56f4f74ecb8da67ad98f43fed20a154c46d7a9f14a8a931ca302
+              start: "2026-10-18T17:21:24.866846Z"
+              end: "2026-10-18T17:42:50.99172Z"
+              queue_seconds: 1286.124874
+              raw_seconds: 1286.124874
+              exact: true
+            - attempt_id: 9e88fbb939bad2636b6afa592c4ff95e
+              slot: ariadne:1
+              record_digest: 3f7ccdd2b0f140a22b2e4a1ced2a98f8a247a4840ac10627c091117a92d21580
+              start: "2026-10-18T18:18:21.221443Z"
+              end: "2026-10-18T18:21:08.81741Z"
+              queue_seconds: 167.595967
+              raw_seconds: 167.595967
+              exact: true
+            - attempt_id: 698f69f0a003585cc432cdcd1f5eb3b8
+              slot: ariadne:1
+              record_digest: 709f89a6b2198a258b4d1e2a5ddf0e5677d05acaa6155085826842b2ed6b0122
+              start: "2026-10-18T18:23:20.078884Z"
+              end: "2026-10-18T18:58:32.709201Z"
+              queue_seconds: 2112.630317
+              raw_seconds: 2112.630317
+              exact: true
+            - attempt_id: 67f520b25e748b321532b2f03ec9af4b
+              slot: ariadne:1
+              record_digest: 72df114728cf3a28018e5e325035a5d290f479c604f30207eb1b57e07b678dec
+              start: "2026-10-18T19:31:16.893432Z"
+              end: "2026-10-18T20:18:20.731582Z"
+              queue_seconds: 2823.83815
+              raw_seconds: 2823.83815
+              exact: true
+            - attempt_id: 8933544146d410dbede8a7922f155adc
+              slot: ariadne:1
+              record_digest: d54bd24444ac435992d1e6c1cc5ee33dd031586c386a95de57aaab50afae30c9
+              start: "2026-10-18T20:36:52.829415Z"
+              end: "2026-10-18T20:50:46.737447Z"
+              queue_seconds: 833.908032
+              raw_seconds: 833.908032
+              exact: true
+        cuts:
+            - dispatched: "2026-10-18T12:10:24-07:00"
+              finalized: "2026-10-18T12:15:41-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T13:27:54-07:00"
+              finalized: "2026-10-18T13:30:33-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-18T14:06:19-07:00"
+      dispatched: "2026-10-18T14:00:39-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: adapters/file-edit.md:30-42 routes both submitted documents and parents; lines 145-153 refuse untracked propose writes. Changing that decision to file tools made TestReviewSkillDecisionScenarios fail for both roles.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: fix/SKILL.md:234-260 requires attempted-base correlation, Current, readback and matching spans; lines 284-289 apply these checks to interrupted commits. Tests cover matching-landed and old-current states; changing old-current to commit Body made the regression fail.
+          round: 3
+        - id: BR-5
+          disposition: addressed
+          note: sidedoc/links.go extracts every escaped link within each recognized pending marker. TestPendingMarkerKeepsEverySideLinkUntilRejection verifies all four labels survive reconciliation and disappear after rejection. Restoring the previous parser failed with one link instead of four.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: The marker-free fallback remains documented in adapters/file-edit.md's proposal-refusal path and collaboration-modes.md's pending-link rules. The marker-free and rejected-index examples pass the checker.
+          round: 3
+        - id: BR-4
+          disposition: addressed
+          note: 'README.md:15-20 documents presentation: propose and both apply commands, matching adapters/file-edit.md:68-90 and fix/SKILL.md:211-229, and links the updated atlas.'
+          round: 3
+      recipe: small-diff-review
+      isolation: fenced
+      reviewed: 67ca24ea443cd3d8628bf7a32aba4980f2bd11b6
+      blocked: false
 ---
 
 # Gate ledger — ariadne#437 (boundary-review)
@@ -461,8 +687,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Critical] `structural-links-without-markers` (kind: defect) A pending proposal containing multiple links loses later index entries
   pkg/sidedoc/links.go:21,51-52 consumes the entire pending marker while capturing only its first escaped link. Reproduced with 🤖{ → \[proposal\](d.side/01-a.md) and → \[answer\](d.side/02-b.md)}: SideLinks returns only 01-a.md, and ReconcileIndex silently drops 02-b.md despite its pending link. This is the 2nd finding in family structural-links-without-markers. ARCH-PURPOSE: state and enforce the rule that every pending link retains its entry; extract every link within each recognized marker. The affected family includes discussion, answer, notes, and proposal labels through this shared parser, consumed by both adapters and collaboration guidance. Add multi-link retention and rejection tests rather than fixing one label or consumer.
 
+## Round 3 — 2026-10-18T14:06:19-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — adapters/file-edit.md:30-42 routes both submitted documents and parents; lines 145-153 refuse untracked propose writes. Changing that decision to file tools made TestReviewSkillDecisionScenarios fail for both roles.
+- BR-3 — addressed — fix/SKILL.md:234-260 requires attempted-base correlation, Current, readback and matching spans; lines 284-289 apply these checks to interrupted commits. Tests cover matching-landed and old-current states; changing old-current to commit Body made the regression fail.
+- BR-5 — addressed — sidedoc/links.go extracts every escaped link within each recognized pending marker. TestPendingMarkerKeepsEverySideLinkUntilRejection verifies all four labels survive reconciliation and disappear after rejection. Restoring the previous parser failed with one link instead of four.
+- BR-2 — addressed — The marker-free fallback remains documented in adapters/file-edit.md's proposal-refusal path and collaboration-modes.md's pending-link rules. The marker-free and rejected-index examples pass the checker.
+- BR-4 — addressed — README.md:15-20 documents presentation: propose and both apply commands, matching adapters/file-edit.md:68-90 and fix/SKILL.md:211-229, and links the updated atlas.
+
 ## Open findings
 
-- **BR-1** [Critical] `presentation-all-write-paths` Untracked edits bypass the document's proposal presentation
-- **BR-3** [Critical] `apply-recovery-operation-correlation` A current stored round does not prove the attempted apply landed
-- **BR-5** [Critical] `structural-links-without-markers` (kind: defect) A pending proposal containing multiple links loses later index entries
+(none — every finding has been disposed)

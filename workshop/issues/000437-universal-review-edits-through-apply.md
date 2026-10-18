@@ -53,6 +53,7 @@ Record the suite on the pushed head, then close and land through the SDLC gates.
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed — Recorded sdlc-local/suite passed on code head fadeae1a (12 sdlc shards, 68 packages, 9m10s); 67ca24ea adds only issue and plan evidence. Focused reviewexport/sidedoc tests, make -k build, live Couch tracked/untracked routing and Pair recovery probes passed. PR #303 CI was green. --no-integrate closes the tested branch before merge owns current-main integration per #425.; review verdict: SHIP
 
 - Claimed and started in ariadne:1. pair#661 M1's Couch apply and round are on main; pair:2 is building the M2 pair-level apply. Its exact JSON and exit-code contracts are recorded in the durable plan. The hub added the xx-fix hosted workbench migration to this issue, with pair#664 retiring the legacy pane only after #437 lands. The hub assigned parley#383 to accept both export v2 and v3 before #437 publishes v3.
 - The first tests failed on the retired mode flag and old adapter path, then passed after the authored skill/export changes. A large-proposal fixture exposed that the shared `pkg/sidedoc` parser did not count `→ [proposal](…)` as a link; a red test reproduced it, then the parser, examples checker and fixture passed. `go test ./pkg/reviewexport -count=1`, targeted `pkg/sidedoc` checks, `go test ./cmd/weave/... -count=1` and `make -k build` passed.
