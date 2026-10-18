@@ -1,13 +1,13 @@
 ---
 id: 000426
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-17
 updated: 2026-10-18
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '877a55f26a87e760be175426a93befc779dd7437' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ea121c1d06071fa6aee04e2beb56413480b50402' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T07:33:33-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "52cc7fee", done: "74c82410"}
+actual_hours: 0.08
 ---
 
 # tl-lead status: write the discussions index through couch's frontmatter read/write (pair#643), dropping the printed-diff workaround
