@@ -31,13 +31,25 @@ Add "~/.config/rclone" to sandbox.filesystem.denyRead in .claude/settings.ariadn
 
 ## Done when
 
-- The PR diff is exactly that one line, and the operator has labeled it local-gates-verified.
-- After weave refresh, ~/.claude/settings.json denyRead includes ~/.config/rclone.
+- The settings diff is exactly that one line (plus SDLC issue bookkeeping in the PR), and the operator has labeled it local-gates-verified.
+- After weave refresh, the checkout-local .claude/settings.json denyRead includes ~/.config/rclone.
 
 ## Plan
 
-- [ ]
+- [ ] Verify the one-line settings change, operator label, checkout-local regeneration and recorded suite.
 
 ## Log
 
 ### 2026-10-18
+
+### 2026-10-18 — targeted checks and operator verification
+
+The requested ordering check failed before the change and passed afterwards. Parsed JSON verifies one unique rclone entry immediately after gcloud and byte-for-byte equality with main except that added line. Existing settingsx and plan tests passed (0.185s and 1.755s); git diff --check passed. PR #311 is open; its local-gates-verified label was applied by the operator and independently observed after TL receipt d52e519e-cc57-4ffb-9af9-432856f8a3c6. The worker did not apply the label. The recorded suite is running on the pushed settings head.
+
+Before regeneration the checkout-local denyRead lacked rclone. weave refresh --substrate completed successfully on this issue branch, preserved its HEAD and clean tracked tree, and regenerated .claude/settings.json with rclone immediately after gcloud. Verification read only settings lists; no credential files were read.
+
+## Revisions
+
+### 2026-10-18 — clarify generated settings target and workflow bookkeeping
+
+The original criterion named ~/.claude/settings.json. The base manifest emits the checkout-local .claude/settings.json; the home-level file is outside weave's output. The TL approved verifying regeneration in this slot and correcting the criterion (receipt 762cc22c-c775-45bc-a245-72c70309561a); home-level activation remains the TL/operator's separate post-landing rollout. The TL also explicitly accepted the single settings line plus SDLC-generated issue metadata (receipt dd2b879e-989e-4e5e-95ed-73419526485a). The current criteria now state both facts; the functional change remains one line.
