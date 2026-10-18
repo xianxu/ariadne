@@ -7,7 +7,7 @@ created: 2026-10-17
 updated: 2026-10-18
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'ea121c1d06071fa6aee04e2beb56413480b50402' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '105870ff884e176bae4625982dd90f83b39b885d' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T07:33:33-07:00
 claimant:
     operator: Xian Xu
@@ -17,7 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "52cc7fee", done: "74c82410"}
-actual_hours: 0.08
+actual_hours: 0.10
 ---
 
 # tl-lead status: write the discussions index through couch's frontmatter read/write (pair#643), dropping the printed-diff workaround
