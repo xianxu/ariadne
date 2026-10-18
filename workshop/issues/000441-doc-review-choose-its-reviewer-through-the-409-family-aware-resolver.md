@@ -78,7 +78,7 @@ with aliases (cross-cutting refactor, 0.35 → 0.14); doc-review's choice, fallb
 Durable plan: `workshop/plans/000441-doc-review-choose-its-reviewer-through-the-409-family-aware-resolver-plan.md` (full flow, per the hub).
 
 - [x] M1 — extract `pkg/reviewpolicy` (+ `Resolve`) and `pkg/agentenv` (env, trailer log parsing); judge/agentid keep aliases; every existing test passes unchanged
-- [ ] M2 — doc-review plans, falls back and records its reviewer through it; never self-review; help and atlas
+- [x] M2 — doc-review plans, falls back and records its reviewer through it; never self-review; help and atlas
 
 ## Log
 
@@ -99,3 +99,15 @@ Durable plan: `workshop/plans/000441-doc-review-choose-its-reviewer-through-the-
   `--agent` remedy at every sdlc site; `TestRefusalKeepsJudgesContract`), BR-2 (an as-built table in plan Revisions),
   BR-3 (gofmt). Minors: stale comments renamed; `pkg/agentenv` and `pkg/reviewpolicy` (Load, AuthorFamilies) have
   their own tests.
+- M2 implemented: doc-review's own agent list is gone (`AgentCLI = reviewpolicy.Agent`). `choose.go` has `docPolicy`
+  (the repository's review.json via `reviewpolicy.Load`), `docAuthors` (`git log --format=agentenv.LogFormat --
+  <doc>`, parsed by `agentenv.ParseLog`, plus the session's family; unreadable history is recorded as degraded),
+  `chooseReviewers` (`same` and the default count as `other`; explicit pairs honored; the positional agent wins;
+  AGENT_CMD ignored), and `onPath`. `runReview` tries candidates in order: a missing CLI or a failed launch (a
+  non-ExitError) is announced and skipped; a crash (ExitError, empty report) keeps today's hint and doesn't switch;
+  none left refuses with `reviewpolicy.NoReviewerError` naming each. The report path and the new `reviewer_record`
+  frontmatter come from the reviewer that ran. M1's advisory is fixed: `reviewpolicy.Choice.Refusal()` is removed, so
+  only `judge.Refusal` reports sdlc refusals. Tests: `TestChooseReviewers` (seven rows, with the no-shared-family
+  property) and `TestRunReviewChoosesFallsBackAndRecords` (codex-authored → claude; codex missing → gemini, degraded;
+  launch failure moves on; crash doesn't; nobody refuses; a repo's same still cross-reviews), plus the existing
+  doc-review tests. Help (with the never-self-review sentence), the fix skill and the atlas (docflow) updated.

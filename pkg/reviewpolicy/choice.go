@@ -42,7 +42,8 @@ func Resolve(explicit string, explicitSet bool, env agentenv.Env, policy Policy,
 }
 
 // First is the reviewer a dry run shows and a single-reviewer caller uses.
-// ok is false when no candidate is left; a caller then reports Refusal, never
+// ok is false when no candidate is left; a caller then reports a refusal
+// (sdlc: judge.Refusal; doc-review: a NoReviewerError of its skips), never
 // dispatching the zero Candidate.
 func (c Choice) First() (Candidate, bool) {
 	if len(c.Candidates) == 0 {
@@ -50,9 +51,6 @@ func (c Choice) First() (Candidate, bool) {
 	}
 	return c.Candidates[0], true
 }
-
-// Refusal is the error for a choice with no candidate: every skip, named.
-func (c Choice) Refusal() error { return &NoReviewerError{Skips: c.Skips} }
 
 // ErrNoReviewer is a review with no reviewer that can run.
 var ErrNoReviewer = errors.New("no reviewer available")

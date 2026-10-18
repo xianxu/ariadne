@@ -161,7 +161,7 @@ func TestResolve(t *testing.T) {
 	if _, ok := none.First(); ok {
 		t.Error("an empty choice offered a first candidate")
 	}
-	if err := none.Refusal(); !errors.Is(err, ErrNoReviewer) || !strings.Contains(err.Error(), "codex: codex missing") {
+	if err := error(&NoReviewerError{Skips: none.Skips}); !errors.Is(err, ErrNoReviewer) || !strings.Contains(err.Error(), "codex: codex missing") {
 		t.Errorf("refusal %v", err)
 	}
 }
