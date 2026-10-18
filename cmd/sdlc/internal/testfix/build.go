@@ -65,7 +65,7 @@ func runBounded(cmd *exec.Cmd, limit time.Duration) ([]byte, error) {
 	err := cmd.Wait()
 	timer.Stop()
 	killGroup(cmd) // reclaim descendants a finished parent left behind
-	if expired.Load() {
+	if expired.Load() && err != nil { // a timely finish that raced the timer stays a success
 		err = fmt.Errorf("exceeded %s: %w", limit, err)
 	}
 	return out.Bytes(), err

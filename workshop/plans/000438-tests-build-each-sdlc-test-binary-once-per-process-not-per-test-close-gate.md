@@ -181,6 +181,95 @@ rounds:
       isolation: fenced
       reviewed: 81c832d5e0008578d7a03783a0d4055cc6358000
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 62fcab04-6d4a-44ae-b10a-b2e50fa7fd7e
+            repository: github.com/xianxu/ariadne
+            issue_id: "000438"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/6150bcda6c7799b7
+            reviewed_head: a1bf416f615f715f56953d949d3c0d5c3c66eed1
+            slot: ariadne:2
+            requested_at: "2026-10-18T11:27:58.58051Z"
+          phase: finished
+          pid: 88026
+          started_at: "2026-10-18T11:27:58.735592Z"
+          finished_at: "2026-10-18T11:29:52.164621Z"
+          session_id: 3906baf3-4068-4960-8852-01e0fdc9300e
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: a1bf416f615f715f56953d949d3c0d5c3c66eed1
+        tracker_head: 829b7947f22644849f7dc8bbd03c61a827b19b4a
+        branch_point: 81acc7b58973a0612d17c9f8e4bcdba565410e11
+        since: "2026-10-18T02:40:05-07:00"
+        until: "2026-10-18T04:27:33-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T02:40:05-07:00"
+              end: "2026-10-18T04:27:33-07:00"
+              began: "2026-10-18T02:40:05-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6558ff3660328a60784671256055c6ea5c9511825f6f9ec90cf4ab8e5311b795
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 138201603
+              windows:
+                - start: "2026-10-18T02:40:05-07:00"
+                  end: "2026-10-18T04:27:33-07:00"
+        queue_waits:
+            - attempt_id: bc83a37c06dffbab2c718667941a1877
+              slot: ariadne:2
+              record_digest: 27b2025da663544145cd7c1240134b00e665fb57c5ebc34cfb0733755b143a77
+              start: "2026-10-18T09:57:22.453377Z"
+              end: "2026-10-18T10:31:02.179937Z"
+              queue_seconds: 2019.72656
+              raw_seconds: 2019.72656
+              exact: true
+            - attempt_id: 04b5567c65a5b85720405001694a9c4a
+              slot: ariadne:2
+              record_digest: 03e1dcefaaa5870f083909d5727a6251159cc00b1215d61a4958a374fce4b6e0
+              start: "2026-10-18T10:42:44.577937Z"
+              end: "2026-10-18T11:15:06.042596Z"
+              queue_seconds: 1941.464659
+              raw_seconds: 1941.464659
+              exact: true
+        cuts:
+            - dispatched: "2026-10-18T03:40:03-07:00"
+              finalized: "2026-10-18T03:41:49-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T04:24:20-07:00"
+              finalized: "2026-10-18T04:26:18-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-18T04:29:53-07:00"
+      dispatched: "2026-10-18T04:27:58-07:00"
+      agent: claude
+      dispose:
+        - id: BR-3
+          disposition: not-addressed
+          note: 'runBounded (build.go:52-72) adds WaitDelay plus a process-group kill, and the weave build reaches it through buildCommand, but the regression test does not fail without the fix: with WaitDelay and ownGroup removed, TestRunBoundedKillsTheGroupAtItsLimit still passes, in 60.16s, because the fixture sleeps 60s, which is under HangCeiling (2m). Make the fixture outlive the ceiling (sleep 600) or assert took < limit+WaitDelay+slack. Also wrap the error as exceeded only when Wait''s err is non-nil (build.go:69-71).'
+          round: 3
+      recipe: fix-review
+      isolation: fenced
+      reviewed: a1bf416f615f715f56953d949d3c0d5c3c66eed1
+      blocked: false
 ---
 
 # Gate ledger — ariadne#438 (boundary-review)
@@ -209,6 +298,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-2 — addressed — pkg/golint/rules.go:30 now names testfix.BuiltBinary as the remedy.
 - BR-3 — not-addressed — build.go:38-54 adds a 5-minute AfterFunc kill, but no test exercises it, and killing only the go process may not bound a hung compile/link child holding the output pipe (Wait waits for the copy goroutines). Rule for the subprocess-bounded-deadline family: every bounded subprocess sets cmd.WaitDelay along with its kill, and a fake hanging build shows the bound holds.
 - BR-4 — addressed — The BuiltBinary doc comment (build.go:61-62) now says the build runs once under the first caller's environment (HOME, GOFLAGS, PATH).
+
+## Round 3 — 2026-10-18T04:29:53-07:00 (claude) — passed
+
+### Disposed
+
+- BR-3 — not-addressed — runBounded (build.go:52-72) adds WaitDelay plus a process-group kill, and the weave build reaches it through buildCommand, but the regression test does not fail without the fix: with WaitDelay and ownGroup removed, TestRunBoundedKillsTheGroupAtItsLimit still passes, in 60.16s, because the fixture sleeps 60s, which is under HangCeiling (2m). Make the fixture outlive the ceiling (sleep 600) or assert took < limit+WaitDelay+slack. Also wrap the error as exceeded only when Wait's err is non-nil (build.go:69-71).
 
 ## Open findings
 

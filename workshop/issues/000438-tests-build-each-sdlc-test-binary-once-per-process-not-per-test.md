@@ -66,6 +66,7 @@ at most once per test process and hands every caller the same path.
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed — Round-2 advisory BR-3 fixed: runBounded kills the build process group at its 5-minute limit with WaitDelay, deciding expiry from a flag (no race). TestRunBoundedKillsTheGroupAtItsLimit: a shell whose child holds the pipe returns at the limit and the child dies; TestRunBoundedReportsAFinishedCommandAsItIs; builder tests pass -count=3; real-build tests and pkg/golint pass; windows vet clean. (fixed-then-ship); review verdict: FIX-THEN-SHIP
 - 2026-10-18: closed — sdlc-local/suite green on 81c832d5 (exit 0, 8m18s). Before/after with logging go/make wrappers on the same tests in one process: 18 sdlc go builds plus 1 go run (310 MB of binaries) became 1 sdlc build plus 1 vocabulary build (20.9 MB); no sdlc-testbin dir left after exit. TestBuiltBinaryBuildsOncePerProcess (16 parallel callers and an absolute spelling -> 1 build), TestBuiltBinaryFailureIsSharedNotRetried, TestSweepBuiltDirsRemovesOnlyStaleOnes; the six test-go-build suppressions removed and pkg/golint clean. Round-1 fixes: atlas paragraph, 5-minute build bound, lint message names testfix.BuiltBinary. (done-when: contract moved since change-code; judged by the close review); review verdict: FIX-THEN-SHIP
 - 2026-10-18: flow upgraded quick → full — 148 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
@@ -90,3 +91,8 @@ at most once per test process and hands every caller the same path.
   `TestRunBoundedKillsTheGroupAtItsLimit` (a shell whose child holds the pipe: returns at the limit, the child dies)
   and `TestRunBoundedReportsAFinishedCommandAsItIs`. Non-unix gets a direct-child fallback (`build_other.go`, vet
   clean for windows).
+- Close review round 3: FIX-THEN-SHIP. The BR-3 test passed without the fix, because its 60 s fixture ended under
+  the 2-minute ceiling. Now the fixture sleeps 600 s and the test asserts elapsed < limit + 1 s drain + 5 s slack.
+  Checked by reverting the fix: the test hangs and fails (timed out at 60 s); restored, it passes. The orphaned
+  fixture child from that check was killed by its recorded pid. "exceeded" now wraps only a failed `Wait`, so a
+  timely finish that races the timer stays a success.

@@ -184,3 +184,65 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"4d1bd3ab-ecb3-4b38-956c-aef080165a15","repository":"github.com/xianxu/ariadne","issue_id":"000438","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/40c1b49688537acd","reviewed_head":"81c832d5e0008578d7a03783a0d4055cc6358000","slot":"ariadne:2","requested_at":"2026-10-18T11:24:20.666817Z"},"phase":"finished","pid":14438,"started_at":"2026-10-18T11:24:20.833827Z","finished_at":"2026-10-18T11:26:16.871267Z","session_id":"a16aa917-701b-4f6b-8336-06bec7db4acd","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T04:29:52-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 438 — tests: build each sdlc test binary once per process, not per test |
+| repo | ariadne |
+| issue file | workshop/issues/000438-tests-build-each-sdlc-test-binary-once-per-process-not-per-test.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 58075f44e292d5b415251d110123c19b4cbed7a4..a1bf416f615f715f56953d949d3c0d5c3c66eed1 |
+| command | sdlc close --issue 438 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-18T04:29:52-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+I reverted the fix as a check. The test still passed, only it took 60s, so now I'm looking at what `HangCeiling` is set to.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The fix itself looks right. `runBounded` (`cmd/sdlc/internal/testfix/build.go:52-72`) now sets `cmd.WaitDelay`, starts the build in its own process group, and kills the whole group when the limit expires. `buildCommand` sends the settings_native `weave` build (`settings_native_test.go:93`) through it, so the 5-minute bound does reach that call site. BR-3 still stays **not-addressed**, because its new regression test passes without the fix. I deleted the `cmd.WaitDelay = time.Second` and `ownGroup(cmd)` lines in this disposable checkout and ran the test. `TestRunBoundedKillsTheGroupAtItsLimit` still printed `ok`, in 60.16s. The fixture's `sleep 60` is shorter than `HangCeiling`, which is 2 minutes (`pkg/testgate/ceiling.go:12`). Without the fix, `Wait` simply returns after the sleep ends naturally. The elapsed time stays under the ceiling, and `AwaitExit` finds the child already gone. So the test does not show that the bound holds, which the round-2 rule for this family requires. BR-3 is Minor, so this does not block. Nothing outside the code fix and the gate-ledger bookkeeping changed (no scope change), and there were no conflict resolutions.
+
+1. **Strengths**
+   - `build.go:52-72`: WaitDelay, a group kill and the expiry flag together close the gap where a hung compile or link child holds the output pipe open. The kill after `Wait` also reclaims any children a finished build left behind.
+   - `build_unix.go` / `build_other.go`: the platform split is minimal, and the non-unix fallback is stated honestly.
+   - The test is built the right way (a forked descendant holding the pipe, with its PID checked afterwards). It only needs tighter numbers.
+   - With the fix in place, the new tests pass under `-race` (`TMPDIR=/tmp go test -race -run 'RunBounded|Built'`).
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - BR-3 is still open; see the disposition. Possible fix: make the fixture outlive the ceiling (`sleep 600`), or assert a tight elapsed bound (for example `took < limit + WaitDelay + 5s`) instead of `HangCeiling`. Either version goes red without the fix.
+   - `build.go:69-71`: if the timer fires just after `Wait` returns success, `err` becomes `exceeded 5m: %!w(<nil>)` and a good build is reported as failed. Wrapping only when `err != nil` fixes it. This race was already noted in round 2 and remains.
+
+5. **Test coverage:** I confirmed by reverting the fix that the hang test does not catch the regression it targets. The finished-command test is fine.
+
+6. **Architecture**
+   - **ARCH-DRY:** pass. `runBounded` is the one bounded-run helper here.
+   - **ARCH-PURE:** pass. This is IO glue kept behind the `buildCommand` seam.
+   - **ARCH-PURPOSE:** pass, except for the evidence gap. The family rule ("every bounded subprocess sets WaitDelay along with its kill, and a fake hanging build shows the bound holds") is applied to `buildCommand`, its only bounded subprocess in this window. The second half of the rule is not yet shown.
+
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: not-addressed
+    note: |
+      runBounded (build.go:52-72) adds WaitDelay plus a process-group kill, and the weave build reaches it through buildCommand, but the regression test does not fail without the fix: with WaitDelay and ownGroup removed, TestRunBoundedKillsTheGroupAtItsLimit still passes, in 60.16s, because the fixture sleeps 60s, which is under HangCeiling (2m). Make the fixture outlive the ceiling (sleep 600) or assert took < limit+WaitDelay+slack. Also wrap the error as exceeded only when Wait's err is non-nil (build.go:69-71).
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"62fcab04-6d4a-44ae-b10a-b2e50fa7fd7e","repository":"github.com/xianxu/ariadne","issue_id":"000438","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/6150bcda6c7799b7","reviewed_head":"a1bf416f615f715f56953d949d3c0d5c3c66eed1","slot":"ariadne:2","requested_at":"2026-10-18T11:27:58.58051Z"},"phase":"finished","pid":88026,"started_at":"2026-10-18T11:27:58.735592Z","finished_at":"2026-10-18T11:29:52.164621Z","session_id":"3906baf3-4068-4960-8852-01e0fdc9300e","outcome":"returned"}] -->
