@@ -15,25 +15,34 @@ import (
 )
 
 type weeklySnapshotFlags struct {
-	End       string
-	BrainRoot string
+	End                 string
+	BrainRoot           string
+	ResourceInventory   string
+	ResourcePairData    string
+	ResourceScratch     string
+	ResourceDisk        string
+	ResourceGrowthShare float64
 }
 
 type weeklySnapshotDeps struct {
-	now      func() time.Time
-	identity func() (workspace.Identity, error)
-	discover func(workspace.Identity) ([]string, error)
-	read     func(context.Context, string, string, WeeklyWindow) weeklyRepoEvidence
-	publish  func(string, time.Time, []byte) (string, error)
+	now       func() time.Time
+	identity  func() (workspace.Identity, error)
+	discover  func(workspace.Identity) ([]string, error)
+	read      func(context.Context, string, string, WeeklyWindow) weeklyRepoEvidence
+	previous  func(string, WeeklyWindow) previousResourceResult
+	resources func(context.Context, workspace.Identity, []string, weeklySnapshotFlags) (ResourceCollection, ResourceMachine)
+	publish   func(string, time.Time, []byte) (string, error)
 }
 
 func defaultWeeklySnapshotDeps() weeklySnapshotDeps {
 	return weeklySnapshotDeps{
-		now:      time.Now,
-		identity: func() (workspace.Identity, error) { return workspace.Resolve(execGitRunner{}, ".", "") },
-		discover: discoverWeeklyRepos,
-		read:     readWeeklyEvidence,
-		publish:  publishBrainSnapshot,
+		now:       time.Now,
+		identity:  func() (workspace.Identity, error) { return workspace.Resolve(execGitRunner{}, ".", "") },
+		discover:  discoverWeeklyRepos,
+		read:      readWeeklyEvidence,
+		previous:  readPreviousResourceSection,
+		resources: collectWeeklyResources,
+		publish:   publishBrainSnapshot,
 	}
 }
 
@@ -48,6 +57,11 @@ func newWeeklySnapshotCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&flags.End, "end", "", "UTC midnight ending the seven-day window (RFC3339; default latest completed Monday 00:00 UTC)")
 	cmd.Flags().StringVar(&flags.BrainRoot, "brain-root", "", "brain capture repository root (default sibling brain)")
+	cmd.Flags().StringVar(&flags.ResourceInventory, "resource-inventory", "", "Pair history archive source inventory (default sibling pair checkout)")
+	cmd.Flags().StringVar(&flags.ResourcePairData, "resource-pair-data", "", "global Pair data root (default XDG data home/pair)")
+	cmd.Flags().StringVar(&flags.ResourceScratch, "resource-scratch", "/Volumes/AgentScratch", "scratch volume for free/total byte gauges")
+	cmd.Flags().StringVar(&flags.ResourceDisk, "resource-disk", "disk0", "internal disk identifier for write and wear gauges")
+	cmd.Flags().Float64Var(&flags.ResourceGrowthShare, "resource-growth-share", .25, "week-over-week family growth alert share")
 	return cmd
 }
 
@@ -57,8 +71,11 @@ func weeklyDefaultEnd(now time.Time) time.Time {
 }
 
 func runWeeklySnapshot(ctx context.Context, out io.Writer, flags weeklySnapshotFlags, deps weeklySnapshotDeps) error {
-	if deps.now == nil || deps.identity == nil || deps.discover == nil || deps.read == nil || deps.publish == nil {
+	if deps.now == nil || deps.identity == nil || deps.discover == nil || deps.read == nil || deps.previous == nil || deps.resources == nil || deps.publish == nil {
 		return fmt.Errorf("test-stats snapshot: missing command dependency")
+	}
+	if flags.ResourceGrowthShare < 0 || flags.ResourceGrowthShare > 1 {
+		return fmt.Errorf("test-stats snapshot: --resource-growth-share must be between 0 and 1")
 	}
 	now := deps.now().UTC()
 	end := weeklyDefaultEnd(now)
@@ -86,6 +103,12 @@ func runWeeklySnapshot(ctx context.Context, out io.Writer, flags weeklySnapshotF
 	}
 	if _, err := os.Stat(filepath.Join(brainRoot, ".brain", "config.md")); err != nil {
 		return fmt.Errorf("test-stats snapshot: %s is not a brain capture repository: %w", brainRoot, err)
+	}
+	if path, exists, err := readExistingWeeklySnapshot(brainRoot, window); err != nil {
+		return err
+	} else if exists {
+		_, err = fmt.Fprintln(out, path)
+		return err
 	}
 	paths, err := deps.discover(id)
 	if err != nil {
@@ -120,13 +143,30 @@ func runWeeklySnapshot(ctx context.Context, out io.Writer, flags weeklySnapshotF
 	if len(snapshot.Repos) == 0 {
 		return fmt.Errorf("test-stats snapshot: no SDLC repositories found in fleet")
 	}
+	collection, machine := deps.resources(ctx, id, paths, flags)
+	observedAt := deps.now().UTC()
+	prior := deps.previous(brainRoot, window)
+	resources := renderWeeklyResourceSection(collection, snapshot.Repos, prior, observedAt, flags.ResourceGrowthShare)
+	resources.Machine = compareResourceMachine(machine, resourcePointPrior(prior, observedAt), flags.ResourceGrowthShare)
+	snapshot.Resources = &resources
+	if err := validateWeeklyResourceSection(snapshot.Resources); err != nil {
+		return fmt.Errorf("test-stats snapshot: invalid current resources: %w", err)
+	}
 	data, err := json.MarshalIndent(snapshot, "", "  ")
 	if err != nil {
 		return err
 	}
 	path, err := deps.publish(brainRoot, window.End, append(data, '\n'))
 	if err != nil {
-		return err
+		// A concurrent publisher may have won after the first existence check.
+		// Its validated artifact is the immutable result for this week.
+		if existing, exists, readErr := readExistingWeeklySnapshot(brainRoot, window); readErr == nil && exists {
+			path = existing
+		} else if readErr != nil {
+			return fmt.Errorf("%w; concurrent publication invalid: %v", err, readErr)
+		} else {
+			return err
+		}
 	}
 	_, err = fmt.Fprintln(out, path)
 	return err
