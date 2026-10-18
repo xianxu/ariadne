@@ -40,5 +40,6 @@ tl-worker help (the same planning or landing block as #432's draft-PR rule): a m
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed — tl-worker --help carries the overlap rule in PERMISSIONS beside #432, each clause whole on one line and guarded by its own rules.tsv row (review-suite-overlap, -approval, -pass-first, -requeue); deleting any clause turns TestWorkerHelpCarriesEveryRule red (checked clause by clause). tl-worker and tl-lead tests pass. No atlas: a help-text rule, no new surface.; review verdict: SHIP
 - Claimed by ariadne:2; quick flow. The rule sits after #432's draft-PR line in PERMISSIONS, phrase-guarded by `review-suite-overlap` and `review-suite-requeue` (own scope, so tl-lead must not restate it).
 - Close review round 1 (FIX-THEN-SHIP): condition (1) had no guard, and a line wrap cut the approval phrase. Reflowed so each clause is whole on one line, with four own-scope rows (overlap, no approval, pass on the final head first, requeue). Checked: deleting any clause turns TestWorkerHelpCarriesEveryRule red.

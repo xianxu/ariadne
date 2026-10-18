@@ -75,3 +75,66 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"51e80b50-9f09-4592-ae58-151c936f1fdb","repository":"github.com/xianxu/ariadne","issue_id":"000442","recipe":"small-diff-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/7f32db816d9c4151","reviewed_head":"04363208a954f28e818a9b640b3c5f790aadcf42","slot":"ariadne:2","requested_at":"2026-10-18T15:31:40.086073Z"},"phase":"finished","pid":69400,"started_at":"2026-10-18T15:31:40.173447Z","finished_at":"2026-10-18T15:32:11.57313Z","session_id":"c3331ca0-35d4-4994-a8a2-2df246f59de3","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T08:33:27-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 442 — tl-worker: a review may overlap a queued recorded suite without hub approval |
+| repo | ariadne |
+| issue file | workshop/issues/000442-tl-worker-a-review-may-overlap-a-queued-recorded-suite-without-hub-approval.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 48b3b97b7cc45ab813214baddf6150549037225b..f4dee0dcde01fb7d590b79c65ce9c2c641176f2c |
+| command | sdlc close --issue 442 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-18T08:33:27-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both prior findings are fixed, and I confirmed each fix by reverting it. The help text at `cmd/tl-worker/help.md:34-37` has been reflowed so each clause sits whole on one line: the overlap permission, the no-approval wording, condition (1) and condition (2). `cmd/tl-worker/testdata/rules.tsv` now has four own-scope rows, one per clause. `go test ./cmd/tl-worker/ ./cmd/tl-lead/` passes at head. Removing the condition (1) line makes `TestWorkerHelpCarriesEveryRule` fail in both the `--help` and no-argument modes. Changing "approval" to "sign-off" also makes it fail. The Plan line in the issue now says four rows, and the Log records round 1.
+
+**1. Strengths**
+- The reflow at `help.md:34-37` fixes the whole class of problem, not just the one case: every clause is a whole line, so every guard phrase is matched in full.
+- There is exactly one `rules.tsv` row per clause (overlap, approval, pass-first, requeue), and each is own-scope, so tl-lead must not repeat the rule.
+- The change stays in scope: two code files and 8 lines in total.
+
+**2. Critical findings:** none.
+
+**3. Important findings:** none.
+
+**4. Minor findings:** none.
+
+**5. Test coverage notes**
+- `TestWorkerHelpCarriesEveryRule` checks every clause. I ran two reverts to confirm this: deleting the condition (1) line and rewording "approval" each make the test fail. The tl-lead own-scope test passes.
+
+**6. Architectural notes**
+- **ARCH-DRY: pass.** The rule appears only in the tl-worker help.
+- **ARCH-PURE: pass.** The change is text and table rows; no logic was added.
+- **ARCH-PURPOSE: pass.** Every clause of the rule, including the safety conditions, is now guarded by a phrase.
+- **Docs gate:** no new command, flag or architectural surface, so no atlas or README update is needed.
+
+**7. Plan revision recommendations:** none. The Plan already says four rows.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      rules.tsv adds review-suite-pass-first; deleting help.md condition (1) line turns TestWorkerHelpCarriesEveryRule red (verified by revert).
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Reflowed so "without hub approval, under two conditions" is one line, guarded by review-suite-approval; rewording "approval" turns the test red (verified).
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"7240fa34-2277-4039-9e09-288e1a36218a","repository":"github.com/xianxu/ariadne","issue_id":"000442","recipe":"small-diff-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/a8a1a9fa7d5e6ca6","reviewed_head":"f4dee0dcde01fb7d590b79c65ce9c2c641176f2c","slot":"ariadne:2","requested_at":"2026-10-18T15:33:06.615053Z"},"phase":"finished","pid":75690,"started_at":"2026-10-18T15:33:06.706667Z","finished_at":"2026-10-18T15:33:27.239772Z","session_id":"d9ef123e-c3c6-4399-a70e-99fd907882ca","outcome":"returned"}] -->
