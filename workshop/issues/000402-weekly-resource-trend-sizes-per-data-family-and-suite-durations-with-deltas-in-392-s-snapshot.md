@@ -1,12 +1,20 @@
 ---
 id: 000402
-status: open
+status: working
 deps: [ariadne#392]
 github_issue:
 created: 2026-10-15
-updated: 2026-10-15
+updated: 2026-10-17
 estimate_hours:
-card_mirror: '399e8a1c8c845361b79deb6eaebf153d5f585891' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b654c684036a1ec1ade175ef5d6457f352aef28a' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-17T21:36:12-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Weekly resource trend: sizes per data family and suite durations, with deltas, in #392's snapshot
@@ -34,8 +42,18 @@ Depends on ariadne#392.
 
 ## Plan
 
-- [ ]
+- [ ] After #392 lands, bind its weekly window, immutable writer, previous-snapshot reader and brain destination to the resource section in `workshop/plans/000402-weekly-resource-trend-plan.md`.
+- [ ] Test the inventory-backed, read-only collector and pure delta/alert renderer with complete, missing and first-week fixtures; include Go cache, AgentScratch capacity and largest ledgers.
+- [ ] Integrate the section into #392's snapshot, run focused tests and the recorded suite, then write and inspect one live snapshot before close.
 
 ## Log
 
 ### 2026-10-15
+
+2026-10-17: Claimed and entered planning. #392 is still open and unclaimed, with no snapshot producer, schema or weekly writer on main; #402 cannot safely bind to it yet. Pair's history-backup source inventory now exists at `cmd/internal/historyarchive/sources.json`; use its declared data families instead of duplicating source patterns (ARCH-DRY). The hub additionally requested Go build cache size and AgentScratch free space. Those are machine gauges, not backup source families. The ops resource project also requests daily device-write and SSD Data Units Written observations; a weekly run alone cannot manufacture daily observations, so this plan flags that scope for the TL rather than inferring it.
+
+## Revisions
+
+### 2026-10-17 — hub dispatch and dependency survey
+
+Add Go build cache size and AgentScratch free/total space to the planned weekly resource section. Treat #392's landed snapshot interface as a prerequisite for implementation and a live write. Keep family sizes sourced from pair's existing backup inventory; machine gauges have separate explicit paths.
