@@ -6,7 +6,9 @@ permissions	own	bounded headless browser run
 permissions-ask	own	visible window, touch the :0 slot
 early-draft-pr	own	an early draft PR for CI overlap needs no hub approval
 early-draft-gates	own	close review, and `sdlc merge` gates still precede landing
-review-suite-overlap	own	may overlap a queued recorded suite without hub
+review-suite-overlap	own	may overlap a queued recorded suite
+review-suite-approval	own	without hub approval, under two conditions
+review-suite-pass-first	own	a recorded suite pass on the final head still precedes landing
 review-suite-requeue	own	requeues the suite on the final head
 known-failure	own	`make -k`
 cancel-own-check	own	`sdlc local-check cancel`
