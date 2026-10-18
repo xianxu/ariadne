@@ -1,6 +1,6 @@
 ---
 id: 000447
-status: codecomplete
+status: done
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 12b3eb3f91cc603aaf142a10d8730f0a20bb6f9d
         evidence_commit: b6271a6e94109b4b8a7bd9ce0f4eabdfffee0fe6
+        landed_commit: f2bbfa52d1bd21d7982fd8bc7a5f2a45e3432952
 ---
 
 # review checkouts lack main ref and remote config, so repo tests needing main authority can't run in review
