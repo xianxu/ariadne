@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "d0e81704", done: "584d65ed"}
 ---
 
 # xx-universal-review edits through couch --session-sync apply; retire deletions: propose-strike
