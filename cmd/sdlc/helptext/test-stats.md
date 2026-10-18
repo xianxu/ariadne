@@ -20,3 +20,27 @@ missing metrics as n/a and reports unreadable or malformed records as coverage
 warnings rather than treating them as successful runs.
 The reader caps each repository at 10,000 records and 64 MiB of record JSON;
 if a cap is reached, it reports the omitted coverage.
+
+`sdlc test-stats snapshot` publishes a versioned, immutable JSON measurement at
+`<brain>/memory/work/devinfra/test-economy/weekly/YYYY-MM-DD.json`. It defaults
+to the latest completed Monday 00:00 UTC boundary; `--end 2026-10-19T00:00:00Z`
+selects a fixed seven-day interval, and `--brain-root` overrides the sibling
+brain capture repository. The date is the exclusive UTC end. An identical rerun
+does nothing; changed bytes at that path are refused. The brain owner commits and
+backs up the artifact under its capture charter; source attempts remain local
+for 30 days. The ops TL links the path from its test-economy project.
+
+The snapshot's physical suite statistics include attempts completed in the
+seven-day window. Its headline ratio uses issues landed in that window and all
+exactly attributable attempts from first enqueue through landing, including
+attempts before the week. These populations can differ. The report separates
+outside-week attribution, in-week attempts outside the landing cohort and
+pre-enqueue attempts; absent or contradictory evidence makes the ratio null.
+Named failed tests include an explicit unknown class. Slow packages have their
+own top-five list and coverage count, distinct from shard durations.
+
+Snapshot collection fetches main and tracker evidence. Git commands have a
+30-second/8-MiB bound, landing logs a 64-MiB bound and attempts retain the
+10,000-record limit. Unavailable or over-limit sources are reported as unknown
+coverage. Use `--repo` only to inspect one fleet repository during a pilot;
+the weekly default collects the fleet.

@@ -94,3 +94,5 @@ The live ariadne/pair snapshot verifies the Git/tracker/landing-line model again
 ## Revisions
 
 2026-10-17 — Plan-quality PQ-1/PQ-2/PQ-3 and minor findings: fixed the landed-in-week cohort and cross-week reconciliation, added a semantic evidence validator before attribution, replaced case inventories with function-level adversarial strategies, and specified rollout, limits and artifact cleanup. No implementation has begun.
+
+2026-10-17 — The live ariadne pilot showed shard durations can hide package rows in the generic slow-unit top five. The snapshot now carries a distinct package-only top five and package-duration coverage. It also inventories main merge timestamps to detect a done card whose weekly landing event is missing, rather than silently shrinking the denominator. The dated path requires midnight UTC to avoid two windows writing the same date.
