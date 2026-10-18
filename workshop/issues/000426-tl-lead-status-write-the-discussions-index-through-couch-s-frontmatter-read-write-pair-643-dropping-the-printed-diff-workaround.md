@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "52cc7fee", done: "74c82410"}
 ---
 
 # tl-lead status: write the discussions index through couch's frontmatter read/write (pair#643), dropping the printed-diff workaround
