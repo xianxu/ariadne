@@ -1,13 +1,13 @@
 ---
 id: 000440
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '44f4523b6ce37631fa2c9657f8c1ca30df374a9c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a60cbe087e43e616ad80089b5b125df8afb6a43f' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-18T05:43:21-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 2.32
 ---
 
 # lint: a wire-message annotation and a rule against strict decoding into wire types
