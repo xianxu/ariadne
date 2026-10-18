@@ -222,3 +222,82 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"fa56c63f-3b2c-44ae-acf8-fcb5445e8ee8","repository":"github.com/xianxu/ariadne","issue_id":"000400","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/7606c4fc25496e37","reviewed_head":"5575e0caf791d4f856c756e6304ef1ee8935f58c","slot":"ariadne:2","requested_at":"2026-10-17T23:36:02.338205Z"},"phase":"finished","pid":60911,"started_at":"2026-10-17T23:36:02.543868Z","finished_at":"2026-10-17T23:43:09.158091Z","session_id":"84330501-9939-4150-af12-4a88b2748797","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-17T17:18:02-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 400 — sdlc local-check cancel: stop only your own run (an agent killed another slot's suite by PID) |
+| repo | ariadne |
+| issue file | workshop/issues/000400-sdlc-local-check-cancel-stop-only-your-own-run-an-agent-killed-another-slot-s-suite-by-pid.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 78403958cf4a69d55a1fafdd76cc95b303419fa6..c36adf9fb0c7378c3922916dfe8506985e6b0ace |
+| command | sdlc close --issue 400 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-17T17:18:02-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Verdict is FIX-THEN-SHIP. Two of the three open findings are fixed; the third, a Minor, has a test that passes even with its fix removed.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+`sdlc local-check cancel` now finds runs only through a lease file that each run holds locked for as long as SIGTERM is its own. It checks that the lease names this checkout and that the pid's kernel start time still matches before it signals anything. I ran the six lease, cancel and lifetime tests at the pinned head and they pass (242 s). BR-5 (the README sentence) and BR-7 (the residual race now named in the Spec) are both done. BR-6 is not: the `rec.PID <= 1` guard at `cmd/sdlc/localcheck_lease.go:162` is in place, but I replaced it with `if false && …` in this disposable checkout, re-ran `TestCancelChecksProcessStartTime`, and it still passed. Pids -1, 0 and 1 also fail the start-time check, and both refusal messages contain "not signalled", so the test never isolates the guard. I restored the file afterwards. BR-6 is a Minor, so it does not block shipping; nothing else new came up.
+
+Done-when: current — it still requires the two-checkout process test, the `classifyRunLease` table test, the test-lock owner case and the help phrase guards. The Revisions only change where the lease lives (a path Done-when never names) and when it ends, which `TestRunLocalCheckLeaseLifetime` covers on its own.
+
+**1. Strengths**
+- The lease is written and locked under a temporary name and only then renamed into place (`localcheck_lease.go:77-106`). So no reader ever sees a live run's lease unlocked, and the concurrent-sweep test (`TestHoldRunLeaseLockedBeforeVisible`) checks this.
+- The lease is released exactly where the run gives up SIGTERM ownership (`localcheck_run.go:163-165`), and `TestRunLocalCheckLeaseLifetime` checks that no lease is held while the status posts.
+- Process start time comes from the kernel (sysctl on darwin, `/proc/<pid>/stat` on linux), not from `ps`, so it works inside the agent sandbox. On unsupported platforms it refuses rather than guessing (`starttime_other.go`).
+- `classifyRunLease` is pure and table-tested; the scan, lock and kill code around it stays thin.
+- `TestLocalCheckCancelOnlyOwnRun` runs real `runLocalCheck` child processes from two checkouts of one clone and shows cancel stopping only its own.
+
+**2. Critical:** none.
+
+**3. Important:** none.
+
+**4. Minor**
+- BR-6 is still open (details in the findings block). The fix: in the pid ≤ 1 loop of `TestCancelChecksProcessStartTime`, stub the `processStartTime` variable to return `rec.PIDStarted`, so only the pid guard can refuse. Then assert the guard's own message, `names pid %d; not signalled`, not the shared phrase "not signalled". Do not run that case against real pid -1 if the guard is ever removed: `kill(-1, SIGTERM)` signals every process you own.
+
+**5. Test coverage notes**
+- Without the pid guard, the -1/0/1 loop passes anyway; with the stub above it would fail.
+- The race in BR-7 has no ordering seam to test it. That is accepted and documented in the Spec.
+
+**6. Architecture**
+- ARCH-DRY: pass.
+- ARCH-PURE: pass.
+- ARCH-PURPOSE: pass. The tl-worker rule, the help text, the queue's held-by attribution and the verb are all delivered.
+- ARCH-MOCK: pass. Tests use real processes and real flock; there is no external service.
+- ARCH-CONSTRAINTS: pass. The wait is bounded at 2 minutes and each scan touches a handful of files.
+- ARCH-SECURE: pass, apart from BR-6 not being proven by a test. Leases are re-checked by lock state, checkout root and start time before any signal.
+- ARCH-ORDER: pass. The lock's kernel lifetime is the state, and the remaining race is named in the Spec.
+- ARCH-FUNERAL: pass. A run removes its lease on release; every run and every cancel sweeps unlocked leases; temporary names are swept after the stale age.
+
+**7. Plan revisions:** none needed.
+
+```findings
+dispose:
+  - id: BR-5
+    disposition: addressed
+    note: |
+      README.md:472-473 now names `sdlc local-check cancel` beside local-check run and warns against PIDs from ps.
+  - id: BR-6
+    disposition: not-addressed
+    note: |
+      The guard exists (localcheck_lease.go:162), but with it disabled TestCancelChecksProcessStartTime still passes, because pids -1/0/1 fail the start-time check and both messages say "not signalled". Stub processStartTime to return rec.PIDStarted in that loop and assert the guard's own message.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      The issue's Design residual bullet now names the race where a cancel lands just after the run released its lease, beside PID reuse; prose-only, as the finding asked.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"753827d3-50e9-413f-b335-46424d66c350","repository":"github.com/xianxu/ariadne","issue_id":"000400","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/6b373cd19d584dc1","reviewed_head":"c36adf9fb0c7378c3922916dfe8506985e6b0ace","slot":"ariadne:2","requested_at":"2026-10-18T00:12:24.950019Z"},"phase":"finished","pid":60421,"started_at":"2026-10-18T00:12:25.188093Z","finished_at":"2026-10-18T00:18:01.539417Z","session_id":"7bd0709c-7ea3-45e0-8717-8da84e2a88ed","outcome":"returned"}] -->

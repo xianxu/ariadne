@@ -201,6 +201,103 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 753827d3-50e9-413f-b335-46424d66c350
+            repository: github.com/xianxu/ariadne
+            issue_id: "000400"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/6b373cd19d584dc1
+            reviewed_head: c36adf9fb0c7378c3922916dfe8506985e6b0ace
+            slot: ariadne:2
+            requested_at: "2026-10-18T00:12:24.950019Z"
+          phase: finished
+          pid: 60421
+          started_at: "2026-10-18T00:12:25.188093Z"
+          finished_at: "2026-10-18T00:18:01.539417Z"
+          session_id: 7bd0709c-7ea3-45e0-8717-8da84e2a88ed
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: c36adf9fb0c7378c3922916dfe8506985e6b0ace
+        tracker_head: 0c5129f280e946ccd9ea8d0e5800507f818d99c5
+        branch_point: 78403958cf4a69d55a1fafdd76cc95b303419fa6
+        since: "2026-10-17T15:01:16-07:00"
+        until: "2026-10-17T16:43:37-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-17T15:01:16-07:00"
+              end: "2026-10-17T16:43:37-07:00"
+              began: "2026-10-17T15:01:16-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 5fbcb792e00d2fc0681f6f15b9adf55b53c8dc9eec2f42e24012482806bc11dc
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 80824683
+              windows:
+                - start: "2026-10-17T15:01:16-07:00"
+                  end: "2026-10-17T16:43:37-07:00"
+        queue_waits:
+            - attempt_id: 45d14dba8f50875257459913725b41fc
+              slot: ariadne:2
+              record_digest: 2580a62a6756ab8e87a1f4184177dc7473b127b744922afe0db934987b083189
+              start: "2026-10-17T22:14:54.62581Z"
+              end: "2026-10-17T22:28:48.383154Z"
+              queue_seconds: 833.757344
+              raw_seconds: 833.757344
+              exact: true
+            - attempt_id: a72bc511f13918e950ab783f84a09d20
+              slot: ariadne:2
+              record_digest: ccade0c939c2cec53d0cf7a7443c8063f4a665a3683d85896af9ed0d4d91d730
+              start: "2026-10-17T22:59:34.24628Z"
+              end: "2026-10-17T23:24:36.56333Z"
+              queue_seconds: 1502.31705
+              raw_seconds: 1502.31705
+              exact: true
+        cuts:
+            - dispatched: "2026-10-17T15:40:28-07:00"
+              finalized: "2026-10-17T15:47:48-07:00"
+              finalizing: false
+            - dispatched: "2026-10-17T16:36:02-07:00"
+              finalized: "2026-10-17T16:43:09-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-17T17:18:02-07:00"
+      dispatched: "2026-10-17T17:12:24-07:00"
+      agent: claude
+      dispose:
+        - id: BR-5
+          disposition: addressed
+          note: README.md:472-473 now names `sdlc local-check cancel` beside local-check run and warns against PIDs from ps.
+          round: 3
+        - id: BR-6
+          disposition: not-addressed
+          note: The guard exists (localcheck_lease.go:162), but with it disabled TestCancelChecksProcessStartTime still passes, because pids -1/0/1 fail the start-time check and both messages say "not signalled". Stub processStartTime to return rec.PIDStarted in that loop and assert the guard's own message.
+          round: 3
+        - id: BR-7
+          disposition: addressed
+          note: The issue's Design residual bullet now names the race where a cancel lands just after the run released its lease, beside PID reuse; prose-only, as the finding asked.
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: c36adf9fb0c7378c3922916dfe8506985e6b0ace
+      blocked: false
 ---
 
 # Gate ledger — ariadne#400 (boundary-review)
@@ -238,8 +335,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-7** [Minor] `lease-outlives-signal-ownership` (kind: defect) A cancel that saw the lock held can SIGTERM the run just after it dropped signal ownership
   This is the inverse of BR-1, not a repeat: between cancel's flock probe and Kill, the run can call releaseLease and stopSignals, so the default action kills sdlc during recording or merge. The window is microseconds. Name it in the Spec's residual note beside PID reuse; no ordering seam tests it (ARCH-ORDER).
 
+## Round 3 — 2026-10-17T17:18:02-07:00 (claude) — passed
+
+### Disposed
+
+- BR-5 — addressed — README.md:472-473 now names `sdlc local-check cancel` beside local-check run and warns against PIDs from ps.
+- BR-6 — not-addressed — The guard exists (localcheck_lease.go:162), but with it disabled TestCancelChecksProcessStartTime still passes, because pids -1/0/1 fail the start-time check and both messages say "not signalled". Stub processStartTime to return rec.PIDStarted in that loop and assert the guard's own message.
+- BR-7 — addressed — The issue's Design residual bullet now names the race where a cancel lands just after the run released its lease, beside PID reuse; prose-only, as the finding asked.
+
 ## Open findings
 
-- **BR-5** [Important] `user-surface-docs-gate` (kind: defect) README update appears missing for the new `sdlc local-check cancel` subcommand
 - **BR-6** [Minor] `untrusted-lease-fields-unvalidated` (kind: defect) Cancel passes the shared-directory lease's pid to syscall.Kill without bounding it
-- **BR-7** [Minor] `lease-outlives-signal-ownership` (kind: defect) A cancel that saw the lock held can SIGTERM the run just after it dropped signal ownership

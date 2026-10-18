@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "30e3fd0d", done: "bddbf887"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # sdlc local-check cancel: stop only your own run (an agent killed another slot's suite by PID)
@@ -108,6 +108,8 @@ its whole life, and cancel acts only on a lease that is (a) held and (b) owned b
 ### 2026-10-15
 
 ### 2026-10-17
+- 2026-10-17: closed — sdlc-local/suite green on c36adf9f (exit 0, 11m48s). TestLocalCheckCancelOnlyOwnRun: two checkouts of one clone run real runLocalCheck children; cancel from A stops A on the managed interruption path and its check exits while B and its check keep running; B then cancels its own via runLocalCheckCancel. Review rounds: BR-1..4 disposed addressed; BR-5 README sentence added; pid<=1 never signalled (tested). TestRunLocalCheckLeaseLifetime, TestHoldRunLeaseLockedBeforeVisible, TestCancelChecksProcessStartTime, TestCancelSweepsStaleLeaseWithoutSignal, TestClassifyRunLease, processgroup TestStartTime, test-lock.test.sh owner case, tl-worker rules phrase guard. (done-when: contract moved since change-code; judged by the close review); review verdict: FIX-THEN-SHIP
+- 2026-10-17: flow upgraded quick → full — 356 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 - Claimed by ariadne:2; design above sent to the hub before code (a new mechanism: a run lease and a verb).
 - Hub approved with two changes, both folded in: (1) creation race — a visible-but-unlocked lease reads as stale, so
@@ -132,3 +134,6 @@ its whole life, and cancel acts only on a lease that is (a) held and (b) owned b
 - Boundary review round 2 (FIX-THEN-SHIP, BR-1..4 disposed addressed): BR-5 README gains the cancel sentence; Minors
   fixed in the round: a lease pid ≤ 1 is never signalled (tested for -1, 0, 1), and the cancel/run-end race joins the
   residual note.
+- Boundary review round 3 (FIX-THEN-SHIP, converged): BR-6 advisory fixed — the pid ≤ 1 loop stubs
+  `processStartTime` to match, so only the guard refuses, and asserts its own message; weakening the guard to
+  `<= 0` fails the pid-1 case (checked safely: kill(1) is EPERM for a non-root user; -1 was never run unguarded).
