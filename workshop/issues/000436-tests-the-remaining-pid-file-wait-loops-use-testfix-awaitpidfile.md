@@ -1,13 +1,22 @@
 ---
 id: 000436
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '44d0b3433b4f2aea83318cd744572f04505f1565' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '6bd99edb47f5a48e90db4f5f6d800c3dbc4633d8' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-17T23:09:14-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "6e340b9c", done: "2f0e5866"}
 ---
 
 # tests: the remaining pid-file wait loops use testfix.AwaitPIDFile
