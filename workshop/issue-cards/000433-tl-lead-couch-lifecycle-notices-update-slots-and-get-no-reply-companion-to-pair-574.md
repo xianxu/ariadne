@@ -1,6 +1,6 @@
 ---
 id: 000433
-status: codecomplete
+status: done
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: ad068bce88edef833eae73c1205931df60cb1041
         evidence_commit: 7c74bfe73cc0e6e65d9f20670a401c071debc8ad
+        landed_commit: 77d31d2b6aafaaa7f105253c037e19ff44d8ef7c
 ---
 
 # tl-lead: Couch lifecycle notices update Slots and get no reply (companion to pair#574)
