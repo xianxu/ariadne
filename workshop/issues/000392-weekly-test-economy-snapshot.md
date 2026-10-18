@@ -47,3 +47,5 @@ Produce one dated, immutable weekly per-repo summary from #376's per-attempt loc
 Filed from #390's operator-approved test-economy design. This precedes #328 and any package-budget declaration.
 
 2026-10-17: The hub directed this slot to build #392 before dependent #402. Existing `sdlc test-stats` and per-attempt records supply suite, queue, package and failure inputs; tracker completion bindings and the landing-line event log supply a confirmed landed issue and admission window. The initial snapshot will preserve coverage unknowns for pre-#376 legacy logs and any missing admission or Git ancestry instead of assigning them by date alone (ARCH-PURPOSE, ARCH-ORDER).
+
+The hub approved the fixed UTC window, strict joined-evidence attribution, separate unassignable count, nullable ratio and versioned JSON schema; it will link the first live brain snapshot from the path reported at landing.
