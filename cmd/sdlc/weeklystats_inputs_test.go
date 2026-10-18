@@ -10,7 +10,21 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
+
+func TestWeeklyIsSDLCRepoRequiresIssueHome(t *testing.T) {
+	root := t.TempDir()
+	if weeklyIsSDLCRepo(root) {
+		t.Fatal("unrelated sibling counted as SDLC repository")
+	}
+	if err := os.MkdirAll(filepath.Join(root, vocab.Issue().Discovery().Home), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if !weeklyIsSDLCRepo(root) {
+		t.Fatal("issue repository omitted")
+	}
+}
 
 func TestWeeklyReadLandingEventsSkipsMalformedWithoutCreatingState(t *testing.T) {
 	dir := t.TempDir()
@@ -47,13 +61,13 @@ func TestWeeklyReadGraphUsesIssueSideOnly(t *testing.T) {
 	testfix.Git(t, root, "add", "main.txt")
 	testfix.Git(t, root, "commit", "-q", "-m", "main")
 	mainParent := strings.TrimSpace(testfix.Capture(t, root, "rev-parse", "HEAD"))
-	testfix.Git(t, root, "merge", "--no-ff", "-q", "issue", "-m", "landing")
+	testfix.Git(t, root, "merge", "--no-ff", "-q", "issue", "-m", "Merge pull request #9 from xianxu/issue")
 	mergeSHA := strings.TrimSpace(testfix.Capture(t, root, "rev-parse", "HEAD"))
 	graph, err := weeklyReadGraph(context.Background(), root, mergeSHA, issue.Completion{ReviewedHEAD: issueSHA, EvidenceCommit: issueSHA, LandedCommit: mergeSHA})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if graph.MainParent != mainParent || graph.IssueParent != issueSHA || !graph.BranchSHAs[issueSHA] || graph.BranchSHAs[mainParent] || graph.BranchSHAs[base] || !graph.EvidenceReachable || !graph.ReachableFromMain {
+	if graph.MainParent != mainParent || graph.IssueParent != issueSHA || graph.PR != 9 || graph.Branch != "issue" || !graph.BranchSHAs[issueSHA] || graph.BranchSHAs[mainParent] || graph.BranchSHAs[base] || !graph.EvidenceReachable || !graph.ReachableFromMain {
 		t.Fatalf("wrong graph: %+v", graph)
 	}
 	if _, err := weeklyReadGraph(context.Background(), root, mergeSHA, issue.Completion{ReviewedHEAD: mainParent, EvidenceCommit: issueSHA, LandedCommit: mergeSHA}); err == nil {

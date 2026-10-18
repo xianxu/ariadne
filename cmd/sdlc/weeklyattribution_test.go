@@ -19,7 +19,7 @@ func TestValidateLandingEvidenceRejectsConflictingIdentity(t *testing.T) {
 			{Kind: landingline.EventLanded, Seq: 7, Issue: 42, Branch: "issue-42", PR: 9, At: start.Add(2 * time.Hour)},
 		},
 		Cards:  map[int]weeklyCardEvidence{42: {Status: "done", Completion: &issue.Completion{LandedCommit: merge}}},
-		Graphs: map[string]weeklyMergeGraph{merge: {MergeSHA: merge, MainParent: "main", IssueParent: head, BranchSHAs: map[string]bool{head: true}, EvidenceReachable: true, ReachableFromMain: true}},
+		Graphs: map[string]weeklyMergeGraph{merge: {MergeSHA: merge, MainParent: "main", IssueParent: head, PR: 9, Branch: "issue-42", BranchSHAs: map[string]bool{head: true}, EvidenceReachable: true, ReachableFromMain: true}},
 	}
 	if got, reasons := validateLandingEvidence(base, w); len(got) != 1 || len(reasons) != 0 {
 		t.Fatalf("valid landing = %v, %v", got, reasons)
@@ -39,6 +39,11 @@ func TestValidateLandingEvidenceRejectsConflictingIdentity(t *testing.T) {
 	if got, reasons := validateLandingEvidence(missingGraph, w); len(got) != 0 || len(reasons) == 0 {
 		t.Fatalf("missing graph must be unknown: %v, %v", got, reasons)
 	}
+	wrongPR := base
+	wrongPR.Graphs = map[string]weeklyMergeGraph{merge: {MergeSHA: merge, MainParent: "main", IssueParent: head, PR: 10, Branch: "issue-42", BranchSHAs: map[string]bool{head: true}, EvidenceReachable: true, ReachableFromMain: true}}
+	if got, reasons := validateLandingEvidence(wrongPR, w); len(got) != 0 || len(reasons) == 0 {
+		t.Fatalf("wrong PR binding must be unknown: %v, %v", got, reasons)
+	}
 }
 
 func TestValidateLandingEvidenceStartsAtFirstEnqueueAfterRefusal(t *testing.T) {
@@ -53,7 +58,7 @@ func TestValidateLandingEvidenceStartsAtFirstEnqueueAfterRefusal(t *testing.T) {
 			{Kind: landingline.EventLanded, Seq: 4, Issue: 42, Branch: "issue-42", PR: 9, At: start.Add(2 * time.Hour)},
 		},
 		Cards:  map[int]weeklyCardEvidence{42: {Status: "done", Completion: &issue.Completion{LandedCommit: merge}}},
-		Graphs: map[string]weeklyMergeGraph{merge: {MergeSHA: merge, MainParent: "main", IssueParent: "issue", BranchSHAs: map[string]bool{"issue": true}, EvidenceReachable: true, ReachableFromMain: true}},
+		Graphs: map[string]weeklyMergeGraph{merge: {MergeSHA: merge, MainParent: "main", IssueParent: "issue", PR: 9, Branch: "issue-42", BranchSHAs: map[string]bool{"issue": true}, EvidenceReachable: true, ReachableFromMain: true}},
 	}
 	landings, reasons := validateLandingEvidence(e, w)
 	if len(reasons) != 0 || len(landings) != 1 || !landings[0].EnqueuedAt.Equal(start.Add(-time.Hour)) {

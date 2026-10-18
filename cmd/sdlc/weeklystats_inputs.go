@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/project"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/pkg/vocab"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
@@ -33,9 +35,13 @@ type weeklyCardEvidence struct {
 
 type weeklyMergeGraph struct {
 	MergeSHA, MainParent, IssueParent    string
+	PR                                   int
+	Branch                               string
 	BranchSHAs                           map[string]bool
 	EvidenceReachable, ReachableFromMain bool
 }
+
+var weeklyPullMergeSubject = regexp.MustCompile(`^Merge pull request #([1-9][0-9]*) from [^/]+/(.+)$`)
 
 type weeklyRepoEvidence struct {
 	Repo, Root, MainRef, TrackerRef string
@@ -57,7 +63,7 @@ func discoverWeeklyRepos(id workspace.Identity) ([]string, error) {
 	paths = append(paths, id.PrimaryRoot)
 	byName := map[string]string{}
 	for _, path := range paths {
-		if path != "" {
+		if path != "" && weeklyIsSDLCRepo(path) {
 			byName[filepath.Base(path)] = path
 		}
 	}
@@ -71,6 +77,11 @@ func discoverWeeklyRepos(id workspace.Identity) ([]string, error) {
 		out = append(out, byName[name])
 	}
 	return out, nil
+}
+
+func weeklyIsSDLCRepo(root string) bool {
+	info, err := os.Stat(filepath.Join(root, vocab.Issue().Discovery().Home))
+	return err == nil && info.IsDir()
 }
 
 // weeklyReadLandingEvents is read-only; landingline.Open would create state.
@@ -138,7 +149,7 @@ func weeklyGit(ctx context.Context, root string, args ...string) ([]byte, error)
 	cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
 	cmd.WaitDelay = time.Second
 	var out weeklyLimitWriter
-	var stderr bytes.Buffer
+	var stderr weeklyLimitWriter
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 	err := cmd.Run()
@@ -146,7 +157,7 @@ func weeklyGit(ctx context.Context, root string, args ...string) ([]byte, error)
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
-	if out.exceeded {
+	if out.exceeded || stderr.exceeded {
 		return nil, fmt.Errorf("weekly Git output exceeds 8 MiB")
 	}
 	if err != nil {
@@ -290,6 +301,19 @@ func weeklyReadGraph(ctx context.Context, root, mainRef string, c issue.Completi
 		return g, fmt.Errorf("landing %s has no two-parent merge", c.LandedCommit)
 	}
 	g.MainParent, g.IssueParent = parents[1], parents[2]
+	subjectOut, err := weeklyGit(ctx, root, "show", "-s", "--format=%s", c.LandedCommit)
+	if err != nil {
+		return g, err
+	}
+	identity := weeklyPullMergeSubject.FindStringSubmatch(strings.TrimSpace(string(subjectOut)))
+	if len(identity) != 3 {
+		return g, fmt.Errorf("landing %s has no GitHub PR/branch identity", c.LandedCommit)
+	}
+	g.PR, err = strconv.Atoi(identity[1])
+	if err != nil {
+		return g, fmt.Errorf("landing %s has invalid PR: %w", c.LandedCommit, err)
+	}
+	g.Branch = identity[2]
 	issueOut, err := weeklyGit(ctx, root, "rev-list", g.IssueParent, "--not", g.MainParent)
 	if err != nil {
 		return g, err

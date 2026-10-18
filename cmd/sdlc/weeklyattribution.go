@@ -127,7 +127,7 @@ func validateLandingEvidence(raw weeklyRepoEvidence, window WeeklyWindow) ([]wee
 			continue
 		}
 		graph, ok := raw.Graphs[card.Completion.LandedCommit]
-		if !ok || graph.MergeSHA != card.Completion.LandedCommit || graph.MainParent == "" || graph.IssueParent == "" || !graph.ReachableFromMain || !graph.EvidenceReachable || len(graph.BranchSHAs) == 0 {
+		if !ok || graph.MergeSHA != card.Completion.LandedCommit || graph.MainParent == "" || graph.IssueParent == "" || graph.PR != e.PR || graph.Branch != e.Branch || !graph.ReachableFromMain || !graph.EvidenceReachable || len(graph.BranchSHAs) == 0 {
 			fail("unproved landing merge or branch ancestry")
 			continue
 		}
