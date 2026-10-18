@@ -72,6 +72,7 @@ boundary-push and integrate-gate timeout tests assert only that the deadline bou
 ## Log
 
 ### 2026-10-17
+- 2026-10-17: closed — sdlc-local/suite green on 90a771d1 (exit 0, 9m23s; later commit atlas-only). Mechanism measured: the child cleanup budget at 2 ms reproduced "cleanup never reached its blocked Git seam" 10/10; under load the 50 ms per-call budget also killed worktree prune ("retained its worktree"). Fix: deadlines fire on the test cue after readiness (testfix.DeadlineOnCue) in TestBoundedLandingGitTerminatesDescendants/deadline and TestMakeProbeBoundsDescendantPipes; the signal test cleanup shim waits on a FIFO the test releases; TestLocalCheckCleanupGitIsIndependentAndBounded covers the bound directly. Six concurrent loops x10 of the four tests at load average 60-72: 6/6 PASS.; review verdict: SHIP
 
 - Measured on 2026-10-17 (ariadne:2). Mechanism: with the child's cleanup budget shrunk from 50 ms to 2 ms,
   `terminated/cleanup` fails 10/10 with exactly "cleanup never reached its blocked Git seam". Natural rate: 0/40 at
