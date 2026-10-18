@@ -32,6 +32,13 @@ var Catalog = []Rule{
 		Match:    goBuilds,
 	},
 	{
+		Name:     "test-tight-wallclock",
+		Incident: "2026-10-15 flakes",
+		Message:  "a sub-second upper bound on elapsed wall-clock time fails under load; assert the event or outcome, or bound only a hang (1s or more)",
+		TestOnly: true,
+		Match:    tightWallclock,
+	},
+	{
 		Name:     "test-fixed-sleep",
 		Incident: "2026-10-15 flakes",
 		Message:  "a fixed sleep guesses at timing; wait for an event (testfix.Watch, AwaitPIDFile, a channel) bounded by testfix.HangCeiling",
@@ -41,13 +48,14 @@ var Catalog = []Rule{
 }
 
 // constDuration evaluates a constant time expression: time.Millisecond,
-// 50 * time.Millisecond, time.Second * 2. ok is false for anything else.
-func constDuration(e ast.Expr) (time.Duration, bool) {
+// 50 * time.Millisecond, time.Second * 2 (timePkg is the file's name for the
+// time package). ok is false for anything else.
+func constDuration(timePkg string, e ast.Expr) (time.Duration, bool) {
 	switch v := e.(type) {
 	case *ast.ParenExpr:
-		return constDuration(v.X)
+		return constDuration(timePkg, v.X)
 	case *ast.SelectorExpr:
-		if pkg, ok := v.X.(*ast.Ident); !ok || pkg.Name != "time" {
+		if pkg, ok := v.X.(*ast.Ident); !ok || timePkg == "" || pkg.Name != timePkg {
 			return 0, false
 		}
 		unit, ok := map[string]time.Duration{"Nanosecond": time.Nanosecond, "Microsecond": time.Microsecond,
@@ -58,11 +66,11 @@ func constDuration(e ast.Expr) (time.Duration, bool) {
 			return 0, false
 		}
 		if n, ok := intLit(v.X); ok {
-			d, ok := constDuration(v.Y)
+			d, ok := constDuration(timePkg, v.Y)
 			return time.Duration(n) * d, ok
 		}
 		if n, ok := intLit(v.Y); ok {
-			d, ok := constDuration(v.X)
+			d, ok := constDuration(timePkg, v.X)
 			return time.Duration(n) * d, ok
 		}
 	}
@@ -87,9 +95,31 @@ func stringLit(e ast.Expr) (string, bool) {
 	return s, err == nil
 }
 
-// calls visits every call whose function is pkg.<one of names>; empty names
-// means any function of pkg, and an empty pkg means any call at all.
-func calls(f *ast.File, pkg string, names []string, visit func(*ast.CallExpr)) {
+// localName is the name f refers to an imported package by: its alias, or the
+// last element of its path. Empty when f does not import it.
+func localName(f *ast.File, path string) string {
+	for _, imp := range f.Imports {
+		if p, err := strconv.Unquote(imp.Path.Value); err != nil || p != path {
+			continue
+		}
+		if imp.Name != nil {
+			return imp.Name.Name
+		}
+		return path[strings.LastIndex(path, "/")+1:]
+	}
+	return ""
+}
+
+// calls visits every call whose function is <the package at path>.<one of
+// names>, by the name the file imports it under; empty names means any of its
+// functions, and an empty path means any call at all.
+func calls(f *ast.File, path string, names []string, visit func(*ast.CallExpr)) {
+	pkg := ""
+	if path != "" {
+		if pkg = localName(f, path); pkg == "" {
+			return
+		}
+	}
 	ast.Inspect(f, func(n ast.Node) bool {
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
@@ -117,18 +147,28 @@ func calls(f *ast.File, pkg string, names []string, visit func(*ast.CallExpr)) {
 	})
 }
 
+// shrunkDeadlines flags an override (=, not a declaration) of a variable or
+// field named for a deadline. Without type-checking a local cannot be told
+// from a package variable; locals so named are rare, and suppressible.
 func shrunkDeadlines(f *ast.File) []ast.Node {
+	timePkg := localName(f, "time")
 	var out []ast.Node
 	ast.Inspect(f, func(n ast.Node) bool {
 		as, ok := n.(*ast.AssignStmt)
 		if !ok || as.Tok != token.ASSIGN || len(as.Lhs) != 1 || len(as.Rhs) != 1 {
 			return true
 		}
-		id, ok := as.Lhs[0].(*ast.Ident)
-		if !ok || !strings.Contains(id.Name, "Timeout") && !strings.Contains(id.Name, "Grace") && !strings.Contains(id.Name, "Deadline") {
+		var name string
+		switch lhs := as.Lhs[0].(type) {
+		case *ast.Ident:
+			name = lhs.Name
+		case *ast.SelectorExpr:
+			name = lhs.Sel.Name
+		}
+		if !strings.Contains(name, "Timeout") && !strings.Contains(name, "Grace") && !strings.Contains(name, "Deadline") {
 			return true
 		}
-		if d, ok := constDuration(as.Rhs[0]); ok && d < time.Second {
+		if d, ok := constDuration(timePkg, as.Rhs[0]); ok && d < time.Second {
 			out = append(out, as)
 		}
 		return true
@@ -148,8 +188,8 @@ func tmpLiterals(f *ast.File) []ast.Node {
 	// filepath.Join builds a path to use; FromSlash, Base and the like only
 	// transform a string, so test data may name /tmp freely.
 	calls(f, "os", nil, visit)
-	calls(f, "filepath", []string{"Join"}, visit)
-	calls(f, "ioutil", nil, visit)
+	calls(f, "path/filepath", []string{"Join"}, visit)
+	calls(f, "io/ioutil", nil, visit)
 	return out
 }
 
@@ -169,6 +209,7 @@ func goBuilds(f *ast.File) []ast.Node {
 }
 
 func fixedSleeps(f *ast.File) []ast.Node {
+	timePkg := localName(f, "time")
 	var out []ast.Node
 	calls(f, "time", []string{"Sleep"}, func(call *ast.CallExpr) {
 		if len(call.Args) != 1 {
@@ -176,9 +217,67 @@ func fixedSleeps(f *ast.File) []ast.Node {
 		}
 		// Polling ticks under 100ms are an event wait's cadence; a sleep of a
 		// minute or more is the block-until-killed idiom of a child process.
-		if d, ok := constDuration(call.Args[0]); ok && d >= 100*time.Millisecond && d < time.Minute {
+		if d, ok := constDuration(timePkg, call.Args[0]); ok && d >= 100*time.Millisecond && d < time.Minute {
 			out = append(out, call)
 		}
+	})
+	return out
+}
+
+// tightWallclock flags an upper bound under 1s on elapsed time: time.Since(x)
+// itself, or a variable assigned from it, compared against a constant. Lower
+// bounds (proof that a wait happened) and loose hang bounds are fine.
+func tightWallclock(f *ast.File) []ast.Node {
+	timePkg := localName(f, "time")
+	if timePkg == "" {
+		return nil
+	}
+	isSince := func(e ast.Expr) bool {
+		call, ok := e.(*ast.CallExpr)
+		if !ok {
+			return false
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return false
+		}
+		pkg, ok := sel.X.(*ast.Ident)
+		return ok && pkg.Name == timePkg && sel.Sel.Name == "Since"
+	}
+	elapsed := map[string]bool{}
+	ast.Inspect(f, func(n ast.Node) bool {
+		if as, ok := n.(*ast.AssignStmt); ok && len(as.Lhs) == 1 && len(as.Rhs) == 1 && isSince(as.Rhs[0]) {
+			if id, ok := as.Lhs[0].(*ast.Ident); ok {
+				elapsed[id.Name] = true
+			}
+		}
+		return true
+	})
+	measured := func(e ast.Expr) bool {
+		if id, ok := e.(*ast.Ident); ok {
+			return elapsed[id.Name]
+		}
+		return isSince(e)
+	}
+	var out []ast.Node
+	ast.Inspect(f, func(n ast.Node) bool {
+		b, ok := n.(*ast.BinaryExpr)
+		if !ok {
+			return true
+		}
+		var bound ast.Expr
+		switch {
+		case (b.Op == token.GTR || b.Op == token.GEQ) && measured(b.X):
+			bound = b.Y
+		case (b.Op == token.LSS || b.Op == token.LEQ) && measured(b.Y):
+			bound = b.X
+		default:
+			return true
+		}
+		if d, ok := constDuration(timePkg, bound); ok && d < time.Second {
+			out = append(out, b)
+		}
+		return true
 	})
 	return out
 }

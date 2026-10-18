@@ -104,3 +104,21 @@ func TestGitHistoryStreamBoundsInheritedPipes(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A context-free Git call still gets the default ceiling (#407 review): its
+// command context carries a deadline no later than gitCommandTimeout from now.
+func TestBoundedGitCommandAppliesDefaultCeiling(t *testing.T) {
+	start := time.Now()
+	cmd, ctx, cancel := boundedGitCommand(nil, nil, "git", "--version")
+	defer cancel()
+	if cmd == nil {
+		t.Fatal("no command")
+	}
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		t.Fatal("a context-free Git command has no deadline")
+	}
+	if deadline.After(start.Add(gitCommandTimeout).Add(time.Second)) {
+		t.Fatalf("deadline %s is past the %s ceiling", deadline.Sub(start), gitCommandTimeout)
+	}
+}

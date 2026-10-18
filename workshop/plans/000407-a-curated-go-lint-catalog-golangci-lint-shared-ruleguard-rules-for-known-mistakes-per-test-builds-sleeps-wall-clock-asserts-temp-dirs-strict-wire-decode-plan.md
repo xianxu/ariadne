@@ -76,3 +76,24 @@ The repo test is the only IO: it walks `cmd/` and `pkg/`, skips `testdata/` and 
   matches only `filepath.Join` among the filepath functions (FromSlash and the like only transform strings). The four
   existing fixed sleeps carry reasons (a one-second git timestamp, a real 1s child timeout, two late-effect windows).
   No lessons.md entry: the rule is now enforced in code (the catalog), which is the point.
+- 2026-10-18 (close review round 1, REWORK), correcting Core concepts to match the code:
+  - **Entities:** `Rule`, `Finding`, the suppression parser and `Check` all live in `pkg/golint/check.go`; the rules and
+    their helpers are in `rules.go`. There is no `rule.go` or `suppress.go`.
+  - **Match signature:** `Rule.Match` is `func(*ast.File) []ast.Node`; `Check` maps nodes to lines.
+  - **The repo test:** it lists tracked files with `git ls-files -- '*.go'` (so it depends on `git`, like
+    `pkg/shelllint`'s), skips `workshop/` and `testdata/`, and `Check` skips generated files (`ast.IsGenerated`).
+  - **Rules resolve packages** by the name the file imports them under (`localName`), so an aliased import is still
+    matched and an unimported identifier named `time` is not.
+  - `test-shrunk-deadline` also matches field targets (`cfg.ShutdownGrace = …`). Without type-checking it cannot tell
+    a local from a package variable; locals so named are rare and suppressible. `test-go-build` matches literal
+    `"go", "build"` arguments only; a binary held in a variable evades it.
+  - **A fifth rule, `test-tight-wallclock`** (BR-2: the Spec's wall-clock-assertion seed): a sub-second upper bound on
+    `time.Since(…)`, or on a variable assigned from it, in a test. Lower bounds and hang bounds of 1s or more are
+    allowed. Its two existing hits (processgroup and the make-probe budget test) carry reasons: each needs a margin
+    only wall-clock time can show.
+  - **The gitx `default-deadline` conversion** lost the check that the default runner applies `gitCommandTimeout`. That
+    is now asserted directly, without racing anything: `TestBoundedGitCommandAppliesDefaultCeiling` checks that a
+    context-free command's context has a deadline within the ceiling (BR-3).
+  - **Deferred, declared:** the Spec's "review a rule that never fires in a quarter" has no mechanism here. The repo
+    test sees findings only after they are fixed, so firing history needs a recorded count. That goes on #439's list
+    of off-the-shelf lint concerns.

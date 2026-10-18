@@ -69,3 +69,8 @@ deviations from the Spec are listed there for approval).
   wire-message annotation plus a strict-decode rule. pair adoption goes to the hub.
 - The process line lives once in the shared planning block (`pkg/tlrules/planning.md`, MISTAKE CLASSES), so
   tl-worker and tl-lead both carry it, with a phrase guard in rules.tsv.
+- Close review round 1: REWORK. BR-1: plan Revisions correct Core concepts (files, Match signature, the git-based walk;
+  generated files are now skipped). BR-2: the Spec's wall-clock seed is delivered as `test-tight-wallclock`, with two
+  existing hits suppressed with reasons. BR-3: `TestBoundedGitCommandAppliesDefaultCeiling` restores the default-ceiling
+  coverage. Minors in the round: field targets, import-alias resolution (`TestRulesFollowImportNames`), the generated
+  skip (`TestGeneratedFilesAreSkipped`), and quarterly rule review declared deferred.

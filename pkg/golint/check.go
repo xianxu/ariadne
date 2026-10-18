@@ -57,6 +57,9 @@ func Check(filename string, src []byte, rules []Rule) ([]Finding, error) {
 	if err != nil {
 		return nil, err
 	}
+	if ast.IsGenerated(f) {
+		return nil, nil // a generator's output is fixed in the generator
+	}
 	known := map[string]bool{}
 	for _, r := range rules {
 		known[r.Name] = true

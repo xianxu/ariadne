@@ -1897,10 +1897,11 @@ the deadline lives in a child process, gate the fixture on a FIFO the test relea
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
 that taught it (`test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
-`test-fixed-sleep` the 2026-10-15 flakes). Rules read only the syntax tree (stdlib
+`test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes). Packages are matched by the
+name the file imports them under, and generated files are skipped. Rules read only the syntax tree (stdlib
 `go/parser`, no type-checking, no external linter), and `TestTrackedGoFilesPassTheCatalog`
-runs them over every tracked Go file in the suite, so every landing enforces them (about
-0.7 s over 1,139 files). A finding that doesn't apply is suppressed on its line or the line
+runs them over every tracked Go file in the suite, so every landing enforces them (well under
+a second over about 1,140 files). A finding that doesn't apply is suppressed on its line or the line
 above with `//lint:allow <rule> — <reason>`; a suppression without a reason, naming an
 unknown rule, or matching nothing is itself a finding. A fix for a mechanical mistake class
 adds its rule here (the shared planning block in `tl-worker`/`tl-lead` help says so).
