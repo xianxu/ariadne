@@ -1,6 +1,6 @@
 ---
 id: 000409
-status: codecomplete
+status: done
 created: 2026-10-16
 updated: 2026-10-18
 estimate_hours: 1.17
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: ead57057e46998084852812ab4da05659271872c
         evidence_commit: 02bec7e2933dbe81a1db48ad166fd9181105dbc9
+        landed_commit: 058dd6d989e77b6c52104143892830978e7c9c63
 ---
 
 # Dynamic review policy: choose the reviewer model by author family and change kind (cross-family by default), extending #310
