@@ -1,6 +1,6 @@
 ---
 id: 000440
-status: working
+status: codecomplete
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 2.32
+tracker:
+    version: 1
+    completion:
+        token: close-e1e96551f22e
+        repository: github.com/xianxu/ariadne
+        reviewed_head: a35fbd0b408119d01476b230a632d2fff0219fde
+        evidence_commit: 18e5ccc97f4796f7666a37a359101b96f764182b
 ---
 
 # lint: a wire-message annotation and a rule against strict decoding into wire types
