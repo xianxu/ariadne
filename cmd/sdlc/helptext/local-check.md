@@ -67,6 +67,27 @@ THE SUITE (#332)
   current main and testing the resulting code when the earlier pass cannot
   cover it. Explicit local-check runs do not reserve the landing line.
 
+REPUBLISH (#431)
+
+  A run saves its attempt (outcome, duration, log and its sha256, under
+  <git common dir>/sdlc/test-stats) before it posts the status. The post
+  retries for about 2.5 minutes (15 s, 45 s, 90 s; the suite slot is already
+  free); if GitHub is still unreachable, the run says so and names
+
+    sdlc local-check republish --name N --rev <sha>
+
+  which posts that saved result, as it was, on that exact commit: a pass as a
+  pass, a failure as a failure. It never reruns anything, and it refuses an
+  attempt for another commit, check or repository, a diagnostic baseline, an
+  incomplete record, or one whose log no longer hashes to the recorded value.
+  --attempt ID picks one attempt; the default is the newest that verifies
+  (with a flaky check that may be an older pass, so name the attempt when it
+  matters). `sdlc merge` does the same before running a missing check, but
+  stricter: it posts a saved pass on the exact head instead of rerunning only
+  when that pass is the newest attempt there and verifies (a saved failure
+  never stands in). Under merge the post's retry holds the landing turn, which
+  still beats a rerun.
+
 CANCEL (#400)
 
   `sdlc local-check cancel [--name N]` stops the runs started from this
@@ -85,11 +106,13 @@ HOW MERGE USES IT
   steps) passes the CI gate when its declared substitute has a recorded pass
   on the PR head. A job that ran and failed or was cancelled still blocks. A
   `required` check needs its recorded pass whatever CI reports. When a needed
-  run is missing, `sdlc merge` runs it itself through the same path, then reads
-  the checks again before merging.
+  run is missing, `sdlc merge` posts a saved pass on that head if one stands
+  (see REPUBLISH), and otherwise runs it itself through the same path, then
+  reads the checks again before merging.
 
 USAGE
 
   sdlc local-check run --name zellij        # one check on HEAD
   sdlc local-check run --all --rev <sha>    # every check on a pushed commit
   sdlc local-check cancel                   # stop this checkout's runs
+  sdlc local-check republish --name suite   # post HEAD's saved result

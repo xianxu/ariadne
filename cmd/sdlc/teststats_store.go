@@ -239,6 +239,20 @@ func validateSuiteUnitsJSON(data []byte) error {
 	return nil
 }
 
+// suiteAttemptLogFile resolves a published attempt's relative log_path, the
+// inverse of publishSuiteAttempt's layout: failed/<id>.log under root, and
+// local-checks/<sha>/<check>.log beside it. Empty when the record names none.
+func suiteAttemptLogFile(root string, a SuiteAttempt) string {
+	switch {
+	case a.LogPath == "":
+		return ""
+	case a.LogPath == filepath.Join("failed", a.ID+".log"):
+		return filepath.Join(root, a.LogPath)
+	default:
+		return filepath.Join(filepath.Dir(root), a.LogPath)
+	}
+}
+
 // publishSuiteAttempt closes the private lifecycle before posting status. It
 // preserves a failed log under an immutable ID and atomically publishes JSON.
 func publishSuiteAttempt(root string, w *suiteAttemptWriter, a SuiteAttempt) (string, error) {
