@@ -239,7 +239,9 @@ H, and you read back the file to verify the result bytes, spans and `explain`
 reasons against the intended records. An older current round, mismatched
 base_hash, or uncertain readback is not proof that this apply landed: stop
 without a commit or retry and report the uncertainty. If `Round` is null,
-nothing landed and the batch may be retried after a fresh read. Never blindly
+read back the file: Pair can write it yet fail to record a round. Retry only
+when its bytes still equal the attempted base and a fresh read permits a new
+apply; if the bytes changed, stop and report the uncertain result. Never blindly
 replay records that may have landed. Pair's hash and operator lock own the
 edit conflict, so no parallel reconciliation protocol is needed.
 Under `presentation: propose`, a record wholly within frontmatter is applied
