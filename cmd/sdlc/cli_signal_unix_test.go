@@ -118,25 +118,21 @@ func TestCLISignalCancelsOwnedReviewer(t *testing.T) {
 						}
 					}
 				})
-				timer := time.NewTimer(hangGuard)
-				defer timer.Stop()
-				tick := time.NewTicker(10 * time.Millisecond)
-				defer tick.Stop()
-				for reviewer == 0 {
+				var exited error
+				reviewer = testfix.AwaitPIDFile(ready, hangGuard, func() bool {
 					select {
-					case err := <-done:
+					case exited = <-done:
 						finished = true
-						t.Fatalf("CLI exited before review: %v\n%s", err, output.String())
-					case <-timer.C:
-						t.Fatal("CLI reviewer did not start")
-					case <-tick.C:
-						if raw, err := os.ReadFile(ready); err == nil && len(raw) > 0 {
-							reviewer, err = strconv.Atoi(string(raw))
-							if err != nil {
-								t.Fatal(err)
-							}
-						}
+						return true
+					default:
+						return false
 					}
+				})
+				if finished {
+					t.Fatalf("CLI exited before review: %v\n%s", exited, output.String())
+				}
+				if reviewer == 0 {
+					t.Fatal("CLI reviewer did not start")
 				}
 				issueBefore := readIssue(t, issues)
 				plansBefore := reviewPlanFiles(t, plans)

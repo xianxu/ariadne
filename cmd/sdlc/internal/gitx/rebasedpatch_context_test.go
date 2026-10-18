@@ -37,16 +37,7 @@ func TestRebasedReviewedBaseContextCancelsReplayCommands(t *testing.T) {
 			defer cancel()
 			done := make(chan error, 1)
 			go func() { _, _, err := RebasedReviewedBaseContext(ctx, "main", f.h1); done <- err }()
-			pid := 0
-			until := time.Now().Add(testfix.HangCeiling)
-			for time.Now().Before(until) {
-				raw, _ := os.ReadFile(pidfile)
-				pid, _ = strconv.Atoi(string(raw))
-				if pid > 0 {
-					break
-				}
-				time.Sleep(5 * time.Millisecond)
-			}
+			pid := testfix.AwaitPIDFile(pidfile, testfix.HangCeiling, nil)
 			if pid == 0 {
 				t.Fatal("replay command never started")
 			}

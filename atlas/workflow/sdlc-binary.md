@@ -1887,6 +1887,12 @@ which asks the kernel (sysctl `kern.proc.pid` on macOS, `/proc` on Linux) instea
 running `ps`: agent sandboxes deny exec of `/bin/ps` (#330). It waits, because a
 group SIGKILL lands asynchronously after the runner returns.
 
+A deadline test must not let a clock race the fixture's startup: a short timeout can
+fire before the fixture reports its pid (#434). Hand the code under test
+`testfix.DeadlineOnCue(ctx)` and call `expire()` once the fixture has signalled
+readiness; the code's own `WithTimeout` then sees a real `DeadlineExceeded`. Where
+the deadline lives in a child process, gate the fixture on a FIFO the test releases.
+
 ### Two full suites per machine (#319, #341)
 
 The rule: a full `make test` takes one of `WF_TEST_SUITES` (default 2) full-suite
