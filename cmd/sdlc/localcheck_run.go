@@ -187,7 +187,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	queueSeconds, wallSeconds := queueWait.Seconds(), rec.Duration.Seconds()
 	saved := false // a saved attempt is what `local-check republish` can post later
 	if writer != nil {
-		attempt := SuiteAttempt{Version: 1, ID: writer.ID, Repo: d.Repo, SHA: sha, Check: c.Name,
+		attempt := SuiteAttempt{Version: suiteAttemptVersion, ID: writer.ID, Repo: d.Repo, SHA: sha, Check: c.Name,
 			StartedAt: start.UTC(), FinishedAt: finished, MainBaseline: d.SkipRecord,
 			QueuedAt: ptrTime(queueStart.UTC()), AcquiredAt: ptrTime(queueAcquired.UTC()),
 			QueueSeconds: &queueSeconds, WallSeconds: &wallSeconds,

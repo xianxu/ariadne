@@ -3,6 +3,8 @@ package main
 import (
 	"sort"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 )
 
 // SuiteAttempt is a completed suite invocation, including the exact status
@@ -31,7 +33,12 @@ type SuiteAttempt struct {
 	LogPath      string          `json:"log_path"`
 	Failures     []string        `json:"failures,omitempty"`
 	Units        []SuiteDuration `json:"units,omitempty"`
-	Legacy       bool            `json:"-"`
+	// Version 2 (#394): the gate's outcome, the registered tests it ran on,
+	// and, for a targeted rerun, the failed attempt it reran.
+	Outcome     string         `json:"outcome,omitempty"`
+	KnownFlakes []flakes.Entry `json:"known_flakes,omitempty"`
+	RerunOf     string         `json:"rerun_of,omitempty"`
+	Legacy      bool           `json:"-"`
 }
 
 type SuiteQuantiles struct {
@@ -111,6 +118,7 @@ func aggregateSuiteAttempts(attempts []SuiteAttempt, since time.Time, repo strin
 		})
 		s := RepoStats{Repo: name, Runs: len(rows)}
 		var wall, queue []float64
+		evidence := flakeAttempts(rows)
 		unitTimes := map[string][]float64{}
 		units := map[string]SuiteDuration{}
 		for i, a := range rows {
@@ -137,13 +145,8 @@ func aggregateSuiteAttempts(attempts []SuiteAttempt, since time.Time, repo strin
 			kind := ""
 			if a.MainBaseline {
 				kind = "suspected-main-baseline"
-			} else {
-				for later := i + 1; later < len(rows); later++ {
-					if rows[later].SHA == a.SHA && rows[later].Exit == 0 && !rows[later].TimedOut && !rows[later].Legacy && !rows[later].MainBaseline {
-						kind = "confirmed"
-						break
-					}
-				}
+			} else if _, ok := flakes.Confirmed(evidence, i); ok {
+				kind = "confirmed"
 			}
 			if kind == "" {
 				continue
@@ -191,4 +194,18 @@ func suiteAttemptCompletedAt(a SuiteAttempt) time.Time {
 		return a.FinishedAt
 	}
 	return a.StartedAt // historical logs and older in-memory fixtures
+}
+
+// flakeAttempt is a recorded attempt as the known-flake rules read it (#394).
+func flakeAttempt(a SuiteAttempt) flakes.Attempt {
+	return flakes.Attempt{ID: a.ID, SHA: a.SHA, Passed: a.Exit == 0 && !a.TimedOut, Baseline: a.MainBaseline,
+		Legacy: a.Legacy, Failures: a.Failures, Kind: flakes.Kind(a.Outcome), FinishedAt: suiteAttemptCompletedAt(a)}
+}
+
+func flakeAttempts(as []SuiteAttempt) []flakes.Attempt {
+	out := make([]flakes.Attempt, len(as))
+	for i, a := range as {
+		out[i] = flakeAttempt(a)
+	}
+	return out
 }

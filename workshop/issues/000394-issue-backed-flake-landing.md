@@ -70,7 +70,7 @@ The calibration doc is marked stale (#127), so these numbers are provisional.
 
 Durable plan: `workshop/plans/000394-issue-backed-flake-landing-plan.md`, with the state table. It awaits the hub's decisions D1–D4 before code.
 
-- [ ] M1 — Registry and classifier (pure) plus `sdlc flake register`/`list`.
+- [x] M1 — Registry and classifier (pure) plus `sdlc flake register`/`list`.
 - [ ] M2 — The gate: a targeted known-flake rerun in `runLocalCheck` (local-check run and merge), both attempts linked, the policy knob.
 - [ ] M3 — No blind rerun (the success-post guard, republish after registration), the rules in tl-worker/help/atlas, a pair pilot.
 
@@ -86,3 +86,11 @@ Filed from #390's operator-approved flake/landing decision. The weekly snapshot 
 - The hub decided D1–D4 as proposed: the targeted rerun counts (the operator's 10-18 ask); `accept`/`off` are built with the guarded config left at its default; CI in the daily view goes to a follow-up; the registry is issue frontmatter. Side doc 02 got a Revision note.
 - Plan-quality round 1 answered in the plan's Revisions. PQ-4 changes the registry's storage from details frontmatter to a card field, with `sdlc flake register` as its setter, with no owner check and read via Fresh tracker records; the hub is told of the delta. PQ-1: the rerun takes its own slot, lease and signals through the shared `runUnderSlot`. PQ-2: classification happens in runLocalCheck; the main baseline stays merge's unrecorded diagnosis. PQ-3: the decoder reads v1 and v2, and the success guard fails closed.
 - The hub approved the card-field registry (`flake_tests`, setter `sdlc flake register`, compare-and-swap with no owner check, read with the Fresh status read). Rollout: one rebuild of :0 after landing, before anything can write the field.
+- M1 implemented:
+  - `internal/flakes` (`BuildRegistry`, `Classify` over every state-table row, `Confirmed`/`SameHeadFailPass`/`Unexplained`, `RerunCommand`).
+  - test-stats' confirmed-flake rule now calls `flakes.Confirmed` (ARCH-DRY).
+  - Attempt records are version 2 (`outcome`, `known_flakes`, `rerun_of`); the decoder reads v1 and v2, and a v1 record carrying a v2 field refuses.
+  - `SuiteLogFacts.Unattributed` (a package-level failure without a test of its own, a shard with no failing test, tests that never ran, a build or setup failure, a timeout, a name without a package).
+  - The `flake_tests` card field (vocabulary kind `test-list`, at most 5 exact names).
+  - `sdlc flake register` and `sdlc flake list`.
+  - Tests: TestBuildRegistry, TestClassify, TestEvidence, TestRerunCommand, TestUnattributedFailures, TestParseCardFlakeTests, the v2 decoder cases, TestFlakeRegisterNeedsSameHeadEvidence, TestFlakeRegisterRules, TestFlakeList, and TestFlakeRegistryFromTrackerCards (real tracker cards). The cmd/sdlc tests on this surface pass (749s, targeted).

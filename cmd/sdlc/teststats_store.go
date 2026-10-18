@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
@@ -28,6 +29,7 @@ const (
 )
 
 var suiteHex = regexp.MustCompile(`^[0-9a-fA-F]+$`)
+var issueIDRE = regexp.MustCompile(`^[0-9]{6}$`)
 var suiteRepo = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
 // encoding/json matches struct fields case-insensitively even with
@@ -39,7 +41,20 @@ var suiteAttemptJSONFields = map[string]bool{
 	"started_at": true, "finished_at": true, "queued_at": true, "acquired_at": true, "main_baseline": true,
 	"queue_seconds": true, "wall_seconds": true, "exit": true, "timed_out": true,
 	"log_sha256": true, "log_path": true, "failures": true, "units": true,
+	"outcome": true, "known_flakes": true, "rerun_of": true, // version 2 only (#394)
 }
+
+// suiteAttemptVersion is the version the writer records. Version 2 (#394)
+// adds the gate's outcome, its known flakes and a rerun's link; a v1 record
+// cannot carry them, so a v1 history stays readable and unambiguous.
+const suiteAttemptVersion = 2
+
+var suiteAttemptV2Fields = []string{"outcome", "known_flakes", "rerun_of"}
+
+// suiteOutcomes are the outcome values a v2 attempt may record.
+var suiteOutcomes = map[flakes.Kind]bool{flakes.Passed: true, flakes.KnownFlakePassed: true, flakes.KnownFlakeAccept: true,
+	flakes.KnownFlakeTwice: true, flakes.Unknown: true, flakes.Unattributable: true, flakes.PersistentMain: true,
+	flakes.RegistryUnusable: true, flakes.RuleOff: true, flakes.TooManyKnownFlaky: true}
 
 type suiteAttemptWriter struct{ ID, LogPath string }
 
@@ -123,8 +138,29 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 	if _, err := d.Token(); !errors.Is(err, io.EOF) {
 		return a, errors.New("trailing JSON")
 	}
-	if a.Version != 1 {
+	if a.Version != 1 && a.Version != 2 {
 		return a, fmt.Errorf("unsupported version %d", a.Version)
+	}
+	if a.Version == 1 {
+		for _, key := range suiteAttemptV2Fields {
+			if keys[key] {
+				return a, fmt.Errorf("version 1 attempt carries the version 2 field %s", key)
+			}
+		}
+	}
+	if a.Outcome != "" && !suiteOutcomes[flakes.Kind(a.Outcome)] {
+		return a, fmt.Errorf("invalid outcome %q", a.Outcome)
+	}
+	if a.RerunOf != "" && (!suiteHex.MatchString(a.RerunOf) || len(a.RerunOf) < 2 || len(a.RerunOf) > 64 || a.RerunOf == a.ID) {
+		return a, errors.New("invalid rerun_of")
+	}
+	if len(a.KnownFlakes) > 10000 {
+		return a, errors.New("too many facts")
+	}
+	for _, e := range a.KnownFlakes {
+		if flakes.ValidTest(e.Test) != nil || !issueIDRE.MatchString(e.Issue) {
+			return a, errors.New("invalid known flake")
+		}
 	}
 	if !suiteHex.MatchString(a.ID) || len(a.ID) < 2 || len(a.ID) > 64 {
 		return a, errors.New("invalid attempt ID")
