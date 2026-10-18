@@ -106,6 +106,10 @@ Then close and land on SHIP.
   Saved log: `/Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/1e51be0651aa59d71f4f50019969efc20ea54e06/suite.log`
   (SHA-256 prefix `263eae950dbb`). PR #304 checks `merge-check` and
   `local-gates-guard` also passed on that head.
+- Close review round 2 disposed BR-1 and BR-3, but retained BR-2: aliases
+  and range bindings can still overwrite a tracked decoder. The durable plan
+  now defines a single-owner proof and the regression matrix before code
+  changes; this replaces incremental special cases for alias writes.
 
 ## Revisions
 

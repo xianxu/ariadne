@@ -144,3 +144,18 @@ to the hub. The TL owns any project update.
   conditional writes through a decoder pointer clear its strictness. Red
   fixtures for each case precede the correction. BR-3 adds the annotation
   convention to README beside its atlas detail.
+- 2026-10-18, close review round 2, decoder-proof re-plan: BR-2 remains open
+  because aliases and range assignments can overwrite a decoder outside the
+  few assignment forms modeled so far. Use a single-owner proof instead of an
+  alias graph: a tracked decoder is usable only while every reference to its
+  local name is a direct `Decode` or `DisallowUnknownFields` receiver. Any
+  other reference, including an assignment RHS, method argument, closure
+  capture, pointer use, or branch use, discards the proof before a later
+  decode. A fresh direct `json.NewDecoder` assignment can establish a new
+  non-strict proof. Range LHS bindings also invalidate decoder and target
+  identity. This deliberately misses some true hazards after an alias but
+  cannot report from stale strictness. An alias graph is the tempting
+  alternative; it would need to model escapes, helper calls, and joins, which
+  defeats this bounded syntax-only rule. Red fixtures will enumerate aliases
+  before and after the strict call, helper/closure escapes, and direct,
+  conditional, multiple, pointer, and range overwrites.

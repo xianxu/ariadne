@@ -93,6 +93,99 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: e8d57f8c-47c9-4b65-9b4b-56c4cc350a03
+            repository: github.com/xianxu/ariadne
+            issue_id: "000440"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/8e9f946c7f1f5851
+            reviewed_head: 42793ebdf419c790073bcc343420225349588850
+            slot: ariadne:1
+            requested_at: "2026-10-18T13:49:21.848231Z"
+          phase: finished
+          pid: 62860
+          started_at: "2026-10-18T13:49:21.942247Z"
+          finished_at: "2026-10-18T13:51:13.914089Z"
+          session_id: 01a14f46-2f8a-7193-bd3c-d7d7e7b8e026
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 42793ebdf419c790073bcc343420225349588850
+        tracker_head: 1a31cd21076641eae870767c5dec2d09a37559ca
+        branch_point: 3ba12c88814b92d93a6e30300fc8061940382d14
+        since: "2026-10-18T05:43:21-07:00"
+        until: "2026-10-18T06:48:51-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T05:43:21-07:00"
+              end: "2026-10-18T06:48:51-07:00"
+              began: "2026-10-18T05:43:21-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 20598f837d7faea895c17c27513826b6de6946048af34e03d5ee0b5c4be800f7
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 105949517
+              windows:
+                - start: "2026-10-18T05:43:21-07:00"
+                  end: "2026-10-18T06:48:51-07:00"
+        queue_waits:
+            - attempt_id: 97e9c79d9d1d102df2d40c32801f3864
+              slot: ariadne:1
+              record_digest: 302427f7fcd59fc6f235b929456fe28e0d9dee2ebfd0c5ec057a740997e6047c
+              start: "2026-10-18T13:00:46.040063Z"
+              end: "2026-10-18T13:09:43.849079Z"
+              queue_seconds: 537.809016
+              raw_seconds: 537.809016
+              exact: true
+            - attempt_id: 8c5a5e18aa58707db347c709c810f563
+              slot: ariadne:1
+              record_digest: e3d4f017eb327e3efee5b4d6035c7cfc077e114ad6e05dcb010f951cd3ff0b17
+              start: "2026-10-18T13:27:17.095135Z"
+              end: "2026-10-18T13:38:49.768584Z"
+              queue_seconds: 692.673449
+              raw_seconds: 692.673449
+              exact: true
+        cuts:
+            - dispatched: "2026-10-18T06:21:43-07:00"
+              finalized: "2026-10-18T06:24:38-07:00"
+              finalizing: false
+      "n": 2
+      timestamp: "2026-10-18T06:51:14-07:00"
+      dispatched: "2026-10-18T06:49:21-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: The explicit-type guard and assignment invalidation cover the reported interface and target-reassignment cases. All five corresponding regression cases pass at head and fail with the pre-fix matcher.
+          round: 2
+        - id: BR-2
+          disposition: not-addressed
+          note: 'pkg/golint/wire.go:173-174 and 208-219 invalidate only the written identifier, and the branch walker recognizes only ast.AssignStmt. Three alias-write probes and one range-reassignment probe still produce false wire-strict-decode findings. For example, after d.DisallowUnknownFields(), alias := d; *alias = *json.NewDecoder(r) leaves d marked strict. Likewise, for _, d = range []*json.Decoder{json.NewDecoder(r)} {} does not invalidate d. Runtime controls confirm the overwritten decoders accept unknown fields. ARCH-PURPOSE: the correction must cover the overwrite class. This is the 2nd finding in family `wire-decoder-strictness-provenance`. Do NOT fix only these instances: state and enforce a rule that invalidates strictness whenever an unmodeled alias can overwrite the decoder, and enumerate all assignment forms, including range bindings. Add regression fixtures for that enumeration.'
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: README.md:11-17 now documents the wire annotation syntax, gives a peer-message example, distinguishes version-pinned stores, and links to atlas/workflow/sdlc-binary.md, whose convention section documents coverage and reasoned exceptions.
+          round: 2
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#440 (boundary-review)
@@ -111,8 +204,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-3** [Important] `readme-user-surface` (kind: defect) README update appears missing for the wire annotation convention
   atlas/workflow/sdlc-binary.md:1918 introduces the contributor-facing `// wire: <reason>` syntax and line 1929 documents its rule-specific suppression, but README.md is unchanged in the pinned range. The review’s README gate covers new surface a reader types. Add a concise annotation example and link to the atlas coverage and exception guidance.
 
+## Round 2 — 2026-10-18T06:51:14-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — The explicit-type guard and assignment invalidation cover the reported interface and target-reassignment cases. All five corresponding regression cases pass at head and fail with the pre-fix matcher.
+- BR-2 — not-addressed — pkg/golint/wire.go:173-174 and 208-219 invalidate only the written identifier, and the branch walker recognizes only ast.AssignStmt. Three alias-write probes and one range-reassignment probe still produce false wire-strict-decode findings. For example, after d.DisallowUnknownFields(), alias := d; *alias = *json.NewDecoder(r) leaves d marked strict. Likewise, for _, d = range []*json.Decoder{json.NewDecoder(r)} {} does not invalidate d. Runtime controls confirm the overwritten decoders accept unknown fields. ARCH-PURPOSE: the correction must cover the overwrite class. This is the 2nd finding in family `wire-decoder-strictness-provenance`. Do NOT fix only these instances: state and enforce a rule that invalidates strictness whenever an unmodeled alias can overwrite the decoder, and enumerate all assignment forms, including range bindings. Add regression fixtures for that enumeration.
+- BR-3 — addressed — README.md:11-17 now documents the wire annotation syntax, gives a peer-message example, distinguishes version-pinned stores, and links to atlas/workflow/sdlc-binary.md, whose convention section documents coverage and reasoned exceptions.
+
 ## Open findings
 
-- **BR-1** [Critical] `wire-target-provenance` (kind: defect) Target tracking retains wire identity after reassignment and guesses through interfaces
 - **BR-2** [Critical] `wire-decoder-strictness-provenance` (kind: defect) Overwriting a decoder leaves stale strictness in the matcher
-- **BR-3** [Important] `readme-user-surface` (kind: defect) README update appears missing for the wire annotation convention
