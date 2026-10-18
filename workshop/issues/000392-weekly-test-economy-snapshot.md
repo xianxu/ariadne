@@ -32,15 +32,15 @@ Produce one dated, immutable weekly per-repo summary from #376's per-attempt loc
 ## Done when
 
 - [ ] A repeatable weekly command produces a dated snapshot in brain and links it from the ops project without duplicating the numbers there.
-- [ ] The output separates wall and queue, gives p50/p90 and coverage for each repo, names slow packages and flake classes, and calculates full suites per landed issue from exact attempt and landing evidence.
-- [ ] Tests cover failed/retried attempts, missing old fields, unassignable attempts, zero landings, and stable reruns of the same weekly window; unknown remains unknown.
-- [ ] A first ariadne/pair snapshot is saved, and the default rollout and retention/backup responsibility are documented.
+- [x] The output separates wall and queue, gives p50/p90 and coverage for each repo, names slow packages and flake classes, and calculates full suites per landed issue from exact attempt and landing evidence.
+- [x] Tests cover failed/retried attempts, missing old fields, unassignable attempts, zero landings, and stable reruns of the same weekly window; unknown remains unknown.
+- [x] A first ariadne/pair snapshot is saved, and the default rollout and retention/backup responsibility are documented.
 
 ## Plan
 
-- [ ] Design the evidence join and snapshot schema in `workshop/plans/000392-weekly-test-economy-snapshot-plan.md` under #390's approved measurement revision; obtain hub approval before code.
-- [ ] Build the pure weekly model and exact attempt-to-landing join with fixture-backed red/green tests.
-- [ ] Add the brain writer and CLI, test immutable reruns and partial evidence, then save the first ariadne/pair snapshot and give its link to the TL for the ops project.
+- [x] Design the evidence join and snapshot schema in `workshop/plans/000392-weekly-test-economy-snapshot-plan.md` under #390's approved measurement revision; obtain hub approval before code.
+- [x] Build the pure weekly model and exact attempt-to-landing join with fixture-backed red/green tests.
+- [x] Add the brain writer and CLI, test immutable reruns and partial evidence, then save the first ariadne/pair snapshot and give its link to the TL for the ops project.
 
 ## Estimate
 
@@ -100,3 +100,5 @@ Round-3 corrected-code pilot: the rebuilt `bin/sdlc` at `84236a9773a8ae221c8e959
 Before close round 3, a new adversarial test found that an attempt completed before the physical week could match two cohort landings without making the ratio unknown. The former classifier attached the ambiguity warning only inside the week. Per the hub's approved metric re-plan, numerator ownership now classifies every retained attempt independent of the physical window: zero matches stays outside, one counts once, multiple null coverage. The week flag only selects physical reconciliation rows. A property-style matrix over one to four matching landings, both landing orders, and in/out-week attempt times failed on the old code and passes on the corrected classifier. The queued suite for the preceding head was cancelled before acquiring the machine lock; it produced no check result (ARCH-PURPOSE, ARCH-ORDER).
 
 Final-code pilot on rebuilt `bin/sdlc` at `5b0848068d2bff6178e69450c90a41fb9711e452`: `test-stats snapshot --end 2026-10-18T00:00:00Z` wrote `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne392-finalpilot.QGIZQ0/memory/work/devinfra/test-economy/weekly/2026-10-18.json`, SHA-256 `be787f22c0d64e866fb9536eb7d09c6ca108d69da5b2ddb16af0fce1a01e11df`. It covers 16 repos; ariadne has 106 attempt records, 121 events, 83 physical suites and 0/110 observed landings covered; pair had 262 attempts, 223 events, 244 suites and 0/180 covered. A pair-checkout rerun against that path correctly refused changed bytes: a new pair attempt completed between reads (`attempt_records` 262→263), while weekly figures were unchanged. Pair then wrote an independent temp snapshot at `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne392-pairpilot.S7pQT7/memory/work/devinfra/test-economy/weekly/2026-10-18.json`, SHA-256 `450102a407e97db4d9ed2c239990ac8b123b5490a3eb89c128c398b5ee1d2ad3`; ariadne returned that existing path unchanged. Thus the same binary works from both checkouts, unchanged inputs rerun stably, and changed live evidence triggers the intended immutable conflict. The final brain capture remains after SHIP.
+
+Close review round 3 returned SHIP with BR-1/2/3/4/6/7 addressed and BR-5 withdrawn after independent pilot verification. The final pushed-head suite passed 12 shards (1,617 `cmd/sdlc` tests) and 67 other packages in 9m2s, log SHA-256 beginning `817cd609951a`; close measured 2.14 focused hours, excluding 63.18 minutes of recorded queue wait. Staging `49ca659163539266dfba939b46e28ad69d6e8be0` on ariadne:0 built and verified all seven tools; its sdlc wrote a temporary 16-repo snapshot from the pair checkout. Clearing restored clean ariadne:0 main `e5f48d8326eab4ce46e7c8fae2d89ae96498f431` and all seven binaries at that revision. After SHIP, the same command wrote the immutable brain file at `/Users/xianxu/workspace/brain/memory/work/devinfra/test-economy/weekly/2026-10-18.json`, SHA-256 `abda56e1731483bd432aebebb46806544e11222d2680b1b3d72f871f22eae580`. Brain commit `c77fe59b8e900b343a41c3e2df3e3f0b108a4e80` was pushed encrypted to origin/main. The path and commit were sent to the TL for its project link; the file records 16 repos, with ariadne 0/110 and pair 0/180 observed landings fully covered and null headline ratios.
