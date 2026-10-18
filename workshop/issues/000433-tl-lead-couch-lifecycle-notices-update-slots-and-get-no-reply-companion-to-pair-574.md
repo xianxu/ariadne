@@ -47,6 +47,7 @@ tl-lead help: Couch system notices are information, not requests. The hub update
 ## Log
 
 ### 2026-10-17
+- 2026-10-17: closed — Four tl-lead phrase guards failed against old help, then focused tests and make -k build passed; built help carries all notice rules; exact-head suite passed on 358d53dfffbcd2cbdb548aaf81d0cc9d7ed8b587; round-1 atlas finding BR-1 addressed in atlas/workflow/tl-skills.md. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 The hub dispatched this as a quick-flow rule change. Embedded `cmd/tl-lead/help.md` and its existing phrase-guard test keep the instruction in one place (ARCH-DRY). No Couch protocol or status-file command changes.
 
