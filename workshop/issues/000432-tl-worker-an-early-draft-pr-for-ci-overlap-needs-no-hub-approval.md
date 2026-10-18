@@ -1,13 +1,23 @@
 ---
 id: 000432
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'ab311a744747af9c9f7e1be05540fbd3b599243b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '90604104d4c6cba903532b62907685494c70fe1c' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-17T18:01:41-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "de8febc6", done: "2f1dc36a"}
+actual_hours: 0.03
 ---
 
 # tl-worker: an early draft PR for CI overlap needs no hub approval
@@ -26,8 +36,18 @@ tl-worker help states it as a rule: an early draft PR for CI overlap needs no hu
 
 ## Plan
 
-- [ ]
+- [x] Add a worker rules-table assertion for the early draft PR permission and confirm it fails against current help.
+- [x] Add one help rule beside the existing permissions and run the focused tests.
+- [x] Run the recorded suite on the pushed head.
+- [x] Submit the tested branch to the close review and normal PR and merge gates.
 
 ## Log
 
 ### 2026-10-17
+- 2026-10-17: closed — TDD rules-table failure observed before help edit; go test ./cmd/tl-worker -count=1 and make -k build passed; built tl-worker help shows draft-PR permission and preserved suite/review/merge gates; exact-head sdlc-local/suite passed on 729a94cb9085c92ca720ae502bfbec0dae25e015 (12 shards, zero failures).; review verdict: SHIP
+
+The hub approved quick flow. The existing embedded help and `rules.tsv` remain the single source and coverage pattern (ARCH-DRY); no PR or landing behavior changes.
+
+The new rule failed twice against the old help (both invocation forms), then `go test ./cmd/tl-worker -count=1` passed after the help change. `make -k build` passed, and the built `bin/tl-worker --help` prints the permission and landing-gate condition.
+
+Opened PR #291 as a draft while the suite queued. The recorded `sdlc-local/suite` on 729a94cb9085c92ca720ae502bfbec0dae25e015 passed: 12 shards, 1577 sdlc tests, 67 other packages, zero failures (log sha256:f763c937b6ca). No new atlas surface is introduced by the help wording.
