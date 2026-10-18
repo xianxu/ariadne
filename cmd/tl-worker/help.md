@@ -96,6 +96,10 @@ REVIEW REQUESTS
   operator's lock.
 
 REPORTS
+  A report naming a SHA, PR number, test count, or other fact goes out
+  only after the call that prints that fact has returned.
+  Never send the report in the same parallel batch as that call.
+  Copy facts from returned tool output; never type an unverified value.
   An outcome report counts once its receipt reads `submitted`. On `expired` or
   `not-dispatched`, send it again. On an uncertain outcome, follow
   `couch --skill` (check the receipt first; never resend blindly).

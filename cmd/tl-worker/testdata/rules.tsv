@@ -17,6 +17,10 @@ stage-clear	cited	`sdlc stage --clear`
 landing	own	`sdlc merge --yes` yourself
 landing-stop	own	report the merge with its PR number to the hub, and stop
 report-receipt	own	receipt reads `submitted`
+report-facts	own	SHA, PR number, test count, or other fact
+report-return	own	only after the call that prints that fact has returned
+report-batch	own	Never send the report in the same parallel batch as that call
+report-copy	own	Copy facts from returned tool output
 review-request	cited	answer it with the `xx-universal-review` skill
 third-delta	cited	third design delta on the same mechanism
 re-plan	cited	simplest alternative and why it fails
