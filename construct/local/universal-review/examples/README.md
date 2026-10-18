@@ -23,6 +23,7 @@ docs' names and frontmatter; and which files are unchanged.
 - that an unlinked side doc for the same ask (parent, marker, section) is relinked, never duplicated, and that a
   fold marks the parent's link `(folded <date>)`;
 - that no side doc is pruned and new ones take the next free number;
+- that a `→ [proposal](…)` link to a large rewrite is a side-doc link too, and a later fold keeps it;
 - the index (§4, "The index"): every `discussions:` entry names a side doc whose `parent:` is that document; a round
   never removes a link, drops an entry only when its link is gone, leaves no entry without its link, and adds one
   only for a side doc it wrote or linked;
