@@ -116,10 +116,37 @@ func validateLandingEvidence(raw weeklyRepoEvidence, window WeeklyWindow) ([]wee
 			continue
 		}
 		// Earlier refused admissions belong to the same integration-tax window.
+		priorInvalid := false
 		for _, prior := range byIssue[e.Issue] {
 			if prior.Kind == landingline.EventEnqueue && prior.Branch == e.Branch && !prior.At.IsZero() && prior.At.Before(enqueued) {
+				if prior.Seq <= 0 {
+					priorInvalid = true
+					continue
+				}
+				priorEnqueue, priorRefused, priorTerminal := 0, 0, 0
+				for _, sibling := range bySeq[prior.Seq] {
+					if sibling.Issue != e.Issue || sibling.Branch != e.Branch || sibling.At.IsZero() || sibling.At.Before(prior.At) {
+						priorInvalid = true
+					}
+					if sibling.Kind == landingline.EventEnqueue {
+						priorEnqueue++
+					}
+					if sibling.Kind == landingline.EventRefused {
+						priorRefused++
+					}
+					if sibling.Kind == landingline.EventRefused || sibling.Kind == landingline.EventLanded || sibling.Kind == landingline.EventResumed {
+						priorTerminal++
+					}
+				}
+				if priorEnqueue != 1 || priorRefused != 1 || priorTerminal != 1 {
+					priorInvalid = true
+				}
 				enqueued = prior.At
 			}
+		}
+		if priorInvalid {
+			fail("conflicting or incomplete prior enqueue")
+			continue
 		}
 		card, ok := raw.Cards[e.Issue]
 		if !ok || mergedStatus == nil || card.Status != mergedStatus.To || card.Completion == nil || card.Completion.LandedCommit == "" {
@@ -162,6 +189,12 @@ func attributeWeeklyAttempts(attempts []SuiteAttempt, landings []weeklyLandingEv
 		}
 		inWeek := window.Contains(a.FinishedAt)
 		if a.Legacy || a.ID == "" || a.FinishedAt.IsZero() || ids[a.ID] != 1 {
+			for _, landing := range landings {
+				if landing.BranchSHAs[a.SHA] {
+					out.CoverageUnknown = append(out.CoverageUnknown, "partial attempt on cohort branch: "+a.SHA)
+					break
+				}
+			}
 			if inWeek {
 				out.UnassignableAttempts++
 				out.UnknownAttempts = append(out.UnknownAttempts, weeklyUnknownAttempt{a.ID, "partial or duplicate attempt"})

@@ -64,6 +64,12 @@ func TestValidateLandingEvidenceStartsAtFirstEnqueueAfterRefusal(t *testing.T) {
 	if len(reasons) != 0 || len(landings) != 1 || !landings[0].EnqueuedAt.Equal(start.Add(-time.Hour)) {
 		t.Fatalf("first enqueue lost: %v, %v", landings, reasons)
 	}
+	incomplete := e
+	incomplete.Events = append([]landingline.Event{}, e.Events[:1]...)
+	incomplete.Events = append(incomplete.Events, e.Events[2:]...)
+	if got, reasons := validateLandingEvidence(incomplete, w); len(got) != 0 || len(reasons) == 0 {
+		t.Fatalf("unpaired earlier enqueue must be unknown: %v, %v", got, reasons)
+	}
 }
 
 func TestAttributeWeeklyAttemptsCountsCrossBoundaryAndDuplicateUnknown(t *testing.T) {
@@ -86,6 +92,11 @@ func TestAttributeWeeklyAttemptsCountsCrossBoundaryAndDuplicateUnknown(t *testin
 	}
 	if empty := attributeWeeklyAttempts(nil, nil, w, nil); empty.AttemptsPerLandedIssue != nil || empty.LandedIssues != 0 {
 		t.Fatalf("zero landings must have null ratio: %+v", empty)
+	}
+	legacy := SuiteAttempt{Legacy: true, Check: suiteCheckName, SHA: "issue-head", StartedAt: start.Add(time.Hour)}
+	partial := attributeWeeklyAttempts(append(rows[:3], legacy), landings, w, nil)
+	if partial.AttemptsPerLandedIssue != nil || len(partial.CoverageUnknown) == 0 {
+		t.Fatalf("legacy attempt on cohort head must make coverage unknown: %+v", partial)
 	}
 }
 
