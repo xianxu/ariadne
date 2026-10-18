@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "de8febc6", done: "2f1dc36a"}
 ---
 
 # tl-worker: an early draft PR for CI overlap needs no hub approval
