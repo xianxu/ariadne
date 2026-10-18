@@ -4,9 +4,7 @@ package main
 
 import (
 	"context"
-	"os"
 	"path/filepath"
-	"strconv"
 	"syscall"
 	"testing"
 	"time"
@@ -47,16 +45,7 @@ func TestRunLocalCheckTerminatesDescendants(t *testing.T) {
 					}
 				}
 			})
-			deadline := time.Now().Add(testfix.HangCeiling)
-			for time.Now().Before(deadline) {
-				raw, _ := os.ReadFile(pidfile)
-				child, _ = strconv.Atoi(string(raw))
-				if child > 0 {
-					break
-				}
-				time.Sleep(5 * time.Millisecond)
-			}
-			if child == 0 {
+			if child = testfix.AwaitPIDFile(pidfile, testfix.HangCeiling, nil); child == 0 {
 				t.Fatal("descendant never started")
 			}
 			select {

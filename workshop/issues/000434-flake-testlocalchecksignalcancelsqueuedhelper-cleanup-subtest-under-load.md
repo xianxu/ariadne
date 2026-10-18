@@ -98,3 +98,7 @@ boundary-push and integrate-gate timeout tests assert only that the deadline bou
   `DeadlineExceeded` in hanging-shell mode (exited-parent ends on the pipe-drain bound, not the deadline, so it keeps
   `err != nil`); the three pid-file wait loops now share `testfix.AwaitPIDFile` (ARCH-DRY), and the bounded-git test
   derives its cue context from its own ctx.
+- Close review round 2: SHIP; its advisory (one pid-file loop left) swept as a class: `localcheck_run_process_test`
+  and `cli_signal_unix_test` (the reviewer-pid wait, with its exit check as the `stop` hook) now use
+  `testfix.AwaitPIDFile` too. Left alone on purpose: the signal test's helper/owner poll (a pid file plus a ticket
+  JSON) and the two-checkout lease test's wait (two pids plus two leases), which wait on more than one signal.
