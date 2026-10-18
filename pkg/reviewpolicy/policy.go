@@ -198,10 +198,21 @@ func (c Candidate) String() string {
 type Skip struct {
 	Agent  Agent
 	Reason string
-	// Policy marks a skip the policy made (the candidate shares the authors'
-	// family), which waiting does not cure, unlike a missing or failing CLI.
-	Policy bool
+	Cause  SkipCause
 }
+
+// SkipCause is why a candidate was skipped, which decides the remedy a refusal
+// names (#441): waiting cures an unavailable CLI, not a policy choice.
+type SkipCause int
+
+const (
+	// Unavailable: the CLI is missing, failed to launch, or cannot review here
+	// now. Retrying later may help.
+	Unavailable SkipCause = iota
+	// AuthorFamily: an explicit pair (or a session with no pair) maps to the
+	// authors' own family. Only reviewer_pairs, or naming an agent, helps.
+	AuthorFamily
+)
 
 // Availability reports, before launch, whether an agent can review here, and
 // why not when it cannot.

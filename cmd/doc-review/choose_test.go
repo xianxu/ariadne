@@ -225,15 +225,49 @@ func TestRunReviewForcedLaunchFailure(t *testing.T) {
 	}
 }
 
-// The refusal's remedy follows its skips: a policy skip is not cured by
-// waiting, a missing CLI is.
-func TestRefusalRemedyFollowsTheSkips(t *testing.T) {
-	policyOnly := (&reviewpolicy.NoReviewerError{Skips: []reviewpolicy.Skip{{Agent: AgentClaude, Reason: "shares", Policy: true}}}).Error()
-	if strings.Contains(policyOnly, "retry later") || !strings.Contains(policyOnly, "reviewer_pairs, or name one explicitly") {
-		t.Errorf("policy-only refusal %q", policyOnly)
+// Each cause of a refusal names its own remedy, and never one the effective
+// mode rejects (reviewer_pairs outside explicit).
+func TestRefusalRemedyFollowsTheCause(t *testing.T) {
+	all := func(reviewpolicy.Agent) (string, bool) { return "", true }
+	none := func(a reviewpolicy.Agent) (string, bool) { return string(a) + " is not on PATH", false }
+	pairs := func(m map[reviewpolicy.Agent]reviewpolicy.Agent) reviewpolicy.Policy {
+		return reviewpolicy.Policy{Mode: reviewpolicy.Explicit, Pairs: m}
 	}
-	transient := (&reviewpolicy.NoReviewerError{Skips: []reviewpolicy.Skip{{Agent: AgentCodex, Reason: "codex is not on PATH"}}}).Error()
-	if !strings.Contains(transient, "retry later, or name one explicitly") || strings.Contains(transient, "reviewer_pairs") {
-		t.Errorf("transient refusal %q", transient)
+	anth := []reviewpolicy.Family{reviewpolicy.Anthropic}
+	for _, tc := range []struct {
+		name      string
+		policy    reviewpolicy.Policy
+		authors   []reviewpolicy.Family
+		avail     reviewpolicy.Availability
+		want, not []string
+	}{
+		{"unavailable CLIs: retry later", reviewpolicy.Policy{}, anth, none,
+			[]string{"retry later, or name one explicitly"}, []string{"reviewer_pairs"}},
+		{"explicit pair into the author family: reviewer_pairs", pairs(map[reviewpolicy.Agent]reviewpolicy.Agent{AgentClaude: AgentClaude}), anth, all,
+			[]string{"reviewer_pairs, or name one explicitly"}, []string{"retry later"}},
+		{"other mode, every family authored: name one", reviewpolicy.Policy{Mode: reviewpolicy.Other},
+			[]reviewpolicy.Family{reviewpolicy.Anthropic, reviewpolicy.OpenAI, reviewpolicy.Google}, all,
+			[]string{"every family in reviewer_order is among the authors", "); name one explicitly"}, []string{"retry later", "reviewer_pairs"}},
+		{"unavailable and self-review: the policy cause", pairs(map[reviewpolicy.Agent]reviewpolicy.Agent{AgentCodex: AgentGemini}), anth, none,
+			[]string{"claude: shares the author family anthropic", "reviewer_pairs, or name one explicitly"}, []string{"retry later", "not on PATH"}},
+	} {
+		if err := tc.policy.Validate(); err != nil {
+			t.Fatalf("%s: the case's policy is invalid: %v", tc.name, err)
+		}
+		c := chooseReviewers(tc.policy, "", false, agentenv.Env{PairAgent: "claude"}, tc.authors, tc.avail)
+		if len(c.Candidates) != 0 {
+			t.Fatalf("%s: candidates %+v, want a refusal", tc.name, c.Candidates)
+		}
+		msg := (&reviewpolicy.NoReviewerError{Skips: c.Skips}).Error()
+		for _, w := range tc.want {
+			if !strings.Contains(msg, w) {
+				t.Errorf("%s: %q lacks %q", tc.name, msg, w)
+			}
+		}
+		for _, n := range tc.not {
+			if strings.Contains(msg, n) {
+				t.Errorf("%s: %q names %q", tc.name, msg, n)
+			}
+		}
 	}
 }

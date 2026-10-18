@@ -571,6 +571,154 @@ rounds:
       isolation: fenced
       reviewed: 208ed53a35799b810557fc46986d7ebbc659495f
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 24e3e023-f0ff-4989-a8e5-cd79a32cdb38
+            repository: github.com/xianxu/ariadne
+            issue_id: "000441"
+            recipe: milestone-review
+            round: 5
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/beea8d778a44af75
+            reviewed_head: b7c033ab62cfa957c71465574ff4aaa93a74468b
+            slot: ariadne:2
+            requested_at: "2026-10-18T18:17:29.807684Z"
+          phase: finished
+          pid: 10310
+          started_at: "2026-10-18T18:17:29.92047Z"
+          finished_at: "2026-10-18T18:18:53.05861Z"
+          session_id: 03d0af34-0961-492b-b5f0-da09d5190f05
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: b7c033ab62cfa957c71465574ff4aaa93a74468b
+        tracker_head: c5bc654a3c3906d0d5a8589cd8414418906c27e1
+        branch_point: 4c2fa13e834dfdf4caec56b2c47b864b5465cefe
+        since: "2026-10-18T09:10:46-07:00"
+        until: "2026-10-18T10:48:02-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T09:10:46-07:00"
+              end: "2026-10-18T10:48:02-07:00"
+              began: "2026-10-18T09:10:46-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 4945cf1c-b2de-4b88-8487-960125262396
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: bfd2a2a02db84fc7901f95f82e724d16044f613e3e25965fc5af0641a010abe9
+              started: "2026-10-18T16:13:07.152Z"
+              spawned: false
+              bytes: 540455
+              windows:
+                - start: "2026-10-18T16:13:07.152Z"
+                  end: "2026-10-18T10:48:02-07:00"
+            - harness: claude
+              id: 96feb223-0a1d-41a2-8c6b-18fb25b1e8b2
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: ade489c7ff729c62ba31b994f6802871c1ef39e98009ca682757e66f4736e55d
+              started: "2026-10-18T16:16:05.648Z"
+              spawned: false
+              bytes: 383034
+              windows:
+                - start: "2026-10-18T16:16:05.648Z"
+                  end: "2026-10-18T10:48:02-07:00"
+            - harness: claude
+              id: 99ead2dc-ffdc-4e2f-8618-76195520d5d3
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: c0666deb100115d75698688ba06499b1733b8839bcf0db3bfa61cc5854749768
+              started: "2026-10-18T16:14:46.747Z"
+              spawned: false
+              bytes: 499870
+              windows:
+                - start: "2026-10-18T16:14:46.747Z"
+                  end: "2026-10-18T10:48:02-07:00"
+            - harness: claude
+              id: d0a88980-85ac-4e44-a6cb-cfc8b055a1be
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: cd9d07196f3ec139376dc4c68d4eeae203fbf2cd7ab5520f6c3e4ba6dcc74d58
+              started: "2026-10-18T16:15:41.447Z"
+              spawned: false
+              bytes: 476863
+              windows:
+                - start: "2026-10-18T16:15:41.447Z"
+                  end: "2026-10-18T10:48:02-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: f5ebb78219742f86fb6725f3b3c3e9e4900924e44cef2866b641011a8f31aa60
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 195184182
+              windows:
+                - start: "2026-10-18T09:10:46-07:00"
+                  end: "2026-10-18T10:48:02-07:00"
+        queue_waits:
+            - attempt_id: dd86d2996958c8e19e84dd8b9c49ee61
+              slot: ariadne:2
+              record_digest: 88fa31cfbfa77f1a36dc434f4bfe5ef427dff08c61f6e632b59666f877c498f6
+              start: "2026-10-18T17:18:16.439065Z"
+              end: "2026-10-18T17:28:43.782497Z"
+              queue_seconds: 627.343432
+              raw_seconds: 627.343432
+              exact: true
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-18T09:23:57-07:00"
+              finalized: "2026-10-18T09:44:18-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T09:46:45-07:00"
+              finalized: "2026-10-18T10:09:30-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-18T10:14:35-07:00"
+              finalized: "2026-10-18T10:17:07-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-18T10:18:39-07:00"
+              finalized: "2026-10-18T10:20:20-07:00"
+              finalizing: true
+      "n": 5
+      timestamp: "2026-10-18T11:18:54-07:00"
+      dispatched: "2026-10-18T11:17:29-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-6
+          disposition: addressed
+          note: Choice.Refusal no longer exists in pkg/reviewpolicy/choice.go; grep finds only judge.Refusal (reviewchoice.go:67), so the alias cannot expose it.
+          round: 5
+        - id: BR-11
+          disposition: addressed
+          note: Skip.Policy is set by the never-self-review filter (choose.go:69), the remedy drops retry-later for policy-only skips, TestRefusalRemedyFollowsTheSkips pins it, help.md:27-29 updated; the empty-skips sibling is raised as a new finding.
+          round: 5
+      findings:
+        - kind: defect
+          id: BR-12
+          severity: Minor
+          title: An empty refusal under other mode recommends reviewer_pairs, which Validate rejects outside explicit mode
+          detail: 'This is the 3rd finding in family refusal-names-applicable-remedy. Earlier rounds fixed instances: a fixed sentence, then a single Policy boolean. Rule: every cause of refusal carries its own remedy, chosen by the cause together with the effective mode. Cause 1, a CLI that is unavailable: retry later. Cause 2, an explicit pair into the author family, or an unpaired session: fix reviewer_pairs. Cause 3, an other-mode plan that leaves no family (all families authored, or reviewer_order covers only author families): no config remedy except widening reviewer_order; name one explicitly. Cause 4, a skip for availability whose candidate would also have been policy-skipped: report the policy cause, not the transient one. Fix the rule: replace the Policy bool with a remedy or cause enum on Skip, plus an explicit cause for an empty plan. choice.go:68 currently sets policy=true when there are no skips. A probe in this checkout (chooseReviewers under Other with authors anthropic, openai and google) printed "pair this agent with another family in reviewer_pairs", and Policy{Mode: Other, Pairs: ...}.Validate() fails with "reviewer_pairs applies only to boundary_reviewer explicit". The same text reaches sdlc through judge.noReviewer. Add a table test that covers all four causes.'
+          family: refusal-names-applicable-remedy
+          round: 5
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: b7c033ab62cfa957c71465574ff4aaa93a74468b
+      blocked: false
 ---
 
 # Gate ledger — ariadne#441 (boundary-review)
@@ -635,7 +783,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-11** [Minor] `refusal-names-applicable-remedy` (kind: defect) A refusal caused by the never-self-review skip still advises retry later, though only a config change or a named agent can help
   This is the 2nd finding in family refusal-names-applicable-remedy. Rule: the remedy a NoReviewerError names comes from its skip reasons: transient skips (not on PATH, failed launch, usage limit) suggest retry later; policy skips (shares the author family) suggest fixing reviewer_pairs or naming an agent; forced failures return their own error. help.md:26-27 should also say that an explicit pair into the author's family, or an unpaired session, refuses.
 
+## Round 5 — 2026-10-18T11:18:54-07:00 (claude) — passed
+
+### Disposed
+
+- BR-6 — addressed — Choice.Refusal no longer exists in pkg/reviewpolicy/choice.go; grep finds only judge.Refusal (reviewchoice.go:67), so the alias cannot expose it.
+- BR-11 — addressed — Skip.Policy is set by the never-self-review filter (choose.go:69), the remedy drops retry-later for policy-only skips, TestRefusalRemedyFollowsTheSkips pins it, help.md:27-29 updated; the empty-skips sibling is raised as a new finding.
+
+### Raised
+
+- **BR-12** [Minor] `refusal-names-applicable-remedy` (kind: defect) An empty refusal under other mode recommends reviewer_pairs, which Validate rejects outside explicit mode
+  This is the 3rd finding in family refusal-names-applicable-remedy. Earlier rounds fixed instances: a fixed sentence, then a single Policy boolean. Rule: every cause of refusal carries its own remedy, chosen by the cause together with the effective mode. Cause 1, a CLI that is unavailable: retry later. Cause 2, an explicit pair into the author family, or an unpaired session: fix reviewer_pairs. Cause 3, an other-mode plan that leaves no family (all families authored, or reviewer_order covers only author families): no config remedy except widening reviewer_order; name one explicitly. Cause 4, a skip for availability whose candidate would also have been policy-skipped: report the policy cause, not the transient one. Fix the rule: replace the Policy bool with a remedy or cause enum on Skip, plus an explicit cause for an empty plan. choice.go:68 currently sets policy=true when there are no skips. A probe in this checkout (chooseReviewers under Other with authors anthropic, openai and google) printed "pair this agent with another family in reviewer_pairs", and Policy{Mode: Other, Pairs: ...}.Validate() fails with "reviewer_pairs applies only to boundary_reviewer explicit". The same text reaches sdlc through judge.noReviewer. Add a table test that covers all four causes.
+
 ## Open findings
 
-- **BR-6** [Minor] `move-preserves-contract` (kind: defect) reviewpolicy Choice.Refusal() stays callable through the judge.ReviewChoice alias and drops judge's refusal contract
-- **BR-11** [Minor] `refusal-names-applicable-remedy` (kind: defect) A refusal caused by the never-self-review skip still advises retry later, though only a config change or a named agent can help
+- **BR-12** [Minor] `refusal-names-applicable-remedy` (kind: defect) An empty refusal under other mode recommends reviewer_pairs, which Validate rejects outside explicit mode

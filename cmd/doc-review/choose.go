@@ -63,10 +63,21 @@ func chooseReviewers(policy reviewpolicy.Policy, explicit string, explicitSet bo
 	for _, f := range authors {
 		authored[f] = true
 	}
+	selfReview := func(a reviewpolicy.Agent) (reviewpolicy.Skip, bool) {
+		f := reviewpolicy.FamilyOf(string(a))
+		return reviewpolicy.Skip{Agent: a, Reason: "shares the author family " + string(f) + " (doc-review never self-reviews)", Cause: reviewpolicy.AuthorFamily}, authored[f]
+	}
+	// An unavailable candidate that would also self-review reports the policy
+	// cause: its CLI coming back would not make it eligible.
+	for i, s := range choice.Skips {
+		if ps, ok := selfReview(s.Agent); ok {
+			choice.Skips[i] = ps
+		}
+	}
 	var kept []reviewpolicy.Candidate
 	for _, c := range choice.Candidates {
-		if authored[c.Family] {
-			choice.Skips = append(choice.Skips, reviewpolicy.Skip{Agent: c.Agent, Reason: "shares the author family " + string(c.Family) + " (doc-review never self-reviews)", Policy: true})
+		if s, ok := selfReview(c.Agent); ok {
+			choice.Skips = append(choice.Skips, s)
 			continue
 		}
 		kept = append(kept, c)

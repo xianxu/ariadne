@@ -65,24 +65,21 @@ func (e *NoReviewerError) Error() string {
 	for _, s := range e.Skips {
 		parts = append(parts, fmt.Sprintf("%s: %s", s.Agent, s.Reason))
 	}
-	transient, policy := false, len(parts) == 0
+	// Each cause names its own remedy (#441); a refusal with no skips is a plan
+	// that left no family, which only naming an agent (or a wider
+	// reviewer_order, when one exists) can change.
+	causes := map[SkipCause]bool{}
 	for _, s := range e.Skips {
-		if s.Policy {
-			policy = true
-		} else {
-			transient = true
-		}
+		causes[s.Cause] = true
 	}
 	if len(parts) == 0 {
-		parts = append(parts, "the policy leaves no reviewer of another family")
+		parts = append(parts, "the policy leaves no reviewer of another family: every family in reviewer_order is among the authors")
 	}
-	// The remedy follows the skips: waiting cures an unavailable CLI, not the
-	// policy (#441).
 	var remedies []string
-	if transient {
+	if causes[Unavailable] {
 		remedies = append(remedies, "retry later")
 	}
-	if policy {
+	if causes[AuthorFamily] {
 		remedies = append(remedies, "pair this agent with another family in reviewer_pairs")
 	}
 	remedy := "name one explicitly (recorded as degraded)"
