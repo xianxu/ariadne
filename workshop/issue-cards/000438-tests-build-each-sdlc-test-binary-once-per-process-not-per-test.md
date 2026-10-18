@@ -1,6 +1,6 @@
 ---
 id: 000438
-status: working
+status: codecomplete
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.45
+tracker:
+    version: 1
+    completion:
+        token: close-bf4b3be77136
+        repository: github.com/xianxu/ariadne
+        reviewed_head: f2f3d2ebb4f7cfab41bfbcaf229af02b3f786c11
+        evidence_commit: 66731214feaba7fdbe12c7e56428d0b4da2959d9
 ---
 
 # tests: build each sdlc test binary once per process, not per test
