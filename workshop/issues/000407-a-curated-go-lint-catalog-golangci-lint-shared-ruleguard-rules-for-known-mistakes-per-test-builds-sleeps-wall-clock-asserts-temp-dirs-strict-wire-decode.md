@@ -1,12 +1,12 @@
 ---
 id: 000407
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-15
 updated: 2026-10-18
 estimate_hours:
-card_mirror: 'b4f74ca3aac983e1a89d5337da25aca03516793b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5c1ee1a9cad85b794ec38c13a1190684b211ea80' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-18T00:13:46-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.21
 ---
 
 # A curated Go lint catalog: golangci-lint + shared ruleguard rules for known mistakes (per-test builds, sleeps, wall-clock asserts, temp dirs, strict wire decode)
