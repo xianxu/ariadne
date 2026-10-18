@@ -192,6 +192,7 @@ func TestReviewerRecordRoundTrip(t *testing.T) {
 		}
 	}
 }
+
 // ReviewerEntry is one parsed Review-Reviewer trailer.
 type ReviewerEntry struct {
 	Agent, Model string
@@ -241,4 +242,3 @@ func TallyReviewers(values []string) map[string]int {
 	}
 	return out
 }
-
