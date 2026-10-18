@@ -1,12 +1,20 @@
 ---
 id: 000407
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-15
-updated: 2026-10-15
+updated: 2026-10-18
 estimate_hours:
-card_mirror: '879bbde2fe48e92ef634ffa0fd1a9e3daf61091b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b4f74ca3aac983e1a89d5337da25aca03516793b' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-18T00:13:46-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # A curated Go lint catalog: golangci-lint + shared ruleguard rules for known mistakes (per-test builds, sleeps, wall-clock asserts, temp dirs, strict wire decode)
@@ -40,8 +48,15 @@ Operator (2026-10-15): "we need to curate a list of 'stupid mistakes'". Part of 
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000407-a-curated-go-lint-catalog-plan.md` (engine, seed rules, sweep, follow-ups; three
+deviations from the Spec are listed there for approval).
+
+- [ ] Tasks 1–6 of the durable plan
 
 ## Log
 
 ### 2026-10-15
+
+### 2026-10-18
+
+- Claimed by ariadne:2; plan drafted and sent to the hub before code.
