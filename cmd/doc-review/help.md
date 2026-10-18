@@ -24,8 +24,9 @@ WHO REVIEWS (#441, the reviewer policy sdlc uses, #409)
   doc-review never reviews a document with its author's own family: a second
   vendor is its whole purpose, so a repo's boundary_reviewer "same" (or no
   workshop/review.json) counts as "other" here. "explicit" reviewer_pairs are
-  honored, and reviewer_order / reviewer_models apply. AGENT_CMD (sdlc's judge
-  override) is ignored.
+  honored, and reviewer_order / reviewer_models apply; but an explicit pair into
+  the author's family, or a session agent with no pair, refuses rather than
+  self-reviewing. AGENT_CMD (sdlc's judge override) is ignored.
 
   A reviewer whose CLI is missing or fails to launch is skipped with a
   "[!] reviewer … unavailable" line and the next one runs. With no reviewer of

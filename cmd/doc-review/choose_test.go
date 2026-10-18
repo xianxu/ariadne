@@ -224,3 +224,16 @@ func TestRunReviewForcedLaunchFailure(t *testing.T) {
 		t.Fatalf("err %v", err)
 	}
 }
+
+// The refusal's remedy follows its skips: a policy skip is not cured by
+// waiting, a missing CLI is.
+func TestRefusalRemedyFollowsTheSkips(t *testing.T) {
+	policyOnly := (&reviewpolicy.NoReviewerError{Skips: []reviewpolicy.Skip{{Agent: AgentClaude, Reason: "shares", Policy: true}}}).Error()
+	if strings.Contains(policyOnly, "retry later") || !strings.Contains(policyOnly, "reviewer_pairs, or name one explicitly") {
+		t.Errorf("policy-only refusal %q", policyOnly)
+	}
+	transient := (&reviewpolicy.NoReviewerError{Skips: []reviewpolicy.Skip{{Agent: AgentCodex, Reason: "codex is not on PATH"}}}).Error()
+	if !strings.Contains(transient, "retry later, or name one explicitly") || strings.Contains(transient, "reviewer_pairs") {
+		t.Errorf("transient refusal %q", transient)
+	}
+}

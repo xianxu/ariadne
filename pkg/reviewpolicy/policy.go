@@ -198,6 +198,9 @@ func (c Candidate) String() string {
 type Skip struct {
 	Agent  Agent
 	Reason string
+	// Policy marks a skip the policy made (the candidate shares the authors'
+	// family), which waiting does not cure, unlike a missing or failing CLI.
+	Policy bool
 }
 
 // Availability reports, before launch, whether an agent can review here, and

@@ -65,11 +65,31 @@ func (e *NoReviewerError) Error() string {
 	for _, s := range e.Skips {
 		parts = append(parts, fmt.Sprintf("%s: %s", s.Agent, s.Reason))
 	}
+	transient, policy := false, len(parts) == 0
+	for _, s := range e.Skips {
+		if s.Policy {
+			policy = true
+		} else {
+			transient = true
+		}
+	}
 	if len(parts) == 0 {
 		parts = append(parts, "the policy leaves no reviewer of another family")
 	}
-	return "review did not run: no reviewer available (" + strings.Join(parts, "; ") +
-		"); retry later, or name one explicitly (recorded as degraded)"
+	// The remedy follows the skips: waiting cures an unavailable CLI, not the
+	// policy (#441).
+	var remedies []string
+	if transient {
+		remedies = append(remedies, "retry later")
+	}
+	if policy {
+		remedies = append(remedies, "pair this agent with another family in reviewer_pairs")
+	}
+	remedy := "name one explicitly (recorded as degraded)"
+	if len(remedies) > 0 {
+		remedy = strings.Join(remedies, ", ") + ", or " + remedy
+	}
+	return "review did not run: no reviewer available (" + strings.Join(parts, "; ") + "); " + remedy
 }
 func (e *NoReviewerError) Unwrap() error { return ErrNoReviewer }
 

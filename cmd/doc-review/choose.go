@@ -66,7 +66,7 @@ func chooseReviewers(policy reviewpolicy.Policy, explicit string, explicitSet bo
 	var kept []reviewpolicy.Candidate
 	for _, c := range choice.Candidates {
 		if authored[c.Family] {
-			choice.Skips = append(choice.Skips, reviewpolicy.Skip{Agent: c.Agent, Reason: "shares the author family " + string(c.Family) + " (doc-review never self-reviews)"})
+			choice.Skips = append(choice.Skips, reviewpolicy.Skip{Agent: c.Agent, Reason: "shares the author family " + string(c.Family) + " (doc-review never self-reviews)", Policy: true})
 			continue
 		}
 		kept = append(kept, c)
