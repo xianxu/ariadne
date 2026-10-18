@@ -1,6 +1,7 @@
 package testfix
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -32,18 +33,34 @@ var built struct {
 	entries map[string]*builtEntry
 }
 
+// buildTimeout bounds one build, so a hung compiler fails its callers
+// instead of running to the test binary's own -timeout.
+const buildTimeout = 5 * time.Minute
+
 // buildCommand runs the build; tests replace it to count or fail builds.
 var buildCommand = func(dir string, args ...string) ([]byte, error) {
 	cmd := exec.Command("go", args...)
 	cmd.Dir = dir
-	return cmd.CombinedOutput()
+	var out bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &out
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	timer := time.AfterFunc(buildTimeout, func() { _ = cmd.Process.Kill() })
+	err := cmd.Wait()
+	if !timer.Stop() {
+		err = fmt.Errorf("build exceeded %s: %w", buildTimeout, err)
+	}
+	return out.Bytes(), err
 }
 
 // BuiltBinary returns the binary `go build <flags> <pkg>` produces in dir,
 // building it at most once per test process (#438): every caller with the same
 // dir, package and flags shares one build, so a suite builds a binary once per
 // process instead of once per test. A failed build fails every caller with the
-// same error. The binary is named after the package's directory.
+// same error. The binary is named after the package's directory. The build
+// runs once, under the first caller's environment (HOME, GOFLAGS, PATH); a
+// test that needs a differently built binary passes different flags.
 func BuiltBinary(t testing.TB, dir, pkg string, flags ...string) string {
 	t.Helper()
 	abs, err := filepath.Abs(dir)

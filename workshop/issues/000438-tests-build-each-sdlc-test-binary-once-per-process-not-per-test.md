@@ -27,8 +27,6 @@ Six cmd/sdlc tests run `go build` for their own sdlc binary, a compile per test 
 
 ## Spec
 
-## Spec
-
 **Measured (2026-10-18, ariadne:2):** the binary-building tests were run as a compiled test binary with logging
 `go`/`make` wrappers first on PATH. Running them under `go test` doesn't work: it puts `$GOROOT/bin` first on PATH,
 so the wrappers are bypassed. Result: **18 `go build -o` runs of sdlc, 17.2 MB each, 310 MB of output per suite**,
@@ -65,11 +63,7 @@ at most once per test process and hands every caller the same path.
 - [x] Move the 6 build sites and 2 `go run` calls to it; drop the 6 suppressions
 - [x] Re-measure builds and bytes with the wrapper method; record before/after in Log
 
-- [ ]
-
 ## Log
-
-### 2026-10-18
 
 ### 2026-10-18
 
@@ -83,3 +77,7 @@ at most once per test process and hands every caller the same path.
   `go run` (310 MB of binaries); after, 1 sdlc build plus 1 vocabulary build (20.9 MB). No `sdlc-testbin-*` directory
   is left after the process exits. In the 12-shard suite the bound is one build per package per shard that runs
   such a test.
+- Close review round 1 (FIX-THEN-SHIP): BR-1 adds an atlas paragraph next to the other testfix conventions. Minors
+  fixed in the round: the `test-go-build` message names `testfix.BuiltBinary`; builds have a 5-minute bound again
+  (the weave site had one); the doc comment says a build runs under the first caller's environment; a test covers
+  two spellings of one directory sharing a build. Tidied the issue file's duplicate headings and empty plan item.

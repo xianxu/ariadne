@@ -1893,6 +1893,14 @@ fire before the fixture reports its pid (#434). Hand the code under test
 readiness; the code's own `WithTimeout` then sees a real `DeadlineExceeded`. Where
 the deadline lives in a child process, gate the fixture on a FIFO the test releases.
 
+A test that needs a built binary (an end-to-end run of `sdlc`, `weave` or a vocabulary
+tool) calls `testfix.BuiltBinary(t, dir, pkg, flags...)`, never `go build` itself (#438;
+the `test-go-build` lint rule enforces it). It builds each package and flag set once per
+test process, under a 5-minute bound, into an `sdlc-testbin-*` directory under TMPDIR that
+the package's TestMain removes with `testfix.RemoveBuiltBinaries()` after `m.Run`; the next
+process sweeps any such directory a killed run left behind after 24 h. Measured on the
+end-to-end tests: 18 builds (310 MB of binaries) became 2 (20.9 MB).
+
 ### The Go lint catalog (#407)
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident

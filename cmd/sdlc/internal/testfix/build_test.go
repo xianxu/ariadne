@@ -54,6 +54,14 @@ func TestBuiltBinaryBuildsOncePerProcess(t *testing.T) {
 	if filepath.Base(paths[0]) != filepath.Base(dir) {
 		t.Errorf("binary %s is not named after its package", paths[0])
 	}
+	// Spellings of one directory share the build.
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := BuiltBinary(t, abs+"/", "."); p != paths[0] || n.Load() != 1 {
+		t.Errorf("an absolute spelling of the same directory built again: %s (builds %d)", p, n.Load())
+	}
 	// Another package or other flags are another build.
 	BuiltBinary(t, dir, "./cmd/x")
 	BuiltBinary(t, dir, ".", "-trimpath")
