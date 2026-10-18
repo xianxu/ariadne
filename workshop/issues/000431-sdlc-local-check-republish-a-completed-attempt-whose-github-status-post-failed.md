@@ -100,3 +100,6 @@ later, and merge reusing a saved green attempt before it reruns anything.
   `TestLocalCheckRunnerReusesSavedPass` (pass reused without rerun; failure rerun).
 - A broad targeted run hit `TestLocalCheckSignalCancelsQueuedHelper/terminated/cleanup` ("cleanup never reached its
   blocked Git seam") under load; 3/3 alone. Second sighting (first during #424), so filed as flake #434, unclaimed.
+- 30-minute direct probe (unsandboxed curl to api.github.com/rate_limit every 15 s, 18:40–19:10 PT): 119/119 returned
+  200, max 0.15 s. Outages are intermittent episodes (this slot's were ~16:20–16:50 PT), duration unmeasured; the hub
+  declined a standing probe since #431 makes an outage cheap whatever its length.
