@@ -1,6 +1,6 @@
 ---
 id: 000440
-status: codecomplete
+status: done
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: a35fbd0b408119d01476b230a632d2fff0219fde
         evidence_commit: 18e5ccc97f4796f7666a37a359101b96f764182b
+        landed_commit: 846e3aba1e0e5f7b1161ae81c40c03b3cf2c3be6
 ---
 
 # lint: a wire-message annotation and a rule against strict decoding into wire types
