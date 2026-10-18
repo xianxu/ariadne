@@ -47,11 +47,13 @@ The TL brings user-facing tradeoffs to the operator before code. Phrase-guarded 
 
 - [x] Add phrase guards first in both help tests for the shared state-design table, one worked example, and TL/operator escalation; confirm they fail against current help.
 - [x] Add a compact table template and example to `pkg/tlrules/planning.md`, which both binaries embed via `{{PLANNING}}`. Require action enumeration, reachable internal and failure combinations mapped to few visible states, one listed recovery per visible state, possible loss, and covered/uncovered tradeoffs sent to TL (operator for user-facing effects).
-- [ ] Run focused tests and verify both built help outputs; record the exact-head suite, close review, and merge through the normal gates.
+- [x] Run focused tests and verify both built help outputs; record the exact-head suite and submit to close review and merge through the normal gates.
 - [x] Side quest from the hub: test and correct `tl-lead` WATCHING's event list to pair#574's actual start, park, relaunch, recovery, needs-relaunch, and restart-summary notices, excluding exit until pair#657. Commit this correction separately.
 
 ## Log
 
+
+- 2026-10-17: closed — Both help rule sets failed against old planning prose, then focused tests and make -k build passed; built worker and lead help show the compact table/example; side-quest test caught and corrected premature exit notice; exact-head sdlc-local/suite passed on 64fb664c8382195a5e9755955523d5ef56780c4d (12 shards, zero failures).; review verdict: SHIP
 ### 2026-10-16
 
 2026-10-17: The shared `pkg/tlrules/planning.md` is the one rule source for both help surfaces (ARCH-DRY); `cmd/tl-worker/testdata/rules.tsv` and `cmd/tl-lead/main_test.go` guard their rendered outputs. A separate help paragraph per role would drift. The small worked example will be a check process that dies after starting: visible state “needs retry,” recovery “rerun the exact head,” possible loss “partial output if not saved.” The added #433 event-list correction is tracked as a side quest and will get its own commit.
@@ -59,6 +61,8 @@ The TL brings user-facing tradeoffs to the operator before code. Phrase-guarded 
 The hub approved the plan with the table held to about ten lines plus the example so workers will read it.
 
 Both new help-output rule sets failed against the old shared planning prose, then passed after the ten-line table and example were added. The side-quest test separately failed on the premature exit wording, then passed after the event list and atlas were corrected. `go test ./cmd/tl-lead ./cmd/tl-worker ./pkg/tlrules -count=1` passed.
+
+`make -k build` passed, and the built worker and lead help both print the shared table and example; built lead help prints the corrected notice list. PR #293 opened as a draft while the full suite queued. `sdlc-local/suite` passed on 64fb664c8382195a5e9755955523d5ef56780c4d: 12 shards, 1584 sdlc tests, 67 other packages, zero failures (log sha256:b520c57f74be).
 
 ## Side quests
 
