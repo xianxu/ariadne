@@ -1,6 +1,6 @@
 ---
 id: 000437
-status: codecomplete
+status: done
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 67ca24ea443cd3d8628bf7a32aba4980f2bd11b6
         evidence_commit: 22887b2d5f23587489792eec982003d7da6dee43
+        landed_commit: 445d8589f0513fd88fdd9c8d4051a6882e789db8
 ---
 
 # xx-universal-review edits through couch --session-sync apply; retire deletions: propose-strike
