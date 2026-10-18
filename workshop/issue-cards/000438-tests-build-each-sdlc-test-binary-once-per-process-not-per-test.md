@@ -1,6 +1,6 @@
 ---
 id: 000438
-status: codecomplete
+status: done
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: f2f3d2ebb4f7cfab41bfbcaf229af02b3f786c11
         evidence_commit: 66731214feaba7fdbe12c7e56428d0b4da2959d9
+        landed_commit: f44a0ea9f8b371d761b55a3ea3621638612e1702
 ---
 
 # tests: build each sdlc test binary once per process, not per test
