@@ -34,6 +34,10 @@ tripwire and the owner-lifetime lock/lease question before an absence proof.
 The shared body is embedded from `pkg/tlrules/planning.md` and composed into
 both command helps by `tlrules.ComposeHelp`. Existing help tests phrase-guard
 both outputs (ariadne#404).
+For state that a user or automation can act on, that shared body also requires
+an action and failure-mode table: internal cases map to a few visible states,
+each with one recovery and stated possible loss; the tradeoff goes to the TL,
+then to the operator when user-facing (ariadne#410).
 
 **Approval and dispatch boundary.** Worker help owns small-fix self-approval,
 issue-backed flake handling, Git-output hash evidence and direct same-repo

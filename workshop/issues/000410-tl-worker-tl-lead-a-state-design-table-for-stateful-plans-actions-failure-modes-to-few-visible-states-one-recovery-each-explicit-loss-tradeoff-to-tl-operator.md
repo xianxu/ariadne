@@ -45,10 +45,10 @@ The TL brings user-facing tradeoffs to the operator before code. Phrase-guarded 
 
 ## Plan
 
-- [ ] Add phrase guards first in both help tests for the shared state-design table, one worked example, and TL/operator escalation; confirm they fail against current help.
-- [ ] Add a compact table template and example to `pkg/tlrules/planning.md`, which both binaries embed via `{{PLANNING}}`. Require action enumeration, reachable internal and failure combinations mapped to few visible states, one listed recovery per visible state, possible loss, and covered/uncovered tradeoffs sent to TL (operator for user-facing effects).
+- [x] Add phrase guards first in both help tests for the shared state-design table, one worked example, and TL/operator escalation; confirm they fail against current help.
+- [x] Add a compact table template and example to `pkg/tlrules/planning.md`, which both binaries embed via `{{PLANNING}}`. Require action enumeration, reachable internal and failure combinations mapped to few visible states, one listed recovery per visible state, possible loss, and covered/uncovered tradeoffs sent to TL (operator for user-facing effects).
 - [ ] Run focused tests and verify both built help outputs; record the exact-head suite, close review, and merge through the normal gates.
-- [ ] Side quest from the hub: test and correct `tl-lead` WATCHING's event list to pair#574's actual start, park, relaunch, recovery, needs-relaunch, and restart-summary notices, excluding exit until pair#657. Commit this correction separately.
+- [x] Side quest from the hub: test and correct `tl-lead` WATCHING's event list to pair#574's actual start, park, relaunch, recovery, needs-relaunch, and restart-summary notices, excluding exit until pair#657. Commit this correction separately.
 
 ## Log
 
@@ -57,3 +57,9 @@ The TL brings user-facing tradeoffs to the operator before code. Phrase-guarded 
 2026-10-17: The shared `pkg/tlrules/planning.md` is the one rule source for both help surfaces (ARCH-DRY); `cmd/tl-worker/testdata/rules.tsv` and `cmd/tl-lead/main_test.go` guard their rendered outputs. A separate help paragraph per role would drift. The small worked example will be a check process that dies after starting: visible state “needs retry,” recovery “rerun the exact head,” possible loss “partial output if not saved.” The added #433 event-list correction is tracked as a side quest and will get its own commit.
 
 The hub approved the plan with the table held to about ten lines plus the example so workers will read it.
+
+Both new help-output rule sets failed against the old shared planning prose, then passed after the ten-line table and example were added. The side-quest test separately failed on the premature exit wording, then passed after the event list and atlas were corrected. `go test ./cmd/tl-lead ./cmd/tl-worker ./pkg/tlrules -count=1` passed.
+
+## Side quests
+
+- Correct pair#574 lifecycle notice list before exit ships in pair#657 — commit 3bbce8666ac8edd79c22855d2de5cefe3e9b0396.
