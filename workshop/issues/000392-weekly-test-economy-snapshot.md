@@ -1,12 +1,20 @@
 ---
 id: 000392
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-15
-updated: 2026-10-15
+updated: 2026-10-17
 estimate_hours:
-card_mirror: 'f1d5a7acac6ac47c94c4830a0bf81dfbb59f01c1' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '43f465e35c614cc4ba1092fa808abd432789a32d' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-17T21:39:59-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Weekly test-economy snapshot from local checks and landings
@@ -28,11 +36,14 @@ Produce one dated, immutable weekly per-repo summary from #376's per-attempt loc
 
 ## Plan
 
-- [ ] Design the evidence join and snapshot schema under #390's approved measurement revision.
-- [ ] Build and test the producer, then save and link the first snapshot.
+- [ ] Design the evidence join and snapshot schema in `workshop/plans/000392-weekly-test-economy-snapshot-plan.md` under #390's approved measurement revision; obtain hub approval before code.
+- [ ] Build the pure weekly model and exact attempt-to-landing join with fixture-backed red/green tests.
+- [ ] Add the brain writer and CLI, test immutable reruns and partial evidence, then save the first ariadne/pair snapshot and give its link to the TL for the ops project.
 
 ## Log
 
 ### 2026-10-15
 
 Filed from #390's operator-approved test-economy design. This precedes #328 and any package-budget declaration.
+
+2026-10-17: The hub directed this slot to build #392 before dependent #402. Existing `sdlc test-stats` and per-attempt records supply suite, queue, package and failure inputs; tracker completion bindings and the landing-line event log supply a confirmed landed issue and admission window. The initial snapshot will preserve coverage unknowns for pre-#376 legacy logs and any missing admission or Git ancestry instead of assigning them by date alone (ARCH-PURPOSE, ARCH-ORDER).
