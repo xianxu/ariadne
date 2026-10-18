@@ -1,6 +1,6 @@
 ---
 id: 000432
-status: codecomplete
+status: done
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 729a94cb9085c92ca720ae502bfbec0dae25e015
         evidence_commit: 98b187bd3571645a0dd7a5926dac56225b2e2fa4
+        landed_commit: 4564729990a573030a7f07f896e027dda43a322d
 ---
 
 # tl-worker: an early draft PR for CI overlap needs no hub approval
