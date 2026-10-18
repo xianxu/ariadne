@@ -9,6 +9,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
@@ -20,7 +21,7 @@ type localCheckFlags struct {
 	Rev   string
 }
 
-// NewLocalCheckCmd is `sdlc local-check`; its one verb is `run`.
+// NewLocalCheckCmd is `sdlc local-check`: `run`, and `cancel` (#400).
 func NewLocalCheckCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "local-check", Args: cobra.NoArgs}
 	var f localCheckFlags
@@ -37,8 +38,41 @@ func NewLocalCheckCmd() *cobra.Command {
 	run.Flags().StringSliceVar(&f.Names, "name", nil, "declared check(s) to run (repeatable)")
 	run.Flags().BoolVar(&f.All, "all", false, "run every declared check, in declaration order")
 	run.Flags().StringVar(&f.Rev, "rev", "HEAD", "the commit to run on; it must be the tip of a branch on origin (a pushed PR head)")
-	cmd.AddCommand(run)
+	var cancelName string
+	cancel := &cobra.Command{
+		Use:           "cancel",
+		Short:         "Stop this checkout's running local checks (never another slot's)",
+		Long:          renderLong("local-check"),
+		Args:          cobra.NoArgs,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runLocalCheckCancel(cmd.ErrOrStderr(), cancelName)
+		},
+	}
+	cancel.Flags().StringVar(&cancelName, "name", "", "stop only this check (default: every check this checkout runs)")
+	cmd.AddCommand(run, cancel)
 	return cmd
+}
+
+// localCheckCancelWait bounds how long cancel waits for a stopped run to unwind.
+const localCheckCancelWait = 2 * time.Minute
+
+// runLocalCheckCancel stops the runs this checkout started, found by their
+// leases (#400): never a process picked from the global process table.
+func runLocalCheckCancel(stderr io.Writer, name string) error {
+	root, err := gitx.RepoTopLevel()
+	if err != nil {
+		return err
+	}
+	logDir, err := localCheckLogDir(localRunDeps{Root: root, Git: func(args ...string) (string, error) {
+		out, err := mergeRunner.GitInDir(root, args...)
+		return string(out), err
+	}})
+	if err != nil {
+		return err
+	}
+	_, err = cancelLocalChecks(localCheckRunsDir(logDir), root, name, stderr, localCheckCancelWait)
+	return err
 }
 
 // selectLocalChecks picks the checks a run names, refusing an unknown name.

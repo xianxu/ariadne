@@ -7,6 +7,7 @@ permissions-ask	own	visible window, touch the :0 slot
 early-draft-pr	own	an early draft PR for CI overlap needs no hub approval
 early-draft-gates	own	close review, and `sdlc merge` gates still precede landing
 known-failure	own	`make -k`
+cancel-own-check	own	`sdlc local-check cancel`
 real-hashes	own	`git rev-parse`
 project-file	own	The TL owns the project file
 filing	own	`sdlc unclaim --issue N`

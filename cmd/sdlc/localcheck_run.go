@@ -107,6 +107,18 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	// Git/network preparation and bookkeeping retain default termination.
 	ownedCtx, stopSignals := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stopSignals()
+	// The lease (#400) spans exactly the stretch where SIGTERM is ours, so
+	// `local-check cancel` always lands on the managed interruption path.
+	pidStarted, _ := processStartTime(os.Getpid())
+	lease := runLease{Root: canonicalRoot(d.Root), Check: c.Name, SHA: sha, PID: os.Getpid(), PIDStarted: pidStarted, Started: time.Now().UTC()}
+	runsDir := localCheckRunsDir(logDir)
+	sweepStaleRunLeases(runsDir)
+	releaseLease, err := holdRunLease(runsDir, lease)
+	if err != nil {
+		releaseLease = func() {}
+		fmt.Fprintf(d.Stderr, "[!] local check %s: no run lease, so `sdlc local-check cancel` cannot find this run: %v\n", c.Name, err)
+	}
+	defer releaseLease()
 	heldBy, release, err := acquireSuiteSlot(ownedCtx, d, wt, c.Weight, helper)
 	if err != nil {
 		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
@@ -148,6 +160,9 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	// watcher frees it on the holder's exit (at once with kqueue, within its
 	// 0.5 s poll elsewhere).
 	release()
+	// Signal ownership ends here, so the lease does too: a cancel waiting on it
+	// returns once the check has stopped and its slot is freed.
+	releaseLease()
 	interrupted := ownedCtx.Err() // stopSignals itself cancels ownedCtx.
 	stopSignals()
 	rec.Duration = time.Since(start)
@@ -324,6 +339,9 @@ func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight in
 	cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
 	cmd.WaitDelay = time.Second
 	cmd.Dir = dir
+	// The run's worktree is a temp directory; name the owning checkout in the
+	// slot record so the queue's held-by lines identify the slot (#400).
+	cmd.Env = append(os.Environ(), "WF_TEST_LOCK_OWNER="+d.Root)
 	cmd.Stderr = d.Stderr
 	out, err := cmd.Output()
 	state := strings.TrimSpace(string(out))
