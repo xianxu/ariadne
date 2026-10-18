@@ -64,7 +64,7 @@ version-pinned persisted contracts where strict decode is intentional.
 - [x] Approve the durable plan and pass `sdlc change-code`.
 - [x] Add the red lint fixtures, implement the pure index and decoder matcher,
   and annotate Ariadne's current tolerant input types.
-- [ ] Update atlas, run focused tests and `make -k`, and record the pushed-head
+- [x] Update atlas, run focused tests and `make -k`, and record the pushed-head
   suite for close.
 
 Then close and land on SHIP.
@@ -87,6 +87,13 @@ Then close and land on SHIP.
   331 ms in a measured run. `make -k tools` built all six tools, and
   `git diff --check` passed. The index's counted N=8 and 2N=16 fixture
   confirms one file and one type-declaration visit per fixture file.
+- PR #304 is on pushed head `1d23973db231db212070027117c9a5f96438546e`.
+  `sdlc local-check run --name suite` passed on that head: all 12 SDLC
+  shards, 1,642 `cmd/sdlc` tests, and 68 other packages; zero failures,
+  620.3 s suite wall. Saved log:
+  `/Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/1d23973db231db212070027117c9a5f96438546e/suite.log`
+  (SHA-256 prefix `a48425cc3d24`). CI `merge-check` and
+  `local-gates-guard` passed on the PR head.
 
 ## Revisions
 

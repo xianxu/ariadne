@@ -118,7 +118,7 @@ named above.
 - [x] Explain when to mark a type, the direct-chain coverage boundary, why
   local/versioned stores stay strict, and how to suppress a proven exception.
   Run `go test ./pkg/golint -count=1`, `make -k tools`, and `git diff --check`.
-- [ ] Push the issue head through `sdlc pr`, then run
+- [x] Push the issue head through `sdlc pr`, then run
   `sdlc local-check run --name suite` on that head. Record exact head, log and
   result in the issue Log.
 
