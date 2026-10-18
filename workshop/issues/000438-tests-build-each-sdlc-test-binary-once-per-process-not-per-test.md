@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "6e340b9c", done: "4ee7ab6b"}
 ---
 
 # tests: build each sdlc test binary once per process, not per test
