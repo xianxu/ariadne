@@ -172,6 +172,10 @@ Then close and land on SHIP.
 
 ## Revisions
 
+- 2026-10-18, close review round 6: BR-5 found direct `Decode` calls skipped
+  in `var` initializers. The durable plan now covers unconditional direct
+  calls in declaration initializers and every assignment RHS, with equivalent
+  forms and a pre-strictness control tested before the fix.
 - 2026-10-18, close review round 5: BR-2 showed that a package-global
   decoder can be replaced by a helper between strictness and Decode. The
   durable plan now requires a function-local declaration for eligibility and

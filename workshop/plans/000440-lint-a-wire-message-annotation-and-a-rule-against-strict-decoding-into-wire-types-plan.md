@@ -211,3 +211,15 @@ to the hub. The TL owns any project update.
   another file, plus a local decoder that shadows a global and remains a
   positive finding. The tempting alternative is to track global writes
   across call graphs; that cannot be proven by this syntax-only bounded rule.
+- 2026-10-18, close review round 6, direct-call coverage: BR-5 found that a
+  direct `Decode` in a `var` initializer is skipped while the equivalent
+  short declaration is checked. Treat direct call expressions in the
+  function's unconditional declaration initializers and assignment RHS as
+  calls, checking them before each statement changes binding provenance.
+  Preserve the already supported expression statement, return value, and
+  `if` initializer positions; do not infer calls inside nested expressions
+  or conditional branches. Red fixtures cover inferred, typed, and grouped
+  `var` declarations, multiple RHS assignments, an already-supported short
+  declaration control, and a call before strictness as a no-finding control.
+  One direct-call check shared by these positions avoids syntax-dependent
+  answers for equivalent statements.

@@ -462,3 +462,98 @@ Done-when: current — it still covers the annotation, four existing types, docu
    Append a `## Revisions` entry defining “local decoder” as a binding declared within the inspected function. Record the global-binding exclusion and regression matrix; the existing single-owner claim is currently stronger than its enforcement.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"d98742e5-d605-4956-97b9-4d3776435e53","repository":"github.com/xianxu/ariadne","issue_id":"000440","recipe":"milestone-review","round":5,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/07b900c5f9e838f4","reviewed_head":"ae9feba152a8b629675f674bd5a754a9fef0bfac","slot":"ariadne:1","requested_at":"2026-10-18T15:48:25.369234Z"},"phase":"finished","pid":43031,"started_at":"2026-10-18T15:48:25.456178Z","finished_at":"2026-10-18T15:50:11.056506Z","session_id":"01a14fb3-2fd3-7522-a7e3-fe2005df4d10","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T09:29:49-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 440 — lint: a wire-message annotation and a rule against strict decoding into wire types |
+| repo | ariadne |
+| issue file | workshop/issues/000440-lint-a-wire-message-annotation-and-a-rule-against-strict-decoding-into-wire-types.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 3ba12c88814b92d93a6e30300fc8061940382d14..2e2af4e0e8d9645aaa8009e78608abdd8ff5aded |
+| command | sdlc close --issue 440 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-18T09:29:49-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-2 is addressed with meaningful regression coverage. The shared source index, annotations, and documentation match the intended design. One blocking gap remains: direct strict decodes in `var` initializers bypass the rule, despite having the same proven decoder and target as supported short declarations.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Pointer-overwrite and global-reset regressions pass at HEAD and fail when the corresponding protections are removed in disposable copies.
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Target-rebinding and interface fixtures pass; removing target invalidation makes direct, multiple, conditional, and range-rebinding regressions fail.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README.md:11 now documents the wire annotation syntax, independently evolving producers, local-store exclusion, and atlas link, consistent with the matcher and atlas.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Module-root default-name and alias fixtures pass and both fail when exact-module import resolution is removed.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: wire-direct-call-coverage
+    title: |
+      Direct Decode calls in variable initializers bypass the rule
+    detail: |
+      pkg/golint/wire.go:143-161 processes declaration bindings without checking initializer calls. With an annotated Peer, `d := json.NewDecoder(r); d.DisallowUnknownFields(); var m Peer; var err = d.Decode(&m); return err` produces no finding, while changing only `var err =` to `err :=` produces one. Typed and grouped var declarations also bypass detection. ARCH-PURPOSE: enumerate supported unconditional expression positions, check direct Decode calls consistently before applying binding changes, and add regression fixtures for all declaration forms.
+```
+
+Done-when: current — its direct strict-decoding requirement covers this gap; the ownership revisions refine conservative provenance without changing the completion criteria.
+
+1. **Strengths**
+   - `CheckSources` parses each source once and shares one index across matchers (`pkg/golint/check.go:67`).
+   - Whole-function ownership checks conservatively reject decoder aliases, escapes, overwrites, and global bindings.
+   - README and atlas explain the annotation, coverage limits, and intentional strict local-store decoding.
+   - All four required production types carry annotations, enforced by a repository test.
+
+2. **Critical findings**
+   - `pkg/golint/wire.go:143`: declaration initializers skip `checkCall`. The disposable probe reproduced missing findings for inferred, explicitly typed, and grouped `var` declarations. Apply call checking consistently across unconditional expression positions.
+
+3. **Important findings**
+   - None.
+
+4. **Minor findings**
+   - None.
+
+5. **Test coverage notes**
+   - `go test ./pkg/golint -count=1` passed, including the tracked-source catalog scan.
+   - `git diff --check` passed.
+   - Mutation checks established regression sensitivity for BR-1, BR-2, and BR-4.
+   - The new declaration probe failed at pinned HEAD as described above.
+   - Disposable copies were removed; the review checkout remains unchanged. The full repository suite was not rerun.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass** — shared index and suppression path.
+   - **ARCH-PURE: pass** — core entities operate on supplied source bytes and ASTs; repository collection owns IO.
+   - **ARCH-PURPOSE: flag** — direct-call coverage depends on declaration syntax.
+   - **ARCH-MOCK: pass** — no new external dependency or production external-call seam.
+   - **ARCH-CONSTRAINTS: pass** — single parse loop and counted N/2N index tests support the declared workload.
+   - **ARCH-SECURE: pass** — malformed source returns parser errors; no credentials introduced.
+   - **ARCH-ORDER: pass** — no state persists between invocations; conservative scans govern statement-local proof.
+   - **ARCH-FUNERAL: pass** — no new runtime durable artifacts.
+
+7. **Plan revision recommendations**
+   - Add a `## Revisions` entry enumerating supported unconditional call positions, including variable initializers, and require equivalent declaration forms to receive equivalent lint results.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"746c61e2-145a-4c3c-9cb0-96808e3bb524","repository":"github.com/xianxu/ariadne","issue_id":"000440","recipe":"milestone-review","round":6,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/8d48ef835946e31e","reviewed_head":"2e2af4e0e8d9645aaa8009e78608abdd8ff5aded","slot":"ariadne:1","requested_at":"2026-10-18T16:27:49.371898Z"},"phase":"finished","pid":29786,"started_at":"2026-10-18T16:27:49.461672Z","finished_at":"2026-10-18T16:29:49.172195Z","session_id":"01a14fd7-4248-7123-bbfe-7f8db28dd49b","outcome":"returned"}] -->
