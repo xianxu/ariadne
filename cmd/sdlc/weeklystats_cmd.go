@@ -17,7 +17,6 @@ import (
 type weeklySnapshotFlags struct {
 	End       string
 	BrainRoot string
-	Repo      string
 }
 
 type weeklySnapshotDeps struct {
@@ -49,7 +48,6 @@ func newWeeklySnapshotCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&flags.End, "end", "", "UTC midnight ending the seven-day window (RFC3339; default latest completed Monday 00:00 UTC)")
 	cmd.Flags().StringVar(&flags.BrainRoot, "brain-root", "", "brain capture repository root (default sibling brain)")
-	cmd.Flags().StringVar(&flags.Repo, "repo", "", "limit the snapshot to one fleet repository (pilot/debug only)")
 	return cmd
 }
 
@@ -97,9 +95,6 @@ func runWeeklySnapshot(ctx context.Context, out io.Writer, flags weeklySnapshotF
 	snapshot := WeeklySnapshot{SchemaVersion: weeklySnapshotSchemaVersion, Window: window, Repos: []WeeklyRepoStats{}}
 	for _, root := range paths {
 		repo := filepath.Base(root)
-		if flags.Repo != "" && flags.Repo != repo {
-			continue
-		}
 		evidence := deps.read(ctx, repo, root)
 		stats := aggregateWeeklyRepo(repo, evidence.Attempts, window)
 		landings, invalid := validateLandingEvidence(evidence, window)
@@ -121,7 +116,7 @@ func runWeeklySnapshot(ctx context.Context, out io.Writer, flags weeklySnapshotF
 		snapshot.Repos = append(snapshot.Repos, stats)
 	}
 	if len(snapshot.Repos) == 0 {
-		return fmt.Errorf("test-stats snapshot: no fleet repositories matched %q", flags.Repo)
+		return fmt.Errorf("test-stats snapshot: no SDLC repositories found in fleet")
 	}
 	data, err := json.MarshalIndent(snapshot, "", "  ")
 	if err != nil {

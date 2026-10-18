@@ -14,6 +14,9 @@ import (
 )
 
 func TestRunWeeklySnapshotPublishesVersionedPartialCoverage(t *testing.T) {
+	if newWeeklySnapshotCmd().Flags().Lookup("repo") != nil {
+		t.Fatal("a repo-filtered run could claim the immutable fleet-wide date path")
+	}
 	end := time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)
 	brain := t.TempDir()
 	if err := os.Mkdir(filepath.Join(brain, ".brain"), 0o755); err != nil {

@@ -42,5 +42,5 @@ own top-five list and coverage count, distinct from shard durations.
 Snapshot collection fetches main and tracker evidence. Git commands have a
 30-second/8-MiB bound, landing logs a 64-MiB bound and attempts retain the
 10,000-record limit. Unavailable or over-limit sources are reported as unknown
-coverage. Use `--repo` only to inspect one fleet repository during a pilot;
-the weekly default collects the fleet.
+coverage. Snapshot publication always covers the discovered SDLC fleet so a
+partial `--repo` run cannot claim the immutable weekly path.

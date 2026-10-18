@@ -77,3 +77,5 @@ The first full-fleet pilot found pre-landing-line merges in the seven-day UTC we
 A second pilot revealed brain repos with a retained issue-home directory. The discovery predicate now honors brain's capture-only marker first. The recorded suite on the older pushed commit had not acquired the machine lock; it was cancelled without a test result so the corrected commit can receive the single authoritative run.
 
 Adversarial attribution tests then exposed two partial-evidence paths: an earlier enqueue without its refusal and a legacy attempt on the landed branch. Both now null the ratio. The suite queued on the preceding head was likewise cancelled before it acquired the machine lock (ARCH-SECURE, ARCH-PURPOSE).
+
+The snapshot CLI no longer accepts a repo filter: a filtered pilot could have occupied the immutable fleet-wide date path. The read-only test-stats command still offers per-repo inspection. This keeps one path equal to one denominator (ARCH-ORDER).
