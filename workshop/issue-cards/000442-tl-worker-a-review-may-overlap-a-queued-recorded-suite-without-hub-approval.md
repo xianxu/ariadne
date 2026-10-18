@@ -1,6 +1,6 @@
 ---
 id: 000442
-status: working
+status: codecomplete
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.04
+tracker:
+    version: 1
+    completion:
+        token: close-4ea3bb8eabb3
+        repository: github.com/xianxu/ariadne
+        reviewed_head: f4dee0dcde01fb7d590b79c65ce9c2c641176f2c
+        evidence_commit: 8b53118fb0bea36d724331015a6586f09e3cce92
 ---
 
 # tl-worker: a review may overlap a queued recorded suite without hub approval
