@@ -26,6 +26,10 @@ engine to show prose changes as proposals. Tracked Couch documents use
 An untracked document with that presentation must be tracked before editing.
 Both apply paths accept one atomic batch of explained edits and derive the
 round; see [universal review](atlas/workflow/universal-review.md).
+New `🤖` markers carry at most one `[]` or `{}` turn. A clarification or
+longer exchange moves to an indexed `→ [discussion](…)` side doc; old chains
+remain readable and resolve by their final human turn. See the
+[review convention](construct/local/fix/review-convention.md).
 
 ## Concurrent issue work
 

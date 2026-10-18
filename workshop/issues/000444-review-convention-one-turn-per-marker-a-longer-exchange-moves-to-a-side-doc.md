@@ -1,13 +1,23 @@
 ---
 id: 000444
-status: open
+status: codecomplete
 deps: [ariadne#437]
 github_issue:
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'a7c1bb425fc5cbcabf3c4a7f0e1a2a1b6c24638c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '15e9ac1a7caf7378a96dc319721a754dd05e1274' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-18T14:37:53-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "9a740603", done: "4223225d"}
+actual_hours: 0.36
 ---
 
 # review convention: one turn per marker; a longer exchange moves to a side doc
@@ -28,8 +38,19 @@ Change the review convention (construct/local/fix/review-convention.md and the x
 
 ## Plan
 
-- [ ]
+- [x] Record the single-turn emission rule and legacy-reading rule in the canonical convention.
+- [x] Update xx-fix and xx-universal-review so clarification, disagreement, and continued exchange use linked side docs rather than appended marker turns.
+- [x] Add before/after scenarios for an ambiguous ask, an ambiguous approval in a side doc, and a legacy chain; verify the agent's result never adds a second turn.
+- [x] Confirm parley's existing parser still reads legacy chains, run targeted tests and the recorded suite, then close and land.
 
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed — BR-1 move-preservation regression is red-to-green for renamed parent, moved side docs and displaced orphan; changed move output still refused. BR-2 README links the one-turn rule. reviewexport and Parley modes/review passed; Pair propose-mode scratch link/index apply passed; exact-head recorded suite on def348cc passed 12 shards and 70 packages, zero failures (log f1f6e3400770).; review verdict: SHIP
+
+- Started on the landed #437 edit path. The current convention permits indefinite chains, and three agent instructions still append a clarification turn; the new rule changes emission while retaining legacy reading.
+- TDD: `TestCheckCaseCatches` first failed on an appended second turn; after adding the fixture guard, `TestExamples` failed on the two old append outputs. Those examples now open indexed side docs. A new ready legacy-chain case resolves by its final human turn; an unchanged legacy chain remains allowed in the fixture test.
+- `go test ./pkg/reviewexport -count=1` passed. Parley's `make test-spec SPEC=modes/review` passed, including its three-turn parser case (`tests/unit/review_spec.lua`). `make -k` returned the Makefile help successfully.
+- Live scratch Pair apply under `presentation: propose` returned `Code: ok` and a derived round: the ready `🤖[add the numbers]` became a direct `→ [discussion](note.side/01-numbers.md)` link while the matching `discussions:` entry landed in the same batch; readback and `pair review round` reported the new hash and `Current: true`.
+- Recorded full suite on `973e8a8825a2c94c0945601bfafbe610a903042d`: 12 `cmd/sdlc` shards and 70 other packages passed, zero failures; wall 550.2 seconds after 1,333 seconds in the machine queue. Log sha256 begins `032375436979`.
+- Close review round 1: FIX-THEN-SHIP with BR-1 (the fixture guard mistook an unchanged legacy chain in a moved file for new output) and BR-2 (README omitted the user-facing rule). The guard now runs after the move's exact projection check. A red-to-green test covers the renamed parent, moved side docs and displaced orphan, plus a changed-chain rejection during a move; README links the canonical convention. Re-run the suite on the fixed head before re-close.
