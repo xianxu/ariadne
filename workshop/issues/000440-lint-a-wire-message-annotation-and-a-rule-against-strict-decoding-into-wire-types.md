@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "6499ed27", done: "0f940315"}
 ---
 
 # lint: a wire-message annotation and a rule against strict decoding into wire types
