@@ -1,13 +1,21 @@
 ---
 id: 000444
-status: open
+status: working
 deps: [ariadne#437]
 github_issue:
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'a7c1bb425fc5cbcabf3c4a7f0e1a2a1b6c24638c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '31e5e7ed77735ffc5729cfef5d12bbc0e0767665' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-18T14:37:53-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # review convention: one turn per marker; a longer exchange moves to a side doc
@@ -28,8 +36,13 @@ Change the review convention (construct/local/fix/review-convention.md and the x
 
 ## Plan
 
-- [ ]
+- [ ] Record the single-turn emission rule and legacy-reading rule in the canonical convention.
+- [ ] Update xx-fix and xx-universal-review so clarification, disagreement, and continued exchange use linked side docs rather than appended marker turns.
+- [ ] Add before/after scenarios for an ambiguous ask, an ambiguous approval in a side doc, and a legacy chain; verify the agent's result never adds a second turn.
+- [ ] Confirm parley's existing parser still reads legacy chains, run targeted tests and the recorded suite, then close and land.
 
 ## Log
 
 ### 2026-10-18
+
+- Started on the landed #437 edit path. The current convention permits indefinite chains, and three agent instructions still append a clarification turn; the new rule changes emission while retaining legacy reading.
