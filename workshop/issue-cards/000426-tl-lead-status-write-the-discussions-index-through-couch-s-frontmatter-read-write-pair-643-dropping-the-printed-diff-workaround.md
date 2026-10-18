@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.08
+actual_hours: 0.10
 tracker:
     version: 1
     completion:
-        token: close-552e73009b1c
+        token: close-fa472f1816d2
         repository: github.com/xianxu/ariadne
-        reviewed_head: 1278a02061304bf1509f3a016e0be5922e872539
-        evidence_commit: fcfd65824b64ae008e54331bdea8453890ae2452
+        reviewed_head: 219cb76ce811ac966ab6585e1cc5ce7a7d3872be
+        evidence_commit: ccc4e6338282c7104653b29bab0cf3b65eb35ec5
 ---
 
 # tl-lead status: write the discussions index through couch's frontmatter read/write (pair#643), dropping the printed-diff workaround
