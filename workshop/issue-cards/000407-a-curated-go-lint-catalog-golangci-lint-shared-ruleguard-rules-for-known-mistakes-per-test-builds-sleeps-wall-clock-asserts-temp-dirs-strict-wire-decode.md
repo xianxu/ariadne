@@ -1,6 +1,6 @@
 ---
 id: 000407
-status: codecomplete
+status: done
 created: 2026-10-15
 updated: 2026-10-18
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: e8a9c84116b1901d7f6e56d741816c74143d4f25
         evidence_commit: a40bf5369187a8f13c70ea9b522a74a78c93a4ed
+        landed_commit: dd1a2913c9cfd1493e30be2eb104cd09021c2236
 ---
 
 # A curated Go lint catalog: golangci-lint + shared ruleguard rules for known mistakes (per-test builds, sleeps, wall-clock asserts, temp dirs, strict wire decode)
