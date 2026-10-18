@@ -127,3 +127,108 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"1a9c75c4-0956-4650-90ef-74613071a845","repository":"github.com/xianxu/ariadne","issue_id":"000441","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/dc36896d98479771","reviewed_head":"0fcc618f8f6848441a40a9dd5bfec00db29a1cb8","slot":"ariadne:2","requested_at":"2026-10-18T16:23:57.619564Z"},"phase":"finished","pid":55386,"started_at":"2026-10-18T16:23:57.809457Z","finished_at":"2026-10-18T16:44:17.539951Z","session_id":"f5a73cbb-61b9-4e92-927d-9ba28c3e4a94","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T10:09:30-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 441 — doc-review: choose its reviewer through the #409 family-aware resolver |
+| repo | ariadne |
+| issue file | workshop/issues/000441-doc-review-choose-its-reviewer-through-the-409-family-aware-resolver.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 4c2fa13e834dfdf4caec56b2c47b864b5465cefe..88fddabe648729d8270c338b9a9606c03983cece |
+| command | sdlc milestone-close --issue 441 --milestone M1 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-18T10:09:30-07:00 |
+| verdict | SHIP |
+
+## Review
+
+The full `cmd/sdlc` suite hits Go's 10-minute default timeout, so I'm running only the tests that touch reviewer choice, config and the refusal.
+
+All five prior findings check out against the code. Before writing the verdict, I'm comparing the moved resolver logic with the base version to look for behavior drift.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All five findings from round 1 are fixed, and I checked each one against the code at the pinned head rather than the commit message. The refusal now keeps judge's contract again. Every sdlc site that refuses goes through `judge.Refusal`: `changecode.go:732`, `changecode.go:988`, `milestoneclose.go:903` and `judge.go:166`. `DispatchChoice` does the same at `reviewchoice.go:90`. A new judge test checks that the refusal matches both `*NoReviewerError` and `ErrReviewDidNotRun`, and that it still says `--agent`. The moved `Resolve`, `First` and `NoReviewerError` code does the same thing as the base `judge` versions; only the hint wording differs, and judge puts it back. Nothing in the diff is still blocking. I found one new Minor issue: `Choice.Refusal()` is still reachable from sdlc code and would quietly drop judge's contract.
+
+**What I ran:**
+- `gofmt -l` reports none of the changed files.
+- Tests for `pkg/reviewpolicy`, `pkg/agentenv`, `cmd/sdlc/internal/judge` and `cmd/sdlc/internal/agentid` pass.
+- The full `cmd/sdlc` package goes past Go's 600 s default test timeout, so I couldn't run it all. The 25 tests from `reviewchoice_test.go`, `reviewsites_test.go` and `reviewconfig_test.go`, plus the boundary-review tests, all pass.
+- `pkg/workspace` `TestEnvironmentLegacyAndArchive` fails ("nil Git reader"). This change didn't cause it: that package isn't in the diff and doesn't depend on `reviewpolicy`, `agentenv` or `agentid`.
+
+1. **Strengths**
+   - `cmd/sdlc/internal/judge/reviewchoice.go:58-67`: one `noReviewer` type serves both `Refusal` and `DispatchChoice`, so there is a single place that defines judge's refusal contract.
+   - `pkg/reviewpolicy/choice.go:25-56`: `Resolve` and `First` match the base `ResolveReview` exactly (checked line by line against `4c2fa13e`).
+   - `pkg/reviewpolicy/load_test.go`: tests a missing config, a valid one, and four bad inputs (bad value, misspelled key, truncated JSON, a family that can't be resolved), each expecting an error that names `ConfigPath`.
+   - `pkg/agentenv/agentenv_test.go`: tests `ParseLog` on merge commits, garbage records and whitespace in trailers, and checks that `LogFormat` actually reads `TrailerKey`.
+   - The plan's Revisions table (`plan.md:85-93`) matches the head symbol for symbol.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings**
+   - **`Choice.Refusal()` loses judge's contract** (`pkg/reviewpolicy/choice.go:55`). `judge.ReviewChoice` is an alias for `reviewpolicy.Choice`, so sdlc code can still call `choice.Refusal()`. That returns an error that doesn't match `ErrReviewDidNotRun` and tells the user to "name one explicitly" instead of using `--agent`. That is the mistake BR-1 fixed. This is the **2nd finding in family `move-preserves-contract`**. The general rule: when a type moves behind an alias, every method the alias brings along must keep the contract its old callers relied on, or sdlc must be unable to call it. To enforce it, either remove `Choice.Refusal` (doc-review can build `&NoReviewerError{Skips: c.Skips}` itself), or add a judge-side test that greps non-test `.go` files outside `pkg/` for `.Refusal()` and fails if it finds one.
+   - The `--agent` wording is restored by string replacement (`reviewchoice.go:61`). If the pkg wording changes, the replacement silently does nothing, but `TestRefusalKeepsJudgesContract` would catch it. Acceptable as is.
+
+5. **Test coverage notes**
+   - **Regression evidence for BR-1:** `judge.Refusal` is a new function, so taking the fix out means editing the four call sites, and the new test checks the function itself.
+   - **Gap:** the site-level refusal test `TestBoundaryReviewRefusesWithNoOtherFamily` only checks the text "no reviewer available". If a site went back to `choice.Refusal()`, it would still pass. That gap is the reason for the Minor finding above.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass.** The judge aliases and wrappers delegate to the pkg code; the logic isn't duplicated.
+   - **ARCH-PURE: pass.** `Plan`, `Resolve`, `Record` and `AuthorFamilies` are pure and tested without IO. `Load` reads the filesystem only through a root directory passed in.
+   - **ARCH-PURPOSE: pass for M1.** M1's job is extracting the shared code. The consumer that motivated the issue, doc-review, is M2's declared deliverable and isn't hidden behind a vague follow-up.
+   - **ARCH-MOCK: pass.** No new external call. Reading the git log stays behind the existing callers, and `agentenv` only provides the format string and the parser.
+   - **ARCH-CONSTRAINTS: N/A.** Resolving a reviewer is a cheap step that runs once per review; this change doesn't affect load.
+   - **ARCH-SECURE: pass.** `Load` rejects unknown keys and bad values and names the config path in the error. `ParseLog` skips malformed records instead of making up values.
+   - **ARCH-ORDER: N/A.** Nothing keeps state between events: `Resolve` is a single-shot function of its inputs.
+   - **ARCH-FUNERAL: N/A.** Nothing durable is created: the change is library code and tests, and writes no files.
+   - **Docs gate:** `atlas/workflow/sdlc-binary.md` is updated. There's no new user-facing surface (flags, config keys, subcommands), so README doesn't need a change.
+   - **For M2:** doc-review should take its refusal from `reviewpolicy` directly, and should not rely on judge's `--agent` wording.
+
+7. **Plan revision recommendations:** none. The M1 round-1 Revisions table matches the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      judge.Refusal (reviewchoice.go:67) matches both NoReviewerError and ErrReviewDidNotRun and keeps the --agent hint; all 4 sites use it; TestRefusalKeepsJudgesContract pins it.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Plan Revisions (M1 round 1) table checked against the head: Record in choice.go, AuthorFamilies takes []agentenv.Commit, aliases listed by their real files.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      gofmt -l on cmd and pkg lists no file in the diff; the extra blank lines are gone in family_test.go and reviewchoice_test.go.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      policy_test.go:209-210 comments now say ParseRecord / Record; no ReviewerRecord left in pkg/.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Added pkg/agentenv/agentenv_test.go (Env, ParseLog, LogFormat) and pkg/reviewpolicy/load_test.go (Load, AuthorFamilies); both pass.
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: move-preserves-contract
+    title: |
+      reviewpolicy Choice.Refusal() stays callable through the judge.ReviewChoice alias and drops judge's refusal contract
+    detail: |
+      2nd finding in this family. Rule: a method a moved type brings along through an alias must keep its old callers' contract, or sdlc must be unable to call it. Fix the rule, not the call site: remove Choice.Refusal (choice.go:55), or add a judge test that fails when non-test code outside pkg/ calls .Refusal(). Today no site test would fail if a site went back to choice.Refusal(): TestBoundaryReviewRefusesWithNoOtherFamily only checks the text "no reviewer available".
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"94f721a6-48b0-4fb6-bbca-3c26bd7df1cc","repository":"github.com/xianxu/ariadne","issue_id":"000441","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/fad372f250fe19fa","reviewed_head":"88fddabe648729d8270c338b9a9606c03983cece","slot":"ariadne:2","requested_at":"2026-10-18T16:46:45.95791Z"},"phase":"finished","pid":55727,"started_at":"2026-10-18T16:46:46.180434Z","finished_at":"2026-10-18T17:09:28.48915Z","session_id":"50a915aa-a5f0-40a3-a13f-11997634b2aa","outcome":"returned"}] -->

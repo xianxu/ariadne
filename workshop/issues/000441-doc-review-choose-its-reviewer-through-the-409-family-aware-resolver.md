@@ -83,6 +83,7 @@ Durable plan: `workshop/plans/000441-doc-review-choose-its-reviewer-through-the-
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed M1 — M1 round-1 fixes: judge.Refusal keeps the ErrReviewDidNotRun contract and --agent remedy at every sdlc site (TestRefusalKeepsJudgesContract); pkg/agentenv (TestEnvMain, TestParseLog) and pkg/reviewpolicy (TestLoad, TestAuthorFamilies, moved policy tests) pass; judge and cmd/sdlc policy, boundary, per-site and loader tests pass; gofmt clean; plan as-built table.; review verdict: SHIP
 - Claimed by ariadne:2. The `internal` boundary makes this a move plus wiring, not a one-liner, so the plan goes to the hub before code.
 - Hub approved the extraction (full flow) and the never-self-review decision for doc-review (same and the default count as other, explicit honored, stated in its help). Quota detection out of scope.
 - M1 implemented: `pkg/agentenv` (Env, EnvFrom, Known, Main, InSession, the agent names, TrailerKey, Commit,
