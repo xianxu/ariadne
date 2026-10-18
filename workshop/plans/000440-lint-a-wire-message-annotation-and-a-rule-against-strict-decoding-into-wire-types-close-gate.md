@@ -855,6 +855,178 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 5e7575af-c635-4e55-886a-6f6651d60817
+            repository: github.com/xianxu/ariadne
+            issue_id: "000440"
+            recipe: milestone-review
+            round: 8
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/0b8bfdbf6eec1396
+            reviewed_head: 31846daad25883cbd11e26ba451171ccb8acaee8
+            slot: ariadne:1
+            requested_at: "2026-10-18T16:53:13.155843Z"
+          phase: finished
+          pid: 88307
+          started_at: "2026-10-18T16:53:13.285483Z"
+          finished_at: "2026-10-18T16:56:17.019925Z"
+          session_id: 01a14fee-82ff-7eb1-9a31-5a8d2838a6fa
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 31846daad25883cbd11e26ba451171ccb8acaee8
+        tracker_head: 45358b7114d2340036d1d059390e3203f97f259d
+        branch_point: 3ba12c88814b92d93a6e30300fc8061940382d14
+        since: "2026-10-18T05:43:21-07:00"
+        until: "2026-10-18T09:52:32-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T05:43:21-07:00"
+              end: "2026-10-18T09:52:32-07:00"
+              began: "2026-10-18T05:43:21-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 77db55190c53d7057be9971cabdf7ee4385e13ab8bf8e99a5faccee0e7f5c0e0
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 109955645
+              windows:
+                - start: "2026-10-18T05:43:21-07:00"
+                  end: "2026-10-18T09:52:32-07:00"
+        queue_waits:
+            - attempt_id: 97e9c79d9d1d102df2d40c32801f3864
+              slot: ariadne:1
+              record_digest: 302427f7fcd59fc6f235b929456fe28e0d9dee2ebfd0c5ec057a740997e6047c
+              start: "2026-10-18T13:00:46.040063Z"
+              end: "2026-10-18T13:09:43.849079Z"
+              queue_seconds: 537.809016
+              raw_seconds: 537.809016
+              exact: true
+            - attempt_id: 8c5a5e18aa58707db347c709c810f563
+              slot: ariadne:1
+              record_digest: e3d4f017eb327e3efee5b4d6035c7cfc077e114ad6e05dcb010f951cd3ff0b17
+              start: "2026-10-18T13:27:17.095135Z"
+              end: "2026-10-18T13:38:49.768584Z"
+              queue_seconds: 692.673449
+              raw_seconds: 692.673449
+              exact: true
+            - attempt_id: 90320ab29b17a67bea80a2671c62c12a
+              slot: ariadne:1
+              record_digest: 2d18cf65a08f926a2e69fb28f4d9985e7505b65b6ed8c309fe046dc6d1471a51
+              start: "2026-10-18T13:54:20.761552Z"
+              end: "2026-10-18T14:15:05.235935Z"
+              queue_seconds: 1244.474383
+              raw_seconds: 1244.474383
+              exact: true
+            - attempt_id: 4a60e90cc408df07a4638b2c53e283ac
+              slot: ariadne:1
+              record_digest: b4058fa81683863384dde7421a488aa896deb34a4d79ace8aeaa02202c45ca6e
+              start: "2026-10-18T14:32:04.166177Z"
+              end: "2026-10-18T14:59:49.477614Z"
+              queue_seconds: 1665.311437
+              raw_seconds: 1665.311437
+              exact: true
+            - attempt_id: 28f483f4799341fd56dad2c463677506
+              slot: ariadne:1
+              record_digest: 1f189210f8493e3900895b7da9b87104d5b38c60a7c2af139e525891aeeb29dc
+              start: "2026-10-18T15:15:06.25148Z"
+              end: "2026-10-18T15:39:30.12085Z"
+              queue_seconds: 1463.86937
+              raw_seconds: 1463.86937
+              exact: true
+            - attempt_id: 77d0c88769993b116c9a81f17f6899e5
+              slot: ariadne:1
+              record_digest: 691c68f7041c15337939e4f7fd16375e059cabd17226d2133de3bd4015692592
+              start: "2026-10-18T15:53:13.613306Z"
+              end: "2026-10-18T16:18:19.150532Z"
+              queue_seconds: 1505.537226
+              raw_seconds: 1505.537226
+              exact: true
+            - attempt_id: 632f45e915f1038d4da0444be6b2d4c6
+              slot: ariadne:1
+              record_digest: 8a092f4b63f32315462d1158109232274b3edd8788c472a9da1038c1571854a3
+              start: "2026-10-18T16:31:45.679488Z"
+              end: "2026-10-18T16:38:32.998977Z"
+              queue_seconds: 407.319489
+              raw_seconds: 407.319489
+              exact: true
+        cuts:
+            - dispatched: "2026-10-18T06:21:43-07:00"
+              finalized: "2026-10-18T06:24:38-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T06:49:21-07:00"
+              finalized: "2026-10-18T06:51:14-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T07:26:15-07:00"
+              finalized: "2026-10-18T07:27:56-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T08:09:38-07:00"
+              finalized: "2026-10-18T08:11:49-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T08:48:25-07:00"
+              finalized: "2026-10-18T08:50:11-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T09:27:49-07:00"
+              finalized: "2026-10-18T09:29:49-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T09:48:18-07:00"
+              finalized: "2026-10-18T09:50:00-07:00"
+              finalizing: false
+      "n": 8
+      timestamp: "2026-10-18T09:56:17-07:00"
+      dispatched: "2026-10-18T09:53:13-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Target reassignment and interface regressions pass at head and fail with wire.go from 1e51be06^ substituted in a disposable copy.
+          round: 8
+        - id: BR-2
+          disposition: addressed
+          note: The existing decoder-overwrite defect remains corrected. Local-ownership regressions pass at head and fail for same-file and cross-file global replacement with wire.go from 4fdbe641^.
+          round: 8
+        - id: BR-3
+          disposition: addressed
+          note: README.md:11-18 documents the wire annotation syntax and links the atlas; atlas/workflow/sdlc-binary.md:1918 onward explains the matching boundary and strict local-store exception.
+          round: 8
+        - id: BR-4
+          disposition: addressed
+          note: The identity matrix passes at head. Substituting wire.go from 364505a5^ fails module-root default/alias imports and the shadowed-subpackage control.
+          round: 8
+        - id: BR-5
+          disposition: addressed
+          note: Direct-call position tests pass at head; substituting wire.go from 01d74b72^ fails inferred, typed, and grouped var initializers and multiple assignment RHS.
+          round: 8
+        - id: BR-6
+          disposition: withdrawn
+          note: Reproduced one finding for assignment-form if initialization and zero for both expression-form cases. Spec lines 46-49, plan Revisions lines 226-233, and atlas explicitly exclude the expression form under the documented scope revision. This is a prose scope correction, not an executable fix.
+          round: 8
+      findings:
+        - kind: defect
+          id: BR-7
+          severity: Critical
+          title: A goto that bypasses strictness produces a false wire-decode finding
+          detail: 'pkg/golint/wire.go:110-141 assumes the direct statement list executes in lexical order; lines 205-207 only invalidate assignments. With an eligible decoder and marked target, `goto decode; d.DisallowUnknownFields(); decode: ; return d.Decode(&m)` reports one finding although strictness never executes. A compiled runtime probe accepts an unknown field with no error; a conditional-jump variant also reports despite ambiguous strictness. This violates Spec lines 39-42 (ARCH-PURPOSE). This is the 2nd finding in family `wire-decoder-strictness-provenance`: enumerate the proof-invalidating control transfers and enforce that rule, rather than patching only this example. Conservatively rejecting functions containing goto is sufficient without adding control-flow analysis; add unconditional/conditional jump regressions and a straight-line positive control.'
+          family: wire-decoder-strictness-provenance
+          round: 8
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 disputes:
     - id: BR-6
       rationale: 'The missing expression-form if initializer is a true false negative, but the hub capped coverage widening in #440 after round 6. #440 now explicitly supports assignment-form if initializers; expression-form initializers are filed as unclaimed ariadne#445 with red-fixture acceptance. Keeping a conservative syntax-only rule at this boundary avoids another unplanned coverage expansion; false positives, crashes and misparses remain blockers.'
@@ -946,6 +1118,22 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Critical] `wire-direct-call-coverage` (kind: defect) Direct expression calls in if initializers bypass the rule
   pkg/golint/wire.go:200 only checks an if initializer when it is an AssignStmt. With an eligible strict decoder and marked destination, `if d.Decode(&m); true {}` produces no finding. Likewise, `if d.DisallowUnknownFields(); true {}; return d.Decode(&m)` loses the unconditional strictness call. Both were reproduced against the pinned head without parse errors; the assignment-initializer control reports correctly. ARCH-PURPOSE: the plan and atlas explicitly include direct calls in if initializers. This is the 2nd finding in family `wire-direct-call-coverage`. Do NOT fix only these instances: state the rule for every supported direct-call position, route supported initializer statements through shared handling, and test the expression/assignment forms with strictness-order controls.
 
+## Round 8 — 2026-10-18T09:56:17-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Target reassignment and interface regressions pass at head and fail with wire.go from 1e51be06^ substituted in a disposable copy.
+- BR-2 — addressed — The existing decoder-overwrite defect remains corrected. Local-ownership regressions pass at head and fail for same-file and cross-file global replacement with wire.go from 4fdbe641^.
+- BR-3 — addressed — README.md:11-18 documents the wire annotation syntax and links the atlas; atlas/workflow/sdlc-binary.md:1918 onward explains the matching boundary and strict local-store exception.
+- BR-4 — addressed — The identity matrix passes at head. Substituting wire.go from 364505a5^ fails module-root default/alias imports and the shadowed-subpackage control.
+- BR-5 — addressed — Direct-call position tests pass at head; substituting wire.go from 01d74b72^ fails inferred, typed, and grouped var initializers and multiple assignment RHS.
+- BR-6 — withdrawn — Reproduced one finding for assignment-form if initialization and zero for both expression-form cases. Spec lines 46-49, plan Revisions lines 226-233, and atlas explicitly exclude the expression form under the documented scope revision. This is a prose scope correction, not an executable fix.
+
+### Raised
+
+- **BR-7** [Critical] `wire-decoder-strictness-provenance` (kind: defect) A goto that bypasses strictness produces a false wire-decode finding
+  pkg/golint/wire.go:110-141 assumes the direct statement list executes in lexical order; lines 205-207 only invalidate assignments. With an eligible decoder and marked target, `goto decode; d.DisallowUnknownFields(); decode: ; return d.Decode(&m)` reports one finding although strictness never executes. A compiled runtime probe accepts an unknown field with no error; a conditional-jump variant also reports despite ambiguous strictness. This violates Spec lines 39-42 (ARCH-PURPOSE). This is the 2nd finding in family `wire-decoder-strictness-provenance`: enumerate the proof-invalidating control transfers and enforce that rule, rather than patching only this example. Conservatively rejecting functions containing goto is sufficient without adding control-flow analysis; add unconditional/conditional jump regressions and a straight-line positive control.
+
 ## Disputes
 
 Findings the implementer declined (`sdlc finding dispute`), each answered by the
@@ -957,4 +1145,4 @@ next review round.
 
 ## Open findings
 
-- **BR-6** [Critical] `wire-direct-call-coverage` (kind: defect) Direct expression calls in if initializers bypass the rule
+- **BR-7** [Critical] `wire-decoder-strictness-provenance` (kind: defect) A goto that bypasses strictness produces a false wire-decode finding

@@ -659,3 +659,112 @@ None.
 Add a `## Revisions` entry enumerating supported direct-call positions and initializer statement forms. Extend the regression matrix to expression-form `if` initializers and their strictness ordering before changing the matcher.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"3174a9bd-91c4-4520-94b8-6f321625d2c4","repository":"github.com/xianxu/ariadne","issue_id":"000440","recipe":"milestone-review","round":7,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/c794b93980d18ebe","reviewed_head":"dd1e08a0ef40df3b15ee27d5ba716ba6ed04485b","slot":"ariadne:1","requested_at":"2026-10-18T16:48:18.615887Z"},"phase":"finished","pid":17954,"started_at":"2026-10-18T16:48:18.738582Z","finished_at":"2026-10-18T16:49:59.396248Z","session_id":"01a14fea-043b-7001-9335-fa8de676f891","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T09:56:17-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 440 — lint: a wire-message annotation and a rule against strict decoding into wire types |
+| repo | ariadne |
+| issue file | workshop/issues/000440-lint-a-wire-message-annotation-and-a-rule-against-strict-decoding-into-wire-types.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 3ba12c88814b92d93a6e30300fc8061940382d14..31846daad25883cbd11e26ba451171ccb8acaee8 |
+| command | sdlc close --issue 440 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-18T09:56:17-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The annotation index, repository integration, and regression coverage are sound for the tested cases. BR-6 is withdrawn against the explicitly revised coverage contract; its disputed measurements reproduce. One new correctness issue blocks shipping: a jump can bypass strictness while the matcher still reports a tolerant decoder as strict.
+
+Done-when: current — the criteria still cover the annotation, bounded decoder rule, four existing types, documentation, and test matrix after the initializer scope revision.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Target reassignment and interface regressions pass at head and fail with wire.go from 1e51be06^ substituted in a disposable copy.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The existing decoder-overwrite defect remains corrected. Local-ownership regressions pass at head and fail for same-file and cross-file global replacement with wire.go from 4fdbe641^.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README.md:11-18 documents the wire annotation syntax and links the atlas; atlas/workflow/sdlc-binary.md:1918 onward explains the matching boundary and strict local-store exception.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The identity matrix passes at head. Substituting wire.go from 364505a5^ fails module-root default/alias imports and the shadowed-subpackage control.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Direct-call position tests pass at head; substituting wire.go from 01d74b72^ fails inferred, typed, and grouped var initializers and multiple assignment RHS.
+  - id: BR-6
+    disposition: withdrawn
+    note: |
+      Reproduced one finding for assignment-form if initialization and zero for both expression-form cases. Spec lines 46-49, plan Revisions lines 226-233, and atlas explicitly exclude the expression form under the documented scope revision. This is a prose scope correction, not an executable fix.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: wire-decoder-strictness-provenance
+    title: |
+      A goto that bypasses strictness produces a false wire-decode finding
+    detail: |
+      pkg/golint/wire.go:110-141 assumes the direct statement list executes in lexical order; lines 205-207 only invalidate assignments. With an eligible decoder and marked target, `goto decode; d.DisallowUnknownFields(); decode: ; return d.Decode(&m)` reports one finding although strictness never executes. A compiled runtime probe accepts an unknown field with no error; a conditional-jump variant also reports despite ambiguous strictness. This violates Spec lines 39-42 (ARCH-PURPOSE). This is the 2nd finding in family `wire-decoder-strictness-provenance`: enumerate the proof-invalidating control transfers and enforce that rule, rather than patching only this example. Conservatively rejecting functions containing goto is sufficient without adding control-flow analysis; add unconditional/conditional jump regressions and a straight-line positive control.
+```
+
+1. **Strengths**
+
+   - `CheckSources` parses and indexes the source set once; existing rules retain shared suppression handling.
+   - Pure source-map tests cover imported identities, shadowing, provenance invalidation, and direct-call positions.
+   - All four requested tolerant input types carry annotations. README and atlas explain the convention and its limits.
+
+2. **Critical findings**
+
+   - The jump-related false positive above originates at `pkg/golint/wire.go:110`. Skip unsupported jump-bearing flows or prove strictness across their paths before reporting.
+
+3. **Important findings**
+
+   None.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - Passed `go test ./pkg/golint -count=1`, including the tracked-source scan.
+   - Passed tests for `cmd/sdlc/internal/usage` and `cmd/sdlc/internal/judge`.
+   - Verified prior behavioral regressions fail without their corrections in disposable copies, subsequently removed.
+   - The new jump probes reproduce the defect; committed coverage is missing.
+   - `git diff --check` passed. Full suite not rerun; changes after its recorded code head are documentation only. Checkout remains unchanged.
+
+6. **Architectural notes for upcoming work**
+
+   - **ARCH-DRY: pass** — one shared index and direct-call checker.
+   - **ARCH-PURE: pass** — listed pure entities exist and their source-map tests require no IO; collection remains separate.
+   - **ARCH-PURPOSE: flag** — the conservative strictness guarantee fails for jumps.
+   - **ARCH-MOCK: pass** — no new production binary or service dependency.
+   - **ARCH-CONSTRAINTS: pass** — counted N/2N index coverage and repository scan exercise the declared workload.
+   - **ARCH-SECURE: pass** — parse failures propagate visibly; no new credential handling.
+   - **ARCH-ORDER: pass** — analysis state is scoped to one invocation; no state persists between external events.
+   - **ARCH-FUNERAL: pass** — no new durable runtime artifacts.
+
+7. **Plan revision recommendations**
+
+   Append a `## Revisions` entry defining which control transfers invalidate lexical strictness proof, the conservative exclusion policy, and the regression matrix for jumps plus supported straight-line controls.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"5e7575af-c635-4e55-886a-6f6651d60817","repository":"github.com/xianxu/ariadne","issue_id":"000440","recipe":"milestone-review","round":8,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/0b8bfdbf6eec1396","reviewed_head":"31846daad25883cbd11e26ba451171ccb8acaee8","slot":"ariadne:1","requested_at":"2026-10-18T16:53:13.155843Z"},"phase":"finished","pid":88307,"started_at":"2026-10-18T16:53:13.285483Z","finished_at":"2026-10-18T16:56:17.019925Z","session_id":"01a14fee-82ff-7eb1-9a31-5a8d2838a6fa","outcome":"returned"}] -->

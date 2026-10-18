@@ -195,6 +195,10 @@ Then close and land on SHIP.
 
 ## Revisions
 
+- 2026-10-18, close review round 8: BR-6 was withdrawn. BR-7 found a real
+  false positive when `goto` bypasses a strictness call. The durable plan now
+  excludes goto-bearing functions from the lexical proof and tests jump paths
+  against a straight-line positive before code changes.
 - 2026-10-18, close review round 7: BR-6 identifies expression-form `if`
   initializers as another missed-finding shape. The hub capped widening of
   this issue after round 6. Filed ariadne#445 unclaimed for that shape and

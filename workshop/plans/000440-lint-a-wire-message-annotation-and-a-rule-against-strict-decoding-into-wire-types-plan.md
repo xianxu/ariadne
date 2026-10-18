@@ -231,3 +231,13 @@ to the hub. The TL owns any project update.
   Document the exact boundary and dispute BR-6 with the reproduced behavior
   and follow-up, while retaining all passing code and tests at the reviewed
   head. A future false positive, crash, or misparse still blocks this close.
+- 2026-10-18, close review round 8, jump false-positive: BR-6 was withdrawn,
+  but BR-7 showed a `goto` can bypass the strictness call while reaching a
+  later `Decode`. This is a false positive, so it remains a blocker under the
+  hub's scope rule. A whole-function pre-scan excludes any function containing
+  a `goto` from this lexical matcher; ordinary return/branch flow already
+  only admits straight-line strictness proof, and nested branch calls are not
+  inspected as positives. A control-flow graph is unnecessary for a bounded
+  syntax-only lint; exclusion loses some true findings but cannot claim
+  strictness on a skipped path. Red tests cover unconditional and conditional
+  jumps over the flag, a jump after the flag, and a straight-line positive.
