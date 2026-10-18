@@ -44,6 +44,26 @@ bugs in Claude-authored code too.
 - Tests: the policy picks per author family, kind and override; the fallback is stated; trailers record both families.
 - One week's verdict trailers can be tallied by author and reviewer family.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module   design=0.1 impl=0.24
+item: smaller-go-module      design=0.05 impl=0.2
+item: smaller-go-module      design=0.05 impl=0.16
+item: atlas-docs             design=0.0 impl=0.06
+item: milestone-review       design=0.0 impl=0.14
+item: milestone-review       design=0.0 impl=0.14
+design-buffer: 0.15
+total: 1.17
+```
+
+Derivation: design mostly settled by two plan-quality rounds (small design= values). impl= at 40% of the v2
+midpoints (v3.1): the pure family/ReviewPlan/Unavailable module (greenfield, 0.6 → 0.24); the dispatch loop and
+seven-site wiring (0.5 → 0.2); ledger, sidecar, trailer and tally (0.4 → 0.16); atlas and help (0.15 → 0.06); two
+milestone reviews (0.35 → 0.14 each). Calibration doc flagged stale; numbers provisional.
+
 ## Plan
 
 Durable plan: `workshop/plans/000409-dynamic-review-policy-choose-the-reviewer-model-by-author-family-and-change-kind-cross-family-by-default-extending-310-plan.md`.
