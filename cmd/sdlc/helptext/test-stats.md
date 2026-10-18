@@ -25,8 +25,10 @@ if a cap is reached, it reports the omitted coverage.
 `<brain>/memory/work/devinfra/test-economy/weekly/YYYY-MM-DD.json`. It defaults
 to the latest completed Monday 00:00 UTC boundary; `--end 2026-10-19T00:00:00Z`
 selects a fixed seven-day interval, and `--brain-root` overrides the sibling
-brain capture repository. The date is the exclusive UTC end. An identical rerun
-does nothing; changed bytes at that path are refused. The brain owner commits and
+brain capture repository. The date is the exclusive UTC end. A rerun returns an
+existing validated schema-v2 artifact without recollecting or changing its
+`observed_at`; an incompatible or corrupt file is refused. The writer keeps its
+byte-wise immutable check for concurrent publication. The brain owner commits and
 backs up the artifact under its capture charter; source attempts remain local
 for 30 days. The ops TL links the path from its test-economy project.
 

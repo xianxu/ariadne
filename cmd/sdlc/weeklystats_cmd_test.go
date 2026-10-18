@@ -36,7 +36,7 @@ func TestRunWeeklySnapshotPublishesVersionedPartialCoverage(t *testing.T) {
 			return previousResourceResult{State: "baseline", Reason: "previous week missing"}
 		},
 		resources: func(context.Context, workspace.Identity, []string, weeklySnapshotFlags) (ResourceCollection, ResourceMachine) {
-			return ResourceCollection{}, ResourceMachine{}
+			return ResourceCollection{CoverageUnknown: []string{"inventory unavailable"}}, fakeWeeklyResourceMachine()
 		},
 		publish: publishBrainSnapshot,
 	}
@@ -75,8 +75,9 @@ func TestRunWeeklySnapshotAttachesResourceSectionOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	collects := 0
+	now := end.Add(time.Hour)
 	deps := weeklySnapshotDeps{
-		now:      func() time.Time { return end.Add(time.Hour) },
+		now:      func() time.Time { return now },
 		identity: func() (workspace.Identity, error) { return workspace.Identity{FleetRoot: "/fleet"}, nil },
 		discover: func(workspace.Identity) ([]string, error) { return []string{"/fleet/ariadne"}, nil },
 		read: func(context.Context, string, string, WeeklyWindow) weeklyRepoEvidence {
@@ -90,7 +91,7 @@ func TestRunWeeklySnapshotAttachesResourceSectionOnce(t *testing.T) {
 			if id.FleetRoot != "/fleet" || len(paths) != 1 || paths[0] != "/fleet/ariadne" {
 				t.Fatalf("collector inputs id=%+v paths=%v", id, paths)
 			}
-			return ResourceCollection{Families: []ResourceObservation{{Kind: "couch-ledgers", Definition: "v1", Bytes: 130, Complete: true}}}, ResourceMachine{}
+			return ResourceCollection{Families: []ResourceObservation{{Kind: "couch-ledgers", Definition: "v1", Bytes: 130, Files: 1, Complete: true}}}, fakeWeeklyResourceMachine()
 		},
 		publish: publishBrainSnapshot,
 	}
@@ -105,5 +106,88 @@ func TestRunWeeklySnapshotAttachesResourceSectionOnce(t *testing.T) {
 	}
 	if collects != 1 || got.SchemaVersion != 2 || got.Resources == nil || !got.Resources.ObservedAt.Equal(end.Add(time.Hour)) || len(got.Resources.Families) != 1 || got.Resources.Families[0].State != "baseline" || got.Resources.Families[0].Bytes != 130 {
 		t.Fatalf("attached resources = %+v, collects=%d", got, collects)
+	}
+	now = now.Add(time.Second)
+	out.Reset()
+	if err := runWeeklySnapshot(context.Background(), &out, weeklySnapshotFlags{End: end.Format(time.RFC3339), BrainRoot: brain}, deps); err != nil || strings.TrimSpace(out.String()) != filepath.Join(brain, "memory/work/devinfra/test-economy/weekly/2026-10-19.json") || collects != 1 {
+		t.Fatalf("advancing clock must preserve existing snapshot without recollection: err=%v path=%q collects=%d", err, out.String(), collects)
+	}
+}
+
+func TestRunWeeklySnapshotRecoversConcurrentPublication(t *testing.T) {
+	end := time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)
+	brain := t.TempDir()
+	if err := os.Mkdir(filepath.Join(brain, ".brain"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(brain, ".brain", "config.md"), []byte("local-only"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	deps := weeklySnapshotDeps{
+		now:      func() time.Time { return end.Add(time.Hour) },
+		identity: func() (workspace.Identity, error) { return workspace.Identity{}, nil },
+		discover: func(workspace.Identity) ([]string, error) { return []string{"/fake/ariadne"}, nil },
+		read: func(context.Context, string, string, WeeklyWindow) weeklyRepoEvidence {
+			return weeklyRepoEvidence{Repo: "ariadne"}
+		},
+		previous: func(string, WeeklyWindow) previousResourceResult { return previousResourceResult{State: "baseline"} },
+		resources: func(context.Context, workspace.Identity, []string, weeklySnapshotFlags) (ResourceCollection, ResourceMachine) {
+			return ResourceCollection{CoverageUnknown: []string{"inventory unavailable"}}, fakeWeeklyResourceMachine()
+		},
+		publish: func(root string, end time.Time, data []byte) (string, error) {
+			var snap WeeklySnapshot
+			if err := json.Unmarshal(data, &snap); err != nil {
+				t.Fatal(err)
+			}
+			snap.Resources.ObservedAt = snap.Resources.ObservedAt.Add(-time.Second)
+			winner, err := json.Marshal(snap)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := publishBrainSnapshot(root, end, winner); err != nil {
+				t.Fatal(err)
+			}
+			return "", os.ErrExist
+		},
+	}
+	var out bytes.Buffer
+	if err := runWeeklySnapshot(context.Background(), &out, weeklySnapshotFlags{End: end.Format(time.RFC3339), BrainRoot: brain}, deps); err != nil || !strings.Contains(out.String(), "2026-10-19.json") {
+		t.Fatalf("concurrent valid winner must be returned: %v %q", err, out.String())
+	}
+}
+
+func fakeWeeklyResourceMachine() ResourceMachine {
+	obs := func(kind string) ResourceObservation {
+		return ResourceObservation{Kind: kind, Definition: "/source", Complete: true}
+	}
+	return ResourceMachine{
+		GoCache: obs("go-cache"), AgentScratchFree: obs("agentscratch-free"), AgentScratchTotal: obs("agentscratch-total"),
+		BytesWritten: DeviceGauge{Device: "disk0", Epoch: "123", State: "observed"},
+		SSDWear:      DeviceGauge{Device: "disk0", State: "observed"},
+	}
+}
+
+func TestReadExistingWeeklySnapshotRejectsIncompatibleOrCorrupt(t *testing.T) {
+	root := t.TempDir()
+	end := time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)
+	window, err := newWeeklyWindow(end, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := weeklySnapshotPath(root, end)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, body := range []string{
+		`{"schema_version":1,"window":{"start":"2026-10-12T00:00:00Z","end":"2026-10-19T00:00:00Z"},"repos":[{"repo":"ariadne"}]}`,
+		`{not-json}`,
+		`{"schema_version":2,"window":{"start":"2026-10-12T00:00:00Z","end":"2026-10-19T00:00:00Z"},"repos":[{"repo":"ariadne"}],"resources":{"observed_at":"2026-10-19T01:00:00Z","families":[],"suites":[]}}`,
+	} {
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, exists, err := readExistingWeeklySnapshot(root, window); err == nil || exists {
+			t.Fatalf("invalid existing artifact accepted: %s (%v)", body, err)
+		}
 	}
 }

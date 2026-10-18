@@ -104,6 +104,12 @@ func runWeeklySnapshot(ctx context.Context, out io.Writer, flags weeklySnapshotF
 	if _, err := os.Stat(filepath.Join(brainRoot, ".brain", "config.md")); err != nil {
 		return fmt.Errorf("test-stats snapshot: %s is not a brain capture repository: %w", brainRoot, err)
 	}
+	if path, exists, err := readExistingWeeklySnapshot(brainRoot, window); err != nil {
+		return err
+	} else if exists {
+		_, err = fmt.Fprintln(out, path)
+		return err
+	}
 	paths, err := deps.discover(id)
 	if err != nil {
 		return fmt.Errorf("test-stats snapshot: discover fleet: %w", err)
@@ -143,13 +149,24 @@ func runWeeklySnapshot(ctx context.Context, out io.Writer, flags weeklySnapshotF
 	resources := renderWeeklyResourceSection(collection, snapshot.Repos, prior, observedAt, flags.ResourceGrowthShare)
 	resources.Machine = compareResourceMachine(machine, resourcePointPrior(prior, observedAt), flags.ResourceGrowthShare)
 	snapshot.Resources = &resources
+	if err := validateWeeklyResourceSection(snapshot.Resources); err != nil {
+		return fmt.Errorf("test-stats snapshot: invalid current resources: %w", err)
+	}
 	data, err := json.MarshalIndent(snapshot, "", "  ")
 	if err != nil {
 		return err
 	}
 	path, err := deps.publish(brainRoot, window.End, append(data, '\n'))
 	if err != nil {
-		return err
+		// A concurrent publisher may have won after the first existence check.
+		// Its validated artifact is the immutable result for this week.
+		if existing, exists, readErr := readExistingWeeklySnapshot(brainRoot, window); readErr == nil && exists {
+			path = existing
+		} else if readErr != nil {
+			return fmt.Errorf("%w; concurrent publication invalid: %v", err, readErr)
+		} else {
+			return err
+		}
 	}
 	_, err = fmt.Fprintln(out, path)
 	return err

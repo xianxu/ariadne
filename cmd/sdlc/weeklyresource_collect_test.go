@@ -85,6 +85,31 @@ func TestCollectResourceFamiliesOverlappingRootsRemoveEarlierAssignment(t *testi
 	}
 }
 
+func TestCollectResourceFamiliesLaterClaimantsOfBlockedFileStayUnknown(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "one.jsonl"), []byte("abc"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, reverse := range []bool{false, true} {
+		roots := []ResourceRoot{{Token: "first-root", Path: root}, {Token: "later-root", Path: root}}
+		first, later := "first-root", "later-root"
+		if reverse {
+			roots[0], roots[1] = roots[1], roots[0]
+			first, later = later, first
+		}
+		inventory := []byte(`{"version":1,"sources":[{"kind":"one","root_token":"` + first + `","patterns":["*.jsonl"]},{"kind":"two","root_token":"` + first + `","patterns":["one.*"]},{"kind":"three","root_token":"` + later + `","patterns":["*.jsonl"]}]}`)
+		rows, _, err := collectResourceFamilies(inventory, roots)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, row := range rows {
+			if row.Complete || row.Bytes != 0 || row.Files != 0 {
+				t.Fatalf("reverse=%v: every claimant must be unknown: %+v", reverse, rows)
+			}
+		}
+	}
+}
+
 func TestCollectResourceDetailsRanksLedgersInSameWalk(t *testing.T) {
 	root := t.TempDir()
 	for i, size := range []int{2, 5, 5, 1} {

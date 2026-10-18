@@ -508,7 +508,8 @@ checkout. It uses the latest completed Monday 00:00 UTC boundary by default;
 seven-day UTC window. `--brain-root /path/to/brain` overrides the sibling brain
 capture repo. The command writes one immutable, versioned JSON file at
 `brain/memory/work/devinfra/test-economy/weekly/<end-date>.json`. An identical
-rerun returns that path; changed bytes refuse instead of overwriting it. Each
+rerun returns a validated existing schema-v2 artifact without recollection;
+incompatible or corrupt bytes refuse instead of being overwritten. Each
 repository headline puts full suites per landed issue beside covered/observed
 landings, unknowns and top coverage reasons. Missing, expired or contradictory
 evidence makes the ratio `null`, and the snapshot keeps physical suite statistics

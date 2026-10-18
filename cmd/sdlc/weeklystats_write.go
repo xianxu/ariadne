@@ -22,7 +22,7 @@ func publishBrainSnapshot(brainRoot string, end time.Time, data []byte) (string,
 		return "", errors.New("snapshot end must be midnight UTC")
 	}
 	dir := filepath.Join(brainRoot, "memory", "work", "devinfra", "test-economy", "weekly")
-	path := filepath.Join(dir, end.Format("2006-01-02")+".json")
+	path := weeklySnapshotPath(brainRoot, end)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("create weekly snapshot directory: %w", err)
 	}
@@ -63,6 +63,10 @@ func publishBrainSnapshot(brainRoot string, end time.Time, data []byte) (string,
 		return "", fmt.Errorf("sync weekly snapshot directory %s: %w", dir, err)
 	}
 	return path, nil
+}
+
+func weeklySnapshotPath(brainRoot string, end time.Time) string {
+	return filepath.Join(brainRoot, "memory", "work", "devinfra", "test-economy", "weekly", end.Format("2006-01-02")+".json")
 }
 
 func cleanupStaleWeeklySnapshotTemps(dir string, now time.Time) error {

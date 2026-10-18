@@ -159,6 +159,9 @@ func collectResourceDetailsWithLimit(inventoryJSON []byte, roots []ResourceRoot,
 				return nil
 			}
 			if blocked[name] {
+				for kind := range matched {
+					markResourceUnknown(byKind[kind], "overlapping source assignment")
+				}
 				return nil
 			}
 			var kind string
