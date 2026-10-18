@@ -1,6 +1,6 @@
 ---
 id: 000441
-status: codecomplete
+status: done
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours: 0.735
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: bfe6b7b53ab4e5b9bbf0b8b600105bdfa03fbda7
         evidence_commit: 84f1c69b848722d3d49d784bc8b75e3f724bc775
+        landed_commit: 27856fe8fdf904a232989e32363d90bf29b4e94b
 ---
 
 # doc-review: choose its reviewer through the #409 family-aware resolver
