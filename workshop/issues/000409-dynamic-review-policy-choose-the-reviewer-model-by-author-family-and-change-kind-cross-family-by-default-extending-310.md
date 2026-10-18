@@ -1,12 +1,12 @@
 ---
 id: 000409
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-16
 updated: 2026-10-18
 estimate_hours: 1.17
-card_mirror: '2cee3e4ed193aa2c6dc68ce88d986d033dd17790' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '6b6de20420ea96a0089d9f9c8739aaca31f30fed' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-18T05:16:36-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.65
 ---
 
 # Dynamic review policy: choose the reviewer model by author family and change kind (cross-family by default), extending #310
