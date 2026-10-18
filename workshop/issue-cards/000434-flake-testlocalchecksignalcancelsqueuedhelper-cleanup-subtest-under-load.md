@@ -1,6 +1,6 @@
 ---
 id: 000434
-status: working
+status: codecomplete
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.52
+tracker:
+    version: 1
+    completion:
+        token: close-008439745942
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 0e15fbe282dc936b12296577e873e4ab353603b0
+        evidence_commit: f7b70ea92733be0b86993429096d81a0a3b4075f
 ---
 
 # flake: TestLocalCheckSignalCancelsQueuedHelper cleanup subtest under load
