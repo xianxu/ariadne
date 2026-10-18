@@ -142,7 +142,7 @@ func (w *weeklyLimitWriter) Write(p []byte) (int, error) {
 
 func weeklyGit(ctx context.Context, root string, args ...string) ([]byte, error) {
 	if ctx == nil {
-		ctx = context.Background()
+		return nil, fmt.Errorf("weekly Git requires the caller's context")
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()

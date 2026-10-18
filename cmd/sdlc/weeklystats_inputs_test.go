@@ -35,6 +35,12 @@ func TestWeeklyIsSDLCRepoRequiresIssueHome(t *testing.T) {
 	}
 }
 
+func TestWeeklyGitRequiresCallerContext(t *testing.T) {
+	if _, err := weeklyGit(nil, t.TempDir(), "status"); err == nil || !strings.Contains(err.Error(), "caller's context") {
+		t.Fatalf("nil context should fail before launching Git: %v", err)
+	}
+}
+
 func TestWeeklyReadLandingEventsSkipsMalformedWithoutCreatingState(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "events.jsonl")
