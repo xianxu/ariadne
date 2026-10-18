@@ -373,3 +373,92 @@ findings:
    Append a `## Revisions` entry defining module-root and subpackage imports as supported target identities and recording the expanded identity-resolution regression matrix.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"a07c7163-0fa0-4934-b10f-86cc1b19e050","repository":"github.com/xianxu/ariadne","issue_id":"000440","recipe":"milestone-review","round":4,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/f643b9c0c33e06b1","reviewed_head":"a60a6e6028c110b556781920e1b6cc2ed6a5b8cf","slot":"ariadne:1","requested_at":"2026-10-18T15:09:38.35845Z"},"phase":"finished","pid":77485,"started_at":"2026-10-18T15:09:38.473035Z","finished_at":"2026-10-18T15:11:48.628032Z","session_id":"01a14f8f-ae14-78c2-8a4c-52dddc1a0cbe","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T08:50:11-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 440 — lint: a wire-message annotation and a rule against strict decoding into wire types |
+| repo | ariadne |
+| issue file | workshop/issues/000440-lint-a-wire-message-annotation-and-a-rule-against-strict-decoding-into-wire-types.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 3ba12c88814b92d93a6e30300fc8061940382d14..ae9feba152a8b629675f674bd5a754a9fef0bfac |
+| command | sdlc close --issue 440 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-18T08:50:11-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-4 is verified: module-root imports resolve correctly, and removing the correction makes both root-import regression cases fail. The focused suite passes, and README/atlas cover the new convention. SHIP remains blocked by BR-2: the decoder ownership proof admits package-global bindings whose strictness can change outside the inspected function.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Exact-module imports map to "." at pkg/golint/wire.go:392. TestWireTargetIdentityMatrix covers default and explicit root aliases; both cases fail when that correction is removed in a temporary package copy.
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Retained disposition: target writes invalidate provenance, explicit interfaces do not inherit initializer identity, and the corresponding regression cases pass.
+  - id: BR-2
+    disposition: not-addressed
+    note: |
+      pkg/golint/wire.go:264-268 and 301-303 accept a package-global d assigned once inside the inspected function. Reproduced sequence: d = json.NewDecoder(r); d.DisallowUnknownFields(); reset(r); var m Peer; return d.Decode(&m), where reset replaces global d with json.NewDecoder(r). Check reports wire-strict-decode although the runtime decode accepts an unknown field with no error. This repeats family wire-decoder-strictness-provenance (ARCH-PURPOSE): enforce the documented function-local binding requirement before applying the single-owner proof, sweep same-file and cross-file globals alongside local declarations and shadowing, and add regression coverage.
+```
+
+Done-when: current — it still covers the annotation, four existing types, documented limits, provenance cases, and counted index workload.
+
+1. **Strengths**
+
+   - One shared syntax-only index serves all source files.
+   - BR-4’s identity matrix covers root/subpackage imports, aliases, lookalike prefixes, and shadowing.
+   - All four required tolerant inputs carry annotations.
+   - README and atlas explain annotation usage and deliberately strict local contracts.
+
+2. **Critical findings**
+
+   - **BR-2 remains open — `pkg/golint/wire.go:264` and `:301`.** Assignment counts within one function do not establish exclusive ownership of a package-global decoder. Require a binding declared within that function before tracking strictness. Add same-file and cross-file global-reset regressions while preserving positive local-binding cases.
+
+3. **Important findings**
+
+   None additional.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - `go test ./pkg/golint -count=1` passed.
+   - BR-4 mutation check failed as expected for both module-root cases.
+   - Independent lint/runtime probes confirmed the BR-2 false positive.
+   - `git diff --check` passed. Full repository suite was not rerun.
+   - Temporary probe copies were removed; reviewed files were unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared index and suppression handling.
+   - **ARCH-PURE — pass:** index/matcher tests use source bytes without IO.
+   - **ARCH-PURPOSE — flag:** BR-2 violates the promised conservative ownership rule.
+   - **ARCH-MOCK — pass:** no new external dependency; existing collector seam remains.
+   - **ARCH-CONSTRAINTS — pass:** counted N/2N index tests and focused repository scan pass.
+   - **ARCH-SECURE — pass:** malformed source returns parse errors; no new credential handling.
+   - **ARCH-ORDER — pass:** eligibility precedes ordered matching; the ownership defect is identified above.
+   - **ARCH-FUNERAL — pass:** no new durable runtime artifacts.
+
+7. **Plan revision recommendations**
+
+   Append a `## Revisions` entry defining “local decoder” as a binding declared within the inspected function. Record the global-binding exclusion and regression matrix; the existing single-owner claim is currently stronger than its enforcement.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"d98742e5-d605-4956-97b9-4d3776435e53","repository":"github.com/xianxu/ariadne","issue_id":"000440","recipe":"milestone-review","round":5,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/07b900c5f9e838f4","reviewed_head":"ae9feba152a8b629675f674bd5a754a9fef0bfac","slot":"ariadne:1","requested_at":"2026-10-18T15:48:25.369234Z"},"phase":"finished","pid":43031,"started_at":"2026-10-18T15:48:25.456178Z","finished_at":"2026-10-18T15:50:11.056506Z","session_id":"01a14fb3-2fd3-7522-a7e3-fe2005df4d10","outcome":"returned"}] -->

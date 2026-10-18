@@ -160,6 +160,11 @@ Then close and land on SHIP.
 
 ## Revisions
 
+- 2026-10-18, close review round 5: BR-2 showed that a package-global
+  decoder can be replaced by a helper between strictness and Decode. The
+  durable plan now requires a function-local declaration for eligibility and
+  adds same-file, cross-file, and local-shadowing regression cases before
+  another code change.
 - 2026-10-18, close checklist: the last Plan checkbox now names evidence
   attainable before `sdlc close`; close and merge remain mandatory workflow
   actions immediately after that evidence, not a self-referential checkbox.

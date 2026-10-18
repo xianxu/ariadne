@@ -199,3 +199,15 @@ to the hub. The TL owns any project update.
   root and subpackage imports, explicit/default aliases, a lookalike module
   prefix, and shadowed identities in one matrix. This is a rule for the
   whole supported identity space, not a special case at one Decode site.
+- 2026-10-18, close review round 5, decoder-binding re-plan: BR-2 recurred
+  because one assignment inside a function does not prove ownership of a
+  package-global decoder: a helper can replace that global before Decode.
+  Eligibility now requires the sole constructor assignment to *declare* the
+  decoder in the inspected function (`d := json.NewDecoder(r)` or local
+  `var d = json.NewDecoder(r)`). An ordinary `d =` assignment, a package
+  declaration, parameter, result, or receiver cannot establish the local
+  binding. Keep the existing whole-function single-write and receiver-only
+  proof. Red tests cover a global reset by a helper in the same file and in
+  another file, plus a local decoder that shadows a global and remains a
+  positive finding. The tempting alternative is to track global writes
+  across call graphs; that cannot be proven by this syntax-only bounded rule.

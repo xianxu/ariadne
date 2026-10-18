@@ -413,6 +413,133 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: d98742e5-d605-4956-97b9-4d3776435e53
+            repository: github.com/xianxu/ariadne
+            issue_id: "000440"
+            recipe: milestone-review
+            round: 5
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/07b900c5f9e838f4
+            reviewed_head: ae9feba152a8b629675f674bd5a754a9fef0bfac
+            slot: ariadne:1
+            requested_at: "2026-10-18T15:48:25.369234Z"
+          phase: finished
+          pid: 43031
+          started_at: "2026-10-18T15:48:25.456178Z"
+          finished_at: "2026-10-18T15:50:11.056506Z"
+          session_id: 01a14fb3-2fd3-7522-a7e3-fe2005df4d10
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: ae9feba152a8b629675f674bd5a754a9fef0bfac
+        tracker_head: fbe5c040cb6ebc956bb311c368442779cb27fa5c
+        branch_point: 3ba12c88814b92d93a6e30300fc8061940382d14
+        since: "2026-10-18T05:43:21-07:00"
+        until: "2026-10-18T08:47:52-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T05:43:21-07:00"
+              end: "2026-10-18T08:47:52-07:00"
+              began: "2026-10-18T05:43:21-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: dc0736cba4c7f9271d270f15771f759dba01024ae061c9f162bc8969255d2ccd
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 108018579
+              windows:
+                - start: "2026-10-18T05:43:21-07:00"
+                  end: "2026-10-18T08:47:52-07:00"
+        queue_waits:
+            - attempt_id: 97e9c79d9d1d102df2d40c32801f3864
+              slot: ariadne:1
+              record_digest: 302427f7fcd59fc6f235b929456fe28e0d9dee2ebfd0c5ec057a740997e6047c
+              start: "2026-10-18T13:00:46.040063Z"
+              end: "2026-10-18T13:09:43.849079Z"
+              queue_seconds: 537.809016
+              raw_seconds: 537.809016
+              exact: true
+            - attempt_id: 8c5a5e18aa58707db347c709c810f563
+              slot: ariadne:1
+              record_digest: e3d4f017eb327e3efee5b4d6035c7cfc077e114ad6e05dcb010f951cd3ff0b17
+              start: "2026-10-18T13:27:17.095135Z"
+              end: "2026-10-18T13:38:49.768584Z"
+              queue_seconds: 692.673449
+              raw_seconds: 692.673449
+              exact: true
+            - attempt_id: 90320ab29b17a67bea80a2671c62c12a
+              slot: ariadne:1
+              record_digest: 2d18cf65a08f926a2e69fb28f4d9985e7505b65b6ed8c309fe046dc6d1471a51
+              start: "2026-10-18T13:54:20.761552Z"
+              end: "2026-10-18T14:15:05.235935Z"
+              queue_seconds: 1244.474383
+              raw_seconds: 1244.474383
+              exact: true
+            - attempt_id: 4a60e90cc408df07a4638b2c53e283ac
+              slot: ariadne:1
+              record_digest: b4058fa81683863384dde7421a488aa896deb34a4d79ace8aeaa02202c45ca6e
+              start: "2026-10-18T14:32:04.166177Z"
+              end: "2026-10-18T14:59:49.477614Z"
+              queue_seconds: 1665.311437
+              raw_seconds: 1665.311437
+              exact: true
+            - attempt_id: 28f483f4799341fd56dad2c463677506
+              slot: ariadne:1
+              record_digest: 1f189210f8493e3900895b7da9b87104d5b38c60a7c2af139e525891aeeb29dc
+              start: "2026-10-18T15:15:06.25148Z"
+              end: "2026-10-18T15:39:30.12085Z"
+              queue_seconds: 1463.86937
+              raw_seconds: 1463.86937
+              exact: true
+        cuts:
+            - dispatched: "2026-10-18T06:21:43-07:00"
+              finalized: "2026-10-18T06:24:38-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T06:49:21-07:00"
+              finalized: "2026-10-18T06:51:14-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T07:26:15-07:00"
+              finalized: "2026-10-18T07:27:56-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T08:09:38-07:00"
+              finalized: "2026-10-18T08:11:49-07:00"
+              finalizing: false
+      "n": 5
+      timestamp: "2026-10-18T08:50:11-07:00"
+      dispatched: "2026-10-18T08:48:25-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-4
+          disposition: addressed
+          note: Exact-module imports map to "." at pkg/golint/wire.go:392. TestWireTargetIdentityMatrix covers default and explicit root aliases; both cases fail when that correction is removed in a temporary package copy.
+          round: 5
+        - id: BR-1
+          disposition: addressed
+          note: 'Retained disposition: target writes invalidate provenance, explicit interfaces do not inherit initializer identity, and the corresponding regression cases pass.'
+          round: 5
+        - id: BR-2
+          disposition: not-addressed
+          note: 'pkg/golint/wire.go:264-268 and 301-303 accept a package-global d assigned once inside the inspected function. Reproduced sequence: d = json.NewDecoder(r); d.DisallowUnknownFields(); reset(r); var m Peer; return d.Decode(&m), where reset replaces global d with json.NewDecoder(r). Check reports wire-strict-decode although the runtime decode accepts an unknown field with no error. This repeats family wire-decoder-strictness-provenance (ARCH-PURPOSE): enforce the documented function-local binding requirement before applying the single-owner proof, sweep same-file and cross-file globals alongside local declarations and shadowing, and add regression coverage.'
+          round: 5
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#440 (boundary-review)
@@ -460,6 +587,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-4** [Critical] `wire-target-provenance` (kind: defect) Imported marked types at the module root bypass the rule
   pkg/golint/wire.go:384 accepts only imports beginning with Module+"/", excluding an import equal to Module. A source-map probe with annotated Message in message.go and a direct strict decode into peer.Message from reader/read.go importing peer "example.test/module" returns no finding; moving the declaration and import to the wire subpackage produces the expected finding. This violates the Spec's module-wide imported-type coverage (ARCH-PURPOSE). This is the 2nd finding in family `wire-target-provenance`. Earlier rounds fixed instances; state and enforce the rule that every supported target identity resolves consistently. Sweep same-file, cross-file, module-root and subpackage imports, explicit/default aliases, and shadowed identities. Normalize an exact module import to the index's "." directory key and add regression coverage; that correction made the root/subpackage control probe pass.
 
+## Round 5 — 2026-10-18T08:50:11-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-4 — addressed — Exact-module imports map to "." at pkg/golint/wire.go:392. TestWireTargetIdentityMatrix covers default and explicit root aliases; both cases fail when that correction is removed in a temporary package copy.
+- BR-1 — addressed — Retained disposition: target writes invalidate provenance, explicit interfaces do not inherit initializer identity, and the corresponding regression cases pass.
+- BR-2 — not-addressed — pkg/golint/wire.go:264-268 and 301-303 accept a package-global d assigned once inside the inspected function. Reproduced sequence: d = json.NewDecoder(r); d.DisallowUnknownFields(); reset(r); var m Peer; return d.Decode(&m), where reset replaces global d with json.NewDecoder(r). Check reports wire-strict-decode although the runtime decode accepts an unknown field with no error. This repeats family wire-decoder-strictness-provenance (ARCH-PURPOSE): enforce the documented function-local binding requirement before applying the single-owner proof, sweep same-file and cross-file globals alongside local declarations and shadowing, and add regression coverage.
+
 ## Open findings
 
-- **BR-4** [Critical] `wire-target-provenance` (kind: defect) Imported marked types at the module root bypass the rule
+- **BR-2** [Critical] `wire-decoder-strictness-provenance` (kind: defect) Overwriting a decoder leaves stale strictness in the matcher
