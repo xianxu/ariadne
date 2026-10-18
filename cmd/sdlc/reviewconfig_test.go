@@ -34,10 +34,22 @@ func TestLoadReviewerPolicy(t *testing.T) {
 	if err != nil || p.Reviewer(judge.AgentClaude) != judge.AgentGemini {
 		t.Fatalf("explicit config: %+v, %v", p, err)
 	}
+	// #409: per-kind orders and per-reviewer models load into the policy.
+	writeReviewConfig(t, root, `{"boundary_reviewer": "other", "reviewer_order": {"bounded": ["gemini", "codex"]}, "reviewer_models": {"codex": "gpt-6-astra"}}`)
+	p, err = loadReviewerPolicy(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, _ := judge.ReviewPlan(p, judge.AgentClaude, []judge.Family{judge.FamilyAnthropic}, judge.KindBounded, nil)
+	if len(plan) != 2 || plan[0].Agent != judge.AgentGemini || plan[1].Model != "gpt-6-astra" {
+		t.Fatalf("orders/models config: %+v", plan)
+	}
 	for _, bad := range []string{
-		`{"boundary_reviewer": "others"}`, // unknown mode
-		`{"boundary_reviewr": "other"}`,   // misspelled key
-		`{"boundary_reviewer": `,          // malformed
+		`{"reviewer_order": {"huge": ["codex"]}}`, // unknown kind
+		`{"reviewer_models": {"grok": "x"}}`,      // unknown agent
+		`{"boundary_reviewer": "others"}`,         // unknown mode
+		`{"boundary_reviewr": "other"}`,           // misspelled key
+		`{"boundary_reviewer": `,                  // malformed
 	} {
 		writeReviewConfig(t, root, bad)
 		if _, err := loadReviewerPolicy(root); err == nil || !strings.Contains(err.Error(), reviewConfigPath) {

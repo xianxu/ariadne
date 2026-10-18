@@ -69,7 +69,7 @@ milestone reviews (0.35 → 0.14 each). Calibration doc flagged stale; numbers p
 
 Durable plan: `workshop/plans/000409-dynamic-review-policy-choose-the-reviewer-model-by-author-family-and-change-kind-cross-family-by-default-extending-310-plan.md`.
 
-- [ ] M1 — family, change kind (design-heavy/bounded), family-aware `other` + one default constant (still `same`), pure `ReviewPlan`, `Unavailable` (no-review-began evidence), pre-launch skips
+- [x] M1 — family, change kind (design-heavy/bounded), family-aware `other` + one default constant (still `same`), pure `ReviewPlan`, `Unavailable` (no-review-began evidence), pre-launch skips
 - [ ] M2 — dispatch loop with visible fallback/refusal at every review site; ledger, sidecar, `Review-Reviewer:` trailer; help and atlas
 
 ## Log
@@ -80,3 +80,14 @@ Durable plan: `workshop/plans/000409-dynamic-review-policy-choose-the-reviewer-m
 
 - Claimed by ariadne:2 (card was unowned). Current-state map in the durable plan; plan sent to the hub before code.
 - Hub approved; plan-quality round 1 raised PQ-1..5 (I had missed the issue's Spec: kind = design-heavy/bounded, #310 as floor, the over-budget fallback). All folded in as plan Revisions; the default stays `same` behind one constant until the operator decides the flip.
+- M1 implemented: `judge.Family`/`FamilyOf`, `ChangeKind` (design-heavy/bounded), `DefaultReviewerMode = ReviewerSame`
+  (the one constant the operator's answer changes), `ReviewerPolicy.Orders`/`Models` with validation and loader
+  fields (`reviewer_order`, `reviewer_models`), the pure `ReviewPlan`, `Unavailable` (launch failure, or a stream that
+  failed before any assistant/tool event with an unreachable/quota/sign-in cause; `AgentRun.Began` added), and
+  `LocalAvailability` (CLI on PATH; codex under checkout containment on darwin). Tests: TestFamilyOf, TestReviewPlan
+  (13 rows: floor modes, kinds, mixed/unknown authors, skips, repo order), TestReviewPlanCarriesModels,
+  TestUnavailable (8 rows), TestValidateOrdersAndModels, TestLocalAvailability, and the loader test.
+- Deviation from the hub-approved order, kept to honour #310 as the floor: the bounded default is codex, claude,
+  gemini (not codex, gemini, claude). #310's `other` promised that claude and codex review each other, and with
+  gemini second a codex-authored bounded change would have gone to gemini. Gemini is the fallback in both kinds. The
+  one behaviour change under `other` is a gemini-driven session, now reviewed by codex rather than claude.

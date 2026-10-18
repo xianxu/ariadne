@@ -1333,7 +1333,7 @@ func TestResolveReviewerCLI_Policy(t *testing.T) {
 		{"same", "", false, claudeMain, ReviewerPolicy{Mode: ReviewerSame}, AgentClaude},
 		{"other: claude reviewed by codex", "", false, claudeMain, other, AgentCodex},
 		{"other: codex reviewed by claude", "", false, codexMain, other, AgentClaude},
-		{"other: gemini reviewed by claude", "", false, geminiMain, other, AgentClaude},
+		{"other: gemini reviewed by codex, the first other family for a bounded change (#409)", "", false, geminiMain, other, AgentCodex},
 		{"explicit pair", "", false, claudeMain, pairs, AgentGemini},
 		{"explicit, unpaired main reviews itself", "", false, codexMain, pairs, AgentCodex},
 		{"--agent beats the policy", "claude", true, claudeMain, other, AgentClaude},
