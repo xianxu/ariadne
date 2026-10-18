@@ -227,6 +227,7 @@ you the pane is open.
 | 0 | Applied; reply has `Hash`, `Round`, `Body` | commit `Body` verbatim as rule 2 says |
 | 1 `edits-invalid` | `Invalid` lists 1-based bad records; nothing written | fix them and retry the whole batch |
 | 1 `propose-too-large` / `propose-unencodable` | change cannot be short marker proposals | write it in a side doc proposal, then link `→ [proposal](…)` through apply; keep any needed frontmatter-only change as records for `pair review apply` |
+| 1 `operator-owned` | batch tried to change `presentation:` or `collaboration-mode:` | leave it unchanged and ask the operator to set that key; do not retry through another verb |
 | 3 `operator-lock` | the operator is editing | say you are waiting for their next "finished my edits" poke; do not poll in a tight loop |
 | 6 `stale` | H no longer names the file's bytes | read again, rebuild every record, and apply again |
 
@@ -234,6 +235,9 @@ An absent reply is not an exit code. If the response is lost, read the file
 and Pair's round before retrying; never blindly replay records that may have
 landed. Pair's hash and operator lock own the edit conflict, so no parallel
 reconciliation protocol is needed.
+Under `presentation: propose`, a record wholly within frontmatter is applied
+directly through `pair review apply`; a record crossing the frontmatter boundary
+is refused. The operator-owned keys above remain protected on every path.
 
 **2. You own all the git** — the new Pair apply path writes the file, and nvim
 only reloads and decorates it. Use the review branch and tracked file selected

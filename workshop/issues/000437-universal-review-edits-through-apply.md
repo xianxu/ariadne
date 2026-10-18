@@ -56,6 +56,7 @@ The skill's contract and examples use `apply` for edits, cover exit-1 invalid/pr
 - A read-only skill pressure scenario compared the old and edited adapters: the old path rewrites through `write --all` and has no refusal path for a large proposal; the edited path uses records, the engine's refusal, a checked link/index, and explicit exit-6 rebuild and exit-3 wait. The remaining threshold discovery is deliberately owned by Pair's `propose-too-large` refusal, so the skill does not duplicate a tunable limit.
 - Pair #661 M2 found that a hosted review file is not Couch-registered, so `couch --session-sync write --frontmatter` cannot serve that path. The hosted skill now names frontmatter records through `pair review apply`; Pair is settling its exact frontmatter rule before live conformance.
 - The first Pair M2 proposal exception was too broad: any ready marker would make an ordinary requested prose edit direct. The hub narrowed it to a side-doc link or its requested fold-in, plus the matching index entry. Pair is adding a regression for `🤖[tighten this]` under `propose`; the skill states that normal prose changes remain proposals.
+- Pair clarified that frontmatter-only records under `propose` go through `pair review apply` directly, while `presentation:` and `collaboration-mode:` refuse as operator-owned on every write path. Both adapters now name that exit-1 recovery without trying another verb.
 
 ## Revisions
 

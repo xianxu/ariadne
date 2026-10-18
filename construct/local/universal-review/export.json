@@ -18,15 +18,15 @@
     {
       "role": "collaboration-modes",
       "path": "collaboration-modes.md",
-      "bytes": 27114,
-      "sha256": "c9d1fe3783f11bc73ba7549a3d5bdf045dbe44d0d01195a5f873d83de74dcef8"
+      "bytes": 27150,
+      "sha256": "15046125bbed091c9193c33827f12c00e713a34938c6bf306d16e1eae0a5bf9b"
     },
     {
       "role": "adapter",
       "name": "file-edit",
       "path": "adapters/file-edit.md",
-      "bytes": 7892,
-      "sha256": "0962f228fd1e0f873aaa9e43d433e1d24117a900babaf66b46ae4eb8aaa44c96"
+      "bytes": 8154,
+      "sha256": "360875fd14d13f951922c29f297fd5813c39511e44a13e086aa811aaaf75745b"
     },
     {
       "role": "mode",

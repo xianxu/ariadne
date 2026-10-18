@@ -210,8 +210,8 @@ request marker with a side-doc link applies directly even under
 marker and link in the base text. Ordinary prose edits still become proposals,
 never hand-written as markers by the agent. For a side doc
 opened by that request, include its matching `discussions:` index entry in the
-  same `apply` batch as the link; Pair permits that frontmatter change only as
-part of this checked, atomic exception.
+same `apply` batch as the link. A record wholly inside frontmatter applies
+directly; check that the entry's path matches the link so both land atomically.
 
 **Writes and retries.** Each document a round changes gets one write, through the adapter. A fold-in changes two:
 the parent it folds into, and the side doc that gets the closing note. A new side doc's index entry rides the

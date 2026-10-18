@@ -65,8 +65,8 @@ One round reviews one snapshot: the text whose hash you write against.
    marker and link in the base text. Ordinary prose edits still become proposals,
    even when they answer a ready marker. When the link opens a side doc, include
    its matching `discussions:` frontmatter entry in the same batch as the link.
-   Pair checks the association and lands both atomically; do not split them
-   into two writes.
+   Check that both paths match; Pair lands the batch atomically. Do not split
+   them into two writes.
 6. **Report the landed edits:** `couch --session-sync round FILE --json` gives
    the round's spans and their `explain` reasons; list those edits in the
    reply. A no-op answer can use `write --all` with the unchanged snapshot
@@ -97,6 +97,10 @@ Refusals:
   side doc proposal (`../collaboration-modes.md` §4), then use a fresh
   snapshot and `apply` to link it in place as `→ [proposal](…)`. The operator
   can later ask `🤖[fold in]` beside that link. Do not hand-write markers.
+- **Exit 1, `operator-owned`:** the batch tried to change `presentation:` or
+  `collaboration-mode:`. These choices belong to the operator. Leave the
+  document unchanged and ask the operator to set the key; do not retry that
+  edit through another verb.
 
 If an apply response is lost, read the file and its round before retrying;
 an exit code you did not receive is not proof that nothing changed. If the
