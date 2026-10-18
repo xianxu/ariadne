@@ -75,6 +75,61 @@ rounds:
           family: done-when-drift
           round: 1
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 7db3865f-6c88-4977-9acc-d73bd74869b6
+            repository: github.com/xianxu/ariadne
+            issue_id: "000394"
+            recipe: plan-quality
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+            reviewed_head: 2d46395ef54deeaa530dd56bf26918b0a1c0ba50
+            slot: ariadne:2
+            requested_at: "2026-10-18T22:57:30.939432Z"
+          phase: finished
+          pid: 57146
+          started_at: "2026-10-18T22:57:31.055984Z"
+          finished_at: "2026-10-18T22:57:57.40888Z"
+          session_id: 1baa8f6b-092f-413a-83f9-0b25ed003914
+          outcome: returned
+      "n": 2
+      timestamp: "2026-10-18T15:57:57-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: 'The rerun takes its own slot, lease and signals through the extracted runUnderSlot (weight 1, a suite+SHA lease, WF_TEST_LOCK_HELD_BY set), so #383''s early release at localcheck_run.go:162-167 still holds.'
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: runLocalCheck classifies and posts the one final status; merge's diagnoseSuiteFailure runs only on Unknown and reuses classifyFailures as a label; Classify takes the baseline as an optional input.
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          note: The decoder accepts v1 and v2; an undecodable attempt or an incomplete store read refuses the success post and names the file.
+          round: 2
+        - id: PQ-4
+          disposition: addressed
+          note: The registry is now the flake_tests card field, set via runCardUpdate (cardsetters.go:30, no owner check) and read with the Fresh tracker read.
+          round: 2
+        - id: PQ-5
+          disposition: addressed
+          note: The revision gives one strategy line per risky function; the earlier prose lists are superseded.
+          round: 2
+        - id: PQ-6
+          disposition: addressed
+          note: flake_tests is added to card.fields in issue.cue (kind and setter), as severity is at issue.cue:119.
+          round: 2
+        - id: PQ-7
+          disposition: addressed
+          note: 'The issue''s Revisions records Done-when 3''s CI coverage moving to #451, with CI shown as not covered.'
+          round: 2
+      blocked: false
+content_hash: d40b3dcca003fc1ccb87bd475512e425298af9d2e35a132754b28977c0714c0c
 ---
 
 # Gate ledger — ariadne#394 (plan-quality)
@@ -98,12 +153,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-6** [Minor] `vocabulary-single-source` (kind: defect) The new flake_tests frontmatter field is not added to the vocabulary model
 - **PQ-7** [Minor] `done-when-drift` (kind: defect) Done-when 3 still requires CI coverage that D3 moved to #451; add a Revision to Done-when
 
+## Round 2 — 2026-10-18T15:57:57-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-1 — addressed — The rerun takes its own slot, lease and signals through the extracted runUnderSlot (weight 1, a suite+SHA lease, WF_TEST_LOCK_HELD_BY set), so #383's early release at localcheck_run.go:162-167 still holds.
+- PQ-2 — addressed — runLocalCheck classifies and posts the one final status; merge's diagnoseSuiteFailure runs only on Unknown and reuses classifyFailures as a label; Classify takes the baseline as an optional input.
+- PQ-3 — addressed — The decoder accepts v1 and v2; an undecodable attempt or an incomplete store read refuses the success post and names the file.
+- PQ-4 — addressed — The registry is now the flake_tests card field, set via runCardUpdate (cardsetters.go:30, no owner check) and read with the Fresh tracker read.
+- PQ-5 — addressed — The revision gives one strategy line per risky function; the earlier prose lists are superseded.
+- PQ-6 — addressed — flake_tests is added to card.fields in issue.cue (kind and setter), as severity is at issue.cue:119.
+- PQ-7 — addressed — The issue's Revisions records Done-when 3's CI coverage moving to #451, with CI shown as not covered.
+
 ## Open findings
 
-- **PQ-1** [Important] `unstated-lock-contract-change` (kind: defect) The targeted rerun "under the held slot" conflicts with #383's early slot, lease and signal release in runLocalCheck
-- **PQ-2** [Important] `gate-effect-ordering-unstated` (kind: defect) PersistentMain needs merge's baseline, but diagnoseSuiteFailure runs only after runLocalCheck returns, where the plan classifies and posts
-- **PQ-3** [Important] `absent-evidence-reads-as-success` (kind: defect) Schema v2: decodeSuiteAttempt accepts only version 1 and a fixed key allowlist, and the success guard must fail closed on records it cannot read
-- **PQ-4** [Important] `unstated-ownership-contract` (kind: defect) flake register writes through issue publish, which only the owner may run; the flake issue is usually claimed by another slot
-- **PQ-5** [Minor] `test-prose-enumeration` (kind: defect) M2 and M3 list e2e test cases in prose; compress to one strategy line per risky function
-- **PQ-6** [Minor] `vocabulary-single-source` (kind: defect) The new flake_tests frontmatter field is not added to the vocabulary model
-- **PQ-7** [Minor] `done-when-drift` (kind: defect) Done-when 3 still requires CI coverage that D3 moved to #451; add a Revision to Done-when
+(none — every finding has been disposed)

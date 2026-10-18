@@ -5,8 +5,8 @@ deps: [392]
 github_issue:
 created: 2026-10-15
 updated: 2026-10-18
-estimate_hours:
-card_mirror: '6a53e9abee241df666ecadd2a0f95825c603cf07' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 1.6
+card_mirror: '9b1d7c9630ed36af3583de09704352229383c349' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-18T15:44:55-07:00
 claimant:
     operator: Xian Xu
@@ -37,6 +37,33 @@ Keep the exact-head full-suite landing gate. When a test fails, retain the attem
 ## Revisions
 
 - 2026-10-18 (hub D3): Done-when 3's CI failure classes move to #451. Here the daily view covers local attempts, and CI is shown as `not covered` until #451 lands, never as zero.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module   design=0.2 impl=0.22
+item: smaller-go-module      design=0.05 impl=0.14
+item: smaller-go-module      design=0.05 impl=0.2
+item: smaller-go-module      design=0.05 impl=0.14
+item: atlas-docs             design=0.0 impl=0.08
+item: milestone-review       design=0.0 impl=0.14
+item: milestone-review       design=0.0 impl=0.14
+item: milestone-review       design=0.0 impl=0.14
+design-buffer: 0.15
+total: 1.6
+```
+
+Derivation (*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*). The design is settled by the hub's D1–D4 and two plan-quality rounds, so a ×0.2 spec discount applies to the greenfield design (0.5–2h becomes about 0.2). impl= is 40% of the v2 midpoints:
+- `internal/flakes` (registry, classify, evidence, rerun) is greenfield: 0.55 → 0.22.
+- The card field, vocabulary and `flake register`/`list`: 0.35 → 0.14.
+- The runLocalCheck gate, the `runUnderSlot` extraction and the v2 attempts, the riskiest piece, take the top of the range: 0.5 → 0.2.
+- The success-post guard, republish and the `Unattributed` parse: 0.35 → 0.14.
+- tl-worker help with its phrase guards, the help text and the atlas: 0.08.
+- Three milestone reviews.
+
+The calibration doc is marked stale (#127), so these numbers are provisional.
 
 ## Plan
 
