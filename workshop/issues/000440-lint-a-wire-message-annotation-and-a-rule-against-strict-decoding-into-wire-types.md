@@ -170,6 +170,12 @@ Then close and land on SHIP.
   (SHA-256 prefix `dff197afe72e`). PR #304 checks `merge-check` and
   `local-gates-guard` also passed on that code head.
 
+- Round-6 direct-call fixtures failed before the correction for inferred,
+  typed, and grouped `var` initializers and multiple assignment RHS; short
+  declaration and pre-strictness controls already behaved correctly. The
+  matcher now checks each direct initializer/RHS before updating binding
+  provenance. `go test ./pkg/golint -count=1` passed afterward.
+
 ## Revisions
 
 - 2026-10-18, close review round 6: BR-5 found direct `Decode` calls skipped

@@ -314,6 +314,45 @@ func read(r io.Reader) error {
 	}
 }
 
+func TestWireStrictDecodeDirectCallPositions(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		want       bool
+	}{
+		{"inferred var", `d.DisallowUnknownFields(); var err = d.Decode(&m); _ = err`, true},
+		{"typed var", `d.DisallowUnknownFields(); var err error = d.Decode(&m); _ = err`, true},
+		{"grouped var", `d.DisallowUnknownFields(); var (n int = 1; err = d.Decode(&m)); _, _ = n, err`, true},
+		{"multiple assignment RHS", `d.DisallowUnknownFields(); var err error; var n int; err, n = d.Decode(&m), 1; _, _ = err, n`, true},
+		{"short declaration control", `d.DisallowUnknownFields(); err := d.Decode(&m); _ = err`, true},
+		{"call before strictness", `var err = d.Decode(&m); _ = err; d.DisallowUnknownFields()`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			src := `package p
+import ("encoding/json"; "io")
+// wire: peer messages can gain fields.
+type Peer struct{}
+func read(r io.Reader) {
+	d := json.NewDecoder(r)
+	var m Peer
+	` + tc.body + `
+}`
+			got, err := Check("p.go", []byte(src), Catalog)
+			if err != nil {
+				t.Fatal(err)
+			}
+			hits := 0
+			for _, finding := range got {
+				if finding.Rule == "wire-strict-decode" {
+					hits++
+				}
+			}
+			if (hits == 1) != tc.want || hits > 1 {
+				t.Errorf("findings = %v; want wire-strict-decode=%v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestWireStrictDecodeDoesNotGuessFlowOrTarget(t *testing.T) {
 	for _, tc := range []struct {
 		name, body string

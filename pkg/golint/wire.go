@@ -147,6 +147,11 @@ func wireStrictDecode(f *ast.File, context *CheckContext) []ast.Node {
 				}
 				for _, spec := range group.Specs {
 					value, ok := spec.(*ast.ValueSpec)
+					if ok {
+						for _, initializer := range value.Values {
+							checkCall(initializer)
+						}
+					}
 					if ok && len(value.Names) == 1 && len(value.Values) == 1 && eligible[value.Names[0].Name] && isPackageCall(value.Values[0], jsonPkg, "NewDecoder") {
 						decoders[value.Names[0].Name] = false
 					}
@@ -160,8 +165,8 @@ func wireStrictDecode(f *ast.File, context *CheckContext) []ast.Node {
 					}
 				}
 			case *ast.AssignStmt:
-				if len(v.Rhs) == 1 {
-					checkCall(v.Rhs[0])
+				for _, rhs := range v.Rhs {
+					checkCall(rhs)
 				}
 				for _, lhs := range v.Lhs {
 					id := assignedRoot(lhs)
@@ -192,8 +197,10 @@ func wireStrictDecode(f *ast.File, context *CheckContext) []ast.Node {
 			case *ast.IfStmt:
 				// An if-init executes before the condition; its branches do not
 				// necessarily run. The common `if err := d.Decode(...)` fits.
-				if init, ok := v.Init.(*ast.AssignStmt); ok && len(init.Rhs) == 1 {
-					checkCall(init.Rhs[0])
+				if init, ok := v.Init.(*ast.AssignStmt); ok {
+					for _, rhs := range init.Rhs {
+						checkCall(rhs)
+					}
 				}
 				invalidateAssigned(v, decoders, variables)
 			default:
