@@ -1,6 +1,6 @@
 ---
 id: 000431
-status: working
+status: codecomplete
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.87
+tracker:
+    version: 1
+    completion:
+        token: close-3e9f80199175
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 5b2d792df73a42e43e6d71d6e1b22121a54e5462
+        evidence_commit: 52f11e70e6c82c283dd3bc74b106a6b287d535db
 ---
 
 # sdlc local-check: republish a completed attempt whose GitHub status post failed
