@@ -31,6 +31,10 @@ PERMISSIONS
   services), or change the item's scope.
   Opening an early draft PR for CI overlap needs no hub approval. The recorded
   suite, close review, and `sdlc merge` gates still precede landing.
+  A milestone or close review may overlap a queued recorded suite
+  without hub approval, under two conditions:
+  a recorded suite pass on the final head still precedes landing,
+  and a review that changes code requeues the suite on the final head.
 
 TESTS
   Run the required recorded pre-close suite on the pushed issue branch. Once
