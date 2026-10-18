@@ -61,12 +61,25 @@ at most once per test process and hands every caller the same path.
 
 ## Plan
 
-- [ ] `testfix.BuiltBinary` + `RemoveBuiltBinaries` + stale sweep, with tests (one build for N callers, parallel callers, a memoized failure, cleanup)
-- [ ] Move the 6 build sites and 2 `go run` calls to it; drop the 6 suppressions
-- [ ] Re-measure builds and bytes with the wrapper method; record before/after in Log
+- [x] `testfix.BuiltBinary` + `RemoveBuiltBinaries` + stale sweep, with tests (one build for N callers, parallel callers, a memoized failure, cleanup)
+- [x] Move the 6 build sites and 2 `go run` calls to it; drop the 6 suppressions
+- [x] Re-measure builds and bytes with the wrapper method; record before/after in Log
 
 - [ ]
 
 ## Log
 
 ### 2026-10-18
+
+### 2026-10-18
+
+- Implemented `testfix.BuiltBinary` and `RemoveBuiltBinaries` (called from cmd/sdlc's TestMain after `m.Run`), with a
+  sweep of stale `sdlc-testbin-*` directories. Tests: `TestBuiltBinaryBuildsOncePerProcess` (16 parallel callers, 1
+  build; another package or flag set is another build; RemoveBuiltBinaries deletes it),
+  `TestBuiltBinaryFailureIsSharedNotRetried`, `TestSweepBuiltDirsRemovesOnlyStaleOnes`. Moved `buildFleetE2EBinary`,
+  leftover_e2e, trackedlegacy, issueids, issuemigrate, the settings_native weave build and both `go run ../vocabulary`
+  calls to it; the six `test-go-build` suppressions are gone and pkg/golint stays clean.
+- **Before/after**, same tests, same wrapper method, one serial process: before, 18 `go build` of sdlc plus 1
+  `go run` (310 MB of binaries); after, 1 sdlc build plus 1 vocabulary build (20.9 MB). No `sdlc-testbin-*` directory
+  is left after the process exits. In the 12-shard suite the bound is one build per package per shard that runs
+  such a test.

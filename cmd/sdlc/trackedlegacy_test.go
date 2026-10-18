@@ -109,11 +109,7 @@ func TestDetailsWithoutCardsIsPure(t *testing.T) {
 // a card (a hand-made file would collide with the next allocated id) and
 // accepts details that belong to their card (#252 M4).
 func TestLintIDsRefusesCardlessDetailsInATrackerRepository(t *testing.T) {
-	bin := filepath.Join(t.TempDir(), "sdlc")
-	//lint:allow test-go-build — an end-to-end test of the built binary; building once per process is #438
-	if out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput(); err != nil {
-		t.Fatalf("build sdlc: %v\n%s", err, out)
-	}
+	bin := testfix.BuiltBinary(t, ".", ".")
 	cardPath, card, _, _ := seededIssue(t, "000009", "nine")
 	_, _, detail9Path, detail9 := seededIssue(t, "000009", "nine")
 	r := newTrackerRepo(t, map[string]string{card7Path: openCard7, cardPath: card}, nil)

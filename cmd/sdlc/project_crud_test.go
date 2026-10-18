@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 func TestRunProjectNewCreatesSelfValidatingScaffold(t *testing.T) {
@@ -52,7 +54,7 @@ func TestProjectScaffoldConformsToProjectVocabularyProcess(t *testing.T) {
 	if err := runProjectNew(&bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command("go", "run", "../vocabulary", "validate-instance", "--type", "project", filepath.Join(dir, "demo.md"))
+	cmd := exec.Command(testfix.BuiltBinary(t, "..", "./vocabulary"), "validate-instance", "--type", "project", filepath.Join(dir, "demo.md"))
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("generated scaffold is nonconforming: %v\n%s", err, out)
 	}
@@ -67,7 +69,7 @@ func TestProjectScaffoldPreservesYAMLHostileScalars(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, "demo.md")
-	cmd := exec.Command("go", "run", "../vocabulary", "validate-instance", "--type", "project", path)
+	cmd := exec.Command(testfix.BuiltBinary(t, "..", "./vocabulary"), "validate-instance", "--type", "project", path)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("hostile scaffold is nonconforming: %v\n%s", err, out)
 	}
