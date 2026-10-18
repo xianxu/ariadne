@@ -7,6 +7,8 @@ import (
 	"os"
 	"slices"
 	"strings"
+
+	"github.com/xianxu/ariadne/pkg/sidedoc"
 )
 
 // fakeSessionSync models a session-sync file the way couch's help states it:
@@ -25,28 +27,30 @@ type fakeSessionSync struct {
 	gap bool // status refuses with a delivery gap
 
 	// The whole-file view (#424): the frontmatter's lines and the sections in
-	// order (sorted by heading when unset), rendered by text() and replaced by
-	// WriteAll, so a section write and a whole-file write conflict as in couch.
+	// order (sorted by heading when unset), rendered by text(). The
+	// frontmatter scope (#426, pair#643) reads and replaces only front; its
+	// hash covers the block alone, so a section write never makes it stale.
 	front string
 	order []string
 	// shadow is couch's diff baseline: what the agent last read or wrote,
 	// per section ("" key: the frontmatter). Diff reports what differs from
-	// it; a whole-file read or write resets all of it, a section write only
-	// its section. nil until first used: the starting state counts as seen.
-	shadow        map[string]string
-	editAllBefore map[int]map[string]string // WriteAll call number → heading → new body
-	editOnReadAll map[int]map[string]string // ReadAll call number → edits landing just before it
-	readAllCalls  int
-	allWriteCalls int
-	allWrites     int
+	// it; a whole-file read resets all of it, a section write only its
+	// section, a frontmatter read or write only "". nil until first used:
+	// the starting state counts as seen.
+	shadow          map[string]string
+	editFrontBefore map[int]string // WriteFrontmatter call number → the frontmatter someone else writes just before it
+	frontWriteCalls int
+	frontWrites     int
 
 	writeCalls int // every WriteSection call
 	writes     int // successful writes
 	seenAll    bool
 }
 
+// newFake is a session-sync file: couch serves only those, which it knows by
+// their frontmatter's `type: session-sync`.
 func newFake(sections map[string]string) *fakeSessionSync {
-	return &fakeSessionSync{sections: sections, editBefore: map[int]map[string]string{}}
+	return &fakeSessionSync{sections: sections, front: "type: session-sync", editBefore: map[int]map[string]string{}}
 }
 
 func fakeHash(body string) string {
@@ -155,30 +159,35 @@ func (f *fakeSessionSync) text() string {
 	if f.front != "" {
 		b.WriteString("---\n" + f.front + "\n---\n")
 	}
-	// Exactly invertible: WriteAll's parse returns each body byte for byte,
-	// so a section the whole-file write leaves alone keeps its hash, as in couch.
+	// Sections render byte for byte, so a frontmatter write leaves every
+	// section's hash alone, as in couch.
 	for _, h := range f.headings() {
 		b.WriteString("\n## " + h + "\n" + f.sections[h])
 	}
 	return b.String()
 }
 
-func (f *fakeSessionSync) ReadAll(string) (string, string, error) {
-	f.readAllCalls++
-	for h, b := range f.editOnReadAll[f.readAllCalls] {
-		f.sections[h] = b
-	}
-	t := f.text()
-	if f.shadow != nil {
-		f.seeAll()
-	}
-	return t, fakeHash(t), nil
+// block is the frontmatter as couch's scope projects it.
+func (f *fakeSessionSync) block() string {
+	b, _, _ := sidedoc.FrontBlock(f.text())
+	return b
 }
 
-func (f *fakeSessionSync) WriteAll(_, bodyPath, hash string) error {
-	f.allWriteCalls++
-	for h, b := range f.editAllBefore[f.allWriteCalls] {
-		f.sections[h] = b
+func (f *fakeSessionSync) ReadFrontmatter(string) (string, string, error) {
+	b := f.block()
+	if b == "" {
+		return "", "", errors.New("couch --session-sync read refused (session-sync): expected a closed leading frontmatter block")
+	}
+	if f.shadow != nil {
+		f.shadow[""] = f.front
+	}
+	return b, fakeHash(b), nil
+}
+
+func (f *fakeSessionSync) WriteFrontmatter(_, bodyPath, hash string) error {
+	f.frontWriteCalls++
+	if fm, ok := f.editFrontBefore[f.frontWriteCalls]; ok {
+		f.front = fm
 	}
 	if f.holder == "operator" {
 		return ErrLocked
@@ -186,32 +195,21 @@ func (f *fakeSessionSync) WriteAll(_, bodyPath, hash string) error {
 	if hash == "" {
 		return errors.New("couch --session-sync write: --if-hash is required")
 	}
-	if fakeHash(f.text()) != hash {
+	if fakeHash(f.block()) != hash {
 		return ErrStale
 	}
 	raw, err := os.ReadFile(bodyPath)
 	if err != nil {
 		return err
 	}
-	text := string(raw)
-	f.front = ""
-	if rest, ok := strings.CutPrefix(text, "---\n"); ok {
-		fm, after, found := strings.Cut(rest, "\n---\n")
-		if !found {
-			return errors.New("fake: unterminated frontmatter")
-		}
-		f.front, text = fm, after
+	next, rest, ok := sidedoc.FrontBlock(string(raw))
+	if !ok || strings.TrimSpace(rest) != "" {
+		return errors.New("couch --session-sync write refused: the payload must be one frontmatter block and nothing else")
 	}
-	f.sections, f.order = map[string]string{}, nil
-	parts := strings.Split("\n"+text, "\n## ")
-	for _, part := range parts[1:] {
-		h, body, _ := strings.Cut(part, "\n")
-		f.sections[h] = body
-		f.order = append(f.order, h)
-	}
-	f.allWrites++
+	f.front = strings.TrimSuffix(strings.TrimPrefix(next, "---\n"), "\n---")
+	f.frontWrites++
 	if f.shadow != nil {
-		f.seeAll()
+		f.shadow[""] = f.front
 	}
 	return nil
 }

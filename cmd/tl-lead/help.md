@@ -201,6 +201,9 @@ TALKING TO THE OPERATOR
     it reviewed (never add it back unless you write something new for them in
     that side doc: then --add it again), and deleting a bullet or a link drops
     its entry: `submit` reconciles the index on each submit (or run `index FILE`).
+    The index write changes only the frontmatter, through couch's frontmatter
+    scope (ariadne#426), so the operator's unread section edits stay in your
+    changes since your last read.
     Write the status file only through `tl-lead status`
     (below), never by the skill's whole-document write: the collaboration
     mode changes where your answers go, not how you write them.

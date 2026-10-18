@@ -14,26 +14,16 @@ import (
 )
 
 // syncIndex reconciles the session file's discussions: index (#424,
-// collaboration-modes.md "The index") through one whole-file write: it drops
-// each entry whose link the operator deleted and appends each of add. The
-// frontmatter is outside every section, so the write is couch's write --all,
-// named by the hash of the read it was computed from, and retried like
-// writeSection. An entry whose file is missing is named, never dropped: the
-// operator removes it.
-//
-// Couch's whole-file read and write mark every edit seen, so they would empty
-// the TL's "changes since your last read". So the decision whether anything
-// changes is a Peek, which leaves couch's baseline alone; and when a
-// write is needed, the pending changes are printed first, so the write
-// consumes nothing unread. (A frontmatter-scoped couch read and write would
-// remove the need: proposed to pair.)
+// collaboration-modes.md "The index"): it drops each entry whose link the
+// operator deleted and appends each of add. It writes only the frontmatter,
+// through couch's frontmatter scope (#426, pair#643), named by the hash of
+// the frontmatter read it was computed from, and retried like writeSection.
+// Both mark only the frontmatter seen, so the operator's unread section edits
+// stay in the TL's diff; the body's links are read with Peek, which moves no
+// baseline. A body edit after that Peek can only delay a drop to the next
+// reconcile: entries are never added from links. An entry whose file is
+// missing is named, never dropped: the operator removes it.
 func syncIndex(d deps, out io.Writer, file string, add []string) error {
-	return syncIndexAfter(d, out, file, add, "")
-}
-
-// syncIndexAfter is syncIndex for a caller that has just printed couch's
-// diff (submit): the same unread changes aren't printed twice.
-func syncIndexAfter(d deps, out io.Writer, file string, add []string, printed string) error {
 	if text, err := d.ss.Peek(file); err == nil {
 		if _, r, err := sidedoc.ReconcileIndex(text, add); err == nil && !r.Changed() {
 			reportIndex(out, file, r)
@@ -41,16 +31,32 @@ func syncIndexAfter(d deps, out io.Writer, file string, add []string, printed st
 		}
 	}
 	for range writeTries {
-		text, hash, err := readAllShowingUnread(d, out, file, printed)
+		block, hash, err := d.ss.ReadFrontmatter(file)
+		if err != nil {
+			return refusal(file, "discussions: index", err)
+		}
+		text, err := d.ss.Peek(file)
 		if err != nil {
 			return err
 		}
-		next, r, err := sidedoc.ReconcileIndex(text, add)
+		_, body, ok := sidedoc.FrontBlock(text)
+		if !ok {
+			return fmt.Errorf("refused: %s has no closed frontmatter block", file)
+		}
+		next, r, err := sidedoc.ReconcileIndex(block+body, add)
 		if err != nil {
 			return fmt.Errorf("refused: %s's discussions: index: %v", file, err)
 		}
 		if r.Changed() {
-			err = writeBody(next, func(path string) error { return d.ss.WriteAll(file, path, hash) })
+			// Couch ends the block at the first line that trims to `---`; the
+			// reconcile reads only an exact one. Where they disagree (an
+			// indented `  ---` inside), part of the new index would fall
+			// outside what the write replaces: refuse rather than report it.
+			front, rest, ok := sidedoc.FrontBlock(next)
+			if !ok || rest != body {
+				return fmt.Errorf("refused: %s's frontmatter has a line couch reads as its end (`---` with spaces); fix it by hand", file)
+			}
+			err = writeBody(front, func(path string) error { return d.ss.WriteFrontmatter(file, path, hash) })
 			if errors.Is(err, ErrStale) {
 				continue
 			}
@@ -62,46 +68,6 @@ func syncIndexAfter(d deps, out io.Writer, file string, add []string, printed st
 		return nil
 	}
 	return exitError{6, fmt.Errorf("refused: %s is still stale after %d reads; someone is editing it", file, writeTries)}
-}
-
-// readAllShowingUnread is the one way the index reads the whole file (#424
-// review, BR-8). Couch's read --all marks every edit seen, so first it prints
-// what is unread, then it peeks, and if the read returns other text (an edit
-// landed between the diff and the read) it prints those lines too: nothing is
-// marked seen without being shown. Every attempt of the write loop comes
-// through here, so an edit that made a write stale is shown on the retry.
-func readAllShowingUnread(d deps, out io.Writer, file, printed string) (string, string, error) {
-	raw, err := d.ss.Diff(file)
-	if err != nil {
-		return "", "", err
-	}
-	if diff := unreadChanges(raw); diff != "" && diff != unreadChanges(printed) {
-		fmt.Fprintf(out, "changes since your last read (the index write marks them seen):\n%s", diff)
-		if !strings.HasSuffix(diff, "\n") {
-			fmt.Fprintln(out)
-		}
-	}
-	shown, perr := d.ss.Peek(file)
-	text, hash, err := d.ss.ReadAll(file)
-	if err != nil {
-		return "", "", refusal(file, "discussions: index", err)
-	}
-	if perr == nil && shown != text {
-		fmt.Fprintf(out, "changed while reading (also marked seen):\n%s", windowChanges(shown, text))
-	}
-	return text, hash, nil
-}
-
-// windowChanges is the changed lines of lineDiff: an edit that landed in
-// the window between a diff and a read.
-func windowChanges(old, new string) string {
-	var b strings.Builder
-	for _, l := range strings.Split(lineDiff(old, new), "\n") {
-		if strings.HasPrefix(l, "+") || strings.HasPrefix(l, "-") {
-			b.WriteString(l + "\n")
-		}
-	}
-	return b.String()
 }
 
 func reportIndex(out io.Writer, file string, r sidedoc.Report) {
@@ -128,7 +94,10 @@ operator's review. The rule is one-way: deleting a link drops its entry on the
 next reconcile, and removing an entry means reviewed (the link stays, and no
 reconcile adds it back). instructions link adds its answer doc itself, and
 submit reconciles; use --add for a discussion side doc linked in another
-section (Needs you, Threads), with the path as the link writes it.`,
+section (Needs you, Threads), with the path as the link writes it.
+
+The write changes only the frontmatter (couch's read/write --frontmatter,
+ariadne#426): the operator's unread section edits stay in your diff.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return syncIndex(d, cmd.OutOrStdout(), args[0], add)
@@ -136,18 +105,4 @@ section (Needs you, Threads), with the path as the link writes it.`,
 	}
 	c.Flags().StringArrayVar(&add, "add", nil, "a side doc to list, relative to FILE (repeatable)")
 	return c
-}
-
-// unreadChanges is a couch diff without its `lock:` header line, which it
-// prints even when nothing changed: "" means no unread edits.
-func unreadChanges(diff string) string {
-	if first, rest, ok := strings.Cut(diff, "\n"); ok && strings.HasPrefix(first, "lock:") {
-		diff = rest
-	} else if strings.HasPrefix(diff, "lock:") {
-		diff = ""
-	}
-	if strings.TrimSpace(diff) == "" {
-		return ""
-	}
-	return diff
 }

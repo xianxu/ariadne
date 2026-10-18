@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/pkg/sidedoc"
 )
 
 // TestSessionSyncConformance checks the fake's model against the real couch:
@@ -72,56 +74,58 @@ func TestSessionSyncConformance(t *testing.T) {
 		t.Errorf("a refused fold changed A to %q", got)
 	}
 
-	// The whole-file read and write the index uses (#424): a hash, a stale
-	// refusal, a write that replaces the frontmatter and keeps the sections.
-	text, all, err := ss.ReadAll(file)
-	if err != nil || all == "" || !strings.Contains(text, "## A") {
-		t.Fatalf("read --all: hash=%q err=%v\n%s", all, err, text)
-	}
-	// What the fake models and syncIndex relies on: a whole-file read marks
-	// every edit seen, so the diff after it is empty, while Peek reads the
-	// same text without touching the baseline.
-	if peek, err := ss.Peek(file); err != nil || peek != text {
-		t.Errorf("Peek differs from read --all: %v\n%q\n%q", err, peek, text)
-	}
-	if err := os.WriteFile(file, []byte(strings.Replace(text, "\nb\n", "\nb edited\n", 1)), 0o644); err != nil {
+	// The frontmatter scope the index uses (#426, pair#643): a read and a
+	// write mark only the frontmatter seen, so an operator's section edit
+	// stays in the diff; a stale hash is exit 6; the write keeps every body
+	// byte. Against this scratch file only, never a real session file.
+	if _, err := ss.Diff(file); err != nil {
 		t.Fatal(err)
 	}
-	if diff, err := ss.Diff(file); err != nil || unreadChanges(diff) == "" {
-		t.Errorf("an edit after read --all: diff %q, %v; want it reported", diff, err)
-	}
-	if text, all, err = ss.ReadAll(file); err != nil {
+	if err := ss.MarkAllSeen(file); err != nil {
 		t.Fatal(err)
 	}
-	if diff, err := ss.Diff(file); err != nil || unreadChanges(diff) != "" {
-		t.Errorf("after read --all: diff %q, %v; want no changes (read --all marks every edit seen)", diff, err)
-	}
-	whole := filepath.Join(dir, "whole.md")
-	next := strings.Replace(text, "type: session-sync\n", "type: session-sync\ndiscussions:\n  - doc: s.side/01-x.md\n", 1)
-	if err := os.WriteFile(whole, []byte(next), 0o644); err != nil {
+	before, err := ss.Peek(file)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := ss.WriteAll(file, whole, "0000000000000000"); !errors.Is(err, ErrStale) {
-		t.Errorf("write --all with a wrong hash: err = %v, want ErrStale (exit 6)", err)
+	edited := strings.Replace(before, "\nb\n", "\nb edited by the operator\n", 1)
+	if err := os.WriteFile(file, []byte(edited), 0o644); err != nil {
+		t.Fatal(err)
 	}
-	if err := ss.WriteAll(file, whole, all); err != nil {
-		t.Fatalf("write --all naming the read hash: %v", err)
+	block, fmHash, err := ss.ReadFrontmatter(file)
+	if want, _, _ := sidedoc.FrontBlock(edited); err != nil || fmHash == "" || block != want {
+		t.Fatalf("read --frontmatter: hash=%q err=%v\n%q\nwant %q", fmHash, err, block, want)
 	}
-	if text, _, _ := ss.ReadAll(file); !strings.Contains(text, "  - doc: s.side/01-x.md") {
-		t.Errorf("after write --all:\n%s", text)
+	if diff, err := ss.Diff(file); err != nil || !strings.Contains(diff, "b edited by the operator") {
+		t.Errorf("read --frontmatter consumed the operator's section edit: diff %q, %v", diff, err)
 	}
-	if got, _, _ := ss.ReadSection(file, "A"); strings.TrimSpace(got) != "new" {
-		t.Errorf("write --all changed A to %q", got)
+	fm := filepath.Join(dir, "fm.md")
+	next := strings.Replace(block, "type: session-sync\n", "type: session-sync\ndiscussions:\n  - doc: s.side/01-x.md\n", 1)
+	if err := os.WriteFile(fm, []byte(next+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ss.WriteFrontmatter(file, fm, "0000000000000000"); !errors.Is(err, ErrStale) {
+		t.Errorf("write --frontmatter with a wrong hash: err = %v, want ErrStale (exit 6)", err)
+	}
+	if err := ss.WriteFrontmatter(file, fm, fmHash); err != nil {
+		t.Fatalf("write --frontmatter naming the read hash: %v", err)
+	}
+	after, _ := ss.Peek(file)
+	if _, body, _ := sidedoc.FrontBlock(after); !strings.HasPrefix(after, next) || !strings.HasSuffix(edited, body) {
+		t.Errorf("write --frontmatter changed more than the block:\n%s", after)
+	}
+	if diff, err := ss.Diff(file); err != nil || !strings.Contains(diff, "b edited by the operator") || strings.Contains(diff, "01-x.md") {
+		t.Errorf("after write --frontmatter: diff %q, %v; want only the operator's section edit", diff, err)
 	}
 
 	if err := os.WriteFile(file+".lock", []byte("holder: operator\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, all, err = ss.ReadAll(file); err != nil {
+	if _, fmHash, err = ss.ReadFrontmatter(file); err != nil {
 		t.Fatal(err)
 	}
-	if err := ss.WriteAll(file, whole, all); !errors.Is(err, ErrLocked) {
-		t.Errorf("write --all under the operator's lock: err = %v, want ErrLocked (exit 3)", err)
+	if err := ss.WriteFrontmatter(file, fm, fmHash); !errors.Is(err, ErrLocked) {
+		t.Errorf("write --frontmatter under the operator's lock: err = %v, want ErrLocked (exit 3)", err)
 	}
 	_, hash, err = ss.ReadSection(file, "B")
 	if err != nil {

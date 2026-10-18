@@ -162,3 +162,26 @@ func FuzzReconcileIndex(f *testing.F) {
 		}
 	})
 }
+
+// FrontBlock projects a document the way couch's frontmatter scope does
+// (pair#643): the block without its closing line ending, and the rest
+// verbatim, so the two concatenate back to the document.
+func TestFrontBlock(t *testing.T) {
+	for _, tc := range []struct {
+		doc, block string
+		ok         bool
+	}{
+		{"---\ntype: x\n---\nbody\n", "---\ntype: x\n---", true},
+		{"---\n---\n", "---\n---", true},
+		{"---\r\na: 1\r\n---\r\nbody", "---\r\na: 1\r\n---", true},
+		{"---\na: 1\n---", "---\na: 1\n---", true},
+		{"---\na: 1\n", "", false},
+		{"no frontmatter\n---\n", "", false},
+		{"", "", false},
+	} {
+		block, rest, ok := FrontBlock(tc.doc)
+		if block != tc.block || ok != tc.ok || block+rest != tc.doc {
+			t.Errorf("FrontBlock(%q) = %q, %q, %v; want %q, %v", tc.doc, block, rest, ok, tc.block, tc.ok)
+		}
+	}
+}
