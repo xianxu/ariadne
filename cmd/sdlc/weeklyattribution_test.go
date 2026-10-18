@@ -82,6 +82,75 @@ func TestValidateLandingEvidenceRejectsConflictingIdentity(t *testing.T) {
 	}
 }
 
+func TestValidateLandingEvidenceRejectsEveryCohortIdentityCollision(t *testing.T) {
+	start := time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)
+	w := WeeklyWindow{Start: start, End: start.Add(7 * 24 * time.Hour)}
+	mergeA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	mergeB := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	makeEvidence := func() weeklyRepoEvidence {
+		return weeklyRepoEvidence{
+			Events: []landingline.Event{
+				{Kind: landingline.EventEnqueue, Seq: 7, Issue: 42, Branch: "issue-42", At: start.Add(time.Hour)},
+				{Kind: landingline.EventLanded, Seq: 7, Issue: 42, Branch: "issue-42", PR: 9, At: start.Add(2 * time.Hour)},
+				{Kind: landingline.EventEnqueue, Seq: 8, Issue: 43, Branch: "issue-43", At: start.Add(time.Hour)},
+				{Kind: landingline.EventLanded, Seq: 8, Issue: 43, Branch: "issue-43", PR: 10, At: start.Add(3 * time.Hour)},
+			},
+			Cards: map[int]weeklyCardEvidence{
+				42: {Status: "done", Completion: &issue.Completion{LandedCommit: mergeA}},
+				43: {Status: "done", Completion: &issue.Completion{LandedCommit: mergeB}},
+			},
+			Graphs: map[string]weeklyMergeGraph{
+				mergeA: {MergeSHA: mergeA, MainParent: "main", IssueParent: "head-a", PR: 9, Branch: "issue-42", BranchSHAs: map[string]bool{"head-a": true}, EvidenceReachable: true, ReachableFromMain: true},
+				mergeB: {MergeSHA: mergeB, MainParent: "main", IssueParent: "head-b", PR: 10, Branch: "issue-43", BranchSHAs: map[string]bool{"head-b": true}, EvidenceReachable: true, ReachableFromMain: true},
+			},
+		}
+	}
+	if got, reasons := validateLandingEvidence(makeEvidence(), w); len(got) != 2 || len(reasons) != 0 {
+		t.Fatalf("independent landings should be accepted: %v, %v", got, reasons)
+	}
+	for _, tc := range []struct {
+		name   string
+		change func(*weeklyRepoEvidence)
+	}{
+		{"issue", func(e *weeklyRepoEvidence) { e.Events[2].Issue, e.Events[3].Issue = 42, 42 }},
+		{"ticket", func(e *weeklyRepoEvidence) { e.Events[2].Seq, e.Events[3].Seq = 7, 7 }},
+		{"branch", func(e *weeklyRepoEvidence) {
+			e.Events[2].Branch, e.Events[3].Branch = "issue-42", "issue-42"
+			graph := e.Graphs[mergeB]
+			graph.Branch = "issue-42"
+			e.Graphs[mergeB] = graph
+		}},
+		{"PR", func(e *weeklyRepoEvidence) {
+			e.Events[3].PR = 9
+			graph := e.Graphs[mergeB]
+			graph.PR = 9
+			e.Graphs[mergeB] = graph
+		}},
+		{"merge", func(e *weeklyRepoEvidence) {
+			e.Cards[43] = weeklyCardEvidence{Status: "done", Completion: &issue.Completion{LandedCommit: mergeA}}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, reverse := range []bool{false, true} {
+				e := makeEvidence()
+				tc.change(&e)
+				if reverse {
+					for left, right := 0, len(e.Events)-1; left < right; left, right = left+1, right-1 {
+						e.Events[left], e.Events[right] = e.Events[right], e.Events[left]
+					}
+				}
+				got, reasons := validateLandingEvidence(e, w)
+				if len(got) != 0 || strings.Count(strings.Join(reasons, "\n"), "cohort landing identity") != 2 {
+					t.Fatalf("reverse=%t: shared %s identity must reject both claimants: %v, %v", reverse, tc.name, got, reasons)
+				}
+				if attribution := attributeWeeklyAttempts(nil, got, w, reasons); attribution.AttemptsPerLandedIssue != nil {
+					t.Fatalf("reverse=%t: shared %s identity certified a numeric ratio: %+v", reverse, tc.name, attribution)
+				}
+			}
+		})
+	}
+}
+
 func TestValidateLandingEvidenceStartsAtFirstEnqueueAfterRefusal(t *testing.T) {
 	start := time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)
 	w := WeeklyWindow{Start: start, End: start.Add(7 * 24 * time.Hour)}

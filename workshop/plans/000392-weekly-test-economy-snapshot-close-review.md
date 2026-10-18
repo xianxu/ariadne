@@ -114,3 +114,109 @@ Append `## Revisions` entries naming:
 - Actual pilot capture, project linkage, and propagated-consumer verification evidence once completed.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"49dd21a3-fb69-4088-afe2-636d048e9f91","repository":"github.com/xianxu/ariadne","issue_id":"000392","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/db824b5e234d4c2b","reviewed_head":"fb020b30e17631086f207423ca8f7fe816f8393c","slot":"ariadne:1","requested_at":"2026-10-18T06:35:26.311244Z"},"phase":"finished","pid":68460,"started_at":"2026-10-18T06:35:26.543529Z","finished_at":"2026-10-18T06:39:15.83681Z","session_id":"01a14db8-eb42-7903-8efb-4a97ccd1bc08","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T00:30:05-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 392 — Weekly test-economy snapshot from local checks and landings |
+| repo | ariadne |
+| issue file | workshop/issues/000392-weekly-test-economy-snapshot.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 826a55dd130c59a4ae255c147ffafb3e7a2f2c1b..336692bd0b707fbdc6e14d64605fd7ca19b4b84a |
+| command | sdlc close --issue 392 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-18T00:30:05-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+Five prior findings are addressed with supporting evidence. BR-5 remains open: the durable snapshot and ops-project link are still deferred. A new adversarial test also demonstrates that duplicate landing identities can produce a certified numeric ratio, contrary to the Plan’s validation contract.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The retained-history floor is consumed by validation and populated by the command. TestValidateLandingEvidenceRequiresRetainedWholeIssueHistory passes at head and fails when the history guard is removed.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Prior admissions are compared against the original successful enqueue. TestValidateLandingEvidenceChecksEveryPriorAdmission covers chronological and reordered retries; reverting the threshold fix makes it fail.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Reconciliation now uses suiteAttemptCompletedAt. TestLegacyWeeklyAttemptUsesPhysicalCompletionForReconciliation passes at head and fails when FinishedAt-only selection is restored.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      README.md:505–516 now documents snapshot invocation, both flags, weekly boundaries, immutable publication and nullable coverage, consistent with weeklystats_cmd.go and weeklystats_write.go.
+  - id: BR-5
+    disposition: not-addressed
+    note: |
+      The hashed temporary pilot and reported pair rerun improve the evidence, but issue Log line 91 still explicitly defers durable brain publication and the ops link. The immutability rationale does not fulfill the unchanged Done-when requirements; a committed snapshot path and confirmed project link remain outstanding.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Collection now receives the window and restricts merge inventory and graph candidates. TestReadWeeklyEvidenceInventoriesOnlyRequestedWeek passes at head and fails when the collection restrictions are reverted.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: evidence-boundary-validation
+    title: |
+      Different issues can certify the same landing identity twice.
+    detail: |
+      cmd/sdlc/weeklyattribution.go:194–211 detects repeated issue IDs but does not enforce uniqueness of PR, branch or bound merge across issues. A disposable regression fixture with two done cards and separate valid tickets claiming the same PR/branch/merge produces landed_issues=2, ratio=0 and no coverage warnings, violating plan line 23. This is the 2nd finding in family evidence-boundary-validation: state and enforce the cohort-wide identity rule across sequence, issue, branch, PR and merge bindings, reject conflicting aliases as unknown, and test reordered cross-record collisions rather than fixing only this fixture (ARCH-SECURE, ARCH-PURPOSE).
+```
+
+1. **Strengths**
+
+   - Physical weekly counts and landing-cohort attribution remain explicitly separated.
+   - History certification conservatively rejects expired or insufficient recorder history.
+   - Publication uses atomic no-replace creation, with tests for conflicting writers, identical reruns and stale temporary-file cleanup.
+   - README, atlas and embedded help now describe the new surface.
+
+2. **Critical findings**
+
+   - The duplicate-identity defect above blocks certification. Validate identities across the entire cohort before emitting accepted landings; contradictions must null coverage rather than silently enlarge the denominator.
+
+3. **Important findings**
+
+   - **BR-5 remains open**, at `workshop/issues/000392-weekly-test-economy-snapshot.md:91`. Complete durable capture and project-link confirmation before whole-issue acceptance.
+
+4. **Minor findings**
+
+   - None.
+
+5. **Test coverage notes**
+
+   The focused weekly tests passed. In a disposable checkout, reverting each behavioral correction for BR-1, BR-2, BR-3 and BR-6 made its permanent regression fail. The new duplicate-identity probe failed against pinned head with `2 landings, ratio=0, unknown=[]`. The disposable checkout was removed; the reviewed checkout remains unchanged. No full suite was rerun.
+
+6. **Architectural notes**
+
+   | Principle | Result |
+   |---|---|
+   | ARCH-DRY | Pass: existing attempt reader, aggregation and quantiles are reused. |
+   | ARCH-PURE | Pass: calculations and attribution are directly tested without IO; command dependencies isolate collection/publication. |
+   | ARCH-PURPOSE | Flag: duplicate evidence can certify a false denominator; durable acceptance remains incomplete. |
+   | ARCH-MOCK | Flag: portable Git fixtures exercise the production seam, but BR-5’s rollout acceptance remains pending. |
+   | ARCH-CONSTRAINTS | Pass: weekly graph selection and explicit input, output and timeout limits are implemented. |
+   | ARCH-SECURE | Flag: cross-record landing identity conflicts remain trusted. |
+   | ARCH-ORDER | Pass: prior-admission validation now survives input reordering; publication arbitrates concurrent writers atomically. |
+   | ARCH-FUNERAL | Pass: temporary files have cleanup; permanent snapshots have declared retention and backup ownership. |
+
+7. **Plan revision recommendations**
+
+   Append a `## Revisions` entry defining the cohort-wide identity invariant and collision-test enumeration. Reconcile the post-SHIP publication sequence with the issue’s durable-capture acceptance requirement so the boundary has one explicit completion rule.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"6b5af64f-5c34-4e7b-a48d-c8bf57fceb8c","repository":"github.com/xianxu/ariadne","issue_id":"000392","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/2201d26168ab239c","reviewed_head":"336692bd0b707fbdc6e14d64605fd7ca19b4b84a","slot":"ariadne:1","requested_at":"2026-10-18T07:27:35.753578Z"},"phase":"finished","pid":17415,"started_at":"2026-10-18T07:27:35.853541Z","finished_at":"2026-10-18T07:30:05.31033Z","session_id":"01a14de8-aa9a-7d71-a325-e2fb39d06ea3","outcome":"returned"}] -->

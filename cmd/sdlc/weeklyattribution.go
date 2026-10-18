@@ -191,7 +191,23 @@ func validateLandingEvidence(raw weeklyRepoEvidence, window WeeklyWindow) ([]wee
 			unknown = append(unknown, fmt.Sprintf("issue %d: main landing has no landed event", id))
 		}
 	}
-	seenIssue := map[int]bool{}
+	issues := map[int]int{}
+	tickets := map[int64]int{}
+	branches := map[string]int{}
+	prs := map[int]int{}
+	merges := map[string]int{}
+	for _, e := range raw.Events {
+		if e.Kind != landingline.EventLanded || !window.Contains(e.At) {
+			continue
+		}
+		issues[e.Issue]++
+		tickets[e.Seq]++
+		branches[e.Branch]++
+		prs[e.PR]++
+		if card, ok := raw.Cards[e.Issue]; ok && card.Completion != nil {
+			merges[card.Completion.LandedCommit]++
+		}
+	}
 	mergedStatus := vocab.Issue().FirstTransitionForEvent("merge")
 	for _, e := range raw.Events {
 		if e.Kind != landingline.EventLanded || !window.Contains(e.At) {
@@ -204,11 +220,14 @@ func validateLandingEvidence(raw weeklyRepoEvidence, window WeeklyWindow) ([]wee
 			fail("incomplete landed event")
 			continue
 		}
-		if seenIssue[e.Issue] {
-			fail("multiple landings in cohort")
+		merge := ""
+		if card, ok := raw.Cards[e.Issue]; ok && card.Completion != nil {
+			merge = card.Completion.LandedCommit
+		}
+		if issues[e.Issue] > 1 || tickets[e.Seq] > 1 || branches[e.Branch] > 1 || prs[e.PR] > 1 || (merge != "" && merges[merge] > 1) {
+			fail("conflicting cohort landing identity")
 			continue
 		}
-		seenIssue[e.Issue] = true
 		var paired int
 		var enqueued time.Time
 		var terminal int

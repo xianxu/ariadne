@@ -3,6 +3,12 @@
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
 
+- Before counting joined records, check that the identity is unique across the
+  whole cohort. Per-record card/event/Git validity did not prevent two issues
+  from claiming one PR, branch or merge and doubling a weekly denominator.
+  Reject every claimant on a collision, and test each identity in both input
+  orders (#392 BR-7).
+
 - When a bug fix adds a diagnostic flag or revises an identity policy, enumerate
   the full input matrix in Done when and committed fixtures, then check the
   README for the new user-facing command. A motivating fixture alone can pass
