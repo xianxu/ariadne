@@ -1,6 +1,6 @@
 ---
 id: 000433
-status: working
+status: codecomplete
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.23
+tracker:
+    version: 1
+    completion:
+        token: close-81670df41125
+        repository: github.com/xianxu/ariadne
+        reviewed_head: ad068bce88edef833eae73c1205931df60cb1041
+        evidence_commit: 7c74bfe73cc0e6e65d9f20670a401c071debc8ad
 ---
 
 # tl-lead: Couch lifecycle notices update Slots and get no reply (companion to pair#574)
