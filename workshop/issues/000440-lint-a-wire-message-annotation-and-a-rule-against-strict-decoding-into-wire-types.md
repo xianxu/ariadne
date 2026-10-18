@@ -110,6 +110,12 @@ Then close and land on SHIP.
   and range bindings can still overwrite a tracked decoder. The durable plan
   now defines a single-owner proof and the regression matrix before code
   changes; this replaces incremental special cases for alias writes.
+- The new matrix was red for aliases before/after the strict call, a helper
+  escape, a closure capture, and range replacement of decoder or target.
+  The single-owner proof clears decoder state on any non-receiver use, while
+  range bindings clear both kinds of provenance. A fresh direct decoder
+  assignment restores a non-strict proof. Focused `go test ./pkg/golint
+  -count=1` passed with these cases; atlas now states the bounded coverage.
 
 ## Revisions
 

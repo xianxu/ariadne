@@ -1921,7 +1921,12 @@ add fields before this binary upgrades. The lint scans all tracked Go sources
 once to index marked types, then flags a direct `json.NewDecoder` →
 `DisallowUnknownFields` → `Decode` chain into one. It follows same-package and
 imported marked types and reports at `Decode`; ambiguous branches and helper
-decoders are outside this conservative syntax-only rule. The current examples
+decoders are outside this conservative syntax-only rule. A decoder remains
+proven only while its local name is used directly for these two method calls;
+copying it, passing it to a helper, capturing it, or otherwise exposing an
+alias drops the proof until a fresh direct `json.NewDecoder` assignment. This
+can miss a strict decode after aliasing, but cannot guess that the same
+decoder remains strict. The current examples
 are Claude stream events, `go test -json` events, and Codex/Claude usage
 records (#440). Do not mark local configuration, tracker receipts, fleet policy,
 or version-pinned issue observations: their unknown keys are errors, so strict

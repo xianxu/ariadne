@@ -138,6 +138,10 @@ func wireStrictDecode(f *ast.File, context *CheckContext) []ast.Node {
 			}
 		}
 		for _, stmt := range fn.Body.List {
+			// A decoder copied, passed, captured, or otherwise used beyond
+			// these direct calls may be overwritten through an alias. Syntax
+			// alone cannot prove it still has the strict setting afterward.
+			discardEscapedDecoders(stmt, decoders)
 			switch v := stmt.(type) {
 			case *ast.DeclStmt:
 				group, ok := v.Decl.(*ast.GenDecl)
@@ -207,11 +211,14 @@ func wireStrictDecode(f *ast.File, context *CheckContext) []ast.Node {
 // identities rather than guessing which value a later Decode uses.
 func invalidateAssigned(node ast.Node, decoders, variables map[string]bool) {
 	ast.Inspect(node, func(n ast.Node) bool {
-		assignment, ok := n.(*ast.AssignStmt)
-		if !ok {
-			return true
+		var left []ast.Expr
+		switch v := n.(type) {
+		case *ast.AssignStmt:
+			left = v.Lhs
+		case *ast.RangeStmt:
+			left = []ast.Expr{v.Key, v.Value}
 		}
-		for _, lhs := range assignment.Lhs {
+		for _, lhs := range left {
 			if id := assignedRoot(lhs); id != nil {
 				delete(decoders, id.Name)
 				delete(variables, id.Name)
@@ -219,6 +226,46 @@ func invalidateAssigned(node ast.Node, decoders, variables map[string]bool) {
 		}
 		return true
 	})
+}
+
+// Keep a decoder proof only while its local name is used as the receiver of
+// the two modeled calls. Any other use can expose an alias; proving the alias
+// graph would require type/flow analysis outside this syntax-only rule.
+func discardEscapedDecoders(node ast.Node, decoders map[string]bool) {
+	allowed := map[*ast.Ident]bool{}
+	ast.Inspect(node, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || sel.Sel.Name != "Decode" && sel.Sel.Name != "DisallowUnknownFields" {
+			return true
+		}
+		if id, ok := sel.X.(*ast.Ident); ok {
+			allowed[id] = true
+		}
+		return true
+	})
+	escaped := map[string]bool{}
+	ast.Inspect(node, func(n ast.Node) bool {
+		if closure, ok := n.(*ast.FuncLit); ok {
+			ast.Inspect(closure.Body, func(inner ast.Node) bool {
+				if id, ok := inner.(*ast.Ident); ok {
+					escaped[id.Name] = true
+				}
+				return true
+			})
+			return false
+		}
+		if id, ok := n.(*ast.Ident); ok && !allowed[id] {
+			escaped[id.Name] = true
+		}
+		return true
+	})
+	for name := range escaped {
+		delete(decoders, name)
+	}
 }
 
 // A direct assignment or a write through a tracked pointer can replace the
