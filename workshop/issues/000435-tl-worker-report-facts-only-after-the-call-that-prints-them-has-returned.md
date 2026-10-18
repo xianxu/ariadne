@@ -37,12 +37,15 @@ tl-worker help, under reporting: a report that names a SHA, PR number, test coun
 
 - [x] Add phrase guards for the fact categories, returned-call ordering, and the parallel-batch prohibition; confirm they fail against current help.
 - [x] Add a short rule under tl-worker REPORTS, reusing the existing help source (ARCH-DRY), then pass focused tests and built-help inspection.
-- [ ] Run the recorded exact-head suite and close/PR/merge gates.
+- [x] Run the recorded exact-head suite.
 
 ## Log
 
 ### 2026-10-17
+- 2026-10-17: closed — Four phrase guards failed against old help and pass with the REPORTS rule in both invocation forms; make -k build passes; built tl-worker help shows the rule; exact-head sdlc-local/suite passed 12 shards, 1,584 cmd/sdlc tests and 67 other packages on 743550c0d70662d74d683e262ed653b3d699adda (log sha256:b5f4773d2fd2). This help wording adds no new architectural surface, so no atlas map change applies.; review verdict: SHIP
 
 The issue's narrow wording is the design: keep the existing EVIDENCE hash rule and add one REPORTS paragraph that applies to every reported fact. A warning only about hashes would miss PR numbers and test counts; a new reporting mechanism would add needless state. The help test will guard both the wait-for-return rule and the ban on pairing report and evidence call in one parallel batch.
 
 Four phrase guards failed against old help in both invocation forms, then `go test ./cmd/tl-worker -count=1` passed after the REPORTS addition. `make -k build` passed, and the built tl-worker help shows the rule.
+
+The recorded `sdlc local-check run --name suite` passed on pushed head `743550c0d70662d74d683e262ed653b3d699adda`: 12 shards, 1,584 cmd/sdlc tests, 67 other packages, zero failures; log sha256 `b5f4773d2fd2`. PR #295 was opened as a draft for CI overlap. Close review and merge remain.
