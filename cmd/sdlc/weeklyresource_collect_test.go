@@ -68,6 +68,23 @@ func TestCollectResourceFamiliesDoesNotDoubleAssign(t *testing.T) {
 	}
 }
 
+func TestCollectResourceFamiliesOverlappingRootsRemoveEarlierAssignment(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "one.jsonl"), []byte("abc"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	inventory := []byte(`{"version":1,"sources":[{"kind":"first","root_token":"first-root","patterns":["*.jsonl"]},{"kind":"second","root_token":"second-root","patterns":["one.*"]},{"kind":"third","root_token":"second-root","patterns":["*.jsonl"]}]}`)
+	rows, _, err := collectResourceFamilies(inventory, []ResourceRoot{{Token: "first-root", Path: root}, {Token: "second-root", Path: root}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range rows {
+		if row.Complete || row.Bytes != 0 || row.Files != 0 {
+			t.Fatalf("shared physical file must count nowhere: %+v", rows)
+		}
+	}
+}
+
 func TestCollectResourceDetailsRanksLedgersInSameWalk(t *testing.T) {
 	root := t.TempDir()
 	for i, size := range []int{2, 5, 5, 1} {

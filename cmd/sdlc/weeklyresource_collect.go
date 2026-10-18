@@ -145,6 +145,13 @@ func collectResourceDetailsWithLimit(inventoryJSON []byte, roots []ResourceRoot,
 				return nil
 			}
 			if len(matched) > 1 {
+				if prior, exists := assignments[name]; exists && !blocked[name] {
+					previous := byKind[prior.kind]
+					previous.Bytes -= prior.size
+					previous.Files--
+					markResourceUnknown(previous, "overlapping source assignment")
+					delete(assignments, name)
+				}
 				for kind := range matched {
 					markResourceUnknown(byKind[kind], "overlapping source assignment")
 				}
