@@ -178,3 +178,102 @@ Done-when: current — it still covers the annotation, four existing types, cons
    Add a `## Revisions` entry defining the complete decoder-proof invalidation rule, including aliases and range assignments, and naming the regression enumeration used to enforce it.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"e8d57f8c-47c9-4b65-9b4b-56c4cc350a03","repository":"github.com/xianxu/ariadne","issue_id":"000440","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/8e9f946c7f1f5851","reviewed_head":"42793ebdf419c790073bcc343420225349588850","slot":"ariadne:1","requested_at":"2026-10-18T13:49:21.848231Z"},"phase":"finished","pid":62860,"started_at":"2026-10-18T13:49:21.942247Z","finished_at":"2026-10-18T13:51:13.914089Z","session_id":"01a14f46-2f8a-7193-bd3c-d7d7e7b8e026","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T07:27:55-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 440 — lint: a wire-message annotation and a rule against strict decoding into wire types |
+| repo | ariadne |
+| issue file | workshop/issues/000440-lint-a-wire-message-annotation-and-a-rule-against-strict-decoding-into-wire-types.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 3ba12c88814b92d93a6e30300fc8061940382d14..ebc57fade3ae567df3aec3f1268a9782b73611c6 |
+| command | sdlc close --issue 440 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-18T07:27:55-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The shared syntax index, annotations, documentation, and regression matrix largely match the plan. However, BR-2 remains reproducible: assigning a fresh decoder restores proof even when an earlier alias can still overwrite its variable. The matcher consequently reports strict decoding where runtime decoding accepts unknown fields.
+
+Done-when: current — it still covers the revised conservative matcher, annotations, cross-file resolution, and workload checks.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: not-addressed
+    note: |
+      pkg/golint/wire.go:185-186 restores decoder proof after reassignment without remembering that the variable's address escaped. Reproduced at pinned head with: d := json.NewDecoder(r); ref := &d; d = json.NewDecoder(r); d.DisallowUnknownFields(); *ref = json.NewDecoder(r); _ = d.Decode(&Peer{}). The matcher reports wire-strict-decode, while a runtime control decodes an unknown field successfully. Existing escape regressions fail when discardEscapedDecoders is removed, but omit this escape-before-reestablishment sequence. ARCH-PURPOSE / ARCH-ORDER: retain escape information for each lexical binding, including before its first tracked constructor; distinguish aliases to an old decoder value from aliases or closures retaining the variable. Sweep address-taking and binding-capture paths before allowing proof restoration. This repeats family wire-decoder-strictness-provenance; fix the governing rule rather than adding another overwrite special case.
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Retained: wire.go:159 excludes initializer inference for explicitly typed interface destinations; assignment and range invalidation clear target identity. The corresponding interface and reassignment fixtures pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Retained: README.md:11-17 documents the annotation syntax, producer rationale, local-store exclusion, and atlas link. These agree with markedWireTypes and the atlas convention.
+```
+
+1. **Strengths**
+
+   - `CheckSources` parses sources once and supplies one shared annotation index to all matchers.
+   - Matcher tests exercise actual source parsing, cross-file/import resolution, suppression, and ambiguous flows without IO mocks.
+   - All four required types carry annotations, and their existing consumers use tolerant `json.Unmarshal`.
+   - README and atlas both explain the new convention and its coverage limits.
+
+2. **Critical findings**
+
+   **BR-2 remains open — `pkg/golint/wire.go:185-186`.** The following valid sequence produces a false positive:
+
+   ```go
+   d := json.NewDecoder(r)
+   ref := &d
+   d = json.NewDecoder(r)
+   d.DisallowUnknownFields()
+   *ref = json.NewDecoder(r)
+   _ = d.Decode(&Peer{})
+   ```
+
+   A fresh decoder replaces the object, but does not revoke aliases to its variable. Preserve binding escape state across assignments, and add negative fixtures for address-taking and closure capture before proof establishment or restoration.
+
+3. **Important findings**
+
+   None additional.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - `go test ./pkg/golint -count=1` passed.
+   - Removing escape invalidation in a disposable copy made six existing regression cases fail, confirming the fix is exercised.
+   - The additional binding-address probe failed against pinned head; its runtime control returned `Decode error: <nil>` for an unknown field.
+   - Range whitespace checks passed. Temporary review files were removed; the checkout remains unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY: pass** — one shared index and existing suppression machinery.
+   - **ARCH-PURE: pass** — index and matcher operate on source bytes/ASTs; filesystem collection remains outside.
+   - **ARCH-PURPOSE: flag** — BR-2 still violates the promised conservative provenance contract.
+   - **ARCH-MOCK: pass within scope** — no new external dependency; existing Git collection remains at the boundary.
+   - **ARCH-CONSTRAINTS: pass** — counted index workload and focused repository scan support the bounded approach.
+   - **ARCH-SECURE: pass** — parse errors propagate; no new credential or production-state access.
+   - **ARCH-ORDER: flag** — BR-2 loses binding-escape knowledge across reassignment.
+   - **ARCH-FUNERAL: pass** — no new durable runtime artifacts or background work.
+
+7. **Plan revision recommendations**
+
+   Add a `## Revisions` entry distinguishing decoder-object aliases from variable-binding aliases. State when proof may safely resume, and extend the regression matrix to escapes occurring before initial construction and before reassignment. Update the atlas’s “until a fresh direct assignment” claim to match that corrected rule.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"88d7039d-6900-402d-96a5-4583527aa1dc","repository":"github.com/xianxu/ariadne","issue_id":"000440","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/828ff8ebde57f8f1","reviewed_head":"ebc57fade3ae567df3aec3f1268a9782b73611c6","slot":"ariadne:1","requested_at":"2026-10-18T14:26:15.537793Z"},"phase":"finished","pid":29657,"started_at":"2026-10-18T14:26:15.766551Z","finished_at":"2026-10-18T14:27:54.686121Z","session_id":"01a14f67-f86c-7b51-a0bd-1010b9ca566d","outcome":"returned"}] -->

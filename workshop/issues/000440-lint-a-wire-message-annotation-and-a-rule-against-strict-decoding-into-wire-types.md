@@ -122,6 +122,10 @@ Then close and land on SHIP.
   Saved log: `/Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/5a78af6a0d728e307208b106fab47036a100c051/suite.log`
   (SHA-256 prefix `e92698feb1ba`). PR #304's `merge-check` and
   `local-gates-guard` passed on that code head.
+- Close review round 3 retained BR-2 with a binding-escape sequence: `ref :=
+  &d` can overwrite a later decoder assigned to `d`. The durable plan now
+  disqualifies address-taken or closure-captured bindings for the whole
+  function and distinguishes them from aliases to the old decoder object.
 
 ## Revisions
 

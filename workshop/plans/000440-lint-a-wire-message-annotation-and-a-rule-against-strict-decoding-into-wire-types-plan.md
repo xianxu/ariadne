@@ -159,3 +159,19 @@ to the hub. The TL owns any project update.
   defeats this bounded syntax-only rule. Red fixtures will enumerate aliases
   before and after the strict call, helper/closure escapes, and direct,
   conditional, multiple, pointer, and range overwrites.
+- 2026-10-18, close review round 3, binding-escape correction: the previous
+  model incorrectly let `d = json.NewDecoder(...)` restore proof after `&d`
+  escaped; an alias to the variable can overwrite the new object too. Use one
+  up-front function scan to permanently disqualify any local name whose
+  binding address is taken or whose name occurs inside a closure. The latter
+  is deliberately conservative when a closure shadows the name. Such a name
+  never enters the decoder proof map, even if the escape appears before its
+  first constructor or after a would-be finding. Other uses that copy only a
+  decoder object still discard current proof, but a later direct assignment
+  may establish a fresh, initially non-strict object when its variable
+  binding never escaped. This replaces temporal alias-state tracking with a
+  small invariant: eligible binding + direct constructor + direct flag +
+  direct decode. Red fixtures cover address-taking before initial
+  construction, before and after reassignment, closure capture across
+  reassignment, object alias followed by safe fresh assignment, and the
+  original `&d` runtime counterexample. Any uncertainty stays unflagged.
