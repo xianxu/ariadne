@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "e62eeb9a", done: "92f3ed59"}
 ---
 
 # sdlc local-check: republish a completed attempt whose GitHub status post failed
