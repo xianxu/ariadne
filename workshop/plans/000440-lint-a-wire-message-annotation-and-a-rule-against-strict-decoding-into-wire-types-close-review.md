@@ -557,3 +557,105 @@ Done-when: current — its direct strict-decoding requirement covers this gap; t
    - Add a `## Revisions` entry enumerating supported unconditional call positions, including variable initializers, and require equivalent declaration forms to receive equivalent lint results.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"746c61e2-145a-4c3c-9cb0-96808e3bb524","repository":"github.com/xianxu/ariadne","issue_id":"000440","recipe":"milestone-review","round":6,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/8d48ef835946e31e","reviewed_head":"2e2af4e0e8d9645aaa8009e78608abdd8ff5aded","slot":"ariadne:1","requested_at":"2026-10-18T16:27:49.371898Z"},"phase":"finished","pid":29786,"started_at":"2026-10-18T16:27:49.461672Z","finished_at":"2026-10-18T16:29:49.172195Z","session_id":"01a14fd7-4248-7123-bbfe-7f8db28dd49b","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T09:49:59-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 440 — lint: a wire-message annotation and a rule against strict decoding into wire types |
+| repo | ariadne |
+| issue file | workshop/issues/000440-lint-a-wire-message-annotation-and-a-rule-against-strict-decoding-into-wire-types.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 3ba12c88814b92d93a6e30300fc8061940382d14..dd1e08a0ef40df3b15ee27d5ba716ba6ed04485b |
+| command | sdlc close --issue 440 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-18T09:49:59-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-5’s declaration-initializer correction is verified: its regression test passes at the pinned head and fails in four cases with the pre-fix matcher. One related coverage gap remains: direct expression calls in `if` initializers bypass the rule despite being included in the documented contract.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Retain the accepted disposition; target reassignment, interface, and shadowing fixtures pass.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Retain the accepted disposition; whole-function ownership checks and alias, escape, reassignment, and global-binding fixtures pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README.md documents the annotation syntax and links the atlas convention, consistent with annotation parsing in wire.go.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Exact-module imports resolve to "."; the root/subpackage identity matrix passes.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      TestWireStrictDecodeDirectCallPositions passes at head. Substituting the pre-fix matcher in a temporary copy makes inferred, typed, grouped var, and multiple-RHS cases fail; the copy was removed.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: wire-direct-call-coverage
+    title: |
+      Direct expression calls in if initializers bypass the rule
+    detail: |
+      pkg/golint/wire.go:200 only checks an if initializer when it is an AssignStmt. With an eligible strict decoder and marked destination, `if d.Decode(&m); true {}` produces no finding. Likewise, `if d.DisallowUnknownFields(); true {}; return d.Decode(&m)` loses the unconditional strictness call. Both were reproduced against the pinned head without parse errors; the assignment-initializer control reports correctly. ARCH-PURPOSE: the plan and atlas explicitly include direct calls in if initializers. This is the 2nd finding in family `wire-direct-call-coverage`. Do NOT fix only these instances: state the rule for every supported direct-call position, route supported initializer statements through shared handling, and test the expression/assignment forms with strictness-order controls.
+```
+
+Done-when: current — its annotation, rule, provenance, import, and workload requirements still cover the revised implementation.
+
+### 1. Strengths
+
+- One shared source index serves all matchers; the repository collector remains the IO boundary.
+- Whole-function decoder eligibility makes the conservative ownership rule explicit.
+- Tests cover import identity, provenance invalidation, suppression, generated sources, and annotation boundaries.
+- README and atlas both document the new convention.
+
+### 2. Critical findings
+
+- **Direct `if` initializer expressions are skipped**, [wire.go:200](/Users/xianxu/Library/Caches/sdlc/review-checkouts/c794b93980d18ebe/pkg/golint/wire.go:200). Handle supported initializer statements consistently through the shared call checker; add regression cases for both examples above.
+
+### 3. Important findings
+
+None.
+
+### 4. Minor findings
+
+None.
+
+### 5. Test coverage notes
+
+`go test ./pkg/golint -count=1` and range whitespace checks pass. BR-5’s regression was independently confirmed red without its fix. Existing tests cover assignment-form `if` initializers but omit expression-form initializers. The full repository suite was not rerun.
+
+### 6. Architectural notes
+
+- **ARCH-DRY: pass** — shared indexing, call checking, and suppression logic.
+- **ARCH-PURE: pass** — index and matcher tests operate on source bytes without IO.
+- **ARCH-PURPOSE: flag** — documented direct-call coverage remains incomplete.
+- **ARCH-MOCK: pass** — no new external dependency; existing tracked-source collection remains at the boundary.
+- **ARCH-CONSTRAINTS: pass** — counted N/2N index coverage and successful repository scan.
+- **ARCH-SECURE: pass** — malformed source returns parsing errors; no new credential handling.
+- **ARCH-ORDER: pass** — strictness is tracked in statement order with explicit eligibility and invalidation.
+- **ARCH-FUNERAL: pass** — no new durable runtime artifacts.
+
+### 7. Plan revision recommendations
+
+Add a `## Revisions` entry enumerating supported direct-call positions and initializer statement forms. Extend the regression matrix to expression-form `if` initializers and their strictness ordering before changing the matcher.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"3174a9bd-91c4-4520-94b8-6f321625d2c4","repository":"github.com/xianxu/ariadne","issue_id":"000440","recipe":"milestone-review","round":7,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/c794b93980d18ebe","reviewed_head":"dd1e08a0ef40df3b15ee27d5ba716ba6ed04485b","slot":"ariadne:1","requested_at":"2026-10-18T16:48:18.615887Z"},"phase":"finished","pid":17954,"started_at":"2026-10-18T16:48:18.738582Z","finished_at":"2026-10-18T16:49:59.396248Z","session_id":"01a14fea-043b-7001-9335-fa8de676f891","outcome":"returned"}] -->

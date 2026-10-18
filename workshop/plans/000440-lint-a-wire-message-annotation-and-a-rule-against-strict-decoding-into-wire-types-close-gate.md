@@ -690,6 +690,171 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 3174a9bd-91c4-4520-94b8-6f321625d2c4
+            repository: github.com/xianxu/ariadne
+            issue_id: "000440"
+            recipe: milestone-review
+            round: 7
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/c794b93980d18ebe
+            reviewed_head: dd1e08a0ef40df3b15ee27d5ba716ba6ed04485b
+            slot: ariadne:1
+            requested_at: "2026-10-18T16:48:18.615887Z"
+          phase: finished
+          pid: 17954
+          started_at: "2026-10-18T16:48:18.738582Z"
+          finished_at: "2026-10-18T16:49:59.396248Z"
+          session_id: 01a14fea-043b-7001-9335-fa8de676f891
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: dd1e08a0ef40df3b15ee27d5ba716ba6ed04485b
+        tracker_head: b529ce35026932a9477ef23c38f1372e147336a7
+        branch_point: 3ba12c88814b92d93a6e30300fc8061940382d14
+        since: "2026-10-18T05:43:21-07:00"
+        until: "2026-10-18T09:47:50-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T05:43:21-07:00"
+              end: "2026-10-18T09:47:50-07:00"
+              began: "2026-10-18T05:43:21-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 1156d92ed4693479b6ceceba82d71158d63149388b44d0856194a2e3a0de3e83
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 109679893
+              windows:
+                - start: "2026-10-18T05:43:21-07:00"
+                  end: "2026-10-18T09:47:50-07:00"
+        queue_waits:
+            - attempt_id: 97e9c79d9d1d102df2d40c32801f3864
+              slot: ariadne:1
+              record_digest: 302427f7fcd59fc6f235b929456fe28e0d9dee2ebfd0c5ec057a740997e6047c
+              start: "2026-10-18T13:00:46.040063Z"
+              end: "2026-10-18T13:09:43.849079Z"
+              queue_seconds: 537.809016
+              raw_seconds: 537.809016
+              exact: true
+            - attempt_id: 8c5a5e18aa58707db347c709c810f563
+              slot: ariadne:1
+              record_digest: e3d4f017eb327e3efee5b4d6035c7cfc077e114ad6e05dcb010f951cd3ff0b17
+              start: "2026-10-18T13:27:17.095135Z"
+              end: "2026-10-18T13:38:49.768584Z"
+              queue_seconds: 692.673449
+              raw_seconds: 692.673449
+              exact: true
+            - attempt_id: 90320ab29b17a67bea80a2671c62c12a
+              slot: ariadne:1
+              record_digest: 2d18cf65a08f926a2e69fb28f4d9985e7505b65b6ed8c309fe046dc6d1471a51
+              start: "2026-10-18T13:54:20.761552Z"
+              end: "2026-10-18T14:15:05.235935Z"
+              queue_seconds: 1244.474383
+              raw_seconds: 1244.474383
+              exact: true
+            - attempt_id: 4a60e90cc408df07a4638b2c53e283ac
+              slot: ariadne:1
+              record_digest: b4058fa81683863384dde7421a488aa896deb34a4d79ace8aeaa02202c45ca6e
+              start: "2026-10-18T14:32:04.166177Z"
+              end: "2026-10-18T14:59:49.477614Z"
+              queue_seconds: 1665.311437
+              raw_seconds: 1665.311437
+              exact: true
+            - attempt_id: 28f483f4799341fd56dad2c463677506
+              slot: ariadne:1
+              record_digest: 1f189210f8493e3900895b7da9b87104d5b38c60a7c2af139e525891aeeb29dc
+              start: "2026-10-18T15:15:06.25148Z"
+              end: "2026-10-18T15:39:30.12085Z"
+              queue_seconds: 1463.86937
+              raw_seconds: 1463.86937
+              exact: true
+            - attempt_id: 77d0c88769993b116c9a81f17f6899e5
+              slot: ariadne:1
+              record_digest: 691c68f7041c15337939e4f7fd16375e059cabd17226d2133de3bd4015692592
+              start: "2026-10-18T15:53:13.613306Z"
+              end: "2026-10-18T16:18:19.150532Z"
+              queue_seconds: 1505.537226
+              raw_seconds: 1505.537226
+              exact: true
+            - attempt_id: 632f45e915f1038d4da0444be6b2d4c6
+              slot: ariadne:1
+              record_digest: 8a092f4b63f32315462d1158109232274b3edd8788c472a9da1038c1571854a3
+              start: "2026-10-18T16:31:45.679488Z"
+              end: "2026-10-18T16:38:32.998977Z"
+              queue_seconds: 407.319489
+              raw_seconds: 407.319489
+              exact: true
+        cuts:
+            - dispatched: "2026-10-18T06:21:43-07:00"
+              finalized: "2026-10-18T06:24:38-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T06:49:21-07:00"
+              finalized: "2026-10-18T06:51:14-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T07:26:15-07:00"
+              finalized: "2026-10-18T07:27:56-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T08:09:38-07:00"
+              finalized: "2026-10-18T08:11:49-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T08:48:25-07:00"
+              finalized: "2026-10-18T08:50:11-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T09:27:49-07:00"
+              finalized: "2026-10-18T09:29:49-07:00"
+              finalizing: false
+      "n": 7
+      timestamp: "2026-10-18T09:50:00-07:00"
+      dispatched: "2026-10-18T09:48:18-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Retain the accepted disposition; target reassignment, interface, and shadowing fixtures pass.
+          round: 7
+        - id: BR-2
+          disposition: addressed
+          note: Retain the accepted disposition; whole-function ownership checks and alias, escape, reassignment, and global-binding fixtures pass.
+          round: 7
+        - id: BR-3
+          disposition: addressed
+          note: README.md documents the annotation syntax and links the atlas convention, consistent with annotation parsing in wire.go.
+          round: 7
+        - id: BR-4
+          disposition: addressed
+          note: Exact-module imports resolve to "."; the root/subpackage identity matrix passes.
+          round: 7
+        - id: BR-5
+          disposition: addressed
+          note: TestWireStrictDecodeDirectCallPositions passes at head. Substituting the pre-fix matcher in a temporary copy makes inferred, typed, grouped var, and multiple-RHS cases fail; the copy was removed.
+          round: 7
+      findings:
+        - kind: defect
+          id: BR-6
+          severity: Critical
+          title: Direct expression calls in if initializers bypass the rule
+          detail: 'pkg/golint/wire.go:200 only checks an if initializer when it is an AssignStmt. With an eligible strict decoder and marked destination, `if d.Decode(&m); true {}` produces no finding. Likewise, `if d.DisallowUnknownFields(); true {}; return d.Decode(&m)` loses the unconditional strictness call. Both were reproduced against the pinned head without parse errors; the assignment-initializer control reports correctly. ARCH-PURPOSE: the plan and atlas explicitly include direct calls in if initializers. This is the 2nd finding in family `wire-direct-call-coverage`. Do NOT fix only these instances: state the rule for every supported direct-call position, route supported initializer statements through shared handling, and test the expression/assignment forms with strictness-order controls.'
+          family: wire-direct-call-coverage
+          round: 7
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#440 (boundary-review)
@@ -759,6 +924,21 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Critical] `wire-direct-call-coverage` (kind: defect) Direct Decode calls in variable initializers bypass the rule
   pkg/golint/wire.go:143-161 processes declaration bindings without checking initializer calls. With an annotated Peer, `d := json.NewDecoder(r); d.DisallowUnknownFields(); var m Peer; var err = d.Decode(&m); return err` produces no finding, while changing only `var err =` to `err :=` produces one. Typed and grouped var declarations also bypass detection. ARCH-PURPOSE: enumerate supported unconditional expression positions, check direct Decode calls consistently before applying binding changes, and add regression fixtures for all declaration forms.
 
+## Round 7 — 2026-10-18T09:50:00-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Retain the accepted disposition; target reassignment, interface, and shadowing fixtures pass.
+- BR-2 — addressed — Retain the accepted disposition; whole-function ownership checks and alias, escape, reassignment, and global-binding fixtures pass.
+- BR-3 — addressed — README.md documents the annotation syntax and links the atlas convention, consistent with annotation parsing in wire.go.
+- BR-4 — addressed — Exact-module imports resolve to "."; the root/subpackage identity matrix passes.
+- BR-5 — addressed — TestWireStrictDecodeDirectCallPositions passes at head. Substituting the pre-fix matcher in a temporary copy makes inferred, typed, grouped var, and multiple-RHS cases fail; the copy was removed.
+
+### Raised
+
+- **BR-6** [Critical] `wire-direct-call-coverage` (kind: defect) Direct expression calls in if initializers bypass the rule
+  pkg/golint/wire.go:200 only checks an if initializer when it is an AssignStmt. With an eligible strict decoder and marked destination, `if d.Decode(&m); true {}` produces no finding. Likewise, `if d.DisallowUnknownFields(); true {}; return d.Decode(&m)` loses the unconditional strictness call. Both were reproduced against the pinned head without parse errors; the assignment-initializer control reports correctly. ARCH-PURPOSE: the plan and atlas explicitly include direct calls in if initializers. This is the 2nd finding in family `wire-direct-call-coverage`. Do NOT fix only these instances: state the rule for every supported direct-call position, route supported initializer statements through shared handling, and test the expression/assignment forms with strictness-order controls.
+
 ## Open findings
 
-- **BR-5** [Critical] `wire-direct-call-coverage` (kind: defect) Direct Decode calls in variable initializers bypass the rule
+- **BR-6** [Critical] `wire-direct-call-coverage` (kind: defect) Direct expression calls in if initializers bypass the rule

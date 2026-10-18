@@ -223,3 +223,11 @@ to the hub. The TL owns any project update.
   declaration control, and a call before strictness as a no-finding control.
   One direct-call check shared by these positions avoids syntax-dependent
   answers for equivalent statements.
+- 2026-10-18, close review round 7, scope cap: BR-6 found the expression-form
+  `if` initializer missed-finding case. The hub directed no more coverage
+  widening in #440 after round 6; ariadne#445 now owns that extension.
+  This plan's `if` initializer support means its existing assignment form
+  (`if err := d.Decode(&m); err != nil`), not an expression-form initializer.
+  Document the exact boundary and dispute BR-6 with the reproduced behavior
+  and follow-up, while retaining all passing code and tests at the reviewed
+  head. A future false positive, crash, or misparse still blocks this close.

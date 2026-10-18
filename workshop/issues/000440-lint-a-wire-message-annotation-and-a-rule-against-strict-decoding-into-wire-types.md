@@ -43,6 +43,11 @@ finding. The annotation is an explicit opt-in; the atlas explains when new
 types need it. `ARCH-DRY` keeps one index for all files; `ARCH-PURE` keeps the
 index and matcher free of filesystem reads and type-checking.
 
+The direct-call positions in this bounded matcher are expression statements,
+assignment RHS, `var` initializers, return expressions, and assignment-form
+`if` initializers. Expression-form `if` initializers are a missed-finding
+follow-up in ariadne#445, outside this issue's shipped coverage.
+
 Annotate these existing tolerant JSON inputs: `judge.streamEvent` (Claude
 stream-json), `main.goTestJSONEvent` (`go test -json`), `usage.record` (Codex and
 Claude transcript lines), and `usage.codexUsage` (Codex usage payload). Do not
@@ -182,8 +187,20 @@ Then close and land on SHIP.
   (SHA-256 prefix `d7393549310a`). PR #304 checks `merge-check` and
   `local-gates-guard` passed on that code head.
 
+- Round 7 accepted BR-5 and raised BR-6 for expression-form `if`
+  initializers. A fresh `go run /tmp/ariadne-440-if-init-probe.go` measured one
+  finding for assignment-form `if err := d.Decode(&m)` and zero for
+  expression-form `if d.Decode(&m)`. The latter is filed as ariadne#445;
+  the supported #440 scope is now explicit in Spec and atlas.
+
 ## Revisions
 
+- 2026-10-18, close review round 7: BR-6 identifies expression-form `if`
+  initializers as another missed-finding shape. The hub capped widening of
+  this issue after round 6. Filed ariadne#445 unclaimed for that shape and
+  narrowed this issue's stated direct-call coverage to the assignment-form
+  `if` initializer the tests and matcher support. This is a scope boundary,
+  not a claim that the new shape is detected.
 - 2026-10-18, close review round 6: BR-5 found direct `Decode` calls skipped
   in `var` initializers. The durable plan now covers unconditional direct
   calls in declaration initializers and every assignment RHS, with equivalent

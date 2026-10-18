@@ -1920,8 +1920,9 @@ comment when it receives JSON from a peer binary, agent or toolchain that may
 add fields before this binary upgrades. The lint scans all tracked Go sources
 once to index marked types, then flags a direct `json.NewDecoder` →
 `DisallowUnknownFields` → `Decode` chain into one. Direct calls in expression
-statements, assignment RHS, `var` initializers, returns, and `if` initializers
-are covered. It reports at `Decode`;
+statements, assignment RHS, `var` initializers, returns, and assignment-form
+`if` initializers are covered. Expression-form `if` initializers are tracked
+in #445. It reports at `Decode`;
 ambiguous branches and helper decoders are outside this conservative
 syntax-only rule. A marked target resolves in the same package, the module
 root, or an imported subpackage when its declared package name or explicit
