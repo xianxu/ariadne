@@ -86,7 +86,7 @@ The skill never guesses success from an exit status it did not receive. For a lo
 
 - [x] After parley#383's dual-version consumer lands, bump manifest `Version` from 2 to 3, omit `Deletions` from `Mode` and `Member`, regenerate `export.json` with `UPDATE_REVIEW_EXPORT=1 go test ./pkg/reviewexport`, and verify its exact member hashes. No `presentation` flag is copied into mode records or Parley's instruction context: the document frontmatter is the single source.
 - [x] Build with `make -k build` (and `make -k sdlc-build` if needed), run focused Go tests and the examples checker. With Pair M2 available, run a live agent round on a real tracked scratch document through `couch --session-sync apply`, show its round's explained spans and an invalid/stale refusal with no partial edit. In a Pair workbench scratch round, use `pair review apply` and verify the returned Body is what docflow commits. Do not modify pair:2's checkout.
-- [ ] Push the branch, run `sdlc local-check run --name suite` on that exact head, and collect the live conformance and compatibility evidence for close. If the Pair M2 engine or parley dual-version consumer has not landed, wait rather than publishing a skill whose verb/export is unavailable.
+- [x] Push the branch, run `sdlc local-check run --name suite` on that exact head, and collect the live conformance and compatibility evidence for close. If the Pair M2 engine or parley dual-version consumer has not landed, wait rather than publishing a skill whose verb/export is unavailable.
 
 After the evidence is complete, close with the mandatory review, land via `sdlc merge --yes`, and report the PR/merge hash to the hub. The TL owns the project tick.
 
@@ -94,9 +94,11 @@ After the evidence is complete, close with the mandatory review, land via `sdlc 
 
 - [x] Add red examples and contract checks for untracked `propose` refusal, marker-free proposed links and index cleanup after rejection, and lost-response recovery with an older current round; keep the Pair engine's marker-present fixtures intact.
 - [x] Update both review adapters, round and collaboration guidance, and the README to the approved recovery and presentation rules. Prove the new cases and the full examples checker pass.
-- [ ] Re-run the recorded suite if code changes, then close review and merge without waiving the fresh-context verdict.
+- [x] Re-run the recorded suite after the code changes and collect its exact-head status for the fresh close review.
 
 ## Revisions
+
+- 2026-10-18, close checklist: Task 5's final row now names only the pre-close evidence, so it can be checked truthfully before the close gate. The fresh close review, merge and hub report remain required workflow actions after it.
 
 - 2026-10-18, no-round lost reply: Pair can write a file but fail to record a round (its success reply carries a Warning). Therefore `Round: null` after a lost reply does not prove that no edit landed. Read back the exact file; retry only if bytes still equal the attempted base and a fresh snapshot is available. A changed file with no matching round is uncertain and must stop without a commit or retry.
 
