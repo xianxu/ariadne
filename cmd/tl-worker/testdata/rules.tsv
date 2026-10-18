@@ -30,6 +30,12 @@ state-design-loss	cited	what can be lost
 state-design-tradeoff	cited	covered, not covered, and why
 state-design-escalation	cited	TL brings user-facing tradeoffs to the operator before code
 state-design-example	cited	check process dies after starting
+hot-path-cost	cited	HOT-PATH COST
+hot-path-drivers	cited	per byte, event, launch, or scan
+hot-path-expected	cited	expected operations per unit of each growth driver
+hot-path-counted	cited	counted test at N and 2N
+hot-path-timing	cited	timing alone is not the defense
+hot-path-example	cited	rescan per entry costs O(N^2)
 quick-fix	own	self-approve small fix plans
 plan-post	own	proceeding unless you object
 plan-approval	cited	Full-flow designs, design changes

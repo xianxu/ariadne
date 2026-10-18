@@ -17,3 +17,10 @@ STATE DESIGN TABLE
   to the TL before code. The TL brings user-facing tradeoffs to the operator before code.
   Example: check process dies after starting | needs retry | rerun the exact head | partial output if not saved.
 
+HOT-PATH COST
+  For a hot path run per byte, event, launch, or scan, name every growth driver.
+  State expected operations per unit of each growth driver.
+  Name a counted test at N and 2N that rejects worse growth; timing alone is not the defense.
+  Example: a log reader with N entries takes one pass, O(N); rescan per entry costs O(N^2).
+  Count scans for 8 and 16 entries; assert scans <= 2*entries (rescan costs 36/136).
+
