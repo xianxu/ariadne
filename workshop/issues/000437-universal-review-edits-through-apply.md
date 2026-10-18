@@ -1,13 +1,21 @@
 ---
 id: 000437
-status: open
+status: working
 deps: [pair#661]
 github_issue:
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '2a4d2bb80826e1fc157acc22558261c8fc5c7e71' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '7722a79244483b48331e0c92efab6aab97221746' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-18T04:55:12-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # xx-universal-review edits through couch --session-sync apply; retire deletions: propose-strike
@@ -25,15 +33,24 @@ Design: `ops:teams/devinfra/projects/universal-agent-input-interface/design.side
 - The agent never hand-writes proposal markers: Couch converts under `presentation: propose`. On `propose-too-large`, the agent writes the rewrite as a side doc proposal (S2 naming), links it in place with `→ [proposal](…)`, and applies it on `🤖[fold in]` by the link (S3 fold-in).
 - The reply lists the round's edits.
 - `deletions: propose-strike` is retired in favor of `presentation: propose`, with the skill's prose, examples and examples checker updated.
+- The hosted Pair review-workbench path in `construct/local/fix/SKILL.md` uses `pair review apply EDITS FILE --if-hash H --json`, commits the returned `Body` immediately, and retires the agent's handoff/landed-file and reconciliation instructions. pair#661 M2 keeps the legacy pane path alive until this skill lands; pair#664 retires it afterwards.
 
 ## Done when
 
-The skill's contract and examples use `apply` for edits, cover the exit-6 retry, the propose-too-large side doc path and fold-in, and no longer mention `deletions: propose-strike` except as retired. The examples checker passes. An agent round on a real document with the skill loaded arrives through `apply` with reasons.
+The skill's contract and examples use `apply` for edits, cover exit-1 invalid/propose refusals and the exit-6 retry, the side-doc proposal path and fold-in, and no longer mention `deletions: propose-strike` except as retired. The examples checker passes. An agent round on a real document with the skill loaded arrives through `apply` with reasons. The Pair workbench instructions use `pair review apply` and commit its returned body without a pane-applied poke.
 
 ## Plan
 
-- [ ]
+- [ ] Design the two apply adapters, Pair workbench transition and v3 export compatibility in `workshop/plans/000437-universal-review-edits-through-apply-plan.md`; get hub approval.
+- [ ] Update the skill and exporter with focused red/green contract tests, regenerate the manifest, and verify the examples checker.
+- [ ] Run a live tracked-document apply round with reasons using the landed Pair engine, run the recorded suite, close and land after parley#383's dual-version consumer is in place.
 
 ## Log
 
 ### 2026-10-18
+
+- Claimed and started in ariadne:1. pair#661 M1's Couch apply and round are on main; pair:2 is building the M2 pair-level apply. Its exact JSON and exit-code contracts are recorded in the durable plan. The hub added the xx-fix hosted workbench migration to this issue, with pair#664 retiring the legacy pane only after #437 lands. The hub assigned parley#383 to accept both export v2 and v3 before #437 publishes v3.
+
+## Revisions
+
+- 2026-10-18, M2 scope coordination: extend the original skill-only issue to migrate the hosted Pair review-workbench protocol in `construct/local/fix/SKILL.md`; preserve the legacy pane until pair#664 follows. Remove mode-level `deletions` from the authored skill and v3 export only after parley#383 accepts both versions. Pair's propose converter requires `write --frontmatter` for frontmatter-only changes, so that existing dedicated verb remains a narrow exception to body edits through `apply`.
