@@ -124,3 +124,6 @@ later, and merge reusing a saved green attempt before it reruns anything.
   saved pass; README also names `local-check republish`. Minor (untested-error-path, 2nd in family): the
   newest-attempt test now reaches the guard deliberately (distinct pass/fail output, the pass's bytes restored, the
   failure's own log pruned) and asserts the guard's message.
+- Close review round 3: SHIP (BR-6, BR-7 addressed). Its advisory Minor fixed in the same round: an incomplete
+  attempt-store read (reader warnings: a limit hit, an unreadable record) makes `newest` false, so merge reruns
+  rather than trust an older pass; tested with an unreadable record in the store.

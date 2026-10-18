@@ -296,4 +296,26 @@ func TestLocalCheckRunnerSavedPassEdges(t *testing.T) {
 			t.Errorf("the not-newest branch did not report itself:\n%s", stderr.String())
 		}
 	})
+	t.Run("an incomplete store read leaves newest unknown", func(t *testing.T) {
+		d, sha, gh, _ := localRunRepo(t, "skipped")
+		d.GH = &flakyPostGH{ciFakeGH: gh, fails: 1 + len(localCheckPostBackoff)}
+		_, _ = runLocalCheck(ctx, d, suiteCheck("true"), sha)
+		logDir, _ := localCheckLogDir(d)
+		store := suiteStoreRoot(logDir)
+		// An unreadable record could be a later attempt of this very check.
+		if err := os.WriteFile(filepath.Join(store, "attempts", "ffffffffffffffffffffffffffffffff.json"), []byte("{"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if rec, newest, err := loadSavedAttempt(store, d.Repo, sha, "suite", "", "h"); err != nil || !rec.passed() || newest {
+			t.Fatalf("want a verifying pass whose newness is unknown: newest=%v %v", newest, err)
+		}
+		d.GH = gh
+		marker := filepath.Join(t.TempDir(), "ran")
+		if _, err := newLocalCheckRunner(d)(ctx, suiteCheck("./marker-check.sh", marker), sha); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := os.Stat(marker); err != nil {
+			t.Error("a pass stood in although the store read was incomplete")
+		}
+	})
 }

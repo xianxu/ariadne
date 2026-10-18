@@ -53,13 +53,16 @@ func hostName() string {
 
 // loadSavedAttempt finds the attempt to publish: the one named by id, else the
 // newest of this check on this commit whose log still verifies. newest reports
-// whether no later attempt of it exists (one that failed to verify, say), which
-// merge requires before it lets a saved pass stand in for a run.
+// whether no later attempt of it exists (one that failed to verify, say) and the
+// store was read whole, which merge requires before a saved pass stands in.
 func loadSavedAttempt(storeRoot, repo, sha, check, id, host string) (rec localRunRecord, newest bool, err error) {
-	attempts, _, err := readSuiteAttempts(storeRoot, testStatsRecordLimit)
+	attempts, warnings, err := readSuiteAttempts(storeRoot, testStatsRecordLimit)
 	if err != nil {
 		return localRunRecord{}, false, err
 	}
+	// An incomplete read (a limit hit, an unreadable record) leaves the newest
+	// attempt unknown, not absent: nothing then counts as newest.
+	complete := len(warnings) == 0
 	var best *localRunRecord
 	var bestAt, latest time.Time
 	var refusals []string
@@ -91,7 +94,7 @@ func loadSavedAttempt(storeRoot, repo, sha, check, id, host string) (rec localRu
 		}
 	}
 	if best != nil {
-		return *best, !latest.After(bestAt), nil
+		return *best, complete && !latest.After(bestAt), nil
 	}
 	if len(refusals) > 0 {
 		return localRunRecord{}, false, fmt.Errorf("%w for %s on %s: %s", errSavedAttemptRefused, check, abbrevSHA(sha), strings.Join(refusals, "; "))
