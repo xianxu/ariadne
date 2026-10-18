@@ -1,13 +1,13 @@
 ---
 id: 000433
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'cbe5c74f46f4b337062df7ad5aa7bae1e9622a78' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a477937ef74897e12ca914ed72fc83bb7a384a16' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T19:05:11-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "7621a186", done: "c20ce922"}
+actual_hours: 0.23
 ---
 
 # tl-lead: Couch lifecycle notices update Slots and get no reply (companion to pair#574)
