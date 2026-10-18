@@ -24,7 +24,8 @@ skill carries the rest.
   from the parent by 🤖[fold in] at the link (an approval inside a side doc only records its Decided line); and §5
   is the move contract (the `.side/` tree moves with its document, a name change rewrites the parent's references,
   a taken folder name suffixes the orphan). `pkg/sidedoc` is the Go home of the links, the index and the tree, shared
-  by the checker, tl-lead and sdlc's archiving.
+  by the checker, tl-lead and sdlc's archiving. It includes `→ [proposal](…)`
+  links for large rewrites.
   **Per-type defaults (#415):** every managed type declares its default where the type is defined. Issues and
   projects get theirs from `scaffold.collaboration_mode` in their CUE model, which `sdlc issue new` and
   `sdlc project new` write. Datatypes declare it in their prototype's Frontmatter shape table
@@ -32,7 +33,7 @@ skill carries the rest.
   and answer docs follow §4 of collaboration-modes.md (discussion). The TL session file follows tl-lead's help.
   `vocab.CollaborationModes` is the Go copy of the three values.
 - **`modes/*.md`** — the six stock modes, canonical here since #399; parley snapshots them.
-- **`examples/`** — eighteen reference rounds, one per case: `before/` and `after/` trees plus `case.md` (the
+- **`examples/`** — twenty reference rounds, one per case: `before/` and `after/` trees plus `case.md` (the
   submitted document, the outcome, the changes, the reply; a move case adds `move: OLD NEW`). A live check runs a round
   on a copy of `before/` and compares it with `after/`. `pkg/reviewexport`'s `TestExamples` holds every case to the
   side-doc contract and the index rules (a test-only checker, mutation-tested), and a move case to an exact projection
@@ -43,7 +44,10 @@ skill carries the rest.
   atomic `apply` records with per-edit `explain` and answered fold IDs → `round --json`
   for the reply. Exit 1 invalid/proposal refusals either rebuild the full batch or open a
   linked side doc; exit 3 (lock) defers to the next submit without polling; exit 6 (stale)
-  re-reads and rebuilds. Generated content and frontmatter-only edits retain `write`.
+  re-reads and rebuilds. Under `presentation: propose`, a record answering the
+  operator's own ready marker applies directly, so a large side-doc link or fold
+  is usable; its matching `discussions:` entry rides in the same atomic apply.
+  Generated content and frontmatter-only edits retain `write`.
   "Changes since your last read" never hold the agent's own edits: Couch's diff baseline moves on its write, and an untracked file is
   diffed against the copy the agent saved after its last write (operator requirement).
 - **`review-convention.md`** — a symlink to `construct/local/fix/review-convention.md`, the

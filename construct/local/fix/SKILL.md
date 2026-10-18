@@ -226,7 +226,7 @@ you the pane is open.
 |---|---|---|
 | 0 | Applied; reply has `Hash`, `Round`, `Body` | commit `Body` verbatim as rule 2 says |
 | 1 `edits-invalid` | `Invalid` lists 1-based bad records; nothing written | fix them and retry the whole batch |
-| 1 `propose-too-large` / `propose-unencodable` | change cannot be short marker proposals | write it in a side doc proposal, then link `→ [proposal](…)` through apply; use `write --frontmatter` for a needed frontmatter-only change |
+| 1 `propose-too-large` / `propose-unencodable` | change cannot be short marker proposals | write it in a side doc proposal, then link `→ [proposal](…)` through apply; keep any needed frontmatter-only change as records for `pair review apply` |
 | 3 `operator-lock` | the operator is editing | say you are waiting for their next "finished my edits" poke; do not poll in a tight loop |
 | 6 `stale` | H no longer names the file's bytes | read again, rebuild every record, and apply again |
 
