@@ -1,13 +1,22 @@
 ---
 id: 000450
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '2086a549f8976a9800702806837fd2a6f60b5f88' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'dc99fc81f1a1eeb249915fb511f9a77354ea05bd' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-18T15:38:28-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: operator, spec: "1f6d4f79", done: "c54c9586"}
 ---
 
 # sandbox: deny agents read access to ~/.config/rclone (Drive backup token)
