@@ -45,3 +45,7 @@ The normal route is: carry out a clear instruction and remove its marker; answer
 - No agent instruction tells a writer to append `{…}` to a human marker or add a later block to any marker; every continued exchange has a side-doc route.
 - Before/after fixtures make a second-turn append fail, and a legacy chain with a final human turn still produces an answer; agent-ended chains stay pending.
 - Parley continues to parse old chains, and the #437 edit path can apply the new link/index batch under `presentation: propose`.
+
+## Revisions
+
+- **2026-10-18, close review round 1:** The fixture guard compared after-files only to the same before-path, falsely classifying an unchanged legacy chain after a move as newly written. A move already has an exact `projectMove` projection check, so apply the turn guard only to ordinary rounds. Verify legacy preservation in the renamed parent, both moved side docs, and the displaced orphan; also mutate the projected parent with an appended turn to prove the move check refuses it. Add a concise README pointer for the user-facing convention.

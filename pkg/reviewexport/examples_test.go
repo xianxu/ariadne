@@ -254,17 +254,6 @@ func checkCase(fsys fs.FS) []string {
 		}
 		return errs
 	}
-	// Readers keep old chains; a round must never write a new one. This
-	// checks the simple markers used by the reference cases, not the full
-	// nested/escaped marker grammar owned by the editor.
-	beforeText, afterText := treeFiles(fsys, "before"), treeFiles(fsys, "after")
-	for p, body := range afterText {
-		for _, chain := range multiTurnRE.FindAllString(body, -1) {
-			if !strings.Contains(beforeText[p], chain) {
-				bad("after/%s: agent wrote a second turn in %q", p, chain)
-			}
-		}
-	}
 	if move != nil {
 		// A move is checked whole: after/ is exactly the move contract applied
 		// to before/, so parley's mover and the agent share one fixture.
@@ -287,6 +276,19 @@ func checkCase(fsys fs.FS) []string {
 			}
 		}
 		return errs
+	}
+	// Readers keep old chains; a normal round must never write a new one.
+	// A move has already been checked against the exact projection above,
+	// including renamed parents, side docs and displaced orphan folders.
+	// This regex checks the simple markers in these fixtures, not the full
+	// nested/escaped grammar owned by the editor.
+	beforeText, afterText := treeFiles(fsys, "before"), treeFiles(fsys, "after")
+	for p, body := range afterText {
+		for _, chain := range multiTurnRE.FindAllString(body, -1) {
+			if !strings.Contains(beforeText[p], chain) {
+				bad("after/%s: agent wrote a second turn in %q", p, chain)
+			}
+		}
 	}
 	errs = append(errs, checkIndexTransitions(fsys)...)
 	// Side docs are never pruned; new ones take the next free numbers; and an
@@ -598,6 +600,45 @@ func TestCheckCaseCatches(t *testing.T) {
 		if !strings.Contains(errs, c.want) {
 			t.Errorf("%s: errors %q, want one naming %q", c.name, errs, c.want)
 		}
+	}
+}
+
+func TestMovePreservesLegacyChains(t *testing.T) {
+	root := os.DirFS(filepath.Join(skillDir(t), "examples", "move-orphan"))
+	m := fstest.MapFS{}
+	if err := fs.WalkDir(root, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		b, err := fs.ReadFile(root, p)
+		if err == nil {
+			m[p] = &fstest.MapFile{Data: b}
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{
+		"design.md",                      // renamed parent
+		"design.side/01-why-per-file.md", // moved side doc
+		"design.side/02-sections.md",     // another moved side doc
+		"spec.side/01-older.md",          // displaced orphan
+	} {
+		name := "before/" + p
+		m[name] = &fstest.MapFile{Data: append(append([]byte(nil), m[name].Data...), []byte("\nLegacy 🤖[ask]{reply}\n")...)}
+	}
+	for p := range treeFiles(m, "after") {
+		delete(m, "after/"+p)
+	}
+	for p, body := range projectMove(treeFiles(m, "before"), "design.md", "spec.md") {
+		m["after/"+p] = &fstest.MapFile{Data: []byte(body)}
+	}
+	if errs := checkCase(m); len(errs) != 0 {
+		t.Fatalf("unchanged legacy chains across all move paths: %v", errs)
+	}
+	m["after/spec.md"] = &fstest.MapFile{Data: []byte(strings.Replace(string(m["after/spec.md"].Data), "🤖[ask]{reply}", "🤖[ask]{reply}{extra}", 1))}
+	if errs := strings.Join(checkCase(m), "\n"); !strings.Contains(errs, "differs from the move's projection") {
+		t.Fatalf("an appended turn during a move was not refused: %s", errs)
 	}
 }
 
