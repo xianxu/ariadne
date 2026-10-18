@@ -1,13 +1,21 @@
 ---
 id: 000447
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'f1cfabfb26259454df3003f7ca3420417301f497' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9e27db0fc60d06f5f50ba7a3dab657fa26670b11' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-18T13:57:34-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # review checkouts lack main ref and remote config, so repo tests needing main authority can't run in review
@@ -27,7 +35,33 @@ Give the review checkout the same main authority a slot checkout has: the main r
 
 ## Plan
 
-- [ ]
+**Cause (measured):** `reviewbox.populate` runs `git clone --shared --no-checkout SRC` and then `git remote remove origin`. Removing the remote also deletes every `refs/remotes/origin/*` ref and the `remote.origin.*` config. The `branch.main.*` keys a slot carries (`remote origin`, `merge refs/heads/main`) never reach the clone either. pair's repolint (`mainRefWithRepository`) reads exactly those: `branch.main.remote` and `branch.main.merge` lead to `refs/remotes/<R>/main`, and failing that, the one `refs/remotes/*/main`. With neither, it refuses. `git rev-parse main@{upstream}` also needs `remote.<R>.fetch` to map `merge` to the remote ref.
+
+**Design: copy the slot's main authority, not its remote.** After the clone, `populate` reads, from SRC:
+- the `branch.main.remote`/`branch.main.merge` config;
+- each tracked remote's `remote.<R>.fetch`;
+- every `refs/remotes/*/main` ref and the local `refs/heads/main`, with their SHAs.
+
+It writes the same refs and the same keys into the checkout. The objects are already there through the clone's alternates.
+
+`remote.<R>.url` and `remote.<R>.pushurl` are set to an inert `readonly://review-checkout` URL, so no remote can push or fetch: git refuses with "unable to find remote helper", and nothing in the checkout points back at SRC or GitHub. SRC's real URL, credentials, `insteadOf` and push settings are never copied. A SRC with no main authority gives a checkout with none, so a test refuses in review exactly as it would in the slot.
+
+- [ ] **Pure:** `mainAuthority(config, refs) authority` in `reviewbox/authority.go` parses SRC's `git config --get-regexp` lines and the `for-each-ref` rows into the keys and refs to write. Only the allowed keys pass: `branch.main.{remote,merge}` and `remote.<R>.fetch` for a remote named by branch.main or by a `refs/remotes/<R>/main` ref. A malformed row refuses. Tests cover a slot shape, no authority, two remotes, a `.` remote, and a hostile key (`remote.origin.url`, `url.*.insteadOf`) never passing.
+- [ ] **IO:** `populate` reads SRC (two git calls), applies the authority with `git config` and `git update-ref`, and sets the inert URLs. Reset reuses populate, so a retried attempt gets the same authority.
+- [ ] **Regression, the pair#665 shape** (real git, temp repos, as the existing checkout tests do): SRC is a clone of a bare `origin` whose main has moved, on an issue branch. In the checkout:
+  - pair's three facts resolve: `branch.main.*` is configured, `refs/remotes/origin/main` equals SRC's, and `git merge-base --all HEAD refs/remotes/origin/main` gives one base equal to SRC's;
+  - `git rev-parse main@{upstream}` works;
+  - `git push origin HEAD:refs/heads/x` and `git fetch origin` both fail, and SRC's and the bare origin's refs are unchanged after them;
+  - a SRC with no remote gives a checkout with no main authority.
+- [ ] Atlas (review isolation) says the checkout carries the slot's main authority, read-only.
+
+Design notes:
+- ARCH-SECURE: SRC's config is our own but copied through an allowlist, never wholesale. The checkout's remote URL is inert, so the "cannot push or change the real repository" guarantee is structural, not a convention. The fence and confinement are unchanged.
+- ARCH-FUNERAL: creates nothing durable beyond refs and config inside the checkout, which Close/Sweep already remove.
+- ARCH-ORDER: holds no state between events; the copy happens once per populate (create or reset).
+- ARCH-CONSTRAINTS: two extra git reads and a handful of writes per review round (milliseconds), next to a clone that is already there.
+- ARCH-MOCK: real git in temp repos is the existing seam for reviewbox; no network.
+- Size: about 60 added code lines, quick flow.
 
 ## Log
 
