@@ -4,9 +4,9 @@ status: working
 deps: [ariadne#392]
 github_issue:
 created: 2026-10-15
-updated: 2026-10-17
+updated: 2026-10-18
 estimate_hours:
-card_mirror: 'b654c684036a1ec1ade175ef5d6457f352aef28a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '0b20b0481a39833a19da352924f28cbfb5881d85' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-17T21:36:12-07:00
 claimant:
     operator: Xian Xu
@@ -42,7 +42,7 @@ Depends on ariadne#392.
 
 ## Plan
 
-- [ ] After #392 lands, bind its weekly window, immutable writer, previous-snapshot reader and brain destination to the resource section in `workshop/plans/000402-weekly-resource-trend-plan.md`.
+- [x] After #392 lands, bind its weekly window, immutable writer, previous-snapshot reader and brain destination to the resource section in `workshop/plans/000402-weekly-resource-trend-plan.md`.
 - [ ] Test the inventory-backed, read-only collector and pure delta/alert renderer with complete, missing and first-week fixtures; include Go cache, AgentScratch capacity and largest ledgers.
 - [ ] Integrate the section into #392's snapshot, run focused tests and the recorded suite, then write and inspect one live snapshot before close.
 
@@ -63,3 +63,7 @@ Add Go build cache size and AgentScratch free/total space to the planned weekly 
 ### 2026-10-17 — weekly device gauges replace daily points
 
 The hub approved the plan, directed this slot to land #392 first, and replaced the ops project's unassigned daily device-write points with two weekly gauges: the `ioreg` `Bytes (Write)` counter and SSD percentage used when readable without root. Compare weekly observations only when the device and counter epoch remain comparable; a reset yields an unknown delta. The TL owns the resource-observability project Log and will record the daily-to-weekly replacement there.
+
+### 2026-10-18 — re-plan on #392's landed schema
+
+#392's v1 snapshot, producer and immutable writer are now on this branch. It has no previous-week reader, so #402 must add the exact-date, bounded reader itself and issue schema v2. The already published 2026-10-18 v1 pilot remains untouched; the first real resource snapshot uses an unused completed Monday boundary after SHIP review. Current suite wall statistics come from #392's existing per-repo model, while #402 computes the previous-week comparison. The durable plan names the actual files and failure states.
