@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "dd9f3c53", done: "d118cb10"}
 ---
 
 # tl-lead/tl-worker: hot-path plans state their expected cost per driver and the counted test that defends it
