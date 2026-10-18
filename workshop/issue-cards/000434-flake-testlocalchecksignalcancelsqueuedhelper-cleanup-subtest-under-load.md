@@ -1,6 +1,6 @@
 ---
 id: 000434
-status: codecomplete
+status: done
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 41f0e729593a39a5a1aa2635aa622646dbc5a04e
         evidence_commit: 30829fb6a048de58d5564741887c67832b86bce5
+        landed_commit: b1fc5c3b26663044a244f1c2ba0aad49ca31ee24
 ---
 
 # flake: TestLocalCheckSignalCancelsQueuedHelper cleanup subtest under load
