@@ -35,8 +35,8 @@ tl-worker help, under reporting: a report that names a SHA, PR number, test coun
 
 ## Plan
 
-- [ ] Add phrase guards for the fact categories, returned-call ordering, and the parallel-batch prohibition; confirm they fail against current help.
-- [ ] Add a short rule under tl-worker REPORTS, reusing the existing help source (ARCH-DRY), then pass focused tests and built-help inspection.
+- [x] Add phrase guards for the fact categories, returned-call ordering, and the parallel-batch prohibition; confirm they fail against current help.
+- [x] Add a short rule under tl-worker REPORTS, reusing the existing help source (ARCH-DRY), then pass focused tests and built-help inspection.
 - [ ] Run the recorded exact-head suite and close/PR/merge gates.
 
 ## Log
@@ -44,3 +44,5 @@ tl-worker help, under reporting: a report that names a SHA, PR number, test coun
 ### 2026-10-17
 
 The issue's narrow wording is the design: keep the existing EVIDENCE hash rule and add one REPORTS paragraph that applies to every reported fact. A warning only about hashes would miss PR numbers and test counts; a new reporting mechanism would add needless state. The help test will guard both the wait-for-return rule and the ban on pairing report and evidence call in one parallel batch.
+
+Four phrase guards failed against old help in both invocation forms, then `go test ./cmd/tl-worker -count=1` passed after the REPORTS addition. `make -k build` passed, and the built tl-worker help shows the rule.
