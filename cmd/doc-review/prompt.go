@@ -22,13 +22,14 @@ func buildPrompt(absFile string) string {
 // wrapReport prepends provenance frontmatter + a header to the reviewer's raw
 // report, so the sidecar is self-describing (which agent, read-only, what it
 // reviews). The body below is the reviewer's own words, unedited.
-func wrapReport(docName string, agent AgentCLI, body string) string {
+func wrapReport(docName string, agent AgentCLI, record, body string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "---\n")
 	fmt.Fprintf(&b, "type: memory.data\n")
 	fmt.Fprintf(&b, "status: active\n")
 	fmt.Fprintf(&b, "reviews: %s\n", docName)
 	fmt.Fprintf(&b, "reviewer: %s\n", agent)
+	fmt.Fprintf(&b, "reviewer_record: %q\n", record) // #441: who reviewed whose work, as #409 records it
 	fmt.Fprintf(&b, "review_kind: fresh-context-fact-and-reference (read-only)\n")
 	fmt.Fprintf(&b, "generated: %s\n", time.Now().UTC().Format(time.RFC3339))
 	fmt.Fprintf(&b, "---\n\n")

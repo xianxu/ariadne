@@ -63,6 +63,25 @@ func frontmatter(doc string) (lines []string, body string, ok bool) {
 	return lines, body, true
 }
 
+// FrontBlock splits doc the way couch's frontmatter scope projects it
+// (pair#643): block is the closed leading `---` block without its final line
+// ending, and rest is everything after it, verbatim, so block+rest == doc. ok is
+// false when doc has no closed leading block.
+func FrontBlock(doc string) (block, rest string, ok bool) {
+	offset := 0
+	for i, line := range strings.SplitAfter(doc, "\n") {
+		if i == 0 && strings.TrimSpace(line) != "---" {
+			break
+		}
+		if i > 0 && strings.TrimSpace(line) == "---" {
+			end := offset + len(strings.TrimRight(line, "\r\n"))
+			return doc[:end], doc[end:], true
+		}
+		offset += len(line)
+	}
+	return "", doc, false
+}
+
 // Fields returns a document's flat top-level frontmatter fields, `key: value`
 // with the value raw (quotes kept): the one frontmatter reader for side-doc
 // facts such as `parent:` and `marker:`. ok is false when it has none.

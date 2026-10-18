@@ -13,22 +13,22 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewbox"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewprepare"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewusage"
+	"github.com/xianxu/ariadne/pkg/reviewpolicy"
 )
 
 // AgentCLI names a coding-agent CLI. The default is "claude"; the
 // shell script supports "codex" and "gemini" via $AGENT_CMD. We mirror
 // that surface so `make check-*` shims (env-driven) and `sdlc judge`
 // (flag-driven) target the same agents.
-type AgentCLI string
+type AgentCLI = reviewpolicy.Agent
 
 const (
-	AgentClaude AgentCLI = agentid.Claude
-	AgentCodex  AgentCLI = agentid.Codex
-	AgentGemini AgentCLI = agentid.Gemini
+	AgentClaude = reviewpolicy.Claude
+	AgentCodex  = reviewpolicy.Codex
+	AgentGemini = reviewpolicy.Gemini
 )
 
 // DispatchEvidence holds nonsemantic, bounded attempt diagnostics for the caller.
@@ -41,6 +41,8 @@ type DispatchEvidence struct {
 
 // DispatchOptions configures one invocation.
 type DispatchOptions struct {
+	// Model asks the reviewer CLI for one model (#409); "" is its own default.
+	Model string
 	// Usage accounting is independent of semantic gate admission. Requested
 	// persistence must succeed before launch; later failures retain partial
 	// receipts and are surfaced in Evidence without advancing a gate round.
@@ -229,6 +231,9 @@ func agentArgs(opts DispatchOptions) (name string, args []string, err error) {
 			// #310: only the allowed tools run; Edit/Write are refused.
 			"--permission-mode", "dontAsk",
 		}
+		if opts.Model != "" {
+			args = append(args, "--model", opts.Model)
+		}
 		if opts.Containment == ContainFenced {
 			args = append(args, "--settings", fencedClaudeSettings)
 		}
@@ -242,7 +247,11 @@ func agentArgs(opts DispatchOptions) (name string, args []string, err error) {
 		case ContainFenced:
 			sandbox = "danger-full-access"
 		}
-		return "codex", []string{"exec", "--sandbox", sandbox, opts.Prompt}, nil
+		args = []string{"exec", "--sandbox", sandbox}
+		if opts.Model != "" {
+			args = append(args, "-m", opts.Model)
+		}
+		return "codex", append(args, opts.Prompt), nil
 
 	case AgentGemini:
 		// Headless gemini refuses every tool that needs approval, and a
@@ -250,6 +259,9 @@ func agentArgs(opts DispatchOptions) (name string, args []string, err error) {
 		args = []string{}
 		if opts.Containment == ContainFenced {
 			args = append(args, "--sandbox=false")
+		}
+		if opts.Model != "" {
+			args = append(args, "-m", opts.Model)
 		}
 		args = append(args, "-p", opts.Prompt)
 		return "gemini", args, nil
@@ -373,6 +385,13 @@ func dispatchAttempts(ctx context.Context, opts DispatchOptions, conf *reviewbox
 		}
 		output, err := dispatchOnce(ctx, current)
 		if err != nil {
+			// #409: the first attempt ran, so this reviewer began reviewing; an
+			// unavailable retry is a review that did not finish, never a reason
+			// to hand the review to another family.
+			var unavailable *UnavailableError
+			if attempt == 2 && errors.As(err, &unavailable) {
+				err = fmt.Errorf("%w: the retry could not run (%s)", ErrReviewDidNotRun, unavailable.Reason)
+			}
 			if attempt == 1 || opts.ValidateResponse != nil {
 				return output, err
 			}
@@ -613,7 +632,7 @@ func dispatchOnce(ctx context.Context, opts DispatchOptions) (string, error) {
 // synchronous and heartbeat paths (ARCH-DRY). It forwards diagnostic stderr,
 // returns semantic stdout, and applies Dispatch's existing exit-code policy: a
 // non-zero exit is swallowed so Classify can interpret the response, while a
-// real launch failure returns a diagnosable error naming owner bin/ + PATH.
+// real launch failure is an UnavailableError naming owner bin/ + PATH (#409).
 func classifyRunResult(ctx context.Context, out ProcessOutput, runErr error, name string, agent AgentCLI, diagnostics io.Writer) (string, error) {
 	if diagnostics != nil && len(out.Stderr) > 0 {
 		_, _ = diagnostics.Write(out.Stderr)
@@ -633,20 +652,27 @@ func classifyRunResult(ctx context.Context, out ProcessOutput, runErr error, nam
 		run = ReadStream(out.Stdout)
 	}
 	_, exited := runErr.(*exec.ExitError)
-	if err := RunFailure(agent, run, out.Stderr, exited); err != nil {
-		return "", err
-	}
-	if exited {
-		return run.Text(), nil
-	}
-	if runErr != nil {
+	// #409: a reviewer that could not review at all is not a failed review;
+	// DispatchChoice moves to the next candidate on exactly this error.
+	var launchErr error
+	if runErr != nil && !exited {
+		// Keep the launch diagnosis (owner bin, PATH) as the evidence.
 		dir, derr := ownerBinDir()
 		if derr != nil || dir == "" {
 			dir = "?"
 		}
-		return run.Text(), fmt.Errorf("dispatch %s (owner bin %q prepended to PATH=%s): %w", name, dir, os.Getenv("PATH"), runErr)
+		launchErr = fmt.Errorf("dispatch %s (owner bin %q prepended to PATH=%s): %w", name, dir, os.Getenv("PATH"), runErr)
 	}
-	return run.Text(), nil
+	if launchErr != nil {
+		return run.Text(), &UnavailableError{Agent: agentOrClaude(agent), Reason: "could not launch: " + runErr.Error(), Detail: launchErr.Error()}
+	}
+	if reason, ok := Unavailable(agent, run, out.Stderr, exited, nil); ok {
+		return run.Text(), &UnavailableError{Agent: agentOrClaude(agent), Reason: reason}
+	}
+	if err := RunFailure(agent, run, out.Stderr, exited); err != nil {
+		return "", err
+	}
+	return run.Text(), nil // a non-zero exit is swallowed; a launch failure returned above
 }
 
 // FormatCommandLine returns a shell-safe rendering of the would-be
@@ -708,4 +734,11 @@ func reviewTimeout(value string) (time.Duration, error) {
 		return 0, fmt.Errorf("WF_REVIEW_TIMEOUT must be a Go duration from 1s through 2h (unset, the limit scales with the review window)")
 	}
 	return d, nil
+}
+
+func agentOrClaude(a AgentCLI) AgentCLI {
+	if a == "" {
+		return AgentClaude
+	}
+	return a
 }

@@ -1,6 +1,7 @@
 // Command doc-review runs a fresh-context, read-only fact + reference review
-// of a Markdown document using a SECOND agent from a DIFFERENT vendor (codex by
-// default), then writes the reviewer's findings to a sidecar report.
+// of a Markdown document using a SECOND agent from a DIFFERENT vendor than the
+// document's authors (#441: the shared reviewer policy; it never self-reviews),
+// then writes the reviewer's findings to a sidecar report.
 //
 // It is the fact-check path embedded in the `xx-fix` skill. Per AGENTS.md §3,
 // the co-authoring agent carries confirmation bias, so a fresh-eyes review must
@@ -12,7 +13,7 @@
 // Help is the operational contract referenced by xx-fix:
 //
 //	doc-review --help        what it does, usage, agents, output, the triage step
-//	doc-review <agent> <file>   run the review (agent optional; defaults to codex)
+//	doc-review <agent> <file>   run the review (agent optional; the policy chooses)
 package main
 
 import (
@@ -21,6 +22,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/pkg/agentenv"
 )
 
 //go:embed help.md
@@ -46,11 +48,11 @@ func buildRoot() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			agent, file, err := parseArgs(args)
+			agent, agentSet, file, err := parseArgs(args)
 			if err != nil {
 				return err
 			}
-			f.Agent = agent
+			f.Agent, f.AgentSet = agent, agentSet
 			f.File = file
 			return runReview(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
@@ -64,22 +66,21 @@ func buildRoot() *cobra.Command {
 
 // parseArgs maps positionals to (agent, file):
 //
-//	1 arg  → file; agent defaults to codex
-//	2 args → agent, file (agent validated against the known set)
+//	1 arg  → file; the reviewer is chosen by the policy (agentSet false)
+//	2 args → agent, file (agent validated against the known set; it wins)
 //
 // A document literally named like an agent ("codex.md") is unaffected: with one
 // positional we always treat it as the file.
-func parseArgs(args []string) (agent AgentCLI, file string, err error) {
+func parseArgs(args []string) (agent AgentCLI, agentSet bool, file string, err error) {
 	switch len(args) {
 	case 1:
-		return DefaultAgent, args[0], nil
+		return "", false, args[0], nil
 	case 2:
-		a := AgentCLI(args[0])
-		if !a.known() {
-			return "", "", fmt.Errorf("unknown agent %q (supported: codex, gemini, claude)", args[0])
+		if !agentenv.Known(args[0]) {
+			return "", false, "", fmt.Errorf("unknown agent %q (supported: codex, gemini, claude)", args[0])
 		}
-		return a, args[1], nil
+		return AgentCLI(args[0]), true, args[1], nil
 	default:
-		return "", "", fmt.Errorf("expected <file> or <agent> <file>, got %d args", len(args))
+		return "", false, "", fmt.Errorf("expected <file> or <agent> <file>, got %d args", len(args))
 	}
 }

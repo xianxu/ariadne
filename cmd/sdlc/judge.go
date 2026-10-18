@@ -144,14 +144,35 @@ func runJudge(stdout, stderr io.Writer, categoryArg string, f *judgeFlags) error
 		})
 	}
 
-	// Resolve agent + tools.
-	agent := judge.ResolveAgentCLI(f.Agent, f.AgentExplicit, judge.CurrentAgentDefaultEnv())
+	// Resolve the reviewers (#409) + tools.
+	ctx := f.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	root, err := gitx.RepoTopLevel()
+	if err != nil {
+		die(stderr, err.Error())
+	}
+	choiceHead := head
+	if choiceHead == "" {
+		choiceHead = "HEAD"
+	}
+	choice, err := resolveReviewChoice(ctx, root, base, choiceHead, f.Agent, f.AgentExplicit, judgeChangeKind(cat), judge.ContainNone)
+	if err != nil {
+		die(stderr, err.Error())
+	}
+	first, ok := choice.First()
+	if !ok {
+		die(stderr, judge.Refusal(choice).Error())
+	}
+	agent := first.Agent
 	tools := f.Tools
 	if tools == "" {
 		tools = cat.AllowedTools()
 	}
 	opts := judge.DispatchOptions{
 		Agent:        agent,
+		Model:        first.Model,
 		Prompt:       prompt,
 		AllowedTools: tools,
 		Stdout:       stdout,
@@ -173,11 +194,10 @@ func runJudge(stdout, stderr io.Writer, categoryArg string, f *judgeFlags) error
 
 	// Dispatch.
 	cinfo(stderr, fmt.Sprintf("invoking %s for %s …", agent, cat.Label()))
-	ctx := f.Context
-	if ctx == nil {
-		ctx = context.Background()
+	output, used, skips, dispatchErr := judge.DispatchChoice(ctx, opts, choice)
+	if used.Agent != "" {
+		cinfo(stderr, "reviewer: "+judge.ReviewerRecord(used, choice, skips))
 	}
-	output, dispatchErr := judge.Dispatch(ctx, opts)
 	if dispatchErr != nil {
 		fmt.Fprint(stdout, output) // a failed retry still carries the first attempt (#300)
 		return fmt.Errorf("dispatch failed: %w", dispatchErr)
@@ -305,4 +325,14 @@ func planQualityJudgePrompt(stderr io.Writer, f *judgeFlags) string {
 		die(stderr, "plan-gate ledger: "+err.Error())
 	}
 	return judge.BuildPrompt(judge.PlanQuality, planQualityPromptInput(planningIssueRef(name, f.Issue), string(issueBytes), plan.text, ledger))
+}
+
+// judgeChangeKind is `sdlc judge`'s change kind by recipe: a design review is
+// design-heavy, the rest bounded (#409).
+func judgeChangeKind(cat judge.Category) judge.ChangeKind {
+	switch cat {
+	case judge.PlanQuality, judge.EstimateQuality, judge.Plan, judge.MilestoneReview:
+		return judge.KindDesignHeavy
+	}
+	return judge.KindBounded
 }

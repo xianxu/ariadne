@@ -34,10 +34,22 @@ func TestLoadReviewerPolicy(t *testing.T) {
 	if err != nil || p.Reviewer(judge.AgentClaude) != judge.AgentGemini {
 		t.Fatalf("explicit config: %+v, %v", p, err)
 	}
+	// #409: per-kind orders and per-reviewer models load into the policy.
+	writeReviewConfig(t, root, `{"boundary_reviewer": "other", "reviewer_order": {"bounded": ["gemini", "codex"]}, "reviewer_models": {"codex": "gpt-6-astra"}}`)
+	p, err = loadReviewerPolicy(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, _ := judge.ReviewPlan(p, judge.AgentClaude, []judge.Family{judge.FamilyAnthropic}, judge.KindBounded, nil)
+	if len(plan) != 2 || plan[0].Agent != judge.AgentGemini || plan[1].Model != "gpt-6-astra" {
+		t.Fatalf("orders/models config: %+v", plan)
+	}
 	for _, bad := range []string{
-		`{"boundary_reviewer": "others"}`, // unknown mode
-		`{"boundary_reviewr": "other"}`,   // misspelled key
-		`{"boundary_reviewer": `,          // malformed
+		`{"reviewer_order": {"huge": ["codex"]}}`, // unknown kind
+		`{"reviewer_models": {"grok": "x"}}`,      // unknown agent
+		`{"boundary_reviewer": "others"}`,         // unknown mode
+		`{"boundary_reviewr": "other"}`,           // misspelled key
+		`{"boundary_reviewer": `,                  // malformed
 	} {
 		writeReviewConfig(t, root, bad)
 		if _, err := loadReviewerPolicy(root); err == nil || !strings.Contains(err.Error(), reviewConfigPath) {
@@ -110,5 +122,48 @@ func TestBoundaryReviewInvalidPolicyDoesNotRun(t *testing.T) {
 	res := dispatchBoundaryReview(&bytes.Buffer{}, &bytes.Buffer{}, p)
 	if ran || res.Verdict != judge.VerdictNotRun || !strings.Contains(res.Reason, reviewConfigPath) {
 		t.Fatalf("ran=%v verdict=%s reason=%q", ran, res.Verdict, res.Reason)
+	}
+}
+
+// #409: a reviewer_models entry reaches the dispatched reviewer's argv, and a
+// reviewer with no entry runs with its CLI's default model.
+func TestBoundaryReviewPassesTheConfiguredModel(t *testing.T) {
+	for _, tc := range []struct{ config, want string }{
+		{`{"boundary_reviewer": "other", "reviewer_models": {"claude": "claude-opus-5-5"}}`, "--model claude-opus-5-5"},
+		{`{"boundary_reviewer": "other", "reviewer_models": {"codex": "gpt-6-astra"}}`, ""},
+	} {
+		t.Run(tc.want, func(t *testing.T) {
+			t.Setenv("WF_REVIEW_CHECKOUT_ROOT", t.TempDir())
+			t.Setenv("AGENT_CMD", "")
+			t.Setenv("CODEX_CI", "")
+			t.Setenv("CODEX_THREAD_ID", "")
+			t.Setenv("PAIR_AGENT", "codex") // reviewed by claude under `other`
+			p := boundaryWindow(t)
+			p.PlansDir = t.TempDir()
+			writeReviewConfig(t, ".", tc.config)
+			origProbe := reviewbox.Probe
+			t.Cleanup(func() { reviewbox.Probe = origProbe })
+			reviewbox.Probe = func() (reviewbox.Fence, string) { return reviewbox.FenceNone, "test" }
+
+			(&fakeReviewer{}).install(t)
+			inner := judge.Run
+			var args []string
+			judge.Run = func(ctx context.Context, onStart func(int), n string, a ...string) (judge.ProcessOutput, error) {
+				_, args, _ = unwrapReviewArgv(t, n, a)
+				return inner(ctx, onStart, n, a...)
+			}
+			var errb bytes.Buffer
+			res := dispatchBoundaryReview(&bytes.Buffer{}, &errb, p)
+			joined := strings.Join(args, " ")
+			if res.Agent != "claude" {
+				t.Fatalf("dispatched %q, want claude\n%s", res.Agent, errb.String())
+			}
+			if tc.want != "" && !strings.Contains(joined, tc.want) {
+				t.Errorf("reviewer argv lacks %q: %q", tc.want, joined)
+			}
+			if tc.want == "" && strings.Contains(joined, "--model") {
+				t.Errorf("a reviewer with no reviewer_models entry got a model: %q", joined)
+			}
+		})
 	}
 }

@@ -51,6 +51,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
@@ -722,10 +723,19 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 
 	prompt := judge.BuildPrompt(judge.PlanQuality, planQualityPromptInput(issueRef, issueContent, planContent, ledger))
 
-	agent := judge.ResolveAgentCLI(f.Agent, f.AgentExplicit, judge.CurrentAgentDefaultEnv())
+	choice, err := planningReviewChoice(f)
+	if err != nil {
+		return err
+	}
+	first, ok := choice.First()
+	if !ok {
+		return fmt.Errorf("plan-quality: %w", judge.Refusal(choice))
+	}
+	agent := first.Agent
 	tools := judge.PlanQuality.AllowedTools()
 	opts := judge.DispatchOptions{
 		Agent:        agent,
+		Model:        first.Model,
 		Prompt:       prompt,
 		AllowedTools: tools,
 		Stdout:       stdout,
@@ -751,7 +761,13 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 		}
 	}
 	cinfo(stderr, fmt.Sprintf("invoking %s for plan-quality check …", agent))
-	output, dispatchErr := dispatchPlanningReview(f, opts)
+	output, used, reviewer, dispatchErr := dispatchPlanningReview(f, opts, choice)
+	if used.Agent != "" {
+		agent = used.Agent
+	}
+	if reviewer != "" {
+		cinfo(stderr, "plan-quality reviewer: "+reviewer)
+	}
 	if dispatchErr != nil {
 		fmt.Fprint(stdout, output) // a failed retry still carries the first attempt (#300)
 		return fmt.Errorf("plan-quality dispatch failed: %w", dispatchErr)
@@ -777,7 +793,7 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 		cwarn(stderr, "plan-quality: no valid ```findings block — falling back to the verdict token; this round carries NO findings, so the gate cannot converge on it")
 		blocked := classifyFallback(stderr, output) != nil
 		persistPlanGateRound(stderr, f, issueFile, ledger, gatestate.Round{
-			N: n, Timestamp: nowRFC3339(), Agent: string(agent), ReviewerRuns: opts.Evidence.ReviewerRuns,
+			N: n, Timestamp: nowRFC3339(), Agent: string(agent), Reviewer: reviewer, ReviewerRuns: opts.Evidence.ReviewerRuns,
 			ProtocolError: "no valid findings block",
 			Blocked:       blocked,
 			Forced:        forcedRationale(f.Force, blocked),
@@ -789,6 +805,7 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 	}
 
 	round := gatestate.AssignIDs(ledger, rr, n, nowRFC3339(), string(agent))
+	round.Reviewer = reviewer
 	round.ReviewerRuns = opts.Evidence.ReviewerRuns
 	applied, aerr := gatestate.ApplyChecked(ledger, round)
 	if aerr != nil {
@@ -962,9 +979,18 @@ func runEstimateQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name,
 		IssueContent: issueContent,
 	})
 
-	agent := judge.ResolveAgentCLI(f.Agent, f.AgentExplicit, judge.CurrentAgentDefaultEnv())
+	choice, err := planningReviewChoice(f)
+	if err != nil {
+		return err
+	}
+	first, ok := choice.First()
+	if !ok {
+		return fmt.Errorf("estimate-quality: %w", judge.Refusal(choice))
+	}
+	agent := first.Agent
 	opts := judge.DispatchOptions{
 		Agent:        agent,
+		Model:        first.Model,
 		Prompt:       prompt,
 		AllowedTools: judge.EstimateQuality.AllowedTools(),
 		Stdout:       stdout,
@@ -990,7 +1016,10 @@ func runEstimateQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name,
 		}
 	}
 	cinfo(stderr, fmt.Sprintf("invoking %s for estimate-quality check …", agent))
-	output, dispatchErr := dispatchPlanningReview(f, opts)
+	output, _, reviewer, dispatchErr := dispatchPlanningReview(f, opts, choice)
+	if reviewer != "" {
+		cinfo(stderr, "estimate-quality reviewer: "+reviewer)
+	}
 	if dispatchErr != nil {
 		fmt.Fprint(stdout, output) // a failed retry still carries the first attempt (#300)
 		return fmt.Errorf("estimate-quality dispatch failed: %w", dispatchErr)
@@ -1100,4 +1129,16 @@ func issueTitleFromContent(text string) string {
 		}
 	}
 	return "(no title)"
+}
+
+// planningReviewChoice is the reviewers for a planning review (plan-quality,
+// estimate-quality): a design is design-heavy, authored by the branch's
+// commits so far and this session, run in the operator's tree (#409).
+func planningReviewChoice(f *changeCodeFlags) (judge.ReviewChoice, error) {
+	ctx := changeCodeContext(f)
+	root, err := gitx.RepoTopLevel()
+	if err != nil {
+		return judge.ReviewChoice{}, err
+	}
+	return resolveReviewChoice(ctx, root, branchWindowBase(ctx), "HEAD", f.Agent, f.AgentExplicit, judge.KindDesignHeavy, judge.ContainNone)
 }

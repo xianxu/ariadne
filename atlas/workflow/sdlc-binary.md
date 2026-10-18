@@ -1009,8 +1009,8 @@ spawns a new subprocess; the agent has no doer-session state.
 
 **Judge agent defaults (#129).** Every judge dispatch (`sdlc judge`,
 `change-code` plan/estimate quality, close and milestone boundary reviews, plus
-push/merge preflight) resolves through `internal/judge.ResolveAgentCLI`. The
-precedence is: explicit `--agent`, then `AGENT_CMD` (operator/script override,
+push/merge preflight) resolves through `internal/judge.ResolveReview` (#409; it
+replaced `ResolveAgentCLI`). The precedence is: explicit `--agent`, then `AGENT_CMD` (operator/script override,
 including invalid values so dispatch validation still fails loudly), then
 `PAIR_AGENT`, then conservative process/session signals such as `CODEX_CI` /
 `CODEX_THREAD_ID`, then `claude`. Command flags stay empty by default so
@@ -1188,19 +1188,52 @@ plus `<id>.lock`.
 Bound: one clone per live review, plus whatever the sweep has warned about.
 
 **Which agent reviews, and its permission mode (#310).** `workshop/review.json`
-(repo-local) sets `boundary_reviewer`: `same` (default), `other` (claude and
-codex review each other) or `explicit` with `reviewer_pairs`. The pure
+(repo-local) sets `boundary_reviewer`: `same` (default), `other` (a reviewer of
+another vendor family, #409 below) or `explicit` with `reviewer_pairs`. The pure
 `judge.ReviewerPolicy` maps the main agent (`judge.MainAgent`: `PAIR_AGENT`,
 codex env, claude) to its reviewer; `--agent` and `AGENT_CMD` stay above it, and
-`ResolveAgentCLI` is the `same` case. `loadReviewerPolicy` reads the source
-checkout's file in `boundaryReviewOptionsFor`; an invalid file halts the review.
-The ledger round's `agent` records who reviewed. `DispatchOptions.Containment`
+`same` is the default (`judge.DefaultReviewerMode`). `loadReviewerPolicy` reads the
+source checkout's file; an invalid file halts the review. The ledger round's
+`agent` names the reviewer CLI and its `reviewer` field the full #409 record
+(model, families, degraded). `DispatchOptions.Containment`
 (none / checkout / fenced) replaced `IsSandbox` + `Fenced`, and `agentArgs` maps
 it to each CLI's own mode: claude `--permission-mode dontAsk` (the tool list
 is enforced, so Edit/Write are refused; Bash stays unrestricted, so shell
 writes are stopped only by the #204 fence), codex `--sandbox read-only | workspace-write |
 danger-full-access`, gemini without `--yolo`. No judge gets an auto-approve mode;
 `--sandbox` on `judge`/`change-code` is a deprecated no-op.
+
+**Reviewer families (#409).** The pure policy (families, change kinds, modes and orders,
+`Plan`, `Resolve`, `Record`, the `workshop/review.json` loader) lives in `pkg/reviewpolicy`,
+and the session-agent detection and `Agent:` trailer parsing in `pkg/agentenv`, so
+`cmd/doc-review` shares them (#441); `judge` and `agentid` re-export them under their
+historical names and keep the run-shaped parts. `judge.FamilyOf` maps each agent to its vendor (claude →
+anthropic, codex → openai, gemini → google; anything else is unknown, never guessed), and a
+review's `judge.ChangeKind` is `design-heavy` (a design: plan-quality, planning review, a
+full-flow boundary) or `bounded` (a quick-flow boundary). Under `other` the pure
+`judge.ReviewPlan(policy, main, authorFamilies, kind, availability)` lists every agent whose
+family authored none of the window, in the kind's order (design-heavy: claude, codex, gemini;
+bounded: codex, claude, gemini, so #310's claude ↔ codex pairing holds and gemini is the
+fallback). `reviewer_order` and `reviewer_models` in `workshop/review.json` override the
+orders and pass a model per reviewer. `same` and `explicit` stay #310's floor.
+`judge.LocalAvailability` skips, before launch and with a reason, an agent whose CLI is
+missing or codex under checkout containment on macOS. `judge.Unavailable` counts a run as
+"could not review" only on a failed launch, claude's stream failing before any assistant or
+tool event (`AgentRun.Began`), or codex/gemini exiting non-zero with nothing on stdout (codex:
+no activity block on stderr, and the cause read only from its `ERROR:` lines, since it echoes
+the prompt), each with an unreachable, quota, sign-in or CLI-refused cause (a 400 bad model is
+a misconfiguration and halts); only that may move a review to the next candidate. Every review site (close, milestone-close, fix review,
+plan-quality, estimate-quality, planning review, `sdlc judge`) resolves through
+`resolveReviewChoice` (cmd/sdlc/reviewchoice.go: the window's trailer families plus the
+session's, the kind, `reviewAvailability`) and runs `judge.DispatchChoice`, which announces each
+skip and ends in `judge.NoReviewerError` (naming every candidate) when none can review. The
+result is `judge.ReviewerRecord`: the close's `Review-Reviewer:` trailer, the ledger round's
+`reviewer` and the sidecar's reviewer row. A week's tally is the git one-liner in `close
+--help` (REVIEWER); the trailer's form is pinned by a test that parses it back through
+`git interpret-trailers`.
+`reviewer_order` needs two families with no repeats, so `Reviewer()` can never return the
+main agent's own family under `other`, and a model reaches each CLI's flag (`DispatchOptions.Model`). The default for a repo with no policy is the single constant
+`judge.DefaultReviewerMode` (`same` until the operator decides the fleet default).
 
 **Dispatch progress heartbeat (#140).** A boundary review can run silently for
 minutes; `internal/judge.Dispatch` now emits a heartbeat to `opts.Stderr` every
@@ -1893,11 +1926,20 @@ fire before the fixture reports its pid (#434). Hand the code under test
 readiness; the code's own `WithTimeout` then sees a real `DeadlineExceeded`. Where
 the deadline lives in a child process, gate the fixture on a FIFO the test releases.
 
+A test that needs a built binary (an end-to-end run of `sdlc`, `weave` or a vocabulary
+tool) calls `testfix.BuiltBinary(t, dir, pkg, flags...)`, never `go build` itself (#438;
+the `test-go-build` lint rule enforces it). It builds each package and flag set once per
+test process, under a 5-minute bound, into an `sdlc-testbin-*` directory under TMPDIR that
+the package's TestMain removes with `testfix.RemoveBuiltBinaries()` after `m.Run`; the next
+process sweeps any such directory a killed run left behind after 24 h. Measured on the
+end-to-end tests: 18 builds (310 MB of binaries) became 2 (20.9 MB).
+
 ### The Go lint catalog (#407)
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
 that taught it (`test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
-`test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes). Packages are matched by the
+`test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, and
+`wire-strict-decode` pair#594). Packages are matched by the
 name the file imports them under, and generated files are skipped. Rules read only the syntax tree (stdlib
 `go/parser`, no type-checking, no external linter), and `TestTrackedGoFilesPassTheCatalog`
 runs them over every tracked Go file in the suite, so every landing enforces them (well under
@@ -1905,8 +1947,34 @@ a second over about 1,140 files). A finding that doesn't apply is suppressed on 
 above with `//lint:allow <rule> — <reason>`; a suppression without a reason, naming an
 unknown rule, or matching nothing is itself a finding. A fix for a mechanical mistake class
 adds its rule here (the shared planning block in `tl-worker`/`tl-lead` help says so).
-Follow-ups: golangci-lint for off-the-shelf linters (#439, operator), wire-decode (#440),
-one build per test binary (#438).
+
+Mark a named type with `// wire: <why it can evolve separately>` in its type-doc
+comment when it receives JSON from a peer binary, agent or toolchain that may
+add fields before this binary upgrades. The lint scans all tracked Go sources
+once to index marked types, then flags a direct `json.NewDecoder` →
+`DisallowUnknownFields` → `Decode` chain into one. Direct calls in expression
+statements, assignment RHS, `var` initializers, returns, and assignment-form
+`if` initializers are covered. Expression-form `if` initializers are tracked
+in #445. It reports at `Decode`;
+ambiguous branches, goto-bearing functions, and helper decoders are outside this conservative
+syntax-only rule. A marked target resolves in the same package, the module
+root, or an imported subpackage when its declared package name or explicit
+alias matches the selector; a shadowed qualifier is not an import. A decoder remains
+proven only if its function-local binding is declared by its sole direct
+`json.NewDecoder` assignment, with no reassignment or address or closure escape,
+and no use outside the two direct method calls. Copying it or passing it to a
+helper disqualifies the name, as does a second assignment even when the new
+value is another decoder. A package-global decoder is outside the proof
+because a helper can replace it. This can miss a strict decode after aliasing, but
+cannot guess that the decoder remains strict. The current examples
+are Claude stream events, `go test -json` events, and Codex/Claude usage
+records (#440). Do not mark local configuration, tracker receipts, fleet policy,
+or version-pinned issue observations: their unknown keys are errors, so strict
+decoding remains correct. A real exception at a flagged decode uses the normal
+reasoned `//lint:allow wire-strict-decode — <why>` on that line or the one above.
+
+Follow-ups: golangci-lint for off-the-shelf linters (#439, operator), one build
+per test binary (#438).
 
 ### Two full suites per machine (#319, #341)
 

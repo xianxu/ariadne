@@ -23,14 +23,16 @@ type SessionSync interface {
 	// MarkAllSeen reads the whole file (`read --all`), which tells Couch the
 	// agent has now seen every edit.
 	MarkAllSeen(file string) error
-	// ReadAll reads the whole file and its hash (`read --all --json`), for a
-	// write outside every section: the frontmatter's discussions: index (#424).
-	ReadAll(file string) (text, hash string, err error)
-	// WriteAll replaces the whole file with bodyPath if it still has hash.
-	WriteAll(file, bodyPath, hash string) error
-	// Peek reads the whole file without moving couch's diff baseline (read
-	// --all and write --all both mark every edit seen), for a decision that
-	// must not consume the operator's unread edits.
+	// ReadFrontmatter reads the closed leading `---` block and its hash
+	// (`read --frontmatter --json`, pair#643), for the discussions: index
+	// (#424, #426). It marks only the frontmatter seen: the operator's
+	// unread section edits stay in the diff.
+	ReadFrontmatter(file string) (block, hash string, err error)
+	// WriteFrontmatter replaces only the block with bodyPath's if it still
+	// has hash; every body byte survives.
+	WriteFrontmatter(file, bodyPath, hash string) error
+	// Peek reads the whole file without moving couch's diff baseline, for
+	// the body's links and for a decision that must not read through couch.
 	Peek(file string) (string, error)
 }
 
@@ -163,8 +165,8 @@ func (c couchSessionSync) MarkAllSeen(file string) error {
 	return err
 }
 
-func (c couchSessionSync) ReadAll(file string) (string, string, error) {
-	raw, err := c.run("read", "--all", file, "--json")
+func (c couchSessionSync) ReadFrontmatter(file string) (string, string, error) {
+	raw, err := c.run("read", "--frontmatter", file, "--json")
 	if err != nil {
 		return "", "", err
 	}
@@ -173,13 +175,13 @@ func (c couchSessionSync) ReadAll(file string) (string, string, error) {
 		return "", "", err
 	}
 	if r.Read == nil || r.Read.Hash == "" {
-		return "", "", fmt.Errorf("couch --session-sync read --all: no hash in the reply")
+		return "", "", fmt.Errorf("couch --session-sync read --frontmatter: no hash in the reply")
 	}
 	return r.Read.Body, r.Read.Hash, nil
 }
 
-func (c couchSessionSync) WriteAll(file, bodyPath, hash string) error {
-	_, err := c.run("write", "--all", bodyPath, file, "--if-hash", hash)
+func (c couchSessionSync) WriteFrontmatter(file, bodyPath, hash string) error {
+	_, err := c.run("write", "--frontmatter", bodyPath, file, "--if-hash", hash)
 	return err
 }
 

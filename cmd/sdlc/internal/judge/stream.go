@@ -19,6 +19,7 @@ type AgentRun struct {
 	SessionID          string
 	IdentityDiagnostic string
 	Stream             bool     // at least one line parsed as a stream event
+	Began              bool     // an assistant or tool event: the reviewer started reviewing (#409)
 	Messages           []string // each assistant message's text, in order
 	Tail               string   // lines that didn't parse (a truncated stream), or the whole output when not a stream
 	Result             *Result  // the terminal result event, nil when absent
@@ -31,6 +32,7 @@ type Result struct {
 	Text    string
 }
 
+// wire: Claude stream-json events may add fields before this binary upgrades.
 type streamEvent struct {
 	Type    string `json:"type"`
 	Subtype string `json:"subtype"`
@@ -66,7 +68,10 @@ func ReadStream(out []byte) AgentRun {
 		}
 		r.Stream = true
 		switch e.Type {
+		case "user":
+			r.Began = true // a tool result handed back to the reviewer
 		case "assistant":
+			r.Began = true
 			var parts []string
 			for _, c := range e.Message.Content {
 				if c.Type == "text" && strings.TrimSpace(c.Text) != "" {

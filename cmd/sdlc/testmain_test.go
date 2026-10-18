@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/repolock"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewbox"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
@@ -162,6 +163,11 @@ func TestMain(m *testing.M) {
 	cleanupQuietGit := testfix.QuietBackgroundGit()
 	cleanupReviewBox := hermeticReviewBox()
 	testfix.PinAgent() // #367
+	// #409: every reviewer CLI counts as installed, whatever this machine has;
+	// tests of the pre-launch skip install their own.
+	reviewAvailability = func(judge.Containment) judge.Availability {
+		return func(judge.AgentCLI) (string, bool) { return "", true }
+	}
 	// #431: a failing fake status post retries without the real backoff.
 	localCheckPostBackoff = []time.Duration{time.Millisecond, time.Millisecond, time.Millisecond}
 	// #303: no test runs the installed weave; a test that reaches the catch-up
@@ -173,6 +179,7 @@ func TestMain(m *testing.M) {
 	root := realRepoRoot()
 	before := readSnapshot(root)
 	code := m.Run()
+	testfix.RemoveBuiltBinaries() // #438: one build per process, removed with it
 	after := readSnapshot(root)
 	exit, mutations := guardVerdict(before, after, code)
 	if len(mutations) > 0 {

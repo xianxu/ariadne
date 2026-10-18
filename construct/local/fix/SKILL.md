@@ -372,9 +372,11 @@ to the document.
 
 Use the `doc-review` binary:
 
-- `doc-review <file.md>` — review with the default second-vendor agent (`codex`).
+- `doc-review <file.md>` — review with an agent of another vendor than the
+  document's authors (a Claude-written doc goes to `codex`, a Codex-written one to
+  `claude`); it never self-reviews.
 - `doc-review <agent> <file.md>` — review with `codex`, `gemini`, or `claude`
-  (Claude is fallback only when no cross-vendor CLI is available).
+  named explicitly (it wins over the choice).
 - `doc-review --dry-run <file.md>` — print the would-be reviewer command and
   report path without running it.
 

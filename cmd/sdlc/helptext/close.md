@@ -405,17 +405,52 @@ THE COST REPORT (#187)
   (churn_prod … gate_open, indices 10–19). Columns are APPENDED, never
   reordered — ParseRows indexes positionally and legacy rows must keep parsing.
 
-REVIEWER (#310)
+REVIEWER (#310, #409)
 
   The boundary reviewer (close and milestone-close) is chosen per repo by
   workshop/review.json, a repo-local file the base layer never carries:
 
     {"boundary_reviewer": "other"}
     {"boundary_reviewer": "explicit", "reviewer_pairs": {"claude": "codex"}}
+    {"boundary_reviewer": "other",
+     "reviewer_order": {"bounded": ["codex", "claude", "gemini"]},
+     "reviewer_models": {"codex": "gpt-6-astra"}}
 
   same (the default; no file) — the main agent reviews itself
-  other    — claude and codex review each other; gemini is reviewed by claude
+  other    — a reviewer of another vendor family (claude: anthropic, codex:
+             openai, gemini: google), in the change kind's order: a design
+             (plan-quality, planning review, a full-flow close) tries claude,
+             codex, gemini; a bounded (quick-flow) change tries codex, claude,
+             gemini; the author's family is skipped, so claude and codex review
+             each other and gemini is the fallback
   explicit — reviewer_pairs[main agent]; an unpaired main agent reviews itself
+
+  reviewer_order overrides a kind's order (design-heavy | bounded; agents of at
+  least two families, none twice). reviewer_models asks a reviewer for a model
+  (claude --model, codex/gemini -m); absent, each CLI uses its default.
+
+  The same choice serves every review: close, milestone-close, fix review,
+  plan-quality, estimate-quality, planning review and `sdlc judge`. The
+  authors are the families in the window's Agent: trailers plus the session
+  running the review. A reviewer is skipped, with a "[!] reviewer … unavailable:
+  <reason>; trying the next" line, only when it could not review at all: its
+  CLI missing, codex's sandbox unable to nest (checkout containment on macOS),
+  a failed launch, or a quota, sign-in or outage error before it began. A
+  reviewer that began and then failed halts the review as before; it never
+  hands over. When no reviewer of another family can run, the review refuses
+  and names each candidate with its reason; it never falls back to the
+  author's family. --agent picks one anyway, recorded as degraded.
+
+  The close commit records who reviewed whose work:
+
+    Review-Reviewer: codex/gpt-6-astra (openai; author anthropic)
+    Review-Reviewer: gemini (google; author anthropic); degraded: codex unavailable: …
+
+  and the ledger round's reviewer field and the sidecar's reviewer row carry
+  the same text. A week's tally by family:
+
+    git log --since=1.week --format='%(trailers:key=Review-Reviewer,valueonly)' \
+      | sed -E 's/^[^ ]+ \(([a-z]+); author ([^)]+)\).*/\2 -> \1/' | sort | uniq -c
 
   The main agent is detected from PAIR_AGENT, then codex's env, then claude.
   --agent and AGENT_CMD override the file. An unknown mode, agent or key halts
