@@ -48,7 +48,8 @@ func TestStateReportsOwnerAndClaimTime(t *testing.T) {
 	r, _ := claimSetRepo(t)
 	claimFor(t, 9)
 	claimCommit := r.git("log", "-1", "--format=%cI", "refs/remotes/origin/issue-tracker")
-	time.Sleep(1100 * time.Millisecond) // the later write must not share the claim's second
+	//lint:allow test-fixed-sleep — git commit times have one-second resolution; the later write needs a later second
+	time.Sleep(1100 * time.Millisecond)
 	var out bytes.Buffer
 	if err := startPlanBranch(context.Background(), &out, 9); err != nil {
 		t.Fatal(err)

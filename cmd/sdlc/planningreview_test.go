@@ -317,6 +317,7 @@ func TestPlanningReviewTimeoutCannotBeForced(t *testing.T) {
 	binary := buildFleetE2EBinary(t)
 	t.Setenv("WF_REVIEW_TIMEOUT", "1s")
 	repo, _, finish := startPlanningReviewCLI(t, binary, "plan")
+	//lint:allow test-fixed-sleep — the child's real 1s review timeout must elapse; finish() then waits for its exit
 	time.Sleep(1200 * time.Millisecond)
 	r := finish()
 	if r.err == nil || !strings.Contains(r.output, "deadline") {

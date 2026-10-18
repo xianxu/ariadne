@@ -1,12 +1,22 @@
 ---
 id: 000407
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-15
-updated: 2026-10-15
+updated: 2026-10-18
 estimate_hours:
-card_mirror: '879bbde2fe48e92ef634ffa0fd1a9e3daf61091b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5c1ee1a9cad85b794ec38c13a1190684b211ea80' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-18T00:13:46-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 0.21
 ---
 
 # A curated Go lint catalog: golangci-lint + shared ruleguard rules for known mistakes (per-test builds, sleeps, wall-clock asserts, temp dirs, strict wire decode)
@@ -40,8 +50,30 @@ Operator (2026-10-15): "we need to curate a list of 'stupid mistakes'". Part of 
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000407-a-curated-go-lint-catalog-golangci-lint-shared-ruleguard-rules-for-known-mistakes-per-test-builds-sleeps-wall-clock-asserts-temp-dirs-strict-wire-decode-plan.md` (engine, seed rules, sweep, follow-ups; three
+deviations from the Spec are listed there for approval).
+
+- [x] Tasks 1–6 of the durable plan
 
 ## Log
 
 ### 2026-10-15
+
+### 2026-10-18
+- 2026-10-18: closed — sdlc-local/suite green on e8a9c841 (exit 0, 8m4s), including TestTrackedGoFilesPassTheCatalog: ~1,140 tracked Go files pass 5 rules in well under a second. TestRules (flag/no-flag per rule, incident cited), TestSuppressions, TestCatalogHygiene, TestRulesFollowImportNames, TestGeneratedFilesAreSkipped. Round-1 REWORK fixed: plan Revisions match the code (BR-1), test-tight-wallclock delivers the wall-clock seed (BR-2), TestBoundedGitCommandAppliesDefaultCeiling restores the default-ceiling check (BR-3). Follow-ups #438/#439/#440.; review verdict: SHIP
+- 2026-10-18: flow upgraded quick → full — 402 added lines in code files (limit 100); an earlier round of this close already ran the full review
+
+- Claimed by ariadne:2; plan drafted and sent to the hub before code.
+- Hub approved the plan with all three deviations (stdlib engine in the suite, pair via the TL, wire-decode deferred).
+- Implemented `pkg/golint` (Check with suppression hygiene; four rules; `TestTrackedGoFilesPassTheCatalog`: 1,139
+  tracked Go files, about 0.7 s). Initial scan: 20 findings, all now fixed or suppressed with a reason (see the plan's
+  Revisions). Three deadline tests converted to `testfix.DeadlineOnCue`, and they pass with -count=3.
+- Follow-ups filed, unclaimed: #438 one build per test binary, #439 golangci-lint (operator: install and gates), #440
+  wire-message annotation plus a strict-decode rule. pair adoption goes to the hub.
+- The process line lives once in the shared planning block (`pkg/tlrules/planning.md`, MISTAKE CLASSES), so
+  tl-worker and tl-lead both carry it, with a phrase guard in rules.tsv.
+- Close review round 1: REWORK. BR-1: plan Revisions correct Core concepts (files, Match signature, the git-based walk;
+  generated files are now skipped). BR-2: the Spec's wall-clock seed is delivered as `test-tight-wallclock`, with two
+  existing hits suppressed with reasons. BR-3: `TestBoundedGitCommandAppliesDefaultCeiling` restores the default-ceiling
+  coverage. Minors in the round: field targets, import-alias resolution (`TestRulesFollowImportNames`), the generated
+  skip (`TestGeneratedFilesAreSkipped`), and quarterly rule review declared deferred.

@@ -128,6 +128,7 @@ func TestForcedTerminationRetiresMemberMissedByFirstSignal(t *testing.T) {
 		t.Errorf("terminate: %v", err)
 	}
 	_ = cmd.Wait()
+	//lint:allow test-tight-wallclock — 700ms separates a group kill from waiting out the holder's 1s drain bound; no event marks it
 	if elapsed := time.Since(start); elapsed >= 700*time.Millisecond {
 		t.Errorf("pipe holder survived first signal: %v", elapsed)
 	}

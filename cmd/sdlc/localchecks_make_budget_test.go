@@ -73,6 +73,7 @@ func TestWaitCIGateBoundsRealMakeProbe(t *testing.T) {
 			if mode == "cancel" {
 				want = context.Canceled
 			}
+			//lint:allow test-tight-wallclock — 700ms is under the fixture make shell's 1.5s sleep, the margin that shows the probe did not wait it out
 			if !errors.Is(err, want) || elapsed > 700*time.Millisecond {
 				t.Errorf("probe ignored %s: elapsed=%v err=%v", mode, elapsed, err)
 			}

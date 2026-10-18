@@ -1,0 +1,165 @@
+package golint
+
+import (
+	"strings"
+	"testing"
+)
+
+// header imports what the snippets call, as real files must for the rules to
+// resolve a package by the name the file gives it.
+const header = "package p\n\nimport (\n\t\"os\"\n\t\"os/exec\"\n\t\"path/filepath\"\n\t\"time\"\n)\n\n"
+
+// findings checks one function body against the catalog, as a test file or not.
+func findings(t *testing.T, body string, test bool) []Finding {
+	t.Helper()
+	name := "x.go"
+	if test {
+		name = "x_test.go"
+	}
+	got, err := Check(name, []byte(header+"func f() {\n"+body+"\n}\n"), Catalog)
+	if err != nil {
+		t.Fatalf("parse %q: %v", body, err)
+	}
+	return got
+}
+
+func ruleOf(t *testing.T, name string) Rule {
+	t.Helper()
+	for _, r := range Catalog {
+		if r.Name == name {
+			return r
+		}
+	}
+	t.Fatalf("no rule %s", name)
+	return Rule{}
+}
+
+func TestRules(t *testing.T) {
+	for _, tc := range []struct {
+		rule string
+		body string
+		test bool
+		want bool
+	}{
+		// test-shrunk-deadline (#434)
+		{"test-shrunk-deadline", "fooTimeout = 50 * time.Millisecond", true, true},
+		{"test-shrunk-deadline", "reviewShutdownGrace = time.Millisecond * 50", true, true},
+		{"test-shrunk-deadline", "pushDeadline = time.Millisecond", true, true},
+		{"test-shrunk-deadline", "fooTimeout = 2 * time.Second", true, false},
+		{"test-shrunk-deadline", "fooTimeout = prev", true, false},
+		{"test-shrunk-deadline", "fooTimeout := 50 * time.Millisecond", true, false},
+		{"test-shrunk-deadline", "limit = 50 * time.Millisecond", true, false},
+		{"test-shrunk-deadline", "fooTimeout = 50 * time.Millisecond", false, false},
+		{"test-shrunk-deadline", "cfg.ShutdownGrace = 10 * time.Millisecond", true, true},
+		// tmp-literal (#342)
+		{"tmp-literal", `p := filepath.Join("/tmp", "x")`, false, true},
+		{"tmp-literal", `os.MkdirAll("/tmp/work", 0o755)`, true, true},
+		{"tmp-literal", `f, _ := os.Create("/tmp/x.log")`, false, true},
+		{"tmp-literal", `os.MkdirTemp("", "x-*")`, false, false},
+		{"tmp-literal", `strings.HasPrefix(cwd, "/tmp/")`, false, false},
+		{"tmp-literal", `args := []string{"/tmp/probe"}`, true, false},
+		{"tmp-literal", `os.Getenv("/tmpdir")`, false, false},
+		{"tmp-literal", `want := filepath.FromSlash("/tmp/hx/issues")`, true, false},
+		// test-go-build (pair#602)
+		{"test-go-build", `exec.Command("go", "build", "-o", bin, ".")`, true, true},
+		{"test-go-build", `run(t, time.Minute, "", true, "go", "build", "-o", bin, ".")`, true, true},
+		{"test-go-build", `exec.Command("go", "vet", "./...")`, true, false},
+		{"test-go-build", `exec.Command("go", "build", ".")`, false, false},
+		// test-tight-wallclock (10-15 flakes)
+		{"test-tight-wallclock", "if time.Since(start) > 700*time.Millisecond { panic(0) }", true, true},
+		{"test-tight-wallclock", "elapsed := time.Since(start)\nif elapsed >= 500*time.Millisecond { panic(0) }", true, true},
+		{"test-tight-wallclock", "if 200*time.Millisecond < time.Since(start) { panic(0) }", true, true},
+		{"test-tight-wallclock", "if time.Since(start) > 3*time.Second { panic(0) }", true, false},
+		{"test-tight-wallclock", "if elapsed := time.Since(start); elapsed < budget { panic(0) }", true, false},
+		{"test-tight-wallclock", "if time.Since(start) < 500*time.Millisecond { panic(0) }", true, false},
+		{"test-tight-wallclock", "if time.Since(start) > 700*time.Millisecond { panic(0) }", false, false},
+		// test-fixed-sleep (10-15 flakes)
+		{"test-fixed-sleep", "time.Sleep(200 * time.Millisecond)", true, true},
+		{"test-fixed-sleep", "time.Sleep(time.Second)", true, true},
+		{"test-fixed-sleep", "time.Sleep(5 * time.Millisecond)", true, false},
+		{"test-fixed-sleep", "time.Sleep(time.Hour)", true, false},
+		{"test-fixed-sleep", "time.Sleep(d)", true, false},
+		{"test-fixed-sleep", "time.Sleep(time.Second)", false, false},
+	} {
+		var hit *Finding
+		got := findings(t, tc.body, tc.test)
+		for i := range got {
+			if got[i].Rule == tc.rule {
+				hit = &got[i]
+			}
+		}
+		if (hit != nil) != tc.want {
+			t.Errorf("%s on %q (test file %v): flagged=%v, want %v (all: %v)", tc.rule, tc.body, tc.test, hit != nil, tc.want, got)
+			continue
+		}
+		if hit != nil && !strings.Contains(hit.Message, ruleOf(t, tc.rule).Incident) {
+			t.Errorf("%s: message does not cite its incident: %s", tc.rule, hit.Message)
+		}
+	}
+}
+
+func TestCatalogHygiene(t *testing.T) {
+	seen := map[string]bool{}
+	for _, r := range Catalog {
+		if r.Name == "" || r.Incident == "" || r.Message == "" || r.Match == nil {
+			t.Errorf("rule %+v lacks a name, incident, message or matcher", r.Name)
+		}
+		if seen[r.Name] || r.Name == suppressionRule {
+			t.Errorf("rule name %s is reused", r.Name)
+		}
+		seen[r.Name] = true
+	}
+}
+
+func TestSuppressions(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		body string
+		want []string // rules of the findings, in order
+	}{
+		{"line above, with reason", "//lint:allow test-fixed-sleep — the fake clock needs real time to pass\ntime.Sleep(time.Second)", nil},
+		{"same line", "time.Sleep(time.Second) //lint:allow test-fixed-sleep -- bounds a known race", nil},
+		{"no reason", "//lint:allow test-fixed-sleep\ntime.Sleep(time.Second)", []string{suppressionRule, "test-fixed-sleep"}},
+		{"dash only", "//lint:allow test-fixed-sleep —\ntime.Sleep(time.Second)", []string{suppressionRule, "test-fixed-sleep"}},
+		{"unknown rule", "//lint:allow no-such-rule — why\ntime.Sleep(time.Second)", []string{suppressionRule, "test-fixed-sleep"}},
+		{"unused", "//lint:allow test-fixed-sleep — stale\nx := 1\n_ = x", []string{suppressionRule}},
+		{"two lines above does not cover", "//lint:allow test-fixed-sleep — too far\n\ntime.Sleep(time.Second)", []string{"test-fixed-sleep", suppressionRule}},
+		{"other rule does not cover", "//lint:allow test-go-build — wrong rule\ntime.Sleep(time.Second)", []string{"test-fixed-sleep", suppressionRule}},
+	} {
+		var rules []string
+		for _, f := range findings(t, tc.body, true) {
+			rules = append(rules, f.Rule)
+		}
+		if strings.Join(rules, ",") != strings.Join(tc.want, ",") {
+			t.Errorf("%s: findings %v, want %v", tc.name, rules, tc.want)
+		}
+	}
+}
+
+// Rules resolve packages by the name the file imports them under.
+func TestRulesFollowImportNames(t *testing.T) {
+	src := "package p\n\nimport (\n\tfp \"path/filepath\"\n\tclock \"time\"\n)\n\nfunc f() {\n\t_ = fp.Join(\"/tmp\", \"x\")\n\tclock.Sleep(clock.Second)\n}\n"
+	got, err := Check("x_test.go", []byte(src), Catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rules []string
+	for _, f := range got {
+		rules = append(rules, f.Rule)
+	}
+	if strings.Join(rules, ",") != "tmp-literal,test-fixed-sleep" {
+		t.Errorf("aliased imports: findings %v", rules)
+	}
+	// Without the import, a same-named identifier is not the package.
+	local := "package p\n\nfunc f(time clock) {\n\ttime.Sleep(time.Second)\n}\n"
+	if got, _ := Check("x_test.go", []byte(local), Catalog); len(got) != 0 {
+		t.Errorf("an unimported name matched: %v", got)
+	}
+}
+
+func TestGeneratedFilesAreSkipped(t *testing.T) {
+	src := "// Code generated by x. DO NOT EDIT.\n\n" + header + "func f() {\n\ttime.Sleep(time.Second)\n}\n"
+	if got, err := Check("x_test.go", []byte(src), Catalog); err != nil || len(got) != 0 {
+		t.Errorf("generated file: %v %v", got, err)
+	}
+}

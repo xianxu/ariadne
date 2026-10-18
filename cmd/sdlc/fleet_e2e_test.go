@@ -303,6 +303,7 @@ func buildFleetE2EBinary(t *testing.T) string {
 		name += ".exe"
 	}
 	binary := filepath.Join(t.TempDir(), name)
+	//lint:allow test-go-build — an end-to-end test of the built binary; building once per process is #438
 	result := runFleetE2ESubprocess(t, time.Minute, "", true, "go", "build", "-o", binary, ".")
 	if result.err != nil {
 		t.Fatalf("build fleet end-to-end binary: %v\n%s", result.err, result.combined)

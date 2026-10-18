@@ -160,6 +160,7 @@ func TestBoundaryPushIsBounded(t *testing.T) {
 	}
 	r.git("config", "core.hooksPath", hooks)
 	prev := boundaryPushTimeout
+	//lint:allow test-shrunk-deadline — asserts only that the hung push is bounded; no fixture readiness is awaited
 	boundaryPushTimeout = 300 * time.Millisecond
 	t.Cleanup(func() { boundaryPushTimeout = prev })
 	start := time.Now()
