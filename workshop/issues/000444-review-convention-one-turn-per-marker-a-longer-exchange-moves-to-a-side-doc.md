@@ -40,7 +40,7 @@ Change the review convention (construct/local/fix/review-convention.md and the x
 - [x] Record the single-turn emission rule and legacy-reading rule in the canonical convention.
 - [x] Update xx-fix and xx-universal-review so clarification, disagreement, and continued exchange use linked side docs rather than appended marker turns.
 - [x] Add before/after scenarios for an ambiguous ask, an ambiguous approval in a side doc, and a legacy chain; verify the agent's result never adds a second turn.
-- [ ] Confirm parley's existing parser still reads legacy chains, run targeted tests and the recorded suite, then close and land.
+- [x] Confirm parley's existing parser still reads legacy chains, run targeted tests and the recorded suite, then close and land.
 
 ## Log
 
@@ -50,3 +50,4 @@ Change the review convention (construct/local/fix/review-convention.md and the x
 - TDD: `TestCheckCaseCatches` first failed on an appended second turn; after adding the fixture guard, `TestExamples` failed on the two old append outputs. Those examples now open indexed side docs. A new ready legacy-chain case resolves by its final human turn; an unchanged legacy chain remains allowed in the fixture test.
 - `go test ./pkg/reviewexport -count=1` passed. Parley's `make test-spec SPEC=modes/review` passed, including its three-turn parser case (`tests/unit/review_spec.lua`). `make -k` returned the Makefile help successfully.
 - Live scratch Pair apply under `presentation: propose` returned `Code: ok` and a derived round: the ready `🤖[add the numbers]` became a direct `→ [discussion](note.side/01-numbers.md)` link while the matching `discussions:` entry landed in the same batch; readback and `pair review round` reported the new hash and `Current: true`.
+- Recorded full suite on `973e8a8825a2c94c0945601bfafbe610a903042d`: 12 `cmd/sdlc` shards and 70 other packages passed, zero failures; wall 550.2 seconds after 1,333 seconds in the machine queue. Log sha256 begins `032375436979`.
