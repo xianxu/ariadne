@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "9b7402a5", done: "6d550762"}
 ---
 
 # review checkouts lack main ref and remote config, so repo tests needing main authority can't run in review
