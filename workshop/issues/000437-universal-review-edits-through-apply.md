@@ -38,7 +38,9 @@ Design: `ops:teams/devinfra/projects/universal-agent-input-interface/design.side
 
 ## Done when
 
-The skill's contract and examples use `apply` for edits, cover exit-1 invalid/propose refusals and the exit-6 retry, the side-doc proposal path and fold-in, and no longer mention `deletions: propose-strike` except as retired. The examples checker passes. An agent round on a real document with the skill loaded arrives through `apply` with reasons. The Pair workbench instructions use `pair review apply` and commit its returned body without a pane-applied poke.
+- The skill's contract and examples use `apply` for edits; cover exit-1 invalid/propose refusals, the exit-6 retry, the side-doc proposal path and fold-in; and mention `deletions: propose-strike` only as retired.
+- The examples checker passes, and a live agent round on a real document arrives through `apply` with reasons.
+- The Pair workbench instructions use `pair review apply` and commit its returned Body without a pane-applied poke.
 
 ## Plan
 
@@ -69,3 +71,4 @@ Record the suite on the pushed head, then close and land through the SDLC gates.
 - 2026-10-18, exception narrowed: only the operator-marker-to-side-doc-link edit or a `🤖[fold in]` at that link is direct under `propose`; a normal prose edit with a ready marker remains a proposal. The matching index entry can ride with the direct link.
 - 2026-10-18, close checklist: the final checkbox now names the evidence that must exist before `sdlc close`; close and merge follow it as workflow actions, so the gate can check a completed plan without a self-referential item.
 - 2026-10-18, live conformance: the final checkbox records the completed live checks and Parley prerequisite. The recorded suite follows the checkpoint commit on its exact pushed head, without making a later checklist edit invalidate that evidence.
+- 2026-10-18, close precondition: express the unchanged Done-when acceptance criteria as bullets, as the quick-flow gate requires, after it refused the paragraph form before dispatching review. The recorded suite on `dc0c5b47` remains valid for this docs-only descendant.
