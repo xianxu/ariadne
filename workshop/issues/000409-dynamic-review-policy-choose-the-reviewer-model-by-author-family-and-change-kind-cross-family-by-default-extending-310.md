@@ -77,6 +77,7 @@ Durable plan: `workshop/plans/000409-dynamic-review-policy-choose-the-reviewer-m
 ### 2026-10-16
 
 ### 2026-10-18
+- 2026-10-18: closed — sdlc-local/suite green on e5dca284; since then only the author-family input changed, tested by TestAuthorFamiliesFromLog and TestReviewAuthorFamiliesReadsTheWindow (real repo: a codex trailer counts; an unreadable window is recorded degraded). Policy picks per author family, kind and override; fallback visible and stated; refusal never same-family; a reviewer that began never hands over; trailers record both families and parse via git interpret-trailers. Default stays same behind judge.DefaultReviewerMode pending the operator.; review verdict: FIX-THEN-SHIP
 - 2026-10-18: closed M2 — M2 round-1 REWORK fixed: TestUnavailableRetryNeverHandsOver (fails without the attempt-2 demotion, checked by revert); empty choice refuses at every site (TestResolveReview empty case); per-site policy tests TestPlanQualityChoosesThroughThePolicy, TestEstimateQualityChoosesThroughThePolicy, TestSdlcJudgeChoosesThroughThePolicy; TestDispatchChoice, TestBoundaryReviewSkipsAnUnavailableReviewerVisibly, TestBoundaryReviewRefusesWithNoOtherFamily, TestReviewReviewerTrailerParsesAsAGitTrailer; retired resolvers deleted with tests moved; atlas and help grepped for retired symbols; plan as-built table.; review verdict: SHIP
 - 2026-10-18: closed M1 — M1 tests pass, plus TestBoundaryReviewPassesTheConfiguredModel (a configured model reaches the reviewer argv; fails with the wiring removed, checked by revert). TestReviewPlan, TestUnavailable (14 rows, measured codex and gemini samples), TestReviewerOtherNeverSameFamily, TestAgentArgsPassTheModel, TestValidateOrdersAndModels, TestLocalAvailability, TestLoadReviewerPolicy, #310 tests. Docs mark the M2 parts.; review verdict: SHIP
 
@@ -131,3 +132,4 @@ Durable plan: `workshop/plans/000409-dynamic-review-policy-choose-the-reviewer-m
   Minor in the same round: a window that can't be read, or a missing origin/main, now records `degraded: authors
   unread: …` in the reviewer record (`ReviewChoice.Degraded`) instead of quietly narrowing the exclusion. The class
   rule: any input the cross-family exclusion depends on that can't be read is recorded, never dropped.
+- Close round 2 advisory (BR-16) fixed in the round: TestDispatchChoice asserts a launch-failure reason leads with the cause and excludes PATH=, and that the error keeps the full diagnosis in Detail.

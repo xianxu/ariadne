@@ -111,3 +111,82 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"cc4effe3-dcb7-4d0b-bec4-cca56ce00f0a","repository":"github.com/xianxu/ariadne","issue_id":"000409","recipe":"milestone-review","round":6,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/c05b825593fbc47e","reviewed_head":"e5dca284acc7c1d10d3b354130fac751304ceca2","slot":"ariadne:2","requested_at":"2026-10-18T14:34:49.347125Z"},"phase":"finished","pid":97088,"started_at":"2026-10-18T14:34:49.435409Z","finished_at":"2026-10-18T14:51:44.314908Z","session_id":"48f48ad3-5673-4dd3-aab1-722acf4a3624","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T07:57:00-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 409 — Dynamic review policy: choose the reviewer model by author family and change kind (cross-family by default), extending #310 |
+| repo | ariadne |
+| issue file | workshop/issues/000409-dynamic-review-policy-choose-the-reviewer-model-by-author-family-and-change-kind-cross-family-by-default-extending-310.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | d3ebb55260c6647fbc70b423efed20cd8c734c5b..ead57057e46998084852812ab4da05659271872c |
+| command | sdlc close --issue 409 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-18T07:57:00-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Focus on the last commit (round fixes for BR-16/18/19).
+
+I'm checking the round-1 fixes for BR-16, BR-18 and BR-19. Next I'll run the build, gofmt and the tests.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+Two of the three open findings are fixed this round, and each fix has a test that would fail without it. **BR-18:** the log parsing is now a pure function, `authorFamiliesFromLog`, with its own table test, and a temp-repo test exercises the git path. **BR-19:** when the window's authors cannot be read, that is now recorded as degraded in `ReviewerRecord` rather than silently dropped. That record feeds all three callers: the trailer, the ledger and the stderr line. **BR-16** is still open: the code is right, but no test pins that a launch-failure `Reason` leaves out `PATH=` text. It is Minor and does not block. The build and vet are clean, and the judge package tests and the targeted `cmd/sdlc` reviewer tests pass. `gofmt -l` lists only files outside this diff.
+
+1. **Strengths**
+   - `cmd/sdlc/reviewchoice.go:37` splits the logic into a pure part (`authorFamiliesFromLog`) and a thin git shell (`reviewAuthorFamilies`), which is the ARCH-PURE pattern. The table test covers a model suffix, two families, a merge, an unknown agent, a bare agent name and no trailers.
+   - `ReviewChoice.Degraded` at `internal/judge/reviewchoice.go:44` is a single field that every reviewer record reads. That fixes the BR-19 class as a rule ("an unread input is recorded as degraded") rather than fixing only the one site the finding named.
+   - The `unread` message is cut to its first line (`firstLineOf`), so a multi-line git error cannot break the trailer.
+   - `TestReviewAuthorFamiliesReadsTheWindow` covers the real git path, an unreadable base, and the case with no base, all the way through to the record.
+
+2. **Critical:** none.
+
+3. **Important:** none new.
+
+4. **Minor**
+   - BR-16 is still open (see the dispositions below).
+   - The `authors unread: <git error>` reason has no length cap, unlike skip reasons, which go through `oneLine`. The first line of a git error is usually short.
+
+5. **Test coverage**
+   - Reverting either fix would turn a test red. Dropping the `Degraded` append fails the `"degraded: authors unread"` assertion. Dropping the merge skip or the slash cut fails `TestAuthorFamiliesFromLog`.
+   - The launch-failure `Reason` still has no test.
+
+6. **Architecture**
+   - **ARCH-DRY: pass.** `firstLineOf` in `cmd/sdlc` repeats the judge package's `firstLine`. This is trivial and sits across a package boundary.
+   - **ARCH-PURE: pass.**
+   - **ARCH-PURPOSE: pass.** The three inputs the exclusion depends on are now covered: a policy load error refuses, and unread authors or a missing base are recorded as degraded.
+   - **ARCH-MOCK: pass.** Availability is injected, and git runs against a temp repo.
+   - **ARCH-CONSTRAINTS: pass.** The change adds one `git log` per review.
+   - **ARCH-SECURE: pass.** Trailers are still treated as untrusted: they can only add families, never remove one.
+   - **ARCH-ORDER: N/A.** This change adds no state carried between events.
+   - **ARCH-FUNERAL: N/A.** It creates nothing durable beyond the existing trailer and ledger field, which each grow by at most one short clause.
+
+7. **Plan revisions:** none needed.
+
+```findings
+dispose:
+  - id: BR-16
+    disposition: not-addressed
+    note: |
+      dispatch.go:667 is correct (Reason holds runErr; PATH is only in Detail), but no test asserts that UnavailableError.Reason excludes PATH= and leads with the cause; Minor, non-blocking.
+  - id: BR-18
+    disposition: addressed
+    note: |
+      The pure authorFamiliesFromLog is table-tested (model suffix, merge, unknown agent, bare name), and TestReviewAuthorFamiliesReadsTheWindow covers the git path in a temp repo (cmd/sdlc/reviewchoice_test.go:117-176).
+  - id: BR-19
+    disposition: addressed
+    note: |
+      A git log failure or empty base now returns unread, which resolveReviewChoiceWith appends to ReviewChoice.Degraded and ReviewerRecord emits at all three callers; the test asserts "degraded: authors unread". A policy load error already refuses.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"9db22f39-d8b0-4988-8b06-579fac008a57","repository":"github.com/xianxu/ariadne","issue_id":"000409","recipe":"milestone-review","round":7,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/e317393cac2c29ee","reviewed_head":"ead57057e46998084852812ab4da05659271872c","slot":"ariadne:2","requested_at":"2026-10-18T14:53:37.463529Z"},"phase":"finished","pid":90740,"started_at":"2026-10-18T14:53:37.557112Z","finished_at":"2026-10-18T14:56:45.893599Z","session_id":"cd4e2dd4-612e-4bdc-bbf9-4c61f9747787","outcome":"returned"}] -->

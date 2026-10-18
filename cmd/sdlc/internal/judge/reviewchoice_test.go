@@ -69,6 +69,19 @@ func TestDispatchChoice(t *testing.T) {
 		if err != nil || used.Agent != AgentGemini || len(skips) != 1 {
 			t.Fatalf("used %s, skips %+v, err %v", used.Agent, skips, err)
 		}
+		// The recorded reason leads with the cause and keeps the operator's PATH
+		// out of the trailer and ledger; the full diagnosis is only in Detail.
+		if r := skips[0].Reason; !strings.HasPrefix(r, "could not launch: "+exec.ErrNotFound.Error()) || strings.Contains(r, "PATH=") {
+			t.Errorf("launch reason %q", r)
+		}
+	})
+	t.Run("a launch failure's error keeps the full diagnosis", func(t *testing.T) {
+		fakeAgents(t, map[string]string{"codex": "launch"})
+		_, err := Dispatch(context.Background(), DispatchOptions{Agent: AgentCodex, Prompt: "review", AllowedTools: "Read"})
+		var unavailable *UnavailableError
+		if !errors.As(err, &unavailable) || !strings.Contains(err.Error(), "PATH=") || strings.Contains(unavailable.Reason, "PATH=") {
+			t.Fatalf("err %v (reason %q)", err, unavailable)
+		}
 	})
 	t.Run("every candidate unavailable refuses, naming each", func(t *testing.T) {
 		fakeAgents(t, map[string]string{"codex": "quota", "gemini": "launch"})

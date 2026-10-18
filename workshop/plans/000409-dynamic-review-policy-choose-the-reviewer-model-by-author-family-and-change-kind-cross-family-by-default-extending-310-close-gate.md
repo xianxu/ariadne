@@ -908,6 +908,156 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 9db22f39-d8b0-4988-8b06-579fac008a57
+            repository: github.com/xianxu/ariadne
+            issue_id: "000409"
+            recipe: milestone-review
+            round: 7
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/e317393cac2c29ee
+            reviewed_head: ead57057e46998084852812ab4da05659271872c
+            slot: ariadne:2
+            requested_at: "2026-10-18T14:53:37.463529Z"
+          phase: finished
+          pid: 90740
+          started_at: "2026-10-18T14:53:37.557112Z"
+          finished_at: "2026-10-18T14:56:45.893599Z"
+          session_id: cd4e2dd4-612e-4bdc-bbf9-4c61f9747787
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: ead57057e46998084852812ab4da05659271872c
+        tracker_head: 1a31cd21076641eae870767c5dec2d09a37559ca
+        branch_point: d3ebb55260c6647fbc70b423efed20cd8c734c5b
+        since: "2026-10-18T05:16:36-07:00"
+        until: "2026-10-18T07:53:21-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T05:16:36-07:00"
+              end: "2026-10-18T07:53:21-07:00"
+              began: "2026-10-18T05:16:36-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 144a7ee5-cc37-41c5-ac73-b88bbf5223ba
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 5f3da10d43be251869bdafd6a98084e32ec627ca1a5a4b930a44fbe4f280c081
+              started: "2026-10-18T12:25:28.29Z"
+              spawned: false
+              bytes: 482080
+              windows:
+                - start: "2026-10-18T12:25:28.29Z"
+                  end: "2026-10-18T07:53:21-07:00"
+            - harness: claude
+              id: 5ca5160d-491c-4aec-b8f5-f5e40a69efb5
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 42052d978d0f33bca789480a4b74830893f6dd041d8d8d097390922c5c9823d6
+              started: "2026-10-18T12:21:14.242Z"
+              spawned: false
+              bytes: 563079
+              windows:
+                - start: "2026-10-18T12:21:14.242Z"
+                  end: "2026-10-18T07:53:21-07:00"
+            - harness: claude
+              id: 6be380fe-6c30-4408-b5b9-026237f91e30
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 70f6e935edb05d9fad671da7d73d9b88df89415544fb98457e596558f0fb3332
+              started: "2026-10-18T12:23:49.894Z"
+              spawned: false
+              bytes: 497183
+              windows:
+                - start: "2026-10-18T12:23:49.894Z"
+                  end: "2026-10-18T07:53:21-07:00"
+            - harness: claude
+              id: 946b723a-6614-4e42-8189-fff378170870
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 18bbe8b8ed1e1d030e367159b09a2e30f9b27a75f8dcc5f5048ff5d6d9bb34f1
+              started: "2026-10-18T12:25:42.657Z"
+              spawned: false
+              bytes: 366511
+              windows:
+                - start: "2026-10-18T12:25:42.657Z"
+                  end: "2026-10-18T07:53:21-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: b52126f95a103fbbb53185a4c2c404e1b88167394eaee2738576bd36d1ed6831
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 171401331
+              windows:
+                - start: "2026-10-18T05:16:36-07:00"
+                  end: "2026-10-18T07:53:21-07:00"
+        queue_waits:
+            - attempt_id: 498f36ec9a5265fca3dff35efe3b0ee4
+              slot: ariadne:2
+              record_digest: 6df91d148f7e3e99214be85c1cb489b7c41c65ac7ffa3e1f9aa6d4254f0e8d16
+              start: "2026-10-18T14:03:27.380005Z"
+              end: "2026-10-18T14:25:10.467778Z"
+              queue_seconds: 1303.087773
+              raw_seconds: 1303.087773
+              exact: true
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-18T05:32:24-07:00"
+              finalized: "2026-10-18T05:35:52-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T05:40:21-07:00"
+              finalized: "2026-10-18T05:55:37-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T05:57:38-07:00"
+              finalized: "2026-10-18T06:00:31-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-18T06:18:55-07:00"
+              finalized: "2026-10-18T06:32:31-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-18T06:39:11-07:00"
+              finalized: "2026-10-18T07:02:18-07:00"
+              finalizing: true
+            - dispatched: "2026-10-18T07:34:49-07:00"
+              finalized: "2026-10-18T07:51:45-07:00"
+              finalizing: false
+      "n": 7
+      timestamp: "2026-10-18T07:57:00-07:00"
+      dispatched: "2026-10-18T07:53:37-07:00"
+      agent: claude
+      dispose:
+        - id: BR-16
+          disposition: not-addressed
+          note: dispatch.go:667 is correct (Reason holds runErr; PATH is only in Detail), but no test asserts that UnavailableError.Reason excludes PATH= and leads with the cause; Minor, non-blocking.
+          round: 7
+        - id: BR-18
+          disposition: addressed
+          note: The pure authorFamiliesFromLog is table-tested (model suffix, merge, unknown agent, bare name), and TestReviewAuthorFamiliesReadsTheWindow covers the git path in a temp repo (cmd/sdlc/reviewchoice_test.go:117-176).
+          round: 7
+        - id: BR-19
+          disposition: addressed
+          note: 'A git log failure or empty base now returns unread, which resolveReviewChoiceWith appends to ReviewChoice.Degraded and ReviewerRecord emits at all three callers; the test asserts "degraded: authors unread". A policy load error already refuses.'
+          round: 7
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: ead57057e46998084852812ab4da05659271872c
+      blocked: false
 ---
 
 # Gate ledger — ariadne#409 (boundary-review)
@@ -1010,8 +1160,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-19** [Minor] `no-silent-same-family-review` A failed git log or a missing origin/main silently drops the trailer authors from the exclusion
   This is the 3rd finding in family no-silent-same-family-review. reviewchoice.go:29-31 returns only the session family when git log fails (confirmed with a bad base, which gave anthropic only), and branchWindowBase returns empty without origin/main, so a codex-authored change can be reviewed by codex and the trailer records author anthropic. Rule for the class: any input the cross-family exclusion depends on (policy, order, authors) that cannot be read must refuse or be recorded as degraded in ReviewerRecord, never silently narrow the excluded families.
 
+## Round 7 — 2026-10-18T07:57:00-07:00 (claude) — passed
+
+### Disposed
+
+- BR-16 — not-addressed — dispatch.go:667 is correct (Reason holds runErr; PATH is only in Detail), but no test asserts that UnavailableError.Reason excludes PATH= and leads with the cause; Minor, non-blocking.
+- BR-18 — addressed — The pure authorFamiliesFromLog is table-tested (model suffix, merge, unknown agent, bare name), and TestReviewAuthorFamiliesReadsTheWindow covers the git path in a temp repo (cmd/sdlc/reviewchoice_test.go:117-176).
+- BR-19 — addressed — A git log failure or empty base now returns unread, which resolveReviewChoiceWith appends to ReviewChoice.Degraded and ReviewerRecord emits at all three callers; the test asserts "degraded: authors unread". A policy load error already refuses.
+
 ## Open findings
 
 - **BR-16** [Minor] `parse-config-to-typed-value` (kind: defect) A launch-failure reason truncated to 100 characters puts local PATH text into the trailer and ledger and drops the cause
-- **BR-18** [Important] `io-input-path-tested` reviewAuthorFamilies, the Spec's author-family input from Agent: trailers, has no test
-- **BR-19** [Minor] `no-silent-same-family-review` A failed git log or a missing origin/main silently drops the trailer authors from the exclusion
