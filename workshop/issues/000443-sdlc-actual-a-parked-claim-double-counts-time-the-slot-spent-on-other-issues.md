@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "82ec2867", done: "d88d1c56"}
 ---
 
 # sdlc actual: a parked claim double-counts time the slot spent on other issues
