@@ -91,3 +91,93 @@ findings:
    Add `## Revisions` entries defining untracked presentation/reporting, marker-free structural-link handling across both adapters and chat, and operation-correlated apply recovery. Reconcile Task 4’s unchecked items with measured completion evidence.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"d2cda983-e7ec-413e-bb89-5e6b9abf4157","repository":"github.com/xianxu/ariadne","issue_id":"000437","recipe":"small-diff-review","round":1,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/73816bf80a42a6d2","reviewed_head":"930ab339c87d9cedeae94897f2e226cf3e8a6272","slot":"ariadne:1","requested_at":"2026-10-18T19:10:24.93917Z"},"phase":"finished","pid":93984,"started_at":"2026-10-18T19:10:25.141143Z","finished_at":"2026-10-18T19:15:40.044587Z","session_id":"01a1506c-1efa-7f80-886d-d33831248123","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T13:30:32-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 437 — xx-universal-review edits through couch --session-sync apply; retire deletions: propose-strike |
+| repo | ariadne |
+| issue file | workshop/issues/000437-universal-review-edits-through-apply.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 2e783ac22e1a79d3a6cddce34016f5353679415c..0db63032d318ffa5a1da0b8b10f36153f8b15e15 |
+| command | sdlc close --issue 437 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-18T13:30:32-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The focused suites pass, the v3 export is current, and README coverage is repaired. Shipping remains blocked by missing behavioral regression evidence for BR-1 and BR-3, plus a reproduced parser bug that drops an index entry while its proposed link remains pending.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: not-addressed
+    note: |
+      The refusal and reporting instructions now cover submitted documents and untracked parents at adapters/file-edit.md:119-138. Behavioral regression evidence is still missing: TestReviewSkillCloseRecoveryContract only checks phrases, and TestExamples only validates the stored unchanged fixture. In a temporary copy, replacing the refusal with unconditional direct editing while retaining its keywords in a comment left both tests green. Exercise tracked/untracked proposal routing and untracked parent routing through a meaningful skill scenario.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Both adapters and collaboration-modes.md:216-222 now support pending marker-free links, atomic index entries, and rejection cleanup. The new SideLinks and ReconcileIndex tests exercise pending-link retention and rejection; restoring the base parser through a temporary Go overlay makes those tests fail. A separate multiplicity defect is reported below.
+  - id: BR-3
+    disposition: not-addressed
+    note: |
+      fix/SKILL.md:234-245 and 269-275 now require attempted-base correlation and readback for both lost-response and interrupted-commit recovery. However, no test exercises the required old-current/unreceived-request and newly-landed/lost-response scenarios. TestReviewSkillCloseRecoveryContract merely searches for keywords. Restoring unsafe Current-only recovery in a temporary copy, with those keywords retained in a comment, still passes. Add scenario evidence that rejects the old round, admits the matching landed round, and handles changed bytes without a recorded round.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      README.md:15-20 now introduces presentation: propose, Couch apply, hosted Pair apply, and untracked migration, linking to the atlas. atlas/workflow/universal-review.md:41-79 explains the apply/round workflow and recovery checks, consistent with the revised adapters.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: structural-links-without-markers
+    title: |
+      A pending proposal containing multiple links loses later index entries
+    detail: |
+      pkg/sidedoc/links.go:21,51-52 consumes the entire pending marker while capturing only its first escaped link. Reproduced with 🤖{ → \[proposal\](d.side/01-a.md) and → \[answer\](d.side/02-b.md)}: SideLinks returns only 01-a.md, and ReconcileIndex silently drops 02-b.md despite its pending link. This is the 2nd finding in family structural-links-without-markers. ARCH-PURPOSE: state and enforce the rule that every pending link retains its entry; extract every link within each recognized marker. The affected family includes discussion, answer, notes, and proposal labels through this shared parser, consumed by both adapters and collaboration guidance. Add multi-link retention and rejection tests rather than fixing one label or consumer.
+```
+
+1. **Strengths**
+
+   - V3 rejects retired mode-level `deletions` and omits it from exported records.
+   - Refusal guidance distinguishes invalid edits, stale snapshots, operator locks, and operator-owned fields.
+   - Pending-link parsing reuses `pkg/sidedoc`; its new single-link tests demonstrably fail with the base parser.
+
+2. **Critical findings**
+
+   BR-1 and BR-3 remain open for meaningful regression evidence. The new finding requires parsing every link inside a pending marker.
+
+3. **Important findings**
+
+   None beyond the retained dispositions.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   `go test ./pkg/reviewexport ./pkg/sidedoc -count=1` and the pinned-range `git diff --check` passed. Temporary mutation checks exposed the two phrase-test gaps; a direct Go reproduction confirmed the multi-link defect. Temporary artifacts were removed and the checkout remains unchanged. External live-conformance claims were not independently rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared export and side-document machinery remain consolidated.
+   - **ARCH-PURE — pass:** changed parsing logic remains directly testable over text; the plan’s entity locations match the implementation.
+   - **ARCH-PURPOSE — flag:** pending-link preservation covers only the first link per marker, and claimed recovery coverage does not exercise recovery decisions.
+
+7. **Plan revision recommendations**
+
+   Add `## Revisions` entries requiring all pending links to survive reconciliation and meaningful scenario tests for untracked routing and operation-correlated recovery. Correct Task 5’s completed regression claim until those scenarios are demonstrated.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"e93b6f0c-c23f-4d71-82ca-e7137aea2f37","repository":"github.com/xianxu/ariadne","issue_id":"000437","recipe":"small-diff-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/e44f26f54729c2ce","reviewed_head":"0db63032d318ffa5a1da0b8b10f36153f8b15e15","slot":"ariadne:1","requested_at":"2026-10-18T20:27:54.411325Z"},"phase":"finished","pid":62758,"started_at":"2026-10-18T20:27:54.597469Z","finished_at":"2026-10-18T20:30:32.327017Z","session_id":"01a150b3-10e0-7c21-9222-bbb4a8f0d812","outcome":"returned"}] -->

@@ -92,11 +92,13 @@ After the evidence is complete, close with the mandatory review, land via `sdlc 
 
 ### Task 5: close-review convergence
 
-- [x] Add red examples and contract checks for untracked `propose` refusal, marker-free proposed links and index cleanup after rejection, and lost-response recovery with an older current round; keep the Pair engine's marker-present fixtures intact.
-- [x] Update both review adapters, round and collaboration guidance, and the README to the approved recovery and presentation rules. Prove the new cases and the full examples checker pass.
-- [x] Re-run the recorded suite after the code changes and collect its exact-head status for the fresh close review.
+- [ ] Defend the skill's actual decisions, not keywords: put compact route and recovery state tables in the agent-facing adapters, and test their rows for tracked/untracked submitted documents and parents, an old current round, a matching landed round, and changed bytes without a round. Run live temp-document probes for the same paths.
+- [ ] Parse every escaped side-doc link inside each recognized pending marker and test retention and rejection with multiple labels and paths. Keep the Pair-measured marker shape as the boundary.
+- [ ] Re-run the recorded suite after code changes and collect its exact-head status for the fresh close review.
 
 ## Revisions
+
+- 2026-10-18, close review round 2 (BR-1/3 retained, BR-5 new): the prior phrase guard and unchanged-file fixture did not prove routing or lost-response decisions; a reviewer mutated the instructions to unsafe behavior while retaining their keywords and tests stayed green. Replace those claims with small agent-facing decision tables whose exact rows are asserted by scenario tests, and run live probes for tracked/untracked submitted documents and an untracked parent, plus old-current/matching-current/no-round Pair states. The shared pending-link parser must extract every escaped link inside each engine-generated marker, not just its first, and its multi-link index tests must show retention then rejection. Task 5 is reopened until these decisions and the exact-head suite are verified.
 
 - 2026-10-18, close checklist: Task 5's final row now names only the pre-close evidence, so it can be checked truthfully before the close gate. The fresh close review, merge and hub report remain required workflow actions after it.
 
