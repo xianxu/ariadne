@@ -2,9 +2,17 @@
 id: 000410
 status: open
 created: 2026-10-16
-updated: 2026-10-16
+updated: 2026-10-17
 estimate_hours:
 github_issue:
+started: 2026-10-17T19:34:20-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-worker/tl-lead: a state design table for stateful plans (actions, failure modes to few visible states, one recovery each, explicit loss, tradeoff to TL/operator)
