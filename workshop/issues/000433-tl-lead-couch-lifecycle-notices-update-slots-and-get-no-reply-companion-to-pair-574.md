@@ -1,13 +1,21 @@
 ---
 id: 000433
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-17
 updated: 2026-10-17
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '9f129aa9e85fa144cca7563413e758ac647b92cb' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'cbe5c74f46f4b337062df7ad5aa7bae1e9622a78' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-17T19:05:11-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead: Couch lifecycle notices update Slots and get no reply (companion to pair#574)
@@ -27,8 +35,12 @@ tl-lead help: Couch system notices are information, not requests. The hub update
 
 ## Plan
 
-- [ ]
+- [ ] Add a phrase guard to the existing tl-lead help test and confirm it fails against current help.
+- [ ] Add one rule under WATCHING for authentic Couch lifecycle system notices, then verify the focused tests and built help.
+- [ ] Run the recorded suite, close review, and normal landing gates before pair#574 closes.
 
 ## Log
 
 ### 2026-10-17
+
+The hub dispatched this as a quick-flow rule change. Embedded `cmd/tl-lead/help.md` and its existing phrase-guard test keep the instruction in one place (ARCH-DRY). No Couch protocol or status-file command changes.
