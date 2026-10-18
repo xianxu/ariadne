@@ -65,6 +65,7 @@ func NewTestStatsCmd() *cobra.Command {
 	cmd.Flags().StringVar(&flags.Since, "since", "7d", "time window ending now (for example 7d or 12h)")
 	cmd.Flags().StringVar(&flags.Repo, "repo", "", "show one sibling repository by name")
 	cmd.Flags().BoolVar(&flags.JSON, "json", false, "emit JSON with explicit nulls for missing metrics")
+	cmd.AddCommand(newWeeklySnapshotCmd())
 	return cmd
 }
 
