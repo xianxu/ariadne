@@ -295,7 +295,7 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 		ssdBefore = listTemp(ssdTempDirs())
 		defer func() {
 			byPkg, unattributed := scratchLeaks(ssdBefore, listTemp(ssdTempDirs()), declaredTests(wt))
-			reportScratchLeaks(d.Stderr, check, byPkg, unattributed)
+			reportScratchLeaks(d.Stderr, check, byPkg, treeSizes(byPkg), unattributed)
 		}()
 	}
 	out := io.MultiWriter(logf, d.Stderr)

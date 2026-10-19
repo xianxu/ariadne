@@ -1,11 +1,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewbox"
@@ -39,10 +42,11 @@ func openReviewIsolation(stderr io.Writer, m judge.ReviewWindowManifest) (*revie
 		}
 	}
 	checkout, err := reviewbox.Create(root, m.RepoRoot, m.HeadSHA, reviewOverlays(m))
-	if fallback := roots[len(roots)-1]; err != nil && root != fallback {
-		// The RAM disk refused (an agent sandbox denies it): the normal
-		// root, rather than no review (#468).
-		cwarn(stderr, fmt.Sprintf("boundary review: review checkout on %s failed (%v); using %s", root, err, fallback))
+	if fallback := roots[len(roots)-1]; err != nil && root != fallback && (errors.Is(err, fs.ErrPermission) || errors.Is(err, syscall.EROFS)) {
+		// The RAM disk refused the write (an agent sandbox denies it): the
+		// normal root, rather than no review (#468). Any other failure (a bad
+		// head, git) is the review's, and stands.
+		cwarn(stderr, fmt.Sprintf("boundary review: %s refused the review checkout (%v); using %s", root, err, fallback))
 		checkout, err = reviewbox.Create(fallback, m.RepoRoot, m.HeadSHA, reviewOverlays(m))
 	}
 	if err != nil {

@@ -51,7 +51,9 @@ func prepareScratch(stderr io.Writer, check string) (env []string, dir string, c
 }
 
 // runDirRE names a run folder prepareScratch made: <check>-<pid>-<random>.
-var runDirRE = regexp.MustCompile(`^[A-Za-z0-9_.]+-(\d+)-\d+$`)
+// A check name may hold hyphens (localchecks.go's name rule), so the pid is
+// the second-to-last field: the greedy head leaves exactly two.
+var runDirRE = regexp.MustCompile(`^.+-(\d+)-\d+$`)
 
 // sweepStaleTemp removes, directly under dir, go-build folders older than a
 // day and, when dir holds run folders, those whose process is gone (or older
@@ -194,22 +196,72 @@ func declaredTests(wt string) map[string]string {
 	return out
 }
 
-// reportScratchLeaks warns about temp files a scratched run left on the SSD
-// (#468). It measures, never fails: the run's outcome stands.
-func reportScratchLeaks(w io.Writer, check string, byPkg map[string][]string, unattributed int) {
+// leakListCap bounds the names listed per package; the count and size stay whole.
+const leakListCap = 20
+
+// treeSizes measures each path's tree in bytes (best effort: an entry removed
+// meanwhile counts what was read).
+func treeSizes(paths map[string][]string) map[string]int64 {
+	out := map[string]int64{}
+	for _, ps := range paths {
+		for _, p := range ps {
+			var n int64
+			_ = filepath.WalkDir(p, func(_ string, d os.DirEntry, err error) error {
+				if err == nil && !d.IsDir() {
+					if info, err := d.Info(); err == nil {
+						n += info.Size()
+					}
+				}
+				return nil
+			})
+			out[p] = n
+		}
+	}
+	return out
+}
+
+// reportScratchLeaks warns about temp folders a scratched run left on the SSD
+// (#468): per package their count, size and names (the first leakListCap),
+// then the unattributed count. It measures, never fails: the run's outcome
+// stands.
+func reportScratchLeaks(w io.Writer, check string, byPkg map[string][]string, sizes map[string]int64, unattributed int) {
 	if len(byPkg) == 0 && unattributed == 0 {
 		return
 	}
-	n := 0
+	n, total := 0, int64(0)
 	pkgs := make([]string, 0, len(byPkg))
 	for pkg, ps := range byPkg {
 		pkgs = append(pkgs, pkg)
 		n += len(ps)
+		for _, p := range ps {
+			total += sizes[p]
+		}
 	}
 	sort.Strings(pkgs)
-	fmt.Fprintf(w, "[!] local check %s: SSD temp folders gained %d t.TempDir folder(s) from this worktree's tests despite the RAM disk; unattributed: %d (other processes write there too)\n", check, n, unattributed)
+	fmt.Fprintf(w, "[!] local check %s: SSD temp folders gained %d t.TempDir folder(s), %s, from this worktree's tests despite the RAM disk; unattributed: %d (other processes write there too)\n", check, n, humanBytes(total), unattributed)
 	for _, pkg := range pkgs {
 		ps := byPkg[pkg]
-		fmt.Fprintf(w, "    %s: %d, e.g. %s\n", pkg, len(ps), ps[0])
+		var size int64
+		for _, p := range ps {
+			size += sizes[p]
+		}
+		fmt.Fprintf(w, "    %s: %d, %s\n", pkg, len(ps), humanBytes(size))
+		for i, p := range ps {
+			if i == leakListCap {
+				fmt.Fprintf(w, "      … %d more\n", len(ps)-leakListCap)
+				break
+			}
+			fmt.Fprintf(w, "      %s (%s)\n", p, humanBytes(sizes[p]))
+		}
 	}
+}
+
+func humanBytes(n int64) string {
+	switch {
+	case n >= 1<<20:
+		return fmt.Sprintf("%.1f MiB", float64(n)/(1<<20))
+	case n >= 1<<10:
+		return fmt.Sprintf("%.1f KiB", float64(n)/(1<<10))
+	}
+	return fmt.Sprintf("%d B", n)
 }

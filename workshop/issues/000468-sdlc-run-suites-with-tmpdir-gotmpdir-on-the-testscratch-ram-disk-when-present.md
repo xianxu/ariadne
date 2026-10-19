@@ -59,6 +59,11 @@ Reason: every recorded suite checks out the whole repo with `os.MkdirTemp("", "s
 
 Delta: `detachedWorktreeWithCleanup` makes the checkout under `/Volumes/TestScratch/local-checks` by the same scratchdisk rule, else in the system temp folder as before. `sweepStaleLocalWorktrees` looks in both places. A disk that is mounted but refuses the write (an agent sandbox) falls back. The review checkout also falls back now when the disk refuses the write: found when targeted tests ran in the sandbox.
 
+### 2026-10-19: 2a's list is bounded (close round 1)
+Reason: an attributed leak can number in the hundreds.
+
+Delta: the warning lists every attributed name up to 20 per package, then "… N more". The counts and sizes always cover every entry. Sizes are measured only for attributed entries; unattributed ones are counted, not walked, since they may be another process's large tree.
+
 Delta to Plan: steps for 1, 2a and 2b are added below. The diff will likely leave the quick-flow shell, so the close review upgrades to the full review.
 
 ## Plan
@@ -108,3 +113,8 @@ Steps:
   - (1) The suite's own temporary checkout (`sdlc-local-*`) went to the system temp folder on the SSD. Folded in by the third revision.
   - (2) The agent sandbox denies writes to `/Volumes/TestScratch`, so agents' own sandboxed test runs can't use it until the operator adds it to the sandbox allowlist (local-gates config, the operator's).
 - Recorded suite green on fb3941da (sdlc-local/suite, 10m45s), with its checkout under /Volumes/TestScratch/local-checks and its temp under /Volumes/TestScratch/tmp, both removed after the run. The leak warning showed 0 attributed and 4 unattributed.
+- **Close round 1 (FIX-THEN-SHIP):**
+  - BR-1: the run-folder pattern now accepts hyphenated check names, with a test case.
+    - Class sweep ("sweep pattern narrower than its writer"): the go-build prefix matches Go's `go-build<digits>`; the local-check glob and `MkdirTemp` share `localCheckTmpPrefix`; reviewbox's sweep is unchanged. None of these is narrower than its writer.
+  - BR-2: the warning now gives size per package and in total, plus every attributed name, capped at 20 per package with "… N more".
+  - Minor: the review fallback retries only on a permission or read-only error, and is worded neutrally.

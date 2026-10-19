@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,10 +28,12 @@ func TestSweepStaleTemp(t *testing.T) {
 	}
 	mk("go-build111", old)
 	mk("go-build222", now)
-	mk("suite-100-1", now) // dead pid
-	mk("suite-200-2", now) // live pid
-	mk("suite-200-3", old) // live pid, but older than a day: a reused pid
-	mk("TestKeep123", old) // not ours
+	mk("suite-100-1", now)   // dead pid
+	mk("suite-200-2", now)   // live pid
+	mk("suite-200-3", old)   // live pid, but older than a day: a reused pid
+	mk("TestKeep123", old)   // not ours
+	mk("go-lint-100-4", now) // a hyphenated check name, dead pid
+	mk("go-lint-200-5", now) // a hyphenated check name, live pid
 	alive := func(pid int) bool { return pid == 200 }
 
 	sweepStaleTemp(dir, false, now, alive)
@@ -38,7 +41,7 @@ func TestSweepStaleTemp(t *testing.T) {
 		t.Fatal("swept a run folder in a folder that holds none")
 	}
 	sweepStaleTemp(dir, true, now, alive)
-	want := []string{"TestKeep123", "go-build222", "suite-200-2"}
+	want := []string{"TestKeep123", "go-build222", "go-lint-200-5", "suite-200-2"}
 	entries, _ := os.ReadDir(dir)
 	var got []string
 	for _, e := range entries {
@@ -65,12 +68,24 @@ func TestScratchLeaksAttributesOnlyThisRun(t *testing.T) {
 		t.Fatalf("byPkg=%v unattributed=%d", byPkg, unattributed)
 	}
 	var out bytes.Buffer
-	reportScratchLeaks(&out, "suite", byPkg, unattributed)
-	if !strings.Contains(out.String(), "unattributed: 3") || !strings.Contains(out.String(), "cmd/b: 1, e.g. /T/TestFooBarsubcase33") {
-		t.Fatalf("report:\n%s", out.String())
+	reportScratchLeaks(&out, "suite", byPkg, map[string]int64{"/T/TestFoo22": 2048, "/T/TestFooBarsubcase33": 10}, unattributed)
+	for _, want := range []string{"unattributed: 3", "2 t.TempDir folder(s), 2.0 KiB", "cmd/b: 1, 10 B", "/T/TestFooBarsubcase33 (10 B)", "cmd/a: 1, 2.0 KiB"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("report lacks %q:\n%s", want, out.String())
+		}
+	}
+	// The names list is capped; the count and size stay whole.
+	many := map[string][]string{"cmd/c": nil}
+	for i := 0; i < leakListCap+3; i++ {
+		many["cmd/c"] = append(many["cmd/c"], fmt.Sprintf("/T/TestC%d", i))
 	}
 	out.Reset()
-	reportScratchLeaks(&out, "suite", map[string][]string{}, 0)
+	reportScratchLeaks(&out, "suite", many, map[string]int64{}, 0)
+	if !strings.Contains(out.String(), "cmd/c: 23,") || !strings.Contains(out.String(), "… 3 more") {
+		t.Fatalf("capped report:\n%s", out.String())
+	}
+	out.Reset()
+	reportScratchLeaks(&out, "suite", map[string][]string{}, nil, 0)
 	if out.Len() != 0 {
 		t.Fatalf("a clean run reported: %q", out.String())
 	}
