@@ -1,13 +1,21 @@
 ---
 id: 000467
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '5a3cb5ecc544dd9e1a2be4e601120238d211fcca' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'c4bc60f79bfca3a34d261510adf2b856a4a3cbf2' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-19T10:00:05-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # weave: honor a repo's CI-workflow opt-out (ops re-seeded after opting out)
@@ -27,7 +35,26 @@ Give the opt-out a machine-readable form (a repo-level weave setting, e.g. in th
 
 ## Plan
 
-- [ ]
+Design: a leaf-only `decline <path>` row in the repo's own `construct/base.manifest` — the repo's weave configuration. ops writes `decline .github/workflows`.
+
+Why a generic path verb rather than a `ci-workflows off` flag: the workflow paths are owned by ariadne's manifest. A named flag would make weave hardcode `.github/workflows` (ARCH-DRY), and it would need a new config file. A decline row is the same size, and the manifest stays the one source of what a repo receives.
+
+Semantics:
+- `decline P` is honored only in the leaf (the repo being woven). A decline row in an ancestor is ignored, so ariadne cannot decline on its derivatives' behalf; a visibility token on it is ignored.
+- It removes every **inherited** (non-leaf) file-op intent (symlink, seed, seed-once, scaffold, touch, merge) whose target is P or under P. Prose, skill and ship intents have no single target and are unaffected. The leaf's own rows are never declined.
+- It is applied once, as a pure function over the walked layers (`layer`/`walk`), so the plan, the completeness check and dry-run all see the same filtered set (ARCH-DRY, ARCH-PURE). The leaf Layer records what it declined, and that drives the report.
+- Nothing already on disk is touched. Seeds are not in the managed inventory (`actionIdentities` covers only links and written files), so a declined seed is neither retired nor rewritten: absent stays absent, and a hand-kept workflow stays as it is. A declined *symlink* is in the inventory and would retire like any no-longer-produced output; that is the expected meaning of declining a link.
+- Report: compile/refresh prints `weave: declined .github/workflows: opted out of 2 inherited row(s)` (dry-run too). A decline that matches no inherited row prints a warning, the same as an unmatched `ship` row, so a stale opt-out stays visible.
+
+ARCH notes: EVOLVE: `decline` is a new verb, and an older weave skips it as an unknown verb. That older weave would re-seed, which is today's behavior. That's acceptable because the fleet runs :0's weave. SECURE/ORDER/FUNERAL/MOCK: N/A. It adds no state between events, nothing durable, and no external call: it filters the manifest rows that are read. CONSTRAINTS: N/A, one linear pass over the rows.
+
+Steps:
+- [ ] `intent`: add a `Decline` kind and the `decline` verb (target = source).
+- [ ] Pure `ApplyDeclines(layers)`: filter inherited intents under the leaf's decline paths, recording `Declined{Path, Rows}` on the leaf. Call it in `walk.Load`. Unit tests: seed or symlink under a path is dropped, a sibling path is kept, the leaf's own row is kept, an ancestor's decline is ignored, a prefix like `.github/workflowsX` does not match, and an unmatched decline gives Rows 0.
+- [ ] compile prints the declined/unmatched lines (`runCompile`, dry-run as well).
+- [ ] Fixture test (cmd/weave): a two-layer fixture whose foundation seeds `.github/workflows/x.yml` plus another seed. Refreshing an opted-out leaf leaves `.github/workflows` absent while the other seed lands. An opted-out leaf holding its own edited workflow keeps it byte-for-byte. A normal leaf still gets the workflow.
+- [ ] Docs: verb comment in `construct/base.manifest` header and `construct/manifest.md`, atlas weave entry.
+- [ ] ops (hub's commit): add `decline .github/workflows` to ops' `construct/base.manifest`; change AGENTS.local.md line to point at it; refresh shows the report line and no `.github/workflows`.
 
 ## Log
 
