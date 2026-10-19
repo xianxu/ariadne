@@ -1,6 +1,6 @@
 ---
 id: 000452
-status: working
+status: codecomplete
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours: 1.63
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.05
+tracker:
+    version: 1
+    completion:
+        token: close-cb9f91795cc6
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 0e36a07b0b8ff23f565224549d685ef68a7c4e36
+        evidence_commit: 8156ff5f41b631813a166c68af31115b94e39932
 ---
 
 # suite queue priority: a fleet-blocking landing grant also jumps the machine suite queue
