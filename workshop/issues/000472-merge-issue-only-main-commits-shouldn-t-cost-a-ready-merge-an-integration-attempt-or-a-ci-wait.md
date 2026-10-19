@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "6f5a5a98", done: "c3b74cb6"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # merge: issue-only main commits shouldn't cost a ready merge an integration attempt or a CI wait
@@ -57,6 +57,8 @@ Durable design: [issue-only main drift plan](../plans/000472-issue-only-main-dri
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — Ready-head, strict/unknown fallback, code/mixed drift, identity/conflict/duplicate refusal, replay/recovery and CI controls pass; broad targeted run 157.115s; pending new-head CI control 5.916s; real adapter read-only conformance 0.962s; regression mutation fails at changed-head assertion then restored green controls pass 15.563s. Recorded suite queued on pushed 4a686788 for PR 332; close overlaps queue under tl-worker, and a recorded final-code suite pass is required before landing. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-19: flow upgraded quick → full — 323 added lines in code files (limit 100)
 
 ### 2026-10-19 — approved design boundary
 
