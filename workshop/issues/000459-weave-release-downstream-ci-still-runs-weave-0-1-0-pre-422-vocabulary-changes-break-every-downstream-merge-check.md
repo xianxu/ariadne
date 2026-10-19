@@ -108,3 +108,15 @@ guard lands. Current Done when is synchronized to that boundary. The original
 "Downstream CI uses a weave that includes #422; a test vocabulary change no longer
 trips it" criterion remains required fleet acceptance in those peer issues;
 this issue does not claim those future consumer migrations are already done.
+
+- Plan-quality round 1 (PQ-1) requested named function boundaries and one
+  adversarial-input strategy per risky function. Added signatures and mechanical
+  oracles to the durable plan, separating pure parsing/comparison from process
+  IO; no code implementation preceded the gate.
+
+- Verified inventory: [remote consumer inventory](../plans/000459-downstream-compiler-inventory.md),
+  17 active unarchived GitHub workflows, 15 ordinary SDLC filing targets.
+- Operator decision pending: ops has opted out of SDLC/seeded CI but its remote
+  CI workflow is active; emma-private has no issue tracker. Hub explicitly said
+  not to touch either repo and will bring both to the operator in the morning.
+  These exceptions are recorded, not silently skipped as completed migrations.

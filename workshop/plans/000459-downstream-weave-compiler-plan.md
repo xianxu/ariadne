@@ -59,6 +59,30 @@ The selected pin is an authored consumer file and is **not** declared in the wea
 
 These files describe distinct facts: the consumer's independently selected compiler and the platform's supported compatibility set. They must not be conflated with a seed template default. One selected pin is initially proposed: the source SHA above, which includes #422. Do not invent a moving `main` default or fall back to a PATH/formula binary if fetching/building that pin fails.
 
+### Named function and risk strategies (PQ-1)
+
+All functions below live in `scripts/ci/weave-compatibility.py`; pure functions
+perform no filesystem/process access. `scripts/test/weave-compatibility.test.sh`
+imports them through Python's module loader and owns their unit checks.
+
+| Function / signature | Adversarial input class | Mechanical oracle |
+|---|---|---|
+| `parse_selected_ref(raw: bytes) -> str` | Arbitrary bounded bytes near the exact one-SHA grammar | Accept iff exactly 40 lowercase hex bytes plus newline; reject before any process effect |
+| `parse_supported_refs(raw: bytes) -> tuple[str, ...]` | Duplicate, malformed or over-capacity supported records | One or two unique valid refs, <=4KiB; no silent truncation/default |
+| `require_supported(ref: str, supported: tuple[str, ...]) -> None` | Well-formed identities outside the declared set | Membership is exact, no prefix/version/fallback acceptance |
+| `select_vocabulary_declarations(raw: bytes) -> bytes` | Candidate manifest rows that rename, remove, or alter the vocabulary producer | Preserve selected original declaration lines byte-for-byte; absence fails; real compiler parses their grammar |
+| `compare_corpus(expected: dict[str, bytes], actual: dict[str, bytes], sidecars: dict[str, bytes]) -> tuple[str, ...]` | Missing/extra paths, changed bytes and invalid ownership digests | Exact candidate corpus/path equality plus independently computed SHA-256; bounded linear file visits |
+| `run_compiler(binary: Path, leaf: Path, timeout: float) -> CompletedProcess` (IO) | Compiler/process failure or cancellation after partial output | Nonzero/timeout cannot become pass; private state survives until children are joined; actual executable identity is logged |
+| `check_pin(binary: Path, candidate: Path, scratch: Path) -> None` (IO) | Cold consumer states that can conceal ownership failure | Isolated real-compiler transition from tracked baseline to changed output, with no inventory; refuse authored tampering without byte loss |
+
+Declaration selection is a narrow text projection, not another manifest parser:
+retain complete original rows referencing the actual vocabulary producer paths,
+including their visibility/verb; the candidate and pinned compiler remain the
+only interpreters. It never synthesizes a replacement `skill` producer row.
+The existing instance-validation checks remain the schema oracle. Unit tests
+use adversarial classes above rather than an exhaustive scenario inventory;
+the real old/new compiler acceptance controls below are independently required.
+
 ### Integration points
 
 | Name | Lives in | Status | Wraps |
@@ -92,7 +116,7 @@ For each supported pin, create fresh isolated source/consumer trees, with no dep
 - Repeat from a second cold clone containing the candidate output/sidecar pair; require a no-drift compile. A warm inventory must not be the only test, because it hides this incident.
 - Negative controls: a tampered output with a stale sidecar must be refused with its bytes unchanged; missing/malformed/symlinked sidecars must not gain ownership. An ordinary undeclared authored file must never be silently overwritten. Reuse the existing ownership behavior, not an exception in the harness.
 - An always-changed ownership control is required even on PRs whose base/candidate exports are identical: use one valid older committed generated output whose bytes are asserted different from the generator result, with its matching sidecar and no inventory. Run real 0.1.0 through **compile**, using a test-only admissible pin configuration so pin-membership rejection cannot masquerade as the regression. Require its authored-replacement refusal and unchanged bytes, then run the identical fixture successfully with the post-#422 executable.
-+- Harness tests prove the job fails when the pinned compiler fails, changes the wrong bytes or omits a sidecar; malformed pins fail before checkout/build; candidate compiler substitution is rejected. Restore the 0.1.0 pin locally and observe a nonzero compatibility result; restore the approved post-#422 pin and observe success. No network-dependent full-compiler download/build is hidden inside default unit tests.
++- Apply the named function risk strategies above. Orchestration exercises controlled filesystem/process outcomes through the same run_compiler/check_pin seam; compiler identity mismatch cannot be hidden by the candidate executable. Retain both real compiler acceptance logs. No network-dependent full-compiler download/build is hidden inside default unit tests.
 
 The real conformance script is invoked explicitly by CI after its binaries/tools are prepared; `scripts/test/weave-compatibility.test.sh` tests orchestration without network. This keeps the existing default `scripts/test/*.test.sh` runner inexpensive. CI prints the exact pin, failing phase and retained/logged diagnostic paths; empty/missing output is a failure, never a skip.
 
@@ -181,3 +205,12 @@ consumer owner and the operator own its local-gates PR and real CI acceptance.
 The previous plan's requirement to keep #459 open through the whole fleet rollout
 is replaced by this explicit hand-off boundary, preserving that rollout work in
 separate issues rather than claiming it complete here. No release is authorized.
+
+### 2026-10-19 — plan-quality PQ-1
+
+Named the pure pin, membership, declaration-projection and corpus-comparison
+functions and their signatures. Each risky function now has one adversarial
+input class and an independent mechanical oracle; IO functions are separate.
+Compressed the orchestration scenario inventory into those test strategies
+while retaining the required observed real-compiler controls. This refines the
+approved implementation seam; it adds no compatibility/distribution mechanism.
