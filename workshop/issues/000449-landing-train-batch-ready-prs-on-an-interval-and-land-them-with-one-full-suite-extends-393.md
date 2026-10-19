@@ -41,7 +41,7 @@ A landing train, extending #393: on a configurable interval (default hourly), ta
 Durable plan: `workshop/plans/000449-landing-train-plan.md` (state table, Q1–Q7 for the hub).
 
 - [x] M1 — Pure core and readiness: schedule, readiness sidecar, boarding, train state machine, bisect, additive events, landing status, `.sdlc/landing.json`; interval 0 equals today.
-- [ ] M2 — Conductor: train branch and PR, one suite, CI, merge; cars resume on merged; GitHub fake merges by reachability.
+- [x] M2 — Conductor: train branch and PR, one suite, CI, merge; cars resume on merged; GitHub fake merges by reachability.
 - [ ] M3 — Split on unexplained failure, known-flake rerun, grant bypass, conflict and CI-red handling, per-train report, live conformance, docs.
 
 ## Estimate
@@ -78,6 +78,7 @@ Items in order:
 ### 2026-10-18
 
 ### 2026-10-19
+- 2026-10-19: closed M2 — Round 1 fixes (a395730be): TestLandingCarMergedWithoutAWordFinishes (BR-16), TestLandingTrainLaggingListingIsItsOwnMerge (BR-17), train-branch deletion and leftover sweep asserted in the three-car and orphan tests (BR-18), TestTrainAbortReleasesEveryRidingCar plus Aborted in the random-history invariants; train tests under -race; go test -run Landing|Merge|Integrat|CIGate|Local|Archive|Tracker|CloseMirror|Train ./cmd/sdlc/ ok in 1802s; review verdict: SHIP
 - 2026-10-19: closed M1 — Round 2 fixes (96d1a9d0): schedule source mutex plus 30s cache, read before the line mutex (TestLandingScheduleSourceIsSharedAndCached under -race, 8 goroutines, 1 read); status through Readiness.For (tested); Passed() single audit rule (tested); landingline under -race ok; go test -run Landing|Merge|Integrat|CIGate|Local|Archive|Tracker ./cmd/sdlc/ ok in 2094s; review verdict: FIX-THEN-SHIP
 
 - Claimed and started from ariadne:2. Explored the #393 landing line (flock tickets, head.lock, events.jsonl; no daemon in sdlc, so the schedule rides on admission). Wrote the durable plan; sent its summary and Q1–Q7 to the hub before code.

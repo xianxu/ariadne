@@ -528,6 +528,362 @@ rounds:
       isolation: fenced
       reviewed: 96d1a9d01bb99b19bac8f2f3c9fd9666e46142c6
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 67360e34-42b2-4c6f-b75d-384157d88394
+            repository: github.com/xianxu/ariadne
+            issue_id: "000449"
+            recipe: milestone-review
+            round: 1
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/728725127a45d5d1
+            reviewed_head: d82c4f30c30bf529b0b3cce2ad5c26bb16d3e969
+            slot: ariadne:2
+            requested_at: "2026-10-19T11:58:25.229904Z"
+          phase: finished
+          pid: 17703
+          started_at: "2026-10-19T11:58:25.344938Z"
+          finished_at: "2026-10-19T12:02:37.196507Z"
+          session_id: 4d4bb86f-80f9-42f3-a9c9-b765603e5060
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: d82c4f30c30bf529b0b3cce2ad5c26bb16d3e969
+        tracker_head: d45848d988ab04490cf0d9bfce88a1eaed8da451
+        branch_point: e279f713f66ebde2d11e8662e05d4e481369d34c
+        since: "2026-10-19T00:24:20-07:00"
+        until: "2026-10-19T04:31:03-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T00:24:20-07:00"
+              end: "2026-10-19T04:31:03-07:00"
+              began: "2026-10-19T00:24:20-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0b8dd07a-725f-46d5-9d61-2f1c3a639ae1
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 3d99778b04a5abfcad9c52903f374e96319ca817fd257eef5893cf415eaa2517
+              started: "2026-10-19T07:41:27.89Z"
+              spawned: false
+              bytes: 392572
+              windows:
+                - start: "2026-10-19T07:41:27.89Z"
+                  end: "2026-10-19T04:31:03-07:00"
+            - harness: claude
+              id: 3859e47f-fab7-4809-b00b-39545e065c4d
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 9e7b79ccc03b5a83546f49fdb9ea8267d34e5ef1958759092e3826439da67440
+              started: "2026-10-19T07:39:08.194Z"
+              spawned: false
+              bytes: 515896
+              windows:
+                - start: "2026-10-19T07:39:08.194Z"
+                  end: "2026-10-19T04:31:03-07:00"
+            - harness: claude
+              id: ce283a71-a4ff-4b46-a444-7e71d73538b9
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: f4547a086362f57592441b8ebe51ccc25025e5807e92b9ae941f19565d34db65
+              started: "2026-10-19T07:37:21.957Z"
+              spawned: false
+              bytes: 568734
+              windows:
+                - start: "2026-10-19T07:37:21.957Z"
+                  end: "2026-10-19T04:31:03-07:00"
+            - harness: claude
+              id: ea85e2ea-80c1-424b-b626-ad5588a39352
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: c00ba0b4ef6fcb0b4fa7599cbc5b7b3b9f7a747009b08fefc1d56ab99fd9c60f
+              started: "2026-10-19T07:41:05.217Z"
+              spawned: false
+              bytes: 498662
+              windows:
+                - start: "2026-10-19T07:41:05.217Z"
+                  end: "2026-10-19T04:31:03-07:00"
+            - harness: claude
+              id: ed119f61-f721-4c11-b1f4-f27f6ddaae4c
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 32f1c1354f947b813042e42af826f14db41d5bf479efab13555853520d6330f7
+              started: "2026-10-19T07:40:04.612Z"
+              spawned: false
+              bytes: 502132
+              windows:
+                - start: "2026-10-19T07:40:04.612Z"
+                  end: "2026-10-19T04:31:03-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 336decb3b40c6140501ad2ecc9e0d9476c8cbd683d6623b1d5af1c1cdb803b08
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 292818926
+              windows:
+                - start: "2026-10-19T00:24:20-07:00"
+                  end: "2026-10-19T04:31:03-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-19T01:40:06-07:00"
+              finalized: "2026-10-19T01:43:53-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-19T02:09:30-07:00"
+              finalized: "2026-10-19T02:57:26-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-19T03:35:22-07:00"
+              finalized: "2026-10-19T03:50:39-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-19T05:02:37-07:00"
+      dispatched: "2026-10-19T04:58:25-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      findings:
+        - kind: defect
+          id: BR-16
+          severity: Critical
+          title: With trains on, a waiting car whose PR is already MERGED can never be admitted or settled and hangs
+          detail: 'carReadiness (landingcar.go:56) returns not ready for a merged PR, the train admission rule (landingcar.go:156-175) admits only granted or vouched-ready tickets, and Wait returns only on a final outcome. A conductor that dies after its merge lands, a Settle that fails (landingtrain.go:495 wrongly says the car resumes), or an abort after an unconfirmed merge all leave cars waiting until an operator interrupts. This contradicts the plan''s state-table row (the next head or the car''s resume settles every MERGED car). Fix: make "own PR is MERGED" an exit from Wait (resume) and add a killed-conductor-after-merge sequence test.'
+          family: uncertain-outcome-collapsed
+          round: 4
+        - kind: defect
+          id: BR-17
+          severity: Important
+          title: The conductor's merge() treats its own landed train merge as an outside move of main, then aborts and releases merged cars
+          detail: 'After LandingMerge is accepted but the probe lags, Probed{false} re-sends Merge. fetchMain then differs from c.base because main contains the train merge, so the conductor reintegrates, publish times out waiting for an OPEN train PR, and the abort defer releases every car (which then hits the hang above). Fix: in merge() (landingtrain.go:399-418), treat c.heads[k-1] being an ancestor of the fetched main as Merged before emitting MainMoved; add a fake mode where the listing lags.'
+          family: uncertain-outcome-collapsed
+          round: 4
+        - kind: defect
+          id: BR-18
+          severity: Important
+          title: A merged train's landing-train/<id> branch is never deleted from the remote
+          detail: 'realGH.LandingMerge (ghlanding.go:172) has no --delete-branch, the conductor deletes nothing after Merged, and reclaimTrains lists only OPEN PRs, so every landed train leaves a branch on the remote. The plan says the merge deletes it. Fix: run a leased deleteRemoteBranch on the train branch after LandCars, and assert in landTrainOfThree that no landing-train ref remains.'
+          family: artifact-without-removal
+          round: 4
+        - kind: defect
+          id: BR-19
+          severity: Minor
+          title: The abort defer sets tr.Phase directly, outside Transition, and its released cars miss tr.Released, so NextDue waits a full interval
+          detail: landingtrain.go:104-112. Model the abort as a Transition event so released cars make the next train depart at once.
+          family: state-machine-bypass
+          round: 4
+        - kind: defect
+          id: BR-20
+          severity: Minor
+          title: waitCI and maybeConductTrain use the global ghClient instead of the injected trainGH seam
+          detail: landingtrain.go:385 and landingtrain.go:591.
+          family: seam-bypass-global-client
+          round: 4
+      boundary: M2
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: b70e3700-f4b8-4293-bbb3-19baadb4369f
+            repository: github.com/xianxu/ariadne
+            issue_id: "000449"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/ac572036146ee30f
+            reviewed_head: a395730bed6d00be7b996616f427d8b8594ff447
+            slot: ariadne:2
+            requested_at: "2026-10-19T12:37:54.938341Z"
+          phase: finished
+          pid: 75404
+          started_at: "2026-10-19T12:37:55.034639Z"
+          finished_at: "2026-10-19T13:12:05.608555Z"
+          session_id: 5ba1e5bb-a8ef-45e1-a772-1c9e5c5bd13d
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: a395730bed6d00be7b996616f427d8b8594ff447
+        tracker_head: d45848d988ab04490cf0d9bfce88a1eaed8da451
+        branch_point: e279f713f66ebde2d11e8662e05d4e481369d34c
+        since: "2026-10-19T00:24:20-07:00"
+        until: "2026-10-19T05:06:58-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T00:24:20-07:00"
+              end: "2026-10-19T05:06:58-07:00"
+              began: "2026-10-19T00:24:20-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0b8dd07a-725f-46d5-9d61-2f1c3a639ae1
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 3d99778b04a5abfcad9c52903f374e96319ca817fd257eef5893cf415eaa2517
+              started: "2026-10-19T07:41:27.89Z"
+              spawned: false
+              bytes: 392572
+              windows:
+                - start: "2026-10-19T07:41:27.89Z"
+                  end: "2026-10-19T05:06:58-07:00"
+            - harness: claude
+              id: 3859e47f-fab7-4809-b00b-39545e065c4d
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 9e7b79ccc03b5a83546f49fdb9ea8267d34e5ef1958759092e3826439da67440
+              started: "2026-10-19T07:39:08.194Z"
+              spawned: false
+              bytes: 515896
+              windows:
+                - start: "2026-10-19T07:39:08.194Z"
+                  end: "2026-10-19T05:06:58-07:00"
+            - harness: claude
+              id: ce283a71-a4ff-4b46-a444-7e71d73538b9
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: f4547a086362f57592441b8ebe51ccc25025e5807e92b9ae941f19565d34db65
+              started: "2026-10-19T07:37:21.957Z"
+              spawned: false
+              bytes: 568734
+              windows:
+                - start: "2026-10-19T07:37:21.957Z"
+                  end: "2026-10-19T05:06:58-07:00"
+            - harness: claude
+              id: ea85e2ea-80c1-424b-b626-ad5588a39352
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: c00ba0b4ef6fcb0b4fa7599cbc5b7b3b9f7a747009b08fefc1d56ab99fd9c60f
+              started: "2026-10-19T07:41:05.217Z"
+              spawned: false
+              bytes: 498662
+              windows:
+                - start: "2026-10-19T07:41:05.217Z"
+                  end: "2026-10-19T05:06:58-07:00"
+            - harness: claude
+              id: ed119f61-f721-4c11-b1f4-f27f6ddaae4c
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 32f1c1354f947b813042e42af826f14db41d5bf479efab13555853520d6330f7
+              started: "2026-10-19T07:40:04.612Z"
+              spawned: false
+              bytes: 502132
+              windows:
+                - start: "2026-10-19T07:40:04.612Z"
+                  end: "2026-10-19T05:06:58-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 1641c61a6d549e9a012a23fd172b5df1654bce83db15ad84a21c12175be8351b
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 296072069
+              windows:
+                - start: "2026-10-19T00:24:20-07:00"
+                  end: "2026-10-19T05:06:58-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-19T01:40:06-07:00"
+              finalized: "2026-10-19T01:43:53-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-19T02:09:30-07:00"
+              finalized: "2026-10-19T02:57:26-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-19T03:35:22-07:00"
+              finalized: "2026-10-19T03:50:39-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-19T04:58:25-07:00"
+              finalized: "2026-10-19T05:02:37-07:00"
+              finalizing: false
+      "n": 5
+      timestamp: "2026-10-19T06:12:06-07:00"
+      dispatched: "2026-10-19T05:37:54-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-16
+          disposition: addressed
+          note: carReadiness reports merged and vouchWhileWaiting ends the wait; TestLandingCarMergedWithoutAWordFinishes goes red (hang, 121s) with the check reverted.
+          round: 5
+        - id: BR-17
+          disposition: addressed
+          note: merge() treats head-on-main as Merged (landingtrain.go:428); TestLandingTrainLaggingListingIsItsOwnMerge goes red with the ancestor check reverted.
+          round: 5
+        - id: BR-18
+          disposition: addressed
+          note: deleteTrainBranch on PhaseLanded plus the reclaim sweep; landTrainOfThree fails in all 3 variants (landing-train/2 remains) with the call reverted.
+          round: 5
+        - id: BR-19
+          disposition: addressed
+          note: Aborted is a Transition event that appends to Released; pinned by TestTrainAbortReleasesEveryRidingCar and the random-sequence test.
+          round: 5
+        - id: BR-20
+          disposition: addressed
+          note: waitCI uses c.ci and maybeConductTrain uses the injected lgh/ci; wiring only, checked by reading the code (the sibling at landingcar.go:100 is raised separately).
+          round: 5
+      findings:
+        - kind: defect
+          id: BR-21
+          severity: Minor
+          title: An abort while merging records the train abandoned and its cars released although the merge may have landed
+          detail: 'landingtrain.go:110-128 with trainstate.go:171-183: a probe IO error after MergeUnknown aborts into PhaseAbandoned and closes the PR. This is the 3rd finding in this family. Rule: a terminal train record needs a confirming observation; from PhaseMerging, Aborted should record merge-unknown, not abandoned.'
+          family: uncertain-outcome-collapsed
+          round: 5
+        - kind: defect
+          id: BR-22
+          severity: Minor
+          title: productionCarGates still calls the global ghClient for the car CI gate
+          detail: 'landingcar.go:100, a sibling of BR-20. Rule: no landing*.go code reads ghClient except where the merge is wired up (landing.go:360); pass the seam in.'
+          family: seam-bypass-global-client
+          round: 5
+        - kind: defect
+          id: BR-23
+          severity: Minor
+          title: Remote train-branch deletion is hand-written three times, and only closePR's is unleased
+          detail: 'landingtrain.go:532, 553 and 619. This is the 3rd finding in this family. Rule: one leased deleteRemoteBranch(branch, tip) helper for every train-branch delete.'
+          family: duplicated-rule
+          round: 5
+        - kind: defect
+          id: BR-24
+          severity: Minor
+          title: The atlas conductor section does not describe landed-branch deletion, the leftover-branch sweep, or the merged-while-waiting resume
+          detail: atlas/workflow/sdlc-binary.md:431-436 still says only that open leftover PRs are closed.
+          family: docs-gate-atlas
+          round: 5
+        - kind: defect
+          id: BR-25
+          severity: Minor
+          title: The plan's list of events the code implements leaves out Aborted
+          detail: 'Plan line 197 lists events without Aborted (trainstate.go:102). This is the 3rd finding in this family. Rule: that list mirrors every type that implements trainEvent and trainEffect.'
+          family: plan-core-concepts-drift
+          round: 5
+      boundary: M2
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: a395730bed6d00be7b996616f427d8b8594ff447
+      blocked: false
 ---
 
 # Gate ledger — ariadne#449 (boundary-review)
@@ -599,7 +955,50 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-15** [Minor] `plan-core-concepts-drift` (kind: defect) The openLandingLine doc and plan Revisions still say the schedule is re-read on every admission attempt; the code caches it for 30s
   landingqueue.go:39 and plan line 205. 2nd in this family. The rule: a commit that changes behavior described by the "M1 as built" Revisions entry or a function doc updates that text in the same commit; check those passages as part of every answer-review commit.
 
+## Round 4 — 2026-10-19T05:02:37-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-16** [Critical] `uncertain-outcome-collapsed` (kind: defect) With trains on, a waiting car whose PR is already MERGED can never be admitted or settled and hangs
+  carReadiness (landingcar.go:56) returns not ready for a merged PR, the train admission rule (landingcar.go:156-175) admits only granted or vouched-ready tickets, and Wait returns only on a final outcome. A conductor that dies after its merge lands, a Settle that fails (landingtrain.go:495 wrongly says the car resumes), or an abort after an unconfirmed merge all leave cars waiting until an operator interrupts. This contradicts the plan's state-table row (the next head or the car's resume settles every MERGED car). Fix: make "own PR is MERGED" an exit from Wait (resume) and add a killed-conductor-after-merge sequence test.
+- **BR-17** [Important] `uncertain-outcome-collapsed` (kind: defect) The conductor's merge() treats its own landed train merge as an outside move of main, then aborts and releases merged cars
+  After LandingMerge is accepted but the probe lags, Probed{false} re-sends Merge. fetchMain then differs from c.base because main contains the train merge, so the conductor reintegrates, publish times out waiting for an OPEN train PR, and the abort defer releases every car (which then hits the hang above). Fix: in merge() (landingtrain.go:399-418), treat c.heads[k-1] being an ancestor of the fetched main as Merged before emitting MainMoved; add a fake mode where the listing lags.
+- **BR-18** [Important] `artifact-without-removal` (kind: defect) A merged train's landing-train/<id> branch is never deleted from the remote
+  realGH.LandingMerge (ghlanding.go:172) has no --delete-branch, the conductor deletes nothing after Merged, and reclaimTrains lists only OPEN PRs, so every landed train leaves a branch on the remote. The plan says the merge deletes it. Fix: run a leased deleteRemoteBranch on the train branch after LandCars, and assert in landTrainOfThree that no landing-train ref remains.
+- **BR-19** [Minor] `state-machine-bypass` (kind: defect) The abort defer sets tr.Phase directly, outside Transition, and its released cars miss tr.Released, so NextDue waits a full interval
+  landingtrain.go:104-112. Model the abort as a Transition event so released cars make the next train depart at once.
+- **BR-20** [Minor] `seam-bypass-global-client` (kind: defect) waitCI and maybeConductTrain use the global ghClient instead of the injected trainGH seam
+  landingtrain.go:385 and landingtrain.go:591.
+
+## Round 5 — 2026-10-19T06:12:06-07:00 (claude) — passed
+
+### Disposed
+
+- BR-16 — addressed — carReadiness reports merged and vouchWhileWaiting ends the wait; TestLandingCarMergedWithoutAWordFinishes goes red (hang, 121s) with the check reverted.
+- BR-17 — addressed — merge() treats head-on-main as Merged (landingtrain.go:428); TestLandingTrainLaggingListingIsItsOwnMerge goes red with the ancestor check reverted.
+- BR-18 — addressed — deleteTrainBranch on PhaseLanded plus the reclaim sweep; landTrainOfThree fails in all 3 variants (landing-train/2 remains) with the call reverted.
+- BR-19 — addressed — Aborted is a Transition event that appends to Released; pinned by TestTrainAbortReleasesEveryRidingCar and the random-sequence test.
+- BR-20 — addressed — waitCI uses c.ci and maybeConductTrain uses the injected lgh/ci; wiring only, checked by reading the code (the sibling at landingcar.go:100 is raised separately).
+
+### Raised
+
+- **BR-21** [Minor] `uncertain-outcome-collapsed` (kind: defect) An abort while merging records the train abandoned and its cars released although the merge may have landed
+  landingtrain.go:110-128 with trainstate.go:171-183: a probe IO error after MergeUnknown aborts into PhaseAbandoned and closes the PR. This is the 3rd finding in this family. Rule: a terminal train record needs a confirming observation; from PhaseMerging, Aborted should record merge-unknown, not abandoned.
+- **BR-22** [Minor] `seam-bypass-global-client` (kind: defect) productionCarGates still calls the global ghClient for the car CI gate
+  landingcar.go:100, a sibling of BR-20. Rule: no landing*.go code reads ghClient except where the merge is wired up (landing.go:360); pass the seam in.
+- **BR-23** [Minor] `duplicated-rule` (kind: defect) Remote train-branch deletion is hand-written three times, and only closePR's is unleased
+  landingtrain.go:532, 553 and 619. This is the 3rd finding in this family. Rule: one leased deleteRemoteBranch(branch, tip) helper for every train-branch delete.
+- **BR-24** [Minor] `docs-gate-atlas` (kind: defect) The atlas conductor section does not describe landed-branch deletion, the leftover-branch sweep, or the merged-while-waiting resume
+  atlas/workflow/sdlc-binary.md:431-436 still says only that open leftover PRs are closed.
+- **BR-25** [Minor] `plan-core-concepts-drift` (kind: defect) The plan's list of events the code implements leaves out Aborted
+  Plan line 197 lists events without Aborted (trainstate.go:102). This is the 3rd finding in this family. Rule: that list mirrors every type that implements trainEvent and trainEffect.
+
 ## Open findings
 
 - **BR-14** [Minor] `admission-decision-toctou` (kind: defect) Admission reads the events log (the departure ledger) before the line mutex and head.lock, so M2 can admit a second train on a stale "due"
 - **BR-15** [Minor] `plan-core-concepts-drift` (kind: defect) The openLandingLine doc and plan Revisions still say the schedule is re-read on every admission attempt; the code caches it for 30s
+- **BR-21** [Minor] `uncertain-outcome-collapsed` (kind: defect) An abort while merging records the train abandoned and its cars released although the merge may have landed
+- **BR-22** [Minor] `seam-bypass-global-client` (kind: defect) productionCarGates still calls the global ghClient for the car CI gate
+- **BR-23** [Minor] `duplicated-rule` (kind: defect) Remote train-branch deletion is hand-written three times, and only closePR's is unleased
+- **BR-24** [Minor] `docs-gate-atlas` (kind: defect) The atlas conductor section does not describe landed-branch deletion, the leftover-branch sweep, or the merged-while-waiting resume
+- **BR-25** [Minor] `plan-core-concepts-drift` (kind: defect) The plan's list of events the code implements leaves out Aborted
