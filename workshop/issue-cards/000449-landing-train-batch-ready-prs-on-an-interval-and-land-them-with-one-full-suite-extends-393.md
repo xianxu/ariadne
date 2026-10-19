@@ -1,6 +1,6 @@
 ---
 id: 000449
-status: working
+status: codecomplete
 created: 2026-10-18
 updated: 2026-10-19
 estimate_hours: 5.47
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 3.92
+tracker:
+    version: 1
+    completion:
+        token: close-ab17b31bcf66
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 74171bfb3611d7c69ee0def1dbb914d7c2b33136
+        evidence_commit: 0c7f26b19a42f1c4821c78d500eb8978b9bed649
 ---
 
 # landing train: batch ready PRs on an interval and land them with one full suite (extends #393)
