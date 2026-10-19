@@ -1448,6 +1448,14 @@ the window contains no code surface — `hasCodePath`, the single docs
 classifier: `*.md` / `workshop/` / `atlas/` / `docs/` are documentation,
 everything else is surface (#177; docs-only closes had an incoherent demand).
 
+**Issue branch identity (#471, `trackerbranch.go`).** A tracker card's filename
+derives its one issue branch. `abandon`, whole-issue `close`, `milestone-close`,
+and attachments to started work refuse from another branch before changing
+the checkout or publishing evidence. Abandon may resume from rest only when
+its persisted branch still matches the card. The remote branch is deleted
+only at the head held by its archive ref, with leased advancement and deletion;
+a remote commit beyond the local issue tip refuses before archival.
+
 **Integrate gate (#269, `integrategate.go`).** Before planning the window,
 `close` and `milestone-close` (fixed-then-ship included) require the branch to
 contain every first-parent commit of freshly fetched main whose committer date

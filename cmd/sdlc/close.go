@@ -575,6 +575,9 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		// over the card that reads).
 		env, err := openTracker(commandContext(f.Context))
 		if err == nil {
+			err = requireIssueBranch(fmt.Sprintf("%06d", f.Issue), trackerCard.Path, env.branch)
+		}
+		if err == nil {
 			err = requireCardOwnership(env, *trackerCard)
 		}
 		if err != nil {

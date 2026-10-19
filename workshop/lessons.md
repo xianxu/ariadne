@@ -3,6 +3,11 @@
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
 
+- A card owner may hold more than one issue. Before a numbered command commits
+  or deletes HEAD's branch, compare it with the branch derived from that issue's
+  card; ownership alone cannot identify the checkout. Remote deletion must
+  lease the exact tip already kept in the archive (#471).
+
 - Before counting joined records, check that the identity is unique across the
   whole cohort. Per-record card/event/Git validity did not prevent two issues
   from claiming one PR, branch or merge and doubling a weekly denominator.

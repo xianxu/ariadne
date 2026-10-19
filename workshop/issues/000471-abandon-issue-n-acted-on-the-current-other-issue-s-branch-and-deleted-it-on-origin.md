@@ -53,9 +53,9 @@ Add the same guard to any other verb that takes `--issue N` but acts on HEAD's b
 
 ## Plan
 
-- [x] Write and approve the durable plan at `workshop/plans/000471-abandon-branch-identity-plan.md`, including the `--issue`/HEAD audit.
-- [ ] Add red real-Git regressions for wrong-branch abandon, close, milestone-close and attach; preserve open-issue and interrupted-abandon recovery cases.
-- [ ] Bind started work to the card-derived issue branch before any effect. For remote deletion, make the remote branch tip equal the archived commit with leased updates, then delete it with a lease.
+- [x] Write and approve the durable plan at `workshop/plans/000471-abandon-issue-n-acted-on-the-current-other-issue-s-branch-and-deleted-it-on-origin-plan.md`, including the `--issue`/HEAD audit.
+- [x] Add red real-Git regressions for wrong-branch abandon, close, milestone-close and attach; preserve open-issue and interrupted-abandon recovery cases.
+- [x] Bind started work to the card-derived issue branch before any effect. For remote deletion, make the remote branch tip equal the archived commit with leased updates, then delete it with a lease.
 - [ ] Run targeted tests, `make -k build`, the recorded full suite, the close review and landing gates.
 
 ## Log
@@ -63,3 +63,6 @@ Add the same guard to any other verb that takes `--issue N` but acts on HEAD's b
 ### 2026-10-19
 
 - Claimed and started in ariadne:1. The incident is a branch identity failure: `abandon` accepts any non-rest branch as the named issue's branch and stores that name in its terminal record. Planning the shared guard and remote-ref checks before code.
+- The wrong-branch abandon, close, milestone-close and attach fixtures failed against the old behavior before the guards were added. The real-Git fixtures now check that an A-on-B command leaves both local and origin refs, the archive ref, cards and main unchanged. Terminal retries reject another branch or a persisted branch name from another issue; an open issue remains card-only.
+- Remote retirement now proves the archive ref holds the recorded head, advances an older remote branch to that head with a lease, then deletes with an exact-head lease. A pre-receive hook checks the deleted old tip equals the archive ref; a divergent remote tip refuses before the note or archive push and names both tips.
+- Focused abandon/close/attach group passed (`go test ./cmd/sdlc -run '^(TestAbandon|TestTrackerCloseRefusesAnotherIssuesBranch|TestMilestoneCloseRefusesAnotherIssuesBranch|TestIssueAttach)' -count=1 -timeout 12m`). `make -k build`, `make sdlc-build`, the recovery package test, and `git diff --check` passed. The full recorded suite and close review remain.

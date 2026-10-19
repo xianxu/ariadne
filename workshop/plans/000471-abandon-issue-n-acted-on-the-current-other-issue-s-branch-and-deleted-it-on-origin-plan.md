@@ -60,15 +60,15 @@ The audit is about mistaken branch ownership, not every use of `--issue`. Any pa
 
 ### 1. Red regressions
 
-- [ ] In `cmd/sdlc/abandon_test.go`, use two started cards and branches in the existing bare-remote fixture. From B's branch, abandon A; assert refusal names A's expected branch and B's actual branch, and assert HEAD, both local/remote branch refs, archive ref, main and both cards are unchanged. Test A's branch success, open A on rest/card-only, and terminal retry from rest versus B.
-- [ ] Test a remote A tip that is older than the note commit: the successful path advances it with a lease and then deletes it. Test a divergent/raced remote tip remains undeleted; archive ref is never mistaken for permission to delete a new tip.
-- [ ] In close/milestone fixture tests, attempt `--issue A` from B's branch and assert no evidence commit or card change; in attach fixture, assert no asset/detail write. Run the targeted tests and observe the expected failures before implementation (TDD).
+- [x] In `cmd/sdlc/abandon_test.go`, use two started cards and branches in the existing bare-remote fixture. From B's branch, abandon A; assert refusal names A's expected branch and B's actual branch, and assert HEAD, both local/remote branch refs, archive ref, main and both cards are unchanged. Test A's branch success, open A on rest/card-only, and terminal retry from rest versus B.
+- [x] Test a remote A tip that is older than the note commit: the successful path advances it with a lease and then deletes it. Test a divergent remote tip remains undeleted; both pushes use leases so a concurrent update refuses, and the archive ref is never mistaken for permission to delete a new tip.
+- [x] In close/milestone fixture tests, attempt `--issue A` from B's branch and assert no evidence commit or card change; in attach fixture, assert no asset/detail write. Run the targeted tests and observe the expected failures before implementation (TDD).
 
 ### 2. Minimal guard and remote CAS
 
-- [ ] Implement the pure branch admission with a table covering correct, wrong, rest and detached names. Invoke it in `runAbandon` before `keepAbandonedWork`, in whole-issue and milestone close before review, and in started-issue attach before file writes. Preserve the explicit rest-only terminal retry.
-- [ ] Tighten `dropAbandonedBranch`: inspect remote tip, reject divergence, lease an advance of an older tip to `rec.Head`, then lease deletion against exactly `rec.Head`. Keep the local ref's existing exact-head check. Make a failed remote probe an error, not proof of absence.
-- [ ] Run the targeted tests green. Update `sdlc abandon --help`, the atlas pointer and `workshop/lessons.md` to state the branch-identity rule.
+- [x] Implement the pure branch admission with a table covering correct, wrong, rest and detached names. Invoke it in `runAbandon` before `keepAbandonedWork`, in whole-issue and milestone close before review, and in started-issue attach before file writes. Preserve the explicit rest-only terminal retry.
+- [x] Tighten `dropAbandonedBranch`: inspect remote tip, reject divergence, lease an advance of an older tip to `rec.Head`, then lease deletion against exactly `rec.Head`. Keep the local ref's existing exact-head check. Make a failed remote probe an error, not proof of absence.
+- [x] Run the targeted tests green. Update `sdlc abandon --help`, the atlas pointer and `workshop/lessons.md` to state the branch-identity rule.
 
 ### 3. Verify and land
 
