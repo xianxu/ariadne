@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +13,13 @@ import (
 // Catalog is the curated list, in the order findings are reported. Add a rule
 // with the fix for the mistake class it catches (tl-worker, tl-lead).
 var Catalog = []Rule{
+	{
+		Name:     "test-hardcoded-arch-count",
+		Incident: "ariadne#454",
+		Message:  "derive architecture header counts from the registry or assert the shared ArchitectureBlock; a fixed count breaks when a principle is added",
+		TestOnly: true,
+		Match:    hardcodedArchCounts,
+	},
 	{
 		Name:     "test-batch-shell-runner",
 		Incident: "ariadne#448",
@@ -59,6 +67,23 @@ var Catalog = []Rule{
 		TestOnly: true,
 		Match:    fixedSleeps,
 	},
+}
+
+var archEntryCountRE = regexp.MustCompile(`\beach of the [0-9]+ entries\b`)
+
+// Catch the brittle rendered-header assertion, not intentional registry-policy
+// tripwires or synthetic source snippets in catalog tests.
+func hardcodedArchCounts(f *ast.File, _ *CheckContext) []ast.Node {
+	var out []ast.Node
+	calls(f, "strings", []string{"Contains"}, func(call *ast.CallExpr) {
+		if len(call.Args) != 2 {
+			return
+		}
+		if s, ok := stringLit(call.Args[1]); ok && archEntryCountRE.MatchString(s) {
+			out = append(out, call)
+		}
+	})
+	return out
 }
 
 // Protect the known batch entrypoint; Go syntax cannot infer arbitrary shell

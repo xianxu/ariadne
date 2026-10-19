@@ -160,10 +160,12 @@ func TestRunLocalCheckRecordsEveryAttemptBeforeStatusPost(t *testing.T) {
 		t.Fatalf("failure log: %q %v", failedBytes, err)
 	}
 	check.Command = []string{"sh", "-c", "echo retry passed"}
-	gh.known = map[string]bool{} // status POST fails after the saved run
+	// #394: a blind rerun that passes is recorded but never posted as success
+	// while the first failure is unexplained.
 	second, err := runLocalCheck(context.Background(), d, check, sha)
-	if err == nil || !strings.Contains(err.Error(), "NOT recorded") || !second.passed() {
-		t.Fatalf("retry: %+v %v", second, err)
+	var unexplained *unexplainedFailureError
+	if !errors.As(err, &unexplained) || !second.passed() || gh.statuses[sha]["sdlc-local/suite"] != "failure" {
+		t.Fatalf("retry: %+v %v %v", second, err, gh.statuses[sha])
 	}
 	root := filepath.Join(d.Root, ".git", "sdlc", "test-stats")
 	rows, warnings, err := readSuiteAttempts(root, 100)
@@ -226,7 +228,7 @@ func TestRunLocalCheckStatsInitializationFailureStillRunsAndPostsStatus(t *testi
 	}
 }
 
-func TestRunLocalCheckStatsPublicationFailureStillPostsStatus(t *testing.T) {
+func TestRunLocalCheckUnreadableStoreRefusesTheSuitePass(t *testing.T) {
 	d, sha, gh, stderr := localRunRepo(t, "acquired")
 	logDir, err := localCheckLogDir(d)
 	if err != nil {
@@ -240,12 +242,16 @@ func TestRunLocalCheckStatsPublicationFailureStillPostsStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 	check := localCheck{Name: "suite", Command: []string{"sh", "-c", "echo ran"}, TimeoutMinutes: 30}
+	// #394: the store is the evidence the success-post guard reads, so a suite
+	// pass on a store it cannot read is refused (fail closed), never posted
+	// blind. The check still ran and its log is kept.
 	rec, err := runLocalCheck(context.Background(), d, check, sha)
-	if err != nil || !rec.passed() {
-		t.Fatalf("check blocked by optional stats: %+v %v\n%s", rec, err, stderr)
+	var unexplained *unexplainedFailureError
+	if !rec.passed() || !errors.As(err, &unexplained) || !strings.Contains(err.Error(), "cannot all be read") {
+		t.Fatalf("a pass on an unreadable store: %+v %v\n%s", rec, err, stderr)
 	}
-	if gh.statuses[sha]["sdlc-local/suite"] != "success" {
-		t.Fatalf("status not posted: %v", gh.statuses)
+	if gh.statuses[sha]["sdlc-local/suite"] != "" {
+		t.Fatalf("a pass was posted without its head's attempts read: %v", gh.statuses)
 	}
 	if b, err := os.ReadFile(rec.LogPath); err != nil || !strings.Contains(string(b), "ran") {
 		t.Fatalf("run log unavailable: %q %v", b, err)

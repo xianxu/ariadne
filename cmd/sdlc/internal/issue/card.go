@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"github.com/xianxu/ariadne/pkg/vocab"
 	"go.yaml.in/yaml/v3"
 )
@@ -303,6 +304,35 @@ func validateRepoEnumNode(field vocab.CardField, n *yaml.Node) error {
 	return nil
 }
 
+// validateTestListNode checks a test-list card value (#394): null, or a
+// one-line flow sequence of distinct exact test names, at most flakes.MaxRerun.
+func validateTestListNode(field vocab.CardField, n *yaml.Node) error {
+	if n.Kind == yaml.ScalarNode && n.Tag == "!!null" {
+		return nil
+	}
+	fail := func(why string) error { return invalidCard(field.Name, why) }
+	if n.Kind != yaml.SequenceNode || n.Style&yaml.FlowStyle == 0 {
+		return fail("expected a one-line flow list like [github.com/x/y/pkg.TestName]")
+	}
+	if len(n.Content) == 0 || len(n.Content) > flakes.MaxRerun {
+		return fail(fmt.Sprintf("1 to %d tests", flakes.MaxRerun))
+	}
+	seen := map[string]bool{}
+	for _, item := range n.Content {
+		if item.Kind != yaml.ScalarNode || item.Tag != "!!str" {
+			return fail("a test name must be a string")
+		}
+		if err := flakes.ValidTest(item.Value); err != nil {
+			return fail(err.Error())
+		}
+		if seen[item.Value] {
+			return fail(fmt.Sprintf("test %q listed twice", item.Value))
+		}
+		seen[item.Value] = true
+	}
+	return nil
+}
+
 func validateCardScalar(field vocab.CardField, n *yaml.Node) error {
 	if field.Kind == "claimant" {
 		_, err := parseClaimant(n)
@@ -310,6 +340,9 @@ func validateCardScalar(field vocab.CardField, n *yaml.Node) error {
 	}
 	if field.Kind == "repo-enum" {
 		return validateRepoEnumNode(field, n)
+	}
+	if field.Kind == "test-list" {
+		return validateTestListNode(field, n)
 	}
 	fail := func() error { return invalidCard(field.Name, "invalid "+field.Kind+" scalar") }
 	if n.Kind != yaml.ScalarNode {

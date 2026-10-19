@@ -6,8 +6,8 @@ boundary-review prompts, `sdlc start-plan` pushes it into planning sessions, and
 `go run ./cmd/sdlc arch-principles` renders it for non-gate design work.
 
 Every entry declares **`quick-flow: yes|no`** (#231): whether the quick flow's
-small-diff review applies it. `QuickMarkers()` reads the field (today DRY, PURE,
-PURPOSE), `ArchitectureBlockFor` renders that subset, and a missing or invalid
+small-diff review applies it. `QuickMarkers()` reads the field, and
+`ArchitectureBlockFor` renders that subset, and a missing or invalid
 field fails the build — so choosing the quick flow's principles is a one-word
 edit to the registry, and a new principle cannot land undecided. The full flow's
 reviews still embed every entry verbatim.
@@ -142,6 +142,15 @@ that embeds the registry, paid on every gate run forever. What removes one is
 as activation, in the other direction, and `architecturedeferred_test.go` pins
 that what lands there reaches no gate.
 
+`ARCH-EVOLVE` (#454) is the compatibility lens: how differently aged readers
+and writers coexist, rather than ARCH-SECURE's question of provenance and input
+trust. Its motivating failure is a mixed-build CLI rewriting a record from a
+newer build (pair#684, with #198 as precedent). Accepting that record alone did
+not defend it against erasure on rewrite, which is why this is a separate entry.
+Its quick-flow inclusion is deliberate: a tiny edit to a stored record can cross
+this boundary just as readily as a larger design. The preservation and refusal
+rules themselves live only in the registry.
+
 ## Deferred principles (documented, not gated)
 
 `cmd/sdlc/internal/judge/architecture-deferred.md` holds principles written down
@@ -152,8 +161,8 @@ owns that decision and a registry entry would restate it.
 **Activation is a MOVE and nothing else:** cut the section into
 `architecture.md`. The count in the block header, `{{ARCH_STAR}}`, every prompt,
 and `sdlc arch-principles` all follow, because they derive from
-`ArchitectureMarkers()`. Re-capture the goldens and update the one hand-written
-marker list (below).
+`ArchitectureMarkers()`. Re-capture the goldens and update the deliberate membership and quick-policy
+tripwires (below).
 
 `TestDeferredPrinciplesReachNoGate` makes "documented but not gated" a checked
 property. Both of its halves are derived rather than listed:
@@ -186,18 +195,18 @@ tree can only ever exhibit one of the three.
 
 ## Adding an entry
 
-The registry is a real single source at runtime, but **one** test writes the
-marker set by hand: `TestArchitectureMarkers` (`judge_test.go`). That is the
-tripwire that makes an accidental registry edit visible, so it is deliberate —
-do not "fix" it by deriving it, or the suite would assert nothing about the
-registry's contents. Every other site derives from `ArchitectureMarkers()`.
+The registry is a real single source at runtime. `TestArchitectureMarkers`
+independently pins full membership and order; `TestQuickMarkers` pins the
+operator's quick-flow policy. These are intentional tripwires: deriving those
+expectations from the source would stop detecting an accidental policy edit.
+Rendered-header and flow-selection assertions derive their expectations from the
+registry or its renderer, rather than freezing a count.
 
-So a new entry touches FOUR things: `architecture.md`, that one list, the
-goldens (`-update-golden`), and a map-level paragraph on this page. Before #208
-it silently touched five places, three of which would have kept passing while
-covering nothing.
+A new entry updates `architecture.md`, those deliberate tripwires, the affected
+golden blocks, and a map-level paragraph on this page. Regenerate the full process
+manual with `go run ./cmd/sdlc process-manual --full --out atlas/process-manual.md`.
 
-The fourth is the one with no test behind it, so its shape is written here.
+The map paragraph has no test behind it, so its shape is written here.
 **This page gets a MAP of the entry, never a copy of it:** the boundaries against
 neighbours it is confusable with, the shaping choices a future editor could undo
 by accident, and the in-fleet defects it was drawn from. Clause text stays in

@@ -1776,7 +1776,8 @@ func adoptOmittedActual(stderr io.Writer, f *closeFlags, issueStr, mode string) 
 func explainActual(stderr io.Writer, issueStr, mode, milestone string, res actualResult) {
 	var head []string
 	legacy := len(legacyQueueAttemptIDs(res.QueueBlockers)) > 0
-	if legacy {
+	excluded := res.Status == actualEmptyWindow && len(res.Exclusions) > 0
+	if legacy || excluded {
 		head = append(head, fmt.Sprintf("%sMeasured actual unavailable for %s close — use the documented exclusion below.%s", ansiRed, mode, ansiReset), "")
 	} else {
 		head = append(head, fmt.Sprintf("%sMeasured actual unavailable for %s close — recover the evidence below.%s", ansiRed, mode, ansiReset), "")
@@ -1789,7 +1790,7 @@ func explainActual(stderr io.Writer, issueStr, mode, milestone string, res actua
 	// with its next-action guidance. Same engine as `sdlc actual`; the caller
 	// already ran it — no re-measure.
 	printActual(stderr, res, milestone)
-	if legacy {
+	if legacy || excluded {
 		return
 	}
 

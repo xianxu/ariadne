@@ -155,3 +155,29 @@ func TestSuiteLogFactsLineSizeBoundary(t *testing.T) {
 		}
 	})
 }
+
+// A failure is attributed only to an exact test; everything else is a reason
+// it is never flake-eligible (#394).
+func TestUnattributedFailures(t *testing.T) {
+	const pkg = "github.com/x/ariadne/cmd/sdlc"
+	for _, tc := range []struct {
+		name, log string
+		want      []string
+	}{
+		{"a named test failure, test-shard form", "shard1    exit 1     3.0s  1 failed\n--- FAIL " + pkg + " TestA\n--- FAIL " + pkg + "\n", nil},
+		{"a named test failure, go test form", "--- FAIL: TestA (0.00s)\nFAIL\nFAIL\t" + pkg + "\t0.123s\n", nil},
+		{"a shard died without a test", "--- shard2 exited 2 with no failing test; last output:\n", []string{"shard2 exited without a failing test"}},
+		{"tests never ran", "--- 3 listed cmd/sdlc test(s) never ran: TestA, TestB\n", []string{"listed tests never ran"}},
+		{"a build failure", "FAIL\t" + pkg + " [build failed]\n", []string{"package " + pkg + ": build failed"}},
+		{"a timeout", "panic: test timed out after 10m0s\n", []string{"a test timed out"}},
+		{"a package failed alone", "--- FAIL " + pkg + "\n", []string{"package " + pkg + " failed without a failing test"}},
+		{"a go test package failed alone", "FAIL\t" + pkg + "\t0.5s\n", []string{"package " + pkg + " failed without a failing test"}},
+		{"a JSON package failure alone", `{"Action":"fail","Package":"` + pkg + `","Elapsed":1}` + "\n", []string{"package " + pkg + " failed without a failing test"}},
+		{"a test name without a package", "--- FAIL: TestA (0.00s)\n", []string{"failure TestA names no package"}},
+	} {
+		got := parseSuiteLogFacts(tc.log).Unattributed
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}

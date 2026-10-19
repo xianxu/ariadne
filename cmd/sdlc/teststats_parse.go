@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 )
 
 // SuiteDuration is one measured unit of work in a suite log. Kind keeps
@@ -26,6 +29,10 @@ type SuiteLogFacts struct {
 	WallSeconds *float64        `json:"wall_seconds"`
 	Failed      bool            `json:"failed"`
 	Warnings    []string        `json:"warnings,omitempty"`
+	// Unattributed says why some failure has no exact test name (#394): a
+	// build error, a timeout, a shard or package that failed without a
+	// failing test, tests that never ran. Such a failure is never a flake.
+	Unattributed []string `json:"unattributed,omitempty"`
 }
 
 const suiteLogLineLimit = 1 << 20
@@ -62,6 +69,7 @@ func parseSuiteLogFacts(log string) SuiteLogFacts {
 		start = index + 1
 	}
 	facts := SuiteLogFacts{Failures: failingTests(log)}
+	facts.Unattributed = unattributedFailures(log, facts.Failures)
 	failures := make(map[string]struct{}, len(facts.Failures))
 	for _, name := range facts.Failures {
 		failures[name] = struct{}{}
@@ -143,4 +151,62 @@ func appendSuiteParseWarning(facts *SuiteLogFacts, warning string) {
 func suiteSeconds(raw string) (float64, bool) {
 	seconds, err := strconv.ParseFloat(raw, 64)
 	return seconds, err == nil && !math.IsNaN(seconds) && !math.IsInf(seconds, 0) && seconds >= 0
+}
+
+var (
+	shardNoTest  = regexp.MustCompile(`^---\s+(\S+)\s+exited\s+[0-9]+\s+with no failing test`)
+	neverRan     = regexp.MustCompile(`^---\s+[0-9]+\s+listed .* never ran`)
+	buildFailed  = regexp.MustCompile(`^FAIL\s+(\S+)\s+\[(build|setup) failed\]`)
+	testTimedOut = regexp.MustCompile(`^panic: test timed out after`)
+)
+
+// unattributedFailures lists why a failure in log has no exact test name,
+// given the named failures. A package that failed is attributed only when one
+// of its own tests failed: test-shard prints a package-level "--- FAIL pkg"
+// beside every failing test, and go test a "FAIL pkg" line. A name without a
+// package (a "--- FAIL: TestX" no package line claimed) is unattributed too.
+func unattributedFailures(log string, failures []string) []string {
+	var why []string
+	add := func(s string) {
+		if !slices.Contains(why, s) {
+			why = append(why, s)
+		}
+	}
+	named := map[string]bool{}
+	for _, f := range failures {
+		if pkg, _, ok := flakes.SplitTest(f); ok {
+			named[pkg] = true
+		} else {
+			add("failure " + f + " names no package")
+		}
+	}
+	packageFailed := func(pkg string) {
+		if pkg != "" && !named[pkg] {
+			add("package " + pkg + " failed without a failing test")
+		}
+	}
+	for _, raw := range strings.Split(log, "\n") {
+		line := strings.TrimSpace(raw)
+		switch fields := strings.Fields(line); {
+		case shardNoTest.MatchString(line):
+			add(shardNoTest.FindStringSubmatch(line)[1] + " exited without a failing test")
+		case neverRan.MatchString(line):
+			add("listed tests never ran")
+		case buildFailed.MatchString(line):
+			m := buildFailed.FindStringSubmatch(line)
+			add("package " + m[1] + ": " + m[2] + " failed")
+		case testTimedOut.MatchString(line):
+			add("a test timed out")
+		case len(fields) == 3 && fields[0] == "---" && fields[1] == "FAIL":
+			packageFailed(fields[2])
+		case goPackageFAIL.MatchString(line):
+			packageFailed(goPackageFAIL.FindStringSubmatch(line)[1])
+		case strings.HasPrefix(line, "{") && strings.Contains(line, `"Action":"fail"`):
+			var event goTestJSONEvent
+			if json.Unmarshal([]byte(line), &event) == nil && event.Test == "" {
+				packageFailed(event.Package)
+			}
+		}
+	}
+	return why
 }

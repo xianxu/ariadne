@@ -117,6 +117,10 @@ card: {
 		// only; membership is checked where values are written and in the gates.
 		{name: "area", kind: "repo-enum", enum: "area", setter: "sdlc issue set-area"},
 		{name: "severity", kind: "enum", enum: "severity", setter: "sdlc issue set-severity"},
+		// #394: the tests a flake issue registers as known flakes, exact
+		// `<import path>.<TestName>` names. The landing gate reruns only these
+		// while the issue is open; closing it unregisters them.
+		{name: "flake_tests", kind: "test-list", setter: "sdlc flake register"},
 	]
 	internal: {field: "tracker", version: 1}
 }

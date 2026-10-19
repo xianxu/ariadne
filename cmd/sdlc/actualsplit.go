@@ -86,20 +86,32 @@ func cutTimes(r gatestate.Round) (fin, disp time.Time, ok bool) {
 // milestone "" measures the whole issue; "Mx" keeps only Mx's own phases, the
 // increment milestone-close records (E1).
 func splitActual(out activetime.Result, issue, milestone string, rounds []activetime.BoundaryRound, sinceISO, untilISO string) (actualSplit, error) {
+	tl, err := actualTimeline(out, milestone, rounds, sinceISO, untilISO)
+	if err != nil {
+		return actualSplit{}, err
+	}
+	return splitFromTimeline(out.Segments, issue, tl), nil
+}
+
+func splitFromTimeline(segments []activetime.Segment, issue string, tl activetime.Timeline) actualSplit {
+	s := activetime.Split(segments, issue, tl)
+	return actualSplit{Build: s.Build / 60, Converge: s.Converge / 60, Tail: s.Tail / 60, Source: tl.Source}
+}
+
+func actualTimeline(out activetime.Result, milestone string, rounds []activetime.BoundaryRound, sinceISO, untilISO string) (activetime.Timeline, error) {
 	since, err := time.Parse(time.RFC3339, sinceISO)
 	if err != nil {
-		return actualSplit{}, fmt.Errorf("window start %q: %w", sinceISO, err)
+		return activetime.Timeline{}, fmt.Errorf("window start %q: %w", sinceISO, err)
 	}
 	until, err := time.Parse(time.RFC3339, untilISO)
 	if err != nil {
-		return actualSplit{}, fmt.Errorf("window end %q: %w", untilISO, err)
+		return activetime.Timeline{}, fmt.Errorf("window end %q: %w", untilISO, err)
 	}
 	tl := activetime.BuildTimeline(rounds, out.IssueCommitTimes, milestone, since, until)
 	if milestone != "" {
 		tl = tl.For(milestone)
 	}
-	s := activetime.Split(out.Segments, issue, tl)
-	return actualSplit{Build: s.Build / 60, Converge: s.Converge / 60, Tail: s.Tail / 60, Source: tl.Source}, nil
+	return tl, nil
 }
 
 // splitMeta is what a calibration row records about the boundary reviews

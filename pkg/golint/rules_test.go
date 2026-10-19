@@ -7,7 +7,7 @@ import (
 
 // header imports what the snippets call, as real files must for the rules to
 // resolve a package by the name the file gives it.
-const header = "package p\n\nimport (\n\t\"os\"\n\t\"os/exec\"\n\t\"path/filepath\"\n\t\"time\"\n)\n\n"
+const header = "package p\n\nimport (\n\t\"os\"\n\t\"os/exec\"\n\t\"path/filepath\"\n\t\"time\"\n\t\"strings\"\n)\n\n"
 
 // findings checks one function body against the catalog, as a test file or not.
 func findings(t *testing.T, body string, test bool) []Finding {
@@ -41,6 +41,11 @@ func TestRules(t *testing.T) {
 		test bool
 		want bool
 	}{
+		// test-hardcoded-arch-count (#454)
+		{"test-hardcoded-arch-count", `strings.Contains(prompt, "each of the 8 entries")`, true, true},
+		{"test-hardcoded-arch-count", `strings.Contains(prompt, "each of the 9 entries below")`, true, true},
+		{"test-hardcoded-arch-count", `strings.Contains(prompt, fmt.Sprintf("each of the %d entries", len(markers)))`, true, false},
+		{"test-hardcoded-arch-count", `strings.Contains(prompt, "each of the 8 entries")`, false, false},
 		// test-batch-shell-runner (#448): the known aggregate entrypoint.
 		{"test-batch-shell-runner", `exec.CommandContext(ctx, "bash", "construct-scripts.test.sh")`, true, true},
 		{"test-batch-shell-runner", `exec.Command("bash", "scripts/test/construct-scripts.test.sh")`, true, true},

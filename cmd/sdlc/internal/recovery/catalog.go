@@ -288,6 +288,22 @@ var Catalog = []Contract{
 		},
 	},
 	{
+		Verbs:         []string{"flake register"},
+		Class:         NonRepeatable,
+		Effects:       "with --issue N: one compare-and-swap on that card's flake_tests, merging the tests onto the ones it already lists (#394; any slot may, like every card setter). Without --issue: files a new unclaimed flake issue through `issue new`'s creation receipt, then sets its flake_tests the same way. Same-head fail→pass evidence (this machine's test-stats, or --evidence TEXT) is checked first; nothing is written without it.",
+		Evidence:      observeEvidence + ": card (flake_tests); `sdlc flake list`.",
+		Preconditions: "same-head fail→pass evidence for every test, or --evidence; exact test names; a readable, fresh registry; no test registered to another open issue; at most 5 tests per issue; the issue not closed.",
+		Repeat:        "with --issue N: the card already lists them, so no write. Without --issue: files another issue; recover by registering on the first with --issue N and closing the duplicate.",
+		LostResponse:  "with --issue N: rerun the same command — the card decides. Without --issue: `sdlc issue recovery reconcile` resumes a lost creation; then rerun with --issue N (the printed ID) to set the tests.",
+		Ends:          "the flake issue closes (its tests leave the registry) or another registration changes the card.",
+		Proofs: []Proof{
+			{"nothing is registered without same-head fail→pass evidence", []string{"TestFlakeRegisterNeedsSameHeadEvidence"}},
+			{"one owner per test; a closed issue, a bad name or an unreadable registry refuses", []string{"TestFlakeRegisterRules", "TestAddFlakeTestsMergesOntoTheCard"}},
+			{"the merge is decided on the compare-and-swap card, so a racing registration survives", []string{"TestFlakeRegisterKeepsARacingRegistration", "TestAddFlakeTestsMergesOntoTheCard"}},
+			{"the setter writes real tracker cards, and a repeat writes nothing", []string{"TestFlakeRegistryFromTrackerCards"}},
+		},
+	},
+	{
 		Verbs:         []string{"issue new"},
 		Class:         NonRepeatable,
 		Effects:       "behind a creation receipt (#308): reserves the next ID on the tracker, then publishes the details to main by a commit of their own; writes no checkout. From a numbered slot (repo:N, N ≥ 1) the slot then claims it (a claim-kind tracker commit); from :0 or outside the slot layout it stays unclaimed.",
