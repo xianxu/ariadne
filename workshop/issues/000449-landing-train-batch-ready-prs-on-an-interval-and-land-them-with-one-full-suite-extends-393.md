@@ -43,6 +43,35 @@ Durable plan: `workshop/plans/000449-landing-train-plan.md` (state table, Q1–Q
 - [ ] M2 — Conductor: train branch and PR, one suite, CI, merge; cars resume on merged; GitHub fake merges by reachability.
 - [ ] M3 — Split on unexplained failure, known-flake rerun, grant bypass, conflict and CI-red handling, per-train report, live conformance, docs.
 
+## Estimate
+
+Derived against estimate-logic-v3.1 (calibration doc flagged stale). Familiarity 0.9: the landing line, the suite runner and #394's flake step are warm from the last item. Milestone reviews are priced higher than the default, because #394's converge took 1.66h over 10 rounds.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 0.9
+item: greenfield-go-module   design=0.4 impl=0.5
+item: greenfield-go-module   design=0.4 impl=0.8
+item: smaller-go-module      design=0.2 impl=0.4
+item: smaller-go-module      design=0.1 impl=0.3
+item: smaller-go-module      design=0.2 impl=0.4
+item: atlas-docs             design=0.0 impl=0.3
+item: milestone-review       design=0.0 impl=0.5
+item: milestone-review       design=0.0 impl=0.5
+item: milestone-review       design=0.0 impl=0.5
+design-buffer: 0.3
+total: 5.47
+```
+
+Items in order:
+1. The train core: schedule, boarding, state machine and bisect.
+2. The conductor shell: train branch, PR, suite, CI and merge.
+3. Car readiness and the resolved landed commit.
+4. The fake that merges by reachability, plus the readiness sidecar.
+5. Split, grant bypass and conflict holds.
+6. Docs.
+7. Three milestone reviews.
+
 ## Log
 
 ### 2026-10-18
