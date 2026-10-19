@@ -154,3 +154,68 @@ func TestLandingEndsTheIssuesGrant(t *testing.T) {
 		t.Fatal("the landed issue kept its priority")
 	}
 }
+
+// Status names the train setting from main's tree and each waiter's vouch.
+func TestLandingStatusShowsTrainsAndReadiness(t *testing.T) {
+	roots, _, _ := landingFixture(t, 1)
+	repo := roots[0]
+	d := testLandingDeps(nil, nil)
+	d.now = time.Now
+	out, err := runLanding(t, d, "status", "--repo", repo)
+	if err != nil || !strings.Contains(out, "trains: off") {
+		t.Fatalf("absent config: %q %v", out, err)
+	}
+	procedureWrite(t, repo, landingConfigPath, `{"train_interval_minutes": 60, "train_max_cars": 4}`+"\n")
+	git(t, repo, "add", landingConfigPath)
+	git(t, repo, "commit", "-qm", "trains on")
+	git(t, repo, "push", "-q", "upstream", "main")
+	line, err := openRepoLine(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := line.Enqueue(landingline.Ticket{Issue: 7, Branch: "000007-x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.Release()
+	if err := line.Vouch(h, landingline.Readiness{Branch: "000007-x", Head: strings.Repeat("a", 40), PR: 70, Ready: true, At: time.Now()}); err != nil {
+		t.Fatal(err)
+	}
+	h2, err := line.Enqueue(landingline.Ticket{Issue: 8, Branch: "000008-y"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h2.Release()
+	if err := line.Vouch(h2, landingline.Readiness{Branch: "000009-not-mine", Head: strings.Repeat("b", 40), PR: 80, Ready: true, At: time.Now()}); err != nil {
+		t.Fatal(err)
+	}
+	out, err = runLanding(t, d, "status", "--repo", repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"trains: every 60m, up to 4 cars; the first train departs at the next admission", "ready at aaaaaaa", "(PR #70)", `not counted: vouch names branch "000009-not-mine"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("status lacks %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestRecentTrainsReport(t *testing.T) {
+	at := time.Date(2026, 10, 19, 9, 0, 0, 0, time.UTC)
+	events := []landingline.Event{
+		{Kind: landingline.EventTrain, Train: 4, At: at, Result: "landed", Cars: []int64{4, 5, 6}, PR: 101, Splits: 2, Culprit: 5},
+		{Kind: landingline.EventEnqueue, Seq: 9},
+		{Kind: landingline.EventTrain, Train: 9, At: at.Add(time.Hour), Result: "alone", Cars: []int64{9}, Detail: "no other car is ready"},
+	}
+	got := recentTrains(events, 3)
+	want := []string{
+		"train 9 at 2026-10-19T10:00:00Z: alone; cars 9; no other car is ready",
+		"train 4 at 2026-10-19T09:00:00Z: landed; cars 4,5,6; train PR #101; 2 split suite(s), culprit ticket 5",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("report:\n%s", strings.Join(got, "\n"))
+	}
+	if len(recentTrains(events, 1)) != 1 {
+		t.Fatal("the limit was not kept")
+	}
+}

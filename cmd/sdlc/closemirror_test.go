@@ -273,7 +273,7 @@ func TestDurableLandingProofSurvivesACardChangeAfterArchive(t *testing.T) {
 	head, branch := r.git("rev-parse", "HEAD"), r.git("branch", "--show-current")
 	base := r.git("merge-base", "HEAD", "origin/main")
 	r.git("push", "-q", "origin", "HEAD:main")
-	pr := landingPR{Number: 347, State: "MERGED", Repo: "test/repo", HeadRef: branch, HeadOID: head, BaseRef: "main", BaseOID: base, MergeOID: head}
+	pr := landingPR{Number: 347, State: "MERGED", Repo: "test/repo", HeadRef: branch, HeadOID: head, BaseRef: "main", BaseOID: base, MergeOID: head, LandedOID: head}
 	if err := completeLandingPR(context.Background(), r.root, "workshop/issues", pr); err != nil {
 		t.Fatal(err)
 	}
@@ -319,7 +319,7 @@ func TestDurableLandingArchivesAnUnreadableBaselineUnchanged(t *testing.T) {
 	head, branch := r.git("rev-parse", "HEAD"), r.git("branch", "--show-current")
 	base := r.git("merge-base", "HEAD", "origin/main")
 	r.git("push", "-q", "origin", "HEAD:main")
-	pr := landingPR{Number: 348, State: "MERGED", Repo: "test/repo", HeadRef: branch, HeadOID: head, BaseRef: "main", BaseOID: base, MergeOID: head}
+	pr := landingPR{Number: 348, State: "MERGED", Repo: "test/repo", HeadRef: branch, HeadOID: head, BaseRef: "main", BaseOID: base, MergeOID: head, LandedOID: head}
 	if err := completeLandingPR(context.Background(), r.root, "workshop/issues", pr); err != nil {
 		t.Fatal(err)
 	}

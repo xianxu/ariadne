@@ -18,6 +18,47 @@ THE LINE
       The landing now, the waiting merges in admission order, live grants, and
       the ready-to-landed delay p50/p90 over the last 30 days.
 
+LANDING TRAINS (#449)
+
+  `.sdlc/landing.json` on main turns the line into trains:
+
+    {"train_interval_minutes": 60, "train_max_cars": 8}
+
+  The file is absent by default, and an interval of 0 keeps the serial line
+  above. It is under the local-gates guard, so the operator verifies every
+  change to it.
+
+  With trains on:
+
+  - A waiting merge checks its own publish and CI gates, read-only, on its
+    pushed head, and vouches it ready (`ready/<seq>`).
+  - A merge departs only when the train is due and its vouch is current: the
+    first train, or the last train's departure plus the interval, or at once
+    after a train that left ready cars behind.
+  - The admitted head conducts. It boards every waiting merge whose vouch
+    holds and whose remote tip and open PR are still at the vouched head, up
+    to train_max_cars. It builds `landing-train/<id>`: main, then each car's
+    exact head, with the instance and duplicate-ID gates run per prefix.
+  - It opens one train PR, runs one recorded suite and CI on it, and merges
+    it once. GitHub marks every car's PR merged. Each car's own sdlc merge is
+    told (`outcomes/<seq>`) and finishes its cleanup.
+  - Holds and splits:
+      - A car that conflicts with the train is held.
+      - An unexplained suite failure is bisected: the culprit is held, the
+        clean prefix lands, and the cars behind it ride the next train at
+        once.
+      - A known flake (#394) gets its rerun and never splits.
+      - Main failing the same way refuses the train, as does red CI on the
+        train PR.
+  - A fleet-blocking grant departs at once and lands alone. So does a PR
+    carrying the local-gates label.
+  - A car that finds its own PR merged with no word from its train finishes
+    as a resume.
+
+  `sdlc landing status` shows the train setting, the next departure, each
+  waiting merge's readiness, and the last trains (result, cars, train PR,
+  split suites, culprit).
+
 FLEET-BLOCKING PRIORITY
 
   sdlc landing grant --issue N --reason WHY [--hours H] [--repo DIR]
@@ -48,6 +89,7 @@ SUITE QUEUE PRIORITY (#452)
 
 RETENTION
 
-  `events.jsonl` (enqueue, admit with what it displaced, landed, refused) and
-  `grants.jsonl` keep 30 days. A daily sweep never changes which grants are
+  `events.jsonl` (enqueue, admit with what it displaced, landed, refused,
+  train and car outcomes) and `grants.jsonl` keep 30 days. A sidecar in
+  `ready/` or `outcomes/` goes with its ticket. A daily sweep never changes which grants are
   valid. Malformed lines are skipped and counted.
