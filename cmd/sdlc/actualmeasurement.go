@@ -16,9 +16,18 @@ import (
 // correction. The resolver supplies pinned authority; the engine only measures.
 func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inputs *ownedActualInputs) actualResult {
 	m := inputs.Snapshot
+	if !inputs.Replay {
+		m.Protected = nil
+		for _, credit := range inputs.Protected {
+			m.Protected = append(m.Protected, gatestate.MeasurementCredit{Issue: credit.Issue, Slot: credit.Slot, Start: credit.Start.Format(time.RFC3339Nano), End: credit.End.Format(time.RFC3339Nano)})
+		}
+	}
 	res := actualResult{Issue: id, Window: m.Since + " → " + m.Until, Warnings: actualExclusionWarnings(inputs.Warnings)}
 	fail := func(err error) actualResult { res.Status, res.Detail = actualError, err.Error(); return res }
 	if err := ctx.Err(); err != nil {
+		return fail(err)
+	}
+	if err := validateProtectedSlotIdentities(inputs); err != nil {
 		return fail(err)
 	}
 	peers, err := activetime.WindowIssues(root, m.Since, m.Until, inputs.Scope, inputs.TrackerRefs...)
@@ -28,7 +37,8 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 	res.Peers = peers
 	options := activetime.Options{Context: ctx, Files: inputs.Files, GitRepo: root, ExtraRefs: inputs.TrackerRefs, Scope: inputs.Scope,
 		SinceISO: m.Since, UntilISO: m.Until, Issues: peers, CommitWeight: m.CommitWeight, ThresholdMin: m.GapMinutes,
-		IncludeAssistant: m.IncludeAssistant, ActivityWindows: inputs.Windows, SourcePrefixes: inputs.Prefixes, SourceSlots: inputs.SourceSlots}
+		IncludeAssistant: m.IncludeAssistant, ActivityWindows: inputs.Windows, SourcePrefixes: inputs.Prefixes, SourceSlots: inputs.SourceSlots,
+		ProtectedIntervals: inputs.Protected}
 	for _, q := range m.QueueWaits {
 		start, err := time.Parse(time.RFC3339Nano, q.Start)
 		if err != nil {
@@ -48,16 +58,24 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 		return fail(err)
 	}
 	res.Status, res.Hours = statusFromResult(out, id)
+	res.Segments = out.Segments
+	res.Exclusions = out.Exclusions
 	if res.Status != actualMeasured {
 		res.Detail = "no activity from ownership-proven transcript sources"
 		return res
 	}
 	rounds := measurementRounds(m.Cuts)
-	split, err := splitActual(out, id, milestone, rounds, m.Since, m.Until)
+	tl, err := actualTimeline(out, milestone, rounds, m.Since, m.Until)
 	if err != nil {
 		return fail(err)
 	}
+	split := splitFromTimeline(out.Segments, id, tl)
 	res.Hours, res.Split = split.Build+split.Converge, &split
+	for _, phase := range tl.Phases {
+		if phase.Kind != activetime.Tail {
+			res.CountedPhases = append(res.CountedPhases, phase)
+		}
+	}
 	if milestone != "" {
 		res.Window += " (" + milestone + "'s phases)"
 	}
@@ -89,6 +107,7 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 			excluded := options
 			excluded.Files = nil
 			excluded.QueueIntervals = nil // excluded sources are a separate diagnostic population
+			excluded.ProtectedIntervals = nil
 			excluded.SourceSlots = nil
 			excluded.ActivityWindows = nil
 			if len(m.Engagements) > 0 {
@@ -123,7 +142,30 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 	for _, warning := range out.Warnings {
 		res.Warnings = append(res.Warnings, formatAttributionWarning(warning))
 	}
+	for _, exclusion := range out.Exclusions {
+		res.Warnings = append(res.Warnings, fmt.Sprintf("excluded %.2f minutes from %s during %s → %s: already adopted by issue #%s in slot %s", exclusion.Minutes, exclusion.Source, exclusion.Start.Format(time.RFC3339Nano), exclusion.End.Format(time.RFC3339Nano), exclusion.Issue, exclusion.Slot))
+	}
 	return res
+}
+
+// The activity engine receives strings for persisted evidence compatibility.
+// Admit only canonical values before it compares source and protected slots;
+// old measurements without protection may still have absent source pins.
+func validateProtectedSlotIdentities(inputs *ownedActualInputs) error {
+	if len(inputs.Protected) == 0 {
+		return nil
+	}
+	for _, credit := range inputs.Protected {
+		if !parseAdoptedSlot(credit.Slot).known {
+			return fmt.Errorf("protected issue %s has no canonical pinned slot", credit.Issue)
+		}
+	}
+	for _, source := range inputs.Files {
+		if !parseAdoptedSlot(inputs.SourceSlots[source]).known {
+			return fmt.Errorf("source %q has no canonical pinned slot for protected intervals", source)
+		}
+	}
+	return nil
 }
 
 func measurementRounds(cuts []gatestate.MeasurementCut) []activetime.BoundaryRound {

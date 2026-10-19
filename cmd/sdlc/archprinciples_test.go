@@ -42,6 +42,18 @@ func TestRunArchPrinciples_LensSwitch(t *testing.T) {
 	}
 }
 
+func TestPersistedEvolutionPrincipleDelivered(t *testing.T) {
+	for _, lens := range []string{"at-plan", "at-review"} {
+		var b strings.Builder
+		if err := runArchPrinciples(&b, lens); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(b.String(), "## ARCH-EVOLVE") {
+			t.Fatalf("%s command output lacks evolution principle", lens)
+		}
+	}
+}
+
 // TestRunArchPrinciples_UnknownLens rejects a typo'd lens rather than silently
 // rendering a wrong header.
 func TestRunArchPrinciples_UnknownLens(t *testing.T) {

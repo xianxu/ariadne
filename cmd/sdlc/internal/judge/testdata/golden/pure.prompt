@@ -1,7 +1,7 @@
 You are a code reviewer checking the diff for ARCH-PURE violations.
 The principle is authored once in the registry below (#75):
 
-ARCHITECTURE PRINCIPLES — work through each of the 8 entries below explicitly, applying its `at-review` lens; cite the marker (e.g. ARCH-DRY) in any finding.
+ARCHITECTURE PRINCIPLES — work through each of the 9 entries below explicitly, applying its `at-review` lens; cite the marker (e.g. ARCH-DRY) in any finding.
 
 # Architecture principles (ARCH-*)
 
@@ -275,6 +275,32 @@ checks is a one-word edit here.
   *reader* of a growing artifact with no matching bound on its *writer* — that
   is a cliff, not a bound. Flag a cleanup that only the operator can trigger
   when the growth is per-launch or per-session.
+
+## ARCH-EVOLVE — Persisted formats evolve additively
+
+- **quick-flow:** yes
+- **principle:** Persisted formats (records, ledgers, manifests and config)
+  evolve additively. Readers tolerate and preserve unknown fields: capture them
+  on decode and write them back unchanged on any rewrite, including nested
+  members. Accepting a newer record and silently dropping its fields is data
+  loss. Keep known-field types, required fields and duplicate keys strict; a
+  writer never changes the meaning of an existing field. A version bump with
+  older-reader refusal is reserved for cases where ignoring a field would be
+  unsafe: it changes interpretation of existing fields or guards a destructive
+  action an old reader would otherwise take. The design must explain that risk.
+- **at-plan:** For each persisted format the design changes, say whether the
+  change is additive. Name how unknown fields survive decode and every
+  read-modify-write path, including nested objects, and how known-field types,
+  required fields and duplicate keys remain strict. If a reader must refuse,
+  explain why ignoring the new field would be unsafe, and identify the version
+  boundary that prevents the unsafe interpretation or action. Require tests of
+  an older reader rewriting a newer record without losing unknown members.
+- **at-review:** Trace unknown fields through decode and each rewrite: they must
+  emerge unchanged, including nested members. Flag lossy tolerant writers,
+  meaning changes under an existing version, and weakened known-field types,
+  required fields or duplicate keys. Flag a version bump or refusal without a
+  concrete unsafe-to-ignore reason. Verify round-trip preservation and strict
+  validation tests; accepting a new field alone does not prove compatibility.
 
 
 Apply ARCH-PURE's at-review lens to the diff: business logic mixed with IO,

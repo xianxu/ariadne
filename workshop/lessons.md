@@ -1003,6 +1003,8 @@ The simplest durable authority beats a clever scan of consequences.
 - A lexical proof of statement order fails when `goto` can enter after the flag that established it. For a bounded syntax-only lint, reject goto-bearing functions as unproven and test both unconditional and conditional jumps against a straight-line control (#440 BR-7).
 - A stateful fake that copies a production decision (a merge, a cap, a status refusal) makes the test pass whatever the production code does. Put the decision in one pure function that production and the fake both call, and test it directly on a real input. Check the regression test is real by deleting the decision (#394 M1 BR-2: replacing the card merge with `tests := add` kept every test green).
 - A new kind of record stored beside an existing kind needs its own discriminator (a distinct name or type), not a side field every reader must remember to check. Readers that select the old kind then exclude it by default. Sweeping readers one by one missed one each round (#394 M2 BR-13, then BR-19: a rerun row saved as check `suite` was reused as the head's suite pass).
+- When another issue's adopted actual is exclusion authority, derive occupied time from the same counted Build/Converge phases, not all attributed runs; verification Tail is not adopted. Decide temporal and slot relevance before demanding replay evidence, and clear exclusion options in diagnostic-only populations (#443 BR-1–BR-3).
+- When a relevance decision needs an identity proof, parse every provenance source into one canonical-or-unknown type at entry. Validating only the claimant leaves retained source pins free to become false string mismatches; test a noncanonical saved pin end to end and guard any later string-based engine boundary (#443 BR-5).
 - For an agent-facing protocol, test the decision at the artifact boundary: a rule that says "open a side doc" should have a before/after case whose link and index are checked, plus a mutation that tries the old action. Keyword-only assertions can pass while the example still teaches the wrong behavior (#437 and #444).
 - When validating a before/after corpus that supports renames, compare moved outputs to the existing move projection before applying same-path emission checks. A same-path lookup mislabels preserved content as newly written; test a renamed parent, its children, and an orphan displaced by the move (#444 BR-1).
 
@@ -1020,3 +1022,10 @@ The simplest durable authority beats a clever scan of consequences.
   unchanged; healthy real scripts can pass both the bug and the fix (#448 BR-1).
 - A new helper flag still needs README usage: state its output framing and whether
   it executes work, alongside the architectural atlas entry (#448 BR-2).
+
+- Registry expansion changes consumers outside the registry package. Sweep
+  rendered-header counts across Go tests and generated docs before selecting
+  checks. Derive header expectations from the registry/shared renderer; reserve
+  literal sets for deliberate policy tripwires, and name those exceptions
+  accurately in the atlas (#454 BR-1/BR-2). The test-hardcoded-arch-count catalog
+  rule catches fixed numeric architecture-header Contains assertions.

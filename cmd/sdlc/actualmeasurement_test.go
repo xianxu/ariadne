@@ -40,12 +40,14 @@ func TestOwnedActualEngineReplayAndExcludedBrainProvenance(t *testing.T) {
 	m := gatestate.MeasurementInputs{Version: 1, Method: gatestate.MeasurementMethodLegacyV1, Repository: "repo", CodeHead: head,
 		Since: start.Format(time.RFC3339), Until: start.Add(30 * time.Minute).Format(time.RFC3339), BrainRoot: brain.CWD, GapMinutes: 15, CommitWeight: 1, IncludeAssistant: true}
 	in := &ownedActualInputs{Snapshot: m, Files: []string{owner.File}, Prefixes: map[string]activetime.SourcePrefix{owner.File: {Bytes: owner.Length, Digest: owner.Digest}},
-		Windows: map[string][]activetime.ActivityWindow{owner.File: {{Start: start, End: start.Add(30 * time.Minute)}}}, Scope: activetime.Scope{Head: head, Issue: "335"}, Sessions: []transcripts.SessionEvidence{owner}, ExcludedBrain: []transcripts.SessionEvidence{brain}}
+		Windows: map[string][]activetime.ActivityWindow{owner.File: {{Start: start, End: start.Add(30 * time.Minute)}}}, SourceSlots: map[string]string{owner.File: "ariadne:1"},
+		Protected: []activetime.CreditedInterval{{Issue: "334", Slot: "ariadne:1", Start: start.Add(5 * time.Minute), End: start.Add(10 * time.Minute)}},
+		Scope:     activetime.Scope{Head: head, Issue: "335"}, Sessions: []transcripts.SessionEvidence{owner}, ExcludedBrain: []transcripts.SessionEvidence{brain}}
 	result := computeOwnedActualFor(context.Background(), root, "335", "", in)
-	if result.Status != actualMeasured || math.Abs(result.Hours-1.0/6) > .00001 {
+	if result.Status != actualMeasured || math.Abs(result.Hours-1.0/12) > .00001 {
 		t.Fatalf("result=%+v", result)
 	}
-	if result.Inputs == nil || result.Inputs.ExcludedBrainSessions != 1 || result.Inputs.ExcludedBrainMinutes != 10 || len(result.Inputs.Sources) != 1 {
+	if result.Inputs == nil || result.Inputs.ExcludedBrainSessions != 1 || result.Inputs.ExcludedBrainMinutes != 10 || len(result.Inputs.Sources) != 1 || len(result.Exclusions) != 1 || result.Exclusions[0].Minutes != 5 {
 		t.Fatalf("invisible excluded evidence: %+v", result.Inputs)
 	}
 	// New HEAD and appended events must not change replay's pinned code or bytes.
@@ -123,6 +125,10 @@ func TestActualQueueMeasurementReplay(t *testing.T) {
 	}
 	if got.Split == nil || math.Abs(got.Split.Build-10.0/60) > .00001 || math.Abs(got.Split.Converge) > .00001 || math.Abs(got.Split.Tail-10.0/60) > .00001 || math.Abs(got.Hours-10.0/60) > .00001 {
 		t.Fatalf("queue crossing phase cuts did not partition build/converge/tail: %+v", got)
+	}
+	credits, err := creditedIntervals("335", got.Segments, got.CountedPhases, in.SourceSlots)
+	if err != nil || len(credits) != 1 || !credits[0].Start.Equal(start) || !credits[0].End.Equal(start.Add(10*time.Minute)) {
+		t.Fatalf("adopted protection included uncounted verification tail: intervals=%+v err=%v", credits, err)
 	}
 	replay, err := ownedReplaySources(*got.Inputs, []transcripts.SessionEvidence{s})
 	if err != nil {

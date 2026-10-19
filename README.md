@@ -585,6 +585,13 @@ commands are read-only; omit `--json` for their human rendering.
 
 ## Manual boundary review
 
+Persisted-format changes follow `ARCH-EVOLVE`: evolve additively, capture unknown
+fields and preserve them unchanged through every rewrite, including nested
+members. Known-field types, required fields and duplicate keys remain strict.
+A version bump that older readers refuse needs a concrete reason why ignoring
+an addition would be unsafe. Inspect the complete registry with
+`sdlc arch-principles`; planning and review prompts receive the same definitions.
+
 For an ad-hoc fresh-context boundary review, use a pinned committed range or
 omit `--head` to include committed-after-base plus staged and unstaged tracked
 changes:
