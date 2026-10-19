@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
-estimate_hours:
+estimate_hours: 2.84
 collaboration-mode: collaboration
-card_mirror: 'aab01a0cbbdb3be4a45c5693115b7b33992b899a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9dbc03ba20ef82acef0fd88a707bbb1f4c59b3b1' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T00:51:23-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "da95efd6", done: "4bdb5662"}
+flow: {kind: full, provenance: operator}
 ---
 
 # sdlc card decoder refuses unknown fields: a merge started before a rebuild rejects new card fields (ARCH-EVOLVE)
