@@ -23,6 +23,9 @@ import (
 //	                 holds the head's ticket as JSON while held
 //	seq              the next ticket number
 //	tickets/<seq>    one per waiting merge, flock-held by that merge
+//	ready/<seq>      a waiting merge's readiness vouch (#449); its own
+//	                 directory, since scan deletes every unlocked file in
+//	                 tickets/. Swept once tickets/<seq> is gone.
 //
 // Every flock dies with its process, so a dead waiter's ticket is pruned by
 // the next scan and a dead head frees head.lock: the line keeps no state that
@@ -41,6 +44,14 @@ type Options struct {
 	// OnAdmit reports an admission and the older tickets it went ahead of. It
 	// runs outside the line mutex, so it may call Record.
 	OnAdmit func(head Ticket, displaced []Ticket)
+	// Admissible (#449) says whether a live ticket may be admitted now, given
+	// its readiness vouch (nil when it has none) and whether it holds a
+	// grant. The head is the first admissible ticket in Order; nil admits
+	// every ticket, the serial line of #393.
+	Admissible func(t Ticket, r *Readiness, granted bool) (bool, string)
+	// OnHeld reports why this waiter, though first in line, is not admitted
+	// (a train not due, not ready), when that changes.
+	OnHeld func(why string)
 }
 
 // Line is one repository's landing line.
@@ -53,6 +64,7 @@ type Line struct {
 type Handle struct {
 	ticket Ticket
 	path   string
+	ready  string   // its readiness sidecar's path
 	file   *os.File // the ticket's flock while waiting
 	head   *os.File // head.lock's flock once admitted
 }
@@ -61,8 +73,10 @@ func (h *Handle) Ticket() Ticket { return h.ticket }
 
 // Open prepares dir as a line; it creates nothing but directories.
 func Open(dir string, o Options) (*Line, error) {
-	if err := os.MkdirAll(filepath.Join(dir, "tickets"), 0o755); err != nil {
-		return nil, err
+	for _, sub := range []string{"tickets", "ready"} {
+		if err := os.MkdirAll(filepath.Join(dir, sub), 0o755); err != nil {
+			return nil, err
+		}
 	}
 	if o.Now == nil {
 		o.Now = time.Now
@@ -120,7 +134,7 @@ func (l *Line) Enqueue(t Ticket) (*Handle, error) {
 			os.Remove(f.Name())
 			return err
 		}
-		h = &Handle{ticket: t, path: path, file: f}
+		h = &Handle{ticket: t, path: path, ready: readyPath(l.dir, seq), file: f}
 		return nil
 	})
 	return h, err
@@ -131,9 +145,9 @@ func (l *Line) Enqueue(t Ticket) (*Handle, error) {
 // while h waits counts at the next admission; a running head is never
 // interrupted. A cancelled ctx returns its error; the caller still releases.
 func (l *Line) Wait(ctx context.Context, h *Handle) error {
-	last := -1
+	last, lastWhy := -1, ""
 	for {
-		pos, head, err := l.tryAdmit(h)
+		pos, head, why, err := l.tryAdmit(h)
 		if err != nil {
 			return err
 		}
@@ -143,18 +157,23 @@ func (l *Line) Wait(ctx context.Context, h *Handle) error {
 		if pos != last && l.o.OnWait != nil {
 			l.o.OnWait(pos, head)
 		}
-		last = pos
+		if why != lastWhy && why != "" && l.o.OnHeld != nil {
+			l.o.OnHeld(why)
+		}
+		last, lastWhy = pos, why
 		if err := l.o.Sleep(ctx, l.o.Poll); err != nil {
 			return err
 		}
 	}
 }
 
-// tryAdmit admits h (position 0) or reports its position and the head.
-func (l *Line) tryAdmit(h *Handle) (int, *Ticket, error) {
+// tryAdmit admits h (position 0) or reports its position, the head, and why
+// h is not admitted though first in line.
+func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 	pos := 0
 	var current *Ticket
 	var displaced []Ticket
+	why := ""
 	err := l.withMutex(func() error {
 		live, err := l.scan()
 		if err != nil {
@@ -186,7 +205,25 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, error) {
 			}
 			return err
 		}
-		next, passed, ok := NextHead(live, grants)
+		candidates := live
+		if l.o.Admissible != nil {
+			ready := l.readReady()
+			candidates = nil
+			for _, t := range live {
+				var r *Readiness
+				if v, ok := ready[t.Seq]; ok {
+					r = &v
+				}
+				_, granted := grants[t.Issue]
+				ok, reason := l.o.Admissible(t, r, granted)
+				if ok {
+					candidates = append(candidates, t)
+				} else if t.Seq == h.ticket.Seq {
+					why = reason
+				}
+			}
+		}
+		next, passed, ok := NextHead(candidates, grants)
 		if !ok || next.Seq != h.ticket.Seq {
 			head.Close()
 			return nil
@@ -209,7 +246,87 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, error) {
 	if err == nil && pos == 0 && l.o.OnAdmit != nil {
 		l.o.OnAdmit(h.ticket, displaced)
 	}
-	return pos, current, err
+	return pos, current, why, err
+}
+
+// Vouch records a waiting merge's readiness (#449), replacing its last one.
+// It is written under the mutex, by temporary file then rename, so a reader
+// sees a whole vouch or none.
+func (l *Line) Vouch(h *Handle, r Readiness) error {
+	r.Version, r.Seq = ReadinessVersion, h.ticket.Seq
+	if r.At.IsZero() {
+		r.At = l.o.Now()
+	}
+	if err := r.Valid(h.ticket.Seq); err != nil {
+		return err
+	}
+	data, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+	return l.withMutex(func() error {
+		if h.file == nil {
+			return errors.New("landing line: only a waiting merge vouches")
+		}
+		f, err := os.CreateTemp(filepath.Join(l.dir, "ready"), ".tmp-")
+		if err != nil {
+			return err
+		}
+		_, err = f.Write(data)
+		if cerr := f.Close(); err == nil {
+			err = cerr
+		}
+		if err == nil {
+			err = os.Rename(f.Name(), h.ready)
+		}
+		if err != nil {
+			os.Remove(f.Name())
+		}
+		return err
+	})
+}
+
+// Readiness returns the live tickets' vouches. A sidecar that doesn't parse,
+// or doesn't match its name, is no vouch: never read as ready.
+func (l *Line) Readiness() (map[int64]Readiness, error) {
+	var out map[int64]Readiness
+	err := l.withMutex(func() error {
+		if _, err := l.scan(); err != nil {
+			return err
+		}
+		out = l.readReady()
+		return nil
+	})
+	return out, err
+}
+
+// readReady reads ready/ under the mutex.
+func (l *Line) readReady() map[int64]Readiness {
+	out := map[int64]Readiness{}
+	entries, err := os.ReadDir(filepath.Join(l.dir, "ready"))
+	if err != nil {
+		return out
+	}
+	for _, e := range entries {
+		seq, perr := strconv.ParseInt(e.Name(), 10, 64)
+		if perr != nil {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(l.dir, "ready", e.Name()))
+		if err != nil || len(data) > maxTicket {
+			continue
+		}
+		var r Readiness
+		if json.Unmarshal(data, &r) != nil || r.Valid(seq) != nil {
+			continue
+		}
+		out[seq] = r
+	}
+	return out
+}
+
+func readyPath(dir string, seq int64) string {
+	return filepath.Join(dir, "ready", fmt.Sprintf("%020d", seq))
 }
 
 // Status reports the admitted head (nil when none) and the waiting tickets in
@@ -250,6 +367,7 @@ func (h *Handle) Release() {
 func (h *Handle) dropTicket() {
 	if h.file != nil {
 		os.Remove(h.path)
+		os.Remove(h.ready)
 		h.file.Close()
 		h.file = nil
 	}
@@ -298,7 +416,34 @@ func (l *Line) scan() ([]Ticket, error) {
 		t.Seq = seq
 		live = append(live, *t)
 	}
+	l.sweepReady(live)
 	return live, nil
+}
+
+// sweepReady removes vouches whose ticket is gone: a dead waiter's, or one a
+// crash left between dropping a ticket and removing its vouch.
+func (l *Line) sweepReady(live []Ticket) {
+	dir := filepath.Join(l.dir, "ready")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	alive := map[int64]bool{}
+	for _, t := range live {
+		alive[t.Seq] = true
+	}
+	for _, e := range entries {
+		seq, perr := strconv.ParseInt(e.Name(), 10, 64)
+		if perr != nil && !strings.HasPrefix(e.Name(), ".tmp-") {
+			continue // not ours
+		}
+		if perr == nil && alive[seq] {
+			continue
+		}
+		// A dead waiter's vouch, or a temporary file a crash left mid-vouch:
+		// Vouch holds the mutex, so no temporary file is in flight here.
+		os.Remove(filepath.Join(dir, e.Name()))
+	}
 }
 
 func (l *Line) nextSeq() (int64, error) {
