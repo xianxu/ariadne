@@ -17,10 +17,10 @@ actual_hours: 3.86
 tracker:
     version: 1
     completion:
-        token: close-91d33d6baa9b
+        token: close-610ea2d494ca
         repository: github.com/xianxu/ariadne
-        reviewed_head: bda6cc0efc5613bf2994d9cdca538942bb2d42fd
-        evidence_commit: 0c48667b757909b27614e8dd66c8173a13e20b8d
+        reviewed_head: cf0284d281f887fbcea87863421bc1e8ace37c3c
+        evidence_commit: e32aeb4eade726b4d89ccf9dae5688bf545a56e5
 ---
 
 # Issue-backed flake landing and daily triage
