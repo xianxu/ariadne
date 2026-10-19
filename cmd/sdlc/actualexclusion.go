@@ -81,28 +81,99 @@ func overlappingSlotInterval(slot string, start, end time.Time, windows []actual
 	return time.Time{}, time.Time{}, false
 }
 
-// differentSlot is proof only when every retained owner has an identified
-// workspace and none is a workspace contributing to this candidate.
-func differentSlot(engagements []tracker.EngagementWindow, windows []actualSlotWindow) bool {
-	if len(engagements) == 0 {
-		return false
+type adoptedWindowState uint8
+
+const (
+	windowDisjoint adoptedWindowState = iota
+	windowOverlap
+	windowMissing
+)
+
+type adoptedSlotState uint8
+
+const (
+	slotDifferent adoptedSlotState = iota
+	slotSame
+	slotUnknown
+)
+
+type adoptedDecision uint8
+
+const (
+	adoptionSkip adoptedDecision = iota
+	adoptionReplay
+	adoptionRefuse
+)
+
+// classifyAdopted is the complete window × slot decision table. Invalid
+// states fail closed. In particular, unknown is never treated as not-same.
+func classifyAdopted(window adoptedWindowState, slot adoptedSlotState) adoptedDecision {
+	switch window {
+	case windowDisjoint:
+		return adoptionSkip
+	case windowOverlap:
+		switch slot {
+		case slotDifferent:
+			return adoptionSkip
+		case slotSame:
+			return adoptionReplay
+		case slotUnknown:
+			return adoptionRefuse
+		}
+	case windowMissing:
+		switch slot {
+		case slotDifferent:
+			return adoptionSkip
+		case slotSame, slotUnknown:
+			return adoptionRefuse
+		}
 	}
+	return adoptionRefuse
+}
+
+// adoptedSlotRelationship requires complete source and ownership identity.
+// A different slot is proven only when every owner has a known workspace and
+// none matches a candidate source slot. Mixed evidence stays unknown.
+func adoptedSlotRelationship(engagements []tracker.EngagementWindow, windows []actualSlotWindow) (adoptedSlotState, time.Time, time.Time) {
+	if len(engagements) == 0 || len(windows) == 0 {
+		return slotUnknown, time.Time{}, time.Time{}
+	}
+	for _, window := range windows {
+		if window.slot == "" {
+			return slotUnknown, time.Time{}, time.Time{}
+		}
+	}
+	var same bool
+	var sameStart, sameEnd time.Time
 	for _, engagement := range engagements {
 		if len(engagement.Owners) == 0 {
-			return false
+			return slotUnknown, time.Time{}, time.Time{}
 		}
 		for _, owner := range engagement.Owners {
 			if owner.Workspace == "" {
-				return false
+				return slotUnknown, time.Time{}, time.Time{}
 			}
 			for _, window := range windows {
-				if owner.Workspace == window.slot {
-					return false
+				if owner.Workspace != window.slot {
+					continue
+				}
+				same = true
+				if engagement.Start.Before(window.end) && window.start.Before(engagement.End) {
+					sameStart, sameEnd = engagement.Start, engagement.End
+					if sameStart.Before(window.start) {
+						sameStart = window.start
+					}
+					if sameEnd.After(window.end) {
+						sameEnd = window.end
+					}
 				}
 			}
 		}
 	}
-	return true
+	if same {
+		return slotSame, sameStart, sameEnd
+	}
+	return slotDifferent, time.Time{}, time.Time{}
 }
 
 // cardDateMayOverlap is only a cheap rejection filter. Card dates are local
@@ -190,59 +261,68 @@ func loadAdoptedExclusions(ctx context.Context, root, issueNum, plans string, cu
 			return nil, fmt.Errorf("%s has no trustworthy completion", context)
 		}
 		saved, ledger, _, savedErr := completedMeasurementSnapshot(ctx, root, rec, completion, current.Snapshot.Repository, plans, true)
-		// Row 1: the adopted numeric is bounded by its saved measurement,
-		// not by a claim that might remain on its completed card.
-		if savedErr == nil && saved != nil && !savedMeasurementMayOverlap(saved.Since, saved.Until, since, until) {
+		window := windowMissing
+		if savedErr == nil && saved != nil {
+			window = windowOverlap
+			if !savedMeasurementMayOverlap(saved.Since, saved.Until, since, until) {
+				window = windowDisjoint
+			}
+		}
+		// The saved numeric's own window, not its retained claim, is the
+		// first and strongest disjointness proof.
+		if classifyAdopted(window, slotUnknown) == adoptionSkip {
 			continue
 		}
+		slot := slotUnknown
+		var slotErr error
 		if windows == nil {
-			windows, err = candidateSlotWindows(current)
-			if err != nil {
-				return nil, err
+			var candidateWindows []actualSlotWindow
+			candidateWindows, slotErr = candidateSlotWindows(current)
+			if slotErr == nil && len(candidateWindows) == 0 {
+				slotErr = fmt.Errorf("candidate has no pinned slot windows")
 			}
-			if len(windows) == 0 {
-				return nil, fmt.Errorf("candidate has no pinned slot windows")
+			if slotErr == nil {
+				windows = candidateWindows
 			}
 		}
-		events, err := repo.EngagementHistory(rs.Ref, rec.Card.Path)
-		if err != nil {
-			return nil, fmt.Errorf("issue #%s adopted actual engagement: %w", id, err)
-		}
-		cutoff := until
-		if saved != nil && savedErr == nil {
-			cutoff, _ = time.Parse(time.RFC3339Nano, saved.Until)
-		}
-		engagements, err := tracker.DeriveEngagements(events, cutoff)
-		if err != nil {
-			return nil, fmt.Errorf("issue #%s adopted actual engagement: %w", id, err)
-		}
-		// Row 2: even a legacy actual with no replay cannot occupy this slot
-		// when every pinned owner was in a different workspace.
-		if differentSlot(engagements, windows) {
-			continue
-		}
-		// Row 4: a missing saved window can no longer bound same-slot
-		// credit. Refuse rather than treating a claim as the measurement.
-		if savedErr != nil {
-			return nil, fmt.Errorf("%s has no trustworthy saved window: %w", context, savedErr)
-		}
-		if saved == nil {
-			return nil, fmt.Errorf("%s has no trustworthy saved window", context)
-		}
-		relevant := false
 		var overlapStart, overlapEnd time.Time
-		for _, engagement := range engagements {
-			for _, owner := range engagement.Owners {
-				if start, end, ok := overlappingSlotInterval(owner.Workspace, engagement.Start, engagement.End, windows); ok {
-					relevant = true
-					overlapStart, overlapEnd = start, end
+		if slotErr == nil {
+			var events []tracker.OwnershipEvent
+			events, slotErr = repo.EngagementHistory(rs.Ref, rec.Card.Path)
+			if slotErr == nil {
+				cutoff := until
+				if window == windowOverlap {
+					cutoff, _ = time.Parse(time.RFC3339Nano, saved.Until)
+				}
+				var engagements []tracker.EngagementWindow
+				engagements, slotErr = tracker.DeriveEngagements(events, cutoff)
+				if slotErr == nil {
+					slot, overlapStart, overlapEnd = adoptedSlotRelationship(engagements, windows)
 				}
 			}
 		}
-		if !relevant {
+		switch classifyAdopted(window, slot) {
+		case adoptionSkip:
 			continue
+		case adoptionRefuse:
+			if savedErr != nil {
+				return nil, fmt.Errorf("%s has no trustworthy saved window: %w", context, savedErr)
+			}
+			if saved == nil {
+				return nil, fmt.Errorf("%s has no trustworthy saved window", context)
+			}
+			if slotErr != nil {
+				return nil, fmt.Errorf("%s has unknown slot relationship: %w", context, slotErr)
+			}
+			return nil, fmt.Errorf("%s has unknown slot relationship during overlapping saved window %s → %s", context, saved.Since, saved.Until)
+		case adoptionReplay:
+			// Only a proven same-slot overlap may use the retained replay.
 		}
-		context = fmt.Sprintf("issue #%s adopted actual overlaps this slot during %s → %s", id, overlapStart.Format(time.RFC3339Nano), overlapEnd.Format(time.RFC3339Nano))
+		if overlapStart.IsZero() {
+			context = fmt.Sprintf("issue #%s adopted actual has overlapping saved window %s → %s and the same pinned slot", id, saved.Since, saved.Until)
+		} else {
+			context = fmt.Sprintf("issue #%s adopted actual overlaps this slot during %s → %s", id, overlapStart.Format(time.RFC3339Nano), overlapEnd.Format(time.RFC3339Nano))
+		}
 		prior, err := resolveOwnedReplay(ctx, root, id, *saved, ledger)
 		if err != nil {
 			return nil, fmt.Errorf("%s but cannot be replayed: %w", context, err)

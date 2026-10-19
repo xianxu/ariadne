@@ -95,6 +95,58 @@ func TestSavedAdoptionEndedBeforeLaterClaim(t *testing.T) {
 	}
 }
 
+func TestAdoptedRelevanceAllWindowAndSlotStates(t *testing.T) {
+	cases := []struct {
+		window adoptedWindowState
+		slot   adoptedSlotState
+		want   adoptedDecision
+	}{
+		{windowDisjoint, slotDifferent, adoptionSkip},
+		{windowDisjoint, slotSame, adoptionSkip},
+		{windowDisjoint, slotUnknown, adoptionSkip},
+		{windowOverlap, slotDifferent, adoptionSkip},
+		{windowOverlap, slotSame, adoptionReplay},
+		{windowOverlap, slotUnknown, adoptionRefuse},
+		{windowMissing, slotDifferent, adoptionSkip},
+		{windowMissing, slotSame, adoptionRefuse},
+		{windowMissing, slotUnknown, adoptionRefuse},
+	}
+	for _, tc := range cases {
+		if got := classifyAdopted(tc.window, tc.slot); got != tc.want {
+			t.Errorf("window=%v slot=%v: got %v want %v", tc.window, tc.slot, got, tc.want)
+		}
+	}
+}
+
+func TestAdoptedSlotStateRequiresProof(t *testing.T) {
+	start := time.Date(2026, 10, 14, 0, 0, 0, 0, time.UTC)
+	candidate := []actualSlotWindow{{slot: "ariadne:6", start: start, end: start.Add(time.Hour)}}
+	owner := func(slot string) issue.Claimant { return issue.Claimant{Workspace: slot} }
+	cases := []struct {
+		name        string
+		engagements []tracker.EngagementWindow
+		windows     []actualSlotWindow
+		want        adoptedSlotState
+	}{
+		{"same", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("ariadne:6")}}}, candidate, slotSame},
+		{"same slot with disjoint source windows", []tracker.EngagementWindow{{Start: start.Add(-time.Hour), End: start, Owners: []issue.Claimant{owner("ariadne:6")}}}, candidate, slotSame},
+		{"different", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("ariadne:7")}}}, candidate, slotDifferent},
+		{"empty owner workspace", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("")}}}, candidate, slotUnknown},
+		{"absent engagements", nil, candidate, slotUnknown},
+		{"absent owners", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour)}}, candidate, slotUnknown},
+		{"mixed different and unknown", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("ariadne:7"), owner("")}}}, candidate, slotUnknown},
+		{"mixed same and unknown", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("ariadne:6"), owner("")}}}, candidate, slotUnknown},
+		{"candidate missing slot", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("ariadne:7")}}}, []actualSlotWindow{{start: start, end: start.Add(time.Hour)}}, slotUnknown},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got, _, _ := adoptedSlotRelationship(tc.engagements, tc.windows); got != tc.want {
+				t.Fatalf("slot relationship=%v want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 // The candidate's parked claim spans #649's adopted work. Its own scoped
 // commit would otherwise claim that entire transcript run (#636's shape).
 func TestParkedClaimExcludesOtherAdoptedIssueInSameSlot(t *testing.T) {
@@ -110,6 +162,8 @@ func TestParkedClaimExcludesOtherAdoptedIssueInSameSlot(t *testing.T) {
 		path, card, detailPath, detail := seededIssue(t, id, "other-slot")
 		cards[path], details[detailPath], otherPaths[i] = card, detail, path
 	}
+	unknownPath, unknownCard, unknownDetail, unknownBody := seededIssue(t, "000658", "unknown-slot")
+	cards[unknownPath], details[unknownDetail] = unknownCard, unknownBody
 	r := newTrackerRepo(t, cards, details)
 	ownerRoot := filepath.Join(t.TempDir(), "owner")
 	testfix.Git(t, r.root, "worktree", "add", "-q", "-b", "000636-parked", ownerRoot)
@@ -262,6 +316,38 @@ func TestParkedClaimExcludesOtherAdoptedIssueInSameSlot(t *testing.T) {
 				t.Fatalf("%d unrelated adoptions caused replay or lost same-slot protection: intervals=%+v err=%v", i+1, intervals, err)
 			}
 		}
+	}
+	// BR-5's #649/#636 shape with a second adopted card whose claimant
+	// workspace is empty: saved time overlaps, but neither a same nor a
+	// different slot is proven. It must refuse instead of recounting.
+	unknown := owner
+	unknown.Workspace = ""
+	update("000658", "claim-658", 15, func(raw []byte) ([]byte, error) {
+		return issue.SetCardClaimant(raw, unknown)
+	})
+	unknownGate := gatestate.Ledger{Gate: "boundary-review", IssueNum: 658, IDPrefix: "BR", Rounds: []gatestate.Round{{N: 1, Timestamp: saved.Until, Dispatched: saved.Until, Reviewed: saved.CodeHead, ActualInputs: &saved}}}
+	writeRepoFile(t, r.root, "workshop/plans/000658-unknown-slot-close-gate.md", gatestate.Render(unknownGate, "fixture"))
+	testfix.Git(t, r.root, "add", "workshop/plans/000658-unknown-slot-close-gate.md")
+	ownedFixtureAt(t, 41)
+	testfix.Git(t, r.root, "commit", "-qm", "#658: close evidence")
+	unknownEvidence := r.git("rev-parse", "HEAD")
+	update("000658", "close-658", 42, func(raw []byte) ([]byte, error) {
+		raw, err := issue.SetCardCompletion(raw, issue.Completion{Token: "close-658", Repository: saved.Repository, ReviewedHEAD: saved.CodeHead, EvidenceCommit: unknownEvidence})
+		if err != nil {
+			return nil, err
+		}
+		raw, err = issue.SetCardField(raw, "actual_hours", "0.17")
+		if err != nil {
+			return nil, err
+		}
+		raw, err = issue.SetCardField(raw, "updated", "2026-10-14")
+		if err != nil {
+			return nil, err
+		}
+		return issue.SetCardField(raw, "status", "codecomplete")
+	})
+	if _, err := loadAdoptedExclusions(context.Background(), r.root, "636", "", current); err == nil || !strings.Contains(err.Error(), "#658") || !strings.Contains(err.Error(), "slot") {
+		t.Fatalf("unknown claimant slot silently double-counted #658 with #636: %v", err)
 	}
 	unbound := *current
 	unbound.SourceSlots = map[string]string{}
