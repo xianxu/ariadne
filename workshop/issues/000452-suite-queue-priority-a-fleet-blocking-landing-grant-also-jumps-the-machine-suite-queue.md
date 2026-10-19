@@ -46,6 +46,7 @@ Durable design: [implementation plan](../plans/000452-suite-queue-priority-a-fle
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed — BR-1/BR-2 accepted in round 2; BR-3 plan table/file inventory now accurately distinguish modified runner from unchanged helpercapability.go. No runtime delta since cbd3a637. Real-helper regressions and focused family pass (63.600s / 0.069s); actual own-worktree binary smoke passes all 16 tests (32.322s). Final-code recorded suite 33012b468ed484ca9808f38f207b87eb is queued; its pass remains mandatory before landing. Prior full run passed 1657 cmd/sdlc tests and failed only existing #448 directory timeout; unchanged targeted diagnostic passed (58.567s). TL authorized private smoke instead of shared staging; atlas/help updated.; review verdict: SHIP
 
 ### 2026-10-18 — diagnosis and design checkpoint
 

@@ -184,3 +184,84 @@ findings:
    Add a `## Revisions` entry stating that subject/provider binding changed in `localcheck_run.go`, while `helpercapability.go` remains reused unchanged because optional environment metadata preserves the existing capability contract. Update the Core concepts row accordingly.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"a0b91489-4dad-4250-8aab-73d1fc311e20","repository":"github.com/xianxu/ariadne","issue_id":"000452","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/a54cf661db7e568a","reviewed_head":"cbd3a63740a3c87de7c8657da7a7fda0e1d14cf3","slot":"ariadne:3","requested_at":"2026-10-19T02:04:21.661143Z"},"phase":"finished","pid":22517,"started_at":"2026-10-19T02:04:21.991358Z","finished_at":"2026-10-19T02:06:47.499899Z","session_id":"01a151e7-1a59-7613-bf29-30afc1f04833","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T19:11:18-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 452 — suite queue priority: a fleet-blocking landing grant also jumps the machine suite queue |
+| repo | ariadne |
+| issue file | workshop/issues/000452-suite-queue-priority-a-fleet-blocking-landing-grant-also-jumps-the-machine-suite-queue.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 3a0012b449ff8488eb53b938ec591ca996ad46aa..0e36a07b0b8ff23f565224549d685ef68a7c4e36 |
+| command | sdlc close --issue 452 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-18T19:11:18-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation satisfies the Spec’s priority, FIFO, expiry, weight, and lifecycle requirements. BR-3’s documentation correction matches the code; no new findings remain. This review passes the close boundary. The plan’s recorded full-suite pass remains required before landing.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The controlled ticket-removal regression passes at head and fails with FileNotFoundError against the pre-fix helper loaded in memory.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The malformed-subject regression passes at head and fails with embedded-NUL ValueError against the pre-fix helper loaded in memory; validation prevents invalid identities reaching filesystem access.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Plan lines 26–27 now distinguish the modified localcheck_run.go binding from unchanged helpercapability.go; Task 2 and the Revisions entry at line 141 agree with the pinned implementation diff. This is a prose-only correction.
+```
+
+1. **Strengths**
+
+   - Grant authority remains centralized in `landingline.ValidGrants`; the new provider reads existing logs without creating a landing line.
+   - `Tickets.admission` ree elects under the allocation mutex and releases the queue token after unsuccessful scans, preserving weighted admission without reserving capacity.
+   - Real-helper tests control queue arrivals, capacity release, stopped waiters, cancellation, and grant changes.
+   - Atlas and embedded help document fallback and mixed-version rollout. No new public command or flag requires a README update.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Focused Go family passed: `cmd/sdlc` in 48.829s.
+   - Complete `landingline` package passed in 0.406s.
+   - Legacy lock-helper suite passed.
+   - Six Python unit regressions passed.
+   - BR-1 and BR-2 both demonstrated failure without their fixes.
+   - Reviewed-range whitespace check passed; tracked checkout remained clean.
+   - The recorded full suite was not rerun during this review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — Pass:** existing grant policy and JSONL reader reused.
+   - **ARCH-PURE — Pass:** deterministic ordering separated from process and filesystem operations; Core concepts classifications match.
+   - **ARCH-PURPOSE — Pass:** both recorded suites and direct make bind subjects and consume the shared authority.
+   - **ARCH-MOCK — Pass:** owned provider and helper run through production boundaries against portable, isolated fixtures.
+   - **ARCH-CONSTRAINTS — Pass:** counted cache tests, bounded provider transport, and all-or-none weighted scans exercise the declared envelope.
+   - **ARCH-SECURE — Pass:** persisted subjects validated; tickets cannot select executables; damaged evidence degrades visibly.
+   - **ARCH-ORDER — Pass:** serialized election and controlled sequence tests cover grant changes, expiry, death, cancellation, and stopped waiters.
+   - **ARCH-FUNERAL — Pass:** caches die with helpers, provider groups are reaped, and ticket/slot cleanup retains existing ownership.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"76215204-6e74-4de4-8cec-b8672a76154f","repository":"github.com/xianxu/ariadne","issue_id":"000452","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/268c07b459af1e60","reviewed_head":"0e36a07b0b8ff23f565224549d685ef68a7c4e36","slot":"ariadne:3","requested_at":"2026-10-19T02:09:21.910567Z"},"phase":"finished","pid":78552,"started_at":"2026-10-19T02:09:22.091911Z","finished_at":"2026-10-19T02:11:17.553782Z","session_id":"01a151eb-ae31-70f1-afed-5955ac4e6690","outcome":"returned"}] -->
