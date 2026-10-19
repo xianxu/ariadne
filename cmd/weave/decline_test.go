@@ -104,19 +104,25 @@ func TestCompileReportsStaleAndDependentDeclines(t *testing.T) {
 	}
 }
 
-func TestCompileDeclinedSymlinkRetiresAndTwoPathRowWarns(t *testing.T) {
+func TestCompileDeclinedSymlinkRetires(t *testing.T) {
 	_, derived := declineFixture(t, "")
 	compileOK(t, derived, false)
 	if _, err := os.Lstat(filepath.Join(derived, "shared.md")); err != nil {
 		t.Fatalf("symlink not lowered before the decline: %v", err)
 	}
 	mkfile(t, filepath.Join(derived, "construct", "base.manifest"),
-		"prose AGENTS.local.md\nsymlink selfdoc.md\ndecline shared.md\ndecline bootstrap.sh extra\n")
-	out := compileOK(t, derived, false)
+		"prose AGENTS.local.md\nsymlink selfdoc.md\ndecline shared.md\n")
+	compileOK(t, derived, false)
 	// A declined link is no longer produced, so its unchanged recorded link retires.
 	if _, err := os.Lstat(filepath.Join(derived, "shared.md")); !os.IsNotExist(err) {
 		t.Fatalf("declined symlink survived: %v", err)
 	}
+}
+
+func TestCompileTwoPathDeclineWarnsAndDeclinesNothing(t *testing.T) {
+	// First compile, so bootstrap.sh exists only if the ignored row did not decline it.
+	_, derived := declineFixture(t, "decline bootstrap.sh extra\n")
+	out := compileOK(t, derived, false)
 	if !strings.Contains(out, "weave: warning: decline takes one path; ignored the row: decline bootstrap.sh extra") {
 		t.Fatalf("a two-path decline was silent:\n%s", out)
 	}

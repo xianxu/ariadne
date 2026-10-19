@@ -37,7 +37,7 @@ func Decline(layers []Layer) []Layer {
 			continue
 		}
 		d := Declination{Path: path.Clean(in.Source)}
-		if in.Target != in.Source {
+		if path.Clean(in.Target) != d.Path {
 			d.Extra = in.Target
 		}
 		leaf.Declined = append(leaf.Declined, d)

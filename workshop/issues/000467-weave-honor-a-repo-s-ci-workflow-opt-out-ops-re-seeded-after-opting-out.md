@@ -75,3 +75,4 @@ Steps:
 ## Revisions
 
 - 2026-10-19 (close review): the docs step updated the `construct/base.manifest` header plus `atlas/workflow/base-layer.md` and `ci-merge-check.md`, not `construct/manifest.md` (it lists skills, not verbs). The spec's "CI workflows: opted out" report became the generic `weave: declined <path>: opted out of N inherited row(s): <verb target>, …` line, as approved by the hub.
+- Close review round 2 (SHIP, 0 Critical/Important, 2 Minor) — fixed in-round: the two-path check compares cleaned paths (`decline ./a a` is one path), and the two-path fixture now compiles from clean so it can fail on a regression.

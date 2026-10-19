@@ -102,3 +102,11 @@ func TestDeclineWithTwoPathsDeclinesNothing(t *testing.T) {
 		t.Fatalf("a two-path decline took effect: %+v", got)
 	}
 }
+
+func TestDeclineSamePathSpelledTwiceIsOnePath(t *testing.T) {
+	leaf := Layer{Intents: []intent.Intent{{Kind: intent.Decline, Source: "./a", Target: "a"}}}
+	got := Decline([]Layer{{Intents: []intent.Intent{row(intent.Seed, "a")}}, leaf})
+	if got[1].Declined[0].Extra != "" || len(got[0].Intents) != 0 {
+		t.Fatalf("one path spelled twice read as two: %+v", got[1].Declined)
+	}
+}
