@@ -54,7 +54,7 @@ var suiteAttemptV2Fields = []string{"outcome", "known_flakes", "rerun_of"}
 // suiteOutcomes are the outcome values a v2 attempt may record.
 var suiteOutcomes = map[flakes.Kind]bool{flakes.Passed: true, flakes.KnownFlakePassed: true, flakes.KnownFlakeAccept: true,
 	flakes.KnownFlakeTwice: true, flakes.Unknown: true, flakes.Unattributable: true, flakes.PersistentMain: true,
-	flakes.RegistryUnusable: true, flakes.RuleOff: true, flakes.TooManyKnownFlaky: true}
+	flakes.RegistryUnusable: true, flakes.RuleOff: true, flakes.TooManyKnownFlaky: true, flakes.RerunInconclusive: true}
 
 type suiteAttemptWriter struct{ ID, LogPath string }
 
@@ -318,7 +318,12 @@ func publishSuiteAttempt(root string, w *suiteAttemptWriter, a SuiteAttempt) (st
 	if err := log.Close(); err != nil {
 		return "", err
 	}
-	if a.Exit != 0 || a.TimedOut {
+	// A failure's log, and a known-flake rerun's (#394) whatever its exit,
+	// is kept immutably under its ID: the per-head legacy path below is
+	// rewritten by every later attempt on the head, so a rerun's evidence
+	// there would be overwritten by the suite attempt it reran.
+	immutable := a.Exit != 0 || a.TimedOut || a.RerunOf != ""
+	if immutable {
 		a.LogPath = filepath.Join("failed", a.ID+".log")
 		// Link is an exclusive, same-filesystem publication: even an ID
 		// collision cannot replace a prior failure's evidence.
@@ -339,12 +344,16 @@ func publishSuiteAttempt(root string, w *suiteAttemptWriter, a SuiteAttempt) (st
 	// Compatibility copy happens before the JSON commit marker. A failed copy
 	// leaves no published record that falsely claims a complete attempt.
 	from := w.LogPath
-	if a.Exit != 0 || a.TimedOut {
+	if immutable {
 		from = filepath.Join(root, a.LogPath)
 	}
-	legacy := filepath.Join(filepath.Dir(root), "local-checks", a.SHA, a.Check+".log")
-	if err := copySuiteLogAtomically(from, legacy, filepath.Dir(w.LogPath)); err != nil {
-		return "", fmt.Errorf("legacy log copy: %w", err)
+	// The legacy per-head copy is the suite's log; a rerun of a few tests
+	// never replaces it.
+	if a.RerunOf == "" {
+		legacy := filepath.Join(filepath.Dir(root), "local-checks", a.SHA, a.Check+".log")
+		if err := copySuiteLogAtomically(from, legacy, filepath.Dir(w.LogPath)); err != nil {
+			return "", fmt.Errorf("legacy log copy: %w", err)
+		}
 	}
 	data, err := json.Marshal(a)
 	if err != nil {

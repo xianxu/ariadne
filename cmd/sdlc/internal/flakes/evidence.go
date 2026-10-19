@@ -83,7 +83,7 @@ func Unexplained(all []Attempt, sha string, r Registry) []Attempt {
 }
 
 // Sort orders attempts by finish time, then ID, without changing all.
-var neverExplained = map[Kind]bool{Unattributable: true, KnownFlakeTwice: true, TooManyKnownFlaky: true, RuleOff: true}
+var neverExplained = map[Kind]bool{Unattributable: true, KnownFlakeTwice: true, TooManyKnownFlaky: true, RuleOff: true, RerunInconclusive: true}
 
 func Sort(all []Attempt) []Attempt {
 	s := slices.Clone(all)

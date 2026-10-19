@@ -77,3 +77,22 @@ func TestSuiteStatsFlakeNeedsPassAfterFailureCompleted(t *testing.T) {
 		t.Fatalf("pass ended before failure but counted as retry: %+v", got)
 	}
 }
+
+// A known-flake rerun (#394) confirms the flake but is not a suite run: it
+// adds no run, wall sample or slow unit (M2 review, BR-13).
+func TestSuiteStatsRerunIsEvidenceNotARun(t *testing.T) {
+	t0 := time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
+	f := func(x float64) *float64 { return &x }
+	sha := "cccccccccccccccccccccccccccccccccccccccc"
+	rows := []SuiteAttempt{
+		{ID: "a1", Repo: "ariadne", SHA: sha, Check: "suite", StartedAt: t0, FinishedAt: t0, Exit: 1, WallSeconds: f(600), QueueSeconds: f(1), Failures: []string{"pkg.TestFlaky"}},
+		{ID: "a2", Repo: "ariadne", SHA: sha, Check: "suite", StartedAt: t0.Add(time.Minute), FinishedAt: t0.Add(time.Minute), Exit: 0, WallSeconds: f(3), QueueSeconds: f(2), RerunOf: "a1", Units: []SuiteDuration{{"package", "pkg", 3}}},
+	}
+	s := aggregateSuiteAttempts(rows, t0.Add(-time.Hour), "ariadne")[0]
+	if s.Runs != 1 || s.FlakeDenominator != 1 || s.Wall.Samples != 1 || len(s.Slow) != 0 {
+		t.Fatalf("a rerun counted as a suite run: %+v", s)
+	}
+	if s.ConfirmedFlakeAttempts != 1 {
+		t.Fatalf("the rerun's pass must still confirm the flake: %+v", s)
+	}
+}

@@ -46,11 +46,7 @@ func savedAttemptRecord(a SuiteAttempt, logSHA string, tail []string, repo, sha,
 	if rec.Outcome == flakes.Passed {
 		rec.Outcome = "" // a plain pass carries no gate label
 	}
-	for _, e := range a.KnownFlakes {
-		if !slices.Contains(rec.KnownFlakeIssues, e.Issue) {
-			rec.KnownFlakeIssues = append(rec.KnownFlakeIssues, e.Issue)
-		}
-	}
+	rec.KnownFlakes = slices.Clone(a.KnownFlakes)
 	return rec, nil
 }
 
@@ -156,7 +152,8 @@ func postLocalCheckRecord(ctx context.Context, d localRunDeps, rec localRunRecor
 // republishSavedPass is merge's first resort for a missing check: a saved,
 // verified pass of this check on this exact head is posted instead of rerun.
 // ok is false when there is none (merge then runs the check).
-func republishSavedPass(ctx context.Context, d localRunDeps, check, sha string) (localRunRecord, bool, error) {
+func republishSavedPass(ctx context.Context, d localRunDeps, c localCheck, sha string) (localRunRecord, bool, error) {
+	check := c.Name
 	logDir, err := localCheckLogDir(d)
 	if err != nil {
 		return localRunRecord{}, false, nil
@@ -170,6 +167,11 @@ func republishSavedPass(ctx context.Context, d localRunDeps, check, sha string) 
 		fmt.Fprintf(d.Stderr, "[!] local check %s: not reusing the saved pass on %s: a later attempt exists and does not verify\n", check, abbrevSHA(sha))
 	}
 	if err != nil || !rec.passed() || !newest {
+		return localRunRecord{}, false, nil
+	}
+	// A saved known-flake pass is reused only while it still holds (#394).
+	if next := revalidateKnownFlake(ctx, d, c, rec.knownFlakeOutcome()); next.Kind != rec.Outcome {
+		fmt.Fprintf(d.Stderr, "[!] local check %s: not reusing the saved known-flake pass on %s: %s\n", check, abbrevSHA(sha), next.Reason)
 		return localRunRecord{}, false, nil
 	}
 	fmt.Fprintf(d.Stderr, "==> local check %s: publishing the saved pass on %s instead of rerunning (log %s)\n", check, abbrevSHA(sha), rec.LogPath)

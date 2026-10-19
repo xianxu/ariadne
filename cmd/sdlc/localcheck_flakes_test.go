@@ -63,7 +63,7 @@ func TestKnownFlakeGate(t *testing.T) {
 	t.Run("a registered failure reruns and lands with its issue", func(t *testing.T) {
 		d, sha, gh, stderr := localRunRepo(t, "acquired")
 		d.FlakeRegistry = gateRegistry(t, gateKnown)
-		asked := scriptRerun(t, "echo 'ok  o/r/pkg 0.1s'")
+		asked := scriptRerun(t, "echo '--- PASS: TestFlaky (0.00s)'; echo 'ok  o/r/pkg 0.1s'")
 		rec, err := runLocalCheck(ctx, d, suiteFailing(gateKnown), sha)
 		if err != nil || !rec.passed() || rec.Outcome != flakes.KnownFlakePassed {
 			t.Fatalf("%+v %v\n%s", rec, err, stderr)
@@ -164,6 +164,64 @@ func TestKnownFlakeGate(t *testing.T) {
 		rows := gateAttempts(t, d)
 		if len(rows) != 1 || rows[0].Exit != 1 || rows[0].Outcome != "" {
 			t.Fatalf("the failed attempt stays, unjudged: %+v", rows)
+		}
+	})
+	t.Run("a suite killed by its timeout never lands (BR-11)", func(t *testing.T) {
+		d, sha, gh, _ := localRunRepo(t, "acquired")
+		d.FlakeRegistry = gateRegistry(t, gateKnown)
+		asked := scriptRerun(t, "echo '--- PASS: TestFlaky (0.00s)'")
+		c := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", "echo '--- FAIL o/r/pkg TestFlaky'; echo '--- FAIL o/r/pkg'; sleep 5"}, TimeoutMinutes: 1}
+		rec, err := runLocalCheck(ctx, d, c, sha)
+		if err != nil || rec.passed() || !rec.TimedOut || rec.Outcome != flakes.Unattributable || len(*asked) != 0 || gh.statuses[sha]["sdlc-local/suite"] != "failure" {
+			t.Fatalf("%+v %v asked %v statuses %v", rec, err, *asked, gh.statuses[sha])
+		}
+	})
+	t.Run("a rerun that shows no PASS proves nothing", func(t *testing.T) {
+		d, sha, gh, _ := localRunRepo(t, "acquired")
+		d.FlakeRegistry = gateRegistry(t, gateKnown)
+		scriptRerun(t, "echo 'ok  o/r/pkg 0.1s [no tests to run]'")
+		rec, err := runLocalCheck(ctx, d, suiteFailing(gateKnown), sha)
+		if err != nil || rec.passed() || rec.Outcome != flakes.RerunInconclusive || gh.statuses[sha]["sdlc-local/suite"] != "failure" {
+			t.Fatalf("%+v %v", rec, err)
+		}
+	})
+	t.Run("the flake issue closes during the rerun: blocked, and not reused (BR-12)", func(t *testing.T) {
+		d, sha, gh, stderr := localRunRepo(t, "acquired")
+		open := gateRegistry(t, gateKnown)
+		closed := false
+		d.FlakeRegistry = func(ctx context.Context) (flakes.Registry, error) {
+			if closed {
+				return flakes.Registry{}, nil
+			}
+			return open(ctx)
+		}
+		prev := knownFlakeRerunArgv
+		t.Cleanup(func() { knownFlakeRerunArgv = prev })
+		knownFlakeRerunArgv = func([]string) ([]string, error) {
+			closed = true // the issue closes while the rerun runs
+			return []string{"sh", "-c", "echo '--- PASS: TestFlaky (0.00s)'"}, nil
+		}
+		rec, err := runLocalCheck(ctx, d, suiteFailing(gateKnown), sha)
+		if err != nil || rec.passed() || rec.Outcome != flakes.Unknown || gh.statuses[sha]["sdlc-local/suite"] != "failure" || !strings.Contains(stderr.String(), "no longer a known flake") {
+			t.Fatalf("%+v %v\n%s", rec, err, stderr)
+		}
+	})
+	t.Run("a saved known-flake pass is reused only while it holds", func(t *testing.T) {
+		d, sha, gh, _ := localRunRepo(t, "acquired")
+		d.FlakeRegistry = gateRegistry(t, gateKnown)
+		scriptRerun(t, "echo '--- PASS: TestFlaky (0.00s)'")
+		c := suiteFailing(gateKnown)
+		if rec, err := runLocalCheck(ctx, d, c, sha); err != nil || !rec.passed() {
+			t.Fatalf("%+v %v", rec, err)
+		}
+		delete(gh.statuses, sha)
+		d.FlakeRegistry = func(context.Context) (flakes.Registry, error) { return flakes.Registry{}, nil } // the issue closed
+		if _, ok, err := republishSavedPass(ctx, d, c, sha); ok || err != nil {
+			t.Fatalf("reused a saved known-flake pass whose issue closed: %v %v", ok, err)
+		}
+		d.FlakeRegistry = gateRegistry(t, gateKnown)
+		if rec, ok, err := republishSavedPass(ctx, d, c, sha); !ok || err != nil || !rec.passed() || gh.statuses[sha]["sdlc-local/suite"] != "success" {
+			t.Fatalf("a still-valid saved known-flake pass: %+v %v %v\n%s", rec, ok, err, d.Stderr)
 		}
 	})
 	t.Run("a baseline never classifies", func(t *testing.T) {

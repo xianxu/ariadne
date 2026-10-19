@@ -257,8 +257,13 @@ type localRunRecord struct {
 	Tail      []string
 	// Outcome is the known-flake gate's decision on a failed suite (#394);
 	// "" when no gate ran. A known-flake landing passes despite its exit.
-	Outcome          flakes.Kind
-	KnownFlakeIssues []string
+	Outcome     flakes.Kind
+	KnownFlakes []flakes.Entry
+}
+
+// knownFlakeOutcome is the record's gate decision, for revalidation.
+func (r localRunRecord) knownFlakeOutcome() flakes.Outcome {
+	return flakes.Outcome{Kind: r.Outcome, Known: r.KnownFlakes}
 }
 
 func (r localRunRecord) passed() bool {
@@ -283,7 +288,7 @@ func (r localRunRecord) statusDescription() string {
 		hash = hash[:12]
 	}
 	s := fmt.Sprintf("%s in %s · log sha256:%s · %s", outcome, r.Duration.Round(time.Second), hash, r.Host)
-	switch issues := "#" + strings.Join(r.KnownFlakeIssues, ",#"); r.Outcome {
+	switch issues := "#" + strings.Join(r.knownFlakeOutcome().Issues(), ",#"); r.Outcome {
 	case flakes.KnownFlakePassed:
 		s = "pass · known flake " + issues + " rerun · " + s
 	case flakes.KnownFlakeAccept:

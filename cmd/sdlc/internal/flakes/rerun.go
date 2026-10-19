@@ -28,6 +28,7 @@ func RerunCommand(tests []string) ([]string, error) {
 			funcs = append(funcs, fn)
 		}
 	}
-	argv := []string{"go", "test", "-count=1", "-run", "^(" + strings.Join(funcs, "|") + ")$"}
+	// -v so each test that ran prints its PASS line (RerunMissing).
+	argv := []string{"go", "test", "-count=1", "-v", "-run", "^(" + strings.Join(funcs, "|") + ")$"}
 	return append(argv, pkgs...), nil
 }

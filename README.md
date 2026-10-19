@@ -503,6 +503,13 @@ from this machine's test-stats store (or `--evidence TEXT` for a CI run); withou
 tests. `sdlc flake list` is the TL's local daily view: the registry with each
 issue's owner and age, same-head flakes not yet registered, and failures nothing
 explains, each with its log. CI failures are shown as not covered until #451.
+When a recorded suite (`local-check run`, or merge's) fails only on known flakes, it
+reruns just those tests once on the same head. Each must show a PASS line, and its
+flake issue must still be open when the result is posted; then the status reads
+"pass · known flake #N rerun". Any other failure blocks: an unregistered test, a
+build error or timeout, or a known flake failing again. The suite's `known_flakes`
+key in `.sdlc/local-checks.json` (`rerun`, the default; `accept`, which posts the
+pass with the issue link and no rerun; `off`) is the operator's policy.
 
 Run `sdlc local-check run --name suite` on the pushed issue head before close.
 After it passes, close that tested branch without manually integrating each

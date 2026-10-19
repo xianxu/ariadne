@@ -66,13 +66,16 @@ THE SUITE (#332)
   lists it in flake_tests (`sdlc flake register`). When the suite fails and
   every failure is a named, known-flake test, the run reruns just those tests
   once on the same head (`go test -run`, weight 1, its own slot and lease, so
-  cancel reaches it). A passing rerun is landing evidence: every test has then
-  passed once on the exact head. The status reads "pass · known flake #N
+  cancel reaches it), within the check's timeout. A rerun that shows each test
+  passing ("--- PASS"), with its flake issue still open when the result is
+  posted, is landing evidence: every test has then passed once on the exact
+  head. A saved known-flake pass is reused or republished only while it still
+  holds. The status reads "pass · known flake #N
   rerun", and both attempts are kept in test-stats, linked. These block:
     - any failure that is not a registered test ("unknown-failure");
     - a failure that names no test, such as a build error, a timeout or a
       crashed shard ("unattributable-failure");
-    - a known flake that fails the rerun too;
+    - a known flake that fails the rerun too, or whose rerun shows no PASS;
     - more than 5 at once;
     - a registry that cannot be read (a fresh tracker read is required).
   An interrupted rerun posts nothing. known_flakes: accept records the pass

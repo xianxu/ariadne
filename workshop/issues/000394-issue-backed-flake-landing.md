@@ -108,3 +108,4 @@ Filed from #390's operator-approved flake/landing decision. The weekly snapshot 
   - TestKnownFlakeGate covers: rerun lands, rerun fails, unknown (no rerun), accept, registry unavailable, unattributable, an interrupted rerun posting nothing, and a baseline that never classifies.
   - Help: local-check, merge and flake register. Atlas updated.
 - 2026-10-18: the hub's quiet hold for the operator's disk trace. I stopped the targeted run on request and will rerun it when the hold lifts.
+- M2 boundary review round 1 (REWORK) answered in the plan's Revisions. BR-11, the Critical: a timed-out suite could land on a partial log; failure signals the log can't name are now unattributed, and a rerun needs a PASS line per test. BR-12: revalidation at the post, at reuse and at republish. BR-13: reruns are evidence, not suite runs, with their logs immutable per ID. BR-14: docs. BR-15: tests. The three Minors are fixed too.

@@ -219,7 +219,11 @@ func readWeeklyEvidence(ctx context.Context, repo, root string, window WeeklyWin
 	if err != nil {
 		e.CoverageUnknown = append(e.CoverageUnknown, "suite attempts: "+err.Error())
 	} else {
-		e.Attempts = attempts
+		for _, a := range attempts {
+			if a.RerunOf == "" { // a known-flake rerun (#394) is not a full suite
+				e.Attempts = append(e.Attempts, a)
+			}
+		}
 		for _, warning := range warnings {
 			e.Warnings = append(e.Warnings, "suite attempts: "+warning)
 			e.CoverageUnknown = append(e.CoverageUnknown, "suite attempts: "+warning)

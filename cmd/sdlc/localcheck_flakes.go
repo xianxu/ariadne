@@ -74,7 +74,9 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 	fmt.Fprintf(d.Stderr, "==> local check %s: rerunning %s on %s (known flakes %s)\n", g.check.Name, strings.Join(argv, " "), abbrevSHA(g.sha), strings.Join(o.Issues(), ", "))
 	// Weight 1: a few named tests, not the sharded suite. Its own lease and
 	// slot, released when it exits (#383), so cancel reaches it too.
-	run, err := runUnderSlot(ctx, d, g.wt, g.helper, g.logDir, g.check.Name, g.sha, 1, argv, w.LogPath, knownFlakeRerunTimeout)
+	// Bounded by the check's own timeout as well (its declared envelope).
+	timeout := min(knownFlakeRerunTimeout, time.Duration(g.check.TimeoutMinutes)*d.minute)
+	run, err := runUnderSlot(ctx, d, g.wt, g.helper, g.logDir, g.check.Name, g.sha, 1, argv, w.LogPath, timeout)
 	if err != nil {
 		return flakes.Outcome{}, fmt.Errorf("known-flake rerun: %w", err)
 	}
@@ -87,6 +89,16 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 		return flakes.Outcome{}, fmt.Errorf("known-flake rerun log: %w", err)
 	}
 	facts := parseSuiteLogFacts(string(rerunLog))
+	// The rerun proves only what its log shows passing (#394 M2 review): a
+	// timeout, or a named test with no PASS line, is inconclusive.
+	if run.TimedOut {
+		facts.Unattributed = append(facts.Unattributed, "the rerun timed out")
+	}
+	if run.Exit == 0 && !run.TimedOut {
+		for _, t := range flakes.RerunMissing(string(rerunLog), flakes.Tests(o.Known)) {
+			facts.Unattributed = append(facts.Unattributed, t+" did not pass in the rerun log")
+		}
+	}
 	in.Rerun = &flakes.Result{Passed: run.Exit == 0 && !run.TimedOut, Failures: facts.Failures, Unattributed: facts.Unattributed}
 	o = flakes.Classify(in)
 	queueSeconds, wallSeconds := run.QueueWait.Seconds(), run.Duration.Seconds()
@@ -110,4 +122,24 @@ func gateFlakeRegistry(root string) func(ctx context.Context) (flakes.Registry, 
 		r, _, err := loadFlakeRegistry(ctx, filepath.Join(root, envOr("WF_ISSUES_DIR", "workshop/issues")))
 		return r, err
 	}
+}
+
+// revalidateKnownFlake rereads the registry just before a known-flake landing
+// is posted (#394 M2 review, BR-12): the rerun took minutes, and its issue may
+// have closed. The policy is the run's own declaration, read from main when
+// the run began; republish rereads both (republishRevalidates).
+func revalidateKnownFlake(ctx context.Context, d localRunDeps, c localCheck, o flakes.Outcome) flakes.Outcome {
+	if o.Kind != flakes.KnownFlakePassed && o.Kind != flakes.KnownFlakeAccept {
+		return o
+	}
+	var reg flakes.Registry
+	regErr := errors.New("no known-flake registry is available to this run")
+	if d.FlakeRegistry != nil {
+		reg, regErr = d.FlakeRegistry(ctx)
+	}
+	next := flakes.Revalidate(o, reg, regErr, c.knownFlakePolicy())
+	if next.Kind != o.Kind {
+		fmt.Fprintf(d.Stderr, "==> local check %s: not landing: %s\n", c.Name, next.Reason)
+	}
+	return next
 }

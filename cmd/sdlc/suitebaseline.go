@@ -47,15 +47,16 @@ func diagnoseSuiteFailure(ctx context.Context, gateErr error, main string, deps 
 			labels = append(labels, "introduced: "+strings.Join(introduced, ", "))
 		}
 		if len(preexisting) > 0 {
-			labels = append(labels, "pre-existing: "+strings.Join(preexisting, ", "))
-		}
-		// #394: a failure main shares is a persistent main failure, never
-		// flake-eligible without same-head fail→pass evidence. The gate's own
-		// classifier names it, from the unrecorded baseline.
-		o := flakes.Classify(flakes.Input{Attempt: flakes.Result{Failures: merged},
-			MainBaseline: &flakes.Result{Passed: baseline.passed(), Failures: base}})
-		if o.Kind == flakes.PersistentMain {
-			labels = append(labels, o.Reason+" (not a known flake)")
+			label := "pre-existing: " + strings.Join(preexisting, ", ")
+			// #394: a failure main shares is a persistent main failure, never
+			// flake-eligible without same-head fail→pass evidence; the gate's
+			// classifier decides it, from the unrecorded baseline.
+			o := flakes.Classify(flakes.Input{Attempt: flakes.Result{Failures: merged},
+				MainBaseline: &flakes.Result{Passed: baseline.passed(), Failures: base}})
+			if o.Kind == flakes.PersistentMain {
+				label += " (a persistent main failure, never a known flake)"
+			}
+			labels = append(labels, label)
 		}
 	}
 	if baseline.passed() {

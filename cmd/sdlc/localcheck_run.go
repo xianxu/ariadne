@@ -145,6 +145,14 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		} else {
 			fmt.Fprintf(d.Stderr, "[!] local check %s: log too large for timing/failure parser; raw log retained\n", c.Name)
 		}
+		// A failure the log cannot name (#394 M2 review, BR-11): a run killed
+		// by its timeout, or one that never reported an exit, is never a known
+		// flake, whatever its partial log says.
+		if rec.TimedOut {
+			facts.Unattributed = append(facts.Unattributed, "the suite timed out")
+		} else if rec.Exit == -1 {
+			facts.Unattributed = append(facts.Unattributed, "the suite did not start or report an exit")
+		}
 		var stepErr error
 		switch {
 		case rec.passed():
@@ -156,8 +164,9 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 				storeRoot: storeRoot, failedID: writer.ID, failedFacts: facts, repo: d.Repo, slot: attempt.Slot,
 				agent: attempt.Agent, model: attempt.Model, effort: attempt.Effort})
 			if stepErr == nil {
+				o = revalidateKnownFlake(ctx, d, c, o)
 				attempt.Outcome, attempt.KnownFlakes = string(o.Kind), o.Known
-				rec.Outcome, rec.KnownFlakeIssues = o.Kind, o.Issues()
+				rec.Outcome, rec.KnownFlakes = o.Kind, o.Known
 			}
 		}
 		gateErr = stepErr

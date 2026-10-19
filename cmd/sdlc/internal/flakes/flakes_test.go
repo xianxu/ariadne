@@ -152,7 +152,7 @@ func TestEvidence(t *testing.T) {
 
 func TestRerunCommand(t *testing.T) {
 	got, err := RerunCommand([]string{tA, tC, tB})
-	want := []string{"go", "test", "-count=1", "-run", "^(TestA|TestC|TestB)$", "github.com/x/r/pkg/a", "github.com/x/r/pkg/b"}
+	want := []string{"go", "test", "-count=1", "-v", "-run", "^(TestA|TestC|TestB)$", "github.com/x/r/pkg/a", "github.com/x/r/pkg/b"}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Errorf("%v %v", got, err)
 	}
@@ -166,5 +166,46 @@ func TestRerunCommand(t *testing.T) {
 	}
 	if _, err := ParsePolicy("sometimes"); err == nil {
 		t.Error("a bad policy parsed")
+	}
+}
+
+// A landing is rechecked just before it is posted (#394 M2 review, BR-12).
+func TestRevalidate(t *testing.T) {
+	r := registry(t)
+	landed := Outcome{Kind: KnownFlakePassed, Known: []Entry{{Test: tA, Issue: "000500"}}}
+	if got := Revalidate(landed, r, nil, PolicyRerun); got.Kind != KnownFlakePassed {
+		t.Errorf("still valid: %s", got.Kind)
+	}
+	closed, _ := BuildRegistry(nil, open)
+	if got := Revalidate(landed, closed, nil, PolicyRerun); got.Kind != Unknown || !strings.Contains(got.Reason, "no longer a known flake") {
+		t.Errorf("the issue closed during the run: %s %q", got.Kind, got.Reason)
+	}
+	if got := Revalidate(landed, r, nil, PolicyOff); got.Kind != RuleOff {
+		t.Errorf("the rule turned off: %s", got.Kind)
+	}
+	if got := Revalidate(landed, r, errors.New("tracker down"), PolicyRerun); got.Kind != RegistryUnusable {
+		t.Errorf("an unreadable registry: %s", got.Kind)
+	}
+	accepted := Outcome{Kind: KnownFlakeAccept, Known: landed.Known}
+	if got := Revalidate(accepted, r, nil, PolicyRerun); got.Kind != Unknown {
+		t.Errorf("accept no longer allowed: %s", got.Kind)
+	}
+	if got := Revalidate(Outcome{Kind: Unknown}, r, nil, PolicyRerun); got.Kind != Unknown {
+		t.Errorf("a non-landing passes through: %s", got.Kind)
+	}
+}
+
+// A rerun proves only what its log shows passing (#394 M2 review).
+func TestRerunEvidence(t *testing.T) {
+	log := "=== RUN   TestA\n--- PASS: TestA (0.01s)\nok  github.com/x/r/pkg/a 0.1s\n"
+	if m := RerunMissing(log, []string{tA}); len(m) != 0 {
+		t.Errorf("TestA passed: missing %v", m)
+	}
+	if m := RerunMissing("ok  github.com/x/r/pkg/a 0.1s [no tests to run]\n", []string{tA}); len(m) != 1 {
+		t.Errorf("no tests ran: missing %v", m)
+	}
+	got := Classify(Input{Attempt: Result{Failures: []string{tA}}, Registry: registry(t), Rerun: &Result{Passed: true, Unattributed: []string{"the rerun timed out"}}})
+	if got.Kind != RerunInconclusive || got.Kind.Lands() {
+		t.Errorf("an inconclusive rerun: %s", got.Kind)
 	}
 }

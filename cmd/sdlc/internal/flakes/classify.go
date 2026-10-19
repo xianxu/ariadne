@@ -48,6 +48,7 @@ const (
 	RegistryUnusable  Kind = "known-flake-rule-unavailable"
 	RuleOff           Kind = "failed" // policy off: the failure blocks as it always did
 	TooManyKnownFlaky Kind = "too-many-known-flakes"
+	RerunInconclusive Kind = "known-flake-rerun-inconclusive" // timed out, or a named test did not run
 )
 
 // Lands reports whether an outcome is passing landing evidence.
@@ -147,6 +148,9 @@ func Classify(in Input) Outcome {
 	if in.Rerun == nil {
 		return Outcome{Kind: NeedRerun, Known: known, Reason: "known flake: rerunning " + strings.Join(tests(known), ", ")}
 	}
+	if len(in.Rerun.Unattributed) > 0 {
+		return Outcome{Kind: RerunInconclusive, Known: known, Reason: "the known-flake rerun proved nothing: " + strings.Join(in.Rerun.Unattributed, "; ")}
+	}
 	if in.Rerun.Passed {
 		return Outcome{Kind: KnownFlakePassed, Known: known, Reason: "known flake: the rerun passed"}
 	}
@@ -162,4 +166,45 @@ func tests(es []Entry) []string {
 		out[i] = e.Test
 	}
 	return out
+}
+
+// Revalidate rechecks a known-flake landing just before it is posted, or
+// reposted from a saved attempt (#394 M2 review): the policy must still allow
+// it, and every test it relied on must still be registered to an open issue.
+// A rerun can take minutes, and a saved attempt can be days old, so the flake
+// issue may have closed or the operator may have turned the rule off. Any
+// other outcome passes through unchanged.
+func Revalidate(o Outcome, r Registry, regErr error, policy Policy) Outcome {
+	if o.Kind != KnownFlakePassed && o.Kind != KnownFlakeAccept {
+		return o
+	}
+	switch {
+	case policy == PolicyOff:
+		return Outcome{Kind: RuleOff, Known: o.Known, Reason: "the known-flake rule is now off"}
+	case o.Kind == KnownFlakeAccept && policy != PolicyAccept:
+		return Outcome{Kind: Unknown, Known: o.Known, Reason: "known flakes are no longer accepted without a rerun (policy " + string(policy) + ")"}
+	case regErr != nil:
+		return Outcome{Kind: RegistryUnusable, Known: o.Known, Reason: regErr.Error()}
+	}
+	for _, e := range o.Known {
+		if _, ok := r.Lookup(e.Test); !ok {
+			return Outcome{Kind: Unknown, Known: o.Known, Unknown: []string{e.Test},
+				Reason: e.Test + " is no longer a known flake (issue #" + e.Issue + " closed or dropped it)"}
+		}
+	}
+	return o
+}
+
+// RerunMissing lists the tests a rerun log does not show passing. The rerun
+// runs `go test -v`, so each named test prints "--- PASS: <name> (…)"; a run
+// that matched no test exits 0 without it, which proves nothing.
+func RerunMissing(log string, tests []string) []string {
+	var missing []string
+	for _, t := range tests {
+		_, fn, _ := SplitTest(t)
+		if !strings.Contains(log, "--- PASS: "+fn+" (") {
+			missing = append(missing, t)
+		}
+	}
+	return missing
 }
