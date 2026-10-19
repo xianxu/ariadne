@@ -25,6 +25,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/scratchdisk"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
@@ -284,6 +285,19 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 	if heldBy != "" {
 		cmd.Env = append(cmd.Env, "WF_TEST_LOCK_HELD_BY="+heldBy)
 	}
+	// The RAM disk (#468): its env comes last so it wins, and the leak report
+	// compares the SSD temp folders across the run.
+	scratchEnv, _, dropScratch := prepareScratch(d.Stderr, check)
+	defer dropScratch()
+	cmd.Env = append(cmd.Env, scratchEnv...)
+	var ssdBefore map[string]bool
+	if scratchEnv != nil {
+		ssdBefore = listTemp(ssdTempDirs())
+		defer func() {
+			byPkg, unattributed := scratchLeaks(ssdBefore, listTemp(ssdTempDirs()), declaredTests(wt))
+			reportScratchLeaks(d.Stderr, check, byPkg, treeSizes(byPkg), unattributed)
+		}()
+	}
 	out := io.MultiWriter(logf, d.Stderr)
 	cmd.Stdout, cmd.Stderr = out, out
 	start := time.Now()
@@ -349,7 +363,8 @@ func detachedWorktree(git func(args ...string) (string, error), sha string) (str
 }
 
 func detachedWorktreeWithCleanup(git, cleanupGit func(args ...string) (string, error), sha string) (string, func(), error) {
-	wt, err := os.MkdirTemp("", localCheckTmpPrefix+"*")
+	// The checkout and its build go to the RAM disk when it has room (#468).
+	wt, err := scratchdisk.MkdirTemp(localCheckScratchSub, os.TempDir(), localCheckTmpPrefix+"*")
 	if err != nil {
 		return "", nil, err
 	}
@@ -524,13 +539,25 @@ func pruneLocalCheckLogs(dir string, keep int) {
 	}
 }
 
+// localCheckTempRoots places a run's checkout: <RAM disk>/local-checks when
+// the disk is mounted with room (#468), else the system temp folder, where it
+// always went. The sweep covers both.
+func localCheckTempRoots() (create string, all []string, note string) {
+	return scratchdisk.Roots(localCheckScratchSub, os.TempDir())
+}
+
+const localCheckScratchSub = "local-checks"
+
 // sweepStaleLocalWorktrees collects worktrees a killed run left behind: temp
 // directories past the longest possible run, then git's record of them.
 func sweepStaleLocalWorktrees(d localRunDeps) {
-	matches, _ := filepath.Glob(filepath.Join(os.TempDir(), localCheckTmpPrefix+"*"))
-	for _, m := range matches {
-		if info, err := os.Stat(m); err == nil && time.Since(info.ModTime()) > localCheckStaleAge {
-			_ = os.RemoveAll(m)
+	_, roots, _ := localCheckTempRoots()
+	for _, root := range roots {
+		matches, _ := filepath.Glob(filepath.Join(root, localCheckTmpPrefix+"*"))
+		for _, m := range matches {
+			if info, err := os.Stat(m); err == nil && time.Since(info.ModTime()) > localCheckStaleAge {
+				_ = os.RemoveAll(m)
+			}
 		}
 	}
 	_, _ = d.Git("worktree", "prune")

@@ -42,8 +42,8 @@ var Catalog = []Rule{
 	},
 	{
 		Name:     "tmp-literal",
-		Incident: "ariadne#342",
-		Message:  "a hardcoded /tmp path ignores TMPDIR, which the macOS sandbox requires; use os.TempDir, t.TempDir or os.MkdirTemp(\"\", …)",
+		Incident: "ariadne#342, ariadne#468",
+		Message:  "a hardcoded temp path (/tmp, /private/tmp, /var/folders, /Volumes/AgentScratch) ignores TMPDIR, which the macOS sandbox requires and which points suites at the TestScratch RAM disk; use os.TempDir, t.TempDir or os.MkdirTemp(\"\", …)",
 		Match:    tmpLiterals,
 	},
 	{
@@ -246,7 +246,7 @@ func tmpLiterals(f *ast.File, _ *CheckContext) []ast.Node {
 	var out []ast.Node
 	visit := func(call *ast.CallExpr) {
 		for _, arg := range call.Args {
-			if s, ok := stringLit(arg); ok && (s == "/tmp" || strings.HasPrefix(s, "/tmp/")) {
+			if s, ok := stringLit(arg); ok && isTempLiteral(s) {
 				out = append(out, arg)
 			}
 		}
@@ -257,6 +257,20 @@ func tmpLiterals(f *ast.File, _ *CheckContext) []ast.Node {
 	calls(f, "path/filepath", []string{"Join"}, visit)
 	calls(f, "io/ioutil", nil, visit)
 	return out
+}
+
+// tempRoots are the temp folders a path must reach through TMPDIR instead:
+// the classic one, its macOS real path, the system's per-user folder and the
+// agents' scratch volume (#468: all on the SSD).
+var tempRoots = []string{"/tmp", "/private/tmp", "/var/folders", "/private/var/folders", "/Volumes/AgentScratch"}
+
+func isTempLiteral(s string) bool {
+	for _, r := range tempRoots {
+		if s == r || strings.HasPrefix(s, r+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 func goBuilds(f *ast.File, _ *CheckContext) []ast.Node {

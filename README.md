@@ -397,9 +397,17 @@ compatible weave on PATH, or runs `brew install xianxu/ariadne/weave` before
 executing `weave compile`. It requires Homebrew rather than installing it.
 
 The generic seeded CI workflow sets up Homebrew on Linux, then compiles before
-running generated helpers. Ariadne source CI provisions its root Brewfile and
-builds the current candidate CLI; consumer CI uses the published gateway through
-bootstrap. Keep consumer packages in the layer's root `Brewfile`. An optional
+running generated helpers. Consumer CI builds its gateway from the exact full
+Ariadne commit in the authored `.sdlc/weave-compiler-ref`, using that source's
+Go toolchain, and puts the private binary first on PATH before bootstrap. The
+pin is not weave-managed: new consumers must explicitly create it from an
+approved supported ref. A missing or malformed pin, fetch/build failure or
+mismatched binary provenance stops CI; there is no floating compiler fallback.
+Ariadne source CI builds the candidate separately and checks its vocabulary
+exports against every supported compiler in `.sdlc/weave-compiler-refs`.
+See [compiler compatibility](atlas/workflow/ci-merge-check.md#compiler-compatibility-459)
+for cold-regeneration controls and pin rollout. Keep consumer packages in the
+layer's root `Brewfile`. An optional
 executable `scripts/ci-setup.sh` runs after compilation and before merge checks;
 a missing or non-executable hook is skipped, and a failure stops the job. Checks
 use the materialized local `scripts/run-merge-checks.sh`. It runs on PRs to
@@ -574,7 +582,14 @@ A name may be an exact subtest (#466), such as `PKG.TestX/plain/dev-aliases.test
 
 `sdlc flake list` is the TL's local daily view: the registry with each
 issue's owner and age, same-head flakes not yet registered, and failures nothing
-explains, each with its log. CI failures are shown as not covered until #451.
+explains, each with its log. A same-head failure is omitted from the default
+unregistered list when exactly one closed issue claims its fully qualified test
+in the card's `flake_tests`, and its fix merge landed after the failing head.
+Issue Markdown never claims a test. `sdlc flake list -v` shows omitted rows
+with the fixing issue and merge. A failure on a head containing that merge stays
+visible as a recurrence; ambiguous or unreadable evidence also stays visible,
+with a coverage reason when the uncertainty is specific to a row. CI failures
+are shown as not covered until #451.
 When a recorded suite (`local-check run`, or merge's) fails only on known flakes, it
 reruns just those tests once on the same head. Each must show a PASS line, and its
 flake issue must still be open when the result is posted; then the status reads
