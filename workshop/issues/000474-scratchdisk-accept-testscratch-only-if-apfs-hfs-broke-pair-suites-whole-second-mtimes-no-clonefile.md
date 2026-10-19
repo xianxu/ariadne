@@ -80,3 +80,19 @@ API misuse.
 
 Use the Spec's APFS statfs option on Darwin. Non-Darwin overrides retain their
 existing behavior, as approved by the hub; no capability probes or mount edits.
+
+### 2026-10-19 — implementation and focused evidence
+
+Red: after adding the probe's filesystem fact, TestChoose rejected neither HFS
+nor unknown types (use=true, empty note). Green: APFS accepted; HFS/unknown
+return the normal-folder note through the same Choose rule. Native statfs
+reported the live TestScratch as hfs and visibly rejected it, without writes.
+The caller-level HFS fixture verifies no child env override, one warning and
+no scratch subdirectory creation. Cleanup retains the rejected root.
+Focused scratchdisk, reviewbox and suite/review caller tests passed both with
+ordinary temp and with TMPDIR on an owned HFS fixture. Existing fixture
+expectations now follow the actual filesystem's admission, preserving both
+acceptance and fallback coverage. Linux/amd64 scratchdisk test compilation
+passed. No timeout changes or mount operations. A private slot binary was
+built but not used for gates; per hub direction all recorded checks, close and
+merge use the normal central sdlc.
