@@ -27,7 +27,7 @@ flow: {kind: quick, provenance: inferred, spec: "1e0dcaea", done: "6ff1911f"}
 
 ## Spec
 
-- A same-head flake counts as fixed when a closed (terminal) issue covers its test and that issue's landing merge is not contained in the failing head. To cover a test, the issue lists it in `flake_tests`, or names it as an exact test in its details. Containment is `git merge-base --is-ancestor`.
+- A same-head flake counts as fixed when a closed (terminal) issue covers its test and that issue's landing merge is not contained in the failing head. To cover a test, the issue lists the fully qualified name in `flake_tests`, or has an explicit `- Test: <fully qualified name>` line in its Log. Titles and free prose never establish ownership. Containment is `git merge-base --is-ancestor`.
 - Default view: fixed flakes are dropped. A verbose view (`flake list -v`) shows each one as `fixed by #N (merge <sha>)`.
 - A failure on a head that already contains the fix merge is a recurrence. It stays listed, with `recurred after #N`, because that needs a new issue.
 - An unreadable tracker, a missing merge commit, or ambiguous coverage (two closed issues) fails toward showing the flake, never toward hiding it.
@@ -35,7 +35,8 @@ flow: {kind: quick, provenance: inferred, spec: "1e0dcaea", done: "6ff1911f"}
 ## Done when
 
 - Tests with fake cards and a real git history: a pre-fix flake is hidden by default and shown as fixed by #N with -v. A post-fix recurrence stays listed, marked as recurred. The ambiguous and unreadable cases stay listed.
-- Run against pair's store, `flake list` no longer lists the five pilot tests fixed by pair#585, #589, #609 and #659.
+- Run against pair's store before backfill: the five legacy pilot rows remain visible because those cards lack structured fully qualified ownership. A synthetic closed card with structured ownership hides its pre-fix row, while prose-only cards cannot hide it.
+- After #458 lands, backfill `flake_tests` on the four closed pair cards through the card setter, then rerun the live list and verify all five rows are hidden with their fixing issues.
 
 ## Plan
 
@@ -66,3 +67,5 @@ Close review round 1 returned REWORK: the plan mislabeled the Git-backed classif
 Round 2 disposed BR-1 through BR-4 and found BR-5: matching a package's basename could misattribute a same-named test in another directory, then hide it. Red tests reproduced this in a Problem line, a dedicated `- Test:` Log line and a nested subpackage path. The correction matches exact import or repository-relative paths; a one-word label needs a cached Git-tree proof of unique package identity at the issue's landing merge. A real Git fixture checks uniqueness and ambiguity. The read-only pair pilot still shows five fixed rows in verbose output and none in the default same-head section; the two diagnosticlog test names also occur in an older, unrelated unexplained suite failure, which remains visible by design.
 
 The recorded suite on f2cbfe70e455169334d78e71e6c820e288089c4a passed 1,691 cmd/sdlc tests in 12 shards and 71 other packages, zero failures (log SHA-256 prefix f07a90acb6f5). Close review round 3 kept BR-5 open: a path suffix check could cross whitespace into later `.go` prose and again hide a nested-package failure. The plan now stops this incremental patching and defines a bounded, immediate path-token grammar with tests across every ownership section before more code changes.
+
+The hub's 2026-10-19 revision supersedes that parser design: only fully qualified `flake_tests` or a dedicated fully qualified `- Test:` Log line can own a test. None of pair#585/#589/#609/#659 has either form, so the five pilot rows must remain visible until an authorized card-setter backfill after this code lands. This deliberately favors extra visible rows over an incorrect hide. The Done when above reflects the revised live check and the separate post-landing backfill.
