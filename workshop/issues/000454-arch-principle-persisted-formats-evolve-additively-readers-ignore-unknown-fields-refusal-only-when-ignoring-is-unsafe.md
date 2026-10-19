@@ -1,13 +1,13 @@
 ---
 id: 000454
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '86f393ca14d94d2afb86ae8cb36b8a19e81f684c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e61f703fdbe9184fa98227fedd1beb3fed24394f' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-18T21:03:58-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "40ed78ad", done: "d2d585d6"}
+actual_hours: 0.29
 ---
 
 # ARCH principle: persisted formats evolve additively; readers ignore unknown fields; refusal only when ignoring is unsafe
