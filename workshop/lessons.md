@@ -1059,6 +1059,13 @@ The simplest durable authority beats a clever scan of consequences.
   This is a semantic scope decision; the existing close freshness judge owns
   enforcement rather than a lexical Go lint rule.
 
+- #465: count subprocesses as well as wall time when optimizing shell fixtures on a shared macOS host. Isolate each scan to relevant owners, batch independent cases, reuse immutable successful sentinels, and select concurrency order with readiness barriers. Pure path splitting needs real dirname/basename edge conformance plus an N/2N zero-exec guard; keep partial/failed output fixtures independent.
+
+- #465 CI: reuse executable contents by copying the immutable template when the production path renames outputs. Hardlinking source and installed output makes them the same file; GNU mv refuses it, and shared timestamp changes weaken build-isolation coverage even when BSD mv permits it.
+
+- #465 BR-1/BR-2: replacing a clock wait must preserve the ordering the regression proves. Give start, edit and completed output independently ordered timestamps; mutate away restoration to confirm failure. When approved acceptance changes, update Done when alongside Revisions so the current contract names every required guard.
+
+- #465 BR-3: fixture reuse must preserve observed output and status for every CLI mode. Never substitute a supplied status or another mode's baseline. Enumerate every reused result, regenerate after relevant input/context changes, and mutate ordinary/strict/verbose behavior independently.
 - **#458 — review the observable command and its design table:** a function
   that invokes an injected Git callback is integration logic even when the
   callback is passed as a value. Test the final CLI rows for default and verbose

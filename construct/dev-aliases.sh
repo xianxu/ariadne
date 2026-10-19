@@ -105,14 +105,38 @@ fi
 
 warn() { printf 'dev-aliases: %s\n' "$*" >&2; }
 
+# dirname/basename's command-substitution results, without external processes.
+# Outputs live in path_dir/path_base so callers need no subshell either (#465).
+path_parts() {
+    local path="$1"
+    path_dir=.; path_base=""
+    [ -n "$path" ] || return 0
+    while [ "${path%/}" != "$path" ]; do path="${path%/}"; done
+    if [ -z "$path" ]; then
+        path_dir=/; path_base=/
+        return 0
+    fi
+    path_base="${path##*/}"
+    case "$path" in
+        */*)
+            path_dir="${path%/*}"
+            while [ "${path_dir%/}" != "$path_dir" ]; do path_dir="${path_dir%/}"; done
+            [ -n "$path_dir" ] || path_dir=/ ;;
+    esac
+    # The replaced command substitutions stripped trailing newlines, too.
+    while [[ "$path_dir" == *$'\n' ]]; do path_dir="${path_dir%$'\n'}"; done
+    while [[ "$path_base" == *$'\n' ]]; do path_base="${path_base%$'\n'}"; done
+}
+
 # script_dir: the directory of the dev-aliases.sh PATH as invoked — NOT
 # dereferencing the symlinked file (pwd -P resolves only path COMPONENTS). In a
 # derivative this is that derivative's own construct/, so ariadne_root/workspace
 # anchor the sibling scan at the CALLER's location exactly as before — the
 # flat/peer semantics are unchanged.
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+path_parts "${BASH_SOURCE[0]}"
+script_dir="$(cd "$path_dir" && pwd -P)"
 ariadne_root="$(cd "$script_dir/.." && pwd -P)"
-[ "$workspace_set" -eq 1 ] || workspace="$(dirname "$ariadne_root")"
+[ "$workspace_set" -eq 1 ] || { path_parts "$ariadne_root"; workspace="$path_dir"; }
 
 # real_script_dir: the directory of the REAL dev-aliases.sh, following the
 # symlink (this script is symlinked into every derivative's construct/, pointing
@@ -126,10 +150,11 @@ if [ -L "$real_src" ]; then
 	link_target="$(readlink "$real_src")"
 	case "$link_target" in
 		/*) real_src="$link_target" ;;                       # absolute link
-		*)  real_src="$(dirname "$real_src")/$link_target" ;; # relative to the link's dir
+		*)  path_parts "$real_src"; real_src="$path_dir/$link_target" ;; # relative to the link's dir
 	esac
 fi
-real_script_dir="$(cd "$(dirname "$real_src")" && pwd -P)"
+path_parts "$real_src"
+real_script_dir="$(cd "$path_dir" && pwd -P)"
 # A typo'd/empty --workspace must fail loudly, not silently emit nothing.
 if [ -z "$workspace" ] || [ ! -d "$workspace" ]; then
 	warn "workspace not found: ${workspace:-<empty>} (--workspace needs an existing dir)"
@@ -147,7 +172,7 @@ find_current_repo() {
 	local d="$PWD"
 	while [ "$d" != "/" ] && [ -n "$d" ]; do
 		[ -d "$d/construct" ] && { printf '%s\n' "$d"; return 0; }
-		d="$(dirname "$d")"
+		path_parts "$d"; d="$path_dir"
 	done
 	return 0
 }
@@ -231,15 +256,18 @@ repo_identity() {
 # so Git's common directory alone cannot identify the operator's :0 checkout.
 # Normalize only this layout, and prove sameness with the existing origin policy.
 primary_owner() {
-	local repo="$1" env slot number primary identity
-	env="$(dirname "$repo")"; slot="$(basename "$env")"
-	case "$(basename "$(dirname "$env")")/$slot" in
+	local repo="$1" env slot number primary identity parent
+    path_parts "$repo"; env="$path_dir"
+    path_parts "$env"; slot="$path_base"; parent="$path_dir"
+    path_parts "$parent"
+	case "$path_base/$slot" in
 		worktree/*-slot*) ;;
 		*) printf '%s\n' "$repo"; return ;;
 	esac
 	number="${slot##*-slot}"
 	case "$number" in ''|0*|*[!0-9]*) warn "invalid slot primary owner: $repo"; return 2 ;; esac
-	primary="$(dirname "$(dirname "$env")")/$(basename "$repo")"
+	path_parts "$parent"; primary="$path_dir"
+    path_parts "$repo"; primary="$primary/$path_base"
 	identity="$(repo_identity "$repo")"
 	if [ ! -d "$primary/construct" ] || [ -L "$primary" ] ||
 		[ "$identity" = "path:$repo" ] || [ "$identity" != "$(repo_identity "$primary")" ]; then
@@ -254,7 +282,8 @@ primary_owner() {
 scan_repo() {
 	local repo="$1" cmddir identity
 	[ -d "$repo/construct" ] || return 0
-	skip_repo "$(basename "$repo")" && return 0
+	path_parts "$repo"
+	skip_repo "$path_base" && return 0
 	[ -d "$repo/cmd" ] || return 0
 	identity="$(repo_identity "$repo")"
 	find "$repo/cmd" -mindepth 1 -maxdepth 1 | LC_ALL=C sort | while IFS= read -r cmddir; do
@@ -262,7 +291,8 @@ scan_repo() {
 		[ -d "$cmddir" ] || continue
 		ls "$cmddir"/*.go >/dev/null 2>&1 || continue   # buildable
 		[ -e "$cmddir/.private" ] && continue # opt-out marker
-		printf '%s\t%s\t%s\n' "$(basename "$cmddir")" "$repo" "$identity"
+		path_parts "$cmddir"
+		printf '%s\t%s\t%s\n' "$path_base" "$repo" "$identity"
 	done
 }
 
@@ -277,7 +307,8 @@ collect() {
 		substrate_repos
 	} | LC_ALL=C sort -u | while IFS= read -r repo; do
 		[ -d "$repo/construct" ] && [ -d "$repo/cmd" ] || continue
-		skip_repo "$(basename "$repo")" && continue
+		path_parts "$repo"
+		skip_repo "$path_base" && continue
 		primary_owner "$repo" || exit 2
 	done | LC_ALL=C sort -u | while IFS= read -r repo; do
 		scan_repo "$repo"

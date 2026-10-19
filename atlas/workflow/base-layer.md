@@ -123,7 +123,11 @@ A built binary takes the time its build started, so a file edited mid-build read
 as newer on the next call; a scan error counts as stale. When it builds, the emitted function builds into a per-call `mktemp -d bin/.X.XXXXXX` directory beside
 the target and renames the result over `bin/X` (#355); the exact form is the one
 `printf` in `construct/dev-aliases.sh` (its header comment shows it), pinned by
-`dev-aliases.test.sh`. The rename is atomic, so
+`dev-aliases.test.sh`. Startup and collection split paths with the pure Bash
+`path_parts` helper; `dev-aliases-path.test.sh` checks platform dirname/basename
+conformance and zero path-utility launches at N/2N owners (#465). The alias tests
+share fixture scans and successful sentinel contents, and coordinate partial
+builds with FIFOs instead of sleeps. The rename is atomic, so
 another process calling `bin/X` during a rebuild never finds it missing (it used to
 be `rm -f` then build); concurrent builds use separate directories and the last
 rename wins; and the new inode gives the macOS code-signing safety the owner
