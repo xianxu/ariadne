@@ -1,6 +1,6 @@
 ---
 id: 000465
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -22,6 +22,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: f874054852a15da9f76d9d2fc23482a05f99a148
         evidence_commit: fb45f20e175e09b1a433ebdbfbf0d330f03b12c0
+        landed_commit: 9e9f0bbe74a958abea059e4e82512508edd4c08c
 ---
 
 # dev-aliases script exceeds its per-script budget under suite load
