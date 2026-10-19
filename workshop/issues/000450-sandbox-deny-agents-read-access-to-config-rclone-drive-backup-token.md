@@ -41,6 +41,7 @@ Add "~/.config/rclone" to sandbox.filesystem.denyRead in .claude/settings.ariadn
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed — Exactly one settings line added immediately after gcloud; JSON uniqueness/order/exact-diff checks red then green. Existing settingsx and plan tests passed. Operator applied local-gates-verified on PR311, independently confirmed. weave refresh --substrate regenerated checkout-local settings with rclone in denyRead; home-level rollout belongs to TL/operator per approved Revision. Recorded full suite passed 1651 SDLC tests plus 70 packages, 571.2s (log sha256:2f833a24df8b). No settings/code changes since that pass. No atlas update: this adds one value to the existing denyRead policy with no new architectural surface; scope is explicitly one settings line plus issue bookkeeping.; review verdict: SHIP
 
 ### 2026-10-18 — targeted checks and operator verification
 
