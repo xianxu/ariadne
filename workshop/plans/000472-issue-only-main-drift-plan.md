@@ -169,16 +169,16 @@ unknown main changes.
 
 Files: mainmovement.go/mainmovement_test.go; integrationstate.go/integrationstate_test.go.
 
-- [ ] Write red tests for safe record roots and ops exclusion; arbitrary docs,
+- [x] Write red tests for safe record roots and ops exclusion; arbitrary docs,
   embedded help, config, mixed commits, code-add/revert, cross-root rename, merge
   commit, empty/unreadable history, names with whitespace and no-prefix lookalikes.
-- [ ] Write red transition sequences for three issue-only observations, metadata
+- [x] Write red transition sequences for three issue-only observations, metadata
   fallback registration/reset not charging, ordinary code still charging/refusing,
   metadata after budget exhaustion, and a pending code integration retaining its
   original charge through metadata replay/push and resume.
-- [ ] Implement the minimal shared observation/classifier and state changes.
+- [x] Implement the minimal shared observation/classifier and state changes.
   Run go test ./cmd/sdlc -run 'Test(MainMovement|IssueRecord|IntegrationState)' -count=1.
-- [ ] Commit the classifier/state slice with its passing focused evidence.
+- [x] Commit the classifier/state slice with its passing focused evidence.
 
 ### GitHub readiness and full landing wiring
 
@@ -186,26 +186,26 @@ Files: ghreadiness.go/ghreadiness_test.go; ghlanding.go (typed adapter seam);
 landing.go; landingintegrate.go;
 landing_test.go; landingintegrate_test.go; landingeconomy_test.go.
 
-- [ ] Add red adapter tests for exact CLEAN, BEHIND/UNKNOWN/missing/future readiness,
+- [x] Add red adapter tests for exact CLEAN, BEHIND/UNKNOWN/missing/future readiness,
   partial GraphQL errors, invalid readiness type and changed repo/PR/head/base
   identity. Include a stale baseRefOid alongside a current baseRef.target.oid,
   and prove only the latter binds the observation.
-- [ ] Extend the real-Git/stateful-GitHub fixture: create a ready tested PR; publish
+- [x] Extend the real-Git/stateful-GitHub fixture: create a ready tested PR; publish
   three distinct issue-only main commits while its gate waits; assert unchanged
   PR head, one code integration at most (the initial fixture setup), one suite,
   one expected-head merge and no fresh-head CI cycle.
-- [ ] Add strict/unknown-policy fixtures that integrate issue-only changes without
+- [x] Add strict/unknown-policy fixtures that integrate issue-only changes without
   spending attempts, retain exact-head CI and reuse the suite; pending checks on
   the new head must block, not inherit the old head's green checks.
-- [ ] Cover same-record conflict, metadata-to-code/mixed drift during the final
+- [x] Cover same-record conflict, metadata-to-code/mixed drift during the final
   revalidation, code-add/revert, pre-push movement, interrupted resume and uncertain
   server merge. Verify no duplicate merge effect or unleased publication.
-- [ ] Wire observations into every existing integration seam, refresh readiness
+- [x] Wire observations into every existing integration seam, refresh readiness
   after gates and revalidate before deciding the direct merge or normal fallback.
   Keep the normal central binary for all SDLC gates; no private landing binary.
-- [ ] Run targeted landing/state/CI/adapter/economy/recovery tests, including the
+- [x] Run targeted landing/state/CI/adapter/economy/recovery tests, including the
   existing docs-suite-reuse and code/config/embedded-help invalidation controls.
-- [ ] Commit with issue, Agent and Co-Authored-By trailers.
+- [x] Commit with issue, Agent and Co-Authored-By trailers.
 
 ### Verification and delivery
 
@@ -213,9 +213,9 @@ Files: cmd/sdlc/helptext/merge.md; atlas/workflow/sdlc-binary.md; README.md if i
 existing merge contract needs the changed attempt semantics; workshop/lessons.md
 for any review-derived rule (no ceremonial wording tests for prose).
 
-- [ ] Document the single issue-record list, effective CLEAN evidence, unchanged
+- [x] Document the single issue-record list, effective CLEAN evidence, unchanged
   head optimization, conservative fallback, code-only attempt budget and recovery.
-- [ ] Run a disposable local real-Git/fake-GitHub harness exercising both permissive
+- [x] Run a disposable local real-Git/fake-GitHub harness exercising both permissive
   and strict policy (no shared staging, real PR merge or branch-protection change).
   Read-only live conformance: compare one existing GitHub PR's selected fields
   against the parser; do not mutate that PR or apply any label.

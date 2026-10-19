@@ -58,6 +58,10 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- Keep the real checkout stable while cmd/sdlc package tests run: its TestMain
+  snapshots HEAD, branch and porcelain status. A concurrent commit or a new
+  dirty path invalidates the run even when every assertion passes (#472).
+
 - Native CLI fixtures that assert quiet output must explicitly isolate live
   runtime context at their shared subprocess boundary. Set inherited Couch
   context in the regression so CI outside Couch also detects a leak; keep

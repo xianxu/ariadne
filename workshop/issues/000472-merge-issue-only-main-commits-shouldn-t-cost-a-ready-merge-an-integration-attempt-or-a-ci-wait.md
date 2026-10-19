@@ -48,8 +48,8 @@ up-to-date), since issue-only main commits can't conflict with code.
 
 ## Plan
 
-- [ ] Implement and verify the shared issue-record classifier and integration-state accounting.
-- [ ] Add exact GitHub CLEAN readiness and wire conservative landing/recovery behavior.
+- [x] Implement and verify the shared issue-record classifier and integration-state accounting.
+- [x] Add exact GitHub CLEAN readiness and wire conservative landing/recovery behavior.
 - [ ] Document, run recorded verification, close on SHIP and land.
 
 Durable design: [issue-only main drift plan](../plans/000472-issue-only-main-drift-plan.md).
@@ -110,3 +110,32 @@ strict/unknown fallback survives four publications without spending another
 code integration attempt or rerunning the suite. Broader existing integration
 and recovery controls are running. Early end-to-end fixtures were corrected to
 valid issue frontmatter and the configured upstream/main reference.
+
+
+### 2026-10-19 — targeted verification complete
+
+The broad stable-checkout landing/state/readiness/recovery selection passed
+(157.115s). Five real-Git controls passed (38.936s): late code and mixed movement
+both force a second tested head; readiness head mismatch, same-record conflict
+and a late duplicate ID refuse without merging. The duplicate case enables the
+actual instance/section and duplicate gates, stubbing only the external vocabulary
+executable as existing instance fixtures do.
+
+The explicit strict-fallback pending-CI control and metadata reset accounting
+passed (5.916s): old-head green checks do not authorize the integrated head;
+its pending checks wait, while the suite runs once. Merge-parent histories and
+interrupted integration observations passed (0.763s): recovery charges the actual
+merge's second parent, not later main movement.
+
+Read-only real adapter conformance on PR 325 passed (0.962s), returning its live
+base target and UNSTABLE status. A deliberate mutation disabling direct readiness
+made the ready-head test fail specifically because the tested head changed;
+restored code and existing CI/refusal controls passed (15.563s). No workflow,
+status-copying, shared staging or real PR mutation was used for this smoke.
+
+One earlier wider run passed its assertions but failed TestMain's real-checkout
+hermeticity guard because I committed while it ran. This was a deterministic
+orchestration error, not a flake. The stable 157.115s run replaces that invalid
+evidence, and the lesson now prohibits concurrent commits/new dirty paths during
+these tests. Adapter, state, classifier, landing help, README and atlas are ready
+for the recorded suite and mandatory close review.

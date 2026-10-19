@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -157,4 +158,21 @@ func TestLandingReadinessOutputBound(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Opt-in read-only conformance; never calls a model or mutates a real PR.
+func TestLandingReadinessLive(t *testing.T) {
+	repo, rawNumber := os.Getenv("WF_READINESS_LIVE_REPO"), os.Getenv("WF_READINESS_LIVE_PR")
+	if repo == "" || rawNumber == "" {
+		t.Skip("set WF_READINESS_LIVE_REPO and WF_READINESS_LIVE_PR for read-only conformance")
+	}
+	number, err := strconv.Atoi(rawNumber)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := (realGH{}).LandingReadiness(context.Background(), repo, number)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("live readiness: repo=%s PR=%d head=%s base=%s status=%s", got.Repo, got.Number, got.HeadOID, got.BaseTargetOID, got.MergeStateStatus)
 }

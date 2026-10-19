@@ -201,3 +201,23 @@ func TestIntegrationStateRepeatedMetadataFallbackAndResume(t *testing.T) {
 		}
 	}
 }
+
+func TestIntegrationStateMetadataResetDoesNotCharge(t *testing.T) {
+	s := newIntegrationState("old", landingPR{HeadOID: "old"}, false)
+	for _, e := range []integrationEvent{
+		{kind: integrationGatesChecked, main: "records", issueOnly: true},
+		{kind: integrationMerged, head: "merged"},
+		{kind: integrationReplayAccepted},
+		{kind: integrationMainObserved, main: "code"},
+		{kind: integrationRecoveryCompleted},
+	} {
+		var err error
+		s, _, err = transitionIntegration(s, e)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if s.attempts != 0 || s.head != "old" || s.phase != integrationGates {
+		t.Fatalf("metadata reset charged: %+v", s)
+	}
+}

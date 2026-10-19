@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -127,5 +128,51 @@ func TestIssueRecordReadinessBinding(t *testing.T) {
 	r.HeadOID = strings.Repeat("d", 40)
 	if ok, err := readinessAllowsUnintegrated(pr, r, main); err == nil || ok {
 		t.Fatalf("changed head authorized: %v %v", ok, err)
+	}
+}
+
+func TestMainMovementMergeParents(t *testing.T) {
+	root := t.TempDir()
+	git(t, root, "init", "-q", "-b", "main")
+	git(t, root, "config", "user.name", "fixture")
+	git(t, root, "config", "user.email", "fixture@example.com")
+	procedureWrite(t, root, "main.go", "package fixture\n")
+	git(t, root, "add", ".")
+	git(t, root, "commit", "-qm", "base")
+	base := procedureHead(t, root)
+	git(t, root, "checkout", "-qb", "records")
+	procedureWrite(t, root, "workshop/issues/a.md", "record\n")
+	git(t, root, "add", ".")
+	git(t, root, "commit", "-qm", "record")
+	git(t, root, "checkout", "-q", "main")
+	procedureWrite(t, root, "workshop/plans/a.md", "plan\n")
+	git(t, root, "add", ".")
+	git(t, root, "commit", "-qm", "plan")
+	git(t, root, "merge", "-q", "--no-ff", "records", "-m", "record merge")
+	records := procedureHead(t, root)
+	if ok, err := mainMovementIssueOnly(landingTransportRunner{}, root, base, records); err != nil || !ok {
+		t.Fatalf("record merge rejected: %v %v", ok, err)
+	}
+	git(t, root, "checkout", "-qb", "code", base)
+	procedureWrite(t, root, "main.go", "package changed\n")
+	git(t, root, "add", ".")
+	git(t, root, "commit", "-qm", "code side")
+	git(t, root, "checkout", "-q", "main")
+	git(t, root, "merge", "-q", "--no-ff", "code", "-m", "code merge")
+	if ok, err := mainMovementIssueOnly(landingTransportRunner{}, root, records, procedureHead(t, root)); err != nil || ok {
+		t.Fatalf("code merge admitted: %v %v", ok, err)
+	}
+	latest := procedureHead(t, root)
+	for _, tc := range []struct {
+		target   string
+		metadata bool
+	}{{records, true}, {latest, false}} {
+		git(t, root, "checkout", "-q", "--detach", base)
+		git(t, root, "merge", "-q", "--no-ff", tc.target, "-m", "interrupted integration")
+		state := newIntegrationState(procedureHead(t, root), landingPR{HeadOID: base}, true)
+		got, err := observeIntegrationMain(landingTransportRunner{}, landingTarget{Root: root}, state, latest, io.Discard)
+		if err != nil || got.issueOnly != tc.metadata {
+			t.Fatalf("resume must classify actual second parent: metadata=%v got=%+v err=%v", tc.metadata, got, err)
+		}
 	}
 }
