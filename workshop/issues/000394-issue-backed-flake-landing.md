@@ -72,7 +72,7 @@ Durable plan: `workshop/plans/000394-issue-backed-flake-landing-plan.md`, with t
 
 - [x] M1 — Registry and classifier (pure) plus `sdlc flake register`/`list`.
 - [x] M2 — The gate: a targeted known-flake rerun in `runLocalCheck` (local-check run and merge), both attempts linked, the policy knob.
-- [x] M3 — No blind rerun (the success-post guard, republish after registration), the rules in tl-worker/help/atlas, a pair pilot.
+- [x] M3 — No blind rerun (the success-post guard, republish after registration), the rules in tl-worker/help/atlas, a pair pilot. **Pilot and rollout check: after landing (Revision 2026-10-18 M3 round 1; owners hub and ariadne:2), not done in M3.**
 
 ## Log
 
@@ -118,3 +118,4 @@ Filed from #390's operator-approved flake/landing decision. The weekly snapshot 
   - New gate cases: a blind rerun is refused, then register plus republish lands; an unattributable failure stays unexplained.
   - The tl-worker help's flake rule now describes the new mechanism, citing the operator's 10-18 ask; phrase guards updated.
   - Help, README and atlas cover the guard.
+- M3 boundary review round 1 (FIX-THEN-SHIP): BR-21 (the pilot and propagation move to after landing, with owners, in the plan's Revisions; the M3 line now says so). Minors: per-kind recovery wording, the pruned-record race, readers routed through `isSuiteRun`, a test renamed.

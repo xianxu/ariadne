@@ -228,7 +228,7 @@ func TestRunLocalCheckStatsInitializationFailureStillRunsAndPostsStatus(t *testi
 	}
 }
 
-func TestRunLocalCheckStatsPublicationFailureStillPostsStatus(t *testing.T) {
+func TestRunLocalCheckUnreadableStoreRefusesTheSuitePass(t *testing.T) {
 	d, sha, gh, stderr := localRunRepo(t, "acquired")
 	logDir, err := localCheckLogDir(d)
 	if err != nil {

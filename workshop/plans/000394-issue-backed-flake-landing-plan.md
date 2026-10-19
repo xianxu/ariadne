@@ -199,3 +199,15 @@ Design notes:
 
 - **BR-19 (Critical), the reader sweep fixed as a class:** a rerun row saved as check `suite` was reused by `loadSavedAttempt` as the head's pass. Instead of guarding each reader, reruns are saved as check `suite-rerun`, reserved in the declaration parser; the decoder requires `rerun_of` exactly on that check. Every reader that selects `suite` attempts (saved-pass reuse, test-stats, the weekly snapshot, `flake list`) excludes reruns by construction, and the per-reader `RerunOf` checks are gone. Reuse is decided from the parent attempt's outcome (revalidated). test-stats counts a parent's known-flake landing as a confirmed same-head flake. Regression: an inconclusive rerun is never reused as the head's pass. lessons.md has the rule.
 - **BR-16:** a test pins the rerun's timeout to the check's `timeout_minutes` (an hour-long default still stops at the check's one second).
+
+### 2026-10-18 — M3 boundary review round 1 (FIX-THEN-SHIP: BR-21, four Minors)
+
+- **BR-21, the pilot and propagation move to after landing (owners named):**
+  - *Propagation:* everything ships in the shared `sdlc` and `tl-worker` binaries; no base-layer manifest file changed. Rollout is the TL rebuilding ariadne:0 after landing (owner: hub, ops:0), which also satisfies the schema-v2 ordering (readers rebuilt before anything writes `flake_tests`). The default (`known_flakes` absent = `rerun`) is already on in every repository, so the Spec's "default after the pilot" is met by code. The pilot can still ask the operator to set `off` in a repository's guarded declaration.
+  - *Pilot:* after the rebuild, register one real flake, the candidate being #448's `TestConstructScripts`, with same-head evidence. Watch a recorded suite in ariadne and in pair rerun only it and land with the issue named. Owner: the hub dispatches it; ariadne:2 reports the measurement.
+  - Not done in M3. The M3 plan line is marked accordingly. The other M3 bullets (guard, tests, tl-worker help and guards, help, atlas) each cite their artifact in the issue Log.
+- **Minors:**
+  - The guard's recovery wording follows the kind: a rejected kind says registration cannot explain it.
+  - A record pruned mid-read is skipped. The reader caps' headroom is stated in the atlas (ARCH-FUNERAL: the writer is bounded by the 30-day prune).
+  - The weekly and stats readers route through `isSuiteRun`.
+  - The misnamed test is renamed `TestRunLocalCheckUnreadableStoreRefusesTheSuitePass`.

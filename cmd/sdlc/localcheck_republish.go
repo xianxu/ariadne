@@ -167,12 +167,24 @@ func guardSuitePass(ctx context.Context, d localRunDeps, sha string) error {
 		return nil
 	}
 	var lines []string
+	explainable := true
 	for _, a := range u {
-		lines = append(lines, fmt.Sprintf("attempt %s failed (%s)", a.ID, orNone(strings.Join(a.Failures, ", "))))
+		line := fmt.Sprintf("attempt %s failed (%s)", a.ID, orNone(strings.Join(a.Failures, ", ")))
+		if !flakes.Explainable(a.Kind) {
+			explainable = false
+			line += ", judged " + string(a.Kind)
+		}
+		lines = append(lines, line)
 	}
 	why := strings.Join(lines, "; ")
 	if regErr != nil {
 		why += "; and the known-flake registry could not be read: " + regErr.Error()
+	}
+	if !explainable {
+		// Registration cannot explain a failure the rule already judged and
+		// rejected (a timeout, an unnamed failure, a known flake failing twice).
+		return refuse("an earlier failure on this head is unexplained: %s.\n"+
+			"  Registering a flake cannot explain it: fix it, and land a commit whose suite passes (#394)", why)
 	}
 	return refuse("an earlier failure on this head is unexplained: %s.\n"+
 		"  If it is intermittent, this fail→pass is its evidence: `sdlc flake register --test <pkg.TestName>`, then %q.\n"+

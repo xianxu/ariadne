@@ -994,6 +994,180 @@ rounds:
       isolation: fenced
       reviewed: 828d32417b4881ce5346c050502eba0b51ea6578
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 96994ef4-294f-413d-a476-b8da65fd33a1
+            repository: github.com/xianxu/ariadne
+            issue_id: "000394"
+            recipe: milestone-review
+            round: 1
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/0f367c41eb7dbc02
+            reviewed_head: d46c4e3163b0c2f0bebf1fcc8169826f466f4606
+            slot: ariadne:2
+            requested_at: "2026-10-19T03:03:58.053655Z"
+          phase: finished
+          pid: 54804
+          started_at: "2026-10-19T03:03:58.171668Z"
+          finished_at: "2026-10-19T03:08:45.036215Z"
+          session_id: ab2bea49-fa9a-4bdf-8396-a60551c2b7ad
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: d46c4e3163b0c2f0bebf1fcc8169826f466f4606
+        tracker_head: 33006f7d3ad36ed0075430b1583a99a545ce1f9e
+        branch_point: 046e0ebb03d7c78bf46c8511fa6d6084d42137f4
+        since: "2026-10-18T15:44:55-07:00"
+        until: "2026-10-18T20:03:39-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T15:44:55-07:00"
+              end: "2026-10-18T20:03:39-07:00"
+              began: "2026-10-18T15:44:55-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0191d03b-74fe-4185-8091-8374ef70c0c9
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6f878e4449d6a70c6d117dcc8e3e2dc7eb921bedd5cb164ae329d9abc8dbd463
+              started: "2026-10-18T22:59:31.062Z"
+              spawned: false
+              bytes: 393720
+              windows:
+                - start: "2026-10-18T22:59:31.062Z"
+                  end: "2026-10-18T20:03:39-07:00"
+            - harness: claude
+              id: 1baa8f6b-092f-413a-83f9-0b25ed003914
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 15568299dbfd540e29417f414005c5fb2212d08913ca02800e9b5f9ab1030c6c
+              started: "2026-10-18T22:57:31.956Z"
+              spawned: false
+              bytes: 519489
+              windows:
+                - start: "2026-10-18T22:57:31.956Z"
+                  end: "2026-10-18T20:03:39-07:00"
+            - harness: claude
+              id: 23a2a6e8-f430-49c9-938f-6a09729f7067
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6c2a2ebaf3bf9384772532e724d4644737187d5f9aab48909773ef49f7eecb93
+              started: "2026-10-18T22:53:00.413Z"
+              spawned: false
+              bytes: 571220
+              windows:
+                - start: "2026-10-18T22:53:00.413Z"
+                  end: "2026-10-18T20:03:39-07:00"
+            - harness: claude
+              id: aa450fd7-6a6d-4cd2-abcc-3339322077dc
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 776fdfac606030c3cf04f41a719a0ad32e2a31cec8e0f54a07ed46e3daf64dd0
+              started: "2026-10-18T22:59:17.58Z"
+              spawned: false
+              bytes: 502106
+              windows:
+                - start: "2026-10-18T22:59:17.58Z"
+                  end: "2026-10-18T20:03:39-07:00"
+            - harness: claude
+              id: d11b9adb-1d2c-4872-81c3-b6aa47a04715
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: fb35a51e74ad315fa11eb15dc5dd4cd0f8c6a8a811c7d9cafac6943d15e78dfc
+              started: "2026-10-18T22:56:29.354Z"
+              spawned: false
+              bytes: 556087
+              windows:
+                - start: "2026-10-18T22:56:29.354Z"
+                  end: "2026-10-18T20:03:39-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: cb68b4b097007281a065639fd8b6f0f4f6908277a7b820373b099f9a7346f36e
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 257080942
+              windows:
+                - start: "2026-10-18T15:44:55-07:00"
+                  end: "2026-10-18T20:03:39-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 0.11616666666666667
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-18T16:42:59-07:00"
+              finalized: "2026-10-18T16:45:21-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T16:49:32-07:00"
+              finalized: "2026-10-18T16:52:51-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T16:54:42-07:00"
+              finalized: "2026-10-18T16:56:28-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-18T17:38:24-07:00"
+              finalized: "2026-10-18T17:42:33-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-18T18:10:30-07:00"
+              finalized: "2026-10-18T18:24:31-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-18T18:55:07-07:00"
+              finalized: "2026-10-18T19:23:58-07:00"
+              finalizing: true
+      "n": 7
+      timestamp: "2026-10-18T20:08:46-07:00"
+      dispatched: "2026-10-18T20:03:58-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      findings:
+        - id: BR-21
+          severity: Important
+          title: M3 is checked off claiming a pair pilot and propagation check that were neither done nor deferred
+          detail: 'Issue line 75 marks M3 [x] including a pair pilot; plan lines 103-104 list the propagation check and the pilot, and the Spec makes the all-repo default conditional on that pilot. No Log entry, test, or Revision shows either. This is the 2nd finding in this family. The rule: every Plan or Done-when item a boundary checks off must cite a delivered artifact or a dated Revisions entry that moves it, with an owner. Fix: add the Revision moving the pilot and propagation check to after landing, untick the pilot clause or mark it pending, and audit the other M3 bullets against the same rule.'
+          family: deferred-purpose-subset
+          round: 7
+        - id: BR-22
+          severity: Minor
+          title: The guard's refusal suggests registering even for failures registration can never explain
+          detail: guardSuitePass always says to run sdlc flake register and then republish. For neverExplained kinds (unattributable, failed twice, rule off, inconclusive), registering cannot help. Choose the recovery wording per kind.
+          family: unexplained-outcome-policy
+          round: 7
+        - id: BR-23
+          severity: Minor
+          title: The store's record and byte limits now block every suite pass instead of only marking stats partial
+          detail: The guard refuses on any readSuiteAttempts warning, including hitting the record limit (10000) or byte budget (64 MiB). The writer is bounded only by the 30-day prune. The live ariadne store measures 155 records / 620K, so there is about 60x headroom. A concurrent prune that removes a record between ReadDir and Open also raises a warning and refuses a valid pass.
+          family: reader-cap-writer-unbounded
+          round: 7
+        - id: BR-24
+          severity: Minor
+          title: Atlas says store readers use isSuiteRun or isFlakeEvidence; the weekly readers still compare check names directly
+          detail: weeklyattribution.go:144/327/333, weeklystats.go:98, weeklystats_inputs.go:235 and teststats_cmd.go:140 behave the same but repeat the predicate. Route them through isSuiteRun, or soften the atlas claim. This is the 3rd finding in this family; the rule is that the store's record-kind predicates live only in teststats.go.
+          family: duplicated-io-glue
+          round: 7
+        - id: BR-25
+          severity: Minor
+          title: TestRunLocalCheckStatsPublicationFailureStillPostsStatus now asserts the status is not posted
+          detail: Rename it to describe the fail-closed refusal.
+          family: test-name-contradicts-assertion
+          round: 7
+      boundary: M3
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#394 (boundary-review)
@@ -1102,8 +1276,28 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-20** [Minor] `new-record-kind-unswept-readers` (kind: defect) A rerun's same-head pass is invisible to evidence readers when revalidation downgrades the parent
   3rd in family. Rule: every reader of the attempt store must say whether it reads suite runs (Check == suite) or same-head flake evidence (a suite row plus its linked suite-rerun rows), through one shared store predicate. Today test-stats confirmed, flake list and flake register derive rerun evidence only from the parent's Outcome == known-flake-rerun, so a landing downgraded by Revalidate (issue closed mid-rerun) loses its fail-to-pass proof. Narrow edge case; measured prevalence is 3 readers.
 
+## Round 7 — 2026-10-18T20:08:46-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-21** [Important] `deferred-purpose-subset` M3 is checked off claiming a pair pilot and propagation check that were neither done nor deferred
+  Issue line 75 marks M3 [x] including a pair pilot; plan lines 103-104 list the propagation check and the pilot, and the Spec makes the all-repo default conditional on that pilot. No Log entry, test, or Revision shows either. This is the 2nd finding in this family. The rule: every Plan or Done-when item a boundary checks off must cite a delivered artifact or a dated Revisions entry that moves it, with an owner. Fix: add the Revision moving the pilot and propagation check to after landing, untick the pilot clause or mark it pending, and audit the other M3 bullets against the same rule.
+- **BR-22** [Minor] `unexplained-outcome-policy` The guard's refusal suggests registering even for failures registration can never explain
+  guardSuitePass always says to run sdlc flake register and then republish. For neverExplained kinds (unattributable, failed twice, rule off, inconclusive), registering cannot help. Choose the recovery wording per kind.
+- **BR-23** [Minor] `reader-cap-writer-unbounded` The store's record and byte limits now block every suite pass instead of only marking stats partial
+  The guard refuses on any readSuiteAttempts warning, including hitting the record limit (10000) or byte budget (64 MiB). The writer is bounded only by the 30-day prune. The live ariadne store measures 155 records / 620K, so there is about 60x headroom. A concurrent prune that removes a record between ReadDir and Open also raises a warning and refuses a valid pass.
+- **BR-24** [Minor] `duplicated-io-glue` Atlas says store readers use isSuiteRun or isFlakeEvidence; the weekly readers still compare check names directly
+  weeklyattribution.go:144/327/333, weeklystats.go:98, weeklystats_inputs.go:235 and teststats_cmd.go:140 behave the same but repeat the predicate. Route them through isSuiteRun, or soften the atlas claim. This is the 3rd finding in this family; the rule is that the store's record-kind predicates live only in teststats.go.
+- **BR-25** [Minor] `test-name-contradicts-assertion` TestRunLocalCheckStatsPublicationFailureStillPostsStatus now asserts the status is not posted
+  Rename it to describe the fail-closed refusal.
+
 ## Open findings
 
 - **BR-9** [Minor] `cas-mutator-uses-stale-read` (kind: defect) The one-owner-per-test check reads the registry, not the card under compare-and-swap, so concurrent registrations on two issues can both pass
 - **BR-10** [Minor] `breaking-change-undocumented` (kind: defect) The suite-attempt writer now records version 2, which older sdlc binaries reject as an unsupported version
 - **BR-20** [Minor] `new-record-kind-unswept-readers` (kind: defect) A rerun's same-head pass is invisible to evidence readers when revalidation downgrades the parent
+- **BR-21** [Important] `deferred-purpose-subset` M3 is checked off claiming a pair pilot and propagation check that were neither done nor deferred
+- **BR-22** [Minor] `unexplained-outcome-policy` The guard's refusal suggests registering even for failures registration can never explain
+- **BR-23** [Minor] `reader-cap-writer-unbounded` The store's record and byte limits now block every suite pass instead of only marking stats partial
+- **BR-24** [Minor] `duplicated-io-glue` Atlas says store readers use isSuiteRun or isFlakeEvidence; the weekly readers still compare check names directly
+- **BR-25** [Minor] `test-name-contradicts-assertion` TestRunLocalCheckStatsPublicationFailureStillPostsStatus now asserts the status is not posted

@@ -188,7 +188,10 @@ first-class evidence, recorded on the commit it ran on:
   refuses a suite success on a commit while a failed suite attempt there is
   unexplained (`flakes.Unexplained`: not a known-flake landing, and not every
   failure a test registered now; an unattributable or rejected failure never).
-  It fails closed on a test-stats store it cannot read whole. Store readers
+  It fails closed on a test-stats store it cannot read whole (a record pruned
+  mid-read is skipped, not unreadable). The reader's caps (10,000 records,
+  64 MiB) now gate landings; the writer is bounded by the 30-day prune, and
+  ariadne's store measured 155 records / 620K on 2026-10-18, about 60x under. Store readers
   use `isSuiteRun` (counts, reuse) or `isFlakeEvidence` (a suite run or a
   passing `suite-rerun`). `known_flakes` (`rerun` \| `accept` \|
   `off`) on the declared suite is the operator's policy, under the same

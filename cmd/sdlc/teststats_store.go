@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
@@ -460,6 +461,9 @@ func readSuiteAttemptsBudget(root string, limit int, maxBytes int64) ([]SuiteAtt
 			seen++
 			p := filepath.Join(root, "attempts", e.Name())
 			f, openErr := os.Open(p)
+			if errors.Is(openErr, fs.ErrNotExist) {
+				continue // pruned since the listing: a published record is only ever removed by prune
+			}
 			if openErr != nil {
 				warnings = append(warnings, p+": "+openErr.Error())
 				continue

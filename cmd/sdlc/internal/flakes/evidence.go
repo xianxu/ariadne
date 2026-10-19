@@ -83,6 +83,10 @@ func Unexplained(all []Attempt, sha string, r Registry) []Attempt {
 }
 
 // Sort orders attempts by finish time, then ID, without changing all.
+// Explainable reports whether registering a test can later explain a failed
+// attempt of this kind (#394): never one the rule judged and rejected.
+func Explainable(k Kind) bool { return !neverExplained[k] }
+
 var neverExplained = map[Kind]bool{Unattributable: true, KnownFlakeTwice: true, TooManyKnownFlaky: true, RuleOff: true, RerunInconclusive: true}
 
 func Sort(all []Attempt) []Attempt {

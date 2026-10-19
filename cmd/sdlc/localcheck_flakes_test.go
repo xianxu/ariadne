@@ -274,7 +274,7 @@ func TestKnownFlakeGate(t *testing.T) {
 		c := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", "echo '--- shard1 exited 2 with no failing test; last output:'; exit 1"}, TimeoutMinutes: 30}
 		_, _ = runLocalCheck(ctx, d, c, sha)
 		var unexplained *unexplainedFailureError
-		if _, err := runLocalCheck(ctx, d, localCheck{Name: suiteCheckName, Command: []string{"true"}, TimeoutMinutes: 30}, sha); !errors.As(err, &unexplained) || gh.statuses[sha]["sdlc-local/suite"] != "failure" {
+		if _, err := runLocalCheck(ctx, d, localCheck{Name: suiteCheckName, Command: []string{"true"}, TimeoutMinutes: 30}, sha); !errors.As(err, &unexplained) || gh.statuses[sha]["sdlc-local/suite"] != "failure" || strings.Contains(err.Error(), "flake register") || !strings.Contains(err.Error(), "cannot explain it") {
 			t.Fatalf("%v %v", err, gh.statuses[sha])
 		}
 	})

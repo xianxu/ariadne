@@ -220,7 +220,7 @@ func readWeeklyEvidence(ctx context.Context, repo, root string, window WeeklyWin
 		e.CoverageUnknown = append(e.CoverageUnknown, "suite attempts: "+err.Error())
 	} else {
 		for _, a := range attempts {
-			if a.Check != suiteRerunCheck { // a known-flake rerun (#394) is not a full suite
+			if a.Check != suiteRerunCheck { // a known-flake rerun (#394) is not a full suite; other checks stay as before
 				e.Attempts = append(e.Attempts, a)
 			}
 		}
@@ -232,7 +232,7 @@ func readWeeklyEvidence(ctx context.Context, repo, root string, window WeeklyWin
 	known := map[string]bool{}
 	for i := range e.Attempts {
 		e.Attempts[i].Repo = repo
-		if e.Attempts[i].Check == suiteCheckName {
+		if isSuiteRun(e.Attempts[i]) {
 			known[e.Attempts[i].SHA] = true
 		}
 	}
