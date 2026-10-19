@@ -1,13 +1,22 @@
 ---
 id: 000465
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '0cdcc3cf03205719b1e5fe6aa8c8ce7a0df4808b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '2d510510f3c8feac5b372509f8375268a2d9f3d4' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-19T07:56:05-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
+flake_tests: [github.com/xianxu/ariadne/scripts/test.TestConstructScripts]
 ---
 
 # dev-aliases script exceeds its per-script budget under suite load
@@ -27,8 +36,13 @@ Keep the per-script ceiling. Reduce the cost of `construct/scripts/test/dev-alia
 
 ## Plan
 
-- [ ]
+- [ ] Measure repeated generator scans and waits; isolate preparation and duplicate-origin cases to their relevant real fixture owners (ARCH-DRY).
+- [ ] Replace fixed concurrency polling with bounded readiness/finish handshakes and use explicit timestamps for edits during builds, retaining all 82 assertions and the existing deadline.
+- [ ] Run repeated standalone and runner-targeted checks, the recorded suite and close review; land, then confirm the #465 flake registration is inactive.
+
 
 ## Log
 
 2026-10-19: Classified while closing ariadne#458. Targeted `go test ./scripts/test -run '^TestConstructScripts/plain/dev-aliases.test.sh$' -count=1 -v` passed in 33.779 seconds after the recorded full-suite timeout. The terminal failure was `scripts_test.go:70: .../construct/scripts/test/dev-aliases.test.sh did not finish within 2m0s`; the partial output had passed the prior build and failure-preservation assertions.
+
+2026-10-19: Claimed and measured the unchanged script: 82/82 assertions in 17.36s. A disposable fixture-cwd-only experiment took 16.74s, disproving live substrate traversal as the dominant cost here (this checkout has no construct/deps). Repeated generator calls scan unrelated owners, and fixed waits add several seconds. Quick test-only plan posted to hub; no production behavior or deadline changes.
