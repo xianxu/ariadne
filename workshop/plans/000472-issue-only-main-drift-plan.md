@@ -44,7 +44,7 @@ References: [merge state enum](https://docs.github.com/en/graphql/reference/pull
 |---|---|---|---|
 | Issue-record path policy | PURE | cmd/sdlc/mainmovement.go | new |
 | integrationState / transitionIntegration | PURE | cmd/sdlc/integrationstate.go | modified |
-| landingPR readiness fact | PURE data | cmd/sdlc/ghlanding.go | modified |
+| LandingReadiness snapshot | PURE data | cmd/sdlc/ghreadiness.go | new |
 
 The path policy has one list: workshop/issues/, workshop/plans/,
 workshop/history/. Initially admit only Markdown record paths under those roots;
@@ -63,7 +63,7 @@ issue-only observation arrives during its replay/push.
 | Seam | Location | Wraps / fake |
 |---|---|---|
 | Main movement observation | cmd/sdlc/mainmovement.go | gitRunner; real Git fixture histories |
-| Fresh PR readiness | cmd/sdlc/ghlanding.go | existing landingGH.LandingPRs, extended parsed field |
+| Fresh PR readiness | cmd/sdlc/ghreadiness.go | typed landing GitHub adapter method; bounded read-only GraphQL |
 | Landing transaction | cmd/sdlc/landing.go, landingintegrate.go | existing repo lock, leases, expected-head merge |
 | GitHub/check status model | cmd/sdlc/landing_test.go, cigate_fake_test.go | bare remote refs, per-head checks/statuses, policy and outcome |
 
@@ -81,15 +81,21 @@ issue-only observation arrives during its replay/push.
 3. For an interrupted integration, classify against its validated remote lease
    head, not the local merge that already contains main, so recovery cannot hide
    a code integration's charge. Retain integrationResume's two-parent/tree proof.
-4. Add optional mergeStateStatus to landingPRFields and parseLandingPRs. Accept
-   only the exact string CLEAN for direct merge. Unknown future strings or missing
-   readiness fields disable the optimization; malformed identity still refuses.
-   Do not weaken existing repository, PR-number, head/base OID or branch validation.
-5. After the existing exact-head gates pass, refresh PR evidence. Bind CLEAN to
-   the selected repository, PR number, branch, head and the fetched main BaseOID.
-   Reacquire the repo transaction lock, revalidate the checkout/head and fetch main
-   again. A stale base or non-CLEAN policy falls back to normal integration; a
-   changed head/identity preserves the branch and refuses, as today.
+4. Add one typed readiness method beside the existing GitHub landing adapter,
+   returning repository, PR number/state, head branch/OID, base branch/current
+   target OID and mergeStateStatus. Use a bounded read-only GraphQL request pinned
+   to github.com; never a generic caller-provided query or authority inferred from
+   GH_HOST. Read baseRef.target.oid, not baseRefOid: live conformance proved the
+   latter is historical even when the actual base reference has moved.
+   Accept only CLEAN for direct merge. Missing/future state, partial GraphQL
+   errors, malformed types or unavailable policy disable the optimization with a
+   note; they confer no landing authority. Existing identity/lease checks remain.
+5. After the existing exact-head gates pass, read one readiness snapshot outside
+   the repo transaction lock. Bind CLEAN to the selected repository, PR number,
+   branches, head and fetched live base target. Reacquire the lock, revalidate the
+   checkout/head and fetch main again. Stale base or non-CLEAN policy falls back
+   to normal integration; changed head/identity preserves the branch and refuses,
+   as today. Ordinary landingPR.BaseOID and merged/cleanup evidence remain unchanged.
 6. Retain duplicate-ID, instance-conformance and publish gates against the pinned
    destination, including issue data main published after the branch point.
    Those gates already use the merge base and do not require main to be an ancestor.
@@ -143,7 +149,7 @@ unknown main changes.
   policy and per-head status storage. Real Git creates and merges actual commits.
 - ARCH-CONSTRAINTS: per observation O(C + P) in new main commits and changed paths;
   one bounded Git history call, no per-path subprocesses. Unit/counted fixtures at
-  N and 2N reject a growing number of Git calls. Readiness costs one fresh listing
+  N and 2N reject a growing number of Git calls. Readiness costs one fresh typed query
   at the final gate, outside the repo lock; retain existing GitHub time budgets.
 - ARCH-SECURE: only validated OIDs/identities and typed readiness; unknown or failed
   policy observations never authorize direct merge. No secrets or new permissions.
@@ -176,11 +182,14 @@ Files: mainmovement.go/mainmovement_test.go; integrationstate.go/integrationstat
 
 ### GitHub readiness and full landing wiring
 
-Files: ghlanding.go/ghlanding_test.go; landing.go; landingintegrate.go;
+Files: ghreadiness.go/ghreadiness_test.go; ghlanding.go (typed adapter seam);
+landing.go; landingintegrate.go;
 landing_test.go; landingintegrate_test.go; landingeconomy_test.go.
 
 - [ ] Add red adapter tests for exact CLEAN, BEHIND/UNKNOWN/missing/future readiness,
-  invalid readiness type and changed repo/PR/head/base identity.
+  partial GraphQL errors, invalid readiness type and changed repo/PR/head/base
+  identity. Include a stale baseRefOid alongside a current baseRef.target.oid,
+  and prove only the latter binds the observation.
 - [ ] Extend the real-Git/stateful-GitHub fixture: create a ready tested PR; publish
   three distinct issue-only main commits while its gate waits; assert unchanged
   PR head, one code integration at most (the initial fixture setup), one suite,
@@ -225,3 +234,12 @@ No Mx markers: this is one atomic behavior change with one close review boundary
 Label the simplicity tactic as prose rather than an unregistered ARCH marker;
 explicitly record ARCH-FUNERAL's ephemeral lifetime and existing cleanup owner.
 No mechanism or scope change.
+
+### 2026-10-19 15:45 PDT — measured live base-reference semantics
+
+Read-only gh pr list/view and GraphQL calls on an existing open Ariadne PR showed
+baseRefOid behind current main; baseRef.target.oid matched Git's fetched main.
+Replace the proposed additive landingPR listing field with one dedicated typed
+readiness snapshot through the GitHub adapter. Keep historical PR base evidence
+unchanged for normal gates/recovery. The approved CLEAN/fallback behavior, exact
+identity binding, counter policy and absence of workflow edits are unchanged.

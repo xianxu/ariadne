@@ -79,3 +79,11 @@ paths-ignore alone cannot justify a new integrated head inheriting server checks
 PR path filtering considers the full PR diff. Strict/unknown fallback integrates,
 waits for exact-head CI and preserves the existing local-suite reuse rule, while
 issue-only movement never consumes the code integration budget.
+
+### 2026-10-19 — live readiness correction
+
+Read-only API conformance before code found that landingPR.BaseOID (GitHub
+baseRefOid) is historical for an open PR; GraphQL baseRef.target.oid matches
+current main. The durable plan now keeps listing/recovery evidence unchanged and
+adds a dedicated typed readiness query through the GitHub adapter. Only the live
+base reference can bind CLEAN to the final fetched main. Reported to the hub.
