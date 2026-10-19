@@ -267,3 +267,76 @@ Covered: every interruption of both verbs. Not covered: another team's TL commit
   - status verbs default FILE to the team's session file.
 - The tl-lead help and the tl-worker help state teams, `team:<name>`, direct filing with a one-line note to your own hub, path-limited commits and the steward. The help tests pin these.
 - The live proof (echo team, cross-team exchange) is handed to the hub, to run once pair#694 lands.
+
+## Revisions
+
+### 2026-10-19: one team per repo (operator decision, design §7–§9)
+
+**Reason:** the operator chose one team per ops repo. A team's TL is the `:0` slot of its own ops repo: `ops:0` (devinfra) and `ops-echo:0` (echo). Couch's existing multi-hub support carries it (`couch ~/workspace/ops ~/workspace/ops-echo`), so there is no team concept in Couch and pair#694 is parked. The steward is the first hub on Couch's command line; it is not a field in `team.md`. A TL never lives inside a product repo (branch protection).
+
+**Dropped** from the plan above:
+- the `team:<name>` address;
+- `--team` and the walk up to a `.hub` (Task 1's resolution; D3's default FILE);
+- `team commit` and path-limited commits (Task 4; D4);
+- `team.md`'s `owns:` and `steward:` fields (D1, D2 and D5 change as below).
+
+**The revised scope:**
+
+1. **Hub contract (help only).**
+   - A slot whose checkout has `.hub` at its root is a hub and runs `tl-lead`; every other slot runs `tl-worker`. No new address kind.
+   - `tl-lead` help: ROLES becomes one TL per team, the team being its ops repo. A new TEAMS section covers the steward duties, cross-team routing and `team new`.
+   - `tl-worker` help, FILING ISSUES: file in the repo where the problem lives (`sdlc issue new` there, then `sdlc unclaim` unless you'll work it) and tell your hub in one line. Hubs never relay a filing. "Report to `hub`" means the hub that claims your slot, which is how Couch already works.
+2. **Ownership has one source, `.hub`** (ARCH-DRY, design §9).
+   - Claim lines only: usually whole repos, rarely a slot. tl-lead's grammar mirrors pair's, checked against pair's test vectors (`hubClaimLine`, unchanged from Task 1).
+   - `team.md` at the ops repo root holds frontmatter `type: team`, a pointer to `.hub` and prose ("Asks other teams for"). It carries no repo list and no steward flag.
+3. **`tl-lead team list [REPO]`** finds teams as the sibling checkouts in the workspace (the ops repo's parent folder) that have `.hub` at their root.
+   - Without REPO, it prints each team's name (the repo's folder name), its hub address `<name>:0` and its claims.
+   - With REPO, it prints the owning hub's address. Owner resolution follows Couch's rule (`couchcore/hub_ownership.go`): an exact slot claim beats a repo claim; between equal claims, the first hub on the command line wins, and tl-lead can't see that order, so it lists every claimant and says so. A repo nobody claims belongs to the first hub (the steward).
+   - It warns when one repo is claimed by two hubs.
+4. **`tl-lead team issues`:** new issues nobody has claimed in the repos this hub's `.hub` claims, newest first, through `sdlc state --json` (Task 5, unchanged).
+5. **`tl-lead team new PATH [--claim C]...`:** creates or adopts an ops repo.
+   - It writes `.hub` (claim lines only) and `team.md`. A missing folder is created and `git init` is run in it. An existing git checkout is adopted: only the two missing files are written.
+   - Each file is written exclusively. Identical bytes count as already written, which makes the command resumable. Any differing file refuses before anything is written.
+   - It never commits or pushes, and never creates the GitHub repo: those are the operator's and the hub's steps. It prints the next steps.
+6. **`tl-lead fleet resume [--apply]`:** run only when the operator asks to resume the fleet; never at startup (operator, §9).
+   - **The join.** For each slot of the repos this hub claims (`sdlc fleet inventory` through the existing `SDLC` seam), it reads three things:
+     - its liveness, from `couch --actors` (existing `CouchActors` seam);
+     - its in-flight work: a non-terminal issue whose owner workspace is that slot, from `sdlc state --json` (`RepoIssues`, Task 5);
+     - when it is down with work in flight, `couch --resume-candidates repo:N --json` (a new `Couch` read seam with a stateful fake, plus a `TL_LEAD_LIVE` conformance decode).
+   - **The classes:**
+     - *running*: left alone;
+     - *idle*: down with no work, left down;
+     - *resume*: down, with work and a proven conversation;
+     - *ambiguous*: down with work but no proven conversation, or a conversation but no claim. These are listed for Needs you, never guessed.
+   - **The run.** A dry run prints the classes. `--apply` runs `couch --resume repo:N` one slot at a time, since the call is heavy and Couch says one at a time. Each outcome is reported as resumed, refused (with Couch's reason), or uncertain.
+   - **Order and retries (ARCH-ORDER).** Each resume is an external effect whose outcome may be uncertain. A rerun re-reads liveness first, so a slot already resumed is *running* and is skipped, and retries never duplicate. A refusal stops nothing: the next slot proceeds. An uncertain outcome is reported, not retried, and the TL peeks before acting.
+   - **Pure planner.** `planResume(slots, actors, issues, candidates)` returns the classes, with a table test that covers every class and the stale-read case.
+
+**Decisions now:**
+- D1: `team.md` points at `.hub` and holds no list.
+- D2: `.hub` claims come from `--claim` (repo or `repo:N`).
+- D3 is withdrawn: FILE stays required, because `--team` is gone.
+- D4 is withdrawn.
+- D5: the steward is the first hub on the command line. tl-lead only documents the role, and `team list` notes that it can't see the order.
+
+**Revised tasks** (each test-first, as in the original tasks):
+- **R1:** `hubClaimLine` and the `team.md` parse.
+- **R2:** `team new PATH`, covering create, adopt, resume and refuse.
+- **R3:** `team list [REPO]`, over a temp workspace of sibling repos.
+- **R4:** `RepoIssues` and `team issues`, from Task 5 with `owns` replaced by `.hub` repo claims.
+- **R5:** the `Couch` resume seam plus its fake, `planResume`, and `fleet resume [--apply]`.
+- **R6:** help for tl-lead and tl-worker, plus atlas.
+- **R7:** the full suite. Live: a dry run of `team list`, `team issues` and `fleet resume` from ops (all reads). `team new` and the live proof (`ops-echo`, a cross-team exchange) are the hub's runs.
+
+**State design table (`fleet resume`).** Actions: dry run, `--apply`, rerun.
+
+| Internal state / failure mode | Visible state | Recovery | Possible loss |
+|---|---|---|---|
+| slot down, claim, proven conversation | resume | `--apply` | none |
+| slot down, claim, no proven conversation | ambiguous (Needs you) | the operator picks: `--resume --candidate`, or `--reboot` | none (tl-lead never chooses) |
+| slot down, no claim, conversation exists | ambiguous | the operator decides | none |
+| `--resume` refused (busy, lock, stale binary) | refused, with the reason | fix per the reason, then rerun | none |
+| `--resume` outcome uncertain (timeout) | uncertain | peek the slot, then rerun (it is skipped if running) | none |
+| a Couch or sdlc read fails | `?` for that repo or slot, others proceed | rerun | none |
+
+Covered: every class and every outcome of the effect. Not covered: Couch's own recovery confirmations (PID approval). Those are the hub's, through `--recovery-confirmation`, and tl-lead never approves them.

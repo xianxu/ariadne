@@ -33,17 +33,22 @@ tl-lead gains the team contract: a team folder `teams/<team>/` holds `team.md` (
 - tl-lead help and skill describe teams, team.md, routing and the steward role; `tl-lead team new <name>` scaffolds a team folder.
 - A second team in ops (echo) runs with its own session file, and cross-team routing works in a live exchange.
 
+## Revisions
+
+### 2026-10-19: one team per repo
+The operator decided one team per ops repo (design §7–§9). The scope shrinks to the hub contract, `.hub` as the only ownership list, a `team.md` pointer, routing, the steward as the first hub, `team new` creating or adopting an ops repo, and a "resume the fleet" verb. The full delta is in the durable plan's Revisions.
+
 ## Plan
 
-Durable plan: [workshop/plans/000456-tl-lead-teams-plan.md](../plans/000456-tl-lead-teams-plan.md) (design: ops `teams/devinfra/projects/introduce-team/design.md` §1, §2, §4).
+Durable plan: [workshop/plans/000456-tl-lead-teams-plan.md](../plans/000456-tl-lead-teams-plan.md). The revised scope (one team per repo) is in its Revisions section.
 
-- [ ] Team model and `--team` resolution (`team:<name>`, `.hub` claim grammar mirroring pair's, `team.md`)
-- [ ] `tl-lead team new` (scaffold and adopt, resumable) and `team list [REPO]`
-- [ ] Session FILE defaults to the team's `tl-status-*.md`
-- [ ] `tl-lead team commit` (path-limited, pull --rebase, push, resumable)
-- [ ] `tl-lead team issues` (open, unclaimed, in owned repos; `sdlc state --json`)
-- [ ] Help: tl-lead TEAMS, tl-worker direct filing, atlas
-- [ ] Full suite; read-only manual check; hand the live proof to the hub
+- [ ] R1 `.hub` claim grammar (mirrors pair's) and the `team.md` parse
+- [ ] R2 `tl-lead team new PATH` (create or adopt an ops repo; resumable; refuses on any differing file)
+- [ ] R3 `tl-lead team list [REPO]` (sibling repos with `.hub`; the owning hub by Couch's rule)
+- [ ] R4 `tl-lead team issues` (open issues nobody has claimed, in repos `.hub` claims)
+- [ ] R5 `tl-lead fleet resume [--apply]` (join couch resume candidates with sdlc claims; sequential resumes)
+- [ ] R6 Help: tl-lead TEAMS and hub contract; tl-worker direct filing; atlas
+- [ ] R7 Full suite; read-only live dry runs from ops; hand `team new` and the live proof to the hub
 
 ## Log
 
