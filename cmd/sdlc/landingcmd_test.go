@@ -199,3 +199,23 @@ func TestLandingStatusShowsTrainsAndReadiness(t *testing.T) {
 		}
 	}
 }
+
+func TestRecentTrainsReport(t *testing.T) {
+	at := time.Date(2026, 10, 19, 9, 0, 0, 0, time.UTC)
+	events := []landingline.Event{
+		{Kind: landingline.EventTrain, Train: 4, At: at, Result: "landed", Cars: []int64{4, 5, 6}, PR: 101, Splits: 2, Culprit: 5},
+		{Kind: landingline.EventEnqueue, Seq: 9},
+		{Kind: landingline.EventTrain, Train: 9, At: at.Add(time.Hour), Result: "alone", Cars: []int64{9}, Detail: "no other car is ready"},
+	}
+	got := recentTrains(events, 3)
+	want := []string{
+		"train 9 at 2026-10-19T10:00:00Z: alone; cars 9; no other car is ready",
+		"train 4 at 2026-10-19T09:00:00Z: landed; cars 4,5,6; train PR #101; 2 split suite(s), culprit ticket 5",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("report:\n%s", strings.Join(got, "\n"))
+	}
+	if len(recentTrains(events, 1)) != 1 {
+		t.Fatal("the limit was not kept")
+	}
+}

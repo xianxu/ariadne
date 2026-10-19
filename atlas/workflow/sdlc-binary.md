@@ -437,6 +437,9 @@ trains on:
 - **Leftovers:** the next conductor closes an open `landing-train/*` PR left by a dead conductor, and deletes train branches with no open PR.
 - **A car with no word:** a waiting car that finds its own PR merged at its head (its conductor died after the merge, or the outcome write failed) ends its wait and finishes as a resume.
 - **Uncertain merge:** a conductor that stops while its merge's outcome is unknown records `merge-unconfirmed`, never landed or abandoned. Its cars go back to wait, and each one reads its own PR.
+- **Splits:** an unexplained suite failure is bisected over the prefixes (at most ⌈log₂ n⌉ more suites). The culprit is held, the clean prefix lands, and the cars behind it are released, so the next train departs at once. A known flake's #394 rerun is a pass. Main's baseline failing the same way refuses the train.
+- **Refusals:** red CI on the train PR refuses the whole train (no CI bisect). A fleet-blocking grant, or a PR with the local-gates label, lands alone.
+- **Report:** `sdlc landing status` lists the last trains from the `train` events: result, cars, train PR, split suites and culprit.
 
 With no other car, the head lands alone, as before, and logs the departure. Plan: `workshop/plans/000449-landing-train-plan.md`.
 

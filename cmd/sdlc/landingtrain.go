@@ -662,6 +662,11 @@ func maybeConductTrain(ctx context.Context, r gitRunner, lgh landingGH, ci ghCal
 	if !ok {
 		return serial("the GitHub adapter has no train support", 0)
 	}
+	if entries, _, err := turn.line.GrantEntries(); err == nil {
+		if _, granted := landingline.ValidGrants(entries, now)[tk.Issue]; granted {
+			return serial("fleet-blocking: lands alone, outside the train", 0)
+		}
+	}
 	self, _ := readiness(ctx)
 	if !self.Ready || self.Head != head || self.PR != pr.Number {
 		return serial("this merge's own gates do not hold: "+self.Reason, 0)

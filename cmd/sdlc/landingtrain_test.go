@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
@@ -38,8 +40,10 @@ type trainFakeGH struct {
 	lostReply bool
 	// lagMerged: a merged train PR still lists OPEN for this many reads.
 	lagMerged int
-	created   []string
-	closed    []int
+	// trainChecks are the CI checks every train head reports (green: none).
+	trainChecks []prCheck
+	created     []string
+	closed      []int
 }
 
 func newTrainFakeGH(t *testing.T, remote string, ci *ciFakeGH, variant string) *trainFakeGH {
@@ -53,8 +57,15 @@ func (g *trainFakeGH) addPR(number int, branch string) *landingPR {
 	head := git(g.t, g.remote, "rev-parse", "refs/heads/"+branch)
 	pr := &landingPR{Number: number, State: "OPEN", Repo: "test/repo", HeadRef: branch, HeadOID: head, BaseRef: "main", BaseOID: git(g.t, g.remote, "rev-parse", "refs/heads/main")}
 	g.prs[branch] = pr
-	g.ciFakeGH.setHead(number, head)
+	g.ciFakeGH.setHead(number, head, g.checksFor(branch)...)
 	return pr
+}
+
+func (g *trainFakeGH) checksFor(branch string) []prCheck {
+	if strings.HasPrefix(branch, trainBranchPrefix) {
+		return g.trainChecks
+	}
+	return nil
 }
 
 func (g *trainFakeGH) LandingPRs(_ context.Context, _ string, branch string) ([]landingPR, error) {
@@ -73,7 +84,7 @@ func (g *trainFakeGH) LandingPRs(_ context.Context, _ string, branch string) ([]
 	if pr.State == "OPEN" { // GitHub follows pushes to an open PR's branch
 		if head, err := trainGitOut(g.remote, "rev-parse", "refs/heads/"+branch); err == nil && head != pr.HeadOID {
 			pr.HeadOID = head
-			g.ciFakeGH.setHead(pr.Number, head)
+			g.ciFakeGH.setHead(pr.Number, head, g.checksFor(branch)...)
 		}
 	}
 	return []landingPR{*pr}, nil
@@ -122,6 +133,18 @@ func (g *trainFakeGH) LandingMerge(_ context.Context, repo string, number int, h
 		return errors.New("trainFakeGH: connection reset after the merge")
 	}
 	return nil
+}
+
+// PostStatus accepts a status on any commit the server has, as GitHub does
+// for a pushed commit: a bisect suite records on a prefix that is no PR's
+// head, only an ancestor of the train branch.
+func (g *trainFakeGH) PostStatus(ctx context.Context, repo, sha, name, state, desc string) error {
+	if _, err := trainGitOut(g.remote, "cat-file", "-e", sha+"^{commit}"); err == nil {
+		g.ciFakeGH.mu.Lock()
+		g.ciFakeGH.known[sha] = true
+		g.ciFakeGH.mu.Unlock()
+	}
+	return g.ciFakeGH.PostStatus(ctx, repo, sha, name, state, desc)
 }
 
 func (g *trainFakeGH) OpenTrainPRs(_ context.Context, _ string) ([]landingPR, error) {
@@ -308,8 +331,9 @@ func (s *trainSetup) merge(root string) <-chan error {
 	return done
 }
 
-// waitingCar enqueues a synthetic car that vouches for branch and waits.
-func (s *trainSetup) waitingCar(t *testing.T, branch string, issue, number int) <-chan error {
+// queuedCar enqueues a synthetic car that vouches for branch but never polls
+// for admission (it can't take the line; a train can still board it).
+func (s *trainSetup) queuedCar(t *testing.T, branch string, issue, number int) *landingline.Handle {
 	t.Helper()
 	h, err := s.line.Enqueue(landingline.Ticket{Issue: issue, Branch: branch})
 	if err != nil {
@@ -319,8 +343,22 @@ func (s *trainSetup) waitingCar(t *testing.T, branch string, issue, number int) 
 	if err := s.line.Vouch(h, landingline.Readiness{Branch: branch, Head: s.heads[branch], PR: number, Ready: true}); err != nil {
 		t.Fatal(err)
 	}
+	return h
+}
+
+// waitingCar is a queuedCar that also waits, as a car's sdlc merge does.
+func (s *trainSetup) waitingCar(t *testing.T, branch string, issue, number int) <-chan error {
+	t.Helper()
+	h := s.queuedCar(t, branch, issue, number)
 	done := make(chan error, 1)
-	go func() { done <- s.line.Wait(context.Background(), h) }()
+	go func() {
+		err := s.line.Wait(context.Background(), h)
+		var settled *landingline.Settled
+		if errors.As(err, &settled) {
+			h.Release() // a settled car leaves the line, as its merge does
+		}
+		done <- err
+	}()
 	return done
 }
 
@@ -593,4 +631,173 @@ func TestLandingTrainLaggingListingIsItsOwnMerge(t *testing.T) {
 		t.Fatalf("merges %d trains %+v", s.gh.merges, lineEvents(t, s.line)[landingline.EventTrain])
 	}
 	wantNoTrainBranch(t, s.gh.remote)
+}
+
+// declareSuite replaces main's suite with command (sh -c), as an operator's
+// commit to main would.
+func (s *trainSetup) declareSuite(t *testing.T, command string) {
+	t.Helper()
+	procedureWrite(t, s.server, localChecksPath, `{"version":1,"checks":[{"name":"suite","required":true,"command":["sh","-c",`+strconv.Quote(command)+`]}]}`)
+	git(t, s.server, "add", localChecksPath)
+	git(t, s.server, "commit", "-qm", "suite for this test")
+	git(t, s.server, "push", "-q", "origin", "main")
+}
+
+// An unexplained failure splits the train: the culprit is held, the clean
+// prefix lands, and the cars behind the culprit ride the next train at once.
+func TestLandingTrainSplitHoldsTheCulpritAndLandsThePrefix(t *testing.T) {
+	s := newTrainSetup(t, "train")
+	s.declareSuite(t, "test ! -e second.go") // car 2 breaks the suite
+	s.pushCar(t, "000002-second", "second", 2, 2)
+	s.pushCar(t, "000003-third", "third", 3, 3)
+	one := s.merge(s.first)
+	waitQueued(t, s.line, 1)
+	two := s.waitingCar(t, "000002-second", 2, 2)
+	three := s.waitingCar(t, "000003-third", 3, 3)
+	waitVouched(t, s.line, 3)
+	s.blocker.Release()
+	if err := finished(t, one); err != nil {
+		t.Fatalf("the clean prefix's car: %v", err)
+	}
+	held := wantSettled(t, two, landingline.OutcomeHeld)
+	if !strings.Contains(held.Reason, "car 2 (#2)") {
+		t.Fatalf("held for %q", held.Reason)
+	}
+	// Car 3 was released, still waiting; this test's line has no train rule,
+	// so it is admitted next, as the immediate next train would admit it.
+	if err := <-three; err != nil {
+		t.Fatalf("the released car was not admitted next: %v", err)
+	}
+	if p := s.gh.pr("000002-second"); p.State != "OPEN" {
+		t.Fatalf("the culprit's PR is %s", p.State)
+	}
+	if p := s.gh.pr("000003-third"); p.State != "OPEN" {
+		t.Fatalf("a car behind the culprit is %s", p.State)
+	}
+	if p := s.gh.pr(landingTestBranch); p.State != "MERGED" {
+		t.Fatalf("the clean prefix is %s", p.State)
+	}
+	ev := trainEvents(t, s.line, string(landingline.PhaseLanded))
+	if len(ev) != 1 || ev[0].Splits != 2 || ev[0].Culprit == 0 {
+		t.Fatalf("train %+v", lineEvents(t, s.line)[landingline.EventTrain])
+	}
+	if departed := ev[0].NextDue; departed.After(time.Now()) {
+		t.Fatalf("a split left ready cars behind, yet the next train waits until %v", departed)
+	}
+	wantNoTrainBranch(t, s.gh.remote)
+}
+
+// A car whose merge conflicts with the train is held; the rest land.
+func TestLandingTrainHoldsAConflictingCar(t *testing.T) {
+	s := newTrainSetup(t, "head")
+	dir := s.pushCar(t, "000002-second", "second", 2, 2)
+	// Both cars write shipped.txt differently: car 2 cannot merge onto car 1.
+	procedureWrite(t, dir, "shipped.txt", "a different feature\n")
+	git(t, dir, "add", "shipped.txt")
+	git(t, dir, "commit", "-qm", "conflicting change")
+	git(t, dir, "push", "-q", "upstream", "000002-second")
+	s.addCar(t, "000002-second", 2)
+	one := s.merge(s.first)
+	waitQueued(t, s.line, 1)
+	two := s.waitingCar(t, "000002-second", 2, 2)
+	waitVouched(t, s.line, 2)
+	s.blocker.Release()
+	if err := finished(t, one); err != nil {
+		t.Fatal(err)
+	}
+	held := wantSettled(t, two, landingline.OutcomeHeld)
+	if !strings.Contains(held.Reason, "conflicts") {
+		t.Fatalf("held for %q", held.Reason)
+	}
+	if s.gh.pr(landingTestBranch).State != "MERGED" || s.gh.pr("000002-second").State != "OPEN" {
+		t.Fatal("the wrong car landed")
+	}
+}
+
+// Red CI on the train PR refuses the whole train (no CI bisect).
+func TestLandingTrainRedCIRefusesTheTrain(t *testing.T) {
+	s := newTrainSetup(t, "train")
+	s.gh.trainChecks = []prCheck{{Name: "merge-check", Workflow: "merge-check", Bucket: "fail"}}
+	s.pushCar(t, "000002-second", "second", 2, 2)
+	one := s.merge(s.first)
+	waitQueued(t, s.line, 1)
+	two := s.waitingCar(t, "000002-second", 2, 2)
+	waitVouched(t, s.line, 2)
+	s.blocker.Release()
+	err := finished(t, one)
+	if err == nil || !strings.Contains(err.Error(), "CI is red") {
+		t.Fatalf("the conductor's merge: %v", err)
+	}
+	refused := wantSettled(t, two, landingline.OutcomeRefused)
+	if !strings.Contains(refused.Reason, "CI is red") {
+		t.Fatalf("refused for %q", refused.Reason)
+	}
+	if s.gh.merges != 0 || s.gh.pr(s.gh.created[0]).State != "CLOSED" {
+		t.Fatalf("merges %d; train PR %s", s.gh.merges, s.gh.pr(s.gh.created[0]).State)
+	}
+	if ev := trainEvents(t, s.line, string(landingline.PhaseRefused)); len(ev) != 1 {
+		t.Fatalf("train %+v", lineEvents(t, s.line)[landingline.EventTrain])
+	}
+}
+
+// A fleet-blocking grant departs at once, though no train is due, and lands
+// alone, outside any train.
+func TestLandingTrainGrantDepartsAloneWhenNoTrainIsDue(t *testing.T) {
+	s := newTrainSetup(t, "train")
+	s.blocker.Release() // this test admits by the train rule alone
+	if err := s.line.Record(landingline.Event{Kind: landingline.EventTrain, Train: 1, Seq: 1, Result: "landed", NextDue: time.Now().Add(time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.line.AddGrant(landingline.Grant{Issue: 1, Grantor: landingline.Grantor{Address: "operator shell"}, Reason: "blocks the fleet", Expires: time.Now().Add(time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	s.pushCar(t, "000002-second", "second", 2, 2)
+	s.queuedCar(t, "000002-second", 2, 2) // ready, ahead in line, but no train is due
+	one := s.merge(s.first)
+	if err := finished(t, one); err != nil {
+		t.Fatal(err)
+	}
+	if len(s.gh.created) != 0 || s.gh.pr(landingTestBranch).State != "MERGED" || s.gh.pr("000002-second").State != "OPEN" {
+		t.Fatalf("train PRs %v; the grant did not land alone", s.gh.created)
+	}
+	if ev := trainEvents(t, s.line, "alone"); len(ev) != 1 || !strings.Contains(ev[0].Detail, "fleet-blocking") {
+		t.Fatalf("train %+v", lineEvents(t, s.line)[landingline.EventTrain])
+	}
+	if cars := lineEvents(t, s.line)[landingline.EventCar]; len(cars) != 0 {
+		t.Fatalf("a grant boarded cars: %+v", cars)
+	}
+}
+
+// A known flake whose rerun passed (#394) is the train's pass: it never
+// splits. Any other failure is a split, unless main fails the same way.
+func TestTrainSuiteOutcome(t *testing.T) {
+	c := &conductor{heads: []string{strings.Repeat("a", 40)}}
+	for name, tc := range map[string]struct {
+		rec  localRunRecord
+		want landingline.SuiteOutcome
+	}{
+		"pass":                    {localRunRecord{Exit: 0}, landingline.SuitePass},
+		"known flake, rerun pass": {localRunRecord{Exit: 2, Outcome: flakes.KnownFlakePassed}, landingline.SuitePass},
+		"known flake, accepted":   {localRunRecord{Exit: 2, Outcome: flakes.KnownFlakeAccept}, landingline.SuitePass},
+	} {
+		c.run = func(context.Context, localCheck, string) (localRunRecord, error) { return tc.rec, nil }
+		ev, err := c.runSuite(1)
+		if err != nil || ev.(landingline.SuiteDone).Outcome != tc.want {
+			t.Errorf("%s: %+v %v", name, ev, err)
+		}
+	}
+	// An unexplained failure, with main's baseline already known green.
+	green := false
+	c.baseline = &green
+	c.run = func(context.Context, localCheck, string) (localRunRecord, error) {
+		return localRunRecord{Exit: 2, Outcome: flakes.Unknown}, nil
+	}
+	if ev, err := c.runSuite(1); err != nil || ev.(landingline.SuiteDone).Outcome != landingline.SuiteFail {
+		t.Fatalf("unexplained: %+v %v", ev, err)
+	}
+	red := true
+	c.baseline = &red
+	if ev, _ := c.runSuite(1); ev.(landingline.SuiteDone).Outcome != landingline.SuiteMainRed {
+		t.Fatalf("main red: %+v", ev)
+	}
 }

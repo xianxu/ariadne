@@ -7,6 +7,7 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -191,6 +192,9 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 		}
 		fmt.Fprintf(&b, "trains: every %dm, up to %d cars; %s\n", int(sched.Interval/time.Minute), sched.MaxCars, next)
 	}
+	for _, line := range recentTrains(events, 3) {
+		b.WriteString(line + "\n")
+	}
 	fmt.Fprintf(&b, "landing now: %s\n", describeTicket(head))
 	for i, t := range waiting {
 		class := "normal"
@@ -221,4 +225,32 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 	}
 	_, err = io.WriteString(out, b.String())
 	return err
+}
+
+// recentTrains is the per-train report (#449): the last n trains, newest
+// first, each with its result, cars, split suites and culprit.
+func recentTrains(events []landingline.Event, n int) []string {
+	var out []string
+	for i := len(events) - 1; i >= 0 && len(out) < n; i-- {
+		e := events[i]
+		if e.Kind != landingline.EventTrain {
+			continue
+		}
+		cars := make([]string, len(e.Cars))
+		for j, c := range e.Cars {
+			cars[j] = strconv.FormatInt(c, 10)
+		}
+		line := fmt.Sprintf("train %d at %s: %s; cars %s", e.Train, e.At.Format(time.RFC3339), e.Result, strings.Join(cars, ","))
+		if e.PR > 0 {
+			line += fmt.Sprintf("; train PR #%d", e.PR)
+		}
+		if e.Splits > 0 {
+			line += fmt.Sprintf("; %d split suite(s), culprit ticket %d", e.Splits, e.Culprit)
+		}
+		if e.Detail != "" {
+			line += "; " + e.Detail
+		}
+		out = append(out, line)
+	}
+	return out
 }

@@ -125,3 +125,33 @@ Items in order:
   - the conductor's fetches raced the landed cars' cleanup on shared refs, so ref writes now take the repo lock;
   - the suite declaration has to come from the exact main the train is built on, not the stale tracking ref;
   - the grep test caught the probe reading the raw mergeCommit.
+- M2 closed SHIP (bf4a625f) after round 1:
+  - BR-16 Critical: a car whose PR merged with no word now resumes;
+  - BR-17: a lagging listing is the train's own merge;
+  - BR-18: train branches are deleted and swept.
+  - The close-review Minors are fixed as rules (f2ff9bd74):
+    - merge-unconfirmed;
+    - one leased delete helper;
+    - a seam test;
+    - a test that keeps the plan naming every train event and effect.
+- M3 built:
+  - the grant holder lands alone;
+  - e2e split (culprit held, prefix landed, remainder released and admitted next);
+  - conflict hold;
+  - red train CI refuses the whole train;
+  - grant departs while no train is due;
+  - suite-outcome mapping (known flake is a pass, main red);
+  - `landing status` lists the last trains;
+  - help text for landing and merge, and the atlas.
+
+### Pilot plan (for the hub, after landing)
+
+1. **Rollout:** the hub rebuilds :0 (and `weave refresh` in the slots). Trains stay off everywhere: no `.sdlc/landing.json` exists.
+2. **Turn on in pair:** a pair PR adds `.sdlc/landing.json` with `{"train_interval_minutes": 60}`. It is a local-gates path, so the operator verifies it with the `local-gates-verified` label.
+3. **Conformance (Q7):** the first pair train with at least two cars, low-risk where possible, is the live check of merged-by-reachability. For each car record:
+   - `gh pr view N --json state,mergeCommit,headRefOid`;
+   - the train PR's merge commit;
+   - the train's `sdlc landing status` line.
+
+   If GitHub's `mergeCommit` for a car is not the train merge, set the fake's default variant to what GitHub reports (resume already accepts null, the head and the train commit).
+4. **Watch:** suites per landed issue (test-stats) and the p90 ready-to-landed delay against serial. An interval change is another operator-verified PR.
