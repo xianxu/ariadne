@@ -4,7 +4,7 @@ collaboration-mode: discussion
 
 # Downstream compiler compatibility implementation plan
 
-> **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy) to determine the execution approach. No implementation, network publication, release, or downstream workflow edit is authorized by this draft.
+> **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy). The hub approved option B and normal SDLC work on 2026-10-19. Workflow changes require operator-verified local-gates PRs; release/tag/tap publication remains unauthorized. See Revisions for the current rollout boundary.
 
 **Goal:** Make downstream merge-checks reproducible with a compiler that includes #422, and reject incompatible substrate changes in Ariadne CI before they land.
 
@@ -15,7 +15,7 @@ collaboration-mode: discussion
 ## Authorization and local preparation
 
 - Hub dispatch: ariadne#459, 2026-10-19; plan and prepare only, send the plan before anything leaves this machine.
-- `claim` publishes a tracker reservation and `start-plan` publishes the issue branch. Both are deferred under that explicit instruction. This draft is checkpointed on a local issue branch based on fetched main; no tracker status or ownership is fabricated. After approval, claim/start-plan must establish normal ownership before change-code.
+- The initial local-only draft deferred claim/start-plan. The hub clarified that normal SDLC publication is allowed and approved the full initial pin; this workspace has now claimed/started #459 normally. No release or tag publication follows from that permission.
 - Current observed source/pin candidate: `63d6bfd86509d97649e10d7a5dd1e9a06db17d21`. Published `weave-v0.1.0` peels to `4de31b2de32c8143d61abe17bbe7f7654503cd42`; #422 merged at `664ff7938b85a79b04c80cf1e1c90279f06342bc`. These identities were obtained from Git. Revalidate ancestry and availability when approving the pin.
 - No PR, remote branch, tag, release, workflow dispatch, tap update, label or downstream edit is part of this preparation.
 
@@ -98,11 +98,11 @@ The real conformance script is invoked explicitly by CI after its binaries/tools
 
 ### Fleet rollout and pin maintenance
 
-TL inventories each remote consumer workflow/pin from its actual default branch, including indirect substrate consumers and repositories without Go modules. A conditional string such as `weave-candidate` in a shared workflow does not mean the consumer builds the candidate: its module guard selects the published-formula path.
+This worker inventories each remote consumer workflow/pin from its actual default branch, including indirect substrate consumers and repositories without Go modules. A conditional string such as `weave-candidate` in a shared workflow does not mean the consumer builds the candidate: its module guard selects the published-formula path.
 
-The source workflow seed gains pinned gateway acquisition and may refresh workflow bytes during compilation. The selected pin itself remains consumer-authored, not generated/seeded; new-repository setup must create it explicitly from an approved supported SHA. TL files/dispatches existing consumer migrations; their owners create ordinary per-repository issue branches from main. Each patch changes only the exact pin, gateway acquisition and required toolchain/setup tests. The proposed pin is already on main, so peer changes depend on no unlanded #459 implementation.
+The source workflow seed gains pinned gateway acquisition and may refresh workflow bytes during compilation. The selected pin itself remains consumer-authored, not generated/seeded; new-repository setup must create it explicitly from an approved supported SHA. Under the hub's explicit filing instruction, this worker files one unclaimed local-gates migration issue per verified active GitHub consumer, from that repository's :0 checkout using sdlc issue new (no checkout writes). TL dispatches those issues to their own repository slots after the Ariadne guard lands; this worker creates no downstream workflow branch or PR. Each patch changes only the exact pin, gateway acquisition and required toolchain/setup tests. The proposed pin is already on main, so peer changes depend on no unlanded #459 implementation.
 
-Operator verifies and labels every affected local-gates PR; agents never self-label. Downstream smoke: a cold checkout containing an older valid committed vocabulary/sidecar regenerates after a vocabulary change without an authored-replacement refusal. Verify exact checkout/build identity in actual CI logs. Keep #459 open until rollout evidence covers every inventoried active consumer and Ariadne's guard is landed.
+Operator verifies and labels every affected local-gates PR; agents never self-label. Downstream smoke: a cold checkout containing an older valid committed vocabulary/sidecar regenerates after a vocabulary change without an authored-replacement refusal. Verify exact checkout/build identity in actual CI logs. Close/land #459 on the upstream guard plus verified inventory and filed downstream hand-offs. Each downstream issue owns its compiler pin adoption and real CI regeneration check. TL retains the portfolio rollout evidence and does not call fleet migration complete until those issues land.
 
 For later pin changes, add the new pin to the supported set **before** migrating consumers; test both. Remove the old pin only after TL records remote evidence that no inventoried consumer still selects it. Do not claim this manual inventory is a permanent automatic proof: the source CI guarantees its declared supported set, and TL owns deployed-pin reconciliation. A consumer choosing an undeclared older pin is unsupported configuration drift. Initial retirement of already-broken 0.1.0 is an explicit operator-approved migration, not a green compatibility claim about 0.1.0.
 
@@ -140,16 +140,16 @@ This is a CI path, not an interactive hot path. Work is one compiler build per s
 
 ### Task 3 — operator/TL rollout and acceptance
 
-- [ ] TL records remote consumer inventory and dispatches independently owned workflow migrations. Prepare concrete diffs in those owners' slots only after the operator authorizes them; this plan authorizes none.
+- [ ] This worker verifies remote inventory and files one unclaimed local-gates issue per active GitHub consumer from its :0 checkout, linking ariadne#459 and the inventory. Do not change downstream workflows or open isolated-checkout PRs. TL dispatches consumer issues to their own slots after the guard lands.
 - [ ] Operator verifies/labels affected PRs. Owners execute cold-regeneration CI checks and report PRs, exact compiler refs and logs. TL updates the rollout inventory/project.
-- [ ] Verify #459 Done-when against all active consumers plus the intentionally failing upstream compatibility control. Close/land through SDLC only when those steps have evidence. No self-label, tag push, release or tap publication.
+- [ ] Verify #459 Done-when against the upstream compatibility guard, initial pin, intentionally failing compiler control and filed inventory hand-offs. Consumer adoption remains in their issues. Close/land through SDLC only when the upstream steps have evidence and operator local-gates verification is present. No self-label, tag push, release or tap publication.
 
 ## Local evidence and open decisions
 
 - Both archived source snapshots built offline from cached dependencies. The actual 0.1.0 process rejected a cold tracked generated output with its valid sidecar ("preserving authored replacement"); the proposed pin regenerated it and its digest. Both refused a tampered-output control without changing its bytes. Existing shipped-ownership tests passed in 2.759s. The issue Log records the scratch evidence path. This minimal reproduction does not claim the planned whole-corpus guard or downstream CI has already run.
 - Operator must choose A or B and approve the exact release/source pin and cross-repository local-gates work. Recommendation is B; a new distribution release can be scheduled independently.
 - Remote inventory is not yet verified; local workflow presence is only a planning inventory. No downstream workflow has been edited. The supported-set/rollout guarantee must be accepted explicitly; this design does not introduce cross-repository privileged CI credentials for a live fleet scan.
-- No claim/start-plan publication has occurred. Approval must explicitly permit normal workflow/tracker/branch publication before implementation; no release/rollout approval is inferred from that permission.
+- Normal claim/start-plan publication is approved and complete. New releases, tags and tap updates remain outside the authorization. The operator must still verify/label local-gates PRs before landing.
 
 ## Revisions
 
@@ -169,3 +169,15 @@ manifest backends are not claimed covered. Added an always-changed cold control
 that admits and executes real 0.1.0, so neither unchanged vocabulary nor a pin
 membership refusal can turn the regression into a false pass. This is still a
 local unapproved draft; no implementation or publication was performed.
+
+### 2026-10-19 — approved option B and repository-owned rollout
+
+The hub approved option B and the initial full source pin above, clarified that
+normal SDLC publication is authorized, and instructed this worker to file one
+unclaimed migration issue per verified active GitHub consumer from its :0 checkout.
+After the Ariadne guard PR lands, TL dispatches those issues to free repository
+slots; this worker must not open downstream PRs from isolated checkouts. Each
+consumer owner and the operator own its local-gates PR and real CI acceptance.
+The previous plan's requirement to keep #459 open through the whole fleet rollout
+is replaced by this explicit hand-off boundary, preserving that rollout work in
+separate issues rather than claiming it complete here. No release is authorized.

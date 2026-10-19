@@ -1,13 +1,21 @@
 ---
 id: 000459
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '2fd39ea987862783e54a6698dbec9f124eaac5da' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'af2b65f7f8110f743e740db772647fd3c7880f46' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-19T01:11:31-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # weave release: downstream CI still runs weave 0.1.0 (pre-#422); vocabulary changes break every downstream merge-check
@@ -22,8 +30,15 @@ Either cut a new weave release that includes #422 and point downstream CI at it,
 
 ## Done when
 
-- Downstream CI uses a weave that includes #422; a test vocabulary change no longer trips it.
-- ariadne CI catches a change the pinned downstream compiler would reject.
+- Ariadne declares the approved full post-#422 compiler pin and its CI executes
+  that exact compiler against candidate vocabulary exports in cold consumers;
+  an incompatible changed-output control fails, while the approved pin succeeds.
+- Authored-output/sidecar safety controls remain strict and actual CI gateway
+  workflow tests prevent candidate/PATH compiler substitution.
+- A verified active GitHub consumer inventory links one unclaimed local-gates
+  migration issue per repository. Consumer adoption and real downstream CI
+  regeneration are accepted in those issues after the guard lands, owned by
+  their repository slots and the operator.
 
 ## Plan
 
@@ -31,7 +46,7 @@ See [the local implementation plan](../plans/000459-downstream-weave-compiler-pl
 
 - [x] Compare the release and pinned-source CI routes and prepare a recommendation.
 - [x] Trace the cold shipped-output failure with the actual old/new compilers.
-- [ ] Obtain hub/operator approval of the plan, exact pin and publication limits.
+- [x] Obtain hub approval of option B, exact initial pin and publication limits.
 - [ ] After approval, establish normal SDLC ownership and implement the upstream
   guard plus operator-verified, independently owned downstream migrations.
 
@@ -81,3 +96,15 @@ so the plan uses an authored pin outside the manifest and no new seed mechanism.
 The guard covers real top-level vocabulary exports and their producer
 declarations, with instance fixtures validated separately, and explicitly runs
 the old compiler through compile rather than failing only on pin membership.
+
+### 2026-10-19 — approval and hand-off boundary
+
+The hub approved option B and the full proposed pin, permitted normal SDLC
+publication, and asked this worker to claim/proceed. Claim/start-plan now record
+this workspace normally. The hub then explicitly authorized filing unclaimed
+migration issues in verified active GitHub consumer :0 checkouts, and prohibited
+isolated-checkout downstream PRs: TL dispatches consumer-owned work after this
+guard lands. Current Done when is synchronized to that boundary. The original
+"Downstream CI uses a weave that includes #422; a test vocabulary change no longer
+trips it" criterion remains required fleet acceptance in those peer issues;
+this issue does not claim those future consumer migrations are already done.
