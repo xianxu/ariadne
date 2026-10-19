@@ -35,12 +35,21 @@ var errUncertain = errors.New("outcome uncertain")
 
 type execResume struct{ bin string }
 
-const resumeTimeout = 3 * time.Minute
+// Couch's cost classes: --resume-candidates takes seconds, --resume is heavy.
+const (
+	candidatesTimeout = time.Minute
+	resumeTimeout     = 3 * time.Minute
+)
 
 func (c execResume) Candidates(addr string) (ResumeCandidates, error) {
-	out, err := exec.Command(c.bin, "--resume-candidates", addr, "--json").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), candidatesTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, c.bin, "--resume-candidates", addr, "--json").Output()
 	if err != nil {
 		var ee *exec.ExitError
+		if ctx.Err() != nil {
+			return ResumeCandidates{}, fmt.Errorf("couch --resume-candidates %s: no answer within %s", addr, candidatesTimeout)
+		}
 		if errors.As(err, &ee) {
 			return ResumeCandidates{}, fmt.Errorf("couch --resume-candidates %s: %s", addr, strings.TrimSpace(string(ee.Stderr)))
 		}
@@ -74,7 +83,11 @@ func (c execResume) Resume(addr string) error {
 	case ctx.Err() != nil:
 		return fmt.Errorf("%w: no answer within %s", errUncertain, resumeTimeout)
 	case err != nil:
-		return fmt.Errorf("refused: %s", orNone(strings.TrimSpace(stderr.String())))
+		var ee *exec.ExitError
+		if !errors.As(err, &ee) {
+			return fmt.Errorf("did not run: %v", err) // couch missing, say: nothing was attempted
+		}
+		return fmt.Errorf("refused (%v): %s", err, orNone(strings.TrimSpace(stderr.String())))
 	}
 	return nil
 }
@@ -99,31 +112,14 @@ type resumeRow struct {
 	Why   string
 }
 
-// resumeInputs is everything planResume reads, already fetched. A nil map
-// with its error set means that read failed.
+// resumeInputs is everything planResume reads, already fetched. Each
+// slot's claims come from the inventory (FleetSlot.Claims).
 type resumeInputs struct {
 	Self      string
 	Hubs      []hub
 	Slots     []FleetSlot
 	Actors    map[string]Actor
 	ActorsErr error
-	Issues    map[string][]RepoIssue // by repo
-	IssuesErr map[string]error       // by repo
-}
-
-// inFlight is a non-terminal issue's owner field naming this slot.
-func inFlight(issues []RepoIssue, addr string) []string {
-	var out []string
-	for _, is := range issues {
-		switch is.Status {
-		case "done", "wontfix", "punt":
-			continue
-		}
-		if is.Owner == addr {
-			out = append(out, "#"+strings.TrimLeft(is.ID, "0"))
-		}
-	}
-	return out
 }
 
 // planResume classifies every slot that resolves to this hub alone. A tied
@@ -161,11 +157,11 @@ func planResume(in resumeInputs) (rows []resumeRow, others int) {
 			rows = append(rows, resumeRow{addr, classRunning, ""})
 			continue
 		}
-		if err := in.IssuesErr[sl.Repo]; err != nil {
-			rows = append(rows, resumeRow{addr, classUnknown, "claims unreadable: " + err.Error()})
+		if !sl.ClaimsKnown {
+			rows = append(rows, resumeRow{addr, classUnknown, "claims unreadable: " + sl.ClaimsWhy})
 			continue
 		}
-		work := inFlight(in.Issues[sl.Repo], addr)
+		work := sl.Claims
 		if len(work) == 0 {
 			rows = append(rows, resumeRow{addr, classIdle, ""})
 			continue
@@ -217,18 +213,8 @@ func fleetResume(out io.Writer, d deps, cwd string, apply bool) error {
 	if err != nil {
 		return err
 	}
-	in := resumeInputs{Self: self, Hubs: hubs, Slots: fleet.Slots, Issues: map[string][]RepoIssue{}, IssuesErr: map[string]error{}}
+	in := resumeInputs{Self: self, Hubs: hubs, Slots: fleet.Slots}
 	in.Actors, in.ActorsErr = d.actors.Actors()
-	// Claims are read for each repo with a slot this hub owns alone.
-	for repo := range ownedRepos(in.Slots, hubs, self) {
-		root, err := d.sdlc.RepoRoot(cwd, repo)
-		if err == nil {
-			in.Issues[repo], err = d.sdlc.RepoIssues(root)
-		}
-		if err != nil {
-			in.IssuesErr[repo] = err
-		}
-	}
 	rows, others := planResume(in)
 	for i, r := range rows {
 		if r.Class == classCandidates {
@@ -269,21 +255,6 @@ func fleetResume(out io.Writer, d deps, cwd string, apply bool) error {
 		}
 	}
 	return nil
-}
-
-// ownedRepos are the repos with at least one slot (besides the hub's own)
-// that resolves to self alone.
-func ownedRepos(slots []FleetSlot, hubs []hub, self string) map[string]bool {
-	out := map[string]bool{}
-	for _, sl := range slots {
-		if sl.Repo == self && sl.Slot == 0 {
-			continue
-		}
-		if who, ok := ownerOf(sl.Repo, sl.Slot, hubs).sole(); ok && who == self {
-			out[sl.Repo] = true
-		}
-	}
-	return out
 }
 
 func newFleetCmd(d deps) *cobra.Command {

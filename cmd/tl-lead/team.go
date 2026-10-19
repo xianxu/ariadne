@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // A team is an ops repo whose :0 slot is the TL (ariadne#456, one team per
@@ -58,8 +59,8 @@ func parseHubClaim(text string) (hubClaim, error) {
 // parseHub reads a .hub document: one claim per line; blank lines and #
 // comments carry none. A malformed line refuses, naming it, as Couch does.
 func parseHub(raw []byte) ([]hubClaim, error) {
-	if len(raw) > maxHubBytes {
-		return nil, fmt.Errorf(".hub exceeds 64 KiB")
+	if len(raw) > maxHubBytes || !utf8.Valid(raw) {
+		return nil, fmt.Errorf(".hub exceeds 64 KiB or is not UTF-8")
 	}
 	lines := strings.Split(strings.TrimSuffix(string(raw), "\n"), "\n")
 	if len(lines) > maxHubLines {

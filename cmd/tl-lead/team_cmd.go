@@ -143,6 +143,10 @@ func hereHub(cwd string) (self string, workspace string, err error) {
 // as Couch would resolve them from .hub.
 func renderTeams(out io.Writer, hubs []hub, repo string) {
 	if repo == "" {
+		if len(hubs) == 0 {
+			fmt.Fprintln(out, "no teams: no repo directly under the workspace has .hub at its root")
+			return
+		}
 		claimed := map[string][]string{}
 		for _, h := range hubs {
 			if h.Err != nil {
@@ -215,9 +219,13 @@ func newTeamCmd(d deps) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("not in a git checkout: run from a checkout in the workspace")
 			}
-			hubs, err := readHubs(filepath.Dir(top))
+			workspace := filepath.Dir(top)
+			hubs, err := readHubs(workspace)
 			if err != nil {
 				return err
+			}
+			if len(hubs) == 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "workspace %s (the parent of this checkout; run from a :0 checkout, since slot worktrees sit elsewhere)\n", workspace)
 			}
 			repo := ""
 			if len(args) == 1 {

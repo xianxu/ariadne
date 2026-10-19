@@ -70,17 +70,15 @@ func fleetFixture(t *testing.T) (deps, *fakeCouch, string) {
 		fmt.Sscanf(a[at+1:], "%d", &n)
 		slots = append(slots, FleetSlot{Address: a, Repo: repo, Slot: n, HostPath: "/w/" + repo})
 	}
-	work := func(owner string, n int) RepoIssue {
-		return RepoIssue{ID: fmt.Sprintf("%06d", n), Status: "working", Owner: owner}
+	// Claims as the inventory places them on this machine's checkouts.
+	claims := map[string][]string{"pair:2": {"pair#702"}, "pair:3": {"pair#703"}, "pair:5": {"pair#705"}, "pair:6": {"pair#706"}, "pair:8": {"pair#708"}}
+	for i := range slots {
+		slots[i].Claims, slots[i].ClaimsKnown = claims[slots[i].Address], true
+		if slots[i].Address == "ariadne:1" {
+			slots[i].ClaimsKnown, slots[i].ClaimsWhy = false, "claims unknown"
+		}
 	}
-	s := &fakeSDLC{
-		fleet: Fleet{Slots: slots},
-		issues: map[string][]RepoIssue{"/w/pair": {
-			work("pair:2", 702), work("pair:3", 703), work("pair:5", 705), work("pair:6", 706), work("pair:8", 708),
-			{ID: "000704", Status: "done", Owner: "pair:4"}, // finished work is not in flight
-		}},
-		issueErr: map[string]error{"/w/ariadne": errors.New("tracker unreadable")},
-	}
+	s := &fakeSDLC{fleet: Fleet{Slots: slots}}
 	c := &fakeCouch{
 		live: map[string]bool{"ops:0": true, "pair:0": true, "pair:1": true, "ariadne:0": true},
 		candidates: map[string]ResumeCandidates{
@@ -103,11 +101,11 @@ func TestFleetResumeDryRun(t *testing.T) {
 	for _, want := range []string{
 		invisibleLayers,
 		"resume    pair:2", "resume    pair:6", "resume    pair:8",
-		"ambiguous pair:3  #703; no proven conversation",
+		"ambiguous pair:3  pair#703; no proven conversation",
 		"ambiguous brain:1  unclaimed",
 		"ambiguous tools:1  claimed by ops and ops-echo", // a tie is never this hub's to resume
-		"unknown   pair:5  #705; candidates unreadable: couch busy",
-		"unknown   ariadne:1  claims unreadable",
+		"unknown   pair:5  pair#705; candidates unreadable: couch busy",
+		"unknown   ariadne:1  claims unreadable: claims unknown", // a failed claims read is never idle
 		"running   pair:1", "idle      pair:4",
 		"(3 slot(s) belong to other hubs)", // ops-echo:0, pair:7 (exact claim), echo:1
 		"dry run",
@@ -208,5 +206,44 @@ func TestResumeCandidatesLive(t *testing.T) {
 	}
 	if _, err := (execResume{bin: "couch"}).Candidates(slot); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// The inventory's rows carry each checkout's claims on this machine; a slot
+// takes its host row's non-terminal claims, and an unread or missing row
+// leaves its claims unknown, never empty (trimmed from a live
+// `sdlc fleet inventory --json`, 2026-10-19).
+func TestDecodeFleetClaims(t *testing.T) {
+	raw := `{"schema_version":1,"machine":{"state":"present"},
+"rows":[
+ {"tree_path":"/w/ariadne-slot1","claims_state":"present","claims":[
+   {"ref":"ariadne#000471","status":"working","claimant":{"machine":"4716","workspace":"ariadne:1"}},
+   {"ref":"ariadne#000400","status":"done"}]},
+ {"tree_path":"/w/ariadne-slot2","claims_state":"absent","claims":[]},
+ {"tree_path":"/w/ariadne-slot3","claims_state":"unknown","claims":[]}],
+"slots":[
+ {"address":"ariadne:1","repo":"ariadne","slot":1,"members":[{"role":"host","path":"/w/ariadne-slot1"}]},
+ {"address":"ariadne:2","repo":"ariadne","slot":2,"members":[{"role":"host","path":"/w/ariadne-slot2"}]},
+ {"address":"ariadne:3","repo":"ariadne","slot":3,"members":[{"role":"host","path":"/w/ariadne-slot3"}]},
+ {"address":"ariadne:4","repo":"ariadne","slot":4,"members":[{"role":"host","path":"/w/ariadne-slot4"}]}]}`
+	f, err := decodeFleet([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	by := map[string]FleetSlot{}
+	for _, s := range f.Slots {
+		by[s.Address] = s
+	}
+	if s := by["ariadne:1"]; !s.ClaimsKnown || strings.Join(s.Claims, ",") != "ariadne#000471" {
+		t.Errorf("ariadne:1 %+v", s)
+	}
+	if s := by["ariadne:2"]; !s.ClaimsKnown || len(s.Claims) != 0 {
+		t.Errorf("ariadne:2 (read, none) %+v", s)
+	}
+	if s := by["ariadne:3"]; s.ClaimsKnown || !strings.Contains(s.ClaimsWhy, "unknown") {
+		t.Errorf("ariadne:3 (unread) %+v", s)
+	}
+	if s := by["ariadne:4"]; s.ClaimsKnown || !strings.Contains(s.ClaimsWhy, "no inventory row") {
+		t.Errorf("ariadne:4 (no row) %+v", s)
 	}
 }

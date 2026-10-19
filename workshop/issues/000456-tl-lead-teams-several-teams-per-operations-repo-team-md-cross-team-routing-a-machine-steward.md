@@ -98,3 +98,13 @@ Items, in order:
   - A down slot with no claimed work is *idle* without reading its candidates. Most finished slots keep a conversation, so classing "conversation but no claim" as ambiguous would put nearly every idle slot in Needs you.
   - The planned `TestPlanResumeNamesInvisibleLayers` became `TestFleetResumeDryRun`. It checks the caveat line, and that a tied slot (`tools:1`) and an unclaimed one (`brain:1`) are ambiguous, never resumed.
 - **Live dry runs from ops** need ops adopted as a team first: ops has no `.hub` today. That is the hub's run: `tl-lead team new ~/workspace/ops --claim …`, then commit.
+- **Close round 1 (FIX-THEN-SHIP):**
+  - BR-1 and BR-3 are fixed at the source. `fleet resume` now takes each slot's claims from `sdlc fleet inventory` (rows[].claims), which sdlc itself places on this machine's checkouts, bound to the machine identity (`PlaceClaims`). A `claims_state` other than present or absent, or a slot with no inventory row, is unknown and never idle. tl-lead's own owner-to-slot match is gone (ARCH-DRY), and `TestDecodeFleetClaims` pins the decode.
+  - BR-2: `parseHub` refuses non-UTF-8 like pair, and the 0xff vector is restored.
+  - Minors:
+    - `--resume-candidates` has a 1-minute timeout.
+    - A resume that didn't run says so, keeping the error.
+    - `team list` says when it finds no teams, and names the folder it searched.
+  - Class sweeps:
+    - Mirrored contract: the byte and line limits, comments and whitespace all match pair's.
+    - Failed read is never absence: checked for actors, candidates, inventory claims, `RepoRoot`, an unreadable `.hub` (listed with `?`), and owner errors in `team issues` (listed apart).

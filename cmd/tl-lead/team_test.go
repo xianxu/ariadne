@@ -14,7 +14,7 @@ func TestHubClaimVectors(t *testing.T) {
 	if err != nil || len(claims) != 2 || claims[0] != (hubClaim{"pair", -1}) || claims[1] != (hubClaim{"parley.nvim", 7}) {
 		t.Fatalf("claims %+v, err %v", claims, err)
 	}
-	for _, raw := range []string{"../pair", "/work/pair", "pair:-1", "pair:01", "pair:1:2", "!pair:7", "pair\x00", strings.Repeat("x", 65537)} {
+	for _, raw := range []string{"../pair", "/work/pair", "pair:-1", "pair:01", "pair:1:2", "!pair:7", "pair\x00", string([]byte{0xff}), strings.Repeat("x", 65537)} {
 		if _, err := parseHub([]byte(raw)); err == nil {
 			t.Errorf("accepted %q", raw[:min(len(raw), 40)])
 		}

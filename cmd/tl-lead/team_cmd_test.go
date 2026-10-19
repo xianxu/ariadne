@@ -128,6 +128,11 @@ func TestRenderTeams(t *testing.T) {
 			t.Errorf("list lacks %q:\n%s", want, out.String())
 		}
 	}
+	out.Reset()
+	renderTeams(&out, nil, "")
+	if !strings.Contains(out.String(), "no teams") {
+		t.Errorf("an empty workspace printed %q", out.String())
+	}
 	for repo, want := range map[string]string{
 		"ariadne": "ariadne: ops:0",
 		"pair":    "pair: tied between ops:0, ops-echo:0",
