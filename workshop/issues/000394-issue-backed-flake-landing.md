@@ -1,12 +1,12 @@
 ---
 id: 000394
-status: working
+status: codecomplete
 deps: [392]
 github_issue:
 created: 2026-10-15
 updated: 2026-10-18
 estimate_hours: 1.6
-card_mirror: '9b1d7c9630ed36af3583de09704352229383c349' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9761cceca79ee291cc53b7b09886ace20160fe82' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-18T15:44:55-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 3.86
 ---
 
 # Issue-backed flake landing and daily triage
