@@ -38,7 +38,7 @@ Use the existing `trackerEnv.git`/`remoteRefTip` and `trackerRepo` fixture. The 
 | Terminal card with abandon record, on another work branch | Refused before archive/delete | Switch to recorded branch or rest | None |
 | Remote branch moved away from archived head, or a CAS loses a race | Refused with observed ref and archive head | Inspect/reconcile the branch, then rerun | No branch deleted; archive remains |
 
-The repo transaction lock covers local checkout/card steps; the remote can move concurrently. Read the remote branch tip before updating, require it to be an ancestor of the archived head, lease the advance to that head, then delete with a lease on that exact archived head. A concurrent push makes either lease fail. If the remote branch is absent, skip both; a repeat recognizes the terminal card and archived ref. Preflight the named branch and any currently divergent remote tip before the archive-ref push. This addresses the most dangerous interrupted ordering: archive/card publication succeeds while branch retirement fails (ARCH-SECURE, ARCH-STATE).
+The repo transaction lock covers local checkout/card steps; the remote can move concurrently. Read the remote branch tip before updating, require it to be an ancestor of the local tip before any archive push, and of the archived head before retirement. If the remote has commits beyond local work, refuse and name both tips; never advance past those commits. Lease the advance to the archived head, then delete with a lease on that exact archived head. A concurrent push makes either lease fail. If the remote branch is absent, skip both; a repeat recognizes the terminal card and archived ref. Preflight the named branch and any currently divergent remote tip before the archive-ref push. This addresses the most dangerous interrupted ordering: archive/card publication succeeds while branch retirement fails (ARCH-SECURE, ARCH-STATE).
 
 ## `--issue`/HEAD audit
 
@@ -74,3 +74,7 @@ The audit is about mistaken branch ownership, not every use of `--issue`. Any pa
 
 - [ ] Run `make -k build`, `make sdlc-build`, focused `go test`, `git diff --check` and the recorded `sdlc local-check run --name suite` on the pushed head. Do a short :0 staged live check only with hub grant; it must refuse an A-on-B abandon without changing refs.
 - [ ] Run `sdlc close` and its built-in fresh review, open/update the PR, then `sdlc merge --yes`. Report the verified PR and merge SHA to the hub.
+
+## Revisions
+
+- 2026-10-19, hub approval: the remote branch may be advanced with a lease to the archived head only after proving its current tip is contained by the local issue tip. A remote tip with commits beyond local work refuses before the archive push and names the divergent tips; a later concurrent push fails the lease.

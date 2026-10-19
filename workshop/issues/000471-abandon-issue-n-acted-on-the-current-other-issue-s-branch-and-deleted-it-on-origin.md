@@ -52,7 +52,7 @@ Add the same guard to any other verb that takes `--issue N` but acts on HEAD's b
 
 ## Plan
 
-- [ ] Write and approve the durable plan at `workshop/plans/000471-abandon-branch-identity-plan.md`, including the `--issue`/HEAD audit.
+- [x] Write and approve the durable plan at `workshop/plans/000471-abandon-branch-identity-plan.md`, including the `--issue`/HEAD audit.
 - [ ] Add red real-Git regressions for wrong-branch abandon, close, milestone-close and attach; preserve open-issue and interrupted-abandon recovery cases.
 - [ ] Bind started work to the card-derived issue branch before any effect. For remote deletion, make the remote branch tip equal the archived commit with leased updates, then delete it with a lease.
 - [ ] Run targeted tests, `make -k build`, the recorded full suite, the close review and landing gates.
