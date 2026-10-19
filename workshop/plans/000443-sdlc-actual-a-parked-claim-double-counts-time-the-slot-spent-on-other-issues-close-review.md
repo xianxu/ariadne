@@ -399,3 +399,89 @@ dispose:
    Add a `## Revisions` entry enumerating every slot-identity provenance and requiring canonical proof before any mismatch can justify skipping credit. Include retained-source malformed, incomplete, and missing-identity regressions alongside the claimant matrix.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"17154650-041e-42ca-84de-e054357d0e8b","repository":"github.com/xianxu/ariadne","issue_id":"000443","recipe":"milestone-review","round":4,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/0734785b0a2e452f","reviewed_head":"7502fb9e0bd1e8254cd6be369bf64b82215a6b96","slot":"ariadne:1","requested_at":"2026-10-19T03:33:35.727853Z"},"phase":"finished","pid":72385,"started_at":"2026-10-19T03:33:35.995503Z","finished_at":"2026-10-19T03:37:05.560272Z","session_id":"01a15238-cc50-7d51-93aa-56720fe31b8b","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T22:42:39-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 443 — sdlc actual: a parked claim double-counts time the slot spent on other issues |
+| repo | ariadne |
+| issue file | workshop/issues/000443-sdlc-actual-a-parked-claim-double-counts-time-the-slot-spent-on-other-issues.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | f92193cf4afc9d2b302e132ec5a639bbe3e05098..c7b1abed356d9b594631240a80909fe2f66f2509 |
+| command | sdlc close --issue 443 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-18T22:42:39-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range fulfills the issue’s exclusivity contract. Relevant unknown slot identities now refuse measurement, while affirmative disjoint-window or different-slot evidence permits skipping. BR-5 has executable regression evidence; no blocking findings remain.
+
+Done-when: current — it still covers overlap exclusivity, the parked-claim reproduction, and interval/refusal diagnostics.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The diagnostic pass clears ProtectedIntervals and SourceSlots; TestOwnedActualEngineReplayAndExcludedBrainProvenance passes with protection enabled.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      creditedIntervals intersects positive allocation with counted phases; passing regressions exclude Tail and clip a boundary-crossing run.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The classifier skips proven different slots before requiring replay; the passing tracker fixture includes legacy adoptions without retained inputs or completion.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The passing parked-claim fixture exercises four then eight unrelated adoptions with unavailable replay evidence while preserving same-slot protection.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Canonical-or-unknown identities cover candidate, claimant, replay source and protected credit. Tests cover all nine classifier cells and missing, malformed and mixed identities. A disposable reproduction corrupting #649's own saved source refused on head; reverting the latest production fix returned 0.333333h with no exclusions. The permanent replay-source regression also failed with that fix reverted.
+```
+
+1. **Strengths**
+
+   - The total relevance classifier makes refusal and skip rules explicit (`cmd/sdlc/actualexclusion.go:141`).
+   - Interval subtraction remains pure, unions overlapping protection, and runs before attribution (`cmd/sdlc/internal/activetime/exclusion.go:32`).
+   - Protected intervals persist in validated, bounded measurement snapshots, preserving historical replay.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed both internal packages, selected exclusion regressions, and the broader ownership/correction tests. The latter completed in 306.5 seconds. Red/green checks ran in a disposable copy, which was removed. `git diff --check` passed; the reviewed checkout remains clean. The full repository suite was not rerun during this review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** historical replay and exclusion share snapshot-authority selection.
+   - **ARCH-PURE — pass:** interval arithmetic and classification have direct tests without IO.
+   - **ARCH-PURPOSE — pass:** preview, close and correction use the shared measurement path.
+   - **ARCH-MOCK — pass:** existing integration seams use portable temporary tracker repositories and transcript fixtures.
+   - **ARCH-CONSTRAINTS — pass:** unrelated-card filtering has N/2N regression coverage; snapshots retain their size bound.
+   - **ARCH-SECURE — pass:** persisted slot identities require canonical parsing; unresolved relevant evidence refuses visibly.
+   - **ARCH-ORDER — pass:** historical measurements retain their pinned generation, including protection and phase cuts.
+   - **ARCH-FUNERAL — pass:** protection uses existing bounded snapshots; no separate durable artifact family is introduced.
+
+   Core-concept entities and modifications match the plan. The atlas documents the changed flow. No new command, flag or configuration surface requires a README update.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"4c6365aa-f3da-47c2-ad84-b23fff8d1c92","repository":"github.com/xianxu/ariadne","issue_id":"000443","recipe":"milestone-review","round":5,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/e221c9c6df3eb965","reviewed_head":"c7b1abed356d9b594631240a80909fe2f66f2509","slot":"ariadne:1","requested_at":"2026-10-19T05:35:37.891526Z"},"phase":"finished","pid":23810,"started_at":"2026-10-19T05:35:38.080026Z","finished_at":"2026-10-19T05:42:38.443667Z","session_id":"01a152a8-8618-7420-a4cb-5aff0bee669f","outcome":"returned"}] -->

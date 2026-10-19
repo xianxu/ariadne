@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "82ec2867", done: "d88d1c56"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # sdlc actual: a parked claim double-counts time the slot spent on other issues
@@ -44,6 +44,8 @@ Active time a slot spends is attributed once. When measuring an issue, exclude i
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed — Targeted canonical-slot and #649/#636 saved-source regressions passed; make -k and git diff --check passed. Recorded full suite on code head a2b56335527a6f5651429a9350d6c83f64b30c89 passed on unchanged rerun: 12 shards, 1660 sdlc tests, 68 other packages, zero failures, log SHA-256 prefix 1c068a98fb74. First attempt hit the old aggregate scripts/test timeout fixed by #448 on main. Staged all seven tools at 691671a0bc306c2e3d620a499cc9b01ba3407e6b; installed actual measured 4.21h and named protected #437/#444 intervals. Cleared ariadne:0, verifying all seven tools at main 02ea6a769bccbd09a3a81fb8754241dec35cb17f. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-18: flow upgraded quick → full — 735 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 - Planning choice: branch-only attribution cannot guarantee exclusivity because #270 intentionally hides unrelated main commits from a branch's segment boundaries. Reusing completion-pinned actual inputs needs no new durable ledger (ARCH-DRY, ARCH-FUNERAL). A replay gap remains unknown, not zero (ARCH-PURE). This can conservatively undercount activity where two issues genuinely overlap in the same slot; the report names every excluded interval.
 - The #636-shaped fixture measured 20 minutes for the parked issue before exclusion and less after replaying #649's adopted 10-minute run. The transcript grows after #649's close, so its saved byte prefix is the replay authority. Removing that source makes the candidate refuse and names #649 plus the overlapping time window. A fully excluded candidate reports `--no-actual` with the protected interval instead of telling the slot to restore evidence.
