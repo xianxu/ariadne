@@ -14,6 +14,8 @@ assert '${{' not in block, 'PR values must reach the script through env:, never 
 assert 'pull_request_target:' in workflow and 'contents: read' in workflow
 patterns=re.findall(r"^  '([^']+)'$",block,re.M)
 assert len(patterns)>=10,patterns
+assert 'scripts/ci/*' in patterns, 'CI compiler helpers require operator verification'
+assert '.sdlc/*' in patterns, 'compiler identity files require operator verification'
 
 def sample(p):   # a concrete path the pattern must match
     return p.replace('*','x/y') if p.endswith('/*') else p.replace('*','.local')

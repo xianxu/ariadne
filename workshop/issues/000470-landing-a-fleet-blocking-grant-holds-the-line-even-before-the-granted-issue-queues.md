@@ -38,3 +38,10 @@ keep today's reordering. Expiry or revocation releases the hold. `sdlc landing s
 ## Log
 
 ### 2026-10-19
+
+## Log
+
+- 2026-10-19 ~15:00 (hub): a second case. ariadne:3 held the turn with #459 (granted) and would switch the same checkout to
+  #465 (granted, fixes the flake hitting every ariadne suite). Between #459 exiting and #465's ticket existing, the normal
+  waiters #466 and #467 could be admitted first. A grant also needs to cover "my next granted issue in this checkout", or a
+  short hand-off hold. Same fix shape: a fleet-blocking grant holds the line until its issue queues or the grant expires.

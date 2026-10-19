@@ -1963,12 +1963,16 @@ with 12 shards (#330 measured 7.5–8 on a busy machine, whole module), against 
 
 Suites under `sdlc local-check` (the recorded suite, merge's integration suite,
 known-flake reruns) write their temp files to the TestScratch RAM disk when it
-is mounted (#468): `runUnderSlot` (`localcheck_run.go`) gives each run
+is mounted and, on Darwin, formatted as APFS (#468, #474): `runUnderSlot` (`localcheck_run.go`) gives each run
 `TMPDIR`/`GOTMPDIR` in its own folder under `/Volumes/TestScratch/tmp`, removed
 after, and puts the run's checkout under `/Volumes/TestScratch/local-checks`
 (review checkouts under `review-checkouts`; `internal/scratchdisk` holds the
 rule, and a disk that refuses the write falls back), and falls back to the normal temp folder when the disk is absent or under
-2 GiB free (`testscratch.go`). It also sweeps stale run and go-build folders,
+2 GiB free (`testscratch.go`). Darwin checks statfs filesystem type even for
+`WF_TEST_SCRATCH` overrides: HFS or an unknown type prints a reason and keeps
+the normal folder; non-Darwin override fixtures retain their existing behavior.
+The check performs no capability writes; cleanup still scans rejected mounted
+roots for earlier disposable folders. It also sweeps stale run and go-build folders,
 and warns about `t.TempDir` folders a scratched run still left on the SSD temp
 folders. `pkg/golint`'s `tmp-literal` flags hardcoded temp roots that bypass it.
 

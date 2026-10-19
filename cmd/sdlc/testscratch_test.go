@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/scratchdisk"
 )
 
 func TestSweepStaleTemp(t *testing.T) {
@@ -123,6 +125,8 @@ func TestRunUnderSlotUsesScratch(t *testing.T) {
 			} else {
 				t.Setenv("WF_TEST_SCRATCH", root)
 			}
+			scratchRoot, _ := scratchdisk.Use()
+			usingScratch := scratchRoot != ""
 			d, sha, _, _ := localRunRepo(t, "skipped")
 			seen := filepath.Join(t.TempDir(), "env")
 			c := localCheck{Name: "suite", Command: []string{"sh", "-c", `printf '%s\n%s\n%s\n' "$TMPDIR" "$GOTMPDIR" "$(pwd -P)" > "$1"; touch "$TMPDIR/probe"`, "fixture", seen}, TimeoutMinutes: 1}
@@ -136,7 +140,7 @@ func TestRunUnderSlotUsesScratch(t *testing.T) {
 			lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
 			// The run's checkout follows the same rule (#468).
 			checkouts := os.TempDir()
-			if mode == "scratch" {
+			if usingScratch {
 				checkouts = filepath.Join(root, "local-checks")
 			}
 			if real, err := filepath.EvalSymlinks(checkouts); err == nil {
@@ -145,7 +149,7 @@ func TestRunUnderSlotUsesScratch(t *testing.T) {
 			if len(lines) != 3 || filepath.Dir(lines[2]) != checkouts || !strings.HasPrefix(filepath.Base(lines[2]), localCheckTmpPrefix) {
 				t.Fatalf("checkout at %q, want under %s", lines, checkouts)
 			}
-			if mode == "off" {
+			if !usingScratch {
 				if lines[0] != os.Getenv("TMPDIR") {
 					t.Fatalf("off: TMPDIR = %q, want the inherited %q", lines[0], os.Getenv("TMPDIR"))
 				}
@@ -186,5 +190,26 @@ func TestSweepStaleLocalWorktreesBothRoots(t *testing.T) {
 	}
 	if _, err := os.Stat(fresh); err != nil {
 		t.Fatalf("fresh checkout swept: %v", err)
+	}
+}
+
+func TestPrepareScratchUnsupportedFileSystem(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("WF_TEST_SCRATCH", root)
+	p := scratchdisk.Read()
+	if p.Err != nil {
+		t.Fatal(p.Err)
+	}
+	if p.FileSystem != "hfs" {
+		t.Skip("requires an HFS fixture root")
+	}
+	var note bytes.Buffer
+	env, dir, cleanup := prepareScratch(&note, "suite")
+	defer cleanup()
+	if len(env) != 0 || dir != "" || !strings.Contains(note.String(), "is hfs; APFS required") || strings.Count(note.String(), "using the normal folder") != 1 {
+		t.Fatalf("env=%q dir=%q note=%q", env, dir, note.String())
+	}
+	if _, err := os.Stat(filepath.Join(root, "tmp")); !os.IsNotExist(err) {
+		t.Fatalf("rejected scratch was written: %v", err)
 	}
 }
