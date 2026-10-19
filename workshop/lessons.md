@@ -1048,3 +1048,9 @@ The simplest durable authority beats a clever scan of consequences.
   Revisions. A revision note alone leaves two contradictory close contracts.
   This is a semantic scope decision; the existing close freshness judge owns
   enforcement rather than a lexical Go lint rule.
+
+- **#458 — review the observable command and its design table:** a function
+  that invokes an injected Git callback is integration logic even when the
+  callback is passed as a value. Test the final CLI rows for default and verbose
+  behavior with real ancestry, and carry a reason when uncertain evidence keeps
+  a row visible. Document new flags in README as well as atlas.

@@ -8,18 +8,19 @@ collaboration-mode: discussion
 
 **Goal:** Stop asking the TL to refile a confirmed same-head flake already fixed by a uniquely identified, landed issue, while making recurrence and uncertainty visible.
 
-**Architecture:** The open `flake_tests` registry remains the authority for landing policy. Only `flake list` gets a read-only catalogue of terminal cards plus published details, then a pure attribution decision per confirmed failure. One pinned main tree yields issue prose; the tracker yields card status, `flake_tests` and `completion.landed_commit`; real Git ancestry distinguishes a pre-fix head from a recurrence. Every missing or ambiguous input preserves the row.
+**Architecture:** The open `flake_tests` registry remains the authority for landing policy. Only `flake list` gets a read-only catalogue of terminal cards plus published details, then an attribution decision per confirmed failure. One pinned main tree yields issue prose; the tracker yields card status, `flake_tests` and `completion.landed_commit`; real Git ancestry distinguishes a pre-fix head from a recurrence. Every missing or ambiguous input preserves the row.
 
 **Tech stack:** Go, existing `tracker.Records`, `gitx.TrunkView.FilesSelected`, `flakes` core, Git ancestry, `cmd/sdlc` test fixtures.
 
 ## Core concepts
 
-| Pure entity | Lives in | Status |
-|---|---|---|
-| `FixedFlakeIssue` | `cmd/sdlc/flake_fixed.go` | new |
-| `FixedFlakeDecision` | `cmd/sdlc/flake_fixed.go` | new |
+| Entity | Kind | Lives in | Status |
+|---|---|---|---|
+| `fixedFlakeIssue` evidence value | PURE | `cmd/sdlc/flake_fixed.go` | new |
+| `fixedIssueCovers` ownership matcher | PURE | `cmd/sdlc/flake_fixed.go` | new |
+| `classifyFixedFlake` attribution orchestration | INTEGRATION | `cmd/sdlc/flake_fixed.go` | new |
 
-`FixedFlakeIssue` carries ID, landing merge and exact covered tests from a terminal issue. `FixedFlakeDecision` takes the candidate list for one test plus ancestry answers and returns fixed, recurrence or unknown. Only exactly one eligible issue can justify hiding. It cannot guess when cards/details/commits are unreadable or multiple closed issues claim the test. No persisted data is created (ARCH-FUNERAL).
+`fixedFlakeIssue` carries ID, landing merge and exact covered tests from a terminal issue. `fixedIssueCovers` matches explicit card or issue-detail ownership without I/O. `classifyFixedFlake` takes the candidates for one test, invokes injected Git ancestry, and returns fixed, recurrence or unknown with a coverage reason; it is integration logic, not a pure entity. Only exactly one eligible issue can justify hiding. It cannot guess when cards/details/commits are unreadable or multiple closed issues claim the test. No persisted data is created (ARCH-FUNERAL).
 
 | Integration point | Lives in | Status | Wraps |
 |---|---|---|---|
@@ -45,27 +46,31 @@ The pure ownership/decision code lives in `cmd/sdlc/flake_fixed.go` because `int
 
 A bare Go test function is not globally unique. The first implementation matched `TestName` in an issue whose text named a different package, which could hide an unrelated failure. A red test pinned that case; a legacy bare name now needs its package on the same ownership line. All five pair pilot rows still qualify. The first recorded suite was queued (third in line) and canceled through `sdlc local-check cancel` before it acquired a slot; the corrected pushed head gets the suite.
 
+### 2026-10-19 — close review: IO boundary, command proof and uncertainty
+
+The earlier PURE declaration for the Git-backed classifier was inaccurate. The table now names the pure ownership matcher and integration classifier as implemented. A command test drives a real two-parent merge through default and verbose rendering, including recurrence, and checks that ambiguous ownership stays visible with its reason. Per-row unreadable details, ambiguous ownership, missing merge and Git uncertainty carry a coverage reason into the list. README now describes the changed daily view. The implementation paths below are corrected from the abandoned `internal/flakes` location.
+
 ## Tasks
 
 ### 1. Red coverage and decision tests
 
-**Files:** `cmd/sdlc/internal/flakes/fixed.go`, `cmd/sdlc/internal/flakes/fixed_test.go`, `cmd/sdlc/flake_cmd_test.go`.
+**Files:** `cmd/sdlc/flake_fixed.go`, `cmd/sdlc/flake_fixed_test.go`, `cmd/sdlc/flake_cmd_test.go`.
 
-- [ ] Add pure table tests for exact token versus substring, substantive section versus incidental Log mention, dedicated `- Test:` legacy evidence, two claimants, missing merge, and bare-name package collision. Run targeted test; confirm red.
-- [ ] Add command tests using a small real Git history: failing H before M hides by default and appears with `-v`; a later H containing M is marked recurrence. Missing merge object, unreadable tracker/details and ambiguous cards stay visible. Run targeted test; confirm red.
+- [x] Add matcher and decision table tests for exact token versus substring, substantive section versus incidental Log mention, dedicated `- Test:` legacy evidence, two claimants, missing merge, and bare-name package collision. Run targeted test; confirm red.
+- [x] Add command tests using a small real Git history: failing H before M hides by default and appears with `-v`; a later H containing M is marked recurrence. Missing merge object, unreadable tracker/details and ambiguous cards stay visible. Run targeted test; confirm red.
 
 ### 2. Catalogue and classifier
 
 **Files:** `cmd/sdlc/flake_fixed.go`, `cmd/sdlc/flake_cmd.go`, relevant tests.
 
-- [ ] Implement exact test ownership extraction and the three-way pure decision; rerun pure tests.
-- [ ] Load terminal card evidence plus one pinned published details snapshot; preserve unknown evidence explicitly. Add real tracker/main fixture tests for active/archive, missing and malformed paths; rerun targeted tests.
-- [ ] Add the cached, exact Git ancestry seam; render default and verbose list. Add counted scaling test and rerun command tests.
+- [x] Implement pure exact-test ownership matching and the three-way integration decision; rerun targeted tests.
+- [x] Load terminal card evidence plus one pinned published details snapshot; preserve unknown evidence explicitly. Add real tracker/main fixture tests for active/archive, missing and malformed paths; rerun targeted tests.
+- [x] Add the cached, exact Git ancestry seam; render default and verbose list. Add counted scaling test and rerun command tests.
 
 ### 3. Live evidence and close
 
 **Files:** `cmd/sdlc/helptext/flake*.md` if present, `atlas/workflow/*.md` as needed, issue Log.
 
-- [ ] Build the branch binary and run `flake list` and `flake list -v` read-only from pair's checkout. Verify the five pilot rows disappear by default and each is attributable in verbose output; verify other rows still show. Record exact commands, branch SHA and output evidence in the issue Log.
-- [ ] Run `make -k`, push the exact head, then `sdlc local-check run --name suite`; record the suite result and any scope/atlas changes.
+- [x] Build the branch binary and run `flake list` and `flake list -v` read-only from pair's checkout. Verify the five pilot rows disappear by default and each is attributable in verbose output; verify other rows still show. Record exact commands, branch SHA and output evidence in the issue Log.
+- [x] Run `make -k`, push the exact head, then `sdlc local-check run --name suite`; record the suite result and any scope/atlas changes.
 - [ ] Stage for a short live check only with hub grant, close on SHIP and merge through the landing line. Report PR and real merge SHA to hub.

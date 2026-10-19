@@ -53,18 +53,19 @@ func TestFixedFlakeDecisionIsConservative(t *testing.T) {
 		inHead bool
 		gitOK  bool
 		want   fixedFlakeState
+		why    string
 	}{
-		{"pre fix", []fixedFlakeIssue{base}, false, true, flakeFixed},
-		{"recurrence", []fixedFlakeIssue{base}, true, true, flakeRecurred},
-		{"two owners", []fixedFlakeIssue{base, {ID: "000589", Merge: strings.Repeat("b", 40), Tests: []string{name}, DetailKnown: true}}, false, true, flakeUnknown},
-		{"missing merge", []fixedFlakeIssue{{ID: "000585", Tests: []string{name}, DetailKnown: true}}, false, true, flakeUnknown},
-		{"git uncertain", []fixedFlakeIssue{base}, false, false, flakeUnknown},
-		{"unreadable detail", []fixedFlakeIssue{{ID: "000589", Merge: strings.Repeat("b", 40), DetailKnown: false}, base}, false, true, flakeUnknown},
-		{"unrelated legacy card with no landing", []fixedFlakeIssue{{ID: "000171", DetailKnown: false}, base}, false, true, flakeFixed},
-		{"legacy card explicitly claims test", []fixedFlakeIssue{{ID: "000171", Tests: []string{name}, DetailKnown: false}, base}, false, true, flakeUnknown},
+		{"pre fix", []fixedFlakeIssue{base}, false, true, flakeFixed, ""},
+		{"recurrence", []fixedFlakeIssue{base}, true, true, flakeRecurred, ""},
+		{"two owners", []fixedFlakeIssue{base, {ID: "000589", Merge: strings.Repeat("b", 40), Tests: []string{name}, DetailKnown: true}}, false, true, flakeUnknown, "multiple terminal issues"},
+		{"missing merge", []fixedFlakeIssue{{ID: "000585", Tests: []string{name}, DetailKnown: true}}, false, true, flakeUnknown, "no landing merge"},
+		{"git uncertain", []fixedFlakeIssue{base}, false, false, flakeUnknown, "Git ancestry"},
+		{"unreadable detail", []fixedFlakeIssue{{ID: "000589", Merge: strings.Repeat("b", 40), DetailKnown: false}, base}, false, true, flakeUnknown, "details unreadable"},
+		{"unrelated legacy card with no landing", []fixedFlakeIssue{{ID: "000171", DetailKnown: false}, base}, false, true, flakeFixed, ""},
+		{"legacy card explicitly claims test", []fixedFlakeIssue{{ID: "000171", Tests: []string{name}, DetailKnown: false}, base}, false, true, flakeUnknown, "details unreadable"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			got, _ := classifyFixedFlake(name, tt.issues, false, func(_, descendant string) (bool, error) {
+			got, _, reason := classifyFixedFlake(name, tt.issues, false, func(_, descendant string) (bool, error) {
 				if !tt.gitOK {
 					return false, errFixedGitUnknown
 				}
@@ -75,6 +76,9 @@ func TestFixedFlakeDecisionIsConservative(t *testing.T) {
 			}, "main", "head")
 			if got != tt.want {
 				t.Fatalf("got %v, want %v", got, tt.want)
+			}
+			if tt.why != "" && !strings.Contains(reason, tt.why) {
+				t.Fatalf("reason %q, want %q", reason, tt.why)
 			}
 		})
 	}
@@ -109,15 +113,72 @@ func TestFixedFlakeAgainstRealGitMergeHistory(t *testing.T) {
 	contains := func(ancestor, head string) (bool, error) {
 		return flakeGitContains(context.Background(), root, ancestor, head)
 	}
-	if got, _ := classifyFixedFlake(test, issues, false, contains, merge, before); got != flakeFixed {
+	if got, _, _ := classifyFixedFlake(test, issues, false, contains, merge, before); got != flakeFixed {
 		t.Fatalf("before merge: %v", got)
 	}
-	if got, _ := classifyFixedFlake(test, issues, false, contains, merge, merge); got != flakeRecurred {
+	if got, _, _ := classifyFixedFlake(test, issues, false, contains, merge, merge); got != flakeRecurred {
 		t.Fatalf("after merge: %v", got)
 	}
 	issues[0].Merge = strings.Repeat("f", 40)
-	if got, _ := classifyFixedFlake(test, issues, false, contains, merge, before); got != flakeUnknown {
+	if got, _, _ := classifyFixedFlake(test, issues, false, contains, merge, before); got != flakeUnknown {
 		t.Fatalf("missing merge: %v", got)
+	}
+}
+
+func TestFlakeListRendersFixedRecurrenceAndCoverageFromRealGit(t *testing.T) {
+	root := t.TempDir()
+	git(t, "", "init", "-q", "-b", "main", root)
+	git(t, root, "config", "user.name", "Test")
+	git(t, root, "config", "user.email", "test@example.com")
+	file := filepath.Join(root, "fixture")
+	if err := os.WriteFile(file, []byte("base"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "add", "fixture")
+	git(t, root, "commit", "-qm", "base")
+	before := git(t, root, "rev-parse", "HEAD")
+	git(t, root, "switch", "-qc", "fix")
+	if err := os.WriteFile(file, []byte("fix"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "commit", "-qam", "fix")
+	git(t, root, "switch", "-q", "main")
+	if err := os.WriteFile(file, []byte("main"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "commit", "-qam", "main moves")
+	git(t, root, "merge", "--no-ff", "-qm", "land fix", "-X", "ours", "fix")
+	merge := git(t, root, "rev-parse", "HEAD")
+	const name = "github.com/xianxu/ariadne/cmd/sdlc.TestOther"
+	w := &flakeWorld{main: merge, fixed: []fixedFlakeIssue{{ID: "000448", Merge: merge, Tests: []string{name}, DetailKnown: true}}}
+	w.contains = func(ctx context.Context, ancestor, head string) (bool, error) {
+		return flakeGitContains(ctx, root, ancestor, head)
+	}
+	w.attempts = []SuiteAttempt{
+		attemptAt("before", before, 1, 1, name), attemptAt("before-pass", before, 2, 0),
+		attemptAt("after", merge, 3, 1, name), attemptAt("after-pass", merge, 4, 0),
+	}
+	var out bytes.Buffer
+	if err := runFlakeListMode(context.Background(), &out, w.deps(), false); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "attempt before on") || !strings.Contains(out.String(), "attempt after on") || !strings.Contains(out.String(), "recurred after #000448") {
+		t.Fatalf("default list failed fixed/recurrence distinction:\n%s", out.String())
+	}
+	out.Reset()
+	if err := runFlakeListMode(context.Background(), &out, w.deps(), true); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "attempt before on") || !strings.Contains(out.String(), "fixed by #000448 (merge "+merge[:8]+")") {
+		t.Fatalf("verbose list omitted fixed row:\n%s", out.String())
+	}
+	w.fixed = append(w.fixed, fixedFlakeIssue{ID: "000449", Merge: merge, Tests: []string{name}, DetailKnown: true})
+	out.Reset()
+	if err := runFlakeListMode(context.Background(), &out, w.deps(), false); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "attempt before on") || !strings.Contains(out.String(), "coverage unknown: multiple terminal issues") {
+		t.Fatalf("ambiguous coverage was hidden or unexplained:\n%s", out.String())
 	}
 }
 

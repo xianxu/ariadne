@@ -253,7 +253,7 @@ When one closed issue explicitly covers a test and its landed merge is absent
 from the failing head, the default view hides that already-fixed failure.
 Use -v to see it with its issue and merge. A failure after the merge is shown
 as a recurrence. Ambiguous or unreadable evidence never hides a failure.`,
-		Args:  cobra.NoArgs,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runFlakeListMode(cmd.Context(), cmd.OutOrStdout(), defaultFlakeDeps(issuesDir), verbose)
 		},
@@ -465,10 +465,10 @@ func runFlakeListMode(ctx context.Context, out io.Writer, d flakeDeps, verbose b
 			for _, t := range a.Failures {
 				if _, known := reg.Lookup(t); !known {
 					line := fmt.Sprintf("  %s  attempt %s on %s, %s, log %s", t, a.ID, abbrevSHA(a.SHA), a.FinishedAt.Format(time.RFC3339), d.logPath(logs[a.ID]))
-					state, owner := flakeUnknown, fixedFlakeIssue{}
+					state, owner, reason := flakeUnknown, fixedFlakeIssue{}, ""
 					if regErr == nil && view.FixedErr == nil {
 						_, bare, _ := flakes.SplitTest(t)
-						state, owner = classifyFixedFlake(t, view.Fixed, bareCollision[bare], contains, view.Main, a.SHA)
+						state, owner, reason = classifyFixedFlake(t, view.Fixed, bareCollision[bare], contains, view.Main, a.SHA)
 					}
 					switch state {
 					case flakeFixed:
@@ -478,6 +478,9 @@ func runFlakeListMode(ctx context.Context, out io.Writer, d flakeDeps, verbose b
 					case flakeRecurred:
 						unregistered = append(unregistered, line+fmt.Sprintf(" — recurred after #%s", owner.ID))
 					default:
+						if reason != "" {
+							line += " — coverage unknown: " + reason
+						}
 						unregistered = append(unregistered, line)
 					}
 				}

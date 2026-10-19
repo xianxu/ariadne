@@ -197,7 +197,9 @@ func testWordByte(b byte) bool {
 	return b == '_' || b == '.' || unicode.IsLetter(rune(b)) || unicode.IsDigit(rune(b))
 }
 
-func classifyFixedFlake(name string, issues []fixedFlakeIssue, bareCollision bool, contains func(string, string) (bool, error), main, head string) (fixedFlakeState, fixedFlakeIssue) {
+// classifyFixedFlake coordinates ownership with injected Git ancestry. It is
+// integration logic: fixedIssueCovers is the pure document matcher.
+func classifyFixedFlake(name string, issues []fixedFlakeIssue, bareCollision bool, contains func(string, string) (bool, error), main, head string) (fixedFlakeState, fixedFlakeIssue, string) {
 	var candidates []fixedFlakeIssue
 	for _, candidate := range issues {
 		if !candidate.DetailKnown {
@@ -205,7 +207,7 @@ func classifyFixedFlake(name string, issues []fixedFlakeIssue, bareCollision boo
 			// cannot prove a fix. Its explicit flake_tests can still make this
 			// test's ownership uncertain; an unrelated empty card cannot.
 			if candidate.Merge != "" || fixedIssueCovers(candidate.Tests, "", name, bareCollision) {
-				return flakeUnknown, fixedFlakeIssue{}
+				return flakeUnknown, fixedFlakeIssue{}, fmt.Sprintf("issue #%s details unreadable", candidate.ID)
 			}
 			continue
 		}
@@ -213,19 +215,28 @@ func classifyFixedFlake(name string, issues []fixedFlakeIssue, bareCollision boo
 			candidates = append(candidates, candidate)
 		}
 	}
-	if len(candidates) != 1 || candidates[0].Merge == "" {
-		return flakeUnknown, fixedFlakeIssue{}
+	if len(candidates) > 1 {
+		return flakeUnknown, fixedFlakeIssue{}, "multiple terminal issues cover this test"
+	}
+	if len(candidates) == 0 {
+		return flakeUnknown, fixedFlakeIssue{}, ""
+	}
+	if candidates[0].Merge == "" {
+		return flakeUnknown, fixedFlakeIssue{}, fmt.Sprintf("issue #%s has no landing merge", candidates[0].ID)
 	}
 	onMain, err := contains(candidates[0].Merge, main)
-	if err != nil || !onMain {
-		return flakeUnknown, fixedFlakeIssue{}
+	if err != nil {
+		return flakeUnknown, fixedFlakeIssue{}, fmt.Sprintf("Git ancestry unavailable for issue #%s: %v", candidates[0].ID, err)
+	}
+	if !onMain {
+		return flakeUnknown, fixedFlakeIssue{}, fmt.Sprintf("issue #%s landing merge is not on main", candidates[0].ID)
 	}
 	inHead, err := contains(candidates[0].Merge, head)
 	if err != nil {
-		return flakeUnknown, fixedFlakeIssue{}
+		return flakeUnknown, fixedFlakeIssue{}, fmt.Sprintf("Git ancestry unavailable for issue #%s: %v", candidates[0].ID, err)
 	}
 	if inHead {
-		return flakeRecurred, candidates[0]
+		return flakeRecurred, candidates[0], ""
 	}
-	return flakeFixed, candidates[0]
+	return flakeFixed, candidates[0], ""
 }
