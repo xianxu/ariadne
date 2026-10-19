@@ -118,7 +118,9 @@ Files: atlas/workflow/sdlc-binary.md and atlas/workflow/workspace-branching.md i
 - [x] Run the focused family: bash scripts/test/test-lock.test.sh; go test ./cmd/sdlc/internal/landingline -count=1; go test ./cmd/sdlc -run 'Test(SuitePriority|SuiteQueuePriority|LocalCheck.*(Reentry|Signal)|.*Helper.*)' -count=1 -timeout 10m, adjusted to actual discovered test names before reporting.
 - [x] Commit/push; run sdlc local-check run --name suite. Do not manually chase newer main after a branch pass; close the tested branch and let merge own final integration.
 - [x] Per TL rollout revision below, build in this worktree and run the isolated real-helper harness against that binary with private lock/grant paths. Never stage or perturb live suites. The TL rebuilds :0 after landing.
-- [ ] Close with measured actuals and concrete real-helper/full-suite evidence. The binary owns the single fresh-context close review. On SHIP, sdlc pr then sdlc merge --yes, verify tracker/archive/clean resting branch, report PR and Git-derived merge hash to hub, stop.
+- [x] Complete close review with measured actuals and concrete real-helper evidence; round 3 is SHIP, all findings disposed, PR #312 is open and final-code full suite passes.
+
+Landing protocol: sdlc merge --yes owns main integration and any required integration suite; verify tracker/archive/clean resting branch, report PR and Git-derived merge hash to hub, then stop.
 
 ## Approval checkpoint
 
@@ -139,3 +141,5 @@ No implementation or regression edits have started. Await TL approval of the des
 2026-10-18 — Boundary round 1: BR-1 restores disappearance tolerance between a live-ticket snapshot and open; release remains compatible with older helpers, with no new mutex contract. BR-2 centralizes caller/persisted subject path validation in valid_subject before stat/provider use, emitting normal-FIFO fallback on invalid metadata. A real-flock controlled release interleaving and malformed-subject sweep fail before and pass after. Focused family passes (63.600s / 0.069s); queued unchanged rerun cancelled before execution to replace it with the corrected code.
 
 2026-10-18 — BR-3 prose correction: the Core concepts table and Task 2 file inventory now distinguish the modified localcheck_run.go subject/provider binding from helpercapability.go, which is reused unchanged. Optional environment metadata preserves its existing capability contract; no capability code change is needed or claimed. Round 2 disposed BR-1 and BR-2 as addressed; runtime code and queued suite candidate remain unchanged. Actual-binary smoke against the corrected runtime passed all 16 tests in 32.322s.
+
+2026-10-18 — Final verification completed: recorded final-code suite on cbd3a63740a3c87de7c8657da7a7fda0e1d14cf3 passed all 1657 cmd/sdlc tests and 70 other packages, zero failures, 674.6s; attempt 33012b468ed484ca9808f38f207b87eb. Runtime code is unchanged since that head. Close SHIP/PR #312 preparation is complete; landing remains the binary-owned protocol above, rather than an unchecked implementation task. Earlier #448 failure and final passing attempt are both retained.
