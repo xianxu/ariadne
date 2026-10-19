@@ -422,6 +422,41 @@ shows the landing now, the waiters in admission order, live grants and the delay
 p50/p90. `grant` and `revoke` take `--repo DIR` and are refused from a worker
 slot.
 
+**Landing train (#449).** `.sdlc/landing.json` on main
+(`train_interval_minutes`, `train_max_cars`; local-gates guarded) turns the line
+into trains. Absent, or an interval of 0, keeps the serial line above. With
+trains on:
+- A waiting merge vouches its readiness in `ready/<seq>` beside its ticket
+  (`landingcar.go`): its own publish and CI gates, read-only, for its exact
+  pushed head.
+- Admission waits for the departure (the last `train` event's `next_due`)
+  and a current vouch. A grant departs at once, alone.
+- The pure core is in `internal/landingline`: `train.go` (schedule, readiness
+  codec, boarding), `trainstate.go` (the running train's state machine) and
+  `bisect.go` (splitting a failing train).
+
+`sdlc landing status` shows the train setting and each waiter's vouch.
+
+**The conductor** (`landingtrain.go`) is the admitted head when other cars board:
+- **Boarding:** cars are boarded only after their remote tip and open PR are re-read at the vouched head.
+- **Build:** it builds `landing-train/<id>` in a detached worktree from fetched main, then each car's exact head. The instance and duplicate-ID gates run per prefix, and a conflict holds that car.
+- **One PR, one suite:** it opens one train PR and runs one recorded suite (#394's flake step inside it) and CI on it.
+- **Merge:** it merges once, pinned to the head. GitHub marks each car's PR merged by reachability.
+- **Outcomes:** every car is told through `outcomes/<seq>` (boarded, landed, held, refused, released). A landed car finishes today's resume cleanup.
+- **Landed commit:** each car proves its landing with `landedCommit` (its mergeCommit or its own head on main; `LandedOID` feeds the archive and the card).
+- **Locking:** ref writes take the repo transaction lock.
+- **Main moves:** a moved main is merged in again, keeping the suite when the move is docs-only.
+- **Lost reply:** a merge whose reply was lost is read back from GitHub.
+- **Branch cleanup:** a landed train's branch is deleted. Every train-branch delete goes through one helper, under the repo lock and leased on the tip last pushed or observed.
+- **Leftovers:** the next conductor closes an open `landing-train/*` PR left by a dead conductor, and deletes train branches with no open PR.
+- **A car with no word:** a waiting car that finds its own PR merged at its head (its conductor died after the merge, or the outcome write failed) ends its wait and finishes as a resume.
+- **Uncertain merge:** a conductor that stops while its merge's outcome is unknown records `merge-unconfirmed`, never landed or abandoned. Its cars go back to wait, and each one reads its own PR.
+- **Splits:** an unexplained suite failure is bisected over the prefixes (at most ⌈log₂ n⌉ more suites). The culprit is held, the clean prefix lands, and the cars behind it are released, so the next train departs at once. A known flake's #394 rerun is a pass. Main's baseline failing the same way refuses the train.
+- **Refusals:** red CI on the train PR refuses the whole train (no CI bisect). A fleet-blocking grant, or a PR with the local-gates label, lands alone.
+- **Report:** `sdlc landing status` lists the last trains from the `train` events: result, cars, train PR, split suites and culprit.
+
+With no other car, the head lands alone, as before, and logs the departure. Plan: `workshop/plans/000449-landing-train-plan.md`.
+
 ## The quick flow at close (#231)
 
 `internal/flow` is the pure core: the one-line `flow:` record codec, `Decide`
