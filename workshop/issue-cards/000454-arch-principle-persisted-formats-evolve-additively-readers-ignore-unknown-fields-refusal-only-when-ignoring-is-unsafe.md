@@ -1,6 +1,6 @@
 ---
 id: 000454
-status: working
+status: codecomplete
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.29
+tracker:
+    version: 1
+    completion:
+        token: close-8f7557a92834
+        repository: github.com/xianxu/ariadne
+        reviewed_head: f4fde1c556508ed4a8b8b0a5298654252c52bc05
+        evidence_commit: 096bef6915a496bfee51b3f0f4f0d01d1468809c
 ---
 
 # ARCH principle: persisted formats evolve additively; readers ignore unknown fields; refusal only when ignoring is unsafe
