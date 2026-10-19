@@ -584,9 +584,14 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 		if err != nil {
 			return err
 		}
-		if _, err = landingGit(r, t.Root, "merge-base", "--is-ancestor", pr.MergeOID, mainOID); err != nil {
-			return fmt.Errorf("cannot confirm integration on %s/main: %w", t.Remote, err)
+		landed, ok := landedCommit(pr, func(oid string) bool {
+			_, err := landingGit(r, t.Root, "merge-base", "--is-ancestor", oid, mainOID)
+			return err == nil
+		})
+		if !ok {
+			return fmt.Errorf("cannot confirm integration on %s/main: neither PR #%d's merge commit nor its head %s is on main", t.Remote, pr.Number, shortSHA(pr.HeadOID))
 		}
+		pr.LandedOID = landed
 		if err = revalidateLanding(r, t, branch, head, current); err != nil {
 			return err
 		}

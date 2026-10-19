@@ -14,10 +14,16 @@ import (
 
 // landingPR binds integration evidence to an exact repository, PR and head.
 // A successful merge request is not evidence: callers must observe MERGED and
-// verify MergeOID is reachable from the freshly fetched configured main.
+// resolve LandedOID (landedCommit) against the freshly fetched configured
+// main. MergeOID is GitHub's raw mergeCommit, read only here and by
+// landedCommit (#449: a PR merged by reachability, as a train's car, may
+// report none, or its own head).
 type landingPR struct {
 	Number                                                    int
 	State, HeadRef, HeadOID, BaseRef, BaseOID, MergeOID, Repo string
+	// LandedOID is the commit proven on main that carries this PR: set once,
+	// by landedCommit, before any completion or archive reads it.
+	LandedOID string
 	// LocalGatesVerified: the PR carries the operator's local-gates label, so
 	// it rides a train alone (#449). Parsed here, at the boundary.
 	LocalGatesVerified bool
@@ -121,9 +127,8 @@ func parseLandingPRs(data []byte, repo, branch string) ([]landingPR, error) {
 				return fail("malformed integration OID")
 			}
 		}
-		if r.State == "MERGED" && merge == "" {
-			return fail("merged PR lacks integration OID")
-		}
+		// A MERGED PR without mergeCommit is legal (#449): a car merged by
+		// reachability. landedCommit proves its head is on main instead.
 		verified := false
 		for _, l := range r.Labels {
 			verified = verified || l.Name == localGatesLabel
@@ -173,3 +178,21 @@ func (realGH) LandingMerge(ctx context.Context, repo string, number int, expecte
 }
 
 var _ landingGH = realGH{}
+
+// landedCommit resolves the commit that proves a MERGED PR is on main: its
+// mergeCommit when that is a valid commit on main, else its own head when
+// that is on main (a car GitHub marked merged by reachability, #449, may
+// report no mergeCommit or one that isn't the train's). Either is the PR's
+// exact reviewed head reaching main; neither on main refuses.
+func landedCommit(pr landingPR, onMain func(oid string) bool) (string, bool) {
+	if pr.State != "MERGED" {
+		return "", false
+	}
+	if landingOIDValid(pr.MergeOID) && onMain(pr.MergeOID) {
+		return pr.MergeOID, true
+	}
+	if landingOIDValid(pr.HeadOID) && onMain(pr.HeadOID) {
+		return pr.HeadOID, true
+	}
+	return "", false
+}

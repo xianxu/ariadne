@@ -93,7 +93,7 @@ func TestDurableLandingArchivesTrackedCloseByBinding(t *testing.T) {
 	head, branch := r.git("rev-parse", "HEAD"), r.git("branch", "--show-current")
 	base := r.git("merge-base", "HEAD", "origin/main")
 	r.git("push", "-q", "origin", "HEAD:main") // the PR merged as a fast-forward
-	pr := landingPR{Number: 321, State: "MERGED", Repo: "test/repo", HeadRef: branch, HeadOID: head, BaseRef: "main", BaseOID: base, MergeOID: head}
+	pr := landingPR{Number: 321, State: "MERGED", Repo: "test/repo", HeadRef: branch, HeadOID: head, BaseRef: "main", BaseOID: base, MergeOID: head, LandedOID: head}
 	evidence, _, _ := issue.CardCompletion([]byte(r.card(cardPath)))
 
 	selected, err := selectLandingIssues(context.Background(), r.root, pr, "workshop/issues")

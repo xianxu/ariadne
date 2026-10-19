@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -357,5 +359,54 @@ func TestLandingScheduleSourceIsSharedAndCached(t *testing.T) {
 	wg.Wait()
 	if n := reads.Load(); n != 1 {
 		t.Fatalf("400 calls within one TTL ran %d config reads", n)
+	}
+}
+
+// landedCommit resolves a merged PR's landing for every mergeCommit GitHub
+// may report for a car merged by reachability (#449, PQ-3).
+func TestLandedCommitAcceptsEveryMergeCommitVariant(t *testing.T) {
+	head, train, other := strings.Repeat("a", 40), strings.Repeat("b", 40), strings.Repeat("c", 40)
+	onMain := map[string]bool{head: true, train: true}
+	in := func(oid string) bool { return onMain[oid] }
+	for name, c := range map[string]struct {
+		merge, want string
+		ok          bool
+	}{
+		"the train's merge commit":   {train, train, true},
+		"a null mergeCommit":         {"", head, true},
+		"the car's own head":         {head, head, true},
+		"a merge commit not on main": {other, head, true},
+	} {
+		got, ok := landedCommit(landingPR{State: "MERGED", HeadOID: head, MergeOID: c.merge}, in)
+		if got != c.want || ok != c.ok {
+			t.Errorf("%s: %q %v", name, got, ok)
+		}
+	}
+	if _, ok := landedCommit(landingPR{State: "MERGED", HeadOID: other, MergeOID: other}, in); ok {
+		t.Error("a PR with nothing on main resolved")
+	}
+	if _, ok := landedCommit(landingPR{State: "OPEN", HeadOID: head, MergeOID: train}, in); ok {
+		t.Error("an open PR resolved")
+	}
+}
+
+// Only GitHub's decoder and landedCommit read the raw mergeCommit; every
+// consumer reads the resolved LandedOID (ARCH-PURPOSE: the class, not a site).
+func TestOnlyLandedCommitReadsMergeOID(t *testing.T) {
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") || f == "ghlanding.go" {
+			continue
+		}
+		data, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(data), ".MergeOID") {
+			t.Errorf("%s reads MergeOID; read LandedOID (resolved by landedCommit)", f)
+		}
 	}
 }
