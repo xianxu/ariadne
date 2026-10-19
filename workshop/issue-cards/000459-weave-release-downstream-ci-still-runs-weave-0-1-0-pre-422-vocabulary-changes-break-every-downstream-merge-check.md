@@ -1,6 +1,6 @@
 ---
 id: 000459
-status: working
+status: codecomplete
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours: 2.72
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 4.88
+tracker:
+    version: 1
+    completion:
+        token: close-f73b861424c4
+        repository: github.com/xianxu/ariadne
+        reviewed_head: e4e9f4fd8392af3490ad86f53ddb885e512776ec
+        evidence_commit: 5bfd02bc61f1606da8f3dc4a53ab5bd038b4a693
 ---
 
 # weave release: downstream CI still runs weave 0.1.0 (pre-#422); vocabulary changes break every downstream merge-check
