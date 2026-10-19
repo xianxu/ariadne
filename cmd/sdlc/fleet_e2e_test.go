@@ -21,6 +21,7 @@ import (
 )
 
 func TestFleetEndToEnd(t *testing.T) {
+	t.Setenv("COUCH_TREE", "inherited-live-session") // Fixture subprocesses are not live Couch slots.
 	isolateFleetIntegrationGit(t)
 	binary := buildFleetE2EBinary(t)
 
@@ -334,7 +335,9 @@ func runFleetE2ESubprocess(t *testing.T, timeout time.Duration, dir string, comb
 	defer cancel()
 	command := exec.CommandContext(ctx, executable, args...)
 	command.Dir = dir
-	command.Env = os.Environ()
+	// These disposable native-process fixtures are independent of the live
+	// caller's Couch tree; explicit Couch diagnostics have their own tests.
+	command.Env = append(os.Environ(), "COUCH_TREE=")
 	var result fleetE2ESubprocessResult
 	if combined {
 		output, err := command.CombinedOutput()

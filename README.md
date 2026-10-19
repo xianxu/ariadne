@@ -367,6 +367,18 @@ whose warning was suppressed. `--strict` fails only when a binary name has
 owners from distinct Git origins; GitHub HTTPS and SSH forms identify the
 same repository, while unknown origins remain distinct.
 
+Numbered slots resolve dev-alias owners to verified fleet `:0` checkouts,
+keeping private substrate clones separate from shell tools. A missing or
+mismatched primary refuses generation; Couch calls run the existing central
+binary without rebuilding it. Use `sdlc --version` to inspect its actual path,
+embedded revision and modified bit; Couch warns on a different executable path.
+Checkout refresh alone cannot replace a calling shell's existing functions:
+evaluate `source <(construct/dev-aliases.sh)` in that shell, or relaunch an agent
+whose tools reload a captured old shell snapshot. A PATH symlink directly to
+`:0/bin/sdlc` picks up the TL's rebuild without alias regeneration. See
+[dev-tool ownership](atlas/workflow/base-layer.md#dev-binaries--ownership--location-dev-aliasessh)
+and [executable identity](atlas/workflow/sdlc-binary.md#executable-identity-461).
+
 The construct shell tests run as named Go subtests, with a separate two-minute
 hang bound per script in each color environment. For the same selection without
 execution, run `bash scripts/test/construct-scripts.test.sh --list`; it emits
