@@ -171,6 +171,56 @@ func TestAbandonRemoteDeleteUsesTheArchivedHead(t *testing.T) {
 	}
 }
 
+func TestAbandonRefusesLocalTipMovedAfterCheckout(t *testing.T) {
+	r, _, _ := startedHere(t)
+	hooks := t.TempDir()
+	movedPath := filepath.Join(t.TempDir(), "moved-tip")
+	hook := fmt.Sprintf("#!/bin/sh\nold=$(git rev-parse refs/heads/%s) || exit 1\nnext=$(git commit-tree \"$old^{tree}\" -p \"$old\" -m 'late local work') || exit 1\ngit update-ref refs/heads/%s \"$next\" \"$old\" || exit 1\nprintf '%%s\\n' \"$next\" > %q\n", s09Branch, s09Branch, movedPath)
+	if err := os.WriteFile(filepath.Join(hooks, "post-checkout"), []byte(hook), 0755); err != nil {
+		t.Fatal(err)
+	}
+	r.git("config", "core.hooksPath", hooks)
+	err := abandon9("punt", "later")
+	r.git("config", "--unset", "core.hooksPath")
+	moved, readErr := os.ReadFile(movedPath)
+	if readErr != nil {
+		t.Fatalf("post-checkout did not move the branch: %v", readErr)
+	}
+	if err == nil || !strings.Contains(err.Error(), "moved") {
+		t.Fatalf("abandon accepted a local tip moved after preflight: %v", err)
+	}
+	if got := r.git("rev-parse", "refs/heads/"+s09Branch); got != strings.TrimSpace(string(moved)) {
+		t.Fatalf("unarchived local tip was lost: got %s, want %s", got, strings.TrimSpace(string(moved)))
+	}
+	if remoteRef(t, r, s09Archive) == strings.TrimSpace(string(moved)) {
+		t.Fatal("late local work was silently treated as archived")
+	}
+}
+
+func TestAbandonRerunPreservesBranchCheckedOutElsewhere(t *testing.T) {
+	r, _, _ := startedHere(t)
+	previous := mainPublish
+	mainPublish = func(*trackerEnv, string, func(*gitx.TrunkView) (gitx.TrunkWrite, error), func(string, string) error) error {
+		return errors.New("interrupted")
+	}
+	err := abandon9("punt", "later")
+	mainPublish = previous
+	if err == nil {
+		t.Fatal("fixture did not leave an interrupted abandon")
+	}
+	r.git("switch", "-q", "main")
+	linked := filepath.Join(t.TempDir(), "linked")
+	r.git("worktree", "add", "-q", linked, s09Branch)
+	kept := remoteRef(t, r, s09Archive)
+	err = abandon9("punt", "later")
+	if err == nil || !strings.Contains(err.Error(), "checked out") {
+		t.Fatalf("abandon removed a branch checked out in another worktree: %v", err)
+	}
+	if got := r.git("rev-parse", "refs/heads/"+s09Branch); got != kept {
+		t.Fatalf("checked-out branch moved or disappeared: got %s, want %s", got, kept)
+	}
+}
+
 func TestAbandonResumeRefusesAnotherBranch(t *testing.T) {
 	r, paths, _ := startedHere(t)
 	previous := mainPublish

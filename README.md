@@ -82,7 +82,9 @@ code and settings travel with the reviewed issue branch. See
 [trunk publication](atlas/workflow/sdlc-binary.md#issue-reservation-local-durability-and-publication-244).
 
 Attach evidence with `sdlc issue attach --issue N --file PATH --caption TEXT`,
-then commit both changed paths on the issue branch or use `sdlc issue publish`.
+from the issue's canonical branch once work has started, or from the resting
+branch while it is still open. Then commit both changed paths on the issue
+branch or use `sdlc issue publish` for an open issue.
 The issue body indexes a bounded plain-Git bundle that follows publish,
 archive, restore and slot moves. Repository policy is operator-owned;
 public or unknown host visibility defaults to text-only, private to allowed.
@@ -108,9 +110,13 @@ The issue branch is pushed at every boundary (start-plan, milestone-close,
 close, unclaim), leased on the copy last fetched, so started work survives a
 lost machine; `sdlc merge` deletes it from the remote once landed (#286).
 Started work ends as `wontfix` or `punt` only through `sdlc abandon --issue N
---as wontfix|punt --reason …`: the tip is kept under
+--as wontfix|punt --reason …` from that issue's canonical branch. The tip is kept under
 `refs/ariadne/abandoned/NNNNNN`, the card records it, the details are archived
-on main and the branch is deleted. `sdlc issue set-status working` reopens it,
+on main, and the remote is leased to the archived tip before deletion. Local
+deletion requires that same tip and no other worktree holding the branch. A
+terminal abandon interrupted after recording the card can
+be retried from its recorded branch or the resting branch; another issue's
+branch is refused. `sdlc issue set-status working` reopens it,
 restoring the branch at that tip with the details moved back out of the
 archive.
 

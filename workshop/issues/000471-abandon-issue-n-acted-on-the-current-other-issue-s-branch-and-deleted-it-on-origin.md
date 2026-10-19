@@ -56,7 +56,7 @@ Add the same guard to any other verb that takes `--issue N` but acts on HEAD's b
 - [x] Write and approve the durable plan at `workshop/plans/000471-abandon-issue-n-acted-on-the-current-other-issue-s-branch-and-deleted-it-on-origin-plan.md`, including the `--issue`/HEAD audit.
 - [x] Add red real-Git regressions for wrong-branch abandon, close, milestone-close and attach; preserve open-issue and interrupted-abandon recovery cases.
 - [x] Bind started work to the card-derived issue branch before any effect. For remote deletion, make the remote branch tip equal the archived commit with leased updates, then delete it with a lease.
-- [x] Run targeted tests, `make -k build`, and the recorded full suite on the final pushed head.
+- [ ] Run targeted tests, `make -k build`, and the recorded full suite on the final pushed head.
 - [ ] Complete the close review and landing gates.
 
 ## Log
@@ -71,3 +71,5 @@ Add the same guard to any other verb that takes `--issue N` but acts on HEAD's b
 - Live smoke used branch binary `99fe1ce6770d1c26f7c826cd6b86264cf18fe860` in a disposable local clone with a separate bare origin. From #475's branch, `abandon --issue 474` named both branches and refused; every local and bare-origin branch/archive ref was byte-for-byte unchanged. The hub denied ariadne:0 staging because that binary serves the fleet, so no shared binary was replaced.
 - The final pushed code head `d2536fa3bf909382af7cb032cfd715c18d905ea0` passed the recorded full suite (`sdlc-local/suite`, 12 shards plus 71 other packages, no failures, log SHA-256 prefix `c7c70f8e0e89`). An earlier run on this same head was interrupted by the hub's operator-requested RAM-disk reformat and recorded no result; the unchanged rerun passed.
 - Close review round 1 returned REWORK: a post-checkout hook can move the local branch between the early tip check and unconditional `git branch -D`, deleting an unarchived tip; README also omits the new checkout requirements. The revised plan pins local deletion to the recorded tip atomically and adds the reviewer’s race regression before the fix.
+- The post-checkout-hook regression failed against the old deletion (`abandon` returned success despite the moved ref), then passed with `git update-ref -d` conditioned on the recorded archived head. The broader abandon/close/attach group passed (149.390s); README now names the checkout rules. The other durable-landing local branch deletion in `landing.go` already uses expected-tip `update-ref -d`; the legacy non-durable `merge.go` cleanup still uses `branch -D` after a merged PR, a separate merge-cleanup lifecycle outside this named-issue abandon change.
+- A second red real-Git fixture showed that `update-ref -d` alone deletes a branch checked out in another linked worktree. Reusing durable landing's occupancy check before the CAS preserves the old refusal; both the occupied-branch and moved-tip fixtures pass together.

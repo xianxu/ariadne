@@ -9,6 +9,14 @@ Detailed incidents remain in their owning issue or review artifact.
   lease the exact tip already kept in the archive. Close may admit a renamed
   recovery branch only at the exact canonical issue tip; ancestry or a similar
   name is not proof that it holds only that issue's work (#471).
+- A preflight tip check cannot authorize a later destructive ref update: Git
+  hooks or another checkout may move the ref in between. Delete a local branch
+  with `git update-ref -d <ref> <archived-head>` and a remote branch with an
+  exact-head lease, then test a move at the last intervening hook. Keep the
+  separate checked-out-worktree refusal: `update-ref` does not enforce it, while
+  `git branch -D` did. When branch admission changes, update README's usage
+  examples as well as help and atlas
+  (#471 BR-1/BR-2).
 
 - Before counting joined records, check that the identity is unique across the
   whole cohort. Per-record card/event/Git validity did not prevent two issues

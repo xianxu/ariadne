@@ -472,8 +472,11 @@ func dropAbandonedBranch(env *trackerEnv, stderr io.Writer, rec issue.Abandoned)
 		}
 	}
 	if localTip != "" {
-		if _, err := env.git("branch", "-q", "-D", rec.Branch); err != nil {
+		if err := landingUnoccupied(execGitRunner{}, landingTarget{Root: env.root}, rec.Branch); err != nil {
 			return err
+		}
+		if _, err := env.git("update-ref", "-d", "refs/heads/"+rec.Branch, rec.Head); err != nil {
+			return fmt.Errorf("delete local %s only at its archived tip %s (it may have moved): %w", rec.Branch, shortOID(rec.Head), err)
 		}
 	}
 	cok(stderr, fmt.Sprintf("%s deleted here and on %s; this checkout is on %s", rec.Branch, env.target.Remote, env.resting))
