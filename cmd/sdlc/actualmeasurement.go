@@ -62,11 +62,17 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 		return res
 	}
 	rounds := measurementRounds(m.Cuts)
-	split, err := splitActual(out, id, milestone, rounds, m.Since, m.Until)
+	tl, err := actualTimeline(out, milestone, rounds, m.Since, m.Until)
 	if err != nil {
 		return fail(err)
 	}
+	split := splitFromTimeline(out.Segments, id, tl)
 	res.Hours, res.Split = split.Build+split.Converge, &split
+	for _, phase := range tl.Phases {
+		if phase.Kind != activetime.Tail {
+			res.CountedPhases = append(res.CountedPhases, phase)
+		}
+	}
 	if milestone != "" {
 		res.Window += " (" + milestone + "'s phases)"
 	}
@@ -98,6 +104,7 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 			excluded := options
 			excluded.Files = nil
 			excluded.QueueIntervals = nil // excluded sources are a separate diagnostic population
+			excluded.ProtectedIntervals = nil
 			excluded.SourceSlots = nil
 			excluded.ActivityWindows = nil
 			if len(m.Engagements) > 0 {

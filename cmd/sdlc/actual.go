@@ -74,8 +74,9 @@ type actualResult struct {
 	// Inputs is the exact admitted evidence retained by close/correction.
 	Inputs *gatestate.MeasurementInputs
 	// Segments are transient replay evidence, never persisted in the close card.
-	Segments   []activetime.Segment
-	Exclusions []activetime.Exclusion
+	Segments      []activetime.Segment
+	CountedPhases []activetime.Phase // exact phases that contributed to adopted Hours
+	Exclusions    []activetime.Exclusion
 }
 
 // computeActual is the engine glue: resolve the commit window + peer issues + the

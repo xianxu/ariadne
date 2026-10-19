@@ -14,20 +14,35 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
-// creditedIntervals is the conservative occupied-time bound of a pinned
-// actual. A fractionally allocated run protects its whole wall interval: the
-// engine has no evidence for which sub-interval earned that fraction.
-func creditedIntervals(issue string, segments []activetime.Segment, slots map[string]string) ([]activetime.CreditedInterval, error) {
+// creditedIntervals protects only Build/Converge time included in the adopted
+// number. A fractionally allocated run protects its whole intersection with a
+// counted phase: the engine has no finer evidence for that fraction.
+func creditedIntervals(issue string, segments []activetime.Segment, counted []activetime.Phase, slots map[string]string) ([]activetime.CreditedInterval, error) {
 	var out []activetime.CreditedInterval
 	for _, segment := range segments {
 		if segment.Alloc[issue] <= 0 {
 			continue
 		}
-		slot := slots[segment.Source]
-		if slot == "" {
-			return nil, fmt.Errorf("credited source %q for issue #%s during %s → %s has no pinned slot", segment.Source, issue, segment.Start.Format(time.RFC3339Nano), segment.End.Format(time.RFC3339Nano))
+		for _, phase := range counted {
+			if phase.Kind == activetime.Tail {
+				continue
+			}
+			start, end := segment.Start, segment.End
+			if start.Before(phase.Start) {
+				start = phase.Start
+			}
+			if end.After(phase.End) {
+				end = phase.End
+			}
+			if !start.Before(end) {
+				continue
+			}
+			slot := slots[segment.Source]
+			if slot == "" {
+				return nil, fmt.Errorf("credited source %q for issue #%s during %s → %s has no pinned slot", segment.Source, issue, start.Format(time.RFC3339Nano), end.Format(time.RFC3339Nano))
+			}
+			out = append(out, activetime.CreditedInterval{Issue: issue, Slot: slot, Start: start, End: end})
 		}
-		out = append(out, activetime.CreditedInterval{Issue: issue, Slot: slot, Start: segment.Start, End: segment.End})
 	}
 	return out, nil
 }
@@ -64,6 +79,30 @@ func overlappingSlotInterval(slot string, start, end time.Time, windows []actual
 		}
 	}
 	return time.Time{}, time.Time{}, false
+}
+
+// differentSlot is proof only when every retained owner has an identified
+// workspace and none is a workspace contributing to this candidate.
+func differentSlot(engagements []tracker.EngagementWindow, windows []actualSlotWindow) bool {
+	if len(engagements) == 0 {
+		return false
+	}
+	for _, engagement := range engagements {
+		if len(engagement.Owners) == 0 {
+			return false
+		}
+		for _, owner := range engagement.Owners {
+			if owner.Workspace == "" {
+				return false
+			}
+			for _, window := range windows {
+				if owner.Workspace == window.slot {
+					return false
+				}
+			}
+		}
+	}
+	return true
 }
 
 // cardDateMayOverlap is only a cheap rejection filter. Card dates are local
@@ -150,30 +189,45 @@ func loadAdoptedExclusions(ctx context.Context, root, issueNum, plans string, cu
 		if !completed {
 			return nil, fmt.Errorf("%s has no trustworthy completion", context)
 		}
-		saved, ledger, _, err := completedMeasurementSnapshot(ctx, root, rec, completion, current.Snapshot.Repository, plans, true)
-		if err != nil {
-			return nil, fmt.Errorf("%s has no trustworthy saved window: %w", context, err)
-		}
-		if saved == nil {
-			return nil, fmt.Errorf("%s has no trustworthy saved window", context)
-		}
-		priorEnd, _ := time.Parse(time.RFC3339Nano, saved.Until)
-		if !savedMeasurementMayOverlap(saved.Since, saved.Until, since, until) {
+		saved, ledger, _, savedErr := completedMeasurementSnapshot(ctx, root, rec, completion, current.Snapshot.Repository, plans, true)
+		// Row 1: the adopted numeric is bounded by its saved measurement,
+		// not by a claim that might remain on its completed card.
+		if savedErr == nil && saved != nil && !savedMeasurementMayOverlap(saved.Since, saved.Until, since, until) {
 			continue
 		}
 		if windows == nil {
 			windows, err = candidateSlotWindows(current)
-			if err != nil || len(windows) == 0 {
+			if err != nil {
 				return nil, err
+			}
+			if len(windows) == 0 {
+				return nil, fmt.Errorf("candidate has no pinned slot windows")
 			}
 		}
 		events, err := repo.EngagementHistory(rs.Ref, rec.Card.Path)
 		if err != nil {
 			return nil, fmt.Errorf("issue #%s adopted actual engagement: %w", id, err)
 		}
-		engagements, err := tracker.DeriveEngagements(events, priorEnd)
+		cutoff := until
+		if saved != nil && savedErr == nil {
+			cutoff, _ = time.Parse(time.RFC3339Nano, saved.Until)
+		}
+		engagements, err := tracker.DeriveEngagements(events, cutoff)
 		if err != nil {
 			return nil, fmt.Errorf("issue #%s adopted actual engagement: %w", id, err)
+		}
+		// Row 2: even a legacy actual with no replay cannot occupy this slot
+		// when every pinned owner was in a different workspace.
+		if differentSlot(engagements, windows) {
+			continue
+		}
+		// Row 4: a missing saved window can no longer bound same-slot
+		// credit. Refuse rather than treating a claim as the measurement.
+		if savedErr != nil {
+			return nil, fmt.Errorf("%s has no trustworthy saved window: %w", context, savedErr)
+		}
+		if saved == nil {
+			return nil, fmt.Errorf("%s has no trustworthy saved window", context)
 		}
 		relevant := false
 		var overlapStart, overlapEnd time.Time
@@ -203,7 +257,7 @@ func loadAdoptedExclusions(ctx context.Context, root, issueNum, plans string, cu
 		if math.Abs(measurement.Hours-adoptedHours) > 0.00501 {
 			return nil, fmt.Errorf("%s but pinned replay %.4fh disagrees with adopted actual %.2fh", context, measurement.Hours, adoptedHours)
 		}
-		credited, err := creditedIntervals(id, measurement.Segments, prior.SourceSlots)
+		credited, err := creditedIntervals(id, measurement.Segments, measurement.CountedPhases, prior.SourceSlots)
 		if err != nil {
 			return nil, fmt.Errorf("issue #%s adopted actual: %w", id, err)
 		}

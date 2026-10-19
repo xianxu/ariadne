@@ -25,13 +25,31 @@ func TestCreditedIntervalsNeedPinnedSlotAndPositiveAllocation(t *testing.T) {
 		{Start: start.Add(10 * time.Minute), End: start.Add(20 * time.Minute), Source: "owned", Alloc: map[string]float64{"649": 0}},
 		{Start: start.Add(20 * time.Minute), End: start.Add(30 * time.Minute), Source: "other", Alloc: map[string]float64{"649": 10}},
 	}
-	got, err := creditedIntervals("649", segments, map[string]string{"owned": "pair:6", "other": "pair:7"})
+	phases := []activetime.Phase{{Start: start, End: start.Add(30 * time.Minute), Kind: activetime.Build}}
+	got, err := creditedIntervals("649", segments, phases, map[string]string{"owned": "pair:6", "other": "pair:7"})
 	if err != nil || len(got) != 2 || got[0].Slot != "pair:6" || got[0].Issue != "649" || !got[0].Start.Equal(start) || got[1].Slot != "pair:7" {
 		t.Fatalf("credited=%+v err=%v", got, err)
 	}
-	_, err = creditedIntervals("649", segments, map[string]string{"other": "pair:7"})
+	_, err = creditedIntervals("649", segments, phases, map[string]string{"other": "pair:7"})
 	if err == nil || !strings.Contains(err.Error(), "owned") {
 		t.Fatalf("missing source slot should refuse, got %v", err)
+	}
+}
+
+func TestCreditedIntervalsProtectOnlyCountedPhases(t *testing.T) {
+	start := time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)
+	phases := []activetime.Phase{
+		{Start: start, End: start.Add(20 * time.Minute), Kind: activetime.Build},
+		{Start: start.Add(20 * time.Minute), End: start.Add(50 * time.Minute), Kind: activetime.Converge},
+		{Start: start.Add(50 * time.Minute), End: start.Add(time.Hour), Kind: activetime.Tail},
+	}
+	segments := []activetime.Segment{
+		{Start: start.Add(45 * time.Minute), End: start.Add(55 * time.Minute), Source: "owned", Alloc: map[string]float64{"649": 10}},
+		{Start: start.Add(55 * time.Minute), End: start.Add(time.Hour), Source: "owned", Alloc: map[string]float64{"649": 5}},
+	}
+	got, err := creditedIntervals("649", segments, phases, map[string]string{"owned": "ariadne:6"})
+	if err != nil || len(got) != 1 || !got[0].Start.Equal(start.Add(45*time.Minute)) || !got[0].End.Equal(start.Add(50*time.Minute)) {
+		t.Fatalf("tail was protected or counted converge lost: intervals=%+v err=%v", got, err)
 	}
 }
 
@@ -84,7 +102,15 @@ func TestParkedClaimExcludesOtherAdoptedIssueInSameSlot(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	aPath, aCard, aDetail, aBody := seededIssue(t, "000636", "parked")
 	bPath, bCard, bDetail, bBody := seededIssue(t, "000649", "active")
-	r := newTrackerRepo(t, map[string]string{aPath: aCard, bPath: bCard}, map[string]string{aDetail: aBody, bDetail: bBody})
+	cards := map[string]string{aPath: aCard, bPath: bCard}
+	details := map[string]string{aDetail: aBody, bDetail: bBody}
+	otherPaths := make([]string, 8)
+	for i := range otherPaths {
+		id := fmt.Sprintf("%06d", 650+i)
+		path, card, detailPath, detail := seededIssue(t, id, "other-slot")
+		cards[path], details[detailPath], otherPaths[i] = card, detail, path
+	}
+	r := newTrackerRepo(t, cards, details)
 	ownerRoot := filepath.Join(t.TempDir(), "owner")
 	testfix.Git(t, r.root, "worktree", "add", "-q", "-b", "000636-parked", ownerRoot)
 	owner := hostClaimant(t, ownerRoot)
@@ -204,6 +230,38 @@ func TestParkedClaimExcludesOtherAdoptedIssueInSameSlot(t *testing.T) {
 	again := computeOwnedActualFor(context.Background(), r.root, "636", "", replay)
 	if again.Status != actualMeasured || again.Hours != got.Hours || len(again.Exclusions) != len(got.Exclusions) {
 		t.Fatalf("historical replay moved the adopted actual: replay=%+v candidate=%+v", again, got)
+	}
+	// Four, then eight other-slot numeric adoptions have no retained source
+	// evidence. If the loader tries to replay any one, it fails; successful
+	// results at N and 2N prove that unrelated cards cause zero replays.
+	for i := range otherPaths {
+		id := fmt.Sprintf("%06d", 650+i)
+		other := owner
+		other.Workspace = "ariadne:7"
+		update(id, "claim-"+id, 15+i, func(raw []byte) ([]byte, error) {
+			return issue.SetCardClaimant(raw, other)
+		})
+		update(id, "close-"+id, 32+i, func(raw []byte) ([]byte, error) {
+			raw, err := issue.SetCardCompletion(raw, issue.Completion{Token: "close-" + id, Repository: saved.Repository, ReviewedHEAD: saved.CodeHead, EvidenceCommit: evidence})
+			if err != nil {
+				return nil, err
+			}
+			raw, err = issue.SetCardField(raw, "actual_hours", "0.17")
+			if err != nil {
+				return nil, err
+			}
+			raw, err = issue.SetCardField(raw, "updated", "2026-10-14")
+			if err != nil {
+				return nil, err
+			}
+			return issue.SetCardField(raw, "status", "codecomplete")
+		})
+		if i == 3 || i == 7 {
+			intervals, err := loadAdoptedExclusions(context.Background(), r.root, "636", "", current)
+			if err != nil || len(intervals) == 0 {
+				t.Fatalf("%d unrelated adoptions caused replay or lost same-slot protection: intervals=%+v err=%v", i+1, intervals, err)
+			}
+		}
 	}
 	unbound := *current
 	unbound.SourceSlots = map[string]string{}
