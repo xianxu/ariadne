@@ -1,6 +1,6 @@
 ---
 id: 000450
-status: working
+status: codecomplete
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.36
+tracker:
+    version: 1
+    completion:
+        token: close-38b8c14b0d81
+        repository: github.com/xianxu/ariadne
+        reviewed_head: ac6ffa02d66fece624a6b5973a0333d4dae1bf2a
+        evidence_commit: d049cdbf9cbfc3920a80812a07aefa478bfbf9bc
 ---
 
 # sandbox: deny agents read access to ~/.config/rclone (Drive backup token)
