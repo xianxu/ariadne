@@ -404,4 +404,15 @@ func TestFlakeEditOnTrackerCards(t *testing.T) {
 	if id, ok := reg.Lookup(flakeT2); !ok || id != "000072" {
 		t.Fatalf("the other card's test: %q %v", id, ok)
 	}
+	// The last name unregistered clears the field: the card stays valid.
+	if err := runFlakeEdit(ctx, io.Discard, io.Discard, flakeEditFlags{Issue: 71, Test: flakeSub}, false, d); err != nil {
+		t.Fatalf("unregister the last name: %v", err)
+	}
+	invalidateIssueRecords(ctx)
+	if reg, _, err = loadFlakeRegistry(ctx, "workshop/issues"); err != nil {
+		t.Fatalf("a card with its last flake removed is unreadable: %v", err)
+	}
+	if _, ok := reg.Lookup(flakeSub); ok {
+		t.Fatal("the last name survived")
+	}
 }

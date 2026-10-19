@@ -165,6 +165,11 @@ func editFlakeTests(env *trackerEnv, card tracker.Record, edit func(id, status s
 			return nil, err
 		}
 	}
+	if len(tests) == 0 {
+		// The last name gone: the field is cleared, as area is; a card
+		// refuses an empty list ("[]").
+		return issue.SetCardField(card.Raw, flakeTestsField, "")
+	}
 	return issue.SetCardField(card.Raw, flakeTestsField, issue.FlowList(tests))
 }
 
