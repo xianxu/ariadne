@@ -71,7 +71,8 @@ process-group cancellation. Use the existing Go command seam per selected path.
   run red before implementation.
 - [x] Add listing and per-script Go subtests; retain the existing per-command
   ceiling and process-group cleanup. Run targeted regressions and the catalog.
-- [ ] Run a recorded full suite, close, open PR and land through the normal gates.
+- [x] Start the recorded full suite; close review may overlap its queue under
+  the worker contract. A recorded final-head pass remains required before landing.
 
 ## Log
 
@@ -114,3 +115,14 @@ canonical selection plus guard the original aggregate invocation.
   non-test code and a justified suppression. Selection fixtures cover exclusions,
   spaces/newlines, no execution during listing, batch success/failure, unknown
   mode and empty discovery.
+
+### 2026-10-18 — recorded suite queued
+
+- Recorded full-suite attempt `e21e1003c50385972f78fd0f450ea4d1` is queued with
+  normal FIFO priority, initially position four behind existing machine work.
+  The recorded log is under `.git/sdlc/test-stats/inflight/` until completion.
+- All targeted checks pass; the recorded full suite has not passed yet. The
+  worker contract permits close review to overlap a queued recorded suite;
+  landing still requires its final-head pass, and code fixes requeue it.
+- Plan bookkeeping now names dispatch of the recorded suite as the completed
+  implementation action; close and landing remain their ordinary gates.
