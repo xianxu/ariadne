@@ -52,3 +52,4 @@ Durable plan: [workshop/plans/000456-tl-lead-teams-plan.md](../plans/000456-tl-l
 ### 2026-10-19
 - Claimed and started from ariadne:4 after #455. The hub clarified `.hub` (bare word = repo claim, `repo:N` = slot claim, `key=value` directives are pair's; tl-lead writes only claims). The operator decided on `team:<name>` addressing and direct cross-team filing (no hub relay) plus an unclaimed-issue view over `owns:`.
 - Durable plan drafted; decisions D1–D5 are in it for hub/operator review (the operator reviews on the morning of 10-19).
+- The hub approved the plan and confirmed D1-D5 as proposed. change-code is held until the operator's morning review of the introduce-team designs; the hub will relay the answer.
