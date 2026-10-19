@@ -1,13 +1,13 @@
 ---
 id: 000459
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours: 2.72
 collaboration-mode: collaboration
-card_mirror: 'a29382afb6c151a9b64d7bdba8337e14c0cd5d4b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '8f32c89a33e55583951593ace990b9e8cb238fae' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T01:11:31-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 4.88
 ---
 
 # weave release: downstream CI still runs weave 0.1.0 (pre-#422); vocabulary changes break every downstream merge-check
