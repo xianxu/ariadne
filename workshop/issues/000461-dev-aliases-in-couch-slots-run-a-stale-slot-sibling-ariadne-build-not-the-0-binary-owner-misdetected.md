@@ -140,3 +140,13 @@ pair slot's command type before deciding whether it needs relaunch.
   32754ac5da999c00b82235c040dd3382, separate detached checkout. Close review
   overlaps its queue/run under tl-worker's allowed protocol; passing evidence
   on the final code must precede landing.
+
+- Full boundary round 1 returned FIX-THEN-SHIP with one Important README gap
+  (BR-1, user-facing-surface-documentation), and no correctness blocker. Verified
+  the missing README surface, then added --version usage, central-owner policy,
+  refusal/no-rebuild behavior, exact alias/snapshot pickup and atlas links.
+  The class sweep covers both new public surfaces; existing atlas entries were
+  already current. Extended the existing README lesson rather than adding a
+  duplicate rule. This is prose only, so the running recorded suite remains
+  valid for the unchanged implementation. Re-running close as its open-ledger
+  refusal explicitly requires.

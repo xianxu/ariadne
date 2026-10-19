@@ -17,6 +17,8 @@ Detailed incidents remain in their owning issue or review artifact.
   the full input matrix in Done when and committed fixtures, then check the
   README for the new user-facing command. A motivating fixture alone can pass
   while adjacent identity forms remain undocumented or untested (#403).
+  Atlas coverage does not replace README usage: shell-owner changes also need
+  the exact alias pickup/relaunch step beside the diagnostic command (#461 BR-1).
 - A diagnostic flag that promises stable machine-readable output needs a
   byte-for-byte stdout comparison and exit-status check with the flag off and
   on. Capture stderr separately; discarding stdout proves only the message,
