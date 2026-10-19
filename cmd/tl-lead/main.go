@@ -65,6 +65,6 @@ func buildRoot(d deps) *cobra.Command {
 		},
 	}
 	root.CompletionOptions.HiddenDefaultCmd = true
-	root.AddCommand(newStatusCmd(d), newTrainsCmd(d))
+	root.AddCommand(newStatusCmd(d), newTrainsCmd(d), newTeamCmd(d))
 	return root
 }

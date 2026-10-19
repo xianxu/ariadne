@@ -14,11 +14,15 @@ import (
 // SDLC is the seam over the sdlc JSON contracts `tl-lead trains` reads:
 // `sdlc fleet inventory --json` (every slot and its branch),
 // `sdlc workspace <repo> --json` (a repository's primary checkout), and
-// `sdlc issue show N --json` (a car's status, claimant and holding checkouts).
+// `sdlc issue show N --json` (a car's status, claimant and holding checkouts),
+// and `sdlc state --json` (a repository's issues and their owners).
 type SDLC interface {
 	FleetInventory(vantage string) (Fleet, error)
 	RepoRoot(vantage, repo string) (string, error)
 	IssueShow(repoPath string, n int) (Observation, error)
+	// RepoIssues reads `sdlc state --json` in a repository's checkout: its
+	// issues with status and owner (ariadne#456, team issues and fleet resume).
+	RepoIssues(repoRoot string) ([]RepoIssue, error)
 }
 
 // Fleet is the part of the inventory tl-lead reads.
