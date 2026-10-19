@@ -169,8 +169,8 @@ rm -rf "$CNT" "$WS/prepd/cmd/gen2"
 # Run the emitted function against stub make/go: preparation runs first, its
 # stdout stays off the binary's stdout, and a failed step fails the call loudly
 # without building or running.
-# Successful build stubs share immutable executable contents. Reusing that
-# inode avoids creating a new executable for every identical result;
+# Successful build stubs copy one immutable executable template. Distinct
+# output inodes preserve real rename behavior on GNU and BSD mv;
 # partial/failed/concurrent builds below retain their own real output files.
 export SENTINEL="$WS/ran-sentinel"
 printf '#!/bin/sh\necho ran "$@"\n' > "$SENTINEL"; chmod +x "$SENTINEL"
@@ -186,7 +186,7 @@ echo "go $*" >> "$TRACE"
 while [ "$#" -gt 0 ] && [ "$1" != -o ]; do shift; done
 [ "$#" -ge 2 ] || exit 2
 out="$2"
-ln "$SENTINEL" "$out"
+cp "$SENTINEL" "$out"
 STUBEOF
 chmod +x "$STUB/make" "$STUB/go"
 gen_def="$gen_line"
@@ -445,7 +445,7 @@ if [ -n "${EDIT_DURING_BUILD:-}" ]; then
 fi
 while [ "$#" -gt 0 ] && [ "$1" != -o ]; do shift; done
 [ "$#" -ge 2 ] || exit 2
-ln "$SENTINEL" "$2"
+cp "$SENTINEL" "$2"
 STUBEOF
 printf '#!/bin/sh\necho make >> "$TRACE"\n' > "$CG/make"
 chmod +x "$CG/go" "$CG/make"

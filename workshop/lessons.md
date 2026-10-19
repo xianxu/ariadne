@@ -1050,3 +1050,5 @@ The simplest durable authority beats a clever scan of consequences.
   enforcement rather than a lexical Go lint rule.
 
 - #465: count subprocesses as well as wall time when optimizing shell fixtures on a shared macOS host. Isolate each scan to relevant owners, batch independent cases, reuse immutable successful sentinels, and select concurrency order with readiness barriers. Pure path splitting needs real dirname/basename edge conformance plus an N/2N zero-exec guard; keep partial/failed output fixtures independent.
+
+- #465 CI: reuse executable contents by copying the immutable template when the production path renames outputs. Hardlinking source and installed output makes them the same file; GNU mv refuses it, and shared timestamp changes weaken build-isolation coverage even when BSD mv permits it.
