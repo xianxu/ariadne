@@ -181,3 +181,20 @@ func TestLogReadsAnyLineLength(t *testing.T) {
 		t.Fatalf("events %d skipped %d err %v", len(events), skipped, err)
 	}
 }
+
+func TestReadGrantEntriesDoesNotCreateLine(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "absent", "landing")
+	entries, skipped, err := ReadGrantEntries(dir)
+	if err != nil || skipped != 0 || len(entries) != 0 {
+		t.Fatalf("%v %d %v", entries, skipped, err)
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Fatalf("read created directory: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, GrantsFile), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := ReadGrantEntries(dir); err == nil {
+		t.Fatal("directory treated as valid log")
+	}
+}

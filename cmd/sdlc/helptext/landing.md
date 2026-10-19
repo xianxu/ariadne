@@ -31,6 +31,21 @@ FLEET-BLOCKING PRIORITY
   and the slot rule is checked again when it is read. Trust is cooperative:
   this guards against agents' mistakes on one machine, not against forgery.
 
+SUITE QUEUE PRIORITY (#452)
+
+  The same active grant puts the issue's suite ahead of waiting normal suites
+  at the next sufficient free machine capacity. Running suites continue;
+  weight is respected and priority suites are FIFO. Expiry or revocation
+  returns a waiting suite to its original normal FIFO position. An expired
+  grant confers nothing. No extra suite grant is needed.
+
+  Recorded suites bind the original checkout's issue branch to the tested
+  HEAD; main diagnostics and other checks stay normal. Direct make test uses
+  its supplying workflow's sdlc provider. Unavailable or invalid grant evidence
+  prints a priority-unavailable warning and uses normal FIFO for every suite;
+  priority never prevents a suite running. Old sticky helper waiters drain
+  naturally during rollout; they are never killed or unlocked.
+
 RETENTION
 
   `events.jsonl` (enqueue, admit with what it displaced, landed, refused) and
