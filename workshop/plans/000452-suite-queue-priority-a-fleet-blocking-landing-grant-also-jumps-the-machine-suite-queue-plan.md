@@ -23,7 +23,8 @@ collaboration-mode: discussion
 | Read-only priority protocol | INTEGRATION | cmd/sdlc/suitepriority.go; cmd/sdlc/landingcmd.go | new |
 | Grant-log reader | INTEGRATION, existing JSONL parsing reused | cmd/sdlc/internal/landingline/log.go | modified to expose read-only access without creating a landing line |
 | Machine queue election and weighted slot scan | INTEGRATION | scripts/test-lock.py | modified |
-| Recorded-check subject and evaluator binding | INTEGRATION | cmd/sdlc/localcheck_run.go; cmd/sdlc/helpercapability.go | modified |
+| Recorded-check subject and evaluator binding | INTEGRATION | cmd/sdlc/localcheck_run.go | modified |
+| Helper capability preflight | INTEGRATION | cmd/sdlc/helpercapability.go | reused unchanged |
 | Direct make test binding | INTEGRATION | Makefile.workflow | modified |
 
 Each ticket references one repository and issue. Multiple tickets may reference the same issue; their machine ticket numbers still order them. The grant log remains the sole authority. No boolean supplied by a worker confers priority. Existing cooperative trust applies: this prevents mistakes, not a same-user process forging source records.
@@ -102,7 +103,7 @@ The real-helper integration harness tests the dispatched next-free-capacity rule
 
 ## Task 2 — Add one grant-evidence boundary and reelected admission
 
-Files: cmd/sdlc/suitepriority.go (new), cmd/sdlc/landingcmd.go, cmd/sdlc/internal/landingline/log.go, scripts/test-lock.py, Makefile.workflow, cmd/sdlc/localcheck_run.go, cmd/sdlc/helpercapability.go and focused tests.
+Files: cmd/sdlc/suitepriority.go (new), cmd/sdlc/landingcmd.go, cmd/sdlc/internal/landingline/log.go, scripts/test-lock.py, Makefile.workflow, cmd/sdlc/localcheck_run.go and focused tests; cmd/sdlc/helpercapability.go is reused unchanged.
 
 - [x] Implement the versioned read-only subject/batch protocol and the named Go unit strategies. Pass explicit tested-suite subject and trusted evaluator from recorded runs; direct make uses its supplying provider. Preserve make's existing stdout states.
 - [x] Implement GrantEvidence and effective_order with source-aware and temporal invalidation; verify counted growth and protocol failure fallback.
@@ -136,3 +137,5 @@ No implementation or regression edits have started. Await TL approval of the des
 2026-10-18 — Verification sequencing: tl-worker permits close review alongside a queued recorded suite, provided the final-code recorded pass precedes landing. Initial full suite reached all shards/packages and failed only the existing #448 TestConstructScripts/plain timeout. Targeted unchanged diagnostic passed; one unchanged issue-backed full rerun is queued on e8b34c96c6be091b199fe68f6dda37e6eef6327d. Start close review now; do not land before that pass. No production design or acceptance criteria changed.
 
 2026-10-18 — Boundary round 1: BR-1 restores disappearance tolerance between a live-ticket snapshot and open; release remains compatible with older helpers, with no new mutex contract. BR-2 centralizes caller/persisted subject path validation in valid_subject before stat/provider use, emitting normal-FIFO fallback on invalid metadata. A real-flock controlled release interleaving and malformed-subject sweep fail before and pass after. Focused family passes (63.600s / 0.069s); queued unchanged rerun cancelled before execution to replace it with the corrected code.
+
+2026-10-18 — BR-3 prose correction: the Core concepts table and Task 2 file inventory now distinguish the modified localcheck_run.go subject/provider binding from helpercapability.go, which is reused unchanged. Optional environment metadata preserves its existing capability contract; no capability code change is needed or claimed. Round 2 disposed BR-1 and BR-2 as addressed; runtime code and queued suite candidate remain unchanged. Actual-binary smoke against the corrected runtime passed all 16 tests in 32.322s.

@@ -87,6 +87,10 @@ Both production failures were red before code; both pass after, 0.118s. Expanded
 
 ## Revisions
 
+2026-10-18 — Boundary round 1 implementation revision: tolerate ticket release during snapshot/read (BR-1), and apply one shared persisted/caller subject validation rule before any path use (BR-2). No new mechanism or acceptance change; deterministic regressions and focused family pass. Final-code full suite still required before landing.
+
+2026-10-18 — Round 2 accepted BR-1 and BR-2. BR-3 corrects the plan's Core concepts table and file inventory: helpercapability.go is reused unchanged, while localcheck_run.go carries the optional subject/provider environment binding. Prose only; no runtime or suite-candidate change. Actual-binary smoke passed all 16 tests in 32.322s. Final-code suite is queued as attempt 33012b468ed484ca9808f38f207b87eb on cbd3a637.
+
 2026-10-18 — TL approved the durable plan. Missing/old/unreadable provider warns and falls back to normal FIFO for all suites. Old sticky waiters drain naturally. Explicit expiry regression proves a granted waiter loses priority on expiry and an older normal waiter proceeds. Approval receipt: 3b55ef84-675d-4f81-834d-80f67f178da1.
 
 ## Estimate
@@ -105,4 +109,3 @@ design-buffer: 0.15
 total: 1.63
 ```
 
-2026-10-18 — Boundary round 1 implementation revision: tolerate ticket release during snapshot/read (BR-1), and apply one shared persisted/caller subject validation rule before any path use (BR-2). No new mechanism or acceptance change; deterministic regressions and focused family pass. Final-code full suite still required before landing.
