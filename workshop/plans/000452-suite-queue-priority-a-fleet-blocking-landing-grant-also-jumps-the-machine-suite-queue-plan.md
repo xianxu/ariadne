@@ -44,10 +44,10 @@ The Python predicate sees only validated deadlines, not a second implementation 
 - Bind recorded suite identity before creating/entering the detached run's machine ticket. Use the original checkout's Git common directory and issue branch, never the temporary sdlc-local directory name.
 - Bind an issue only when that checkout's branch identifies the issue and its head is the tested commit. A main diagnostic (SkipRecord), non-suite local check, detached/unknown subject, or a different tested revision gets issue 0 and stays normal. Never infer the issue from a PR number or from another ticket.
 - Direct make test resolves the same subject once through the provider from its real checkout. Recorded runs pass their explicit subject so the helper never guesses from the temporary worktree.
-- Add a hidden landing suite-priority protocol to sdlc. One describe request resolves a direct caller's subject. One batch request accepts the unique repository/issue pairs in a queue scan and reads the existing grant logs; it returns a version, active IDs and expiry deadlines. Reuse the existing grant JSONL reader and ValidGrants. It must not acquire a landing turn, fetch, create directories, or write logs.
+- Add a hidden landing suite-priority protocol to sdlc. One describe request resolves a direct caller's subject. One batch request accepts the unique repository/issue pairs in a queue scan and reads the existing grant logs; it returns a version, active IDs, expiry deadlines and a Go-derived refresh_at boundary at the earliest future Granted/Expires transition in the requested logs. Reuse the existing grant JSONL reader and ValidGrants. It must not acquire a landing turn, fetch, create directories, or write logs.
 - The recorded runner supplies its own current sdlc executable as the evaluator. Makefile.workflow supplies the built sdlc beside the supplying workflow/helper source. Do not search arbitrary PATH entries or execute shell command strings from ticket files. A ticket carries identity data, never an executable path.
 - A helper process uses its trusted evaluator for every ticket, with argv/stdin JSON, bounded output and timeout, and reaps it before returning/cancelling. No evaluator survives admission.
-- Cache only in memory, per grant-log identity (path, inode, mtime_ns, size), for the life of that waiting helper. A changed source is reread; expiry is checked against current UTC time on every admission attempt. Missing/unreadable/invalid evidence confers no priority and produces a clear warning. Never cache a transient read error indefinitely.
+- Cache only in memory, per grant-log identity (path, inode, mtime_ns, size), for the life of that waiting helper. A changed source is reread; reaching the Go-derived refresh_at boundary invalidates the snapshot even with unchanged source metadata. Expiry is also checked against current UTC time on every admission attempt. This discovers activation of a previously future-dated grant without duplicating policy in Python. Missing/unreadable/invalid evidence confers no priority and produces a clear warning. Never cache a transient read error indefinitely.
 
 ### Two rollout decisions for TL approval
 
@@ -82,26 +82,32 @@ Tickets, allocation/queue flocks and slot watchers retain existing cleanup. Opti
 
 ## Task 1 — Pin behavior red through the real helper
 
-Files: scripts/test/test-lock.test.sh; new cmd/sdlc/suitepriority_test.go; cmd/sdlc/localcheck_reentry_test.go as needed.
+Files: scripts/test/test-lock.test.sh; scripts/test/test-lock-priority.test.py (new); cmd/sdlc/suitepriority_test.go (new); cmd/sdlc/localcheck_reentry_test.go as needed.
 
-- [ ] Extend bounded ticket/diagnostic waits so a missed synchronization deadline fails explicitly; use private WF_TEST_LOCK_FILE and controlled watched-owner processes.
-- [ ] Add a red case with both slots held, an earlier normal waiter already reporting next, then a granted priority waiter. Release one slot; priority must acquire it while the original running owner survives. Release priority/remaining owner and verify normal follows.
-- [ ] Add P1/P2 FIFO after an older normal, normal-only FIFO, expired-at-start and expires-while-waiting controls. Use grant-log replacement/revocation under held capacity, not a long sleep.
-- [ ] Add weight-2 priority, normal light backfill refusal, priority cancellation/death and nested/repeated-run cases. Keep the mixed-old-helper safety test.
-- [ ] Exercise the real Python helper and actual production Go grant-reader/validator against fixture grant files. A test-executable launcher may route the hidden command into its production handler; it must not fake active-priority decisions.
-- [ ] Run bash scripts/test/test-lock.test.sh and focused new Go priority tests; retain expected red output, then commit the regressions.
+Unit-test surfaces and adversarial strategy:
+
+| Production function | Input class and mechanical guard |
+| --- | --- |
+| suiteSubject(root, testedSHA) | Detached/unrelated branch/revision identities → real temporary Git repository; only the tested issue head binds. |
+| suiteGrantSnapshot(subjects, now) | Grant lifecycle and malformed log records → real JSONL reader plus ValidGrants and controllable clock, no directory creation; unchanged-source activation and expiry must change authority. |
+| query_priority(provider, request) | Absent/old/slow/oversized/malformed protocol → bounded/reaped subprocess, strict version/schema validation and visible normal-FIFO fallback. |
+| GrantEvidence.deadlines(records, now) | Changing sources and clock-only validity transitions → injected clock/stat/query counters; reread on refresh_at as well as source change, no provider calls on stable pre-boundary polls. |
+| effective_order(records, deadlines, now) | Arbitrary arrival IDs and grant deadlines → stable partition property, original numeric FIFO within each class, expired evidence cannot confer priority. |
+| Tickets.admission(fds, queue, want, evidence) | Adversarial interleaving of live waiters and weighted capacity → real helper subprocesses and private real flocks, diagnostic/ticket barriers and bounded waits, owner survival and no partial holds. |
+
+The real-helper integration harness tests the dispatched next-free-capacity rule against an older normal head, plus FIFO, lifecycle and weight properties under controlled process schedules. In particular an expired priority ticket returns to its original normal FIFO position and the older normal waiter proceeds. Exercise actual production Go grant validation over fixture logs: a test-executable launcher may enter the production protocol handler, never fake its priority decision. Existing reentry, cancellation/death and mixed-helper controls remain the lifetime regression boundary.
+
+- [ ] Write and run the next-free-slot regression red through the real helper; preserve its expected failure.
+- [ ] Add the named unit strategies as their functions are introduced, with bounded synchronization helpers that explicitly fail on missed deadlines.
 
 ## Task 2 — Add one grant-evidence boundary and reelected admission
 
-Files: cmd/sdlc/suitepriority.go (new), cmd/sdlc/landingcmd.go, cmd/sdlc/internal/landingline/log.go, scripts/test-lock.py, Makefile.workflow, cmd/sdlc/localcheck_run.go, cmd/sdlc/helpercapability.go and their focused tests.
+Files: cmd/sdlc/suitepriority.go (new), cmd/sdlc/landingcmd.go, cmd/sdlc/internal/landingline/log.go, scripts/test-lock.py, Makefile.workflow, cmd/sdlc/localcheck_run.go, cmd/sdlc/helpercapability.go and focused tests.
 
-- [ ] Implement/read-test the versioned read-only subject/batch protocol with existing ValidGrants. Cover wrong repository/issue, revoked, expired, future-dated, unauthorized, malformed and missing grants; do not duplicate validity policy.
-- [ ] Pass explicit tested-suite subject and evaluator from recorded runs. Keep main diagnostics/non-suite checks normal. Update helper capability preflight and its canonical fake-helper fixture for the added argv contract before any waiter can be queued incorrectly.
-- [ ] Wire direct make test to its supplying provider and verify branch identity through the real helper. Preserve make's acquired/reentrant/skipped/timeout stdout protocol.
-- [ ] Implement in-memory source-aware evidence caching and pure stable partition, including counted growth tests.
-- [ ] Change admission to one election/queue-token/weighted-scan critical section under the existing allocation mutex. Failed capacity scans release the queue token. Slot descriptors and watcher behavior remain unchanged.
-- [ ] Report effective class/issue/deadline and what it waits behind; report a class/position transition promptly and preserve existing recognizable waiting/acquired lines used by consumers.
-- [ ] Run all new real-helper scenarios green, existing shell FIFO/weight/lifetime regressions, landingline unit tests, and recorded-run reentry/signal/helper-capability controls. Commit the implementation once the class sweep is green.
+- [ ] Implement the versioned read-only subject/batch protocol and the named Go unit strategies. Pass explicit tested-suite subject and trusted evaluator from recorded runs; direct make uses its supplying provider. Preserve make's existing stdout states.
+- [ ] Implement GrantEvidence and effective_order with source-aware and temporal invalidation; verify counted growth and protocol failure fallback.
+- [ ] Implement Tickets.admission as one election/token/weighted-scan critical section under the existing allocation mutex. Failed capacity scans release the queue token; watcher lifetime is unchanged.
+- [ ] Report effective class/issue/deadline and predecessor/capacity, including class/position changes; preserve recognizable waiting/acquired diagnostics. Run the real-helper integration boundary green and commit.
 
 ## Task 3 — Verify rollout and land one atomic feature
 
@@ -120,3 +126,5 @@ No implementation or regression edits have started. Await TL approval of the des
 ## Revisions
 
 2026-10-18 — TL approved design (Couch receipt 3b55ef84-675d-4f81-834d-80f67f178da1). Resolve both rollout questions: a missing, old or unreadable provider always emits a visible priority-unavailable warning and falls back to normal FIFO, including known-issue suites; priority must never prevent a suite running. Old sticky waiters drain naturally, never killed or unlocked. Priority lasts only while a grant is valid. The expiry-while-waiting regression must prove an expired priority ticket returns to its original normal FIFO position and the older normal waiter proceeds. No perpetual priority bit is retained.
+
+2026-10-18 — Plan gate round 1: address PQ-1 by including a Go-derived refresh_at boundary covering future activation and expiry, invalidating unchanged-source evidence at that time; Python retains no independent grant-validity policy. Address PQ-2 by naming production test surfaces and replacing prose case inventories with adversarial strategies. This is the first mechanism design delta.
