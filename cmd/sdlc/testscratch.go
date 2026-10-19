@@ -41,7 +41,7 @@ func prepareScratch(stderr io.Writer, check string) (env []string, dir string, c
 	base := filepath.Join(root, "tmp")
 	sweepStaleTemp(base, true, time.Now(), processAlive)
 	if err := os.MkdirAll(base, 0o755); err == nil {
-		dir, err = os.MkdirTemp(base, check+"-"+strconv.Itoa(os.Getpid())+"-")
+		dir, err = os.MkdirTemp(base, scratchRunPrefix+check+"-"+strconv.Itoa(os.Getpid())+"-")
 	}
 	if dir == "" {
 		fmt.Fprintf(stderr, "[!] test scratch %s not writable; using the normal temp folder\n", base)
@@ -50,10 +50,16 @@ func prepareScratch(stderr io.Writer, check string) (env []string, dir string, c
 	return []string{"TMPDIR=" + dir, "GOTMPDIR=" + dir}, dir, func() { _ = os.RemoveAll(dir) }
 }
 
-// runDirRE names a run folder prepareScratch made: <check>-<pid>-<random>.
-// A check name may hold hyphens (localchecks.go's name rule), so the pid is
-// the second-to-last field: the greedy head leaves exactly two.
-var runDirRE = regexp.MustCompile(`^.+-(\d+)-\d+$`)
+// scratchRunPrefix starts every run folder prepareScratch makes, and the
+// sweep matches only folders that carry it: the RAM disk is shared scratch
+// space (AGENTS §10), so a sweep built from anything else could take another
+// tool's folder.
+const scratchRunPrefix = "sdlc-run-"
+
+// runDirRE names a run folder: sdlc-run-<check>-<pid>-<random>. A check name
+// may hold hyphens (localchecks.go's name rule), so the pid is the
+// second-to-last field.
+var runDirRE = regexp.MustCompile(`^` + regexp.QuoteMeta(scratchRunPrefix) + `.+-(\d+)-\d+$`)
 
 // sweepStaleTemp removes, directly under dir, go-build folders older than a
 // day and, when dir holds run folders, those whose process is gone (or older

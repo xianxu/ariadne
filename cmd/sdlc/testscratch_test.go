@@ -28,20 +28,21 @@ func TestSweepStaleTemp(t *testing.T) {
 	}
 	mk("go-build111", old)
 	mk("go-build222", now)
-	mk("suite-100-1", now)   // dead pid
-	mk("suite-200-2", now)   // live pid
-	mk("suite-200-3", old)   // live pid, but older than a day: a reused pid
-	mk("TestKeep123", old)   // not ours
-	mk("go-lint-100-4", now) // a hyphenated check name, dead pid
-	mk("go-lint-200-5", now) // a hyphenated check name, live pid
+	mk("sdlc-run-suite-100-1", now)   // dead pid
+	mk("sdlc-run-suite-200-2", now)   // live pid
+	mk("sdlc-run-suite-200-3", old)   // live pid, but older than a day: a reused pid
+	mk("TestKeep123", old)            // not ours
+	mk("sdlc-run-go-lint-100-4", now) // a hyphenated check name, dead pid
+	mk("sdlc-run-go-lint-200-5", now) // a hyphenated check name, live pid
+	mk("other-tool-100-6", old)       // another tool's <name>-<n>-<n> folder: never ours to take
 	alive := func(pid int) bool { return pid == 200 }
 
 	sweepStaleTemp(dir, false, now, alive)
-	if _, err := os.Stat(filepath.Join(dir, "suite-100-1")); err != nil {
+	if _, err := os.Stat(filepath.Join(dir, "sdlc-run-suite-100-1")); err != nil {
 		t.Fatal("swept a run folder in a folder that holds none")
 	}
 	sweepStaleTemp(dir, true, now, alive)
-	want := []string{"TestKeep123", "go-build222", "go-lint-200-5", "suite-200-2"}
+	want := []string{"TestKeep123", "go-build222", "other-tool-100-6", "sdlc-run-go-lint-200-5", "sdlc-run-suite-200-2"}
 	entries, _ := os.ReadDir(dir)
 	var got []string
 	for _, e := range entries {
@@ -151,7 +152,7 @@ func TestRunUnderSlotUsesScratch(t *testing.T) {
 				return
 			}
 			base := filepath.Join(root, "tmp")
-			if lines[0] != lines[1] || filepath.Dir(lines[0]) != base || !strings.HasPrefix(filepath.Base(lines[0]), "suite-") {
+			if lines[0] != lines[1] || filepath.Dir(lines[0]) != base || !strings.HasPrefix(filepath.Base(lines[0]), scratchRunPrefix+"suite-") {
 				t.Fatalf("child env = %q, want one run folder under %s", lines, base)
 			}
 			if _, err := os.Stat(lines[0]); !os.IsNotExist(err) {

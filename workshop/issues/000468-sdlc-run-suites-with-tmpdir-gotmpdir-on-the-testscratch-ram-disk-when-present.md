@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "1c930b41", done: "cf887b1d"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # sdlc: run suites with TMPDIR/GOTMPDIR on the TestScratch RAM disk when present
@@ -99,6 +99,8 @@ Steps:
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — Recorded suite green on fb3941da with its checkout under /Volumes/TestScratch/local-checks and TMPDIR/GOTMPDIR under /Volumes/TestScratch/tmp, both removed after; suite requeued on a1145892 after close-round-1 fixes (hyphenated run folders swept, leak sizes and names, review fallback only on permission/read-only errors), each with tests. A/B sample: about 440 MB per targeted run moved from the SSD to the RAM disk (SSD 1770/1178 vs 1029/1042 MB; RAM 440/471 MB). HFS+ one-second-mtime test race in dev-aliases fixed and confirmed.; review verdict: FIX-THEN-SHIP
+- 2026-10-19: flow upgraded quick → full — 479 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Dispatched by the hub to fill the wait while #456 is held for the operator's design review. Claimed and started from ariadne:4.
 - Implemented in 198978a5a. Targeted tests pass: scratchdisk, reviewbox, and the sdlc scratch, lint and help tests.
 - **Disk-write sample (A/B, 10-19, unsandboxed):**
@@ -118,3 +120,6 @@ Steps:
     - Class sweep ("sweep pattern narrower than its writer"): the go-build prefix matches Go's `go-build<digits>`; the local-check glob and `MkdirTemp` share `localCheckTmpPrefix`; reviewbox's sweep is unchanged. None of these is narrower than its writer.
   - BR-2: the warning now gives size per package and in total, plus every attributed name, capped at 20 per package with "… N more".
   - Minor: the review fallback retries only on a permission or read-only error, and is worded neutrally.
+- **Close round 2 (FIX-THEN-SHIP, advisory only), Minors fixed in the same round:**
+  - The rule for the repeated family is that a sweep's match is built from the same constant as its writer. `prepareScratch` now names run folders `sdlc-run-<check>-<pid>-…`, and `runDirRE` is built from that prefix, so another tool's `x-N-N` folder on the shared RAM disk is never taken (with a test fixture). The local-check sweep already follows the rule through `localCheckTmpPrefix`. Go's `go-build` folders are swept only after a day, per the Spec.
+  - Added `TestReviewIsolationKeepsOtherErrors`: a non-write `Create` error, such as a missing head, fails the review without falling back.

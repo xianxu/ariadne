@@ -49,3 +49,24 @@ func TestReviewIsolationFallsBackFromScratch(t *testing.T) {
 		t.Fatalf("checkout at %s, want under %s; stderr:\n%s", checkout.Dir, want, stderr.String())
 	}
 }
+
+// Only a refused write falls back: a review that fails for its own reasons (a
+// head the source doesn't have) fails, on the RAM disk, with no fallback.
+func TestReviewIsolationKeepsOtherErrors(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", "")
+	t.Setenv("WF_REVIEW_CHECKOUT_ROOT", "")
+	t.Setenv("WF_TEST_SCRATCH", t.TempDir())
+	repo := t.TempDir()
+	if out, err := exec.Command("git", "-C", repo, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v\n%s", err, out)
+	}
+	var stderr bytes.Buffer
+	_, _, err := openReviewIsolation(&stderr, judge.ReviewWindowManifest{RepoRoot: repo, HeadSHA: strings.Repeat("0", 40)})
+	if err == nil {
+		t.Fatal("a missing head opened a review checkout")
+	}
+	if strings.Contains(stderr.String(), "refused the review checkout") {
+		t.Fatalf("fell back on a non-write error:\n%s", stderr.String())
+	}
+}
