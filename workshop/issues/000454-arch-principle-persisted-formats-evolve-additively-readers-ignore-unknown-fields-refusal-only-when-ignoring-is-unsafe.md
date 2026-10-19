@@ -97,6 +97,10 @@ Add a principle to the registry (name to settle, e.g. ARCH-EVOLVE): persisted fo
   The policy preserves unknown nested members and strict known-field validation;
   this item changes no existing storage codec or version.
 
+### 2026-10-18 — recorded full-suite result
+
+- Final runtime head passed recorded attempt `97fd6c380961433cbc2a260db6b0b191`: 12 shards over 1,658 cmd/sdlc tests and 70 other packages, every exit 0 and zero failures, wall 776.4s after a 2,661s machine-queue wait. Saved suite log SHA-256 prefix `d965264a71cf`; recorded as `sdlc-local/suite`. No retries or gate waivers.
+
 ## Revisions
 
 ### 2026-10-18 — verification bookkeeping
