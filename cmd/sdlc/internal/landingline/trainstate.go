@@ -99,6 +99,10 @@ type (
 	MergeUnknown struct{}
 	// Probed: GitHub was read after MergeUnknown.
 	Probed struct{ Merged bool }
+	// Aborted: the conductor hit an error it cannot carry on from (an IO
+	// failure, a reintegration conflict). Every car still riding goes back
+	// to wait, ready; a merge that may have landed is each car's to see.
+	Aborted struct{ Reason string }
 )
 
 func (Boarded) trainEvent()      {}
@@ -110,6 +114,7 @@ func (Reintegrated) trainEvent() {}
 func (Merged) trainEvent()       {}
 func (MergeUnknown) trainEvent() {}
 func (Probed) trainEvent()       {}
+func (Aborted) trainEvent()      {}
 
 // Effect is work the conductor executes; its outcome comes back as an Event.
 type Effect interface{ trainEffect() }
@@ -163,6 +168,19 @@ func Transition(t Train, ev TrainEvent) (Train, []Effect, error) {
 	n.Cars = slices.Clone(t.Cars)
 	n.Released = slices.Clone(t.Released)
 	switch e := ev.(type) {
+	case Aborted:
+		if t.Phase == PhaseForming {
+			n.Phase = PhaseAbandoned
+			return n, nil, nil
+		}
+		n.Phase = PhaseAbandoned
+		n.Released = append(n.Released, carSeqs(n.Cars)...)
+		effects := []Effect{}
+		if len(n.Cars) > 0 {
+			effects = append(effects, Release{Seqs: carSeqs(n.Cars)})
+		}
+		n.Cars = nil
+		return n, append(effects, ClosePR{}), nil
 	case Boarded:
 		if t.Phase != PhaseForming || len(e.Cars) == 0 {
 			break

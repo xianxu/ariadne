@@ -379,7 +379,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 	var turn *landingTurn
 	var sched func() landingline.Schedule
 	gates := productionCarGates(r, t, f)
-	readiness := func(ctx context.Context) landingline.Readiness {
+	readiness := func(ctx context.Context) (landingline.Readiness, bool) {
 		return carReadiness(ctx, r, gh, t, branch, gates, landingNow())
 	}
 	landedByTrain := false
@@ -389,10 +389,14 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 			// A train landed this car (#449): its PR is merged by the train,
 			// and this merge finishes as a resume, without a turn.
 			var settled *landingline.Settled
-			if !errors.As(err, &settled) || settled.Outcome.Kind != landingline.OutcomeLanded {
+			switch {
+			case errors.Is(err, errMergedWhileWaiting):
+				fmt.Fprintln(stderr, "this PR was merged while it waited (a train with no word for it); finishing cleanup")
+			case errors.As(err, &settled) && settled.Outcome.Kind == landingline.OutcomeLanded:
+				fmt.Fprintf(stderr, "landing train %d landed this PR (train PR #%d); finishing cleanup\n", settled.Outcome.Train, settled.Outcome.PR)
+			default:
 				return err
 			}
-			fmt.Fprintf(stderr, "landing train %d landed this PR (train PR #%d); finishing cleanup\n", settled.Outcome.Train, settled.Outcome.PR)
 			landedByTrain = true
 		} else {
 			defer func() { turn.leave(err) }()
@@ -430,7 +434,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 	if turn != nil && pr.State != "MERGED" && sched != nil {
 		// Trains on (#449): this head may conduct a train that lands its PR
 		// with others'; one car is today's single landing, below.
-		merged, conducted, terr := maybeConductTrain(ctx, r, t, f, turn, branch, head, pr, sched(), readiness, stderr)
+		merged, conducted, terr := maybeConductTrain(ctx, r, gh, ghClient, t, f, turn, branch, head, pr, sched(), readiness, stderr)
 		if terr != nil {
 			return terr
 		}

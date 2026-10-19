@@ -277,6 +277,8 @@ func randomEvent(rng *rand.Rand, tr Train) TrainEvent {
 	switch {
 	case rng.IntN(10) == 0:
 		return []TrainEvent{Merged{}, CIDone{Green: true}, MainMoved{}, SuiteDone{Prefix: rng.IntN(8)}}[rng.IntN(4)]
+	case rng.IntN(25) == 0:
+		return Aborted{Reason: "io"}
 	case tr.Phase == PhaseIntegrating:
 		kept := []int64{}
 		conflicts := map[int64]string{}
@@ -300,4 +302,15 @@ func randomEvent(rng *rand.Rand, tr Train) TrainEvent {
 		return []TrainEvent{Merged{}, MergeUnknown{}, Probed{Merged: rng.IntN(2) == 0}, MainMoved{}}[rng.IntN(4)]
 	}
 	return MainMoved{}
+}
+
+func TestTrainAbortReleasesEveryRidingCar(t *testing.T) {
+	// Mid-bisect: car 3 held, car 4 released already; cars 1 and 2 ride.
+	tr, _ := drive(t, NewTrain(1), Boarded{Cars: cars(4)}, built(4),
+		SuiteDone{Prefix: 4, Outcome: SuiteFail}, SuiteDone{Prefix: 2, Outcome: SuitePass}, SuiteDone{Prefix: 3, Outcome: SuiteFail})
+	tr, effects := drive(t, tr, Aborted{Reason: "push failed"})
+	wantEffects(t, effects, Release{Seqs: []int64{1, 2}}, ClosePR{})
+	if tr.Phase != PhaseAbandoned || !slices.Equal(tr.Released, []int64{4, 1, 2}) {
+		t.Fatalf("train %+v", tr)
+	}
 }

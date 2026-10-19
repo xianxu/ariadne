@@ -36,6 +36,8 @@ type trainFakeGH struct {
 	merges  int
 	// lostReply: the merge happens, but its reply is lost (an error).
 	lostReply bool
+	// lagMerged: a merged train PR still lists OPEN for this many reads.
+	lagMerged int
 	created   []string
 	closed    []int
 }
@@ -61,6 +63,12 @@ func (g *trainFakeGH) LandingPRs(_ context.Context, _ string, branch string) ([]
 	pr, ok := g.prs[branch]
 	if !ok {
 		return nil, nil
+	}
+	if pr.State == "MERGED" && g.lagMerged > 0 && strings.HasPrefix(branch, trainBranchPrefix) {
+		g.lagMerged--
+		lagging := *pr
+		lagging.State, lagging.MergeOID = "OPEN", ""
+		return []landingPR{lagging}, nil
 	}
 	if pr.State == "OPEN" { // GitHub follows pushes to an open PR's branch
 		if head, err := trainGitOut(g.remote, "rev-parse", "refs/heads/"+branch); err == nil && head != pr.HeadOID {
@@ -403,6 +411,14 @@ func landTrainOfThree(t *testing.T, variant string) {
 		t.Fatalf("train PR %s", train.State)
 	}
 	wantNoTrainWorktree(t, s.first)
+	wantNoTrainBranch(t, gh.remote)
+}
+
+func wantNoTrainBranch(t *testing.T, remote string) {
+	t.Helper()
+	if refs := git(t, remote, "for-each-ref", "--format=%(refname)", "refs/heads/"+trainBranchPrefix); refs != "" {
+		t.Fatalf("train branches outlived their trains: %s", refs)
+	}
 }
 
 func wantNoTrainWorktree(t *testing.T, root string) {
@@ -459,6 +475,8 @@ func TestLandingTrainReclaimsAnOrphanAndSurvivesALostMergeReply(t *testing.T) {
 	s := newTrainSetup(t, "null")
 	git(t, s.server, "fetch", "-q", "origin")
 	git(t, s.server, "push", "-q", "origin", "origin/main:refs/heads/landing-train/7")
+	// And a landed train's branch whose conductor died before deleting it.
+	git(t, s.server, "push", "-q", "origin", "origin/main:refs/heads/landing-train/6")
 	if err := s.gh.CreateTrainPR(context.Background(), "test/repo", "landing-train/7", "", ""); err != nil {
 		t.Fatal(err)
 	}
@@ -486,6 +504,7 @@ func TestLandingTrainReclaimsAnOrphanAndSurvivesALostMergeReply(t *testing.T) {
 		}
 	}
 	wantNoTrainWorktree(t, s.first)
+	wantNoTrainBranch(t, s.gh.remote)
 }
 
 // Main moving with docs only while the train's suite runs: the train merges
@@ -533,3 +552,45 @@ func TestLandingTrainReintegratesADocsOnlyMain(t *testing.T) {
 
 // trainStderr is where the train tests' merges report; os.Stderr while debugging.
 var trainStderr io.Writer = io.Discard
+
+// A car whose PR is merged while it waits, with no outcome ever coming (its
+// conductor died after the merge), finishes as a resume instead of hanging
+// (BR-16): its own reading of GitHub ends the wait.
+func TestLandingCarMergedWithoutAWordFinishes(t *testing.T) {
+	s := newTrainSetup(t, "null")
+	one := s.merge(s.first)
+	waitQueued(t, s.line, 1)
+	waitVouched(t, s.line, 1)
+	// The conductor's merge, with no settle after it: the blocker still holds
+	// the line, so the car is never admitted.
+	if err := s.gh.LandingMerge(context.Background(), "test/repo", 1, s.heads[landingTestBranch]); err != nil {
+		t.Fatal(err)
+	}
+	if err := finished(t, one); err != nil {
+		t.Fatalf("the merged car did not finish: %v", err)
+	}
+	if out := git(t, s.first, "branch", "--list", landingTestBranch); out != "" {
+		t.Fatalf("the car's cleanup did not run: branch %q remains", out)
+	}
+}
+
+// After an accepted train merge whose listing lags, the conductor sees its
+// own head on main and lands, never reintegrating past its own merge (BR-17).
+func TestLandingTrainLaggingListingIsItsOwnMerge(t *testing.T) {
+	s := newTrainSetup(t, "train")
+	s.gh.lagMerged = 3
+	s.pushCar(t, "000002-second", "second", 2, 2)
+	one := s.merge(s.first)
+	waitQueued(t, s.line, 1)
+	two := s.waitingCar(t, "000002-second", 2, 2)
+	waitVouched(t, s.line, 2)
+	s.blocker.Release()
+	if err := finished(t, one); err != nil {
+		t.Fatal(err)
+	}
+	wantSettled(t, two, landingline.OutcomeLanded)
+	if s.gh.merges != 1 || len(trainEvents(t, s.line, string(landingline.PhaseLanded))) != 1 {
+		t.Fatalf("merges %d trains %+v", s.gh.merges, lineEvents(t, s.line)[landingline.EventTrain])
+	}
+	wantNoTrainBranch(t, s.gh.remote)
+}

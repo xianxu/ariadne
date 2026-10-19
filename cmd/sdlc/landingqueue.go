@@ -116,7 +116,7 @@ func (l *lineLog) record(e landingline.Event) {
 // With trains on (#449) the merge also vouches its readiness while it waits
 // (readiness reads its own gates); a vouch is a claim, so it observes for
 // the conductor, never for this merge's own landing, which reads again.
-func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch string, sched func() landingline.Schedule, readiness func(context.Context) landingline.Readiness, stderr io.Writer) (*landingTurn, error) {
+func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch string, sched func() landingline.Schedule, readiness func(context.Context) (landingline.Readiness, bool), stderr io.Writer) (*landingTurn, error) {
 	dir, err := landingLineDir(r, t.Root)
 	if err != nil {
 		return nil, err
@@ -133,14 +133,21 @@ func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch 
 	tk := h.Ticket()
 	log.record(landingline.Event{Kind: landingline.EventEnqueue, Seq: tk.Seq, Issue: tk.Issue, Branch: tk.Branch})
 	var stopVouching func()
+	waitCtx, endWait := context.WithCancelCause(ctx)
+	defer endWait(nil)
 	if sched != nil && readiness != nil {
 		vctx, cancel := context.WithCancel(ctx)
-		done := vouchWhileWaiting(vctx, line, h, sched, readiness, stderr)
+		done := vouchWhileWaiting(vctx, line, h, sched, readiness, func() { endWait(errMergedWhileWaiting) }, stderr)
 		stopVouching = func() { cancel(); <-done }
 	}
-	err = line.Wait(ctx, h)
+	err = line.Wait(waitCtx, h)
 	if stopVouching != nil {
 		stopVouching()
+	}
+	if err != nil && errors.Is(context.Cause(waitCtx), errMergedWhileWaiting) && ctx.Err() == nil {
+		// The PR landed without this merge's turn: it only leaves the line.
+		h.Release()
+		return nil, errMergedWhileWaiting
 	}
 	if err != nil {
 		var settled *landingline.Settled

@@ -176,7 +176,7 @@ func TestCarReadiness(t *testing.T) {
 	now := time.Date(2026, 10, 19, 9, 0, 0, 0, time.UTC)
 	t.Run("ready at its pushed head", func(t *testing.T) {
 		target, gh, head := carFixture(t)
-		r := carReadiness(context.Background(), execGitRunner{}, gh, target, landingTestBranch, passGates(), now)
+		r, _ := carReadiness(context.Background(), execGitRunner{}, gh, target, landingTestBranch, passGates(), now)
 		if !r.Ready || r.Head != head || r.PR != 1 || r.Alone || r.Branch != landingTestBranch || !r.At.Equal(now) {
 			t.Fatalf("%+v", r)
 		}
@@ -189,7 +189,7 @@ func TestCarReadiness(t *testing.T) {
 		procedureWrite(t, target.Root, "more.txt", "x\n")
 		git(t, target.Root, "add", ".")
 		git(t, target.Root, "commit", "-qm", "unpushed")
-		r := carReadiness(context.Background(), execGitRunner{}, gh, target, landingTestBranch, passGates(), now)
+		r, _ := carReadiness(context.Background(), execGitRunner{}, gh, target, landingTestBranch, passGates(), now)
 		if r.Ready || !strings.Contains(r.Reason, "not pushed at its head") {
 			t.Fatalf("%+v", r)
 		}
@@ -197,7 +197,7 @@ func TestCarReadiness(t *testing.T) {
 	t.Run("the PR must be open at the head", func(t *testing.T) {
 		target, gh, _ := carFixture(t)
 		gh.pr.HeadOID = strings.Repeat("c", 40)
-		r := carReadiness(context.Background(), execGitRunner{}, gh, target, landingTestBranch, passGates(), now)
+		r, _ := carReadiness(context.Background(), execGitRunner{}, gh, target, landingTestBranch, passGates(), now)
 		if r.Ready || !strings.Contains(r.Reason, "no open PR") {
 			t.Fatalf("%+v", r)
 		}
@@ -208,16 +208,24 @@ func TestCarReadiness(t *testing.T) {
 			"publish gate": {publish: func(context.Context, landingPR) error { return errors.New("HEAD moved since review\nmore") }, ci: passGates().ci},
 			"CI gate":      {publish: passGates().publish, ci: func(context.Context, landingPR) error { return errors.New("needs recorded local checks: suite") }},
 		} {
-			r := carReadiness(context.Background(), execGitRunner{}, gh, target, landingTestBranch, g, now)
+			r, _ := carReadiness(context.Background(), execGitRunner{}, gh, target, landingTestBranch, g, now)
 			if r.Ready || !strings.HasPrefix(r.Reason, name) || strings.Contains(r.Reason, "\n") {
 				t.Errorf("%s: %+v", name, r)
 			}
 		}
 	})
+	t.Run("a PR already merged at the head reports merged", func(t *testing.T) {
+		target, gh, _ := carFixture(t)
+		gh.pr.State = "MERGED"
+		r, merged := carReadiness(context.Background(), execGitRunner{}, gh, target, landingTestBranch, passGates(), now)
+		if r.Ready || !merged {
+			t.Fatalf("%+v merged %v", r, merged)
+		}
+	})
 	t.Run("a local-gates PR rides alone", func(t *testing.T) {
 		target, gh, _ := carFixture(t)
 		gh.pr.LocalGatesVerified = true
-		r := carReadiness(context.Background(), execGitRunner{}, gh, target, landingTestBranch, passGates(), now)
+		r, _ := carReadiness(context.Background(), execGitRunner{}, gh, target, landingTestBranch, passGates(), now)
 		if !r.Ready || !r.Alone || !strings.Contains(r.Reason, "local-gates") {
 			t.Fatalf("%+v", r)
 		}
@@ -235,13 +243,13 @@ func TestEnterLandingLineVouchesWhileWaiting(t *testing.T) {
 	t.Cleanup(func() { landingLinePoll, carVouchEvery = oldPoll, oldEvery })
 	stderr := &watchWriter{want: "held: train due; not ready: CI gate: pending", seen: make(chan struct{})}
 	var calls atomic.Int64
-	readiness := func(context.Context) landingline.Readiness {
+	readiness := func(context.Context) (landingline.Readiness, bool) {
 		calls.Add(1)
 		select {
 		case <-stderr.seen:
-			return landingline.Readiness{Branch: landingTestBranch, Head: head, PR: 1, Ready: true, At: landingNow()}
+			return landingline.Readiness{Branch: landingTestBranch, Head: head, PR: 1, Ready: true, At: landingNow()}, false
 		default:
-			return landingline.Readiness{Branch: landingTestBranch, Reason: "CI gate: pending", At: landingNow()}
+			return landingline.Readiness{Branch: landingTestBranch, Reason: "CI gate: pending", At: landingNow()}, false
 		}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -315,15 +323,15 @@ func TestVouchingStartsWhenTrainsTurnOn(t *testing.T) {
 		}
 		return landingline.Schedule{Interval: time.Hour, MaxCars: 8}
 	}
-	readiness := func(context.Context) landingline.Readiness {
+	readiness := func(context.Context) (landingline.Readiness, bool) {
 		if rounds.Load() <= 5 {
 			t.Error("gates read while trains were off")
 		}
 		gateReads.Add(1)
-		return landingline.Readiness{Branch: "b", Head: strings.Repeat("a", 40), PR: 1, Ready: true, At: landingNow()}
+		return landingline.Readiness{Branch: "b", Head: strings.Repeat("a", 40), PR: 1, Ready: true, At: landingNow()}, false
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	done := vouchWhileWaiting(ctx, line, h, sched, readiness, io.Discard)
+	done := vouchWhileWaiting(ctx, line, h, sched, readiness, func() { t.Error("reported merged") }, io.Discard)
 	deadline := time.Now().Add(10 * time.Second)
 	for gateReads.Load() == 0 && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)

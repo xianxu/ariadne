@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
@@ -48,6 +49,7 @@ type conductor struct {
 	ctx    context.Context
 	r      gitRunner
 	gh     trainGH
+	ci     ghCaller // the CI gate's and the suite's GitHub seam
 	t      landingTarget
 	f      *mergeFlags
 	line   *landingline.Line
@@ -101,14 +103,32 @@ func conductTrain(c *conductor, cars []landingline.Car, leftReady int) (err erro
 	c.settled = map[int64]bool{}
 	tr := landingline.NewTrain(c.id)
 	defer func() {
-		// An error mid-train: every car without an outcome goes back to
-		// wait (still ready), and the train PR is closed.
+		// An error mid-train is the machine's Aborted: every car still
+		// riding goes back to wait, ready, and the train PR is closed. The
+		// abort's effects are side effects only; their own failures are
+		// reported, never retried here.
 		if err != nil && !tr.Phase.Terminal() {
-			for _, car := range cars {
-				c.settle(car, landingline.OutcomeReleased, "the train stopped: "+firstLine(err.Error()))
+			why := "the train stopped: " + firstLine(err.Error())
+			next, effects, terr := landingline.Transition(tr, landingline.Aborted{Reason: why})
+			if terr == nil {
+				tr = next
+				for _, e := range effects {
+					if rel, ok := e.(landingline.Release); ok {
+						for _, s := range rel.Seqs {
+							c.settle(carBySeq(cars, s), landingline.OutcomeReleased, why)
+						}
+					} else {
+						_, _ = c.execute(e, cars)
+					}
+				}
 			}
-			c.closePR()
-			tr.Phase = landingline.PhaseAbandoned
+			// Cars the machine no longer rides (none, normally) still get a word.
+			for _, car := range cars {
+				c.settle(car, landingline.OutcomeReleased, why)
+			}
+		}
+		if tr.Phase == landingline.PhaseLanded {
+			c.deleteTrainBranch()
 		}
 		c.removeWorktree()
 		c.recordTrain(tr, cars, leftReady)
@@ -382,7 +402,7 @@ func (c *conductor) waitCI(k int) landingline.TrainEvent {
 		rr := withLandingGitContext(ioCtx, c.r)
 		return func(args ...string) (string, error) { return landingGit(rr, c.t.Root, args...) }
 	}
-	if err := waitCIGate(c.ctx, ghClient, c.t.Repo, c.pr.Number, c.base, head, c.git, c.run, c.f.NoCI, c.stderr, ioGit); err != nil {
+	if err := waitCIGate(c.ctx, c.ci, c.t.Repo, c.pr.Number, c.base, head, c.git, c.run, c.f.NoCI, c.stderr, ioGit); err != nil {
 		return landingline.CIDone{Detail: firstLine(err.Error())}
 	}
 	return landingline.CIDone{Green: true}
@@ -393,7 +413,7 @@ func (c *conductor) waitCI(k int) landingline.TrainEvent {
 // confirmed on GitHub; an unconfirmed one is probed, never assumed.
 func (c *conductor) merge(k int) (landingline.TrainEvent, error) {
 	head := c.heads[k-1]
-	moved, uncertain := false, false
+	moved, uncertain, landed := false, false, false
 	// One transaction, as a single landing's: main re-read and the pinned
 	// merge request under the lock, so main can't move between them.
 	if err := c.locked(func() error {
@@ -402,6 +422,13 @@ func (c *conductor) merge(k int) (landingline.TrainEvent, error) {
 			return err
 		}
 		if main != c.base {
+			// Main moved, or the train itself landed while GitHub's listing
+			// lagged: the train's head on main is this train merged, never a
+			// move to reintegrate past.
+			if _, err := c.git("merge-base", "--is-ancestor", head, main); err == nil {
+				landed = true
+				return nil
+			}
 			moved = true
 			return nil
 		}
@@ -414,6 +441,8 @@ func (c *conductor) merge(k int) (landingline.TrainEvent, error) {
 		return nil, err
 	}
 	switch {
+	case landed:
+		return landingline.Merged{}, nil
 	case moved:
 		return landingline.MainMoved{}, nil
 	case uncertain:
@@ -492,7 +521,7 @@ func (c *conductor) settle(car landingline.Car, kind landingline.OutcomeKind, wh
 	}
 	err := c.line.Settle(car.Seq, landingline.Outcome{Train: c.id, Kind: kind, Reason: why, PR: c.pr.Number})
 	if err != nil && !errors.Is(err, landingline.ErrGone) {
-		fmt.Fprintf(c.stderr, "landing train %d: could not tell car #%d it was %s (%v); its sdlc merge resumes from GitHub's state\n", c.id, car.Issue, kind, err)
+		fmt.Fprintf(c.stderr, "landing train %d: could not tell car #%d it was %s (%v); its sdlc merge sees its PR's state on GitHub instead\n", c.id, car.Issue, kind, err)
 	}
 }
 
@@ -510,6 +539,21 @@ func (c *conductor) closePR() {
 	c.opened = false
 	if err := c.gh.CloseTrainPR(c.ctx, c.t.Repo, c.pr.Number, trainBranch(c.id)); err != nil {
 		fmt.Fprintf(c.stderr, "landing train %d: could not close train PR #%d (%v); the next train closes it\n", c.id, c.pr.Number, err)
+	}
+}
+
+// deleteTrainBranch removes a landed train's branch from the remote, leased
+// on the head it pushed: the train PR is merged, nothing reads it again.
+func (c *conductor) deleteTrainBranch() {
+	if c.pushed == "" {
+		return
+	}
+	branch := trainBranch(c.id)
+	if err := c.locked(func() error {
+		_, err := c.git("push", "--quiet", "--force-with-lease=refs/heads/"+branch+":"+c.pushed, c.t.Remote, ":refs/heads/"+branch)
+		return err
+	}); err != nil {
+		fmt.Fprintf(c.stderr, "landing train %d: could not delete %s (%v); the next train removes it\n", c.id, branch, err)
 	}
 }
 
@@ -540,19 +584,43 @@ func (c *conductor) recordTrain(tr landingline.Train, cars []landingline.Car, le
 }
 
 // reclaimTrains closes train PRs a dead conductor left open: head.lock was
-// free when this one was admitted, so no live conductor owns them.
-func reclaimTrains(ctx context.Context, gh trainGH, repo string, stderr io.Writer) {
+// free when this one was admitted, so no live conductor owns them. Train
+// branches with no open PR (a landed train whose conductor died before
+// deleting it) are deleted too, leased on the tip read.
+func reclaimTrains(ctx context.Context, gh trainGH, git func(args ...string) (string, error), remote, repo string, lock func(func() error) error, stderr io.Writer) {
 	prs, err := gh.OpenTrainPRs(ctx, repo)
 	if err != nil {
 		fmt.Fprintf(stderr, "landing train: could not list leftover train PRs (%v)\n", err)
 		return
 	}
+	open := map[string]bool{}
 	for _, p := range prs {
+		open[p.HeadRef] = true
 		if err := gh.CloseTrainPR(ctx, repo, p.Number, p.HeadRef); err != nil {
 			fmt.Fprintf(stderr, "landing train: could not close leftover train PR #%d (%v)\n", p.Number, err)
 			continue
 		}
 		fmt.Fprintf(stderr, "landing train: closed leftover train PR #%d (%s): its conductor is gone\n", p.Number, p.HeadRef)
+	}
+	out, err := git("ls-remote", remote, "refs/heads/"+trainBranchPrefix+"*")
+	if err != nil {
+		return
+	}
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		f := strings.Fields(line)
+		if len(f) != 2 {
+			continue
+		}
+		branch := strings.TrimPrefix(f[1], "refs/heads/")
+		if open[branch] || !strings.HasPrefix(branch, trainBranchPrefix) {
+			continue
+		}
+		if err := lock(func() error {
+			_, err := git("push", "--quiet", "--force-with-lease=refs/heads/"+branch+":"+f[0], remote, ":refs/heads/"+branch)
+			return err
+		}); err == nil {
+			fmt.Fprintf(stderr, "landing train: deleted leftover branch %s\n", branch)
+		}
 	}
 }
 
@@ -577,7 +645,7 @@ func carBySeq(cars []landingline.Car, seq int64) landingline.Car {
 // open PR still sit at the vouched head. With no other car, it records the
 // departure and returns to today's single landing. Otherwise it conducts,
 // and on success returns its own PR as GitHub shows it merged.
-func maybeConductTrain(ctx context.Context, r gitRunner, t landingTarget, f *mergeFlags, turn *landingTurn, branch, head string, pr landingPR, s landingline.Schedule, readiness func(context.Context) landingline.Readiness, stderr io.Writer) (landingPR, bool, error) {
+func maybeConductTrain(ctx context.Context, r gitRunner, lgh landingGH, ci ghCaller, t landingTarget, f *mergeFlags, turn *landingTurn, branch, head string, pr landingPR, s landingline.Schedule, readiness func(context.Context) (landingline.Readiness, bool), stderr io.Writer) (landingPR, bool, error) {
 	if s.Off() {
 		return pr, false, nil
 	}
@@ -588,11 +656,11 @@ func maybeConductTrain(ctx context.Context, r gitRunner, t landingTarget, f *mer
 			Detail: why, NextDue: landingline.NextDue(now, s, leftReady > 0)})
 		return pr, false, nil
 	}
-	gh, ok := ghClient.(trainGH)
+	gh, ok := lgh.(trainGH)
 	if !ok {
 		return serial("the GitHub adapter has no train support", 0)
 	}
-	self := readiness(ctx)
+	self, _ := readiness(ctx)
 	if !self.Ready || self.Head != head || self.PR != pr.Number {
 		return serial("this merge's own gates do not hold: "+self.Reason, 0)
 	}
@@ -617,10 +685,10 @@ func maybeConductTrain(ctx context.Context, r gitRunner, t landingTarget, f *mer
 	if len(cars) == 1 {
 		return serial("no other car is ready", b.LeftReady)
 	}
-	reclaimTrains(ctx, gh, t.Repo, stderr)
 	git := func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }
-	c := &conductor{ctx: ctx, r: r, gh: gh, t: t, f: f, line: turn.line, log: turn.log, stderr: stderr, sched: s, id: tk.Seq, self: tk.Seq, departed: now}
-	c.local = localRunDeps{GH: ghClient, Repo: t.Repo, Root: t.Root, Git: git, CleanupGit: localCheckCleanupGit(ctx, r, t.Root), Stderr: stderr, FlakeRegistry: gateFlakeRegistry(t.Root)}
+	reclaimTrains(ctx, gh, git, t.Remote, t.Repo, f.withLock, stderr)
+	c := &conductor{ctx: ctx, r: r, gh: gh, ci: ci, t: t, f: f, line: turn.line, log: turn.log, stderr: stderr, sched: s, id: tk.Seq, self: tk.Seq, departed: now}
+	c.local = localRunDeps{GH: ci, Repo: t.Repo, Root: t.Root, Git: git, CleanupGit: localCheckCleanupGit(ctx, r, t.Root), Stderr: stderr, FlakeRegistry: gateFlakeRegistry(t.Root)}
 	fmt.Fprintf(stderr, "landing train %d: %d cars:", c.id, len(cars))
 	for _, car := range cars {
 		fmt.Fprintf(stderr, " #%d (PR #%d)", car.Issue, car.PR)
