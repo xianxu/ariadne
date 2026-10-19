@@ -34,6 +34,22 @@ Make the tracker-card decoder (and any card rewrite path) tolerate and preserve 
 - A card with an unknown field round-trips through every card read-modify-write path; the regression proves it.
 - The audit list is in the issue Log, each item fixed or filed.
 
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. The source is marked stale against the current calibration ledger, so these values are provisional. The nested YAML-preservation helper is the one new Go concern; the card and attempt decoders extend existing modules. The plan resolves the design choices, so the 15% design buffer applies. Implementation hours use v3.1's 40% scale against the v2 primitive ranges.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.5 impl=0.08
+item: greenfield-go-module design=0.55 impl=0.32
+item: smaller-go-module design=0.25 impl=0.2
+item: smaller-go-module design=0.2 impl=0.2
+item: milestone-review design=0.1 impl=0.2
+design-buffer: 0.15
+total: 2.84
+```
+
 ## Plan
 
 - [ ] Make old-shape card parsing accept unknown top-level and nested members while retaining strict known fields, required fields, versions, and duplicate-key checks.
@@ -50,6 +66,7 @@ Make the tracker-card decoder (and any card rewrite path) tolerate and preserve 
 - Hub approved the plan and directed #449's sidecar fix into its owning unlanded branch. Sent ariadne:2 the unknown-field preservation and strict-validation contract; Couch receipt `ca2dc1a7-b35a-48ba-a77c-e84f02be3afa` is submitted. #460 will audit the #449 result, not duplicate its code.
 - Plan-quality round 1 raised PQ-1 (nested known tracker validation did not yet reach `ParseCard`) and PQ-2 (no named adversarial strategy for the pure merge helper or JSON canonical keys), plus a minor scope-exclusions suggestion. The durable plan now names the boundary call, helper/property and alias checks at every object depth.
 - Plan-quality round 2 accepted PQ-1 and the scope exclusions. PQ-2 stayed open because the task prose duplicated the new adversarial strategy table; compressed the task steps to refer to that table.
+- Plan-quality round 3 disposed PQ-2 as addressed; no blocking findings remain. Estimate derived only after the plan cleared, as required by the gate.
 
 ## Revisions
 
