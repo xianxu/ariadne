@@ -65,6 +65,7 @@ plus a disposable local harness; no shared staging or volume changes.
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — Red: HFS/unknown Choose fixtures admitted silently; green: APFS accepted and Darwin HFS/unknown rejected with reason. Focused scratchdisk/reviewbox/suite/review caller tests passed on APFS-backed normal temp and HFS-backed owned temp; HFS suite preparation inherits temp, prints one note and creates no scratch folder. Read-only live statfs observed TestScratch hfs and rejection. Linux/amd64 scratchdisk test compilation passed. Central sdlc recorded suite on 28837330d0a076e2d831c39d82ed8e854d384fee passed 12 shards / 1721 SDLC tests and 72 other packages, zero failures/retries in 10m03s, digest dd051507e069. AGENTS.base section 10 and atlas updated; no mount changes, deadline bumps, shared staging or private gate binary. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 ### 2026-10-19 — approved scope
 
