@@ -176,3 +176,30 @@ Design 0.56 × 1.15 + implementation 2.08 = 2.724 hours, rounded to 2.72.
   issue-tracker branch before filing; legacy paths would be listed, not invoked.
 
 - Completed verified unclaimed migration hand-offs: 42shots#1, astro#1, ducks#12, echo#1, kaggle#11, kbench#29, metis#70, nous#54, pair#699, parley.nvim#398, parli#1, robotics#1, tools#84, xianxu.dev#5, you-decide#16. All depend on ariadne#459; repository owners implement after TL dispatch. No other legacy exceptions were found.
+
+### Implementation verification (2026-10-19)
+
+- Added exact source-pin acquisition/provenance checks, isolated candidate vs
+  downstream compilers, and the every-PR/main real compatibility guard. The pin
+  is authored outside the manifest, and CI helper changes require operator
+  local-gates verification.
+- Red/green: actual workflow tests first refused missing pinned-toolchain
+  acquisition; matcher tests refused unprotected CI helpers. Added a negative
+  old-compiler control that prints the ownership diagnostic without the
+  preserved-baseline marker: it failed before the second oracle was enforced.
+- Parent verification: portable workflow blocks pass; local-gates matcher
+  passes all 17 patterns and near misses. Guard tests pass with pure grammar,
+  linear corpus comparison, stateful cold transitions, generator failure before
+  compiler invocation, zero-exit/no-output refusal, timeout and SIGTERM cleanup.
+- Focused Go vocabulary instance/export/resolution and shipped ownership tests
+  pass; real TestCompileRegeneratesShippedOutputCold passes.
+- Parent real conformance: approved pinned compiler passes seven cold fixtures
+  across six actual top-level noun exports. Real 0.1.0 exits 1 at compile with
+  preserving-authored-replacement plus COLD-REFUSAL-PRESERVED, after checking
+  unchanged output and sidecar bytes. Both paths use the candidate's actual
+  producer declaration/marker and vocabulary generator, with no live peers.
+  Evidence remains under
+  /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/weave459-verification.RaEfPU.
+- PR319 is the local-gates hand-off. Full recorded suite, close review and
+  landing remain outstanding pending operator verification; agents never apply
+  local-gates-verified. No release, tag, tap or downstream workflow was edited.

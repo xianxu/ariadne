@@ -151,20 +151,20 @@ This is a CI path, not an interactive hot path. Work is one compiler build per s
 
 ### Task 1 — pin and workflow contract (local-gates)
 
-- [ ] Establish `sdlc claim` / `start-plan` ownership, then checkpoint this design and run `change-code` only after approval. Resolve plan-quality findings before estimating or implementing.
-- [ ] Add red tests to `scripts/test/portable-ci.test.sh` for exact pinned source selection, Go setup/build failure, old PATH binary shadowing, source-CI candidate separation and safe env/argv handling.
-- [ ] Add bounded pin validation and matcher tests. Add the authored `.sdlc/weave-compiler-ref` and Ariadne supported refs; do not put the selected pin in the weave manifest. Update the existing workflow seed, `.github/workflows/local-gates-guard.yml`, its tests only as approved local-gates changes. The manifest is read for declarations, not edited to distribute the pin.
-- [ ] Make the workflow tests green; run `bash scripts/test/portable-ci.test.sh` and `bash scripts/test/local-gates-guard.test.sh`. Update `README.md` and `atlas/workflow/ci-merge-check.md` / `weave.md`; keep `atlas/index.md` links current.
+- [x] Establish `sdlc claim` / `start-plan` ownership, then checkpoint this design and run `change-code` only after approval. Resolve plan-quality findings before estimating or implementing.
+- [x] Add red tests to `scripts/test/portable-ci.test.sh` for exact pinned source selection, Go setup/build failure, old PATH binary shadowing, source-CI candidate separation and safe env/argv handling.
+- [x] Add bounded pin validation and matcher tests. Add the authored `.sdlc/weave-compiler-ref` and Ariadne supported refs; do not put the selected pin in the weave manifest. Update the existing workflow seed, `.github/workflows/local-gates-guard.yml`, its tests only as approved local-gates changes. The manifest is read for declarations, not edited to distribute the pin.
+- [x] Make the workflow tests green; run `bash scripts/test/portable-ci.test.sh` and `bash scripts/test/local-gates-guard.test.sh`. Update `README.md` and `atlas/workflow/ci-merge-check.md` / `weave.md`; keep `atlas/index.md` links current.
 
 ### Task 2 — real cross-version guard
 
-- [ ] Write failing orchestration tests in `scripts/test/weave-compatibility.test.sh`, with controlled executable/filesystem state for failure propagation and compiler identity. Implement `scripts/ci/weave-compatibility.py` using argv subprocesses and private temporary trees.
-- [ ] Add actual cold-corpus fixtures and the authored-edit controls described above. Execute the real 0.1.0 binary and retain the red diagnostic, then execute the approved post-#422 binary and retain green output. Verify candidate schema inputs actually flow into generation and expected-output comparison.
+- [x] Write failing orchestration tests in `scripts/test/weave-compatibility.test.sh`, with controlled executable/filesystem state for failure propagation and compiler identity. Implement `scripts/ci/weave-compatibility.py` using argv subprocesses and private temporary trees.
+- [x] Add actual cold-corpus fixtures and the authored-edit controls described above. Execute the real 0.1.0 binary and retain the red diagnostic, then execute the approved post-#422 binary and retain green output. Verify candidate schema inputs actually flow into generation and expected-output comparison.
 - [ ] Wire real conformance into Ariadne merge-checks for PRs and main pushes, with no dependency on live sibling checkouts or a floating compiler. Run focused ownership tests and all script checks; run the recorded full suite before close. Obtain the operator's local-gates verification before landing.
 
 ### Task 3 — operator/TL rollout and acceptance
 
-- [ ] This worker verifies remote inventory and files one unclaimed local-gates issue per active GitHub consumer from its :0 checkout, linking ariadne#459 and the inventory. Do not change downstream workflows or open isolated-checkout PRs. TL dispatches consumer issues to their own slots after the guard lands.
+- [x] This worker verifies remote inventory and files one unclaimed local-gates issue per active GitHub consumer from its :0 checkout, linking ariadne#459 and the inventory. Do not change downstream workflows or open isolated-checkout PRs. TL dispatches consumer issues to their own slots after the guard lands.
 - [ ] Operator verifies/labels affected PRs. Owners execute cold-regeneration CI checks and report PRs, exact compiler refs and logs. TL updates the rollout inventory/project.
 - [ ] Verify #459 Done-when against the upstream compatibility guard, initial pin, intentionally failing compiler control and filed inventory hand-offs. Consumer adoption remains in their issues. Close/land through SDLC only when the upstream steps have evidence and operator local-gates verification is present. No self-label, tag push, release or tap publication.
 
@@ -214,3 +214,15 @@ input class and an independent mechanical oracle; IO functions are separate.
 Compressed the orchestration scenario inventory into those test strategies
 while retaining the required observed real-compiler controls. This refines the
 approved implementation seam; it adds no compatibility/distribution mechanism.
+
+### 2026-10-19 — implementation evidence and operator hand-off
+
+The approved implementation now exists. The real pin passes seven cold-state
+transitions across six actual candidate nouns; real 0.1.0 fails at compile with
+its ownership diagnostic and the independently checked unchanged-baseline
+marker. Workflow tests execute actual Bash blocks and reject an old diagnostic
+without that preservation marker. Focused parser/process tests include generator
+failure before compiler invocation and SIGTERM child cleanup. Consumer hand-offs
+are recorded in the verified inventory. The remaining checklist items retain
+recorded-suite, close review, actual CI and operator-label requirements: no
+claim of landing or fleet adoption is made by this preparation checkpoint.
