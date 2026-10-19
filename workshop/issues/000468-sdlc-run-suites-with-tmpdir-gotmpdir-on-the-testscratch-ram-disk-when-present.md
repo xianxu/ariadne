@@ -33,6 +33,7 @@ When /Volumes/TestScratch is mounted and writable, `sdlc local-check run`, the s
 
 - With the RAM disk mounted, a suite's test temp files live under /Volumes/TestScratch (fixture test plus a live check); without it, nothing changes.
 - A live disk-write sample (proc rusage of the suite tree) shows the SSD bytes written per suite falling.
+- (Revisions) The run's own checkout and review checkouts start on the RAM disk when it has room, and fall back to their old roots when it is absent, full or refuses the write. The stale sweeps cover both roots. AGENTS.base.md §10 prefers the disk, with a fallback. A scratched suite warns about attributable SSD temp folders and counts the rest as unattributed. `tmp-literal` flags every SSD temp root.
 
 ## Revisions
 
@@ -88,7 +89,7 @@ Steps:
 - [x] Revision 1: the `AGENTS.base.md` §10 line.
 - [x] Review checkouts on the RAM disk (`reviewbox.Roots`), with a test.
 - [x] Docs: `sdlc local-check --help` gets a line; atlas `sdlc-binary` "Running the test suite".
-- [ ] Live: the RAM disk is now mounted (the operator, 10-19). Run a suite through the branch's sdlc (temp under `/Volumes/TestScratch/tmp/<run>`, removed after), and take the disk-write sample before and after.
+- [x] Live: the RAM disk is now mounted (the operator, 10-19). Run a suite through the branch's sdlc (temp under `/Volumes/TestScratch/tmp/<run>`, removed after), and take the disk-write sample before and after.
 
 ## Log
 
@@ -106,3 +107,4 @@ Steps:
 - **Found, out of scope (follow-up proposals):**
   - (1) The suite's own temporary checkout (`sdlc-local-*`) went to the system temp folder on the SSD. Folded in by the third revision.
   - (2) The agent sandbox denies writes to `/Volumes/TestScratch`, so agents' own sandboxed test runs can't use it until the operator adds it to the sandbox allowlist (local-gates config, the operator's).
+- Recorded suite green on fb3941da (sdlc-local/suite, 10m45s), with its checkout under /Volumes/TestScratch/local-checks and its temp under /Volumes/TestScratch/tmp, both removed after the run. The leak warning showed 0 attributed and 4 unattributed.
