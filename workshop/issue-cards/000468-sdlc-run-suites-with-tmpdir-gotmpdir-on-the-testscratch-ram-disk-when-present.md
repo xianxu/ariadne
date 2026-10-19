@@ -1,6 +1,6 @@
 ---
 id: 000468
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 9e4c4f89b69e712e4ad6bd608f3416530827c64a
         evidence_commit: 3d92d990445f203f8b5bc09f9158a550279ee04e
+        landed_commit: 546516f30d0af49dc3973e5baf54a716933d8046
 ---
 
 # sdlc: run suites with TMPDIR/GOTMPDIR on the TestScratch RAM disk when present
