@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "0a6dff82", done: "d050526c"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # flake registration needs exact subtests and narrowing
@@ -43,6 +43,10 @@ Durable plan: `workshop/plans/000466-flake-subtests-plan.md` (names, leaf covera
 
 ## Log
 
+
+
+- 2026-10-19: closed — Close review fixes: e7ed662d6 (one coverage rule flakes.Explained for gate, success guard and flake list; known_flakes subtest records and the older-reader refusal documented; TestFlakeEditKeepsAConcurrentRegistration on real tracker cards) and ee4d22050 (TestSuitePassGuardReadsSubtestsFromTheLog and TestFlakeListJudgesSubtestsFromTheLog, both red with the withLogSubtests wiring removed, checked; guard hint grammar). Done-when: TestKnownFlakeGateSubtest on a real nested Go package; TestFlakeEditOnTrackerCards; TestFlakeRegisterASubtest. Full suite exit 0 in 10m53s on 3e1c744a before the fixes. Rollout: rebuild :0 before registering subtests.; review verdict: SHIP
+- 2026-10-19: flow upgraded quick → full — 535 added lines in code files (limit 100); an earlier round of this close already ran the full review
 2026-10-19: Found during #458's full-suite triage. `flakes.ValidTest` and `SplitTest` accept only top-level names; `sdlc flake register` only adds. #465 temporarily registers the top-level `scripts/test.TestConstructScripts` while its test-cost fix is in progress.
 
 2026-10-19 (ariadne:2): claimed and started.
