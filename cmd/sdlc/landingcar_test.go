@@ -422,7 +422,16 @@ func TestOnlyLandedCommitReadsMergeOID(t *testing.T) {
 // The train and the line take their GitHub seam from where sdlc merge wires
 // it (landing.go); none of their files reaches for the global client.
 func TestTrainCodeTakesItsGitHubSeam(t *testing.T) {
-	for _, f := range []string{"landingcar.go", "landingtrain.go", "landingqueue.go", "landingconfig.go"} {
+	files, err := filepath.Glob("landing*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked := 0
+	for _, f := range files {
+		if f == "landing.go" || strings.HasSuffix(f, "_test.go") {
+			continue // landing.go is where sdlc merge wires the seam
+		}
+		checked++
 		data, err := os.ReadFile(f)
 		if err != nil {
 			t.Fatal(err)
@@ -430,5 +439,8 @@ func TestTrainCodeTakesItsGitHubSeam(t *testing.T) {
 		if strings.Contains(string(data), "ghClient") {
 			t.Errorf("%s reads the global ghClient; take the seam as a parameter", f)
 		}
+	}
+	if checked < 5 {
+		t.Fatalf("checked only %d landing files; the glob is stale", checked)
 	}
 }

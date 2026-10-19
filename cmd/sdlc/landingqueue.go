@@ -47,11 +47,11 @@ func openLandingLine(dir string, sched func() landingline.Schedule, stderr io.Wr
 		Now:  landingNow,
 		Poll: landingLinePoll,
 		Grants: func() map[int]landingline.Grant {
-			entries, _, err := line.GrantEntries()
+			grants, err := line.GrantsNow()
 			if err != nil {
 				return nil // an unreadable log confers no priority
 			}
-			return landingline.ValidGrants(entries, landingNow())
+			return grants
 		},
 		OnWait: func(pos int, head *landingline.Ticket) {
 			fmt.Fprintf(stderr, "landing line: position %d; landing now: %s (sdlc landing status)\n", pos, describeTicket(head))
@@ -175,11 +175,11 @@ func (lt *landingTurn) leave(err error) {
 	}
 	lt.log.record(e)
 	if err == nil && tk.Issue != 0 {
-		entries, _, rerr := lt.line.GrantEntries()
+		grants, rerr := lt.line.GrantsNow()
 		if rerr != nil {
 			fmt.Fprintf(lt.stderr, "landing line: could not read grants to end #%d's priority (%v); a grant expires on its own\n", tk.Issue, rerr)
 		} else {
-			if _, granted := landingline.ValidGrants(entries, landingNow())[tk.Issue]; granted {
+			if _, granted := grants[tk.Issue]; granted {
 				if gerr := lt.line.AddGrant(landingline.Grant{Issue: tk.Issue, Grantor: landingline.Grantor{Address: "sdlc merge"}, Reason: "landed", Revoked: true}); gerr != nil {
 					fmt.Fprintf(lt.stderr, "landing line: could not end #%d's priority grant (%v); it expires on its own\n", tk.Issue, gerr)
 				}

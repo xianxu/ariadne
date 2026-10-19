@@ -193,11 +193,13 @@ type Boarding struct {
 }
 
 // Board picks the train behind the head, in admission order: every waiter
-// whose vouch is current, up to the schedule's cap. An Alone car rides by
+// whose vouch is current, up to the schedule's cap. A waiter holding a
+// fleet-blocking grant never boards: it lands alone, outside any train, and
+// is admitted next (it counts as left ready, so that is at once). An Alone car rides by
 // itself: as the head it boards nobody; as a waiter it ends this train's
 // boarding (it and everyone behind it keep their place for the next one). A
 // waiter that is not ready is passed over, not a stop: it never held anyone.
-func Board(head Car, headAlone bool, waiters []Ticket, ready map[int64]Readiness, s Schedule, now time.Time) Boarding {
+func Board(head Car, headAlone bool, waiters []Ticket, ready map[int64]Readiness, grants map[int]Grant, s Schedule, now time.Time) Boarding {
 	b := Boarding{Cars: []Car{head}, Why: map[int64]string{}}
 	if s.Off() || headAlone {
 		for _, t := range waiters {
@@ -220,6 +222,11 @@ func Board(head Car, headAlone bool, waiters []Ticket, ready map[int64]Readiness
 		}
 		if why := r.For(t, now); why != "" {
 			b.Why[t.Seq] = why
+			continue
+		}
+		if _, granted := grants[t.Issue]; granted {
+			b.LeftReady++
+			b.Why[t.Seq] = "fleet-blocking: lands alone, outside the train"
 			continue
 		}
 		switch {

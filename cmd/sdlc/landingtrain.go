@@ -662,10 +662,12 @@ func maybeConductTrain(ctx context.Context, r gitRunner, lgh landingGH, ci ghCal
 	if !ok {
 		return serial("the GitHub adapter has no train support", 0)
 	}
-	if entries, _, err := turn.line.GrantEntries(); err == nil {
-		if _, granted := landingline.ValidGrants(entries, now)[tk.Issue]; granted {
-			return serial("fleet-blocking: lands alone, outside the train", 0)
-		}
+	grants, err := turn.line.GrantsNow()
+	if err != nil {
+		grants = nil // unreadable: no priority, as the line's admission reads it
+	}
+	if _, granted := grants[tk.Issue]; granted {
+		return serial("fleet-blocking: lands alone, outside the train", 0)
 	}
 	self, _ := readiness(ctx)
 	if !self.Ready || self.Head != head || self.PR != pr.Number {
@@ -679,7 +681,7 @@ func maybeConductTrain(ctx context.Context, r gitRunner, lgh landingGH, ci ghCal
 	if err != nil {
 		return pr, false, err
 	}
-	b := landingline.Board(landingline.Car{Seq: tk.Seq, Issue: tk.Issue, Branch: branch, Head: head, PR: pr.Number}, self.Alone, waiting, ready, s, now)
+	b := landingline.Board(landingline.Car{Seq: tk.Seq, Issue: tk.Issue, Branch: branch, Head: head, PR: pr.Number}, self.Alone, waiting, ready, grants, s, now)
 	cars := b.Cars[:1]
 	for _, car := range b.Cars[1:] {
 		if why := carStillAtHead(ctx, r, gh, t, car); why != "" {

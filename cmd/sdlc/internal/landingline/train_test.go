@@ -128,7 +128,7 @@ func TestBoard(t *testing.T) {
 		return m
 	}
 	t.Run("boards every ready waiter in order", func(t *testing.T) {
-		b := Board(head, false, tickets(2), ready(2, 3), hourly(), tt0)
+		b := Board(head, false, tickets(2), ready(2, 3), nil, hourly(), tt0)
 		if got := boardedSeqs(b); !slices.Equal(got, []int64{1, 2, 3}) || b.LeftReady != 0 {
 			t.Fatalf("cars %v left %d", got, b.LeftReady)
 		}
@@ -136,7 +136,7 @@ func TestBoard(t *testing.T) {
 	t.Run("a not-ready waiter is passed over, not a stop", func(t *testing.T) {
 		r := ready(3)
 		r[2] = Readiness{Version: ReadinessVersion, Seq: 2, Branch: "b", Reason: "CI pending", At: tt0}
-		b := Board(head, false, tickets(2), r, hourly(), tt0)
+		b := Board(head, false, tickets(2), r, nil, hourly(), tt0)
 		if got := boardedSeqs(b); !slices.Equal(got, []int64{1, 3}) || !strings.Contains(b.Why[2], "CI pending") {
 			t.Fatalf("cars %v why %v", got, b.Why)
 		}
@@ -150,7 +150,7 @@ func TestBoard(t *testing.T) {
 		for i := range waiters {
 			waiters[i].Branch = "b"
 		}
-		b := Board(head, false, waiters, r, hourly(), tt0)
+		b := Board(head, false, waiters, r, nil, hourly(), tt0)
 		if got := boardedSeqs(b); !slices.Equal(got, []int64{1, 3}) || !strings.Contains(b.Why[2], "000999-someone-else") {
 			t.Fatalf("cars %v why %v", got, b.Why)
 		}
@@ -160,13 +160,13 @@ func TestBoard(t *testing.T) {
 	})
 	t.Run("an unvouched or stale waiter does not board", func(t *testing.T) {
 		r := map[int64]Readiness{3: vouch(3, true, tt0.Add(-time.Hour))}
-		b := Board(head, false, tickets(2), r, hourly(), tt0)
+		b := Board(head, false, tickets(2), r, nil, hourly(), tt0)
 		if got := boardedSeqs(b); !slices.Equal(got, []int64{1}) || b.Why[2] == "" || b.Why[3] == "" {
 			t.Fatalf("cars %v why %v", got, b.Why)
 		}
 	})
 	t.Run("the cap leaves ready cars for an immediate train", func(t *testing.T) {
-		b := Board(head, false, tickets(4), ready(2, 3, 4, 5), hourly(), tt0)
+		b := Board(head, false, tickets(4), ready(2, 3, 4, 5), nil, hourly(), tt0)
 		if got := boardedSeqs(b); !slices.Equal(got, []int64{1, 2, 3}) || b.LeftReady != 2 {
 			t.Fatalf("cars %v left %d", got, b.LeftReady)
 		}
@@ -174,19 +174,26 @@ func TestBoard(t *testing.T) {
 	t.Run("an Alone waiter ends boarding and rides next, by itself", func(t *testing.T) {
 		r := ready(2, 4)
 		r[3] = Readiness{Version: ReadinessVersion, Seq: 3, Branch: "b", Head: oid('c'), PR: 3, Ready: true, Alone: true, Reason: "touches local-gates paths", At: tt0}
-		b := Board(head, false, tickets(3), r, hourly(), tt0)
+		b := Board(head, false, tickets(3), r, nil, hourly(), tt0)
 		if got := boardedSeqs(b); !slices.Equal(got, []int64{1, 2}) || b.LeftReady != 2 || !strings.Contains(b.Why[3], "alone") {
 			t.Fatalf("cars %v left %d why %v", got, b.LeftReady, b.Why)
 		}
 	})
+	t.Run("a granted waiter never boards, and the next train is at once", func(t *testing.T) {
+		grants := map[int]Grant{103: {Issue: 103}}
+		b := Board(head, false, tickets(3), ready(2, 3, 4), grants, hourly(), tt0)
+		if got := boardedSeqs(b); !slices.Equal(got, []int64{1, 2, 4}) || b.LeftReady != 1 || !strings.Contains(b.Why[3], "fleet-blocking") {
+			t.Fatalf("cars %v left %d why %v", got, b.LeftReady, b.Why)
+		}
+	})
 	t.Run("an Alone head boards nobody", func(t *testing.T) {
-		b := Board(head, true, tickets(2), ready(2, 3), hourly(), tt0)
+		b := Board(head, true, tickets(2), ready(2, 3), nil, hourly(), tt0)
 		if got := boardedSeqs(b); !slices.Equal(got, []int64{1}) || b.LeftReady != 2 {
 			t.Fatalf("cars %v left %d", got, b.LeftReady)
 		}
 	})
 	t.Run("trains off: the head rides alone", func(t *testing.T) {
-		b := Board(head, false, tickets(2), ready(2, 3), Schedule{}, tt0)
+		b := Board(head, false, tickets(2), ready(2, 3), nil, Schedule{}, tt0)
 		if got := boardedSeqs(b); !slices.Equal(got, []int64{1}) {
 			t.Fatalf("cars %v", got)
 		}

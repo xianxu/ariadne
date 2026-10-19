@@ -488,17 +488,36 @@ fleet, the operator or the TL (from a :0 slot) runs
 hours; `sdlc landing revoke` ends it early). That puts the issue first at the
 next admission without interrupting a running landing or waiving any gate.
 
-Landing trains (#449) batch that line. `.sdlc/landing.json` on main
-sets `train_interval_minutes` (0, the default when the file is absent, keeps the
-serial line) and `train_max_cars` (default 8). The file is under the local-gates
-guard, so the operator verifies every change to it. With trains on, a waiting
-merge checks its own review and CI gates on its pushed head and vouches it ready.
-A merge departs only when the train is due and its vouch is current; a granted
-merge still departs at once and alone. The admitted head conducts the train. It
-builds one branch from main and every boarded car's head, then runs one suite and
-CI on its train PR. It merges that PR once, and GitHub marks each car's PR merged.
-Each car's own `sdlc merge` then finishes its cleanup. `sdlc landing status`
-shows the setting, the next departure and each waiting merge's readiness.
+Landing trains (#449) batch that line. `.sdlc/landing.json` on main sets
+`train_interval_minutes` and `train_max_cars` (default 8). The default is 0
+when the file is absent, which keeps the serial line. The file is under the
+local-gates guard, so the operator verifies every change to it.
+
+With trains on:
+- **Vouching:** a waiting merge checks its own review and CI gates on its pushed
+  head and vouches it ready.
+- **Departure:** a merge departs only when the train is due and its vouch is
+  current. The train is due on the first train, one interval after the last
+  departure, or at once after a train that left ready cars behind.
+- **Conducting:** the admitted head conducts. It boards every waiting merge
+  whose remote tip and open PR are still at the vouched head. It builds one
+  branch from main and each car's head, with the instance and duplicate-ID gates
+  per car. It runs one suite and CI on its train PR, merges that PR once, and
+  GitHub marks each car's PR merged. Each car's own `sdlc merge` then finishes
+  its cleanup.
+- **Holds:** a car that conflicts with the train is held. An unexplained suite
+  failure is bisected: the culprit is held, the clean prefix lands, and the cars
+  behind it ride the next train at once.
+- **Refusals:** a known flake gets its #394 rerun and never splits. Main failing
+  the same way refuses the train, and so does red CI on the train PR.
+- **Riding alone:** a fleet-blocking grant departs at once and lands alone,
+  never boarding a train. So does a PR with the local-gates label.
+- **Recovery:** a car that finds its own PR merged, with no word from its train,
+  finishes as a resume.
+
+`sdlc landing status` shows the setting, the next departure, each waiting
+merge's readiness, and the last trains: result, cars, train PR, split suites
+and culprit.
 
 Merge refuses red CI on the PR head. Durable workspaces wait up to 20 minutes
 for pending CI, integrate a moved main locally, and recheck main before landing

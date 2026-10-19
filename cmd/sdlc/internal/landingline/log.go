@@ -83,6 +83,17 @@ func (l *Line) GrantEntries() ([]Grant, int, error) {
 	return ReadGrantEntries(l.dir)
 }
 
+// GrantsNow is the one answer to "who holds priority now": the valid grants
+// at the line's clock. An unreadable log is an error for the caller to
+// treat as no priority; every caller treats it so (none is guessed).
+func (l *Line) GrantsNow() (map[int]Grant, error) {
+	entries, _, err := l.GrantEntries()
+	if err != nil {
+		return nil, err
+	}
+	return ValidGrants(entries, l.o.Now()), nil
+}
+
 // ReadGrantEntries reads an existing grant log without opening or creating a line.
 // Missing logs are empty; malformed entries are counted for the caller.
 func ReadGrantEntries(dir string) ([]Grant, int, error) {
