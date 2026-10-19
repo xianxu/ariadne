@@ -40,10 +40,10 @@ Fix OWNER resolution in dev-aliases so that in a Couch slot (any worktree under 
 
 ## Plan
 
-- [ ] Normalize numbered-environment alias owners to verified fleet :0 peers;
+- [x] Normalize numbered-environment alias owners to verified fleet :0 peers;
   retain primary/plain clone behavior, #405's skip rule and missing-bin exception.
-- [ ] Add executable path/revision version output and a Couch wrong-owner warning.
-- [ ] Make catch-up refuse only if the running binary's own source moved and
+- [x] Add executable path/revision version output and a Couch wrong-owner warning.
+- [x] Make catch-up refuse only if the running binary's own source moved and
   its embedded revision differs; a private sibling move alone permits planning.
 - [ ] Run real-layout/sentinel and catch-up regressions red/green, focused Go and
   script checks, recorded full suite, close review and hub-coordinated live checks.
@@ -94,3 +94,24 @@ at N/2N if that normalization introduces repeated traversal (ARCH-CONSTRAINTS).
   History review confirms #405's explicit TL decision and catchup_test's unchanged
   same-process rerun. Current own-slot --list resolves sdlc to this worktree,
   reproducing the ownership mismatch without rebuilding anything.
+
+- Initial real-Git layout regression failed because slot aliases selected the
+  stale sentinel. After owner normalization, primary/slot/plain clones select
+  the expected sentinels without any Go build; absent/mismatched primaries
+  refuse with no emitted aliases. Existing dev-aliases tests pass 82/82.
+- Go targeted version/catch-up/start-plan regressions passed before a final
+  process-local metadata cache and outside-chain source test. Combined clear
+  implementation exceeds the 100-line quick-review shell, so close will use
+  the binary's automatic full-review upgrade rather than compressing the code.
+
+- Final targeted Go tests pass (52.117s broad StartPlan/catch-up/version run;
+  8.824s final narrow run including outside-chain source movement). Metadata is
+  observed once per process, with an injectable test seam and no persisted cache.
+- Shell scan-count regression with N=2 and 2N=4 candidate copies proves the
+  canonical owner's cmd tree is scanned once. New layout test passes alongside
+  all 82 existing dev-aliases assertions; shell lint passes.
+- Built only this slot's ignored bin/sdlc for a read-only --version smoke. It
+  reports its actual slot path and embedded revision/modified bit, and warns
+  with expected /Users/xianxu/workspace/ariadne/bin/sdlc. The live generator's
+  --list selects that primary for every Ariadne tool. Workflow verbs continue
+  using the explicitly requested :0 binary until landing.

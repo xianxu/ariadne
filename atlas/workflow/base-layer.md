@@ -99,6 +99,13 @@ TL, `sdlc stage --build` or `make`**: an agent shell in a slot runs whatever
 doesn't roll out a new binary until one of those builds it. A missing `bin/X`
 always builds, from a slot too: a slot writes to `:0` only to build a missing
 binary, `dev-prepare` included.
+Numbered environments normalize shell-tool owners to verified fleet `:0`
+checkouts, even when their composition uses private sibling substrates (#461).
+A missing primary or a different repository identity refuses alias generation;
+there is no private-binary fallback. Primary checkouts and plain clones retain
+their ordinary owners. Run `sdlc --version` to see the executable's path and
+embedded revision; a Couch invocation warns if its path is not the fleet `:0`
+binary. Regenerate shell aliases or relaunch sessions with captured old functions.
 A built binary takes the time its build started, so a file edited mid-build reads
 as newer on the next call; a scan error counts as stale. When it builds, the emitted function builds into a per-call `mktemp -d bin/.X.XXXXXX` directory beside
 the target and renames the result over `bin/X` (#355); the exact form is the one
