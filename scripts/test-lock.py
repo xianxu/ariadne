@@ -490,6 +490,11 @@ def main():
     ap.add_argument("--watch", type=int, required=True, help="pid whose exit releases the lock (make)")
     ap.add_argument("--slots", type=int, default=1, help="this suite's weight: slots it takes at once (#346)")
     args = ap.parse_args()
+    # local-check cancellation uses SIGTERM. Unwind owned provider/ticket
+    # resources before exiting, just as KeyboardInterrupt does for SIGINT.
+    def terminate(signum, _frame):
+        raise SystemExit(128 + signum)
+    signal.signal(signal.SIGTERM, terminate)
     print(acquire(args.watch, args.slots))
 
 

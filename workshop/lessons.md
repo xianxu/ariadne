@@ -1005,3 +1005,5 @@ The simplest durable authority beats a clever scan of consequences.
 - When validating a before/after corpus that supports renames, compare moved outputs to the existing move projection before applying same-path emission checks. A same-path lookup mislabels preserved content as newly written; test a renamed parent, its children, and an orphan displaced by the move (#444 BR-1).
 
 - #452 plan review: a cache of time-dependent authority must invalidate at every authority-derived temporal transition, including future activation as well as expiry; unchanged file metadata does not imply unchanged validity. Name the production functions and adversarial test strategies in plans instead of enumerating prose test cases.
+
+- #452 cancellation: spawning a provider in its own process group requires an explicit SIGTERM unwind path in the Python owner; default signal exit skips finally cleanup. Test cancellation while the child is in flight, not only after provider return. Synchronize PID records on complete contents, not file existence.

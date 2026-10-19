@@ -248,6 +248,32 @@ class SuiteQueuePriority(unittest.TestCase):
         self.release(a)
         self.await_(lambda: self.acquired('normal'), 'dead priority ticket blocked normal')
 
+    def test_cancelled_helper_reaps_provider_process_group(self):
+        pidfile = self.root / 'provider.pid'
+        provider = self.root / 'slow-provider'
+        provider.write_text('#!/usr/bin/env python3\nimport os,time\nopen(' + repr(str(pidfile)) + ', "w").write(str(os.getpid()))\ntime.sleep(120)\n')
+        provider.chmod(0o755)
+        self.env['WF_TEST_PRIORITY_PROVIDER'] = str(provider)
+        owner, helper = self.start('cancel-provider', 2)
+        self.await_(lambda: pidfile.exists() and pidfile.read_text().isdigit(), 'provider never started')
+        provider_pid = int(pidfile.read_text())
+        def alive():
+            try:
+                os.kill(provider_pid, 0)
+                return True
+            except ProcessLookupError:
+                return False
+        def cleanup_provider():
+            try:
+                os.killpg(provider_pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        self.addCleanup(cleanup_provider)
+        helper.terminate()
+        helper.wait(timeout=3)
+        time.sleep(.2)
+        self.assertFalse(alive(), 'cancelled helper left provider process alive')
+
     def test_unavailable_provider_warns_and_never_stops_suite(self):
         self.grant(2)
         self.env['WF_TEST_PRIORITY_PROVIDER'] = str(self.root / 'missing')

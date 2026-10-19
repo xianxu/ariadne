@@ -67,6 +67,10 @@ Optional environment metadata supplies provider/subject rather than adding manda
 
 TL declined shared :0 staging and authorized this worktree's build instead (receipt aabb93a7-728d-4289-b2fe-5a3dcaec9128). make sdlc-build completed; go version -m confirms revision 4e9ba7e62802d49e11997a8150999bdda3c4d64e, modified=false, trimpath=true. SUITE_PRIORITY_TEST_PROVIDER pointing to this worktree's bin/sdlc with python3 scripts/test/test-lock-priority.test.py passed all 13 tests in 24.615s. All lock/grant paths were private fixtures. Shared tools and live queue ownership were untouched. TL handles :0 rebuild and subsequent natural fleet observation after landing. Recorded full branch suite is running through the normal machine queue.
 
+### Provider cancellation follow-up
+
+Before full-suite admission, a new cancellation transport regression failed: SIGTERM of the helper left its separate provider group alive. Root cause: Python's default SIGTERM termination skipped query_priority's finally cleanup. SIGTERM now unwinds through SystemExit, so existing provider-group kill/wait and ticket release execute. The regression passed in 0.420s. The full focused family then passed again (cmd/sdlc 60.882s; landingline 0.127s), including the 14-test harness and actual local-check signal cancellation. The first suite attempt was still queued and was cancelled using sdlc local-check cancel; it ran no tests. No live peer work was cancelled. Restart the recorded suite on the corrected commit. A PID-file synchronization race in the new test was corrected to wait for complete numeric contents, not file existence.
+
 ## Revisions
 
 2026-10-18 — TL approved the durable plan. Missing/old/unreadable provider warns and falls back to normal FIFO for all suites. Old sticky waiters drain naturally. Explicit expiry regression proves a granted waiter loses priority on expiry and an older normal waiter proceeds. Approval receipt: 3b55ef84-675d-4f81-834d-80f67f178da1.
