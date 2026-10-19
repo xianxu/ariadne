@@ -454,8 +454,12 @@ trains on:
 - **Splits:** an unexplained suite failure is bisected over the prefixes (at most ⌈log₂ n⌉ more suites). The culprit is held, the clean prefix lands, and the cars behind it are released, so the next train departs at once. A known flake's #394 rerun is a pass. Main's baseline failing the same way refuses the train.
 - **Refusals:** red CI on the train PR refuses the whole train (no CI bisect). A fleet-blocking grant, or a PR with the local-gates label, lands alone.
 - **Report:** `sdlc landing status` lists the last trains from the `train` events: result, cars, train PR, split suites and culprit.
+- **The train's state machine as built** (`internal/landingline/trainstate.go`; `TestPlanNamesEveryTrainEventAndEffect` keeps the events and effects in step with the code):
+  - Events: `Boarded`, `Built`, `SuiteDone`, `CIDone`, `MainMoved`, `Reintegrated`, `Merged`, `MergeUnknown`, `Probed`, `Aborted`.
+  - Effects: `Build`, `Publish`, `RunSuite`, `WaitCI`, `Merge`, `Probe`, `Reintegrate`, `Hold`, `Release`, `Refuse`, `LandCars`, `ClosePR`.
+  - Phases: forming, integrating, testing, bisecting, reintegrating, landing, merging, and the terminal landed, abandoned, refused and merge-unconfirmed.
 
-With no other car, the head lands alone, as before, and logs the departure. Plan: `workshop/plans/000449-landing-train-plan.md`.
+With no other car, the head lands alone, as before, and logs the departure. Plan: `workshop/history/plans/000449-landing-train-plan.md`.
 
 ## The quick flow at close (#231)
 
@@ -2023,8 +2027,10 @@ The shell runner's default CI invocation still executes the selected batch.
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
 that taught it (`test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
-`test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, and
-`wire-strict-decode` pair#594). Packages are matched by the
+`test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
+#469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
+landing), and `wire-strict-decode` pair#594). `TestAtlasNamesEveryRule` keeps this list
+in step with `Catalog`. Packages are matched by the
 name the file imports them under, and generated files are skipped. Rules read only the syntax tree (stdlib
 `go/parser`, no type-checking, no external linter), and `TestTrackedGoFilesPassTheCatalog`
 runs them over every tracked Go file in the suite, so every landing enforces them (well under

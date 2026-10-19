@@ -1,13 +1,23 @@
 ---
 id: 000469
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'c129e7b95feb377a387dee9bc678a866a5eeaa58' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '10736e5dc64b430b3d34a65c6ce1a1b7ed1012b5' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-19T11:26:36-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "80696cc8", done: "4e5a89d6"}
+actual_hours: 0.29
 ---
 
 # landingline: test reads the archived #449 plan; move the as-built list to the atlas (main is red)
@@ -37,3 +47,13 @@ a lint or test that fails when any `_test.go` reads a path under `workshop/plans
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — TestPlanNamesEveryTrainEventAndEffect reads atlas/workflow/sdlc-binary.md and passes; golint rule test-reads-workshop with table tests; BR-1 fixed: atlas names the rule and TestAtlasNamesEveryRule keeps the catalog list in step; whole-repo catalog scan clean; full suite exit 0 in 12m52s on 7879351a (the fix after it adds a test and docs); review verdict: FIX-THEN-SHIP
+
+2026-10-19 (ariadne:2): fixed.
+- `TestPlanNamesEveryTrainEventAndEffect` now reads `atlas/workflow/sdlc-binary.md`. The as-built events, effects and phases were moved there from the archived #449 plan.
+- New `pkg/golint` rule `test-reads-workshop`: a call argument that climbs from a package straight into `workshop/plans` or `workshop/issues` is flagged in tests. Those files move to `workshop/history` when their issue lands. Temp-repo fixture paths are not matched.
+- The whole-repo catalog scan is clean.
+- Close review FIX-THEN-SHIP, every Minor fixed as a class:
+  - Atlas lines naming archived plans at `workshop/plans/` (#449's and three older ones) now point at `workshop/history/plans/`. `TestAtlasCitesNoLivePlanPath` refuses a numbered live plan path in the atlas.
+  - The as-built claim is narrowed to events and effects.
+  - `test-reads-workshop` also catches a path split into Join segments (`"..", "workshop", "plans"`).
