@@ -83,21 +83,32 @@ func Order(tickets []Ticket, grants map[int]Grant) []Ticket {
 	})
 }
 
-// NextHead picks who is admitted next, Order's first ticket. displaced lists
-// the older tickets a fleet-blocking head goes ahead of, for the audit log. An
+// NextHead picks who is admitted next among tickets, Order's first one. An
 // admitted head has left the waiting tickets, so nothing here can preempt it.
-func NextHead(tickets []Ticket, grants map[int]Grant) (head Ticket, displaced []Ticket, ok bool) {
+func NextHead(tickets []Ticket, grants map[int]Grant) (head Ticket, ok bool) {
 	order := Order(tickets, grants)
 	if len(order) == 0 {
-		return Ticket{}, nil, false
+		return Ticket{}, false
 	}
-	head = order[0]
-	for _, t := range order[1:] {
-		if t.Seq < head.Seq { // normal tickets, already in Seq order
-			displaced = append(displaced, t)
+	return order[0], true
+}
+
+// Passed is who head went ahead of among the live tickets, for the audit
+// log: the older ones (a fleet-blocking head passed them) and the ones
+// ordered before it (they were not admissible, #449). The one definition.
+func Passed(live []Ticket, grants map[int]Grant, head Ticket) []Ticket {
+	var passed []Ticket
+	before := true
+	for _, t := range Order(live, grants) {
+		if t.Seq == head.Seq {
+			before = false
+			continue
+		}
+		if before || t.Seq < head.Seq {
+			passed = append(passed, t)
 		}
 	}
-	return head, displaced, true
+	return passed
 }
 
 // Authorize is the write-side check for a grant: refused when the caller's

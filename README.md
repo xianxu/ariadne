@@ -397,9 +397,17 @@ compatible weave on PATH, or runs `brew install xianxu/ariadne/weave` before
 executing `weave compile`. It requires Homebrew rather than installing it.
 
 The generic seeded CI workflow sets up Homebrew on Linux, then compiles before
-running generated helpers. Ariadne source CI provisions its root Brewfile and
-builds the current candidate CLI; consumer CI uses the published gateway through
-bootstrap. Keep consumer packages in the layer's root `Brewfile`. An optional
+running generated helpers. Consumer CI builds its gateway from the exact full
+Ariadne commit in the authored `.sdlc/weave-compiler-ref`, using that source's
+Go toolchain, and puts the private binary first on PATH before bootstrap. The
+pin is not weave-managed: new consumers must explicitly create it from an
+approved supported ref. A missing or malformed pin, fetch/build failure or
+mismatched binary provenance stops CI; there is no floating compiler fallback.
+Ariadne source CI builds the candidate separately and checks its vocabulary
+exports against every supported compiler in `.sdlc/weave-compiler-refs`.
+See [compiler compatibility](atlas/workflow/ci-merge-check.md#compiler-compatibility-459)
+for cold-regeneration controls and pin rollout. Keep consumer packages in the
+layer's root `Brewfile`. An optional
 executable `scripts/ci-setup.sh` runs after compilation and before merge checks;
 a missing or non-executable hook is skipped, and a failure stops the job. Checks
 use the materialized local `scripts/run-merge-checks.sh`. It runs on PRs to
@@ -500,6 +508,37 @@ fleet, the operator or the TL (from a :0 slot) runs
 hours; `sdlc landing revoke` ends it early). That puts the issue first at the
 next admission without interrupting a running landing or waiving any gate.
 
+Landing trains (#449) batch that line. `.sdlc/landing.json` on main sets
+`train_interval_minutes` and `train_max_cars` (default 8). The default is 0
+when the file is absent, which keeps the serial line. The file is under the
+local-gates guard, so the operator verifies every change to it.
+
+With trains on:
+- **Vouching:** a waiting merge checks its own review and CI gates on its pushed
+  head and vouches it ready.
+- **Departure:** a merge departs only when the train is due and its vouch is
+  current. The train is due on the first train, one interval after the last
+  departure, or at once after a train that left ready cars behind.
+- **Conducting:** the admitted head conducts. It boards every waiting merge
+  whose remote tip and open PR are still at the vouched head. It builds one
+  branch from main and each car's head, with the instance and duplicate-ID gates
+  per car. It runs one suite and CI on its train PR, merges that PR once, and
+  GitHub marks each car's PR merged. Each car's own `sdlc merge` then finishes
+  its cleanup.
+- **Holds:** a car that conflicts with the train is held. An unexplained suite
+  failure is bisected: the culprit is held, the clean prefix lands, and the cars
+  behind it ride the next train at once.
+- **Refusals:** a known flake gets its #394 rerun and never splits. Main failing
+  the same way refuses the train, and so does red CI on the train PR.
+- **Riding alone:** a fleet-blocking grant departs at once and lands alone,
+  never boarding a train. So does a PR with the local-gates label.
+- **Recovery:** a car that finds its own PR merged, with no word from its train,
+  finishes as a resume.
+
+`sdlc landing status` shows the setting, the next departure, each waiting
+merge's readiness, and the last trains: result, cars, train PR, split suites
+and culprit.
+
 Merge refuses red CI on the PR head. Durable workspaces wait up to 20 minutes
 for pending CI, integrate a moved main locally, and recheck main before landing
 (up to three integrations); conflicts abort with the paths to resolve. Legacy
@@ -524,7 +563,14 @@ from this machine's test-stats store (or `--evidence TEXT` for a CI run); withou
 `--issue` it files an unclaimed flake issue. Closing the issue unregisters its
 tests. `sdlc flake list` is the TL's local daily view: the registry with each
 issue's owner and age, same-head flakes not yet registered, and failures nothing
-explains, each with its log. CI failures are shown as not covered until #451.
+explains, each with its log. A same-head failure is omitted from the default
+unregistered list when exactly one closed issue claims its fully qualified test
+in the card's `flake_tests`, and its fix merge landed after the failing head.
+Issue Markdown never claims a test. `sdlc flake list -v` shows omitted rows
+with the fixing issue and merge. A failure on a head containing that merge stays
+visible as a recurrence; ambiguous or unreadable evidence also stays visible,
+with a coverage reason when the uncertainty is specific to a row. CI failures
+are shown as not covered until #451.
 When a recorded suite (`local-check run`, or merge's) fails only on known flakes, it
 reruns just those tests once on the same head. Each must show a PASS line, and its
 flake issue must still be open when the result is posted; then the status reads

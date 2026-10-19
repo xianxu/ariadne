@@ -246,7 +246,7 @@ func completeLandingPR(ctx context.Context, root, issuesDir string, pr landingPR
 		return err
 	}
 	for _, oc := range owned {
-		if err := completeOnCard(env, oc, pr.MergeOID); err != nil {
+		if err := completeOnCard(env, oc, pr.LandedOID); err != nil {
 			return fmt.Errorf("complete #%s landed by PR #%d: %w", issue.CLIRef(oc.ID), pr.Number, err)
 		}
 	}
