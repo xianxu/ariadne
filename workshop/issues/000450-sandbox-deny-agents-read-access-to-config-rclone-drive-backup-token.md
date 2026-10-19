@@ -1,13 +1,23 @@
 ---
 id: 000450
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '2086a549f8976a9800702806837fd2a6f60b5f88' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '6275691de2592c62ed552db85c0df64137516f00' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-18T15:38:28-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: operator, spec: "1f6d4f79", done: "c54c9586"}
+actual_hours: 0.36
 ---
 
 # sandbox: deny agents read access to ~/.config/rclone (Drive backup token)
@@ -22,13 +32,30 @@ Add "~/.config/rclone" to sandbox.filesystem.denyRead in .claude/settings.ariadn
 
 ## Done when
 
-- The PR diff is exactly that one line, and the operator has labeled it local-gates-verified.
-- After weave refresh, ~/.claude/settings.json denyRead includes ~/.config/rclone.
+- The settings diff is exactly that one line (plus SDLC issue bookkeeping in the PR), and the operator has labeled it local-gates-verified.
+- After weave refresh, the checkout-local .claude/settings.json denyRead includes ~/.config/rclone.
 
 ## Plan
 
-- [ ]
+- [x] Verify the one-line settings change, operator label, checkout-local regeneration and recorded suite.
 
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed — Exactly one settings line added immediately after gcloud; JSON uniqueness/order/exact-diff checks red then green. Existing settingsx and plan tests passed. Operator applied local-gates-verified on PR311, independently confirmed. weave refresh --substrate regenerated checkout-local settings with rclone in denyRead; home-level rollout belongs to TL/operator per approved Revision. Recorded full suite passed 1651 SDLC tests plus 70 packages, 571.2s (log sha256:2f833a24df8b). No settings/code changes since that pass. No atlas update: this adds one value to the existing denyRead policy with no new architectural surface; scope is explicitly one settings line plus issue bookkeeping.; review verdict: SHIP
+
+### 2026-10-18 — targeted checks and operator verification
+
+The requested ordering check failed before the change and passed afterwards. Parsed JSON verifies one unique rclone entry immediately after gcloud and byte-for-byte equality with main except that added line. Existing settingsx and plan tests passed (0.185s and 1.755s); git diff --check passed. PR #311 is open; its local-gates-verified label was applied by the operator and independently observed after TL receipt d52e519e-cc57-4ffb-9af9-432856f8a3c6. The worker did not apply the label. The recorded suite is running on the pushed settings head.
+
+Before regeneration the checkout-local denyRead lacked rclone. weave refresh --substrate completed successfully on this issue branch, preserved its HEAD and clean tracked tree, and regenerated .claude/settings.json with rclone immediately after gcloud. Verification read only settings lists; no credential files were read.
+
+### 2026-10-18 — recorded suite green; hold lifted
+
+The recorded suite passed on settings head 93dd985838f2078e31e7f2e9da41d30404d5a72f: all 1,651 SDLC tests and 70 other packages, 12 shards, exit 0 in 571.2s after 2,145s queue wait. Log: .git/sdlc/local-checks/93dd985838f2078e31e7f2e9da41d30404d5a72f/suite.log, sha256 prefix 2f833a24df8b. Subsequent branch changes are issue text only. The operator's disk-trace hold arrived after the suite had finished; no heavy work was running, and none started during the hold. The TL lifted it in receipt 39691a6e-1d71-4108-bad9-f3bd5a59153a and directed close/landing. The operator-applied label remains present.
+
+## Revisions
+
+### 2026-10-18 — clarify generated settings target and workflow bookkeeping
+
+The original criterion named ~/.claude/settings.json. The base manifest emits the checkout-local .claude/settings.json; the home-level file is outside weave's output. The TL approved verifying regeneration in this slot and correcting the criterion (receipt 762cc22c-c775-45bc-a245-72c70309561a); home-level activation remains the TL/operator's separate post-landing rollout. The TL also explicitly accepted the single settings line plus SDLC-generated issue metadata (receipt dd2b879e-989e-4e5e-95ed-73419526485a). The current criteria now state both facts; the functional change remains one line.
