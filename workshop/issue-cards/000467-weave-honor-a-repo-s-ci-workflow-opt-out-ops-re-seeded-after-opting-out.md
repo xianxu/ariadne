@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.30
+actual_hours: 0.35
 tracker:
     version: 1
     completion:
-        token: close-25724f34653c
+        token: close-f8c98aa65d3b
         repository: github.com/xianxu/ariadne
-        reviewed_head: 23435183559f8b6c88a41ff3d52fbcb5103fade6
-        evidence_commit: dccd16cab937d38de519a145573eb163a1090868
+        reviewed_head: d6b87e80bf5e891c05351d9670782417935a1eef
+        evidence_commit: ce1f09980ecacc5fd645cf30b06a0bf435b4615f
 ---
 
 # weave: honor a repo's CI-workflow opt-out (ops re-seeded after opting out)
