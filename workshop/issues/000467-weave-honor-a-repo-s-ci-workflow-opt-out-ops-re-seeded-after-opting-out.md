@@ -1,13 +1,13 @@
 ---
 id: 000467
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'c4bc60f79bfca3a34d261510adf2b856a4a3cbf2' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '23e8b6c117837f44b5828f48f7204541fbae436d' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T10:00:05-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.13
 ---
 
 # weave: honor a repo's CI-workflow opt-out (ops re-seeded after opting out)
