@@ -6,7 +6,9 @@ Detailed incidents remain in their owning issue or review artifact.
 - A card owner may hold more than one issue. Before a numbered command commits
   or deletes HEAD's branch, compare it with the branch derived from that issue's
   card; ownership alone cannot identify the checkout. Remote deletion must
-  lease the exact tip already kept in the archive (#471).
+  lease the exact tip already kept in the archive. Close may admit a renamed
+  recovery branch only at the exact canonical issue tip; ancestry or a similar
+  name is not proof that it holds only that issue's work (#471).
 
 - Before counting joined records, check that the identity is unique across the
   whole cohort. Per-record card/event/Git validity did not prevent two issues

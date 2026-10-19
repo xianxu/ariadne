@@ -410,7 +410,7 @@ func prepareTrackerClose(ctx context.Context, id string) (*trackerClosePrep, err
 	if err != nil {
 		return nil, err
 	}
-	if err := requireIssueBranch(id, card.Path, env.branch); err != nil {
+	if err := requireCloseIssueBranch(env, id, card.Path); err != nil {
 		return nil, err
 	}
 	if err := requireCardOwnership(env, card); err != nil { // #277

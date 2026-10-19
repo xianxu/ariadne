@@ -20,6 +20,8 @@ collaboration-mode: discussion
 
 Issue-branch admission compares the checked-out branch with `issue.BranchName(card.Path)` and returns an error naming issue, expected branch and actual branch. It has no Git or network dependency (ARCH-PURE, ARCH-DRY). A started issue requires its branch; an open issue has no branch and remains card-only. A terminal abandon record may resume from its recorded branch or the resting branch, never another work branch.
 
+Close has one additional recovery admission: a differently named branch is the same work only when its HEAD exactly equals the canonical issue branch's local tip, or a fresh remote tip if that local ref is absent. This admits a renamed branch created at the issue tip after an outside PR merge (#285/#365), before a new close-evidence commit is made. A different head, even under a suggestive name, refuses. Abandon and attach retain exact-name admission. The equality proof does not authorize branch deletion.
+
 | Integration point | Lives in | Status | Wraps |
 | --- | --- | --- | --- |
 | Branch effect preflight | `cmd/sdlc/abandon.go`, `closetracker.go`, `close.go`, `issueattach.go` | modified | tracker card, checkout identity |
@@ -72,9 +74,11 @@ The audit is about mistaken branch ownership, not every use of `--issue`. Any pa
 
 ### 3. Verify and land
 
-- [ ] Run `make -k build`, `make sdlc-build`, focused `go test`, `git diff --check` and the recorded `sdlc local-check run --name suite` on the pushed head. Do a short :0 staged live check only with hub grant; it must refuse an A-on-B abandon without changing refs.
+- [ ] Run `make -k build`, `make sdlc-build`, focused `go test`, `git diff --check` and the recorded `sdlc local-check run --name suite` on the pushed head. Run an A-on-B abandon with this branch's binary in a disposable clone and bare origin; prove all local and origin refs stay unchanged.
 - [ ] Run `sdlc close` and its built-in fresh review, open/update the PR, then `sdlc merge --yes`. Report the verified PR and merge SHA to the hub.
 
 ## Revisions
 
 - 2026-10-19, hub approval: the remote branch may be advanced with a lease to the archived head only after proving its current tip is contained by the local issue tip. A remote tip with commits beyond local work refuses before the archive push and names the divergent tips; a later concurrent push fails the lease.
+- 2026-10-19, full-suite regression and hub decision: the existing #285/#365 recovery closes from a hand-made branch at the canonical issue tip after an outside PR merge. Tracker cards record no PR before close, so a PR-number join cannot prove this case. Keep the exact-name guard for abandon and attach; for whole and milestone close, also admit exact HEAD equality with the canonical local branch tip (or the fresh remote tip only when local is absent). Add a different-head negative. The unrelated `dev-aliases.test.sh` added/deleted-file failures are the registered #465 flake and are not changed here.
+- 2026-10-19, hub live-check decision: do not stage on ariadne:0 because its `sdlc` binary serves all fleet slots. Run the same wrong-branch command with this branch's rebuilt binary in a disposable clone and bare origin, comparing every relevant ref before and after. The probe passed without touching the shared checkout.

@@ -553,6 +553,9 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		if trackerPrep, err = prepareTrackerClose(commandContext(f.Context), fmt.Sprintf("%06d", f.Issue)); err != nil {
 			die(stderr, err.Error())
 		}
+		if note := closeBranchRecoveryNote(trackerPrep.env, trackerPrep.card.Path); note != "" {
+			cinfo(stderr, note)
+		}
 		currentStatus, _ = issue.GetField(trackerPrep.card.Card.Frontmatter, "status")
 	} else if trackerEra {
 		rs, rerr := loadIssueRecords(commandContext(f.Context), filepath.Dir(issuePath), tracker.Fresh)
@@ -575,13 +578,16 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		// over the card that reads).
 		env, err := openTracker(commandContext(f.Context))
 		if err == nil {
-			err = requireIssueBranch(fmt.Sprintf("%06d", f.Issue), trackerCard.Path, env.branch)
+			err = requireCloseIssueBranch(env, fmt.Sprintf("%06d", f.Issue), trackerCard.Path)
 		}
 		if err == nil {
 			err = requireCardOwnership(env, *trackerCard)
 		}
 		if err != nil {
 			die(stderr, err.Error())
+		}
+		if note := closeBranchRecoveryNote(env, trackerCard.Path); note != "" {
+			cinfo(stderr, note)
 		}
 	}
 	if mode == "issue" && currentStatus == "done" {
