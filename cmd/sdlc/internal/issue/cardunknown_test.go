@@ -166,3 +166,17 @@ func TestParseCardRejectsMalformedKnownTrackerRecord(t *testing.T) {
 		})
 	}
 }
+
+func TestCardAccessorsAndSettersRejectUnsupportedTrackerVersion(t *testing.T) {
+	card, err := SetCardCompletion([]byte(claimantCard), testCompletion("close-1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := []byte(strings.Replace(string(card), "    version: 1\n", "    version: 2\n", 1))
+	if _, ok, err := CardCompletion(raw); err == nil || ok {
+		t.Fatal("completion accessor admitted an unsupported tracker version")
+	}
+	if _, err := SetCardCompletion(raw, testCompletion("close-2")); err == nil {
+		t.Fatal("completion setter rewrote an unsupported tracker version")
+	}
+}

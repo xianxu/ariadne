@@ -97,6 +97,9 @@ func cardEnvelope(d *cardDocument) (trackerEnvelope, error) {
 	if err := node.Decode(&env); err != nil {
 		return env, invalidCard("tracker", err.Error())
 	}
+	if env.Version != vocab.Issue().Card.Internal.Version {
+		return env, invalidCard("tracker", "unsupported or missing transaction version")
+	}
 	if env.Handoff != nil {
 		if err := env.Handoff.validate(); err != nil {
 			return env, err
