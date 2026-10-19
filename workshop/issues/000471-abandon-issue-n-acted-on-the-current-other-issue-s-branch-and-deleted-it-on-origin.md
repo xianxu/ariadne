@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "f4858913", done: "e6005be1"}
 ---
 
 # abandon: --issue N acted on the current (other issue's) branch and deleted it on origin
