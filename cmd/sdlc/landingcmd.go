@@ -7,6 +7,7 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -111,7 +112,8 @@ func openRepoLine(repo string) (*landingline.Line, error) {
 	if err != nil {
 		return nil, fmt.Errorf("--repo %s: not a git checkout: %w", repo, err)
 	}
-	line, _, err := openLandingLine(dir, io.Discard)
+	// Status and grants never admit, so the line needs no schedule here.
+	line, _, err := openLandingLine(dir, nil, io.Discard)
 	return line, err
 }
 
@@ -171,7 +173,28 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 	if err != nil {
 		return err
 	}
+	ready, err := line.Readiness()
+	if err != nil {
+		return err
+	}
 	var b strings.Builder
+	repoGit := func(args ...string) (string, error) { return landingGit(execGitRunner{}, repo, args...) }
+	sched, serr := readLandingSchedule(repoGit, landingMainRef(repoGit, ""))
+	switch {
+	case serr != nil:
+		fmt.Fprintf(&b, "trains: setting unreadable (%v); merges land serially\n", serr)
+	case sched.Off():
+		b.WriteString("trains: off (each landing runs its own suite; " + landingConfigPath + " sets an interval)\n")
+	default:
+		next := "the first train departs at the next admission"
+		if at, ok := landingline.NextDeparture(events); ok {
+			next = "next train at " + at.Format(time.RFC3339)
+		}
+		fmt.Fprintf(&b, "trains: every %dm, up to %d cars; %s\n", int(sched.Interval/time.Minute), sched.MaxCars, next)
+	}
+	for _, line := range recentTrains(events, 3) {
+		b.WriteString(line + "\n")
+	}
 	fmt.Fprintf(&b, "landing now: %s\n", describeTicket(head))
 	for i, t := range waiting {
 		class := "normal"
@@ -179,6 +202,14 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 			class = "fleet-blocking"
 		}
 		fmt.Fprintf(&b, "  %d. %s [%s] waiting since %s\n", i+1, describeTicket(&t), class, t.Enqueued.Format(time.RFC3339))
+		if r, ok := ready[t.Seq]; ok && serr == nil && !sched.Off() {
+			// The same check admission and boarding apply (Readiness.For).
+			state := readinessLine(r)
+			if why := r.For(t, d.now()); why != "" {
+				state = "not counted: " + why
+			}
+			fmt.Fprintf(&b, "     %s\n", state)
+		}
 	}
 	for _, issueN := range slices.Sorted(maps.Keys(grants)) {
 		g := grants[issueN]
@@ -194,4 +225,32 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 	}
 	_, err = io.WriteString(out, b.String())
 	return err
+}
+
+// recentTrains is the per-train report (#449): the last n trains, newest
+// first, each with its result, cars, split suites and culprit.
+func recentTrains(events []landingline.Event, n int) []string {
+	var out []string
+	for i := len(events) - 1; i >= 0 && len(out) < n; i-- {
+		e := events[i]
+		if e.Kind != landingline.EventTrain {
+			continue
+		}
+		cars := make([]string, len(e.Cars))
+		for j, c := range e.Cars {
+			cars[j] = strconv.FormatInt(c, 10)
+		}
+		line := fmt.Sprintf("train %d at %s: %s; cars %s", e.Train, e.At.Format(time.RFC3339), e.Result, strings.Join(cars, ","))
+		if e.PR > 0 {
+			line += fmt.Sprintf("; train PR #%d", e.PR)
+		}
+		if e.Splits > 0 {
+			line += fmt.Sprintf("; %d split suite(s), culprit ticket %d", e.Splits, e.Culprit)
+		}
+		if e.Detail != "" {
+			line += "; " + e.Detail
+		}
+		out = append(out, line)
+	}
+	return out
 }

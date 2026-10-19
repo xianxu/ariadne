@@ -60,7 +60,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `local-check cancel` | (new #400)                  | Stop only this checkout's queued or running local checks: each run holds a flock'd lease in `<git common dir>/sdlc/local-check-runs/` naming its checkout, published already locked; cancel SIGTERMs the run (after matching the pid's kernel start time), waits for it to unwind, and sweeps leases of dead runs. The run also names its checkout in the suite lock's held-by record (`WF_TEST_LOCK_OWNER`) |
 | `local-check republish` | (new #431)                  | Post a completed check's saved attempt (test-stats store) as its commit status without rerunning: refuses another commit/check/repo, a baseline, an incomplete record or a log whose sha256 no longer matches. A run's status post retries (15/45/90 s) and its final failure names this verb; merge's local-check runner posts a saved verified pass on the exact head before it would rerun |
 | `test-stats`      | (new #376, #392, #402)      | Local-fleet suite wall, queue, slow-unit and flake summary (`--since`, `--repo`, `--json`). `snapshot` joins exact attempts to confirmed landing cohorts, separates physical weekly attempts, and atomically publishes a versioned weekly JSON artifact in brain. Schema v2 adds inventory-backed resource sizes and machine gauges with actual `observed_at`; point-resource deltas require observations 6–8 days apart, while suite deltas use exact weekly windows. Device `observed` validity is separate from comparison state, so a valid reading remains usable after an unknown delta. Unknown evidence leaves the ratio null; legacy logs are partial. |
-| `flake`           | (new #394)                  | Known-flake registry verbs. A test is a known flake while an open issue's **card** lists it in `flake_tests` (kind `test-list`, mirrored into details). `flake register --test PKG.TestX [--issue N] [--evidence TEXT]` writes it only with same-head fail→pass evidence from this machine's test-stats store (`internal/flakes.SameHeadFailPass`, the rule test-stats' "confirmed" flakes also use), or `--evidence` for a CI run; without `--issue` it files an unclaimed flake issue. It is a card setter, with no owner check. `flake list` is the TL's local daily view: the registry, unregistered same-head flakes, and unexplained failures older than a day. CI is shown as `not covered` until #451. The registry is built from a Fresh tracker read (`loadFlakeRegistry`), so a stale or unreadable card makes the rule unavailable, never an empty registry. One owner per test is enforced where the registry is read (`BuildRegistry` refuses a test two open issues name), not only at registration. **The gate (M2):** `runLocalCheck` classifies a failed suite attempt (`knownFlakeStep`, `internal/flakes.Classify`). When only registered tests failed, it reruns them once through the shared `runUnderSlot` (weight 1, its own lease, the #383 slot release), saved as a v2 attempt of check `suite-rerun` (`rerun_of` the failed one; never read as a suite run), and posts "pass · known flake #N rerun". `known_flakes` (`rerun`\|`accept`\|`off`) on the declared suite is the operator's policy. merge's `diagnoseSuiteFailure` labels a shared failure as a persistent main failure. **Schema note:** suite attempts are written as version 2; an sdlc built before #394 refuses them as an unsupported version, so the fleet runs ariadne:0's rebuilt binaries once #394 lands. |
+| `flake`           | (new #394)                  | Known-flake registry verbs. A test is a known flake while an open issue's **card** lists it in `flake_tests` (kind `test-list`, mirrored into details). `flake register --test PKG.TestX [--issue N] [--evidence TEXT]` writes it only with same-head fail→pass evidence from this machine's test-stats store (`internal/flakes.SameHeadFailPass`, the rule test-stats' "confirmed" flakes also use), or `--evidence` for a CI run; without `--issue` it files an unclaimed flake issue. It is a card setter, with no owner check. `flake list` is the TL's local daily view: the registry, unregistered same-head flakes, and unexplained failures older than a day. #458 filters already-fixed same-head rows using one terminal issue's exact card `flake_tests` value, landing merge and Git ancestry (never issue Markdown); `flake list -v` reveals them, while post-fix recurrences stay visible. Ambiguous or unreadable evidence cannot hide a row. CI is shown as `not covered` until #451. The registry is built from a Fresh tracker read (`loadFlakeRegistry`), so a stale or unreadable card makes the rule unavailable, never an empty registry. One owner per test is enforced where the registry is read (`BuildRegistry` refuses a test two open issues name), not only at registration. **The gate (M2):** `runLocalCheck` classifies a failed suite attempt (`knownFlakeStep`, `internal/flakes.Classify`). When only registered tests failed, it reruns them once through the shared `runUnderSlot` (weight 1, its own lease, the #383 slot release), saved as a v2 attempt of check `suite-rerun` (`rerun_of` the failed one; never read as a suite run), and posts "pass · known flake #N rerun". `known_flakes` (`rerun`\|`accept`\|`off`) on the declared suite is the operator's policy. merge's `diagnoseSuiteFailure` labels a shared failure as a persistent main failure. **Schema note:** suite attempts are written as version 2; an sdlc built before #394 refuses them as an unsupported version, so the fleet runs ariadne:0's rebuilt binaries once #394 lands. |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
 | `issue new`       | (new; xx-issues skill prose)| File on origin: the next ID's card on `issue-tracker` and the details on main, writing no checkout; a numbered slot claims what it files unless `--no-claim` (#252, #308; `--from-github N` seeds from GitHub; `--details FILE\|-` gives the body as `## <Section>` blocks, parsed by `issue.ParseDetails` before any ID is reserved, #371) |
 | `issue move-detail` | (new #252; hidden #308)   | Deprecated alias of `issue publish --issue N`: finishes a pre-#308 creation by publishing its local details to main; net-zero removal on the source |
@@ -421,6 +421,45 @@ queue (#404 lock-first, TL-approved).
 shows the landing now, the waiters in admission order, live grants and the delay
 p50/p90. `grant` and `revoke` take `--repo DIR` and are refused from a worker
 slot.
+
+**Landing train (#449).** `.sdlc/landing.json` on main
+(`train_interval_minutes`, `train_max_cars`; local-gates guarded) turns the line
+into trains. Absent, or an interval of 0, keeps the serial line above. With
+trains on:
+- A waiting merge vouches its readiness in `ready/<seq>` beside its ticket
+  (`landingcar.go`): its own publish and CI gates, read-only, for its exact
+  pushed head.
+- Admission waits for the departure (the last `train` event's `next_due`)
+  and a current vouch. A grant departs at once, alone.
+- The pure core is in `internal/landingline`: `train.go` (schedule, readiness
+  codec, boarding), `trainstate.go` (the running train's state machine) and
+  `bisect.go` (splitting a failing train).
+
+`sdlc landing status` shows the train setting and each waiter's vouch.
+
+**The conductor** (`landingtrain.go`) is the admitted head when other cars board:
+- **Boarding:** cars are boarded only after their remote tip and open PR are re-read at the vouched head.
+- **Build:** it builds `landing-train/<id>` in a detached worktree from fetched main, then each car's exact head. The instance and duplicate-ID gates run per prefix, and a conflict holds that car.
+- **One PR, one suite:** it opens one train PR and runs one recorded suite (#394's flake step inside it) and CI on it.
+- **Merge:** it merges once, pinned to the head. GitHub marks each car's PR merged by reachability.
+- **Outcomes:** every car is told through `outcomes/<seq>` (boarded, landed, held, refused, released). A landed car finishes today's resume cleanup.
+- **Landed commit:** each car proves its landing with `landedCommit` (its mergeCommit or its own head on main; `LandedOID` feeds the archive and the card).
+- **Locking:** ref writes take the repo transaction lock.
+- **Main moves:** a moved main is merged in again, keeping the suite when the move is docs-only.
+- **Lost reply:** a merge whose reply was lost is read back from GitHub.
+- **Branch cleanup:** a landed train's branch is deleted. Every train-branch delete goes through one helper, under the repo lock and leased on the tip last pushed or observed.
+- **Leftovers:** the next conductor closes an open `landing-train/*` PR left by a dead conductor, and deletes train branches with no open PR.
+- **A car with no word:** a waiting car that finds its own PR merged at its head (its conductor died after the merge, or the outcome write failed) ends its wait and finishes as a resume.
+- **Uncertain merge:** a conductor that stops while its merge's outcome is unknown records `merge-unconfirmed`, never landed or abandoned. Its cars go back to wait, and each one reads its own PR.
+- **Splits:** an unexplained suite failure is bisected over the prefixes (at most ⌈log₂ n⌉ more suites). The culprit is held, the clean prefix lands, and the cars behind it are released, so the next train departs at once. A known flake's #394 rerun is a pass. Main's baseline failing the same way refuses the train.
+- **Refusals:** red CI on the train PR refuses the whole train (no CI bisect). A fleet-blocking grant, or a PR with the local-gates label, lands alone.
+- **Report:** `sdlc landing status` lists the last trains from the `train` events: result, cars, train PR, split suites and culprit.
+- **The train's state machine as built** (`internal/landingline/trainstate.go`; `TestPlanNamesEveryTrainEventAndEffect` keeps the events and effects in step with the code):
+  - Events: `Boarded`, `Built`, `SuiteDone`, `CIDone`, `MainMoved`, `Reintegrated`, `Merged`, `MergeUnknown`, `Probed`, `Aborted`.
+  - Effects: `Build`, `Publish`, `RunSuite`, `WaitCI`, `Merge`, `Probe`, `Reintegrate`, `Hold`, `Release`, `Refuse`, `LandCars`, `ClosePR`.
+  - Phases: forming, integrating, testing, bisecting, reintegrating, landing, merging, and the terminal landed, abandoned, refused and merge-unconfirmed.
+
+With no other car, the head lands alone, as before, and logs the departure. Plan: `workshop/history/plans/000449-landing-train-plan.md`.
 
 ## The quick flow at close (#231)
 
@@ -1999,8 +2038,10 @@ The shell runner's default CI invocation still executes the selected batch.
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
 that taught it (`test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
-`test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, and
-`wire-strict-decode` pair#594). Packages are matched by the
+`test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
+#469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
+landing), and `wire-strict-decode` pair#594). `TestAtlasNamesEveryRule` keeps this list
+in step with `Catalog`. Packages are matched by the
 name the file imports them under, and generated files are skipped. Rules read only the syntax tree (stdlib
 `go/parser`, no type-checking, no external linter), and `TestTrackedGoFilesPassTheCatalog`
 runs them over every tracked Go file in the suite, so every landing enforces them (well under

@@ -30,6 +30,11 @@ const (
 	// EventResumed: admitted, the merge found its PR already landed by another
 	// invocation, and finished cleanup. Not a landing, so Delays skips it.
 	EventResumed = "resumed"
+	// EventTrain (#449): a train's outcome, written by its conductor. Its
+	// NextDue is the schedule (DepartureDue reads the latest one).
+	EventTrain = "train"
+	// EventCar (#449): one car's outcome on a train (landed, held, released).
+	EventCar = "car"
 )
 
 // Event is one line of the audit and pilot log.
@@ -42,6 +47,14 @@ type Event struct {
 	PR        int       `json:"pr,omitempty"`
 	Displaced []int64   `json:"displaced,omitempty"`
 	Detail    string    `json:"detail,omitempty"`
+	// Train fields (#449), additive: a reader before them ignores them, and
+	// the sweep keeps each line's raw bytes, so a rewrite never drops them.
+	Train   int64     `json:"train,omitempty"` // the conductor's ticket
+	Cars    []int64   `json:"cars,omitempty"`
+	Result  string    `json:"result,omitempty"`
+	Splits  int       `json:"splits,omitempty"`
+	Culprit int64     `json:"culprit,omitempty"`
+	NextDue time.Time `json:"next_due,omitzero"`
 }
 
 // Record appends e, stamping it with the line's clock when e.At is zero.
@@ -68,6 +81,17 @@ func (l *Line) Events() ([]Event, int, error) {
 
 func (l *Line) GrantEntries() ([]Grant, int, error) {
 	return ReadGrantEntries(l.dir)
+}
+
+// GrantsNow is the one answer to "who holds priority now": the valid grants
+// at the line's clock. An unreadable log is an error for the caller to
+// treat as no priority; every caller treats it so (none is guessed).
+func (l *Line) GrantsNow() (map[int]Grant, error) {
+	entries, _, err := l.GrantEntries()
+	if err != nil {
+		return nil, err
+	}
+	return ValidGrants(entries, l.o.Now()), nil
 }
 
 // ReadGrantEntries reads an existing grant log without opening or creating a line.
