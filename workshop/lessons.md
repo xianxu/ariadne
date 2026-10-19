@@ -1029,3 +1029,14 @@ The simplest durable authority beats a clever scan of consequences.
   literal sets for deliberate policy tripwires, and name those exceptions
   accurately in the atlas (#454 BR-1/BR-2). The test-hardcoded-arch-count catalog
   rule catches fixed numeric architecture-header Contains assertions.
+
+- A value handed to two goroutines (a closure, a cache, a flag) must be safe
+  for concurrent use. Fixing the one the review named left the next one racing
+  (#449 BR-1, then BR-10). When a design starts a goroutine beside another
+  loop, list everything both receive, check each one, and add a `-race` test
+  that drives both at once.
+- A file another process wrote is a claim. Give it one check function (here
+  `Readiness.For`) and route every reader through it, the display included. A
+  reader that skips the check shows forged state as real (#449 BR-3, then the
+  status reader). Read slow admission inputs outside the line's mutex, and cache
+  the slow-changing ones.

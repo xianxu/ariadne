@@ -181,11 +181,19 @@ func TestLandingStatusShowsTrainsAndReadiness(t *testing.T) {
 	if err := line.Vouch(h, landingline.Readiness{Branch: "000007-x", Head: strings.Repeat("a", 40), PR: 70, Ready: true, At: time.Now()}); err != nil {
 		t.Fatal(err)
 	}
+	h2, err := line.Enqueue(landingline.Ticket{Issue: 8, Branch: "000008-y"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h2.Release()
+	if err := line.Vouch(h2, landingline.Readiness{Branch: "000009-not-mine", Head: strings.Repeat("b", 40), PR: 80, Ready: true, At: time.Now()}); err != nil {
+		t.Fatal(err)
+	}
 	out, err = runLanding(t, d, "status", "--repo", repo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"trains: every 60m, up to 4 cars; the first train departs at the next admission", "ready at aaaaaaa", "(PR #70)"} {
+	for _, want := range []string{"trains: every 60m, up to 4 cars; the first train departs at the next admission", "ready at aaaaaaa", "(PR #70)", `not counted: vouch names branch "000009-not-mine"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("status lacks %q:\n%s", want, out)
 		}

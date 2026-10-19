@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -194,22 +195,39 @@ func resumeOnly(prs []landingPR) bool {
 	return merged
 }
 
+// landingScheduleTTL is how long a read train setting is reused. The setting
+// changes rarely (an operator-verified commit to main), and admission polls
+// every few seconds: without the cache each poll would run two git processes.
+var landingScheduleTTL = 30 * time.Second
+
 // landingScheduleSource reads the train setting from the local remote-tracking
-// main on each call. It is never fetched here: whatever last fetched main is
-// what counts. An unreadable setting is the serial line, warned once: serial
-// spends more suites but never lands anything a train would not.
+// main, reusing a read for landingScheduleTTL. It is never fetched here:
+// whatever last fetched main is what counts. An unreadable setting is the
+// serial line, warned once: serial spends more suites but never lands
+// anything a train would not. The source is shared by the vouching goroutine
+// and the admission poll, so it is safe for concurrent use.
 func landingScheduleSource(git func(args ...string) (string, error), remote string, stderr io.Writer) func() landingline.Schedule {
+	var mu sync.Mutex
+	var cached landingline.Schedule
+	var readAt time.Time
 	warned := false
 	return func() landingline.Schedule {
+		mu.Lock()
+		defer mu.Unlock()
+		now := landingNow()
+		if !readAt.IsZero() && !now.Before(readAt) && now.Sub(readAt) < landingScheduleTTL {
+			return cached
+		}
 		s, err := readLandingSchedule(git, landingMainRef(git, remote))
 		if err != nil {
 			if !warned {
 				warned = true
 				fmt.Fprintf(stderr, "landing train: could not read %s (%v); landing serially\n", landingConfigPath, err)
 			}
-			return landingline.Schedule{}
+			s = landingline.Schedule{}
 		}
-		return s
+		cached, readAt = s, now
+		return cached
 	}
 }
 

@@ -181,7 +181,7 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 	sched, serr := readLandingSchedule(repoGit, landingMainRef(repoGit, ""))
 	switch {
 	case serr != nil:
-		fmt.Fprintf(&b, "trains: unknown (%v)\n", serr)
+		fmt.Fprintf(&b, "trains: setting unreadable (%v); merges land serially\n", serr)
 	case sched.Off():
 		b.WriteString("trains: off (each landing runs its own suite; " + landingConfigPath + " sets an interval)\n")
 	default:
@@ -199,9 +199,10 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 		}
 		fmt.Fprintf(&b, "  %d. %s [%s] waiting since %s\n", i+1, describeTicket(&t), class, t.Enqueued.Format(time.RFC3339))
 		if r, ok := ready[t.Seq]; ok && serr == nil && !sched.Off() {
+			// The same check admission and boarding apply (Readiness.For).
 			state := readinessLine(r)
-			if r.Ready && !r.Current(d.now()) {
-				state = "readiness is stale (last " + r.At.Format(time.RFC3339) + ")"
+			if why := r.For(t, d.now()); why != "" {
+				state = "not counted: " + why
 			}
 			fmt.Fprintf(&b, "     %s\n", state)
 		}

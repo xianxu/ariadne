@@ -46,8 +46,8 @@ type Options struct {
 	// OnAdmit reports an admission and the older tickets it went ahead of. It
 	// runs outside the line mutex, so it may call Record.
 	OnAdmit func(head Ticket, displaced []Ticket)
-	// Admission (#449) is called once per admission attempt, under the line
-	// mutex, and returns the rule for this attempt: whether a live ticket may
+	// Admission (#449) is called once per admission attempt, before the line
+	// mutex is taken, and returns the rule for this attempt: whether a live ticket may
 	// be admitted now, given its readiness vouch (nil when it has none) and
 	// whether it holds a grant. One call per attempt lets the rule read its
 	// inputs (the events log, the schedule) once, not once per ticket. The
@@ -185,6 +185,12 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 	var current *Ticket
 	var displaced []Ticket
 	why := ""
+	// The rule's inputs (the schedule, the events log) are read here, before
+	// the line mutex: no slow read runs while every waiter is blocked on it.
+	var admissible func(Ticket, *Readiness, bool) (bool, string)
+	if l.o.Admission != nil {
+		admissible = l.o.Admission()
+	}
 	err := l.withMutex(func() error {
 		live, err := l.scan()
 		if err != nil {
@@ -217,8 +223,7 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 			return err
 		}
 		candidates := live
-		if l.o.Admission != nil {
-			admissible := l.o.Admission()
+		if admissible != nil {
 			ready := l.readReady()
 			candidates = nil
 			for _, t := range live {
@@ -235,26 +240,12 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 				}
 			}
 		}
-		next, _, ok := NextHead(candidates, grants)
+		next, ok := NextHead(candidates, grants)
 		if !ok || next.Seq != h.ticket.Seq {
 			head.Close()
 			return nil
 		}
-		// The audit names every ticket the head went ahead of in the full
-		// order: older normal ones a grant passed, and ones not admissible.
-		// A ticket was gone ahead of if it is older (a grant passed it) or
-		// ordered before the head (it was not admissible).
-		var passed []Ticket
-		before := true
-		for _, t := range order {
-			if t.Seq == next.Seq {
-				before = false
-				continue
-			}
-			if before || t.Seq < next.Seq {
-				passed = append(passed, t)
-			}
-		}
+		passed := Passed(live, grants, next)
 		data, _ := json.Marshal(h.ticket)
 		if err := head.Truncate(0); err == nil {
 			_, err = head.WriteAt(data, 0)

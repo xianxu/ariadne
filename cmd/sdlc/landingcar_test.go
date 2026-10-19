@@ -121,6 +121,9 @@ func TestTrainAdmission(t *testing.T) {
 func TestLandingScheduleSourceFailsToSerial(t *testing.T) {
 	var stderr strings.Builder
 	git := func(args ...string) (string, error) { return "", errors.New("unknown revision upstream/main") }
+	oldTTL := landingScheduleTTL
+	landingScheduleTTL = 0 // every call reads, so the warning is what's cached
+	t.Cleanup(func() { landingScheduleTTL = oldTTL })
 	src := landingScheduleSource(git, "upstream", &stderr)
 	if s := src(); !s.Off() {
 		t.Fatalf("schedule %+v", s)
@@ -328,5 +331,31 @@ func TestVouchingStartsWhenTrainsTurnOn(t *testing.T) {
 	ready, err := line.Readiness()
 	if err != nil || !ready[h.Ticket().Seq].Ready {
 		t.Fatalf("no vouch after trains turned on: %v %v", ready, err)
+	}
+}
+
+// The schedule source is shared by the vouching goroutine and the admission
+// poll; run with -race, this is that sharing. It also reads at most once per
+// TTL however often it is asked.
+func TestLandingScheduleSourceIsSharedAndCached(t *testing.T) {
+	var reads atomic.Int64
+	git := func(args ...string) (string, error) {
+		reads.Add(1)
+		return "", errors.New("unreadable")
+	}
+	src := landingScheduleSource(git, "upstream", io.Discard)
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range 50 {
+				src()
+			}
+		}()
+	}
+	wg.Wait()
+	if n := reads.Load(); n != 1 {
+		t.Fatalf("400 calls within one TTL ran %d config reads", n)
 	}
 }

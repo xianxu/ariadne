@@ -39,14 +39,28 @@ func TestNextHead(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			head, displaced, ok := NextHead(tc.tickets, tc.grants)
+			head, ok := NextHead(tc.tickets, tc.grants)
 			if ok != tc.ok || (ok && head.Seq != tc.head) {
 				t.Fatalf("head %v ok %v, want %d %v", head.Seq, ok, tc.head, tc.ok)
+			}
+			var displaced []Ticket
+			if ok {
+				displaced = Passed(tc.tickets, tc.grants, head)
 			}
 			if got := seqs(displaced); len(got) != len(tc.displaced) || (len(got) > 0 && got[0] != tc.displaced[0]) || (len(got) > 1 && got[1] != tc.displaced[1]) {
 				t.Fatalf("displaced %v, want %v", got, tc.displaced)
 			}
 		})
+	}
+}
+
+// A head chosen among the admissible tickets (#449) passes the ones ordered
+// before it as well as older ones a grant passed.
+func TestPassedIncludesTicketsThatWereNotAdmissible(t *testing.T) {
+	a, b, c := Ticket{Seq: 1, Issue: 10}, Ticket{Seq: 2, Issue: 11}, Ticket{Seq: 3, Issue: 12}
+	head, _ := NextHead([]Ticket{c}, nil) // only c is admissible
+	if got := seqs(Passed([]Ticket{a, b, c}, nil, head)); len(got) != 2 || got[0] != 1 || got[1] != 2 {
+		t.Fatalf("passed %v", got)
 	}
 }
 
