@@ -48,6 +48,11 @@ Delta to Spec:
      - It is skipped when the run fell back, since then the SSD is the run's own temp.
    - **(b) Lint:** the existing `pkg/golint` rule `tmp-literal` (ariadne#342) already flags a `/tmp` literal in `os`, `filepath.Join` and `ioutil` calls. Widen it to `/private/tmp`, `/var/folders/` and `/Volumes/AgentScratch` literals, citing #468. `t.TempDir` and `os.MkdirTemp("", …)` already follow TMPDIR. Shell scripts are covered by `pkg/shelllint`'s template-less mktemp rule.
 
+### 2026-10-19: review checkouts too (operator, via the hub)
+Reason: review checkouts run tests inside (TestPreparation... wrote under a checkout's `.sdlc-review/tmp`), and losing them costs only a rebuild.
+
+Delta: sdlc's review checkouts go to `/Volumes/TestScratch/review-checkouts` when the disk is mounted with room; otherwise they stay at `~/Library/Caches/sdlc/review-checkouts`. The lock and identity rules are unchanged. A checkout's directory is fixed at Create, and Reset reuses it, so a checkout lives wholly on the root it started on and is never half-moved. The sweep runs over both roots. The mount probe moves to `cmd/sdlc/internal/scratchdisk`, shared by both callers (ARCH-DRY).
+
 Delta to Plan: steps for 1, 2a and 2b are added below. The diff will likely leave the quick-flow shell, so the close review upgrades to the full review.
 
 ## Plan
@@ -71,15 +76,17 @@ There is one seam: `runUnderSlot` (`cmd/sdlc/localcheck_run.go`) starts every su
   - SECURE: no credentials are involved, and an env override names only a directory.
 
 Steps:
-- [ ] Tests: `chooseScratch` table (unmounted, low free space, probe error, ok); the sweep (dead pid vs live pid, old vs fresh go-build, files and dirs outside the patterns untouched); a `runUnderSlot` fixture whose child records `$TMPDIR` and `$GOTMPDIR` (under `WF_TEST_SCRATCH`, the dir removed after; `off`, inherited unchanged).
-- [ ] Implement `testscratch.go` and the change to `runUnderSlot`.
-- [ ] Revision 2a: snapshot the two SSD temp folders before a scratched run and diff them after (`scratchLeaks`, pure over two listings plus sizes); print the warning. Tests: a fixture with injected folder roots.
-- [ ] Revision 2b: widen `tmp-literal` in `pkg/golint/rules.go`, with test cases in `rules_test.go`; fix any new hits in the tree.
-- [ ] Revision 1: the `AGENTS.base.md` §10 line.
-- [ ] Docs: `sdlc local-check --help` gets a line; atlas `sdlc-binary` "Running the test suite".
-- [ ] Live: this machine has no RAM disk mounted yet (`df` finds none), so the live check and the disk-write sample are the hub's or operator's once it is mounted. I'll send the exact commands.
+- [x] Tests: `chooseScratch` table (unmounted, low free space, probe error, ok); the sweep (dead pid vs live pid, old vs fresh go-build, files and dirs outside the patterns untouched); a `runUnderSlot` fixture whose child records `$TMPDIR` and `$GOTMPDIR` (under `WF_TEST_SCRATCH`, the dir removed after; `off`, inherited unchanged).
+- [x] Implement `testscratch.go` and the change to `runUnderSlot`.
+- [x] Revision 2a: snapshot the two SSD temp folders before a scratched run and diff them after (`scratchLeaks`, pure over two listings plus sizes); print the warning. Tests: a fixture with injected folder roots.
+- [x] Revision 2b: widen `tmp-literal` in `pkg/golint/rules.go`, with test cases in `rules_test.go`; fix any new hits in the tree.
+- [x] Revision 1: the `AGENTS.base.md` §10 line.
+- [x] Review checkouts on the RAM disk (`reviewbox.Roots`), with a test.
+- [x] Docs: `sdlc local-check --help` gets a line; atlas `sdlc-binary` "Running the test suite".
+- [ ] Live: the RAM disk is now mounted (the operator, 10-19). Run a suite through the branch's sdlc (temp under `/Volumes/TestScratch/tmp/<run>`, removed after), and take the disk-write sample before and after.
 
 ## Log
 
 ### 2026-10-19
 - Dispatched by the hub to fill the wait while #456 is held for the operator's design review. Claimed and started from ariadne:4.
+- Implemented in 198978a5a. Targeted tests pass: scratchdisk, reviewbox, and the sdlc scratch, lint and help tests.
