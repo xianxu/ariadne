@@ -103,3 +103,30 @@ Plan checkboxes track completed implementation deliverables and targeted checks;
 the recorded full suite is dispatched before the close review and may queue in
 parallel under the worker contract. It must pass on the final code before landing;
 no test or review gate is waived.
+
+### 2026-10-18 — round-one registry consumer sweep
+
+The review found stale numeric header assertions in two flow tests (BR-1) and
+outdated architecture maps/manual (BR-2). These are the enumerable consumers of
+registry expansion: rendered-header assertions, the independent membership and
+quick-policy tripwires, prompt snapshots, and architecture map/generated manual.
+The remaining numeric Go assertions now derive from the shared registry renderer
+or marker count, while both intentional policy tripwires remain independent.
+The architecture maps describe these exceptions accurately; the full process
+manual was regenerated from current source. Added the narrow mechanical catalog
+guard required by the worker contract, with red cases for both eight and nine.
+
+The queued first suite attempt `e97df7bb0c7b87da36334f52f3a47f61` was cancelled
+before tests started so the final corrected code gets its own recorded run.
+Own red reproduction of both flow failures took 44.816s; corrected flow tests
+passed in 38.347s. The lint red cases fail before its matcher is added. These
+are test/documentation corrections within the approved policy scope; no registry
+semantics or runtime delivery mechanism changed.
+
+- Final targeted verification after the sweep passed: full golint 1.277s, full
+  judge package 12.919s, processmanual 0.171s, and the combined real command/
+  start-plan/flow checks 44.209s. The model-calling test remains opt-in; its
+  earlier three-case observed conformance is unchanged by these test/doc fixes.
+- Regeneration used `go run ./cmd/sdlc process-manual --full --out
+  atlas/process-manual.md`; a deterministic trailing-whitespace normalization
+  removed an empty-window placeholder's trailing space before diff checking.

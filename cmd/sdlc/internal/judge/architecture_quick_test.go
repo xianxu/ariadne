@@ -1,6 +1,7 @@
 package judge
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -59,8 +60,8 @@ func TestQuickMarkers(t *testing.T) {
 // preamble and only the selected entries; the full set is the old block exactly.
 func TestArchitectureBlockForSubset(t *testing.T) {
 	sub := ArchitectureBlockFor("at-review", QuickMarkers())
-	if !strings.Contains(sub, "each of the 4 entries") {
-		t.Errorf("subset header does not count 4 entries:\n%.200s", sub)
+	if !strings.Contains(sub, fmt.Sprintf("each of the %d entries", len(QuickMarkers()))) {
+		t.Errorf("subset header does not match selected registry entries:\n%.200s", sub)
 	}
 	for _, m := range QuickMarkers() {
 		if !strings.Contains(sub, "## "+m+" ") {
@@ -71,8 +72,8 @@ func TestArchitectureBlockForSubset(t *testing.T) {
 		t.Error("subset block carries an unselected entry")
 	}
 	full := ArchitectureBlock("at-plan")
-	want := "ARCHITECTURE PRINCIPLES — work through each of the 9 entries below explicitly, applying its `at-plan` lens; " +
-		"cite the marker (e.g. ARCH-DRY) in any finding.\n\n" + ArchitectureRegistry
+	want := fmt.Sprintf("ARCHITECTURE PRINCIPLES — work through each of the %d entries below explicitly, applying its `at-plan` lens; "+
+		"cite the marker (e.g. ARCH-DRY) in any finding.\n\n", len(ArchitectureMarkers())) + ArchitectureRegistry
 	if full != want {
 		t.Error("the full block is no longer the header + the registry verbatim")
 	}

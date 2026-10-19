@@ -106,7 +106,7 @@ func TestCloseQuickCrossingShellUpgrades(t *testing.T) {
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)
 	}
-	if *calls != 1 || strings.Contains(*prompt, smallDiffMarker) || !strings.Contains(*prompt, "each of the 8 entries") {
+	if *calls != 1 || strings.Contains(*prompt, smallDiffMarker) || !strings.Contains(*prompt, judge.ArchitectureBlock("at-review")) {
 		t.Fatalf("want one dispatch of the FULL recipe (calls=%d)", *calls)
 	}
 	f, text := issueFlowAfterClose(t, dir)

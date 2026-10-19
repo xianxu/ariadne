@@ -1619,12 +1619,12 @@ Default suites exercise the registry/delivery guards and never call a model.
 
 **Adding an `ARCH-*` entry** flows into every RUNTIME consumer with no other edit
 — the block header's entry count, `{{ARCH_STAR}}`, every prompt, `start-plan`,
-`arch-principles` all derive from `ArchitectureMarkers()`. The *test* layer did
-not, until #208: five sites restated the marker set by hand, one hard-failing on
-length and one order-sensitive. Now exactly one does — `TestArchitectureMarkers`,
-kept by hand deliberately as the tripwire that makes an accidental registry edit
-visible — so an entry touches `architecture.md`, that list, and the goldens
-(`-update-golden`). See `atlas/workflow/architecture-principles.md`.
+`arch-principles` all derive from `ArchitectureMarkers()`. The test layer keeps two intentional policy tripwires:
+`TestArchitectureMarkers` pins full membership and order, and `TestQuickMarkers`
+pins the quick-flow selection. Rendered-count and flow-selection expectations
+derive from the registry or its shared renderer. A deliberate entry change also
+updates affected golden blocks and regenerates the full process manual. See
+`atlas/workflow/architecture-principles.md`.
 
 **Deferred principles (#208).** `internal/judge/architecture-deferred.md` holds
 entries written down but deliberately NOT embedded, so they carry no gate cost.
@@ -1958,7 +1958,7 @@ The shell runner's default CI invocation still executes the selected batch.
 ### The Go lint catalog (#407)
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
-that taught it (`test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
+that taught it (`test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, and
 `wire-strict-decode` pair#594). Packages are matched by the
 name the file imports them under, and generated files are skipped. Rules read only the syntax tree (stdlib
