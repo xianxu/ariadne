@@ -44,11 +44,11 @@ Otherwise fall back to today's temp folder with one visible note naming the reas
 
 ## Plan
 
-- [ ] Add red fixtures for APFS acceptance, HFS/unknown refusal with a reason,
+- [x] Add red fixtures for APFS acceptance, HFS/unknown refusal with a reason,
   and fallback placement while preserving rejected roots for cleanup.
-- [ ] Read Darwin statfs filesystem names and enforce APFS through Choose,
+- [x] Read Darwin statfs filesystem names and enforce APFS through Choose,
   including explicit overrides; keep non-Darwin fixture behavior unchanged.
-- [ ] Update AGENTS.base.md and the atlas; run focused tests and the recorded
+- [x] Update AGENTS.base.md and the atlas; run focused tests and the recorded
   suite, close on SHIP, open the PR and land through the landing line.
 
 ARCH-PURE/ARCH-DRY: Read supplies one filesystem fact; Choose remains the one
@@ -96,3 +96,12 @@ acceptance and fallback coverage. Linux/amd64 scratchdisk test compilation
 passed. No timeout changes or mount operations. A private slot binary was
 built but not used for gates; per hub direction all recorded checks, close and
 merge use the normal central sdlc.
+
+### 2026-10-19 — recorded suite
+
+The central sdlc recorded suite passed on implementation head
+28837330d0a076e2d831c39d82ed8e854d384fee: 12 shards / 1,721 SDLC tests and
+72 other packages, zero failures, no rerun, 602.5 seconds (10m03s). Attempt
+a2de36e136044751012eec0d172b26fa; saved log digest dd051507e069. The suite
+ran on the existing HFS TestScratch through the normal central binary; the new
+guard's HFS fallback fixtures passed there too. PR #331 CI is green.
