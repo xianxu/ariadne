@@ -187,3 +187,20 @@ Covered: every action above, process death on both sides, lost merge reply, main
 - Q1: train PR merged once. Q2: cars vouch while waiting; the conductor re-verifies the tip at departure. Q4, Q5, Q6: as proposed (CI bisect is a later follow-up if needed).
 - Q3: **the default is 0 (off)**. With `.sdlc/landing.json` absent, or `train_interval_minutes` 0, landing is today's serial line. The pilot sets 60 in pair's `.sdlc/landing.json`. **Correction (PQ-1):** `.sdlc/*` *is* in local-gates-guard's protected list (`.github/workflows/local-gates-guard.yml:69`, base-layer seeded), so the pilot PR, and every later interval change, is a local-gates change. The operator verifies it with the `local-gates-verified` label. The config stays in `.sdlc/` on purpose: the interval decides how often the authoritative suite runs, which is exactly the class of setting the guard exists for.
 - Q7: no scratch GitHub repo. The fake models GitHub's documented merged-by-reachability behavior. The first pilot train's real evidence (each car's PR state and `mergeCommit` after the train merge) is recorded as the conformance check, with low-risk cars where possible. M3's conformance task becomes "record the pilot train's evidence" and moves after landing, with the hub dispatching the pilot.
+
+### 2026-10-19 — M1 as built (BR-4)
+
+The Core concepts table above names the design's first sketch. The code differs as follows; the code is the source.
+- **The running train is `Train{Phase, …}`** in `trainstate.go`, not `TrainState`.
+  - Phases: forming, integrating, testing, bisecting, reintegrating, landing, merging, and the terminal landed, abandoned, refused.
+  - There is no `Held` state. A held car is the effect `Hold{Seq, Reason}`; the train goes on with the rest.
+- **Events:** `Boarded`, `Built{Kept, Conflicts}`, `SuiteDone{Prefix, Outcome}`, `CIDone`, `MainMoved`, `Reintegrated{NeedSuite}`, `Merged`, `MergeUnknown`, `Probed`. Where the sketch's events went:
+  - CarConflict is inside `Built`.
+  - TipMoved and CarGone are resolved before `Boarded`: the conductor re-reads tips and liveness, and boards only verified cars.
+  - FlakeRerunPass is `SuitePass`: #394's rerun runs inside the recorded suite.
+  - CIGreen and CIRed are `CIDone`.
+  - ConductorDead is not an in-process event. It is the next conductor's reclaim (M2).
+- **Effects:** `Build`, `Publish{Prefix}`, `RunSuite`, `WaitCI`, `Merge`, `Probe`, `Reintegrate`, `Hold`, `Release`, `Refuse`, `LandCars`, `ClosePR`.
+- **`DepartureDue(now, schedule, events)`** reads the latest `train` event's `next_due`, with no separate last-departure argument. A grant is not a departure: the admission rule (`trainAdmission`) admits a granted merge alone, outside the train.
+- **Admission is `Options.Admission`**, a rule built once per admission attempt. The schedule is re-read from the local remote-tracking main on each attempt; an unreadable setting is the serial line, warned once.
+- **A vouch counts only for its own ticket's branch** (`Readiness.For`), and a boarded car's branch comes from the ticket, never from the sidecar.

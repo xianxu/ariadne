@@ -3,6 +3,7 @@ package landingline
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"math"
 	"os"
 	"path/filepath"
@@ -22,23 +23,21 @@ func TestDepartureDue(t *testing.T) {
 		return []Event{{Kind: EventEnqueue, At: tt0}, {Kind: EventTrain, At: tt0, NextDue: next}}
 	}
 	cases := []struct {
-		name    string
-		s       Schedule
-		granted bool
-		events  []Event
-		now     time.Time
-		want    bool
+		name   string
+		s      Schedule
+		events []Event
+		now    time.Time
+		want   bool
 	}{
-		{"off is the serial line", Schedule{}, false, trainAt(tt0.Add(time.Hour)), tt0, true},
-		{"no train yet", hourly(), false, nil, tt0, true},
-		{"before the next departure", hourly(), false, trainAt(tt0.Add(time.Hour)), tt0.Add(59 * time.Minute), false},
-		{"at the next departure", hourly(), false, trainAt(tt0.Add(time.Hour)), tt0.Add(time.Hour), true},
-		{"a grant departs at once", hourly(), true, trainAt(tt0.Add(time.Hour)), tt0, true},
-		{"the latest train wins", hourly(), false, append(trainAt(tt0), Event{Kind: EventTrain, NextDue: tt0.Add(2 * time.Hour)}), tt0.Add(time.Hour), false},
-		{"a train event without NextDue is not a schedule", hourly(), false, []Event{{Kind: EventTrain}}, tt0, true},
+		{"off is the serial line", Schedule{}, trainAt(tt0.Add(time.Hour)), tt0, true},
+		{"no train yet", hourly(), nil, tt0, true},
+		{"before the next departure", hourly(), trainAt(tt0.Add(time.Hour)), tt0.Add(59 * time.Minute), false},
+		{"at the next departure", hourly(), trainAt(tt0.Add(time.Hour)), tt0.Add(time.Hour), true},
+		{"the latest train wins", hourly(), append(trainAt(tt0), Event{Kind: EventTrain, NextDue: tt0.Add(2 * time.Hour)}), tt0.Add(time.Hour), false},
+		{"a train event without NextDue is not a schedule", hourly(), []Event{{Kind: EventTrain}}, tt0, true},
 	}
 	for _, c := range cases {
-		if got, why := DepartureDue(c.now, c.s, c.granted, c.events); got != c.want || why == "" {
+		if got, why := DepartureDue(c.now, c.s, c.events); got != c.want || why == "" {
 			t.Errorf("%s: due %v (%q), want %v", c.name, got, why, c.want)
 		}
 	}
@@ -106,7 +105,7 @@ func TestReadinessValidAndCurrent(t *testing.T) {
 func tickets(n int) []Ticket {
 	var out []Ticket
 	for i := 2; i <= n+1; i++ {
-		out = append(out, Ticket{Seq: int64(i), Issue: 100 + i})
+		out = append(out, Ticket{Seq: int64(i), Issue: 100 + i, Branch: "b"})
 	}
 	return out
 }
@@ -140,6 +139,23 @@ func TestBoard(t *testing.T) {
 		b := Board(head, false, tickets(2), r, hourly(), tt0)
 		if got := boardedSeqs(b); !slices.Equal(got, []int64{1, 3}) || !strings.Contains(b.Why[2], "CI pending") {
 			t.Fatalf("cars %v why %v", got, b.Why)
+		}
+	})
+	t.Run("a vouch naming another branch does not board", func(t *testing.T) {
+		r := ready(2, 3)
+		v := r[2]
+		v.Branch = "000999-someone-else"
+		r[2] = v
+		waiters := tickets(2)
+		for i := range waiters {
+			waiters[i].Branch = "b"
+		}
+		b := Board(head, false, waiters, r, hourly(), tt0)
+		if got := boardedSeqs(b); !slices.Equal(got, []int64{1, 3}) || !strings.Contains(b.Why[2], "000999-someone-else") {
+			t.Fatalf("cars %v why %v", got, b.Why)
+		}
+		if b.Cars[1].Branch != "b" {
+			t.Fatalf("a car's branch comes from its ticket, got %q", b.Cars[1].Branch)
 		}
 	})
 	t.Run("an unvouched or stale waiter does not board", func(t *testing.T) {
@@ -285,14 +301,24 @@ func TestAdmissibleGatesTheHead(t *testing.T) {
 	due := false
 	held := []string{}
 	o := testOptions(nil)
-	o.Admissible = func(tk Ticket, r *Readiness, granted bool) (bool, string) {
-		if !due {
-			return false, "next train at 10:00"
+	attempts := 0
+	o.Admission = func() func(Ticket, *Readiness, bool) (bool, string) {
+		attempts++
+		return func(tk Ticket, r *Readiness, granted bool) (bool, string) {
+			if !due {
+				return false, "next train at 10:00"
+			}
+			if r == nil || !r.Ready {
+				return false, "not ready"
+			}
+			return true, ""
 		}
-		if r == nil || !r.Ready {
-			return false, "not ready"
+	}
+	var audit []int64
+	o.OnAdmit = func(head Ticket, displaced []Ticket) {
+		for _, d := range displaced {
+			audit = append(audit, d.Seq)
 		}
-		return true, ""
 	}
 	o.OnHeld = func(why string) { held = append(held, why) }
 	l := openLine(t, t.TempDir(), o)
@@ -310,7 +336,14 @@ func TestAdmissibleGatesTheHead(t *testing.T) {
 	}
 	// The ready ticket behind a not-ready one is the first admissible: it is
 	// admitted, so a not-ready merge never holds the line.
+	before := attempts
 	wantPos(t, l, b, 0)
+	if attempts != before+1 {
+		t.Errorf("the rule was built %d times for one attempt over two tickets", attempts-before)
+	}
+	if !slices.Equal(audit, []int64{a.Ticket().Seq}) {
+		t.Errorf("the not-ready ticket the head went ahead of is missing from the audit: %v", audit)
+	}
 	b.Release()
 	if _, _, why, err := l.tryAdmit(a); err != nil || why != "not ready" {
 		t.Errorf("why %q %v", why, err)
@@ -433,5 +466,32 @@ func TestVouchRewriteKeepsUnknownMembers(t *testing.T) {
 	data, _ = os.ReadFile(readyPath(dir, seq))
 	if strings.Contains(string(data), `"x"`) {
 		t.Fatalf("a malformed vouch's members survived: %s", data)
+	}
+}
+
+// The vouching goroutine and the admission run concurrently in production
+// (vouchWhileWaiting beside Wait); run with -race, this is their regression.
+func TestVouchConcurrentWithAdmission(t *testing.T) {
+	l := openLine(t, t.TempDir(), testOptions(nil))
+	h := enqueue(t, l, 1)
+	done := make(chan error, 1)
+	go func() {
+		for {
+			err := l.Vouch(h, Readiness{Branch: "b", Head: oid('a'), PR: 1, Ready: true})
+			if errors.Is(err, ErrNotWaiting) {
+				done <- nil
+				return
+			}
+			if err != nil {
+				done <- err
+				return
+			}
+		}
+	}()
+	if err := l.Wait(context.Background(), h); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("vouch failed other than by admission: %v", err)
 	}
 }

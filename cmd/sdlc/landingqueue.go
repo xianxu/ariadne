@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -33,9 +34,10 @@ func landingLineDir(r gitRunner, root string) (string, error) {
 }
 
 // openLandingLine opens dir with production options; stderr receives the
-// waiting position whenever it changes. A schedule with trains on (#449)
-// gates admission on the departure time and the ticket's readiness.
-func openLandingLine(dir string, sched landingline.Schedule, stderr io.Writer) (*landingline.Line, *lineLog, error) {
+// waiting position whenever it changes. sched (#449) is the train setting,
+// read again on every admission attempt so a change on main counts while a
+// merge waits; nil, or a schedule with trains off, is the serial line.
+func openLandingLine(dir string, sched func() landingline.Schedule, stderr io.Writer) (*landingline.Line, *lineLog, error) {
 	var line *landingline.Line
 	log := &lineLog{stderr: stderr}
 	o := landingline.Options{
@@ -59,8 +61,8 @@ func openLandingLine(dir string, sched landingline.Schedule, stderr io.Writer) (
 			log.record(e)
 		},
 	}
-	if !sched.Off() {
-		o.Admissible = trainAdmission(sched, func() []landingline.Event {
+	if sched != nil {
+		o.Admission = trainAdmission(sched, func() []landingline.Event {
 			events, _, err := line.Events()
 			if err != nil {
 				return nil // an unreadable log: the first train, never a stall
@@ -117,7 +119,7 @@ func (l *lineLog) record(e landingline.Event) {
 // With trains on (#449) the merge also vouches its readiness while it waits
 // (readiness reads its own gates); a vouch is a claim, so it observes for
 // the conductor, never for this merge's own landing, which reads again.
-func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch string, sched landingline.Schedule, readiness func(context.Context) landingline.Readiness, stderr io.Writer) (*landingTurn, error) {
+func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch string, sched func() landingline.Schedule, readiness func(context.Context) landingline.Readiness, stderr io.Writer) (*landingTurn, error) {
 	dir, err := landingLineDir(r, t.Root)
 	if err != nil {
 		return nil, err
@@ -134,9 +136,9 @@ func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch 
 	tk := h.Ticket()
 	log.record(landingline.Event{Kind: landingline.EventEnqueue, Seq: tk.Seq, Issue: tk.Issue, Branch: tk.Branch})
 	var stopVouching func()
-	if !sched.Off() && readiness != nil {
+	if sched != nil && readiness != nil {
 		vctx, cancel := context.WithCancel(ctx)
-		done := vouchWhileWaiting(vctx, line, h, readiness, stderr)
+		done := vouchWhileWaiting(vctx, line, h, sched, readiness, stderr)
 		stopVouching = func() { cancel(); <-done }
 	}
 	err = line.Wait(ctx, h)
@@ -190,4 +192,38 @@ func resumeOnly(prs []landingPR) bool {
 		}
 	}
 	return merged
+}
+
+// landingScheduleSource reads the train setting from the local remote-tracking
+// main on each call. It is never fetched here: whatever last fetched main is
+// what counts. An unreadable setting is the serial line, warned once: serial
+// spends more suites but never lands anything a train would not.
+func landingScheduleSource(git func(args ...string) (string, error), remote string, stderr io.Writer) func() landingline.Schedule {
+	warned := false
+	return func() landingline.Schedule {
+		s, err := readLandingSchedule(git, landingMainRef(git, remote))
+		if err != nil {
+			if !warned {
+				warned = true
+				fmt.Fprintf(stderr, "landing train: could not read %s (%v); landing serially\n", landingConfigPath, err)
+			}
+			return landingline.Schedule{}
+		}
+		return s
+	}
+}
+
+// landingMainRef is the remote-tracking main the repository lands into:
+// remote's main when the remote is known (sdlc merge's target), else main's
+// configured upstream remote, else origin. The one definition both merge and
+// status use.
+func landingMainRef(git func(args ...string) (string, error), remote string) string {
+	if remote == "" {
+		if out, err := git("config", "--get", "branch.main.remote"); err == nil && strings.TrimSpace(out) != "" {
+			remote = strings.TrimSpace(out)
+		} else {
+			remote = "origin"
+		}
+	}
+	return remote + "/main"
 }

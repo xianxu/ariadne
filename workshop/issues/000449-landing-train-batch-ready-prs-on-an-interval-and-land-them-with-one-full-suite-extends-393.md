@@ -40,7 +40,7 @@ A landing train, extending #393: on a configurable interval (default hourly), ta
 
 Durable plan: `workshop/plans/000449-landing-train-plan.md` (state table, Q1–Q7 for the hub).
 
-- [x] M1 — Pure core and readiness: schedule, readiness sidecar, boarding, train state machine, bisect, additive events, landing status, `.sdlc/landing.json`; interval 0 equals today.
+- [ ] M1 — Pure core and readiness: schedule, readiness sidecar, boarding, train state machine, bisect, additive events, landing status, `.sdlc/landing.json`; interval 0 equals today.
 - [ ] M2 — Conductor: train branch and PR, one suite, CI, merge; cars resume on merged; GitHub fake merges by reachability.
 - [ ] M3 — Split on unexplained failure, known-flake rerun, grant bypass, conflict and CI-red handling, per-train report, live conformance, docs.
 
@@ -87,3 +87,15 @@ Items in order:
 - Found while reading for M2: `parseLandingPRs` refuses a MERGED PR without `mergeCommit` (ghlanding.go). That is a fifth `MergeOID` consumer beyond PQ-3's list, and it moves into the landed-commit rule in M2.
 - #460 audit (ariadne:1): the readiness sidecar keeps unknown members across a same-ticket rewrite, with strict known members and no duplicate keys, plus regressions.
 - Verification: the landingline package; the new cmd tests under -race; `go test -run 'Landing|Merge|Integrat|CIGate|Local|Archive|Tracker' ./cmd/sdlc/` ok in 1922s, so interval 0 leaves landing unchanged.
+- M1 review round 1, FIX-THEN-SHIP. All nine findings fixed in the same round:
+  - BR-1: the `Handle` mutex. Vouching ends quietly on `ErrNotWaiting`, with a -race regression.
+  - BR-2: `Built` must account for every car; the generator now produces bad reports.
+  - BR-3: a vouch must name its ticket's branch (`Readiness.For`), and `Car.Branch` comes from the ticket.
+  - BR-4: a plan revision.
+  - BR-5: README.
+  - Minors:
+    - admission rule built once per attempt;
+    - the grant rule lives only in admission;
+    - one `landingMainRef`;
+    - the schedule is re-read each attempt, and an unreadable one is serial;
+    - skipped tickets are in the displaced audit.

@@ -173,19 +173,24 @@ func TestTrainLostMergeReplyIsProbed(t *testing.T) {
 }
 
 func TestTrainRejectsIllegalEvents(t *testing.T) {
-	testing_, _ := drive(t, NewTrain(1), Boarded{Cars: cars(3)}, built(3))
+	integrating, _ := drive(t, NewTrain(1), Boarded{Cars: cars(3)})
+	testing_, _ := drive(t, integrating, built(3))
 	landed, _ := drive(t, testing_, SuiteDone{Prefix: 3, Outcome: SuitePass}, CIDone{Green: true}, Merged{})
 	for name, c := range map[string]struct {
 		tr Train
 		ev TrainEvent
 	}{
-		"merged before the suite":     {testing_, Merged{}},
-		"a stale suite result":        {testing_, SuiteDone{Prefix: 2, Outcome: SuitePass}},
-		"CI before the suite":         {testing_, CIDone{Green: true}},
-		"boarding twice":              {testing_, Boarded{Cars: cars(1)}},
-		"anything after landing":      {landed, MainMoved{}},
-		"an empty boarding":           {NewTrain(1), Boarded{}},
-		"reintegrated without a move": {testing_, Reintegrated{}},
+		"merged before the suite":         {testing_, Merged{}},
+		"a stale suite result":            {testing_, SuiteDone{Prefix: 2, Outcome: SuitePass}},
+		"CI before the suite":             {testing_, CIDone{Green: true}},
+		"boarding twice":                  {testing_, Boarded{Cars: cars(1)}},
+		"anything after landing":          {landed, MainMoved{}},
+		"an empty boarding":               {NewTrain(1), Boarded{}},
+		"reintegrated without a move":     {testing_, Reintegrated{}},
+		"a build that loses a car":        {integrating, Built{Kept: []int64{1, 3}}},
+		"a build that reorders cars":      {integrating, Built{Kept: []int64{2, 1, 3}}},
+		"a car both kept and conflicting": {integrating, Built{Kept: []int64{1, 2, 3}, Conflicts: map[int64]string{2: "x"}}},
+		"a build naming a stranger":       {integrating, Built{Kept: []int64{1, 2, 9}}},
 	} {
 		got, effects, err := Transition(c.tr, c.ev)
 		if err == nil || effects != nil || !reflect.DeepEqual(got, c.tr) {
@@ -276,9 +281,11 @@ func randomEvent(rng *rand.Rand, tr Train) TrainEvent {
 		kept := []int64{}
 		conflicts := map[int64]string{}
 		for _, c := range tr.Cars {
-			if rng.IntN(5) == 0 {
+			switch rng.IntN(12) {
+			case 0, 1:
 				conflicts[c.Seq] = "conflict"
-			} else {
+			case 2: // a report that loses this car: must be rejected
+			default:
 				kept = append(kept, c.Seq)
 			}
 		}

@@ -112,7 +112,7 @@ func openRepoLine(repo string) (*landingline.Line, error) {
 		return nil, fmt.Errorf("--repo %s: not a git checkout: %w", repo, err)
 	}
 	// Status and grants never admit, so the line needs no schedule here.
-	line, _, err := openLandingLine(dir, landingline.Schedule{}, io.Discard)
+	line, _, err := openLandingLine(dir, nil, io.Discard)
 	return line, err
 }
 
@@ -178,7 +178,7 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 	}
 	var b strings.Builder
 	repoGit := func(args ...string) (string, error) { return landingGit(execGitRunner{}, repo, args...) }
-	sched, serr := readLandingSchedule(repoGit, landingMainRef(repoGit))
+	sched, serr := readLandingSchedule(repoGit, landingMainRef(repoGit, ""))
 	switch {
 	case serr != nil:
 		fmt.Fprintf(&b, "trains: unknown (%v)\n", serr)
@@ -222,11 +222,3 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 	return err
 }
 
-// landingMainRef is the remote-tracking main the repository lands into: main's
-// upstream when it has one, else origin/main.
-func landingMainRef(git func(args ...string) (string, error)) string {
-	if ref, err := git("rev-parse", "--abbrev-ref", "--symbolic-full-name", "main@{upstream}"); err == nil && strings.TrimSpace(ref) != "" {
-		return strings.TrimSpace(ref)
-	}
-	return "origin/main"
-}

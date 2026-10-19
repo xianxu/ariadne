@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"io"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -77,9 +78,10 @@ func TestTrainAdmission(t *testing.T) {
 	now := time.Date(2026, 10, 19, 9, 0, 0, 0, time.UTC)
 	sched := landingline.Schedule{Interval: time.Hour, MaxCars: 8}
 	notDue := []landingline.Event{{Kind: landingline.EventTrain, NextDue: now.Add(time.Minute)}}
-	ready := &landingline.Readiness{Ready: true, Head: strings.Repeat("a", 40), PR: 1, At: now}
-	stale := &landingline.Readiness{Ready: true, Head: strings.Repeat("a", 40), PR: 1, At: now.Add(-time.Hour)}
-	notReady := &landingline.Readiness{Reason: "CI gate: pending", At: now}
+	ready := &landingline.Readiness{Branch: "b", Ready: true, Head: strings.Repeat("a", 40), PR: 1, At: now}
+	stale := &landingline.Readiness{Branch: "b", Ready: true, Head: strings.Repeat("a", 40), PR: 1, At: now.Add(-time.Hour)}
+	notReady := &landingline.Readiness{Branch: "b", Reason: "CI gate: pending", At: now}
+	stranger := &landingline.Readiness{Branch: "000999-other", Ready: true, Head: strings.Repeat("a", 40), PR: 1, At: now}
 	cases := []struct {
 		name    string
 		events  []landingline.Event
@@ -93,14 +95,49 @@ func TestTrainAdmission(t *testing.T) {
 		{"due, unvouched", nil, nil, false, false, "not vouched"},
 		{"due, stale", nil, stale, false, false, "stale"},
 		{"due, not ready", nil, notReady, false, false, "CI gate: pending"},
+		{"due, a vouch naming another branch", nil, stranger, false, false, "000999-other"},
 		{"due and ready", nil, ready, false, true, ""},
 	}
 	for _, c := range cases {
-		admit := trainAdmission(sched, func() []landingline.Event { return c.events }, func() time.Time { return now })
-		got, why := admit(landingline.Ticket{Seq: 1}, c.r, c.granted)
+		reads := 0
+		admit := trainAdmission(func() landingline.Schedule { return sched }, func() []landingline.Event { reads++; return c.events }, func() time.Time { return now })()
+		got, why := admit(landingline.Ticket{Seq: 1, Branch: "b"}, c.r, c.granted)
+		admit(landingline.Ticket{Seq: 2, Branch: "b"}, c.r, c.granted)
+		if reads != 1 {
+			t.Errorf("%s: the events log was read %d times for one attempt", c.name, reads)
+		}
 		if got != c.want || !strings.Contains(why, c.why) {
 			t.Errorf("%s: %v %q", c.name, got, why)
 		}
+	}
+	off := trainAdmission(func() landingline.Schedule { return landingline.Schedule{} }, func() []landingline.Event { t.Fatal("trains off read the log"); return nil }, time.Now)()
+	if ok, _ := off(landingline.Ticket{Seq: 1}, nil, false); !ok {
+		t.Error("trains off held an unvouched merge")
+	}
+}
+
+// An unreadable setting is the serial line (warned once), never a refusal:
+// a merge with trains off must not depend on the config's readability.
+func TestLandingScheduleSourceFailsToSerial(t *testing.T) {
+	var stderr strings.Builder
+	git := func(args ...string) (string, error) { return "", errors.New("unknown revision upstream/main") }
+	src := landingScheduleSource(git, "upstream", &stderr)
+	if s := src(); !s.Off() {
+		t.Fatalf("schedule %+v", s)
+	}
+	src()
+	if n := strings.Count(stderr.String(), "landing serially"); n != 1 {
+		t.Errorf("warned %d times:\n%s", n, stderr.String())
+	}
+	if got := landingMainRef(git, "upstream"); got != "upstream/main" {
+		t.Errorf("main ref %q", got)
+	}
+	if got := landingMainRef(git, ""); got != "origin/main" {
+		t.Errorf("fallback main ref %q", got)
+	}
+	cfg := func(args ...string) (string, error) { return "upstream\n", nil }
+	if got := landingMainRef(cfg, ""); got != "upstream/main" {
+		t.Errorf("configured main ref %q", got)
 	}
 }
 
@@ -204,7 +241,8 @@ func TestEnterLandingLineVouchesWhileWaiting(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	turn, err := enterLandingLine(ctx, execGitRunner{}, target, landingTestBranch, landingline.Schedule{Interval: time.Hour, MaxCars: 8}, readiness, stderr)
+	sched := func() landingline.Schedule { return landingline.Schedule{Interval: time.Hour, MaxCars: 8} }
+	turn, err := enterLandingLine(ctx, execGitRunner{}, target, landingTestBranch, sched, readiness, stderr)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, stderr.String())
 	}
@@ -246,4 +284,49 @@ func (w *watchWriter) String() string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.b.String()
+}
+
+// The vouching loop consults the schedule each round: while trains are off it
+// reads no gates, and once they turn on (main changed during the wait) it
+// starts vouching, so a long wait can still board.
+func TestVouchingStartsWhenTrainsTurnOn(t *testing.T) {
+	oldEvery := carVouchEvery
+	carVouchEvery = time.Millisecond
+	t.Cleanup(func() { carVouchEvery = oldEvery })
+	dir := t.TempDir()
+	line, _, err := openLandingLine(dir, nil, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := line.Enqueue(landingline.Ticket{Issue: 1, Branch: "b"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.Release()
+	var rounds, gateReads atomic.Int64
+	sched := func() landingline.Schedule {
+		if rounds.Add(1) <= 5 {
+			return landingline.Schedule{}
+		}
+		return landingline.Schedule{Interval: time.Hour, MaxCars: 8}
+	}
+	readiness := func(context.Context) landingline.Readiness {
+		if rounds.Load() <= 5 {
+			t.Error("gates read while trains were off")
+		}
+		gateReads.Add(1)
+		return landingline.Readiness{Branch: "b", Head: strings.Repeat("a", 40), PR: 1, Ready: true, At: landingNow()}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := vouchWhileWaiting(ctx, line, h, sched, readiness, io.Discard)
+	deadline := time.Now().Add(10 * time.Second)
+	for gateReads.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	cancel()
+	<-done
+	ready, err := line.Readiness()
+	if err != nil || !ready[h.Ticket().Seq].Ready {
+		t.Fatalf("no vouch after trains turned on: %v %v", ready, err)
+	}
 }

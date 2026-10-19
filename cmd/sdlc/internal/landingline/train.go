@@ -34,21 +34,18 @@ const MaxReadinessAge = 5 * time.Minute
 // Off reports whether trains are off: the serial line, unchanged.
 func (s Schedule) Off() bool { return s.Interval <= 0 }
 
-// DepartureDue reports whether the head may depart at now, and why:
+// DepartureDue reports whether a train may depart at now, and why:
 //   - trains are off (the serial line);
-//   - the head holds a fleet-blocking grant (it lands alone, at once);
 //   - no train has run yet in the log's window;
 //   - the last train's next departure has come (its departure plus the
 //     interval, or at once when it left ready cars behind).
 //
 // The last train comes from the events log, so the schedule survives any
-// process's death and needs no daemon.
-func DepartureDue(now time.Time, s Schedule, granted bool, events []Event) (bool, string) {
-	switch {
-	case s.Off():
+// process's death and needs no daemon. A fleet-blocking grant is not a
+// departure: it is admitted alone, outside the train (the admission rule).
+func DepartureDue(now time.Time, s Schedule, events []Event) (bool, string) {
+	if s.Off() {
 		return true, "trains are off"
-	case granted:
-		return true, "fleet-blocking: departs alone, now"
 	}
 	next, ok := NextDeparture(events)
 	if !ok {
@@ -224,6 +221,21 @@ func (r Readiness) Current(now time.Time) bool {
 	return r.Ready && !r.At.After(now) && now.Sub(r.At) <= MaxReadinessAge
 }
 
+// For reports why r cannot vouch for ticket t, or "" when it can: a vouch is
+// another process's claim, so it must name the ticket's own branch and be
+// current. Board and the admission rule share this one check.
+func (r Readiness) For(t Ticket, now time.Time) string {
+	switch {
+	case r.Branch != t.Branch:
+		return fmt.Sprintf("vouch names branch %q, the ticket %q", r.Branch, t.Branch)
+	case !r.Ready:
+		return "not ready: " + r.Reason
+	case !r.Current(now):
+		return "vouch is stale"
+	}
+	return ""
+}
+
 // Car is one boarded PR: the ticket and the exact head it vouched.
 type Car struct {
 	Seq    int64  `json:"seq"`
@@ -252,7 +264,7 @@ func Board(head Car, headAlone bool, waiters []Ticket, ready map[int64]Readiness
 	b := Boarding{Cars: []Car{head}, Why: map[int64]string{}}
 	if s.Off() || headAlone {
 		for _, t := range waiters {
-			if r, ok := ready[t.Seq]; ok && r.Current(now) {
+			if r, ok := ready[t.Seq]; ok && r.For(t, now) == "" {
 				b.LeftReady++
 			}
 		}
@@ -265,16 +277,12 @@ func Board(head Car, headAlone bool, waiters []Ticket, ready map[int64]Readiness
 	stopped := false
 	for _, t := range waiters {
 		r, ok := ready[t.Seq]
-		switch {
-		case !ok:
+		if !ok {
 			b.Why[t.Seq] = "not vouched yet"
 			continue
-		case !r.Current(now):
-			if r.Ready {
-				b.Why[t.Seq] = "vouch is stale"
-			} else {
-				b.Why[t.Seq] = "not ready: " + r.Reason
-			}
+		}
+		if why := r.For(t, now); why != "" {
+			b.Why[t.Seq] = why
 			continue
 		}
 		switch {
@@ -290,7 +298,7 @@ func Board(head Car, headAlone bool, waiters []Ticket, ready map[int64]Readiness
 			b.LeftReady++
 			b.Why[t.Seq] = fmt.Sprintf("train full (%d cars)", max)
 		default:
-			b.Cars = append(b.Cars, Car{Seq: t.Seq, Issue: t.Issue, Branch: r.Branch, Head: r.Head, PR: r.PR})
+			b.Cars = append(b.Cars, Car{Seq: t.Seq, Issue: t.Issue, Branch: t.Branch, Head: r.Head, PR: r.PR})
 		}
 	}
 	return b

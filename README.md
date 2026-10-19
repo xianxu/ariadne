@@ -488,6 +488,15 @@ fleet, the operator or the TL (from a :0 slot) runs
 hours; `sdlc landing revoke` ends it early). That puts the issue first at the
 next admission without interrupting a running landing or waiving any gate.
 
+Landing trains (#449, in progress) batch that line. `.sdlc/landing.json` on main
+sets `train_interval_minutes` (0, the default when the file is absent, keeps the
+serial line) and `train_max_cars` (default 8). The file is under the local-gates
+guard, so the operator verifies every change to it. With trains on, a waiting
+merge checks its own review and CI gates on its pushed head and vouches it ready.
+A merge departs only when the train is due and its vouch is current; a granted
+merge still departs at once and alone. `sdlc landing status` shows the setting,
+the next departure and each waiting merge's readiness.
+
 Merge refuses red CI on the PR head. Durable workspaces wait up to 20 minutes
 for pending CI, integrate a moved main locally, and recheck main before landing
 (up to three integrations); conflicts abort with the paths to resolve. Legacy

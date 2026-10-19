@@ -173,7 +173,7 @@ func Transition(t Train, ev TrainEvent) (Train, []Effect, error) {
 		n.Phase = PhaseIntegrating
 		return n, []Effect{Build{Cars: slices.Clone(e.Cars)}}, nil
 	case Built:
-		if t.Phase != PhaseIntegrating {
+		if t.Phase != PhaseIntegrating || !partitions(t.Cars, e) {
 			break
 		}
 		var effects []Effect
@@ -310,6 +310,29 @@ func (t *Train) publish(k int) []Effect {
 	}
 	t.Published = k
 	return []Effect{Publish{Prefix: k}}
+}
+
+// partitions reports whether b accounts for every boarded car exactly once:
+// kept, in boarding order, or conflicting. A car in neither would leave the
+// train with no outcome, so such a report is rejected, never guessed at.
+func partitions(cars []Car, b Built) bool {
+	if len(b.Kept)+len(b.Conflicts) != len(cars) {
+		return false
+	}
+	k := 0
+	for _, c := range cars {
+		_, conflict := b.Conflicts[c.Seq]
+		switch {
+		case conflict && k < len(b.Kept) && b.Kept[k] == c.Seq:
+			return false
+		case conflict:
+		case k < len(b.Kept) && b.Kept[k] == c.Seq:
+			k++
+		default:
+			return false
+		}
+	}
+	return k == len(b.Kept)
 }
 
 func carSeqs(cars []Car) []int64 {

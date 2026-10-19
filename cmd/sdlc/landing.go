@@ -378,11 +378,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 	}
 	var turn *landingTurn
 	if !resumeOnly(pre) {
-		// The named err must stay the one the deferred leave reads.
-		sched, serr := readLandingSchedule(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote+"/main")
-		if serr != nil {
-			return serr
-		}
+		sched := landingScheduleSource(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote, stderr)
 		gates := productionCarGates(r, t, f.IssuesDir)
 		readiness := func(ctx context.Context) landingline.Readiness {
 			return carReadiness(ctx, r, gh, t, branch, gates, landingNow())

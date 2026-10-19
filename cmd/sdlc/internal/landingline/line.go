@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -45,11 +46,14 @@ type Options struct {
 	// OnAdmit reports an admission and the older tickets it went ahead of. It
 	// runs outside the line mutex, so it may call Record.
 	OnAdmit func(head Ticket, displaced []Ticket)
-	// Admissible (#449) says whether a live ticket may be admitted now, given
-	// its readiness vouch (nil when it has none) and whether it holds a
-	// grant. The head is the first admissible ticket in Order; nil admits
-	// every ticket, the serial line of #393.
-	Admissible func(t Ticket, r *Readiness, granted bool) (bool, string)
+	// Admission (#449) is called once per admission attempt, under the line
+	// mutex, and returns the rule for this attempt: whether a live ticket may
+	// be admitted now, given its readiness vouch (nil when it has none) and
+	// whether it holds a grant. One call per attempt lets the rule read its
+	// inputs (the events log, the schedule) once, not once per ticket. The
+	// head is the first admissible ticket in Order; nil admits every ticket,
+	// the serial line of #393.
+	Admission func() func(t Ticket, r *Readiness, granted bool) (bool, string)
 	// OnHeld reports why this waiter, though first in line, is not admitted
 	// (a train not due, not ready), when that changes.
 	OnHeld func(why string)
@@ -61,8 +65,14 @@ type Line struct {
 	o   Options
 }
 
-// Handle is one merge's place in the line.
+// ErrNotWaiting is a vouch from a merge that is no longer waiting (admitted
+// or released): not a failure, the vouching simply ends.
+var ErrNotWaiting = errors.New("landing line: only a waiting merge vouches")
+
+// Handle is one merge's place in the line. Its files are guarded by mu: a
+// merge's vouching goroutine writes through it while Wait admits it.
 type Handle struct {
+	mu     sync.Mutex
 	ticket Ticket
 	path   string
 	ready  string   // its readiness sidecar's path
@@ -180,7 +190,7 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 		if err != nil {
 			return err
 		}
-		if h.file == nil {
+		if !h.waiting() {
 			return errors.New("landing line: this ticket was released")
 		}
 		grants := l.o.Grants()
@@ -207,7 +217,8 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 			return err
 		}
 		candidates := live
-		if l.o.Admissible != nil {
+		if l.o.Admission != nil {
+			admissible := l.o.Admission()
 			ready := l.readReady()
 			candidates = nil
 			for _, t := range live {
@@ -216,7 +227,7 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 					r = &v
 				}
 				_, granted := grants[t.Issue]
-				ok, reason := l.o.Admissible(t, r, granted)
+				ok, reason := admissible(t, r, granted)
 				if ok {
 					candidates = append(candidates, t)
 				} else if t.Seq == h.ticket.Seq {
@@ -224,10 +235,25 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 				}
 			}
 		}
-		next, passed, ok := NextHead(candidates, grants)
+		next, _, ok := NextHead(candidates, grants)
 		if !ok || next.Seq != h.ticket.Seq {
 			head.Close()
 			return nil
+		}
+		// The audit names every ticket the head went ahead of in the full
+		// order: older normal ones a grant passed, and ones not admissible.
+		// A ticket was gone ahead of if it is older (a grant passed it) or
+		// ordered before the head (it was not admissible).
+		var passed []Ticket
+		before := true
+		for _, t := range order {
+			if t.Seq == next.Seq {
+				before = false
+				continue
+			}
+			if before || t.Seq < next.Seq {
+				passed = append(passed, t)
+			}
 		}
 		data, _ := json.Marshal(h.ticket)
 		if err := head.Truncate(0); err == nil {
@@ -237,8 +263,10 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 			head.Close()
 			return err
 		}
+		h.mu.Lock()
 		h.head = head
-		h.dropTicket()
+		h.dropLocked()
+		h.mu.Unlock()
 		pos, displaced = 0, passed
 		return nil
 	})
@@ -262,8 +290,10 @@ func (l *Line) Vouch(h *Handle, r Readiness) error {
 		return err
 	}
 	return l.withMutex(func() error {
+		h.mu.Lock()
+		defer h.mu.Unlock()
 		if h.file == nil {
-			return errors.New("landing line: only a waiting merge vouches")
+			return ErrNotWaiting
 		}
 		// A later sdlc may have written members this one doesn't know: keep
 		// them (ARCH-EVOLVE). A previous vouch that doesn't parse keeps nothing.
@@ -368,14 +398,23 @@ func (l *Line) Status() (*Ticket, []Ticket, error) {
 
 // Release leaves the line, as head or waiter; it is idempotent.
 func (h *Handle) Release() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	if h.head != nil {
 		h.head.Close()
 		h.head = nil
 	}
-	h.dropTicket()
+	h.dropLocked()
 }
 
-func (h *Handle) dropTicket() {
+func (h *Handle) waiting() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.file != nil
+}
+
+// dropLocked removes the ticket and its vouch; the caller holds h.mu.
+func (h *Handle) dropLocked() {
 	if h.file != nil {
 		os.Remove(h.path)
 		os.Remove(h.ready)

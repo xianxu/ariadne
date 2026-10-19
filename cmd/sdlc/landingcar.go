@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -87,25 +88,33 @@ func productionCarGates(r gitRunner, t landingTarget, issuesDir string) carGates
 
 // vouchWhileWaiting re-vouches every carVouchEvery until ctx ends, which the
 // caller does as soon as Wait returns: the goroutine never outlives the wait.
-// A failed write is reported once; the car then simply doesn't board.
-func vouchWhileWaiting(ctx context.Context, line *landingline.Line, h *landingline.Handle, readiness func(context.Context) landingline.Readiness, stderr io.Writer) <-chan struct{} {
+// It vouches only while trains are on, so a merge that waits with them off
+// spends one config read a minute, and one turned on meanwhile starts
+// vouching. A failed write is reported once; the car then doesn't board.
+func vouchWhileWaiting(ctx context.Context, line *landingline.Line, h *landingline.Handle, sched func() landingline.Schedule, readiness func(context.Context) landingline.Readiness, stderr io.Writer) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		warned := false
 		last := ""
 		for {
-			r := readiness(ctx)
-			if ctx.Err() != nil {
-				return
-			}
-			if err := line.Vouch(h, r); err != nil && !warned && ctx.Err() == nil {
-				warned = true
-				fmt.Fprintf(stderr, "landing train: could not record readiness (%v); this merge boards no train until it can\n", err)
-			}
-			if state := readinessLine(r); state != last {
-				last = state
-				fmt.Fprintln(stderr, "landing train: "+state)
+			if !sched().Off() {
+				r := readiness(ctx)
+				if ctx.Err() != nil {
+					return
+				}
+				err := line.Vouch(h, r)
+				if errors.Is(err, landingline.ErrNotWaiting) {
+					return // admitted or released meanwhile: nothing to vouch for
+				}
+				if err != nil && !warned && ctx.Err() == nil {
+					warned = true
+					fmt.Fprintf(stderr, "landing train: could not record readiness (%v); this merge boards no train until it can\n", err)
+				}
+				if state := readinessLine(r); state != last {
+					last = state
+					fmt.Fprintln(stderr, "landing train: "+state)
+				}
 			}
 			select {
 			case <-ctx.Done():
@@ -128,28 +137,34 @@ func readinessLine(r landingline.Readiness) string {
 	}
 }
 
-// trainAdmission is the line's admission rule while trains are on. A granted
-// merge departs at once and alone, as before #449, and runs its own gates
-// after admission. Any other merge departs only when the train is due and it
-// has vouched ready: a merge whose gates don't hold never holds the line.
-func trainAdmission(s landingline.Schedule, events func() []landingline.Event, now func() time.Time) func(landingline.Ticket, *landingline.Readiness, bool) (bool, string) {
-	return func(_ landingline.Ticket, r *landingline.Readiness, granted bool) (bool, string) {
-		if granted {
-			return true, ""
+// trainAdmission is the line's admission rule (#449), built once per
+// admission attempt so the schedule and the events log are read once, not
+// once per ticket. Trains off: every ticket is admissible, the serial line. A
+// granted merge departs at once and alone, as before #449, and runs its own
+// gates after admission. Any other merge departs only when the train is due
+// and its vouch holds for its own ticket: a merge whose gates don't hold
+// never holds the line.
+func trainAdmission(sched func() landingline.Schedule, events func() []landingline.Event, now func() time.Time) func() func(landingline.Ticket, *landingline.Readiness, bool) (bool, string) {
+	return func() func(landingline.Ticket, *landingline.Readiness, bool) (bool, string) {
+		s := sched()
+		if s.Off() {
+			return func(landingline.Ticket, *landingline.Readiness, bool) (bool, string) { return true, "" }
 		}
 		at := now()
-		if due, why := landingline.DepartureDue(at, s, false, events()); !due {
-			return false, why
-		}
-		switch {
-		case r == nil:
-			return false, "train due; not vouched ready yet"
-		case !r.Current(at):
-			if r.Ready {
-				return false, "train due; readiness is stale"
+		due, notDue := landingline.DepartureDue(at, s, events())
+		return func(t landingline.Ticket, r *landingline.Readiness, granted bool) (bool, string) {
+			switch {
+			case granted:
+				return true, ""
+			case !due:
+				return false, notDue
+			case r == nil:
+				return false, "train due; not vouched ready yet"
 			}
-			return false, "train due; not ready: " + r.Reason
+			if why := r.For(t, at); why != "" {
+				return false, "train due; " + why
+			}
+			return true, ""
 		}
-		return true, ""
 	}
 }
