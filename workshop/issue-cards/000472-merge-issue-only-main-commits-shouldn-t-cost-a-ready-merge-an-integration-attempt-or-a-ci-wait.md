@@ -1,6 +1,6 @@
 ---
 id: 000472
-status: working
+status: codecomplete
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.97
+tracker:
+    version: 1
+    completion:
+        token: close-39585fd46b21
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 2b74d047b6d241597e30adde4819a5a29f50f704
+        evidence_commit: 06fadf2e8c5d423531ed94e95e5a6742ed28a79a
 ---
 
 # merge: issue-only main commits shouldn't cost a ready merge an integration attempt or a CI wait
