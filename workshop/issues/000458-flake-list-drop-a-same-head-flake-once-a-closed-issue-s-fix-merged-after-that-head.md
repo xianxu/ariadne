@@ -1,13 +1,13 @@
 ---
 id: 000458
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '6e6ff95efcab153b5bc7f2a543044513d252c3a8' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '1b8abd4237ddec43b43c73df403833a20b60e4ac' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T04:32:38-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 2.54
 ---
 
 # flake list: drop a same-head flake once a closed issue's fix merged after that head
