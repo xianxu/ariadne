@@ -50,7 +50,7 @@ up-to-date), since issue-only main commits can't conflict with code.
 
 - [x] Implement and verify the shared issue-record classifier and integration-state accounting.
 - [x] Add exact GitHub CLEAN readiness and wire conservative landing/recovery behavior.
-- [ ] Document, run recorded verification, close on SHIP and land.
+- [x] Document, run recorded verification, close on SHIP and land.
 
 Durable design: [issue-only main drift plan](../plans/000472-issue-only-main-drift-plan.md).
 
@@ -139,3 +139,14 @@ orchestration error, not a flake. The stable 157.115s run replaces that invalid
 evidence, and the lesson now prohibits concurrent commits/new dirty paths during
 these tests. Adapter, state, classifier, landing help, README and atlas are ready
 for the recorded suite and mandatory close review.
+
+
+### 2026-10-19 — delivery gates running
+
+Implementation and documentation are ready for close. PR 332 is open on pushed
+4a686788; the recorded suite is queued under normal FIFO (both machine slots,
+position 6 at admission). Close review may overlap that queue per tl-worker;
+a recorded suite pass on the final code head remains required before landing.
+The Plan delivery row records entry into these binary-owned gates, not a claim
+that the queued suite or landing has completed. The remaining delivery results
+will be recorded by close and merge.
