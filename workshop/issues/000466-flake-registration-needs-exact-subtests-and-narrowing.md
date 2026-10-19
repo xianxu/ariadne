@@ -1,13 +1,21 @@
 ---
 id: 000466
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'e06b4b3fe79a012f37cc23e114f23ce3cd8fd8f1' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '26300b29473d3824af298a470d9d52c05d11d11f' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-19T10:37:08-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # flake registration needs exact subtests and narrowing
@@ -28,8 +36,15 @@ Support exact subtest names in the known-flake registry and same-head evidence/r
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000466-flake-subtests-plan.md` (names, leaf coverage, top-level rerun, unregister and narrow verbs, state table, Q1–Q3).
+
+- [ ] Names, log subtests, classification, gate, verbs, docs; targeted tests then the recorded suite.
 
 ## Log
 
 2026-10-19: Found during #458's full-suite triage. `flakes.ValidTest` and `SplitTest` accept only top-level names; `sdlc flake register` only adds. #465 temporarily registers the top-level `scripts/test.TestConstructScripts` while its test-cost fix is in progress.
+
+2026-10-19 (ariadne:2): claimed and started.
+- Design: subtests come from the log as an unpersisted fact, so the test-stats record format is unchanged. Classification covers each failing leaf by a registered name (the leaf or an ancestor).
+- The rerun reruns the owning top-level tests and needs each known entry's exact PASS line.
+- Plan sent to the hub before code.
