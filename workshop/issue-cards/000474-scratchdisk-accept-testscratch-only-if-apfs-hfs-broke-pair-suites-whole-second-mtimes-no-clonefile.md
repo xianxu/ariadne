@@ -1,6 +1,6 @@
 ---
 id: 000474
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 9e2fa3897c0f2ba0c360a41d966097931738e916
         evidence_commit: cc69808d4a39b860879c1046a2ed9d096e85fd69
+        landed_commit: 8ea678247362c781c4917b7ca529810fefb116ca
 ---
 
 # scratchdisk: accept TestScratch only if APFS (HFS+ broke pair suites: whole-second mtimes, no clonefile)
