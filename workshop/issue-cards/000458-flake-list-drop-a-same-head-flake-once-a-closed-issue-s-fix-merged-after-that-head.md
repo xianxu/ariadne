@@ -1,6 +1,6 @@
 ---
 id: 000458
-status: working
+status: codecomplete
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 2.54
+tracker:
+    version: 1
+    completion:
+        token: close-2e43e3116aee
+        repository: github.com/xianxu/ariadne
+        reviewed_head: c22cc76feaaa584819a8d38ceac243ae6cd2d4f5
+        evidence_commit: c3f2372a59054d3d4dcd34f09b9aee690221f0be
 ---
 
 # flake list: drop a same-head flake once a closed issue's fix merged after that head
