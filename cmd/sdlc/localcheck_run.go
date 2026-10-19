@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -76,6 +77,15 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	if err != nil {
 		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
 	}
+	// Bind to the caller's tested issue head before entering a detached worktree.
+	subject, subjectErr := suiteSubject(d.Root, sha)
+	if subjectErr != nil {
+		fmt.Fprintf(d.Stderr, "[test-lock] priority unavailable: %v; using normal FIFO\n", subjectErr)
+		subject = suitePrioritySubject{CommonDir: d.Root}
+	}
+	if c.Name != suiteCheckName || d.SkipRecord {
+		subject.Issue = 0
+	}
 	logDir, err := localCheckLogDir(d)
 	if err != nil {
 		return rec, err
@@ -107,7 +117,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		rec.LogPath = writer.LogPath
 	}
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
-	run, err := runUnderSlot(ctx, d, wt, helper, logDir, c.Name, sha, c.Weight, c.Command, rec.LogPath, time.Duration(c.TimeoutMinutes)*d.minute)
+	run, err := runUnderSlot(ctx, d, wt, helper, logDir, c.Name, sha, c.Weight, subject, c.Command, rec.LogPath, time.Duration(c.TimeoutMinutes)*d.minute)
 	if err != nil {
 		return rec, err
 	}
@@ -160,7 +170,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		case c.Name == suiteCheckName && !d.SkipRecord:
 			// #394: classify; when only registered flakes failed, rerun them.
 			var o flakes.Outcome
-			o, stepErr = knownFlakeStep(ctx, d, suiteGateRun{check: c, sha: sha, wt: wt, helper: helper, logDir: logDir,
+			o, stepErr = knownFlakeStep(ctx, d, suiteGateRun{check: c, sha: sha, wt: wt, helper: helper, logDir: logDir, subject: subject,
 				storeRoot: storeRoot, failedID: writer.ID, failedFacts: facts, repo: d.Repo, slot: attempt.Slot,
 				agent: attempt.Agent, model: attempt.Model, effort: attempt.Effort})
 			if stepErr == nil {
@@ -225,7 +235,7 @@ type suiteSlotRun struct {
 // are released the moment it exits (#383), so a suite and a known-flake rerun
 // (#394) are both cancellable and neither holds a slot while it records. An
 // interrupt is an error and records nothing.
-func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check, sha string, weight int, argv []string, logPath string, timeout time.Duration) (suiteSlotRun, error) {
+func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check, sha string, weight int, subject suitePrioritySubject, argv []string, logPath string, timeout time.Duration) (suiteSlotRun, error) {
 	run := suiteSlotRun{Exit: -1}
 	queueStart := time.Now()
 	// Own signals only while our queue/suite resources exist. The surrounding
@@ -244,7 +254,7 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 		fmt.Fprintf(d.Stderr, "[!] local check %s: no run lease, so `sdlc local-check cancel` cannot find this run: %v\n", check, err)
 	}
 	defer releaseLease()
-	heldBy, release, err := acquireSuiteSlot(ownedCtx, d, wt, weight, helper)
+	heldBy, release, err := acquireSuiteSlot(ownedCtx, d, wt, weight, helper, subject)
 	if err != nil {
 		return run, fmt.Errorf("local check %s: %w", check, err)
 	}
@@ -385,7 +395,7 @@ func localCheckLogDir(d localRunDeps) (string, error) {
 // weight is the slots the run takes at once (#346): passed as --slots, so a
 // make test inside it, which then sees WF_TEST_LOCK_HELD_BY and goes reentrant,
 // still runs at its declared weight (#332).
-func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight int, helper string) (string, func(), error) {
+func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight int, helper string, subjects ...suitePrioritySubject) (string, func(), error) {
 	holder := exec.Command("cat")
 	processgroup.Configure(holder)
 	pipe, err := holder.StdinPipe()
@@ -411,6 +421,15 @@ func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight in
 	// The run's worktree is a temp directory; name the owning checkout in the
 	// slot record so the queue's held-by lines identify the slot (#400).
 	cmd.Env = append(os.Environ(), "WF_TEST_LOCK_OWNER="+d.Root)
+	// Optional environment metadata keeps older capacity helpers compatible;
+	// priority failure must never prevent ordinary suite admission.
+	subject := suitePrioritySubject{CommonDir: d.Root}
+	if len(subjects) > 0 {
+		subject = subjects[0]
+	}
+	data, _ := json.Marshal(subject)
+	provider, _ := os.Executable()
+	cmd.Env = append(cmd.Env, "WF_TEST_PRIORITY_SUBJECT="+string(data), "WF_TEST_PRIORITY_PROVIDER="+provider)
 	cmd.Stderr = d.Stderr
 	out, err := cmd.Output()
 	state := strings.TrimSpace(string(out))

@@ -96,8 +96,9 @@ step applies them.
 Read every 🤖 marker in the edit region (§3), outside fenced code, per the
 grammar.
 
-- **Ready:** the chain's last turn is human (`[…]`). Act on it as its
-  section's collaboration mode says (§4); in collaboration mode, apply the
+- **Ready:** the marker's last turn is human (`[…]`); for an old chain, use its
+  final human turn. Act on it as its section's collaboration mode says (§4);
+  in collaboration mode, apply the
   asked change to the text the marker refers to, or answer the question. A marker
   with an anchor (`<X>` or `~D~`) refers to exactly that text; without one, to
   the text just before it, back to the previous paragraph, bullet or heading.
@@ -106,12 +107,16 @@ grammar.
 - **Done:** a ready marker whose ask you have fully carried out is removed. An
   answer is folded into clean prose (the grammar's §6 light-touch default), not
   narrated as a reply.
-- **Unclear:** append a `{clarifying question}` turn to the marker and leave it.
+- **Unclear or longer exchange:** open a side doc with the question or context
+  (collaboration-modes.md §4), replace the ready marker with its link, and add
+  its `discussions:` entry in the same apply batch. Do not append a second turn.
 - **Pending:** the last turn is an agent turn (`{…}`), whoever wrote it. Leave it
   for the operator.
 - **Proposals** (`🤖~D~`, `🤖~D~{N}`, `🤖<X>{N}`, `🤖{N}`): never ready by
   themselves. Resolve them only when the operator asks (the grammar's §6).
-- Every marker you write is single-line (`<br>` inside a turn for a line break).
+- Every marker you write is single-line and has at most one commentary turn
+  (`<br>` inside that turn for a line break). Read old multi-turn chains, but
+  never extend them. Leave an agent-ended chain pending for the operator.
 
 ## 6. The reply
 

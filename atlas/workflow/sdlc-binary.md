@@ -383,10 +383,10 @@ with reviewbox.
     valid.
   - A revoke outlives its grant, because it is dated when it is made.
   - A future-dated grant confers nothing.
-- **Relation to the suite line.** `scripts/test-lock.py`'s FIFO line for
-  full-suite slots uses the same design (flock liveness, pruning under a mutex)
-  but shares no code: it is a make-invoked Python helper, and its waiters aren't
-  sdlc processes.
+- **Relation to the suite line (#452).** `scripts/test-lock.py` reads the same
+  grants through the hidden, read-only `sdlc landing suite-priority` v1 protocol.
+  Go's `ValidGrants` remains the authority. Python retains its own machine-wide
+  slot locks and FIFO tickets; no grant or landing turn is created by a suite.
 
 **In merge** (`landingqueue.go`): `runDurableMerge` confirms first, so a prompt
 never holds the line. It then takes a turn before it observes the branch head,
@@ -1943,10 +1943,17 @@ the package's TestMain removes with `testfix.RemoveBuiltBinaries()` after `m.Run
 process sweeps any such directory a killed run left behind after 24 h. Measured on the
 end-to-end tests: 18 builds (310 MB of binaries) became 2 (20.9 MB).
 
+`TestConstructScripts` asks `scripts/test/construct-scripts.test.sh --list` for
+its NUL-delimited selection, preserving the runner's exclusion policy, then
+runs each selected script as a named subtest in each color environment (#448).
+Each script gets the unchanged two-minute hang ceiling and its own process
+group cancellation; completed scripts cannot consume a later script's budget.
+The shell runner's default CI invocation still executes the selected batch.
+
 ### The Go lint catalog (#407)
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
-that taught it (`test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
+that taught it (`test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, and
 `wire-strict-decode` pair#594). Packages are matched by the
 name the file imports them under, and generated files are skipped. Rules read only the syntax tree (stdlib
@@ -2057,19 +2064,37 @@ clamped to `WF_TEST_SUITES`. The acquisition rules:
   waiter died) is pruned, so a crash never blocks the line. Tickets are created and
   pruned under a short allocation lock (`alloc`), so a new ticket is never mistaken
   for a dead one.
-- **One queue head.** Only the oldest waiter may become the head, and the head also
-  holds `test-suite.lock.queue`, the token older copies of the script use. Only the
-  head takes slots, so light suites never overtake it. Each slot runs the script
-  from its own branch, so in a mixed fleet an older copy can still win the queue
-  file and go first, as before; once every slot has the change, admission is FIFO.
-  A live waiter keeps its place even when stopped (^Z), so the line waits for it;
-  the waiters behind it name it as `next in line`.
+- **Grant priority (#452).** A suite for an issue holding a currently valid
+  fleet-blocking landing grant precedes waiting normal suites. FIFO holds within
+  each class; no running suite is preempted. Expiry or revocation returns the
+  waiter to normal FIFO at its original ticket number. A priority head needing
+  two slots waits for both; light normal suites cannot backfill ahead of it.
+- **One elected head.** Under `alloc`, every attempt reevaluates grant evidence,
+  elects the head, takes `test-suite.lock.queue` and scans weighted capacity.
+  A failed scan releases the queue token, so a normal waiter cannot reserve it
+  against a later grant. The allocation counter stays numeric, independent of
+  effective order. A stopped live waiter keeps its FIFO position within its class.
+  Old helpers already holding the sticky queue token drain naturally; never kill
+  or unlock them for rollout. Next-free priority is guaranteed after those old
+  waiting helpers have drained and participating helpers are upgraded.
+- **Evidence and failure.** Recorded suite identity is the original checkout's
+  issue branch only when its HEAD equals the tested commit. Baselines, other
+  checks and unknown identities remain normal. Direct make uses its supplying
+  workflow's `bin/sdlc`; recorded checks use their own executable. Tickets carry
+  repository/issue identity, never a priority boolean or executable. Snapshots
+  live only in memory, invalidate on source changes or Go-derived activation/
+  expiry boundaries, and start no provider process on unchanged pre-boundary
+  polls. Provider calls are bounded to 2 seconds and 64 KiB. Missing, old,
+  unreadable or malformed evidence emits `priority unavailable` and falls back
+  to normal FIFO for every suite, including known issues; capacity still holds.
 - **Records.** The holder's record goes into each slot it holds, with
   `slots: [...]`.
 
 The wait names each holder once, then `position K in line; next in line: …` (the
 waiter ahead), or `position 1 in line: next to run` for the head.
-It asks for `2 of 2 full-suite slots` for a weight-2 run.
+It asks for `2 of 2 full-suite slots` for a weight-2 run. The wait also names
+normal FIFO or fleet-blocking issue/deadline, and reports class/position changes
+immediately rather than waiting for the periodic diagnostic.
 
 While waiting it prints `[test-lock] waiting Ns for one of N full-suite slots …;
 held by:` and one `<repo> (<worktree>), make pid P, since T` line per holder,
@@ -2080,6 +2105,9 @@ Agents running the pre-close suite should run `make test` in the background so a
 wait can't trip the tool's timeout. Tests: `scripts/test/test-lock.test.sh`, which
 the `20-ci-workflow-tests` merge check runs (FIFO order under a stopped waiter, a
 dead waiter skipped, an older copy's head going first).
+`TestSuiteQueuePriorityRealHelper` additionally drives the real Python helper
+and production Go grant provider with private lock/grant files; it covers grant
+lifecycle, both FIFO classes, weight, provider failure and direct make binding.
 
 ### Targeted runs share a machine budget (#324)
 

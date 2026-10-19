@@ -26,6 +26,10 @@ engine to show prose changes as proposals. Tracked Couch documents use
 An untracked document with that presentation must be tracked before editing.
 Both apply paths accept one atomic batch of explained edits and derive the
 round; see [universal review](atlas/workflow/universal-review.md).
+New `🤖` markers carry at most one `[]` or `{}` turn. A clarification or
+longer exchange moves to an indexed `→ [discussion](…)` side doc; old chains
+remain readable and resolve by their final human turn. See the
+[review convention](construct/local/fix/review-convention.md).
 
 ## Concurrent issue work
 
@@ -362,6 +366,12 @@ When diagnosing duplicate dev-alias owners, run
 whose warning was suppressed. `--strict` fails only when a binary name has
 owners from distinct Git origins; GitHub HTTPS and SSH forms identify the
 same repository, while unknown origins remain distinct.
+
+The construct shell tests run as named Go subtests, with a separate two-minute
+hang bound per script in each color environment. For the same selection without
+execution, run `bash scripts/test/construct-scripts.test.sh --list`; it emits
+NUL-delimited paths and applies the runner's exclusions. Omit `--list` to execute
+the selected batch, as the CI shell check does.
 
 For host checks required by `make test`, provide `tests/host-preflight.sh`, or
 set `WF_TEST_PREFLIGHT ?= path/to/preflight.sh` before including

@@ -46,6 +46,17 @@ WHAT A RUN DOES
      PR comment with the last 60 lines of the log, so don't run checks whose
      output carries secrets.
 
+SUITE QUEUE PRIORITY (#452)
+
+  An active fleet-blocking landing grant gives the matching issue's suite
+  priority over waiting normal suites. FIFO holds within each class, weight
+  still applies, and running suites are never preempted. Priority ends on
+  grant expiry or revocation; the ticket returns to its original normal order.
+  Only the caller's issue branch at the tested HEAD binds priority. Other
+  checks, baseline diagnostics and unknown identities remain normal. If the
+  grant provider is missing, old or unreadable, a visible warning accompanies
+  normal FIFO fallback; this never prevents running a suite.
+
 THE SUITE (#332)
 
   The check named `suite` is the full test suite, and every landing requires

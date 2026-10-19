@@ -1003,3 +1003,20 @@ The simplest durable authority beats a clever scan of consequences.
 - A lexical proof of statement order fails when `goto` can enter after the flag that established it. For a bounded syntax-only lint, reject goto-bearing functions as unproven and test both unconditional and conditional jumps against a straight-line control (#440 BR-7).
 - A stateful fake that copies a production decision (a merge, a cap, a status refusal) makes the test pass whatever the production code does. Put the decision in one pure function that production and the fake both call, and test it directly on a real input. Check the regression test is real by deleting the decision (#394 M1 BR-2: replacing the card merge with `tests := add` kept every test green).
 - A new kind of record stored beside an existing kind needs its own discriminator (a distinct name or type), not a side field every reader must remember to check. Readers that select the old kind then exclude it by default. Sweeping readers one by one missed one each round (#394 M2 BR-13, then BR-19: a rerun row saved as check `suite` was reused as the head's suite pass).
+- For an agent-facing protocol, test the decision at the artifact boundary: a rule that says "open a side doc" should have a before/after case whose link and index are checked, plus a mutation that tries the old action. Keyword-only assertions can pass while the example still teaches the wrong behavior (#437 and #444).
+- When validating a before/after corpus that supports renames, compare moved outputs to the existing move projection before applying same-path emission checks. A same-path lookup mislabels preserved content as newly written; test a renamed parent, its children, and an orphan displaced by the move (#444 BR-1).
+
+- #452 plan review: a cache of time-dependent authority must invalidate at every authority-derived temporal transition, including future activation as well as expiry; unchanged file metadata does not imply unchanged validity. Name the production functions and adversarial test strategies in plans instead of enumerating prose test cases.
+
+- #452 cancellation: spawning a provider in its own process group requires an explicit SIGTERM unwind path in the Python owner; default signal exit skips finally cleanup. Test cancellation while the child is in flight, not only after provider return. Synchronize PID records on complete contents, not file existence.
+
+- #452 BR-1: a live-file snapshot is not a lease on its pathname. All admission readers must tolerate a concurrently released ticket disappearing before open, including legacy owners that do not take the reader mutex. Pin the scan/release interleaving with real flocks.
+- #452 BR-2: validate persisted identity with the same pure rule as caller identity before filesystem use. Absolute strings alone are insufficient: NUL, encoding, canonical form, bounds and field types must degrade visibly to ordinary FIFO rather than crash every reader.
+
+- A faster test fixture does not prove independent timeout budgets. When moving
+  a deadline from a batch to each item, inject command execution, observe distinct
+  live contexts and cancellation between items, and demonstrate red with a shared
+  context across the actual environment loop. Keep the production hang ceiling
+  unchanged; healthy real scripts can pass both the bug and the fix (#448 BR-1).
+- A new helper flag still needs README usage: state its output framing and whether
+  it executes work, alongside the architectural atlas entry (#448 BR-2).

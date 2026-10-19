@@ -34,6 +34,7 @@ const suiteRerunCheck = "suite-rerun"
 type suiteGateRun struct {
 	check                localCheck
 	sha, wt, helper      string
+	subject              suitePrioritySubject // the suite run's queue priority (#452): its rerun shares it
 	logDir, storeRoot    string
 	failedID             string
 	failedFacts          SuiteLogFacts
@@ -82,7 +83,7 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 	// slot, released when it exits (#383), so cancel reaches it too.
 	// Bounded by the check's own timeout as well (its declared envelope).
 	timeout := min(knownFlakeRerunTimeout, time.Duration(g.check.TimeoutMinutes)*d.minute)
-	run, err := runUnderSlot(ctx, d, g.wt, g.helper, g.logDir, g.check.Name, g.sha, 1, argv, w.LogPath, timeout)
+	run, err := runUnderSlot(ctx, d, g.wt, g.helper, g.logDir, g.check.Name, g.sha, 1, g.subject, argv, w.LogPath, timeout)
 	if err != nil {
 		return flakes.Outcome{}, fmt.Errorf("known-flake rerun: %w", err)
 	}
