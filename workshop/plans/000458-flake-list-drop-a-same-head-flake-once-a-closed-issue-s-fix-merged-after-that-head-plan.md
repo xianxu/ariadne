@@ -54,6 +54,10 @@ The earlier PURE declaration for the Git-backed classifier was inaccurate. The t
 
 Round 2 found that `path.Base(pkg)` can make `pkg/launcher.TestX` appear to cover `cmd/internal/launcher.TestX`. Exact import and repository-relative package paths now establish textual ownership; an issue's one-word package label requires uniqueness among Go package directories at its landing merge, queried read-only and cached by merge/package. This preserves #659's legacy table only when its `diagnosticlog` label is actually unique, and keeps ambiguous or unreadable evidence visible. Red fixtures cover same-basename paths in substantive sections and dedicated Log lines, plus a nested subpackage; a real Git tree proves the unique/ambiguous outcomes. The extra file-tree cost is named above.
 
+### 2026-10-19 — re-plan after BR-5 repeated: one path token
+
+The immediate-suffix search still scans later prose for `.go`: `cmd/internal/launcher/subpkg (see run_test.go)` can masquerade as a direct source file. The simpler substring-and-suffix alternative fails because it has no token boundary. Replace it with one bounded parser: locate a repository-relative package path only at a path-token boundary, then consume contiguous path bytes (letters, digits, `_`, `-`, `.`, `/`) immediately after it. Accept only an empty suffix or one slash plus one `.go` filename; any nested directory, partial word, unrecognized suffix or uncertain token leaves the row visible. Keep exact fully qualified test names and historical one-word-label proof unchanged. Before code, add red table cases in title, Problem, Spec, Done when, Plan and dedicated `- Test:` Log contexts: exact package, direct file, nested package followed by whitespace/punctuation/markup and an unrelated `.go` mention. Add a command-level case proving the nested failure remains in the default list. The boundary parser replaces the earlier `containsPackagePath` suffix heuristic; no additional ownership exception is permitted in this issue.
+
 ## Tasks
 
 ### 1. Red coverage and decision tests

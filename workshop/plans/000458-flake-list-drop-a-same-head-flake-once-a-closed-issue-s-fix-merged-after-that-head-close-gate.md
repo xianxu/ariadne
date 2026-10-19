@@ -186,6 +186,111 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 794ce4b7-8cb3-4e10-aecd-cfbbc364fb12
+            repository: github.com/xianxu/ariadne
+            issue_id: "000458"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/db5c271d3bf4c2fc
+            reviewed_head: f2cbfe70e455169334d78e71e6c820e288089c4a
+            slot: ariadne:1
+            requested_at: "2026-10-19T13:37:27.892996Z"
+          phase: finished
+          pid: 73349
+          started_at: "2026-10-19T13:37:27.987542Z"
+          finished_at: "2026-10-19T13:40:38.649745Z"
+          session_id: 01a15461-a6b2-76c2-9b14-55a228670acf
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: f2cbfe70e455169334d78e71e6c820e288089c4a
+        tracker_head: d45848d988ab04490cf0d9bfce88a1eaed8da451
+        branch_point: a11504c417e9c8789327362895bc88c9fad042df
+        since: "2026-10-19T04:32:38-07:00"
+        until: "2026-10-19T06:15:37-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T04:32:38-07:00"
+              end: "2026-10-19T06:15:37-07:00"
+              began: "2026-10-19T04:32:38-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 4113d18aef13062faa3aa1a5e93c73adfb9ee2feec4a5ffc4b4280cd6440e74d
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 143784527
+              windows:
+                - start: "2026-10-19T04:32:38-07:00"
+                  end: "2026-10-19T06:15:37-07:00"
+        queue_waits:
+            - attempt_id: 47932ec61a1603c497832d736497e4f0
+              slot: ariadne:1
+              record_digest: 26e688dc36fb19ea4a4f2f0ba6b5a0c1a7640426e201e1a37b7e660686969336
+              start: "2026-10-19T11:55:43.408394Z"
+              end: "2026-10-19T12:12:29.80791Z"
+              queue_seconds: 1006.399516
+              raw_seconds: 1006.399516
+              exact: true
+            - attempt_id: 17efbf21e381b47311820e1181929f73
+              slot: ariadne:1
+              record_digest: 1c614cbe42ae0eab068ee411b5eff6fd8127b867521fd34d3adbf40255e1abd8
+              start: "2026-10-19T12:33:45.540326Z"
+              end: "2026-10-19T12:49:43.182913Z"
+              queue_seconds: 957.642587
+              raw_seconds: 957.642587
+              exact: true
+        cuts:
+            - dispatched: "2026-10-19T05:25:12-07:00"
+              finalized: "2026-10-19T05:27:07-07:00"
+              finalizing: false
+            - dispatched: "2026-10-19T05:59:54-07:00"
+              finalized: "2026-10-19T06:02:42-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-19T06:40:39-07:00"
+      dispatched: "2026-10-19T06:37:27-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: The Core concepts table correctly declares classifyFixedFlake as INTEGRATION; fixedIssueCovers is tested without IO.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: README.md:527–533 documents default suppression, verbose attribution, recurrence, and uncertainty, matching the command implementation.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: TestFlakeListRendersFixedRecurrenceAndCoverageFromRealGit verifies default suppression, verbose output, recurrence, and ambiguous coverage through real merge history.
+          round: 3
+        - id: BR-4
+          disposition: addressed
+          note: The classifier returns coverage reasons, decision tests assert them, and the command test verifies their rendering.
+          round: 3
+        - id: BR-5
+          disposition: not-addressed
+          note: 'ARCH-PURPOSE / ARCH-SECURE: cmd/sdlc/flake_fixed.go:239–243 searches the entire remaining line for ".go", crossing path-token boundaries. For github.com/xianxu/ariadne/cmd/internal/launcher.TestX, "TestX fails in cmd/internal/launcher/subpkg (see run_test.go)." incorrectly establishes parent-package ownership. Temporary regression probes failed in both Problem and dedicated Log sections; a command-level probe confirmed default output silently omitted the unrelated failure. The exact-test-ownership family remains unresolved. Fix the rule across all ownership contexts: recognize one contiguous path token and accept only the exact package directory or a Go source file directly inside it.'
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#458 (boundary-review)
@@ -219,6 +324,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - **BR-5** [Critical] `exact-test-ownership` (kind: defect) ARCH-PURPOSE: package-basename matching can hide an unrelated test
   cmd/sdlc/flake_fixed.go:171 reduces package identity to path.Base(pkg). For a failure named github.com/xianxu/ariadne/cmd/internal/launcher.TestX, details reading “TestX fails in pkg/launcher/run_test.go” incorrectly establish ownership. A temporary regression test confirmed that classifyFixedFlake returns flakeFixed when the issue’s merge is on main but absent from the failing head, causing default rendering to suppress the unrelated failure. bareCollision does not protect this case when only one package occurs in retained attempts. Require unambiguous package identity for textual ownership, retain uncertain rows, and cover same-basename packages across substantive sections and dedicated Log lines.
+
+## Round 3 — 2026-10-19T06:40:39-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — The Core concepts table correctly declares classifyFixedFlake as INTEGRATION; fixedIssueCovers is tested without IO.
+- BR-2 — addressed — README.md:527–533 documents default suppression, verbose attribution, recurrence, and uncertainty, matching the command implementation.
+- BR-3 — addressed — TestFlakeListRendersFixedRecurrenceAndCoverageFromRealGit verifies default suppression, verbose output, recurrence, and ambiguous coverage through real merge history.
+- BR-4 — addressed — The classifier returns coverage reasons, decision tests assert them, and the command test verifies their rendering.
+- BR-5 — not-addressed — ARCH-PURPOSE / ARCH-SECURE: cmd/sdlc/flake_fixed.go:239–243 searches the entire remaining line for ".go", crossing path-token boundaries. For github.com/xianxu/ariadne/cmd/internal/launcher.TestX, "TestX fails in cmd/internal/launcher/subpkg (see run_test.go)." incorrectly establishes parent-package ownership. Temporary regression probes failed in both Problem and dedicated Log sections; a command-level probe confirmed default output silently omitted the unrelated failure. The exact-test-ownership family remains unresolved. Fix the rule across all ownership contexts: recognize one contiguous path token and accept only the exact package directory or a Go source file directly inside it.
 
 ## Open findings
 

@@ -201,3 +201,102 @@ findings:
    Add a `## Revisions` entry clarifying that legacy package context must identify the package unambiguously. Enumerate and test all textual ownership paths: substantive sections and dedicated Log lines, including different packages sharing the same basename.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"09f5f5d6-fdf5-4217-9b31-b3337ecf0308","repository":"github.com/xianxu/ariadne","issue_id":"000458","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/feb76cf032713ca5","reviewed_head":"e4e8590d273723c84d7cc000c381abc16d622cdd","slot":"ariadne:1","requested_at":"2026-10-19T12:59:54.84211Z"},"phase":"finished","pid":84333,"started_at":"2026-10-19T12:59:54.936514Z","finished_at":"2026-10-19T13:02:41.515882Z","session_id":"01a1543f-45bc-7b93-b21d-fabbef7cb8e7","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-19T06:40:39-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 458 — flake list: drop a same-head flake once a closed issue's fix merged after that head |
+| repo | ariadne |
+| issue file | workshop/issues/000458-flake-list-drop-a-same-head-flake-once-a-closed-issue-s-fix-merged-after-that-head.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | a11504c417e9c8789327362895bc88c9fad042df..f2cbfe70e455169334d78e71e6c820e288089c4a |
+| command | sdlc close --issue 458 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-19T06:40:39-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The change covers default suppression, verbose attribution, recurrence, and conservative error handling. The existing regression tests pass and detect the previous matcher’s bug. However, BR-5 remains blocking: the replacement path matcher can still attribute a nested package’s failure to its parent and silently hide it.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The Core concepts table correctly declares classifyFixedFlake as INTEGRATION; fixedIssueCovers is tested without IO.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      README.md:527–533 documents default suppression, verbose attribution, recurrence, and uncertainty, matching the command implementation.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      TestFlakeListRendersFixedRecurrenceAndCoverageFromRealGit verifies default suppression, verbose output, recurrence, and ambiguous coverage through real merge history.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The classifier returns coverage reasons, decision tests assert them, and the command test verifies their rendering.
+  - id: BR-5
+    disposition: not-addressed
+    note: |
+      ARCH-PURPOSE / ARCH-SECURE: cmd/sdlc/flake_fixed.go:239–243 searches the entire remaining line for ".go", crossing path-token boundaries. For github.com/xianxu/ariadne/cmd/internal/launcher.TestX, "TestX fails in cmd/internal/launcher/subpkg (see run_test.go)." incorrectly establishes parent-package ownership. Temporary regression probes failed in both Problem and dedicated Log sections; a command-level probe confirmed default output silently omitted the unrelated failure. The exact-test-ownership family remains unresolved. Fix the rule across all ownership contexts: recognize one contiguous path token and accept only the exact package directory or a Go source file directly inside it.
+```
+
+1. **Strengths**
+
+   - Real merge-history tests verify both attribution and observable list behavior.
+   - Git ancestry and historical package checks are injected and cached; repeated-attempt tests verify call counts.
+   - README and atlas describe the new flag and changed default behavior.
+
+2. **Critical findings**
+
+   BR-5 remains open at `cmd/sdlc/flake_fixed.go:239–243`. The `.go` search mistakes later prose for part of the package path. Parse the immediate path token before comparing its directory; retain the row whenever identity remains uncertain.
+
+3. **Important findings**
+
+   None newly raised.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   Passed:
+
+   - `go test ./cmd/sdlc -run 'Test(Flake|Fixed|BarePackage)' -count=1`
+   - `go test ./cmd/sdlc/internal/flakes ./cmd/sdlc/internal/gitx -count=1`
+   - Pinned-range `git diff --check`.
+
+   Restoring the previous matcher through a temporary overlay made three committed ownership regressions fail. Separate temporary probes reproduced the remaining defect in both ownership sections and default command rendering. Temporary files were removed; the checkout is clean.
+
+6. **Architectural notes**
+
+   | Principle | Result |
+   |---|---|
+   | ARCH-DRY | Pass — reuses registry, tracker, snapshot, and Git seams. |
+   | ARCH-PURE | Pass — pure ownership matching and integration orchestration match the table. |
+   | ARCH-PURPOSE | **Flag: BR-5** — unrelated failures can still disappear. |
+   | ARCH-MOCK | Pass — injected seams and portable real-Git fixtures exercise behavior. |
+   | ARCH-CONSTRAINTS | Pass — counted fixtures verify cached Git calls. |
+   | ARCH-SECURE | **Flag: BR-5** — prose beyond a path token becomes false ownership evidence. |
+   | ARCH-ORDER | Pass — synchronous snapshot processing holds no state between invocations. |
+   | ARCH-FUNERAL | Pass — production changes create no durable artifacts. |
+   | ARCH-EVOLVE | Pass — no persisted-format changes. |
+
+7. **Plan revision recommendations**
+
+   Add a `## Revisions` entry defining contiguous path-token recognition. Enumerate and test every allowed ownership context—title, Problem, Spec, Done when, Plan, and dedicated Log lines—with nested paths followed by whitespace, punctuation, markup, and unrelated `.go` references. Apply that rule across the family in this round.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"794ce4b7-8cb3-4e10-aecd-cfbbc364fb12","repository":"github.com/xianxu/ariadne","issue_id":"000458","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/db5c271d3bf4c2fc","reviewed_head":"f2cbfe70e455169334d78e71e6c820e288089c4a","slot":"ariadne:1","requested_at":"2026-10-19T13:37:27.892996Z"},"phase":"finished","pid":73349,"started_at":"2026-10-19T13:37:27.987542Z","finished_at":"2026-10-19T13:40:38.649745Z","session_id":"01a15461-a6b2-76c2-9b14-55a228670acf","outcome":"returned"}] -->
