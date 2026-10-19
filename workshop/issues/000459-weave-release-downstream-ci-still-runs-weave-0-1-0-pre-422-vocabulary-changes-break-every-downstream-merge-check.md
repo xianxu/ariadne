@@ -86,6 +86,21 @@ See [the local implementation plan](../plans/000459-downstream-weave-compiler-pl
   `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/weave459-rehearsal.xrRzR4`
   for local review. They are not release candidates and were not uploaded.
 
+### Canonical close checkpoint (2026-10-19)
+
+- Recorded suite passed on implementation head
+  `920b785cab321d7c22bb0ac5f314e6085abe4724`: all twelve SDLC shards
+  (1,677 tests) and 71 other packages passed, without flakes or retries.
+  GitHub confirms `sdlc-local/suite=success`; retained log digest starts
+  `e27431f03c63`. Documentation-only continuation commits follow that head.
+- The isolated verification clone's close was interrupted before finalization
+  because its directory basename would mislabel project/calibration references.
+  No close evidence, completion binding or calibration row was published there.
+  The canonical ariadne:3 checkout now owns close and landing.
+- The hub authorized canonical close/review while the fleet fixes the unrelated
+  main regression in ariadne#469. Landing waits for that fix; the existing
+  operator verification on PR319 remains the local-gates authority.
+
 ## Revisions
 
 ### 2026-10-19 — plan review corrections
