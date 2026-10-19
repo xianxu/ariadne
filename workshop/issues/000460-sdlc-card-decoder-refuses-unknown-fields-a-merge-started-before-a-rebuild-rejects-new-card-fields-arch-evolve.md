@@ -60,6 +60,7 @@ total: 2.84
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — Review BR-1/BR-2 reproduced red, fixed and targeted green: known tracker YAML tags are checked recursively before decode, unknown JSON numbers remain opaque via UseNumber, known numeric overflow still refuses. Card setter, tracker CAS and landing-event regressions pass; make -k and git diff --check pass. Recorded suite on f6124b5ef7985ae6e3f91eb378c396fee0652228 passed 1677 cmd/sdlc tests in 12 shards and 71 other packages, log sha256 0668d571301e. Final Plan row includes stage, PR merge and hub report after close.; review verdict: SHIP
 
 - Planning audit: `ParseCard` rejects an unrecognized top-level key. `parseClaimant` also rejects an unrecognized nested key; `updateEnvelope` decodes and re-marshals known nested records, dropping unknown members below `tracker` even though its root `Extra` map exists. The scalar setters and mirror operate on source spans, so they can preserve unknown top-level bytes once parsing admits them.
 - Landing events are decoded with ordinary `json.Unmarshal` and retention rewrites their original JSON lines, preserving unknown members. Test-stats v2 currently rejects unknown top-level keys and uses `DisallowUnknownFields`; it is a separate read-only attempt ledger. #449 readiness sidecars are still on ariadne:2's unlanded branch: its reader uses ordinary `json.Unmarshal`, and the owning car writes an entirely new vouch rather than modifying a prior one. The audit and tests will be finalized against its landed version.

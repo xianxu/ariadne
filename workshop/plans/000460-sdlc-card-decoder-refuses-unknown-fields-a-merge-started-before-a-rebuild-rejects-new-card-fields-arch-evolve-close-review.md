@@ -89,3 +89,79 @@ findings:
    Add `## Revisions` entries recording exact YAML type validation across nested tracker records and token-preserving JSON duplicate validation, with permanent regressions for both. These complete the existing contract without expanding scope.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"ba87cce4-a5a9-43eb-b772-f48b40b305f4","repository":"github.com/xianxu/ariadne","issue_id":"000460","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/dcf792c35ad57902","reviewed_head":"13be7fd15e87c19edb264fd7d9384b38e2b3e30e","slot":"ariadne:1","requested_at":"2026-10-19T10:28:51.707302Z"},"phase":"finished","pid":92026,"started_at":"2026-10-19T10:28:51.925481Z","finished_at":"2026-10-19T10:35:01.633718Z","session_id":"01a153b4-fc42-7f61-a1eb-c4566455f7ba","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-19T04:07:23-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 460 — sdlc card decoder refuses unknown fields: a merge started before a rebuild rejects new card fields (ARCH-EVOLVE) |
+| repo | ariadne |
+| issue file | workshop/issues/000460-sdlc-card-decoder-refuses-unknown-fields-a-merge-started-before-a-rebuild-rejects-new-card-fields-arch-evolve.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 2abdfb582380a38e3cf4add6130128aa0d5e67aa..f6124b5ef7985ae6e3f91eb378c396fee0652228 |
+| command | sdlc close --issue 460 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-19T04:07:23-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range satisfies the additive compatibility contract. Unknown card members survive the affected rewrite paths, known tracker types remain strict, and test-stats accepts opaque future values without weakening known numeric validation. Both prior findings are addressed, with regression tests confirmed to fail when their respective fixes are disabled.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      handoff.go validates known YAML tags recursively before struct decoding. Disabling that boundary check makes TestParseCardRejectsMalformedKnownTrackerRecord fail for numeric and boolean completion tokens; both pass with the fix restored.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      validateJSONNoDuplicates uses UseNumber. Removing it makes the permanent opaque-number regressions fail at root, unit, and known-flake depths; restored code passes those tests and rejects overflow in known seconds fields.
+```
+
+1. **Strengths**
+
+   - Shared preservation logic in `cardunknown.go` retains nested unknown members while allowing deliberate removal of known records.
+   - `cardEnvelope` validates types and versions at the shared boundary used by tracker accessors and setters.
+   - Tests exercise actual serialized cards, Git-backed CAS writes, and landing-event retention.
+   - Atlas updates accurately describe compatibility behavior. No new command, flag, or configuration key requires a README update.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed the complete `issue`, `tracker`, and `landingline` package tests, plus targeted suite-attempt decoder, storage, reader, and pruning tests. Both prior fixes passed mutation verification. `git diff --check` passed, and temporary mutations were restored with a clean checkout.
+
+   Inspected the referenced #449 source and regression tests directly: readiness unknown members are captured as raw JSON and carried through vouch rewrites. This review did not rerun the repository-wide recorded suite.
+
+6. **Architectural notes**
+
+   | Principle | Result |
+   |---|---|
+   | ARCH-DRY | Pass — shared nested preservation and fact-object validation helpers. |
+   | ARCH-PURE | Pass — parsing, validation, and merging remain directly testable without IO. |
+   | ARCH-PURPOSE | Pass — scalar/title, claimant, envelope, and CAS paths checked; persisted-record audit recorded. |
+   | ARCH-MOCK | Pass — no new external dependency; existing integration seams remain unchanged. |
+   | ARCH-CONSTRAINTS | Pass — attempt size and scan limits remain enforced; no new concurrency. |
+   | ARCH-SECURE | Pass — recursive YAML checks and JSON duplicate/type validation guard untrusted records. |
+   | ARCH-ORDER | Pass — no new state between events; existing CAS ordering remains intact. |
+   | ARCH-FUNERAL | Pass — no new durable artifact family or increased per-event storage. |
+   | ARCH-EVOLVE | Pass — nested unknown members survive rewrites; known types and versions remain strict. |
+
+7. **Plan revision recommendations:** None required.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"33f63a37-57e3-477b-8ae2-5dea4978e3aa","repository":"github.com/xianxu/ariadne","issue_id":"000460","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/434da79369551076","reviewed_head":"f6124b5ef7985ae6e3f91eb378c396fee0652228","slot":"ariadne:1","requested_at":"2026-10-19T11:05:12.637843Z"},"phase":"finished","pid":41277,"started_at":"2026-10-19T11:05:12.730906Z","finished_at":"2026-10-19T11:07:22.990857Z","session_id":"01a153d6-4210-7850-91a3-c228aa57a0cf","outcome":"returned"}] -->
