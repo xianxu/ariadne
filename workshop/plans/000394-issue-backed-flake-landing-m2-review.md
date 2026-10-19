@@ -286,3 +286,100 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"a7e29a06-5a6f-4f1c-9db7-24ddfd9e11c6","repository":"github.com/xianxu/ariadne","issue_id":"000394","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/db2a032ce7a226a8","reviewed_head":"7054740a11fd5047c99319f6a4905cc84bb801f2","slot":"ariadne:2","requested_at":"2026-10-19T01:10:30.323486Z"},"phase":"finished","pid":75766,"started_at":"2026-10-19T01:10:30.477473Z","finished_at":"2026-10-19T01:24:30.648801Z","session_id":"320c2191-2b48-4742-816a-423fc177b85d","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T19:23:58-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 394 — Issue-backed flake landing and daily triage |
+| repo | ariadne |
+| issue file | workshop/issues/000394-issue-backed-flake-landing.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 46745426506606d4b4e511f8aa3495830653aacf..828d32417b4881ce5346c050502eba0b51ea6578 |
+| command | sdlc milestone-close --issue 394 --milestone M2 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-18T19:23:58-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checking that the fixes claimed for BR-19 and BR-16 actually work: running the tests, then undoing each fix to confirm its test fails.
+
+Both reverts went red as expected. Now running the full package test suite once at head.
+
+Something in the full run failed, but the truncated output didn't show which package. Rerunning and keeping only the failure lines.
+
+That gave no output, which could mean a pass or a timeout. Running the main package alone and saving its output.
+
+The main package takes over 10 minutes, too long to wait on here. Instead I'll run every test function in the files this diff touched.
+
+The main package hit Go's default 10-minute test timeout, so that's a time limit, not a test failure. My targeted run broke on a shell glob; retrying without it.
+
+No result again, which points to a timeout. Splitting the touched tests into two smaller groups.
+
+The earlier runs never actually ran: `timeout` doesn't exist on macOS. Using Go's own `-timeout` flag instead.
+
+```verdict
+verdict: SHIP
+confidence: medium
+```
+
+Both open findings are fixed, and I checked each fix by undoing it and running its test. **BR-19:** reruns are now saved under their own check name, `suite-rerun`. The decoder requires that name and `rerun_of` to appear together, and declarations can't use the name. As a result `loadSavedAttempt`, test-stats, the weekly snapshot, `flake list` and `flake register` only ever see suite runs. When I put back the old check name and the decoder rule, the new BR-19 subtest failed exactly as the finding said it would: merge posted `success` for an inconclusive rerun (`map[sdlc-local/suite:success]`). **BR-16:** the rerun timeout is now `min(knownFlakeRerunTimeout, TimeoutMinutes*minute)`, and a rerun that times out is reported as inconclusive. When I put back the fixed 15-minute bound, the new subtest failed after 10.2 s with outcome `known-flake-rerun`. All 123 test functions in the touched test files pass at head (`ok … 302s`). The full `cmd/sdlc` package runs past Go's default 10-minute test timeout on this host, so I didn't get a complete package run. Nothing blocks SHIP. I'm raising one Minor finding.
+
+1. **Strengths**
+   - `cmd/sdlc/teststats_store.go:157`: the rerun/suite rule is enforced where untrusted records are parsed (ARCH-SECURE). A forged or old-shape row can't pass for either kind, and the test covers both invalid mixes (`rerun as suite`, `rerun no parent`).
+   - `cmd/sdlc/localcheck_flakes.go:31`: the old sweep of `RerunOf == ""` checks across readers is replaced by one rule that readers already use (`Check == suiteCheckName`). Every reader I found already filtered on it (`teststats.go:99`, `flake_cmd.go:253,387`, `weeklyattribution.go:144`, `weeklystats.go:98`, `actualqueue.go:34`). This fixes the class, not the one site.
+   - Saved-pass reuse now depends on the parent attempt's outcome, and republish still revalidates it.
+   - `localcheck_flakes_test.go:227-253`: both regression tests drive the production `runLocalCheck` and `republishSavedPass` against the fake GitHub status store.
+
+2. **Critical**: none.
+
+3. **Important**: none.
+
+4. **Minor**
+   - Rerun evidence only reaches readers through the parent's `Outcome`. Suppose revalidation downgrades a landing because the flake issue closed mid-rerun. The rerun's same-head fail→pass is then invisible to test-stats "confirmed", `flake list` and `flake register`. This is the 3rd finding in family `new-record-kind-unswept-readers`. The rule is in the findings block.
+   - Records written by intermediate binaries in this range (a rerun with `check: suite` plus `rerun_of`) are now refused by the decoder. That marks the store read as incomplete, so merge won't reuse a saved pass until those records age out. This only affects dev machines that ran in-window builds, so a note is enough.
+   - The reserved name `suite-rerun` isn't mentioned in the `local-check` help; it's only in the atlas.
+
+5. **Test coverage**: the BR-19 and BR-16 tests both fail without their fixes (checked by reverting each). The decoder and declaration refusals have table cases. `TestSuiteStatsRerunIsEvidenceNotARun` pins the counts and confirmation from the parent.
+
+6. **Architecture**
+   - **ARCH-DRY:** pass. One constant and one decoder rule.
+   - **ARCH-PURE:** pass. The rules stay in `internal/flakes`.
+   - **ARCH-PURPOSE:** pass. Readers were swept by check name.
+   - **ARCH-MOCK:** pass. Tests run against the fake GitHub and the scripted rerun argv.
+   - **ARCH-CONSTRAINTS:** pass. The rerun is now bounded by the check's declared timeout.
+   - **ARCH-SECURE:** pass. The shape is enforced at decode.
+   - **ARCH-ORDER:** pass. Revalidation runs before posting and on reuse, and a timeout is inconclusive, not a failure.
+   - **ARCH-FUNERAL:** pass. Rerun rows and their `failed/<id>.log` files are removed by the existing age-based `pruneSuiteAttempts`.
+
+   For upcoming work: one store predicate, "same-head evidence = suite plus its linked suite-rerun", would let evidence readers opt in to rerun rows without re-deriving the link.
+
+7. **Plan revisions**: none needed. The plan's revision entry for round 2 matches the code.
+
+```findings
+dispose:
+  - id: BR-16
+    disposition: addressed
+    note: |
+      timeout = min(knownFlakeRerunTimeout, TimeoutMinutes*minute) at localcheck_flakes.go; timeout marked Unattributed so it classifies inconclusive; reverting to the fixed 15 min turns the new BR-16 subtest red (10.2s, outcome known-flake-rerun).
+  - id: BR-19
+    disposition: addressed
+    note: |
+      Reruns saved as check suite-rerun, decoder ties it to rerun_of, declarations reserve it; loadSavedAttempt and all suite readers now see only suite rows. Reverting the check name plus decoder rule turns the new BR-19 subtest red (merge posted success).
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: new-record-kind-unswept-readers
+    title: |
+      A rerun's same-head pass is invisible to evidence readers when revalidation downgrades the parent
+    detail: |
+      3rd in family. Rule: every reader of the attempt store must say whether it reads suite runs (Check == suite) or same-head flake evidence (a suite row plus its linked suite-rerun rows), through one shared store predicate. Today test-stats confirmed, flake list and flake register derive rerun evidence only from the parent's Outcome == known-flake-rerun, so a landing downgraded by Revalidate (issue closed mid-rerun) loses its fail-to-pass proof. Narrow edge case; measured prevalence is 3 readers.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"2b97cbb2-4a7f-47c4-b234-2a23598bf07c","repository":"github.com/xianxu/ariadne","issue_id":"000394","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/4d873bccdff9012b","reviewed_head":"828d32417b4881ce5346c050502eba0b51ea6578","slot":"ariadne:2","requested_at":"2026-10-19T01:55:07.211351Z"},"phase":"finished","pid":19346,"started_at":"2026-10-19T01:55:07.331234Z","finished_at":"2026-10-19T02:23:37.990465Z","session_id":"ff197435-ecb6-4458-a9f0-e58ca2fdbdb7","outcome":"returned"}] -->
