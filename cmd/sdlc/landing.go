@@ -378,7 +378,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 	}
 	var turn *landingTurn
 	var sched func() landingline.Schedule
-	gates := productionCarGates(r, t, f)
+	gates := productionCarGates(r, ghClient, t, f)
 	readiness := func(ctx context.Context) (landingline.Readiness, bool) {
 		return carReadiness(ctx, r, gh, t, branch, gates, landingNow())
 	}

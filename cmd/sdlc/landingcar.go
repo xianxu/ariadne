@@ -87,7 +87,7 @@ var errMergedWhileWaiting = errors.New("landing train: this PR was merged while 
 // missing suite record is "not ready", not a suite run. A gate the merge was
 // told to skip (--no-judge, --no-ci) is skipped here too, so a car vouches
 // exactly what its own landing would check.
-func productionCarGates(r gitRunner, t landingTarget, f *mergeFlags) carGates {
+func productionCarGates(r gitRunner, ci ghCaller, t landingTarget, f *mergeFlags) carGates {
 	git := func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }
 	return carGates{
 		publish: func(ctx context.Context, pr landingPR) error {
@@ -97,7 +97,7 @@ func productionCarGates(r gitRunner, t landingTarget, f *mergeFlags) carGates {
 			return runLandingPublishGate(ctx, pr, f.IssuesDir, io.Discard)
 		},
 		ci: func(ctx context.Context, pr landingPR) error {
-			return runPreparedCIGate(ctx, ghClient, t.Repo, pr.Number, t.Remote+"/main", pr.HeadOID, git, nil, f.NoCI, io.Discard, nil)
+			return runPreparedCIGate(ctx, ci, t.Repo, pr.Number, t.Remote+"/main", pr.HeadOID, git, nil, f.NoCI, io.Discard, nil)
 		},
 	}
 }

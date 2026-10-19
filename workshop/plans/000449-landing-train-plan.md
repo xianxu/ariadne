@@ -204,3 +204,14 @@ The Core concepts table above names the design's first sketch. The code differs 
 - **`DepartureDue(now, schedule, events)`** reads the latest `train` event's `next_due`, with no separate last-departure argument. A grant is not a departure: the admission rule (`trainAdmission`) admits a granted merge alone, outside the train.
 - **Admission is `Options.Admission`**, a rule built once per admission attempt, outside the line mutex. The train setting comes from the local remote-tracking main through a source that caches its read for 30s and is safe for both the vouching goroutine and the admission poll; an unreadable setting is the serial line, warned once. The departure ledger (events.jsonl) is read by the line under its mutex after `head.lock` is taken, so a train the previous head recorded is always seen (M1 round 3).
 - **A vouch counts only for its own ticket's branch** (`Readiness.For`), and a boarded car's branch comes from the ticket, never from the sidecar.
+
+### 2026-10-19 — M2 as built
+
+- **Events:** the M1 list plus `Aborted{Reason}`, so the full set is `Boarded`, `Built`, `SuiteDone`, `CIDone`, `MainMoved`, `Reintegrated`, `Merged`, `MergeUnknown`, `Probed`, `Aborted`.
+  - `Aborted` is an error the conductor can't carry on from. It releases every riding car.
+  - From merging it ends in the terminal `merge-unconfirmed`, leaving the PR for the next conductor's reclaim. From any other phase it ends in `abandoned` and closes the PR.
+  - `Merged` and `Probed` carry no commit. Each car proves its own landing through `landedCommit`.
+- **Effects:** unchanged from M1: `Build`, `Publish`, `RunSuite`, `WaitCI`, `Merge`, `Probe`, `Reintegrate`, `Hold`, `Release`, `Refuse`, `LandCars`, `ClosePR`.
+- **The car channel:** `outcomes/<seq>`, settled by the conductor (boarded, landed, held, refused, released). A car that finds its own PR merged at its head ends its wait without one (`errMergedWhileWaiting`).
+- **Train branches:** a landed train's branch is deleted. Every delete is leased on the tip last pushed or observed, through one helper. The next conductor closes open leftover train PRs and deletes train branches without one.
+- `TestPlanNamesEveryTrainEventAndEffect` keeps these lists in step with `trainstate.go`.

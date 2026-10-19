@@ -528,12 +528,7 @@ func (c *conductor) settle(car landingline.Car, kind landingline.OutcomeKind, wh
 // closePR closes the train PR and deletes its branch, once.
 func (c *conductor) closePR() {
 	if !c.opened {
-		if c.pushed != "" {
-			_ = c.locked(func() error {
-				_, err := c.git("push", "--quiet", c.t.Remote, ":refs/heads/"+trainBranch(c.id))
-				return err
-			})
-		}
+		c.deleteTrainBranch()
 		return
 	}
 	c.opened = false
@@ -542,19 +537,29 @@ func (c *conductor) closePR() {
 	}
 }
 
-// deleteTrainBranch removes a landed train's branch from the remote, leased
-// on the head it pushed: the train PR is merged, nothing reads it again.
+// deleteTrainBranch removes the train's branch from the remote once nothing
+// reads it again (landed, or closed without a PR).
 func (c *conductor) deleteTrainBranch() {
 	if c.pushed == "" {
 		return
 	}
 	branch := trainBranch(c.id)
-	if err := c.locked(func() error {
-		_, err := c.git("push", "--quiet", "--force-with-lease=refs/heads/"+branch+":"+c.pushed, c.t.Remote, ":refs/heads/"+branch)
-		return err
-	}); err != nil {
+	if err := deleteTrainRef(c.git, c.locked, c.t.Remote, branch, c.pushed); err != nil {
 		fmt.Fprintf(c.stderr, "landing train %d: could not delete %s (%v); the next train removes it\n", c.id, branch, err)
 	}
+}
+
+// deleteTrainRef is every train-branch delete: under the repo lock, and
+// leased on the tip its caller pushed or observed, so it never removes a
+// commit the deleter did not see.
+func deleteTrainRef(git func(args ...string) (string, error), lock func(func() error) error, remote, branch, tip string) error {
+	if !strings.HasPrefix(branch, trainBranchPrefix) || !landingOIDValid(tip) {
+		return fmt.Errorf("refusing to delete %q at %q: not a train branch at a known tip", branch, tip)
+	}
+	return lock(func() error {
+		_, err := git("push", "--quiet", "--force-with-lease=refs/heads/"+branch+":"+tip, remote, ":refs/heads/"+branch)
+		return err
+	})
 }
 
 func (c *conductor) removeWorktree() {
@@ -615,10 +620,7 @@ func reclaimTrains(ctx context.Context, gh trainGH, git func(args ...string) (st
 		if open[branch] || !strings.HasPrefix(branch, trainBranchPrefix) {
 			continue
 		}
-		if err := lock(func() error {
-			_, err := git("push", "--quiet", "--force-with-lease=refs/heads/"+branch+":"+f[0], remote, ":refs/heads/"+branch)
-			return err
-		}); err == nil {
+		if err := deleteTrainRef(git, lock, remote, branch, f[0]); err == nil {
 			fmt.Fprintf(stderr, "landing train: deleted leftover branch %s\n", branch)
 		}
 	}

@@ -2,8 +2,11 @@ package landingline
 
 import (
 	"math/rand/v2"
+	"os"
 	"reflect"
+	"regexp"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -312,5 +315,39 @@ func TestTrainAbortReleasesEveryRidingCar(t *testing.T) {
 	wantEffects(t, effects, Release{Seqs: []int64{1, 2}}, ClosePR{})
 	if tr.Phase != PhaseAbandoned || !slices.Equal(tr.Released, []int64{4, 1, 2}) {
 		t.Fatalf("train %+v", tr)
+	}
+}
+
+// From merging, an abort claims nothing it didn't observe: the merge may
+// have landed, so the train is unconfirmed and its PR stays for the reclaim.
+func TestTrainAbortWhileMergingIsUnconfirmed(t *testing.T) {
+	merging, _ := drive(t, NewTrain(1), Boarded{Cars: cars(2)}, built(2), SuiteDone{Prefix: 2, Outcome: SuitePass}, CIDone{Green: true}, MergeUnknown{})
+	tr, effects := drive(t, merging, Aborted{Reason: "probe failed"})
+	wantEffects(t, effects, Release{Seqs: []int64{1, 2}})
+	if tr.Phase != PhaseUnconfirmed || !tr.Phase.Terminal() {
+		t.Fatalf("phase %s", tr.Phase)
+	}
+}
+
+// The plan's "as built" lists mirror the code: every event and effect type
+// is named there (a list that drifted three times; now a test).
+func TestPlanNamesEveryTrainEventAndEffect(t *testing.T) {
+	src, err := os.ReadFile("trainstate.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := os.ReadFile("../../../../workshop/plans/000449-landing-train-plan.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	impl := regexp.MustCompile(`func \((\w+)\) train(Event|Effect)\(\)`)
+	matches := impl.FindAllStringSubmatch(string(src), -1)
+	if len(matches) < 20 {
+		t.Fatalf("found only %d event/effect types; the pattern is stale", len(matches))
+	}
+	for _, m := range matches {
+		if !strings.Contains(string(plan), "`"+m[1]) {
+			t.Errorf("the plan does not name train %s %s", strings.ToLower(m[2]), m[1])
+		}
 	}
 }

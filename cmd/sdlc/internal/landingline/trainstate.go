@@ -24,11 +24,16 @@ const (
 	PhaseLanded        Phase = "landed"        // terminal: prefix 1..Land is on main
 	PhaseAbandoned     Phase = "abandoned"     // terminal: nothing landed, PR closed
 	PhaseRefused       Phase = "refused"       // terminal: the train's cars refused
+	// PhaseUnconfirmed is terminal: the conductor stopped while its merge's
+	// outcome was unknown. No record may claim abandoned or landed without
+	// an observation (#449); the cars go back to wait and each one reads
+	// its own PR's state.
+	PhaseUnconfirmed Phase = "merge-unconfirmed"
 )
 
 // Terminal reports a phase no event leaves.
 func (p Phase) Terminal() bool {
-	return p == PhaseLanded || p == PhaseAbandoned || p == PhaseRefused
+	return p == PhaseLanded || p == PhaseAbandoned || p == PhaseRefused || p == PhaseUnconfirmed
 }
 
 // MaxReintegrations bounds main moving under a train, as integrationLimit
@@ -173,13 +178,19 @@ func Transition(t Train, ev TrainEvent) (Train, []Effect, error) {
 			n.Phase = PhaseAbandoned
 			return n, nil, nil
 		}
-		n.Phase = PhaseAbandoned
 		n.Released = append(n.Released, carSeqs(n.Cars)...)
 		effects := []Effect{}
 		if len(n.Cars) > 0 {
 			effects = append(effects, Release{Seqs: carSeqs(n.Cars)})
 		}
 		n.Cars = nil
+		if t.Phase == PhaseMerging {
+			// The merge may have landed: the PR is left for the next
+			// conductor's reclaim, and each released car sees its own PR.
+			n.Phase = PhaseUnconfirmed
+			return n, effects, nil
+		}
+		n.Phase = PhaseAbandoned
 		return n, append(effects, ClosePR{}), nil
 	case Boarded:
 		if t.Phase != PhaseForming || len(e.Cars) == 0 {

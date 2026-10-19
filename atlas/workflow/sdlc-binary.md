@@ -433,7 +433,10 @@ trains on:
 - **Locking:** ref writes take the repo transaction lock.
 - **Main moves:** a moved main is merged in again, keeping the suite when the move is docs-only.
 - **Lost reply:** a merge whose reply was lost is read back from GitHub.
-- **Leftovers:** an open `landing-train/*` PR left by a dead conductor is closed by the next one.
+- **Branch cleanup:** a landed train's branch is deleted. Every train-branch delete goes through one helper, under the repo lock and leased on the tip last pushed or observed.
+- **Leftovers:** the next conductor closes an open `landing-train/*` PR left by a dead conductor, and deletes train branches with no open PR.
+- **A car with no word:** a waiting car that finds its own PR merged at its head (its conductor died after the merge, or the outcome write failed) ends its wait and finishes as a resume.
+- **Uncertain merge:** a conductor that stops while its merge's outcome is unknown records `merge-unconfirmed`, never landed or abandoned. Its cars go back to wait, and each one reads its own PR.
 
 With no other car, the head lands alone, as before, and logs the departure. Plan: `workshop/plans/000449-landing-train-plan.md`.
 
