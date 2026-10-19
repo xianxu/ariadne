@@ -1,13 +1,22 @@
 ---
 id: 000469
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'c129e7b95feb377a387dee9bc678a866a5eeaa58' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '845d3ed0ed49c9bd54292fe355a63d1d973475e5' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-19T11:26:36-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "80696cc8", done: "4e5a89d6"}
 ---
 
 # landingline: test reads the archived #449 plan; move the as-built list to the atlas (main is red)
