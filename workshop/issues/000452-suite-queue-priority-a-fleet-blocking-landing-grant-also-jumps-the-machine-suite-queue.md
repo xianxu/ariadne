@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-18
 updated: 2026-10-18
-estimate_hours:
+estimate_hours: 1.63
 collaboration-mode: collaboration
-card_mirror: 'd51b2d98a33710489a378179089b3e75b9da21cc' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '01807e4d8cbceb9d9879fb31cc5d14ef2f4cf92d' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-18T18:04:52-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # suite queue priority: a fleet-blocking landing grant also jumps the machine suite queue
@@ -55,3 +56,19 @@ Simplest alternatives considered: a startup priority boolean/expiry flag goes st
 ## Revisions
 
 2026-10-18 — TL approved the durable plan. Missing/old/unreadable provider warns and falls back to normal FIFO for all suites. Old sticky waiters drain naturally. Explicit expiry regression proves a granted waiter loses priority on expiry and an older normal waiter proceeds. Approval receipt: 3b55ef84-675d-4f81-834d-80f67f178da1.
+
+## Estimate
+
+Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only. Source marked stale; values provisional. After plan-quality accepted: two single-concern modules (read-only Go provider; Python admission/evidence), one existing-runner binding extension, documentation and one close review. Existing ValidGrants/JSONL/flock/subprocess libraries cover the mechanisms, no novel stack dependency. Thorough spec: design values apply the 0.2 discount; implementation values are 40% of v2 table upper bounds, familiarity 1.0; 15% design buffer. The Python module maps to the greenfield single-concern primitive.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module design=0.10 impl=0.32
+item: greenfield-go-module design=0.20 impl=0.32
+item: smaller-go-module design=0.06 impl=0.20
+item: atlas-docs design=0.04 impl=0.08
+item: milestone-review design=0.04 impl=0.20
+design-buffer: 0.15
+total: 1.63
+```
