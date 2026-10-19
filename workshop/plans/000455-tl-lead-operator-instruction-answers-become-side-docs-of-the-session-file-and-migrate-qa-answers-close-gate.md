@@ -270,6 +270,112 @@ rounds:
       isolation: fenced
       reviewed: 7b3b597d0ce9de1f6cd252dfc2118aea4fb823fc
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: fbfc1b94-fefe-4780-871f-d0099844328c
+            repository: github.com/xianxu/ariadne
+            issue_id: "000455"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/fdbf839d7c005807
+            reviewed_head: b4c241020db8006859a4c857d616962c6122b1a5
+            slot: ariadne:4
+            requested_at: "2026-10-19T07:00:34.739689Z"
+          phase: finished
+          pid: 27311
+          started_at: "2026-10-19T07:00:34.841233Z"
+          finished_at: "2026-10-19T07:01:14.398336Z"
+          session_id: 436ffe81-9d44-4c1b-8f54-d8814db158c5
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: b4c241020db8006859a4c857d616962c6122b1a5
+        tracker_head: 27d03965e807a4540d816e96ddf0006e7a8b1f99
+        branch_point: 5e0e91bc73e248068275f5887d7cf1d5b0102801
+        since: "2026-10-18T21:13:34-07:00"
+        until: "2026-10-19T00:00:09-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T21:13:34-07:00"
+              end: "2026-10-19T00:00:09-07:00"
+              began: "2026-10-18T21:13:34-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+        sources:
+            - harness: claude
+              id: 299d33d0-1f10-4950-b82c-b729d6c107a0
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: 6d51deb94d6171878a1abedee7822106057118af08e51f1d1909d3e0f920f417
+              started: "2026-10-16T06:28:11.678Z"
+              spawned: false
+              bytes: 51475294
+              windows:
+                - start: "2026-10-18T21:13:34-07:00"
+                  end: "2026-10-19T00:00:09-07:00"
+            - harness: claude
+              id: 3b2498aa-31d7-48a3-972b-3450f04dfcf6
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: 8f935031314e7c596eb7b321dfee662730c23f7261b9d60ae5147de87ad57a59
+              started: "2026-10-19T04:25:19.07Z"
+              spawned: false
+              bytes: 392518
+              windows:
+                - start: "2026-10-19T04:25:19.07Z"
+                  end: "2026-10-19T00:00:09-07:00"
+            - harness: claude
+              id: 3b8f552c-eeb9-4227-91af-2c9a3a636fd2
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: 0702aeaf2740aad32b8a9c4fa71eb8ec86ee61904cd0134a13f743c2c536f5f2
+              started: "2026-10-19T04:24:56.919Z"
+              spawned: false
+              bytes: 496753
+              windows:
+                - start: "2026-10-19T04:24:56.919Z"
+                  end: "2026-10-19T00:00:09-07:00"
+            - harness: claude
+              id: 40102923-8652-4e3a-8bc3-f4e04f75585e
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: 09d0dc950d55773755577b07d332f0a96d21ebb166efc0c91a4c969da81e789f
+              started: "2026-10-19T04:23:20.775Z"
+              spawned: false
+              bytes: 511552
+              windows:
+                - start: "2026-10-19T04:23:20.775Z"
+                  end: "2026-10-19T00:00:09-07:00"
+        cuts:
+            - dispatched: "2026-10-18T22:46:13-07:00"
+              finalized: "2026-10-18T22:50:02-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T23:57:30-07:00"
+              finalized: "2026-10-18T23:59:19-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-19T00:01:15-07:00"
+      dispatched: "2026-10-19T00:00:34-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: The test now uses the nested side doc 2026-10-17-02-ci.side/01-why.md, which never names qa/, and asserts that. With the SideDir clause removed from migrate_apply.go:147 the test fails (0 conflicts); with it restored the test passes.
+          round: 3
+      recipe: fix-review
+      isolation: fenced
+      reviewed: b4c241020db8006859a4c857d616962c6122b1a5
+      blocked: false
 ---
 
 # Gate ledger — ariadne#455 (boundary-review)
@@ -310,6 +416,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-7** [Minor] `resume-reads-state-at-one-path` (kind: defect) No test pins the lock check on side-folder destinations; the fixture reaches it through the outside-file clause
   This is the 2nd finding in family resume-reads-state-at-one-path. The rule is that every piece of per-file state the resume reads (registration, lock, seen baseline) is read at both old and new path, and each read is pinned by a fixture that reaches it only through that clause. Removing the SideDir prefix clause at migrate_apply.go:147 leaves TestMigrateAnswersLockAtDestination green, because the moved s4 doc mentions qa/op/log.jsonl. Add a destination doc that never mentions qa.
 
+## Round 3 — 2026-10-19T00:01:15-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — The test now uses the nested side doc 2026-10-17-02-ci.side/01-why.md, which never names qa/, and asserts that. With the SideDir clause removed from migrate_apply.go:147 the test fails (0 conflicts); with it restored the test passes.
+
 ## Open findings
 
-- **BR-7** [Minor] `resume-reads-state-at-one-path` (kind: defect) No test pins the lock check on side-folder destinations; the fixture reaches it through the outside-file clause
+(none — every finding has been disposed)

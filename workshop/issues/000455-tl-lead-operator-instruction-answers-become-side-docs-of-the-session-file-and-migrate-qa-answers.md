@@ -69,6 +69,8 @@ Items, in order: the spec and plan with two plan-quality rounds; RebaseLinks and
 
 ## Log
 
+
+- 2026-10-19: closed — Round-2 advisory fixed in b4c24102 (test only): TestMigrateAnswersLockAtDestination now locks the nested side doc, which names no qa/ path, so it reaches the lock only through the side-folder clause; removing that clause turns it red (checked by hand, then restored). go test ./cmd/tl-lead/ green. Code unchanged since the SHIP review; make test green on 7b3b597d. (fixed-then-ship); review verdict: SHIP
 ### 2026-10-18
 - 2026-10-18: closed — Close review round 1 fixed in 7b3b597d: BR-1 resume reads registration and lock at old and new paths, crash test asserts every moved registered doc marked seen, new test refuses a lock at the destination; BR-2 gitignoreGap warns via git check-ignore, tested in a real repo; BR-3 index entries rebase from their own file; BR-4 fake MarkAllSeen per file and live conformance applies an occurrence-2 record (pass against real couch); BR-5 --from confined; BR-6 temp sweep. make test green on 7b3b597d (12 shards, 1657 cmd/sdlc tests plus 70 packages, 0 failed, wall 642s). Ops dry run on this build: refused only because the operator held the session file lock at that moment, as designed; no gitignore warning. Live check of link in the parley finder is the hub after landing.; review verdict: SHIP
 

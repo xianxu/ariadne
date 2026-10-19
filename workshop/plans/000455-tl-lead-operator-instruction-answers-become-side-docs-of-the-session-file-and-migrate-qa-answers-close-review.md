@@ -243,3 +243,58 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"a4f4d284-f2e7-4b9e-8c26-69900c1f7ce0","repository":"github.com/xianxu/ariadne","issue_id":"000455","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/a07222c75c04f0de","reviewed_head":"7b3b597d0ce9de1f6cd252dfc2118aea4fb823fc","slot":"ariadne:4","requested_at":"2026-10-19T06:57:30.829121Z"},"phase":"finished","pid":2157,"started_at":"2026-10-19T06:57:31.030313Z","finished_at":"2026-10-19T06:59:19.011734Z","session_id":"29515d65-af61-49f0-b62c-eeb4e6362927","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-19T00:01:14-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 455 — tl-lead: operator-instruction answers become side docs of the session file (and migrate qa/ answers) |
+| repo | ariadne |
+| issue file | workshop/issues/000455-tl-lead-operator-instruction-answers-become-side-docs-of-the-session-file-and-migrate-qa-answers.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 35c5a1a651e93dfafe6ccbca21d530e317ef1842..b4c241020db8006859a4c857d616962c6122b1a5 |
+| command | sdlc close --issue 455 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-19T00:01:14-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Let me revert the side-folder clause and confirm the test goes red.
+
+The test goes red when the clause is removed. Next, a quick check that the issue file's Spec, Revisions and Done-when sections didn't change in this window.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This window has one code change: `cmd/tl-lead/migrate_test.go`, which answers BR-7. The rest is bookkeeping: two new close-gate and close-review records under `workshop/plans/`, plus the issue file's status, card mirror, hours and close Log line. Nothing in `## Spec`, `## Revisions` or `## Done when` changed, so the scope hasn't moved. The rewritten `TestMigrateAnswersLockAtDestination` now uses the nested side doc `tl-status-op.side/2026-10-17-02-ci.side/01-why.md` as the destination. It stops the run right after that doc's rename, keyed on `f.registered[moved]` rather than on a fragile step count. It also asserts that the fixture doc never contains `qa/op`, so only the side-folder clause can reach it. I checked this directly. I removed `|| strings.HasPrefix(rel, sidedoc.SideDir(s.Session)+"/")` from `cmd/tl-lead/migrate_apply.go:147`, and the test went red: no conflict was reported and the summary showed `0 conflicts`. With the clause restored, all `TestMigrateAnswers*` tests pass.
+
+1. **Strengths**
+   - `migrate_test.go:379-383`: the stop condition depends on observable state (the doc's registration has moved), not on a call count. That makes it robust when the order of steps changes.
+   - `migrate_test.go:388-390`: the test guards its own isolation. If someone later adds a `qa/op` mention to the fixture doc, the test fails loudly instead of quietly checking the outside-file clause again. This is the class-level protection the family `resume-reads-state-at-one-path` asks for.
+2. **Critical findings:** none.
+3. **Important findings:** none.
+4. **Minor findings:** none.
+5. **Test coverage notes:** I confirmed BR-7's regression test fails without the fix (clause reverted, test red, then restored).
+6. **Architectural notes**
+   - ARCH-DRY: pass. This is a test-only change with no duplicated logic.
+   - ARCH-PURE: pass. The test drives the injected fake (`deps{ss: f}`) and runs no new IO.
+   - ARCH-PURPOSE: pass. The fixture now isolates the clause BR-7 named.
+   - ARCH-EVOLVE: pass, not applicable. No persisted format changed.
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-7
+    disposition: addressed
+    note: |
+      The test now uses the nested side doc 2026-10-17-02-ci.side/01-why.md, which never names qa/, and asserts that. With the SideDir clause removed from migrate_apply.go:147 the test fails (0 conflicts); with it restored the test passes.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"fbfc1b94-fefe-4780-871f-d0099844328c","repository":"github.com/xianxu/ariadne","issue_id":"000455","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/fdbf839d7c005807","reviewed_head":"b4c241020db8006859a4c857d616962c6122b1a5","slot":"ariadne:4","requested_at":"2026-10-19T07:00:34.739689Z"},"phase":"finished","pid":27311,"started_at":"2026-10-19T07:00:34.841233Z","finished_at":"2026-10-19T07:01:14.398336Z","session_id":"436ffe81-9d44-4c1b-8f54-d8814db158c5","outcome":"returned"}] -->
