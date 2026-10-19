@@ -207,3 +207,102 @@ findings:
    Add a `## Revisions` entry correcting the table at plan lines 73–78: **overlapping saved window + unknown slot relationship → refuse unless trustworthy evidence resolves relevance**. Enumerate empty, absent, and mixed ownership evidence. Follow the plan’s stated design-review requirement for a case outside its four rows.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"bc02a72d-5886-421d-8761-dd310d146b97","repository":"github.com/xianxu/ariadne","issue_id":"000443","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/4ea3881561c3edfa","reviewed_head":"aea775197d15df067e707abfd47e0f80308db0a9","slot":"ariadne:1","requested_at":"2026-10-19T01:26:06.012622Z"},"phase":"finished","pid":11898,"started_at":"2026-10-19T01:26:06.102826Z","finished_at":"2026-10-19T01:32:12.373346Z","session_id":"01a151c4-1107-7010-b5ee-450d3e820140","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T19:30:02-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 443 — sdlc actual: a parked claim double-counts time the slot spent on other issues |
+| repo | ariadne |
+| issue file | workshop/issues/000443-sdlc-actual-a-parked-claim-double-counts-time-the-slot-spent-on-other-issues.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | f92193cf4afc9d2b302e132ec5a639bbe3e05098..27b80215792fd4d22d3316830c11f88bbcabf1b5 |
+| command | sdlc close --issue 443 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-18T19:30:02-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The exclusion core, pinned replay, and explicit decision table are sound improvements. BR-5’s empty-workspace fix is verified, but its broader rule remains incomplete: malformed, nonempty workspace identity still becomes affirmative “different slot” evidence and silently permits double counting.
+
+Done-when: current — preventing duplicate attribution and naming exclusions/refusals still covers the revised design.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The excluded-brain pass clears ProtectedIntervals; its provenance regression passes.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      creditedIntervals intersects positive allocations with counted Build/Converge phases; Tail and boundary-crossing regressions pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Proven different-slot ownership skips missing replay authority, including the no-completion legacy fixture; regressions pass.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The four/eight unrelated-adoption fixture passes without replaying unavailable sources while preserving same-slot protection.
+  - id: BR-5
+    disposition: not-addressed
+    note: |
+      Empty, absent, and mixed ownership are covered, but actualexclusion.go:154–177 treats malformed nonempty workspace identity as proven different. In a disposable pinned-head checkout, changing only #649's workspace to ariadne:06 makes #636 measure 0.333333h with no exclusions. A refusal regression fails on head and passes after requiring canonical parsed slot identity. This remains the same overlap-relevance-before-evidence rule failure.
+```
+
+**1. Strengths**
+
+- Pure interval subtraction unions overlapping credit and preserves other-slot activity.
+- Completion/correction snapshot selection is shared between historical replay and exclusion discovery.
+- Tests exercise the nine decision-table cells, queue ordering, saved prefixes, counted phases, and unrelated-card filtering.
+
+**2. Critical findings**
+
+**BR-5 remains open — validate identity before proving slot disjointness.** At [actualexclusion.go:154](/Users/xianxu/Library/Caches/sdlc/review-checkouts/16caa765eb6cea21/cmd/sdlc/actualexclusion.go:154), only an empty workspace produces `slotUnknown`. Any nonmatching, nonempty string eventually produces `slotDifferent`, which the loader skips.
+
+Both claimant parsing and engagement validation accept `ariadne:06`, although `workspace.ParseAddress` rejects it. The resulting numeric measurement silently recounts #649’s adopted interval.
+
+This continues the repeated family `overlap-relevance-before-evidence` (**ARCH-PURPOSE, ARCH-SECURE**). Complete the proof rule rather than adding another string exception: require valid canonical addresses before comparing slots; otherwise preserve unknown identity and refuse potentially overlapping adoption. Sweep malformed, noncanonical, incomplete, and mixed valid/invalid ownership with regressions.
+
+**3. Important findings**
+
+None.
+
+**4. Minor findings**
+
+None.
+
+**5. Test coverage notes**
+
+- Broader actual-time selection passed across `cmd/sdlc`, `internal/activetime`, and `internal/gatestate`; the command package completed in 190.048 seconds.
+- Removing the empty-workspace guard makes the existing BR-5 regression fail.
+- The additional malformed-workspace refusal regression fails on pinned head and passes with canonical slot validation.
+- Disposable checkouts were removed; the reviewed checkout remains unchanged. `git diff --check` passed.
+
+**6. Architectural notes**
+
+- **ARCH-DRY: pass** — shared snapshot authority selection.
+- **ARCH-PURE: pass** — subtraction and classification have direct pure tests.
+- **ARCH-PURPOSE: flag** — unknown identity can still bypass exclusivity.
+- **ARCH-MOCK: pass** — existing IO boundaries and isolated portable tracker fixtures are reused.
+- **ARCH-CONSTRAINTS: pass** — unrelated-card filtering and snapshot bounds are exercised.
+- **ARCH-SECURE: flag** — persisted workspace strings become disjointness evidence without address validation.
+- **ARCH-ORDER: pass** — production relevance decisions use the explicit state classifier.
+- **ARCH-FUNERAL: pass** — exclusions reuse bounded completion snapshots and their existing lifecycle.
+
+**7. Plan revision recommendations**
+
+Add a `## Revisions` entry defining “proven different” as comparison of validated canonical slot identities. Enumerate invalid/noncanonical identity as unknown, including mixed ownership, and require the malformed-workspace refusal regression before the next review.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"8966d7ed-836f-417b-ace2-6fac9be315af","repository":"github.com/xianxu/ariadne","issue_id":"000443","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/16caa765eb6cea21","reviewed_head":"27b80215792fd4d22d3316830c11f88bbcabf1b5","slot":"ariadne:1","requested_at":"2026-10-19T02:24:00.304988Z"},"phase":"finished","pid":67593,"started_at":"2026-10-19T02:24:00.45813Z","finished_at":"2026-10-19T02:29:57.291668Z","session_id":"01a151f9-14d7-77e2-8c9a-02399a906eea","outcome":"returned"}] -->
