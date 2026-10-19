@@ -47,7 +47,8 @@ func TestLandingGHParse(t *testing.T) {
 		{"wrong-branch", func(r map[string]any) { r["headRefName"] = "other" }, true},
 		{"short-head", func(r map[string]any) { r["headRefOid"] = "abc123" }, true},
 		{"missing-base", func(r map[string]any) { delete(r, "baseRefOid") }, true},
-		{"missing-merge", func(r map[string]any) { r["mergeCommit"] = nil }, true},
+		{"merged-by-reachability-without-merge", func(r map[string]any) { r["mergeCommit"] = nil }, false}, // #449: landedCommit proves it
+		{"malformed-merge", func(r map[string]any) { r["mergeCommit"] = map[string]any{"oid": "abc"} }, true},
 		{"null-head-repository", func(r map[string]any) { r["headRepository"] = nil }, true},
 		{"missing-cross-repo", func(r map[string]any) { delete(r, "isCrossRepository") }, true},
 		{"unknown-state", func(r map[string]any) { r["state"] = "QUEUED" }, true},

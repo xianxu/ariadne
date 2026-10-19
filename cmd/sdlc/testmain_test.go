@@ -158,7 +158,8 @@ func readSnapshot(root string) repoSnapshot {
 }
 
 func TestMain(m *testing.M) {
-	testgate.Enter() // one machine-wide test slot, and the -parallel cap (#324)
+	runningSDLC = func() binaryBuild { return binaryBuild{} } // No test probes the live binary source.
+	testgate.Enter()                                          // one machine-wide test slot, and the -parallel cap (#324)
 	testfix.PreferRealGit()
 	cleanupQuietGit := testfix.QuietBackgroundGit()
 	cleanupReviewBox := hermeticReviewBox()

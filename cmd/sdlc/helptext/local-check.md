@@ -39,6 +39,16 @@ WHAT A RUN DOES
   2. Takes one of the machine-wide full-suite slots (scripts/test-lock.py,
      the cap `make test` shares; WF_TEST_SUITES, WF_TEST_LOCK_TIMEOUT). It
      refuses rather than run unbounded when the lock helper cannot be found.
+     The run's checkout (sdlc-local-*) goes to /Volumes/TestScratch/local-checks
+     under the same rule, falling back if the disk refuses the write. The
+     command's TMPDIR and GOTMPDIR point at its own folder on the
+     TestScratch RAM disk (/Volumes/TestScratch/tmp/<check>-<pid>-…, removed
+     after) when the disk is mounted with 2 GiB free; otherwise the normal
+     temp folder, with a note when the disk is full or unreadable
+     (WF_TEST_SCRATCH=<dir> overrides the root, =off disables). Stale run
+     folders and go-build folders older than a day are swept first. After a
+     run on the RAM disk it warns about t.TempDir folders it left on the SSD
+     temp folders, by package, and counts the rest as unattributed (#468).
   3. Runs the command and keeps the log at
      <git common dir>/sdlc/local-checks/<sha>/<name>.log (newest 20 commits kept).
   4. Posts the status sdlc-local/<name> (success or failure, with exit,

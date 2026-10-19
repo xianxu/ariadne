@@ -27,6 +27,9 @@ const (
 type flakeWorld struct {
 	attempts []SuiteAttempt
 	cards    []flakes.Card
+	fixed    []fixedFlakeIssue
+	main     string
+	contains func(context.Context, string, string) (bool, error)
 	filed    []string // bodies of issues filed
 	regErr   error
 	// raceAdd is a registration another slot lands on a card between this
@@ -36,7 +39,7 @@ type flakeWorld struct {
 
 func (w *flakeWorld) deps() flakeDeps {
 	now := time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
-	return flakeDeps{
+	d := flakeDeps{
 		now:      func() time.Time { return now },
 		attempts: func() ([]SuiteAttempt, []string, error) { return w.attempts, nil, nil },
 		repo:     func() (string, error) { return flakeRepo, nil },
@@ -75,6 +78,12 @@ func (w *flakeWorld) deps() flakeDeps {
 			return id, nil
 		},
 	}
+	d.listView = func(ctx context.Context) (flakeListView, error) {
+		reg, cards, err := d.registry(ctx)
+		return flakeListView{Registry: reg, Cards: cards, Fixed: w.fixed, Main: w.main}, err
+	}
+	d.contains = w.contains
+	return d
 }
 
 func sixDigits(n int) string { return fmt.Sprintf("%06d", n) }

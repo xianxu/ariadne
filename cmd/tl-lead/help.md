@@ -186,12 +186,25 @@ TALKING TO THE OPERATOR
     - A later follow-up on a deleted bullet's topic goes to Needs you if it
       needs the operator, else into Threads or a new bullet's answer.
   - Answer docs live in teams/<team>/tl-status-<operator>.side/, named
-    YYYY-MM-DD-NN-<slug>.md, with the skill's side-doc frontmatter. They carry no
-    process-instruction, since the status file has none. The folder is
-    gitignored like the status file. Bullets already linked to the older
-    teams/<team>/qa/<operator>/ files keep their links, and a follow-up
-    extends the file its link names. An answer doc answers only the question
-    asked; Needs you and status stay in the status file.
+    YYYY-MM-DD-NN-<slug>.md, with the skill's side-doc frontmatter (type,
+    parent: ../tl-status-<operator>.md, marker, collaboration-mode), and the
+    backlink under the title. Only such a doc shows under the status file in
+    parley's attention finder. Write the doc first: `link` refuses any other
+    target (ariadne#455). New answer docs carry no process-instruction, since
+    the status file has none; answers migrated from qa/ keep their own. The
+    folder is gitignored like the status file. A follow-up extends the file
+    its link names. An answer doc answers only the question asked; Needs you
+    and status stay in the status file.
+  - The older teams/<team>/qa/<operator>/ answers move into that folder once,
+    with every link, the discussions: index and couch's registrations:
+        tl-lead status migrate-answers FILE           (a dry run: the plan)
+        tl-lead status migrate-answers FILE --apply
+    Run it while the operator isn't editing those docs. Any conflict (a
+    different file at a destination, an operator lock, broken frontmatter)
+    refuses before anything is written. Moved files keep their mtimes, so
+    the finder doesn't list them all at once. A stop midway resumes when you
+    rerun it. Bare qa/ mentions (sources: lists, code spans) are listed, not
+    rewritten: fix those by hand, and commit the tracked files it rewrote.
   - The rest of the status file (Needs you, Threads, …) is discussion: an
     instruction there is carried out, and a 🤖 question opens a side doc in
     the same tl-status-<operator>.side/ folder (NN-<slug>.md), linked in place

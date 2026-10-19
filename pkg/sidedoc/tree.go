@@ -15,12 +15,7 @@ func SideDir(doc string) string {
 // document moves to toDoc (collaboration-modes.md §5: the whole tree moves
 // with its document). ok is false for a path outside the folder.
 func MoveMember(member, fromDoc, toDoc string) (string, bool) {
-	from, to := SideDir(fromDoc), SideDir(toDoc)
-	rel, ok := strings.CutPrefix(member, from+"/")
-	if !ok || rel == "" {
-		return "", false
-	}
-	return to + "/" + rel, true
+	return MoveUnder(member, SideDir(fromDoc), SideDir(toDoc))
 }
 
 // Folder returns the side folder (`<name>.side`) a slash path lies in: the

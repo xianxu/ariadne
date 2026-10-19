@@ -32,28 +32,48 @@ func TestDecodeSuiteAttemptRejectsUntrustedRecords(t *testing.T) {
 	if got, err := decodeSuiteAttempt([]byte(v2)); err != nil || got.Outcome != "known-flake-rerun" || got.KnownFlakes[0].Issue != "000448" || got.RerunOf != "b2" {
 		t.Fatalf("valid v2 record (#394): %+v %v", got, err)
 	}
+	newer := strings.Replace(v2, `"version":2`, `"version":2,"future":{"nested":[1,2]}`, 1)
+	newer = strings.Replace(newer, `"issue":"000448"`, `"issue":"000448","future":{"nested":true}`, 1)
+	newer = strings.Replace(newer, `"log_path":"failed/a1.log"`, `"log_path":"failed/a1.log","units":[{"kind":"package","name":"x/a","seconds":1,"future":{"nested":true}}]`, 1)
+	if got, err := decodeSuiteAttempt([]byte(newer)); err != nil || got.Exit != 2 || got.SHA != strings.Repeat("a", 40) || got.KnownFlakes[0].Issue != "000448" || len(got.Units) != 1 {
+		t.Fatalf("newer additive attempt refused or changed known facts: %+v %v", got, err)
+	}
 	for name, raw := range map[string]string{
-		"truncated":        valid[:len(valid)-1],
-		"version":          strings.Replace(valid, `"version":1`, `"version":3`, 1),
-		"v2 field in v1":   strings.Replace(valid, `"version":1`, `"version":1,"outcome":"known-flake-rerun"`, 1),
-		"bad outcome":      strings.Replace(valid, `"version":1`, `"version":2,"outcome":"green"`, 1),
-		"bad known flake":  strings.Replace(valid, `"version":1`, `"version":2,"known_flakes":[{"test":"TestX","issue":"000001"}]`, 1),
-		"self rerun":       strings.Replace(valid, `"version":1`, `"version":2,"rerun_of":"a1"`, 1),
-		"rerun as suite":   strings.Replace(valid, `"version":1`, `"version":2,"rerun_of":"b2"`, 1),
-		"rerun no parent":  strings.Replace(valid, `"check":"suite"`, `"check":"suite-rerun"`, 1),
-		"traversal":        strings.Replace(valid, `failed/a1.log`, `../../outside`, 1),
-		"negative wall":    strings.Replace(valid, `"exit":2`, `"wall_seconds":-1,"exit":2`, 1),
-		"false success":    strings.Replace(valid, `"exit":2`, `"exit":0,"timed_out":true`, 1),
-		"unknown":          strings.Replace(valid, `"version":1`, `"version":1,"surprise":true`, 1),
-		"missing exit":     strings.Replace(valid, `"exit":2,`, ``, 1),
-		"missing baseline": strings.Replace(valid, `"main_baseline":false,`, ``, 1),
-		"duplicate exit":   strings.Replace(valid, `"exit":2,`, `"exit":0,"exit":2,`, 1),
-		"null exit":        strings.Replace(valid, `"exit":2,`, `"exit":null,`, 1),
-		"case alias exit":  strings.Replace(valid, `"exit":2,`, `"exit":2,"Exit":0,`, 1),
-		"case alias sha":   strings.Replace(valid, `"sha":"`, `"SHA":"`, 1),
-		"case alias check": strings.Replace(valid, `"check":"suite"`, `"Check":"suite"`, 1),
-		"case alias unit":  strings.Replace(valid, `"log_path":"failed/a1.log"`, `"log_path":"failed/a1.log","units":[{"kind":"package","name":"x/a","seconds":1,"Seconds":999}]`, 1),
-		"invalid slot":     strings.Replace(valid, `"check":"suite"`, `"check":"suite","slot":"ariadne:01"`, 1),
+		"root":  strings.Replace(valid, `"version":1`, `"version":1,"future":{"number":1e400}`, 1),
+		"unit":  strings.Replace(newer, `"seconds":1,"future":{"nested":true}`, `"seconds":1,"future":{"nested":1e400}`, 1),
+		"flake": strings.Replace(v2, `"issue":"000448"`, `"issue":"000448","future":{"number":1e400}`, 1),
+	} {
+		t.Run("opaque number "+name, func(t *testing.T) {
+			if _, err := decodeSuiteAttempt([]byte(raw)); err != nil {
+				t.Fatalf("unknown number should remain opaque: %v", err)
+			}
+		})
+	}
+	for name, raw := range map[string]string{
+		"truncated":               valid[:len(valid)-1],
+		"version":                 strings.Replace(valid, `"version":1`, `"version":3`, 1),
+		"v2 field in v1":          strings.Replace(valid, `"version":1`, `"version":1,"outcome":"known-flake-rerun"`, 1),
+		"bad outcome":             strings.Replace(valid, `"version":1`, `"version":2,"outcome":"green"`, 1),
+		"bad known flake":         strings.Replace(valid, `"version":1`, `"version":2,"known_flakes":[{"test":"TestX","issue":"000001"}]`, 1),
+		"self rerun":              strings.Replace(valid, `"version":1`, `"version":2,"rerun_of":"a1"`, 1),
+		"rerun as suite":          strings.Replace(valid, `"version":1`, `"version":2,"rerun_of":"b2"`, 1),
+		"rerun no parent":         strings.Replace(valid, `"check":"suite"`, `"check":"suite-rerun"`, 1),
+		"traversal":               strings.Replace(valid, `failed/a1.log`, `../../outside`, 1),
+		"negative wall":           strings.Replace(valid, `"exit":2`, `"wall_seconds":-1,"exit":2`, 1),
+		"false success":           strings.Replace(valid, `"exit":2`, `"exit":0,"timed_out":true`, 1),
+		"duplicate unknown":       strings.Replace(valid, `"version":1`, `"version":1,"future":1,"future":2`, 1),
+		"missing exit":            strings.Replace(valid, `"exit":2,`, ``, 1),
+		"missing baseline":        strings.Replace(valid, `"main_baseline":false,`, ``, 1),
+		"duplicate exit":          strings.Replace(valid, `"exit":2,`, `"exit":0,"exit":2,`, 1),
+		"null exit":               strings.Replace(valid, `"exit":2,`, `"exit":null,`, 1),
+		"case alias exit":         strings.Replace(valid, `"exit":2,`, `"exit":2,"Exit":0,`, 1),
+		"case alias sha":          strings.Replace(valid, `"sha":"`, `"SHA":"`, 1),
+		"case alias check":        strings.Replace(valid, `"check":"suite"`, `"Check":"suite"`, 1),
+		"case alias unit":         strings.Replace(valid, `"log_path":"failed/a1.log"`, `"log_path":"failed/a1.log","units":[{"kind":"package","name":"x/a","seconds":1,"Seconds":999}]`, 1),
+		"overflow known unit":     strings.Replace(valid, `"log_path":"failed/a1.log"`, `"log_path":"failed/a1.log","units":[{"kind":"package","name":"x/a","seconds":1e400}]`, 1),
+		"case alias flake":        strings.Replace(v2, `"issue":"000448"`, `"issue":"000448","Issue":"000001"`, 1),
+		"duplicate flake unknown": strings.Replace(v2, `"issue":"000448"`, `"issue":"000448","future":1,"future":2`, 1),
+		"invalid slot":            strings.Replace(valid, `"check":"suite"`, `"check":"suite","slot":"ariadne:01"`, 1),
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := decodeSuiteAttempt([]byte(raw)); err == nil {

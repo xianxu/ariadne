@@ -165,7 +165,7 @@ func TestLandingArchiveSideFolders(t *testing.T) {
 			laWrite(t, root, "workshop/history/issues/000246-landing.side/09-old.md", "older\n")
 		}
 		pr.HeadOID = laCommit(t, root, "side docs")
-		pr.MergeOID = pr.HeadOID
+		pr.MergeOID, pr.LandedOID = pr.HeadOID, pr.HeadOID
 		testfix.Git(t, root, "push", "-q", "origin", "HEAD:main")
 		before := laGit(t, origin, "rev-parse", "main")
 		err := laArchive(root, pr)
