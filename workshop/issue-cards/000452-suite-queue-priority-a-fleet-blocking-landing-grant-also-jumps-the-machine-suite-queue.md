@@ -1,6 +1,6 @@
 ---
 id: 000452
-status: codecomplete
+status: done
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours: 1.63
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 0e36a07b0b8ff23f565224549d685ef68a7c4e36
         evidence_commit: 8156ff5f41b631813a166c68af31115b94e39932
+        landed_commit: 2d81346db36cb11c27529d9295fa97f1ce8365ef
 ---
 
 # suite queue priority: a fleet-blocking landing grant also jumps the machine suite queue
