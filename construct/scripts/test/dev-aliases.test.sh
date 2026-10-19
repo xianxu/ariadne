@@ -32,21 +32,15 @@ assert_not_contains() { case "$2" in *"$1"*) ko "$3 — unexpected: $1" ;; *) ok
 # A diagnostic flag may add stderr, but must preserve machine-readable --list
 # stdout and status, in both ordinary and strict modes.
 assert_verbose_list_unchanged() {
-	local label="$1" cwd="$2" strict="$3" expected="$4" strict_rc="$5" ordinary_rc verbose_rc
-	# Strictness changes collision status, not the already checked list mapping.
-	# Reuse that ordinary mapping while still checking both verbose modes.
-	if [ -z "$strict" ]; then
-		( cd "$cwd" && bash "$GEN" --workspace "$WS" --list > "$WS/ordinary.list" 2> "$WS/ordinary.err" ); ordinary_rc=$?
-	else
-		ordinary_rc=$strict_rc
-	fi
-	( cd "$cwd" && bash "$GEN" --workspace "$WS" --list ${strict:+--strict} --verbose > "$WS/verbose.list" 2> "$WS/verbose.err" ); verbose_rc=$?
-	if [ "$ordinary_rc" -eq "$verbose_rc" ] && cmp -s "$WS/ordinary.list" "$WS/verbose.list"; then
-		ok "$label preserves --list stdout and status"
-	else
-		ko "$label changed --list stdout or status"
-	fi
-	assert_contains "$expected" "$(cat "$WS/verbose.err")" "$label reports diagnostics on stderr"
+    local label="$1" cwd="$2" strict="$3" expected="$4" ordinary_rc verbose_rc
+    ( cd "$cwd" && bash "$GEN" --workspace "$WS" --list ${strict:+--strict} > "$WS/ordinary.list" 2> "$WS/ordinary.err" ); ordinary_rc=$?
+    ( cd "$cwd" && bash "$GEN" --workspace "$WS" --list ${strict:+--strict} --verbose > "$WS/verbose.list" 2> "$WS/verbose.err" ); verbose_rc=$?
+    if [ "$ordinary_rc" -eq "$verbose_rc" ] && cmp -s "$WS/ordinary.list" "$WS/verbose.list"; then
+        ok "$label preserves --list stdout and status"
+    else
+        ko "$label changed --list stdout or status"
+    fi
+    assert_contains "$expected" "$(cat "$WS/verbose.err")" "$label reports diagnostics on stderr"
 }
 
 mkcmd() { mkdir -p "$1"; printf 'package main\nfunc main() {}\n' > "$1/main.go"; }
@@ -189,7 +183,7 @@ out="$2"
 cp "$SENTINEL" "$out"
 STUBEOF
 chmod +x "$STUB/make" "$STUB/go"
-gen_def="$gen_line"
+gen_def="$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^gen()')"
 export TRACE="$WS/trace"; : > "$TRACE"
 run_out="$(PATH="$STUB:$PATH" bash -c "$gen_def; gen a b" 2>/dev/null)"
 [ "$run_out" = "ran a b" ] && ok "the binary's stdout carries only its own output" || ko "stdout polluted: [$run_out]"
@@ -276,8 +270,8 @@ slot_out="$(cd "$SLOT" && bash "$GEN" --workspace "$WS" --list --strict 2>"$WS/s
 [ "$slot_rc" -eq 0 ] && ok "same-origin checkouts pass --strict" || ko "same-origin checkouts failed --strict"
 [ ! -s "$WS/slot.err" ] && ok "same-origin checkouts produce no warning" || ko "same-origin warning: [$(cat "$WS/slot.err")]"
 assert_contains "$(printf 'sdlc\t%s' "$SUBSTRATE")" "$slot_out" "slot substrate remains selected owner"
-assert_verbose_list_unchanged "same-origin verbose" "$SLOT" "" "same-origin" 0
-assert_verbose_list_unchanged "same-origin strict verbose" "$SLOT" "strict" "same-origin" 0
+assert_verbose_list_unchanged "same-origin verbose" "$SLOT" "" "same-origin"
+assert_verbose_list_unchanged "same-origin strict verbose" "$SLOT" "strict" "same-origin"
 set_origin "$SUBSTRATE" ssh://git@github.com/example/ariadne.git
 if (cd "$SLOT" && bash "$GEN" --workspace "$WS" --strict --list >"$WS/ssh-list" 2>"$WS/ssh.err"); then
 	[ ! -s "$WS/ssh.err" ] && ok "GitHub ssh:// origin is equivalent and quiet under --strict" || ko "GitHub ssh:// warned: [$(cat "$WS/ssh.err")]"
@@ -297,8 +291,8 @@ set_origin "$WS/repob" https://github.com/example/repob.git
 bash "$GEN" --workspace "$WS" > "$WS/dupe.defs" 2> "$WS/dupe.err"
 dup_err="$(cat "$WS/dupe.err")"
 assert_contains "duplicate binary 'dupe'" "$dup_err" "warns on duplicate binary name"
-assert_verbose_list_unchanged "distinct-origin verbose" "$WS" "" "duplicate binary 'dupe'" 1
-assert_verbose_list_unchanged "distinct-origin strict verbose" "$WS" "strict" "duplicate binary 'dupe'" 1
+assert_verbose_list_unchanged "distinct-origin verbose" "$WS" "" "duplicate binary 'dupe'"
+assert_verbose_list_unchanged "distinct-origin strict verbose" "$WS" "strict" "duplicate binary 'dupe'"
 # last-win: repob sorts after repoa
 dup_line="$(grep '^dupe()' "$WS/dupe.defs")"
 assert_contains "cd $WS/repob " "$dup_line" "duplicate resolves last-win (repob)"
@@ -379,7 +373,7 @@ fi
 printf 'echo built\n' >> "$out"
 STUBEOF
 chmod +x "$SLOW/go"
-nous_def="$nous_line"
+nous_def="$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^nous()')"
 PATH="$SLOW:$PATH" bash -c "$nous_def; nous >/dev/null" || ko "the first build failed"
 touch -t 203001010000 "$WS/nous/cmd/nous/main.go"
 mkfifo "$WS/ready"

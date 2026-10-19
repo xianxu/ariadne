@@ -90,6 +90,101 @@ rounds:
       recipe: small-diff-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: b70b1f4e-f683-4548-a58a-a7a1da42fe4e
+            repository: github.com/xianxu/ariadne
+            issue_id: "000465"
+            recipe: small-diff-review
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/43d958124e9bd312
+            reviewed_head: 7b64fba896b2b67f054c10e6ab6efd9b31d84566
+            slot: ariadne:3
+            requested_at: "2026-10-19T15:28:38.159182Z"
+          phase: finished
+          pid: 67808
+          started_at: "2026-10-19T15:28:38.340237Z"
+          finished_at: "2026-10-19T15:31:17.622585Z"
+          session_id: 01a154c7-6f68-7d42-af66-f7acbd01040d
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 7b64fba896b2b67f054c10e6ab6efd9b31d84566
+        tracker_head: 3adcfba4745aa1327f4d85e699615d15b16d7019
+        branch_point: 45a96385ad4d24bda920822c60d7879d643a2a99
+        since: "2026-10-19T07:56:05-07:00"
+        until: "2026-10-19T08:27:53-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T07:56:05-07:00"
+              end: "2026-10-19T08:27:53-07:00"
+              began: "2026-10-19T07:56:05-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: d99b9a87559ec9b72f49191b7b6152699992e9bb506aa8938f05774e91662f09
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 38610170
+              windows:
+                - start: "2026-10-19T07:56:05-07:00"
+                  end: "2026-10-19T08:27:53-07:00"
+            - harness: codex
+              id: 01a154a9-c7b3-73a1-9284-3ee124ec3272
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a14367-9218-7872-89c3-f9a28c524834
+              digest: 0bfec05f99b356a7a34127c3a034e9089ba5afe4d74daa537db66e54ca93036c
+              started: "2026-10-19T14:56:15.338Z"
+              spawned: true
+              bytes: 1003925
+              windows:
+                - start: "2026-10-19T14:56:15.338Z"
+                  end: "2026-10-19T08:27:53-07:00"
+        cuts:
+            - dispatched: "2026-10-19T08:22:48-07:00"
+              finalized: "2026-10-19T08:25:00-07:00"
+              finalizing: false
+      "n": 2
+      timestamp: "2026-10-19T08:31:18-07:00"
+      dispatched: "2026-10-19T08:28:38-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: construct/scripts/test/dev-aliases.test.sh:446-454 establishes start=2000, edit=2001, output=2002. Normal execution passes 82/82; replacing timestamp restoration with a no-op makes the mid-build-edit assertion at line 499 fail (79 passed, three failures including two shape checks).
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: The pinned before/after diff updates the issue's Done when at lines 35-37 to require path conformance, N/2N zero-launch checks, counted reductions, repeated targeted checks, and a loaded recorded-suite pass, matching Revisions at lines 54-56 while retaining the two-minute ceiling.
+          round: 2
+      findings:
+        - kind: defect
+          id: BR-3
+          severity: Important
+          title: Strict-list comparison no longer observes ordinary strict output
+          detail: |-
+            construct/scripts/test/dev-aliases.test.sh:35-44 skips ordinary --strict --list execution, substitutes a supplied status, and compares verbose strict output against a non-strict baseline. All instances are the same-origin and distinct-origin strict calls at lines 280 and 301. A production mutation suppressing ordinary strict-list output only on collisions passes 82/82 at head; the identical mutation fails the original test (81 passed, one failure).
+            This is the 2nd finding in family preserve-regression-sensitivity. Earlier rounds fixed instances. Do not fix only the demonstrated collision case: enforce the rule that fixture reuse must preserve observed output and status for every originally tested mode. Capture or reuse actual strict results for both enumerated cases and verify the mutation fails. ARCH-PURPOSE requires preserving behavioral coverage, not merely assertion counts.
+          family: preserve-regression-sensitivity
+          round: 2
+      recipe: small-diff-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#465 (boundary-review)
@@ -106,7 +201,19 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-2** [Important] `acceptance-contract-synchronization` (kind: defect) Done when does not reflect the revised acceptance contract
   workshop/issues/000465-dev-aliases-script-exceeds-its-per-script-budget-under-suite-load.md:35-36 retains the original wall-time criteria, while Revisions at lines 53-55 adds production path conformance and N/2N zero-path-utility requirements and accepts counted reductions plus a loaded recorded-suite pass. This issue's Done when section is the sole instance in the window. Update it to name those required checks and reconcile the performance evidence, preserving the recorded-suite requirement.
 
+## Round 2 — 2026-10-19T08:31:18-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — construct/scripts/test/dev-aliases.test.sh:446-454 establishes start=2000, edit=2001, output=2002. Normal execution passes 82/82; replacing timestamp restoration with a no-op makes the mid-build-edit assertion at line 499 fail (79 passed, three failures including two shape checks).
+- BR-2 — addressed — The pinned before/after diff updates the issue's Done when at lines 35-37 to require path conformance, N/2N zero-launch checks, counted reductions, repeated targeted checks, and a loaded recorded-suite pass, matching Revisions at lines 54-56 while retaining the two-minute ceiling.
+
+### Raised
+
+- **BR-3** [Important] `preserve-regression-sensitivity` (kind: defect) Strict-list comparison no longer observes ordinary strict output
+  construct/scripts/test/dev-aliases.test.sh:35-44 skips ordinary --strict --list execution, substitutes a supplied status, and compares verbose strict output against a non-strict baseline. All instances are the same-origin and distinct-origin strict calls at lines 280 and 301. A production mutation suppressing ordinary strict-list output only on collisions passes 82/82 at head; the identical mutation fails the original test (81 passed, one failure).
+  This is the 2nd finding in family preserve-regression-sensitivity. Earlier rounds fixed instances. Do not fix only the demonstrated collision case: enforce the rule that fixture reuse must preserve observed output and status for every originally tested mode. Capture or reuse actual strict results for both enumerated cases and verify the mutation fails. ARCH-PURPOSE requires preserving behavioral coverage, not merely assertion counts.
+
 ## Open findings
 
-- **BR-1** [Important] `preserve-regression-sensitivity` (kind: defect) Future-dated edits no longer test build-start timestamp preservation
-- **BR-2** [Important] `acceptance-contract-synchronization` (kind: defect) Done when does not reflect the revised acceptance contract
+- **BR-3** [Important] `preserve-regression-sensitivity` (kind: defect) Strict-list comparison no longer observes ordinary strict output
