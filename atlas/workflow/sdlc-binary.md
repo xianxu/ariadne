@@ -408,6 +408,23 @@ shows the landing now, the waiters in admission order, live grants and the delay
 p50/p90. `grant` and `revoke` take `--repo DIR` and are refused from a worker
 slot.
 
+**Landing train (#449, in progress).** `.sdlc/landing.json` on main
+(`train_interval_minutes`, `train_max_cars`; local-gates guarded) turns the line
+into trains. Absent, or an interval of 0, keeps the serial line above. With
+trains on:
+- A waiting merge vouches its readiness in `ready/<seq>` beside its ticket
+  (`landingcar.go`): its own publish and CI gates, read-only, for its exact
+  pushed head.
+- Admission waits for the departure (the last `train` event's `next_due`)
+  and a current vouch. A grant departs at once, alone.
+- The pure core is in `internal/landingline`: `train.go` (schedule, readiness
+  codec, boarding), `trainstate.go` (the running train's state machine) and
+  `bisect.go` (splitting a failing train).
+
+`sdlc landing status` shows the train setting and each waiter's vouch. The
+conductor that builds and lands a train arrives in M2. Plan:
+`workshop/plans/000449-landing-train-plan.md`.
+
 ## The quick flow at close (#231)
 
 `internal/flow` is the pure core: the one-line `flow:` record codec, `Decide`

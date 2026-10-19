@@ -40,7 +40,7 @@ A landing train, extending #393: on a configurable interval (default hourly), ta
 
 Durable plan: `workshop/plans/000449-landing-train-plan.md` (state table, Q1–Q7 for the hub).
 
-- [ ] M1 — Pure core and readiness: schedule, readiness sidecar, boarding, train state machine, bisect, additive events, landing status, `.sdlc/landing.json`; interval 0 equals today.
+- [x] M1 — Pure core and readiness: schedule, readiness sidecar, boarding, train state machine, bisect, additive events, landing status, `.sdlc/landing.json`; interval 0 equals today.
 - [ ] M2 — Conductor: train branch and PR, one suite, CI, merge; cars resume on merged; GitHub fake merges by reachability.
 - [ ] M3 — Split on unexplained failure, known-flake rerun, grant bypass, conflict and CI-red handling, per-train report, live conformance, docs.
 
@@ -80,3 +80,10 @@ Items in order:
 ### 2026-10-19
 
 - Claimed and started from ariadne:2. Explored the #393 landing line (flock tickets, head.lock, events.jsonl; no daemon in sdlc, so the schedule rides on admission). Wrote the durable plan; sent its summary and Q1–Q7 to the hub before code.
+- Plan-quality: 3 rounds. PQ-1: `.sdlc/*` IS local-gates guarded, corrected to the hub, so the pilot needs the operator label. PQ-2: the sidecar moved to `ready/`. PQ-3: every `MergeOID` consumer goes through one landed commit (M2). Estimate 5.47h.
+- M1 built:
+  - the pure core (4c755312): a mutation of split is caught by the random-history invariants;
+  - the car side, config, admission and status (5918c6fd).
+- Found while reading for M2: `parseLandingPRs` refuses a MERGED PR without `mergeCommit` (ghlanding.go). That is a fifth `MergeOID` consumer beyond PQ-3's list, and it moves into the landed-commit rule in M2.
+- #460 audit (ariadne:1): the readiness sidecar keeps unknown members across a same-ticket rewrite, with strict known members and no duplicate keys, plus regressions.
+- Verification: the landingline package; the new cmd tests under -race; `go test -run 'Landing|Merge|Integrat|CIGate|Local|Archive|Tracker' ./cmd/sdlc/` ok in 1922s, so interval 0 leaves landing unchanged.
