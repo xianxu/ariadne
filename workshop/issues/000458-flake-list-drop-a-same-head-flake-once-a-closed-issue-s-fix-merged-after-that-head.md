@@ -39,7 +39,7 @@ flow: {kind: quick, provenance: inferred, spec: "1e0dcaea", done: "6ff1911f"}
 
 ## Plan
 
-- [x] Build a read-only snapshot of terminal issue cards and their published active/archived details; require one unambiguous issue, a valid landing merge, and exact test ownership. Keep the open flake registry unchanged.
+- [x] Build a read-only snapshot of terminal issue cards; require one unambiguous card owner, a valid landing merge, and exact `flake_tests` ownership. Keep the open flake registry unchanged.
 - [x] Classify each confirmed same-head failure against that snapshot and the real Git ancestry: pre-merge fixed, post-merge recurrent, or unknown. Unknown remains listed; `-v` explains fixed entries.
 - [ ] Test the decision matrix with real Git history and fake cards, including unreadable/ambiguous/missing data, then verify pair's five pilot rows using the branch binary. Run `make -k` and the recorded suite, close on SHIP, and land.
 
@@ -74,3 +74,5 @@ Red-first correction: the prior matcher falsely owned a test from a Problem para
 The recorded suite on b64abf3422274c046cc283b613ca4a38836d2185 passed 1,688 cmd/sdlc tests in 12 shards and 71 other packages, zero failures (log SHA-256 prefix 56a36c950b88). Close review round 4 returned REWORK on BR-6: a sample `- Test:` in an unclosed fence, indented code or an HTML comment could still hide a flake. Red fixtures reproduced each form and a real-Git command suppression; the matcher now requires a top-level Log entry outside either kind of fence and HTML comments. The revised plan records the boundary.
 
 The unchanged full-suite rerun on da8c62d2e111ef7fe86cc0c351e00d6512a5a87a passed 1,688 cmd/sdlc tests and 71 packages, zero failures (log SHA-256 prefix 7aa46b5ac1a4). The previous run on the same head timed out only in `TestConstructScripts/plain/dev-aliases.test.sh`; its exact-head targeted rerun passed 82/82 in 33.779s. The independent test-cost regression is filed as #465; #466 tracks exact subtest registration and narrowing. Close review round 5 kept BR-6 open on raw HTML samples and unmatched backticks. The hub approved a final simplification: only card `flake_tests` may establish ownership, so no Markdown parser remains in this path.
+
+The final correction removes the detail-text loader and matcher entirely. A published-tracker fixture verifies that plain Log text, raw HTML and an unmatched backtick never claim a test; the card-only and real-Git command fixtures verify that an exact structured owner still hides a pre-fix row and labels recurrence. Focused tests passed. The five pair legacy rows remain visible and age out under the 30-day attempt retention; no closed-card backfill is planned.

@@ -5,9 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
-	"path"
-	"path/filepath"
-	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
@@ -16,12 +13,10 @@ import (
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
-// fixedFlakeIssue is a terminal card joined to its published detail body.
-// Unknown detail evidence must be retained: it could claim any test.
+// fixedFlakeIssue is a terminal card's structured test ownership and landing.
 type fixedFlakeIssue struct {
-	ID, Merge, Details string
-	Tests              []string
-	DetailKnown        bool
+	ID, Merge string
+	Tests     []string
 }
 
 type fixedFlakeState uint8
@@ -77,7 +72,7 @@ func flakeGitContains(ctx context.Context, root, ancestor, head string) (bool, e
 func publishedFixedIssues(ctx context.Context, issuesDir string, rs tracker.Records) ([]fixedFlakeIssue, string, error) {
 	root := repoRootOfContext(ctx, issuesDir)
 	if root == "" {
-		return nil, "", errors.New("issue details are outside a repository")
+		return nil, "", errors.New("issue cards are outside a repository")
 	}
 	trunk, err := peerTrunk(ctx, root)
 	if err != nil {
@@ -86,37 +81,6 @@ func publishedFixedIssues(ctx context.Context, issuesDir string, rs tracker.Reco
 	main, err := trunk.Snapshot()
 	if err != nil {
 		return nil, "", err
-	}
-	active, err := gitx.InsideRoot(root, issuesDir)
-	if err != nil {
-		return nil, "", err
-	}
-	archived, err := gitx.InsideRoot(root, vocab.ArchiveSubdir(historyDir(), vocab.ArchiveIssues))
-	if err != nil {
-		return nil, "", err
-	}
-	details := map[string]string{}
-	duplicates := map[string]bool{}
-	for _, dir := range []string{active, archived} {
-		files, err := main.FilesSelected(filepath.ToSlash(dir), func(file gitx.TreeFile) bool {
-			_, _, ok := issue.ParseFilename(path.Base(file.Path))
-			return ok && path.Dir(file.Path) == filepath.ToSlash(dir)
-		})
-		if err != nil {
-			return nil, "", err
-		}
-		for _, file := range files {
-			id, _, _ := issue.ParseFilename(path.Base(file.Path))
-			if _, exists := details[id]; exists {
-				duplicates[id] = true
-			}
-			_, body, err := issue.Parse(string(file.Content))
-			if err != nil {
-				duplicates[id] = true
-				continue
-			}
-			details[id] = body
-		}
 	}
 	var fixed []fixedFlakeIssue
 	for _, rec := range rs.All() {
@@ -131,64 +95,15 @@ func publishedFixedIssues(ctx context.Context, issuesDir string, rs tracker.Reco
 		if err != nil {
 			return nil, "", fmt.Errorf("issue %s completion: %w", rec.ID, err)
 		}
-		_, present := details[rec.ID]
-		fixed = append(fixed, fixedFlakeIssue{ID: rec.ID, Merge: completion.LandedCommit, Tests: tests, Details: details[rec.ID], DetailKnown: present && !duplicates[rec.ID]})
+		fixed = append(fixed, fixedFlakeIssue{ID: rec.ID, Merge: completion.LandedCommit, Tests: tests})
 	}
 	return fixed, main.Ref(), nil
 }
 
-// fixedIssueCovers accepts only structured, fully qualified ownership. Prose
-// can mention a test without claiming responsibility for its fix.
-func fixedIssueCovers(tests []string, details, name string) bool {
+// fixedIssueCovers consults only the terminal card's structured field.
+func fixedIssueCovers(tests []string, name string) bool {
 	for _, test := range tests {
 		if test == name {
-			return true
-		}
-	}
-	lines := strings.Split(details, "\n")
-	// A truncated fence is uncertain, never ownership evidence.
-	fenced := issue.FenceSpans(lines, issue.UnterminatedIsFenced)
-	section := ""
-	comment := false
-	for n, line := range lines {
-		if fenced[n] {
-			continue
-		}
-		commentLine := comment
-		for rest := line; rest != ""; {
-			if comment {
-				end := strings.Index(rest, "-->")
-				if end < 0 {
-					break
-				}
-				comment = false
-				commentLine = true
-				rest = rest[end+3:]
-				continue
-			}
-			start := strings.Index(rest, "<!--")
-			if start < 0 {
-				break
-			}
-			comment = true
-			commentLine = true
-			rest = rest[start+4:]
-		}
-		if commentLine {
-			continue
-		}
-		if strings.HasPrefix(line, "## ") {
-			section = strings.TrimSpace(strings.TrimPrefix(line, "## "))
-			continue
-		}
-		if section != "Log" {
-			continue
-		}
-		if !strings.HasPrefix(line, "- Test: ") {
-			continue
-		}
-		value := strings.TrimSpace(strings.TrimPrefix(line, "- Test: "))
-		if strings.Trim(value, "`") == name {
 			return true
 		}
 	}
@@ -196,20 +111,11 @@ func fixedIssueCovers(tests []string, details, name string) bool {
 }
 
 // classifyFixedFlake coordinates ownership with injected Git ancestry. It is
-// integration logic: fixedIssueCovers is the pure document matcher.
+// integration logic: fixedIssueCovers is the pure card matcher.
 func classifyFixedFlake(name string, issues []fixedFlakeIssue, contains func(string, string) (bool, error), main, head string) (fixedFlakeState, fixedFlakeIssue, string) {
 	var candidates []fixedFlakeIssue
 	for _, candidate := range issues {
-		if !candidate.DetailKnown {
-			// A legacy terminal card with neither details nor a landing merge
-			// cannot prove a fix. Its explicit flake_tests can still make this
-			// test's ownership uncertain; an unrelated empty card cannot.
-			if candidate.Merge != "" || fixedIssueCovers(candidate.Tests, "", name) {
-				return flakeUnknown, fixedFlakeIssue{}, fmt.Sprintf("issue #%s details unreadable", candidate.ID)
-			}
-			continue
-		}
-		if fixedIssueCovers(candidate.Tests, candidate.Details, name) {
+		if fixedIssueCovers(candidate.Tests, name) {
 			candidates = append(candidates, candidate)
 		}
 	}
