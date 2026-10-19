@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "b190a369", done: "a402fdec"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # weave: honor a repo's CI-workflow opt-out (ops re-seeded after opting out)
@@ -60,6 +60,8 @@ Steps:
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — go test ./cmd/weave/... ./pkg/layergraph/... ok; go vet clean; fixture tests: TestCompileDeclinedWorkflowsStayAbsent, TestCompileDeclineLeavesExistingWorkflowsUntouched, TestCompileSeedsWorkflowsWithoutDecline, TestCompileReportsStaleAndDependentDeclines; live: origin/main weave 931a4ad68 skips the decline row (exit 0, still seeds), branch weave drops it and reports; recorded suite queued on d1b016bab; review verdict: SHIP
+- 2026-10-19: flow upgraded quick → full — 117 added lines in code files (limit 100)
 
 - Hub approved the design and added two test asks: (1) prove an older weave skips the unknown verb; (2) a declined row that another row depends on (a merge into a declined path) must be reported, not silent.
 - Built: `layer.Decline` (pure, called once in `walk.Load`), the `decline` verb, a `Kind.Verb()` read back from `kindByVerb`, and `printDeclined` in compile. The report lists every declined row by verb and target, which covers ask (2); `TestCompileReportsStaleAndDependentDeclines` tests a declined merge and a stale decline. ARCH-DRY: the completeness check's hand-kept `verbName` switch now derives from `Kind.Verb()`. Before, it was missing `seed-once`.
