@@ -1,13 +1,24 @@
 ---
 id: 000465
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '0cdcc3cf03205719b1e5fe6aa8c8ce7a0df4808b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '0cc9eaf5c5c8b198839c99e881bd520d9c9b316f' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-19T07:56:05-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
+flake_tests: [github.com/xianxu/ariadne/scripts/test.TestConstructScripts]
+flow: {kind: quick, provenance: inferred, spec: "1393e822", done: "76dfe1e4"}
+actual_hours: 1.17
 ---
 
 # dev-aliases script exceeds its per-script budget under suite load
@@ -22,13 +33,43 @@ Keep the per-script ceiling. Reduce the cost of `construct/scripts/test/dev-alia
 
 ## Done when
 
-- A counted/profiling fixture identifies the expensive setup or repeated work; the script's wall time falls materially under the existing two-minute ceiling under representative fleet load without simply increasing a sleep or deadline.
-- Its existing 82 assertions remain covered, and a recorded full suite plus repeated targeted runs pass.
+- All 82 original behavioral assertions remain covered, including partial/concurrent builds, failed-output preservation and start < mid-build edit < completed-output timestamps. The timestamp regression fails if build-start timestamp restoration is removed. Keep the two-minute per-script ceiling unchanged.
+- Pure path splitting matches the real dirname/basename utilities for root, empty/single components, trailing/repeated slashes, spaces and newlines. Counted N/2N owner and CLI tests require zero path-utility subprocesses from the generator.
+- Counted profiling demonstrates the operation reduction; repeated targeted checks and a loaded recorded full suite pass. On the noisy shared machine, acceptance uses these counts and the loaded-suite pass rather than a standalone wall-time threshold, as approved by the hub.
 
 ## Plan
 
-- [ ]
+- [x] Measure repeated generator scans and waits; isolate preparation and duplicate-origin cases to their relevant real fixture owners (ARCH-DRY).
+- [x] Replace fixed concurrency polling with bounded readiness/finish handshakes and use explicit timestamps for edits during builds, retaining all 82 assertions and the existing deadline.
+- [x] Preserve all 82 assertions and pass repeated standalone/runner-targeted checks, real layouts, path conformance and counted N/2N CLI checks.
+
 
 ## Log
 
+
+- 2026-10-19: closed — All82 original assertions pass; final three-environment runner passes in30.677s. Real path conformance/layout checks and N/2N zero-path-utility guards pass. Final exact counters: generator38→31, Git165→59, path utilities1193→14. BR-1 no-restoration mutation fails next-rebuild behavior; BR-2 current Done-when matches approved path/loaded-suite acceptance; BR-3 both origin strict comparisons now observe real same-mode stdout/status and fail suppressed-ordinary-output mutation. Reused-result class audited and fresh definitions restored after changed inputs. Final-code recorded suite queued; authorized review overlap, no landing before recorded pass and green CI.; review verdict: SHIP
 2026-10-19: Classified while closing ariadne#458. Targeted `go test ./scripts/test -run '^TestConstructScripts/plain/dev-aliases.test.sh$' -count=1 -v` passed in 33.779 seconds after the recorded full-suite timeout. The terminal failure was `scripts_test.go:70: .../construct/scripts/test/dev-aliases.test.sh did not finish within 2m0s`; the partial output had passed the prior build and failure-preservation assertions.
+
+2026-10-19: Claimed and measured the unchanged script: 82/82 assertions in 17.36s. A disposable fixture-cwd-only experiment took 16.74s, disproving live substrate traversal as the dominant cost here (this checkout has no construct/deps). Repeated generator calls scan unrelated owners, and fixed waits add several seconds. Quick test-only plan posted to hub; no production behavior or deadline changes.
+
+## Revisions
+
+2026-10-19 — Hub approved a production cost reduction after test-only timings remained 9.1–11.3s: replace primary_owner's repeated external dirname/basename processes with pure Bash path splitting. Match real utilities for trailing slashes, root, single components and repeated slashes using a small conformance table, and retain real-layout tests. This is the same owner-location rule and adds no state. The hot path visits each candidate once; path splitting should spawn zero external path utilities per candidate, with counted N/2N tests.
+
+2026-10-19 — Acceptance clarification from hub: no standalone benchmark window or further timing chase while the shared machine is noisy. Accept the counted operation reduction, all 82 assertions passing, and a loaded recorded-suite pass. Successful build outputs share one immutable sentinel inode per run; partial, failed and concurrent output fixtures remain independent. The edit-during-build stub uses an environment flag instead of rewriting itself. The original two-minute ceiling is unchanged. Path splitting now serves all equivalent startup/collection sites, guarded by real-tool conformance and N/2N CLI counts.
+
+2026-10-19 — Final forwarded-command profiling, original and final real generators with frozen test sources: both 82/82 passed. Generator launches 38→27; Bash launches 59→33; Git calls 165→53 (config queries 148→49; four real inits retained); dirname 410→6 and basename 783→6. Remaining 12 path utilities belong to unchanged substrate parsing in explicit non-peer/slot cases, not the generator. Final counter artifacts: `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/aliases465-final-source-count.tr4rvrvw`. Path table and N/2N CLI guard pass. A temporary production mutation removing the installed nous binary before rebuilding makes the new FIFO-selected missing/partial-binary assertion fail (77 pass, five failures including the independent shape/failure-preservation guards).
+
+2026-10-19 — Final targeted verification on implementation head: `go test ./pkg/shelllint ./scripts/test -run 'TestTracked|TestConstructScripts/(plain|no_color_ci|forced_color_terminal)/dev-aliases(-path|-slot)?.test.sh$' -count=2 -v` passed. This runs each of the three alias scripts twice in all three color environments; all six original-script runs retain 82/82 assertions. The last original-script run completed in 4.56s under the shared runner. PR #323 is open; recorded suite attempt f538d680216897b9889f96936a7dba3c on 72b6482b43cb022b2a124ef43a078d53057850d3 is queued, next in normal FIFO. No production or test code changes after that head.
+
+2026-10-19 — CI found a deterministic Linux fixture defect: GNU mv refuses a rename when source and installed target are hardlinks to the same inode. Local BSD mv had accepted that fixture. Changed successful build stubs to copy the single immutable sentinel template, preserving distinct output inodes and metadata. Cancelled queued attempt f538d680216897b9889f96936a7dba3c through `sdlc local-check cancel --name suite` before it acquired the machine slot; this is a branch fix, not a flake or retry. Fresh targeted/CI/recorded checks follow on the fixed head.
+
+2026-10-19 — Review overlap checkpoint: split the last Plan row at the implementation boundary. Repeated targeted checks are complete; the recorded-suite pass remains mandatory in Done-when and at landing. This preserves scope while allowing the worker protocol's authorized close-review/queued-suite overlap. On the copied-sentinel head 6e5120fd877baaac47dd1c4c7096a8bc819d0ce4, standalone 82/82 and all six three-environment runner repetitions passed (139.566s total package time). Fresh recorded attempt 6bca6bbc7eba03b5e334ea56b3ee49ea is queued; landing waits for its pass and green CI. #465's flake registration is retired only after landing/completion, not manually during this queue.
+
+2026-10-19 — Close round 1 BR-1/BR-2 correction: replaced the sole mid-build timestamp fixture with controlled start=2000, edit=2001, output=2002 times, so a missing restoration is observable without sleeping. Other future-date fixtures deliberately test staleness, not start-time restoration. Synchronized the current Done-when contract with the approved path/conformance/count requirements and noisy-machine acceptance; preserved all 82 assertions and the loaded recorded-suite requirement. Cancelled still-queued attempt 6bca6bbc7eba03b5e334ea56b3ee49ea before this test-code fix; a fresh final-head suite is required.
+
+2026-10-19 — BR-1 proof: normal ordered-time fixture passes 82/82. A temporary real-generator mutation replacing `touch -r` with a no-op makes the behavioral assertion “an edit made during the build makes the next call rebuild” fail with an empty build trace (79 pass, three failures including two independent function-shape guards). Mutation artifacts: `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/aliases465-timestamp.Ib4FQ0`. No sleep or ceiling change was introduced.
+
+2026-10-19 — Round 2 BR-3 rule correction: fixture reuse may share setup or the result of the same mode on unchanged input; it must never replace an observed CLI mode or infer its output/status. Enumerated reused results: (1) all four ordinary/verbose list comparisons, restoring real same-mode baselines for both same-origin and distinct-origin strict cases; (2) gen_def after Makefile mutations and nous_def after owner-context changes, restoring fresh generation for both; (3) dupe.defs, retained only because it is the actual same ordinary invocation on unchanged inputs that already supplies the warning assertion. Batched declaration cases and shared sentinel contents remain real independent fixtures. This adds four generator calls while preserving the larger path/process reduction. Cancelled still-queued attempt 62f26431a64d09f45c57992727f88687; a fresh final-head suite follows.
+
+2026-10-19 — BR-3 proof and final counters: the normal script passes 82/82. A temporary real-generator mutation suppressing ordinary strict-list output makes both “same-origin strict verbose” and “distinct-origin strict verbose” comparisons fail (79 pass, three failures including the independent selected-owner assertion). Artifacts: `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/aliases465-strict.7w3Lnx`. Recounted final source with actual CLI-mode observations: generator launches 38→31, Bash 59→37, Git 165→59 (config 148→55, four real inits retained), combined dirname/basename 1193→14 (98.8% fewer). Remaining calls are unchanged substrate parsing; the generator's counted N/2N path utility count remains zero. Final counter artifacts: `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/aliases465-reviewed-count.rkdhn5kz`. Earlier lower call totals predated restoring actual baselines and are superseded by this measurement.
