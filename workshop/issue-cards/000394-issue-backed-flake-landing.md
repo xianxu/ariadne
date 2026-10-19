@@ -1,6 +1,6 @@
 ---
 id: 000394
-status: working
+status: codecomplete
 created: 2026-10-15
 updated: 2026-10-18
 estimate_hours: 1.6
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 3.86
+tracker:
+    version: 1
+    completion:
+        token: close-91d33d6baa9b
+        repository: github.com/xianxu/ariadne
+        reviewed_head: bda6cc0efc5613bf2994d9cdca538942bb2d42fd
+        evidence_commit: 0c48667b757909b27614e8dd66c8173a13e20b8d
 ---
 
 # Issue-backed flake landing and daily triage
