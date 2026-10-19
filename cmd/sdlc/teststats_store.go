@@ -154,6 +154,9 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 	if a.RerunOf != "" && (!suiteHex.MatchString(a.RerunOf) || len(a.RerunOf) < 2 || len(a.RerunOf) > 64 || a.RerunOf == a.ID) {
 		return a, errors.New("invalid rerun_of")
 	}
+	if (a.RerunOf != "") != (a.Check == suiteRerunCheck) {
+		return a, fmt.Errorf("a %s attempt names its rerun_of, and only it does", suiteRerunCheck)
+	}
 	if len(a.KnownFlakes) > 10000 {
 		return a, errors.New("too many facts")
 	}

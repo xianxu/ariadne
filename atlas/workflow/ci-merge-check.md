@@ -173,8 +173,10 @@ first-class evidence, recorded on the commit it ran on:
   only when each named test shows `--- PASS`. The registry and the policy are
   rechecked just before posting (`flakes.Revalidate`), and again when a saved
   known-flake pass is reused or republished. The status reads "pass · known
-  flake #N rerun". The rerun is saved as a v2 attempt `rerun_of` the failed
-  one, with its log kept per ID. These block:
+  flake #N rerun". The rerun is saved as a v2 attempt of check `suite-rerun`
+  (reserved; the decoder ties it to `rerun_of`), with its log kept per ID, so
+  no reader of suite attempts can take it for a suite run. A saved
+  known-flake pass is reused from its parent attempt's outcome. These block:
     - an unregistered failure;
     - an unattributable one (a build error, a timeout, a crashed shard, an
       unparseable log);

@@ -663,6 +663,180 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: a7e29a06-5a6f-4f1c-9db7-24ddfd9e11c6
+            repository: github.com/xianxu/ariadne
+            issue_id: "000394"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/db2a032ce7a226a8
+            reviewed_head: 7054740a11fd5047c99319f6a4905cc84bb801f2
+            slot: ariadne:2
+            requested_at: "2026-10-19T01:10:30.323486Z"
+          phase: finished
+          pid: 75766
+          started_at: "2026-10-19T01:10:30.477473Z"
+          finished_at: "2026-10-19T01:24:30.648801Z"
+          session_id: 320c2191-2b48-4742-816a-423fc177b85d
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 7054740a11fd5047c99319f6a4905cc84bb801f2
+        tracker_head: 74a115c29467038eb7946caa7c125c20a7dd383c
+        branch_point: 046e0ebb03d7c78bf46c8511fa6d6084d42137f4
+        since: "2026-10-18T15:44:55-07:00"
+        until: "2026-10-18T18:10:13-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T15:44:55-07:00"
+              end: "2026-10-18T18:10:13-07:00"
+              began: "2026-10-18T15:44:55-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0191d03b-74fe-4185-8091-8374ef70c0c9
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6f878e4449d6a70c6d117dcc8e3e2dc7eb921bedd5cb164ae329d9abc8dbd463
+              started: "2026-10-18T22:59:31.062Z"
+              spawned: false
+              bytes: 393720
+              windows:
+                - start: "2026-10-18T22:59:31.062Z"
+                  end: "2026-10-18T18:10:13-07:00"
+            - harness: claude
+              id: 1baa8f6b-092f-413a-83f9-0b25ed003914
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 15568299dbfd540e29417f414005c5fb2212d08913ca02800e9b5f9ab1030c6c
+              started: "2026-10-18T22:57:31.956Z"
+              spawned: false
+              bytes: 519489
+              windows:
+                - start: "2026-10-18T22:57:31.956Z"
+                  end: "2026-10-18T18:10:13-07:00"
+            - harness: claude
+              id: 23a2a6e8-f430-49c9-938f-6a09729f7067
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6c2a2ebaf3bf9384772532e724d4644737187d5f9aab48909773ef49f7eecb93
+              started: "2026-10-18T22:53:00.413Z"
+              spawned: false
+              bytes: 571220
+              windows:
+                - start: "2026-10-18T22:53:00.413Z"
+                  end: "2026-10-18T18:10:13-07:00"
+            - harness: claude
+              id: aa450fd7-6a6d-4cd2-abcc-3339322077dc
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 776fdfac606030c3cf04f41a719a0ad32e2a31cec8e0f54a07ed46e3daf64dd0
+              started: "2026-10-18T22:59:17.58Z"
+              spawned: false
+              bytes: 502106
+              windows:
+                - start: "2026-10-18T22:59:17.58Z"
+                  end: "2026-10-18T18:10:13-07:00"
+            - harness: claude
+              id: d11b9adb-1d2c-4872-81c3-b6aa47a04715
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: fb35a51e74ad315fa11eb15dc5dd4cd0f8c6a8a811c7d9cafac6943d15e78dfc
+              started: "2026-10-18T22:56:29.354Z"
+              spawned: false
+              bytes: 556087
+              windows:
+                - start: "2026-10-18T22:56:29.354Z"
+                  end: "2026-10-18T18:10:13-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: b0f647a3e3619420ea05292638efd143ef11448dabcecde5f63bb6d0b89bcd44
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 249820253
+              windows:
+                - start: "2026-10-18T15:44:55-07:00"
+                  end: "2026-10-18T18:10:13-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-18T16:42:59-07:00"
+              finalized: "2026-10-18T16:45:21-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T16:49:32-07:00"
+              finalized: "2026-10-18T16:52:51-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T16:54:42-07:00"
+              finalized: "2026-10-18T16:56:28-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-18T17:38:24-07:00"
+              finalized: "2026-10-18T17:42:33-07:00"
+              finalizing: false
+      "n": 5
+      timestamp: "2026-10-18T18:24:31-07:00"
+      dispatched: "2026-10-18T18:10:30-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-11
+          disposition: addressed
+          note: Timeout and no-exit are unattributed before Classify (localcheck_run.go:151); reverting it turns "a suite killed by its timeout never lands (BR-11)" red.
+          round: 5
+        - id: BR-12
+          disposition: addressed
+          note: flakes.Revalidate runs at post, at reuse and at republish; removing the run-path call turns the issue-closes-during-rerun test red. Policy recheck is per run (documented).
+          round: 5
+        - id: BR-13
+          disposition: addressed
+          note: The stats aggregate and the weekly snapshot now skip rerun rows; TestSuiteStatsRerunIsEvidenceNotARun goes red on revert. The missed reader (loadSavedAttempt) is raised as a new Critical.
+          round: 5
+        - id: BR-14
+          disposition: addressed
+          note: README.md:506-512 and atlas/workflow/ci-merge-check.md:166-187 now describe the gate and the known_flakes values, matching the help text.
+          round: 5
+        - id: BR-15
+          disposition: addressed
+          note: TestParseLocalChecks covers the bad value, the off-suite key and the default; TestSuiteBaselineRetainsRealLockOwner asserts the persistent-main label.
+          round: 5
+        - id: BR-16
+          disposition: not-addressed
+          note: min(15m, timeout_minutes) is in the code, but no test pins the bound.
+          round: 5
+        - id: BR-17
+          disposition: addressed
+          note: RerunMissing plus go test -v; reverting the gate turns "a rerun that shows no PASS proves nothing" red. A bypass via saved-pass reuse is raised as new.
+          round: 5
+        - id: BR-18
+          disposition: addressed
+          note: The label is computed once inside the pre-existing branch; the reentry test asserts TestB appears exactly once.
+          round: 5
+      findings:
+        - kind: defect
+          id: BR-19
+          severity: Critical
+          title: loadSavedAttempt reuses a rerun row as the head's suite pass, so merge posts success for an inconclusive rerun
+          detail: 'loadSavedAttempt filters only on SHA and check. A rerun row has Check suite and a later FinishedAt, and passed() is true on exit 0, while revalidateKnownFlake passes non-landing kinds through. Reproduced: suiteFailing plus a rerun printing [no tests to run]; run posts failure, then republishSavedPass returns ok=true and posts success, publishing the rerun''s log as the suite''s. 2nd in family. Rule: a RerunOf row is never a suite attempt for any reader; enforce it with one shared predicate or a distinct rerun representation, and decide reuse from the parent attempt''s outcome. Add a regression test.'
+          family: new-record-kind-unswept-readers
+          round: 5
+      boundary: M2
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#394 (boundary-review)
@@ -741,15 +915,27 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-18** [Minor] `duplicated-io-glue` (kind: defect) The persistent-main-failure label repeats the pre-existing list it sits beside
   This is the 2nd finding in family duplicated-io-glue. Here it is one shared-failure list printed twice, in suitebaseline.go around line 52. Compute the list once and label it once.
 
+## Round 5 — 2026-10-18T18:24:31-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-11 — addressed — Timeout and no-exit are unattributed before Classify (localcheck_run.go:151); reverting it turns "a suite killed by its timeout never lands (BR-11)" red.
+- BR-12 — addressed — flakes.Revalidate runs at post, at reuse and at republish; removing the run-path call turns the issue-closes-during-rerun test red. Policy recheck is per run (documented).
+- BR-13 — addressed — The stats aggregate and the weekly snapshot now skip rerun rows; TestSuiteStatsRerunIsEvidenceNotARun goes red on revert. The missed reader (loadSavedAttempt) is raised as a new Critical.
+- BR-14 — addressed — README.md:506-512 and atlas/workflow/ci-merge-check.md:166-187 now describe the gate and the known_flakes values, matching the help text.
+- BR-15 — addressed — TestParseLocalChecks covers the bad value, the off-suite key and the default; TestSuiteBaselineRetainsRealLockOwner asserts the persistent-main label.
+- BR-16 — not-addressed — min(15m, timeout_minutes) is in the code, but no test pins the bound.
+- BR-17 — addressed — RerunMissing plus go test -v; reverting the gate turns "a rerun that shows no PASS proves nothing" red. A bypass via saved-pass reuse is raised as new.
+- BR-18 — addressed — The label is computed once inside the pre-existing branch; the reentry test asserts TestB appears exactly once.
+
+### Raised
+
+- **BR-19** [Critical] `new-record-kind-unswept-readers` (kind: defect) loadSavedAttempt reuses a rerun row as the head's suite pass, so merge posts success for an inconclusive rerun
+  loadSavedAttempt filters only on SHA and check. A rerun row has Check suite and a later FinishedAt, and passed() is true on exit 0, while revalidateKnownFlake passes non-landing kinds through. Reproduced: suiteFailing plus a rerun printing [no tests to run]; run posts failure, then republishSavedPass returns ok=true and posts success, publishing the rerun's log as the suite's. 2nd in family. Rule: a RerunOf row is never a suite attempt for any reader; enforce it with one shared predicate or a distinct rerun representation, and decide reuse from the parent attempt's outcome. Add a regression test.
+
 ## Open findings
 
 - **BR-9** [Minor] `cas-mutator-uses-stale-read` (kind: defect) The one-owner-per-test check reads the registry, not the card under compare-and-swap, so concurrent registrations on two issues can both pass
 - **BR-10** [Minor] `breaking-change-undocumented` (kind: defect) The suite-attempt writer now records version 2, which older sdlc binaries reject as an unsupported version
-- **BR-11** [Critical] `failure-signal-dropped-before-classify` (kind: defect) A suite killed by timeout_minutes lands green when its partial log names only a known flake
-- **BR-12** [Important] `effect-revalidates-fresh-state` (kind: defect) The known-flake pass is posted without rereading the registry or policy, unlike the plan's ARCH-ORDER claim
-- **BR-13** [Important] `new-record-kind-unswept-readers` (kind: defect) Rerun attempts are counted as full suite runs by test-stats readers
-- **BR-14** [Important] `docs-gate-readme` (kind: defect) README does not cover known-flake landing or the known_flakes key added to the local-check and merge help
-- **BR-15** [Important] `claimed-behavior-without-test` (kind: defect) The new declaration refusals and the persistent-main-failure label have no tests
 - **BR-16** [Minor] `declared-envelope-not-enforced` (kind: defect) The rerun timeout is a fixed 15 minutes, not bounded by the check's timeout_minutes as the plan states
-- **BR-17** [Minor] `rerun-evidence-unverified` (kind: defect) A rerun passes on exit 0 alone, so a run with no tests to run would count as landing evidence
-- **BR-18** [Minor] `duplicated-io-glue` (kind: defect) The persistent-main-failure label repeats the pre-existing list it sits beside
+- **BR-19** [Critical] `new-record-kind-unswept-readers` (kind: defect) loadSavedAttempt reuses a rerun row as the head's suite pass, so merge posts success for an inconclusive rerun

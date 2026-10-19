@@ -116,23 +116,12 @@ func aggregateSuiteAttempts(attempts []SuiteAttempt, since time.Time, repo strin
 			}
 			return iAt.Before(jAt)
 		})
-		s := RepoStats{Repo: name}
-		for _, a := range rows {
-			if a.RerunOf == "" {
-				s.Runs++
-			}
-		}
+		s := RepoStats{Repo: name, Runs: len(rows)}
 		var wall, queue []float64
 		evidence := flakeAttempts(rows)
 		unitTimes := map[string][]float64{}
 		units := map[string]SuiteDuration{}
 		for i, a := range rows {
-			if a.RerunOf != "" {
-				// A known-flake rerun (#394) runs a few named tests, not the
-				// suite: it is flake evidence (above), never a suite run's
-				// count, wall, queue or slow unit.
-				continue
-			}
 			if !a.Legacy {
 				s.FullyRecorded++
 				s.FlakeDenominator++
@@ -156,7 +145,10 @@ func aggregateSuiteAttempts(attempts []SuiteAttempt, since time.Time, repo strin
 			kind := ""
 			if a.MainBaseline {
 				kind = "suspected-main-baseline"
-			} else if _, ok := flakes.Confirmed(evidence, i); ok {
+			} else if _, ok := flakes.Confirmed(evidence, i); ok || a.Outcome == string(flakes.KnownFlakePassed) {
+				// A known-flake landing (#394) is same-head fail→pass too: its
+				// targeted rerun (a suite-rerun attempt, never counted here)
+				// passed the tests that failed.
 				kind = "confirmed"
 			}
 			if kind == "" {

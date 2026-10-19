@@ -83,7 +83,7 @@ func TestKnownFlakeGate(t *testing.T) {
 				failed = &rows[i]
 			}
 		}
-		if failed == nil || rerun == nil || rerun.RerunOf != failed.ID || failed.Exit != 1 || rerun.Exit != 0 {
+		if failed == nil || rerun == nil || rerun.RerunOf != failed.ID || failed.Exit != 1 || rerun.Exit != 0 || rerun.Check != suiteRerunCheck || failed.Check != suiteCheckName {
 			t.Fatalf("both attempts kept and linked: %+v", rows)
 		}
 		if failed.Outcome != string(flakes.KnownFlakePassed) || len(failed.KnownFlakes) != 1 || failed.KnownFlakes[0].Issue != "000448" {
@@ -222,6 +222,33 @@ func TestKnownFlakeGate(t *testing.T) {
 		d.FlakeRegistry = gateRegistry(t, gateKnown)
 		if rec, ok, err := republishSavedPass(ctx, d, c, sha); !ok || err != nil || !rec.passed() || gh.statuses[sha]["sdlc-local/suite"] != "success" {
 			t.Fatalf("a still-valid saved known-flake pass: %+v %v %v\n%s", rec, ok, err, d.Stderr)
+		}
+	})
+	t.Run("an inconclusive rerun is never reused as the head's pass (BR-19)", func(t *testing.T) {
+		d, sha, gh, _ := localRunRepo(t, "acquired")
+		d.FlakeRegistry = gateRegistry(t, gateKnown)
+		scriptRerun(t, "echo 'ok  o/r/pkg 0.1s [no tests to run]'")
+		c := suiteFailing(gateKnown)
+		if rec, err := runLocalCheck(ctx, d, c, sha); err != nil || rec.passed() || gh.statuses[sha]["sdlc-local/suite"] != "failure" {
+			t.Fatalf("%+v %v", rec, err)
+		}
+		if rec, ok, err := republishSavedPass(ctx, d, c, sha); ok || err != nil || gh.statuses[sha]["sdlc-local/suite"] != "failure" {
+			t.Fatalf("merge reused the rerun as a suite pass: %+v %v %v %v", rec, ok, err, gh.statuses[sha])
+		}
+	})
+	t.Run("the rerun is bounded by the check's timeout (BR-16)", func(t *testing.T) {
+		d, sha, _, _ := localRunRepo(t, "acquired")
+		d.FlakeRegistry = gateRegistry(t, gateKnown)
+		prev := knownFlakeRerunTimeout
+		t.Cleanup(func() { knownFlakeRerunTimeout = prev })
+		knownFlakeRerunTimeout = time.Hour
+		scriptRerun(t, "sleep 10; echo '--- PASS: TestFlaky (0.00s)'")
+		c := suiteFailing(gateKnown)
+		c.TimeoutMinutes = 1 // one second under the test's minute
+		start := time.Now()
+		rec, err := runLocalCheck(ctx, d, c, sha)
+		if err != nil || rec.passed() || rec.Outcome != flakes.RerunInconclusive || time.Since(start) > 8*time.Second {
+			t.Fatalf("%+v %v after %s", rec, err, time.Since(start))
 		}
 	})
 	t.Run("a baseline never classifies", func(t *testing.T) {

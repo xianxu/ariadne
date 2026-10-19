@@ -194,3 +194,8 @@ Design notes:
 - **BR-14:** README and atlas (ci-merge-check, recorded local checks) describe the gate and `known_flakes`.
 - **BR-15:** TestParseLocalChecks covers an invalid `known_flakes`, `known_flakes` off the suite, and the default; TestSuiteBaselineRetainsRealLockOwner asserts the persistent-main label, once.
 - **Minors:** the rerun timeout is `min(15m, timeout_minutes)`; a rerun that proves nothing is its own kind; the shared failure list is labelled once.
+
+### 2026-10-18 — M2 boundary review round 2 (REWORK: BR-19, BR-16)
+
+- **BR-19 (Critical), the reader sweep fixed as a class:** a rerun row saved as check `suite` was reused by `loadSavedAttempt` as the head's pass. Instead of guarding each reader, reruns are saved as check `suite-rerun`, reserved in the declaration parser; the decoder requires `rerun_of` exactly on that check. Every reader that selects `suite` attempts (saved-pass reuse, test-stats, the weekly snapshot, `flake list`) excludes reruns by construction, and the per-reader `RerunOf` checks are gone. Reuse is decided from the parent attempt's outcome (revalidated). test-stats counts a parent's known-flake landing as a confirmed same-head flake. Regression: an inconclusive rerun is never reused as the head's pass. lessons.md has the rule.
+- **BR-16:** a test pins the rerun's timeout to the check's `timeout_minutes` (an hour-long default still stops at the check's one second).

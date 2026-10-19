@@ -24,6 +24,12 @@ var knownFlakeRerunTimeout = 15 * time.Minute
 // knownFlakeRerunArgv builds the rerun's command; tests script it.
 var knownFlakeRerunArgv = flakes.RerunCommand
 
+// suiteRerunCheck is the check name a known-flake rerun is saved under (#394
+// M2 review, BR-19): never "suite", so no reader that asks for suite runs (the
+// saved-pass reuse, test-stats, the weekly snapshot) can take a rerun of a few
+// tests for one. Its parent attempt (rerun_of) carries the gate's outcome.
+const suiteRerunCheck = "suite-rerun"
+
 // suiteGateRun is where the step runs: the suite's worktree and stores.
 type suiteGateRun struct {
 	check                localCheck
@@ -102,7 +108,7 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 	in.Rerun = &flakes.Result{Passed: run.Exit == 0 && !run.TimedOut, Failures: facts.Failures, Unattributed: facts.Unattributed}
 	o = flakes.Classify(in)
 	queueSeconds, wallSeconds := run.QueueWait.Seconds(), run.Duration.Seconds()
-	attempt := SuiteAttempt{Version: suiteAttemptVersion, ID: w.ID, Repo: g.repo, SHA: g.sha, Check: g.check.Name, Slot: g.slot,
+	attempt := SuiteAttempt{Version: suiteAttemptVersion, ID: w.ID, Repo: g.repo, SHA: g.sha, Check: suiteRerunCheck, Slot: g.slot,
 		Agent: g.agent, Model: g.model, Effort: g.effort,
 		StartedAt: run.Start, FinishedAt: run.Finished, QueuedAt: ptrTime(run.QueueStart), AcquiredAt: ptrTime(run.Acquired),
 		QueueSeconds: &queueSeconds, WallSeconds: &wallSeconds, Exit: run.Exit, TimedOut: run.TimedOut, LogSHA256: logSHA,

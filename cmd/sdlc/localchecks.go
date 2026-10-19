@@ -107,6 +107,9 @@ func parseLocalChecks(data []byte) (localCheckDecl, error) {
 		if names[c.Name] {
 			return bad("check %q declared twice", c.Name)
 		}
+		if c.Name == suiteRerunCheck {
+			return bad("check name %q is reserved for known-flake reruns (#394)", c.Name)
+		}
 		names[c.Name] = true
 		if len(c.Command) == 0 {
 			return bad("check %q: empty command", c.Name)
