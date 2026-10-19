@@ -93,6 +93,30 @@ process-group cancellation. Use the existing Go command seam per selected path.
   listing plus per-script execution. The narrow lint protects this known batch
   entrypoint; it does not claim to infer arbitrary shell loops from Go syntax.
 
+### 2026-10-18 — recorded loaded construct-script measurements
+
+- Runtime head: `25bf575191a753a127daf2bd1833cd5b1e27a6ec` (resolved with Git).
+  Attempt `71aab835839cdd344d0e88c13262deec` acquired both machine suite slots
+  after 1,238s queued. The sharded full suite is still running; its construct
+  component has passed all eighteen combinations (252s total).
+- Timings below were read from this attempt's live test2json stream, identified
+  by its own detached checkout path, before the sharder removes that stream.
+  Values are seconds; each individual command retains its two-minute ceiling.
+
+| Script | Plain | No-color CI | Forced-color terminal |
+|---|---:|---:|---:|
+| bootstrap-transitive | 1.11 | 0.84 | 0.58 |
+| clone-data-deps | 2.19 | 2.60 | 1.76 |
+| dev-aliases | 87.52 | 72.50 | 63.89 |
+| portable-makefile | 1.95 | 1.59 | 1.71 |
+| sandbox-sync-set | 4.26 | 2.82 | 5.52 |
+| vm-log | 0.28 | 0.16 | 0.28 |
+| Whole environment | 97.47 | 80.65 | 73.89 |
+
+The longest leaf took 87.52s versus 19.205s in the initial standalone sample.
+These are measured outcomes under the parallel suite workload, not a claim that
+all future contention is bounded by this sample. No timeout value changed.
+
 ## Revisions
 
 ### 2026-10-18 — dispatch constraint and diagnosed scope
