@@ -158,10 +158,33 @@ func TestParseCardRejectsMalformedKnownTrackerRecord(t *testing.T) {
 	for name, raw := range map[string]string{
 		"missing token":   strings.Replace(string(card), "        token: close-1\n", "", 1),
 		"wrong head type": strings.Replace(string(card), "        reviewed_head: "+strings.Repeat("c", 40), "        reviewed_head: [bad]", 1),
+		"numeric token":   strings.Replace(string(card), "        token: close-1\n", "        token: 123\n", 1),
+		"boolean token":   strings.Replace(string(card), "        token: close-1\n", "        token: true\n", 1),
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := ParseCard([]byte(raw)); err == nil {
 				t.Fatal("card decode admitted malformed known tracker record")
+			}
+		})
+	}
+}
+
+func TestKnownTrackerMembersRejectCoercedScalarTypesAtEveryDepth(t *testing.T) {
+	for _, input := range []string{
+		"version: '1'\n",
+		"version: 1\nhandoff: {token: 123}\n",
+		"version: 1\ncompletion: {repository: true}\n",
+		"version: 1\nrelease: {by: {operator: 123}}\n",
+		"version: 1\nabandoned: {head: false}\n",
+		"version: 1\nactual_correction: {exclude: 'true'}\n",
+	} {
+		t.Run(strings.TrimSpace(input), func(t *testing.T) {
+			var doc yaml.Node
+			if err := yaml.Unmarshal([]byte(input), &doc); err != nil {
+				t.Fatal(err)
+			}
+			if err := validateKnownCardYAML(doc.Content[0], reflect.TypeOf(trackerEnvelope{}), "tracker"); err == nil {
+				t.Fatal("known tracker member accepted a coerced scalar type")
 			}
 		})
 	}

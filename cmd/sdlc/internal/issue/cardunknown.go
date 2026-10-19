@@ -20,6 +20,10 @@ func mergeUnknownCardNodes(source, replacement *yaml.Node, shape reflect.Type) {
 	if shape.Kind() != reflect.Struct || source.Kind != yaml.MappingNode || replacement.Kind != yaml.MappingNode {
 		return
 	}
+	mergeUnknownCardFields(source, replacement, knownCardYAMLFields(shape))
+}
+
+func knownCardYAMLFields(shape reflect.Type) map[string]reflect.Type {
 	known := map[string]reflect.Type{}
 	for i := 0; i < shape.NumField(); i++ {
 		f := shape.Field(i)
@@ -32,7 +36,47 @@ func mergeUnknownCardNodes(source, replacement *yaml.Node, shape reflect.Type) {
 		}
 		known[parts[0]] = f.Type
 	}
-	mergeUnknownCardFields(source, replacement, known)
+	return known
+}
+
+// validateKnownCardYAML checks the node tags before yaml.Node.Decode, which
+// otherwise coerces numeric and boolean scalars into known string fields.
+// Unknown descendants are opaque; validateCardYAML has already rejected
+// duplicate keys and aliases across the entire source document.
+func validateKnownCardYAML(node *yaml.Node, shape reflect.Type, path string) error {
+	for shape.Kind() == reflect.Pointer {
+		shape = shape.Elem()
+	}
+	switch shape.Kind() {
+	case reflect.Struct:
+		if node.Kind != yaml.MappingNode {
+			return fmt.Errorf("%s: expected a mapping", path)
+		}
+		known := knownCardYAMLFields(shape)
+		for i := 0; i < len(node.Content); i += 2 {
+			key := node.Content[i].Value
+			if child, ok := known[key]; ok {
+				if err := validateKnownCardYAML(node.Content[i+1], child, path+"."+key); err != nil {
+					return err
+				}
+			}
+		}
+	case reflect.String:
+		if node.Kind != yaml.ScalarNode || node.Tag != "!!str" {
+			return fmt.Errorf("%s: expected a string", path)
+		}
+	case reflect.Bool:
+		if node.Kind != yaml.ScalarNode || node.Tag != "!!bool" {
+			return fmt.Errorf("%s: expected a boolean", path)
+		}
+	case reflect.Int:
+		if node.Kind != yaml.ScalarNode || node.Tag != "!!int" {
+			return fmt.Errorf("%s: expected an integer", path)
+		}
+	default:
+		return fmt.Errorf("%s: unsupported known field kind %s", path, shape.Kind())
+	}
+	return nil
 }
 
 func mergeUnknownCardFields(source, replacement *yaml.Node, known map[string]reflect.Type) {

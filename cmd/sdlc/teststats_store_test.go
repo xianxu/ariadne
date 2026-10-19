@@ -39,6 +39,17 @@ func TestDecodeSuiteAttemptRejectsUntrustedRecords(t *testing.T) {
 		t.Fatalf("newer additive attempt refused or changed known facts: %+v %v", got, err)
 	}
 	for name, raw := range map[string]string{
+		"root":  strings.Replace(valid, `"version":1`, `"version":1,"future":{"number":1e400}`, 1),
+		"unit":  strings.Replace(newer, `"seconds":1,"future":{"nested":true}`, `"seconds":1,"future":{"nested":1e400}`, 1),
+		"flake": strings.Replace(v2, `"issue":"000448"`, `"issue":"000448","future":{"number":1e400}`, 1),
+	} {
+		t.Run("opaque number "+name, func(t *testing.T) {
+			if _, err := decodeSuiteAttempt([]byte(raw)); err != nil {
+				t.Fatalf("unknown number should remain opaque: %v", err)
+			}
+		})
+	}
+	for name, raw := range map[string]string{
 		"truncated":               valid[:len(valid)-1],
 		"version":                 strings.Replace(valid, `"version":1`, `"version":3`, 1),
 		"v2 field in v1":          strings.Replace(valid, `"version":1`, `"version":1,"outcome":"known-flake-rerun"`, 1),
@@ -59,6 +70,7 @@ func TestDecodeSuiteAttemptRejectsUntrustedRecords(t *testing.T) {
 		"case alias sha":          strings.Replace(valid, `"sha":"`, `"SHA":"`, 1),
 		"case alias check":        strings.Replace(valid, `"check":"suite"`, `"Check":"suite"`, 1),
 		"case alias unit":         strings.Replace(valid, `"log_path":"failed/a1.log"`, `"log_path":"failed/a1.log","units":[{"kind":"package","name":"x/a","seconds":1,"Seconds":999}]`, 1),
+		"overflow known unit":     strings.Replace(valid, `"log_path":"failed/a1.log"`, `"log_path":"failed/a1.log","units":[{"kind":"package","name":"x/a","seconds":1e400}]`, 1),
 		"case alias flake":        strings.Replace(v2, `"issue":"000448"`, `"issue":"000448","Issue":"000001"`, 1),
 		"duplicate flake unknown": strings.Replace(v2, `"issue":"000448"`, `"issue":"000448","future":1,"future":2`, 1),
 		"invalid slot":            strings.Replace(valid, `"check":"suite"`, `"check":"suite","slot":"ariadne:01"`, 1),

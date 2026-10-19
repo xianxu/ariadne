@@ -312,6 +312,7 @@ func validateSuiteFactObjects(data []byte, kind string, known map[string]bool, r
 // must not make two interpretations of a nested key possible.
 func validateJSONNoDuplicates(data []byte) error {
 	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber() // future numeric values are opaque; float64 would reject valid 1e400
 	if err := validateJSONValue(dec); err != nil {
 		return err
 	}

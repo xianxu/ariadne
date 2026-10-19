@@ -3,6 +3,7 @@ package issue
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -94,6 +95,9 @@ func cardEnvelope(d *cardDocument) (trackerEnvelope, error) {
 		return trackerEnvelope{Version: vocab.Issue().Card.Internal.Version}, nil
 	}
 	var env trackerEnvelope
+	if err := validateKnownCardYAML(node, reflect.TypeOf(env), "tracker"); err != nil {
+		return env, invalidCard("tracker", err.Error())
+	}
 	if err := node.Decode(&env); err != nil {
 		return env, invalidCard("tracker", err.Error())
 	}

@@ -1029,3 +1029,9 @@ The simplest durable authority beats a clever scan of consequences.
   literal sets for deliberate policy tripwires, and name those exceptions
   accurately in the atlas (#454 BR-1/BR-2). The test-hardcoded-arch-count catalog
   rule catches fixed numeric architecture-header Contains assertions.
+
+- At a tolerant persisted-record boundary, validate known YAML node tags before
+  struct decoding: `yaml.Node.Decode` can coerce numbers and booleans into
+  strings. Traverse unknown JSON members with `UseNumber` so a valid future
+  value such as `1e400` stays opaque; known numeric fields still decode into
+  their declared types. Test both behaviors at the read boundary (#460 BR-1/BR-2).
