@@ -432,3 +432,39 @@ FAIL	example.com/m/pkg	0.02s
 		t.Fatalf("subtests reached the persisted facts: %s %v", data, err)
 	}
 }
+
+// #466 close review, BR-1: the success guard reads a failed attempt's
+// subtests from its saved log. Registering the failing subtest explains the
+// attempt, and its saved pass republishes; registering only a sibling does
+// not. Without the log wiring the subtest never covers, and this goes red.
+func TestSuitePassGuardReadsSubtestsFromTheLog(t *testing.T) {
+	ctx := context.Background()
+	const top = "o/r/pkg.TestX"
+	failing := localCheck{Name: suiteCheckName, TimeoutMinutes: 30, Command: []string{"sh", "-c",
+		"printf -- '--- FAIL: TestX (0.00s)\\n    --- FAIL: TestX/plain (0.00s)\\n        --- FAIL: TestX/plain/dev.sh (0.00s)\\nFAIL\\nFAIL\\to/r/pkg\\t0.01s\\n'; exit 1"}}
+	pass := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", "echo passed"}, TimeoutMinutes: 30}
+	for name, c := range map[string]struct {
+		registered string
+		lands      bool
+	}{
+		"the failing subtest registered": {top + "/plain/dev.sh", true},
+		"only its sibling registered":    {top + "/plain/other.sh", false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			d, sha, gh, _ := localRunRepo(t, "acquired")
+			d.FlakeRegistry = gateRegistry(t, "o/r/pkg.TestUnrelated")
+			if rec, err := runLocalCheck(ctx, d, failing, sha); err != nil || rec.passed() {
+				t.Fatalf("%+v %v", rec, err)
+			}
+			if _, err := runLocalCheck(ctx, d, pass, sha); err == nil {
+				t.Fatal("a pass over an unexplained failure was posted")
+			}
+			d.FlakeRegistry = gateRegistry(t, c.registered)
+			rec, ok, err := republishSavedPass(ctx, d, pass, sha)
+			landed := ok && err == nil && rec.passed() && gh.statuses[sha]["sdlc-local/suite"] == "success"
+			if landed != c.lands {
+				t.Fatalf("republish landed %v, want %v: %+v %v %v %v", landed, c.lands, rec, ok, err, gh.statuses[sha])
+			}
+		})
+	}
+}

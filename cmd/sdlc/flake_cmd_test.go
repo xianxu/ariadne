@@ -473,3 +473,32 @@ func TestFlakeEditKeepsAConcurrentRegistration(t *testing.T) {
 		t.Fatalf("a repeated edit wrote the tracker: %s → %s", before, after)
 	}
 }
+
+// #466 close review, BR-1: flake list reads a confirmed attempt's subtests
+// from its log, so a failure its registered subtest covers is not listed as
+// unregistered; a sibling's is.
+func TestFlakeListJudgesSubtestsFromTheLog(t *testing.T) {
+	for name, c := range map[string]struct {
+		logged string
+		listed bool
+	}{
+		"the registered subtest failed": {flakeSub, false},
+		"a sibling failed":              {flakeT1 + "/plain/other.test.sh", true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			w := &flakeWorld{
+				attempts:    []SuiteAttempt{attemptAt("f1", "abc", 1, 1, flakeT1), attemptAt("p1", "abc", 2, 0)},
+				cards:       []flakes.Card{{ID: "000465", Status: "working", Tests: []string{flakeSub}}},
+				logSubtests: map[string][]string{"f1": {flakeT1 + "/plain", c.logged}},
+			}
+			var out bytes.Buffer
+			if err := runFlakeList(context.Background(), &out, w.deps()); err != nil {
+				t.Fatal(err)
+			}
+			section := strings.SplitN(strings.SplitN(out.String(), "same-head fail→pass, not registered", 2)[1], "unexplained failures", 2)[0]
+			if got := strings.Contains(section, flakeT1); got != c.listed {
+				t.Fatalf("listed as unregistered %v, want %v:\n%s", got, c.listed, out.String())
+			}
+		})
+	}
+}
