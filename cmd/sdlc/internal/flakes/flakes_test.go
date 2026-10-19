@@ -38,16 +38,19 @@ func TestBuildRegistry(t *testing.T) {
 		t.Error("a closed issue's test is registered")
 	}
 	for name, cards := range map[string][]Card{
-		"ambiguous":      {{ID: "1", Status: "open", Tests: []string{tA}}, {ID: "2", Status: "open", Tests: []string{tA}}},
-		"a regex":        {{ID: "1", Status: "open", Tests: []string{"github.com/x/r/pkg.Test.*"}}},
-		"no package":     {{ID: "1", Status: "open", Tests: []string{"TestA"}}},
-		"a subtest":      {{ID: "1", Status: "open", Tests: []string{"github.com/x/r/pkg.TestA/sub"}}},
-		"not a Test fn":  {{ID: "1", Status: "open", Tests: []string{"github.com/x/r/pkg.Helper"}}},
-		"shell metachar": {{ID: "1", Status: "open", Tests: []string{"github.com/x/r/p;rm.TestA"}}},
-		"a flag":         {{ID: "1", Status: "open", Tests: []string{"-exec.TestA"}}},
-		"a flag segment": {{ID: "1", Status: "open", Tests: []string{"github.com/-exec.TestA"}}},
-		"a relative pkg": {{ID: "1", Status: "open", Tests: []string{"./x.TestB"}}},
-		"a parent seg":   {{ID: "1", Status: "open", Tests: []string{"github.com/x/../y.TestB"}}},
+		"ambiguous":                 {{ID: "1", Status: "open", Tests: []string{tA}}, {ID: "2", Status: "open", Tests: []string{tA}}},
+		"a regex":                   {{ID: "1", Status: "open", Tests: []string{"github.com/x/r/pkg.Test.*"}}},
+		"no package":                {{ID: "1", Status: "open", Tests: []string{"TestA"}}},
+		"a subtest with a space":    {{ID: "1", Status: "open", Tests: []string{"github.com/x/r/pkg.TestA/a b"}}},
+		"a subtest parent segment":  {{ID: "1", Status: "open", Tests: []string{"github.com/x/r/pkg.TestA/../TestB"}}},
+		"a subtest with shell text": {{ID: "1", Status: "open", Tests: []string{"github.com/x/r/pkg.TestA/$(rm)"}}},
+		"an empty subtest segment":  {{ID: "1", Status: "open", Tests: []string{"github.com/x/r/pkg.TestA//sub"}}},
+		"not a Test fn":             {{ID: "1", Status: "open", Tests: []string{"github.com/x/r/pkg.Helper"}}},
+		"shell metachar":            {{ID: "1", Status: "open", Tests: []string{"github.com/x/r/p;rm.TestA"}}},
+		"a flag":                    {{ID: "1", Status: "open", Tests: []string{"-exec.TestA"}}},
+		"a flag segment":            {{ID: "1", Status: "open", Tests: []string{"github.com/-exec.TestA"}}},
+		"a relative pkg":            {{ID: "1", Status: "open", Tests: []string{"./x.TestB"}}},
+		"a parent seg":              {{ID: "1", Status: "open", Tests: []string{"github.com/x/../y.TestB"}}},
 	} {
 		if _, err := BuildRegistry(cards, open); err == nil {
 			t.Errorf("%s: no refusal", name)
@@ -207,5 +210,122 @@ func TestRerunEvidence(t *testing.T) {
 	got := Classify(Input{Attempt: Result{Failures: []string{tA}}, Registry: registry(t), Rerun: &Result{Passed: true, Unattributed: []string{"the rerun timed out"}}})
 	if got.Kind != RerunInconclusive || got.Kind.Lands() {
 		t.Errorf("an inconclusive rerun: %s", got.Kind)
+	}
+}
+
+func TestParseName(t *testing.T) {
+	for name, want := range map[string]Name{
+		"github.com/x/r/pkg.TestA": {Pkg: "github.com/x/r/pkg", Test: "TestA"},
+		"github.com/xianxu/ariadne/scripts/test.TestConstructScripts/plain/dev-aliases.test.sh": {Pkg: "github.com/xianxu/ariadne/scripts/test", Test: "TestConstructScripts", Sub: "plain/dev-aliases.test.sh"},
+		"gopkg.in/yaml.v3.TestUnmarshal/case#01":                                                {Pkg: "gopkg.in/yaml.v3", Test: "TestUnmarshal", Sub: "case#01"},
+		// A subtest that looks like a test never moves the package boundary.
+		"github.com/x/r/pkg.TestA/sub.TestB": {Pkg: "github.com/x/r/pkg", Test: "TestA", Sub: "sub.TestB"},
+	} {
+		got, ok := ParseName(name)
+		if !ok || got != want || got.String() != name {
+			t.Errorf("%s: %+v %v", name, got, ok)
+		}
+	}
+	n, _ := ParseName("github.com/x/r/pkg.TestA/plain/x.sh")
+	if n.Top() != "github.com/x/r/pkg.TestA" || n.Run() != "TestA/plain/x.sh" {
+		t.Errorf("top %q run %q", n.Top(), n.Run())
+	}
+	if _, _, ok := SplitTest("github.com/x/r/pkg.TestA/sub"); ok {
+		t.Error("SplitTest accepted a subtest; its callers need a whole test")
+	}
+	if err := ValidTest("github.com/x/r/pkg.TestA/sub"); err != nil {
+		t.Errorf("a subtest name refused: %v", err)
+	}
+}
+
+func TestCoversAndLeaves(t *testing.T) {
+	const top = "p.TestX"
+	for _, c := range []struct {
+		r, f string
+		want bool
+	}{
+		{top, top, true},
+		{top, top + "/plain/a.sh", true},
+		{top + "/plain/a.sh", top + "/plain/a.sh", true},
+		{top + "/plain", top + "/plain/a.sh", true},
+		{top + "/plain/a.sh", top + "/plain/b.sh", false}, // a sibling
+		{top + "/plain/a.sh", top + "/plain", false},      // its parent
+		{top + "/plain/a.sh", top, false},
+		{top + "/pl", top + "/plain/a.sh", false}, // a prefix that is not a segment
+	} {
+		if got := Covers(c.r, c.f); got != c.want {
+			t.Errorf("Covers(%q, %q) = %v", c.r, c.f, got)
+		}
+	}
+	failing := []string{top + "/plain", top + "/plain/b.sh", top + "/plain/a.sh", "p.TestY/z"}
+	if got := Leaves(top, failing); strings.Join(got, ",") != top+"/plain/a.sh,"+top+"/plain/b.sh" {
+		t.Errorf("leaves %v", got)
+	}
+	if got := Leaves("p.TestZ", failing); len(got) != 1 || got[0] != "p.TestZ" {
+		t.Errorf("a test with no listed subtests is its own leaf: %v", got)
+	}
+}
+
+// #466: a registered subtest explains its own failure and never a sibling's;
+// the rerun is its whole top-level test and must print the subtest's PASS.
+func TestClassifySubtests(t *testing.T) {
+	const top = "github.com/x/r/scripts/test.TestConstructScripts"
+	const dev, sib = top + "/plain/dev-aliases.test.sh", top + "/plain/other.test.sh"
+	r, err := BuildRegistry([]Card{{ID: "000465", Status: "working", Tests: []string{dev}}}, open)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attempt := func(subs ...string) Result {
+		return Result{Failures: []string{top}, Subtests: append([]string{top + "/plain"}, subs...)}
+	}
+	o := Classify(Input{Attempt: attempt(dev), Registry: r})
+	if o.Kind != NeedRerun || len(o.Known) != 1 || o.Known[0].Test != dev || o.Known[0].Issue != "000465" {
+		t.Fatalf("registered subtest: %+v", o)
+	}
+	if got := RerunTests(o.Known); len(got) != 1 || got[0] != top {
+		t.Fatalf("rerun tests %v: a subtest reruns its whole top-level test", got)
+	}
+	o = Classify(Input{Attempt: attempt(sib), Registry: r})
+	if o.Kind != Unknown || len(o.Unknown) != 1 || o.Unknown[0] != sib || !strings.Contains(o.Reason, "other.test.sh") {
+		t.Fatalf("sibling: %+v", o)
+	}
+	if o := Classify(Input{Attempt: attempt(dev, sib), Registry: r}); o.Kind != Unknown {
+		t.Fatalf("registered plus sibling: %+v", o)
+	}
+	// A top-level failure whose log names no subtest is its own leaf: not
+	// covered by a registered subtest.
+	if o := Classify(Input{Attempt: Result{Failures: []string{top}}, Registry: r}); o.Kind != Unknown {
+		t.Fatalf("parent alone: %+v", o)
+	}
+	// The rerun: passing with the exact PASS line lands; a sibling failing in
+	// the rerun is named as unknown, not "failed twice".
+	in := Input{Attempt: attempt(dev), Registry: r}
+	in.Rerun = &Result{Passed: true}
+	if o := Classify(in); o.Kind != KnownFlakePassed {
+		t.Fatalf("rerun pass: %+v", o)
+	}
+	in.Rerun = &Result{Failures: []string{top}, Subtests: []string{top + "/plain", sib}}
+	if o := Classify(in); o.Kind != Unknown || !strings.Contains(o.Reason, "rerun failed elsewhere") {
+		t.Fatalf("rerun sibling failure: %+v", o)
+	}
+	in.Rerun = &Result{Failures: []string{top}, Subtests: []string{top + "/plain", dev}}
+	if o := Classify(in); o.Kind != KnownFlakeTwice {
+		t.Fatalf("rerun same failure: %+v", o)
+	}
+	log := "--- PASS: TestConstructScripts/plain/dev-aliases.test.sh (0.10s)\n--- PASS: TestConstructScripts (1.00s)\n"
+	if m := RerunMissing(log, []string{dev}); len(m) != 0 {
+		t.Fatalf("missing %v", m)
+	}
+	if m := RerunMissing("--- PASS: TestConstructScripts (1.00s)\n", []string{dev}); len(m) != 1 {
+		t.Fatal("a rerun without the subtest's PASS line proved it")
+	}
+	// A registered top-level test still covers every subtest.
+	whole, _ := BuildRegistry([]Card{{ID: "1", Status: "working", Tests: []string{top}}}, open)
+	if o := Classify(Input{Attempt: attempt(sib), Registry: whole}); o.Kind != NeedRerun || o.Known[0].Test != top {
+		t.Fatalf("whole test: %+v", o)
+	}
+	// Overlapping names on two issues are ambiguous.
+	if _, err := BuildRegistry([]Card{{ID: "1", Status: "working", Tests: []string{top}}, {ID: "2", Status: "working", Tests: []string{dev}}}, open); err == nil {
+		t.Fatal("a test and its subtest on two issues registered")
 	}
 }
