@@ -20,7 +20,7 @@ func rebaseExists(p string) bool { return rebaseTree[p] }
 func TestRebaseLinks(t *testing.T) {
 	for _, c := range []struct {
 		name, from, to, in, want string
-		dangling              []string
+		dangling                 []string
 	}{
 		{"backlink one level shallower", "qa/op/a.md", "s.side/a.md",
 			"_From [S](../../s.md)._", "_From [S](../s.md)._", nil},
