@@ -75,6 +75,35 @@ func flakeGitContains(ctx context.Context, root, ancestor, head string) (bool, e
 	return false, err
 }
 
+// A legacy one-word package label proves ownership only if the issue's merge
+// tree has the expected repository-relative package and no other Go package
+// with that basename. A later tree cannot establish that historical identity.
+func flakeUniquePackageAtMerge(ctx context.Context, root, merge, pkg string) (bool, error) {
+	rel := packageRelativePath(pkg)
+	if rel == "" {
+		return false, nil
+	}
+	raw, err := gitx.GitOutputContext(ctx, "-C", root, "ls-tree", "-r", "--name-only", merge)
+	if err != nil {
+		return false, err
+	}
+	found := false
+	for _, file := range strings.Split(string(raw), "\n") {
+		if path.Ext(file) != ".go" {
+			continue
+		}
+		dir := path.Dir(file)
+		if path.Base(dir) != path.Base(rel) {
+			continue
+		}
+		if dir != rel {
+			return false, nil
+		}
+		found = true
+	}
+	return found, nil
+}
+
 func publishedFixedIssues(ctx context.Context, issuesDir string, rs tracker.Records) ([]fixedFlakeIssue, string, error) {
 	root := repoRootOfContext(ctx, issuesDir)
 	if root == "" {
@@ -139,15 +168,23 @@ func publishedFixedIssues(ctx context.Context, issuesDir string, rs tracker.Reco
 }
 
 func fixedIssueCovers(tests []string, details, name string, bareCollision bool) bool {
+	strong, _ := fixedIssueCoverage(tests, details, name, bareCollision)
+	return strong
+}
+
+// fixedIssueCoverage distinguishes an exact package path from a bare package
+// label. A bare label needs repository evidence before it can claim a test.
+func fixedIssueCoverage(tests []string, details, name string, bareCollision bool) (strong, bareLabel bool) {
 	for _, test := range tests {
 		if test == name {
-			return true
+			return true, false
 		}
 	}
 	pkg, bare, ok := flakes.SplitTest(name)
 	if !ok {
-		return false
+		return false, false
 	}
+	rel := packageRelativePath(pkg)
 	lines := strings.Split(details, "\n")
 	fenced := issue.FenceSpans(lines, issue.UnterminatedIsProse)
 	section := ""
@@ -168,11 +205,71 @@ func fixedIssueCovers(tests []string, details, name string, bareCollision bool) 
 		} else if section != "" && section != "Problem" && section != "Spec" && section != "Done when" && section != "Plan" {
 			continue
 		}
-		if containsTestToken(line, name) || (!bareCollision && containsTestToken(line, bare) && containsTestToken(line, path.Base(pkg))) {
-			return true
+		if containsTestToken(line, name) || (strings.Contains(rel, "/") && containsTestToken(line, bare) && containsPackagePath(line, rel)) {
+			return true, false
+		}
+		if !bareCollision && containsTestToken(line, bare) && containsStandalonePackage(line, path.Base(pkg)) {
+			bareLabel = true
 		}
 	}
+	return false, bareLabel
+}
+
+func packageRelativePath(pkg string) string {
+	parts := strings.SplitN(pkg, "/", 4)
+	if len(parts) != 4 {
+		return ""
+	}
+	return parts[3]
+}
+
+func containsPackagePath(line, rel string) bool {
+	for start := 0; start < len(line); {
+		i := strings.Index(line[start:], rel)
+		if i < 0 {
+			return false
+		}
+		i += start
+		end := i + len(rel)
+		beforeOK := i == 0 || !packagePathByte(line[i-1])
+		afterOK := end == len(line) || !packagePathByte(line[end])
+		if end < len(line) && line[end] == '/' {
+			// A source file directly inside this package is context. A nested
+			// directory names another package even when the parent prefix matches.
+			rest := line[end+1:]
+			goEnd := strings.Index(rest, ".go")
+			firstSlash := strings.IndexByte(rest, '/')
+			afterOK = goEnd >= 0 && (firstSlash < 0 || goEnd < firstSlash) &&
+				(goEnd+3 == len(rest) || !packagePathByte(rest[goEnd+3]))
+		}
+		if beforeOK && afterOK {
+			return true
+		}
+		start = i + 1
+	}
 	return false
+}
+
+func containsStandalonePackage(line, name string) bool {
+	for start := 0; start < len(line); {
+		i := strings.Index(line[start:], name)
+		if i < 0 {
+			return false
+		}
+		i += start
+		end := i + len(name)
+		beforeOK := i == 0 || !packagePathByte(line[i-1])
+		afterOK := end == len(line) || !packagePathByte(line[end])
+		if beforeOK && afterOK {
+			return true
+		}
+		start = i + 1
+	}
+	return false
+}
+
+func packagePathByte(b byte) bool {
+	return testWordByte(b) || b == '/' || b == '-'
 }
 
 func containsTestToken(line, name string) bool {
@@ -199,7 +296,7 @@ func testWordByte(b byte) bool {
 
 // classifyFixedFlake coordinates ownership with injected Git ancestry. It is
 // integration logic: fixedIssueCovers is the pure document matcher.
-func classifyFixedFlake(name string, issues []fixedFlakeIssue, bareCollision bool, contains func(string, string) (bool, error), main, head string) (fixedFlakeState, fixedFlakeIssue, string) {
+func classifyFixedFlake(name string, issues []fixedFlakeIssue, bareCollision bool, contains func(string, string) (bool, error), packageUnique func(string, string) (bool, error), main, head string) (fixedFlakeState, fixedFlakeIssue, string) {
 	var candidates []fixedFlakeIssue
 	for _, candidate := range issues {
 		if !candidate.DetailKnown {
@@ -211,7 +308,26 @@ func classifyFixedFlake(name string, issues []fixedFlakeIssue, bareCollision boo
 			}
 			continue
 		}
-		if fixedIssueCovers(candidate.Tests, candidate.Details, name, bareCollision) {
+		strong, bareLabel := fixedIssueCoverage(candidate.Tests, candidate.Details, name, bareCollision)
+		if strong {
+			candidates = append(candidates, candidate)
+			continue
+		}
+		if bareLabel {
+			if candidate.Merge == "" {
+				return flakeUnknown, fixedFlakeIssue{}, fmt.Sprintf("issue #%s has no landing merge for its package label", candidate.ID)
+			}
+			pkg, _, _ := flakes.SplitTest(name)
+			if packageUnique == nil {
+				return flakeUnknown, fixedFlakeIssue{}, fmt.Sprintf("package label for issue #%s cannot be verified", candidate.ID)
+			}
+			unique, err := packageUnique(candidate.Merge, pkg)
+			if err != nil {
+				return flakeUnknown, fixedFlakeIssue{}, fmt.Sprintf("package label for issue #%s cannot be verified: %v", candidate.ID, err)
+			}
+			if !unique {
+				return flakeUnknown, fixedFlakeIssue{}, fmt.Sprintf("package label for issue #%s is ambiguous or absent at its merge", candidate.ID)
+			}
 			candidates = append(candidates, candidate)
 		}
 	}

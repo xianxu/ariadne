@@ -1054,3 +1054,8 @@ The simplest durable authority beats a clever scan of consequences.
   callback is passed as a value. Test the final CLI rows for default and verbose
   behavior with real ancestry, and carry a reason when uncertain evidence keeps
   a row visible. Document new flags in README as well as atlas.
+- **#458 BR-5 — package identity is a path:** a directory basename in issue
+  prose cannot own a Go test when another package may share that name. Match
+  an exact import or repository-relative package path; for a legacy one-word
+  label, prove uniqueness in the historical landing tree. Test substantive and
+  dedicated Log ownership lines, including nested subpackages.

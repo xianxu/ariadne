@@ -142,15 +142,16 @@ func suiteStoreDir() (string, error) {
 
 // flakeDeps are the IO seams the verbs use; tests replace them.
 type flakeDeps struct {
-	now      func() time.Time
-	attempts func() ([]SuiteAttempt, []string, error) // this clone's test-stats store
-	logPath  func(SuiteAttempt) string                // where an attempt's log is kept
-	repo     func() (string, error)
-	registry func(ctx context.Context) (flakes.Registry, []flakes.Card, error)
-	listView func(ctx context.Context) (flakeListView, error)
-	contains func(ctx context.Context, ancestor, head string) (bool, error)
-	addTests func(ctx context.Context, stdout, stderr io.Writer, id int, add []string) error // merges onto the card's current tests
-	newIssue func(ctx context.Context, stdout, stderr io.Writer, title, body string) (int, error)
+	now           func() time.Time
+	attempts      func() ([]SuiteAttempt, []string, error) // this clone's test-stats store
+	logPath       func(SuiteAttempt) string                // where an attempt's log is kept
+	repo          func() (string, error)
+	registry      func(ctx context.Context) (flakes.Registry, []flakes.Card, error)
+	listView      func(ctx context.Context) (flakeListView, error)
+	contains      func(ctx context.Context, ancestor, head string) (bool, error)
+	packageUnique func(ctx context.Context, merge, pkg string) (bool, error)
+	addTests      func(ctx context.Context, stdout, stderr io.Writer, id int, add []string) error // merges onto the card's current tests
+	newIssue      func(ctx context.Context, stdout, stderr io.Writer, title, body string) (int, error)
 }
 
 func defaultFlakeDeps(issuesDir string) flakeDeps {
@@ -182,6 +183,13 @@ func defaultFlakeDeps(issuesDir string) flakeDeps {
 				return false, err
 			}
 			return flakeGitContains(ctx, root, ancestor, head)
+		},
+		packageUnique: func(ctx context.Context, merge, pkg string) (bool, error) {
+			root, err := gitx.RepoTopLevel()
+			if err != nil {
+				return false, err
+			}
+			return flakeUniquePackageAtMerge(ctx, root, merge, pkg)
 		},
 		addTests: func(ctx context.Context, stdout, stderr io.Writer, id int, add []string) error {
 			return runCardUpdate(ctx, stdout, stderr, issuesDir, id, "flake_tests + "+issue.FlowList(add), false,
@@ -453,6 +461,25 @@ func runFlakeListMode(ctx context.Context, out io.Writer, d flakeDeps, verbose b
 		}{yes, err}
 		return yes, err
 	}
+	packageCache := map[string]struct {
+		unique bool
+		err    error
+	}{}
+	packageUnique := func(merge, pkg string) (bool, error) {
+		key := merge + "\x00" + pkg
+		if hit, ok := packageCache[key]; ok {
+			return hit.unique, hit.err
+		}
+		if d.packageUnique == nil {
+			return false, errFixedGitUnknown
+		}
+		unique, err := d.packageUnique(ctx, merge, pkg)
+		packageCache[key] = struct {
+			unique bool
+			err    error
+		}{unique, err}
+		return unique, err
+	}
 	seenSHA := map[string]bool{}
 	confirmed := map[string]bool{} // listed once, as a flake to file, not also as unexplained
 	for i, a := range order {
@@ -468,7 +495,7 @@ func runFlakeListMode(ctx context.Context, out io.Writer, d flakeDeps, verbose b
 					state, owner, reason := flakeUnknown, fixedFlakeIssue{}, ""
 					if regErr == nil && view.FixedErr == nil {
 						_, bare, _ := flakes.SplitTest(t)
-						state, owner, reason = classifyFixedFlake(t, view.Fixed, bareCollision[bare], contains, view.Main, a.SHA)
+						state, owner, reason = classifyFixedFlake(t, view.Fixed, bareCollision[bare], contains, packageUnique, view.Main, a.SHA)
 					}
 					switch state {
 					case flakeFixed:

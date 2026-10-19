@@ -22,6 +22,9 @@ func TestFixedIssueCoverageUsesOwnershipNotIncidentalLogs(t *testing.T) {
 		{"legacy log label", "## Log\n- Test: `TestCancelledHandoffReportsAChildsCleanExit`, `cmd/internal/launcher/osruntime_launch_test.go`\n", launcher, true},
 		{"incidental log", "## Log\nThe suite later failed TestCancelledHandoffReportsAChildsCleanExit in another issue.\n", launcher, false},
 		{"bare wrong package", "## Problem\nTestMessageSendToDormantSlotReadmits failed in cmd/internal/other/message_service_test.go\n", own, false},
+		{"same basename in another package", "## Problem\nTestMessageSendToDormantSlotReadmits failed in pkg/couchcmd/message_service_test.go\n", own, false},
+		{"same basename in dedicated log line", "## Log\n- Test: TestMessageSendToDormantSlotReadmits in pkg/couchcmd/message_service_test.go\n", own, false},
+		{"nested subpackage path", "## Problem\nTestMessageSendToDormantSlotReadmits failed in cmd/internal/couchcmd/subpkg/message_service_test.go\n", own, false},
 		{"bare no package", "## Problem\nTestMessageSendToDormantSlotReadmits failed\n", own, false},
 		{"substring", "## Problem\nTestMessageSendToDormantSlotReadmitsAgain failed in cmd/internal/couchcmd\n", own, false},
 		{"wrong package", "## Problem\n`github.com/xianxu/pair/cmd/internal/other.TestMessageSendToDormantSlotReadmits` failed\n", own, false},
@@ -73,7 +76,7 @@ func TestFixedFlakeDecisionIsConservative(t *testing.T) {
 					return true, nil
 				}
 				return tt.inHead, nil
-			}, "main", "head")
+			}, nil, "main", "head")
 			if got != tt.want {
 				t.Fatalf("got %v, want %v", got, tt.want)
 			}
@@ -109,19 +112,80 @@ func TestFixedFlakeAgainstRealGitMergeHistory(t *testing.T) {
 	git(t, root, "merge", "--no-ff", "-qm", "land fix", "-X", "ours", "fix")
 	merge := git(t, root, "rev-parse", "HEAD")
 	const test = "github.com/xianxu/pair/pkg.TestX"
-	issues := []fixedFlakeIssue{{ID: "000585", Merge: merge, Details: "## Problem\nTestX failed in pkg\n", DetailKnown: true}}
+	issues := []fixedFlakeIssue{{ID: "000585", Merge: merge, Details: "## Problem\ngithub.com/xianxu/pair/pkg.TestX failed\n", DetailKnown: true}}
 	contains := func(ancestor, head string) (bool, error) {
 		return flakeGitContains(context.Background(), root, ancestor, head)
 	}
-	if got, _, _ := classifyFixedFlake(test, issues, false, contains, merge, before); got != flakeFixed {
+	if got, _, _ := classifyFixedFlake(test, issues, false, contains, nil, merge, before); got != flakeFixed {
 		t.Fatalf("before merge: %v", got)
 	}
-	if got, _, _ := classifyFixedFlake(test, issues, false, contains, merge, merge); got != flakeRecurred {
+	if got, _, _ := classifyFixedFlake(test, issues, false, contains, nil, merge, merge); got != flakeRecurred {
 		t.Fatalf("after merge: %v", got)
 	}
 	issues[0].Merge = strings.Repeat("f", 40)
-	if got, _, _ := classifyFixedFlake(test, issues, false, contains, merge, before); got != flakeUnknown {
+	if got, _, _ := classifyFixedFlake(test, issues, false, contains, nil, merge, before); got != flakeUnknown {
 		t.Fatalf("missing merge: %v", got)
+	}
+}
+
+func TestBarePackageProofNeedsOneMatchingGitPackage(t *testing.T) {
+	root := t.TempDir()
+	git(t, "", "init", "-q", "-b", "main", root)
+	git(t, root, "config", "user.name", "Test")
+	git(t, root, "config", "user.email", "test@example.com")
+	first := filepath.Join(root, "cmd", "internal", "diagnosticlog")
+	if err := os.MkdirAll(first, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(first, "probe.go"), []byte("package diagnosticlog\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "add", ".")
+	git(t, root, "commit", "-qm", "first package")
+	unique := git(t, root, "rev-parse", "HEAD")
+	const pkg = "github.com/xianxu/pair/cmd/internal/diagnosticlog"
+	if ok, err := flakeUniquePackageAtMerge(context.Background(), root, unique, pkg); err != nil || !ok {
+		t.Fatalf("unique package: %v, %v", ok, err)
+	}
+	second := filepath.Join(root, "pkg", "diagnosticlog")
+	if err := os.MkdirAll(second, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(second, "probe.go"), []byte("package diagnosticlog\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "add", ".")
+	git(t, root, "commit", "-qm", "same basename elsewhere")
+	ambiguous := git(t, root, "rev-parse", "HEAD")
+	if ok, err := flakeUniquePackageAtMerge(context.Background(), root, ambiguous, pkg); err != nil || ok {
+		t.Fatalf("same basename must not prove ownership: %v, %v", ok, err)
+	}
+	if ok, err := flakeUniquePackageAtMerge(context.Background(), root, unique, "github.com/xianxu/pair/missing/diagnosticlog"); err != nil || ok {
+		t.Fatalf("missing expected package must not prove ownership: %v, %v", ok, err)
+	}
+}
+
+func TestBarePackageAttributionRequiresHistoricalProof(t *testing.T) {
+	const name = "github.com/xianxu/pair/cmd/internal/diagnosticlog.TestX"
+	contains := func(_, head string) (bool, error) { return head == "main", nil }
+	for _, section := range []string{
+		"## Problem\nTestX fails in diagnosticlog under load\n",
+		"## Log\n- Test: TestX in diagnosticlog\n",
+	} {
+		issues := []fixedFlakeIssue{{ID: "000659", Merge: "merge", Details: section, DetailKnown: true}}
+		got, _, why := classifyFixedFlake(name, issues, false, contains, func(_, _ string) (bool, error) { return false, nil }, "main", "before")
+		if got != flakeUnknown || !strings.Contains(why, "package label") {
+			t.Fatalf("unproved bare package in %q hid a test: %v, %q", section, got, why)
+		}
+		got, _, why = classifyFixedFlake(name, issues, false, contains, func(_, _ string) (bool, error) { return true, nil }, "main", "before")
+		if got != flakeFixed || why != "" {
+			t.Fatalf("unique historical package in %q: %v, %q", section, got, why)
+		}
+	}
+	wrong := []fixedFlakeIssue{{ID: "000659", Merge: "merge", Details: "## Problem\nTestX fails in pkg/diagnosticlog/run_test.go\n", DetailKnown: true}}
+	got, _, _ := classifyFixedFlake(name, wrong, false, contains, func(_, _ string) (bool, error) { return true, nil }, "main", "before")
+	if got != flakeUnknown {
+		t.Fatalf("an explicit wrong package path cannot fall back to its basename: %v", got)
 	}
 }
 
@@ -202,6 +266,35 @@ func TestFlakeListCachesAncestryAcrossRepeatedAttempts(t *testing.T) {
 			}
 			if strings.Count(out.String(), "fixed by #000448") != n {
 				t.Fatalf("lost fixed entries:\n%s", out.String())
+			}
+		})
+	}
+}
+
+func TestFlakeListCachesBarePackageProofAcrossRepeatedAttempts(t *testing.T) {
+	for _, n := range []int{4, 8} {
+		t.Run(string(rune('0'+n)), func(t *testing.T) {
+			const name = "github.com/xianxu/ariadne/cmd/sdlc.TestOther"
+			w := &flakeWorld{main: "main", fixed: []fixedFlakeIssue{{ID: "000448", Merge: "merge", Details: "## Problem\nTestOther fails in sdlc\n", DetailKnown: true}}}
+			for i := 1; i <= n; i++ {
+				w.attempts = append(w.attempts, attemptAt(sixDigits(i), "head", i, 1, name))
+			}
+			w.attempts = append(w.attempts, attemptAt("pass", "head", n+1, 0))
+			w.contains = func(_ context.Context, _, head string) (bool, error) { return head == "main", nil }
+			calls := 0
+			w.packageUnique = func(_ context.Context, _, pkg string) (bool, error) {
+				calls++
+				if pkg != "github.com/xianxu/ariadne/cmd/sdlc" {
+					t.Errorf("wrong package: %s", pkg)
+				}
+				return true, nil
+			}
+			var out bytes.Buffer
+			if err := runFlakeListMode(context.Background(), &out, w.deps(), true); err != nil {
+				t.Fatal(err)
+			}
+			if calls != 1 || strings.Count(out.String(), "fixed by #000448") != n {
+				t.Fatalf("%d attempts caused %d package-tree reads or lost fixed entries:\n%s", n, calls, out.String())
 			}
 		})
 	}
