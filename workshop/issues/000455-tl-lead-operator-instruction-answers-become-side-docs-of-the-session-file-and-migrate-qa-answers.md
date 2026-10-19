@@ -1,13 +1,21 @@
 ---
 id: 000455
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'decd1217108ace0eb24b7e0221771ca71910ed89' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f3d5213e60e4d39799e0fc053524a8169a360675' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-18T21:13:34-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead: operator-instruction answers become side docs of the session file (and migrate qa/ answers)
