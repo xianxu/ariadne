@@ -1,6 +1,6 @@
 ---
 id: 000465
-status: working
+status: codecomplete
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -14,6 +14,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.17
+tracker:
+    version: 1
+    completion:
+        token: close-9072cbfc8e43
+        repository: github.com/xianxu/ariadne
+        reviewed_head: f874054852a15da9f76d9d2fc23482a05f99a148
+        evidence_commit: fb45f20e175e09b1a433ebdbfbf0d330f03b12c0
 ---
 
 # dev-aliases script exceeds its per-script budget under suite load
