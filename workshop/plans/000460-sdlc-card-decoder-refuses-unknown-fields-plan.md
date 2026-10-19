@@ -35,7 +35,7 @@ Card decode accepts unknown keys at the top level, under `claimant`, and recursi
 
 The card rewrite table is: scalar/title setter → preserve untouched spans; claimant setter → replace known claimant children and retain unknown claimant children; tracker setter → retain unknown children at every retained mapping depth. Invalid card → refuse before Git write; CAS drift → existing retry path rereads the whole newer card and applies again; interrupted push → existing tracker receipt reconciles. The user-visible state and recovery remain the existing tracker states; this change adds no new state (ARCH-ORDER).
 
-Landing events: `landingline.readLog` tolerates unknown JSON members and `sweep` retains original lines, so add an explicit retention regression but no production change. Test-stats v2: `decodeSuiteAttempt` currently refuses unknown keys; let unknown keys through the token-level duplicate check and JSON struct decoder while validating known key spelling, types, required fields, nested known facts and the exact-head safety fields. These are read-only records, so there is no attempt rewrite; `publishSuiteAttempt` creates a new attempt with a new ID. #449 readiness sidecars: its current branch uses tolerant JSON decode and replaces only its own ticket's complete vouch; no read-modify-write path. Recheck its landed code before close and file a follow-up if that contract changes. The audit result goes into the issue Log (ARCH-PURPOSE).
+Landing events: `landingline.readLog` tolerates unknown JSON members and `sweep` retains original lines, so add an explicit retention regression but no production change. Test-stats v2: `decodeSuiteAttempt` currently refuses unknown keys; let unknown keys through the token-level duplicate check and JSON struct decoder while validating known key spelling, types, required fields, nested known facts and the exact-head safety fields. These are read-only records, so there is no attempt rewrite; `publishSuiteAttempt` creates a new attempt with a new ID. #449 readiness sidecars: its current branch uses tolerant JSON decode but writes a complete vouch on update. Hub directed its owner, ariadne:2, to preserve unknown members there before landing; #460 will verify that branch's result and log it, without making a competing edit. The audit result goes into the issue Log (ARCH-PURPOSE).
 
 ## Tasks
 
@@ -58,7 +58,7 @@ Landing events: `landingline.readLog` tolerates unknown JSON members and `sweep`
 **Files:** `cmd/sdlc/teststats_store.go`, `teststats_store_test.go`, `cmd/sdlc/internal/landingline/log_test.go`, issue Log.
 
 - [ ] Add a newer attempt with an unknown top-level and nested metadata member and prove an older read-only decoder can still use the validated exit/SHA/log hash. Assert duplicates and wrong known field types still fail. Relax only unknown-key refusal; do not weaken versioned outcome semantics.
-- [ ] Add a landing-event retention test with an extra member and assert the original JSON line survives a sweep. Recheck #449's landed readiness reader and writer; record the result or file a specific follow-up.
+- [ ] Add a landing-event retention test with an extra member and assert the original JSON line survives a sweep. Check ariadne:2's #449 fix before it lands; record its test and code evidence in the audit.
 
 ### 4. Verify and land
 
@@ -68,3 +68,4 @@ Landing events: `landingline.readLog` tolerates unknown JSON members and `sweep`
 ## Revisions
 
 - 2026-10-19: Initial plan from the #460 incident and the current reader/writer audit. No implementation has begun.
+- 2026-10-19: Hub approved and assigned readiness sidecar compatibility to #449's current owner before landing; #460 verifies that result instead of editing its branch.
