@@ -1,4 +1,24 @@
 ---
+reviewer_runs:
+    - version: 1
+      intent:
+        id: 070b7754-2a70-42d6-b099-c279a83ac531
+        repository: github.com/xianxu/ariadne
+        issue_id: "000459"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: codex
+        root: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        reviewed_head: 6773be3c57c50d8146432099d943320e4601a35c
+        slot: ariadne:3
+        requested_at: "2026-10-19T08:22:08.18721Z"
+      phase: finished
+      pid: 10235
+      started_at: "2026-10-19T08:22:08.368936Z"
+      finished_at: "2026-10-19T08:22:41.622225Z"
+      session_id: 01a15340-f6cb-7f03-932e-bf9d83fd583f
+      outcome: returned
 gate: plan-quality
 issue: 459
 id_prefix: PQ
@@ -65,7 +85,32 @@ rounds:
           note: Named pure functions have adversarial-input strategies and mechanical oracles; orchestration strategies are compressed while real-compiler acceptance controls remain required.
           round: 2
       blocked: false
-content_hash: f428f33183bd6fc21194598949ef3d30e87828955aa53851f1c01c93f0db1192
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: cdcece05-b0e6-4129-8be5-3d13ab93954b
+            repository: github.com/xianxu/ariadne
+            issue_id: "000459"
+            recipe: plan-quality
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+            reviewed_head: 6773be3c57c50d8146432099d943320e4601a35c
+            slot: ariadne:3
+            requested_at: "2026-10-19T08:21:36.936815Z"
+          phase: finished
+          pid: 86161
+          started_at: "2026-10-19T08:21:37.132619Z"
+          finished_at: "2026-10-19T08:22:04.804152Z"
+          session_id: 01a15340-7c8a-71a2-9902-70db36be1854
+          outcome: returned
+      "n": 3
+      timestamp: "2026-10-19T01:22:05-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      blocked: false
+content_hash: fd257f64c8579629a8dc41bfe950058b697a31a3fa2f76e85b072f5123f4dc27
 ---
 
 # Gate ledger — ariadne#459 (plan-quality)
@@ -85,6 +130,8 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 ### Disposed
 
 - PQ-1 — addressed — Named pure functions have adversarial-input strategies and mechanical oracles; orchestration strategies are compressed while real-compiler acceptance controls remain required.
+
+## Round 3 — 2026-10-19T01:22:05-07:00 (codex) — passed
 
 ## Open findings
 

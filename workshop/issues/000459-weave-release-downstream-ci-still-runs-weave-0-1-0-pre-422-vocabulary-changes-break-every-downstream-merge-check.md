@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # weave release: downstream CI still runs weave 0.1.0 (pre-#422); vocabulary changes break every downstream merge-check
