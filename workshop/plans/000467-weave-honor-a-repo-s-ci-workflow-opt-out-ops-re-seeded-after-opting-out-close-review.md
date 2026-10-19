@@ -102,3 +102,81 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"c42da31e-714f-417a-a2e6-912695ffe2cd","repository":"github.com/xianxu/ariadne","issue_id":"000467","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/0d420d9deab70d8f","reviewed_head":"e4ee6277a482202da97576459c5847c1de49eaa3","slot":"ariadne:5","requested_at":"2026-10-19T17:08:29.005976Z"},"phase":"finished","pid":50974,"started_at":"2026-10-19T17:08:29.224535Z","finished_at":"2026-10-19T17:16:43.564066Z","session_id":"8cbfc921-a127-4421-93f0-2b3e2bde87b8","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-19T11:46:46-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 467 — weave: honor a repo's CI-workflow opt-out (ops re-seeded after opting out) |
+| repo | ariadne |
+| issue file | workshop/issues/000467-weave-honor-a-repo-s-ci-workflow-opt-out-ops-re-seeded-after-opting-out.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | af6c2a8a8c30ef986a26da5adc4df8c7ebd9096a..c3fca0ece7d29f05d3b014a3030590748cd7de60 |
+| command | sdlc close --issue 467 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | checkout |
+| timestamp | 2026-10-19T11:46:46-07:00 |
+| verdict | SHIP |
+
+## Review
+
+The fixes check out. Writing up the verdict now.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All three earlier findings are fixed, and none of the fixes adds a Critical or Important problem.
+
+- **BR-1 (internal rows):** `declinedBy` now skips ancestor rows that never reach the leaf (`decline.go:65`).
+- **BR-2 (two-path rows):** `Decline` now reads the declined path from `Source`. A row with a second argument records it in `Extra`, declines nothing, and `printDeclined` prints a warning for it (`main.go:754`).
+- **BR-3 (plan wording):** this is fixed by a `## Revisions` entry.
+
+I tested the fixes rather than taking the commits' word for them. With each fix reverted, its unit test fails: `TestDeclineSkipsAncestorInternalRows` and `TestDeclineWithTwoPathsDeclinesNothing`. With both fixes in place the weave suite passes, except `TestArchiveCompileNeedsNoGitExecutable`. That test fails because git isn't on the restricted PATH, which is unrelated to this change; the previous round saw the same failure.
+
+The Revisions entry records only what the previous round recommended: the docs-step wording, and the generic report line the hub approved. Neither changes scope.
+
+**1. Strengths**
+- `decline.go:65`: the visibility check uses the existing `intent.Selected` rule instead of a new copy of it (ARCH-DRY).
+- `decline.go:41-45`: the fix works whichever column the second path lands in. The declined path always comes from `Source`, and any differing `Target` makes the row inert. It is not special-cased for one argument order.
+- The new fixture test also covers a declined symlink being retired, which the previous round listed as untested.
+
+**2. Critical findings:** none.
+
+**3. Important findings:** none.
+
+**4. Minor findings**
+- `cmd/weave/decline_test.go:123`: the check that `bootstrap.sh` survives can't catch a regression. Decline leaves files already on disk alone by design, so the fixture test still passed when I removed the `Extra` guard. The unit test does catch it, so the regression evidence still holds.
+- `decline ./a a` prints the two-path warning even though both arguments clean to the same path. `Source` and `Target` are compared before cleaning. Harmless.
+
+**5. Test coverage notes:** both behavior fixes have unit tests that fail without the fix (I reverted each and confirmed). The checkout is restored to head.
+
+**6. Architectural notes (interdiff only)**
+- **ARCH-DRY:** pass.
+- **ARCH-PURE:** pass. The fixes are in the pure filter, and the warning is printed by the existing thin report function. The doc comment now says "No IO; updates in place" instead of overclaiming "Pure".
+- **ARCH-PURPOSE:** pass. BR-2 is scoped to the `decline` verb, which is what the finding named. Other verbs' arity was reviewed earlier and is outside this window.
+- **ARCH-EVOLVE:** pass. The manifest format is unchanged; a two-path `decline` row now warns and is ignored instead of being misread.
+
+**7. Plan revision recommendations:** none. The Revisions entry already matches the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      declinedBy returns nil when intent.Selected is false (decline.go:65). TestDeclineSkipsAncestorInternalRows fails with the guard reverted.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The path now comes from Source and a differing Target goes to Extra; the row is inert and printDeclined warns. TestDeclineWithTwoPathsDeclinesNothing fails with the guard reverted.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The Revisions entry says the docs step updated the base.manifest header and atlas base-layer.md and ci-merge-check.md, not construct/manifest.md, matching the prior diff.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"578d9075-a485-4c8b-b692-6f61abf8b221","repository":"github.com/xianxu/ariadne","issue_id":"000467","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/4ee93fd71497e996","reviewed_head":"c3fca0ece7d29f05d3b014a3030590748cd7de60","slot":"ariadne:5","requested_at":"2026-10-19T18:44:44.442076Z"},"phase":"finished","pid":81150,"started_at":"2026-10-19T18:44:44.539006Z","finished_at":"2026-10-19T18:46:37.282221Z","session_id":"13159420-1ebd-4f26-b816-ad2179142b7f","outcome":"returned"}] -->

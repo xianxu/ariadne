@@ -86,6 +86,84 @@ rounds:
       isolation: checkout
       reviewed: e4ee6277a482202da97576459c5847c1de49eaa3
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 578d9075-a485-4c8b-b692-6f61abf8b221
+            repository: github.com/xianxu/ariadne
+            issue_id: "000467"
+            recipe: fix-review
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/4ee93fd71497e996
+            reviewed_head: c3fca0ece7d29f05d3b014a3030590748cd7de60
+            slot: ariadne:5
+            requested_at: "2026-10-19T18:44:44.442076Z"
+          phase: finished
+          pid: 81150
+          started_at: "2026-10-19T18:44:44.539006Z"
+          finished_at: "2026-10-19T18:46:37.282221Z"
+          session_id: 13159420-1ebd-4f26-b816-ad2179142b7f
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: c3fca0ece7d29f05d3b014a3030590748cd7de60
+        tracker_head: 5ab2120b88b7b3d614471399ee21ee2d07acb9d0
+        branch_point: 931a4ad6898a9883e1324701e92860bca401f2bc
+        since: "2026-10-19T10:00:05-07:00"
+        until: "2026-10-19T10:17:35-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T10:00:05-07:00"
+              end: "2026-10-19T10:17:35-07:00"
+              began: "2026-10-19T10:00:05-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        sources:
+            - harness: claude
+              id: 2b1c35f1-9bee-4064-83d0-2a67ebaaf586
+              slot: ariadne:5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+              digest: 54c301439b80ed805ddd72b3470bbd778f8fd6ec77d1c88fe67be9a485376555
+              started: "2026-10-19T16:59:53.709Z"
+              spawned: false
+              bytes: 4199678
+              windows:
+                - start: "2026-10-19T10:00:05-07:00"
+                  end: "2026-10-19T10:17:35-07:00"
+        cuts:
+            - dispatched: "2026-10-19T10:08:29-07:00"
+              finalized: "2026-10-19T10:16:46-07:00"
+              finalizing: true
+      "n": 2
+      timestamp: "2026-10-19T11:46:47-07:00"
+      dispatched: "2026-10-19T11:44:44-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: declinedBy returns nil when intent.Selected is false (decline.go:65). TestDeclineSkipsAncestorInternalRows fails with the guard reverted.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: The path now comes from Source and a differing Target goes to Extra; the row is inert and printDeclined warns. TestDeclineWithTwoPathsDeclinesNothing fails with the guard reverted.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: The Revisions entry says the docs step updated the base.manifest header and atlas base-layer.md and ci-merge-check.md, not construct/manifest.md, matching the prior diff.
+          round: 2
+      recipe: fix-review
+      isolation: checkout
+      reviewed: c3fca0ece7d29f05d3b014a3030590748cd7de60
+      blocked: false
 ---
 
 # Gate ledger — ariadne#467 (boundary-review)
@@ -104,8 +182,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-3** [Minor] `plan-claims-undelivered-doc` (kind: defect) Plan docs step says construct/manifest.md was updated, but it is not in the diff
   manifest.md does not list verbs, so nothing is missing from the docs. Correct the plan wording in a Revisions entry.
 
+## Round 2 — 2026-10-19T11:46:47-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — declinedBy returns nil when intent.Selected is false (decline.go:65). TestDeclineSkipsAncestorInternalRows fails with the guard reverted.
+- BR-2 — addressed — The path now comes from Source and a differing Target goes to Extra; the row is inert and printDeclined warns. TestDeclineWithTwoPathsDeclinesNothing fails with the guard reverted.
+- BR-3 — addressed — The Revisions entry says the docs step updated the base.manifest header and atlas base-layer.md and ci-merge-check.md, not construct/manifest.md, matching the prior diff.
+
 ## Open findings
 
-- **BR-1** [Minor] `decline-ignores-visibility-selection` (kind: defect) Decline removes and reports ancestor internal rows that never participate in the leaf
-- **BR-2** [Minor] `manifest-row-arity-unchecked` (kind: defect) A decline row with two path arguments silently declines the second one
-- **BR-3** [Minor] `plan-claims-undelivered-doc` (kind: defect) Plan docs step says construct/manifest.md was updated, but it is not in the diff
+(none — every finding has been disposed)
