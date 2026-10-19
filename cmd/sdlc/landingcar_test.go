@@ -100,18 +100,18 @@ func TestTrainAdmission(t *testing.T) {
 	}
 	for _, c := range cases {
 		reads := 0
-		admit := trainAdmission(func() landingline.Schedule { return sched }, func() []landingline.Event { reads++; return c.events }, func() time.Time { return now })()
-		got, why := admit(landingline.Ticket{Seq: 1, Branch: "b"}, c.r, c.granted)
-		admit(landingline.Ticket{Seq: 2, Branch: "b"}, c.r, c.granted)
+		admit := trainAdmission(func() landingline.Schedule { reads++; return sched }, func() time.Time { return now })()
+		got, why := admit(c.events, landingline.Ticket{Seq: 1, Branch: "b"}, c.r, c.granted)
+		admit(c.events, landingline.Ticket{Seq: 2, Branch: "b"}, c.r, c.granted)
 		if reads != 1 {
-			t.Errorf("%s: the events log was read %d times for one attempt", c.name, reads)
+			t.Errorf("%s: the setting was read %d times for one attempt", c.name, reads)
 		}
 		if got != c.want || !strings.Contains(why, c.why) {
 			t.Errorf("%s: %v %q", c.name, got, why)
 		}
 	}
-	off := trainAdmission(func() landingline.Schedule { return landingline.Schedule{} }, func() []landingline.Event { t.Fatal("trains off read the log"); return nil }, time.Now)()
-	if ok, _ := off(landingline.Ticket{Seq: 1}, nil, false); !ok {
+	off := trainAdmission(func() landingline.Schedule { return landingline.Schedule{} }, time.Now)()
+	if ok, _ := off(nil, landingline.Ticket{Seq: 1}, nil, false); !ok {
 		t.Error("trains off held an unvouched merge")
 	}
 }

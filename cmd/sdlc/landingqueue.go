@@ -36,8 +36,9 @@ func landingLineDir(r gitRunner, root string) (string, error) {
 
 // openLandingLine opens dir with production options; stderr receives the
 // waiting position whenever it changes. sched (#449) is the train setting,
-// read again on every admission attempt so a change on main counts while a
-// merge waits; nil, or a schedule with trains off, is the serial line.
+// asked on every admission attempt; it caches its read for
+// landingScheduleTTL, so a change on main counts within that while a merge
+// waits. nil, or a schedule with trains off, is the serial line.
 func openLandingLine(dir string, sched func() landingline.Schedule, stderr io.Writer) (*landingline.Line, *lineLog, error) {
 	var line *landingline.Line
 	log := &lineLog{stderr: stderr}
@@ -63,13 +64,7 @@ func openLandingLine(dir string, sched func() landingline.Schedule, stderr io.Wr
 		},
 	}
 	if sched != nil {
-		o.Admission = trainAdmission(sched, func() []landingline.Event {
-			events, _, err := line.Events()
-			if err != nil {
-				return nil // an unreadable log: the first train, never a stall
-			}
-			return events
-		}, landingNow)
+		o.Admission = trainAdmission(sched, landingNow)
 		o.OnHeld = func(why string) { fmt.Fprintf(stderr, "landing train: held: %s\n", why) }
 	}
 	line, err := landingline.Open(dir, o)

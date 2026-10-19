@@ -302,9 +302,9 @@ func TestAdmissibleGatesTheHead(t *testing.T) {
 	held := []string{}
 	o := testOptions(nil)
 	attempts := 0
-	o.Admission = func() func(Ticket, *Readiness, bool) (bool, string) {
+	o.Admission = func() AdmissionRule {
 		attempts++
-		return func(tk Ticket, r *Readiness, granted bool) (bool, string) {
+		return func(_ []Event, tk Ticket, r *Readiness, granted bool) (bool, string) {
 			if !due {
 				return false, "next train at 10:00"
 			}
@@ -493,5 +493,32 @@ func TestVouchConcurrentWithAdmission(t *testing.T) {
 	}
 	if err := <-done; err != nil {
 		t.Fatalf("vouch failed other than by admission: %v", err)
+	}
+}
+
+// The departure ledger is read under the mutex after head.lock is taken: a
+// train event the previous head wrote before releasing the line counts for
+// the very next admission (no early second train on a stale read).
+func TestAdmissionSeesTheTrainTheLastHeadRecorded(t *testing.T) {
+	o := testOptions(nil)
+	o.Admission = func() AdmissionRule {
+		return func(events []Event, _ Ticket, _ *Readiness, _ bool) (bool, string) {
+			if _, ok := NextDeparture(events); ok {
+				return false, "next train later"
+			}
+			return true, ""
+		}
+	}
+	l := openLine(t, t.TempDir(), o)
+	a, b := enqueue(t, l, 1), enqueue(t, l, 2)
+	wantPos(t, l, a, 0)
+	wantPos(t, l, b, 1)
+	// The train event lands before a releases the line, as a conductor writes it.
+	if err := l.Record(Event{Kind: EventTrain, Seq: a.Ticket().Seq, NextDue: tt0.Add(time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	a.Release()
+	if _, _, why, err := l.tryAdmit(b); err != nil || why != "next train later" {
+		t.Fatalf("admitted on a stale ledger: why %q err %v", why, err)
 	}
 }

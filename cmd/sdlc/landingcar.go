@@ -137,28 +137,31 @@ func readinessLine(r landingline.Readiness) string {
 	}
 }
 
-// trainAdmission is the line's admission rule (#449), built once per
-// admission attempt so the schedule and the events log are read once, not
-// once per ticket. Trains off: every ticket is admissible, the serial line. A
+// trainAdmission is the line's admission rule (#449). The train setting is
+// read once per admission attempt, outside the line mutex (the source caches
+// it); the departure ledger comes from the line, read under the mutex after
+// head.lock. Trains off: every ticket is admissible, the serial line. A
 // granted merge departs at once and alone, as before #449, and runs its own
 // gates after admission. Any other merge departs only when the train is due
 // and its vouch holds for its own ticket: a merge whose gates don't hold
 // never holds the line.
-func trainAdmission(sched func() landingline.Schedule, events func() []landingline.Event, now func() time.Time) func() func(landingline.Ticket, *landingline.Readiness, bool) (bool, string) {
-	return func() func(landingline.Ticket, *landingline.Readiness, bool) (bool, string) {
+func trainAdmission(sched func() landingline.Schedule, now func() time.Time) func() landingline.AdmissionRule {
+	return func() landingline.AdmissionRule {
 		s := sched()
 		if s.Off() {
-			return func(landingline.Ticket, *landingline.Readiness, bool) (bool, string) { return true, "" }
-		}
-		at := now()
-		due, notDue := landingline.DepartureDue(at, s, events())
-		return func(t landingline.Ticket, r *landingline.Readiness, granted bool) (bool, string) {
-			switch {
-			case granted:
+			return func([]landingline.Event, landingline.Ticket, *landingline.Readiness, bool) (bool, string) {
 				return true, ""
-			case !due:
-				return false, notDue
-			case r == nil:
+			}
+		}
+		return func(events []landingline.Event, t landingline.Ticket, r *landingline.Readiness, granted bool) (bool, string) {
+			if granted {
+				return true, ""
+			}
+			at := now()
+			if due, why := landingline.DepartureDue(at, s, events); !due {
+				return false, why
+			}
+			if r == nil {
 				return false, "train due; not vouched ready yet"
 			}
 			if why := r.For(t, at); why != "" {

@@ -47,13 +47,16 @@ type Options struct {
 	// runs outside the line mutex, so it may call Record.
 	OnAdmit func(head Ticket, displaced []Ticket)
 	// Admission (#449) is called once per admission attempt, before the line
-	// mutex is taken, and returns the rule for this attempt: whether a live ticket may
-	// be admitted now, given its readiness vouch (nil when it has none) and
-	// whether it holds a grant. One call per attempt lets the rule read its
-	// inputs (the events log, the schedule) once, not once per ticket. The
-	// head is the first admissible ticket in Order; nil admits every ticket,
-	// the serial line of #393.
-	Admission func() func(t Ticket, r *Readiness, granted bool) (bool, string)
+	// mutex is taken, so its slow inputs (the train setting) are read outside
+	// it. It returns the rule for this attempt, which the line applies under
+	// the mutex, after taking head.lock, to each live ticket with the events
+	// log read there: the departure ledger is decided on what the previous
+	// head wrote before releasing head.lock, never on a read from before it.
+	// The rule says whether the ticket may be admitted now, given its
+	// readiness vouch (nil when it has none) and whether it holds a grant.
+	// The head is the first admissible ticket in Order; nil admits every
+	// ticket, the serial line of #393.
+	Admission func() AdmissionRule
 	// OnHeld reports why this waiter, though first in line, is not admitted
 	// (a train not due, not ready), when that changes.
 	OnHeld func(why string)
@@ -64,6 +67,10 @@ type Line struct {
 	dir string
 	o   Options
 }
+
+// AdmissionRule decides one ticket's admission from the events log as read
+// under the line mutex.
+type AdmissionRule func(events []Event, t Ticket, r *Readiness, granted bool) (bool, string)
 
 // ErrNotWaiting is a vouch from a merge that is no longer waiting (admitted
 // or released): not a failure, the vouching simply ends.
@@ -187,7 +194,7 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 	why := ""
 	// The rule's inputs (the schedule, the events log) are read here, before
 	// the line mutex: no slow read runs while every waiter is blocked on it.
-	var admissible func(Ticket, *Readiness, bool) (bool, string)
+	var admissible AdmissionRule
 	if l.o.Admission != nil {
 		admissible = l.o.Admission()
 	}
@@ -224,6 +231,12 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 		}
 		candidates := live
 		if admissible != nil {
+			// head.lock is held: the previous head has left, so its train
+			// event is in the log this reads.
+			events, _, err := l.Events()
+			if err != nil {
+				events = nil // unreadable: the first train, never a stall
+			}
 			ready := l.readReady()
 			candidates = nil
 			for _, t := range live {
@@ -232,7 +245,7 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 					r = &v
 				}
 				_, granted := grants[t.Issue]
-				ok, reason := admissible(t, r, granted)
+				ok, reason := admissible(events, t, r, granted)
 				if ok {
 					candidates = append(candidates, t)
 				} else if t.Seq == h.ticket.Seq {
