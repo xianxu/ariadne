@@ -18,13 +18,58 @@ does **not** contain the base-layer sibling that a *script* symlink points at:
 | Runner | `scripts/run-merge-checks.sh` | `symlink` → `../<upstream>` | Generic logic, single-source via the symlink; but the target is the base-layer *sibling*, absent in an isolated CI checkout — so the shim clones peers first (below) |
 | Checks | `scripts/merge-checks.d/*` | `scaffold` | Repo-owned; each derivative drops its own (or none) |
 
-The shim first runs `BOOTSTRAP_CLONE_ONLY=1 ./bootstrap.sh` to clone the upstream
-peer chain as siblings (so the runner symlink resolves; `CLONE_ONLY` skips the
-heavy `make bootstrap` handoff; guarded so the root repo is a no-op). Then it
-computes the PR range and calls the runner; the runner discovers and runs every
-executable in `merge-checks.d/`, aggregating exit codes. **Empty dir = pass.**
-(The clone step was added after the first live PR exercise — you-decide#4 / #53
-Phase E — showed the symlinked runner `exit 127`ing in CI.)
+The shim builds the selected exact compiler before running `./bootstrap.sh`.
+Bootstrap prepares the upstream peer chain and composes generated helpers; then
+an optional repository-owned setup hook runs. The shim computes the PR/push
+range and calls the runner, which runs executable checks in filename order and
+aggregates their exit codes. **Empty check directory = pass.** Bootstrap remains
+required even when there are no repository checks.
+
+## Compiler compatibility (#459)
+
+Each consumer authors `.sdlc/weave-compiler-ref`: exactly one lowercase 40-hex
+Ariadne commit plus newline. This file is deliberately absent from the weave
+manifest, so compile cannot silently advance an independently selected pin.
+New consumers explicitly create it before their first CI run. The workflow
+fetches that public source into a private checkout, verifies HEAD, selects Go
+from its go.mod and builds with CGO disabled, `GOTOOLCHAIN=local` and `-trimpath`.
+It verifies the binary's VCS revision and clean source metadata, then prepends
+its private directory to PATH before bootstrap. Acquisition or identity failure
+stops the job rather than selecting a formula or an existing PATH binary.
+
+Ariadne's source workflow keeps its candidate compiler separate. It declares
+one or two supported full compiler SHAs in `.sdlc/weave-compiler-refs` and checks
+each against candidate vocabulary on every PR and main push. The initial source
+pin includes #422's committed sidecar ownership support. The guard lives in
+`scripts/ci/weave-compatibility.py`; fast parser/comparison and process-seam
+checks live in `scripts/test/weave-compatibility.test.sh`.
+
+The compatibility fixture uses the candidate's actual vocabulary producer
+manifest declarations and top-level CUE noun exports in private Git consumers.
+A cold checkout has tracked older output bytes and matching sidecars, with no
+runtime ownership inventory. The pinned compiler must regenerate the exact
+candidate corpus and digests; a second cold checkout must preserve it. An
+intentionally changed-output control prevents unchanged vocabulary from hiding
+the old compiler's failure. Authored or tampered output must refuse without
+losing bytes. Real pre-#422 compiler execution is the negative control. Existing
+instance-conformance tests remain separate; the guard does not claim coverage
+of arbitrary unrelated schemas or every manifest backend.
+
+During a pin rollout, add the new compiler to the supported set first and test
+both. Consumer owners migrate their authored pin through operator-verified
+local-gates PRs; future pin bumps require the same verification. Remove the old
+pin only after the TL records remote evidence that no inventoried consumer
+still selects it. The supported-set guard is automatic; deployed-pin inventory
+reconciliation belongs to the TL. A source pin identifies reviewed code and
+module checksums, not identical machine code across arbitrary environments.
+
+Workflow delivery is `seed`: compile refreshes differing workflow bytes, but
+cannot change the workflow already loaded by GitHub or commit a consumer's
+migration. Existing consumers therefore need committed migration PRs. The
+#459 issue and its inventory track repository-owned hand-offs; ops and
+emma-private are operator decisions.
+No release, tag or tap publication is part of this CI migration. Interactive
+bootstrap still follows the ordinary published-gateway distribution path.
 
 ## The check contract
 
@@ -294,9 +339,8 @@ the distinction survives to CI rather than being flattened at the boundary.
 
 ## Standalone consumers (#225)
 
-The upstream-seeded workflow clones peers first, then selects the declared Go
-version from the consumer's go.mod or the bootstrapped sibling ariadne/go.mod.
-An executable repo-owned `scripts/ci-setup.sh` runs before checks; failure stops
+The upstream-seeded workflow selects and builds its pinned gateway first,
+then bootstrap prepares peers and composition. An executable repo-owned `scripts/ci-setup.sh` runs before checks; failure stops
 the job. Consumer tool provisioning belongs in this hook, which weave does not
 overwrite. The check runner resolves from `scripts/run-merge-checks.sh` or
 `../ariadne/scripts/run-merge-checks.sh`; neither present is a visible failure.

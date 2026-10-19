@@ -167,3 +167,12 @@ Design 0.56 × 1.15 + implementation 2.08 = 2.724 hours, rounded to 2.72.
 - First migration hand-off filed from 42shots:0 as 42shots#1, unclaimed,
   depending on ariadne#459; remaining filings are sequential and independently
   verified before the hub receives their complete list.
+
+- Echo filing exception: its legacy path published echo#1 remotely but also made
+  a local issue-sync commit, leaving echo:0 main ahead/behind. The hub explicitly
+  ordered it left exactly as-is because the operator has unrelated uncommitted
+  echo-control-board.md and .side work; hub/operator reconcile in the morning.
+  Remaining repositories were checked for local tracker configuration and remote
+  issue-tracker branch before filing; legacy paths would be listed, not invoked.
+
+- Completed verified unclaimed migration hand-offs: 42shots#1, astro#1, ducks#12, echo#1, kaggle#11, kbench#29, metis#70, nous#54, pair#699, parley.nvim#398, parli#1, robotics#1, tools#84, xianxu.dev#5, you-decide#16. All depend on ariadne#459; repository owners implement after TL dispatch. No other legacy exceptions were found.
