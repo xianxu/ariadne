@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
@@ -82,10 +83,18 @@ func cardDateMayOverlap(created, updated string, since, until time.Time) bool {
 	return true
 }
 
+// savedMeasurementMayOverlap compares credited-time bounds, not the lifetime of
+// a claim that may remain on a done card after its actual was adopted.
+func savedMeasurementMayOverlap(savedSince, savedUntil string, since, until time.Time) bool {
+	start, _ := time.Parse(time.RFC3339Nano, savedSince) // validated snapshot
+	end, _ := time.Parse(time.RFC3339Nano, savedUntil)
+	return start.Before(until) && since.Before(end)
+}
+
 // loadAdoptedExclusions reads only already adopted same-slot actuals. A
 // potential overlap whose pinned replay cannot be established is unknown, not
 // zero. The measured issue's own completion never excludes itself.
-func loadAdoptedExclusions(ctx context.Context, root, brain, issueNum, plans string, current *ownedActualInputs) ([]activetime.CreditedInterval, error) {
+func loadAdoptedExclusions(ctx context.Context, root, issueNum, plans string, current *ownedActualInputs) ([]activetime.CreditedInterval, error) {
 	since, err := time.Parse(time.RFC3339Nano, current.Snapshot.Since)
 	if err != nil {
 		return nil, err
@@ -128,19 +137,41 @@ func loadAdoptedExclusions(ctx context.Context, root, brain, issueNum, plans str
 	if len(candidates) == 0 {
 		return nil, nil // no adopted actual can overlap; source slots are irrelevant
 	}
-	windows, err := candidateSlotWindows(current)
-	if err != nil || len(windows) == 0 {
-		return nil, err
-	}
+	var windows []actualSlotWindow
 	var protected []activetime.CreditedInterval
 	for _, rec := range candidates {
 		id := strings.TrimLeft(rec.ID, "0")
 		adoptedHours, _ := strconv.ParseFloat(rec.Text("actual_hours"), 64)
+		context := fmt.Sprintf("issue #%s adopted actual", id)
+		completion, completed, err := issue.CardCompletion(rec.Card.Raw)
+		if err != nil {
+			return nil, fmt.Errorf("%s has no trustworthy completion: %w", context, err)
+		}
+		if !completed {
+			return nil, fmt.Errorf("%s has no trustworthy completion", context)
+		}
+		saved, ledger, _, err := completedMeasurementSnapshot(ctx, root, rec, completion, current.Snapshot.Repository, plans, true)
+		if err != nil {
+			return nil, fmt.Errorf("%s has no trustworthy saved window: %w", context, err)
+		}
+		if saved == nil {
+			return nil, fmt.Errorf("%s has no trustworthy saved window", context)
+		}
+		priorEnd, _ := time.Parse(time.RFC3339Nano, saved.Until)
+		if !savedMeasurementMayOverlap(saved.Since, saved.Until, since, until) {
+			continue
+		}
+		if windows == nil {
+			windows, err = candidateSlotWindows(current)
+			if err != nil || len(windows) == 0 {
+				return nil, err
+			}
+		}
 		events, err := repo.EngagementHistory(rs.Ref, rec.Card.Path)
 		if err != nil {
 			return nil, fmt.Errorf("issue #%s adopted actual engagement: %w", id, err)
 		}
-		engagements, err := tracker.DeriveEngagements(events, until)
+		engagements, err := tracker.DeriveEngagements(events, priorEnd)
 		if err != nil {
 			return nil, fmt.Errorf("issue #%s adopted actual engagement: %w", id, err)
 		}
@@ -157,8 +188,8 @@ func loadAdoptedExclusions(ctx context.Context, root, brain, issueNum, plans str
 		if !relevant {
 			continue
 		}
-		context := fmt.Sprintf("issue #%s adopted actual overlaps this slot during %s → %s", id, overlapStart.Format(time.RFC3339Nano), overlapEnd.Format(time.RFC3339Nano))
-		prior, err := resolveOwnedActualInputsFor(ctx, root, brain, id, plans, actualHistorical)
+		context = fmt.Sprintf("issue #%s adopted actual overlaps this slot during %s → %s", id, overlapStart.Format(time.RFC3339Nano), overlapEnd.Format(time.RFC3339Nano))
+		prior, err := resolveOwnedReplay(ctx, root, id, *saved, ledger)
 		if err != nil {
 			return nil, fmt.Errorf("%s but cannot be replayed: %w", context, err)
 		}

@@ -62,6 +62,21 @@ func TestAdoptedCardDateFilterKeepsTimezoneEdges(t *testing.T) {
 	}
 }
 
+func TestSavedAdoptionEndedBeforeLaterClaim(t *testing.T) {
+	// Real #417 was adopted on Oct 17; #443 was claimed on Oct 18 in the
+	// same slot. A retained claimant does not extend the earlier actual.
+	claim := time.Date(2026, 10, 18, 17, 57, 47, 0, time.UTC)
+	if savedMeasurementMayOverlap("2026-10-17T02:43:32.067Z", "2026-10-17T04:38:21.716Z", claim, claim.Add(time.Hour)) {
+		t.Fatal("#417's Oct 17 saved measurement overlapped #443's Oct 18 claim")
+	}
+	if savedMeasurementMayOverlap("2026-10-17T02:43:32.067Z", claim.Format(time.RFC3339Nano), claim, claim.Add(time.Hour)) {
+		t.Fatal("touching half-open measurement windows overlapped")
+	}
+	if !savedMeasurementMayOverlap(claim.Add(-time.Minute).Format(time.RFC3339Nano), claim.Add(time.Minute).Format(time.RFC3339Nano), claim, claim.Add(time.Hour)) {
+		t.Fatal("actual overlap was discarded")
+	}
+}
+
 // The candidate's parked claim spans #649's adopted work. Its own scoped
 // commit would otherwise claim that entire transcript run (#636's shape).
 func TestParkedClaimExcludesOtherAdoptedIssueInSameSlot(t *testing.T) {
@@ -192,13 +207,22 @@ func TestParkedClaimExcludesOtherAdoptedIssueInSameSlot(t *testing.T) {
 	}
 	unbound := *current
 	unbound.SourceSlots = map[string]string{}
-	if _, err := loadAdoptedExclusions(context.Background(), r.root, "", "636", "", &unbound); err == nil || !strings.Contains(err.Error(), "has no pinned slot") {
+	if _, err := loadAdoptedExclusions(context.Background(), r.root, "636", "", &unbound); err == nil || !strings.Contains(err.Error(), "has no pinned slot") {
 		t.Fatalf("relevant adopted issue accepted an unbound candidate source: %v", err)
 	}
 	if err := os.WriteFile(file, []byte("lost retained transcript\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	_, err = loadAdoptedExclusions(context.Background(), r.root, "", "636", "", current)
+	// The live #417 -> #443 shape: an adopted measurement ended before the
+	// next issue's claim, though the done card still retains its claimant.
+	// Its unavailable old source cannot make the later issue unmeasurable.
+	late := *current
+	late.Snapshot.Since = "2026-10-14T00:35:00Z"
+	late.Windows = map[string][]activetime.ActivityWindow{file: {{Start: time.Date(2026, 10, 14, 0, 35, 0, 0, time.UTC), End: time.Date(2026, 10, 14, 0, 40, 0, 0, time.UTC)}}}
+	if intervals, err := loadAdoptedExclusions(context.Background(), r.root, "636", "", &late); err != nil || len(intervals) != 0 {
+		t.Fatalf("ended adopted measurement blocked the later claim: intervals=%+v err=%v", intervals, err)
+	}
+	_, err = loadAdoptedExclusions(context.Background(), r.root, "636", "", current)
 	if err == nil || !strings.Contains(err.Error(), "#649") || !strings.Contains(err.Error(), "2026-10-14T00:10:00Z") {
 		t.Fatalf("missing adopted evidence did not name issue and overlap: %v", err)
 	}

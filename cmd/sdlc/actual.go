@@ -103,7 +103,7 @@ func computeActualForPurpose(ctx context.Context, repoTop, brainAbs, issueNum, m
 	}
 	if owned != nil {
 		if !owned.Replay {
-			protected, err := loadAdoptedExclusions(ctx, repoTop, brainAbs, issueNum, plans, owned)
+			protected, err := loadAdoptedExclusions(ctx, repoTop, issueNum, plans, owned)
 			if err != nil {
 				return actualErrorResult(issueNum, err)
 			}

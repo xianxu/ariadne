@@ -123,44 +123,18 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 		warnings = append(warnings, "measurement purpose: close candidate (fresh code/tracker inputs)")
 	}
 	if completed {
-		correction, corrected, err := issue.CardActualCorrection(rec.Card.Raw)
+		selected, selectedLedger, correctionToken, err := completedMeasurementSnapshot(ctx, repoTop, rec, completion, target.Repository, plans, purpose == actualHistorical)
 		if err != nil {
 			return nil, err
 		}
-		if corrected && purpose == actualHistorical {
-			if correction.CompletionToken != completion.Token || correction.Repository != completion.Repository || correction.EvidenceCommit != completion.EvidenceCommit || correction.ReviewedHEAD != completion.ReviewedHEAD {
-				return nil, fmt.Errorf("actual correction belongs to a different completion binding")
-			}
-			if rec.Text("actual_hours") != correction.NewActual {
-				return nil, fmt.Errorf("actual correction numeric authority differs from the current card actual_hours")
-			}
-			var saved gatestate.MeasurementInputs
-			if err := strictCorrectionJSON([]byte(correction.Inputs), &saved); err != nil {
-				return nil, fmt.Errorf("actual correction measurement inputs: %w", err)
-			}
-			if err := saved.Validate(); err != nil {
-				return nil, err
-			}
-			if saved.Repository != completion.Repository || saved.CodeHead != completion.ReviewedHEAD {
-				return nil, fmt.Errorf("actual correction measurement pins differ from the completion binding")
-			}
-			if correction.Exclude {
-				return nil, fmt.Errorf("actual sample explicitly excluded by correction %s: %s", correction.Token, correction.Reason)
-			}
-			if _, err := ownedActualGit(ctx, repoTop, "cat-file", "-e", completion.EvidenceCommit+"^{commit}"); err != nil {
-				return nil, fmt.Errorf("actual correction completion evidence is unavailable: %w", err)
-			}
-			ledger = gatestate.Ledger{Gate: "boundary-review", IssueNum: id, IDPrefix: "BR"}
-			out, err := resolveOwnedReplay(ctx, repoTop, issueNum, saved, ledger)
+		ledger = selectedLedger
+		if correctionToken != "" {
+			out, err := resolveOwnedReplay(ctx, repoTop, issueNum, *selected, ledger)
 			if err != nil {
 				return nil, err
 			}
-			out.Warnings = append(out.Warnings, "replaying current card actual correction "+correction.Token)
+			out.Warnings = append(out.Warnings, "replaying current card actual correction "+correctionToken)
 			return out, nil
-		}
-		ledger, err = ownedLedgerAt(ctx, repoTop, completion.EvidenceCommit, id, plans)
-		if err != nil {
-			return nil, err
 		}
 		if milestone != "" {
 			if saved, err := ownedBoundarySnapshot(ledger, milestone, target.Repository); err != nil {
@@ -169,39 +143,21 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 				return resolveOwnedReplay(ctx, repoTop, issueNum, *saved, ledger)
 			}
 		}
-		for i := len(ledger.Rounds) - 1; i >= 0; i-- {
-			r := ledger.Rounds[i]
-			if r.Boundary == "" && r.Reviewed != "" {
-				if r.Reviewed != completion.ReviewedHEAD {
-					return nil, fmt.Errorf("completion boundary ledger reviewed a different code generation")
-				}
-				if r.ActualInputs == nil {
-					break
-				}
-				saved := *r.ActualInputs
-				if err := saved.Validate(); err != nil {
+		if selected != nil {
+			saved := *selected
+			if purpose == actualCorrectionCandidate {
+				out, err := resolveOwnedReplay(ctx, repoTop, issueNum, saved, ledger)
+				if err != nil {
 					return nil, err
 				}
-				if saved.Repository != target.Repository {
-					return nil, fmt.Errorf("retained measurement belongs to another repository")
+				out.Warnings = append(out.Warnings, "measurement purpose: correction candidate (completion-pinned authority with fresh queue evidence)")
+				if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, out, purpose); err != nil {
+					return nil, err
 				}
-				if saved.CodeHead != completion.ReviewedHEAD {
-					return nil, fmt.Errorf("retained measurement code head differs from the completion's reviewed generation")
-				}
-				if purpose == actualCorrectionCandidate {
-					out, err := resolveOwnedReplay(ctx, repoTop, issueNum, saved, ledger)
-					if err != nil {
-						return nil, err
-					}
-					out.Warnings = append(out.Warnings, "measurement purpose: correction candidate (completion-pinned authority with fresh queue evidence)")
-					if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, out, purpose); err != nil {
-						return nil, err
-					}
-					out.Replay = false
-					return out, nil
-				}
-				return resolveOwnedReplay(ctx, repoTop, issueNum, saved, ledger)
+				out.Replay = false
+				return out, nil
 			}
+			return resolveOwnedReplay(ctx, repoTop, issueNum, saved, ledger)
 		}
 		head = completion.ReviewedHEAD
 		trackerPin, err = ownedCompletionTrackerPin(ctx, repoTop, rs.Ref, rec.Card.Path, completion)
@@ -291,6 +247,79 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 		return nil, err
 	}
 	return out, nil
+}
+
+// completedMeasurementSnapshot selects a completed actual's immutable inputs
+// without touching transcript files. Exclusion can compare its exact time range
+// before asking whether those files and their source-slot pins remain available.
+// Historical replay uses this same selection, so both paths name one generation.
+func completedMeasurementSnapshot(ctx context.Context, root string, rec tracker.IssueRecord, completion issue.Completion, repository, plans string, useCorrection bool) (*gatestate.MeasurementInputs, gatestate.Ledger, string, error) {
+	id, err := strconv.Atoi(rec.ID)
+	if err != nil {
+		return nil, gatestate.Ledger{}, "", err
+	}
+	if completion.Repository != repository {
+		return nil, gatestate.Ledger{}, "", fmt.Errorf("completion evidence belongs to another repository")
+	}
+	if useCorrection {
+		correction, corrected, err := issue.CardActualCorrection(rec.Card.Raw)
+		if err != nil {
+			return nil, gatestate.Ledger{}, "", err
+		}
+		if corrected {
+			if correction.CompletionToken != completion.Token || correction.Repository != completion.Repository || correction.EvidenceCommit != completion.EvidenceCommit || correction.ReviewedHEAD != completion.ReviewedHEAD {
+				return nil, gatestate.Ledger{}, "", fmt.Errorf("actual correction belongs to a different completion binding")
+			}
+			if rec.Text("actual_hours") != correction.NewActual {
+				return nil, gatestate.Ledger{}, "", fmt.Errorf("actual correction numeric authority differs from the current card actual_hours")
+			}
+			var saved gatestate.MeasurementInputs
+			if err := strictCorrectionJSON([]byte(correction.Inputs), &saved); err != nil {
+				return nil, gatestate.Ledger{}, "", fmt.Errorf("actual correction measurement inputs: %w", err)
+			}
+			if err := saved.Validate(); err != nil {
+				return nil, gatestate.Ledger{}, "", err
+			}
+			if saved.Repository != completion.Repository || saved.CodeHead != completion.ReviewedHEAD {
+				return nil, gatestate.Ledger{}, "", fmt.Errorf("actual correction measurement pins differ from the completion binding")
+			}
+			if correction.Exclude {
+				return nil, gatestate.Ledger{}, "", fmt.Errorf("actual sample explicitly excluded by correction %s: %s", correction.Token, correction.Reason)
+			}
+			if _, err := ownedActualGit(ctx, root, "cat-file", "-e", completion.EvidenceCommit+"^{commit}"); err != nil {
+				return nil, gatestate.Ledger{}, "", fmt.Errorf("actual correction completion evidence is unavailable: %w", err)
+			}
+			return &saved, gatestate.Ledger{Gate: "boundary-review", IssueNum: id, IDPrefix: "BR"}, correction.Token, nil
+		}
+	}
+	ledger, err := ownedLedgerAt(ctx, root, completion.EvidenceCommit, id, plans)
+	if err != nil {
+		return nil, gatestate.Ledger{}, "", err
+	}
+	for i := len(ledger.Rounds) - 1; i >= 0; i-- {
+		round := ledger.Rounds[i]
+		if round.Boundary != "" || round.Reviewed == "" {
+			continue
+		}
+		if round.Reviewed != completion.ReviewedHEAD {
+			return nil, gatestate.Ledger{}, "", fmt.Errorf("completion boundary ledger reviewed a different code generation")
+		}
+		if round.ActualInputs == nil {
+			return nil, ledger, "", nil
+		}
+		saved := *round.ActualInputs
+		if err := saved.Validate(); err != nil {
+			return nil, gatestate.Ledger{}, "", err
+		}
+		if saved.Repository != repository {
+			return nil, gatestate.Ledger{}, "", fmt.Errorf("retained measurement belongs to another repository")
+		}
+		if saved.CodeHead != completion.ReviewedHEAD {
+			return nil, gatestate.Ledger{}, "", fmt.Errorf("retained measurement code head differs from the completion's reviewed generation")
+		}
+		return &saved, ledger, "", nil
+	}
+	return nil, ledger, "", nil
 }
 
 func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker.Repository, cardPath, repository string, out *ownedActualInputs, purpose actualInputPurpose) error {

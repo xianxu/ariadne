@@ -1279,9 +1279,11 @@ heuristic. Completed historical closes without snapshots are reconstructed from
 their exact completion binding and diagnosed explicitly.
 
 **Parked claims (#443).** A claim can remain open while its slot works another
-issue. For a new actual candidate, `actualexclusion.go` finds other numeric
-adopted actuals with overlapping same-slot engagements, replays their pinned
-sources, and protects positively credited activity intervals before the
+issue. For a new actual candidate, `actualexclusion.go` first compares each
+numeric adoption's completion-pinned measurement window with the candidate's:
+a retained claimant on a done card does not extend credited time. For windows
+that may overlap, it checks same-slot engagement, replays pinned sources, and
+protects positively credited activity intervals before the
 candidate's commit attribution. The report names each removed interval and its
 adopted issue. Missing replay or slot evidence refuses a numeric actual and
 names the potentially overlapping interval. A fractionally credited run protects
