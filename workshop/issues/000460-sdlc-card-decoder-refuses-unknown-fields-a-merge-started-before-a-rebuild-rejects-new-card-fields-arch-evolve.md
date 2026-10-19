@@ -1,13 +1,21 @@
 ---
 id: 000460
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'd0cc51888725481f72811627438a7fa79dd0faa2' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'aab01a0cbbdb3be4a45c5693115b7b33992b899a' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-19T00:51:23-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # sdlc card decoder refuses unknown fields: a merge started before a rebuild rejects new card fields (ARCH-EVOLVE)
@@ -27,8 +35,14 @@ Make the tracker-card decoder (and any card rewrite path) tolerate and preserve 
 
 ## Plan
 
-- [ ]
+- [ ] Make old-shape card parsing accept unknown top-level and nested members while retaining strict known fields, required fields, versions, and duplicate-key checks.
+- [ ] Preserve unknown card members through scalar, claimant, and tracker-envelope setters, then prove a newer card survives a full old-reader rewrite chain.
+- [ ] Audit landing events, test-stats attempts, and #449 readiness sidecars; fix compatible readers here or file a scoped follow-up for any unsafe or unlanded format.
+- [ ] Run targeted tests, `make -k`, the recorded suite on the pushed head, and the close review; land on SHIP.
 
 ## Log
 
 ### 2026-10-19
+
+- Planning audit: `ParseCard` rejects an unrecognized top-level key. `parseClaimant` also rejects an unrecognized nested key; `updateEnvelope` decodes and re-marshals known nested records, dropping unknown members below `tracker` even though its root `Extra` map exists. The scalar setters and mirror operate on source spans, so they can preserve unknown top-level bytes once parsing admits them.
+- Landing events are decoded with ordinary `json.Unmarshal` and retention rewrites their original JSON lines, preserving unknown members. Test-stats v2 currently rejects unknown top-level keys and uses `DisallowUnknownFields`; it is a separate read-only attempt ledger. #449 readiness sidecars are still on ariadne:2's unlanded branch: its reader uses ordinary `json.Unmarshal`, and the owning car writes an entirely new vouch rather than modifying a prior one. The audit and tests will be finalized against its landed version.
