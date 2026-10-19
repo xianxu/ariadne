@@ -72,7 +72,7 @@ Durable plan: `workshop/plans/000394-issue-backed-flake-landing-plan.md`, with t
 
 - [x] M1 — Registry and classifier (pure) plus `sdlc flake register`/`list`.
 - [x] M2 — The gate: a targeted known-flake rerun in `runLocalCheck` (local-check run and merge), both attempts linked, the policy knob.
-- [ ] M3 — No blind rerun (the success-post guard, republish after registration), the rules in tl-worker/help/atlas, a pair pilot.
+- [x] M3 — No blind rerun (the success-post guard, republish after registration), the rules in tl-worker/help/atlas, a pair pilot.
 
 ## Log
 
@@ -111,3 +111,10 @@ Filed from #390's operator-approved flake/landing decision. The weekly snapshot 
 - 2026-10-18: the hub's quiet hold for the operator's disk trace. I stopped the targeted run on request and will rerun it when the hold lifts.
 - M2 boundary review round 1 (REWORK) answered in the plan's Revisions. BR-11, the Critical: a timed-out suite could land on a partial log; failure signals the log can't name are now unattributed, and a rerun needs a PASS line per test. BR-12: revalidation at the post, at reuse and at republish. BR-13: reruns are evidence, not suite runs, with their logs immutable per ID. BR-14: docs. BR-15: tests. The three Minors are fixed too.
 - M2 boundary review round 2 (REWORK): BR-19, the Critical (merge reused an inconclusive rerun as the head's pass), fixed at the representation. Reruns are check `suite-rerun`, tied to `rerun_of` by the decoder and reserved in declarations, so no suite reader can take one for a suite run. Reuse comes from the parent's outcome. BR-16: the timeout bound is tested.
+- M2 closed SHIP (3 rounds). Its advisory, the third in the reader family, is fixed at the store: `isSuiteRun` and `isFlakeEvidence` are the two shared predicates. Test-stats, `flake list` and `flake register` read evidence through the second, so a passing rerun proves fail→pass even when revalidation downgraded its parent (TestSuiteStatsRerunEvidenceSurvivesADowngradedParent).
+- M3 implemented:
+  - `guardSuitePass` in `postLocalCheckRecord` (every run, reuse and republish) refuses a suite success while a failed attempt on the head is unexplained. It fails closed on an unreadable store, and it names the attempts and the recovery (register, then republish).
+  - Five existing tests encoded the old loophole or the old "stats are optional" stance; they now assert the refusal. The behavior change: a pass on a head with an unexplained failure, or on an unreadable store, is recorded but not posted.
+  - New gate cases: a blind rerun is refused, then register plus republish lands; an unattributable failure stays unexplained.
+  - The tl-worker help's flake rule now describes the new mechanism, citing the operator's 10-18 ask; phrase guards updated.
+  - Help, README and atlas cover the guard.

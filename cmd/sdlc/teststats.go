@@ -91,12 +91,25 @@ func suiteQuantiles(samples []float64) *SuiteQuantiles {
 	return &SuiteQuantiles{P50: nearest(50), P90: nearest(90), Samples: len(samples)}
 }
 
+// isSuiteRun reports whether a recorded attempt is a run of the suite itself.
+// Run counts, wall and queue samples, slow units and saved-pass reuse read
+// only these (#394 M2 review): a known-flake rerun is never one.
+func isSuiteRun(a SuiteAttempt) bool { return a.Check == suiteCheckName }
+
+// isFlakeEvidence reports whether an attempt is same-head flake evidence: a
+// suite run, or a known-flake rerun that passed (its tests passed on the head
+// where they had failed). Every reader of fail→pass evidence uses this one
+// predicate, so a rerun's proof survives its parent's outcome being revised.
+func isFlakeEvidence(a SuiteAttempt) bool {
+	return isSuiteRun(a) || a.Check == suiteRerunCheck && a.Exit == 0 && !a.TimedOut
+}
+
 // aggregateSuiteAttempts computes stats from validated records plus explicitly
 // partial legacy entries. The caller owns persisted-record validation.
 func aggregateSuiteAttempts(attempts []SuiteAttempt, since time.Time, repo string) []RepoStats {
 	byRepo := make(map[string][]SuiteAttempt)
 	for _, a := range attempts {
-		if a.Check != suiteCheckName || suiteAttemptCompletedAt(a).Before(since) || (repo != "" && a.Repo != repo) {
+		if !isFlakeEvidence(a) || suiteAttemptCompletedAt(a).Before(since) || (repo != "" && a.Repo != repo) {
 			continue
 		}
 		byRepo[a.Repo] = append(byRepo[a.Repo], a)
@@ -116,12 +129,16 @@ func aggregateSuiteAttempts(attempts []SuiteAttempt, since time.Time, repo strin
 			}
 			return iAt.Before(jAt)
 		})
-		s := RepoStats{Repo: name, Runs: len(rows)}
+		s := RepoStats{Repo: name}
 		var wall, queue []float64
 		evidence := flakeAttempts(rows)
 		unitTimes := map[string][]float64{}
 		units := map[string]SuiteDuration{}
 		for i, a := range rows {
+			if !isSuiteRun(a) {
+				continue // a passing rerun is evidence for Confirmed (evidence), not a run
+			}
+			s.Runs++
 			if !a.Legacy {
 				s.FullyRecorded++
 				s.FlakeDenominator++
@@ -145,11 +162,8 @@ func aggregateSuiteAttempts(attempts []SuiteAttempt, since time.Time, repo strin
 			kind := ""
 			if a.MainBaseline {
 				kind = "suspected-main-baseline"
-			} else if _, ok := flakes.Confirmed(evidence, i); ok || a.Outcome == string(flakes.KnownFlakePassed) {
-				// A known-flake landing (#394) is same-head fail→pass too: its
-				// targeted rerun (a suite-rerun attempt, never counted here)
-				// passed the tests that failed.
-				kind = "confirmed"
+			} else if _, ok := flakes.Confirmed(evidence, i); ok {
+				kind = "confirmed" // a later suite pass, or a passing known-flake rerun (#394)
 			}
 			if kind == "" {
 				continue

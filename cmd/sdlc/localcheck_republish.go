@@ -122,9 +122,72 @@ func republishCommand(check, sha string) string {
 // Tests shrink it.
 var localCheckPostBackoff = []time.Duration{15 * time.Second, 45 * time.Second, 90 * time.Second}
 
+// unexplainedFailureError is the success-post guard's refusal (#394): the head
+// has a failed suite attempt that nothing explains, so no pass on it is
+// posted, whatever a later run did.
+type unexplainedFailureError struct{ msg string }
+
+func (e *unexplainedFailureError) Error() string { return e.msg }
+
+// guardSuitePass refuses to post a suite success on sha while a failed suite
+// attempt there is unexplained: neither a known-flake outcome nor, now, every
+// failure a registered flake (flakes.Unexplained). That is what stops a blind
+// full rerun from turning an unknown failure green. It fails closed: a store
+// it cannot read whole, or a registry it needs and cannot read, refuses.
+func guardSuitePass(ctx context.Context, d localRunDeps, sha string) error {
+	refuse := func(format string, a ...any) error {
+		return &unexplainedFailureError{msg: fmt.Sprintf("local check %s on %s not recorded as success: ", suiteCheckName, abbrevSHA(sha)) + fmt.Sprintf(format, a...)}
+	}
+	logDir, err := localCheckLogDir(d)
+	if err != nil {
+		return refuse("its earlier attempts cannot be read: %v", err)
+	}
+	attempts, warnings, err := readSuiteAttempts(suiteStoreRoot(logDir), testStatsRecordLimit)
+	if err != nil || len(warnings) > 0 {
+		return refuse("its earlier attempts cannot all be read (%v; %s); inspect or remove the named records", err, strings.Join(warnings, "; "))
+	}
+	var ev []SuiteAttempt
+	failed := false
+	for _, a := range attempts {
+		if a.Repo == d.Repo && a.SHA == sha && isFlakeEvidence(a) {
+			ev = append(ev, a)
+			failed = failed || isSuiteRun(a) && !a.MainBaseline && (a.Exit != 0 || a.TimedOut)
+		}
+	}
+	if !failed {
+		return nil
+	}
+	var reg flakes.Registry
+	regErr := errors.New("no known-flake registry is available")
+	if d.FlakeRegistry != nil {
+		reg, regErr = d.FlakeRegistry(ctx)
+	}
+	u := flakes.Unexplained(flakeAttempts(ev), sha, reg)
+	if len(u) == 0 {
+		return nil
+	}
+	var lines []string
+	for _, a := range u {
+		lines = append(lines, fmt.Sprintf("attempt %s failed (%s)", a.ID, orNone(strings.Join(a.Failures, ", "))))
+	}
+	why := strings.Join(lines, "; ")
+	if regErr != nil {
+		why += "; and the known-flake registry could not be read: " + regErr.Error()
+	}
+	return refuse("an earlier failure on this head is unexplained: %s.\n"+
+		"  If it is intermittent, this fail→pass is its evidence: `sdlc flake register --test <pkg.TestName>`, then %q.\n"+
+		"  Otherwise fix it; a passing rerun alone never lands (#394)", why, republishCommand(suiteCheckName, sha))
+}
+
 // postLocalCheckRecord posts rec as its commit status, retrying through
-// localCheckPostBackoff, then a failed run's PR comment (best effort).
+// localCheckPostBackoff, then a failed run's PR comment (best effort). A
+// suite pass first passes guardSuitePass.
 func postLocalCheckRecord(ctx context.Context, d localRunDeps, rec localRunRecord) error {
+	if rec.passed() && rec.Name == suiteCheckName {
+		if err := guardSuitePass(ctx, d, rec.SHA); err != nil {
+			return err
+		}
+	}
 	err := d.GH.PostStatus(ctx, d.Repo, rec.SHA, localStatusContext(rec.Name), rec.state(), rec.statusDescription())
 	for _, wait := range localCheckPostBackoff {
 		if err == nil {
@@ -176,6 +239,10 @@ func republishSavedPass(ctx context.Context, d localRunDeps, c localCheck, sha s
 	}
 	fmt.Fprintf(d.Stderr, "==> local check %s: publishing the saved pass on %s instead of rerunning (log %s)\n", check, abbrevSHA(sha), rec.LogPath)
 	if err := postLocalCheckRecord(ctx, d, rec); err != nil {
+		var unexplained *unexplainedFailureError
+		if errors.As(err, &unexplained) {
+			return rec, true, err
+		}
 		return rec, true, fmt.Errorf("local check %s: the saved pass on %s was NOT recorded: %w; publish it with %q (no rerun needed)", check, abbrevSHA(sha), err, republishCommand(check, sha))
 	}
 	fmt.Fprintf(d.Stderr, "==> local check %s: saved pass recorded as %s on %s\n", check, localStatusContext(check), abbrevSHA(sha))

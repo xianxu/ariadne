@@ -183,7 +183,14 @@ first-class evidence, recorded on the commit it ran on:
     - a known flake that fails the rerun again or proves nothing in it;
     - more than five at once;
     - an unreadable registry.
-  An interrupted rerun posts nothing. `known_flakes` (`rerun` \| `accept` \|
+  An interrupted rerun posts nothing. **No blind rerun lands:**
+  `guardSuitePass` (`postLocalCheckRecord`, so every run, reuse and republish)
+  refuses a suite success on a commit while a failed suite attempt there is
+  unexplained (`flakes.Unexplained`: not a known-flake landing, and not every
+  failure a test registered now; an unattributable or rejected failure never).
+  It fails closed on a test-stats store it cannot read whole. Store readers
+  use `isSuiteRun` (counts, reuse) or `isFlakeEvidence` (a suite run or a
+  passing `suite-rerun`). `known_flakes` (`rerun` \| `accept` \|
   `off`) on the declared suite is the operator's policy, under the same
   local-gates guard. Test-stats counts a rerun as flake evidence, never as a
   suite run.

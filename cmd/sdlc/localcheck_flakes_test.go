@@ -251,6 +251,33 @@ func TestKnownFlakeGate(t *testing.T) {
 			t.Fatalf("%+v %v after %s", rec, err, time.Since(start))
 		}
 	})
+	t.Run("a blind full rerun never turns an unknown failure green; registering then republishing does (M3)", func(t *testing.T) {
+		d, sha, gh, _ := localRunRepo(t, "acquired")
+		d.FlakeRegistry = gateRegistry(t, "o/r/pkg.TestOther")
+		if rec, err := runLocalCheck(ctx, d, suiteFailing(gateUnknown), sha); err != nil || rec.passed() {
+			t.Fatalf("%+v %v", rec, err)
+		}
+		pass := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", "echo passed"}, TimeoutMinutes: 30}
+		rec, err := runLocalCheck(ctx, d, pass, sha)
+		var unexplained *unexplainedFailureError
+		if !rec.passed() || !errors.As(err, &unexplained) || !strings.Contains(err.Error(), gateUnknown) || !strings.Contains(err.Error(), "sdlc flake register") || gh.statuses[sha]["sdlc-local/suite"] != "failure" {
+			t.Fatalf("a blind rerun: %+v %v %v", rec, err, gh.statuses[sha])
+		}
+		d.FlakeRegistry = gateRegistry(t, gateUnknown) // the TL registers it, with this fail→pass as evidence
+		if rec, ok, err := republishSavedPass(ctx, d, pass, sha); !ok || err != nil || !rec.passed() || gh.statuses[sha]["sdlc-local/suite"] != "success" {
+			t.Fatalf("after registration the saved pass republishes: %+v %v %v %v", rec, ok, err, gh.statuses[sha])
+		}
+	})
+	t.Run("an unattributable failure stays unexplained whatever is registered", func(t *testing.T) {
+		d, sha, gh, _ := localRunRepo(t, "acquired")
+		d.FlakeRegistry = gateRegistry(t, gateKnown)
+		c := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", "echo '--- shard1 exited 2 with no failing test; last output:'; exit 1"}, TimeoutMinutes: 30}
+		_, _ = runLocalCheck(ctx, d, c, sha)
+		var unexplained *unexplainedFailureError
+		if _, err := runLocalCheck(ctx, d, localCheck{Name: suiteCheckName, Command: []string{"true"}, TimeoutMinutes: 30}, sha); !errors.As(err, &unexplained) || gh.statuses[sha]["sdlc-local/suite"] != "failure" {
+			t.Fatalf("%v %v", err, gh.statuses[sha])
+		}
+	})
 	t.Run("a baseline never classifies", func(t *testing.T) {
 		d, sha, _, _ := localRunRepo(t, "acquired")
 		d.FlakeRegistry = gateRegistry(t, gateKnown)

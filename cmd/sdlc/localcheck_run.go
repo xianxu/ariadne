@@ -198,6 +198,10 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	}
 
 	if err := postLocalCheckRecord(ctx, d, rec); err != nil {
+		var unexplained *unexplainedFailureError
+		if errors.As(err, &unexplained) {
+			return rec, err // not a post failure: republishing would refuse the same way
+		}
 		if saved {
 			return rec, fmt.Errorf("local check %s %s but was NOT recorded on %s: %w; the result is saved: publish it with %q (no rerun needed)", c.Name, rec.state(), abbrevSHA(sha), err, republishCommand(c.Name, sha))
 		}

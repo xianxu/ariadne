@@ -78,7 +78,13 @@ THE SUITE (#332)
     - a known flake that fails the rerun too, or whose rerun shows no PASS;
     - more than 5 at once;
     - a registry that cannot be read (a fresh tracker read is required).
-  An interrupted rerun posts nothing. known_flakes: accept records the pass
+  An interrupted rerun posts nothing. No blind rerun lands: a suite pass is
+  not posted while an earlier failed attempt on the same commit is
+  unexplained (not a known-flake outcome, and not every failure a registered
+  flake now). Its message names the attempts and the recovery: register the
+  flake (that fail→pass is its evidence), then `local-check republish`, or fix
+  it. A test-stats store it cannot read whole also refuses the pass.
+  known_flakes: accept records the pass
   with the issue link and no rerun; off makes every failure block. Merge's
   diagnosis labels a failure main shares as a persistent main failure,
   never a flake.

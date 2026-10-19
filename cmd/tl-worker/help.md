@@ -46,12 +46,14 @@ TESTS
   needs it. A branch pass does not authorize untested integrated code.
   A known failure the dispatch or the issue cites never ends a suite early.
   Run the rest with `make -k` and report every other failure by name.
-  Apply the flake rule yourself: for an established intermittent failure,
-  file a flake issue with evidence (or link the existing open issue), retain
-  the failed attempt and log, then make one unchanged rerun of the full suite
-  on the same head and report both attempts. A passing issue-backed rerun may
-  count for landing. Unknown failures block until classified; fix reproducible
-  branch defects on the branch. A second unrelated flake on the same head
+  Apply the flake rule yourself (#394, the operator's 2026-10-18 ask): for an
+  established intermittent failure (same-head fail, then pass), register it
+  with `sdlc flake register --test PKG.TestX`, onto its open flake issue or a
+  new unclaimed one. From then on the recorded suite and merge rerun only the
+  registered tests on the same head, and a pass lands with the issue named;
+  report both attempts. Unknown failures block until classified, and sdlc
+  refuses to post a passing rerun over an unexplained failure; fix
+  reproducible branch defects on the branch. A second unrelated flake on the same head
   means stop and ask the hub. Never use a blind passing retry as evidence.
   Stop your own check with `sdlc local-check cancel`; never kill a PID found
   by `ps`, where every slot's suite looks the same.

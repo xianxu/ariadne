@@ -250,7 +250,7 @@ failure blocks) until one issue drops it.`,
 func flakeEvidence(attempts []SuiteAttempt, repo string, tests []string) (proof map[string][2]string, missing []string) {
 	var mine []SuiteAttempt
 	for _, a := range attempts {
-		if a.Repo == repo && a.Check == suiteCheckName {
+		if a.Repo == repo && isFlakeEvidence(a) {
 			mine = append(mine, a)
 		}
 	}
@@ -384,7 +384,7 @@ func runFlakeList(ctx context.Context, out io.Writer, d flakeDeps) error {
 	var mine []SuiteAttempt
 	logs := map[string]SuiteAttempt{}
 	for _, a := range attempts {
-		if a.Repo == repo && a.Check == suiteCheckName {
+		if a.Repo == repo && isFlakeEvidence(a) {
 			mine = append(mine, a)
 			logs[a.ID] = a
 		}

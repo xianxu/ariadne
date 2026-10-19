@@ -507,7 +507,10 @@ When a recorded suite (`local-check run`, or merge's) fails only on known flakes
 reruns just those tests once on the same head. Each must show a PASS line, and its
 flake issue must still be open when the result is posted; then the status reads
 "pass · known flake #N rerun". Any other failure blocks: an unregistered test, a
-build error or timeout, or a known flake failing again. The suite's `known_flakes`
+build error or timeout, or a known flake failing again. A full rerun that passes
+after an unexplained failure on the same commit is recorded but never posted as
+success: register the flake (that fail→pass is its evidence) and republish, or fix
+it. The suite's `known_flakes`
 key in `.sdlc/local-checks.json` (`rerun`, the default; `accept`, which posts the
 pass with the issue link and no rerun; `off`) is the operator's policy.
 
