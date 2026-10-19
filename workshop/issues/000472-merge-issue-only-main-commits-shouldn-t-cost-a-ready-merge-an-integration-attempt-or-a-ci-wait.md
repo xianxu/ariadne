@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "6f5a5a98", done: "c3b74cb6"}
 ---
 
 # merge: issue-only main commits shouldn't cost a ready merge an integration attempt or a CI wait
