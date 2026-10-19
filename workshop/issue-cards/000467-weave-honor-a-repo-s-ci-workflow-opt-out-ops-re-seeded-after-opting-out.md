@@ -1,6 +1,6 @@
 ---
 id: 000467
-status: working
+status: codecomplete
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.13
+tracker:
+    version: 1
+    completion:
+        token: close-1ecff54e66ab
+        repository: github.com/xianxu/ariadne
+        reviewed_head: e4ee6277a482202da97576459c5847c1de49eaa3
+        evidence_commit: 58e6f42f3987bda12b040ad6a3435b23e2f96ffc
 ---
 
 # weave: honor a repo's CI-workflow opt-out (ops re-seeded after opting out)
