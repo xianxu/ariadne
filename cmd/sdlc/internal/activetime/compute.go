@@ -61,7 +61,10 @@ type Options struct {
 	// QueueIntervals are validated exact attempt evidence; Compute applies each
 	// wait to admitted activity sources of the attempt's owning slot.
 	QueueIntervals []QueueInterval
-	SourceSlots    map[string]string
+	// ProtectedIntervals are minutes already credited to another issue in the
+	// same slot. They are removed after queue waits and before attribution.
+	ProtectedIntervals []CreditedInterval
+	SourceSlots        map[string]string
 }
 
 // Result is the structured outcome of a Compute run — the single value consumed
@@ -87,6 +90,7 @@ type Result struct {
 	// queue waits, even when subtraction removes all their activity.
 	QueueBindingSourceIDs []string
 	QueueAttribution      QueueAttribution
+	Exclusions            []Exclusion
 }
 
 const suspiciousSpanMin = 120.0
@@ -184,6 +188,12 @@ func Compute(opts Options) (Result, error) {
 		slices.Sort(res.QueueBindingSourceIDs)
 		runs, res.QueueAttribution = subtractQueueIdle(runs, bound)
 		res.QueueAttribution.RawMinutes = queueRawMinutes(opts.QueueIntervals)
+	}
+	if len(opts.ProtectedIntervals) > 0 {
+		runs, res.Exclusions, err = subtractProtectedIntervals(runs, opts.ProtectedIntervals, opts.SourceSlots)
+		if err != nil {
+			return Result{}, err
+		}
 	}
 	res.Segments = claimActivityRuns(runs, commits, opts.CommitWeight, prefixWeight)
 	seenSources := map[string]bool{}

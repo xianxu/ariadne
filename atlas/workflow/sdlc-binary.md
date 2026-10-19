@@ -1290,6 +1290,20 @@ evidence refuses adoption; legacy no-tracker repositories retain a labeled old
 heuristic. Completed historical closes without snapshots are reconstructed from
 their exact completion binding and diagnosed explicitly.
 
+**Parked claims (#443).** A claim can remain open while its slot works another
+issue. For a new actual candidate, `actualexclusion.go` first compares each
+numeric adoption's completion-pinned measurement window with the candidate's:
+a retained claimant on a done card does not extend credited time. For windows
+that may overlap, it checks same-slot engagement, replays pinned sources, and
+protects positively credited activity intervals before the
+candidate's commit attribution. The report names each removed interval and its
+adopted issue. Missing replay or slot evidence refuses a numeric actual and
+names the potentially overlapping interval. A fractionally credited run protects
+its full time span, conservatively, rather than claiming an invented split.
+The chosen intervals are retained inside the candidate's bounded
+`MeasurementInputs`; historical completed actuals replay that same protected
+generation even after other cards or transcripts change.
+
 `computeActualForCloseFn` explicitly selects `actualCloseCandidate`: a close
 derives new ownership-proven inputs at current HEAD/current tracker, even when
 the card holds an older completion or actual correction. `computeActualFor`

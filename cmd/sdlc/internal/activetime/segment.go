@@ -10,6 +10,7 @@ import (
 // allocation.
 type Segment struct {
 	Start, End time.Time
+	Source     string
 	Active     float64
 	Commit     *Commit
 	Mentions   map[string]int
@@ -274,7 +275,7 @@ func claimActivityRuns(runs []ActivityRun, commits []Commit, commitWeight, prefi
 			weight = prefixWeight
 		}
 		segs = append(segs, Segment{
-			Start: r.Start, End: r.End, Active: r.Active,
+			Start: r.Start, End: r.End, Source: r.Source, Active: r.Active,
 			Commit: anchor, Mentions: r.Mentions,
 			Alloc:    attributeRun(r.Active, issuesOf(anchor), r.Mentions, weight),
 			IsPrefix: isPrefix,
