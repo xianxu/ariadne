@@ -176,8 +176,7 @@ func (g *trainFakeGH) CloseTrainPR(_ context.Context, _ string, number int, bran
 		p.State = "CLOSED"
 	}
 	g.closed = append(g.closed, number)
-	_, _ = trainGitOut(g.remote, "update-ref", "-d", "refs/heads/"+branch)
-	return nil
+	return nil // GitHub keeps a closed PR's branch; the conductor deletes it
 }
 
 func (g *trainFakeGH) pr(branch string) landingPR {
@@ -738,6 +737,7 @@ func TestLandingTrainRedCIRefusesTheTrain(t *testing.T) {
 	if ev := trainEvents(t, s.line, string(landingline.PhaseRefused)); len(ev) != 1 {
 		t.Fatalf("train %+v", lineEvents(t, s.line)[landingline.EventTrain])
 	}
+	wantNoTrainBranch(t, s.gh.remote) // closed, then deleted leased
 }
 
 // A fleet-blocking grant departs at once, though no train is due, and lands

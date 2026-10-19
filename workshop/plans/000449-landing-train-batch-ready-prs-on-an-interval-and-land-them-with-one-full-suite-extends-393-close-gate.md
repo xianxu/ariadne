@@ -1209,6 +1209,180 @@ rounds:
       isolation: fenced
       reviewed: b1ab3a4cec0a2314e38c8a344fee2a9956cee0c8
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 419ddf89-913b-4340-88b8-f996621aca3f
+            repository: github.com/xianxu/ariadne
+            issue_id: "000449"
+            recipe: milestone-review
+            round: 8
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/dea1dca8d8f2007b
+            reviewed_head: 74171bfb3611d7c69ee0def1dbb914d7c2b33136
+            slot: ariadne:2
+            requested_at: "2026-10-19T15:52:57.472418Z"
+          phase: finished
+          pid: 28029
+          started_at: "2026-10-19T15:52:57.570684Z"
+          finished_at: "2026-10-19T16:17:08.384877Z"
+          session_id: 2946c7c0-22f2-4b17-a6d8-158e61b68f27
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 74171bfb3611d7c69ee0def1dbb914d7c2b33136
+        tracker_head: 950af54aa57af8a2ba8b5e748fd19b1677daf0c5
+        branch_point: e279f713f66ebde2d11e8662e05d4e481369d34c
+        since: "2026-10-19T00:24:20-07:00"
+        until: "2026-10-19T08:22:45-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T00:24:20-07:00"
+              end: "2026-10-19T08:22:45-07:00"
+              began: "2026-10-19T00:24:20-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0b8dd07a-725f-46d5-9d61-2f1c3a639ae1
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 3d99778b04a5abfcad9c52903f374e96319ca817fd257eef5893cf415eaa2517
+              started: "2026-10-19T07:41:27.89Z"
+              spawned: false
+              bytes: 392572
+              windows:
+                - start: "2026-10-19T07:41:27.89Z"
+                  end: "2026-10-19T08:22:45-07:00"
+            - harness: claude
+              id: 3859e47f-fab7-4809-b00b-39545e065c4d
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 9e7b79ccc03b5a83546f49fdb9ea8267d34e5ef1958759092e3826439da67440
+              started: "2026-10-19T07:39:08.194Z"
+              spawned: false
+              bytes: 515896
+              windows:
+                - start: "2026-10-19T07:39:08.194Z"
+                  end: "2026-10-19T08:22:45-07:00"
+            - harness: claude
+              id: ce283a71-a4ff-4b46-a444-7e71d73538b9
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: f4547a086362f57592441b8ebe51ccc25025e5807e92b9ae941f19565d34db65
+              started: "2026-10-19T07:37:21.957Z"
+              spawned: false
+              bytes: 568734
+              windows:
+                - start: "2026-10-19T07:37:21.957Z"
+                  end: "2026-10-19T08:22:45-07:00"
+            - harness: claude
+              id: ea85e2ea-80c1-424b-b626-ad5588a39352
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: c00ba0b4ef6fcb0b4fa7599cbc5b7b3b9f7a747009b08fefc1d56ab99fd9c60f
+              started: "2026-10-19T07:41:05.217Z"
+              spawned: false
+              bytes: 498662
+              windows:
+                - start: "2026-10-19T07:41:05.217Z"
+                  end: "2026-10-19T08:22:45-07:00"
+            - harness: claude
+              id: ed119f61-f721-4c11-b1f4-f27f6ddaae4c
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 32f1c1354f947b813042e42af826f14db41d5bf479efab13555853520d6330f7
+              started: "2026-10-19T07:40:04.612Z"
+              spawned: false
+              bytes: 502132
+              windows:
+                - start: "2026-10-19T07:40:04.612Z"
+                  end: "2026-10-19T08:22:45-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: a875a5b3cbf8a54fa4c2e82ba56ef3b05687013f49666172d1cb8b01eceb37be
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 306893721
+              windows:
+                - start: "2026-10-19T00:24:20-07:00"
+                  end: "2026-10-19T08:22:45-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-19T01:40:06-07:00"
+              finalized: "2026-10-19T01:43:53-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-19T02:09:30-07:00"
+              finalized: "2026-10-19T02:57:26-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-19T03:35:22-07:00"
+              finalized: "2026-10-19T03:50:39-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-19T04:58:25-07:00"
+              finalized: "2026-10-19T05:02:37-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-19T05:37:54-07:00"
+              finalized: "2026-10-19T06:12:06-07:00"
+              finalizing: true
+            - boundary: M3
+              dispatched: "2026-10-19T07:06:38-07:00"
+              finalized: "2026-10-19T07:22:34-07:00"
+              finalizing: false
+            - boundary: M3
+              dispatched: "2026-10-19T08:07:20-07:00"
+              finalized: "2026-10-19T08:22:43-07:00"
+              finalizing: true
+      "n": 8
+      timestamp: "2026-10-19T09:17:09-07:00"
+      dispatched: "2026-10-19T08:52:57-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-14
+          disposition: addressed
+          note: line.go:240-247 reads Events() inside withMutex after head.lock is acquired; only the schedule rule is built outside.
+          round: 8
+        - id: BR-15
+          disposition: addressed
+          note: landingqueue.go:37-40 doc and plan line 205 now describe the 30s cached schedule and the in-mutex ledger read.
+          round: 8
+        - id: BR-21
+          disposition: addressed
+          note: trainstate.go:181-186 maps Aborted from PhaseMerging to PhaseUnconfirmed with no ClosePR; pinned by trainstate_test.go:325.
+          round: 8
+        - id: BR-22
+          disposition: addressed
+          note: productionCarGates(r, ci ghCaller, ...) takes the seam (landingcar.go:90); glob-based TestTrainCodeTakesItsGitHubSeam passes.
+          round: 8
+        - id: BR-23
+          disposition: not-addressed
+          note: deleteTrainRef is the leased helper, but the opened-PR close path still deletes via unleased gh pr close --delete-branch (ghlanding.go:244), contradicting the atlas's one-helper claim.
+          round: 8
+        - id: BR-24
+          disposition: addressed
+          note: atlas/workflow/sdlc-binary.md conductor section now covers branch cleanup, leftover-branch sweep, and merged-without-a-word resume.
+          round: 8
+        - id: BR-25
+          disposition: addressed
+          note: Plan line 210 lists the full event set including Aborted, matching trainstate.go:113-122.
+          round: 8
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 74171bfb3611d7c69ee0def1dbb914d7c2b33136
+      blocked: false
 ---
 
 # Gate ledger — ariadne#449 (boundary-review)
@@ -1340,12 +1514,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-28 — addressed — Board takes grants and passes over a granted waiter (train.go:227); TestBoard granted-waiter subtest fails when the check is disabled (verified by revert) and passes with it.
 - BR-29 — addressed — TestTrainCodeTakesItsGitHubSeam now globs landing*.go, excluding landing.go and tests, with a checked<5 guard against an outdated glob; passes.
 
+## Round 8 — 2026-10-19T09:17:09-07:00 (claude) — passed
+
+### Disposed
+
+- BR-14 — addressed — line.go:240-247 reads Events() inside withMutex after head.lock is acquired; only the schedule rule is built outside.
+- BR-15 — addressed — landingqueue.go:37-40 doc and plan line 205 now describe the 30s cached schedule and the in-mutex ledger read.
+- BR-21 — addressed — trainstate.go:181-186 maps Aborted from PhaseMerging to PhaseUnconfirmed with no ClosePR; pinned by trainstate_test.go:325.
+- BR-22 — addressed — productionCarGates(r, ci ghCaller, ...) takes the seam (landingcar.go:90); glob-based TestTrainCodeTakesItsGitHubSeam passes.
+- BR-23 — not-addressed — deleteTrainRef is the leased helper, but the opened-PR close path still deletes via unleased gh pr close --delete-branch (ghlanding.go:244), contradicting the atlas's one-helper claim.
+- BR-24 — addressed — atlas/workflow/sdlc-binary.md conductor section now covers branch cleanup, leftover-branch sweep, and merged-without-a-word resume.
+- BR-25 — addressed — Plan line 210 lists the full event set including Aborted, matching trainstate.go:113-122.
+
 ## Open findings
 
-- **BR-14** [Minor] `admission-decision-toctou` (kind: defect) Admission reads the events log (the departure ledger) before the line mutex and head.lock, so M2 can admit a second train on a stale "due"
-- **BR-15** [Minor] `plan-core-concepts-drift` (kind: defect) The openLandingLine doc and plan Revisions still say the schedule is re-read on every admission attempt; the code caches it for 30s
-- **BR-21** [Minor] `uncertain-outcome-collapsed` (kind: defect) An abort while merging records the train abandoned and its cars released although the merge may have landed
-- **BR-22** [Minor] `seam-bypass-global-client` (kind: defect) productionCarGates still calls the global ghClient for the car CI gate
 - **BR-23** [Minor] `duplicated-rule` (kind: defect) Remote train-branch deletion is hand-written three times, and only closePR's is unleased
-- **BR-24** [Minor] `docs-gate-atlas` (kind: defect) The atlas conductor section does not describe landed-branch deletion, the leftover-branch sweep, or the merged-while-waiting resume
-- **BR-25** [Minor] `plan-core-concepts-drift` (kind: defect) The plan's list of events the code implements leaves out Aborted

@@ -78,6 +78,7 @@ Items in order:
 ### 2026-10-18
 
 ### 2026-10-19
+- 2026-10-19: closed — M1-M3 closed (M3 SHIP). Full suite: sdlc local-check run --name suite exit 0 in 10m28s, recorded as sdlc-local/suite on 74171bfb. Done-when: TestLandingTrainLandsEveryCarOnOneSuite (3 ready PRs, one train, one integration suite, all land; train/null/head mergeCommit variants); TestLandingTrainSplitHoldsTheCulpritAndLandsThePrefix (culprit held and reported, rest land/ride next); interval configurable via .sdlc/landing.json (default off), TestLandingTrainGrantDepartsAloneWhenNoTrainIsDue (grant bypasses the train); known flake is a train pass (TestTrainSuiteOutcome).; review verdict: FIX-THEN-SHIP
 - 2026-10-19: closed M3 — Round 1 fixes (b1ab3a4ce): README train paragraph swept against the landing help; GrantsNow at every grant site; Board passes over a granted waiter (tested); seam test globs every landing file; landingline ok; go test -run Landing|Merge|Integrat|CIGate|Local|Archive|Tracker|CloseMirror|Train ./cmd/sdlc/ ok in 2510s; review verdict: SHIP
 - 2026-10-19: closed M2 — Round 1 fixes (a395730be): TestLandingCarMergedWithoutAWordFinishes (BR-16), TestLandingTrainLaggingListingIsItsOwnMerge (BR-17), train-branch deletion and leftover sweep asserted in the three-car and orphan tests (BR-18), TestTrainAbortReleasesEveryRidingCar plus Aborted in the random-history invariants; train tests under -race; go test -run Landing|Merge|Integrat|CIGate|Local|Archive|Tracker|CloseMirror|Train ./cmd/sdlc/ ok in 1802s; review verdict: SHIP
 - 2026-10-19: closed M1 — Round 2 fixes (96d1a9d0): schedule source mutex plus 30s cache, read before the line mutex (TestLandingScheduleSourceIsSharedAndCached under -race, 8 goroutines, 1 read); status through Readiness.For (tested); Passed() single audit rule (tested); landingline under -race ok; go test -run Landing|Merge|Integrat|CIGate|Local|Archive|Tracker ./cmd/sdlc/ ok in 2094s; review verdict: FIX-THEN-SHIP
@@ -156,3 +157,7 @@ Items in order:
 
    If GitHub's `mergeCommit` for a car is not the train merge, set the fake's default variant to what GitHub reports (resume already accepts null, the head and the train commit).
 4. **Watch:** suites per landed issue (test-stats) and the p90 ready-to-landed delay against serial. An interval change is another operator-verified PR.
+- Close review FIX-THEN-SHIP:
+  - The one open Minor, BR-23, is fixed: an opened train PR is closed without gh's unleased `--delete-branch`, and its branch is then deleted through `deleteTrainRef` (leased, under the repo lock), as the reclaim's closed leftovers are.
+  - The fake keeps a closed PR's branch, as GitHub does, so the red-CI and orphan tests now prove the leased delete.
+  - The reviewer's open question, whether `go test ./cmd/sdlc` finishes in time, is answered by the full recorded suite: exit 0 in 10m28s on 74171bfb.

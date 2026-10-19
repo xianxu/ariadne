@@ -241,7 +241,9 @@ func (realGH) CloseTrainPR(ctx context.Context, repo string, number int, branch 
 	if !landingRepoValid(repo) || number <= 0 || !strings.HasPrefix(branch, trainBranchPrefix) {
 		return fmt.Errorf("landing: invalid repository, PR number or train branch")
 	}
-	_, err := runLandingGH(ctx, "pr", "close", strconv.Itoa(number), "--repo", repo, "--delete-branch")
+	// The branch is deleted by the caller, leased (deleteTrainRef): gh's
+	// --delete-branch would delete it unleased, outside the repo lock.
+	_, err := runLandingGH(ctx, "pr", "close", strconv.Itoa(number), "--repo", repo)
 	return err
 }
 

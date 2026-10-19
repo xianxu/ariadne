@@ -33,7 +33,7 @@ type trainGH interface {
 	// OpenTrainPRs lists the open PRs whose head is a landing-train branch.
 	OpenTrainPRs(ctx context.Context, repo string) ([]landingPR, error)
 	CreateTrainPR(ctx context.Context, repo, branch, title, body string) error
-	// CloseTrainPR closes the PR and deletes its branch.
+	// CloseTrainPR closes the PR; the caller deletes its branch, leased.
 	CloseTrainPR(ctx context.Context, repo string, number int, branch string) error
 }
 
@@ -534,7 +534,9 @@ func (c *conductor) closePR() {
 	c.opened = false
 	if err := c.gh.CloseTrainPR(c.ctx, c.t.Repo, c.pr.Number, trainBranch(c.id)); err != nil {
 		fmt.Fprintf(c.stderr, "landing train %d: could not close train PR #%d (%v); the next train closes it\n", c.id, c.pr.Number, err)
+		return
 	}
+	c.deleteTrainBranch()
 }
 
 // deleteTrainBranch removes the train's branch from the remote once nothing
@@ -606,6 +608,7 @@ func reclaimTrains(ctx context.Context, gh trainGH, git func(args ...string) (st
 			continue
 		}
 		fmt.Fprintf(stderr, "landing train: closed leftover train PR #%d (%s): its conductor is gone\n", p.Number, p.HeadRef)
+		_ = deleteTrainRef(git, lock, remote, p.HeadRef, p.HeadOID)
 	}
 	out, err := git("ls-remote", remote, "refs/heads/"+trainBranchPrefix+"*")
 	if err != nil {
