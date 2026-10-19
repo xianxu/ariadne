@@ -1344,6 +1344,191 @@ rounds:
       isolation: fenced
       reviewed: 3c715596519a09b40e4eeee0b66809252f7eb6fd
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 133673a6-7a80-4706-8a5e-64071791ce05
+            repository: github.com/xianxu/ariadne
+            issue_id: "000394"
+            recipe: milestone-review
+            round: 9
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/913af4c248182d61
+            reviewed_head: bda6cc0efc5613bf2994d9cdca538942bb2d42fd
+            slot: ariadne:2
+            requested_at: "2026-10-19T04:37:16.152728Z"
+          phase: finished
+          pid: 21786
+          started_at: "2026-10-19T04:37:16.514649Z"
+          finished_at: "2026-10-19T04:50:14.718877Z"
+          session_id: 525a1d20-4dde-4bc1-84e3-214166e46c0f
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: bda6cc0efc5613bf2994d9cdca538942bb2d42fd
+        tracker_head: 67607bab4bae05b97156ee2c012b4f37e5de7611
+        branch_point: 046e0ebb03d7c78bf46c8511fa6d6084d42137f4
+        since: "2026-10-18T15:44:55-07:00"
+        until: "2026-10-18T20:55:25-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T15:44:55-07:00"
+              end: "2026-10-18T20:55:25-07:00"
+              began: "2026-10-18T15:44:55-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0191d03b-74fe-4185-8091-8374ef70c0c9
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6f878e4449d6a70c6d117dcc8e3e2dc7eb921bedd5cb164ae329d9abc8dbd463
+              started: "2026-10-18T22:59:31.062Z"
+              spawned: false
+              bytes: 393720
+              windows:
+                - start: "2026-10-18T22:59:31.062Z"
+                  end: "2026-10-18T20:55:25-07:00"
+            - harness: claude
+              id: 1baa8f6b-092f-413a-83f9-0b25ed003914
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 15568299dbfd540e29417f414005c5fb2212d08913ca02800e9b5f9ab1030c6c
+              started: "2026-10-18T22:57:31.956Z"
+              spawned: false
+              bytes: 519489
+              windows:
+                - start: "2026-10-18T22:57:31.956Z"
+                  end: "2026-10-18T20:55:25-07:00"
+            - harness: claude
+              id: 23a2a6e8-f430-49c9-938f-6a09729f7067
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6c2a2ebaf3bf9384772532e724d4644737187d5f9aab48909773ef49f7eecb93
+              started: "2026-10-18T22:53:00.413Z"
+              spawned: false
+              bytes: 571220
+              windows:
+                - start: "2026-10-18T22:53:00.413Z"
+                  end: "2026-10-18T20:55:25-07:00"
+            - harness: claude
+              id: aa450fd7-6a6d-4cd2-abcc-3339322077dc
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 776fdfac606030c3cf04f41a719a0ad32e2a31cec8e0f54a07ed46e3daf64dd0
+              started: "2026-10-18T22:59:17.58Z"
+              spawned: false
+              bytes: 502106
+              windows:
+                - start: "2026-10-18T22:59:17.58Z"
+                  end: "2026-10-18T20:55:25-07:00"
+            - harness: claude
+              id: d11b9adb-1d2c-4872-81c3-b6aa47a04715
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: fb35a51e74ad315fa11eb15dc5dd4cd0f8c6a8a811c7d9cafac6943d15e78dfc
+              started: "2026-10-18T22:56:29.354Z"
+              spawned: false
+              bytes: 556087
+              windows:
+                - start: "2026-10-18T22:56:29.354Z"
+                  end: "2026-10-18T20:55:25-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 5c6e9207ba1bb942bf1b273bb5aaa3d693ecef88cb6911fcf6402402e7b6308d
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 260616823
+              windows:
+                - start: "2026-10-18T15:44:55-07:00"
+                  end: "2026-10-18T20:55:25-07:00"
+        queue_waits:
+            - attempt_id: a2ed9c241919e822e7f822389860818b
+              slot: ariadne:2
+              record_digest: 58cac9858bb823ea32d0434fa1bf2d393b9a350000aa495fa55a6e4c7e138138
+              start: "2026-10-19T03:20:21.057609Z"
+              end: "2026-10-19T03:41:58.333357Z"
+              queue_seconds: 1297.275748
+              raw_seconds: 1297.275748
+              exact: true
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 0.11616666666666667
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-18T16:42:59-07:00"
+              finalized: "2026-10-18T16:45:21-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T16:49:32-07:00"
+              finalized: "2026-10-18T16:52:51-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T16:54:42-07:00"
+              finalized: "2026-10-18T16:56:28-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-18T17:38:24-07:00"
+              finalized: "2026-10-18T17:42:33-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-18T18:10:30-07:00"
+              finalized: "2026-10-18T18:24:31-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-18T18:55:07-07:00"
+              finalized: "2026-10-18T19:23:58-07:00"
+              finalizing: true
+            - boundary: M3
+              dispatched: "2026-10-18T20:03:58-07:00"
+              finalized: "2026-10-18T20:08:46-07:00"
+              finalizing: false
+            - boundary: M3
+              dispatched: "2026-10-18T20:16:50-07:00"
+              finalized: "2026-10-18T20:19:21-07:00"
+              finalizing: true
+      "n": 9
+      timestamp: "2026-10-18T21:50:21-07:00"
+      dispatched: "2026-10-18T21:37:16-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-9
+          disposition: addressed
+          note: 'Register help (flake_cmd.go:224-228) and atlas sdlc-binary.md:49 state the rule: uniqueness is checked at registration but enforced when the registry is read (BuildRegistry refuses an ambiguous test, which fails closed).'
+          round: 9
+        - id: BR-10
+          disposition: addressed
+          note: Atlas sdlc-binary.md:49 Schema note documents that pre-394 binaries refuse v2 attempts and the fleet must run rebuilt ariadne:0 binaries; plan line 122 matches.
+          round: 9
+        - id: BR-20
+          disposition: addressed
+          note: isFlakeEvidence (teststats.go:103) admits a passing suite-rerun row as evidence regardless of the parent's Outcome. Used by aggregate, flake list/register and the guard; teststats_test.go:100 covers a downgraded parent.
+          round: 9
+        - id: BR-23
+          disposition: not-addressed
+          note: 'Concurrent-prune half fixed in bda6cc0e (Lstat check; the actualinputs unreadable subtest fails without it). The record/byte-limit refusal remains: fail-closed, Minor; note it in local-check help.'
+          round: 9
+        - id: BR-24
+          disposition: addressed
+          note: weeklyattribution.go:144/327/333, weeklystats.go:98, weeklystats_inputs.go:235 and teststats_cmd.go:140 all call isSuiteRun now.
+          round: 9
+        - id: BR-26
+          disposition: addressed
+          note: 7d3d7ab0 merge.md:148-152 names the refusal and its recovery (flake register, then local-check republish --name suite), matching guardSuitePass in localcheck_republish.go:137.
+          round: 9
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: bda6cc0efc5613bf2994d9cdca538942bb2d42fd
+      blocked: false
 ---
 
 # Gate ledger — ariadne#394 (boundary-review)
@@ -1482,11 +1667,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-26** [Minor] `deferred-purpose-subset` Merge help omits the no-blind-rerun guard although Plan M3 claims the merge help is updated
   cmd/sdlc/helptext/merge.md:145-148 still has only the M2 known-flake text, but merge reaches guardSuitePass through runLocalCheck and refuses a passing suite after an unexplained same-head failure. The rule (the same one as BR-21): every Plan item a boundary checks off cites a delivered artifact or a dated Revision. Add the refusal and its recovery (register, then republish) to merge help.
 
+## Round 9 — 2026-10-18T21:50:21-07:00 (claude) — passed
+
+### Disposed
+
+- BR-9 — addressed — Register help (flake_cmd.go:224-228) and atlas sdlc-binary.md:49 state the rule: uniqueness is checked at registration but enforced when the registry is read (BuildRegistry refuses an ambiguous test, which fails closed).
+- BR-10 — addressed — Atlas sdlc-binary.md:49 Schema note documents that pre-394 binaries refuse v2 attempts and the fleet must run rebuilt ariadne:0 binaries; plan line 122 matches.
+- BR-20 — addressed — isFlakeEvidence (teststats.go:103) admits a passing suite-rerun row as evidence regardless of the parent's Outcome. Used by aggregate, flake list/register and the guard; teststats_test.go:100 covers a downgraded parent.
+- BR-23 — not-addressed — Concurrent-prune half fixed in bda6cc0e (Lstat check; the actualinputs unreadable subtest fails without it). The record/byte-limit refusal remains: fail-closed, Minor; note it in local-check help.
+- BR-24 — addressed — weeklyattribution.go:144/327/333, weeklystats.go:98, weeklystats_inputs.go:235 and teststats_cmd.go:140 all call isSuiteRun now.
+- BR-26 — addressed — 7d3d7ab0 merge.md:148-152 names the refusal and its recovery (flake register, then local-check republish --name suite), matching guardSuitePass in localcheck_republish.go:137.
+
 ## Open findings
 
-- **BR-9** [Minor] `cas-mutator-uses-stale-read` (kind: defect) The one-owner-per-test check reads the registry, not the card under compare-and-swap, so concurrent registrations on two issues can both pass
-- **BR-10** [Minor] `breaking-change-undocumented` (kind: defect) The suite-attempt writer now records version 2, which older sdlc binaries reject as an unsupported version
-- **BR-20** [Minor] `new-record-kind-unswept-readers` (kind: defect) A rerun's same-head pass is invisible to evidence readers when revalidation downgrades the parent
 - **BR-23** [Minor] `reader-cap-writer-unbounded` The store's record and byte limits now block every suite pass instead of only marking stats partial
-- **BR-24** [Minor] `duplicated-io-glue` Atlas says store readers use isSuiteRun or isFlakeEvidence; the weekly readers still compare check names directly
-- **BR-26** [Minor] `deferred-purpose-subset` Merge help omits the no-blind-rerun guard although Plan M3 claims the merge help is updated
