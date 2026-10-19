@@ -39,6 +39,12 @@ func openReviewIsolation(stderr io.Writer, m judge.ReviewWindowManifest) (*revie
 		}
 	}
 	checkout, err := reviewbox.Create(root, m.RepoRoot, m.HeadSHA, reviewOverlays(m))
+	if fallback := roots[len(roots)-1]; err != nil && root != fallback {
+		// The RAM disk refused (an agent sandbox denies it): the normal
+		// root, rather than no review (#468).
+		cwarn(stderr, fmt.Sprintf("boundary review: review checkout on %s failed (%v); using %s", root, err, fallback))
+		checkout, err = reviewbox.Create(fallback, m.RepoRoot, m.HeadSHA, reviewOverlays(m))
+	}
 	if err != nil {
 		return nil, reviewbox.Isolation{}, err
 	}

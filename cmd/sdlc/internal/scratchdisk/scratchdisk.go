@@ -74,3 +74,42 @@ func Use() (root, note string) {
 	}
 	return p.Root, ""
 }
+
+// Roots places a family of disposable folders: create is where a new one goes
+// (<disk>/<sub> when the disk is mounted with room, else fallback), and all is
+// every place one may live, for a sweep. A folder's path is fixed when it is
+// made, so one started on either root stays there; all lists the disk's
+// folder whenever the disk is mounted and readable, full or not, so a sweep
+// still reclaims what an earlier run left on it. note says why a mounted disk
+// was passed over.
+func Roots(sub, fallback string) (create string, all []string, note string) {
+	p := Read()
+	use, note := Choose(p, Floor)
+	create, all = fallback, []string{fallback}
+	if p.Mounted && p.Err == nil {
+		ram := filepath.Join(p.Root, sub)
+		all = append([]string{ram}, all...)
+		if use {
+			create = ram
+		}
+	}
+	return create, all, note
+}
+
+// MkdirTemp makes a fresh folder for the sub family, on the disk when Roots
+// picks it and the disk accepts the write, else under fallback: a mounted disk
+// that refuses writes (an agent sandbox denies it) costs the RAM, never the run.
+func MkdirTemp(sub, fallback, pattern string) (string, error) {
+	create, _, _ := Roots(sub, fallback)
+	if create != fallback {
+		if os.MkdirAll(create, 0o755) == nil {
+			if dir, err := os.MkdirTemp(create, pattern); err == nil {
+				return dir, nil
+			}
+		}
+	}
+	if err := os.MkdirAll(fallback, 0o755); err != nil {
+		return "", err
+	}
+	return os.MkdirTemp(fallback, pattern)
+}

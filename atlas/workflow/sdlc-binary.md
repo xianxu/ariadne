@@ -1926,7 +1926,9 @@ Suites under `sdlc local-check` (the recorded suite, merge's integration suite,
 known-flake reruns) write their temp files to the TestScratch RAM disk when it
 is mounted (#468): `runUnderSlot` (`localcheck_run.go`) gives each run
 `TMPDIR`/`GOTMPDIR` in its own folder under `/Volumes/TestScratch/tmp`, removed
-after, and falls back to the normal temp folder when the disk is absent or under
+after, and puts the run's checkout under `/Volumes/TestScratch/local-checks`
+(review checkouts under `review-checkouts`; `internal/scratchdisk` holds the
+rule, and a disk that refuses the write falls back), and falls back to the normal temp folder when the disk is absent or under
 2 GiB free (`testscratch.go`). It also sweeps stale run and go-build folders,
 and warns about `t.TempDir` folders a scratched run still left on the SSD temp
 folders. `pkg/golint`'s `tmp-literal` flags hardcoded temp roots that bypass it.

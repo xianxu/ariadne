@@ -109,7 +109,7 @@ func TestRunUnderSlotUsesScratch(t *testing.T) {
 			}
 			d, sha, _, _ := localRunRepo(t, "skipped")
 			seen := filepath.Join(t.TempDir(), "env")
-			c := localCheck{Name: "suite", Command: []string{"sh", "-c", `printf '%s\n%s\n' "$TMPDIR" "$GOTMPDIR" > "$1"; touch "$TMPDIR/probe"`, "fixture", seen}, TimeoutMinutes: 1}
+			c := localCheck{Name: "suite", Command: []string{"sh", "-c", `printf '%s\n%s\n%s\n' "$TMPDIR" "$GOTMPDIR" "$(pwd -P)" > "$1"; touch "$TMPDIR/probe"`, "fixture", seen}, TimeoutMinutes: 1}
 			if _, err := runLocalCheck(context.Background(), d, c, sha); err != nil {
 				t.Fatal(err)
 			}
@@ -118,6 +118,17 @@ func TestRunUnderSlotUsesScratch(t *testing.T) {
 				t.Fatal(err)
 			}
 			lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+			// The run's checkout follows the same rule (#468).
+			checkouts := os.TempDir()
+			if mode == "scratch" {
+				checkouts = filepath.Join(root, "local-checks")
+			}
+			if real, err := filepath.EvalSymlinks(checkouts); err == nil {
+				checkouts = real
+			}
+			if len(lines) != 3 || filepath.Dir(lines[2]) != checkouts || !strings.HasPrefix(filepath.Base(lines[2]), localCheckTmpPrefix) {
+				t.Fatalf("checkout at %q, want under %s", lines, checkouts)
+			}
 			if mode == "off" {
 				if lines[0] != os.Getenv("TMPDIR") {
 					t.Fatalf("off: TMPDIR = %q, want the inherited %q", lines[0], os.Getenv("TMPDIR"))
@@ -125,12 +136,39 @@ func TestRunUnderSlotUsesScratch(t *testing.T) {
 				return
 			}
 			base := filepath.Join(root, "tmp")
-			if len(lines) != 2 || lines[0] != lines[1] || filepath.Dir(lines[0]) != base || !strings.HasPrefix(filepath.Base(lines[0]), "suite-") {
+			if lines[0] != lines[1] || filepath.Dir(lines[0]) != base || !strings.HasPrefix(filepath.Base(lines[0]), "suite-") {
 				t.Fatalf("child env = %q, want one run folder under %s", lines, base)
 			}
 			if _, err := os.Stat(lines[0]); !os.IsNotExist(err) {
 				t.Fatalf("run folder %s not removed after the run: %v", lines[0], err)
 			}
 		})
+	}
+}
+
+// The stale-checkout sweep looks on the RAM disk as well as the system temp
+// folder: a killed run's checkout is reclaimed wherever it started.
+func TestSweepStaleLocalWorktreesBothRoots(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("WF_TEST_SCRATCH", root)
+	d, _, _, _ := localRunRepo(t, "skipped")
+	ram := filepath.Join(root, "local-checks")
+	stale := filepath.Join(ram, localCheckTmpPrefix+"old")
+	fresh := filepath.Join(ram, localCheckTmpPrefix+"new")
+	for _, p := range []string{stale, fresh} {
+		if err := os.MkdirAll(p, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	past := time.Now().Add(-localCheckStaleAge - time.Hour)
+	if err := os.Chtimes(stale, past, past); err != nil {
+		t.Fatal(err)
+	}
+	sweepStaleLocalWorktrees(d)
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Fatalf("stale checkout on the RAM disk survived: %v", err)
+	}
+	if _, err := os.Stat(fresh); err != nil {
+		t.Fatalf("fresh checkout swept: %v", err)
 	}
 }

@@ -54,17 +54,7 @@ func Roots() (create string, all []string, note string, err error) {
 	if err != nil {
 		return "", nil, "", fmt.Errorf("locate review checkout root: %w", err)
 	}
-	disk := filepath.Join(cache, "sdlc", "review-checkouts")
-	create, all = disk, []string{disk}
-	p := scratchdisk.Read()
-	use, note := scratchdisk.Choose(p, scratchdisk.Floor)
-	if p.Mounted && p.Err == nil {
-		ram := filepath.Join(p.Root, "review-checkouts")
-		all = append([]string{ram}, all...)
-		if use {
-			create = ram
-		}
-	}
+	create, all, note = scratchdisk.Roots("review-checkouts", filepath.Join(cache, "sdlc", "review-checkouts"))
 	return create, all, note, nil
 }
 

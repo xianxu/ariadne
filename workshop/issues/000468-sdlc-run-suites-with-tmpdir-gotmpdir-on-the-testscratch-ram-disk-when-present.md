@@ -53,6 +53,11 @@ Reason: review checkouts run tests inside (TestPreparation... wrote under a chec
 
 Delta: sdlc's review checkouts go to `/Volumes/TestScratch/review-checkouts` when the disk is mounted with room; otherwise they stay at `~/Library/Caches/sdlc/review-checkouts`. The lock and identity rules are unchanged. A checkout's directory is fixed at Create, and Reset reuses it, so a checkout lives wholly on the root it started on and is never half-moved. The sweep runs over both roots. The mount probe moves to `cmd/sdlc/internal/scratchdisk`, shared by both callers (ARCH-DRY).
 
+### 2026-10-19: the suite's own checkout too (operator, via the hub)
+Reason: every recorded suite checks out the whole repo with `os.MkdirTemp("", "sdlc-local-*")` and builds in it on the SSD, which is why fseventsd kept writing.
+
+Delta: `detachedWorktreeWithCleanup` makes the checkout under `/Volumes/TestScratch/local-checks` by the same scratchdisk rule, else in the system temp folder as before. `sweepStaleLocalWorktrees` looks in both places. A disk that is mounted but refuses the write (an agent sandbox) falls back. The review checkout also falls back now when the disk refuses the write: found when targeted tests ran in the sandbox.
+
 Delta to Plan: steps for 1, 2a and 2b are added below. The diff will likely leave the quick-flow shell, so the close review upgrades to the full review.
 
 ## Plan
@@ -90,3 +95,14 @@ Steps:
 ### 2026-10-19
 - Dispatched by the hub to fill the wait while #456 is held for the operator's design review. Claimed and started from ariadne:4.
 - Implemented in 198978a5a. Targeted tests pass: scratchdisk, reviewbox, and the sdlc scratch, lint and help tests.
+- **Disk-write sample (A/B, 10-19, unsandboxed):**
+  - Setup: the same targeted workload, `go test -count=1 ./pkg/... ./cmd/sdlc/internal/...`, with TMPDIR and GOTMPDIR on the SSD (`/Volumes/AgentScratch/tmp`) or on the RAM disk. The counters are IOBlockStorageDriver write bytes for disk0 (the SSD) and disk5 (TestScratch). The disk0 counter is machine-wide, so other slots add noise.
+  - SSD temp: 1,770 MB and 1,178 MB to disk0.
+  - RAM temp: 1,029 MB and 1,042 MB to disk0, plus 440 MB and 471 MB to disk5.
+  - Net: about 440 MB per run moved off the SSD, matching the bytes that landed on the RAM disk.
+- **Live check, first recorded suite on af1e3287:**
+  - The suite ran with its temp on the RAM disk. Its run folder was removed afterwards, and the leak report printed (0 attributed, 5 unattributed).
+  - It failed `dev-aliases.test.sh` ("an added/deleted file makes it stale"). The RAM disk is HFS+, with one-second times, so a directory touched in the same second the fake binary was built isn't newer than it. Confirmed: the old test fails 2 checks on the RAM disk, and the fixed one passes 3 of 3 (2d081ff76).
+- **Found, out of scope (follow-up proposals):**
+  - (1) The suite's own temporary checkout (`sdlc-local-*`) went to the system temp folder on the SSD. Folded in by the third revision.
+  - (2) The agent sandbox denies writes to `/Volumes/TestScratch`, so agents' own sandboxed test runs can't use it until the operator adds it to the sandbox allowlist (local-gates config, the operator's).
