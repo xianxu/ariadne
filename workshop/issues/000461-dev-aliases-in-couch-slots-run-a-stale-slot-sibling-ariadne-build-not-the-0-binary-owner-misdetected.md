@@ -7,7 +7,7 @@ created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '97b5bd0f4d2479cd928c1704b4c9048606a8b6ce' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '46c5f1923691221e4d74b8caa698f1a2b24f4bbf' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T02:31:03-07:00
 claimant:
     operator: Xian Xu
@@ -17,7 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
-actual_hours: 0.42
+actual_hours: 0.46
 ---
 
 # dev-aliases in Couch slots run a stale slot-sibling ariadne build, not the :0 binary (OWNER misdetected)
