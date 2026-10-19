@@ -83,6 +83,11 @@ An empty round is a valid, explicit reply: the agent (xx-fix / the review skill)
 
 - Final focused reviewexport and processmanual checks passed (0.234s/0.164s). Regenerating the process manual produced no semantic delta after normalizing its generated EOF blank line; no manual changes are needed. Diff whitespace check is rerun before committing.
 
+- Final-code recorded suite attempt `654d955b4578efdbe4afec235805493c` passed:
+  12 shards over 1,658 cmd/sdlc tests and 70 other packages, every exit 0 and zero
+  failures, wall 645.7s after a 3,402s machine-queue wait. Log SHA-256 prefix
+  `9de38c524871`, recorded as sdlc-local/suite. No retries or gate waivers.
+
 ## Revisions
 
 ### 2026-10-18 — producer scope and peer acceptance ownership
