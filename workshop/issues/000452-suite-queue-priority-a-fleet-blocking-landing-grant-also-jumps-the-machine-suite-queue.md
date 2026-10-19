@@ -77,6 +77,14 @@ Actual-binary smoke was repeated after the cancellation fix: all 14 tests passed
 
 This is the established open flake [#448](000448-testconstructscripts-plain-hits-its-2m-cap-when-a-review-overlaps-the-suite.md), same whole-directory timeout under load. Targeted diagnostic go test ./scripts/test -run '^TestConstructScripts$' -count=1 -v -timeout 8m passed unchanged: all 18 script/environment combinations, 58.567s total (plain 23.15s, no_color_ci 18.47s, forced_color_terminal 16.81s). Under tl-worker's self-applied flake rule, one unchanged recorded rerun started on the exact same head; attempt cb7bc0e3512890ca1143b9e60156fd46, currently queued. No timeout/gate/config/code changes made to obtain a pass. Close review may overlap that queued run under the worker contract, but a passing final-code suite is still mandatory before landing. Both attempt outcomes will be reported.
 
+### Boundary round 1 dispositions
+
+Close returned REWORK with BR-1 (queue-ticket-lifecycle-serialization) and BR-2 (persisted-subject-validation), both reproduced independently with deterministic regressions. BR-1: an owner releases outside alloc, so admission must tolerate a pathname vanishing after live_tickets returns. Restored FileNotFoundError handling across the snapshot/open boundary, preserving mixed-version release and the existing lock design. live_tickets already tolerates disappearance; holder reads an open descriptor. No new lock or ownership relation added.
+
+BR-2: shared pure valid_subject now validates both caller and persisted metadata before filesystem/protocol use; absolute canonical encodable paths, no NUL, bounded byte length, and nonnegative integer issue. Malformed persisted subjects warn and stay normal; deliberate issue-zero and legacy records remain normal without spurious warnings. stat's invalid-value errors also degrade visibly. Regressions sweep malformed path/type classes and prove no filesystem call occurs.
+
+Both production failures were red before code; both pass after, 0.118s. Expanded focused family passes again: cmd/sdlc 63.600s, landingline 0.069s, with the 16-test real-helper/provider harness. The unchanged flake rerun cb7bc0e3512890ca1143b9e60156fd46 was still queued and cancelled through local-check cancel before any test ran, because final code changed for the review fixes. Its cancellation is not a failed suite or a passing retry. A new recorded full suite and close round will use the corrected code. The original failed full attempt and #448 diagnostic remain retained.
+
 ## Revisions
 
 2026-10-18 — TL approved the durable plan. Missing/old/unreadable provider warns and falls back to normal FIFO for all suites. Old sticky waiters drain naturally. Explicit expiry regression proves a granted waiter loses priority on expiry and an older normal waiter proceeds. Approval receipt: 3b55ef84-675d-4f81-834d-80f67f178da1.
@@ -96,3 +104,5 @@ item: milestone-review design=0.04 impl=0.20
 design-buffer: 0.15
 total: 1.63
 ```
+
+2026-10-18 — Boundary round 1 implementation revision: tolerate ticket release during snapshot/read (BR-1), and apply one shared persisted/caller subject validation rule before any path use (BR-2). No new mechanism or acceptance change; deterministic regressions and focused family pass. Final-code full suite still required before landing.

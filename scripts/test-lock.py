@@ -142,8 +142,13 @@ class Tickets:
         with self.locked():
             records = []
             for number, path in live_tickets(self.dir):
-                with open(path, "rb") as stream:
-                    records.append((number, holder(stream.fileno())))
+                try:
+                    with open(path, "rb") as stream:
+                        records.append((number, holder(stream.fileno())))
+                except FileNotFoundError:
+                    # Owners (including older helpers) release outside alloc.
+                    # A snapshot is not a lease on another waiter's pathname.
+                    continue
             now = time.time()
             deadlines = evidence.deadlines(records, now)
             order = effective_order(records, deadlines, time.time())
@@ -221,15 +226,26 @@ def query_priority(provider, request, describe=None):
             process.stdout.close()
 
 
-def subject_key(rec):
-    subject = rec.get("subject") if isinstance(rec, dict) else None
+def valid_subject(subject):
+    """Validate untrusted persisted identity before any filesystem/protocol use."""
     if not isinstance(subject, dict):
-        return None
+        return False
     common, issue = subject.get("common_dir"), subject.get("issue")
     if (not isinstance(common, str) or not os.path.isabs(common) or
-            type(issue) is not int or issue <= 0):
+            "\x00" in common or common.startswith("//") or os.path.normpath(common) != common or
+            type(issue) is not int or issue < 0):
+        return False
+    try:
+        return len(os.fsencode(common)) <= 4096
+    except UnicodeError:
+        return False
+
+
+def subject_key(rec):
+    subject = rec.get("subject") if isinstance(rec, dict) else None
+    if not valid_subject(subject) or subject["issue"] == 0:
         return None
-    return common, issue
+    return subject["common_dir"], subject["issue"]
 
 
 def effective_order(records, deadlines, now):
@@ -254,6 +270,9 @@ class GrantEvidence:
     def deadlines(self, records, now):
         requested = {}
         for _, record in records:
+            subject = record.get("subject") if isinstance(record, dict) else None
+            if subject is not None and not valid_subject(subject):
+                self.warn("invalid persisted suite subject")
             key = subject_key(record)
             if key:
                 requested.setdefault(key[0], set()).add(key[1])
@@ -266,7 +285,7 @@ class GrantEvidence:
                 signature = (info.st_ino, info.st_mtime_ns, info.st_size)
             except FileNotFoundError:
                 signature = None
-            except OSError as error:
+            except (OSError, ValueError) as error:
                 self.warn(str(error))
                 self.cache.pop(common, None)
                 continue
@@ -316,8 +335,7 @@ def priority_subject(provider, top, evidence):
     try:
         raw = os.environ.get("WF_TEST_PRIORITY_SUBJECT")
         subject = json.loads(raw) if raw else query_priority(provider, {"version": 1}, describe=top).get("subject")
-        if (not isinstance(subject, dict) or not isinstance(subject.get("common_dir"), str) or
-                not os.path.isabs(subject["common_dir"]) or type(subject.get("issue")) is not int or subject["issue"] < 0):
+        if not valid_subject(subject):
             raise ValueError("invalid priority subject")
         return subject
     except (OSError, ValueError, subprocess.SubprocessError, TypeError) as error:

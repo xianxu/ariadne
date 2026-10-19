@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 HELPER = ROOT / 'scripts/test-lock.py'
@@ -297,6 +298,63 @@ spec.loader.exec_module(module)
 class GrantEvidenceUnit(unittest.TestCase):
     def records(self, n):
         return [(i, {'subject': {'common_dir': '/tmp/repo' + str(i % 2), 'issue': i + 1}}) for i in range(n)]
+
+    def test_disappearing_ticket_during_admission(self):
+        with tempfile.TemporaryDirectory(prefix='ticket-release-', dir=os.environ.get('TMPDIR', '/tmp')) as directory:
+            base = str(Path(directory) / 'lock')
+            rec = {'repo': 'fixture', 'worktree': directory, 'pid': os.getpid(), 'started': 'now'}
+            older = module.Tickets(base, rec)
+            current = module.Tickets(base, rec)
+            enumerate_live = module.live_tickets
+            released = []
+            def release_after_scan(tdir):
+                snapshot = enumerate_live(tdir)
+                older.release()  # Legacy/current owner can leave after the snapshot.
+                released.append(True)
+                return snapshot
+            slots = [os.open(base, os.O_RDWR | os.O_CREAT, 0o600)]
+            queue = os.open(base + '.queue', os.O_RDWR | os.O_CREAT, 0o600)
+            try:
+                with mock.patch.object(module, 'live_tickets', side_effect=release_after_scan):
+                    taken, busy, ahead, head, deadline = current.admission(slots, queue, 1, module.GrantEvidence('unused'))
+                self.assertEqual(taken, [0])
+                self.assertEqual(ahead, [])
+            finally:
+                current.release()
+                if not released:
+                    older.release()
+                os.close(queue)
+                for fd in slots:
+                    os.close(fd)
+
+    def test_malformed_persisted_subjects_never_reach_filesystem(self):
+        subjects = [
+            {'common_dir': '/tmp/review\x00bad', 'issue': 1},
+            {'common_dir': '/tmp/\ud800', 'issue': 1},
+            {'common_dir': 'relative', 'issue': 1},
+            {'common_dir': '/tmp/' + 'x' * 4096, 'issue': 1},
+            {'common_dir': '/tmp/../repo', 'issue': 1},
+            {'common_dir': '/tmp/repo', 'issue': True},
+            {'common_dir': '/tmp/repo', 'issue': -1},
+            {'common_dir': 3, 'issue': 1}, {}, [], 'bad',
+        ]
+        for subject in subjects:
+            paths, warnings = [], []
+            def stat(path):
+                paths.append(path)
+                return os.stat(path)
+            evidence = module.GrantEvidence('unused', stat=stat)
+            record = {'subject': subject}
+            with mock.patch.object(module, 'log', side_effect=warnings.append):
+                self.assertEqual(evidence.deadlines([(1, record)], 100), {})
+            self.assertEqual(paths, [], 'invalid subject reached filesystem')
+            self.assertTrue(any('priority unavailable' in w for w in warnings), 'invalid evidence silently discarded')
+        # Legacy tickets and a deliberate issue-zero identity are ordinary FIFO.
+        evidence = module.GrantEvidence('unused', stat=lambda path: self.fail('normal subject stat'))
+        with mock.patch.object(module, 'log') as warning:
+            self.assertEqual(evidence.deadlines([(1, {}), (2, {'subject': None}),
+                (3, {'subject': {'common_dir': '/tmp/repo', 'issue': 0}})], 100), {})
+            warning.assert_not_called()
 
     def test_stable_partition_and_expiry(self):
         for n in range(1, 64):

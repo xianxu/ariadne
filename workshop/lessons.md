@@ -1007,3 +1007,6 @@ The simplest durable authority beats a clever scan of consequences.
 - #452 plan review: a cache of time-dependent authority must invalidate at every authority-derived temporal transition, including future activation as well as expiry; unchanged file metadata does not imply unchanged validity. Name the production functions and adversarial test strategies in plans instead of enumerating prose test cases.
 
 - #452 cancellation: spawning a provider in its own process group requires an explicit SIGTERM unwind path in the Python owner; default signal exit skips finally cleanup. Test cancellation while the child is in flight, not only after provider return. Synchronize PID records on complete contents, not file existence.
+
+- #452 BR-1: a live-file snapshot is not a lease on its pathname. All admission readers must tolerate a concurrently released ticket disappearing before open, including legacy owners that do not take the reader mutex. Pin the scan/release interleaving with real flocks.
+- #452 BR-2: validate persisted identity with the same pure rule as caller identity before filesystem use. Absolute strings alone are insufficient: NUL, encoding, canonical form, bounds and field types must degrade visibly to ordinary FIFO rather than crash every reader.
