@@ -35,8 +35,17 @@ Answers to the session file become real side docs of it: `<session-file-stem>.si
 
 ## Plan
 
-- [ ]
+Full flow; durable plan: [000455 plan](../plans/000455-tl-lead-operator-instruction-answers-become-side-docs-of-the-session-file-and-migrate-qa-answers-plan.md). Tasks 1-6 there.
+
+- [ ] sidedoc.RebaseLinks + AnswerName
+- [ ] link accepts only side-doc answers
+- [ ] SessionSync seam: ReadAll, Apply, Registrations, Rename (fake + conformance)
+- [ ] planMigration (pure, golden + conflicts)
+- [ ] migrate-answers executor, CLI, crash-resume test
+- [ ] help, atlas
 
 ## Log
 
 ### 2026-10-18
+
+- Claimed by ariadne:4 on the hub's dispatch. Finding: help.md has said since #412 that answers live in `tl-status-<op>.side/`, but `link` never enforced it, so the hub kept using qa/. Root cause is the unenforced rule (ARCH-PURPOSE); validation is part of the fix. Survey of ops' qa/ in the plan. Seven decisions posted to the hub.
