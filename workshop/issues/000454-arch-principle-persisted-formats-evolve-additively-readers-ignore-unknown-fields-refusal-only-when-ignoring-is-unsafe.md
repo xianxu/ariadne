@@ -1,13 +1,21 @@
 ---
 id: 000454
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'f05201aa2196d6f3d03161fc542f4a75d2643c75' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '86f393ca14d94d2afb86ae8cb36b8a19e81f684c' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-18T21:03:58-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # ARCH principle: persisted formats evolve additively; readers ignore unknown fields; refusal only when ignoring is unsafe
@@ -27,8 +35,34 @@ Add a principle to the registry (name to settle, e.g. ARCH-EVOLVE): persisted fo
 
 ## Plan
 
-- [ ]
+- [ ] Add red-first contract and delivery guards for ARCH-EVOLVE, including
+  arch-principles, start-plan and the actual plan-quality prompt; keep the
+  deliberate marker tripwire and affected golden snapshots current.
+- [ ] Add the registry entry with quick-flow inclusion, additive evolution,
+  unknown-member capture and preservation through rewrites, strict validation
+  of known fields/required members/duplicate keys, and a justified unsafe-ignore
+  exception. Reuse every existing registry consumer (ARCH-DRY).
+- [ ] Commit self-contained plan fixtures and an opt-in live judge conformance
+  test through the existing dispatcher in a private checkout; verify a refusal
+  without an unsafe-ignore reason is cited under the new principle, with
+  preserving-additive and justified-unsafe controls. Normal suites stay offline.
+- [ ] Update README and atlas; run targeted checks and the recorded suite;
+  close and land through the normal gates.
+
 
 ## Log
 
 ### 2026-10-18
+
+- Claimed and started in ariadne:3. Hub dispatch specifies preserving unknown
+  fields through rewrites, with strict known-field validation and duplicate-key
+  checks; the existing issue Spec already records that operator requirement.
+- Proposed marker ARCH-EVOLVE and quick-flow=yes to the hub before code. An
+  alternative that expands ARCH-SECURE would mix provenance validation with
+  compatibility across versions; a separate registry entry keeps their lenses
+  distinct. Duplicating requirements in each consumer would violate ARCH-DRY.
+- Scope is the registry and its tested delivery, not migration of existing
+  persisted formats. No new runtime state, locks, file formats, credentials or
+  hot path are introduced. The live test uses disposable private fixture state
+  and the existing agent dispatcher; regular suites use deterministic fixtures
+  and prompt construction. New prompt bytes scale linearly with one entry.
