@@ -116,3 +116,11 @@ Items in order:
   - **Cars:** a landed car waits for its PR to show MERGED, then takes the resume cleanup path.
   - **Abort:** any conductor error releases every unsettled car and closes the train PR.
   - **Reclaim:** at start, any open `landing-train/*` PR is closed, since its conductor is dead (head.lock was free).
+- M2 built:
+  - the conductor (930e8490), then robustness and the remaining cases (5b4ddd66);
+  - TestLandingTrainLandsEveryCarOnOneSuite: three cars, one suite, one merge, under each mergeCommit variant;
+  - plus a train of one, the orphan reclaim with a lost merge reply, and the docs-only reintegration.
+- Found while testing:
+  - the conductor's fetches raced the landed cars' cleanup on shared refs, so ref writes now take the repo lock;
+  - the suite declaration has to come from the exact main the train is built on, not the stale tracking ref;
+  - the grep test caught the probe reading the raw mergeCommit.
