@@ -12,7 +12,14 @@
 EXCLUDED=""
 #
 # Run: bash scripts/test/construct-scripts.test.sh   (exit 0 = all pass)
+# --list emits selected paths separated by NUL, without running them (#448).
 set -uo pipefail
+list=0
+case "$#:${1-}" in
+	0:) ;;
+	1:--list) list=1 ;;
+	*) echo "usage: construct-scripts.test.sh [--list]" >&2; exit 2 ;;
+esac
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)" || exit 1
 tests=("$ROOT"/construct/scripts/test/*.test.sh)
 [ -e "${tests[0]}" ] || { echo "construct-scripts: no construct/scripts/test/*.test.sh found under $ROOT" >&2; exit 1; }
@@ -20,8 +27,9 @@ pass=0 fail=0 skipped=0 failed=""
 for t in ${tests[@]+"${tests[@]}"}; do
 	name="$(basename "$t")"
 	case " $EXCLUDED " in
-		*" $name "*) skipped=$((skipped + 1)); echo "skip $name (excluded above)"; continue ;;
+		*" $name "*) skipped=$((skipped + 1)); [ "$list" -eq 1 ] || echo "skip $name (excluded above)"; continue ;;
 	esac
+	if [ "$list" -eq 1 ]; then printf '%s\0' "$t"; continue; fi
 	if out="$(bash "$t" 2>&1)"; then
 		pass=$((pass + 1)); echo "ok   $name"
 	else
@@ -29,5 +37,6 @@ for t in ${tests[@]+"${tests[@]}"}; do
 		echo "FAIL $name"; printf '%s\n' "$out" | tail -20 | sed 's/^/    /'
 	fi
 done
+[ "$list" -eq 0 ] || exit 0
 printf 'construct-scripts: %d passed, %d failed, %d excluded\n' "$pass" "$fail" "$skipped"
 [ "$fail" -eq 0 ] || { echo "construct-scripts: failed:$failed" >&2; exit 1; }

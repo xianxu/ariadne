@@ -367,6 +367,12 @@ whose warning was suppressed. `--strict` fails only when a binary name has
 owners from distinct Git origins; GitHub HTTPS and SSH forms identify the
 same repository, while unknown origins remain distinct.
 
+The construct shell tests run as named Go subtests, with a separate two-minute
+hang bound per script in each color environment. For the same selection without
+execution, run `bash scripts/test/construct-scripts.test.sh --list`; it emits
+NUL-delimited paths and applies the runner's exclusions. Omit `--list` to execute
+the selected batch, as the CI shell check does.
+
 For host checks required by `make test`, provide `tests/host-preflight.sh`, or
 set `WF_TEST_PREFLIGHT ?= path/to/preflight.sh` before including
 `Makefile.workflow`. The workflow runs the script before acquiring the shared
