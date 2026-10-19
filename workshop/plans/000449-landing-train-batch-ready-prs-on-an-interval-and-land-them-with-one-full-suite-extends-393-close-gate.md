@@ -884,6 +884,331 @@ rounds:
       isolation: fenced
       reviewed: a395730bed6d00be7b996616f427d8b8594ff447
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 3a4528e5-92fc-4783-922e-e83d4b9c8f04
+            repository: github.com/xianxu/ariadne
+            issue_id: "000449"
+            recipe: milestone-review
+            round: 1
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/f7d3e9b01f1175d5
+            reviewed_head: 0db9e31fed4559d1859f1640624bbd5118e4c632
+            slot: ariadne:2
+            requested_at: "2026-10-19T14:06:38.81747Z"
+          phase: finished
+          pid: 95470
+          started_at: "2026-10-19T14:06:39.089237Z"
+          finished_at: "2026-10-19T14:22:34.130251Z"
+          session_id: 6a98b83d-0ceb-4c8e-9d3c-9af442be4c13
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 0db9e31fed4559d1859f1640624bbd5118e4c632
+        tracker_head: c859465254df59903a291f0f6ed200ca9dcdafe1
+        branch_point: e279f713f66ebde2d11e8662e05d4e481369d34c
+        since: "2026-10-19T00:24:20-07:00"
+        until: "2026-10-19T06:31:44-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T00:24:20-07:00"
+              end: "2026-10-19T06:31:44-07:00"
+              began: "2026-10-19T00:24:20-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0b8dd07a-725f-46d5-9d61-2f1c3a639ae1
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 3d99778b04a5abfcad9c52903f374e96319ca817fd257eef5893cf415eaa2517
+              started: "2026-10-19T07:41:27.89Z"
+              spawned: false
+              bytes: 392572
+              windows:
+                - start: "2026-10-19T07:41:27.89Z"
+                  end: "2026-10-19T06:31:44-07:00"
+            - harness: claude
+              id: 3859e47f-fab7-4809-b00b-39545e065c4d
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 9e7b79ccc03b5a83546f49fdb9ea8267d34e5ef1958759092e3826439da67440
+              started: "2026-10-19T07:39:08.194Z"
+              spawned: false
+              bytes: 515896
+              windows:
+                - start: "2026-10-19T07:39:08.194Z"
+                  end: "2026-10-19T06:31:44-07:00"
+            - harness: claude
+              id: ce283a71-a4ff-4b46-a444-7e71d73538b9
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: f4547a086362f57592441b8ebe51ccc25025e5807e92b9ae941f19565d34db65
+              started: "2026-10-19T07:37:21.957Z"
+              spawned: false
+              bytes: 568734
+              windows:
+                - start: "2026-10-19T07:37:21.957Z"
+                  end: "2026-10-19T06:31:44-07:00"
+            - harness: claude
+              id: ea85e2ea-80c1-424b-b626-ad5588a39352
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: c00ba0b4ef6fcb0b4fa7599cbc5b7b3b9f7a747009b08fefc1d56ab99fd9c60f
+              started: "2026-10-19T07:41:05.217Z"
+              spawned: false
+              bytes: 498662
+              windows:
+                - start: "2026-10-19T07:41:05.217Z"
+                  end: "2026-10-19T06:31:44-07:00"
+            - harness: claude
+              id: ed119f61-f721-4c11-b1f4-f27f6ddaae4c
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 32f1c1354f947b813042e42af826f14db41d5bf479efab13555853520d6330f7
+              started: "2026-10-19T07:40:04.612Z"
+              spawned: false
+              bytes: 502132
+              windows:
+                - start: "2026-10-19T07:40:04.612Z"
+                  end: "2026-10-19T06:31:44-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 73cc7b4fff334781c482f6488e62e7933cfc595100fc1ac81053a5e1e9e1bab1
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 301908529
+              windows:
+                - start: "2026-10-19T00:24:20-07:00"
+                  end: "2026-10-19T06:31:44-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-19T01:40:06-07:00"
+              finalized: "2026-10-19T01:43:53-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-19T02:09:30-07:00"
+              finalized: "2026-10-19T02:57:26-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-19T03:35:22-07:00"
+              finalized: "2026-10-19T03:50:39-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-19T04:58:25-07:00"
+              finalized: "2026-10-19T05:02:37-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-19T05:37:54-07:00"
+              finalized: "2026-10-19T06:12:06-07:00"
+              finalizing: true
+      "n": 6
+      timestamp: "2026-10-19T07:22:34-07:00"
+      dispatched: "2026-10-19T07:06:38-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      findings:
+        - kind: defect
+          id: BR-26
+          severity: Important
+          title: README train paragraph not updated for M3 surface (splits, holds, refusals, alone, per-train report)
+          detail: 'This is the 2nd finding in family docs-gate-readme. The plan''s M3 docs task names README, but README.md:491-501 still ends at the readiness line and omits the bisect split with the held culprit, conflict holds, main-red and train-CI-red refusal, local-gates-label lands alone, resume on a merged PR with no word, and the last-trains report in sdlc landing status. All of these are in helptext/landing.md and atlas. Rule: every user-visible train behavior in helptext LANDING TRAINS must also appear in README''s train paragraph; sweep the whole list.'
+          family: docs-gate-readme
+          round: 6
+        - kind: defect
+          id: BR-27
+          severity: Minor
+          title: The "is issue granted now" lookup is written out at three sites
+          detail: 'This is the 4th finding in family duplicated-rule. GrantEntries plus ValidGrants(...)[issue] appears at landingqueue.go:50, landingqueue.go:178 and landingtrain.go:665. Rule: grant status is one Line method that every caller uses, so an unreadable log means the same thing everywhere.'
+          family: duplicated-rule
+          round: 6
+        - kind: defect
+          id: BR-28
+          severity: Minor
+          title: Board ignores grants, so a waiter granted after admission can board a train
+          detail: Readiness.Alone is set only from the local-gates label (landingcar.go:73). A grant added between the head's admission and boarding lets the granted car ride a train that another car's red CI can refuse, contrary to "lands alone, outside the train".
+          family: grant-bypass-boarding
+          round: 6
+        - kind: defect
+          id: BR-29
+          severity: Minor
+          title: TestTrainCodeTakesItsGitHubSeam checks a hand-maintained list of four files
+          detail: A new landing*.go file escapes the seam check. Glob the landing files, excluding landing.go, the wiring site.
+          family: contract-test-hand-list
+          round: 6
+      boundary: M3
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: bacf2150-dcf8-4516-94c0-3df12edaa04b
+            repository: github.com/xianxu/ariadne
+            issue_id: "000449"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/acacff334121b161
+            reviewed_head: b1ab3a4cec0a2314e38c8a344fee2a9956cee0c8
+            slot: ariadne:2
+            requested_at: "2026-10-19T15:07:20.518007Z"
+          phase: finished
+          pid: 55761
+          started_at: "2026-10-19T15:07:20.793915Z"
+          finished_at: "2026-10-19T15:22:30.264475Z"
+          session_id: 11e611e1-1520-4aaa-9ee9-0af9e6ef36f2
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: b1ab3a4cec0a2314e38c8a344fee2a9956cee0c8
+        tracker_head: 3adcfba4745aa1327f4d85e699615d15b16d7019
+        branch_point: e279f713f66ebde2d11e8662e05d4e481369d34c
+        since: "2026-10-19T00:24:20-07:00"
+        until: "2026-10-19T07:24:08-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T00:24:20-07:00"
+              end: "2026-10-19T07:24:08-07:00"
+              began: "2026-10-19T00:24:20-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0b8dd07a-725f-46d5-9d61-2f1c3a639ae1
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 3d99778b04a5abfcad9c52903f374e96319ca817fd257eef5893cf415eaa2517
+              started: "2026-10-19T07:41:27.89Z"
+              spawned: false
+              bytes: 392572
+              windows:
+                - start: "2026-10-19T07:41:27.89Z"
+                  end: "2026-10-19T07:24:08-07:00"
+            - harness: claude
+              id: 3859e47f-fab7-4809-b00b-39545e065c4d
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 9e7b79ccc03b5a83546f49fdb9ea8267d34e5ef1958759092e3826439da67440
+              started: "2026-10-19T07:39:08.194Z"
+              spawned: false
+              bytes: 515896
+              windows:
+                - start: "2026-10-19T07:39:08.194Z"
+                  end: "2026-10-19T07:24:08-07:00"
+            - harness: claude
+              id: ce283a71-a4ff-4b46-a444-7e71d73538b9
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: f4547a086362f57592441b8ebe51ccc25025e5807e92b9ae941f19565d34db65
+              started: "2026-10-19T07:37:21.957Z"
+              spawned: false
+              bytes: 568734
+              windows:
+                - start: "2026-10-19T07:37:21.957Z"
+                  end: "2026-10-19T07:24:08-07:00"
+            - harness: claude
+              id: ea85e2ea-80c1-424b-b626-ad5588a39352
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: c00ba0b4ef6fcb0b4fa7599cbc5b7b3b9f7a747009b08fefc1d56ab99fd9c60f
+              started: "2026-10-19T07:41:05.217Z"
+              spawned: false
+              bytes: 498662
+              windows:
+                - start: "2026-10-19T07:41:05.217Z"
+                  end: "2026-10-19T07:24:08-07:00"
+            - harness: claude
+              id: ed119f61-f721-4c11-b1f4-f27f6ddaae4c
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 32f1c1354f947b813042e42af826f14db41d5bf479efab13555853520d6330f7
+              started: "2026-10-19T07:40:04.612Z"
+              spawned: false
+              bytes: 502132
+              windows:
+                - start: "2026-10-19T07:40:04.612Z"
+                  end: "2026-10-19T07:24:08-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 2694bfa4d5d1c431f9b306c69b7bd7c2099efe4f0c2ddcd284867b426f5ac69e
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 304845287
+              windows:
+                - start: "2026-10-19T00:24:20-07:00"
+                  end: "2026-10-19T07:24:08-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-19T01:40:06-07:00"
+              finalized: "2026-10-19T01:43:53-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-19T02:09:30-07:00"
+              finalized: "2026-10-19T02:57:26-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-19T03:35:22-07:00"
+              finalized: "2026-10-19T03:50:39-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-19T04:58:25-07:00"
+              finalized: "2026-10-19T05:02:37-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-19T05:37:54-07:00"
+              finalized: "2026-10-19T06:12:06-07:00"
+              finalizing: true
+            - boundary: M3
+              dispatched: "2026-10-19T07:06:38-07:00"
+              finalized: "2026-10-19T07:22:34-07:00"
+              finalizing: false
+      "n": 7
+      timestamp: "2026-10-19T08:22:43-07:00"
+      dispatched: "2026-10-19T08:07:20-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-26
+          disposition: addressed
+          note: README.md:491-520 now lists vouching, departure, conducting, holds/bisect, flake/main-red/CI-red refusals, alone (grant and local-gates label), resume, and the last-trains status, matching helptext/landing.md LANDING TRAINS one-for-one.
+          round: 7
+        - id: BR-27
+          disposition: addressed
+          note: Line.GrantsNow (log.go:89) is used at landingqueue.go:50, landingqueue.go:178 and landingtrain.go:665; the remaining direct ValidGrants use at landingcmd.go:171 needs the skipped count for status.
+          round: 7
+        - id: BR-28
+          disposition: addressed
+          note: Board takes grants and passes over a granted waiter (train.go:227); TestBoard granted-waiter subtest fails when the check is disabled (verified by revert) and passes with it.
+          round: 7
+        - id: BR-29
+          disposition: addressed
+          note: TestTrainCodeTakesItsGitHubSeam now globs landing*.go, excluding landing.go and tests, with a checked<5 guard against an outdated glob; passes.
+          round: 7
+      boundary: M3
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: b1ab3a4cec0a2314e38c8a344fee2a9956cee0c8
+      blocked: false
 ---
 
 # Gate ledger — ariadne#449 (boundary-review)
@@ -992,6 +1317,28 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   atlas/workflow/sdlc-binary.md:431-436 still says only that open leftover PRs are closed.
 - **BR-25** [Minor] `plan-core-concepts-drift` (kind: defect) The plan's list of events the code implements leaves out Aborted
   Plan line 197 lists events without Aborted (trainstate.go:102). This is the 3rd finding in this family. Rule: that list mirrors every type that implements trainEvent and trainEffect.
+
+## Round 6 — 2026-10-19T07:22:34-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-26** [Important] `docs-gate-readme` (kind: defect) README train paragraph not updated for M3 surface (splits, holds, refusals, alone, per-train report)
+  This is the 2nd finding in family docs-gate-readme. The plan's M3 docs task names README, but README.md:491-501 still ends at the readiness line and omits the bisect split with the held culprit, conflict holds, main-red and train-CI-red refusal, local-gates-label lands alone, resume on a merged PR with no word, and the last-trains report in sdlc landing status. All of these are in helptext/landing.md and atlas. Rule: every user-visible train behavior in helptext LANDING TRAINS must also appear in README's train paragraph; sweep the whole list.
+- **BR-27** [Minor] `duplicated-rule` (kind: defect) The "is issue granted now" lookup is written out at three sites
+  This is the 4th finding in family duplicated-rule. GrantEntries plus ValidGrants(...)[issue] appears at landingqueue.go:50, landingqueue.go:178 and landingtrain.go:665. Rule: grant status is one Line method that every caller uses, so an unreadable log means the same thing everywhere.
+- **BR-28** [Minor] `grant-bypass-boarding` (kind: defect) Board ignores grants, so a waiter granted after admission can board a train
+  Readiness.Alone is set only from the local-gates label (landingcar.go:73). A grant added between the head's admission and boarding lets the granted car ride a train that another car's red CI can refuse, contrary to "lands alone, outside the train".
+- **BR-29** [Minor] `contract-test-hand-list` (kind: defect) TestTrainCodeTakesItsGitHubSeam checks a hand-maintained list of four files
+  A new landing*.go file escapes the seam check. Glob the landing files, excluding landing.go, the wiring site.
+
+## Round 7 — 2026-10-19T08:22:43-07:00 (claude) — passed
+
+### Disposed
+
+- BR-26 — addressed — README.md:491-520 now lists vouching, departure, conducting, holds/bisect, flake/main-red/CI-red refusals, alone (grant and local-gates label), resume, and the last-trains status, matching helptext/landing.md LANDING TRAINS one-for-one.
+- BR-27 — addressed — Line.GrantsNow (log.go:89) is used at landingqueue.go:50, landingqueue.go:178 and landingtrain.go:665; the remaining direct ValidGrants use at landingcmd.go:171 needs the skipped count for status.
+- BR-28 — addressed — Board takes grants and passes over a granted waiter (train.go:227); TestBoard granted-waiter subtest fails when the check is disabled (verified by revert) and passes with it.
+- BR-29 — addressed — TestTrainCodeTakesItsGitHubSeam now globs landing*.go, excluding landing.go and tests, with a checked<5 guard against an outdated glob; passes.
 
 ## Open findings
 
