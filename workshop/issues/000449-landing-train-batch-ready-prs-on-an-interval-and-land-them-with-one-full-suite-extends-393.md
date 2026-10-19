@@ -100,3 +100,19 @@ Items in order:
     - one `landingMainRef`;
     - the schedule is re-read each attempt, and an unreadable one is serial;
     - skipped tickets are in the displaced audit.
+- M1 round-3 Minors fixed (29052514): the departure ledger is read under the line mutex after head.lock, and the docs now match the 30s cache.
+- M2 progress:
+  - landedCommit/LandedOID for every merged-PR consumer, plus the decoder (2fdafe42);
+  - outcomes/<seq> car channel and the shared sidecar codec (279dcf4c).
+- M2 conductor design, as coded next:
+  - **Who conducts:** the admitted head conducts when Board yields ≥2 cars. One car is today's path, plus a train event so the schedule paces.
+  - **Before boarding:** each car's remote tip and open PR at its vouched head are re-read; a mismatch stays waiting.
+  - **Build:** a detached worktree from fetched main, `merge --no-ff` of each car head with Landing-Train/Landing-PR trailers. The instance and duplicate-ID gates run per prefix; a conflict or gate failure means that car is a Conflict.
+  - **Publish:** push to `landing-train/<id>`; open the train PR once; wait for GitHub to register the head.
+  - **Suite:** the local-check runner on the prefix head, with #394 inside it. On the first full-train failure, one unrecorded main baseline decides MainRed.
+  - **CI and merge:** `waitCIGate` on the train PR. Main is re-fetched before the merge; if it moved, Reintegrate (merge main into the head) and NeedSuite = code surface in the delta. The merge is `LandingMerge` pinned to the head, then confirmed on GitHub.
+  - **Outcomes:** written with `Line.Settle`, and car events go to events.jsonl.
+  - **The conductor's own car:** it continues into today's post-merge cleanup once its PR shows MERGED.
+  - **Cars:** a landed car waits for its PR to show MERGED, then takes the resume cleanup path.
+  - **Abort:** any conductor error releases every unsettled car and closes the train PR.
+  - **Reclaim:** at start, any open `landing-train/*` PR is closed, since its conductor is dead (head.lock was free).
