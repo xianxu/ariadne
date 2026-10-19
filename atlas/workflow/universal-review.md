@@ -72,8 +72,13 @@ Composition: an agent in Couch loads the skill (round + grammar + collaboration 
 Parley's standalone prompt is round + grammar + the selected modes + its own
 `propose_edits` adapter; it leaves out `SKILL.md` and `adapters/file-edit.md` (parley.nvim#319).
 The hosted Pair review workbench instead follows `construct/local/fix/SKILL.md`:
-`pair review apply` owns its file write and returns the exact Body for the agent's
-immediate docflow round commit. It has no handoff or landed-file step (#437).
+`pair review apply` owns its file write and returns the exact Body for a changed
+reply's immediate docflow round commit. Every completed review calls apply, even
+with `{"records":[]}`; an empty reply creates no agent commit (#453). Explanations
+and questions stay in the session response. Pair #690 owns empty-round artifacts,
+clearing the pane's spinner/pending block, and the live pane check; older Pair
+accepts the producer's empty apply without a round artifact. There is no handoff
+or landed-file step (#437).
 An uncertain apply response is resolved with `pair review round FILE --json`,
 whose `Current` flag says whether its stored `Body` still describes the file.
 Before committing that Body, also match `Round.base_hash` to the attempted H

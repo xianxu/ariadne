@@ -79,7 +79,7 @@ func TestParseCardTransactionEnvelope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	valid := strings.Replace(string(card), "---\n\n#", "tracker:\n  version: 1\n  completion: {head: abc, stage: pending}\n---\n\n#", 1)
+	valid := strings.Replace(string(card), "---\n\n#", "tracker:\n  version: 1\n  completion: {token: close-1, repository: file:/r, reviewed_head: "+strings.Repeat("a", 40)+", evidence_commit: "+strings.Repeat("b", 40)+", future: {head: abc, stage: pending}}\n---\n\n#", 1)
 	if _, err := ParseCard([]byte(valid)); err != nil {
 		t.Fatal(err)
 	}

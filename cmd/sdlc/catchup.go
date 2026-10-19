@@ -63,9 +63,8 @@ func weaveDependencyCheckEnv(cmd *exec.Cmd) []string {
 var catchUpFetchTimeout = time.Minute
 
 // catchUpBeforeWork brings root and its substrate chain up to origin/main. It
-// returns nil when planning may go on, and an error when start-plan must stop:
-// after a catch-up (the running sdlc predates it) or when a checkout that cannot
-// be caught up lacks main's code.
+// returns nil when planning may go on. It refuses an obsolete running build, a
+// partial refresh failure, or a checkout that cannot catch up and lacks old code.
 func catchUpBeforeWork(ctx context.Context, stdout io.Writer, root string, issueID int) error {
 	unchecked := func(dir, why string) {
 		cwarn(stdout, fmt.Sprintf("catch-up: could not check %s against origin/main (%s); NOT verified as current", dir, why))
@@ -95,6 +94,11 @@ func catchUpBeforeWork(ctx context.Context, stdout io.Writer, root string, issue
 	}
 	rerun := fmt.Sprintf("sdlc start-plan --issue %d", issueID)
 	cinfo(stdout, fmt.Sprintf("catch-up: behind origin/main: %s — running `weave refresh`", strings.Join(behind, ", ")))
+	binary := runningSDLC()
+	sourceBefore := ""
+	if binary.Source != "" {
+		sourceBefore = headOf(ctx, binary.Source)
+	}
 	refreshErr := weaveRefresh(ctx, root, stdout)
 	// Refresh keeps the updates it completed before an error, so what moved is
 	// read from the checkouts, not from its exit status.
@@ -104,13 +108,21 @@ func catchUpBeforeWork(ctx context.Context, stdout io.Writer, root string, issue
 			moved = append(moved, dir)
 		}
 	}
-	if len(moved) > 0 {
-		failed := ""
+	sourceAfter := ""
+	if sourceBefore != "" {
+		sourceAfter = headOf(ctx, binary.Source)
+	}
+	if len(moved) > 0 || sourceAfter != sourceBefore {
 		if refreshErr != nil {
-			failed = fmt.Sprintf(" before `weave refresh` failed (%v; its output above says why)", refreshErr)
+			return fmt.Errorf("caught up %s before `weave refresh` failed (%v); nothing was branched or started. Repair refresh, then re-run `%s`", strings.Join(moved, ", "), refreshErr, rerun)
 		}
-		return fmt.Errorf("caught up %s to origin/main%s; this sdlc was built before that, so nothing was branched or started.\n"+
-			"      Re-run `%s` to plan with the refreshed build", strings.Join(moved, ", "), failed, rerun)
+		if sourceAfter != "" && sourceAfter != sourceBefore && binary.Revision != "" && binary.Revision != sourceAfter {
+			return fmt.Errorf("caught up %s to origin/main; this sdlc was built before that (source %s, revision %s, now %s), so nothing was branched or started.\n      Re-run `%s` with a refreshed build", strings.Join(moved, ", "), binary.Source, binary.Revision, sourceAfter, rerun)
+		}
+		if binary.Revision == "" || sourceBefore == "" || sourceAfter == "" {
+			cwarn(stdout, "catch-up: running sdlc source/revision unavailable; "+binary.version())
+		}
+		return nil
 	}
 	if refreshErr == nil {
 		return fmt.Errorf("`weave refresh` succeeded but left %s behind origin/main; nothing was branched or started. Inspect them, then re-run `%s`", strings.Join(behind, ", "), rerun)

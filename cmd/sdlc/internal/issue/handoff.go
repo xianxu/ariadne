@@ -3,6 +3,7 @@ package issue
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -94,8 +95,14 @@ func cardEnvelope(d *cardDocument) (trackerEnvelope, error) {
 		return trackerEnvelope{Version: vocab.Issue().Card.Internal.Version}, nil
 	}
 	var env trackerEnvelope
+	if err := validateKnownCardYAML(node, reflect.TypeOf(env), "tracker"); err != nil {
+		return env, invalidCard("tracker", err.Error())
+	}
 	if err := node.Decode(&env); err != nil {
 		return env, invalidCard("tracker", err.Error())
+	}
+	if env.Version != vocab.Issue().Card.Internal.Version {
+		return env, invalidCard("tracker", "unsupported or missing transaction version")
 	}
 	if env.Handoff != nil {
 		if err := env.Handoff.validate(); err != nil {
@@ -145,6 +152,12 @@ func updateEnvelope(card []byte, change func(*trackerEnvelope) error) ([]byte, e
 	block, err := yaml.Marshal(map[string]trackerEnvelope{field: env})
 	if err != nil {
 		return nil, err
+	}
+	if old := d.fields[field]; old != nil {
+		block, err = preserveTrackerUnknown(old, block)
+		if err != nil {
+			return nil, err
+		}
 	}
 	out := []byte(Compose(strings.TrimRight(fm, "\n")+"\n"+strings.TrimRight(string(block), "\n"), d.body))
 	if _, err := ParseCard(out); err != nil {

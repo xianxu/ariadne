@@ -10,6 +10,20 @@ Design rationale: `docs/vision/2026-05-25-01-pensive-sdlc-checkpoint-binary.md`.
 Build issue + plan: `workshop/history/issues/000031-sdlc-checkpoint-binary.md`
 (after archive) or `workshop/issues/000031-...` (during build).
 
+## Executable identity (#461)
+
+`sdlc --version` reports the actual executable path, embedded VCS revision and
+modified bit; missing build metadata is shown as unknown rather than inferred
+from a checkout. In Couch, startup warns if the executable differs from the
+fleet's `:0` build. The warning is read-only and does not rebuild or switch it.
+Shell aliases use that verified central owner; slot-private substrates remain
+composition inputs. Refresh/relaunch captured aliases after updating the script.
+
+Start-plan's refresh only requests a new running build when its executable's own
+source checkout advanced beyond its embedded revision. A private sibling moving
+alone no longer causes the generic built-before refusal. Partial refresh failures
+still refuse with their actual error, and existing freshness checks remain.
+
 ## What it owns
 
 The **checkpoints between SDLC stages** — not the stages themselves.

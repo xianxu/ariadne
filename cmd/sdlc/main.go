@@ -68,6 +68,7 @@ func renderLong(name string) string {
 }
 
 func main() {
+	warnFleetBinary(os.Stderr)
 	if code := executeCLI(buildRoot(), os.Args[1:]); code != 0 {
 		os.Exit(code)
 	}
@@ -120,6 +121,7 @@ func buildRoot() *cobra.Command {
 
 	root := &cobra.Command{
 		Use:           "sdlc",
+		Version:       runningSDLC().version(),
 		Short:         "SDLC checkpoint binary — guards known commit moments against drift",
 		Long:          renderLong("root"),
 		SilenceUsage:  true,

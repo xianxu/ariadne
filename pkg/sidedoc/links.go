@@ -27,19 +27,7 @@ var (
 // and in order. Fenced examples are not links.
 func SideLinks(text string) []string {
 	var out []string
-	fence := ""
-	for _, line := range strings.Split(text, "\n") {
-		t := strings.TrimLeft(line, " \t")
-		if fence == "" && (strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~")) {
-			fence = t[:3]
-			continue
-		}
-		if fence != "" {
-			if strings.HasPrefix(t, fence) {
-				fence = ""
-			}
-			continue
-		}
+	forUnfenced(strings.Split(text, "\n"), func(_ int, line string) {
 		type found struct {
 			at     int
 			target string
@@ -58,8 +46,28 @@ func SideLinks(text string) []string {
 		for _, link := range links {
 			out = append(out, link.target)
 		}
-	}
+	})
 	return out
+}
+
+// forUnfenced calls f with each line outside fenced code (``` or ~~~), and
+// its index; the fence lines themselves are code too.
+func forUnfenced(lines []string, f func(i int, line string)) {
+	fence := ""
+	for i, line := range lines {
+		t := strings.TrimLeft(line, " \t")
+		if fence == "" && (strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~")) {
+			fence = t[:3]
+			continue
+		}
+		if fence != "" {
+			if strings.HasPrefix(t, fence) {
+				fence = ""
+			}
+			continue
+		}
+		f(i, line)
+	}
 }
 
 // linkedSet is the cleaned targets of a document's side links.

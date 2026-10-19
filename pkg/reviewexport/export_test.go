@@ -352,6 +352,35 @@ func TestReviewSkillDecisionScenarios(t *testing.T) {
 			}
 		}
 	}
+	workbench := read("construct/local/fix/SKILL.md")
+	start := strings.Index(workbench, "## Pair review workbench")
+	if start < 0 {
+		t.Fatal("missing Pair workbench section")
+	}
+	workbench = workbench[start:]
+	for _, phrase := range []string{
+		"Always call `pair review apply`",
+		`{"records":[]}`,
+		"explanations or questions in your session reply",
+		"never commit an empty reply",
+		"including after a lost apply reply",
+	} {
+		if !strings.Contains(workbench, phrase) {
+			t.Errorf("empty-round producer contract missing %q", phrase)
+		}
+	}
+	success := rows(workbench, "### Successful apply decisions")
+	if len(success) != 2 {
+		t.Errorf("success decisions have %d rows, want changed and empty", len(success))
+	}
+	for _, tc := range []struct{ scenario, action, evidence string }{
+		{"changed reply", "commit Body verbatim", "exit 0; nonempty Body and Round"},
+		{"empty reply", "no agent commit", "exit 0; no changed records; empty Body"},
+	} {
+		if got := success[tc.scenario]; !slices.Equal(got, []string{tc.action, tc.evidence}) {
+			t.Errorf("success %q = %v, want %q / %q", tc.scenario, got, tc.action, tc.evidence)
+		}
+	}
 	recovery := rows(read("construct/local/fix/SKILL.md"), "### Apply recovery decisions")
 	if len(recovery) != 5 {
 		t.Fatalf("recovery has %d rows, want 5 unambiguous cases", len(recovery))

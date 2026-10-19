@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
@@ -35,6 +36,39 @@ func fixture(t *testing.T) (*Repository, string, *gitx.TrunkFile) {
 		t.Fatal(err)
 	}
 	return r, root, tf
+}
+
+func TestRepositoryCASRetainsNewCardFieldWhenOlderSetterWrites(t *testing.T) {
+	r, _, _ := fixture(t)
+	snap, err := r.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	old, _ := snap.Card("000252")
+	newer := []byte(strings.Replace(string(old.Raw), "---\n\n#", "future: {nested: [one, two]}\n---\n\n#", 1))
+	if err := r.UpdateCard(old, newer, "newer-field", func(string, string) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	snap, err = r.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	newerCard, _ := snap.Card("000252")
+	updated, err := issue.SetCardField(newerCard.Raw, "status", "working")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.UpdateCard(newerCard, updated, "older-setter", func(string, string) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	snap, err = r.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := snap.Card("000252")
+	if !strings.Contains(string(got.Raw), "future: {nested: [one, two]}") || !strings.Contains(string(got.Raw), "status: working") {
+		t.Fatalf("CAS write lost the additive field or known update:\n%s", got.Raw)
+	}
 }
 
 func TestRepositoryFreshSnapshotAndConditionalWrite(t *testing.T) {

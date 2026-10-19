@@ -24,10 +24,11 @@ func indexFake(t *testing.T) (*fakeSessionSync, string) {
 	if err := os.MkdirAll(side, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for _, n := range []string{"2026-10-17-01-s4.md", "2026-10-17-02-backlog.md", "01-why.md"} {
-		if err := os.WriteFile(filepath.Join(side, n), []byte("answer\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
+	for _, n := range []string{"2026-10-17-01-s4.md", "2026-10-17-02-backlog.md", "2026-10-17-03-why.md"} {
+		answerDoc(t, file, n)
+	}
+	if err := os.WriteFile(filepath.Join(side, "01-why.md"), []byte("answer\n"), 0o644); err != nil {
+		t.Fatal(err)
 	}
 	return f, file
 }
@@ -70,7 +71,7 @@ func TestIndexOneWaySequence(t *testing.T) {
 		t.Fatalf("a deleted bullet kept its entry: %v %v\n%s", err, entries(t, f), out)
 	}
 	// A later link of another bullet doesn't resurrect the reviewed one.
-	if _, err := link(t, f, file, "2", "tl-status-op.side/01-why.md"); err != nil || !slices.Equal(entries(t, f), []string{"tl-status-op.side/01-why.md"}) {
+	if _, err := link(t, f, file, "2", "tl-status-op.side/2026-10-17-03-why.md"); err != nil || !slices.Equal(entries(t, f), []string{"tl-status-op.side/2026-10-17-03-why.md"}) {
 		t.Fatalf("link 3: %v %v", err, entries(t, f))
 	}
 }

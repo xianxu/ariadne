@@ -17,6 +17,8 @@ Detailed incidents remain in their owning issue or review artifact.
   the full input matrix in Done when and committed fixtures, then check the
   README for the new user-facing command. A motivating fixture alone can pass
   while adjacent identity forms remain undocumented or untested (#403).
+  Atlas coverage does not replace README usage: shell-owner changes also need
+  the exact alias pickup/relaunch step beside the diagnostic command (#461 BR-1).
 - A diagnostic flag that promises stable machine-readable output needs a
   byte-for-byte stdout comparison and exit-status check with the flag off and
   on. Capture stderr separately; discarding stdout proves only the message,
@@ -55,6 +57,11 @@ Detailed incidents remain in their owning issue or review artifact.
   for the old path and the docs for a sibling binary's name (#350 BR-1).
 
 ## Guards and proof
+
+- Native CLI fixtures that assert quiet output must explicitly isolate live
+  runtime context at their shared subprocess boundary. Set inherited Couch
+  context in the regression so CI outside Couch also detects a leak; keep
+  dedicated Couch diagnostic tests explicit (#461 suite failure).
 
 - When an approved revision changes acceptance, synchronize the current Done when
   clause and preserve the original wording in Revisions. Leaving contradictory
@@ -1040,3 +1047,14 @@ The simplest durable authority beats a clever scan of consequences.
   reader that skips the check shows forged state as real (#449 BR-3, then the
   status reader). Read slow admission inputs outside the line's mutex, and cache
   the slow-changing ones.
+- At a tolerant persisted-record boundary, validate known YAML node tags before
+  struct decoding: `yaml.Node.Decode` can coerce numbers and booleans into
+  strings. Traverse unknown JSON members with `UseNumber` so a valid future
+  value such as `1e400` stays opaque; known numeric fields still decode into
+  their declared types. Test both behaviors at the read boundary (#460 BR-1/BR-2).
+- **#453 — synchronize acceptance on scope transfer:** when the hub moves
+  acceptance steps to a peer issue, update the current Done-when checklist in
+  the same checkpoint and preserve the original criteria plus ownership in
+  Revisions. A revision note alone leaves two contradictory close contracts.
+  This is a semantic scope decision; the existing close freshness judge owns
+  enforcement rather than a lexical Go lint rule.

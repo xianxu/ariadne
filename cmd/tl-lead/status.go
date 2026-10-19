@@ -303,7 +303,7 @@ submit, owed and every write end with the same lines.`,
 	}
 	thread.Flags().StringArrayVar(&drop, "drop", nil, "drop subsections whose heading starts with this prefix, e.g. '### Train: old' (repeatable)")
 	clobbered.Flags().BoolVar(&done, "done", false, "the TL has merged it; remove the copy")
-	status.AddCommand(append([]*cobra.Command{submit, section, thread, seen, owed, check, clobbered, newInstructionsCmd(d), newIndexCmd(d)}, rendered...)...)
+	status.AddCommand(append([]*cobra.Command{submit, section, thread, seen, owed, check, clobbered, newInstructionsCmd(d), newIndexCmd(d), newMigrateCmd(d)}, rendered...)...)
 	return status
 }
 

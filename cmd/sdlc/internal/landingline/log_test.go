@@ -3,6 +3,7 @@ package landingline
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -21,6 +22,37 @@ func TestLogAppendReadAndSkipMalformed(t *testing.T) {
 	events, skipped, err := l.Events()
 	if err != nil || skipped != 1 || len(events) != 2 || events[1].Kind != EventLanded || !events[0].At.Equal(t0) {
 		t.Fatalf("events %v skipped %d err %v", events, skipped, err)
+	}
+}
+
+func TestEventSweepPreservesUnknownMembersInOriginalLine(t *testing.T) {
+	now := t0
+	l := openLine(t, t.TempDir(), Options{Now: func() time.Time { return now }})
+	if err := l.Record(Event{Kind: EventEnqueue, Seq: 1}); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(l.dir, EventsFile)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := `{"kind":"admit","at":"` + t0.Format(time.RFC3339Nano) + `","seq":2,"future":{"nested":[1,2]}}`
+	if _, err := f.WriteString(raw + "\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	now = t0.Add(25 * time.Hour)
+	if err := l.Record(Event{Kind: EventLanded, Seq: 3}); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), raw+"\n") {
+		t.Fatalf("sweep changed a newer event's original JSON:\n%s", content)
 	}
 }
 

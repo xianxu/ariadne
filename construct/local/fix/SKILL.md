@@ -208,7 +208,17 @@ such as `pair/tests/lib/fake-review-agent.sh` as harness fixtures only; do not r
 them for runtime behavior. The protocol differs from the standalone `/fix` flow
 above in two ways:
 
-**1. Apply edits as records — never edit the file in place.** Write
+**1. Apply edits as records — never edit the file in place.**
+Always call `pair review apply` for every completed review, even when you have
+no edits: write `{"records":[]}` to `EDITS.json` and apply it with the same hash,
+activation/context and operator-lock checks. Put explanations or questions in your session reply;
+chat alone does not complete the pane's waiting round. Never invent an edit to
+signal completion, and never commit an empty reply, including after a lost apply reply.
+An older Pair may return success without `Round` or `Body` for this empty apply;
+that still authorizes no commit or retry. The pane acknowledgment is pair#690's
+responsibility, not a reason to skip the producer's apply.
+
+For edits, write
 `{old, occurrence, new, explain}` records to a temporary `EDITS.json` (`[...]`
 or `{"records":[...]}`). `old` is nonempty; `occurrence` is a 1-based plain,
 non-overlapping match and defaults to 1. To insert, repeat nearby text in
@@ -224,12 +234,25 @@ you the pane is open.
 
 | Exit | What happened | One recovery |
 |---|---|---|
-| 0 | Applied; reply has `Hash`, `Round`, `Body` | commit `Body` verbatim as rule 2 says |
+| 0 | Success; inspect the changed or empty reply below | follow Successful apply decisions |
 | 1 `edits-invalid` | `Invalid` lists 1-based bad records; nothing written | fix them and retry the whole batch |
 | 1 `propose-too-large` / `propose-unencodable` | change cannot be short marker proposals | write it in a side doc proposal, then link `→ [proposal](…)` through apply; include the matching `discussions:` entry as a frontmatter record in the same batch |
 | 1 `operator-owned` | batch tried to change `presentation:` or `collaboration-mode:` | leave it unchanged and ask the operator to set that key; do not retry through another verb |
 | 3 `operator-lock` | the operator is editing | say you are waiting for their next "finished my edits" poke; do not poll in a tight loop |
 | 6 `stale` | H no longer names the file's bytes | read again, rebuild every record, and apply again |
+
+### Successful apply decisions
+
+| Case | Action | Required evidence |
+|---|---|---|
+| changed reply | commit Body verbatim | exit 0; nonempty Body and Round |
+| empty reply | no agent commit | exit 0; no changed records; empty Body |
+
+A zero-change apply may have an empty `Round` artifact or, on an older Pair,
+no `Round` at all. Leave the document and git untouched; the empty acknowledgment
+only finishes the round. These rules also cover proposed records that change no
+bytes. A nonempty edit without the expected success metadata is uncertain; use
+the recovery rules below rather than inventing a commit body.
 
 ### Apply recovery decisions
 
@@ -274,14 +297,15 @@ by the readiness probe; do not switch branches to make a stale round fit.
 
 - **On review-start**: the branch is created during *prep* (see **Preparing & resuming**
   below — the readiness probe; `new` → memory discovery + `docflow start`).
-- **Immediately after exit 0 from `pair review apply`**: commit the returned
+- **After exit 0 with a changed reply and nonempty `Body`**: commit the returned
   `Body` **verbatim** with `docflow round --side agent -m <summary> --body <Body>`.
   It is derived from the landed round's spans, not the records you proposed;
   never regenerate it. No pane-applied poke or landed file is involved.
 - **On the `"finished my edits… please review"` poke**: commit the human's incoming
   edits — `docflow round --side human`.
 
-**Commit only after successful apply.** Never commit an agent round from your
+**Commit only after successful apply with a changed reply and nonempty Body.**
+An empty reply makes no agent commit. Never commit an agent round from your
 own proposed records. If apply succeeded but the commit was interrupted, use
 `pair review round FILE --json` and commit its stored `Body` only while
 `Current` is true, its `Round.base_hash` equals attempted H, the read back

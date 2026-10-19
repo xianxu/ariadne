@@ -197,6 +197,11 @@ first-class evidence, recorded on the commit it ran on:
   `off`) on the declared suite is the operator's policy, under the same
   local-gates guard. Test-stats counts a rerun as flake evidence, never as a
   suite run.
+- **Attempt compatibility (#460).** The test-stats reader accepts additive
+  unknown JSON members at the attempt root and inside duration units and known
+  flake facts. It still rejects duplicate keys, aliases of known field names,
+  malformed known values, and unsupported record versions. Attempt records are
+  read-only evidence; each run publishes a new record instead of rewriting one.
 - **Trust limit:** anyone with the repository's token can post an
   `sdlc-local/*` status. That is accepted: the local machine is trusted, and
   what CI guards is the declaration and the gate code.
