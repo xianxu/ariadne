@@ -1,13 +1,13 @@
 ---
 id: 000466
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '26300b29473d3824af298a470d9d52c05d11d11f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '597bb7397541c262f84fc63eeee9b6027d58c341' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T10:37:08-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.77
 ---
 
 # flake registration needs exact subtests and narrowing
