@@ -1,6 +1,6 @@
 ---
 id: 000460
-status: working
+status: codecomplete
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours: 2.84
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.25
+tracker:
+    version: 1
+    completion:
+        token: close-c0257a616fec
+        repository: github.com/xianxu/ariadne
+        reviewed_head: f6124b5ef7985ae6e3f91eb378c396fee0652228
+        evidence_commit: 1c9fc70fd1f8b04fa1c5d15cea2a233dbff1dda5
 ---
 
 # sdlc card decoder refuses unknown fields: a merge started before a rebuild rejects new card fields (ARCH-EVOLVE)
