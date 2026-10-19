@@ -46,3 +46,8 @@ a lint or test that fails when any `_test.go` reads a path under `workshop/plans
 ## Log
 
 ### 2026-10-19
+
+2026-10-19 (ariadne:2): fixed.
+- `TestPlanNamesEveryTrainEventAndEffect` now reads `atlas/workflow/sdlc-binary.md`. The as-built events, effects and phases were moved there from the archived #449 plan.
+- New `pkg/golint` rule `test-reads-workshop`: a call argument that climbs from a package straight into `workshop/plans` or `workshop/issues` is flagged in tests. Those files move to `workshop/history` when their issue lands. Temp-repo fixture paths are not matched.
+- The whole-repo catalog scan is clean.

@@ -93,6 +93,14 @@ func TestRules(t *testing.T) {
 		{"test-fixed-sleep", "time.Sleep(time.Hour)", true, false},
 		{"test-fixed-sleep", "time.Sleep(d)", true, false},
 		{"test-fixed-sleep", "time.Sleep(time.Second)", false, false},
+		// test-reads-workshop (#469): plans and issues move to history on landing.
+		{"test-reads-workshop", `os.ReadFile("../../../../workshop/plans/000449-landing-train-plan.md")`, true, true},
+		{"test-reads-workshop", `os.ReadFile(filepath.Join("..", "..", "../workshop/issues/000001-x.md"))`, true, true},
+		{"test-reads-workshop", `migrate(Opts{file: "../dst/workshop/issues/000005-y.md"})`, true, false},
+		{"test-reads-workshop", `procedureWrite(t, root, "workshop/issues/000001-x.md", body)`, true, false},
+		{"test-reads-workshop", `os.ReadFile("../../../../atlas/workflow/sdlc-binary.md")`, true, false},
+		{"test-reads-workshop", `os.ReadFile("../../workshop/history/plans/x.md")`, true, false},
+		{"test-reads-workshop", `os.ReadFile("../../workshop/plans/x.md")`, false, false},
 	} {
 		var hit *Finding
 		got := findings(t, tc.body, tc.test)

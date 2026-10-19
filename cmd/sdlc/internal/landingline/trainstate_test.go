@@ -329,14 +329,16 @@ func TestTrainAbortWhileMergingIsUnconfirmed(t *testing.T) {
 	}
 }
 
-// The plan's "as built" lists mirror the code: every event and effect type
-// is named there (a list that drifted three times; now a test).
+// The atlas's as-built list mirrors the code: every event and effect type is
+// named there (a list that drifted three times; now a test). It reads the
+// atlas, which stays put, never a plan or issue file: those are archived to
+// workshop/history when their issue lands (#469).
 func TestPlanNamesEveryTrainEventAndEffect(t *testing.T) {
 	src, err := os.ReadFile("trainstate.go")
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan, err := os.ReadFile("../../../../workshop/plans/000449-landing-train-plan.md")
+	plan, err := os.ReadFile("../../../../atlas/workflow/sdlc-binary.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -347,7 +349,7 @@ func TestPlanNamesEveryTrainEventAndEffect(t *testing.T) {
 	}
 	for _, m := range matches {
 		if !strings.Contains(string(plan), "`"+m[1]) {
-			t.Errorf("the plan does not name train %s %s", strings.ToLower(m[2]), m[1])
+			t.Errorf("atlas/workflow/sdlc-binary.md does not name train %s %s", strings.ToLower(m[2]), m[1])
 		}
 	}
 }

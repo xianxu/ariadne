@@ -61,6 +61,13 @@ var Catalog = []Rule{
 		Match:    tightWallclock,
 	},
 	{
+		Name:     "test-reads-workshop",
+		Incident: "ariadne#469",
+		Message:  "a test that reads the repository's workshop/plans or workshop/issues breaks when the issue lands and its files move to workshop/history; read the atlas or a fixture",
+		TestOnly: true,
+		Match:    workshopReads,
+	},
+	{
 		Name:     "test-fixed-sleep",
 		Incident: "2026-10-15 flakes",
 		Message:  "a fixed sleep guesses at timing; wait for an event (testfix.Watch, AwaitPIDFile, a channel) bounded by testfix.HangCeiling",
@@ -337,6 +344,25 @@ func tightWallclock(f *ast.File, _ *CheckContext) []ast.Node {
 			out = append(out, b)
 		}
 		return true
+	})
+	return out
+}
+
+// workshopRE is a relative path that climbs from a package straight into
+// the repository's live workshop artifacts ("../../workshop/plans/…"). A
+// fixture path inside a temp repo ("workshop/issues/…", "../dst/workshop/…")
+// does not climb straight there, so it is not matched.
+var workshopRE = regexp.MustCompile(`^(\.\./)+workshop/(plans|issues)(/|$)`)
+
+// workshopReads flags such a path passed to any call: a read, a Join, a glob.
+func workshopReads(f *ast.File, _ *CheckContext) []ast.Node {
+	var out []ast.Node
+	calls(f, "", nil, func(call *ast.CallExpr) {
+		for _, arg := range call.Args {
+			if s, ok := stringLit(arg); ok && workshopRE.MatchString(s) {
+				out = append(out, arg)
+			}
+		}
 	})
 	return out
 }
