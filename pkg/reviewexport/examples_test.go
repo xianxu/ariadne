@@ -27,6 +27,7 @@ var (
 	backlinkRE     = regexp.MustCompile(`(?m)^_From \[[^\]]*\]\([^)#\s]+\), section "([^"]+)"\._`)
 	foldedRE       = regexp.MustCompile(`^ \(folded \d{4}-\d{2}-\d{2}\)`)
 	foldNoteRE     = regexp.MustCompile(`(?m)^(?:Folded into|Proposed in) the parent on \d{4}-\d{2}-\d{2}: `)
+	multiTurnRE    = regexp.MustCompile(`🤖(?:<[^>\n]*>|~[^~\n]*~)?(?:\[[^]\n]*\]|\{[^}\n]*\}){2,}`)
 )
 
 // sideDocName classifies a side doc's file name. A dated answer doc is tried
@@ -276,6 +277,19 @@ func checkCase(fsys fs.FS) []string {
 		}
 		return errs
 	}
+	// Readers keep old chains; a normal round must never write a new one.
+	// A move has already been checked against the exact projection above,
+	// including renamed parents, side docs and displaced orphan folders.
+	// This regex checks the simple markers in these fixtures, not the full
+	// nested/escaped grammar owned by the editor.
+	beforeText, afterText := treeFiles(fsys, "before"), treeFiles(fsys, "after")
+	for p, body := range afterText {
+		for _, chain := range multiTurnRE.FindAllString(body, -1) {
+			if !strings.Contains(beforeText[p], chain) {
+				bad("after/%s: agent wrote a second turn in %q", p, chain)
+			}
+		}
+	}
 	errs = append(errs, checkIndexTransitions(fsys)...)
 	// Side docs are never pruned; new ones take the next free numbers; and an
 	// unlinked doc for the same ask is relinked rather than duplicated.
@@ -472,6 +486,13 @@ func TestCheckCaseCatches(t *testing.T) {
 	if errs := checkCase(goodCase()); len(errs) != 0 {
 		t.Fatalf("the good case fails: %v", errs)
 	}
+	legacy := goodCase()
+	for _, p := range []string{"before/d.md", "after/d.md"} {
+		legacy[p] = &fstest.MapFile{Data: append(append([]byte(nil), legacy[p].Data...), []byte("\nLegacy 🤖[first]{answer}[follow-up]\n")...)}
+	}
+	if errs := checkCase(legacy); len(errs) != 0 {
+		t.Fatalf("an unchanged legacy chain must stay readable: %v", errs)
+	}
 	side := "after/d.side/01-why.md"
 	edit := func(p, old, new string) func(fstest.MapFS) {
 		return func(m fstest.MapFS) {
@@ -565,6 +586,13 @@ func TestCheckCaseCatches(t *testing.T) {
 		}, "differs from the move's projection"},
 		{"a pruned side doc", func(m fstest.MapFS) { m["before/d.side/01-why.md"] = m[side]; delete(m, side) }, "never pruned"},
 		{"a failed round that changed the document", edit("case.md", "outcome: ok", "outcome: fails"), "changes nothing"},
+		{"an agent appends a second turn", func(m fstest.MapFS) {
+			m["after/d.md"] = &fstest.MapFile{Data: []byte("# D\n\nText. 🤖[why?]{which case?}\n")}
+		}, "second turn"},
+		{"an agent appends to a legacy chain", func(m fstest.MapFS) {
+			m["before/d.md"] = &fstest.MapFile{Data: []byte("# D\n\nText. 🤖[why?]{answer}[follow-up]\n")}
+			m["after/d.md"] = &fstest.MapFile{Data: []byte("# D\n\nText. 🤖[why?]{answer}[follow-up]{more}\n")}
+		}, "second turn"},
 	} {
 		m := goodCase()
 		c.mutate(m)
@@ -572,6 +600,45 @@ func TestCheckCaseCatches(t *testing.T) {
 		if !strings.Contains(errs, c.want) {
 			t.Errorf("%s: errors %q, want one naming %q", c.name, errs, c.want)
 		}
+	}
+}
+
+func TestMovePreservesLegacyChains(t *testing.T) {
+	root := os.DirFS(filepath.Join(skillDir(t), "examples", "move-orphan"))
+	m := fstest.MapFS{}
+	if err := fs.WalkDir(root, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		b, err := fs.ReadFile(root, p)
+		if err == nil {
+			m[p] = &fstest.MapFile{Data: b}
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{
+		"design.md",                      // renamed parent
+		"design.side/01-why-per-file.md", // moved side doc
+		"design.side/02-sections.md",     // another moved side doc
+		"spec.side/01-older.md",          // displaced orphan
+	} {
+		name := "before/" + p
+		m[name] = &fstest.MapFile{Data: append(append([]byte(nil), m[name].Data...), []byte("\nLegacy 🤖[ask]{reply}\n")...)}
+	}
+	for p := range treeFiles(m, "after") {
+		delete(m, "after/"+p)
+	}
+	for p, body := range projectMove(treeFiles(m, "before"), "design.md", "spec.md") {
+		m["after/"+p] = &fstest.MapFile{Data: []byte(body)}
+	}
+	if errs := checkCase(m); len(errs) != 0 {
+		t.Fatalf("unchanged legacy chains across all move paths: %v", errs)
+	}
+	m["after/spec.md"] = &fstest.MapFile{Data: []byte(strings.Replace(string(m["after/spec.md"].Data), "🤖[ask]{reply}", "🤖[ask]{reply}{extra}", 1))}
+	if errs := strings.Join(checkCase(m), "\n"); !strings.Contains(errs, "differs from the move's projection") {
+		t.Fatalf("an appended turn during a move was not refused: %s", errs)
 	}
 }
 
@@ -623,7 +690,7 @@ func TestCollaborationModesProse(t *testing.T) {
 		"Folded into the parent on <date>:",                                         // the fold's closing note the checker reads
 		"the adapter's exit 3",                                                      // row 17
 		"Never create a `.side/` inside a `.side/`",                                 // the flat folder
-		"Swapping a marker for its link is an edit through `apply`",                // presentation owns proposals
+		"Swapping a marker for its link is an edit through `apply`",                 // presentation owns proposals
 		"don't fold again",                                                          // a refused side-doc write after the fold landed
 		"a plain relative path with no `#anchor`",                                   // the body's backlink
 	} {

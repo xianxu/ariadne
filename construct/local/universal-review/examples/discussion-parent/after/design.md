@@ -4,6 +4,7 @@ process-instruction: "[free-form]"
 discussions:
   - doc: design.side/02-lock-granularity.md
   - doc: design.side/03-retry-story.md
+  - doc: design.side/04-numbers.md
 ---
 
 # Lock design
@@ -16,7 +17,7 @@ A second writer is refused with exit 3. → [discussion](design.side/02-lock-gra
 
 ## Numbers
 
-A round costs little. 🤖[add the numbers]{the latency numbers or the cost numbers?}
+A round costs little. → [discussion](design.side/04-numbers.md)
 
 ## Retries
 

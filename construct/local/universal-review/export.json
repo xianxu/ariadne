@@ -5,21 +5,21 @@
     {
       "role": "round",
       "path": "round.md",
-      "bytes": 7040,
-      "sha256": "db7cff550c87ca9049fb79a7a74291dbf3ce6ff448355463c251f8ca955cdf95"
+      "bytes": 7393,
+      "sha256": "75ae9b9a93e8420c42884826c190c39e7f86ee10fe1a29901f90f725de03f78a"
     },
     {
       "role": "grammar",
       "path": "review-convention.md",
       "source": "construct/local/fix/review-convention.md",
-      "bytes": 8774,
-      "sha256": "56ba73da56b8968d56f8335c024c19038a709363aa8be42778be9af7572918ef"
+      "bytes": 9607,
+      "sha256": "959bca7e38bcc7a486dda0039651c65b638cc9fd7ff8cbdef0b21388a8ce8bd0"
     },
     {
       "role": "collaboration-modes",
       "path": "collaboration-modes.md",
-      "bytes": 27676,
-      "sha256": "385eab1441dc07d39f9b76d416c67f8e709241ec452d9e2bfb432fcfe3a38c41"
+      "bytes": 28088,
+      "sha256": "f6d2d49ae88a0b8d5e7a731cfad4f5409cdfd7422d1adaeeb147d0a0c98a5482"
     },
     {
       "role": "adapter",

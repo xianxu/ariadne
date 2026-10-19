@@ -57,7 +57,10 @@ skill carries the rest.
   "Changes since your last read" never hold the agent's own edits: Couch's diff baseline moves on its write, and an untracked file is
   diffed against the copy the agent saved after its last write (operator requirement).
 - **`review-convention.md`** — a symlink to `construct/local/fix/review-convention.md`, the
-  one authored marker grammar.
+  one authored marker grammar. **#444:** agents write at most one commentary
+  turn per marker; an unclear ask or continued exchange becomes a linked side
+  doc. Older chains remain readable and resolve by their last human turn.
+  `TestExamples` rejects a newly appended turn in its before/after cases.
 - **`export.json`** — the versioned manifest (`ariadne/universal-review-export` v3) parley's
   sync script snapshots: round, grammar (with `source`), collaboration-modes (exactly one, #412), adapters, dense mode
   records (without the retired mode-level deletion knob), and (v2, #424) the move cases' files as `fixture` members for parley's mover (parley.nvim#373),

@@ -306,3 +306,100 @@ func readFile(t *testing.T, path string) string {
 	}
 	return string(data)
 }
+
+// The pair#665 shape (#447): a slot whose main has moved since its issue
+// branch forked. A repository test resolving main and the merge base gets the
+// slot's answers in the review checkout, and the checkout can neither push nor
+// fetch.
+func TestCheckoutCarriesMainAuthorityReadOnly(t *testing.T) {
+	bare := filepath.Join(t.TempDir(), "origin.git")
+	testfix.Git(t, "", "init", "-q", "--bare", "-b", "main", bare)
+	seed := testfix.Repo(t, testfix.InitialCommit())
+	testfix.Git(t, seed, "push", "-q", bare, "HEAD:refs/heads/main")
+	src := filepath.Join(t.TempDir(), "slot")
+	testfix.Git(t, "", "clone", "-q", bare, src)
+	for _, kv := range [][2]string{{"user.email", "t@t"}, {"user.name", "t"}, {"commit.gpgsign", "false"}} {
+		testfix.Git(t, src, "config", kv[0], kv[1])
+	}
+	testfix.Git(t, src, "checkout", "-q", "-b", "000665-issue")
+	write(t, filepath.Join(src, "lint.go"), "package x\n")
+	testfix.Git(t, src, "add", "lint.go")
+	testfix.Git(t, src, "commit", "-q", "-m", "issue work")
+	write(t, filepath.Join(seed, "later.txt"), "main moved\n")
+	testfix.Git(t, seed, "add", "later.txt")
+	testfix.Git(t, seed, "commit", "-q", "-m", "main moves on")
+	testfix.Git(t, seed, "push", "-q", bare, "HEAD:refs/heads/main")
+	testfix.Git(t, src, "fetch", "-q", "origin")
+
+	rev := func(dir string, args ...string) string {
+		return strings.TrimSpace(testfix.Capture(t, dir, args...))
+	}
+	head := rev(src, "rev-parse", "HEAD")
+	co, err := Create(t.TempDir(), src, head, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer co.Close()
+
+	if got := rev(co.Dir, "config", "--get-regexp", `^branch\.main\.`); got != "branch.main.remote origin\nbranch.main.merge refs/heads/main" {
+		t.Errorf("main tracking config: %q", got)
+	}
+	if got, want := rev(co.Dir, "rev-parse", "refs/remotes/origin/main"), rev(src, "rev-parse", "refs/remotes/origin/main"); got != want {
+		t.Errorf("origin/main %s, the slot's %s", got, want)
+	}
+	if got, want := rev(co.Dir, "merge-base", "--all", "HEAD", "refs/remotes/origin/main"), rev(src, "merge-base", "--all", "HEAD", "refs/remotes/origin/main"); got != want || strings.Contains(got, "\n") {
+		t.Errorf("merge base %q, the slot's %q", got, want)
+	}
+	if got, want := rev(co.Dir, "rev-parse", "main@{upstream}"), rev(src, "rev-parse", "main@{upstream}"); got != want {
+		t.Errorf("main@{upstream} %s, the slot's %s", got, want)
+	}
+
+	before, bareBefore := snapshot(t, src), testfix.Capture(t, bare, "for-each-ref")
+	if err := reviewerGit(co.Dir, "push", "origin", "HEAD:refs/heads/x"); err == nil {
+		t.Error("the review checkout pushed")
+	}
+	if err := reviewerGit(co.Dir, "fetch", "origin"); err == nil {
+		t.Error("the review checkout fetched")
+	}
+	if got := rev(co.Dir, "remote", "get-url", "--all", "--push", "origin"); got != inertURL {
+		t.Errorf("push URL %q", got)
+	}
+	if snapshot(t, src) != before || testfix.Capture(t, bare, "for-each-ref") != bareBefore {
+		t.Error("the slot or its origin changed")
+	}
+}
+
+// A source with no remote gives a checkout with no remote main: a test that
+// needs one refuses in review exactly as it would in the slot.
+func TestCheckoutWithoutRemoteHasNoRemoteMain(t *testing.T) {
+	src, _, h2 := sourceRepo(t)
+	co, err := Create(t.TempDir(), src, h2, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer co.Close()
+	if got := strings.TrimSpace(testfix.Capture(t, co.Dir, "for-each-ref", "refs/remotes/")); got != "" {
+		t.Errorf("remote refs %q", got)
+	}
+	if got := strings.TrimSpace(testfix.Capture(t, co.Dir, "remote")); got != "" {
+		t.Errorf("remotes %q", got)
+	}
+}
+
+// Only the slot's own config is its main authority: a user-level
+// branch.main or fetch refspec is not copied (#447 close review).
+func TestCheckoutCopiesOnlyTheSlotsConfig(t *testing.T) {
+	src, _, h2 := sourceRepo(t)
+	global := filepath.Join(t.TempDir(), "gitconfig")
+	write(t, global, "[branch \"main\"]\n\tremote = elsewhere\n\tmerge = refs/heads/main\n")
+	t.Setenv("GIT_CONFIG_GLOBAL", global)
+	co, err := Create(t.TempDir(), src, h2, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer co.Close()
+	out, err := exec.Command("git", "-C", co.Dir, "config", "--local", "--get-regexp", `^(branch|remote)\.`).Output()
+	if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 1 {
+		t.Errorf("copied the user's config: %q (%v)", out, err)
+	}
+}
