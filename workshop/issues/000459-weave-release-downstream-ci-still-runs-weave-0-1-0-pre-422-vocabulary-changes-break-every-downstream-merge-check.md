@@ -48,7 +48,7 @@ See [the local implementation plan](../plans/000459-downstream-weave-compiler-pl
 - [x] Compare the release and pinned-source CI routes and prepare a recommendation.
 - [x] Trace the cold shipped-output failure with the actual old/new compilers.
 - [x] Obtain hub approval of option B, exact initial pin and publication limits.
-- [ ] After approval, establish normal SDLC ownership and implement the upstream
+- [x] After approval, establish normal SDLC ownership and implement the upstream
   guard plus operator-verified, independently owned downstream migrations.
 
 
@@ -203,3 +203,9 @@ Design 0.56 × 1.15 + implementation 2.08 = 2.724 hours, rounded to 2.72.
 - PR319 is the local-gates hand-off. Full recorded suite, close review and
   landing remain outstanding pending operator verification; agents never apply
   local-gates-verified. No release, tag, tap or downstream workflow was edited.
+
+### Authorized landing continuation (2026-10-19)
+
+- The operator applied local-gates-verified to PR319; the GitHub label and successful local-gates-guard/verdict were read before continuation. The original branch remains unchanged in code.
+- A separate ordinary clone at ariadne-slot3/ariadne-459 resolves through the Git-verified environment host as the existing ariadne:3 owner, using the same GitHub origin; no reclaim or owner change was made. The original slot checkout remains on #465.
+- The recorded suite is queued on the pushed implementation head. Per tl-worker, close review may overlap that queued run; a recorded pass on the final code must precede landing. Upstream implementation and all fifteen hand-offs are complete; consumer rollout remains separately owned.
