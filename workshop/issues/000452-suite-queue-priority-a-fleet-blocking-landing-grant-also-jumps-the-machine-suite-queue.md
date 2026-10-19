@@ -39,8 +39,8 @@ A suite started for an issue holding an active fleet-blocking grant (in that rep
 
 Durable design: [implementation plan](../plans/000452-suite-queue-priority-a-fleet-blocking-landing-grant-also-jumps-the-machine-suite-queue-plan.md).
 
-- [ ] Pin priority, FIFO, expiry, weight and lifecycle behavior with the real lock helper.
-- [ ] Reuse the existing grant authority and reelect weighted admission under the existing mutex.
+- [x] Pin priority, FIFO, expiry, weight and lifecycle behavior with the real lock helper.
+- [x] Reuse the existing grant authority and reelect weighted admission under the existing mutex.
 - [ ] Verify isolated live rollout, recorded suite and close/landing gates.
 
 ## Log
@@ -52,6 +52,16 @@ Durable design: [implementation plan](../plans/000452-suite-queue-priority-a-fle
 Claimed before design; start-plan prepared the issue branch from main. Read-only inspection found the machine queue's first waiter becomes a sticky head holding .queue until it acquires capacity; sorting later tickets alone cannot satisfy this issue. The proposed admission keeps the existing slot/ticket lifetime locks and uses the existing allocation mutex for each election and all-or-none scan (ARCH-PURPOSE). The other key constraint is grant authority: the existing Go ValidGrants owns expiry, revocation and authorized-grantor policy. The plan proposes one read-only Go evidence protocol, memory-only cache and a pure Python stable partition, avoiding a second grant store or copied validator (ARCH-DRY, ARCH-PURE).
 
 Simplest alternatives considered: a startup priority boolean/expiry flag goes stale after revocation or late grants, and Python-only grant validation duplicates the current authority. Moving the entire lock helper into Go is a broader rewrite than this issue needs. Full-flow design is saved; no production code, test code or configuration has changed. TL approval is requested for unavailable-provider degradation and the existing-old-helper drain boundary before change-code.
+
+### Implementation and focused verification
+
+Plan-quality accepted after temporal-cache and function-strategy findings were addressed. Estimate-quality INFO accepted; module estimates include their regression work, runner estimate includes both bindings, and the review allocation includes close/landing verification. Full-suite elapsed time is machine wait/verification, reported separately by the runner.
+
+Red: python3 scripts/test/test-lock-priority.test.py failed with "older normal head overtook active granted issue" (1.484s) against the original real helper. Provider tests also failed for absent suiteSubject/suiteGrantSnapshot before production implementation. Green: the production Go provider plus real helper passes next-free admission and the expanded integration boundary. Final focused command: go test ./cmd/sdlc ./cmd/sdlc/internal/landingline -run 'Test(SuitePriority|SuiteQueuePriority|LocalCheckPriority|LocalCheckSignal|RepeatedLocalChecksRetainRealLockOwner|SuiteSlotCoversOnlyTheRun|.*Helper.*)' -count=1 -timeout 5m passed (42.857s / 0.127s). bash scripts/test/test-lock.test.sh passed every existing FIFO/weight/reentry/death/preflight/mixed-old-helper control. git diff --check passed.
+
+The additional real-helper harness proves unchanged-log expiry lets the older normal suite proceed; live revocation/late grants, stopped priority FIFO, no partial weighted ownership/backfill, watched-owner death, missing-provider fallback, and direct make subject/provider selection. Counted tests verify per-repository source stats, a batch per cache miss, no provider on stable polls, temporal refresh, and bounded malformed/slow/oversized transport. Local-check binding tests prove the original common directory and tested issue head, with diagnostic/non-suite/different-head controls.
+
+Optional environment metadata supplies provider/subject rather than adding mandatory argv: older helpers retain capacity compatibility and priority failure never becomes a capacity refusal. Existing helper capability requirements stay unchanged. No protected local-gates configuration changed.
 
 ## Revisions
 

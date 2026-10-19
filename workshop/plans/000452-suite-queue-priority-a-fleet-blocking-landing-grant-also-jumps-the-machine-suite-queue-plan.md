@@ -97,24 +97,24 @@ Unit-test surfaces and adversarial strategy:
 
 The real-helper integration harness tests the dispatched next-free-capacity rule against an older normal head, plus FIFO, lifecycle and weight properties under controlled process schedules. In particular an expired priority ticket returns to its original normal FIFO position and the older normal waiter proceeds. Exercise actual production Go grant validation over fixture logs: a test-executable launcher may enter the production protocol handler, never fake its priority decision. Existing reentry, cancellation/death and mixed-helper controls remain the lifetime regression boundary.
 
-- [ ] Write and run the next-free-slot regression red through the real helper; preserve its expected failure.
-- [ ] Add the named unit strategies as their functions are introduced, with bounded synchronization helpers that explicitly fail on missed deadlines.
+- [x] Write and run the next-free-slot regression red through the real helper; preserve its expected failure.
+- [x] Add the named unit strategies as their functions are introduced, with bounded synchronization helpers that explicitly fail on missed deadlines.
 
 ## Task 2 — Add one grant-evidence boundary and reelected admission
 
 Files: cmd/sdlc/suitepriority.go (new), cmd/sdlc/landingcmd.go, cmd/sdlc/internal/landingline/log.go, scripts/test-lock.py, Makefile.workflow, cmd/sdlc/localcheck_run.go, cmd/sdlc/helpercapability.go and focused tests.
 
-- [ ] Implement the versioned read-only subject/batch protocol and the named Go unit strategies. Pass explicit tested-suite subject and trusted evaluator from recorded runs; direct make uses its supplying provider. Preserve make's existing stdout states.
-- [ ] Implement GrantEvidence and effective_order with source-aware and temporal invalidation; verify counted growth and protocol failure fallback.
-- [ ] Implement Tickets.admission as one election/token/weighted-scan critical section under the existing allocation mutex. Failed capacity scans release the queue token; watcher lifetime is unchanged.
-- [ ] Report effective class/issue/deadline and predecessor/capacity, including class/position changes; preserve recognizable waiting/acquired diagnostics. Run the real-helper integration boundary green and commit.
+- [x] Implement the versioned read-only subject/batch protocol and the named Go unit strategies. Pass explicit tested-suite subject and trusted evaluator from recorded runs; direct make uses its supplying provider. Preserve make's existing stdout states.
+- [x] Implement GrantEvidence and effective_order with source-aware and temporal invalidation; verify counted growth and protocol failure fallback.
+- [x] Implement Tickets.admission as one election/token/weighted-scan critical section under the existing allocation mutex. Failed capacity scans release the queue token; watcher lifetime is unchanged.
+- [x] Report effective class/issue/deadline and predecessor/capacity, including class/position changes; preserve recognizable waiting/acquired diagnostics. Run the real-helper integration boundary green and commit.
 
 ## Task 3 — Verify rollout and land one atomic feature
 
 Files: atlas/workflow/sdlc-binary.md and atlas/workflow/workspace-branching.md if its suite guidance needs a pointer; relevant embedded local-check/landing help; issue Log. Update README only if the protocol becomes a user-facing command/flag.
 
-- [ ] Document priority, expiry/revocation, FIFO, weights, unknown evidence, and the legacy-head rollout boundary. Preserve local-gates configuration; if required scope touches one, stop for operator verification/label through the TL.
-- [ ] Run the focused family: bash scripts/test/test-lock.test.sh; go test ./cmd/sdlc/internal/landingline -count=1; go test ./cmd/sdlc -run 'Test(SuitePriority|SuiteQueuePriority|LocalCheck.*(Reentry|Signal)|.*Helper.*)' -count=1 -timeout 10m, adjusted to actual discovered test names before reporting.
+- [x] Document priority, expiry/revocation, FIFO, weights, unknown evidence, and the legacy-head rollout boundary. Preserve local-gates configuration; if required scope touches one, stop for operator verification/label through the TL.
+- [x] Run the focused family: bash scripts/test/test-lock.test.sh; go test ./cmd/sdlc/internal/landingline -count=1; go test ./cmd/sdlc -run 'Test(SuitePriority|SuiteQueuePriority|LocalCheck.*(Reentry|Signal)|.*Helper.*)' -count=1 -timeout 10m, adjusted to actual discovered test names before reporting.
 - [ ] Commit/push; run sdlc local-check run --name suite. Do not manually chase newer main after a branch pass; close the tested branch and let merge own final integration.
 - [ ] Ask the TL for a :0 stage grant before any staging. Stage/build capable source and have the TL coordinate one isolated real-helper smoke using private lock/grant paths. No tests may reorder or cancel live machine suites merely for demonstration. Clear/rebuild/verify under the TL's staging instructions.
 - [ ] Close with measured actuals and concrete real-helper/full-suite evidence. The binary owns the single fresh-context close review. On SHIP, sdlc pr then sdlc merge --yes, verify tracker/archive/clean resting branch, report PR and Git-derived merge hash to hub, stop.
@@ -128,3 +128,5 @@ No implementation or regression edits have started. Await TL approval of the des
 2026-10-18 — TL approved design (Couch receipt 3b55ef84-675d-4f81-834d-80f67f178da1). Resolve both rollout questions: a missing, old or unreadable provider always emits a visible priority-unavailable warning and falls back to normal FIFO, including known-issue suites; priority must never prevent a suite running. Old sticky waiters drain naturally, never killed or unlocked. Priority lasts only while a grant is valid. The expiry-while-waiting regression must prove an expired priority ticket returns to its original normal FIFO position and the older normal waiter proceeds. No perpetual priority bit is retained.
 
 2026-10-18 — Plan gate round 1: address PQ-1 by including a Go-derived refresh_at boundary covering future activation and expiry, invalidating unchanged-source evidence at that time; Python retains no independent grant-validity policy. Address PQ-2 by naming production test surfaces and replacing prose case inventories with adversarial strategies. This is the first mechanism design delta.
+
+2026-10-18 — Implementation binding uses optional WF_TEST_PRIORITY_PROVIDER / WF_TEST_PRIORITY_SUBJECT environment metadata, preserving older helper capacity argv instead of requiring a new capability flag. This implements the approved always-run fallback policy without changing the grant authority or admission mechanism. Focused and legacy real-helper tests pass; full recorded suite and rollout/close remain.

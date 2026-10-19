@@ -35,7 +35,7 @@ endif
 ifeq ($(wildcard $(WF_TEST_LOCK_HELPER)),)
 $(warning [test-lock] $(WF_TEST_LOCK_HELPER) missing: running WITHOUT the machine-wide full-suite lock)
 else
-WF_TEST_LOCK_STATE := $(shell python3 $(WF_TEST_LOCK_HELPER) acquire --watch $$PPID --slots $(or $(WF_TEST_WEIGHT),1))
+WF_TEST_LOCK_STATE := $(shell WF_TEST_PRIORITY_PROVIDER="$(WF_WORKFLOW_SOURCE_DIR)bin/sdlc" python3 "$(WF_TEST_LOCK_HELPER)" acquire --watch $$PPID --slots $(or $(WF_TEST_WEIGHT),1))
 ifeq ($(filter acquired reentrant skipped,$(WF_TEST_LOCK_STATE)),)
 $(error full-suite lock not taken ($(or $(WF_TEST_LOCK_STATE),helper failed)); see the [test-lock] lines above)
 endif
