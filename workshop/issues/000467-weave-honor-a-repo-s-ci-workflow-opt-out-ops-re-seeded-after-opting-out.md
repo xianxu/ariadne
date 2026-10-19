@@ -61,6 +61,7 @@ Steps:
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — round-2 minors fixed: cleaned-path two-arg check, two-path fixture compiles from clean; go test ./cmd/weave/... decline tests and layer unit tests ok; recorded suite queued on 23435183 (fixed-then-ship); review verdict: SHIP
 - 2026-10-19: closed — review minors fixed: ancestor internal rows not declined, two-path decline row warns and declines nothing, symlink decline retires; go test ./cmd/weave/... ok; recorded suite pass on c3fca0ec (known flake #465 rerun passed) (fixed-then-ship); review verdict: SHIP
 - 2026-10-19: closed — go test ./cmd/weave/... ./pkg/layergraph/... ok; go vet clean; fixture tests: TestCompileDeclinedWorkflowsStayAbsent, TestCompileDeclineLeavesExistingWorkflowsUntouched, TestCompileSeedsWorkflowsWithoutDecline, TestCompileReportsStaleAndDependentDeclines; live: origin/main weave 931a4ad68 skips the decline row (exit 0, still seeds), branch weave drops it and reports; recorded suite queued on d1b016bab; review verdict: SHIP
 - 2026-10-19: flow upgraded quick → full — 117 added lines in code files (limit 100)

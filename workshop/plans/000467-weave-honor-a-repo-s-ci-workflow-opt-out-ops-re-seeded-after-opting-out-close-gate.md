@@ -164,6 +164,83 @@ rounds:
       isolation: checkout
       reviewed: c3fca0ece7d29f05d3b014a3030590748cd7de60
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 35933142-781a-4bf1-8d78-697479168ca7
+            repository: github.com/xianxu/ariadne
+            issue_id: "000467"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/4e1185258025cbe7
+            reviewed_head: 23435183559f8b6c88a41ff3d52fbcb5103fade6
+            slot: ariadne:5
+            requested_at: "2026-10-19T18:47:50.389049Z"
+          phase: finished
+          pid: 16097
+          started_at: "2026-10-19T18:47:50.514011Z"
+          finished_at: "2026-10-19T18:59:39.011754Z"
+          session_id: 424364b5-bb8a-4f4e-8d99-25bef6e853cc
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 23435183559f8b6c88a41ff3d52fbcb5103fade6
+        tracker_head: 143bf488c653e126c3ee5a25faa24fea50534a85
+        branch_point: 931a4ad6898a9883e1324701e92860bca401f2bc
+        since: "2026-10-19T10:00:05-07:00"
+        until: "2026-10-19T11:47:18-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T10:00:05-07:00"
+              end: "2026-10-19T11:47:18-07:00"
+              began: "2026-10-19T10:00:05-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        sources:
+            - harness: claude
+              id: 2b1c35f1-9bee-4064-83d0-2a67ebaaf586
+              slot: ariadne:5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+              digest: 819e55b9496933831fe18808378255c408fd0cfdd6412862485f0d724db6d73e
+              started: "2026-10-19T16:59:53.709Z"
+              spawned: false
+              bytes: 4616708
+              windows:
+                - start: "2026-10-19T10:00:05-07:00"
+                  end: "2026-10-19T11:47:18-07:00"
+        queue_waits:
+            - attempt_id: 734b3a70411a62c801e715582c0f8f34
+              slot: ariadne:5
+              record_digest: 972e9433b6772efb25c985b3c2c1a32d0215cf369bd087a20b16a681fe6f0d93
+              start: "2026-10-19T17:17:49.379266Z"
+              end: "2026-10-19T17:55:30.29124Z"
+              queue_seconds: 2260.911974
+              raw_seconds: 2260.911974
+              exact: true
+        cuts:
+            - dispatched: "2026-10-19T10:08:29-07:00"
+              finalized: "2026-10-19T10:16:46-07:00"
+              finalizing: true
+            - dispatched: "2026-10-19T11:44:44-07:00"
+              finalized: "2026-10-19T11:46:47-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-19T11:59:40-07:00"
+      dispatched: "2026-10-19T11:47:50-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      recipe: fix-review
+      isolation: checkout
+      reviewed: 23435183559f8b6c88a41ff3d52fbcb5103fade6
+      blocked: false
 ---
 
 # Gate ledger — ariadne#467 (boundary-review)
@@ -189,6 +266,8 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-1 — addressed — declinedBy returns nil when intent.Selected is false (decline.go:65). TestDeclineSkipsAncestorInternalRows fails with the guard reverted.
 - BR-2 — addressed — The path now comes from Source and a differing Target goes to Extra; the row is inert and printDeclined warns. TestDeclineWithTwoPathsDeclinesNothing fails with the guard reverted.
 - BR-3 — addressed — The Revisions entry says the docs step updated the base.manifest header and atlas base-layer.md and ci-merge-check.md, not construct/manifest.md, matching the prior diff.
+
+## Round 3 — 2026-10-19T11:59:40-07:00 (claude) — passed
 
 ## Open findings
 

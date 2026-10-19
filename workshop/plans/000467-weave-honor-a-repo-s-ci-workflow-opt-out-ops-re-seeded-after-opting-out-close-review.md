@@ -180,3 +180,78 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"578d9075-a485-4c8b-b692-6f61abf8b221","repository":"github.com/xianxu/ariadne","issue_id":"000467","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/4ee93fd71497e996","reviewed_head":"c3fca0ece7d29f05d3b014a3030590748cd7de60","slot":"ariadne:5","requested_at":"2026-10-19T18:44:44.442076Z"},"phase":"finished","pid":81150,"started_at":"2026-10-19T18:44:44.539006Z","finished_at":"2026-10-19T18:46:37.282221Z","session_id":"13159420-1ebd-4f26-b816-ad2179142b7f","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-19T11:59:40-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 467 — weave: honor a repo's CI-workflow opt-out (ops re-seeded after opting out) |
+| repo | ariadne |
+| issue file | workshop/issues/000467-weave-honor-a-repo-s-ci-workflow-opt-out-ops-re-seeded-after-opting-out.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 66b39cdf18e3ad3f7c0e8d2c31888cbc653d827f..23435183559f8b6c88a41ff3d52fbcb5103fade6 |
+| command | sdlc close --issue 467 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | checkout |
+| timestamp | 2026-10-19T11:59:40-07:00 |
+| verdict | SHIP |
+
+## Review
+
+The tests mostly finished. Reverting the same-path fix makes the unit test fail, as it should. I'm now checking why the main weave package failed.
+
+The fixture tests fail for an environment reason: TMPDIR points inside the checkout. I'll rerun them with TMPDIR outside it.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Ship it.** This window only fixes the two Minor findings from round 2, and neither fix adds a problem. No earlier finding is still open: BR-1, BR-2 and BR-3 were all closed in earlier rounds.
+
+- **Same path written two ways:** `decline.go:40` now cleans both paths before comparing them, so `decline ./a a` counts as one path. Its old two-path warning is gone.
+- **Two-path test:** the fixture test is now its own test and runs from a clean tree, so it can catch a regression.
+
+I checked both by reverting each fix in this disposable checkout:
+- With the comparison changed back to uncleaned paths, `TestDeclineSameSpelledTwiceIsOnePath` fails.
+- With the guard removed, `TestCompileTwoPathDeclineWarnsAndDeclinesNothing` fails: `bootstrap.sh` gets declined. That means the test can now catch the regression the previous round said it couldn't.
+
+The checkout is back at head with no changes.
+
+The one `## Revisions` change only records these two round-2 fixes. It does not change scope.
+
+**1. Strengths**
+- `decline.go:40`: it compares against `d.Path`, which is already cleaned, instead of cleaning `Source` a second time. Path cleaning stays in one place.
+- `decline_test.go:119-131`: splitting the symlink-retire test from the two-path test gives each its own starting state. The two-path test no longer depends on a file the first compile already wrote.
+- The new unit test (`internal/layer/decline_test.go:106`) checks both sides: the path counts as one, and the ancestor `seed` row really gets removed.
+
+**2. Critical findings:** none.
+
+**3. Important findings:** none.
+
+**4. Minor findings:** none worth recording. The comment at `decline_test.go:122` ("First compile, so …") is a little hard to parse, but harmless.
+
+**5. Test coverage notes**
+- All weave sub-packages pass, `internal/layer` included.
+- In `cmd/weave`, every decline, two-path and symlink test passes once `TMPDIR` points outside the checkout.
+- The rest of the full `cmd/weave` run hits failures caused by the review environment, not by this change:
+  - `GIT_CEILING_DIRECTORIES` covers the checkout's `.sdlc-review` temp directory.
+  - The reviewer's git confinement refuses `git init` outside its allowed directories ("sdlc #339").
+  - The failing tests (link, dependency and setup) never touch decline rows.
+
+**6. Architectural notes (interdiff only)**
+- **ARCH-DRY:** pass. It reuses the cleaned `d.Path`, so paths are cleaned in one place.
+- **ARCH-PURE:** pass. The change stays inside the IO-free `Decline` filter, and its unit test runs without IO.
+- **ARCH-PURPOSE:** pass. The fix covers every spelling that cleans to the same path, not just `./`. Rows with genuinely different paths still go to `Extra` and print a warning.
+- **ARCH-EVOLVE:** pass. The manifest format is unchanged. A row that used to print a false warning is now read the way its author meant.
+
+**7. Plan revision recommendations:** none. The new Revisions entry matches the code.
+
+```findings
+findings: []
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"35933142-781a-4bf1-8d78-697479168ca7","repository":"github.com/xianxu/ariadne","issue_id":"000467","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/4e1185258025cbe7","reviewed_head":"23435183559f8b6c88a41ff3d52fbcb5103fade6","slot":"ariadne:5","requested_at":"2026-10-19T18:47:50.389049Z"},"phase":"finished","pid":16097,"started_at":"2026-10-19T18:47:50.514011Z","finished_at":"2026-10-19T18:59:39.011754Z","session_id":"424364b5-bb8a-4f4e-8d99-25bef6e853cc","outcome":"returned"}] -->
