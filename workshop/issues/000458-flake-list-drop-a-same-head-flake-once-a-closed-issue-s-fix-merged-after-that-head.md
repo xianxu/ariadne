@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "1e0dcaea", done: "6ff1911f"}
 ---
 
 # flake list: drop a same-head flake once a closed issue's fix merged after that head
