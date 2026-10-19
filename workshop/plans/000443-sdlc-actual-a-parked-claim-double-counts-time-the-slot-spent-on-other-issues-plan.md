@@ -78,3 +78,12 @@ The loader reads the already fetched tracker snapshot, selects cards with numeri
   | Missing or untrusted | Same or unknown | Refuse numeric actual as unknown, naming the adoption and missing authority. |
 
   The source identity and engagement proof is read from tracker history, not inferred from transcript paths. A missing candidate slot is unknown, never "different". The diagnostic-only excluded-brain pass clears protected intervals along with queue intervals and source slots. Tests reproduce BR-1's diagnostic abort, BR-2's wholly-Tail and boundary-crossing runs, BR-3's other-slot legacy adoption, and BR-4's N/2N date-filtered unrelated cards (all have unavailable source files so any transcript replay would fail). The existing parked-claim test retains same-slot overlap and missing-evidence refusal. If the next review finds a case outside these four rows, stop and return to the TL before extending the table.
+- 2026-10-18 18:34 PDT — Boundary review round 2 accepted BR-1 through BR-4 but reproduced BR-5: an overlapping saved window with an empty owner workspace fell through as "not same" and silently skipped. Stopped as promised. The TL approved a **total 3×3 classifier** rather than a fifth exception. Window is `disjoint`, `overlap`, or `missing/untrusted`; slot is `proven different`, `proven same`, or `unknown`. Its complete decisions are:
+
+  | Window | Different slot | Same slot | Unknown slot |
+  |---|---|---|---|
+  | Disjoint | Skip | Skip | Skip |
+  | Overlap | Skip | Replay counted Build/Converge credit | Refuse |
+  | Missing/untrusted | Skip | Refuse | Refuse |
+
+  The slot relationship is an explicit three-valued enum, never inferred from a failed same-slot lookup. Code switches over both axes with no default branch. A table-driven test covers all nine cells; separate ownership fixtures cover empty, absent and mixed workspace evidence and the exact #649/#636 reproduction. A skip needs affirmative disjoint-window or different-slot proof; any other unresolved relevance refuses numeric actual (ARCH-PURPOSE, ARCH-SECURE).
