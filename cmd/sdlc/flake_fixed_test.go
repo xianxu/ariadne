@@ -60,6 +60,8 @@ func TestFixedFlakeDecisionIsConservative(t *testing.T) {
 		{"missing merge", []fixedFlakeIssue{{ID: "000585", Tests: []string{name}, DetailKnown: true}}, false, true, flakeUnknown},
 		{"git uncertain", []fixedFlakeIssue{base}, false, false, flakeUnknown},
 		{"unreadable detail", []fixedFlakeIssue{{ID: "000589", Merge: strings.Repeat("b", 40), DetailKnown: false}, base}, false, true, flakeUnknown},
+		{"unrelated legacy card with no landing", []fixedFlakeIssue{{ID: "000171", DetailKnown: false}, base}, false, true, flakeFixed},
+		{"legacy card explicitly claims test", []fixedFlakeIssue{{ID: "000171", Tests: []string{name}, DetailKnown: false}, base}, false, true, flakeUnknown},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			got, _ := classifyFixedFlake(name, tt.issues, false, func(_, descendant string) (bool, error) {
