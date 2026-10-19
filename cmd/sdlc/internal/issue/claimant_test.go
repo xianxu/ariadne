@@ -52,8 +52,10 @@ func TestClaimantValidationFailsClosed(t *testing.T) {
 	if _, err := ParseCard([]byte(head + full + tail)); err != nil {
 		t.Fatalf("valid claimant refused: %v", err)
 	}
+	if _, err := ParseCard([]byte(head + full + "    pid: '1'\n" + tail)); err != nil {
+		t.Fatalf("new claimant member refused: %v", err)
+	}
 	for name, block := range map[string]string{
-		"extra key":        full + "    pid: '1'\n",
 		"missing worktree": strings.Replace(full, "    worktree: /w\n", "", 1),
 		"non-string":       strings.Replace(full, "operator: a", "operator: [a]", 1),
 		"integer":          strings.Replace(full, "machine_name: m", "machine_name: 7", 1),

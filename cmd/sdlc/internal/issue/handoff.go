@@ -146,6 +146,12 @@ func updateEnvelope(card []byte, change func(*trackerEnvelope) error) ([]byte, e
 	if err != nil {
 		return nil, err
 	}
+	if old := d.fields[field]; old != nil {
+		block, err = preserveTrackerUnknown(old, block)
+		if err != nil {
+			return nil, err
+		}
+	}
 	out := []byte(Compose(strings.TrimRight(fm, "\n")+"\n"+strings.TrimRight(string(block), "\n"), d.body))
 	if _, err := ParseCard(out); err != nil {
 		return nil, fmt.Errorf("card envelope: %w", err)

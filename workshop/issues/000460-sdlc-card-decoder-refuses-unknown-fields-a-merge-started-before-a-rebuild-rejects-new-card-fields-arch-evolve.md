@@ -52,9 +52,9 @@ total: 2.84
 
 ## Plan
 
-- [ ] Make old-shape card parsing accept unknown top-level and nested members while retaining strict known fields, required fields, versions, and duplicate-key checks.
-- [ ] Preserve unknown card members through scalar, claimant, and tracker-envelope setters, then prove a newer card survives a full old-reader rewrite chain.
-- [ ] Audit landing events, test-stats attempts, and #449 readiness sidecars; fix compatible readers here or file a scoped follow-up for any unsafe or unlanded format.
+- [x] Make old-shape card parsing accept unknown top-level and nested members while retaining strict known fields, required fields, versions, and duplicate-key checks.
+- [x] Preserve unknown card members through scalar, claimant, and tracker-envelope setters, then prove a newer card survives a full old-reader rewrite chain.
+- [x] Audit landing events, test-stats attempts, and #449 readiness sidecars; fix compatible readers here or file a scoped follow-up for any unsafe or unlanded format.
 - [ ] Run targeted tests, `make -k`, the recorded suite on the pushed head, and the close review; land on SHIP.
 
 ## Log
@@ -67,6 +67,8 @@ total: 2.84
 - Plan-quality round 1 raised PQ-1 (nested known tracker validation did not yet reach `ParseCard`) and PQ-2 (no named adversarial strategy for the pure merge helper or JSON canonical keys), plus a minor scope-exclusions suggestion. The durable plan now names the boundary call, helper/property and alias checks at every object depth.
 - Plan-quality round 2 accepted PQ-1 and the scope exclusions. PQ-2 stayed open because the task prose duplicated the new adversarial strategy table; compressed the task steps to refer to that table.
 - Plan-quality round 3 disposed PQ-2 as addressed; no blocking findings remain. Estimate derived only after the plan cleared, as required by the gate.
+- Implementation audit: card scalar/title changes retain source spans; claimant replacement and all tracker-envelope setters merge unknown YAML descendants at retained mappings; clearing a claimant deliberately removes that record. A Git-backed CAS regression checks that a setter retains a newer card field. `ParseCard` now validates nested known tracker records before returning. Tests cover extra top-level, claimant, tracker, completion, and release-by members; missing or malformed known fields still refuse.
+- Persisted-record audit: landing events already decode additively and the sweep copies original JSON lines; an unknown-member retention regression passes. Test-stats v2 attempt records were strict, so the read-only decoder now accepts additive members at root and in unit/known-flake objects while rejecting duplicate keys at every depth, known-key aliases, malformed known values, and unsupported versions. #449 readiness sidecars are owned by ariadne:2 and remain unlanded; its commit `5918c6fdcc5888303161edcc0f9d0bdc8fe59c36` adds strict-known/tolerant-unknown decoding and preserves unknown vouch members on rewrite, with `TestDecodeReadinessStrictKnownTolerantUnknown`, `TestVouchRewriteKeepsUnknownMembers`, and `TestTrainEventFieldsSurviveTheSweep`. Inspected its code and tests read-only; no competing edit is needed here.
 
 ## Revisions
 

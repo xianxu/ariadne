@@ -49,8 +49,8 @@ func invalidCard(field, reason string) error {
 	return &ValidationError{field, reason}
 }
 
-// ParseCard validates a serialized tracker card. Unknown user fields are
-// refused; structured transaction metadata belongs in the versioned envelope.
+// ParseCard validates a serialized tracker card. Unknown additive fields are
+// retained by the source document; known fields and transaction metadata stay strict.
 func ParseCard(raw []byte) (Card, error) {
 	d, err := parseCardDocument(raw)
 	if err != nil {
@@ -77,7 +77,7 @@ func ParseCard(raw []byte) (Card, error) {
 			continue
 		}
 		if name != internal.Field {
-			return Card{}, invalidCard(name, "not a card field")
+			continue
 		}
 		if node.Kind != yaml.MappingNode {
 			return Card{}, invalidCard(name, "expected a versioned transaction mapping")
@@ -91,6 +91,9 @@ func ParseCard(raw []byte) (Card, error) {
 		if version != strconv.Itoa(internal.Version) {
 			return Card{}, invalidCard(name, "unsupported or missing transaction version")
 		}
+	}
+	if _, err := cardEnvelope(d); err != nil {
+		return Card{}, err
 	}
 	return Card{ID: d.fields["id"].Value, Title: d.title, Problem: d.problem, Frontmatter: d.fm, doc: d}, nil
 }

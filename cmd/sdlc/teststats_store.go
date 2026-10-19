@@ -102,7 +102,7 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 			return a, err
 		}
 		key, ok := keyToken.(string)
-		if !ok || !suiteAttemptJSONFields[key] || keys[key] {
+		if !ok || !canonicalSuiteKey(key, suiteAttemptJSONFields) || keys[key] {
 			return a, errors.New("duplicate or noncanonical attempt field")
 		}
 		keys[key] = true
@@ -110,12 +110,20 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 		if err := probe.Decode(&value); err != nil {
 			return a, err
 		}
+		if err := validateJSONNoDuplicates(value); err != nil {
+			return a, err
+		}
 		if key == "units" {
 			if err := validateSuiteUnitsJSON(value); err != nil {
 				return a, err
 			}
 		}
-		if key != "queue_seconds" && key != "wall_seconds" && key != "agent" && key != "model" && key != "effort" && bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+		if key == "known_flakes" {
+			if err := validateSuiteKnownFlakesJSON(value); err != nil {
+				return a, err
+			}
+		}
+		if suiteAttemptJSONFields[key] && key != "queue_seconds" && key != "wall_seconds" && key != "agent" && key != "model" && key != "effort" && bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
 			return a, fmt.Errorf("null required attempt field %s", key)
 		}
 	}
@@ -132,7 +140,6 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 		}
 	}
 	d := json.NewDecoder(bytes.NewReader(data))
-	d.DisallowUnknownFields()
 	if err := d.Decode(&a); err != nil {
 		return a, err
 	}
@@ -240,6 +247,26 @@ func suiteAttemptQueueWindow(a SuiteAttempt) (time.Time, time.Time, bool) {
 func ptrTime(t time.Time) *time.Time { return &t }
 
 func validateSuiteUnitsJSON(data []byte) error {
+	return validateSuiteFactObjects(data, "duration unit", map[string]bool{"kind": true, "name": true, "seconds": true}, []string{"kind", "name", "seconds"})
+}
+
+func validateSuiteKnownFlakesJSON(data []byte) error {
+	return validateSuiteFactObjects(data, "known flake", map[string]bool{"test": true, "issue": true}, []string{"test", "issue"})
+}
+
+func canonicalSuiteKey(key string, known map[string]bool) bool {
+	if known[key] {
+		return true
+	}
+	for name := range known {
+		if strings.EqualFold(key, name) {
+			return false // encoding/json would otherwise bind this alias to a known field
+		}
+	}
+	return true
+}
+
+func validateSuiteFactObjects(data []byte, kind string, known map[string]bool, required []string) error {
 	var units []json.RawMessage
 	if err := json.Unmarshal(data, &units); err != nil {
 		return err
@@ -248,7 +275,7 @@ func validateSuiteUnitsJSON(data []byte) error {
 		dec := json.NewDecoder(bytes.NewReader(raw))
 		start, err := dec.Token()
 		if err != nil || start != json.Delim('{') {
-			return errors.New("duration unit must be an object")
+			return fmt.Errorf("%s must be an object", kind)
 		}
 		keys := map[string]bool{}
 		for dec.More() {
@@ -257,26 +284,78 @@ func validateSuiteUnitsJSON(data []byte) error {
 				return err
 			}
 			key, ok := keyToken.(string)
-			if !ok || key != "kind" && key != "name" && key != "seconds" || keys[key] {
-				return errors.New("duplicate or noncanonical duration field")
+			if !ok || !canonicalSuiteKey(key, known) || keys[key] {
+				return fmt.Errorf("duplicate or noncanonical %s field", kind)
 			}
 			keys[key] = true
 			var value json.RawMessage
 			if err := dec.Decode(&value); err != nil {
 				return err
 			}
-			if bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
-				return fmt.Errorf("null required duration field %s", key)
+			if known[key] && bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+				return fmt.Errorf("null required %s field %s", kind, key)
 			}
 		}
 		if _, err := dec.Token(); err != nil {
 			return err
 		}
-		if !keys["kind"] || !keys["name"] || !keys["seconds"] {
-			return errors.New("duration unit missing field")
+		for _, key := range required {
+			if !keys[key] {
+				return fmt.Errorf("%s missing field %s", kind, key)
+			}
 		}
 	}
 	return nil
+}
+
+// validateJSONNoDuplicates checks arbitrary future metadata too: accepting it
+// must not make two interpretations of a nested key possible.
+func validateJSONNoDuplicates(data []byte) error {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	if err := validateJSONValue(dec); err != nil {
+		return err
+	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return errors.New("trailing JSON value")
+	}
+	return nil
+}
+
+func validateJSONValue(dec *json.Decoder) error {
+	token, err := dec.Token()
+	if err != nil {
+		return err
+	}
+	switch token {
+	case json.Delim('{'):
+		seen := map[string]bool{}
+		for dec.More() {
+			key, err := dec.Token()
+			if err != nil {
+				return err
+			}
+			name, ok := key.(string)
+			if !ok || seen[name] {
+				return errors.New("duplicate JSON key")
+			}
+			seen[name] = true
+			if err := validateJSONValue(dec); err != nil {
+				return err
+			}
+		}
+		_, err = dec.Token()
+		return err
+	case json.Delim('['):
+		for dec.More() {
+			if err := validateJSONValue(dec); err != nil {
+				return err
+			}
+		}
+		_, err = dec.Token()
+		return err
+	default:
+		return nil
+	}
 }
 
 // suiteAttemptLogFile resolves a published attempt's relative log_path, the

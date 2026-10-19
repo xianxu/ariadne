@@ -76,7 +76,7 @@ func parseClaimant(n *yaml.Node) (Claimant, error) {
 			}
 		}
 		if dst == nil {
-			return fail("unknown key " + k.Value)
+			continue // a newer binary's member travels with the source node
 		}
 		if v.Kind != yaml.ScalarNode || v.Tag != "!!str" || strings.TrimSpace(v.Value) == "" || strings.ContainsAny(v.Value, "\r\n") {
 			return fail(k.Value + " must be a nonempty one-line string")
@@ -118,6 +118,12 @@ func SetCardClaimant(card []byte, c Claimant) ([]byte, error) {
 	block, err := c.render()
 	if err != nil {
 		return nil, err
+	}
+	if old := d.fields[ClaimantField]; old != nil {
+		block, err = preserveClaimantUnknown(old, block)
+		if err != nil {
+			return nil, err
+		}
 	}
 	fm := d.fm + "\n" + block
 	if span, ok := d.spans[ClaimantField]; ok {

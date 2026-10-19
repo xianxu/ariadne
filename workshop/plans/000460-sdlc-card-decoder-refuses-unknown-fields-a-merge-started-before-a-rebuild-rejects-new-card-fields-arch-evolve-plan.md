@@ -55,21 +55,21 @@ Excluded: no semantic schema migration, tracker transaction redesign, or competi
 
 **Files:** `cmd/sdlc/internal/issue/card_test.go`, `cardset_test.go`, `claimant_test.go`, `handoff_test.go`, and tracker update integration test.
 
-- [ ] Implement the `ParseCard`, `mergeUnknownCardNodes`, `SetCardClaimant`, `updateEnvelope`, and tracker-CAS fixtures from the adversarial strategy table. Run `go test ./cmd/sdlc/internal/issue ./cmd/sdlc/internal/tracker -run 'Card|Tracker' -count=1` and confirm the new compatibility tests fail before implementation.
+- [x] Implement the `ParseCard`, `mergeUnknownCardNodes`, `SetCardClaimant`, `updateEnvelope`, and tracker-CAS fixtures from the adversarial strategy table. Confirm the new compatibility tests fail before implementation.
 
 ### 2. Implement lossless card compatibility
 
 **Files:** `cmd/sdlc/internal/issue/card.go`, `claimant.go`, `handoff.go`, and a focused helper file in that package.
 
-- [ ] Remove only the top-level unknown-field refusal in `ParseCard`; invoke `cardEnvelope` there for nested known-field validation after the version check. Teach claimant parsing to ignore unknown members after the global recursive duplicate-key check. Make claimant rendering preserve unknown children from the source node.
-- [ ] Implement `mergeUnknownCardNodes` and update the tracker-envelope rewrite so an old reader's new known record is combined with source unknown children at retained mapping depths. Keep known-key removal intentional and known-field validation intact. Exercise direct generated-tree tests as well as each setter family, then run the package tests.
+- [x] Remove only the top-level unknown-field refusal in `ParseCard`; invoke `cardEnvelope` there for nested known-field validation after the version check. Teach claimant parsing to ignore unknown members after the global recursive duplicate-key check. Make claimant rendering preserve unknown children from the source node.
+- [x] Implement `mergeUnknownCardNodes` and update the tracker-envelope rewrite so an old reader's new known record is combined with source unknown children at retained mapping depths. Keep known-key removal intentional and known-field validation intact. Exercise direct generated-tree tests as well as each setter family, then run the package tests.
 
 ### 3. Test-stats and audit regressions
 
 **Files:** `cmd/sdlc/teststats_store.go`, `teststats_store_test.go`, `cmd/sdlc/internal/landingline/log_test.go`, issue Log.
 
-- [ ] Implement the `decodeSuiteAttempt`, `validateSuiteUnitsJSON`, known-flake, and `landingline.sweep` fixtures from the adversarial strategy table. Relax only unknown-key refusal; do not weaken versioned outcome semantics.
-- [ ] Check ariadne:2's #449 fix before it lands; record its test and code evidence in the audit.
+- [x] Implement the `decodeSuiteAttempt`, `validateSuiteUnitsJSON`, known-flake, and `landingline.sweep` fixtures from the adversarial strategy table. Relax only unknown-key refusal; do not weaken versioned outcome semantics.
+- [x] Check ariadne:2's #449 fix before it lands; record its test and code evidence in the audit.
 
 ### 4. Verify and land
 
