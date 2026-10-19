@@ -1,6 +1,6 @@
 ---
 id: 000458
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: c22cc76feaaa584819a8d38ceac243ae6cd2d4f5
         evidence_commit: c3f2372a59054d3d4dcd34f09b9aee690221f0be
+        landed_commit: 079a0f1fd2703f43cc9c8b2b769a683d0295904d
 ---
 
 # flake list: drop a same-head flake once a closed issue's fix merged after that head
