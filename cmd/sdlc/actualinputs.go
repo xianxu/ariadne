@@ -514,6 +514,10 @@ func ownedSourceWindows(ctx context.Context, engagements []tracker.EngagementWin
 func ownedReplaySources(saved gatestate.MeasurementInputs, found []transcripts.SessionEvidence) (*ownedActualInputs, error) {
 	out := &ownedActualInputs{Snapshot: saved, Prefixes: map[string]activetime.SourcePrefix{}, Windows: map[string][]activetime.ActivityWindow{}, SourceSlots: map[string]string{}, Scope: activetime.Scope{Head: saved.CodeHead, BranchPoint: saved.BranchPoint}, TrackerRefs: nonEmpty(saved.TrackerHead), Replay: true}
 	for _, credit := range saved.Protected {
+		slot := parseAdoptedSlot(credit.Slot)
+		if !slot.known {
+			return nil, fmt.Errorf("retained protected issue %s has no canonical pinned slot", credit.Issue)
+		}
 		start, err := time.Parse(time.RFC3339Nano, credit.Start)
 		if err != nil {
 			return nil, err
@@ -522,7 +526,7 @@ func ownedReplaySources(saved gatestate.MeasurementInputs, found []transcripts.S
 		if err != nil {
 			return nil, err
 		}
-		out.Protected = append(out.Protected, activetime.CreditedInterval{Issue: credit.Issue, Slot: credit.Slot, Start: start, End: end})
+		out.Protected = append(out.Protected, activetime.CreditedInterval{Issue: credit.Issue, Slot: slot.String(), Start: start, End: end})
 	}
 	byID := map[[2]string]transcripts.SessionEvidence{}
 	for _, s := range found {
@@ -533,6 +537,13 @@ func ownedReplaySources(saved gatestate.MeasurementInputs, found []transcripts.S
 		byID[key] = s
 	}
 	for _, pin := range saved.Sources {
+		slot := parseAdoptedSlot(pin.Slot)
+		if pin.Slot != "" && !slot.known {
+			return nil, fmt.Errorf("retained source %s/%s has no canonical pinned slot", pin.Harness, pin.ID)
+		}
+		if len(saved.Protected) > 0 && !slot.known {
+			return nil, fmt.Errorf("retained source %s/%s has no pinned slot for protected intervals", pin.Harness, pin.ID)
+		}
 		s, ok := byID[[2]string{pin.Harness, pin.ID}]
 		if !ok {
 			return nil, fmt.Errorf("retained measurement source %s/%s is unavailable", pin.Harness, pin.ID)
@@ -544,7 +555,7 @@ func ownedReplaySources(saved gatestate.MeasurementInputs, found []transcripts.S
 		s.Started, _ = time.Parse(time.RFC3339Nano, pin.Started)
 		out.Files = append(out.Files, s.File)
 		out.Sessions = append(out.Sessions, s)
-		out.SourceSlots[s.File] = pin.Slot
+		out.SourceSlots[s.File] = slot.String()
 		out.Prefixes[s.File] = activetime.SourcePrefix{Bytes: pin.Bytes, Digest: pin.Digest}
 		for _, interval := range pin.Windows {
 			start, err := time.Parse(time.RFC3339Nano, interval.Start)

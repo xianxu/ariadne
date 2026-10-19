@@ -306,3 +306,96 @@ None.
 Add a `## Revisions` entry defining “proven different” as comparison of validated canonical slot identities. Enumerate invalid/noncanonical identity as unknown, including mixed ownership, and require the malformed-workspace refusal regression before the next review.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"8966d7ed-836f-417b-ace2-6fac9be315af","repository":"github.com/xianxu/ariadne","issue_id":"000443","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/16caa765eb6cea21","reviewed_head":"27b80215792fd4d22d3316830c11f88bbcabf1b5","slot":"ariadne:1","requested_at":"2026-10-19T02:24:00.304988Z"},"phase":"finished","pid":67593,"started_at":"2026-10-19T02:24:00.45813Z","finished_at":"2026-10-19T02:29:57.291668Z","session_id":"01a151f9-14d7-77e2-8c9a-02399a906eea","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T20:37:06-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 443 — sdlc actual: a parked claim double-counts time the slot spent on other issues |
+| repo | ariadne |
+| issue file | workshop/issues/000443-sdlc-actual-a-parked-claim-double-counts-time-the-slot-spent-on-other-issues.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | f92193cf4afc9d2b302e132ec5a639bbe3e05098..7502fb9e0bd1e8254cd6be369bf64b82215a6b96 |
+| command | sdlc close --issue 443 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-18T20:37:06-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The exclusion core, shared measurement wiring, and claimant-slot correction are validated. BR-5 remains blocking: malformed slot identity in a retained measurement source still silently bypasses exclusion. A disposable-checkout regression reproduced the double count and passed with a temporary canonical-slot guard.
+
+Done-when: current — preventing duplicate attribution and naming exclusions/refusals still covers the revised implementation.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Diagnostic computation clears protected intervals; the excluded-brain regression passes.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Credit intersects counted Build/Converge phases; tail and boundary-crossing regressions pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Proven different slots skip missing adoption evidence; the parked-claim legacy cases pass.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The passing integration fixture exercises four and eight unrelated adoptions with unavailable replay evidence while retaining same-slot protection.
+  - id: BR-5
+    disposition: not-addressed
+    note: |
+      ARCH-PURPOSE, ARCH-SECURE: canonical validation covers claimant workspaces but not retained source slots. actualexclusion.go:42–46 accepts any nonempty source slot, then lines 359–367 silently discard unmatched credit. MeasurementInputs.Validate does not validate Sources[].Slot. In a disposable pinned-head checkout, changing only #649's saved source slot to ariadne:06 made #636 report 0.333333h, equal to baseline, with no exclusions. A refusal regression failed on head and passed after canonical validation in creditedIntervals. This continues BR-5 in repeated family overlap-relevance-before-evidence: enforce the proof rule across every slot-identity consumer, rather than fixing only claimant identity.
+```
+
+1. **Strengths**
+
+   - Pure interval subtraction unions overlapping protection and runs before attribution.
+   - Completion/correction snapshot selection is shared with historical replay.
+   - The nine-cell classifier explicitly preserves unknown relevance.
+   - Protected intervals survive snapshot serialization and historical replay.
+
+2. **Critical findings**
+
+   - **BR-5 remains open:** `cmd/sdlc/actualexclusion.go:42` and `:360`. Validate retained source identity before using string mismatch to discard credited intervals. Sweep candidate, claimant, replay-source, and protected-interval identities; preserve legacy missing-pin compatibility through explicit unknown/refusal handling.
+
+3. **Important findings**
+
+   None additional. Atlas documents the changed flow; no new command, flag, or configuration surface requires a README update.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   Passed full `activetime` and `gatestate` package tests, focused adopted/credited/parked tests, and diagnostic/queue replay regressions. Removing claimant canonical validation made its regressions fail. The additional retained-source reproduction failed without its guard and passed with it. Disposable checkout removed; reviewed checkout unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared snapshot authority and subtraction helpers.
+   - **ARCH-PURE — pass:** interval logic remains pure; tracker/replay IO stays in the loader.
+   - **ARCH-PURPOSE — flag:** BR-5 still permits duplicate attribution.
+   - **ARCH-MOCK — pass:** existing dependency seams and portable tracker/Git fixtures reused.
+   - **ARCH-CONSTRAINTS — pass:** unrelated-card filtering exercised at N and 2N.
+   - **ARCH-SECURE — flag:** persisted source-slot identity remains unvalidated.
+   - **ARCH-ORDER — pass:** explicit relevance decisions and pinned historical replay.
+   - **ARCH-FUNERAL — pass:** exclusions extend the existing size-bounded snapshot.
+
+7. **Plan revision recommendations**
+
+   Add a `## Revisions` entry enumerating every slot-identity provenance and requiring canonical proof before any mismatch can justify skipping credit. Include retained-source malformed, incomplete, and missing-identity regressions alongside the claimant matrix.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"17154650-041e-42ca-84de-e054357d0e8b","repository":"github.com/xianxu/ariadne","issue_id":"000443","recipe":"milestone-review","round":4,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/0734785b0a2e452f","reviewed_head":"7502fb9e0bd1e8254cd6be369bf64b82215a6b96","slot":"ariadne:1","requested_at":"2026-10-19T03:33:35.727853Z"},"phase":"finished","pid":72385,"started_at":"2026-10-19T03:33:35.995503Z","finished_at":"2026-10-19T03:37:05.560272Z","session_id":"01a15238-cc50-7d51-93aa-56720fe31b8b","outcome":"returned"}] -->

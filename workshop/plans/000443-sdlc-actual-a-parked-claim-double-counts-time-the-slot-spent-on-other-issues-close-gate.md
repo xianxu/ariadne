@@ -640,6 +640,249 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 17154650-041e-42ca-84de-e054357d0e8b
+            repository: github.com/xianxu/ariadne
+            issue_id: "000443"
+            recipe: milestone-review
+            round: 4
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/0734785b0a2e452f
+            reviewed_head: 7502fb9e0bd1e8254cd6be369bf64b82215a6b96
+            slot: ariadne:1
+            requested_at: "2026-10-19T03:33:35.727853Z"
+          phase: finished
+          pid: 72385
+          started_at: "2026-10-19T03:33:35.995503Z"
+          finished_at: "2026-10-19T03:37:05.560272Z"
+          session_id: 01a15238-cc50-7d51-93aa-56720fe31b8b
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 7502fb9e0bd1e8254cd6be369bf64b82215a6b96
+        tracker_head: 917f59968af242a939db923f2ccd150c77e3e6eb
+        branch_point: f92193cf4afc9d2b302e132ec5a639bbe3e05098
+        since: "2026-10-18T10:57:47-07:00"
+        until: "2026-10-18T19:40:57-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T10:57:47-07:00"
+              end: "2026-10-18T19:40:57-07:00"
+              began: "2026-10-18T10:57:47-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 7c7c14bce4c02ecc9be398802d2f7271966818a100d776d89aa71211504bc235
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 129579647
+              windows:
+                - start: "2026-10-18T10:57:47-07:00"
+                  end: "2026-10-18T19:40:57-07:00"
+            - harness: codex
+              id: 01a1519d-702f-77a0-8d09-6318d7215afb
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              parent_id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              digest: e3e4a431c11d0a31d2481ee6ab312b55394e8f1b56ad992b875f00d7e9479585
+              started: "2026-10-19T00:43:54.859Z"
+              spawned: true
+              bytes: 747735
+              windows:
+                - start: "2026-10-19T00:43:54.859Z"
+                  end: "2026-10-18T19:40:57-07:00"
+        queue_waits:
+            - attempt_id: 9e88fbb939bad2636b6afa592c4ff95e
+              slot: ariadne:1
+              record_digest: 3f7ccdd2b0f140a22b2e4a1ced2a98f8a247a4840ac10627c091117a92d21580
+              start: "2026-10-18T18:18:21.221443Z"
+              end: "2026-10-18T18:21:08.81741Z"
+              queue_seconds: 167.595967
+              raw_seconds: 167.595967
+              exact: true
+            - attempt_id: 698f69f0a003585cc432cdcd1f5eb3b8
+              slot: ariadne:1
+              record_digest: 709f89a6b2198a258b4d1e2a5ddf0e5677d05acaa6155085826842b2ed6b0122
+              start: "2026-10-18T18:23:20.078884Z"
+              end: "2026-10-18T18:58:32.709201Z"
+              queue_seconds: 2112.630317
+              raw_seconds: 2112.630317
+              exact: true
+            - attempt_id: 67f520b25e748b321532b2f03ec9af4b
+              slot: ariadne:1
+              record_digest: 72df114728cf3a28018e5e325035a5d290f479c604f30207eb1b57e07b678dec
+              start: "2026-10-18T19:31:16.893432Z"
+              end: "2026-10-18T20:18:20.731582Z"
+              queue_seconds: 2823.83815
+              raw_seconds: 2823.83815
+              exact: true
+            - attempt_id: 8933544146d410dbede8a7922f155adc
+              slot: ariadne:1
+              record_digest: d54bd24444ac435992d1e6c1cc5ee33dd031586c386a95de57aaab50afae30c9
+              start: "2026-10-18T20:36:52.829415Z"
+              end: "2026-10-18T20:50:46.737447Z"
+              queue_seconds: 833.908032
+              raw_seconds: 833.908032
+              exact: true
+            - attempt_id: 99819fa702f1e021121137f9c9b8f1ed
+              slot: ariadne:1
+              record_digest: d57fecad313c026440466a9bfd494122100073222a9c97905dc1ac691342f554
+              start: "2026-10-18T21:12:48.480858Z"
+              end: "2026-10-18T21:27:47.819081Z"
+              queue_seconds: 899.338223
+              raw_seconds: 899.338223
+              exact: true
+            - attempt_id: 3590fe8eed4602bfab53764dda88e258
+              slot: ariadne:1
+              record_digest: 93e77f2027052a9bf6da90fee0a07c334c6958f416065a6d439bf49d21af2bf1
+              start: "2026-10-18T21:46:29.803654Z"
+              end: "2026-10-18T22:08:43.529371Z"
+              queue_seconds: 1333.725717
+              raw_seconds: 1333.725717
+              exact: true
+            - attempt_id: 5e2efbf6565ab3e4e6b060cd8cf2c8e1
+              slot: ariadne:1
+              record_digest: 46581d8031ab24ce87ac237c42c3edbd47d7331400cfa5cccc3b1c07e8e0e726
+              start: "2026-10-18T22:22:15.218323Z"
+              end: "2026-10-18T22:40:39.914532Z"
+              queue_seconds: 1104.696209
+              raw_seconds: 1104.696209
+              exact: true
+            - attempt_id: a2dfc29275b4d784bac97b2a5fb3595a
+              slot: ariadne:1
+              record_digest: dfa9e4133c1cd0bf47bdaba7ca3b370f40a25f0166713573e3fc82403e834fa9
+              start: "2026-10-18T22:55:49.346762Z"
+              end: "2026-10-18T23:31:41.735155Z"
+              queue_seconds: 2152.388393
+              raw_seconds: 2152.388393
+              exact: true
+            - attempt_id: 1e8ad5cbea933ba71506bf7fb216970d
+              slot: ariadne:1
+              record_digest: 2aced6673d27ef0ad7c6d0014bf28c82fe8d269bfe2a4609999786323bdd2045
+              start: "2026-10-18T23:46:16.404167Z"
+              end: "2026-10-18T23:58:12.906455Z"
+              queue_seconds: 716.502288
+              raw_seconds: 716.502288
+              exact: true
+            - attempt_id: acf49aad220c79aeefa60a93cabe2c90
+              slot: ariadne:1
+              record_digest: 53c802ca0b304e38e4396146da0640c824e172d949988bbd56e9659a79f53d36
+              start: "2026-10-19T00:27:40.089756Z"
+              end: "2026-10-19T00:27:40.145983Z"
+              queue_seconds: 0.056227
+              raw_seconds: 0.056227
+              exact: true
+            - attempt_id: 7057b08b3caa03d551d383ea29b03eec
+              slot: ariadne:1
+              record_digest: a28b4ba022428f928aae72d6af2c3244e2514442bccae2e22440e3eeb7f1c198
+              start: "2026-10-19T01:07:55.710499Z"
+              end: "2026-10-19T01:13:44.838921Z"
+              queue_seconds: 349.128422
+              raw_seconds: 349.128422
+              exact: true
+            - attempt_id: 5228211966baf348175ef0f4e8c7dcc8
+              slot: ariadne:1
+              record_digest: bba7cdb698e746d8d85a20b883759511ebc6c9d64886a24e5d17202a42822109
+              start: "2026-10-19T01:52:23.954088Z"
+              end: "2026-10-19T02:10:17.27318Z"
+              queue_seconds: 1073.319092
+              raw_seconds: 1073.319092
+              exact: true
+        protected:
+            - issue: "437"
+              slot: ariadne:1
+              start: "2026-10-18T10:57:47-07:00"
+              end: "2026-10-18T18:18:21.221443Z"
+            - issue: "437"
+              slot: ariadne:1
+              start: "2026-10-18T18:02:23.518Z"
+              end: "2026-10-18T18:04:14.653Z"
+            - issue: "437"
+              slot: ariadne:1
+              start: "2026-10-18T18:21:08.81741Z"
+              end: "2026-10-18T18:23:20.078884Z"
+            - issue: "437"
+              slot: ariadne:1
+              start: "2026-10-18T18:58:32.709201Z"
+              end: "2026-10-18T12:10:24-07:00"
+            - issue: "437"
+              slot: ariadne:1
+              start: "2026-10-18T12:10:24-07:00"
+              end: "2026-10-18T19:31:16.893432Z"
+            - issue: "437"
+              slot: ariadne:1
+              start: "2026-10-18T20:18:20.731582Z"
+              end: "2026-10-18T20:36:52.829415Z"
+            - issue: "437"
+              slot: ariadne:1
+              start: "2026-10-18T20:50:46.737447Z"
+              end: "2026-10-18T21:00:12.19Z"
+            - issue: "444"
+              slot: ariadne:1
+              start: "2026-10-18T21:37:59.877Z"
+              end: "2026-10-18T21:46:29.803654Z"
+            - issue: "444"
+              slot: ariadne:1
+              start: "2026-10-18T22:08:43.529371Z"
+              end: "2026-10-18T15:18:56-07:00"
+            - issue: "444"
+              slot: ariadne:1
+              start: "2026-10-18T15:18:56-07:00"
+              end: "2026-10-18T22:21:52.006Z"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 0.11616666666666667
+        cuts:
+            - dispatched: "2026-10-18T17:38:10-07:00"
+              finalized: "2026-10-18T17:42:03-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T18:26:06-07:00"
+              finalized: "2026-10-18T18:32:20-07:00"
+              finalizing: false
+            - dispatched: "2026-10-18T19:24:00-07:00"
+              finalized: "2026-10-18T19:30:02-07:00"
+              finalizing: false
+      "n": 4
+      timestamp: "2026-10-18T20:37:06-07:00"
+      dispatched: "2026-10-18T20:33:35-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Diagnostic computation clears protected intervals; the excluded-brain regression passes.
+          round: 4
+        - id: BR-2
+          disposition: addressed
+          note: Credit intersects counted Build/Converge phases; tail and boundary-crossing regressions pass.
+          round: 4
+        - id: BR-3
+          disposition: addressed
+          note: Proven different slots skip missing adoption evidence; the parked-claim legacy cases pass.
+          round: 4
+        - id: BR-4
+          disposition: addressed
+          note: The passing integration fixture exercises four and eight unrelated adoptions with unavailable replay evidence while retaining same-slot protection.
+          round: 4
+        - id: BR-5
+          disposition: not-addressed
+          note: 'ARCH-PURPOSE, ARCH-SECURE: canonical validation covers claimant workspaces but not retained source slots. actualexclusion.go:42–46 accepts any nonempty source slot, then lines 359–367 silently discard unmatched credit. MeasurementInputs.Validate does not validate Sources[].Slot. In a disposable pinned-head checkout, changing only #649''s saved source slot to ariadne:06 made #636 report 0.333333h, equal to baseline, with no exclusions. A refusal regression failed on head and passed after canonical validation in creditedIntervals. This continues BR-5 in repeated family overlap-relevance-before-evidence: enforce the proof rule across every slot-identity consumer, rather than fixing only claimant identity.'
+          round: 4
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#443 (boundary-review)
@@ -683,6 +926,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-3 — addressed — Proven different-slot ownership skips missing replay authority, including the no-completion legacy fixture; regressions pass.
 - BR-4 — addressed — The four/eight unrelated-adoption fixture passes without replaying unavailable sources while preserving same-slot protection.
 - BR-5 — not-addressed — Empty, absent, and mixed ownership are covered, but actualexclusion.go:154–177 treats malformed nonempty workspace identity as proven different. In a disposable pinned-head checkout, changing only #649's workspace to ariadne:06 makes #636 measure 0.333333h with no exclusions. A refusal regression fails on head and passes after requiring canonical parsed slot identity. This remains the same overlap-relevance-before-evidence rule failure.
+
+## Round 4 — 2026-10-18T20:37:06-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Diagnostic computation clears protected intervals; the excluded-brain regression passes.
+- BR-2 — addressed — Credit intersects counted Build/Converge phases; tail and boundary-crossing regressions pass.
+- BR-3 — addressed — Proven different slots skip missing adoption evidence; the parked-claim legacy cases pass.
+- BR-4 — addressed — The passing integration fixture exercises four and eight unrelated adoptions with unavailable replay evidence while retaining same-slot protection.
+- BR-5 — not-addressed — ARCH-PURPOSE, ARCH-SECURE: canonical validation covers claimant workspaces but not retained source slots. actualexclusion.go:42–46 accepts any nonempty source slot, then lines 359–367 silently discard unmatched credit. MeasurementInputs.Validate does not validate Sources[].Slot. In a disposable pinned-head checkout, changing only #649's saved source slot to ariadne:06 made #636 report 0.333333h, equal to baseline, with no exclusions. A refusal regression failed on head and passed after canonical validation in creditedIntervals. This continues BR-5 in repeated family overlap-relevance-before-evidence: enforce the proof rule across every slot-identity consumer, rather than fixing only claimant identity.
 
 ## Open findings
 

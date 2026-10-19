@@ -27,12 +27,18 @@ func TestCreditedIntervalsNeedPinnedSlotAndPositiveAllocation(t *testing.T) {
 	}
 	phases := []activetime.Phase{{Start: start, End: start.Add(30 * time.Minute), Kind: activetime.Build}}
 	got, err := creditedIntervals("649", segments, phases, map[string]string{"owned": "pair:6", "other": "pair:7"})
-	if err != nil || len(got) != 2 || got[0].Slot != "pair:6" || got[0].Issue != "649" || !got[0].Start.Equal(start) || got[1].Slot != "pair:7" {
+	if err != nil || len(got) != 2 || got[0].Slot.String() != "pair:6" || got[0].Issue != "649" || !got[0].Start.Equal(start) || got[1].Slot.String() != "pair:7" {
 		t.Fatalf("credited=%+v err=%v", got, err)
 	}
 	_, err = creditedIntervals("649", segments, phases, map[string]string{"other": "pair:7"})
 	if err == nil || !strings.Contains(err.Error(), "owned") {
 		t.Fatalf("missing source slot should refuse, got %v", err)
+	}
+	for _, bad := range []string{"ariadne:06", "ariadne:-1", "ariadne", ":6"} {
+		_, err = creditedIntervals("649", segments, phases, map[string]string{"owned": bad, "other": "pair:7"})
+		if err == nil || !strings.Contains(err.Error(), "owned") {
+			t.Fatalf("retained source slot %q must refuse before comparison: %v", bad, err)
+		}
 	}
 }
 
@@ -50,6 +56,33 @@ func TestCreditedIntervalsProtectOnlyCountedPhases(t *testing.T) {
 	got, err := creditedIntervals("649", segments, phases, map[string]string{"owned": "ariadne:6"})
 	if err != nil || len(got) != 1 || !got[0].Start.Equal(start.Add(45*time.Minute)) || !got[0].End.Equal(start.Add(50*time.Minute)) {
 		t.Fatalf("tail was protected or counted converge lost: intervals=%+v err=%v", got, err)
+	}
+}
+
+func TestProtectedEngineBoundaryRequiresCanonicalSlots(t *testing.T) {
+	start := time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)
+	inputs := &ownedActualInputs{
+		Files: []string{"owner"}, SourceSlots: map[string]string{"owner": "ariadne:6"},
+		Protected: []activetime.CreditedInterval{{Issue: "649", Slot: "ariadne:6", Start: start, End: start.Add(time.Minute)}},
+	}
+	if err := validateProtectedSlotIdentities(inputs); err != nil {
+		t.Fatal(err)
+	}
+	for _, bad := range []string{"", "ariadne:06", "ariadne", ":6"} {
+		inputs.SourceSlots["owner"] = bad
+		if err := validateProtectedSlotIdentities(inputs); err == nil {
+			t.Errorf("source slot %q reached protected comparison", bad)
+		}
+	}
+	inputs.SourceSlots["owner"] = "ariadne:6"
+	inputs.Protected[0].Slot = "ariadne:06"
+	if err := validateProtectedSlotIdentities(inputs); err == nil {
+		t.Fatal("noncanonical protected slot reached comparison")
+	}
+	inputs.Protected = nil // unprotected legacy replay permits absent pins
+	inputs.SourceSlots = nil
+	if err := validateProtectedSlotIdentities(inputs); err != nil {
+		t.Fatalf("unprotected legacy replay refused: %v", err)
 	}
 }
 
@@ -120,7 +153,7 @@ func TestAdoptedRelevanceAllWindowAndSlotStates(t *testing.T) {
 
 func TestAdoptedSlotStateRequiresProof(t *testing.T) {
 	start := time.Date(2026, 10, 14, 0, 0, 0, 0, time.UTC)
-	candidate := []actualSlotWindow{{slot: "ariadne:6", start: start, end: start.Add(time.Hour)}}
+	candidate := []actualSlotWindow{{slot: parseAdoptedSlot("ariadne:6"), start: start, end: start.Add(time.Hour)}}
 	owner := func(slot string) issue.Claimant { return issue.Claimant{Workspace: slot} }
 	cases := []struct {
 		name        string
@@ -142,7 +175,7 @@ func TestAdoptedSlotStateRequiresProof(t *testing.T) {
 		{"incomplete owner slot", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("ariadne")}}}, candidate, slotUnknown},
 		{"missing owner repository", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner(":7")}}}, candidate, slotUnknown},
 		{"mixed valid and noncanonical", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("ariadne:7"), owner("ariadne:06")}}}, candidate, slotUnknown},
-		{"noncanonical candidate slot", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("ariadne:7")}}}, []actualSlotWindow{{slot: "ariadne:06", start: start, end: start.Add(time.Hour)}}, slotUnknown},
+		{"noncanonical candidate slot", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("ariadne:7")}}}, []actualSlotWindow{{slot: parseAdoptedSlot("ariadne:06"), start: start, end: start.Add(time.Hour)}}, slotUnknown},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -174,6 +207,8 @@ func TestParkedClaimExcludesOtherAdoptedIssueInSameSlot(t *testing.T) {
 	cards[legacyPath], details[legacyDetail] = legacyCard, legacyBody
 	malformedPath, malformedCard, malformedDetail, malformedBody := seededIssue(t, "000660", "malformed-slot")
 	cards[malformedPath], details[malformedDetail] = malformedCard, malformedBody
+	badSourcePath, badSourceCard, badSourceDetail, badSourceBody := seededIssue(t, "000661", "malformed-source-slot")
+	cards[badSourcePath], details[badSourceDetail] = badSourceCard, badSourceBody
 	r := newTrackerRepo(t, cards, details)
 	ownerRoot := filepath.Join(t.TempDir(), "owner")
 	testfix.Git(t, r.root, "worktree", "add", "-q", "-b", "000636-parked", ownerRoot)
@@ -349,6 +384,45 @@ func TestParkedClaimExcludesOtherAdoptedIssueInSameSlot(t *testing.T) {
 	if intervals, err := loadAdoptedExclusions(context.Background(), r.root, "636", "", current); err != nil || len(intervals) == 0 {
 		t.Fatalf("other-slot legacy card without completion blocked the parked actual: intervals=%+v err=%v", intervals, err)
 	}
+	// The saved #649-style source pin is noncanonical while the claimant and
+	// candidate are both ariadne:6. It must refuse, never disappear through
+	// a string mismatch after replay (#661 reproduces the review finding).
+	update("000661", "claim-661", 15, func(raw []byte) ([]byte, error) {
+		return issue.SetCardClaimant(raw, owner)
+	})
+	badSource := saved
+	badSource.Sources = append([]gatestate.MeasurementSource(nil), saved.Sources...)
+	if len(badSource.Sources) == 0 {
+		t.Fatal("fixture has no retained source")
+	}
+	badSource.Sources[0].Slot = "ariadne:06"
+	badSourceGate := gatestate.Ledger{Gate: "boundary-review", IssueNum: 661, IDPrefix: "BR", Rounds: []gatestate.Round{{N: 1, Timestamp: saved.Until, Dispatched: saved.Until, Reviewed: saved.CodeHead, ActualInputs: &badSource}}}
+	writeRepoFile(t, r.root, "workshop/plans/000661-malformed-source-slot-close-gate.md", gatestate.Render(badSourceGate, "fixture"))
+	testfix.Git(t, r.root, "add", "workshop/plans/000661-malformed-source-slot-close-gate.md")
+	ownedFixtureAt(t, 43)
+	testfix.Git(t, r.root, "commit", "-qm", "#661: close evidence")
+	badSourceEvidence := r.git("rev-parse", "HEAD")
+	update("000661", "close-661", 44, func(raw []byte) ([]byte, error) {
+		raw, err := issue.SetCardCompletion(raw, issue.Completion{Token: "close-661", Repository: saved.Repository, ReviewedHEAD: saved.CodeHead, EvidenceCommit: badSourceEvidence})
+		if err != nil {
+			return nil, err
+		}
+		raw, err = issue.SetCardField(raw, "actual_hours", "0.17")
+		if err != nil {
+			return nil, err
+		}
+		raw, err = issue.SetCardField(raw, "updated", "2026-10-14")
+		if err != nil {
+			return nil, err
+		}
+		return issue.SetCardField(raw, "status", "codecomplete")
+	})
+	if _, err := loadAdoptedExclusions(context.Background(), r.root, "636", "", current); err == nil || !strings.Contains(err.Error(), "#661") || !strings.Contains(err.Error(), "source") {
+		t.Fatalf("noncanonical retained source silently double-counted #661 with #636: %v", err)
+	}
+	update("000661", "retire-661", 45, func(raw []byte) ([]byte, error) {
+		return issue.SetCardField(raw, "actual_hours", "N/A")
+	})
 	// BR-5's #649/#636 shape with adopted cards whose workspaces are
 	// noncanonical or empty. Both are unknown, never proof of a different slot.
 	addUnknownAdoption := func(id, slug, slot string, at int) {

@@ -19,8 +19,36 @@ import (
 // creditedIntervals protects only Build/Converge time included in the adopted
 // number. A fractionally allocated run protects its whole intersection with a
 // counted phase: the engine has no finer evidence for that fraction.
-func creditedIntervals(issue string, segments []activetime.Segment, counted []activetime.Phase, slots map[string]string) ([]activetime.CreditedInterval, error) {
-	var out []activetime.CreditedInterval
+type adoptedCredit struct {
+	Issue      string
+	Slot       adoptedSlot
+	Start, End time.Time
+}
+
+// adoptedSlot is the only identity admitted to exclusion comparisons. Zero
+// means unknown; it can never prove that two slots differ.
+type adoptedSlot struct {
+	address workspace.Address
+	known   bool
+}
+
+func parseAdoptedSlot(raw string) adoptedSlot {
+	address, err := workspace.ParseAddress(raw)
+	if err != nil || address.Repo == "" || address.String() != raw {
+		return adoptedSlot{}
+	}
+	return adoptedSlot{address: address, known: true}
+}
+
+func (s adoptedSlot) String() string {
+	if !s.known {
+		return ""
+	}
+	return s.address.String()
+}
+
+func creditedIntervals(issue string, segments []activetime.Segment, counted []activetime.Phase, slots map[string]string) ([]adoptedCredit, error) {
+	var out []adoptedCredit
 	for _, segment := range segments {
 		if segment.Alloc[issue] <= 0 {
 			continue
@@ -39,28 +67,29 @@ func creditedIntervals(issue string, segments []activetime.Segment, counted []ac
 			if !start.Before(end) {
 				continue
 			}
-			slot := slots[segment.Source]
-			if slot == "" {
-				return nil, fmt.Errorf("credited source %q for issue #%s during %s → %s has no pinned slot", segment.Source, issue, start.Format(time.RFC3339Nano), end.Format(time.RFC3339Nano))
+			slot := parseAdoptedSlot(slots[segment.Source])
+			if !slot.known {
+				return nil, fmt.Errorf("credited source %q for issue #%s during %s → %s has no pinned slot (canonical identity required)", segment.Source, issue, start.Format(time.RFC3339Nano), end.Format(time.RFC3339Nano))
 			}
-			out = append(out, activetime.CreditedInterval{Issue: issue, Slot: slot, Start: start, End: end})
+			out = append(out, adoptedCredit{Issue: issue, Slot: slot, Start: start, End: end})
 		}
 	}
 	return out, nil
 }
 
 type actualSlotWindow struct {
-	slot       string
+	slot       adoptedSlot
 	start, end time.Time
 }
 
 func candidateSlotWindows(inputs *ownedActualInputs) ([]actualSlotWindow, error) {
 	var out []actualSlotWindow
 	for source, windows := range inputs.Windows {
-		slot := inputs.SourceSlots[source]
+		raw := inputs.SourceSlots[source]
+		slot := parseAdoptedSlot(raw)
 		for _, window := range windows {
-			if slot == "" {
-				return nil, fmt.Errorf("candidate source %q during %s → %s has no pinned slot", source, window.Start.Format(time.RFC3339Nano), window.End.Format(time.RFC3339Nano))
+			if !slot.known {
+				return nil, fmt.Errorf("candidate source %q during %s → %s has no pinned slot (canonical identity required)", source, window.Start.Format(time.RFC3339Nano), window.End.Format(time.RFC3339Nano))
 			}
 			out = append(out, actualSlotWindow{slot, window.Start, window.End})
 		}
@@ -68,9 +97,9 @@ func candidateSlotWindows(inputs *ownedActualInputs) ([]actualSlotWindow, error)
 	return out, nil
 }
 
-func overlappingSlotInterval(slot string, start, end time.Time, windows []actualSlotWindow) (time.Time, time.Time, bool) {
+func overlappingSlotInterval(slot adoptedSlot, start, end time.Time, windows []actualSlotWindow) (time.Time, time.Time, bool) {
 	for _, window := range windows {
-		if window.slot == slot && start.Before(window.end) && window.start.Before(end) {
+		if slot.known && window.slot.known && window.slot.address == slot.address && start.Before(window.end) && window.start.Before(end) {
 			if start.Before(window.start) {
 				start = window.start
 			}
@@ -140,13 +169,10 @@ func adoptedSlotRelationship(engagements []tracker.EngagementWindow, windows []a
 	if len(engagements) == 0 || len(windows) == 0 {
 		return slotUnknown, time.Time{}, time.Time{}
 	}
-	candidateSlots := make([]workspace.Address, len(windows))
-	for i, window := range windows {
-		address, ok := canonicalAdoptedSlot(window.slot)
-		if !ok {
+	for _, window := range windows {
+		if !window.slot.known {
 			return slotUnknown, time.Time{}, time.Time{}
 		}
-		candidateSlots[i] = address
 	}
 	var same bool
 	var sameStart, sameEnd time.Time
@@ -155,12 +181,12 @@ func adoptedSlotRelationship(engagements []tracker.EngagementWindow, windows []a
 			return slotUnknown, time.Time{}, time.Time{}
 		}
 		for _, owner := range engagement.Owners {
-			ownerSlot, ok := canonicalAdoptedSlot(owner.Workspace)
-			if !ok {
+			ownerSlot := parseAdoptedSlot(owner.Workspace)
+			if !ownerSlot.known {
 				return slotUnknown, time.Time{}, time.Time{}
 			}
-			for i, window := range windows {
-				if ownerSlot != candidateSlots[i] {
+			for _, window := range windows {
+				if ownerSlot.address != window.slot.address {
 					continue
 				}
 				same = true
@@ -180,11 +206,6 @@ func adoptedSlotRelationship(engagements []tracker.EngagementWindow, windows []a
 		return slotSame, sameStart, sameEnd
 	}
 	return slotDifferent, time.Time{}, time.Time{}
-}
-
-func canonicalAdoptedSlot(raw string) (workspace.Address, bool) {
-	address, err := workspace.ParseAddress(raw)
-	return address, err == nil && address.Repo != "" && address.String() == raw
 }
 
 // cardDateMayOverlap is only a cheap rejection filter. Card dates are local
@@ -364,7 +385,7 @@ func loadAdoptedExclusions(ctx context.Context, root, issueNum, plans string, cu
 				if interval.End.After(until) {
 					interval.End = until
 				}
-				protected = append(protected, interval)
+				protected = append(protected, activetime.CreditedInterval{Issue: interval.Issue, Slot: interval.Slot.String(), Start: interval.Start, End: interval.End})
 			}
 		}
 	}

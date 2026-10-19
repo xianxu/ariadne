@@ -27,6 +27,9 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 	if err := ctx.Err(); err != nil {
 		return fail(err)
 	}
+	if err := validateProtectedSlotIdentities(inputs); err != nil {
+		return fail(err)
+	}
 	peers, err := activetime.WindowIssues(root, m.Since, m.Until, inputs.Scope, inputs.TrackerRefs...)
 	if err != nil {
 		return fail(err)
@@ -143,6 +146,26 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 		res.Warnings = append(res.Warnings, fmt.Sprintf("excluded %.2f minutes from %s during %s → %s: already adopted by issue #%s in slot %s", exclusion.Minutes, exclusion.Source, exclusion.Start.Format(time.RFC3339Nano), exclusion.End.Format(time.RFC3339Nano), exclusion.Issue, exclusion.Slot))
 	}
 	return res
+}
+
+// The activity engine receives strings for persisted evidence compatibility.
+// Admit only canonical values before it compares source and protected slots;
+// old measurements without protection may still have absent source pins.
+func validateProtectedSlotIdentities(inputs *ownedActualInputs) error {
+	if len(inputs.Protected) == 0 {
+		return nil
+	}
+	for _, credit := range inputs.Protected {
+		if !parseAdoptedSlot(credit.Slot).known {
+			return fmt.Errorf("protected issue %s has no canonical pinned slot", credit.Issue)
+		}
+	}
+	for _, source := range inputs.Files {
+		if !parseAdoptedSlot(inputs.SourceSlots[source]).known {
+			return fmt.Errorf("source %q has no canonical pinned slot for protected intervals", source)
+		}
+	}
+	return nil
 }
 
 func measurementRounds(cuts []gatestate.MeasurementCut) []activetime.BoundaryRound {
