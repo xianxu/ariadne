@@ -38,12 +38,12 @@ Answers to the session file become real side docs of it: `<session-file-stem>.si
 
 Full flow; durable plan: [000455 plan](../plans/000455-tl-lead-operator-instruction-answers-become-side-docs-of-the-session-file-and-migrate-qa-answers-plan.md). Tasks 1-6 there.
 
-- [ ] sidedoc.RebaseLinks + AnswerName
-- [ ] link accepts only side-doc answers
-- [ ] SessionSync seam: ReadAll, Apply, Registrations, Rename (fake + conformance)
-- [ ] planMigration (pure, golden + conflicts)
-- [ ] migrate-answers executor, CLI, crash-resume test
-- [ ] help, atlas
+- [x] sidedoc.RebaseLinks + AnswerName
+- [x] link accepts only side-doc answers
+- [x] SessionSync seam: ReadAll, Apply, Registrations, Rename (fake + conformance)
+- [x] planMigration (pure, golden + conflicts)
+- [x] migrate-answers executor, CLI, crash-resume test
+- [x] help, atlas
 
 ## Estimate
 
@@ -71,3 +71,10 @@ Items, in order: the spec and plan with two plan-quality rounds; RebaseLinks and
 ### 2026-10-18
 
 - Claimed by ariadne:4 on the hub's dispatch. Finding: help.md has said since #412 that answers live in `tl-status-<op>.side/`, but `link` never enforced it, so the hub kept using qa/. Root cause is the unenforced rule (ARCH-PURPOSE); validation is part of the fix. Survey of ops' qa/ in the plan. Seven decisions posted to the hub.
+
+- Implementation:
+  - `RebaseLinks` fuzzing found an overlapping reference-definition and inline-link panic. It is fixed, and the failing input is kept as a regression seed.
+  - The seam drops `ReadAll` from the plan: couch's whole-file hash is sha256[:8] hex of the bytes, so `Apply`'s hash comes from `fileHash` of a Peek. `read --all` would mark the operator's unread session-file edits seen. Live conformance pins the formula.
+  - The read-only dry run against ops found the harness's empty `qa/xian-xu/.claude/.cc-writes` directory. A dot directory is now listed as left in place and never removed.
+  - Outside files keep their mtimes too: a rewritten side doc elsewhere, such as `design.side/01-…`, would otherwise show in the finder as a new agent write.
+  - All of this is under decision 4.
