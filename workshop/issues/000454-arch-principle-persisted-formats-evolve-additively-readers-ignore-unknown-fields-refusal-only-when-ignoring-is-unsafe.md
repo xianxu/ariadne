@@ -36,19 +36,19 @@ Add a principle to the registry (name to settle, e.g. ARCH-EVOLVE): persisted fo
 
 ## Plan
 
-- [ ] Add red-first contract and delivery guards for ARCH-EVOLVE, including
+- [x] Add red-first contract and delivery guards for ARCH-EVOLVE, including
   arch-principles, start-plan and the actual plan-quality prompt; keep the
   deliberate marker tripwire and affected golden snapshots current.
-- [ ] Add the registry entry with quick-flow inclusion, additive evolution,
+- [x] Add the registry entry with quick-flow inclusion, additive evolution,
   unknown-member capture and preservation through rewrites, strict validation
   of known fields/required members/duplicate keys, and a justified unsafe-ignore
   exception. Reuse every existing registry consumer (ARCH-DRY).
-- [ ] Commit self-contained plan fixtures and an opt-in live judge conformance
+- [x] Commit self-contained plan fixtures and an opt-in live judge conformance
   test through the existing dispatcher in a private checkout; verify a refusal
   without an unsafe-ignore reason is cited under the new principle, with
   preserving-additive and justified-unsafe controls. Normal suites stay offline.
-- [ ] Update README and atlas; run targeted checks and the recorded suite;
-  close and land through the normal gates.
+- [x] Update README and atlas and run targeted checks. Dispatch the recorded
+  suite before close; review may overlap its queue, but landing requires its pass.
 
 
 ## Log
@@ -67,3 +67,39 @@ Add a principle to the registry (name to settle, e.g. ARCH-EVOLVE): persisted fo
   hot path are introduced. The live test uses disposable private fixture state
   and the existing agent dispatcher; regular suites use deterministic fixtures
   and prompt construction. New prompt bytes scale linearly with one entry.
+
+### 2026-10-18 — implementation and observed judge conformance
+
+- Hub approved ARCH-EVOLVE, quick-flow=yes and the three-fixture live test.
+  All runtime consumers already derive from the embedded registry; no new
+  delivery mechanism was introduced. Updated the deliberate marker/quick-set
+  tests, counts, and only affected architecture blocks/lists in six goldens.
+- Red: registry, arch-principles and start-plan guards failed because ARCH-EVOLVE
+  was absent. The first attempt also saw a concurrent fixture write in the
+  repository mutation guard; a stable-tree rerun reproduced only expected
+  missing-principle failures before implementation. No tests and writers overlap
+  in subsequent verification.
+- Green: complete judge package passed in 16.860s with the model-calling test
+  skipped by default. Focused real arch-principles command-tree and start-plan
+  delivery checks passed in 7.232s.
+- Observed live conformance: `SDLC_LIVE_ARCH_EVOLVE=1 go test
+  ./cmd/sdlc/internal/judge -run '^TestLiveArchitectureEvolve$' -count=1 -v
+  -timeout 20m` passed in 52.904s using Codex through the existing dispatcher in
+  private committed fixture checkouts. The optional-field-refusal fixture raised
+  one Important finding: "ARCH-EVOLVE: Optional display metadata does not justify
+  incompatible version admission". Its rationale identifies retained label/URL
+  semantics and the missing unsafe-ignore reason. The additive-round-trip and
+  unsafe-action-guard controls each produced zero findings. These are actual
+  parsed model responses, not canned judge output.
+- README and atlas describe the policy, quick-flow inclusion and opt-in command.
+  The policy preserves unknown nested members and strict known-field validation;
+  this item changes no existing storage codec or version.
+
+## Revisions
+
+### 2026-10-18 — verification bookkeeping
+
+Plan checkboxes track completed implementation deliverables and targeted checks;
+the recorded full suite is dispatched before the close review and may queue in
+parallel under the worker contract. It must pass on the final code before landing;
+no test or review gate is waived.

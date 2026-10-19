@@ -1610,6 +1610,12 @@ pre-#187 behavior (#189).
 differs; two candidates refuse. Change-code, close's measure and review snapshot,
 the review manifest and `judge plan-quality` all read through it.
 Cite the marker (`ARCH-DRY`) in plans/Logs/findings.
+`ARCH-EVOLVE` (#454) applies on the quick flow too: persisted formats evolve
+additively, with unknown-member capture and preservation through every rewrite,
+strict known-field validation, and justified unsafe-ignore version refusals.
+Its opt-in live plan-quality fixture test is
+`SDLC_LIVE_ARCH_EVOLVE=1 go test ./cmd/sdlc/internal/judge -run '^TestLiveArchitectureEvolve$' -count=1 -v -timeout 20m`.
+Default suites exercise the registry/delivery guards and never call a model.
 
 **Adding an `ARCH-*` entry** flows into every RUNTIME consumer with no other edit
 — the block header's entry count, `{{ARCH_STAR}}`, every prompt, `start-plan`,
