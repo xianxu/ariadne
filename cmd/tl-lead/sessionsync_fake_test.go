@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -45,6 +46,14 @@ type fakeSessionSync struct {
 	writeCalls int // every WriteSection call
 	writes     int // successful writes
 	seenAll    bool
+
+	// The registry (#455): the paths couch tracks, any that the operator
+	// holds locked, every MarkAllSeen by path, and successful whole-file
+	// applies to the session file.
+	registered  map[string]bool
+	lockedFiles map[string]bool
+	seenFiles   []string
+	applies     int
 }
 
 // newFake is a session-sync file: couch serves only those, which it knows by
@@ -101,9 +110,12 @@ func (f *fakeSessionSync) WriteSection(_, heading, bodyPath, hash string, fold [
 	return nil
 }
 
-func (f *fakeSessionSync) Status(string) (SyncStatus, error) {
+func (f *fakeSessionSync) Status(file string) (SyncStatus, error) {
 	if f.gap {
 		return SyncStatus{}, fmt.Errorf("couch --session-sync status: %w", ErrDeliveryGap)
+	}
+	if f.lockedFiles[file] {
+		return SyncStatus{Holder: "operator"}, nil
 	}
 	return SyncStatus{Holder: f.holder, Owed: slices.Clone(f.owed)}, nil
 }
@@ -135,7 +147,8 @@ func (f *fakeSessionSync) seeAll() {
 	}
 }
 
-func (f *fakeSessionSync) MarkAllSeen(string) error {
+func (f *fakeSessionSync) MarkAllSeen(file string) error {
+	f.seenFiles = append(f.seenFiles, file)
 	f.seenAll = true
 	f.seeAll()
 	return nil
@@ -215,3 +228,107 @@ func (f *fakeSessionSync) WriteFrontmatter(_, bodyPath, hash string) error {
 }
 
 func (f *fakeSessionSync) Peek(string) (string, error) { return f.text(), nil }
+
+// Apply is couch's whole-file edit batch: refused under the lock, stale when
+// the file's hash moved, and all or none, every record resolved against the
+// file as it stands before anything is written (the occurrence-th plain
+// match of a non-empty old, no two records overlapping).
+func (f *fakeSessionSync) Apply(_, editsPath, hash string) error {
+	if f.holder == "operator" {
+		return ErrLocked
+	}
+	text := f.text()
+	if hash != fakeHash(text) {
+		return ErrStale
+	}
+	raw, err := os.ReadFile(editsPath)
+	if err != nil {
+		return err
+	}
+	var recs []struct {
+		Old, New, Explain string
+		Occurrence        int
+	}
+	if err := json.Unmarshal(raw, &recs); err != nil {
+		return fmt.Errorf("couch --session-sync apply refused (edits-invalid): %v", err)
+	}
+	type span struct {
+		at, end int
+		new     string
+	}
+	var spans []span
+	for i, r := range recs {
+		at, from := -1, 0
+		for n := 0; n < r.Occurrence && r.Old != ""; n++ {
+			j := strings.Index(text[from:], r.Old)
+			if j < 0 {
+				at = -1
+				break
+			}
+			at, from = from+j, from+j+len(r.Old)
+		}
+		if at < 0 || r.Occurrence < 1 {
+			return fmt.Errorf("couch --session-sync apply refused (edits-invalid): record %d does not resolve", i+1)
+		}
+		spans = append(spans, span{at, at + len(r.Old), r.New})
+	}
+	slices.SortFunc(spans, func(a, b span) int { return a.at - b.at })
+	var b strings.Builder
+	last := 0
+	for _, sp := range spans {
+		if sp.at < last {
+			return errors.New("couch --session-sync apply refused (edits-invalid): overlapping records")
+		}
+		b.WriteString(text[last:sp.at] + sp.new)
+		last = sp.end
+	}
+	b.WriteString(text[last:])
+	if err := f.load(b.String()); err != nil {
+		return err
+	}
+	f.applies++
+	return nil
+}
+
+// load replaces the fake's file with text, in text()'s shape.
+func (f *fakeSessionSync) load(text string) error {
+	front, rest, ok := sidedoc.FrontBlock(text)
+	if !ok {
+		return errors.New("fake: no frontmatter")
+	}
+	f.front = strings.TrimSuffix(strings.TrimPrefix(front, "---\n"), "\n---")
+	rest = strings.TrimPrefix(rest, "\n")
+	f.sections, f.order = map[string]string{}, nil
+	for _, part := range strings.Split(rest, "\n## ")[1:] {
+		h, body, _ := strings.Cut(part, "\n")
+		f.sections[h] = body
+		f.order = append(f.order, h)
+	}
+	return nil
+}
+
+func (f *fakeSessionSync) Registrations() ([]string, error) {
+	var out []string
+	for p := range f.registered {
+		out = append(out, p)
+	}
+	slices.Sort(out)
+	return out, nil
+}
+
+// Rename is couch's: the new path must exist, and a rename already done
+// (old gone from the registry, new in it) succeeds again.
+func (f *fakeSessionSync) Rename(old, new string) error {
+	if !f.registered[old] {
+		if f.registered[new] {
+			return nil
+		}
+		return fmt.Errorf("couch --session-sync rename refused (not-registered): %s", old)
+	}
+	if _, err := os.Stat(new); err != nil {
+		return fmt.Errorf("couch --session-sync rename: %v", err)
+	}
+	delete(f.registered, old)
+	f.registered[new] = true
+	return nil
+}

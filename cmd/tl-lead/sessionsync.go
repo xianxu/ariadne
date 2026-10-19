@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,6 +36,24 @@ type SessionSync interface {
 	// Peek reads the whole file without moving couch's diff baseline, for
 	// the body's links and for a decision that must not read through couch.
 	Peek(file string) (string, error)
+	// Apply makes every {old, occurrence, new, explain} record in editsPath
+	// against the whole file if it still has hash (fileHash of a Peek), all
+	// or none (#455): one compare-and-replace for many edits.
+	Apply(file, editsPath, hash string) error
+	// Registrations lists the absolute paths couch tracks (`list --json`).
+	Registrations() ([]string, error)
+	// Rename moves a registration to new, which must already exist; a rerun
+	// of a rename already done succeeds (`rename OLD NEW`).
+	Rename(old, new string) error
+}
+
+// fileHash is couch's name for one version of a whole file (pair
+// sessionsync.Hash): what Apply's hash compares against. Computing it from a
+// Peek, not a `read --all`, leaves the operator's unread edits in the TL's
+// diff. TestSessionSyncConformance pins the formula.
+func fileHash(text string) string {
+	sum := sha256.Sum256([]byte(text))
+	return hex.EncodeToString(sum[:8])
 }
 
 // SyncStatus is the part of `status --json` tl-lead reads.
@@ -190,4 +210,44 @@ func (c couchSessionSync) WriteFrontmatter(file, bodyPath, hash string) error {
 func (c couchSessionSync) Peek(file string) (string, error) {
 	raw, err := os.ReadFile(file)
 	return string(raw), err
+}
+
+func (c couchSessionSync) Apply(file, editsPath, hash string) error {
+	raw, err := c.run("apply", editsPath, file, "--if-hash", hash, "--json")
+	if err != nil {
+		return err
+	}
+	_, err = decodeReply("apply", raw)
+	return err
+}
+
+func (c couchSessionSync) Registrations() ([]string, error) {
+	raw, err := c.run("list", "--json")
+	if err != nil {
+		return nil, err
+	}
+	var r struct {
+		Code, Error   string
+		Registrations []struct{ File string }
+	}
+	if err := json.Unmarshal(raw, &r); err != nil {
+		return nil, fmt.Errorf("couch --session-sync list: unreadable reply: %v", err)
+	}
+	if r.Code != "ok" {
+		return nil, fmt.Errorf("couch --session-sync list refused (%s): %s", r.Code, r.Error)
+	}
+	out := make([]string, 0, len(r.Registrations))
+	for _, reg := range r.Registrations {
+		out = append(out, reg.File)
+	}
+	return out, nil
+}
+
+func (c couchSessionSync) Rename(old, new string) error {
+	raw, err := c.run("rename", old, new, "--json")
+	if err != nil {
+		return err
+	}
+	_, err = decodeReply("rename", raw)
+	return err
 }

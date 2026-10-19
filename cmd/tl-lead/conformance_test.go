@@ -160,3 +160,98 @@ func TestCouchActorsConformance(t *testing.T) {
 		t.Error("no actors from a running Couch")
 	}
 }
+
+// TestSessionSyncRegistryConformance pins what the migration (#455) relies
+// on in the real couch: a whole-file hash is fileHash of the file's bytes;
+// apply is all or none and stale on a moved hash; rename needs the new file
+// to exist, moves the registration, and succeeds again once done. It uses a
+// scratch file registered to a dummy owner and forgets it at the end.
+// Opt-in, like TestSessionSyncConformance.
+func TestSessionSyncRegistryConformance(t *testing.T) {
+	if os.Getenv("TL_LEAD_LIVE") != "1" {
+		t.Skip("set TL_LEAD_LIVE=1 to run against the real couch")
+	}
+	bin, err := exec.LookPath("couch")
+	if err != nil {
+		t.Skip("couch is not on PATH")
+	}
+	ss := couchSessionSync{bin: bin}
+	dir := t.TempDir()
+	a, b := filepath.Join(dir, "a.md"), filepath.Join(dir, "b.md")
+	if err := os.WriteFile(a, []byte("---\ntype: session-sync\ncouch-owner: tl-lead-conformance:0\n---\n\n## A\n\nsee [x](qa/x.md)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ss.run("register", a, "--owner", "tl-lead-conformance:0", "--json"); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	t.Cleanup(func() {
+		for _, p := range []string{b, a} {
+			_, _ = ss.run("forget", p, "--json")
+		}
+	})
+
+	raw, err := ss.run("read", "--all", a, "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := decodeReply("read", raw)
+	text, _ := ss.Peek(a)
+	if err != nil || r.Read == nil || r.Read.Hash != fileHash(text) {
+		t.Fatalf("read --all hash %v, fileHash %s, err %v: the formula drifted", r.Read, fileHash(text), err)
+	}
+	edits := func(recs string) string {
+		p := filepath.Join(dir, "edits.json")
+		if err := os.WriteFile(p, []byte(recs), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	good := `[{"old":"](qa/x.md)","occurrence":1,"new":"](s.side/x.md)","explain":"conformance"}]`
+	bad := `[{"old":"](qa/x.md)","occurrence":1,"new":"](s.side/x.md)","explain":"ok"},{"old":"absent text","occurrence":1,"new":"y","explain":"bad"}]`
+	if err := ss.Apply(a, edits(bad), fileHash(text)); err == nil {
+		t.Error("an apply with an unresolvable record succeeded")
+	}
+	if after, _ := ss.Peek(a); after != text {
+		t.Errorf("a refused apply changed the file:\n%s", after)
+	}
+	if err := ss.Apply(a, edits(good), "0000000000000000"); !errors.Is(err, ErrStale) {
+		t.Errorf("a moved hash: err = %v, want ErrStale", err)
+	}
+	if err := ss.Apply(a, edits(good), fileHash(text)); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if after, _ := ss.Peek(a); !strings.Contains(after, "](s.side/x.md)") {
+		t.Errorf("apply did not land:\n%s", after)
+	}
+
+	if err := ss.Rename(a, b); err == nil {
+		t.Error("a rename to a path with no file succeeded")
+	}
+	if err := os.Rename(a, b); err != nil {
+		t.Fatal(err)
+	}
+	if err := ss.Rename(a, b); err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	regs, err := ss.Registrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+	has := func(p string) bool {
+		for _, r := range regs {
+			if r == p {
+				return true
+			}
+		}
+		return false
+	}
+	// couch canonicalises paths; compare against the resolved temp dir.
+	rb, _ := filepath.EvalSymlinks(b)
+	ra := filepath.Join(filepath.Dir(rb), "a.md")
+	if !(has(b) || has(rb)) || has(a) || has(ra) {
+		t.Errorf("after rename, registrations = %v", regs)
+	}
+	if err := ss.Rename(a, b); err != nil {
+		t.Errorf("a rename already done: %v, want success", err)
+	}
+}
