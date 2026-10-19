@@ -172,17 +172,18 @@ func TestInstructionsListAndLink(t *testing.T) {
 	if !strings.HasSuffix(out, "hash: "+h+"\n") || !strings.HasPrefix(out, "1\t1. Why") {
 		t.Fatalf("list output:\n%s", out)
 	}
-	out, err = run(t, deps{ss: f}, "status", "instructions", "link", file, "2", "qa/op/a.md", "--hash", h)
-	if err != nil || f.writes != 1 || !strings.Contains(f.sections[instructionsHeading], "1. Rename the train → [answer](qa/op/a.md)") {
+	a, b, c := answerDoc(t, file, "2026-10-18-01-a.md"), answerDoc(t, file, "2026-10-18-02-b.md"), answerDoc(t, file, "2026-10-18-03-c.md")
+	out, err = run(t, deps{ss: f}, "status", "instructions", "link", file, "2", a, "--hash", h)
+	if err != nil || f.writes != 1 || !strings.Contains(f.sections[instructionsHeading], "1. Rename the train → [answer]("+a+")") {
 		t.Fatalf("link: err %v, writes %d, out %q", err, f.writes, out)
 	}
 	// The section moved (this write changed it): the old hash now refuses.
-	if _, err = run(t, deps{ss: f}, "status", "instructions", "link", file, "1", "qa/op/b.md", "--hash", h); exitCode(err) != 6 || f.writes != 1 {
+	if _, err = run(t, deps{ss: f}, "status", "instructions", "link", file, "1", b, "--hash", h); exitCode(err) != 6 || f.writes != 1 {
 		t.Errorf("a stale hash: exit %d, writes %d; want exit 6 and no write", exitCode(err), f.writes)
 	}
 	// Already answered: no write.
 	h = fakeHash(f.sections[instructionsHeading])
-	if out, err = run(t, deps{ss: f}, "status", "instructions", "link", file, "2", "qa/op/c.md", "--hash", h); err != nil || f.writes != 1 || !strings.Contains(out, "already answered") {
+	if out, err = run(t, deps{ss: f}, "status", "instructions", "link", file, "2", c, "--hash", h); err != nil || f.writes != 1 || !strings.Contains(out, "already answered") {
 		t.Errorf("an answered bullet: err %v, writes %d, out %q", err, f.writes, out)
 	}
 }
@@ -193,7 +194,7 @@ func TestInstructionsLinkNeverRetries(t *testing.T) {
 	f := newFake(map[string]string{instructionsHeading: opSection})
 	f.editBefore[1] = map[string]string{instructionsHeading: "1. A new first bullet\n" + opSection}
 	file, _ := statusFile(t, "")
-	_, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "2", "qa/op/a.md", "--hash", fakeHash(opSection))
+	_, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "2", answerDoc(t, file, "2026-10-18-01-a.md"), "--hash", fakeHash(opSection))
 	if exitCode(err) != 6 || f.writeCalls != 1 || f.writes != 0 {
 		t.Errorf("exit %d, write calls %d, writes %d; want exit 6 after one attempt and no write", exitCode(err), f.writeCalls, f.writes)
 	}
@@ -203,14 +204,15 @@ func TestInstructionsLinkRefusals(t *testing.T) {
 	f := newFake(map[string]string{instructionsHeading: opSection})
 	file, _ := statusFile(t, "")
 	h := fakeHash(opSection)
-	if _, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "2", "qa/op/a.md"); err == nil {
+	a := answerDoc(t, file, "2026-10-18-01-a.md")
+	if _, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "2", a); err == nil {
 		t.Error("link without --hash must refuse")
 	}
-	if _, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "two", "qa/op/a.md", "--hash", h); err == nil {
+	if _, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "two", a, "--hash", h); err == nil {
 		t.Error("a non-numeric POS must refuse")
 	}
 	f.holder = "operator"
-	if _, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "2", "qa/op/a.md", "--hash", h); exitCode(err) != 3 || f.writes != 0 {
+	if _, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "2", a, "--hash", h); exitCode(err) != 3 || f.writes != 0 {
 		t.Errorf("under the operator's lock: exit %d, writes %d; want exit 3, no write", exitCode(err), f.writes)
 	}
 }
@@ -240,5 +242,60 @@ func TestInstructionBulletsReadTheChatExample(t *testing.T) {
 		if len(bs) != 5 || strings.Join(open, " ") != want {
 			t.Errorf("%s: %d bullets, open %q, want 5 and %q", tree, len(bs), open, want)
 		}
+	}
+}
+
+// answerDoc writes a valid answer doc of the status file (#455) and returns
+// its link target.
+func answerDoc(t *testing.T, file, name string) string {
+	t.Helper()
+	side := strings.TrimSuffix(filepath.Base(file), ".md") + ".side"
+	if err := os.MkdirAll(filepath.Join(filepath.Dir(file), side), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "---\ntype: side-doc\nparent: ../" + filepath.Base(file) + "\nmarker: \"ask\"\ncollaboration-mode: discussion\n---\n\n# Ask\n"
+	if err := os.WriteFile(filepath.Join(filepath.Dir(file), side, name), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return side + "/" + name
+}
+
+// link writes only side-doc answers of the session file (#455): each refusal
+// names the expected shape and writes nothing, the index included.
+func TestInstructionsLinkOnlySideDocAnswers(t *testing.T) {
+	f := newFake(map[string]string{instructionsHeading: opSection})
+	file, _ := statusFile(t, "")
+	dir := filepath.Dir(file)
+	write := func(rel, text string) string {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, rel)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, rel), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return rel
+	}
+	fm := func(extra string) string { return "---\ntype: side-doc\n" + extra + "---\n# x\n" }
+	for _, c := range []struct{ target, want string }{
+		{write("qa/op/2026-10-18-01-a.md", fm("parent: ../../tl-status-op.md\n")), "not an answer doc of this session file"},
+		{write("tl-status-op.side/01-why.md", fm("parent: ../tl-status-op.md\n")), "not an answer doc of this session file"},
+		{write("tl-status-op.side/2026-10-18-01-a.side/2026-10-18-02-b.md", fm("parent: ../2026-10-18-01-a.md\n")), "not an answer doc of this session file"},
+		{"tl-status-op.side/2026-10-18-09-missing.md", "write the answer doc first"},
+		{write("tl-status-op.side/2026-10-18-03-untyped.md", "---\nparent: ../tl-status-op.md\n---\n"), "no `type: side-doc`"},
+		{write("tl-status-op.side/2026-10-18-04-plain.md", "# no frontmatter\n"), "no `type: side-doc`"},
+		{write("tl-status-op.side/2026-10-18-05-other.md", fm("parent: ../other.md\n")), "must name the session file"},
+		{write("tl-status-op.side/2026-10-18-06-orphan.md", fm("")), "must name the session file"},
+	} {
+		_, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "1", c.target, "--hash", fakeHash(opSection))
+		if err == nil || !strings.Contains(err.Error(), c.want) || f.writes != 0 || f.frontWrites != 0 {
+			t.Errorf("%s: err %v, writes %d/%d; want a refusal naming %q and no write", c.target, err, f.writes, f.frontWrites, c.want)
+		}
+	}
+	// A migrated answer keeps its own process-instruction (#455 decision 3),
+	// and a quoted parent reads the same.
+	ok := write("tl-status-op.side/2026-10-18-07-kept.md", fm("parent: \"../tl-status-op.md\"\nprocess-instruction: \"[free-form] x\"\n"))
+	if _, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "1", ok, "--hash", fakeHash(opSection)); err != nil {
+		t.Errorf("a valid answer refused: %v", err)
 	}
 }

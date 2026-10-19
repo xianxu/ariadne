@@ -71,6 +71,7 @@ func pinCutoffClock(t *testing.T, offset time.Duration) {
 // the card untouched; the re-run finds everything current and plans.
 func TestStartPlanCatchesUpSlotAndDependency(t *testing.T) {
 	f := newCatchUpFixture(t)
+	fakeRunningSDLC(t, binaryBuild{Source: f.dep.root, Revision: f.dep.git("rev-parse", "HEAD")})
 	peerAdd(t, f.slot, "slot.go", "package slot\n")
 	peerAdd(t, f.dep, "dep.go", "package dep\n")
 	claimed := f.slot.card(f.cardPath)
@@ -164,9 +165,8 @@ func TestStartPlanToleratesALagFreshnessAccepts(t *testing.T) {
 	}
 }
 
-// BR-1: refresh keeps updates it completed before failing. A checkout that moved
-// means the running sdlc predates it, so start-plan stops for a re-run instead of
-// reading the failure as "nothing moved".
+// BR-1: refresh keeps updates it completed before failing. Refuse a partial
+// refresh failure precisely without claiming an unrelated running binary is old.
 func TestStartPlanStopsWhenAFailedRefreshAdvancedACheckout(t *testing.T) {
 	f := newCatchUpFixture(t)
 	peerAdd(t, f.dep, "dep.go", "package dep\n")
@@ -177,7 +177,7 @@ func TestStartPlanStopsWhenAFailedRefreshAdvancedACheckout(t *testing.T) {
 	})
 	var out bytes.Buffer
 	err := startPlanBranch(context.Background(), &out, 9)
-	if err == nil || !strings.Contains(err.Error(), "caught up "+f.dep.root) || !strings.Contains(err.Error(), "compile failed") {
+	if err == nil || !strings.Contains(err.Error(), "caught up "+f.dep.root) || !strings.Contains(err.Error(), "compile failed") || strings.Contains(err.Error(), "built before") {
 		t.Fatalf("a partial catch-up must stop for a re-run naming the moved checkout: %v", err)
 	}
 	if f.slot.git("branch", "--show-current") != "main" || f.slot.card(f.cardPath) != claimed {
@@ -237,5 +237,63 @@ func TestRunInstalledWeaveRunsRefreshInRoot(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	if err := runInstalledWeave(context.Background(), root, &out); err == nil || !strings.Contains(err.Error(), "find installed weave") {
 		t.Fatalf("a missing weave must be named: %v", err)
+	}
+}
+
+func fakeRunningSDLC(t *testing.T, b binaryBuild) {
+	t.Helper()
+	old := runningSDLC
+	runningSDLC = func() binaryBuild { return b }
+	t.Cleanup(func() { runningSDLC = old })
+}
+
+func TestCatchUpDistinguishesRunningSource(t *testing.T) {
+	for _, own := range []bool{false, true} {
+		t.Run(fmt.Sprintf("own=%t", own), func(t *testing.T) {
+			for _, current := range []bool{false, true} {
+				t.Run(fmt.Sprintf("current=%t", current), func(t *testing.T) {
+					f := newCatchUpFixture(t)
+					peerAdd(t, f.dep, "dep.go", "package dep\n")
+					source := testfix.Repo(t, testfix.InitialCommit())
+					if own {
+						source = f.dep.root
+					}
+					rev := "older-build"
+					if current {
+						rev = f.dep.originMain()
+					}
+					fakeRunningSDLC(t, binaryBuild{Source: source, Revision: rev})
+					fakeWeave(t, f, func(io.Writer) error { f.dep.git("merge", "-q", "--ff-only", "origin/main"); return nil })
+					err := catchUpBeforeWork(context.Background(), io.Discard, f.slot.root, 9)
+					if own && !current {
+						if err == nil || !strings.Contains(err.Error(), "built before") {
+							t.Fatalf("want stale-source refusal: %v", err)
+						}
+					} else if err != nil {
+						t.Fatalf("unrelated/current source must proceed: %v", err)
+					}
+				})
+			}
+		})
+	}
+}
+
+// A central binary source need not occur in the slot's substrate walk.
+func TestCatchUpObservesRunningSourceOutsideDependencyChain(t *testing.T) {
+	f := newCatchUpFixture(t)
+	peerAdd(t, f.dep, "dep.go", "package dep\n")
+	source := testfix.Repo(t, testfix.InitialCommit())
+	rev := testfix.Git(t, source, "rev-parse", "HEAD")
+	fakeRunningSDLC(t, binaryBuild{Source: source, Revision: strings.TrimSpace(rev)})
+	fakeWeave(t, f, func(io.Writer) error {
+		f.dep.git("merge", "-q", "--ff-only", "origin/main")
+		writeRepoFile(t, source, "new.go", "package source\n")
+		testfix.Git(t, source, "add", "new.go")
+		testfix.Git(t, source, "commit", "-qm", "advance running source")
+		return nil
+	})
+	err := catchUpBeforeWork(context.Background(), io.Discard, f.slot.root, 9)
+	if err == nil || !strings.Contains(err.Error(), "built before") || !strings.Contains(err.Error(), source) {
+		t.Fatalf("want own-source refusal outside dependency chain: %v", err)
 	}
 }

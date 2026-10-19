@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -183,6 +185,11 @@ func linkInstruction(d deps, out io.Writer, file string, pos int, target, hash s
 		return nil
 	}
 	if err != nil {
+		return err
+	}
+	if err := answerTarget(file, target, func(rel string) ([]byte, error) {
+		return os.ReadFile(filepath.Join(filepath.Dir(file), rel))
+	}); err != nil {
 		return err
 	}
 	if err := syncIndex(d, out, file, []string{target}); err != nil {
