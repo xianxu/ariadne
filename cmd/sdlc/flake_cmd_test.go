@@ -212,6 +212,11 @@ func TestFlakeRegistryFromTrackerCards(t *testing.T) {
 	if id, ok := reg.Lookup(flakeT1); !ok || id != "000051" {
 		t.Errorf("the setter dropped the card's existing test: %q %v (BR-2)", id, ok)
 	}
+	// A repeat of the same registration writes nothing (its recovery contract).
+	var out strings.Builder
+	if err := d.addTests(ctx, &out, io.Discard, 51, []string{flakeT2}); err != nil {
+		t.Errorf("a repeated registration: %v", err)
+	}
 }
 
 // The setter's decision on a real card: the tests already there survive, the

@@ -461,8 +461,8 @@ func readSuiteAttemptsBudget(root string, limit int, maxBytes int64) ([]SuiteAtt
 			seen++
 			p := filepath.Join(root, "attempts", e.Name())
 			f, openErr := os.Open(p)
-			if errors.Is(openErr, fs.ErrNotExist) {
-				continue // pruned since the listing: a published record is only ever removed by prune
+			if _, lerr := os.Lstat(p); errors.Is(openErr, fs.ErrNotExist) && errors.Is(lerr, fs.ErrNotExist) {
+				continue // the entry itself is gone: pruned since the listing (a dangling link is still unreadable)
 			}
 			if openErr != nil {
 				warnings = append(warnings, p+": "+openErr.Error())
