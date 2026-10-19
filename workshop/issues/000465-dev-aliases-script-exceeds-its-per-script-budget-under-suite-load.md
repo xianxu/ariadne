@@ -32,8 +32,9 @@ Keep the per-script ceiling. Reduce the cost of `construct/scripts/test/dev-alia
 
 ## Done when
 
-- A counted/profiling fixture identifies the expensive setup or repeated work; the script's wall time falls materially under the existing two-minute ceiling under representative fleet load without simply increasing a sleep or deadline.
-- Its existing 82 assertions remain covered, and a recorded full suite plus repeated targeted runs pass.
+- All 82 original behavioral assertions remain covered, including partial/concurrent builds, failed-output preservation and start < mid-build edit < completed-output timestamps. The timestamp regression fails if build-start timestamp restoration is removed. Keep the two-minute per-script ceiling unchanged.
+- Pure path splitting matches the real dirname/basename utilities for root, empty/single components, trailing/repeated slashes, spaces and newlines. Counted N/2N owner and CLI tests require zero path-utility subprocesses from the generator.
+- Counted profiling demonstrates the operation reduction; repeated targeted checks and a loaded recorded full suite pass. On the noisy shared machine, acceptance uses these counts and the loaded-suite pass rather than a standalone wall-time threshold, as approved by the hub.
 
 ## Plan
 
@@ -61,3 +62,7 @@ Keep the per-script ceiling. Reduce the cost of `construct/scripts/test/dev-alia
 2026-10-19 — CI found a deterministic Linux fixture defect: GNU mv refuses a rename when source and installed target are hardlinks to the same inode. Local BSD mv had accepted that fixture. Changed successful build stubs to copy the single immutable sentinel template, preserving distinct output inodes and metadata. Cancelled queued attempt f538d680216897b9889f96936a7dba3c through `sdlc local-check cancel --name suite` before it acquired the machine slot; this is a branch fix, not a flake or retry. Fresh targeted/CI/recorded checks follow on the fixed head.
 
 2026-10-19 — Review overlap checkpoint: split the last Plan row at the implementation boundary. Repeated targeted checks are complete; the recorded-suite pass remains mandatory in Done-when and at landing. This preserves scope while allowing the worker protocol's authorized close-review/queued-suite overlap. On the copied-sentinel head 6e5120fd877baaac47dd1c4c7096a8bc819d0ce4, standalone 82/82 and all six three-environment runner repetitions passed (139.566s total package time). Fresh recorded attempt 6bca6bbc7eba03b5e334ea56b3ee49ea is queued; landing waits for its pass and green CI. #465's flake registration is retired only after landing/completion, not manually during this queue.
+
+2026-10-19 — Close round 1 BR-1/BR-2 correction: replaced the sole mid-build timestamp fixture with controlled start=2000, edit=2001, output=2002 times, so a missing restoration is observable without sleeping. Other future-date fixtures deliberately test staleness, not start-time restoration. Synchronized the current Done-when contract with the approved path/conformance/count requirements and noisy-machine acceptance; preserved all 82 assertions and the loaded recorded-suite requirement. Cancelled still-queued attempt 6bca6bbc7eba03b5e334ea56b3ee49ea before this test-code fix; a fresh final-head suite is required.
+
+2026-10-19 — BR-1 proof: normal ordered-time fixture passes 82/82. A temporary real-generator mutation replacing `touch -r` with a no-op makes the behavioral assertion “an edit made during the build makes the next call rebuild” fail with an empty build trace (79 pass, three failures including two independent function-shape guards). Mutation artifacts: `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/aliases465-timestamp.Ib4FQ0`. No sleep or ceiling change was introduced.

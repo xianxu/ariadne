@@ -440,12 +440,18 @@ CG="$WS/countbin"; mkdir -p "$CG"
 cat > "$CG/go" <<'STUBEOF'
 #!/bin/sh
 echo go >> "$TRACE"
-if [ -n "${EDIT_DURING_BUILD:-}" ]; then
-    touch -t 203001010000 "$EDIT_DURING_BUILD"
-fi
 while [ "$#" -gt 0 ] && [ "$1" != -o ]; do shift; done
 [ "$#" -ge 2 ] || exit 2
-cp "$SENTINEL" "$2"
+out="$2"
+if [ -n "${EDIT_DURING_BUILD:-}" ]; then
+    # Ordered synthetic times avoid sleeping while pinning start < edit < output.
+    # Without the alias's touch -r restoration, output is newer than the edit
+    # and the next invocation incorrectly skips its required rebuild.
+    touch -t 200001010000 "${out%/*}/.start"
+    touch -t 200101010000 "$EDIT_DURING_BUILD"
+fi
+cp "$SENTINEL" "$out"
+if [ -n "${EDIT_DURING_BUILD:-}" ]; then touch -t 200201010000 "$out"; fi
 STUBEOF
 printf '#!/bin/sh\necho make >> "$TRACE"\n' > "$CG/make"
 chmod +x "$CG/go" "$CG/make"
