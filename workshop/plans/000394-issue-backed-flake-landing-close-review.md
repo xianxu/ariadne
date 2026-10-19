@@ -85,3 +85,67 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"133673a6-7a80-4706-8a5e-64071791ce05","repository":"github.com/xianxu/ariadne","issue_id":"000394","recipe":"milestone-review","round":9,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/913af4c248182d61","reviewed_head":"bda6cc0efc5613bf2994d9cdca538942bb2d42fd","slot":"ariadne:2","requested_at":"2026-10-19T04:37:16.152728Z"},"phase":"finished","pid":21786,"started_at":"2026-10-19T04:37:16.514649Z","finished_at":"2026-10-19T04:50:14.718877Z","session_id":"525a1d20-4dde-4bc1-84e3-214166e46c0f","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T23:19:19-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 394 — Issue-backed flake landing and daily triage |
+| repo | ariadne |
+| issue file | workshop/issues/000394-issue-backed-flake-landing.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 67db085211bed150086a8f929727671f52f7ce23..cf0284d281f887fbcea87863421bc1e8ace37c3c |
+| command | sdlc close --issue 394 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-18T23:19:19-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Reviewing the conflict resolution; next I'll build and run the affected tests.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This window contains no new feature work. It has two parts. The first resolves a merge conflict in `cmd/sdlc/localcheck_run.go`: the pinned base still had literal conflict markers in `runUnderSlot`. The second moves two #394 lessons to a different spot in `workshop/lessons.md`. The resolution keeps both sides. It keeps this branch's change that made `runUnderSlot` generic, so the slot uses the `weight` parameter instead of `c.Weight`. It also keeps main's #452 queue priority, which passes `subject` to `acquireSuiteSlot`. The resolution also threads `subject` through `suiteGateRun`, so the known-flake rerun queues at the same priority as the suite run that triggered it. That change was needed: the `runUnderSlot` signature changed, and the rerun runs only on the suite path, where `subject.Issue` is kept. `go build ./...` and `go vet` are clean. `go test -run 'LocalCheck|KnownFlake|Flake|SuiteSlot|Priority|Republish' ./cmd/sdlc` passed (308s). The window changes no Spec, Revisions or Done-when, so scope is unchanged.
+
+1. **Strengths**
+   - `cmd/sdlc/localcheck_run.go:257`: the resolution calls `acquireSuiteSlot(ownedCtx, d, wt, weight, helper, subject)`. That keeps this branch's generic weight and main's priority subject. No stale `c` reference is left inside the generic helper.
+   - `cmd/sdlc/localcheck_flakes.go:37,86`: the rerun gets the suite's priority subject through `suiteGateRun` rather than a second `suiteSubject` lookup (ARCH-DRY pass).
+   - No conflict markers remain in the code. The `<<<<<<<` matches under `cmd/` are test fixtures and the marker detector in `republish.go`.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none new. The `lessons.md` change only moves two bullets into the section they belong to; the text is unchanged.
+
+5. **Test coverage notes:** The resolution only threads a parameter through, and the existing local-check, slot and known-flake tests pass on it. No test checks that the rerun inherits the suite's priority subject. A cheap later addition would be a fake slot acquirer that records the subject it receives.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass.** The subject is computed once and reused.
+   - **ARCH-PURE: pass.** No logic was added inside the IO code; it is parameter threading only.
+   - **ARCH-PURPOSE: pass.** Both #394 and #452 still do what they set out to do after the merge.
+   - **ARCH-EVOLVE: pass.** No persisted format changes in this window.
+
+7. **Plan revision recommendations:** none.
+
+**BR-23 disposition:** Round 9 confirmed the concurrent-prune half fixed and tested. The remaining cap refusal is a deliberate fail-closed choice, documented in two places:
+- `cmd/sdlc/helptext/local-check.md:97`: "A test-stats store it cannot read whole also refuses the pass."
+- `atlas/workflow/ci-merge-check.md:192-194`: says the 10,000-record / 64 MiB caps now gate landings, notes the measured headroom, and says a record pruned mid-read is skipped.
+
+```findings
+dispose:
+  - id: BR-23
+    disposition: addressed
+    note: |
+      The concurrent-prune half was fixed and tested in bda6cc0e (round 9). The remaining cap refusal is deliberately fail-closed and is now documented as asked: local-check help (helptext/local-check.md:97) and atlas/workflow/ci-merge-check.md:192-194, which names the 10,000/64 MiB caps and the measured ~60x headroom. Nothing in this interdiff changes that behavior.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"49888287-8134-4675-b949-a0356bafb724","repository":"github.com/xianxu/ariadne","issue_id":"000394","recipe":"fix-review","round":10,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/04b23ac34fc7e191","reviewed_head":"cf0284d281f887fbcea87863421bc1e8ace37c3c","slot":"ariadne:2","requested_at":"2026-10-19T06:13:17.09262Z"},"phase":"finished","pid":79053,"started_at":"2026-10-19T06:13:17.204552Z","finished_at":"2026-10-19T06:19:14.094788Z","session_id":"8e1c9fbe-2006-4f9d-9e54-c92a16c58623","outcome":"returned"}] -->

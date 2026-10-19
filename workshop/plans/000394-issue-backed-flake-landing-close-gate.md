@@ -1529,6 +1529,182 @@ rounds:
       isolation: fenced
       reviewed: bda6cc0efc5613bf2994d9cdca538942bb2d42fd
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 49888287-8134-4675-b949-a0356bafb724
+            repository: github.com/xianxu/ariadne
+            issue_id: "000394"
+            recipe: fix-review
+            round: 10
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/04b23ac34fc7e191
+            reviewed_head: cf0284d281f887fbcea87863421bc1e8ace37c3c
+            slot: ariadne:2
+            requested_at: "2026-10-19T06:13:17.09262Z"
+          phase: finished
+          pid: 79053
+          started_at: "2026-10-19T06:13:17.204552Z"
+          finished_at: "2026-10-19T06:19:14.094788Z"
+          session_id: 8e1c9fbe-2006-4f9d-9e54-c92a16c58623
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: cf0284d281f887fbcea87863421bc1e8ace37c3c
+        tracker_head: f32e2d07962bfcc0e909f548482f1eaa196c5045
+        branch_point: 5e0e91bc73e248068275f5887d7cf1d5b0102801
+        since: "2026-10-18T15:44:55-07:00"
+        until: "2026-10-18T21:50:26-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T15:44:55-07:00"
+              end: "2026-10-18T21:50:26-07:00"
+              began: "2026-10-18T15:44:55-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0191d03b-74fe-4185-8091-8374ef70c0c9
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6f878e4449d6a70c6d117dcc8e3e2dc7eb921bedd5cb164ae329d9abc8dbd463
+              started: "2026-10-18T22:59:31.062Z"
+              spawned: false
+              bytes: 393720
+              windows:
+                - start: "2026-10-18T22:59:31.062Z"
+                  end: "2026-10-18T21:50:26-07:00"
+            - harness: claude
+              id: 1baa8f6b-092f-413a-83f9-0b25ed003914
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 15568299dbfd540e29417f414005c5fb2212d08913ca02800e9b5f9ab1030c6c
+              started: "2026-10-18T22:57:31.956Z"
+              spawned: false
+              bytes: 519489
+              windows:
+                - start: "2026-10-18T22:57:31.956Z"
+                  end: "2026-10-18T21:50:26-07:00"
+            - harness: claude
+              id: 23a2a6e8-f430-49c9-938f-6a09729f7067
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6c2a2ebaf3bf9384772532e724d4644737187d5f9aab48909773ef49f7eecb93
+              started: "2026-10-18T22:53:00.413Z"
+              spawned: false
+              bytes: 571220
+              windows:
+                - start: "2026-10-18T22:53:00.413Z"
+                  end: "2026-10-18T21:50:26-07:00"
+            - harness: claude
+              id: aa450fd7-6a6d-4cd2-abcc-3339322077dc
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 776fdfac606030c3cf04f41a719a0ad32e2a31cec8e0f54a07ed46e3daf64dd0
+              started: "2026-10-18T22:59:17.58Z"
+              spawned: false
+              bytes: 502106
+              windows:
+                - start: "2026-10-18T22:59:17.58Z"
+                  end: "2026-10-18T21:50:26-07:00"
+            - harness: claude
+              id: d11b9adb-1d2c-4872-81c3-b6aa47a04715
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: fb35a51e74ad315fa11eb15dc5dd4cd0f8c6a8a811c7d9cafac6943d15e78dfc
+              started: "2026-10-18T22:56:29.354Z"
+              spawned: false
+              bytes: 556087
+              windows:
+                - start: "2026-10-18T22:56:29.354Z"
+                  end: "2026-10-18T21:50:26-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 7eeed68c99c9757a676fc821120cfbc9684663093243bf87153b87499e39580c
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 263673739
+              windows:
+                - start: "2026-10-18T15:44:55-07:00"
+                  end: "2026-10-18T21:50:26-07:00"
+        queue_waits:
+            - attempt_id: a2ed9c241919e822e7f822389860818b
+              slot: ariadne:2
+              record_digest: 58cac9858bb823ea32d0434fa1bf2d393b9a350000aa495fa55a6e4c7e138138
+              start: "2026-10-19T03:20:21.057609Z"
+              end: "2026-10-19T03:41:58.333357Z"
+              queue_seconds: 1297.275748
+              raw_seconds: 1297.275748
+              exact: true
+            - attempt_id: 0029d63d671dc47c07df0180ebd95c5e
+              slot: ariadne:2
+              record_digest: a7a54a7ca8a7dffd89ae0931e9c50b1c6c5eba9774ef43d2e143aa0b0fd57927
+              start: "2026-10-19T03:55:28.207471Z"
+              end: "2026-10-19T04:22:34.780898Z"
+              queue_seconds: 1626.573427
+              raw_seconds: 1626.573427
+              exact: true
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 0.11616666666666667
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-18T16:42:59-07:00"
+              finalized: "2026-10-18T16:45:21-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T16:49:32-07:00"
+              finalized: "2026-10-18T16:52:51-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-18T16:54:42-07:00"
+              finalized: "2026-10-18T16:56:28-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-18T17:38:24-07:00"
+              finalized: "2026-10-18T17:42:33-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-18T18:10:30-07:00"
+              finalized: "2026-10-18T18:24:31-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-18T18:55:07-07:00"
+              finalized: "2026-10-18T19:23:58-07:00"
+              finalizing: true
+            - boundary: M3
+              dispatched: "2026-10-18T20:03:58-07:00"
+              finalized: "2026-10-18T20:08:46-07:00"
+              finalizing: false
+            - boundary: M3
+              dispatched: "2026-10-18T20:16:50-07:00"
+              finalized: "2026-10-18T20:19:21-07:00"
+              finalizing: true
+            - dispatched: "2026-10-18T21:37:16-07:00"
+              finalized: "2026-10-18T21:50:21-07:00"
+              finalizing: true
+      "n": 10
+      timestamp: "2026-10-18T23:19:19-07:00"
+      dispatched: "2026-10-18T23:13:17-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-23
+          disposition: addressed
+          note: 'The concurrent-prune half was fixed and tested in bda6cc0e (round 9). The remaining cap refusal is deliberately fail-closed and is now documented as asked: local-check help (helptext/local-check.md:97) and atlas/workflow/ci-merge-check.md:192-194, which names the 10,000/64 MiB caps and the measured ~60x headroom. Nothing in this interdiff changes that behavior.'
+          round: 10
+      recipe: fix-review
+      isolation: fenced
+      reviewed: cf0284d281f887fbcea87863421bc1e8ace37c3c
+      blocked: false
 ---
 
 # Gate ledger — ariadne#394 (boundary-review)
@@ -1678,6 +1854,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-24 — addressed — weeklyattribution.go:144/327/333, weeklystats.go:98, weeklystats_inputs.go:235 and teststats_cmd.go:140 all call isSuiteRun now.
 - BR-26 — addressed — 7d3d7ab0 merge.md:148-152 names the refusal and its recovery (flake register, then local-check republish --name suite), matching guardSuitePass in localcheck_republish.go:137.
 
+## Round 10 — 2026-10-18T23:19:19-07:00 (claude) — passed
+
+### Disposed
+
+- BR-23 — addressed — The concurrent-prune half was fixed and tested in bda6cc0e (round 9). The remaining cap refusal is deliberately fail-closed and is now documented as asked: local-check help (helptext/local-check.md:97) and atlas/workflow/ci-merge-check.md:192-194, which names the 10,000/64 MiB caps and the measured ~60x headroom. Nothing in this interdiff changes that behavior.
+
 ## Open findings
 
-- **BR-23** [Minor] `reader-cap-writer-unbounded` The store's record and byte limits now block every suite pass instead of only marking stats partial
+(none — every finding has been disposed)
