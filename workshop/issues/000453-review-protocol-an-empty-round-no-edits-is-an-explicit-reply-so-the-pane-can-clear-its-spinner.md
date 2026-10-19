@@ -1,13 +1,21 @@
 ---
 id: 000453
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '67812f0d8ea45f896114a9dd14fc5e25f70fb172' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b3b0764e2fca8bc0279ce9b59444c9ad1f43bbd3' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-18T22:24:44-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # review protocol: an empty round (no edits) is an explicit reply, so the pane can clear its spinner
@@ -28,8 +36,39 @@ An empty round is a valid, explicit reply: the agent (xx-fix / the review skill)
 
 ## Plan
 
-- [ ]
+- [ ] Red-first test the no-edits producer and empty-success commit decisions in
+  the existing reviewexport skill-contract tests, plus a read-only skill scenario.
+- [ ] Require an apply on every completed workbench review, including
+  `{"records":[]}`. Keep explanations/questions in the session reply. Distinguish
+  changed replies (commit returned Body verbatim) from empty replies (no commit),
+  preserving existing hash, context, operator-lock and uncertain-result guards.
+- [ ] Update the ariadne workflow map and verify focused contracts, exported
+  substrate integrity, recorded suite and the automatic close review.
+- [ ] Land producer instructions independently of pair#690, report to the hub.
+
 
 ## Log
 
 ### 2026-10-18
+
+- Hub approved the plan and moved protocol-target wording plus the real no-edits
+  pane check to pair#690 (pair:2). Sent that owner the hand-off for its Log. This
+  issue remains the producer-only half and may land first.
+- ARCH-DRY: reuse the existing apply seam, no parallel reply file or state.
+  ARCH-ORDER: only nonempty returned Body authorizes the normal agent commit;
+  an empty success completes the producer response without inventing evidence.
+  No new wire fields, runtime state, resource lifetime, or hot path is introduced.
+
+- Baseline read-only skill scenario: the agent chose "No apply or agent commit: the skill specifies no empty-round submission." Real edits still committed returned Body verbatim; old-binary empty success caused no commit or retry. The missing mandatory empty apply is the observed defect.
+
+## Revisions
+
+### 2026-10-18 — producer scope and peer acceptance ownership
+
+Hub approved the producer-only boundary. The original protocol-target wording
+and live pane no-edits Done-when steps belong to pair#690, owned by pair:2; that
+owner will log the hand-off and verify the pane after its implementation lands.
+This issue proves that the shared producer always sends an empty apply and never
+commits an empty reply; it may land before the peer engine/pane change. Until
+then the old engine harmlessly accepts the empty apply without publishing a round.
+No peer source or protocol target is edited here.
