@@ -43,9 +43,11 @@ An empty round is a valid, explicit reply: the agent (xx-fix / the review skill)
   `{"records":[]}`. Keep explanations/questions in the session reply. Distinguish
   changed replies (commit returned Body verbatim) from empty replies (no commit),
   preserving existing hash, context, operator-lock and uncertain-result guards.
-- [ ] Update the ariadne workflow map and verify focused contracts, exported
-  substrate integrity, recorded suite and the automatic close review.
-- [ ] Land producer instructions independently of pair#690, report to the hub.
+- [x] Update the ariadne workflow map; verify focused contracts and exported
+  substrate integrity, then dispatch the recorded suite before close review.
+  A passing final-code suite still precedes landing.
+- [x] Record the peer hand-off and prepare independent producer landing; the
+  binary owns close review, landing and archive, followed by the hub report.
 
 
 ## Log
@@ -85,3 +87,11 @@ This issue proves that the shared producer always sends an empty apply and never
 commits an empty reply; it may land before the peer engine/pane change. Until
 then the old engine harmlessly accepts the empty apply without publishing a round.
 No peer source or protocol target is edited here.
+
+### 2026-10-18 — checkpoint wording
+
+Plan rows now distinguish completed implementation/verification preparation from
+the close/landing gates that necessarily follow this checkpoint. Recorded suite
+is dispatched on the pushed implementation; close may overlap its queue under
+the worker contract, with an actual pass required before landing. No acceptance
+step or gate is waived; peer acceptance ownership remains as approved above.
