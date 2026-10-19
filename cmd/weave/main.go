@@ -751,6 +751,10 @@ func printDeclined(layers []layer.Layer, out io.Writer) {
 		return
 	}
 	for _, d := range layers[len(layers)-1].Declined {
+		if d.Extra != "" {
+			fmt.Fprintf(out, "weave: warning: decline takes one path; ignored the row: decline %s %s\n", d.Path, d.Extra)
+			continue
+		}
 		if len(d.Removed) == 0 {
 			fmt.Fprintf(out, "weave: warning: decline %s matches no inherited row\n", d.Path)
 			continue

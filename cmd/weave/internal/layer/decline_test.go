@@ -79,3 +79,26 @@ func TestDeclineExactTargetMatches(t *testing.T) {
 		t.Fatalf("exact-path decline missed: %+v", got)
 	}
 }
+
+func TestDeclineSkipsAncestorInternalRows(t *testing.T) {
+	internal := row(intent.Seed, ".github/workflows/x.yml")
+	internal.Visibility = intent.Internal
+	foundation := Layer{Intents: []intent.Intent{internal}}
+	leaf := Layer{Intents: []intent.Intent{row(intent.Decline, ".github/workflows")}}
+	got := Decline([]Layer{foundation, leaf})
+	// The row never reaches the leaf, so it is neither removed nor counted,
+	// and the decline reads as matching nothing.
+	if len(got[0].Intents) != 1 || len(got[1].Declined[0].Removed) != 0 {
+		t.Fatalf("an ancestor's internal row was declined: %+v", got)
+	}
+}
+
+func TestDeclineWithTwoPathsDeclinesNothing(t *testing.T) {
+	foundation := Layer{Intents: []intent.Intent{row(intent.Seed, "a"), row(intent.Seed, "b")}}
+	leaf := Layer{Intents: []intent.Intent{{Kind: intent.Decline, Source: "a", Target: "b"}}}
+	got := Decline([]Layer{foundation, leaf})
+	want := []Declination{{Path: "a", Extra: "b"}}
+	if len(got[0].Intents) != 2 || !reflect.DeepEqual(got[1].Declined, want) {
+		t.Fatalf("a two-path decline took effect: %+v", got)
+	}
+}

@@ -69,3 +69,8 @@ Steps:
 - Ask (1): the skip path in `intent.ParseManifest` (unknown verb, `continue`) has been unchanged since 52fe08c2d (#95 M2), and `TestParseManifestUnknownActionSkips` covers it. I also checked it live. The origin/main weave (931a4ad68) ran `compile --dry-run` on a two-layer fixture whose leaf has `decline .github/workflows`, exited 0, and still planned `seed .github/workflows/merge-check.yml`. That is today's behavior and not a refusal. The branch build on the same fixture drops that seed and prints `weave: declined .github/workflows: opted out of 1 inherited row(s): seed .github/workflows/merge-check.yml`.
 - Naming: the plan's `ApplyDeclines` became `layer.Decline`.
 - Tests: `go test ./cmd/weave/... ./pkg/layergraph/...` all ok, and `go vet` is clean.
+- Close review round 1 (Review-Verdict: SHIP, 0 Critical/Important, 3 Minor) — all fixed in-round: `layer.Decline` now ignores an ancestor's internal rows (never selected for the leaf, so they're neither removed nor counted); a `decline a b` row declines nothing and compile warns; the plan's docs wording is corrected below. Also added the symlink-retire fixture the review noted as uncovered (`TestCompileDeclinedSymlinkRetiresAndTwoPathRowWarns`).
+
+## Revisions
+
+- 2026-10-19 (close review): the docs step updated the `construct/base.manifest` header plus `atlas/workflow/base-layer.md` and `ci-merge-check.md`, not `construct/manifest.md` (it lists skills, not verbs). The spec's "CI workflows: opted out" report became the generic `weave: declined <path>: opted out of N inherited row(s): <verb target>, …` line, as approved by the hub.
