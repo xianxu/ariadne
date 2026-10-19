@@ -1,0 +1,605 @@
+---
+gate: boundary-review
+issue: 449
+id_prefix: BR
+rounds:
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 2b877597-7f69-4ea8-a79f-543a37ca2461
+            repository: github.com/xianxu/ariadne
+            issue_id: "000449"
+            recipe: milestone-review
+            round: 1
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/739c47422e6f2298
+            reviewed_head: 4babdef455239df1cb2354f0ce56d58425d204f0
+            slot: ariadne:2
+            requested_at: "2026-10-19T08:40:06.232542Z"
+          phase: finished
+          pid: 33940
+          started_at: "2026-10-19T08:40:06.463357Z"
+          finished_at: "2026-10-19T08:43:52.200262Z"
+          session_id: 416d5331-7349-441f-b806-74aadb741ffd
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 4babdef455239df1cb2354f0ce56d58425d204f0
+        tracker_head: 88f6c859a827b0d9846bc7a7ad980090f04151b4
+        branch_point: e279f713f66ebde2d11e8662e05d4e481369d34c
+        since: "2026-10-19T00:24:20-07:00"
+        until: "2026-10-19T01:38:30-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T00:24:20-07:00"
+              end: "2026-10-19T01:38:30-07:00"
+              began: "2026-10-19T00:24:20-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0b8dd07a-725f-46d5-9d61-2f1c3a639ae1
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 3d99778b04a5abfcad9c52903f374e96319ca817fd257eef5893cf415eaa2517
+              started: "2026-10-19T07:41:27.89Z"
+              spawned: false
+              bytes: 392572
+              windows:
+                - start: "2026-10-19T07:41:27.89Z"
+                  end: "2026-10-19T01:38:30-07:00"
+            - harness: claude
+              id: 3859e47f-fab7-4809-b00b-39545e065c4d
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 9e7b79ccc03b5a83546f49fdb9ea8267d34e5ef1958759092e3826439da67440
+              started: "2026-10-19T07:39:08.194Z"
+              spawned: false
+              bytes: 515896
+              windows:
+                - start: "2026-10-19T07:39:08.194Z"
+                  end: "2026-10-19T01:38:30-07:00"
+            - harness: claude
+              id: ce283a71-a4ff-4b46-a444-7e71d73538b9
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: f4547a086362f57592441b8ebe51ccc25025e5807e92b9ae941f19565d34db65
+              started: "2026-10-19T07:37:21.957Z"
+              spawned: false
+              bytes: 568734
+              windows:
+                - start: "2026-10-19T07:37:21.957Z"
+                  end: "2026-10-19T01:38:30-07:00"
+            - harness: claude
+              id: ea85e2ea-80c1-424b-b626-ad5588a39352
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: c00ba0b4ef6fcb0b4fa7599cbc5b7b3b9f7a747009b08fefc1d56ab99fd9c60f
+              started: "2026-10-19T07:41:05.217Z"
+              spawned: false
+              bytes: 498662
+              windows:
+                - start: "2026-10-19T07:41:05.217Z"
+                  end: "2026-10-19T01:38:30-07:00"
+            - harness: claude
+              id: ed119f61-f721-4c11-b1f4-f27f6ddaae4c
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 32f1c1354f947b813042e42af826f14db41d5bf479efab13555853520d6330f7
+              started: "2026-10-19T07:40:04.612Z"
+              spawned: false
+              bytes: 502132
+              windows:
+                - start: "2026-10-19T07:40:04.612Z"
+                  end: "2026-10-19T01:38:30-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: c2dced6d894b0673800cf19e706a3f64026ac9fe74ed688b8e8fdf161408d077
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 275411294
+              windows:
+                - start: "2026-10-19T00:24:20-07:00"
+                  end: "2026-10-19T01:38:30-07:00"
+      "n": 1
+      timestamp: "2026-10-19T01:43:53-07:00"
+      dispatched: "2026-10-19T01:40:06-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      findings:
+        - kind: defect
+          id: BR-1
+          severity: Important
+          title: Data race on Handle.file between Vouch (vouch goroutine) and dropTicket (Wait/admission)
+          detail: 'line.go:265 reads h.file in Vouch while line.go:383 writes it via tryAdmit; only an flock separates them, which the Go memory model does not see. A temporary probe test (Vouch in a loop alongside Wait) is flagged by go test -race. vouchWhileWaiting runs exactly this in production; it also prints a misleading "could not record readiness" warning after admission. Fix: a sync.Mutex on Handle covering file/dropTicket/Vouch, treat the post-admission error as a quiet stop, and keep the probe as a regression test.'
+          family: shared-handle-unsynchronized
+          round: 1
+        - kind: defect
+          id: BR-2
+          severity: Important
+          title: Transition(Built) silently drops cars that are in neither Kept nor Conflicts
+          detail: trainstate.go:181-188 removes such cars from n.Cars with no Hold/Release/Refuse effect, breaking the every-car-ends-once invariant. The random-history generator always partitions the cars, so the invariant test cannot reach this input. Reject a non-partitioning Built (return an error) or Release the unaccounted cars, and make the generator produce such inputs.
+          family: state-machine-event-partition
+          round: 1
+        - kind: defect
+          id: BR-3
+          severity: Important
+          title: Board builds Car.Branch from the sidecar's branch without checking it against the ticket's branch
+          detail: train.go:293 uses r.Branch, and Readiness.Valid never compares it with Ticket.Branch. A hand-edited or buggy sidecar can steer the M2 conductor to a branch the waiting merge does not own, and the tip re-check passes because it reads the same untrusted branch. Refuse a mismatch in Board (add it to Why) or use t.Branch, and add a table test.
+          family: untrusted-sidecar-cross-check
+          round: 1
+        - kind: defect
+          id: BR-4
+          severity: Important
+          title: Plan Core concepts and state lists do not match the code (TrainState, Held, event names, DepartureDue signature)
+          detail: The plan names TrainState, a Held state and the events CarConflict/CarGone/TipMoved/FlakeRerunPass/CIGreen/CIRed/ConductorDead, plus DepartureDue(now, lastDeparture, sched, line). The code has Train{Phase} with Reintegrating/Merging/Refused, the events Boarded/Built/SuiteDone/CIDone/Reintegrated/Probed, and DepartureDue(now, s, granted, events) reading next_due from the log. Add a Revisions entry and update the table.
+          family: plan-core-concepts-drift
+          round: 1
+        - kind: defect
+          id: BR-5
+          severity: Important
+          title: README update appears missing for the .sdlc/landing.json config keys and the train lines in landing status
+          detail: train_interval_minutes and train_max_cars are a new user-facing config surface, and status already points users to the file; README.md is unchanged in the range. Add a short README note, or record the deferral to M3 explicitly in the plan's Revisions.
+          family: docs-gate-readme
+          round: 1
+        - kind: defect
+          id: BR-6
+          severity: Minor
+          title: trainAdmission reads the whole events.jsonl once per live ticket per poll, inside the line mutex
+          detail: Read the events log once per tryAdmit and pass it in.
+          family: repeated-io-in-hot-loop
+          round: 1
+        - kind: defect
+          id: BR-7
+          severity: Minor
+          title: The grant bypass is written in both trainAdmission and DepartureDue, and "main" has two definitions (main@{upstream} vs remote/main)
+          detail: trainAdmission always passes granted=false, so DepartureDue's granted branch is dead in production. landingMainRef (status) and runDurableMerge (t.Remote+"/main") resolve main differently.
+          family: duplicated-rule
+          round: 1
+        - kind: defect
+          id: BR-8
+          severity: Minor
+          title: The schedule is read from an unfetched remote-tracking main before the wait and held for the whole wait
+          detail: A missing remote/main ref now refuses even interval-0 merges, and a config change made during a long wait is not seen.
+          family: stale-config-read
+          round: 1
+        - kind: defect
+          id: BR-9
+          severity: Minor
+          title: Not-ready tickets skipped by Admissible are missing from OnAdmit's displaced audit
+          detail: NextHead runs over the filtered candidates, so the tickets passed over are not recorded.
+          family: audit-displaced-filtered
+          round: 1
+      boundary: M1
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: d58ee59d-3e8d-4879-9140-3a040c2dea60
+            repository: github.com/xianxu/ariadne
+            issue_id: "000449"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/e5305a206114e446
+            reviewed_head: 452ccde50bfc1f2304db66a1530d11bfa83446bd
+            slot: ariadne:2
+            requested_at: "2026-10-19T09:09:30.136993Z"
+          phase: finished
+          pid: 14812
+          started_at: "2026-10-19T09:09:30.243292Z"
+          finished_at: "2026-10-19T09:57:26.154955Z"
+          session_id: f7f523a8-fecb-4230-a343-b3686b0ea28c
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 452ccde50bfc1f2304db66a1530d11bfa83446bd
+        tracker_head: 88f6c859a827b0d9846bc7a7ad980090f04151b4
+        branch_point: e279f713f66ebde2d11e8662e05d4e481369d34c
+        since: "2026-10-19T00:24:20-07:00"
+        until: "2026-10-19T01:49:41-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T00:24:20-07:00"
+              end: "2026-10-19T01:49:41-07:00"
+              began: "2026-10-19T00:24:20-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0b8dd07a-725f-46d5-9d61-2f1c3a639ae1
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 3d99778b04a5abfcad9c52903f374e96319ca817fd257eef5893cf415eaa2517
+              started: "2026-10-19T07:41:27.89Z"
+              spawned: false
+              bytes: 392572
+              windows:
+                - start: "2026-10-19T07:41:27.89Z"
+                  end: "2026-10-19T01:49:41-07:00"
+            - harness: claude
+              id: 3859e47f-fab7-4809-b00b-39545e065c4d
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 9e7b79ccc03b5a83546f49fdb9ea8267d34e5ef1958759092e3826439da67440
+              started: "2026-10-19T07:39:08.194Z"
+              spawned: false
+              bytes: 515896
+              windows:
+                - start: "2026-10-19T07:39:08.194Z"
+                  end: "2026-10-19T01:49:41-07:00"
+            - harness: claude
+              id: ce283a71-a4ff-4b46-a444-7e71d73538b9
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: f4547a086362f57592441b8ebe51ccc25025e5807e92b9ae941f19565d34db65
+              started: "2026-10-19T07:37:21.957Z"
+              spawned: false
+              bytes: 568734
+              windows:
+                - start: "2026-10-19T07:37:21.957Z"
+                  end: "2026-10-19T01:49:41-07:00"
+            - harness: claude
+              id: ea85e2ea-80c1-424b-b626-ad5588a39352
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: c00ba0b4ef6fcb0b4fa7599cbc5b7b3b9f7a747009b08fefc1d56ab99fd9c60f
+              started: "2026-10-19T07:41:05.217Z"
+              spawned: false
+              bytes: 498662
+              windows:
+                - start: "2026-10-19T07:41:05.217Z"
+                  end: "2026-10-19T01:49:41-07:00"
+            - harness: claude
+              id: ed119f61-f721-4c11-b1f4-f27f6ddaae4c
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 32f1c1354f947b813042e42af826f14db41d5bf479efab13555853520d6330f7
+              started: "2026-10-19T07:40:04.612Z"
+              spawned: false
+              bytes: 502132
+              windows:
+                - start: "2026-10-19T07:40:04.612Z"
+                  end: "2026-10-19T01:49:41-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 0db7edf3c7dd895a25811e1d37474f47517030e35e0b4d7e552f113e02b0fb8e
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 278526008
+              windows:
+                - start: "2026-10-19T00:24:20-07:00"
+                  end: "2026-10-19T01:49:41-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-19T01:40:06-07:00"
+              finalized: "2026-10-19T01:43:53-07:00"
+              finalizing: false
+      "n": 2
+      timestamp: "2026-10-19T02:57:26-07:00"
+      dispatched: "2026-10-19T02:09:30-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Handle.mu guards file/head; removing it from Vouch makes TestVouchConcurrentWithAdmission fail with DATA RACE under -race.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: partitions() rejects non-partitioning Built; reverting fails TestTrainRejectsIllegalEvents and the random-history invariant.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: Readiness.For checks the branch and Board uses t.Branch; reverting fails TestBoard and TestTrainAdmission.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: Plan Revisions entry M1 as built (BR-4) matches trainstate.go/train.go names, events, effects and the DepartureDue signature.
+          round: 2
+        - id: BR-5
+          disposition: addressed
+          note: README.md:491-498 documents train_interval_minutes, train_max_cars, the local-gates guard, and the status lines.
+          round: 2
+        - id: BR-6
+          disposition: addressed
+          note: Options.Admission is built once per attempt; TestTrainAdmission counts one events read across two tickets.
+          round: 2
+        - id: BR-7
+          disposition: addressed
+          note: The grant branch is gone from DepartureDue; one landingMainRef(git, remote) is used by both merge and status, and is tested.
+          round: 2
+        - id: BR-8
+          disposition: addressed
+          note: landingScheduleSource re-reads on each attempt and falls back to serial; TestLandingScheduleSourceFailsToSerial and TestVouchingStartsWhenTrainsTurnOn cover it.
+          round: 2
+        - id: BR-9
+          disposition: addressed
+          note: The audit walks the full order; reverting to NextHead's displaced fails TestAdmissibleGatesTheHead.
+          round: 2
+      findings:
+        - kind: defect
+          id: BR-10
+          severity: Important
+          title: Data race on the warned flag in landingScheduleSource, shared by the vouching goroutine and the admission poll
+          detail: 'landingqueue.go:206-207. enterLandingLine passes one sched closure to both openLandingLine (Admission, Wait goroutine) and vouchWhileWaiting; a two-goroutine probe with an unreadable config is flagged by go test -race. This is the 2nd finding in this family. The rule: everything handed to both vouchWhileWaiting and Line.Wait must be safe for concurrent use. Swept: the line (flock and Handle.mu), readiness (vouch goroutine only), stderr (os.File) are fine; sched is the only remaining instance. Fix with sync.Once or atomic.Bool and a concurrent -race test.'
+          family: shared-handle-unsynchronized
+          round: 2
+        - kind: defect
+          id: BR-11
+          severity: Minor
+          title: landing status reads readiness sidecars without Readiness.For, so a vouch for another branch shows as ready
+          detail: 'landingcmd.go:199-203 uses readinessLine and Current only. This is the 2nd finding in this family; the rule is that every sidecar reader goes through Readiness.For(ticket, now). Status also prints trains: unknown when the config is unreadable, while merges then land serially.'
+          family: untrusted-sidecar-cross-check
+          round: 2
+        - kind: defect
+          id: BR-12
+          severity: Minor
+          title: Every waiter runs two git processes each 2s poll under the line flock to re-read the schedule, even with trains off
+          detail: trainAdmission calls sched() (git ls-tree and git show) inside tryAdmit's mutex on every attempt. Before this change the serial default ran none. This is the 2nd finding in this family; the rule is that admission inputs are read outside the mutex and slow-changing ones are cached (time limit or main's commit id).
+          family: repeated-io-in-hot-loop
+          round: 2
+        - kind: defect
+          id: BR-13
+          severity: Minor
+          title: The audit's passed-over rule is restated in line.go while NextHead's displaced return has no production caller
+          detail: line.go:244-257 duplicates order.go:95-99. This is the 2nd finding in this family; the rule is one pure function in order.go computes who was passed over, and NextHead returns only the head.
+          family: duplicated-rule
+          round: 2
+      boundary: M1
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: aa544094-7b48-4f49-a757-d30d2ca2d389
+            repository: github.com/xianxu/ariadne
+            issue_id: "000449"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/5c4c5ec244a460f9
+            reviewed_head: 96d1a9d01bb99b19bac8f2f3c9fd9666e46142c6
+            slot: ariadne:2
+            requested_at: "2026-10-19T10:35:22.460561Z"
+          phase: finished
+          pid: 3970
+          started_at: "2026-10-19T10:35:22.690705Z"
+          finished_at: "2026-10-19T10:50:07.782477Z"
+          session_id: ac6ce1ff-52cd-4ab8-95e5-9a0927bf0faa
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 96d1a9d01bb99b19bac8f2f3c9fd9666e46142c6
+        tracker_head: ec71ed794e86f9299192aff52dd5d59f35c73c85
+        branch_point: e279f713f66ebde2d11e8662e05d4e481369d34c
+        since: "2026-10-19T00:24:20-07:00"
+        until: "2026-10-19T02:59:27-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T00:24:20-07:00"
+              end: "2026-10-19T02:59:27-07:00"
+              began: "2026-10-19T00:24:20-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0b8dd07a-725f-46d5-9d61-2f1c3a639ae1
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 3d99778b04a5abfcad9c52903f374e96319ca817fd257eef5893cf415eaa2517
+              started: "2026-10-19T07:41:27.89Z"
+              spawned: false
+              bytes: 392572
+              windows:
+                - start: "2026-10-19T07:41:27.89Z"
+                  end: "2026-10-19T02:59:27-07:00"
+            - harness: claude
+              id: 3859e47f-fab7-4809-b00b-39545e065c4d
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 9e7b79ccc03b5a83546f49fdb9ea8267d34e5ef1958759092e3826439da67440
+              started: "2026-10-19T07:39:08.194Z"
+              spawned: false
+              bytes: 515896
+              windows:
+                - start: "2026-10-19T07:39:08.194Z"
+                  end: "2026-10-19T02:59:27-07:00"
+            - harness: claude
+              id: ce283a71-a4ff-4b46-a444-7e71d73538b9
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: f4547a086362f57592441b8ebe51ccc25025e5807e92b9ae941f19565d34db65
+              started: "2026-10-19T07:37:21.957Z"
+              spawned: false
+              bytes: 568734
+              windows:
+                - start: "2026-10-19T07:37:21.957Z"
+                  end: "2026-10-19T02:59:27-07:00"
+            - harness: claude
+              id: ea85e2ea-80c1-424b-b626-ad5588a39352
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: c00ba0b4ef6fcb0b4fa7599cbc5b7b3b9f7a747009b08fefc1d56ab99fd9c60f
+              started: "2026-10-19T07:41:05.217Z"
+              spawned: false
+              bytes: 498662
+              windows:
+                - start: "2026-10-19T07:41:05.217Z"
+                  end: "2026-10-19T02:59:27-07:00"
+            - harness: claude
+              id: ed119f61-f721-4c11-b1f4-f27f6ddaae4c
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 32f1c1354f947b813042e42af826f14db41d5bf479efab13555853520d6330f7
+              started: "2026-10-19T07:40:04.612Z"
+              spawned: false
+              bytes: 502132
+              windows:
+                - start: "2026-10-19T07:40:04.612Z"
+                  end: "2026-10-19T02:59:27-07:00"
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 89064105774cb61d5ec254385202bf4f6b13420221f104edd303baba7829f5d4
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 281398554
+              windows:
+                - start: "2026-10-19T00:24:20-07:00"
+                  end: "2026-10-19T02:59:27-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-19T01:40:06-07:00"
+              finalized: "2026-10-19T01:43:53-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-19T02:09:30-07:00"
+              finalized: "2026-10-19T02:57:26-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-19T03:50:39-07:00"
+      dispatched: "2026-10-19T03:35:22-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-10
+          disposition: addressed
+          note: Mutex in landingScheduleSource; with the lock removed, TestLandingScheduleSourceIsSharedAndCached fails under -race with 3 DATA RACE reports and 4 reads.
+          round: 3
+        - id: BR-11
+          disposition: addressed
+          note: landingcmd.go:201-206 uses r.For(t, now); the test vouches with another ticket's branch and expects "not counted"; the unreadable-config line now says merges land serially.
+          round: 3
+        - id: BR-12
+          disposition: addressed
+          note: Admission() is now built before withMutex; the schedule is cached for 30s, so the serial default runs no git on most polls; the cache test pins one read per TTL.
+          round: 3
+        - id: BR-13
+          disposition: addressed
+          note: Passed() in order.go:96-112 is the only rule; NextHead returns (head, ok); line.go calls Passed; TestPassedIncludesTicketsThatWereNotAdmissible.
+          round: 3
+      findings:
+        - kind: defect
+          id: BR-14
+          severity: Minor
+          title: Admission reads the events log (the departure ledger) before the line mutex and head.lock, so M2 can admit a second train on a stale "due"
+          detail: 'line.go:188-193 builds admissible from Events() outside withMutex. Once M2 records EventTrain and then releases head.lock, a waiter that read the events just before can take the head and depart early, skipping the interval. Keep the cached schedule outside the mutex, but read the events and decide DepartureDue under the mutex after head.lock is acquired (Events() does not take the mutex). Latent in M1: nothing writes EventTrain yet.'
+          family: admission-decision-toctou
+          round: 3
+        - kind: defect
+          id: BR-15
+          severity: Minor
+          title: The openLandingLine doc and plan Revisions still say the schedule is re-read on every admission attempt; the code caches it for 30s
+          detail: 'landingqueue.go:39 and plan line 205. 2nd in this family. The rule: a commit that changes behavior described by the "M1 as built" Revisions entry or a function doc updates that text in the same commit; check those passages as part of every answer-review commit.'
+          family: plan-core-concepts-drift
+          round: 3
+      boundary: M1
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 96d1a9d01bb99b19bac8f2f3c9fd9666e46142c6
+      blocked: false
+---
+
+# Gate ledger — ariadne#449 (boundary-review)
+
+Findings this gate raised, the stable ids the binary assigned them, and how
+later rounds disposed of them. Generated — edit the gate, not this file.
+
+## Round 1 — 2026-10-19T01:43:53-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-1** [Important] `shared-handle-unsynchronized` (kind: defect) Data race on Handle.file between Vouch (vouch goroutine) and dropTicket (Wait/admission)
+  line.go:265 reads h.file in Vouch while line.go:383 writes it via tryAdmit; only an flock separates them, which the Go memory model does not see. A temporary probe test (Vouch in a loop alongside Wait) is flagged by go test -race. vouchWhileWaiting runs exactly this in production; it also prints a misleading "could not record readiness" warning after admission. Fix: a sync.Mutex on Handle covering file/dropTicket/Vouch, treat the post-admission error as a quiet stop, and keep the probe as a regression test.
+- **BR-2** [Important] `state-machine-event-partition` (kind: defect) Transition(Built) silently drops cars that are in neither Kept nor Conflicts
+  trainstate.go:181-188 removes such cars from n.Cars with no Hold/Release/Refuse effect, breaking the every-car-ends-once invariant. The random-history generator always partitions the cars, so the invariant test cannot reach this input. Reject a non-partitioning Built (return an error) or Release the unaccounted cars, and make the generator produce such inputs.
+- **BR-3** [Important] `untrusted-sidecar-cross-check` (kind: defect) Board builds Car.Branch from the sidecar's branch without checking it against the ticket's branch
+  train.go:293 uses r.Branch, and Readiness.Valid never compares it with Ticket.Branch. A hand-edited or buggy sidecar can steer the M2 conductor to a branch the waiting merge does not own, and the tip re-check passes because it reads the same untrusted branch. Refuse a mismatch in Board (add it to Why) or use t.Branch, and add a table test.
+- **BR-4** [Important] `plan-core-concepts-drift` (kind: defect) Plan Core concepts and state lists do not match the code (TrainState, Held, event names, DepartureDue signature)
+  The plan names TrainState, a Held state and the events CarConflict/CarGone/TipMoved/FlakeRerunPass/CIGreen/CIRed/ConductorDead, plus DepartureDue(now, lastDeparture, sched, line). The code has Train{Phase} with Reintegrating/Merging/Refused, the events Boarded/Built/SuiteDone/CIDone/Reintegrated/Probed, and DepartureDue(now, s, granted, events) reading next_due from the log. Add a Revisions entry and update the table.
+- **BR-5** [Important] `docs-gate-readme` (kind: defect) README update appears missing for the .sdlc/landing.json config keys and the train lines in landing status
+  train_interval_minutes and train_max_cars are a new user-facing config surface, and status already points users to the file; README.md is unchanged in the range. Add a short README note, or record the deferral to M3 explicitly in the plan's Revisions.
+- **BR-6** [Minor] `repeated-io-in-hot-loop` (kind: defect) trainAdmission reads the whole events.jsonl once per live ticket per poll, inside the line mutex
+  Read the events log once per tryAdmit and pass it in.
+- **BR-7** [Minor] `duplicated-rule` (kind: defect) The grant bypass is written in both trainAdmission and DepartureDue, and "main" has two definitions (main@{upstream} vs remote/main)
+  trainAdmission always passes granted=false, so DepartureDue's granted branch is dead in production. landingMainRef (status) and runDurableMerge (t.Remote+"/main") resolve main differently.
+- **BR-8** [Minor] `stale-config-read` (kind: defect) The schedule is read from an unfetched remote-tracking main before the wait and held for the whole wait
+  A missing remote/main ref now refuses even interval-0 merges, and a config change made during a long wait is not seen.
+- **BR-9** [Minor] `audit-displaced-filtered` (kind: defect) Not-ready tickets skipped by Admissible are missing from OnAdmit's displaced audit
+  NextHead runs over the filtered candidates, so the tickets passed over are not recorded.
+
+## Round 2 — 2026-10-19T02:57:26-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Handle.mu guards file/head; removing it from Vouch makes TestVouchConcurrentWithAdmission fail with DATA RACE under -race.
+- BR-2 — addressed — partitions() rejects non-partitioning Built; reverting fails TestTrainRejectsIllegalEvents and the random-history invariant.
+- BR-3 — addressed — Readiness.For checks the branch and Board uses t.Branch; reverting fails TestBoard and TestTrainAdmission.
+- BR-4 — addressed — Plan Revisions entry M1 as built (BR-4) matches trainstate.go/train.go names, events, effects and the DepartureDue signature.
+- BR-5 — addressed — README.md:491-498 documents train_interval_minutes, train_max_cars, the local-gates guard, and the status lines.
+- BR-6 — addressed — Options.Admission is built once per attempt; TestTrainAdmission counts one events read across two tickets.
+- BR-7 — addressed — The grant branch is gone from DepartureDue; one landingMainRef(git, remote) is used by both merge and status, and is tested.
+- BR-8 — addressed — landingScheduleSource re-reads on each attempt and falls back to serial; TestLandingScheduleSourceFailsToSerial and TestVouchingStartsWhenTrainsTurnOn cover it.
+- BR-9 — addressed — The audit walks the full order; reverting to NextHead's displaced fails TestAdmissibleGatesTheHead.
+
+### Raised
+
+- **BR-10** [Important] `shared-handle-unsynchronized` (kind: defect) Data race on the warned flag in landingScheduleSource, shared by the vouching goroutine and the admission poll
+  landingqueue.go:206-207. enterLandingLine passes one sched closure to both openLandingLine (Admission, Wait goroutine) and vouchWhileWaiting; a two-goroutine probe with an unreadable config is flagged by go test -race. This is the 2nd finding in this family. The rule: everything handed to both vouchWhileWaiting and Line.Wait must be safe for concurrent use. Swept: the line (flock and Handle.mu), readiness (vouch goroutine only), stderr (os.File) are fine; sched is the only remaining instance. Fix with sync.Once or atomic.Bool and a concurrent -race test.
+- **BR-11** [Minor] `untrusted-sidecar-cross-check` (kind: defect) landing status reads readiness sidecars without Readiness.For, so a vouch for another branch shows as ready
+  landingcmd.go:199-203 uses readinessLine and Current only. This is the 2nd finding in this family; the rule is that every sidecar reader goes through Readiness.For(ticket, now). Status also prints trains: unknown when the config is unreadable, while merges then land serially.
+- **BR-12** [Minor] `repeated-io-in-hot-loop` (kind: defect) Every waiter runs two git processes each 2s poll under the line flock to re-read the schedule, even with trains off
+  trainAdmission calls sched() (git ls-tree and git show) inside tryAdmit's mutex on every attempt. Before this change the serial default ran none. This is the 2nd finding in this family; the rule is that admission inputs are read outside the mutex and slow-changing ones are cached (time limit or main's commit id).
+- **BR-13** [Minor] `duplicated-rule` (kind: defect) The audit's passed-over rule is restated in line.go while NextHead's displaced return has no production caller
+  line.go:244-257 duplicates order.go:95-99. This is the 2nd finding in this family; the rule is one pure function in order.go computes who was passed over, and NextHead returns only the head.
+
+## Round 3 — 2026-10-19T03:50:39-07:00 (claude) — passed
+
+### Disposed
+
+- BR-10 — addressed — Mutex in landingScheduleSource; with the lock removed, TestLandingScheduleSourceIsSharedAndCached fails under -race with 3 DATA RACE reports and 4 reads.
+- BR-11 — addressed — landingcmd.go:201-206 uses r.For(t, now); the test vouches with another ticket's branch and expects "not counted"; the unreadable-config line now says merges land serially.
+- BR-12 — addressed — Admission() is now built before withMutex; the schedule is cached for 30s, so the serial default runs no git on most polls; the cache test pins one read per TTL.
+- BR-13 — addressed — Passed() in order.go:96-112 is the only rule; NextHead returns (head, ok); line.go calls Passed; TestPassedIncludesTicketsThatWereNotAdmissible.
+
+### Raised
+
+- **BR-14** [Minor] `admission-decision-toctou` (kind: defect) Admission reads the events log (the departure ledger) before the line mutex and head.lock, so M2 can admit a second train on a stale "due"
+  line.go:188-193 builds admissible from Events() outside withMutex. Once M2 records EventTrain and then releases head.lock, a waiter that read the events just before can take the head and depart early, skipping the interval. Keep the cached schedule outside the mutex, but read the events and decide DepartureDue under the mutex after head.lock is acquired (Events() does not take the mutex). Latent in M1: nothing writes EventTrain yet.
+- **BR-15** [Minor] `plan-core-concepts-drift` (kind: defect) The openLandingLine doc and plan Revisions still say the schedule is re-read on every admission attempt; the code caches it for 30s
+  landingqueue.go:39 and plan line 205. 2nd in this family. The rule: a commit that changes behavior described by the "M1 as built" Revisions entry or a function doc updates that text in the same commit; check those passages as part of every answer-review commit.
+
+## Open findings
+
+- **BR-14** [Minor] `admission-decision-toctou` (kind: defect) Admission reads the events log (the departure ledger) before the line mutex and head.lock, so M2 can admit a second train on a stale "due"
+- **BR-15** [Minor] `plan-core-concepts-drift` (kind: defect) The openLandingLine doc and plan Revisions still say the schedule is re-read on every admission attempt; the code caches it for 30s
