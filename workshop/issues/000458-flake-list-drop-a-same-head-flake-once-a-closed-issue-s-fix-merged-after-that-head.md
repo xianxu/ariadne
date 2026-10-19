@@ -39,11 +39,11 @@ flow: {kind: quick, provenance: inferred, spec: "1e0dcaea", done: "6ff1911f"}
 
 ## Plan
 
-- [ ] Build a read-only snapshot of terminal issue cards and their published active/archived details; require one unambiguous issue, a valid landing merge, and exact test ownership. Keep the open flake registry unchanged.
-- [ ] Classify each confirmed same-head failure against that snapshot and the real Git ancestry: pre-merge fixed, post-merge recurrent, or unknown. Unknown remains listed; `-v` explains fixed entries.
+- [x] Build a read-only snapshot of terminal issue cards and their published active/archived details; require one unambiguous issue, a valid landing merge, and exact test ownership. Keep the open flake registry unchanged.
+- [x] Classify each confirmed same-head failure against that snapshot and the real Git ancestry: pre-merge fixed, post-merge recurrent, or unknown. Unknown remains listed; `-v` explains fixed entries.
 - [ ] Test the decision matrix with real Git history and fake cards, including unreadable/ambiguous/missing data, then verify pair's five pilot rows using the branch binary. Run `make -k` and the recorded suite, close on SHIP, and land.
 
-Detailed design: [000458 plan](../plans/000458-flake-list-fixed-after-merge-plan.md).
+Detailed design: [000458 plan](../plans/000458-flake-list-drop-a-same-head-flake-once-a-closed-issue-s-fix-merged-after-that-head-plan.md).
 
 ## Log
 
@@ -52,3 +52,5 @@ Detailed design: [000458 plan](../plans/000458-flake-list-fixed-after-merge-plan
 Filed from ariadne:2 after the #394 pilot, on the hub's approval of the proposal.
 
 Plan evidence: pair's five current unregistered rows are the broadcast #585, couchcmd #589, launcher #609, and two diagnosticlog #659 tests. #585's exact `- Test:` line is in its Log; #589's Log also mentions #609's failed test as an unrelated later suite result, so a whole-details search would create false ownership. ARCH-PURPOSE/ARCH-PURE: classify explicit ownership and keep uncertainty visible.
+
+TDD: the new ownership/decision test first failed at compile because the classifier did not exist, then passed after implementation. Targeted `go test ./cmd/sdlc -run '^Test(FlakeListReadsArchivedDetails|FlakeListCachesAncestry|FixedFlake|FixedIssueCoverage)' -count=1 -v` passed, including a real two-parent Git merge and an archived-detail read from a local bare origin. The read-only pair pilot with the branch binary showed all five historical rows absent by default; `-v` showed #585 at 27a12fec, #589 at 5d40e6bd, #609 at 734dd7d1, and two #659 rows at 261951a8. All unrelated rows remained. One #171 legacy card has no landing merge or published details; the decision treats it as non-evidence unless its explicit card list claims the test. See the plan Revision.

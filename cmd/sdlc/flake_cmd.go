@@ -147,6 +147,8 @@ type flakeDeps struct {
 	logPath  func(SuiteAttempt) string                // where an attempt's log is kept
 	repo     func() (string, error)
 	registry func(ctx context.Context) (flakes.Registry, []flakes.Card, error)
+	listView func(ctx context.Context) (flakeListView, error)
+	contains func(ctx context.Context, ancestor, head string) (bool, error)
 	addTests func(ctx context.Context, stdout, stderr io.Writer, id int, add []string) error // merges onto the card's current tests
 	newIssue func(ctx context.Context, stdout, stderr io.Writer, title, body string) (int, error)
 }
@@ -172,6 +174,14 @@ func defaultFlakeDeps(issuesDir string) flakeDeps {
 		repo: detectRepo,
 		registry: func(ctx context.Context) (flakes.Registry, []flakes.Card, error) {
 			return loadFlakeRegistry(ctx, issuesDir)
+		},
+		listView: func(ctx context.Context) (flakeListView, error) { return loadFlakeListView(ctx, issuesDir) },
+		contains: func(ctx context.Context, ancestor, head string) (bool, error) {
+			root, err := gitx.RepoTopLevel()
+			if err != nil {
+				return false, err
+			}
+			return flakeGitContains(ctx, root, ancestor, head)
 		},
 		addTests: func(ctx context.Context, stdout, stderr io.Writer, id int, add []string) error {
 			return runCardUpdate(ctx, stdout, stderr, issuesDir, id, "flake_tests + "+issue.FlowList(add), false,
@@ -201,7 +211,7 @@ the same head; a pass there is landing evidence, linked to the issue. Any other
 failure blocks. Closing the issue unregisters its tests.
 
   sdlc flake register --test PKG.TestX [--issue N] [--evidence TEXT]
-  sdlc flake list`,
+  sdlc flake list [-v]`,
 		SilenceUsage: true,
 	}
 	f := flakeRegisterFlags{}
@@ -234,14 +244,21 @@ failure blocks) until one issue drops it.`,
 	register.Flags().IntVar(&f.Issue, "issue", 0, "the flake issue to register on (default: file a new unclaimed one)")
 	register.Flags().StringArrayVar(&f.Tests, "test", nil, "an exact test name, <import path>.<TestName> (repeatable)")
 	register.Flags().StringVar(&f.Evidence, "evidence", "", "evidence from outside this machine's test-stats store (a CI run)")
+	var verbose bool
 	list := &cobra.Command{
 		Use:   "list",
 		Short: "The daily flake view: the registry, unregistered same-head flakes, unexplained failures",
+		Long: `List the open known-flake registry and same-head fail→pass failures.
+When one closed issue explicitly covers a test and its landed merge is absent
+from the failing head, the default view hides that already-fixed failure.
+Use -v to see it with its issue and merge. A failure after the merge is shown
+as a recurrence. Ambiguous or unreadable evidence never hides a failure.`,
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runFlakeList(cmd.Context(), cmd.OutOrStdout(), defaultFlakeDeps(issuesDir))
+			return runFlakeListMode(cmd.Context(), cmd.OutOrStdout(), defaultFlakeDeps(issuesDir), verbose)
 		},
 	}
+	list.Flags().BoolVarP(&verbose, "verbose", "v", false, "include flakes fixed by landed issues")
 	cmd.AddCommand(register, list)
 	return cmd
 }
@@ -357,11 +374,23 @@ func shortTestNames(tests []string) string {
 // nothing explains, oldest first. CI is not covered until #451, said so
 // rather than shown as zero.
 func runFlakeList(ctx context.Context, out io.Writer, d flakeDeps) error {
+	return runFlakeListMode(ctx, out, d, false)
+}
+
+func runFlakeListMode(ctx context.Context, out io.Writer, d flakeDeps, verbose bool) error {
 	repo, err := d.repo()
 	if err != nil {
 		return err
 	}
-	reg, cards, regErr := d.registry(ctx)
+	view := flakeListView{}
+	var regErr error
+	if d.listView != nil {
+		view, regErr = d.listView(ctx)
+	} else {
+		view.Registry, view.Cards, regErr = d.registry(ctx)
+		view.FixedErr = errors.New("fixed-issue evidence is unavailable")
+	}
+	reg, cards := view.Registry, view.Cards
 	fmt.Fprintln(out, "registry:")
 	switch {
 	case regErr != nil:
@@ -390,7 +419,40 @@ func runFlakeList(ctx context.Context, out io.Writer, d flakeDeps) error {
 		}
 	}
 	order := flakes.Sort(flakeAttempts(mine))
-	var unregistered, unexplained []string
+	var unregistered, unexplained, fixedRows []string
+	barePackage := map[string]string{}
+	bareCollision := map[string]bool{}
+	for _, a := range order {
+		for _, name := range a.Failures {
+			pkg, bare, ok := flakes.SplitTest(name)
+			if !ok {
+				continue
+			}
+			if prior := barePackage[bare]; prior != "" && prior != pkg {
+				bareCollision[bare] = true
+			}
+			barePackage[bare] = pkg
+		}
+	}
+	containsCache := map[string]struct {
+		yes bool
+		err error
+	}{}
+	contains := func(ancestor, head string) (bool, error) {
+		key := ancestor + "\x00" + head
+		if hit, ok := containsCache[key]; ok {
+			return hit.yes, hit.err
+		}
+		if d.contains == nil {
+			return false, errFixedGitUnknown
+		}
+		yes, err := d.contains(ctx, ancestor, head)
+		containsCache[key] = struct {
+			yes bool
+			err error
+		}{yes, err}
+		return yes, err
+	}
 	seenSHA := map[string]bool{}
 	confirmed := map[string]bool{} // listed once, as a flake to file, not also as unexplained
 	for i, a := range order {
@@ -402,7 +464,22 @@ func runFlakeList(ctx context.Context, out io.Writer, d flakeDeps) error {
 		if confirmed[a.ID] {
 			for _, t := range a.Failures {
 				if _, known := reg.Lookup(t); !known {
-					unregistered = append(unregistered, fmt.Sprintf("  %s  attempt %s on %s, %s, log %s", t, a.ID, abbrevSHA(a.SHA), a.FinishedAt.Format(time.RFC3339), d.logPath(logs[a.ID])))
+					line := fmt.Sprintf("  %s  attempt %s on %s, %s, log %s", t, a.ID, abbrevSHA(a.SHA), a.FinishedAt.Format(time.RFC3339), d.logPath(logs[a.ID]))
+					state, owner := flakeUnknown, fixedFlakeIssue{}
+					if regErr == nil && view.FixedErr == nil {
+						_, bare, _ := flakes.SplitTest(t)
+						state, owner = classifyFixedFlake(t, view.Fixed, bareCollision[bare], contains, view.Main, a.SHA)
+					}
+					switch state {
+					case flakeFixed:
+						if verbose {
+							fixedRows = append(fixedRows, line+fmt.Sprintf(" — fixed by #%s (merge %s)", owner.ID, abbrevSHA(owner.Merge)))
+						}
+					case flakeRecurred:
+						unregistered = append(unregistered, line+fmt.Sprintf(" — recurred after #%s", owner.ID))
+					default:
+						unregistered = append(unregistered, line)
+					}
 				}
 			}
 		}
@@ -419,6 +496,11 @@ func runFlakeList(ctx context.Context, out io.Writer, d flakeDeps) error {
 	sort.Strings(unregistered)
 	fmt.Fprintln(out, "same-head fail→pass, not registered (file or register today):")
 	printOrNone(out, unregistered)
+	if verbose {
+		sort.Strings(fixedRows)
+		fmt.Fprintln(out, "same-head flakes fixed by landed issues:")
+		printOrNone(out, fixedRows)
+	}
 	fmt.Fprintln(out, "unexplained failures older than a day:")
 	printOrNone(out, unexplained)
 	fmt.Fprintln(out, "CI failures: not covered (#451)")
@@ -427,6 +509,8 @@ func runFlakeList(ctx context.Context, out io.Writer, d flakeDeps) error {
 	}
 	if regErr != nil {
 		fmt.Fprintln(out, "coverage: the registry is unavailable, so every failure above counts as unregistered")
+	} else if view.FixedErr != nil {
+		fmt.Fprintf(out, "coverage: fixed-issue evidence unavailable (%v); no flake was hidden\n", view.FixedErr)
 	}
 	return nil
 }

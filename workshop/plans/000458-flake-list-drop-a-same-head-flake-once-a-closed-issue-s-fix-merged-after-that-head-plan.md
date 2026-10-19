@@ -16,8 +16,8 @@ collaboration-mode: discussion
 
 | Pure entity | Lives in | Status |
 |---|---|---|
-| `FixedFlakeIssue` | `cmd/sdlc/internal/flakes/fixed.go` | new |
-| `FixedFlakeDecision` | `cmd/sdlc/internal/flakes/fixed.go` | new |
+| `FixedFlakeIssue` | `cmd/sdlc/flake_fixed.go` | new |
+| `FixedFlakeDecision` | `cmd/sdlc/flake_fixed.go` | new |
 
 `FixedFlakeIssue` carries ID, landing merge and exact covered tests from a terminal issue. `FixedFlakeDecision` takes the candidate list for one test plus ancestry answers and returns fixed, recurrence or unknown. Only exactly one eligible issue can justify hiding. It cannot guess when cards/details/commits are unreadable or multiple closed issues claim the test. No persisted data is created (ARCH-FUNERAL).
 
@@ -33,7 +33,13 @@ The catalogue is a read-only addition to `flakeDeps`, leaving registration and l
 
 **Decision:** For a confirmed failure at H and exactly one covering terminal issue with merge M, verify M is a present commit reachable from current main. If `git merge-base --is-ancestor M H` is true, show `recurred after #N`. If false, default view hides that one row and `-v` prints `fixed by #N (merge <sha>)`. Any Git error other than the documented non-ancestor exit, an absent M, stale/unreadable tracker, unreadable/ambiguous details, or ambiguous coverage leaves the row under not registered with a coverage reason. The `unexplained` section is unchanged. A terminal issue without a merge, including an abandoned issue, never hides. No mutation occurs (ARCH-EVOLVE).
 
-**Cost:** Drivers are A retained suite attempts (30-day store), D published issue details and C unique `(merge, failing head)` pairs. Existing attempt scan is O(A); fixed-issue indexing is O(D) and the Git shell is O(C), never one Git call per card × attempt. Cache ancestry and ownership decisions per run. A counted N/2N fixture asserts one main catalogue batch and at most C ancestry calls, independent of A once confirmed failures deduplicate.
+**Cost:** Drivers are A retained suite attempts (30-day store), D terminal issue details, U distinct confirmed test names and C unique `(merge, failing head)` pairs. Existing attempt scan is O(A); detail coverage is O(D×U), and the Git shell is O(C), never one Git call per card × attempt. `FilesSelected` batches each of the two published detail trees; ancestry answers are cached per run. A counted N/2N fixture asserts at most C ancestry calls, independent of repeated attempts on the same head.
+
+## Revisions
+
+### 2026-10-19 — dependency direction and legacy card
+
+The pure ownership/decision code lives in `cmd/sdlc/flake_fixed.go` because `internal/issue` already imports `internal/flakes`; placing the document matcher in `flakes` would create a package cycle. The measured live pair read found one legacy terminal card (#171) with neither archived details nor a landing merge. Such a card cannot prove a fix and does not block an unrelated evidenced fix unless its `flake_tests` explicitly claims the test. A terminal card with a landing merge but unreadable details still makes coverage unknown. The cost statement now exposes U rather than hiding the D×U scan behind O(D).
 
 ## Tasks
 
