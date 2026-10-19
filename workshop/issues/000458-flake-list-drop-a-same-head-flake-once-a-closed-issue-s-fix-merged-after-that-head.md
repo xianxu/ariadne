@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "1e0dcaea", done: "6ff1911f"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # flake list: drop a same-head flake once a closed issue's fix merged after that head
@@ -48,6 +48,8 @@ Detailed design: [000458 plan](../plans/000458-flake-list-drop-a-same-head-flake
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — Focused Go tests for card-only ownership, real Git recurrence and archived Log samples passed; make -k build and make sdlc-build passed. Read-only pair flake list showed all five legacy rows visible. Exact-head recorded suite is queued and must pass before landing; final plan row includes merge.; review verdict: SHIP
+- 2026-10-19: flow upgraded quick → full — 224 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 Filed from ariadne:2 after the #394 pilot, on the hub's approval of the proposal.
 

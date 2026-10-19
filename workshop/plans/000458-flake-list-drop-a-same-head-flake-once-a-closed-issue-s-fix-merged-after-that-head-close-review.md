@@ -504,3 +504,96 @@ dispose:
    Add a `## Revisions` entry defining the complete accepted Log-entry grammar, including raw HTML contexts and balanced inline delimiters. Update the round-four claim that uncertain markup always remains visible, and require matcher plus command regressions for the completed rule.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"6e80fea2-0e0b-4b7e-8677-43e8f13cd64f","repository":"github.com/xianxu/ariadne","issue_id":"000458","recipe":"milestone-review","round":5,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/5dc8aeb36b86856e","reviewed_head":"da8c62d2e111ef7fe86cc0c351e00d6512a5a87a","slot":"ariadne:1","requested_at":"2026-10-19T15:27:31.331217Z"},"phase":"finished","pid":4216,"started_at":"2026-10-19T15:27:31.501412Z","finished_at":"2026-10-19T15:30:58.177571Z","session_id":"01a154c6-6a26-7b62-bd87-13eb20e58073","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-19T08:47:01-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 458 — flake list: drop a same-head flake once a closed issue's fix merged after that head |
+| repo | ariadne |
+| issue file | workshop/issues/000458-flake-list-drop-a-same-head-flake-once-a-closed-issue-s-fix-merged-after-that-head.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | a11504c417e9c8789327362895bc88c9fad042df..c22cc76feaaa584819a8d38ceac243ae6cd2d4f5 |
+| command | sdlc close --issue 458 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-19T08:47:01-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The implementation matches the revised Spec: only exact terminal-card `flake_tests` entries establish ownership, Git ancestry distinguishes fixed failures from recurrences, and uncertainty preserves visibility. BR-6 is addressed by removing Markdown ownership entirely. No blocking findings remain.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The Core concepts table correctly declares classifyFixedFlake INTEGRATION; fixedIssueCovers performs only string comparisons without IO.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      README.md:527 documents default suppression, flake list -v and recurrence, consistent with cmd/sdlc/flake_cmd.go rendering.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      TestFlakeListRendersFixedRecurrenceAndCoverageFromRealGit passes and asserts default suppression, verbose fixed rows, recurrence and ambiguous coverage.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Classifier uncertainty reasons reach command output; passing decision and rendering tests verify missing merges, Git uncertainty and ambiguous ownership.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Ownership now uses exact card-list equality; package-basename and textual-path inference have been removed.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Published details no longer enter ownership evidence. TestFlakeListIgnoresPublishedLogOwnership passes on head; restoring the prior implementation through a temporary Go overlay makes all three cases fail: plain Log, raw HTML and unmatched backticks.
+```
+
+1. **Strengths**
+
+   - Card-only ownership removes the entire Markdown ambiguity class ([flake_fixed.go:103](cmd/sdlc/flake_fixed.go:103)).
+   - Ambiguous owners, missing merges and ancestry errors preserve rows with reasons ([flake_fixed.go:122](cmd/sdlc/flake_fixed.go:122)).
+   - Real merge-history tests verify observable default and verbose output.
+   - README and atlas both document the new surface.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Both review runs passed:
+
+   - `go test ./cmd/sdlc -run '^Test(Fixed|Flake)' -count=1`
+   - Focused ownership, classifier, catalogue, rendering and caching tests: 9.912s.
+
+   The BR-6 regression failed against the preceding implementation, establishing that it detects the correction. `git diff --check` passed. Full-suite and live pair verification were not independently repeated.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** Reuses tracker, completion parsing and Git infrastructure.
+   - **ARCH-PURE — pass:** Ownership matching is pure; IO orchestration is injected and correctly classified.
+   - **ARCH-PURPOSE — pass:** All ownership derives from the card field; no textual fallback remains.
+   - **ARCH-MOCK — pass:** Tests use injected boundaries and portable temporary Git repositories with local bare origins.
+   - **ARCH-CONSTRAINTS — pass:** Repeated-attempt fixtures verify cached ancestry calls at N and 2N.
+   - **ARCH-SECURE — pass:** Arbitrary Markdown cannot become suppression evidence; unavailable evidence preserves visibility.
+   - **ARCH-ORDER — pass:** Synchronous snapshot classification holds no authoritative state between external events.
+   - **ARCH-FUNERAL — pass:** No new durable artifact family is introduced; caches die with the command.
+   - **ARCH-EVOLVE — pass:** No persisted format or rewrite behavior changes.
+
+7. **Plan revision recommendations:** None. The final card-only revision explicitly supersedes the earlier Markdown designs and matches the code.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"5fbd40cd-9746-4015-844f-5afd9aa85965","repository":"github.com/xianxu/ariadne","issue_id":"000458","recipe":"milestone-review","round":6,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/37e011fbbb6207e8","reviewed_head":"c22cc76feaaa584819a8d38ceac243ae6cd2d4f5","slot":"ariadne:1","requested_at":"2026-10-19T15:43:48.500583Z"},"phase":"finished","pid":47530,"started_at":"2026-10-19T15:43:48.754105Z","finished_at":"2026-10-19T15:47:00.407961Z","session_id":"01a154d5-543d-7840-87da-2224b5abaff4","outcome":"returned"}] -->

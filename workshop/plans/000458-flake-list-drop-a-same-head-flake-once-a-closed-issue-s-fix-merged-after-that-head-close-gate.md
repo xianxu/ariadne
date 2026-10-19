@@ -546,6 +546,157 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 5fbd40cd-9746-4015-844f-5afd9aa85965
+            repository: github.com/xianxu/ariadne
+            issue_id: "000458"
+            recipe: milestone-review
+            round: 6
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/37e011fbbb6207e8
+            reviewed_head: c22cc76feaaa584819a8d38ceac243ae6cd2d4f5
+            slot: ariadne:1
+            requested_at: "2026-10-19T15:43:48.500583Z"
+          phase: finished
+          pid: 47530
+          started_at: "2026-10-19T15:43:48.754105Z"
+          finished_at: "2026-10-19T15:47:00.407961Z"
+          session_id: 01a154d5-543d-7840-87da-2224b5abaff4
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: c22cc76feaaa584819a8d38ceac243ae6cd2d4f5
+        tracker_head: e739b70377206e8b595c687e2723402ed135e043
+        branch_point: a11504c417e9c8789327362895bc88c9fad042df
+        since: "2026-10-19T04:32:38-07:00"
+        until: "2026-10-19T08:37:18-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T04:32:38-07:00"
+              end: "2026-10-19T08:37:18-07:00"
+              began: "2026-10-19T04:32:38-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 56e793742bddf2fce7ab312a47fe6208ab2b346ea5279bd92ad7fe2dfe6ab48f
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 147702402
+              windows:
+                - start: "2026-10-19T04:32:38-07:00"
+                  end: "2026-10-19T08:37:18-07:00"
+        queue_waits:
+            - attempt_id: 47932ec61a1603c497832d736497e4f0
+              slot: ariadne:1
+              record_digest: 26e688dc36fb19ea4a4f2f0ba6b5a0c1a7640426e201e1a37b7e660686969336
+              start: "2026-10-19T11:55:43.408394Z"
+              end: "2026-10-19T12:12:29.80791Z"
+              queue_seconds: 1006.399516
+              raw_seconds: 1006.399516
+              exact: true
+            - attempt_id: 17efbf21e381b47311820e1181929f73
+              slot: ariadne:1
+              record_digest: 1c614cbe42ae0eab068ee411b5eff6fd8127b867521fd34d3adbf40255e1abd8
+              start: "2026-10-19T12:33:45.540326Z"
+              end: "2026-10-19T12:49:43.182913Z"
+              queue_seconds: 957.642587
+              raw_seconds: 957.642587
+              exact: true
+            - attempt_id: 4cf8897332b679b50a8739bdc501b2d0
+              slot: ariadne:1
+              record_digest: e9ebf530ab8d199c4abc3a799d3961adb3b0a6040d2ec4d8522939c29ac3b74e
+              start: "2026-10-19T13:15:52.502481Z"
+              end: "2026-10-19T13:27:04.382509Z"
+              queue_seconds: 671.880028
+              raw_seconds: 671.880028
+              exact: true
+            - attempt_id: 055d69102c5a0f9423aa60d99ab8eca7
+              slot: ariadne:1
+              record_digest: ea2911473d9cecab206de465a25f9cf514eaa748b147c89bb1662dcfef8b29d5
+              start: "2026-10-19T13:52:00.770977Z"
+              end: "2026-10-19T14:09:56.4847Z"
+              queue_seconds: 1075.713723
+              raw_seconds: 1075.713723
+              exact: true
+            - attempt_id: 4c96305468ac871ff567625384059cc8
+              slot: ariadne:1
+              record_digest: 6a38354afbf41a9d5cd335fdcec1bd2cfc0d5f890e65a6777bef7d55e5c0119d
+              start: "2026-10-19T14:26:54.353487Z"
+              end: "2026-10-19T14:39:52.93447Z"
+              queue_seconds: 778.580983
+              raw_seconds: 778.580983
+              exact: true
+            - attempt_id: 435cea42b0ba20eba112f18ae3d6d2c1
+              slot: ariadne:1
+              record_digest: 6d89a987475a366c700e6abc49ae304be85c1b9b78c7bb98b337d8c02f0851a9
+              start: "2026-10-19T14:57:12.251845Z"
+              end: "2026-10-19T15:14:44.103366Z"
+              queue_seconds: 1051.851521
+              raw_seconds: 1051.851521
+              exact: true
+        cuts:
+            - dispatched: "2026-10-19T05:25:12-07:00"
+              finalized: "2026-10-19T05:27:07-07:00"
+              finalizing: false
+            - dispatched: "2026-10-19T05:59:54-07:00"
+              finalized: "2026-10-19T06:02:42-07:00"
+              finalizing: false
+            - dispatched: "2026-10-19T06:37:27-07:00"
+              finalized: "2026-10-19T06:40:39-07:00"
+              finalizing: false
+            - dispatched: "2026-10-19T07:21:34-07:00"
+              finalized: "2026-10-19T07:24:10-07:00"
+              finalizing: false
+            - dispatched: "2026-10-19T08:27:31-07:00"
+              finalized: "2026-10-19T08:30:58-07:00"
+              finalizing: false
+      "n": 6
+      timestamp: "2026-10-19T08:47:01-07:00"
+      dispatched: "2026-10-19T08:43:48-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: The Core concepts table correctly declares classifyFixedFlake INTEGRATION; fixedIssueCovers performs only string comparisons without IO.
+          round: 6
+        - id: BR-2
+          disposition: addressed
+          note: README.md:527 documents default suppression, flake list -v and recurrence, consistent with cmd/sdlc/flake_cmd.go rendering.
+          round: 6
+        - id: BR-3
+          disposition: addressed
+          note: TestFlakeListRendersFixedRecurrenceAndCoverageFromRealGit passes and asserts default suppression, verbose fixed rows, recurrence and ambiguous coverage.
+          round: 6
+        - id: BR-4
+          disposition: addressed
+          note: Classifier uncertainty reasons reach command output; passing decision and rendering tests verify missing merges, Git uncertainty and ambiguous ownership.
+          round: 6
+        - id: BR-5
+          disposition: addressed
+          note: Ownership now uses exact card-list equality; package-basename and textual-path inference have been removed.
+          round: 6
+        - id: BR-6
+          disposition: addressed
+          note: 'Published details no longer enter ownership evidence. TestFlakeListIgnoresPublishedLogOwnership passes on head; restoring the prior implementation through a temporary Go overlay makes all three cases fail: plain Log, raw HTML and unmatched backticks.'
+          round: 6
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: c22cc76feaaa584819a8d38ceac243ae6cd2d4f5
+      blocked: false
 ---
 
 # Gate ledger — ariadne#458 (boundary-review)
@@ -616,6 +767,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-5 — addressed — Ownership no longer uses package-basename or free-prose inference. Exact card values and dedicated Log entries are tested against wrong-package, nested-package, and substring cases.
 - BR-6 — not-addressed — Critical, ARCH-PURPOSE / ARCH-SECURE, family exact-test-ownership: cmd/sdlc/flake_fixed.go:153-191 still accepts a sample inside "## Log\n<pre>\n- Test: <fully qualified name>\n</pre>\n", including an unclosed <pre>. A disposable command regression using the existing real-Git fixture confirmed that this sample silently removes the pre-fix row. Line 191 also accepts an unmatched opening backtick because strings.Trim removes arbitrary backticks. The reported fence, indentation, and comment fixes have genuine red/green regression evidence, but the rule that only actual, unambiguous structured entries establish ownership remains unenforced. Define and enforce the complete accepted Markdown entry grammar, rejecting raw HTML sample contexts and malformed delimiters, and cover it through matcher and command tests rather than adding another isolated exclusion.
 
+## Round 6 — 2026-10-19T08:47:01-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — The Core concepts table correctly declares classifyFixedFlake INTEGRATION; fixedIssueCovers performs only string comparisons without IO.
+- BR-2 — addressed — README.md:527 documents default suppression, flake list -v and recurrence, consistent with cmd/sdlc/flake_cmd.go rendering.
+- BR-3 — addressed — TestFlakeListRendersFixedRecurrenceAndCoverageFromRealGit passes and asserts default suppression, verbose fixed rows, recurrence and ambiguous coverage.
+- BR-4 — addressed — Classifier uncertainty reasons reach command output; passing decision and rendering tests verify missing merges, Git uncertainty and ambiguous ownership.
+- BR-5 — addressed — Ownership now uses exact card-list equality; package-basename and textual-path inference have been removed.
+- BR-6 — addressed — Published details no longer enter ownership evidence. TestFlakeListIgnoresPublishedLogOwnership passes on head; restoring the prior implementation through a temporary Go overlay makes all three cases fail: plain Log, raw HTML and unmatched backticks.
+
 ## Open findings
 
-- **BR-6** [Critical] `exact-test-ownership` (kind: defect) ARCH-PURPOSE / ARCH-SECURE: Markdown samples can still hide unrelated flakes
+(none — every finding has been disposed)
