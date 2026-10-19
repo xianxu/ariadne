@@ -137,6 +137,12 @@ func TestAdoptedSlotStateRequiresProof(t *testing.T) {
 		{"mixed different and unknown", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("ariadne:7"), owner("")}}}, candidate, slotUnknown},
 		{"mixed same and unknown", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("ariadne:6"), owner("")}}}, candidate, slotUnknown},
 		{"candidate missing slot", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("ariadne:7")}}}, []actualSlotWindow{{start: start, end: start.Add(time.Hour)}}, slotUnknown},
+		{"noncanonical owner slot", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("ariadne:06")}}}, candidate, slotUnknown},
+		{"malformed owner slot", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("ariadne:-1")}}}, candidate, slotUnknown},
+		{"incomplete owner slot", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("ariadne")}}}, candidate, slotUnknown},
+		{"missing owner repository", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner(":7")}}}, candidate, slotUnknown},
+		{"mixed valid and noncanonical", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("ariadne:7"), owner("ariadne:06")}}}, candidate, slotUnknown},
+		{"noncanonical candidate slot", []tracker.EngagementWindow{{Start: start, End: start.Add(time.Hour), Owners: []issue.Claimant{owner("ariadne:7")}}}, []actualSlotWindow{{slot: "ariadne:06", start: start, end: start.Add(time.Hour)}}, slotUnknown},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -166,6 +172,8 @@ func TestParkedClaimExcludesOtherAdoptedIssueInSameSlot(t *testing.T) {
 	cards[unknownPath], details[unknownDetail] = unknownCard, unknownBody
 	legacyPath, legacyCard, legacyDetail, legacyBody := seededIssue(t, "000659", "legacy-no-completion")
 	cards[legacyPath], details[legacyDetail] = legacyCard, legacyBody
+	malformedPath, malformedCard, malformedDetail, malformedBody := seededIssue(t, "000660", "malformed-slot")
+	cards[malformedPath], details[malformedDetail] = malformedCard, malformedBody
 	r := newTrackerRepo(t, cards, details)
 	ownerRoot := filepath.Join(t.TempDir(), "owner")
 	testfix.Git(t, r.root, "worktree", "add", "-q", "-b", "000636-parked", ownerRoot)
@@ -341,38 +349,45 @@ func TestParkedClaimExcludesOtherAdoptedIssueInSameSlot(t *testing.T) {
 	if intervals, err := loadAdoptedExclusions(context.Background(), r.root, "636", "", current); err != nil || len(intervals) == 0 {
 		t.Fatalf("other-slot legacy card without completion blocked the parked actual: intervals=%+v err=%v", intervals, err)
 	}
-	// BR-5's #649/#636 shape with a second adopted card whose claimant
-	// workspace is empty: saved time overlaps, but neither a same nor a
-	// different slot is proven. It must refuse instead of recounting.
-	unknown := owner
-	unknown.Workspace = ""
-	update("000658", "claim-658", 15, func(raw []byte) ([]byte, error) {
-		return issue.SetCardClaimant(raw, unknown)
-	})
-	unknownGate := gatestate.Ledger{Gate: "boundary-review", IssueNum: 658, IDPrefix: "BR", Rounds: []gatestate.Round{{N: 1, Timestamp: saved.Until, Dispatched: saved.Until, Reviewed: saved.CodeHead, ActualInputs: &saved}}}
-	writeRepoFile(t, r.root, "workshop/plans/000658-unknown-slot-close-gate.md", gatestate.Render(unknownGate, "fixture"))
-	testfix.Git(t, r.root, "add", "workshop/plans/000658-unknown-slot-close-gate.md")
-	ownedFixtureAt(t, 41)
-	testfix.Git(t, r.root, "commit", "-qm", "#658: close evidence")
-	unknownEvidence := r.git("rev-parse", "HEAD")
-	update("000658", "close-658", 42, func(raw []byte) ([]byte, error) {
-		raw, err := issue.SetCardCompletion(raw, issue.Completion{Token: "close-658", Repository: saved.Repository, ReviewedHEAD: saved.CodeHead, EvidenceCommit: unknownEvidence})
-		if err != nil {
-			return nil, err
+	// BR-5's #649/#636 shape with adopted cards whose workspaces are
+	// noncanonical or empty. Both are unknown, never proof of a different slot.
+	addUnknownAdoption := func(id, slug, slot string, at int) {
+		t.Helper()
+		unknown := owner
+		unknown.Workspace = slot
+		update(id, "claim-"+id, 15, func(raw []byte) ([]byte, error) {
+			return issue.SetCardClaimant(raw, unknown)
+		})
+		number := 0
+		fmt.Sscanf(id, "%d", &number)
+		gatePath := fmt.Sprintf("workshop/plans/%s-%s-close-gate.md", id, slug)
+		unknownGate := gatestate.Ledger{Gate: "boundary-review", IssueNum: number, IDPrefix: "BR", Rounds: []gatestate.Round{{N: 1, Timestamp: saved.Until, Dispatched: saved.Until, Reviewed: saved.CodeHead, ActualInputs: &saved}}}
+		writeRepoFile(t, r.root, gatePath, gatestate.Render(unknownGate, "fixture"))
+		testfix.Git(t, r.root, "add", gatePath)
+		ownedFixtureAt(t, at)
+		testfix.Git(t, r.root, "commit", "-qm", "#"+id+": close evidence")
+		unknownEvidence := r.git("rev-parse", "HEAD")
+		update(id, "close-"+id, at+1, func(raw []byte) ([]byte, error) {
+			raw, err := issue.SetCardCompletion(raw, issue.Completion{Token: "close-" + id, Repository: saved.Repository, ReviewedHEAD: saved.CodeHead, EvidenceCommit: unknownEvidence})
+			if err != nil {
+				return nil, err
+			}
+			raw, err = issue.SetCardField(raw, "actual_hours", "0.17")
+			if err != nil {
+				return nil, err
+			}
+			raw, err = issue.SetCardField(raw, "updated", "2026-10-14")
+			if err != nil {
+				return nil, err
+			}
+			return issue.SetCardField(raw, "status", "codecomplete")
+		})
+		if _, err := loadAdoptedExclusions(context.Background(), r.root, "636", "", current); err == nil || !strings.Contains(err.Error(), "#"+strings.TrimLeft(id, "0")) || !strings.Contains(err.Error(), "slot") {
+			t.Fatalf("unknown claimant slot %q silently double-counted #%s with #636: %v", slot, id, err)
 		}
-		raw, err = issue.SetCardField(raw, "actual_hours", "0.17")
-		if err != nil {
-			return nil, err
-		}
-		raw, err = issue.SetCardField(raw, "updated", "2026-10-14")
-		if err != nil {
-			return nil, err
-		}
-		return issue.SetCardField(raw, "status", "codecomplete")
-	})
-	if _, err := loadAdoptedExclusions(context.Background(), r.root, "636", "", current); err == nil || !strings.Contains(err.Error(), "#658") || !strings.Contains(err.Error(), "slot") {
-		t.Fatalf("unknown claimant slot silently double-counted #658 with #636: %v", err)
 	}
+	addUnknownAdoption("000660", "malformed-slot", "ariadne:06", 41)
+	addUnknownAdoption("000658", "unknown-slot", "", 43)
 	unbound := *current
 	unbound.SourceSlots = map[string]string{}
 	if _, err := loadAdoptedExclusions(context.Background(), r.root, "636", "", &unbound); err == nil || !strings.Contains(err.Error(), "has no pinned slot") {

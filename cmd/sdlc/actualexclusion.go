@@ -13,6 +13,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 // creditedIntervals protects only Build/Converge time included in the adopted
@@ -139,10 +140,13 @@ func adoptedSlotRelationship(engagements []tracker.EngagementWindow, windows []a
 	if len(engagements) == 0 || len(windows) == 0 {
 		return slotUnknown, time.Time{}, time.Time{}
 	}
-	for _, window := range windows {
-		if window.slot == "" {
+	candidateSlots := make([]workspace.Address, len(windows))
+	for i, window := range windows {
+		address, ok := canonicalAdoptedSlot(window.slot)
+		if !ok {
 			return slotUnknown, time.Time{}, time.Time{}
 		}
+		candidateSlots[i] = address
 	}
 	var same bool
 	var sameStart, sameEnd time.Time
@@ -151,11 +155,12 @@ func adoptedSlotRelationship(engagements []tracker.EngagementWindow, windows []a
 			return slotUnknown, time.Time{}, time.Time{}
 		}
 		for _, owner := range engagement.Owners {
-			if owner.Workspace == "" {
+			ownerSlot, ok := canonicalAdoptedSlot(owner.Workspace)
+			if !ok {
 				return slotUnknown, time.Time{}, time.Time{}
 			}
-			for _, window := range windows {
-				if owner.Workspace != window.slot {
+			for i, window := range windows {
+				if ownerSlot != candidateSlots[i] {
 					continue
 				}
 				same = true
@@ -175,6 +180,11 @@ func adoptedSlotRelationship(engagements []tracker.EngagementWindow, windows []a
 		return slotSame, sameStart, sameEnd
 	}
 	return slotDifferent, time.Time{}, time.Time{}
+}
+
+func canonicalAdoptedSlot(raw string) (workspace.Address, bool) {
+	address, err := workspace.ParseAddress(raw)
+	return address, err == nil && address.Repo != "" && address.String() == raw
 }
 
 // cardDateMayOverlap is only a cheap rejection filter. Card dates are local
