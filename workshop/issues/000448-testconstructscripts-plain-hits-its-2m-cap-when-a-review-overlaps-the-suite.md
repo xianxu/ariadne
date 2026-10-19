@@ -117,6 +117,17 @@ The longest leaf took 87.52s versus 19.205s in the initial standalone sample.
 These are measured outcomes under the parallel suite workload, not a claim that
 all future contention is bounded by this sample. No timeout value changed.
 
+### 2026-10-18 — recorded full suite passed
+
+- Attempt `71aab835839cdd344d0e88c13262deec` passed on the runtime head above:
+  1,657 cmd/sdlc tests across twelve shards and seventy other packages, all zero
+  failures. Runtime 716.0s (11m56s); packages job 401.0s. Recorded status:
+  `sdlc-local/suite`, log SHA256 prefix `e28953535f0a`.
+- Log: `.git/sdlc/local-checks/25bf575191a753a127daf2bd1833cd5b1e27a6ec/suite.log`.
+  The only commits after that tested runtime head are close/bookkeeping prose.
+  Both round-one findings were disposed in round two, which returned SHIP.
+  The final landing still uses the normal integration and CI gates.
+
 ## Revisions
 
 ### 2026-10-18 — dispatch constraint and diagnosed scope
