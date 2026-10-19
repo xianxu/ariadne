@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
-estimate_hours:
+estimate_hours: 2.82
 collaboration-mode: collaboration
-card_mirror: 'af2b65f7f8110f743e740db772647fd3c7880f46' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e6386142d1ac87d199262725bf8ac68d2edd580c' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T01:11:31-07:00
 claimant:
     operator: Xian Xu
@@ -120,3 +120,36 @@ this issue does not claim those future consumer migrations are already done.
   CI workflow is active; emma-private has no issue tracker. Hub explicitly said
   not to touch either repo and will bring both to the operator in the morning.
   These exceptions are recorded, not silently skipped as completed migrations.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md`
+against `baseline-v3.1.md`. Method A only. Calibration is provisional/stale.
+
+Scope is the upstream compiler pin, guard and workflow, regression/conformance
+checks, documentation, review and fifteen issue hand-offs; downstream migration
+implementation and operator waiting are excluded. Python subprocess/tempfile,
+Git and existing weave/vocabulary helpers cover the stack: no novel library or
+service is needed. Two well-specified small modules map to the tooling primitive;
+the resolved plan applies the 0.2 design discount and 15% design buffer. Impl
+values below already apply v3.1's 40% scale once, with familiar-stack 1.0.
+Cross-repo filing uses the large-refactor coordination primitive at its upper
+implementation bound; there is no vendor propagation in this issue, so no
+additional vendor multiplier. The GitHub inventory is one API-discovery item.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.20 impl=0.12
+item: smaller-go-module design=0.08 impl=0.32
+item: smaller-go-module design=0.08 impl=0.32
+item: cross-cutting-refactor design=0.04 impl=0.20
+item: cross-repo-refactor-large design=0.10 impl=0.60
+item: atlas-docs design=0.04 impl=0.08
+item: milestone-review design=0.02 impl=0.20
+item: real-api-discovery design=0.00 impl=0.24
+design-buffer: 0.15
+total: 2.82
+```
+
+Design 0.56 × 1.15 + implementation 2.18 = 2.824 hours, rounded to 2.82.
