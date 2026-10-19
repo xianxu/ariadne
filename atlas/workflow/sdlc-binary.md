@@ -2027,8 +2027,10 @@ The shell runner's default CI invocation still executes the selected batch.
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
 that taught it (`test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
-`test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, and
-`wire-strict-decode` pair#594). Packages are matched by the
+`test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
+#469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
+landing), and `wire-strict-decode` pair#594). `TestAtlasNamesEveryRule` keeps this list
+in step with `Catalog`. Packages are matched by the
 name the file imports them under, and generated files are skipped. Rules read only the syntax tree (stdlib
 `go/parser`, no type-checking, no external linter), and `TestTrackedGoFilesPassTheCatalog`
 runs them over every tracked Go file in the suite, so every landing enforces them (well under

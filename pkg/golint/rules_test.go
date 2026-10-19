@@ -1,6 +1,7 @@
 package golint
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -191,6 +192,20 @@ func TestBatchRunnerFollowsExecImportAlias(t *testing.T) {
 		got, err := Check("alias_test.go", []byte(src), []Rule{ruleOf(t, "test-batch-shell-runner")})
 		if err != nil || len(got) != 1 {
 			t.Fatalf("%s: findings=%v, error=%v", call, got, err)
+		}
+	}
+}
+
+// The atlas's catalog paragraph names every rule (#469 close review): a rule
+// added without its atlas line fails here.
+func TestAtlasNamesEveryRule(t *testing.T) {
+	atlas, err := os.ReadFile("../../atlas/workflow/sdlc-binary.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range Catalog {
+		if !strings.Contains(string(atlas), "`"+r.Name+"`") {
+			t.Errorf("atlas/workflow/sdlc-binary.md's Go lint catalog does not name %s", r.Name)
 		}
 	}
 }
