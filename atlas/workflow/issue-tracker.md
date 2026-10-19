@@ -17,6 +17,13 @@ dependencies and evidence. `internal/issue/card.go` projects cards from details.
 fields before refreshing an unchanged old projection. Unknown detail fields and
 unrelated body bytes remain untouched. Transaction metadata is not mirrored.
 
+Card readers accept additive unknown frontmatter members, including members
+inside the claimant and versioned tracker records (#460). Known fields,
+required values, duplicate YAML keys, aliases, and the tracker version remain
+strict. Scalar and title setters retain source spans; claimant and tracker
+setters carry unknown children into each retained record before tracker CAS
+writes the card. Removing a whole known record also removes its children.
+
 ## Claimant: who owns the work (#277)
 
 A claim writes a `claimant` card field by compare-and-swap. Since #283 the
@@ -30,7 +37,8 @@ card field.
   machine name, an optional home slot, the canonical worktree, and the
   repository.
 - **Pure core:** `internal/issue/claimant.go` holds parsing and validation,
-  which fail closed on unknown keys, non-strings and raw IDs. It also holds
+  which fail closed on malformed known keys, non-strings and raw IDs while
+  retaining additive unknown keys. It also holds
   `MatchClaimant`, `RelocationAllowed` and `MachineFingerprint`.
 - **IO seam:** `cmd/sdlc/claimant.go` provides `claimantIdentity`.
 - **Ownership** is the same slot on the same machine (#307). The home slot is
