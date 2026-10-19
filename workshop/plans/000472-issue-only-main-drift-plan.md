@@ -149,8 +149,11 @@ unknown main changes.
   policy observations never authorize direct merge. No secrets or new permissions.
 - ARCH-ORDER: the table above extends transitionIntegration; test interrupted,
   concurrent-main and uncertain-server effects through that single owner.
-- ARCH-ELABORATE: no generic workflow parser or protection/ruleset reconstruction;
+- Simplicity: no generic workflow parser or protection/ruleset reconstruction;
   effective GitHub readiness is the narrow fact needed here.
+- ARCH-FUNERAL: no new durable artifacts at runtime; movement/readiness facts
+  live only for the active landing and disappear when it ends. Existing recovery
+  owns interrupted merge, branch and archive cleanup.
 - ARCH-EVOLVE: no persisted format change. The optional GitHub field is typed and
   additive; missing/future values cause conservative fallback.
 
@@ -214,3 +217,11 @@ for any review-derived rule (no ceremonial wording tests for prose).
   archive/card evidence and both attempts if a registered flake reruns.
 
 No Mx markers: this is one atomic behavior change with one close review boundary.
+
+## Revisions
+
+### 2026-10-19 — registry marker correction
+
+Label the simplicity tactic as prose rather than an unregistered ARCH marker;
+explicitly record ARCH-FUNERAL's ephemeral lifetime and existing cleanup owner.
+No mechanism or scope change.
