@@ -1,6 +1,6 @@
 ---
 id: 000443
-status: codecomplete
+status: done
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: c7b1abed356d9b594631240a80909fe2f66f2509
         evidence_commit: 9c2700c829fb5cd8db1012484ae96523dbcaf552
+        landed_commit: 21a9438e8496558e89133df24e6c5360ccb8073c
 ---
 
 # sdlc actual: a parked claim double-counts time the slot spent on other issues
