@@ -322,6 +322,6 @@ Authoring paths (equivalent — both produce the same file shape):
 
 - Issue & log: `workshop/history/issues/000018-transcript-driven-introspection.md` (or `workshop/issues/` if still open)
 - Hints feature issue: `workshop/issues/000019-introspect-human-hints.md`
-- Plan with v1.0 → v1.1 revision header: `workshop/plans/000018-transcript-driven-introspection-plan.md`
+- Plan with v1.0 → v1.1 revision header: `workshop/history/plans/000018-transcript-driven-introspection-plan.md`
 - Composition recipes: `construct/local/introspect/scripts/README.md`
 - Memory entry on the precision-over-recall principle: `~/.claude/projects/-Users-xianxu-workspace-ariadne/memory/feedback_precision_over_recall.md`
