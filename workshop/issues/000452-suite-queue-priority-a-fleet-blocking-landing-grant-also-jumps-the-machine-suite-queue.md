@@ -41,7 +41,7 @@ Durable design: [implementation plan](../plans/000452-suite-queue-priority-a-fle
 
 - [x] Pin priority, FIFO, expiry, weight and lifecycle behavior with the real lock helper.
 - [x] Reuse the existing grant authority and reelect weighted admission under the existing mutex.
-- [ ] Verify private binary smoke, recorded suite and close/landing gates.
+- [x] Verify private binary smoke and focused coverage, document rollout, and start the recorded suite before close (passing final-head suite remains required before landing).
 
 ## Log
 
@@ -70,6 +70,12 @@ TL declined shared :0 staging and authorized this worktree's build instead (rece
 ### Provider cancellation follow-up
 
 Before full-suite admission, a new cancellation transport regression failed: SIGTERM of the helper left its separate provider group alive. Root cause: Python's default SIGTERM termination skipped query_priority's finally cleanup. SIGTERM now unwinds through SystemExit, so existing provider-group kill/wait and ticket release execute. The regression passed in 0.420s. The full focused family then passed again (cmd/sdlc 60.882s; landingline 0.127s), including the 14-test harness and actual local-check signal cancellation. The first suite attempt was still queued and was cancelled using sdlc local-check cancel; it ran no tests. No live peer work was cancelled. Restart the recorded suite on the corrected commit. A PID-file synchronization race in the new test was corrected to wait for complete numeric contents, not file existence.
+
+### Recorded suite and existing flake #448
+
+Actual-binary smoke was repeated after the cancellation fix: all 14 tests passed in 28.388s; built revision e8b34c96c6be091b199fe68f6dda37e6eef6327d, modified=false, trimpath=true. The recorded branch suite on that same head completed all 12 cmd/sdlc shards with zero failures (1657 tests) and all 70 package runs, but scripts/test TestConstructScripts/plain exceeded its existing 2m directory-wide deadline. Suite wall 772.5s. Retained failed attempt b7e282640d6d444a91c06c0b1c46c866, log /Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/failed/b7e282640d6d444a91c06c0b1c46c866.log, SHA256 prefix 838fec74cba2.
+
+This is the established open flake [#448](000448-testconstructscripts-plain-hits-its-2m-cap-when-a-review-overlaps-the-suite.md), same whole-directory timeout under load. Targeted diagnostic go test ./scripts/test -run '^TestConstructScripts$' -count=1 -v -timeout 8m passed unchanged: all 18 script/environment combinations, 58.567s total (plain 23.15s, no_color_ci 18.47s, forced_color_terminal 16.81s). Under tl-worker's self-applied flake rule, one unchanged recorded rerun started on the exact same head; attempt cb7bc0e3512890ca1143b9e60156fd46, currently queued. No timeout/gate/config/code changes made to obtain a pass. Close review may overlap that queued run under the worker contract, but a passing final-code suite is still mandatory before landing. Both attempt outcomes will be reported.
 
 ## Revisions
 
