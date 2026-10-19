@@ -284,6 +284,19 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 	if heldBy != "" {
 		cmd.Env = append(cmd.Env, "WF_TEST_LOCK_HELD_BY="+heldBy)
 	}
+	// The RAM disk (#468): its env comes last so it wins, and the leak report
+	// compares the SSD temp folders across the run.
+	scratchEnv, _, dropScratch := prepareScratch(d.Stderr, check)
+	defer dropScratch()
+	cmd.Env = append(cmd.Env, scratchEnv...)
+	var ssdBefore map[string]bool
+	if scratchEnv != nil {
+		ssdBefore = listTemp(ssdTempDirs())
+		defer func() {
+			byPkg, unattributed := scratchLeaks(ssdBefore, listTemp(ssdTempDirs()), declaredTests(wt))
+			reportScratchLeaks(d.Stderr, check, byPkg, unattributed)
+		}()
+	}
 	out := io.MultiWriter(logf, d.Stderr)
 	cmd.Stdout, cmd.Stderr = out, out
 	start := time.Now()

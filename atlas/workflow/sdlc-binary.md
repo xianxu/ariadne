@@ -1922,6 +1922,15 @@ with 12 shards (#330 measured 7.5–8 on a busy machine, whole module), against 
 `cmd/sdlc` serially and needs `-timeout 60m` (it exceeds go's 10-minute default).
 `scripts/test-timing.py` reports per-test times from either run's `-json` output.
 
+Suites under `sdlc local-check` (the recorded suite, merge's integration suite,
+known-flake reruns) write their temp files to the TestScratch RAM disk when it
+is mounted (#468): `runUnderSlot` (`localcheck_run.go`) gives each run
+`TMPDIR`/`GOTMPDIR` in its own folder under `/Volumes/TestScratch/tmp`, removed
+after, and falls back to the normal temp folder when the disk is absent or under
+2 GiB free (`testscratch.go`). It also sweeps stale run and go-build folders,
+and warns about `t.TempDir` folders a scratched run still left on the SSD temp
+folders. `pkg/golint`'s `tmp-literal` flags hardcoded temp roots that bypass it.
+
 Every package whose tests run git calls `testfix.PreferRealGit()` from its
 `TestMain`, putting `$(git --exec-path)` first on PATH: on macOS `/usr/bin/git`
 is the xcrun shim, which costs about 11 ms per spawn. A new git-driving test

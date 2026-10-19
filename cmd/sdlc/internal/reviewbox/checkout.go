@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flock"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/scratchdisk"
 )
 
 // Checkout is one review round's disposable clone. Its lifecycle (ARCH-FUNERAL):
@@ -36,17 +37,35 @@ const (
 	tmpLockGrace = time.Minute
 )
 
-// Root is where review checkouts live: WF_REVIEW_CHECKOUT_ROOT, else
-// <user cache dir>/sdlc/review-checkouts.
-func Root() (string, error) {
+// Roots says where review checkouts live. create is where a new one goes;
+// all is every root that may hold one, for Sweep. WF_REVIEW_CHECKOUT_ROOT,
+// when set, is the only root. Otherwise a new checkout goes to the TestScratch
+// RAM disk's review-checkouts when it is mounted with room (#468), else to
+// <user cache dir>/sdlc/review-checkouts. A checkout's Dir is fixed at Create
+// and Reset reuses it, so a checkout lives wholly on the root it started on and
+// never moves; all lists both roots so a sweep still reclaims either. note
+// says why the RAM disk was passed over, when it is mounted but full or
+// unreadable.
+func Roots() (create string, all []string, note string, err error) {
 	if r := os.Getenv("WF_REVIEW_CHECKOUT_ROOT"); r != "" {
-		return r, nil
+		return r, []string{r}, "", nil
 	}
 	cache, err := os.UserCacheDir()
 	if err != nil {
-		return "", fmt.Errorf("locate review checkout root: %w", err)
+		return "", nil, "", fmt.Errorf("locate review checkout root: %w", err)
 	}
-	return filepath.Join(cache, "sdlc", "review-checkouts"), nil
+	disk := filepath.Join(cache, "sdlc", "review-checkouts")
+	create, all = disk, []string{disk}
+	p := scratchdisk.Read()
+	use, note := scratchdisk.Choose(p, scratchdisk.Floor)
+	if p.Mounted && p.Err == nil {
+		ram := filepath.Join(p.Root, "review-checkouts")
+		all = append([]string{ram}, all...)
+		if use {
+			create = ram
+		}
+	}
+	return create, all, note, nil
 }
 
 // Create makes a fresh shared clone of src at head under root. The clone
