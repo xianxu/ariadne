@@ -110,4 +110,3 @@ item: milestone-review design=0.04 impl=0.20
 design-buffer: 0.15
 total: 1.63
 ```
-
