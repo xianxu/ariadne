@@ -41,7 +41,7 @@ Durable design: [implementation plan](../plans/000452-suite-queue-priority-a-fle
 
 - [x] Pin priority, FIFO, expiry, weight and lifecycle behavior with the real lock helper.
 - [x] Reuse the existing grant authority and reelect weighted admission under the existing mutex.
-- [ ] Verify isolated live rollout, recorded suite and close/landing gates.
+- [ ] Verify private binary smoke, recorded suite and close/landing gates.
 
 ## Log
 
@@ -62,6 +62,10 @@ Red: python3 scripts/test/test-lock-priority.test.py failed with "older normal h
 The additional real-helper harness proves unchanged-log expiry lets the older normal suite proceed; live revocation/late grants, stopped priority FIFO, no partial weighted ownership/backfill, watched-owner death, missing-provider fallback, and direct make subject/provider selection. Counted tests verify per-repository source stats, a batch per cache miss, no provider on stable polls, temporal refresh, and bounded malformed/slow/oversized transport. Local-check binding tests prove the original common directory and tested issue head, with diagnostic/non-suite/different-head controls.
 
 Optional environment metadata supplies provider/subject rather than adding mandatory argv: older helpers retain capacity compatibility and priority failure never becomes a capacity refusal. Existing helper capability requirements stay unchanged. No protected local-gates configuration changed.
+
+### Own-worktree binary smoke
+
+TL declined shared :0 staging and authorized this worktree's build instead (receipt aabb93a7-728d-4289-b2fe-5a3dcaec9128). make sdlc-build completed; go version -m confirms revision 4e9ba7e62802d49e11997a8150999bdda3c4d64e, modified=false, trimpath=true. SUITE_PRIORITY_TEST_PROVIDER pointing to this worktree's bin/sdlc with python3 scripts/test/test-lock-priority.test.py passed all 13 tests in 24.615s. All lock/grant paths were private fixtures. Shared tools and live queue ownership were untouched. TL handles :0 rebuild and subsequent natural fleet observation after landing. Recorded full branch suite is running through the normal machine queue.
 
 ## Revisions
 
