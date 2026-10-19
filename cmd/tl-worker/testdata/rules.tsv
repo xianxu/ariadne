@@ -47,8 +47,8 @@ hot-path-example	cited	rescan per entry costs O(N^2)
 quick-fix	own	self-approve small fix plans
 plan-post	own	proceeding unless you object
 plan-approval	cited	Full-flow designs, design changes
-flake-evidence	own	file a flake issue with evidence
-flake-rerun	own	one unchanged rerun
+flake-evidence	own	`sdlc flake register --test PKG.TestX`
+flake-rerun	own	merge rerun only the
 flake-stop	own	second unrelated flake on the same head
 cross-repo	own	one-line proposal to the TL
 same-repo	own	Same-repo filings stay direct

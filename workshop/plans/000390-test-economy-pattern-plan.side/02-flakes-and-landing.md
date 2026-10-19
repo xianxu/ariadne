@@ -31,3 +31,10 @@ Rules 2–3 keep that ("unexplained" means not yet classified) but make the clas
 have ariadne:1 fold these four rules into §3.
 
 **Decided (operator): approved.** The four rules go into §3.
+
+**Revision 2026-10-18 (ariadne#394, the operator's ask "bypass it during landing", decided via the TL):** under rule 2, a
+**targeted rerun of only the registered failing tests** on the same head now counts as landing evidence, in place of a
+full-suite rerun. The failed attempt already passed every other test on that exact head, so after the rerun every test
+has passed once on the head: one passing exact-head suite, as the union of the two attempts. Rule 3 (unknown failures
+block until classified, registration only with same-head fail→pass evidence) and rule 4 are unchanged. A blind full
+rerun after an unexplained failure no longer turns the head green.

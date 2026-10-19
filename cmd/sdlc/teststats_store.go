@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
@@ -17,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
@@ -28,6 +30,7 @@ const (
 )
 
 var suiteHex = regexp.MustCompile(`^[0-9a-fA-F]+$`)
+var issueIDRE = regexp.MustCompile(`^[0-9]{6}$`)
 var suiteRepo = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
 // encoding/json matches struct fields case-insensitively even with
@@ -39,7 +42,20 @@ var suiteAttemptJSONFields = map[string]bool{
 	"started_at": true, "finished_at": true, "queued_at": true, "acquired_at": true, "main_baseline": true,
 	"queue_seconds": true, "wall_seconds": true, "exit": true, "timed_out": true,
 	"log_sha256": true, "log_path": true, "failures": true, "units": true,
+	"outcome": true, "known_flakes": true, "rerun_of": true, // version 2 only (#394)
 }
+
+// suiteAttemptVersion is the version the writer records. Version 2 (#394)
+// adds the gate's outcome, its known flakes and a rerun's link; a v1 record
+// cannot carry them, so a v1 history stays readable and unambiguous.
+const suiteAttemptVersion = 2
+
+var suiteAttemptV2Fields = []string{"outcome", "known_flakes", "rerun_of"}
+
+// suiteOutcomes are the outcome values a v2 attempt may record.
+var suiteOutcomes = map[flakes.Kind]bool{flakes.Passed: true, flakes.KnownFlakePassed: true, flakes.KnownFlakeAccept: true,
+	flakes.KnownFlakeTwice: true, flakes.Unknown: true, flakes.Unattributable: true, flakes.PersistentMain: true,
+	flakes.RegistryUnusable: true, flakes.RuleOff: true, flakes.TooManyKnownFlaky: true, flakes.RerunInconclusive: true}
 
 type suiteAttemptWriter struct{ ID, LogPath string }
 
@@ -123,8 +139,32 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 	if _, err := d.Token(); !errors.Is(err, io.EOF) {
 		return a, errors.New("trailing JSON")
 	}
-	if a.Version != 1 {
+	if a.Version != 1 && a.Version != 2 {
 		return a, fmt.Errorf("unsupported version %d", a.Version)
+	}
+	if a.Version == 1 {
+		for _, key := range suiteAttemptV2Fields {
+			if keys[key] {
+				return a, fmt.Errorf("version 1 attempt carries the version 2 field %s", key)
+			}
+		}
+	}
+	if a.Outcome != "" && !suiteOutcomes[flakes.Kind(a.Outcome)] {
+		return a, fmt.Errorf("invalid outcome %q", a.Outcome)
+	}
+	if a.RerunOf != "" && (!suiteHex.MatchString(a.RerunOf) || len(a.RerunOf) < 2 || len(a.RerunOf) > 64 || a.RerunOf == a.ID) {
+		return a, errors.New("invalid rerun_of")
+	}
+	if (a.RerunOf != "") != (a.Check == suiteRerunCheck) {
+		return a, fmt.Errorf("a %s attempt names its rerun_of, and only it does", suiteRerunCheck)
+	}
+	if len(a.KnownFlakes) > 10000 {
+		return a, errors.New("too many facts")
+	}
+	for _, e := range a.KnownFlakes {
+		if flakes.ValidTest(e.Test) != nil || !issueIDRE.MatchString(e.Issue) {
+			return a, errors.New("invalid known flake")
+		}
 	}
 	if !suiteHex.MatchString(a.ID) || len(a.ID) < 2 || len(a.ID) > 64 {
 		return a, errors.New("invalid attempt ID")
@@ -282,7 +322,12 @@ func publishSuiteAttempt(root string, w *suiteAttemptWriter, a SuiteAttempt) (st
 	if err := log.Close(); err != nil {
 		return "", err
 	}
-	if a.Exit != 0 || a.TimedOut {
+	// A failure's log, and a known-flake rerun's (#394) whatever its exit,
+	// is kept immutably under its ID: the per-head legacy path below is
+	// rewritten by every later attempt on the head, so a rerun's evidence
+	// there would be overwritten by the suite attempt it reran.
+	immutable := a.Exit != 0 || a.TimedOut || a.RerunOf != ""
+	if immutable {
 		a.LogPath = filepath.Join("failed", a.ID+".log")
 		// Link is an exclusive, same-filesystem publication: even an ID
 		// collision cannot replace a prior failure's evidence.
@@ -303,12 +348,16 @@ func publishSuiteAttempt(root string, w *suiteAttemptWriter, a SuiteAttempt) (st
 	// Compatibility copy happens before the JSON commit marker. A failed copy
 	// leaves no published record that falsely claims a complete attempt.
 	from := w.LogPath
-	if a.Exit != 0 || a.TimedOut {
+	if immutable {
 		from = filepath.Join(root, a.LogPath)
 	}
-	legacy := filepath.Join(filepath.Dir(root), "local-checks", a.SHA, a.Check+".log")
-	if err := copySuiteLogAtomically(from, legacy, filepath.Dir(w.LogPath)); err != nil {
-		return "", fmt.Errorf("legacy log copy: %w", err)
+	// The legacy per-head copy is the suite's log; a rerun of a few tests
+	// never replaces it.
+	if a.RerunOf == "" {
+		legacy := filepath.Join(filepath.Dir(root), "local-checks", a.SHA, a.Check+".log")
+		if err := copySuiteLogAtomically(from, legacy, filepath.Dir(w.LogPath)); err != nil {
+			return "", fmt.Errorf("legacy log copy: %w", err)
+		}
 	}
 	data, err := json.Marshal(a)
 	if err != nil {
@@ -412,6 +461,9 @@ func readSuiteAttemptsBudget(root string, limit int, maxBytes int64) ([]SuiteAtt
 			seen++
 			p := filepath.Join(root, "attempts", e.Name())
 			f, openErr := os.Open(p)
+			if _, lerr := os.Lstat(p); errors.Is(openErr, fs.ErrNotExist) && errors.Is(lerr, fs.ErrNotExist) {
+				continue // the entry itself is gone: pruned since the listing (a dangling link is still unreadable)
+			}
 			if openErr != nil {
 				warnings = append(warnings, p+": "+openErr.Error())
 				continue

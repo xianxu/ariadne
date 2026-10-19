@@ -163,6 +163,40 @@ first-class evidence, recorded on the commit it ran on:
   and checks (a push during the run, or a pass that never reached GitHub,
   refuses). Red, unknown and pending CI outrank a needed local run, so nothing
   runs locally while CI is red or still running.
+- **Known flakes (#394).** When the `suite` check fails, `knownFlakeStep`
+  (`cmd/sdlc/localcheck_flakes.go`) classifies the attempt
+  (`internal/flakes.Classify`) against the registry: open issues whose card
+  lists `flake_tests`, read fresh from the tracker. If every failure is a
+  named, registered test, those tests alone are rerun once on the same head
+  (`go test -v -run`, weight 1, through the shared `runUnderSlot`, so it has its
+  own lease and #383 slot release, bounded by the check's timeout). It lands
+  only when each named test shows `--- PASS`. The registry and the policy are
+  rechecked just before posting (`flakes.Revalidate`), and again when a saved
+  known-flake pass is reused or republished. The status reads "pass · known
+  flake #N rerun". The rerun is saved as a v2 attempt of check `suite-rerun`
+  (reserved; the decoder ties it to `rerun_of`), with its log kept per ID, so
+  no reader of suite attempts can take it for a suite run. A saved
+  known-flake pass is reused from its parent attempt's outcome. These block:
+    - an unregistered failure;
+    - an unattributable one (a build error, a timeout, a crashed shard, an
+      unparseable log);
+    - a known flake that fails the rerun again or proves nothing in it;
+    - more than five at once;
+    - an unreadable registry.
+  An interrupted rerun posts nothing. **No blind rerun lands:**
+  `guardSuitePass` (`postLocalCheckRecord`, so every run, reuse and republish)
+  refuses a suite success on a commit while a failed suite attempt there is
+  unexplained (`flakes.Unexplained`: not a known-flake landing, and not every
+  failure a test registered now; an unattributable or rejected failure never).
+  It fails closed on a test-stats store it cannot read whole (a record pruned
+  mid-read is skipped, not unreadable). The reader's caps (10,000 records,
+  64 MiB) now gate landings; the writer is bounded by the 30-day prune, and
+  ariadne's store measured 155 records / 620K on 2026-10-18, about 60x under. Store readers
+  use `isSuiteRun` (counts, reuse) or `isFlakeEvidence` (a suite run or a
+  passing `suite-rerun`). `known_flakes` (`rerun` \| `accept` \|
+  `off`) on the declared suite is the operator's policy, under the same
+  local-gates guard. Test-stats counts a rerun as flake evidence, never as a
+  suite run.
 - **Trust limit:** anyone with the repository's token can post an
   `sdlc-local/*` status. That is accepted: the local machine is trusted, and
   what CI guards is the declaration and the gate code.

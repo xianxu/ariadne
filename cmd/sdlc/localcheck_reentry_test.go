@@ -75,6 +75,10 @@ func TestSuiteBaselineRetainsRealLockOwner(t *testing.T) {
 	if !strings.Contains(refusal.Error(), "introduced: TestA") || !strings.Contains(refusal.Error(), "pre-existing: TestB") {
 		t.Fatalf("baseline failed to reenter held lock: %v", refusal)
 	}
+	// #394: the shared failure is labelled once as a persistent main failure.
+	if !strings.Contains(refusal.Error(), "pre-existing: TestB (a persistent main failure, never a known flake)") || strings.Count(refusal.Error(), "TestB") != 1 {
+		t.Fatalf("persistent main failure label: %v", refusal)
+	}
 	if gh.statuses[main] != nil {
 		t.Fatalf("baseline posted a status: %v", gh.statuses[main])
 	}

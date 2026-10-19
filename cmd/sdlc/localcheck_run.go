@@ -23,6 +23,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
@@ -40,6 +41,10 @@ type localRunDeps struct {
 	// SkipRecord is for a diagnostic baseline on main. It keeps the log but
 	// never publishes a commit status or PR comment for that baseline.
 	SkipRecord bool
+	// FlakeRegistry reads the known-flake registry (#394) when a suite fails:
+	// the open issues' flake_tests, from a fresh tracker read. nil means no
+	// registry is available, which blocks like an unknown failure.
+	FlakeRegistry func(ctx context.Context) (flakes.Registry, error)
 	// minute is the unit of timeout_minutes; tests shrink it.
 	minute time.Duration
 }
@@ -112,6 +117,126 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		rec.LogPath = writer.LogPath
 	}
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
+	run, err := runUnderSlot(ctx, d, wt, helper, logDir, c.Name, sha, c.Weight, subject, c.Command, rec.LogPath, time.Duration(c.TimeoutMinutes)*d.minute)
+	if err != nil {
+		return rec, err
+	}
+	rec.Exit, rec.TimedOut, rec.Duration = run.Exit, run.TimedOut, run.Duration
+	start, finished, queueStart, queueAcquired, queueWait := run.Start, run.Finished, run.QueueStart, run.Acquired, run.QueueWait
+	if rec.LogSHA256, rec.Tail, err = hashAndTail(rec.LogPath, localCheckTailLines); err != nil {
+		return rec, err
+	}
+	queueSeconds, wallSeconds := queueWait.Seconds(), rec.Duration.Seconds()
+	saved := false // a saved attempt is what `local-check republish` can post later
+	var gateErr error
+	if writer != nil {
+		attempt := SuiteAttempt{Version: suiteAttemptVersion, ID: writer.ID, Repo: d.Repo, SHA: sha, Check: c.Name,
+			StartedAt: start.UTC(), FinishedAt: finished, MainBaseline: d.SkipRecord,
+			QueuedAt: ptrTime(queueStart.UTC()), AcquiredAt: ptrTime(queueAcquired.UTC()),
+			QueueSeconds: &queueSeconds, WallSeconds: &wallSeconds,
+			Exit: rec.Exit, TimedOut: rec.TimedOut, LogSHA256: rec.LogSHA256}
+		if identity, idErr := workspace.Resolve(execGitRunner{}, d.Root, ""); idErr == nil && identity.Address != nil {
+			attempt.Slot = *identity.Address
+		}
+		if trailer, trailerErr := d.Git("show", "-s", "--format=%(trailers:key=Agent,valueonly)", sha); trailerErr == nil {
+			attempt.Agent, attempt.Model, attempt.Effort = suiteAgentFields(trailer)
+		}
+		// A log the parser cannot read names no test, so a failure in it is
+		// unattributable: never a known flake (#394).
+		facts := SuiteLogFacts{Unattributed: []string{"the suite log could not be parsed"}}
+		if info, statErr := os.Stat(writer.LogPath); statErr == nil && info.Size() <= 64<<20 {
+			if log, readErr := os.ReadFile(writer.LogPath); readErr == nil {
+				facts = parseSuiteLogFacts(string(log))
+				attempt.Failures, attempt.Units = facts.Failures, facts.Units
+				for _, warning := range facts.Warnings {
+					fmt.Fprintf(d.Stderr, "[!] local check %s: log parser: %s\n", c.Name, warning)
+				}
+			}
+		} else {
+			fmt.Fprintf(d.Stderr, "[!] local check %s: log too large for timing/failure parser; raw log retained\n", c.Name)
+		}
+		// A failure the log cannot name (#394 M2 review, BR-11): a run killed
+		// by its timeout, or one that never reported an exit, is never a known
+		// flake, whatever its partial log says.
+		if rec.TimedOut {
+			facts.Unattributed = append(facts.Unattributed, "the suite timed out")
+		} else if rec.Exit == -1 {
+			facts.Unattributed = append(facts.Unattributed, "the suite did not start or report an exit")
+		}
+		var stepErr error
+		switch {
+		case rec.passed():
+			attempt.Outcome = string(flakes.Passed)
+		case c.Name == suiteCheckName && !d.SkipRecord:
+			// #394: classify; when only registered flakes failed, rerun them.
+			var o flakes.Outcome
+			o, stepErr = knownFlakeStep(ctx, d, suiteGateRun{check: c, sha: sha, wt: wt, helper: helper, logDir: logDir, subject: subject,
+				storeRoot: storeRoot, failedID: writer.ID, failedFacts: facts, repo: d.Repo, slot: attempt.Slot,
+				agent: attempt.Agent, model: attempt.Model, effort: attempt.Effort})
+			if stepErr == nil {
+				o = revalidateKnownFlake(ctx, d, c, o)
+				attempt.Outcome, attempt.KnownFlakes = string(o.Kind), o.Known
+				rec.Outcome, rec.KnownFlakes = o.Kind, o.Known
+			}
+		}
+		gateErr = stepErr
+		publishing = true // retain failure residue for dead-owner cleanup if save fails
+		if _, saveErr := publishSuiteAttempt(storeRoot, writer, attempt); saveErr != nil {
+			fmt.Fprintf(d.Stderr, "[!] local check %s: attempt result was not fully saved: %v\n", c.Name, saveErr)
+		} else {
+			saved = true
+			if attempt.Exit != 0 || attempt.TimedOut { // where publishSuiteAttempt kept it
+				rec.LogPath = filepath.Join(storeRoot, "failed", writer.ID+".log")
+			} else {
+				rec.LogPath = filepath.Join(logDir, sha, c.Name+".log")
+			}
+			fmt.Fprintf(d.Stderr, "    saved log %s\n", rec.LogPath)
+			if pruneErr := pruneSuiteAttempts(storeRoot, time.Now()); pruneErr != nil {
+				fmt.Fprintf(d.Stderr, "[!] local check %s: attempt pruning: %v\n", c.Name, pruneErr)
+			}
+		}
+	}
+	pruneLocalCheckLogs(logDir, localCheckLogKeep)
+	if gateErr != nil {
+		// An interrupted or unrecordable known-flake rerun records nothing new:
+		// the failed attempt is kept (unjudged) and no status is posted.
+		return rec, fmt.Errorf("local check %s failed on %s and its known-flake rerun did not complete: %w; log %s", c.Name, abbrevSHA(sha), gateErr, rec.LogPath)
+	}
+	if d.SkipRecord {
+		fmt.Fprintf(d.Stderr, "==> local check %s: %s on %s (diagnostic baseline, unrecorded)\n", c.Name, rec.statusDescription(), abbrevSHA(sha))
+		return rec, nil
+	}
+
+	if err := postLocalCheckRecord(ctx, d, rec); err != nil {
+		var unexplained *unexplainedFailureError
+		if errors.As(err, &unexplained) {
+			return rec, err // not a post failure: republishing would refuse the same way
+		}
+		if saved {
+			return rec, fmt.Errorf("local check %s %s but was NOT recorded on %s: %w; the result is saved: publish it with %q (no rerun needed)", c.Name, rec.state(), abbrevSHA(sha), err, republishCommand(c.Name, sha))
+		}
+		return rec, fmt.Errorf("local check %s %s but was NOT recorded on %s: %w", c.Name, rec.state(), abbrevSHA(sha), err)
+	}
+	fmt.Fprintf(d.Stderr, "==> local check %s: %s, recorded as %s on %s\n", c.Name, rec.statusDescription(), localStatusContext(c.Name), abbrevSHA(sha))
+	return rec, nil
+}
+
+// suiteSlotRun is the outcome of one command run under a machine-wide suite slot.
+type suiteSlotRun struct {
+	Exit                                  int // -1: timed out or did not start
+	TimedOut                              bool
+	Duration, QueueWait                   time.Duration
+	QueueStart, Acquired, Start, Finished time.Time
+}
+
+// runUnderSlot runs argv in wt under one of the machine-wide suite slots
+// (weight of them), its output to logPath and d.Stderr, within timeout. The
+// run lease (#400), owned signals and the slot last exactly the command and
+// are released the moment it exits (#383), so a suite and a known-flake rerun
+// (#394) are both cancellable and neither holds a slot while it records. An
+// interrupt is an error and records nothing.
+func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check, sha string, weight int, subject suitePrioritySubject, argv []string, logPath string, timeout time.Duration) (suiteSlotRun, error) {
+	run := suiteSlotRun{Exit: -1}
 	queueStart := time.Now()
 	// Own signals only while our queue/suite resources exist. The surrounding
 	// Git/network preparation and bookkeeping retain default termination.
@@ -120,36 +245,37 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	// The lease (#400) spans exactly the stretch where SIGTERM is ours, so
 	// `local-check cancel` always lands on the managed interruption path.
 	pidStarted, _ := processStartTime(os.Getpid())
-	lease := runLease{Root: canonicalRoot(d.Root), Check: c.Name, SHA: sha, PID: os.Getpid(), PIDStarted: pidStarted, Started: time.Now().UTC()}
+	lease := runLease{Root: canonicalRoot(d.Root), Check: check, SHA: sha, PID: os.Getpid(), PIDStarted: pidStarted, Started: time.Now().UTC()}
 	runsDir := localCheckRunsDir(logDir)
 	sweepStaleRunLeases(runsDir)
 	releaseLease, err := holdRunLease(runsDir, lease)
 	if err != nil {
 		releaseLease = func() {}
-		fmt.Fprintf(d.Stderr, "[!] local check %s: no run lease, so `sdlc local-check cancel` cannot find this run: %v\n", c.Name, err)
+		fmt.Fprintf(d.Stderr, "[!] local check %s: no run lease, so `sdlc local-check cancel` cannot find this run: %v\n", check, err)
 	}
 	defer releaseLease()
-	heldBy, release, err := acquireSuiteSlot(ownedCtx, d, wt, c.Weight, helper, subject)
+	heldBy, release, err := acquireSuiteSlot(ownedCtx, d, wt, weight, helper, subject)
 	if err != nil {
-		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
+		return run, fmt.Errorf("local check %s: %w", check, err)
 	}
 	queueAcquired := time.Now()
 	// Derive the recorded duration from the same wall-clock endpoints that are
 	// serialized. time.Sub on live values can use their monotonic readings,
 	// which need not equal the persisted timestamp difference.
-	queueWait := queueAcquired.UTC().Sub(queueStart.UTC())
+	run.QueueStart, run.Acquired = queueStart.UTC(), queueAcquired.UTC()
+	run.QueueWait = run.Acquired.Sub(run.QueueStart)
 	defer release()
 
-	if err := os.MkdirAll(filepath.Dir(rec.LogPath), 0o755); err != nil {
-		return rec, err
+	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		return run, err
 	}
-	logf, err := os.Create(rec.LogPath)
+	logf, err := os.Create(logPath)
 	if err != nil {
-		return rec, err
+		return run, err
 	}
-	runCtx, cancel := context.WithTimeout(ownedCtx, time.Duration(c.TimeoutMinutes)*d.minute)
+	runCtx, cancel := context.WithTimeout(ownedCtx, timeout)
 	defer cancel()
-	cmd := exec.CommandContext(runCtx, c.Command[0], c.Command[1:]...)
+	cmd := exec.CommandContext(runCtx, argv[0], argv[1:]...)
 	processgroup.Configure(cmd)
 	cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
 	cmd.Dir = wt
@@ -165,90 +291,33 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	// WaitDelay bounds inherited-pipe draining after the parent exits;
 	// stop remaining children before closing their log or removing their tree.
 	_ = processgroup.Terminate(cmd, true)
-	// The slot covers the suite's run only (#383): start its release before
-	// the log, the GitHub writes and whatever the caller (merge) does next. The
-	// watcher frees it on the holder's exit (at once with kqueue, within its
-	// 0.5 s poll elsewhere).
+	// The slot covers the run only (#383): start its release before the log,
+	// the GitHub writes and whatever the caller (merge) does next. The watcher
+	// frees it on the holder's exit (at once with kqueue, within its 0.5 s
+	// poll elsewhere).
 	release()
 	// Signal ownership ends here, so the lease does too: a cancel waiting on it
 	// returns once the check has stopped and its slot is freed.
 	releaseLease()
 	interrupted := ownedCtx.Err() // stopSignals itself cancels ownedCtx.
 	stopSignals()
-	rec.Duration = time.Since(start)
-	finished := time.Now().UTC()
+	run.Start, run.Duration = start.UTC(), time.Since(start)
+	run.Finished = time.Now().UTC()
 	_ = logf.Close()
 	var exitErr *exec.ExitError
 	switch {
 	case runCtx.Err() == context.DeadlineExceeded:
-		rec.TimedOut = true
+		run.TimedOut = true
 	case interrupted != nil:
-		return rec, fmt.Errorf("local check %s interrupted: %w", c.Name, interrupted)
+		return run, fmt.Errorf("local check %s interrupted: %w", check, interrupted)
 	case runErr == nil:
-		rec.Exit = 0
+		run.Exit = 0
 	case errors.As(runErr, &exitErr):
-		rec.Exit = exitErr.ExitCode()
+		run.Exit = exitErr.ExitCode()
 	default:
-		fmt.Fprintf(d.Stderr, "local check %s did not start: %v\n", c.Name, runErr)
+		fmt.Fprintf(d.Stderr, "local check %s did not start: %v\n", check, runErr)
 	}
-	if rec.LogSHA256, rec.Tail, err = hashAndTail(rec.LogPath, localCheckTailLines); err != nil {
-		return rec, err
-	}
-	queueSeconds, wallSeconds := queueWait.Seconds(), rec.Duration.Seconds()
-	saved := false // a saved attempt is what `local-check republish` can post later
-	if writer != nil {
-		attempt := SuiteAttempt{Version: 1, ID: writer.ID, Repo: d.Repo, SHA: sha, Check: c.Name,
-			StartedAt: start.UTC(), FinishedAt: finished, MainBaseline: d.SkipRecord,
-			QueuedAt: ptrTime(queueStart.UTC()), AcquiredAt: ptrTime(queueAcquired.UTC()),
-			QueueSeconds: &queueSeconds, WallSeconds: &wallSeconds,
-			Exit: rec.Exit, TimedOut: rec.TimedOut, LogSHA256: rec.LogSHA256}
-		if identity, idErr := workspace.Resolve(execGitRunner{}, d.Root, ""); idErr == nil && identity.Address != nil {
-			attempt.Slot = *identity.Address
-		}
-		if trailer, trailerErr := d.Git("show", "-s", "--format=%(trailers:key=Agent,valueonly)", sha); trailerErr == nil {
-			attempt.Agent, attempt.Model, attempt.Effort = suiteAgentFields(trailer)
-		}
-		if info, statErr := os.Stat(writer.LogPath); statErr == nil && info.Size() <= 64<<20 {
-			if log, readErr := os.ReadFile(writer.LogPath); readErr == nil {
-				facts := parseSuiteLogFacts(string(log))
-				attempt.Failures, attempt.Units = facts.Failures, facts.Units
-				for _, warning := range facts.Warnings {
-					fmt.Fprintf(d.Stderr, "[!] local check %s: log parser: %s\n", c.Name, warning)
-				}
-			}
-		} else {
-			fmt.Fprintf(d.Stderr, "[!] local check %s: log too large for timing/failure parser; raw log retained\n", c.Name)
-		}
-		publishing = true // retain failure residue for dead-owner cleanup if save fails
-		if _, saveErr := publishSuiteAttempt(storeRoot, writer, attempt); saveErr != nil {
-			fmt.Fprintf(d.Stderr, "[!] local check %s: attempt result was not fully saved: %v\n", c.Name, saveErr)
-		} else {
-			saved = true
-			if !rec.passed() {
-				rec.LogPath = filepath.Join(storeRoot, "failed", writer.ID+".log")
-			} else {
-				rec.LogPath = filepath.Join(logDir, sha, c.Name+".log")
-			}
-			fmt.Fprintf(d.Stderr, "    saved log %s\n", rec.LogPath)
-			if pruneErr := pruneSuiteAttempts(storeRoot, time.Now()); pruneErr != nil {
-				fmt.Fprintf(d.Stderr, "[!] local check %s: attempt pruning: %v\n", c.Name, pruneErr)
-			}
-		}
-	}
-	pruneLocalCheckLogs(logDir, localCheckLogKeep)
-	if d.SkipRecord {
-		fmt.Fprintf(d.Stderr, "==> local check %s: %s on %s (diagnostic baseline, unrecorded)\n", c.Name, rec.statusDescription(), abbrevSHA(sha))
-		return rec, nil
-	}
-
-	if err := postLocalCheckRecord(ctx, d, rec); err != nil {
-		if saved {
-			return rec, fmt.Errorf("local check %s %s but was NOT recorded on %s: %w; the result is saved: publish it with %q (no rerun needed)", c.Name, rec.state(), abbrevSHA(sha), err, republishCommand(c.Name, sha))
-		}
-		return rec, fmt.Errorf("local check %s %s but was NOT recorded on %s: %w", c.Name, rec.state(), abbrevSHA(sha), err)
-	}
-	fmt.Fprintf(d.Stderr, "==> local check %s: %s, recorded as %s on %s\n", c.Name, rec.statusDescription(), localStatusContext(c.Name), abbrevSHA(sha))
-	return rec, nil
+	return run, nil
 }
 
 func suiteAgentFields(raw string) (*string, *string, *string) {
