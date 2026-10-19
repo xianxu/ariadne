@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-18
 updated: 2026-10-19
-estimate_hours:
+estimate_hours: 2.54
 collaboration-mode: collaboration
-card_mirror: 'd9045422ccd3b1624701f9634bb934e7f86ad371' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '49d32c00047b517f847d895d36f3ae573a6a3b5e' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T01:26:56-07:00
 claimant:
     operator: Xian Xu
@@ -51,6 +51,33 @@ Durable plan: [workshop/plans/000456-tl-lead-teams-plan.md](../plans/000456-tl-l
 - [ ] R5 `tl-lead fleet resume [--apply]` (targets from `ownerOf`; join couch resume candidates with sdlc claims; sequential resumes)
 - [ ] R6 Help: tl-lead TEAMS and hub contract; tl-worker direct filing; atlas
 - [ ] R7 Full suite; read-only live dry runs from ops; hand `team new` and the live proof to the hub
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec           design=0.6 impl=0.06
+item: smaller-go-module    design=0.1 impl=0.2
+item: smaller-go-module    design=0.05 impl=0.1
+item: smaller-go-module    design=0.1 impl=0.16
+item: greenfield-go-module design=0.3 impl=0.32
+item: atlas-docs           design=0.1 impl=0.1
+item: milestone-review     design=0.0 impl=0.16
+design-buffer: 0.15
+total: 2.54
+```
+
+Items, in order:
+1. the spec, revision and plan, with three plan-quality rounds;
+2. the `.hub` grammar, `ownerOf` and `team new`;
+3. `team list`;
+4. `team issues`, with the `RepoIssues` seam, its fake and the live decode;
+5. `fleet resume` (greenfield): the Couch resume seam with its fake, the pure planner, and sequential apply;
+6. help for tl-lead and tl-worker, plus atlas;
+7. the close review.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Log
 
