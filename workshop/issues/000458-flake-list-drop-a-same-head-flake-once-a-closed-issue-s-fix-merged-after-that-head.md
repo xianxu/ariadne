@@ -1,13 +1,21 @@
 ---
 id: 000458
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'eb4c3c5fada3733ddf99ae5372d5435e4fdd1427' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '6e6ff95efcab153b5bc7f2a543044513d252c3a8' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-19T04:32:38-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # flake list: drop a same-head flake once a closed issue's fix merged after that head
@@ -30,10 +38,16 @@ card_mirror: 'eb4c3c5fada3733ddf99ae5372d5435e4fdd1427' # card fields mirrored f
 
 ## Plan
 
-- [ ]
+- [ ] Build a read-only snapshot of terminal issue cards and their published active/archived details; require one unambiguous issue, a valid landing merge, and exact test ownership. Keep the open flake registry unchanged.
+- [ ] Classify each confirmed same-head failure against that snapshot and the real Git ancestry: pre-merge fixed, post-merge recurrent, or unknown. Unknown remains listed; `-v` explains fixed entries.
+- [ ] Test the decision matrix with real Git history and fake cards, including unreadable/ambiguous/missing data, then verify pair's five pilot rows using the branch binary. Run `make -k` and the recorded suite, close on SHIP, and land.
+
+Detailed design: [000458 plan](../plans/000458-flake-list-fixed-after-merge-plan.md).
 
 ## Log
 
 ### 2026-10-19
 
 Filed from ariadne:2 after the #394 pilot, on the hub's approval of the proposal.
+
+Plan evidence: pair's five current unregistered rows are the broadcast #585, couchcmd #589, launcher #609, and two diagnosticlog #659 tests. #585's exact `- Test:` line is in its Log; #589's Log also mentions #609's failed test as an unrelated later suite result, so a whole-details search would create false ownership. ARCH-PURPOSE/ARCH-PURE: classify explicit ownership and keep uncertainty visible.

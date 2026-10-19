@@ -1,0 +1,61 @@
+---
+collaboration-mode: discussion
+---
+
+# Flake list after landed fixes: implementation plan
+
+> **For agentic workers:** Consult AGENTS.md Section 3 for execution. Use TDD and the SDLC close boundary for fresh review.
+
+**Goal:** Stop asking the TL to refile a confirmed same-head flake already fixed by a uniquely identified, landed issue, while making recurrence and uncertainty visible.
+
+**Architecture:** The open `flake_tests` registry remains the authority for landing policy. Only `flake list` gets a read-only catalogue of terminal cards plus published details, then a pure attribution decision per confirmed failure. One pinned main tree yields issue prose; the tracker yields card status, `flake_tests` and `completion.landed_commit`; real Git ancestry distinguishes a pre-fix head from a recurrence. Every missing or ambiguous input preserves the row.
+
+**Tech stack:** Go, existing `tracker.Records`, `gitx.TrunkView.FilesSelected`, `flakes` core, Git ancestry, `cmd/sdlc` test fixtures.
+
+## Core concepts
+
+| Pure entity | Lives in | Status |
+|---|---|---|
+| `FixedFlakeIssue` | `cmd/sdlc/internal/flakes/fixed.go` | new |
+| `FixedFlakeDecision` | `cmd/sdlc/internal/flakes/fixed.go` | new |
+
+`FixedFlakeIssue` carries ID, landing merge and exact covered tests from a terminal issue. `FixedFlakeDecision` takes the candidate list for one test plus ancestry answers and returns fixed, recurrence or unknown. Only exactly one eligible issue can justify hiding. It cannot guess when cards/details/commits are unreadable or multiple closed issues claim the test. No persisted data is created (ARCH-FUNERAL).
+
+| Integration point | Lives in | Status | Wraps |
+|---|---|---|---|
+| Published fixed-issue catalogue | `cmd/sdlc/flake_fixed.go` | new | one fresh tracker read and one pinned-main active/archived details snapshot |
+| Git containment | `cmd/sdlc/flake_fixed.go` | new | `git merge-base --is-ancestor` for each unique (merge, failing head), cached per list run |
+| CLI list rendering | `cmd/sdlc/flake_cmd.go` | modified | `-v`, existing test-stats and open registry seams |
+
+The catalogue is a read-only addition to `flakeDeps`, leaving registration and landing policy alone (ARCH-DRY/PURPOSE). The main snapshot uses `FilesSelected` to batch issue detail reads, selecting only issue Markdown at the configured active and archived issue paths. No working-tree archive is read: a slot branch can lag main or be dirty. Join details by canonical numeric issue ID; duplicate or malformed detail evidence stays unknown. A card with terminal status but no trustworthy landing merge does not prove a fix.
+
+**Ownership rule:** A card's exact `flake_tests` name covers a test. For older cards without that field, match the exact top-level `TestName` token or fully qualified `package.TestName` in title, Problem, Spec, Done when or Plan; a dedicated `- Test: TestName` Log line also counts (the #585 format). Ordinary Log references to other suites do not claim tests (the #589 mention of #609 is the counterexample). Whole tokens avoid `TestA` matching `TestAB`; subtests resolve to their top-level name, consistent with `flakes.SplitTest`. If a bare name could refer to more than one package in the candidate set, do not assign it without package context. If two terminal issues cover the test, keep the row visible even when one appears fixed. `flake_tests` is not privileged over explicit details when checking ambiguity.
+
+**Decision:** For a confirmed failure at H and exactly one covering terminal issue with merge M, verify M is a present commit reachable from current main. If `git merge-base --is-ancestor M H` is true, show `recurred after #N`. If false, default view hides that one row and `-v` prints `fixed by #N (merge <sha>)`. Any Git error other than the documented non-ancestor exit, an absent M, stale/unreadable tracker, unreadable/ambiguous details, or ambiguous coverage leaves the row under not registered with a coverage reason. The `unexplained` section is unchanged. A terminal issue without a merge, including an abandoned issue, never hides. No mutation occurs (ARCH-EVOLVE).
+
+**Cost:** Drivers are A retained suite attempts (30-day store), D published issue details and C unique `(merge, failing head)` pairs. Existing attempt scan is O(A); fixed-issue indexing is O(D) and the Git shell is O(C), never one Git call per card × attempt. Cache ancestry and ownership decisions per run. A counted N/2N fixture asserts one main catalogue batch and at most C ancestry calls, independent of A once confirmed failures deduplicate.
+
+## Tasks
+
+### 1. Red coverage and decision tests
+
+**Files:** `cmd/sdlc/internal/flakes/fixed.go`, `cmd/sdlc/internal/flakes/fixed_test.go`, `cmd/sdlc/flake_cmd_test.go`.
+
+- [ ] Add pure table tests for exact token versus substring, substantive section versus incidental Log mention, dedicated `- Test:` legacy evidence, two claimants, missing merge, and bare-name package collision. Run targeted test; confirm red.
+- [ ] Add command tests using a small real Git history: failing H before M hides by default and appears with `-v`; a later H containing M is marked recurrence. Missing merge object, unreadable tracker/details and ambiguous cards stay visible. Run targeted test; confirm red.
+
+### 2. Catalogue and classifier
+
+**Files:** `cmd/sdlc/flake_fixed.go`, `cmd/sdlc/flake_cmd.go`, relevant tests.
+
+- [ ] Implement exact test ownership extraction and the three-way pure decision; rerun pure tests.
+- [ ] Load terminal card evidence plus one pinned published details snapshot; preserve unknown evidence explicitly. Add real tracker/main fixture tests for active/archive, missing and malformed paths; rerun targeted tests.
+- [ ] Add the cached, exact Git ancestry seam; render default and verbose list. Add counted scaling test and rerun command tests.
+
+### 3. Live evidence and close
+
+**Files:** `cmd/sdlc/helptext/flake*.md` if present, `atlas/workflow/*.md` as needed, issue Log.
+
+- [ ] Build the branch binary and run `flake list` and `flake list -v` read-only from pair's checkout. Verify the five pilot rows disappear by default and each is attributable in verbose output; verify other rows still show. Record exact commands, branch SHA and output evidence in the issue Log.
+- [ ] Run `make -k`, push the exact head, then `sdlc local-check run --name suite`; record the suite result and any scope/atlas changes.
+- [ ] Stage for a short live check only with hub grant, close on SHIP and merge through the landing line. Report PR and real merge SHA to hub.
