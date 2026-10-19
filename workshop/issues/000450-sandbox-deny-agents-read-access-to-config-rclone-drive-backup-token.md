@@ -36,7 +36,7 @@ Add "~/.config/rclone" to sandbox.filesystem.denyRead in .claude/settings.ariadn
 
 ## Plan
 
-- [ ] Verify the one-line settings change, operator label, checkout-local regeneration and recorded suite.
+- [x] Verify the one-line settings change, operator label, checkout-local regeneration and recorded suite.
 
 ## Log
 
@@ -47,6 +47,10 @@ Add "~/.config/rclone" to sandbox.filesystem.denyRead in .claude/settings.ariadn
 The requested ordering check failed before the change and passed afterwards. Parsed JSON verifies one unique rclone entry immediately after gcloud and byte-for-byte equality with main except that added line. Existing settingsx and plan tests passed (0.185s and 1.755s); git diff --check passed. PR #311 is open; its local-gates-verified label was applied by the operator and independently observed after TL receipt d52e519e-cc57-4ffb-9af9-432856f8a3c6. The worker did not apply the label. The recorded suite is running on the pushed settings head.
 
 Before regeneration the checkout-local denyRead lacked rclone. weave refresh --substrate completed successfully on this issue branch, preserved its HEAD and clean tracked tree, and regenerated .claude/settings.json with rclone immediately after gcloud. Verification read only settings lists; no credential files were read.
+
+### 2026-10-18 — recorded suite green; hold lifted
+
+The recorded suite passed on settings head 93dd985838f2078e31e7f2e9da41d30404d5a72f: all 1,651 SDLC tests and 70 other packages, 12 shards, exit 0 in 571.2s after 2,145s queue wait. Log: .git/sdlc/local-checks/93dd985838f2078e31e7f2e9da41d30404d5a72f/suite.log, sha256 prefix 2f833a24df8b. Subsequent branch changes are issue text only. The operator's disk-trace hold arrived after the suite had finished; no heavy work was running, and none started during the hold. The TL lifted it in receipt 39691a6e-1d71-4108-bad9-f3bd5a59153a and directed close/landing. The operator-applied label remains present.
 
 ## Revisions
 
