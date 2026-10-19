@@ -55,7 +55,7 @@ Steps:
 - [x] compile prints the declined/unmatched lines (`runCompile`, dry-run as well).
 - [x] Fixture test (cmd/weave): a two-layer fixture whose foundation seeds `.github/workflows/x.yml` plus another seed. Refreshing an opted-out leaf leaves `.github/workflows` absent while the other seed lands. An opted-out leaf holding its own edited workflow keeps it byte-for-byte. A normal leaf still gets the workflow.
 - [x] Docs: verb comment in `construct/base.manifest` header and `construct/manifest.md`, atlas weave entry.
-- [ ] ops (hub's commit): add `decline .github/workflows` to ops' `construct/base.manifest`; change AGENTS.local.md line to point at it; refresh shows the report line and no `.github/workflows`.
+- Handed to the hub, outside this branch: ops adds `decline .github/workflows` to ops' `construct/base.manifest`; change AGENTS.local.md line to point at it; refresh shows the report line and no `.github/workflows`.
 
 ## Log
 
