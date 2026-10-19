@@ -1,6 +1,6 @@
 ---
 id: 000469
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 7b2bff5878d86def1d2aa555929b5136b90e1ceb
         evidence_commit: 85f371104f76a2d23ab3c09f0ae2eeafa7a24919
+        landed_commit: 2f6b7a362e50d29590992315ac2d31c35055b25a
 ---
 
 # landingline: test reads the archived #449 plan; move the as-built list to the atlas (main is red)
