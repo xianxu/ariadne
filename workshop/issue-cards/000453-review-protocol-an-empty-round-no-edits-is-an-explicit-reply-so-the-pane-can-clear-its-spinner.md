@@ -1,8 +1,8 @@
 ---
 id: 000453
-status: codecomplete
+status: done
 created: 2026-10-18
-updated: 2026-10-18
+updated: 2026-10-19
 estimate_hours:
 github_issue:
 started: 2026-10-18T22:24:44-07:00
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 868852344f5d24328800ef235a6a8d1d06810574
         evidence_commit: 6da268c10e49f402ee2e4244e7f3f0fe5f710f4c
+        landed_commit: 62689d377e2661bb6976349623b614e12ea34858
 ---
 
 # review protocol: an empty round (no edits) is an explicit reply, so the pane can clear its spinner
