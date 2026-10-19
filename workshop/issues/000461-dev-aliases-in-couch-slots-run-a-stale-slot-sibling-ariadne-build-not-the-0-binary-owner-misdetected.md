@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "9f33d2b4", done: "ad0e717f"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # dev-aliases in Couch slots run a stale slot-sibling ariadne build, not the :0 binary (OWNER misdetected)
@@ -52,6 +52,8 @@ Fix OWNER resolution in dev-aliases so that in a Couch slot (any worktree under 
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — Real-layout sentinels and no-fallback checks pass, existing aliases82/82 and N/2N one-scan checks pass, focused Go executable/catch-up tests and shell lint pass; README BR-1 fixed across both public surfaces with alias pickup instructions and atlas links; recorded suite attempt32754ac5da999c00b82235c040dd3382 running on unchanged implementation; post-land own/pair live rollout explicitly approved by hub, no staging.; review verdict: SHIP
+- 2026-10-19: flow upgraded quick → full — 120 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 ## Revisions
 

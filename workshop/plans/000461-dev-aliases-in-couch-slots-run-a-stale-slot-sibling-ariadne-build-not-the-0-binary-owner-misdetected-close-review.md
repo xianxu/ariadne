@@ -71,3 +71,75 @@ findings:
 7. **Plan revision recommendations:** None. The implementation matches the revised plan; complete the README repair and retain the explicitly deferred rollout verification.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"ed861115-889b-449b-95d0-571042de19ca","repository":"github.com/xianxu/ariadne","issue_id":"000461","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/a7069e4e8cca41e7","reviewed_head":"c7c73b41e6433310d0442c79ca0db948fd9a3894","slot":"ariadne:3","requested_at":"2026-10-19T09:44:29.089477Z"},"phase":"finished","pid":84664,"started_at":"2026-10-19T09:44:29.344173Z","finished_at":"2026-10-19T09:48:33.062256Z","session_id":"01a1538c-5bb4-7f12-90e7-6676f0b5bed4","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-19T02:53:17-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 461 — dev-aliases in Couch slots run a stale slot-sibling ariadne build, not the :0 binary (OWNER misdetected) |
+| repo | ariadne |
+| issue file | workshop/issues/000461-dev-aliases-in-couch-slots-run-a-stale-slot-sibling-ariadne-build-not-the-0-binary-owner-misdetected.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 7b47b30c4859850b915c27c090ee659e187a10d5..4e5ce0e1372f0fd2af9b53df30194c67e9c9e847 |
+| command | sdlc close --issue 461 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-19T02:53:17-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation matches the revised Spec and Plan. BR-1 is addressed, and no new blocking findings were found. Focused Go tests, the new slot-layout regression, and all 82 existing alias assertions passed. Full-suite and post-land rollout acceptance were not independently verified here.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      README.md:370–380 now documents sdlc --version, verified central ownership, refusal behavior, alias refresh/relaunch, and atlas links. These passages agree with construct/dev-aliases.sh:233–249 and cmd/sdlc/binaryversion.go:40–67; this is a prose-only correction.
+```
+
+1. **Strengths**
+
+   - Owner normalization reuses the existing origin identity policy and refuses missing or mismatched primaries before emitting aliases (`construct/dev-aliases.sh:233`).
+   - Executable identity uses process build metadata, independently of checkout HEAD (`cmd/sdlc/binaryversion.go:19`).
+   - Catch-up distinguishes unrelated dependency movement, obsolete own-source movement, and partial refresh failure (`cmd/sdlc/catchup.go:115`).
+   - README and atlas explain both diagnostics and captured-shell recovery.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Focused identity, warning, catch-up, and start-plan tests passed.
+   - Real-layout sentinel regression passed for slot, primary, and plain-clone layouts, including missing/mismatched primary refusal and canonical scan deduplication.
+   - Existing alias suite: **82 passed, 0 failed**.
+   - Shell syntax and pinned-range `git diff --check` passed.
+   - Reviewed checkout remained unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** Existing identity, workspace, and revision helpers reused.
+   - **ARCH-PURE — pass:** Formatting remains pure; filesystem and Git observations stay in integration helpers.
+   - **ARCH-PURPOSE — pass:** Central ownership and executable-aware catch-up fulfill the revised purpose.
+   - **ARCH-MOCK — pass:** Existing seams and portable Git fixtures exercise state changes without production repositories.
+   - **ARCH-CONSTRAINTS — pass:** Identity is cached per process; N/2N fixtures verify one canonical command-tree scan.
+   - **ARCH-SECURE — pass:** Repository identity is verified; unavailable executable metadata remains visibly unavailable.
+   - **ARCH-ORDER — pass:** Refresh outcome and observed movement are distinguished; partial progress is preserved.
+   - **ARCH-FUNERAL — pass:** No new durable runtime artifacts or background workers.
+   - **ARCH-EVOLVE — pass:** No persisted-format changes.
+
+7. **Plan revision recommendations:** None. The plan explicitly retains full-suite and representative post-land rollout verification as subsequent workflow checks.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"a2d9c56c-9d23-4782-b42f-270ff4797278","repository":"github.com/xianxu/ariadne","issue_id":"000461","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/e4ad182dc1df9185","reviewed_head":"4e5ce0e1372f0fd2af9b53df30194c67e9c9e847","slot":"ariadne:3","requested_at":"2026-10-19T09:51:00.19015Z"},"phase":"finished","pid":93923,"started_at":"2026-10-19T09:51:00.53537Z","finished_at":"2026-10-19T09:53:16.481339Z","session_id":"01a15392-5534-7a82-ad78-ccc6f9e8c998","outcome":"returned"}] -->
