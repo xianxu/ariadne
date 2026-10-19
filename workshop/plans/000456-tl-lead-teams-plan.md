@@ -372,3 +372,19 @@ Covered: every class and every outcome of the effect. Not covered: Couch's own r
 - `tl-lead fleet resume` (dry run) classifies each slot that resolves to this hub as running, idle, resume or ambiguous. A failed read is unknown, never down. `--apply` resumes the *resume* class one slot at a time and reports each outcome. Tested over the stateful Couch fake, including the rerun-skips-running case; the live decode of `--resume-candidates` is behind `TL_LEAD_LIVE`.
 - The tl-lead help states the hub contract, the steward duties (the first hub on Couch's command line), routing by `.hub`, and the four verbs. The tl-worker help states direct filing (`--no-claim` when you won't work it) with a one-line note to your own hub, and that hubs never relay. Help tests pin both.
 - **Live:** read-only dry runs of `team list`, `team issues` and `fleet resume` from ops are sent to the hub. The live proof (`ops-echo` plus a cross-team exchange) is no longer blocked on pair#694, which is parked. The steps that need it (a new GitHub repo, and a Couch restart with two hubs) are the operator's and the hub's, run after this lands, starting from `tl-lead team new ~/workspace/ops-echo`.
+
+### 2026-10-19: plan-quality round 2 (PQ-7, the layers tl-lead cannot see)
+
+**The rule for this family: tl-lead's ownership copy covers only what Couch persists.** Couch's `Resolve` (`couchcore/hub_ownership.go`) has three layers above the `.hub` claim ranks, and here is what `ownerOf` does with each:
+1. **A hub's own slot.** Mirrored: a repo with `.hub` at its root owns its `:0`, and `ownerOf` checks this first.
+2. **Runtime moves** (`couch --move-slot`, the `overrides` map). Not on disk, and Couch exposes no JSON read of a slot's live owner today: ownership shows only in its menu. They are ephemeral: pair's `TestHubMoveAuthorityRevisionAndDurability` shows a restarted Couch resolving from `.hub` alone. So on the cold start that `fleet resume` exists for, `.hub` is the whole truth.
+3. **Command-line order.** It breaks ties and owns unclaimed slots. Not visible, so ties and unclaimed slots are ambiguous and never resumed (round 1).
+
+**What `fleet resume` does about layer 2:**
+- The dry run and `--apply` both say "Couch runtime moves are not visible; a slot moved with --move-slot since Couch started is classed by .hub".
+- `--apply` lists the exact slots it will resume before resuming any.
+- **Consequence bound:** resuming restarts a slot's own conversation. It changes no ownership, and the resumed worker still reports to the hub that owns it (Couch resolves `hub` at send time). So the worst case of a stale read is another hub's slot resumed early: no lost work and no misrouted report.
+
+**Follow-up (proposed to the hub, for pair):** a JSON owner read, for example an `owner` field on `couch --actors --json` rows and on `--resume-candidates`. Once it exists, `fleet resume` takes Couch's answer, and `ownerOf` becomes only the fallback for slots that are down. Until then the caveat above stands.
+
+**Test:** `TestPlanResumeNamesInvisibleLayers` checks that the dry run carries the caveat and that a tied or unclaimed slot is never in the *resume* class.
