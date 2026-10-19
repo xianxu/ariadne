@@ -1,13 +1,21 @@
 ---
 id: 000452
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '56242d3540bce9ab9c4cf46e7951d42545eb8ab1' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'd51b2d98a33710489a378179089b3e75b9da21cc' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-18T18:04:52-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # suite queue priority: a fleet-blocking landing grant also jumps the machine suite queue
@@ -28,8 +36,18 @@ A suite started for an issue holding an active fleet-blocking grant (in that rep
 
 ## Plan
 
-- [ ]
+Durable design: [implementation plan](../plans/000452-suite-queue-priority-a-fleet-blocking-landing-grant-also-jumps-the-machine-suite-queue-plan.md).
+
+- [ ] Pin priority, FIFO, expiry, weight and lifecycle behavior with the real lock helper.
+- [ ] Reuse the existing grant authority and reelect weighted admission under the existing mutex.
+- [ ] Verify isolated live rollout, recorded suite and close/landing gates.
 
 ## Log
 
 ### 2026-10-18
+
+### 2026-10-18 — diagnosis and design checkpoint
+
+Claimed before design; start-plan prepared the issue branch from main. Read-only inspection found the machine queue's first waiter becomes a sticky head holding .queue until it acquires capacity; sorting later tickets alone cannot satisfy this issue. The proposed admission keeps the existing slot/ticket lifetime locks and uses the existing allocation mutex for each election and all-or-none scan (ARCH-PURPOSE). The other key constraint is grant authority: the existing Go ValidGrants owns expiry, revocation and authorized-grantor policy. The plan proposes one read-only Go evidence protocol, memory-only cache and a pure Python stable partition, avoiding a second grant store or copied validator (ARCH-DRY, ARCH-PURE).
+
+Simplest alternatives considered: a startup priority boolean/expiry flag goes stale after revocation or late grants, and Python-only grant validation duplicates the current authority. Moving the entire lock helper into Go is a broader rewrite than this issue needs. Full-flow design is saved; no production code, test code or configuration has changed. TL approval is requested for unavailable-provider degradation and the existing-old-helper drain boundary before change-code.
