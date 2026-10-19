@@ -37,9 +37,9 @@ An empty round is a valid, explicit reply: the agent (xx-fix / the review skill)
 
 ## Plan
 
-- [ ] Red-first test the no-edits producer and empty-success commit decisions in
+- [x] Red-first test the no-edits producer and empty-success commit decisions in
   the existing reviewexport skill-contract tests, plus a read-only skill scenario.
-- [ ] Require an apply on every completed workbench review, including
+- [x] Require an apply on every completed workbench review, including
   `{"records":[]}`. Keep explanations/questions in the session reply. Distinguish
   changed replies (commit returned Body verbatim) from empty replies (no commit),
   preserving existing hash, context, operator-lock and uncertain-result guards.
@@ -61,6 +61,18 @@ An empty round is a valid, explicit reply: the agent (xx-fix / the review skill)
   No new wire fields, runtime state, resource lifetime, or hot path is introduced.
 
 - Baseline read-only skill scenario: the agent chose "No apply or agent commit: the skill specifies no empty-round submission." Real edits still committed returned Body verbatim; old-binary empty success caused no commit or retry. The missing mandatory empty apply is the observed defect.
+
+- Red: the new existing-table/phrase contract test failed on all missing empty
+  producer rules and the absent success decision table. Green: the full
+  reviewexport package passed (0.266s), including export integrity and the
+  unchanged routing/recovery scenarios.
+- Fresh read-only skill scenario after the update sends `{"records":[]}` through
+  apply, commits no agent round, and keeps explanations in the session reply.
+  The real-edit control commits returned Body verbatim; an older-binary empty
+  success triggers neither commit nor retry/recovery. The baseline agent skipped
+  apply, so the behavior change was observed rather than inferred.
+
+- Final focused reviewexport and processmanual checks passed (0.234s/0.164s). Regenerating the process manual produced no semantic delta after normalizing its generated EOF blank line; no manual changes are needed. Diff whitespace check is rerun before committing.
 
 ## Revisions
 
