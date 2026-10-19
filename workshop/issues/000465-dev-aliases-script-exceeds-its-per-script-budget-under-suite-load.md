@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flake_tests: [github.com/xianxu/ariadne/scripts/test.TestConstructScripts]
+flow: {kind: quick, provenance: inferred, spec: "1393e822", done: "76dfe1e4"}
 ---
 
 # dev-aliases script exceeds its per-script budget under suite load
