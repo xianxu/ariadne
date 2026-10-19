@@ -29,6 +29,15 @@ const runnerDeadline = testgate.HangCeiling
 // TestConstructScripts gets selection from the CI runner, so both apply the
 // same exclusions, then gives each script its own hang budget.
 func TestConstructScripts(t *testing.T) {
+	testConstructScripts(t, executeConstructScript)
+}
+
+// The command seam lets regressions observe context lifetimes without waiting
+// for the hang ceiling or depending on machine load.
+type constructCommand func(context.Context, string, ...string) ([]byte, error)
+
+func testConstructScripts(t *testing.T, execute constructCommand) {
+	t.Helper()
 	for _, env := range []struct {
 		name, noColor, forceColor, term, ci string
 	}{
@@ -41,14 +50,14 @@ func TestConstructScripts(t *testing.T) {
 			t.Setenv("CLICOLOR_FORCE", env.forceColor)
 			t.Setenv("TERM", env.term)
 			t.Setenv("CI", env.ci)
-			runConstructScripts(t)
+			runConstructScripts(t, execute)
 		})
 	}
 }
 
-func runConstructScripts(t *testing.T) {
+func runConstructScripts(t *testing.T, execute constructCommand) {
 	t.Helper()
-	out := runConstructScript(t, "construct-scripts.test.sh", "--list")
+	out := runConstructScript(t, execute, "construct-scripts.test.sh", "--list")
 	if len(out) > 0 && out[len(out)-1] != 0 {
 		t.Fatalf("construct script selection is not NUL terminated: %q", out)
 	}
@@ -58,15 +67,27 @@ func runConstructScripts(t *testing.T) {
 		}
 		script := string(path)
 		t.Run(filepath.Base(script), func(t *testing.T) {
-			runConstructScript(t, script)
+			runConstructScript(t, execute, script)
 		})
 	}
 }
 
-func runConstructScript(t *testing.T, script string, args ...string) []byte {
+func runConstructScript(t *testing.T, execute constructCommand, script string, args ...string) []byte {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), runnerDeadline)
 	defer cancel()
+	out, err := execute(ctx, script, args...)
+	t.Logf("%s", out)
+	if ctx.Err() != nil {
+		t.Fatalf("%s did not finish within %v", script, runnerDeadline)
+	}
+	if err != nil {
+		t.Fatalf("%s: %v", script, err)
+	}
+	return out
+}
+
+func executeConstructScript(ctx context.Context, script string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "bash", append([]string{script}, args...)...)
 	// Its own process group, killed whole on the deadline: a test's background
 	// children must not outlive it holding the output pipe.
@@ -78,13 +99,5 @@ func runConstructScript(t *testing.T, script string, args ...string) []byte {
 		return nil
 	}
 	cmd.WaitDelay = 5 * time.Second
-	out, err := cmd.CombinedOutput()
-	t.Logf("%s", out)
-	if ctx.Err() != nil {
-		t.Fatalf("%s did not finish within %v", script, runnerDeadline)
-	}
-	if err != nil {
-		t.Fatalf("%s: %v", script, err)
-	}
-	return out
+	return cmd.CombinedOutput()
 }

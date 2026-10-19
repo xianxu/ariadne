@@ -6,9 +6,46 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
+
+// Completing one command must retire its budget, including between two scripts
+// in the same environment. A context shared by a batch fails deterministically.
+func TestConstructScriptBudgetsIndependent(t *testing.T) {
+	var previous context.Context
+	seen := map[context.Context]bool{}
+	counts := map[string]int{}
+	testConstructScripts(t, func(ctx context.Context, script string, args ...string) ([]byte, error) {
+		if previous != nil && previous.Err() != context.Canceled {
+			t.Errorf("previous command budget still live before %s: %v", script, previous.Err())
+		}
+		if seen[ctx] || ctx.Err() != nil {
+			t.Errorf("%s reused a budget or received an expired budget: %v", script, ctx.Err())
+		}
+		if _, ok := ctx.Deadline(); !ok {
+			t.Errorf("%s has no hang deadline", script)
+		}
+		seen[ctx], previous = true, ctx
+		if script == "construct-scripts.test.sh" && reflect.DeepEqual(args, []string{"--list"}) {
+			return []byte("first.test.sh\x00second.test.sh\x00"), nil
+		}
+		if (script != "first.test.sh" && script != "second.test.sh") || len(args) != 0 {
+			t.Errorf("unexpected command: %s %q", script, args)
+		}
+		policy := strings.Join([]string{os.Getenv("NO_COLOR"), os.Getenv("CLICOLOR_FORCE"), os.Getenv("TERM"), os.Getenv("CI")}, "/")
+		counts[policy]++
+		return nil, nil
+	})
+	if previous == nil || previous.Err() != context.Canceled {
+		t.Error("last command budget outlived its scope")
+	}
+	want := map[string]int{"//dumb/": 2, "1/1/dumb/1": 2, "/1/xterm-256color/": 2}
+	if !reflect.DeepEqual(counts, want) || len(seen) != 9 {
+		t.Fatalf("environment counts=%v, budgets=%d; want %v and 9", counts, len(seen), want)
+	}
+}
 
 // Exercise the actual selection owner in a private checkout-shaped tree.
 func TestConstructRunnerSelection(t *testing.T) {

@@ -139,3 +139,19 @@ timeouts. Deliberately share a context to demonstrate the regression fails.
 BR-2 requires README usage for the sole new flag: non-executing NUL listing
 versus default batch execution. The first recorded attempt was cancelled while
 queued, before tests ran; requeue the final corrected head.
+
+### 2026-10-18 — round-one findings addressed
+
+- BR-1: `TestConstructScriptBudgetsIndependent` drives the production three-
+  environment loop through an injected command seam. It checks nine distinct
+  live deadline contexts (selection plus two scripts per environment), cancellation
+  before the next command and after the last, and execution in every color policy.
+  Mutation red: one shared context produced one budget instead of nine, with
+  uncancelled prior budgets in every environment. Restoring the unchanged
+  per-command context passed; no fixed sleeps, timeout overrides or clock races.
+- BR-2: README describes NUL-delimited non-executing `--list` and default batch
+  execution; atlas already explains the per-script flow. Lessons now require
+  independent-budget regression proof and helper-flag usage documentation.
+- Fresh complete targeted run: `go test ./scripts/test ./pkg/golint -count=1
+  -timeout 10m` passed, scripts 53.690s and golint 0.794s. The first full attempt
+  ran no tests: its normal queue was cancelled before this code correction.

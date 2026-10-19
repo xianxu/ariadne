@@ -1010,3 +1010,11 @@ The simplest durable authority beats a clever scan of consequences.
 
 - #452 BR-1: a live-file snapshot is not a lease on its pathname. All admission readers must tolerate a concurrently released ticket disappearing before open, including legacy owners that do not take the reader mutex. Pin the scan/release interleaving with real flocks.
 - #452 BR-2: validate persisted identity with the same pure rule as caller identity before filesystem use. Absolute strings alone are insufficient: NUL, encoding, canonical form, bounds and field types must degrade visibly to ordinary FIFO rather than crash every reader.
+
+- A faster test fixture does not prove independent timeout budgets. When moving
+  a deadline from a batch to each item, inject command execution, observe distinct
+  live contexts and cancellation between items, and demonstrate red with a shared
+  context across the actual environment loop. Keep the production hang ceiling
+  unchanged; healthy real scripts can pass both the bug and the fix (#448 BR-1).
+- A new helper flag still needs README usage: state its output framing and whether
+  it executes work, alongside the architectural atlas entry (#448 BR-2).
