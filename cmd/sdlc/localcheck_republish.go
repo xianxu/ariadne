@@ -10,8 +10,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 )
 
 // suiteStoreRoot is the attempt store beside the per-head logs.
@@ -37,8 +40,18 @@ func savedAttemptRecord(a SuiteAttempt, logSHA string, tail []string, repo, sha,
 	case logSHA != a.LogSHA256:
 		return localRunRecord{}, fmt.Errorf("attempt %s: its log no longer hashes to the recorded sha256 %s", a.ID, abbrevSHA(a.LogSHA256))
 	}
-	return localRunRecord{Name: check, SHA: sha, Exit: a.Exit, TimedOut: a.TimedOut,
-		Duration: time.Duration(*a.WallSeconds * float64(time.Second)), LogSHA256: a.LogSHA256, Host: host, Tail: tail}, nil
+	rec := localRunRecord{Name: check, SHA: sha, Exit: a.Exit, TimedOut: a.TimedOut,
+		Duration: time.Duration(*a.WallSeconds * float64(time.Second)), LogSHA256: a.LogSHA256, Host: host, Tail: tail,
+		Outcome: flakes.Kind(a.Outcome)}
+	if rec.Outcome == flakes.Passed {
+		rec.Outcome = "" // a plain pass carries no gate label
+	}
+	for _, e := range a.KnownFlakes {
+		if !slices.Contains(rec.KnownFlakeIssues, e.Issue) {
+			rec.KnownFlakeIssues = append(rec.KnownFlakeIssues, e.Issue)
+		}
+	}
+	return rec, nil
 }
 
 var (

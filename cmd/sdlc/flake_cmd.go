@@ -221,7 +221,11 @@ publishes its details. Store evidence (attempt IDs) stays in test-stats.
 owner). Without --issue, a new unclaimed flake issue is filed with the tests
 and the evidence, for the TL to dispatch.
 
-A test already registered to another open issue refuses: one owner per test.`,
+A test already registered to another open issue refuses: one owner per test.
+That check reads the registry at registration time. Two registrations racing
+on different issues can still both land, but the next registry read then
+refuses the test as ambiguous, so the known-flake rule is unavailable (every
+failure blocks) until one issue drops it.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runFlakeRegister(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), f, defaultFlakeDeps(issuesDir))

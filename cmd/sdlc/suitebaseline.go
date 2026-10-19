@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 )
 
 // diagnoseSuiteFailure runs the exact same required check on the main commit
@@ -46,6 +48,14 @@ func diagnoseSuiteFailure(ctx context.Context, gateErr error, main string, deps 
 		}
 		if len(preexisting) > 0 {
 			labels = append(labels, "pre-existing: "+strings.Join(preexisting, ", "))
+		}
+		// #394: a failure main shares is a persistent main failure, never
+		// flake-eligible without same-head fail→pass evidence. The gate's own
+		// classifier names it, from the unrecorded baseline.
+		o := flakes.Classify(flakes.Input{Attempt: flakes.Result{Failures: merged},
+			MainBaseline: &flakes.Result{Passed: baseline.passed(), Failures: base}})
+		if o.Kind == flakes.PersistentMain {
+			labels = append(labels, o.Reason+" (not a known flake)")
 		}
 	}
 	if baseline.passed() {

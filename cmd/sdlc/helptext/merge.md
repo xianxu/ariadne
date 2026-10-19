@@ -142,6 +142,10 @@ CI GATE (#309)
   `sdlc-local/suite` record: the declared suite, or the repository's make test
   read from main. A record on an ancestor counts when only docs changed since
   (close's own commits). Without one, merge runs the suite itself first.
+  When that suite fails only on known flakes (#394, `sdlc flake`), it reruns
+  just those tests once, and a passing rerun lands with the flake issue named
+  in the status. Any other failure blocks, and merge's main baseline labels a
+  failure main shares as a persistent main failure, never a flake.
 
 FLAGS
 

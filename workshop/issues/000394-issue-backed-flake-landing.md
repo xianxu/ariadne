@@ -71,7 +71,7 @@ The calibration doc is marked stale (#127), so these numbers are provisional.
 Durable plan: `workshop/plans/000394-issue-backed-flake-landing-plan.md`, with the state table. It awaits the hub's decisions D1–D4 before code.
 
 - [x] M1 — Registry and classifier (pure) plus `sdlc flake register`/`list`.
-- [ ] M2 — The gate: a targeted known-flake rerun in `runLocalCheck` (local-check run and merge), both attempts linked, the policy knob.
+- [x] M2 — The gate: a targeted known-flake rerun in `runLocalCheck` (local-check run and merge), both attempts linked, the policy knob.
 - [ ] M3 — No blind rerun (the success-post guard, republish after registration), the rules in tl-worker/help/atlas, a pair pilot.
 
 ## Log
@@ -97,3 +97,14 @@ Filed from #390's operator-approved flake/landing decision. The weekly snapshot 
   - Tests: TestBuildRegistry, TestClassify, TestEvidence, TestRerunCommand, TestUnattributedFailures, TestParseCardFlakeTests, the v2 decoder cases, TestFlakeRegisterNeedsSameHeadEvidence, TestFlakeRegisterRules, TestFlakeList, and TestFlakeRegistryFromTrackerCards (real tracker cards). The cmd/sdlc tests on this surface pass (749s, targeted).
 - M1 boundary review round 1 (FIX-THEN-SHIP): BR-1 (a test name can't become a go test flag or a relative path), BR-2 (the merge happens on the compare-and-swap card; racing registrations kept), BR-3 (list shows owner, age and log), BR-4 (README), and the three Minors (evidence text, closed issue refused, Unexplained policy) fixed in the plan's Revisions with tests.
 - M1 boundary review round 2: BR-2 stayed open. The production merge was right but untested, since the race test's fake copied it. Fix: one pure `mergeFlakeTests` that both production and the fake call; `TestAddFlakeTestsMergesOntoTheCard` on a real card (existing tests survive, the cap counts them, a closed card refuses); the real-card registry test asserts the old test survives. Replacing the merge with `tests := add` now fails four tests. Minor (ARCH-DRY): `loadFlakeRegistry` returns the cards, and `suiteStoreDir` replaces the duplicated store setup. lessons.md has the rule.
+- M1 closed SHIP (3 rounds). Two advisories were fixed in M2's first commit: one owner per test is enforced where the registry is read (register help, atlas), and the v2 attempt schema is noted as a breaking change for binaries from before #394 (atlas).
+- M2 implemented:
+  - `runUnderSlot` was extracted from `runLocalCheck` (slot, lease and signals; #383 release; the suite's behavior is unchanged and its local-check, republish, CI-gate, lease and cancel tests pass).
+  - `known_flakes` on the suite declaration is parsed strictly and honored by the suite only.
+  - `knownFlakeStep`: classify; on `NeedRerun`, one targeted rerun (weight 1) saved as a v2 attempt `rerun_of` the failed one; classify again. The outcome and issues go on `localRunRecord` (passed() honors a known-flake landing; the status reads "pass · known flake #N rerun").
+  - Republish carries a saved attempt's outcome.
+  - `gateFlakeRegistry(root)` is wired into `local-check run`, the durable landing and the legacy merge.
+  - `diagnoseSuiteFailure` labels persistent main failures through `flakes.Classify`.
+  - TestKnownFlakeGate covers: rerun lands, rerun fails, unknown (no rerun), accept, registry unavailable, unattributable, an interrupted rerun posting nothing, and a baseline that never classifies.
+  - Help: local-check, merge and flake register. Atlas updated.
+- 2026-10-18: the hub's quiet hold for the operator's disk trace. I stopped the targeted run on request and will rerun it when the hold lifts.

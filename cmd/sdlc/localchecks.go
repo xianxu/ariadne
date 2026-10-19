@@ -20,6 +20,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 )
 
 // localChecksPath is the declaration, read from the base tree (never the PR head,
@@ -57,6 +59,18 @@ type localCheck struct {
 	// Weight is how many machine-wide suite slots the run takes at once (#346,
 	// #332): ariadne's sharded suite takes 2 and runs alone. Default 1.
 	Weight int `json:"weight,omitempty"`
+	// KnownFlakes is the suite's policy for a failure only registered flakes
+	// explain (#394 D2): "rerun" (the default) reruns just those tests,
+	// "accept" records the pass with the issue link, "off" blocks. Only the
+	// suite honours it; the field is the operator's (local-gates).
+	KnownFlakes string `json:"known_flakes,omitempty"`
+}
+
+// knownFlakePolicy is the check's parsed policy; parseLocalChecks has
+// already refused an invalid value.
+func (c localCheck) knownFlakePolicy() flakes.Policy {
+	p, _ := flakes.ParsePolicy(c.KnownFlakes)
+	return p
 }
 
 // localCheckName becomes a status context and a path segment.
@@ -116,6 +130,12 @@ func parseLocalChecks(data []byte) (localCheckDecl, error) {
 			c.Weight = 1
 		case c.Weight < 0 || c.Weight > localCheckMaxWeight:
 			return bad("check %q: weight %d outside 1..%d", c.Name, c.Weight, localCheckMaxWeight)
+		}
+		if _, err := flakes.ParsePolicy(c.KnownFlakes); err != nil {
+			return bad("check %q: %v", c.Name, err)
+		}
+		if c.KnownFlakes != "" && c.Name != suiteCheckName {
+			return bad("check %q: known_flakes applies to the %q check only", c.Name, suiteCheckName)
 		}
 		switch {
 		case c.TimeoutMinutes == 0:
@@ -235,9 +255,15 @@ type localRunRecord struct {
 	LogPath   string
 	Host      string
 	Tail      []string
+	// Outcome is the known-flake gate's decision on a failed suite (#394);
+	// "" when no gate ran. A known-flake landing passes despite its exit.
+	Outcome          flakes.Kind
+	KnownFlakeIssues []string
 }
 
-func (r localRunRecord) passed() bool { return r.Exit == 0 && !r.TimedOut }
+func (r localRunRecord) passed() bool {
+	return r.Exit == 0 && !r.TimedOut || r.Outcome == flakes.KnownFlakePassed || r.Outcome == flakes.KnownFlakeAccept
+}
 
 func (r localRunRecord) state() string {
 	if r.passed() {
@@ -257,6 +283,15 @@ func (r localRunRecord) statusDescription() string {
 		hash = hash[:12]
 	}
 	s := fmt.Sprintf("%s in %s · log sha256:%s · %s", outcome, r.Duration.Round(time.Second), hash, r.Host)
+	switch issues := "#" + strings.Join(r.KnownFlakeIssues, ",#"); r.Outcome {
+	case flakes.KnownFlakePassed:
+		s = "pass · known flake " + issues + " rerun · " + s
+	case flakes.KnownFlakeAccept:
+		s = "pass · known flake " + issues + " accepted · " + s
+	case "", flakes.Passed:
+	default:
+		s = string(r.Outcome) + " · " + s
+	}
 	if len(s) > 140 {
 		s = s[:140]
 	}
