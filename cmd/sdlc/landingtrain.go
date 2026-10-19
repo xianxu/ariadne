@@ -79,6 +79,20 @@ func (c *conductor) git(args ...string) (string, error) { return landingGit(c.r,
 // wgit runs git in the train's worktree.
 func (c *conductor) wgit(args ...string) (string, error) { return landingGit(c.r, c.wt, args...) }
 
+// locked runs fn under the repo transaction lock, as merge's own ref writes
+// do: a fetch, push or worktree change races every other sdlc in the
+// repository's slots on the shared refs otherwise (#370).
+func (c *conductor) locked(fn func() error) error { return c.f.withLock(fn) }
+
+// fetchMain fetches main under the lock.
+func (c *conductor) fetchMain() (main string, err error) {
+	err = c.locked(func() error {
+		main, err = c.t.fetchMain(c.r)
+		return err
+	})
+	return main, err
+}
+
 // conductTrain runs one train of cars (the conductor's own first) to a
 // terminal phase. It returns nil when the conductor's own car landed; any
 // other end of its own car is an error naming why. Whatever happens, every
@@ -175,7 +189,7 @@ func (c *conductor) execute(e landingline.Effect, cars []landingline.Car) (landi
 // duplicate-ID gate, is a conflict: the merge is undone and the next car is
 // tried on the train so far.
 func (c *conductor) build(cars []landingline.Car) (landingline.TrainEvent, error) {
-	main, err := c.t.fetchMain(c.r)
+	main, err := c.fetchMain()
 	if err != nil {
 		return nil, err
 	}
@@ -187,26 +201,42 @@ func (c *conductor) build(cars []landingline.Car) (landingline.TrainEvent, error
 	if err := os.Remove(dir); err != nil { // worktree add creates it
 		return nil, err
 	}
-	if _, err := c.git("worktree", "add", "--detach", dir, main); err != nil {
+	if err := c.locked(func() error { _, err := c.git("worktree", "add", "--detach", dir, main); return err }); err != nil {
 		return nil, err
 	}
 	c.wt = dir
-	// The suite resolves its lock helper (Makefile.workflow) from the tree it
-	// runs for: the train's, which carries main's, not this checkout's branch.
+	// The suite is the one main declares, read from the exact main the train
+	// is built on (as a single landing reads its base), and it resolves its
+	// lock helper (Makefile.workflow) from the train's tree, not this
+	// checkout's branch.
+	decl, err := readLocalChecks(c.git, main)
+	if err != nil {
+		return nil, err
+	}
 	c.local.Root = dir
-	if c.suite.Name != "" {
-		c.run = newLocalCheckRunner(c.local)
+	if suite, ok := decl.check(suiteCheckName); ok {
+		c.suite, c.run = suite, newLocalCheckRunner(c.local)
+	} else {
+		c.run = func(context.Context, localCheck, string) (localRunRecord, error) { return localRunRecord{Exit: 0}, nil }
 	}
 	built := landingline.Built{Conflicts: map[int64]string{}}
 	for _, car := range cars {
 		ref := fmt.Sprintf("refs/sdlc/train/%d/%d", c.id, car.Seq)
-		if _, err := c.git("fetch", "--quiet", c.t.Remote, "+refs/heads/"+car.Branch+":"+ref); err != nil {
-			built.Conflicts[car.Seq] = "its branch could not be fetched: " + firstLine(err.Error())
+		var fetched string
+		ferr := c.locked(func() error {
+			if _, err := c.git("fetch", "--quiet", c.t.Remote, "+refs/heads/"+car.Branch+":"+ref); err != nil {
+				return err
+			}
+			var err error
+			fetched, err = c.git("rev-parse", "--verify", ref+"^{commit}")
+			_, _ = c.git("update-ref", "-d", ref)
+			return err
+		})
+		if ferr != nil {
+			built.Conflicts[car.Seq] = "its branch could not be fetched: " + firstLine(ferr.Error())
 			continue
 		}
-		fetched, err := c.git("rev-parse", "--verify", ref+"^{commit}")
-		_, _ = c.git("update-ref", "-d", ref)
-		if err != nil || fetched != car.Head {
+		if fetched != car.Head {
 			built.Conflicts[car.Seq] = fmt.Sprintf("its branch moved off the vouched head %s", shortSHA(car.Head))
 			continue
 		}
@@ -253,7 +283,10 @@ func (c *conductor) gatePrefix(head string) string {
 func (c *conductor) publish(k int) error {
 	head := c.heads[k-1]
 	branch := trainBranch(c.id)
-	if _, err := c.git("push", "--quiet", "--force-with-lease=refs/heads/"+branch+":"+c.pushed, c.t.Remote, head+":refs/heads/"+branch); err != nil {
+	if err := c.locked(func() error {
+		_, err := c.git("push", "--quiet", "--force-with-lease=refs/heads/"+branch+":"+c.pushed, c.t.Remote, head+":refs/heads/"+branch)
+		return err
+	}); err != nil {
 		return fmt.Errorf("push the train branch: %w", err)
 	}
 	c.pushed = head
@@ -360,15 +393,30 @@ func (c *conductor) waitCI(k int) landingline.TrainEvent {
 // confirmed on GitHub; an unconfirmed one is probed, never assumed.
 func (c *conductor) merge(k int) (landingline.TrainEvent, error) {
 	head := c.heads[k-1]
-	main, err := c.t.fetchMain(c.r)
-	if err != nil {
+	moved, uncertain := false, false
+	// One transaction, as a single landing's: main re-read and the pinned
+	// merge request under the lock, so main can't move between them.
+	if err := c.locked(func() error {
+		main, err := c.t.fetchMain(c.r)
+		if err != nil {
+			return err
+		}
+		if main != c.base {
+			moved = true
+			return nil
+		}
+		if err := c.gh.LandingMerge(c.ctx, c.t.Repo, c.pr.Number, head); err != nil {
+			fmt.Fprintf(c.stderr, "landing train %d: merge outcome uncertain (%v); reading GitHub\n", c.id, err)
+			uncertain = true
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
-	if main != c.base {
+	switch {
+	case moved:
 		return landingline.MainMoved{}, nil
-	}
-	if err := c.gh.LandingMerge(c.ctx, c.t.Repo, c.pr.Number, head); err != nil {
-		fmt.Fprintf(c.stderr, "landing train %d: merge outcome uncertain (%v); reading GitHub\n", c.id, err)
+	case uncertain:
 		return landingline.MergeUnknown{}, nil
 	}
 	ev, err := c.probe()
@@ -376,7 +424,7 @@ func (c *conductor) merge(k int) (landingline.TrainEvent, error) {
 		return nil, err
 	}
 	if p := ev.(landingline.Probed); p.Merged {
-		return landingline.Merged{OID: p.OID}, nil
+		return landingline.Merged{}, nil
 	}
 	return landingline.MergeUnknown{}, nil
 }
@@ -389,7 +437,9 @@ func (c *conductor) probe() (landingline.TrainEvent, error) {
 	}
 	for _, p := range prs {
 		if p.Number == c.pr.Number && p.State == "MERGED" {
-			return landingline.Probed{Merged: true, OID: p.MergeOID}, nil
+			// Each car proves its own landing through landedCommit; the train
+			// PR's raw mergeCommit is not evidence for any of them.
+			return landingline.Probed{Merged: true}, nil
 		}
 	}
 	return landingline.Probed{}, nil
@@ -399,7 +449,7 @@ func (c *conductor) probe() (landingline.TrainEvent, error) {
 // over only when what main brought has no code surface (the publish gate's
 // line, as a single landing's docs-only reuse).
 func (c *conductor) reintegrate(k int) (landingline.TrainEvent, error) {
-	main, err := c.t.fetchMain(c.r)
+	main, err := c.fetchMain()
 	if err != nil {
 		return nil, err
 	}
@@ -450,7 +500,10 @@ func (c *conductor) settle(car landingline.Car, kind landingline.OutcomeKind, wh
 func (c *conductor) closePR() {
 	if !c.opened {
 		if c.pushed != "" {
-			_, _ = c.git("push", "--quiet", c.t.Remote, ":refs/heads/"+trainBranch(c.id))
+			_ = c.locked(func() error {
+				_, err := c.git("push", "--quiet", c.t.Remote, ":refs/heads/"+trainBranch(c.id))
+				return err
+			})
 		}
 		return
 	}
@@ -464,10 +517,13 @@ func (c *conductor) removeWorktree() {
 	if c.wt == "" {
 		return
 	}
-	if _, err := landingGit(recoveryLandingGit(c.r), c.t.Root, "worktree", "remove", "--force", c.wt); err != nil {
-		os.RemoveAll(c.wt)
-		_, _ = landingGit(recoveryLandingGit(c.r), c.t.Root, "worktree", "prune")
-	}
+	_ = c.locked(func() error {
+		if _, err := landingGit(recoveryLandingGit(c.r), c.t.Root, "worktree", "remove", "--force", c.wt); err != nil {
+			os.RemoveAll(c.wt)
+			_, _ = landingGit(recoveryLandingGit(c.r), c.t.Root, "worktree", "prune")
+		}
+		return nil
+	})
 	c.wt = ""
 }
 
@@ -563,19 +619,8 @@ func maybeConductTrain(ctx context.Context, r gitRunner, t landingTarget, f *mer
 	}
 	reclaimTrains(ctx, gh, t.Repo, stderr)
 	git := func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }
-	mainRef := t.Remote + "/main"
-	decl, err := readLocalChecks(git, mainRef)
-	if err != nil {
-		return pr, false, err
-	}
 	c := &conductor{ctx: ctx, r: r, gh: gh, t: t, f: f, line: turn.line, log: turn.log, stderr: stderr, sched: s, id: tk.Seq, self: tk.Seq, departed: now}
 	c.local = localRunDeps{GH: ghClient, Repo: t.Repo, Root: t.Root, Git: git, CleanupGit: localCheckCleanupGit(ctx, r, t.Root), Stderr: stderr, FlakeRegistry: gateFlakeRegistry(t.Root)}
-	c.run = newLocalCheckRunner(c.local)
-	if suite, ok := decl.check(suiteCheckName); ok {
-		c.suite = suite
-	} else {
-		c.run = func(context.Context, localCheck, string) (localRunRecord, error) { return localRunRecord{Exit: 0}, nil }
-	}
 	fmt.Fprintf(stderr, "landing train %d: %d cars:", c.id, len(cars))
 	for _, car := range cars {
 		fmt.Fprintf(stderr, " #%d (PR #%d)", car.Issue, car.PR)

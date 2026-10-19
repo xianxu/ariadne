@@ -45,7 +45,7 @@ func wantEffects(t *testing.T, got []Effect, want ...Effect) {
 
 func TestTrainLandsAllCarsOnOneSuite(t *testing.T) {
 	tr, effects := drive(t, NewTrain(1),
-		Boarded{Cars: cars(3)}, built(3), SuiteDone{Prefix: 3, Outcome: SuitePass}, CIDone{Green: true}, Merged{OID: oid('m')})
+		Boarded{Cars: cars(3)}, built(3), SuiteDone{Prefix: 3, Outcome: SuitePass}, CIDone{Green: true}, Merged{})
 	wantEffects(t, effects,
 		Build{Cars: cars(3)}, Publish{Prefix: 3}, RunSuite{Prefix: 3}, WaitCI{Prefix: 3}, Merge{Prefix: 3}, LandCars{Seqs: []int64{1, 2, 3}})
 	if tr.Phase != PhaseLanded || tr.Splits != 0 {
@@ -79,7 +79,7 @@ func TestTrainSplitHoldsTheCulpritAndLandsThePrefix(t *testing.T) {
 	if tr.Phase != PhaseLanding || tr.Land != 2 || tr.Culprit != 3 || tr.Splits != 2 || !slices.Equal(tr.Released, []int64{4}) {
 		t.Fatalf("train %+v", tr)
 	}
-	tr, effects = drive(t, tr, CIDone{Green: true}, Merged{OID: oid('m')})
+	tr, effects = drive(t, tr, CIDone{Green: true}, Merged{})
 	wantEffects(t, effects, Merge{Prefix: 2}, LandCars{Seqs: []int64{1, 2}})
 }
 
@@ -157,7 +157,7 @@ func TestTrainMainMovingReintegrates(t *testing.T) {
 func TestTrainLostMergeReplyIsProbed(t *testing.T) {
 	merging, _ := drive(t, NewTrain(1), Boarded{Cars: cars(2)}, built(2), SuiteDone{Prefix: 2, Outcome: SuitePass}, CIDone{Green: true})
 	t.Run("it had merged", func(t *testing.T) {
-		tr, effects := drive(t, merging, MergeUnknown{}, Probed{Merged: true, OID: oid('m')})
+		tr, effects := drive(t, merging, MergeUnknown{}, Probed{Merged: true})
 		wantEffects(t, effects, Probe{}, LandCars{Seqs: []int64{1, 2}})
 		if tr.Phase != PhaseLanded {
 			t.Fatal(tr.Phase)

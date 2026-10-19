@@ -92,15 +92,13 @@ type (
 	// Reintegrated: main is merged into the train again; NeedSuite when the
 	// change is code (a docs-only move keeps the suite record).
 	Reintegrated struct{ NeedSuite bool }
-	// Merged: the train PR is merged (confirmed on GitHub).
-	Merged struct{ OID string }
+	// Merged: the train PR is merged (confirmed on GitHub). Each car proves
+	// its own landing later, through its PR's state, so no commit rides here.
+	Merged struct{}
 	// MergeUnknown: the merge request's outcome was not observed.
 	MergeUnknown struct{}
 	// Probed: GitHub was read after MergeUnknown.
-	Probed struct {
-		Merged bool
-		OID    string
-	}
+	Probed struct{ Merged bool }
 )
 
 func (Boarded) trainEvent()      {}

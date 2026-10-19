@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
@@ -32,8 +34,10 @@ type trainFakeGH struct {
 	prs     map[string]*landingPR // by head branch
 	next    int
 	merges  int
-	created []string
-	closed  []int
+	// lostReply: the merge happens, but its reply is lost (an error).
+	lostReply bool
+	created   []string
+	closed    []int
 }
 
 func newTrainFakeGH(t *testing.T, remote string, ci *ciFakeGH, variant string) *trainFakeGH {
@@ -104,6 +108,10 @@ func (g *trainFakeGH) LandingMerge(_ context.Context, repo string, number int, h
 		default:
 			p.MergeOID = ""
 		}
+	}
+	if g.lostReply {
+		g.lostReply = false
+		return errors.New("trainFakeGH: connection reset after the merge")
 	}
 	return nil
 }
@@ -191,44 +199,36 @@ func TestLandingTrainLandsEveryCarOnOneSuite(t *testing.T) {
 	}
 }
 
-func landTrainOfThree(t *testing.T, variant string) {
+// trainSetup is a repository with trains on: the first slot's car (PR #1,
+// a real sdlc merge), and a synthetic waiting car per extra branch, plus a
+// blocker holding the line until the test releases it.
+type trainSetup struct {
+	first, server string
+	gh            *trainFakeGH
+	line          *landingline.Line
+	blocker       *landingline.Handle
+	heads         map[string]string // branch → car head
+	rootKey       any
+}
+
+type trainRootKey struct{}
+
+func newTrainSetup(t *testing.T, variant string) *trainSetup {
+	t.Helper()
 	first, server, gh1 := integrationFixture(t)
 	procedureWrite(t, server, landingConfigPath, `{"train_interval_minutes": 60}`+"\n")
 	git(t, server, "add", ".")
 	git(t, server, "commit", "-qm", "trains on")
 	git(t, server, "push", "-q", "origin", "main")
-	for _, root := range []string{first} {
-		git(t, root, "fetch", "-q", "upstream")
-	}
-	second := filepath.Join(filepath.Dir(filepath.Dir(first)), "sample-slot2", "sample")
-	git(t, second, "fetch", "-q", "upstream")
-	git(t, second, "reset", "-q", "--hard", "upstream/main")
-	trainCar(t, second, "000002-second", "second", 2)
-	third := filepath.Join(t.TempDir(), "third")
-	git(t, "", "clone", "-q", gh1.remote, third)
-	git(t, third, "config", "user.name", "third")
-	git(t, third, "config", "user.email", "third@example.com")
-	git(t, third, "remote", "rename", "origin", "upstream")
-	trainCar(t, third, "000003-third", "third", 3)
-
+	git(t, first, "fetch", "-q", "upstream")
 	gh := newTrainFakeGH(t, gh1.remote, gh1.ci, variant)
-	gh.addPR(1, landingTestBranch)
-	gh.addPR(2, "000002-second")
-	gh.addPR(3, "000003-third")
-	// The branch suites, recorded on each car's head before it lands.
-	for _, b := range []string{landingTestBranch, "000002-second", "000003-third"} {
-		if err := gh.ciFakeGH.PostStatus(context.Background(), "test/repo", gh.pr(b).HeadOID, localStatusContext(suiteCheckName), "success", "branch suite"); err != nil {
-			t.Fatal(err)
-		}
-	}
-	carHeads := []string{gh.pr(landingTestBranch).HeadOID, gh.pr("000002-second").HeadOID, gh.pr("000003-third").HeadOID}
+	s := &trainSetup{first: first, server: server, gh: gh, heads: map[string]string{}, rootKey: trainRootKey{}}
+	s.addCar(t, landingTestBranch, 1)
 	ghClient = gh
-
-	type invocationRootKey struct{}
 	oldResolve := resolveLandingWorkspace
 	resolveLandingWorkspace = func(r workspace.GitReader, dir, address string) (workspace.Identity, error) {
 		if bounded, ok := r.(boundedLandingGitRunner); ok && dir == "." {
-			if root, ok := bounded.ctx.Value(invocationRootKey{}).(string); ok {
+			if root, ok := bounded.ctx.Value(trainRootKey{}).(string); ok {
 				dir = root
 			}
 		}
@@ -244,67 +244,141 @@ func landTrainOfThree(t *testing.T, variant string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	line, err := landingline.Open(dir, landingline.Options{Poll: time.Millisecond})
+	if s.line, err = landingline.Open(dir, landingline.Options{Poll: time.Millisecond}); err != nil {
+		t.Fatal(err)
+	}
+	// The blocker holds the line until every car has vouched, so boarding is
+	// decided by the test, not by who started first.
+	if s.blocker, err = s.line.Enqueue(landingline.Ticket{Issue: 99, Branch: "000099-blocker"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.line.Wait(context.Background(), s.blocker); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s.blocker.Release)
+	return s
+}
+
+// addCar registers PR number at branch's pushed head with its branch suite
+// recorded there (the readiness every car vouches with).
+func (s *trainSetup) addCar(t *testing.T, branch string, number int) {
+	t.Helper()
+	pr := s.gh.addPR(number, branch)
+	if err := s.gh.ciFakeGH.PostStatus(context.Background(), "test/repo", pr.HeadOID, localStatusContext(suiteCheckName), "success", "branch suite"); err != nil {
+		t.Fatal(err)
+	}
+	s.heads[branch] = pr.HeadOID
+}
+
+// pushCar makes a closed, pushed issue branch in its own clone of the server.
+func (s *trainSetup) pushCar(t *testing.T, branch, file string, issue, number int) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), file)
+	git(t, "", "clone", "-q", s.gh.remote, dir)
+	git(t, dir, "config", "user.name", file)
+	git(t, dir, "config", "user.email", file+"@example.com")
+	git(t, dir, "remote", "rename", "origin", "upstream")
+	trainCar(t, dir, branch, file, issue)
+	s.addCar(t, branch, number)
+	return dir
+}
+
+// merge starts a real sdlc merge in root.
+func (s *trainSetup) merge(root string) <-chan error {
+	done := make(chan error, 1)
+	go func() {
+		f := landingFlags()
+		ctx := context.WithValue(context.Background(), trainRootKey{}, root)
+		f.Context = ctx
+		// The real repo transaction lock, as production's merge takes it:
+		// cars run their cleanup concurrently once a train lands.
+		cmd := markManualLockCommand(&cobra.Command{Use: "merge"})
+		cmd.SetContext(ctx)
+		f.Lock = func(run func() error) error { return withRequiredRepoTransactionLock(cmd, run) }
+		done <- runMerge(io.Discard, trainStderr, f)
+	}()
+	return done
+}
+
+// waitingCar enqueues a synthetic car that vouches for branch and waits.
+func (s *trainSetup) waitingCar(t *testing.T, branch string, issue, number int) <-chan error {
+	t.Helper()
+	h, err := s.line.Enqueue(landingline.Ticket{Issue: issue, Branch: branch})
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A blocker holds the line until every car has vouched, so the train's
-	// boarding is decided by the test, not by who started first.
-	blocker, err := line.Enqueue(landingline.Ticket{Issue: 99, Branch: "000099-blocker"})
-	if err != nil {
+	t.Cleanup(h.Release)
+	if err := s.line.Vouch(h, landingline.Readiness{Branch: branch, Head: s.heads[branch], PR: number, Ready: true}); err != nil {
 		t.Fatal(err)
 	}
-	if err := line.Wait(context.Background(), blocker); err != nil {
-		t.Fatal(err)
+	done := make(chan error, 1)
+	go func() { done <- s.line.Wait(context.Background(), h) }()
+	return done
+}
+
+func wantSettled(t *testing.T, done <-chan error, kind landingline.OutcomeKind) landingline.Outcome {
+	t.Helper()
+	select {
+	case err := <-done:
+		var settled *landingline.Settled
+		if !errors.As(err, &settled) || settled.Outcome.Kind != kind {
+			t.Fatalf("car: %v, want %s", err, kind)
+		}
+		return settled.Outcome
+	case <-time.After(2 * time.Minute):
+		t.Fatal("car never settled")
 	}
-	start := func(root string) <-chan error {
-		done := make(chan error, 1)
-		go func() {
-			f := landingFlags()
-			f.Context = context.WithValue(context.Background(), invocationRootKey{}, root)
-			done <- runMerge(io.Discard, io.Discard, f)
-		}()
-		return done
+	return landingline.Outcome{}
+}
+
+// trainEvents are the logged trains with result.
+func trainEvents(t *testing.T, line *landingline.Line, result string) []landingline.Event {
+	var out []landingline.Event
+	for _, e := range lineEvents(t, line)[landingline.EventTrain] {
+		if e.Result == result {
+			out = append(out, e)
+		}
 	}
-	one := start(first)
+	return out
+}
+
+func landTrainOfThree(t *testing.T, variant string) {
+	s := newTrainSetup(t, variant)
+	second := filepath.Join(filepath.Dir(filepath.Dir(s.first)), "sample-slot2", "sample")
+	git(t, second, "fetch", "-q", "upstream")
+	git(t, second, "reset", "-q", "--hard", "upstream/main")
+	trainCar(t, second, "000002-second", "second", 2)
+	s.addCar(t, "000002-second", 2)
+	s.pushCar(t, "000003-third", "third", 3, 3)
+	carHeads := []string{s.heads[landingTestBranch], s.heads["000002-second"], s.heads["000003-third"]}
+	gh, line := s.gh, s.line
+
+	one := s.merge(s.first)
 	waitQueued(t, line, 1)
-	two := start(second)
+	two := s.merge(second)
 	waitQueued(t, line, 2)
-	car3, err := line.Enqueue(landingline.Ticket{Issue: 3, Branch: "000003-third"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer car3.Release()
-	if err := line.Vouch(car3, landingline.Readiness{Branch: "000003-third", Head: carHeads[2], PR: 3, Ready: true}); err != nil {
-		t.Fatal(err)
-	}
+	three := s.waitingCar(t, "000003-third", 3, 3)
 	waitVouched(t, line, 3)
-	third3 := make(chan error, 1)
-	go func() { third3 <- line.Wait(context.Background(), car3) }()
-	blocker.Release()
+	s.blocker.Release()
 
 	for name, done := range map[string]<-chan error{"first": one, "second": two} {
 		if err := finished(t, done); err != nil {
 			t.Fatalf("%s car: %v", name, err)
 		}
 	}
-	var settled *landingline.Settled
-	if err := <-third3; !errors.As(err, &settled) || settled.Outcome.Kind != landingline.OutcomeLanded {
-		t.Fatalf("third car: %v", err)
-	}
+	wantSettled(t, three, landingline.OutcomeLanded)
 
 	if gh.merges != 1 || len(gh.created) != 1 {
 		t.Fatalf("merges %d, train PRs %v: want one train merged once", gh.merges, gh.created)
 	}
 	train := gh.pr(gh.created[0])
-	suites := gh.suiteHeads()
-	trainSuites := slices.DeleteFunc(slices.Clone(suites), func(s string) bool { return slices.Contains(carHeads, s) })
+	trainSuites := slices.DeleteFunc(gh.suiteHeads(), func(h string) bool { return slices.Contains(carHeads, h) })
 	if len(trainSuites) != 1 || trainSuites[0] != train.HeadOID {
 		t.Fatalf("integration suites %v, want exactly the train head %s", trainSuites, train.HeadOID)
 	}
-	main := git(t, gh1.remote, "rev-parse", "refs/heads/main")
+	main := git(t, gh.remote, "rev-parse", "refs/heads/main")
 	for i, h := range carHeads {
-		if _, err := trainGitOut(gh1.remote, "merge-base", "--is-ancestor", h, main); err != nil {
+		if _, err := trainGitOut(gh.remote, "merge-base", "--is-ancestor", h, main); err != nil {
 			t.Fatalf("car %d's head %s is not on main", i+1, h)
 		}
 	}
@@ -313,34 +387,28 @@ func landTrainOfThree(t *testing.T, variant string) {
 			t.Fatalf("%s: %s", b, p.State)
 		}
 	}
-	events := lineEvents(t, line)
-	var trainEvents []landingline.Event
-	for _, e := range events[landingline.EventTrain] {
-		if e.Result == string(landingline.PhaseLanded) {
-			trainEvents = append(trainEvents, e)
-		}
-	}
-	if len(trainEvents) != 1 || len(trainEvents[0].Cars) != 3 || trainEvents[0].NextDue.IsZero() {
-		t.Fatalf("train events %+v", events[landingline.EventTrain])
+	if ev := trainEvents(t, line, string(landingline.PhaseLanded)); len(ev) != 1 || len(ev[0].Cars) != 3 || ev[0].NextDue.IsZero() {
+		t.Fatalf("train events %+v", lineEvents(t, line)[landingline.EventTrain])
 	}
 	landed := 0
-	for _, e := range events[landingline.EventCar] {
+	for _, e := range lineEvents(t, line)[landingline.EventCar] {
 		if e.Result == string(landingline.OutcomeLanded) {
 			landed++
 		}
 	}
 	if landed != 3 {
-		t.Fatalf("car events %+v", events[landingline.EventCar])
+		t.Fatalf("car events %+v", lineEvents(t, line)[landingline.EventCar])
 	}
-	if p := gh.pr(gh.created[0]); p.State != "MERGED" {
-		t.Fatalf("train PR %s", p.State)
+	if train.State != "MERGED" {
+		t.Fatalf("train PR %s", train.State)
 	}
-	if left, _ := filepath.Glob(filepath.Join(os.TempDir(), "sdlc-train-*")); len(left) > 0 {
-		for _, l := range left {
-			if _, err := os.Stat(filepath.Join(l, ".git")); err == nil {
-				t.Errorf("a train worktree was left behind: %s", l)
-			}
-		}
+	wantNoTrainWorktree(t, s.first)
+}
+
+func wantNoTrainWorktree(t *testing.T, root string) {
+	t.Helper()
+	if out := git(t, root, "worktree", "list", "--porcelain"); strings.Contains(out, "sdlc-train-") {
+		t.Fatalf("a train worktree outlived its train:\n%s", out)
 	}
 }
 
@@ -364,3 +432,104 @@ func waitVouched(t *testing.T, line *landingline.Line, n int) {
 		time.Sleep(5 * time.Millisecond)
 	}
 }
+
+// With trains on and no other car ready, the head lands alone exactly as
+// before #449, and logs the departure so the schedule paces.
+func TestLandingTrainOfOneIsTodaysLanding(t *testing.T) {
+	s := newTrainSetup(t, "train")
+	one := s.merge(s.first)
+	waitQueued(t, s.line, 1)
+	waitVouched(t, s.line, 1)
+	s.blocker.Release()
+	if err := finished(t, one); err != nil {
+		t.Fatal(err)
+	}
+	if len(s.gh.created) != 0 || s.gh.merges != 1 || s.gh.pr(landingTestBranch).State != "MERGED" {
+		t.Fatalf("train PRs %v merges %d", s.gh.created, s.gh.merges)
+	}
+	ev := trainEvents(t, s.line, "alone")
+	if len(ev) != 1 || ev[0].NextDue.IsZero() || !strings.Contains(ev[0].Detail, "no other car") {
+		t.Fatalf("train events %+v", lineEvents(t, s.line)[landingline.EventTrain])
+	}
+}
+
+// A dead conductor's train PR is closed by the next train; a merge whose
+// reply is lost is read back from GitHub and lands, never merged twice.
+func TestLandingTrainReclaimsAnOrphanAndSurvivesALostMergeReply(t *testing.T) {
+	s := newTrainSetup(t, "null")
+	git(t, s.server, "fetch", "-q", "origin")
+	git(t, s.server, "push", "-q", "origin", "origin/main:refs/heads/landing-train/7")
+	if err := s.gh.CreateTrainPR(context.Background(), "test/repo", "landing-train/7", "", ""); err != nil {
+		t.Fatal(err)
+	}
+	orphan := s.gh.pr("landing-train/7").Number
+	s.gh.lostReply = true
+	s.pushCar(t, "000002-second", "second", 2, 2)
+	one := s.merge(s.first)
+	waitQueued(t, s.line, 1)
+	two := s.waitingCar(t, "000002-second", 2, 2)
+	waitVouched(t, s.line, 2)
+	s.blocker.Release()
+	if err := finished(t, one); err != nil {
+		t.Fatal(err)
+	}
+	wantSettled(t, two, landingline.OutcomeLanded)
+	if !slices.Contains(s.gh.closed, orphan) || s.gh.pr("landing-train/7").State != "CLOSED" {
+		t.Fatalf("the orphan train PR #%d was not closed: %v", orphan, s.gh.closed)
+	}
+	if s.gh.merges != 1 {
+		t.Fatalf("merged %d times after a lost reply", s.gh.merges)
+	}
+	for _, b := range []string{landingTestBranch, "000002-second"} {
+		if p := s.gh.pr(b); p.State != "MERGED" {
+			t.Fatalf("%s: %s", b, p.State)
+		}
+	}
+	wantNoTrainWorktree(t, s.first)
+}
+
+// Main moving with docs only while the train's suite runs: the train merges
+// main in again and keeps its suite (one suite, as a single landing would).
+func TestLandingTrainReintegratesADocsOnlyMain(t *testing.T) {
+	s := newTrainSetup(t, "train")
+	started, release := blockLandingSuite(t, s.server)
+	s.pushCar(t, "000002-second", "second", 2, 2)
+	one := s.merge(s.first)
+	waitQueued(t, s.line, 1)
+	two := s.waitingCar(t, "000002-second", 2, 2)
+	waitVouched(t, s.line, 2)
+	s.blocker.Release()
+	deadline := time.Now().Add(time.Minute)
+	for {
+		if b, err := os.ReadFile(started); err == nil && len(strings.TrimSpace(string(b))) == 40 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the train suite never started")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	prose := integrationAdvance(t, s.server, "workshop/parley/during-train.md", "published while the train's suite ran\n")
+	if err := os.WriteFile(release, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := finished(t, one); err != nil {
+		t.Fatal(err)
+	}
+	wantSettled(t, two, landingline.OutcomeLanded)
+	main := git(t, s.gh.remote, "rev-parse", "refs/heads/main")
+	if _, err := trainGitOut(s.gh.remote, "merge-base", "--is-ancestor", prose, main); err != nil {
+		t.Fatal("landed without the docs main brought")
+	}
+	cars := []string{s.heads[landingTestBranch], s.heads["000002-second"]}
+	runs := slices.DeleteFunc(s.gh.suiteHeads(), func(h string) bool { return slices.Contains(cars, h) })
+	if len(runs) != 1 {
+		t.Fatalf("suites on %v: a docs-only main move must not rerun the suite", runs)
+	}
+	if s.gh.merges != 1 {
+		t.Fatalf("merges %d", s.gh.merges)
+	}
+}
+
+// trainStderr is where the train tests' merges report; os.Stderr while debugging.
+var trainStderr io.Writer = io.Discard
