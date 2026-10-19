@@ -1,13 +1,13 @@
 ---
 id: 000452
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours: 1.63
 collaboration-mode: collaboration
-card_mirror: '01807e4d8cbceb9d9879fb31cc5d14ef2f4cf92d' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '51977fe467d980dac94250f14d80ca4e9e7fab41' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-18T18:04:52-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 1.05
 ---
 
 # suite queue priority: a fleet-blocking landing grant also jumps the machine suite queue
