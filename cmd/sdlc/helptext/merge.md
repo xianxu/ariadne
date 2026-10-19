@@ -145,7 +145,11 @@ CI GATE (#309)
   When that suite fails only on known flakes (#394, `sdlc flake`), it reruns
   just those tests once, and a passing rerun lands with the flake issue named
   in the status. Any other failure blocks, and merge's main baseline labels a
-  failure main shares as a persistent main failure, never a flake.
+  failure main shares as a persistent main failure, never a flake. A suite
+  pass is not recorded over an earlier unexplained failure on the same head,
+  so a blind rerun never lands: register the flake (`sdlc flake register`,
+  that fail→pass is its evidence), then `sdlc local-check republish --name
+  suite`, or fix it.
 
 FLAGS
 
