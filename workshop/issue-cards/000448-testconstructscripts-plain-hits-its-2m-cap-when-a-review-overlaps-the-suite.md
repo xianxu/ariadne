@@ -1,6 +1,6 @@
 ---
 id: 000448
-status: codecomplete
+status: done
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
@@ -22,6 +22,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 25bf575191a753a127daf2bd1833cd5b1e27a6ec
         evidence_commit: 06fb59977285741d30caadce2ddcd4d4ee8d2191
+        landed_commit: 6d6232853b55eae6d123cd653e9824699ecfd8c5
 ---
 
 # TestConstructScripts/plain hits its 2m cap when a review overlaps the suite
