@@ -101,5 +101,5 @@ not just prose.
 
 ## Pointers
 - Suite: `scripts/harness-assumptions.test.sh` · `make harness-check`
-- Build: issue #107 (Option B) + `workshop/plans/000107-option-b-plan.md`
+- Build: issue #107 (Option B) + `workshop/history/plans/000107-option-b-plan.md`
 - Skill subsystem: [skill-system](../../workshop/targets/skill-system.md) · weave: [weave.md](weave.md)
