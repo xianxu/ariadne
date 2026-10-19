@@ -1,13 +1,21 @@
 ---
 id: 000456
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-18
-updated: 2026-10-18
+updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '2831154ed39a0c69a0571931c61dec7e5cb0f0c9' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'd9045422ccd3b1624701f9634bb934e7f86ad371' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-19T01:26:56-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead teams: several teams per operations repo, team.md, cross-team routing, a machine steward
@@ -27,8 +35,20 @@ tl-lead gains the team contract: a team folder `teams/<team>/` holds `team.md` (
 
 ## Plan
 
-- [ ]
+Durable plan: [workshop/plans/000456-tl-lead-teams-plan.md](../plans/000456-tl-lead-teams-plan.md) (design: ops `teams/devinfra/projects/introduce-team/design.md` §1, §2, §4).
+
+- [ ] Team model and `--team` resolution (`team:<name>`, `.hub` claim grammar mirroring pair's, `team.md`)
+- [ ] `tl-lead team new` (scaffold and adopt, resumable) and `team list [REPO]`
+- [ ] Session FILE defaults to the team's `tl-status-*.md`
+- [ ] `tl-lead team commit` (path-limited, pull --rebase, push, resumable)
+- [ ] `tl-lead team issues` (open, unclaimed, in owned repos; `sdlc state --json`)
+- [ ] Help: tl-lead TEAMS, tl-worker direct filing, atlas
+- [ ] Full suite; read-only manual check; hand the live proof to the hub
 
 ## Log
 
 ### 2026-10-18
+
+### 2026-10-19
+- Claimed and started from ariadne:4 after #455. The hub clarified `.hub` (bare word = repo claim, `repo:N` = slot claim, `key=value` directives are pair's; tl-lead writes only claims). The operator decided on `team:<name>` addressing and direct cross-team filing (no hub relay) plus an unclaimed-issue view over `owns:`.
+- Durable plan drafted; decisions D1–D5 are in it for hub/operator review (the operator reviews on the morning of 10-19).
