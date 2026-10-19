@@ -12,6 +12,7 @@ Central directory for atlas entries — practical pointers for future developers
 - [Artifact Hierarchy](workflow/artifact-hierarchy.md) — where workshop/ files live + lifecycle
 - [Ledger Landscape](workflow/ledger-landscape.md) — where state and evidence live across all surfaces (issue file, git history + trailers, transcripts, memory, atlas, project file); design principles for picking the right ledger
 - [Pre-merge Checks](workflow/pre-merge-checks.md) — constitution enforcement
+- [CI merge-check](workflow/ci-merge-check.md) — portable server checks, operator verification of local gates, pinned downstream compiler compatibility
 - [Directory Conventions](workflow/directory-conventions.md) — standard repo layout
 - [sdlc Binary](workflow/sdlc-binary.md) — unified checkpoint-guard binary (`cmd/sdlc/`) guarding the workflow from claim → ship (incl. the `issue` group with `issue publish` (#284; details to main) and, in legacy repositories, the body-commit verb `issue sync` (#206), `active-time` the in-binary v3 attribution engine #110, local token/native-credit usage (#365/#385), the read-only `resolve`/`open` ref resolver #144, and `migrate` — cross-repo artifact move with ref rewrite #179) replacing the Make-target surface; embedded `--help` per subcommand; fresh-context judges for anti-collusion
 - [Workspace Identity](workflow/workspace-identity.md) — shared Git repository/workspace resolver, numbered slots, JSON contract and SDLC path ownership (#242).

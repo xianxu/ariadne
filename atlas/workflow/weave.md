@@ -61,6 +61,13 @@ adopted by prepending `-include Makefile.workflow` without replacing product
 rules (a root that already includes it, directly or as `$(WF_WORKFLOW)`, is
 left alone).
 
+CI acquires its gateway separately from ordinary interactive startup: each
+consumer authors `.sdlc/weave-compiler-ref`, and the seeded workflow builds that
+exact source before bootstrap. The pin is not manifest-managed. Ariadne tests
+candidate vocabulary exports with its supported downstream compiler set through
+real cold-consumer regeneration. See [CI compiler compatibility](ci-merge-check.md#compiler-compatibility-459)
+for the fixture boundary and operator-owned pin rollout.
+
 `plan.ApplyManaged` records output identities in
 `construct/generated/weave/ownership.json`, separating data and artifact
 scopes. Recorded outputs always converge (#281): one whose bytes, mode or link

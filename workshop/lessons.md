@@ -1066,3 +1066,13 @@ The simplest durable authority beats a clever scan of consequences.
 - #465 BR-1/BR-2: replacing a clock wait must preserve the ordering the regression proves. Give start, edit and completed output independently ordered timestamps; mutate away restoration to confirm failure. When approved acceptance changes, update Done when alongside Revisions so the current contract names every required guard.
 
 - #465 BR-3: fixture reuse must preserve observed output and status for every CLI mode. Never substitute a supplied status or another mode's baseline. Enumerate every reused result, regenerate after relevant input/context changes, and mutate ordinary/strict/verbose behavior independently.
+- **#458 — review the observable command and its design table:** a function
+  that invokes an injected Git callback is integration logic even when the
+  callback is passed as a value. Test the final CLI rows for default and verbose
+  behavior with real ancestry, and carry a reason when uncertain evidence keeps
+  a row visible. Document new flags in README as well as atlas.
+- **#458 BR-5/BR-6 — card ownership only:** issue Markdown, including dedicated
+  Log lines, cannot establish ownership of a Go test. Presentation syntax is too
+  ambiguous for a decision that hides a failure. Use only an exact fully
+  qualified name in the terminal card's `flake_tests`; legacy failures stay
+  visible until retention expires (ARCH-SECURE).
