@@ -45,12 +45,12 @@ The operator decided one team per ops repo (design §7–§9). The scope shrinks
 
 Durable plan: [workshop/plans/000456-tl-lead-teams-plan.md](../plans/000456-tl-lead-teams-plan.md). The revised scope (one team per repo) is in its Revisions section.
 
-- [ ] R1 `.hub` claim grammar (mirrors pair's), a `.hub` reader and `ownerOf` (Couch's rule)
-- [ ] R2 `tl-lead team new PATH` (create or adopt an ops repo; resumable; refuses on any differing file)
-- [ ] R3 `tl-lead team list [REPO]` (sibling repos with `.hub`; the owning hub by Couch's rule)
-- [ ] R4 `tl-lead team issues` (open issues nobody has claimed, in repos `.hub` claims)
-- [ ] R5 `tl-lead fleet resume [--apply]` (targets from `ownerOf`; join couch resume candidates with sdlc claims; sequential resumes)
-- [ ] R6 Help: tl-lead TEAMS and hub contract; tl-worker direct filing; atlas
+- [x] R1 `.hub` claim grammar (mirrors pair's), a `.hub` reader and `ownerOf` (Couch's rule)
+- [x] R2 `tl-lead team new PATH` (create or adopt an ops repo; resumable; refuses on any differing file)
+- [x] R3 `tl-lead team list [REPO]` (sibling repos with `.hub`; the owning hub by Couch's rule)
+- [x] R4 `tl-lead team issues` (open issues nobody has claimed, in repos `.hub` claims)
+- [x] R5 `tl-lead fleet resume [--apply]` (targets from `ownerOf`; join couch resume candidates with sdlc claims; sequential resumes)
+- [x] R6 Help: tl-lead TEAMS and hub contract; tl-worker direct filing; atlas
 - [ ] R7 Full suite; read-only live dry runs from ops; hand `team new` and the live proof to the hub
 
 ## Estimate
@@ -88,3 +88,13 @@ Items, in order:
 - Claimed and started from ariadne:4 after #455. The hub clarified `.hub` (bare word = repo claim, `repo:N` = slot claim, `key=value` directives are pair's; tl-lead writes only claims). The operator decided on `team:<name>` addressing and direct cross-team filing (no hub relay) plus an unclaimed-issue view over `owns:`.
 - Durable plan drafted; decisions D1–D5 are in it for hub/operator review (the operator reviews on the morning of 10-19).
 - The hub approved the plan and confirmed D1-D5 as proposed. change-code is held until the operator's morning review of the introduce-team designs; the hub will relay the answer.
+- Implemented R1–R6:
+  - fde43e8a4: the grammar and `ownerOf`.
+  - 083185f56: `team new`, `team list` and `team issues`.
+  - 3cba27cd2: `fleet resume`.
+  - 5933b68c2: help and atlas.
+  - Targeted tests pass. The live decodes of `sdlc state` and `couch --resume-candidates` pass with `TL_LEAD_LIVE=1`; the Couch one ran unsandboxed, since the socket is denied in the sandbox.
+- **Deviations from the approved plan:**
+  - A down slot with no claimed work is *idle* without reading its candidates. Most finished slots keep a conversation, so classing "conversation but no claim" as ambiguous would put nearly every idle slot in Needs you.
+  - The planned `TestPlanResumeNamesInvisibleLayers` became `TestFleetResumeDryRun`. It checks the caveat line, and that a tied slot (`tools:1`) and an unclaimed one (`brain:1`) are ambiguous, never resumed.
+- **Live dry runs from ops** need ops adopted as a team first: ops has no `.hub` today. That is the hub's run: `tl-lead team new ~/workspace/ops --claim …`, then commit.
