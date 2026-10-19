@@ -67,9 +67,9 @@ process-group cancellation. Use the existing Go command seam per selected path.
 
 ## Plan
 
-- [ ] Add regressions for canonical listing and the original aggregate call;
+- [x] Add regressions for canonical listing and the original aggregate call;
   run red before implementation.
-- [ ] Add listing and per-script Go subtests; retain the existing per-command
+- [x] Add listing and per-script Go subtests; retain the existing per-command
   ceiling and process-group cleanup. Run targeted regressions and the catalog.
 - [ ] Run a recorded full suite, close, open PR and land through the normal gates.
 
@@ -97,3 +97,20 @@ process-group cancellation. Use the existing Go command seam per selected path.
 Removed the cap-increase option from Done when: the hub explicitly requires no
 timeout bumps. Preserve two minutes for each independent script, and verify
 canonical selection plus guard the original aggregate invocation.
+
+### 2026-10-18 — implementation and targeted verification
+
+- Hub approved the plan. Red: the selection fixtures executed the batch instead
+  of listing, and both original direct command shapes escaped the lint catalog.
+- Added NUL listing in the canonical runner and per-script named Go subtests;
+  each creates the same two-minute context and preserves the existing group
+  SIGKILL and five-second pipe-drain bound. No tested script changed.
+- `go test ./scripts/test ./pkg/golint -count=1 -v -timeout 10m` passed: scripts
+  package 154.083s; all eighteen real script/environment combinations passed;
+  lint package 0.847s including its scan of 1,195 tracked Go files. The fixture
+  first exposed macOS physical-path spelling; expectations now resolve symlinks.
+- The narrow lint's red cases catch the original aggregate invocation; positive
+  and negative cases cover path-qualified commands, listing, leaf scripts,
+  non-test code and a justified suppression. Selection fixtures cover exclusions,
+  spaces/newlines, no execution during listing, batch success/failure, unknown
+  mode and empty discovery.

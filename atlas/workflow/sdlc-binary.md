@@ -1942,10 +1942,17 @@ the package's TestMain removes with `testfix.RemoveBuiltBinaries()` after `m.Run
 process sweeps any such directory a killed run left behind after 24 h. Measured on the
 end-to-end tests: 18 builds (310 MB of binaries) became 2 (20.9 MB).
 
+`TestConstructScripts` asks `scripts/test/construct-scripts.test.sh --list` for
+its NUL-delimited selection, preserving the runner's exclusion policy, then
+runs each selected script as a named subtest in each color environment (#448).
+Each script gets the unchanged two-minute hang ceiling and its own process
+group cancellation; completed scripts cannot consume a later script's budget.
+The shell runner's default CI invocation still executes the selected batch.
+
 ### The Go lint catalog (#407)
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
-that taught it (`test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
+that taught it (`test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, and
 `wire-strict-decode` pair#594). Packages are matched by the
 name the file imports them under, and generated files are skipped. Rules read only the syntax tree (stdlib

@@ -3,6 +3,7 @@ package golint
 import (
 	"go/ast"
 	"go/token"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -11,6 +12,13 @@ import (
 // Catalog is the curated list, in the order findings are reported. Add a rule
 // with the fix for the mistake class it catches (tl-worker, tl-lead).
 var Catalog = []Rule{
+	{
+		Name:     "test-batch-shell-runner",
+		Incident: "ariadne#448",
+		Message:  "the construct batch runner shares one deadline across independent scripts; list with --list and bound each script separately",
+		TestOnly: true,
+		Match:    batchShellRunner,
+	},
 	{
 		Name:     "wire-strict-decode",
 		Incident: "pair#594",
@@ -51,6 +59,26 @@ var Catalog = []Rule{
 		TestOnly: true,
 		Match:    fixedSleeps,
 	},
+}
+
+// Protect the known batch entrypoint; Go syntax cannot infer arbitrary shell
+// loops. Selection is safe, but executing this directory under one test command
+// accumulates healthy progress against a hang ceiling.
+func batchShellRunner(f *ast.File, _ *CheckContext) []ast.Node {
+	var out []ast.Node
+	calls(f, "os/exec", []string{"Command", "CommandContext"}, func(call *ast.CallExpr) {
+		batch, list := false, false
+		for _, arg := range call.Args {
+			if s, ok := stringLit(arg); ok {
+				batch = batch || path.Base(s) == "construct-scripts.test.sh"
+				list = list || s == "--list"
+			}
+		}
+		if batch && !list {
+			out = append(out, call)
+		}
+	})
+	return out
 }
 
 // constDuration evaluates a constant time expression: time.Millisecond,
