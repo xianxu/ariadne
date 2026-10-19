@@ -1,6 +1,6 @@
 ---
 id: 000450
-status: codecomplete
+status: done
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: ac6ffa02d66fece624a6b5973a0333d4dae1bf2a
         evidence_commit: d049cdbf9cbfc3920a80812a07aefa478bfbf9bc
+        landed_commit: 55d737b2485feda1e6afc3d34d9f72969ab47558
 ---
 
 # sandbox: deny agents read access to ~/.config/rclone (Drive backup token)
