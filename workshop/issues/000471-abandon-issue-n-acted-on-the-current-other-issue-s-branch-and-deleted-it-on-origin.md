@@ -1,13 +1,21 @@
 ---
 id: 000471
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '535587098bc39dd23e9cc86ce849b69eedc64edf' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'af347e54e50e5d70a9590e3a1686455254fef604' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-19T13:17:35-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # abandon: --issue N acted on the current (other issue's) branch and deleted it on origin
@@ -44,8 +52,13 @@ Add the same guard to any other verb that takes `--issue N` but acts on HEAD's b
 
 ## Plan
 
-- [ ]
+- [ ] Write and approve the durable plan at `workshop/plans/000471-abandon-branch-identity-plan.md`, including the `--issue`/HEAD audit.
+- [ ] Add red real-Git regressions for wrong-branch abandon, close, milestone-close and attach; preserve open-issue and interrupted-abandon recovery cases.
+- [ ] Bind started work to the card-derived issue branch before any effect. For remote deletion, make the remote branch tip equal the archived commit with leased updates, then delete it with a lease.
+- [ ] Run targeted tests, `make -k build`, the recorded full suite, the close review and landing gates.
 
 ## Log
 
 ### 2026-10-19
+
+- Claimed and started in ariadne:1. The incident is a branch identity failure: `abandon` accepts any non-rest branch as the named issue's branch and stores that name in its terminal record. Planning the shared guard and remote-ref checks before code.
