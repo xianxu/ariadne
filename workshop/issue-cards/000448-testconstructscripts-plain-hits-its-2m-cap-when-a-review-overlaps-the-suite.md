@@ -1,6 +1,6 @@
 ---
 id: 000448
-status: working
+status: codecomplete
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
@@ -14,6 +14,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.24
+tracker:
+    version: 1
+    completion:
+        token: close-e8c66cda02b4
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 25bf575191a753a127daf2bd1833cd5b1e27a6ec
+        evidence_commit: 06fb59977285741d30caadce2ddcd4d4ee8d2191
 ---
 
 # TestConstructScripts/plain hits its 2m cap when a review overlaps the suite
