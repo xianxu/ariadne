@@ -27,8 +27,57 @@ Either cut a new weave release that includes #422 and point downstream CI at it,
 
 ## Plan
 
-- [ ]
+See [the local implementation plan](../plans/000459-downstream-weave-compiler-plan.md).
+
+- [x] Compare the release and pinned-source CI routes and prepare a recommendation.
+- [x] Trace the cold shipped-output failure with the actual old/new compilers.
+- [ ] Obtain hub/operator approval of the plan, exact pin and publication limits.
+- [ ] After approval, establish normal SDLC ownership and implement the upstream
+  guard plus operator-verified, independently owned downstream migrations.
+
 
 ## Log
 
 ### 2026-10-19
+
+### Local preparation (2026-10-19)
+
+- Explicit local-only dispatch overrides normal claim/start-plan publication for
+  this preparation. Neither command ran: the card remains open/unclaimed, and
+  this slot holds a local unpublished issue branch from fetched main. No PR,
+  tag, release, tap update, workflow dispatch, downstream edit or label was made.
+- Source evidence: published weave-v0.1.0 peels to
+  `4de31b2de32c8143d61abe17bbe7f7654503cd42`; #422 merged at
+  `664ff7938b85a79b04c80cf1e1c90279f06342bc`; proposed immutable CI source is
+  `63d6bfd86509d97649e10d7a5dd1e9a06db17d21`. All identities came from Git.
+- The shared merge-check workflow is refreshed by seed on compile, but that does not commit a consumer workflow update or change the workflow already executing in GitHub.
+  Bootstrap's capability probe accepts 0.1.0 and does not pin the tap version.
+  Read-only primary-checkout inventory found 20 downstream workflows; remote
+  deployment identity and every shipped-output declaration still need rollout
+  audit. No remote-fleet completeness is claimed from local files.
+- Existing `go test ./cmd/weave/internal/plan -run
+  '^Test(ShippedPaths|ShipStaged|ShippedOutputOwnership)$' -count=1` passed
+  (2.759s). Both compiler snapshots built successfully with cached dependencies,
+  `GOPROXY=off`, `GOTOOLCHAIN=local`, CGO disabled and `-trimpath`.
+- Actual scratch process comparison used independent temporary Git owner/leaf
+  fixtures, a tracked generated SKILL.md plus matching sidecar, and no runtime
+  ownership inventory. 0.1.0 exited 1 with "preserving authored replacement";
+  the proposed pin exited 0, regenerated expected bytes and the matching digest.
+  Both binaries refused the tampered-output control and left its bytes unchanged.
+  This is an observed minimal ownership reproduction, not yet the proposed
+  whole candidate vocabulary/schema corpus guard or a real downstream CI run.
+- Scratch sources, logs and observed-results.json remain at
+  `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/weave459-rehearsal.xrRzR4`
+  for local review. They are not release candidates and were not uploaded.
+
+## Revisions
+
+### 2026-10-19 — plan review corrections
+
+A fresh advisory reader identified seed semantics, corpus scope and the need for
+an independently exercised changed-output control. Source inspection confirms
+seed refreshes workflow bytes; seed-once currently performs Makefile adoption,
+so the plan uses an authored pin outside the manifest and no new seed mechanism.
+The guard covers real top-level vocabulary exports and their producer
+declarations, with instance fixtures validated separately, and explicitly runs
+the old compiler through compile rather than failing only on pin membership.
