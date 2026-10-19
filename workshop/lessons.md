@@ -58,6 +58,11 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- Native CLI fixtures that assert quiet output must explicitly isolate live
+  runtime context at their shared subprocess boundary. Set inherited Couch
+  context in the regression so CI outside Couch also detects a leak; keep
+  dedicated Couch diagnostic tests explicit (#461 suite failure).
+
 - When an approved revision changes acceptance, synchronize the current Done when
   clause and preserve the original wording in Revisions. Leaving contradictory
   current criteria makes the close evidence stale even when the revised live

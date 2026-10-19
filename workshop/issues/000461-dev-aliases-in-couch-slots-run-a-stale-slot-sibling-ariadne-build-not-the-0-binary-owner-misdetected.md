@@ -153,3 +153,16 @@ pair slot's command type before deciding whether it needs relaunch.
   duplicate rule. This is prose only, so the running recorded suite remains
   valid for the unchanged implementation. Re-running close as its open-ledger
   refusal explicitly requires.
+
+- Full review round 2 SHIP; BR-1 disposed, no remaining findings. Recorded suite
+  attempt 32754ac5da999c00b82235c040dd3382 completed all 12 shards and 71 other
+  packages (685.9s), with one failing test: TestFleetEndToEnd. Its native fixture
+  inherited live COUCH_TREE and received the new correct wrong-binary warning,
+  contradicting its non-Couch empty-stderr contract. This is deterministic
+  fixture isolation, not a flake; no flake registration or passing retry used.
+- Added explicit inherited COUCH_TREE to that regression; targeted run failed
+  with the same warning. The shared native fleet subprocess boundary now clears
+  COUCH_TREE for all its consumers; dedicated warning tests still explicitly
+  exercise Couch. Focused FleetEndToEnd/FleetE2E/FleetBinaryWarning tests pass
+  (2.852s). Production behavior is unchanged. Fresh recorded suite and narrow
+  post-close review required for this test-only fix before landing.
