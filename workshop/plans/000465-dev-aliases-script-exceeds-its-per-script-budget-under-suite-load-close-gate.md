@@ -185,6 +185,99 @@ rounds:
       recipe: small-diff-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: e3684d9e-2063-4047-8a2f-561e7bbd96ee
+            repository: github.com/xianxu/ariadne
+            issue_id: "000465"
+            recipe: small-diff-review
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/94e7533771bd0b4a
+            reviewed_head: f874054852a15da9f76d9d2fc23482a05f99a148
+            slot: ariadne:3
+            requested_at: "2026-10-19T15:34:54.975909Z"
+          phase: finished
+          pid: 60090
+          started_at: "2026-10-19T15:34:55.087171Z"
+          finished_at: "2026-10-19T15:37:40.0536Z"
+          session_id: 01a154cd-2e71-7271-a4e8-794f335b2981
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: f874054852a15da9f76d9d2fc23482a05f99a148
+        tracker_head: 3adcfba4745aa1327f4d85e699615d15b16d7019
+        branch_point: 45a96385ad4d24bda920822c60d7879d643a2a99
+        since: "2026-10-19T07:56:05-07:00"
+        until: "2026-10-19T08:34:23-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T07:56:05-07:00"
+              end: "2026-10-19T08:34:23-07:00"
+              began: "2026-10-19T07:56:05-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: db0d621c78a47bf64c65019b2a91da4b9fbf38b0ed5c4194787724b721547c7d
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 38891695
+              windows:
+                - start: "2026-10-19T07:56:05-07:00"
+                  end: "2026-10-19T08:34:23-07:00"
+            - harness: codex
+              id: 01a154a9-c7b3-73a1-9284-3ee124ec3272
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a14367-9218-7872-89c3-f9a28c524834
+              digest: b53664e4ccaf180885a584990b32745991c54a24832ab3c09d2960ef9ae940fe
+              started: "2026-10-19T14:56:15.338Z"
+              spawned: true
+              bytes: 1034723
+              windows:
+                - start: "2026-10-19T14:56:15.338Z"
+                  end: "2026-10-19T08:34:23-07:00"
+        cuts:
+            - dispatched: "2026-10-19T08:22:48-07:00"
+              finalized: "2026-10-19T08:25:00-07:00"
+              finalizing: false
+            - dispatched: "2026-10-19T08:28:38-07:00"
+              finalized: "2026-10-19T08:31:18-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-19T08:37:51-07:00"
+      dispatched: "2026-10-19T08:34:54-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: construct/scripts/test/dev-aliases.test.sh:440-448 establishes ordered start/edit/output timestamps. Disabling timestamp restoration makes the intended mid-build-edit assertion at line 493 fail; the mutated run reports 79 passed, three failed.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: The pinned before/after diff updates the issue's Done when at lines 35-37 to include path conformance, N/2N zero-launch checks, counted reductions and loaded-suite evidence, matching its Revisions while retaining the two-minute ceiling.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: construct/scripts/test/dev-aliases.test.sh:35-44 captures actual output and status for all four ordinary/verbose comparisons, including strict cases at lines 274 and 295. Suppressing ordinary strict-list output on collisions makes both repaired comparisons fail (79 passed, three failed). Fresh gen_def and nous_def generation also restores observations after fixture changes; retained dupe.defs reuse observes the same mode on unchanged inputs.
+          round: 3
+      recipe: small-diff-review
+      isolation: fenced
+      reviewed: f874054852a15da9f76d9d2fc23482a05f99a148
+      blocked: false
 ---
 
 # Gate ledger — ariadne#465 (boundary-review)
@@ -214,6 +307,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   construct/scripts/test/dev-aliases.test.sh:35-44 skips ordinary --strict --list execution, substitutes a supplied status, and compares verbose strict output against a non-strict baseline. All instances are the same-origin and distinct-origin strict calls at lines 280 and 301. A production mutation suppressing ordinary strict-list output only on collisions passes 82/82 at head; the identical mutation fails the original test (81 passed, one failure).
   This is the 2nd finding in family preserve-regression-sensitivity. Earlier rounds fixed instances. Do not fix only the demonstrated collision case: enforce the rule that fixture reuse must preserve observed output and status for every originally tested mode. Capture or reuse actual strict results for both enumerated cases and verify the mutation fails. ARCH-PURPOSE requires preserving behavioral coverage, not merely assertion counts.
 
+## Round 3 — 2026-10-19T08:37:51-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — construct/scripts/test/dev-aliases.test.sh:440-448 establishes ordered start/edit/output timestamps. Disabling timestamp restoration makes the intended mid-build-edit assertion at line 493 fail; the mutated run reports 79 passed, three failed.
+- BR-2 — addressed — The pinned before/after diff updates the issue's Done when at lines 35-37 to include path conformance, N/2N zero-launch checks, counted reductions and loaded-suite evidence, matching its Revisions while retaining the two-minute ceiling.
+- BR-3 — addressed — construct/scripts/test/dev-aliases.test.sh:35-44 captures actual output and status for all four ordinary/verbose comparisons, including strict cases at lines 274 and 295. Suppressing ordinary strict-list output on collisions makes both repaired comparisons fail (79 passed, three failed). Fresh gen_def and nous_def generation also restores observations after fixture changes; retained dupe.defs reuse observes the same mode on unchanged inputs.
+
 ## Open findings
 
-- **BR-3** [Important] `preserve-regression-sensitivity` (kind: defect) Strict-list comparison no longer observes ordinary strict output
+(none — every finding has been disposed)

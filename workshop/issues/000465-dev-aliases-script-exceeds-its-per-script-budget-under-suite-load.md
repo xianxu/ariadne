@@ -45,6 +45,8 @@ Keep the per-script ceiling. Reduce the cost of `construct/scripts/test/dev-alia
 
 ## Log
 
+
+- 2026-10-19: closed — All82 original assertions pass; final three-environment runner passes in30.677s. Real path conformance/layout checks and N/2N zero-path-utility guards pass. Final exact counters: generator38→31, Git165→59, path utilities1193→14. BR-1 no-restoration mutation fails next-rebuild behavior; BR-2 current Done-when matches approved path/loaded-suite acceptance; BR-3 both origin strict comparisons now observe real same-mode stdout/status and fail suppressed-ordinary-output mutation. Reused-result class audited and fresh definitions restored after changed inputs. Final-code recorded suite queued; authorized review overlap, no landing before recorded pass and green CI.; review verdict: SHIP
 2026-10-19: Classified while closing ariadne#458. Targeted `go test ./scripts/test -run '^TestConstructScripts/plain/dev-aliases.test.sh$' -count=1 -v` passed in 33.779 seconds after the recorded full-suite timeout. The terminal failure was `scripts_test.go:70: .../construct/scripts/test/dev-aliases.test.sh did not finish within 2m0s`; the partial output had passed the prior build and failure-preservation assertions.
 
 2026-10-19: Claimed and measured the unchanged script: 82/82 assertions in 17.36s. A disposable fixture-cwd-only experiment took 16.74s, disproving live substrate traversal as the dominant cost here (this checkout has no construct/deps). Repeated generator calls scan unrelated owners, and fixed waits add several seconds. Quick test-only plan posted to hub; no production behavior or deadline changes.
