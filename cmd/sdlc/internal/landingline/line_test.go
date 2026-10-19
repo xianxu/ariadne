@@ -53,7 +53,7 @@ func enqueue(t *testing.T, l *Line, issue int) *Handle {
 // directly, so each ordering is chosen by the test, not by the scheduler.
 func step(t *testing.T, l *Line, h *Handle) int {
 	t.Helper()
-	pos, _, err := l.tryAdmit(h)
+	pos, _, _, err := l.tryAdmit(h)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,6 +198,11 @@ func TestHelperHoldTicket(t *testing.T) {
 	if err != nil {
 		os.Exit(2)
 	}
+	if os.Getenv("LANDINGLINE_HELPER_MODE") == "vouch" {
+		if err := l.Vouch(h, Readiness{Branch: "helper", Head: strings.Repeat("a", 40), PR: 9, Ready: true}); err != nil {
+			os.Exit(2)
+		}
+	}
 	if os.Getenv("LANDINGLINE_HELPER_MODE") == "head" {
 		if err := l.Wait(context.Background(), h); err != nil {
 			os.Exit(2)
@@ -316,7 +321,7 @@ func TestLineUnreadableHeadIsStillAHead(t *testing.T) {
 		t.Fatalf("head %v err %v", got, err)
 	}
 	waiter := enqueue(t, l, 2)
-	if pos, current, err := l.tryAdmit(waiter); err != nil || pos != 1 || current == nil || !current.Unreadable {
+	if pos, current, _, err := l.tryAdmit(waiter); err != nil || pos != 1 || current == nil || !current.Unreadable {
 		t.Fatalf("pos %d head %v err %v", pos, current, err)
 	}
 }

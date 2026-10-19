@@ -25,6 +25,10 @@ DURABLE WORKSPACES (:0 AND :N)
      (operator or :0, at most 24 h) go first at the next admission and never
      interrupt a running landing. An already-merged PR takes no turn. The line
      lives in the git common dir, shared by every slot, and needs no Couch.
+     With landing trains on (#449, `sdlc landing --help`), a waiting merge
+     also vouches its own gates. The admitted head may conduct a train that
+     lands this PR with others on one suite. A car the train landed only
+     cleans up; one it held or refused fails, naming why.
   1. If configured main moved, merge it into the issue branch locally. A
      conflict aborts and names the paths. A clean integration must pass the
      publish replay check before its leased push; a refusal resets this

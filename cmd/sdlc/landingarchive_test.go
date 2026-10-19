@@ -49,7 +49,7 @@ func laFixture(t *testing.T) (root, origin string, pr landingPR) {
 	laWrite(t, root, "workshop/plans/000246-landing-close-review.md", "the review\n")
 	head := laCommit(t, root, "#246: close")
 	testfix.Git(t, root, "push", "-q", "origin", "HEAD:main")
-	return root, origin, landingPR{Number: 246, State: "MERGED", Repo: "test/repo", HeadRef: "000246-landing", HeadOID: head, BaseRef: "main", BaseOID: base, MergeOID: head}
+	return root, origin, landingPR{Number: 246, State: "MERGED", Repo: "test/repo", HeadRef: "000246-landing", HeadOID: head, BaseRef: "main", BaseOID: base, MergeOID: head, LandedOID: head}
 }
 func laArchive(root string, pr landingPR) error {
 	return archiveLandingPR(context.Background(), root, "origin", pr.Repo, pr, "workshop/issues", "workshop/plans", "workshop/history")
@@ -114,6 +114,7 @@ func TestLandingArchiveIndependentlyPublishedBody(t *testing.T) {
 	pr.BaseOID = laCommit(t, root, "independent documentation publication")
 	testfix.Git(t, root, "merge", "--no-ff", "-m", "integration", pr.HeadOID)
 	pr.MergeOID = laGit(t, root, "rev-parse", "HEAD")
+	pr.LandedOID = pr.MergeOID
 	testfix.Git(t, root, "push", "--force", "-q", "origin", "HEAD:main")
 	if err := laArchive(root, pr); err != nil {
 		t.Fatal(err)
@@ -356,7 +357,7 @@ func TestLandingArchiveAssetsAndProof(t *testing.T) {
 	laWrite(t, root, laIssue, laBody("codecomplete", "![evidence]("+rel+")"))
 	laWrite(t, root, src, data)
 	pr.HeadOID = laCommit(t, root, "evidence")
-	pr.MergeOID = pr.HeadOID
+	pr.MergeOID, pr.LandedOID = pr.HeadOID, pr.HeadOID
 	testfix.Git(t, root, "push", "-q", "origin", "HEAD:main")
 	if err := laArchive(root, pr); err != nil {
 		t.Fatal(err)
@@ -401,7 +402,7 @@ func TestLandingArchiveAssetRefusalsPreserveMain(t *testing.T) {
 				laWrite(t, root, "workshop/history/issues/"+rel, "evidence")
 			}
 			pr.HeadOID = laCommit(t, root, "evidence state")
-			pr.MergeOID = pr.HeadOID
+			pr.MergeOID, pr.LandedOID = pr.HeadOID, pr.HeadOID
 			testfix.Git(t, root, "push", "-q", "origin", "HEAD:main")
 			before := laGit(t, origin, "rev-parse", "main")
 			err := laArchive(root, pr)
@@ -422,7 +423,7 @@ func TestLandingArchiveProofRefusesRecreatedActiveAsset(t *testing.T) {
 	laWrite(t, root, laIssue, laBody("codecomplete", "![evidence]("+rel+")"))
 	laWrite(t, root, "workshop/issues/"+rel, "evidence")
 	pr.HeadOID = laCommit(t, root, "evidence")
-	pr.MergeOID = pr.HeadOID
+	pr.MergeOID, pr.LandedOID = pr.HeadOID, pr.HeadOID
 	testfix.Git(t, root, "push", "-q", "origin", "HEAD:main")
 	if err := laArchive(root, pr); err != nil {
 		t.Fatal(err)
