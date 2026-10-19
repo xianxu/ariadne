@@ -1,6 +1,6 @@
 ---
 id: 000455
-status: working
+status: codecomplete
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours: 3.36
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.14
+tracker:
+    version: 1
+    completion:
+        token: close-8dee56072982
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 7b3b597d0ce9de1f6cd252dfc2118aea4fb823fc
+        evidence_commit: bc7716ce5cd7c428fe3d13048ab9ff043df81147
 ---
 
 # tl-lead: operator-instruction answers become side docs of the session file (and migrate qa/ answers)
