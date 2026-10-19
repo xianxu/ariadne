@@ -365,3 +365,56 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"2826d585-7d9a-4d9a-b623-450100fedbc5","repository":"github.com/xianxu/ariadne","issue_id":"000456","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/78fa6df45ade5e8f","reviewed_head":"5dbc3fc3c36276e7c15858a9de82eac60063cc88","slot":"ariadne:4","requested_at":"2026-10-19T21:12:14.493445Z"},"phase":"finished","pid":88166,"started_at":"2026-10-19T21:12:14.605416Z","finished_at":"2026-10-19T21:13:22.136908Z","session_id":"cdaaf6fa-a2e0-4170-8d2c-d8cb4fe632da","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-19T14:15:25-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 456 — tl-lead teams: several teams per operations repo, team.md, cross-team routing, a machine steward |
+| repo | ariadne |
+| issue file | workshop/issues/000456-tl-lead-teams-several-teams-per-operations-repo-team-md-cross-team-routing-a-machine-steward.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | a95dd7e64f14479d666e0ec43f3a07cac3c50bbf..38dfba58988272731fcd1df39593a6cfda0b4311 |
+| command | sdlc close --issue 456 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | checkout |
+| timestamp | 2026-10-19T14:15:25-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checking the producer's JSON field name for the member verdict, then I'll write up the verdict.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff fixes the one open finding, BR-9, and adds nothing else. It changes two code files (`cmd/tl-lead/sdlc.go` and `cmd/tl-lead/fleet_test.go`) and adds two gate-record plans. `decodeFleet` now reads each member's `verdict` field from sdlc. A dependency that sdlc reports as `missing` no longer makes the slot's claims unknown. Any other member with no inventory row still does. I checked the producer side: `MemberVerdict` is embedded in `SlotMember` with the JSON tag `verdict` (`cmd/sdlc/internal/fleet/slots.go:52`), and `VerdictMissing = "missing"` (`slots.go:23`). sdlc sets that value only for `MemberMissing` dependencies (`slots.go:232-234`). A member sdlc can't place (`MemberOutside`) gets `unknown` instead, so it still falls into the "no inventory row → unknown" branch, which is the safe outcome. `go test ./cmd/tl-lead/` passes. The issue's Spec, Revisions and Done when are unchanged, and there is no conflict resolution in the window.
+
+1. **Strengths**
+   - `cmd/tl-lead/sdlc.go:182-184`: the fix takes sdlc's own verdict for the member instead of guessing from the missing row. It is also narrow: only `missing` is exempt, and every other row-less member still marks the slot unknown.
+   - `cmd/tl-lead/fleet_test.go:231,253-257`: the new fixture `ariadne:5` has an in-flight host plus a missing dependency, and the test asserts `ClaimsKnown` and the host's claim. Without the new `case`, that member falls to `!ok`, sets `ClaimsKnown=false`, and the assertion fails. So the test catches the regression.
+2. **Critical findings:** none.
+3. **Important findings:** none.
+4. **Minor findings:** fixture `ariadne:5` reuses `/w/ariadne-slot1` as its host path to borrow that row's claims. It works, but a dedicated row would be clearer.
+5. **Test coverage notes:** the regression is pinned by the fixture above. The unknown paths (`ariadne:3`, `ariadne:4`) are still covered.
+6. **Architectural notes**
+   - **ARCH-DRY:** pass. One new switch case, nothing duplicated.
+   - **ARCH-PURE:** pass. `decodeFleet` stays pure and is tested on raw JSON with no IO.
+   - **ARCH-PURPOSE:** pass. The class this fix belongs to (`consume-producer-verdict`: take the producer's verdict instead of inferring it) is covered. The other row-less verdict, `unknown`/outside, stays conservatively unknown.
+   - **ARCH-EVOLVE:** pass. Adding a field to a read-only decoder is additive, and the schema_version check is unchanged.
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-9
+    disposition: addressed
+    note: |
+      sdlc.go:182 exempts members whose producer verdict is "missing" (slots.go:23,52,232-234); fixture ariadne:5 in fleet_test.go fails without it; go test passes.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"a44f6401-e953-4c9f-a029-f69b61d4a91b","repository":"github.com/xianxu/ariadne","issue_id":"000456","recipe":"fix-review","round":4,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/0368f9f381e8ec30","reviewed_head":"38dfba58988272731fcd1df39593a6cfda0b4311","slot":"ariadne:4","requested_at":"2026-10-19T21:14:29.4341Z"},"phase":"finished","pid":3419,"started_at":"2026-10-19T21:14:29.593548Z","finished_at":"2026-10-19T21:15:23.377892Z","session_id":"3dc0ec2d-37c9-4d73-af4f-657cc1a6f54e","outcome":"returned"}] -->

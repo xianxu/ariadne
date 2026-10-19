@@ -86,6 +86,7 @@ Items, in order:
 ### 2026-10-18
 
 ### 2026-10-19
+- 2026-10-19: closed — Round-3 advisory fixed: a dependency member sdlc reports missing holds no claims (fixture in TestDecodeFleetClaims); tl-lead tests pass. Recorded suite running on 38dfba589. --no-plan-check: R7 is this close, that suite, and the hub hand-off at landing. (fixed-then-ship); review verdict: SHIP
 - 2026-10-19: closed — Round-2 fixes: slot claims are the union over its whole member set (host and dependency clones), known only when every member row was read (TestDecodeFleetClaims dependency fixture); claims_error carried to the printed reason (decoder sweep in Log); couch call bounds and causes tested with fake binaries (TestExecResumeBoundsAndCauses). Round-1: claims from sdlc fleet inventory bound to this machine; UTF-8 .hub. R1-R6 with tests; live decodes pass (TL_LEAD_LIVE). --no-plan-check: R7 is this close, the recorded suite running on 5dbc3fc3c, and the hub hand-off at landing.; review verdict: SHIP
 - Claimed and started from ariadne:4 after #455. The hub clarified `.hub` (bare word = repo claim, `repo:N` = slot claim, `key=value` directives are pair's; tl-lead writes only claims). The operator decided on `team:<name>` addressing and direct cross-team filing (no hub relay) plus an unclaimed-issue view over `owns:`.
 - Durable plan drafted; decisions D1–D5 are in it for hub/operator review (the operator reviews on the morning of 10-19).

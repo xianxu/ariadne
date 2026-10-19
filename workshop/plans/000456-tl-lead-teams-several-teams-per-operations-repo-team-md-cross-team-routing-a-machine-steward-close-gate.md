@@ -489,6 +489,144 @@ rounds:
       isolation: checkout
       reviewed: 5dbc3fc3c36276e7c15858a9de82eac60063cc88
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: a44f6401-e953-4c9f-a029-f69b61d4a91b
+            repository: github.com/xianxu/ariadne
+            issue_id: "000456"
+            recipe: fix-review
+            round: 4
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/0368f9f381e8ec30
+            reviewed_head: 38dfba58988272731fcd1df39593a6cfda0b4311
+            slot: ariadne:4
+            requested_at: "2026-10-19T21:14:29.4341Z"
+          phase: finished
+          pid: 3419
+          started_at: "2026-10-19T21:14:29.593548Z"
+          finished_at: "2026-10-19T21:15:23.377892Z"
+          session_id: 3dc0ec2d-37c9-4d73-af4f-657cc1a6f54e
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 38dfba58988272731fcd1df39593a6cfda0b4311
+        tracker_head: c6c91d469ccfadeab6f69c2d67dbf6a6c99292ec
+        branch_point: 5058591f86fce002653fdca0bf6e7f1b5c4460e6
+        since: "2026-10-19T01:26:56-07:00"
+        until: "2026-10-19T14:13:58-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T01:26:56-07:00"
+              end: "2026-10-19T14:13:58-07:00"
+              began: "2026-10-19T01:26:56-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+        sources:
+            - harness: claude
+              id: 299d33d0-1f10-4950-b82c-b729d6c107a0
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: ce2d6f0b2bd325fb159905017ecbbec80e190f1e666fee04db1d5dc2239c0028
+              started: "2026-10-16T06:28:11.678Z"
+              spawned: false
+              bytes: 89302770
+              windows:
+                - start: "2026-10-19T01:26:56-07:00"
+                  end: "2026-10-19T14:13:58-07:00"
+        queue_waits:
+            - attempt_id: bab05729e5aa66707d18abc487e82c82
+              slot: ariadne:4
+              record_digest: 4269c85bb4cee1e5d6d512fb1ca487093fc523f8f4e0c964b593b99172217c84
+              start: "2026-10-19T16:56:57.010726Z"
+              end: "2026-10-19T17:00:27.968039Z"
+              queue_seconds: 210.957313
+              raw_seconds: 210.957313
+              exact: true
+            - attempt_id: f40b02c7b758c556fd24519f024975c3
+              slot: ariadne:4
+              record_digest: 2e5a51b6f6979f0e1b47fdafd876e549427c0fdad41895c8eadcc5909daf5884
+              start: "2026-10-19T17:33:42.737584Z"
+              end: "2026-10-19T17:44:43.407011Z"
+              queue_seconds: 660.669427
+              raw_seconds: 660.669427
+              exact: true
+            - attempt_id: b00d103272bccd5c7313f6eb9494dd2c
+              slot: ariadne:4
+              record_digest: 1f5e84b09ee13d47fb9b0bc885d70445c895f5c8c2cfdd897a6ac9e26db82257
+              start: "2026-10-19T18:17:04.975887Z"
+              end: "2026-10-19T18:17:31.242964Z"
+              queue_seconds: 26.267077
+              raw_seconds: 26.267077
+              exact: true
+            - attempt_id: 7d26798c7990c53f884cc3d352da7920
+              slot: ariadne:4
+              record_digest: c1eb38ed45e3a2afad21d66517efedd0af2886dd6be61c7b21aea05cc65fea6c
+              start: "2026-10-19T20:19:38.867364Z"
+              end: "2026-10-19T20:27:27.018395Z"
+              queue_seconds: 468.151031
+              raw_seconds: 468.151031
+              exact: true
+        protected:
+            - issue: "468"
+              slot: ariadne:4
+              start: "2026-10-19T16:32:27.029Z"
+              end: "2026-10-19T16:56:57.010726Z"
+            - issue: "468"
+              slot: ariadne:4
+              start: "2026-10-19T17:00:27.968039Z"
+              end: "2026-10-19T17:12:03.292Z"
+            - issue: "468"
+              slot: ariadne:4
+              start: "2026-10-19T17:12:06.457Z"
+              end: "2026-10-19T17:33:42.737584Z"
+            - issue: "468"
+              slot: ariadne:4
+              start: "2026-10-19T17:44:43.407011Z"
+              end: "2026-10-19T17:48:45.763Z"
+            - issue: "468"
+              slot: ariadne:4
+              start: "2026-10-19T17:55:31.654Z"
+              end: "2026-10-19T10:57:22-07:00"
+            - issue: "468"
+              slot: ariadne:4
+              start: "2026-10-19T10:57:22-07:00"
+              end: "2026-10-19T11:11:34-07:00"
+            - issue: "468"
+              slot: ariadne:4
+              start: "2026-10-19T11:15:17-07:00"
+              end: "2026-10-19T18:16:45.598Z"
+        cuts:
+            - dispatched: "2026-10-19T14:02:09-07:00"
+              finalized: "2026-10-19T14:05:31-07:00"
+              finalizing: false
+            - dispatched: "2026-10-19T14:08:55-07:00"
+              finalized: "2026-10-19T14:10:47-07:00"
+              finalizing: false
+            - dispatched: "2026-10-19T14:12:14-07:00"
+              finalized: "2026-10-19T14:13:23-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-19T14:15:25-07:00"
+      dispatched: "2026-10-19T14:14:29-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-9
+          disposition: addressed
+          note: sdlc.go:182 exempts members whose producer verdict is "missing" (slots.go:23,52,232-234); fixture ariadne:5 in fleet_test.go fails without it; go test passes.
+          round: 4
+      recipe: fix-review
+      isolation: checkout
+      reviewed: 38dfba58988272731fcd1df39593a6cfda0b4311
+      blocked: false
 ---
 
 # Gate ledger — ariadne#456 (boundary-review)
@@ -545,6 +683,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-9** [Minor] `consume-producer-verdict` (kind: defect) A declared but missing dependency clone makes the slot's claims unknown, so fleet resume never resumes it
   sdlc's AssembleSlots (slots.go:232-234) lists a MemberMissing dependency with verdict "missing" and no tree row. decodeFleet (sdlc.go:179-182) reads the missing row as an unread member and sets ClaimsKnown=false. Fix: read members[].verdict and treat a "missing" member as holding no claims. Add a fixture.
 
+## Round 4 — 2026-10-19T14:15:25-07:00 (claude) — passed
+
+### Disposed
+
+- BR-9 — addressed — sdlc.go:182 exempts members whose producer verdict is "missing" (slots.go:23,52,232-234); fixture ariadne:5 in fleet_test.go fails without it; go test passes.
+
 ## Open findings
 
-- **BR-9** [Minor] `consume-producer-verdict` (kind: defect) A declared but missing dependency clone makes the slot's claims unknown, so fleet resume never resumes it
+(none — every finding has been disposed)
