@@ -1,6 +1,6 @@
 ---
 id: 000454
-status: codecomplete
+status: done
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: f4fde1c556508ed4a8b8b0a5298654252c52bc05
         evidence_commit: 096bef6915a496bfee51b3f0f4f0d01d1468809c
+        landed_commit: 391f45cea83180a4a55eec6433e41bed14890dc5
 ---
 
 # ARCH principle: persisted formats evolve additively; readers ignore unknown fields; refusal only when ignoring is unsafe
