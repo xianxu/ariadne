@@ -1,6 +1,6 @@
 ---
 id: 000455
-status: codecomplete
+status: done
 created: 2026-10-18
 updated: 2026-10-19
 estimate_hours: 3.36
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: b4c241020db8006859a4c857d616962c6122b1a5
         evidence_commit: 93a15945356ce2f2bfe68cf524b131db3e333d6c
+        landed_commit: b258318a2000dd8930eea3981991e48ec1db2bb4
 ---
 
 # tl-lead: operator-instruction answers become side docs of the session file (and migrate qa/ answers)
