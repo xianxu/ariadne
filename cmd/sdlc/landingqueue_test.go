@@ -280,7 +280,7 @@ func TestLandingLineEmptyListingQueues(t *testing.T) {
 func TestLandingLineLogFailuresWarn(t *testing.T) {
 	dir := t.TempDir()
 	var stderr bytes.Buffer
-	line, log, err := openLandingLine(dir, &stderr)
+	line, log, err := openLandingLine(dir, landingline.Schedule{}, &stderr)
 	if err != nil {
 		t.Fatal(err)
 	}

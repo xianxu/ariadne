@@ -18,6 +18,9 @@ import (
 type landingPR struct {
 	Number                                                    int
 	State, HeadRef, HeadOID, BaseRef, BaseOID, MergeOID, Repo string
+	// LocalGatesVerified: the PR carries the operator's local-gates label, so
+	// it rides a train alone (#449). Parsed here, at the boundary.
+	LocalGatesVerified bool
 }
 
 type landingGH interface {
@@ -25,7 +28,7 @@ type landingGH interface {
 	LandingMerge(context.Context, string, int, string) error
 }
 
-const landingPRFields = "number,state,headRefName,headRefOid,baseRefName,baseRefOid,mergeCommit,url,isCrossRepository,headRepository,headRepositoryOwner"
+const landingPRFields = "number,state,headRefName,headRefOid,baseRefName,baseRefOid,mergeCommit,url,isCrossRepository,headRepository,headRepositoryOwner,labels"
 const landingPRLimit = 100
 
 func landingOIDValid(oid string) bool {
@@ -75,6 +78,7 @@ func parseLandingPRs(data []byte, repo, branch string) ([]landingPR, error) {
 		IsCrossRepository                                            *bool
 		HeadRepository                                               *struct{ Name, NameWithOwner string }
 		HeadRepositoryOwner                                          *struct{ Login string }
+		Labels                                                       []struct{ Name string }
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("decode landing PR evidence: %w", err)
@@ -120,7 +124,11 @@ func parseLandingPRs(data []byte, repo, branch string) ([]landingPR, error) {
 		if r.State == "MERGED" && merge == "" {
 			return fail("merged PR lacks integration OID")
 		}
-		out = append(out, landingPR{Number: r.Number, State: r.State, HeadRef: r.HeadRefName, HeadOID: r.HeadRefOID, BaseRef: r.BaseRefName, BaseOID: r.BaseRefOID, MergeOID: merge, Repo: repo})
+		verified := false
+		for _, l := range r.Labels {
+			verified = verified || l.Name == localGatesLabel
+		}
+		out = append(out, landingPR{Number: r.Number, State: r.State, HeadRef: r.HeadRefName, HeadOID: r.HeadRefOID, BaseRef: r.BaseRefName, BaseOID: r.BaseRefOID, MergeOID: merge, Repo: repo, LocalGatesVerified: verified})
 	}
 	return out, nil
 }

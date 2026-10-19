@@ -33,8 +33,9 @@ func landingLineDir(r gitRunner, root string) (string, error) {
 }
 
 // openLandingLine opens dir with production options; stderr receives the
-// waiting position whenever it changes.
-func openLandingLine(dir string, stderr io.Writer) (*landingline.Line, *lineLog, error) {
+// waiting position whenever it changes. A schedule with trains on (#449)
+// gates admission on the departure time and the ticket's readiness.
+func openLandingLine(dir string, sched landingline.Schedule, stderr io.Writer) (*landingline.Line, *lineLog, error) {
 	var line *landingline.Line
 	log := &lineLog{stderr: stderr}
 	o := landingline.Options{
@@ -57,6 +58,16 @@ func openLandingLine(dir string, stderr io.Writer) (*landingline.Line, *lineLog,
 			}
 			log.record(e)
 		},
+	}
+	if !sched.Off() {
+		o.Admissible = trainAdmission(sched, func() []landingline.Event {
+			events, _, err := line.Events()
+			if err != nil {
+				return nil // an unreadable log: the first train, never a stall
+			}
+			return events
+		}, landingNow)
+		o.OnHeld = func(why string) { fmt.Fprintf(stderr, "landing train: held: %s\n", why) }
 	}
 	line, err := landingline.Open(dir, o)
 	log.line = line
@@ -102,12 +113,16 @@ func (l *lineLog) record(e landingline.Event) {
 // enterLandingLine takes a ticket and waits for this merge's turn. Nothing the
 // landing acts on (branch head, PRs, selection) may be observed before it
 // returns: a wait can be long, and an observation taken before it is stale.
-func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch string, stderr io.Writer) (*landingTurn, error) {
+//
+// With trains on (#449) the merge also vouches its readiness while it waits
+// (readiness reads its own gates); a vouch is a claim, so it observes for
+// the conductor, never for this merge's own landing, which reads again.
+func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch string, sched landingline.Schedule, readiness func(context.Context) landingline.Readiness, stderr io.Writer) (*landingTurn, error) {
 	dir, err := landingLineDir(r, t.Root)
 	if err != nil {
 		return nil, err
 	}
-	line, log, err := openLandingLine(dir, stderr)
+	line, log, err := openLandingLine(dir, sched, stderr)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +133,17 @@ func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch 
 	turn := &landingTurn{line: line, handle: h, log: log, stderr: stderr}
 	tk := h.Ticket()
 	log.record(landingline.Event{Kind: landingline.EventEnqueue, Seq: tk.Seq, Issue: tk.Issue, Branch: tk.Branch})
-	if err := line.Wait(ctx, h); err != nil {
+	var stopVouching func()
+	if !sched.Off() && readiness != nil {
+		vctx, cancel := context.WithCancel(ctx)
+		done := vouchWhileWaiting(vctx, line, h, readiness, stderr)
+		stopVouching = func() { cancel(); <-done }
+	}
+	err = line.Wait(ctx, h)
+	if stopVouching != nil {
+		stopVouching()
+	}
+	if err != nil {
 		turn.leave(err)
 		return nil, err
 	}

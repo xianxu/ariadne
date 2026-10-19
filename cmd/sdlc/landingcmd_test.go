@@ -154,3 +154,40 @@ func TestLandingEndsTheIssuesGrant(t *testing.T) {
 		t.Fatal("the landed issue kept its priority")
 	}
 }
+
+// Status names the train setting from main's tree and each waiter's vouch.
+func TestLandingStatusShowsTrainsAndReadiness(t *testing.T) {
+	roots, _, _ := landingFixture(t, 1)
+	repo := roots[0]
+	d := testLandingDeps(nil, nil)
+	d.now = time.Now
+	out, err := runLanding(t, d, "status", "--repo", repo)
+	if err != nil || !strings.Contains(out, "trains: off") {
+		t.Fatalf("absent config: %q %v", out, err)
+	}
+	procedureWrite(t, repo, landingConfigPath, `{"train_interval_minutes": 60, "train_max_cars": 4}`+"\n")
+	git(t, repo, "add", landingConfigPath)
+	git(t, repo, "commit", "-qm", "trains on")
+	git(t, repo, "push", "-q", "upstream", "main")
+	line, err := openRepoLine(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := line.Enqueue(landingline.Ticket{Issue: 7, Branch: "000007-x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.Release()
+	if err := line.Vouch(h, landingline.Readiness{Branch: "000007-x", Head: strings.Repeat("a", 40), PR: 70, Ready: true, At: time.Now()}); err != nil {
+		t.Fatal(err)
+	}
+	out, err = runLanding(t, d, "status", "--repo", repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"trains: every 60m, up to 4 cars; the first train departs at the next admission", "ready at aaaaaaa", "(PR #70)"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("status lacks %q:\n%s", want, out)
+		}
+	}
+}

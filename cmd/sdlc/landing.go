@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
@@ -377,7 +378,16 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 	}
 	var turn *landingTurn
 	if !resumeOnly(pre) {
-		if turn, err = enterLandingLine(ctx, r, t, branch, stderr); err != nil {
+		// The named err must stay the one the deferred leave reads.
+		sched, serr := readLandingSchedule(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote+"/main")
+		if serr != nil {
+			return serr
+		}
+		gates := productionCarGates(r, t, f.IssuesDir)
+		readiness := func(ctx context.Context) landingline.Readiness {
+			return carReadiness(ctx, r, gh, t, branch, gates, landingNow())
+		}
+		if turn, err = enterLandingLine(ctx, r, t, branch, sched, readiness, stderr); err != nil {
 			return err
 		}
 		defer func() { turn.leave(err) }()

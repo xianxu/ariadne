@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -365,5 +366,72 @@ func TestTrainEventFieldsSurviveTheSweep(t *testing.T) {
 	}
 	if err := json.Unmarshal([]byte(strings.SplitN(string(data), "\n", 2)[0]), &old); err != nil || old.Kind != EventTrain {
 		t.Errorf("old reader: %+v %v", old, err)
+	}
+}
+
+func TestDecodeReadinessStrictKnownTolerantUnknown(t *testing.T) {
+	good := `{"version":1,"seq":4,"branch":"b","head":"` + oid('a') + `","pr":4,"ready":true,"at":"2026-10-19T09:00:00Z","later":{"nested":[1,{"x":true}]}}`
+	r, err := DecodeReadiness([]byte(good))
+	if err != nil || r.Valid(4) != nil || string(r.Extra["later"]) != `{"nested":[1,{"x":true}]}` {
+		t.Fatalf("%+v %v", r, err)
+	}
+	for name, body := range map[string]string{
+		"duplicate known":   `{"version":1,"seq":4,"seq":5}`,
+		"duplicate unknown": `{"version":1,"x":1,"x":2}`,
+		"wrong type":        `{"version":"1","seq":4}`,
+		"null known":        `{"version":1,"head":null}`,
+		"not an object":     `[1]`,
+		"trailing data":     `{"version":1} {}`,
+	} {
+		if _, err := DecodeReadiness([]byte(body)); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	// encoding/json matches names case-insensitively; an alias stays unknown
+	// and never overrides the exact member.
+	r, err = DecodeReadiness([]byte(`{"version":1,"seq":4,"head":"` + oid('a') + `","HEAD":"` + oid('b') + `"}`))
+	if err != nil || r.Head != oid('a') || string(r.Extra["HEAD"]) != `"`+oid('b')+`"` {
+		t.Fatalf("alias: %+v %v", r, err)
+	}
+	out, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := DecodeReadiness(out)
+	if err != nil || back.Head != oid('a') {
+		t.Fatalf("round trip through the alias: %s → %+v %v", out, back, err)
+	}
+}
+
+// A rewrite of the same ticket's vouch by this sdlc keeps the members a
+// later sdlc wrote, nested ones included (ARCH-EVOLVE).
+func TestVouchRewriteKeepsUnknownMembers(t *testing.T) {
+	dir := t.TempDir()
+	l := openLine(t, dir, testOptions(nil))
+	h := enqueue(t, l, 1)
+	seq := h.Ticket().Seq
+	later := `{"version":1,"seq":` + strconv.FormatInt(seq, 10) + `,"branch":"b","head":"` + oid('a') + `","pr":1,"ready":true,"at":"2026-10-19T09:00:00Z","train_hint":{"lane":"fast","weights":[1,2]}}`
+	if err := os.WriteFile(readyPath(dir, seq), []byte(later), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := l.Vouch(h, Readiness{Branch: "b", Reason: "CI gate: pending", At: tt0}); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(readyPath(dir, seq))
+	r, err := DecodeReadiness(data)
+	if err != nil {
+		t.Fatalf("%s: %v", data, err)
+	}
+	if r.Ready || r.Reason != "CI gate: pending" || string(r.Extra["train_hint"]) != `{"lane":"fast","weights":[1,2]}` {
+		t.Fatalf("rewrite lost or kept the wrong members: %s", data)
+	}
+	// A previous vouch that doesn't parse carries nothing forward.
+	os.WriteFile(readyPath(dir, seq), []byte(`{"version":1,"x":1,"x":2}`), 0o644)
+	if err := l.Vouch(h, Readiness{Branch: "b", Reason: "pending", At: tt0}); err != nil {
+		t.Fatal(err)
+	}
+	data, _ = os.ReadFile(readyPath(dir, seq))
+	if strings.Contains(string(data), `"x"`) {
+		t.Fatalf("a malformed vouch's members survived: %s", data)
 	}
 }

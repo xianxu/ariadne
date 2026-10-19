@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -260,13 +261,23 @@ func (l *Line) Vouch(h *Handle, r Readiness) error {
 	if err := r.Valid(h.ticket.Seq); err != nil {
 		return err
 	}
-	data, err := json.Marshal(r)
-	if err != nil {
-		return err
-	}
 	return l.withMutex(func() error {
 		if h.file == nil {
 			return errors.New("landing line: only a waiting merge vouches")
+		}
+		// A later sdlc may have written members this one doesn't know: keep
+		// them (ARCH-EVOLVE). A previous vouch that doesn't parse keeps nothing.
+		if old, err := os.ReadFile(h.ready); err == nil && len(old) <= maxTicket {
+			if prev, err := DecodeReadiness(old); err == nil && prev.Seq == h.ticket.Seq {
+				extra := make(map[string]json.RawMessage, len(prev.Extra)+len(r.Extra))
+				maps.Copy(extra, prev.Extra)
+				maps.Copy(extra, r.Extra)
+				r.Extra = extra
+			}
+		}
+		data, err := json.Marshal(r)
+		if err != nil {
+			return err
 		}
 		f, err := os.CreateTemp(filepath.Join(l.dir, "ready"), ".tmp-")
 		if err != nil {
@@ -316,8 +327,8 @@ func (l *Line) readReady() map[int64]Readiness {
 		if err != nil || len(data) > maxTicket {
 			continue
 		}
-		var r Readiness
-		if json.Unmarshal(data, &r) != nil || r.Valid(seq) != nil {
+		r, err := DecodeReadiness(data)
+		if err != nil || r.Valid(seq) != nil {
 			continue
 		}
 		out[seq] = r

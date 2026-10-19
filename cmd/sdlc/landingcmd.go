@@ -111,7 +111,8 @@ func openRepoLine(repo string) (*landingline.Line, error) {
 	if err != nil {
 		return nil, fmt.Errorf("--repo %s: not a git checkout: %w", repo, err)
 	}
-	line, _, err := openLandingLine(dir, io.Discard)
+	// Status and grants never admit, so the line needs no schedule here.
+	line, _, err := openLandingLine(dir, landingline.Schedule{}, io.Discard)
 	return line, err
 }
 
@@ -171,7 +172,25 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 	if err != nil {
 		return err
 	}
+	ready, err := line.Readiness()
+	if err != nil {
+		return err
+	}
 	var b strings.Builder
+	repoGit := func(args ...string) (string, error) { return landingGit(execGitRunner{}, repo, args...) }
+	sched, serr := readLandingSchedule(repoGit, landingMainRef(repoGit))
+	switch {
+	case serr != nil:
+		fmt.Fprintf(&b, "trains: unknown (%v)\n", serr)
+	case sched.Off():
+		b.WriteString("trains: off (each landing runs its own suite; " + landingConfigPath + " sets an interval)\n")
+	default:
+		next := "the first train departs at the next admission"
+		if at, ok := landingline.NextDeparture(events); ok {
+			next = "next train at " + at.Format(time.RFC3339)
+		}
+		fmt.Fprintf(&b, "trains: every %dm, up to %d cars; %s\n", int(sched.Interval/time.Minute), sched.MaxCars, next)
+	}
 	fmt.Fprintf(&b, "landing now: %s\n", describeTicket(head))
 	for i, t := range waiting {
 		class := "normal"
@@ -179,6 +198,13 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 			class = "fleet-blocking"
 		}
 		fmt.Fprintf(&b, "  %d. %s [%s] waiting since %s\n", i+1, describeTicket(&t), class, t.Enqueued.Format(time.RFC3339))
+		if r, ok := ready[t.Seq]; ok && serr == nil && !sched.Off() {
+			state := readinessLine(r)
+			if r.Ready && !r.Current(d.now()) {
+				state = "readiness is stale (last " + r.At.Format(time.RFC3339) + ")"
+			}
+			fmt.Fprintf(&b, "     %s\n", state)
+		}
 	}
 	for _, issueN := range slices.Sorted(maps.Keys(grants)) {
 		g := grants[issueN]
@@ -194,4 +220,13 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 	}
 	_, err = io.WriteString(out, b.String())
 	return err
+}
+
+// landingMainRef is the remote-tracking main the repository lands into: main's
+// upstream when it has one, else origin/main.
+func landingMainRef(git func(args ...string) (string, error)) string {
+	if ref, err := git("rev-parse", "--abbrev-ref", "--symbolic-full-name", "main@{upstream}"); err == nil && strings.TrimSpace(ref) != "" {
+		return strings.TrimSpace(ref)
+	}
+	return "origin/main"
 }
