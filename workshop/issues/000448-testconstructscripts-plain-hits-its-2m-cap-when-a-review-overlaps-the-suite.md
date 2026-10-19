@@ -17,6 +17,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "19ed9822", done: "828e3cbf"}
 ---
 
 # TestConstructScripts/plain hits its 2m cap when a review overlaps the suite
