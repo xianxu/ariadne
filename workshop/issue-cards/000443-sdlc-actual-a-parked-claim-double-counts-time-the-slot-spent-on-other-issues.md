@@ -1,6 +1,6 @@
 ---
 id: 000443
-status: working
+status: codecomplete
 created: 2026-10-18
 updated: 2026-10-18
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 4.25
+tracker:
+    version: 1
+    completion:
+        token: close-75b43e5e77e6
+        repository: github.com/xianxu/ariadne
+        reviewed_head: c7b1abed356d9b594631240a80909fe2f66f2509
+        evidence_commit: 9c2700c829fb5cd8db1012484ae96523dbcaf552
 ---
 
 # sdlc actual: a parked claim double-counts time the slot spent on other issues
