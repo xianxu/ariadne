@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"strings"
 	"testing"
 )
@@ -40,6 +41,9 @@ func TestParseLocalChecks(t *testing.T) {
 		{"timeout zero", `{"version":1,"checks":[{"name":"a","command":["x"],"timeout_minutes":-1}]}`, "timeout"},
 		{"timeout high", `{"version":1,"checks":[{"name":"a","command":["x"],"timeout_minutes":121}]}`, "timeout"},
 		{"trailing data", `{"version":1,"checks":[]} {}`, "trailing"},
+		{"reserved rerun name", `{"version":1,"checks":[{"name":"suite-rerun","command":["x"]}]}`, "reserved"},
+		{"bad known_flakes", `{"version":1,"checks":[{"name":"suite","command":["x"],"known_flakes":"sometimes"}]}`, "known_flakes"},
+		{"known_flakes off the suite", `{"version":1,"checks":[{"name":"e2e","command":["x"],"known_flakes":"accept"}]}`, "the \"suite\" check only"},
 		{"not json", `nope`, "local-checks"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -48,6 +52,12 @@ func TestParseLocalChecks(t *testing.T) {
 				t.Fatalf("err %v, want it to mention %q", err, tc.want)
 			}
 		})
+	}
+	if d, err := parseLocalChecks([]byte(`{"version":1,"checks":[{"name":"suite","command":["x"],"known_flakes":"accept"}]}`)); err != nil || d.Checks[0].knownFlakePolicy() != flakes.PolicyAccept {
+		t.Fatalf("a suite's known_flakes (#394): %+v %v", d, err)
+	}
+	if d, _ := parseLocalChecks([]byte(`{"version":1,"checks":[{"name":"suite","command":["x"]}]}`)); d.Checks[0].knownFlakePolicy() != flakes.PolicyRerun {
+		t.Fatalf("the default policy is rerun: %+v", d)
 	}
 	if got := localStatusContext("zellij"); got != "sdlc-local/zellij" {
 		t.Fatal(got)

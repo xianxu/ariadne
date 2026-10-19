@@ -141,7 +141,7 @@ func retainedHistoryFloor(raw weeklyRepoEvidence) (time.Time, bool) {
 	}
 	var firstAttempt time.Time
 	for _, attempt := range raw.Attempts {
-		if attempt.Check != suiteCheckName || attempt.Legacy || attempt.ID == "" || attempt.FinishedAt.IsZero() || attempt.FinishedAt.After(raw.CollectedAt) {
+		if !isSuiteRun(attempt) || attempt.Legacy || attempt.ID == "" || attempt.FinishedAt.IsZero() || attempt.FinishedAt.After(raw.CollectedAt) {
 			continue
 		}
 		if firstAttempt.IsZero() || attempt.FinishedAt.Before(firstAttempt) {
@@ -324,13 +324,13 @@ func attributeWeeklyAttempts(attempts []SuiteAttempt, landings []weeklyLandingEv
 	})
 	ids := map[string]int{}
 	for _, a := range rows {
-		if a.Check == suiteCheckName && a.ID != "" {
+		if isSuiteRun(a) && a.ID != "" {
 			ids[a.ID]++
 		}
 	}
 	shaCount := map[string]int{}
 	for _, a := range rows {
-		if a.Check != suiteCheckName {
+		if !isSuiteRun(a) {
 			continue
 		}
 		inWeek := window.Contains(suiteAttemptCompletedAt(a))

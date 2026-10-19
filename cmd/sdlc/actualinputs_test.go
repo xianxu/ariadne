@@ -52,6 +52,23 @@ func TestOwnedActualReplayUsesSavedPrefixAndWindows(t *testing.T) {
 	if _, err := ownedReplaySources(saved, nil); err == nil {
 		t.Fatal("missing retained source silently reconstructed")
 	}
+	badSlot := saved
+	badSlot.Sources = append([]gatestate.MeasurementSource(nil), saved.Sources...)
+	badSlot.Sources[0].Slot = "ariadne:06"
+	if _, err := ownedReplaySources(badSlot, found); err == nil {
+		t.Fatal("noncanonical retained source slot reached replay")
+	}
+	protected := saved
+	protected.Protected = []gatestate.MeasurementCredit{{Issue: "649", Slot: "ariadne:6", Start: at.Format(time.RFC3339), End: at.Add(time.Minute).Format(time.RFC3339)}}
+	if _, err := ownedReplaySources(protected, found); err == nil {
+		t.Fatal("missing legacy source pin with protected credit reached replay")
+	}
+	protected.Sources = append([]gatestate.MeasurementSource(nil), saved.Sources...)
+	protected.Sources[0].Slot = "ariadne:6"
+	protected.Protected[0].Slot = "ariadne:06"
+	if _, err := ownedReplaySources(protected, found); err == nil {
+		t.Fatal("noncanonical protected slot reached replay")
+	}
 }
 
 func ownedFixtureAt(t *testing.T, minute int) {

@@ -183,7 +183,10 @@ func TestLocalCheckRunnerReusesSavedPass(t *testing.T) {
 		_, _ = runLocalCheck(ctx, d, suiteCheck("false"), sha)
 		d.GH = gh
 		marker := filepath.Join(t.TempDir(), "ran")
-		if _, err := newLocalCheckRunner(d)(ctx, suiteCheck("./marker-check.sh", marker), sha); err != nil {
+		// The rerun runs; its pass is not posted while the failure is
+		// unexplained (#394).
+		var unexplained *unexplainedFailureError
+		if _, err := newLocalCheckRunner(d)(ctx, suiteCheck("./marker-check.sh", marker), sha); !errors.As(err, &unexplained) {
 			t.Fatalf("runner: %v\n%s", err, stderr.String())
 		}
 		if _, err := os.Stat(marker); err != nil {
@@ -286,8 +289,9 @@ func TestLocalCheckRunnerSavedPassEdges(t *testing.T) {
 		var stderr strings.Builder
 		d.Stderr = &stderr
 		marker := filepath.Join(t.TempDir(), "ran")
-		if _, err := newLocalCheckRunner(d)(ctx, suiteCheck("./marker-check.sh", marker), sha); err != nil {
-			t.Fatal(err)
+		var unexplained *unexplainedFailureError
+		if _, err := newLocalCheckRunner(d)(ctx, suiteCheck("./marker-check.sh", marker), sha); !errors.As(err, &unexplained) {
+			t.Fatalf("the rerun's pass after an unexplained failure: %v", err) // #394
 		}
 		if _, err := os.Stat(marker); err != nil {
 			t.Error("an older pass stood in although a later attempt exists")
@@ -311,8 +315,9 @@ func TestLocalCheckRunnerSavedPassEdges(t *testing.T) {
 		}
 		d.GH = gh
 		marker := filepath.Join(t.TempDir(), "ran")
-		if _, err := newLocalCheckRunner(d)(ctx, suiteCheck("./marker-check.sh", marker), sha); err != nil {
-			t.Fatal(err)
+		var unexplained *unexplainedFailureError
+		if _, err := newLocalCheckRunner(d)(ctx, suiteCheck("./marker-check.sh", marker), sha); !errors.As(err, &unexplained) || !strings.Contains(err.Error(), "ffffffffffffffffffffffffffffffff.json") {
+			t.Fatalf("a pass on an incomplete store read is refused, naming the record (#394): %v", err)
 		}
 		if _, err := os.Stat(marker); err != nil {
 			t.Error("a pass stood in although the store read was incomplete")

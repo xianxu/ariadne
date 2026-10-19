@@ -46,6 +46,35 @@ func TestMeasurementInputsRoundTrip(t *testing.T) {
 	}
 }
 
+func TestMeasurementProtectedIntervalsRoundTripAndValidation(t *testing.T) {
+	m := validMeasurementInputs()
+	credit := MeasurementCredit{Issue: "649", Slot: "ariadne:6", Start: "2026-10-01T01:10:00Z", End: "2026-10-01T01:20:00Z"}
+	m.Protected = []MeasurementCredit{credit}
+	if err := m.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	ledger := Ledger{Gate: "boundary-review", IssueNum: 636, IDPrefix: "BR", Rounds: []Round{{N: 1, ActualInputs: &m}}}
+	parsed, err := ParseSidecar(Render(ledger, "ariadne"))
+	if err != nil || !reflect.DeepEqual(parsed.Rounds[0].ActualInputs.Protected, m.Protected) {
+		t.Fatalf("protected replay pin lost: %+v, %v", parsed, err)
+	}
+	for name, change := range map[string]func(*MeasurementCredit){
+		"issue":   func(c *MeasurementCredit) { c.Issue = "#649" },
+		"slot":    func(c *MeasurementCredit) { c.Slot = "" },
+		"reverse": func(c *MeasurementCredit) { c.End = c.Start },
+		"outside": func(c *MeasurementCredit) { c.Start = "2026-10-01T00:10:00Z" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			bad := m
+			bad.Protected = []MeasurementCredit{credit}
+			change(&bad.Protected[0])
+			if err := bad.Validate(); err == nil {
+				t.Fatal("accepted invalid protected interval")
+			}
+		})
+	}
+}
+
 func TestMeasurementQueueWaitValidate(t *testing.T) {
 	m := validMeasurementInputs()
 	m.Method = MeasurementMethodQueueV1

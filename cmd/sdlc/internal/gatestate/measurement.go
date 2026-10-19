@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,6 +41,7 @@ type MeasurementInputs struct {
 	Engagements           []MeasurementEngagement `json:"engagements,omitempty" yaml:"engagements,omitempty"`
 	Sources               []MeasurementSource     `json:"sources,omitempty" yaml:"sources,omitempty"`
 	QueueWaits            []MeasurementQueueWait  `json:"queue_waits,omitempty" yaml:"queue_waits,omitempty"`
+	Protected             []MeasurementCredit     `json:"protected,omitempty" yaml:"protected,omitempty"`
 	ExcludedBrainSessions int                     `json:"excluded_brain_sessions,omitempty" yaml:"excluded_brain_sessions,omitempty"`
 	ExcludedBrainMinutes  float64                 `json:"excluded_brain_minutes,omitempty" yaml:"excluded_brain_minutes,omitempty"`
 	Cuts                  []MeasurementCut        `json:"cuts,omitempty" yaml:"cuts,omitempty"`
@@ -88,6 +90,15 @@ type MeasurementQueueWait struct {
 	QueueSeconds float64 `json:"queue_seconds" yaml:"queue_seconds"`
 	RawSeconds   float64 `json:"raw_seconds" yaml:"raw_seconds"`
 	Exact        bool    `json:"exact" yaml:"exact"`
+}
+
+// MeasurementCredit pins an exclusion adopted from another issue. The normal
+// snapshot byte limit bounds the whole collection; old snapshots omit it.
+type MeasurementCredit struct {
+	Issue string `json:"issue" yaml:"issue"`
+	Slot  string `json:"slot" yaml:"slot"`
+	Start string `json:"start" yaml:"start"`
+	End   string `json:"end" yaml:"end"`
 }
 
 func (q MeasurementQueueWait) Validate() error {
@@ -185,6 +196,27 @@ func (m MeasurementInputs) Validate() error {
 		end, _ := time.Parse(time.RFC3339Nano, q.End)
 		if start.Before(since) || end.After(until) {
 			return fmt.Errorf("measurement queue_waits[%d] outside sample window", i)
+		}
+	}
+	for i, credit := range m.Protected {
+		id, err := strconv.Atoi(credit.Issue)
+		if err != nil || id <= 0 || strconv.Itoa(id) != credit.Issue {
+			return fmt.Errorf("measurement protected[%d] issue must be a canonical positive number", i)
+		}
+		address, err := workspace.ParseAddress(credit.Slot)
+		if err != nil || address.Repo == "" || address.String() != credit.Slot {
+			return fmt.Errorf("measurement protected[%d] slot is invalid", i)
+		}
+		start, err := measurementTime(fmt.Sprintf("protected[%d].start", i), credit.Start)
+		if err != nil {
+			return err
+		}
+		end, err := measurementTime(fmt.Sprintf("protected[%d].end", i), credit.End)
+		if err != nil {
+			return err
+		}
+		if !end.After(start) || start.Before(since) || end.After(until) {
+			return fmt.Errorf("measurement protected[%d] must be ordered and within since/until", i)
 		}
 	}
 	if len(m.Sources) > SnapshotLimitSources {

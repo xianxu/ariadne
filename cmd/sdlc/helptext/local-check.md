@@ -27,6 +27,8 @@ DECLARATION (.sdlc/local-checks.json, read from origin/main)
   timeout_minutes  1..120, default 30; a timeout is a recorded failure
   weight           1..8, default 1: the machine-wide suite slots the run
                    takes at once (#346; ariadne's sharded suite takes 2)
+  known_flakes     the suite only: rerun (default) | accept | off, what a
+                   failure only known flakes explain does (#394, below)
 
   Unknown fields, another version, or a malformed entry make the declaration
   invalid, and `sdlc merge` refuses until main's copy is fixed.
@@ -70,6 +72,33 @@ THE SUITE (#332)
   A record on an ancestor still counts when everything changed since is
   docs-only (including close's Log/card commits and docs-only main integration).
   Embedded help under cmd/, code, tests and configuration invalidate reuse.
+
+  Known flakes (#394). A test is a known flake while an open issue's card
+  lists it in flake_tests (`sdlc flake register`). When the suite fails and
+  every failure is a named, known-flake test, the run reruns just those tests
+  once on the same head (`go test -run`, weight 1, its own slot and lease, so
+  cancel reaches it), within the check's timeout. A rerun that shows each test
+  passing ("--- PASS"), with its flake issue still open when the result is
+  posted, is landing evidence: every test has then passed once on the exact
+  head. A saved known-flake pass is reused or republished only while it still
+  holds. The status reads "pass · known flake #N
+  rerun", and both attempts are kept in test-stats, linked. These block:
+    - any failure that is not a registered test ("unknown-failure");
+    - a failure that names no test, such as a build error, a timeout or a
+      crashed shard ("unattributable-failure");
+    - a known flake that fails the rerun too, or whose rerun shows no PASS;
+    - more than 5 at once;
+    - a registry that cannot be read (a fresh tracker read is required).
+  An interrupted rerun posts nothing. No blind rerun lands: a suite pass is
+  not posted while an earlier failed attempt on the same commit is
+  unexplained (not a known-flake outcome, and not every failure a registered
+  flake now). Its message names the attempts and the recovery: register the
+  flake (that fail→pass is its evidence), then `local-check republish`, or fix
+  it. A test-stats store it cannot read whole also refuses the pass.
+  known_flakes: accept records the pass
+  with the issue link and no rerun; off makes every failure block. Merge's
+  diagnosis labels a failure main shares as a persistent main failure,
+  never a flake.
 
   After the branch suite passes, close that tested branch without manually
   integrating each newer main and requeueing pre-close suites. Branch code

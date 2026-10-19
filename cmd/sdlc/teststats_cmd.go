@@ -137,7 +137,7 @@ func runTestStats(out io.Writer, flags testStatsFlags, deps testStatsDeps) error
 		known := map[string]bool{}
 		for i := range attempts {
 			// A different local check at this head does not cover suite.log.
-			if attempts[i].Check == suiteCheckName {
+			if isSuiteRun(attempts[i]) {
 				known[attempts[i].SHA] = true
 			}
 			attempts[i].Repo = name

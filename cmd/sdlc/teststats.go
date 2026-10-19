@@ -3,6 +3,8 @@ package main
 import (
 	"sort"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 )
 
 // SuiteAttempt is a completed suite invocation, including the exact status
@@ -31,7 +33,12 @@ type SuiteAttempt struct {
 	LogPath      string          `json:"log_path"`
 	Failures     []string        `json:"failures,omitempty"`
 	Units        []SuiteDuration `json:"units,omitempty"`
-	Legacy       bool            `json:"-"`
+	// Version 2 (#394): the gate's outcome, the registered tests it ran on,
+	// and, for a targeted rerun, the failed attempt it reran.
+	Outcome     string         `json:"outcome,omitempty"`
+	KnownFlakes []flakes.Entry `json:"known_flakes,omitempty"`
+	RerunOf     string         `json:"rerun_of,omitempty"`
+	Legacy      bool           `json:"-"`
 }
 
 type SuiteQuantiles struct {
@@ -84,12 +91,25 @@ func suiteQuantiles(samples []float64) *SuiteQuantiles {
 	return &SuiteQuantiles{P50: nearest(50), P90: nearest(90), Samples: len(samples)}
 }
 
+// isSuiteRun reports whether a recorded attempt is a run of the suite itself.
+// Run counts, wall and queue samples, slow units and saved-pass reuse read
+// only these (#394 M2 review): a known-flake rerun is never one.
+func isSuiteRun(a SuiteAttempt) bool { return a.Check == suiteCheckName }
+
+// isFlakeEvidence reports whether an attempt is same-head flake evidence: a
+// suite run, or a known-flake rerun that passed (its tests passed on the head
+// where they had failed). Every reader of fail→pass evidence uses this one
+// predicate, so a rerun's proof survives its parent's outcome being revised.
+func isFlakeEvidence(a SuiteAttempt) bool {
+	return isSuiteRun(a) || a.Check == suiteRerunCheck && a.Exit == 0 && !a.TimedOut
+}
+
 // aggregateSuiteAttempts computes stats from validated records plus explicitly
 // partial legacy entries. The caller owns persisted-record validation.
 func aggregateSuiteAttempts(attempts []SuiteAttempt, since time.Time, repo string) []RepoStats {
 	byRepo := make(map[string][]SuiteAttempt)
 	for _, a := range attempts {
-		if a.Check != suiteCheckName || suiteAttemptCompletedAt(a).Before(since) || (repo != "" && a.Repo != repo) {
+		if !isFlakeEvidence(a) || suiteAttemptCompletedAt(a).Before(since) || (repo != "" && a.Repo != repo) {
 			continue
 		}
 		byRepo[a.Repo] = append(byRepo[a.Repo], a)
@@ -109,11 +129,16 @@ func aggregateSuiteAttempts(attempts []SuiteAttempt, since time.Time, repo strin
 			}
 			return iAt.Before(jAt)
 		})
-		s := RepoStats{Repo: name, Runs: len(rows)}
+		s := RepoStats{Repo: name}
 		var wall, queue []float64
+		evidence := flakeAttempts(rows)
 		unitTimes := map[string][]float64{}
 		units := map[string]SuiteDuration{}
 		for i, a := range rows {
+			if !isSuiteRun(a) {
+				continue // a passing rerun is evidence for Confirmed (evidence), not a run
+			}
+			s.Runs++
 			if !a.Legacy {
 				s.FullyRecorded++
 				s.FlakeDenominator++
@@ -137,13 +162,8 @@ func aggregateSuiteAttempts(attempts []SuiteAttempt, since time.Time, repo strin
 			kind := ""
 			if a.MainBaseline {
 				kind = "suspected-main-baseline"
-			} else {
-				for later := i + 1; later < len(rows); later++ {
-					if rows[later].SHA == a.SHA && rows[later].Exit == 0 && !rows[later].TimedOut && !rows[later].Legacy && !rows[later].MainBaseline {
-						kind = "confirmed"
-						break
-					}
-				}
+			} else if _, ok := flakes.Confirmed(evidence, i); ok {
+				kind = "confirmed" // a later suite pass, or a passing known-flake rerun (#394)
 			}
 			if kind == "" {
 				continue
@@ -191,4 +211,18 @@ func suiteAttemptCompletedAt(a SuiteAttempt) time.Time {
 		return a.FinishedAt
 	}
 	return a.StartedAt // historical logs and older in-memory fixtures
+}
+
+// flakeAttempt is a recorded attempt as the known-flake rules read it (#394).
+func flakeAttempt(a SuiteAttempt) flakes.Attempt {
+	return flakes.Attempt{ID: a.ID, SHA: a.SHA, Passed: a.Exit == 0 && !a.TimedOut, Baseline: a.MainBaseline,
+		Legacy: a.Legacy, Failures: a.Failures, Kind: flakes.Kind(a.Outcome), FinishedAt: suiteAttemptCompletedAt(a)}
+}
+
+func flakeAttempts(as []SuiteAttempt) []flakes.Attempt {
+	out := make([]flakes.Attempt, len(as))
+	for i, a := range as {
+		out[i] = flakeAttempt(a)
+	}
+	return out
 }

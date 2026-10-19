@@ -28,9 +28,19 @@ func TestDecodeSuiteAttemptRejectsUntrustedRecords(t *testing.T) {
 	if got, err := decodeSuiteAttempt([]byte(valid)); err != nil || got.ID != "a1" {
 		t.Fatalf("valid record: %+v %v", got, err)
 	}
+	v2 := strings.Replace(strings.Replace(valid, `"check":"suite"`, `"check":"suite-rerun"`, 1), `"version":1`, `"version":2,"outcome":"known-flake-rerun","known_flakes":[{"test":"github.com/x/ariadne/pkg.TestX","issue":"000448"}],"rerun_of":"b2"`, 1)
+	if got, err := decodeSuiteAttempt([]byte(v2)); err != nil || got.Outcome != "known-flake-rerun" || got.KnownFlakes[0].Issue != "000448" || got.RerunOf != "b2" {
+		t.Fatalf("valid v2 record (#394): %+v %v", got, err)
+	}
 	for name, raw := range map[string]string{
 		"truncated":        valid[:len(valid)-1],
-		"version":          strings.Replace(valid, `"version":1`, `"version":2`, 1),
+		"version":          strings.Replace(valid, `"version":1`, `"version":3`, 1),
+		"v2 field in v1":   strings.Replace(valid, `"version":1`, `"version":1,"outcome":"known-flake-rerun"`, 1),
+		"bad outcome":      strings.Replace(valid, `"version":1`, `"version":2,"outcome":"green"`, 1),
+		"bad known flake":  strings.Replace(valid, `"version":1`, `"version":2,"known_flakes":[{"test":"TestX","issue":"000001"}]`, 1),
+		"self rerun":       strings.Replace(valid, `"version":1`, `"version":2,"rerun_of":"a1"`, 1),
+		"rerun as suite":   strings.Replace(valid, `"version":1`, `"version":2,"rerun_of":"b2"`, 1),
+		"rerun no parent":  strings.Replace(valid, `"check":"suite"`, `"check":"suite-rerun"`, 1),
 		"traversal":        strings.Replace(valid, `failed/a1.log`, `../../outside`, 1),
 		"negative wall":    strings.Replace(valid, `"exit":2`, `"wall_seconds":-1,"exit":2`, 1),
 		"false success":    strings.Replace(valid, `"exit":2`, `"exit":0,"timed_out":true`, 1),

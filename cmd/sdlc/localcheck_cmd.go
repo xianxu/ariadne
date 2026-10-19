@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
@@ -154,7 +155,7 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 		return err
 	}
 	pr := currentBranchPR(git, repo)
-	d := localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: git, CleanupGit: localCheckCleanupGit(ctx, mergeRunner, root), PR: pr, Stderr: stderr}
+	d := localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: git, CleanupGit: localCheckCleanupGit(ctx, mergeRunner, root), PR: pr, Stderr: stderr, FlakeRegistry: gateFlakeRegistry(root)}
 	var failed []string
 	for _, c := range checks {
 		rec, err := runLocalCheck(ctx, d, c, sha)
@@ -196,7 +197,7 @@ func runLocalCheckRepublish(ctx context.Context, stderr io.Writer, f republishFl
 	if err != nil {
 		return err
 	}
-	d := localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: git, Stderr: stderr}
+	d := localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: git, Stderr: stderr, FlakeRegistry: gateFlakeRegistry(root)}
 	logDir, err := localCheckLogDir(d)
 	if err != nil {
 		return err
@@ -204,6 +205,17 @@ func runLocalCheckRepublish(ctx context.Context, stderr io.Writer, f republishFl
 	rec, _, err := loadSavedAttempt(suiteStoreRoot(logDir), repo, sha, f.Name, f.Attempt, hostName())
 	if err != nil {
 		return fmt.Errorf("local-check republish: %w", err)
+	}
+	if rec.Outcome == flakes.KnownFlakePassed || rec.Outcome == flakes.KnownFlakeAccept {
+		// #394: a saved known-flake pass still needs its flake issue open and
+		// the operator's policy on main to allow it.
+		c, err := declaredCheck(ctx, git, f.Name)
+		if err != nil {
+			return fmt.Errorf("local-check republish: %w", err)
+		}
+		if next := revalidateKnownFlake(ctx, d, c, rec.knownFlakeOutcome()); next.Kind != rec.Outcome {
+			return fmt.Errorf("local-check republish: the saved known-flake pass on %s no longer holds: %s", abbrevSHA(sha), next.Reason)
+		}
 	}
 	d.PR = currentBranchPR(git, repo)
 	if err := postLocalCheckRecord(ctx, d, rec); err != nil {
@@ -226,4 +238,25 @@ func currentBranchPR(git func(args ...string) (string, error), repo string) int 
 	}
 	pr, _ := strconv.Atoi(strings.TrimSpace(n))
 	return pr
+}
+
+// declaredCheck is check name as origin/main declares it (with the default
+// suite), for a decision that depends on the operator's current declaration.
+func declaredCheck(ctx context.Context, git func(args ...string) (string, error), name string) (localCheck, error) {
+	if out, err := git("fetch", "--quiet", "origin"); err != nil {
+		return localCheck{}, fmt.Errorf("git fetch origin: %w\n%s", err, out)
+	}
+	decl, err := readLocalChecks(git, "origin/main")
+	if err != nil {
+		return localCheck{}, err
+	}
+	if decl, err = withDefaultSuiteContext(ctx, git, "origin/main", decl); err != nil {
+		return localCheck{}, err
+	}
+	for _, c := range decl.Checks {
+		if c.Name == name {
+			return c, nil
+		}
+	}
+	return localCheck{}, fmt.Errorf("origin/main declares no local check %q", name)
 }

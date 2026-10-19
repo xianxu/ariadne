@@ -95,7 +95,7 @@ func aggregateWeeklyRepo(repo string, attempts []SuiteAttempt, window WeeklyWind
 	week := make([]SuiteAttempt, 0)
 	classifiable := make([]SuiteAttempt, 0)
 	for _, a := range attempts {
-		if a.Repo != repo || a.Check != suiteCheckName || !suiteAttemptCompletedAt(a).Before(window.End) {
+		if a.Repo != repo || !isSuiteRun(a) || !suiteAttemptCompletedAt(a).Before(window.End) {
 			continue
 		}
 		classifiable = append(classifiable, a)
