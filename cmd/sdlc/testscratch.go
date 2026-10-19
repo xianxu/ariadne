@@ -207,7 +207,7 @@ func reportScratchLeaks(w io.Writer, check string, byPkg map[string][]string, un
 		n += len(ps)
 	}
 	sort.Strings(pkgs)
-	fmt.Fprintf(w, "[!] local check %s wrote %d temp folder(s) to the SSD despite the RAM disk; unattributed: %d (other processes write there too)\n", check, n, unattributed)
+	fmt.Fprintf(w, "[!] local check %s: SSD temp folders gained %d t.TempDir folder(s) from this worktree's tests despite the RAM disk; unattributed: %d (other processes write there too)\n", check, n, unattributed)
 	for _, pkg := range pkgs {
 		ps := byPkg[pkg]
 		fmt.Fprintf(w, "    %s: %d, e.g. %s\n", pkg, len(ps), ps[0])
