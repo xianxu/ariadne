@@ -77,6 +77,7 @@ process-group cancellation. Use the existing Go command seam per selected path.
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed — Budget independence regression drives all three real environment loops: nine distinct live deadline contexts and prior cancellation; shared-context mutation fails deterministically. README documents NUL listing without execution. Complete targeted scripts/golint packages pass (53.690s/0.794s), including 18 real script combinations. Corrected-head recorded full suite is queued and must pass before landing; prior queued attempt cancelled before tests. Same 2m ceiling and process-group cleanup. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 - Claimed and started in ariadne:3. Hub dispatch: diagnose first, no timeout bumps.
 - Read both retained failure logs: the first reports bootstrap and clone passing
