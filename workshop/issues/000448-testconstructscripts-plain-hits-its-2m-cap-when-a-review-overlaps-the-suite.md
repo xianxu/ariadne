@@ -126,3 +126,16 @@ canonical selection plus guard the original aggregate invocation.
   landing still requires its final-head pass, and code fixes requeue it.
 - Plan bookkeeping now names dispatch of the recorded suite as the completed
   implementation action; close and landing remain their ordinary gates.
+
+### 2026-10-18 — boundary round one: deterministic budget regression
+
+BR-1 requires a regression for the central lifetime contract across all three
+color environments. Inject only command execution into the existing harness;
+keep fresh context creation and cancellation in its per-script caller. A fake
+command observes each context, verifies the prior context has ended before the
+next invocation, and checks independent live contexts for every selected path.
+Run the production environment loop with this seam, without waits or shortened
+timeouts. Deliberately share a context to demonstrate the regression fails.
+BR-2 requires README usage for the sole new flag: non-executing NUL listing
+versus default batch execution. The first recorded attempt was cancelled while
+queued, before tests ran; requeue the final corrected head.
