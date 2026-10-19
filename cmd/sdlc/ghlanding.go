@@ -196,3 +196,53 @@ func landedCommit(pr landingPR, onMain func(oid string) bool) (string, bool) {
 	}
 	return "", false
 }
+
+// OpenTrainPRs lists open landing-train PRs (#449): the open PRs' head
+// names, then each train branch through the validated landing listing.
+func (g realGH) OpenTrainPRs(ctx context.Context, repo string) ([]landingPR, error) {
+	if !landingRepoValid(repo) {
+		return nil, fmt.Errorf("landing: invalid repository")
+	}
+	data, err := runLandingGH(ctx, "pr", "list", "--repo", repo, "--state", "open", "--limit", strconv.Itoa(landingPRLimit+1), "--json", "headRefName")
+	if err != nil {
+		return nil, err
+	}
+	var heads []struct{ HeadRefName string }
+	if err := json.Unmarshal(data, &heads); err != nil {
+		return nil, fmt.Errorf("decode open PR heads: %w", err)
+	}
+	var out []landingPR
+	for _, h := range heads {
+		if !strings.HasPrefix(h.HeadRefName, trainBranchPrefix) {
+			continue
+		}
+		prs, err := g.LandingPRs(ctx, repo, h.HeadRefName)
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range prs {
+			if p.State == "OPEN" {
+				out = append(out, p)
+			}
+		}
+	}
+	return out, nil
+}
+
+func (realGH) CreateTrainPR(ctx context.Context, repo, branch, title, body string) error {
+	if !landingRepoValid(repo) || !strings.HasPrefix(branch, trainBranchPrefix) {
+		return fmt.Errorf("landing: invalid repository or train branch")
+	}
+	_, err := runLandingGH(ctx, "pr", "create", "--repo", repo, "--base", "main", "--head", branch, "--title", title, "--body", body)
+	return err
+}
+
+func (realGH) CloseTrainPR(ctx context.Context, repo string, number int, branch string) error {
+	if !landingRepoValid(repo) || number <= 0 || !strings.HasPrefix(branch, trainBranchPrefix) {
+		return fmt.Errorf("landing: invalid repository, PR number or train branch")
+	}
+	_, err := runLandingGH(ctx, "pr", "close", strconv.Itoa(number), "--repo", repo, "--delete-branch")
+	return err
+}
+
+var _ trainGH = realGH{}

@@ -377,16 +377,26 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 		return err
 	}
 	var turn *landingTurn
+	var sched func() landingline.Schedule
+	gates := productionCarGates(r, t, f)
+	readiness := func(ctx context.Context) landingline.Readiness {
+		return carReadiness(ctx, r, gh, t, branch, gates, landingNow())
+	}
+	landedByTrain := false
 	if !resumeOnly(pre) {
-		sched := landingScheduleSource(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote, stderr)
-		gates := productionCarGates(r, t, f.IssuesDir)
-		readiness := func(ctx context.Context) landingline.Readiness {
-			return carReadiness(ctx, r, gh, t, branch, gates, landingNow())
-		}
+		sched = landingScheduleSource(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote, stderr)
 		if turn, err = enterLandingLine(ctx, r, t, branch, sched, readiness, stderr); err != nil {
-			return err
+			// A train landed this car (#449): its PR is merged by the train,
+			// and this merge finishes as a resume, without a turn.
+			var settled *landingline.Settled
+			if !errors.As(err, &settled) || settled.Outcome.Kind != landingline.OutcomeLanded {
+				return err
+			}
+			fmt.Fprintf(stderr, "landing train %d landed this PR (train PR #%d); finishing cleanup\n", settled.Outcome.Train, settled.Outcome.PR)
+			landedByTrain = true
+		} else {
+			defer func() { turn.leave(err) }()
 		}
-		defer func() { turn.leave(err) }()
 	}
 	head, err := landingOptional(r, t.Root, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch)
 	if err != nil {
@@ -399,6 +409,13 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 	if err != nil {
 		return err
 	}
+	if landedByTrain {
+		// GitHub marks a car merged by reachability shortly after the train's
+		// merge: wait for that, bounded, rather than misread a lag as open.
+		if prs, err = awaitMergedByTrain(ctx, gh, t, branch, prs, stderr); err != nil {
+			return err
+		}
+	}
 	pr, resumeIntegration, err := selectIntegrationPR(ctx, r, gh, t, branch, head, current, prs, f.withLock, stderr)
 	if err != nil {
 		return err
@@ -410,6 +427,18 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 		turn.PR, turn.Resumed = pr.Number, pr.State == "MERGED"
 	}
 	fmt.Fprintf(stderr, "Recovery: sdlc merge --branch %s --yes\n", branch)
+	if turn != nil && pr.State != "MERGED" && sched != nil {
+		// Trains on (#449): this head may conduct a train that lands its PR
+		// with others'; one car is today's single landing, below.
+		merged, conducted, terr := maybeConductTrain(ctx, r, t, f, turn, branch, head, pr, sched(), readiness, stderr)
+		if terr != nil {
+			return terr
+		}
+		if conducted {
+			pr = merged
+			turn.Resumed = false
+		}
+	}
 	if pr.State != "MERGED" {
 		if _, err = nextLandingAction(landingObservation{AtRest: current == t.Rest, RefExists: head != ""}); err != nil {
 			return err

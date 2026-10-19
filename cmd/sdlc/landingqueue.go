@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -142,6 +143,12 @@ func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch 
 		stopVouching()
 	}
 	if err != nil {
+		var settled *landingline.Settled
+		if errors.As(err, &settled) {
+			// The conductor logged this car's outcome; it only leaves.
+			h.Release()
+			return nil, err
+		}
 		turn.leave(err)
 		return nil, err
 	}
