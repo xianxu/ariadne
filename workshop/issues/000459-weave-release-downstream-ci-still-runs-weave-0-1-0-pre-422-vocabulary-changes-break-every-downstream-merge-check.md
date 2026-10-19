@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
-estimate_hours: 2.82
+estimate_hours: 2.72
 collaboration-mode: collaboration
-card_mirror: 'e6386142d1ac87d199262725bf8ac68d2edd580c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a29382afb6c151a9b64d7bdba8337e14c0cd5d4b' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T01:11:31-07:00
 claimant:
     operator: Xian Xu
@@ -150,7 +150,20 @@ item: atlas-docs design=0.04 impl=0.08
 item: milestone-review design=0.02 impl=0.20
 item: real-api-discovery design=0.00 impl=0.24
 design-buffer: 0.15
-total: 2.82
+total: 2.72
 ```
 
-Design 0.56 × 1.15 + implementation 2.18 = 2.824 hours, rounded to 2.82.
+Design 0.56 × 1.15 + implementation 2.08 = 2.724 hours, rounded to 2.72.
+
+- Estimate-quality returned INFO (no blocking finding): each tooling allocation
+  includes two bounded responsibilities rather than a single table-sized module:
+  exact compiler acquisition/identity plus workflow process tests, and corpus
+  construction/comparison plus cold-state conformance. These include targeted
+  tests, observed old/new compiler runs and resulting fixes; the review item
+  includes the recorded suite's active orchestration (queue/idle excluded).
+  The two 0.08/0.32 allocations intentionally exceed one smaller-module range
+  because each covers that paired responsibility. Corrected a prose/subtotal
+  addition error to 2.08 implementation hours and a reconciled 2.72 total.
+- First migration hand-off filed from 42shots:0 as 42shots#1, unclaimed,
+  depending on ariadne#459; remaining filings are sequential and independently
+  verified before the hub receives their complete list.
