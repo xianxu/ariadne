@@ -1,13 +1,13 @@
 ---
 id: 000449
-status: working
+status: codecomplete
 deps: [ariadne#394]
 github_issue:
 created: 2026-10-18
 updated: 2026-10-19
 estimate_hours: 5.47
 collaboration-mode: collaboration
-card_mirror: '112b2cd1b9fdcb554e40334be5fbb0a7cfe5e229' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a33888759711dc9704a383c6d67424889b3507d9' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T00:24:20-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 3.92
 ---
 
 # landing train: batch ready PRs on an interval and land them with one full suite (extends #393)
