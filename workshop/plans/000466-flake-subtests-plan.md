@@ -98,3 +98,11 @@ N/A for latency. The rerun is the existing one, at most `MaxRerun` top-level tes
 - **Q1 Ownership:** unregister and narrow by the card owner, or anyone while unclaimed (the details-publish rule). Register stays any-slot. Or should removal be any-slot too, like register?
 - **Q2 Rerun scope:** a subtest registration reruns its whole top-level test, not the subtest alone. That is simpler and conservative: a sibling failing in the rerun blocks, and one go invocation still covers every known entry. Mixing exact subtest patterns with whole tests would need one `go test` per subtest, because `-run` patterns apply per level. The cost is rerun time, for example `TestConstructScripts` at a few minutes.
 - **Q3 Rollout:** subtest names in `flake_tests` make older binaries' registries fail closed, so :0 must be rebuilt before anyone registers one. #465's broad registration can then be narrowed with `flake narrow`.
+
+## Revisions
+
+### 2026-10-19 — hub approval (delivery d202a8bd)
+
+- Q1, ownership: unregister and narrow by the card owner, or anyone while unclaimed (the details-publish rule). Register stays any-slot.
+- Q2, rerun scope: rerun the whole top-level test.
+- Q3, rollout: the hub rebuilds ariadne:0 right after landing and tells the slots before anyone registers a subtest name. The hazard must be visible: the close notes and the landing report say "rebuild :0 before registering subtests". The `flake register` help states it too.
