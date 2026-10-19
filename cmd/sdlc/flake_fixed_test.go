@@ -28,6 +28,13 @@ func TestFixedIssueCoverageUsesOwnershipNotIncidentalLogs(t *testing.T) {
 		{"log mention full name", "## Log\nLater suite mentioned `" + own + "`\n", own, false},
 		{"log line with commentary", "## Log\n- Test: `" + own + "`, fixed with another test\n", own, false},
 		{"fenced log line", "## Log\n```text\n- Test: " + own + "\n```\n", own, false},
+		{"unclosed backtick fence", "## Log\n```text\n- Test: " + own + "\n", own, false},
+		{"unclosed tilde fence", "## Log\n~~~text\n- Test: " + own + "\n", own, false},
+		{"closed tilde fence", "## Log\n~~~text\n- Test: " + own + "\n~~~\n", own, false},
+		{"indented code", "## Log\n    - Test: " + own + "\n", own, false},
+		{"html comment", "## Log\n<!--\n- Test: " + own + "\n-->\n", own, false},
+		{"inline html comment", "## Log\n<!-- - Test: " + own + " -->\n", own, false},
+		{"after html comment", "## Log\n<!-- sample -->\n- Test: " + own + "\n", own, true},
 		{"incidental log", "## Log\nThe suite later failed TestCancelledHandoffReportsAChildsCleanExit in another issue.\n", launcher, false},
 		{"bare wrong package", "## Problem\nTestMessageSendToDormantSlotReadmits failed in cmd/internal/other/message_service_test.go\n", own, false},
 		{"same basename in another package", "## Problem\nTestMessageSendToDormantSlotReadmits failed in pkg/couchcmd/message_service_test.go\n", own, false},
@@ -165,7 +172,7 @@ func TestFlakeListRendersFixedRecurrenceAndCoverageFromRealGit(t *testing.T) {
 	git(t, root, "merge", "--no-ff", "-qm", "land fix", "-X", "ours", "fix")
 	merge := git(t, root, "rev-parse", "HEAD")
 	const name = "github.com/xianxu/ariadne/cmd/sdlc.TestOther"
-	w := &flakeWorld{main: merge, fixed: []fixedFlakeIssue{{ID: "000448", Merge: merge, Details: "## Problem\n" + name + " failed\n", DetailKnown: true}}}
+	w := &flakeWorld{main: merge, fixed: []fixedFlakeIssue{{ID: "000448", Merge: merge, Details: "## Log\n<!--\n- Test: " + name + "\n-->\n", DetailKnown: true}}}
 	w.contains = func(ctx context.Context, ancestor, head string) (bool, error) {
 		return flakeGitContains(ctx, root, ancestor, head)
 	}
@@ -178,7 +185,7 @@ func TestFlakeListRendersFixedRecurrenceAndCoverageFromRealGit(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "attempt before on") {
-		t.Fatalf("prose-only issue hid the pre-fix row:\n%s", out.String())
+		t.Fatalf("sample-only issue hid the pre-fix row:\n%s", out.String())
 	}
 	w.fixed[0].Tests = []string{name}
 	out.Reset()

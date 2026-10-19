@@ -146,10 +146,35 @@ func fixedIssueCovers(tests []string, details, name string) bool {
 		}
 	}
 	lines := strings.Split(details, "\n")
-	fenced := issue.FenceSpans(lines, issue.UnterminatedIsProse)
+	// A truncated fence is uncertain, never ownership evidence.
+	fenced := issue.FenceSpans(lines, issue.UnterminatedIsFenced)
 	section := ""
+	comment := false
 	for n, line := range lines {
 		if fenced[n] {
+			continue
+		}
+		commentLine := comment
+		for rest := line; rest != ""; {
+			if comment {
+				end := strings.Index(rest, "-->")
+				if end < 0 {
+					break
+				}
+				comment = false
+				commentLine = true
+				rest = rest[end+3:]
+				continue
+			}
+			start := strings.Index(rest, "<!--")
+			if start < 0 {
+				break
+			}
+			comment = true
+			commentLine = true
+			rest = rest[start+4:]
+		}
+		if commentLine {
 			continue
 		}
 		if strings.HasPrefix(line, "## ") {
@@ -159,11 +184,10 @@ func fixedIssueCovers(tests []string, details, name string) bool {
 		if section != "Log" {
 			continue
 		}
-		trim := strings.TrimSpace(line)
-		if !strings.HasPrefix(trim, "- Test:") {
+		if !strings.HasPrefix(line, "- Test: ") {
 			continue
 		}
-		value := strings.TrimSpace(strings.TrimPrefix(trim, "- Test:"))
+		value := strings.TrimSpace(strings.TrimPrefix(line, "- Test: "))
 		if strings.Trim(value, "`") == name {
 			return true
 		}

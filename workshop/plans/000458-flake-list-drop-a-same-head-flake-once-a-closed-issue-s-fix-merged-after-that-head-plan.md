@@ -64,6 +64,10 @@ The hub rejected free-text package parsing after three review rounds. The preced
 
 Red-first proof: a table puts the exact name and a bare name plus package path in each prose section and incidental Log text; every row must remain visible. A dedicated full-name Log line and a `flake_tests` value hide only their exact match. A dedicated bare-name Log line remains visible. The command-level real-Git fixture proves a prose-only terminal issue cannot suppress a pre-merge row while a structured owner can. The cost is now O(D×U) exact-name checks and O(C) cached ancestry checks; P and F and the historical package-tree query disappear.
 
+### 2026-10-19 — close review round 4: Log entry boundary
+
+BR-6 showed that a literal `- Test:` sample inside an unclosed fence, indented code or an HTML comment still matched as ownership. Tighten the structured Log form to a column-zero `- Test: <fully qualified name>` line, outside closed or unclosed backtick/tilde fences and outside HTML comments. Any uncertain markup remains visible; a closed comment followed by a real entry still counts. This is the boundary of the single permitted legacy detail source, not a return to prose inference (ARCH-SECURE). Red-first fixtures enumerate closed/unclosed backtick and tilde fences, indented code, multiline/inline comments, valid entry after a comment, plus command output for a comment-only claimant. The card's `flake_tests` remains independent of Markdown presentation.
+
 ## Tasks
 
 ### 1. Red coverage and decision tests

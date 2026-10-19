@@ -1054,8 +1054,9 @@ The simplest durable authority beats a clever scan of consequences.
   callback is passed as a value. Test the final CLI rows for default and verbose
   behavior with real ancestry, and carry a reason when uncertain evidence keeps
   a row visible. Document new flags in README as well as atlas.
-- **#458 BR-5 — package identity is a path:** a directory basename in issue
-  prose cannot own a Go test when another package may share that name. Match
-  an exact import or repository-relative package path; for a legacy one-word
-  label, prove uniqueness in the historical landing tree. Test substantive and
-  dedicated Log ownership lines, including nested subpackages.
+- **#458 BR-5/BR-6 — structured ownership only:** issue prose and package
+  labels cannot establish ownership of a Go test; another package may share
+  its name. Use an exact card field or a dedicated fully qualified Log entry.
+  When a Markdown line grants authority, require its top-level form and exclude
+  fenced code, indented code and HTML comments. An unclosed fence is uncertain,
+  never evidence that hides a flake (ARCH-SECURE).

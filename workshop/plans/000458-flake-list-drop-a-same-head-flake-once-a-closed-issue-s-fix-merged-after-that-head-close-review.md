@@ -300,3 +300,107 @@ dispose:
    Add a `## Revisions` entry defining contiguous path-token recognition. Enumerate and test every allowed ownership context—title, Problem, Spec, Done when, Plan, and dedicated Log lines—with nested paths followed by whitespace, punctuation, markup, and unrelated `.go` references. Apply that rule across the family in this round.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"794ce4b7-8cb3-4e10-aecd-cfbbc364fb12","repository":"github.com/xianxu/ariadne","issue_id":"000458","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/db5c271d3bf4c2fc","reviewed_head":"f2cbfe70e455169334d78e71e6c820e288089c4a","slot":"ariadne:1","requested_at":"2026-10-19T13:37:27.892996Z"},"phase":"finished","pid":73349,"started_at":"2026-10-19T13:37:27.987542Z","finished_at":"2026-10-19T13:40:38.649745Z","session_id":"01a15461-a6b2-76c2-9b14-55a228670acf","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-19T07:24:10-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 458 — flake list: drop a same-head flake once a closed issue's fix merged after that head |
+| repo | ariadne |
+| issue file | workshop/issues/000458-flake-list-drop-a-same-head-flake-once-a-closed-issue-s-fix-merged-after-that-head.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | a11504c417e9c8789327362895bc88c9fad042df..b64abf3422274c046cc283b613ca4a38836d2185 |
+| command | sdlc close --issue 458 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-19T07:24:10-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The package-basename defect is corrected, and the targeted tests pass. One blocking ownership gap remains: Markdown examples and comments can still claim a test and silently suppress its failure. Temporary regression probes confirmed this through command rendering. The reviewed checkout remains unchanged.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The plan correctly classifies classifyFixedFlake as INTEGRATION; fixedIssueCovers remains independently tested without IO.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      README.md:527 documents default suppression, verbose attribution, recurrence and uncertainty, matching flake_cmd.go.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      TestFlakeListRendersFixedRecurrenceAndCoverageFromRealGit verifies default suppression, verbose attribution, recurrence and ambiguous coverage using real Git history.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The classifier preserves uncertainty reasons; decision tests assert them and the command regression verifies their rendering.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Package-path heuristics are removed. Restoring the original matcher through a temporary source overlay makes both same-basename regressions and the nested-subpackage regression fail; these pass at the pinned head.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: exact-test-ownership
+    title: |
+      ARCH-PURPOSE / ARCH-SECURE: Markdown samples can still hide unrelated flakes
+    detail: |
+      cmd/sdlc/flake_fixed.go:149 uses UnterminatedIsProse, so an unclosed backtick or tilde fence in Log exposes a sample "- Test: <fully qualified name>" as ownership. Lines 162–167 also accept indented code and HTML-comment contents. Temporary matcher and command probes confirmed silent default suppression for all four forms; closed backtick and tilde samples correctly stayed visible. This is the 2nd finding in family exact-test-ownership. Earlier rounds fixed instances. State and enforce the rule across actual Log entries, closed/unclosed fences, indented code and comments: only an actual structured ownership entry may claim a test; ambiguous or truncated markup must preserve visibility. Add regression tests for that enumeration, including command output.
+```
+
+1. **Strengths**
+
+   - Exact structured ownership replaces the unreliable package-context heuristics.
+   - Real Git merge fixtures verify fixed versus recurrent failures.
+   - Ancestry caching is checked at two attempt counts.
+   - README and atlas both document the changed surface.
+
+2. **Critical findings**
+
+   - The finding above blocks shipping. Use Markdown-aware ownership extraction or a conservative grammar that excludes sample/comment contexts and fails toward visibility.
+
+3. **Important findings**
+
+   None additional.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - Passed: `go test ./cmd/sdlc -run '^Test(Fixed|Flake)' -count=1`.
+   - Existing regressions fail when the earlier ownership matcher is restored.
+   - Temporary sample-context tests failed in four of six cases, including default command visibility.
+   - `git diff --check` passed. The full suite was not rerun during this review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** existing tracker, snapshot and ancestry infrastructure reused.
+   - **ARCH-PURE — pass:** ownership matching is pure; Git orchestration is identified as integration.
+   - **ARCH-PURPOSE — flag:** sample text can still suppress an unrelated failure.
+   - **ARCH-MOCK — pass:** injected seams and portable Git repositories exercise stateful behavior.
+   - **ARCH-CONSTRAINTS — pass:** batched snapshots and cached ancestry match the revised cost model.
+   - **ARCH-SECURE — flag:** malformed or non-authoritative Markdown becomes ownership evidence.
+   - **ARCH-ORDER — pass:** this read-only classification holds no authoritative state between events.
+   - **ARCH-FUNERAL — pass:** no new durable artifacts are produced.
+   - **ARCH-EVOLVE — pass:** no persisted format or rewrite path changes.
+
+7. **Plan revision recommendations**
+
+   Append a `## Revisions` entry defining which Markdown contexts constitute structured ownership, explicitly excluding code samples and comments, and specifying conservative handling of truncated fences. Include the six-context regression enumeration above.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"84f29edf-e270-41d0-bd76-ac4808ebc6eb","repository":"github.com/xianxu/ariadne","issue_id":"000458","recipe":"milestone-review","round":4,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/2ef94d604cbe5e10","reviewed_head":"b64abf3422274c046cc283b613ca4a38836d2185","slot":"ariadne:1","requested_at":"2026-10-19T14:21:34.818874Z"},"phase":"finished","pid":31485,"started_at":"2026-10-19T14:21:34.92592Z","finished_at":"2026-10-19T14:24:08.706413Z","session_id":"01a1548a-0a51-7c50-b6e9-44a3278f436d","outcome":"returned"}] -->
