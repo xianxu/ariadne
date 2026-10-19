@@ -1,6 +1,6 @@
 ---
 id: 000448
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-18
@@ -8,7 +8,7 @@ updated: 2026-10-18
 estimate_hours:
 severity: low
 collaboration-mode: collaboration
-card_mirror: 'c74bdbb2023227a5d8a344795ee4acc9f655b4ac' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '128788d715a27aa2e9eb3dc3e1ed8c2c61880f82' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-18T19:54:59-07:00
 claimant:
     operator: Xian Xu
@@ -18,6 +18,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "19ed9822", done: "828e3cbf"}
+actual_hours: 0.24
 ---
 
 # TestConstructScripts/plain hits its 2m cap when a review overlaps the suite
