@@ -1,13 +1,13 @@
 ---
 id: 000465
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '2d510510f3c8feac5b372509f8375268a2d9f3d4' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '0cc9eaf5c5c8b198839c99e881bd520d9c9b316f' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T07:56:05-07:00
 claimant:
     operator: Xian Xu
@@ -18,6 +18,7 @@ claimant:
     repository: github.com/xianxu/ariadne
 flake_tests: [github.com/xianxu/ariadne/scripts/test.TestConstructScripts]
 flow: {kind: quick, provenance: inferred, spec: "1393e822", done: "76dfe1e4"}
+actual_hours: 1.17
 ---
 
 # dev-aliases script exceeds its per-script budget under suite load
