@@ -18,10 +18,12 @@ func TestFixedIssueCoverageUsesOwnershipNotIncidentalLogs(t *testing.T) {
 		name, body, test string
 		want             bool
 	}{
-		{"problem", "## Problem\nTestMessageSendToDormantSlotReadmits failed\n", own, true},
-		{"legacy log label", "## Log\n- Test: `TestCancelledHandoffReportsAChildsCleanExit`\n", launcher, true},
+		{"problem", "## Problem\nTestMessageSendToDormantSlotReadmits failed in cmd/internal/couchcmd/message_service_test.go\n", own, true},
+		{"legacy log label", "## Log\n- Test: `TestCancelledHandoffReportsAChildsCleanExit`, `cmd/internal/launcher/osruntime_launch_test.go`\n", launcher, true},
 		{"incidental log", "## Log\nThe suite later failed TestCancelledHandoffReportsAChildsCleanExit in another issue.\n", launcher, false},
-		{"substring", "## Problem\nTestMessageSendToDormantSlotReadmitsAgain failed\n", own, false},
+		{"bare wrong package", "## Problem\nTestMessageSendToDormantSlotReadmits failed in cmd/internal/other/message_service_test.go\n", own, false},
+		{"bare no package", "## Problem\nTestMessageSendToDormantSlotReadmits failed\n", own, false},
+		{"substring", "## Problem\nTestMessageSendToDormantSlotReadmitsAgain failed in cmd/internal/couchcmd\n", own, false},
 		{"wrong package", "## Problem\n`github.com/xianxu/pair/cmd/internal/other.TestMessageSendToDormantSlotReadmits` failed\n", own, false},
 	}
 	for _, tt := range tests {
@@ -101,7 +103,7 @@ func TestFixedFlakeAgainstRealGitMergeHistory(t *testing.T) {
 	git(t, root, "merge", "--no-ff", "-qm", "land fix", "-X", "ours", "fix")
 	merge := git(t, root, "rev-parse", "HEAD")
 	const test = "github.com/xianxu/pair/pkg.TestX"
-	issues := []fixedFlakeIssue{{ID: "000585", Merge: merge, Details: "## Problem\nTestX failed\n", DetailKnown: true}}
+	issues := []fixedFlakeIssue{{ID: "000585", Merge: merge, Details: "## Problem\nTestX failed in pkg\n", DetailKnown: true}}
 	contains := func(ancestor, head string) (bool, error) {
 		return flakeGitContains(context.Background(), root, ancestor, head)
 	}

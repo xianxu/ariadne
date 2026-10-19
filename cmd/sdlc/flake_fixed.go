@@ -144,7 +144,7 @@ func fixedIssueCovers(tests []string, details, name string, bareCollision bool) 
 			return true
 		}
 	}
-	_, bare, ok := flakes.SplitTest(name)
+	pkg, bare, ok := flakes.SplitTest(name)
 	if !ok {
 		return false
 	}
@@ -168,7 +168,7 @@ func fixedIssueCovers(tests []string, details, name string, bareCollision bool) 
 		} else if section != "" && section != "Problem" && section != "Spec" && section != "Done when" && section != "Plan" {
 			continue
 		}
-		if containsTestToken(line, name) || (!bareCollision && containsTestToken(line, bare)) {
+		if containsTestToken(line, name) || (!bareCollision && containsTestToken(line, bare) && containsTestToken(line, path.Base(pkg))) {
 			return true
 		}
 	}
