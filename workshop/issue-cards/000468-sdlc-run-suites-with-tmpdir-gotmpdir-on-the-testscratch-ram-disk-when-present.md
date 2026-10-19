@@ -1,6 +1,6 @@
 ---
 id: 000468
-status: working
+status: codecomplete
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.32
+tracker:
+    version: 1
+    completion:
+        token: close-19b368fa7f23
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 9e4c4f89b69e712e4ad6bd608f3416530827c64a
+        evidence_commit: 3d92d990445f203f8b5bc09f9158a550279ee04e
 ---
 
 # sdlc: run suites with TMPDIR/GOTMPDIR on the TestScratch RAM disk when present
