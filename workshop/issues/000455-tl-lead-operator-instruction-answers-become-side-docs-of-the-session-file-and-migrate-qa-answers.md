@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-18
 updated: 2026-10-18
-estimate_hours:
+estimate_hours: 3.36
 collaboration-mode: collaboration
-card_mirror: 'f3d5213e60e4d39799e0fc053524a8169a360675' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e944230e6b60b9482d4592d1c8a75b63c7680382' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-18T21:13:34-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # tl-lead: operator-instruction answers become side docs of the session file (and migrate qa/ answers)
@@ -43,6 +44,27 @@ Full flow; durable plan: [000455 plan](../plans/000455-tl-lead-operator-instruct
 - [ ] planMigration (pure, golden + conflicts)
 - [ ] migrate-answers executor, CLI, crash-resume test
 - [ ] help, atlas
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec           design=0.8 impl=0.08
+item: smaller-go-module    design=0.1 impl=0.2
+item: smaller-go-module    design=0.05 impl=0.12
+item: smaller-go-module    design=0.1 impl=0.16
+item: greenfield-go-module design=0.5 impl=0.32
+item: smaller-go-module    design=0.2 impl=0.2
+item: atlas-docs           design=0.05 impl=0.05
+item: milestone-review     design=0.0 impl=0.16
+design-buffer: 0.15
+total: 3.36
+```
+
+Items, in order: the spec and plan with two plan-quality rounds; RebaseLinks and its fuzz test; link validation; the SessionSync seam widening with fake and conformance; the pure planner (greenfield); the executor and crash-resume test; help and atlas; the close review.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Log
 
