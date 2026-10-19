@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "7b13c8a6", done: "bf1368f2"}
 ---
 
 # review protocol: an empty round (no edits) is an explicit reply, so the pane can clear its spinner
