@@ -105,6 +105,69 @@ func mergeFlakeTests(id, status string, have, add []string) ([]string, error) {
 	return tests, nil
 }
 
+// removeFlakeTests is unregister's pure decision on the card's current tests
+// (#466): name dropped; a name already absent changes nothing (a repeat).
+func removeFlakeTests(id, status string, have []string, name string) ([]string, error) {
+	if vocab.Issue().IsTerminal(status) {
+		return nil, fmt.Errorf("issue #%s is %s: closing it already unregistered its tests", id, status)
+	}
+	return slices.DeleteFunc(slices.Clone(have), func(t string) bool { return t == name }), nil
+}
+
+// narrowFlakeTests is narrow's pure decision (#466): old replaced by to, a
+// name strictly under it (one of its subtests), so the registration covers
+// less and needs no new evidence. Already narrowed (old gone, to present)
+// changes nothing; neither present refuses. Other names are kept as they are.
+func narrowFlakeTests(id, status string, have []string, old, to string) ([]string, error) {
+	if vocab.Issue().IsTerminal(status) {
+		return nil, fmt.Errorf("issue #%s is %s: closing it already unregistered its tests", id, status)
+	}
+	if to == old || !flakes.Covers(old, to) {
+		return nil, fmt.Errorf("%s is not a subtest of %s: narrowing only shrinks a registration; unregister %s and register %s with its own evidence", to, old, old, to)
+	}
+	hasOld, hasTo := slices.Contains(have, old), slices.Contains(have, to)
+	switch {
+	case !hasOld && hasTo:
+		return slices.Clone(have), nil
+	case !hasOld:
+		return nil, fmt.Errorf("issue #%s does not register %s: nothing to narrow", id, old)
+	}
+	var out []string
+	for _, t := range have {
+		switch {
+		case t == old && !hasTo:
+			out = append(out, to)
+		case t != old:
+			out = append(out, t)
+		}
+	}
+	return out, nil
+}
+
+// editFlakeTests applies an owner-only edit to the compare-and-swap card: the
+// details-publish rule (its owner, or anyone while unclaimed), then the edit
+// on the card's current flake_tests, validated as the registry reads them.
+func editFlakeTests(env *trackerEnv, card tracker.Record, edit func(id, status string, have []string) ([]string, error)) ([]byte, error) {
+	if err := requireOwnedToEdit(env, card, "unregisters or narrows its flakes"); err != nil {
+		return nil, err
+	}
+	status, _ := issue.GetField(card.Card.Frontmatter, "status")
+	have, _, err := issue.FieldList(card.Card.Frontmatter, flakeTestsField)
+	if err != nil {
+		return nil, err
+	}
+	tests, err := edit(card.ID, status, have)
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range tests {
+		if err := flakes.ValidTest(t); err != nil {
+			return nil, err
+		}
+	}
+	return issue.SetCardField(card.Raw, flakeTestsField, issue.FlowList(tests))
+}
+
 // flakeIssueOpen is the registry's status rule: anything not terminal.
 // codecomplete still registers, since the fix has not landed on main.
 func flakeIssueOpen(status string) bool { return !vocab.Issue().IsTerminal(status) }
@@ -145,9 +208,13 @@ type flakeDeps struct {
 	now      func() time.Time
 	attempts func() ([]SuiteAttempt, []string, error) // this clone's test-stats store
 	logPath  func(SuiteAttempt) string                // where an attempt's log is kept
+	subtests func(SuiteAttempt) ([]string, error)    // the failing subtests its saved log names (#466)
 	repo     func() (string, error)
 	registry func(ctx context.Context) (flakes.Registry, []flakes.Card, error)
 	addTests func(ctx context.Context, stdout, stderr io.Writer, id int, add []string) error // merges onto the card's current tests
+	// editTests applies an owner-only edit (unregister, narrow) to the card's
+	// current tests, compare-and-swap; a repeat writes nothing.
+	editTests func(ctx context.Context, stdout, stderr io.Writer, id int, what string, edit func(id, status string, have []string) ([]string, error)) error
 	newIssue func(ctx context.Context, stdout, stderr io.Writer, title, body string) (int, error)
 }
 
@@ -169,6 +236,21 @@ func defaultFlakeDeps(issuesDir string) flakeDeps {
 			}
 			return valueOr(a.LogPath, "(none kept)")
 		},
+		subtests: func(a SuiteAttempt) ([]string, error) {
+			store, err := suiteStoreDir()
+			if err != nil {
+				return nil, err
+			}
+			p := suiteAttemptLogFile(store, a)
+			if p == "" {
+				return nil, fmt.Errorf("attempt %s kept no log", a.ID)
+			}
+			data, err := os.ReadFile(p)
+			if err != nil {
+				return nil, err
+			}
+			return parseSuiteLogFacts(string(data)).Subtests, nil
+		},
 		repo: detectRepo,
 		registry: func(ctx context.Context) (flakes.Registry, []flakes.Card, error) {
 			return loadFlakeRegistry(ctx, issuesDir)
@@ -176,6 +258,10 @@ func defaultFlakeDeps(issuesDir string) flakeDeps {
 		addTests: func(ctx context.Context, stdout, stderr io.Writer, id int, add []string) error {
 			return runCardUpdate(ctx, stdout, stderr, issuesDir, id, "flake_tests + "+issue.FlowList(add), false,
 				func(_ *trackerEnv, card tracker.Record, _ string) ([]byte, error) { return addFlakeTests(card, add) })
+		},
+		editTests: func(ctx context.Context, stdout, stderr io.Writer, id int, what string, edit func(id, status string, have []string) ([]string, error)) error {
+			return runCardUpdate(ctx, stdout, stderr, issuesDir, id, what, false,
+				func(env *trackerEnv, card tracker.Record, _ string) ([]byte, error) { return editFlakeTests(env, card, edit) })
 		},
 		newIssue: func(ctx context.Context, stdout, stderr io.Writer, title, body string) (int, error) {
 			return fileFlakeIssue(ctx, stdout, stderr, issuesDir, title, body)
@@ -200,19 +286,30 @@ integration suite) fails only on known flakes, it reruns just those tests on
 the same head; a pass there is landing evidence, linked to the issue. Any other
 failure blocks. Closing the issue unregisters its tests.
 
-  sdlc flake register --test PKG.TestX [--issue N] [--evidence TEXT]
-  sdlc flake list`,
+  sdlc flake register --test PKG.TestX[/sub…] [--issue N] [--evidence TEXT]
+  sdlc flake unregister --issue N --test NAME
+  sdlc flake narrow --issue N --test OLD --to OLD/sub…
+  sdlc flake list
+
+A name may be an exact subtest (#466), as go test prints it:
+PKG.TestX/plain/dev-aliases.test.sh. It explains only failures of itself and
+its own subtests, never a sibling's; its rerun is its whole top-level test.
+Rebuild :0 (and refresh the slots) before registering a subtest name: an
+older sdlc reads one as malformed, and its known-flake rule is then off
+(every failure blocks).`,
 		SilenceUsage: true,
 	}
 	f := flakeRegisterFlags{}
 	register := markMutatingCommand(&cobra.Command{
-		Use:   "register --test PKG.TestName... [--issue N]",
+		Use:   "register --test PKG.TestName[/sub…]... [--issue N]",
 		Short: "Register a test as a known flake, given same-head fail→pass evidence",
 		Long: `Register tests as known flakes on a flake issue's card (flake_tests).
 
 Each test needs same-exact-head fail→pass evidence (#390): an attempt on this
 machine's test-stats store where it failed, followed by a passing suite on the
-same commit. A failure seen elsewhere (a CI run) can be registered with
+same commit. A subtest name (#466) needs its top-level test's evidence and the
+failed attempt's saved log showing a failing subtest the name covers; rebuild
+:0 before registering one (an older sdlc's registry refuses the name). A failure seen elsewhere (a CI run) can be registered with
 --evidence TEXT naming the runs. A newly filed issue keeps the text in its
 body; with --issue N it is printed for N's Log, since only an issue's owner
 publishes its details. Store evidence (attempt IDs) stays in test-stats.
@@ -232,7 +329,7 @@ failure blocks) until one issue drops it.`,
 		},
 	})
 	register.Flags().IntVar(&f.Issue, "issue", 0, "the flake issue to register on (default: file a new unclaimed one)")
-	register.Flags().StringArrayVar(&f.Tests, "test", nil, "an exact test name, <import path>.<TestName> (repeatable)")
+	register.Flags().StringArrayVar(&f.Tests, "test", nil, "an exact test or subtest name, <import path>.<TestName>[/<sub>…] (repeatable)")
 	register.Flags().StringVar(&f.Evidence, "evidence", "", "evidence from outside this machine's test-stats store (a CI run)")
 	list := &cobra.Command{
 		Use:   "list",
@@ -242,12 +339,85 @@ failure blocks) until one issue drops it.`,
 			return runFlakeList(cmd.Context(), cmd.OutOrStdout(), defaultFlakeDeps(issuesDir))
 		},
 	}
-	cmd.AddCommand(register, list)
+	var edit flakeEditFlags
+	unregister := markMutatingCommand(&cobra.Command{
+		Use:   "unregister --issue N --test NAME",
+		Short: "Remove one registered name from a flake issue's card",
+		Long: `Remove one name from issue N's flake_tests (#466): a compare-and-swap on the
+card's current list, so a registration racing this one is never overwritten.
+Only the card's owner may, or anyone while the issue is unclaimed (the rule
+for publishing its details). A name already absent writes nothing.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runFlakeEdit(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), edit, false, defaultFlakeDeps(issuesDir))
+		},
+	})
+	narrow := markMutatingCommand(&cobra.Command{
+		Use:   "narrow --issue N --test OLD --to OLD/sub…",
+		Short: "Replace a registered name with one of its subtests",
+		Long: `Replace OLD with TO on issue N's flake_tests (#466), where TO is one of OLD's
+own subtests: the registration then explains less, so it needs no new
+evidence. Use it to correct a registration that covers too much, such as a
+whole test registered for one flaky subtest. A compare-and-swap on the card's
+current list; the card's owner only, or anyone while the issue is unclaimed.
+Already narrowed writes nothing. Rebuild :0 before narrowing to a subtest
+(an older sdlc's registry refuses the name).`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runFlakeEdit(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), edit, true, defaultFlakeDeps(issuesDir))
+		},
+	})
+	for _, c := range []*cobra.Command{unregister, narrow} {
+		c.Flags().IntVar(&edit.Issue, "issue", 0, "the flake issue whose card to change (required)")
+		c.Flags().StringVar(&edit.Test, "test", "", "the registered name (required)")
+	}
+	narrow.Flags().StringVar(&edit.To, "to", "", "the subtest of --test to register instead (required)")
+	cmd.AddCommand(register, unregister, narrow, list)
 	return cmd
 }
 
-// flakeEvidence is the registration proof for each test, from the store.
-func flakeEvidence(attempts []SuiteAttempt, repo string, tests []string) (proof map[string][2]string, missing []string) {
+type flakeEditFlags struct {
+	Issue    int
+	Test, To string
+}
+
+// runFlakeEdit is unregister (narrow false) and narrow: validate the names,
+// then the owner-only compare-and-swap edit of the card.
+func runFlakeEdit(ctx context.Context, stdout, stderr io.Writer, f flakeEditFlags, narrow bool, d flakeDeps) error {
+	verb := "flake unregister"
+	if narrow {
+		verb = "flake narrow"
+	}
+	if f.Issue <= 0 {
+		return fmt.Errorf("%s: give --issue N", verb)
+	}
+	if err := flakes.ValidTest(f.Test); err != nil {
+		return fmt.Errorf("%s: --test: %w", verb, err)
+	}
+	if !narrow {
+		return wrapErr(verb, d.editTests(ctx, stdout, stderr, f.Issue, "flake_tests − "+f.Test,
+			func(id, status string, have []string) ([]string, error) { return removeFlakeTests(id, status, have, f.Test) }))
+	}
+	if err := flakes.ValidTest(f.To); err != nil {
+		return fmt.Errorf("%s: --to: %w", verb, err)
+	}
+	return wrapErr(verb, d.editTests(ctx, stdout, stderr, f.Issue, "flake_tests "+f.Test+" → "+f.To,
+		func(id, status string, have []string) ([]string, error) { return narrowFlakeTests(id, status, have, f.Test, f.To) }))
+}
+
+func wrapErr(verb string, err error) error {
+	if err != nil {
+		return fmt.Errorf("%s: %w", verb, err)
+	}
+	return nil
+}
+
+// flakeEvidence is the registration proof for each test, from the store. A
+// subtest (#466) needs its top-level test's same-head fail→pass and the
+// failed attempt's saved log showing a failing subtest the name covers:
+// records keep top-level failures, so the log is where the subtest is. A
+// missing or unreadable log is no evidence.
+func flakeEvidence(attempts []SuiteAttempt, repo string, tests []string, subtestsOf func(SuiteAttempt) ([]string, error)) (proof map[string][2]string, missing []string) {
 	var mine []SuiteAttempt
 	for _, a := range attempts {
 		if a.Repo == repo && isFlakeEvidence(a) {
@@ -257,13 +427,38 @@ func flakeEvidence(attempts []SuiteAttempt, repo string, tests []string) (proof 
 	all := flakeAttempts(mine)
 	proof = map[string][2]string{}
 	for _, t := range tests {
-		if f, p, ok := flakes.SameHeadFailPass(all, t); ok {
+		n, _ := flakes.ParseName(t)
+		f, p, ok := flakes.SameHeadFailPass(all, n.Top())
+		if ok && n.Sub != "" {
+			ok = subtestFailedIn(mine, f, t, subtestsOf)
+		}
+		if ok {
 			proof[t] = [2]string{f, p}
 		} else {
 			missing = append(missing, t)
 		}
 	}
 	return proof, missing
+}
+
+// subtestFailedIn reports whether attempt id's log shows a failing leaf
+// subtest that name covers.
+func subtestFailedIn(attempts []SuiteAttempt, id, name string, subtestsOf func(SuiteAttempt) ([]string, error)) bool {
+	i := slices.IndexFunc(attempts, func(a SuiteAttempt) bool { return a.ID == id })
+	if i < 0 || subtestsOf == nil {
+		return false
+	}
+	subs, err := subtestsOf(attempts[i])
+	if err != nil {
+		return false
+	}
+	n, _ := flakes.ParseName(name)
+	for _, leaf := range flakes.Leaves(n.Top(), subs) {
+		if flakes.Covers(name, leaf) {
+			return true
+		}
+	}
+	return false
 }
 
 func runFlakeRegister(ctx context.Context, stdout, stderr io.Writer, f flakeRegisterFlags, d flakeDeps) error {
@@ -289,7 +484,7 @@ func runFlakeRegister(ctx context.Context, stdout, stderr io.Writer, f flakeRegi
 	for _, w := range warnings {
 		cwarn(stderr, "test-stats: "+w)
 	}
-	proof, missing := flakeEvidence(attempts, repo, tests)
+	proof, missing := flakeEvidence(attempts, repo, tests, d.subtests)
 	if len(missing) > 0 && f.Evidence == "" {
 		return fmt.Errorf("flake register: no same-head fail→pass evidence in this machine's test-stats for %s.\n"+
 			"  A flake is registered only once the same commit failed on it and then passed (#390).\n"+
@@ -302,8 +497,14 @@ func runFlakeRegister(ctx context.Context, stdout, stderr io.Writer, f flakeRegi
 	id := fmt.Sprintf("%06d", f.Issue)
 	filed := f.Issue <= 0
 	for _, t := range tests {
-		if owner, ok := reg.Lookup(t); ok && owner != id {
-			return fmt.Errorf("flake register: %s is already registered on issue #%s; add evidence there", t, owner)
+		for _, e := range reg.Entries() {
+			switch {
+			case e.Issue == id:
+			case e.Test == t:
+				return fmt.Errorf("flake register: %s is already registered on issue #%s; add evidence there", t, e.Issue)
+			case flakes.Covers(e.Test, t) || flakes.Covers(t, e.Test):
+				return fmt.Errorf("flake register: %s overlaps %s, registered on issue #%s; one issue owns a test and its subtests: add evidence there", t, e.Test, e.Issue)
+			}
 		}
 	}
 	var lines []string
@@ -346,8 +547,8 @@ func mergeTests(have, add []string) []string {
 func shortTestNames(tests []string) string {
 	var names []string
 	for _, t := range tests {
-		_, fn, _ := flakes.SplitTest(t)
-		names = append(names, fn)
+		n, _ := flakes.ParseName(t)
+		names = append(names, n.Run())
 	}
 	return strings.Join(names, ", ")
 }

@@ -32,6 +32,8 @@ type flakeWorld struct {
 	// raceAdd is a registration another slot lands on a card between this
 	// verb's registry read and its write.
 	raceAdd map[string]string
+	// logSubtests are the failing subtests each attempt's saved log names.
+	logSubtests map[string][]string
 }
 
 func (w *flakeWorld) deps() flakeDeps {
@@ -41,6 +43,13 @@ func (w *flakeWorld) deps() flakeDeps {
 		attempts: func() ([]SuiteAttempt, []string, error) { return w.attempts, nil, nil },
 		repo:     func() (string, error) { return flakeRepo, nil },
 		logPath:  func(a SuiteAttempt) string { return "/store/failed/" + a.ID + ".log" },
+		subtests: func(a SuiteAttempt) ([]string, error) {
+			subs, ok := w.logSubtests[a.ID]
+			if !ok {
+				return nil, errors.New("no log kept")
+			}
+			return subs, nil
+		},
 		registry: func(context.Context) (flakes.Registry, []flakes.Card, error) {
 			if w.regErr != nil {
 				return flakes.Registry{}, nil, w.regErr
@@ -65,6 +74,18 @@ func (w *flakeWorld) deps() flakeDeps {
 				}
 				w.cards[i].Tests = tests
 				return nil
+			}
+			return errors.New("no such card")
+		},
+		editTests: func(_ context.Context, _, _ io.Writer, id int, _ string, edit func(id, status string, have []string) ([]string, error)) error {
+			for i := range w.cards {
+				if w.cards[i].ID == sixDigits(id) {
+					tests, err := edit(w.cards[i].ID, w.cards[i].Status, w.cards[i].Tests)
+					if err == nil {
+						w.cards[i].Tests = tests
+					}
+					return err
+				}
 			}
 			return errors.New("no such card")
 		},
@@ -248,5 +269,139 @@ func TestAddFlakeTestsMergesOntoTheCard(t *testing.T) {
 	closed := strings.Replace(card, "status: open", "status: done\nactual_hours: 1", 1)
 	if _, err := addFlakeTests(parse(closed), []string{flakeT2}); err == nil || !strings.Contains(err.Error(), "a closed issue registers nothing") {
 		t.Errorf("a closed card: %v", err)
+	}
+}
+
+const flakeSub = flakeT1 + "/plain/dev-aliases.test.sh"
+
+func TestRemoveAndNarrowFlakeTestsDecisions(t *testing.T) {
+	have := []string{flakeT1, flakeT2}
+	got, err := removeFlakeTests("000465", "working", have, flakeT1)
+	if err != nil || !slices.Equal(got, []string{flakeT2}) {
+		t.Fatalf("remove: %v %v", got, err)
+	}
+	if again, err := removeFlakeTests("000465", "working", got, flakeT1); err != nil || !slices.Equal(again, got) {
+		t.Fatalf("a repeated remove changed the list: %v %v", again, err)
+	}
+	got, err = narrowFlakeTests("000465", "working", have, flakeT1, flakeSub)
+	if err != nil || !slices.Equal(got, []string{flakeSub, flakeT2}) {
+		t.Fatalf("narrow: %v %v", got, err)
+	}
+	if again, err := narrowFlakeTests("000465", "working", got, flakeT1, flakeSub); err != nil || !slices.Equal(again, got) {
+		t.Fatalf("a repeated narrow changed the list: %v %v", again, err)
+	}
+	for name, c := range map[string]struct {
+		have         []string
+		old, to, why string
+	}{
+		"not a subtest":     {have, flakeT1, flakeT2, "not a subtest"},
+		"the same name":     {have, flakeT1, flakeT1, "not a subtest"},
+		"a widening":        {[]string{flakeSub}, flakeSub, flakeT1, "not a subtest"},
+		"nothing to narrow": {[]string{flakeT2}, flakeT1, flakeSub, "nothing to narrow"},
+	} {
+		if _, err := narrowFlakeTests("000465", "working", c.have, c.old, c.to); err == nil || !strings.Contains(err.Error(), c.why) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	if _, err := removeFlakeTests("000465", "done", have, flakeT1); err == nil {
+		t.Error("a closed card was edited")
+	}
+}
+
+// A subtest registers with its top-level test's same-head fail→pass plus the
+// failed attempt's log naming it; without that log line it does not.
+func TestFlakeRegisterASubtest(t *testing.T) {
+	w := &flakeWorld{
+		attempts:    []SuiteAttempt{attemptAt("f1", "abc", 1, 1, flakeT1), attemptAt("p1", "abc", 2, 0)},
+		cards:       []flakes.Card{{ID: "000465", Status: "working"}},
+		logSubtests: map[string][]string{"f1": {flakeT1 + "/plain", flakeSub}},
+	}
+	var out bytes.Buffer
+	if err := runFlakeRegister(context.Background(), &out, io.Discard, flakeRegisterFlags{Issue: 465, Tests: []string{flakeSub}}, w.deps()); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(w.cards[0].Tests, []string{flakeSub}) || !strings.Contains(out.String(), "failed in attempt f1") {
+		t.Fatalf("card %v out %s", w.cards[0].Tests, out.String())
+	}
+	sibling := flakeT1 + "/plain/other.test.sh"
+	if err := runFlakeRegister(context.Background(), io.Discard, io.Discard, flakeRegisterFlags{Issue: 465, Tests: []string{sibling}}, w.deps()); err == nil || !strings.Contains(err.Error(), "no same-head") {
+		t.Fatalf("a subtest the failed log does not name registered: %v", err)
+	}
+	w.logSubtests = nil
+	w.cards[0].Tests = nil
+	if err := runFlakeRegister(context.Background(), io.Discard, io.Discard, flakeRegisterFlags{Issue: 465, Tests: []string{flakeSub}}, w.deps()); err == nil {
+		t.Fatal("a subtest registered without its failed log")
+	}
+	// One issue owns a test and its subtests.
+	w.cards = []flakes.Card{{ID: "000465", Status: "working", Tests: []string{flakeT1}}, {ID: "000466", Status: "working"}}
+	w.logSubtests = map[string][]string{"f1": {flakeSub}}
+	if err := runFlakeRegister(context.Background(), io.Discard, io.Discard, flakeRegisterFlags{Issue: 466, Tests: []string{flakeSub}}, w.deps()); err == nil || !strings.Contains(err.Error(), "overlaps") {
+		t.Fatalf("an overlapping registration on another issue: %v", err)
+	}
+}
+
+func TestFlakeUnregisterAndNarrowVerbs(t *testing.T) {
+	w := &flakeWorld{cards: []flakes.Card{{ID: "000465", Status: "working", Tests: []string{flakeT1, flakeT2}}}}
+	ctx := context.Background()
+	if err := runFlakeEdit(ctx, io.Discard, io.Discard, flakeEditFlags{Issue: 465, Test: flakeT1, To: flakeSub}, true, w.deps()); err != nil {
+		t.Fatal(err)
+	}
+	if err := runFlakeEdit(ctx, io.Discard, io.Discard, flakeEditFlags{Issue: 465, Test: flakeT2}, false, w.deps()); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(w.cards[0].Tests, []string{flakeSub}) {
+		t.Fatalf("card %v", w.cards[0].Tests)
+	}
+	for name, f := range map[string]flakeEditFlags{
+		"no issue":   {Test: flakeT1},
+		"a bad name": {Issue: 465, Test: "TestX"},
+		"a bad --to": {Issue: 465, Test: flakeT1, To: "x; rm"},
+	} {
+		if err := runFlakeEdit(ctx, io.Discard, io.Discard, f, f.To != "", w.deps()); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+// The verbs on real tracker cards: owner-only (anyone while unclaimed), a
+// concurrent registration kept, and a repeat that writes nothing.
+func TestFlakeEditOnTrackerCards(t *testing.T) {
+	unclaimedPath, unclaimed, unclaimedDetailPath, unclaimedDetail := seededIssue(t, "000071", "broad")
+	foreignPath, foreign, foreignDetailPath, foreignDetail := seededIssue(t, "000072", "theirs")
+	unclaimed = strings.Replace(unclaimed, "status: open", "status: working\nflake_tests: ["+flakeT1+", "+flakeT2+"]", 1)
+	foreign = strings.Replace(foreign, "status: open", "status: working\nflake_tests: ["+flakeT2+"]\nclaimant:\n    operator: Someone Else\n    machine: 0000000000000000000000000000beef\n    machine_name: elsewhere\n    worktree: /elsewhere/repo\n    repository: github.com/other/repo", 1)
+	newTrackerRepo(t, map[string]string{unclaimedPath: unclaimed, foreignPath: foreign},
+		map[string]string{unclaimedDetailPath: unclaimedDetail, foreignDetailPath: foreignDetail})
+	ctx := withIssueRecordsScope(context.Background())
+	d := defaultFlakeDeps("workshop/issues")
+	if err := runFlakeEdit(ctx, io.Discard, io.Discard, flakeEditFlags{Issue: 71, Test: flakeT1, To: flakeSub}, true, d); err != nil {
+		t.Fatalf("narrow on an unclaimed card: %v", err)
+	}
+	if err := runFlakeEdit(ctx, io.Discard, io.Discard, flakeEditFlags{Issue: 71, Test: flakeT1, To: flakeSub}, true, d); err != nil {
+		t.Fatalf("a repeated narrow: %v", err)
+	}
+	invalidateIssueRecords(ctx)
+	reg, _, err := loadFlakeRegistry(ctx, "workshop/issues")
+	if err == nil {
+		t.Fatalf("flakeT2 on two issues should be ambiguous; registry %+v", reg.Entries())
+	}
+	if err := runFlakeEdit(ctx, io.Discard, io.Discard, flakeEditFlags{Issue: 72, Test: flakeT2}, false, d); err == nil || !strings.Contains(err.Error(), "only its owner unregisters or narrows") {
+		t.Fatalf("an edit of another workspace's card: %v", err)
+	}
+	if err := runFlakeEdit(ctx, io.Discard, io.Discard, flakeEditFlags{Issue: 71, Test: flakeT2}, false, d); err != nil {
+		t.Fatalf("unregister on an unclaimed card: %v", err)
+	}
+	invalidateIssueRecords(ctx)
+	if reg, _, err = loadFlakeRegistry(ctx, "workshop/issues"); err != nil {
+		t.Fatal(err)
+	}
+	if id, ok := reg.Lookup(flakeSub); !ok || id != "000071" {
+		t.Fatalf("narrowed name: %q %v", id, ok)
+	}
+	if _, ok := reg.Lookup(flakeT1); ok {
+		t.Fatal("the broad name survived narrowing")
+	}
+	if id, ok := reg.Lookup(flakeT2); !ok || id != "000072" {
+		t.Fatalf("the other card's test: %q %v", id, ok)
 	}
 }

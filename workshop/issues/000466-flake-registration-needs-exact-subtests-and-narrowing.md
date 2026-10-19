@@ -39,7 +39,7 @@ Support exact subtest names in the known-flake registry and same-head evidence/r
 
 Durable plan: `workshop/plans/000466-flake-subtests-plan.md` (names, leaf coverage, top-level rerun, unregister and narrow verbs, state table, Q1–Q3).
 
-- [ ] Names, log subtests, classification, gate, verbs, docs; targeted tests then the recorded suite.
+- [x] Names, log subtests, classification, gate, verbs, docs; targeted tests then the recorded suite.
 
 ## Log
 
@@ -49,3 +49,13 @@ Durable plan: `workshop/plans/000466-flake-subtests-plan.md` (names, leaf covera
 - Design: subtests come from the log as an unpersisted fact, so the test-stats record format is unchanged. Classification covers each failing leaf by a registered name (the leaf or an ancestor).
 - The rerun reruns the owning top-level tests and needs each known entry's exact PASS line.
 - Plan sent to the hub before code.
+- Built:
+  - names and coverage, with classification by leaf coverage (f8c457980);
+  - `flake unregister` and `flake narrow`, owner-only through a shared `requireOwnedToEdit` that details-publish also uses;
+  - subtest evidence from the failed attempt's saved log;
+  - overlap refusal across issues;
+  - recovery contracts, help, README and atlas.
+- Done-when test `TestKnownFlakeGateSubtest` uses a real nested Go package: the registered subtest's failure reruns `^(TestScripts)$` and lands; the sibling's failure is unknown, named, and blocks.
+- **Rollout, for the hub's landing report:** rebuild :0 before registering subtests. Two hazards come from an older sdlc:
+  - it refuses a subtest name in `flake_tests`, so its known-flake rule is off;
+  - it also refuses an attempt record whose `known_flakes` names a subtest.
