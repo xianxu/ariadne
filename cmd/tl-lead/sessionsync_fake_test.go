@@ -32,6 +32,7 @@ type fakeSessionSync struct {
 	// frontmatter scope (#426, pair#643) reads and replaces only front; its
 	// hash covers the block alone, so a section write never makes it stale.
 	front string
+	pre   string // the text between the frontmatter and the first section (#455)
 	order []string
 	// shadow is couch's diff baseline: what the agent last read or wrote,
 	// per section ("" key: the frontmatter). Diff reports what differs from
@@ -52,6 +53,7 @@ type fakeSessionSync struct {
 	// applies to the session file.
 	registered  map[string]bool
 	lockedFiles map[string]bool
+	file        string // the session file's path; Apply to any other edits it on disk, as couch does
 	seenFiles   []string
 	applies     int
 }
@@ -172,6 +174,7 @@ func (f *fakeSessionSync) text() string {
 	if f.front != "" {
 		b.WriteString("---\n" + f.front + "\n---\n")
 	}
+	b.WriteString(f.pre)
 	// Sections render byte for byte, so a frontmatter write leaves every
 	// section's hash alone, as in couch.
 	for _, h := range f.headings() {
@@ -233,11 +236,19 @@ func (f *fakeSessionSync) Peek(string) (string, error) { return f.text(), nil }
 // the file's hash moved, and all or none, every record resolved against the
 // file as it stands before anything is written (the occurrence-th plain
 // match of a non-empty old, no two records overlapping).
-func (f *fakeSessionSync) Apply(_, editsPath, hash string) error {
-	if f.holder == "operator" {
+func (f *fakeSessionSync) Apply(file, editsPath, hash string) error {
+	if f.holder == "operator" || f.lockedFiles[file] {
 		return ErrLocked
 	}
+	onDisk := f.file != "" && file != f.file
 	text := f.text()
+	if onDisk {
+		b, err := os.ReadFile(file)
+		if err != nil {
+			return err
+		}
+		text = string(b)
+	}
 	if hash != fakeHash(text) {
 		return ErrStale
 	}
@@ -245,45 +256,19 @@ func (f *fakeSessionSync) Apply(_, editsPath, hash string) error {
 	if err != nil {
 		return err
 	}
-	var recs []struct {
-		Old, New, Explain string
-		Occurrence        int
-	}
+	var recs []editRecord
 	if err := json.Unmarshal(raw, &recs); err != nil {
 		return fmt.Errorf("couch --session-sync apply refused (edits-invalid): %v", err)
 	}
-	type span struct {
-		at, end int
-		new     string
+	next, err := applyRecords(text, recs)
+	if err != nil {
+		return fmt.Errorf("couch --session-sync apply refused (edits-invalid): %v", err)
 	}
-	var spans []span
-	for i, r := range recs {
-		at, from := -1, 0
-		for n := 0; n < r.Occurrence && r.Old != ""; n++ {
-			j := strings.Index(text[from:], r.Old)
-			if j < 0 {
-				at = -1
-				break
-			}
-			at, from = from+j, from+j+len(r.Old)
-		}
-		if at < 0 || r.Occurrence < 1 {
-			return fmt.Errorf("couch --session-sync apply refused (edits-invalid): record %d does not resolve", i+1)
-		}
-		spans = append(spans, span{at, at + len(r.Old), r.New})
+	if onDisk {
+		f.applies++
+		return os.WriteFile(file, []byte(next), 0o644)
 	}
-	slices.SortFunc(spans, func(a, b span) int { return a.at - b.at })
-	var b strings.Builder
-	last := 0
-	for _, sp := range spans {
-		if sp.at < last {
-			return errors.New("couch --session-sync apply refused (edits-invalid): overlapping records")
-		}
-		b.WriteString(text[last:sp.at] + sp.new)
-		last = sp.end
-	}
-	b.WriteString(text[last:])
-	if err := f.load(b.String()); err != nil {
+	if err := f.load(next); err != nil {
 		return err
 	}
 	f.applies++
@@ -298,8 +283,9 @@ func (f *fakeSessionSync) load(text string) error {
 	}
 	f.front = strings.TrimSuffix(strings.TrimPrefix(front, "---\n"), "\n---")
 	rest = strings.TrimPrefix(rest, "\n")
-	f.sections, f.order = map[string]string{}, nil
-	for _, part := range strings.Split(rest, "\n## ")[1:] {
+	parts := strings.Split(rest, "\n## ")
+	f.pre, f.sections, f.order = parts[0], map[string]string{}, nil
+	for _, part := range parts[1:] {
 		h, body, _ := strings.Cut(part, "\n")
 		f.sections[h] = body
 		f.order = append(f.order, h)
