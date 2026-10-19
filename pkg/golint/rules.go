@@ -42,8 +42,8 @@ var Catalog = []Rule{
 	},
 	{
 		Name:     "tmp-literal",
-		Incident: "ariadne#342",
-		Message:  "a hardcoded /tmp path ignores TMPDIR, which the macOS sandbox requires; use os.TempDir, t.TempDir or os.MkdirTemp(\"\", …)",
+		Incident: "ariadne#342, ariadne#468",
+		Message:  "a hardcoded temp path (/tmp, /private/tmp, /var/folders, /Volumes/AgentScratch) ignores TMPDIR, which the macOS sandbox requires and which points suites at the TestScratch RAM disk; use os.TempDir, t.TempDir or os.MkdirTemp(\"\", …)",
 		Match:    tmpLiterals,
 	},
 	{
@@ -59,6 +59,13 @@ var Catalog = []Rule{
 		Message:  "a sub-second upper bound on elapsed wall-clock time fails under load; assert the event or outcome, or bound only a hang (1s or more)",
 		TestOnly: true,
 		Match:    tightWallclock,
+	},
+	{
+		Name:     "test-reads-workshop",
+		Incident: "ariadne#469",
+		Message:  "a test that reads the repository's workshop/plans or workshop/issues breaks when the issue lands and its files move to workshop/history; read the atlas or a fixture",
+		TestOnly: true,
+		Match:    workshopReads,
 	},
 	{
 		Name:     "test-fixed-sleep",
@@ -239,7 +246,7 @@ func tmpLiterals(f *ast.File, _ *CheckContext) []ast.Node {
 	var out []ast.Node
 	visit := func(call *ast.CallExpr) {
 		for _, arg := range call.Args {
-			if s, ok := stringLit(arg); ok && (s == "/tmp" || strings.HasPrefix(s, "/tmp/")) {
+			if s, ok := stringLit(arg); ok && isTempLiteral(s) {
 				out = append(out, arg)
 			}
 		}
@@ -250,6 +257,20 @@ func tmpLiterals(f *ast.File, _ *CheckContext) []ast.Node {
 	calls(f, "path/filepath", []string{"Join"}, visit)
 	calls(f, "io/ioutil", nil, visit)
 	return out
+}
+
+// tempRoots are the temp folders a path must reach through TMPDIR instead:
+// the classic one, its macOS real path, the system's per-user folder and the
+// agents' scratch volume (#468: all on the SSD).
+var tempRoots = []string{"/tmp", "/private/tmp", "/var/folders", "/private/var/folders", "/Volumes/AgentScratch"}
+
+func isTempLiteral(s string) bool {
+	for _, r := range tempRoots {
+		if s == r || strings.HasPrefix(s, r+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 func goBuilds(f *ast.File, _ *CheckContext) []ast.Node {
@@ -337,6 +358,32 @@ func tightWallclock(f *ast.File, _ *CheckContext) []ast.Node {
 			out = append(out, b)
 		}
 		return true
+	})
+	return out
+}
+
+// workshopRE is a relative path that climbs from a package straight into
+// the repository's live workshop artifacts ("../../workshop/plans/…"). A
+// fixture path inside a temp repo ("workshop/issues/…", "../dst/workshop/…")
+// does not climb straight there, so it is not matched.
+var workshopRE = regexp.MustCompile(`^(\.\./)+workshop/(plans|issues)(/|$)`)
+
+// workshopReads flags such a path passed to any call (a read, a Join, a
+// glob), whole or split into Join segments: "..", "workshop", "plans".
+func workshopReads(f *ast.File, _ *CheckContext) []ast.Node {
+	var out []ast.Node
+	calls(f, "", nil, func(call *ast.CallExpr) {
+		lits := make([]string, len(call.Args))
+		for i, arg := range call.Args {
+			lits[i], _ = stringLit(arg)
+		}
+		for i, s := range lits {
+			split := i > 0 && i+1 < len(lits) && s == "workshop" && (lits[i+1] == "plans" || lits[i+1] == "issues") &&
+				(lits[i-1] == ".." || strings.HasSuffix(lits[i-1], "/.."))
+			if workshopRE.MatchString(s) || split {
+				out = append(out, call.Args[i])
+			}
+		}
 	})
 	return out
 }

@@ -53,6 +53,9 @@
 # Ownership = location: a binary's source physically in a repo → that repo owns
 # it. Re-export symlinks and non-buildable dirs are skipped, so a derivative
 # that merely points at an ancestor's source never shadows the owner.
+# Numbered environments use that repository's verified fleet :0 checkout as
+# the shell-tool owner. Private substrate clones remain composition inputs;
+# they never override the central binaries that #405 leaves the TL to rebuild.
 #
 # Usage (in .zshrc):  source <(~/workspace/ariadne/construct/dev-aliases.sh)
 #
@@ -224,6 +227,28 @@ repo_identity() {
 	printf 'origin:github.com/%s\n' "$(printf '%s' "$path" | tr '[:upper:]' '[:lower:]')"
 }
 
+# A numbered environment's independent dependency clone has its own Git primary,
+# so Git's common directory alone cannot identify the operator's :0 checkout.
+# Normalize only this layout, and prove sameness with the existing origin policy.
+primary_owner() {
+	local repo="$1" env slot number primary identity
+	env="$(dirname "$repo")"; slot="$(basename "$env")"
+	case "$(basename "$(dirname "$env")")/$slot" in
+		worktree/*-slot*) ;;
+		*) printf '%s\n' "$repo"; return ;;
+	esac
+	number="${slot##*-slot}"
+	case "$number" in ''|0*|*[!0-9]*) warn "invalid slot primary owner: $repo"; return 2 ;; esac
+	primary="$(dirname "$(dirname "$env")")/$(basename "$repo")"
+	identity="$(repo_identity "$repo")"
+	if [ ! -d "$primary/construct" ] || [ -L "$primary" ] ||
+		[ "$identity" = "path:$repo" ] || [ "$identity" != "$(repo_identity "$primary")" ]; then
+		warn "primary owner absent or repository mismatch: $repo -> $primary; repair the :0 checkout, never use a slot sibling"
+		return 2
+	fi
+	printf '%s\n' "$primary"
+}
+
 # scan_repo emits "bin<TAB>repo<TAB>identity" for every owned binary in ONE repo: cmd dirs
 # that are real dirs (not re-export symlinks), buildable (>=1 .go), not .private.
 scan_repo() {
@@ -251,11 +276,15 @@ collect() {
 		find "$workspace" -mindepth 1 -maxdepth 1 -type d
 		substrate_repos
 	} | LC_ALL=C sort -u | while IFS= read -r repo; do
+		[ -d "$repo/construct" ] && [ -d "$repo/cmd" ] || continue
+		skip_repo "$(basename "$repo")" && continue
+		primary_owner "$repo" || exit 2
+	done | LC_ALL=C sort -u | while IFS= read -r repo; do
 		scan_repo "$repo"
 	done
 }
 
-candidates="$(collect)"
+candidates="$(collect)" || exit 2
 
 # Classify each binary once: checkout count, distinct identity count, owner paths.
 # Warnings and strict status consume the same classification (ARCH-DRY).

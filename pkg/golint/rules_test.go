@@ -1,6 +1,9 @@
 package golint
 
 import (
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -69,6 +72,11 @@ func TestRules(t *testing.T) {
 		{"tmp-literal", `os.MkdirAll("/tmp/work", 0o755)`, true, true},
 		{"tmp-literal", `f, _ := os.Create("/tmp/x.log")`, false, true},
 		{"tmp-literal", `os.MkdirTemp("", "x-*")`, false, false},
+		// widened to the other SSD temp roots (#468)
+		{"tmp-literal", `os.MkdirAll("/private/tmp/w", 0o755)`, false, true},
+		{"tmp-literal", `p := filepath.Join("/var/folders", "x")`, false, true},
+		{"tmp-literal", `os.Create("/Volumes/AgentScratch/tmp/x")`, false, true},
+		{"tmp-literal", `os.Create("/Volumes/AgentScratchy")`, false, false},
 		{"tmp-literal", `strings.HasPrefix(cwd, "/tmp/")`, false, false},
 		{"tmp-literal", `args := []string{"/tmp/probe"}`, true, false},
 		{"tmp-literal", `os.Getenv("/tmpdir")`, false, false},
@@ -93,6 +101,16 @@ func TestRules(t *testing.T) {
 		{"test-fixed-sleep", "time.Sleep(time.Hour)", true, false},
 		{"test-fixed-sleep", "time.Sleep(d)", true, false},
 		{"test-fixed-sleep", "time.Sleep(time.Second)", false, false},
+		// test-reads-workshop (#469): plans and issues move to history on landing.
+		{"test-reads-workshop", `os.ReadFile("../../../../workshop/plans/000449-landing-train-plan.md")`, true, true},
+		{"test-reads-workshop", `os.ReadFile(filepath.Join("..", "..", "../workshop/issues/000001-x.md"))`, true, true},
+		{"test-reads-workshop", `migrate(Opts{file: "../dst/workshop/issues/000005-y.md"})`, true, false},
+		{"test-reads-workshop", `procedureWrite(t, root, "workshop/issues/000001-x.md", body)`, true, false},
+		{"test-reads-workshop", `os.ReadFile("../../../../atlas/workflow/sdlc-binary.md")`, true, false},
+		{"test-reads-workshop", `os.ReadFile("../../workshop/history/plans/x.md")`, true, false},
+		{"test-reads-workshop", `os.ReadFile("../../workshop/plans/x.md")`, false, false},
+		{"test-reads-workshop", `os.ReadFile(filepath.Join("..", "..", "workshop", "plans", "x.md"))`, true, true},
+		{"test-reads-workshop", `os.ReadFile(filepath.Join(root, "workshop", "issues", "x.md"))`, true, false},
 	} {
 		var hit *Finding
 		got := findings(t, tc.body, tc.test)
@@ -183,6 +201,48 @@ func TestBatchRunnerFollowsExecImportAlias(t *testing.T) {
 		got, err := Check("alias_test.go", []byte(src), []Rule{ruleOf(t, "test-batch-shell-runner")})
 		if err != nil || len(got) != 1 {
 			t.Fatalf("%s: findings=%v, error=%v", call, got, err)
+		}
+	}
+}
+
+// The atlas's catalog paragraph names every rule (#469 close review): a rule
+// added without its atlas line fails here.
+func TestAtlasNamesEveryRule(t *testing.T) {
+	atlas, err := os.ReadFile("../../atlas/workflow/sdlc-binary.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range Catalog {
+		if !strings.Contains(string(atlas), "`"+r.Name+"`") {
+			t.Errorf("atlas/workflow/sdlc-binary.md's Go lint catalog does not name %s", r.Name)
+		}
+	}
+}
+
+// livePlanRE is a numbered plan named at its live path: it moves to
+// workshop/history/plans when its issue lands, so an atlas line naming it
+// there breaks then (#469 close review). Cite the issue, or the history path.
+var livePlanRE = regexp.MustCompile("workshop/plans/[0-9]{6}-")
+
+func TestAtlasCitesNoLivePlanPath(t *testing.T) {
+	files, err := filepath.Glob("../../atlas/*/*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	more, _ := filepath.Glob("../../atlas/*.md")
+	files = append(files, more...)
+	if len(files) < 10 {
+		t.Fatalf("found only %d atlas files; the glob is stale", len(files))
+	}
+	for _, f := range files {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, line := range strings.Split(string(data), "\n") {
+			if livePlanRE.MatchString(line) {
+				t.Errorf("%s:%d names a live plan path (it moves to workshop/history/plans on landing): %s", f, i+1, strings.TrimSpace(line))
+			}
 		}
 	}
 }

@@ -1,0 +1,169 @@
+---
+id: 000461
+status: done
+deps: []
+github_issue:
+created: 2026-10-19
+updated: 2026-10-19
+estimate_hours:
+collaboration-mode: collaboration
+card_mirror: '5d57a4c27dc6b966ce034cb3b5cfc9e09647fed7' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-19T02:31:03-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 0.46
+---
+
+# dev-aliases in Couch slots run a stale slot-sibling ariadne build, not the :0 binary (OWNER misdetected)
+
+## Problem
+
+In a Couch slot, the `sdlc` command (and its siblings) is a shell function from `construct/dev-aliases.sh` (ariadne#57), captured in the agent's shell snapshot. It shadows `/Users/xianxu/workspace/ariadne/bin` on PATH. Its OWNER detection resolves to the slot's sibling checkout (e.g. `~/workspace/worktree/pair-slot2/ariadne`) instead of the operator's `:0` checkout (`~/workspace/ariadne`) that the dev-aliases header says it should use. Because `COUCH_TREE` is set, the #405 rule skips the rebuild, so the slot runs a binary built whenever that sibling was last built, forever. Found by pair:2 on 2026-10-19: its `sdlc` was built Oct 18 18:19 from 3a0012b4, before #394, #452, #454 and #453, and refused #394's `flake_tests` card field. Every slot is likely affected, which explains the night's old-runner card refusals, and means slots have not been running the gates and rules the TL rebuilt into ariadne:0.
+
+## Spec
+
+Fix OWNER resolution in dev-aliases so that in a Couch slot (any worktree under `worktree/<repo>-slotN/`) the owner is the operator's `:0` ariadne checkout, which the TL keeps built; never a slot-sibling checkout. Keep the no-rebuild-in-Couch rule (#405) but make it apply to the right binary. Add a guard: `sdlc --version` or a startup line names the binary's path and revision, and a slot-side check warns loudly when the binary in use is not the `:0` build. A regression covers OWNER detection from a slot worktree layout, a primary checkout and a plain clone.
+
+## Done when
+
+- start-plan does not request a rerun merely because a slot-private dependency
+  moved; it refuses when refresh advances the running executable's own source
+  beyond its embedded revision, including partial-refresh failure.
+
+- Numbered slots select the verified fleet :0 binary. After landing and the TL rebuild, representative own-slot and pair-slot bare invocations report `/Users/xianxu/workspace/ariadne/bin/sdlc` with the rebuilt revision; captured old functions are regenerated/relaunched as needed.
+- The regression covers the three layouts; the version line shows path and revision.
+
+## Plan
+
+- [x] Normalize numbered-environment alias owners to verified fleet :0 peers;
+  retain primary/plain clone behavior, #405's skip rule and missing-bin exception.
+- [x] Add executable path/revision version output and a Couch wrong-owner warning.
+- [x] Make catch-up refuse only if the running binary's own source moved and
+  its embedded revision differs; a private sibling move alone permits planning.
+- [x] Run real-layout/sentinel and catch-up regressions red/green, focused Go and
+  script checks. Recorded-suite, full review and post-land rollout evidence is
+  tracked below as the workflow gates finish.
+
+## Log
+
+### 2026-10-19
+- 2026-10-19: closed — Test-only native fixture isolation: explicit inherited Couch context reproduces prior suite failure; shared child-process boundary clears COUCH_TREE, while dedicated Couch warning regression remains active; FleetEndToEnd/FleetE2E/FleetBinaryWarning targeted tests pass2.852s, diff check clean; fresh recorded suite queued on updated pushed head and must pass before landing; prior full review SHIP, runtime unchanged, post-land live check remains hub-approved. (fixed-then-ship); review verdict: SHIP
+- 2026-10-19: closed — Real-layout sentinels and no-fallback checks pass, existing aliases82/82 and N/2N one-scan checks pass, focused Go executable/catch-up tests and shell lint pass; README BR-1 fixed across both public surfaces with alias pickup instructions and atlas links; recorded suite attempt32754ac5da999c00b82235c040dd3382 running on unchanged implementation; post-land own/pair live rollout explicitly approved by hub, no staging.; review verdict: SHIP
+- 2026-10-19: flow upgraded quick → full — 120 added lines in code files (limit 100); an earlier round of this close already ran the full review
+
+## Revisions
+
+### 2026-10-19 — history and approved ownership model
+
+The hub approved central :0 shell aliases after reviewing #57/#405 and catch-up.
+Private substrate ownership is separate: weave still refreshes/composes private
+siblings. #405 explicitly says slots run whatever :0 last built; the alternative
+of rebuilding private siblings on invocation would revise that policy and add
+writes. Missing or mismatched expected primaries refuse rather than selecting
+stale siblings. Match origin using the existing conservative identity function
+(ARCH-DRY), with three-layout real-Git regressions and sentinel binaries proving
+which executable runs without building. Preserve --list's machine output and
+all unrelated duplicate-origin behavior.
+
+The hub added precise catch-up refusal to scope. Existing catchUpBeforeWork
+compares only before/after checkout HEADs, not executable identity, so its old
+built-before claim is unjustified for central aliases. Observe actual executable
+path and embedded VCS metadata once, reuse buildRevision, and compare against
+its source checkout after refresh. Keep refresh failures/freshness checks strict;
+only a successful refresh with no obsolete running source may proceed directly.
+The startup warning/version diagnostic is read-only; unknown metadata is named,
+never invented. Existing workspace identity supplies fleet location for warning.
+No new persisted format, cache, credential or service is introduced (ARCH-EVOLVE).
+
+Actions are invoke, regenerate aliases/relaunch, and TL rebuild :0. Correct
+primary + existing binary runs without build; absent/mismatched primary refuses
+and names repair; wrong running path warns with actual/expected paths; advanced
+own source with mismatched revision refuses and requests a fresh build/rerun.
+No lifetime lock is needed for read-only diagnostic observations; existing
+atomic binary rename owns build publication. Alias generation scans candidate
+repos once and dedupes canonical paths; invocation retains #405's constant skip
+in Couch, with no new filesystem-wide scan. Tests count canonical-owner scans
+at N/2N if that normalization introduces repeated traversal (ARCH-CONSTRAINTS).
+
+### Log evidence
+
+- Claim/start-plan completed through the explicitly requested :0 binary. #459
+  stays parked on its clean committed branch/PR319 awaiting operator verification.
+- Hub approved the plan before code (receipt e15f2eb0-3492-40d9-9a91-99981138410b).
+  History review confirms #405's explicit TL decision and catchup_test's unchanged
+  same-process rerun. Current own-slot --list resolves sdlc to this worktree,
+  reproducing the ownership mismatch without rebuilding anything.
+
+- Initial real-Git layout regression failed because slot aliases selected the
+  stale sentinel. After owner normalization, primary/slot/plain clones select
+  the expected sentinels without any Go build; absent/mismatched primaries
+  refuse with no emitted aliases. Existing dev-aliases tests pass 82/82.
+- Go targeted version/catch-up/start-plan regressions passed before a final
+  process-local metadata cache and outside-chain source test. Combined clear
+  implementation exceeds the 100-line quick-review shell, so close will use
+  the binary's automatic full-review upgrade rather than compressing the code.
+
+- Final targeted Go tests pass (52.117s broad StartPlan/catch-up/version run;
+  8.824s final narrow run including outside-chain source movement). Metadata is
+  observed once per process, with an injectable test seam and no persisted cache.
+- Shell scan-count regression with N=2 and 2N=4 candidate copies proves the
+  canonical owner's cmd tree is scanned once. New layout test passes alongside
+  all 82 existing dev-aliases assertions; shell lint passes.
+- Built only this slot's ignored bin/sdlc for a read-only --version smoke. It
+  reports its actual slot path and embedded revision/modified bit, and warns
+  with expected /Users/xianxu/workspace/ariadne/bin/sdlc. The live generator's
+  --list selects that primary for every Ariadne tool. Workflow verbs continue
+  using the explicitly requested :0 binary until landing.
+
+### 2026-10-19 — approved post-land live check and queued gates
+
+The hub granted fleet-blocking priority for four hours and ordered recorded
+suite plus full close, without staging. Rollout acceptance occurs immediately
+following landing: the hub rebuilds ariadne:0, then verifies this slot and one
+pair slot. This replaces the original unbounded all-live-slots verification
+criterion with the explicitly approved representative rollout, while retaining
+central :0 selection as the general invariant. Full suite/review/landing remain
+required; no test pass is inferred from queue admission.
+
+Alias pickup is a shell operation: weave refresh can update files but cannot
+rewrite functions already defined in its parent. The parent must source fresh
+generator output; an agent that reloads a captured shell snapshot needs that
+snapshot regenerated, normally by relaunch. A one-command source proves only
+that command if the next tool call reloads an old snapshot. This slot currently
+has no sdlc function: whence resolves ~/.local/bin/sdlc, a symlink directly to
+the primary binary, so the hub's rebuild suffices here. Inspect the affected
+pair slot's command type before deciding whether it needs relaunch.
+
+- Recorded suite submitted on the pushed implementation head; run attempt
+  32754ac5da999c00b82235c040dd3382, separate detached checkout. Close review
+  overlaps its queue/run under tl-worker's allowed protocol; passing evidence
+  on the final code must precede landing.
+
+- Full boundary round 1 returned FIX-THEN-SHIP with one Important README gap
+  (BR-1, user-facing-surface-documentation), and no correctness blocker. Verified
+  the missing README surface, then added --version usage, central-owner policy,
+  refusal/no-rebuild behavior, exact alias/snapshot pickup and atlas links.
+  The class sweep covers both new public surfaces; existing atlas entries were
+  already current. Extended the existing README lesson rather than adding a
+  duplicate rule. This is prose only, so the running recorded suite remains
+  valid for the unchanged implementation. Re-running close as its open-ledger
+  refusal explicitly requires.
+
+- Full review round 2 SHIP; BR-1 disposed, no remaining findings. Recorded suite
+  attempt 32754ac5da999c00b82235c040dd3382 completed all 12 shards and 71 other
+  packages (685.9s), with one failing test: TestFleetEndToEnd. Its native fixture
+  inherited live COUCH_TREE and received the new correct wrong-binary warning,
+  contradicting its non-Couch empty-stderr contract. This is deterministic
+  fixture isolation, not a flake; no flake registration or passing retry used.
+- Added explicit inherited COUCH_TREE to that regression; targeted run failed
+  with the same warning. The shared native fleet subprocess boundary now clears
+  COUCH_TREE for all its consumers; dedicated warning tests still explicitly
+  exercise Couch. Focused FleetEndToEnd/FleetE2E/FleetBinaryWarning tests pass
+  (2.852s). Production behavior is unchanged. Fresh recorded suite and narrow
+  post-close review required for this test-only fix before landing.

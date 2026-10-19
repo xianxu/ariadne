@@ -17,6 +17,8 @@ Detailed incidents remain in their owning issue or review artifact.
   the full input matrix in Done when and committed fixtures, then check the
   README for the new user-facing command. A motivating fixture alone can pass
   while adjacent identity forms remain undocumented or untested (#403).
+  Atlas coverage does not replace README usage: shell-owner changes also need
+  the exact alias pickup/relaunch step beside the diagnostic command (#461 BR-1).
 - A diagnostic flag that promises stable machine-readable output needs a
   byte-for-byte stdout comparison and exit-status check with the flag off and
   on. Capture stderr separately; discarding stdout proves only the message,
@@ -55,6 +57,11 @@ Detailed incidents remain in their owning issue or review artifact.
   for the old path and the docs for a sibling binary's name (#350 BR-1).
 
 ## Guards and proof
+
+- Native CLI fixtures that assert quiet output must explicitly isolate live
+  runtime context at their shared subprocess boundary. Set inherited Couch
+  context in the regression so CI outside Couch also detects a leak; keep
+  dedicated Couch diagnostic tests explicit (#461 suite failure).
 
 - When an approved revision changes acceptance, synchronize the current Done when
   clause and preserve the original wording in Revisions. Leaving contradictory
@@ -1030,9 +1037,35 @@ The simplest durable authority beats a clever scan of consequences.
   accurately in the atlas (#454 BR-1/BR-2). The test-hardcoded-arch-count catalog
   rule catches fixed numeric architecture-header Contains assertions.
 
+- A value handed to two goroutines (a closure, a cache, a flag) must be safe
+  for concurrent use. Fixing the one the review named left the next one racing
+  (#449 BR-1, then BR-10). When a design starts a goroutine beside another
+  loop, list everything both receive, check each one, and add a `-race` test
+  that drives both at once.
+- A file another process wrote is a claim. Give it one check function (here
+  `Readiness.For`) and route every reader through it, the display included. A
+  reader that skips the check shows forged state as real (#449 BR-3, then the
+  status reader). Read slow admission inputs outside the line's mutex, and cache
+  the slow-changing ones.
+- At a tolerant persisted-record boundary, validate known YAML node tags before
+  struct decoding: `yaml.Node.Decode` can coerce numbers and booleans into
+  strings. Traverse unknown JSON members with `UseNumber` so a valid future
+  value such as `1e400` stays opaque; known numeric fields still decode into
+  their declared types. Test both behaviors at the read boundary (#460 BR-1/BR-2).
 - **#453 — synchronize acceptance on scope transfer:** when the hub moves
   acceptance steps to a peer issue, update the current Done-when checklist in
   the same checkpoint and preserve the original criteria plus ownership in
   Revisions. A revision note alone leaves two contradictory close contracts.
   This is a semantic scope decision; the existing close freshness judge owns
   enforcement rather than a lexical Go lint rule.
+
+- **#458 — review the observable command and its design table:** a function
+  that invokes an injected Git callback is integration logic even when the
+  callback is passed as a value. Test the final CLI rows for default and verbose
+  behavior with real ancestry, and carry a reason when uncertain evidence keeps
+  a row visible. Document new flags in README as well as atlas.
+- **#458 BR-5/BR-6 — card ownership only:** issue Markdown, including dedicated
+  Log lines, cannot establish ownership of a Go test. Presentation syntax is too
+  ambiguous for a decision that hides a failure. Use only an exact fully
+  qualified name in the terminal card's `flake_tests`; legacy failures stay
+  visible until retention expires (ARCH-SECURE).

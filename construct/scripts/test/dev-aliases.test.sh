@@ -395,10 +395,12 @@ call COUCH_TREE=/some/slot; expect "" "in a Couch slot a stale binary is run, no
 rm -f "$OWN/bin/skipd"
 call COUCH_TREE=/some/slot; expect "make go " "in a Couch slot a missing binary still builds"
 # Deleting or adding a file changes no file's time but its directory's, and
-# the scan sees that.
-age_all; : > "$OWN/cmd/skipd/extra.go"; touch -t 200001010000 "$OWN/cmd/skipd/extra.go"
+# the scan sees that. The binary is aged to 2010 first: on a file system with
+# one-second times (HFS+, the TestScratch RAM disk, #468) a directory touched
+# in the second the binary was built is not newer than it.
+age_all; touch -t 201001010000 "$OWN/bin/skipd"; : > "$OWN/cmd/skipd/extra.go"; touch -t 200001010000 "$OWN/cmd/skipd/extra.go"
 call; expect "make go " "an added file makes it stale"
-age_all; rm -f "$OWN/cmd/skipd/extra.go"
+age_all; touch -t 201001010000 "$OWN/bin/skipd"; rm -f "$OWN/cmd/skipd/extra.go"
 call; expect "make go " "a deleted file makes it stale"
 # A find error (an unreadable directory) counts as stale, not fresh.
 age_all; mkdir -p "$OWN/locked"; chmod 000 "$OWN/locked"

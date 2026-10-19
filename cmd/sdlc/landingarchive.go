@@ -159,7 +159,7 @@ func resolveArchiveRoots(root, issuesDir, plansDir, historyDir string) (landingA
 	return landingArchiveRoots{dirs[0], dirs[1], dirs[2]}, nil
 }
 func validateArchivePR(repo string, pr landingPR) error {
-	if !landingRepoValid(repo) || repo != pr.Repo || pr.Number <= 0 || pr.State != "MERGED" || pr.BaseRef != "main" || !landingOIDValid(pr.HeadOID) || !landingOIDValid(pr.BaseOID) || !landingOIDValid(pr.MergeOID) {
+	if !landingRepoValid(repo) || repo != pr.Repo || pr.Number <= 0 || pr.State != "MERGED" || pr.BaseRef != "main" || !landingOIDValid(pr.HeadOID) || !landingOIDValid(pr.BaseOID) || !landingOIDValid(pr.LandedOID) {
 		return fmt.Errorf("archive requires exact merged PR identity and immutable commits")
 	}
 	return nil
@@ -631,7 +631,7 @@ func confirmLandingArchive(ctx context.Context, root, tip, repo string, pr landi
 	if !landingOIDValid(tip) {
 		return false, fmt.Errorf("archive proof requires a full main object ID")
 	}
-	if _, err := archiveReadContext(ctx, root, "merge-base", "--is-ancestor", pr.MergeOID, tip); err != nil {
+	if _, err := archiveReadContext(ctx, root, "merge-base", "--is-ancestor", pr.LandedOID, tip); err != nil {
 		return false, fmt.Errorf("PR integration is not confirmed on fresh main: %w", err)
 	}
 	out, err := archiveReadContext(ctx, root, "log", "--max-count=10001", "--format=%H%x00%(trailers:key=Landing-PR,valueonly)%x00%(trailers:key=Landing-Head,valueonly)%x00", tip, "--not", pr.BaseOID, "--")
