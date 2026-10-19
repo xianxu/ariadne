@@ -350,3 +350,53 @@ The fixture is a miniature of ops:
 - The live migration of ops is the TL's run, after landing (dispatch).
 
 ## Revisions
+
+### 2026-10-18 21:45 — plan-quality round 1 (PQ-1, PQ-2, minors)
+
+**PQ-1: the walk classifies before it moves.** Verified on ops: `qa/xian-xu/` also holds
+`2026-10-18-22-load-and-echo.md.lock`, a live operator lock, and `.claude/.cc-writes`, which belongs to the harness.
+
+The class is files that aren't content: Couch's session-sync sidecars, plus anything another tool keeps under a dot
+name. `planMigration` now classifies every entry first, with one pure `classifyEntry(rel)`:
+
+| Entry | Class | Effect |
+|---|---|---|
+| any path segment starting with `.` (`.claude/`, `.X.shadow`, `.X.sync`, `.X.ss-seen`, `.X.flock`) | foreign | not moved; listed as "left in place" |
+| `*.md.lock` | operator lock | **conflict**: the operator holds X; wait for the submit, then rerun |
+| `*.md.clobbered` | Couch's clobber evidence | **conflict**: resolve it by hand first |
+| `*.md` | answer doc or nested side doc | moved and rewritten |
+| any other regular file (`*.jsonl`, `assets/*`) | attachment | moved byte for byte |
+
+- Symlinks and other non-regular entries are conflicts, never followed.
+- The suffix list is the same set the ops `.gitignore` names for status files: one table in `migrate.go`, with a
+  test per row.
+- The lock check by suffix is in addition to the per-registration `Status` lock check, because an unregistered doc
+  can still be locked.
+- Decision 7 changes from "qa ends empty and is removed" to "`qa/<op>/` is removed only if it ends empty". Anything
+  left in place is listed, so on ops today `.claude/` stays and is named.
+- Task 4 gains a fixture row for each class.
+
+**PQ-2: `moved()` is a pure path map, and the planned bytes are pinned on resume.**
+
+- `moved(p)` is a pure function of the path. A path under `qa/<op>/` maps to `SideDir(session)/<rel>`, and every
+  other path maps to nothing. It uses `sidedoc.MoveMember`-style prefix mapping over the qa root, not the snapshot.
+  A link target counts as resolved if either its old or its new path exists.
+- So a rerun after every file has moved still rebuilds the session file's and the outside files' edits. Already
+  rewritten links map to themselves, since the target isn't under qa/ any more, and nothing dangles.
+- The planned bytes depend on: the old file's bytes, the two paths, the session title, and the `marker:` value.
+  On resume, when both copies exist, the marker is taken from the destination's own frontmatter, not recomputed.
+  That way a bullet deleted between runs (marker rule 2) can't turn our own half-finished copy into a false
+  "bytes differ" conflict. Resume equality is then exact on bytes.
+- Task 5's crash test also deletes a bullet between the interrupted run and the rerun.
+
+**Minors:**
+
+- **Tests:** Task 1 adds `FuzzRebaseLinks`, after the `FuzzReconcileIndex` precedent. Its seeds are fences, code
+  spans, CRLF and parentheses. It asserts that the text is unchanged when nothing moved, and that every rewritten
+  target resolves under the map. The prose case lists in Tasks 1-4 are read as the strategy, with the fuzz test and
+  the golden as the oracle.
+- **Reuse:** rebasing reuses the fence scan from `SideLinks` (links.go:28-45), extracted into one helper that both
+  call. Path mapping reuses `MoveMember`'s shape, generalised to a root prefix, rather than a second
+  implementation.
+- **Help:** help.md states the exception: migrated answers keep their own `process-instruction`, and new ones
+  carry none. `answerTarget` accepts the key, and a test covers it.
