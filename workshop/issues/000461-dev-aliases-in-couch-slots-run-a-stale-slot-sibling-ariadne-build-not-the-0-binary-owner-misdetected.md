@@ -35,7 +35,7 @@ Fix OWNER resolution in dev-aliases so that in a Couch slot (any worktree under 
   moved; it refuses when refresh advances the running executable's own source
   beyond its embedded revision, including partial-refresh failure.
 
-- In every slot, a bare `sdlc` runs `/Users/xianxu/workspace/ariadne/bin/sdlc` (verified across live slots after a weave refresh or a relaunch).
+- Numbered slots select the verified fleet :0 binary. After landing and the TL rebuild, representative own-slot and pair-slot bare invocations report `/Users/xianxu/workspace/ariadne/bin/sdlc` with the rebuilt revision; captured old functions are regenerated/relaunched as needed.
 - The regression covers the three layouts; the version line shows path and revision.
 
 ## Plan
@@ -45,8 +45,9 @@ Fix OWNER resolution in dev-aliases so that in a Couch slot (any worktree under 
 - [x] Add executable path/revision version output and a Couch wrong-owner warning.
 - [x] Make catch-up refuse only if the running binary's own source moved and
   its embedded revision differs; a private sibling move alone permits planning.
-- [ ] Run real-layout/sentinel and catch-up regressions red/green, focused Go and
-  script checks, recorded full suite, close review and hub-coordinated live checks.
+- [x] Run real-layout/sentinel and catch-up regressions red/green, focused Go and
+  script checks. Recorded-suite, full review and post-land rollout evidence is
+  tracked below as the workflow gates finish.
 
 ## Log
 
@@ -115,3 +116,27 @@ at N/2N if that normalization introduces repeated traversal (ARCH-CONSTRAINTS).
   with expected /Users/xianxu/workspace/ariadne/bin/sdlc. The live generator's
   --list selects that primary for every Ariadne tool. Workflow verbs continue
   using the explicitly requested :0 binary until landing.
+
+### 2026-10-19 — approved post-land live check and queued gates
+
+The hub granted fleet-blocking priority for four hours and ordered recorded
+suite plus full close, without staging. Rollout acceptance occurs immediately
+following landing: the hub rebuilds ariadne:0, then verifies this slot and one
+pair slot. This replaces the original unbounded all-live-slots verification
+criterion with the explicitly approved representative rollout, while retaining
+central :0 selection as the general invariant. Full suite/review/landing remain
+required; no test pass is inferred from queue admission.
+
+Alias pickup is a shell operation: weave refresh can update files but cannot
+rewrite functions already defined in its parent. The parent must source fresh
+generator output; an agent that reloads a captured shell snapshot needs that
+snapshot regenerated, normally by relaunch. A one-command source proves only
+that command if the next tool call reloads an old snapshot. This slot currently
+has no sdlc function: whence resolves ~/.local/bin/sdlc, a symlink directly to
+the primary binary, so the hub's rebuild suffices here. Inspect the affected
+pair slot's command type before deciding whether it needs relaunch.
+
+- Recorded suite submitted on the pushed implementation head; run attempt
+  32754ac5da999c00b82235c040dd3382, separate detached checkout. Close review
+  overlaps its queue/run under tl-worker's allowed protocol; passing evidence
+  on the final code must precede landing.

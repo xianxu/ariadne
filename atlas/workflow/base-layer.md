@@ -105,7 +105,11 @@ A missing primary or a different repository identity refuses alias generation;
 there is no private-binary fallback. Primary checkouts and plain clones retain
 their ordinary owners. Run `sdlc --version` to see the executable's path and
 embedded revision; a Couch invocation warns if its path is not the fleet `:0`
-binary. Regenerate shell aliases or relaunch sessions with captured old functions.
+binary. Refreshing checkout files alone cannot replace a calling shell's existing
+functions: that shell must evaluate fresh generator output. Agent tools that
+reload captured shell snapshots need a new snapshot/relaunch; sourcing in one
+tool call does not persist into a later call that reloads the old snapshot.
+A PATH symlink directly to the primary binary needs only the TL's rebuild.
 A built binary takes the time its build started, so a file edited mid-build reads
 as newer on the next call; a scan error counts as stale. When it builds, the emitted function builds into a per-call `mktemp -d bin/.X.XXXXXX` directory beside
 the target and renames the result over `bin/X` (#355); the exact form is the one
