@@ -53,6 +53,7 @@ Fix OWNER resolution in dev-aliases so that in a Couch slot (any worktree under 
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — Test-only native fixture isolation: explicit inherited Couch context reproduces prior suite failure; shared child-process boundary clears COUCH_TREE, while dedicated Couch warning regression remains active; FleetEndToEnd/FleetE2E/FleetBinaryWarning targeted tests pass2.852s, diff check clean; fresh recorded suite queued on updated pushed head and must pass before landing; prior full review SHIP, runtime unchanged, post-land live check remains hub-approved. (fixed-then-ship); review verdict: SHIP
 - 2026-10-19: closed — Real-layout sentinels and no-fallback checks pass, existing aliases82/82 and N/2N one-scan checks pass, focused Go executable/catch-up tests and shell lint pass; README BR-1 fixed across both public surfaces with alias pickup instructions and atlas links; recorded suite attempt32754ac5da999c00b82235c040dd3382 running on unchanged implementation; post-land own/pair live rollout explicitly approved by hub, no staging.; review verdict: SHIP
 - 2026-10-19: flow upgraded quick → full — 120 added lines in code files (limit 100); an earlier round of this close already ran the full review
 

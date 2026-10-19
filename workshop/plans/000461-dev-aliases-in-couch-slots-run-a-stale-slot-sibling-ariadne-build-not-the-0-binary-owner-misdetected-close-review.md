@@ -143,3 +143,68 @@ dispose:
 7. **Plan revision recommendations:** None. The plan explicitly retains full-suite and representative post-land rollout verification as subsequent workflow checks.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"a2d9c56c-9d23-4782-b42f-270ff4797278","repository":"github.com/xianxu/ariadne","issue_id":"000461","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/e4ad182dc1df9185","reviewed_head":"4e5ce0e1372f0fd2af9b53df30194c67e9c9e847","slot":"ariadne:3","requested_at":"2026-10-19T09:51:00.19015Z"},"phase":"finished","pid":93923,"started_at":"2026-10-19T09:51:00.53537Z","finished_at":"2026-10-19T09:53:16.481339Z","session_id":"01a15392-5534-7a82-ad78-ccc6f9e8c998","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-19T02:57:39-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 461 — dev-aliases in Couch slots run a stale slot-sibling ariadne build, not the :0 binary (OWNER misdetected) |
+| repo | ariadne |
+| issue file | workshop/issues/000461-dev-aliases-in-couch-slots-run-a-stale-slot-sibling-ariadne-build-not-the-0-binary-owner-misdetected.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 8ddb3f0dbcee3978834cd748a168d2bb2cac22ad..70a7180bbdfc215ef63e281a128256d8a19c38d1 |
+| command | sdlc close --issue 461 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-19T02:57:39-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff fixes fleet fixture isolation without changing production behavior or issue scope. BR-1 remains addressed. Focused tests pass, and removing the isolation reproduces the reported warning failure. No new defects found.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      README.md:370–380 documents central ownership, sdlc --version, refusal behavior, alias refresh/relaunch, and atlas links. The passage agrees with construct/dev-aliases.sh:233–249 and cmd/sdlc/binaryversion.go:40–67; this remains a prose-only correction.
+```
+
+1. **Strengths**
+
+   - `cmd/sdlc/fleet_e2e_test.go:24` explicitly seeds inherited Couch context, making the regression effective outside live Couch sessions.
+   - The shared subprocess boundary clears that context for every fleet fixture consumer (`fleet_e2e_test.go:340`).
+   - Dedicated warning coverage retains explicit Couch context (`binaryversion_test.go:56`).
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Focused FleetEndToEnd, FleetE2E, and FleetBinaryWarning tests passed in 2.677s.
+   - A temporary Go overlay removing only the environment isolation made TestFleetEndToEnd fail on the unexpected wrong-binary warning.
+   - The initial green attempt encountered fixture discovery interference because the harness placed temporary repositories inside this checkout. Using an external temporary directory resolved it.
+   - Pinned-range `git diff --check` passed; tracked checkout remained unchanged. Full suite not rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** Isolation resides in the shared subprocess helper.
+   - **ARCH-PURE — pass:** The change stays within the integration test boundary.
+   - **ARCH-PURPOSE — pass:** All consumers of that fixture boundary receive isolation; warning tests remain explicit.
+   - **ARCH-EVOLVE — pass:** No persisted-format contract changes.
+
+7. **Plan revision recommendations:** None. The appended Revisions evidence records the fixture correction and required verification; it does not change scope. No new user-facing or architectural surface requires README or atlas updates.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"7a76f725-0060-46ae-9052-c435f4c44f36","repository":"github.com/xianxu/ariadne","issue_id":"000461","recipe":"fix-review","round":3,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/e5dc5ce84d239423","reviewed_head":"70a7180bbdfc215ef63e281a128256d8a19c38d1","slot":"ariadne:3","requested_at":"2026-10-19T09:56:42.9901Z"},"phase":"finished","pid":67619,"started_at":"2026-10-19T09:56:43.078551Z","finished_at":"2026-10-19T09:57:39.470616Z","session_id":"01a15397-8cb3-7f33-8e53-4bc43d6a7d7d","outcome":"returned"}] -->
