@@ -400,3 +400,29 @@ name. `planMigration` now classifies every entry first, with one pure `classifyE
   implementation.
 - **Help:** help.md states the exception: migrated answers keep their own `process-instruction`, and new ones
   carry none. `answerTarget` accepts the key, and a test covers it.
+
+### 2026-10-19 — close review round 1 (BR-1 to BR-6), and deltas found in implementation
+
+**Implementation deltas:**
+
+- **`ReadAll` dropped.** Couch's whole-file hash is the first 8 bytes of the content's sha256, in hex. `Apply`
+  takes `fileHash` of a Peek; a `read --all` would mark the operator's unread session-file edits seen. Moved
+  registered docs move their baseline with the existing `MarkAllSeen`. Live conformance pins the formula.
+- **There is no separate pre-flight pass.** `--apply` builds the plan from a fresh snapshot immediately before
+  running it, and any conflict refuses at that point, before a write. The race left inside a single run (a lock taken
+  mid-run) is caught by each CAS (`Apply`, `replaceIfUnchanged`), and TestMigrateAnswersLockMidRun covers it.
+- **Outside files keep their mtimes** too (decision 4's reason applies to a rewritten side doc elsewhere).
+
+**Close-review fixes (all in this round):**
+
+- **BR-1 (resume state read at one path):** a move's `Registered` and lock are read at both its old and its new
+  path, because a stopped run may already have moved the registration. Locks are now fetched for registered files in
+  the side folder too. The crash test asserts that every moved registered doc was marked seen. A new test refuses a
+  rerun when the operator holds the doc at its destination.
+- **BR-2 (gitignore check):** `gitignoreGap` asks git (`check-ignore`) whether a file under qa/ is ignored and one
+  in the side folder isn't, and the plan prints a warning. Outside a git work tree it says nothing. It is tested
+  with a real repo.
+- **BR-3:** `rebaseIndex` resolves each `discussions:` entry against its own file, as links are.
+- **BR-4:** the fake's `MarkAllSeen` affects only its own file. Live conformance applies an occurrence-2 record.
+- **BR-5:** `--from` must name a folder inside the session file's directory.
+- **BR-6:** the migration's temporary files carry `.tl-lead-migrate-`, and `--apply` sweeps any left by a killed run.

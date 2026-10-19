@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -51,6 +52,9 @@ func readMigration(d deps, file, qa string) (migSnapshot, string, error) {
 		qa = "qa/" + strings.Trim(f["operator"], `"`)
 	}
 	s.QA = filepath.ToSlash(filepath.Clean(qa))
+	if filepath.IsAbs(qa) || s.QA == "." || s.QA == ".." || strings.HasPrefix(s.QA, "../") {
+		return s, "", fmt.Errorf("refused: --from %s must be a folder inside %s's directory", qa, s.Session)
+	}
 	qaDir := filepath.Join(root, filepath.FromSlash(s.QA))
 	if fi, err := os.Stat(qaDir); err != nil || !fi.IsDir() {
 		return s, "", fmt.Errorf("refused: %s is not a directory beside %s", s.QA, s.Session)
@@ -137,7 +141,11 @@ func readMigration(d deps, file, qa string) (migSnapshot, string, error) {
 		}
 		s.Registered[rel] = true
 		_, outside := s.Outside[rel]
-		if rel == s.Session || strings.HasPrefix(rel, s.QA+"/") || (outside && strings.Contains(string(s.Outside[rel]), s.QA)) {
+		// Locks matter wherever the run writes: the session file, qa's
+		// files, their destinations (a stopped run's), and outside files
+		// that name qa.
+		if rel == s.Session || strings.HasPrefix(rel, s.QA+"/") || strings.HasPrefix(rel, sidedoc.SideDir(s.Session)+"/") ||
+			(outside && strings.Contains(string(s.Outside[rel]), s.QA)) {
 			st, err := d.ss.Status(filepath.Join(root, filepath.FromSlash(rel)))
 			if err != nil {
 				return s, "", err
@@ -145,7 +153,34 @@ func readMigration(d deps, file, qa string) (migSnapshot, string, error) {
 			s.Locked[rel] = st.Holder == "operator"
 		}
 	}
+	s.Warnings = gitignoreGap(root, s.QA, sidedoc.SideDir(s.Session))
 	return s, root, nil
+}
+
+// gitignoreGap warns when git ignores qa's files but would track the side
+// folder's (the Spec: "Gitignore follows wherever qa/ was ignored"). Outside
+// a git work tree, or when git can't answer, it says nothing: there is
+// nothing to follow.
+func gitignoreGap(root, qa, side string) []string {
+	ignored := func(rel string) (bool, bool) {
+		err := exec.Command("git", "-C", root, "check-ignore", "-q", "--", rel).Run()
+		var exit *exec.ExitError
+		switch {
+		case err == nil:
+			return true, true
+		case errors.As(err, &exit) && exit.ExitCode() == 1:
+			return false, true
+		}
+		return false, false
+	}
+	q, ok := ignored(qa + "/probe.md")
+	if !ok || !q {
+		return nil
+	}
+	if sd, ok := ignored(side + "/probe.md"); ok && !sd {
+		return []string{fmt.Sprintf("git ignores %s/ but would track %s/: add %s/ to .gitignore before --apply, or the answers become tracked files", qa, side, side)}
+	}
+	return nil
 }
 
 // underRoot is abs as a slash path relative to root, through either spelling
@@ -170,6 +205,7 @@ func underRoot(abs, root, realRoot string) (string, bool) {
 // boundary; a test returns errInterrupted from it.
 func runMigration(d deps, s migSnapshot, root string, p migrationPlan, step func() error) error {
 	abs := func(rel string) string { return filepath.Join(root, filepath.FromSlash(rel)) }
+	sweepTemps(root)
 	for _, m := range p.Moves {
 		if !m.Resume {
 			if err := createExclusive(abs(m.New), m.Bytes); err != nil {
@@ -228,6 +264,25 @@ func runMigration(d deps, s migSnapshot, root string, p migrationPlan, step func
 	return nil
 }
 
+// tempPrefix names the migration's own temporary files, so a run that died
+// mid-write leaves files the next run knows are its own.
+const tempPrefix = ".tl-lead-migrate-"
+
+// sweepTemps removes the temporary files a killed run left under root.
+func sweepTemps(root string) {
+	_ = filepath.WalkDir(root, func(p string, e fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
+			return nil
+		case e.IsDir() && p != root && strings.HasPrefix(e.Name(), "."):
+			return filepath.SkipDir
+		case e.Type().IsRegular() && strings.HasPrefix(e.Name(), tempPrefix):
+			_ = os.Remove(p)
+		}
+		return nil
+	})
+}
+
 // applyEdits sends records through couch's apply, naming the hash the plan
 // read.
 func applyEdits(d deps, file string, recs []editRecord, hash string) error {
@@ -251,7 +306,7 @@ func createExclusive(p string, b []byte) error {
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(p), ".tl-lead-migrate-*")
+	tmp, err := os.CreateTemp(filepath.Dir(p), tempPrefix+"*")
 	if err != nil {
 		return err
 	}
@@ -279,7 +334,7 @@ func replaceIfUnchanged(p string, before, after []byte) error {
 	if string(cur) != string(before) {
 		return errors.New("it changed since the plan read it; rerun to rebuild its edits")
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(p), ".tl-lead-migrate-*")
+	tmp, err := os.CreateTemp(filepath.Dir(p), tempPrefix+"*")
 	if err != nil {
 		return err
 	}
@@ -349,6 +404,9 @@ func renderPlan(w io.Writer, file string, p migrationPlan, s migSnapshot, applie
 	}
 	for _, c := range p.Conflicts {
 		fmt.Fprintf(w, "conflict %s: %s\n", c.Path, c.Why)
+	}
+	for _, wn := range p.Warnings {
+		fmt.Fprintf(w, "warning  %s\n", wn)
 	}
 	fmt.Fprintf(w, "session  %s: %d link and index edit(s), one apply\n", s.Session, len(p.Session))
 	for _, f := range sortedKeys(p.Outside) {

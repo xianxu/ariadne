@@ -65,7 +65,7 @@ func RebaseLinks(text, from, to string, moved func(string) (string, bool), exist
 		if !isMoved && from == to {
 			return target
 		}
-		rel := relPath(path.Dir(to), next)
+		rel := RelPath(path.Dir(to), next)
 		if strings.HasSuffix(p, "/") {
 			rel += "/"
 		}
@@ -205,9 +205,9 @@ func codeSpans(line string) [][2]int {
 	return out
 }
 
-// relPath is the slash path from directory dir to target, both relative to
+// RelPath is the slash path from directory dir to target, both relative to
 // the same root.
-func relPath(dir, target string) string {
+func RelPath(dir, target string) string {
 	split := func(p string) []string {
 		if p == "." || p == "" {
 			return nil

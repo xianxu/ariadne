@@ -6,11 +6,14 @@ import (
 	"io/fs"
 	"maps"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/pkg/sidedoc"
 )
 
 var updateGolden = flag.Bool("update", false, "rewrite testdata/migrate/after from the migration's output")
@@ -213,6 +216,14 @@ func TestMigrateAnswersResumesFromEveryStep(t *testing.T) {
 		if got, _ := f.Registrations(); len(got) != 4 || slices.ContainsFunc(got, func(p string) bool { return strings.Contains(p, "/qa/") }) {
 			t.Errorf("stop %d: registrations %v", k, got)
 		}
+		// Every moved registered doc's baseline moved too, whichever run
+		// renamed it (BR-1): otherwise couch shows the migration's own
+		// edits to the TL as the operator's.
+		for _, p := range []string{"tl-status-op.side/2026-10-17-01-s4.md", "tl-status-op.side/2026-10-17-02-ci.side/01-why.md"} {
+			if !slices.Contains(f.seenFiles, filepath.Join(root, p)) {
+				t.Errorf("stop %d: %s never marked seen (seen: %v)", k, p, f.seenFiles)
+			}
+		}
 		if t.Failed() {
 			t.Fatalf("stop %d diverged", k)
 		}
@@ -355,6 +366,89 @@ func TestMigrateAnswersLockMidRun(t *testing.T) {
 	f.lockedFiles = nil
 	if err := migrateAnswers(deps{ss: f}, &strings.Builder{}, file, "", true, noStep); err != nil {
 		t.Fatalf("rerun: %v", err)
+	}
+	golden(t, tree(t, root, f))
+}
+
+// A stopped run already moved a doc's registration, and the operator now
+// holds the doc at its new path: the rerun refuses rather than write past
+// the lock (BR-1).
+func TestMigrateAnswersLockAtDestination(t *testing.T) {
+	root, file, f := migrateFixture(t)
+	n := 0
+	stop := func() error {
+		if n++; n == 4 { // s4: created, then renamed
+			return errInterrupted
+		}
+		return nil
+	}
+	if err := migrateAnswers(deps{ss: f}, &strings.Builder{}, file, "", true, stop); !errors.Is(err, errInterrupted) {
+		t.Fatalf("stop: %v", err)
+	}
+	moved := filepath.Join(root, "tl-status-op.side/2026-10-17-01-s4.md")
+	if !f.registered[moved] {
+		t.Fatalf("the stop came before the rename: %v", f.registered)
+	}
+	f.lockedFiles = map[string]bool{moved: true}
+	var out strings.Builder
+	if err := migrateAnswers(deps{ss: f}, &out, file, "", true, noStep); exitCode(err) != 1 || !strings.Contains(out.String(), "conflict qa/op/2026-10-17-01-s4.md: the operator holds this doc's lock") {
+		t.Fatalf("exit %d:\n%s", exitCode(err), out.String())
+	}
+}
+
+// Entries are relative to the file that holds them, like its links: an
+// outside file's ../../qa/... entry is rebased from its own folder.
+func TestRebaseIndexIsFileRelative(t *testing.T) {
+	moved := func(p string) (string, bool) { return sidedoc.MoveUnder(p, "qa/op", "s.side") }
+	in := "---\ndiscussions:\n  - doc: ../../qa/op/a.md\n  - doc: design.side/01-x.md\n---\nbody\n"
+	want := "---\ndiscussions:\n  - doc: ../../s.side/a.md\n  - doc: design.side/01-x.md\n---\nbody\n"
+	if got := rebaseIndex(in, "projects/p/design.md", moved); got != want {
+		t.Errorf("got\n%s", got)
+	}
+	if got := rebaseIndex("---\ndiscussions:\n  - doc: qa/op/a.md\n---\n", "s.md", moved); !strings.Contains(got, "- doc: s.side/a.md") {
+		t.Errorf("the session file's entry: %s", got)
+	}
+}
+
+// --from stays inside the session file's directory.
+func TestMigrateAnswersFromStaysInside(t *testing.T) {
+	_, file, f := migrateFixture(t)
+	for _, from := range []string{"../elsewhere", "/tmp/qa", "..", "."} {
+		if err := migrateAnswers(deps{ss: f}, &strings.Builder{}, file, from, false, noStep); err == nil || !strings.Contains(err.Error(), "must be a folder inside") {
+			t.Errorf("--from %s: %v", from, err)
+		}
+	}
+}
+
+// Where git ignores qa/ but would track the side folder, the plan warns; once
+// both are ignored it doesn't.
+func TestMigrateAnswersGitignoreFollows(t *testing.T) {
+	root, file, f := migrateFixture(t)
+	if out, err := exec.Command("git", "-C", root, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v %s", err, out)
+	}
+	writeFile(t, filepath.Join(root, ".gitignore"), "qa/\n")
+	var out strings.Builder
+	if err := migrateAnswers(deps{ss: f}, &out, file, "", false, noStep); err != nil || !strings.Contains(out.String(), "warning  git ignores qa/op/ but would track tl-status-op.side/") {
+		t.Fatalf("err %v:\n%s", err, out.String())
+	}
+	writeFile(t, filepath.Join(root, ".gitignore"), "qa/\ntl-status-*.side/\n")
+	out.Reset()
+	if err := migrateAnswers(deps{ss: f}, &out, file, "", false, noStep); err != nil || strings.Contains(out.String(), "warning") {
+		t.Errorf("both ignored, still warns:\n%s", out.String())
+	}
+}
+
+// A run killed mid-write leaves its temporary file; the next run removes it.
+func TestMigrateAnswersSweepsItsTemps(t *testing.T) {
+	root, file, f := migrateFixture(t)
+	stale := filepath.Join(root, "tl-status-op.side", tempPrefix+"123")
+	writeFile(t, stale, "half")
+	if err := migrateAnswers(deps{ss: f}, &strings.Builder{}, file, "", true, noStep); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Errorf("the stale temp survived: %v", err)
 	}
 	golden(t, tree(t, root, f))
 }

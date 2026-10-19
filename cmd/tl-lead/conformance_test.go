@@ -178,7 +178,7 @@ func TestSessionSyncRegistryConformance(t *testing.T) {
 	ss := couchSessionSync{bin: bin}
 	dir := t.TempDir()
 	a, b := filepath.Join(dir, "a.md"), filepath.Join(dir, "b.md")
-	if err := os.WriteFile(a, []byte("---\ntype: session-sync\ncouch-owner: tl-lead-conformance:0\n---\n\n## A\n\nsee [x](qa/x.md)\n"), 0o644); err != nil {
+	if err := os.WriteFile(a, []byte("---\ntype: session-sync\ncouch-owner: tl-lead-conformance:0\n---\n\n## A\n\nsee [x](qa/x.md)\nand [y](qa/x.md)\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ss.run("register", a, "--owner", "tl-lead-conformance:0", "--json"); err != nil {
@@ -206,7 +206,9 @@ func TestSessionSyncRegistryConformance(t *testing.T) {
 		}
 		return p
 	}
-	good := `[{"old":"](qa/x.md)","occurrence":1,"new":"](s.side/x.md)","explain":"conformance"}]`
+	// occurrence 2 counts from the end of the first match, as applyRecords
+	// does; the migration's records can name any occurrence.
+	good := `[{"old":"](qa/x.md)","occurrence":2,"new":"](s.side/y.md)","explain":"conformance"},{"old":"](qa/x.md)","occurrence":1,"new":"](s.side/x.md)","explain":"conformance"}]`
 	bad := `[{"old":"](qa/x.md)","occurrence":1,"new":"](s.side/x.md)","explain":"ok"},{"old":"absent text","occurrence":1,"new":"y","explain":"bad"}]`
 	if err := ss.Apply(a, edits(bad), fileHash(text)); err == nil {
 		t.Error("an apply with an unresolvable record succeeded")
@@ -220,7 +222,7 @@ func TestSessionSyncRegistryConformance(t *testing.T) {
 	if err := ss.Apply(a, edits(good), fileHash(text)); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
-	if after, _ := ss.Peek(a); !strings.Contains(after, "](s.side/x.md)") {
+	if after, _ := ss.Peek(a); !strings.Contains(after, "see [x](s.side/x.md)\nand [y](s.side/y.md)") {
 		t.Errorf("apply did not land:\n%s", after)
 	}
 

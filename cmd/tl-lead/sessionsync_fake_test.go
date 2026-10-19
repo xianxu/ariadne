@@ -151,6 +151,9 @@ func (f *fakeSessionSync) seeAll() {
 
 func (f *fakeSessionSync) MarkAllSeen(file string) error {
 	f.seenFiles = append(f.seenFiles, file)
+	if f.file != "" && file != f.file {
+		return nil // another file's baseline; this fake holds the session file's
+	}
 	f.seenAll = true
 	f.seeAll()
 	return nil

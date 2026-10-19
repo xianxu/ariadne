@@ -71,6 +71,9 @@ type migSnapshot struct {
 	Registered  map[string]bool // couch-registered files, by root path
 	Locked      map[string]bool // registered files the operator holds, by root path
 	Exists      func(rel string) bool
+	// Warnings are facts the shell found that the TL should act on, such as
+	// a side folder git would track where qa/ was ignored.
+	Warnings []string
 }
 
 // fileMove is one file's move.
@@ -96,6 +99,7 @@ type migrationPlan struct {
 	Outside   map[string][]byte // rebased outside files, by root path
 	// OutsideEdits are the apply records for outside files couch tracks.
 	OutsideEdits map[string][]editRecord
+	Warnings     []string
 	Mentions     []migNote // bare references to qa/ left as written
 	Dangling     []migNote // link targets that resolve to nothing, left as written
 }
@@ -110,7 +114,7 @@ var (
 // planMigration plans the move of s.QA's entries into the side folder.
 func planMigration(s migSnapshot) migrationPlan {
 	side := sidedoc.SideDir(s.Session)
-	p := migrationPlan{Side: side, Outside: map[string][]byte{}, OutsideEdits: map[string][]editRecord{}}
+	p := migrationPlan{Side: side, Outside: map[string][]byte{}, OutsideEdits: map[string][]editRecord{}, Warnings: s.Warnings}
 	moved := func(rel string) (string, bool) { return sidedoc.MoveUnder(rel, s.QA, side) }
 	exists := func(rel string) bool {
 		if s.Exists != nil && s.Exists(rel) {
@@ -147,8 +151,10 @@ func planMigration(s migSnapshot) migrationPlan {
 			continue
 		}
 		next, _ := moved(old)
-		m := fileMove{Old: old, New: next, Bytes: e.Bytes, Mtime: e.Mtime, Registered: s.Registered[old]}
-		if s.Locked[old] {
+		// A stopped run may have moved the registration already: the state
+		// lives at either path, so both are read (BR-1).
+		m := fileMove{Old: old, New: next, Bytes: e.Bytes, Mtime: e.Mtime, Registered: s.Registered[old] || s.Registered[next]}
+		if s.Locked[old] || s.Locked[next] {
 			p.Conflicts = append(p.Conflicts, migConflict{old, "the operator holds this doc's lock; wait for their submit, then rerun"})
 			continue
 		}
@@ -188,7 +194,7 @@ func planMigration(s migSnapshot) migrationPlan {
 
 	// The session file: its links and its discussions: index, in one apply.
 	after, dangling := sidedoc.RebaseLinks(s.SessionText, s.Session, s.Session, moved, exists)
-	after = rebaseIndex(after, moved)
+	after = rebaseIndex(after, s.Session, moved)
 	note(&p.Dangling, s.Session, dangling)
 	recs, err := lineRecords(s.SessionText, after, migrationExplain)
 	if err != nil {
@@ -201,7 +207,7 @@ func planMigration(s migSnapshot) migrationPlan {
 	for _, f := range sortedKeys(s.Outside) {
 		before := string(s.Outside[f])
 		after, dangling := sidedoc.RebaseLinks(before, f, f, moved, exists)
-		after = rebaseIndex(after, moved)
+		after = rebaseIndex(after, f, moved)
 		if after != before {
 			p.Outside[f] = []byte(after)
 			note(&p.Dangling, f, dangling)
@@ -345,9 +351,10 @@ func escapeLinkText(s string) string {
 	return strings.NewReplacer("[", `\[`, "]", `\]`).Replace(s)
 }
 
-// rebaseIndex maps the discussions: entries of a document's frontmatter that
-// name moved files (`  - doc: qa/op/x.md`).
-func rebaseIndex(text string, moved func(string) (string, bool)) string {
+// rebaseIndex maps the discussions: entries of file's frontmatter that name
+// moved files (`  - doc: qa/op/x.md`). Entries are relative to file, like
+// its links.
+func rebaseIndex(text, file string, moved func(string) (string, bool)) string {
 	block, rest, ok := sidedoc.FrontBlock(text)
 	if !ok {
 		return text
@@ -358,8 +365,9 @@ func rebaseIndex(text string, moved func(string) (string, bool)) string {
 		if !ok {
 			continue
 		}
-		if to, ok := moved(path.Clean(strings.TrimSpace(v))); ok {
-			lines[i] = l[:strings.Index(l, "- doc:")] + "- doc: " + to
+		at := path.Join(path.Dir(file), strings.TrimSpace(v))
+		if to, ok := moved(at); ok {
+			lines[i] = l[:strings.Index(l, "- doc:")] + "- doc: " + sidedoc.RelPath(path.Dir(file), to)
 		}
 	}
 	return strings.Join(lines, "\n") + rest
