@@ -58,6 +58,7 @@ An empty round is a valid, explicit reply: the agent (xx-fix / the review skill)
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed — Observed baseline skipped empty apply; updated fresh agent sends records [] without committing, commits nonempty returned Body for a real edit, and does not retry or commit older-Pair empty success. Contract guards red then green; full reviewexport/processmanual pass. BR-1 current Done when now matches approved producer scope; original protocol/live criteria retained in Revisions under pair#690. Final-code recorded suite remains queued and must pass before landing.; review verdict: SHIP
 
 - Hub approved the plan and moved protocol-target wording plus the real no-edits
   pane check to pair#690 (pair:2). Sent that owner the hand-off for its Log. This

@@ -94,6 +94,100 @@ rounds:
       recipe: small-diff-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: c4a04428-20c5-4e03-b49e-f5b479439589
+            repository: github.com/xianxu/ariadne
+            issue_id: "000453"
+            recipe: small-diff-review
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/0cc4c96fe1e20a8c
+            reviewed_head: 868852344f5d24328800ef235a6a8d1d06810574
+            slot: ariadne:3
+            requested_at: "2026-10-19T05:30:18.331829Z"
+          phase: finished
+          pid: 49723
+          started_at: "2026-10-19T05:30:18.557913Z"
+          finished_at: "2026-10-19T05:31:08.817131Z"
+          session_id: 01a152a3-a619-7f71-b990-86f3d238f31f
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 868852344f5d24328800ef235a6a8d1d06810574
+        tracker_head: 813add3d918a4635b9317e2010e24a9c49e89049
+        branch_point: 02ea6a769bccbd09a3a81fb8754241dec35cb17f
+        since: "2026-10-18T22:24:44-07:00"
+        until: "2026-10-18T22:29:51-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T22:24:44-07:00"
+              end: "2026-10-18T22:29:51-07:00"
+              began: "2026-10-18T22:24:44-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 26e9f4b9a1e3de5df551a8ea81edf47317f0b1cfaf3d77196ddefc283fc0d50b
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 27541575
+              windows:
+                - start: "2026-10-18T22:24:44-07:00"
+                  end: "2026-10-18T22:29:51-07:00"
+            - harness: codex
+              id: 01a1529f-43af-7893-9f46-abb3a00fa284
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a14367-9218-7872-89c3-f9a28c524834
+              digest: b5f0f7963d868ba134de92e0317b2e045b9550b0429b6be3b601584577d5e554
+              started: "2026-10-19T05:25:31.922Z"
+              spawned: true
+              bytes: 207097
+              windows:
+                - start: "2026-10-19T05:25:31.922Z"
+                  end: "2026-10-18T22:29:51-07:00"
+            - harness: codex
+              id: 01a152a0-5578-73b1-bf06-5a8f2217f135
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a14367-9218-7872-89c3-f9a28c524834
+              digest: c471ab5ec1ea3ee27b9547c9d65e0d914cdd01c542bdb944e0bae00eb161cfc4
+              started: "2026-10-19T05:26:41.935Z"
+              spawned: true
+              bytes: 209676
+              windows:
+                - start: "2026-10-19T05:26:41.935Z"
+                  end: "2026-10-18T22:29:51-07:00"
+        cuts:
+            - dispatched: "2026-10-18T22:28:28-07:00"
+              finalized: "2026-10-18T22:29:23-07:00"
+              finalizing: false
+      "n": 2
+      timestamp: "2026-10-18T22:31:09-07:00"
+      dispatched: "2026-10-18T22:30:18-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: The issue's Done when at lines 34–41 now requires empty submission, no empty commits, and changed-reply behavior. Revisions preserves both original peer acceptance criteria and assigns them to pair#690. This prose-only correction agrees with the producer contract in construct/local/fix/SKILL.md:211–255.
+          round: 2
+      recipe: small-diff-review
+      isolation: fenced
+      reviewed: 868852344f5d24328800ef235a6a8d1d06810574
+      blocked: false
 ---
 
 # Gate ledger — ariadne#453 (boundary-review)
@@ -108,6 +202,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-1** [Important] `acceptance-scope-synchronization` Synchronize Done when with the revised producer-only boundary
   workshop/issues/000453-review-protocol-an-empty-round-no-edits-is-an-explicit-reply-so-the-pane-can-clear-its-spinner.md:35–36 still requires the protocol-target change and live pane verification. These are the two instances of stale acceptance criteria in this window: Revisions at lines 83–89 transfers both to pair#690 and permits landing before them. Update the current checklist to require empty producer submission, no empty agent commit, and changed-reply commit behavior; retain the original cross-repository criteria and ownership transfer in Revisions.
 
+## Round 2 — 2026-10-18T22:31:09-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — The issue's Done when at lines 34–41 now requires empty submission, no empty commits, and changed-reply behavior. Revisions preserves both original peer acceptance criteria and assigns them to pair#690. This prose-only correction agrees with the producer contract in construct/local/fix/SKILL.md:211–255.
+
 ## Open findings
 
-- **BR-1** [Important] `acceptance-scope-synchronization` Synchronize Done when with the revised producer-only boundary
+(none — every finding has been disposed)
