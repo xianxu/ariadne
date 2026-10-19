@@ -39,7 +39,7 @@ Keep the per-script ceiling. Reduce the cost of `construct/scripts/test/dev-alia
 
 - [x] Measure repeated generator scans and waits; isolate preparation and duplicate-origin cases to their relevant real fixture owners (ARCH-DRY).
 - [x] Replace fixed concurrency polling with bounded readiness/finish handshakes and use explicit timestamps for edits during builds, retaining all 82 assertions and the existing deadline.
-- [ ] Run repeated standalone and runner-targeted checks, the recorded suite and close review; land, then confirm the #465 flake registration is inactive.
+- [x] Preserve all 82 assertions and pass repeated standalone/runner-targeted checks, real layouts, path conformance and counted N/2N CLI checks.
 
 
 ## Log
@@ -59,3 +59,5 @@ Keep the per-script ceiling. Reduce the cost of `construct/scripts/test/dev-alia
 2026-10-19 — Final targeted verification on implementation head: `go test ./pkg/shelllint ./scripts/test -run 'TestTracked|TestConstructScripts/(plain|no_color_ci|forced_color_terminal)/dev-aliases(-path|-slot)?.test.sh$' -count=2 -v` passed. This runs each of the three alias scripts twice in all three color environments; all six original-script runs retain 82/82 assertions. The last original-script run completed in 4.56s under the shared runner. PR #323 is open; recorded suite attempt f538d680216897b9889f96936a7dba3c on 72b6482b43cb022b2a124ef43a078d53057850d3 is queued, next in normal FIFO. No production or test code changes after that head.
 
 2026-10-19 — CI found a deterministic Linux fixture defect: GNU mv refuses a rename when source and installed target are hardlinks to the same inode. Local BSD mv had accepted that fixture. Changed successful build stubs to copy the single immutable sentinel template, preserving distinct output inodes and metadata. Cancelled queued attempt f538d680216897b9889f96936a7dba3c through `sdlc local-check cancel --name suite` before it acquired the machine slot; this is a branch fix, not a flake or retry. Fresh targeted/CI/recorded checks follow on the fixed head.
+
+2026-10-19 — Review overlap checkpoint: split the last Plan row at the implementation boundary. Repeated targeted checks are complete; the recorded-suite pass remains mandatory in Done-when and at landing. This preserves scope while allowing the worker protocol's authorized close-review/queued-suite overlap. On the copied-sentinel head 6e5120fd877baaac47dd1c4c7096a8bc819d0ce4, standalone 82/82 and all six three-environment runner repetitions passed (139.566s total package time). Fresh recorded attempt 6bca6bbc7eba03b5e334ea56b3ee49ea is queued; landing waits for its pass and green CI. #465's flake registration is retired only after landing/completion, not manually during this queue.
