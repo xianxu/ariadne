@@ -221,4 +221,3 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 	_, err = io.WriteString(out, b.String())
 	return err
 }
-
