@@ -1,6 +1,6 @@
 ---
 id: 000461
-status: working
+status: codecomplete
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.42
+tracker:
+    version: 1
+    completion:
+        token: close-907e739de399
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 4e5ce0e1372f0fd2af9b53df30194c67e9c9e847
+        evidence_commit: fe5c6cc2b14f8045cc8c1c0565fb4fdf42d10e13
 ---
 
 # dev-aliases in Couch slots run a stale slot-sibling ariadne build, not the :0 binary (OWNER misdetected)
