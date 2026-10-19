@@ -67,7 +67,8 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 - **Rerun:** the rerun is the owning top-level tests (`RerunTests`), with each entry's exact PASS line required.
 - **Ambiguity:** overlapping names on two issues are ambiguous.
 - **Verbs:** `flake narrow` and `flake unregister` are owner-only compare-and-swap edits, under the details-publish rule (`requireOwnedToEdit`).
-- **Rollout:** an sdlc built before #466 refuses a subtest name in `flake_tests`, so its known-flake rule is off. Rebuild :0 before registering one. |
+- **Rollout:** an sdlc built before #466 refuses a subtest name in `flake_tests`, so its known-flake rule is off. It also refuses an attempt record whose `known_flakes` names one, so its success guard fails closed. Rebuild :0 before registering one.
+- **One coverage rule:** the success guard (`Unexplained`) and `flake list` decide coverage through the same `flakes.Explained`. Attempts carry the subtests read from their saved logs (`withLogSubtests`); an unreadable log fails closed. |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
 | `issue new`       | (new; xx-issues skill prose)| File on origin: the next ID's card on `issue-tracker` and the details on main, writing no checkout; a numbered slot claims what it files unless `--no-claim` (#252, #308; `--from-github N` seeds from GitHub; `--details FILE\|-` gives the body as `## <Section>` blocks, parsed by `issue.ParseDetails` before any ID is reserved, #371) |
 | `issue move-detail` | (new #252; hidden #308)   | Deprecated alias of `issue publish --issue N`: finishes a pre-#308 creation by publishing its local details to main; net-zero removal on the source |

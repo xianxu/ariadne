@@ -213,14 +213,14 @@ type flakeDeps struct {
 	now      func() time.Time
 	attempts func() ([]SuiteAttempt, []string, error) // this clone's test-stats store
 	logPath  func(SuiteAttempt) string                // where an attempt's log is kept
-	subtests func(SuiteAttempt) ([]string, error)    // the failing subtests its saved log names (#466)
+	subtests func(SuiteAttempt) ([]string, error)     // the failing subtests its saved log names (#466)
 	repo     func() (string, error)
 	registry func(ctx context.Context) (flakes.Registry, []flakes.Card, error)
 	addTests func(ctx context.Context, stdout, stderr io.Writer, id int, add []string) error // merges onto the card's current tests
 	// editTests applies an owner-only edit (unregister, narrow) to the card's
 	// current tests, compare-and-swap; a repeat writes nothing.
 	editTests func(ctx context.Context, stdout, stderr io.Writer, id int, what string, edit func(id, status string, have []string) ([]string, error)) error
-	newIssue func(ctx context.Context, stdout, stderr io.Writer, title, body string) (int, error)
+	newIssue  func(ctx context.Context, stdout, stderr io.Writer, title, body string) (int, error)
 }
 
 func defaultFlakeDeps(issuesDir string) flakeDeps {
@@ -246,15 +246,7 @@ func defaultFlakeDeps(issuesDir string) flakeDeps {
 			if err != nil {
 				return nil, err
 			}
-			p := suiteAttemptLogFile(store, a)
-			if p == "" {
-				return nil, fmt.Errorf("attempt %s kept no log", a.ID)
-			}
-			data, err := os.ReadFile(p)
-			if err != nil {
-				return nil, err
-			}
-			return parseSuiteLogFacts(string(data)).Subtests, nil
+			return storeSubtests(store)(a)
 		},
 		repo: detectRepo,
 		registry: func(ctx context.Context) (flakes.Registry, []flakes.Card, error) {
@@ -266,7 +258,9 @@ func defaultFlakeDeps(issuesDir string) flakeDeps {
 		},
 		editTests: func(ctx context.Context, stdout, stderr io.Writer, id int, what string, edit func(id, status string, have []string) ([]string, error)) error {
 			return runCardUpdate(ctx, stdout, stderr, issuesDir, id, what, false,
-				func(env *trackerEnv, card tracker.Record, _ string) ([]byte, error) { return editFlakeTests(env, card, edit) })
+				func(env *trackerEnv, card tracker.Record, _ string) ([]byte, error) {
+					return editFlakeTests(env, card, edit)
+				})
 		},
 		newIssue: func(ctx context.Context, stdout, stderr io.Writer, title, body string) (int, error) {
 			return fileFlakeIssue(ctx, stdout, stderr, issuesDir, title, body)
@@ -301,7 +295,8 @@ PKG.TestX/plain/dev-aliases.test.sh. It explains only failures of itself and
 its own subtests, never a sibling's; its rerun is its whole top-level test.
 Rebuild :0 (and refresh the slots) before registering a subtest name: an
 older sdlc reads one as malformed, and its known-flake rule is then off
-(every failure blocks).`,
+(every failure blocks). It also refuses a test-stats attempt whose
+known_flakes names a subtest, so its success guard fails closed.`,
 		SilenceUsage: true,
 	}
 	f := flakeRegisterFlags{}
@@ -401,13 +396,17 @@ func runFlakeEdit(ctx context.Context, stdout, stderr io.Writer, f flakeEditFlag
 	}
 	if !narrow {
 		return wrapErr(verb, d.editTests(ctx, stdout, stderr, f.Issue, "flake_tests − "+f.Test,
-			func(id, status string, have []string) ([]string, error) { return removeFlakeTests(id, status, have, f.Test) }))
+			func(id, status string, have []string) ([]string, error) {
+				return removeFlakeTests(id, status, have, f.Test)
+			}))
 	}
 	if err := flakes.ValidTest(f.To); err != nil {
 		return fmt.Errorf("%s: --to: %w", verb, err)
 	}
 	return wrapErr(verb, d.editTests(ctx, stdout, stderr, f.Issue, "flake_tests "+f.Test+" → "+f.To,
-		func(id, status string, have []string) ([]string, error) { return narrowFlakeTests(id, status, have, f.Test, f.To) }))
+		func(id, status string, have []string) ([]string, error) {
+			return narrowFlakeTests(id, status, have, f.Test, f.To)
+		}))
 }
 
 func wrapErr(verb string, err error) error {
@@ -595,7 +594,7 @@ func runFlakeList(ctx context.Context, out io.Writer, d flakeDeps) error {
 			logs[a.ID] = a
 		}
 	}
-	order := flakes.Sort(flakeAttempts(mine))
+	order := flakes.Sort(withLogSubtests(flakeAttempts(mine), mine, d.subtests))
 	var unregistered, unexplained []string
 	seenSHA := map[string]bool{}
 	confirmed := map[string]bool{} // listed once, as a flake to file, not also as unexplained
@@ -607,7 +606,8 @@ func runFlakeList(ctx context.Context, out io.Writer, d flakeDeps) error {
 	for _, a := range order {
 		if confirmed[a.ID] {
 			for _, t := range a.Failures {
-				if _, known := reg.Lookup(t); !known {
+				// Covered the gate's way: the test, or each failing subtest of it.
+				if !flakes.Explained([]string{t}, a.Subtests, reg) {
 					unregistered = append(unregistered, fmt.Sprintf("  %s  attempt %s on %s, %s, log %s", t, a.ID, abbrevSHA(a.SHA), a.FinishedAt.Format(time.RFC3339), d.logPath(logs[a.ID])))
 				}
 			}

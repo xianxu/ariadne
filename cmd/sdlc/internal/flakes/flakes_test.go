@@ -329,3 +329,32 @@ func TestClassifySubtests(t *testing.T) {
 		t.Fatal("a test and its subtest on two issues registered")
 	}
 }
+
+// BR-1 (#466 close review): the success guard's Unexplained judges coverage
+// the gate's way. A failure whose failing leaf is a registered subtest is
+// explained; a sibling is not; without the log's subtests, a registered
+// subtest never covers its top-level test (fail closed).
+func TestUnexplainedUsesLeafCoverage(t *testing.T) {
+	const top = "github.com/x/r/scripts/test.TestConstructScripts"
+	const dev, sib = top + "/plain/dev.sh", top + "/plain/sib.sh"
+	r, _ := BuildRegistry([]Card{{ID: "000465", Status: "working", Tests: []string{dev}}}, open)
+	at := func(id string, subs ...string) Attempt {
+		return Attempt{ID: id, SHA: "abc", Failures: []string{top}, Subtests: subs, Kind: Unknown}
+	}
+	for name, c := range map[string]struct {
+		a    Attempt
+		want int
+	}{
+		"registered subtest":   {at("a", top+"/plain", dev), 0},
+		"a sibling":            {at("b", top+"/plain", sib), 1},
+		"no log subtests":      {at("c"), 1},
+		"registered + sibling": {at("d", dev, sib), 1},
+	} {
+		if got := Unexplained([]Attempt{c.a}, "abc", r); len(got) != c.want {
+			t.Errorf("%s: %d unexplained, want %d", name, len(got), c.want)
+		}
+	}
+	if !Explained([]string{top}, []string{dev}, r) || Explained(nil, nil, r) {
+		t.Error("Explained")
+	}
+}

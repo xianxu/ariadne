@@ -13,6 +13,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
@@ -414,5 +415,61 @@ func TestFlakeEditOnTrackerCards(t *testing.T) {
 	}
 	if _, ok := reg.Lookup(flakeSub); ok {
 		t.Fatal("the last name survived")
+	}
+}
+
+// BR-3 (#466 close review), on real tracker cards: a registration another
+// writer lands while narrow decides is never overwritten (the compare-and-
+// swap refuses, and the rerun keeps it), and a repeated edit writes nothing.
+func TestFlakeEditKeepsAConcurrentRegistration(t *testing.T) {
+	path, card, detailPath, detail := seededIssue(t, "000081", "race")
+	card = strings.Replace(card, "status: open", "status: working\nflake_tests: ["+flakeT1+"]", 1)
+	r := newTrackerRepo(t, map[string]string{path: card}, map[string]string{detailPath: detail})
+	ctx := withIssueRecordsScope(context.Background())
+	d := defaultFlakeDeps("workshop/issues")
+	raced := false
+	racing := d
+	racing.editTests = func(ctx context.Context, stdout, stderr io.Writer, id int, what string, edit func(id, status string, have []string) ([]string, error)) error {
+		return runCardUpdate(ctx, stdout, stderr, "workshop/issues", id, what, false,
+			func(env *trackerEnv, card tracker.Record, _ string) ([]byte, error) {
+				if !raced {
+					raced = true // another slot registers between this read and the write
+					if err := d.addTests(ctx, io.Discard, io.Discard, 81, []string{flakeT2}); err != nil {
+						t.Fatal(err)
+					}
+				}
+				return editFlakeTests(env, card, edit)
+			})
+	}
+	narrow := flakeEditFlags{Issue: 81, Test: flakeT1, To: flakeSub}
+	if err := runFlakeEdit(ctx, io.Discard, io.Discard, narrow, true, racing); err == nil || !strings.Contains(err.Error(), "changed concurrently") {
+		t.Fatalf("the edit overwrote a concurrent registration or failed otherwise: %v", err)
+	}
+	if err := runFlakeEdit(ctx, io.Discard, io.Discard, narrow, true, racing); err != nil {
+		t.Fatalf("the rerun: %v", err)
+	}
+	invalidateIssueRecords(ctx)
+	reg, _, err := loadFlakeRegistry(ctx, "workshop/issues")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := reg.Lookup(flakeT2); !ok {
+		t.Fatal("the concurrent registration was lost")
+	}
+	if _, ok := reg.Lookup(flakeSub); !ok {
+		t.Fatal("the narrow did not land on rerun")
+	}
+	tip := func() string {
+		return strings.Fields(testfix.Capture(t, r.root, "ls-remote", "origin", "refs/heads/issue-tracker"))[0]
+	}
+	before := tip()
+	if err := runFlakeEdit(ctx, io.Discard, io.Discard, narrow, true, d); err != nil {
+		t.Fatalf("a repeated narrow: %v", err)
+	}
+	if err := runFlakeEdit(ctx, io.Discard, io.Discard, flakeEditFlags{Issue: 81, Test: flakeT1}, false, d); err != nil {
+		t.Fatalf("unregister of a name already gone: %v", err)
+	}
+	if after := tip(); after != before {
+		t.Fatalf("a repeated edit wrote the tracker: %s → %s", before, after)
 	}
 }

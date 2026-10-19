@@ -568,7 +568,9 @@ A name may be an exact subtest (#466), such as `PKG.TestX/plain/dev-aliases.test
   - Both are for the card's owner, or anyone while the issue is unclaimed.
 - **Rollout:** rebuild :0, and refresh the slots, before registering a subtest
   name. An older sdlc reads one as malformed and turns the known-flake rule off:
-  every failure blocks.
+  every failure blocks. It also refuses a test-stats attempt whose
+  `known_flakes` names a subtest, so its success guard and test-stats fail
+  closed until it is rebuilt.
 
 `sdlc flake list` is the TL's local daily view: the registry with each
 issue's owner and age, same-head flakes not yet registered, and failures nothing

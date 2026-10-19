@@ -106,3 +106,13 @@ N/A for latency. The rerun is the existing one, at most `MaxRerun` top-level tes
 - Q1, ownership: unregister and narrow by the card owner, or anyone while unclaimed (the details-publish rule). Register stays any-slot.
 - Q2, rerun scope: rerun the whole top-level test.
 - Q3, rollout: the hub rebuilds ariadne:0 right after landing and tells the slots before anyone registers a subtest name. The hazard must be visible: the close notes and the landing report say "rebuild :0 before registering subtests". The `flake register` help states it too.
+
+### 2026-10-19 — close review (BR-1..3)
+
+- **Persisted formats, corrected (BR-2).** The test-stats `failures` field is unchanged, but an attempt's `known_flakes` can now hold a registered subtest name. Republish revalidates against the exact registered name, so it has to.
+  - An older sdlc refuses such a record (its decoder validates every `known_flakes` test name), and its success guard and test-stats then fail closed. This is the same rollout as the card names: rebuild :0 before registering a subtest.
+  - The README, the `flake` help and the atlas say so.
+- **One coverage rule (BR-1).** The success guard (`flakes.Unexplained`), `flake list` and the gate all decide coverage through `flakes.Explained` / `explain`: every failing leaf covered by the leaf itself or an ancestor.
+  - Attempts carry `Subtests`, read from each failed attempt's saved log (`withLogSubtests`, `storeSubtests`).
+  - An unreadable log adds none, so only a registered whole test covers the failure (fail closed).
+- **Concurrency proof (BR-3).** `TestFlakeEditKeepsAConcurrentRegistration` runs on real tracker cards. A registration landed mid-edit makes the compare-and-swap refuse, and the rerun keeps it. A repeated edit leaves the tracker tip unchanged.

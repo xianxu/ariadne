@@ -162,7 +162,7 @@ func guardSuitePass(ctx context.Context, d localRunDeps, sha string) error {
 	if d.FlakeRegistry != nil {
 		reg, regErr = d.FlakeRegistry(ctx)
 	}
-	u := flakes.Unexplained(flakeAttempts(ev), sha, reg)
+	u := flakes.Unexplained(withLogSubtests(flakeAttempts(ev), ev, storeSubtests(suiteStoreRoot(logDir))), sha, reg)
 	if len(u) == 0 {
 		return nil
 	}
