@@ -116,3 +116,7 @@ Files: atlas/workflow/sdlc-binary.md and atlas/workflow/workspace-branching.md i
 ## Approval checkpoint
 
 No implementation or regression edits have started. Await TL approval of the design, including the two rollout decisions above; then run sdlc change-code on the full flow. Add timestamped Revisions for subsequent design deltas, and stop/re-plan at a third delta on the same mechanism.
+
+## Revisions
+
+2026-10-18 — TL approved design (Couch receipt 3b55ef84-675d-4f81-834d-80f67f178da1). Resolve both rollout questions: a missing, old or unreadable provider always emits a visible priority-unavailable warning and falls back to normal FIFO, including known-issue suites; priority must never prevent a suite running. Old sticky waiters drain naturally, never killed or unlocked. Priority lasts only while a grant is valid. The expiry-while-waiting regression must prove an expired priority ticket returns to its original normal FIFO position and the older normal waiter proceeds. No perpetual priority bit is retained.
