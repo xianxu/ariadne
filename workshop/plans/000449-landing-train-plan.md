@@ -50,7 +50,7 @@
 
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
-| `trainReadiness` sidecar `tickets/<seq>.ready` | `cmd/sdlc/internal/landingline/line.go` | new | file under `line.lock` |
+| `trainReadiness` sidecar `ready/<seq>` | `cmd/sdlc/internal/landingline/line.go` | new | file under `line.lock` |
 | `conductTrain` | `cmd/sdlc/landingtrain.go` | new | git, gh, local-check runner |
 | `buildTrainBranch` | `cmd/sdlc/landingtrain.go` | new | `git merge --no-ff` in a detached worktree |
 | `ghLanding.CreateTrainPR` / `CloseTrainPR` | `cmd/sdlc/ghlanding.go` | new methods | `gh pr create/close` |
@@ -61,8 +61,9 @@
 - **conductTrain** is the thin shell. It loops `Transition`, then executes the effects. Its suite is `runLocalCheck` on the train head (#394's known-flake step included, so a known flake gets its rerun and is never split). CI uses `waitCIGate` on the train PR. The merge is `gh pr merge --merge --match-head-commit`. Main moving reuses today's integration loop (`integrationLimit`, docs-only reuse through `localRecordsOnAncestors`).
 - **landingFakeGH** gains state:
   - train PRs;
-  - a merge that marks every open PR whose head is an ancestor of the merge commit as MERGED, with `mergeCommit` set to the train's merge commit. The rule is modeled on GitHub's documented behavior and checked live (M3).
-- **Live conformance (ARCH-MOCK):** a scratch-repo check that GitHub marks a PR merged when its head becomes reachable through another PR's merge commit, and reports what `mergeCommit` reads. It runs once in M3, plus the pilot. See Q7.
+  - a merge that marks every open PR whose head is an ancestor of the merge commit as MERGED. GitHub documents the state but not which `mergeCommit` such a PR reports, so the fake's `mergeCommit` for a reachability-merged PR is a parameter: null, the car's own head, or the train's merge commit. Every car-resume test runs all three variants (PQ-3).
+- **Car resume** (`landing.go:581` today requires `MergeOID` ⊑ main) accepts a MERGED PR when either its `MergeOID` or its `HeadOID` is an ancestor of the fetched main. Both are equally strong evidence that the car's exact reviewed head is on main. A MERGED PR with neither reachable still refuses. The rule lives in one pure predicate, `landedOnMain(pr, isAncestor)`, which the single-landing path also uses, so there is one definition (ARCH-DRY).
+- **Live conformance (ARCH-MOCK):** per the hub (Q7, Revisions), there is no scratch repo. The first pilot train's real evidence is recorded as the conformance check: each car PR's state, `mergeCommit` and `headRefOid` after the train merge. If GitHub's `mergeCommit` turns out to be a variant other than the fake's default, the fake's default changes to match. Resume already accepts all three.
 
 ## Operating envelope (ARCH-CONSTRAINTS)
 
@@ -74,7 +75,7 @@
 ## Lifecycle of created things (ARCH-FUNERAL)
 
 - **The train branch `landing-train/<seq>` and the train PR:** the conductor creates them. The merge deletes the branch (as today). On `Abandoned` the conductor closes the PR and deletes the branch. If the conductor dies, the next conductor's reclaim closes and deletes any train PR whose conductor's head.lock is gone. Count ≤ 1 live per repo.
-- **The `tickets/<seq>.ready` sidecar:** the car writes it, and it is removed with its ticket (by the car on exit, or by `scan` when the ticket's flock is gone). ≤ 1 per ticket.
+- **The `ready/<seq>` sidecar** lives in its own directory, never in `tickets/`. `scan` (line.go:261) flock-tests and deletes every unlocked file in `tickets/`, so a sidecar there would vanish on the next poll (PQ-2). The car writes it under `line.mutex`, by tmp then rename. `scan` sweeps `ready/<seq>` when `tickets/<seq>` is absent: the ticket's owner died or left, and the car also removes it on exit. ≤ 1 per live ticket. Test: a sidecar survives scans while its ticket is held and is swept after the holder is killed.
 - **`train`/`car` events:** appended to events.jsonl and swept by the existing 30-day `KeepEvents`. A few hundred bytes per train.
 - **The train worktree:** removed on every exit path, including signals, through the same deferred cleanup `runLocalCheck` uses.
 
@@ -178,5 +179,5 @@ Covered: every action above, process death on both sides, lost merge reply, main
 ### 2026-10-19 — hub answers (delivery 14ac7039)
 
 - Q1: train PR merged once. Q2: cars vouch while waiting; the conductor re-verifies the tip at departure. Q4, Q5, Q6: as proposed (CI bisect is a later follow-up if needed).
-- Q3: **the default is 0 (off)**. With `.sdlc/landing.json` absent, or `train_interval_minutes` 0, landing is today's serial line. The pilot sets 60 in pair's `.sdlc/landing.json`. `.sdlc/` is not in local-gates-guard's protected list (`.github/workflows/local-gates-guard.yml:56-68`), so the pilot needs no operator label.
+- Q3: **the default is 0 (off)**. With `.sdlc/landing.json` absent, or `train_interval_minutes` 0, landing is today's serial line. The pilot sets 60 in pair's `.sdlc/landing.json`. **Correction (PQ-1):** `.sdlc/*` *is* in local-gates-guard's protected list (`.github/workflows/local-gates-guard.yml:69`, base-layer seeded), so the pilot PR, and every later interval change, is a local-gates change. The operator verifies it with the `local-gates-verified` label. The config stays in `.sdlc/` on purpose: the interval decides how often the authoritative suite runs, which is exactly the class of setting the guard exists for.
 - Q7: no scratch GitHub repo. The fake models GitHub's documented merged-by-reachability behavior. The first pilot train's real evidence (each car's PR state and `mergeCommit` after the train merge) is recorded as the conformance check, with low-risk cars where possible. M3's conformance task becomes "record the pilot train's evidence" and moves after landing, with the hub dispatching the pilot.
