@@ -241,6 +241,107 @@ rounds:
       isolation: checkout
       reviewed: 23435183559f8b6c88a41ff3d52fbcb5103fade6
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 63158376-2800-4694-aefc-f5790d6753a5
+            repository: github.com/xianxu/ariadne
+            issue_id: "000467"
+            recipe: fix-review
+            round: 4
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/e526fd5c5cd9d867
+            reviewed_head: d6b87e80bf5e891c05351d9670782417935a1eef
+            slot: ariadne:5
+            requested_at: "2026-10-19T21:51:58.901206Z"
+          phase: finished
+          pid: 15316
+          started_at: "2026-10-19T21:51:59.010753Z"
+          finished_at: "2026-10-19T21:52:44.419086Z"
+          session_id: 01a9a566-18bc-49dd-a896-cdcc6d9d7d3b
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: d6b87e80bf5e891c05351d9670782417935a1eef
+        tracker_head: 2aa05f11b8bb9d6343cdec7f04e63b07750df9cc
+        branch_point: dfe6340c899a099185bf11e85f1e77b7940bf2bd
+        since: "2026-10-19T10:00:05-07:00"
+        until: "2026-10-19T11:59:50-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T10:00:05-07:00"
+              end: "2026-10-19T11:59:50-07:00"
+              began: "2026-10-19T10:00:05-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        sources:
+            - harness: claude
+              id: 2b1c35f1-9bee-4064-83d0-2a67ebaaf586
+              slot: ariadne:5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+              digest: 0a3081650e1704f1bef211843f85f36168c9307d210ac576b4b5b74227dd8640
+              started: "2026-10-19T16:59:53.709Z"
+              spawned: false
+              bytes: 6508301
+              windows:
+                - start: "2026-10-19T10:00:05-07:00"
+                  end: "2026-10-19T11:59:50-07:00"
+        queue_waits:
+            - attempt_id: 734b3a70411a62c801e715582c0f8f34
+              slot: ariadne:5
+              record_digest: 972e9433b6772efb25c985b3c2c1a32d0215cf369bd087a20b16a681fe6f0d93
+              start: "2026-10-19T17:17:49.379266Z"
+              end: "2026-10-19T17:55:30.29124Z"
+              queue_seconds: 2260.911974
+              raw_seconds: 2260.911974
+              exact: true
+            - attempt_id: c488716fffdab0fdc16845b53e455574
+              slot: ariadne:5
+              record_digest: 3fba0fe9e333bb8d60ad4b1849019c3469bd93967cd9499ee80bcec004e3b0fb
+              start: "2026-10-19T18:47:29.074679Z"
+              end: "2026-10-19T18:59:50Z"
+              queue_seconds: 740.925321
+              raw_seconds: 2165.250261
+              exact: true
+        cuts:
+            - dispatched: "2026-10-19T10:08:29-07:00"
+              finalized: "2026-10-19T10:16:46-07:00"
+              finalizing: true
+            - dispatched: "2026-10-19T11:44:44-07:00"
+              finalized: "2026-10-19T11:46:47-07:00"
+              finalizing: true
+            - dispatched: "2026-10-19T11:47:50-07:00"
+              finalized: "2026-10-19T11:59:40-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-19T14:52:45-07:00"
+      dispatched: "2026-10-19T14:51:58-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Disposed in an earlier round. This window does not touch decline code, so nothing regresses.
+          round: 4
+        - id: BR-2
+          disposition: addressed
+          note: Disposed in an earlier round. This window does not touch decline code, so nothing regresses.
+          round: 4
+        - id: BR-3
+          disposition: addressed
+          note: Disposed in an earlier round. This window does not change the plan's docs claims.
+          round: 4
+      recipe: fix-review
+      isolation: checkout
+      reviewed: d6b87e80bf5e891c05351d9670782417935a1eef
+      blocked: false
 ---
 
 # Gate ledger — ariadne#467 (boundary-review)
@@ -268,6 +369,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-3 — addressed — The Revisions entry says the docs step updated the base.manifest header and atlas base-layer.md and ci-merge-check.md, not construct/manifest.md, matching the prior diff.
 
 ## Round 3 — 2026-10-19T11:59:40-07:00 (claude) — passed
+
+## Round 4 — 2026-10-19T14:52:45-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — Disposed in an earlier round. This window does not touch decline code, so nothing regresses.
+- BR-2 — addressed — Disposed in an earlier round. This window does not touch decline code, so nothing regresses.
+- BR-3 — addressed — Disposed in an earlier round. This window does not change the plan's docs claims.
 
 ## Open findings
 

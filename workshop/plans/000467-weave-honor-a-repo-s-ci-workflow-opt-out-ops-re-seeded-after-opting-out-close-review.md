@@ -255,3 +255,62 @@ findings: []
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"35933142-781a-4bf1-8d78-697479168ca7","repository":"github.com/xianxu/ariadne","issue_id":"000467","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/4e1185258025cbe7","reviewed_head":"23435183559f8b6c88a41ff3d52fbcb5103fade6","slot":"ariadne:5","requested_at":"2026-10-19T18:47:50.389049Z"},"phase":"finished","pid":16097,"started_at":"2026-10-19T18:47:50.514011Z","finished_at":"2026-10-19T18:59:39.011754Z","session_id":"424364b5-bb8a-4f4e-8d99-25bef6e853cc","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-19T14:52:45-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 467 — weave: honor a repo's CI-workflow opt-out (ops re-seeded after opting out) |
+| repo | ariadne |
+| issue file | workshop/issues/000467-weave-honor-a-repo-s-ci-workflow-opt-out-ops-re-seeded-after-opting-out.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 090c82b6371dff6556833532126592a32100a918..d6b87e80bf5e891c05351d9670782417935a1eef |
+| command | sdlc close --issue 467 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | checkout |
+| timestamp | 2026-10-19T14:52:45-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This fix window has no code changes. It touches one atlas doc, `atlas/workflow/ci-merge-check.md`, which was a conflict resolution. The other two files are close-gate and close-review records under `workshop/plans/`, plus the issue file's card mirror, hours and Log line. The base commit had the conflict markers committed in that atlas file. The resolution takes main's rewritten shim paragraph (#459: the shim builds the pinned exact compiler, then runs `./bootstrap.sh`, then an optional setup hook). It keeps #467's one added sentence, "A repo opts out of both seeded workflows with `decline .github/workflows`…", just above that paragraph. It drops the branch's stale `BOOTSTRAP_CLONE_ONLY=1` paragraph, which main had replaced. That keeps what both sides meant. A `git grep` for conflict markers in the head tree finds nothing. The cross-reference target `atlas/workflow/base-layer.md` → "Repo-Specific Extensions" exists at line 52 and documents decline at lines 65–70. No prior findings are open, and `## Spec`, `## Revisions` and `## Done when` are unchanged, so scope has not changed.
+
+1. **Strengths**
+   - The resolution keeps main's text unchanged and adds only #467's sentence, so it doesn't reintroduce the CLONE_ONLY description that #459 replaced (`atlas/workflow/ci-merge-check.md:21-29`).
+   - No conflict markers remain anywhere in the head tree.
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none.
+5. **Test coverage:** this window changes no behavior, so no tests are needed. Earlier rounds already covered the decline behavior.
+6. **Architecture:**
+   - **ARCH-DRY:** pass. The opt-out sentence points to `base-layer.md` and doesn't repeat its rules.
+   - **ARCH-PURE:** not applicable, since there is no code.
+   - **ARCH-PURPOSE:** pass. The opt-out doc survived the merge.
+   - **ARCH-EVOLVE:** not applicable, since no persisted format changed.
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Disposed in an earlier round. This window does not touch decline code, so nothing regresses.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Disposed in an earlier round. This window does not touch decline code, so nothing regresses.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Disposed in an earlier round. This window does not change the plan's docs claims.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"63158376-2800-4694-aefc-f5790d6753a5","repository":"github.com/xianxu/ariadne","issue_id":"000467","recipe":"fix-review","round":4,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/e526fd5c5cd9d867","reviewed_head":"d6b87e80bf5e891c05351d9670782417935a1eef","slot":"ariadne:5","requested_at":"2026-10-19T21:51:58.901206Z"},"phase":"finished","pid":15316,"started_at":"2026-10-19T21:51:59.010753Z","finished_at":"2026-10-19T21:52:44.419086Z","session_id":"01a9a566-18bc-49dd-a896-cdcc6d9d7d3b","outcome":"returned"}] -->
