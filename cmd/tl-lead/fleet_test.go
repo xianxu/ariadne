@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // fakeCouch is one Couch behind both seams fleet resume uses: --actors
@@ -220,10 +221,11 @@ func TestDecodeFleetClaims(t *testing.T) {
    {"ref":"ariadne#000471","status":"working","claimant":{"machine":"4716","workspace":"ariadne:1"}},
    {"ref":"ariadne#000400","status":"done"}]},
  {"tree_path":"/w/ariadne-slot2","claims_state":"absent","claims":[]},
- {"tree_path":"/w/ariadne-slot3","claims_state":"unknown","claims":[]}],
+ {"tree_path":"/w/ariadne-slot3","claims_state":"unknown","claims_error":"tracker fetch failed","claims":[]},
+ {"tree_path":"/w/ariadne-slot2/pair","claims_state":"present","claims":[{"ref":"pair#000710","status":"working"}]}],
 "slots":[
  {"address":"ariadne:1","repo":"ariadne","slot":1,"members":[{"role":"host","path":"/w/ariadne-slot1"}]},
- {"address":"ariadne:2","repo":"ariadne","slot":2,"members":[{"role":"host","path":"/w/ariadne-slot2"}]},
+ {"address":"ariadne:2","repo":"ariadne","slot":2,"members":[{"role":"host","path":"/w/ariadne-slot2"},{"role":"dependency","path":"/w/ariadne-slot2/pair"}]},
  {"address":"ariadne:3","repo":"ariadne","slot":3,"members":[{"role":"host","path":"/w/ariadne-slot3"}]},
  {"address":"ariadne:4","repo":"ariadne","slot":4,"members":[{"role":"host","path":"/w/ariadne-slot4"}]}]}`
 	f, err := decodeFleet([]byte(raw))
@@ -237,13 +239,42 @@ func TestDecodeFleetClaims(t *testing.T) {
 	if s := by["ariadne:1"]; !s.ClaimsKnown || strings.Join(s.Claims, ",") != "ariadne#000471" {
 		t.Errorf("ariadne:1 %+v", s)
 	}
-	if s := by["ariadne:2"]; !s.ClaimsKnown || len(s.Claims) != 0 {
-		t.Errorf("ariadne:2 (read, none) %+v", s)
+	// A claim on the slot's dependency clone is the slot's work too.
+	if s := by["ariadne:2"]; !s.ClaimsKnown || strings.Join(s.Claims, ",") != "pair#000710" {
+		t.Errorf("ariadne:2 (host none, dependency working) %+v", s)
 	}
-	if s := by["ariadne:3"]; s.ClaimsKnown || !strings.Contains(s.ClaimsWhy, "unknown") {
+	if s := by["ariadne:3"]; s.ClaimsKnown || !strings.Contains(s.ClaimsWhy, "unknown: tracker fetch failed") {
 		t.Errorf("ariadne:3 (unread) %+v", s)
 	}
 	if s := by["ariadne:4"]; s.ClaimsKnown || !strings.Contains(s.ClaimsWhy, "no inventory row") {
 		t.Errorf("ariadne:4 (no row) %+v", s)
+	}
+}
+
+// The couch calls are bounded and say what happened: a hung --resume-candidates
+// times out; a resume whose couch is missing did not run (nothing attempted),
+// distinct from Couch refusing; a hung --resume is uncertain, never failed.
+func TestExecResumeBoundsAndCauses(t *testing.T) {
+	hang := filepath.Join(t.TempDir(), "couch")
+	if err := os.WriteFile(hang, []byte("#!/bin/sh\nexec sleep 30\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	c := execResume{bin: hang, candidates: 200 * time.Millisecond, resume: 200 * time.Millisecond}
+	if _, err := c.Candidates("pair:3"); err == nil || !strings.Contains(err.Error(), "no answer within") {
+		t.Errorf("hung candidates: %v", err)
+	}
+	if err := c.Resume("pair:3"); !errors.Is(err, errUncertain) {
+		t.Errorf("hung resume: %v", err)
+	}
+	missing := execResume{bin: filepath.Join(t.TempDir(), "no-couch")}
+	if err := missing.Resume("pair:3"); err == nil || !strings.Contains(err.Error(), "did not run") {
+		t.Errorf("missing couch: %v", err)
+	}
+	refuse := filepath.Join(t.TempDir(), "couch")
+	if err := os.WriteFile(refuse, []byte("#!/bin/sh\necho 'slot busy' >&2\nexit 3\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := (execResume{bin: refuse}).Resume("pair:3"); err == nil || !strings.Contains(err.Error(), "refused") || !strings.Contains(err.Error(), "slot busy") {
+		t.Errorf("refusal: %v", err)
 	}
 }

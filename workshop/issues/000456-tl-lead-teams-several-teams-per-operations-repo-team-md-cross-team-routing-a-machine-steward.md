@@ -108,3 +108,8 @@ Items, in order:
   - Class sweeps:
     - Mirrored contract: the byte and line limits, comments and whitespace all match pair's.
     - Failed read is never absence: checked for actors, candidates, inventory claims, `RepoRoot`, an unreadable `.hub` (listed with `?`), and owner errors in `team issues` (listed apart).
+- **Close round 2 (FIX-THEN-SHIP):**
+  - BR-7: a slot's claims are the union over its whole member set (host and dependency clones, as sdlc's `AssembleSlots` defines it). They count as known only when every member row was read, and a fixture covers a claim on a dependency clone.
+  - Minor: `claims_error` is carried into the printed reason.
+    - Sweep of the decoders: `decodeObservation` keeps `Card.Error`, `decodeRepoIssues` keeps `owner_error`, `decodeCandidates` keeps its reasons, and `decodeActors` keeps `Error`.
+  - The two "fixed but untested" dispositions now have tests: `TestExecResumeBoundsAndCauses`, with injectable timeouts and fake couch binaries, covers a hung candidates read, a hung resume, a missing couch and a refusal.

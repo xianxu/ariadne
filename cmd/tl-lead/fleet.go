@@ -33,7 +33,18 @@ type ResumeCandidates struct {
 // errUncertain marks a resume whose outcome Couch did not confirm.
 var errUncertain = errors.New("outcome uncertain")
 
-type execResume struct{ bin string }
+type execResume struct {
+	bin string
+	// candidates and resume bound each call; zero means the defaults below.
+	candidates, resume time.Duration
+}
+
+func orDuration(d, def time.Duration) time.Duration {
+	if d > 0 {
+		return d
+	}
+	return def
+}
 
 // Couch's cost classes: --resume-candidates takes seconds, --resume is heavy.
 const (
@@ -42,13 +53,14 @@ const (
 )
 
 func (c execResume) Candidates(addr string) (ResumeCandidates, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), candidatesTimeout)
+	limit := orDuration(c.candidates, candidatesTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), limit)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, c.bin, "--resume-candidates", addr, "--json").Output()
 	if err != nil {
 		var ee *exec.ExitError
 		if ctx.Err() != nil {
-			return ResumeCandidates{}, fmt.Errorf("couch --resume-candidates %s: no answer within %s", addr, candidatesTimeout)
+			return ResumeCandidates{}, fmt.Errorf("couch --resume-candidates %s: no answer within %s", addr, limit)
 		}
 		if errors.As(err, &ee) {
 			return ResumeCandidates{}, fmt.Errorf("couch --resume-candidates %s: %s", addr, strings.TrimSpace(string(ee.Stderr)))
@@ -73,7 +85,8 @@ func decodeCandidates(raw []byte) (ResumeCandidates, error) {
 }
 
 func (c execResume) Resume(addr string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), resumeTimeout)
+	limit := orDuration(c.resume, resumeTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), limit)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, c.bin, "--resume", addr)
 	var stderr bytes.Buffer
@@ -81,7 +94,7 @@ func (c execResume) Resume(addr string) error {
 	err := cmd.Run()
 	switch {
 	case ctx.Err() != nil:
-		return fmt.Errorf("%w: no answer within %s", errUncertain, resumeTimeout)
+		return fmt.Errorf("%w: no answer within %s", errUncertain, limit)
 	case err != nil:
 		var ee *exec.ExitError
 		if !errors.As(err, &ee) {
