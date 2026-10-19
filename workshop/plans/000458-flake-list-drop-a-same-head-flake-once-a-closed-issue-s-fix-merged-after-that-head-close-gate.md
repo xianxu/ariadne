@@ -415,6 +415,137 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 6e80fea2-0e0b-4b7e-8677-43e8f13cd64f
+            repository: github.com/xianxu/ariadne
+            issue_id: "000458"
+            recipe: milestone-review
+            round: 5
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/5dc8aeb36b86856e
+            reviewed_head: da8c62d2e111ef7fe86cc0c351e00d6512a5a87a
+            slot: ariadne:1
+            requested_at: "2026-10-19T15:27:31.331217Z"
+          phase: finished
+          pid: 4216
+          started_at: "2026-10-19T15:27:31.501412Z"
+          finished_at: "2026-10-19T15:30:58.177571Z"
+          session_id: 01a154c6-6a26-7b62-bd87-13eb20e58073
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: da8c62d2e111ef7fe86cc0c351e00d6512a5a87a
+        tracker_head: 3adcfba4745aa1327f4d85e699615d15b16d7019
+        branch_point: a11504c417e9c8789327362895bc88c9fad042df
+        since: "2026-10-19T04:32:38-07:00"
+        until: "2026-10-19T07:26:37-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T04:32:38-07:00"
+              end: "2026-10-19T07:26:37-07:00"
+              began: "2026-10-19T04:32:38-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a138fb-9249-7fe0-86f2-862b8adc68ef
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: c47b106663c4a90270281978683de1fd4a8482aa54ab84e5d8148f2ad72c9379
+              started: "2026-10-14T05:57:01.791Z"
+              spawned: false
+              bytes: 146491952
+              windows:
+                - start: "2026-10-19T04:32:38-07:00"
+                  end: "2026-10-19T07:26:37-07:00"
+        queue_waits:
+            - attempt_id: 47932ec61a1603c497832d736497e4f0
+              slot: ariadne:1
+              record_digest: 26e688dc36fb19ea4a4f2f0ba6b5a0c1a7640426e201e1a37b7e660686969336
+              start: "2026-10-19T11:55:43.408394Z"
+              end: "2026-10-19T12:12:29.80791Z"
+              queue_seconds: 1006.399516
+              raw_seconds: 1006.399516
+              exact: true
+            - attempt_id: 17efbf21e381b47311820e1181929f73
+              slot: ariadne:1
+              record_digest: 1c614cbe42ae0eab068ee411b5eff6fd8127b867521fd34d3adbf40255e1abd8
+              start: "2026-10-19T12:33:45.540326Z"
+              end: "2026-10-19T12:49:43.182913Z"
+              queue_seconds: 957.642587
+              raw_seconds: 957.642587
+              exact: true
+            - attempt_id: 4cf8897332b679b50a8739bdc501b2d0
+              slot: ariadne:1
+              record_digest: e9ebf530ab8d199c4abc3a799d3961adb3b0a6040d2ec4d8522939c29ac3b74e
+              start: "2026-10-19T13:15:52.502481Z"
+              end: "2026-10-19T13:27:04.382509Z"
+              queue_seconds: 671.880028
+              raw_seconds: 671.880028
+              exact: true
+            - attempt_id: 055d69102c5a0f9423aa60d99ab8eca7
+              slot: ariadne:1
+              record_digest: ea2911473d9cecab206de465a25f9cf514eaa748b147c89bb1662dcfef8b29d5
+              start: "2026-10-19T13:52:00.770977Z"
+              end: "2026-10-19T14:09:56.4847Z"
+              queue_seconds: 1075.713723
+              raw_seconds: 1075.713723
+              exact: true
+        cuts:
+            - dispatched: "2026-10-19T05:25:12-07:00"
+              finalized: "2026-10-19T05:27:07-07:00"
+              finalizing: false
+            - dispatched: "2026-10-19T05:59:54-07:00"
+              finalized: "2026-10-19T06:02:42-07:00"
+              finalizing: false
+            - dispatched: "2026-10-19T06:37:27-07:00"
+              finalized: "2026-10-19T06:40:39-07:00"
+              finalizing: false
+            - dispatched: "2026-10-19T07:21:34-07:00"
+              finalized: "2026-10-19T07:24:10-07:00"
+              finalizing: false
+      "n": 5
+      timestamp: "2026-10-19T08:30:58-07:00"
+      dispatched: "2026-10-19T08:27:31-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: The Core concepts table correctly classifies classifyFixedFlake as INTEGRATION and fixedIssueCovers as PURE; the matcher tests perform no IO.
+          round: 5
+        - id: BR-2
+          disposition: addressed
+          note: README.md:527 documents default suppression, structured ownership, verbose output, recurrence, and uncertainty, matching the implemented command.
+          round: 5
+        - id: BR-3
+          disposition: addressed
+          note: TestFlakeListRendersFixedRecurrenceAndCoverageFromRealGit exercises default suppression, verbose fixed-row rendering, and visible recurrence through a real merge history; it passes at the pinned head.
+          round: 5
+        - id: BR-4
+          disposition: addressed
+          note: classifyFixedFlake returns specific uncertainty reasons, runFlakeListMode renders them, and the decision matrix plus command-level ambiguous-coverage assertion pass.
+          round: 5
+        - id: BR-5
+          disposition: addressed
+          note: Ownership no longer uses package-basename or free-prose inference. Exact card values and dedicated Log entries are tested against wrong-package, nested-package, and substring cases.
+          round: 5
+        - id: BR-6
+          disposition: not-addressed
+          note: 'Critical, ARCH-PURPOSE / ARCH-SECURE, family exact-test-ownership: cmd/sdlc/flake_fixed.go:153-191 still accepts a sample inside "## Log\n<pre>\n- Test: <fully qualified name>\n</pre>\n", including an unclosed <pre>. A disposable command regression using the existing real-Git fixture confirmed that this sample silently removes the pre-fix row. Line 191 also accepts an unmatched opening backtick because strings.Trim removes arbitrary backticks. The reported fence, indentation, and comment fixes have genuine red/green regression evidence, but the rule that only actual, unambiguous structured entries establish ownership remains unenforced. Define and enforce the complete accepted Markdown entry grammar, rejecting raw HTML sample contexts and malformed delimiters, and cover it through matcher and command tests rather than adding another isolated exclusion.'
+          round: 5
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#458 (boundary-review)
@@ -473,6 +604,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - **BR-6** [Critical] `exact-test-ownership` (kind: defect) ARCH-PURPOSE / ARCH-SECURE: Markdown samples can still hide unrelated flakes
   cmd/sdlc/flake_fixed.go:149 uses UnterminatedIsProse, so an unclosed backtick or tilde fence in Log exposes a sample "- Test: <fully qualified name>" as ownership. Lines 162–167 also accept indented code and HTML-comment contents. Temporary matcher and command probes confirmed silent default suppression for all four forms; closed backtick and tilde samples correctly stayed visible. This is the 2nd finding in family exact-test-ownership. Earlier rounds fixed instances. State and enforce the rule across actual Log entries, closed/unclosed fences, indented code and comments: only an actual structured ownership entry may claim a test; ambiguous or truncated markup must preserve visibility. Add regression tests for that enumeration, including command output.
+
+## Round 5 — 2026-10-19T08:30:58-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — The Core concepts table correctly classifies classifyFixedFlake as INTEGRATION and fixedIssueCovers as PURE; the matcher tests perform no IO.
+- BR-2 — addressed — README.md:527 documents default suppression, structured ownership, verbose output, recurrence, and uncertainty, matching the implemented command.
+- BR-3 — addressed — TestFlakeListRendersFixedRecurrenceAndCoverageFromRealGit exercises default suppression, verbose fixed-row rendering, and visible recurrence through a real merge history; it passes at the pinned head.
+- BR-4 — addressed — classifyFixedFlake returns specific uncertainty reasons, runFlakeListMode renders them, and the decision matrix plus command-level ambiguous-coverage assertion pass.
+- BR-5 — addressed — Ownership no longer uses package-basename or free-prose inference. Exact card values and dedicated Log entries are tested against wrong-package, nested-package, and substring cases.
+- BR-6 — not-addressed — Critical, ARCH-PURPOSE / ARCH-SECURE, family exact-test-ownership: cmd/sdlc/flake_fixed.go:153-191 still accepts a sample inside "## Log\n<pre>\n- Test: <fully qualified name>\n</pre>\n", including an unclosed <pre>. A disposable command regression using the existing real-Git fixture confirmed that this sample silently removes the pre-fix row. Line 191 also accepts an unmatched opening backtick because strings.Trim removes arbitrary backticks. The reported fence, indentation, and comment fixes have genuine red/green regression evidence, but the rule that only actual, unambiguous structured entries establish ownership remains unenforced. Define and enforce the complete accepted Markdown entry grammar, rejecting raw HTML sample contexts and malformed delimiters, and cover it through matcher and command tests rather than adding another isolated exclusion.
 
 ## Open findings
 

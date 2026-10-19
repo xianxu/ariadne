@@ -404,3 +404,103 @@ findings:
    Append a `## Revisions` entry defining which Markdown contexts constitute structured ownership, explicitly excluding code samples and comments, and specifying conservative handling of truncated fences. Include the six-context regression enumeration above.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"84f29edf-e270-41d0-bd76-ac4808ebc6eb","repository":"github.com/xianxu/ariadne","issue_id":"000458","recipe":"milestone-review","round":4,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/2ef94d604cbe5e10","reviewed_head":"b64abf3422274c046cc283b613ca4a38836d2185","slot":"ariadne:1","requested_at":"2026-10-19T14:21:34.818874Z"},"phase":"finished","pid":31485,"started_at":"2026-10-19T14:21:34.92592Z","finished_at":"2026-10-19T14:24:08.706413Z","session_id":"01a1548a-0a51-7c50-b6e9-44a3278f436d","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-19T08:30:58-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 458 — flake list: drop a same-head flake once a closed issue's fix merged after that head |
+| repo | ariadne |
+| issue file | workshop/issues/000458-flake-list-drop-a-same-head-flake-once-a-closed-issue-s-fix-merged-after-that-head.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | a11504c417e9c8789327362895bc88c9fad042df..da8c62d2e111ef7fe86cc0c351e00d6512a5a87a |
+| command | sdlc close --issue 458 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-19T08:30:58-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The classifier, rendering, documentation, and reported Markdown exclusions work in the focused tests. BR-6 remains blocking: raw HTML samples and malformed inline markup still establish ownership, allowing unrelated flakes to disappear. The pinned checkout remains unchanged; the disposable review copy was removed.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The Core concepts table correctly classifies classifyFixedFlake as INTEGRATION and fixedIssueCovers as PURE; the matcher tests perform no IO.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      README.md:527 documents default suppression, structured ownership, verbose output, recurrence, and uncertainty, matching the implemented command.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      TestFlakeListRendersFixedRecurrenceAndCoverageFromRealGit exercises default suppression, verbose fixed-row rendering, and visible recurrence through a real merge history; it passes at the pinned head.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      classifyFixedFlake returns specific uncertainty reasons, runFlakeListMode renders them, and the decision matrix plus command-level ambiguous-coverage assertion pass.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Ownership no longer uses package-basename or free-prose inference. Exact card values and dedicated Log entries are tested against wrong-package, nested-package, and substring cases.
+  - id: BR-6
+    disposition: not-addressed
+    note: |
+      Critical, ARCH-PURPOSE / ARCH-SECURE, family exact-test-ownership: cmd/sdlc/flake_fixed.go:153-191 still accepts a sample inside "## Log\n<pre>\n- Test: <fully qualified name>\n</pre>\n", including an unclosed <pre>. A disposable command regression using the existing real-Git fixture confirmed that this sample silently removes the pre-fix row. Line 191 also accepts an unmatched opening backtick because strings.Trim removes arbitrary backticks. The reported fence, indentation, and comment fixes have genuine red/green regression evidence, but the rule that only actual, unambiguous structured entries establish ownership remains unenforced. Define and enforce the complete accepted Markdown entry grammar, rejecting raw HTML sample contexts and malformed delimiters, and cover it through matcher and command tests rather than adding another isolated exclusion.
+```
+
+1. **Strengths**
+
+   - Git ancestry errors preserve visibility; successful checks distinguish fixed rows from recurrence.
+   - Ancestry caching has counted N/2N regression coverage.
+   - README and atlas document the new surface.
+   - Removing the latest parser fix makes the existing fence, indentation, comment, and command regressions fail.
+
+2. **Critical findings**
+
+   BR-6 remains open at `cmd/sdlc/flake_fixed.go:153-191`. Raw HTML samples can still hide failures. Replace permissive line recognition with a defined structured-entry grammar and validate delimiter pairing.
+
+3. **Important findings**
+
+   None newly raised.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - Focused ownership, decision, real-Git, rendering, caching, and archived-detail tests passed.
+   - The broader `TestFixed`/`TestFlakeList` selection passed.
+   - Added disposable probes failed for closed/unclosed `<pre>` samples and unmatched backticks. The HTML command probe confirmed observable suppression.
+   - Reverting the latest fix in the disposable copy made its existing regressions fail.
+   - `git diff --check` passed. The full suite was not rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** existing tracker, snapshot, and fence helpers are reused.
+   - **ARCH-PURE — pass:** document matching is pure; Git work uses an injected seam.
+   - **ARCH-PURPOSE — flag:** BR-6 still violates conservative ownership.
+   - **ARCH-MOCK — pass:** injected dependencies and portable Git repositories exercise the production boundary.
+   - **ARCH-CONSTRAINTS — pass:** ancestry fan-out is cached and tested.
+   - **ARCH-SECURE — flag:** presentation text still becomes ownership evidence without sufficient structural validation.
+   - **ARCH-ORDER — pass:** classification uses a read-only snapshot and holds no authoritative state between events.
+   - **ARCH-FUNERAL — pass:** production changes create no durable artifacts.
+   - **ARCH-EVOLVE — pass:** persisted formats and writers are unchanged.
+
+7. **Plan revision recommendations**
+
+   Add a `## Revisions` entry defining the complete accepted Log-entry grammar, including raw HTML contexts and balanced inline delimiters. Update the round-four claim that uncertain markup always remains visible, and require matcher plus command regressions for the completed rule.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"6e80fea2-0e0b-4b7e-8677-43e8f13cd64f","repository":"github.com/xianxu/ariadne","issue_id":"000458","recipe":"milestone-review","round":5,"attempt":1,"agent":"codex","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/5dc8aeb36b86856e","reviewed_head":"da8c62d2e111ef7fe86cc0c351e00d6512a5a87a","slot":"ariadne:1","requested_at":"2026-10-19T15:27:31.331217Z"},"phase":"finished","pid":4216,"started_at":"2026-10-19T15:27:31.501412Z","finished_at":"2026-10-19T15:30:58.177571Z","session_id":"01a154c6-6a26-7b62-bd87-13eb20e58073","outcome":"returned"}] -->
