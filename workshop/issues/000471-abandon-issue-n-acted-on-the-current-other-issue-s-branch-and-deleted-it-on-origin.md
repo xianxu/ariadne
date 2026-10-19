@@ -56,7 +56,7 @@ Add the same guard to any other verb that takes `--issue N` but acts on HEAD's b
 - [x] Write and approve the durable plan at `workshop/plans/000471-abandon-issue-n-acted-on-the-current-other-issue-s-branch-and-deleted-it-on-origin-plan.md`, including the `--issue`/HEAD audit.
 - [x] Add red real-Git regressions for wrong-branch abandon, close, milestone-close and attach; preserve open-issue and interrupted-abandon recovery cases.
 - [x] Bind started work to the card-derived issue branch before any effect. For remote deletion, make the remote branch tip equal the archived commit with leased updates, then delete it with a lease.
-- [ ] Run targeted tests, `make -k build`, and the recorded full suite on the final pushed head.
+- [x] Run targeted tests, `make -k build`, and the recorded full suite on the final pushed head.
 - [ ] Complete the close review and landing gates.
 
 ## Log
@@ -69,3 +69,4 @@ Add the same guard to any other verb that takes `--issue N` but acts on HEAD's b
 - Focused abandon/close/attach group passed (`go test ./cmd/sdlc -run '^(TestAbandon|TestTrackerCloseRefusesAnotherIssuesBranch|TestMilestoneCloseRefusesAnotherIssuesBranch|TestIssueAttach)' -count=1 -timeout 12m`). `make -k build`, `make sdlc-build`, the recovery package test, and `git diff --check` passed. The full recorded suite and close review remain.
 - PR #328's first full suite exposed the deliberate #285/#365 recovery: a renamed close branch at the canonical issue tip must still close. The hub approved the narrower proof: exact HEAD equality with the local canonical branch tip, or a fresh remote tip if local is absent; another head refuses. Abandon and attach still require the canonical name. Focused recovery and different-head tests pass. The same suite had the known `dev-aliases.test.sh` #465 flake; its fix is landing separately.
 - Live smoke used branch binary `99fe1ce6770d1c26f7c826cd6b86264cf18fe860` in a disposable local clone with a separate bare origin. From #475's branch, `abandon --issue 474` named both branches and refused; every local and bare-origin branch/archive ref was byte-for-byte unchanged. The hub denied ariadne:0 staging because that binary serves the fleet, so no shared binary was replaced.
+- The final pushed code head `d2536fa3bf909382af7cb032cfd715c18d905ea0` passed the recorded full suite (`sdlc-local/suite`, 12 shards plus 71 other packages, no failures, log SHA-256 prefix `c7c70f8e0e89`). An earlier run on this same head was interrupted by the hub's operator-requested RAM-disk reformat and recorded no result; the unchanged rerun passed.
