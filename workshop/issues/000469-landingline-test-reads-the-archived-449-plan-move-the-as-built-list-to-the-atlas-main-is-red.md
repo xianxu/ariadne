@@ -46,8 +46,13 @@ a lint or test that fails when any `_test.go` reads a path under `workshop/plans
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — TestPlanNamesEveryTrainEventAndEffect reads atlas/workflow/sdlc-binary.md and passes; golint rule test-reads-workshop with table tests; BR-1 fixed: atlas names the rule and TestAtlasNamesEveryRule keeps the catalog list in step; whole-repo catalog scan clean; full suite exit 0 in 12m52s on 7879351a (the fix after it adds a test and docs); review verdict: FIX-THEN-SHIP
 
 2026-10-19 (ariadne:2): fixed.
 - `TestPlanNamesEveryTrainEventAndEffect` now reads `atlas/workflow/sdlc-binary.md`. The as-built events, effects and phases were moved there from the archived #449 plan.
 - New `pkg/golint` rule `test-reads-workshop`: a call argument that climbs from a package straight into `workshop/plans` or `workshop/issues` is flagged in tests. Those files move to `workshop/history` when their issue lands. Temp-repo fixture paths are not matched.
 - The whole-repo catalog scan is clean.
+- Close review FIX-THEN-SHIP, every Minor fixed as a class:
+  - Atlas lines naming archived plans at `workshop/plans/` (#449's and three older ones) now point at `workshop/history/plans/`. `TestAtlasCitesNoLivePlanPath` refuses a numbered live plan path in the atlas.
+  - The as-built claim is narrowed to events and effects.
+  - `test-reads-workshop` also catches a path split into Join segments (`"..", "workshop", "plans"`).

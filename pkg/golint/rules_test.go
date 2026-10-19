@@ -2,6 +2,8 @@ package golint
 
 import (
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -102,6 +104,8 @@ func TestRules(t *testing.T) {
 		{"test-reads-workshop", `os.ReadFile("../../../../atlas/workflow/sdlc-binary.md")`, true, false},
 		{"test-reads-workshop", `os.ReadFile("../../workshop/history/plans/x.md")`, true, false},
 		{"test-reads-workshop", `os.ReadFile("../../workshop/plans/x.md")`, false, false},
+		{"test-reads-workshop", `os.ReadFile(filepath.Join("..", "..", "workshop", "plans", "x.md"))`, true, true},
+		{"test-reads-workshop", `os.ReadFile(filepath.Join(root, "workshop", "issues", "x.md"))`, true, false},
 	} {
 		var hit *Finding
 		got := findings(t, tc.body, tc.test)
@@ -206,6 +210,34 @@ func TestAtlasNamesEveryRule(t *testing.T) {
 	for _, r := range Catalog {
 		if !strings.Contains(string(atlas), "`"+r.Name+"`") {
 			t.Errorf("atlas/workflow/sdlc-binary.md's Go lint catalog does not name %s", r.Name)
+		}
+	}
+}
+
+// livePlanRE is a numbered plan named at its live path: it moves to
+// workshop/history/plans when its issue lands, so an atlas line naming it
+// there breaks then (#469 close review). Cite the issue, or the history path.
+var livePlanRE = regexp.MustCompile("workshop/plans/[0-9]{6}-")
+
+func TestAtlasCitesNoLivePlanPath(t *testing.T) {
+	files, err := filepath.Glob("../../atlas/*/*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	more, _ := filepath.Glob("../../atlas/*.md")
+	files = append(files, more...)
+	if len(files) < 10 {
+		t.Fatalf("found only %d atlas files; the glob is stale", len(files))
+	}
+	for _, f := range files {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, line := range strings.Split(string(data), "\n") {
+			if livePlanRE.MatchString(line) {
+				t.Errorf("%s:%d names a live plan path (it moves to workshop/history/plans on landing): %s", f, i+1, strings.TrimSpace(line))
+			}
 		}
 	}
 }

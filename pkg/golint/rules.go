@@ -354,13 +354,20 @@ func tightWallclock(f *ast.File, _ *CheckContext) []ast.Node {
 // does not climb straight there, so it is not matched.
 var workshopRE = regexp.MustCompile(`^(\.\./)+workshop/(plans|issues)(/|$)`)
 
-// workshopReads flags such a path passed to any call: a read, a Join, a glob.
+// workshopReads flags such a path passed to any call (a read, a Join, a
+// glob), whole or split into Join segments: "..", "workshop", "plans".
 func workshopReads(f *ast.File, _ *CheckContext) []ast.Node {
 	var out []ast.Node
 	calls(f, "", nil, func(call *ast.CallExpr) {
-		for _, arg := range call.Args {
-			if s, ok := stringLit(arg); ok && workshopRE.MatchString(s) {
-				out = append(out, arg)
+		lits := make([]string, len(call.Args))
+		for i, arg := range call.Args {
+			lits[i], _ = stringLit(arg)
+		}
+		for i, s := range lits {
+			split := i > 0 && i+1 < len(lits) && s == "workshop" && (lits[i+1] == "plans" || lits[i+1] == "issues") &&
+				(lits[i-1] == ".." || strings.HasSuffix(lits[i-1], "/.."))
+			if workshopRE.MatchString(s) || split {
+				out = append(out, call.Args[i])
 			}
 		}
 	})
