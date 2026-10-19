@@ -49,13 +49,19 @@ Semantics:
 ARCH notes: EVOLVE: `decline` is a new verb, and an older weave skips it as an unknown verb. That older weave would re-seed, which is today's behavior. That's acceptable because the fleet runs :0's weave. SECURE/ORDER/FUNERAL/MOCK: N/A. It adds no state between events, nothing durable, and no external call: it filters the manifest rows that are read. CONSTRAINTS: N/A, one linear pass over the rows.
 
 Steps:
-- [ ] `intent`: add a `Decline` kind and the `decline` verb (target = source).
-- [ ] Pure `ApplyDeclines(layers)`: filter inherited intents under the leaf's decline paths, recording `Declined{Path, Rows}` on the leaf. Call it in `walk.Load`. Unit tests: seed or symlink under a path is dropped, a sibling path is kept, the leaf's own row is kept, an ancestor's decline is ignored, a prefix like `.github/workflowsX` does not match, and an unmatched decline gives Rows 0.
-- [ ] compile prints the declined/unmatched lines (`runCompile`, dry-run as well).
-- [ ] Fixture test (cmd/weave): a two-layer fixture whose foundation seeds `.github/workflows/x.yml` plus another seed. Refreshing an opted-out leaf leaves `.github/workflows` absent while the other seed lands. An opted-out leaf holding its own edited workflow keeps it byte-for-byte. A normal leaf still gets the workflow.
-- [ ] Docs: verb comment in `construct/base.manifest` header and `construct/manifest.md`, atlas weave entry.
+- [x] `intent`: add a `Decline` kind and the `decline` verb (target = source).
+- [x] Pure `ApplyDeclines(layers)`: filter inherited intents under the leaf's decline paths, recording `Declined{Path, Rows}` on the leaf. Call it in `walk.Load`. Unit tests: seed or symlink under a path is dropped, a sibling path is kept, the leaf's own row is kept, an ancestor's decline is ignored, a prefix like `.github/workflowsX` does not match, and an unmatched decline gives Rows 0.
+- [x] compile prints the declined/unmatched lines (`runCompile`, dry-run as well).
+- [x] Fixture test (cmd/weave): a two-layer fixture whose foundation seeds `.github/workflows/x.yml` plus another seed. Refreshing an opted-out leaf leaves `.github/workflows` absent while the other seed lands. An opted-out leaf holding its own edited workflow keeps it byte-for-byte. A normal leaf still gets the workflow.
+- [x] Docs: verb comment in `construct/base.manifest` header and `construct/manifest.md`, atlas weave entry.
 - [ ] ops (hub's commit): add `decline .github/workflows` to ops' `construct/base.manifest`; change AGENTS.local.md line to point at it; refresh shows the report line and no `.github/workflows`.
 
 ## Log
 
 ### 2026-10-19
+
+- Hub approved the design and added two test asks: (1) prove an older weave skips the unknown verb; (2) a declined row that another row depends on (a merge into a declined path) must be reported, not silent.
+- Built: `layer.Decline` (pure, called once in `walk.Load`), the `decline` verb, a `Kind.Verb()` read back from `kindByVerb`, and `printDeclined` in compile. The report lists every declined row by verb and target, which covers ask (2); `TestCompileReportsStaleAndDependentDeclines` tests a declined merge and a stale decline. ARCH-DRY: the completeness check's hand-kept `verbName` switch now derives from `Kind.Verb()`. Before, it was missing `seed-once`.
+- Ask (1): the skip path in `intent.ParseManifest` (unknown verb, `continue`) has been unchanged since 52fe08c2d (#95 M2), and `TestParseManifestUnknownActionSkips` covers it. I also checked it live. The origin/main weave (931a4ad68) ran `compile --dry-run` on a two-layer fixture whose leaf has `decline .github/workflows`, exited 0, and still planned `seed .github/workflows/merge-check.yml`. That is today's behavior and not a refusal. The branch build on the same fixture drops that seed and prints `weave: declined .github/workflows: opted out of 1 inherited row(s): seed .github/workflows/merge-check.yml`.
+- Naming: the plan's `ApplyDeclines` became `layer.Decline`.
+- Tests: `go test ./cmd/weave/... ./pkg/layergraph/...` all ok, and `go vet` is clean.

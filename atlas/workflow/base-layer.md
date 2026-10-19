@@ -61,6 +61,15 @@ that doesn't generalize across consumers:
 - `.claude/settings.local.json` — repo-specific Claude Code settings (merged into `settings.json`)
 - `.openshell/.bootstrap/`, `.openshell/.base-image-digest` — runtime artifacts (gitignored)
 
+A repo that does not want an inherited file opts out in its own
+`construct/base.manifest` with `decline <path>` (#467). weave drops every
+inherited row (seed, symlink, scaffold, touch, merge) whose target is at
+or under that path, and leaves whatever is already on disk there alone.
+Each refresh reports `weave: declined <path>: …` with the rows it skipped,
+and warns about a decline that matches nothing. Only the leaf's own decline
+rows apply, so a layer cannot opt its consumers out. ops declines
+`.github/workflows`, for example.
+
 If you find yourself wanting to edit a shared file directly, the
 right move is almost always to (a) generalize the change and push it
 into ariadne, or (b) override it in the `.local` layer. Direct edits

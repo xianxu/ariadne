@@ -229,26 +229,10 @@ func underSkills(rel string) bool {
 
 // verbName maps a Kind to its manifest verb word, for the report.
 func verbName(k intent.Kind) string {
-	switch k {
-	case intent.Symlink:
-		return "symlink"
-	case intent.Seed:
-		return "seed"
-	case intent.Scaffold:
-		return "scaffold"
-	case intent.Touch:
-		return "touch"
-	case intent.Merge:
-		return "merge"
-	case intent.Prose:
-		return "prose"
-	case intent.Skill:
-		return "skill"
-	case intent.Ship:
-		return "ship"
-	default:
-		return "?"
+	if v := k.Verb(); v != "" {
+		return v
 	}
+	return "?"
 }
 
 // RenderCompleteness formats the completeness result for one repo: a header, the
