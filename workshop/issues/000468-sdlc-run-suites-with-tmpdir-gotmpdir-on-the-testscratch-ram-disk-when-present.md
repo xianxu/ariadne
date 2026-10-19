@@ -1,13 +1,13 @@
 ---
 id: 000468
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '193ef1fb233d745154c2d504c6ea91ad38232ec8' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '502290e770320bde5852c01bf690fff8f6954821' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T09:32:22-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.32
 ---
 
 # sdlc: run suites with TMPDIR/GOTMPDIR on the TestScratch RAM disk when present
