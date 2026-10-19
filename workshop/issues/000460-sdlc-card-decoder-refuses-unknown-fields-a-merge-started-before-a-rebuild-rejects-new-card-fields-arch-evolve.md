@@ -49,8 +49,10 @@ Make the tracker-card decoder (and any card rewrite path) tolerate and preserve 
 - Landing events are decoded with ordinary `json.Unmarshal` and retention rewrites their original JSON lines, preserving unknown members. Test-stats v2 currently rejects unknown top-level keys and uses `DisallowUnknownFields`; it is a separate read-only attempt ledger. #449 readiness sidecars are still on ariadne:2's unlanded branch: its reader uses ordinary `json.Unmarshal`, and the owning car writes an entirely new vouch rather than modifying a prior one. The audit and tests will be finalized against its landed version.
 - Hub approved the plan and directed #449's sidecar fix into its owning unlanded branch. Sent ariadne:2 the unknown-field preservation and strict-validation contract; Couch receipt `ca2dc1a7-b35a-48ba-a77c-e84f02be3afa` is submitted. #460 will audit the #449 result, not duplicate its code.
 - Plan-quality round 1 raised PQ-1 (nested known tracker validation did not yet reach `ParseCard`) and PQ-2 (no named adversarial strategy for the pure merge helper or JSON canonical keys), plus a minor scope-exclusions suggestion. The durable plan now names the boundary call, helper/property and alias checks at every object depth.
+- Plan-quality round 2 accepted PQ-1 and the scope exclusions. PQ-2 stayed open because the task prose duplicated the new adversarial strategy table; compressed the task steps to refer to that table.
 
 ## Revisions
 
 - 2026-10-19: #449's sidecar preservation belongs on its still-unlanded branch, per hub approval; coordinate directly and verify it rather than defer until after landing.
 - 2026-10-19: PQ-1/PQ-2: enforce nested known validation at `ParseCard` and require direct generated-tree and canonical-JSON checks in the plan before coding.
+- 2026-10-19: PQ-2: keep one named adversarial test strategy table and make task steps cite it instead of repeating fixture inventories.

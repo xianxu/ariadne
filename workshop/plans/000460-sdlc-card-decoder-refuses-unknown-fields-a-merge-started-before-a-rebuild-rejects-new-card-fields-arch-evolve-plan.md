@@ -55,8 +55,7 @@ Excluded: no semantic schema migration, tracker transaction redesign, or competi
 
 **Files:** `cmd/sdlc/internal/issue/card_test.go`, `cardset_test.go`, `claimant_test.go`, `handoff_test.go`, and tracker update integration test.
 
-- [ ] Build a card with an unknown top-level `flake_tests` surrogate, an unknown claimant key, and unknown nested tracker keys (including a nested mapping). Assert old-shape `ParseCard` accepts it. Feed it through `SetCardField`, `SetCardClaimant`, `SetCardHandoff`, `SetCardCompletion`, and tracker CAS; assert each unknown subtree is retained while the known change lands.
-- [ ] Add negative rows for wrong known-field types, missing required values, duplicate unknown or known keys at every depth, and unsupported tracker version. Test that `ParseCard`, not a later setter alone, rejects a malformed known `tracker.completion` or `tracker.release.by`. Run `go test ./cmd/sdlc/internal/issue ./cmd/sdlc/internal/tracker -run 'Card|Tracker' -count=1` and confirm the new positive tests fail before implementation.
+- [ ] Implement the `ParseCard`, `mergeUnknownCardNodes`, `SetCardClaimant`, `updateEnvelope`, and tracker-CAS fixtures from the adversarial strategy table. Run `go test ./cmd/sdlc/internal/issue ./cmd/sdlc/internal/tracker -run 'Card|Tracker' -count=1` and confirm the new compatibility tests fail before implementation.
 
 ### 2. Implement lossless card compatibility
 
@@ -69,8 +68,8 @@ Excluded: no semantic schema migration, tracker transaction redesign, or competi
 
 **Files:** `cmd/sdlc/teststats_store.go`, `teststats_store_test.go`, `cmd/sdlc/internal/landingline/log_test.go`, issue Log.
 
-- [ ] Add a newer attempt with unknown top-level and nested metadata members and prove an older read-only decoder can still use the validated exit/SHA/log hash. Assert duplicate keys, case-folded known aliases and wrong known-field types fail at root, duration units and known flakes. Relax only unknown-key refusal; do not weaken versioned outcome semantics.
-- [ ] Add a landing-event retention test with an extra member and assert the original JSON line survives a sweep. Check ariadne:2's #449 fix before it lands; record its test and code evidence in the audit.
+- [ ] Implement the `decodeSuiteAttempt`, `validateSuiteUnitsJSON`, known-flake, and `landingline.sweep` fixtures from the adversarial strategy table. Relax only unknown-key refusal; do not weaken versioned outcome semantics.
+- [ ] Check ariadne:2's #449 fix before it lands; record its test and code evidence in the audit.
 
 ### 4. Verify and land
 
@@ -82,3 +81,4 @@ Excluded: no semantic schema migration, tracker transaction redesign, or competi
 - 2026-10-19: Initial plan from the #460 incident and the current reader/writer audit. No implementation has begun.
 - 2026-10-19: Hub approved and assigned readiness sidecar compatibility to #449's current owner before landing; #460 verifies that result instead of editing its branch.
 - 2026-10-19: PQ-1/PQ-2 exposed missing decode-boundary validation and unnamed adversarial function checks. Put `cardEnvelope` under `ParseCard`, name the pure merge helper and its generated-tree property, and guard JSON canonical known names at every object level. State non-goals (PQ-3).
+- 2026-10-19: PQ-2 remained open because the task steps repeated the adversarial fixture inventory. Tasks now reference the single strategy table and retain the red-test and verification actions.
