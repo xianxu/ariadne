@@ -88,3 +88,25 @@ baseRefOid) is historical for an open PR; GraphQL baseRef.target.oid matches
 current main. The durable plan now keeps listing/recovery evidence unchanged and
 adds a dedicated typed readiness query through the GitHub adapter. Only the live
 base reference can bind CLEAN to the final fetched main. Reported to the hub.
+
+### 2026-10-19 — resumed implementation checkpoint
+
+After Couch/filesystem recovery, the original stalled commands were gone and
+sdlc state confirmed the clean issue branch. Repeated change-code succeeded,
+inferred quick from the current design size, and authorized implementation;
+close owns any upgrade when the final code exceeds the shell. No estimate or
+plan-quality pass is claimed. All SDLC gates continue through central sdlc.
+
+Implemented the single narrow Markdown-record policy and per-commit Git
+observation (one history call, merge-parent and rename-source coverage). Added
+state-owned integration charges, metadata-only deferral and typed GitHub
+readiness with live base target. The bounded API runner keeps old callers'
+behavior and limits only this fixed scalar readiness query. Final direct merge
+rechecks existing issue/instance/publish guards against current main.
+
+Focused classifier/state/readiness tests passed. Real-Git/stateful-GitHub tests
+passed in 54.804s: three issue-only publications keep the tested ready head;
+strict/unknown fallback survives four publications without spending another
+code integration attempt or rerunning the suite. Broader existing integration
+and recovery controls are running. Early end-to-end fixtures were corrected to
+valid issue frontmatter and the configured upstream/main reference.
