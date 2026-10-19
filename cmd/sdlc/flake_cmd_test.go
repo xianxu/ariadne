@@ -25,14 +25,13 @@ const (
 // flakeWorld is a stateful fake of the verbs' seams: a store of attempts,
 // tracker cards with flake_tests, and filed issues.
 type flakeWorld struct {
-	attempts      []SuiteAttempt
-	cards         []flakes.Card
-	fixed         []fixedFlakeIssue
-	main          string
-	contains      func(context.Context, string, string) (bool, error)
-	packageUnique func(context.Context, string, string) (bool, error)
-	filed         []string // bodies of issues filed
-	regErr        error
+	attempts []SuiteAttempt
+	cards    []flakes.Card
+	fixed    []fixedFlakeIssue
+	main     string
+	contains func(context.Context, string, string) (bool, error)
+	filed    []string // bodies of issues filed
+	regErr   error
 	// raceAdd is a registration another slot lands on a card between this
 	// verb's registry read and its write.
 	raceAdd map[string]string
@@ -84,7 +83,6 @@ func (w *flakeWorld) deps() flakeDeps {
 		return flakeListView{Registry: reg, Cards: cards, Fixed: w.fixed, Main: w.main}, err
 	}
 	d.contains = w.contains
-	d.packageUnique = w.packageUnique
 	return d
 }
 

@@ -525,8 +525,9 @@ from this machine's test-stats store (or `--evidence TEXT` for a CI run); withou
 tests. `sdlc flake list` is the TL's local daily view: the registry with each
 issue's owner and age, same-head flakes not yet registered, and failures nothing
 explains, each with its log. A same-head failure is omitted from the default
-unregistered list when exactly one closed issue claims its test and its fix
-merge landed after the failing head. `sdlc flake list -v` shows omitted rows
+unregistered list when exactly one closed issue claims its fully qualified test
+in `flake_tests` or an explicit `- Test:` Log line, and its fix merge landed
+after the failing head. Free prose never claims a test. `sdlc flake list -v` shows omitted rows
 with the fixing issue and merge. A failure on a head containing that merge stays
 visible as a recurrence; ambiguous or unreadable evidence also stays visible,
 with a coverage reason when the uncertainty is specific to a row. CI failures
