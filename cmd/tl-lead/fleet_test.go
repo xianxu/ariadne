@@ -227,7 +227,8 @@ func TestDecodeFleetClaims(t *testing.T) {
  {"address":"ariadne:1","repo":"ariadne","slot":1,"members":[{"role":"host","path":"/w/ariadne-slot1"}]},
  {"address":"ariadne:2","repo":"ariadne","slot":2,"members":[{"role":"host","path":"/w/ariadne-slot2"},{"role":"dependency","path":"/w/ariadne-slot2/pair"}]},
  {"address":"ariadne:3","repo":"ariadne","slot":3,"members":[{"role":"host","path":"/w/ariadne-slot3"}]},
- {"address":"ariadne:4","repo":"ariadne","slot":4,"members":[{"role":"host","path":"/w/ariadne-slot4"}]}]}`
+ {"address":"ariadne:4","repo":"ariadne","slot":4,"members":[{"role":"host","path":"/w/ariadne-slot4"}]},
+ {"address":"ariadne:5","repo":"ariadne","slot":5,"members":[{"role":"host","path":"/w/ariadne-slot1"},{"role":"dependency","path":"/w/ariadne-slot5/pair","verdict":"missing"}]}]}`
 	f, err := decodeFleet([]byte(raw))
 	if err != nil {
 		t.Fatal(err)
@@ -248,6 +249,11 @@ func TestDecodeFleetClaims(t *testing.T) {
 	}
 	if s := by["ariadne:4"]; s.ClaimsKnown || !strings.Contains(s.ClaimsWhy, "no inventory row") {
 		t.Errorf("ariadne:4 (no row) %+v", s)
+	}
+	// A dependency sdlc reports missing (declared, not checked out) holds no
+	// claims; it does not make the slot's claims unknown.
+	if s := by["ariadne:5"]; !s.ClaimsKnown || strings.Join(s.Claims, ",") != "ariadne#000471" {
+		t.Errorf("ariadne:5 (missing dependency) %+v", s)
 	}
 }
 

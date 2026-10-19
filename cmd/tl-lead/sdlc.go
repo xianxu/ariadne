@@ -130,9 +130,10 @@ func decodeFleet(raw []byte) (Fleet, error) {
 			Slot          int    `json:"slot"`
 			RestingBranch string `json:"resting_branch"`
 			Members       []struct {
-				Role   string `json:"role"`
-				Path   string `json:"path"`
-				Branch string `json:"branch"`
+				Role    string `json:"role"`
+				Path    string `json:"path"`
+				Branch  string `json:"branch"`
+				Verdict string `json:"verdict"`
 			} `json:"members"`
 		} `json:"slots"`
 	}
@@ -178,6 +179,9 @@ func decodeFleet(raw []byte) (Fleet, error) {
 		for _, m := range s.Members {
 			rc, ok := byTree[m.Path]
 			switch {
+			case !ok && m.Verdict == "missing":
+				// A declared dependency not checked out: no tree, so no
+				// claims there (sdlc's own verdict, not an unread row).
 			case !ok:
 				fs.ClaimsKnown = false
 				why = append(why, "no inventory row for "+orNone(m.Path))

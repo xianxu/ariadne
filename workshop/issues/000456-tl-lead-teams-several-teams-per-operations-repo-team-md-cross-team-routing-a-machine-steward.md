@@ -115,3 +115,4 @@ Items, in order:
   - Minor: `claims_error` is carried into the printed reason.
     - Sweep of the decoders: `decodeObservation` keeps `Card.Error`, `decodeRepoIssues` keeps `owner_error`, `decodeCandidates` keeps its reasons, and `decodeActors` keeps `Error`.
   - The two "fixed but untested" dispositions now have tests: `TestExecResumeBoundsAndCauses`, with injectable timeouts and fake couch binaries, covers a hung candidates read, a hung resume, a missing couch and a refusal.
+- **Close round 3: SHIP.** I fixed its advisory Minor in the same round: a dependency member that sdlc marks `missing` (declared but not checked out) holds no claims rather than making the slot unknown. A fixture covers it.
