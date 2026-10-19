@@ -99,6 +99,7 @@ Steps:
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — Round-2 Minors fixed: run folders and their sweep share the sdlc-run- prefix (a foreign x-N-N folder survives, tested); a non-write review Create error no longer falls back (tested). Targeted tests pass; recorded suite requeued on this head. Prior: suite green on fb3941da with checkout and temp on /Volumes/TestScratch, removed after; A/B sample about 440 MB per run moved off the SSD. (fixed-then-ship); review verdict: SHIP
 - 2026-10-19: closed — Recorded suite green on fb3941da with its checkout under /Volumes/TestScratch/local-checks and TMPDIR/GOTMPDIR under /Volumes/TestScratch/tmp, both removed after; suite requeued on a1145892 after close-round-1 fixes (hyphenated run folders swept, leak sizes and names, review fallback only on permission/read-only errors), each with tests. A/B sample: about 440 MB per targeted run moved from the SSD to the RAM disk (SSD 1770/1178 vs 1029/1042 MB; RAM 440/471 MB). HFS+ one-second-mtime test race in dev-aliases fixed and confirmed.; review verdict: FIX-THEN-SHIP
 - 2026-10-19: flow upgraded quick → full — 479 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Dispatched by the hub to fill the wait while #456 is held for the operator's design review. Claimed and started from ariadne:4.
