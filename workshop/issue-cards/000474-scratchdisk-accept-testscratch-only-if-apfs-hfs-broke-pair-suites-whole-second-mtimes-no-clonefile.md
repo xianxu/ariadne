@@ -1,6 +1,6 @@
 ---
 id: 000474
-status: working
+status: codecomplete
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.26
+tracker:
+    version: 1
+    completion:
+        token: close-b4349665316b
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 9e2fa3897c0f2ba0c360a41d966097931738e916
+        evidence_commit: cc69808d4a39b860879c1046a2ed9d096e85fd69
 ---
 
 # scratchdisk: accept TestScratch only if APFS (HFS+ broke pair suites: whole-second mtimes, no clonefile)
