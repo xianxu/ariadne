@@ -20,6 +20,17 @@ For an evidence-backed retrospective of development-process friction in a
 current or supplied session transcript, invoke `session-retro`; see
 [`atlas/workflow/session-retro.md`](atlas/workflow/session-retro.md).
 
+In universal review, the document's `presentation: propose` asks the edit
+engine to show prose changes as proposals. Tracked Couch documents use
+`couch --session-sync apply`; a hosted Pair workbench uses `pair review apply`.
+An untracked document with that presentation must be tracked before editing.
+Both apply paths accept one atomic batch of explained edits and derive the
+round; see [universal review](atlas/workflow/universal-review.md).
+New `🤖` markers carry at most one `[]` or `{}` turn. A clarification or
+longer exchange moves to an indexed `→ [discussion](…)` side doc; old chains
+remain readable and resolve by their final human turn. See the
+[review convention](construct/local/fix/review-convention.md).
+
 ## Concurrent issue work
 
 For a live slot check, `sdlc stage --build` switches the target to this
@@ -356,6 +367,12 @@ whose warning was suppressed. `--strict` fails only when a binary name has
 owners from distinct Git origins; GitHub HTTPS and SSH forms identify the
 same repository, while unknown origins remain distinct.
 
+The construct shell tests run as named Go subtests, with a separate two-minute
+hang bound per script in each color environment. For the same selection without
+execution, run `bash scripts/test/construct-scripts.test.sh --list`; it emits
+NUL-delimited paths and applies the runner's exclusions. Omit `--list` to execute
+the selected batch, as the CI shell check does.
+
 For host checks required by `make test`, provide `tests/host-preflight.sh`, or
 set `WF_TEST_PREFLIGHT ?= path/to/preflight.sh` before including
 `Makefile.workflow`. The workflow runs the script before acquiring the shared
@@ -548,6 +565,13 @@ policy's declared roots. It never infers policy from a repository name. Both
 commands are read-only; omit `--json` for their human rendering.
 
 ## Manual boundary review
+
+Persisted-format changes follow `ARCH-EVOLVE`: evolve additively, capture unknown
+fields and preserve them unchanged through every rewrite, including nested
+members. Known-field types, required fields and duplicate keys remain strict.
+A version bump that older readers refuse needs a concrete reason why ignoring
+an addition would be unsafe. Inspect the complete registry with
+`sdlc arch-principles`; planning and review prompts receive the same definitions.
 
 For an ad-hoc fresh-context boundary review, use a pinned committed range or
 omit `--head` to include committed-after-base plus staged and unstaged tracked

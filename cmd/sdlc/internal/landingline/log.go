@@ -67,7 +67,13 @@ func (l *Line) Events() ([]Event, int, error) {
 }
 
 func (l *Line) GrantEntries() ([]Grant, int, error) {
-	return readLog[Grant](filepath.Join(l.dir, GrantsFile))
+	return ReadGrantEntries(l.dir)
+}
+
+// ReadGrantEntries reads an existing grant log without opening or creating a line.
+// Missing logs are empty; malformed entries are counted for the caller.
+func ReadGrantEntries(dir string) ([]Grant, int, error) {
+	return readLog[Grant](filepath.Join(dir, GrantsFile))
 }
 
 // Delays are the ready-to-landed delays in seconds, enqueue to landed, for the

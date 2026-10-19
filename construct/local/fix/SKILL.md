@@ -1,6 +1,6 @@
 ---
 name: xx-fix
-description: Use when 🤖{} or 🤖[] or 🤖~~ markers appear in markdown documents, OR when hosted in a pair session with a review pane open (the review-workbench pokes "…please review" / "applied N edits…" — propose records, own the git; see "Pair review workbench")
+description: Use when 🤖{} or 🤖[] or 🤖~~ markers appear in markdown documents, OR when hosted in a pair session with a review pane open (the review-workbench pokes "…please review" — apply records, own the git; see "Pair review workbench")
 ---
 
 # Inline Review
@@ -11,9 +11,9 @@ is the canonical grammar; this skill is the agentic side of it.
 
 **Two modes.** *Standalone* (`/fix <path>`, below) edits the file in place. *Hosted
 in a pair session* with a review pane open, you are the producer half of the agentic
-review workbench (pair #000066): you propose **records**, the embedded nvim applies
-them undo-ably, and **you own all the git** — see **Pair review workbench** below. The
-review pane's pokes (`"…please review"` / `"applied N edits…"`) tell you you're hosted.
+review workbench (pair #000066): you send **records** through `pair review apply`,
+the pane shows Pair's derived round, and **you own all the git** — see **Pair review workbench** below. The
+review pane's pokes (`"…please review"`) tell you you're hosted.
 
 ## Usage
 
@@ -58,7 +58,7 @@ the operator finish to avoid interleaved, intention-blurring edits.
 ## Marker Format
 
 ```
-marker     ::= 🤖 reference? section*
+marker     ::= 🤖 reference? section*   -- reader accepts old chains
 reference  ::= "<" TEXT ">" | "~" TEXT "~"     -- optional, at most one, first slot only
 section    ::= "[" TEXT "]" | "{" TEXT "}"
 ```
@@ -69,22 +69,22 @@ Two **reference** enclosures (anchor to prior text):
   by a single agent `{}` suggestion on accept.
 - `~X~` — text marked for deletion; markdown strikethrough renders the preview.
 
-Two **commentary** enclosures (alternate freely):
+Two **commentary** enclosures:
 
 - `[]` = **always human** (comments, corrections, instructions, replacements).
 - `{}` = **always agent** (findings, suggestions, questions, responses).
 
-After the optional reference, any chain of `[]`/`{}` sections in any order:
+**Write at most one commentary enclosure per marker.** The reader still accepts old multi-turn chains. Read their last block to find the operator's current ask, but never extend them:
 
 ```
-🤖{agent finding}[human response]{agent follow-up}[human reply]...
-🤖[human comment]{agent response}[human reply]{agent response}...
 🤖<quoted text>[human instruction about that text]
 🤖<old phrase>{new phrase}          -- robot proposes replacement (preferred for copy edits)
 🤖~old text~                       -- robot proposes deletion
 🤖~old text~{new text}             -- robot proposes replacement
 🤖~old text~[new text]             -- human-authored replacement
 ```
+
+For a clarification, disagreement, or other exchange that cannot finish with a clean edit, open a linked side doc instead of appending `{…}`. Replace the ready marker with `→ [discussion](<name>.side/NN-slug.md)` and add the matching `discussions:` frontmatter entry; use the side-doc layout and backlink contract in `../universal-review/collaboration-modes.md` §4. Another question inside that side doc opens a further doc in the same flat folder. An old chain ending in an agent `{…}` stays pending; do not resolve it without an operator response.
 
 **One line** (review-convention §3, §5). Every marker you write opens and
 closes on the same line; never let a marker span lines. Inside a `[]`/`{}`
@@ -101,15 +101,15 @@ them, but write single-line ones.)
 | Marker | Meaning |
 |--------|---------|
 | `🤖{needs citation}` | Agent flagged an issue, awaiting human |
-| `🤖{needs citation}[added ref to Smith 2024]` | Human responded — **actionable** |
-| `🤖{needs citation}[]` | Human says "go ahead" — **actionable** |
+| legacy `🤖{needs citation}[added ref to Smith 2024]` | Human responded — **actionable**; resolve, never extend |
+| legacy `🤖{needs citation}[]` | Human says "go ahead" — **actionable**; resolve, never extend |
 | `🤖[fix this typo]` | Human comment — **actionable** |
 | `🤖<foo_bar>[rename to foo_baz]` | Human scopes instruction to the quoted text — **actionable** |
 | `🤖<old phrase>{new phrase}` | Robot proposed a replacement, awaiting human |
 | `🤖~old phrase~[new phrase]` | Human-authored replacement — **actionable** (apply per §5) |
 | `🤖~old phrase~` | Robot proposed a deletion, awaiting human — skip |
 | `🤖~old phrase~{better phrase}` | Robot proposed a replacement, awaiting human — skip |
-| `🤖[fix this typo]{did you mean "their" → "there"?}` | Agent asked for clarification, awaiting human |
+| `🤖[fix this typo]` when two words fit | Open a side doc asking which word; replace this marker with its link |
 | `🤖[]` | Bare empty marker with no prior context — skip |
 | `🤖{}` | Empty agent marker — skip |
 
@@ -150,11 +150,11 @@ Markers inside fenced code blocks are ignored.
      `H` may be "yes apply R" (→ apply R and remove the marker) or a new
      instruction overriding R (→ apply H, remove the marker).
    - **Disagreement**: if you disagree with the operator's instruction, leave
-     the surrounding text unchanged, append a concise `{agent feedback}` to the
-     marker (so it ends in `{}` — non-actionable until the human responds), and
-     send the verbose reasoning in the coding-session reply.
-   - **Need clarification** (genuinely ambiguous, not disagreement): add
-     `{your question here}` to the marker.
+     the surrounding text unchanged and move the reasoning into a linked side
+     doc. Replace the ready marker with the link and index the doc so the
+     operator can answer there; name the disagreement in the session reply.
+   - **Need clarification** (genuinely ambiguous): ask in a linked side doc,
+     replacing the ready marker with its link; never append a second turn.
    - **Acknowledged, no doc change needed**: remove the marker entirely.
 5. **Write the modified file** back to the same path.
 6. **Report** in the session what changed, what you disagreed with (with
@@ -208,89 +208,86 @@ such as `pair/tests/lib/fake-review-agent.sh` as harness fixtures only; do not r
 them for runtime behavior. The protocol differs from the standalone `/fix` flow
 above in two ways:
 
-**1. Propose edits as records — never edit the file in place.** Write
-`{old, occurrence, new, explain}` records to the handoff file (seam #2; path per the
-target, currently `$XDG_DATA_HOME/pair/review-handoff-<tag>.json`). The pane applies each
-**undo-ably**, drops a riding marker, renders `explain` as a gutter diagnosis, and saves.
-Editing the file directly — **or summarizing the edits in chat and asking "apply
-directly?"** (the standalone flow) — breaks the pane's undo tree and the record protocol.
-**In the workbench the handoff IS how you apply**: don't ask, write the records. (You'll
-know you're in the workbench from the "Review workbench open on …" announce poke the pane
-sends when it opens, or the "…please review" / "applied N edits…" round pokes.)
+**1. Apply edits as records — never edit the file in place.** Write
+`{old, occurrence, new, explain}` records to a temporary `EDITS.json` (`[...]`
+or `{"records":[...]}`). `old` is nonempty; `occurrence` is a 1-based plain,
+non-overlapping match and defaults to 1. To insert, repeat nearby text in
+`new`. Give each record an operator-readable `explain`. Read the file's exact
+bytes and compute H as the first 16 hex characters of its SHA-256 (the same
+whole-file hash as `couch --session-sync read --all`). Then run
+`pair review apply EDITS.json FILE --if-hash H --json`. Pair writes the whole
+batch atomically and the pane reloads its derived round with reasons. Never
+hand-write proposal markers: under `presentation: propose`, Pair converts the
+clean edits. Editing the file directly or asking "apply directly?" breaks
+the one-writer path. The workbench announce or "…please review" poke tells
+you the pane is open.
 
-**Activation context (pair #341).** New workbench requests supply JSON
-`context: {repo, branch, file, activation}`: `repo` is the canonical absolute
-repository root, `file` is repository-relative, and `activation` is the pane's
-opaque activation token. Echo that exact object without reconstructing or
-updating its fields. Write the handoff as an envelope, not a bare record array:
+| Exit | What happened | One recovery |
+|---|---|---|
+| 0 | Applied; reply has `Hash`, `Round`, `Body` | commit `Body` verbatim as rule 2 says |
+| 1 `edits-invalid` | `Invalid` lists 1-based bad records; nothing written | fix them and retry the whole batch |
+| 1 `propose-too-large` / `propose-unencodable` | change cannot be short marker proposals | write it in a side doc proposal, then link `→ [proposal](…)` through apply; include the matching `discussions:` entry as a frontmatter record in the same batch |
+| 1 `operator-owned` | batch tried to change `presentation:` or `collaboration-mode:` | leave it unchanged and ask the operator to set that key; do not retry through another verb |
+| 3 `operator-lock` | the operator is editing | say you are waiting for their next "finished my edits" poke; do not poll in a tight loop |
+| 6 `stale` | H no longer names the file's bytes | read again, rebuild every record, and apply again |
 
-```json
-{"context":{"repo":"/docs","branch":"review/a","file":"a.md","activation":"one"},"records":[{"old":"x","occurrence":1,"new":"y","explain":"Correction"}]}
-```
+### Apply recovery decisions
 
-Keep this context with the request through completion. Human-finished,
-agent-applied and ship pokes, and landed artifacts, carry the same context.
-Definition responses also retain the request ID and echo the supplied context.
-Do not put the envelope into the round commit body: the existing record-body
-encoding and the pane's verbatim landed body remain unchanged.
+Only after a lost apply reply or an interrupted commit, run
+`pair review round FILE --json` and read back FILE on the current review
+branch. `Round` names the last recorded round, which may predate the attempt.
+Use the first matching row; no uncertain state authorizes a commit or replay.
 
-**Before every Git effect for an activated pane** (human round, agent round,
-ship, or any separately invoked stage/commit/merge), compare the poke and any landed artifact with
-the original request context and current pane activation. Immediately revalidate
-the canonical repository, checked-out branch, and tracked regular document
-within that repository. Read the third line of `$PAIR_REVIEW_OPEN_PATH` as
-JSON: `{version: 1, endpoint, token, session, context}`; require the captured
-context to equal its `context` in all four fields. Missing/unsupported metadata
-cannot authorize scoped work. Recheck Git with `git -C <repo> branch --show-current`
-and verify that the canonical document is tracked, regular, and inside the
-canonical repository. These checks plus matching active-pane metadata admit the
-first human round before history exists. `pair review readiness --resolve <repo>`
-can additionally check committed document identity once rounds exist; it never
-proves activation. Never substitute a cached target or basename match. Execute
-in that validated repository. A resolver HEAD is an observation token, not a context
-field: legitimate round commits advance HEAD without changing activation.
+| Case | Action | Required evidence |
+|---|---|---|
+| matching landed | commit Body | base hash, Current, readback and spans match |
+| old current | stop | base hash differs |
+| null unchanged | fresh read then retry | file still equals attempted base |
+| null changed | stop | file changed without matching round |
+| stale or uncertain | stop | Current false or readback mismatch |
 
-A missing/malformed context, failed probe, or mismatch means **stop without Git
-effects**. Preserve handoff and landed artifacts unchanged and report the
-expected versus observed context. Ask the operator to return to the original
-branch and finish the round, or reissue it from the intended activation. Do not
-switch branches automatically, retag an old response, delete it as stale, or
-retry a commit on the new branch. An applied acknowledgment authorizes only
-its original activation; urgency and a matching filename do not override this.
-Legacy array-only traffic is allowed only for a confirmed uninterrupted legacy
-activation. A restored or retargeted activation requires scoped requests and
-responses; missing scope is not evidence that the activation is legacy.
+An absent reply is not an exit code. If the response is lost, run
+`pair review round FILE --json` and verify the current review branch and file.
+Its last round may be older than this attempt. Commit its stored `Body`
+verbatim only when `Current` is true, `Round.base_hash` equals the attempted
+H, and you read back the file to verify the result bytes, spans and `explain`
+reasons against the intended records. An older current round, mismatched
+base_hash, or uncertain readback is not proof that this apply landed: stop
+without a commit or retry and report the uncertainty. If `Round` is null,
+read back the file: Pair can write it yet fail to record a round. Retry only
+when its bytes still equal the attempted base and a fresh read permits a new
+apply; if the bytes changed, stop and report the uncertain result. Never blindly
+replay records that may have landed. Pair's hash and operator lock own the
+edit conflict, so no parallel reconciliation protocol is needed.
+Under `presentation: propose`, a record wholly within frontmatter is applied
+directly through `pair review apply`; a record crossing the frontmatter boundary
+is refused. The operator-owned keys above remain protected on every path.
+Without a ready operator marker, a side-doc link may land as a pending
+`🤖{…}` proposal, while its matching `discussions:` entry lands directly in
+the same apply. Count that pending link as linked and do not duplicate the
+answer. If the operator rejects the proposed link, remove its index entry in
+the next round. Pair does not check the link and index paths for you.
 
-**2. You own all the git** — the nvim writes none (invariant #1). Apply the
-activation-context checks above before each activated-pane effect; initial
-preparation below runs before an activation exists:
+**2. You own all the git** — the new Pair apply path writes the file, and nvim
+only reloads and decorates it. Use the review branch and tracked file selected
+by the readiness probe; do not switch branches to make a stale round fit.
 
 - **On review-start**: the branch is created during *prep* (see **Preparing & resuming**
   below — the readiness probe; `new` → memory discovery + `docflow start`).
-- **After the pane's `"applied N edit(s)… commit the agent round"` poke**: read the
-  landed-artifact (seam #2b, currently `$XDG_DATA_HOME/pair/review-landed-<tag>.json` =
-  `{context, summary, body, applied, dropped, conflicts}`) and commit the agent round **verbatim**:
-  `docflow round --side agent -m <summary> --body <body>`. The body is *what actually
-  landed* — the pane is the apply authority (drops filtered, occurrences resolved); do
-  **not** regenerate it from your proposal (invariant #3).
+- **Immediately after exit 0 from `pair review apply`**: commit the returned
+  `Body` **verbatim** with `docflow round --side agent -m <summary> --body <Body>`.
+  It is derived from the landed round's spans, not the records you proposed;
+  never regenerate it. No pane-applied poke or landed file is involved.
 - **On the `"finished my edits… please review"` poke**: commit the human's incoming
   edits — `docflow round --side human`.
 
-**Commit only after the pane signals.** Never commit the agent round from your own
-proposal — the pane may have dropped unanchorable records; the landed-artifact is the
-truth. ("ship it" → `docflow ship` is **M4b**.)
-
-**Reconcile markers (pair #89).** The human is never locked out while you review, so
-by the time your round lands they may have edited the very spans you targeted. The
-pane reconciles per-record: your edits that still anchor apply; the rest the pane
-surfaces as **`🤖<human's current text>[reconcile — agent wanted: • old → new (why …)]`**
-markers (the `<…>` is the human's version of that region, possibly with git-diff-like
-text; the `[…]` restates *your* blocked intent). The landed-artifact's `conflicts`
-count flags how many were placed, and its `body` carries only the records that
-actually landed — so committing it verbatim is still correct. On the **next** round,
-treat each `[reconcile — …]` as an ordinary `🤖[…]` request: read the human's current
-text and your restated intent, and propose a record that replaces the whole marker
-with the reconciled text (or punt with `🤖<…>[…]{your question}` if you truly can't).
+**Commit only after successful apply.** Never commit an agent round from your
+own proposed records. If apply succeeded but the commit was interrupted, use
+`pair review round FILE --json` and commit its stored `Body` only while
+`Current` is true, its `Round.base_hash` equals attempted H, the read back
+file and spans match the attempted edit, and the review branch still matches.
+If any of those checks fails, stop without committing. ("ship it" →
+`docflow ship` is **M4b**.)
 
 **Preparing & resuming a review (M4a' — the propose poke, before the pane opens).**
 `:PairReview <file>` (or the operator naming a doc) **proposes** a target and pokes you to
@@ -319,8 +316,9 @@ the pair binary's; you act on it:
 **The human's 🤖[] markers are requests (M4b) — fulfill or punt, as records.** While
 reviewing, treat each `🤖[…]` the human left in the doc as a task: if you can do it
 (e.g. `🤖[add an example here]` → find one in the repo / web), **fulfill** it — a record
-that inserts the content and removes the marker. If you can't, **punt** — a record that
-appends `🤖[…]{…}` (your reason/question), leaving it for the human to tweak. Your `🤖{…}`
+that inserts the content and removes the marker. If you can't, **punt** to a linked
+side doc: write the reason or question there, then apply a record replacing the
+ready marker with `→ [discussion](…)` and a matching `discussions:` entry. Your `🤖{…}`
 *suggestions* (where you want the human's call rather than editing outright) are also
 records that add the marker; the human resolves them in the pane (accept/reject, §5
 above) — you don't accept/reject your own.
@@ -336,16 +334,14 @@ meaning of each mode is defined here.
   repository memory, and relevant project material. Direct replacements are acceptable
   here; in the hosted workbench the pane highlights the new text. Keep each
   `{old, occurrence, new, explain}` record as small as the structural edit allows. For a
-  deletion-only change, use `🤖~deleted text~` instead of making text vanish, and state the
-  reason in `explain`.
+  deletion-only change, remove the text in `new` and state the reason in
+  `explain`; Pair decides whether the document presents it as a proposal.
 - **Edit (default)** — the operator has rough text and wants help improving clarity,
   wording, framing, flow, and emphasis while preserving intended meaning and voice. Make
   targeted edits + resolve the human's `🤖[]` requests; don't invent a new argument unless
-  asked. In the hosted workbench, Edit proposals must be minimal inline markers, not
-  whole-paragraph replacements: anchor the smallest stable word, phrase, or sentence that
-  needs to change and make the handoff record replace that anchor with marker markup. Use
-  `new = "🤖<old text>{new text}"` for replacements, `new = "🤖{new text}"` for insertions,
-  and deletion-marker forms for removals. Make each record's `old` the smallest stable
+  asked. In the hosted workbench, make targeted clean edits; Pair converts
+  them under `presentation: propose` when the document asks for proposals.
+  Make each record's `old` the smallest stable
   locator; do not use an entire paragraph as `old` just because the desired change is
   inside it.
 - **Proofread** — the manuscript is near final quality and only small, high-confidence
@@ -360,8 +356,8 @@ incorporate through the active Generate/Edit/Proofread posture. Under docflow, n
 dispatch and what you applied in the round body.
 
 **Shipping (M4b).** When the operator says **"ship it"** (a deliberate land-on-main
-decision — *not* merely that the markers cleared), validate the ship poke's
-activation context immediately before running **`docflow ship`** in the doc's
+decision — *not* merely that the markers cleared), confirm the current review
+branch and tracked document with the readiness probe before **`docflow ship`** in the doc's
 repo (`--no-ff` merge of `review/<slug>` + branch delete). It refuses while any `🤖`
 marker remains, so resolve/clear them first; `--force` is the abandon path.
 
@@ -377,9 +373,11 @@ to the document.
 
 Use the `doc-review` binary:
 
-- `doc-review <file.md>` — review with the default second-vendor agent (`codex`).
+- `doc-review <file.md>` — review with an agent of another vendor than the
+  document's authors (a Claude-written doc goes to `codex`, a Codex-written one to
+  `claude`); it never self-reviews.
 - `doc-review <agent> <file.md>` — review with `codex`, `gemini`, or `claude`
-  (Claude is fallback only when no cross-vendor CLI is available).
+  named explicitly (it wins over the choice).
 - `doc-review --dry-run <file.md>` — print the would-be reviewer command and
   report path without running it.
 
@@ -397,7 +395,7 @@ reviewer cannot modify the document; the report is advisory.
 After `doc-review` finishes, the main agent owns triage: read the report, verify
 claimed corrections before applying them, update the document where you agree,
 and leave a note for findings you reject. In the hosted pair workbench, apply
-accepted fact-check corrections through the normal record handoff; do not edit
+accepted fact-check corrections through `pair review apply`; do not edit
 the file in place. Under docflow, note the dispatch and what you applied in the
 round body.
 
@@ -469,6 +467,6 @@ once, and keeps intent legible — the operator always knows which region is liv
 ### General
 
 - When removing a marker, leave the corrected text in place with no trace of the marker.
-- When adding an agent question, append `{question}` to the marker.
+- When an answer needs another turn, replace the ready marker with a linked side doc containing the question; never append another block to the marker.
 - Respect existing voice and style in the surrounding document.
 - Do not rewrite sections that have no markers and are not referenced by any marker's instruction.

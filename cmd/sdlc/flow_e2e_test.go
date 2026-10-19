@@ -10,6 +10,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
 
 // runVerbSequence drives ONE issue through the real commands — claim,
@@ -88,7 +89,7 @@ func TestQuickAndFullFlowsSameVerbSequence(t *testing.T) {
 	if f := e2eFlow(t, text); f.Kind() != flow.Full || f.Provenance() != flow.Inferred {
 		t.Errorf("large issue ended %+v, want full/inferred", f)
 	}
-	if strings.Contains(prompt, smallDiffMarker) || !strings.Contains(prompt, "each of the 8 entries") {
+	if strings.Contains(prompt, smallDiffMarker) || !strings.Contains(prompt, judge.ArchitectureBlock("at-review")) {
 		t.Error("large issue was not reviewed with the full recipe")
 	}
 	if !strings.Contains(text, "flow upgraded quick → full") {

@@ -3,13 +3,13 @@
 submitted: design.md
 outcome: ok
 
-Rows 2, 3, 4, 5 and 10, in one round on the parent. The review mode is free-form, so `deletions: propose-strike`:
-the imperative and the fold-in are written as proposals, while the markers swapped for links are applied directly.
+Rows 2, 3, 4, 5 and 10, in one round on the parent. The review mode is free-form,
+and this document's default `presentation: highlight` applies clean edits.
 
 ## Reply
 
-- Locking: proposed a tighter first paragraph (accept or reject).
+- Locking: tightened the first paragraph.
 - Locking: your question opened design.side/02-lock-granularity.md.
-- Numbers: asked which numbers you mean.
+- Numbers: opened design.side/04-numbers.md to ask which numbers you mean.
 - Retries: opened design.side/03-retry-story.md, proposing what is off.
-- Cache: folded design.side/01-cache-ttl.md in as a proposal (accept or reject); the link is marked folded, and the side doc is unchanged.
+- Cache: folded design.side/01-cache-ttl.md into the parent; the link is marked folded and the side doc records the fold.

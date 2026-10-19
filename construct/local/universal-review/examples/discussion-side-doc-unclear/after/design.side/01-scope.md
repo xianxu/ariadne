@@ -3,6 +3,8 @@ type: side-doc
 parent: ../design.md
 marker: "what does this slice drop?"
 collaboration-mode: discussion
+discussions:
+  - doc: 02-approval.md
 ---
 
 # What does this slice drop?
@@ -13,7 +15,7 @@ Two proposals:
 1. Drop the log mode: a log is the agent appending, not a collaboration.
 2. Make branching strict: every question opens a side doc.
 
-🤖[ok]{which: dropping the log mode, strict branching, or both?}
+→ [discussion](02-approval.md)
 
 The visual cues belong in parley.
 

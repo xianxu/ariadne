@@ -17,14 +17,14 @@ func TestParseArgs(t *testing.T) {
 		wantFile  string
 		wantErr   bool
 	}{
-		{"file only defaults to codex", []string{"x.md"}, AgentCodex, "x.md", false},
+		{"file only: the policy chooses", []string{"x.md"}, "", "x.md", false},
 		{"agent + file", []string{"gemini", "x.md"}, AgentGemini, "x.md", false},
 		{"claude + file", []string{"claude", "a/b.md"}, AgentClaude, "a/b.md", false},
 		{"unknown agent", []string{"bard", "x.md"}, "", "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a, f, err := parseArgs(tt.args)
+			a, set, f, err := parseArgs(tt.args)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got agent=%q file=%q", a, f)
@@ -34,7 +34,7 @@ func TestParseArgs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if a != tt.wantAgent || f != tt.wantFile {
+			if a != tt.wantAgent || f != tt.wantFile || set != (len(tt.args) == 2) {
 				t.Fatalf("got (%q,%q), want (%q,%q)", a, f, tt.wantAgent, tt.wantFile)
 			}
 		})
@@ -125,11 +125,11 @@ func TestBuildPrompt(t *testing.T) {
 }
 
 func TestWrapReport(t *testing.T) {
-	got := wrapReport("tod.md", AgentCodex, "## Summary\nLooks fine.")
+	got := wrapReport("tod.md", AgentCodex, "codex (openai; author anthropic)", "## Summary\nLooks fine.")
 	if !strings.HasPrefix(got, "---\n") {
 		t.Errorf("report should start with frontmatter")
 	}
-	if !strings.Contains(got, "reviews: tod.md") || !strings.Contains(got, "reviewer: codex") {
+	if !strings.Contains(got, "reviews: tod.md") || !strings.Contains(got, "reviewer: codex") || !strings.Contains(got, `reviewer_record: "codex (openai; author anthropic)"`) {
 		t.Errorf("frontmatter should record doc + reviewer:\n%s", got)
 	}
 	if !strings.Contains(got, "## Summary") {
@@ -162,7 +162,7 @@ func TestRunReview_EndToEnd(t *testing.T) {
 	}
 
 	var out, errb bytes.Buffer
-	f := &reviewFlags{Agent: AgentCodex, File: doc}
+	f := &reviewFlags{Agent: AgentCodex, AgentSet: true, File: doc}
 	if err := runReview(&out, &errb, f); err != nil {
 		t.Fatalf("runReview: %v", err)
 	}
@@ -208,7 +208,7 @@ func TestRunReview_EmptyReportFails(t *testing.T) {
 	}
 
 	var out, errb bytes.Buffer
-	err := runReview(&out, &errb, &reviewFlags{Agent: AgentGemini, File: doc})
+	err := runReview(&out, &errb, &reviewFlags{Agent: AgentGemini, AgentSet: true, File: doc})
 	if err == nil {
 		t.Fatal("expected error on empty report")
 	}
@@ -231,7 +231,7 @@ func TestRunReview_DryRun(t *testing.T) {
 	}
 
 	var out, errb bytes.Buffer
-	if err := runReview(&out, &errb, &reviewFlags{Agent: AgentCodex, File: doc, DryRun: true}); err != nil {
+	if err := runReview(&out, &errb, &reviewFlags{Agent: AgentCodex, AgentSet: true, File: doc, DryRun: true}); err != nil {
 		t.Fatalf("dry-run: %v", err)
 	}
 	if called {

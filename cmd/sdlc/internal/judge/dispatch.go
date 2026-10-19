@@ -13,22 +13,22 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewbox"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewprepare"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewusage"
+	"github.com/xianxu/ariadne/pkg/reviewpolicy"
 )
 
 // AgentCLI names a coding-agent CLI. The default is "claude"; the
 // shell script supports "codex" and "gemini" via $AGENT_CMD. We mirror
 // that surface so `make check-*` shims (env-driven) and `sdlc judge`
 // (flag-driven) target the same agents.
-type AgentCLI string
+type AgentCLI = reviewpolicy.Agent
 
 const (
-	AgentClaude AgentCLI = agentid.Claude
-	AgentCodex  AgentCLI = agentid.Codex
-	AgentGemini AgentCLI = agentid.Gemini
+	AgentClaude = reviewpolicy.Claude
+	AgentCodex  = reviewpolicy.Codex
+	AgentGemini = reviewpolicy.Gemini
 )
 
 // DispatchEvidence holds nonsemantic, bounded attempt diagnostics for the caller.

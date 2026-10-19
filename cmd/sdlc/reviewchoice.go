@@ -13,6 +13,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	"github.com/xianxu/ariadne/pkg/reviewpolicy"
 )
 
 // reviewAuthorFamilies is every vendor family that wrote base..head: the
@@ -34,22 +35,9 @@ func reviewAuthorFamilies(ctx context.Context, base, head string) (families []ju
 }
 
 // authorFamiliesFromLog is the families an agentid.LogFormat log names in its
-// Agent: trailers (`<agent>/<model>/<effort>`), plus the session's: merges and
-// agents sdlc does not know contribute nothing.
+// Agent: trailers plus the session's (reviewpolicy.AuthorFamilies, #441).
 func authorFamiliesFromLog(log string, session judge.Family) []judge.Family {
-	families := []judge.Family{session}
-	for _, c := range agentid.ParseLog(log) {
-		if c.Merge {
-			continue
-		}
-		for _, v := range c.Agents {
-			agent, _, _ := strings.Cut(strings.TrimSpace(v), "/")
-			if f := judge.FamilyOf(agent); f != "" {
-				families = append(families, f)
-			}
-		}
-	}
-	return families
+	return reviewpolicy.AuthorFamilies(session, agentid.ParseLog(log))
 }
 
 func firstLineOf(s string) string {

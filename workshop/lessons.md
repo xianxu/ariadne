@@ -1003,3 +1003,27 @@ The simplest durable authority beats a clever scan of consequences.
 - A lexical proof of statement order fails when `goto` can enter after the flag that established it. For a bounded syntax-only lint, reject goto-bearing functions as unproven and test both unconditional and conditional jumps against a straight-line control (#440 BR-7).
 - When another issue's adopted actual is exclusion authority, derive occupied time from the same counted Build/Converge phases, not all attributed runs; verification Tail is not adopted. Decide temporal and slot relevance before demanding replay evidence, and clear exclusion options in diagnostic-only populations (#443 BR-1–BR-3).
 - When a relevance decision needs an identity proof, parse every provenance source into one canonical-or-unknown type at entry. Validating only the claimant leaves retained source pins free to become false string mismatches; test a noncanonical saved pin end to end and guard any later string-based engine boundary (#443 BR-5).
+- For an agent-facing protocol, test the decision at the artifact boundary: a rule that says "open a side doc" should have a before/after case whose link and index are checked, plus a mutation that tries the old action. Keyword-only assertions can pass while the example still teaches the wrong behavior (#437 and #444).
+- When validating a before/after corpus that supports renames, compare moved outputs to the existing move projection before applying same-path emission checks. A same-path lookup mislabels preserved content as newly written; test a renamed parent, its children, and an orphan displaced by the move (#444 BR-1).
+
+- #452 plan review: a cache of time-dependent authority must invalidate at every authority-derived temporal transition, including future activation as well as expiry; unchanged file metadata does not imply unchanged validity. Name the production functions and adversarial test strategies in plans instead of enumerating prose test cases.
+
+- #452 cancellation: spawning a provider in its own process group requires an explicit SIGTERM unwind path in the Python owner; default signal exit skips finally cleanup. Test cancellation while the child is in flight, not only after provider return. Synchronize PID records on complete contents, not file existence.
+
+- #452 BR-1: a live-file snapshot is not a lease on its pathname. All admission readers must tolerate a concurrently released ticket disappearing before open, including legacy owners that do not take the reader mutex. Pin the scan/release interleaving with real flocks.
+- #452 BR-2: validate persisted identity with the same pure rule as caller identity before filesystem use. Absolute strings alone are insufficient: NUL, encoding, canonical form, bounds and field types must degrade visibly to ordinary FIFO rather than crash every reader.
+
+- A faster test fixture does not prove independent timeout budgets. When moving
+  a deadline from a batch to each item, inject command execution, observe distinct
+  live contexts and cancellation between items, and demonstrate red with a shared
+  context across the actual environment loop. Keep the production hang ceiling
+  unchanged; healthy real scripts can pass both the bug and the fix (#448 BR-1).
+- A new helper flag still needs README usage: state its output framing and whether
+  it executes work, alongside the architectural atlas entry (#448 BR-2).
+
+- Registry expansion changes consumers outside the registry package. Sweep
+  rendered-header counts across Go tests and generated docs before selecting
+  checks. Derive header expectations from the registry/shared renderer; reserve
+  literal sets for deliberate policy tripwires, and name those exceptions
+  accurately in the atlas (#454 BR-1/BR-2). The test-hardcoded-arch-count catalog
+  rule catches fixed numeric architecture-header Contains assertions.

@@ -8,8 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sort"
 	"strings"
+
+	"github.com/xianxu/ariadne/pkg/reviewpolicy"
 )
 
 // ErrReviewerUnavailable is a candidate that could not review at all (see
@@ -34,69 +35,36 @@ func (e *UnavailableError) Error() string {
 }
 func (e *UnavailableError) Unwrap() error { return ErrReviewerUnavailable }
 
-// ReviewChoice is a review's resolved reviewers: the candidates in order, the
-// ones skipped before launch, and what the choice was made from.
-type ReviewChoice struct {
-	Candidates []Candidate
-	Skips      []Skip
-	Authors    []Family
-	Forced     bool     // --agent or AGENT_CMD named the reviewer
-	Degraded   []string // inputs the choice could not read (the window's authors), recorded with the review
-}
+// The choice, its refusal and its record are pkg/reviewpolicy's (#441).
+type (
+	ReviewChoice    = reviewpolicy.Choice
+	NoReviewerError = reviewpolicy.NoReviewerError
+)
 
 // ResolveReview resolves every review site's reviewers (it replaced #310's
-// ResolveReviewerCLI and ResolveAgentCLI): an explicit
-// --agent or AGENT_CMD is one forced candidate; otherwise the policy plans the
-// candidates from the authors' families and the change kind.
+// ResolveReviewerCLI and ResolveAgentCLI): reviewpolicy.Resolve.
 func ResolveReview(explicit string, explicitSet bool, env AgentDefaultEnv, policy ReviewerPolicy, authors []Family, kind ChangeKind, available Availability) ReviewChoice {
-	choice := ReviewChoice{Authors: authors}
-	forced := ""
-	switch {
-	case explicitSet:
-		forced = explicit
-	case env.AgentCmd != "":
-		forced = env.AgentCmd
-	}
-	if forced != "" {
-		a := AgentCLI(forced)
-		choice.Forced = true
-		choice.Candidates = []Candidate{{Agent: a, Model: policy.Models[a], Family: FamilyOf(forced)}}
-		return choice
-	}
-	choice.Candidates, choice.Skips = ReviewPlan(policy, MainAgent(env), authors, kind, available)
-	return choice
+	return reviewpolicy.Resolve(explicit, explicitSet, env, policy, authors, kind, available)
 }
 
-// First is the reviewer a dry run shows and a single-reviewer caller uses.
-// ok is false when no candidate is left; a caller then reports Refusal, never
-// dispatching the zero Candidate (whose empty agent would run claude).
-func (c ReviewChoice) First() (Candidate, bool) {
-	if len(c.Candidates) == 0 {
-		return Candidate{}, false
-	}
-	return c.Candidates[0], true
+// ReviewerRecord is reviewpolicy.Record: the Review-Reviewer trailer's text.
+func ReviewerRecord(used Candidate, choice ReviewChoice, skips []Skip) string {
+	return reviewpolicy.Record(used, choice, skips)
 }
 
-// Refusal is the error for a choice with no candidate: every skip, named.
-func (c ReviewChoice) Refusal() error { return &NoReviewerError{Skips: c.Skips} }
+// noReviewer is judge's refusal: a NoReviewerError that is also a review that
+// did not run, for callers matching either, naming sdlc's --agent as the way
+// to pick one anyway.
+type noReviewer struct{ *NoReviewerError }
 
-// NoReviewerError is a review that could not run because every candidate was
-// unavailable: it names each one and why, never quietly reviewing with the
-// authors' own family instead.
-type NoReviewerError struct{ Skips []Skip }
-
-func (e *NoReviewerError) Error() string {
-	var parts []string
-	for _, s := range e.Skips {
-		parts = append(parts, fmt.Sprintf("%s: %s", s.Agent, s.Reason))
-	}
-	if len(parts) == 0 {
-		parts = append(parts, "the policy leaves no reviewer of another family")
-	}
-	return "review did not run: no reviewer available (" + strings.Join(parts, "; ") +
-		"); retry later, or name one with --agent (recorded as degraded)"
+func (e noReviewer) Error() string {
+	return strings.Replace(e.NoReviewerError.Error(), "name one explicitly", "name one with --agent", 1)
 }
-func (e *NoReviewerError) Unwrap() error { return ErrReviewDidNotRun }
+func (e noReviewer) Unwrap() []error { return []error{e.NoReviewerError, ErrReviewDidNotRun} }
+
+// Refusal is the error for a choice with no candidate, as every sdlc review
+// site reports it: it matches both *NoReviewerError and ErrReviewDidNotRun.
+func Refusal(c ReviewChoice) error { return noReviewer{&NoReviewerError{Skips: c.Skips}} }
 
 // DispatchChoice runs the review with the first candidate that can review,
 // announcing each one passed over. It returns the output, the reviewer that
@@ -119,68 +87,11 @@ func DispatchChoice(ctx context.Context, opts DispatchOptions, choice ReviewChoi
 		}
 		return out, c, skips, err
 	}
-	return "", Candidate{}, skips, &NoReviewerError{Skips: skips}
+	return "", Candidate{}, skips, noReviewer{&NoReviewerError{Skips: skips}}
 }
 
 func announceSkip(w io.Writer, s Skip) {
 	if w != nil {
 		fmt.Fprintf(w, "  [!] reviewer %s (%s) unavailable: %s; trying the next\n", s.Agent, valueOrDefault(string(FamilyOf(string(s.Agent))), "unknown family"), s.Reason)
 	}
-}
-
-// ReviewerRecord is what a finished review records about its reviewer, as the
-// `Review-Reviewer:` trailer and the ledger round's reviewer field:
-//
-//	codex/gpt-6-astra (openai; author anthropic)
-//	gemini (google; author anthropic,openai); degraded: codex unavailable: usage limit
-//	claude (anthropic; author anthropic); degraded: same-family by choice
-func ReviewerRecord(used Candidate, choice ReviewChoice, skips []Skip) string {
-	who := string(used.Agent)
-	if used.Model != "" {
-		who += "/" + used.Model
-	}
-	authors := familyList(choice.Authors)
-	s := fmt.Sprintf("%s (%s; author %s)", who, valueOrDefault(string(used.Family), "unknown"), valueOrDefault(authors, "unknown"))
-	degraded := append([]string(nil), choice.Degraded...)
-	for _, k := range skips {
-		degraded = append(degraded, fmt.Sprintf("%s unavailable: %s", k.Agent, oneLine(k.Reason)))
-	}
-	if choice.Forced && used.Family != "" && containsFamily(choice.Authors, used.Family) {
-		degraded = append(degraded, "same-family by choice")
-	}
-	if len(degraded) > 0 {
-		s += "; degraded: " + strings.Join(degraded, "; ")
-	}
-	return s
-}
-
-func familyList(fs []Family) string {
-	seen := map[Family]bool{}
-	var s []string
-	for _, f := range fs {
-		if f != "" && !seen[f] {
-			seen[f] = true
-			s = append(s, string(f))
-		}
-	}
-	sort.Strings(s)
-	return strings.Join(s, ",")
-}
-
-func containsFamily(fs []Family, f Family) bool {
-	for _, x := range fs {
-		if x == f {
-			return true
-		}
-	}
-	return false
-}
-
-// oneLine keeps a reason to one short line for a trailer.
-func oneLine(s string) string {
-	s = firstLine(s)
-	if len(s) > 100 {
-		s = s[:100] + "…"
-	}
-	return s
 }

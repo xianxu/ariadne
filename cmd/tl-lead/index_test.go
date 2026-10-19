@@ -109,18 +109,19 @@ func TestIndexCommand(t *testing.T) {
 	if err != nil || !slices.Equal(entries(t, f), []string{why, "tl-status-op.side/09-gone.md"}) || !strings.Contains(out, "09-gone.md names a missing file") {
 		t.Fatalf("--add: %v %v\n%s", err, entries(t, f), out)
 	}
-	// The operator deletes 09's link, and a section write races the
-	// whole-file write that drops its entry: stale, then recomputed.
+	// The operator deletes 09's link, and a frontmatter edit races the
+	// frontmatter write that drops its entry: stale, then recomputed on the
+	// new frontmatter, which keeps the racing edit.
 	f.sections["Needs you"] = "- ship #412 now? → [discussion](" + why + ")"
-	f.editAllBefore = map[int]map[string]string{f.allWriteCalls + 1: {"Needs you": "- ship #412 now? → [discussion](" + why + ")\n- and one more"}}
-	if out, err := run(t, deps{ss: f}, "status", "index", file); err != nil || !slices.Equal(entries(t, f), []string{why}) || f.allWriteCalls != 3 {
-		t.Fatalf("a race: %v %v calls %d\n%s", err, entries(t, f), f.allWriteCalls, out)
+	f.editFrontBefore = map[int]string{f.frontWriteCalls + 1: f.front + "\nnote: racing"}
+	if out, err := run(t, deps{ss: f}, "status", "index", file); err != nil || !slices.Equal(entries(t, f), []string{why}) || f.frontWriteCalls != 3 || !strings.Contains(f.front, "note: racing") {
+		t.Fatalf("a race: %v %v calls %d\n%s\n%s", err, entries(t, f), f.frontWriteCalls, f.front, out)
 	}
-	writes := f.allWrites
+	writes := f.frontWrites
 	f.holder = "operator"
 	f.sections["Needs you"] = "- nothing"
-	if _, err := run(t, deps{ss: f}, "status", "index", file); exitCode(err) != 3 || f.allWrites != writes {
-		t.Errorf("under the lock: exit %d, writes %d → %d", exitCode(err), writes, f.allWrites)
+	if _, err := run(t, deps{ss: f}, "status", "index", file); exitCode(err) != 3 || f.frontWrites != writes {
+		t.Errorf("under the lock: exit %d, writes %d → %d", exitCode(err), writes, f.frontWrites)
 	}
 	f.holder = ""
 	f.front = "type: session-sync\ndiscussions:\n  - " + why
@@ -129,64 +130,31 @@ func TestIndexCommand(t *testing.T) {
 	}
 }
 
-// Couch's whole-file read and write mark every edit seen (#424 review,
-// BR-8). The index must never consume the operator's unread edits: a
-// reconcile with nothing to write leaves the baseline alone, and a write
-// prints the pending changes before it consumes them.
+// The index never consumes the operator's unread section edits (#426): a
+// reconcile with nothing to write reads nothing through couch, and a write
+// marks only the frontmatter seen, so the edit stays in the diff, and nothing
+// about it is printed.
 func TestIndexKeepsUnreadEdits(t *testing.T) {
 	f, file := indexFake(t)
 	f.seen()
 	f.sections["Needs you"] = "- the operator's new line"
-	if _, err := run(t, deps{ss: f}, "status", "index", file); err != nil || f.allWriteCalls != 0 {
-		t.Fatalf("a no-op reconcile wrote: %v, calls %d", err, f.allWriteCalls)
+	if _, err := run(t, deps{ss: f}, "status", "index", file); err != nil || f.frontWriteCalls != 0 {
+		t.Fatalf("a no-op reconcile wrote: %v, calls %d", err, f.frontWriteCalls)
 	}
 	if diff, _ := f.Diff(file); !strings.Contains(diff, "## Needs you changed") {
 		t.Fatalf("a no-op reconcile consumed the operator's edit; diff %q", diff)
 	}
 	out, err := link(t, f, file, "1", "tl-status-op.side/2026-10-17-01-s4.md")
-	if err != nil || !strings.Contains(out, "changes since your last read") || !strings.Contains(out, "## Needs you changed") {
-		t.Fatalf("the index write consumed an edit it did not print: %v\n%s", err, out)
+	if err != nil || f.frontWrites != 1 || strings.Contains(out, "Needs you") {
+		t.Fatalf("link: %v, writes %d\n%s", err, f.frontWrites, out)
+	}
+	if diff, _ := f.Diff(file); diff != "## Needs you changed\n" {
+		t.Fatalf("the index write consumed the operator's edit, or left its own; diff %q", diff)
 	}
 }
 
-func TestUnreadChanges(t *testing.T) {
-	for in, want := range map[string]string{
-		"lock: none\n": "", "lock: none": "", "": "",
-		"lock: none\n--- shadow\n+++ file\n": "--- shadow\n+++ file\n",
-		"## Needs you changed\n":             "## Needs you changed\n",
-	} {
-		if got := unreadChanges(in); got != want {
-			t.Errorf("unreadChanges(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
-
-// Every read of the whole file shows what it marks seen (BR-8, round 2): an
-// edit that makes the write stale is shown on the retry, and one landing
-// between the diff and the read is shown as changed lines.
-func TestIndexShowsEditsOnEveryRead(t *testing.T) {
-	why := "tl-status-op.side/01-why.md"
-	f, file := indexFake(t)
-	f.seen()
-	f.editAllBefore = map[int]map[string]string{1: {"Needs you": "- an edit that races the write"}}
-	out, err := run(t, deps{ss: f}, "status", "index", file, "--add", why)
-	if err != nil || !strings.Contains(out, "## Needs you changed") || f.allWriteCalls != 2 {
-		t.Fatalf("the edit that made the write stale was not shown: %v, calls %d\n%s", err, f.allWriteCalls, out)
-	}
-	if diff, _ := f.Diff(file); diff != "" {
-		t.Fatalf("diff after the write: %q", diff)
-	}
-	f, file = indexFake(t)
-	f.seen()
-	f.editOnReadAll = map[int]map[string]string{1: {"Needs you": "- an edit in the window"}}
-	out, err = run(t, deps{ss: f}, "status", "index", file, "--add", why)
-	if err != nil || !strings.Contains(out, "changed while reading") || !strings.Contains(out, "+- an edit in the window") {
-		t.Fatalf("an edit between the diff and the read was not shown: %v\n%s", err, out)
-	}
-}
-
-// submit prints couch's diff itself; the index write it triggers doesn't
-// print the same changes again (M2 review, Minor).
+// submit prints couch's diff once; the index write it triggers prints only
+// its own report.
 func TestSubmitPrintsUnreadOnce(t *testing.T) {
 	f, file := indexFake(t)
 	s4 := "tl-status-op.side/2026-10-17-01-s4.md"
@@ -198,5 +166,17 @@ func TestSubmitPrintsUnreadOnce(t *testing.T) {
 	out, err := run(t, deps{ss: f}, "status", "submit", file)
 	if err != nil || strings.Count(out, "## Operator instructions changed") != 1 || !strings.Contains(out, "index: dropped "+s4) {
 		t.Fatalf("submit: %v\n%s", err, out)
+	}
+}
+
+// A frontmatter line couch reads as the block's end but the reconcile does
+// not (an indented "  ---") would leave part of the new index outside the
+// write: syncIndex refuses instead of reporting an entry it never wrote.
+func TestIndexRefusesADelimiterCouchReadsDifferently(t *testing.T) {
+	f, file := indexFake(t)
+	f.front = "type: session-sync\nnote: |\n  ---\n  text"
+	_, err := link(t, f, file, "1", "tl-status-op.side/2026-10-17-01-s4.md")
+	if err == nil || !strings.Contains(err.Error(), "couch reads as its end") || f.frontWrites != 0 {
+		t.Fatalf("err %v, writes %d", err, f.frontWrites)
 	}
 }
