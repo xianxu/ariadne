@@ -47,3 +47,7 @@ Keep the per-script ceiling. Reduce the cost of `construct/scripts/test/dev-alia
 2026-10-19: Classified while closing ariadne#458. Targeted `go test ./scripts/test -run '^TestConstructScripts/plain/dev-aliases.test.sh$' -count=1 -v` passed in 33.779 seconds after the recorded full-suite timeout. The terminal failure was `scripts_test.go:70: .../construct/scripts/test/dev-aliases.test.sh did not finish within 2m0s`; the partial output had passed the prior build and failure-preservation assertions.
 
 2026-10-19: Claimed and measured the unchanged script: 82/82 assertions in 17.36s. A disposable fixture-cwd-only experiment took 16.74s, disproving live substrate traversal as the dominant cost here (this checkout has no construct/deps). Repeated generator calls scan unrelated owners, and fixed waits add several seconds. Quick test-only plan posted to hub; no production behavior or deadline changes.
+
+## Revisions
+
+2026-10-19 — Hub approved a production cost reduction after test-only timings remained 9.1–11.3s: replace primary_owner's repeated external dirname/basename processes with pure Bash path splitting. Match real utilities for trailing slashes, root, single components and repeated slashes using a small conformance table, and retain real-layout tests. This is the same owner-location rule and adds no state. The hot path visits each candidate once; path splitting should spawn zero external path utilities per candidate, with counted N/2N tests.
