@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -28,6 +27,8 @@ import (
 //	ready/<seq>      a waiting merge's readiness vouch (#449); its own
 //	                 directory, since scan deletes every unlocked file in
 //	                 tickets/. Swept once tickets/<seq> is gone.
+//	outcomes/<seq>   what a train did with a waiting car (#449), written by
+//	                 the train's conductor; swept the same way.
 //
 // Every flock dies with its process, so a dead waiter's ticket is pruned by
 // the next scan and a dead head frees head.lock: the line keeps no state that
@@ -60,6 +61,8 @@ type Options struct {
 	// OnHeld reports why this waiter, though first in line, is not admitted
 	// (a train not due, not ready), when that changes.
 	OnHeld func(why string)
+	// OnOutcome reports a train's word on this waiter (#449) when it changes.
+	OnOutcome func(o Outcome)
 }
 
 // Line is one repository's landing line.
@@ -83,6 +86,7 @@ type Handle struct {
 	ticket Ticket
 	path   string
 	ready  string   // its readiness sidecar's path
+	out    string   // its outcome sidecar's path
 	file   *os.File // the ticket's flock while waiting
 	head   *os.File // head.lock's flock once admitted
 }
@@ -91,7 +95,7 @@ func (h *Handle) Ticket() Ticket { return h.ticket }
 
 // Open prepares dir as a line; it creates nothing but directories.
 func Open(dir string, o Options) (*Line, error) {
-	for _, sub := range []string{"tickets", "ready"} {
+	for _, sub := range []string{"tickets", "ready", "outcomes"} {
 		if err := os.MkdirAll(filepath.Join(dir, sub), 0o755); err != nil {
 			return nil, err
 		}
@@ -152,7 +156,7 @@ func (l *Line) Enqueue(t Ticket) (*Handle, error) {
 			os.Remove(f.Name())
 			return err
 		}
-		h = &Handle{ticket: t, path: path, ready: readyPath(l.dir, seq), file: f}
+		h = &Handle{ticket: t, path: path, ready: readyPath(l.dir, seq), out: outcomePath(l.dir, seq), file: f}
 		return nil
 	})
 	return h, err
@@ -164,7 +168,25 @@ func (l *Line) Enqueue(t Ticket) (*Handle, error) {
 // interrupted. A cancelled ctx returns its error; the caller still releases.
 func (l *Line) Wait(ctx context.Context, h *Handle) error {
 	last, lastWhy := -1, ""
+	var lastOutcome OutcomeKind
+	var lastTrain int64
 	for {
+		// A train's word comes first: a landed or refused car leaves the
+		// line, a released one waits again from no outcome.
+		if o := l.outcomeOf(h.ticket.Seq); o != nil {
+			if (o.Kind != lastOutcome || o.Train != lastTrain) && l.o.OnOutcome != nil {
+				l.o.OnOutcome(*o)
+			}
+			lastOutcome, lastTrain = o.Kind, o.Train
+			switch {
+			case o.Final():
+				return &Settled{Outcome: *o}
+			case o.Kind == OutcomeReleased:
+				if err := l.clearOutcome(h.ticket.Seq, OutcomeReleased); err != nil {
+					return err
+				}
+			}
+		}
 		pos, head, why, err := l.tryAdmit(h)
 		if err != nil {
 			return err
@@ -303,31 +325,10 @@ func (l *Line) Vouch(h *Handle, r Readiness) error {
 		// them (ARCH-EVOLVE). A previous vouch that doesn't parse keeps nothing.
 		if old, err := os.ReadFile(h.ready); err == nil && len(old) <= maxTicket {
 			if prev, err := DecodeReadiness(old); err == nil && prev.Seq == h.ticket.Seq {
-				extra := make(map[string]json.RawMessage, len(prev.Extra)+len(r.Extra))
-				maps.Copy(extra, prev.Extra)
-				maps.Copy(extra, r.Extra)
-				r.Extra = extra
+				r.Extra = mergeExtra(prev.Extra, r.Extra)
 			}
 		}
-		data, err := json.Marshal(r)
-		if err != nil {
-			return err
-		}
-		f, err := os.CreateTemp(filepath.Join(l.dir, "ready"), ".tmp-")
-		if err != nil {
-			return err
-		}
-		_, err = f.Write(data)
-		if cerr := f.Close(); err == nil {
-			err = cerr
-		}
-		if err == nil {
-			err = os.Rename(f.Name(), h.ready)
-		}
-		if err != nil {
-			os.Remove(f.Name())
-		}
-		return err
+		return writeAtomic(filepath.Join(l.dir, "ready"), h.ready, r)
 	})
 }
 
@@ -353,8 +354,8 @@ func (l *Line) readReady() map[int64]Readiness {
 		return out
 	}
 	for _, e := range entries {
-		seq, perr := strconv.ParseInt(e.Name(), 10, 64)
-		if perr != nil {
+		seq, ok := sidecarSeq(e.Name())
+		if !ok {
 			continue
 		}
 		data, err := os.ReadFile(filepath.Join(l.dir, "ready", e.Name()))
@@ -422,6 +423,7 @@ func (h *Handle) dropLocked() {
 	if h.file != nil {
 		os.Remove(h.path)
 		os.Remove(h.ready)
+		os.Remove(h.out)
 		h.file.Close()
 		h.file = nil
 	}
@@ -470,33 +472,36 @@ func (l *Line) scan() ([]Ticket, error) {
 		t.Seq = seq
 		live = append(live, *t)
 	}
-	l.sweepReady(live)
+	l.sweepSidecars(live)
 	return live, nil
 }
 
-// sweepReady removes vouches whose ticket is gone: a dead waiter's, or one a
-// crash left between dropping a ticket and removing its vouch.
-func (l *Line) sweepReady(live []Ticket) {
-	dir := filepath.Join(l.dir, "ready")
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return
-	}
+// sweepSidecars removes the vouches and outcomes whose ticket is gone: a
+// dead waiter's, or one a crash left between dropping a ticket and removing
+// its sidecars.
+func (l *Line) sweepSidecars(live []Ticket) {
 	alive := map[int64]bool{}
 	for _, t := range live {
 		alive[t.Seq] = true
 	}
-	for _, e := range entries {
-		seq, perr := strconv.ParseInt(e.Name(), 10, 64)
-		if perr != nil && !strings.HasPrefix(e.Name(), ".tmp-") {
-			continue // not ours
-		}
-		if perr == nil && alive[seq] {
+	for _, sub := range []string{"ready", "outcomes"} {
+		dir := filepath.Join(l.dir, sub)
+		entries, err := os.ReadDir(dir)
+		if err != nil {
 			continue
 		}
-		// A dead waiter's vouch, or a temporary file a crash left mid-vouch:
-		// Vouch holds the mutex, so no temporary file is in flight here.
-		os.Remove(filepath.Join(dir, e.Name()))
+		for _, e := range entries {
+			seq, ok := sidecarSeq(e.Name())
+			if !ok && !strings.HasPrefix(e.Name(), ".tmp-") {
+				continue // not ours
+			}
+			if ok && alive[seq] {
+				continue
+			}
+			// A temporary file outlives only a crash mid-write: writers hold
+			// the mutex, so none is in flight while scan runs.
+			os.Remove(filepath.Join(dir, e.Name()))
+		}
 	}
 }
 

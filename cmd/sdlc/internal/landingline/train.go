@@ -1,13 +1,9 @@
 package landingline
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"regexp"
-	"slices"
 	"time"
 )
 
@@ -104,65 +100,22 @@ type Readiness struct {
 	Extra map[string]json.RawMessage `json:"-"`
 }
 
-// readinessFields are the known members, by exact name: encoding/json would
-// match "Head" or "HEAD" too, and an alias must not override a known field.
-var readinessFields = map[string]func(r *Readiness) any{
-	"version": func(r *Readiness) any { return &r.Version },
-	"seq":     func(r *Readiness) any { return &r.Seq },
-	"branch":  func(r *Readiness) any { return &r.Branch },
-	"head":    func(r *Readiness) any { return &r.Head },
-	"pr":      func(r *Readiness) any { return &r.PR },
-	"ready":   func(r *Readiness) any { return &r.Ready },
-	"alone":   func(r *Readiness) any { return &r.Alone },
-	"reason":  func(r *Readiness) any { return &r.Reason },
-	"at":      func(r *Readiness) any { return &r.At },
+// readinessFields are the known members, by exact name.
+func readinessFields(r *Readiness) map[string]any {
+	return map[string]any{
+		"version": &r.Version, "seq": &r.Seq, "branch": &r.Branch, "head": &r.Head, "pr": &r.PR,
+		"ready": &r.Ready, "alone": &r.Alone, "reason": &r.Reason, "at": &r.At,
+	}
 }
 
-// DecodeReadiness parses a sidecar strictly where it knows the schema and
-// tolerantly where it doesn't: one object, no duplicate member, every known
-// member of its exact type; unknown members are kept in Extra, raw.
+// DecodeReadiness parses a sidecar with the line's strict, preserving codec.
 func DecodeReadiness(data []byte) (Readiness, error) {
 	var r Readiness
-	dec := json.NewDecoder(bytes.NewReader(data))
-	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
-		return Readiness{}, errors.New("readiness must be one JSON object")
+	extra, err := decodeStrict(data, readinessFields(&r))
+	if err != nil {
+		return Readiness{}, fmt.Errorf("readiness: %w", err)
 	}
-	seen := map[string]bool{}
-	for dec.More() {
-		tok, err := dec.Token()
-		if err != nil {
-			return Readiness{}, err
-		}
-		key := tok.(string) // object keys are strings
-		if seen[key] {
-			return Readiness{}, fmt.Errorf("duplicate readiness member %q", key)
-		}
-		seen[key] = true
-		var raw json.RawMessage
-		if err := dec.Decode(&raw); err != nil {
-			return Readiness{}, err
-		}
-		field, known := readinessFields[key]
-		if !known {
-			if r.Extra == nil {
-				r.Extra = map[string]json.RawMessage{}
-			}
-			r.Extra[key] = raw
-			continue
-		}
-		if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
-			return Readiness{}, fmt.Errorf("readiness member %q is null", key)
-		}
-		if err := json.Unmarshal(raw, field(&r)); err != nil {
-			return Readiness{}, fmt.Errorf("readiness member %q: %w", key, err)
-		}
-	}
-	if tok, err := dec.Token(); err != nil || tok != json.Delim('}') {
-		return Readiness{}, errors.New("readiness object is not closed")
-	}
-	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
-		return Readiness{}, errors.New("trailing data after the readiness object")
-	}
+	r.Extra = extra
 	return r, nil
 }
 
@@ -171,27 +124,11 @@ func DecodeReadiness(data []byte) (Readiness, error) {
 func (r Readiness) MarshalJSON() ([]byte, error) {
 	type known Readiness // drops the method, keeps the tags
 	base, err := json.Marshal(known(r))
-	if err != nil || len(r.Extra) == 0 {
-		return base, err
+	if err != nil {
+		return nil, err
 	}
-	keys := make([]string, 0, len(r.Extra))
-	for k := range r.Extra {
-		if _, isKnown := readinessFields[k]; !isKnown {
-			keys = append(keys, k)
-		}
-	}
-	slices.Sort(keys)
-	var b bytes.Buffer
-	b.Write(base[:len(base)-1]) // drop the closing brace
-	for _, k := range keys {
-		name, _ := json.Marshal(k)
-		b.WriteByte(',')
-		b.Write(name)
-		b.WriteByte(':')
-		b.Write(r.Extra[k])
-	}
-	b.WriteByte('}')
-	return b.Bytes(), nil
+	fields := readinessFields(&r)
+	return encodeWithExtra(base, r.Extra, func(k string) bool { _, ok := fields[k]; return ok }), nil
 }
 
 var fullOID = regexp.MustCompile(`^[0-9a-f]{40}([0-9a-f]{24})?$`)
