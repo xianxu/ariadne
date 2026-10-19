@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
@@ -253,14 +254,18 @@ func loadAdoptedExclusions(ctx context.Context, root, issueNum, plans string, cu
 		id := strings.TrimLeft(rec.ID, "0")
 		adoptedHours, _ := strconv.ParseFloat(rec.Text("actual_hours"), 64)
 		context := fmt.Sprintf("issue #%s adopted actual", id)
-		completion, completed, err := issue.CardCompletion(rec.Card.Raw)
-		if err != nil {
-			return nil, fmt.Errorf("%s has no trustworthy completion: %w", context, err)
+		completion, completed, completionErr := issue.CardCompletion(rec.Card.Raw)
+		var saved *gatestate.MeasurementInputs
+		var ledger gatestate.Ledger
+		var savedErr error
+		switch {
+		case completionErr != nil:
+			savedErr = fmt.Errorf("completion: %w", completionErr)
+		case !completed:
+			savedErr = fmt.Errorf("completion is missing")
+		default:
+			saved, ledger, _, savedErr = completedMeasurementSnapshot(ctx, root, rec, completion, current.Snapshot.Repository, plans, true)
 		}
-		if !completed {
-			return nil, fmt.Errorf("%s has no trustworthy completion", context)
-		}
-		saved, ledger, _, savedErr := completedMeasurementSnapshot(ctx, root, rec, completion, current.Snapshot.Repository, plans, true)
 		window := windowMissing
 		if savedErr == nil && saved != nil {
 			window = windowOverlap

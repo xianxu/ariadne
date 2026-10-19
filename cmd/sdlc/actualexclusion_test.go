@@ -164,6 +164,8 @@ func TestParkedClaimExcludesOtherAdoptedIssueInSameSlot(t *testing.T) {
 	}
 	unknownPath, unknownCard, unknownDetail, unknownBody := seededIssue(t, "000658", "unknown-slot")
 	cards[unknownPath], details[unknownDetail] = unknownCard, unknownBody
+	legacyPath, legacyCard, legacyDetail, legacyBody := seededIssue(t, "000659", "legacy-no-completion")
+	cards[legacyPath], details[legacyDetail] = legacyCard, legacyBody
 	r := newTrackerRepo(t, cards, details)
 	ownerRoot := filepath.Join(t.TempDir(), "owner")
 	testfix.Git(t, r.root, "worktree", "add", "-q", "-b", "000636-parked", ownerRoot)
@@ -316,6 +318,28 @@ func TestParkedClaimExcludesOtherAdoptedIssueInSameSlot(t *testing.T) {
 				t.Fatalf("%d unrelated adoptions caused replay or lost same-slot protection: intervals=%+v err=%v", i+1, intervals, err)
 			}
 		}
+	}
+	// A numeric legacy card without completion has no saved window. Pinned
+	// ownership in another slot is still sufficient to reject it before
+	// demanding completion evidence.
+	legacyOwner := owner
+	legacyOwner.Workspace = "ariadne:7"
+	update("000659", "claim-659", 15, func(raw []byte) ([]byte, error) {
+		return issue.SetCardClaimant(raw, legacyOwner)
+	})
+	update("000659", "legacy-actual-659", 42, func(raw []byte) ([]byte, error) {
+		raw, err := issue.SetCardField(raw, "actual_hours", "0.17")
+		if err != nil {
+			return nil, err
+		}
+		raw, err = issue.SetCardField(raw, "updated", "2026-10-14")
+		if err != nil {
+			return nil, err
+		}
+		return issue.SetCardField(raw, "status", "codecomplete")
+	})
+	if intervals, err := loadAdoptedExclusions(context.Background(), r.root, "636", "", current); err != nil || len(intervals) == 0 {
+		t.Fatalf("other-slot legacy card without completion blocked the parked actual: intervals=%+v err=%v", intervals, err)
 	}
 	// BR-5's #649/#636 shape with a second adopted card whose claimant
 	// workspace is empty: saved time overlaps, but neither a same nor a
