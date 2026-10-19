@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "0a6dff82", done: "d050526c"}
 ---
 
 # flake registration needs exact subtests and narrowing
