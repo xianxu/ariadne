@@ -1,6 +1,6 @@
 ---
 id: 000460
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours: 2.84
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: f6124b5ef7985ae6e3f91eb378c396fee0652228
         evidence_commit: 1c9fc70fd1f8b04fa1c5d15cea2a233dbff1dda5
+        landed_commit: 2faabc739387be72915d6b47a69944261a1053b4
 ---
 
 # sdlc card decoder refuses unknown fields: a merge started before a rebuild rejects new card fields (ARCH-EVOLVE)
