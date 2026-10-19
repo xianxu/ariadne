@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "40ed78ad", done: "d2d585d6"}
 ---
 
 # ARCH principle: persisted formats evolve additively; readers ignore unknown fields; refusal only when ignoring is unsafe
