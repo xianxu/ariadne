@@ -33,6 +33,22 @@ When /Volumes/TestScratch is mounted and writable, `sdlc local-check run`, the s
 - With the RAM disk mounted, a suite's test temp files live under /Volumes/TestScratch (fixture test plus a live check); without it, nothing changes.
 - A live disk-write sample (proc rusage of the suite tree) shows the SSD bytes written per suite falling.
 
+## Revisions
+
+### 2026-10-19: operator additions (via the hub)
+Reason: the operator asked to advertise the RAM disk and to measure what still writes to the SSD.
+
+Delta to Spec:
+1. **Constitution:** one line in `AGENTS.base.md` §10 (the shared constitution; AGENTS.md is generated from it), next to the temp-dir rule. It advertises `/Volumes/TestScratch` (a RAM disk) for short-lived file writes in tests and scratch work, falling back to `$TMPDIR` when it is absent.
+2. **Scrutiny of paths that bypass it:**
+   - **(a) After a recorded suite run on the RAM disk:** a warning, never a failure, listing the top-level entries that appeared during the run in the SSD temp folders the run doesn't own: the system temp folder (`getconf DARWIN_USER_TEMP_DIR`, `/var/folders/.../T`) and `/Volumes/AgentScratch/tmp`.
+     - It reports the count and size, and each entry's name.
+     - A Go `t.TempDir` folder carries its test's name (`TestX123…`), which attributes it to a test. The warning also says any process on the machine may have made an entry, so it measures, it doesn't convict.
+     - It is skipped when the run fell back, since then the SSD is the run's own temp.
+   - **(b) Lint:** the existing `pkg/golint` rule `tmp-literal` (ariadne#342) already flags a `/tmp` literal in `os`, `filepath.Join` and `ioutil` calls. Widen it to `/private/tmp`, `/var/folders/` and `/Volumes/AgentScratch` literals, citing #468. `t.TempDir` and `os.MkdirTemp("", …)` already follow TMPDIR. Shell scripts are covered by `pkg/shelllint`'s template-less mktemp rule.
+
+Delta to Plan: steps for 1, 2a and 2b are added below. The diff will likely leave the quick-flow shell, so the close review upgrades to the full review.
+
 ## Plan
 
 There is one seam: `runUnderSlot` (`cmd/sdlc/localcheck_run.go`) starts every suite and every known-flake rerun (`local-check run`, close's recorded suite and merge's integration suite), so the scratch choice lives there. The design goes in a new `cmd/sdlc/testscratch.go`:
@@ -56,6 +72,9 @@ There is one seam: `runUnderSlot` (`cmd/sdlc/localcheck_run.go`) starts every su
 Steps:
 - [ ] Tests: `chooseScratch` table (unmounted, low free space, probe error, ok); the sweep (dead pid vs live pid, old vs fresh go-build, files and dirs outside the patterns untouched); a `runUnderSlot` fixture whose child records `$TMPDIR` and `$GOTMPDIR` (under `WF_TEST_SCRATCH`, the dir removed after; `off`, inherited unchanged).
 - [ ] Implement `testscratch.go` and the change to `runUnderSlot`.
+- [ ] Revision 2a: snapshot the two SSD temp folders before a scratched run and diff them after (`scratchLeaks`, pure over two listings plus sizes); print the warning. Tests: a fixture with injected folder roots.
+- [ ] Revision 2b: widen `tmp-literal` in `pkg/golint/rules.go`, with test cases in `rules_test.go`; fix any new hits in the tree.
+- [ ] Revision 1: the `AGENTS.base.md` §10 line.
 - [ ] Docs: `sdlc local-check --help` gets a line; atlas `sdlc-binary` "Running the test suite".
 - [ ] Live: this machine has no RAM disk mounted yet (`df` finds none), so the live check and the disk-write sample are the hub's or operator's once it is mounted. I'll send the exact commands.
 
