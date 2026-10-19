@@ -50,7 +50,7 @@
 
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
-| `trainReadiness` sidecar `ready/<seq>` | `cmd/sdlc/internal/landingline/line.go` | new | file under `line.lock` |
+| `trainReadiness` sidecar `ready/<seq>` | `cmd/sdlc/internal/landingline/line.go` | new | file under the line mutex (`line.lock`) |
 | `conductTrain` | `cmd/sdlc/landingtrain.go` | new | git, gh, local-check runner |
 | `buildTrainBranch` | `cmd/sdlc/landingtrain.go` | new | `git merge --no-ff` in a detached worktree |
 | `ghLanding.CreateTrainPR` / `CloseTrainPR` | `cmd/sdlc/ghlanding.go` | new methods | `gh pr create/close` |
@@ -62,7 +62,13 @@
 - **landingFakeGH** gains state:
   - train PRs;
   - a merge that marks every open PR whose head is an ancestor of the merge commit as MERGED. GitHub documents the state but not which `mergeCommit` such a PR reports, so the fake's `mergeCommit` for a reachability-merged PR is a parameter: null, the car's own head, or the train's merge commit. Every car-resume test runs all three variants (PQ-3).
-- **Car resume** (`landing.go:581` today requires `MergeOID` ⊑ main) accepts a MERGED PR when either its `MergeOID` or its `HeadOID` is an ancestor of the fetched main. Both are equally strong evidence that the car's exact reviewed head is on main. A MERGED PR with neither reachable still refuses. The rule lives in one pure predicate, `landedOnMain(pr, isAncestor)`, which the single-landing path also uses, so there is one definition (ARCH-DRY).
+- **Car resume** (`landing.go:581` today requires `MergeOID` ⊑ main) accepts a MERGED PR when either its `MergeOID` or its `HeadOID` is an ancestor of the fetched main. Both are equally strong evidence that the car's exact reviewed head is on main. A MERGED PR with neither reachable still refuses. The rule lives in one pure resolver, `landedCommit(pr, isAncestor) (oid, ok)`. It returns `MergeOID` when that is a valid OID on main, otherwise `HeadOID` when that is on main, otherwise not-ok. Its result is stored once as the new field `landingPR.LandedOID`. **Every** `MergeOID` consumer on the landing and resume path reads `LandedOID` instead. The full enumeration (`grep -n MergeOID cmd/sdlc/*.go`, non-test):
+  - `landing.go:581`, the post-merge reachability check;
+  - `landingarchive.go:162`, the archive's PR validity check, which today refuses a null `MergeOID`;
+  - `landingarchive.go:634`, the archive's ancestor-of-tip check;
+  - `trackercompletion.go:249`, the card's landed commit.
+
+  `ghlanding.go:20/123` stays the decode site of the raw value. The single-landing path goes through the same resolver, so its behavior is unchanged: `MergeOID` is always on main there (ARCH-DRY, one definition). Tests run the fake's three `mergeCommit` variants (null, the car's head, the train's merge commit) end to end through resume, archive and card completion, not only through the gate. A test greps that no non-test file outside ghlanding.go reads `MergeOID` (ARCH-PURPOSE: the class, not the site).
 - **Live conformance (ARCH-MOCK):** per the hub (Q7, Revisions), there is no scratch repo. The first pilot train's real evidence is recorded as the conformance check: each car PR's state, `mergeCommit` and `headRefOid` after the train merge. If GitHub's `mergeCommit` turns out to be a variant other than the fake's default, the fake's default changes to match. Resume already accepts all three.
 
 ## Operating envelope (ARCH-CONSTRAINTS)
@@ -75,7 +81,7 @@
 ## Lifecycle of created things (ARCH-FUNERAL)
 
 - **The train branch `landing-train/<seq>` and the train PR:** the conductor creates them. The merge deletes the branch (as today). On `Abandoned` the conductor closes the PR and deletes the branch. If the conductor dies, the next conductor's reclaim closes and deletes any train PR whose conductor's head.lock is gone. Count ≤ 1 live per repo.
-- **The `ready/<seq>` sidecar** lives in its own directory, never in `tickets/`. `scan` (line.go:261) flock-tests and deletes every unlocked file in `tickets/`, so a sidecar there would vanish on the next poll (PQ-2). The car writes it under `line.mutex`, by tmp then rename. `scan` sweeps `ready/<seq>` when `tickets/<seq>` is absent: the ticket's owner died or left, and the car also removes it on exit. ≤ 1 per live ticket. Test: a sidecar survives scans while its ticket is held and is swept after the holder is killed.
+- **The `ready/<seq>` sidecar** lives in its own directory, never in `tickets/`. `scan` (line.go:261) flock-tests and deletes every unlocked file in `tickets/`, so a sidecar there would vanish on the next poll (PQ-2). The car writes it under the line mutex (`line.lock`), by tmp then rename. `scan` sweeps `ready/<seq>` when `tickets/<seq>` is absent: the ticket's owner died or left, and the car also removes it on exit. ≤ 1 per live ticket. Test: a sidecar survives scans while its ticket is held and is swept after the holder is killed.
 - **`train`/`car` events:** appended to events.jsonl and swept by the existing 30-day `KeepEvents`. A few hundred bytes per train.
 - **The train worktree:** removed on every exit path, including signals, through the same deferred cleanup `runLocalCheck` uses.
 
