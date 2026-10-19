@@ -108,3 +108,103 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"96994ef4-294f-413d-a476-b8da65fd33a1","repository":"github.com/xianxu/ariadne","issue_id":"000394","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/0f367c41eb7dbc02","reviewed_head":"d46c4e3163b0c2f0bebf1fcc8169826f466f4606","slot":"ariadne:2","requested_at":"2026-10-19T03:03:58.053655Z"},"phase":"finished","pid":54804,"started_at":"2026-10-19T03:03:58.171668Z","finished_at":"2026-10-19T03:08:45.036215Z","session_id":"ab2bea49-fa9a-4bdf-8396-a60551c2b7ad","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-18T20:19:21-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 394 — Issue-backed flake landing and daily triage |
+| repo | ariadne |
+| issue file | workshop/issues/000394-issue-backed-flake-landing.md |
+| boundary | milestone M3 |
+| milestone | M3 |
+| window | 7a3f91e459f922f7bc82fb738ed3894add7c8c31..3c715596519a09b40e4eeee0b66809252f7eb6fd |
+| command | sdlc milestone-close --issue 394 --milestone M3 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-18T20:19:21-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Checking the remaining direct check-name comparisons and whether the prune-race fix has a test.
+
+The merge path checks the runner error before it reads `rec.passed()`, so a refused pass blocks the merge. Next I'm running the tests that touch the guard.
+
+Tests pass. Now I'm reverting the per-kind wording fix to confirm its test fails without it.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+**Summary.** This round fixed what M3 needed to fix. `guardSuitePass` lives in `postLocalCheckRecord`, so every suite pass goes through it: a fresh run, a reused saved pass, or a republish. The merge and landing gates check the runner's error before they read `rec.passed()` (`cigate.go:609-614`), so a refused pass blocks the merge. BR-21's pilot and propagation work now has a dated Revision with named owners, and the issue's M3 line says it is not done in M3. The per-kind wording (BR-22) has a test that I confirmed goes red when the fix is reverted. The test rename (BR-25) is done. Two Minors are not finished. The reader sweep for BR-24 still misses `actualqueue.go:34`, and the pruned-record skip for BR-23 has no test. The merge help also never mentions the new guard. None of these block. The targeted tests pass in `internal/flakes`, `cmd/sdlc` (gate, republish, run, stats, flake) and `cmd/tl-worker`.
+
+1. **Strengths**
+   - One choke point: the guard sits in `postLocalCheckRecord` (`localcheck_republish.go:220-224`), so run, reuse and republish can't drift apart. Its error type is passed through without the misleading "publish it with republish" hint (`localcheck_run.go:287-290`, `localcheck_republish.go:232-235`).
+   - It fails closed when the store or the registry can't be read, and the refusal names the attempts. The policy for which failures can never be explained is a single source, `flakes.Explainable`/`neverExplained` (`evidence.go:86-89`).
+   - Test-stats now reads a passing `suite-rerun` row as evidence in its own right, not the parent's possibly downgraded outcome. `TestSuiteStatsRerunEvidenceSurvivesADowngradedParent` pins this, including that a failing rerun adds nothing.
+   - The five old tests that encoded the loophole now assert the refusal and check the posted status, not just the error.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - `cmd/sdlc/helptext/merge.md:145-148`: Plan M3 says "the local-check and merge help … are updated". Merge help doesn't mention that a passing suite after an unexplained failure on the same head is refused. Merge reaches that refusal through `runLocalCheck`.
+   - BR-24 is still open: `actualqueue.go:34` (`a.Check != "suite"`) and `weeklystats_inputs.go:223` (a direct `suiteRerunCheck` compare).
+   - BR-23 is still open: the `fs.ErrNotExist` skip (`teststats_store.go:464-466`) has no test.
+   - Plan line 104 ("Pilot: a pair run …") is not marked deferred, though the Revision says "the M3 plan line is marked accordingly". Only the issue's line is marked.
+
+5. **Test coverage notes.** The blind-rerun refusal, register-then-republish, refusal on an unreadable store, and the unattributable kind are all covered against the real store with a fake GitHub that keeps state. Not covered: a head with two unexplained failures, one explainable and one not (the code chooses the conservative wording), and the prune race.
+
+6. **Architectural notes**
+   - ARCH-DRY: pass, apart from the BR-24 stragglers.
+   - ARCH-PURE: pass. The guard is thin glue over the pure `flakes.Unexplained`/`Explainable`.
+   - ARCH-PURPOSE: pass. The Spec's "a blind passing retry never erases an unexplained failure" is enforced at the single post seam. The pilot is deferred with owners.
+   - ARCH-MOCK: pass. Gate tests run the real store with a fake GitHub that keeps statuses.
+   - ARCH-CONSTRAINTS: pass. The reader caps that now gate landings are stated with measured headroom (155 records / 620K against 10,000 / 64 MiB).
+   - ARCH-SECURE: pass. Store warnings fail closed rather than reading as success.
+   - ARCH-ORDER: pass. The decision reads fresh store and registry state at post time. A concurrent prune is handled, though untested.
+   - ARCH-FUNERAL: pass. M3 adds no new durable artifact, and attempts stay bounded by the 30-day prune.
+   - Upcoming: enforce the reader-predicate rule mechanically, for example with a test that greps for `.Check ==`/`!=` outside `teststats.go` and the decoder. A fourth instance would then be impossible, not just unlikely.
+
+7. **Plan revision recommendations**
+   - Mark plan line 104 (Pilot) as moved by the 2026-10-18 M3 round-1 Revision.
+   - Record that the merge help is updated, or move it explicitly.
+
+```findings
+dispose:
+  - id: BR-21
+    disposition: addressed
+    note: |
+      Plan Revisions 2026-10-18 M3 round 1 moves the pilot and propagation work to after landing, with owners (hub ops:0, ariadne:2), and the issue's M3 line says so; plan line 104 should be marked too (Minor).
+  - id: BR-22
+    disposition: addressed
+    note: |
+      guardSuitePass branches on flakes.Explainable; the TestKnownFlakeGate unattributable subtest asserts no "flake register" and "cannot explain it", and it fails with the branch disabled (verified).
+  - id: BR-23
+    disposition: not-addressed
+    note: |
+      The cap headroom is now in the atlas, which is fine, but the ErrNotExist skip at teststats_store.go:464 changes behavior and has no test (grep finds none); add an injected-removal case.
+  - id: BR-24
+    disposition: not-addressed
+    note: |
+      The named sites are routed through isSuiteRun, but actualqueue.go:34 still compares a.Check != "suite" and weeklystats_inputs.go:223 compares suiteRerunCheck directly, so the atlas claim is still false. The rule: no Check comparison outside teststats.go's predicates and the decoder. Enforce it with a grep test rather than fixing one more site.
+  - id: BR-25
+    disposition: addressed
+    note: |
+      Renamed TestRunLocalCheckUnreadableStoreRefusesTheSuitePass; its assertions match the name.
+findings:
+  - id: new
+    severity: Minor
+    family: deferred-purpose-subset
+    title: |
+      Merge help omits the no-blind-rerun guard although Plan M3 claims the merge help is updated
+    detail: |
+      cmd/sdlc/helptext/merge.md:145-148 still has only the M2 known-flake text, but merge reaches guardSuitePass through runLocalCheck and refuses a passing suite after an unexplained same-head failure. The rule (the same one as BR-21): every Plan item a boundary checks off cites a delivered artifact or a dated Revision. Add the refusal and its recovery (register, then republish) to merge help.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"297c1a47-76f2-4b29-96e5-4a4db60317a5","repository":"github.com/xianxu/ariadne","issue_id":"000394","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Users/xianxu/Library/Caches/sdlc/review-checkouts/e76638a2c712254e","reviewed_head":"3c715596519a09b40e4eeee0b66809252f7eb6fd","slot":"ariadne:2","requested_at":"2026-10-19T03:16:50.92299Z"},"phase":"finished","pid":86906,"started_at":"2026-10-19T03:16:51.144367Z","finished_at":"2026-10-19T03:19:20.437334Z","session_id":"19b66bc0-ded1-4956-b677-a57be080c101","outcome":"returned"}] -->
