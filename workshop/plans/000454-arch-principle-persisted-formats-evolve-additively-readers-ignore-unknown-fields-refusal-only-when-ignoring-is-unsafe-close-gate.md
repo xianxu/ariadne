@@ -90,6 +90,92 @@ rounds:
       recipe: small-diff-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: a9b2842c-c8c2-4b2b-9332-6220424066cc
+            repository: github.com/xianxu/ariadne
+            issue_id: "000454"
+            recipe: small-diff-review
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/Library/Caches/sdlc/review-checkouts/1412717977ea54cc
+            reviewed_head: f4fde1c556508ed4a8b8b0a5298654252c52bc05
+            slot: ariadne:3
+            requested_at: "2026-10-19T04:21:35.455715Z"
+          phase: finished
+          pid: 61443
+          started_at: "2026-10-19T04:21:35.705354Z"
+          finished_at: "2026-10-19T04:23:50.329964Z"
+          session_id: 01a15264-bd49-79f3-95a8-81d3389617de
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: f4fde1c556508ed4a8b8b0a5298654252c52bc05
+        tracker_head: 971fd7674aa173d2ff6af396dd5ce029c91a9f2c
+        branch_point: 08fcf21d27f34f22d50ad384b21a77aff5f4b356
+        since: "2026-10-18T21:03:58-07:00"
+        until: "2026-10-18T21:20:48-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-18T21:03:58-07:00"
+              end: "2026-10-18T21:20:48-07:00"
+              began: "2026-10-18T21:03:58-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 3efd3c2d8736e75fa6630c0fa8b0b7a3f04d186031f750a5747e8d9744767185
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 24914874
+              windows:
+                - start: "2026-10-18T21:03:58-07:00"
+                  end: "2026-10-18T21:20:48-07:00"
+            - harness: codex
+              id: 01a15256-9af5-78a1-9881-6f853fa95454
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a14367-9218-7872-89c3-f9a28c524834
+              digest: c4ab8def9616c073a8785e0b9daf3a4c32daad6993e805c865494c61c53af150
+              started: "2026-10-19T04:06:09.998Z"
+              spawned: true
+              bytes: 514385
+              windows:
+                - start: "2026-10-19T04:06:09.998Z"
+                  end: "2026-10-18T21:20:48-07:00"
+        cuts:
+            - dispatched: "2026-10-18T21:12:37-07:00"
+              finalized: "2026-10-18T21:14:26-07:00"
+              finalizing: false
+      "n": 2
+      timestamp: "2026-10-18T21:23:52-07:00"
+      dispatched: "2026-10-18T21:21:35-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: closeflow_test.go:109 and flow_e2e_test.go:92 now assert the shared ArchitectureBlock while retaining flow-selection checks. Both pass at pinned head; restoring their original assertions in a disposable checkout makes both fail. The lint regression also fails with its matcher disabled.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: architecture-principles.md:9–13 removes the stale quick-set enumeration; :198–207 and sdlc-binary.md:1620–1627 accurately describe the two independent tripwires and derived header expectations. These match TestArchitectureMarkers and TestQuickMarkers. Regenerated process-manual blocks include ARCH-EVOLVE and updated counts.
+          round: 2
+      recipe: small-diff-review
+      isolation: fenced
+      reviewed: f4fde1c556508ed4a8b8b0a5298654252c52bc05
+      blocked: false
 ---
 
 # Gate ledger — ariadne#454 (boundary-review)
@@ -106,7 +192,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-2** [Minor] `registry-documentation-stays-current` (kind: defect) Existing atlas descriptions still show the previous registry
   atlas/workflow/architecture-principles.md:9–10 omits EVOLVE from the current quick-flow list; atlas/workflow/sdlc-binary.md:1625–1629 claims exactly one test restates the marker set despite the remaining count assertions and quick-set tripwire. Generated prompt blocks in atlas/process-manual.md:15, :538, :1000, :1362 and :1850 also omit EVOLVE. Update the descriptions and regenerate the manual; these enumerate the stale registry descriptions found in the reviewed tree.
 
+## Round 2 — 2026-10-18T21:23:52-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — closeflow_test.go:109 and flow_e2e_test.go:92 now assert the shared ArchitectureBlock while retaining flow-selection checks. Both pass at pinned head; restoring their original assertions in a disposable checkout makes both fail. The lint regression also fails with its matcher disabled.
+- BR-2 — addressed — architecture-principles.md:9–13 removes the stale quick-set enumeration; :198–207 and sdlc-binary.md:1620–1627 accurately describe the two independent tripwires and derived header expectations. These match TestArchitectureMarkers and TestQuickMarkers. Regenerated process-manual blocks include ARCH-EVOLVE and updated counts.
+
 ## Open findings
 
-- **BR-1** [Important] `registry-consumers-derive-from-source` (kind: defect) Two flow tests retain the old registry count and now fail
-- **BR-2** [Minor] `registry-documentation-stays-current` (kind: defect) Existing atlas descriptions still show the previous registry
+(none — every finding has been disposed)

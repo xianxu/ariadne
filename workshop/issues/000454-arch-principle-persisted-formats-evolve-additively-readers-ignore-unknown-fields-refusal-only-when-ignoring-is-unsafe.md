@@ -54,6 +54,7 @@ Add a principle to the registry (name to settle, e.g. ARCH-EVOLVE): persisted fo
 ## Log
 
 ### 2026-10-18
+- 2026-10-18: closed — BR-1 red reproduced both stale-count failures (44.816s); all rendered numeric count assertions now derive from registry/shared renderer. Corrected command/start-plan/flow tests pass (44.209s); full golint 1.277s, judge 12.919s, processmanual 0.171s pass. BR-2 maps updated and full manual regenerated. Narrow hardcoded-count lint red/green added. Prior actual three-case Codex conformance passed (52.904s): unjustified refusal gets ARCH-EVOLVE; both controls get zero findings. Corrected-head full suite dispatched, must pass before landing. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 - Claimed and started in ariadne:3. Hub dispatch specifies preserving unknown
   fields through rewrites, with strict known-field validation and duplicate-key
