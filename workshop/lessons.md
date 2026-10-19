@@ -1025,3 +1025,10 @@ The simplest durable authority beats a clever scan of consequences.
   literal sets for deliberate policy tripwires, and name those exceptions
   accurately in the atlas (#454 BR-1/BR-2). The test-hardcoded-arch-count catalog
   rule catches fixed numeric architecture-header Contains assertions.
+
+- **#453 — synchronize acceptance on scope transfer:** when the hub moves
+  acceptance steps to a peer issue, update the current Done-when checklist in
+  the same checkpoint and preserve the original criteria plus ownership in
+  Revisions. A revision note alone leaves two contradictory close contracts.
+  This is a semantic scope decision; the existing close freshness judge owns
+  enforcement rather than a lexical Go lint rule.

@@ -31,9 +31,14 @@ An empty round is a valid, explicit reply: the agent (xx-fix / the review skill)
 
 ## Done when
 
-- The skill writes an empty-round reply when it has no edits; a test covers it.
-- The protocol target states that an empty reply completes a round.
-- With pair's side landed, a live round where the agent makes no edits clears the spinner.
+- Every completed workbench review calls apply, including `{"records":[]}` when
+  there are no edits; explanations/questions remain in the session reply.
+- Empty replies never create agent commits, including older-Pair success without
+  Round/Body or recovery after a lost empty-apply reply. Changed replies still
+  commit returned nonempty Body verbatim under the existing identity guards.
+- Red/green skill-contract tests and observed agent scenarios cover the empty,
+  real-edit and older-Pair reply cases. Protocol-target wording and the real
+  spinner/pending-block pane check are owned by pair#690, as approved by the hub.
 
 ## Plan
 
@@ -95,3 +100,15 @@ the close/landing gates that necessarily follow this checkpoint. Recorded suite
 is dispatched on the pushed implementation; close may overlap its queue under
 the worker contract, with an actual pass required before landing. No acceptance
 step or gate is waived; peer acceptance ownership remains as approved above.
+
+### 2026-10-18 — synchronize the current acceptance contract (BR-1)
+
+The close review correctly found that the current Done-when list retained peer
+criteria even though the approved scope revision transferred them. Updated all
+three current rows to the producer's empty submission, no-empty-commit rule,
+changed-reply control and regression evidence. The original cross-repo criteria
+were: "The protocol target states that an empty reply completes a round" and
+"With pair's side landed, a live round where the agent makes no edits clears
+the spinner." They remain acceptance for pair#690, not waived or claimed here.
+The hand-off is recorded above and was sent to its owner. This is acceptance
+bookkeeping only; the queued final-code suite remains valid and unchanged.
