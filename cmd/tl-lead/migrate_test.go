@@ -372,26 +372,26 @@ func TestMigrateAnswersLockMidRun(t *testing.T) {
 
 // A stopped run already moved a doc's registration, and the operator now
 // holds the doc at its new path: the rerun refuses rather than write past
-// the lock (BR-1).
+// the lock (BR-1). The doc is the nested side doc, which never names qa/, so
+// only the side-folder clause of the lock read can find it.
 func TestMigrateAnswersLockAtDestination(t *testing.T) {
 	root, file, f := migrateFixture(t)
-	n := 0
+	moved := filepath.Join(root, "tl-status-op.side/2026-10-17-02-ci.side/01-why.md")
 	stop := func() error {
-		if n++; n == 4 { // s4: created, then renamed
-			return errInterrupted
+		if f.registered[moved] {
+			return errInterrupted // right after its rename
 		}
 		return nil
 	}
 	if err := migrateAnswers(deps{ss: f}, &strings.Builder{}, file, "", true, stop); !errors.Is(err, errInterrupted) {
 		t.Fatalf("stop: %v", err)
 	}
-	moved := filepath.Join(root, "tl-status-op.side/2026-10-17-01-s4.md")
-	if !f.registered[moved] {
-		t.Fatalf("the stop came before the rename: %v", f.registered)
+	if b, _ := os.ReadFile(moved); strings.Contains(string(b), "qa/op") {
+		t.Fatal("the fixture doc names qa/; it can't isolate the side-folder clause")
 	}
 	f.lockedFiles = map[string]bool{moved: true}
 	var out strings.Builder
-	if err := migrateAnswers(deps{ss: f}, &out, file, "", true, noStep); exitCode(err) != 1 || !strings.Contains(out.String(), "conflict qa/op/2026-10-17-01-s4.md: the operator holds this doc's lock") {
+	if err := migrateAnswers(deps{ss: f}, &out, file, "", true, noStep); exitCode(err) != 1 || !strings.Contains(out.String(), "conflict qa/op/2026-10-17-02-ci.side/01-why.md: the operator holds this doc's lock") {
 		t.Fatalf("exit %d:\n%s", exitCode(err), out.String())
 	}
 }
