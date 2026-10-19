@@ -1048,3 +1048,5 @@ The simplest durable authority beats a clever scan of consequences.
   Revisions. A revision note alone leaves two contradictory close contracts.
   This is a semantic scope decision; the existing close freshness judge owns
   enforcement rather than a lexical Go lint rule.
+
+- #465: count subprocesses as well as wall time when optimizing shell fixtures on a shared macOS host. Isolate each scan to relevant owners, batch independent cases, reuse immutable successful sentinels, and select concurrency order with readiness barriers. Pure path splitting needs real dirname/basename edge conformance plus an N/2N zero-exec guard; keep partial/failed output fixtures independent.

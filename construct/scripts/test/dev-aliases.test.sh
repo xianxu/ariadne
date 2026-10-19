@@ -14,7 +14,10 @@ GEN="$ARIADNE_ROOT/construct/dev-aliases.sh"
 WS="$(mktemp -d "${TMPDIR:-/tmp}/devaliases57.XXXXXX")" || exit 1
 WS="$(cd "${WS:?}" && pwd -P)"
 trap 'rm -rf "${WS:?}"' EXIT
-cd "$WS" || exit 1
+# Anchor caller discovery immediately inside a hermetic, command-free repo.
+# A bare temp directory made every generator walk all of TMPDIR's ancestors.
+mkdir -p "$WS/caller/construct"
+cd "$WS/caller" || exit 1
 
 # A Couch slot's COUCH_TREE skips every build (#405); the cases that need one
 # set it themselves.
@@ -166,6 +169,11 @@ rm -rf "$CNT" "$WS/prepd/cmd/gen2"
 # Run the emitted function against stub make/go: preparation runs first, its
 # stdout stays off the binary's stdout, and a failed step fails the call loudly
 # without building or running.
+# Successful build stubs share immutable executable contents. Reusing that
+# inode avoids creating a new executable for every identical result;
+# partial/failed/concurrent builds below retain their own real output files.
+export SENTINEL="$WS/ran-sentinel"
+printf '#!/bin/sh\necho ran "$@"\n' > "$SENTINEL"; chmod +x "$SENTINEL"
 STUB="$WS/stubbin"; mkdir -p "$STUB"
 cat > "$STUB/make" <<'STUBEOF'
 #!/bin/sh
@@ -178,7 +186,7 @@ echo "go $*" >> "$TRACE"
 while [ "$#" -gt 0 ] && [ "$1" != -o ]; do shift; done
 [ "$#" -ge 2 ] || exit 2
 out="$2"
-printf '#!/bin/sh\necho ran "$@"\n' > "$out"; chmod +x "$out"
+ln "$SENTINEL" "$out"
 STUBEOF
 chmod +x "$STUB/make" "$STUB/go"
 gen_def="$gen_line"
@@ -432,9 +440,12 @@ CG="$WS/countbin"; mkdir -p "$CG"
 cat > "$CG/go" <<'STUBEOF'
 #!/bin/sh
 echo go >> "$TRACE"
+if [ -n "${EDIT_DURING_BUILD:-}" ]; then
+    touch -t 203001010000 "$EDIT_DURING_BUILD"
+fi
 while [ "$#" -gt 0 ] && [ "$1" != -o ]; do shift; done
 [ "$#" -ge 2 ] || exit 2
-printf '#!/bin/sh\necho ran "$@"\n' > "$2"; chmod +x "$2"
+ln "$SENTINEL" "$2"
 STUBEOF
 printf '#!/bin/sh\necho make >> "$TRACE"\n' > "$CG/make"
 chmod +x "$CG/go" "$CG/make"
@@ -476,10 +487,8 @@ chmod 755 "$OWN/locked"; rm -rf "$OWN/locked"
 # An edit made while the build runs is newer than the binary it produced, so
 # the next call rebuilds: the binary takes the time its build started.
 age_all
-printf '#!/bin/sh\necho go >> "$TRACE"\ntouch -t 203001010000 "%s/cmd/skipd/main.go"\nwhile [ "$#" -gt 0 ] && [ "$1" != -o ]; do shift; done\nprintf "#!/bin/sh\\necho ran \\"\\$@\\"\\n" > "$2"; chmod +x "$2"\n' "$OWN" > "$CG/go"
 touch -t 203001010000 "$OWN/assets/page.md"
-call; expect "make go " "a stale tree rebuilds (the stub edits a source mid-build)"
-printf '#!/bin/sh\necho go >> "$TRACE"\nwhile [ "$#" -gt 0 ] && [ "$1" != -o ]; do shift; done\nprintf "#!/bin/sh\\necho ran \\"\\$@\\"\\n" > "$2"; chmod +x "$2"\n' > "$CG/go"
+call EDIT_DURING_BUILD="$OWN/cmd/skipd/main.go"; expect "make go " "a stale tree rebuilds (the stub edits a source mid-build)"
 touch -t 200001010000 "$OWN/assets/page.md"
 call; expect "make go " "an edit made during the build makes the next call rebuild"
 # A local replace target outside the owner is scanned too; its .git and bin are

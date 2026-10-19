@@ -37,8 +37,8 @@ Keep the per-script ceiling. Reduce the cost of `construct/scripts/test/dev-alia
 
 ## Plan
 
-- [ ] Measure repeated generator scans and waits; isolate preparation and duplicate-origin cases to their relevant real fixture owners (ARCH-DRY).
-- [ ] Replace fixed concurrency polling with bounded readiness/finish handshakes and use explicit timestamps for edits during builds, retaining all 82 assertions and the existing deadline.
+- [x] Measure repeated generator scans and waits; isolate preparation and duplicate-origin cases to their relevant real fixture owners (ARCH-DRY).
+- [x] Replace fixed concurrency polling with bounded readiness/finish handshakes and use explicit timestamps for edits during builds, retaining all 82 assertions and the existing deadline.
 - [ ] Run repeated standalone and runner-targeted checks, the recorded suite and close review; land, then confirm the #465 flake registration is inactive.
 
 
@@ -51,3 +51,7 @@ Keep the per-script ceiling. Reduce the cost of `construct/scripts/test/dev-alia
 ## Revisions
 
 2026-10-19 — Hub approved a production cost reduction after test-only timings remained 9.1–11.3s: replace primary_owner's repeated external dirname/basename processes with pure Bash path splitting. Match real utilities for trailing slashes, root, single components and repeated slashes using a small conformance table, and retain real-layout tests. This is the same owner-location rule and adds no state. The hot path visits each candidate once; path splitting should spawn zero external path utilities per candidate, with counted N/2N tests.
+
+2026-10-19 — Acceptance clarification from hub: no standalone benchmark window or further timing chase while the shared machine is noisy. Accept the counted operation reduction, all 82 assertions passing, and a loaded recorded-suite pass. Successful build outputs share one immutable sentinel inode per run; partial, failed and concurrent output fixtures remain independent. The edit-during-build stub uses an environment flag instead of rewriting itself. The original two-minute ceiling is unchanged. Path splitting now serves all equivalent startup/collection sites, guarded by real-tool conformance and N/2N CLI counts.
+
+2026-10-19 — Final forwarded-command profiling, original and final real generators with frozen test sources: both 82/82 passed. Generator launches 38→27; Bash launches 59→33; Git calls 165→53 (config queries 148→49; four real inits retained); dirname 410→6 and basename 783→6. Remaining 12 path utilities belong to unchanged substrate parsing in explicit non-peer/slot cases, not the generator. Final counter artifacts: `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/aliases465-final-source-count.tr4rvrvw`. Path table and N/2N CLI guard pass. A temporary production mutation removing the installed nous binary before rebuilding makes the new FIFO-selected missing/partial-binary assertion fail (77 pass, five failures including the independent shape/failure-preservation guards).
