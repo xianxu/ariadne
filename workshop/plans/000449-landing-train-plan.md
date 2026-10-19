@@ -172,3 +172,11 @@ Covered: every action above, process death on both sides, lost merge reply, main
 - **Q5** The split remainder departs immediately instead of waiting a full interval.
 - **Q6** CI red on a train refuses the train (no CI bisect).
 - **Q7** Live conformance needs a scratch GitHub repo, which is outward-facing. Alternatively, the evidence comes from the ariadne pilot's first train, with the fake's rule written from GitHub's docs until then.
+
+## Revisions
+
+### 2026-10-19 — hub answers (delivery 14ac7039)
+
+- Q1: train PR merged once. Q2: cars vouch while waiting; the conductor re-verifies the tip at departure. Q4, Q5, Q6: as proposed (CI bisect is a later follow-up if needed).
+- Q3: **the default is 0 (off)**. With `.sdlc/landing.json` absent, or `train_interval_minutes` 0, landing is today's serial line. The pilot sets 60 in pair's `.sdlc/landing.json`. `.sdlc/` is not in local-gates-guard's protected list (`.github/workflows/local-gates-guard.yml:56-68`), so the pilot needs no operator label.
+- Q7: no scratch GitHub repo. The fake models GitHub's documented merged-by-reachability behavior. The first pilot train's real evidence (each car's PR state and `mergeCommit` after the train merge) is recorded as the conformance check, with low-risk cars where possible. M3's conformance task becomes "record the pilot train's evidence" and moves after landing, with the hub dispatching the pilot.
