@@ -1018,3 +1018,10 @@ The simplest durable authority beats a clever scan of consequences.
   unchanged; healthy real scripts can pass both the bug and the fix (#448 BR-1).
 - A new helper flag still needs README usage: state its output framing and whether
   it executes work, alongside the architectural atlas entry (#448 BR-2).
+
+- Registry expansion changes consumers outside the registry package. Sweep
+  rendered-header counts across Go tests and generated docs before selecting
+  checks. Derive header expectations from the registry/shared renderer; reserve
+  literal sets for deliberate policy tripwires, and name those exceptions
+  accurately in the atlas (#454 BR-1/BR-2). The test-hardcoded-arch-count catalog
+  rule catches fixed numeric architecture-header Contains assertions.

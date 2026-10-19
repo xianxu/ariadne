@@ -35,7 +35,7 @@ func TestRunStartPlan_RendersAtPlanLens(t *testing.T) {
 	// commit on the issue branch). Checkpointing matters while the design is being
 	// made, and start-plan's output is its only delivery point in the agent's
 	// attention path (ARCH-PURPOSE).
-	for _, want := range []string{"#75", "ARCH-DRY", "ARCH-CONSTRAINTS", "at-plan", "change-code", "superpowers-writing-plans", "workshop/plans/000075-", "estimate-source", estimate.CurrentModel()} {
+	for _, want := range []string{"#75", "ARCH-DRY", "ARCH-CONSTRAINTS", "ARCH-EVOLVE", "at-plan", "change-code", "superpowers-writing-plans", "workshop/plans/000075-", "estimate-source", estimate.CurrentModel()} {
 		if !strings.Contains(out, want) {
 			t.Errorf("start-plan output missing %q:\n%s", want, out)
 		}
