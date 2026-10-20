@@ -205,3 +205,28 @@ func TestParseManifestUnknownActionSkips(t *testing.T) {
 		t.Fatalf("ParseManifest = %v, want %v (unknown `copy` skipped)", got, want)
 	}
 }
+
+func TestParseManifestDecline(t *testing.T) {
+	// `decline` takes one path; a trailing slash is the same path. A
+	// visibility token is accepted and carries no meaning for it (only the
+	// leaf's decline rows ever apply, see layer.Decline).
+	got, err := ParseManifest("decline .github/workflows/\ninternal decline bootstrap.sh\n")
+	if err != nil {
+		t.Fatalf("ParseManifest: unexpected error: %v", err)
+	}
+	want := []Intent{
+		{Kind: Decline, Source: ".github/workflows/", Target: ".github/workflows/"},
+		{Kind: Decline, Visibility: Internal, Source: "bootstrap.sh", Target: "bootstrap.sh"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ParseManifest = %v, want %v", got, want)
+	}
+}
+
+func TestKindVerbRoundTrips(t *testing.T) {
+	for verb, kind := range kindByVerb {
+		if kind.Verb() != verb {
+			t.Fatalf("%v.Verb() = %q, want %q", kind, kind.Verb(), verb)
+		}
+	}
+}
