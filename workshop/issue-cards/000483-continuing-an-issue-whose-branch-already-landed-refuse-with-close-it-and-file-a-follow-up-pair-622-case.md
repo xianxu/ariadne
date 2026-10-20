@@ -1,6 +1,6 @@
 ---
 id: 000483
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-20
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 69d2987ceff329b44ff50f7c8478a823c80698e2
         evidence_commit: 5d9da1db1d8539520a9ce13cc3ce8e28a279fd09
+        landed_commit: 20eb00e2e8e81157910f1dc59beb0dee79c34844
 ---
 
 # Continuing an issue whose branch already landed: refuse with 'close it and file a follow-up' (pair#622 case)
