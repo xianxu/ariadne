@@ -1,6 +1,6 @@
 ---
 id: 000475
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-20
 estimate_hours: 2.67
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: fc32559e438281ea63d14ab4fa4905e0c299e0b7
         evidence_commit: cef25b965e8d203db878db7ac96b256d0192dab3
+        landed_commit: f5e742f33ddbcca69869e808279e47a63c3678c3
 ---
 
 # landing trains: wall-clock departure slots planned machine-wide by suite cost; leave at N cars or Y minutes; no clock reset (option A)
