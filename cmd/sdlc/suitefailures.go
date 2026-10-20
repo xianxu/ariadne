@@ -35,7 +35,8 @@ func suiteIndentLevel(line string) int {
 // failingTests extracts top-level test names from plain go test output and
 // test-shard.py's failure summary. The latter names the package before each
 // test's raw output; plain go test names it in the trailing FAIL line.
-// Subtests are represented by their parent; failingSubtests lists them.
+// Ambiguous raw subtests are represented by their proven parent. Exact
+// subtests come from explicit shard summaries or JSON events (#476).
 func failingTests(log string) []string { return failingNames(log, false) }
 
 // failingSubtests is the failing subtests the same log names (#466), as
@@ -52,7 +53,6 @@ func failingNameLines(lines iter.Seq[string], subtests bool) []string {
 	names := make(map[string]struct{})
 	var pending []string
 	var summaryPackage string
-	var ancestors []string
 	add := func(pkg, test string) {
 		if test == "" || strings.Contains(test, "/") != subtests {
 			return
@@ -67,30 +67,18 @@ func failingNameLines(lines iter.Seq[string], subtests bool) []string {
 			add(pkg, test)
 		}
 		pending = nil
-		ancestors = ancestors[:0]
 	}
 
 	for line := range lines {
 		level := suiteIndentLevel(line)
-		if level < 0 {
+		if level != 0 {
 			continue
 		}
-		control := level == 0
 		fields := strings.Fields(line)
 		if len(fields) == 0 {
 			continue
 		}
-		if !control {
-			if len(fields) < 3 || fields[0] != "---" || fields[1] != "FAIL:" ||
-				level <= 0 || level > len(ancestors) || !strings.HasPrefix(fields[2], ancestors[level-1]+"/") {
-				continue
-			}
-			ancestors = append(ancestors[:level], fields[2])
-		}
 		if len(fields) >= 3 && fields[0] == "---" && fields[1] == "FAIL:" {
-			if control {
-				ancestors = append(ancestors[:0], fields[2])
-			}
 			pending = append(pending, fields[2])
 			continue
 		}
@@ -98,8 +86,6 @@ func failingNameLines(lines iter.Seq[string], subtests bool) []string {
 			flush(summaryPackage)
 			summaryPackage = fields[2]
 			if len(fields) == 4 { // a package-only failure has no test name
-				top, _, _ := strings.Cut(fields[3], "/")
-				ancestors = append(ancestors[:0], top)
 				add(summaryPackage, fields[3])
 			}
 			continue

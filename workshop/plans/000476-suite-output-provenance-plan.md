@@ -6,9 +6,9 @@ collaboration-mode: discussion
 
 > **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy) to determine the appropriate execution approach: use superpowers-subagent-driven-development (if subagents are suitable per AGENTS.md) or superpowers-executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Attribute the pair#712/#689 failure to the outer warm-reattached leaf while keeping quoted helper output inert.
+**Goal:** Attribute the pair#712/#689 failure to its proven outer test while keeping quoted helper output inert. Exact raw subtest precision is superseded by the current approved goal below.
 
-**Architecture:** Preserve column-zero control-record provenance in the existing text scanners. Admit indented test outcomes only through observed four-space ancestors and complete parent names. Keep stored formats, registry policy and the real retry seam unchanged.
+**Architecture:** Admit column-zero records, retain exact JSON/shard leaves, and coarsen ambiguous raw indented output to a proven ancestor. Keep the complete-prefix classifier, stored formats, registry policy and retry seam unchanged. The original design and revisions below retain the decision history.
 
 **Tech Stack:** Go strings/iterators, existing local-check fixtures, Go AST lint catalog.
 
@@ -16,6 +16,12 @@ This records the correction approved by ops:0 in receipt
 09f8538f-08a4-4e8f-aebe-0786f25ec39e. It is a durable checkpoint of that approved
 design after the correction took the branch beyond the quick code-size shell,
 not a new design or a retrospective claim of plan-quality review.
+
+## Original approved design (superseded)
+
+The following original concepts, transitions and checked implementation record
+are historical. The final Revision, **Current approved goal: proven granularity**,
+is the current contract; it explicitly removes the ancestry mechanism.
 
 ## Core concepts
 
@@ -276,22 +282,36 @@ note; genuinely unidentified failure. Existing recoveries remain. Coarsening
 can withhold an automatic subtest-only retry, which the hub explicitly accepts;
 it cannot invent a leaf to obtain one. Raw evidence remains available.
 
-- [ ] Capture and commit real buffered/verbose Go output plus its small source
+- [x] Capture and commit real buffered/verbose Go output plus its small source
   for parent logging before/after failed children, nested returns and siblings.
   Keep the original pair#712/#689 excerpt too.
-- [ ] Change current fixtures to the revised contract and observe them red:
+- [x] Change current fixtures to the revised contract and observe them red:
   raw cases coarsen, structured cases remain exact, actual gate parent-only
   registration reruns and leaf-only registration stays unknown with a note.
-- [ ] Remove the scanner's ancestor mechanism; keep the shared prefix guard.
+- [x] Remove the scanner's ancestor mechanism; keep the shared prefix guard.
   Add the coarsening note in the existing facts scan without adding a log pass.
-- [ ] Verify saved-log success guard and historical replay: coarse raw evidence
+- [x] Verify saved-log success guard and historical replay: coarse raw evidence
   cannot justify leaf-only registrations; structured leaf evidence still can.
   Use Go JSON in the existing real-Go #466 integration fixture so it retains
   exact provenance, and add raw-mode coarse behavior separately.
-- [ ] Verify full Unicode, N/2N visits, parser, actual gate and lint controls.
+- [x] Verify full Unicode, N/2N visits, parser, actual gate and lint controls.
 
 The recorded suite, full close (disposing BR-1 under revised acceptance) and
 normal merge remain workflow gates after these implementation steps. Existing
 cost bounds hold: fixed linear scans, one prefix classification per record,
 map/name collection and sorting. No live sandbox, peer workflow edit or schema
 change is involved.
+
+
+### 2026-10-19 — Implementation evidence for the current goal
+
+Removed ancestry tracking. Actual Go 1.27.1 buffered and verbose fixtures now
+coarsen safely, including parent logging before/after a failed child and nested
+return/sibling ordering. The new raw/structured/replay/gate cases failed on the
+ancestry implementation, then passed after simplification. The exact JSON gate
+also exposed an existing ordering bug: unattributed package derivation preceded
+JSON name collection. A focused package-fail fixture reproduced it red; deriving
+those reasons after completed names fixes the same facts authority, without
+another parser or state. The focused parser, real-gate, saved-pass, Unicode,
+linear-visit and environment selection passed (33.889s); golint and flakes passed
+(0.604s and 0.056s). Full recorded suite and close remain separate pending gates.

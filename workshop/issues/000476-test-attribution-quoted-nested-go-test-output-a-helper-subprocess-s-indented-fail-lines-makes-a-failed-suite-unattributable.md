@@ -103,7 +103,7 @@ names; indentation checks inspect each line once, with no look-back or rescans.
 - [x] Complete the round-2 BR-1 whole-prefix re-plan and its regression matrix.
 - Superseded: the round-3 full ancestry-lifetime proposal is dropped by the
   hub's revised goal; no implementation of that model is required.
-- [ ] Implement proven-granularity attribution, visible precision misses and
+- [x] Implement proven-granularity attribution, visible precision misses and
   real-Go/historical/structured evidence controls under the revised contract.
 
 Workflow gates: recorded suite, close review, then normal landing. These remain
@@ -233,3 +233,16 @@ pending independently of the completed implementation checkboxes.
   using `strings.Lines`. `TestFailingNamesLineVisits` counts exactly 4N+1 visits
   for N=8 and 16 outer failures with real children and quoted helper output.
   This adds no scan or durable state and keeps the same attribution policy.
+
+
+### 2026-10-19 — Revised proven-granularity implementation
+
+The current approved goal is implemented without ancestry state. The captured
+real Go buffered/verbose fixtures and actual gate controls failed red on the
+old parser, then passed after coarsening raw descendants. Structured leaves stay
+exact. A JSON package-fail control also reproduced false unattributability while
+names were still being collected; the derivation now runs after final names.
+Focused parser, real gate, saved-pass/replay, Unicode and N/2N controls passed in
+33.889s. Golint and flakes passed in 0.604s and 0.056s. Documentation now describes
+the accepted visible subtest-only registration miss. No passing full suite is
+claimed yet; the prior queued runs were cancelled before admission.

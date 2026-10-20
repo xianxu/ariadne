@@ -77,13 +77,18 @@ func parseSuiteLogFacts(log string) SuiteLogFacts {
 	for _, name := range facts.Subtests {
 		subtests[name] = struct{}{}
 	}
-	facts.Unattributed = unattributedFailures(log, facts.Failures)
 	failures := make(map[string]struct{}, len(facts.Failures))
 	for _, name := range facts.Failures {
 		failures[name] = struct{}{}
 	}
+	ambiguousSubtests := false
 	for index, raw := range strings.Split(log, "\n") {
-		if !suiteControlLine(raw) {
+		level := suiteIndentLevel(raw)
+		if level != 0 {
+			if level > 0 {
+				fields := strings.Fields(raw)
+				ambiguousSubtests = ambiguousSubtests || len(fields) >= 3 && fields[0] == "---" && fields[1] == "FAIL:" && strings.Contains(fields[2], "/")
+			}
 			continue
 		}
 		line := strings.TrimSuffix(raw, "\r")
@@ -158,6 +163,11 @@ func parseSuiteLogFacts(log string) SuiteLogFacts {
 			facts.Subtests = append(facts.Subtests, name)
 		}
 		sort.Strings(facts.Subtests)
+	}
+	// Structured failure names must be complete before package attribution.
+	facts.Unattributed = unattributedFailures(log, facts.Failures)
+	if ambiguousSubtests && len(facts.Failures) != 0 {
+		facts.Warnings = append(facts.Warnings, "ambiguous indented subtest output ignored; attribution may be coarsened to a proven ancestor, which subtest-only flake registrations cannot cover")
 	}
 	return facts
 }

@@ -34,8 +34,11 @@ func TestSuiteQuotedNestedOutput(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := parseSuiteLogFacts(log)
 			if !reflect.DeepEqual(got.Failures, []string{nestedOuter}) ||
-				!reflect.DeepEqual(got.Subtests, []string{nestedOuter + "/warm-reattached"}) || len(got.Unattributed) != 0 || !got.Failed {
+				len(got.Subtests) != 0 || len(got.Unattributed) != 0 || !got.Failed {
 				t.Fatalf("quoted helper changed outer attribution: %+v", got)
+			}
+			if !strings.Contains(strings.Join(got.Warnings, " "), "coars") {
+				t.Fatalf("coarsened raw attribution must be visible: %+v", got)
 			}
 			if !reflect.DeepEqual(got.Units, []SuiteDuration{{Kind: "package", Name: "github.com/xianxu/pair/cmd/internal/couchcmd", Seconds: 3.25}}) {
 				t.Fatalf("quoted helper became a measured package: %+v", got.Units)
@@ -74,10 +77,8 @@ func TestSuiteQuotedOverlappingNames(t *testing.T) {
 	const top = "--- FAIL: TestOuter (0.01s)\n"
 	for _, realChild := range []bool{false, true} {
 		log := top
-		wantSubs := []string(nil)
 		if realChild {
 			log += "    --- FAIL: TestOuter/real (0.01s)\n"
-			wantSubs = []string{"example.com/outer.TestOuter/real"}
 		}
 		log += "        outer_test.go:9: nested command failed:\n" +
 			"            --- FAIL: TestOuter/helper (0.01s)\n" +
@@ -89,14 +90,14 @@ func TestSuiteQuotedOverlappingNames(t *testing.T) {
 			"sharded": "--- FAIL example.com/outer TestOuter\n" + log + "--- FAIL example.com/outer\n",
 		} {
 			got := parseSuiteLogFacts(text)
-			if !reflect.DeepEqual(got.Failures, []string{"example.com/outer.TestOuter"}) || !reflect.DeepEqual(got.Subtests, wantSubs) || len(got.Unattributed) != 0 {
+			if !reflect.DeepEqual(got.Failures, []string{"example.com/outer.TestOuter"}) || len(got.Subtests) != 0 || len(got.Unattributed) != 0 {
 				t.Errorf("%s real child=%v: quoted shared-name helper became evidence: %+v", name, realChild, got)
 			}
 		}
 	}
 }
 
-func TestSuiteIndentedFailureAncestry(t *testing.T) {
+func TestSuiteRawFailureAncestryCoarsens(t *testing.T) {
 	log := "--- FAIL: TestOuter (0.01s)\n" +
 		"    --- FAIL: TestOuter/literal/a/b (0.01s)\n" +
 		"        --- FAIL: TestOuter/literal/a/b/grand (0.01s)\n" +
@@ -107,10 +108,8 @@ func TestSuiteIndentedFailureAncestry(t *testing.T) {
 		"      --- FAIL: TestOuter/misaligned (0.01s)\n" +
 		"\t--- FAIL: TestOuter/tabbed (0.01s)\n" +
 		"FAIL example.com/outer 0.2s\n"
-	want := []string{"example.com/outer.TestOuter/literal/a/b", "example.com/outer.TestOuter/literal/a/b/grand",
-		"example.com/outer.TestOuter/second", "example.com/outer.TestOuter/second/deep"}
-	if got := parseSuiteLogFacts(log); !reflect.DeepEqual(got.Subtests, want) {
-		t.Fatalf("ancestry must use observed levels and complete parent names: %+v", got)
+	if got := parseSuiteLogFacts(log); len(got.Subtests) != 0 || !reflect.DeepEqual(got.Failures, []string{"example.com/outer.TestOuter"}) {
+		t.Fatalf("ambiguous raw descendants must coarsen to proven root: %+v", got)
 	}
 }
 
@@ -183,16 +182,25 @@ func TestKnownFlakeGateMixedWhitespaceQuotation(t *testing.T) {
 }
 
 func TestKnownFlakeGateQuotedNestedOutput(t *testing.T) {
-	d, sha, gh, stderr := localRunRepo(t, "acquired")
-	d.FlakeRegistry = gateRegistry(t, nestedOuter+"/warm-reattached")
-	asked := scriptRerun(t, "printf -- '--- PASS: TestContinuationWriterPublishesExactCheckpointAcrossWorktrees (0.01s)\\n    --- PASS: TestContinuationWriterPublishesExactCheckpointAcrossWorktrees/warm-reattached (0.01s)\\nok github.com/xianxu/pair/cmd/internal/couchcmd 0.02s\\n'")
-	c := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", `printf '%s' "$1"; exit 1`, "fixture", nestedSuiteLog(t)}, TimeoutMinutes: 30}
-	rec, err := runLocalCheck(context.Background(), d, c, sha)
-	if err != nil || !rec.passed() || rec.Outcome != flakes.KnownFlakePassed || gh.statuses[sha]["sdlc-local/suite"] != "success" {
-		t.Fatalf("outer registered leaf did not rerun: %+v %v\n%s", rec, err, stderr)
-	}
-	if !reflect.DeepEqual(*asked, []string{nestedOuter}) {
-		t.Fatalf("rerun must select only the owning parent (including its siblings): %v", *asked)
+	for _, registered := range []string{nestedOuter, nestedOuter + "/warm-reattached"} {
+		t.Run(registered, func(t *testing.T) {
+			d, sha, gh, stderr := localRunRepo(t, "acquired")
+			d.FlakeRegistry = gateRegistry(t, registered)
+			asked := scriptRerun(t, "printf -- '--- PASS: TestContinuationWriterPublishesExactCheckpointAcrossWorktrees (0.01s)\\n    --- PASS: TestContinuationWriterPublishesExactCheckpointAcrossWorktrees/warm-reattached (0.01s)\\nok github.com/xianxu/pair/cmd/internal/couchcmd 0.02s\\n'")
+			c := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", `printf '%s' "$1"; exit 1`, "fixture", nestedSuiteLog(t)}, TimeoutMinutes: 30}
+			rec, err := runLocalCheck(context.Background(), d, c, sha)
+			wantPass := registered == nestedOuter
+			if err != nil || rec.passed() != wantPass || (gh.statuses[sha]["sdlc-local/suite"] == "success") != wantPass {
+				t.Fatalf("matching must use proven ancestor: %+v %v\n%s", rec, err, stderr)
+			}
+			if wantPass && (rec.Outcome != flakes.KnownFlakePassed || !reflect.DeepEqual(*asked, []string{nestedOuter})) ||
+				!wantPass && (rec.Outcome != flakes.Unknown || len(*asked) != 0) {
+				t.Fatalf("registration %s: outcome=%s asked=%v", registered, rec.Outcome, *asked)
+			}
+			if !strings.Contains(stderr.String(), "coars") || !strings.Contains(stderr.String(), "subtest-only") {
+				t.Fatalf("precision miss must be visible:\n%s", stderr)
+			}
+		})
 	}
 }
 
@@ -214,7 +222,11 @@ func TestFailingNamesLineVisits(t *testing.T) {
 				}
 			}
 			got := failingNameLines(lines, subtests)
-			if visits != 4*n+1 || len(got) != n {
+			wantNames := n
+			if subtests {
+				wantNames = 0 // raw indented descendants are not proof
+			}
+			if visits != 4*n+1 || len(got) != wantNames {
 				t.Fatalf("N=%d subtests=%v: %d visits, %d names", n, subtests, visits, len(got))
 			}
 		}

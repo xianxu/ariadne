@@ -74,15 +74,15 @@ Detailed incidents remain in their owning issue or review artifact.
 ## Guards and proof
 
 - Suite output contains quoted subprocess output too. Preserve indentation before
-  tokenizing control records; indented test evidence needs an observed parent
-  at the preceding four-space level and its complete name, not a root-name
-  prefix or depth inferred from slashes. Validate the whole leading whitespace
-  prefix with the tokeniser's Unicode category, accepting only ASCII spaces;
-  measuring initial spaces alone misses spaces followed by tab or NBSP. Derive
-  column-zero and indented admission from one classifier before tokenisation.
-  Apply the same boundary to package attribution,
-  unknown-failure reasons and timing facts, and test the actual registered retry
-  rather than just extracted names (#476).
+  tokenizing control records. Raw child output can overlap real ancestry even
+  with correct four-space levels: prefer a proven top-level failure to an
+  invented leaf. Keep exact leaves only from structured evidence, and expose
+  the possible subtest-only registration miss. Validate the whole leading
+  whitespace prefix with the tokeniser's Unicode category, accepting only ASCII
+  spaces; initial spaces alone miss a following tab or NBSP. Use the same
+  column-zero boundary for package attribution, unknown-failure reasons and
+  timing facts. Derive unidentified-package failures after collecting structured
+  names. Test real Go output, retained-log readers and the actual retry (#476).
 
 - Whenever artifact creation gains a fallback root, enumerate that root in
   stale cleanup too, including after the original root becomes usable again.
