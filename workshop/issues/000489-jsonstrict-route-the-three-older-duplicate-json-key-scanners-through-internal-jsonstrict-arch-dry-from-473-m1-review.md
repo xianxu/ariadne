@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "798abaca", done: "16e9d544"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # jsonstrict: route the three older duplicate-JSON-key scanners through internal/jsonstrict (ARCH-DRY, from #473 M1 review)
@@ -56,6 +56,8 @@ Quick flow. Plan posted to the hub, proceeding unless they object.
 ## Log
 
 ### 2026-10-20
+- 2026-10-20: closed — jsonstrict Scan/RejectDuplicateKeys (UseNumber, depth bound, case fold) tests + FuzzFoldKey; 6 recursive scanners and 2 allowlist seen-maps folded; affected packages green (jsonstrict, estimate, issueassets, observe, fleet, tracker, reviewusage, affected) and cmd/sdlc targeted TestStats|SuiteAttempt|Correction|Observ|Receipt|Fleet ok; golint json-recursive-scanner passes the tree and flags 5/6 deleted scanners on main copies; recorded suite queued on the pushed head.; review verdict: SHIP
+- 2026-10-20: flow upgraded quick → full — 117 added lines in code files (limit 100)
 - The sweep found more than the three named scanners. Three more were generic recursive scanners (receipt,
   reviewusage, actualcorrection) and two were top-level allowlists with their own `seen` maps (issueassets,
   estimate); all five are folded. Left on purpose: `landingline.decodeStrict`, `qodertranscript.object`,
