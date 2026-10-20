@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/affected"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
@@ -90,6 +92,17 @@ func runLocalCheckCancel(stderr io.Writer, name string) error {
 	return err
 }
 
+// splitAffectedName separates the affected suite (#473), which runs through
+// its planner, from the declared checks a run names; --all never includes it
+// and never combines with --name.
+func splitAffectedName(names []string, all bool) (declared []string, affected bool, err error) {
+	if all && len(names) > 0 {
+		return nil, false, errors.New("local-check run: give --name (one or more) or --all")
+	}
+	declared = slices.DeleteFunc(slices.Clone(names), func(n string) bool { return n == affectedCheckName })
+	return declared, len(declared) < len(names), nil
+}
+
 // selectLocalChecks picks the checks a run names, refusing an unknown name.
 func selectLocalChecks(decl localCheckDecl, names []string, all bool) ([]localCheck, error) {
 	if all == (len(names) > 0) {
@@ -138,9 +151,28 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 	if len(decl.Checks) == 0 {
 		return fmt.Errorf("local-check run: origin/main declares no local checks (%s)", localChecksPath)
 	}
-	checks, err := selectLocalChecks(decl, f.Names, f.All)
+	// The affected suite (#473) is declared in its own file and runs through
+	// its planner; every other name is a declared check.
+	names, wantAffected, err := splitAffectedName(f.Names, f.All)
 	if err != nil {
 		return err
+	}
+	var checks []localCheck
+	if len(names) > 0 || !wantAffected {
+		if checks, err = selectLocalChecks(decl, names, f.All); err != nil {
+			return err
+		}
+	}
+	var affectedCfg affected.Config
+	if wantAffected {
+		cfg, ok, err := readAffectedConfig(git, "origin/main")
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return fmt.Errorf("local-check run: origin/main declares no %s; run --name %s", affectedConfigPath, suiteCheckName)
+		}
+		affectedCfg = cfg
 	}
 	out, err := git("rev-parse", "--verify", f.Rev+"^{commit}")
 	if err != nil {
@@ -164,6 +196,19 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 		}
 		if !rec.passed() {
 			failed = append(failed, c.Name+" (log "+rec.LogPath+")")
+		}
+	}
+	if wantAffected {
+		suite, ok := decl.check(suiteCheckName)
+		if !ok {
+			return fmt.Errorf("local-check run: %s needs a %s check to fall back on for a full selection", affectedCheckName, suiteCheckName)
+		}
+		rec, err := runAffectedCheck(ctx, d, productionAffectedDeps(d, "origin/main"), affectedCfg, suite, sha)
+		if err != nil {
+			return err
+		}
+		if !rec.passed() {
+			failed = append(failed, rec.Name+" (log "+rec.LogPath+")")
 		}
 	}
 	if len(failed) > 0 {
@@ -252,6 +297,20 @@ func declaredCheck(ctx context.Context, git func(args ...string) (string, error)
 	}
 	if decl, err = withDefaultSuiteContext(ctx, git, "origin/main", decl); err != nil {
 		return localCheck{}, err
+	}
+	if name == affectedCheckName {
+		// #473 M2 BR-9: affected is declared in its own file, with the suite's
+		// known-flake policy; resolving it here keeps a saved affected pass
+		// republishable.
+		cfg, ok, err := readAffectedConfig(git, "origin/main")
+		if err != nil {
+			return localCheck{}, err
+		}
+		suite, hasSuite := decl.check(suiteCheckName)
+		if !ok || !hasSuite {
+			return localCheck{}, fmt.Errorf("origin/main declares no %s with a %s to fall back on", affectedConfigPath, suiteCheckName)
+		}
+		return affectedCheckDecl(cfg, suite), nil
 	}
 	for _, c := range decl.Checks {
 		if c.Name == name {

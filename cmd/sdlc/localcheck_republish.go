@@ -129,14 +129,15 @@ type unexplainedFailureError struct{ msg string }
 
 func (e *unexplainedFailureError) Error() string { return e.msg }
 
-// guardSuitePass refuses to post a suite success on sha while a failed suite
-// attempt there is unexplained: neither a known-flake outcome nor, now, every
-// failure a registered flake (flakes.Unexplained). That is what stops a blind
-// full rerun from turning an unknown failure green. It fails closed: a store
-// it cannot read whole, or a registry it needs and cannot read, refuses.
-func guardSuitePass(ctx context.Context, d localRunDeps, sha string) error {
+// guardSuitePass refuses to post a test run's success (check is suite or
+// affected, #473 D4) on sha while a failed test-run attempt there, of either
+// check, is unexplained: neither a known-flake outcome nor every failure a
+// registered flake (flakes.Unexplained). That is what stops a blind rerun,
+// full or affected, from turning an unknown failure green. It fails closed: a
+// store it cannot read whole, or a registry it needs and cannot read, refuses.
+func guardSuitePass(ctx context.Context, d localRunDeps, check, sha string) error {
 	refuse := func(format string, a ...any) error {
-		return &unexplainedFailureError{msg: fmt.Sprintf("local check %s on %s not recorded as success: ", suiteCheckName, abbrevSHA(sha)) + fmt.Sprintf(format, a...)}
+		return &unexplainedFailureError{msg: fmt.Sprintf("local check %s on %s not recorded as success: ", check, abbrevSHA(sha)) + fmt.Sprintf(format, a...)}
 	}
 	logDir, err := localCheckLogDir(d)
 	if err != nil {
@@ -151,7 +152,7 @@ func guardSuitePass(ctx context.Context, d localRunDeps, sha string) error {
 	for _, a := range attempts {
 		if a.Repo == d.Repo && a.SHA == sha && isFlakeEvidence(a) {
 			ev = append(ev, a)
-			failed = failed || isSuiteRun(a) && !a.MainBaseline && (a.Exit != 0 || a.TimedOut)
+			failed = failed || isTestCheck(a.Check) && !a.MainBaseline && (a.Exit != 0 || a.TimedOut)
 		}
 	}
 	if !failed {
@@ -188,15 +189,15 @@ func guardSuitePass(ctx context.Context, d localRunDeps, sha string) error {
 	}
 	return refuse("an earlier failure on this head is unexplained: %s.\n"+
 		"  If it is intermittent, this fail→pass is its evidence: `sdlc flake register --test <PKG.TestName[/sub…]>`, then %q.\n"+
-		"  Otherwise fix it; a passing rerun alone never lands (#394)", why, republishCommand(suiteCheckName, sha))
+		"  Otherwise fix it; a passing rerun alone never lands (#394)", why, republishCommand(check, sha))
 }
 
 // postLocalCheckRecord posts rec as its commit status, retrying through
 // localCheckPostBackoff, then a failed run's PR comment (best effort). A
 // suite pass first passes guardSuitePass.
 func postLocalCheckRecord(ctx context.Context, d localRunDeps, rec localRunRecord) error {
-	if rec.passed() && rec.Name == suiteCheckName {
-		if err := guardSuitePass(ctx, d, rec.SHA); err != nil {
+	if rec.passed() && isTestCheck(rec.Name) {
+		if err := guardSuitePass(ctx, d, rec.Name, rec.SHA); err != nil {
 			return err
 		}
 	}

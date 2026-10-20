@@ -58,3 +58,12 @@ landing-order	own	The landing line owns landing order
 approval-required	own	or mechanism), and scope revisions wait for the hub's approval.
 flake-escalation	own	means stop and ask the hub.
 golint-rule	cited	adds its rule to the Go lint catalog in `pkg/golint`
+drain-authentic	own	authenticated supervisor drain notice
+drain-graceful	own	finish only the current atomic step
+drain-fast	own	stop now and preserve unfinished edits
+drain-durable	own	commit and push the durable checkpoint
+drain-ack	own	`couch --drain --ack ID`
+drain-idle	own	end the turn and stay idle
+drain-no-report	own	Do not send a separate drained report
+drain-suites	own	full suites through `sdlc local-check run --name suite`
+drain-targeted	own	targeted tests through `go test -run`
