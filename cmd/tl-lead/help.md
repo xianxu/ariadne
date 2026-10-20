@@ -76,9 +76,14 @@ TEAMS (ariadne#456: one team per ops repo)
     Couch owns receipt polling. tl-lead waits for its terminal JSON receipt,
     bounded at six minutes (Couch's five-minute poll budget plus admission and
     teardown). Missing/mismatched evidence, timeout or signal death is uncertain.
-    It retains request diagnostics and checks actors read-only; actor presence
+    It prints the stopped/untouched result and inspection guidance before an
+    optional read-only actor check (ten seconds plus at most one second of
+    pipe cleanup). It retains request diagnostics; actor presence
     never proves the operation succeeded. Inspect couch --operation-status ID
     and couch --peek repo:N before a manual resume or switcher action.
+    Developers closing resume changes or upgrading Couch run the isolated
+    TestCouchResumeReceiptConformance with TL_LEAD_RESUME_CONFORMANCE=1;
+    it checks the real CLI without touching live slots.
 
 RUNNING A PROJECT (the order of play; the project file holds the state)
   1. Frame. A pensive or parley becomes a project file. Its Charter states the

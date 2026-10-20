@@ -283,6 +283,13 @@ into their own `bin/` and must work before composition. Ariadne builds `sdlc`,
 binaries: run `tl-worker --help` or `tl-lead --help`); it does not rebuild the
 distributed weave gateway as part of `tools`.
 
+For a hub with `.hub`, `tl-lead status slots FILE` shows its owned numbered
+slots; `--all` shows the machine view. `tl-lead fleet resume` is an
+operator-started dry run; `--all` exposes excluded slots without expanding
+automatic resume authority. `--apply` waits for each terminal receipt and
+stops at the first failure or uncertainty, naming untouched slots. See
+[TL tooling](atlas/workflow/tl-skills.md) for scope, holds and recovery.
+
 Child processes receive the layer tool directories on PATH. After compilation,
 weave prints the directories to add to your own shell PATH; startup never edits
 shell configuration. Managed ignore entries and an output identity inventory

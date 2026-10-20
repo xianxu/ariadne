@@ -90,11 +90,13 @@ func TestFleetResumeSerialCompletion(t *testing.T) {
 		if strings.Join(c.attempts(), ",") != "pair:2" {
 			t.Fatalf("didn't wait for first completion: %v", c.attempts())
 		}
+		//lint:allow test-fixed-sleep — advance synctest virtual time to the modeled operation boundary; no wall-clock wait
 		time.Sleep(10 * time.Second)
 		synctest.Wait()
 		if strings.Join(c.attempts(), ",") != "pair:2,pair:6" {
 			t.Fatalf("second completion ordering: %v", c.attempts())
 		}
+		//lint:allow test-fixed-sleep — advance synctest virtual time to the modeled operation boundary; no wall-clock wait
 		time.Sleep(20 * time.Second)
 		synctest.Wait()
 		if strings.Join(c.attempts(), ",") != "pair:2,pair:6,pair:8" {
@@ -105,6 +107,7 @@ func TestFleetResumeSerialCompletion(t *testing.T) {
 			t.Fatalf("completed before third terminal outcome: %v", err)
 		default:
 		}
+		//lint:allow test-fixed-sleep — advance synctest virtual time to the modeled operation boundary; no wall-clock wait
 		time.Sleep(30 * time.Second)
 		synctest.Wait()
 		if err := <-done; err != nil {

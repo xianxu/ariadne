@@ -66,10 +66,22 @@ Awaiting the owning TL's approval before change-code.
 
 - [x] Share hub scope across Slots, resume planning and freshness; implement own-only defaults and --all visibility.
 - [x] Stop serial resume at the first unsuccessful terminal outcome; retain diagnostics and name untouched slots.
-- [ ] Verify live read-only views (two-hub, delayed resume and subprocess automated tests pass).
-- [ ] Update help/atlas, record the suite, close and land.
+- [x] Verify live read-only views (TL fleet dry runs) plus two-hub, delayed resume and subprocess automated tests.
+- [x] Update help/atlas and README.
 
 ## Log
+
+### 2026-10-20 — boundary fixes
+
+- BR-1: execActors now bounds the whole observation class at 10 seconds plus at most one second pipe cleanup. The 30-second-stalled-recheck regression passes with an injected 500 ms bound, and asserts stopped/untouched output plus recovery guidance precede optional observation.
+- BR-2: virtual-time Sleep lines annotated with the supported test-fixed-sleep allowance; staged-file catalog passes. The earlier pre-stage catalog could not see new untracked tests; this was a verification gap, now covered in lessons.
+- BR-3: README documents hub-scoped Slots, both --all flags, visibility-only mutation scope and serial stop behavior, linking atlas.
+- BR-4: opt-in isolated real-Couch conformance exercises queued → running → succeeded/refused/failed, standalone receipt JSON and actual process exits through our classifier. Real Couch owns reporting/polling; only its scratch broker is fake. No live supervisor, GUI or slot mutation. Cadence documented for resume closes and supported Couch upgrades.
+
+### 2026-10-20 — live proof and boundary round 1
+
+- Authenticated TL delivery e401f088-ae98-4585-859b-05af9fa5da07 reports live read-only proof PASS with the exact unmodified binary at 5bba914916306320fbf216b85f44d6d2d7789970. Inspected output in sibling slot p485-live-proof.txt: ops sees only its own running/idle slots and 5 foreign slots counted; ops-echo sees echo:0–3 and 23 foreign slots counted. --all exposes other-hub slots as excluded and does not add resume candidates. No --apply, real resume or :0 stage occurred. Slots/freshness behavior additionally has two-hub and real-Git automated coverage.
+- Boundary round 1: BR-1 Critical unbounded actor recheck; BR-2 virtual-clock sleep lint annotations; BR-3 README flags; BR-4 opt-in real Couch receipt conformance. Queued old-head suite cancelled through sdlc local-check cancel for these code fixes. BR-1 reproduced 30-second delayed recovery with first actors read successful then a stalled subprocess.
 
 ### 2026-10-20 — implementation evidence
 
@@ -164,6 +176,8 @@ bare-call rule.
 - Proposed plan written to workshop/plans/000485-hub-scope-resume-plan.md; implementation has not started. Await owning TL approval of count-only unclaimed ownership, --all visibility without mutation authority, stop/nonzero partial completion, CLI-owned polling and the hold-preservation refusal.
 
 ## Revisions
+
+- 2026-10-20 14:06 PDT — Issue Plan checkboxes now cover implementation and completed live proof. Recorded suite, close and landing are mandatory sequential publication gates, recorded in Log as they happen; they are not claimed complete by the implementation checklist. This removes the prior circular close/land checkbox, preserving its obligation without requiring a plan-check waiver on later closes. BR-1 refinement bounds all execActors reads (including recovery) at 10 seconds plus a one-second pipe-drain cap; recovery result/guidance prints before the optional probe.
 
 - 2026-10-20 13:43 PDT — proposed design after Codex handoff: include the TL's 11:00/11:15 serial-resume acceptance in Done when. Reuse Couch's existing terminal-receipt polling instead of adding a second poller (ARCH-DRY). Count unclaimed slots without guessing the main hub; --all is visibility only. Add explicit protection against losing an existing hold when narrowing Slots. Full details and state/recovery table are in the durable plan; approval pending.
 

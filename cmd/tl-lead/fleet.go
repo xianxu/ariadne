@@ -263,8 +263,10 @@ func fleetResume(out io.Writer, d deps, cwd string, apply bool, allFlags ...bool
 			fmt.Fprintf(out, "resumed   %s\n", addr)
 			continue
 		}
+		fmt.Fprintf(out, "stopped at %s; not attempted: %s\n", addr, orNone(strings.Join(todo[i+1:], ", ")))
 		if errors.Is(err, errUncertain) {
 			fmt.Fprintf(out, "uncertain %s: %v\n", addr, err)
+			fmt.Fprintf(out, "inspect the request with couch --operation-status ID (from the diagnostics) and couch --peek %s before a manual resume or switcher action\n", addr)
 			actors, aerr := readActors(d.actors)
 			switch {
 			case aerr != nil:
@@ -274,11 +276,9 @@ func fleetResume(out io.Writer, d deps, cwd string, apply bool, allFlags ...bool
 			default:
 				fmt.Fprintf(out, "observed no actor at %s; operation outcome remains uncertain\n", addr)
 			}
-			fmt.Fprintf(out, "inspect the request with couch --operation-status ID (from the diagnostics) and couch --peek %s before a manual resume or switcher action\n", addr)
 		} else {
 			fmt.Fprintf(out, "refused   %s: %v\n", addr, err)
 		}
-		fmt.Fprintf(out, "stopped at %s; not attempted: %s\n", addr, orNone(strings.Join(todo[i+1:], ", ")))
 		return fmt.Errorf("fleet resume stopped at %s: %w", addr, err)
 	}
 
