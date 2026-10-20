@@ -1,6 +1,6 @@
 ---
 id: 000491
-status: working
+status: codecomplete
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
@@ -14,6 +14,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.22
+tracker:
+    version: 1
+    completion:
+        token: close-0c2e89e5571f
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 0b60e8b7e74e9ce5fff56a4d8b5963515dd6f228
+        evidence_commit: b173aac4db037f435d4f4ec81a6f4f7baadbf72d
 ---
 
 # Suite queue position becomes fictitious on allocation contention
