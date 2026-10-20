@@ -1,8 +1,8 @@
 ---
 id: 000470
-status: codecomplete
+status: done
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-20
 estimate_hours:
 github_issue:
 started: 2026-10-19T18:22:36-07:00
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: ea1e7197580fcd4c9dea6df83f0550beeef0b57a
         evidence_commit: 716547ea6eca276053939560d13662a9bac76c41
+        landed_commit: b5ab97215ec79e2f2b560b8cb832a16cfaa02943
 ---
 
 # landing: a fleet-blocking grant holds the line even before the granted issue queues
