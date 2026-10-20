@@ -64,12 +64,20 @@ From introduce-team's live proof (10-19, two hubs: `couch ops ops-echo`):
 Proposed durable design: [hub scope and serial resume](../plans/000485-hub-scope-resume-plan.md).
 Awaiting the owning TL's approval before change-code.
 
-- [ ] Share hub scope across Slots, resume planning and freshness; implement own-only defaults and --all visibility.
-- [ ] Stop serial resume at the first unsuccessful terminal outcome; retain diagnostics and name untouched slots.
-- [ ] Verify two-hub behavior, stateful delayed resumes, subprocess contracts and live read-only views.
+- [x] Share hub scope across Slots, resume planning and freshness; implement own-only defaults and --all visibility.
+- [x] Stop serial resume at the first unsuccessful terminal outcome; retain diagnostics and name untouched slots.
+- [ ] Verify live read-only views (two-hub, delayed resume and subprocess automated tests pass).
 - [ ] Update help/atlas, record the suite, close and land.
 
 ## Log
+
+### 2026-10-20 — implementation evidence
+
+- Shared scope, own-only Slots/--all, scoped freshness (including exact/nested claims), single actor diagnostic and hidden-hold guard implemented. Stateful two-hub tests proved red for excess issue reads (12/24 versus selected 3/6), unrelated newer landings, nested claims, dangling/unreadable ownership and hidden holds; focused green after fixes.
+- Serial resume now requests Couch's existing terminal JSON receipt, applies pure outcome classification, waits synchronously and stops/nonzero at the first unsuccessful attempt. Tests proved old continue-on-error behavior red; stateful synctest time models 10/20/30-second operations, FIFO barriers prove actual subprocess waiting, and partial-completion/uncertain-observation assertions pass. --all never widens mutation authority; operator-started help is asserted.
+- Verification: go test ./cmd/tl-lead -count=1 passed; go test -race ./cmd/tl-lead -count=1 passed; targeted pkg/golint TestTrackedGoFilesPassTheCatalog|TestRules passed. Race run initially found an unsynchronized attempt-slice read in the fake fixture; mutex snapshots fixed the root cause and the full race run passed (not a flaky rerun). No production race was implicated.
+- Scope source tests and parent tests finished before committing. Full recorded suite, gate review and staged live proof remain pending.
+
 
 ### 2026-10-19
 - 10-20 11:00 (TL): add to scope. After the 10-20 reboot, `tl-lead fleet resume --apply` fired `couch --resume` for
@@ -184,3 +192,7 @@ total: 2.02
 ```
 
 Design 0.61 × 1.15 + implementation 1.32 = 2.0215 hours, rounded to 2.02.
+
+### Estimate allocation clarification
+
+The serial api-integration row includes batch wiring, delayed/subprocess fake coverage, output retention and read-only observation. Smaller-module rows cover scope/freshness/classifier logic plus their focused fixtures. The single milestone-review row includes active suite invocation/result inspection, live-proof coordination and landing checks; idle queue waiting is excluded, while recorded verification execution remains measured by actuals. The estimate is provisional against stale calibration, not a ceiling on the necessary verification.

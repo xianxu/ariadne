@@ -14,13 +14,14 @@ import (
 // fakeSDLC serves a fleet and per-checkout observations; a missing
 // observation is an error, as a failed `sdlc issue show` would be.
 type fakeSDLC struct {
-	fleet    Fleet
-	fleetErr error
-	obs      map[string]Observation // "<repoPath>#<n>"
-	calls    int                    // IssueShow calls; callers observe cars concurrently (boundedEach)
-	mu       sync.Mutex             // guards calls
-	issues   map[string][]RepoIssue // by repo path: sdlc state's issues there
-	issueErr map[string]error
+	fleet     Fleet
+	fleetErr  error
+	obs       map[string]Observation // "<repoPath>#<n>"
+	callPaths map[string]int         // per-checkout observations for scope assertions
+	calls     int                    // IssueShow calls; callers observe cars concurrently (boundedEach)
+	mu        sync.Mutex             // guards calls
+	issues    map[string][]RepoIssue // by repo path: sdlc state's issues there
+	issueErr  map[string]error
 }
 
 // RepoIssues answers from the repository's recorded issues, as `sdlc state`
@@ -47,6 +48,10 @@ func (f *fakeSDLC) RepoRoot(_, repo string) (string, error) {
 func (f *fakeSDLC) IssueShow(repoPath string, n int) (Observation, error) {
 	f.mu.Lock()
 	f.calls++
+	if f.callPaths == nil {
+		f.callPaths = map[string]int{}
+	}
+	f.callPaths[repoPath]++
 	f.mu.Unlock()
 	o, ok := f.obs[fmt.Sprintf("%s#%d", repoPath, n)]
 	if !ok {
