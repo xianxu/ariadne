@@ -160,6 +160,96 @@ rounds:
       isolation: fenced
       reviewed: fe03d734f03caabf9bd30cf238d24e9dcc8f8008
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: ce8b2607-1759-40c8-aa90-4b714c61d103
+            repository: github.com/xianxu/ariadne
+            issue_id: "000501"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/f166f79965ff8072
+            reviewed_head: 904e2a9ffb758a43ee764c12b8dad823a8c351b6
+            slot: ariadne:3
+            requested_at: "2026-10-20T21:35:25.496379Z"
+          phase: finished
+          pid: 15015
+          started_at: "2026-10-20T21:35:25.606211Z"
+          finished_at: "2026-10-20T21:36:22.323527Z"
+          session_id: 01a15b3d-98f5-7a51-b8d7-e3baab00f67d
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 904e2a9ffb758a43ee764c12b8dad823a8c351b6
+        tracker_head: 35d7fbc90bf6f04d50c40761276142b897a334c9
+        branch_point: 24dc067b4af6884677ba3dcaf74e266b7ac16021
+        since: "2026-10-20T10:56:04-07:00"
+        until: "2026-10-20T13:43:15-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-20T10:56:04-07:00"
+              end: "2026-10-20T13:43:15-07:00"
+              began: "2026-10-20T10:56:04-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: f51b30db7b9406eeef55f1070851678dd52730878b39bb9b592c38ff3dc8d0f9
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 91839433
+              windows:
+                - start: "2026-10-20T10:56:04-07:00"
+                  end: "2026-10-20T13:43:15-07:00"
+        queue_waits:
+            - attempt_id: ebe98520937f7852044ae44a3e40d04a
+              slot: ariadne:3
+              record_digest: 2f53a9f106640b6a470d0e1ec15f518642eff2ef7e2995dcb1f934de0f5d1d4a
+              start: "2026-10-20T18:25:46.825424Z"
+              end: "2026-10-20T19:11:39.665103Z"
+              queue_seconds: 2752.839679
+              raw_seconds: 2752.839679
+              exact: true
+        cuts:
+            - dispatched: "2026-10-20T11:18:30-07:00"
+              finalized: "2026-10-20T11:19:48-07:00"
+              finalizing: false
+            - dispatched: "2026-10-20T11:26:09-07:00"
+              finalized: "2026-10-20T11:27:51-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-20T14:36:22-07:00"
+      dispatched: "2026-10-20T14:35:25-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: README.md:605–612 retains the command, authority, attestation, audit and retry documentation.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: Active Done-when retains approved private recovery and read-only live acceptance; the superseded criterion remains in Revisions. This window adds no acceptance change.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: The previously verified IO failure controls and production wiring are unchanged; all nine controls pass within the queuegate package run.
+          round: 3
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 904e2a9ffb758a43ee764c12b8dad823a8c351b6
+      blocked: false
 ---
 
 # Gate ledger — ariadne#501 (boundary-review)
@@ -185,6 +275,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-1 — addressed — README.md:605–612 now documents the command, required flags, operator/:0 authority, descendant attestation, permanent audit and retry behavior, consistent with queue_reconcile.go and reconcile.go.
 - BR-2 — addressed — The issue's active Done-when at lines 48–49 now specifies private executable recovery and read-only post-reboot observation. Revisions preserves the original live complete=true criterion as history, consistent with the approved acceptance change.
 - BR-3 — addressed — TestReconcileIOFailures covers nine append and log/root/post-unlink sync failures, checking tombstone preservation, torn-log refusal and audit-preserving retry. All pass. Reverting the production fault-seam wiring through a temporary Go overlay makes all nine fail; the overlay was removed without modifying repository files.
+
+## Round 3 — 2026-10-20T14:36:22-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — README.md:605–612 retains the command, authority, attestation, audit and retry documentation.
+- BR-2 — addressed — Active Done-when retains approved private recovery and read-only live acceptance; the superseded criterion remains in Revisions. This window adds no acceptance change.
+- BR-3 — addressed — The previously verified IO failure controls and production wiring are unchanged; all nine controls pass within the queuegate package run.
 
 ## Open findings
 

@@ -63,6 +63,7 @@ Delivery gates remain the recorded suite, close review and central landing; they
 ## Log
 
 ### 2026-10-20
+- 2026-10-20: closed — Resolved the #489 integration conflict by retaining main jsonstrict Scan and UseNumber unchanged, preserving both branches tests. Focused jsonstrict, queuegate reconciliation and real CLI controls pass on the frozen integrated head; full recorded suite passes. Prior private executable recovery, exact audit/replay and read-only live acceptance remain unchanged. (fixed-then-ship; full suite: Recorded sdlc-local/suite PASS on 904e2a9ffb758a43ee764c12b8dad823a8c351b6: 789.0s, 8 shards, 1875 cmd/sdlc tests and 75 other packages, zero failures.); review verdict: SHIP
 - 2026-10-20: closed — Rebuilt modified=false executable passes seven private incident-recovery controls, final running/complete/empty with exact original audit bytes and idempotent replay. Nine before/partial/after append and log/root/post-unlink sync failure controls pass; failed pre-unlink effects preserve the tombstone, post-unlink uncertainty retries without duplicate audit. Real crash and kernel owner conformance pass. All TestQueue controls, queuegate/jsonstrict packages and Go lint pass. README/help/atlas and active Done-when now match the approved post-reboot scope; old acceptance is preserved in Revisions. Replacement recorded suite is queued and must pass before merge.; review verdict: SHIP
 - 2026-10-20: flow upgraded quick → full — 372 added lines in code files (limit 100); an earlier round of this close already ran the full review
 

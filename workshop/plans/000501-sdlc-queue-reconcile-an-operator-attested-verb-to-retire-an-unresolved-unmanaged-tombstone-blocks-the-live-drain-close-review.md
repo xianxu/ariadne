@@ -170,3 +170,81 @@ dispose:
 7. **Plan revision recommendations:** None. The operative revisions explicitly withdraw the historical model/bundle concept tables and match the delivered implementation.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"ff52f87a-1f6b-45af-8c29-ead031b83408","repository":"github.com/xianxu/ariadne","issue_id":"000501","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/9ecd27334cbf5ccb","reviewed_head":"fe03d734f03caabf9bd30cf238d24e9dcc8f8008","slot":"ariadne:3","requested_at":"2026-10-20T18:26:09.264032Z"},"phase":"finished","pid":94922,"started_at":"2026-10-20T18:26:09.361557Z","finished_at":"2026-10-20T18:27:50.029833Z","session_id":"01a15a90-5063-7b11-be1a-62e724797d81","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T14:36:22-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 501 — sdlc queue reconcile: an operator-attested verb to retire an unresolved unmanaged tombstone (blocks the live drain) |
+| repo | ariadne |
+| issue file | workshop/issues/000501-sdlc-queue-reconcile-an-operator-attested-verb-to-retire-an-unresolved-unmanaged-tombstone-blocks-the-live-drain.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 70ed52cedca4732bd1783e77383b92a5dd8fc44c..904e2a9ffb758a43ee764c12b8dad823a8c351b6 |
+| command | sdlc close --issue 501 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-20T14:36:22-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff introduces no blocking defects. The conflict resolution preserves both branches’ intent: main’s shared scanner and depth controls remain, and #501’s opaque-number compatibility survives. The issue revision records integration work without changing scope. Previously disposed findings remain satisfied.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      README.md:605–612 retains the command, authority, attestation, audit and retry documentation.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Active Done-when retains approved private recovery and read-only live acceptance; the superseded criterion remains in Revisions. This window adds no acceptance change.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The previously verified IO failure controls and production wiring are unchanged; all nine controls pass within the queuegate package run.
+```
+
+1. **Strengths**
+
+   - `jsonstrict.go:36–37` preserves `UseNumber` and delegates to the shared `Scan` implementation.
+   - The resolved file matches landed main exactly, retaining depth limits, duplicate-key checks and stream handling.
+   - Both scanner and reconciliation regressions remain present and pass.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed:
+
+   - `go test ./cmd/sdlc/internal/jsonstrict ./cmd/sdlc/internal/queuegate -count=1`
+   - `go test ./cmd/sdlc -run 'TestQueue' -count=1`
+   - Pinned-range `git diff --check`
+
+   The full suite was not rerun. Repository files remained unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** resolution retains the shared scanner.
+   - **ARCH-PURE — pass:** JSON validation remains deterministic, without IO.
+   - **ARCH-PURPOSE — pass:** both conflicting changes’ required behavior survives.
+   - **ARCH-EVOLVE — pass:** opaque future numbers remain accepted; strict validation remains intact. No persisted format or rewrite behavior changes.
+
+   This window adds no user-facing or architectural surface requiring further README or atlas updates.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"ce8b2607-1759-40c8-aa90-4b714c61d103","repository":"github.com/xianxu/ariadne","issue_id":"000501","recipe":"fix-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/f166f79965ff8072","reviewed_head":"904e2a9ffb758a43ee764c12b8dad823a8c351b6","slot":"ariadne:3","requested_at":"2026-10-20T21:35:25.496379Z"},"phase":"finished","pid":15015,"started_at":"2026-10-20T21:35:25.606211Z","finished_at":"2026-10-20T21:36:22.323527Z","session_id":"01a15b3d-98f5-7a51-b8d7-e3baab00f67d","outcome":"returned"}] -->
