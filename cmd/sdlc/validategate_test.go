@@ -50,7 +50,7 @@ func stubRepoEnums(t *testing.T, decl string, err error) *int {
 
 func runGate() error {
 	var out, errw bytes.Buffer
-	return validateChangedInstances("BASE", "", nounGates("workshop/issues"), &out, &errw)
+	return validateChangedInstances("", "BASE", "", nounGates("workshop/issues"), &out, &errw)
 }
 
 func TestValidateChangedIssues(t *testing.T) {
@@ -168,7 +168,7 @@ func TestValidateChangedInstancesDispatchesByNoun(t *testing.T) {
 	}
 
 	var out, errw bytes.Buffer
-	err := validateChangedInstances("BASE", "", nounGates("custom/issues"), &out, &errw)
+	err := validateChangedInstances("", "BASE", "", nounGates("custom/issues"), &out, &errw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +211,7 @@ func TestValidateChangedIssuesClassification(t *testing.T) {
 			defer restore()
 			reads := stubRepoEnums(t, `{"version":1,"enums":{"area":["couch/broadcast/web"]}}`, nil)
 			var out bytes.Buffer
-			err := validateChangedInstances("BASE", "HEAD", nounGates("workshop/issues"), &out, io.Discard)
+			err := validateChangedInstances("", "BASE", "HEAD", nounGates("workshop/issues"), &out, io.Discard)
 			if tc.want == "" && err != nil {
 				t.Fatalf("%v\n%s", err, out.String())
 			}
@@ -227,7 +227,7 @@ func TestValidateChangedIssuesClassification(t *testing.T) {
 		restore := stubGate(t, changes, true, nil, map[string]string{"workshop/issues/000001-x.md": issueFile("area: [couch]\n"), "workshop/issues/000002-y.md": issueFile("")})
 		defer restore()
 		stubRepoEnums(t, "", errors.New(".sdlc/vocabulary.json: version 2, want 1"))
-		if err := validateChangedInstances("BASE", "HEAD", nounGates("workshop/issues"), io.Discard, io.Discard); err == nil || !strings.Contains(err.Error(), ".sdlc/vocabulary.json") {
+		if err := validateChangedInstances("", "BASE", "HEAD", nounGates("workshop/issues"), io.Discard, io.Discard); err == nil || !strings.Contains(err.Error(), ".sdlc/vocabulary.json") {
 			t.Fatalf("err %v", err)
 		}
 	})
@@ -235,7 +235,7 @@ func TestValidateChangedIssuesClassification(t *testing.T) {
 		restore := stubGate(t, changes, true, nil, map[string]string{"workshop/issues/000001-x.md": issueFile("severity: low\n"), "workshop/issues/000002-y.md": issueFile("")})
 		defer restore()
 		stubRepoEnums(t, "", errors.New("no main"))
-		if err := validateChangedInstances("BASE", "HEAD", nounGates("workshop/issues"), io.Discard, io.Discard); err != nil {
+		if err := validateChangedInstances("", "BASE", "HEAD", nounGates("workshop/issues"), io.Discard, io.Discard); err != nil {
 			t.Fatalf("err %v", err)
 		}
 	})
