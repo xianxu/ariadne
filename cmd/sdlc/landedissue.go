@@ -13,23 +13,19 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
-// landedPR picks the merged PR that landed an issue branch: one MERGED and no
-// OPEN PR for the name (an open one means the branch is still in flight).
-// Pure.
-func landedPR(prs []landingPR) (landingPR, bool) {
-	var merged landingPR
-	found := false
+// landedPRs returns the merged PRs that landed an issue branch, or none when
+// an OPEN PR for the name says the branch is still in flight. Pure.
+func landedPRs(prs []landingPR) []landingPR {
+	var merged []landingPR
 	for _, pr := range prs {
 		switch pr.State {
 		case "OPEN":
-			return landingPR{}, false
+			return nil
 		case "MERGED":
-			if !found {
-				merged, found = pr, true
-			}
+			merged = append(merged, pr)
 		}
 	}
-	return merged, found
+	return merged
 }
 
 // issueBranchLanded reports whether the issue branch name has landed: GitHub
@@ -53,20 +49,26 @@ func issueBranchLanded(env *trackerEnv, name string) (landingPR, bool) {
 	if err != nil {
 		return landingPR{}, false
 	}
-	pr, ok := landedPR(prs)
-	if !ok {
+	merged := landedPRs(prs)
+	if len(merged) == 0 {
 		return landingPR{}, false
 	}
-	tip, err := env.git("for-each-ref", "--format=%(objectname)", "refs/heads/"+name)
+	// The branch as it stands, local or else remote (#483 BR-1): work pushed
+	// after the landing, from any slot, keeps the issue in flight.
+	tip, err := issueTip(env, name)
 	if err != nil {
 		return landingPR{}, false
 	}
 	if tip == "" {
-		return pr, true
+		return merged[0], true
 	}
-	for _, base := range []string{pr.HeadOID, gitx.RemoteTrackingRef(env.target.Remote, "main")} {
+	bases := []string{gitx.RemoteTrackingRef(env.target.Remote, "main")}
+	for _, pr := range merged {
+		bases = append(bases, pr.HeadOID)
+	}
+	for _, base := range bases {
 		if within, err := env.gitTest("merge-base", "--is-ancestor", tip, base); err == nil && within {
-			return pr, true
+			return merged[0], true
 		}
 	}
 	return landingPR{}, false

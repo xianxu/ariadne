@@ -67,6 +67,9 @@ func issueTip(env *trackerEnv, want string) (string, error) {
 	return remoteRefTip(env.git, env.target.Remote, "refs/heads/"+want)
 }
 
+// closeBranchRecoveryNote describes the branch requireCloseIssueBranch
+// admitted: a renamed branch at the issue tip, or else (#483) a follow-up
+// branch of a landed issue, the only other branch it admits.
 func closeBranchRecoveryNote(env *trackerEnv, cardPath string) string {
 	want := issue.BranchName(cardPath)
 	if env.branch == want {

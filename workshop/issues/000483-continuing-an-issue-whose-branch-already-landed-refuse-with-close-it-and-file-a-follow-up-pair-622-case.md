@@ -79,3 +79,12 @@ Steps:
 - Placement: start-plan checks only for a started (non-open) card, so a first start-plan makes no gh call. change-code checks on every run, one `gh pr list`, which is acceptable for an infrequent verb. Close checks only on paths that would otherwise refuse.
 - ARCH-DRY: `issueTip` is shared by the close admission and `closeBranchRecoveryNote`. The note now tells a landed follow-up branch apart from a renamed branch at the issue tip, which it previously misdescribed.
 - First recorded suite on 00dfec80 failed one test, `TestIssueHintsRenderDecimalIDs`. It is the #252 BR-5 guard: an `--issue` hint must render through `issue.CLIRef` within the hint's 4-line window, and the recovery text passed a precomputed `ref`. Fixed by calling `issue.CLIRef(id)` inline. No other test failed.
+- Close review round 1, FIX-THEN-SHIP. All three findings were fixed in-round:
+  - BR-1 (Important, family `landed-evidence-ignores-remote-branch`): `issueBranchLanded` read only the local canonical ref, so a slot without it called the issue landed even when another slot had pushed work past the merge. It now reads the branch through `issueTip` (local, else remote; ARCH-DRY). The class here is every read of the canonical branch's state for "landed", and that is this one site. `TestRemoteCanonicalAheadOfMergedHeadIsNotLanded` covers it.
+  - Minor: the tip is now checked against every merged PR's head, not just the first one returned (`landedPRs`, `TestLaterMergedPRHeadCountsAsLanded`).
+  - Minor: `closeBranchRecoveryNote` now documents its precondition.
+  - Minor: the Revisions entry below.
+
+## Revisions
+
+- 2026-10-20 (close review): Plan step 1's `landedIssue(mergedPR, localTip, onMain)` became `landedPRs(prs)` (pure) plus the `issueBranchLanded` IO wrapper. The evidence source is `landingGH.LandingPRs` with each PR's head commit, not `PRMergedForBranch`. The landed definition now reads: a merged PR and no open PR for the canonical name, and the canonical branch, local or else remote, absent or at or behind a merged PR's head or main.

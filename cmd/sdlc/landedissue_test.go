@@ -24,21 +24,22 @@ func (g landedFakeGH) LandingMerge(context.Context, string, int, string) error {
 	return errors.New("landedFakeGH: no merges")
 }
 
-func TestLandedPR(t *testing.T) {
+func TestLandedPRs(t *testing.T) {
 	merged := landingPR{Number: 406, State: "MERGED"}
 	for _, tc := range []struct {
 		name string
 		prs  []landingPR
-		want bool
+		want int
 	}{
-		{"none", nil, false},
-		{"merged", []landingPR{merged}, true},
-		{"closed only", []landingPR{{Number: 1, State: "CLOSED"}}, false},
-		{"merged and open", []landingPR{merged, {Number: 407, State: "OPEN"}}, false},
+		{"none", nil, 0},
+		{"merged", []landingPR{merged}, 1},
+		{"two merged", []landingPR{merged, {Number: 300, State: "MERGED"}}, 2},
+		{"closed only", []landingPR{{Number: 1, State: "CLOSED"}}, 0},
+		{"merged and open", []landingPR{merged, {Number: 407, State: "OPEN"}}, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, got := landedPR(tc.prs); got != tc.want {
-				t.Fatalf("landedPR = %v, want %v", got, tc.want)
+			if got := len(landedPRs(tc.prs)); got != tc.want {
+				t.Fatalf("landedPRs = %d PRs, want %d", got, tc.want)
 			}
 		})
 	}
@@ -159,5 +160,39 @@ func TestStartPlanAndChangeCodeRefuseLandedIssue(t *testing.T) {
 	_, err = refreshChangeCodeMirror(&changeCodeFlags{Issue: 9}, stem, filepath.Join(r.root, "workshop/issues", filepath.Base(paths["000009"])))
 	if err == nil || !strings.Contains(err.Error(), "already landed (PR #406)") || !strings.Contains(err.Error(), "--deps 9") {
 		t.Fatalf("change-code on a landed issue: %v", err)
+	}
+}
+
+func TestRemoteCanonicalAheadOfMergedHeadIsNotLanded(t *testing.T) {
+	// #483 BR-1: another slot pushed work after the landing; this slot has no
+	// local copy of the branch.
+	r, paths, head := landedS09(t)
+	later := r.git("commit-tree", r.git("rev-parse", head+"^{tree}"), "-p", head, "-m", "#9: pushed after the landing")
+	r.git("push", "-q", "origin", later+":refs/heads/"+s09Branch)
+	env, err := openTracker(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, landed := issueBranchLanded(env, s09Branch); landed {
+		t.Fatal("a remote canonical branch ahead of the merged head read as landed")
+	}
+	if err := closeCheck(t, paths); err == nil {
+		t.Fatal("close admitted a follow-up branch while the issue branch is still in flight")
+	}
+}
+
+func TestLaterMergedPRHeadCountsAsLanded(t *testing.T) {
+	r, _, head := landedS09(t)
+	r.git("switch", "-q", "-c", s09Branch, head)
+	swapLandedGH(t, landedFakeGH{prs: map[string][]landingPR{s09Branch: {
+		{Number: 300, State: "MERGED", HeadRef: s09Branch, HeadOID: r.git("rev-parse", head+"^")},
+		{Number: 406, State: "MERGED", HeadRef: s09Branch, HeadOID: head},
+	}}})
+	env, err := openTracker(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, landed := issueBranchLanded(env, s09Branch); !landed {
+		t.Fatal("a local tip at the later merged PR's head read as unlanded")
 	}
 }
