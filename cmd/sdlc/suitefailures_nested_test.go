@@ -95,6 +95,37 @@ func TestSuiteQuotedOverlappingNames(t *testing.T) {
 	}
 }
 
+func TestSuiteIndentedFailureAncestry(t *testing.T) {
+	log := "--- FAIL: TestOuter (0.01s)\n" +
+		"    --- FAIL: TestOuter/literal/a/b (0.01s)\n" +
+		"        --- FAIL: TestOuter/literal/a/b/grand (0.01s)\n" +
+		"            --- FAIL: TestOuter/helper (0.01s)\n" +
+		"    --- FAIL: TestOuter/second (0.01s)\n" +
+		"            --- FAIL: TestOuter/second/skipped (0.01s)\n" +
+		"        --- FAIL: TestOuter/second/deep (0.01s)\n" +
+		"      --- FAIL: TestOuter/misaligned (0.01s)\n" +
+		"\t--- FAIL: TestOuter/tabbed (0.01s)\n" +
+		"FAIL example.com/outer 0.2s\n"
+	want := []string{"example.com/outer.TestOuter/literal/a/b", "example.com/outer.TestOuter/literal/a/b/grand",
+		"example.com/outer.TestOuter/second", "example.com/outer.TestOuter/second/deep"}
+	if got := parseSuiteLogFacts(log); !reflect.DeepEqual(got.Subtests, want) {
+		t.Fatalf("ancestry must use observed levels and complete parent names: %+v", got)
+	}
+}
+
+func TestKnownFlakeGateCannotRegisterAQuotedLeaf(t *testing.T) {
+	d, sha, gh, _ := localRunRepo(t, "acquired")
+	d.FlakeRegistry = gateRegistry(t, "example.com/outer.TestOuter/helper")
+	asked := scriptRerun(t, "printf -- '--- PASS: TestOuter (0.01s)\\n    --- PASS: TestOuter/helper (0.01s)\\nok example.com/outer 0.1s\\n'")
+	log := "--- FAIL: TestOuter (0.01s)\n    x_test.go:9: nested command failed:\n" +
+		"            --- FAIL: TestOuter/helper (0.01s)\nFAIL example.com/outer 0.2s\n"
+	c := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", `printf '%s' "$1"; exit 1`, "fixture", log}, TimeoutMinutes: 30}
+	rec, err := runLocalCheck(context.Background(), d, c, sha)
+	if err != nil || rec.passed() || rec.Outcome != flakes.Unknown || len(*asked) != 0 || gh.statuses[sha]["sdlc-local/suite"] != "failure" {
+		t.Fatalf("quoted leaf registration must not explain real outer failure: %+v %v, reran %v", rec, err, *asked)
+	}
+}
+
 func TestKnownFlakeGateQuotedNestedOutput(t *testing.T) {
 	d, sha, gh, stderr := localRunRepo(t, "acquired")
 	d.FlakeRegistry = gateRegistry(t, nestedOuter+"/warm-reattached")

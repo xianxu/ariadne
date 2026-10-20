@@ -2092,8 +2092,10 @@ The shell runner's default CI invocation still executes the selected batch.
 
 Suite text attribution (#476) preserves indentation before parsing controls:
 `suiteControlLine` admits column-zero outcomes, summaries and JSON events;
-`failingNameLines` also retains real indented descendants of the current failing
-outer test. Quoted nested package trailers cannot flush pending outer names.
+`failingNameLines` also retains real indented descendants through observed
+four-space ancestor levels and complete parent names. Skipped levels and
+same-root quotations cannot invent leaves; slash counts never determine depth.
+Quoted nested package trailers cannot flush pending outer names.
 The same boundary applies to unattributed failures and timing facts, including
 historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
 2N; `TestKnownFlakeGateQuotedNestedOutput` exercises the registered outer retry.

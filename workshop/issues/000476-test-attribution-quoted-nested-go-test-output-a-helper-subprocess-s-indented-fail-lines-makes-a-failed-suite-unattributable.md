@@ -96,6 +96,13 @@ pending independently of the completed implementation checkboxes.
 
 ### 2026-10-19
 
+- Hub approved the structural correction (09f8538f-08a4-4e8f-aebe-0786f25ec39e,
+  canonical receipt verified). BR-1's shared-name matrix, ancestry/slash controls
+  and quoted-only-registration gate failed red before correction. After the
+  observed-ancestor fix, expanded parser/gate/saved-evidence/environment checks
+  passed (12.864s); golint (0.550s) and flakes (0.052s) passed. No full-suite pass
+  yet. The earlier queued suite ended cancelled without admission or a record.
+
 - PR #336 is open; the recorded suite is queued on the pushed code head.
   Closing review overlaps that queue under the worker rule; any code correction
   requires a new suite on the corrected head. No passing full-suite claim yet.
@@ -126,6 +133,11 @@ pending independently of the completed implementation checkboxes.
   slots' landings blocked by this today; raise priority if #715's root fix (pair:3) doesn't land first.
 
 ## Revisions
+
+- 2026-10-19 — Corrected code adds 101 lines outside tests/docs, so the next
+  close upgrades from quick to full review. Record the already approved design
+  in workshop/plans/000476-suite-output-provenance-plan.md. No new scope or
+  approval request; no claim that an initial full plan-quality gate ran.
 
 - 2026-10-19 21:14 PDT — BR-1 (suite-evidence-provenance): the prefix-only
   exception admits quoted helpers sharing the outer root. Reproduced red in

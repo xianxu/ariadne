@@ -74,8 +74,9 @@ Detailed incidents remain in their owning issue or review artifact.
 ## Guards and proof
 
 - Suite output contains quoted subprocess output too. Preserve indentation before
-  tokenizing control records; only real descendants of the outer failing test
-  can be indented test evidence. Apply the same boundary to package attribution,
+  tokenizing control records; indented test evidence needs an observed parent
+  at the preceding four-space level and its complete name, not a root-name
+  prefix or depth inferred from slashes. Apply the same boundary to package attribution,
   unknown-failure reasons and timing facts, and test the actual registered retry
   rather than just extracted names (#476).
 
