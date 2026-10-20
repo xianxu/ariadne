@@ -88,6 +88,7 @@ Items, in order:
 ### 2026-10-19
 
 ### 2026-10-20
+- 2026-10-20: closed M2 — M2 round-2 fixes: effectiveSchedule derives the plan key from the checkout top level (status --repo . from a subdirectory shows slot :15; TestLandingStatusShowsTrainsAndReadiness); readLandingSchedule and readLocalChecks read root-relative (ls-tree --full-tree), fixing trains-off from a subdirectory; the does-not-fit warning is pinned in TestLandingPlanCommand. Round 1: one schedule constructor, fleetPlanInputs injected and tested, plan paths tested, overloads named, README, isolated landing tests, duplicate keys refused.; review verdict: SHIP
 - 2026-10-20: closed M1 — M1 departure rule with round-1 fixes: Slots grid; DepartureDue reasons (slot/interval/max wait/full/cars left ready) shown by landing status (TestLandingStatusShowsTrainsAndReadiness); Departed read at decision time so an offset change applies at once and old-format alone records never schedule (TestNextDepartureReadsTheDeparture); reset fix (grant e2e fails with the old serial NextDue); Since with SinceHead guards against stale carry (TestStaleSinceFromAnOlderSdlc, TestVouchKeepsSince); README and landing help updated; atlas updated. landingline and landing sdlc tests pass.; review verdict: SHIP
 - Claimed and started from ariadne:4. Parked for #490 at the hub's request, then resumed.
 - Code map (explore digest), kept for the plan:
