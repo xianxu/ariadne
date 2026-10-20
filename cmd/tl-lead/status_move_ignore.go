@@ -37,6 +37,9 @@ func verifyMoveIgnores(root string, s sessionMoveSnapshot, p sessionMovePlan) er
 		return err
 	}
 	paths := map[string]bool{}
+	for _, dir := range p.Directories {
+		paths[dir+"/"] = true
+	}
 	for rel := range current {
 		paths[rel] = true
 	}

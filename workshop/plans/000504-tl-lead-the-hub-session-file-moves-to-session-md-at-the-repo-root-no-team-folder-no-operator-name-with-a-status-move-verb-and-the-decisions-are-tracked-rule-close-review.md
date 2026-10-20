@@ -190,3 +190,67 @@ findings:
    Add `## Revisions` entries defining the resulting-ignore-policy invariant and its nested-policy enumeration, and synchronizing the transition-model description with the corrected implementation. Preserve the documented green-suite, staging and live-migration landing holds.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"58bf162b-d81c-4091-b03b-7702d6c559ee","repository":"github.com/xianxu/ariadne","issue_id":"000504","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/421142a4a2e79973","reviewed_head":"cb7c96f5d4f7b4c3c8125cc2593fc6c9884dfbbc","slot":"ariadne:4","requested_at":"2026-10-20T18:00:57.814703Z"},"phase":"finished","pid":38908,"started_at":"2026-10-20T18:00:58.0935Z","finished_at":"2026-10-20T18:03:25.578912Z","session_id":"01a15a79-4176-7811-b5df-8ee0c3622713","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T11:10:34-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 504 — tl-lead: the hub session file moves to session.md at the repo root (no team folder, no operator name), with a status move verb and the decisions-are-tracked rule |
+| repo | ariadne |
+| issue file | workshop/issues/000504-tl-lead-the-hub-session-file-moves-to-session-md-at-the-repo-root-no-team-folder-no-operator-name-with-a-status-move-verb-and-the-decisions-are-tracked-rule.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | fdfc3ca3c297c1c6c2802e03f3ea54b73f4a2b3e..67b62bfca2fd2ef447480cf4dc639f39490fca16 |
+| command | sdlc close --issue 504 |
+| reviewer | codex (openai; author openai); degraded: same-family by choice |
+| isolation | fenced |
+| timestamp | 2026-10-20T11:10:34-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-3 and BR-4 are addressed with regression evidence, and all affected package tests pass. One reproduced correctness defect blocks SHIP: migration leaves links to the side-tree root pointing at the directory it deletes. The reviewed checkout remains unchanged; the disposable checkout was removed.
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: addressed
+    note: |
+      All-depth source/destination policy guards and fresh pre-switch/per-delete checks are reachable. Removing rejectMoveIgnoreFiles in a disposable checkout caused six pure cases and two production refusal cases to fail; restored checks pass.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Production dispatch now consumes transitionMove effect grants and reports confirmed, failed or unconfirmed outcomes. Disabling failure/uncertainty revocation makes TestSessionMoveTransition fail; restored sequence and production interruption tests pass.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: relocation-preserves-reference-targets
+    title: |
+      Migration deletes the target of accepted side-tree directory links
+    detail: |
+      cmd/tl-lead/status_move.go:55 maps descendants through MoveUnder but omits the side-tree root itself. Adding [browse](tl-status-op.side/) to the production fixture makes apply succeed with [browse](teams/dev/tl-status-op.side/) in session.md, then cleanup deletes that target. This is the 2nd finding in family relocation-preserves-reference-targets. Earlier rounds fixed instances; state and enforce the rule that every relocated reference preserves its target. Enumerate session, side-root, descendant-directory, file and stationary targets across Markdown/reference/image links, parent and discussions consumers. Map the side-tree root explicitly and add regression coverage for the enumeration.
+```
+
+1. **Strengths:** Shared optional-FILE normalization preserves explicit callers. Index rebasing preserves unrelated metadata bytes. The executor keeps source files until copy and registration verification succeeds, and the revised transition model authorizes production effects.
+
+2. **Critical findings:** At `cmd/tl-lead/status_move.go:55`, include the side-tree root in the relocation mapping. The production reproduction fails on pinned HEAD and passes with that mapping added in the disposable checkout. Sweep the reference-target classes listed above rather than adding only this example.
+
+3. **Important findings:** None newly raised. Both previously open Important findings are addressed.
+
+4. **Minor findings:** None.
+
+5. **Test coverage:** `go test ./cmd/tl-lead ./pkg/sidedoc ./pkg/golint -count=1` passed. Mutation checks established regression sensitivity for BR-3 and BR-4. Existing fixtures cover interruption/retry, uncertain rename, intervening edits and locks, binary attachments, and unknown metadata. They omit links to the side-tree root. Live Couch and Parley tests were not rerun during this review.
+
+6. **Architecture:** **ARCH-DRY — pass:** shared normalization and sidedoc helpers. **ARCH-PURE — pass:** listed pure entities require no IO; filesystem/Couch work stays in integration code. **ARCH-PURPOSE — flag:** the reference-preservation contract remains incomplete, as reproduced above. **ARCH-MOCK — pass:** Couch uses the shared seam, stateful fake, and scratch conformance tests. **ARCH-CONSTRAINTS — pass:** serial maintenance flow introduces no fan-out or background work. **ARCH-SECURE — pass:** path, lock, metadata, registration, and effective-ignore checks fail visibly. **ARCH-ORDER — pass:** production consumes effect grants and interruption tests exercise controlled boundaries. **ARCH-FUNERAL — pass:** verified cleanup and retry govern copies; hub retirement is documented. **ARCH-EVOLVE — pass:** transformations preserve unknown metadata bytes, and registration lookup does not rewrite records. README and atlas updates cover the new command and location.
+
+7. **Plan revision recommendation:** Append a `## Revisions` entry defining target preservation for the session, side-tree root, descendant directories/files, and stationary targets, with regression coverage across their reference consumers. Retain the documented green-suite and live-migration landing holds.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"021bbc20-f6b3-41fa-b9a9-6e80e029095a","repository":"github.com/xianxu/ariadne","issue_id":"000504","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/b0e27c0bf424e400","reviewed_head":"67b62bfca2fd2ef447480cf4dc639f39490fca16","slot":"ariadne:4","requested_at":"2026-10-20T18:07:33.732092Z"},"phase":"finished","pid":32800,"started_at":"2026-10-20T18:07:33.881768Z","finished_at":"2026-10-20T18:10:33.789142Z","session_id":"01a15a7f-4b6c-70e3-8849-9095af112878","outcome":"returned"}] -->

@@ -1185,3 +1185,9 @@ The simplest durable authority beats a clever scan of consequences.
   have the pure model grant each next effect from confirmed observations and
   revoke authority on failure/uncertainty. Real Git and interruption-sequence
   regressions defend these semantic invariants; lexical lint cannot prove them.
+
+- #504 BR-5: a prefix mapping must include the prefix root itself, and file
+  copying does not recreate empty directory targets. Enumerate root, descendant
+  directory, file and stationary targets across each reference consumer; assert
+  final resolution and existence after source cleanup. Pure mapping and real
+  migration tests defend this semantic reference invariant.

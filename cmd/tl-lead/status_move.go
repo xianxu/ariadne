@@ -24,6 +24,7 @@ type sessionMoveSnapshot struct {
 	Files         map[string]moveSource
 	Dest          map[string]moveSource
 	Existing      map[string]bool
+	Directories   map[string]bool
 	Ignore        []byte
 	IgnoreExists  bool
 	Registrations map[string]*syncRegistration
@@ -37,9 +38,10 @@ type sessionMoveFile struct {
 }
 
 type sessionMovePlan struct {
-	Files   []sessionMoveFile
-	Ignores []byte
-	Notes   []string
+	Files       []sessionMoveFile
+	Directories []string
+	Ignores     []byte
+	Notes       []string
 }
 
 func moveTarget(old, p string) (string, bool) {
@@ -52,6 +54,9 @@ func moveTarget(old, p string) (string, bool) {
 	if p == path.Join(path.Dir(old), "."+path.Base(old)+".ss-seen") {
 		return ".session.md.ss-seen", true
 	}
+	if p == sidedoc.SideDir(old) {
+		return "session.side", true
+	}
 	return sidedoc.MoveUnder(p, sidedoc.SideDir(old), "session.side")
 }
 
@@ -60,6 +65,14 @@ func planSessionMove(s sessionMoveSnapshot) (sessionMovePlan, error) {
 		return sessionMovePlan{}, err
 	}
 	p := sessionMovePlan{Ignores: moveIgnores(s.Ignore)}
+	for _, dir := range sortedKeys(s.Directories) {
+		if to, ok := moveTarget(s.Old, dir); ok {
+			if _, occupied := s.Dest[to]; occupied {
+				return p, fmt.Errorf("destination directory occupied by file: %s", to)
+			}
+			p.Directories = append(p.Directories, to)
+		}
+	}
 	for _, old := range sortedKeys(s.Files) {
 		src := s.Files[old]
 		to, ok := moveTarget(s.Old, old)

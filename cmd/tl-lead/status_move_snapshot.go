@@ -91,7 +91,7 @@ func moveRead(root, rel string) (moveSource, error) {
 	return moveSource{b, fi.Mode().Perm(), fi.ModTime()}, err
 }
 
-func readMoveTree(root, dir string, into map[string]moveSource) error {
+func readMoveTree(root, dir string, into map[string]moveSource, dirs ...map[string]bool) error {
 	p, err := safeMovePath(root, dir)
 	if err != nil {
 		return err
@@ -112,6 +112,9 @@ func readMoveTree(root, dir string, into map[string]moveSource) error {
 			return fmt.Errorf("symlink refused: %s", rel)
 		}
 		if e.IsDir() {
+			if len(dirs) > 0 {
+				dirs[0][rel] = true
+			}
 			return nil
 		}
 		if strings.HasSuffix(rel, ".lock") {
@@ -135,7 +138,7 @@ func readMoveTree(root, dir string, into map[string]moveSource) error {
 }
 
 func readSessionMove(d deps, root, old string) (sessionMoveSnapshot, error) {
-	s := sessionMoveSnapshot{Root: root, Old: old, Files: map[string]moveSource{}, Dest: map[string]moveSource{}, Existing: map[string]bool{}, Registrations: map[string]*syncRegistration{}}
+	s := sessionMoveSnapshot{Root: root, Old: old, Files: map[string]moveSource{}, Dest: map[string]moveSource{}, Existing: map[string]bool{}, Directories: map[string]bool{}, Registrations: map[string]*syncRegistration{}}
 	abs := func(p string) string { return filepath.Join(root, filepath.FromSlash(p)) }
 
 	src, err := moveRead(root, old)
@@ -152,7 +155,7 @@ func readSessionMove(d deps, root, old string) (sessionMoveSnapshot, error) {
 		return s, fmt.Errorf("%s: %w", old, err)
 	}
 	if old != "session.md" {
-		if err := readMoveTree(root, sidedoc.SideDir(old), s.Files); err != nil {
+		if err := readMoveTree(root, sidedoc.SideDir(old), s.Files, s.Directories); err != nil {
 			return s, err
 		}
 		if v, err := moveRead(root, filepath.ToSlash(seenPath(old))); err == nil {

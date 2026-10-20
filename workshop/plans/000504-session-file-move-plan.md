@@ -222,3 +222,18 @@ deletion, and interruptions at every boundary grant no later effects. Existing
 production interruption fixtures exercise the same dispatch loop.
 
 The green-suite, SHIP, staging and operator/TL live-migration landing holds remain.
+
+
+### 2026-10-20 — BR-5 preserve reference targets including directories
+
+The relocation map covers the old session, side-tree root, every descendant
+file or directory, and leaves stationary targets in place. Link rebasing uses
+that same map for inline links, images, reference definitions, plain parents
+and discussions paths. Source directory observations are now explicit: the
+plan retains empty directories too, checks file/directory destination
+collisions before effects, and recreates directory targets before switching.
+Real Git checks include destination directories. This supersedes the previous
+implicit assumption that copying files recreated every referenced directory.
+Tests enumerate target kinds and consumers, including populated and empty
+side roots and descendant directories. The full-suite and manual live-migration
+holds remain unchanged.

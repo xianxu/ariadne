@@ -103,6 +103,8 @@ Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 
 - Boundary round 2: REWORK, BR-1/BR-2 verified addressed. BR-3 found copied nested ignore policy could expose destinations; BR-4 found the phase tracker did not grant production effects. Added all-depth source/retry policy refusals and fresh pre-switch/per-delete Git checks. Replaced the tracker with a pure per-effect grant model consumed by production, with confirmed copy/binding counts, verification, failure and uncertain-outcome stops. Eight nested-policy cases failed before guards; outcome mutation made TestSessionMoveTransition fail and restoring it passed. Affected packages passed (tl-lead 29.721s, sidedoc 0.140s, golint 0.752s); scratch Couch conformance passed (3.052s). Canceled the old queued suite and will requeue on the pushed correction; full suite and live migrations remain pending.
 
+- Boundary round 3: REWORK, BR-3/BR-4 verified addressed; BR-5 reproduced deleted side-root link targets. Added exact side-root mapping and explicit source-directory observations/copies, preserving empty targets and refusing directory/file collisions before effects. Production matrix tests cover two source coordinates, six target classes and all five reference consumers; a private overlay removing mapping/directory planning reproduced broken root links and missing empty targets. Fixed matrix passed (37.059s), collision refusal passed (0.240s); affected packages passed (88.891s, 0.149s, 0.754s) and scratch Couch conformance passed (4.936s). Previous queued suite canceled; fresh recorded suite required on this correction. No live hubs touched.
+
 ## Landing hold
 
 Pending: green suite and SHIP → final build staged → TL/operator migrate both live hubs → TL evidence appended here → stage cleared → merge. Worker must not merge before the TL returns that evidence.
@@ -173,3 +175,18 @@ deletion, and interruptions at every boundary grant no later effects. Existing
 production interruption fixtures exercise the same dispatch loop.
 
 The green-suite, SHIP, staging and operator/TL live-migration landing holds remain.
+
+
+### 2026-10-20 — BR-5 preserve reference targets including directories
+
+The relocation map covers the old session, side-tree root, every descendant
+file or directory, and leaves stationary targets in place. Link rebasing uses
+that same map for inline links, images, reference definitions, plain parents
+and discussions paths. Source directory observations are now explicit: the
+plan retains empty directories too, checks file/directory destination
+collisions before effects, and recreates directory targets before switching.
+Real Git checks include destination directories. This supersedes the previous
+implicit assumption that copying files recreated every referenced directory.
+Tests enumerate target kinds and consumers, including populated and empty
+side roots and descendant directories. The full-suite and manual live-migration
+holds remain unchanged.

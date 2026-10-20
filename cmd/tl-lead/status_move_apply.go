@@ -138,6 +138,18 @@ func runSessionMove(d deps, out io.Writer, s sessionMoveSnapshot, p sessionMoveP
 		if err := verifyMoveIgnores(s.Root, s, p); err != nil {
 			return err
 		}
+		for _, dir := range p.Directories {
+			dest, err := safeMovePath(s.Root, dir)
+			if err != nil {
+				return err
+			}
+			if err := os.MkdirAll(dest, 0755); err != nil {
+				return err
+			}
+			if err := after("mkdir " + dir); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 	copyOne := func(m sessionMoveFile) error {
@@ -293,6 +305,9 @@ func renderSessionMove(out io.Writer, s sessionMoveSnapshot, p sessionMovePlan, 
 		mode = "apply"
 	}
 	fmt.Fprintf(out, "status move: %s -> session.md (%s)\n", s.Old, mode)
+	for _, dir := range p.Directories {
+		fmt.Fprintf(out, "directory %s\n", dir)
+	}
 	for _, m := range p.Files {
 		fmt.Fprintf(out, "copy %s -> %s", m.Old, m.New)
 		if !bytes.Equal(m.Before, m.After) {
