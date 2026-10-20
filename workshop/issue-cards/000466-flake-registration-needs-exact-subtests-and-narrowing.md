@@ -1,6 +1,6 @@
 ---
 id: 000466
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: c0bc9b48b215b10f936e147fb142d2421aaeab3b
         evidence_commit: 50bf74c23120a733d16db0c97538fe8cd5a497c7
+        landed_commit: d389a95c230afea89208368ff67ada2e768dba98
 ---
 
 # flake registration needs exact subtests and narrowing
