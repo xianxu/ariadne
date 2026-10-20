@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 )
 
 // inspectJSON uses Number tokens so unknown additive numeric values are opaque
@@ -20,59 +22,7 @@ func inspectJSON(data []byte) error {
 	}
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.UseNumber()
-	var value func(int) error
-	value = func(depth int) error {
-		if depth > 128 {
-			return errors.New("JSON nesting exceeds 128 levels")
-		}
-		tok, err := d.Token()
-		if err != nil {
-			return err
-		}
-		delim, ok := tok.(json.Delim)
-		if !ok {
-			return nil
-		}
-		switch delim {
-		case '{':
-			seen := map[string]bool{}
-			for d.More() {
-				key, err := d.Token()
-				if err != nil {
-					return err
-				}
-				s, ok := key.(string)
-				if !ok {
-					return errors.New("invalid JSON member")
-				}
-				if seen[s] {
-					return fmt.Errorf("duplicate member %q", s)
-				}
-				seen[s] = true
-				if err := value(depth + 1); err != nil {
-					return err
-				}
-			}
-			end, err := d.Token()
-			if err != nil || end != json.Delim('}') {
-				return errors.New("unclosed JSON object")
-			}
-		case '[':
-			for d.More() {
-				if err := value(depth + 1); err != nil {
-					return err
-				}
-			}
-			end, err := d.Token()
-			if err != nil || end != json.Delim(']') {
-				return errors.New("unclosed JSON array")
-			}
-		default:
-			return errors.New("unexpected JSON delimiter")
-		}
-		return nil
-	}
-	if err := value(0); err != nil {
+	if err := jsonstrict.Scan(d, 128); err != nil {
 		return err
 	}
 	if _, err := d.Token(); !errors.Is(err, io.EOF) {

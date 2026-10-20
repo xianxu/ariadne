@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/repolock"
 )
 
@@ -242,47 +243,6 @@ func Marshal(r Record) ([]byte, error) {
 	return json.Marshal(r)
 }
 
-func uniqueKeys(d *json.Decoder, depth int) error {
-	if depth > 16 {
-		return errors.New("review usage JSON nesting exceeds limit")
-	}
-	tok, err := d.Token()
-	if err != nil {
-		return err
-	}
-	delim, ok := tok.(json.Delim)
-	if !ok {
-		return nil
-	}
-	switch delim {
-	case '{':
-		seen := map[string]bool{}
-		for d.More() {
-			key, err := d.Token()
-			if err != nil {
-				return err
-			}
-			name, ok := key.(string)
-			if !ok || seen[name] {
-				return errors.New("duplicate review usage JSON field")
-			}
-			seen[name] = true
-			if err := uniqueKeys(d, depth+1); err != nil {
-				return err
-			}
-		}
-	case '[':
-		for d.More() {
-			if err := uniqueKeys(d, depth+1); err != nil {
-				return err
-			}
-		}
-	default:
-		return errors.New("invalid review usage JSON delimiter")
-	}
-	_, err = d.Token()
-	return err
-}
 func objectShape(raw []byte, required, optional string) (map[string]json.RawMessage, error) {
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &fields); err != nil || fields == nil {
@@ -310,8 +270,8 @@ func Parse(raw []byte) (Record, error) {
 		return Record{}, errors.New("invalid review usage document encoding/size")
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
-	if err := uniqueKeys(d, 0); err != nil {
-		return Record{}, err
+	if err := jsonstrict.Scan(d, 16); err != nil {
+		return Record{}, fmt.Errorf("review usage JSON: %w", err)
 	}
 	if _, err := d.Token(); err != io.EOF {
 		return Record{}, errors.New("trailing review usage JSON")

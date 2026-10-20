@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -706,7 +707,7 @@ func cloneResultValue(value *PolicyResultValue) *PolicyResultValue {
 }
 
 func strictUnmarshal(raw []byte, target any) error {
-	if err := rejectDuplicateJSONKeys(raw); err != nil {
+	if err := jsonstrict.RejectDuplicateKeys(raw); err != nil {
 		return err
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
@@ -722,65 +723,6 @@ func strictUnmarshal(raw []byte, target any) error {
 		return err
 	}
 	return nil
-}
-
-func rejectDuplicateJSONKeys(raw []byte) error {
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	if err := scanJSONNoDuplicateKeys(dec); err != nil {
-		return err
-	}
-	var extra any
-	if err := dec.Decode(&extra); !errors.Is(err, io.EOF) {
-		if err == nil {
-			return errors.New("trailing JSON value")
-		}
-		return err
-	}
-	return nil
-}
-
-func scanJSONNoDuplicateKeys(dec *json.Decoder) error {
-	token, err := dec.Token()
-	if err != nil {
-		return err
-	}
-	delim, ok := token.(json.Delim)
-	if !ok {
-		return nil
-	}
-	switch delim {
-	case '{':
-		seen := make(map[string]struct{})
-		for dec.More() {
-			keyToken, err := dec.Token()
-			if err != nil {
-				return err
-			}
-			key, ok := keyToken.(string)
-			if !ok {
-				return errors.New("object key is not a string")
-			}
-			if _, exists := seen[key]; exists {
-				return fmt.Errorf("duplicate object key %q", key)
-			}
-			seen[key] = struct{}{}
-			if err := scanJSONNoDuplicateKeys(dec); err != nil {
-				return err
-			}
-		}
-		_, err = dec.Token()
-		return err
-	case '[':
-		for dec.More() {
-			if err := scanJSONNoDuplicateKeys(dec); err != nil {
-				return err
-			}
-		}
-		_, err = dec.Token()
-		return err
-	default:
-		return fmt.Errorf("unexpected JSON delimiter %q", delim)
-	}
 }
 
 type fleetPolicyDeclaration struct {

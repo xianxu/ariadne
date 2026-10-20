@@ -335,6 +335,13 @@ Identity validation still applies before history is filtered.
 the PR, #252 — their details archive with the done card mirrored in, #275), and one conditional commit
 moves issue/plan/review artifacts and their side folders (#424). Retry verifies
 reachable provenance and the complete archived generation before cleanup.
+A train waiter retains its validated landed outcome (#494). If the conductor's
+done-card sweep already archived that car without per-PR trailers, bounded
+destination-path history locates the archive commit. The same transition verifier
+must confirm its exact tracked completion, all artifact moves and unchanged
+current archive before the waiter reports “archived by the train”. The outcome
+alone confirms landing, never archival; ambiguous or changed proof still refuses
+cleanup. Ordinary serial archive provenance remains required.
 Landing returns the selected checkout to unchanged `main` or `main-slotN`, then
 compare-and-deletes only the proven local issue ref and removes its configuration.
 Tracked dirt (including tracker edits), active Git operations, conflicting
@@ -2209,7 +2216,8 @@ historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
 that taught it (`suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
 #469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
-landing), and `wire-strict-decode` pair#594). `TestAtlasNamesEveryRule` keeps this list
+landing), `wire-strict-decode` pair#594, and `json-recursive-scanner` #489, a hand-rolled recursive duplicate-key
+JSON scanner outside `cmd/sdlc/internal/jsonstrict`, the one owner of that rule). `TestAtlasNamesEveryRule` keeps this list
 in step with `Catalog`. Packages are matched by the
 name the file imports them under, and generated files are skipped. Rules read only the syntax tree (stdlib
 `go/parser`, no type-checking, no external linter), and `TestTrackedGoFilesPassTheCatalog`

@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"regexp"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -137,8 +137,8 @@ func (o Observation) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON accepts only a valid observation with no unknown or duplicate
 // keys.
 func (o *Observation) UnmarshalJSON(raw []byte) error {
-	if err := rejectDuplicateKeys(raw); err != nil {
-		return err
+	if err := jsonstrict.RejectDuplicateKeys(raw); err != nil {
+		return fmt.Errorf("observation: %w", err)
 	}
 	type wire Observation
 	var w wire
@@ -152,61 +152,4 @@ func (o *Observation) UnmarshalJSON(raw []byte) error {
 	}
 	*o = Observation(w)
 	return nil
-}
-
-// rejectDuplicateKeys walks the JSON token stream and refuses any object that
-// names a key twice (encoding/json silently keeps the last).
-func rejectDuplicateKeys(raw []byte) error {
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	type frame struct {
-		object bool
-		keys   map[string]bool
-		key    bool // next string token is a key
-	}
-	var stack []*frame
-	for {
-		tok, err := dec.Token()
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				return nil
-			}
-			return fmt.Errorf("observation: %w", err)
-		}
-		var top *frame
-		if len(stack) > 0 {
-			top = stack[len(stack)-1]
-		}
-		switch t := tok.(type) {
-		case json.Delim:
-			switch t {
-			case '{':
-				if top != nil && top.object {
-					top.key = true
-				}
-				stack = append(stack, &frame{object: true, keys: map[string]bool{}, key: true})
-				continue
-			case '[':
-				if top != nil && top.object {
-					top.key = true
-				}
-				stack = append(stack, &frame{})
-				continue
-			default:
-				stack = stack[:len(stack)-1]
-				continue
-			}
-		case string:
-			if top != nil && top.object && top.key {
-				if top.keys[t] {
-					return fmt.Errorf("observation: duplicate key %q", t)
-				}
-				top.keys[t] = true
-				top.key = false
-				continue
-			}
-		}
-		if top != nil && top.object {
-			top.key = true
-		}
-	}
 }
