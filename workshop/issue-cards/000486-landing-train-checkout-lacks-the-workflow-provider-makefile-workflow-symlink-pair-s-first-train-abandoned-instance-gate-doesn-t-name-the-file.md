@@ -1,6 +1,6 @@
 ---
 id: 000486
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-20
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 6ead757846233e97e84f2d087439c43e837117d8
         evidence_commit: 73ff80e84a62f49a977496051eb68ba314aa7c13
+        landed_commit: e2150fb637a7fca18d3001198d3ab7f8488082b1
 ---
 
 # Landing train checkout lacks the workflow provider (Makefile.workflow symlink): pair's first train abandoned; instance gate doesn't name the file
