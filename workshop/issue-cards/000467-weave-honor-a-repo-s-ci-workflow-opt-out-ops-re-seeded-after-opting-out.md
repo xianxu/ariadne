@@ -1,8 +1,8 @@
 ---
 id: 000467
-status: codecomplete
+status: done
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-20
 estimate_hours:
 github_issue:
 started: 2026-10-19T10:00:05-07:00
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: d6b87e80bf5e891c05351d9670782417935a1eef
         evidence_commit: ce1f09980ecacc5fd645cf30b06a0bf435b4615f
+        landed_commit: c80dc2ed89c654387a96ad649711262a421ff809
 ---
 
 # weave: honor a repo's CI-workflow opt-out (ops re-seeded after opting out)
