@@ -1,13 +1,13 @@
 ---
 id: 000501
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'b8ef9a6171e5dbc51f17e9f3ead6a538ae3c62b8' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a313bccd7905add7473cacde69d329052f06fdca' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T10:56:04-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.48
 ---
 
 # sdlc queue reconcile: an operator-attested verb to retire an unresolved unmanaged tombstone (blocks the live drain)
