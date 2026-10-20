@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.58
+actual_hours: 0.98
 tracker:
     version: 1
     completion:
-        token: close-ff7f238ce698
+        token: close-20b0a87b4429
         repository: github.com/xianxu/ariadne
-        reviewed_head: 2af32ce2021a9388d45e21bde7f3605ed048d590
-        evidence_commit: 19d8f249b7c5742574f304bc7db1e1a48fd54358
+        reviewed_head: 266a62dd1139bd222ea7594044201286fce91246
+        evidence_commit: 87a28e178a5a4b49864f8fb7af10773f795676ff
 ---
 
 # Waiting landing-train readiness retains a stale close anchor across external re-close
