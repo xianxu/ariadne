@@ -75,6 +75,14 @@ Recorded attempt bf7ab6a535a92236feeee763b72f9002 on 12aff78f6515173afc4aabd5f28
 
 The central binary cannot resume the failed attempt's targeted flake retry (#463); republish never runs tests. An explicit run on the old implementation SHA refuses because close's documentation commits have advanced the remote branch tip. The replacement recorded suite therefore runs the current pushed branch tip, containing identical code plus close/log bookkeeping. The hub's 3-hour fleet-blocking grant is active. A second unrelated flake on that head stops for the hub; no blind retry.
 
+### 2026-10-20 — integrated-suite failure and queue drain checkpoint
+
+The replacement branch suite on 29c77c5acaeb714be54bd6ec866bf63c676d5f54 passed all 8 shards / 1853 sdlc tests and 75 other packages in 701.0s. Entered central merge promptly. It integrated main as 8600bd0d6d32e5ce7f84259c9cdf7d78c1f325db; publish/instance gates passed. A transient GitHub HTTP 502 stopped the first CI read; a normal merge retry retained that integrated head and cleared CI.
+
+Integrated suite attempt bb6860de80efc7becc0c73bfc826850f failed only TestLandingTrainLandsEveryCarOnOneSuite/null (merge did not finish, 128.20s). All other shards/packages passed (1867 sdlc tests, 75 other packages; total 754.5s). Saved failed log: /Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/failed/bb6860de80efc7becc0c73bfc826850f.log. This null subtest is not the registered train subtest on #498; no classification or registry expansion has been made. Stop for hub classification before another run rather than retrying another unrelated suspected flake blindly.
+
+The automatic main diagnostic on fdfc3ca3c297c1c6c2802e03f3ea54b73f4a2b3e could not run: the queue is paused by couch-drain:69bb7fc3-a125-42c6-9900-5814613b8eba, reason operator shutdown/reboot/RAM-disk no-journal fix. It also reported an interrupted-log rename missing-source error. Main health is unknown; no red-main or branch-defect inference. Merge exited and released its turn; no owned suite/merge remains running. Read-only Couch drain status confirms the pause and reports stuck/cancellation unconfirmed. No drain notice was delivered to this actor, so no receipt-authenticated ack has been sent. Start nothing new while paused. #501 remains next after #492 lands, unclaimed/unimplemented. Prior screen capture remains unavailable; recovery uses this Git/issue evidence.
+
 ## Revisions
 
 ### 2026-10-20 — complete the caller/content boundary
