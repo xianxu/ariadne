@@ -29,18 +29,23 @@ Known flaky tests (#394), registered with same-head fail→pass evidence:
 
 ## Spec
 
+The hub approved folding #484 into #480 after the bounded lock investigation. Measure three complete suite runs each at 12, 8 and 6 shards on a quiet machine, recording wall time, peak one-minute load and kernel share. Select the shard default and machine-suite weight from the results. Preserve landing locks and timeout assertions; the cleanup-lock finding below is a candidate follow-up, not an implementation task here. Detailed execution: [suite concurrency plan](../plans/000480-suite-concurrency-plan.md).
+
 Diagnose the load-coupled train completion failure before choosing a fix. Capture goroutines at about 60 seconds with at most four concurrent diagnostic test processes; timestamp repository-lock acquisition/release and identify the owner and production window. Compare normal and bounded concurrent runs. The hub reports the same failure at load 70+, and #484 separately investigates the suite's 12/8/6 shard operating envelope (single-suite load 150+). Do not assume a deadlock or enlarge the timeout without evidence.
 
 ARCH-CONSTRAINTS/PURPOSE: cap diagnostic concurrency at four, record load and window duration, and distinguish CPU starvation from slow work unnecessarily protected by the lock. ARCH-ORDER: preserve transaction and checkout revalidation guarantees if a lock window changes. ARCH-DRY/PURE: reuse any existing suite-budget helper if the evidence favors its timeout policy. ARCH-MOCK: exercise real Git/locks through the existing stateful GitHub fixture. ARCH-SECURE/EVOLVE: diagnostics use fixture repositories; no persisted production format or authority changes are planned. ARCH-FUNERAL: temporary instrumentation and logs are bounded to this investigation and removed before the final diff.
 
 ## Done when
 
-- The root cause is fixed (never a retry loop or a longer timeout); closing this issue unregisters the tests.
+- The bounded lock investigation and four one-minute dumps are preserved on persistent storage, with cleanup-lock optimization recorded only as a candidate follow-up.
+- Nine quiet, pinned-head suite attempts (three each at 12/8/6 shards) report complete results, wall time, peak one-minute load and kernel share; failures remain visible.
+- The selected default and WF_TEST_WEIGHT have a measured rationale and regression coverage; no retry loop or longer landing-test timeout is introduced. A recorded final suite includes all original train variants.
+- #484 is closed as folded into this issue; atlas is current and SDLC review/landing gates pass. Closing #480 unregisters its exact flaky subtest.
 
 ## Plan
 
 - [x] Capture a timed goroutine dump and lock-window timings under bounded load; report the observed window and remaining uncertainty to the hub before choosing the fix.
-- [ ] Implement the supported correction with regression coverage and an appropriate mechanical lint guard; revise acceptance if the approved timeout-budget alternative is selected.
+- [ ] Execute the approved 12/8/6 matrix and implement the measured suite envelope with regression coverage (see durable plan).
 - [ ] Verify focused/race checks and the recorded suite, close through fresh review, then land and report the outcome.
 
 ## Log
@@ -55,3 +60,10 @@ ARCH-CONSTRAINTS/PURPOSE: cap diagnostic concurrency at four, record load and wi
 - Started four test processes, each running the same parent three times. The existing targeted-test gate admitted three concurrently and queued the fourth; never exceeded four diagnostic processes. All 12 parent invocations / 36 variants passed, parent durations 22.70–35.74s. All four process dumps were captured at 60 seconds. Initial/final host load averages were 5.43/14.68/24.34 and 12.25/14.67/22.68; a mid-run sample was 16.36/15.64/23.39.
 - The dominant window is runDurableMerge's final f.withLock at landing.go:652: integration confirmation, card completion, archive publication/confirmation, checkout/ref cleanup. Across 72 bounded-run cleanup holds it ranged 2.190–4.950s. Three 60s stacks show this window waiting for Git: archiveReadContext → archiveBlobContext → archiveSnapshotContext → confirmLandingArchive → landingArchiveComplete (landing.go:695), or resolveLandingTarget → revalidateLanding → returnLandingToRest (landing.go:704). No cyclic wait or single stuck Git command was observed. The fourth dump and all lock timings are retained locally with the others.
 - Evidence is consistent with CPU/process starvation amplifying a serial Git-heavy cleanup window, but bounded load did not reproduce the original two-minute stall and does not prove its exact cause. Do not claim a deterministic lock bug or a definitive starvation diagnosis. Report this distinction and the #484 envelope alternative to the hub before selecting the correction. Local diagnostic directory: /Volumes/TestScratch/ariadne-480-a4f2_reb (bounded logs, script, instrumentation copy, compiled test); all temporary repository instrumentation was removed and the source diff is clean.
+
+- Evidence preservation: copied all cited baseline/worker logs, four goroutine dumps, orchestration script and instrumentation source to /Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/evidence/000480/lock-diagnostic. Eleven files, 695959 bytes, each source/destination SHA256 verified. Manifest SHA256 209e0bf229bb07ef62275bacb70c90158509c850442c191c810ede44f419837f. This persistent copy is authoritative; the RAM directory is scratch only.
+- Hub approved folding #484 into this issue: nine quiet full-suite measurements at 12/8/6 shards (three each), then choose the default and WF_TEST_WEIGHT. The final cleanup window (landing.go:652, archive confirmation at 695 and checkout revalidation at 704) is a candidate follow-up; no lock restructuring is included here.
+
+## Revisions
+
+- 2026-10-20 (hub-approved scope fold): original Done-when was “The root cause is fixed (never a retry loop or a longer timeout); closing this issue unregisters the tests.” Bounded diagnostics identify the costly cleanup window but do not reproduce the original two-minute stall. Replace the unqualified root-cause promise with measured suite-envelope correction and persistent diagnostic evidence; retain the no-retry/no-timeout-bump constraint. Fold #484's 12/8/6 measurement into #480; leave cleanup-lock optimization as a possible separate follow-up. The diagnostic plan row now distinguishes observed lock ownership from unresolved starvation attribution.
