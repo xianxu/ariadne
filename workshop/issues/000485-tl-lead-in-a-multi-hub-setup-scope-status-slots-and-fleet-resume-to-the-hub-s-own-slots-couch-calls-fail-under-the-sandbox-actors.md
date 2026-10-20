@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-20
-estimate_hours:
+estimate_hours: 2.02
 collaboration-mode: collaboration
-card_mirror: '84c92ba5c46cc12d06b82a5fb58a7f279aaa82c6' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'd73b1b1b26fc435a30217f44bebdde43a0d7a090' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T11:08:14-07:00
 claimant:
     operator: Xian Xu
@@ -161,3 +161,25 @@ bare-call rule.
 - 2026-10-20 13:44 PDT — TL approved the durable plan and authorized change-code. Added constraint: fleet resume remains operator-started, never automatic at startup; preserve --help wording and assert it in tests. Approval is delivery bac6759f-4e2e-4a0d-a272-4c8409efe48e, authenticated as submitted from ops:0 to this incarnation. The earlier awaiting-approval notes are historical.
 
 - 2026-10-20 13:47 PDT — plan gate round 1 blocked on PQ-1 (confirming child-outcome evidence) and PQ-2 (test-plan presentation). Verified Couch already supports --resume ADDR --json and emits terminal receipt status plus normal exit. Plan now names pure classifyResumeResult: only a matching terminal receipt consistent with normal exit confirms completion; every possibly admitted unconfirmed result remains uncertain. Test plan compacted to named functions/strategies; no change to approved visible states or polling ownership.
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* Calibration is flagged stale by estimate-source; numbers are provisional.
+
+Three smaller-go-module extensions cover shared scope/Slots, scoped freshness and pure receipt classification: each base design 0.2 × 0.2 thorough-spec discount = 0.04; base implementation 0.5 × 0.40 = 0.20. Serial batch integration uses api-integration (base design 1.5 × 0.2 = 0.30; implementation 1.0 × 0.40 = 0.40). Issue/spec is 0.75 × 0.2 design and 0.2 × 0.40 implementation. Docs is 0.1 × 0.2 design and 0.1 × 0.40 implementation; the single close review is 0.1 × 0.2 design and 0.5 × 0.40 implementation. Existing ownerOf, Cobra, Couch receipt polling and encoding/json cover library needs; no greenfield stack or new external API needs discovery. Familiarity 1.0; thorough-plan design buffer 15%. Queue wait is not implementation effort.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: api-integration design=0.30 impl=0.40
+item: issue-spec design=0.15 impl=0.08
+item: atlas-docs design=0.02 impl=0.04
+item: milestone-review design=0.02 impl=0.20
+design-buffer: 0.15
+total: 2.02
+```
+
+Design 0.61 × 1.15 + implementation 1.32 = 2.0215 hours, rounded to 2.02.
