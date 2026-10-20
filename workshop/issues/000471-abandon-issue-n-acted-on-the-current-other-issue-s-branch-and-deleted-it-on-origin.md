@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "f4858913", done: "e6005be1"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # abandon: --issue N acted on the current (other issue's) branch and deleted it on origin
@@ -62,6 +62,8 @@ Add the same guard to any other verb that takes `--issue N` but acts on HEAD's b
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — Wrong-branch abandon refused with local and remote refs unchanged in real-Git tests and disposable bare-origin smoke; correct-branch, interrupted retry, renamed-close recovery and foreign-head negatives passed. A post-checkout branch move and another worktree holding the branch each failed before the fix and now preserve that branch. README documents checkout requirements. make -k build and exact-head suite passed on 38abeb17: 12 shards, 71 packages, no failures, log sha256 2115980134ac. The unchecked final plan row is this close-and-merge action itself.; review verdict: SHIP
+- 2026-10-19: flow upgraded quick → full — 139 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 - Claimed and started in ariadne:1. The incident is a branch identity failure: `abandon` accepts any non-rest branch as the named issue's branch and stores that name in its terminal record. Planning the shared guard and remote-ref checks before code.
 - The wrong-branch abandon, close, milestone-close and attach fixtures failed against the old behavior before the guards were added. The real-Git fixtures now check that an A-on-B command leaves both local and origin refs, the archive ref, cards and main unchanged. Terminal retries reject another branch or a persisted branch name from another issue; an open issue remains card-only.
