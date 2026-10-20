@@ -412,3 +412,15 @@ one.
 - The one-week pair measurement belongs to the rollout. The TL owns pair's counterpart, and the snapshot (sum of
   `wall_seconds` over pair's suite, affected and suite-rerun attempts ÷ merges to main in the window, compared with the
   week before) goes in this issue's Log.
+
+## Revisions
+
+- **2026-10-19 22:55 (TL, from pair#723 on pair's first train day).** pair#723's car would not vouch. Its branch was
+  docs-only from main, and no commit on it, nor its merge-base, carried a suite record. The serial merge runs the suite
+  at landing; a car has no runner, so it can only refuse. Task 6 Step 1 gains two tests through the car's CI gate:
+  1. The TL's shape: a docs-only commit on a suite-recorded head vouches without a new suite. The ancestor walk does
+     this today; the test pins it.
+  2. The pair#723 shape: a docs-only branch whose only record is a docs-only `affected` record. It vouches when main
+     has `affected.json` and refuses without it.
+
+  Scope is unchanged. The docs-only selection was already in M1 (Task 5), and the stand-in in Task 6.
