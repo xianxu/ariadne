@@ -231,7 +231,7 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 	}
 	grants := l.o.Grants()
 	resource := func() (bool, error) {
-		err := l.withMutex(func() error {
+		acquired, err := l.withMutexMode(true, func() error {
 			live, err := l.scan()
 			if err != nil {
 				return err
@@ -310,7 +310,10 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 			pos, displaced = 0, passed
 			return nil
 		})
-		return err == nil && pos == 0, err
+		if !acquired && err == nil {
+			why = "landing line allocation busy"
+		}
+		return acquired && err == nil && pos == 0, err
 	}
 	gate := l.o.Gate
 	if gate == nil {
@@ -551,15 +554,25 @@ func (l *Line) nextSeq() (int64, error) {
 }
 
 func (l *Line) withMutex(fn func() error) error {
+	_, err := l.withMutexMode(false, fn)
+	return err
+}
+
+// Admission already owns the machine gate: contention must release that gate
+// and retry, never turn another repository's pause into a local-lock wait.
+func (l *Line) withMutexMode(nonblocking bool, fn func() error) (bool, error) {
 	f, err := os.OpenFile(filepath.Join(l.dir, "line.lock"), os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer f.Close()
-	if err := flock.Exclusive(f, false); err != nil {
-		return err
+	if err := flock.Exclusive(f, nonblocking); err != nil {
+		if nonblocking && errors.Is(err, syscall.EWOULDBLOCK) {
+			return false, nil
+		}
+		return false, err
 	}
-	return fn()
+	return true, fn()
 }
 
 // heldTicket reads a held lock's ticket; a held lock whose contents don't parse

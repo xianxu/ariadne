@@ -169,6 +169,12 @@ pair:5 ran its production `sdlcDrainQueue` argv adapter and `decodeQueueSnapshot
 
 Hub approved the normal central sdlc for the recorded suite and merge with only `WF_SDLC_QUEUE_ROOT=/Volumes/TestScratch/tmp/ariadne-slot3/ariadne-481-verification-queue.tHUG4N` set and `WF_TEST_LOCK_FILE` unset. The real machine capacity, FIFO and grants stay in force. This avoids leaving unmanaged unknown residue in production when the pre-rollout central binary invokes the new helper. The temporary launcher is `/tmp/ariadne-481-run-central.py`, which execs `/Users/xianxu/workspace/ariadne/bin/sdlc` with exactly that environment change. Clean the private queue root and this slot's conformance fixture after landing; the peer's sibling unknown fixture belongs to pair:5. Hub rebuilds central sdlc after landing to activate managed leases fleet-wide.
 
+### 2026-10-20 — M2 review BR-5 correction
+
+M2 round 1 returned REWORK for blocking secondary mutexes inside the global gate. Real Go and Python contention fixtures reproduced the defect before the fix: pause expired against the held line lock, and Python admission could not return until allocation was released. Both consumers now try the nested lock without blocking, release the global gate on contention and retain their FIFO ticket. Go also proves cancellation while allocation stays held and readmission of the same ticket after resume; Python proves cancellation of its private waiter. Core/line races pass 3.743s/1.585s; combined TestQueue and real-provider priority race checks pass 73.050s; 15 private Python controls pass; golint passes. Cancelled the obsolete recorded suite with `sdlc local-check cancel --name suite` before it started; it exited interrupted, with no suite attempt. The final-code suite and M2 review will be requeued.
+
+Additional pair:5 lost-reply conformance passed 4.863s: successful pause/resume effects survived proxy exit 29, and status reconciled them without removing the second owner. Receipt 77228edf-6f1c-4545-9444-5cc060ab3d8a was authenticated/submitted; primary private fixture ended running/complete/empty.
+
 ## Revisions
 
 ### 2026-10-20 — M1 review corrections

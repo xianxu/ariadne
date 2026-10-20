@@ -2019,6 +2019,9 @@ admission. `localcheck_run.go` enrolls suites and supplies the exact managed
 operation ID to `scripts/test-lock.py`. `QueueGate` borrows that held lease and
 publishes its running phase together with weighted capacity; grant-provider
 calls remain outside the global mutex. Reentrant makes reuse their holder.
+Secondary allocation/line locks are attempted without blocking while the
+global gate is held; contention releases the global gate and retries without
+discarding FIFO position. Blocking preview/writer work stays outside it.
 The forked watcher reopens its control mutex descriptor so it cannot unlock
 its parent's transaction. Raw slot/head bindings identify the controller's
 operation ID, kernel incarnation and checkout root.

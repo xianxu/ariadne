@@ -322,7 +322,7 @@ class QueueGate:
                 fd, temporary = tempfile.mkstemp(prefix='.enroll-', dir=os.path.join(root, 'operations'))
                 self.fd = fd
                 try:
-                    fcntl.flock(fd, fcntl.LOCK_EX)
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
                     os.write(fd, queue_encode_object(self.fields))
                     os.fsync(fd)
                     if any(os.path.lexists(os.path.join(root, family, self.id + '.json')) for family in ('operations', 'unresolved', 'cancel', 'interrupted')):
@@ -555,10 +555,14 @@ class Tickets:
             os.pwrite(self.fd, json.dumps(rec).encode(), 0)
 
     @contextlib.contextmanager
-    def locked(self):
-        fcntl.flock(self.mutex, fcntl.LOCK_EX)
+    def locked(self, blocking=True):
+        if blocking:
+            fcntl.flock(self.mutex, fcntl.LOCK_EX)
+        elif not try_lock(self.mutex):
+            yield False
+            return
         try:
-            yield
+            yield True
         finally:
             fcntl.flock(self.mutex, fcntl.LOCK_UN)
 
@@ -617,7 +621,9 @@ class Tickets:
         result = ([], scan(fds, 0)[1], [], False, 0)
         def attempt():
             nonlocal result
-            with self.locked():
+            with self.locked(blocking=False) as acquired:
+                if not acquired:
+                    return False  # Release the global gate before retrying.
                 current = self.records()
                 if current != records:
                     return False

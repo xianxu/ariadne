@@ -290,6 +290,59 @@ class QueuePause(unittest.TestCase):
                     for fd in (slot, held, token):
                         os.close(fd)
 
+    def test_contended_allocation_never_pins_global_gate(self):
+        with mock.patch.dict(os.environ, self.env, clear=True):
+            gate = lock.QueueGate(str(self.queue), str(self.top), os.getpid())
+            line = lock.Tickets(str(self.root / 'contended'), dict(pid=os.getpid(),repo='fixture',worktree=str(self.top),started='fixture'))
+            original_ticket = line.path
+            allocation = os.open(self.root / 'contended.tickets' / 'alloc', os.O_RDWR)
+            slot = os.open(self.root / 'slot', os.O_RDWR | os.O_CREAT, 0o600)
+            token = os.open(self.root / 'token', os.O_RDWR | os.O_CREAT, 0o600)
+            ready, finished = threading.Event(), threading.Event()
+            outcomes = []
+            def provider(records, now):
+                fcntl.flock(allocation, fcntl.LOCK_EX)
+                ready.set()  # Hold alloc only after admission's preview read.
+                return {}
+            def admission():
+                try:
+                    outcomes.append(line.admission([slot], token, 1, mock.Mock(deadlines=provider), gate))
+                finally:
+                    finished.set()
+            thread = threading.Thread(target=admission)
+            thread.start()
+            try:
+                self.assertTrue(ready.wait(2), 'priority preview did not finish')
+                self.assertTrue(finished.wait(2), 'allocation wait held the global gate')
+                self.assertFalse(outcomes[0][0])
+                self.paused([dict(owner='responsive', reason='contention', cancel_running=False)])
+                self.assertEqual(line.path, original_ticket)
+                self.assertTrue(Path(original_ticket).exists())
+            finally:
+                fcntl.flock(allocation, fcntl.LOCK_UN)
+                thread.join(3)
+                line.release()
+                gate.retire()
+                gate.close()
+                for fd in (allocation, slot, token):
+                    os.close(fd)
+
+    def test_cancel_waiter_while_allocation_is_held(self):
+        directory = self.root / 'capacity.tickets'
+        directory.mkdir()
+        allocation = os.open(directory / 'alloc', os.O_RDWR | os.O_CREAT, 0o600)
+        try:
+            fcntl.flock(allocation, fcntl.LOCK_EX)
+            _, helper = self.start('contended-cancel')
+            self.await_(lambda: list((self.queue / 'operations').glob('*.json')), 'waiter did not publish its lease')
+            helper.terminate()
+            self.await_(lambda: helper.poll() is not None, 'cancelled waiter stayed blocked on allocation')
+            self.assertNotEqual(helper.returncode, 0)
+            self.assertEqual(list((self.queue / 'operations').glob('*.json')), [])
+            self.assertEqual((self.root / 'contended-cancel.out').read_text(), '')
+        finally:
+            os.close(allocation)
+
     def test_watcher_reopens_global_mutex_after_fork(self):
         with mock.patch.dict(os.environ, self.env, clear=True):
             gate = lock.QueueGate(str(self.queue), str(self.top), os.getpid())

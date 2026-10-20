@@ -5,11 +5,87 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flock"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/queuegate"
 )
+
+func TestQueueContendedLineNeverPinsGlobalGate(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	s := &queuegate.Store{Root: t.TempDir()}
+	lease, err := s.Enroll(ctx, queuegate.Operation{SchemaVersion: 1, ID: "contended", Workspace: "repo:3", Kinds: []string{"merge", "landing"}, Phase: "waiting", PID: os.Getpid(), PIDStarted: "fixture", Managed: true, StartedAt: time.Now(), Root: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lease.Close()
+	entered := make(chan struct{})
+	var once sync.Once
+	o := testOptions(nil)
+	o.Gate = func(resource func() (bool, error)) (bool, error) {
+		ok, err := lease.TryAdmit(ctx, func() (bool, error) { once.Do(func() { close(entered) }); return resource() })
+		var paused *queuegate.PausedError
+		if errors.As(err, &paused) {
+			return false, &HeldError{Reason: err.Error()}
+		}
+		return ok, err
+	}
+	l := openLine(t, t.TempDir(), o)
+	h := enqueue(t, l, 481)
+	seq := h.Ticket().Seq
+	allocation, err := os.OpenFile(filepath.Join(l.dir, "line.lock"), os.O_RDWR, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := flock.Exclusive(allocation, false); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- l.Wait(ctx, h) }()
+	joined := false
+	defer func() {
+		cancel()
+		allocation.Close()
+		if !joined {
+			<-done
+		}
+	}()
+	select {
+	case <-entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("admission did not enter global transaction")
+	}
+	budget, end := context.WithTimeout(context.Background(), 2*time.Second)
+	err = s.Pause(budget, "drain", "responsive", false)
+	end()
+	if err != nil {
+		t.Fatalf("secondary line lock pinned pause: %v", err)
+	}
+	cancel()
+	select {
+	case err := <-done:
+		joined = true
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("waiter did not cancel: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("secondary lock prevented waiter cancellation")
+	}
+	if !h.waiting() || h.Ticket().Seq != seq {
+		t.Fatal("contention/cancellation discarded FIFO ticket")
+	}
+	allocation.Close()
+	if err := s.Resume(context.Background(), "drain"); err != nil {
+		t.Fatal(err)
+	}
+	ctx = context.Background() // The old Wait has joined; retry the same ticket.
+	if err := l.Wait(ctx, h); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestQueuePauseRetainsLandingTicketAndAdmitsAfterResume(t *testing.T) {
 	ctx := context.Background()
