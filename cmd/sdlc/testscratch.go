@@ -31,7 +31,7 @@ type scratchPreparation struct {
 	Cleanup   func()
 }
 
-func prepareScratch(stderr io.Writer, check string) (scratchPreparation, error) {
+func prepareScratch(stderr io.Writer, check string, normalTempDir func() (string, error)) (scratchPreparation, error) {
 	// Creation and stale cleanup share every possible root, independently
 	// of today's placement. Former fallback runs stay there after recovery.
 	_, cleanupRoots, _ := scratchdisk.Roots("tmp", os.TempDir())
@@ -67,7 +67,10 @@ func prepareScratch(stderr io.Writer, check string) (scratchPreparation, error) 
 		}
 		fmt.Fprintf(stderr, "[!] test scratch %s not writable; using the normal temp folder\n", base)
 	}
-	normal, err := scratchdisk.NormalTempDir()
+	if normalTempDir == nil {
+		normalTempDir = scratchdisk.NormalTempDir
+	}
+	normal, err := normalTempDir()
 	if err != nil {
 		return scratchPreparation{}, fmt.Errorf("environment failure: cannot prepare TMPDIR/GOTMPDIR: %w", err)
 	}
