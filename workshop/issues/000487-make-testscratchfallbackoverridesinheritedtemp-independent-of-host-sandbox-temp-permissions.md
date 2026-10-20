@@ -72,6 +72,7 @@ new input scan, worker or durable artifact. Fixture directories die with tests.
 
 
 ### 2026-10-20 — Start and diagnosis
+- 2026-10-20: closed — BR-1 host evidence is committed at the issue .side/sandbox-host-evidence.txt: exact source HEAD, profile SHA/content, probe source, argv, output and exit statuses. Under the profile, owned fixture create/remove passed; Darwin user-temp and /tmp writes were denied with errno1; both fallback tests plus NormalTemp/MkdirTemp/UserTempDir controls passed, both commands exit0. This addresses the reviewer nested-sandbox launch restriction without code changes. Earlier broader sandbox controls and outside-targeted tests passed. Production nil still selects strict NormalTempDir, child writes/cleanup and denied-selector no-child/no-success evidence are covered. Recorded full suite is queued/running on the unchanged code head; no full pass claimed yet. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 The #467 main-baseline diagnostic reproduced the same named test and sandbox
 mkdir denial; sdlc classified persistent main failure and refused that landing.
