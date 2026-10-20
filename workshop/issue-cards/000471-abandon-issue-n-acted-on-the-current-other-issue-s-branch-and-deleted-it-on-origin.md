@@ -1,6 +1,6 @@
 ---
 id: 000471
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 92211bc7cc8ab76e431e6e7830cbae082f5879fe
         evidence_commit: dc1903983646269f88abf7f06b3af1f5d2fedef1
+        landed_commit: 499a1a085acd981558425478c2d1e159ac01f386
 ---
 
 # abandon: --issue N acted on the current (other issue's) branch and deleted it on origin
