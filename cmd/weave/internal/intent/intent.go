@@ -48,6 +48,10 @@ const (
 	// writes a committed digest sidecar beside the output, and an output that
 	// matches its sidecar is weave's own even in a cold checkout.
 	Ship
+	// Decline — the repo opts out of inherited rows at or under a path (#467):
+	// ops declines .github/workflows. Only the leaf's decline rows apply, so an
+	// ancestor never declines for its consumers (see layer.Decline).
+	Decline
 )
 
 // Visibility is the composition-algebra axis (workshop/targets/weave-composition-

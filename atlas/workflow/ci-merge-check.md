@@ -18,6 +18,9 @@ does **not** contain the base-layer sibling that a *script* symlink points at:
 | Runner | `scripts/run-merge-checks.sh` | `symlink` → `../<upstream>` | Generic logic, single-source via the symlink; but the target is the base-layer *sibling*, absent in an isolated CI checkout — so the shim clones peers first (below) |
 | Checks | `scripts/merge-checks.d/*` | `scaffold` | Repo-owned; each derivative drops its own (or none) |
 
+A repo opts out of both seeded workflows with `decline .github/workflows` in its
+own `construct/base.manifest` (#467; see base-layer.md → Repo-Specific Extensions).
+
 The shim builds the selected exact compiler before running `./bootstrap.sh`.
 Bootstrap prepares the upstream peer chain and composes generated helpers; then
 an optional repository-owned setup hook runs. The shim computes the PR/push
