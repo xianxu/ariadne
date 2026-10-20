@@ -1,13 +1,13 @@
 ---
 id: 000475
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-20
 estimate_hours: 2.67
 collaboration-mode: collaboration
-card_mirror: 'b41c86ee837a1928e35246bab104bceb37595ada' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5e178233336ccaf461b642e8b195709339312951' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T03:03:17-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 1.90
 ---
 
 # landing trains: wall-clock departure slots planned machine-wide by suite cost; leave at N cars or Y minutes; no clock reset (option A)
