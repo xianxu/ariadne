@@ -45,14 +45,14 @@ Quick flow. The class (ARCH-PURPOSE): every flake-coverage decision derives from
 failure's leaves (`explain`). `flake list`'s fixed-issue path is the one place still matching the top-level failure
 name exactly.
 
-- [ ] `flakes`: export the gate's leaf split — `Unknown(failures, subtests, reg) []string`, the failing leaves no
+- [x] `flakes`: export the gate's leaf split — `Uncovered(failures, subtests, reg) []string`, the failing leaves no
   registered name covers; `Explained` becomes `len(Unknown)==0` (ARCH-DRY: one coverage rule).
-- [ ] `classifyFixedFlake` takes a leaf and picks the fixed issues whose `flake_tests` cover it via `flakes.Covers`,
+- [x] `classifyFixedFlake` takes a leaf and picks the fixed issues whose `flake_tests` cover it via `flakes.Covers`,
   nearest name first (as `Registry.Cover`); two issues at the same nearest name stay ambiguous → unknown. Delete
   `fixedIssueCovers`.
-- [ ] `runFlakeListMode`: for a confirmed attempt, each uncovered leaf (`flakes.Unknown`) is classified and listed by
+- [x] `runFlakeListMode`: for a confirmed attempt, each uncovered leaf (`flakes.Uncovered`) is classified and listed by
   its own name — the name to register — instead of the top-level test.
-- [ ] Tests: table for leaf coverage (fixed on `TestX/sub` covers `TestX/sub` and `TestX/sub/deeper`, not
+- [x] Tests: table for leaf coverage (fixed on `TestX/sub` covers `TestX/sub` and `TestX/sub/deeper`, not
   `TestX/sib` nor `TestX`; fixed on `TestX` covers `TestX/sub`; nearest wins; same-name tie unknown); a `flake list`
   test with a logged subtest fixed by a terminal card; an AST check that no `cmd/sdlc` function besides
   `flakes.Covers` is a `*Covers` predicate.
@@ -60,3 +60,12 @@ name exactly.
 ## Log
 
 ### 2026-10-19
+
+- Plan posted to the hub (quick flow, proceeding unless objected).
+- `flakes.Unknown` collided with the `Unknown` Kind constant; named `Uncovered`.
+- Mutation checks: an exact-match `fixedCandidates` fails `TestFixedIssueCoverageFollowsTheGateRule`; the old
+  top-level caller loop fails both cases of `TestFlakeListJudgesFixedSubtestsFromTheLog`.
+- Exact-match audit (Done-when 2): remaining `==` on flake names are identity, not coverage — `removeFlakeTests`
+  (drop exactly the named entry), `runFlakeRegister`'s `e.Test == t` (already-registered message, followed by the
+  `Covers` overlap check), `Registry.Lookup`. `TestNoParallelFlakeCoverageMatcher` refuses a new `*Covers` matcher in
+  package main.

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"slices"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
@@ -100,25 +101,32 @@ func publishedFixedIssues(ctx context.Context, issuesDir string, rs tracker.Reco
 	return fixed, main.Ref(), nil
 }
 
-// fixedIssueCovers consults only the terminal card's structured field.
-func fixedIssueCovers(tests []string, name string) bool {
-	for _, test := range tests {
-		if test == name {
-			return true
+// fixedCandidates are the terminal issues whose structured flake_tests cover
+// failing leaf name by the gate's rule (flakes.Covers, #479): the nearest
+// covering name wins, as in Registry.Cover, and issues tied at it all return.
+func fixedCandidates(issues []fixedFlakeIssue, name string) []fixedFlakeIssue {
+	var candidates []fixedFlakeIssue
+	best := ""
+	for _, candidate := range issues {
+		for _, test := range candidate.Tests {
+			if !flakes.Covers(test, name) || len(test) < len(best) {
+				continue
+			}
+			if len(test) > len(best) {
+				best, candidates = test, nil
+			}
+			if !slices.ContainsFunc(candidates, func(c fixedFlakeIssue) bool { return c.ID == candidate.ID }) {
+				candidates = append(candidates, candidate)
+			}
 		}
 	}
-	return false
+	return candidates
 }
 
 // classifyFixedFlake coordinates ownership with injected Git ancestry. It is
-// integration logic: fixedIssueCovers is the pure card matcher.
+// integration logic: fixedCandidates is the pure card matcher.
 func classifyFixedFlake(name string, issues []fixedFlakeIssue, contains func(string, string) (bool, error), main, head string) (fixedFlakeState, fixedFlakeIssue, string) {
-	var candidates []fixedFlakeIssue
-	for _, candidate := range issues {
-		if fixedIssueCovers(candidate.Tests, name) {
-			candidates = append(candidates, candidate)
-		}
-	}
+	candidates := fixedCandidates(issues, name)
 	if len(candidates) > 1 {
 		return flakeUnknown, fixedFlakeIssue{}, "multiple terminal issues cover this test"
 	}

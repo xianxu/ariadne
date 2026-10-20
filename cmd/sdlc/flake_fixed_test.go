@@ -3,24 +3,106 @@ package main
 import (
 	"bytes"
 	"context"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
-func TestFixedIssueCoverageUsesCardOnly(t *testing.T) {
-	const launcher = "github.com/xianxu/pair/cmd/internal/launcher.TestCancelledHandoffReportsAChildsCleanExit"
-	if !fixedIssueCovers([]string{launcher}, launcher) {
-		t.Fatal("exact flake_tests should cover without details")
+// #479: a fixed issue covers a failing leaf by the gate's rule, flakes.Covers,
+// nearest name first as Registry.Cover; two issues at that name stay ambiguous.
+func TestFixedIssueCoverageFollowsTheGateRule(t *testing.T) {
+	const x = "github.com/xianxu/pair/pkg.TestX"
+	issue := func(id string, tests ...string) fixedFlakeIssue { return fixedFlakeIssue{ID: id, Tests: tests} }
+	for _, c := range []struct {
+		name   string
+		issues []fixedFlakeIssue
+		leaf   string
+		want   []string
+	}{
+		{"exact top-level", []fixedFlakeIssue{issue("1", x)}, x, []string{"1"}},
+		{"name prefix is not a test", []fixedFlakeIssue{issue("1", x)}, x + "Extra", nil},
+		{"no card ownership", []fixedFlakeIssue{issue("1")}, x, nil},
+		{"exact subtest", []fixedFlakeIssue{issue("1", x+"/sub")}, x + "/sub", []string{"1"}},
+		{"subtest covers its own subtests", []fixedFlakeIssue{issue("1", x+"/sub")}, x + "/sub/deeper", []string{"1"}},
+		{"subtest never covers a sibling", []fixedFlakeIssue{issue("1", x+"/sub")}, x + "/sib", nil},
+		{"subtest never covers its parent", []fixedFlakeIssue{issue("1", x+"/sub")}, x, nil},
+		{"top-level covers its subtests", []fixedFlakeIssue{issue("1", x)}, x + "/sub", []string{"1"}},
+		{"nearest name wins", []fixedFlakeIssue{issue("1", x), issue("2", x+"/sub")}, x + "/sub", []string{"2"}},
+		{"nearest name wins in either order", []fixedFlakeIssue{issue("2", x+"/sub"), issue("1", x)}, x + "/sub/deeper", []string{"2"}},
+		{"same name on two issues is ambiguous", []fixedFlakeIssue{issue("1", x+"/sub"), issue("2", x+"/sub")}, x + "/sub", []string{"1", "2"}},
+		{"one issue naming both counts once", []fixedFlakeIssue{issue("1", x, x+"/sub")}, x + "/sub", []string{"1"}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			var got []string
+			for _, i := range fixedCandidates(c.issues, c.leaf) {
+				got = append(got, i.ID)
+			}
+			if !slices.Equal(got, c.want) {
+				t.Fatalf("candidates %v, want %v", got, c.want)
+			}
+		})
 	}
-	if fixedIssueCovers([]string{launcher}, launcher+"Extra") {
-		t.Fatal("flake_tests must match exactly")
+}
+
+// #479: flake list judges a fixed issue's subtest like an open one's: the
+// logged leaf it names is hidden as fixed, a sibling's stays listed by name.
+func TestFlakeListJudgesFixedSubtestsFromTheLog(t *testing.T) {
+	for name, c := range map[string]struct {
+		logged string
+		listed bool
+	}{
+		"the fixed subtest failed": {flakeSub, false},
+		"a sibling failed":         {flakeT1 + "/plain/other.test.sh", true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			w := &flakeWorld{
+				attempts:    []SuiteAttempt{attemptAt("f1", "abc", 1, 1, flakeT1), attemptAt("p1", "abc", 2, 0)},
+				logSubtests: map[string][]string{"f1": {flakeT1 + "/plain", c.logged}},
+				main:        "main",
+				fixed:       []fixedFlakeIssue{{ID: "000465", Merge: "merge", Tests: []string{flakeSub}}},
+				contains: func(_ context.Context, _, head string) (bool, error) {
+					return head == "main", nil
+				},
+			}
+			var out bytes.Buffer
+			if err := runFlakeListMode(context.Background(), &out, w.deps(), true); err != nil {
+				t.Fatal(err)
+			}
+			section := strings.SplitN(strings.SplitN(out.String(), "same-head fail→pass, not registered", 2)[1], "same-head flakes fixed", 2)[0]
+			if got := strings.Contains(section, c.logged); got != c.listed {
+				t.Fatalf("listed as unregistered %v, want %v:\n%s", got, c.listed, out.String())
+			}
+			if fixed := strings.Contains(out.String(), "  "+flakeSub+"  attempt f1") && strings.Contains(out.String(), "fixed by #000465"); fixed == c.listed {
+				t.Fatalf("fixed row %v, want %v:\n%s", fixed, !c.listed, out.String())
+			}
+		})
 	}
-	if fixedIssueCovers(nil, launcher) {
-		t.Fatal("no card ownership must stay visible")
+}
+
+// #479: flakes.Covers is the one coverage predicate. A parallel *Covers
+// matcher in package main is how a fixed issue once matched by exact name.
+func TestNoParallelFlakeCoverageMatcher(t *testing.T) {
+	fset := token.NewFileSet()
+	pkgs, err := parser.ParseDir(fset, ".", func(fi fs.FileInfo) bool { return !strings.HasSuffix(fi.Name(), "_test.go") }, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range pkgs {
+		for file, f := range p.Files {
+			for _, decl := range f.Decls {
+				if fn, ok := decl.(*ast.FuncDecl); ok && strings.HasSuffix(fn.Name.Name, "Covers") {
+					t.Errorf("%s: %s re-implements flake coverage; call flakes.Covers", file, fn.Name.Name)
+				}
+			}
+		}
 	}
 }
 
