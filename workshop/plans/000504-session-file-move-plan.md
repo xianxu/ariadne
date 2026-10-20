@@ -20,14 +20,14 @@ collaboration-mode: discussion
 |------|----------|--------|
 | statusArgs | `cmd/tl-lead/status_path.go` | new |
 | sessionMovePlan | `cmd/tl-lead/status_move.go` | new |
-| sessionMovePhase / transitionMove | `cmd/tl-lead/status_move.go` | new |
+| sessionMoveState / transitionMove | `cmd/tl-lead/status_move.go` | new |
 | moveSessionFields / moveIgnores | `cmd/tl-lead/status_move.go` | new |
 | RebaseIndex | `pkg/sidedoc/index_rebase.go` | new |
 | syncRegistration | `cmd/tl-lead/status_move_registry.go` | new |
 
 - `statusArgs` supplies an already-resolved default path when a command has exactly one fewer positional argument than its explicit-FILE form. It never guesses from a filename suffix. One parser serves all status commands; the existing argument validators run on the normalized arguments. Tests require no IO.
 - `sessionMovePlan` owns one old/new session pair, zero or one side tree, copied document bytes, registration pairs, conflicts, and ignore additions. It maps the old session exactly and the entire old side-tree prefix to their destinations. Reuse `sidedoc.RebaseLinks` and `sidedoc.SideDir`; promote index relocation into `sidedoc.RebaseIndex(text, from, to, moved)` and retain the old `rebaseIndex` wrapper for stationary callers. The promoted helper parses only the actual discussions block, accepts separate old/new coordinates, and preserves all other frontmatter bytes; do not duplicate Markdown parsing. Preserve arbitrary unknown frontmatter and binary attachments.
-- `sessionMovePhase` enumerates preparing, switching, cleanup, complete, and refused. The executor reports filesystem/registry observations as events to `transitionMove`; the transition authorizes the next effects. One plan has N file copies and N registered-document moves. This model is scoped to the invocation; observed copies/registrations make retries possible without a journal.
+- `sessionMoveState` grants one prepare/copy/switch/verify/remove effect at a time through `transitionMove`, using confirmed progress and success/failure/unconfirmed observations. Failed or uncertain observations revoke authority; retries reconstruct from actual state without a journal.
 
 ### Integration points
 
@@ -199,3 +199,26 @@ does not manage an owned block or override negations. Integration regressions
 assert named parent refusals and unchanged sources/copies for exposed paths.
 The earlier parent-syntax and effective-ignore assumptions are superseded by
 these explicit input and publication boundaries, with no journal or state change.
+
+
+### 2026-10-20 11:10 PDT — BR-3/BR-4 publication and effect authority
+
+Every published destination must remain ignored under the resulting Git policy.
+Refuse any `.gitignore` in the source side tree or existing destination tree,
+at every depth, before effects; these files can change the policy after a
+pre-copy check. Freshly rescan destinations and run real Git checks before
+switching and before each deletion, catching late policy files and exposed
+paths. No prospective Git policy simulator or managed ignore block is added.
+
+The earlier phase-only tracker is superseded by invocation-local
+`sessionMoveState`: counts of confirmed copies and bindings, whole-move
+verification, and cleanup progress. `transitionMove` consumes the observed
+success, failure or unconfirmed result of its authorized effect and grants
+exactly one next effect. Production dispatches only that grant. Failure or
+uncertainty stops authority; retry reconstructs from actual disk/Couch state,
+without a journal. Pure sequence tests independently assert all copies precede
+switches, all binding checks precede verification, verification precedes every
+deletion, and interruptions at every boundary grant no later effects. Existing
+production interruption fixtures exercise the same dispatch loop.
+
+The green-suite, SHIP, staging and operator/TL live-migration landing holds remain.

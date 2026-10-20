@@ -97,3 +97,96 @@ Add `## Revisions` entries recording:
 - Effective Git ignore verification, including later negations, as a prerequisite to publishing migration copies.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"80cb73ad-e614-4abb-9c54-b7c3f4b0dab1","repository":"github.com/xianxu/ariadne","issue_id":"000504","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/25dc9c80b0c19429","reviewed_head":"ff57bc497da70f69e3e03043ea38168870e41899","slot":"ariadne:4","requested_at":"2026-10-20T17:47:02.538692Z"},"phase":"finished","pid":58982,"started_at":"2026-10-20T17:47:02.677981Z","finished_at":"2026-10-20T17:49:09.870174Z","session_id":"01a15a6c-821e-7eb3-bd5c-d1a71058d553","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T11:03:26-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 504 — tl-lead: the hub session file moves to session.md at the repo root (no team folder, no operator name), with a status move verb and the decisions-are-tracked rule |
+| repo | ariadne |
+| issue file | workshop/issues/000504-tl-lead-the-hub-session-file-moves-to-session-md-at-the-repo-root-no-team-folder-no-operator-name-with-a-status-move-verb-and-the-decisions-are-tracked-rule.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | fdfc3ca3c297c1c6c2802e03f3ea54b73f4a2b3e..cb7c96f5d4f7b4c3c8125cc2593fc6c9884dfbbc |
+| command | sdlc close --issue 504 |
+| reviewer | codex (openai; author openai); degraded: same-family by choice |
+| isolation | fenced |
+| timestamp | 2026-10-20T11:03:26-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+Both prior fixes have meaningful regression evidence, and the focused packages pass. Two issues remain: copied ignore files can invalidate the migration’s privacy checks, and the promised state model does not control production effects.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The revised spec explicitly permits plain parents only. TestSessionMoveParentRefusals passes at HEAD; removing the validation guard in a disposable checkout produces behavioral failures for quoted, commented, tagged, block and quoted-key forms.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Existing later negations now cause refusal before copies. TestSessionMoveEffectiveIgnores passes at HEAD and fails for session, side-tree and seen-file cases when the effective-ignore guard is removed. A distinct policy-change-during-copy case remains below.
+findings:
+  - id: new
+    severity: Important
+    kind: defect
+    family: migration-enforces-effective-ignore-policy
+    title: |
+      Copied nested ignore files invalidate the pre-copy protection check
+    detail: |
+      cmd/tl-lead/status_move_apply.go:145 verifies ignores before copying the side tree, which can itself contain .gitignore files. Reproduced with root rules "/session.side/", "!/session.side/", "/session.side/*" and a source side-tree .gitignore containing "!*": apply returns success and removes the sources, but git check-ignore --quiet -- session.side/image.bin exits 1 afterward. ARCH-PURPOSE / ARCH-SECURE: this is the 2nd finding in family migration-enforces-effective-ignore-policy. Earlier rounds fixed instances; state and enforce the rule that every published destination remains ignored under the resulting policy. Enumerate migrated ignore files at every depth and either refuse policy-changing inputs before publication or validate their prospective effects; recheck before switching and cleanup.
+  - id: new
+    severity: Important
+    kind: defect
+    family: migration-state-model-authorizes-effects
+    title: |
+      The transition model records phases without authorizing migration effects
+    detail: |
+      cmd/tl-lead/status_move.go:134 accepts three string events and returns only a phase; it receives no copy or registration observations, failures, or unconfirmed outcomes. cmd/tl-lead/status_move_apply.go:93 performs effects and decides recovery entirely in imperative control flow. ARCH-ORDER: this does not implement the plan's promised observation-driven model that authorizes effects. Make progress, verification and uncertain outcomes explicit inputs to a pure transition function that returns permitted effects, route production execution through it, and test independent safety invariants across interruption sequences.
+```
+
+1. **Strengths**
+
+   - Shared argument normalization covers existing status leaves while preserving explicit paths.
+   - Parent validation refuses unsupported syntax before migration writes.
+   - Index relocation preserves unrelated metadata bytes and tests varied document coordinates.
+   - Controlled interruption hooks exercise retries and uncertain registration outcomes.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** The two findings above block admission. The ignore-policy fix should cover the entire resulting policy, including migrated nested `.gitignore` files.
+
+4. **Minor findings:** None.
+
+5. **Test coverage**
+
+   `go test ./cmd/tl-lead ./pkg/sidedoc ./pkg/golint -count=1` passed. Both prior fixes were mutation-checked in disposable checkouts. The additional nested-ignore regression failed against pinned HEAD as described above. Disposable checkouts were removed; the reviewed checkout remains unchanged. Live Couch, Parley and the full suite were not rerun.
+
+6. **Architecture**
+
+   - **ARCH-DRY — pass:** shared defaults, existing SessionSync seam and sidedoc helpers are reused.
+   - **ARCH-PURE — pass:** listed pure functions contain no IO; filesystem and service work stays outside them.
+   - **ARCH-PURPOSE — flag:** resulting ignore policy can violate the local-file guarantee.
+   - **ARCH-MOCK — pass:** production and tests share SessionSync; stateful registry and uncertain-response doubles exist.
+   - **ARCH-CONSTRAINTS — pass:** sequential maintenance work scans affected trees without background fan-out.
+   - **ARCH-SECURE — flag:** copied policy can expose session documents.
+   - **ARCH-ORDER — flag:** the model does not authorize effects or represent uncertain outcomes.
+   - **ARCH-FUNERAL — pass:** source removal, retry cleanup and operator-owned session retirement are documented.
+   - **ARCH-EVOLVE — pass:** byte-preserving transformations retain unknown metadata; lookup decoding does not rewrite records.
+
+   Core-concept entities exist at their listed paths. README and atlas updates cover the new command, defaults and terminology.
+
+7. **Plan revisions**
+
+   Add `## Revisions` entries defining the resulting-ignore-policy invariant and its nested-policy enumeration, and synchronizing the transition-model description with the corrected implementation. Preserve the documented green-suite, staging and live-migration landing holds.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"58bf162b-d81c-4091-b03b-7702d6c559ee","repository":"github.com/xianxu/ariadne","issue_id":"000504","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/421142a4a2e79973","reviewed_head":"cb7c96f5d4f7b4c3c8125cc2593fc6c9884dfbbc","slot":"ariadne:4","requested_at":"2026-10-20T18:00:57.814703Z"},"phase":"finished","pid":38908,"started_at":"2026-10-20T18:00:58.0935Z","finished_at":"2026-10-20T18:03:25.578912Z","session_id":"01a15a79-4176-7811-b5df-8ee0c3622713","outcome":"returned"}] -->

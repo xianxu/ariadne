@@ -101,3 +101,5 @@ ordinary documents retain business owner metadata. Missing ignore lines are
 appended without rewriting existing policy; `verifyMoveIgnores` runs real Git
 checks over every planned and existing retry destination before copies. A later
 negation causes refusal with sources intact; only ignore additions may remain.
+
+Session migration refuses `.gitignore` files anywhere in the old or new side tree before effects. It rechecks effective Git protection before switching registrations and before each source deletion.

@@ -56,6 +56,9 @@ func moveTarget(old, p string) (string, bool) {
 }
 
 func planSessionMove(s sessionMoveSnapshot) (sessionMovePlan, error) {
+	if err := rejectMoveIgnoreFiles(s); err != nil {
+		return sessionMovePlan{}, err
+	}
 	p := sessionMovePlan{Ignores: moveIgnores(s.Ignore)}
 	for _, old := range sortedKeys(s.Files) {
 		src := s.Files[old]
@@ -122,26 +125,79 @@ func moveIgnores(before []byte) []byte {
 	return []byte(s)
 }
 
-type sessionMovePhase uint8
+// The invocation-local model grants one effect at a time. A successful
+// observation means that effect's postconditions were checked, not merely sent.
+// Failed or uncertain observations revoke authority; a retry builds fresh state
+// from disk and Couch rather than resuming this model.
+type moveEffect uint8
 
 const (
-	movePreparing sessionMovePhase = iota
-	moveSwitching
-	moveCleanup
-	moveComplete
+	movePrepare moveEffect = iota
+	moveCopy
+	moveSwitch
+	moveVerify
+	moveRemove
+	moveDone
+	moveStop
 )
 
-func transitionMove(p sessionMovePhase, event string) (sessionMovePhase, error) {
-	switch {
-	case p == movePreparing && event == "copied":
-		return moveSwitching, nil
-	case p == moveSwitching && event == "cleanup":
-		return moveCleanup, nil
-	case p == moveCleanup && event == "complete":
-		return moveComplete, nil
-	default:
-		return p, fmt.Errorf("invalid session move transition %d / %s", p, event)
+type moveOutcome uint8
+
+const (
+	moveSucceeded moveOutcome = iota
+	moveFailed
+	moveUnconfirmed
+)
+
+type sessionMoveState struct {
+	Total, Copies, Bindings, Removed int
+	Effect                           moveEffect
+	Verified                         bool
+}
+
+func transitionMove(s sessionMoveState, observed moveOutcome) (sessionMoveState, error) {
+	if s.Total <= 0 || s.Effect >= moveDone {
+		return s, fmt.Errorf("terminal or invalid session move state")
 	}
+	if observed == moveFailed || observed == moveUnconfirmed {
+		s.Effect = moveStop
+		return s, nil
+	}
+	if observed != moveSucceeded {
+		return s, fmt.Errorf("unknown session move observation")
+	}
+	switch s.Effect {
+	case movePrepare:
+		s.Effect = moveCopy
+	case moveCopy:
+		s.Copies++
+		if s.Copies == s.Total {
+			s.Effect = moveSwitch
+		}
+	case moveSwitch:
+		if s.Copies != s.Total {
+			return s, fmt.Errorf("switch requires all copies")
+		}
+		s.Bindings++
+		if s.Bindings == s.Total {
+			s.Effect = moveVerify
+		}
+	case moveVerify:
+		if s.Copies != s.Total || s.Bindings != s.Total {
+			return s, fmt.Errorf("cleanup requires verified copies and bindings")
+		}
+		s.Verified = true
+		s.Effect = moveRemove
+	case moveRemove:
+		if !s.Verified || s.Bindings != s.Total || s.Copies != s.Total {
+			return s, fmt.Errorf("deletion requires verified copies and bindings")
+		}
+		s.Removed++
+		if s.Removed == s.Total {
+			s.Effect = moveDone
+		}
+	}
+	return s, nil
 }
 
 func moveSessionFields(text string) (map[string]string, error) {

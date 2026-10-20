@@ -34,21 +34,49 @@ func TestSessionMovePlanLinks(t *testing.T) {
 }
 
 func TestSessionMoveTransition(t *testing.T) {
-	for _, phase := range []sessionMovePhase{movePreparing, moveSwitching, moveCleanup, moveComplete} {
-		if _, err := transitionMove(phase, "cleanup"); (phase != moveSwitching) != (err != nil) {
-			t.Fatalf("cleanup from %v: %v", phase, err)
+	for n := 1; n <= 5; n++ {
+		state := sessionMoveState{Total: n, Effect: movePrepare}
+		verified := false
+		copies, switches, removed := 0, 0, 0
+		for state.Effect != moveDone {
+			// Every interruption stops authority, including a published-but-unconfirmed rename.
+			for _, outcome := range []moveOutcome{moveFailed, moveUnconfirmed} {
+				stopped, err := transitionMove(state, outcome)
+				if err != nil || stopped.Effect != moveStop {
+					t.Fatalf("unsafe failure: %+v %v", stopped, err)
+				}
+				if _, err := transitionMove(stopped, moveSucceeded); err == nil {
+					t.Fatal("resumed without fresh observations")
+				}
+			}
+			switch state.Effect {
+			case moveCopy:
+				copies++
+			case moveSwitch:
+				if copies != n {
+					t.Fatal("switch before all copies")
+				}
+				switches++
+			case moveVerify:
+				if switches != n {
+					t.Fatal("verification before all bindings")
+				}
+				verified = true
+			case moveRemove:
+				if !verified || copies != n || switches != n {
+					t.Fatal("deletion without verification")
+				}
+				removed++
+			}
+			var err error
+			state, err = transitionMove(state, moveSucceeded)
+			if err != nil {
+				t.Fatal(err)
+			}
 		}
-	}
-	p := movePreparing
-	for _, e := range []string{"copied", "cleanup", "complete"} {
-		var err error
-		p, err = transitionMove(p, e)
-		if err != nil {
-			t.Fatal(err)
+		if removed != n {
+			t.Fatalf("cleanup count %d", removed)
 		}
-	}
-	if p != moveComplete {
-		t.Fatal(p)
 	}
 }
 

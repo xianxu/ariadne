@@ -206,7 +206,8 @@ TALKING TO THE OPERATOR
     plain parent: ../file.md form written by tl-lead; quotes, comments, tags,
     aliases and block scalars refuse before effects, naming the file. Missing
     ignore lines are appended, then git check-ignore must confirm every
-    destination before copying; a negation can refuse with only ignore rules
+    destination before copying; side-tree .gitignore files at any depth refuse
+    before effects. Fresh Git checks also precede switching and each deletion; a negation can refuse with only ignore rules
     added. It refuses locks,
     collisions, symlinks and changed copies. There is no editor lease: checks
     cannot exclude an editor opening after a check, so keep editors closed.

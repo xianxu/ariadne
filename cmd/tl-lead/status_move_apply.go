@@ -91,14 +91,6 @@ func verifyMoveRegistration(d deps, root string, m sessionMoveFile, before *sync
 }
 
 func runSessionMove(d deps, out io.Writer, s sessionMoveSnapshot, p sessionMovePlan, step func(string) error) error {
-	phase := movePreparing
-	advance := func(e string) error {
-		next, err := transitionMove(phase, e)
-		if err == nil {
-			phase = next
-		}
-		return err
-	}
 	after := func(e string) error {
 		if step != nil {
 			return step(e)
@@ -125,27 +117,30 @@ func runSessionMove(d deps, out io.Writer, s sessionMoveSnapshot, p sessionMoveP
 		}
 		return nil
 	}
-	if !bytes.Equal(s.Ignore, p.Ignores) {
-		if _, err := safeMovePath(s.Root, ".gitignore"); err != nil {
+	prepare := func() error {
+		if !bytes.Equal(s.Ignore, p.Ignores) {
+			if _, err := safeMovePath(s.Root, ".gitignore"); err != nil {
+				return err
+			}
+			var err error
+			if s.IgnoreExists {
+				err = replaceIfUnchanged(abs(".gitignore"), s.Ignore, p.Ignores)
+			} else {
+				err = createExclusive(abs(".gitignore"), p.Ignores)
+			}
+			if err != nil {
+				return err
+			}
+			if err := after("ignore"); err != nil {
+				return err
+			}
+		}
+		if err := verifyMoveIgnores(s.Root, s, p); err != nil {
 			return err
 		}
-		var err error
-		if s.IgnoreExists {
-			err = replaceIfUnchanged(abs(".gitignore"), s.Ignore, p.Ignores)
-		} else {
-			err = createExclusive(abs(".gitignore"), p.Ignores)
-		}
-		if err != nil {
-			return err
-		}
-		if err := after("ignore"); err != nil {
-			return err
-		}
+		return nil
 	}
-	if err := verifyMoveIgnores(s.Root, s, p); err != nil {
-		return err
-	}
-	for _, m := range p.Files {
+	copyOne := func(m sessionMoveFile) error {
 		if err := check(m); err != nil {
 			return err
 		}
@@ -155,11 +150,12 @@ func runSessionMove(d deps, out io.Writer, s sessionMoveSnapshot, p sessionMoveP
 		if err := after("copy " + m.New); err != nil {
 			return err
 		}
+		return nil
 	}
-	if err := advance("copied"); err != nil {
-		return err
-	}
-	for _, m := range p.Files {
+	switchOne := func(m sessionMoveFile) error {
+		if err := verifyMoveIgnores(s.Root, s, p); err != nil {
+			return err
+		}
 		if err := check(m); err != nil {
 			return err
 		}
@@ -181,36 +177,48 @@ func runSessionMove(d deps, out io.Writer, s sessionMoveSnapshot, p sessionMoveP
 		if !bytes.Equal(v.Bytes, m.After) {
 			return fmt.Errorf("new copy changed: %s; preserve both copies", m.New)
 		}
+		return nil
 	}
-	// Verify every copy again before authorizing any deletion. Later edits are
-	// still subject to the documented closed-editor maintenance requirement.
-	for _, m := range p.Files {
-		if err := check(m); err != nil {
+	verifyAll := func() error {
+		if err := verifyMoveIgnores(s.Root, s, p); err != nil {
 			return err
 		}
-		v, err := moveRead(s.Root, m.New)
-		if err != nil {
+
+		// Verify every copy again before authorizing any deletion. Later edits are
+		// still subject to the documented closed-editor maintenance requirement.
+		for _, m := range p.Files {
+			if s.Registrations[m.Old] != nil || s.Registrations[m.New] != nil {
+				if err := verifyMoveRegistration(d, s.Root, m, s.Registrations[m.Old]); err != nil {
+					return err
+				}
+			}
+			if err := check(m); err != nil {
+				return err
+			}
+			v, err := moveRead(s.Root, m.New)
+			if err != nil {
+				return err
+			}
+			if !bytes.Equal(v.Bytes, m.After) {
+				return fmt.Errorf("destination changed: %s", m.New)
+			}
+		}
+		current := map[string]moveSource{}
+		if err := readMoveTree(s.Root, sidedoc.SideDir(s.Old), current); err != nil {
 			return err
 		}
-		if !bytes.Equal(v.Bytes, m.After) {
-			return fmt.Errorf("destination changed: %s", m.New)
+		for rel, now := range current {
+			was, ok := s.Files[rel]
+			if !ok || !bytes.Equal(was.Bytes, now.Bytes) {
+				return fmt.Errorf("source tree changed: %s; preserve both copies and rerun", rel)
+			}
 		}
+		return nil
 	}
-	current := map[string]moveSource{}
-	if err := readMoveTree(s.Root, sidedoc.SideDir(s.Old), current); err != nil {
-		return err
-	}
-	for rel, now := range current {
-		was, ok := s.Files[rel]
-		if !ok || !bytes.Equal(was.Bytes, now.Bytes) {
-			return fmt.Errorf("source tree changed: %s; preserve both copies and rerun", rel)
+	removeOne := func(m sessionMoveFile) error {
+		if err := verifyMoveIgnores(s.Root, s, p); err != nil {
+			return err
 		}
-	}
-	if err := advance("cleanup"); err != nil {
-		return err
-	}
-	fmt.Fprintln(out, "new session in use; cleaning up old copies")
-	for _, m := range p.Files {
 		if err := check(m); err != nil {
 			return err
 		}
@@ -236,11 +244,45 @@ func runSessionMove(d deps, out io.Writer, s sessionMoveSnapshot, p sessionMoveP
 		if err := after("remove " + m.Old); err != nil {
 			return err
 		}
+		return nil
+	}
+	state := sessionMoveState{Total: len(p.Files), Effect: movePrepare}
+	for state.Effect != moveDone {
+		var err error
+		switch state.Effect {
+		case movePrepare:
+			err = prepare()
+		case moveCopy:
+			err = copyOne(p.Files[state.Copies])
+		case moveSwitch:
+			err = switchOne(p.Files[state.Bindings])
+		case moveVerify:
+			err = verifyAll()
+			if err == nil {
+				fmt.Fprintln(out, "new session in use; cleaning up old copies")
+			}
+		case moveRemove:
+			err = removeOne(p.Files[state.Removed])
+		default:
+			return fmt.Errorf("session move has no authorized effect")
+		}
+		outcome := moveSucceeded
+		if err != nil {
+			outcome = moveFailed
+			if state.Effect == moveSwitch {
+				outcome = moveUnconfirmed
+			}
+		}
+		next, modelErr := transitionMove(state, outcome)
+		if modelErr != nil {
+			return modelErr
+		}
+		state = next
+		if err != nil {
+			return err
+		}
 	}
 	removeEmpty(abs(sidedoc.SideDir(s.Old)))
-	if err := advance("complete"); err != nil {
-		return err
-	}
 	fmt.Fprintln(out, "migrated: reopen session.md; decisions belong in tracked artifacts")
 	return nil
 }

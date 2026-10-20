@@ -1177,3 +1177,11 @@ The simplest durable authority beats a clever scan of consequences.
   is not effective Git policy: check each destination with Git before copying.
   These are semantic publication invariants defended by the parent/ignore
   migration regressions; raw-field API misuse also has the scoped Go lint rule.
+
+- #504 BR-3/BR-4: protection checks must include policy introduced by the payload,
+  not only the policy before the payload. Enumerate nested policy files and
+  refuse them for this one-time migration; rescan/check effective Git policy at
+  publication and deletion boundaries. A phase tracker is not effect authority:
+  have the pure model grant each next effect from confirmed observations and
+  revoke authority on failure/uncertainty. Real Git and interruption-sequence
+  regressions defend these semantic invariants; lexical lint cannot prove them.

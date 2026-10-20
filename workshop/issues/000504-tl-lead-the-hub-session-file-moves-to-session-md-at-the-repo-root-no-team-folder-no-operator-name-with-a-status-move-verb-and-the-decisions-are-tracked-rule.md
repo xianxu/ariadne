@@ -45,7 +45,7 @@ decision made in a side doc gets copied into the tracked artifact (issue, projec
   temporal picture in the session file).
 - Check parley's attention finder still lists side docs under the new parent (adjust in parley.nvim if not).
 
-- Migration input envelope: only plain `parent: ../file.md` forms emitted by tl-lead are accepted; other parent forms refuse before effects with the file named. Append missing ignore lines, then require real Git ignore checks for every destination before copying. Preserve ordinary document business-owner metadata.
+- Migration input envelope: only plain `parent: ../file.md` forms emitted by tl-lead are accepted; other parent forms refuse before effects with the file named. Append missing ignore lines, then require real Git ignore checks for every destination before copying. Preserve ordinary document business-owner metadata. Refuse side-tree `.gitignore` files at every depth; recheck resulting effective Git policy before switching and each deletion.
 
 ## Done when
 
@@ -101,6 +101,8 @@ Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 
 - Review fixes verified: `go test ./cmd/tl-lead ./pkg/sidedoc ./pkg/golint -count=1` passed (15.158s, 0.138s, 0.803s); scratch `TL_LEAD_LIVE=1 go test ./cmd/tl-lead -run 'TestSessionSync.*Conformance' -count=1 -v` passed (2.809s). Parent refusal tests failed on every formerly accepted unsupported form before the guard; business-owner preservation failed before routing was scoped; real Git-negation tests failed before effective-ignore checks.
 
+- Boundary round 2: REWORK, BR-1/BR-2 verified addressed. BR-3 found copied nested ignore policy could expose destinations; BR-4 found the phase tracker did not grant production effects. Added all-depth source/retry policy refusals and fresh pre-switch/per-delete Git checks. Replaced the tracker with a pure per-effect grant model consumed by production, with confirmed copy/binding counts, verification, failure and uncertain-outcome stops. Eight nested-policy cases failed before guards; outcome mutation made TestSessionMoveTransition fail and restoring it passed. Affected packages passed (tl-lead 29.721s, sidedoc 0.140s, golint 0.752s); scratch Couch conformance passed (3.052s). Canceled the old queued suite and will requeue on the pushed correction; full suite and live migrations remain pending.
+
 ## Landing hold
 
 Pending: green suite and SHIP → final build staged → TL/operator migrate both live hubs → TL evidence appended here → stage cleared → merge. Worker must not merge before the TL returns that evidence.
@@ -148,3 +150,26 @@ total: 2.142
 ```
 
 Estimate advisory mapping: the integration primitive includes executor guards, stateful fake, interruption/reconciliation tests and scratch conformance. The docs primitive includes Parley evidence and operator migration notes; the review primitive includes recorded-suite launch/results, staging checks, close review and active migration-evidence coordination. Rates are idle-removed ship wall-clock, including AI/subagent execution spans; no parallelism discount. These allocations remain uncertain at the stale calibration, rather than excluding verification from measured work.
+
+
+### 2026-10-20 11:10 PDT — BR-3/BR-4 publication and effect authority
+
+Every published destination must remain ignored under the resulting Git policy.
+Refuse any `.gitignore` in the source side tree or existing destination tree,
+at every depth, before effects; these files can change the policy after a
+pre-copy check. Freshly rescan destinations and run real Git checks before
+switching and before each deletion, catching late policy files and exposed
+paths. No prospective Git policy simulator or managed ignore block is added.
+
+The earlier phase-only tracker is superseded by invocation-local
+`sessionMoveState`: counts of confirmed copies and bindings, whole-move
+verification, and cleanup progress. `transitionMove` consumes the observed
+success, failure or unconfirmed result of its authorized effect and grants
+exactly one next effect. Production dispatches only that grant. Failure or
+uncertainty stops authority; retry reconstructs from actual disk/Couch state,
+without a journal. Pure sequence tests independently assert all copies precede
+switches, all binding checks precede verification, verification precedes every
+deletion, and interruptions at every boundary grant no later effects. Existing
+production interruption fixtures exercise the same dispatch loop.
+
+The green-suite, SHIP, staging and operator/TL live-migration landing holds remain.

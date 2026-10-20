@@ -862,3 +862,5 @@ A partial run keeps copies for the same command to reconcile; after the
 registration switch use the new session even if cleanup needs a retry.
 Reopen `session.md` after success. See `tl-lead --help` for refusals and the
 quiet-window requirement.
+
+Session migration refuses `.gitignore` files anywhere in the old or new side tree before effects. It rechecks effective Git protection before switching registrations and before each source deletion.
