@@ -653,27 +653,26 @@ func runFlakeListMode(ctx context.Context, out io.Writer, d flakeDeps, verbose b
 	}
 	for _, a := range order {
 		if confirmed[a.ID] {
-			for _, t := range a.Failures {
-				// Covered the gate's way: the test, or each failing subtest of it (#466).
-				if !flakes.Explained([]string{t}, a.Subtests, reg) {
-					line := fmt.Sprintf("  %s  attempt %s on %s, %s, log %s", t, a.ID, abbrevSHA(a.SHA), a.FinishedAt.Format(time.RFC3339), d.logPath(logs[a.ID]))
-					state, owner, reason := flakeUnknown, fixedFlakeIssue{}, ""
-					if regErr == nil && view.FixedErr == nil {
-						state, owner, reason = classifyFixedFlake(t, view.Fixed, contains, view.Main, a.SHA)
+			// Covered the gate's way: each failing leaf by itself or an
+			// ancestor (#466), an open issue's name or a fixed one's (#479).
+			for _, t := range flakes.Uncovered(a.Failures, a.Subtests, reg) {
+				line := fmt.Sprintf("  %s  attempt %s on %s, %s, log %s", t, a.ID, abbrevSHA(a.SHA), a.FinishedAt.Format(time.RFC3339), d.logPath(logs[a.ID]))
+				state, owner, reason := flakeUnknown, fixedFlakeIssue{}, ""
+				if regErr == nil && view.FixedErr == nil {
+					state, owner, reason = classifyFixedFlake(t, view.Fixed, contains, view.Main, a.SHA)
+				}
+				switch state {
+				case flakeFixed:
+					if verbose {
+						fixedRows = append(fixedRows, line+fmt.Sprintf(" — fixed by #%s (merge %s)", owner.ID, abbrevSHA(owner.Merge)))
 					}
-					switch state {
-					case flakeFixed:
-						if verbose {
-							fixedRows = append(fixedRows, line+fmt.Sprintf(" — fixed by #%s (merge %s)", owner.ID, abbrevSHA(owner.Merge)))
-						}
-					case flakeRecurred:
-						unregistered = append(unregistered, line+fmt.Sprintf(" — recurred after #%s", owner.ID))
-					default:
-						if reason != "" {
-							line += " — coverage unknown: " + reason
-						}
-						unregistered = append(unregistered, line)
+				case flakeRecurred:
+					unregistered = append(unregistered, line+fmt.Sprintf(" — recurred after #%s", owner.ID))
+				default:
+					if reason != "" {
+						line += " — coverage unknown: " + reason
 					}
+					unregistered = append(unregistered, line)
 				}
 			}
 		}

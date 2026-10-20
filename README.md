@@ -513,6 +513,10 @@ fleet, the operator or the TL (from a :0 slot) runs
 `sdlc landing grant --repo DIR --issue N --reason WHY [--hours H]` (at most 24
 hours; `sdlc landing revoke` ends it early). That puts the issue first at the
 next admission without interrupting a running landing or waiving any gate.
+While any valid grant exists, normal admissions wait even before the granted
+issue queues. Granted issues retain FIFO among themselves. Status and waiter
+output name each grant's reason, expiry and revoke command. Expiry or revocation
+releases the hold; a successful landing ends its grant.
 
 Landing trains (#449) batch that line. `.sdlc/landing.json` on main sets
 `train_interval_minutes` and `train_max_cars` (default 8). The default is 0
@@ -599,6 +603,12 @@ from this machine's test-stats store (or `--evidence TEXT` for a CI run); withou
 tests.
 
 A name may be an exact subtest (#466), such as `PKG.TestX/plain/dev-aliases.test.sh`.
+Suite attribution ignores indented quotations of nested helper commands (#476).
+Raw indented subtest output coarsens to the proven top-level test; JSON events
+and explicit shard headers retain exact leaves. A visible note explains why a
+subtest-only flake registration may miss a coarsened failure. Quoted package
+trailers cannot change its package.
+
 - **What it explains:** only its own failure and its subtests'. A sibling
   subtest's failure stays unknown and blocks.
 - **Rerun:** its rerun is the whole top-level test, and it must show the

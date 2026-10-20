@@ -230,3 +230,20 @@ func TestReadGrantEntriesDoesNotCreateLine(t *testing.T) {
 		t.Fatal("directory treated as valid log")
 	}
 }
+
+func TestAddGrantRequiresBoundedExpiry(t *testing.T) {
+	l := openLine(t, t.TempDir(), Options{Now: func() time.Time { return t0 }})
+	for _, expires := range []time.Time{{}, t0, t0.Add(-time.Hour), t0.Add(MaxGrant + time.Second)} {
+		g := grant(470, t0, 1)
+		g.Expires = expires
+		if err := l.AddGrant(g); err == nil {
+			t.Fatalf("accepted expiry %v", expires)
+		}
+		if gs := ValidGrants([]Grant{g}, t0); len(gs) != 0 {
+			t.Fatalf("invalid grant confers authority: %v", gs)
+		}
+	}
+	if err := l.AddGrant(Grant{Issue: 470, Revoked: true}); err != nil {
+		t.Fatal(err)
+	}
+}

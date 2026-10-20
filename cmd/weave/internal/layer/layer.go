@@ -43,4 +43,7 @@ type Layer struct {
 	Path           string
 	Intents        []intent.Intent
 	ProseFragments []ProseFragment
+	// Declined is set on the leaf only: its `decline` rows and the inherited
+	// rows each removed (see Decline).
+	Declined []Declination
 }

@@ -129,6 +129,37 @@ func TestRules(t *testing.T) {
 	}
 }
 
+func TestSuiteLineProvenanceRule(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		want       bool
+	}{
+		{"trim before parsing", `for _, raw := range strings.Split(log, "\n") { line := strings.TrimSpace(raw); _ = line }`, true},
+		{"fields loses indentation", `for _, line := range strings.Split(log, "\n") { fields := strings.Fields(line); _ = fields }`, true},
+		{"explicit provenance retained", `for _, line := range strings.Split(log, "\n") { control := suiteControlLine(line); fields := strings.Fields(line); _, _ = control, fields }`, false},
+		{"shared level classifier", `for line := range lines { level := suiteIndentLevel(line); if level < 0 { continue }; fields := strings.Fields(line); _ = fields }`, false},
+		{"fields before shared classifier", `for line := range lines { fields := strings.Fields(line); level := suiteIndentLevel(line); _, _ = fields, level }`, true},
+		{"guarded raw records", `for _, raw := range strings.Split(log, "\n") { if !suiteControlLine(raw) { continue }; fields := strings.Fields(raw); _ = fields }`, false},
+		{"guard after fields", `for _, raw := range strings.Split(log, "\n") { fields := strings.Fields(raw); control := suiteControlLine(raw); _, _ = fields, control }`, true},
+		{"wrong input guarded", `for _, raw := range strings.Split(log, "\n") { control := suiteControlLine(other); fields := strings.Fields(raw); _, _ = fields, control }`, true},
+	} {
+		for _, fn := range []string{"failingNames", "failingNameLines", "parseSuiteLogFacts", "unattributedFailures", "unrelated"} {
+			src := header + "func " + fn + "(log string) { " + tc.body + " }"
+			got, err := Check("suite.go", []byte(src), Catalog)
+			if err != nil {
+				t.Fatal(err)
+			}
+			hit := false
+			for _, f := range got {
+				hit = hit || f.Rule == "suite-line-provenance"
+			}
+			if want := tc.want && fn != "unrelated"; hit != want {
+				t.Errorf("%s / %s: got %v, want %v: %v", fn, tc.name, hit, want, got)
+			}
+		}
+	}
+}
+
 func TestCatalogHygiene(t *testing.T) {
 	seen := map[string]bool{}
 	for _, r := range Catalog {

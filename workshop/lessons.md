@@ -73,6 +73,17 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- Suite output contains quoted subprocess output too. Preserve indentation before
+  tokenizing control records. Raw child output can overlap real ancestry even
+  with correct four-space levels: prefer a proven top-level failure to an
+  invented leaf. Keep exact leaves only from structured evidence, and expose
+  the possible subtest-only registration miss. Validate the whole leading
+  whitespace prefix with the tokeniser's Unicode category, accepting only ASCII
+  spaces; initial spaces alone miss a following tab or NBSP. Use the same
+  column-zero boundary for package attribution, unknown-failure reasons and
+  timing facts. Derive unidentified-package failures after collecting structured
+  names. Test real Go output, retained-log readers and the actual retry (#476).
+
 - Whenever artifact creation gains a fallback root, enumerate that root in
   stale cleanup too, including after the original root becomes usable again.
   Test stale removal and fresh preservation at the repaired location; normal
@@ -84,6 +95,18 @@ Detailed incidents remain in their owning issue or review artifact.
   checkout creation before child startup. Probe actual write access, not mode
   bits. Keep startup environment evidence outside code-suite results so a
   same-head repair can pass without hiding an earlier genuine failure (#477).
+
+- A test that invalidates inherited temp variables must supply its fallback
+  candidate through the IO seam, not depend on the host /tmp or user-temp
+  directory remaining writable. Complete unrelated checkout setup first, then
+  test real child env/writes and a denied-selector no-child/no-success control.
+  Reproduce the permission boundary with a real sandbox (#487).
+
+- If a contained reviewer cannot launch a nested OS sandbox, capture host-side
+  acceptance as measured evidence: source revision, profile digest/content,
+  probe source, denied host writes, allowed fixture writes, test commands and
+  exit statuses. A prose claim that sandbox tests passed is not independently
+  reviewable evidence (#487 BR-1).
 
 - Keep the real checkout stable while cmd/sdlc package tests run: its TestMain
   snapshots HEAD, branch and porcelain status. A concurrent commit or a new
@@ -1116,3 +1139,8 @@ The simplest durable authority beats a clever scan of consequences.
   embeds a `.md`. Ask "who claims this path?" first, and drop a path only when nothing claims it. Prefer the
   toolchain's exact facts (`go list` EmbedFiles) to a directory heuristic, and add a table row for a file with two
   owners.
+- #470 verification: cmd/sdlc's source-checkout hermeticity guard pins HEAD for the entire test run. Do not commit while a targeted source-checkout run remains active: even passing tests fail that guard when HEAD moves. The recorded local-check suite uses a detached checkout and can overlap source bookkeeping safely. The existing hermeticity guard already enforces this class; no additional source lint is needed.
+
+- #470: when extending an output callback to another mode, preserve existing mode prefixes and sweep tests by the message/callback as well as filenames. The existing readiness fixture caught the train-prefix change; the grant fixture now asserts both serial and train prefixes. These observable prose contracts are defended by those integration assertions rather than a generic lexical lint rule.
+
+- #470 BR-1: acceptance should preserve behavioral guarantees rather than promise unchanged tests when a feature intentionally changes those tests' expected behavior. Keep the current Done-when synchronized with the approved policy, and preserve the superseded promise in Revisions. This is semantic acceptance wording, defended by the close review rather than lexical lint.

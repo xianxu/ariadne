@@ -14,7 +14,6 @@ known-failure	own	`make -k`
 cancel-own-check	own	`sdlc local-check cancel`
 real-hashes	own	`git rev-parse`
 project-file	own	The TL owns the project file
-filing	own	`sdlc unclaim --issue N`
 live-check	own	gets a live check against that real setup
 stage	cited	`sdlc stage --build`
 stage-clear	cited	`sdlc stage --clear`
@@ -50,8 +49,10 @@ plan-approval	cited	Full-flow designs, design changes
 flake-evidence	own	`sdlc flake register --test PKG.TestX`
 flake-rerun	own	merge rerun only the
 flake-stop	own	second unrelated flake on the same head
-cross-repo	own	one-line proposal to the TL
-same-repo	own	Same-repo filings stay direct
+file-where-it-lives	own	File a problem in the repository where it lives
+file-no-claim	own	pass `--no-claim` so its owning TL
+file-tell-hub	own	tell your hub in one line
+file-no-relay	own	Your hub never relays a filing
 hash-output	own	only from Git output
 landing-order	own	The landing line owns landing order
 approval-required	own	or mechanism), and scope revisions wait for the hub's approval.

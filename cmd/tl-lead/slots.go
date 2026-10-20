@@ -19,6 +19,47 @@ type SlotLine struct {
 	Phase string // the issue's card status, or "?" when its observation failed
 	Bar   string
 	Agent string // its agent and whether it is idle, from couch; "?" unread
+	Hold  string // "until X" when the TL holds it to soak a risky change (ariadne#482)
+}
+
+// holdRE finds a soak hold on a rendered Slots line: `repo:N … hold: soak until X`.
+var holdRE = regexp.MustCompile(`^(\S+)\s.*\bhold: soak (until .+?)\s*$`)
+
+// parseHolds reads the holds a previous render recorded in the section, by
+// slot address. The section is the hold's one home: every render carries it.
+func parseHolds(section string) map[string]string {
+	out := map[string]string{}
+	for _, line := range strings.Split(section, "\n") {
+		if m := holdRE.FindStringSubmatch(strings.TrimSpace(line)); m != nil {
+			out[m[1]] = m[2]
+		}
+	}
+	return out
+}
+
+// applyHolds sets each line's hold from holds, after adding set (addr → "until
+// X") and dropping release; it refuses an address no line has.
+func applyHolds(lines []SlotLine, holds map[string]string, set map[string]string, release []string) error {
+	known := map[string]bool{}
+	for _, l := range lines {
+		known[l.Slot.Address] = true
+	}
+	for addr, until := range set {
+		if !known[addr] {
+			return fmt.Errorf("--hold %s: no such numbered slot", addr)
+		}
+		holds[addr] = until
+	}
+	for _, addr := range release {
+		if _, ok := holds[addr]; !ok {
+			return fmt.Errorf("--release %s: it holds nothing", addr)
+		}
+		delete(holds, addr)
+	}
+	for i := range lines {
+		lines[i].Hold = holds[lines[i].Slot.Address]
+	}
+	return nil
 }
 
 // agentLabel renders a slot's actor: `claude`, `codex·idle`, `none` when no
@@ -58,14 +99,22 @@ func slotLines(fleet Fleet) []SlotLine {
 
 // renderSlots renders `## Slots`: one line per busy slot (its issue, phase,
 // agent, bar and slug), then one line naming the free slots and their agents.
+// A held slot is never free: it gets its own line, ending in its hold.
 func renderSlots(lines []SlotLine) string {
 	var busy, free []string
 	for _, l := range lines {
 		s := l.Slot
 		switch {
+		case l.Hold != "" && l.ID == 0:
+			busy = append(busy, fmt.Sprintf("%-14s %-12s hold: soak %s", s.Address, l.Agent, l.Hold))
+			continue
 		case l.ID != 0:
 			ref := fmt.Sprintf("%s#%d", s.Repo, l.ID)
-			busy = append(busy, fmt.Sprintf("%-14s %-16s %-13s %-12s %s  %s", s.Address, ref, l.Phase, l.Agent, l.Bar, runes(l.Slug, 40)))
+			line := fmt.Sprintf("%-14s %-16s %-13s %-12s %s  %s", s.Address, ref, l.Phase, l.Agent, l.Bar, runes(l.Slug, 40))
+			if l.Hold != "" {
+				line += "  hold: soak " + l.Hold
+			}
+			busy = append(busy, line)
 		case s.HostBranch == s.RestingBranch:
 			free = append(free, s.Address+" ("+l.Agent+")")
 		case s.HostBranch == "":
@@ -85,13 +134,14 @@ func renderSlots(lines []SlotLine) string {
 	return strings.Join(append(out, "```"), "\n")
 }
 
-// gatherSlots renders `## Slots` from the fleet inventory, couch's actors
-// (each slot's agent), each busy slot's issue observation (its phase) and its
-// checkout's issue file (its bar). A failed actors read renders `?`.
-func gatherSlots(sd SDLC, ca CouchActors, vantage string) (string, error) {
+// gatherSlots reads `## Slots`' facts from the fleet inventory, couch's
+// actors (each slot's agent), each busy slot's issue observation (its phase)
+// and its checkout's issue file (its bar). A failed actors read renders `?`.
+// The holds come from the section being replaced, at write time.
+func gatherSlots(sd SDLC, ca CouchActors, vantage string) ([]SlotLine, error) {
 	fleet, err := sd.FleetInventory(vantage)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	lines := slotLines(fleet)
 	actors, aerr := readActors(ca)
@@ -113,7 +163,7 @@ func gatherSlots(sd SDLC, ca CouchActors, vantage string) (string, error) {
 		lines[i].Phase, lines[i].Bar = phase, bar
 		mu.Unlock()
 	})
-	return renderSlots(lines), nil
+	return lines, nil
 }
 
 func readActors(ca CouchActors) (map[string]Actor, error) {

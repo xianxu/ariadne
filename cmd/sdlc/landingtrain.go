@@ -226,14 +226,16 @@ func (c *conductor) build(cars []landingline.Car) (landingline.TrainEvent, error
 	}
 	c.wt = dir
 	// The suite is the one main declares, read from the exact main the train
-	// is built on (as a single landing reads its base), and it resolves its
-	// lock helper (Makefile.workflow) from the train's tree, not this
-	// checkout's branch.
+	// is built on (as a single landing reads its base). Its lock helper
+	// (Makefile.workflow) resolves from the train's tree, falling back to the
+	// checkout the train was built from, since the layered repos' workflow is
+	// an untracked link to the sibling substrate (#486).
 	decl, err := readLocalChecks(c.git, main)
 	if err != nil {
 		return nil, err
 	}
 	c.local.Root = dir
+	c.local.WorkflowAnchor = c.t.Root // the train's tree sits apart from its substrate sibling (#486)
 	if suite, ok := decl.check(suiteCheckName); ok {
 		c.suite, c.run = suite, newLocalCheckRunner(c.local)
 	} else {
@@ -289,7 +291,9 @@ func (c *conductor) gatePrefix(head string) string {
 	if c.f.NoValidate {
 		return ""
 	}
-	if err := runLandingInstanceGate(c.base, head, nounGates(c.f.IssuesDir), io.Discard, c.stderr, c.r); err != nil {
+	// Each prefix is gated in the train tree that holds it, never the
+	// conductor's checkout, which lacks later cars' files (#490).
+	if err := runLandingInstanceGate(c.wt, c.base, head, nounGates(c.f.IssuesDir), io.Discard, c.stderr, c.r); err != nil {
 		return "the instance gate refuses the train with it: " + firstLine(err.Error())
 	}
 	if err := runLandingDuplicateGate(c.base, head, c.f.IssuesDir, c.f.HistoryDir, c.r); err != nil {

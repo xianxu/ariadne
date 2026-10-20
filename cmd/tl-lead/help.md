@@ -1,6 +1,7 @@
 tl-lead: running a project as the TL in a Couch hub
 
-You are the TL: the agent in the hub slot, the slot Couch started from. Read
+You are the TL: the agent in a hub slot, the :0 slot of your team's ops repo
+(a checkout with .hub at its root; see TEAMS). Read
 this at the start of a TL session and after a compaction; it is the single
 source of the lead's procedure and always current. Taking over (another model,
 a fresh session, a switched slot): read this first, then confirm with the
@@ -21,8 +22,51 @@ ROLES
     smoke-test decisions. The landing line orders landings; the TL does not
     manually sequence their admission.
   - Workers own one issue at a time.
-  - One TL per operator, in that operator's ops slot. TLs coordinate only
-    through the project file and the issue tracker.
+  - One TL per team, in the :0 slot of the team's ops repo (TEAMS). Teams
+    coordinate through the issue trackers, the project file and one-line
+    heads-ups, never by relaying each other's filings.
+
+TEAMS (ariadne#456: one team per ops repo)
+  - A team is an ops repo (`~/workspace/ops`, `~/workspace/ops-echo`): its
+    :0 slot is the TL, addressed like any slot (`ops:0`, `ops-echo:0`). A slot
+    whose checkout has .hub at its root runs this contract; every other slot
+    runs `tl-worker`. A TL never lives in a product repo.
+  - .hub, at the ops repo root and committed, is the one ownership list:
+    claim lines only, a repo (every slot of it) or repo:N (one slot), the file
+    Couch reads. It changes when ownership changes, never when a slot parks.
+    team.md beside it holds prose (what the team asks other teams for) and
+    points at .hub; it never repeats the list.
+  - Ownership is Couch's rule: an exact repo:N claim beats a repo claim;
+    between equal claims, and for a slot nobody claims, the first hub on
+    Couch's command line wins. tl-lead can't see that order, so it lists
+    every claimant of a tie and calls an unclaimed slot unclaimed.
+  - The steward is the first hub on Couch's command line
+    (`couch ~/workspace/ops ~/workspace/ops-echo` makes ops:0 the steward).
+    It owns what the machine shares: the test queue and landing grants, quota
+    tracking, Couch incidents and restarts, and the :0 rebuilds. Other teams
+    take those to it as heads-ups.
+  - Routing: send a cross-team need to the owning hub, found with
+        tl-lead team list [REPO]
+    which lists each team's claims (and warns on a repo two teams claim), or
+    with REPO names its owner. See new issues nobody has claimed in your
+    repos with
+        tl-lead team issues [--limit N]
+  - A new team: create or adopt its ops repo with
+        tl-lead team new PATH --claim C [--claim C]...
+    which writes .hub and team.md (rerunnable; it refuses a file that
+    differs) and never commits, pushes or creates the remote: fill in
+    team.md, commit, create and push the repo, and add it to Couch's command
+    line (an operator restart). Retire a team by removing its hub from Couch's
+    command line and archiving the repo.
+  - Resuming the fleet is one verb the operator asks for ("resume the
+    fleet"), never run at startup:
+        tl-lead fleet resume            (a dry run: each of your slots classed)
+        tl-lead fleet resume --apply    (resumes the resume class, one at a time)
+    running and idle slots are left alone; resume means down with work in
+    flight and a proven conversation; ambiguous (a tie, an unclaimed slot, or
+    work without a proven conversation) goes to Needs you with Couch's
+    choices; unknown means a read failed: never treated as down. Couch's
+    runtime moves (`--move-slot`) are not visible to it, and it says so.
 
 RUNNING A PROJECT (the order of play; the project file holds the state)
   1. Frame. A pensive or parley becomes a project file. Its Charter states the
@@ -298,8 +342,10 @@ DISPATCH
   - Dispatch design-heavy items to a Claude slot
     (an invariant, a new mechanism, user-visible state); send
     bounded execution against a fixed design to Codex.
-  - The TL files or folds cross-repo proposals from workers, preserving the
-    cross-repo picture. Workers keep filing within their own repository.
+  - Workers file directly in the repository where a problem lives, in
+    any team's repo, and tell you in one line (`tl-worker --help`). You never
+    relay a filing: groom it into a train if your team owns the repo, else
+    send its owner a one-line heads-up ("filed pair#X; it blocks ops-echo").
   - Pick parallel issues that touch separate code, and name any expected
     overlap up front. One issue, one branch, from main: work on unlanded code
     waits.
@@ -313,6 +359,15 @@ DISPATCH
     a slot builds sdlc and the layer tools from its own substrate checkout, so
     an unprepared slot runs stale gates. After an sdlc or weave fix lands,
     prepare every idle slot, not just :0.
+  - Keep a just-landed slot's conversation (ariadne#482): if a change it wrote
+    breaks later, that conversation has the freshest context. Give the slot
+    the next car in the same code area (the train rule already prefers it) and
+    skip `--prepare`, which starts a fresh conversation: the worker's
+    `sdlc start-plan` refreshes its substrate itself, and `tl-worker --help` is
+    read anew per item. Only a Pair binary change needs a restart, and
+    `couch --relaunch repo:N --confirm` keeps the conversation. Start it fresh
+    (prepare or `--reload-context`) only when its context is unrelated to the
+    next car or nearly full.
   - The dispatch message carries only: the issue (with any scope folds and an
     evidence pointer), what comes next in that slot, the relevant train edges,
     and TL-only context. The worker's rules are in `tl-worker --help`; never
@@ -339,9 +394,9 @@ WATCHING
     confirm its delivery with `--message-status`, retrying once load drops. A
     sent or "outcome uncertain" message is not evidence the slot resumed.
     Report which slots were stalled.
-  - Free for new work means idle, on its resting branch, clean, and with no
-    claim in progress. Idle is not free: a quiet slot may be waiting on a
-    question.
+  - Free for new work means idle, on its resting branch, clean, with no
+    claim in progress, and not held (a soak hold, LANDING). Idle is not free:
+    a quiet slot may be waiting on a question.
   - Before any remote restart (`--relaunch`, `--reload-context`), read the
     tail. Couch's refusals (busy, dirty, stale binary) are a floor, not the
     judgment.
@@ -362,6 +417,15 @@ LANDING AND SMOKE TESTS
     runs the required integration suite. Branch fixes and close's noon
     freshness gate still require verification. Ordinary docs-only main writes
     use existing suite-record reuse; they do not need a fleet-wide freeze.
+  - Hold a slot to soak a risky change: recovery or landing code, a data
+    format, anything hard to roll back. "hold: soak until X" keeps the slot
+    that landed it reserved and idle, its conversation intact, until X: the
+    next train lands, the next main suite after the change passes, or a stated
+    time. Record it in `## Slots`, which every render then carries, and the
+    held slot never shows as free:
+        tl-lead status slots FILE --hold repo:N='until the next train lands'
+        tl-lead status slots FILE --release repo:N     (at X)
+    Open an extra slot if the hold would cost throughput.
   - Workers land their own items on SHIP. For each issue, decide whether it
     needs an operator smoke test, can share one batched smoke test in :0, or
     needs none. When unsure, ask the operator, and record the decision and its
