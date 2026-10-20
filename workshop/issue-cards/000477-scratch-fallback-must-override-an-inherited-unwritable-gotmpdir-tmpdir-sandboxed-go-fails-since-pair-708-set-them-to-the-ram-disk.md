@@ -1,6 +1,6 @@
 ---
 id: 000477
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: d45e5ce7bd1a79fcd6267586d2a00869f42f75f0
         evidence_commit: 593299c5a777287baa7608c159b8327bccc9b644
+        landed_commit: cc86655c9e1434b721d2ab34ef49a76809dfc997
 ---
 
 # Scratch fallback must override an inherited unwritable GOTMPDIR/TMPDIR (sandboxed go fails since pair#708 set them to the RAM disk)
