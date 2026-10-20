@@ -129,3 +129,11 @@ Items, in order:
   - The README is updated.
   - Landing tests are isolated from the user's plan.
   - Duplicate keys are refused.
+- **M2 review round 2 (REWORK):**
+  - BR-8 was still open: status keyed the plan on `filepath.Base(--repo)`, which is "." by default.
+    - `effectiveSchedule` now derives the key itself from `git rev-parse --show-toplevel`, so every caller (any working directory, any `--repo` spelling) reads the same entry.
+    - The callers no longer pass a key.
+    - Tested: `--repo .` from a subdirectory.
+  - That test also exposed an older bug: `readLandingSchedule` and `readLocalChecks` ran `git ls-tree <rev> <path>`, which resolves the path relative to the working directory, so from a subdirectory status said "trains: off". Both now pass `--full-tree`.
+  - Other `ls-tree` callers without `--full-tree` run under `git -C <root>`; a wider sweep is proposed as a follow-up.
+  - Minor: the "does not fit" warning is now pinned at the surface (`TestLandingPlanCommand`).

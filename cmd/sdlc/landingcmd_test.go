@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -216,6 +217,17 @@ func TestLandingStatusShowsTrainsAndReadiness(t *testing.T) {
 	out, err = runLanding(t, d, "status", "--repo", repo)
 	if err != nil || !strings.Contains(out, "next train at 2026-10-20 09:15 (slot)") || !strings.Contains(out, "departure grid: machine plan: slot :15") {
 		t.Errorf("status ignores the machine plan (%v):\n%s", err, out)
+	}
+	// The default --repo is ".", from anywhere in the checkout: the plan key
+	// still comes from the checkout's top level, as admission's does.
+	sub := filepath.Join(repo, "deep", "dir")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	chdirTo(t, sub)
+	out, err = runLanding(t, d, "status", "--repo", ".")
+	if err != nil || !strings.Contains(out, "departure grid: machine plan: slot :15") {
+		t.Errorf("--repo . from a subdirectory missed the plan (%v):\n%s", err, out)
 	}
 
 }

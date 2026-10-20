@@ -6,7 +6,6 @@ import (
 	"io"
 	"maps"
 	"os"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -180,7 +179,7 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 	}
 	var b strings.Builder
 	repoGit := func(args ...string) (string, error) { return landingGit(execGitRunner{}, repo, args...) }
-	sched, planNote, planErr, serr := effectiveSchedule(repoGit, landingMainRef(repoGit, ""), filepath.Base(repo))
+	sched, planNote, planErr, serr := effectiveSchedule(repoGit, landingMainRef(repoGit, ""))
 	switch {
 	case serr != nil:
 		fmt.Fprintf(&b, "trains: setting unreadable (%v); merges land serially\n", serr)

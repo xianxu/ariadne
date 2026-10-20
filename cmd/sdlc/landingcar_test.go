@@ -135,7 +135,7 @@ func TestLandingScheduleSourceFailsToSerial(t *testing.T) {
 	oldTTL := landingScheduleTTL
 	landingScheduleTTL = 0 // every call reads, so the warning is what's cached
 	t.Cleanup(func() { landingScheduleTTL = oldTTL })
-	src := landingScheduleSource(git, "upstream", "sample", &stderr)
+	src := landingScheduleSource(git, "upstream", &stderr)
 	if s := src(); !s.Off() {
 		t.Fatalf("schedule %+v", s)
 	}
@@ -362,7 +362,7 @@ func TestLandingScheduleSourceIsSharedAndCached(t *testing.T) {
 		reads.Add(1)
 		return "", errors.New("unreadable")
 	}
-	src := landingScheduleSource(git, "upstream", "sample", io.Discard)
+	src := landingScheduleSource(git, "upstream", io.Discard)
 	var wg sync.WaitGroup
 	for range 8 {
 		wg.Add(1)

@@ -71,6 +71,13 @@ func TestLandingPlanCommand(t *testing.T) {
 		}
 	}
 
+	// Costs that can't fit the slots are named where the steward reads them.
+	out.Reset()
+	heavy := stubPlanInputs(cost("a", 2, 20, 5), cost("b", 2, 20, 5), cost("c", 2, 20, 5), cost("d", 2, 20, 5))
+	if err := runLandingPlan(&out, false, heavy); err != nil || !strings.Contains(out.String(), "does not fit") {
+		t.Errorf("an overload went unnamed (%v):\n%s", err, out.String())
+	}
+
 	if err := os.WriteFile(path, []byte(`{"version":9}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -85,26 +92,33 @@ func TestScheduleSourceReadsThePlan(t *testing.T) {
 	state := t.TempDir()
 	t.Setenv("XDG_STATE_HOME", state)
 	t.Setenv("WF_TEST_LOCK_FILE", "")
-	g := func(args ...string) (string, error) {
-		switch args[0] {
-		case "ls-tree":
-			return landingConfigPath + "\n", nil
-		case "show":
-			return `{"train_interval_minutes": 60}`, nil
+	gitAt := func(top string) func(args ...string) (string, error) {
+		return func(args ...string) (string, error) {
+			switch args[0] {
+			case "ls-tree":
+				return landingConfigPath + "\n", nil
+			case "show":
+				return `{"train_interval_minutes": 60}`, nil
+			case "rev-parse":
+				if args[1] == "--show-toplevel" {
+					return top + "\n", nil // the key is the checkout's folder name
+				}
+			}
+			return "upstream", nil
 		}
-		return "upstream", nil
 	}
+	g := gitAt("/w/worktree/sample-slot3/sample")
 	path := filepath.Join(state, "ariadne", "landing-plan.json")
 	procedureWrite(t, filepath.Dir(path), "landing-plan.json", `{"version":1,"slots":2,"repos":{"sample":{"offset_minutes":15}}}`)
-	if s := landingScheduleSource(g, "upstream", "sample", io.Discard)(); s.Offset == nil || *s.Offset != 15*time.Minute {
+	if s := landingScheduleSource(g, "upstream", io.Discard)(); s.Offset == nil || *s.Offset != 15*time.Minute {
 		t.Fatalf("offset %v", s.Offset)
 	}
-	if s := landingScheduleSource(g, "upstream", "other", io.Discard)(); s.Offset != nil {
+	if s := landingScheduleSource(gitAt("/w/other"), "upstream", io.Discard)(); s.Offset != nil {
 		t.Fatalf("a repository without an entry got %v", *s.Offset)
 	}
 	procedureWrite(t, filepath.Dir(path), "landing-plan.json", `{"version":1,"slots":2,"repos":{"sample":{"offset_minutes":"x"}}}`)
 	var stderr bytes.Buffer
-	src := landingScheduleSource(g, "upstream", "sample", &stderr)
+	src := landingScheduleSource(g, "upstream", &stderr)
 	oldTTL := landingScheduleTTL
 	landingScheduleTTL = 0
 	t.Cleanup(func() { landingScheduleTTL = oldTTL })

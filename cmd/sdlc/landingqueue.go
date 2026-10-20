@@ -219,9 +219,7 @@ var landingScheduleTTL = 30 * time.Second
 // serial line, warned once: serial spends more suites but never lands
 // anything a train would not. The source is shared by the vouching goroutine
 // and the admission poll, so it is safe for concurrent use.
-// repo names the repository in the machine plan (#475): its checkout's
-// folder name, as slot worktrees and :0 checkouts both end in it.
-func landingScheduleSource(git func(args ...string) (string, error), remote, repo string, stderr io.Writer) func() landingline.Schedule {
+func landingScheduleSource(git func(args ...string) (string, error), remote string, stderr io.Writer) func() landingline.Schedule {
 	var mu sync.Mutex
 	var cached landingline.Schedule
 	var readAt time.Time
@@ -233,7 +231,7 @@ func landingScheduleSource(git func(args ...string) (string, error), remote, rep
 		if !readAt.IsZero() && !now.Before(readAt) && now.Sub(readAt) < landingScheduleTTL {
 			return cached
 		}
-		s, _, planErr, err := effectiveSchedule(git, landingMainRef(git, remote), repo)
+		s, _, planErr, err := effectiveSchedule(git, landingMainRef(git, remote))
 		if err != nil {
 			if !warned {
 				warned = true

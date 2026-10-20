@@ -74,7 +74,9 @@ func parseLandingConfig(data []byte) (landingline.Schedule, error) {
 // readLandingSchedule reads the train setting from rev's tree; no file is the
 // serial line.
 func readLandingSchedule(git func(args ...string) (string, error), rev string) (landingline.Schedule, error) {
-	out, err := git("ls-tree", "--name-only", rev, landingConfigPath)
+	// --full-tree: the path is the repository root's, from any working
+	// directory (status runs from wherever the operator stands, #475).
+	out, err := git("ls-tree", "--full-tree", "--name-only", rev, landingConfigPath)
 	if err != nil {
 		return landingline.Schedule{}, fmt.Errorf("read %s's tree for %s: %w", rev, landingConfigPath, err)
 	}
@@ -90,14 +92,22 @@ func readLandingSchedule(git func(args ...string) (string, error), rev string) (
 
 // effectiveSchedule is the one schedule every consumer acts on (#475):
 // main's train setting, placed on the machine plan's grid when the plan has
-// an entry for repo. planNote says which plan applied (or why none did), for
-// status; a plan that cannot be read is planErr, and the schedule keeps the
-// interval. A setting that cannot be read is err.
-func effectiveSchedule(git func(args ...string) (string, error), mainRef, repo string) (s landingline.Schedule, planNote string, planErr, err error) {
+// an entry for the repository. The repository's plan key is its checkout's
+// folder name, from git's resolved top level, so every caller (any working
+// directory, any --repo spelling) reads the same entry. planNote says which
+// plan applied (or why none did), for status; a plan that cannot be read is
+// planErr, and the schedule keeps the interval. A setting that cannot be read
+// is err.
+func effectiveSchedule(git func(args ...string) (string, error), mainRef string) (s landingline.Schedule, planNote string, planErr, err error) {
 	s, err = readLandingSchedule(git, mainRef)
 	if err != nil || s.Off() {
 		return s, "", nil, err
 	}
+	top, terr := git("rev-parse", "--show-toplevel")
+	if terr != nil {
+		return s, "repository unresolved: departing one interval after the last train", terr, nil
+	}
+	repo := filepath.Base(strings.TrimSpace(top))
 	path := machinePlanPathFn()
 	p, perr := readMachinePlan(path)
 	switch {

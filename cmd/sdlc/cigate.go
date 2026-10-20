@@ -406,7 +406,7 @@ func newLocalCheckRunner(d localRunDeps) localCheckRunner {
 
 // readLocalChecks reads the declaration from rev's tree; none is an empty one.
 func readLocalChecks(git func(args ...string) (string, error), rev string) (localCheckDecl, error) {
-	out, err := git("ls-tree", "--name-only", rev, localChecksPath)
+	out, err := git("ls-tree", "--full-tree", "--name-only", rev, localChecksPath) // root-relative from any directory
 	if err != nil {
 		return localCheckDecl{}, fmt.Errorf("read %s's tree for %s: %w", rev, localChecksPath, err)
 	}
