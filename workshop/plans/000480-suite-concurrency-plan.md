@@ -67,10 +67,10 @@ ARCH-DRY/PURE: one default helper, pure tick arithmetic, existing runner/gate. A
 
 **Files:** scripts/test-shard.py; scripts/test-shard.test.py; Makefile; atlas/workflow/sdlc-binary.md; README.md only if existing user-facing suite guidance changes.
 
-- [ ] Write a failing unit test for the measured cap, small CPU counts and unavailable CPU count; include explicit --shards override coverage. Run python3 scripts/test-shard.test.py and confirm the old CPU-count default fails the new contract.
-- [ ] Add the minimal pure default_shards helper, using min(measured_cap, detected_cpus) with a positive fallback bounded by the cap. Use it for argparse's default; preserve explicit overrides and the runner's full-test coverage check.
-- [ ] Set or reaffirm WF_TEST_WEIGHT in Makefile with measured rationale and a pointer to the result. Add a focused policy assertion to the existing shard tests so the operating envelope cannot silently revert. This is the mechanical regression guard; do not add a lexical Go lint rule for a Python/Make policy.
-- [ ] Run the shard unit tests and a real --list/selection smoke as appropriate. Update atlas and the issue's table/decision. Commit the result; no landingtrain.go or landing.go implementation change.
+- [x] Write a failing unit test for the measured cap, small CPU counts and unavailable CPU count; include explicit --shards override coverage. Run python3 scripts/test-shard.test.py and confirm the old CPU-count default fails the new contract.
+- [x] Add the minimal pure default_shards helper, using min(measured_cap, detected_cpus) with a positive fallback bounded by the cap. Use it for argparse's default; preserve explicit overrides and the runner's full-test coverage check.
+- [x] Set or reaffirm WF_TEST_WEIGHT in Makefile with measured rationale and a pointer to the result. Add a focused policy assertion to the existing shard tests so the operating envelope cannot silently revert. This is the mechanical regression guard; do not add a lexical Go lint rule for a Python/Make policy.
+- [x] Run seven shard unit tests and the Go wrapper that invokes them, including actual parser selection/override checks. Update atlas and the issue's table/decision. Commit the result; no landingtrain.go or landing.go implementation change. The recorded full suite verifies listing and coverage on the candidate.
 
 ## Task 4: verify, review and land
 

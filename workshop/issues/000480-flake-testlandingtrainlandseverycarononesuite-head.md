@@ -46,8 +46,8 @@ ARCH-CONSTRAINTS/PURPOSE: cap diagnostic concurrency at four, record load and wi
 ## Plan
 
 - [x] Capture a timed goroutine dump and lock-window timings under bounded load; report the observed window and remaining uncertainty to the hub before choosing the fix.
-- [ ] Execute the approved 12/8/6 matrix and implement the measured suite envelope with regression coverage (see durable plan).
-- [ ] Verify focused/race checks and the recorded suite, close through fresh review, then land and report the outcome.
+- [x] Execute the approved matrix (ended early by the hub) and implement the measured 8-shard / weight-2 envelope with regression coverage (see durable plan).
+- [ ] Verify focused default-policy checks and the recorded suite, close through fresh review, then land and report the outcome.
 
 ## Log
 
@@ -96,6 +96,8 @@ Partial matrix (whole-machine measurements; all five complete suites passed 1792
 Counts are 12:1, 8:2, 6:2; matrix incomplete. Four valid runs remain. The summary tool excludes the nonquiet attempt. These observations do not yet satisfy the nine-run decision contract.
 
 - Hub decision after the stop report: five valid runs suffice; drop the remaining four attempts and select an 8-shard default. The two 8-shard walls (583.718/599.859s) are about 1–4% above the 12-shard observation (578.332s), with peak load 29.414/33.847 versus 68.222. Six shards cost about 29–42% more wall time. Keep weight 2: the 8-shard suites used about 78–90% of whole-machine CPU, and the solo comparison does not support overlapping two full suites. The hub accepts peak load above the original ~24 guideline; tune later from real suite telemetry if needed (ARCH-CONSTRAINTS). Canonical approval receipt e04c1fa0-a7ff-4ec8-9cbd-974138b480f6 was verified submitted from ops:0 to this slot. This supersedes the scheduled-window wait and the nine-run decision contract above.
+
+- Implemented the pure default_shards policy: cap detected CPU count at eight, preserve the four-shard unavailable-count fallback, and retain explicit --shards overrides. The existing Makefile weight remains 2, with its measured rationale reflected in the comment and atlas. Regression coverage checks cap at 8/12/32 CPUs, smaller counts, unavailable counts, real argparse default/explicit-12 behavior, and weight placement before workflow admission. The bounded implementer observed the original real-parser default selecting 32 rather than 8 before the fix. Seven focused Python tests pass; TestShardedReportRetainsSubtestDiagnostics passes through Go in 0.461s. No Go concurrency implementation changed, so a Go race run is not applicable to this Python default policy; the required full suite remains next.
 
 ## Revisions
 
