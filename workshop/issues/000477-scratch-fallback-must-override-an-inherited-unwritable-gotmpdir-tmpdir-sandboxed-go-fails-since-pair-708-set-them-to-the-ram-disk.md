@@ -134,3 +134,21 @@ workflow gates in the checklist. Per tl-worker, the binary-owned close review
 may overlap the queued recorded suite; no full-suite pass is claimed until
 it completes, and landing still requires the final code's recorded pass.
 The approved design and acceptance criteria are unchanged.
+
+### 2026-10-19 — close round 1, BR-1 fixed
+
+Close selected the full review automatically (323 added production-code lines).
+Round 1 returned FIX-THEN-SHIP with Important BR-1, but the ledger kept close
+unfinalized, so the next step is an ordinary close review after the fix.
+The finding is valid: checkout creation can repair into a normal root the stale
+sweep did not enumerate. Searched every scratchdisk.Roots/MkdirTemp caller: only
+the os.TempDir-based local-check family gains repair roots; explicit review
+cache roots stay unchanged.
+
+Observed red: the stale private per-user checkout survived with bad TMPDIR.
+After shared root enumeration, old checkouts are collected and fresh ones
+survive even after TMPDIR is healthy again. Focused normal-root/creation/cleanup
+checks passed (scratchdisk 0.159s; cmd/sdlc 0.892s). Added the cleanup-parity lesson.
+Cancelled only this checkout's old-head queued suite with local-check cancel;
+it never started tests and recorded no result. The fixed head needs a newly
+recorded suite and a second close review; no timeout was raised.

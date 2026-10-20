@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -253,5 +254,52 @@ func TestPrepareScratchNormalRunCleanup(t *testing.T) {
 	p.Cleanup()
 	if _, err := os.Stat(p.Dir); !os.IsNotExist(err) {
 		t.Fatalf("normal run survived cleanup: %v", err)
+	}
+}
+
+func TestSweepStaleLocalWorktreesRepairedRoot(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("Darwin per-user fallback fixture; Unix candidates covered in scratchdisk")
+	}
+	d, _, _, _ := localRunRepo(t, "skipped")
+	root := t.TempDir()
+	normal := filepath.Join(root, "normal")
+	bin := filepath.Join(root, "bin")
+	blocked := filepath.Join(root, "blocked")
+	for _, dir := range []string{normal, bin} {
+		if err := os.Mkdir(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(blocked, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bin, "getconf"), []byte("#!/bin/sh\nprintf '%s\n' \"$SDLC_USER_TEMP_FIXTURE\"\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SDLC_USER_TEMP_FIXTURE", normal)
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("WF_TEST_SCRATCH", "off")
+	stale := filepath.Join(normal, localCheckTmpPrefix+"old")
+	fresh := filepath.Join(normal, localCheckTmpPrefix+"new")
+	if err := os.Mkdir(fresh, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, inherited := range []string{filepath.Join(blocked, "tmp"), root} {
+		t.Setenv("TMPDIR", inherited)
+		if err := os.Mkdir(stale, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		old := time.Now().Add(-localCheckStaleAge - time.Hour)
+		if err := os.Chtimes(stale, old, old); err != nil {
+			t.Fatal(err)
+		}
+		sweepStaleLocalWorktrees(d)
+		if _, err := os.Stat(stale); !os.IsNotExist(err) {
+			t.Fatalf("repaired-root stale checkout survived with TMPDIR=%s: %v", inherited, err)
+		}
+		if _, err := os.Stat(fresh); err != nil {
+			t.Fatalf("fresh checkout removed: %v", err)
+		}
 	}
 }

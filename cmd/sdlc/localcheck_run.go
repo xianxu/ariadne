@@ -557,7 +557,7 @@ func pruneLocalCheckLogs(dir string, keep int) {
 
 // localCheckTempRoots places a run's checkout: <RAM disk>/local-checks when
 // the disk is mounted with room (#468), else the system temp folder, where it
-// always went. The sweep covers both.
+// always went. The sweep covers scratch and every repaired normal candidate.
 func localCheckTempRoots() (create string, all []string, note string) {
 	return scratchdisk.Roots(localCheckScratchSub, os.TempDir())
 }

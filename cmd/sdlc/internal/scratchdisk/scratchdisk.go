@@ -90,10 +90,18 @@ func Use() (root, note string) {
 // every place one may live, for a sweep. A folder's path is fixed when it is
 // made, so one started on either root stays there; all lists the disk's
 // folder whenever the disk is mounted and readable, full or not, so a sweep
-// still reclaims what an earlier run left on it. note says why a mounted disk
+// still reclaims what an earlier run left on it. An os.TempDir fallback also
+// enumerates all normal roots MkdirTemp may repair into. note says why a mounted disk
 // was passed over.
 func Roots(sub, fallback string) (create string, all []string, note string) {
-	return roots(Read(), sub, fallback)
+	create, all, note = roots(Read(), sub, fallback)
+	if fallback == os.TempDir() {
+		// MkdirTemp can repair this fallback. Sweep every possible repaired
+		// root even when the inherited root works again; old runs stay put.
+		user, _ := UserTempDir() // cleanup is best-effort if the lookup fails
+		all = tempRoots(append(all, user, normalTempFallback)...)
+	}
+	return create, all, note
 }
 
 func roots(p Probe, sub, fallback string) (create string, all []string, note string) {

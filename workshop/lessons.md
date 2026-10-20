@@ -58,6 +58,11 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- Whenever artifact creation gains a fallback root, enumerate that root in
+  stale cleanup too, including after the original root becomes usable again.
+  Test stale removal and fresh preservation at the repaired location; normal
+  exit cleanup alone does not cover a killed creator (#477 BR-1).
+
 - Temp fallback must replace inherited child TMPDIR and GOTMPDIR and repair
   checkout creation before child startup. Probe actual write access, not mode
   bits. Keep startup environment evidence outside code-suite results so a

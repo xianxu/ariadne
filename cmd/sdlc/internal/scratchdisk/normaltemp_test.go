@@ -248,3 +248,39 @@ func TestNormalTempRelativeCandidateProbeAndDedup(t *testing.T) {
 		t.Fatalf("calls %d, error %v", calls, err)
 	}
 }
+
+func TestNormalTempCleanupCandidates(t *testing.T) {
+	root := t.TempDir()
+	for _, tc := range []struct {
+		name        string
+		paths, want []string
+	}{
+		{"all candidates", []string{root, filepath.Join(root, "user"), normalTempFallback}, []string{root, filepath.Join(root, "user"), normalTempFallback}},
+		{"deduplicate aliases", []string{root, root + "/.", "", root}, []string{root}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tempRoots(tc.paths...); !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("roots=%q want=%q", got, tc.want)
+			}
+		})
+	}
+	t.Setenv("WF_TEST_SCRATCH", "off")
+	t.Setenv("TMPDIR", root)
+	create, all, _ := Roots("local-checks", os.TempDir())
+	if create != root {
+		t.Fatalf("enumeration changed creation: %s", create)
+	}
+	foundDefault := false
+	for _, r := range all {
+		if r == normalTempFallback {
+			foundDefault = true
+		}
+	}
+	if !foundDefault {
+		t.Fatalf("Unix repaired root absent: %q", all)
+	}
+	_, custom, _ := Roots("review-checkouts", filepath.Join(root, "custom"))
+	if len(custom) != 1 || custom[0] != filepath.Join(root, "custom") {
+		t.Fatalf("custom fallback broadened: %q", custom)
+	}
+}

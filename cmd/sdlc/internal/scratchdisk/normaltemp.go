@@ -10,12 +10,14 @@ import (
 	"strings"
 )
 
+const normalTempFallback = "/tmp"
+
 // NormalTempDir selects a normal temporary directory with proven write access,
 // keeping os.TempDir when usable. The returned path is absolute so child working
 // directories cannot change its meaning. It never changes the process environment.
 func NormalTempDir() (string, error) {
 	// The Unix default must escape an unusable inherited TMPDIR; os.TempDir would repeat it.
-	return normalTempDir(os.TempDir(), UserTempDir, "/tmp", CheckTempDir)
+	return normalTempDir(os.TempDir(), UserTempDir, normalTempFallback, CheckTempDir)
 }
 
 // UserTempDir returns Darwin's per-user temporary directory independently of
@@ -73,4 +75,23 @@ func CheckTempDir(root string) error {
 		return err
 	}
 	return os.Remove(dir)
+}
+
+// tempRoots normalizes and deduplicates cleanup candidates without probing or
+// creating them: a root selected on an earlier run may be unusable today.
+func tempRoots(paths ...string) []string {
+	seen := make(map[string]bool)
+	var roots []string
+	for _, path := range paths {
+		if path == "" {
+			continue
+		}
+		absolute, err := filepath.Abs(path)
+		if err != nil || seen[absolute] {
+			continue
+		}
+		seen[absolute] = true
+		roots = append(roots, absolute)
+	}
+	return roots
 }

@@ -187,3 +187,20 @@ legacy suite evidence. Known-flake reruns use the same classifier and retained
 diagnostic helper; their genuine parent failure remains intact. These implement
 the approved single environment-evidence boundary without a persisted schema
 or additional acceptance state.
+
+### 2026-10-19 — BR-1 checkout creation/cleanup parity
+
+The first close review exposed a missed cleanup path: repaired detached
+checkouts can live outside the inherited root. Extend scratchdisk.Roots for
+os.TempDir-based families to enumerate the inherited, Darwin per-user and Unix
+default candidates, including when the inherited root later becomes healthy.
+Normalize/deduplicate without probing or creating cleanup roots. Explicit custom
+fallback families (including review checkouts) retain their existing root set.
+This adds one bounded per-user lookup and at most three normal candidates to
+the existing sweep, with no polling or new state. The normal fallback selector
+keeps its lazy write probes.
+
+Regression: a private Darwin per-user root contains old and fresh sdlc-local
+checkouts; cleanup must remove only the old one, both with inherited TMPDIR
+broken and after it becomes healthy. Pure candidate tests cover the Unix
+default and deduplication on every platform.
