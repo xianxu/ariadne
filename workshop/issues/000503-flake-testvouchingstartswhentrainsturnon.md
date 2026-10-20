@@ -1,13 +1,22 @@
 ---
 id: 000503
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '905aa66fe8e36a90de1bb6ea4f1ce52f937b12d2' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5e9db8b2ca171dd8683136a88750559d37029eb3' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-20T13:10:13-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
+flake_tests: [github.com/xianxu/ariadne/cmd/sdlc.TestVouchingStartsWhenTrainsTurnOn]
 ---
 
 # flake: TestVouchingStartsWhenTrainsTurnOn
@@ -20,14 +29,22 @@ Known flaky tests (#394), registered with same-head fail→pass evidence:
 
 ## Spec
 
+The fixture must cancel only after the waiting car's vouch has been persisted. A readiness callback entry counter is not publication evidence (ARCH-STATE); keep production cancellation before publication intact. Force the callback-in-flight ordering with channels rather than sleeps or longer deadlines. Preserve the trains-off gate-read check and join the vouching goroutine on every exit.
+
 ## Done when
 
 - The root cause is fixed (never a retry loop or a longer timeout); closing this issue unregisters the tests.
+- A controlled in-flight callback reproduces the old missing vouch; the corrected fixture observes persisted readiness before cancellation, and early cancellation publishes nothing.
+- The Go lint catalog rejects the callback-counter polling followed immediately by context cancellation, with valid-effect and unrelated-counter controls.
 
 ## Plan
 
-- [ ]
+- [ ] Force the callback/publication gap and record red evidence.
+- [ ] Wait for persisted publication, preserve early-cancellation behavior, and add the counter-cancellation lint rule with fixtures.
+- [ ] Run focused and race controls, recorded suite, close review and merge.
 
 ## Log
 
 ### 2026-10-20
+
+Claimed and started in ariadne:5. Confirmed the readiness callback increments gateReads before returning; vouchWhileWaiting checks ctx.Err before Vouch. Quick plan posted to hub, proceeding unless objected. ARCH-DRY: reuse watchWriter's completed-write signal and Line.Readiness rather than add a production hook. No new state, format, hot path or live-environment behavior; the fixture owns and joins its worker.
