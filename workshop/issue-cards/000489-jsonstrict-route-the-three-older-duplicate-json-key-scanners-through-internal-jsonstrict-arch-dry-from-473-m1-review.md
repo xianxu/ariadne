@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.32
+actual_hours: 1.19
 tracker:
     version: 1
     completion:
-        token: close-82d9c79dac32
+        token: close-58877b4f1cb2
         repository: github.com/xianxu/ariadne
-        reviewed_head: 25a66f067ff83d098f417b0aa07a81b72abe0eaf
-        evidence_commit: d060710bb3f91d19511b25695d8f2f814e27e33e
+        reviewed_head: 16e4c38844f7ae13cabde1b5ed91a42ff04e4478
+        evidence_commit: 2ce1055c6e43939f7a0c734e0071b8c89cb1d6fe
 ---
 
 # jsonstrict: route the three older duplicate-JSON-key scanners through internal/jsonstrict (ARCH-DRY, from #473 M1 review)
