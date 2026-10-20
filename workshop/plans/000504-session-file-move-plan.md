@@ -237,3 +237,70 @@ implicit assumption that copying files recreated every referenced directory.
 Tests enumerate target kinds and consumers, including populated and empty
 side roots and descendant directories. The full-suite and manual live-migration
 holds remain unchanged.
+
+
+### 2026-10-20 — revised live-recovery plan (awaiting TL approval)
+
+The live check invalidates the former assumption that destination bytes remain
+unchanged through cleanup. The switch is the ownership boundary: the new tree
+may be edited and locked once live. No editor lease or journal is added.
+
+The simplest alternative is operator-only manual deletion. It does not fulfill
+the verb's promised retryable cleanup and would leave the same scale and
+reachability defects for ops-echo, so retain copy-then-switch with these corrected
+boundaries (ARCH-PURPOSE, ARCH-ORDER, ARCH-CONSTRAINTS):
+
+| Entity | Lives in | Change |
+| --- | --- | --- |
+| registration snapshot decoder | cmd/tl-lead/status_move_registry.go | typed complete persisted list, keyed by canonical path, no per-doc lookup |
+| session move plan/state | cmd/tl-lead/status_move.go | pre-switch copying vs confirmed post-switch cleanup; source snapshot is cleanup authority |
+| migration Couch runner | cmd/tl-lead/sessionsync.go | bounded single subprocess, no retry; deadline distinguishes read refusal from unconfirmed mutation |
+| snapshot/executor | status_move_snapshot.go, status_move_apply.go | batch registration observations at phase boundaries; source-only cleanup |
+
+- [ ] Add failing regression fixtures for denied/hung Couch before effects,
+  counting calls at N=8 and 2N=16, and edits/locks on the new session and side
+  docs immediately after switch and between cleanup steps. Include interrupted
+  post-switch retry with only old leftovers and a changed live destination.
+- [ ] Migration starts with one typed `couch --session-sync list --json` snapshot.
+  Missing/bad replies are errors, never absence. Preserve ID and registered
+  fallback owner; local session routing remains read from the document. Use
+  list snapshots at fixed phase boundaries, not lookup/status per document.
+  Check all relevant old/new `.lock`/`.clobbered` paths locally; no active
+  editor lease is claimed. Perform necessary Rename mutations only for actual
+  registered pairs, using Couch's idempotent previous-path check on retry.
+- [ ] Bound each migration Couch invocation to five seconds plus bounded pipe
+  draining. A preflight denial/timeout reports cannot reach Couch before local
+  writes; a mutation timeout says outcome unconfirmed and keeps old copies.
+  Do not try to bypass a sandbox or retry silently. Tests use an isolated
+  helper subprocess; no live sockets or hub files.
+- [ ] Verify copies before switching. Once root registration switches last,
+  destination edits are normal: do not compare live bytes, restore metadata,
+  write destinations, or reject live locks during cleanup. Compare each old
+  source against the captured source bytes immediately before its deletion.
+  Source edits/locks/late files still preserve old files. On rerun, confirm
+  the prior root rename with Couch before entering cleanup-only behavior;
+  an unrelated destination cannot authorize deletion. Never forget or replace
+  a distinct occupied registration automatically; report the conflicting IDs.
+  Across separate invocations the no-journal design cannot prove that an old
+  leftover was never edited; the quiet-window rule applies to old leftovers.
+- [ ] Sweep external-operation growth: batch Git ignore checks with complete
+  output membership validation at phase boundaries, and one destination check
+  per deletion; avoid rescanning/checking all N files for each of N steps.
+  Test counts bound lookups/status to zero, list calls to a fixed phase count,
+  renames to registered document count, and Git checks to O(N).
+- [ ] Update help/atlas and the current input/maintenance contract. Record
+  regression failures, package and scratch real-Couch conformance passes.
+  Push, queue a new recorded suite, re-close for fresh SHIP, then restage only
+  when green. TL/operator retry ops:0 cleanup and migrate ops-echo, returning
+  evidence before clear-stage and merge.
+
+| Failure/state | Visible state | Recovery | Possible loss |
+| --- | --- | --- | --- |
+| Preflight cannot reach Couch | old still in use, no local effects | rerun outside blocked sandbox | none |
+| Partial copies or unconfirmed rename | keep copies; switch unknown | rerun identical command to reconcile with Couch | none known; no cleanup authority |
+| Root switch confirmed, live destination edited | new in use, old cleanup pending | remove unchanged old copies; preserve live tree | none in live tree |
+| Source changed/locked during cleanup or unrelated registration | new in use; named old copy retained | resolve old source/conflict, rerun in old-tree quiet window | no automatic deletion of observed source change |
+
+The prior same-bytes destination requirement applies only before switching.
+The live-acceptance hold remains operator/TL-owned. This is a replacement plan
+for the same mechanism, not an incremental addition of recovery machinery.
