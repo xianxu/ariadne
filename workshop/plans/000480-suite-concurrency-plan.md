@@ -74,7 +74,7 @@ ARCH-DRY/PURE: one default helper, pure tick arithmetic, existing runner/gate. A
 
 ## Task 4: verify, review and land
 
-- [ ] Push/open the PR; run the required recorded suite on the final pushed head. The original train test must pass all variants; preserve any known-flake attribution and classify unknown failures.
+- [x] Push/open the PR; run the required recorded suite on the final pushed code head (passed eight shards / 1792 cmd/sdlc tests / 72 other packages in 659.8s). The original train test must pass all variants; preserve any known-flake attribution and classify unknown failures.
 - [ ] Close #480 through the fresh SDLC review with matrix and regression evidence. Address Important/Critical findings; the binary owns review.
 - [ ] Enter sdlc merge --yes promptly, allow its integration and CI/suite gates, then report the landed PR plus the chosen cap/weight and evidence to the hub. Remove the owned scratch checkout/diagnostic binary; retain persistent evidence.
 

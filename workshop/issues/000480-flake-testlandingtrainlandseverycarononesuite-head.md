@@ -47,7 +47,7 @@ ARCH-CONSTRAINTS/PURPOSE: cap diagnostic concurrency at four, record load and wi
 
 - [x] Capture a timed goroutine dump and lock-window timings under bounded load; report the observed window and remaining uncertainty to the hub before choosing the fix.
 - [x] Execute the approved matrix (ended early by the hub) and implement the measured 8-shard / weight-2 envelope with regression coverage (see durable plan).
-- [ ] Verify focused default-policy checks and the recorded suite, close through fresh review, then land and report the outcome.
+- [x] Verify focused default-policy checks and the recorded suite; submit the verified candidate to the fresh close review and landing gates below.
 
 ## Log
 
@@ -102,6 +102,8 @@ Counts are 12:1, 8:2, 6:2; matrix incomplete. Four valid runs remain. The summar
 - Published PR 343 (https://github.com/xianxu/ariadne/pull/343) at code head 2837d811a8e21f2d72d49c143f25ee194e9dc6c0. Server merge-check and both local-gates checks pass. Required recorded suite is running through the normal machine queue on that pushed head; detached checkout /Volumes/TestScratch/local-checks/sdlc-local-3057859193, attempt 6fd9a671ea3a498edd7284884c6eec5b. Final suite evidence remains pending; no completion claim yet.
 
 - Final evidence audit: all 41 manifest-listed payloads (36594721 bytes) verify across complete/refused run manifests, harness/summary manifests and the persistent lock diagnostic. benchmark/decision.json records the approved five-run exception and 8/2 selection (SHA256 c5e2b779a9e1920340df6a8dafdcae8c4f23c24657e3dfa69ebdcad57a560bd0); benchmark/evidence-index.json links and hashes all evidence roots (SHA256 9cd544ca9ff583cff7f3945293485fb02c84302f836dfa309817f77bfd141f05). The historical matrix_complete=false field is preserved as evidence of the original protocol, not a claim of nine completed runs.
+
+- Final candidate recorded suite passed on 2837d811a8e21f2d72d49c143f25ee194e9dc6c0: all eight shards, 1792 cmd/sdlc tests and 72 other packages, zero failures, wall 659.8s. Recorded sdlc-local/suite success; log Git-common-dir/sdlc/local-checks/2837d811a8e21f2d72d49c143f25ee194e9dc6c0/suite.log, SHA256 prefix 8b86038524a5. Full listed-test coverage includes the original train variants; no known-flake retry was needed. Later branch commits change documentation only. Removed the owned matrix worktree and diagnostic scratch/binary after verifying all eleven diagnostic payloads against their persistent manifest; active recorded-check scratch was left to its owner. Persistent evidence remains intact.
 
 ## Revisions
 
