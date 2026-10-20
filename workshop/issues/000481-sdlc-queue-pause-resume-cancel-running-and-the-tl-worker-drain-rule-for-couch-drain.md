@@ -7,7 +7,7 @@ created: 2026-10-19
 updated: 2026-10-20
 estimate_hours: 3.03
 collaboration-mode: collaboration
-card_mirror: '1329977230008939f99615defe64d647a4844dd0' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b5f2ef936be5af5d2b399f9a57574dad9e84741f' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T01:19:56-07:00
 claimant:
     operator: Xian Xu
@@ -17,7 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
-actual_hours: 3.33
+actual_hours: 3.83
 ---
 
 # sdlc queue pause/resume (+ --cancel-running) and the tl-worker drain rule, for couch --drain
