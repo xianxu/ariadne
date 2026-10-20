@@ -250,8 +250,48 @@ child registration and original pair#712/#689 warm leaf still work. Preserve
 the complete Unicode table and N/2N line-visit counts. Per-line transitions use
 indexed lookup and slice truncation, with no look-back or ancestor rescan.
 
-- [ ] Obtain hub approval of this complete transition model before production edits.
-- [ ] Capture the real Go ordering matrix; reproduce the stale-context failure red.
-- [ ] Implement one tagged line classifier and route every line event through the model.
-- [ ] Verify parser and actual gate controls, historical-reader replay, Unicode
-  grammar and visit counts. Run a new recorded suite and full close afterward.
+The four proposed context-model tasks are superseded by the hub's revised goal
+below; none of this pending tagged-classifier model is required or implemented.
+
+### 2026-10-19 — Current approved goal: proven granularity
+
+Approval: c4637f8b-c20e-4bb2-99b6-9077742773b6 (canonical verified). This section
+supersedes the earlier requirement for exact raw subtests and both ancestry
+proposals. The incident is false unattributability; exact precision is optional.
+
+Keep suiteIndentLevel and its Unicode/ASCII-space grammar. Remove ancestry state
+from failingNameLines; only column-zero records can add names or flush packages.
+Go JSON failure events and explicit shard headers remain exact evidence. Raw
+indented subtests under failing ancestors cannot prove a leaf, so retain the
+nearest proven ancestor. No new state machine or typed line protocol is needed.
+
+Add one bounded coarsening note through SuiteLogFacts.Warnings, already printed
+by runLocalCheck and legacy import: ambiguous indented subtest output is ignored,
+matching uses proven records, and subtest-only registrations may miss a coarser
+ancestor. Keep flakes.Covers, Leaves, registry and persisted formats unchanged.
+Real build/timeout/missing-identity guards still block their own failures.
+
+Visible states: exact structured leaf; coarse proven ancestor with a precision
+note; genuinely unidentified failure. Existing recoveries remain. Coarsening
+can withhold an automatic subtest-only retry, which the hub explicitly accepts;
+it cannot invent a leaf to obtain one. Raw evidence remains available.
+
+- [ ] Capture and commit real buffered/verbose Go output plus its small source
+  for parent logging before/after failed children, nested returns and siblings.
+  Keep the original pair#712/#689 excerpt too.
+- [ ] Change current fixtures to the revised contract and observe them red:
+  raw cases coarsen, structured cases remain exact, actual gate parent-only
+  registration reruns and leaf-only registration stays unknown with a note.
+- [ ] Remove the scanner's ancestor mechanism; keep the shared prefix guard.
+  Add the coarsening note in the existing facts scan without adding a log pass.
+- [ ] Verify saved-log success guard and historical replay: coarse raw evidence
+  cannot justify leaf-only registrations; structured leaf evidence still can.
+  Use Go JSON in the existing real-Go #466 integration fixture so it retains
+  exact provenance, and add raw-mode coarse behavior separately.
+- [ ] Verify full Unicode, N/2N visits, parser, actual gate and lint controls.
+
+The recorded suite, full close (disposing BR-1 under revised acceptance) and
+normal merge remain workflow gates after these implementation steps. Existing
+cost bounds hold: fixed linear scans, one prefix classification per record,
+map/name collection and sorting. No live sandbox, peer workflow edit or schema
+change is involved.

@@ -49,21 +49,27 @@ The flake itself is pair#715 (registered).
 Preserve line provenance before parsing suite control records. Package outcomes,
 shard summaries, JSON events and top-level test failures must start at column zero;
 indented quoted output cannot change package attribution or add suite outcomes.
-Real indented Go subtest failure lines remain evidence when they descend from the
-current outer failing test (including the test-shard summary context). Unrelated
-stderr remains inert. Keep the existing top-level persisted failures and transient
-subtest fields, registry policy and rerun protocol unchanged (ARCH-DRY, ARCH-PURE).
+Attribute to the deepest name proven by column-zero or structured records.
+Raw indented subtest lines under a failing ancestor are ambiguous quotations;
+coarsen to the proven ancestor, usually its top-level test. Structured Go JSON
+failure events and explicit test-shard headers still prove exact leaves.
+Unrelated stderr remains inert. Keep existing persisted failures, transient
+subtest fields, registry policy and rerun protocol (ARCH-DRY, ARCH-PURE).
 
 Prefer this correction at the existing parsers over changing test producers or
-introducing a new log format: historical saved logs need the same repair. Merely
-ignoring all indented lines would erase the real subtests introduced by #466.
+introducing a new log format: historical saved logs need the same repair.
+Keep the shared prefix/Unicode classifier; remove ancestry tracking entirely.
+Use the existing warning channel to explain coarse attribution and why a
+subtest-only registration may not cover it. No unproven leaf can narrow a
+failure into a registration that would not cover its proven ancestor.
 
 Actions: run the registered targeted retry; repair the named failure; inspect the
 raw log and repair/rerun an unattributable failure.
 
 | Input | Visible result | Recovery | Possible loss |
 | --- | --- | --- | --- |
-| Outer named failure with quoted helper output | Existing exact outer test/leaf | Registered retry if covered, otherwise repair that test | None; raw log unchanged |
+| Outer named failure with ambiguous raw child output | Proven ancestor plus coarsening note | Retry only if that ancestor is covered; otherwise repair reported test | Precision may be lost; raw log unchanged |
+| Structured exact leaf | Existing exact leaf | Existing registered retry or repair | None |
 | Genuine unrelated package/build/timeout failure | Existing blocking failure | Repair the reported failure | None |
 | Missing outer name or package evidence | Existing unattributable failure | Inspect raw log, repair and rerun | No invented attribution |
 
@@ -74,13 +80,19 @@ names; indentation checks inspect each line once, with no look-back or rescans.
 
 ## Done when
 
-- A fixture built from this log attributes the failure to
-  `couchcmd.TestContinuationWriterPublishesExactCheckpointAcrossWorktrees/warm-reattached` (indented quoted nested
-  output ignored), so the registered-flake rerun applies.
+- The incident fixture attributes its failure to the proven
+  `couchcmd.TestContinuationWriterPublishesExactCheckpointAcrossWorktrees` ancestor,
+  with no invented nested helper leaf and no false unattributable package.
 - Interleaved non-test stderr lines before a `--- FAIL` don't break attribution (same fixture).
-- Plain and sharded fixtures ignore quoted nested package/build/timeout/JSON
-  outcomes, preserve real descendant subtests and keep genuine unowned failures
-  blocking. The real local-check path takes only the registered outer retry.
+- Indented quoted package/build/timeout/JSON outcomes stay inert. Proven JSON
+  and test-shard leaves retain exact matching; genuine unrelated or unidentified
+  failures still block.
+- The gate matches at the proven granularity via flakes.Covers: an ancestor
+  registration can rerun; a subtest-only registration cannot cover a coarsened
+  ancestor. The output explicitly explains this precision miss.
+- Real Go parent/child/log ordering fixtures coarsen safely across plain, CRLF,
+  sharded contexts and retained-log readers. Unicode grammar and N/2N visit
+  controls remain.
 
 ## Plan
 
@@ -89,7 +101,10 @@ names; indentation checks inspect each line once, with no look-back or rescans.
   the narrow lint guard against erasing line provenance in these scanners.
 - [x] Run focused parser/classifier and local-check regression checks.
 - [x] Complete the round-2 BR-1 whole-prefix re-plan and its regression matrix.
-- [ ] Complete the round-3 context-lifetime re-plan and actual-Go ordering matrix.
+- Superseded: the round-3 full ancestry-lifetime proposal is dropped by the
+  hub's revised goal; no implementation of that model is required.
+- [ ] Implement proven-granularity attribution, visible precision misses and
+  real-Go/historical/structured evidence controls under the revised contract.
 
 Workflow gates: recorded suite, close review, then normal landing. These remain
 pending independently of the completed implementation checkboxes.
@@ -155,6 +170,20 @@ pending independently of the completed implementation checkboxes.
   slots' landings blocked by this today; raise priority if #715's root fix (pair:3) doesn't land first.
 
 ## Revisions
+
+- 2026-10-19 — Goal revised by hub receipt
+  c4637f8b-c20e-4bb2-99b6-9077742773b6 (canonical verified): precision is optional,
+  false unattributable output and invented leaves are not. Drop the pending
+  ancestry-lifetime proposal. Keep prefix/Unicode classification, trust only
+  column-zero/structured failure records, and use existing Covers at the proven
+  granularity. A subtest-only registration missing a coarsened ancestor is an
+  accepted, visible limitation. This supersedes earlier precise-raw-subtest
+  requirements and the unimplemented context model.
+  Previous acceptance required the incident's exact warm-reattached leaf and
+  its registered retry from raw output, plus preservation of raw real descendant
+  subtests. Those clauses are intentionally replaced by ancestor attribution
+  and exact leaves only from unambiguous structured evidence. Existing real
+  build/timeout/missing-identity guards remain.
 
 - 2026-10-19 — Context authority must expire on ordinary parent output, not only
   the next test/package marker. The durable plan now proposes a tagged line
