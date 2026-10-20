@@ -36,12 +36,11 @@ The fixture must cancel only after the waiting car's vouch has been persisted. A
 
 - The root cause is fixed (never a retry loop or a longer timeout); closing this issue unregisters the tests.
 - A controlled in-flight callback reproduces the old missing vouch; the corrected fixture observes persisted readiness before cancellation, and early cancellation publishes nothing.
-- The Go lint catalog rejects the callback-counter polling followed immediately by context cancellation, with valid-effect and unrelated-counter controls.
 
 ## Plan
 
 - [ ] Force the callback/publication gap and record red evidence.
-- [ ] Wait for persisted publication, preserve early-cancellation behavior, and add the counter-cancellation lint rule with fixtures.
+- [ ] Wait for persisted publication and preserve early-cancellation behavior.
 - [ ] Run focused and race controls, recorded suite, close review and merge.
 
 ## Log
@@ -49,3 +48,9 @@ The fixture must cancel only after the waiting car's vouch has been persisted. A
 ### 2026-10-20
 
 Claimed and started in ariadne:5. Confirmed the readiness callback increments gateReads before returning; vouchWhileWaiting checks ctx.Err before Vouch. Quick plan posted to hub, proceeding unless objected. ARCH-DRY: reuse watchWriter's completed-write signal and Line.Readiness rather than add a production hook. No new state, format, hot path or live-environment behavior; the fixture owns and joins its worker.
+
+## Revisions
+
+### 2026-10-20T13:12-07:00 — lint only for a repeated pattern
+
+TL approved the fixture/control plan and required another instance before adding lint (Couch c529c41d-b5ad-4a34-a254-54002f8d7baf). Repository-wide Load-in-loop/cancel searches found only this test; inspection of all ten test files with .Add(1) found WaitGroups, joined build-count assertions and lock controls using separate events, with no second callback-entry/cancel pattern. Removed the original planned lint acceptance and step; deterministic regression is sufficient for this single fixture. No lint machinery or timeout change.
