@@ -1,13 +1,13 @@
 ---
 id: 000476
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'a06508f8cf07d1c434497bbd81d5fd2df2b8e142' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ae9cd0f81e8dffeae7ea177d9a0ff2cae25e43c2' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T20:57:12-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.82
 ---
 
 # Test attribution: quoted nested go test output (a helper subprocess's indented FAIL lines) makes a failed suite unattributable
