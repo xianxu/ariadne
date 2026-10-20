@@ -58,6 +58,7 @@ ARCH-ORDER: an empty observed predecessor list differs from no observation. ARCH
 Filed from #481 final-suite observation, after its close review. Source: scripts/test-lock.py Tickets.admission default result and acquire position rendering. The #481 suite keeps its original waiter; this is diagnostic reporting, not an admission failure.
 
 ### 2026-10-20 — claim and quick plan
+- 2026-10-20: closed — 18 private helper tests pass; real provider/pause integration pass (34.856s); real-lock shell controls all pass; empty-list mutation fails five caller assertions, restored fix passes; counted 8/16 attempts preserve one stable report and FIFO. Recorded suite on pushed code is queued; its pass remains mandatory before merge. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 Claimed after #481 landed and the hub rebuilt central sdlc. Read the dispatch's canonical submitted receipt 6bed2d3c-b536-40ea-89fb-cc6d9ca45052. Source confirms the same empty-list default for every unobserved gated attempt; len(ahead)+1 fabricates first place and changes the log key. Preserve uncertainty with a nullable order and cache only prior observed diagnostics; no admission state/lock change. The real private helper tests exercise the live scheduler seam; no production pause or staging is needed.
 
