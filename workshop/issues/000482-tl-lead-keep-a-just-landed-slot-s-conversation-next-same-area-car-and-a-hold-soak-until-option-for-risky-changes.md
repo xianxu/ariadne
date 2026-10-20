@@ -1,13 +1,13 @@
 ---
 id: 000482
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '1263fa7fcae561d06ef9778a245d263116d6caf1' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'cc5292785550e68ab501278a7ea06ce381eba4c7' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T22:48:28-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.32
 ---
 
 # tl-lead: keep a just-landed slot's conversation (next same-area car), and a 'hold: soak until' option for risky changes
