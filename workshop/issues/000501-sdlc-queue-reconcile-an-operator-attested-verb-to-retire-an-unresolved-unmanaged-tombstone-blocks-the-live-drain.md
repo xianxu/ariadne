@@ -73,3 +73,11 @@ The original 10-20 tombstone no longer appears in current live status after the 
 ### 2026-10-20 — approved simplification
 
 Authenticated hub receipt 9a890439-8430-48c5-b14b-97462e76a4bc approves exact digest/lease/process/note checks under control.lock, then one append-only base64 audit line, fsync, unlink. It explicitly withdraws the proposed model, bundle and retention/expiry machinery, and approves private executable plus read-only live acceptance after reboot. Flow remains inferred. The durable plan's latest Revisions section is operative; prior proposal/checklists are superseded, retained as history. Proceed to change-code and TDD, no scope extension.
+
+### 2026-10-20 — TDD and targeted implementation evidence
+
+Observed RED through the real Cobra command (unknown --id before implementation). The new store and command now pass exact incident-shape recovery; base64 original preserves opaque large numeric fields and raw bytes. Controls refuse wrong digest, missing note, held tombstone, any operation file/lease, live or unknown owner, unsafe/symlink/wrong-phase/incomplete records, changed post-audit evidence and corrupt/torn audit. A helper process exits71 after actual log fsync and before unlink; its parent confirms durable audit plus surviving tombstone, then idempotent retry removes only that tombstone without another line. Pause/interruption bytes are unchanged; pending cancellation retains interruption evidence and does not become orphan unknown. Real kernel helper controls pass live/different-incarnation/waited-for-dead observations.
+
+The audit's shared duplicate-key checker initially rejected an unknown future JSON number (1e9999) by converting it to float64: new queue-codec and jsonstrict controls both failed, then one UseNumber line fixes that semantic gap without weakening strict known-field/duplicate checks. Queuegate full package PASS6.405s; jsonstrict PASS0.068s; all TestQueue controls PASS23.904s; tracked Go lint catalog PASS0.846s. No live mutation. Private executable conformance is next, before the recorded suite/close/landing.
+
+After the Couch relaunch, sdlc agent-id reports Agent: codex/-/-; copy that available identity rather than invent model/effort metadata for new commits.

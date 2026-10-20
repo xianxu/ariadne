@@ -7,6 +7,7 @@ import (
 
 func TestRejectDuplicateKeys(t *testing.T) {
 	for in, want := range map[string]string{
+		`{"future":{"opaque":1e9999}}`:        "",
 		`{"a":1,"b":{"c":[{"d":1},{"d":2}]}}`: "",
 		`{"a":1,"a":2}`:                       `duplicate object key "a"`,
 		`{"g":[{"n":"x","n":"y"}]}`:           `duplicate object key "n"`,

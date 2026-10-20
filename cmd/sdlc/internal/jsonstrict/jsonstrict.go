@@ -32,6 +32,7 @@ func foldKey(s string) string {
 // Only one top-level value is allowed.
 func RejectDuplicateKeys(raw []byte) error {
 	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber() // Opaque future numeric fields need no float64 interpretation.
 	if err := scan(dec); err != nil {
 		return err
 	}
