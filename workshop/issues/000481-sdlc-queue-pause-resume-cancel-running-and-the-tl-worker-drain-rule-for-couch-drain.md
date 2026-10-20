@@ -180,6 +180,12 @@ Additional pair:5 lost-reply conformance passed 4.863s: successful pause/resume 
 
 Verified the hub's approved boundary in canonical submitted receipt 278d62f1-1ea2-4cb2-bd64-b29f7cb5fa91. Both legacy token/ticket regressions failed before implementation: status had no activity and no incompleteness detail. The status-only probe now reports named pending uncertainty without active entries. Verified new waiting bindings remain complete; recycled identity does not. Unlocked residue/allocation mutex controls and unreadable-directory control pass. Queue legacy and both counted zero-scan admission controls pass under the race detector (1.770s); 8/16 pending fixtures require exactly one index/visit/lookup per waiter. This preserves the frozen schema and adds no admission scan.
 
+### 2026-10-20 — M2 SHIP and final consumer conformance
+
+M2 round 2 SHIP, no new findings; BR-5 independently verified by reverting both fixes in disposable copies and observing their regressions fail. The reviewer ran queuegate/landingline and TestQueue normally and under race, 15 Python pause controls, 16 real-provider priority controls, saved-pass/repeated-run compatibility and worker/help checks. Final branch queue/priority race run passed 79.121s; core/line/lint/worker checks passed.
+
+Authenticated submitted pair:5 receipt e3701d33-6b0b-4b49-b962-ef6e33381e43 confirms repeat production adapter/strict decoder conformance against afb94a8e2be9d2477fbbe7b53d7b8eb7f52152c7, independently verified modified=false: core 19.66s, lost-response 4.06s, combined 24.049s. Real consumer legacy check passed 3.814s: unbound held token/ticket produced complete=false, named path/detail and active=[], unchanged bytes; release restored complete. Verified waiting bindings stayed complete, pause denied admission, resume admitted exactly one suite and retirement restored complete/empty. An initial probe cleanup ordering failure was retained and fixed only in the temporary probe before the passing rerun; no product change. Source/logs remain under pair:5's original private fixture consumer-repeat.2TGKnT; its diagnostic unknown sibling remains peer-owned. No live pause. The final recorded full suite is queued; server CI is green.
+
 ## Revisions
 
 ### 2026-10-20 — M1 review corrections
