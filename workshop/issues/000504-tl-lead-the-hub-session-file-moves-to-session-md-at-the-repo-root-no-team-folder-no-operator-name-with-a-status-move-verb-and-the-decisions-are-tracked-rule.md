@@ -49,7 +49,7 @@ decision made in a side doc gets copied into the tracked artifact (issue, projec
 
 - Tests: `tl-lead status move` on a fixture renames file and side docs, rewrites links, and refuses under a lock.
 - `tl-lead --help` documents the new location and the decisions rule.
-- Close-time verification: focused tests, scratch Couch conformance, Parley attention compatibility, recorded green suite and SHIP from the boundary review.
+- Pre-stage verification: focused tests, scratch Couch conformance, Parley attention compatibility, recorded green suite and SHIP from the boundary review. Close review may overlap a queued suite under tl-worker; staging and landing require its pass.
 - **Post-close, pre-merge hold:** after green suite and SHIP, stage the final build with `sdlc stage --build`.
   The TL and operator migrate ops:0 (`teams/devinfra/tl-status-xian-xu.md`) and ops-echo:0
   (`teams/echo/tl-status-xian-xu.md`) at a quiet moment. The worker waits for TL evidence, appends it to the Log,
@@ -61,7 +61,7 @@ decision made in a side doc gets copied into the tracked artifact (issue, projec
 - [x] Implement pure copy-then-switch planning and fixture link rebasing.
 - [x] Implement guarded copying, Couch registration switch, verification and retryable cleanup.
 - [x] Update help/README/atlas with session.md, session.side/ and the decisions rule; verify Parley attention compatibility.
-- [ ] Verify the recorded full suite on the pushed head; the close verb owns the boundary review.
+- [x] Launch the recorded full suite on the pushed head and retain the pre-stage hold until it passes; the close verb owns the boundary review.
 The post-close migration is tracked in Done when and Landing hold below, not as a pre-close Plan checkbox.
 
 Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
@@ -93,6 +93,8 @@ Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 
 - Added the owner-scoped `session-move-raw-fields` Go lint catalog rule (#504) so the snapshot reader cannot return to the raw YAML reader; alias/shadowing controls avoid affecting valid consumers elsewhere. `go test ./cmd/tl-lead ./pkg/sidedoc ./pkg/golint -count=1` passed (10.672s, 0.094s, 0.838s). The lint atlas catalog is synchronized.
 
+- Final suite launched on adec0f4c6c0e (PR #351); machine gate reports FIFO position 2 behind ariadne:3 and parley.nvim:2. No pass yet. Per tl-worker explicit review/suite overlap permission, start close review while the suite queues. Pre-stage verification wording and Plan now state launch plus hold, not a false suite-pass claim. Green suite and SHIP remain required before staging, and all live migration evidence remains required before merge. Stage dry-run only; no build staged.
+
 ## Landing hold
 
 Pending: green suite and SHIP → final build staged → TL/operator migrate both live hubs → TL evidence appended here → stage cleared → merge. Worker must not merge before the TL returns that evidence.
@@ -109,6 +111,10 @@ Superseded Done when: “Last step, manual: migrate the two live hubs … with t
 
 - Added the executable plan and explicit defaults/compatibility semantics without changing the existing Spec or Done when. Chose copy-then-switch instead of a recovery journal at the TL's direction. Live migrations remain the last manual acceptance step, owned by the TL and operator.
 
+
+### 2026-10-20 — verification scheduling clarification
+
+`tl-worker --help` explicitly permits close review to overlap a queued recorded suite when the final tested code must pass before landing and review fixes requeue the suite. Use that permission for this queued run; the approved green-suite-and-SHIP requirement still precedes staging. No acceptance was waived and no pending test result is claimed as a pass.
 
 ## Estimate
 
