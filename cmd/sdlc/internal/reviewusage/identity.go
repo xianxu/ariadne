@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 )
 
 const IdentityLimit = 64 << 10
@@ -54,7 +56,7 @@ func claudeIdentity(raw []byte) (string, error) {
 		if r.SessionID == "" {
 			continue
 		}
-		if err := uniqueKeys(json.NewDecoder(bytes.NewReader(line)), 0); err != nil {
+		if err := jsonstrict.Scan(json.NewDecoder(bytes.NewReader(line)), 16); err != nil {
 			return "", errors.New("invalid-session-identity-event")
 		}
 		if !sessionUUID.MatchString(r.SessionID) {

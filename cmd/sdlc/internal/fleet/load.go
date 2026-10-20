@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -240,7 +241,7 @@ func inspectPolicyJSON(raw []byte) (*int, error) {
 	version := extractTopLevelPolicyVersion(raw)
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.UseNumber()
-	if err := scanJSONNoDuplicateKeys(dec); err != nil {
+	if err := jsonstrict.Scan(dec, 0); err != nil {
 		return version, fmt.Errorf("decode fleet policy: %v", err)
 	}
 	if err := requireJSONEOF(dec); err != nil {
