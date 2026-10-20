@@ -1,6 +1,6 @@
 ---
 id: 000477
-status: working
+status: codecomplete
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.76
+tracker:
+    version: 1
+    completion:
+        token: close-6f6188102b2c
+        repository: github.com/xianxu/ariadne
+        reviewed_head: d45e5ce7bd1a79fcd6267586d2a00869f42f75f0
+        evidence_commit: 593299c5a777287baa7608c159b8327bccc9b644
 ---
 
 # Scratch fallback must override an inherited unwritable GOTMPDIR/TMPDIR (sandboxed go fails since pair#708 set them to the RAM disk)
