@@ -24,6 +24,9 @@ From introduce-team's live proof (10-19, two hubs: `couch ops ops-echo`):
    slot to resume, the rest running or idle).
 3. `fleet resume`'s dry run prints dozens of "ambiguous … unclaimed" rows for dormant repos (robotics, zellij,
    xianxu.dev, …), which buries the one actionable row.
+4. **`tl-lead status check` staleness isn't scoped either** (from ops-echo:0, 10-19 23:40): echo's Threads and Slots
+   were marked stale by a parley.nvim merge (ccbc2dd5), a repo echo's `.hub` doesn't claim. Staleness should come only
+   from the repositories the hub's `.hub` claims, so devinfra landings don't ping an idle team.
 
 ## Spec
 
@@ -35,6 +38,8 @@ From introduce-team's live proof (10-19, two hubs: `couch ops ops-echo`):
 - `fleet resume` hides unclaimed dormant repos unless `--all`, and prints a one-line count instead.
 
 ## Done when
+
+- `status check` in a two-hub fixture marks a hub stale only for merges in repos its `.hub` claims (test).
 
 - In a two-hub fixture, each hub's `status slots` lists only its own slots; `--all` lists every slot.
 - A run where Couch is unreachable prints one note, not N per-row errors (test).
