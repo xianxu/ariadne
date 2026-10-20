@@ -2332,6 +2332,11 @@ waiter ahead), or `position 1 in line: next to run` for the head.
 It asks for `2 of 2 full-suite slots` for a weight-2 run. The wait also names
 normal FIFO or fleet-blocking issue/deadline, and reports class/position changes
 immediately rather than waiting for the periodic diagnostic.
+If contention or a pause prevents validating order, it reports `position unknown`
+until an observation is available, then explicitly labels reused diagnostics
+`last observed`. Missing order is never treated as zero predecessors. Switching
+between a validated order and its cached diagnostic alone does not repeat the
+log; periodic reports and fresh pause reasons still apply (#491).
 
 While waiting it prints `[test-lock] waiting Ns for one of N full-suite slots …;
 held by:` and one `<repo> (<worktree>), make pid P, since T` line per holder,
