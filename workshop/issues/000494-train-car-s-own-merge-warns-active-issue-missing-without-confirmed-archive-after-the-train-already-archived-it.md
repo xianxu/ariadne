@@ -31,9 +31,21 @@ and its card is done). Harmless, but it reads as an error at the end of a succes
 When a car's merge finishes after the train landed it, treat "archived by the train" as the confirmed outcome (the
 train's `outcomes/<seq>` record says so), and print it as such, not as a missing-issue warning.
 
+Retain the validated landed outcome for this exact waiting ticket through cleanup. It is context for the confirmation, not proof that archival happened: the train publishes it before cleanup. Keep the ordinary per-PR provenance path unchanged. Only for this confirmed train outcome, and only for tracked completions owned by the car's exact PR, allow an already-published sibling archive to be discovered from bounded history of its destination path on fresh main. Reuse the existing archive-commit verifier: one ordinary commit, the exact issue generation and done-card binding, complete planned issue/plan/asset/side moves, unchanged current archived blobs, and no active residue. Missing, ambiguous, malformed or changed evidence still fails; never infer success from a missing active issue or OutcomeLanded alone. No new persisted fields, archive writes, retries, authority bypass or conductor scheduling changes.
+
+| Observed state | Visible result | Recovery | Possible loss |
+|---|---|---|---|
+| Own PR archive provenance confirms completion | Existing successful cleanup | None | None |
+| Confirmed train outcome plus exact sibling archive transition | “archived by the train” with train number | None | None |
+| Train outcome but active details remain | Existing ordinary archive/cleanup path | Wait for completion, or retry the printed merge command after a failure | None; preserve checkout on failure |
+| Outcome absent, invalid, or archive proof missing/changed | Existing explicit error; no success claim | Reconcile the named evidence, then retry the printed merge command | None; no cleanup authorized by uncertain proof |
+
+ARCH-DRY/PURE: extract and reuse the existing archive transition verifier, with IO in the history lookup. ARCH-ORDER/SECURE: outcome confirms landing only; immutable Git/card proof confirms archive, and only then permits local cleanup. ARCH-MOCK: real Git plus the existing stateful train GitHub fake, with a tracked two-car fixture and deterministic cleanup ordering. ARCH-CONSTRAINTS: at most the existing archive history limit per selected issue; this is terminal cleanup, no polling/hot-path work. ARCH-EVOLVE/FUNERAL: no format changes or new durable runtime artifacts.
+
 ## Done when
 
-- A 2-car train fixture: the second car's merge ends with a confirmed train-archive message, no warning (test).
+- A tracked 2-car train fixture: after the conductor archives the second car through its done-card sweep, the second real merge ends with “archived by the train”, no warning, and completes safe checkout/ref cleanup.
+- Missing, ambiguous, malformed, tampered or wrong-generation archive evidence remains a failure, and ordinary serial archive confirmation is unchanged.
 
 ## Plan
 
@@ -46,3 +58,7 @@ train's `outcomes/<seq>` record says so), and print it as such, not as a missing
 ### 2026-10-20
 
 - Investigation: pair landing events record train 176 landing tickets 176/178 (pair#724/#717) with train PR #484. Git history identifies #717 archive commit 7d4e0c3ab as the generic “archive after a merge outside sdlc” sweep, without Landing-PR/Landing-Head trailers. The conductor completes all reachable cards, archives its own PR, then finishLandedLeftovers archives sibling done cards. The waiting merge discards its landed outcome, and confirmLandingArchive requires its own PR trailers; missing active details then fail planLandingArchive. Existing outcome confirms landed only, not archive completion, and precedes cleanup. Preserve this distinction (ARCH-ORDER/SECURE); no production edits yet. A tracked two-real-car fixture is required: legacy train fixtures do not run the done-card sweep.
+
+## Revisions
+
+- 2026-10-20: refine the original outcome-only wording after investigation showed that landed outcomes precede archival. Require the existing immutable archive-transition proof in addition to the retained outcome, preserving the requested successful train-archive report without treating landing as archive success. Proof design awaiting hub approval before implementation.
