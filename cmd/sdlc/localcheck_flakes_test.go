@@ -296,7 +296,8 @@ func TestKnownFlakeGate(t *testing.T) {
 // nestedFlakeRepo adds a real Go module to a local-run repo: TestScripts has
 // subtests plain/dev-aliases.test.sh (flaky: fails once per $FLAKE_DIR, then
 // passes) and plain/other.test.sh (fails while $FLAKE_DIR/sibling exists).
-// The suite is plain `go test -v`; the rerun is the real knownFlakeRerunArgv.
+// The suite uses Go JSON for proven subtest events; the rerun is the real
+// knownFlakeRerunArgv. Raw indented subtests coarsen under #476.
 func nestedFlakeRepo(t *testing.T) (localRunDeps, string, *ciFakeGH, *bytes.Buffer, string) {
 	t.Helper()
 	d, _, gh, stderr := localRunRepo(t, "acquired")
@@ -361,7 +362,7 @@ func TestKnownFlakeGateSubtest(t *testing.T) {
 	}
 	ctx := context.Background()
 	const top = "example.com/flaky/pkg.TestScripts"
-	suite := localCheck{Name: suiteCheckName, Command: []string{"go", "test", "-count=1", "-v", "./..."}, TimeoutMinutes: 30}
+	suite := localCheck{Name: suiteCheckName, Command: []string{"go", "test", "-count=1", "-json", "./..."}, TimeoutMinutes: 30}
 	t.Run("the registered subtest reruns and lands", func(t *testing.T) {
 		d, sha, gh, stderr, _ := nestedFlakeRepo(t)
 		d.FlakeRegistry = gateRegistry(t, top+"/plain/dev-aliases.test.sh")
@@ -418,7 +419,7 @@ FAIL	example.com/m/pkg	0.02s
 		log, top string
 		subs     []string
 	}{
-		"go test -v": {plain, "example.com/m/pkg.TestX", []string{"example.com/m/pkg.TestX/plain", "example.com/m/pkg.TestX/plain/dev-aliases.test.sh"}},
+		"go test -v": {plain, "example.com/m/pkg.TestX", nil},
 		"sharded":    {sharded, "example.com/m/scripts/test.TestConstructScripts", []string{"example.com/m/scripts/test.TestConstructScripts/plain"}},
 		"json":       {jsonLog, "example.com/m/pkg.TestX", []string{"example.com/m/pkg.TestX/plain", "example.com/m/pkg.TestX/plain/a.sh"}},
 	} {
@@ -440,18 +441,28 @@ FAIL	example.com/m/pkg	0.02s
 func TestSuitePassGuardReadsSubtestsFromTheLog(t *testing.T) {
 	ctx := context.Background()
 	const top = "o/r/pkg.TestX"
-	failing := localCheck{Name: suiteCheckName, TimeoutMinutes: 30, Command: []string{"sh", "-c",
-		"printf -- '--- FAIL: TestX (0.00s)\\n    --- FAIL: TestX/plain (0.00s)\\n        --- FAIL: TestX/plain/dev.sh (0.00s)\\nFAIL\\nFAIL\\to/r/pkg\\t0.01s\\n'; exit 1"}}
+	jsonLog := `{"Action":"fail","Package":"o/r/pkg","Test":"TestX/plain/dev.sh"}` + "\n" +
+		`{"Action":"fail","Package":"o/r/pkg","Test":"TestX"}` + "\n" +
+		`{"Action":"fail","Package":"o/r/pkg","Elapsed":0.01}` + "\n"
+	rawLog := "--- FAIL: TestX (0.00s)\n    --- FAIL: TestX/plain/dev.sh (0.00s)\nFAIL o/r/pkg 0.01s\n"
 	pass := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", "echo passed"}, TimeoutMinutes: 30}
 	for name, c := range map[string]struct {
 		registered string
 		lands      bool
+		raw        bool
 	}{
-		"the failing subtest registered": {top + "/plain/dev.sh", true},
-		"only its sibling registered":    {top + "/plain/other.sh", false},
+		"the failing structured subtest registered": {top + "/plain/dev.sh", true, false},
+		"only its sibling registered":               {top + "/plain/other.sh", false, false},
+		"raw leaf-only registration cannot cover":   {top + "/plain/dev.sh", false, true},
+		"raw proven parent registration covers":     {top, true, true},
 	} {
 		t.Run(name, func(t *testing.T) {
 			d, sha, gh, _ := localRunRepo(t, "acquired")
+			log := jsonLog
+			if c.raw {
+				log = rawLog
+			}
+			failing := localCheck{Name: suiteCheckName, TimeoutMinutes: 30, Command: []string{"sh", "-c", `printf '%s' "$1"; exit 1`, "fixture", log}}
 			d.FlakeRegistry = gateRegistry(t, "o/r/pkg.TestUnrelated")
 			if rec, err := runLocalCheck(ctx, d, failing, sha); err != nil || rec.passed() {
 				t.Fatalf("%+v %v", rec, err)

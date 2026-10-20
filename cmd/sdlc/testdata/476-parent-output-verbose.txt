@@ -1,0 +1,35 @@
+=== RUN   TestParentAfter
+=== RUN   TestParentAfter/child
+    output_test.go:6: real failure
+=== NAME  TestParentAfter
+    output_test.go:7: nested helper output:
+        --- FAIL: TestParentAfter/child/helper (0.01s)
+--- FAIL: TestParentAfter (0.00s)
+    --- FAIL: TestParentAfter/child (0.00s)
+=== RUN   TestParentBefore
+    output_test.go:11: nested helper output:
+        --- FAIL: TestParentBefore/helper (0.01s)
+=== RUN   TestParentBefore/child
+    output_test.go:12: real failure
+--- FAIL: TestParentBefore (0.00s)
+    --- FAIL: TestParentBefore/child (0.00s)
+=== RUN   TestNestedReturnAndSibling
+=== RUN   TestNestedReturnAndSibling/first
+=== RUN   TestNestedReturnAndSibling/first/grand
+    output_test.go:17: real grandchild failure
+=== NAME  TestNestedReturnAndSibling/first
+    output_test.go:18: nested helper output:
+        --- FAIL: TestNestedReturnAndSibling/first/grand/helper (0.01s)
+=== RUN   TestNestedReturnAndSibling/second
+    output_test.go:20: real sibling failure
+=== NAME  TestNestedReturnAndSibling
+    output_test.go:21: nested helper output:
+        
+        --- FAIL: TestNestedReturnAndSibling/second/helper (0.01s)
+--- FAIL: TestNestedReturnAndSibling (0.00s)
+    --- FAIL: TestNestedReturnAndSibling/first (0.00s)
+        --- FAIL: TestNestedReturnAndSibling/first/grand (0.00s)
+    --- FAIL: TestNestedReturnAndSibling/second (0.00s)
+FAIL
+exit status 1
+FAIL	example.com/ariadne476output	0.051s
