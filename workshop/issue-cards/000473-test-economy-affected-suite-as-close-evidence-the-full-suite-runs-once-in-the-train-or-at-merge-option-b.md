@@ -1,6 +1,6 @@
 ---
 id: 000473
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-20
 estimate_hours: 2.37
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: cd915a78a03859cac5af39bd19ec079eba71961d
         evidence_commit: 0c8cbda84bf06047b4cdc95ef6b66c15fb3cf46f
+        landed_commit: 8c6031ab418224362628ba71192548265c3b8582
 ---
 
 # test-economy: affected-suite as close evidence; the full suite runs once, in the train or at merge (option B')
