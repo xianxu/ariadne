@@ -104,3 +104,17 @@ func TestAffectedStatsAreTheirOwnRow(t *testing.T) {
 		t.Fatalf("affected row %+v", rows)
 	}
 }
+
+// #473 M2: a repo whose window holds only affected runs reports one affected
+// row and no empty suite row; with both, the suite row comes first.
+func TestTestStatsRowsNeedRuns(t *testing.T) {
+	t0 := time.Date(2026, 10, 20, 9, 0, 0, 0, time.UTC)
+	aff := SuiteAttempt{ID: "a1", Repo: "pair", SHA: "c", Check: affectedCheckName, StartedAt: t0, FinishedAt: t0.Add(time.Minute)}
+	suite := SuiteAttempt{ID: "s1", Repo: "pair", SHA: "a", Check: suiteCheckName, StartedAt: t0, FinishedAt: t0.Add(time.Minute)}
+	if rows := testStatsRows([]SuiteAttempt{aff}, t0.Add(-time.Hour), "pair"); len(rows) != 1 || rows[0].Check != affectedCheckName {
+		t.Fatalf("affected only: %+v", rows)
+	}
+	if rows := testStatsRows([]SuiteAttempt{aff, suite}, t0.Add(-time.Hour), "pair"); len(rows) != 2 || rows[0].Check != "" || rows[1].Check != affectedCheckName {
+		t.Fatalf("both: %+v", rows)
+	}
+}

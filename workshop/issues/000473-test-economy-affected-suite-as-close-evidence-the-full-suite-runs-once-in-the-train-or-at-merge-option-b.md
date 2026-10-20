@@ -127,4 +127,6 @@ Each `impl` is 40% of the v2 range's upper end.
   - **Task 8:** wording in close's VERIFIED example, the landing and local-check help, AGENTS.base.md (base layer: it
     propagates downstream) and the atlas. The publish gate's conflict-resolution instruction keeps the full suite on
     purpose, because the resolution changes main's code too.
+- M2 closed SHIP (review rounds 4–5): BR-9 and BR-10 fixed. Its advisory Minor, an empty suite row in test-stats for
+  an affected-only repo, is fixed in the same round: `testStatsRows` keeps a row only when its window holds runs.
 

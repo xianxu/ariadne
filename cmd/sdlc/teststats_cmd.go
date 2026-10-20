@@ -147,13 +147,7 @@ func runTestStats(out io.Writer, flags testStatsFlags, deps testStatsDeps) error
 		for _, warning := range legacyWarnings {
 			report.Warnings = append(report.Warnings, name+": "+warning)
 		}
-		rows := aggregateSuiteAttempts(attempts, since, name)
-		if len(rows) != 0 {
-			report.Repos = append(report.Repos, rows[0])
-		}
-		if rows := aggregateCheckAttempts(attempts, since, name, affectedCheckName); len(rows) != 0 && rows[0].Runs > 0 {
-			report.Repos = append(report.Repos, rows[0])
-		}
+		report.Repos = append(report.Repos, testStatsRows(attempts, since, name)...)
 	}
 	if flags.JSON {
 		enc := json.NewEncoder(out)
@@ -161,6 +155,19 @@ func runTestStats(out io.Writer, flags testStatsFlags, deps testStatsDeps) error
 		return enc.Encode(report)
 	}
 	return renderTestStatsText(out, report)
+}
+
+// testStatsRows are a repo's report rows: its suite, then its affected suite
+// (#473), each only when the window holds runs of it; flake evidence alone
+// (a rerun, the other check's attempts) makes no row.
+func testStatsRows(attempts []SuiteAttempt, since time.Time, repo string) []RepoStats {
+	var out []RepoStats
+	for _, check := range []string{suiteCheckName, affectedCheckName} {
+		if rows := aggregateCheckAttempts(attempts, since, repo, check); len(rows) != 0 && rows[0].Runs > 0 {
+			out = append(out, rows[0])
+		}
+	}
+	return out
 }
 
 func readLegacySuiteLogs(common, repo string, known map[string]bool) ([]SuiteAttempt, []string) {
