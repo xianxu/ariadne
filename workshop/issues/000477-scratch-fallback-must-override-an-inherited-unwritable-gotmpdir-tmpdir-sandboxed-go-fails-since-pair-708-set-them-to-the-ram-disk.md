@@ -1,13 +1,21 @@
 ---
 id: 000477
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'b40316cdad8f84c482b2b06592b7bf4b5b7080a7' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '68599ddc08daa58af6ab996e4674f7ee994f96cf' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-19T17:59:41-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Scratch fallback must override an inherited unwritable GOTMPDIR/TMPDIR (sandboxed go fails since pair#708 set them to the RAM disk)
@@ -41,9 +49,29 @@ inherited) from the slot shell and fails anyway.
 
 ## Plan
 
-- [ ]
+- [ ] Repair scratch and normal-temp fallback with explicit child environment and cleanup.
+- [ ] Classify proven startup environment errors without publishing code-failure evidence; cover ordinary and train baselines.
+- [ ] Verify focused and recorded suites, close on SHIP and land.
+
+Durable plan: [scratch environment plan](../plans/000477-scratch-environment-plan.md).
 
 ## Log
 
 - The real fix for the sandbox side is the operator adding `/Volumes/TestScratch` to the agents' sandbox write
   allowlist (a local-gates change, Needs you since #468). This issue makes sdlc robust either way.
+
+
+### 2026-10-19 — diagnosis and proposed boundary
+
+prepareScratch returns nil env on rejected scratch or failed scratch mkdir, so
+runUnderSlot inherits the bad variables. Detached-worktree creation also uses
+os.TempDir before that point, so an invalid TMPDIR can fail earlier. The scratch
+fix must repair both boundaries through shared normal fallback selection.
+
+Read-only exploration found that an ordinary saved failed SuiteAttempt would
+poison a later same-head pass through guardSuitePass. The proposal retains
+recognized environment startup output in a separate bounded diagnostic log,
+returns a could-not-run error before status/attempt/flake publication, and
+propagates baseline execution errors through train diagnosis. No persisted
+format change, sandbox setting change, live denial probe or #476 attribution
+change is proposed. Full durable plan is ready for hub approval before code.
