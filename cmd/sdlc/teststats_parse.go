@@ -33,6 +33,10 @@ type SuiteLogFacts struct {
 	// build error, a timeout, a shard or package that failed without a
 	// failing test, tests that never ran. Such a failure is never a flake.
 	Unattributed []string `json:"unattributed,omitempty"`
+	// Subtests are the failing subtests the log names (#466). Never
+	// persisted: records keep top-level failures, and a reader that needs
+	// subtests reads them from the log again.
+	Subtests []string `json:"-"`
 }
 
 const suiteLogLineLimit = 1 << 20
@@ -68,7 +72,11 @@ func parseSuiteLogFacts(log string) SuiteLogFacts {
 		}
 		start = index + 1
 	}
-	facts := SuiteLogFacts{Failures: failingTests(log)}
+	facts := SuiteLogFacts{Failures: failingTests(log), Subtests: failingSubtests(log)}
+	subtests := make(map[string]struct{}, len(facts.Subtests))
+	for _, name := range facts.Subtests {
+		subtests[name] = struct{}{}
+	}
 	facts.Unattributed = unattributedFailures(log, facts.Failures)
 	failures := make(map[string]struct{}, len(facts.Failures))
 	for _, name := range facts.Failures {
@@ -85,8 +93,12 @@ func parseSuiteLogFacts(log string) SuiteLogFacts {
 			if event.Action == "fail" {
 				facts.Failed = true
 			}
-			if event.Action == "fail" && event.Package != "" && event.Test != "" && !strings.Contains(event.Test, "/") {
-				failures[event.Package+"."+event.Test] = struct{}{}
+			if event.Action == "fail" && event.Package != "" && event.Test != "" {
+				if strings.Contains(event.Test, "/") {
+					subtests[event.Package+"."+event.Test] = struct{}{}
+				} else {
+					failures[event.Package+"."+event.Test] = struct{}{}
+				}
 			}
 			if (event.Action == "pass" || event.Action == "fail") && event.Test == "" {
 				if event.Package == "" || event.Elapsed == nil || math.IsNaN(*event.Elapsed) || math.IsInf(*event.Elapsed, 0) || *event.Elapsed < 0 {
@@ -136,6 +148,13 @@ func parseSuiteLogFacts(log string) SuiteLogFacts {
 			facts.Failures = append(facts.Failures, name)
 		}
 		sort.Strings(facts.Failures)
+	}
+	if len(subtests) != 0 {
+		facts.Subtests = facts.Subtests[:0]
+		for name := range subtests {
+			facts.Subtests = append(facts.Subtests, name)
+		}
+		sort.Strings(facts.Subtests)
 	}
 	return facts
 }

@@ -82,7 +82,9 @@ code and settings travel with the reviewed issue branch. See
 [trunk publication](atlas/workflow/sdlc-binary.md#issue-reservation-local-durability-and-publication-244).
 
 Attach evidence with `sdlc issue attach --issue N --file PATH --caption TEXT`,
-then commit both changed paths on the issue branch or use `sdlc issue publish`.
+from the issue's canonical branch once work has started, or from the resting
+branch while it is still open. Then commit both changed paths on the issue
+branch or use `sdlc issue publish` for an open issue.
 The issue body indexes a bounded plain-Git bundle that follows publish,
 archive, restore and slot moves. Repository policy is operator-owned;
 public or unknown host visibility defaults to text-only, private to allowed.
@@ -108,9 +110,13 @@ The issue branch is pushed at every boundary (start-plan, milestone-close,
 close, unclaim), leased on the copy last fetched, so started work survives a
 lost machine; `sdlc merge` deletes it from the remote once landed (#286).
 Started work ends as `wontfix` or `punt` only through `sdlc abandon --issue N
---as wontfix|punt --reason …`: the tip is kept under
+--as wontfix|punt --reason …` from that issue's canonical branch. The tip is kept under
 `refs/ariadne/abandoned/NNNNNN`, the card records it, the details are archived
-on main and the branch is deleted. `sdlc issue set-status working` reopens it,
+on main, and the remote is leased to the archived tip before deletion. Local
+deletion requires that same tip and no other worktree holding the branch. A
+terminal abandon interrupted after recording the card can
+be retried from its recorded branch or the resting branch; another issue's
+branch is refused. `sdlc issue set-status working` reopens it,
 restoring the branch at that tip with the details moved back out of the
 archive.
 
@@ -541,7 +547,11 @@ and culprit.
 
 Merge refuses red CI on the PR head. Durable workspaces wait up to 20 minutes
 for pending CI, integrate a moved main locally, and recheck main before landing
-(up to three integrations); conflicts abort with the paths to resolve. Legacy
+(up to three code integrations); conflicts abort with the paths to resolve.
+Issue-only main movement does not spend that budget. Fresh GitHub CLEAN evidence
+for the exact PR/head and live base allows the tested head to land unchanged;
+otherwise normal integration and exact-head CI apply. The narrow record policy
+is described in [durable PR landing](atlas/workflow/sdlc-binary.md#durable-pr-landing). Legacy
 worktrees require manual main integration and refuse pending CI.
 A repository can declare local
 checks in `.sdlc/local-checks.json` on main: `sdlc local-check run --name X`
@@ -556,12 +566,39 @@ never another slot's; never stop one by a PID picked from `ps`. When a finished
 check's status post can't reach GitHub, `sdlc local-check republish --name X`
 posts the saved result later, with no rerun.
 
+Recorded suites and their baselines replace unusable inherited `TMPDIR` and
+`GOTMPDIR` with writable per-run paths, even when TestScratch falls back.
+A proven Go work-directory startup failure reports an environment error naming
+those variables, with a separate `.environment.log`; it posts no code-failure
+status or suite attempt. Repair access and rerun the same check or merge. A
+baseline that could not start leaves main's health unknown. Mixed or ambiguous
+output keeps the ordinary failure rules, and earlier real failures still block.
+
 Known flaky tests are registered on their issues (#394). A test is a known flake
 while an open issue's card lists it in `flake_tests`. `sdlc flake register --test
 PKG.TestX [--issue N]` writes the field only with same-head fail→pass evidence
 from this machine's test-stats store (or `--evidence TEXT` for a CI run); without
 `--issue` it files an unclaimed flake issue. Closing the issue unregisters its
-tests. `sdlc flake list` is the TL's local daily view: the registry with each
+tests.
+
+A name may be an exact subtest (#466), such as `PKG.TestX/plain/dev-aliases.test.sh`.
+- **What it explains:** only its own failure and its subtests'. A sibling
+  subtest's failure stays unknown and blocks.
+- **Rerun:** its rerun is the whole top-level test, and it must show the
+  subtest's PASS line.
+- **Evidence:** registering a subtest needs the top-level test's same-head
+  fail→pass, and the failed attempt's saved log must name that subtest.
+- **Correcting a registration:**
+  - `sdlc flake narrow --issue N --test OLD --to OLD/sub` replaces a name with one of its own subtests, with no new evidence.
+  - `sdlc flake unregister --issue N --test NAME` removes a name.
+  - Both are for the card's owner, or anyone while the issue is unclaimed.
+- **Rollout:** rebuild :0, and refresh the slots, before registering a subtest
+  name. An older sdlc reads one as malformed and turns the known-flake rule off:
+  every failure blocks. It also refuses a test-stats attempt whose
+  `known_flakes` names a subtest, so its success guard and test-stats fail
+  closed until it is rebuilt.
+
+`sdlc flake list` is the TL's local daily view: the registry with each
 issue's owner and age, same-head flakes not yet registered, and failures nothing
 explains, each with its log. A same-head failure is omitted from the default
 unregistered list when exactly one closed issue claims its fully qualified test

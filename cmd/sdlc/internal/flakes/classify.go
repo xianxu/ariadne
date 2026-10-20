@@ -59,6 +59,38 @@ type Result struct {
 	Passed       bool
 	Failures     []string // exact "<pkg>.<Test>" names
 	Unattributed []string // why some failure has no test name; empty when every failure is named
+	// Subtests are the failing subtests the log names (#466), as
+	// "<pkg>.<Test>/<sub>…"; a failing top-level test is explained by its
+	// failing leaves (Leaves), each covered by a registered name.
+	Subtests []string
+}
+
+// explain splits a run's failures into the registered names that cover them
+// (known, unique) and the leaves nothing covers (unknown): a failing
+// top-level test is judged by its failing leaf subtests, so a registered
+// subtest explains its own failure and never its sibling's.
+func explain(r Result, reg Registry) (known []Entry, unknown []string) {
+	for _, f := range r.Failures {
+		for _, leaf := range Leaves(f, r.Subtests) {
+			e, ok := reg.Cover(leaf)
+			if !ok {
+				unknown = append(unknown, leaf)
+				continue
+			}
+			if !slices.ContainsFunc(known, func(k Entry) bool { return k.Test == e.Test }) {
+				known = append(known, e)
+			}
+		}
+	}
+	return known, unknown
+}
+
+// topOf is a failing name's top-level test.
+func topOf(name string) string {
+	if n, ok := ParseName(name); ok {
+		return n.Top()
+	}
+	return name
 }
 
 // Input is everything the gate decides from. Rerun is nil until the targeted
@@ -115,21 +147,13 @@ func Classify(in Input) Outcome {
 	if in.RegistryErr != nil {
 		return Outcome{Kind: RegistryUnusable, Unknown: a.Failures, Reason: in.RegistryErr.Error()}
 	}
-	var known []Entry
-	var unknown []string
-	for _, f := range a.Failures {
-		if id, ok := in.Registry.Lookup(f); ok {
-			known = append(known, Entry{Test: f, Issue: id})
-		} else {
-			unknown = append(unknown, f)
-		}
-	}
+	known, unknown := explain(a, in.Registry)
 	if len(unknown) > 0 {
 		o := Outcome{Kind: Unknown, Known: known, Unknown: unknown, Reason: "unknown failure: " + strings.Join(unknown, ", ")}
 		if in.MainBaseline != nil && !in.MainBaseline.Passed {
 			var both []string
 			for _, u := range unknown {
-				if slices.Contains(in.MainBaseline.Failures, u) {
+				if slices.Contains(in.MainBaseline.Failures, topOf(u)) {
 					both = append(both, u)
 				}
 			}
@@ -153,6 +177,11 @@ func Classify(in Input) Outcome {
 	}
 	if in.Rerun.Passed {
 		return Outcome{Kind: KnownFlakePassed, Known: known, Reason: "known flake: the rerun passed"}
+	}
+	// The rerun runs whole top-level tests (RerunTests): a sibling that
+	// failed there is no known flake, and says so.
+	if _, rerunUnknown := explain(*in.Rerun, in.Registry); len(rerunUnknown) > 0 {
+		return Outcome{Kind: Unknown, Known: known, Unknown: rerunUnknown, Reason: "the known-flake rerun failed elsewhere: " + strings.Join(rerunUnknown, ", ")}
 	}
 	return Outcome{Kind: KnownFlakeTwice, Known: known, Unknown: in.Rerun.Failures, Reason: "known flake failed twice on this head: " + strings.Join(tests(known), ", ")}
 }
@@ -196,15 +225,29 @@ func Revalidate(o Outcome, r Registry, regErr error, policy Policy) Outcome {
 }
 
 // RerunMissing lists the tests a rerun log does not show passing. The rerun
-// runs `go test -v`, so each named test prints "--- PASS: <name> (…)"; a run
-// that matched no test exits 0 without it, which proves nothing.
+// runs `go test -v`, so each named test or subtest prints
+// "--- PASS: <Test>[/<sub>…] (…)"; a run that matched no test exits 0 without
+// it, which proves nothing.
 func RerunMissing(log string, tests []string) []string {
 	var missing []string
 	for _, t := range tests {
-		_, fn, _ := SplitTest(t)
-		if !strings.Contains(log, "--- PASS: "+fn+" (") {
+		n, ok := ParseName(t)
+		if !ok || !strings.Contains(log, "--- PASS: "+n.Run()+" (") {
 			missing = append(missing, t)
 		}
 	}
 	return missing
+}
+
+// RerunTests are the whole top-level tests a known set reruns (#466): a
+// registered subtest reruns its top-level test, siblings and all, so one go
+// test invocation covers every entry and a sibling that fails there blocks.
+func RerunTests(known []Entry) []string {
+	var out []string
+	for _, e := range known {
+		if top := topOf(e.Test); !slices.Contains(out, top) {
+			out = append(out, top)
+		}
+	}
+	return out
 }

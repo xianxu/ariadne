@@ -162,7 +162,7 @@ func guardSuitePass(ctx context.Context, d localRunDeps, sha string) error {
 	if d.FlakeRegistry != nil {
 		reg, regErr = d.FlakeRegistry(ctx)
 	}
-	u := flakes.Unexplained(flakeAttempts(ev), sha, reg)
+	u := flakes.Unexplained(withLogSubtests(flakeAttempts(ev), ev, storeSubtests(suiteStoreRoot(logDir))), sha, reg)
 	if len(u) == 0 {
 		return nil
 	}
@@ -187,7 +187,7 @@ func guardSuitePass(ctx context.Context, d localRunDeps, sha string) error {
 			"  Registering a flake cannot explain it: fix it, and land a commit whose suite passes (#394)", why)
 	}
 	return refuse("an earlier failure on this head is unexplained: %s.\n"+
-		"  If it is intermittent, this fail→pass is its evidence: `sdlc flake register --test <pkg.TestName>`, then %q.\n"+
+		"  If it is intermittent, this fail→pass is its evidence: `sdlc flake register --test <PKG.TestName[/sub…]>`, then %q.\n"+
 		"  Otherwise fix it; a passing rerun alone never lands (#394)", why, republishCommand(suiteCheckName, sha))
 }
 

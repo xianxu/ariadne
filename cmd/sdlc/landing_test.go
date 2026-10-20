@@ -36,6 +36,10 @@ type landingFakeGH struct {
 	firstListing     []landingPR // when lagFirst: the first LandingPRs answer, a lagging listing
 	lagFirst         bool
 	listings         int
+	readinessStatus  string
+	readinessErr     error
+	requireUpToDate  bool
+	afterReadiness   func()
 }
 
 func (g *landingFakeGH) PRHeadOID(ctx context.Context, repo string, n int) (string, error) {
@@ -81,6 +85,37 @@ func (g *landingFakeGH) LandingPRs(context.Context, string, string) ([]landingPR
 		}
 	}
 	return append(append([]landingPR(nil), g.older...), g.pr), nil
+}
+
+// Model effective readiness from real remote refs, with exact-head CI stored
+// separately. Unknown is the conservative default for older fixture callers.
+func (g *landingFakeGH) LandingReadiness(ctx context.Context, repo string, n int) (landingReadiness, error) {
+	if g.readinessErr != nil {
+		return landingReadiness{}, g.readinessErr
+	}
+	if repo != g.pr.Repo || n != g.pr.Number {
+		return landingReadiness{}, errors.New("wrong readiness identity")
+	}
+	prs, err := g.LandingPRs(ctx, repo, g.pr.HeadRef)
+	if err != nil || len(prs) == 0 {
+		return landingReadiness{}, err
+	}
+	head := g.pr.HeadOID
+	base := git(g.t, g.remote, "rev-parse", "refs/heads/main")
+	status := g.readinessStatus
+	if status == "CLEAN" {
+		if g.requireUpToDate && !gitSucceeds(g.remote, "merge-base", "--is-ancestor", base, head) {
+			status = "BEHIND"
+		}
+		if !gitSucceeds(g.remote, "merge-tree", "--write-tree", base, head) {
+			status = "DIRTY"
+		}
+	}
+	observation := landingReadiness{Repo: repo, Number: n, State: g.pr.State, HeadRef: g.pr.HeadRef, HeadOID: head, BaseRef: "main", BaseTargetOID: base, MergeStateStatus: status}
+	if g.afterReadiness != nil {
+		g.afterReadiness()
+	}
+	return observation, nil
 }
 
 func (g *landingFakeGH) PostStatus(ctx context.Context, repo, sha, statusContext, state, desc string) error {

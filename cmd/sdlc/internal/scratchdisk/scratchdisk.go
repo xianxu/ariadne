@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"syscall"
 )
 
@@ -19,10 +20,11 @@ const (
 
 // Probe is what the RAM disk looked like when read.
 type Probe struct {
-	Root      string
-	Mounted   bool // its own file system, so an unmounted path is never written to the SSD
-	FreeBytes uint64
-	Err       error
+	Root       string
+	Mounted    bool // its own file system, so an unmounted path is never written to the SSD
+	FreeBytes  uint64
+	FileSystem string // statfs type; Darwin scratch requires APFS (#474)
+	Err        error
 }
 
 // Choose decides whether to use the disk. note is empty when the disk is
@@ -33,6 +35,12 @@ func Choose(p Probe, floor uint64) (use bool, note string) {
 		return false, ""
 	case p.Err != nil:
 		return false, fmt.Sprintf("test scratch %s unreadable (%v); using the normal folder", p.Root, p.Err)
+	case runtime.GOOS == "darwin" && p.FileSystem != "apfs":
+		name := p.FileSystem
+		if name == "" {
+			name = "unknown"
+		}
+		return false, fmt.Sprintf("test scratch %s is %s; APFS required for nanosecond timestamps and clonefile; using the normal folder", p.Root, name)
 	case p.FreeBytes < floor:
 		return false, fmt.Sprintf("test scratch %s has %d MiB free (< %d MiB); using the normal folder", p.Root, p.FreeBytes>>20, floor>>20)
 	}
@@ -40,7 +48,8 @@ func Choose(p Probe, floor uint64) (use bool, note string) {
 }
 
 // Read probes the disk. WF_TEST_SCRATCH names another root (a fixture, or the
-// operator's override) and skips the mount check; "off" turns it off.
+// operator's override) and skips only the mount check, never Darwin's APFS
+// requirement; "off" turns it off.
 func Read() Probe {
 	root, explicit := os.LookupEnv("WF_TEST_SCRATCH")
 	switch {
@@ -63,6 +72,7 @@ func Read() Probe {
 		return p
 	}
 	p.FreeBytes = uint64(fs.Bavail) * uint64(fs.Bsize)
+	p.FileSystem = fileSystemName(&fs)
 	return p
 }
 
@@ -80,10 +90,21 @@ func Use() (root, note string) {
 // every place one may live, for a sweep. A folder's path is fixed when it is
 // made, so one started on either root stays there; all lists the disk's
 // folder whenever the disk is mounted and readable, full or not, so a sweep
-// still reclaims what an earlier run left on it. note says why a mounted disk
+// still reclaims what an earlier run left on it. An os.TempDir fallback also
+// enumerates all normal roots MkdirTemp may repair into. note says why a mounted disk
 // was passed over.
 func Roots(sub, fallback string) (create string, all []string, note string) {
-	p := Read()
+	create, all, note = roots(Read(), sub, fallback)
+	if fallback == os.TempDir() {
+		// MkdirTemp can repair this fallback. Sweep every possible repaired
+		// root even when the inherited root works again; old runs stay put.
+		user, _ := UserTempDir() // cleanup is best-effort if the lookup fails
+		all = tempRoots(append(all, user, normalTempFallback)...)
+	}
+	return create, all, note
+}
+
+func roots(p Probe, sub, fallback string) (create string, all []string, note string) {
 	use, note := Choose(p, Floor)
 	create, all = fallback, []string{fallback}
 	if p.Mounted && p.Err == nil {
@@ -99,7 +120,12 @@ func Roots(sub, fallback string) (create string, all []string, note string) {
 // MkdirTemp makes a fresh folder for the sub family, on the disk when Roots
 // picks it and the disk accepts the write, else under fallback: a mounted disk
 // that refuses writes (an agent sandbox denies it) costs the RAM, never the run.
+// An unusable os.TempDir fallback is repaired lazily; custom roots retain their errors.
 func MkdirTemp(sub, fallback, pattern string) (string, error) {
+	return mkdirTemp(sub, fallback, pattern, NormalTempDir)
+}
+
+func mkdirTemp(sub, fallback, pattern string, normal func() (string, error)) (string, error) {
 	create, _, _ := Roots(sub, fallback)
 	if create != fallback {
 		if os.MkdirAll(create, 0o755) == nil {
@@ -108,8 +134,20 @@ func MkdirTemp(sub, fallback, pattern string) (string, error) {
 			}
 		}
 	}
-	if err := os.MkdirAll(fallback, 0o755); err != nil {
+	dir, err := makeTemp(fallback, pattern)
+	if err == nil || fallback != os.TempDir() {
+		return dir, err
+	}
+	root, selectErr := normal()
+	if selectErr != nil {
+		return "", fmt.Errorf("normal temp fallback after %v: %w", err, selectErr)
+	}
+	return makeTemp(root, pattern)
+}
+
+func makeTemp(root, pattern string) (string, error) {
+	if err := os.MkdirAll(root, 0o755); err != nil {
 		return "", err
 	}
-	return os.MkdirTemp(fallback, pattern)
+	return os.MkdirTemp(root, pattern)
 }

@@ -1,6 +1,7 @@
 tl-lead: running a project as the TL in a Couch hub
 
-You are the TL: the agent in the hub slot, the slot Couch started from. Read
+You are the TL: the agent in a hub slot, the :0 slot of your team's ops repo
+(a checkout with .hub at its root; see TEAMS). Read
 this at the start of a TL session and after a compaction; it is the single
 source of the lead's procedure and always current. Taking over (another model,
 a fresh session, a switched slot): read this first, then confirm with the
@@ -21,8 +22,51 @@ ROLES
     smoke-test decisions. The landing line orders landings; the TL does not
     manually sequence their admission.
   - Workers own one issue at a time.
-  - One TL per operator, in that operator's ops slot. TLs coordinate only
-    through the project file and the issue tracker.
+  - One TL per team, in the :0 slot of the team's ops repo (TEAMS). Teams
+    coordinate through the issue trackers, the project file and one-line
+    heads-ups, never by relaying each other's filings.
+
+TEAMS (ariadne#456: one team per ops repo)
+  - A team is an ops repo (`~/workspace/ops`, `~/workspace/ops-echo`): its
+    :0 slot is the TL, addressed like any slot (`ops:0`, `ops-echo:0`). A slot
+    whose checkout has .hub at its root runs this contract; every other slot
+    runs `tl-worker`. A TL never lives in a product repo.
+  - .hub, at the ops repo root and committed, is the one ownership list:
+    claim lines only, a repo (every slot of it) or repo:N (one slot), the file
+    Couch reads. It changes when ownership changes, never when a slot parks.
+    team.md beside it holds prose (what the team asks other teams for) and
+    points at .hub; it never repeats the list.
+  - Ownership is Couch's rule: an exact repo:N claim beats a repo claim;
+    between equal claims, and for a slot nobody claims, the first hub on
+    Couch's command line wins. tl-lead can't see that order, so it lists
+    every claimant of a tie and calls an unclaimed slot unclaimed.
+  - The steward is the first hub on Couch's command line
+    (`couch ~/workspace/ops ~/workspace/ops-echo` makes ops:0 the steward).
+    It owns what the machine shares: the test queue and landing grants, quota
+    tracking, Couch incidents and restarts, and the :0 rebuilds. Other teams
+    take those to it as heads-ups.
+  - Routing: send a cross-team need to the owning hub, found with
+        tl-lead team list [REPO]
+    which lists each team's claims (and warns on a repo two teams claim), or
+    with REPO names its owner. See new issues nobody has claimed in your
+    repos with
+        tl-lead team issues [--limit N]
+  - A new team: create or adopt its ops repo with
+        tl-lead team new PATH --claim C [--claim C]...
+    which writes .hub and team.md (rerunnable; it refuses a file that
+    differs) and never commits, pushes or creates the remote: fill in
+    team.md, commit, create and push the repo, and add it to Couch's command
+    line (an operator restart). Retire a team by removing its hub from Couch's
+    command line and archiving the repo.
+  - Resuming the fleet is one verb the operator asks for ("resume the
+    fleet"), never run at startup:
+        tl-lead fleet resume            (a dry run: each of your slots classed)
+        tl-lead fleet resume --apply    (resumes the resume class, one at a time)
+    running and idle slots are left alone; resume means down with work in
+    flight and a proven conversation; ambiguous (a tie, an unclaimed slot, or
+    work without a proven conversation) goes to Needs you with Couch's
+    choices; unknown means a read failed: never treated as down. Couch's
+    runtime moves (`--move-slot`) are not visible to it, and it says so.
 
 RUNNING A PROJECT (the order of play; the project file holds the state)
   1. Frame. A pensive or parley becomes a project file. Its Charter states the
@@ -298,8 +342,10 @@ DISPATCH
   - Dispatch design-heavy items to a Claude slot
     (an invariant, a new mechanism, user-visible state); send
     bounded execution against a fixed design to Codex.
-  - The TL files or folds cross-repo proposals from workers, preserving the
-    cross-repo picture. Workers keep filing within their own repository.
+  - Workers file directly in the repository where a problem lives, in
+    any team's repo, and tell you in one line (`tl-worker --help`). You never
+    relay a filing: groom it into a train if your team owns the repo, else
+    send its owner a one-line heads-up ("filed pair#X; it blocks ops-echo").
   - Pick parallel issues that touch separate code, and name any expected
     overlap up front. One issue, one branch, from main: work on unlanded code
     waits.

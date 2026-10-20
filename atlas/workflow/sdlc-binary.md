@@ -60,7 +60,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `local-check cancel` | (new #400)                  | Stop only this checkout's queued or running local checks: each run holds a flock'd lease in `<git common dir>/sdlc/local-check-runs/` naming its checkout, published already locked; cancel SIGTERMs the run (after matching the pid's kernel start time), waits for it to unwind, and sweeps leases of dead runs. The run also names its checkout in the suite lock's held-by record (`WF_TEST_LOCK_OWNER`) |
 | `local-check republish` | (new #431)                  | Post a completed check's saved attempt (test-stats store) as its commit status without rerunning: refuses another commit/check/repo, a baseline, an incomplete record or a log whose sha256 no longer matches. A run's status post retries (15/45/90 s) and its final failure names this verb; merge's local-check runner posts a saved verified pass on the exact head before it would rerun |
 | `test-stats`      | (new #376, #392, #402)      | Local-fleet suite wall, queue, slow-unit and flake summary (`--since`, `--repo`, `--json`). `snapshot` joins exact attempts to confirmed landing cohorts, separates physical weekly attempts, and atomically publishes a versioned weekly JSON artifact in brain. Schema v2 adds inventory-backed resource sizes and machine gauges with actual `observed_at`; point-resource deltas require observations 6–8 days apart, while suite deltas use exact weekly windows. Device `observed` validity is separate from comparison state, so a valid reading remains usable after an unknown delta. Unknown evidence leaves the ratio null; legacy logs are partial. |
-| `flake`           | (new #394)                  | Known-flake registry verbs. A test is a known flake while an open issue's **card** lists it in `flake_tests` (kind `test-list`, mirrored into details). `flake register --test PKG.TestX [--issue N] [--evidence TEXT]` writes it only with same-head fail→pass evidence from this machine's test-stats store (`internal/flakes.SameHeadFailPass`, the rule test-stats' "confirmed" flakes also use), or `--evidence` for a CI run; without `--issue` it files an unclaimed flake issue. It is a card setter, with no owner check. `flake list` is the TL's local daily view: the registry, unregistered same-head flakes, and unexplained failures older than a day. #458 filters already-fixed same-head rows using one terminal issue's exact card `flake_tests` value, landing merge and Git ancestry (never issue Markdown); `flake list -v` reveals them, while post-fix recurrences stay visible. Ambiguous or unreadable evidence cannot hide a row. CI is shown as `not covered` until #451. The registry is built from a Fresh tracker read (`loadFlakeRegistry`), so a stale or unreadable card makes the rule unavailable, never an empty registry. One owner per test is enforced where the registry is read (`BuildRegistry` refuses a test two open issues name), not only at registration. **The gate (M2):** `runLocalCheck` classifies a failed suite attempt (`knownFlakeStep`, `internal/flakes.Classify`). When only registered tests failed, it reruns them once through the shared `runUnderSlot` (weight 1, its own lease, the #383 slot release), saved as a v2 attempt of check `suite-rerun` (`rerun_of` the failed one; never read as a suite run), and posts "pass · known flake #N rerun". `known_flakes` (`rerun`\|`accept`\|`off`) on the declared suite is the operator's policy. merge's `diagnoseSuiteFailure` labels a shared failure as a persistent main failure. **Schema note:** suite attempts are written as version 2; an sdlc built before #394 refuses them as an unsupported version, so the fleet runs ariadne:0's rebuilt binaries once #394 lands. |
+| `flake`           | (new #394)                  | Known-flake registry verbs. A test is a known flake while an open issue's **card** lists it in `flake_tests` (kind `test-list`, mirrored into details). `flake register --test PKG.TestX [--issue N] [--evidence TEXT]` writes it only with same-head fail→pass evidence from this machine's test-stats store (`internal/flakes.SameHeadFailPass`, the rule test-stats' "confirmed" flakes also use), or `--evidence` for a CI run; without `--issue` it files an unclaimed flake issue. It is a card setter, with no owner check. `flake list` is the TL's local daily view: the registry, unregistered same-head flakes, and unexplained failures older than a day. #458 filters already-fixed same-head rows using one terminal issue's exact card `flake_tests` value, landing merge and Git ancestry (never issue Markdown); `flake list -v` reveals them, while post-fix recurrences stay visible. Ambiguous or unreadable evidence cannot hide a row. CI is shown as `not covered` until #451. The registry is built from a Fresh tracker read (`loadFlakeRegistry`), so a stale or unreadable card makes the rule unavailable, never an empty registry. One owner per test is enforced where the registry is read (`BuildRegistry` refuses a test two open issues name), not only at registration. **The gate (M2):** `runLocalCheck` classifies a failed suite attempt (`knownFlakeStep`, `internal/flakes.Classify`). When only registered tests failed, it reruns them once through the shared `runUnderSlot` (weight 1, its own lease, the #383 slot release), saved as a v2 attempt of check `suite-rerun` (`rerun_of` the failed one; never read as a suite run), and posts "pass · known flake #N rerun". `known_flakes` (`rerun`\|`accept`\|`off`) on the declared suite is the operator's policy. merge's `diagnoseSuiteFailure` labels a shared failure as a persistent main failure. **Schema note:** suite attempts are written as version 2; an sdlc built before #394 refuses them as an unsupported version, so the fleet runs ariadne:0's rebuilt binaries once #394 lands. **Subtests (#466):** a name may carry a subtest path (`flakes.ParseName`: the leftmost dot that yields an import path and a Test function, then validated segments). A failing top-level test is judged by its failing leaf subtests (`Leaves`), each covered (`Covers`, `Registry.Cover`) by the leaf or an ancestor, never a sibling; the gate, the success guard (`Unexplained`) and `flake list` share that one rule (`flakes.Explained`), with attempts carrying the subtests read from their saved logs (`withLogSubtests`; an unreadable log fails closed). `SuiteLogFacts.Subtests` is never persisted, and records keep top-level failures. The rerun is the owning top-level tests (`RerunTests`), each entry's exact PASS line required; overlapping names on two issues are ambiguous. `flake narrow` and `flake unregister` are owner-only compare-and-swap edits under the details-publish rule (`requireOwnedToEdit`). Rollout: an sdlc built before #466 refuses a subtest name in `flake_tests` (its known-flake rule is then off) and an attempt whose `known_flakes` names one (its success guard fails closed), so rebuild :0 before registering one. |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
 | `issue new`       | (new; xx-issues skill prose)| File on origin: the next ID's card on `issue-tracker` and the details on main, writing no checkout; a numbered slot claims what it files unless `--no-claim` (#252, #308; `--from-github N` seeds from GitHub; `--details FILE\|-` gives the body as `## <Section>` blocks, parsed by `issue.ParseDetails` before any ID is reserved, #371) |
 | `issue move-detail` | (new #252; hidden #308)   | Deprecated alias of `issue publish --issue N`: finishes a pre-#308 creation by publishing its local details to main; net-zero removal on the source |
@@ -304,6 +304,23 @@ main and publishes the issue branch there. `ghlanding.go` binds a same-repositor
 PR to exact head/base identity, submits an expected-head server merge, and checks
 MERGED plus reachable integration. Queue admission is not integration; already
 merged squash/rebase PRs use the original PR head and integration evidence.
+
+Issue-only main movement (#472) uses one path policy in `mainmovement.go`:
+Markdown under `workshop/issues/`, `workshop/plans/` and `workshop/history/`.
+Every novel commit and merge-parent difference is classified, including rename
+sources; code added then reverted, mixed changes and unreadable history remain
+ordinary. The existing integration state machine charges only ordinary moves to
+its three-attempt budget, including interrupted replay and reset.
+
+After exact-head gates, `ghreadiness.go` reads GitHub's effective merge status and
+live `baseRef.target.oid` (the listing's `baseRefOid` can be historical). Fresh
+CLEAN evidence bound to this PR/head/branches and re-fetched main permits landing
+unchanged despite issue-only movement. Destination instance, duplicate-ID and
+publish gates are rechecked. Strict, unknown, unavailable or stale-base evidence
+uses ordinary integration and exact-head CI without charging an issue-only move.
+No workflows or statuses are rewritten. Existing docs-only suite reuse is broader
+than this conservative direct-merge policy. Recovery and uncertain merge outcomes
+retain the existing branch-preserving rules.
 
 PR candidate selection (`selectLandingCandidate`, #418) retains OPEN PRs even
 when their heads are stale, so two OPEN records refuse and name both. Completed
@@ -630,7 +647,8 @@ through the review context; no asynchronous writer survives command completion.
 the final expected-head merge, and archive/cleanup. Publish replay, GitHub PR
 registration and CI polling, and the local suite run happen unlocked. Every
 reacquisition checks the exact branch HEAD and worktree and fetches main: main
-drift restarts integration and gates, while HEAD drift refuses. The legacy
+drift is reclassified for integration or exact-bound issue-only readiness, while
+HEAD drift refuses. The legacy
 dependency-clone path also releases the lock for local checks and refuses drift
 before server merge. `push` retains its whole-transaction lock. Wait messages
 name the live holder; wait or retry rather than deleting its lock. Recovery is
@@ -1448,6 +1466,16 @@ the window contains no code surface — `hasCodePath`, the single docs
 classifier: `*.md` / `workshop/` / `atlas/` / `docs/` are documentation,
 everything else is surface (#177; docs-only closes had an incoherent demand).
 
+**Issue branch identity (#471, `trackerbranch.go`).** A tracker card's filename
+derives its one issue branch. `abandon` and attachments to started work require
+that branch before changing the checkout or publishing evidence. Whole-issue
+`close` and `milestone-close` also admit a renamed recovery branch only when
+its HEAD exactly equals the local canonical branch tip (or a fresh remote tip
+when the local ref is absent); another head refuses. Abandon may resume from rest only when
+its persisted branch still matches the card. The remote branch is deleted
+only at the head held by its archive ref, with leased advancement and deletion;
+a remote commit beyond the local issue tip refuses before archival.
+
 **Integrate gate (#269, `integrategate.go`).** Before planning the window,
 `close` and `milestone-close` (fixed-then-ship included) require the branch to
 contain every first-parent commit of freshly fetched main whose committer date
@@ -1963,14 +1991,40 @@ with 12 shards (#330 measured 7.5–8 on a busy machine, whole module), against 
 
 Suites under `sdlc local-check` (the recorded suite, merge's integration suite,
 known-flake reruns) write their temp files to the TestScratch RAM disk when it
-is mounted (#468): `runUnderSlot` (`localcheck_run.go`) gives each run
+is mounted and, on Darwin, formatted as APFS (#468, #474): `runUnderSlot` (`localcheck_run.go`) gives each run
 `TMPDIR`/`GOTMPDIR` in its own folder under `/Volumes/TestScratch/tmp`, removed
 after, and puts the run's checkout under `/Volumes/TestScratch/local-checks`
 (review checkouts under `review-checkouts`; `internal/scratchdisk` holds the
 rule, and a disk that refuses the write falls back), and falls back to the normal temp folder when the disk is absent or under
-2 GiB free (`testscratch.go`). It also sweeps stale run and go-build folders,
+2 GiB free (`testscratch.go`). Darwin checks statfs filesystem type even for
+`WF_TEST_SCRATCH` overrides: HFS or an unknown type prints a reason and keeps
+the normal folder; non-Darwin override fixtures retain their existing behavior.
+The check performs no capability writes; cleanup still scans rejected mounted
+roots for earlier disposable folders. It also sweeps stale run and go-build folders,
 and warns about `t.TempDir` folders a scratched run still left on the SSD temp
 folders. `pkg/golint`'s `tmp-literal` flags hardcoded temp roots that bypass it.
+
+Fallback also owns and removes a per-run directory and explicitly overrides
+both child temp variables (#477). `internal/scratchdisk.NormalTempDir` probes
+actual create/remove access, preserves a usable inherited root, then tries
+Darwin's per-user temp and the Unix default independently. Detached-checkout
+creation uses the same repair if its os.TempDir fallback is unusable; explicit
+custom fallback errors remain strict. Root enumeration also covers all repaired
+normal candidates for stale-checkout and per-run cleanup, even after the inherited root
+works again. No global process environment is changed.
+
+`runLocalCheck` reads one bounded complete log for startup classification and
+normal suite facts. `suiteenvironment.go` accepts only direct Go work-directory
+creation errors and the explicit compile-before-report Python/make wrapper.
+Mixed, quoted, truncated, timed-out or unknown output retains ordinary rules.
+Recognized startup errors return a typed could-not-run error before flake,
+attempt or status publication; known-flake reruns use the same classifier.
+Raw evidence moves to `<head>/<check>.environment.log`, bounded by existing
+20-head pruning, outside SuiteAttempt and legacy acceptance paths. A retention
+failure names and retains the raw inflight log. No schema changes or rewrites:
+a same-head environment repair can pass, while genuine failed attempts remain.
+Ordinary baseline diagnosis and train `mainIsRed` propagate execution errors;
+main health stays unknown and the train emits no failure/split event for them.
 
 Every package whose tests run git calls `testfix.PreferRealGit()` from its
 `TestMain`, putting `$(git --exec-path)` first on PATH: on macOS `/usr/bin/git`

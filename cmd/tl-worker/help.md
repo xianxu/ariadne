@@ -68,13 +68,14 @@ THE PROJECT FILE
   records it.
 
 FILING ISSUES
-  Same-repo filings stay direct. Route a cross-repo finding as a
-  one-line proposal to the TL; the TL files it or folds it into existing work
-  to hold the cross-repo picture.
-  Do not file issues in peer repositories yourself.
-  `sdlc issue new` from your numbered slot claims the new issue for you. A
-  follow-up you will not work yourself is released right after filing
-  (`sdlc unclaim --issue N`) so the TL can dispatch it.
+  File a problem in the repository where it lives, whichever team owns it:
+  `sdlc issue new` run from a checkout of that repository (creation writes no
+  checkout, so its :0 serves without touching that slot). From your own
+  numbered slot it claims the issue for you; in any other repository, or for
+  a follow-up you will not work yourself, pass `--no-claim` so its owning TL
+  can dispatch it. Then tell your hub in one line ("filed pair#X: why").
+  Your hub never relays a filing; it sends the owner a heads-up if needed.
+  "Report to `hub`" means the hub that claims your slot.
 
 LIVE CHECKS
   A change that drives the operator's real environment (their browser,
