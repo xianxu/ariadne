@@ -8,7 +8,7 @@ collaboration-mode: discussion
 
 **Goal:** Establish the suite's measured operating envelope and replace the CPU-count shard default with the supported cap, addressing the overload behind #480 and folding #484 into this issue.
 
-**Architecture:** Measure one pinned checkout under the existing machine-wide two-slot gate, with external heavy work paused by the hub. Compare three runs each at 12, 8 and 6 shards; select the default from wall/load/kernel evidence. Preserve every existing landing lock, timeout and assertion; the identified cleanup window is a candidate follow-up.
+**Architecture:** Measure one pinned checkout under the existing machine-wide two-slot gate, with a quiet baseline after each independently queued job is admitted. Compare three runs each at 12, 8 and 6 shards; select the default from wall/load/kernel evidence. Preserve every existing landing lock, timeout and assertion; the identified cleanup window is a candidate follow-up.
 
 **Tech stack:** Python standard library, Darwin Mach CPU counters, Go suite, existing Make/test-lock helpers.
 
@@ -33,7 +33,7 @@ Use real suites for the comparison; a fake cannot establish CPU capacity. Valida
 
 - Nine full suites, sequential, at one immutable code head. Interleave shard counts as 12/8/6, 8/6/12, 6/12/8 to balance order/cache/thermal effects. Each count appears once in each position.
 - Each run is its own normal FIFO suite-queue job at weight 2. Other suites may run between measurements. Acquire the existing gate, then wait for the quiet baseline before starting that run, excluding queue/cooldown time from measured wall. The hub explicitly declined a nine-run reservation; no machine freeze or fleet drain. No cancellation or alteration of another slot's runs; never use WF_TEST_LOCK=off.
-- Proposed quiet precondition: at least five consecutive one-second samples with CPU idle >=80% and one-minute load <= half the logical CPUs. Record the actual baseline. This threshold excludes inherited load from the preceding suite; it is a measurement condition, not a product promise. Stop and report if quiet cannot be reached within ten minutes.
+- Approved quiet precondition: at least five seconds of consecutive one-second CPU intervals with idle >=80% and one-minute load <=6. Record the actual baseline. This threshold excludes inherited load from the preceding suite; it is a measurement condition, not a product promise. Stop and report if quiet cannot be reached within ten minutes.
 - Sample once per second with the standard library: one load read and one Mach CPU-stat read. O(T) work and output for T seconds; no subprocess per sample. Record raw ticks, sample timestamps, peak one-minute load, mean kernel percent of total CPU, and kernel share of busy CPU (both definitions remove ambiguity).
 - Wall time starts after admission, immediately before launching each complete suite, and ends on its process exit. Preserve exit codes and complete test output; report failures by name. Never treat a failed or interrupted run as a passing performance result.
 - Keep raw logs, samples, per-run manifests and checksums on persistent storage under the Git-common-dir's sdlc/test-stats/evidence/000480, never exclusively on TestScratch. A fixed nine-run experiment bounds the artifact family; do not copy compiled binaries or fixture trees. Test scratch/worktree uses TestScratch when available and is removed after the experiment.
@@ -58,8 +58,8 @@ ARCH-DRY/PURE: one default helper, pure tick arithmetic, existing runner/gate. A
 ## Task 2: measure the matrix
 
 - [ ] Build the local evidence harness and its SKILL.md usage record. Test CPU delta calculations (normal, zero ticks, uint32 wrap), sample aggregation, and interrupted-run marking with deterministic inputs before measuring.
-- [ ] Validate the live sampler against top's system/idle report; keep the raw comparison and units in the evidence manifest.
-- [ ] Create a detached checkout pinned to the approved measurement head. Verify clean source and Git revision before and after the matrix; do not commit into that checkout.
+- [x] Validate the live sampler against top's system/idle report; keep the raw comparison and units in the evidence manifest.
+- [x] Create a detached checkout pinned to the approved measurement head. Verify clean source and Git revision before and after the matrix; do not commit into that checkout.
 - [ ] Execute the approved quiet matrix through the machine gate. Capture three attempts each at 12/8/6 shards, wall, peak one-minute load, kernel percentages and every failure. Preserve per-run output/JSON and environment (hardware, Python/Go versions, exact commands, scratch choice, sample interval).
 - [ ] Summarize individual runs and medians in the issue. Apply #484's published criterion: wall time within about 10% of the best while keeping peak load below about twice the core count (about 24 on this 12-core host). Choose the cap and weight from this table, not from CPU count alone. If none meets both, report the conflict to the hub before expanding the matrix or silently relaxing the envelope. The solo matrix cannot justify letting two whole-module suites overlap, so retain weight 2 unless further evidence is explicitly approved.
 
@@ -81,3 +81,5 @@ ARCH-DRY/PURE: one default helper, pure tick arithmetic, existing runner/gate. A
 ## Revisions
 
 - 2026-10-20 (hub): reject the proposed single 90-minute reservation. Each measurement takes its own normal two-slot suite job, waits for the quiet baseline (at most ten minutes after admission), then runs one suite. Allow other jobs between runs. If the quiet baseline cannot be reached, stop/report so the hub can schedule an operator window.
+
+- 2026-10-20 (measurement preparation): reconcile the architecture summary with the approved per-run queue policy; use the hub's explicit load1 <=6 threshold. Pinned checkout and OS conformance are complete; the harness review is resolving group-cancellation and source-cleanliness checks before any matrix run.
