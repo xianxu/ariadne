@@ -102,6 +102,12 @@ Detailed incidents remain in their owning issue or review artifact.
   test real child env/writes and a denied-selector no-child/no-success control.
   Reproduce the permission boundary with a real sandbox (#487).
 
+- If a contained reviewer cannot launch a nested OS sandbox, capture host-side
+  acceptance as measured evidence: source revision, profile digest/content,
+  probe source, denied host writes, allowed fixture writes, test commands and
+  exit statuses. A prose claim that sandbox tests passed is not independently
+  reviewable evidence (#487 BR-1).
+
 - Keep the real checkout stable while cmd/sdlc package tests run: its TestMain
   snapshots HEAD, branch and porcelain status. A concurrent commit or a new
   dirty path invalidates the run even when every assertion passes (#472).

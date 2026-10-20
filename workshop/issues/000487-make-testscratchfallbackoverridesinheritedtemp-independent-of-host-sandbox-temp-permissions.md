@@ -111,3 +111,19 @@ The last Plan checkbox now names the completed targeted verification. The full
 recorded suite, close and readiness report remain workflow prose, so checking
 the implementation does not claim future close or landing outcomes. Scope and
 acceptance are unchanged.
+
+
+### 2026-10-20 — BR-1 host sandbox acceptance evidence
+
+Round 1 found no code defect but could not launch a nested sandbox in its
+review environment (sandbox_apply: Operation not permitted). The requested
+measured host proof is [committed here](000487-make-testscratchfallbackoverridesinheritedtemp-independent-of-host-sandbox-temp-permissions.side/sandbox-host-evidence.txt).
+It records source HEAD, toolchain, profile digest/content, probe source and
+commands, actual stdout/stderr and exit statuses. With that exact profile, the
+owned fixture create/remove succeeded while both Darwin user temp and /tmp
+writes were denied with errno 1. The two fallback tests and all selected
+NormalTemp/MkdirTemp/UserTempDir controls passed under that same profile; both
+commands exited zero. The cmd/sdlc package duration includes a 32-second small
+test-slot wait (32.965s reported); scratchdisk passed in 0.241s. This supplies
+acceptance evidence without changing or weakening the implementation. The
+existing recorded suite remains queued/running on the unchanged code head.
