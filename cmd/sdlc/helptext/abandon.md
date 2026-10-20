@@ -4,8 +4,11 @@ work (#286). The owner runs it; the owner stays on the card as attribution.
   sdlc abandon --issue N --as wontfix --reason "superseded by #312"
   sdlc abandon --issue N --as punt --reason "after the Q4 freeze"
 
-STARTED WORK (working, blocked, codecomplete). Run it from the issue's branch
-with a clean tree. In order, each step skipped when already done:
+STARTED WORK (working, blocked, codecomplete). Run it from the branch named
+by the issue's card, with a clean tree. Owning the card does not make another
+checked-out issue branch safe to abandon. A terminal retry runs from that
+branch or the resting branch; a recorded different branch refuses. In order,
+each step skipped when already done:
   1. the reason is filed under ## Log and committed (`#N: log: abandon (…)`);
   2. the tip is pushed to `refs/ariadne/abandoned/NNNNNN` on the publication
      remote — the work is kept for wontfix and punt alike;
@@ -14,8 +17,10 @@ with a clean tree. In order, each step skipped when already done:
      issue's plan artifacts and each document's side folder (`<name>.side/`,
      #424) move to history in one narrow main commit; the kept branch
      supplies its final evidence and side docs, with links unchanged;
-  5. the branch is deleted on the remote (leased on the kept tip), the checkout
-     returns to its resting branch, and the local branch is deleted.
+  5. the remote branch, if older, is advanced with a lease to the archived tip,
+     then deleted with a lease on that exact tip; the checkout returns to its
+     resting branch, and the local branch is deleted. Remote commits beyond
+     local work refuse before the abandon note or archive ref is pushed.
 
 AN OPEN ISSUE (triage) has no branch: the card goes terminal with an empty
 record and the details, with the reason in their Log, are archived on main.

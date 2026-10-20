@@ -245,6 +245,40 @@ func TestTrackerCloseRefusesPreconditionsBeforeReview(t *testing.T) {
 	}
 }
 
+func TestTrackerCloseRefusesAnotherIssuesBranch(t *testing.T) {
+	r, cardPath, _ := closeReady(t, 305)
+	want := issue.BranchName(cardPath)
+	r.git("switch", "-q", "main")
+	r.git("switch", "-q", "-c", "000306-other")
+	head := r.git("rev-parse", "HEAD")
+	card := r.card(cardPath)
+	_, err := prepareTrackerClose(context.Background(), "000305")
+	if err == nil || !strings.Contains(err.Error(), want) || !strings.Contains(err.Error(), "000306-other") {
+		t.Fatalf("close from another issue branch: %v", err)
+	}
+	if r.git("rev-parse", "HEAD") != head || r.card(cardPath) != card {
+		t.Fatal("refused close changed HEAD or the card")
+	}
+}
+
+func TestMilestoneCloseRefusesAnotherIssuesBranch(t *testing.T) {
+	r, cardPath, _ := closeReadyWithPlan(t, 307, "- [ ] M1 — first boundary\n")
+	want := issue.BranchName(cardPath)
+	r.git("switch", "-q", "main")
+	r.git("switch", "-q", "-c", "000308-other")
+	head := r.git("rev-parse", "HEAD")
+	card := r.card(cardPath)
+	msg, died := expectDie(t, func() {
+		_, _, _ = executeSDLCTestCommand("milestone-close", "--issue", "307", "--milestone", "M1", "--verified", "fixture", "--no-actual", "--no-atlas", "--no-project", "--dry-run")
+	})
+	if !died || !strings.Contains(msg, want) || !strings.Contains(msg, "000308-other") {
+		t.Fatalf("milestone close from another issue branch: died=%v %s", died, msg)
+	}
+	if r.git("rev-parse", "HEAD") != head || r.card(cardPath) != card {
+		t.Fatal("refused milestone close changed HEAD or the card")
+	}
+}
+
 // A legacy (unmirrored) details file in a checkout of a tracked repository
 // must not take the legacy close/change-code path, which writes card fields
 // into details: it refuses with the reconcile action. In a legacy repository

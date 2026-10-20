@@ -49,7 +49,7 @@ type suiteGateRun struct {
 // posts nothing, so nothing turns green.
 func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes.Outcome, error) {
 	in := flakes.Input{
-		Attempt: flakes.Result{Failures: g.failedFacts.Failures, Unattributed: g.failedFacts.Unattributed},
+		Attempt: flakes.Result{Failures: g.failedFacts.Failures, Unattributed: g.failedFacts.Unattributed, Subtests: g.failedFacts.Subtests},
 		Policy:  g.check.knownFlakePolicy(),
 	}
 	if in.Policy != flakes.PolicyOff {
@@ -64,7 +64,8 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 	if o.Kind != flakes.NeedRerun {
 		return o, nil
 	}
-	argv, err := knownFlakeRerunArgv(flakes.Tests(o.Known))
+	// Whole top-level tests (#466): a registered subtest reruns its test.
+	argv, err := knownFlakeRerunArgv(flakes.RerunTests(o.Known))
 	if err != nil {
 		return flakes.Outcome{}, fmt.Errorf("known-flake rerun: %w", err)
 	}
@@ -111,7 +112,7 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 			facts.Unattributed = append(facts.Unattributed, t+" did not pass in the rerun log")
 		}
 	}
-	in.Rerun = &flakes.Result{Passed: run.Exit == 0 && !run.TimedOut, Failures: facts.Failures, Unattributed: facts.Unattributed}
+	in.Rerun = &flakes.Result{Passed: run.Exit == 0 && !run.TimedOut, Failures: facts.Failures, Unattributed: facts.Unattributed, Subtests: facts.Subtests}
 	o = flakes.Classify(in)
 	queueSeconds, wallSeconds := run.QueueWait.Seconds(), run.Duration.Seconds()
 	attempt := SuiteAttempt{Version: suiteAttemptVersion, ID: w.ID, Repo: g.repo, SHA: g.sha, Check: suiteRerunCheck, Slot: g.slot,

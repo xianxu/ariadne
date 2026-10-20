@@ -253,7 +253,7 @@ func TestParseCardFlakeTests(t *testing.T) {
 		return []byte(strings.Replace(string(card), "status: open", "status: open\n"+extra, 1))
 	}
 	const a, b = "github.com/xianxu/ariadne/scripts/test.TestConstructScripts", "github.com/xianxu/ariadne/cmd/sdlc.TestX"
-	for _, ok := range []string{"flake_tests:", "flake_tests: [" + a + "]", "flake_tests: [" + a + ", " + b + "]"} {
+	for _, ok := range []string{"flake_tests:", "flake_tests: [" + a + "]", "flake_tests: [" + a + ", " + b + "]", "flake_tests: [" + a + "/plain/dev-aliases.test.sh]"} {
 		if _, err := ParseCard(with(ok)); err != nil {
 			t.Errorf("%q refused: %v", ok, err)
 		}
@@ -262,7 +262,8 @@ func TestParseCardFlakeTests(t *testing.T) {
 		"flake_tests: " + a,
 		"flake_tests: []",
 		"flake_tests: [TestX]",
-		"flake_tests: [" + a + "/sub]",
+		"flake_tests: [" + a + "/a b]",
+		"flake_tests: [" + a + "/../x]",
 		"flake_tests: [" + a + ", " + a + "]",
 		"flake_tests: [a.TestA, a.TestB, a.TestC, a.TestD, a.TestE, a.TestF]",
 		"flake_tests:\n  - " + a,

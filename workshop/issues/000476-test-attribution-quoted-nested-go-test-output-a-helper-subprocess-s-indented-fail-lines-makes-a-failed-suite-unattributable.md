@@ -51,3 +51,8 @@ The flake itself is pair#715 (registered).
 ## Log
 
 ### 2026-10-19
+
+- 10-19 19:30 (TL): second case, pair#689 at pair:6. Integrated suite 40e6dab11e0c6019301bd5767e687689 failed only
+  at the same `couchcmd.TestContinuationWriterPublishesExactCheckpointAcrossWorktrees/warm-reattached` (nested launcher
+  helper TempDir cleanup), classified unattributable-failure again, refused landing, and queued a main baseline. Two
+  slots' landings blocked by this today; raise priority if #715's root fix (pair:3) doesn't land first.
