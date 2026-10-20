@@ -1,13 +1,13 @@
 ---
 id: 000504
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours: 2.142
 collaboration-mode: collaboration
-card_mirror: '65234802c1ac89d997a640594b15b146b04e079b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '17add82edcefdd3433035b2702adf06540a5dd06' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T09:56:17-07:00
 claimant:
     operator: Xian Xu
@@ -17,7 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
-actual_hours: 1.56
+actual_hours: 2.82
 ---
 
 # tl-lead: the hub session file moves to session.md at the repo root (no team folder, no operator name), with a status move verb and the decisions-are-tracked rule
