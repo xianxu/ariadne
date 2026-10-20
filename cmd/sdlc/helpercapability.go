@@ -60,21 +60,27 @@ func helperHelpOptions(help string) map[string]bool {
 
 // workflowFile finds the Makefile.workflow root's make uses. In an
 // ariadne-layered repo it is a relative symlink to the sibling substrate
-// (../ariadne/Makefile.workflow), which resolves only from a checkout beside
-// that substrate. A disposable tree elsewhere (a landing train's, #486) reads
-// the same link against anchor, the checkout it was made from; "" means root
-// is that checkout.
+// (../ariadne/Makefile.workflow) that weave writes into each checkout and git
+// ignores, so a disposable tree elsewhere (a landing train's, #486) has none,
+// or has a tracked link that does not resolve where the tree sits. anchor is
+// the checkout the tree was made from ("" when root is that checkout): the
+// tree's own link is read against it, and failing that, anchor's own
+// Makefile.workflow is the one.
 func workflowFile(root, anchor string) (string, error) {
 	p := filepath.Join(root, "Makefile.workflow")
 	mk, err := filepath.EvalSymlinks(p)
 	if err == nil || anchor == "" {
 		return mk, err
 	}
-	link, lerr := os.Readlink(p)
-	if lerr != nil || filepath.IsAbs(link) {
-		return "", err
+	if link, lerr := os.Readlink(p); lerr == nil && !filepath.IsAbs(link) {
+		if mk, lerr := filepath.EvalSymlinks(filepath.Join(anchor, link)); lerr == nil {
+			return mk, nil
+		}
 	}
-	return filepath.EvalSymlinks(filepath.Join(anchor, link))
+	if mk, aerr := filepath.EvalSymlinks(filepath.Join(anchor, "Makefile.workflow")); aerr == nil {
+		return mk, nil
+	}
+	return "", err
 }
 
 // Resolve and verify once before the run creates logs or touches worktrees.

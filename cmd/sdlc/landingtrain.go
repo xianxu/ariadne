@@ -226,9 +226,10 @@ func (c *conductor) build(cars []landingline.Car) (landingline.TrainEvent, error
 	}
 	c.wt = dir
 	// The suite is the one main declares, read from the exact main the train
-	// is built on (as a single landing reads its base), and it resolves its
-	// lock helper (Makefile.workflow) from the train's tree, not this
-	// checkout's branch.
+	// is built on (as a single landing reads its base). Its lock helper
+	// (Makefile.workflow) resolves from the train's tree, falling back to the
+	// checkout the train was built from, since the layered repos' workflow is
+	// an untracked link to the sibling substrate (#486).
 	decl, err := readLocalChecks(c.git, main)
 	if err != nil {
 		return nil, err

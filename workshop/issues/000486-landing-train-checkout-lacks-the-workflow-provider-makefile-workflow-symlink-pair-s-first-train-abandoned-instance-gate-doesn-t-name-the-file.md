@@ -79,3 +79,9 @@ While pair's trains are on, **every pair landing is blocked** by this.
   not in `git ls-files` or the train tree; slot checkouts have it as a symlink to `../ariadne/Makefile.workflow`.
   So it's a fresh-checkout preparation gap: the train's disposable checkout was never given the generated workflow
   provider (local-check checkouts are). Train PR pair#476 closed, head c78110ae; no suite ran.
+- **Close round 1 (REWORK):**
+  - BR-1 (Critical) was right. In pair, Makefile.workflow is untracked (`.gitignore:78`; weave writes it into each checkout), so the train tree has no such file, and my link-reading fallback could never fire. My fixture had committed the link, a shape no layered repo has; the earlier plan's claim that the test "fails without the fix with pair's exact error" held only for that wrong shape.
+  - Fixed: `workflowFile` now reads the tree's own link against the anchor when there is one, else the anchor's own Makefile.workflow.
+  - The fixture now has the real shape: main gitignores Makefile.workflow, and each car checkout holds an untracked link to its sibling substrate. `TestLandingTrainResolvesASymlinkedWorkflow` fails without the new fallback, and `TestWorkflowFileResolvesThroughTheAnchor` covers both shapes.
+  - Class sweep ("fixture diverges from the real repo shape"): this was the only fixture in the window.
+  - Minor: the stale landingtrain.go comment is updated.

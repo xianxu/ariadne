@@ -802,31 +802,38 @@ func TestTrainSuiteOutcome(t *testing.T) {
 	}
 }
 
-// symlinkedWorkflowTrain is a two-car train setup whose main makes
-// Makefile.workflow a relative symlink to the sibling substrate, as every
-// ariadne-layered repo does (#486). withSubstrate puts the substrate beside
-// each car checkout, as in a real fleet; without it the link resolves nowhere.
+// symlinkedWorkflowTrain is a two-car train setup in the shape of every
+// ariadne-layered repo (#486): main gitignores Makefile.workflow, and each car
+// checkout holds an untracked link to its sibling substrate
+// (../substrate/Makefile.workflow), as weave writes it. The train's tree, made
+// from main elsewhere, has no Makefile.workflow at all. withSubstrate puts the
+// substrate beside each checkout; without it the links resolve nowhere.
 func symlinkedWorkflowTrain(t *testing.T, withSubstrate bool) (*trainSetup, string) {
 	t.Helper()
 	s := newTrainSetup(t, "train")
 	second := filepath.Join(filepath.Dir(filepath.Dir(s.first)), "sample-slot2", "sample")
-	if withSubstrate {
-		for _, root := range []string{s.first, second} {
+	git(t, s.server, "rm", "-q", "--cached", "Makefile.workflow")
+	procedureWrite(t, s.server, ".gitignore", "/Makefile.workflow\n")
+	git(t, s.server, "add", ".gitignore")
+	git(t, s.server, "commit", "-qm", "Makefile.workflow is the substrate's, untracked")
+	git(t, s.server, "push", "-q", "origin", "main")
+	git(t, second, "fetch", "-q", "upstream")
+	git(t, second, "reset", "-q", "--hard", "upstream/main")
+	for _, root := range []string{s.first, second} {
+		if withSubstrate {
 			sub := filepath.Join(filepath.Dir(root), "substrate")
 			procedureWrite(t, sub, "Makefile.workflow", "# the substrate's workflow\n")
 			procedureWrite(t, sub, "scripts/test-lock.py", fakeSuiteLockHelper("print('skipped')\n"))
 		}
+		mk := filepath.Join(root, "Makefile.workflow")
+		if err := os.Remove(mk); err != nil && !os.IsNotExist(err) {
+			t.Fatal(err)
+		}
+		if err := os.Symlink("../substrate/Makefile.workflow", mk); err != nil {
+			t.Fatal(err)
+		}
 	}
-	git(t, s.server, "rm", "-q", "Makefile.workflow")
-	if err := os.Symlink("../substrate/Makefile.workflow", filepath.Join(s.server, "Makefile.workflow")); err != nil {
-		t.Fatal(err)
-	}
-	git(t, s.server, "add", "Makefile.workflow")
-	git(t, s.server, "commit", "-qm", "Makefile.workflow is the substrate's")
-	git(t, s.server, "push", "-q", "origin", "main")
 	git(t, s.first, "fetch", "-q", "upstream")
-	git(t, second, "fetch", "-q", "upstream")
-	git(t, second, "reset", "-q", "--hard", "upstream/main")
 	trainCar(t, second, "000002-second", "second", 2)
 	s.addCar(t, "000002-second", 2)
 	return s, second
