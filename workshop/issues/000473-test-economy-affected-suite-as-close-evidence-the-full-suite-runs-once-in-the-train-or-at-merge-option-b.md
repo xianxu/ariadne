@@ -90,6 +90,8 @@ Each `impl` is 40% of the v2 range's upper end.
 
 
 
+
+- 2026-10-20: closed — close-review advisory fixes: docs judged after ownership (TestPlan owned/embedded/testdata doc rows; TestAffectedOwnedDocRunsItsPackage end-to-end), case-folded duplicate keys refuse (jsonstrict test), plan revision for the merge-base claim; affected + jsonstrict + help tests green; recorded suite queued on the final head. (fixed-then-ship); review verdict: FIX-THEN-SHIP
 - 2026-10-20: closed — Done-when fixtures: leaf change selects leaf + dependents only (TestPlan Done-when row; contract fixture TestAffectedContractFixture: SDLC_AFFECTED_GO_PKGS=leaf mid tonly, GROUPS=lua); go.mod forces and records suite (TestAffectedFullSelectionRunsTheSuite); close evidence wording names affected; a train car boards on affected only (TestCarBoardsOnAffectedMergeStillNeedsSuite, TestCarVouchesADocsOnlyBranchOnItsAffectedRecord for pair#723). M1 and M2 closed SHIP. Recorded suite queued on a3b1a8cb (overlapping per tl-worker). The 1-week pair measurement is the rollout (TL, after pair counterpart lands).; review verdict: SHIP
 - 2026-10-20: closed M2 — car stand-in: TestCarVouchesDocsOnlyCommitOnASuiteRecordedHead (TL shape), TestCarVouchesADocsOnlyBranchOnItsAffectedRecord (pair#723), TestCarBoardsOnAffectedMergeStillNeedsSuite, TestCarWithBrokenAffectedConfigNeedsSuite on a real repo; decideCIGate StandIn rows; D4: TestAffectedKnownFlakeReruns, TestTestRunGuardSpansSuiteAndAffected, TestSubsetPassNeverConfirms, TestAffectedStatsAreTheirOwnRow, TestDeclaredCheckResolvesAffected; mutations fail them; help/golden ok; recorded suite queued on 22460760.; review verdict: SHIP
 - 2026-10-20: closed M1 — internal/affected + jsonstrict go test green (FuzzParseGoList re-fuzzed; conformance on real go list incl. an embedded asset and a root package embedding a file in a sub-package dir, owners = both); contract fixture TestAffectedContractFixture (SDLC_AFFECTED_GO_PKGS=leaf mid tonly / GROUPS=lua; status 3 packages, groups lua); full→suite for go.mod / unclassified / unloadable graph; docs-only records without running; no-change refuses; --all split tested; targeted cmd/sdlc run ok in 1205s before the review fixes, Affected tests ok after.; review verdict: SHIP
@@ -139,4 +141,7 @@ Each `impl` is 40% of the v2 range's upper end.
   - Duplicate keys that differ only in case refuse.
 
   These change code after the close, so the close is re-run with `--fixed-then-ship` after the suite.
+- Re-close round (FIX-THEN-SHIP, BR-15): duplicate keys now fold the way `encoding/json` matches them, Unicode simple
+  folding: `groupſ` is `groups` and the Kelvin sign is `k`. `foldKey` agrees with `strings.EqualFold`; `FuzzFoldKey`
+  checked about 1M execs.
 

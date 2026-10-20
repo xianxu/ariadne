@@ -9,7 +9,21 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode"
 )
+
+// foldKey maps every rune to the least member of its Unicode simple-folding
+// orbit, so foldKey(x) == foldKey(y) exactly when strings.EqualFold(x, y): the
+// rule encoding/json matches field names by ("ſ" and "s" fill one field).
+func foldKey(s string) string {
+	return strings.Map(func(r rune) rune {
+		least := r
+		for f := unicode.SimpleFold(r); f != r; f = unicode.SimpleFold(f) {
+			least = min(least, f)
+		}
+		return least
+	}, s)
+}
 
 // RejectDuplicateKeys refuses a JSON document in which any object, at any
 // depth, names a key twice: encoding/json silently keeps the last value. Keys
@@ -52,10 +66,10 @@ func scan(dec *json.Decoder) error {
 			if !ok {
 				return errors.New("object key is not a string")
 			}
-			if prior, ok := seen[strings.ToLower(key)]; ok {
+			if prior, ok := seen[foldKey(key)]; ok {
 				return fmt.Errorf("duplicate object key %q (as %q)", key, prior)
 			}
-			seen[strings.ToLower(key)] = key
+			seen[foldKey(key)] = key
 			if err := scan(dec); err != nil {
 				return err
 			}

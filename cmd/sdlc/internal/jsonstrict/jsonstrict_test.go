@@ -12,6 +12,9 @@ func TestRejectDuplicateKeys(t *testing.T) {
 		`{"g":[{"n":"x","n":"y"}]}`:           `duplicate object key "n"`,
 		`{"a":{"b":1,"b":1}}`:                 `duplicate object key "b"`,
 		`{"command":["x"],"COMMAND":["y"]}`:   `duplicate object key "COMMAND"`,
+		`{"groups":[],"groupſ":[]}`:           `duplicate object key "groupſ"`, // long s folds to s
+		`{"kind":1,"Kind":2}`:                 `duplicate object key`,          // Kelvin sign folds to k
+		`{"straße":1,"STRASSE":2}`:            "",                              // not a simple fold: distinct keys
 		`{"a":1} {"b":2}`:                     "trailing JSON value",
 		`{"a":`:                               "EOF",
 	} {
@@ -20,4 +23,17 @@ func TestRejectDuplicateKeys(t *testing.T) {
 			t.Errorf("%s: err %v, want %q", in, err, want)
 		}
 	}
+}
+
+// foldKey agrees with strings.EqualFold, encoding/json's matching rule, on
+// every pair FuzzFoldKey finds.
+func FuzzFoldKey(f *testing.F) {
+	for _, s := range [][2]string{{"groups", "groupſ"}, {"kind", "\u212aind"}, {"Command", "COMMAND"}, {"a", "b"}, {"ß", "SS"}} {
+		f.Add(s[0], s[1])
+	}
+	f.Fuzz(func(t *testing.T, a, b string) {
+		if (foldKey(a) == foldKey(b)) != strings.EqualFold(a, b) {
+			t.Fatalf("foldKey(%q)==foldKey(%q) is %v, EqualFold %v", a, b, foldKey(a) == foldKey(b), strings.EqualFold(a, b))
+		}
+	})
 }
