@@ -81,6 +81,8 @@ Operator-requested graceful Couch drain 69bb7fc3-a125-42c6-9900-5814613b8eba is 
 - Stage is cleared; TL selected no synthetic live re-close smoke. Real bare-remote regressions are the proof; next natural pair-train re-close is a later observation. Separate reopen refusal policy is unclaimed #502.
 - Resume after explicit operator restart/resume and confirmed queue availability: run sdlc state; read this Log and current card. Request sdlc local-check run --name suite on the pushed branch; no code change means the existing SHIP review remains applicable. After the recorded suite passes, run sdlc merge --yes and let it integrate/test current main. Do not manually chase main, waive CI/suite gates, or touch other slots' queue holders. Report landed PR #349 to the hub only after actual landing.
 
+Drain acknowledgement note: after checkpoint f2becc4f6f47f0c6219178fd18a906844560f6dc was pushed, Couch refused --drain --ack 69bb7fc3-a125-42c6-9900-5814613b8eba with “ack does not name current drain/member”. A subsequent live status read still showed that drain ID active/stuck and ariadne:5 “draining — checkpoint requested”. No successful ack is claimed. Own queued suite is cancelled and joined, no stage is held, and no landing was attempted. End the turn and remain idle; reconcile the current member/notice through Couch before acknowledging after resume. Do not bypass drain pause or edit another slot's state.
+
 ## Revisions
 
 ### 2026-10-20T09:03-07:00 — separate cache visibility from reopen policy
