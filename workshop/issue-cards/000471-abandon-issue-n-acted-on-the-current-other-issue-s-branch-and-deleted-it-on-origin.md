@@ -1,6 +1,6 @@
 ---
 id: 000471
-status: working
+status: codecomplete
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 3.16
+tracker:
+    version: 1
+    completion:
+        token: close-a477534abc52
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 92211bc7cc8ab76e431e6e7830cbae082f5879fe
+        evidence_commit: dc1903983646269f88abf7f06b3af1f5d2fedef1
 ---
 
 # abandon: --issue N acted on the current (other issue's) branch and deleted it on origin
