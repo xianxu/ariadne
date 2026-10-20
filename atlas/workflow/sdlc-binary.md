@@ -2004,6 +2004,28 @@ roots for earlier disposable folders. It also sweeps stale run and go-build fold
 and warns about `t.TempDir` folders a scratched run still left on the SSD temp
 folders. `pkg/golint`'s `tmp-literal` flags hardcoded temp roots that bypass it.
 
+Fallback also owns and removes a per-run directory and explicitly overrides
+both child temp variables (#477). `internal/scratchdisk.NormalTempDir` probes
+actual create/remove access, preserves a usable inherited root, then tries
+Darwin's per-user temp and the Unix default independently. Detached-checkout
+creation uses the same repair if its os.TempDir fallback is unusable; explicit
+custom fallback errors remain strict. Root enumeration also covers all repaired
+normal candidates for stale-checkout and per-run cleanup, even after the inherited root
+works again. No global process environment is changed.
+
+`runLocalCheck` reads one bounded complete log for startup classification and
+normal suite facts. `suiteenvironment.go` accepts only direct Go work-directory
+creation errors and the explicit compile-before-report Python/make wrapper.
+Mixed, quoted, truncated, timed-out or unknown output retains ordinary rules.
+Recognized startup errors return a typed could-not-run error before flake,
+attempt or status publication; known-flake reruns use the same classifier.
+Raw evidence moves to `<head>/<check>.environment.log`, bounded by existing
+20-head pruning, outside SuiteAttempt and legacy acceptance paths. A retention
+failure names and retains the raw inflight log. No schema changes or rewrites:
+a same-head environment repair can pass, while genuine failed attempts remain.
+Ordinary baseline diagnosis and train `mainIsRed` propagate execution errors;
+main health stays unknown and the train emits no failure/split event for them.
+
 Every package whose tests run git calls `testfix.PreferRealGit()` from its
 `TestMain`, putting `$(git --exec-path)` first on PATH: on macOS `/usr/bin/git`
 is the xcrun shim, which costs about 11 ms per spawn. A new git-driving test

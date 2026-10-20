@@ -566,6 +566,14 @@ never another slot's; never stop one by a PID picked from `ps`. When a finished
 check's status post can't reach GitHub, `sdlc local-check republish --name X`
 posts the saved result later, with no rerun.
 
+Recorded suites and their baselines replace unusable inherited `TMPDIR` and
+`GOTMPDIR` with writable per-run paths, even when TestScratch falls back.
+A proven Go work-directory startup failure reports an environment error naming
+those variables, with a separate `.environment.log`; it posts no code-failure
+status or suite attempt. Repair access and rerun the same check or merge. A
+baseline that could not start leaves main's health unknown. Mixed or ambiguous
+output keeps the ordinary failure rules, and earlier real failures still block.
+
 Known flaky tests are registered on their issues (#394). A test is a known flake
 while an open issue's card lists it in `flake_tests`. `sdlc flake register --test
 PKG.TestX [--issue N]` writes the field only with same-head fail→pass evidence

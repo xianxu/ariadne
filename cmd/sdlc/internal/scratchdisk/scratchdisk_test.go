@@ -83,10 +83,9 @@ func TestMkdirTempFallsBack(t *testing.T) {
 	if err := os.RemoveAll(filepath.Join(ram, "sub")); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(ram, 0o500); err != nil {
+	if err := os.WriteFile(filepath.Join(ram, "sub"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.Chmod(ram, 0o700) })
 	dir, err = MkdirTemp("sub", fallback, "x-*")
 	if err != nil || filepath.Dir(dir) != fallback {
 		t.Fatalf("refusing disk: %q %v", dir, err)
