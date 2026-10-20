@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
@@ -90,6 +91,193 @@ func TestAbandonStartedWork(t *testing.T) {
 	r.git("fetch", "-q", "origin")
 	if r.git("rev-parse", "origin/main") != before {
 		t.Fatal("a rerun committed to main again")
+	}
+}
+
+// #471: the card owner can own two started issues, but --issue A must never
+// make the checked-out B branch A's archive or delete B on origin.
+func TestAbandonRefusesAnotherIssuesBranchBeforeEffects(t *testing.T) {
+	r, paths, _ := startedHere(t)
+	r.git("switch", "-q", "main")
+	claimFor(t, 10)
+	var out bytes.Buffer
+	if err := startPlanBranch(context.Background(), &out, 10); err != nil {
+		t.Fatal(err)
+	}
+	branchB := issue.BranchName(paths["000010"])
+	writeRepoFile(t, r.root, "cmd/ten.go", "package ten\n")
+	r.git("add", "-A")
+	r.git("commit", "-qm", "#10: work in progress")
+	if err := pushIssueBranch(boundaryEnv(t), branchB); err != nil {
+		t.Fatal(err)
+	}
+	localB := r.git("rev-parse", "HEAD")
+	remoteB := remoteTip(t, r, branchB)
+	localA := r.git("rev-parse", "refs/heads/"+s09Branch)
+	remoteA := remoteTip(t, r, s09Branch)
+	main := r.originMain()
+	cardA, cardB := r.card(paths["000009"]), r.card(paths["000010"])
+	err := abandon9("punt", "later")
+	if err == nil || !strings.Contains(err.Error(), s09Branch) || !strings.Contains(err.Error(), branchB) {
+		t.Fatalf("wrong-branch abandon must name both branches: %v", err)
+	}
+	if r.git("branch", "--show-current") != branchB || r.git("rev-parse", "HEAD") != localB ||
+		r.git("rev-parse", "refs/heads/"+s09Branch) != localA || remoteTip(t, r, s09Branch) != remoteA ||
+		remoteTip(t, r, branchB) != remoteB || remoteRef(t, r, s09Archive) != "" ||
+		r.originMain() != main || r.card(paths["000009"]) != cardA || r.card(paths["000010"]) != cardB {
+		t.Fatal("wrong-branch abandon changed local work, remote refs, main or a card")
+	}
+}
+
+func TestAbandonRefusesRemoteCommitsBeyondLocalBeforeEffects(t *testing.T) {
+	r, paths, _ := startedHere(t)
+	local := r.git("rev-parse", "HEAD")
+	r.git("switch", "-q", "-c", "000099-remote-work", "origin/"+s09Branch)
+	writeRepoFile(t, r.root, "cmd/remote.go", "package remote\n")
+	r.git("add", "-A")
+	r.git("commit", "-qm", "#9: remote work")
+	r.git("push", "-q", "origin", "HEAD:refs/heads/"+s09Branch)
+	remote := remoteTip(t, r, s09Branch)
+	r.git("switch", "-q", s09Branch)
+	card, main := r.card(paths["000009"]), r.originMain()
+	err := abandon9("punt", "later")
+	if err == nil || !strings.Contains(err.Error(), shortOID(remote)) || !strings.Contains(err.Error(), shortOID(local)) {
+		t.Fatalf("remote work beyond local must be named: %v", err)
+	}
+	if r.git("rev-parse", "HEAD") != local || remoteTip(t, r, s09Branch) != remote ||
+		remoteRef(t, r, s09Archive) != "" || r.card(paths["000009"]) != card || r.originMain() != main {
+		t.Fatal("remote divergence refusal changed the branch, archive, card or main")
+	}
+}
+
+func TestAbandonRemoteDeleteUsesTheArchivedHead(t *testing.T) {
+	r, _, _ := startedHere(t) // start-plan pushed a tip older than local work
+	hook := "#!/bin/sh\n" +
+		"while read old new ref; do\n" +
+		"  case \"$ref:$new\" in refs/heads/" + s09Branch + ":0000000000000000000000000000000000000000)\n" +
+		"    archived=$(git rev-parse " + s09Archive + ") || exit 1\n" +
+		"    test \"$old\" = \"$archived\" || exit 1;;\n" +
+		"  esac\n" +
+		"done\n"
+	hookPath := filepath.Join(r.origin, "hooks", "pre-receive")
+	if err := os.WriteFile(hookPath, []byte(hook), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := abandon9("punt", "later"); err != nil {
+		t.Fatalf("remote deletion did not use the archived head: %v", err)
+	}
+	if remoteTip(t, r, s09Branch) != "" || remoteRef(t, r, s09Archive) == "" {
+		t.Fatal("abandon did not retain the archive and retire the exact archived branch")
+	}
+}
+
+func TestAbandonRefusesLocalTipMovedAfterCheckout(t *testing.T) {
+	r, _, _ := startedHere(t)
+	hooks := t.TempDir()
+	movedPath := filepath.Join(t.TempDir(), "moved-tip")
+	hook := fmt.Sprintf("#!/bin/sh\nold=$(git rev-parse refs/heads/%s) || exit 1\nnext=$(git commit-tree \"$old^{tree}\" -p \"$old\" -m 'late local work') || exit 1\ngit update-ref refs/heads/%s \"$next\" \"$old\" || exit 1\nprintf '%%s\\n' \"$next\" > %q\n", s09Branch, s09Branch, movedPath)
+	if err := os.WriteFile(filepath.Join(hooks, "post-checkout"), []byte(hook), 0755); err != nil {
+		t.Fatal(err)
+	}
+	r.git("config", "core.hooksPath", hooks)
+	err := abandon9("punt", "later")
+	r.git("config", "--unset", "core.hooksPath")
+	moved, readErr := os.ReadFile(movedPath)
+	if readErr != nil {
+		t.Fatalf("post-checkout did not move the branch: %v", readErr)
+	}
+	if err == nil || !strings.Contains(err.Error(), "moved") {
+		t.Fatalf("abandon accepted a local tip moved after preflight: %v", err)
+	}
+	if got := r.git("rev-parse", "refs/heads/"+s09Branch); got != strings.TrimSpace(string(moved)) {
+		t.Fatalf("unarchived local tip was lost: got %s, want %s", got, strings.TrimSpace(string(moved)))
+	}
+	if remoteRef(t, r, s09Archive) == strings.TrimSpace(string(moved)) {
+		t.Fatal("late local work was silently treated as archived")
+	}
+}
+
+func TestAbandonRerunPreservesBranchCheckedOutElsewhere(t *testing.T) {
+	r, _, _ := startedHere(t)
+	previous := mainPublish
+	mainPublish = func(*trackerEnv, string, func(*gitx.TrunkView) (gitx.TrunkWrite, error), func(string, string) error) error {
+		return errors.New("interrupted")
+	}
+	err := abandon9("punt", "later")
+	mainPublish = previous
+	if err == nil {
+		t.Fatal("fixture did not leave an interrupted abandon")
+	}
+	r.git("switch", "-q", "main")
+	linked := filepath.Join(t.TempDir(), "linked")
+	r.git("worktree", "add", "-q", linked, s09Branch)
+	kept := remoteRef(t, r, s09Archive)
+	err = abandon9("punt", "later")
+	if err == nil || !strings.Contains(err.Error(), "checked out") {
+		t.Fatalf("abandon removed a branch checked out in another worktree: %v", err)
+	}
+	if got := r.git("rev-parse", "refs/heads/"+s09Branch); got != kept {
+		t.Fatalf("checked-out branch moved or disappeared: got %s, want %s", got, kept)
+	}
+}
+
+func TestAbandonResumeRefusesAnotherBranch(t *testing.T) {
+	r, paths, _ := startedHere(t)
+	previous := mainPublish
+	mainPublish = func(*trackerEnv, string, func(*gitx.TrunkView) (gitx.TrunkWrite, error), func(string, string) error) error {
+		return errors.New("interrupted")
+	}
+	err := abandon9("punt", "later")
+	mainPublish = previous
+	if err == nil {
+		t.Fatal("fixture did not interrupt after the terminal card")
+	}
+	kept := remoteRef(t, r, s09Archive)
+	card := r.card(paths["000009"])
+	r.git("switch", "-q", "main")
+	r.git("switch", "-q", "-c", "000010-other")
+	err = abandon9("punt", "later")
+	if err == nil || !strings.Contains(err.Error(), s09Branch) || !strings.Contains(err.Error(), "000010-other") {
+		t.Fatalf("terminal retry from another branch: %v", err)
+	}
+	if remoteRef(t, r, s09Archive) != kept || r.card(paths["000009"]) != card {
+		t.Fatal("wrong-branch retry changed the archive or card")
+	}
+}
+
+func TestAbandonResumeRefusesRecordedBranchFromAnotherIssue(t *testing.T) {
+	r, paths, _ := startedHere(t)
+	previous := mainPublish
+	mainPublish = func(*trackerEnv, string, func(*gitx.TrunkView) (gitx.TrunkWrite, error), func(string, string) error) error {
+		return errors.New("interrupted")
+	}
+	err := abandon9("punt", "later")
+	mainPublish = previous
+	if err == nil {
+		t.Fatal("fixture did not interrupt after the card write")
+	}
+	env, err := openTracker(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.repo.ChangeCard("000009", paths["000009"], "unsafe legacy record", operationToken("test"), func(raw []byte) ([]byte, error) {
+		rec, ok, err := issue.CardAbandoned(raw)
+		if err != nil || !ok {
+			return nil, fmt.Errorf("missing abandon record: %v", err)
+		}
+		rec.Branch = "000010-other"
+		return issue.SetCardAbandoned(raw, &rec)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	r.git("switch", "-q", "main")
+	kept, main := remoteRef(t, r, s09Archive), r.originMain()
+	err = abandon9("punt", "later")
+	if err == nil || !strings.Contains(err.Error(), "unsafe") || !strings.Contains(err.Error(), s09Branch) {
+		t.Fatalf("unsafe persisted branch accepted: %v", err)
+	}
+	if remoteRef(t, r, s09Archive) != kept || r.originMain() != main || remoteTip(t, r, s09Branch) == "" {
+		t.Fatal("unsafe record changed the remote before refusal")
 	}
 }
 

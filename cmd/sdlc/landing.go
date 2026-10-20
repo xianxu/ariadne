@@ -481,12 +481,12 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 			if remoteHead != state.head && (!state.resume || remoteHead != state.pr.HeadOID) {
 				return errors.New("local, remote and PR heads must match; push selected branch before landing")
 			}
-			included, err := integrationAncestor(r, t.Root, targetMain, state.head)
+			observation, err := observeIntegrationMain(r, t, state, targetMain, stderr)
 			if err != nil {
 				return err
 			}
 			var step integrationStep
-			state, step, err = transitionIntegration(state, integrationEvent{kind: integrationMainObserved, main: targetMain, included: included})
+			state, step, err = transitionIntegration(state, observation)
 			if err != nil {
 				return err
 			}
@@ -494,7 +494,11 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 				return fmt.Errorf("main moved too often: stopped after %d integrations; re-run sdlc merge", integrationLimit)
 			}
 			if step == integrationMerge || step == integrationReplay {
-				fmt.Fprintf(stderr, "Integrating %s/main before landing (attempt %d of %d)\n", t.Remote, state.attempts+1, integrationLimit)
+				if state.chargeIntegration {
+					fmt.Fprintf(stderr, "Integrating %s/main before landing (attempt %d of %d)\n", t.Remote, state.attempts+1, integrationLimit)
+				} else {
+					fmt.Fprintf(stderr, "Integrating issue records from %s/main; code integration budget unchanged\n", t.Remote)
+				}
 				state, err = integrateLandingMain(ctx, r, gh, t, branch, state, f.withLock, f.NoJudge, f.IssuesDir, stderr)
 				if err != nil {
 					return err
@@ -509,11 +513,11 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 					if err != nil {
 						return err
 					}
-					included, err := integrationAncestor(r, t.Root, latest, state.head)
+					observation, err = observeIntegrationMain(r, t, state, latest, stderr)
 					if err != nil {
 						return err
 					}
-					state, step, err = transitionIntegration(state, integrationEvent{kind: integrationMainObserved, main: latest, included: included})
+					state, step, err = transitionIntegration(state, observation)
 					return err
 				}); err != nil {
 					return err
@@ -532,11 +536,11 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 			head, pr = state.head, state.pr
 			// Gate this exact integrated tree. A resumed integration of an older
 			// main is brought fully current before spending time on its suite.
-			included, err = integrationAncestor(r, t.Root, targetMain, state.head)
+			observation, err = observeIntegrationMain(r, t, state, targetMain, stderr)
 			if err != nil {
 				return err
 			}
-			if !included {
+			if !observation.included && !observation.issueOnly {
 				continue
 			}
 			if !f.NoValidate {
@@ -561,8 +565,17 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 				state, _, _ = transitionIntegration(state, integrationEvent{kind: integrationGatesRejected})
 				return diagnoseSuiteFailure(ctx, err, targetMain, localDeps)
 			}
-			// A suite authorizes only this head and a main it contains. Keep the
-			// final revalidation and expected-head server merge in one transaction.
+			// Read effective readiness outside the transaction. Its live base
+			// target must still match the final fetched main; no status is copied.
+			readiness, readinessErr := landingReadiness{}, fmt.Errorf("adapter has no readiness evidence")
+			if source, ok := gh.(landingReadinessGH); ok {
+				readiness, readinessErr = source.LandingReadiness(ctx, t.Repo, pr.Number)
+			}
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			// Final revalidation and expected-head merge remain one transaction.
+
 			if err = f.withLock(func() error {
 				if err := revalidateLanding(r, t, branch, head, current); err != nil {
 					return err
@@ -571,11 +584,41 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 				if err != nil {
 					return err
 				}
-				included, err := integrationAncestor(r, t.Root, latest, head)
+				observation, err = observeIntegrationMain(r, t, state, latest, stderr)
 				if err != nil {
 					return err
 				}
-				state, step, err = transitionIntegration(state, integrationEvent{kind: integrationGatesChecked, main: latest, included: included})
+				observation.kind = integrationGatesChecked
+				if !observation.included && observation.issueOnly {
+					if readinessErr == nil {
+						observation.ready, err = readinessAllowsUnintegrated(pr, readiness, latest)
+						if err != nil {
+							return err
+						}
+					} else {
+						fmt.Fprintf(stderr, "issue-record readiness unavailable (%v); integrating normally without charging the code budget\n", readinessErr)
+					}
+					if observation.ready {
+						// Main may have gained issue IDs or published details
+						// during CI. Reuse the gates against that exact destination.
+						if !f.NoValidate {
+							if err = runLandingInstanceGate(latest, head, nounGates(f.IssuesDir), stdout, stderr, r); err != nil {
+								return err
+							}
+							if err = runLandingDuplicateGate(latest, head, f.IssuesDir, f.HistoryDir, r); err != nil {
+								return err
+							}
+						}
+						if !f.NoJudge {
+							fresh := pr
+							fresh.BaseOID = latest
+							if err = runLandingPublishGate(ctx, fresh, f.IssuesDir, stderr); err != nil {
+								return err
+							}
+						}
+					}
+				}
+				state, step, err = transitionIntegration(state, observation)
 				if err != nil || step != integrationLand {
 					return err
 				}

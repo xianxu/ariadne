@@ -3,6 +3,21 @@
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
 
+- A card owner may hold more than one issue. Before a numbered command commits
+  or deletes HEAD's branch, compare it with the branch derived from that issue's
+  card; ownership alone cannot identify the checkout. Remote deletion must
+  lease the exact tip already kept in the archive. Close may admit a renamed
+  recovery branch only at the exact canonical issue tip; ancestry or a similar
+  name is not proof that it holds only that issue's work (#471).
+- A preflight tip check cannot authorize a later destructive ref update: Git
+  hooks or another checkout may move the ref in between. Delete a local branch
+  with `git update-ref -d <ref> <archived-head>` and a remote branch with an
+  exact-head lease, then test a move at the last intervening hook. Keep the
+  separate checked-out-worktree refusal: `update-ref` does not enforce it, while
+  `git branch -D` did. When branch admission changes, update README's usage
+  examples as well as help and atlas
+  (#471 BR-1/BR-2).
+
 - Before counting joined records, check that the identity is unique across the
   whole cohort. Per-record card/event/Git validity did not prevent two issues
   from claiming one PR, branch or merge and doubling a weekly denominator.
@@ -57,6 +72,10 @@ Detailed incidents remain in their owning issue or review artifact.
   for the old path and the docs for a sibling binary's name (#350 BR-1).
 
 ## Guards and proof
+
+- Keep the real checkout stable while cmd/sdlc package tests run: its TestMain
+  snapshots HEAD, branch and porcelain status. A concurrent commit or a new
+  dirty path invalidates the run even when every assertion passes (#472).
 
 - Native CLI fixtures that assert quiet output must explicitly isolate live
   runtime context at their shared subprocess boundary. Set inherited Couch
@@ -1059,6 +1078,13 @@ The simplest durable authority beats a clever scan of consequences.
   This is a semantic scope decision; the existing close freshness judge owns
   enforcement rather than a lexical Go lint rule.
 
+- #465: count subprocesses as well as wall time when optimizing shell fixtures on a shared macOS host. Isolate each scan to relevant owners, batch independent cases, reuse immutable successful sentinels, and select concurrency order with readiness barriers. Pure path splitting needs real dirname/basename edge conformance plus an N/2N zero-exec guard; keep partial/failed output fixtures independent.
+
+- #465 CI: reuse executable contents by copying the immutable template when the production path renames outputs. Hardlinking source and installed output makes them the same file; GNU mv refuses it, and shared timestamp changes weaken build-isolation coverage even when BSD mv permits it.
+
+- #465 BR-1/BR-2: replacing a clock wait must preserve the ordering the regression proves. Give start, edit and completed output independently ordered timestamps; mutate away restoration to confirm failure. When approved acceptance changes, update Done when alongside Revisions so the current contract names every required guard.
+
+- #465 BR-3: fixture reuse must preserve observed output and status for every CLI mode. Never substitute a supplied status or another mode's baseline. Enumerate every reused result, regenerate after relevant input/context changes, and mutate ordinary/strict/verbose behavior independently.
 - **#458 — review the observable command and its design table:** a function
   that invokes an injected Git callback is integration logic even when the
   callback is passed as a value. Test the final CLI rows for default and verbose

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 )
 
@@ -58,6 +59,38 @@ func TestIssueAttachPolicyRefusesBeforeReadingSource(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "workshop/issues/assets")); !os.IsNotExist(err) {
 		t.Fatal("refusal created assets")
+	}
+}
+
+func TestIssueAttachRefusesAnotherStartedIssuesBranch(t *testing.T) {
+	cardPath, card, detailPath, detail := seededIssue(t, "000007", "evidence")
+	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{
+		detailPath: detail, assetPolicyPath: `{"version":1,"policy":"allowed"}`,
+	})
+	claimFor(t, 7)
+	var out bytes.Buffer
+	if err := startPlanBranch(context.Background(), &out, 7); err != nil {
+		t.Fatal(err)
+	}
+	want := issue.BranchName(cardPath)
+	r.git("switch", "-q", "main")
+	r.git("switch", "-q", "-c", "000008-other")
+	source := filepath.Join(t.TempDir(), "evidence.png")
+	if err := os.WriteFile(source, []byte("\x89PNG\r\n\x1a\nsmall evidence"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(filepath.Join(r.root, detailPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeStatus := r.git("status", "--porcelain")
+	err = runIssueAttach(context.Background(), &out, issueAttachFlags{Issue: 7, File: source, Caption: "evidence", IssuesDir: "workshop/issues"})
+	if err == nil || !strings.Contains(err.Error(), want) || !strings.Contains(err.Error(), "000008-other") {
+		t.Fatalf("attach from another issue branch: %v", err)
+	}
+	after, err := os.ReadFile(filepath.Join(r.root, detailPath))
+	if status := r.git("status", "--porcelain"); err != nil || !bytes.Equal(before, after) || status != beforeStatus {
+		t.Fatalf("refused attach changed the checkout: read=%v bytes-equal=%v status=%q (before %q)", err, bytes.Equal(before, after), status, beforeStatus)
 	}
 }
 

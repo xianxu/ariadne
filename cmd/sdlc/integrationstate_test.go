@@ -96,3 +96,128 @@ func TestIntegrationStateMainDriftBeforePushRequestsReset(t *testing.T) {
 		t.Fatalf("retry after reset state=%+v effect=%s err=%v", s, effect, err)
 	}
 }
+
+func TestIntegrationStateIssueOnlyProgress(t *testing.T) {
+	for _, ready := range []bool{false, true} {
+		s := newIntegrationState("tested", landingPR{HeadOID: "tested"}, false)
+		s.attempts = integrationLimit
+		next, effect, err := transitionIntegration(s, integrationEvent{kind: integrationMainObserved, main: "issue-main", issueOnly: true})
+		if err != nil || effect != integrationGates || next.attempts != integrationLimit {
+			t.Fatalf("metadata observation at exhausted budget: %+v %s %v", next, effect, err)
+		}
+		next, effect, err = transitionIntegration(next, integrationEvent{kind: integrationGatesChecked, main: "issue-main", issueOnly: true, ready: ready})
+		if ready {
+			if err != nil || effect != integrationLand || next.head != "tested" {
+				t.Fatalf("ready direct merge: %+v %s %v", next, effect, err)
+			}
+			continue
+		}
+		if err != nil || effect != integrationMerge {
+			t.Fatalf("strict fallback: %+v %s %v", next, effect, err)
+		}
+		for _, ev := range []integrationEvent{{kind: integrationMerged, head: "integrated"}, {kind: integrationReplayAccepted}, {kind: integrationPushRegistered, pr: landingPR{HeadOID: "integrated"}}} {
+			next, effect, err = transitionIntegration(next, ev)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		if next.attempts != integrationLimit {
+			t.Fatalf("issue-only integration charged: %+v", next)
+		}
+		_, effect, err = transitionIntegration(next, integrationEvent{kind: integrationGatesChecked, main: "code-main"})
+		if err != nil || effect != integrationRefuse {
+			t.Fatalf("code bypassed exhausted budget: %s %v", effect, err)
+		}
+	}
+}
+
+func TestIntegrationStatePendingChargeSurvivesIssueOnlyPushDrift(t *testing.T) {
+	for _, metadataIntegration := range []bool{false, true} {
+		s := newIntegrationState("old", landingPR{HeadOID: "old"}, false)
+		events := []integrationEvent{{kind: integrationGatesChecked, main: "target", issueOnly: metadataIntegration}, {kind: integrationMerged, head: "merged"}, {kind: integrationReplayAccepted}}
+		for _, ev := range events {
+			var err error
+			s, _, err = transitionIntegration(s, ev)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		next, effect, err := transitionIntegration(s, integrationEvent{kind: integrationMainObserved, main: "new-record", issueOnly: true})
+		if err != nil || effect != integrationPush || next.main != "target" {
+			t.Fatalf("metadata reset pending merge or changed its target: %+v %s %v", next, effect, err)
+		}
+		next, _, err = transitionIntegration(next, integrationEvent{kind: integrationPushRegistered, pr: landingPR{HeadOID: "merged"}})
+		want := 1
+		if metadataIntegration {
+			want = 0
+		}
+		if err != nil || next.attempts != want {
+			t.Fatalf("metadata=%v charge=%d want %d err=%v", metadataIntegration, next.attempts, want, err)
+		}
+	}
+}
+
+func TestIntegrationStateRepeatedMetadataFallbackAndResume(t *testing.T) {
+	s := newIntegrationState("tested", landingPR{HeadOID: "tested"}, false)
+	s.attempts = 1
+	for n := 0; n < 4; n++ {
+		for _, event := range []integrationEvent{
+			{kind: integrationMainObserved, main: "records", issueOnly: true},
+			{kind: integrationGatesChecked, main: "records", issueOnly: true},
+			{kind: integrationMainObserved, main: "records", issueOnly: true},
+			{kind: integrationMerged, head: "next"},
+			{kind: integrationReplayAccepted},
+			{kind: integrationPushRegistered, pr: landingPR{HeadOID: "next"}},
+		} {
+			var err error
+			s, _, err = transitionIntegration(s, event)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		if s.attempts != 1 {
+			t.Fatalf("iteration %d charged metadata: %+v", n, s)
+		}
+	}
+	for _, metadata := range []bool{true, false} {
+		s = newIntegrationState("local", landingPR{HeadOID: "lease"}, true)
+		for _, event := range []integrationEvent{
+			{kind: integrationMainObserved, main: "integrated", included: true, issueOnly: metadata},
+			{kind: integrationReplayAccepted},
+			{kind: integrationPushRegistered, pr: landingPR{HeadOID: "local"}},
+		} {
+			var err error
+			s, _, err = transitionIntegration(s, event)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		want := 1
+		if metadata {
+			want = 0
+		}
+		if s.attempts != want {
+			t.Fatalf("resume metadata=%v attempts=%d", metadata, s.attempts)
+		}
+	}
+}
+
+func TestIntegrationStateMetadataResetDoesNotCharge(t *testing.T) {
+	s := newIntegrationState("old", landingPR{HeadOID: "old"}, false)
+	for _, e := range []integrationEvent{
+		{kind: integrationGatesChecked, main: "records", issueOnly: true},
+		{kind: integrationMerged, head: "merged"},
+		{kind: integrationReplayAccepted},
+		{kind: integrationMainObserved, main: "code"},
+		{kind: integrationRecoveryCompleted},
+	} {
+		var err error
+		s, _, err = transitionIntegration(s, e)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if s.attempts != 0 || s.head != "old" || s.phase != integrationGates {
+		t.Fatalf("metadata reset charged: %+v", s)
+	}
+}

@@ -399,10 +399,10 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"abandon"},
 		Class:         ConvergentRetry,
-		Effects:       "started work (#286): a `#N: log: abandon (…)` commit on the issue branch; the tip pushed to `refs/ariadne/abandoned/NNNNNN`; one card compare-and-swap to wontfix/punt recording {ref, branch, head} (owner kept as attribution); one narrow main commit archiving the details (mirroring the terminal card) and the issue's plan artifacts on main; the branch deleted on the remote (when the kept tip contains it), the checkout returned to rest, the local branch deleted. An open issue: the card (with an empty record) and the archive only.",
+		Effects:       "started work (#286, #471): a `#N: log: abandon (…)` commit on the card-derived issue branch; the tip pushed to `refs/ariadne/abandoned/NNNNNN`; one card compare-and-swap to wontfix/punt recording {ref, branch, head} (owner kept as attribution); one narrow main commit archiving the details (mirroring the terminal card) and the issue's plan artifacts on main; an older remote branch is leased forward to the archived tip and deleted with an exact-tip lease, the checkout returned to rest, the local branch deleted. An open issue: the card (with an empty record) and the archive only.",
 		Evidence:      observeEvidence + ": card.status; `git ls-remote <remote> refs/ariadne/abandoned/NNNNNN`; main's history archive.",
-		Preconditions: "an issue tracker repository; owned by this workspace; a clean tree; the model has an abandon/defer edge from the status; started work runs from its issue branch.",
-		Repeat:        "a terminal card carrying the abandon record is recognised before the branch checks, so a rerun from the resting branch finishes the archive and the branch deletion; each step is skipped when done (the note commit is the tip, the archive ref already holds the tip, main has no live copy, the branch is gone).",
+		Preconditions: "an issue tracker repository; owned by this workspace; a clean tree; the model has an abandon/defer edge from the status; started work runs only from its card-derived issue branch; a remote tip beyond local work refuses before the archive push.",
+		Repeat:        "a terminal card carrying a record for the card-derived branch is recognised before the new-work branch check, so a rerun from that branch or the resting branch finishes the archive and branch deletion; another work branch refuses. Each step is skipped when done (the note commit is the tip, the archive ref already holds the tip, main has no live copy, the branch is gone).",
 		LostResponse:  "rerun the same command — the card decides: not yet terminal repeats from the note (recognised), terminal resumes at the archive.",
 		Ends:          "a reopen (`sdlc issue set-status working`) restores the branch from the archive ref and clears the record; otherwise the ref and the record stay as the work's archive.",
 		Proofs: []Proof{
@@ -411,6 +411,8 @@ var Catalog = []Contract{
 			{"each refusal names its own check, before any effect", []string{"TestAbandonRefusals", "TestAbandonDecision"}},
 			{"an interruption at any step, from the branch or from rest, is finished by rerunning — only by the attributed workspace", []string{"TestAbandonRerunResumes", "TestAbandonResumeRefusesAnotherWorkspace"}},
 			{"started work's plans are archived from the kept tip; an orphan archive ref is overwritten", []string{"TestAbandonKeepsTheBranchsPlans", "TestAbandonOverwritesAnOrphanArchiveRef"}},
+			{"another issue's branch is never recorded or deleted, and remote commits beyond local work refuse before effects", []string{"TestAbandonRefusesAnotherIssuesBranchBeforeEffects", "TestAbandonRefusesRemoteCommitsBeyondLocalBeforeEffects"}},
+			{"the remote delete uses the archived tip, and terminal retries refuse wrong branches and records", []string{"TestAbandonRemoteDeleteUsesTheArchivedHead", "TestAbandonResumeRefusesAnotherBranch", "TestAbandonResumeRefusesRecordedBranchFromAnotherIssue"}},
 		},
 	},
 	{
