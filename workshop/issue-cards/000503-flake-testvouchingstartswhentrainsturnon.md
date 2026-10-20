@@ -1,6 +1,6 @@
 ---
 id: 000503
-status: working
+status: codecomplete
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
@@ -14,6 +14,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.05
+tracker:
+    version: 1
+    completion:
+        token: close-67830a6c6c49
+        repository: github.com/xianxu/ariadne
+        reviewed_head: a99969209d1387ede6d2d71e297bff9c4b218abb
+        evidence_commit: 3857b567dbc4ecc5d68d71ca949b7c703e4c9405
 ---
 
 # flake: TestVouchingStartsWhenTrainsTurnOn
