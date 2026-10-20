@@ -69,6 +69,12 @@ A primary-checkout control also failed because relative Git common directories w
 
 ARCH-PURE: the selector is pure; existing IO resolves workspace identity. ARCH-MOCK: GitHub/capacity use existing private stateful seams, with real Git and the real actual CLI consumer. ARCH-CONSTRAINTS: constant-time selection replaces arguments without extra processes/scans or changed suite bounds. ARCH-SECURE: no environment/path-name inference, and unknown-slot evidence still refuses. ARCH-ORDER: immutable run dependencies add no state between events. ARCH-FUNERAL: no new artifact family, retention or lifetime; normal attempt and temporary-fixture cleanup remain in charge. ARCH-DRY/PURPOSE/EVOLVE are described in Plan.
 
+### 2026-10-20 — recorded suite and independent flake
+
+Recorded attempt bf7ab6a535a92236feeee763b72f9002 on 12aff78f6515173afc4aabd5f28ee7f47b4306e4 ran all 8 shards (1853 sdlc tests) and 75 other packages in 680.0s. Its sole test failure was TestVouchingStartsWhenTrainsTurnOn: the fixture cancels after its readiness callback increments gateReads but before production necessarily reaches line.Vouch. A detached-worktree targeted run on the exact same head passed (test 0.01s, package 0.482s). Filed and registered unclaimed #503 with that fail/pass and root-cause evidence; no production or test source change in this issue. All remaining shards/packages passed.
+
+The central binary cannot resume the failed attempt's targeted flake retry (#463); republish never runs tests. An explicit run on the old implementation SHA refuses because close's documentation commits have advanced the remote branch tip. The replacement recorded suite therefore runs the current pushed branch tip, containing identical code plus close/log bookkeeping. The hub's 3-hour fleet-blocking grant is active. A second unrelated flake on that head stops for the hub; no blind retry.
+
 ## Revisions
 
 ### 2026-10-20 — complete the caller/content boundary
