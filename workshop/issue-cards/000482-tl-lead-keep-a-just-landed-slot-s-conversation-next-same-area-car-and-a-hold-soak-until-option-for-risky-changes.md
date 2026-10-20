@@ -1,8 +1,8 @@
 ---
 id: 000482
-status: codecomplete
+status: done
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-20
 estimate_hours:
 github_issue:
 started: 2026-10-19T22:48:28-07:00
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: ce8324a5be05d9f778e62e4aee498824437e3229
         evidence_commit: 27416f59ac499544c6d3ccbb12a06a33392aaad4
+        landed_commit: 613904795b4e1dad62342a33df579ed59823bac9
 ---
 
 # tl-lead: keep a just-landed slot's conversation (next same-area car), and a 'hold: soak until' option for risky changes
