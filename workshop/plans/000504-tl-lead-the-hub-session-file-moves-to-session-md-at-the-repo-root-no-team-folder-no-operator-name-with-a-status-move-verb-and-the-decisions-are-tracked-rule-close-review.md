@@ -254,3 +254,90 @@ findings:
 7. **Plan revision recommendation:** Append a `## Revisions` entry defining target preservation for the session, side-tree root, descendant directories/files, and stationary targets, with regression coverage across their reference consumers. Retain the documented green-suite and live-migration landing holds.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"021bbc20-f6b3-41fa-b9a9-6e80e029095a","repository":"github.com/xianxu/ariadne","issue_id":"000504","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/b0e27c0bf424e400","reviewed_head":"67b62bfca2fd2ef447480cf4dc639f39490fca16","slot":"ariadne:4","requested_at":"2026-10-20T18:07:33.732092Z"},"phase":"finished","pid":32800,"started_at":"2026-10-20T18:07:33.881768Z","finished_at":"2026-10-20T18:10:33.789142Z","session_id":"01a15a7f-4b6c-70e3-8849-9095af112878","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T11:17:06-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 504 — tl-lead: the hub session file moves to session.md at the repo root (no team folder, no operator name), with a status move verb and the decisions-are-tracked rule |
+| repo | ariadne |
+| issue file | workshop/issues/000504-tl-lead-the-hub-session-file-moves-to-session-md-at-the-repo-root-no-team-folder-no-operator-name-with-a-status-move-verb-and-the-decisions-are-tracked-rule.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | fdfc3ca3c297c1c6c2802e03f3ea54b73f4a2b3e..339ca08719fb439537a062638e467c4921952c50 |
+| command | sdlc close --issue 504 |
+| reviewer | codex (openai; author openai); degraded: same-family by choice |
+| isolation | fenced |
+| timestamp | 2026-10-20T11:17:06-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation satisfies the revised migration contract. BR-5 is addressed with a shared target map, explicit directory preservation, and production regression coverage that fails without the fixes. No new blocking findings. The documented green-suite, staging, and TL/operator migration holds remain required before landing.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Plain-parent validation remains reachable before effects; parent-refusal regressions pass.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Effective Git ignore checks remain enforced; negation regressions pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      All-depth policy-file refusals and refreshed publication checks remain present; nested and late-policy regressions pass.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Production dispatch consumes transitionMove effect grants; transition, interruption, and uncertain-rename tests pass.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      status_move.go:57 explicitly maps the side root; directory planning preserves empty targets. The production reference matrix passes. Temporary overlays removing root mapping or directory planning independently make the corresponding regressions fail.
+```
+
+1. **Strengths**
+
+   - One relocation map serves Markdown, parent, and discussions consumers (`cmd/tl-lead/status_move.go:47`).
+   - Tests verify resolved targets actually exist after cleanup, across two source locations and six target classes (`cmd/tl-lead/status_move_targets_test.go:19`).
+   - Production effects follow the pure transition model; uncertain registration outcomes stop cleanup.
+   - README, help, and atlas document defaults, migration refusals, recovery, and durable decision tracking.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Passed: `go test ./cmd/tl-lead ./pkg/sidedoc ./pkg/golint -count=1`.
+   - Both BR-5 mutation checks failed as expected.
+   - `git diff --check` passed; checkout remained unchanged.
+   - Live Couch and Parley checks were inspected but not rerun. This review does not establish a recorded full-suite pass.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared defaults and relocation helpers.
+   - **ARCH-PURE — pass:** planning, parsing, and transitions separated from IO; pure tests require no mocks.
+   - **ARCH-PURPOSE — pass:** reference-consumer sweep covers the prior finding’s class.
+   - **ARCH-MOCK — pass:** stateful Couch fake shares the production seam; scratch conformance coverage exists.
+   - **ARCH-CONSTRAINTS — pass:** sequential maintenance operation, scoped to affected trees; no background fan-out.
+   - **ARCH-SECURE — pass:** explicit metadata, path, symlink, lock, and ignore-policy validation.
+   - **ARCH-ORDER — pass:** production consumes effect grants; tests control interruptions and uncertain outcomes.
+   - **ARCH-FUNERAL — pass:** verified cleanup and retry ownership are explicit; no new journal family.
+   - **ARCH-EVOLVE — pass:** targeted edits preserve unknown metadata bytes; registration lookup is read-only.
+
+7. **Plan revision recommendations:** None. Existing revisions describe the implemented corrections and landing holds.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"0bb714f9-4e93-448f-bcb7-520a2af14b34","repository":"github.com/xianxu/ariadne","issue_id":"000504","recipe":"milestone-review","round":4,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/f56e119ac6dc8fec","reviewed_head":"339ca08719fb439537a062638e467c4921952c50","slot":"ariadne:4","requested_at":"2026-10-20T18:15:01.361925Z"},"phase":"finished","pid":66714,"started_at":"2026-10-20T18:15:01.500746Z","finished_at":"2026-10-20T18:17:05.995207Z","session_id":"01a15a86-1fd8-7302-af13-a00dcfc9dd8e","outcome":"returned"}] -->

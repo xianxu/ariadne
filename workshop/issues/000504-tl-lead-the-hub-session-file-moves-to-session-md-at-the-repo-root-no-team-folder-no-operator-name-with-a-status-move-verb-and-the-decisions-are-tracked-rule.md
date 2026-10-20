@@ -71,6 +71,7 @@ Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 ## Log
 
 ### 2026-10-20
+- 2026-10-20: closed — Affected tl-lead, sidedoc and golint packages pass; real scratch Couch conformance passes. Reference-target matrix checks two moving source coordinates, six target classes and five consumers; private overlay removal reproduces root-link and empty-directory failures. Directory collision refuses before effects. Prior nested-policy, parent, effective-ignore and transition-outcome regressions pass. Fresh recorded suite on 339ca087 queued/running, NOT yet passed; tl-worker allows review overlap. Green suite and SHIP precede staging; TL/operator live migration evidence and stage clear precede merge.; review verdict: SHIP
 
 - Claimed in ariadne:4 and entered planning with `sdlc start-plan`. No implementation edits or live hub mutations.
 - TL accepted unambiguous legacy discovery, optional FILE defaults, compatibility and lock/collision/symlink refusals. TL directed copy-then-switch without a recovery journal. Sources remain until copies and registration switch are verified; after switch, cleanup failures use the new session and rerun cleanup. No editor lease exists, so apply requires a quiet window and rechecks observed locks (ARCH-ORDER).
