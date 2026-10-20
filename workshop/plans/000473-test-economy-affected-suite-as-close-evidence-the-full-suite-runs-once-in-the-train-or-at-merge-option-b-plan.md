@@ -424,3 +424,13 @@ one.
      has `affected.json` and refuses without it.
 
   Scope is unchanged. The docs-only selection was already in M1 (Task 5), and the stand-in in Task 6.
+- **2026-10-20 (M1 review rounds 1–2, BR-1 and BR-7).** Package ownership is exact, and it is a union. This replaces
+  "nearest package" in Core concepts rule 3 and Task 2's `PackageOf`.
+  - `Graph.Owners(file)` returns every package a change to the file can break: the package whose directory holds it,
+    every package whose `testdata/` holds it, and every package that embeds it. `Graph.Embeds` is filled from
+    `go list`'s `EmbedFiles`, `TestEmbedFiles` and `XTestEmbedFiles`, a fifth field of `goListFormat`.
+  - A path selects the union of its owners and its matching groups. It is Full only when the union is empty.
+  - **Why:** the ancestor-directory claim let a root package claim every path, so `scripts/` never forced Full. Then
+    a first-owner-wins lookup missed a root package that embeds a file inside a sub-package's directory, which
+    `go list` confirms is legal.
+  - An empty change set refuses (BR-2) rather than recording a docs-only pass.

@@ -315,9 +315,9 @@ fields.
 each changed path:
 - docs are ignored, by the publish gate's rule;
 - a `full` glob forces the full suite;
-- otherwise the path selects the package that owns it, *and* every group whose `paths` match it, additively. A
-  package owns a file in its own directory, under its `testdata/`, or one it embeds (`go list`'s embed files); a plain
-  subdirectory file is owned by no package;
+- otherwise the path selects every package that owns it, *and* every group whose `paths` match it, as one union.
+  A file's owners are the package whose directory holds it, each package whose `testdata/` holds it, and each package
+  that embeds it (`go list`'s embed files). A plain subdirectory file is owned by no package;
 - a path neither claims forces the full suite.
 
 The packages then expand to every package that depends on them. Those dependencies come from

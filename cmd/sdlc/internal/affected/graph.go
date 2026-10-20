@@ -10,7 +10,7 @@ type Graph struct {
 	Module string
 	Dir    map[string]string          // import path → module-relative dir ("." for root)
 	Deps   map[string]map[string]bool // import path → transitive in-module deps, test imports included
-	Embeds map[string]string          // module-relative embedded file → the package embedding it (go:embed)
+	Embeds map[string][]string        // module-relative embedded file → every package embedding it (go:embed)
 }
 
 func (g Graph) byDir() map[string]string {
@@ -21,28 +21,31 @@ func (g Graph) byDir() map[string]string {
 	return idx
 }
 
-// PackageOf returns the package that owns file, exactly: a file directly in a package dir, a file under that
-// package's testdata/, or a file the package embeds. Any other file, including one in a plain subdirectory of a
-// package (the module root's above all), is unowned and so unclassified unless a group claims it (#473 M1 BR-1).
-func (g Graph) PackageOf(file string) (string, bool) {
-	return g.packageIn(g.byDir(), file)
+// Owners returns every package a change to file can break, sorted: the package whose dir holds it, each package
+// whose testdata/ holds it, and each package that embeds it. A file can have several (a root package may embed a
+// file inside a sub-package's dir), and the union is the rule; none means unowned, so the file is unclassified
+// unless a group claims it. A plain subdirectory file, under the root package above all, has no owner (#473 M1
+// BR-1, BR-7).
+func (g Graph) Owners(file string) []string {
+	return g.owners(g.byDir(), file)
 }
 
-func (g Graph) packageIn(byDir map[string]string, file string) (string, bool) {
+func (g Graph) owners(byDir map[string]string, file string) []string {
+	set := map[string]bool{}
 	if p, ok := byDir[path.Dir(file)]; ok {
-		return p, true
+		set[p] = true
 	}
-	for d := path.Dir(file); d != "." && d != "/"; {
-		parent := path.Dir(d)
+	for d := path.Dir(file); d != "." && d != "/"; d = path.Dir(d) {
 		if path.Base(d) == "testdata" {
-			if p, ok := byDir[parent]; ok {
-				return p, true
+			if p, ok := byDir[path.Dir(d)]; ok {
+				set[p] = true
 			}
 		}
-		d = parent
 	}
-	p, ok := g.Embeds[file]
-	return p, ok
+	for _, p := range g.Embeds[file] {
+		set[p] = true
+	}
+	return sortedKeys(set)
 }
 
 // Dependents returns changed plus every package depending on one of them, sorted.

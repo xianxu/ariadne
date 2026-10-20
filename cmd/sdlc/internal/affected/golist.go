@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -22,7 +23,7 @@ const embedSep = "\x1f"
 // its import path less a ".test" suffix, so test variants and test mains add their deps to the package they test.
 // Deps keep only in-module packages the listing names; dirs are made relative to root.
 func ParseGoList(module, root, out string) (Graph, error) {
-	g := Graph{Module: module, Dir: map[string]string{}, Deps: map[string]map[string]bool{}, Embeds: map[string]string{}}
+	g := Graph{Module: module, Dir: map[string]string{}, Deps: map[string]map[string]bool{}, Embeds: map[string][]string{}}
 	inModule := func(p string) bool { return p == module || strings.HasPrefix(p, module+"/") }
 	for _, line := range strings.Split(out, "\n") {
 		if strings.TrimSpace(line) == "" {
@@ -54,8 +55,8 @@ func ParseGoList(module, root, out string) (Graph, error) {
 					continue
 				}
 				file := path.Join(g.Dir[owner], filepath.ToSlash(e))
-				if !path.IsAbs(e) && file != ".." && !strings.HasPrefix(file, "../") {
-					g.Embeds[file] = owner
+				if !path.IsAbs(e) && file != ".." && !strings.HasPrefix(file, "../") && !slices.Contains(g.Embeds[file], owner) {
+					g.Embeds[file] = append(g.Embeds[file], owner)
 				}
 			}
 		}
@@ -82,10 +83,14 @@ func ParseGoList(module, root, out string) (Graph, error) {
 			}
 		}
 	}
-	for file, p := range g.Embeds {
-		if _, ok := g.Dir[p]; !ok {
+	for file, ps := range g.Embeds {
+		ps = slices.DeleteFunc(ps, func(p string) bool { _, ok := g.Dir[p]; return !ok })
+		if len(ps) == 0 {
 			delete(g.Embeds, file)
+			continue
 		}
+		slices.Sort(ps)
+		g.Embeds[file] = ps
 	}
 	for p := range g.Dir {
 		if g.Deps[p] == nil {

@@ -145,3 +145,148 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"6565c97c-7663-4161-a479-04a5d599c1d3","repository":"github.com/xianxu/ariadne","issue_id":"000473","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/2c46c994bc92bfc1","reviewed_head":"36f16ff1e7a6c5b775a86aaaea601918089d89a9","slot":"ariadne:2","requested_at":"2026-10-20T08:49:20.730538Z"},"phase":"finished","pid":82816,"started_at":"2026-10-20T08:49:20.876995Z","finished_at":"2026-10-20T08:57:31.108352Z","session_id":"6f9f2218-be5e-4d86-9158-14cdee8133d6","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T02:05:58-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 473 — test-economy: affected-suite as close evidence; the full suite runs once, in the train or at merge (option B') |
+| repo | ariadne |
+| issue file | workshop/issues/000473-test-economy-affected-suite-as-close-evidence-the-full-suite-runs-once-in-the-train-or-at-merge-option-b.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 0956e5e1c71bd6734f195929fc151e0c752dbc14..387922e63d8c9d31022c1481dc6b0aa83a1fa270 |
+| command | sdlc milestone-close --issue 473 --milestone M1 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | checkout |
+| timestamp | 2026-10-20T02:05:58-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+I've read the fix commit and the current sources. Next I'll check the regression tests and run the affected package tests.
+
+Both regression suites pass. Now I'll revert each fix in this disposable checkout and confirm its test goes red.
+
+Both reverts go red, so BR-1 and BR-2 have real regression tests. Next I'm checking an edge case: a file embedded by one package but living in another package's directory.
+
+I've finished the review. **Verdict: FIX-THEN-SHIP.** Three of the six earlier findings are fully fixed, two have no regression test, and one fix opened a new, narrower gap.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The fix commit `387922e63` deals with all six earlier findings:
+- **Fixes I confirmed:**
+  - **BR-1:** a root package no longer claims every changed path. A package now owns only files in its own directory, under its `testdata/`, or files it embeds.
+  - **BR-2:** a head with no change against main now refuses instead of recording a pass.
+  - **BR-3:** the README now covers `--name affected` and `.sdlc/affected.json`.
+  - **BR-6:** the Log now records that the D4 flake behaviour isn't live until M2.
+- **What I ran:**
+  - I reverted the BR-2 guard: `TestAffectedNoChangeRefuses` fails.
+  - I put back the old walk-up-to-ancestor ownership: `TestPlan`, `TestPlanRootPackageDoesNotClaimSubdirectories`, `TestPackageOfIsExact` and `TestLoadGoGraphConformance` all fail.
+  - With the fixes in place, `go test ./cmd/sdlc/internal/affected/ ./cmd/sdlc/internal/jsonstrict/` passes, and so does `go test ./cmd/sdlc/ -run 'TestAffected|TestReadAffectedConfig|TestLocalCheckCmd'`.
+- **What's still open:**
+  - **The new gap:** the ownership lookup in `packageIn` stops at the first owner it finds. A file inside one package's directory but embedded by another package selects only the first one. I checked that Go allows this: with the real `go list`, a root package embedding `sub/data.txt` gives `ex.com/m [sub/data.txt]`. That breaks the plan's PQ-1 rule that selectors add up, and under-selects tests. The full suite in the train or at merge still catches it, so it delays a failure rather than landing one.
+  - **No regression test:** the `--all` conflict fix (BR-4) and the duplicate-key check (BR-5) both lack a test that fails without them. BR-5's tests cover only the `affected.json` path, which is all the finding asked for. Both are Minor.
+
+### 1. Strengths
+- **Package ownership is now exact and checked end to end.** The fixture module embeds `leaf/assets/banner.txt` and also holds a plain `leaf/notes/plain.txt`, and the conformance test runs the real `go list` to confirm that only the embedded file is claimed (`golist_test.go:127-132`).
+- **The new embed parsing is defensive.** Absolute and `..` embed paths are dropped, embeds that point at an unknown package are pruned (`golist.go:52-60, 85-89`), and the fuzz test now asserts that no embed escapes the module.
+- **The no-change refusal comes before anything is posted.** The test asserts that no status was posted, no consumer ran and no suite ran (`localcheck_affected_test.go:154-169`).
+- **`jsonstrict.RejectDuplicateKeys` catches duplicate keys at any depth.** It is tested on nested objects and arrays, and `ParseConfig` calls it before the strict decode.
+
+### 2. Critical findings
+None.
+
+### 3. Important findings
+- **New: package ownership stops at the first owner instead of adding up every owner** (`graph.go:31-46`, `graph.go:13`).
+  - `packageIn` returns as soon as the own-directory check matches, then the `testdata/` check, and only then looks at embeds.
+  - `Graph.Embeds` maps each file to a single package, so if two packages embed the same file, one silently replaces the other.
+  - Concrete case: the root package embeds `sub/data.txt` while `sub` is its own package. Changing `sub/data.txt` selects only `ex.com/m/sub`, so the root package's tests are skipped.
+  - **This is the 2nd finding in family `unclassified-path-fails-closed`.** The rule that covers both: *a changed path selects the union of everything that claims it (its own-directory package, its `testdata/` owner, every package that embeds it, every group whose paths match); it is Full only when that union is empty, and no lookup stops at the first hit.*
+  - Fix sketch:
+    - Make `Embeds` a `map[string][]string`, so a file can have several embedding packages.
+    - Make `packageIn` return a set of owners.
+    - In `Plan`, add every owner to `changed`.
+    - Add table rows for an embedded file inside another package's directory, and for one file embedded by two packages.
+
+### 4. Minor findings
+- The BR-4 fix (`localcheck_cmd.go:145`) has no regression test. It also repeats the error string from `selectLocalChecks` (`localcheck_cmd.go:98`), which is an ARCH-DRY nit.
+- The plan text still describes the old ownership rule, and the plan has no Revisions entry for the change:
+  - Core concepts rule 3 says a file "selects its nearest package".
+  - In Task 2, the `PackageOf` comment says "deepest dir that is a package", and the `Graph` struct has no `Embeds` field.
+  - The atlas already has the new rule.
+
+### 5. Test coverage notes
+- **BR-1 and BR-2:** the regression tests are real and fail when the fix is reverted (shown above).
+- **BR-5:** covered by `config_test.go:44-45` and `jsonstrict_test.go`.
+- **The new gap:** there's no test of an embedded file inside a different package's directory.
+- **Build tags:** files excluded by build tags are still not modelled in the graph. The full suite in the train covers this, but it isn't documented.
+
+### 6. Architectural notes
+- **ARCH-DRY: pass, with a note.** `internal/jsonstrict` becomes a fourth copy of the duplicate-key scanner, alongside `observe/json.go:159`, `fleet/types.go:727` and `teststats_store.go:313`. Consolidating them is filed as #489. That is a separate change, not the point of this issue, so deferring it is acceptable.
+- **ARCH-PURE: pass.** The embed folding is in the pure `ParseGoList`, and ownership is pure on `Graph`.
+- **ARCH-PURPOSE: flag** (the new finding). The selectors are supposed to add up (PQ-1), and the ownership lookup still stops at the first match.
+- **ARCH-MOCK: pass.** The conformance test runs the real `go list` and now covers the embed fields.
+- **ARCH-CONSTRAINTS: pass.** The extra `go list` template fields cost almost nothing.
+- **ARCH-SECURE: pass.** Embed paths from `go list` are sanitised, and the empty change set no longer produces fake passing evidence.
+- **ARCH-ORDER: pass.** Nothing is held between events.
+- **ARCH-FUNERAL: pass.** Nothing new and durable is created.
+- **ARCH-EVOLVE: pass.** `affected.json` now rejects duplicate keys, alongside unknown fields.
+- **For M2:** the stand-in should still refuse a docs-only `affected` record on a head whose own diff contains code.
+
+### 7. Plan revision recommendations
+- Add a "## Revisions" entry for M1 BR-1: a package owns its own directory, its `testdata/`, and the files it embeds (from `go list`'s embed fields); a plain subdirectory file is unclassified. Also add `Embeds` to `Graph` in Task 2 and fix the `PackageOf` comment.
+- Core concepts rule 3: say the owners add up, as the union of every claimant, including every package that embeds the file.
+- Task 5: add the "empty change set refuses" outcome.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      packageIn is now exact (own dir, testdata/, embeds); TestPlanRootPackageDoesNotClaimSubdirectories and TestPackageOfIsExact go red when the old ancestor walk is restored.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      runAffectedCheck refuses on empty paths before any post; TestAffectedNoChangeRefuses goes red with the guard disabled.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README.md:569-582 documents --name affected, .sdlc/affected.json, both env vars and all four outcomes; it links the atlas anchor, which exists (ci-merge-check.md:307).
+  - id: BR-4
+    disposition: not-addressed
+    note: |
+      localcheck_cmd.go:145 restores the refusal, but no test runs --all with --name affected, so nothing fails without the fix.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      ParseConfig calls jsonstrict.RejectDuplicateKeys; config_test.go covers top-level and nested group duplicates.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      The issue Log's M1 review round 1 entry states that D4 is inert until M2 and that a docs-only record cannot be republished.
+findings:
+  - id: new
+    severity: Important
+    kind: defect
+    family: unclassified-path-fails-closed
+    title: |
+      packageIn stops at the first owner, so a file embedded by one package but inside another package's dir skips the embedder
+    detail: |
+      graph.go:31-46 returns on the own-dir or testdata match before looking at Embeds, and Embeds is a single-valued map (graph.go:13). Verified with go list: a root package embedding sub/data.txt, where sub is its own package, is legal, yet Plan selects only sub. Rule for the family: a path selects the union of every claimant (own-dir package, testdata owner, every embedder, every matching group), and is Full only when that union is empty. Fix: make Embeds map[string][]string, have packageIn return a set, and add table rows for both shapes.
+  - id: new
+    severity: Minor
+    kind: defect
+    family: plan-tracks-code
+    title: |
+      The plan still describes nearest-ancestor package ownership; no Revisions entry for the exact-ownership change
+    detail: |
+      Core concepts rule 3 says "selects its nearest package", Task 2 says PackageOf is the "deepest dir that is a package", and the Graph struct has no Embeds field. The code and atlas now use exact ownership (own dir, testdata/, embeds).
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"cf024732-aa00-4e83-ad77-7c77f75d9d74","repository":"github.com/xianxu/ariadne","issue_id":"000473","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/d546c3d9773d17bf","reviewed_head":"387922e63d8c9d31022c1481dc6b0aa83a1fa270","slot":"ariadne:2","requested_at":"2026-10-20T09:03:23.984159Z"},"phase":"finished","pid":58208,"started_at":"2026-10-20T09:03:24.133797Z","finished_at":"2026-10-20T09:05:58.238916Z","session_id":"819a2b26-5aab-4d8f-a094-0d8e187c33ff","outcome":"returned"}] -->

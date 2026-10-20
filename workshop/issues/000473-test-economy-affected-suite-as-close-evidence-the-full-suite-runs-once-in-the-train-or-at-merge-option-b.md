@@ -110,4 +110,9 @@ Each `impl` is 40% of the v2 range's upper end.
     `internal/jsonstrict`; the three older copies (observe, fleet, teststats_store) move onto it in #489 (filed, unclaimed), ARCH-DRY.
     D4 is inert until M2: the affected check carries `KnownFlakes`, but the flake step and success guard still key on
     `suite`. A docs-only record saves no attempt, so it can't be republished; it is cheap to re-run.
+- M1 review round 2:
+  - **BR-7**, the same class as BR-1: ownership is a union (`Graph.Owners`; `Embeds` maps a file to every embedder).
+    The fixture module's root package now embeds `other/data.txt`, so the real `go list` pins a file with two owners.
+  - **BR-4:** `splitAffectedName` is pure and tested.
+  - The plan's Revisions record the ownership rule.
 

@@ -212,3 +212,18 @@ func TestAffectedLocalCheck(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+// #473 M1 BR-4: affected is split from the declared names, and --all with any
+// --name, affected included, refuses as it did before.
+func TestSplitAffectedName(t *testing.T) {
+	if _, _, err := splitAffectedName([]string{affectedCheckName}, true); err == nil {
+		t.Fatal("--all with --name affected was accepted")
+	}
+	got, aff, err := splitAffectedName([]string{"suite", affectedCheckName, "e2e"}, false)
+	if err != nil || !aff || strings.Join(got, ",") != "suite,e2e" {
+		t.Fatalf("%v %v %v", got, aff, err)
+	}
+	if got, aff, err := splitAffectedName(nil, true); err != nil || aff || len(got) != 0 {
+		t.Fatalf("--all alone: %v %v %v", got, aff, err)
+	}
+}

@@ -92,6 +92,17 @@ func runLocalCheckCancel(stderr io.Writer, name string) error {
 	return err
 }
 
+// splitAffectedName separates the affected suite (#473), which runs through
+// its planner, from the declared checks a run names; --all never includes it
+// and never combines with --name.
+func splitAffectedName(names []string, all bool) (declared []string, affected bool, err error) {
+	if all && len(names) > 0 {
+		return nil, false, errors.New("local-check run: give --name (one or more) or --all")
+	}
+	declared = slices.DeleteFunc(slices.Clone(names), func(n string) bool { return n == affectedCheckName })
+	return declared, len(declared) < len(names), nil
+}
+
 // selectLocalChecks picks the checks a run names, refusing an unknown name.
 func selectLocalChecks(decl localCheckDecl, names []string, all bool) ([]localCheck, error) {
 	if all == (len(names) > 0) {
@@ -142,11 +153,10 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 	}
 	// The affected suite (#473) is declared in its own file and runs through
 	// its planner; every other name is a declared check.
-	if f.All && len(f.Names) > 0 {
-		return errors.New("local-check run: give --name (one or more) or --all")
+	names, wantAffected, err := splitAffectedName(f.Names, f.All)
+	if err != nil {
+		return err
 	}
-	names := slices.DeleteFunc(slices.Clone(f.Names), func(n string) bool { return n == affectedCheckName })
-	wantAffected := len(names) < len(f.Names)
 	var checks []localCheck
 	if len(names) > 0 || !wantAffected {
 		if checks, err = selectLocalChecks(decl, names, f.All); err != nil {

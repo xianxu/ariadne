@@ -43,7 +43,7 @@ func TestParseGoList(t *testing.T) {
 	if !reflect.DeepEqual(g.Deps, wantDeps) {
 		t.Fatalf("Deps = %v", g.Deps)
 	}
-	if want := map[string]string{"leaf/assets/a.txt": "example.com/m/leaf", "leaf/golden/b.txt": "example.com/m/leaf"}; !reflect.DeepEqual(g.Embeds, want) {
+	if want := map[string][]string{"leaf/assets/a.txt": {"example.com/m/leaf"}, "leaf/golden/b.txt": {"example.com/m/leaf"}}; !reflect.DeepEqual(g.Embeds, want) {
 		t.Fatalf("Embeds = %v", g.Embeds)
 	}
 }
@@ -75,9 +75,11 @@ func FuzzParseGoList(f *testing.F) {
 		if err != nil {
 			return
 		}
-		for file, p := range g.Embeds {
-			if _, ok := g.Dir[p]; !ok || strings.HasPrefix(file, "../") || strings.HasPrefix(file, "/") {
-				t.Fatalf("embed %q → %q escapes the module or names no package", file, p)
+		for file, ps := range g.Embeds {
+			for _, p := range ps {
+				if _, ok := g.Dir[p]; !ok || strings.HasPrefix(file, "../") || strings.HasPrefix(file, "/") {
+					t.Fatalf("embed %q → %q escapes the module or names no package", file, p)
+				}
 			}
 		}
 		for p, deps := range g.Deps {
@@ -111,7 +113,7 @@ func TestLoadGoGraphConformance(t *testing.T) {
 	if g.Module != m {
 		t.Fatalf("Module = %q", g.Module)
 	}
-	wantDir := map[string]string{m + "/leaf": "leaf", m + "/mid": "mid", m + "/tonly": "tonly", m + "/other": "other"}
+	wantDir := map[string]string{m: ".", m + "/leaf": "leaf", m + "/mid": "mid", m + "/tonly": "tonly", m + "/other": "other"}
 	if !reflect.DeepEqual(g.Dir, wantDir) {
 		t.Fatalf("Dir = %v", g.Dir)
 	}
@@ -124,11 +126,15 @@ func TestLoadGoGraphConformance(t *testing.T) {
 	if len(g.Deps[m+"/other"]) != 0 {
 		t.Errorf("other has deps: %v", g.Deps[m+"/other"])
 	}
-	if p, ok := g.PackageOf("leaf/assets/banner.txt"); !ok || p != m+"/leaf" {
-		t.Errorf("embedded asset owner = %q, %v; Embeds %v", p, ok, g.Embeds)
+	if got := g.Owners("leaf/assets/banner.txt"); !reflect.DeepEqual(got, []string{m + "/leaf"}) {
+		t.Errorf("embedded asset owners = %v; Embeds %v", got, g.Embeds)
 	}
-	if _, ok := g.PackageOf("leaf/notes/plain.txt"); ok {
-		t.Error("a plain subdirectory file of a package was claimed")
+	if got := g.Owners("leaf/notes/plain.txt"); len(got) != 0 {
+		t.Errorf("a plain subdirectory file of a package was claimed by %v", got)
+	}
+	// BR-7, live: the root package embeds other/data.txt, a file inside the other package's dir.
+	if got := g.Owners("other/data.txt"); !reflect.DeepEqual(got, []string{m, m + "/other"}) {
+		t.Errorf("a file embedded across package dirs: owners %v; Embeds %v", got, g.Embeds)
 	}
 	if got := g.Dependents(map[string]bool{m + "/leaf": true}); !reflect.DeepEqual(got, []string{m + "/leaf", m + "/mid", m + "/tonly"}) {
 		t.Errorf("Dependents(leaf) = %v", got)

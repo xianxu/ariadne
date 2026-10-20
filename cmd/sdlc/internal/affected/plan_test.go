@@ -32,7 +32,7 @@ func testGraph() Graph {
 			m + "/rt/sub": {},
 		},
 		// rt embeds its Lua runtime, as pair's runtimebundle does.
-		Embeds: map[string]string{"rt/assets/init.lua": m + "/rt"},
+		Embeds: map[string][]string{"rt/assets/init.lua": {m + "/rt"}, "other/blob.bin": {m + "/leaf"}},
 	}
 }
 
@@ -77,6 +77,8 @@ func TestPlan(t *testing.T) {
 			Selection{Full: true, Reason: "unclassified: scripts/deploy.sh"}},
 		{"a plain subdirectory of a package is unclassified (BR-1)", []string{"leaf/notes/n.txt"},
 			Selection{Full: true, Reason: "unclassified: leaf/notes/n.txt"}},
+		{"a file embedded across package dirs selects both owners (BR-7)", []string{"other/blob.bin"},
+			Selection{GoPkgs: []string{m + "leaf", m + "mid", m + "other", m + "tonly", m + "top"}, Groups: []string{"cli"}}},
 		{"unembedded lua in a package dir's subtree is the group only", []string{"rt/assets/extra.lua"},
 			Selection{Groups: []string{"lua"}}},
 	}
@@ -139,19 +141,22 @@ func TestSelectionEmpty(t *testing.T) {
 	}
 }
 
-// #473 M1 BR-1: ownership is exact. A file belongs to the package whose dir holds it, whose testdata/ holds it,
-// or which embeds it; a plain subdirectory file, under the root package above all, belongs to none.
-func TestPackageOfIsExact(t *testing.T) {
-	g := Graph{Module: "m", Dir: map[string]string{"m": ".", "m/a": "a"}, Deps: map[string]map[string]bool{},
-		Embeds: map[string]string{"a/assets/x.lua": "m/a"}}
+// #473 M1 BR-1/BR-7: ownership is exact and a union. A file is owned by the package whose dir holds it, every
+// package whose testdata/ holds it, and every package that embeds it; a plain subdirectory file, under the root
+// package above all, is owned by none.
+func TestOwnersAreExactAndAUnion(t *testing.T) {
+	g := Graph{Module: "m", Dir: map[string]string{"m": ".", "m/a": "a", "m/a/b": "a/b"}, Deps: map[string]map[string]bool{},
+		Embeds: map[string][]string{"a/assets/x.lua": {"m/a"}, "a/b/data.txt": {"m"}, "a/testdata/t.txt": {"m"}}}
 	for file, want := range map[string]string{
 		"main.go": "m", "a/x.go": "m/a", "a/README.txt": "m/a",
 		"testdata/in.txt": "m", "a/testdata/deep/in.txt": "m/a", "a/assets/x.lua": "m/a",
-		"b/x.go": "", "scripts/run.sh": "", "a/assets/other.lua": "", "a/notes/n.txt": "",
+		"a/b/data.txt":     "m m/a/b", // its own dir's package and the root, which embeds it
+		"a/testdata/t.txt": "m m/a",   // its testdata owner and an embedder
+		"a/b/testdata/x":   "m/a/b",
+		"b/x.go":           "", "scripts/run.sh": "", "a/assets/other.lua": "", "a/notes/n.txt": "",
 	} {
-		got, ok := g.PackageOf(file)
-		if got != want || ok != (want != "") {
-			t.Errorf("PackageOf(%q) = %q, %v; want %q", file, got, ok, want)
+		if got := strings.Join(g.Owners(file), " "); got != want {
+			t.Errorf("Owners(%q) = %q; want %q", file, got, want)
 		}
 	}
 }
