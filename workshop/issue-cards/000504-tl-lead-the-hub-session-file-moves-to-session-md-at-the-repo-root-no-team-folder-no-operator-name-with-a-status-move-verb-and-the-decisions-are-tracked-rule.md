@@ -1,6 +1,6 @@
 ---
 id: 000504
-status: working
+status: codecomplete
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours: 2.142
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.56
+tracker:
+    version: 1
+    completion:
+        token: close-ad55416c13c8
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 339ca08719fb439537a062638e467c4921952c50
+        evidence_commit: 746ba0177d2e607dc8628c342986df3c08a33f58
 ---
 
 # tl-lead: the hub session file moves to session.md at the repo root (no team folder, no operator name), with a status move verb and the decisions-are-tracked rule
