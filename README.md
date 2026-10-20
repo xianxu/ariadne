@@ -566,6 +566,21 @@ never another slot's; never stop one by a PID picked from `ps`. When a finished
 check's status post can't reach GitHub, `sdlc local-check republish --name X`
 posts the saved result later, with no rerun.
 
+A repository can also declare an **affected suite** (#473) in `.sdlc/affected.json`; without the file the mode is off.
+`sdlc local-check run --name affected` then runs only what the branch's change can break, and the result of a
+pushed head's run depends on what changed:
+
+- **Code or a declared group changed:** sdlc runs the repo's affected command with `SDLC_AFFECTED_GO_PKGS` and
+  `SDLC_AFFECTED_GROUPS` set and records `sdlc-local/affected`. `SDLC_AFFECTED_GO_PKGS` holds the changed Go packages
+  plus every package that imports them, test imports included (from `go list`). `SDLC_AFFECTED_GROUPS` holds the
+  declared non-Go test groups the change touches. Both are sorted and space-separated.
+- **A `full` path or an unclassified file changed:** sdlc runs and records the `suite` instead.
+- **Only docs changed:** sdlc records `affected` without running anything.
+- **Nothing changed against main:** the run refuses.
+
+The schema and the classification rules are in [the affected
+suite](atlas/workflow/ci-merge-check.md#the-affected-suite-473).
+
 Recorded suites and their baselines replace unusable inherited `TMPDIR` and
 `GOTMPDIR` with writable per-run paths, even when TestScratch falls back.
 A proven Go work-directory startup failure reports an environment error naming
@@ -601,8 +616,9 @@ A name may be an exact subtest (#466), such as `PKG.TestX/plain/dev-aliases.test
 `sdlc flake list` is the TL's local daily view: the registry with each
 issue's owner and age, same-head flakes not yet registered, and failures nothing
 explains, each with its log. A same-head failure is omitted from the default
-unregistered list when exactly one closed issue claims its fully qualified test
-in the card's `flake_tests`, and its fix merge landed after the failing head.
+unregistered list when exactly one closed issue's card `flake_tests` covers the
+failing leaf by the gate's rule (the test itself, or its nearest registered
+ancestor, #479), and its fix merge landed after the failing head.
 Issue Markdown never claims a test. `sdlc flake list -v` shows omitted rows
 with the fixing issue and merge. A failure on a head containing that merge stays
 visible as a recurrence; ambiguous or unreadable evidence also stays visible,

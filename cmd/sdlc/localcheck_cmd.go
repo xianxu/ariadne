@@ -142,6 +142,9 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 	}
 	// The affected suite (#473) is declared in its own file and runs through
 	// its planner; every other name is a declared check.
+	if f.All && len(f.Names) > 0 {
+		return errors.New("local-check run: give --name (one or more) or --all")
+	}
 	names := slices.DeleteFunc(slices.Clone(f.Names), func(n string) bool { return n == affectedCheckName })
 	wantAffected := len(names) < len(f.Names)
 	var checks []localCheck

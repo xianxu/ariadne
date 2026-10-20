@@ -10,6 +10,7 @@ type Graph struct {
 	Module string
 	Dir    map[string]string          // import path → module-relative dir ("." for root)
 	Deps   map[string]map[string]bool // import path → transitive in-module deps, test imports included
+	Embeds map[string]string          // module-relative embedded file → the package embedding it (go:embed)
 }
 
 func (g Graph) byDir() map[string]string {
@@ -20,21 +21,28 @@ func (g Graph) byDir() map[string]string {
 	return idx
 }
 
-// PackageOf returns the package owning file: the deepest package dir containing it, so testdata and embedded
-// assets belong to their package.
+// PackageOf returns the package that owns file, exactly: a file directly in a package dir, a file under that
+// package's testdata/, or a file the package embeds. Any other file, including one in a plain subdirectory of a
+// package (the module root's above all), is unowned and so unclassified unless a group claims it (#473 M1 BR-1).
 func (g Graph) PackageOf(file string) (string, bool) {
-	return packageIn(g.byDir(), file)
+	return g.packageIn(g.byDir(), file)
 }
 
-func packageIn(byDir map[string]string, file string) (string, bool) {
-	for d := path.Dir(file); ; d = path.Dir(d) {
-		if p, ok := byDir[d]; ok {
-			return p, true
-		}
-		if d == "." || d == "/" {
-			return "", false
-		}
+func (g Graph) packageIn(byDir map[string]string, file string) (string, bool) {
+	if p, ok := byDir[path.Dir(file)]; ok {
+		return p, true
 	}
+	for d := path.Dir(file); d != "." && d != "/"; {
+		parent := path.Dir(d)
+		if path.Base(d) == "testdata" {
+			if p, ok := byDir[parent]; ok {
+				return p, true
+			}
+		}
+		d = parent
+	}
+	p, ok := g.Embeds[file]
+	return p, ok
 }
 
 // Dependents returns changed plus every package depending on one of them, sorted.

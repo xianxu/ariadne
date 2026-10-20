@@ -6,26 +6,31 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 )
 
-// goListFormat prints one line per package (test variants included): import path, dir, ForTest, deps.
-const goListFormat = "{{.ImportPath}}\t{{.Dir}}\t{{.ForTest}}\t{{join .Deps \" \"}}"
+// goListFormat prints one line per package (test variants included): import path, dir, ForTest, deps, and the
+// package's embedded files (EmbedFiles, TestEmbedFiles, XTestEmbedFiles, relative to dir) separated by embedSep.
+const goListFormat = "{{.ImportPath}}\t{{.Dir}}\t{{.ForTest}}\t{{join .Deps \" \"}}\t" +
+	"{{join .EmbedFiles \"\\x1f\"}}\x1f{{join .TestEmbedFiles \"\\x1f\"}}\x1f{{join .XTestEmbedFiles \"\\x1f\"}}"
+
+const embedSep = "\x1f"
 
 // ParseGoList folds `go list -test -f goListFormat` output into a Graph (#473). Each line's owner is its ForTest, else
 // its import path less a ".test" suffix, so test variants and test mains add their deps to the package they test.
 // Deps keep only in-module packages the listing names; dirs are made relative to root.
 func ParseGoList(module, root, out string) (Graph, error) {
-	g := Graph{Module: module, Dir: map[string]string{}, Deps: map[string]map[string]bool{}}
+	g := Graph{Module: module, Dir: map[string]string{}, Deps: map[string]map[string]bool{}, Embeds: map[string]string{}}
 	inModule := func(p string) bool { return p == module || strings.HasPrefix(p, module+"/") }
 	for _, line := range strings.Split(out, "\n") {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
 		f := strings.Split(line, "\t")
-		if len(f) != 4 {
-			return Graph{}, fmt.Errorf("go list: want 4 fields, got %d in %q", len(f), line)
+		if len(f) != 5 {
+			return Graph{}, fmt.Errorf("go list: want 5 fields, got %d in %q", len(f), line)
 		}
 		imp, err := stripVariant(f[0])
 		if err != nil {
@@ -44,6 +49,15 @@ func ParseGoList(module, root, out string) (Graph, error) {
 				return Graph{}, fmt.Errorf("go list: %s dir %q is outside %s", owner, f[1], root)
 			}
 			g.Dir[owner] = filepath.ToSlash(rel)
+			for _, e := range strings.Split(f[4], embedSep) {
+				if e == "" {
+					continue
+				}
+				file := path.Join(g.Dir[owner], filepath.ToSlash(e))
+				if !path.IsAbs(e) && file != ".." && !strings.HasPrefix(file, "../") {
+					g.Embeds[file] = owner
+				}
+			}
 		}
 		deps := g.Deps[owner]
 		if deps == nil {
@@ -66,6 +80,11 @@ func ParseGoList(module, root, out string) (Graph, error) {
 			if _, ok := g.Dir[d]; !ok {
 				delete(deps, d)
 			}
+		}
+	}
+	for file, p := range g.Embeds {
+		if _, ok := g.Dir[p]; !ok {
+			delete(g.Embeds, file)
 		}
 	}
 	for p := range g.Dir {

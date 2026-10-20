@@ -11,6 +11,8 @@ import (
 	"path"
 	"regexp"
 	"strings"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 )
 
 // Group is a declared non-Go test group, selected by changed paths or by its Go roots' dependencies.
@@ -35,6 +37,9 @@ var groupNameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,40}$`)
 
 // ParseConfig parses affected.json strictly: a misread selection would skip tests, so anything unexpected refuses.
 func ParseConfig(data []byte) (Config, error) {
+	if err := jsonstrict.RejectDuplicateKeys(data); err != nil {
+		return Config{}, fmt.Errorf("affected.json: %w", err)
+	}
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	var cfg Config

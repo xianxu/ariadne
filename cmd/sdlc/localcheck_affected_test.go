@@ -149,6 +149,25 @@ func TestAffectedDocsOnlyRecordsWithoutRunning(t *testing.T) {
 	}
 }
 
+// #473 M1 BR-2: a head with no change against main is not docs-only; it
+// refuses rather than recording a pass nothing ran for.
+func TestAffectedNoChangeRefuses(t *testing.T) {
+	d, gh, _, out, marker := affectedFixture(t)
+	sha, err := d.Git("rev-parse", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sha = strings.TrimSpace(sha)
+	gh.setHead(9, sha)
+	_, err = runAffectedCheck(context.Background(), d, productionAffectedDeps(d, "main"), affectedFixtureConfig(t), affectedFixtureSuite, sha)
+	if err == nil || !strings.Contains(err.Error(), "no changes") {
+		t.Fatalf("err %v", err)
+	}
+	if len(gh.statuses[sha]) != 0 || exists(out) || exists(marker) {
+		t.Fatalf("statuses %v, consumer %v, suite %v", gh.statuses[sha], exists(out), exists(marker))
+	}
+}
+
 // #473 D1: affected.json's absence is the repo's off switch; a bad one refuses.
 func TestReadAffectedConfig(t *testing.T) {
 	d, _, _, _ := localRunRepo(t, "acquired")

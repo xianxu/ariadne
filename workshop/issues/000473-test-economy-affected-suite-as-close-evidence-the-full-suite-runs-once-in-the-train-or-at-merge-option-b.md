@@ -101,4 +101,13 @@ Each `impl` is 40% of the v2 range's upper end.
   contract fixture is green (fake consumer `make test-affected` writing both variables), as are full→suite (go.mod,
   unclassified, graph unloadable) and docs-only. `localRunRecord.Scope` carries the selection into the status
   description; a republished saved pass doesn't carry it.
+- M1 review round 1 (FIX-THEN-SHIP):
+  - **BR-1:** ownership is now exact: own dir, `testdata/`, or `go list` embed files. The ancestor-dir claim made a
+    root package swallow every path. The fixture module embeds an asset, and the conformance test pins it.
+  - **BR-2:** an empty change set refuses (`TestAffectedNoChangeRefuses`).
+  - **BR-3:** README paragraph added. A side-quest corrects #479's stale "fully qualified" flake-list wording there.
+  - **Minors:** `--all` with `--name affected` refuses again. Duplicate JSON keys refuse via the new
+    `internal/jsonstrict`; the three older copies (observe, fleet, teststats_store) move onto it in #489 (filed, unclaimed), ARCH-DRY.
+    D4 is inert until M2: the affected check carries `KnownFlakes`, but the flake step and success guard still key on
+    `suite`. A docs-only record saves no attempt, so it can't be republished; it is cheap to re-run.
 

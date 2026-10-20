@@ -15,13 +15,13 @@ import (
 func TestParseGoList(t *testing.T) {
 	const root = "/r"
 	out := strings.Join([]string{
-		"example.com/m/leaf\t/r/leaf\t\t",
-		"example.com/m/mid\t/r/mid\t\texample.com/m/leaf fmt",
-		"example.com/m/tonly\t/r/tonly\t\t",
-		"example.com/m/tonly [example.com/m/tonly.test]\t/r/tonly\texample.com/m/tonly\texample.com/m/leaf testing",
-		"example.com/m/tonly_test [example.com/m/tonly.test]\t/r/tonly\texample.com/m/tonly\texample.com/m/tonly [example.com/m/tonly.test] example.com/m/mid",
-		"example.com/m/tonly.test\t\t\texample.com/m/tonly [example.com/m/tonly.test] example.com/m/tonly_test [example.com/m/tonly.test] os",
-		"example.com/m\t/r\t\t",
+		"example.com/m/leaf\t/r/leaf\t\t\tassets/a.txt\x1f\x1fgolden/b.txt",
+		"example.com/m/mid\t/r/mid\t\texample.com/m/leaf fmt\t",
+		"example.com/m/tonly\t/r/tonly\t\t\t",
+		"example.com/m/tonly [example.com/m/tonly.test]\t/r/tonly\texample.com/m/tonly\texample.com/m/leaf testing\t",
+		"example.com/m/tonly_test [example.com/m/tonly.test]\t/r/tonly\texample.com/m/tonly\texample.com/m/tonly [example.com/m/tonly.test] example.com/m/mid\t",
+		"example.com/m/tonly.test\t\t\texample.com/m/tonly [example.com/m/tonly.test] example.com/m/tonly_test [example.com/m/tonly.test] os\t",
+		"example.com/m\t/r\t\t\t",
 		"",
 	}, "\n")
 	g, err := ParseGoList("example.com/m", root, out)
@@ -43,14 +43,17 @@ func TestParseGoList(t *testing.T) {
 	if !reflect.DeepEqual(g.Deps, wantDeps) {
 		t.Fatalf("Deps = %v", g.Deps)
 	}
+	if want := map[string]string{"leaf/assets/a.txt": "example.com/m/leaf", "leaf/golden/b.txt": "example.com/m/leaf"}; !reflect.DeepEqual(g.Embeds, want) {
+		t.Fatalf("Embeds = %v", g.Embeds)
+	}
 }
 
 func TestParseGoListRefuses(t *testing.T) {
 	for name, out := range map[string]string{
 		"too few fields":   "example.com/m/a\t/r/a",
-		"empty path":       "\t/r/a\t\t",
-		"outside module":   "example.org/x\t/r/x\t\t",
-		"dir outside root": "example.com/m/a\t/elsewhere/a\t\t",
+		"empty path":       "\t/r/a\t\t\t",
+		"outside module":   "example.org/x\t/r/x\t\t\t",
+		"dir outside root": "example.com/m/a\t/elsewhere/a\t\t\t",
 	} {
 		if _, err := ParseGoList("example.com/m", "/r", out); err == nil {
 			t.Errorf("%s: ParseGoList accepted %q", name, out)
@@ -65,10 +68,17 @@ func FuzzParseGoList(f *testing.F) {
 	f.Add("example.com/m/a.test\t\t\texample.com/m/a [example.com/m/a.test]")
 	f.Add("example.com/m\t/r\t\texample.com/m/x")
 	f.Add("\t\t\t")
+	f.Add("example.com/m/a\t/r/a\t\t\t../x\x1f/abs\x1fok.txt")
+	f.Add("example.com/m/a\t/r/a\t\t\t\t")
 	f.Fuzz(func(t *testing.T, out string) {
 		g, err := ParseGoList("example.com/m", "/r", out)
 		if err != nil {
 			return
+		}
+		for file, p := range g.Embeds {
+			if _, ok := g.Dir[p]; !ok || strings.HasPrefix(file, "../") || strings.HasPrefix(file, "/") {
+				t.Fatalf("embed %q → %q escapes the module or names no package", file, p)
+			}
 		}
 		for p, deps := range g.Deps {
 			if _, ok := g.Dir[p]; !ok {
@@ -113,6 +123,12 @@ func TestLoadGoGraphConformance(t *testing.T) {
 	}
 	if len(g.Deps[m+"/other"]) != 0 {
 		t.Errorf("other has deps: %v", g.Deps[m+"/other"])
+	}
+	if p, ok := g.PackageOf("leaf/assets/banner.txt"); !ok || p != m+"/leaf" {
+		t.Errorf("embedded asset owner = %q, %v; Embeds %v", p, ok, g.Embeds)
+	}
+	if _, ok := g.PackageOf("leaf/notes/plain.txt"); ok {
+		t.Error("a plain subdirectory file of a package was claimed")
 	}
 	if got := g.Dependents(map[string]bool{m + "/leaf": true}); !reflect.DeepEqual(got, []string{m + "/leaf", m + "/mid", m + "/tonly"}) {
 		t.Errorf("Dependents(leaf) = %v", got)

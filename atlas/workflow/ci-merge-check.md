@@ -315,7 +315,9 @@ fields.
 each changed path:
 - docs are ignored, by the publish gate's rule;
 - a `full` glob forces the full suite;
-- otherwise the path selects its nearest Go package *and* every group whose `paths` match it, additively;
+- otherwise the path selects the package that owns it, *and* every group whose `paths` match it, additively. A
+  package owns a file in its own directory, under its `testdata/`, or one it embeds (`go list`'s embed files); a plain
+  subdirectory file is owned by no package;
 - a path neither claims forces the full suite.
 
 The packages then expand to every package that depends on them. Those dependencies come from
@@ -330,7 +332,8 @@ The run then takes one of three paths:
   affected record that claims to be full.
 - **Docs-only change:** `sdlc-local/affected` is recorded without running anything.
 
-The name `affected` is reserved in `local-checks.json`.
+A head with no change against main refuses rather than recording a pass. The name `affected` is reserved in
+`local-checks.json`.
 
 ## Not the same as the publish gate or the close review
 

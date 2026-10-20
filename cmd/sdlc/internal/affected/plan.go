@@ -41,7 +41,7 @@ func Plan(paths []string, g Graph, cfg Config, isDoc func(string) bool) Selectio
 			}
 		}
 		claimed := false
-		if pkg, ok := packageIn(byDir, p); ok {
+		if pkg, ok := g.packageIn(byDir, p); ok {
 			changed[pkg] = true
 			claimed = true
 		}

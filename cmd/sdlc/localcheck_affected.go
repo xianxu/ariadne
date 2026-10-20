@@ -28,6 +28,11 @@ func runAffectedCheck(ctx context.Context, d localRunDeps, ad affectedDeps, cfg 
 	if err != nil {
 		return localRunRecord{}, fmt.Errorf("local check %s: changed paths of %s: %w", affectedCheckName, abbrevSHA(sha), err)
 	}
+	if len(paths) == 0 {
+		// No change is not a docs-only change: recording a pass here would be
+		// evidence nothing ran for (#473 M1 BR-2).
+		return localRunRecord{}, fmt.Errorf("local check %s: %s has no changes against its merge-base with main; there is nothing to vouch for, run --name %s", affectedCheckName, abbrevSHA(sha), suite.Name)
+	}
 	var sel affected.Selection
 	if publishGateHasCodeSurface(paths) {
 		g, err := ad.graph(ctx, sha)

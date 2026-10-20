@@ -41,8 +41,10 @@ func TestParseConfigDefaults(t *testing.T) {
 func TestParseConfigRefuses(t *testing.T) {
 	cases := []struct{ name, json, want string }{
 		{"unknown field", `{"version":1,"command":["x"],"extra":1}`, "unknown field"},
+		{"duplicate key", `{"version":1,"command":["x"],"command":["y"]}`, "duplicate object key"},
+		{"duplicate group key", `{"version":1,"command":["x"],"groups":[{"name":"a","name":"b","paths":["x"]}]}`, "duplicate object key"},
 		{"trailing data", `{"version":1,"command":["x"]} {}`, "trailing"},
-		{"trailing garbage", `{"version":1,"command":["x"]} x`, "trailing"},
+		{"trailing garbage", `{"version":1,"command":["x"]} x`, "invalid character"},
 		{"not an object", `[]`, ""},
 		{"empty", ``, ""},
 		{"version 0", `{"command":["x"]}`, "version"},

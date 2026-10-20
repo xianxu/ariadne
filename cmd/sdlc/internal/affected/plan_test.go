@@ -31,6 +31,8 @@ func testGraph() Graph {
 			m + "/rt":     {},
 			m + "/rt/sub": {},
 		},
+		// rt embeds its Lua runtime, as pair's runtimebundle does.
+		Embeds: map[string]string{"rt/assets/init.lua": m + "/rt"},
 	}
 }
 
@@ -73,6 +75,10 @@ func TestPlan(t *testing.T) {
 			Selection{Full: true, Reason: ".sdlc/affected.json"}},
 		{"unclassified falls back to full", []string{"leaf/leaf.go", "scripts/deploy.sh"},
 			Selection{Full: true, Reason: "unclassified: scripts/deploy.sh"}},
+		{"a plain subdirectory of a package is unclassified (BR-1)", []string{"leaf/notes/n.txt"},
+			Selection{Full: true, Reason: "unclassified: leaf/notes/n.txt"}},
+		{"unembedded lua in a package dir's subtree is the group only", []string{"rt/assets/extra.lua"},
+			Selection{Groups: []string{"lua"}}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -100,6 +106,19 @@ func norm(s Selection) Selection {
 	return s
 }
 
+// #473 M1 BR-1: a module whose root is a package must not swallow every path: a script outside any package
+// still forces the full suite.
+func TestPlanRootPackageDoesNotClaimSubdirectories(t *testing.T) {
+	g := testGraph()
+	g.Dir["example.com/m"], g.Deps["example.com/m"] = ".", map[string]bool{}
+	if got := Plan([]string{"scripts/deploy.sh"}, g, testConfig(), isDocTest); !got.Full {
+		t.Fatalf("Plan = %+v; a root package claimed scripts/", got)
+	}
+	if got := Plan([]string{"main.go"}, g, testConfig(), isDocTest); got.Full || !reflect.DeepEqual(got.GoPkgs, []string{"example.com/m"}) {
+		t.Fatalf("Plan = %+v; the root's own file", got)
+	}
+}
+
 func TestPlanStaleGoRoot(t *testing.T) {
 	cfg := testConfig()
 	cfg.Groups[1].Go = []string{"./gone"}
@@ -120,16 +139,20 @@ func TestSelectionEmpty(t *testing.T) {
 	}
 }
 
-func TestPackageOfRoot(t *testing.T) {
-	g := Graph{Module: "m", Dir: map[string]string{"m": ".", "m/a": "a"}, Deps: map[string]map[string]bool{}}
-	for file, want := range map[string]string{"main.go": "m", "a/x.go": "m/a", "b/x.go": "m", "a/b/c.txt": "m/a"} {
-		if got, ok := g.PackageOf(file); !ok || got != want {
+// #473 M1 BR-1: ownership is exact. A file belongs to the package whose dir holds it, whose testdata/ holds it,
+// or which embeds it; a plain subdirectory file, under the root package above all, belongs to none.
+func TestPackageOfIsExact(t *testing.T) {
+	g := Graph{Module: "m", Dir: map[string]string{"m": ".", "m/a": "a"}, Deps: map[string]map[string]bool{},
+		Embeds: map[string]string{"a/assets/x.lua": "m/a"}}
+	for file, want := range map[string]string{
+		"main.go": "m", "a/x.go": "m/a", "a/README.txt": "m/a",
+		"testdata/in.txt": "m", "a/testdata/deep/in.txt": "m/a", "a/assets/x.lua": "m/a",
+		"b/x.go": "", "scripts/run.sh": "", "a/assets/other.lua": "", "a/notes/n.txt": "",
+	} {
+		got, ok := g.PackageOf(file)
+		if got != want || ok != (want != "") {
 			t.Errorf("PackageOf(%q) = %q, %v; want %q", file, got, ok, want)
 		}
-	}
-	g2 := Graph{Module: "m", Dir: map[string]string{"m/a": "a"}}
-	if _, ok := g2.PackageOf("b/x.go"); ok {
-		t.Error("PackageOf outside any package reported ok")
 	}
 }
 
