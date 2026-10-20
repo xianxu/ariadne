@@ -32,7 +32,7 @@ Use real suites for the comparison; a fake cannot establish CPU capacity. Valida
 ## Operating envelope and lifecycle
 
 - Nine full suites, sequential, at one immutable code head. Interleave shard counts as 12/8/6, 8/6/12, 6/12/8 to balance order/cache/thermal effects. Each count appears once in each position.
-- Ask the hub to coordinate the quiet interval and the two-slot reservation. Existing full suites finish first. No cancellation or alteration of another slot's runs. Keep the machine gate; do not use WF_TEST_LOCK=off.
+- Each run is its own normal FIFO suite-queue job at weight 2. Other suites may run between measurements. Acquire the existing gate, then wait for the quiet baseline before starting that run, excluding queue/cooldown time from measured wall. The hub explicitly declined a nine-run reservation; no machine freeze or fleet drain. No cancellation or alteration of another slot's runs; never use WF_TEST_LOCK=off.
 - Proposed quiet precondition: at least five consecutive one-second samples with CPU idle >=80% and one-minute load <= half the logical CPUs. Record the actual baseline. This threshold excludes inherited load from the preceding suite; it is a measurement condition, not a product promise. Stop and report if quiet cannot be reached within ten minutes.
 - Sample once per second with the standard library: one load read and one Mach CPU-stat read. O(T) work and output for T seconds; no subprocess per sample. Record raw ticks, sample timestamps, peak one-minute load, mean kernel percent of total CPU, and kernel share of busy CPU (both definitions remove ambiguity).
 - Wall time starts after admission, immediately before launching each complete suite, and ends on its process exit. Preserve exit codes and complete test output; report failures by name. Never treat a failed or interrupted run as a passing performance result.
@@ -51,9 +51,9 @@ ARCH-DRY/PURE: one default helper, pure tick arithmetic, existing runner/gate. A
 ## Task 1: preserve evidence and revise acceptance
 
 - [x] Copy diagnostic logs/dumps off RAM disk and verify each hash. Persistent directory: Git-common-dir/sdlc/test-stats/evidence/000480/lock-diagnostic; manifest SHA256 209e0bf229bb07ef62275bacb70c90158509c850442c191c810ede44f419837f.
-- [ ] Update #480 Spec/Done-when/Revisions with the hub's fold approval and this plan. Preserve the original timeout criterion and diagnostic uncertainty.
+- [x] Update #480 Spec/Done-when/Revisions with the hub's fold approval and this plan. Preserve the original timeout criterion and diagnostic uncertainty.
 - [x] Triage #484's still-open card to wontfix as folded (no duplicate implementation). The hub independently published its fold note on main; preserve that richer body rather than overwrite it. Leave the project to the hub.
-- [ ] Commit the design and send the concrete plan / quiet-window request to the hub before implementation.
+- [x] Commit the design and send the concrete plan / quiet-window request to the hub before implementation. Hub approved separate normal weight-2 jobs and ten-minute quiet refusal; no long reservation.
 
 ## Task 2: measure the matrix
 
@@ -77,3 +77,7 @@ ARCH-DRY/PURE: one default helper, pure tick arithmetic, existing runner/gate. A
 - [ ] Push/open the PR; run the required recorded suite on the final pushed head. The original train test must pass all variants; preserve any known-flake attribution and classify unknown failures.
 - [ ] Close #480 through the fresh SDLC review with matrix and regression evidence. Address Important/Critical findings; the binary owns review.
 - [ ] Enter sdlc merge --yes promptly, allow its integration and CI/suite gates, then report the landed PR plus the chosen cap/weight and evidence to the hub. Remove the owned scratch checkout/diagnostic binary; retain persistent evidence.
+
+## Revisions
+
+- 2026-10-20 (hub): reject the proposed single 90-minute reservation. Each measurement takes its own normal two-slot suite job, waits for the quiet baseline (at most ten minutes after admission), then runs one suite. Allow other jobs between runs. If the quiet baseline cannot be reached, stop/report so the hub can schedule an operator window.

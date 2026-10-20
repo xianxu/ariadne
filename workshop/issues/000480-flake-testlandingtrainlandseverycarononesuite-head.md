@@ -63,6 +63,7 @@ ARCH-CONSTRAINTS/PURPOSE: cap diagnostic concurrency at four, record load and wi
 
 - Evidence preservation: copied all cited baseline/worker logs, four goroutine dumps, orchestration script and instrumentation source to /Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/evidence/000480/lock-diagnostic. Eleven files, 695959 bytes, each source/destination SHA256 verified. Manifest SHA256 209e0bf229bb07ef62275bacb70c90158509c850442c191c810ede44f419837f. This persistent copy is authoritative; the RAM directory is scratch only.
 - Hub approved folding #484 into this issue: nine quiet full-suite measurements at 12/8/6 shards (three each), then choose the default and WF_TEST_WEIGHT. The final cleanup window (landing.go:652, archive confirmation at 695 and checkout revalidation at 704) is a candidate follow-up; no lock restructuring is included here.
+- Hub approved independent normal weight-2 suite-queue jobs for the matrix, with other jobs allowed between runs. After admission, require idle >=80% for five seconds and load1 <=6, stopping/reporting after ten minutes without quiet. No nine-run machine reservation; the hub will arrange an operator window if needed.
 
 ## Revisions
 
