@@ -359,6 +359,15 @@ DISPATCH
     a slot builds sdlc and the layer tools from its own substrate checkout, so
     an unprepared slot runs stale gates. After an sdlc or weave fix lands,
     prepare every idle slot, not just :0.
+  - Keep a just-landed slot's conversation (ariadne#482): if a change it wrote
+    breaks later, that conversation has the freshest context. Give the slot
+    the next car in the same code area (the train rule already prefers it) and
+    skip `--prepare`, which starts a fresh conversation: the worker's
+    `sdlc start-plan` refreshes its substrate itself, and `tl-worker --help` is
+    read anew per item. Only a Pair binary change needs a restart, and
+    `couch --relaunch repo:N --confirm` keeps the conversation. Start it fresh
+    (prepare or `--reload-context`) only when its context is unrelated to the
+    next car or nearly full.
   - The dispatch message carries only: the issue (with any scope folds and an
     evidence pointer), what comes next in that slot, the relevant train edges,
     and TL-only context. The worker's rules are in `tl-worker --help`; never
@@ -408,6 +417,12 @@ LANDING AND SMOKE TESTS
     runs the required integration suite. Branch fixes and close's noon
     freshness gate still require verification. Ordinary docs-only main writes
     use existing suite-record reuse; they do not need a fleet-wide freeze.
+  - Hold a slot to soak a risky change: recovery or landing code, a data
+    format, anything hard to roll back. "hold: soak until X" keeps the slot
+    that landed it reserved and idle, its conversation intact, until X: the
+    next train lands, the next main suite after the change passes, or a stated
+    time. Show it on the slot's line in `## Slots` (`hold: soak until …`) and
+    release it at X. Open an extra slot if the hold would cost throughput.
   - Workers land their own items on SHIP. For each issue, decide whether it
     needs an operator smoke test, can share one batched smoke test in :0, or
     needs none. When unsure, ask the operator, and record the decision and its

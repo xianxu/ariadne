@@ -1,13 +1,21 @@
 ---
 id: 000482
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '3d40ef3e2a1fc7215b0ed152f2b57a0c782aed89' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '1263fa7fcae561d06ef9778a245d263116d6caf1' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-19T22:48:28-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead: keep a just-landed slot's conversation (next same-area car), and a 'hold: soak until' option for risky changes
@@ -39,8 +47,15 @@ Two tl-lead rules (text in `tl-lead --help`, DISPATCH or LANDING section):
 
 ## Plan
 
-- [ ]
+- [x] tl-lead help, DISPATCH: keep a just-landed slot's conversation for the next same-area car. Skip `--prepare`, since the worker's `start-plan` refreshes the substrate and `couch --relaunch` keeps the conversation. Start it fresh only for unrelated or nearly full context.
+- [x] tl-lead help, LANDING: "hold: soak until X" for risky changes, with three exits (the next train lands, the next main suite after the change passes, a stated time). It shows in `## Slots`, and an extra slot can absorb the throughput.
+- [x] Help tests pin both rules.
 
 ## Log
 
 ### 2026-10-19
+- **The couch --prepare question (Spec 1):** `couch --prepare` is `weave refresh` followed by a fresh conversation, per `couch --skill`. No pair option is needed: the conversation-keeping path already exists.
+  - The worker's own `sdlc start-plan` catches its slot up (it runs `weave refresh` and rebuilds the slot's sdlc; seen on #468).
+  - `tl-worker --help` is read anew per item.
+  - `couch --relaunch repo:N --confirm` restarts a slot onto a new Pair binary and keeps its conversation.
+  So the rule is to skip prepare for a just-landed slot taking a same-area car, and relaunch only for a Pair binary change. No pair issue was filed.
