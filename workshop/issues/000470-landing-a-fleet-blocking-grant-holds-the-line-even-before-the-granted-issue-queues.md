@@ -94,3 +94,8 @@ ARCH-DRY/PURE: one pure grant-hold rule uses existing ValidGrants; no additional
 - Final recorded suite passed on 8530569a334f37306ea516c8897769045a3f0fbc: all 12 shards over 1758 cmd/sdlc tests and 72 other packages, zero failures, wall 720.1s. sdlc-local/suite success; log sha256 ecf031f0292e. Focused prefix/readiness/grant status/output checks also passed before the final push. The final code change preserves the existing train prefix; grant/status/revoke behavior is unchanged from the TL's passed live check.
 
 - Close review returned SHIP, with no Critical/Important findings. Advisory BR-1 addressed by aligning the current Done-when wording and preserving the original promise/reason in Revisions. Reviewer independently passed line/race and focused command checks; its broader command group hit the default 10-minute timeout, while the recorded sharded full suite already passed on the final code.
+
+## Log — integration verification
+
+- 2026-10-19: integrated main at 184cd3a42a421c9eea1309871204b7d05aeeb890. The first recorded suite failed only TestLandingTrainLandsEveryCarOnOneSuite/head (fixed two-minute completion ceiling); the complete train test then passed on that exact unchanged head. Registered the exact /head subtest as flake #480 with both results. TL confirmed the load-coupled failure and dispatched its root-cause investigation after this landing. No gates waived.
+- Fresh recorded suite passed on the same 184cd3a42a421c9eea1309871204b7d05aeeb890: 12 shards over 1780 cmd/sdlc tests and 72 other packages, zero failures, wall 614.6s; sdlc-local/suite success, log sha256 a609f6f5980d. All train variants passed (/head 12.60s, parent 40.78s). Shared suite queue wait was 1896s. Retrying merge with this passing integration evidence.
