@@ -60,6 +60,8 @@ name exactly.
 
 ## Log
 
+
+- 2026-10-20: closed — review Minors fixed on the branch: flakes.Nearest shared by Registry.Cover and fixedCandidates; ParseFile lint; e2e fixed top-level hides logged subtest (exact-match Nearest mutation fails it). sdlc-local/suite success on 3bea1fc6 (10m45s). (fixed-then-ship); review verdict: SHIP
 ### 2026-10-19
 - 2026-10-19: closed — sdlc local-check run --name suite: sdlc-local/suite success on 04bf0c5e (12 shards, 1767 cmd/sdlc tests + 72 pkgs, 0 failed). New TestFixedIssueCoverageFollowsTheGateRule, TestFlakeListJudgesFixedSubtestsFromTheLog, TestNoParallelFlakeCoverageMatcher; mutation checks: exact-match fixedCandidates and the old top-level caller loop each fail the new tests.; review verdict: SHIP
 

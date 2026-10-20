@@ -81,3 +81,69 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"0017bec4-9149-4a4a-a710-8cb74c288941","repository":"github.com/xianxu/ariadne","issue_id":"000479","recipe":"small-diff-review","round":1,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/007572c22853e62d","reviewed_head":"04bf0c5e603d97658e0e3827ef8364aa49664498","slot":"ariadne:2","requested_at":"2026-10-20T04:08:55.844434Z"},"phase":"finished","pid":76336,"started_at":"2026-10-20T04:08:56.022127Z","finished_at":"2026-10-20T04:12:25.454834Z","session_id":"1bae3aab-a324-47d8-8169-344b0b0a34ad","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T00:19:42-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 479 — fixedIssueCovers matches flake_tests exactly; route it through flakes.Covers (subtest-aware, from #466 review) |
+| repo | ariadne |
+| issue file | workshop/issues/000479-fixedissuecovers-matches-flake-tests-exactly-route-it-through-flakes-covers-subtest-aware-from-466-review.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 4d60f4779e600de0b64c7628df89871286082886..3bea1fc6f744779005297def5e253cff45e17aa2 |
+| command | sdlc close --issue 479 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | checkout |
+| timestamp | 2026-10-20T00:19:42-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All three prior Minors are fixed, and the interdiff adds no new defects. `flakes.Nearest` (`internal/flakes/registry.go:108`) now backs both `Registry.Cover` and `fixedCandidates`. Ties still come out as ambiguous, because `fixedCandidates` returns every issue whose `Tests` contains the nearest name (`flake_fixed.go:121-125`). An issue that names both `x` and `x/sub` is still counted once: `slices.Contains` matches once per issue, which is what the old de-dup by ID did. The AST lint now reads files with `os.ReadDir` plus `parser.ParseFile`, and its comment names the one shape it guards. The e2e test gained the case of a fixed top-level test hiding a logged subtest. On this head, `go vet` is clean and both `go test ./internal/flakes/` and `go test -run 'Flake|Fixed|Parallel' .` pass. I tried one mutation: making `Nearest` match names exactly turns the flakes package tests red, along with `TestFixedIssueCoverageFollowsTheGateRule` and the new e2e case in `TestFlakeListJudgesFixedSubtestsFromTheLog`. I then reverted it. The issue-file diff only adds the close Log entry, the status change and `actual_hours`; Spec and Done-when are untouched, so the scope did not change.
+
+1. **Strengths**
+   - `internal/flakes/registry.go:108-119`: `Nearest` takes an `iter.Seq`, so `Cover` passes `maps.Keys` and `fixedCandidates` passes a flattened sequence of names. The nearest-cover rule now has one source.
+   - `flake_fixed.go:121-125`: finding the nearest name and collecting every issue that names it are now two separate steps. That makes the tie rule explicit instead of mixing it into the loop.
+   - `flake_fixed_test.go:63`: the new top-level case closes the e2e gap the close review noted, and the mutation confirms it catches the bug.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none new.
+
+5. **Test coverage notes:** the exact-match mutation of `Nearest` fails in both packages, so the shared helper is pinned through `Cover` and through `fixedCandidates`.
+
+6. **Architectural notes**
+   - ARCH-DRY: pass. The duplicated loop is consolidated into `flakes.Nearest`.
+   - ARCH-PURE: pass. `Nearest` is pure and has no IO.
+   - ARCH-PURPOSE: pass. The fixes cover the whole class each finding named: both nearest-cover sites, and the only `ParseDir` use.
+   - ARCH-EVOLVE: not applicable. No persisted format changes.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      flake_fixed_test.go now uses os.ReadDir plus parser.ParseFile; ParseDir and the io/fs import are gone.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The lint comment now says it guards only the parallel *Covers shape and that inline identity comparisons are not coverage.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      flakes.Nearest backs both Registry.Cover and fixedCandidates; making it exact-match fails tests in both packages.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"734fd531-3145-4f41-b30a-f2e9954ed44f","repository":"github.com/xianxu/ariadne","issue_id":"000479","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/d935271805f5f34c","reviewed_head":"3bea1fc6f744779005297def5e253cff45e17aa2","slot":"ariadne:2","requested_at":"2026-10-20T07:17:45.215755Z"},"phase":"finished","pid":63916,"started_at":"2026-10-20T07:17:45.309992Z","finished_at":"2026-10-20T07:19:41.953938Z","session_id":"ebe6584a-917b-4080-8658-60ca76740526","outcome":"returned"}] -->
