@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/xianxu/ariadne/pkg/trains"
@@ -16,7 +17,8 @@ type fakeSDLC struct {
 	fleet    Fleet
 	fleetErr error
 	obs      map[string]Observation // "<repoPath>#<n>"
-	calls    int
+	calls    int                    // IssueShow calls; callers observe cars concurrently (boundedEach)
+	mu       sync.Mutex             // guards calls
 	issues   map[string][]RepoIssue // by repo path: sdlc state's issues there
 	issueErr map[string]error
 }
@@ -43,7 +45,9 @@ func (f *fakeSDLC) RepoRoot(_, repo string) (string, error) {
 }
 
 func (f *fakeSDLC) IssueShow(repoPath string, n int) (Observation, error) {
+	f.mu.Lock()
 	f.calls++
+	f.mu.Unlock()
 	o, ok := f.obs[fmt.Sprintf("%s#%d", repoPath, n)]
 	if !ok {
 		return Observation{}, fmt.Errorf("sdlc issue show %d: exit status 1: no such issue", n)
@@ -186,7 +190,8 @@ func TestGatherSlots(t *testing.T) {
 		"ariadne:2": {Agent: "claude"},
 		"ariadne:4": {Agent: "qoder", Resting: true},
 	}}
-	got, err := gatherSlots(sd, actors, root)
+	lines, err := gatherSlots(sd, actors, root)
+	got := renderSlots(lines)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +206,8 @@ func TestGatherSlots(t *testing.T) {
 	}
 
 	// Couch unreadable (a sandboxed call can't reach its socket): `?`, still rendered.
-	got, err = gatherSlots(sd, fakeActors{err: fmt.Errorf("couch --actors: connect: operation not permitted")}, root)
+	lines, err = gatherSlots(sd, fakeActors{err: fmt.Errorf("couch --actors: connect: operation not permitted")}, root)
+	got = renderSlots(lines)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -282,5 +288,43 @@ func TestStatusSlots(t *testing.T) {
 	_, err := run(t, deps{ss: f, sdlc: sd}, "status", "slots", file)
 	if err == nil || !strings.Contains(err.Error(), "timed out") || f.writes != 1 {
 		t.Errorf("fleet failure: err=%v writes=%d (want the reason and no second write)", err, f.writes)
+	}
+}
+
+// A soak hold (ariadne#482) lives in the rendered Slots section: --hold sets
+// it, every later render carries it, --release drops it. A held slot is never
+// on the free line, so it can't be dispatched.
+func TestStatusSlotsSoakHold(t *testing.T) {
+	sd := &fakeSDLC{fleet: Fleet{Slots: []FleetSlot{
+		{Address: "ariadne:1", Repo: "ariadne", Slot: 1, RestingBranch: "main-slot1", HostBranch: "main-slot1"},
+		{Address: "ariadne:2", Repo: "ariadne", Slot: 2, RestingBranch: "main-slot2", HostBranch: "main-slot2"},
+	}}}
+	f := newFake(map[string]string{"Slots": "old"})
+	file, _ := statusFile(t, "")
+	d := deps{ss: f, sdlc: sd}
+	if _, err := run(t, d, "status", "slots", file, "--hold", "ariadne:1=until the next train lands"); err != nil {
+		t.Fatal(err)
+	}
+	got := f.sections["Slots"]
+	if !strings.Contains(got, "ariadne:1") || !strings.Contains(got, "hold: soak until the next train lands") || strings.Contains(got, "free: ariadne:1") || !strings.Contains(got, "free: ariadne:2") {
+		t.Fatalf("hold not rendered, or the held slot listed free:\n%s", got)
+	}
+	// A plain re-render (every pass) keeps the hold.
+	if _, err := run(t, d, "status", "slots", file); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(f.sections["Slots"], "hold: soak until the next train lands") {
+		t.Fatalf("a re-render dropped the hold:\n%s", f.sections["Slots"])
+	}
+	if _, err := run(t, d, "status", "slots", file, "--release", "ariadne:1"); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.sections["Slots"]; strings.Contains(got, "hold:") || !strings.Contains(got, "free: ariadne:1 (?), ariadne:2 (?)") {
+		t.Fatalf("release left:\n%s", got)
+	}
+	for _, bad := range [][]string{{"--hold", "ariadne:9=until later"}, {"--hold", "ariadne:1=tomorrow"}, {"--release", "ariadne:2"}} {
+		if _, err := run(t, d, append([]string{"status", "slots", file}, bad...)...); err == nil {
+			t.Errorf("accepted %v", bad)
+		}
 	}
 }

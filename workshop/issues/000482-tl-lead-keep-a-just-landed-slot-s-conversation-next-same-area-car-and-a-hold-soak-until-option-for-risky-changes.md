@@ -1,13 +1,23 @@
 ---
 id: 000482
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '3d40ef3e2a1fc7215b0ed152f2b57a0c782aed89' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'cc5292785550e68ab501278a7ea06ce381eba4c7' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-19T22:48:28-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 0.32
 ---
 
 # tl-lead: keep a just-landed slot's conversation (next same-area car), and a 'hold: soak until' option for risky changes
@@ -39,8 +49,25 @@ Two tl-lead rules (text in `tl-lead --help`, DISPATCH or LANDING section):
 
 ## Plan
 
-- [ ]
+- [x] tl-lead help, DISPATCH: keep a just-landed slot's conversation for the next same-area car. Skip `--prepare`, since the worker's `start-plan` refreshes the substrate and `couch --relaunch` keeps the conversation. Start it fresh only for unrelated or nearly full context.
+- [x] tl-lead help, LANDING: "hold: soak until X" for risky changes, with three exits (the next train lands, the next main suite after the change passes, a stated time). It shows in `## Slots`, and an extra slot can absorb the throughput.
+- [x] Help tests pin both rules.
 
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — Round-1 fixes: soak holds live in the rendered Slots section (tl-lead status slots FILE --hold repo:N=until X / --release), carried by every render from the section read at write time; a held slot is never on the free line; help free-for-new-work excludes held slots (TestStatusSlotsSoakHold). Atlas pointer added. Fake race in fakeSDLC.IssueShow fixed (-race clean). Rules as before, pinned by help tests. Recorded suite running on ce8324a5b.; review verdict: SHIP
+- 2026-10-19: flow upgraded quick → full — 121 added lines in code files (limit 100)
+- **The couch --prepare question (Spec 1):** `couch --prepare` is `weave refresh` followed by a fresh conversation, per `couch --skill`. No pair option is needed: the conversation-keeping path already exists.
+  - The worker's own `sdlc start-plan` catches its slot up (it runs `weave refresh` and rebuilds the slot's sdlc; seen on #468).
+  - `tl-worker --help` is read anew per item.
+  - `couch --relaunch repo:N --confirm` restarts a slot onto a new Pair binary and keeps its conversation.
+  So the rule is to skip prepare for a just-landed slot taking a same-area car, and relaunch only for a Pair binary change. No pair issue was filed.
+- **Close round 1 (FIX-THEN-SHIP):**
+  - BR-1 was right. `## Slots` is binary-rendered, so a hand-written hold would be overwritten, and the held slot listed as free.
+    - The hold now lives in the section: `tl-lead status slots FILE --hold repo:N='until X'` / `--release repo:N`. Each render reads the holds back from the section being replaced, at write time inside the compare-and-swap, so a retry re-reads them.
+    - A held slot gets its own line and never appears on the free line.
+    - The help's "free for new work" excludes held slots.
+    - `TestStatusSlotsSoakHold` covers set, carry, release and refusals.
+  - Minor: the atlas pointer has been added.
+  - Side fix: a race in the test fake `fakeSDLC.IssueShow` (an unguarded `calls++` under `boundedEach`) made `TestGatherTrains` flaky. It is now guarded, and `-race` is clean.
