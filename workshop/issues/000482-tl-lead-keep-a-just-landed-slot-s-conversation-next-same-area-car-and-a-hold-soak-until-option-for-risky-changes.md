@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "67cb27f1", done: "4cd58be6"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # tl-lead: keep a just-landed slot's conversation (next same-area car), and a 'hold: soak until' option for risky changes
@@ -55,6 +55,8 @@ Two tl-lead rules (text in `tl-lead --help`, DISPATCH or LANDING section):
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — Round-1 fixes: soak holds live in the rendered Slots section (tl-lead status slots FILE --hold repo:N=until X / --release), carried by every render from the section read at write time; a held slot is never on the free line; help free-for-new-work excludes held slots (TestStatusSlotsSoakHold). Atlas pointer added. Fake race in fakeSDLC.IssueShow fixed (-race clean). Rules as before, pinned by help tests. Recorded suite running on ce8324a5b.; review verdict: SHIP
+- 2026-10-19: flow upgraded quick → full — 121 added lines in code files (limit 100)
 - **The couch --prepare question (Spec 1):** `couch --prepare` is `weave refresh` followed by a fresh conversation, per `couch --skill`. No pair option is needed: the conversation-keeping path already exists.
   - The worker's own `sdlc start-plan` catches its slot up (it runs `weave refresh` and rebuilds the slot's sdlc; seen on #468).
   - `tl-worker --help` is read anew per item.

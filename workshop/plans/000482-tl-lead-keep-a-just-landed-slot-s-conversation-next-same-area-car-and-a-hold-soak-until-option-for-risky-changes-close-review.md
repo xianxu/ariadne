@@ -81,3 +81,79 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"01315642-de00-4f87-b471-23668c374b18","repository":"github.com/xianxu/ariadne","issue_id":"000482","recipe":"small-diff-review","round":1,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/b3516f20cd8e94c2","reviewed_head":"885657462e486119f46f41619a0b894f5c8af136","slot":"ariadne:4","requested_at":"2026-10-20T06:28:14.624786Z"},"phase":"finished","pid":25939,"started_at":"2026-10-20T06:28:14.760979Z","finished_at":"2026-10-20T06:29:05.804689Z","session_id":"b6973a74-5ca9-49ce-ba8d-467e21a1a142","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-19T23:32:42-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 482 — tl-lead: keep a just-landed slot's conversation (next same-area car), and a 'hold: soak until' option for risky changes |
+| repo | ariadne |
+| issue file | workshop/issues/000482-tl-lead-keep-a-just-landed-slot-s-conversation-next-same-area-car-and-a-hold-soak-until-option-for-risky-changes.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 718afe6dbad3fb6db1b71981e6402a6a0bce8c92..ce8324a5be05d9f778e62e4aee498824437e3229 |
+| command | sdlc close --issue 482 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-19T23:32:42-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Both fixes go red when reverted, and the checkout is restored. Next I'm checking the issue's Spec and Plan against the code.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This change adds two tl-lead rules, and both are delivered. The DISPATCH rule tells the TL to keep a just-landed slot's conversation by giving it the next car in the same code area. The LANDING rule adds "hold: soak until X" for risky changes. The round-1 fix is real. The hold is now stored inside the binary-rendered `## Slots` section, set with `tl-lead status slots FILE --hold repo:N='until X'` and cleared with `--release`. Each render reads the existing holds back from the section it is about to replace, at write time inside the compare-and-swap. A held slot gets its own line and never appears on the `free:` line. I reverted each half of the fix in the disposable checkout, and `TestStatusSlotsSoakHold` failed both times, then I restored the files. The targeted tests (`TestLeadHelpCoversPlaybook`, `TestRenderSlots`, `TestGatherSlots`, `TestStatusSlots`, `TestStatusSlotsSoakHold`) pass. The full package run fails only in `team_cmd_test.go:78`, where the reviewer sandbox refuses `git init` outside its allowed directories; that test is unrelated to this diff. Nothing blocks SHIP.
+
+**1. Strengths**
+- `cmd/tl-lead/status.go:330-336`: holds are read from the `current` section inside `writeSection`'s compute callback. If another writer moves the section, the retry re-reads the holds instead of using an old snapshot (ARCH-ORDER).
+- `cmd/tl-lead/slots.go:42-63`: `applyHolds` refuses a hold on a slot the fleet doesn't have and a release of a slot that holds nothing, so typos fail loudly.
+- `cmd/tl-lead/slots.go:108-110`: the hold case comes before the free case, so a held idle slot can never be listed as free. This enforces the amended rule at `help.md:397`.
+- The Log answers the `couch --prepare` question with the existing paths (`start-plan` refreshes the substrate, `couch --relaunch --confirm` keeps the conversation), so no pair issue was needed.
+- Side fix: the counter in the test fake `fakeSDLC.IssueShow` is now mutex-guarded, which removes a data race.
+
+**2. Critical findings:** none.
+
+**3. Important findings:** none.
+
+**4. Minor findings** (not raised as findings in the block)
+- `slots.go:108`: a held slot with no issue that sits off its resting branch, or is detached, renders only as the hold line, which hides the "on <branch>" information.
+- `status.go:357`: hold text can contain a triple backtick, which would break the code fence around the section. The only check is for newlines.
+- A hold on a slot later removed from the fleet is dropped silently on the next render. That is probably fine, but nothing tells the TL.
+
+**5. Test coverage notes**
+- `TestStatusSlotsSoakHold` covers setting a hold, keeping it across a plain re-render, release, and three refusals (unknown slot, missing `until`, releasing an unheld slot).
+- It does not cover a hold on a busy slot, where `hold: soak` is appended to a line that has an issue number. The regex should handle that case, but no test pins it.
+
+**6. Architecture**
+- ARCH-DRY: pass. `parseHolds` and `applyHolds` are the only code that handles holds.
+- ARCH-PURE: pass. `parseHolds`, `applyHolds` and `renderSlots` are pure; the IO stays in `gatherSlots` and `writeSection`.
+- ARCH-PURPOSE: pass. Both Spec rules are in the help text, and the requirement that "the hold shows in the status file's Slots line" is enforced by the binary, not just described.
+- ARCH-MOCK: pass. Tests run through the existing fakes for sdlc and the status-file sessions.
+- ARCH-CONSTRAINTS: N/A. The change adds one regex scan of a small section per write.
+- ARCH-SECURE: pass. The `--hold` value is checked for an `until ` prefix and for newlines, and the address is checked against the fleet. The fence issue is the minor item above.
+- ARCH-ORDER: pass. The hold is applied in the same read-modify-write that does the compare-and-swap.
+- ARCH-FUNERAL: pass. `--release` ends a hold, and a hold whose slot leaves the fleet is not carried forward. A time-bound hold has no automatic expiry; that is acceptable because ending a hold is a TL judgment, and holds are per risky change, not per launch.
+- ARCH-EVOLVE: pass. The rendered line only gains an optional suffix, and older renders without a hold parse as having none.
+
+**7. Plan revision recommendations:** none. The close-round Log entry matches the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The hold is stored in the rendered Slots section (parseHolds/applyHolds read at write time in status.go:330-336). A held slot is never on the free line (slots.go:108), and help.md:397 is amended. Reverting either half turns TestStatusSlotsSoakHold red.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      atlas/workflow/tl-skills.md gained a bullet "Keep the conversation, soak holds (ariadne#482)" that points at the help.md rules and at parseHolds/applyHolds in cmd/tl-lead/slots.go.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"24f495d3-c614-4e45-bfd1-363d4aad33ee","repository":"github.com/xianxu/ariadne","issue_id":"000482","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/f6afe0caa7731265","reviewed_head":"ce8324a5be05d9f778e62e4aee498824437e3229","slot":"ariadne:4","requested_at":"2026-10-20T06:31:52.309924Z"},"phase":"finished","pid":61655,"started_at":"2026-10-20T06:31:52.40374Z","finished_at":"2026-10-20T06:32:42.196892Z","session_id":"d2a877ec-66ac-4e53-a32e-872f5f9f8490","outcome":"returned"}] -->
