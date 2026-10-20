@@ -38,8 +38,8 @@ When allocation/global admission contention prevents observing FIFO order, repor
 
 ## Plan
 
-- [ ] Return an explicit unobserved order from paused, global-gate contention, allocation contention and changed-ticket retries; keep the five-result admission seam and all resource decisions unchanged.
-- [ ] Retain only the latest observed diagnostic text/key in acquire. An unobserved retry uses explicitly last-observed text; with no prior observation it says position unknown. Observation freshness alone does not trigger another log line; periodic and pause-change reporting still apply.
+- [x] Return an explicit unobserved order from paused, global-gate contention, allocation contention and changed-ticket retries; keep the five-result admission seam and all resource decisions unchanged.
+- [x] Retain only the latest observed diagnostic text/key in acquire. An unobserved retry uses explicitly last-observed text; with no prior observation it says position unknown. Observation freshness alone does not trigger another log line; periodic and pause-change reporting still apply.
 - [ ] RED/GREEN real-flock producer controls, then whole-caller diagnostic checks at 8/16 alternating known/unobserved attempts; retain FIFO, priority and cancellation controls. Recorded suite, small-diff close review and normal central landing.
 
 Actions: wait, cancel.
@@ -60,3 +60,11 @@ Filed from #481 final-suite observation, after its close review. Source: scripts
 ### 2026-10-20 — claim and quick plan
 
 Claimed after #481 landed and the hub rebuilt central sdlc. Read the dispatch's canonical submitted receipt 6bed2d3c-b536-40ea-89fb-cc6d9ca45052. Source confirms the same empty-list default for every unobserved gated attempt; len(ahead)+1 fabricates first place and changes the log key. Preserve uncertainty with a nullable order and cache only prior observed diagnostics; no admission state/lock change. The real private helper tests exercise the live scheduler seam; no production pause or staging is needed.
+
+### 2026-10-20 — implementation and targeted verification
+
+The real held-allocation, pre-paused, pause-after-preview and changed-ticket fixtures first failed because unobserved order was returned as []. The producer now returns None only when no order was validated; elect and every resource decision are unchanged. acquire caches only observed diagnostic text/key, labels stale reuse, and excludes observation freshness from the change key. Python private-helper tests pass (18 tests); the real Go-supplied provider and pause integration controls pass (34.856s). Counted 8/16 caller tests observe one admission call per attempt and one stable report; unavailable order never probes the legacy head token. Periodic stale reports and actual position changes remain visible.
+
+This is semantic observation propagation across producer/renderer, not a mechanical Go API class: real-lock and whole-caller behavioral controls enforce it instead of a lexical golint rule. No production queue pause or :0 staging was used. The actual global gate still blocks as designed; unobserved gated retries include a pause arriving after preview, not a new nonblocking global lock.
+
+The broader real-lock shell controls pass in full, including exact observed first/second/third-place strings, weighted admission, stopped/dead waiters and legacy queue heads. An explicit mutation mapping None back to [] failed all five caller assertions (8/16 log churn, spurious head-token reads and false position 1); restoring the fix passed. git diff --check passes.
