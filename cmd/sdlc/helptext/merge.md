@@ -36,11 +36,17 @@ DURABLE WORKSPACES (:0 AND :N)
      to register the push, then run instance, duplicate-ID and publish gates.
      Require the recorded suite and wait up to 20 minutes for pending CI
      (30-second polls, local suite runtime excluded). Re-fetch main immediately
-     before landing and repeat integration if it moved, at most three times.
+     before landing. Code integrations have a three-attempt budget; issue-only
+     integrations do not charge it. Issue-only means every new main commit
+     changes only Markdown under workshop/issues/, workshop/plans/ or
+     workshop/history/. Fresh GitHub CLEAN evidence for this exact PR/head
+     and live main permits merging the tested head unchanged. Strict, unknown
+     or stale readiness integrates normally and requires exact-head CI; no
+     statuses are copied. Mixed, unreadable or other paths are ordinary moves.
      The repo transaction lock is released during replay, CI waits and the
      suite, so other slots can publish or claim. Each mutation reacquires it
-     and checks the exact branch HEAD and worktree; moved main is reintegrated
-     and regated, while a moved HEAD refuses.
+     and checks the exact branch HEAD and worktree; main movement is reclassified
+     and gated, while a moved HEAD refuses.
   2. Submit a server-side merge with an expected-head check. Queue admission
      is not completion: require MERGED and reachable integration on freshly
      fetched configured main. Already merged squash/rebase PRs use exact PR

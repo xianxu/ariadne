@@ -1,13 +1,23 @@
 ---
 id: 000472
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'fd0e89722d843029fbbdcb24015f0c030347a85e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '93fc078a3c730f6736b2d02f7e003922761b67ef' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-19T15:37:36-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 0.97
 ---
 
 # merge: issue-only main commits shouldn't cost a ready merge an integration attempt or a CI wait
@@ -39,8 +49,123 @@ up-to-date), since issue-only main commits can't conflict with code.
 
 ## Plan
 
-- [ ]
+- [x] Implement and verify the shared issue-record classifier and integration-state accounting.
+- [x] Add exact GitHub CLEAN readiness and wire conservative landing/recovery behavior.
+- [x] Document, run recorded verification, close on SHIP and land.
+
+Durable design: [issue-only main drift plan](../plans/000472-issue-only-main-drift-plan.md).
 
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — Ready-head, strict/unknown fallback, code/mixed drift, identity/conflict/duplicate refusal, replay/recovery and CI controls pass; broad targeted run 157.115s; pending new-head CI control 5.916s; real adapter read-only conformance 0.962s; regression mutation fails at changed-head assertion then restored green controls pass 15.563s. Recorded suite queued on pushed 4a686788 for PR 332; close overlaps queue under tl-worker, and a recorded final-code suite pass is required before landing. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-19: flow upgraded quick → full — 323 added lines in code files (limit 100)
+
+### 2026-10-19 — approved design boundary
+
+Claimed and started planning. Hub approved one narrow issue-record path policy,
+unchanged-head landing only on fresh exact PR/head/base CLEAN evidence, and
+normal integration/CI fallback with no issue-only attempt charge. No ops/ policy
+now, workflow edit, status copying or publication freeze. Existing docs-only
+ancestor suite reuse remains; it is broader than the direct-merge policy.
+
+Read-only exploration found no existing protection-policy seam. Extend the
+validated landingPR evidence instead of inventing a protection/ruleset reader.
+The existing stateful GitHub fake, per-head CI fake and real Git integration
+fixtures cover the required behavior. Full-flow durable plan written before code.
+
+## Revisions
+
+### 2026-10-19 15:43 PDT — exact-head CI boundary
+
+Use the Spec's avoid-integration option only with fresh CLEAN evidence. Workflow
+paths-ignore alone cannot justify a new integrated head inheriting server checks:
+PR path filtering considers the full PR diff. Strict/unknown fallback integrates,
+waits for exact-head CI and preserves the existing local-suite reuse rule, while
+issue-only movement never consumes the code integration budget.
+
+### 2026-10-19 — live readiness correction
+
+Read-only API conformance before code found that landingPR.BaseOID (GitHub
+baseRefOid) is historical for an open PR; GraphQL baseRef.target.oid matches
+current main. The durable plan now keeps listing/recovery evidence unchanged and
+adds a dedicated typed readiness query through the GitHub adapter. Only the live
+base reference can bind CLEAN to the final fetched main. Reported to the hub.
+
+### 2026-10-19 — resumed implementation checkpoint
+
+After Couch/filesystem recovery, the original stalled commands were gone and
+sdlc state confirmed the clean issue branch. Repeated change-code succeeded,
+inferred quick from the current design size, and authorized implementation;
+close owns any upgrade when the final code exceeds the shell. No estimate or
+plan-quality pass is claimed. All SDLC gates continue through central sdlc.
+
+Implemented the single narrow Markdown-record policy and per-commit Git
+observation (one history call, merge-parent and rename-source coverage). Added
+state-owned integration charges, metadata-only deferral and typed GitHub
+readiness with live base target. The bounded API runner keeps old callers'
+behavior and limits only this fixed scalar readiness query. Final direct merge
+rechecks existing issue/instance/publish guards against current main.
+
+Focused classifier/state/readiness tests passed. Real-Git/stateful-GitHub tests
+passed in 54.804s: three issue-only publications keep the tested ready head;
+strict/unknown fallback survives four publications without spending another
+code integration attempt or rerunning the suite. Broader existing integration
+and recovery controls are running. Early end-to-end fixtures were corrected to
+valid issue frontmatter and the configured upstream/main reference.
+
+
+### 2026-10-19 — targeted verification complete
+
+The broad stable-checkout landing/state/readiness/recovery selection passed
+(157.115s). Five real-Git controls passed (38.936s): late code and mixed movement
+both force a second tested head; readiness head mismatch, same-record conflict
+and a late duplicate ID refuse without merging. The duplicate case enables the
+actual instance/section and duplicate gates, stubbing only the external vocabulary
+executable as existing instance fixtures do.
+
+The explicit strict-fallback pending-CI control and metadata reset accounting
+passed (5.916s): old-head green checks do not authorize the integrated head;
+its pending checks wait, while the suite runs once. Merge-parent histories and
+interrupted integration observations passed (0.763s): recovery charges the actual
+merge's second parent, not later main movement.
+
+Read-only real adapter conformance on PR 325 passed (0.962s), returning its live
+base target and UNSTABLE status. A deliberate mutation disabling direct readiness
+made the ready-head test fail specifically because the tested head changed;
+restored code and existing CI/refusal controls passed (15.563s). No workflow,
+status-copying, shared staging or real PR mutation was used for this smoke.
+
+One earlier wider run passed its assertions but failed TestMain's real-checkout
+hermeticity guard because I committed while it ran. This was a deterministic
+orchestration error, not a flake. The stable 157.115s run replaces that invalid
+evidence, and the lesson now prohibits concurrent commits/new dirty paths during
+these tests. Adapter, state, classifier, landing help, README and atlas are ready
+for the recorded suite and mandatory close review.
+
+
+### 2026-10-19 — delivery gates running
+
+Implementation and documentation are ready for close. PR 332 is open on pushed
+4a686788; the recorded suite is queued under normal FIFO (both machine slots,
+position 6 at admission). Close review may overlap that queue per tl-worker;
+a recorded suite pass on the final code head remains required before landing.
+The Plan delivery row records entry into these binary-owned gates, not a claim
+that the queued suite or landing has completed. The remaining delivery results
+will be recorded by close and merge.
+
+
+### 2026-10-19 — SHIP and recorded suite pass
+
+Full boundary review returned SHIP on round one, no findings; its independent
+focused selections passed (1.180s, 47.167s, 54.697s, 25.095s). The binary
+published codecomplete bound to its evidence commit and pushed the branch.
+All server CI checks passed on that head.
+
+The recorded suite on pushed implementation/test head 4a686788 passed cleanly:
+1,743 cmd/sdlc tests across 12 shards and 72 other packages; wall 508.0s, no
+retry. Queue admission took 1,748s under normal FIFO. Later commits contain
+only issue/review/plan bookkeeping, so the existing docs-only ancestor rule
+covers them. Entering normal central sdlc merge now; its turn owns any main
+integration and required integration suite. The delivery checklist is handed
+to those binary-owned gates; merge/archive evidence supplies the final result.

@@ -541,7 +541,11 @@ and culprit.
 
 Merge refuses red CI on the PR head. Durable workspaces wait up to 20 minutes
 for pending CI, integrate a moved main locally, and recheck main before landing
-(up to three integrations); conflicts abort with the paths to resolve. Legacy
+(up to three code integrations); conflicts abort with the paths to resolve.
+Issue-only main movement does not spend that budget. Fresh GitHub CLEAN evidence
+for the exact PR/head and live base allows the tested head to land unchanged;
+otherwise normal integration and exact-head CI apply. The narrow record policy
+is described in [durable PR landing](atlas/workflow/sdlc-binary.md#durable-pr-landing). Legacy
 worktrees require manual main integration and refuse pending CI.
 A repository can declare local
 checks in `.sdlc/local-checks.json` on main: `sdlc local-check run --name X`

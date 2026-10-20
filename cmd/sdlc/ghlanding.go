@@ -141,23 +141,48 @@ func parseLandingPRs(data []byte, repo, branch string) ([]landingPR, error) {
 // runLandingGH bounds process lifetime and pipe draining, inheriting cancellation
 // from the command. stdout is kept separate from diagnostic stderr for JSON.
 func runLandingGH(ctx context.Context, args ...string) ([]byte, error) {
+	return runLandingGHWithLimit(ctx, 0, args...)
+}
+
+// landingGHOutput drains the pipe while retaining at most limit bytes. Existing
+// landing callers use zero for the original unbounded capture behavior.
+type landingGHOutput struct {
+	buf      bytes.Buffer
+	limit    int
+	overflow bool
+}
+
+func (b *landingGHOutput) Write(p []byte) (int, error) {
+	n := len(p)
+	if b.limit > 0 && len(p) > b.limit-b.buf.Len() {
+		p = p[:b.limit-b.buf.Len()]
+		b.overflow = true
+	}
+	_, err := b.buf.Write(p)
+	return n, err
+}
+
+func runLandingGHWithLimit(ctx context.Context, limit int, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "gh", args...)
 	cmd.WaitDelay = time.Second
-	var stdout, stderr bytes.Buffer
+	stdout, stderr := landingGHOutput{limit: limit}, landingGHOutput{limit: limit}
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		if ctx.Err() != nil {
 			return nil, fmt.Errorf("gh landing interrupted: %w", ctx.Err())
 		}
-		return nil, fmt.Errorf("gh landing: %w: %s", err, strings.TrimSpace(stderr.String()))
+		return nil, fmt.Errorf("gh landing: %w: %s", err, strings.TrimSpace(stderr.buf.String()))
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("gh landing interrupted: %w", err)
 	}
-	return stdout.Bytes(), nil
+	if stdout.overflow || stderr.overflow {
+		return nil, fmt.Errorf("gh landing response exceeds %d byte limit", limit)
+	}
+	return stdout.buf.Bytes(), nil
 }
 func (realGH) LandingPRs(ctx context.Context, repo, branch string) ([]landingPR, error) {
 	if !landingRepoValid(repo) || strings.TrimSpace(branch) == "" {
