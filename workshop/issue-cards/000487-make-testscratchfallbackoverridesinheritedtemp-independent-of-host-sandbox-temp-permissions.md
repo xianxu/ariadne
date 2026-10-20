@@ -1,6 +1,6 @@
 ---
 id: 000487
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-20
 estimate_hours:
@@ -22,6 +22,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 8513558178988a1fe9af9ce1bc32f484fb7da941
         evidence_commit: e4e50f4c47053274093d01bb96af4471cc229a0d
+        landed_commit: 0ccd3ab9f5786b53cb27f017650ca70e09a85b70
 ---
 
 # Make TestScratchFallbackOverridesInheritedTemp independent of host sandbox temp permissions
