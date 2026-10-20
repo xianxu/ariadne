@@ -221,3 +221,81 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"8ec03518-ff21-46d2-b20b-37dbff662669","repository":"github.com/xianxu/ariadne","issue_id":"000489","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/209a37b03c2b1dc3","reviewed_head":"25a66f067ff83d098f417b0aa07a81b72abe0eaf","slot":"ariadne:2","requested_at":"2026-10-20T12:43:03.722098Z"},"phase":"finished","pid":24943,"started_at":"2026-10-20T12:43:03.81613Z","finished_at":"2026-10-20T12:43:41.042938Z","session_id":"7ab08645-b7d4-41e5-8df3-946a5c19008a","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T08:03:18-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 489 — jsonstrict: route the three older duplicate-JSON-key scanners through internal/jsonstrict (ARCH-DRY, from #473 M1 review) |
+| repo | ariadne |
+| issue file | workshop/issues/000489-jsonstrict-route-the-three-older-duplicate-json-key-scanners-through-internal-jsonstrict-arch-dry-from-473-m1-review.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 86b79c6d826728c4f931e373ba4e8198629bb5bd..16e4c38844f7ae13cabde1b5ed91a42ff04e4478 |
+| command | sdlc close --issue 489 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | checkout |
+| timestamp | 2026-10-20T08:03:18-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Queuegate and jsonstrict tests pass. Next I'm checking which callers depend on the old error strings and what the stricter case-fold rule changes.
+
+The one failing test turned out to be an environment issue, not the code. Writing up the verdict now.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This window has one code change. It is the conflict resolution in `cmd/sdlc/internal/queuegate/codec.go`. While this branch was open, #481 landed `queuegate` on main with its own recursive duplicate-key scanner. This branch's `json-recursive-scanner` lint rule caught it, and the integrated suite failed on `TestTrackedGoFilesPassTheCatalog`. The fix replaces queuegate's 54-line local walker with `jsonstrict.Scan(d, 128)` and keeps queuegate's own pieces: `UseNumber`, the 1 MiB and UTF-8 checks, and the check for trailing data. The depth rule matches the old one exactly: the top-level value counts as depth 0, and anything deeper than 128 is refused. The other two files in the window are the gate and review records in `workshop/plans`. The issue diff only adds to `## Log` and a note about the refused first landing; it does not touch `## Spec`, `## Done when`, or the substance of `## Revisions`. So this is the issue's own scanner class being folded in, not a change of scope. Both prior findings were disposed in earlier rounds, and nothing open is left.
+
+**Strengths**
+- `queuegate/codec.go:25`: the fold keeps both sides' intent. The 128 depth limit, `UseNumber` opacity (so `1e99999` stays opaque) and the trailing-data rejection all still hold, and the queuegate tests confirm it: `TestStrictObjectSharedBoundary…`, `TestControlCodecPreservesOpaqueAdditions` and the 130-level nesting case.
+- The new lint guard caught a scanner that landed on main in the meantime. That is direct evidence that the class enforcement works (ARCH-PURPOSE).
+
+**Critical:** none.
+
+**Important:** none.
+
+**Minor**
+- Queuegate's duplicate check is now stricter. It refuses keys that match case-insensitively (e.g. `{"Id":1,"id":2}`) at every depth, including opaque extra values that the codec otherwise passes through untouched. Before, it refused only exact repeats. Nothing in queuegate tests this case, and the comment on `inspectJSON` doesn't mention it.
+
+**Test coverage**
+- These pass at the pinned head: `go test ./cmd/sdlc/internal/queuegate/ ./cmd/sdlc/internal/jsonstrict/` with `-count=1`, and the `pkg/golint` tests `TestTrackedGoFilesPassTheCatalog`, `TestRules` and `TestJSONRecursive*`.
+- `TestQueueRealHelperPause` in `cmd/sdlc` fails here, and the cause is the review sandbox, not this change. The Python helper's `queue_boot_id` raises `PermissionError: [Errno 1] boot identity unavailable`, and that test never reaches the Go codec. It should be confirmed on the host suite.
+
+**Architecture (interdiff only)**
+- **ARCH-DRY: pass.** A duplicate scanner is removed in favour of the shared helper.
+- **ARCH-PURE: pass.** It is still a pure function over bytes.
+- **ARCH-PURPOSE: pass.** The new instance of the class was folded in during the same round.
+- **ARCH-EVOLVE: pass, with the note above.** Unknown fields still survive the round trip and duplicate keys stay strict. The stricter case-insensitive rule now also applies to opaque nested values, which is a deliberate jsonstrict decision but undocumented in queuegate.
+
+**Plan revisions:** none needed. The log already records the queuegate fold.
+
+```findings
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: strict-check-untested-caller
+    title: |
+      queuegate now refuses case-insensitive duplicate keys at every depth, but no queuegate test covers it
+    detail: |
+      This is the 2nd finding in family strict-check-untested-caller. Rule covering all instances: every caller of jsonstrict.Scan or RejectDuplicateKeys needs one test, through that caller's public decode, that feeds a case-variant duplicate key, e.g. DecodeControl with future set to {"Id":1,"id":2}. The interdiff silently made queuegate stricter: before, only exact repeats were refused, now case-insensitive repeats are too, including inside opaque extra values. The inspectJSON comment should say so as well. Prevalence: 2 callers found so far (reviewusage identity.go, queuegate codec.go).
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"a01e1cb3-8b93-4e4c-9bbd-ed08b9403002","repository":"github.com/xianxu/ariadne","issue_id":"000489","recipe":"fix-review","round":4,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/8b435d3511113395","reviewed_head":"16e4c38844f7ae13cabde1b5ed91a42ff04e4478","slot":"ariadne:2","requested_at":"2026-10-20T14:56:23.263933Z"},"phase":"finished","pid":58103,"started_at":"2026-10-20T14:56:23.44692Z","finished_at":"2026-10-20T14:57:12.7922Z","session_id":"47bf4d65-772c-4d25-ac7e-a97125da47d9","outcome":"returned"},{"version":1,"intent":{"disposable_root":true,"id":"68444b10-d7b7-4366-9d68-82855b702f27","repository":"github.com/xianxu/ariadne","issue_id":"000489","recipe":"fix-review","round":4,"attempt":2,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/8b435d3511113395","reviewed_head":"16e4c38844f7ae13cabde1b5ed91a42ff04e4478","slot":"ariadne:2","requested_at":"2026-10-20T14:57:14.362629Z"},"phase":"finished","pid":1573,"started_at":"2026-10-20T14:57:14.538516Z","finished_at":"2026-10-20T15:03:17.619016Z","session_id":"b53b494d-ca61-4a26-8d7f-88521b524dda","outcome":"returned"}] -->
+
+## Review preparation and protocol diagnostics
+
+Quoted values are diagnostic data, not review verdicts.
+Protocol attempt 1
+reason: "missing valid findings block"
+output: "Checking queuegate tests and running a mutation to see whether they catch removal of the scan.\n\n```verdict\nverdict: SHIP\nconfidence: high\n```\n\n**Verdict: SHIP.** No prior findings are left open: BR-1 and BR-2 were closed in earlier rounds, and I did not raise them again. The only code change in this round is in `cmd/sdlc/internal/queuegate/codec.go`. Before this round, `queuegate.inspectJSON` had its own recursive duplicate-key scanner, which #481 landed on main while this issue was in progress. It now calls the shared `jsonstrict.Scan(d, 128)`. That is the purpose of this issue (fold every generic recursive scanner into `jsonstrict`), applied to one scanner the earlier review never saw. The rest of the window is generated gate and review records under `workshop/plans/`. `## Spec`, `## Revisions` and `## Done when` are unchanged, so this is not a scope change. The prompt lists no conflict resolutions to judge.\n\n1. **Strengths**\n   - **Same behavior as before, with one intended difference.**\n     - Duplicate keys are still rejected at every depth.\n     - Nesting is still capped at 128: both the old check and `Scan` reject only depth greater than 128.\n     - `UseNumber` and the trailing-data check stay in the caller (`codec.go:24`, `codec.go:28`).\n     - The old code also checked closing brackets by hand. `Scan` instead passes on whatever error `dec.Token()` returns, and the decoder already enforces the structure.\n     - The one difference: keys that differ only by case now count as duplicates. The issue's Log records this for every folded caller.\n   - **The existing tests catch removal of the scan.** I replaced `jsonstrict.Scan` with a plain `d.Decode`, ran the tests, then restored the file (`git status` clean).\n     - `go test ./cmd/sdlc/internal/queuegate/` failed in three places: the ambiguous object at `codec_test.go:17`, the duplicate `schema_version` at `codec_test.go:48`, and the nesting limit at `codec_test.go:108`.\n     - So the `strict-check-untested-caller` family does not repeat here.\n   - **The lint rule from this issue did its job.** The json-recursive-scanner rule flagged the scanner #481 brought in. `pkg/golint`, `jsonstrict` and `queuegate` all pass at head.\n\n2. **Critical:** none.\n3. **Important:** none.\n4. **Minor:** none.\n5. **Test coverage notes:** `queuegate` has no local test for the new case-variant duplicate rule, for example `\"future\":{\"a\":1,\"A\":2}`. That rule is tested in `jsonstrict` itself. The removal mutation above shows `queuegate` relies on `Scan`, so it gets the same rule. I'm not raising a finding for this.\n6. **Architecture (interdiff only)**\n   - **ARCH-DRY:** pass. The duplicated 50-line scanner is gone and replaced by the shared helper.\n   - **ARCH-PURE:** pass. `inspectJSON` is still pure work on in-memory bytes.\n   - **ARCH-PURPOSE:** pass. The scanner that arrived on main during the issue is folded in this same window, so it isn't left as a follow-up.\n   - **ARCH-EVOLVE:** pass.\n     - Unknown members are still preserved; the raw-map path in `StrictObject` is unchanged.\n     - Duplicate-key handling is stricter, not looser: keys differing only by case are now rejected, which matches how `encoding/json` matches field names.\n     - Known-field types and required fields are unchanged.\n7. **Plan revision recommendations:** none. The issue's Log already records the `queuegate` fold.\n\n```findings\n```"
+
+truncated: false
+retained-bytes: 0000003657
