@@ -1,13 +1,13 @@
 ---
 id: 000485
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'bc55caf2fc159315fa3232e9bf5b06aefbab109c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '84c92ba5c46cc12d06b82a5fb58a7f279aaa82c6' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T11:08:14-07:00
 claimant:
     operator: Xian Xu
@@ -47,6 +47,11 @@ From introduce-team's live proof (10-19, two hubs: `couch ops ops-echo`):
 
 ## Done when
 
+- A stateful delayed-resume fake proves no next slot starts before the current one settles, including 10–30-second modeled delays.
+- The first refused, failed or uncertain resume stops the batch, returns nonzero, retains request diagnostics and names untouched slots.
+- An uncertain attempt triggers only read-only observation; no automatic resend or inferred success from actor presence.
+- --all expands visibility, never automatic resume authority; scoped Slots writes cannot silently drop an existing hold.
+
 - `status check` in a two-hub fixture marks a hub stale only for merges in repos its `.hub` claims (test).
 
 - In a two-hub fixture, each hub's `status slots` lists only its own slots; `--all` lists every slot.
@@ -55,7 +60,13 @@ From introduce-team's live proof (10-19, two hubs: `couch ops ops-echo`):
 
 ## Plan
 
-- [ ]
+Proposed durable design: [hub scope and serial resume](../plans/000485-hub-scope-resume-plan.md).
+Awaiting the owning TL's approval before change-code.
+
+- [ ] Share hub scope across Slots, resume planning and freshness; implement own-only defaults and --all visibility.
+- [ ] Stop serial resume at the first unsuccessful terminal outcome; retain diagnostics and name untouched slots.
+- [ ] Verify two-hub behavior, stateful delayed resumes, subprocess contracts and live read-only views.
+- [ ] Update help/atlas, record the suite, close and land.
 
 ## Log
 
@@ -135,3 +146,14 @@ bare-call rule.
    single note when actors fail, and updates to the two pinned resume tests. `help.md` and the atlas get `--all` and
    the bare-call rule.
 
+
+### 2026-10-20 — Codex recovery and proposed design
+
+- #489 landed as PR 344; its merge returned exit 0 before this branch was created from main. The long landing/test queue prevented starting #485 earlier; no stacked development.
+- Read the prior handoff and TL scope entries from origin/main. Current pair Couch's exchangeSlotOperation already polls operation-status to terminal, at 500 ms intervals with a five-minute budget. tl-lead's three-minute outer timeout can interrupt that wait; it currently discards stdout, calls every later slot after errors and classifies Couch's explicit uncertain error as a refusal. The plan keeps Couch as the polling owner and changes batch control/diagnostics.
+- Live read-only baseline: bare tl-lead fleet resume from ops reached Couch successfully in this Codex environment and printed dormant unclaimed repos individually. No --apply, live resume, settings edits or :0 writes were performed.
+- Proposed plan written to workshop/plans/000485-hub-scope-resume-plan.md; implementation has not started. Await owning TL approval of count-only unclaimed ownership, --all visibility without mutation authority, stop/nonzero partial completion, CLI-owned polling and the hold-preservation refusal.
+
+## Revisions
+
+- 2026-10-20 13:43 PDT — proposed design after Codex handoff: include the TL's 11:00/11:15 serial-resume acceptance in Done when. Reuse Couch's existing terminal-receipt polling instead of adding a second poller (ARCH-DRY). Count unclaimed slots without guessing the main hub; --all is visibility only. Add explicit protection against losing an existing hold when narrowing Slots. Full details and state/recovery table are in the durable plan; approval pending.
