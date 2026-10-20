@@ -1,13 +1,21 @@
 ---
 id: 000475
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '31bef3815adf52740bbcab93c11847dffa12c9cc' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '44ad0f831ec50cab4589f17e2bcd54081dcc999a' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-20T03:03:17-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # landing trains: wall-clock departure slots planned machine-wide by suite cost; leave at N cars or Y minutes; no clock reset (option A)
