@@ -1,6 +1,6 @@
 ---
 id: 000494
-status: codecomplete
+status: done
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 058f4f15587adf7659fed2095b9b8f9750a1de02
         evidence_commit: 194143620069696390ae4efbfa60028e1b267c8e
+        landed_commit: 60aabea5db6aeeb3eb5f5f4997a9f41ce9939726
 ---
 
 # Train car's own merge warns 'active issue missing without confirmed archive' after the train already archived it
