@@ -50,7 +50,7 @@ slots. The machine is suite-bound. Discussion and the operator's decision: ops s
 
 ## Plan
 
-Durable plan: `workshop/plans/000473-test-economy-affected-suite-plan.md` (D1–D6 approved by the TL 10-19; env contract fixed).
+Durable plan: `workshop/plans/000473-test-economy-affected-suite-as-close-evidence-the-full-suite-runs-once-in-the-train-or-at-merge-option-b-plan.md` (D1–D6 approved by the TL 10-19; env contract fixed).
 
 - [ ] M1 — planner and runner (`internal/affected`, `local-check run --name affected`)
 - [ ] M2 — car readiness accepts `affected`; flake/test-stats generalization; wording, atlas
