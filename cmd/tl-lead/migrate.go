@@ -355,22 +355,11 @@ func escapeLinkText(s string) string {
 // moved files (`  - doc: qa/op/x.md`). Entries are relative to file, like
 // its links.
 func rebaseIndex(text, file string, moved func(string) (string, bool)) string {
-	block, rest, ok := sidedoc.FrontBlock(text)
-	if !ok {
+	after, err := sidedoc.RebaseIndex(text, file, file, moved)
+	if err != nil {
 		return text
 	}
-	lines := strings.Split(block, "\n")
-	for i, l := range lines {
-		v, ok := strings.CutPrefix(strings.TrimSpace(l), "- doc:")
-		if !ok {
-			continue
-		}
-		at := path.Join(path.Dir(file), strings.TrimSpace(v))
-		if to, ok := moved(at); ok {
-			lines[i] = l[:strings.Index(l, "- doc:")] + "- doc: " + sidedoc.RelPath(path.Dir(file), to)
-		}
-	}
-	return strings.Join(lines, "\n") + rest
+	return after
 }
 
 // mentions are the lines that still name qa after the rebase: bare paths in

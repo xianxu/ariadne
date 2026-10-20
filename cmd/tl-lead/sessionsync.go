@@ -45,6 +45,7 @@ type SessionSync interface {
 	// Rename moves a registration to new, which must already exist; a rerun
 	// of a rename already done succeeds (`rename OLD NEW`).
 	Rename(old, new string) error
+	LookupRegistration(file string) (*syncRegistration, error)
 }
 
 // fileHash is couch's name for one version of a whole file (pair

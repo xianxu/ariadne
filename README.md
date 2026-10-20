@@ -842,3 +842,20 @@ See `sdlc actual --help` for provenance and recovery.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+
+`tl-lead status` uses the hub repo's gitignored `session.md` and
+`session.side/`; FILE is optional on all status commands. Existing explicit
+FILE arguments remain valid. Copy decisions from these local conversations
+into the owning tracked issue, project Log or charter when they are made.
+
+To migrate an older hub file, close every affected editor and run
+`tl-lead status move [OLD]` to inspect the dry run, then repeat with `--apply`.
+Omitting OLD requires exactly one `teams/*/tl-status-*.md`. The source must
+already be registered with Couch; the refusal prints the exact registration
+command. Apply copies and rebases documents, updates `.gitignore`, preserves
+Couch identity/unread/owed state, verifies, then cleans up unchanged sources.
+A partial run keeps copies for the same command to reconcile; after the
+registration switch use the new session even if cleanup needs a retry.
+Reopen `session.md` after success. See `tl-lead --help` for refusals and the
+quiet-window requirement.

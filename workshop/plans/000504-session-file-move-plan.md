@@ -21,6 +21,9 @@ collaboration-mode: discussion
 | statusArgs | `cmd/tl-lead/status_path.go` | new |
 | sessionMovePlan | `cmd/tl-lead/status_move.go` | new |
 | sessionMovePhase / transitionMove | `cmd/tl-lead/status_move.go` | new |
+| moveSessionFields / moveIgnores | `cmd/tl-lead/status_move.go` | new |
+| RebaseIndex | `pkg/sidedoc/index_rebase.go` | new |
+| syncRegistration | `cmd/tl-lead/status_move_registry.go` | new |
 
 - `statusArgs` supplies an already-resolved default path when a command has exactly one fewer positional argument than its explicit-FILE form. It never guesses from a filename suffix. One parser serves all status commands; the existing argument validators run on the normalized arguments. Tests require no IO.
 - `sessionMovePlan` owns one old/new session pair, zero or one side tree, copied document bytes, registration pairs, conflicts, and ignore additions. It maps the old session exactly and the entire old side-tree prefix to their destinations. Reuse `sidedoc.RebaseLinks` and `sidedoc.SideDir`; promote index relocation into `sidedoc.RebaseIndex(text, from, to, moved)` and retain the old `rebaseIndex` wrapper for stationary callers. The promoted helper parses only the actual discussions block, accepts separate old/new coordinates, and preserves all other frontmatter bytes; do not duplicate Markdown parsing. Preserve arbitrary unknown frontmatter and binary attachments.
@@ -105,38 +108,38 @@ No atomic editor lease exists in the current Couch seam. A process-lifetime mute
 
 **Files:** create `cmd/tl-lead/status_path.go`, `status_path_test.go`; modify `status.go`, `instructions.go`, `index.go`, `migrate_apply.go`.
 
-- [ ] Test `statusArgs` with generated positional arities and a table of real leaves; assert exact argument preservation/insertion and reject every other count. Test `defaultStatusPath` against temporary Git hub checkouts from nested working directories; assert root selection and no file creation.
-- [ ] Run `go test ./cmd/tl-lead -run 'TestStatus(Default|Args|Path)' -count=1`; expect failures for missing default support.
-- [ ] Implement the shared normalization and Git-root resolution; update Usage/Args together. Keep file-reading errors observable.
-- [ ] Re-run focused tests and existing status/instructions/index/migrate tests. Commit with issue reference and Agent/Co-Authored-By trailers.
+- [x] Test `statusArgs` with generated positional arities and a table of real leaves; assert exact argument preservation/insertion and reject every other count. Test `defaultStatusPath` against temporary Git hub checkouts from nested working directories; assert root selection and no file creation.
+- [x] Run `go test ./cmd/tl-lead -run 'TestStatus(Default|Args|Path)' -count=1`; expect failures for missing default support.
+- [x] Implement the shared normalization and Git-root resolution; update Usage/Args together. Keep file-reading errors observable.
+- [x] Re-run focused tests and existing status/instructions/index/migrate tests. Commit with issue reference and Agent/Co-Authored-By trailers.
 
 ### Task 2: Pure move planning and link corpus
 
 **Files:** create `cmd/tl-lead/status_move.go`, `status_move_test.go`, `testdata/status-move/before/` and `after/`; extract shared rebase/edit helpers from `migrate.go` only if needed.
 
-- [ ] Test `planSessionMove` by comparing a committed before/after relocation corpus byte-for-byte; assert mapped link targets remain identical entities and untouched metadata/assets remain byte-identical.
-- [ ] Test `sidedoc.RebaseIndex` on malformed and unknown YAML members using strict node validation and byte-preservation assertions; generate old/new path pairs to prove index coordinates. Test `transitionMove` with interruption/outcome event sequences and assert cleanup never precedes verified switching. Test `moveIgnores` by repeated application and exact unrelated-byte preservation.
-- [ ] Run `go test ./cmd/tl-lead -run 'TestSessionMove(Plan|Transition|Links)' -count=1`; expect undefined planner/model, then implement minimal planner and rerun to pass.
-- [ ] Commit pure implementation and fixture expectations.
+- [x] Test `planSessionMove` by comparing a committed before/after relocation corpus byte-for-byte; assert mapped link targets remain identical entities and untouched metadata/assets remain byte-identical.
+- [x] Test `sidedoc.RebaseIndex` on malformed and unknown YAML members using strict node validation and byte-preservation assertions; generate old/new path pairs to prove index coordinates. Test `transitionMove` with interruption/outcome event sequences and assert cleanup never precedes verified switching. Test `moveIgnores` by repeated application and exact unrelated-byte preservation.
+- [x] Run `go test ./cmd/tl-lead -run 'TestSessionMove(Plan|Transition|Links)' -count=1`; expect undefined planner/model, then implement minimal planner and rerun to pass.
+- [x] Commit pure implementation and fixture expectations.
 
 ### Task 3: Executor, Couch identity and retry behavior
 
 **Files:** create `cmd/tl-lead/status_move_apply.go`, `status_move_apply_test.go`; modify `status.go`, `sessionsync.go`, `sessionsync_fake_test.go`, `sessionsync_registry_test.go`, `conformance_test.go` as needed.
 
-- [ ] Test `readSessionMove` across adversarial filesystem/registry snapshots; real temporary directories plus the stateful fake guard path containment, registration prerequisites and every refusal before writes. CLI tests compare all tree bytes and registry state before/after dry run and apply.
-- [ ] Test `runSessionMove` with a controlled step hook after every effect and a stateful registry fake that can publish then return uncertainty; rerun actual production planning/execution and assert source preservation until verification, no overwritten changes, stable identities/baselines/owed sets, and convergent cleanup. Interleave late edits/locks at the hook rather than using timing. Test `copyMoveFile` and `removeMoveSource` against changed bytes and occupied paths, asserting exclusive creation and refusal before destructive effects.
-- [ ] Implement thin snapshot/executor and wire `newStatusMoveCmd`; reuse exclusive create/unchanged-write helpers without silently copying their limitations into the contract. Do not reuse answer migration's MarkAllSeen behavior.
-- [ ] Run `go test ./cmd/tl-lead ./pkg/sidedoc -count=1`; expect pass. Run scratch-only `TL_LEAD_LIVE=1 go test ./cmd/tl-lead -run 'TestSessionSync.*Conformance' -count=1 -v` for the used rename/verification behavior. Verify cleanup forgot scratch registrations.
-- [ ] Commit; report any design delta to TL before implementing it.
+- [x] Test `readSessionMove` across adversarial filesystem/registry snapshots; real temporary directories plus the stateful fake guard path containment, registration prerequisites and every refusal before writes. CLI tests compare all tree bytes and registry state before/after dry run and apply.
+- [x] Test `runSessionMove` with a controlled step hook after every effect and a stateful registry fake that can publish then return uncertainty; rerun actual production planning/execution and assert source preservation until verification, no overwritten changes, stable identities/baselines/owed sets, and convergent cleanup. Interleave late edits/locks at the hook rather than using timing. Test `copyMoveFile` and `removeMoveSource` against changed bytes and occupied paths, asserting exclusive creation and refusal before destructive effects.
+- [x] Implement thin snapshot/executor and wire `newStatusMoveCmd`; reuse exclusive create/unchanged-write helpers without silently copying their limitations into the contract. Do not reuse answer migration's MarkAllSeen behavior.
+- [x] Run `go test ./cmd/tl-lead ./pkg/sidedoc -count=1`; expect pass. Run scratch-only `TL_LEAD_LIVE=1 go test ./cmd/tl-lead -run 'TestSessionSync.*Conformance' -count=1 -v` for the used rename/verification behavior. Verify cleanup forgot scratch registrations.
+- [x] Commit; report any design delta to TL before implementing it.
 
 ### Task 4: Operator documentation and attention evidence
 
 **Files:** modify `cmd/tl-lead/help.md`, `main_test.go`, `README.md`, `atlas/workflow/tl-skills.md`; retain existing atlas/index link. No live session edits.
 
-- [ ] Write failing help assertions for root session.md/session.side, optional FILE, operator metadata, move dry run/apply/quiet-window/retry commands, and the decisions rule. Replace active default examples while retaining old paths in migration examples and compatibility fixtures.
-- [ ] Document that session/side docs are ephemeral TL/operator interface; decisions are copied immediately into tracked issue/project Log/charter. Workers act from tracked issues plus explicit TL/operator instructions. Keep the rule in lead-owned prose, not duplicate worker-owned rules.
-- [ ] Record Parley evidence: `lua/parley/attention.lua` scans a registered parent's `.side/*.md` without a team-path assumption; `attention_model.lua` inherits the slot; `tests/integration/attention_finder_spec.lua` covers root discovery and nested documents on a later finder open. Preserve mtimes and registrations. Arbitrary subdirectories without side-document parents are not newly promised.
-- [ ] Run existing Parley attention tests with `make test-spec SPEC=ui/attention_finder` in its isolated test environment; no Parley code change is currently needed. Run `go test ./cmd/tl-lead -count=1`, inspect the default/path consumer sweep, and commit docs/evidence.
+- [x] Write failing help assertions for root session.md/session.side, optional FILE, operator metadata, move dry run/apply/quiet-window/retry commands, and the decisions rule. Replace active default examples while retaining old paths in migration examples and compatibility fixtures.
+- [x] Document that session/side docs are ephemeral TL/operator interface; decisions are copied immediately into tracked issue/project Log/charter. Workers act from tracked issues plus explicit TL/operator instructions. Keep the rule in lead-owned prose, not duplicate worker-owned rules.
+- [x] Record Parley evidence: `lua/parley/attention.lua` scans a registered parent's `.side/*.md` without a team-path assumption; `attention_model.lua` inherits the slot; `tests/integration/attention_finder_spec.lua` covers root discovery and nested documents on a later finder open. Preserve mtimes and registrations. Arbitrary subdirectories without side-document parents are not newly promised.
+- [x] Run existing Parley attention tests with `make test-spec SPEC=ui/attention_finder` in its isolated test environment; no Parley code change is currently needed. Run `go test ./cmd/tl-lead -count=1`, inspect the default/path consumer sweep, and commit docs/evidence.
 
 ### Task 5: Review, recorded suite, staging and manual acceptance
 
@@ -158,3 +161,17 @@ No atomic editor lease exists in the current Couch seam. A process-lifetime mute
 - **PQ-2, relocation-transform-contract:** the existing helper at `cmd/tl-lead/migrate.go:357` assumes a stationary document and scans all `- doc:` lines. Supersede direct reuse with `pkg/sidedoc.RebaseIndex`: read only the validated discussions node/span, resolve targets from `from`, spell them relative to `to`, and preserve every other byte. Existing stationary migration calls the new helper through a wrapper. Malformed/duplicate known index keys refuse instead of being reserialized. No whole-frontmatter YAML marshal.
 - **PQ-3, function-level-test-strategy:** replaced procedural case inventories with named function/adversarial-class strategies above. Additional named boundaries: `sessionMovePaths` resolves untrusted OLD candidates using real Git/path fixtures; `verifyMoveRegistration` compares typed identity/owner lookups without acknowledging content; `LookupRegistration` decodes unknown or malformed Couch replies with strict known-field checks and explicit null-only absence. Their tests use generated path inputs and stateful injected registry observations. `renderSessionMove` is checked through CLI golden output and exact exit status. No separate review boundary was added.
 - TL approved the full plan before the first gate and approved the registration-prerequisite refinement after its findings. These refinements preserve the approved copy-then-switch/no-journal mechanism and manual live acceptance.
+
+
+### 2026-10-20 — implementation checkpoint
+
+Tasks 1–4 implemented and verified with package tests, real scratch Couch migration
+conformance, and isolated Parley attention-finder tests. Snapshot IO is in
+`cmd/tl-lead/status_move_snapshot.go`; execution is in status_move_apply.go.
+Effect-boundary tests exposed late-source membership and destination changes
+before cleanup; bounded rescans and destination rechecks now refuse those
+observed changes. No new journal or editor lease was added. Source Couch metadata
+companions remain owned by Couch in their old location; no legacy shadow/state
+is copied by tl-lead. Final live acceptance/staging order is awaiting TL
+clarification because the requested stage-after-SHIP sequence changes the
+original pre-close manual contract.

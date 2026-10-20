@@ -54,10 +54,10 @@ decision made in a side doc gets copied into the tracked artifact (issue, projec
 
 ## Plan
 
-- [ ] Implement shared omitted-FILE defaults while preserving explicit paths.
-- [ ] Implement pure copy-then-switch planning and fixture link rebasing.
-- [ ] Implement guarded copying, Couch registration switch, verification and retryable cleanup.
-- [ ] Update help/README/atlas with session.md, session.side/ and the decisions rule; verify Parley attention compatibility.
+- [x] Implement shared omitted-FILE defaults while preserving explicit paths.
+- [x] Implement pure copy-then-switch planning and fixture link rebasing.
+- [x] Implement guarded copying, Couch registration switch, verification and retryable cleanup.
+- [x] Update help/README/atlas with session.md, session.side/ and the decisions rule; verify Parley attention compatibility.
 - [ ] Run focused checks, recorded suite and the SDLC boundary review.
 - [ ] TL and operator migrate both live hubs at a quiet moment; worker does not run live migrations.
 
@@ -72,6 +72,11 @@ Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 - Reuse `SessionSync.Rename` to preserve registry identity, baselines and owed events; reuse sidedoc link/index transformations (ARCH-DRY). Do not mark unread edits seen during migration.
 - Read-only delegated Parley check: root-parent side-doc discovery is path agnostic (`lua/parley/attention.lua`, `attention_model.lua`, `document_move_plan.lua`); `tests/integration/attention_finder_spec.lua` covers root discovery and nested documents on subsequent opens. No Parley change indicated. Tests not yet run.
 - Complete plan drafted for TL approval before change-code. Manual migration remains in Done when and will block completion until the TL/operator supplies evidence.
+
+- Implementation: shared optional-FILE defaults on all existing status leaves; pure relocation/index transforms; copy/switch/verify/cleanup with identity-preserving Couch rename, source registration prerequisite and no journal. Snapshot IO was split into status_move_snapshot.go to keep the executor focused.
+- Verification: `go test ./cmd/tl-lead ./pkg/sidedoc -count=1` passed; real scratch `TL_LEAD_LIVE=1 go test ./cmd/tl-lead -run 'TestSessionSync.*Conformance' -count=1 -v` passed, including complete migration, identity and unread-edit preservation. Static before/after corpus compares the entire tree, and every effect boundary has an interrupted retry. Late-source and changed-destination tests caught and now guard final-cleanup loss/reporting gaps.
+- Isolated Parley checkout at its returned HEAD 11b39d8d ran `make -f Makefile.parley test-spec SPEC=ui/attention_finder` successfully, including existing root-parent and nested side-doc discovery. No Parley changes. Temporary checkout and harness state removed after the run.
+- TL requested stage only after SHIP and green suite, then TL/operator live migration, evidence, clear and merge. This conflicts with current manual pre-close Done when; clarification requested to move live acceptance to a post-close/pre-merge hold. Couch reported recipient unavailable on both clarification sends; no delivery receipt was created. No live files touched and no stage performed.
 
 ## Revisions
 
@@ -98,3 +103,5 @@ item: milestone-review design=0.02 impl=0.16
 design-buffer: 0.15
 total: 2.142
 ```
+
+Estimate advisory mapping: the integration primitive includes executor guards, stateful fake, interruption/reconciliation tests and scratch conformance. The docs primitive includes Parley evidence and operator migration notes; the review primitive includes recorded-suite launch/results, staging checks, close review and active migration-evidence coordination. Rates are idle-removed ship wall-clock, including AI/subagent execution spans; no parallelism discount. These allocations remain uncertain at the stale calibration, rather than excluding verification from measured work.

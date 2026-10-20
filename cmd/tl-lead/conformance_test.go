@@ -257,3 +257,63 @@ func TestSessionSyncRegistryConformance(t *testing.T) {
 		t.Errorf("a rename already done: %v, want success", err)
 	}
 }
+
+// Exercise the production migration with real registry state, using only a
+// disposable hub and dummy owner. No live session file is read or changed.
+func TestSessionSyncMoveConformance(t *testing.T) {
+	if os.Getenv("TL_LEAD_LIVE") != "1" {
+		t.Skip("set TL_LEAD_LIVE=1 to run against real couch")
+	}
+	bin, err := exec.LookPath("couch")
+	if err != nil {
+		t.Skip("couch is not on PATH")
+	}
+	ss := couchSessionSync{bin: bin}
+	root, old, _ := sessionMoveFixture(t)
+	oldAbs := filepath.Join(root, old)
+	sideOld := filepath.Join(root, "teams/dev/tl-status-op.side/01-a.md")
+	raw, err := os.ReadFile(oldAbs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, oldAbs, strings.Replace(string(raw), "couch-owner: ops:0", "couch-owner: tl-lead-conformance:0", 1))
+	for _, p := range []string{oldAbs, sideOld} {
+		if _, err := ss.run("register", p, "--owner", "tl-lead-conformance:0", "--json"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() {
+		for _, p := range []string{oldAbs, sideOld, filepath.Join(root, "session.md"), filepath.Join(root, "session.side/01-a.md")} {
+			if _, err := ss.run("forget", p, "--json"); err != nil {
+				t.Errorf("forget scratch %s: %v", p, err)
+			}
+		}
+	})
+	if err := ss.MarkAllSeen(oldAbs); err != nil {
+		t.Fatal(err)
+	}
+	text, err := os.ReadFile(oldAbs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, oldAbs, string(text)+"\nunread-operator-edit\n")
+	before, err := ss.LookupRegistration(oldAbs)
+	if err != nil || before == nil {
+		t.Fatalf("lookup before: %+v %v", before, err)
+	}
+	var out strings.Builder
+	if err := moveSession(deps{ss: ss}, &out, root, old, true, nil); err != nil {
+		t.Fatalf("move: %v\n%s", err, out.String())
+	}
+	after, err := ss.LookupRegistration(filepath.Join(root, "session.md"))
+	if err != nil || after == nil || after.ID != before.ID {
+		t.Fatalf("lookup after: %+v %v", after, err)
+	}
+	diff, err := ss.Diff(filepath.Join(root, "session.md"))
+	if err != nil || !strings.Contains(diff, "unread-operator-edit") {
+		t.Fatalf("unread edit lost: %q %v", diff, err)
+	}
+	if err := moveSession(deps{ss: ss}, &out, root, old, true, nil); err != nil {
+		t.Fatalf("repeat: %v", err)
+	}
+}

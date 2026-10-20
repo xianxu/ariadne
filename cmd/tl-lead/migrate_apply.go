@@ -436,7 +436,7 @@ func newMigrateCmd(d deps) *cobra.Command {
 	var from string
 	var apply bool
 	c := &cobra.Command{
-		Use:   "migrate-answers FILE [--from qa/<operator>] [--apply]",
+		Use:   "migrate-answers [FILE] [--from qa/<operator>] [--apply]",
 		Short: "One-time: move qa/<operator>/ answer docs into FILE's side folder, with links, index and couch registrations (#455); a dry run unless --apply",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -445,7 +445,7 @@ func newMigrateCmd(d deps) *cobra.Command {
 	}
 	c.Flags().StringVar(&from, "from", "", "the answers folder, relative to FILE's directory (default: qa/<frontmatter operator:>)")
 	c.Flags().BoolVar(&apply, "apply", false, "carry out the plan (default: print it)")
-	return c
+	return withDefaultStatusFile(c, 1)
 }
 
 func migrateAnswers(d deps, out io.Writer, file, from string, apply bool, step func() error) error {

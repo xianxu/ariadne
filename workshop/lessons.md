@@ -1156,3 +1156,12 @@ The simplest durable authority beats a clever scan of consequences.
   values with context.WithoutCancel, then apply the cleanup timeout. Do not mint
   context.Background inside a new runtime; run TestVerbContextsReachTrackerReads
   with targeted runtime checks (#481 final suite).
+
+- #504: relocating an indexed document needs both old and new coordinates.
+  Rewrite only the validated discussions path scalars; matching every `- doc:`
+  line corrupts unrelated metadata. Byte-preservation and generated-coordinate
+  tests in sidedoc defend this semantic rule; a lexical Go lint cannot prove it.
+- #504: copy-then-switch cleanup must recheck destination bytes and source-tree
+  membership before discarding the original session. Exercise arrivals at effect
+  boundaries with controlled hooks; a successful copy is not authority to delete
+  after later edits. The migration interruption tests own this ordering rule.

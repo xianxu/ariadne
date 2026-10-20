@@ -1,0 +1,178 @@
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"io/fs"
+	"path"
+	"slices"
+	"strings"
+	"time"
+
+	"github.com/xianxu/ariadne/pkg/sidedoc"
+	"go.yaml.in/yaml/v3"
+)
+
+type moveSource struct {
+	Bytes []byte
+	Mode  fs.FileMode
+	Mtime time.Time
+}
+
+type sessionMoveSnapshot struct {
+	Root, Old     string
+	Files         map[string]moveSource
+	Dest          map[string]moveSource
+	Existing      map[string]bool
+	Ignore        []byte
+	IgnoreExists  bool
+	Registrations map[string]*syncRegistration
+}
+
+type sessionMoveFile struct {
+	Old, New      string
+	Before, After []byte
+	Mode          fs.FileMode
+	Mtime         time.Time
+}
+
+type sessionMovePlan struct {
+	Files   []sessionMoveFile
+	Ignores []byte
+	Notes   []string
+}
+
+func moveTarget(old, p string) (string, bool) {
+	if p == old {
+		return "session.md", true
+	}
+	if p == path.Base(seenPath(old)) && path.Dir(old) == "." {
+		return ".session.md.ss-seen", true
+	}
+	if p == path.Join(path.Dir(old), "."+path.Base(old)+".ss-seen") {
+		return ".session.md.ss-seen", true
+	}
+	return sidedoc.MoveUnder(p, sidedoc.SideDir(old), "session.side")
+}
+
+func planSessionMove(s sessionMoveSnapshot) (sessionMovePlan, error) {
+	p := sessionMovePlan{Ignores: moveIgnores(s.Ignore)}
+	for _, old := range sortedKeys(s.Files) {
+		src := s.Files[old]
+		to, ok := moveTarget(s.Old, old)
+		if !ok {
+			return p, fmt.Errorf("unexpected source %s", old)
+		}
+		after := slices.Clone(src.Bytes)
+		if strings.HasSuffix(old, ".md") {
+			mapped := func(p string) (string, bool) { return moveTarget(s.Old, p) }
+			exists := func(p string) bool { return s.Existing[p] }
+			text, dangling := sidedoc.RebaseLinks(string(src.Bytes), old, to, mapped, exists)
+			var err error
+			text, err = sidedoc.RebaseIndex(text, old, to, mapped)
+			if err != nil {
+				return p, fmt.Errorf("%s: %w", old, err)
+			}
+			after = []byte(text)
+			for _, target := range dangling {
+				p.Notes = append(p.Notes, old+": dangling "+target)
+			}
+			for _, mention := range mentions(text, s.Old) {
+				p.Notes = append(p.Notes, to+": mention "+mention)
+			}
+		}
+		if dst, ok := s.Dest[to]; ok && !bytes.Equal(dst.Bytes, after) {
+			return p, fmt.Errorf("destination %s differs; inspect both copies and resolve the conflict", to)
+		}
+		p.Files = append(p.Files, sessionMoveFile{old, to, src.Bytes, after, src.Mode, src.Mtime})
+	}
+	// Keep the original session until every side file has been cleaned up.
+	slices.SortStableFunc(p.Files, func(a, b sessionMoveFile) int {
+		if a.Old == s.Old {
+			return 1
+		}
+		if b.Old == s.Old {
+			return -1
+		}
+		return strings.Compare(a.Old, b.Old)
+	})
+	return p, nil
+}
+
+func moveIgnores(before []byte) []byte {
+	s := string(before)
+	for _, pattern := range []string{"/session.md", "/session.side/", "/.session.md.ss-seen", "/session.md.lock", "/session.md.clobbered", "/.session.md.shadow", "/.session.md.sync", "/.session.md.flock", "/.session.md.round"} {
+		found := false
+		for _, line := range strings.Split(s, "\n") {
+			if line == pattern {
+				found = true
+				break
+			}
+		}
+		if !found {
+			if s != "" && !strings.HasSuffix(s, "\n") {
+				s += "\n"
+			}
+			s += pattern + "\n"
+		}
+	}
+	return []byte(s)
+}
+
+type sessionMovePhase uint8
+
+const (
+	movePreparing sessionMovePhase = iota
+	moveSwitching
+	moveCleanup
+	moveComplete
+)
+
+func transitionMove(p sessionMovePhase, event string) (sessionMovePhase, error) {
+	switch {
+	case p == movePreparing && event == "copied":
+		return moveSwitching, nil
+	case p == moveSwitching && event == "cleanup":
+		return moveCleanup, nil
+	case p == moveCleanup && event == "complete":
+		return moveComplete, nil
+	default:
+		return p, fmt.Errorf("invalid session move transition %d / %s", p, event)
+	}
+}
+
+func moveSessionFields(text string) (map[string]string, error) {
+	block, _, ok := sidedoc.FrontBlock(text)
+	if !ok {
+		return nil, fmt.Errorf("session frontmatter is not closed")
+	}
+	var doc yaml.Node
+	if err := yaml.Unmarshal([]byte(strings.TrimSuffix(strings.TrimPrefix(block, "---\n"), "---")), &doc); err != nil {
+		return nil, err
+	}
+	if len(doc.Content) != 1 || doc.Content[0].Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("session frontmatter must be a mapping")
+	}
+	f := map[string]string{}
+	root := doc.Content[0]
+	for i := 0; i < len(root.Content); i += 2 {
+		k, v := root.Content[i], root.Content[i+1]
+		if k.Tag == "!!merge" {
+			return nil, fmt.Errorf("session routing cannot inherit merged fields")
+		}
+		switch k.Value {
+		case "type", "couch-owner", "owner", "operator":
+			if _, ok := f[k.Value]; ok {
+				return nil, fmt.Errorf("duplicate session %s", k.Value)
+			}
+			if k.Tag != "!!str" || v.Kind != yaml.ScalarNode || v.Tag != "!!str" {
+				return nil, fmt.Errorf("session %s must be a string", k.Value)
+			}
+			f[k.Value] = v.Value
+		}
+	}
+	if f["type"] != "session-sync" {
+		return nil, fmt.Errorf("session must have type: session-sync")
+	}
+	return f, nil
+}
