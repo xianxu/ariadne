@@ -204,16 +204,16 @@ func trainAdmission(sched func() landingline.Schedule, now func() time.Time) fun
 	return func() landingline.AdmissionRule {
 		s := sched()
 		if s.Off() {
-			return func([]landingline.Event, landingline.Ticket, *landingline.Readiness, bool) (bool, string) {
+			return func([]landingline.Event, landingline.Ticket, *landingline.Readiness, bool, landingline.Waiters) (bool, string) {
 				return true, ""
 			}
 		}
-		return func(events []landingline.Event, t landingline.Ticket, r *landingline.Readiness, granted bool) (bool, string) {
+		return func(events []landingline.Event, t landingline.Ticket, r *landingline.Readiness, granted bool, w landingline.Waiters) (bool, string) {
 			if granted {
 				return true, ""
 			}
 			at := now()
-			if due, why := landingline.DepartureDue(at, s, events); !due {
+			if due, why := landingline.DepartureDue(at, s, events, w); !due {
 				return false, why
 			}
 			if r == nil {

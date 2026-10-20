@@ -43,8 +43,9 @@ TEAMS (ariadne#456: one team per ops repo)
   - The steward is the first hub on Couch's command line
     (`couch ~/workspace/ops ~/workspace/ops-echo` makes ops:0 the steward).
     It owns what the machine shares: the test queue and landing grants, quota
-    tracking, Couch incidents and restarts, and the :0 rebuilds. Other teams
-    take those to it as heads-ups.
+    tracking, Couch incidents and restarts, the :0 rebuilds, and the machine's
+    train departure plan (`sdlc landing plan --write` after a suite's cost
+    changes, ariadne#475). Other teams take those to it as heads-ups.
   - Routing: send a cross-team need to the owning hub, found with
         tl-lead team list [REPO]
     which lists each team's claims (and warns on a repo two teams claim), or

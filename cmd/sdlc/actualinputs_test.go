@@ -78,12 +78,15 @@ func ownedFixtureAt(t *testing.T, minute int) {
 	t.Setenv("GIT_COMMITTER_DATE", stamp)
 }
 
-func ownedResolverFixture(t *testing.T) (*trackerRepo, string, string, issue.Claimant, string) {
+func ownedResolverFixture(t *testing.T, configure ...func(*trackerRepo)) (*trackerRepo, string, string, issue.Claimant, string) {
 	t.Helper()
 	ownedFixtureAt(t, 0)
 	t.Setenv("HOME", t.TempDir())
 	cardPath, card, detailPath, detail := seededIssue(t, "000335", "owned")
 	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: detail})
+	for _, apply := range configure {
+		apply(r)
+	}
 	ownerRoot := filepath.Join(t.TempDir(), "owner")
 	testfix.Git(t, r.root, "worktree", "add", "-q", "-b", "000335-owned", ownerRoot)
 	owner := hostClaimant(t, ownerRoot)
