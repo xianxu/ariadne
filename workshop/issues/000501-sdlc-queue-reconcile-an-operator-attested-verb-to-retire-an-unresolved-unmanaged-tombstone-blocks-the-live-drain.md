@@ -68,3 +68,7 @@ Started from main after #492 landed; no stacked code. The existing unknown tombs
 ### 2026-10-20 — post-reboot live acceptance (proposed, awaiting hub)
 
 The original 10-20 tombstone no longer appears in current live status after the OS reboot. Preserve the original Done-when as history; proposed replacement evidence is same-boot private executable conformance against that unmanaged record shape, then read-only live observation/operator acceptance. Unrelated running and legacy-overlay entries can still keep live complete=false; do not fabricate a production tombstone or stop other work to make this issue pass. Also make audit retention explicit:30 days/128 completed bundles with partial transactions pinned and replay refusal after evidence expiry. See durable plan for alternatives, exact states, failure tests and all ARCH principles.
+
+### 2026-10-20 — approved simplification
+
+Authenticated hub receipt 9a890439-8430-48c5-b14b-97462e76a4bc approves exact digest/lease/process/note checks under control.lock, then one append-only base64 audit line, fsync, unlink. It explicitly withdraws the proposed model, bundle and retention/expiry machinery, and approves private executable plus read-only live acceptance after reboot. Flow remains inferred. The durable plan's latest Revisions section is operative; prior proposal/checklists are superseded, retained as history. Proceed to change-code and TDD, no scope extension.

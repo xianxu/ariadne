@@ -6,6 +6,8 @@ collaboration-mode: discussion
 
 > **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy). Execute in this session with superpowers-executing-plans: this is retained #481 context; the hub asked this slot to avoid subagents. Steps use checkbox syntax.
 
+**Current authority:** The 2026-10-20 simplification in Revisions below supersedes the original proposal and its checklists. Implement only that revision.
+
 **Goal:** Let the steward retire one exact unresolved operation after explicitly attesting descendant absence, without losing the evidence or changing any pause owner.
 
 **Architecture:** Serialize reconciliation with the existing control.lock. Validate exact record bytes, original owner incarnation and absence of an operation record, then durably publish an immutable audit bundle before unlinking the tombstone. A pure transition function owns the permitted effects and replay decisions; normal admission remains unchanged.
@@ -112,3 +114,27 @@ The originally named 10-20 unmanaged tombstone disappeared after the OS reboot, 
 ## Principles
 
 ARCH-DRY: existing control.lock, codecs, authority, StartTime, interruption writer and portable roots. ARCH-PURE: request/receipt/transition versus file/process adapters. ARCH-PURPOSE: supported same-boot recovery plus executable consumer proof, not manual deletion. ARCH-MOCK: stateful process registry and real file/lock stack, checked against real child lifetimes. ARCH-CONSTRAINTS: explicit batch envelope and counted linear work. ARCH-SECURE: unsafe/malformed/unreadable/corrupt evidence refuses, no credentials or shared-process-group actions. ARCH-ORDER: durable effect sequence and crash/replay enumeration above. ARCH-FUNERAL: writer-enforced 30-day/128-bundle retention and pinned partial transactions. ARCH-EVOLVE: additive strict receipt codec and byte-identical original operation; no existing schema/version change.
+
+## Revisions
+
+### 2026-10-20 — hub-approved rare manual repair
+
+Reason: authenticated hub receipt 9a890439-8430-48c5-b14b-97462e76a4bc approves the core but rejects the proposed transaction/replay model, two-file bundle and retention machinery. The implementation below replaces those portions of the original proposal; the earlier text remains only as design history. No flow pin: change-code infers the flow and close upgrades the review if the actual diff requires it.
+
+**Operative design:** `sdlc queue reconcile --id ID --digest SHA256 --note TEXT`, authorized through existing operator/:0 logic. Validate bounded arguments and actor, then under control.lock lock/read the exact unknown tombstone, require matching raw SHA256, no operations/ID.json record/lease and original kernel PID incarnation absent. Unreadable/unknown/live evidence refuses. The explicit note attests descendant absence; never infer that from ps.
+
+Append one JSON line to reconcile.jsonl: schema_version=1, ID, original raw bytes encoded as base64, digest, actor, note and UTC time. Fsync the log and root directory before unlinking the exact tombstone; fsync unresolved/ after unlink. Reuse a prior matching ID/digest audit entry instead of appending another. A crash after append but before unlink leaves both the logged attempt and tombstone; retry validates both and completes. A missing tombstone succeeds only with a valid matching audit and no active operation record. Conflicting/corrupt/unreadable audit evidence or a torn final log line refuses, preserving everything for inspection; never truncate or rewrite the append-only log. Each record is bounded to 2 MiB (base64 of an existing <=1 MiB operation plus metadata), parsed one line at a time. Unknown metadata fields are tolerated and remain byte-for-byte in the immutable log; strict required types/nulls/duplicates remain enforced using existing JSON helpers. No format change to existing queue records.
+
+No transaction state model or new cleanup family. No audit retention or expiry, as explicitly directed by the hub for this rare manual repair; permanent cost is one audit line per distinct repaired digest and a streaming linear scan per manual invocation, with no admission cost. Existing pause and interruption evidence stays untouched; pending cancellation uses existing interruption preservation before tombstone retirement so ordinary orphan-intent reconciliation can finish without inventing unknown work. No live production pause or destructive repair during development.
+
+**Current concepts:** Pure ReconcileRequest/immutable audit record validation and raw digest checks in internal/queuegate/reconcile.go. IO is Store.Reconcile using existing WithGate/flock, a kernel owner-incarnation callback and the append/fsync/unlink sequence. Cobra and existing authority/probe wiring live in queue_reconcile.go. Tests use the same portable private backend; real child-process checks conform the stateful PID/incarnation fake. All original model/bundle/retention entities and growth tests above are withdrawn.
+
+**Current visible outcomes:** invalid/live/unknown evidence -> refused, inspect or wait as named; append/sync failure -> not reconciled, repair storage and rerun; durable audit plus remaining tombstone -> partial logged attempt, rerun exact digest; matching audit plus absent tombstone -> already reconciled. Pause owners and interrupted work never resume. Audit loss is not repaired by claiming a missing tombstone was reconciled.
+
+**Current tasks:**
+- [ ] RED the actual Cobra command with a private copy of the exact 10-20 unmanaged record shape; require recovered/complete private status and original audit bytes/actor/note/time. Controls: wrong digest, missing note, live operation lease, live owner, unknown owner and unsafe/corrupt record refuse unchanged; numbered worker authority refuses before storage.
+- [ ] Implement minimal Store.Reconcile, immutable strict log codec and CLI. Use the shared kernel StartTime/ErrNoProcess seam; no external ps scan or background work. Replay is idempotent by ID/digest and preserves the first audit record. Reuse existing interruption writer when needed, preserving prior bytes.
+- [ ] Crash a real helper after the audit is fsynced but before unlink, observe the surviving tombstone and one audit line, then retry through production code and require one unchanged line and completed recovery. Cover append/sync errors, malformed/torn audit and record changes between attempts. Verify raw unknown operation fields survive in base64 unchanged.
+- [ ] Run targeted queue/authority/legacy/cancel/lint controls, build a binary in this slot and run private executable conformance. Read-only live acceptance is approved because reboot retired the original tombstone; never seed a fake production record. Update atlas/help; push, record suite, close and land normally. No separate ad-hoc review; no :0 staging without approval.
+
+ARCH application: retain the core DRY/PURE/PURPOSE/MOCK/SECURE/EVOLVE boundaries above. ARCH-ORDER is served by the explicit append-fsync-before-unlink order and the real crash/retry control, without a new model. ARCH-CONSTRAINTS is a bounded-line streaming scan on an exceptional manual path, no admission scan/process cost. ARCH-FUNERAL retention is explicitly overridden by the hub: permanent append-only audit, one line per distinct repair, no retention or expiry rule.
