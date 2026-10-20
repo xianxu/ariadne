@@ -1,6 +1,6 @@
 ---
 id: 000479
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-20
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 3bea1fc6f744779005297def5e253cff45e17aa2
         evidence_commit: 11caf9dee5c1b26f5c018d833539bb3348f52523
+        landed_commit: 6c4646af19d210a474e70625b3c6e4f0d4f20f9c
 ---
 
 # fixedIssueCovers matches flake_tests exactly; route it through flakes.Covers (subtest-aware, from #466 review)
