@@ -1,13 +1,13 @@
 ---
 id: 000503
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '5e9db8b2ca171dd8683136a88750559d37029eb3' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '3a879b41fcf17a0ab0cfbbec439cd7b116ab1592' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T13:10:13-07:00
 claimant:
     operator: Xian Xu
@@ -18,6 +18,7 @@ claimant:
     repository: github.com/xianxu/ariadne
 flake_tests: [github.com/xianxu/ariadne/cmd/sdlc.TestVouchingStartsWhenTrainsTurnOn]
 flow: {kind: quick, provenance: inferred, spec: "3da5ff93", done: "f99b6282"}
+actual_hours: 0.05
 ---
 
 # flake: TestVouchingStartsWhenTrainsTurnOn
