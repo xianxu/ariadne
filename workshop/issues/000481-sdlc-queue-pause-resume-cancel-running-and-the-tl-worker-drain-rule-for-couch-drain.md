@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-20
-estimate_hours:
+estimate_hours: 3.03
 collaboration-mode: collaboration
-card_mirror: '41f940123d627a4c939c9369e015be79a81c0229' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '901aae431b29df187fe687d32879d38a40db52ca' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T01:19:56-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
 ---
 
 # sdlc queue pause/resume (+ --cancel-running) and the tl-worker drain rule, for couch --drain
@@ -108,6 +109,34 @@ Decoder rejects duplicate keys, malformed required types, unsupported versions, 
 - [ ] M2 — Wire every suite/landing/merge admission, retain interruption evidence, ship worker drain rule and observed pair#722 conformance; recorded full suite, review and landing.
 
 Durable plan: [queue drain implementation](../plans/000481-queue-drain-plan.md).
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* Calibration source is marked stale by estimate-source; values are provisional.
+
+Decomposition: pure queue model, portable lease store and bounded legacy observer are three greenfield single-concern modules. Existing flock/processgroup/x/sys/JSON adapters satisfy the library check: raw 1.0h design is halved for available integration support, then multiplied by 0.2 for the approved detailed plan (0.10h each); upper-table 0.8h implementation becomes 0.32h each at v3.1's 40%. CLI, Python queue adapter and interrupted-evidence integration extend existing smaller-module patterns (0.16/0.20/0.20h implementation). The cross-cutting Go admission integration, worker dispatcher, atlas documentation and one small peer executable conformance hand-off are separate primitives. Three review chunks count the two genuine milestone boundaries plus final issue review. Familiarity is 1.0 in the recently modified queue/runner code; design buffer is 15% for the accepted plan. No vendor-mode propagation surcharge, no public API discovery and no machine queue-wait budget is added.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module design=0.10 impl=0.32
+item: greenfield-go-module design=0.10 impl=0.32
+item: greenfield-go-module design=0.10 impl=0.32
+item: smaller-go-module design=0.03 impl=0.16
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: cross-cutting-refactor design=0.12 impl=0.20
+item: skill-or-dispatcher design=0.06 impl=0.12
+item: atlas-docs design=0.02 impl=0.06
+item: milestone-review design=0.00 impl=0.08
+item: milestone-review design=0.00 impl=0.08
+item: milestone-review design=0.00 impl=0.08
+item: cross-repo-refactor-small design=0.04 impl=0.12
+design-buffer: 0.15
+total: 3.03
+```
+
+Design subtotal 0.67h × 1.15 + implementation subtotal 2.26h = 3.0305h, rounded to 3.03h. The estimate is derived after plan-quality round 2 passed; actual remains automatically measured at close.
 
 ## Log
 
