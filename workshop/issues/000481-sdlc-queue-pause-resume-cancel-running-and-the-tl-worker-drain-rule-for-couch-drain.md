@@ -152,6 +152,12 @@ Hub clarified that graceful pause interrupts an admitted merge at a new-suite bo
 
 Plan-quality round 1 found a real direct-make ownership gap: Python's current watcher proves only make-PID lifetime; Go's managed process group owns descendant cancellation. Hub approved the honest-unknown boundary: managed sdlc suites cancel fully; direct make is stopped only with proved identity, never via a shared group, and stays unknown until reconciled. Do not build a new direct-make supervisor now; record it as a possible later follow-up if this visible stuck state causes an incident. Direct full suites should use recorded local-check; targeted tests use go test -run.
 
+### 2026-10-20 — M1 implementation and targeted proof
+
+Implemented the pure owner/operation state model, strict additive codecs, portable serialized gate/lifetime leases, owner-scoped CLI/status framing, bounded read-only legacy overlay and embedded help. Interrupted records are a separate family. Unmanaged owner death retains named unknown evidence; prior-boot reconciliation uses semantic OS boot identity, not raw struct bytes. Registry and legacy binding scans have counted 8/16 guards; CLI mutation/admission-side setup performs no legacy scan.
+
+TDD observed missing feature/API RED, concrete malformed owner/UTF-8 and held-waiter binding RED, a duplicate retirement observation RED, unsafe filename hiding an unknown holder RED, and unpublished-enrollment residue RED before fixes. Final queuegate race run passed 1.395s; combined TestQueue CLI/legacy + help/catalog race checks passed 2.771s; helptext passed 0.133s; golint passed 0.457s; diff check clean. No full suite yet: the recorded final suite and live peer executable conformance belong to M2 after all admission consumers are wired. No test changed the live queue, :0 or another checkout.
+
 ## Revisions
 
 ### 2026-10-20 — make frozen contract and clarified acceptance explicit

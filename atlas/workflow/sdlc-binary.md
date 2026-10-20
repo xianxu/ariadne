@@ -1974,6 +1974,44 @@ bootstrap's tool build. Pre-sdlc, ariadne needed only shell + python (always
 present), so bootstrap never provisioned a toolchain; #61 closed that gap. nous
 owns its richer toolchain (Homebrew/GPG/gh/…) separately.
 
+### Machine-wide queue drain (#481)
+
+`sdlc queue pause --owner TOKEN [--reason TEXT] [--cancel-running]`, `resume
+--owner TOKEN` and `status --json` are the pair#722 drain adapter's frozen seam.
+The operator or :0 can mutate holds using the landing-grant authority rule.
+Owners compose without expiry; a resume removes only its owner and does not
+restart interrupted work. Snapshot v1 carries required state/completeness,
+pause-owner and activity arrays, plus detail. Active operation IDs can expose
+several of suite/merge/landing; waiters are excluded. Unknown/incomplete evidence
+never becomes a complete empty snapshot.
+
+`cmd/sdlc/internal/queuegate` owns pure owner/operation transitions, strict
+additive JSON codecs and the portable filesystem backend. `queuecmd.go` owns
+CLI framing and authority; `queue_legacy.go` is a bounded, read-only status
+overlay for old machine locks, landing heads and same-user merge processes.
+Process observations never authorize termination. Status-only legacy scans
+do not run on the admission path; counted tests protect that separation and
+linear registry/binding reads.
+
+The default root is `$XDG_STATE_HOME/ariadne/queue` or
+`~/.local/state/ariadne/queue`; `WF_SDLC_QUEUE_ROOT` overrides it. A private
+`WF_TEST_LOCK_FILE` alone derives `<file>.queue-state`. Conformance additionally
+sets `WF_SDLC_QUEUE_FLEET_ROOT` to an isolated fleet: this scope makes no claim
+about production processes. `control.lock` serializes owner writes with active
+lease publication; each operation holds its own flock for its lifetime.
+Paused ownership is durable even if the caller loses the mutation response.
+Unresolved owner/descendant evidence is retained rather than aged into absence.
+Interrupted evidence has its own bounded family, outside SuiteAttempt and
+failure/flake decisions.
+
+Rollout rebuilds central :0, then lets old runners finish/relaunch; legacy
+activity remains named unknown until that boundary is proved. Managed suites
+own cancellation through processgroup cleanup. A direct make watcher alone
+only proves one PID ended, so an unproved descendant boundary stays unknown
+for operator reconciliation. No shared process group is signalled. The
+supervisor notice/ack formatter belongs to pair#722, while tl-worker describes
+the checkpoint discipline.
+
 ### Running the test suite (#253)
 
 The required recorded suite is declared in `.sdlc/local-checks.json` as
