@@ -14,11 +14,14 @@ import (
 // the costs can fit at all.
 func TestPackOffsets(t *testing.T) {
 	min := func(f float64) time.Duration { return time.Duration(f * float64(time.Minute)) }
-	got := PackOffsets([]RepoCost{
+	got, over := PackOffsets([]RepoCost{
 		{"parley.nvim", 1, min(2.7)},
 		{"pair", 1, min(12.5)},
 		{"ariadne", 2, min(9.5)},
 	}, time.Hour, 2)
+	if len(over) != 0 {
+		t.Errorf("today's costs fit, yet over %v", over)
+	}
 	want := map[string]time.Duration{"ariadne": 0, "pair": 15 * time.Minute, "parley.nvim": 15 * time.Minute}
 	for repo, off := range want {
 		if got[repo] != off {
@@ -39,7 +42,7 @@ func TestPackOffsets(t *testing.T) {
 		if total > 60 { // more than one slot-hour reserved: not always packable
 			continue
 		}
-		offs := PackOffsets(costs, time.Hour, 2)
+		offs, _ := PackOffsets(costs, time.Hour, 2)
 		load := make([]int, 60)
 		for _, c := range costs {
 			span := int((c.Duration+PlanStep-1)/PlanStep)*5 + 5
@@ -90,9 +93,30 @@ func TestMachinePlanCodec(t *testing.T) {
 		`[]`, `{"version":1,"slots":2} {}`, `{"version":2,"slots":2,"repos":{}}`, `{"version":1,"slots":0,"repos":{}}`,
 		`{"version":1,"slots":2,"repos":{"pair":{"basis":"x"}}}`, `{"version":1,"slots":2,"repos":{"pair":{"offset_minutes":1440}}}`,
 		`{"version":1,"slots":2,"repos":{"pair":{"offset_minutes":"15"}}}`,
+		`{"version":1,"version":1,"slots":2,"repos":{}}`,
+		`{"version":1,"slots":2,"repos":{"pair":{"offset_minutes":15},"pair":{"offset_minutes":20}}}`,
+		`{"version":1,"slots":2,"repos":{"pair":{"offset_minutes":15,"offset_minutes":20}}}`,
 	} {
 		if _, err := DecodePlan([]byte(bad)); err == nil {
 			t.Errorf("accepted %s", bad)
+		}
+	}
+}
+
+// #475: costs that cannot fit the slots are packed as well as possible and
+// named, with their peak, never silently over the envelope.
+func TestPackOffsetsNamesAnOverload(t *testing.T) {
+	var costs []RepoCost
+	for _, r := range []string{"a", "b", "c", "d", "e"} {
+		costs = append(costs, RepoCost{Repo: r, Weight: 2, Duration: 20 * time.Minute})
+	}
+	offs, over := PackOffsets(costs, time.Hour, 2)
+	if len(offs) != 5 || len(over) == 0 {
+		t.Fatalf("offsets %v over %v: five 25-minute double-slot suites can't fit an hour of 2 slots", offs, over)
+	}
+	for r, peak := range over {
+		if peak <= 2 {
+			t.Errorf("%s named over with peak %d", r, peak)
 		}
 	}
 }

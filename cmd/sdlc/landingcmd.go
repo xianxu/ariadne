@@ -6,6 +6,7 @@ import (
 	"io"
 	"maps"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -103,7 +104,7 @@ func newLandingCmd(d landingDeps) *cobra.Command {
 	}
 	revoke.Flags().IntVar(&revokeIssue, "issue", 0, "the issue whose priority ends")
 	revoke.Flags().StringVar(&revokeReason, "reason", "revoked", "why it ends")
-	cmd.AddCommand(status, grant, revoke, newLandingPlanCmd(func() planInputs { return fleetPlanInputs(defaultTestStatsDeps()) }), newSuitePriorityCmd(&repo, d.now))
+	cmd.AddCommand(status, grant, revoke, newLandingPlanCmd(defaultPlanInputs), newSuitePriorityCmd(&repo, d.now))
 	return cmd
 }
 
@@ -179,7 +180,7 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 	}
 	var b strings.Builder
 	repoGit := func(args ...string) (string, error) { return landingGit(execGitRunner{}, repo, args...) }
-	sched, serr := readLandingSchedule(repoGit, landingMainRef(repoGit, ""))
+	sched, planNote, planErr, serr := effectiveSchedule(repoGit, landingMainRef(repoGit, ""), filepath.Base(repo))
 	switch {
 	case serr != nil:
 		fmt.Fprintf(&b, "trains: setting unreadable (%v); merges land serially\n", serr)
@@ -199,6 +200,10 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 			bound = fmt.Sprintf(", or when a car has waited %dm", int(sched.MaxWait/time.Minute))
 		}
 		fmt.Fprintf(&b, "trains: every %dm, up to %d cars%s; %d ready; %s\n", int(sched.Interval/time.Minute), sched.MaxCars, bound, w.Ready, next)
+		fmt.Fprintf(&b, "departure grid: %s\n", planNote)
+		if planErr != nil {
+			fmt.Fprintf(&b, "  [!] %v\n", planErr)
+		}
 	}
 	for _, line := range recentTrains(events, 3) {
 		b.WriteString(line + "\n")

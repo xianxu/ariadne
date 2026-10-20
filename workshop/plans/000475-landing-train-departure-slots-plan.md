@@ -158,8 +158,8 @@ The plan file is hand-editable, per-user state. It is parsed into typed values: 
   - the overlap property for random costs: summed weight ≤ slots at every minute.
 - [x] **T7 `readMachinePlan`** (`landingconfig.go`): path resolution (XDG, WF_TEST_LOCK_FILE), a 30 s cache that shares `landingScheduleSource`'s pattern, and a fallback with one warning.
 - [x] **T8 admission:** `trainAdmission` takes the repo's offset from the plan. Fixture: two repos, offsets 0 and 15, interval 60, a fake clock stepping through an hour. Each repo's train becomes due only in its own slot, so their suites never start within each other's p90 window.
-- [x] **T9 `sdlc landing plan [--write]`:**
-  - It reads the train-enabled repos from `sdlc fleet inventory` (each repo's `.sdlc/landing.json` on its main), their test-stats p90, and their declared suite weight.
+- [x] **T9 `sdlc landing plan [--write]`:** (revised in M2 review round 1)
+  - It reads the train-enabled repos from the test-stats fleet discovery (`fleetRepoPaths`) (each repo's `.sdlc/landing.json` on its main), their test-stats p90, and their declared suite weight.
   - It prints `repo offset interval weight p90 basis`; `--write` replaces the file and keeps unknown members.
   - Golden test over a fixture fleet.
 - [x] **T10 help and atlas:**
@@ -223,3 +223,24 @@ The plan file is hand-editable, per-user state. It is parsed into typed values: 
   - a granted or lone landing leaves the next departure unchanged, unless it left ready cars, which brings it forward.
 - `sdlc landing plan` prints each repo's offset and cost basis, and `--write` keeps unknown members.
 - Without a plan entry, a repo behaves as today except for the reset fix.
+
+### 2026-10-20: M2 review round 1
+
+**BR-8 (the rule: every consumer gets a repository's effective schedule from one constructor that combines setting and plan).** `effectiveSchedule(git, mainRef, repo)` is that constructor (`landingconfig.go`). The sweep of `readLandingSchedule` callers:
+- `landingScheduleSource` (admission) and `landing status` now use it; status also names the grid in use ("departure grid: …").
+- `fleetPlanInputs` keeps the bare setting, because the plan is what it computes.
+
+**BR-9 (the rule: a task is ticked only when every artifact it names exists as named).**
+- T7: the `WF_TEST_LOCK_FILE` and XDG paths are now tested (`TestMachinePlanPath`).
+- T9's text is revised:
+  - The source is `fleetRepoPaths`, the test-stats fleet discovery split out in M2, not `sdlc fleet inventory`. It is the same set of repositories test-stats measures, so the cost basis and the repository list come from one discovery.
+  - `fleetPlanInputs` takes its sources injected and is tested with fakes (`TestFleetPlanInputs`): the trains-on filter, the declared weight, the no-sample default, and the name join.
+- The live dry run is T11's, after landing; it was claimed in the issue's M2 line, which is corrected.
+
+**BR-10 (the rule: every new subcommand, flag, config key, env var or state path gets a README line in the same range).** The README now has `sdlc landing plan [--write]`, the plan file path, `WF_TEST_LOCK_FILE`, `WF_TEST_SUITES` and `train_max_wait_minutes` (M1).
+
+**BR-11.** `PackOffsets` returns each placement that still exceeds the slots, with its peak; `landing plan` warns, naming the repository; `TestPackOffsetsNamesAnOverload`.
+
+**Minors:**
+- Every landing test gets an isolated plan path through the shared `landingFixture` (`isolateMachinePlan`).
+- The plan decoder refuses a repeated key at every level.

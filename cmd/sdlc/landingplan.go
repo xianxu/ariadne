@@ -50,7 +50,15 @@ func planFromCosts(costs []planCost, slots int) (map[string]landingline.PlanEntr
 	for i, c := range costs {
 		rc[i] = c.RepoCost
 	}
-	offsets := landingline.PackOffsets(rc, interval, slots)
+	offsets, over := landingline.PackOffsets(rc, interval, slots)
+	names := make([]string, 0, len(over))
+	for repo := range over {
+		names = append(names, repo)
+	}
+	sort.Strings(names)
+	for _, repo := range names {
+		warnings = append(warnings, fmt.Sprintf("%s does not fit: its reservation peaks at %d of %d suite slots (the costs exceed one interval; lengthen it or shorten a suite)", repo, over[repo], slots))
+	}
 	out := map[string]landingline.PlanEntry{}
 	for _, c := range costs {
 		basis := fmt.Sprintf("p90 %s x weight %d (%d samples)", minutes(c.Duration), c.Weight, c.Samples)
@@ -119,7 +127,7 @@ func runLandingPlan(out io.Writer, write bool, inputs planInputs) error {
 	}
 	slots := machineSuiteSlots()
 	entries, interval, more := planFromCosts(costs, slots)
-	path := machinePlanPath()
+	path := machinePlanPathFn()
 	renderPlan(out, path, slots, interval, entries)
 	for _, w := range append(warnings, more...) {
 		fmt.Fprintln(out, "  [!] "+w)
@@ -152,33 +160,34 @@ func runLandingPlan(out io.Writer, write bool, inputs planInputs) error {
 
 // fleetPlanInputs measures each fleet repository whose main turns trains on:
 // its train interval, its declared suite weight and its suite's p90 wall time
-// over the last 7 days (test-stats).
-func fleetPlanInputs(deps testStatsDeps) planInputs {
+// over the last 7 days (test-stats). Its sources are injected: the fleet's
+// repositories, the test-stats report, and git run in a repository.
+func fleetPlanInputs(repos func() (map[string]string, error), report func() (testStatsReport, error), git func(root string, args ...string) (string, error)) planInputs {
 	return func() ([]planCost, []string, error) {
-		repos, err := fleetRepoPaths(deps)
+		paths, err := repos()
 		if err != nil {
 			return nil, nil, err
 		}
-		report, err := buildTestStatsReport(testStatsFlags{Since: "7d"}, deps)
+		stats, err := report()
 		if err != nil {
 			return nil, nil, err
 		}
 		p90 := map[string]*SuiteQuantiles{}
-		for _, r := range report.Repos {
+		for _, r := range stats.Repos {
 			p90[r.Repo] = r.Wall
 		}
 		var costs []planCost
 		var warnings []string
-		names := make([]string, 0, len(repos))
-		for n := range repos {
+		names := make([]string, 0, len(paths))
+		for n := range paths {
 			names = append(names, n)
 		}
 		sort.Strings(names)
 		for _, name := range names {
-			root := repos[name]
-			git := func(args ...string) (string, error) { return landingGit(execGitRunner{}, root, args...) }
-			main := landingMainRef(git, "")
-			s, err := readLandingSchedule(git, main)
+			root := paths[name]
+			g := func(args ...string) (string, error) { return git(root, args...) }
+			main := landingMainRef(g, "")
+			s, err := readLandingSchedule(g, main) // the setting alone: the plan is what this computes
 			if err != nil {
 				warnings = append(warnings, name+": "+err.Error())
 				continue
@@ -187,7 +196,7 @@ func fleetPlanInputs(deps testStatsDeps) planInputs {
 				continue
 			}
 			weight := 1
-			if decl, err := readLocalChecks(git, main); err == nil {
+			if decl, err := readLocalChecks(g, main); err == nil {
 				if c, ok := decl.check(suiteCheckName); ok && c.Weight > 0 {
 					weight = c.Weight
 				}
@@ -200,6 +209,16 @@ func fleetPlanInputs(deps testStatsDeps) planInputs {
 		}
 		return costs, warnings, nil
 	}
+}
+
+// defaultPlanInputs wires fleetPlanInputs to the fleet, test-stats and git.
+func defaultPlanInputs() planInputs {
+	deps := defaultTestStatsDeps()
+	return fleetPlanInputs(
+		func() (map[string]string, error) { return fleetRepoPaths(deps) },
+		func() (testStatsReport, error) { return buildTestStatsReport(testStatsFlags{Since: "7d"}, deps) },
+		func(root string, args ...string) (string, error) { return landingGit(execGitRunner{}, root, args...) },
+	)
 }
 
 func newLandingPlanCmd(inputs func() planInputs) *cobra.Command {

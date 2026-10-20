@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -234,7 +233,7 @@ func landingScheduleSource(git func(args ...string) (string, error), remote, rep
 		if !readAt.IsZero() && !now.Before(readAt) && now.Sub(readAt) < landingScheduleTTL {
 			return cached
 		}
-		s, err := readLandingSchedule(git, landingMainRef(git, remote))
+		s, _, planErr, err := effectiveSchedule(git, landingMainRef(git, remote), repo)
 		if err != nil {
 			if !warned {
 				warned = true
@@ -242,20 +241,9 @@ func landingScheduleSource(git func(args ...string) (string, error), remote, rep
 			}
 			s = landingline.Schedule{}
 		}
-		// The machine plan places the repository on its departure grid
-		// (#475). No plan, or no entry, keeps the interval after the last
-		// train; an unreadable plan does too, warned once.
-		if !s.Off() {
-			p, err := readMachinePlan(machinePlanPath())
-			switch {
-			case err == nil:
-				if off, ok := p.Offset(repo, s.Interval); ok {
-					s.Offset = &off
-				}
-			case !errors.Is(err, fs.ErrNotExist) && !planWarned:
-				planWarned = true
-				fmt.Fprintf(stderr, "landing train: machine plan unreadable (%v); departing on the interval\n", err)
-			}
+		if planErr != nil && !planWarned {
+			planWarned = true
+			fmt.Fprintf(stderr, "landing train: machine plan unreadable (%v); departing on the interval\n", planErr)
 		}
 		cached, readAt = s, now
 		return cached

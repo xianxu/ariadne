@@ -115,7 +115,8 @@ func decodeEntry(data []byte) (PlanEntry, error) {
 	return e, nil
 }
 
-// strictObject decodes one JSON object, refusing trailing data.
+// strictObject decodes one JSON object, refusing trailing data and a
+// repeated key (which encoding/json would silently resolve to the last).
 func strictObject(data []byte, into *map[string]json.RawMessage) error {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	if err := dec.Decode(into); err != nil {
@@ -126,6 +127,26 @@ func strictObject(data []byte, into *map[string]json.RawMessage) error {
 	}
 	if *into == nil {
 		return fmt.Errorf("not a JSON object")
+	}
+	keys := json.NewDecoder(bytes.NewReader(data))
+	if _, err := keys.Token(); err != nil { // {
+		return err
+	}
+	seen := map[string]bool{}
+	for keys.More() {
+		k, err := keys.Token()
+		if err != nil {
+			return err
+		}
+		name, _ := k.(string)
+		if seen[name] {
+			return fmt.Errorf("key %q appears twice", name)
+		}
+		seen[name] = true
+		var skip json.RawMessage
+		if err := keys.Decode(&skip); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -181,12 +202,15 @@ const PlanStep = 5 * time.Minute
 // minute, the summed weight of the suites reserved there stays within slots.
 // Heaviest (weight × duration) first, ties by name; each takes the earliest
 // step-aligned offset that fits, else the one whose peak is lowest. A
-// reservation is the duration rounded up to the step, plus one step.
-func PackOffsets(costs []RepoCost, interval time.Duration, slots int) map[string]time.Duration {
+// reservation is the duration rounded up to the step, plus one step. over
+// names each repository whose placement still exceeds slots, with its peak:
+// the costs don't fit, and the caller must say so (ARCH-CONSTRAINTS).
+func PackOffsets(costs []RepoCost, interval time.Duration, slots int) (offsets map[string]time.Duration, over map[string]int) {
 	out := map[string]time.Duration{}
+	over = map[string]int{}
 	minutes := int(interval / time.Minute)
 	if minutes <= 0 {
-		return out
+		return out, over
 	}
 	order := append([]RepoCost(nil), costs...)
 	sort.SliceStable(order, func(i, j int) bool {
@@ -222,6 +246,9 @@ func PackOffsets(costs []RepoCost, interval time.Duration, slots int) map[string
 			load[m%minutes] += w
 		}
 		out[c.Repo] = time.Duration(best) * time.Minute
+		if bestPeak > slots {
+			over[c.Repo] = bestPeak
+		}
 	}
-	return out
+	return out, over
 }

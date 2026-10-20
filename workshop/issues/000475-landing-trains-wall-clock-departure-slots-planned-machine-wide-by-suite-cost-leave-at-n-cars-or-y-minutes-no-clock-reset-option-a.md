@@ -54,7 +54,8 @@ decision (option A, 10-19): ops `teams/devinfra/tl-status-xian-xu.side/2026-10-1
 Durable plan: [workshop/plans/000475-landing-train-departure-slots-plan.md](../plans/000475-landing-train-departure-slots-plan.md). It has decisions D1–D5, a state table, and ARCH notes.
 
 - [x] M1 — departure rule: wall-clock `Slots`, `DepartureDue` with full/max-wait/slot reasons, `train_max_wait_minutes`, and the clock-reset fix (`alone` records carry no NextDue), plus the reason in `landing status`
-- [x] M2 — machine plan: `MachinePlan` + `PackOffsets` (p90 × weight, ≤ 2 suite slots), plan file next to the suite lock, offsets wired into admission, `sdlc landing plan [--write]`, help and atlas, live dry run
+- [x] M2 — machine plan: `MachinePlan` + `PackOffsets` (p90 × weight, ≤ 2 suite slots), plan file next to the suite lock, offsets wired into admission and status (`effectiveSchedule`), `sdlc landing plan [--write]`, help, README and atlas
+- [ ] Live, after landing: `sdlc landing plan` dry run sent to the hub; the hub writes the plan and records slot-wait and ready→landed before and after
 
 ## Estimate
 
@@ -121,3 +122,10 @@ Items, in order:
   - The Done-when fixture `TestPlannedReposNeverDepartInEachOthersWindow`.
   - Help, atlas, and tl-lead's steward duties.
   - The landing, train and test-stats tests pass.
+- **M2 review round 1 (FIX-THEN-SHIP):** BR-8 to BR-11 and both Minors fixed by their class rules; details in the plan's Revisions.
+  - `effectiveSchedule` is the one constructor for admission and status.
+  - `fleetPlanInputs` is injectable and tested.
+  - Overloads are named.
+  - The README is updated.
+  - Landing tests are isolated from the user's plan.
+  - Duplicate keys are refused.

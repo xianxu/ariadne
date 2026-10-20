@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -158,6 +159,7 @@ func TestLandingEndsTheIssuesGrant(t *testing.T) {
 // Status names the train setting from main's tree and each waiter's vouch.
 func TestLandingStatusShowsTrainsAndReadiness(t *testing.T) {
 	roots, _, _ := landingFixture(t, 1)
+	planPath := isolateMachinePlan(t)
 	repo := roots[0]
 	d := testLandingDeps(nil, nil)
 	d.now = time.Now
@@ -206,8 +208,14 @@ func TestLandingStatusShowsTrainsAndReadiness(t *testing.T) {
 	}
 	d.now = func() time.Time { return at.Add(10 * time.Minute) }
 	out, err = runLanding(t, d, "status", "--repo", repo)
-	if err != nil || !strings.Contains(out, "next train at 2026-10-20 10:00 (interval)") {
+	if err != nil || !strings.Contains(out, "next train at 2026-10-20 10:00 (interval)") || !strings.Contains(out, "departure grid: no machine plan") {
 		t.Errorf("status lacks the reasoned next departure (%v):\n%s", err, out)
+	}
+	// #475: status reads the same schedule admission does, plan included.
+	procedureWrite(t, filepath.Dir(planPath), filepath.Base(planPath), `{"version":1,"slots":2,"repos":{"`+filepath.Base(repo)+`":{"offset_minutes":15}}}`)
+	out, err = runLanding(t, d, "status", "--repo", repo)
+	if err != nil || !strings.Contains(out, "next train at 2026-10-20 09:15 (slot)") || !strings.Contains(out, "departure grid: machine plan: slot :15") {
+		t.Errorf("status ignores the machine plan (%v):\n%s", err, out)
 	}
 
 }

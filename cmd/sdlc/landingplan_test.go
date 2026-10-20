@@ -162,3 +162,64 @@ func TestPlannedReposNeverDepartInEachOthersWindow(t *testing.T) {
 		}
 	}
 }
+
+// #475: the plan file sits beside the suite lock: $WF_TEST_LOCK_FILE's
+// directory, else ${XDG_STATE_HOME}/ariadne.
+func TestMachinePlanPath(t *testing.T) {
+	t.Setenv("WF_TEST_LOCK_FILE", "/locks/here/test-suite.lock")
+	if got := machinePlanPath(); got != "/locks/here/landing-plan.json" {
+		t.Errorf("beside WF_TEST_LOCK_FILE: %s", got)
+	}
+	t.Setenv("WF_TEST_LOCK_FILE", "")
+	t.Setenv("XDG_STATE_HOME", "/state")
+	if got := machinePlanPath(); got != "/state/ariadne/landing-plan.json" {
+		t.Errorf("under XDG_STATE_HOME: %s", got)
+	}
+}
+
+// #475: the plan's inputs from a fleet: only repositories whose main turns
+// trains on; each one's declared suite weight (default 1); its p90 from the
+// test-stats report by name, or the no-sample default.
+func TestFleetPlanInputs(t *testing.T) {
+	repos := map[string]string{"ariadne": "/w/ariadne", "pair": "/w/pair", "brain": "/w/brain"}
+	files := map[string]map[string]string{
+		"/w/ariadne": {landingConfigPath: `{"train_interval_minutes": 60}`, localChecksPath: `{"version":1,"checks":[{"name":"suite","required":true,"command":["make","test"],"weight":2}]}`},
+		"/w/pair":    {landingConfigPath: `{"train_interval_minutes": 60}`},
+		"/w/brain":   {},
+	}
+	git := func(root string, args ...string) (string, error) {
+		switch args[0] {
+		case "ls-tree":
+			path := args[len(args)-1]
+			if _, ok := files[root][path]; ok {
+				return path + "\n", nil
+			}
+			return "", nil
+		case "show":
+			_, path, _ := strings.Cut(args[1], ":")
+			return files[root][path], nil
+		}
+		return "", nil // landingMainRef: no upstream configured, so origin/main
+	}
+	report := testStatsReport{Repos: []RepoStats{{Repo: "pair", Wall: &SuiteQuantiles{P90: 750, Samples: 9}}}}
+	costs, warnings, err := fleetPlanInputs(
+		func() (map[string]string, error) { return repos, nil },
+		func() (testStatsReport, error) { return report, nil },
+		git)()
+	if err != nil || len(warnings) != 0 {
+		t.Fatalf("%v %v", warnings, err)
+	}
+	if len(costs) != 2 {
+		t.Fatalf("costs %+v: want ariadne and pair (brain has trains off)", costs)
+	}
+	by := map[string]planCost{}
+	for _, c := range costs {
+		by[c.Repo] = c
+	}
+	if c := by["ariadne"]; c.Weight != 2 || c.Samples != 0 || c.Duration != noSampleDuration {
+		t.Errorf("ariadne %+v: want the declared weight 2 and the no-sample default", c)
+	}
+	if c := by["pair"]; c.Weight != 1 || c.Samples != 9 || c.Duration != 750*time.Second {
+		t.Errorf("pair %+v: want weight 1 and the measured p90", c)
+	}
+}

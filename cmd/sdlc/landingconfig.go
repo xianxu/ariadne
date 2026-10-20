@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -85,6 +87,35 @@ func readLandingSchedule(git func(args ...string) (string, error), rev string) (
 	}
 	return parseLandingConfig([]byte(data))
 }
+
+// effectiveSchedule is the one schedule every consumer acts on (#475):
+// main's train setting, placed on the machine plan's grid when the plan has
+// an entry for repo. planNote says which plan applied (or why none did), for
+// status; a plan that cannot be read is planErr, and the schedule keeps the
+// interval. A setting that cannot be read is err.
+func effectiveSchedule(git func(args ...string) (string, error), mainRef, repo string) (s landingline.Schedule, planNote string, planErr, err error) {
+	s, err = readLandingSchedule(git, mainRef)
+	if err != nil || s.Off() {
+		return s, "", nil, err
+	}
+	path := machinePlanPathFn()
+	p, perr := readMachinePlan(path)
+	switch {
+	case errors.Is(perr, fs.ErrNotExist):
+		return s, "no machine plan (" + path + "): departing one interval after the last train", nil, nil
+	case perr != nil:
+		return s, "machine plan unreadable: departing one interval after the last train", perr, nil
+	}
+	off, ok := p.Offset(repo, s.Interval)
+	if !ok {
+		return s, "the machine plan has no entry for " + repo + ": departing one interval after the last train", nil, nil
+	}
+	s.Offset = &off
+	return s, fmt.Sprintf("machine plan: slot :%02d", int(off/time.Minute)), nil, nil
+}
+
+// machinePlanPathFn locates the plan; tests point it at their own state.
+var machinePlanPathFn = machinePlanPath
 
 // machinePlanPath is the machine plan's file (#475): beside the suite lock,
 // which scripts/test-lock.py puts at $WF_TEST_LOCK_FILE, else
