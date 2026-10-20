@@ -45,7 +45,8 @@ complete=false forever, so pair#722's live drain can never reach "drained" and i
 
 - Tests: matching digest plus absent owner retires the tombstone and writes evidence; wrong digest, live owner or an
   active lease refuses; a repeat is idempotent; pause owners are untouched.
-- `sdlc queue status` on the live machine becomes complete once the 10-20 tombstone is reconciled.
+- Private real-executable recovery of the 10-20 unmanaged record shape preserves the exact original bytes in durable audit, repeats without another audit entry and ends with running/complete/empty private status. Crash and append/sync failures preserve evidence and recover without false confirmation.
+- Read-only live acceptance after the reboot confirms the original tombstone is absent. Unrelated running work or legacy observations may keep the live snapshot incomplete; do not fabricate production residue or clear others' work for this acceptance.
 
 ## Plan
 
@@ -95,3 +96,13 @@ Current implementation checkboxes now reflect the approved simplification. Prese
 > - [ ] Pure request, audit receipt and effect/replay model with strict additive codecs.
 > - [ ] Gate-serialized durable audit-before-unlink transaction, failure/replay/identity/retention controls.
 > - [ ] Steward CLI and real private executable conformance; recorded suite, close and landing.
+
+### 2026-10-20 — first close findings (BR-1/BR-2/BR-3)
+
+Round1 found no Critical correctness issue but raised three Important gaps; close did not finalize. README now documents the invocation/authority/attestation/audit/retry contract alongside help and atlas. Active Done-when now reflects the hub-approved post-reboot private recovery plus read-only live acceptance. Original superseded criterion is preserved verbatim:
+
+> - `sdlc queue status` on the live machine becomes complete once the 10-20 tombstone is reconciled.
+
+The previously checked-off append/sync test claim was premature: the process crash proved successful-fsync ordering only. Added TestReconcileIOFailures with nine before/partial/after-effect controls for append, log fsync, root-directory fsync and post-unlink directory fsync. All nine were RED when the production IO had no fault seam, then GREEN after routing the existing writes/syncs through two optional per-store IO callbacks. This adds no state, transaction model or retry policy. Pre-unlink errors keep the original tombstone; a torn append stays refused without truncation; an uncertain post-unlink sync retries against the same audit without a duplicate. Cancelled only this checkout's old queued suite before the source change, leaving others untouched; a new recorded suite will run on the final pushed head.
+
+Post-fix controls: all nine IO failures PASS (package0.153s), full queuegate PASS0.954s, jsonstrict PASS0.121s, all TestQueue controls PASS14.067s, tracked Go lint PASS0.621s. The IO callbacks change testability only; default append/fsync/unlink order is unchanged. README/active acceptance now match approved scope, with superseded criteria preserved above. Re-run central close to dispose BR-1/2/3; no finalized close generation exists yet.

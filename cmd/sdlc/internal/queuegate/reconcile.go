@@ -161,6 +161,13 @@ func (s *Store) Reconcile(ctx context.Context, req ReconcileRequest, absent func
 	if absent == nil {
 		return errors.New("original owner incarnation probe unavailable")
 	}
+	writeFile, syncFile := (*os.File).Write, (*os.File).Sync
+	if s.reconcileWrite != nil {
+		writeFile = s.reconcileWrite
+	}
+	if s.reconcileSync != nil {
+		syncFile = s.reconcileSync
+	}
 	return s.WithGate(ctx, func() error {
 		if _, err := os.Lstat(filepath.Join(s.Root, "operations", req.ID+".json")); !errors.Is(err, os.ErrNotExist) {
 			return errors.New("operation record or lease exists or is unreadable; wait or inspect before reconciling")
@@ -232,14 +239,14 @@ func (s *Store) Reconcile(ctx context.Context, req ReconcileRequest, absent func
 			if _, err := decodeReconcileRecord(line); err != nil {
 				return err
 			}
-			if _, err := log.Write(append(line, '\n')); err != nil {
+			if _, err := writeFile(log, append(line, '\n')); err != nil {
 				return err
 			}
 		}
-		if err := log.Sync(); err != nil {
+		if err := syncFile(log); err != nil {
 			return err
 		}
-		if err := syncDirectory(s.Root); err != nil {
+		if err := syncDirectoryWith(s.Root, syncFile); err != nil {
 			return err
 		}
 		if s.afterReconcileAudit != nil {
@@ -255,6 +262,6 @@ func (s *Store) Reconcile(ctx context.Context, req ReconcileRequest, absent func
 				return err
 			}
 		}
-		return syncDirectory(filepath.Dir(path))
+		return syncDirectoryWith(filepath.Dir(path), syncFile)
 	})
 }

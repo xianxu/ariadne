@@ -224,3 +224,96 @@ func TestReconcilePreservesCancellationEvidence(t *testing.T) {
 		t.Fatal("status rewrote interrupted evidence")
 	}
 }
+
+func TestReconcileIOFailures(t *testing.T) {
+	for _, point := range []string{"append before", "append partial", "append after", "log sync before", "log sync after", "root sync before", "root sync after", "unlink sync before", "unlink sync after"} {
+		t.Run(point, func(t *testing.T) {
+			s, req, raw := reconcileFixture(t, t.TempDir())
+			logPath := filepath.Join(s.Root, "reconcile.jsonl")
+			tombstone := filepath.Join(s.Root, "unresolved", req.ID+".json")
+			injected := errors.New("injected " + point)
+			calls := 0
+			s.reconcileWrite = func(f *os.File, b []byte) (int, error) {
+				if !strings.HasPrefix(point, "append ") {
+					return f.Write(b)
+				}
+				calls++
+				if point == "append before" {
+					return 0, injected
+				}
+				if point == "append partial" {
+					n, err := f.Write(b[:len(b)/2])
+					if err != nil {
+						return n, err
+					}
+					return n, injected
+				}
+				n, err := f.Write(b)
+				if err != nil {
+					return n, err
+				}
+				return n, injected
+			}
+			s.reconcileSync = func(f *os.File) error {
+				match := strings.HasPrefix(point, "log sync") && f.Name() == logPath || strings.HasPrefix(point, "root sync") && f.Name() == s.Root || strings.HasPrefix(point, "unlink sync") && f.Name() == filepath.Dir(tombstone)
+				if !match {
+					return f.Sync()
+				}
+				calls++
+				if strings.HasSuffix(point, "after") {
+					if err := f.Sync(); err != nil {
+						return err
+					}
+				}
+				return injected
+			}
+			if err := s.Reconcile(context.Background(), req, absentOwner); !errors.Is(err, injected) || calls != 1 {
+				t.Fatalf("failure was not exercised: calls=%d err=%v", calls, err)
+			}
+			if strings.HasPrefix(point, "unlink sync") {
+				if _, err := os.Stat(tombstone); !os.IsNotExist(err) {
+					t.Fatalf("post-unlink uncertainty was hidden: %v", err)
+				}
+			} else {
+				got, err := os.ReadFile(tombstone)
+				if err != nil || !bytes.Equal(got, raw) {
+					t.Fatalf("pre-unlink failure lost tombstone: %v", err)
+				}
+			}
+			prior, err := os.ReadFile(logPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			s.reconcileWrite = nil
+			s.reconcileSync = nil
+			err = s.Reconcile(context.Background(), req, absentOwner)
+			if point == "append partial" {
+				if err == nil {
+					t.Fatal("partial audit append was treated as confirmed")
+				}
+				got, _ := os.ReadFile(tombstone)
+				if !bytes.Equal(got, raw) {
+					t.Fatal("partial audit retry removed tombstone")
+				}
+				after, _ := os.ReadFile(logPath)
+				if !bytes.Equal(after, prior) {
+					t.Fatal("partial audit was silently rewritten")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("repair/retry: %v", err)
+			}
+			if _, err := os.Stat(tombstone); !os.IsNotExist(err) {
+				t.Fatalf("retry did not complete: %v", err)
+			}
+			after, err := os.ReadFile(logPath)
+			if err != nil || bytes.Count(after, []byte("\n")) != 1 {
+				t.Fatalf("retry duplicated audit: %s %v", after, err)
+			}
+			if len(prior) > 0 && !bytes.Equal(after, prior) {
+				t.Fatal("retry rewrote uncertain audit")
+			}
+		})
+	}
+}

@@ -872,7 +872,7 @@ The simplest durable authority beats a clever scan of consequences.
 - Keep separately bounded metadata outside a byte-measured diagnostic envelope.
   Adding a sidecar block after that envelope changes the reported retained bytes
   even when the diagnostic renderer is untouched (#365).
-- New CLI flags and recovery commands need README coverage alongside atlas and help; enumerate all three before close (#366 BR-1).
+- New CLI flags and recovery commands need README coverage alongside atlas and help; enumerate all three before close (#366 BR-1; #501 BR-1).
 - When a fenced reviewer cannot run a regression, record an exact-head host rerun, environment qualification and log path; distinguish unverifiable review execution from a demonstrated implementation failure (#366 BR-2).
 
 - A successful process-group signal is not a fork barrier. Forceful teardown
@@ -1156,3 +1156,5 @@ The simplest durable authority beats a clever scan of consequences.
   values with context.WithoutCancel, then apply the cleanup timeout. Do not mint
   context.Background inside a new runtime; run TestVerbContextsReachTrackerReads
   with targeted runtime checks (#481 final suite).
+
+- #501 BR-2/BR-3: apply an approved acceptance change to active Done-when and preserve the old criterion in Revisions. Do not check off IO failure coverage from a crash after a successful fsync: exercise write/sync errors before and after their effects, including retry after the unlink already happened.

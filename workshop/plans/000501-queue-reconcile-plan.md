@@ -144,3 +144,7 @@ ARCH application: retain the core DRY/PURE/PURPOSE/MOCK/SECURE/EVOLVE boundaries
 ### 2026-10-20 — opaque numeric compatibility discovered by RED
 
 The new audit codec consumes the existing jsonstrict guard. Its numeric tokens previously forced float64 and rejected an opaque future field containing1e9999; two RED regressions established the mismatch. UseNumber is the one-line shared fix; known field types are still validated by typed decoding and unknown audit members are never rewritten. The current implementation uses direct owner-observation controls plus real kernel child lifecycle conformance; no additional fake process/transaction model is introduced.
+
+### 2026-10-20 — close-review coverage and active acceptance correction
+
+BR-1/2/3: README is part of the public command surface and now accompanies atlas/help. The issue's active Done-when now names the already approved private executable/read-only live acceptance; its original live complete=true criterion remains quoted in issue Revisions. The completed append/sync failure claim was premature until this round: nine actual IO fault controls now cover before/partial/after append and before/after log/root/post-unlink sync. Small optional per-Store write/sync callbacks route the real filesystem calls for those tests; nil production defaults execute the same methods, with no new state model, retention, retry policy or recovery mechanism. Existing crash-between-fsync-and-unlink control remains distinct.

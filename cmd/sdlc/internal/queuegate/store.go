@@ -31,6 +31,9 @@ type Store struct {
 	onLeaseRead func(string)
 	// afterReconcileAudit injects process death at the durable audit boundary in tests.
 	afterReconcileAudit func() error
+	// Reconciliation fault seams exercise append and sync failures on real files.
+	reconcileWrite func(*os.File, []byte) (int, error)
+	reconcileSync  func(*os.File) error
 }
 
 type PausedError struct{ Owners []PauseOwner }
@@ -143,12 +146,16 @@ func atomicWrite(path string, data []byte) error {
 }
 
 func syncDirectory(dir string) error {
+	return syncDirectoryWith(dir, (*os.File).Sync)
+}
+
+func syncDirectoryWith(dir string, syncFile func(*os.File) error) error {
 	d, err := os.Open(dir)
 	if err != nil {
 		return err
 	}
 	defer d.Close()
-	return d.Sync()
+	return syncFile(d)
 }
 
 func (s *Store) mutate(ctx context.Context, action Action) error {
