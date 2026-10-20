@@ -183,3 +183,7 @@ Real helper tests use private locks, deterministic readiness barriers and cleanu
 ### 2026-10-20 — initial design from frozen contract and hub clarifications
 
 The original Spec predates owner composition and exact ack text. The frozen Contract remains unchanged. Hub explicitly approved the shared gate/lifetime shape, graceful merge interruption at a new-suite boundary, and unknown legacy rollout handling. Implementation approval is requested on this durable plan before change-code.
+
+### 2026-10-20 — implementation approval and admission cost guard
+
+Hub approved the full plan and both review boundaries. Legacy process/topology observation is status-only: add `TestQueueAdmissionNeverScansLegacy` with counted observer adapters, exercise 8 and 16 suite/landing admission attempts, and assert exactly zero process/topology calls. The state-table recoveries remain running/pause, paused/resume named owner, interrupting/inspect until retirement, interrupted/rerun after resume, unknown/repair evidence. Match pair#722's implemented text limits: owner/id/head 256 bytes, reason/workspace/detail 4096 bytes. The private discovery override is `WF_SDLC_QUEUE_FLEET_ROOT`; fixtures scope the process observer to their private registered operations/fixture process set so they never inspect or pause the production fleet.

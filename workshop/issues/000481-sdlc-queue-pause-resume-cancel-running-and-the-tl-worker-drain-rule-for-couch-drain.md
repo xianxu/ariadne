@@ -126,3 +126,7 @@ Hub clarified that graceful pause interrupts an admitted merge at a new-suite bo
 ### 2026-10-20 — make frozen contract and clarified acceptance explicit
 
 The original Spec and Done-when remain above for context. Added explicit frozen-schema conformance, complete lifetime coverage/legacy uncertainty, and graceful merge interruption with successful-head reuse, reflecting the frozen Contract and hub clarifications. No change to pair#722's external protocol. Implementation is full flow with two actual review boundaries: backend/CLI, then admission/interruption/conformance.
+
+### 2026-10-20 — full plan approved
+
+Hub approved both boundaries and requested a counted zero-process/zero-topology-scan guard on admission. Added the named test to the durable plan; legacy observation remains status-only. Proceeding to change-code's plan-quality gate, with no implementation edits yet.
