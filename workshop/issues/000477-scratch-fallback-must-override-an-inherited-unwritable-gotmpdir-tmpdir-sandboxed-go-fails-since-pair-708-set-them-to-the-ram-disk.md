@@ -1,13 +1,13 @@
 ---
 id: 000477
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '68599ddc08daa58af6ab996e4674f7ee994f96cf' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '3bf55d067ef3e937c419d1b9c592b743f9c88482' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T17:59:41-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.76
 ---
 
 # Scratch fallback must override an inherited unwritable GOTMPDIR/TMPDIR (sandboxed go fails since pair#708 set them to the RAM disk)
