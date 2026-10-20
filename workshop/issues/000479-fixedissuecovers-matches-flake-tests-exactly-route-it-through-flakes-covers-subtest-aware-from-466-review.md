@@ -60,6 +60,7 @@ name exactly.
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — sdlc local-check run --name suite: sdlc-local/suite success on 04bf0c5e (12 shards, 1767 cmd/sdlc tests + 72 pkgs, 0 failed). New TestFixedIssueCoverageFollowsTheGateRule, TestFlakeListJudgesFixedSubtestsFromTheLog, TestNoParallelFlakeCoverageMatcher; mutation checks: exact-match fixedCandidates and the old top-level caller loop each fail the new tests.; review verdict: SHIP
 
 - Plan posted to the hub (quick flow, proceeding unless objected).
 - `flakes.Unknown` collided with the `Unknown` Kind constant; named `Uncovered`.
