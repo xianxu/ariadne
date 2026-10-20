@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "a3b7f1ea", done: "a427ade0"}
 ---
 
 # Train car's own merge warns 'active issue missing without confirmed archive' after the train already archived it
