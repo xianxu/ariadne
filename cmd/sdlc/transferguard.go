@@ -32,11 +32,17 @@ var guardTransferredDetailsFn = guardTransferredDetails
 func guardTransferredDetails(ctx context.Context) error {
 	// Decided before opening the tracker environment, which needs main's
 	// upstream: a legacy repository has no published-details protection.
-	tracked, err := repositoryTracked(ctx, ".")
+	root, err := gitx.RepoTopLevelContext(ctx)
 	if err != nil {
 		return err
 	}
-	if !tracked {
+	// The publication checkout owns this guard, even when the configured
+	// details directory points outside it.
+	rs, err := loadIssueRecordsAt(ctx, root, envOr("WF_ISSUES_DIR", "workshop/issues"), tracker.Fresh)
+	if err != nil {
+		return err
+	}
+	if !rs.Tracker {
 		return guardLegacyIssueAssets(ctx)
 	}
 	env, err := openTracker(ctx)
@@ -79,10 +85,11 @@ type changedDetail struct {
 // (sorted by path). guardTransferredDetails refuses them; `issue restore`
 // reverts them.
 func changedDetails(env *trackerEnv, mainTip string) ([]changedDetail, error) {
-	snap, err := env.repo.Snapshot()
+	rs, err := loadIssueRecordsAt(env.ctx, env.root, envOr("WF_ISSUES_DIR", "workshop/issues"), tracker.Fresh)
 	if err != nil {
 		return nil, err
 	}
+	snap := rs.CardSnapshot()
 	paths, err := prospectiveChanges(env, mainTip)
 	if err != nil {
 		return nil, err

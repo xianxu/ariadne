@@ -63,12 +63,23 @@ func loadIssueRecordsAt(ctx context.Context, root, issuesDir string, mode tracke
 	if rs, ok := scope.get(key, mode); ok {
 		return rs, nil
 	}
+	// Directory views share their repository's card authority, even when a
+	// guard and its caller request different details directories.
+	repositoryKey := root + "\x00"
+	if rs, ok := scope.get(repositoryKey, mode); ok {
+		rs, err := rs.WithDetails(commandContext(ctx), issuesDir)
+		if err == nil {
+			scope.put(key, rs)
+		}
+		return rs, err
+	}
 	repo, err := recordsRepository(ctx, root)
 	if err != nil {
 		return tracker.Records{}, err
 	}
 	rs, err := tracker.LoadRecords(commandContext(ctx), repo, issuesDir, mode)
 	if err == nil {
+		scope.put(repositoryKey, rs)
 		scope.put(key, rs)
 	}
 	return rs, err
@@ -76,8 +87,12 @@ func loadIssueRecordsAt(ctx context.Context, root, issuesDir string, mode tracke
 
 // recordsScope holds one command's composed issue views (#252, the one-fetch
 // operating envelope): every consumer in a verb reads the same fetched cards.
+// Long-lived pollers nest a new scope per observation pass (carReadiness), so
+// external writes become visible without invalidating another pass's view.
 // A stale read never satisfies a fresh request, and a card write invalidates
 // the scope, so a later step sees the verb's own writes.
+// A root followed by NUL keys the repository authority; directory keys extend
+// that prefix. Both are views in this one cache, invalidated together.
 type recordsScope struct {
 	mu    sync.Mutex
 	cache map[string]tracker.Records
@@ -110,6 +125,14 @@ func (s *recordsScope) put(key string, rs tracker.Records) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if strings.HasSuffix(key, "\x00") {
+		// A stale-to-fresh upgrade replaces every directory's older view.
+		for existing := range s.cache {
+			if strings.HasPrefix(existing, key) {
+				delete(s.cache, existing)
+			}
+		}
+	}
 	s.cache[key] = rs
 }
 
