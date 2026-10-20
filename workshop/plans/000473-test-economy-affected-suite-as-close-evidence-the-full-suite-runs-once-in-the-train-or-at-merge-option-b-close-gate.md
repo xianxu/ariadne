@@ -277,6 +277,122 @@ rounds:
       recipe: milestone-review
       isolation: checkout
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 48a54735-a380-40bb-b9d2-57d92641e825
+            repository: github.com/xianxu/ariadne
+            issue_id: "000473"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/acd521bd8eac615f
+            reviewed_head: f4a4a688e1499c1f34e910719f33929d962b619b
+            slot: ariadne:2
+            requested_at: "2026-10-20T09:08:18.759877Z"
+          phase: finished
+          pid: 68795
+          started_at: "2026-10-20T09:08:18.845901Z"
+          finished_at: "2026-10-20T09:13:59.937446Z"
+          session_id: cdbb0124-abc4-46fd-b39f-cf762c1bbdf6
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: f4a4a688e1499c1f34e910719f33929d962b619b
+        tracker_head: 2a41686cbdf2a2a3a81fb907bb66985c222768af
+        branch_point: 0956e5e1c71bd6734f195929fc151e0c752dbc14
+        since: "2026-10-19T20:26:49-07:00"
+        until: "2026-10-20T02:07:22-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T20:26:49-07:00"
+              end: "2026-10-20T02:07:22-07:00"
+              began: "2026-10-19T20:26:49-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0973f648-94f5-4a35-b868-c9b26ef649ac
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: a8aa7d5a3ef374c068d21e44b188b7f6dfb8c555a55675e2d9053acdf2347ccd
+              started: "2026-10-20T03:20:54.668Z"
+              spawned: false
+              bytes: 3771238
+              windows:
+                - start: "2026-10-19T20:26:49-07:00"
+                  end: "2026-10-20T02:07:22-07:00"
+        queue_waits:
+            - attempt_id: bcd9b7407517e24367c744af82d5db34
+              slot: ariadne:2
+              record_digest: 38cc6a62061e1a988f1d7f0f855462befe0fbd9fd08ff6e8d5e7da15ab214da4
+              start: "2026-10-20T03:26:49Z"
+              end: "2026-10-20T03:54:30.635003Z"
+              queue_seconds: 1661.635003
+              raw_seconds: 1669.213411
+              exact: true
+            - attempt_id: 1e519eee13691a7f9ae238f3a34af108
+              slot: ariadne:2
+              record_digest: ec17427e86246fbb78fe51b1c02c6c1a3c11100644e7ee265a3bbb81ecc632fc
+              start: "2026-10-20T04:15:40.4019Z"
+              end: "2026-10-20T04:37:58.530161Z"
+              queue_seconds: 1338.128261
+              raw_seconds: 1338.128261
+              exact: true
+            - attempt_id: ec45d2b999a4f613e1087a285f7a4e97
+              slot: ariadne:2
+              record_digest: 44c532f2cb7fa09e8ca756cfd526f624744a71e1024a397fc4dcd2c47bf96ea1
+              start: "2026-10-20T08:21:56.389306Z"
+              end: "2026-10-20T08:36:54.647565Z"
+              queue_seconds: 898.258259
+              raw_seconds: 898.258259
+              exact: true
+        protected:
+            - issue: "479"
+              slot: ariadne:2
+              start: "2026-10-19T21:12:26-07:00"
+              end: "2026-10-20T04:15:25.377Z"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 27.769466666666666
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-20T01:49:20-07:00"
+              finalized: "2026-10-20T01:57:31-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-20T02:03:23-07:00"
+              finalized: "2026-10-20T02:05:59-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-20T02:14:02-07:00"
+      dispatched: "2026-10-20T02:08:18-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-4
+          disposition: addressed
+          note: splitAffectedName refuses --all with any --name (localcheck_cmd.go:98-104); disabling the guard makes TestSplitAffectedName fail.
+          round: 3
+        - id: BR-7
+          disposition: addressed
+          note: Embeds is map[string][]string and owners returns the union of own-dir, testdata ancestors and every embedder; reverting to first-match fails TestLoadGoGraphConformance (live go list), TestPlan BR-7 row and TestOwnersAreExactAndAUnion.
+          round: 3
+        - id: BR-8
+          disposition: addressed
+          note: Plan Revisions entry dated 2026-10-20 (plan.md:427-436) explicitly replaces "nearest package" (rule 3) and Task 2 PackageOf with Graph.Owners union semantics, matching graph.go:24-50.
+          round: 3
+      boundary: M1
+      recipe: milestone-review
+      isolation: checkout
+      reviewed: f4a4a688e1499c1f34e910719f33929d962b619b
+      blocked: false
 ---
 
 # Gate ledger — ariadne#473 (boundary-review)
@@ -319,8 +435,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-8** [Minor] `plan-tracks-code` (kind: defect) The plan still describes nearest-ancestor package ownership; no Revisions entry for the exact-ownership change
   Core concepts rule 3 says "selects its nearest package", Task 2 says PackageOf is the "deepest dir that is a package", and the Graph struct has no Embeds field. The code and atlas now use exact ownership (own dir, testdata/, embeds).
 
+## Round 3 — 2026-10-20T02:14:02-07:00 (claude) — passed
+
+### Disposed
+
+- BR-4 — addressed — splitAffectedName refuses --all with any --name (localcheck_cmd.go:98-104); disabling the guard makes TestSplitAffectedName fail.
+- BR-7 — addressed — Embeds is map[string][]string and owners returns the union of own-dir, testdata ancestors and every embedder; reverting to first-match fails TestLoadGoGraphConformance (live go list), TestPlan BR-7 row and TestOwnersAreExactAndAUnion.
+- BR-8 — addressed — Plan Revisions entry dated 2026-10-20 (plan.md:427-436) explicitly replaces "nearest package" (rule 3) and Task 2 PackageOf with Graph.Owners union semantics, matching graph.go:24-50.
+
 ## Open findings
 
-- **BR-4** [Minor] `cli-flag-conflict` (kind: defect) --all combined with --name affected silently drops --all
-- **BR-7** [Important] `unclassified-path-fails-closed` (kind: defect) packageIn stops at the first owner, so a file embedded by one package but inside another package's dir skips the embedder
-- **BR-8** [Minor] `plan-tracks-code` (kind: defect) The plan still describes nearest-ancestor package ownership; no Revisions entry for the exact-ownership change
+(none — every finding has been disposed)

@@ -53,7 +53,7 @@ slots. The machine is suite-bound. Discussion and the operator's decision: ops s
 
 Durable plan: `workshop/plans/000473-test-economy-affected-suite-as-close-evidence-the-full-suite-runs-once-in-the-train-or-at-merge-option-b-plan.md` (D1–D6 approved by the TL 10-19; env contract fixed).
 
-- [ ] M1 — planner and runner (`internal/affected`, `local-check run --name affected`)
+- [x] M1 — planner and runner (`internal/affected`, `local-check run --name affected`)
 - [ ] M2 — car readiness accepts `affected`; flake/test-stats generalization; wording, atlas
 
 ## Estimate
@@ -86,6 +86,8 @@ Each `impl` is 40% of the v2 range's upper end.
 
 ## Log
 
+
+- 2026-10-20: closed M1 — internal/affected + jsonstrict go test green (FuzzParseGoList re-fuzzed; conformance on real go list incl. an embedded asset and a root package embedding a file in a sub-package dir, owners = both); contract fixture TestAffectedContractFixture (SDLC_AFFECTED_GO_PKGS=leaf mid tonly / GROUPS=lua; status 3 packages, groups lua); full→suite for go.mod / unclassified / unloadable graph; docs-only records without running; no-change refuses; --all split tested; targeted cmd/sdlc run ok in 1205s before the review fixes, Affected tests ok after.; review verdict: SHIP
 ### 2026-10-19
 
 - Exploration: close has no mechanical suite gate (free-text `--verified`); the record is enforced by the CI gate at merge and car vouch. Checks run a fixed argv. `go list -test` over pair: 1.5 s.

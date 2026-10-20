@@ -290,3 +290,81 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"cf024732-aa00-4e83-ad77-7c77f75d9d74","repository":"github.com/xianxu/ariadne","issue_id":"000473","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/d546c3d9773d17bf","reviewed_head":"387922e63d8c9d31022c1481dc6b0aa83a1fa270","slot":"ariadne:2","requested_at":"2026-10-20T09:03:23.984159Z"},"phase":"finished","pid":58208,"started_at":"2026-10-20T09:03:24.133797Z","finished_at":"2026-10-20T09:05:58.238916Z","session_id":"819a2b26-5aab-4d8f-a094-0d8e187c33ff","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T02:14:01-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 473 — test-economy: affected-suite as close evidence; the full suite runs once, in the train or at merge (option B') |
+| repo | ariadne |
+| issue file | workshop/issues/000473-test-economy-affected-suite-as-close-evidence-the-full-suite-runs-once-in-the-train-or-at-merge-option-b.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 0956e5e1c71bd6734f195929fc151e0c752dbc14..f4a4a688e1499c1f34e910719f33929d962b619b |
+| command | sdlc milestone-close --issue 473 --milestone M1 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | checkout |
+| timestamp | 2026-10-20T02:14:01-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Focus on the open findings first: BR-4, BR-7, BR-8.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All three open findings are fixed, and I checked each one by breaking the fix and watching its test fail. BR-7 now returns every owner of a file instead of stopping at the first. BR-4 makes `--all` combined with `--name affected` refuse with an error. BR-8 adds a dated Revisions entry to the plan. Both code fixes have tests that go red when the fix is reverted. I ran the affected-package, jsonstrict and local-check tests at the pinned head and they passed. I found nothing new that would block the boundary.
+
+1. **Strengths**
+   - `cmd/sdlc/internal/affected/graph.go:34-50`: `owners` builds the union of three sources: the file's own directory, any `testdata/` ancestor, and every package that embeds it. That is the class-level rule BR-7 asked for, not a fix for the one case it named. A path is unclassified, and forces the full suite, only when nothing claims it.
+   - `cmd/sdlc/internal/affected/golist.go:51-58,82-90`: `Embeds` lists every embedding package. It drops paths that escape the module and drops packages the listing doesn't know, then sorts the result so the output is stable. The fuzz test holds that invariant.
+   - The BR-7 shape is checked against real `go list`: `testdata/mod/m.go` has the root package embed `other/data.txt` (checked in `golist_test.go:136`). It is also covered in the pure tables (`plan_test.go:80`, `TestOwnersAreExactAndAUnion`).
+   - `cmd/sdlc/localcheck_cmd.go:98-104`: `splitAffectedName` is a small pure helper with its own unit test, so the `--all` conflict is decided in one place.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** The plan body still says "nearest package" (line 127) and describes `PackageOf` (line 247). The Revisions entry at line 427 explicitly supersedes both, which is what the plan convention asks for, so this is not a finding.
+
+5. **Test coverage notes**
+   - **BR-7:** I changed `owners` back to returning the first match. Three tests then failed: `TestLoadGoGraphConformance`, `TestPlan/...BR-7` and `TestOwnersAreExactAndAUnion`.
+   - **BR-4:** I disabled the `all && len(names) > 0` guard and `TestSplitAffectedName` failed.
+   - Both files were restored afterwards and the checkout is clean.
+   - **Full runs:** `go test ./internal/affected/ ./internal/jsonstrict/` and `go test -run 'Affected|LocalCheck|SplitAffected|ParseLocalChecks' ./cmd/sdlc` both pass.
+
+6. **Architecture**
+   - **ARCH-DRY: pass.** Ownership has a single implementation (`owners`), shared by `Owners` and `Plan`.
+   - **ARCH-PURE: pass.** `Plan`, `Owners` and `ParseGoList` are pure and tested without IO. `LoadGoGraph` and `productionAffectedDeps` are the thin IO layer.
+   - **ARCH-PURPOSE: pass.** BR-7 was fixed at the level of the rule (a union of all claimants), not just the reported case.
+   - **ARCH-MOCK: pass.** The `affectedDeps` seams are injected, and a live conformance test runs real `go list` against `testdata/mod`.
+   - **ARCH-CONSTRAINTS: pass.** The only extra cost is one `go list` per run. Any failure falls back to the full suite.
+   - **ARCH-SECURE: pass.** `go list` output is parsed strictly and fails closed. The command runs as an argument list through `env`, never through a shell.
+   - **ARCH-ORDER: pass.** The command keeps no state between events. Each run plans once and executes once.
+   - **ARCH-FUNERAL: pass.** The temporary worktree used to load the graph is removed by a deferred cleanup. No new durable artifacts are created.
+   - **ARCH-EVOLVE: pass.** `.sdlc/affected.json` is a new, strict, versioned file in its own path. Older sdlc builds never read it, and the name `affected` is reserved in `local-checks.json`.
+
+7. **Plan revisions:** none needed. The 2026-10-20 entry already records exact, union-based ownership.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: addressed
+    note: |
+      splitAffectedName refuses --all with any --name (localcheck_cmd.go:98-104); disabling the guard makes TestSplitAffectedName fail.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Embeds is map[string][]string and owners returns the union of own-dir, testdata ancestors and every embedder; reverting to first-match fails TestLoadGoGraphConformance (live go list), TestPlan BR-7 row and TestOwnersAreExactAndAUnion.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      Plan Revisions entry dated 2026-10-20 (plan.md:427-436) explicitly replaces "nearest package" (rule 3) and Task 2 PackageOf with Graph.Owners union semantics, matching graph.go:24-50.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"48a54735-a380-40bb-b9d2-57d92641e825","repository":"github.com/xianxu/ariadne","issue_id":"000473","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/acd521bd8eac615f","reviewed_head":"f4a4a688e1499c1f34e910719f33929d962b619b","slot":"ariadne:2","requested_at":"2026-10-20T09:08:18.759877Z"},"phase":"finished","pid":68795,"started_at":"2026-10-20T09:08:18.845901Z","finished_at":"2026-10-20T09:13:59.937446Z","session_id":"cdbb0124-abc4-46fd-b39f-cf762c1bbdf6","outcome":"returned"}] -->
