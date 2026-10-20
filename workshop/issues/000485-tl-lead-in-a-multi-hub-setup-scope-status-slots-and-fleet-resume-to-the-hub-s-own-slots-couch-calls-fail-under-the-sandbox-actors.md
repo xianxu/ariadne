@@ -4,10 +4,18 @@ status: open
 deps: []
 github_issue:
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'd747157879b47d4556649214bac4c28b1567f284' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'bc55caf2fc159315fa3232e9bf5b06aefbab109c' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-20T11:08:14-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead in a multi-hub setup: scope status slots and fleet resume to the hub's own slots; couch calls fail under the sandbox (actors '?')
@@ -62,3 +70,68 @@ From introduce-team's live proof (10-19, two hubs: `couch ops ops-echo`):
   tens of seconds each, all succeeded; that's the behavior to match): unit test against a fake Couch whose resume
   takes 10–30 s, asserting serial order, a wait for each slot to settle, and stop-and-name on the first uncertain or
   failed outcome.
+
+### 2026-10-20 — code map and design sketch (ariadne:2 on Claude, handing to Codex in the same slot)
+
+These are the findings from a read-only exploration. Nothing has been built yet. The design has decisions in it, so
+it goes to the TL before `change-code`.
+
+**Code map**
+- **Source:** `cmd/tl-lead/` in this module.
+- **Seams:** `deps` in `main.go:25-43`: `actors: execActors{bin:"couch"}`, `resume: execResume`, `sdlc`,
+  `landing: gitNewestLanding`.
+- **Couch calls:** `actors.go:26` runs `couch --actors --json` (no timeout). `fleet.go:55-106` runs
+  `--resume-candidates` and `--resume`.
+- **`status slots`:** `renderedSections` (`status.go:321`) calls `gatherSlots` (`slots.go:141`).
+  - Its source is `sdlc fleet inventory --json`, which covers the whole machine.
+  - `slotLines` (`slots.go:84`) has **no hub filter**, so it's problem 1.
+  - `agentLabel` (`slots.go:67`) prints `?` on every row when actors fail, and drops the error.
+- **`fleet resume`:** `fleetResume` (`fleet.go:216`), with `hereHub` (`team_cmd.go:131`), `readHubs` and
+  `planResume` (`fleet.go:143`).
+  - Problem 3: an unclaimed slot becomes a `classAmbiguous` row (`fleet.go:151-156`).
+  - Problem 2: an actors error becomes one `classUnknown` row per slot, each carrying the full error
+    (`fleet.go:165-167`).
+- **Ownership:** `.hub` parsing and `ownerOf` (`team.go:18-174`) mirror pair's
+  `cmd/internal/couchcore/hub_ownership.go`, which can't be imported from here (pair's `internal`). Couch gives
+  unclaimed slots to the first hub on its command line, but tl-lead can't see that order, so it reports `Unclaimed`.
+- **`status check` staleness:** `gitNewestLanding` (`freshness.go:124-157`) scans **every** sibling repo that has
+  `workshop/issues/` and keeps the newest merge machine-wide. No `.hub` is consulted, so it's problem 4.
+- **Tests and fakes:**
+  - `fakeCouch` (`fleet_test.go:18`), `fleetFixture` (`fleet_test.go:56`, already two hubs: ops and ops-echo),
+    `fakeSDLC` (`trains_test.go:16`).
+  - `TestGatherSlots` (`trains_test.go:161`, golden output, no hubs), `TestGitNewestLanding`
+    (`freshness_test.go:128`, real git repos).
+  - Tests that pin the current behaviour and will change: `TestFleetResumeDryRun` (the ambiguous rows) and
+    `TestFleetResumeActorsUnreadable` (the per-row unknown).
+- **Docs:** `atlas/workflow/tl-skills.md:54-64`, `cmd/tl-lead/help.md` (TEAMS 28-64; status verbs 271-303), and
+  `atlas/workflow/sandbox.md`, "Calling an excluded binary".
+
+**Problem 2 is mostly not a code bug.** `.claude/settings.json` already lists `"tl-lead *"` and `"couch *"` in
+`sandbox.excludedCommands`, here and in ops, ops-echo and echo. A *bare* `tl-lead …` Bash call should run
+unsandboxed, couch child included. Likely causes are a compound call (`cd X && tl-lead …`, a pipe), a Codex hub
+(Codex has no per-command exclusion, per the sandbox atlas), or stale settings. Confirm against the 10-19 echo
+transcript. Couch publishes no on-disk state that could stand in for the socket (`registry.json` has no slot
+addresses or resting state). The in-binary fix is one Couch-unreadable note at the top, plus documenting the
+bare-call rule.
+
+**Design sketch**
+0. **Serial resume (TL scope, 10-20 above):** resume one slot, poll `--operation-status` until it settles,
+   stop and name the rest on an uncertain or failed outcome; fake Couch with 10–30 s resumes.
+1. **Scope `status slots`.** Resolve self from `hereHub(dir of the status file)` and the hubs from `readHubs`. Keep
+   a slot when `ownerOf(...).sole() == self`.
+   - Unclaimed slots are counted, not listed: `(N unclaimed, M other hubs; --all)`.
+   - `--all` keeps today's machine view.
+   - With no `.hub`, today's behaviour stays.
+   - *Decision for the TL:* unclaimed slots go to Couch's main hub, but tl-lead can't tell which hub that is.
+     Should they be counted everywhere, or shown in the hub whose name is first alphabetically?
+2. **Scope staleness.** Pass self's claimed repo names into `gitNewestLanding` and skip repos the hub doesn't
+   claim. With no `.hub`, keep the machine-wide behaviour.
+3. **Couch unreadable once.** `gatherSlots` and `fleetResume` print one note at the top
+   (`couch unreadable: <err>; is tl-lead being run as a bare call?`). Rows stay `?` or `unknown` without the
+   repeated error.
+4. **`fleet resume`** hides unclaimed ambiguous rows unless `--all`, and prints a one-line count. A tie that includes
+   self stays visible, because it's actionable.
+5. **Tests:** a two-hub `status slots` case (own versus `--all`), a claims-scoped `TestGitNewestLanding` case, a
+   single note when actors fail, and updates to the two pinned resume tests. `help.md` and the atlas get `--all` and
+   the bare-call rule.
+
