@@ -52,7 +52,10 @@ inherited) from the slot shell and fails anyway.
 
 - [x] Repair scratch and normal-temp fallback with explicit child environment and cleanup.
 - [x] Classify proven startup environment errors without publishing code-failure evidence; cover ordinary and train baselines.
-- [ ] Verify focused and recorded suites, close on SHIP and land.
+- [x] Verify focused regressions and publish the candidate for recorded-suite and close review.
+
+Recorded full-suite pass, SHIP and landing remain mandatory workflow gates; their
+progress and evidence are tracked in the Log.
 
 Durable plan: [scratch environment plan](../plans/000477-scratch-environment-plan.md).
 
@@ -121,3 +124,13 @@ PR https://github.com/xianxu/ariadne/pull/333 is open. The required full recorde
 suite is queued through the normal central sdlc on the pushed implementation
 head. Preserve that waiter; no staging, private runner, or manual main chasing.
 Close/landing wait for its pass and the mandatory review.
+
+## Revisions
+
+### 2026-10-19 — overlap independent verification gates
+
+Separate completed implementation/targeted verification from the remaining
+workflow gates in the checklist. Per tl-worker, the binary-owned close review
+may overlap the queued recorded suite; no full-suite pass is claimed until
+it completes, and landing still requires the final code's recorded pass.
+The approved design and acceptance criteria are unchanged.
