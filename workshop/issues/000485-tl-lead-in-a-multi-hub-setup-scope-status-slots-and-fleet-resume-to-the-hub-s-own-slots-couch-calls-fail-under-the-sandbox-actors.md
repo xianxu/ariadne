@@ -52,3 +52,9 @@ From introduce-team's live proof (10-19, two hubs: `couch ops ops-echo`):
 ## Log
 
 ### 2026-10-19
+- 10-20 11:00 (TL): add to scope. After the 10-20 reboot, `tl-lead fleet resume --apply` fired `couch --resume` for
+  14 slots back to back: 5 came up, 9 ended "context deadline exceeded … outcome uncertain" (Couch's 2 s admission,
+  pair#726), and the operator resumed the rest by hand from the switcher. fleet resume should (1) resume one slot,
+  then poll `couch --operation-status` for that request until it settles before the next; (2) on an uncertain
+  outcome, check the slot's state and stop the batch, naming the remaining slots and the manual path, instead of
+  firing the rest into the same timeout. pair#726 fixes the admission itself; this keeps tl-lead honest either way.
