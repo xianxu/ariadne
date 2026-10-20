@@ -1158,3 +1158,5 @@ The simplest durable authority beats a clever scan of consequences.
   with targeted runtime checks (#481 final suite).
 
 - #499 BR-1: a context-scoped cache is coherent only if every authority reader enters it. Sweep direct Snapshot consumers along the production call chain, including transferred-details checks before selection, and retain a production-path test that changes authority between them. A fake gate can verify cache lifetime while missing the raw-reader bypass. Cache lifetime and consumer provenance are semantic properties; the interleaving regression is the enforcement rather than a function-name lint.
+
+- #499 root binding: when routing a publication guard through a shared reader, preserve the guard's original repository authority explicitly. A configured details directory is a data location, not the publication repository selector. Test a legacy peer directory beside a tracked checkout and ensure it cannot turn an existing ownership refusal into acceptance. This semantic provenance boundary is enforced by the production guard regression rather than lexical lint.

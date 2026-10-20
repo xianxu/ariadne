@@ -32,7 +32,13 @@ var guardTransferredDetailsFn = guardTransferredDetails
 func guardTransferredDetails(ctx context.Context) error {
 	// Decided before opening the tracker environment, which needs main's
 	// upstream: a legacy repository has no published-details protection.
-	rs, err := loadIssueRecords(ctx, envOr("WF_ISSUES_DIR", "workshop/issues"), tracker.Fresh)
+	root, err := gitx.RepoTopLevelContext(ctx)
+	if err != nil {
+		return err
+	}
+	// The publication checkout owns this guard, even when the configured
+	// details directory points outside it.
+	rs, err := loadIssueRecordsAt(ctx, root, envOr("WF_ISSUES_DIR", "workshop/issues"), tracker.Fresh)
 	if err != nil {
 		return err
 	}

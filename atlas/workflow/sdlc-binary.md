@@ -455,7 +455,9 @@ trains on:
   sharing one coherent tracker generation across that pass's gates, without
   invalidating the parent command or another pass. Transferred-details ownership
   checks and completion selection use the parsed `Records.CardSnapshot`;
-  alternate details directories reuse those cards through `Records.WithDetails`. Where main declares
+  alternate details directories reuse those cards through `Records.WithDetails`.
+  The publication checkout selects that card authority, even if a configured
+  details directory points into another repository. Where main declares
   `.sdlc/affected.json`, `carCIGateFacts`
   makes a recorded `affected` run stand in for `suite` (`ciInputs.StandIn`,
   #473 D3): the train's prefix suite is the one full run. Merge without a
