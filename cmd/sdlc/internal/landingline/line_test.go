@@ -106,6 +106,7 @@ func TestLineGrantReordersButNeverPreempts(t *testing.T) {
 	wantPos(t, l, normal, 2) // the granted ticket goes first
 	wantPos(t, l, blocking, 0)
 	blocking.Release()
+	grants.set(nil) // production merge revokes the landed issue before release
 	wantPos(t, l, normal, 0)
 }
 
@@ -336,5 +337,95 @@ func TestLineLongTicketReads(t *testing.T) {
 	_, waiting, err := l.Status()
 	if err != nil || len(waiting) != 1 || waiting[0].Unreadable || waiting[0].Branch != long {
 		t.Fatalf("waiting %+v err %v", waiting, err)
+	}
+}
+
+// The grant owns admission even before its merge has a ticket (#470).
+func TestLineGrantHoldsAbsentIssue(t *testing.T) {
+	for _, ending := range []string{"arrival", "expiry", "revoke", "cancel"} {
+		t.Run(ending, func(t *testing.T) {
+			now := t0
+			l := openLine(t, t.TempDir(), Options{Now: func() time.Time { return now }})
+			l.o.Grants = func() map[int]Grant {
+				gs, err := l.GrantsNow()
+				if err != nil {
+					t.Fatal(err)
+				}
+				return gs
+			}
+			g := grant(470, now, 1)
+			g.Reason = "main is red"
+			if err := l.AddGrant(g); err != nil {
+				t.Fatal(err)
+			}
+			normal := enqueue(t, l, 2)
+			pos, head, why, err := l.tryAdmit(normal)
+			if err != nil || pos != 1 || head != nil {
+				t.Fatalf("absent grant admitted normal: pos %d head %v err %v", pos, head, err)
+			}
+			for _, want := range []string{"#470", "main is red", g.Expires.Format(time.RFC3339), "sdlc landing revoke --issue 470"} {
+				if !strings.Contains(why, want) {
+					t.Fatalf("hold %q missing %q", why, want)
+				}
+			}
+			switch ending {
+			case "arrival", "cancel":
+				blocking := enqueue(t, l, 470)
+				if ending == "cancel" {
+					blocking.Release()
+					wantPos(t, l, normal, 1)
+				} else {
+					wantPos(t, l, normal, 2)
+					wantPos(t, l, blocking, 0)
+					blocking.Release()
+					wantPos(t, l, normal, 1) // hand-off gap: grant survives the ticket
+				}
+				fallthrough
+			case "revoke":
+				g.Revoked = true
+				if err := l.AddGrant(g); err != nil {
+					t.Fatal(err)
+				}
+			case "expiry":
+				now = g.Expires
+			}
+			wantPos(t, l, normal, 0)
+		})
+	}
+}
+
+func TestLineMultipleGrantsKeepGrantedFIFO(t *testing.T) {
+	l := openLine(t, t.TempDir(), testOptions(nil))
+	head := enqueue(t, l, 1)
+	wantPos(t, l, head, 0)
+	grants := &grantBox{}
+	grants.set(map[int]Grant{10: grant(10, t0, 1), 11: grant(11, t0, 1), 99: grant(99, t0, 1)})
+	l.o.Grants = grants.get
+	normal, a, b := enqueue(t, l, 2), enqueue(t, l, 10), enqueue(t, l, 11)
+	wantPos(t, l, a, 1) // current head continues
+	head.Release()
+	wantPos(t, l, b, 2)
+	wantPos(t, l, normal, 3)
+	wantPos(t, l, a, 0)
+	a.Release()
+	wantPos(t, l, b, 0) // missing #99 does not block another granted issue
+	b.Release()
+	wantPos(t, l, normal, 1)
+	grants.set(nil)
+	wantPos(t, l, normal, 0)
+}
+
+func TestLineWaitReportsGrantWithoutTrains(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var held string
+	l := openLine(t, t.TempDir(), Options{
+		Grants: func() map[int]Grant { return map[int]Grant{470: grant(470, t0, 1)} },
+		OnHeld: func(why string) { held = why; cancel() },
+		Sleep:  func(ctx context.Context, _ time.Duration) error { return ctx.Err() },
+	})
+	err := l.Wait(ctx, enqueue(t, l, 2))
+	if err != context.Canceled || !strings.Contains(held, "sdlc landing revoke --issue 470") {
+		t.Fatalf("held %q err %v", held, err)
 	}
 }

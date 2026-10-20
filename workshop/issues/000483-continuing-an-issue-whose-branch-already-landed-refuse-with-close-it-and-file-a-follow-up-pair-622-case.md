@@ -39,3 +39,11 @@ Pick one, simplest first, and make the refusal say it:
 ## Log
 
 ### 2026-10-19
+
+## Log
+
+- 10-19 23:25 (TL): the gap blocks **close** too, not just change-code: pair#622's `sdlc close` refuses ("run from
+  canonical 000622-…") from the follow-up branch `000622-live-acceptance` that holds the operator's attestation (PR
+  pair#474), because the canonical branch landed as PR 406. #622 is parked on this issue. Whatever (1)/(2) decides
+  must also let such an issue close (e.g. close with evidence on main, or the refusal names `sdlc close --no-pr`-style
+  recovery if one exists).

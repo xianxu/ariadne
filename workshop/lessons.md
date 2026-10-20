@@ -73,6 +73,17 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- Suite output contains quoted subprocess output too. Preserve indentation before
+  tokenizing control records. Raw child output can overlap real ancestry even
+  with correct four-space levels: prefer a proven top-level failure to an
+  invented leaf. Keep exact leaves only from structured evidence, and expose
+  the possible subtest-only registration miss. Validate the whole leading
+  whitespace prefix with the tokeniser's Unicode category, accepting only ASCII
+  spaces; initial spaces alone miss a following tab or NBSP. Use the same
+  column-zero boundary for package attribution, unknown-failure reasons and
+  timing facts. Derive unidentified-package failures after collecting structured
+  names. Test real Go output, retained-log readers and the actual retry (#476).
+
 - Whenever artifact creation gains a fallback root, enumerate that root in
   stale cleanup too, including after the original root becomes usable again.
   Test stale removal and fresh preservation at the repaired location; normal
@@ -1107,3 +1118,9 @@ The simplest durable authority beats a clever scan of consequences.
   ambiguous for a decision that hides a failure. Use only an exact fully
   qualified name in the terminal card's `flake_tests`; legacy failures stay
   visible until retention expires (ARCH-SECURE).
+
+- #470 verification: cmd/sdlc's source-checkout hermeticity guard pins HEAD for the entire test run. Do not commit while a targeted source-checkout run remains active: even passing tests fail that guard when HEAD moves. The recorded local-check suite uses a detached checkout and can overlap source bookkeeping safely. The existing hermeticity guard already enforces this class; no additional source lint is needed.
+
+- #470: when extending an output callback to another mode, preserve existing mode prefixes and sweep tests by the message/callback as well as filenames. The existing readiness fixture caught the train-prefix change; the grant fixture now asserts both serial and train prefixes. These observable prose contracts are defended by those integration assertions rather than a generic lexical lint rule.
+
+- #470 BR-1: acceptance should preserve behavioral guarantees rather than promise unchanged tests when a feature intentionally changes those tests' expected behavior. Keep the current Done-when synchronized with the approved policy, and preserve the superseded promise in Revisions. This is semantic acceptance wording, defended by the close review rather than lexical lint.
