@@ -17,6 +17,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "c31d9875", done: "136dc89f"}
 ---
 
 # Make TestScratchFallbackOverridesInheritedTemp independent of host sandbox temp permissions
