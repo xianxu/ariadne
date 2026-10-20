@@ -1131,6 +1131,14 @@ The simplest durable authority beats a clever scan of consequences.
   qualified name in the terminal card's `flake_tests`; legacy failures stay
   visible until retention expires (ARCH-SECURE).
 
+- **#473 M1 BR-1/BR-7 — test selection must over-select:** when a classifier maps a file to the code its change can
+  break, collect every claimant (here the package whose dir holds the file, each `testdata/` owner, and each package
+  that embeds it, plus every matching group), and fall back to the full run only when there are none. Two shortcuts
+  each skipped tests: "nearest ancestor directory" let a root package claim every path, and "first owner wins"
+  missed a second embedder. A third shortcut, ignoring docs before asking who owns them, skipped a package that
+  embeds a `.md`. Ask "who claims this path?" first, and drop a path only when nothing claims it. Prefer the
+  toolchain's exact facts (`go list` EmbedFiles) to a directory heuristic, and add a table row for a file with two
+  owners.
 - #470 verification: cmd/sdlc's source-checkout hermeticity guard pins HEAD for the entire test run. Do not commit while a targeted source-checkout run remains active: even passing tests fail that guard when HEAD moves. The recorded local-check suite uses a detached checkout and can overlap source bookkeeping safely. The existing hermeticity guard already enforces this class; no additional source lint is needed.
 
 - #470: when extending an output callback to another mode, preserve existing mode prefixes and sweep tests by the message/callback as well as filenames. The existing readiness fixture caught the train-prefix change; the grant fixture now asserts both serial and train prefixes. These observable prose contracts are defended by those integration assertions rather than a generic lexical lint rule.

@@ -450,7 +450,10 @@ into trains. Absent, or an interval of 0, keeps the serial line above. With
 trains on:
 - A waiting merge vouches its readiness in `ready/<seq>` beside its ticket
   (`landingcar.go`): its own publish and CI gates, read-only, for its exact
-  pushed head.
+  pushed head. Where main declares `.sdlc/affected.json`, `carCIGateFacts`
+  makes a recorded `affected` run stand in for `suite` (`ciInputs.StandIn`,
+  #473 D3): the train's prefix suite is the one full run. Merge without a
+  train sets no stand-in.
 - Admission waits for the departure (the last `train` event's `next_due`)
   and a current vouch. A grant departs at once, alone.
 - The pure core is in `internal/landingline`: `train.go` (schedule, readiness

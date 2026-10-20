@@ -65,6 +65,7 @@ type SuiteFlake struct {
 
 type RepoStats struct {
 	Repo                   string          `json:"repo"`
+	Check                  string          `json:"check,omitempty"` // "" is the suite; else the test check (#473)
 	Runs                   int             `json:"runs"`
 	FullyRecorded          int             `json:"fully_recorded"`
 	WallCoverage           int             `json:"wall_coverage"`
@@ -98,17 +99,30 @@ func suiteQuantiles(samples []float64) *SuiteQuantiles {
 // only these (#394 M2 review): a known-flake rerun is never one.
 func isSuiteRun(a SuiteAttempt) bool { return a.Check == suiteCheckName }
 
+// isTestCheck names the checks that run the repo's tests and so carry flake
+// evidence and the known-flake rule: the suite and the affected suite (#473
+// D4). Their timings stay apart: isSuiteRun still means the full suite.
+func isTestCheck(name string) bool { return name == suiteCheckName || name == affectedCheckName }
+
 // isFlakeEvidence reports whether an attempt is same-head flake evidence: a
 // suite run, or a known-flake rerun that passed (its tests passed on the head
 // where they had failed). Every reader of fail→pass evidence uses this one
 // predicate, so a rerun's proof survives its parent's outcome being revised.
 func isFlakeEvidence(a SuiteAttempt) bool {
-	return isSuiteRun(a) || a.Check == suiteRerunCheck && a.Exit == 0 && !a.TimedOut
+	return isTestCheck(a.Check) || a.Check == suiteRerunCheck && a.Exit == 0 && !a.TimedOut
 }
 
-// aggregateSuiteAttempts computes stats from validated records plus explicitly
-// partial legacy entries. The caller owns persisted-record validation.
+// aggregateSuiteAttempts computes the full suite's stats from validated records
+// plus explicitly partial legacy entries. The caller owns persisted-record
+// validation.
 func aggregateSuiteAttempts(attempts []SuiteAttempt, since time.Time, repo string) []RepoStats {
+	return aggregateCheckAttempts(attempts, since, repo, suiteCheckName)
+}
+
+// aggregateCheckAttempts is aggregateSuiteAttempts for one test check's runs:
+// the affected suite gets rows of its own (#473 D4), so its shorter runs never
+// move the suite's numbers. Flake evidence still spans every test run.
+func aggregateCheckAttempts(attempts []SuiteAttempt, since time.Time, repo, check string) []RepoStats {
 	byRepo := make(map[string][]SuiteAttempt)
 	for _, a := range attempts {
 		if !isFlakeEvidence(a) || suiteAttemptCompletedAt(a).Before(since) || (repo != "" && a.Repo != repo) {
@@ -132,13 +146,16 @@ func aggregateSuiteAttempts(attempts []SuiteAttempt, since time.Time, repo strin
 			return iAt.Before(jAt)
 		})
 		s := RepoStats{Repo: name}
+		if check != suiteCheckName {
+			s.Check = check
+		}
 		var wall, queue []float64
 		evidence := flakeAttempts(rows)
 		unitTimes := map[string][]float64{}
 		units := map[string]SuiteDuration{}
 		for i, a := range rows {
-			if !isSuiteRun(a) {
-				continue // a passing rerun is evidence for Confirmed (evidence), not a run
+			if a.Check != check {
+				continue // another check's run, or a passing rerun: evidence for Confirmed, not a run of check
 			}
 			s.Runs++
 			if !a.Legacy {
@@ -218,7 +235,8 @@ func suiteAttemptCompletedAt(a SuiteAttempt) time.Time {
 // flakeAttempt is a recorded attempt as the known-flake rules read it (#394).
 func flakeAttempt(a SuiteAttempt) flakes.Attempt {
 	return flakes.Attempt{ID: a.ID, SHA: a.SHA, Passed: a.Exit == 0 && !a.TimedOut, Baseline: a.MainBaseline,
-		Legacy: a.Legacy, Failures: a.Failures, Kind: flakes.Kind(a.Outcome), FinishedAt: suiteAttemptCompletedAt(a)}
+		Legacy: a.Legacy, Failures: a.Failures, Kind: flakes.Kind(a.Outcome), FinishedAt: suiteAttemptCompletedAt(a),
+		Subset: a.Check == affectedCheckName}
 }
 
 func flakeAttempts(as []SuiteAttempt) []flakes.Attempt {

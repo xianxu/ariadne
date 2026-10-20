@@ -42,6 +42,7 @@ func TestParseLocalChecks(t *testing.T) {
 		{"timeout high", `{"version":1,"checks":[{"name":"a","command":["x"],"timeout_minutes":121}]}`, "timeout"},
 		{"trailing data", `{"version":1,"checks":[]} {}`, "trailing"},
 		{"reserved rerun name", `{"version":1,"checks":[{"name":"suite-rerun","command":["x"]}]}`, "reserved"},
+		{"reserved affected name", `{"version":1,"checks":[{"name":"affected","command":["x"]}]}`, "declared in .sdlc/affected.json"},
 		{"bad known_flakes", `{"version":1,"checks":[{"name":"suite","command":["x"],"known_flakes":"sometimes"}]}`, "known_flakes"},
 		{"known_flakes off the suite", `{"version":1,"checks":[{"name":"e2e","command":["x"],"known_flakes":"accept"}]}`, "the \"suite\" check only"},
 		{"not json", `nope`, "local-checks"},
