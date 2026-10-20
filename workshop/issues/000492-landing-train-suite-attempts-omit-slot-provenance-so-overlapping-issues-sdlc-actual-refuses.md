@@ -1,13 +1,13 @@
 ---
 id: 000492
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '3f9b63993f092a63d49c3f1e19a1d29f8101d8cf' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '8b8f4f61b09cc2c8f911104d3e3a6809586571db' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T08:41:58-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "27c81229", done: "fd8ecfc8"}
+actual_hours: 0.38
 ---
 
 # Landing-train suite attempts omit slot provenance, so overlapping issues' sdlc actual refuses
