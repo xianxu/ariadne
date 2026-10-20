@@ -119,6 +119,10 @@ Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 
 - Re-close preparation refused at the noon integrate gate before dispatch. Merged origin/main cleanly as required, with no code conflict. Affected integration tests caught the existing fixed-sleep lint in the newly tracked subprocess helpers: their intentional stall is test input for deadline containment, not synchronization; added the catalog-supported scoped annotation with that reason. Catalog rerun passed. No full suite had been queued on the pre-integration head.
 
+- Boundary round 5 returned REWORK, Critical BR-6: the legacy migrate-answers adapter discarded the promoted index helper's errors, permitting destructive movement with stale references. The approved live-recovery mechanism passed review; this additional finding is an existing consumer regression from the shared-helper promotion. Canceled this checkout's queued suite before admission, preserving other runs. Sweeping all three consumers: the session-move planner already refuses; both migrate-answers paths will propagate named conflicts before apply.
+
+- BR-6 correction removes the swallowing adapter; all three shared-helper consumers now propagate errors. Six session/outside invalid-index cases failed before the fix, then passed through both planning and apply refusal, proving unchanged source tree/registrations and zero applied effects. Targeted migrate/index tests passed (1.118s); affected package verification follows on this corrected head.
+
 ## Landing hold
 
 Pending: green suite and SHIP → final build staged → TL/operator migrate both live hubs → TL evidence appended here → stage cleared → merge. Worker must not merge before the TL returns that evidence.
@@ -276,3 +280,16 @@ for the same mechanism, not an incremental addition of recovery machinery.
 ### 2026-10-20 — revised live-recovery plan approved
 
 TL approved the replacement plan (delivery 04e0afed-a17c-448d-8436-aa3ffc9324b2), including the quiet-old-tree limit. Keep the fix bounded: no journal, no automatic disposal of a registration conflict. After re-close and green suite, restage; the TL/operator checks are ops:0 leftover cleanup and ops-echo full migration.
+
+
+### 2026-10-20 — BR-6 shared index-consumer error propagation
+
+Every reference-transform consumer must either successfully transform or refuse
+before source deletion. The new session-move planner already propagates
+`RebaseIndex` errors. Sweep the two existing migrate-answers callers as well:
+session index and outside-document index. Delete the success-shaped wrapper
+that discarded errors, and turn either failure into a named migration conflict.
+Session/outside malformed-index regressions must exercise the apply entrypoint
+and prove no filesystem or service effects. No new recovery mechanism or input
+syntax is added; this restores the promoted helper's existing error contract
+at all consumers (ARCH-PURPOSE, ARCH-SECURE).

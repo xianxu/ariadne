@@ -194,7 +194,10 @@ func planMigration(s migSnapshot) migrationPlan {
 
 	// The session file: its links and its discussions: index, in one apply.
 	after, dangling := sidedoc.RebaseLinks(s.SessionText, s.Session, s.Session, moved, exists)
-	after = rebaseIndex(after, s.Session, moved)
+	after, err := sidedoc.RebaseIndex(after, s.Session, s.Session, moved)
+	if err != nil {
+		p.Conflicts = append(p.Conflicts, migConflict{s.Session, err.Error()})
+	}
 	note(&p.Dangling, s.Session, dangling)
 	recs, err := lineRecords(s.SessionText, after, migrationExplain)
 	if err != nil {
@@ -207,7 +210,11 @@ func planMigration(s migSnapshot) migrationPlan {
 	for _, f := range sortedKeys(s.Outside) {
 		before := string(s.Outside[f])
 		after, dangling := sidedoc.RebaseLinks(before, f, f, moved, exists)
-		after = rebaseIndex(after, f, moved)
+		after, err := sidedoc.RebaseIndex(after, f, f, moved)
+		if err != nil {
+			p.Conflicts = append(p.Conflicts, migConflict{f, err.Error()})
+			continue
+		}
 		if after != before {
 			p.Outside[f] = []byte(after)
 			note(&p.Dangling, f, dangling)
@@ -349,17 +356,6 @@ func withBacklink(body, backlink string) string {
 
 func escapeLinkText(s string) string {
 	return strings.NewReplacer("[", `\[`, "]", `\]`).Replace(s)
-}
-
-// rebaseIndex maps the discussions: entries of file's frontmatter that name
-// moved files (`  - doc: qa/op/x.md`). Entries are relative to file, like
-// its links.
-func rebaseIndex(text, file string, moved func(string) (string, bool)) string {
-	after, err := sidedoc.RebaseIndex(text, file, file, moved)
-	if err != nil {
-		return text
-	}
-	return after
 }
 
 // mentions are the lines that still name qa after the rebase: bare paths in

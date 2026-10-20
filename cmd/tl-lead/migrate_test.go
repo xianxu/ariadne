@@ -402,11 +402,11 @@ func TestRebaseIndexIsFileRelative(t *testing.T) {
 	moved := func(p string) (string, bool) { return sidedoc.MoveUnder(p, "qa/op", "s.side") }
 	in := "---\ndiscussions:\n  - doc: ../../qa/op/a.md\n  - doc: design.side/01-x.md\n---\nbody\n"
 	want := "---\ndiscussions:\n  - doc: ../../s.side/a.md\n  - doc: design.side/01-x.md\n---\nbody\n"
-	if got := rebaseIndex(in, "projects/p/design.md", moved); got != want {
-		t.Errorf("got\n%s", got)
+	if got, err := sidedoc.RebaseIndex(in, "projects/p/design.md", "projects/p/design.md", moved); err != nil || got != want {
+		t.Errorf("got\n%s\nerror: %v", got, err)
 	}
-	if got := rebaseIndex("---\ndiscussions:\n  - doc: qa/op/a.md\n---\n", "s.md", moved); !strings.Contains(got, "- doc: s.side/a.md") {
-		t.Errorf("the session file's entry: %s", got)
+	if got, err := sidedoc.RebaseIndex("---\ndiscussions:\n  - doc: qa/op/a.md\n---\n", "s.md", "s.md", moved); err != nil || !strings.Contains(got, "- doc: s.side/a.md") {
+		t.Errorf("the session file's entry: %s; error: %v", got, err)
 	}
 }
 

@@ -341,3 +341,104 @@ dispose:
 7. **Plan revision recommendations:** None. Existing revisions describe the implemented corrections and landing holds.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"0bb714f9-4e93-448f-bcb7-520a2af14b34","repository":"github.com/xianxu/ariadne","issue_id":"000504","recipe":"milestone-review","round":4,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/f56e119ac6dc8fec","reviewed_head":"339ca08719fb439537a062638e467c4921952c50","slot":"ariadne:4","requested_at":"2026-10-20T18:15:01.361925Z"},"phase":"finished","pid":66714,"started_at":"2026-10-20T18:15:01.500746Z","finished_at":"2026-10-20T18:17:05.995207Z","session_id":"01a15a86-1fd8-7302-af13-a00dcfc9dd8e","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T13:20:20-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 504 — tl-lead: the hub session file moves to session.md at the repo root (no team folder, no operator name), with a status move verb and the decisions-are-tracked rule |
+| repo | ariadne |
+| issue file | workshop/issues/000504-tl-lead-the-hub-session-file-moves-to-session-md-at-the-repo-root-no-team-folder-no-operator-name-with-a-status-move-verb-and-the-decisions-are-tracked-rule.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | e5c65cacc9942b245562e4cf9d9b00ab4aad8a86..2094925522b379d1ddb7b41e0e759f76102b0788 |
+| command | sdlc close --issue 504 |
+| reviewer | codex (openai; author openai); degraded: same-family by choice |
+| isolation | fenced |
+| timestamp | 2026-10-20T13:20:20-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The root-session migration, shared defaults, recovery behavior, and documentation are substantially implemented, and affected package tests pass. One confirmed regression blocks shipping: the older `migrate-answers` command can silently discard an index-rebasing error and remove a file while leaving its discussion entry pointing at the deleted path.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Plain-parent validation and parent-refusal regressions cover unsupported YAML spellings; ordinary owner metadata is preserved.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Effective Git ignore checks replace pattern-presence authority; negation and complete-membership regressions pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      All-depth policy-file refusal and fresh pre-switch checks are implemented; source, retry, and late-policy regressions pass.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Production dispatch consumes transitionMove grants; sequence tests verify failure revokes authority and deletion follows confirmed verification.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Exact side-root mapping and explicit directory copying preserve directory targets; reference-target and empty-directory regressions pass.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: relocation-preserves-reference-targets
+    title: |
+      migrate-answers suppresses index-rebasing errors and strands discussion references
+    detail: |
+      cmd/tl-lead/migrate.go:358-360 returns unchanged text when RebaseIndex fails. A discussions list containing doc: qa/op/a.md followed by doc: null produces one planned move, no conflicts, and no session edits; runMigration subsequently removes the indexed source at migrate_apply.go:232. A temporary regression fails at the pinned head and passes with the base migrate.go overlaid. ARCH-PURPOSE and ARCH-SECURE: propagate the error into a named migration conflict before effects for both callers, the session and outside Markdown documents. This is the 3rd finding in family relocation-preserves-reference-targets. Earlier rounds fixed instances; state and enforce the rule that every reference-transform consumer must successfully transform or refuse before deleting sources, and sweep all consumers in this round.
+```
+
+1. **Strengths**
+
+   - Shared omitted-FILE normalization preserves explicit paths and covers every status leaf.
+   - Migration effects run through the pure transition model, with controlled interruption tests.
+   - Live cleanup preserves destination edits and locks while checking old-source snapshots.
+   - README, help, and atlas describe the new paths, recovery contract, and tracked-decisions rule.
+
+2. **Critical findings**
+
+   - [migrate.go:358](/Volumes/TestScratch/review-checkouts/fb21da9c073773e5/cmd/tl-lead/migrate.go:358): propagate `RebaseIndex` errors through both `planMigration` call sites into conflicts. Add session and outside-document regressions asserting refusal before any move or deletion.
+
+3. **Important findings**
+
+   None.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   `go test ./cmd/tl-lead ./pkg/sidedoc ./pkg/golint -count=1` passed. A temporary overlay regression reproduced the finding and passed with the base implementation. Temporary files were removed; the checkout remains unchanged. Live Couch and external Parley tests were not rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared defaults and sidedoc transformations.
+   - **ARCH-PURE — pass:** pure planning/transitions separated from execution; listed pure entities require no IO.
+   - **ARCH-PURPOSE — flag:** the shared-helper migration leaves an existing consumer unsafe.
+   - **ARCH-MOCK — pass:** migration uses the stateful SessionSync seam and injected failures; scratch conformance exists.
+   - **ARCH-CONSTRAINTS — pass:** bounded Couch calls and counted batching tests cover the revised envelope.
+   - **ARCH-SECURE — flag:** malformed index input is silently converted into apparent planning success.
+   - **ARCH-ORDER — pass:** explicit effect grants and interruption/retry coverage.
+   - **ARCH-FUNERAL — pass:** retry cleanup and operator retirement name artifact lifecycles.
+   - **ARCH-EVOLVE — pass:** unknown document bytes survive transformations; registry mutations remain Couch-owned.
+
+7. **Plan revision recommendation**
+
+   Append a `## Revisions` entry requiring every `RebaseIndex` consumer to propagate failure before destructive effects. Enumerate the session-move planner and both `migrate-answers` callers, with regression coverage for session and outside-document failures.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"8b5058a6-6b15-476a-9ee3-aba863b83088","repository":"github.com/xianxu/ariadne","issue_id":"000504","recipe":"milestone-review","round":5,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/fb21da9c073773e5","reviewed_head":"2094925522b379d1ddb7b41e0e759f76102b0788","slot":"ariadne:4","requested_at":"2026-10-20T20:18:00.135676Z"},"phase":"finished","pid":97867,"started_at":"2026-10-20T20:18:00.228749Z","finished_at":"2026-10-20T20:20:20.187979Z","session_id":"01a15af6-b6b2-7b41-8bf4-ee3c6b40d1d1","outcome":"returned"}] -->
