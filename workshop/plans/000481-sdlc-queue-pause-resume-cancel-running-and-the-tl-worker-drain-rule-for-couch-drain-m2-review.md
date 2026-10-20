@@ -85,3 +85,77 @@ findings:
    Append a `## Revisions` entry establishing nonblocking secondary-lock acquisition under the global gate. Enumerate both admission consumers and require contention barriers that verify responsive pause, bounded cancellation, and retained FIFO position.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"028e317a-5938-4738-8a59-97ee102a17b1","repository":"github.com/xianxu/ariadne","issue_id":"000481","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/d96a99e0fc0e7a54","reviewed_head":"7c307ed8b35875f36791fd65d6256a08ad2a5644","slot":"ariadne:3","requested_at":"2026-10-20T09:57:26.103159Z"},"phase":"finished","pid":57488,"started_at":"2026-10-20T09:57:26.258262Z","finished_at":"2026-10-20T10:02:22.183238Z","session_id":"01a158be-9200-7e20-b3c8-1340920e89cc","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T03:22:54-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 481 — sdlc queue pause/resume (+ --cancel-running) and the tl-worker drain rule, for couch --drain |
+| repo | ariadne |
+| issue file | workshop/issues/000481-sdlc-queue-pause-resume-cancel-running-and-the-tl-worker-drain-rule-for-couch-drain.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 1179590a9230dc0f8eb7263aeeb1549ed09e411c..afb94a8e2be9d2477fbbe7b53d7b8eb7f52152c7 |
+| command | sdlc milestone-close --issue 481 --milestone M2 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-20T03:22:54-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned M2 implementation satisfies the reviewed admission and interruption contracts. BR-5 is addressed across both admission consumers, with regression tests independently confirmed to fail when each fix is reverted. No new blocking findings.
+
+```findings
+dispose:
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Go landing admission and Python weighted admission now acquire secondary locks nonblockingly under the global gate. Contention tests cover responsive pause, waiter cancellation and retained FIFO position. Independently reverting each fix in temporary copies made its regression test fail; both pass at the pinned head.
+```
+
+1. **Strengths**
+
+   - Global-before-local ordering is preserved at `cmd/sdlc/internal/landingline/line.go:234` and `scripts/test-lock.py:624`.
+   - Completion and cancellation serialize through `Lease.RetireOutcome`; tests cover both orderings.
+   - Managed cancellation tests verify descendant termination, retained diagnostics, absence of failed-suite evidence and same-head retry.
+   - README, atlas and worker help cover the new runtime and drain behavior.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed queuegate and landingline tests normally and with `-race`; all `TestQueue` tests normally and with `-race`; 15 Python pause tests; 16 priority tests through the production-provider wrapper; selected saved-pass and repeated-run compatibility tests; worker/helptext tests; and diff whitespace checks.
+
+   The standalone priority invocation lacked `bin/sdlc`; the repository wrapper supplied the provider and passed. No full suite or external pair#722 conformance rerun was performed during this review. Temporary mutation copies were removed; the checkout remains clean.
+
+6. **Architectural notes**
+
+   | Principle | Result |
+   |---|---|
+   | ARCH-DRY | Pass: existing schedulers, locks and process-group cleanup reused. |
+   | ARCH-PURE | Pass: pure models remain separated from runtime IO adapters. |
+   | ARCH-PURPOSE | Pass: suite, landing, ordinary merge and cleanup admissions are covered. |
+   | ARCH-MOCK | Pass: portable stores, real flocks and stateful GitHub fixtures exercise production seams. |
+   | ARCH-CONSTRAINTS | Pass: secondary contention releases the global gate; counted tests protect admission costs. |
+   | ARCH-SECURE | Pass: cancellation uses exact operation/incarnation bindings; reasons remain data. |
+   | ARCH-ORDER | Pass: deterministic barriers cover contention and completion/cancellation ordering; cancellation readers are joined. |
+   | ARCH-FUNERAL | Pass: leases, watchers, intents and diagnostic retention have explicit lifecycles. |
+   | ARCH-EVOLVE | Pass: strict codecs and additive-member preservation remain covered, including Python rewrites. |
+
+7. **Plan revision recommendations**
+
+   None. The existing BR-5 revision states the nonblocking-secondary-lock rule and identifies both consumers.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"b5fb9a33-5894-4f92-90f4-745b409f477c","repository":"github.com/xianxu/ariadne","issue_id":"000481","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/bf4f905406079241","reviewed_head":"afb94a8e2be9d2477fbbe7b53d7b8eb7f52152c7","slot":"ariadne:3","requested_at":"2026-10-20T10:18:49.928213Z"},"phase":"finished","pid":47961,"started_at":"2026-10-20T10:18:50.062487Z","finished_at":"2026-10-20T10:22:53.839615Z","session_id":"01a158d2-28b3-7f71-8175-c0c69ed43865","outcome":"returned"}] -->

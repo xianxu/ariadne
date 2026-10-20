@@ -431,6 +431,154 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: b5fb9a33-5894-4f92-90f4-745b409f477c
+            repository: github.com/xianxu/ariadne
+            issue_id: "000481"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/bf4f905406079241
+            reviewed_head: afb94a8e2be9d2477fbbe7b53d7b8eb7f52152c7
+            slot: ariadne:3
+            requested_at: "2026-10-20T10:18:49.928213Z"
+          phase: finished
+          pid: 47961
+          started_at: "2026-10-20T10:18:50.062487Z"
+          finished_at: "2026-10-20T10:22:53.839615Z"
+          session_id: 01a158d2-28b3-7f71-8175-c0c69ed43865
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: afb94a8e2be9d2477fbbe7b53d7b8eb7f52152c7
+        tracker_head: 5b852fb1a54ec096eaced18b17f9749319127bbf
+        branch_point: 8a44224ff0f867837283368f62c0344bcd322b25
+        since: "2026-10-20T01:19:56-07:00"
+        until: "2026-10-20T03:18:05-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-20T01:19:56-07:00"
+              end: "2026-10-20T03:18:05-07:00"
+              began: "2026-10-20T01:19:56-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 6f54d25cd0a5083782c5ed841f6915af8f9bd60698d7f8e90b1f9935fe8b289b
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 75756128
+              windows:
+                - start: "2026-10-20T01:19:56-07:00"
+                  end: "2026-10-20T03:18:05-07:00"
+            - harness: codex
+              id: 01a15865-a812-7ae1-b293-fd0d91059cdb
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a14367-9218-7872-89c3-f9a28c524834
+              digest: 93bf6ed81fe046b6ebc147dd0b8e6d0e0a9e90c3b3e06e840c9b0d1a41545688
+              started: "2026-10-20T08:20:19.645Z"
+              spawned: true
+              bytes: 2311426
+              windows:
+                - start: "2026-10-20T08:20:19.645Z"
+                  end: "2026-10-20T03:18:05-07:00"
+            - harness: codex
+              id: 01a1586d-3992-7242-ab2c-4427a72c88aa
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: c5a8d5f93adc68a80491a25a1d6b595b3594c243959b777603d21fd6c28ba5ec
+              started: "2026-10-20T08:28:36.266Z"
+              spawned: false
+              bytes: 710285
+              windows:
+                - start: "2026-10-20T08:28:36.266Z"
+                  end: "2026-10-20T03:18:05-07:00"
+            - harness: codex
+              id: 01a15871-6263-7d92-8c75-64419f58cf1d
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 404c0af4ca27bfe70cd74e03ba6f942cc7bbf8678821ab9511639517491ced4a
+              started: "2026-10-20T08:33:08.701Z"
+              spawned: false
+              bytes: 515584
+              windows:
+                - start: "2026-10-20T08:33:08.701Z"
+                  end: "2026-10-20T03:18:05-07:00"
+            - harness: codex
+              id: 01a15872-cb08-7721-aad1-06cfa3bdf4f5
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: ca135eb5ab2f41048986c73ba8d8265f86e5859e72499657056a1a6fe19621e4
+              started: "2026-10-20T08:34:40.935Z"
+              spawned: false
+              bytes: 469904
+              windows:
+                - start: "2026-10-20T08:34:40.935Z"
+                  end: "2026-10-20T03:18:05-07:00"
+            - harness: codex
+              id: 01a15873-4a93-7760-99c7-2c400abf6c0a
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: fbe94f17549253511c8ace0b7a7bdba4c7b8816404600763a10222d53182f8eb
+              started: "2026-10-20T08:35:13.533Z"
+              spawned: false
+              bytes: 424682
+              windows:
+                - start: "2026-10-20T08:35:13.533Z"
+                  end: "2026-10-20T03:18:05-07:00"
+            - harness: codex
+              id: 01a1589b-b325-7bf2-b979-0c0c3d0ee141
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a14367-9218-7872-89c3-f9a28c524834
+              digest: 7a0e775b5c49965500a4db61998033ab8a5d64b58436f2a05e3683fa9b00a0b5
+              started: "2026-10-20T09:19:21.466Z"
+              spawned: true
+              bytes: 1127626
+              windows:
+                - start: "2026-10-20T09:19:21.466Z"
+                  end: "2026-10-20T03:18:05-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-20T01:55:51-07:00"
+              finalized: "2026-10-20T01:58:18-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-20T02:15:29-07:00"
+              finalized: "2026-10-20T02:18:41-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-20T02:57:26-07:00"
+              finalized: "2026-10-20T03:02:26-07:00"
+              finalizing: false
+      "n": 4
+      timestamp: "2026-10-20T03:22:54-07:00"
+      dispatched: "2026-10-20T03:18:49-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-5
+          disposition: addressed
+          note: Go landing admission and Python weighted admission now acquire secondary locks nonblockingly under the global gate. Contention tests cover responsive pause, waiter cancellation and retained FIFO position. Independently reverting each fix in temporary copies made its regression test fail; both pass at the pinned head.
+          round: 4
+      boundary: M2
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: afb94a8e2be9d2477fbbe7b53d7b8eb7f52152c7
+      blocked: false
 ---
 
 # Gate ledger — ariadne#481 (boundary-review)
@@ -467,6 +615,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Critical] `transaction-deadline-enforcement` (kind: defect) Admission waits indefinitely on secondary locks while holding the global gate
   scripts/test-lock.py:620 takes Tickets.locked's blocking flock at line 559 inside QueueGate.try_admit's global transaction. cmd/sdlc/internal/landingline/line.go:234 similarly calls withMutex's blocking flock at line 559 inside gate(resource). A stopped or delayed allocation-lock holder therefore monopolizes the machine gate: pause/resume cannot acquire it, and unrelated admissions stall. A private foreground reproduction using the production Python admission path confirmed that admission remained blocked and control.lock remained held after 4.2 seconds; releasing the allocation lock immediately completed admission. This is the 2nd finding in family `transaction-deadline-enforcement`. Earlier rounds fixed instances. Do NOT fix only this instance: enforce the rule that every secondary lock acquired inside the global gate is nonblocking, releasing the gate and retrying on contention. Sweep both Go landing and Python weighted admission, preserve global-before-local ordering, and add deterministic contention tests proving pause remains responsive and cancellation terminates the waiter. ARCH-CONSTRAINTS / ARCH-ORDER.
 
+## Round 4 — 2026-10-20T03:22:54-07:00 (codex) — passed
+
+### Disposed
+
+- BR-5 — addressed — Go landing admission and Python weighted admission now acquire secondary locks nonblockingly under the global gate. Contention tests cover responsive pause, waiter cancellation and retained FIFO position. Independently reverting each fix in temporary copies made its regression test fail; both pass at the pinned head.
+
 ## Open findings
 
-- **BR-5** [Critical] `transaction-deadline-enforcement` (kind: defect) Admission waits indefinitely on secondary locks while holding the global gate
+(none — every finding has been disposed)
