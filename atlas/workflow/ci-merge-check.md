@@ -304,6 +304,34 @@ its assertions therefore must work without ignored, woven projections from
 an agent's long-lived slot; tests that need such files supply their own
 fixtures or condition their expectations on the projection being present.
 
+### The affected suite (#473)
+
+A repository can declare an *affected suite* in `.sdlc/affected.json`. It is read from main and parsed strictly by
+`internal/affected.ParseConfig`. If the file is absent, affected mode is off for that repo. The declaration is a
+separate file, not a field in `local-checks.json`, so that an older sdlc never sees it: that parser refuses unknown
+fields.
+
+`sdlc local-check run --name affected` diffs the head against its merge-base with main. `affected.Plan` classifies
+each changed path:
+- docs are ignored, by the publish gate's rule;
+- a `full` glob forces the full suite;
+- otherwise the path selects its nearest Go package *and* every group whose `paths` match it, additively;
+- a path neither claims forces the full suite.
+
+The packages then expand to every package that depends on them. Those dependencies come from
+`internal/affected.LoadGoGraph`, which runs `go list -test` in a worktree of the head, so test imports count. Groups
+whose `go` roots depend on a selected package are added.
+
+The run then takes one of three paths:
+- **Some packages or groups selected:** the declared command runs under the env contract.
+  `SDLC_AFFECTED_GO_PKGS` and `SDLC_AFFECTED_GROUPS` are sorted and space-separated, passed through `env(1)` argv.
+  The result is recorded as `sdlc-local/affected`, with the selection leading the status description.
+- **Full selection:** the run is the declared `suite` instead, recorded as `sdlc-local/suite`. There is never an
+  affected record that claims to be full.
+- **Docs-only change:** `sdlc-local/affected` is recorded without running anything.
+
+The name `affected` is reserved in `local-checks.json`.
+
 ## Not the same as the publish gate or the close review
 
 Three distinct tiers, none an LLM at merge-time (#160):
