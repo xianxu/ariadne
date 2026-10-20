@@ -37,6 +37,10 @@ type carGates struct {
 // train landed it, and its outcome never arrived: a conductor that died after
 // the merge, a lost settle): the wait is over, and the merge resumes.
 func carReadiness(ctx context.Context, r gitRunner, gh landingGH, t landingTarget, branch string, g carGates, now time.Time) (ready landingline.Readiness, merged bool) {
+	// A waiting merge may outlive an external close or reopen. Share one
+	// coherent tracker generation inside this pass, never the command's
+	// earlier generation or another concurrent readiness pass's cache.
+	ctx = withIssueRecordsScope(ctx)
 	no := func(format string, a ...any) (landingline.Readiness, bool) {
 		return landingline.Readiness{Branch: branch, Reason: fmt.Sprintf(format, a...), At: now}, false
 	}
@@ -200,16 +204,16 @@ func trainAdmission(sched func() landingline.Schedule, now func() time.Time) fun
 	return func() landingline.AdmissionRule {
 		s := sched()
 		if s.Off() {
-			return func([]landingline.Event, landingline.Ticket, *landingline.Readiness, bool) (bool, string) {
+			return func([]landingline.Event, landingline.Ticket, *landingline.Readiness, bool, landingline.Waiters) (bool, string) {
 				return true, ""
 			}
 		}
-		return func(events []landingline.Event, t landingline.Ticket, r *landingline.Readiness, granted bool) (bool, string) {
+		return func(events []landingline.Event, t landingline.Ticket, r *landingline.Readiness, granted bool, w landingline.Waiters) (bool, string) {
 			if granted {
 				return true, ""
 			}
 			at := now()
-			if due, why := landingline.DepartureDue(at, s, events); !due {
+			if due, why := landingline.DepartureDue(at, s, events, w); !due {
 				return false, why
 			}
 			if r == nil {

@@ -314,6 +314,12 @@ func startPlanBranch(ctx context.Context, stdout io.Writer, issueID int) error {
 		return err
 	}
 	detailPath := path.Join(dirs.Rel[0], path.Base(card.Path))
+	// #483: only a started issue can have a branch that landed.
+	if !vocab.Issue().IsOpen(status) {
+		if err := refuseLandedIssue(env, id, issue.BranchName(detailPath)); err != nil {
+			return err
+		}
+	}
 	// #303: new work starts from a slot and dependencies caught up to main.
 	if env.onRest() {
 		if err := catchUpBeforeWork(ctx, stdout, env.root, issueID); err != nil {

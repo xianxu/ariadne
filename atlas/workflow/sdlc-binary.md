@@ -450,7 +450,15 @@ into trains. Absent, or an interval of 0, keeps the serial line above. With
 trains on:
 - A waiting merge vouches its readiness in `ready/<seq>` beside its ticket
   (`landingcar.go`): its own publish and CI gates, read-only, for its exact
-  pushed head. Where main declares `.sdlc/affected.json`, `carCIGateFacts`
+  pushed head. Each `carReadiness` pass gets a nested issue-records scope
+  (#499): it observes external close/status updates on the next pass while
+  sharing one coherent tracker generation across that pass's gates, without
+  invalidating the parent command or another pass. Transferred-details ownership
+  checks and completion selection use the parsed `Records.CardSnapshot`;
+  alternate details directories reuse those cards through `Records.WithDetails`.
+  The publication checkout selects that card authority, even if a configured
+  details directory points into another repository. Where main declares
+  `.sdlc/affected.json`, `carCIGateFacts`
   makes a recorded `affected` run stand in for `suite` (`ciInputs.StandIn`,
   #473 D3): the train's prefix suite is the one full run. Merge without a
   train sets no stand-in.
@@ -462,10 +470,21 @@ trains on:
 
 `sdlc landing status` shows the train setting and each waiter's vouch.
 
+**Departure slots, N-or-Y, no clock reset (#475).**
+- **Due check:** `DepartureDue(now, schedule, events, Waiters)` (`internal/landingline/train.go`) decides when a train leaves. It leaves early when `train_max_cars` cars are ready, or when the oldest has waited `train_max_wait_minutes`, measured from its first ready vouch (`Readiness.Since`, kept across re-vouches at one head). Otherwise it leaves when the next departure comes.
+- **The next departure** (`NextDue`) is the grid's next slot after the last train when the repository has a machine-plan offset (`Slots`, `internal/landingline/slots.go`: epoch + offset + k·interval, never shifted by an early departure), and the interval after it otherwise.
+- **Lone and granted landings** are not departures: their `alone` record carries no `NextDue`, unless they left cars ready, which can only bring the next train forward.
+- **Admission and status:** each admission pass gets a `Waiters` summary (`ReadyWaiters`). Train events record `departed`. `sdlc landing status` prints the same decision with its reason.
+- **Machine plan (M2):** one file per machine, `landing-plan.json` beside the suite lock, gives each repository its grid offset.
+  - It is decoded and packed in `internal/landingline/plan.go`. `MachinePlan` keeps unknown members; `PackOffsets` places the heaviest p90 × weight reservation first, within the machine's suite slots.
+  - It is read by `landingScheduleSource`, under the schedule's 30 s cache (`landingconfig.go`, `machinePlanPath` / `readMachinePlan`).
+  - It is written by `sdlc landing plan [--write]` (`landingplan.go`). Its costs come from `buildTestStatsReport` and `fleetRepoPaths` (split out of test-stats) and each repository's declared suite weight on main.
+
 **The conductor** (`landingtrain.go`) is the admitted head when other cars board:
 - **Boarding:** cars are boarded only after their remote tip and open PR are re-read at the vouched head.
 - **Build:** it builds `landing-train/<id>` in a detached worktree from fetched main, then each car's exact head. The instance and duplicate-ID gates run per prefix, and a conflict holds that car.
 - **One PR, one suite:** it opens one train PR and runs one recorded suite (#394's flake step inside it) and CI on it.
+- **Suite ownership:** the detached train is the content tree; its original conductor checkout remains the caller through `localRunDeps.WorkflowAnchor` and `callerRoot()`. Saved attempts (including baselines and prefix retries), queue operations, cancellation leases and capacity-holder diagnostics use that caller. Relative Git common directories resolve there too. Overlapping issues' actuals can then exclude another slot's train wait without inventing provenance (#492).
 - **Merge:** it merges once, pinned to the head. GitHub marks each car's PR merged by reachability.
 - **Outcomes:** every car is told through `outcomes/<seq>` (boarded, landed, held, refused, released). A landed car finishes today's resume cleanup.
 - **Landed commit:** each car proves its landing with `landedCommit` (its mergeCommit or its own head on main; `LandedOID` feeds the archive and the card).
@@ -2333,6 +2352,11 @@ waiter ahead), or `position 1 in line: next to run` for the head.
 It asks for `2 of 2 full-suite slots` for a weight-2 run. The wait also names
 normal FIFO or fleet-blocking issue/deadline, and reports class/position changes
 immediately rather than waiting for the periodic diagnostic.
+If contention or a pause prevents validating order, it reports `position unknown`
+until an observation is available, then explicitly labels reused diagnostics
+`last observed`. Missing order is never treated as zero predecessors. Switching
+between a validated order and its cached diagnostic alone does not repeat the
+log; periodic reports and fresh pause reasons still apply (#491).
 
 While waiting it prints `[test-lock] waiting Ns for one of N full-suite slots …;
 held by:` and one `<repo> (<worktree>), make pid P, since T` line per holder,
