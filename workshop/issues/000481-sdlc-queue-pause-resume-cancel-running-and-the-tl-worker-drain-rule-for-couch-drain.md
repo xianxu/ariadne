@@ -193,6 +193,12 @@ Authenticated submitted pair:5 receipt e3701d33-6b0b-4b49-b962-ef6e33381e43 conf
 
 Recorded suite on afb94a8e completed in 495.5s: all other shards/packages passed; TestVerbContextsReachTrackerReads alone rejected queueRuntime.finish's context.Background. Narrow reproduction confirmed it. Retirement already had a three-second cleanup budget; it now accepts the caller context and preserves values through context.WithoutCancel before applying that same budget, matching existing cleanup patterns. All suite/merge/landing callers pass their context; no guard exemption, new state or admission mechanism. New TestQueueRuntimeRetiresAfterCallerCancellation fails with context canceled when detachment is removed and passes with the fix. Targeted guard/runtime/interruption race checks passed 4.887s. Re-close and a fresh recorded full suite are required; the failed attempt remains evidence, never a flake.
 
+### 2026-10-20 — final suite pass and landing integration
+
+Corrected recorded suite on 0d27dcb7 passed all 12 shards (1,825 sdlc tests) and 73 other packages, zero failures and no flake rerun, wall 584.5s. Entered merge promptly. Its turn integrated current main but aborted on the sole conflict in README.md: #481 queue-drain documentation and #473 affected-suite documentation both added after the same paragraph. Manual integration retains both sections verbatim; all Go files auto-merged without conflict. The resolution is prose only; fix review will review it, and merge's required exact-head integration suite remains mandatory for the combined code.
+
+Cleanup ownership: the slot's conformance base now also contains pair:5-owned consumer-repeat.2TGKnT and queue-unknown-pair5 diagnostics. After landing remove only this slot's fleet/queue children and private verification registry, preserving those peer-owned directories and their parent.
+
 ## Revisions
 
 ### 2026-10-20 — M1 review corrections

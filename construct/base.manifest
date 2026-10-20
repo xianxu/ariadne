@@ -26,6 +26,11 @@
 #               no-op when identical. (Was write-once through #45; that left
 #               derivatives stranded on stale entrypoints — now it converges.)
 #               See #42.
+#   decline   — the repo opts out of inherited rows (#467): `decline <path>`
+#               drops every ancestor row whose target is <path> or under it, and
+#               leaves files already there alone. Honored only in the repo being
+#               woven (the leaf), never from an ancestor; weave reports each
+#               declined row. e.g. ops: `decline .github/workflows`.
 #
 # `copy` was retired in #38 — substrate is symlink-only. For operator-
 # divergent customization, use per-operator branches in the source repo

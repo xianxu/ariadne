@@ -503,6 +503,7 @@ func compilePreparedSettings(ctx context.Context, fs weavefs.FS, root string, ta
 	if err != nil {
 		return fmt.Errorf("load layers: %w", err)
 	}
+	printDeclined(layers, out)
 	dyns, err := walk.DynamicSkills(fs, layers)
 	if err != nil {
 		return fmt.Errorf("select dynamic skills: %w", err)
@@ -741,6 +742,29 @@ func planActions(fs weavefs.FS, layers []layer.Layer, target plan.Target) ([]pla
 	actions = append(actions, plan.EnsureGitignore{Entries: plan.GeneratedGitignoreEntries(actions)})
 	actions = append(actions, plan.EnsureGitattributes{Entries: plan.UnionMergeAttributes})
 	return actions, nil
+}
+
+// printDeclined reports the leaf's opt-outs (#467) by name, so a declined row
+// is never dropped silently and a stale decline stays visible.
+func printDeclined(layers []layer.Layer, out io.Writer) {
+	if len(layers) == 0 {
+		return
+	}
+	for _, d := range layers[len(layers)-1].Declined {
+		if d.Extra != "" {
+			fmt.Fprintf(out, "weave: warning: decline takes one path; ignored the row: decline %s %s\n", d.Path, d.Extra)
+			continue
+		}
+		if len(d.Removed) == 0 {
+			fmt.Fprintf(out, "weave: warning: decline %s matches no inherited row\n", d.Path)
+			continue
+		}
+		rows := make([]string, len(d.Removed))
+		for i, in := range d.Removed {
+			rows[i] = in.Kind.Verb() + " " + in.Target
+		}
+		fmt.Fprintf(out, "weave: declined %s: opted out of %d inherited row(s): %s\n", d.Path, len(rows), strings.Join(rows, ", "))
+	}
 }
 
 // buildSkillIndex is weave's SINGLE skill pipeline (#104): walk.GatherSkills (the

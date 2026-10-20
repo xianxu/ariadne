@@ -584,6 +584,23 @@ Managed local checks retain their latest raw interruption log per check/head as
 accepted suite attempts. The normal newest-20-head log retention applies.
 `tl-worker --help` describes the durable checkpoint and drain acknowledgment.
 
+A repository can also declare an **affected suite** (#473) in `.sdlc/affected.json`; without the file the mode is off.
+`sdlc local-check run --name affected` then runs only what the branch's change can break, and the result of a
+pushed head's run depends on what changed:
+
+- **Code or a declared group changed:** sdlc runs the repo's affected command with `SDLC_AFFECTED_GO_PKGS` and
+  `SDLC_AFFECTED_GROUPS` set and records `sdlc-local/affected`. `SDLC_AFFECTED_GO_PKGS` holds the changed Go packages
+  plus every package that imports them, test imports included (from `go list`). `SDLC_AFFECTED_GROUPS` holds the
+  declared non-Go test groups the change touches. Both are sorted and space-separated.
+- **A `full` path or an unclassified file changed:** sdlc runs and records the `suite` instead.
+- **Only docs that no package owns or embeds changed:** sdlc records `affected` without running anything.
+- **Nothing changed against main:** the run refuses.
+
+Selection follows imports and embeds only. A Go test that scans *other* packages' source, or reads a non-Go file
+outside its own `testdata/` and embeds, is invisible to it, so the repo's affected command or its `full` globs must
+cover such tests (see pair#725). The schema, the classification rules and these blind spots are in [the affected
+suite](atlas/workflow/ci-merge-check.md#the-affected-suite-473).
+
 Recorded suites and their baselines replace unusable inherited `TMPDIR` and
 `GOTMPDIR` with writable per-run paths, even when TestScratch falls back.
 A proven Go work-directory startup failure reports an environment error naming
@@ -625,8 +642,9 @@ trailers cannot change its package.
 `sdlc flake list` is the TL's local daily view: the registry with each
 issue's owner and age, same-head flakes not yet registered, and failures nothing
 explains, each with its log. A same-head failure is omitted from the default
-unregistered list when exactly one closed issue claims its fully qualified test
-in the card's `flake_tests`, and its fix merge landed after the failing head.
+unregistered list when exactly one closed issue's card `flake_tests` covers the
+failing leaf by the gate's rule (the test itself, or its nearest registered
+ancestor, #479), and its fix merge landed after the failing head.
 Issue Markdown never claims a test. `sdlc flake list -v` shows omitted rows
 with the fixing issue and merge. A failure on a head containing that merge stays
 visible as a recurrence; ambiguous or unreadable evidence also stays visible,

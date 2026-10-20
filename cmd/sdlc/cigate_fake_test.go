@@ -27,6 +27,7 @@ type ciFakeGH struct {
 	heads    map[int]string
 	checks   map[string][]prCheck         // sha → CI checks
 	statuses map[string]map[string]string // sha → context → state
+	descs    map[string]map[string]string // sha → context → description
 	jobs     map[int64]jobRun
 	comments map[int][]string
 	known    map[string]bool // shas GitHub knows (pushed); a status on any other is a 422
@@ -34,7 +35,7 @@ type ciFakeGH struct {
 }
 
 func newCIFakeGH() *ciFakeGH {
-	return &ciFakeGH{heads: map[int]string{}, checks: map[string][]prCheck{}, statuses: map[string]map[string]string{},
+	return &ciFakeGH{heads: map[int]string{}, checks: map[string][]prCheck{}, statuses: map[string]map[string]string{}, descs: map[string]map[string]string{},
 		jobs: map[int64]jobRun{}, comments: map[int][]string{}, known: map[string]bool{}}
 }
 
@@ -89,7 +90,7 @@ func (g *ciFakeGH) JobRun(_ context.Context, _ string, id int64) (jobRun, error)
 	return j, nil
 }
 
-func (g *ciFakeGH) PostStatus(_ context.Context, _, sha, statusContext, state, _ string) error {
+func (g *ciFakeGH) PostStatus(_ context.Context, _, sha, statusContext, state, desc string) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if !g.known[sha] {
@@ -99,6 +100,13 @@ func (g *ciFakeGH) PostStatus(_ context.Context, _, sha, statusContext, state, _
 		g.statuses[sha] = map[string]string{}
 	}
 	g.statuses[sha][statusContext] = state
+	if g.descs == nil {
+		g.descs = map[string]map[string]string{}
+	}
+	if g.descs[sha] == nil {
+		g.descs[sha] = map[string]string{}
+	}
+	g.descs[sha][statusContext] = desc
 	return nil
 }
 

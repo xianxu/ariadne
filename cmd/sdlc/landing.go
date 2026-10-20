@@ -576,7 +576,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 				continue
 			}
 			if !f.NoValidate {
-				if err = runLandingInstanceGate(targetMain, head, nounGates(f.IssuesDir), stdout, stderr, r); err != nil {
+				if err = runLandingInstanceGate("", targetMain, head, nounGates(f.IssuesDir), stdout, stderr, r); err != nil {
 					return err
 				}
 				if err = runLandingDuplicateGate(targetMain, head, f.IssuesDir, f.HistoryDir, r); err != nil {
@@ -634,7 +634,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 						// Main may have gained issue IDs or published details
 						// during CI. Reuse the gates against that exact destination.
 						if !f.NoValidate {
-							if err = runLandingInstanceGate(latest, head, nounGates(f.IssuesDir), stdout, stderr, r); err != nil {
+							if err = runLandingInstanceGate("", latest, head, nounGates(f.IssuesDir), stdout, stderr, r); err != nil {
 								return err
 							}
 							if err = runLandingDuplicateGate(latest, head, f.IssuesDir, f.HistoryDir, r); err != nil {

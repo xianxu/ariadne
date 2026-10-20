@@ -96,7 +96,7 @@ func TestScratchFallbackOverridesInheritedTemp(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer cleanup()
-	helper, err := prepareSuiteHelper(context.Background(), d.Root)
+	helper, err := prepareSuiteHelper(context.Background(), d.Root, "")
 	if err != nil {
 		t.Fatal(err)
 	}

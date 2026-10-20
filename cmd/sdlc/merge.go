@@ -429,7 +429,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) (err error) {
 	// Deterministic, separate from the judges. Runs after the branch is synced to
 	// origin (merge is server-side) so it checks the same tree that will merge.
 	if !f.NoValidate {
-		if err := validateChangedInstancesFn(gitx.DiffBase(), "", nounGates(f.IssuesDir), stdout, stderr); err != nil {
+		if err := validateChangedInstancesFn("", gitx.DiffBase(), "", nounGates(f.IssuesDir), stdout, stderr); err != nil {
 			die(stderr, err.Error()+"\n  → fix and `sdlc pr` (merge is server-side), or --no-validate to bypass.")
 		}
 	} else {
