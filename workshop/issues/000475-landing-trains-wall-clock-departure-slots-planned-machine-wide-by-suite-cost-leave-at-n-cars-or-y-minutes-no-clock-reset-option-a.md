@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # landing trains: wall-clock departure slots planned machine-wide by suite cost; leave at N cars or Y minutes; no clock reset (option A)
