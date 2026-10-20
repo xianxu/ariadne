@@ -87,6 +87,7 @@ Items, in order:
 ### 2026-10-19
 
 ### 2026-10-20
+- 2026-10-20: closed M1 — M1 departure rule with round-1 fixes: Slots grid; DepartureDue reasons (slot/interval/max wait/full/cars left ready) shown by landing status (TestLandingStatusShowsTrainsAndReadiness); Departed read at decision time so an offset change applies at once and old-format alone records never schedule (TestNextDepartureReadsTheDeparture); reset fix (grant e2e fails with the old serial NextDue); Since with SinceHead guards against stale carry (TestStaleSinceFromAnOlderSdlc, TestVouchKeepsSince); README and landing help updated; atlas updated. landingline and landing sdlc tests pass.; review verdict: SHIP
 - Claimed and started from ariadne:4. Parked for #490 at the hub's request, then resumed.
 - Code map (explore digest), kept for the plan:
   - The only schedule is the last `EventTrain`'s `NextDue` (`train.go:58-77`).
