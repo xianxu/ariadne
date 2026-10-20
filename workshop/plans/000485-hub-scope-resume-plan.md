@@ -183,3 +183,7 @@ if the existing one becomes unwieldy.
 - ARCH-FUNERAL: creates no new durable runtime objects; existing temporary-body cleanup, section history
   and Couch receipt retention remain authoritative. Test files use t.TempDir.
 - ARCH-EVOLVE: no persisted-format change. Refuse scoped rewrites that would discard a hidden hold.
+
+## Revisions
+
+- 2026-10-20 13:44 PDT — TL approved this plan (Couch delivery bac6759f-4e2e-4a0d-a272-4c8409efe48e); the proposed approval label above is historical. All ownership, terminal polling, stop/nonzero and hidden-hold decisions are accepted. Add explicit acceptance: fleet resume remains operator-started and never runs automatically at startup; retain that wording in --help and test it. No further operator review is required for these settled recovery behaviors.

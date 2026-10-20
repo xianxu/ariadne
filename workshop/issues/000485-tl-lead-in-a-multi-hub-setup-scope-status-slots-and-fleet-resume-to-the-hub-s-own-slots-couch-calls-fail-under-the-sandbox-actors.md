@@ -157,3 +157,5 @@ bare-call rule.
 ## Revisions
 
 - 2026-10-20 13:43 PDT — proposed design after Codex handoff: include the TL's 11:00/11:15 serial-resume acceptance in Done when. Reuse Couch's existing terminal-receipt polling instead of adding a second poller (ARCH-DRY). Count unclaimed slots without guessing the main hub; --all is visibility only. Add explicit protection against losing an existing hold when narrowing Slots. Full details and state/recovery table are in the durable plan; approval pending.
+
+- 2026-10-20 13:44 PDT — TL approved the durable plan and authorized change-code. Added constraint: fleet resume remains operator-started, never automatic at startup; preserve --help wording and assert it in tests. Approval is delivery bac6759f-4e2e-4a0d-a272-4c8409efe48e, authenticated as submitted from ops:0 to this incarnation. The earlier awaiting-approval notes are historical.
