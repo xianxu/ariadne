@@ -183,3 +183,62 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"70a41027-e73a-4367-97e3-94daa74f1455","repository":"github.com/xianxu/ariadne","issue_id":"000473","recipe":"fix-review","round":7,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/264af91e9c4815db","reviewed_head":"ed4b83b402a5a80103c576efcde93f78811e6dcf","slot":"ariadne:2","requested_at":"2026-10-20T10:15:43.573064Z"},"phase":"finished","pid":19683,"started_at":"2026-10-20T10:15:43.660056Z","finished_at":"2026-10-20T10:27:16.934227Z","session_id":"41698dae-c926-4527-aa24-84a591d7b462","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T03:29:55-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 473 — test-economy: affected-suite as close evidence; the full suite runs once, in the train or at merge (option B') |
+| repo | ariadne |
+| issue file | workshop/issues/000473-test-economy-affected-suite-as-close-evidence-the-full-suite-runs-once-in-the-train-or-at-merge-option-b.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 3b0eb2d8acc4b9d09a7cc71825a0437687c275f7..cd915a78a03859cac5af39bd19ec079eba71961d |
+| command | sdlc close --issue 473 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | checkout |
+| timestamp | 2026-10-20T03:29:55-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I've confirmed the fix's regression goes red when reverted. Now I'm checking the plan-record diffs for any scope change.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This fix window does what BR-15 asked and changes nothing else. `jsonstrict.RejectDuplicateKeys` now compares keys with `foldKey` (`cmd/sdlc/internal/jsonstrict/jsonstrict.go:18`). `foldKey` maps each rune to the smallest member of its Unicode simple-fold set, so two keys match exactly when `strings.EqualFold` says they do. That is the same rule encoding/json uses to match field names. The earlier `strings.ToLower` comparison only caught ASCII and simple case pairs. I wrote a small probe to check the real decoder: `{"groupſ":[1]}` fills the `groups` field. So the long-s case (`groupſ` vs `groups`) was a real hole, and it is now closed. When I put `strings.ToLower` back, the new long-s test fails. With the fix in place, the package tests pass and a 20-second run of `FuzzFoldKey` (about 2.2M inputs) found no mismatch against `strings.EqualFold`. The only other changes in the window are close-gate and close-review records (reviewer runs, actual inputs). There is no change to `## Spec`, `## Revisions` or `## Done when`, the plan file is untouched, and no conflict resolutions are listed. The checkout was left clean after the revert experiment.
+
+1. **Strengths**
+   - `foldKey` is a canonical form, so duplicate detection is one map lookup, not a pairwise `EqualFold` scan (`jsonstrict.go:18-26`).
+   - `FuzzFoldKey` checks the fold against encoding/json's own matching rule, not against a copy of the implementation. Its seeds include the edge cases `ſ`, the Kelvin sign and `ß`/`SS`.
+   - There is a negative case: `straße`/`STRASSE` is not a simple fold, so the two keys stay distinct, which matches encoding/json.
+   - The fix is made once, in the shared helper. Its only caller, `affected/config.go:40`, gets it with no further change.
+
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none.
+5. **Test coverage:**
+   - Reverting the fix makes the long-s case fail.
+   - The Kelvin-sign case also passed under `ToLower`, so it pins nothing new on its own, but it costs nothing to keep.
+   - The fuzz target covers the general claim that `foldKey` agrees with `strings.EqualFold`.
+6. **Architecture:**
+   - **ARCH-DRY: pass.** There is one helper and one caller.
+   - **ARCH-PURE: pass.** `foldKey` is a pure function, tested directly.
+   - **ARCH-PURPOSE: pass.** The fix covers the whole class: every pair encoding/json would treat as the same field, not only `command`/`COMMAND`. BR-15's rule is worded more broadly ("any key that is not an exact tag match"), but the defect it describes is last-one-wins on duplicates. A single non-exact key loses no data.
+   - **ARCH-EVOLVE: pass.** Duplicate keys are now as strict as encoding/json's matching requires, and no known-field rule was loosened.
+7. **Plan revisions:** none needed.
+
+```findings
+dispose:
+  - id: BR-15
+    disposition: addressed
+    note: |
+      jsonstrict.go:18 foldKey (Unicode simple-fold orbit minimum) equals strings.EqualFold, the rule encoding/json uses for field names; the long-s test fails when ToLower is restored; FuzzFoldKey passes at about 2.2M execs; the only caller is affected/config.go:40.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"f5f9bb67-bf4e-4ffa-bffa-f56830dfe931","repository":"github.com/xianxu/ariadne","issue_id":"000473","recipe":"fix-review","round":8,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/d4992fda47cb4495","reviewed_head":"cd915a78a03859cac5af39bd19ec079eba71961d","slot":"ariadne:2","requested_at":"2026-10-20T10:28:35.223093Z"},"phase":"finished","pid":36999,"started_at":"2026-10-20T10:28:35.31544Z","finished_at":"2026-10-20T10:29:54.70072Z","session_id":"e2b8c3b4-9929-4d61-8793-bf3425bacfa0","outcome":"returned"}] -->
