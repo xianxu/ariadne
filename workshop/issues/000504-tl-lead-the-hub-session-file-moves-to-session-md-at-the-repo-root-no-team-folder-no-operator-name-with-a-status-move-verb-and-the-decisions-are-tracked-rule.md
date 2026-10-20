@@ -45,6 +45,8 @@ decision made in a side doc gets copied into the tracked artifact (issue, projec
   temporal picture in the session file).
 - Check parley's attention finder still lists side docs under the new parent (adjust in parley.nvim if not).
 
+- Migration input envelope: only plain `parent: ../file.md` forms emitted by tl-lead are accepted; other parent forms refuse before effects with the file named. Append missing ignore lines, then require real Git ignore checks for every destination before copying. Preserve ordinary document business-owner metadata.
+
 ## Done when
 
 - Tests: `tl-lead status move` on a fixture renames file and side docs, rewrites links, and refuses under a lock.
@@ -95,6 +97,10 @@ Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 
 - Final suite launched on adec0f4c6c0e (PR #351); machine gate reports FIFO position 2 behind ariadne:3 and parley.nvim:2. No pass yet. Per tl-worker explicit review/suite overlap permission, start close review while the suite queues. Pre-stage verification wording and Plan now state launch plus hold, not a false suite-pass claim. Green suite and SHIP remain required before staging, and all live migration evidence remains required before merge. Stage dry-run only; no build staged.
 
+- Boundary review round 1: REWORK, BR-1 (Critical) accepted parent syntax exceeded link transform support; BR-2 (Important) later negations defeated pattern-presence ignore checks. Targeted tests reproduced both classes, plus business-owner metadata rejection. TL approved plain-parent-only refusal (delivery 8587784a-497c-46c5-b96a-781a4dc99c0f) and simple Git check-ignore verification, explicitly declining structural YAML preservation or owned ignore-block management. Added pre-effect parent validation, typed session-only routing checks, and effective destination ignore checks before copies. No new journal or state machine mechanism. The queued pre-fix suite was canceled before admission; requeue the corrected code.
+
+- Review fixes verified: `go test ./cmd/tl-lead ./pkg/sidedoc ./pkg/golint -count=1` passed (15.158s, 0.138s, 0.803s); scratch `TL_LEAD_LIVE=1 go test ./cmd/tl-lead -run 'TestSessionSync.*Conformance' -count=1 -v` passed (2.809s). Parent refusal tests failed on every formerly accepted unsupported form before the guard; business-owner preservation failed before routing was scoped; real Git-negation tests failed before effective-ignore checks.
+
 ## Landing hold
 
 Pending: green suite and SHIP → final build staged → TL/operator migrate both live hubs → TL evidence appended here → stage cleared → merge. Worker must not merge before the TL returns that evidence.
@@ -115,6 +121,12 @@ Superseded Done when: “Last step, manual: migrate the two live hubs … with t
 ### 2026-10-20 — verification scheduling clarification
 
 `tl-worker --help` explicitly permits close review to overlap a queued recorded suite when the final tested code must pass before landing and review fixes requeue the suite. Use that permission for this queued run; the approved green-suite-and-SHIP requirement still precedes staging. No acceptance was waived and no pending test result is claimed as a pass.
+
+### 2026-10-20 10:54 PDT — boundary corrections, TL-approved narrow input envelope
+
+BR-1: accept only the literal plain parent form produced by tl-lead. Quoted, commented, tagged, aliased, block and quoted-key forms refuse before effects with their source file. This supersedes the initial implicit broader-parent acceptance; no structural YAML preservation is added. Ordinary non-session-sync business `owner`/`operator` metadata remains untouched.
+
+BR-2: retain append-only-if-missing ignore lines, then require real `git check-ignore` success on every destination before copying. Existing negations are not rewritten or hidden; refusal keeps sources and copies untouched, though missing ignore additions can remain. The TL approved this policy. Current Spec and runtime help now state both boundaries.
 
 ## Estimate
 

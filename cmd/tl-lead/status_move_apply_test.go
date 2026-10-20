@@ -275,6 +275,46 @@ func TestSessionMoveNestedSessionRegistration(t *testing.T) {
 	}
 }
 
+func TestSessionMoveParentRefusals(t *testing.T) {
+	for _, parent := range []string{
+		"parent: '../tl-status-op.md'\n",
+		"parent: \"../tl-status-op.md\"\n",
+		"parent: ../tl-status-op.md # backlink\n",
+		"parent: !!str ../tl-status-op.md\n",
+		"ref: &ref ../tl-status-op.md\nparent: *ref\n",
+		"parent: |-\n  ../tl-status-op.md\n",
+		"'parent': ../tl-status-op.md\n",
+	} {
+		t.Run(parent, func(t *testing.T) {
+			root, old, f := sessionMoveFixture(t)
+			rel := "teams/dev/tl-status-op.side/01-a.md"
+			writeFile(t, filepath.Join(root, rel), "---\ntype: side-doc\n"+parent+"---\nbody\n")
+			err := moveSession(deps{ss: f}, &bytes.Buffer{}, root, old, true, nil)
+			if err == nil || !strings.Contains(err.Error(), rel) || !strings.Contains(err.Error(), "parent") {
+				t.Fatalf("unsupported parent accepted or unnamed: %v", err)
+			}
+			if _, err := os.Stat(filepath.Join(root, ".gitignore")); !os.IsNotExist(err) {
+				t.Fatal("parent refusal changed ignore file")
+			}
+			if _, err := os.Stat(filepath.Join(root, "session.md")); !os.IsNotExist(err) {
+				t.Fatal("parent refusal published copies")
+			}
+		})
+	}
+}
+
+func TestSessionMovePreservesOrdinaryOwner(t *testing.T) {
+	root, old, f := sessionMoveFixture(t)
+	writeFile(t, filepath.Join(root, "teams/dev/tl-status-op.side/01-a.md"), "---\ntype: side-doc\nparent: ../tl-status-op.md\nowner: {team: devinfra}\noperator: [one, two]\n---\nbody\n")
+	if err := moveSession(deps{ss: f}, &bytes.Buffer{}, root, old, true, nil); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(root, "session.side/01-a.md"))
+	if err != nil || !strings.Contains(string(b), "owner: {team: devinfra}\noperator: [one, two]") {
+		t.Fatalf("business metadata changed: %s %v", b, err)
+	}
+}
+
 func TestSessionMoveCorpus(t *testing.T) {
 	root := t.TempDir()
 	root, _ = filepath.EvalSymlinks(root)

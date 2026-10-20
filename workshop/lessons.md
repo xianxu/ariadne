@@ -1170,3 +1170,10 @@ The simplest durable authority beats a clever scan of consequences.
   type string to decide whether session state needs migration; classify through
   the typed metadata parser. The nested-session regression spans equivalent YAML
   spellings and asserts registration refusal before copies.
+
+- #504 BR-1/BR-2: an input validator must accept no broader reference syntax
+  than its transformer can preserve. Reject unsupported parents before effects,
+  and test deletion eligibility through the migration. Ignore-pattern presence
+  is not effective Git policy: check each destination with Git before copying.
+  These are semantic publication invariants defended by the parent/ignore
+  migration regressions; raw-field API misuse also has the scoped Go lint rule.

@@ -142,6 +142,9 @@ func runSessionMove(d deps, out io.Writer, s sessionMoveSnapshot, p sessionMoveP
 			return err
 		}
 	}
+	if err := verifyMoveIgnores(s.Root, s, p); err != nil {
+		return err
+	}
 	for _, m := range p.Files {
 		if err := check(m); err != nil {
 			return err

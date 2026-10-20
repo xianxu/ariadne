@@ -185,3 +185,17 @@ final build, TL/operator migrate both hubs and return evidence, append evidence,
 clear stage, then merge. Live migration is an explicit post-close/pre-merge hold;
 closing alone never authorizes merge. The issue's current Done when and Plan
 match this ordering. No implementation behavior changed.
+
+
+### 2026-10-20 10:54 PDT — BR-1/BR-2 narrow corrections
+
+TL approved the smaller fix: `moveMetadataFields` validates an exact plain
+parent scalar before the existing link rebase. Other parent spellings refuse
+before effects; no structural YAML rewrite is built. Routing-only owner and
+operator validation applies to session-sync, preserving ordinary business
+metadata. `verifyMoveIgnores` in status_move_ignore.go uses real Git checks
+for every destination after missing ignore additions and before copies. It
+does not manage an owned block or override negations. Integration regressions
+assert named parent refusals and unchanged sources/copies for exposed paths.
+The earlier parent-syntax and effective-ignore assumptions are superseded by
+these explicit input and publication boundaries, with no journal or state change.

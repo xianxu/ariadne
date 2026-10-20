@@ -93,3 +93,11 @@ older answer migration delegates stationary index rebasing to it. Parley's
 attention finder derives `.side/` from the registered parent path, so root
 session.side/ works without a peer change; nested side-doc discovery retains
 its existing one-level-per-open behavior and migrated mtimes.
+
+Migration metadata validation accepts only plain parent scalars matching the
+syntax emitted by tl-lead; every broader parent form refuses before effects.
+Session routing fields are validated only for session-sync documents, so
+ordinary documents retain business owner metadata. Missing ignore lines are
+appended without rewriting existing policy; `verifyMoveIgnores` runs real Git
+checks over every planned and existing retry destination before copies. A later
+negation causes refusal with sources intact; only ignore additions may remain.

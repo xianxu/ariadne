@@ -202,7 +202,12 @@ TALKING TO THE OPERATOR
     The command copies session.md and session.side/, rebases their links and
     index, adds root .gitignore entries, then switches Couch registrations
     preserving identities, unread baselines and owed events. Only verified
-    copies and registrations permit old-file cleanup. It refuses locks,
+    copies and registrations permit old-file cleanup. Every parent must use the
+    plain parent: ../file.md form written by tl-lead; quotes, comments, tags,
+    aliases and block scalars refuse before effects, naming the file. Missing
+    ignore lines are appended, then git check-ignore must confirm every
+    destination before copying; a negation can refuse with only ignore rules
+    added. It refuses locks,
     collisions, symlinks and changed copies. There is no editor lease: checks
     cannot exclude an editor opening after a check, so keep editors closed.
     Before switching, a failure leaves the old session in use; after switching,

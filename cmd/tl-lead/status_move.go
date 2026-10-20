@@ -65,6 +65,9 @@ func planSessionMove(s sessionMoveSnapshot) (sessionMovePlan, error) {
 		}
 		after := slices.Clone(src.Bytes)
 		if strings.HasSuffix(old, ".md") {
+			if _, err := moveMetadataFields(string(src.Bytes)); err != nil {
+				return p, fmt.Errorf("%s: %w", old, err)
+			}
 			mapped := func(p string) (string, bool) { return moveTarget(s.Old, p) }
 			exists := func(p string) bool { return s.Existing[p] }
 			text, dangling := sidedoc.RebaseLinks(string(src.Bytes), old, to, mapped, exists)
@@ -169,20 +172,49 @@ func moveMetadataFields(text string) (map[string]string, error) {
 	}
 	f := map[string]string{}
 	root := doc.Content[0]
+	read := func(k, v *yaml.Node) error {
+		if _, ok := f[k.Value]; ok {
+			return fmt.Errorf("duplicate session %s", k.Value)
+		}
+		if k.Tag != "!!str" || v.Kind != yaml.ScalarNode || v.Tag != "!!str" {
+			return fmt.Errorf("session %s must be a string", k.Value)
+		}
+		f[k.Value] = v.Value
+		return nil
+	}
+	// Type is semantic in every copied document. Other routing fields belong
+	// to session-sync only; ordinary documents can use owner for business data.
 	for i := 0; i < len(root.Content); i += 2 {
 		k, v := root.Content[i], root.Content[i+1]
 		if k.Tag == "!!merge" {
 			return nil, fmt.Errorf("session routing cannot inherit merged fields")
 		}
-		switch k.Value {
-		case "type", "couch-owner", "owner", "operator":
-			if _, ok := f[k.Value]; ok {
-				return nil, fmt.Errorf("duplicate session %s", k.Value)
+		if k.Value == "type" {
+			if err := read(k, v); err != nil {
+				return nil, err
 			}
-			if k.Tag != "!!str" || v.Kind != yaml.ScalarNode || v.Tag != "!!str" {
-				return nil, fmt.Errorf("session %s must be a string", k.Value)
+		}
+	}
+	lines := strings.Split(text, "\n")
+	for i := 0; i < len(root.Content); i += 2 {
+		k, v := root.Content[i], root.Content[i+1]
+		if k.Value == "parent" {
+			// RebaseLinks deliberately accepts the exact plain form emitted by
+			// tl-lead. Refuse every broader YAML spelling before any move effects.
+			if err := read(k, v); err != nil {
+				return nil, err
 			}
-			f[k.Value] = v.Value
+			if k.Style != 0 || v.Style != 0 || k.Line >= len(lines) || lines[k.Line] != "parent: "+v.Value || v.Value == "" || strings.ContainsAny(v.Value, "\"'\\ \t#") {
+				return nil, fmt.Errorf("parent must use plain parent: ../file.md without quotes, comments, tags, aliases or block scalars")
+			}
+		}
+		if f["type"] == "session-sync" {
+			switch k.Value {
+			case "couch-owner", "owner", "operator":
+				if err := read(k, v); err != nil {
+					return nil, err
+				}
+			}
 		}
 	}
 	return f, nil

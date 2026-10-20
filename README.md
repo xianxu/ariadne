@@ -855,6 +855,9 @@ Omitting OLD requires exactly one `teams/*/tl-status-*.md`. The source must
 already be registered with Couch; the refusal prints the exact registration
 command. Apply copies and rebases documents, updates `.gitignore`, preserves
 Couch identity/unread/owed state, verifies, then cleans up unchanged sources.
+Only plain `parent: ../file.md` values are accepted; other YAML parent forms
+refuse before effects and name the file. Missing ignore rules are appended,
+then real Git ignore checks must pass for every destination before copying.
 A partial run keeps copies for the same command to reconcile; after the
 registration switch use the new session even if cleanup needs a retry.
 Reopen `session.md` after success. See `tl-lead --help` for refusals and the
