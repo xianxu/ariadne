@@ -37,6 +37,46 @@ func ruleOf(t *testing.T, name string) Rule {
 	return Rule{}
 }
 
+func TestSessionMoveRawFieldsRule(t *testing.T) {
+	rule := ruleOf(t, "session-move-raw-fields")
+	const owner = "cmd/tl-lead/status_move_snapshot.go"
+	const sidedoc = "github.com/xianxu/ariadne/pkg/sidedoc"
+	for _, tc := range []struct {
+		name, filename, imports, body string
+		want                          int
+	}{
+		{"raw equality", owner, `"` + sidedoc + `"`, `f, _ := sidedoc.Fields(data); if f["type"] == "session-sync" { return }`, 1},
+		{"raw inequality", owner, `"` + sidedoc + `"`, `f, _ := sidedoc.Fields(data); if f["type"] != "session-sync" { return }`, 1},
+		{"import alias", owner, `side "` + sidedoc + `"`, `f, _ := side.Fields(data); _ = f`, 1},
+		{"dot import", owner, `. "` + sidedoc + `"`, `f, _ := Fields(data); _ = f`, 1},
+		{"absolute owner path", "/repo/" + owner, `"` + sidedoc + `"`, `sidedoc.Fields(data)`, 1},
+		{"other consumer", "cmd/tl-lead/read.go", `"` + sidedoc + `"`, `f, _ := sidedoc.Fields(data); if f["type"] == "session-sync" { return }`, 0},
+		{"same basename elsewhere", "cmd/other/status_move_snapshot.go", `"` + sidedoc + `"`, `sidedoc.Fields(data)`, 0},
+		{"typed metadata", owner, `"` + sidedoc + `"`, `f, _ := moveMetadataFields(data); if f["type"] == "session-sync" { return }`, 0},
+		{"other sidedoc operation", owner, `"` + sidedoc + `"`, `sidedoc.SideDir(data)`, 0},
+		{"unrelated package", owner, `sidedoc "example.org/other"`, `sidedoc.Fields(data)`, 0},
+		{"shadowed import", owner, `"` + sidedoc + `"`, `sidedoc := local; sidedoc.Fields(data)`, 0},
+		{"shadowed dot import", owner, `. "` + sidedoc + `"`, `Fields := local; Fields(data)`, 0},
+		{"comment and string", owner, `"` + sidedoc + `"`, "// sidedoc.Fields(data)\n_ = `sidedoc.Fields(data)`", 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			src := "package main\nimport " + tc.imports + "\nfunc f() {\n" + tc.body + "\n}\n"
+			got, err := Check(tc.filename, []byte(src), []Rule{rule})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(got) != tc.want {
+				t.Fatalf("findings = %v, want %d", got, tc.want)
+			}
+			for _, finding := range got {
+				if finding.Line != 4 || !strings.Contains(finding.Message, "ariadne#504") {
+					t.Errorf("finding must locate the call and cite the incident: %v", finding)
+				}
+			}
+		})
+	}
+}
+
 func TestRules(t *testing.T) {
 	for _, tc := range []struct {
 		rule string

@@ -14,6 +14,12 @@ import (
 // with the fix for the mistake class it catches (tl-worker, tl-lead).
 var Catalog = []Rule{
 	{
+		Name:     "session-move-raw-fields",
+		Incident: "ariadne#504",
+		Message:  "session move classification must decode YAML with moveMetadataFields; sidedoc.Fields preserves quotes and tags and can miss nested session registrations",
+		Match:    sessionMoveRawFields,
+	},
+	{
 		Name:     "suite-line-provenance",
 		Incident: "ariadne#476",
 		Message:  "suite scanners must preserve indentation: check suiteIndentLevel or suiteControlLine on the raw line before Fields, and never trim leading whitespace",
@@ -80,6 +86,38 @@ var Catalog = []Rule{
 		TestOnly: true,
 		Match:    fixedSleeps,
 	},
+}
+
+// Protect the session move classifier, not arbitrary side-doc readers: Fields
+// intentionally returns raw YAML elsewhere. Banning the raw reader in this
+// owner avoids approximating YAML semantics or map-value dataflow in the lint.
+func sessionMoveRawFields(f *ast.File, context *CheckContext) []ast.Node {
+	const owner = "cmd/tl-lead/status_move_snapshot.go"
+	filename := path.Clean(context.Path)
+	if filename != owner && !strings.HasSuffix(filename, "/"+owner) {
+		return nil
+	}
+	pkg := localName(f, "github.com/xianxu/ariadne/pkg/sidedoc")
+	if pkg == "" || pkg == "_" {
+		return nil
+	}
+	var out []ast.Node
+	ast.Inspect(f, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		match := isPackageCall(call, pkg, "Fields")
+		if pkg == "." {
+			id, ok := call.Fun.(*ast.Ident)
+			match = ok && id.Name == "Fields" && id.Obj == nil
+		}
+		if match {
+			out = append(out, call)
+		}
+		return true
+	})
+	return out
 }
 
 // Guard the known text-suite scanners, not arbitrary parsers. This is a

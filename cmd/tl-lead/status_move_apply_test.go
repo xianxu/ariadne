@@ -258,6 +258,23 @@ func TestSessionMoveDiscovery(t *testing.T) {
 	}
 }
 
+func TestSessionMoveNestedSessionRegistration(t *testing.T) {
+	for _, value := range []string{"session-sync", `"session-sync"`, "'session-sync'", "!!str session-sync"} {
+		t.Run(value, func(t *testing.T) {
+			root, old, f := sessionMoveFixture(t)
+			child := filepath.Join(root, "teams/dev/tl-status-op.side/nested.md")
+			writeFile(t, child, "---\ntype: "+value+"\ncouch-owner: ops:0\n---\n")
+			err := moveSession(deps{ss: f}, &bytes.Buffer{}, root, old, true, nil)
+			if err == nil || !strings.Contains(err.Error(), "register") {
+				t.Fatalf("unregistered nested session accepted: %v", err)
+			}
+			if _, err := os.Stat(filepath.Join(root, "session.md")); !os.IsNotExist(err) {
+				t.Fatal("refusal wrote destination")
+			}
+		})
+	}
+}
+
 func TestSessionMoveCorpus(t *testing.T) {
 	root := t.TempDir()
 	root, _ = filepath.EvalSymlinks(root)

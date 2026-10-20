@@ -142,8 +142,22 @@ func transitionMove(p sessionMovePhase, event string) (sessionMovePhase, error) 
 }
 
 func moveSessionFields(text string) (map[string]string, error) {
+	fields, err := moveMetadataFields(text)
+	if err != nil {
+		return nil, err
+	}
+	if fields["type"] != "session-sync" {
+		return nil, fmt.Errorf("session must have type: session-sync")
+	}
+	return fields, nil
+}
+
+func moveMetadataFields(text string) (map[string]string, error) {
 	block, _, ok := sidedoc.FrontBlock(text)
 	if !ok {
+		if !strings.HasPrefix(text, "---") {
+			return map[string]string{}, nil
+		}
 		return nil, fmt.Errorf("session frontmatter is not closed")
 	}
 	var doc yaml.Node
@@ -170,9 +184,6 @@ func moveSessionFields(text string) (map[string]string, error) {
 			}
 			f[k.Value] = v.Value
 		}
-	}
-	if f["type"] != "session-sync" {
-		return nil, fmt.Errorf("session must have type: session-sync")
 	}
 	return f, nil
 }

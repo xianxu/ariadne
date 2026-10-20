@@ -1165,3 +1165,8 @@ The simplest durable authority beats a clever scan of consequences.
   membership before discarding the original session. Exercise arrivals at effect
   boundaries with controlled hooks; a successful copy is not authority to delete
   after later edits. The migration interruption tests own this ordering rule.
+
+- #504: a raw YAML field reader preserves quotes and tags. Never use its raw
+  type string to decide whether session state needs migration; classify through
+  the typed metadata parser. The nested-session regression spans equivalent YAML
+  spellings and asserts registration refusal before copies.

@@ -89,6 +89,10 @@ Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 
 - Resumed after restart. TL approved revising live migration to a post-close/pre-merge hold (delivery 530ea8ef-34e8-4475-874c-6f495ed9e4d3, canonical submitted receipt verified). Recorded suite and SHIP precede staging; no live migration will be run by the worker.
 
+- Post-restart verification refinement: a targeted regression reproduced quoted/tagged YAML session types bypassing the nested-session registration prerequisite. Consolidated metadata classification through the typed YAML parser for root and nested documents; plain, single/double-quoted and explicit string-tag forms now all refuse before effects when unregistered. `go test ./cmd/tl-lead ./pkg/sidedoc -count=1` passed after the fix. Canceled the pre-fix recorded suite on 0f1b7d37 (still awaiting admission; no pass), and will record a fresh run on the corrected pushed head.
+
+- Added the owner-scoped `session-move-raw-fields` Go lint catalog rule (#504) so the snapshot reader cannot return to the raw YAML reader; alias/shadowing controls avoid affecting valid consumers elsewhere. `go test ./cmd/tl-lead ./pkg/sidedoc ./pkg/golint -count=1` passed (10.672s, 0.094s, 0.838s). The lint atlas catalog is synchronized.
+
 ## Landing hold
 
 Pending: green suite and SHIP → final build staged → TL/operator migrate both live hubs → TL evidence appended here → stage cleared → merge. Worker must not merge before the TL returns that evidence.

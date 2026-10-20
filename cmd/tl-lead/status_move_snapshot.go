@@ -220,8 +220,19 @@ func readSessionMove(d deps, root, old string) (sessionMoveSnapshot, error) {
 			return s, fmt.Errorf("destination registration occupied: %s", to)
 		}
 		if strings.HasSuffix(rel, ".md") {
-			if f, ok := sidedoc.Fields(string(v.Bytes)); ok && f["type"] == "session-sync" && s.Registrations[rel] == nil && s.Registrations[to] == nil {
-				return s, fmt.Errorf("nested session unregistered; run couch --session-sync register %s --owner SLOT, then rerun", abs(rel))
+			f, err := moveMetadataFields(string(v.Bytes))
+			if err != nil {
+				return s, fmt.Errorf("%s: %w", rel, err)
+			}
+			if f["type"] == "session-sync" && s.Registrations[rel] == nil && s.Registrations[to] == nil {
+				owner := f["couch-owner"]
+				if owner == "" {
+					owner = f["owner"]
+				}
+				if owner == "" {
+					owner = "SLOT"
+				}
+				return s, fmt.Errorf("nested session unregistered; run couch --session-sync register %s --owner %s, then rerun", abs(rel), owner)
 			}
 		}
 	}
