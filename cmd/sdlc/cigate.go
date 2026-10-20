@@ -78,6 +78,11 @@ type ciInputs struct {
 	// ancestor of the head whose difference from it is docs-only (#332):
 	// close's own commits do not invalidate the suite run before close.
 	RecordedAncestors map[string]bool
+	// StandIn maps a required check to another whose record satisfies it
+	// (#473 D3): a train car vouches on affected in place of suite, because
+	// the train runs the full suite on its prefix before anything lands.
+	// Merge sets none, so it still needs suite on the integrated head.
+	StandIn map[string]string
 }
 
 // isCommitStatus reports whether a check is a commit status rather than a check
@@ -116,8 +121,14 @@ func decideCIGate(in ciInputs) ciVerdict {
 		v.LocalNeeded = append(v.LocalNeeded, name)
 	}
 	for _, c := range in.Local.Checks {
-		if c.Required && !recorded[localStatusContext(c.Name)] {
+		if !c.Required || recorded[localStatusContext(c.Name)] {
+			continue
+		}
+		switch s := in.StandIn[c.Name]; {
+		case s == "":
 			need(c.Name)
+		case !recorded[localStatusContext(s)]:
+			need(s) // the stand-in is the run to ask for: it falls back to c itself when it must
 		}
 	}
 	if len(in.Checks) == 0 {
@@ -471,21 +482,27 @@ func runnerlessChecks(ctx context.Context, gh ghCaller, repo string, checks []pr
 
 // unrecordedRequired names the required local checks with no passing record
 // on the head itself.
-func unrecordedRequired(decl localCheckDecl, checks []prCheck) []string {
-	var out []string
-	for _, c := range decl.Checks {
-		if !c.Required {
-			continue
-		}
-		recorded := false
+func unrecordedRequired(decl localCheckDecl, checks []prCheck, standIn map[string]string) []string {
+	onHead := func(name string) bool {
 		for _, ch := range checks {
-			if ch.Name == localStatusContext(c.Name) && ch.Bucket == "pass" && isCommitStatus(ch) {
-				recorded = true
+			if ch.Name == localStatusContext(name) && ch.Bucket == "pass" && isCommitStatus(ch) {
+				return true
 			}
 		}
-		if !recorded {
-			out = append(out, c.Name)
+		return false
+	}
+	var out []string
+	for _, c := range decl.Checks {
+		if !c.Required || onHead(c.Name) {
+			continue
 		}
+		if s := standIn[c.Name]; s != "" {
+			if onHead(s) {
+				continue
+			}
+			out = append(out, s) // an ancestor's stand-in record counts too
+		}
+		out = append(out, c.Name)
 	}
 	return out
 }
@@ -602,11 +619,11 @@ func runPreparedCIGate(ctx context.Context, gh ghCaller, repo string, number int
 		if err != nil {
 			return nil, ciVerdict{}, unread("Actions job", err)
 		}
-		ancestors, err := localRecordsOnAncestors(ctx, gh, repo, git, head, base, unrecordedRequired(decl, checks))
+		ancestors, err := localRecordsOnAncestors(ctx, gh, repo, git, head, base, unrecordedRequired(decl, checks, facts.standIn))
 		if err != nil {
 			return nil, ciVerdict{}, unread("local check records", err)
 		}
-		return checks, decideCIGate(ciInputs{Checks: checks, HeadHasWorkflows: hasWF, Local: decl, Runnerless: runnerless, RecordedAncestors: ancestors}), nil
+		return checks, decideCIGate(ciInputs{Checks: checks, HeadHasWorkflows: hasWF, Local: decl, Runnerless: runnerless, RecordedAncestors: ancestors, StandIn: facts.standIn}), nil
 	}
 	checks, v, err := read()
 	if err != nil {

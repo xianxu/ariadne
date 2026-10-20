@@ -354,21 +354,21 @@ one.
   (`ciGateFacts`), `cmd/sdlc/landingcar.go:90-104`
 - Test: `cmd/sdlc/cigate_test.go`, `cmd/sdlc/landingcar_test.go`
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
   - `decideCIGate` with `StandIn{"suite":"affected"}`: a recorded `affected` satisfies a required `suite`; so does an
     `affected` record on a docs-only ancestor. Without StandIn, the same input still needs `suite`.
   - In `TestCarReadiness`, a car whose head has only `sdlc-local/affected` is ready when main has `affected.json`, and
     not ready when it doesn't.
   - In the merge CI gate tests, a head with only `affected` still runs `suite` at landing (the runner is called with
     `suite`).
-- [ ] **Step 2: Run them.** They fail.
-- [ ] **Step 3: Implement.** Add `StandIn map[string]string` to `ciInputs` and `ciGateFacts`. In `decideCIGate`, a
+- [x] **Step 2: Run them.** They fail.
+- [x] **Step 3: Implement.** Add `StandIn map[string]string` to `ciInputs` and `ciGateFacts`. In `decideCIGate`, a
   required `c` counts as recorded when `recorded[localStatusContext(c.Name)] || recorded[localStatusContext(StandIn[c.Name])]`.
   `unrecordedRequired` also returns the stand-in's name, so the ancestor walk looks for it. `productionCarGates`
   prepares its facts (`prepareCIGateFactsContext`) and sets `StandIn` when `readAffectedConfig(main)` finds a file.
   Merge's path never sets it.
-- [ ] **Step 4: Run them until they pass**, along with `go test ./cmd/sdlc/ -run 'CIGate|Car|Landing'`.
-- [ ] **Step 5: Commit.** `#473 M2: a car boards on the affected record`
+- [x] **Step 4: Run them until they pass**, along with `go test ./cmd/sdlc/ -run 'CIGate|Car|Landing'`.
+- [x] **Step 5: Commit.** `#473 M2: a car boards on the affected record`
 
 ### Task 7: `affected` is a test run for flakes and stats (D4)
 

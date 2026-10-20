@@ -97,9 +97,34 @@ func productionCarGates(r gitRunner, ci ghCaller, t landingTarget, f *mergeFlags
 			return runLandingPublishGate(ctx, pr, f.IssuesDir, io.Discard)
 		},
 		ci: func(ctx context.Context, pr landingPR) error {
-			return runPreparedCIGate(ctx, ci, t.Repo, pr.Number, t.Remote+"/main", pr.HeadOID, git, nil, f.NoCI, io.Discard, nil)
+			if f.NoCI {
+				return nil
+			}
+			base := t.Remote + "/main"
+			facts, err := carCIGateFacts(ctx, git, base, pr.HeadOID)
+			if err != nil {
+				return err
+			}
+			return runPreparedCIGate(ctx, ci, t.Repo, pr.Number, base, pr.HeadOID, git, nil, false, io.Discard, facts)
 		},
 	}
+}
+
+// carCIGateFacts are the CI gate's facts for a car's vouch. Where main declares
+// the affected suite (#473 D3), a recorded affected run stands in for suite:
+// the train runs the full suite on its prefix before any car lands. A docs-only
+// affected record is how a docs-only branch boards (pair#723).
+func carCIGateFacts(ctx context.Context, git func(...string) (string, error), base, head string) (*ciGateFacts, error) {
+	facts, err := prepareCIGateFactsContext(ctx, git, base, head)
+	if err != nil {
+		return nil, err
+	}
+	if _, ok, err := readAffectedConfig(git, base); err != nil {
+		return nil, fmt.Errorf("CI gate: %w", err)
+	} else if ok {
+		facts.standIn = map[string]string{suiteCheckName: affectedCheckName}
+	}
+	return facts, nil
 }
 
 // vouchWhileWaiting re-vouches every carVouchEvery until ctx ends, which the
