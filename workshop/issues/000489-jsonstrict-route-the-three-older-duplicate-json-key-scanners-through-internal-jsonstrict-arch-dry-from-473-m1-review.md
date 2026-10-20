@@ -57,6 +57,7 @@ Quick flow. Plan posted to the hub, proceeding unless they object.
 ## Log
 
 ### 2026-10-20
+- 2026-10-20: closed — review minors: TestIdentityStrictProtocol rejects duplicate and case-variant session keys (mutation dropping the scan fails it); json-recursive-scanner sees methods and selector recursion (table row; mutation fails TestRules); golint and reviewusage green; recorded suite queued on the pushed head. (fixed-then-ship); review verdict: FIX-THEN-SHIP
 - 2026-10-20: closed — jsonstrict Scan/RejectDuplicateKeys (UseNumber, depth bound, case fold) tests + FuzzFoldKey; 6 recursive scanners and 2 allowlist seen-maps folded; affected packages green (jsonstrict, estimate, issueassets, observe, fleet, tracker, reviewusage, affected) and cmd/sdlc targeted TestStats|SuiteAttempt|Correction|Observ|Receipt|Fleet ok; golint json-recursive-scanner passes the tree and flags 5/6 deleted scanners on main copies; recorded suite queued on the pushed head.; review verdict: SHIP
 - 2026-10-20: flow upgraded quick → full — 117 added lines in code files (limit 100)
 - The sweep found more than the three named scanners. Three more were generic recursive scanners (receipt,
@@ -74,7 +75,8 @@ Quick flow. Plan posted to the hub, proceeding unless they object.
 - Close review: SHIP with 2 Minors, fixed in the same round:
   - `TestIdentityStrictProtocol` now rejects a duplicate or case-variant session key. A mutation that drops the scan
     fails it.
-  - The lint rule also sees methods and calls through a selector (`s.f()`), with a table row and a mutation check.
+  - The lint rule also sees methods and calls through a selector (`s.f()`). A table row covers the selector and a
+    whole-file test (`TestJSONRecursiveScannerSeesMethods`) covers methods; a mutation check fails each.
     The rule still can't see an iterative stack walk, and its comment says so.
 
 ## Revisions

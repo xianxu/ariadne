@@ -1,6 +1,7 @@
 package golint
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -223,6 +224,20 @@ func TestRulesFollowImportNames(t *testing.T) {
 	local := "package p\n\nfunc f(time clock) {\n\ttime.Sleep(time.Second)\n}\n"
 	if got, _ := Check("x_test.go", []byte(local), Catalog); len(got) != 0 {
 		t.Errorf("an unimported name matched: %v", got)
+	}
+}
+
+// #489: json-recursive-scanner sees a method that recurses through its
+// receiver, which the table's receiver-less snippets cannot show; the same
+// method in package jsonstrict, the rule's one owner, is allowed.
+func TestJSONRecursiveScannerSeesMethods(t *testing.T) {
+	method := "package %s\n\nimport \"encoding/json\"\n\ntype w struct{ dec *json.Decoder }\n\n" +
+		"func (s *w) walk() error {\n\tseen := map[string]bool{}\n\t_ = seen\n\ts.dec.Token()\n\tfor s.dec.More() {\n\t\t_ = s.walk()\n\t}\n\treturn nil\n}\n"
+	for pkg, want := range map[string]int{"p": 1, "jsonstrict": 0} {
+		got, err := Check("x.go", []byte(fmt.Sprintf(method, pkg)), []Rule{ruleOf(t, "json-recursive-scanner")})
+		if err != nil || len(got) != want {
+			t.Errorf("package %s: findings %v %v, want %d", pkg, got, err, want)
+		}
 	}
 }
 

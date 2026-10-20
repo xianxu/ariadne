@@ -91,3 +91,76 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"107f4f76-91ba-4082-b761-bd1381005a95","repository":"github.com/xianxu/ariadne","issue_id":"000489","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/8b9699b35ff09a6e","reviewed_head":"497ca73e8dd4c7923e0c4a071656065480f858a6","slot":"ariadne:2","requested_at":"2026-10-20T12:33:25.42607Z"},"phase":"finished","pid":96433,"started_at":"2026-10-20T12:33:25.582099Z","finished_at":"2026-10-20T12:39:48.701623Z","session_id":"0cba0e04-56ac-47e9-8e74-aaa6156b5f8f","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T05:42:06-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 489 — jsonstrict: route the three older duplicate-JSON-key scanners through internal/jsonstrict (ARCH-DRY, from #473 M1 review) |
+| repo | ariadne |
+| issue file | workshop/issues/000489-jsonstrict-route-the-three-older-duplicate-json-key-scanners-through-internal-jsonstrict-arch-dry-from-473-m1-review.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | eac2a35b5770f79a1671912390c3923eb12ceb2f..07e0d9724226706fbe4751c3de68aef6eedbe852 |
+| command | sdlc close --issue 489 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | checkout |
+| timestamp | 2026-10-20T05:42:06-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+This fix window fully fixes BR-1 and mostly fixes BR-2. It doesn't change `## Spec`, `## Revisions` or `## Done when`, and it adds nothing no finding asked for. The issue file only changes status, flow and the Log, and the two new `workshop/plans/` files are generated gate and review records. For BR-1, I disabled the `jsonstrict.Scan` call in `identity.go`, and the new case in `TestIdentityStrictProtocol` went red. BR-2 has two parts. Selector recursion is fixed and tested: deleting `rules.go:477` turns `TestRules` red. Methods are now scanned too, because the `x.Recv == nil` filter is gone (`rules.go:489`). But putting that filter back leaves `pkg/golint` green. The test harness wraps every snippet in a receiver-less `func f()` (`rules_test.go:22`), so no test runs the rule on a method. The Log says methods are covered "with a table row and a mutation check", which overstates this. Only a missing test remains, and it is Minor, so nothing blocks the boundary. Both affected packages pass at the pinned head, including the tree-wide lint catalog, so widening the rule flags nothing new in the tree.
+
+1. **Strengths**
+   - `identity_test.go:37-42` checks both an exact duplicate and a different-case duplicate (`SESSION_ID`). That covers the case-folding strictness the earlier review noted as the only behavior change.
+   - The comment at `rules.go:455-456` now says plainly that iterative stack walks are out of scope for a syntactic rule.
+   - The selector-recursion row (`rules_test.go:64`) is a positive case, and removing the fix turns it red.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - BR-2 remains (not-addressed, below): no test covers the receiver half of the fix.
+
+5. **Test coverage notes**
+   - These are the results of undoing each fix and re-running the tests:
+
+     | Fix undone | Result |
+     |---|---|
+     | `identity.go` Scan disabled | `TestIdentityStrictProtocol` FAIL |
+     | selector-recursion line removed (`rules.go:477`) | `TestRules` FAIL |
+     | `x.Recv == nil` put back (`rules.go:489`) | **pass** (no test covers it) |
+
+   - This is the 2nd finding in family `lint-rule-shape-coverage`. The rule that covers all of them: every syntactic shape the lint rule claims to recognise needs a positive table row in that same shape. Rows are currently all bodies of a plain function, so a method needs a row built from a whole source file. The `TestRulesFollowImportNames` style at `rules_test.go:209` already does this: feed `package p … func (s *S) walk() { … s.walk() … }` to `Check` and assert it is flagged.
+
+6. **Architectural notes**
+   - **ARCH-DRY:** pass. There's no new duplication. The test reuses the existing `init` fixture.
+   - **ARCH-PURE:** pass. The lint rule is a pure AST walk and its tests do no IO.
+   - **ARCH-PURPOSE:** flag (Minor, under BR-2). The fix covered the class: methods, selectors, and a documented limit for iterative walks. Only the regression test for the method part is missing.
+   - **ARCH-EVOLVE:** N/A. No persisted format changes in this window.
+
+7. **Plan revision recommendations**
+   - Once the method test exists, the Log line "with a table row and a mutation check" will be accurate. Until then it should say that only selector recursion has a mutation check.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Disabling jsonstrict.Scan in identity.go turns TestIdentityStrictProtocol red (identity_test.go:40); both an exact and a different-case duplicate are covered.
+  - id: BR-2
+    disposition: not-addressed
+    note: |
+      Selector recursion is fixed and tested, since removing rules.go:477 turns TestRules red. Methods are scanned now that the Recv filter is gone (rules.go:489), but putting that filter back keeps pkg/golint green. The harness wraps snippets in a receiver-less func f(), so a method needs a whole-file test case (as in TestRulesFollowImportNames).
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"662b2dd4-e2dc-4d3f-9eb3-54cc7fd99bab","repository":"github.com/xianxu/ariadne","issue_id":"000489","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/99a02a4ee0898403","reviewed_head":"07e0d9724226706fbe4751c3de68aef6eedbe852","slot":"ariadne:2","requested_at":"2026-10-20T12:41:18.055295Z"},"phase":"finished","pid":98317,"started_at":"2026-10-20T12:41:18.155523Z","finished_at":"2026-10-20T12:42:05.805988Z","session_id":"86212ef0-bdb5-45dd-b6c1-84d37d023039","outcome":"returned"}] -->
