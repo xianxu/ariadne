@@ -329,7 +329,11 @@ func TestLandingGrantHoldOutputSerialAndTrain(t *testing.T) {
 			if err := line.Wait(ctx, h); err != context.Canceled {
 				t.Fatalf("wait %v", err)
 			}
-			for _, want := range []string{"held", "#470", "main is red", expires.Format(time.RFC3339), "sdlc landing revoke --issue 470"} {
+			prefix := "landing line: held:"
+			if trains {
+				prefix = "landing train: held:"
+			}
+			for _, want := range []string{prefix, "#470", "main is red", expires.Format(time.RFC3339), "sdlc landing revoke --issue 470"} {
 				if !strings.Contains(out.String(), want) {
 					t.Fatalf("missing %q: %s", want, out.String())
 				}

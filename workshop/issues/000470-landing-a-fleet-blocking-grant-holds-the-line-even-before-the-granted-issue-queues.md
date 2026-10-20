@@ -82,3 +82,5 @@ ARCH-DRY/PURE: one pure grant-hold rule uses existing ValidGrants; no additional
 
 - TL live smoke passed on staged 2619d603 in tools :0: binary revision matched and vcs.modified=false; grant status named hold/expiry/revoke; hours 0 and 30 refused; revoke removed grant/hold. No real waiter available; automated serial/train waiter tests cover its output.
 - Broader targeted command TestLanding|TestLine|TestTrain reached PASS, but the overall run failed its real-repository HEAD guard because implementation commits occurred while it ran. This is not passing verification evidence. Recorded suite remains queued on immutable pushed 2619d603 in a detached checkout; use that result for final verification. No code changes followed the staged smoke.
+
+- Recorded suite on 2619d603 ran all shards: all passed except TestEnterLandingLineVouchesWhileWaiting, which caught a changed existing train hold prefix. Preserve that prefix by choosing line/train once when opening the line; strengthened the new waiter-output test to assert both prefixes. This is a reproducible branch regression, not a flake. Full suite must rerun on the fix.
