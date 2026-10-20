@@ -1,13 +1,13 @@
 ---
 id: 000490
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'd7276c9acb3cd61cb535f0a702882c493bf5805e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9d6dc2aebf58583fab5f71bdc99d85829be4d45a' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T03:05:17-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "38167baf", done: "68cb5e54"}
+actual_hours: 0.09
 ---
 
 # Train instance gate reads issue files from the conductor checkout, not the train-prefix tree: a later car's new issue file is held as missing
