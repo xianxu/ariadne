@@ -50,6 +50,8 @@ type localRunDeps struct {
 	// the open issues' flake_tests, from a fresh tracker read. nil means no
 	// registry is available, which blocks like an unknown failure.
 	FlakeRegistry func(ctx context.Context) (flakes.Registry, error)
+	// normalTempDir selects the fallback candidate; nil keeps strict host selection.
+	normalTempDir func() (string, error)
 	// minute is the unit of timeout_minutes; tests shrink it.
 	minute time.Duration
 }
@@ -304,7 +306,7 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 	}
 	// The RAM disk (#468): its env comes last so it wins, and the leak report
 	// compares the SSD temp folders across the run.
-	scratch, err := prepareScratch(d.Stderr, check)
+	scratch, err := prepareScratch(d.Stderr, check, d.normalTempDir)
 	if err != nil {
 		return run, err
 	}

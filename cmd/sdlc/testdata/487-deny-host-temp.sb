@@ -1,0 +1,7 @@
+; Reproduce the agent sandbox's unavailable host-temp roots. Supply TMPDIR and
+; GOTMPDIR on the owned TestScratch fixture root when invoking go test.
+(version 1)
+(allow default)
+(deny file-write*
+    (subpath "/private/var/folders") (subpath "/var/folders")
+    (subpath "/private/tmp") (subpath "/tmp"))
