@@ -145,9 +145,8 @@ func runAbandon(ctx context.Context, stdout, stderr io.Writer, f *abandonFlags) 
 			return fmt.Errorf("#%s: %w", issueStr, err)
 		}
 		if !vocab.Issue().IsOpen(status) {
-			// Started work: this checkout is on the branch being abandoned.
-			if env.branch == "" || env.onRest() || env.branch == "main" {
-				return fmt.Errorf("#%s has started work: run abandon from its issue branch (this checkout is on %s)", issueStr, valueOr(env.branch, "a detached HEAD"))
+			if err := requireIssueBranch(id, card.Path, env.branch); err != nil {
+				return err
 			}
 			if rec, err = keepAbandonedWork(env, stderr, id, detailRel, f.As, reason, today); err != nil {
 				return err
@@ -165,6 +164,14 @@ func runAbandon(ctx context.Context, stdout, stderr io.Writer, f *abandonFlags) 
 		cok(stderr, fmt.Sprintf("#%s is %s; the owner stays as attribution", issueStr, f.As))
 		status = f.As
 	} else {
+		if rec.Started() {
+			if err := requireIssueBranch(id, card.Path, rec.Branch); err != nil {
+				return fmt.Errorf("#%s's abandon record is unsafe: %w", issueStr, err)
+			}
+			if env.branch != rec.Branch && !env.onRest() {
+				return fmt.Errorf("#%s's abandon resumes from %s or %s, not %s", issueStr, rec.Branch, env.resting, valueOr(env.branch, "a detached HEAD"))
+			}
+		}
 		// The owner stays as attribution: only that workspace finishes it.
 		if own, recorded, _, err := ownership(env, card); err != nil {
 			return err
@@ -197,6 +204,22 @@ func keepAbandonedWork(env *trackerEnv, stderr io.Writer, id, detailRel, as, rea
 	tip, err := env.git("rev-parse", "HEAD")
 	if err != nil {
 		return issue.Abandoned{}, err
+	}
+	remoteTip, err := remoteRefTip(env.git, env.target.Remote, "refs/heads/"+env.branch)
+	if err != nil {
+		return issue.Abandoned{}, err
+	}
+	if remoteTip != "" {
+		if _, err := env.git("fetch", "-q", env.target.Remote, "refs/heads/"+env.branch); err != nil {
+			return issue.Abandoned{}, err
+		}
+		contained, err := env.ancestorOf(remoteTip, tip)
+		if err != nil {
+			return issue.Abandoned{}, err
+		}
+		if !contained {
+			return issue.Abandoned{}, fmt.Errorf("%s on %s holds %s beyond local %s; fetch and reconcile those commits before abandoning", env.branch, env.target.Remote, shortOID(remoteTip), shortOID(tip))
+		}
 	}
 	raw, err := env.main.ViewOf(tip).Read(detailRel)
 	if err != nil {
@@ -389,6 +412,20 @@ func mirrorTerminal(env *trackerEnv, content, card []byte) []byte {
 // the kept tip), returns this checkout to rest, and deletes the local branch.
 // Each step is skipped when already done.
 func dropAbandonedBranch(env *trackerEnv, stderr io.Writer, rec issue.Abandoned) error {
+	archiveTip, err := remoteRefTip(env.git, env.target.Remote, rec.Ref)
+	if err != nil {
+		return err
+	}
+	if archiveTip != rec.Head {
+		return fmt.Errorf("archive %s is at %s, not the recorded %s; refusing to delete %s", rec.Ref, valueOr(shortOID(archiveTip), "absent"), shortOID(rec.Head), rec.Branch)
+	}
+	localTip, err := env.git("for-each-ref", "--format=%(objectname)", "refs/heads/"+rec.Branch)
+	if err != nil {
+		return err
+	}
+	if localTip != "" && localTip != rec.Head {
+		return fmt.Errorf("local %s moved to %s after it was kept at %s; inspect it before deleting", rec.Branch, shortOID(localTip), shortOID(rec.Head))
+	}
 	var restingView *gitx.TrunkView
 	if env.branch == rec.Branch {
 		restingHead, err := env.git("rev-parse", env.resting)
@@ -415,7 +452,13 @@ func dropAbandonedBranch(env *trackerEnv, stderr io.Writer, rec issue.Abandoned)
 		} else if !kept {
 			return fmt.Errorf("%s on %s holds %s, which the kept tip %s does not contain; inspect it before deleting", rec.Branch, env.target.Remote, shortOID(remoteTip), shortOID(rec.Head))
 		}
-		if err := deleteRemoteBranch(env.git, env.target.Remote, rec.Branch, remoteTip); err != nil {
+		if remoteTip != rec.Head {
+			ref := "refs/heads/" + rec.Branch
+			if _, err := env.git("push", "-q", "--force-with-lease="+ref+":"+remoteTip, env.target.Remote, rec.Head+":"+ref); err != nil {
+				return fmt.Errorf("advance %s to its archived head: %w", rec.Branch, err)
+			}
+		}
+		if err := deleteRemoteBranch(env.git, env.target.Remote, rec.Branch, rec.Head); err != nil {
 			return err
 		}
 	}
@@ -428,14 +471,12 @@ func dropAbandonedBranch(env *trackerEnv, stderr io.Writer, rec issue.Abandoned)
 			return fmt.Errorf("returned to %s, but asset verification failed: %w", env.resting, err)
 		}
 	}
-	if tip, err := env.git("for-each-ref", "--format=%(objectname)", "refs/heads/"+rec.Branch); err != nil {
-		return err
-	} else if tip != "" {
-		if tip != rec.Head {
-			return fmt.Errorf("local %s moved to %s after it was kept at %s; inspect it before deleting", rec.Branch, shortOID(tip), shortOID(rec.Head))
-		}
-		if _, err := env.git("branch", "-q", "-D", rec.Branch); err != nil {
+	if localTip != "" {
+		if err := landingUnoccupied(execGitRunner{}, landingTarget{Root: env.root}, rec.Branch); err != nil {
 			return err
+		}
+		if _, err := env.git("update-ref", "-d", "refs/heads/"+rec.Branch, rec.Head); err != nil {
+			return fmt.Errorf("delete local %s only at its archived tip %s (it may have moved): %w", rec.Branch, shortOID(rec.Head), err)
 		}
 	}
 	cok(stderr, fmt.Sprintf("%s deleted here and on %s; this checkout is on %s", rec.Branch, env.target.Remote, env.resting))

@@ -58,8 +58,24 @@ func TestCloseOnARenamedBranchAfterAnOutsideMergeLands(t *testing.T) {
 	// The close runs on a hand-made branch: #148 retired the issue's own name.
 	closing := branch + "-close"
 	git(t, slot1, "switch", "-q", "-c", closing)
+	// A similar name carrying another issue's new commit is not the same work.
+	foreign := branch + "-other-issue"
+	git(t, slot1, "switch", "-q", "-c", foreign)
+	writeRepoFile(t, slot1, "cmd/other.go", "package other\n")
+	git(t, slot1, "add", "cmd/other.go")
+	git(t, slot1, "commit", "-qm", "#3: unrelated work")
+	foreignHead := procedureHead(t, slot1)
+	if out, err := slotRun(t, slot1, "close", "--issue", "2", "--verified", "e2e", "--actual", "1", "--no-atlas"); err == nil || !strings.Contains(out+err.Error(), branch) || !strings.Contains(out+err.Error(), foreign) {
+		t.Fatalf("different-head recovery branch must refuse: %v\n%s", err, out)
+	}
+	if procedureHead(t, slot1) != foreignHead {
+		t.Fatal("refused close changed the other issue's branch")
+	}
+	git(t, slot1, "switch", "-q", closing)
 	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
-	mustSlotRun(t, slot1, "close", "--issue", "2", "--verified", "e2e", "--actual", "1", "--no-atlas")
+	if out := mustSlotRun(t, slot1, "close", "--issue", "2", "--verified", "e2e", "--actual", "1", "--no-atlas"); !strings.Contains(out, "leaves the renamed branch in place") {
+		t.Fatalf("renamed close must name the branch it preserves:\n%s", out)
+	}
 	mustSlotRun(t, slot1, "pr", "--dry-run") // the old guard refused here
 	git(t, slot1, "push", "-q", "-u", "upstream", closing)
 

@@ -305,6 +305,23 @@ PR to exact head/base identity, submits an expected-head server merge, and check
 MERGED plus reachable integration. Queue admission is not integration; already
 merged squash/rebase PRs use the original PR head and integration evidence.
 
+Issue-only main movement (#472) uses one path policy in `mainmovement.go`:
+Markdown under `workshop/issues/`, `workshop/plans/` and `workshop/history/`.
+Every novel commit and merge-parent difference is classified, including rename
+sources; code added then reverted, mixed changes and unreadable history remain
+ordinary. The existing integration state machine charges only ordinary moves to
+its three-attempt budget, including interrupted replay and reset.
+
+After exact-head gates, `ghreadiness.go` reads GitHub's effective merge status and
+live `baseRef.target.oid` (the listing's `baseRefOid` can be historical). Fresh
+CLEAN evidence bound to this PR/head/branches and re-fetched main permits landing
+unchanged despite issue-only movement. Destination instance, duplicate-ID and
+publish gates are rechecked. Strict, unknown, unavailable or stale-base evidence
+uses ordinary integration and exact-head CI without charging an issue-only move.
+No workflows or statuses are rewritten. Existing docs-only suite reuse is broader
+than this conservative direct-merge policy. Recovery and uncertain merge outcomes
+retain the existing branch-preserving rules.
+
 PR candidate selection (`selectLandingCandidate`, #418) retains OPEN PRs even
 when their heads are stale, so two OPEN records refuse and name both. Completed
 older heads are history once the branch head is known. The same rule governs
@@ -630,7 +647,8 @@ through the review context; no asynchronous writer survives command completion.
 the final expected-head merge, and archive/cleanup. Publish replay, GitHub PR
 registration and CI polling, and the local suite run happen unlocked. Every
 reacquisition checks the exact branch HEAD and worktree and fetches main: main
-drift restarts integration and gates, while HEAD drift refuses. The legacy
+drift is reclassified for integration or exact-bound issue-only readiness, while
+HEAD drift refuses. The legacy
 dependency-clone path also releases the lock for local checks and refuses drift
 before server merge. `push` retains its whole-transaction lock. Wait messages
 name the live holder; wait or retry rather than deleting its lock. Recovery is
@@ -1447,6 +1465,16 @@ The atlas gate additionally auto-satisfies (info line, no flag needed) when
 the window contains no code surface — `hasCodePath`, the single docs
 classifier: `*.md` / `workshop/` / `atlas/` / `docs/` are documentation,
 everything else is surface (#177; docs-only closes had an incoherent demand).
+
+**Issue branch identity (#471, `trackerbranch.go`).** A tracker card's filename
+derives its one issue branch. `abandon` and attachments to started work require
+that branch before changing the checkout or publishing evidence. Whole-issue
+`close` and `milestone-close` also admit a renamed recovery branch only when
+its HEAD exactly equals the local canonical branch tip (or a fresh remote tip
+when the local ref is absent); another head refuses. Abandon may resume from rest only when
+its persisted branch still matches the card. The remote branch is deleted
+only at the head held by its archive ref, with leased advancement and deletion;
+a remote commit beyond the local issue tip refuses before archival.
 
 **Integrate gate (#269, `integrategate.go`).** Before planning the window,
 `close` and `milestone-close` (fixed-then-ship included) require the branch to

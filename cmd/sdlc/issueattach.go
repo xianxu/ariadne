@@ -15,6 +15,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 type issueAttachFlags struct {
@@ -91,6 +92,14 @@ func runIssueAttach(ctx context.Context, out io.Writer, f issueAttachFlags) erro
 		}
 		if err = requireOwnedToPublish(env, card); err != nil {
 			return fmt.Errorf("%w; ask that owner to attach the evidence", err)
+		}
+		status, _ := issue.GetField(card.Card.Frontmatter, "status")
+		if vocab.Issue().IsOpen(status) {
+			if !env.onRest() {
+				return fmt.Errorf("#%s is open: attach from the resting branch %s, not %s", issue.CLIRef(id), env.resting, valueOr(env.branch, "a detached HEAD"))
+			}
+		} else if err := requireIssueBranch(id, card.Path, env.branch); err != nil {
+			return err
 		}
 		if _, err = refreshMirror(env, id, original); err != nil {
 			return err
