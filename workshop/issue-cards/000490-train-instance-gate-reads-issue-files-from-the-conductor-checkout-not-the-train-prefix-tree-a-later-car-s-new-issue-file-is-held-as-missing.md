@@ -1,6 +1,6 @@
 ---
 id: 000490
-status: working
+status: codecomplete
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.09
+tracker:
+    version: 1
+    completion:
+        token: close-043775f70226
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 63346f514919ad5b093b8e3184c068222e28a49f
+        evidence_commit: 645c637a28d90b361cd6c32b764809d0c801b7af
 ---
 
 # Train instance gate reads issue files from the conductor checkout, not the train-prefix tree: a later car's new issue file is held as missing
