@@ -188,6 +188,10 @@ M2 round 2 SHIP, no new findings; BR-5 independently verified by reverting both 
 
 Authenticated submitted pair:5 receipt e3701d33-6b0b-4b49-b962-ef6e33381e43 confirms repeat production adapter/strict decoder conformance against afb94a8e2be9d2477fbbe7b53d7b8eb7f52152c7, independently verified modified=false: core 19.66s, lost-response 4.06s, combined 24.049s. Real consumer legacy check passed 3.814s: unbound held token/ticket produced complete=false, named path/detail and active=[], unchanged bytes; release restored complete. Verified waiting bindings stayed complete, pause denied admission, resume admitted exactly one suite and retirement restored complete/empty. An initial probe cleanup ordering failure was retained and fixed only in the temporary probe before the passing rerun; no product change. Source/logs remain under pair:5's original private fixture consumer-repeat.2TGKnT; its diagnostic unknown sibling remains peer-owned. No live pause. The final recorded full suite is queued; server CI is green.
 
+### 2026-10-20 — final-suite context guard correction
+
+Recorded suite on afb94a8e completed in 495.5s: all other shards/packages passed; TestVerbContextsReachTrackerReads alone rejected queueRuntime.finish's context.Background. Narrow reproduction confirmed it. Retirement already had a three-second cleanup budget; it now accepts the caller context and preserves values through context.WithoutCancel before applying that same budget, matching existing cleanup patterns. All suite/merge/landing callers pass their context; no guard exemption, new state or admission mechanism. New TestQueueRuntimeRetiresAfterCallerCancellation fails with context canceled when detachment is removed and passes with the fix. Targeted guard/runtime/interruption race checks passed 4.887s. Re-close and a fresh recorded full suite are required; the failed attempt remains evidence, never a flake.
+
 ## Revisions
 
 ### 2026-10-20 — M1 review corrections

@@ -98,13 +98,15 @@ func (q *queueRuntime) waitAdmission(ctx context.Context, stderr io.Writer) erro
 	}
 }
 
-func (q *queueRuntime) finish(reason string) error {
+func (q *queueRuntime) finish(parent context.Context, reason string) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if q.retired {
 		return nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	// Retirement must preserve caller values but finish after cancellation.
+	// Like other cleanup paths, it gets its own bounded cancellation budget.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), 3*time.Second)
 	defer cancel()
 	interrupted, err := q.lease.RetireOutcome(ctx, reason)
 	q.interrupted = interrupted

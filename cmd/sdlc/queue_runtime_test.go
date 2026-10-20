@@ -20,7 +20,7 @@ func TestQueueRuntimeLifetimeAndPause(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer q.finish("")
+	defer q.finish(context.Background(), "")
 	if queueRuntimeFrom(ctx) != q || isQueueAdmitted(ctx) {
 		t.Fatal("lost waiting runtime")
 	}
@@ -49,7 +49,7 @@ func TestQueueRuntimeLifetimeAndPause(t *testing.T) {
 	if x, err := s.Snapshot(ctx); err != nil || len(x.Active) != 2 {
 		t.Fatalf("active kinds absent: %+v %v", x, err)
 	}
-	if err := q.finish(""); err != nil {
+	if err := q.finish(context.Background(), ""); err != nil {
 		t.Fatal(err)
 	}
 	if x, err := s.Snapshot(ctx); err != nil || len(x.Active) != 0 {
@@ -67,6 +67,28 @@ func TestQueueRealHelperPause(t *testing.T) {
 	}
 }
 
+func TestQueueRuntimeRetiresAfterCallerCancellation(t *testing.T) {
+	t.Setenv("WF_SDLC_QUEUE_ROOT", t.TempDir())
+	parent, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ctx, q, err := startQueueOperation(parent, t.TempDir(), "head", []string{"suite"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer q.lease.Close()
+	if _, err := q.admit(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	cancel()
+	if err := q.finish(ctx, "caller cancelled"); err != nil {
+		t.Fatalf("cancelled caller prevented bounded retirement: %v", err)
+	}
+	x, err := q.store.Snapshot(context.Background())
+	if err != nil || !x.Complete || len(x.Active) != 0 {
+		t.Fatalf("cancelled retirement left active evidence: %+v %v", x, err)
+	}
+}
+
 func TestQueueRuntimeAdmissionNeverScansLegacy(t *testing.T) {
 	for _, n := range []int{8, 16} {
 		t.Run(fmt.Sprint(n), func(t *testing.T) {
@@ -78,7 +100,7 @@ func TestQueueRuntimeAdmissionNeverScansLegacy(t *testing.T) {
 					t.Fatal(err)
 				}
 				ops = append(ops, q)
-				defer q.finish("")
+				defer q.finish(context.Background(), "")
 			}
 			spies := t.TempDir()
 			calls := filepath.Join(spies, "calls")
@@ -106,7 +128,7 @@ func TestQueueRuntimeConsumesExactCancellation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer q.finish("cancelled")
+	defer q.finish(ctx, "cancelled")
 	if _, err := q.admit(ctx, nil); err != nil {
 		t.Fatal(err)
 	}

@@ -274,7 +274,7 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 	stopCancellation := consumeQueueCancellation(ownedCtx, q, cancelOwned)
 	defer func() {
 		stopCancellation()
-		if retirement := q.finish(queueInterruptionReason(err)); retirement != nil {
+		if retirement := q.finish(ownedCtx, queueInterruptionReason(err)); retirement != nil {
 			err = errors.Join(err, retirement)
 		}
 	}()
@@ -401,7 +401,7 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 	if interrupted != nil {
 		reason = "managed suite cancelled"
 	}
-	if err := q.finish(reason); err != nil {
+	if err := q.finish(ownedCtx, reason); err != nil {
 		return run, err
 	}
 	if q.interrupted {

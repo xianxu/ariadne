@@ -382,7 +382,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 	f.Context = ctx
 	defer func() {
 		reason := queueInterruptionReason(err)
-		if finishErr := q.finish(reason); finishErr != nil {
+		if finishErr := q.finish(ctx, reason); finishErr != nil {
 			if err == nil {
 				err = finishErr
 			} else {
