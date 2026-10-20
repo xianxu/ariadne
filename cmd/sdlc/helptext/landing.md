@@ -31,7 +31,10 @@ LANDING TRAINS (#449)
   With trains on:
 
   - A waiting merge checks its own publish and CI gates, read-only, on its
-    pushed head, and vouches it ready (`ready/<seq>`).
+    pushed head, and vouches it ready (`ready/<seq>`). Where main declares
+    .sdlc/affected.json (#473), a recorded `affected` run stands in for
+    `suite` here: the train runs the full suite on its prefix before anything
+    lands. A docs-only branch boards on its docs-only `affected` record.
   - A merge departs only when the train is due and its vouch is current: the
     first train, or the last train's departure plus the interval, or at once
     after a train that left ready cars behind.

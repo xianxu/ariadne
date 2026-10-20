@@ -117,4 +117,12 @@ Each `impl` is 40% of the v2 range's upper end.
     The fixture module's root package now embeds `other/data.txt`, so the real `go list` pins a file with two owners.
   - **BR-4:** `splitAffectedName` is pure and tested.
   - The plan's Revisions record the ownership rule.
+- M2:
+  - **Task 6:** the car's stand-in. Tests cover the TL's shape and pair#723's, and a mutation (dropping the stand-in)
+    fails both stand-in tests.
+  - **Task 7:** D4 made stricter (plan Revisions): the guard spans both checks, and a subset pass never confirms.
+    Both mutations are caught.
+  - **Task 8:** wording in close's VERIFIED example, the landing and local-check help, AGENTS.base.md (base layer: it
+    propagates downstream) and the atlas. The publish gate's conflict-resolution instruction keeps the full suite on
+    purpose, because the resolution changes main's code too.
 

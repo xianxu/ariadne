@@ -99,6 +99,34 @@ THE SUITE (#332)
   docs-only (including close's Log/card commits and docs-only main integration).
   Embedded help under cmd/, code, tests and configuration invalidate reuse.
 
+THE AFFECTED SUITE (#473)
+
+  A repository that declares .sdlc/affected.json (read from main; absent means
+  off) can prove a branch with only what its change can break:
+
+    sdlc local-check run --name affected   # on the pushed head
+
+  {"version": 1, "command": ["make", "test-affected"], "weight": 1,
+   "timeout_minutes": 30, "full": ["go.mod", "Makefile*"],
+   "groups": [{"name": "lua", "paths": ["**/*.lua"], "go": ["./cmd/pair"]}]}
+
+  Each path changed since the merge-base with main: docs are ignored; a `full`
+  glob runs the suite instead; otherwise the path selects every package that
+  owns it (its directory, a testdata/ above it, or a go:embed of it) and every
+  group whose paths match; a path nothing claims runs the suite. Packages
+  expand to all that import them (go list -test). A group is also selected
+  when one of its `go` packages depends on a selected package.
+
+  The command runs as: env SDLC_AFFECTED_GO_PKGS=<import paths>
+  SDLC_AFFECTED_GROUPS=<group names> <command…>, both sorted and space-
+  separated, never with both empty and never for a full selection, and is
+  recorded as sdlc-local/affected. A full selection runs and records `suite`;
+  a docs-only change records `affected` without a run; no change refuses.
+  The known-flake rule and the success guard apply to it as to the suite,
+  but an affected pass never confirms a fail→pass (it may not have run the
+  failed test). A train car boards on it in place of `suite`; merge without a
+  train still runs `suite` on the integrated head.
+
   Known flakes (#394). A test is a known flake while an open issue's card
   lists it in flake_tests (`sdlc flake register`). When the suite fails and
   every failure is a named, known-flake test, the run reruns just those tests

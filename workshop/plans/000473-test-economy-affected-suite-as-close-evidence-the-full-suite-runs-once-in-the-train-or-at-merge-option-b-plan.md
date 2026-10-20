@@ -400,9 +400,9 @@ one.
   (base layer: say that close's evidence is the affected suite where a repo declares one)
 - Test: the existing helptext/golden tests (`go test ./cmd/sdlc/ -run 'Help|Explain'`)
 
-- [ ] **Step 1:** Update the text so that close's VERIFIED example reads "sdlc local-check run --name affected (or
+- [x] **Step 1:** Update the text so that close's VERIFIED example reads "sdlc local-check run --name affected (or
   suite)", and the help documents the affected.json schema and the env contract.
-- [ ] **Step 2:** Run the golden tests and update their expectations.
+- [x] **Step 2:** Run the golden tests and update their expectations.
 - [ ] **Step 3:** Commit, run the full suite, then `sdlc close --issue 473`.
 
 ## Verification

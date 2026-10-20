@@ -332,7 +332,18 @@ The run then takes one of three paths:
   affected record that claims to be full.
 - **Docs-only change:** `sdlc-local/affected` is recorded without running anything.
 
-A head with no change against main refuses rather than recording a pass. The name `affected` is reserved in
+A head with no change against main refuses rather than recording a pass.
+
+Where it counts (#473 M2):
+- **Train cars:** a car's CI gate accepts `affected` in place of `suite` (`StandIn`), on the head or on a docs-only
+  ancestor. That is how a branch that is docs-only from main boards (pair#723). Merge without a train still requires
+  `suite` on the integrated head, and runs it there once.
+- **Flakes:** `affected` is a test run (`isTestCheck`). It gets the known-flake rerun. The success guard refuses a
+  pass of either check over an unexplained failure of either on the same head. An affected pass is a subset
+  (`flakes.Attempt.Subset`), so it never confirms a fail→pass.
+- **Stats:** test-stats shows affected runs on their own row; suite numbers are unchanged.
+- **Conflict resolution:** a resolution of main's code conflict (`--fixed-then-ship --full-suite`) still asks for the
+  full suite. The resolution changes main's code as well as the branch's. The name `affected` is reserved in
 `local-checks.json`.
 
 ## Not the same as the publish gate or the close review
