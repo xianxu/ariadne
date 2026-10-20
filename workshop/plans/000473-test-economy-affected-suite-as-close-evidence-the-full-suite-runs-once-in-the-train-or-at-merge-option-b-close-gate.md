@@ -521,6 +521,138 @@ rounds:
       recipe: milestone-review
       isolation: checkout
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 150b7f6e-2da5-482a-bd39-20dfe5171031
+            repository: github.com/xianxu/ariadne
+            issue_id: "000473"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/a5c7ac163e197ce0
+            reviewed_head: 22460760f3d5f188c542a29f95358a8ef7899a8a
+            slot: ariadne:2
+            requested_at: "2026-10-20T09:32:28.682985Z"
+          phase: finished
+          pid: 28315
+          started_at: "2026-10-20T09:32:28.878294Z"
+          finished_at: "2026-10-20T09:45:03.672704Z"
+          session_id: 496da64a-c039-4d5d-b570-4cd323b4fdb3
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 22460760f3d5f188c542a29f95358a8ef7899a8a
+        tracker_head: 2a41686cbdf2a2a3a81fb907bb66985c222768af
+        branch_point: 0956e5e1c71bd6734f195929fc151e0c752dbc14
+        since: "2026-10-19T20:26:49-07:00"
+        until: "2026-10-20T02:31:31-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T20:26:49-07:00"
+              end: "2026-10-20T02:31:31-07:00"
+              began: "2026-10-19T20:26:49-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0973f648-94f5-4a35-b868-c9b26ef649ac
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: ff8f082f178c8d8c1eefd7235b9ff2cd2f752c69045bc83dfd26a21294f05368
+              started: "2026-10-20T03:20:54.668Z"
+              spawned: false
+              bytes: 4652541
+              windows:
+                - start: "2026-10-19T20:26:49-07:00"
+                  end: "2026-10-20T02:31:31-07:00"
+        queue_waits:
+            - attempt_id: bcd9b7407517e24367c744af82d5db34
+              slot: ariadne:2
+              record_digest: 38cc6a62061e1a988f1d7f0f855462befe0fbd9fd08ff6e8d5e7da15ab214da4
+              start: "2026-10-20T03:26:49Z"
+              end: "2026-10-20T03:54:30.635003Z"
+              queue_seconds: 1661.635003
+              raw_seconds: 1669.213411
+              exact: true
+            - attempt_id: 1e519eee13691a7f9ae238f3a34af108
+              slot: ariadne:2
+              record_digest: ec17427e86246fbb78fe51b1c02c6c1a3c11100644e7ee265a3bbb81ecc632fc
+              start: "2026-10-20T04:15:40.4019Z"
+              end: "2026-10-20T04:37:58.530161Z"
+              queue_seconds: 1338.128261
+              raw_seconds: 1338.128261
+              exact: true
+            - attempt_id: ec45d2b999a4f613e1087a285f7a4e97
+              slot: ariadne:2
+              record_digest: 44c532f2cb7fa09e8ca756cfd526f624744a71e1024a397fc4dcd2c47bf96ea1
+              start: "2026-10-20T08:21:56.389306Z"
+              end: "2026-10-20T08:36:54.647565Z"
+              queue_seconds: 898.258259
+              raw_seconds: 898.258259
+              exact: true
+        protected:
+            - issue: "479"
+              slot: ariadne:2
+              start: "2026-10-19T21:12:26-07:00"
+              end: "2026-10-20T04:15:25.377Z"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 27.769466666666666
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-20T01:49:20-07:00"
+              finalized: "2026-10-20T01:57:31-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-20T02:03:23-07:00"
+              finalized: "2026-10-20T02:05:59-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-20T02:08:18-07:00"
+              finalized: "2026-10-20T02:14:02-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-20T02:22:21-07:00"
+              finalized: "2026-10-20T02:29:44-07:00"
+              finalizing: false
+      "n": 5
+      timestamp: "2026-10-20T02:45:04-07:00"
+      dispatched: "2026-10-20T02:32:28-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-9
+          disposition: addressed
+          note: declaredCheck resolves affected via affectedCheckDecl (localcheck_cmd.go:301-314); TestDeclaredCheckResolvesAffected goes red with the branch disabled (verified by revert).
+          round: 5
+        - id: BR-10
+          disposition: addressed
+          note: Plan Revisions 2026-10-20 (M2 Task 8, BR-9/BR-10) amends D2 and Task 8 Files; publishgate.go and merge.md are unchanged in the diff, matching it.
+          round: 5
+        - id: BR-11
+          disposition: addressed
+          note: carCIGateFacts drops the stand-in on readAffectedConfig error (landingcar.go:126); TestCarWithBrokenAffectedConfigNeedsSuite goes red when the error is returned (verified by revert).
+          round: 5
+      findings:
+        - kind: defect
+          id: BR-12
+          severity: Minor
+          title: test-stats emits a zero-run suite row for a repo whose window holds only affected attempts
+          detail: aggregateCheckAttempts groups by repo over isFlakeEvidence, which now includes affected, before filtering rows by check (teststats.go:128,157), so the suite aggregate returns Runs 0 for such a repo and runTestStats appends it unconditionally (teststats_cmd.go:150-152). Filter suite rows with Runs > 0 as the affected row is, and add a runTestStats test with affected-only attempts.
+          family: report-row-requires-runs
+          round: 5
+      boundary: M2
+      recipe: milestone-review
+      isolation: checkout
+      reviewed: 22460760f3d5f188c542a29f95358a8ef7899a8a
+      blocked: false
 ---
 
 # Gate ledger — ariadne#473 (boundary-review)
@@ -582,8 +714,19 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-11** [Minor] `unclassified-path-fails-closed` (kind: defect) A malformed affected.json on main makes every car's CI gate error instead of degrading to requiring suite
   3rd in family. Rule covering all three: an affected-suite input that cannot be trusted degrades to requiring the full suite, never to a hard stop or an empty selection. carCIGateFacts (landingcar.go:121) returns an error, which wedges the train. Dropping the stand-in with a warning matches the spec's "affected unavailable; run the suite".
 
+## Round 5 — 2026-10-20T02:45:04-07:00 (claude) — passed
+
+### Disposed
+
+- BR-9 — addressed — declaredCheck resolves affected via affectedCheckDecl (localcheck_cmd.go:301-314); TestDeclaredCheckResolvesAffected goes red with the branch disabled (verified by revert).
+- BR-10 — addressed — Plan Revisions 2026-10-20 (M2 Task 8, BR-9/BR-10) amends D2 and Task 8 Files; publishgate.go and merge.md are unchanged in the diff, matching it.
+- BR-11 — addressed — carCIGateFacts drops the stand-in on readAffectedConfig error (landingcar.go:126); TestCarWithBrokenAffectedConfigNeedsSuite goes red when the error is returned (verified by revert).
+
+### Raised
+
+- **BR-12** [Minor] `report-row-requires-runs` (kind: defect) test-stats emits a zero-run suite row for a repo whose window holds only affected attempts
+  aggregateCheckAttempts groups by repo over isFlakeEvidence, which now includes affected, before filtering rows by check (teststats.go:128,157), so the suite aggregate returns Runs 0 for such a repo and runTestStats appends it unconditionally (teststats_cmd.go:150-152). Filter suite rows with Runs > 0 as the affected row is, and add a runTestStats test with affected-only attempts.
+
 ## Open findings
 
-- **BR-9** [Important] `name-keyed-check-resolution` (kind: defect) local-check republish --name affected always refuses for a saved known-flake pass: declaredCheck cannot resolve the reserved name
-- **BR-10** [Important] `plan-tracks-code` (kind: defect) Plan D2/Task 8 still claim publishgate.go and merge.md wording changes that the code deliberately did not make
-- **BR-11** [Minor] `unclassified-path-fails-closed` (kind: defect) A malformed affected.json on main makes every car's CI gate error instead of degrading to requiring suite
+- **BR-12** [Minor] `report-row-requires-runs` (kind: defect) test-stats emits a zero-run suite row for a repo whose window holds only affected attempts

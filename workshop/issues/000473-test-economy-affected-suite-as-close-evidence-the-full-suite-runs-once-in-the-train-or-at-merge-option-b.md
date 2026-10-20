@@ -54,7 +54,7 @@ slots. The machine is suite-bound. Discussion and the operator's decision: ops s
 Durable plan: `workshop/plans/000473-test-economy-affected-suite-as-close-evidence-the-full-suite-runs-once-in-the-train-or-at-merge-option-b-plan.md` (D1–D6 approved by the TL 10-19; env contract fixed).
 
 - [x] M1 — planner and runner (`internal/affected`, `local-check run --name affected`)
-- [ ] M2 — car readiness accepts `affected`; flake/test-stats generalization; wording, atlas
+- [x] M2 — car readiness accepts `affected`; flake/test-stats generalization; wording, atlas
 
 ## Estimate
 
@@ -87,6 +87,8 @@ Each `impl` is 40% of the v2 range's upper end.
 ## Log
 
 
+
+- 2026-10-20: closed M2 — car stand-in: TestCarVouchesDocsOnlyCommitOnASuiteRecordedHead (TL shape), TestCarVouchesADocsOnlyBranchOnItsAffectedRecord (pair#723), TestCarBoardsOnAffectedMergeStillNeedsSuite, TestCarWithBrokenAffectedConfigNeedsSuite on a real repo; decideCIGate StandIn rows; D4: TestAffectedKnownFlakeReruns, TestTestRunGuardSpansSuiteAndAffected, TestSubsetPassNeverConfirms, TestAffectedStatsAreTheirOwnRow, TestDeclaredCheckResolvesAffected; mutations fail them; help/golden ok; recorded suite queued on 22460760.; review verdict: SHIP
 - 2026-10-20: closed M1 — internal/affected + jsonstrict go test green (FuzzParseGoList re-fuzzed; conformance on real go list incl. an embedded asset and a root package embedding a file in a sub-package dir, owners = both); contract fixture TestAffectedContractFixture (SDLC_AFFECTED_GO_PKGS=leaf mid tonly / GROUPS=lua; status 3 packages, groups lua); full→suite for go.mod / unclassified / unloadable graph; docs-only records without running; no-change refuses; --all split tested; targeted cmd/sdlc run ok in 1205s before the review fixes, Affected tests ok after.; review verdict: SHIP
 ### 2026-10-19
 
