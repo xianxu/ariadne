@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "27c81229", done: "fd8ecfc8"}
 ---
 
 # Landing-train suite attempts omit slot provenance, so overlapping issues' sdlc actual refuses
