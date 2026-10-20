@@ -119,10 +119,16 @@ func TestLandingTrainWaiterAcceptsConductorArchive(t *testing.T) {
 		}()
 		return done
 	}
+	secondStderr := watchWriter{want: "landed this PR", seen: make(chan struct{})}
+	// This regression exercises a positively delivered train outcome. GitHub's
+	// merged listing can otherwise win the readiness race and deliberately
+	// resume without an outcome, before the final-cleanup barrier below applies.
+	// Model a lagging listing until the waiter has consumed its outcome; the
+	// underlying real merge remains visible to the archive barrier.
+	ghClient = &trainArchiveListingLag{trainFakeGH: s.gh, branch: secondBranch, outcomeSeen: secondStderr.seen}
 	firstStderr := watchWriter{want: "landed", seen: make(chan struct{})}
 	one := start(s.first, &firstStderr, false)
 	waitQueued(t, s.line, 1)
-	secondStderr := watchWriter{want: "archived by the train", seen: make(chan struct{})}
 	two := start(second, &secondStderr, true)
 	deadline := time.Now().Add(10 * time.Second)
 	for {
@@ -181,4 +187,32 @@ func TestLandingTrainWaiterAcceptsConductorArchive(t *testing.T) {
 	if branch := git(t, second, "branch", "--list", secondBranch); branch != "" {
 		t.Fatalf("waiter's landed branch remains: %s", branch)
 	}
+}
+
+// trainArchiveListingLag preserves the real train fake's effects while making
+// the archive regression's outcome-before-cleanup ordering independent of the
+// readiness goroutine's scheduling. The separate no-outcome recovery control
+// continues to exercise an immediately visible merged listing.
+type trainArchiveListingLag struct {
+	*trainFakeGH
+	branch      string
+	outcomeSeen <-chan struct{}
+}
+
+func (g *trainArchiveListingLag) LandingPRs(ctx context.Context, repo, branch string) ([]landingPR, error) {
+	prs, err := g.trainFakeGH.LandingPRs(ctx, repo, branch)
+	if err != nil || branch != g.branch {
+		return prs, err
+	}
+	select {
+	case <-g.outcomeSeen:
+		return prs, nil
+	default:
+	}
+	for i := range prs {
+		if prs[i].State == "MERGED" {
+			prs[i].State, prs[i].MergeOID = "OPEN", ""
+		}
+	}
+	return prs, nil
 }
