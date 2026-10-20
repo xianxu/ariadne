@@ -1,13 +1,21 @@
 ---
 id: 000473
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '9f0b23231092a05c445723b39b10170fc89bdf66' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '103426223b27822379bd81dff3d94b66fdd88f72' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-19T20:26:49-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # test-economy: affected-suite as close evidence; the full suite runs once, in the train or at merge (option B')
@@ -42,8 +50,13 @@ slots. The machine is suite-bound. Discussion and the operator's decision: ops s
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000473-test-economy-affected-suite-plan.md` (design revision for the TL; step tasks follow approval).
+
+- [ ] M1 — planner and runner (`internal/affected`, `local-check run --name affected`)
+- [ ] M2 — car readiness accepts `affected`; flake/test-stats generalization; wording, atlas
 
 ## Log
 
 ### 2026-10-19
+
+- Exploration: close has no mechanical suite gate (free-text `--verified`); the record is enforced by the CI gate at merge and car vouch. Checks run a fixed argv. `go list -test` over pair: 1.5 s.
