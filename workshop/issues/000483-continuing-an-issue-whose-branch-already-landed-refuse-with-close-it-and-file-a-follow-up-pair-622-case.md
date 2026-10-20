@@ -1,13 +1,13 @@
 ---
 id: 000483
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '0da1c1f30094177d4b4809b09580756754ee6eb3' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a2760ca1dab6ee9c024d8bbc9ef45db2c846881a' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T04:06:52-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.85
 ---
 
 # Continuing an issue whose branch already landed: refuse with 'close it and file a follow-up' (pair#622 case)
