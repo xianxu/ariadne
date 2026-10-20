@@ -119,7 +119,7 @@ acceptance are unchanged.
 
 Round 1 found no code defect but could not launch a nested sandbox in its
 review environment (sandbox_apply: Operation not permitted). The requested
-measured host proof is [committed here](000487-make-testscratchfallbackoverridesinheritedtemp-independent-of-host-sandbox-temp-permissions.side/sandbox-host-evidence.txt).
+measured host proof is [committed here](../plans/000487-sandbox-host-evidence.txt).
 It records source HEAD, toolchain, profile digest/content, probe source and
 commands, actual stdout/stderr and exit statuses. With that exact profile, the
 owned fixture create/remove succeeded while both Darwin user temp and /tmp
@@ -129,3 +129,23 @@ commands exited zero. The cmd/sdlc package duration includes a 32-second small
 test-slot wait (32.965s reported); scratchdisk passed in 0.241s. This supplies
 acceptance evidence without changing or weakening the implementation. The
 existing recorded suite remains queued/running on the unchanged code head.
+
+
+### 2026-10-20 — CI artifact-location correction
+
+The recorded full suite passed: 1,791 cmd/sdlc tests over 12 shards plus 72 other
+packages, zero failures, 513.6s, no rerun. CI separately exposed that lint-ids
+counts the numbered .side support directory as a second issue. The unchanged
+host transcript moved to workshop/plans/000487-sandbox-host-evidence.txt, an
+existing numbered artifact family that planArtifactBelongsToIssue and both
+archive paths move with this issue. The earlier Log hyperlink was maintained
+to follow that identical artifact; its measurement content is unchanged. No
+production/test/profile code changed after the passing suite or SHIP review.
+The collector defect is filed separately, unclaimed; no gate was bypassed.
+
+### 2026-10-20 — Evidence location follows existing archive ownership
+
+Reason: the duplicate-ID guard currently mistakes an issue's .side directory
+for another issue. Delta: relocate the identical text transcript to its numbered
+plans artifact and maintain its relative link. Acceptance and runtime behavior
+are unchanged; this is a documentation-only correction after SHIP.
