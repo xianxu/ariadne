@@ -1,6 +1,6 @@
 ---
 id: 000470
-status: working
+status: codecomplete
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.47
+tracker:
+    version: 1
+    completion:
+        token: close-2a589ea83cc5
+        repository: github.com/xianxu/ariadne
+        reviewed_head: ea1e7197580fcd4c9dea6df83f0550beeef0b57a
+        evidence_commit: 716547ea6eca276053939560d13662a9bac76c41
 ---
 
 # landing: a fleet-blocking grant holds the line even before the granted issue queues
