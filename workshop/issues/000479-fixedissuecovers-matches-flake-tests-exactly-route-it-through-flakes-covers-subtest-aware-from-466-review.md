@@ -71,3 +71,7 @@ name exactly.
   (drop exactly the named entry), `runFlakeRegister`'s `e.Test == t` (already-registered message, followed by the
   `Covers` overlap check), `Registry.Lookup`. `TestNoParallelFlakeCoverageMatcher` refuses a new `*Covers` matcher in
   package main.
+- Close review SHIP with 3 Minors, fixed in the same round: `flakes.Nearest` now backs both `Registry.Cover` and
+  `fixedCandidates` (ARCH-DRY); the AST lint reads files with `parser.ParseFile` (ParseDir is deprecated) and its comment
+  names the one shape it guards; `TestFlakeListJudgesFixedSubtestsFromTheLog` gains a fixed top-level test hiding a
+  logged subtest (an exact-match `Nearest` fails it).

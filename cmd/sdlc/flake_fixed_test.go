@@ -6,7 +6,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -52,22 +51,24 @@ func TestFixedIssueCoverageFollowsTheGateRule(t *testing.T) {
 	}
 }
 
-// #479: flake list judges a fixed issue's subtest like an open one's: the
-// logged leaf it names is hidden as fixed, a sibling's stays listed by name.
+// #479: flake list judges a fixed issue's names like an open one's: a logged
+// leaf the fixed name covers (itself, or under a fixed top-level test) is
+// hidden as fixed; a sibling's stays listed by its own name.
 func TestFlakeListJudgesFixedSubtestsFromTheLog(t *testing.T) {
 	for name, c := range map[string]struct {
-		logged string
-		listed bool
+		fixed, logged string
+		listed        bool
 	}{
-		"the fixed subtest failed": {flakeSub, false},
-		"a sibling failed":         {flakeT1 + "/plain/other.test.sh", true},
+		"the fixed subtest failed":            {flakeSub, flakeSub, false},
+		"a sibling failed":                    {flakeSub, flakeT1 + "/plain/other.test.sh", true},
+		"a subtest of a fixed top-level test": {flakeT1, flakeSub, false},
 	} {
 		t.Run(name, func(t *testing.T) {
 			w := &flakeWorld{
 				attempts:    []SuiteAttempt{attemptAt("f1", "abc", 1, 1, flakeT1), attemptAt("p1", "abc", 2, 0)},
 				logSubtests: map[string][]string{"f1": {flakeT1 + "/plain", c.logged}},
 				main:        "main",
-				fixed:       []fixedFlakeIssue{{ID: "000465", Merge: "merge", Tests: []string{flakeSub}}},
+				fixed:       []fixedFlakeIssue{{ID: "000465", Merge: "merge", Tests: []string{c.fixed}}},
 				contains: func(_ context.Context, _, head string) (bool, error) {
 					return head == "main", nil
 				},
@@ -80,27 +81,33 @@ func TestFlakeListJudgesFixedSubtestsFromTheLog(t *testing.T) {
 			if got := strings.Contains(section, c.logged); got != c.listed {
 				t.Fatalf("listed as unregistered %v, want %v:\n%s", got, c.listed, out.String())
 			}
-			if fixed := strings.Contains(out.String(), "  "+flakeSub+"  attempt f1") && strings.Contains(out.String(), "fixed by #000465"); fixed == c.listed {
+			if fixed := strings.Contains(out.String(), "  "+c.logged+"  attempt f1") && strings.Contains(out.String(), "fixed by #000465"); fixed == c.listed {
 				t.Fatalf("fixed row %v, want %v:\n%s", fixed, !c.listed, out.String())
 			}
 		})
 	}
 }
 
-// #479: flakes.Covers is the one coverage predicate. A parallel *Covers
-// matcher in package main is how a fixed issue once matched by exact name.
+// #479: flakes.Covers is the one coverage predicate. This guards the shape
+// the exact-name bug took, a parallel *Covers matcher in package main; inline
+// identity comparisons (unregister, already-registered) are not coverage.
 func TestNoParallelFlakeCoverageMatcher(t *testing.T) {
-	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, ".", func(fi fs.FileInfo) bool { return !strings.HasSuffix(fi.Name(), "_test.go") }, 0)
+	entries, err := os.ReadDir(".")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, p := range pkgs {
-		for file, f := range p.Files {
-			for _, decl := range f.Decls {
-				if fn, ok := decl.(*ast.FuncDecl); ok && strings.HasSuffix(fn.Name.Name, "Covers") {
-					t.Errorf("%s: %s re-implements flake coverage; call flakes.Covers", file, fn.Name.Name)
-				}
+	fset := token.NewFileSet()
+	for _, e := range entries {
+		if !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, e.Name(), nil, parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, decl := range f.Decls {
+			if fn, ok := decl.(*ast.FuncDecl); ok && strings.HasSuffix(fn.Name.Name, "Covers") {
+				t.Errorf("%s: %s re-implements flake coverage; call flakes.Covers", e.Name(), fn.Name.Name)
 			}
 		}
 	}

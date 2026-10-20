@@ -102,22 +102,26 @@ func publishedFixedIssues(ctx context.Context, issuesDir string, rs tracker.Reco
 }
 
 // fixedCandidates are the terminal issues whose structured flake_tests cover
-// failing leaf name by the gate's rule (flakes.Covers, #479): the nearest
-// covering name wins, as in Registry.Cover, and issues tied at it all return.
+// failing leaf name by the gate's rule (#479): the nearest covering name wins,
+// as in Registry.Cover, and every issue that names it returns, so two issues
+// at one name stay ambiguous.
 func fixedCandidates(issues []fixedFlakeIssue, name string) []fixedFlakeIssue {
+	best := flakes.Nearest(func(yield func(string) bool) {
+		for _, i := range issues {
+			for _, t := range i.Tests {
+				if !yield(t) {
+					return
+				}
+			}
+		}
+	}, name)
+	if best == "" {
+		return nil
+	}
 	var candidates []fixedFlakeIssue
-	best := ""
-	for _, candidate := range issues {
-		for _, test := range candidate.Tests {
-			if !flakes.Covers(test, name) || len(test) < len(best) {
-				continue
-			}
-			if len(test) > len(best) {
-				best, candidates = test, nil
-			}
-			if !slices.ContainsFunc(candidates, func(c fixedFlakeIssue) bool { return c.ID == candidate.ID }) {
-				candidates = append(candidates, candidate)
-			}
+	for _, i := range issues {
+		if slices.Contains(i.Tests, best) {
+			candidates = append(candidates, i)
 		}
 	}
 	return candidates
