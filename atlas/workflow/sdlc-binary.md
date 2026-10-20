@@ -2012,6 +2012,10 @@ creation uses the same repair if its os.TempDir fallback is unusable; explicit
 custom fallback errors remain strict. Root enumeration also covers all repaired
 normal candidates for stale-checkout and per-run cleanup, even after the inherited root
 works again. No global process environment is changed.
+The local-run dependency can inject the normal-temp selector for fixtures (#487);
+its nil default remains the strict production selector. Fallback child-env tests
+create their checkout before invalidating inherited temp values and verify real
+child writes under a sandbox that denies host normal-temp roots.
 
 `runLocalCheck` reads one bounded complete log for startup classification and
 normal suite facts. `suiteenvironment.go` accepts only direct Go work-directory

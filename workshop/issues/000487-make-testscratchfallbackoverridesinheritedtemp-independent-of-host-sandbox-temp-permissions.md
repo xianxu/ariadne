@@ -41,19 +41,22 @@ Make the inherited-temp fallback regression hermetic: prove replacement of unusa
 
 ## Plan
 
-- [ ] Reproduce the existing test's mkdir denial using a real macOS sandbox
+- [x] Reproduce the existing test's mkdir denial using a real macOS sandbox
   that denies host normal-temp roots while allowing the owned test root.
-- [ ] Add one per-run normal-temp selector dependency to localRunDeps and
+- [x] Add one per-run normal-temp selector dependency to localRunDeps and
   prepareScratch; nil uses the existing strict scratchdisk.NormalTempDir.
   Keep candidate policy, filesystem checks, cleanup and child env rules unchanged.
-- [ ] Build the inherited-temp fixture's worktree before invalidating its env,
+- [x] Build the inherited-temp fixture's worktree before invalidating its env,
   then exercise the real runUnderSlot boundary with an injected writable private
   fallback. Assert both child paths/writes, replacement notes and cleanup.
   Keep a runLocalCheck denial control: a failed selector prevents child execution
   and produces no suite-success evidence. Existing scratchdisk candidate tests
   retain the all-candidates-denied and actual-probe controls.
-- [ ] Run targeted checks inside and outside the sandbox, then the recorded
-  full suite and close review. Report ready to the hub for its priority grant.
+- [x] Run targeted checks inside and outside the sandbox, including candidate
+  policy, actual child writes, denied-selector evidence protection and lint.
+
+Workflow gates remain: push, recorded full suite and close review; then report
+ready to the hub for its priority grant. No full-suite pass is claimed yet.
 
 The simpler host-getconf fake is platform-specific and leaves Linux relying on
 /tmp; a global hook would couple concurrent tests. A per-run IO dependency is
@@ -79,3 +82,32 @@ The fixture invalidates both inherited temp variables before runLocalCheck, so
 its checkout setup can also need the host fallback. Construct that worktree
 before invalidating env and target runUnderSlot, where the child-env contract
 lives; retain top-level error/status protection in a separate denial control.
+
+
+### 2026-10-20 — Sandbox red/green and implementation checks
+
+The original test failed under the real macOS sandbox with the reported
+operation-not-permitted errors in both host temp roots. With only the dependency
+type stubbed, both new controls failed: fallback still used host roots, and an
+ignored selector error allowed child execution and a successful status. Wiring
+the per-run selector made both pass under the same sandbox (0.985s). The committed
+profile is cmd/sdlc/testdata/487-deny-host-temp.sb; parent TMPDIR and GOTMPDIR were
+set to an owned mktemp fixture under TestScratch. No machine permissions changed.
+
+Wider sandbox checks passed (32.296s): scratch/fallback/prepare, environment,
+local-run, known-flake gate, detached-worktree and cleanup controls. Strict
+scratchdisk candidate tests passed (0.371s), as did golint (0.696s). Both focused
+fallback checks also passed outside the sandbox (0.578s). Real child output
+proves both vars use the private candidate and the run directory is removed.
+The denial control uses runLocalCheck and proves no child, status, PR comment or
+SuiteAttempt is published. Production selector and write-access policy remain
+unchanged; the nil dependency takes the existing strict selector.
+
+## Revisions
+
+### 2026-10-20 — Separate completed implementation evidence from workflow gates
+
+The last Plan checkbox now names the completed targeted verification. The full
+recorded suite, close and readiness report remain workflow prose, so checking
+the implementation does not claim future close or landing outcomes. Scope and
+acceptance are unchanged.

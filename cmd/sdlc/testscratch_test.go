@@ -208,7 +208,7 @@ func TestPrepareScratchUnsupportedFileSystem(t *testing.T) {
 		t.Skip("requires an HFS fixture root")
 	}
 	var note bytes.Buffer
-	prepared, err := prepareScratch(&note, "suite")
+	prepared, err := prepareScratch(&note, "suite", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +237,7 @@ func TestPrepareScratchNormalRunCleanup(t *testing.T) {
 		}
 	}
 	var note bytes.Buffer
-	p, err := prepareScratch(&note, "suite")
+	p, err := prepareScratch(&note, "suite", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -331,7 +331,7 @@ func TestPrepareScratchRepairedRunRootAfterRecovery(t *testing.T) {
 			t.Fatal(err)
 		}
 		var note bytes.Buffer
-		p, err := prepareScratch(&note, "suite")
+		p, err := prepareScratch(&note, "suite", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
