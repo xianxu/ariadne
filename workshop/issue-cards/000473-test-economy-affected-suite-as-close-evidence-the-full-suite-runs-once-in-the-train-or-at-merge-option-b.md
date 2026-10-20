@@ -1,8 +1,8 @@
 ---
 id: 000473
-status: working
+status: codecomplete
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-20
 estimate_hours: 2.37
 github_issue:
 started: 2026-10-19T20:26:49-07:00
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 2.13
+tracker:
+    version: 1
+    completion:
+        token: close-01527b57c142
+        repository: github.com/xianxu/ariadne
+        reviewed_head: a3b1a8cb593559d6254cf0df09b0833e4fafcb46
+        evidence_commit: bd94a28252cf61e9fadde9c7a3aff203b4f113a5
 ---
 
 # test-economy: affected-suite as close evidence; the full suite runs once, in the train or at merge (option B')
