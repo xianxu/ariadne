@@ -68,3 +68,4 @@ Durable plan: [workshop/plans/000475-landing-train-departure-slots-plan.md](../p
   - Config: `train_interval_minutes` and `train_max_cars` only; unknown keys are tolerated.
   - The suite lock lives in `${XDG_STATE_HOME:-~/.local/state}/ariadne/`.
   - `test-stats` gives p50/p90 wall time per repo but no weight; the weight comes from the local-checks declaration and the make probe.
+- The hub approved the plan; D1–D5 confirmed. It noted that the plan must re-read the weight, since #480 may change ariadne's shard count: `landing plan --write` reads the declared weight live, and the 30 s cache picks up a rewritten file. Only pair has trains on today.
