@@ -121,6 +121,8 @@ Existing run interruption currently returns without saving an attempt, so this i
 
 Hub clarified that graceful pause interrupts an admitted merge at a new-suite boundary, and legacy activity remains unknown until old runners finish. ARCH-ORDER/ARCH-DRY shaped one global admission mutex plus lifetime leases; ARCH-PURPOSE requires all merge paths; ARCH-EVOLVE keeps additive fields across rewrites. Durable plan committed before requesting implementation approval.
 
+Plan-quality round 1 found a real direct-make ownership gap: Python's current watcher proves only make-PID lifetime; Go's managed process group owns descendant cancellation. Hub approved the honest-unknown boundary: managed sdlc suites cancel fully; direct make is stopped only with proved identity, never via a shared group, and stays unknown until reconciled. Do not build a new direct-make supervisor now; record it as a possible later follow-up if this visible stuck state causes an incident. Direct full suites should use recorded local-check; targeted tests use go test -run.
+
 ## Revisions
 
 ### 2026-10-20 — make frozen contract and clarified acceptance explicit
@@ -130,3 +132,7 @@ The original Spec and Done-when remain above for context. Added explicit frozen-
 ### 2026-10-20 — full plan approved
 
 Hub approved both boundaries and requested a counted zero-process/zero-topology-scan guard on admission. Added the named test to the durable plan; legacy observation remains status-only. Proceeding to change-code's plan-quality gate, with no implementation edits yet.
+
+### 2026-10-20 — PQ-1/PQ-2 approved refinement
+
+Kept the frozen external protocol unchanged. Added an explicit unmanaged direct-make cancellation/unknown boundary and retained the supervisor as a later follow-up only if needed, per hub approval. Compressed test inventories to production-function adversarial strategies. Managed suite cancellation remains complete and interruptions remain outside SuiteAttempt/flake classification.
