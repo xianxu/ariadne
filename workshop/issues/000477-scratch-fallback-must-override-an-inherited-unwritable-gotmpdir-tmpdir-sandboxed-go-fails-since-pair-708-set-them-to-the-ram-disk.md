@@ -114,3 +114,10 @@ and cmd/sdlc scratch/environment/local-check/known-flake/saved-result/landing-tr
 controls 101.929s. README, local-check help, atlas and lesson updated. Recorded
 full suite and mandatory close review remain pending. No live sandbox changes,
 shared staging, timeout changes or #476 attribution changes.
+
+### 2026-10-19 — published candidate
+
+PR https://github.com/xianxu/ariadne/pull/333 is open. The required full recorded
+suite is queued through the normal central sdlc on the pushed implementation
+head. Preserve that waiter; no staging, private runner, or manual main chasing.
+Close/landing wait for its pass and the mandatory review.
