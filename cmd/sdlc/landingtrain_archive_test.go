@@ -20,7 +20,7 @@ import (
 // ticket would never exercise the second caller's archive proof and cleanup.
 func TestLandingTrainWaiterAcceptsConductorArchive(t *testing.T) {
 	s := newTrainSetup(t, "train")
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	tf, err := gitx.NewTrunkFileContext(ctx, s.first, "upstream", "issue-tracker")
 	if err != nil {

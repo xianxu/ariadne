@@ -367,17 +367,12 @@ func (s *trainSetup) waitingCar(t *testing.T, branch string, issue, number int) 
 
 func wantSettled(t *testing.T, done <-chan error, kind landingline.OutcomeKind) landingline.Outcome {
 	t.Helper()
-	select {
-	case err := <-done:
-		var settled *landingline.Settled
-		if !errors.As(err, &settled) || settled.Outcome.Kind != kind {
-			t.Fatalf("car: %v, want %s", err, kind)
-		}
-		return settled.Outcome
-	case <-time.After(2 * time.Minute):
-		t.Fatal("car never settled")
+	err := awaitLandingCompletion(t, done, "car never settled")
+	var settled *landingline.Settled
+	if !errors.As(err, &settled) || settled.Outcome.Kind != kind {
+		t.Fatalf("car: %v, want %s", err, kind)
 	}
-	return landingline.Outcome{}
+	return settled.Outcome
 }
 
 // trainEvents are the logged trains with result.

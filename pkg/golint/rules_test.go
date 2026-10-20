@@ -299,3 +299,33 @@ func TestAtlasCitesNoLivePlanPath(t *testing.T) {
 		}
 	}
 }
+
+func TestLandingCompletionWaitRule(t *testing.T) {
+	for _, tc := range []struct {
+		file, fn, body string
+		want           int
+	}{
+		{"cmd/sdlc/landingqueue_test.go", "finished", "select { case <-time.After(2*time.Minute): }", 1},
+		{"cmd/sdlc/landingwait_test.go", "awaitLandingCompletion", "time.NewTimer(2*time.Minute)", 1},
+		{"cmd/sdlc/landingwait_test.go", "awaitLandingCompletion", "time.NewTimer(budget)", 0},
+		{"cmd/sdlc/landingtrain_test.go", "wantSettled", "timer := time.NewTimer(time.Minute); _ = timer", 1},
+		{"cmd/sdlc/landingtrain_archive_test.go", "TestLandingTrainWaiterAcceptsConductorArchive", "context.WithTimeout(ctx, 2*time.Minute)", 1},
+		{"cmd/sdlc/landingqueue_test.go", "finished", "select { case <-time.After(landingCompletionBudget(t)): }", 0},
+		{"cmd/sdlc/landingqueue_test.go", "waitQueued", "time.After(30*time.Second)", 0},
+		{"cmd/sdlc/landingqueue_test.go", "finished", "context.WithTimeout(ctx, time.Millisecond)", 1},
+		{"cmd/sdlc/unrelated_test.go", "finished", "time.After(2*time.Minute)", 0},
+		{"cmd/sdlc/landingtrain_archive_test.go", "TestIntentionalContextDeadline", "context.WithTimeout(ctx, time.Second)", 0},
+	} {
+		t.Run(tc.fn+tc.body, func(t *testing.T) {
+			rule := ruleOf(t, "test-landing-completion-wait")
+			src := "package main\nimport (clock \"time\"; ctxpkg \"context\")\nfunc " + tc.fn + "() {" + strings.ReplaceAll(strings.ReplaceAll(tc.body, "time.", "clock."), "context.", "ctxpkg.") + "}"
+			got, err := Check(tc.file, []byte(src), []Rule{rule})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(got) != tc.want {
+				t.Fatalf("findings = %v, want %d", got, tc.want)
+			}
+		})
+	}
+}
