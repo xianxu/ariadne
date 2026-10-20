@@ -1,13 +1,13 @@
 ---
 id: 000479
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '40868def9f8ef79ada001b708b546efc2f2c674d' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ef645850aa6bc377c19787f38a917cd923f7fee5' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T20:21:13-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "c6b0c4ca", done: "490ac2c8"}
+actual_hours: 0.08
 ---
 
 # fixedIssueCovers matches flake_tests exactly; route it through flakes.Covers (subtest-aware, from #466 review)
