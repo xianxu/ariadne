@@ -211,3 +211,46 @@ func TestRealSuiteHelperCapabilityIsSideEffectFree(t *testing.T) {
 		t.Fatalf("help queued or acquired: %v %v", matches, err)
 	}
 }
+
+// #486: workflowFile finds the substrate's Makefile.workflow for a disposable
+// tree in both shapes a layered repo can have: an untracked link the tree
+// lacks (pair's: weave writes it, git ignores it), and a tracked relative link
+// that does not resolve where the tree sits. Without an anchor nothing changes.
+func TestWorkflowFileResolvesThroughTheAnchor(t *testing.T) {
+	ws := t.TempDir()
+	sub := filepath.Join(ws, "substrate")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(sub, "Makefile.workflow")
+	if err := os.WriteFile(want, []byte("# workflow\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	want, _ = filepath.EvalSymlinks(want)
+	anchor := filepath.Join(ws, "repo")
+	if err := os.MkdirAll(anchor, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../substrate/Makefile.workflow", filepath.Join(anchor, "Makefile.workflow")); err != nil {
+		t.Fatal(err)
+	}
+	untracked := t.TempDir() // a train tree: no Makefile.workflow at all
+	tracked := filepath.Join(t.TempDir(), "tree")
+	if err := os.MkdirAll(tracked, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../substrate/Makefile.workflow", filepath.Join(tracked, "Makefile.workflow")); err != nil {
+		t.Fatal(err)
+	}
+	for name, root := range map[string]string{"untracked": untracked, "tracked link": tracked} {
+		if got, err := workflowFile(root, anchor); err != nil || got != want {
+			t.Errorf("%s: %q, %v; want %q", name, got, err, want)
+		}
+		if _, err := workflowFile(root, ""); err == nil {
+			t.Errorf("%s without an anchor resolved", name)
+		}
+	}
+	if got, err := workflowFile(anchor, ""); err != nil || got != want {
+		t.Errorf("the checkout itself: %q, %v", got, err)
+	}
+}

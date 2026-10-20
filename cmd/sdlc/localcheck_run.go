@@ -32,13 +32,17 @@ import (
 // localRunDeps is what a local run touches: GitHub (to record), git in the
 // repository root (worktree and log location), and where to report.
 type localRunDeps struct {
-	GH         ghCaller
-	Repo       string // owner/name
-	Root       string // the checkout's top level; Makefile.workflow resolves from here
-	Git        func(args ...string) (string, error)
-	CleanupGit func(args ...string) (string, error) // independent bounded recovery IO
-	PR         int                                  // 0: no PR known, so a failure posts no comment
-	Stderr     io.Writer
+	GH   ghCaller
+	Repo string // owner/name
+	Root string // the checkout's top level; Makefile.workflow resolves from here
+	// WorkflowAnchor is the checkout Root was made from, when Root is a
+	// disposable tree whose relative Makefile.workflow link does not resolve
+	// where it sits (a landing train's, #486); "" when Root is that checkout.
+	WorkflowAnchor string
+	Git            func(args ...string) (string, error)
+	CleanupGit     func(args ...string) (string, error) // independent bounded recovery IO
+	PR             int                                  // 0: no PR known, so a failure posts no comment
+	Stderr         io.Writer
 	// SkipRecord is for a diagnostic baseline on main. It keeps the log but
 	// never publishes a commit status or PR comment for that baseline.
 	SkipRecord bool
@@ -76,7 +80,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	if d.minute == 0 {
 		d.minute = time.Minute
 	}
-	helper, err := prepareSuiteHelper(ctx, d.Root)
+	helper, err := prepareSuiteHelper(ctx, d.Root, d.WorkflowAnchor)
 	if err != nil {
 		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
 	}
