@@ -138,7 +138,7 @@ machine-wide suite slots, like any local check. sdlc runs it as `env SDLC_AFFECT
 |------|----------|--------|-------|
 | `loadGoGraph` | `cmd/sdlc/internal/affected/golist.go` | new | `go list -test -json ./...` |
 | `runAffectedCheck` | `cmd/sdlc/localcheck_affected.go` | new | worktree, git diff, runner |
-| `readAffectedConfig` | `cmd/sdlc/localchecks.go` | new | `git show origin/main:.sdlc/affected.json` |
+| `readAffectedConfig` | `cmd/sdlc/cigate.go` | new | `git show origin/main:.sdlc/affected.json` |
 | `productionCarGates` | `cmd/sdlc/landingcar.go` | modified | CI gate (stand-in) |
 
 - **loadGoGraph**: runs `go list` in the head's detached worktree; a parse or exit failure means Full ("package graph
@@ -254,8 +254,8 @@ one.
       Groups []string
   }
   func (s Selection) Empty() bool
-  // Plan classifies each path, first rule wins: doc → ignored; full → Full; in a package dir → that package;
-  // a group's paths → that group; else Full("unclassified: "+p). isDoc is injected: the caller passes
+  // Plan classifies each path by the rules in Core concepts (affected.Plan); package ownership and group
+  // matching are additive, never first-match (PQ-1). isDoc is injected: the caller passes
   // !publishGateHasCodeSurface([]string{p}), so docs mean the same here as in the CI gate (ARCH-DRY).
   func Plan(paths []string, g Graph, cfg Config, isDoc func(string) bool) Selection
   ```
