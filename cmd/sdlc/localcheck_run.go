@@ -25,6 +25,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/queuegate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/scratchdisk"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
@@ -128,6 +129,12 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
 	run, err := runUnderSlot(ctx, d, wt, helper, logDir, c.Name, sha, c.Weight, subject, c.Command, rec.LogPath, time.Duration(c.TimeoutMinutes)*d.minute)
 	if err != nil {
+		var interrupted *queueInterruptedError
+		if errors.As(err, &interrupted) {
+			err = retainQueueInterruption(logDir, sha, c.Name, rec.LogPath, interrupted)
+			publishing = interrupted.LogPath == rec.LogPath // Retain inflight raw log if the move failed.
+			rec.LogPath = interrupted.LogPath
+		}
 		return rec, err
 	}
 	rec.Exit, rec.TimedOut, rec.Duration = run.Exit, run.TimedOut, run.Duration
@@ -255,13 +262,36 @@ type suiteSlotRun struct {
 // are released the moment it exits (#383), so a suite and a known-flake rerun
 // (#394) are both cancellable and neither holds a slot while it records. An
 // interrupt is an error and records nothing.
-func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check, sha string, weight int, subject suitePrioritySubject, argv []string, logPath string, timeout time.Duration) (suiteSlotRun, error) {
-	run := suiteSlotRun{Exit: -1}
+func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check, sha string, weight int, subject suitePrioritySubject, argv []string, logPath string, timeout time.Duration) (run suiteSlotRun, err error) {
+	run = suiteSlotRun{Exit: -1}
 	queueStart := time.Now()
 	// Own signals only while our queue/suite resources exist. The surrounding
 	// Git/network preparation and bookkeeping retain default termination.
 	ownedCtx, stopSignals := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stopSignals()
+	ownedCtx, cancelOwned := context.WithCancel(ownedCtx)
+	defer cancelOwned()
+	ownedCtx, q, err := startQueueOperation(ownedCtx, d.Root, sha, []string{"suite"})
+	if err != nil {
+		return run, err
+	}
+	stopCancellation := consumeQueueCancellation(ownedCtx, q, cancelOwned)
+	defer func() {
+		stopCancellation()
+		if retirement := q.finish(ownedCtx, queueInterruptionReason(err)); retirement != nil {
+			err = errors.Join(err, retirement)
+		}
+	}()
+	if isQueueAdmitted(ctx) {
+		_, err := q.admit(ownedCtx, func() (bool, error) { return false, nil })
+		var paused *queuegate.PausedError
+		if errors.As(err, &paused) {
+			return run, &queueInterruptedError{ID: q.op.ID, Reason: err.Error()}
+		}
+		if err != nil {
+			return run, err
+		}
+	}
 	// The lease (#400) spans exactly the stretch where SIGTERM is ours, so
 	// `local-check cancel` always lands on the managed interruption path.
 	pidStarted, _ := processStartTime(os.Getpid())
@@ -276,7 +306,37 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 	defer releaseLease()
 	heldBy, release, err := acquireSuiteSlot(ownedCtx, d, wt, weight, helper, subject)
 	if err != nil {
+		var interrupted *queueInterruptedError
+		if errors.As(err, &interrupted) {
+			return run, err
+		}
 		return run, fmt.Errorf("local check %s: %w", check, err)
+	}
+	// New helpers publish under the gate while taking slots. Older/fake
+	// helpers still require our own gated confirmation before starting work.
+	op, err := q.lease.Read(ownedCtx)
+	if err != nil {
+		release()
+		return run, err
+	}
+	if op.Phase == "waiting" {
+		if isQueueAdmitted(ctx) {
+			_, err = q.admit(ownedCtx, nil)
+			var paused *queuegate.PausedError
+			if errors.As(err, &paused) {
+				release()
+				return run, &queueInterruptedError{ID: q.op.ID, Reason: err.Error()}
+			}
+		} else {
+			err = q.waitAdmission(ownedCtx, d.Stderr)
+		}
+		if err != nil {
+			release()
+			return run, err
+		}
+	} else if op.Phase != "running" {
+		release()
+		return run, &queueInterruptedError{ID: q.op.ID, Reason: "suite admission was interrupted"}
 	}
 	queueAcquired := time.Now()
 	// Derive the recorded duration from the same wall-clock endpoints that are
@@ -336,16 +396,27 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 	// returns once the check has stopped and its slot is freed.
 	releaseLease()
 	interrupted := ownedCtx.Err() // stopSignals itself cancels ownedCtx.
+	stopCancellation()
 	stopSignals()
 	run.Start, run.Duration = start.UTC(), time.Since(start)
 	run.Finished = time.Now().UTC()
 	_ = logf.Close()
+	reason := ""
+	if interrupted != nil {
+		reason = "managed suite cancelled"
+	}
+	if err := q.finish(ownedCtx, reason); err != nil {
+		return run, err
+	}
+	if q.interrupted {
+		return run, &queueInterruptedError{ID: q.op.ID, Reason: "managed suite cancelled", LogPath: logPath, Cause: interrupted}
+	}
 	var exitErr *exec.ExitError
 	switch {
 	case runCtx.Err() == context.DeadlineExceeded:
 		run.TimedOut = true
 	case interrupted != nil:
-		return run, fmt.Errorf("local check %s interrupted: %w", check, interrupted)
+		return run, &queueInterruptedError{ID: q.op.ID, Reason: "managed suite cancelled", LogPath: logPath, Cause: interrupted}
 	case runErr == nil:
 		run.Exit = 0
 	case errors.As(runErr, &exitErr):
@@ -458,6 +529,12 @@ func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight in
 	// The run's worktree is a temp directory; name the owning checkout in the
 	// slot record so the queue's held-by lines identify the slot (#400).
 	cmd.Env = append(os.Environ(), "WF_TEST_LOCK_OWNER="+d.Root)
+	if q := queueRuntimeFrom(ctx); q != nil {
+		cmd.Env = append(cmd.Env, "WF_SDLC_QUEUE_ROOT="+q.store.Root, "WF_SDLC_QUEUE_ID="+q.op.ID)
+		if isQueueAdmitted(ctx) {
+			cmd.Env = append(cmd.Env, "WF_SDLC_QUEUE_STOP_IF_PAUSED=1")
+		}
+	}
 	// Optional environment metadata keeps older capacity helpers compatible;
 	// priority failure must never prevent ordinary suite admission.
 	subject := suitePrioritySubject{CommonDir: d.Root}
@@ -478,6 +555,9 @@ func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight in
 		return "", nil, fmt.Errorf("%w: suite lock helper: %v", errUnboundedSuite, err)
 	}
 	switch state {
+	case "paused":
+		release()
+		return "", nil, &queueInterruptedError{Reason: "admitted merge reached a paused new-suite boundary"}
 	case "acquired":
 		return pid, release, nil
 	case "reentrant":

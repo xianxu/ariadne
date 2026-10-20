@@ -570,6 +570,20 @@ never another slot's; never stop one by a PID picked from `ps`. When a finished
 check's status post can't reach GitHub, `sdlc local-check republish --name X`
 posts the saved result later, with no rerun.
 
+`sdlc queue pause --owner TOKEN [--reason TEXT] [--cancel-running]` holds new
+machine-suite and landing admission. Operator/:0 owners compose; `sdlc queue
+resume --owner TOKEN` removes only that hold and never restarts interrupted work.
+`sdlc queue status --json` reports the frozen v1 owner/activity schema. Incomplete
+or unknown observations never prove quiescence. Isolated conformance supplies
+private `WF_SDLC_QUEUE_ROOT`, `WF_TEST_LOCK_FILE` and
+`WF_SDLC_QUEUE_FLEET_ROOT`; it must never pause the live fleet. See the
+[queue backend and rollout](atlas/workflow/sdlc-binary.md#machine-wide-queue-drain-481).
+
+Managed local checks retain their latest raw interruption log per check/head as
+`<git common dir>/sdlc/local-checks/<head>/<check>.interrupted.log`, outside
+accepted suite attempts. The normal newest-20-head log retention applies.
+`tl-worker --help` describes the durable checkpoint and drain acknowledgment.
+
 A repository can also declare an **affected suite** (#473) in `.sdlc/affected.json`; without the file the mode is off.
 `sdlc local-check run --name affected` then runs only what the branch's change can break, and the result of a
 pushed head's run depends on what changed:

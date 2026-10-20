@@ -1977,6 +1977,72 @@ bootstrap's tool build. Pre-sdlc, ariadne needed only shell + python (always
 present), so bootstrap never provisioned a toolchain; #61 closed that gap. nous
 owns its richer toolchain (Homebrew/GPG/gh/…) separately.
 
+### Machine-wide queue drain (#481)
+
+`sdlc queue pause --owner TOKEN [--reason TEXT] [--cancel-running]`, `resume
+--owner TOKEN` and `status --json` are the pair#722 drain adapter's frozen seam.
+The operator or :0 can mutate holds using the landing-grant authority rule.
+Owners compose without expiry; a resume removes only its owner and does not
+restart interrupted work. Snapshot v1 carries required state/completeness,
+pause-owner and activity arrays, plus detail. Active operation IDs can expose
+several of suite/merge/landing; waiters are excluded. Unknown/incomplete evidence
+never becomes a complete empty snapshot.
+
+`cmd/sdlc/internal/queuegate` owns pure owner/operation transitions, strict
+additive JSON codecs and the portable filesystem backend. `queuecmd.go` owns
+CLI framing and authority; `queue_legacy.go` is a bounded, read-only status
+overlay for old machine locks, pending queue tokens/tickets, landing heads and
+same-user merge processes. Held legacy waiters make completeness false with a
+named detail, while remaining outside active[]. Verified new waiting bindings
+stay excluded and complete.
+Process observations never authorize termination. Status-only legacy scans
+do not run on the admission path; counted tests protect that separation and
+linear registry/binding reads.
+
+The default root is `$XDG_STATE_HOME/ariadne/queue` or
+`~/.local/state/ariadne/queue`; `WF_SDLC_QUEUE_ROOT` overrides it. A private
+`WF_TEST_LOCK_FILE` alone derives `<file>.queue-state`. Conformance additionally
+sets `WF_SDLC_QUEUE_FLEET_ROOT` to an isolated fleet: this scope makes no claim
+about production processes. `control.lock` serializes owner writes with active
+lease publication; each operation holds its own flock for its lifetime.
+Paused ownership is durable even if the caller loses the mutation response.
+Unresolved owner/descendant evidence is retained rather than aged into absence.
+Interrupted evidence has its own bounded family, outside SuiteAttempt and
+failure/flake decisions.
+
+Rollout rebuilds central :0, then lets old runners finish/relaunch; legacy
+activity remains named unknown until that boundary is proved. Managed suites
+own cancellation through processgroup cleanup. A direct make watcher alone
+only proves one PID ended, so an unproved descendant boundary stays unknown
+for operator reconciliation. No shared process group is signalled. The
+supervisor notice/ack formatter belongs to pair#722, while tl-worker describes
+the checkpoint discipline.
+
+`queue_runtime.go` enrolls each merge before waiting; `Line.tryAdmit` wraps the
+actual line transaction with its global gate. Ordinary-worktree merges and
+already-merged/train cleanup use the same lifetime through their bypass
+admission. `localcheck_run.go` enrolls suites and supplies the exact managed
+operation ID to `scripts/test-lock.py`. `QueueGate` borrows that held lease and
+publishes its running phase together with weighted capacity; grant-provider
+calls remain outside the global mutex. Reentrant makes reuse their holder.
+Secondary allocation/line locks are attempted without blocking while the
+global gate is held; contention releases the global gate and retries without
+discarding FIFO position. Blocking preview/writer work stays outside it.
+The forked watcher reopens its control mutex descriptor so it cannot unlock
+its parent's transaction. Raw slot/head bindings identify the controller's
+operation ID, kernel incarnation and checkout root.
+
+`Lease.RetireOutcome` serializes completion against cancellation, so a
+cancellation that wins cannot become a passing suite. The managed owner joins
+its cancellation reader and cleans the process group before retirement.
+`queue_interruption.go` retains the latest raw interruption log per check/head
+as `<git common dir>/sdlc/local-checks/<head>/<check>.interrupted.log` (the normal
+newest-20-head retention), while the queue's immutable JSON diagnostics keep
+their separate 30-day/4096-record policy. These logs never enter SuiteAttempt,
+main-red or flake evidence. A same-head manual retry after resume is ordinary
+admission. Direct make has no verified workspace identity and reports it as
+unknown, with its checkout named in detail; a surviving child remains unknown.
+
 ### Running the test suite (#253)
 
 The required recorded suite is declared in `.sdlc/local-checks.json` as
