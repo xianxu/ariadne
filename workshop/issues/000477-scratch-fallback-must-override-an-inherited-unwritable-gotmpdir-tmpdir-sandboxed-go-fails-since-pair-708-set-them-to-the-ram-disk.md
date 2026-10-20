@@ -185,3 +185,12 @@ codecomplete card is bound to the binary's close evidence. Minor advisory BR-3
 unclaimed ariadne#478, dependent on #477. No post-close code change is included.
 The final-code recorded suite remains queued; no full-suite pass is claimed,
 and merge waits for it rather than starting a duplicate suite.
+
+### 2026-10-19 — recorded full suite passed; entering landing
+
+The final-code recorded suite passed: 1,756 cmd/sdlc tests across 12 shards and
+72 other packages, zero failures, wall 797.3s (13m17s), no flake rerun. It waited
+1,715s for both machine slots. Central sdlc recorded sdlc-local/suite on the
+tested implementation; subsequent branch commits are issue/review bookkeeping
+only. Server CI is green and close round 3 is SHIP. Enter the normal merge
+line now; let it integrate/test current main where required.
