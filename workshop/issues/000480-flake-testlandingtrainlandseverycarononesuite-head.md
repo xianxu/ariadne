@@ -78,6 +78,8 @@ ARCH-CONSTRAINTS/PURPOSE: cap diagnostic concurrency at four, record load and wi
 
 - Matrix run 04 (8 shards), complete exit 0: wall 599.859s, peak load1 33.847, kernel/all 49.223%, kernel/busy 54.679%, idle 9.978%; quiet reached in 158.078s after 557s normal queue wait. All manifest file hashes verified; no failed Go events. Evidence benchmark/results/run-04-8-a1. Continuing approved order with run 05 at 6 shards.
 
+- Matrix run 05 (6 shards), complete exit 0: wall 819.640s, peak load1 39.812, kernel/all 39.778%, kernel/busy 51.517%, idle 22.787%; quiet reached in 213.532s after 1223s normal queue wait. All manifest file hashes verified; no failed Go events. Evidence benchmark/results/run-05-6-a1. Read-only fleet resource snapshot benchmark/run-05-fleet-snapshot.json has partial CPU attribution; these are whole-machine metrics under normal weight-2 suite isolation, not proof that every peak belongs exclusively to this suite. Normal fleet work remains possible between and during admitted jobs as allowed by the hub. Continuing approved order with run 06 at 12 shards.
+
 ## Revisions
 
 - 2026-10-20 (hub-approved scope fold): original Done-when was “The root cause is fixed (never a retry loop or a longer timeout); closing this issue unregisters the tests.” Bounded diagnostics identify the costly cleanup window but do not reproduce the original two-minute stall. Replace the unqualified root-cause promise with measured suite-envelope correction and persistent diagnostic evidence; retain the no-retry/no-timeout-bump constraint. Fold #484's 12/8/6 measurement into #480; leave cleanup-lock optimization as a possible separate follow-up. The diagnostic plan row now distinguishes observed lock ownership from unresolved starvation attribution.
