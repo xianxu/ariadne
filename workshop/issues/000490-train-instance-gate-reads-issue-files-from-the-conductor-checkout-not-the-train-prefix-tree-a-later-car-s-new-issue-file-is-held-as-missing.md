@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "38167baf", done: "68cb5e54"}
 ---
 
 # Train instance gate reads issue files from the conductor checkout, not the train-prefix tree: a later car's new issue file is held as missing
