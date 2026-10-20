@@ -687,6 +687,21 @@ func TestLandingTrainSplitHoldsTheCulpritAndLandsThePrefix(t *testing.T) {
 	if departed := ev[0].NextDue; departed.After(time.Now()) {
 		t.Fatalf("a split left ready cars behind, yet the next train waits until %v", departed)
 	}
+	common := git(t, s.first, "rev-parse", "--git-common-dir")
+	attempts, warnings, err := readSuiteAttempts(filepath.Join(common, "sdlc", "test-stats"), 100)
+	if err != nil || len(warnings) != 0 || len(attempts) < 3 {
+		t.Fatalf("split attempts: %+v warnings=%v err=%v", attempts, warnings, err)
+	}
+	baseline := false
+	for _, a := range attempts {
+		if a.Slot != "sample:1" {
+			t.Errorf("split/baseline attempt %s lost conductor slot: %q", a.ID, a.Slot)
+		}
+		baseline = baseline || a.MainBaseline
+	}
+	if !baseline {
+		t.Fatal("split control did not exercise a main baseline")
+	}
 	wantNoTrainBranch(t, s.gh.remote)
 }
 

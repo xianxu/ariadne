@@ -466,6 +466,7 @@ trains on:
 - **Boarding:** cars are boarded only after their remote tip and open PR are re-read at the vouched head.
 - **Build:** it builds `landing-train/<id>` in a detached worktree from fetched main, then each car's exact head. The instance and duplicate-ID gates run per prefix, and a conflict holds that car.
 - **One PR, one suite:** it opens one train PR and runs one recorded suite (#394's flake step inside it) and CI on it.
+- **Suite ownership:** the detached train is the content tree; its original conductor checkout remains the caller through `localRunDeps.WorkflowAnchor` and `callerRoot()`. Saved attempts (including baselines and prefix retries), queue operations, cancellation leases and capacity-holder diagnostics use that caller. Relative Git common directories resolve there too. Overlapping issues' actuals can then exclude another slot's train wait without inventing provenance (#492).
 - **Merge:** it merges once, pinned to the head. GitHub marks each car's PR merged by reachability.
 - **Outcomes:** every car is told through `outcomes/<seq>` (boarded, landed, held, refused, released). A landed car finishes today's resume cleanup.
 - **Landed commit:** each car proves its landing with `landedCommit` (its mergeCommit or its own head on main; `LandedOID` feeds the archive and the card).

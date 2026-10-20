@@ -41,9 +41,9 @@ plus whatever identifies it as a train run (train id) if the schema allows, so m
 
 ## Plan
 
-- [ ] Add one caller-root selector to localRunDeps: WorkflowAnchor when present, otherwise Root. Use it for SuiteAttempt.Slot, managed suite identity, cancellation lease ownership and WF_TEST_LOCK_OWNER; retain Root for train content/helper lookup and exact-head priority evidence.
-- [ ] RED/GREEN a real two-car train whose disposable tree differs from its conductor. Read persisted attempts and prove the conductor slot survives, including retry/baseline/rerun paths through the shared runner. Feed a produced attempt into the actual measurement regression: an overlapping foreign-slot issue measures without queue-provenance refusal; a missing-slot control still refuses.
-- [ ] Verify ordinary local checks retain their owner; cover real queue/lease/slot diagnostic boundaries and existing train instance/helper controls. Update atlas, run the recorded suite and close/land with central sdlc.
+- [x] Add one caller-root selector to localRunDeps: WorkflowAnchor when present, otherwise Root. Use it for SuiteAttempt.Slot, managed suite identity, cancellation lease ownership and WF_TEST_LOCK_OWNER; retain Root for train content/helper lookup and exact-head priority evidence.
+- [x] RED/GREEN a real two-car train whose disposable tree differs from its conductor. Read persisted attempts and prove the conductor slot survives, including retry/baseline/rerun paths through the shared runner. Feed a produced attempt into the actual measurement regression: an overlapping foreign-slot issue measures without queue-provenance refusal; a missing-slot control still refuses.
+- [x] Verify ordinary local checks retain their owner; cover real queue/lease/slot diagnostic boundaries and existing train instance/helper controls. Update atlas. Delivery gates remain the recorded suite and central close/landing; a passing record precedes merge.
 
 ARCH-DRY: reuse WorkflowAnchor, already the verified checkout the train was made from, rather than add a second owner field or recover ownership from a temporary pathname/environment. ARCH-PURPOSE: sweep all lifetime/provenance writers using that root, not only the final JSON field. Root stays the train tree for content checks (#490) and helper resolution (#486). ARCH-EVOLVE: populate the existing slot field; no schema/version change. Train identity remains in existing landing-line train records; SuiteAttempt has no train-id field to reuse.
 
@@ -58,3 +58,17 @@ Actions: run suite, restore evidence. Valid conductor identity produces the exis
 ### 2026-10-20 — claim and root-cause plan
 
 Claimed immediately after #491 landed. The train deliberately changes localRunDeps.Root to its detached content tree and retains the original conductor in WorkflowAnchor; SuiteAttempt, queue enrollment, run cancellation lease and capacity-holder diagnostics nevertheless used Root. Reuse the existing anchor at those identity boundaries. Content/root and priority semantics stay unchanged. Quick-flow-sized one-selector fix, with real producer and measurement controls before code; no staging or live machine pause.
+
+### 2026-10-20 — implementation and targeted evidence
+
+The real train regression first returned an empty saved slot, temporary-tree queue/lease/holder ownership, and the exact actual CLI refusal "unknown slot provenance". After the one callerRoot selector was applied to those four identity writers, it passes; the missing-slot control still refuses. An initial measurement fixture used a local remote identity, so its records could not join GitHub suite evidence; the fixture now delegates identity reads to real Git and maps only GitHub transport to its existing private bare origin. All records pass the production decoder before reaching actuals. A queued second-car fixture keeps this ownership test independent of the second merge's cleanup timeout observed in #500.
+
+A primary-checkout control also failed because relative Git common directories were anchored to the disposable content tree; the same selector fixes that path. The train-splitting control now asserts all prefix retries and its diagnostic baseline carry the conductor slot. Removing the selector made all four persisted attempts fail that assertion; restoring it passes. Ordinary local-check, real-lock baseline/reentry/rerun, cancellation, priority, queue lifetime, train helper/content, known-flake and verb-context controls all pass together (295.135s). The tracked Go lint catalog passes (0.535s). No new Go lint rule: caller versus content ownership is a semantic path boundary, enforced by the real writer/CLI tests rather than a lexical name rule.
+
+ARCH-PURE: the selector is pure; existing IO resolves workspace identity. ARCH-MOCK: GitHub/capacity use existing private stateful seams, with real Git and the real actual CLI consumer. ARCH-CONSTRAINTS: constant-time selection replaces arguments without extra processes/scans or changed suite bounds. ARCH-SECURE: no environment/path-name inference, and unknown-slot evidence still refuses. ARCH-ORDER: immutable run dependencies add no state between events. ARCH-FUNERAL: no new artifact family, retention or lifetime; normal attempt and temporary-fixture cleanup remain in charge. ARCH-DRY/PURPOSE/EVOLVE are described in Plan.
+
+## Revisions
+
+### 2026-10-20 — complete the caller/content boundary
+
+The root-use sweep found relative Git-common-directory paths also anchored to content Root even though the Git seam runs in the caller checkout. Resolve them through the same callerRoot selector, with a real primary-checkout regression. This adds no mechanism, field or format. The Plan's delivery suffix originally said "run the recorded suite and close/land with central sdlc"; those remain mandatory gates, outside the completed implementation checklist, so close review can overlap a queued recorded suite under tl-worker's rule.
