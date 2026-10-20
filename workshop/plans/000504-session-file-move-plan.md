@@ -175,3 +175,13 @@ companions remain owned by Couch in their old location; no legacy shadow/state
 is copied by tl-lead. Final live acceptance/staging order is awaiting TL
 clarification because the requested stage-after-SHIP sequence changes the
 original pre-close manual contract.
+
+
+### 2026-10-20 10:40 PDT — accepted close/stage ordering
+
+TL approved superseding Task 5's earlier requirement to capture live migration
+before close. The binding order is now green recorded suite and SHIP, stage the
+final build, TL/operator migrate both hubs and return evidence, append evidence,
+clear stage, then merge. Live migration is an explicit post-close/pre-merge hold;
+closing alone never authorizes merge. The issue's current Done when and Plan
+match this ordering. No implementation behavior changed.

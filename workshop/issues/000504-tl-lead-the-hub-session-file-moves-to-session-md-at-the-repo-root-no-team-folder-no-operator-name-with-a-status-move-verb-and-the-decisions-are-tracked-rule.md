@@ -49,8 +49,11 @@ decision made in a side doc gets copied into the tracked artifact (issue, projec
 
 - Tests: `tl-lead status move` on a fixture renames file and side docs, rewrites links, and refuses under a lock.
 - `tl-lead --help` documents the new location and the decisions rule.
-- **Last step, manual:** migrate the two live hubs, ops:0 (`teams/devinfra/tl-status-xian-xu.md`) and ops-echo:0
-  (`teams/echo/tl-status-xian-xu.md`), with the operator at a quiet moment.
+- Close-time verification: focused tests, scratch Couch conformance, Parley attention compatibility, recorded green suite and SHIP from the boundary review.
+- **Post-close, pre-merge hold:** after green suite and SHIP, stage the final build with `sdlc stage --build`.
+  The TL and operator migrate ops:0 (`teams/devinfra/tl-status-xian-xu.md`) and ops-echo:0
+  (`teams/echo/tl-status-xian-xu.md`) at a quiet moment. The worker waits for TL evidence, appends it to the Log,
+  clears the stage, and only then merges. Closing does not release this landing hold.
 
 ## Plan
 
@@ -58,8 +61,8 @@ decision made in a side doc gets copied into the tracked artifact (issue, projec
 - [x] Implement pure copy-then-switch planning and fixture link rebasing.
 - [x] Implement guarded copying, Couch registration switch, verification and retryable cleanup.
 - [x] Update help/README/atlas with session.md, session.side/ and the decisions rule; verify Parley attention compatibility.
-- [ ] Run focused checks, recorded suite and the SDLC boundary review.
-- [ ] TL and operator migrate both live hubs at a quiet moment; worker does not run live migrations.
+- [ ] Verify the recorded full suite on the pushed head; the close verb owns the boundary review.
+The post-close migration is tracked in Done when and Landing hold below, not as a pre-close Plan checkbox.
 
 Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 
@@ -84,7 +87,19 @@ Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 
 - Drain acknowledgement attempted only after the checkpoint reached PR #351. Couch refused `--drain --ack 69bb7fc3-a125-42c6-9900-5814613b8eba` with `ack does not name current drain/member`; the board still lists this slot as checkpoint requested. No ack was recorded. Work is stopped with a clean checkpoint; operator/supervisor must reconcile membership or deliver the current drain notice. No automatic retry or separate drained report.
 
+- Resumed after restart. TL approved revising live migration to a post-close/pre-merge hold (delivery 530ea8ef-34e8-4475-874c-6f495ed9e4d3, canonical submitted receipt verified). Recorded suite and SHIP precede staging; no live migration will be run by the worker.
+
+## Landing hold
+
+Pending: green suite and SHIP → final build staged → TL/operator migrate both live hubs → TL evidence appended here → stage cleared → merge. Worker must not merge before the TL returns that evidence.
+
 ## Revisions
+
+### 2026-10-20 10:40 PDT — TL-approved acceptance ordering
+
+Reason: keep the stage window short and stage only the final SHIP build.
+Superseded Done when: “Last step, manual: migrate the two live hubs … with the operator at a quiet moment,” previously interpreted as required before close. The manual migration remains required before merge, but is now explicitly a post-close hold. Current Done when and the Plan were synchronized: the pre-close Plan checkbox covers the recorded suite; close owns its review, and manual migration lives under Landing hold.
+
 
 ### 2026-10-20 — planning decisions from the TL
 
