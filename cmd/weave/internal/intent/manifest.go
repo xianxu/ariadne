@@ -20,6 +20,17 @@ var kindByVerb = map[string]Kind{
 	"prose":     Prose,
 	"skill":     Skill,
 	"ship":      Ship,
+	"decline":   Decline,
+}
+
+// Verb is the manifest word for k, read back from kindByVerb (one source).
+func (k Kind) Verb() string {
+	for verb, kind := range kindByVerb {
+		if kind == k {
+			return verb
+		}
+	}
+	return ""
 }
 
 // visByToken maps the OPTIONAL leading visibility token to its Visibility. A row

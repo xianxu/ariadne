@@ -239,6 +239,9 @@ type trainSetup struct {
 	blocker       *landingline.Handle
 	heads         map[string]string // branch → car head
 	rootKey       any
+	// validate runs the instance gate in the cars' merges (landingFlags
+	// turns it off); see gateInstancesByReading.
+	validate bool
 }
 
 type trainRootKey struct{}
@@ -318,6 +321,7 @@ func (s *trainSetup) merge(root string) <-chan error {
 	done := make(chan error, 1)
 	go func() {
 		f := landingFlags()
+		f.NoValidate = !s.validate
 		ctx := context.WithValue(context.Background(), trainRootKey{}, root)
 		f.Context = ctx
 		// The real repo transaction lock, as production's merge takes it:
@@ -903,5 +907,80 @@ func TestLandingTrainStoppedByEnvironmentReleasesItsCars(t *testing.T) {
 	// record: it lands rather than waiting for a train that cannot run.
 	if p := s.gh.pr("000002-second"); p.State != "MERGED" || two != nil {
 		t.Fatalf("released car: PR %s, merge %v; want it landed on the serial path", p.State, two)
+	}
+}
+
+// gateInstancesByReading stands in for `vocabulary validate-instance`: like
+// the real validator it reads the file at the path it is given, and a file it
+// cannot read is nonconforming with the validator's message (#490's symptom).
+func gateInstancesByReading(t *testing.T) {
+	t.Helper()
+	prev := validateFrontmatterFn
+	validateFrontmatterFn = func(_, file string) (string, bool, error) {
+		if _, err := os.ReadFile(file); err != nil {
+			return "vocabulary: read that file: " + err.Error(), false, nil
+		}
+		return "", true, nil
+	}
+	t.Cleanup(func() { validateFrontmatterFn = prev })
+}
+
+// trainCarWithIssue is a second car whose branch adds an issue file with
+// body, one the conductor's own checkout does not have.
+func trainCarWithIssue(t *testing.T, s *trainSetup, body string) string {
+	t.Helper()
+	second := filepath.Join(filepath.Dir(filepath.Dir(s.first)), "sample-slot2", "sample")
+	git(t, second, "fetch", "-q", "upstream")
+	git(t, second, "reset", "-q", "--hard", "upstream/main")
+	git(t, second, "switch", "--quiet", "--no-track", "-c", "000002-second")
+	procedureWrite(t, second, "workshop/issues/000002-second.md", body)
+	procedureWrite(t, second, "second.go", "package second\n")
+	git(t, second, "add", ".")
+	git(t, second, "commit", "-qm", "close second")
+	git(t, second, "push", "-q", "upstream", "000002-second")
+	s.addCar(t, "000002-second", 2)
+	return second
+}
+
+// #490: the instance gate validates each prefix in the train tree that holds
+// it. Car 2 adds an issue file the conductor's checkout lacks; read from the
+// conductor's checkout it was "missing" and the car was held.
+func TestLandingTrainGatesEachPrefixInItsOwnTree(t *testing.T) {
+	gateInstancesByReading(t)
+	s := newTrainSetup(t, "train")
+	s.validate = true
+	second := trainCarWithIssue(t, s, "---\nid: 000002\nstatus: codecomplete\n---\n## Spec\nspec\n## Done when\n- it works\n## Plan\n- [x] do it\n")
+	if one, two := runTwoCars(t, s, second); one != nil || two != nil {
+		t.Fatalf("cars: %v / %v", one, two)
+	}
+	for _, b := range []string{landingTestBranch, "000002-second"} {
+		if p := s.gh.pr(b); p.State != "MERGED" {
+			t.Fatalf("%s: %s (car events %+v)", b, p.State, lineEvents(t, s.line)[landingline.EventCar])
+		}
+	}
+}
+
+// #490 control: a car whose own new issue file breaks a rule is still held,
+// with the file and the rule named, and the rest of the train goes on.
+func TestLandingTrainHoldsAMalformedCarNamingTheFile(t *testing.T) {
+	gateInstancesByReading(t)
+	s := newTrainSetup(t, "train")
+	s.validate = true
+	second := trainCarWithIssue(t, s, instanceGateNoPlan)
+	one, _ := runTwoCars(t, s, second)
+	if one != nil {
+		t.Fatalf("the conductor's car: %v", one)
+	}
+	held := ""
+	for _, e := range lineEvents(t, s.line)[landingline.EventCar] {
+		if e.Result == string(landingline.OutcomeHeld) {
+			held = e.Detail
+		}
+	}
+	if !strings.Contains(held, "workshop/issues/000002-second.md (section)") {
+		t.Fatalf("held detail %q; want the file and the broken rule named", held)
+	}
+	if p := s.gh.pr(landingTestBranch); p.State != "MERGED" {
+		t.Fatalf("the conductor's car: %s", p.State)
 	}
 }

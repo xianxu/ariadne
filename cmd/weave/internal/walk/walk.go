@@ -56,7 +56,9 @@ func Load(fs weavefs.FS, order []string) ([]layer.Layer, error) {
 		}
 		layers = append(layers, l)
 	}
-	return layers, nil
+	// The leaf's opt-outs (#467) apply here, once, so every consumer of the
+	// walked layers sees the same rows.
+	return layer.Decline(layers), nil
 }
 
 // loadLayer reads dir's base.manifest into Intents (dropping self-reference

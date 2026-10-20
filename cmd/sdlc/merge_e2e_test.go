@@ -200,7 +200,7 @@ func swapMergeDeps(t *testing.T, gh ghCaller, gate func(ctx context.Context, bas
 	// Neutralize the #124 instance-conformance gate — these e2e tests exercise the
 	// merge FLOW, not the gate (which has its own unit tests in validategate_test.go)
 	// and would otherwise shell the `vocabulary` binary, absent in the test env.
-	validateChangedInstancesFn = func(_, _ string, _ []nounGate, _, _ io.Writer) error { return nil }
+	validateChangedInstancesFn = func(_, _, _ string, _ []nounGate, _, _ io.Writer) error { return nil }
 	t.Cleanup(func() {
 		ghClient = prevGH
 		detectRepo = prevDetect
