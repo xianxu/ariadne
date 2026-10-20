@@ -50,8 +50,21 @@ decision (option A, 10-19): ops `teams/devinfra/tl-status-xian-xu.side/2026-10-1
 
 ## Plan
 
-- [ ]
+Durable plan: [workshop/plans/000475-landing-train-departure-slots-plan.md](../plans/000475-landing-train-departure-slots-plan.md). It has decisions D1–D5, a state table, and ARCH notes.
+
+- [ ] M1 — departure rule: wall-clock `Slots`, `DepartureDue` with full/max-wait/slot reasons, `train_max_wait_minutes`, and the clock-reset fix (`alone` records carry no NextDue), plus the reason in `landing status`
+- [ ] M2 — machine plan: `MachinePlan` + `PackOffsets` (p90 × weight, ≤ 2 suite slots), plan file next to the suite lock, offsets wired into admission, `sdlc landing plan [--write]`, help and atlas, live dry run
 
 ## Log
 
 ### 2026-10-19
+
+### 2026-10-20
+- Claimed and started from ariadne:4. Parked for #490 at the hub's request, then resumed.
+- Code map (explore digest), kept for the plan:
+  - The only schedule is the last `EventTrain`'s `NextDue` (`train.go:58-77`).
+  - `maybeConductTrain.serial()` (`landingtrain.go:667-670`) records `alone` with a fresh NextDue for lone, granted, refused-self and no-adapter landings: that is the reset.
+  - Clock seams: `landingNow` and `Options.Now`.
+  - Config: `train_interval_minutes` and `train_max_cars` only; unknown keys are tolerated.
+  - The suite lock lives in `${XDG_STATE_HOME:-~/.local/state}/ariadne/`.
+  - `test-stats` gives p50/p90 wall time per repo but no weight; the weight comes from the local-checks declaration and the make probe.
