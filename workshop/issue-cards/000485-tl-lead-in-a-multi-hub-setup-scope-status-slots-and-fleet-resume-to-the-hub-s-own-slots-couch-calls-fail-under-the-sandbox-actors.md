@@ -1,6 +1,6 @@
 ---
 id: 000485
-status: working
+status: codecomplete
 created: 2026-10-19
 updated: 2026-10-20
 estimate_hours: 2.02
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 2.69
+tracker:
+    version: 1
+    completion:
+        token: close-8c920715a6e4
+        repository: github.com/xianxu/ariadne
+        reviewed_head: e2d3af977ec4ae3d9e2758dc6f01cb59596a5b65
+        evidence_commit: ac7b87f7bc7104e7ea7434f26692b5ca106d7d72
 ---
 
 # tl-lead in a multi-hub setup: scope status slots and fleet resume to the hub's own slots; couch calls fail under the sandbox (actors '?')
