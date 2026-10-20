@@ -78,7 +78,22 @@ ARCH-CONSTRAINTS/PURPOSE: cap diagnostic concurrency at four, record load and wi
 
 - Matrix run 04 (8 shards), complete exit 0: wall 599.859s, peak load1 33.847, kernel/all 49.223%, kernel/busy 54.679%, idle 9.978%; quiet reached in 158.078s after 557s normal queue wait. All manifest file hashes verified; no failed Go events. Evidence benchmark/results/run-04-8-a1. Continuing approved order with run 05 at 6 shards.
 
-- Matrix run 05 (6 shards), complete exit 0: wall 819.640s, peak load1 39.812, kernel/all 39.778%, kernel/busy 51.517%, idle 22.787%; quiet reached in 213.532s after 1223s normal queue wait. All manifest file hashes verified; no failed Go events. Evidence benchmark/results/run-05-6-a1. Read-only fleet resource snapshot benchmark/run-05-fleet-snapshot.json has partial CPU attribution; these are whole-machine metrics under normal weight-2 suite isolation, not proof that every peak belongs exclusively to this suite. Normal fleet work remains possible between and during admitted jobs as allowed by the hub. Continuing approved order with run 06 at 12 shards.
+- Matrix run 05 (6 shards), complete exit 0: wall 819.640s, peak load1 39.812, kernel/all 39.778%, kernel/busy 51.517%, idle 22.787%; quiet reached in 213.532s after 1223s normal queue wait. All manifest file hashes verified; no failed Go events. Evidence benchmark/results/run-05-6-a1. Read-only fleet resource snapshot benchmark/run-05-fleet-snapshot.json has partial CPU attribution; these are whole-machine metrics under normal weight-2 suite isolation, not proof that every peak belongs exclusively to this suite. The full-suite gate excludes concurrent suites, while other fleet activity remains possible. Continuing approved order with run 06 at 12 shards.
+
+- STOP / waiting for a scheduled window: run 06 acquired both machine slots after 3739s in the normal queue, then refused after 600.982s without the approved quiet baseline. It never launched a suite; its private scratch directory was removed and make exited. Longest qualifying interval was 4.031s (five required). During the last minute load1 peaked at only 4.977, but CPU idle averaged 67.713%, so the idle condition still failed. Preserve benchmark/results/run-06-12-a1 (manifest SHA256 43ac11b808b9cbee66e7a074c3bf0d5743180d97d0773de986eced0c362af11e), benchmark/run-06-quiet-analysis.json and benchmark/matrix-so-far.json. All cited payload hashes verify. Measurement checkout remains clean at Git-verified 0128b68f20debb7f29f58bb62ef60bdbae6d1f84.
+- Per the hub's stop rule, do not launch another attempt until the hub schedules a suitable window. Resume matrix position 06 at 12 shards in a fresh run-06-12-a2 directory, then positions 07/08/09 at 6/12/8 shards. Keep all completed and refused attempts. If reboot removes the RAM checkout, recreate the same pinned revision using benchmark/SKILL.md. No shard default or weight decision has been made; production code remains unchanged.
+
+Partial matrix (whole-machine measurements; all five complete suites passed 1792 cmd/sdlc tests plus 72 other packages and every original train variant):
+
+| Run | Shards | Wall seconds | Peak load1 | Kernel / all CPU % | Kernel / busy CPU % |
+|---:|---:|---:|---:|---:|---:|
+| 01 | 12 | 578.332 | 68.222 | 52.419 | 53.351 |
+| 02 | 8 | 583.718 | 29.414 | 42.176 | 53.881 |
+| 03 | 6 | 747.421 | 24.426 | 43.458 | 52.563 |
+| 04 | 8 | 599.859 | 33.847 | 49.223 | 54.679 |
+| 05 | 6 | 819.640 | 39.812 | 39.778 | 51.517 |
+
+Counts are 12:1, 8:2, 6:2; matrix incomplete. Four valid runs remain. The summary tool excludes the nonquiet attempt. These observations do not yet satisfy the nine-run decision contract.
 
 ## Revisions
 

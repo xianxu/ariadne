@@ -83,3 +83,7 @@ ARCH-DRY/PURE: one default helper, pure tick arithmetic, existing runner/gate. A
 - 2026-10-20 (hub): reject the proposed single 90-minute reservation. Each measurement takes its own normal two-slot suite job, waits for the quiet baseline (at most ten minutes after admission), then runs one suite. Allow other jobs between runs. If the quiet baseline cannot be reached, stop/report so the hub can schedule an operator window.
 
 - 2026-10-20 (measurement preparation): reconcile the architecture summary with the approved per-run queue policy; use the hub's explicit load1 <=6 threshold. Pinned checkout and OS conformance are complete; the harness review is resolving group-cancellation and source-cleanliness checks before any matrix run.
+
+## Execution checkpoint — 2026-10-20
+
+Five complete, hash-verified measurements are committed in the issue Log (counts 12:1, 8:2, 6:2). Position 06 refused quiet after 600.982s without launching its suite. The approved stop rule now applies: report to the hub and await a scheduled window, then resume 12/6/12/8 using a new attempt directory for position 06. All source stays at the pinned measurement head. No default selection or production implementation precedes the remaining evidence. Persistent refusal analysis and partial matrix are beside the harness in the issue's test-stats evidence.
