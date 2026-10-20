@@ -145,6 +145,146 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 2c8061d6-03b6-42e5-934d-2bbcb01a1a8d
+            repository: github.com/xianxu/ariadne
+            issue_id: "000481"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/b740070dea487c18
+            reviewed_head: 7f5afe02d77fe2015d05fac577f884de7ebbd6d1
+            slot: ariadne:3
+            requested_at: "2026-10-20T09:15:29.502453Z"
+          phase: finished
+          pid: 52279
+          started_at: "2026-10-20T09:15:29.628808Z"
+          finished_at: "2026-10-20T09:18:40.595687Z"
+          session_id: 01a15898-2b03-7912-8ea8-213071bb647d
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 7f5afe02d77fe2015d05fac577f884de7ebbd6d1
+        tracker_head: 2a41686cbdf2a2a3a81fb907bb66985c222768af
+        branch_point: 8a44224ff0f867837283368f62c0344bcd322b25
+        since: "2026-10-20T01:19:56-07:00"
+        until: "2026-10-20T02:15:05-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-20T01:19:56-07:00"
+              end: "2026-10-20T02:15:05-07:00"
+              began: "2026-10-20T01:19:56-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 9f491dc07c651c092165856bc947c12c590ab8980806c509e2be3fc6b4f5f5f1
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 71744920
+              windows:
+                - start: "2026-10-20T01:19:56-07:00"
+                  end: "2026-10-20T02:15:05-07:00"
+            - harness: codex
+              id: 01a15865-a812-7ae1-b293-fd0d91059cdb
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a14367-9218-7872-89c3-f9a28c524834
+              digest: 97a621bd384b64f69728dcf6732c6fa28369d28b23bda8a86771436163b5e8b0
+              started: "2026-10-20T08:20:19.645Z"
+              spawned: true
+              bytes: 1806473
+              windows:
+                - start: "2026-10-20T08:20:19.645Z"
+                  end: "2026-10-20T02:15:05-07:00"
+            - harness: codex
+              id: 01a1586d-3992-7242-ab2c-4427a72c88aa
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: c5a8d5f93adc68a80491a25a1d6b595b3594c243959b777603d21fd6c28ba5ec
+              started: "2026-10-20T08:28:36.266Z"
+              spawned: false
+              bytes: 710285
+              windows:
+                - start: "2026-10-20T08:28:36.266Z"
+                  end: "2026-10-20T02:15:05-07:00"
+            - harness: codex
+              id: 01a15871-6263-7d92-8c75-64419f58cf1d
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 404c0af4ca27bfe70cd74e03ba6f942cc7bbf8678821ab9511639517491ced4a
+              started: "2026-10-20T08:33:08.701Z"
+              spawned: false
+              bytes: 515584
+              windows:
+                - start: "2026-10-20T08:33:08.701Z"
+                  end: "2026-10-20T02:15:05-07:00"
+            - harness: codex
+              id: 01a15872-cb08-7721-aad1-06cfa3bdf4f5
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: ca135eb5ab2f41048986c73ba8d8265f86e5859e72499657056a1a6fe19621e4
+              started: "2026-10-20T08:34:40.935Z"
+              spawned: false
+              bytes: 469904
+              windows:
+                - start: "2026-10-20T08:34:40.935Z"
+                  end: "2026-10-20T02:15:05-07:00"
+            - harness: codex
+              id: 01a15873-4a93-7760-99c7-2c400abf6c0a
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: fbe94f17549253511c8ace0b7a7bdba4c7b8816404600763a10222d53182f8eb
+              started: "2026-10-20T08:35:13.533Z"
+              spawned: false
+              bytes: 424682
+              windows:
+                - start: "2026-10-20T08:35:13.533Z"
+                  end: "2026-10-20T02:15:05-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-20T01:55:51-07:00"
+              finalized: "2026-10-20T01:58:18-07:00"
+              finalizing: false
+      "n": 2
+      timestamp: "2026-10-20T02:18:41-07:00"
+      dispatched: "2026-10-20T02:15:29-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: lease.go:167 consumes exact-ID durable intents; store.go:381 reconciles them during observation and retains diagnostics before unresolved recovery. Crash-window, repeated-recovery, orphan-proof and boot tests pass. In disposable pinned-head copies, removing owner intent consumption or recovery diagnostic retention made the corresponding regression tests fail.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: The plan's Core concepts passages now name Control, TransitionOperation, InterruptionRecord and observeLegacyQueue and accurately describe mutable detached values and store-owned persistence. The Revisions entry at plan line 199 explains the correction; signatures and implementations match the revised M1 inventory.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: Transaction loops now check cancellation and preserve applied holds and partial intents. Removing the checks in a disposable copy made both deadline regressions fail after reading all 16 records. The pinned-head capacity test scanned exactly 4096 records and completed pause publication in 222 ms.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: queue_legacy.go:286 delegates structural validation to queuegate.StrictObject, also used by typed decoding. The duplicated recursive validator is removed. Shared-helper adversarial tests and legacy malformed-input tests pass; this is a behavior-preserving consolidation.
+          round: 2
+      boundary: M1
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 7f5afe02d77fe2015d05fac577f884de7ebbd6d1
+      blocked: false
 ---
 
 # Gate ledger — ariadne#481 (boundary-review)
@@ -165,9 +305,15 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-4** [Minor] `shared-json-boundary-validation` Strict JSON validation is duplicated across the new boundary readers
   cmd/sdlc/queue_legacy.go:285-350 repeats the recursive duplicate-key, depth, UTF-8 and trailing-data validation in internal/queuegate/codec.go:17-85. ARCH-DRY: extract a shared strict JSON inspection helper while retaining each reader's schema-specific decoding.
 
+## Round 2 — 2026-10-20T02:18:41-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — lease.go:167 consumes exact-ID durable intents; store.go:381 reconciles them during observation and retains diagnostics before unresolved recovery. Crash-window, repeated-recovery, orphan-proof and boot tests pass. In disposable pinned-head copies, removing owner intent consumption or recovery diagnostic retention made the corresponding regression tests fail.
+- BR-2 — addressed — The plan's Core concepts passages now name Control, TransitionOperation, InterruptionRecord and observeLegacyQueue and accurately describe mutable detached values and store-owned persistence. The Revisions entry at plan line 199 explains the correction; signatures and implementations match the revised M1 inventory.
+- BR-3 — addressed — Transaction loops now check cancellation and preserve applied holds and partial intents. Removing the checks in a disposable copy made both deadline regressions fail after reading all 16 records. The pinned-head capacity test scanned exactly 4096 records and completed pause publication in 222 ms.
+- BR-4 — addressed — queue_legacy.go:286 delegates structural validation to queuegate.StrictObject, also used by typed decoding. The duplicated recursive validator is removed. Shared-helper adversarial tests and legacy malformed-input tests pass; this is a behavior-preserving consolidation.
+
 ## Open findings
 
-- **BR-1** [Critical] `durable-cancellation-reconciliation` Durable cancellation intent is not reconciled after partial publication or owner death
-- **BR-2** [Critical] `core-concept-traceability` The Core concepts table names entities and transition behavior absent from the implementation
-- **BR-3** [Important] `transaction-deadline-enforcement` Queue command deadlines stop applying once the control mutex is acquired
-- **BR-4** [Minor] `shared-json-boundary-validation` Strict JSON validation is duplicated across the new boundary readers
+(none — every finding has been disposed)

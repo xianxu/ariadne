@@ -110,3 +110,89 @@ findings:
    - State how transaction deadlines bound work after mutex acquisition and how that envelope is measured.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"5b887303-5339-4b9b-83e7-6ca77bfa298f","repository":"github.com/xianxu/ariadne","issue_id":"000481","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/c96aaf0e0e803e05","reviewed_head":"7bedb19c29d5c52404bd2922a9d8df1e9e454102","slot":"ariadne:3","requested_at":"2026-10-20T08:55:51.943938Z"},"phase":"finished","pid":22460,"started_at":"2026-10-20T08:55:52.085778Z","finished_at":"2026-10-20T08:58:18.363307Z","session_id":"01a15886-335e-7d91-a2b3-e17641373b01","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T02:18:41-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 481 — sdlc queue pause/resume (+ --cancel-running) and the tl-worker drain rule, for couch --drain |
+| repo | ariadne |
+| issue file | workshop/issues/000481-sdlc-queue-pause-resume-cancel-running-and-the-tl-worker-drain-rule-for-couch-drain.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 8a44224ff0f867837283368f62c0344bcd322b25..7f5afe02d77fe2015d05fac577f884de7ebbd6d1 |
+| command | sdlc milestone-close --issue 481 --milestone M1 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-20T02:18:41-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+M1 satisfies the documented backend/CLI boundary. All four prior findings are addressed, with regression tests confirming the behavioral fixes. No new blocking findings. Admission wiring, runner cancellation, worker instructions, and peer executable conformance remain explicitly assigned to M2; this verdict approves M1 only.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      lease.go:167 consumes exact-ID durable intents; store.go:381 reconciles them during observation and retains diagnostics before unresolved recovery. Crash-window, repeated-recovery, orphan-proof and boot tests pass. In disposable pinned-head copies, removing owner intent consumption or recovery diagnostic retention made the corresponding regression tests fail.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The plan's Core concepts passages now name Control, TransitionOperation, InterruptionRecord and observeLegacyQueue and accurately describe mutable detached values and store-owned persistence. The Revisions entry at plan line 199 explains the correction; signatures and implementations match the revised M1 inventory.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Transaction loops now check cancellation and preserve applied holds and partial intents. Removing the checks in a disposable copy made both deadline regressions fail after reading all 16 records. The pinned-head capacity test scanned exactly 4096 records and completed pause publication in 222 ms.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      queue_legacy.go:286 delegates structural validation to queuegate.StrictObject, also used by typed decoding. The duplicated recursive validator is removed. Shared-helper adversarial tests and legacy malformed-input tests pass; this is a behavior-preserving consolidation.
+```
+
+1. **Strengths**
+
+   - Real-flock barriers test pause/admission ordering and waiter exclusion.
+   - Recovery retains interruption diagnostics separately from unresolved descendant activity, preserving uncertainty.
+   - Codecs preserve unknown nested fields while rejecting duplicate keys, malformed known fields, and oversized input.
+   - README and atlas updates cover the CLI, portable storage, status semantics, and rollout.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Targeted queue/CLI tests, the complete queuegate race run, helptext tests, and range `diff --check` passed. Disposable-copy mutations demonstrated failures for ignored cancellation intent, lost recovery diagnostics, and ineffective transaction deadlines. Both copies were removed; the review checkout remained unchanged.
+
+   The full suite and actual peer executable conformance remain M2 acceptance work.
+
+6. **Architectural notes**
+
+   | Principle | Result |
+   |---|---|
+   | ARCH-DRY | Pass — shared JSON validation; existing flock, authority, and identity helpers reused. |
+   | ARCH-PURE | Pass — deterministic transitions/codecs have direct tests; filesystem effects stay in Store/Lease. |
+   | ARCH-PURPOSE | Pass — M1 delivers its scoped boundary; consumer integration remains explicitly pending in M2. |
+   | ARCH-MOCK | Pass for M1 — portable real storage/flocks and controlled observation adapters exercise stateful behavior. |
+   | ARCH-CONSTRAINTS | Pass — bounded scans/output, cancellation checks, counted complexity tests, and capacity measurement. |
+   | ARCH-SECURE | Pass — strict persisted-input validation and conservative incomplete observations. |
+   | ARCH-ORDER | Pass — serialized admission/publication and reproducible crash/cancellation sequences. |
+   | ARCH-FUNERAL | Pass — lease/intent cleanup, bounded interruption retention, and explicit unresolved-capacity refusal. |
+   | ARCH-EVOLVE | Pass — opaque additions survive nested decode/rewrite paths; known fields remain strict. |
+
+   M2 should preserve these guarantees across every actual admission and cancellation consumer.
+
+7. **Plan revision recommendations:** None for M1.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"2c8061d6-03b6-42e5-934d-2bbcb01a1a8d","repository":"github.com/xianxu/ariadne","issue_id":"000481","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/b740070dea487c18","reviewed_head":"7f5afe02d77fe2015d05fac577f884de7ebbd6d1","slot":"ariadne:3","requested_at":"2026-10-20T09:15:29.502453Z"},"phase":"finished","pid":52279,"started_at":"2026-10-20T09:15:29.628808Z","finished_at":"2026-10-20T09:18:40.595687Z","session_id":"01a15898-2b03-7912-8ea8-213071bb647d","outcome":"returned"}] -->

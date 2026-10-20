@@ -105,7 +105,7 @@ Decoder rejects duplicate keys, malformed required types, unsupported versions, 
 
 ## Plan
 
-- [ ] M1 — Pure owner/operation transitions, portable gate and lifetime leases, bounded legacy observation and frozen CLI protocol; targeted verification and milestone review.
+- [x] M1 — Pure owner/operation transitions, portable gate and lifetime leases, bounded legacy observation and frozen CLI protocol; targeted verification and milestone review.
 - [ ] M2 — Wire every suite/landing/merge admission, retain interruption evidence, ship worker drain rule and observed pair#722 conformance; recorded full suite, review and landing.
 
 Durable plan: [queue drain implementation](../plans/000481-queue-drain-plan.md).
@@ -143,6 +143,7 @@ Design subtotal 0.67h × 1.15 + implementation subtotal 2.26h = 3.0305h, rounded
 ### 2026-10-19
 
 ### 2026-10-20 — claim and design
+- 2026-10-20: closed M1 — Core queuegate race tests pass (5.945s); CLI and legacy TestQueue race tests pass (1.934s); helptext and golint pass; diff check clean. Deterministic RED then GREEN covers intent-before-phase, dead interrupted owner, malformed intent identity, cancellation after mutex acquisition and applied-owner partial publication. Orphan intent needs matching interruption proof; strict codec controls preserve opaque additions. A 4096-operation registry scan completed in 374ms with exactly 4096 reads. No live queue or primary checkout touched; admission integration and executable conformance belong to M2.; review verdict: SHIP
 
 Claimed in ariadne:3 and started from fresh main after #487 landed. Loaded current TL-worker/SDLC contracts. The frozen pair#722 contract is the authority; pair:5 confirmed the argv adapter, strict decoder, 5-second call ceiling and inherited-environment behavior. The portable state override will be supplied for isolated executable conformance.
 
