@@ -82,6 +82,8 @@ Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 - Recorded suite was launched on that pushed head, but remained queued behind the machine-wide pause for Couch drain `69bb7fc3-a125-42c6-9900-5814613b8eba` (operator shutdown/reboot/RAM-disk fix). Canceled this slot's queued suite with `sdlc local-check cancel --name suite`; no full-suite pass exists. Never treat the canceled attempt as validation.
 - Stop state for restart: issue remains working; no close review, SHIP, stage, live migration or merge. Resume with `sdlc state`, rerun the recorded suite when the fleet resumes, and obtain TL approval of the Done-when ordering revision before closing. TL wants green suite + SHIP, then `sdlc stage --build`, TL/operator migration of ops:0 and ops-echo:0, evidence appended here, stage cleared and merge. Existing Done when still requires manual migration before close because the clarification has not been delivered/approved. Ordinary Couch sends currently refuse while draining; no approval inferred from silence.
 
+- Drain acknowledgement attempted only after the checkpoint reached PR #351. Couch refused `--drain --ack 69bb7fc3-a125-42c6-9900-5814613b8eba` with `ack does not name current drain/member`; the board still lists this slot as checkpoint requested. No ack was recorded. Work is stopped with a clean checkpoint; operator/supervisor must reconcile membership or deliver the current drain notice. No automatic retry or separate drained report.
+
 ## Revisions
 
 ### 2026-10-20 — planning decisions from the TL
