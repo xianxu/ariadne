@@ -71,6 +71,12 @@ This is semantic observation propagation across producer/renderer, not a mechani
 
 The broader real-lock shell controls pass in full, including exact observed first/second/third-place strings, weighted admission, stopped/dead waiters and legacy queue heads. An explicit mutation mapping None back to [] failed all five caller assertions (8/16 log churn, spurious head-token reads and false position 1); restoring the fix passed. git diff --check passes.
 
+### 2026-10-20 — recorded suite and integration recovery
+
+The initial branch suite passed all 12 shards, 1851 sdlc tests and 75 other packages in 596.2s, with no flakes. Close round 1 returned SHIP with no findings. Landing integrated current main cleanly. Its first integrated suite completed all tests but failed only TestLandingTrainHoldsAMalformedCarNamingTheFile (fixture merge timeout, 128.90s); unchanged integrated head 18d51cce1ff21c7977bf70093f3065510482f9f7 passed that targeted test in 6.11s. Filed/registered unclaimed #500 with both results and the saved failed log. Cancelled only this checkout's queued diagnostic baseline through local-check cancel, keeping other checkouts' runs untouched.
+
+The replacement recorded suite on the same integrated head passed all 8 shards, 1851 sdlc tests and 75 other packages in 574.1s (9m34s), no failures or targeted rerun needed. The earlier failure remains recorded and explained by #500. No implementation changes followed SHIP; this commit records delivery evidence only. The hub's two-hour fleet-blocking grant admitted the replacement suite without preemption.
+
 ## Revisions
 
 ### 2026-10-20 — separate completed implementation from delivery gates
