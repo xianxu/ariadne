@@ -234,6 +234,7 @@ func (c *conductor) build(cars []landingline.Car) (landingline.TrainEvent, error
 		return nil, err
 	}
 	c.local.Root = dir
+	c.local.WorkflowAnchor = c.t.Root // the train's tree sits apart from its substrate sibling (#486)
 	if suite, ok := decl.check(suiteCheckName); ok {
 		c.suite, c.run = suite, newLocalCheckRunner(c.local)
 	} else {

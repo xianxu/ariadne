@@ -58,11 +58,30 @@ func helperHelpOptions(help string) map[string]bool {
 	return options
 }
 
+// workflowFile finds the Makefile.workflow root's make uses. In an
+// ariadne-layered repo it is a relative symlink to the sibling substrate
+// (../ariadne/Makefile.workflow), which resolves only from a checkout beside
+// that substrate. A disposable tree elsewhere (a landing train's, #486) reads
+// the same link against anchor, the checkout it was made from; "" means root
+// is that checkout.
+func workflowFile(root, anchor string) (string, error) {
+	p := filepath.Join(root, "Makefile.workflow")
+	mk, err := filepath.EvalSymlinks(p)
+	if err == nil || anchor == "" {
+		return mk, err
+	}
+	link, lerr := os.Readlink(p)
+	if lerr != nil || filepath.IsAbs(link) {
+		return "", err
+	}
+	return filepath.EvalSymlinks(filepath.Join(anchor, link))
+}
+
 // Resolve and verify once before the run creates logs or touches worktrees.
 // The workflow file's real location selects the supplying substrate, as make
 // does, and the helper's real location handles a further helper symlink.
-func prepareSuiteHelper(ctx context.Context, root string) (string, error) {
-	mk, err := filepath.EvalSymlinks(filepath.Join(root, "Makefile.workflow"))
+func prepareSuiteHelper(ctx context.Context, root, anchor string) (string, error) {
+	mk, err := workflowFile(root, anchor)
 	if err != nil {
 		return "", fmt.Errorf("%w: no Makefile.workflow to find the suite lock from (%v)", errUnboundedSuite, err)
 	}
