@@ -853,6 +853,163 @@ rounds:
       isolation: fenced
       reviewed: 61af3a94f9a6f05669bbadd80bd5ab4d9d44aebf
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: ac1c618b-8c05-464a-a239-1388169a2a59
+            repository: github.com/xianxu/ariadne
+            issue_id: "000475"
+            recipe: milestone-review
+            round: 6
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/f41731c89a9d1958
+            reviewed_head: fc32559e438281ea63d14ab4fa4905e0c299e0b7
+            slot: ariadne:4
+            requested_at: "2026-10-20T13:29:31.273042Z"
+          phase: finished
+          pid: 48153
+          started_at: "2026-10-20T13:29:31.587198Z"
+          finished_at: "2026-10-20T13:41:00.853025Z"
+          session_id: 37e6231c-1a97-4ea7-9a3c-7967a3f85c3f
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: fc32559e438281ea63d14ab4fa4905e0c299e0b7
+        tracker_head: e2b10738a58996c2a8bd0f36651313df5b6986f3
+        branch_point: c6fb9859856d942bef3be366946737aa3c47ba64
+        since: "2026-10-20T03:03:17-07:00"
+        until: "2026-10-20T06:10:06-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-20T03:03:17-07:00"
+              end: "2026-10-20T06:10:06-07:00"
+              began: "2026-10-20T03:03:17-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+        sources:
+            - harness: claude
+              id: 299d33d0-1f10-4950-b82c-b729d6c107a0
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: 7a1469d873de507d664114760758f4d07526f2b31d04ba197b28dcda5abebcd5
+              started: "2026-10-16T06:28:11.678Z"
+              spawned: false
+              bytes: 98145956
+              windows:
+                - start: "2026-10-20T03:03:17-07:00"
+                  end: "2026-10-20T06:10:06-07:00"
+            - harness: claude
+              id: 3fc56c78-9cad-4e12-a1a7-aed05bd0c63d
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: b676d6d103897ad92941db345e4e23c27533a35891f17b7b537450d5976ee8ad
+              started: "2026-10-20T11:21:49.422Z"
+              spawned: false
+              bytes: 384376
+              windows:
+                - start: "2026-10-20T11:21:49.422Z"
+                  end: "2026-10-20T06:10:06-07:00"
+            - harness: claude
+              id: 95466ede-cf18-4115-b13f-1faa8f33645d
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: 1b281c55e873b03c51fd775f439ef68f3e2a49b0a3f6e6097df1fe069c81db79
+              started: "2026-10-20T11:21:30.104Z"
+              spawned: false
+              bytes: 514596
+              windows:
+                - start: "2026-10-20T11:21:30.104Z"
+                  end: "2026-10-20T06:10:06-07:00"
+            - harness: claude
+              id: ac351657-0a41-4804-b564-3e710ea2dd55
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: 762c45ca71122a0c54e4c27a0ff8e23460c28233ba39f58b9420ecf8d981cda4
+              started: "2026-10-20T11:19:02.044Z"
+              spawned: false
+              bytes: 587879
+              windows:
+                - start: "2026-10-20T11:19:02.044Z"
+                  end: "2026-10-20T06:10:06-07:00"
+            - harness: claude
+              id: f5886db6-bd63-4d0e-aec8-021fea4f0187
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: ff3b2eef3104ceeab9229868a244b067cce02222561142ea5df5f3dc7ec0d977
+              started: "2026-10-20T11:20:37.435Z"
+              spawned: false
+              bytes: 530611
+              windows:
+                - start: "2026-10-20T11:20:37.435Z"
+                  end: "2026-10-20T06:10:06-07:00"
+        queue_waits:
+            - attempt_id: 3611f175d5a4d5f65847189d1c3190ac
+              slot: ariadne:4
+              record_digest: 0bfdc61fc34a7d4333b805a3bf32ca5a4d0d8dabb13eea6559cf546adf6609a2
+              start: "2026-10-20T10:14:59.477681Z"
+              end: "2026-10-20T10:30:07.515298Z"
+              queue_seconds: 908.037617
+              raw_seconds: 908.037617
+              exact: true
+            - attempt_id: b648e3ff6d96d6e5b355164d3dbee74c
+              slot: ariadne:4
+              record_digest: 11df85f04d90f5060d15b092a898573c63d1a6d63d3891bf06bff55a7853326d
+              start: "2026-10-20T11:03:21.374039Z"
+              end: "2026-10-20T11:04:29.093112Z"
+              queue_seconds: 67.719073
+              raw_seconds: 67.719073
+              exact: true
+        protected:
+            - issue: "490"
+              slot: ariadne:4
+              start: "2026-10-20T10:05:34.25Z"
+              end: "2026-10-20T10:11:07.378Z"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-20T04:40:01-07:00"
+              finalized: "2026-10-20T04:51:27-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-20T04:55:52-07:00"
+              finalized: "2026-10-20T05:08:05-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-20T05:24:38-07:00"
+              finalized: "2026-10-20T05:27:53-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-20T05:31:44-07:00"
+              finalized: "2026-10-20T06:01:08-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-20T06:04:56-07:00"
+              finalized: "2026-10-20T06:09:41-07:00"
+              finalizing: true
+      "n": 6
+      timestamp: "2026-10-20T06:41:01-07:00"
+      dispatched: "2026-10-20T06:29:31-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: SinceStamp (train.go:189-194) makes firstReady trust Since only when stamped by the current vouch; reverting the stamp check turns TestStaleSinceFromAnOlderSdlc red (ready again, same head case).
+          round: 6
+        - id: BR-15
+          disposition: addressed
+          note: Revisions entry plan.md:248-259 replaces both claims; cited tests exist and assert them (plan_test.go:75 modulo case, :93 offset 1440 refusal; landingplan_test.go:131 warned exactly once).
+          round: 6
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: fc32559e438281ea63d14ab4fa4905e0c299e0b7
+      blocked: false
 ---
 
 # Gate ledger — ariadne#475 (boundary-review)
@@ -938,7 +1095,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-15** [Minor] `plan-claim-matches-delivery` (kind: defect) Plan prose says out-of-range offsets are errors and plan-read failures warn once per TTL; the code reduces offsets modulo the interval and warns once per source
   This is the 5th finding in family plan-claim-matches-delivery. Rule: every behavioural sentence in the plan's Core concepts names a test or code site that enforces it, or the sentence goes in Revisions. Instances: plan.go:38 (MachinePlan.Offset accepts 0..1439 and takes it modulo the interval, never refuses) and landingqueue.go:242 (planWarned is set once for the source's lifetime, not per TTL). Fix by adding a Revisions entry for both, not by changing the code.
 
+## Round 6 — 2026-10-20T06:41:01-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — SinceStamp (train.go:189-194) makes firstReady trust Since only when stamped by the current vouch; reverting the stamp check turns TestStaleSinceFromAnOlderSdlc red (ready again, same head case).
+- BR-15 — addressed — Revisions entry plan.md:248-259 replaces both claims; cited tests exist and assert them (plan_test.go:75 modulo case, :93 offset 1440 refusal; landingplan_test.go:131 warned exactly once).
+
 ## Open findings
 
-- **BR-7** [Minor] `unknown-field-carry-stale-semantics` (kind: defect) An older sdlc's not-ready then ready re-vouch at the same head still carries a stale since
-- **BR-15** [Minor] `plan-claim-matches-delivery` (kind: defect) Plan prose says out-of-range offsets are errors and plan-read failures warn once per TTL; the code reduces offsets modulo the interval and warns once per source
+(none — every finding has been disposed)
