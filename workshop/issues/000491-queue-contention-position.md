@@ -1,6 +1,6 @@
 ---
 id: 000491
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
@@ -8,7 +8,7 @@ updated: 2026-10-20
 estimate_hours:
 severity: low
 collaboration-mode: collaboration
-card_mirror: '8e61bb5c11a3d6fafb290741eba9372571238354' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '27d82df901b30f2cd7e635a318502a22d562877a' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T06:03:17-07:00
 claimant:
     operator: Xian Xu
@@ -18,6 +18,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "087c96bb", done: "f328b890"}
+actual_hours: 0.22
 ---
 
 # Suite queue position becomes fictitious on allocation contention
