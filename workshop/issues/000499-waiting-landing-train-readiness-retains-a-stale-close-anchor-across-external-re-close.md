@@ -36,14 +36,14 @@ A waiting car readiness pass must evaluate one fresh, coherent tracker generatio
 ## Done when
 
 - A deterministic waiting-car test observes an initial not-ready close, an external corrected SHIP close and head advance, then becomes ready without restarting the merge process.
-- A negative control externally reopens or supersedes a previously ready close and prevents admission on old authority.
+- A negative control observes external status changes at the readiness gate seam; a later pass must not authorize using the previous pass's cached status. The publish gate's policy for reopened cards is tracked separately.
 - Existing one-fetch/coherent-generation behavior within one readiness pass stays bounded and counted.
 
 ## Plan
 
-- [ ] Reproduce stale readiness with one command context, a real tracked close, code/head advance, and an external corrected SHIP close.
-- [ ] Give each carReadiness call a nested records scope (ARCH-DRY), preserving parent context and pass-local coherence.
-- [ ] Verify external status changes at the gate seam, one fetch per pass at N/2N reads, and isolation from the parent scope.
+- [x] Reproduce stale readiness with one command context, a real tracked close, code/head advance, and an external corrected SHIP close.
+- [x] Give each carReadiness call a nested records scope (ARCH-DRY), preserving parent context and pass-local coherence.
+- [x] Verify external status changes at the gate seam, one fetch per pass at N/2N reads, and isolation from the parent scope.
 - [ ] Run focused tests and recorded suite, then close/review and land through SDLC.
 
 ## Log
@@ -51,3 +51,11 @@ A waiting car readiness pass must evaluate one fresh, coherent tracker generatio
 Filed from pair:7 while landing pair#711, unclaimed. Native evidence: sdlc landing status reported no current landing, pid 92126 first in line and old-anchor publish refusal after the recorded suite succeeded. Source locations: cmd/sdlc/landingcar.go carReadiness/vouchWhileWaiting, landinggate.go runLandingPublishGate, issuerecord.go loadIssueRecordsAt/recordsScope.get. No Ariadne implementation changes.
 
 2026-10-20: Claimed and started #499. Root cause confirmed: recordsScope outlives carReadiness polls. Quick-flow plan posted to hub, proceeding unless objected. Reuse withIssueRecordsScope rather than invalidating shared state; no new state or persisted format. Each pass performs one tracker fetch/composition and O(N) card composition, with repeated reads served by that snapshot; count fetches for 8/16 reads. ARCH-PURE: retain production publish gate and real local bare remote in regression.
+
+2026-10-20: Red first: TestCarReadinessObservesExternalReclose failed on the old reviewed anchor after a corrected SHIP close; TestCarReadinessRecordsGeneration failed at both 8/16 reads because external status remained cached (13.424s). Added only a nested records scope to carReadiness. Green: both regressions passed (15.159s), then focused readiness/scope/wait-loop/context guard tests passed (28.896s). Real bare remotes and production close/publish gates cover the original incident; the gate seam checks status visibility, pass coherence, bounded fetch count and parent-scope isolation. No lexical lint added: cache lifetime is a semantic observation-boundary property, defended by the regression rather than function-name matching. No new durable state or background work. Reopen policy probe failed independently with Ready:true after external codecomplete→working; filed unclaimed #502 per TL. Temporary failing probe removed after capture.
+
+## Revisions
+
+### 2026-10-20T09:03-07:00 — separate cache visibility from reopen policy
+
+TL approved limiting #499 to fresh status visibility. Original acceptance: “A negative control externally reopens or supersedes a previously ready close and prevents admission on old authority.” Current acceptance checks status visibility at the injected gate seam. Existing selectTrackedLandingIssues skips working cards and validatePublishAnchors accepts no selections, so a reopened issue can currently remain ready even with fresh reads; that policy is a separately filed issue, not a new refusal in this cache fix.

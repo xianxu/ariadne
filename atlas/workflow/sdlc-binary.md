@@ -450,7 +450,11 @@ into trains. Absent, or an interval of 0, keeps the serial line above. With
 trains on:
 - A waiting merge vouches its readiness in `ready/<seq>` beside its ticket
   (`landingcar.go`): its own publish and CI gates, read-only, for its exact
-  pushed head. Where main declares `.sdlc/affected.json`, `carCIGateFacts`
+  pushed head. Each `carReadiness` pass gets a nested issue-records scope
+  (#499): it observes external close/status updates on the next pass while
+  sharing one coherent tracker generation across that pass's gates, without
+  invalidating the parent command or another pass. Where main declares
+  `.sdlc/affected.json`, `carCIGateFacts`
   makes a recorded `affected` run stand in for `suite` (`ciInputs.StandIn`,
   #473 D3): the train's prefix suite is the one full run. Merge without a
   train sets no stand-in.

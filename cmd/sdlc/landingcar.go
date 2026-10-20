@@ -37,6 +37,10 @@ type carGates struct {
 // train landed it, and its outcome never arrived: a conductor that died after
 // the merge, a lost settle): the wait is over, and the merge resumes.
 func carReadiness(ctx context.Context, r gitRunner, gh landingGH, t landingTarget, branch string, g carGates, now time.Time) (ready landingline.Readiness, merged bool) {
+	// A waiting merge may outlive an external close or reopen. Share one
+	// coherent tracker generation inside this pass, never the command's
+	// earlier generation or another concurrent readiness pass's cache.
+	ctx = withIssueRecordsScope(ctx)
 	no := func(format string, a ...any) (landingline.Readiness, bool) {
 		return landingline.Readiness{Branch: branch, Reason: fmt.Sprintf(format, a...), At: now}, false
 	}

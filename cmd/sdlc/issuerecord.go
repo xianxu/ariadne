@@ -76,6 +76,8 @@ func loadIssueRecordsAt(ctx context.Context, root, issuesDir string, mode tracke
 
 // recordsScope holds one command's composed issue views (#252, the one-fetch
 // operating envelope): every consumer in a verb reads the same fetched cards.
+// Long-lived pollers nest a new scope per observation pass (carReadiness), so
+// external writes become visible without invalidating another pass's view.
 // A stale read never satisfies a fresh request, and a card write invalidates
 // the scope, so a later step sees the verb's own writes.
 type recordsScope struct {
