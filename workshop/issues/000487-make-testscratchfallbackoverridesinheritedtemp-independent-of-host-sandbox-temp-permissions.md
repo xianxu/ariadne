@@ -1,6 +1,6 @@
 ---
 id: 000487
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
@@ -8,7 +8,7 @@ updated: 2026-10-20
 estimate_hours:
 severity: high
 collaboration-mode: collaboration
-card_mirror: 'ab8a15a8fa28bbb088da0c6777aae65f95298861' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a2a69b024ea3cd8a9a4d79bc642ae35eacf28259' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T00:23:30-07:00
 claimant:
     operator: Xian Xu
@@ -18,6 +18,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "c31d9875", done: "136dc89f"}
+actual_hours: 0.30
 ---
 
 # Make TestScratchFallbackOverridesInheritedTemp independent of host sandbox temp permissions
