@@ -48,6 +48,8 @@ A waiting car readiness pass must evaluate one fresh, coherent tracker generatio
 
 ## Log
 
+
+- 2026-10-20: closed — BR-1 production interleaving regression now retains one tracker generation across real transferred-details and publish-selection checks; next pass refuses malformed external authority. Counted 8/16-read controls require one tracker probe and at most one fetch. Original external corrected-close regression, status visibility, snapshot immutability/quarantine, scope freshness, ownership, issue restoration, wait-loop and context guards pass (expanded cmd/sdlc run 224.539s; tracker tests 0.737s). Corrected pushed-head suite requested; per tl-worker overlap contract recorded pass remains mandatory before landing. Reopen policy remains #502.; review verdict: SHIP
 Filed from pair:7 while landing pair#711, unclaimed. Native evidence: sdlc landing status reported no current landing, pid 92126 first in line and old-anchor publish refusal after the recorded suite succeeded. Source locations: cmd/sdlc/landingcar.go carReadiness/vouchWhileWaiting, landinggate.go runLandingPublishGate, issuerecord.go loadIssueRecordsAt/recordsScope.get. No Ariadne implementation changes.
 
 2026-10-20: Claimed and started #499. Root cause confirmed: recordsScope outlives carReadiness polls. Quick-flow plan posted to hub, proceeding unless objected. Reuse withIssueRecordsScope rather than invalidating shared state; no new state or persisted format. Each pass performs one tracker fetch/composition and O(N) card composition, with repeated reads served by that snapshot; count fetches for 8/16 reads. ARCH-PURE: retain production publish gate and real local bare remote in regression.
