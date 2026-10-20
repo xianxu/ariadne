@@ -66,6 +66,7 @@ ARCH-DRY/PURE: one pure grant-hold rule uses existing ValidGrants; no additional
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — Recorded suite passed on 8530569a (12 shards, 1758 cmd/sdlc tests, 72 other packages, zero failures; sdlc-local/suite success). Real-flock regressions cover absent grant, FIFO, expiry, revoke, cancellation and hand-off; line race tests and focused serial/train output/status/readiness checks pass. TL live smoke verified grant hold, bounded hours and revoke recovery; final fix preserves the existing train output prefix. Stage cleared; atlas/README/help updated. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 ## Log
 
