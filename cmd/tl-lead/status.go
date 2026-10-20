@@ -313,29 +313,64 @@ submit, owed and every write end with the same lines.`,
 // `sdlc usage`, ariadne#365) is one more row here.
 type renderedSection struct {
 	verb, heading, short string
-	render               func(d deps, file string) (string, error)
+	// render reads the section's facts and returns how to compute its body
+	// from the section's current text, read at write time.
+	render func(d deps, file string, f renderFlags) (func(current string) (string, error), error)
 }
 
 var renderedSections = []renderedSection{
-	{"slots", "Slots", "Render ## Slots (every numbered slot: issue, phase, bar; then the free ones) and write it",
-		func(d deps, file string) (string, error) { return gatherSlots(d.sdlc, d.actors, filepath.Dir(file)) }},
+	{"slots", "Slots", "Render ## Slots (every numbered slot: issue, phase, bar; held slots; then the free ones) and write it; --hold repo:N='until X' / --release repo:N set a soak hold",
+		func(d deps, file string, f renderFlags) (func(string) (string, error), error) {
+			lines, err := gatherSlots(d.sdlc, d.actors, filepath.Dir(file))
+			if err != nil {
+				return nil, err
+			}
+			// The section being replaced is the holds' home: read them from
+			// it at write time, so a retry after a stale hash re-reads them.
+			return func(current string) (string, error) {
+				ls := append([]SlotLine(nil), lines...)
+				if err := applyHolds(ls, parseHolds(current), f.hold, f.release); err != nil {
+					return "", err
+				}
+				return renderSlots(ls), nil
+			}, nil
+		}},
+}
+
+// renderFlags are the rendered sections' write options.
+type renderFlags struct {
+	hold    map[string]string // repo:N → "until X"
+	release []string
 }
 
 func renderedSectionCmds(d deps, foldOwed *bool) []*cobra.Command {
 	var cmds []*cobra.Command
 	for _, rs := range renderedSections {
-		cmds = append(cmds, &cobra.Command{
-			Use:   rs.verb + " FILE",
+		var holds, release []string
+		c := &cobra.Command{
+			Use:   rs.verb + " FILE [--hold repo:N='until X']... [--release repo:N]...",
 			Short: rs.short,
 			Args:  cobra.ExactArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
-				body, err := rs.render(d, args[0])
+				f := renderFlags{hold: map[string]string{}, release: release}
+				for _, h := range holds {
+					addr, until, ok := strings.Cut(h, "=")
+					until = strings.TrimSpace(until)
+					if !ok || !strings.HasPrefix(until, "until ") || strings.Contains(until, "\n") {
+						return fmt.Errorf("--hold %q: want repo:N='until X'", h)
+					}
+					f.hold[strings.TrimSpace(addr)] = until
+				}
+				compute, err := rs.render(d, args[0], f)
 				if err != nil {
 					return err
 				}
-				return writeSection(d, cmd.OutOrStdout(), args[0], rs.heading, func(string) (string, error) { return body, nil }, *foldOwed)
+				return writeSection(d, cmd.OutOrStdout(), args[0], rs.heading, compute, *foldOwed)
 			},
-		})
+		}
+		c.Flags().StringArrayVar(&holds, "hold", nil, "hold a slot to soak a risky change: repo:N='until X' (the next train lands, the next main suite passes, or a time)")
+		c.Flags().StringArrayVar(&release, "release", nil, "release a slot's soak hold")
+		cmds = append(cmds, c)
 	}
 	return cmds
 }

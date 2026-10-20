@@ -38,3 +38,7 @@ peak load under about 2× the core count. Make it the default (keep it overridab
 ## Log
 
 ### 2026-10-19
+
+## Log
+
+- 10-20 00:45 (TL): folded into ariadne#480 at ariadne:1 (its diagnosis points at CPU starvation under the 12-shard suite, not a lock cycle). Close this as folded when #480 lands.

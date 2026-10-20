@@ -367,6 +367,29 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 			return errors.New("aborted by operator")
 		}
 	}
+	// Enrollment covers every merge path, including already-merged cleanup.
+	// Only actual line admission (or bypass admission below) activates it.
+	queueHead, err := landingOptional(r, t.Root, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch)
+	if err != nil {
+		return err
+	}
+	ctx, q, err := startQueueOperation(ctx, t.Root, queueHead, []string{"merge", "landing"})
+	if err != nil {
+		return err
+	}
+	localFlags := *f
+	f = &localFlags
+	f.Context = ctx
+	defer func() {
+		reason := queueInterruptionReason(err)
+		if finishErr := q.finish(ctx, reason); finishErr != nil {
+			if err == nil {
+				err = finishErr
+			} else {
+				fmt.Fprintf(stderr, "queue retirement: %v\n", finishErr)
+			}
+		}
+	}()
 	// The landing line (#393). Rule: a merge without a turn acts only on an
 	// already-merged PR. So it skips the line only when the first read shows
 	// a merged PR and no open one (a resume), and the selected PR is checked
@@ -402,6 +425,15 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 			defer func() { turn.leave(err) }()
 		}
 	}
+	if turn == nil {
+		// Resume-only and train-landed cleanup bypass the repository line, but
+		// still honor the machine pause before doing active cleanup work.
+		if err = q.waitAdmission(ctx, stderr); err != nil {
+			return err
+		}
+	}
+	ctx = withQueueAdmitted(ctx)
+	f.Context = ctx
 	head, err := landingOptional(r, t.Root, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch)
 	if err != nil {
 		return err
@@ -544,7 +576,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 				continue
 			}
 			if !f.NoValidate {
-				if err = runLandingInstanceGate(targetMain, head, nounGates(f.IssuesDir), stdout, stderr, r); err != nil {
+				if err = runLandingInstanceGate("", targetMain, head, nounGates(f.IssuesDir), stdout, stderr, r); err != nil {
 					return err
 				}
 				if err = runLandingDuplicateGate(targetMain, head, f.IssuesDir, f.HistoryDir, r); err != nil {
@@ -602,7 +634,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 						// Main may have gained issue IDs or published details
 						// during CI. Reuse the gates against that exact destination.
 						if !f.NoValidate {
-							if err = runLandingInstanceGate(latest, head, nounGates(f.IssuesDir), stdout, stderr, r); err != nil {
+							if err = runLandingInstanceGate("", latest, head, nounGates(f.IssuesDir), stdout, stderr, r); err != nil {
 								return err
 							}
 							if err = runLandingDuplicateGate(latest, head, f.IssuesDir, f.HistoryDir, r); err != nil {

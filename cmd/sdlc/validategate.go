@@ -64,7 +64,10 @@ func nounGates(issuesDir string) []nounGate {
 
 // validateChangedInstances is the fail-closed gate. base/head are the caller's
 // review window; gates declare which changed paths derive from which noun model.
-func validateChangedInstances(base, head string, gates []nounGate, stdout, stderr io.Writer) error {
+// root is the tree holding head's files ("" = the current directory): a
+// landing train gates each prefix in its own checkout, which may hold issue
+// files the conductor's checkout lacks (#490).
+func validateChangedInstances(root, base, head string, gates []nounGate, stdout, stderr io.Writer) error {
 	changes, err := diffNameStatusFn(base, head)
 	if err != nil {
 		return fmt.Errorf("instance-conformance gate: %w", err)
@@ -83,7 +86,8 @@ func validateChangedInstances(base, head string, gates []nounGate, stdout, stder
 		checked++
 
 		// Frontmatter — every changed instance (added OR modified).
-		out, conforms, runErr := validateFrontmatterFn(gate.noun, ch.Path)
+		file := filepath.Join(root, ch.Path) // root "" keeps ch.Path as given
+		out, conforms, runErr := validateFrontmatterFn(gate.noun, file)
 		if runErr != nil {
 			// Could not RUN the validator (binary missing) — a setup failure, not a
 			// conformance verdict. The GATE fails closed (hard return); the on-demand
@@ -100,7 +104,7 @@ func validateChangedInstances(base, head string, gates []nounGate, stdout, stder
 		var data []byte
 		var readErr error
 		if gate.noun == "issue" || (ch.Status == "A" && gate.checkSections) {
-			data, readErr = readIssueFileFn(ch.Path)
+			data, readErr = readIssueFileFn(file)
 		}
 
 		// Classification (#348): area membership in main's declaration and the
@@ -129,7 +133,14 @@ func validateChangedInstances(base, head string, gates []nounGate, stdout, stder
 		for _, p := range problems {
 			fmt.Fprintln(stdout, "  - "+p)
 		}
-		return fmt.Errorf("instance-conformance gate: %d nonconforming instance file(s)", len(problems))
+		// The error names each file and the rule it breaks on one line: a
+		// landing train records only the error, so the held car must be
+		// able to read what to fix from it (#486).
+		flat := make([]string, len(problems))
+		for i, p := range problems {
+			flat[i] = strings.Join(strings.Fields(p), " ") // the validator's lines, on one
+		}
+		return fmt.Errorf("instance-conformance gate: %d nonconforming instance file(s): %s", len(problems), strings.Join(flat, "; "))
 	}
 	cok(stderr, fmt.Sprintf("instance-conformance gate: %d changed instance file(s) conform", checked))
 	return nil

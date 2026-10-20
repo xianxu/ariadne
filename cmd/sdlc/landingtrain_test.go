@@ -239,6 +239,9 @@ type trainSetup struct {
 	blocker       *landingline.Handle
 	heads         map[string]string // branch → car head
 	rootKey       any
+	// validate runs the instance gate in the cars' merges (landingFlags
+	// turns it off); see gateInstancesByReading.
+	validate bool
 }
 
 type trainRootKey struct{}
@@ -318,6 +321,7 @@ func (s *trainSetup) merge(root string) <-chan error {
 	done := make(chan error, 1)
 	go func() {
 		f := landingFlags()
+		f.NoValidate = !s.validate
 		ctx := context.WithValue(context.Background(), trainRootKey{}, root)
 		f.Context = ctx
 		// The real repo transaction lock, as production's merge takes it:
@@ -799,5 +803,184 @@ func TestTrainSuiteOutcome(t *testing.T) {
 	c.baseline = &red
 	if ev, _ := c.runSuite(1); ev.(landingline.SuiteDone).Outcome != landingline.SuiteMainRed {
 		t.Fatalf("main red: %+v", ev)
+	}
+}
+
+// symlinkedWorkflowTrain is a two-car train setup in the shape of every
+// ariadne-layered repo (#486): main gitignores Makefile.workflow, and each car
+// checkout holds an untracked link to its sibling substrate
+// (../substrate/Makefile.workflow), as weave writes it. The train's tree, made
+// from main elsewhere, has no Makefile.workflow at all. withSubstrate puts the
+// substrate beside each checkout; without it the links resolve nowhere.
+func symlinkedWorkflowTrain(t *testing.T, withSubstrate bool) (*trainSetup, string) {
+	t.Helper()
+	s := newTrainSetup(t, "train")
+	second := filepath.Join(filepath.Dir(filepath.Dir(s.first)), "sample-slot2", "sample")
+	git(t, s.server, "rm", "-q", "--cached", "Makefile.workflow")
+	procedureWrite(t, s.server, ".gitignore", "/Makefile.workflow\n")
+	git(t, s.server, "add", ".gitignore")
+	git(t, s.server, "commit", "-qm", "Makefile.workflow is the substrate's, untracked")
+	git(t, s.server, "push", "-q", "origin", "main")
+	git(t, second, "fetch", "-q", "upstream")
+	git(t, second, "reset", "-q", "--hard", "upstream/main")
+	for _, root := range []string{s.first, second} {
+		if withSubstrate {
+			sub := filepath.Join(filepath.Dir(root), "substrate")
+			procedureWrite(t, sub, "Makefile.workflow", "# the substrate's workflow\n")
+			procedureWrite(t, sub, "scripts/test-lock.py", fakeSuiteLockHelper("print('skipped')\n"))
+		}
+		mk := filepath.Join(root, "Makefile.workflow")
+		if err := os.Remove(mk); err != nil && !os.IsNotExist(err) {
+			t.Fatal(err)
+		}
+		if err := os.Symlink("../substrate/Makefile.workflow", mk); err != nil {
+			t.Fatal(err)
+		}
+	}
+	git(t, s.first, "fetch", "-q", "upstream")
+	trainCar(t, second, "000002-second", "second", 2)
+	s.addCar(t, "000002-second", 2)
+	return s, second
+}
+
+// runTwoCars merges both cars as one train and returns each merge's result.
+func runTwoCars(t *testing.T, s *trainSetup, second string) (first, other error) {
+	t.Helper()
+	one := s.merge(s.first)
+	waitQueued(t, s.line, 1)
+	two := s.merge(second)
+	waitQueued(t, s.line, 2)
+	waitVouched(t, s.line, 2)
+	s.blocker.Release()
+	return finished(t, one), finished(t, two)
+}
+
+// #486: the train's disposable tree sits apart from the substrate, where the
+// relative link does not resolve; the suite still finds its lock helper,
+// through the checkout the train was built from, and the train lands.
+func TestLandingTrainResolvesASymlinkedWorkflow(t *testing.T) {
+	s, second := symlinkedWorkflowTrain(t, true)
+	if one, two := runTwoCars(t, s, second); one != nil || two != nil {
+		t.Fatalf("cars: %v / %v", one, two)
+	}
+	if s.gh.merges != 1 || len(s.gh.created) != 1 {
+		t.Fatalf("merges %d, train PRs %v: want one train merged once", s.gh.merges, s.gh.created)
+	}
+	for _, b := range []string{landingTestBranch, "000002-second"} {
+		if p := s.gh.pr(b); p.State != "MERGED" {
+			t.Fatalf("%s: %s", b, p.State)
+		}
+	}
+}
+
+// #486: a train stopped by its environment (here no substrate anywhere, so
+// the suite cannot run) strands no car: the conductor's own merge fails naming
+// why, every other car is released back to wait (never held) and goes on by
+// the serial path, no merge hangs, and the train PR is closed.
+func TestLandingTrainStoppedByEnvironmentReleasesItsCars(t *testing.T) {
+	s, second := symlinkedWorkflowTrain(t, false)
+	one, two := runTwoCars(t, s, second)
+	errs := fmt.Sprint(one, " / ", two)
+	if one == nil && two == nil || !strings.Contains(errs, "could not run") {
+		t.Fatalf("cars: %s; want a car to fail naming that the suite could not run", errs)
+	}
+	released, held := 0, 0
+	for _, e := range lineEvents(t, s.line)[landingline.EventCar] {
+		switch e.Result {
+		case string(landingline.OutcomeReleased):
+			if strings.Contains(e.Detail, "the train stopped") {
+				released++
+			}
+		case string(landingline.OutcomeHeld):
+			held++
+		}
+	}
+	if released == 0 || held != 0 {
+		t.Fatalf("car events %+v: want the other car released by the stop, none held", lineEvents(t, s.line)[landingline.EventCar])
+	}
+	for _, n := range s.gh.created {
+		if p := s.gh.pr(n); p.State != "CLOSED" {
+			t.Fatalf("train PR %s is %s; a train that could not test must close it", n, p.State)
+		}
+	}
+	// Released, the other car takes the serial path on its own branch suite
+	// record: it lands rather than waiting for a train that cannot run.
+	if p := s.gh.pr("000002-second"); p.State != "MERGED" || two != nil {
+		t.Fatalf("released car: PR %s, merge %v; want it landed on the serial path", p.State, two)
+	}
+}
+
+// gateInstancesByReading stands in for `vocabulary validate-instance`: like
+// the real validator it reads the file at the path it is given, and a file it
+// cannot read is nonconforming with the validator's message (#490's symptom).
+func gateInstancesByReading(t *testing.T) {
+	t.Helper()
+	prev := validateFrontmatterFn
+	validateFrontmatterFn = func(_, file string) (string, bool, error) {
+		if _, err := os.ReadFile(file); err != nil {
+			return "vocabulary: read that file: " + err.Error(), false, nil
+		}
+		return "", true, nil
+	}
+	t.Cleanup(func() { validateFrontmatterFn = prev })
+}
+
+// trainCarWithIssue is a second car whose branch adds an issue file with
+// body, one the conductor's own checkout does not have.
+func trainCarWithIssue(t *testing.T, s *trainSetup, body string) string {
+	t.Helper()
+	second := filepath.Join(filepath.Dir(filepath.Dir(s.first)), "sample-slot2", "sample")
+	git(t, second, "fetch", "-q", "upstream")
+	git(t, second, "reset", "-q", "--hard", "upstream/main")
+	git(t, second, "switch", "--quiet", "--no-track", "-c", "000002-second")
+	procedureWrite(t, second, "workshop/issues/000002-second.md", body)
+	procedureWrite(t, second, "second.go", "package second\n")
+	git(t, second, "add", ".")
+	git(t, second, "commit", "-qm", "close second")
+	git(t, second, "push", "-q", "upstream", "000002-second")
+	s.addCar(t, "000002-second", 2)
+	return second
+}
+
+// #490: the instance gate validates each prefix in the train tree that holds
+// it. Car 2 adds an issue file the conductor's checkout lacks; read from the
+// conductor's checkout it was "missing" and the car was held.
+func TestLandingTrainGatesEachPrefixInItsOwnTree(t *testing.T) {
+	gateInstancesByReading(t)
+	s := newTrainSetup(t, "train")
+	s.validate = true
+	second := trainCarWithIssue(t, s, "---\nid: 000002\nstatus: codecomplete\n---\n## Spec\nspec\n## Done when\n- it works\n## Plan\n- [x] do it\n")
+	if one, two := runTwoCars(t, s, second); one != nil || two != nil {
+		t.Fatalf("cars: %v / %v", one, two)
+	}
+	for _, b := range []string{landingTestBranch, "000002-second"} {
+		if p := s.gh.pr(b); p.State != "MERGED" {
+			t.Fatalf("%s: %s (car events %+v)", b, p.State, lineEvents(t, s.line)[landingline.EventCar])
+		}
+	}
+}
+
+// #490 control: a car whose own new issue file breaks a rule is still held,
+// with the file and the rule named, and the rest of the train goes on.
+func TestLandingTrainHoldsAMalformedCarNamingTheFile(t *testing.T) {
+	gateInstancesByReading(t)
+	s := newTrainSetup(t, "train")
+	s.validate = true
+	second := trainCarWithIssue(t, s, instanceGateNoPlan)
+	one, _ := runTwoCars(t, s, second)
+	if one != nil {
+		t.Fatalf("the conductor's car: %v", one)
+	}
+	held := ""
+	for _, e := range lineEvents(t, s.line)[landingline.EventCar] {
+		if e.Result == string(landingline.OutcomeHeld) {
+			held = e.Detail
+		}
+	}
+	if !strings.Contains(held, "workshop/issues/000002-second.md (section)") {
+		t.Fatalf("held detail %q; want the file and the broken rule named", held)
+	}
+	if p := s.gh.pr(landingTestBranch); p.State != "MERGED" {
+		t.Fatalf("the conductor's car: %s", p.State)
 	}
 }

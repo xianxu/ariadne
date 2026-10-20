@@ -79,6 +79,8 @@ func TestDecideCIGateLocalChecks(t *testing.T) {
 	decl := localCheckDecl{Version: 1, Checks: []localCheck{{Name: "zellij", Command: []string{"make"}, Substitutes: []string{label}}}}
 	required := localCheckDecl{Version: 1, Checks: []localCheck{{Name: "e2e", Command: []string{"make"}, Required: true}}}
 	runnerless := map[string]bool{label: true}
+	suiteReq := localCheckDecl{Version: 1, Checks: []localCheck{{Name: suiteCheckName, Command: []string{"make", "test"}, Required: true}}}
+	carStandIn := map[string]string{suiteCheckName: affectedCheckName}
 	for _, tc := range []struct {
 		name      string
 		in        ciInputs
@@ -98,6 +100,13 @@ func TestDecideCIGateLocalChecks(t *testing.T) {
 		{"required, green CI, nothing recorded", ciInputs{Checks: []prCheck{merge}, Local: required}, ciLocalNeeded, nil, []string{"e2e"}},
 		{"required, recorded failure", ciInputs{Checks: []prCheck{merge, local("e2e", "fail")}, Local: required}, ciRed, []string{localStatusContext("e2e")}, []string{"e2e"}},
 		{"required, recorded pass", ciInputs{Checks: []prCheck{merge, local("e2e", "pass")}, Local: required}, ciGreen, nil, nil},
+		// #473 D3: a car's stand-in. affected satisfies a required suite, on the head or a docs-only ancestor; the
+		// refusal asks for the stand-in. Without StandIn (merge) the same record does not count.
+		{"stand-in recorded satisfies suite", ciInputs{Checks: []prCheck{merge, local("affected", "pass")}, Local: suiteReq, StandIn: carStandIn}, ciGreen, nil, nil},
+		{"stand-in on a docs-only ancestor", ciInputs{Checks: []prCheck{merge}, Local: suiteReq, StandIn: carStandIn, RecordedAncestors: map[string]bool{"affected": true}}, ciGreen, nil, nil},
+		{"nothing recorded asks for the stand-in", ciInputs{Checks: []prCheck{merge}, Local: suiteReq, StandIn: carStandIn}, ciLocalNeeded, nil, []string{"affected"}},
+		{"suite itself still counts with a stand-in", ciInputs{Checks: []prCheck{merge, local("suite", "pass")}, Local: suiteReq, StandIn: carStandIn}, ciGreen, nil, nil},
+		{"merge: affected does not stand in", ciInputs{Checks: []prCheck{merge, local("affected", "pass")}, Local: suiteReq}, ciLocalNeeded, nil, []string{"suite"}},
 		// Provenance: only a commit status records a local run, not a check run that carries the name.
 		{"an Actions job named sdlc-local is not a recorded run", ciInputs{Checks: []prCheck{merge, {Name: localStatusContext("e2e"), Workflow: "ci", Bucket: "pass", Link: "https://github.com/o/r/actions/runs/1/job/2"}}, Local: required}, ciLocalNeeded, nil, []string{"e2e"}},
 		{"a check run with an Actions link is not a recorded run", ciInputs{Checks: []prCheck{job, {Name: localStatusContext("zellij"), Bucket: "pass", Link: "https://github.com/o/r/actions/runs/1/job/3"}}, Local: decl, Runnerless: runnerless}, ciLocalNeeded, nil, []string{"zellij"}},

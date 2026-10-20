@@ -23,6 +23,7 @@ type ciGateFacts struct {
 	decl         localCheckDecl
 	hasWorkflows bool
 	required     []string
+	standIn      map[string]string // a required check → the check whose record also satisfies it (#473)
 }
 
 func prepareCIGateFactsContext(ctx context.Context, git func(...string) (string, error), base, head string) (*ciGateFacts, error) {

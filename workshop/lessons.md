@@ -96,6 +96,18 @@ Detailed incidents remain in their owning issue or review artifact.
   bits. Keep startup environment evidence outside code-suite results so a
   same-head repair can pass without hiding an earlier genuine failure (#477).
 
+- A test that invalidates inherited temp variables must supply its fallback
+  candidate through the IO seam, not depend on the host /tmp or user-temp
+  directory remaining writable. Complete unrelated checkout setup first, then
+  test real child env/writes and a denied-selector no-child/no-success control.
+  Reproduce the permission boundary with a real sandbox (#487).
+
+- If a contained reviewer cannot launch a nested OS sandbox, capture host-side
+  acceptance as measured evidence: source revision, profile digest/content,
+  probe source, denied host writes, allowed fixture writes, test commands and
+  exit statuses. A prose claim that sandbox tests passed is not independently
+  reviewable evidence (#487 BR-1).
+
 - Keep the real checkout stable while cmd/sdlc package tests run: its TestMain
   snapshots HEAD, branch and porcelain status. A concurrent commit or a new
   dirty path invalidates the run even when every assertion passes (#472).
@@ -1119,6 +1131,14 @@ The simplest durable authority beats a clever scan of consequences.
   qualified name in the terminal card's `flake_tests`; legacy failures stay
   visible until retention expires (ARCH-SECURE).
 
+- **#473 M1 BR-1/BR-7 — test selection must over-select:** when a classifier maps a file to the code its change can
+  break, collect every claimant (here the package whose dir holds the file, each `testdata/` owner, and each package
+  that embeds it, plus every matching group), and fall back to the full run only when there are none. Two shortcuts
+  each skipped tests: "nearest ancestor directory" let a root package claim every path, and "first owner wins"
+  missed a second embedder. A third shortcut, ignoring docs before asking who owns them, skipped a package that
+  embeds a `.md`. Ask "who claims this path?" first, and drop a path only when nothing claims it. Prefer the
+  toolchain's exact facts (`go list` EmbedFiles) to a directory heuristic, and add a table row for a file with two
+  owners.
 - #470 verification: cmd/sdlc's source-checkout hermeticity guard pins HEAD for the entire test run. Do not commit while a targeted source-checkout run remains active: even passing tests fail that guard when HEAD moves. The recorded local-check suite uses a detached checkout and can overlap source bookkeeping safely. The existing hermeticity guard already enforces this class; no additional source lint is needed.
 
 - #470: when extending an output callback to another mode, preserve existing mode prefixes and sweep tests by the message/callback as well as filenames. The existing readiness fixture caught the train-prefix change; the grant fixture now asserts both serial and train prefixes. These observable prose contracts are defended by those integration assertions rather than a generic lexical lint rule.
@@ -1126,3 +1146,13 @@ The simplest durable authority beats a clever scan of consequences.
 - #470 BR-1: acceptance should preserve behavioral guarantees rather than promise unchanged tests when a feature intentionally changes those tests' expected behavior. Keep the current Done-when synchronized with the approved policy, and preserve the superseded promise in Revisions. This is semantic acceptance wording, defended by the close review rather than lexical lint.
 
 - #480 measurement harness review: process-leader exit does not prove its process group is gone; cancellation must check group survival independently and exercise a TERM-resistant descendant. A pinned HEAD also needs a clean-source check before and after measurement. Local evidence-harness tests enforce these contracts; no production Go lint surface is added for this temporary Python tool.
+- #481 plan review: a PID-lifetime watcher does not own descendant completion. Before making quiescence authoritative, name the component that owns cancellation and cleanup; unmanaged children stay unknown rather than borrowing the managed runner's guarantee. Real owner-death/child-survival barriers defend this semantic lifetime boundary; a lexical source lint cannot prove descendant ownership.
+
+- #481 M1 review: a durable cancellation intent must remain authoritative across every later write, owner death and retirement. Test the gaps between publications and repeated recovery, including diagnostic retention before intent cleanup. Check context inside bounded transaction loops; mutex-acquisition deadlines alone do not bound a command. These semantic crash/deadline properties are guarded by real-store regression tests rather than lexical lint.
+
+- #481 M2 BR-5: a global admission mutex cannot contain a blocking secondary mutex acquisition. Try the local resource without blocking, release the global mutex on contention, and retry with the same ticket. Test a real held allocation lock and prove pause/cancellation finish before releasing it. The callback's dynamic lock context crosses Go/Python abstractions, so the real-lock contention tests enforce this class; a source-name lint would only mirror the present implementation.
+
+- Bounded shutdown cleanup still receives the caller context: preserve its
+  values with context.WithoutCancel, then apply the cleanup timeout. Do not mint
+  context.Background inside a new runtime; run TestVerbContextsReachTrackerReads
+  with targeted runtime checks (#481 final suite).
