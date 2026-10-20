@@ -121,6 +121,56 @@ func TestQueueCrashIntentBeforePhaseIsAuthoritative(t *testing.T) {
 	}
 }
 
+func TestQueueLeaseReadAdmittedState(t *testing.T) {
+	s := testStore(t)
+	l := enrollTest(t, s, "read-state", true)
+	op, err := l.Read(context.Background())
+	if err != nil || op.Phase != "waiting" {
+		t.Fatalf("waiting: %+v %v", op, err)
+	}
+	if _, err := l.TryAdmit(context.Background(), nil); err != nil {
+		t.Fatal(err)
+	}
+	op, err = l.Read(context.Background())
+	if err != nil || op.Phase != "running" {
+		t.Fatalf("admitted: %+v %v", op, err)
+	}
+	if err := l.Retire(context.Background(), ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.Read(context.Background()); err == nil {
+		t.Fatal("retired lease still readable")
+	}
+}
+
+func TestQueueRetireOutcomeSerializesCompletionAndCancellation(t *testing.T) {
+	for _, cancelFirst := range []bool{false, true} {
+		s := testStore(t)
+		l := enrollTest(t, s, "completion-race", true)
+		if _, err := l.TryAdmit(context.Background(), nil); err != nil {
+			t.Fatal(err)
+		}
+		if cancelFirst {
+			if err := s.Pause(context.Background(), "race", "fast", true); err != nil {
+				t.Fatal(err)
+			}
+		}
+		interrupted, err := l.RetireOutcome(context.Background(), "")
+		if err != nil || interrupted != cancelFirst {
+			t.Fatalf("cancelFirst=%v interrupted=%v err=%v", cancelFirst, interrupted, err)
+		}
+		if !cancelFirst {
+			if err := s.Pause(context.Background(), "race", "fast", true); err != nil {
+				t.Fatal(err)
+			}
+		}
+		rows, _ := os.ReadDir(filepath.Join(s.Root, "interrupted"))
+		if (len(rows) > 0) != cancelFirst {
+			t.Fatalf("outcome/evidence disagree: %v", rows)
+		}
+	}
+}
+
 func TestQueueInterruptedOwnerDeathRetainsEvidenceAndCleansIntent(t *testing.T) {
 	s := testStore(t)
 	l := enrollTest(t, s, "dead-interrupted", true)

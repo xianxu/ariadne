@@ -42,6 +42,9 @@ never does. Unsupported, damaged, oversized or incomplete records hold admission
 or report unknown, not an empty successful snapshot. There are at most 128
 owners, 4096 active entries and 1 MiB output. Interrupted evidence lives in its
 own bounded family, outside ordinary suite failure/flake records.
+Managed interruption logs are retained as
+  <git common dir>/sdlc/local-checks/<head>/<check>.interrupted.log
+with the normal newest-20-head log retention. Retry the same head after resume.
 
 ROLLOUT
   Rebuild the central sdlc after landing. Older runners drain or relaunch;

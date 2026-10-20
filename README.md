@@ -579,6 +579,11 @@ private `WF_SDLC_QUEUE_ROOT`, `WF_TEST_LOCK_FILE` and
 `WF_SDLC_QUEUE_FLEET_ROOT`; it must never pause the live fleet. See the
 [queue backend and rollout](atlas/workflow/sdlc-binary.md#machine-wide-queue-drain-481).
 
+Managed local checks retain their latest raw interruption log per check/head as
+`<git common dir>/sdlc/local-checks/<head>/<check>.interrupted.log`, outside
+accepted suite attempts. The normal newest-20-head log retention applies.
+`tl-worker --help` describes the durable checkpoint and drain acknowledgment.
+
 Recorded suites and their baselines replace unusable inherited `TMPDIR` and
 `GOTMPDIR` with writable per-run paths, even when TestScratch falls back.
 A proven Go work-directory startup failure reports an environment error naming

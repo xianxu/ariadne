@@ -112,6 +112,20 @@ func (l *Lease) operation() (Operation, error) {
 	return op, err
 }
 
+// Read observes only this lease under the shared mutex. It never scans the
+// registry or performs process/topology discovery on an admission path.
+func (l *Lease) Read(ctx context.Context) (Operation, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	var op Operation
+	err := l.store.WithGate(ctx, func() error {
+		var err error
+		op, err = l.operation()
+		return err
+	})
+	return op, err
+}
+
 // TryAdmit runs a nonblocking resource acquisition only while the pause set is
 // known empty. A true result and active lease are one pause-serialized effect.
 func (l *Lease) TryAdmit(ctx context.Context, resource func() (bool, error)) (bool, error) {
@@ -182,12 +196,20 @@ func (l *Lease) CancellationRequested(ctx context.Context) (bool, error) {
 }
 
 func (l *Lease) Retire(ctx context.Context, reason string) error {
+	_, err := l.RetireOutcome(ctx, reason)
+	return err
+}
+
+// RetireOutcome serializes completion with cancellation publication. Its
+// outcome lets a managed caller avoid recording success after cancellation won.
+func (l *Lease) RetireOutcome(ctx context.Context, reason string) (bool, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.file == nil {
-		return nil
+		return false, nil
 	}
-	return l.store.WithGate(ctx, func() error {
+	interrupted := false
+	err := l.store.WithGate(ctx, func() error {
 		op, err := l.operation()
 		if err != nil {
 			return err
@@ -200,6 +222,7 @@ func (l *Lease) Retire(ctx context.Context, reason string) error {
 			reason = intentReason
 		}
 		if op.Phase == "interrupting" || reason != "" || intent {
+			interrupted = true
 			if err := l.store.retainInterruption(ctx, op, reason); err != nil {
 				return err
 			}
@@ -222,6 +245,7 @@ func (l *Lease) Retire(ctx context.Context, reason string) error {
 		l.file = nil
 		return err
 	})
+	return interrupted, err
 }
 
 // Close only releases the lifetime lock. If a caller did not prove completion

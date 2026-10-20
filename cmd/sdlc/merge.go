@@ -293,7 +293,7 @@ func decideMergeAction(openPRNumber string, mergedExists bool, unmergedCount int
 	}
 }
 
-func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
+func runMerge(stdout, stderr io.Writer, f *mergeFlags) (err error) {
 	ctx := commandContext(f.Context)
 	target, err := resolveLandingTarget(boundedLandingGit(ctx, mergeRunner))
 	if err != nil {
@@ -352,6 +352,35 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		die(stderr, "sdlc merge needs interactive confirmation, but stdin is not a terminal.\n"+
 			"  Re-run with --yes to merge non-interactively (skips the confirm + not-done prompts),\n"+
 			"  or run it from a terminal.")
+	}
+
+	if !f.DryRun {
+		root, rootErr := gitx.RepoTopLevel()
+		if rootErr != nil {
+			return rootErr
+		}
+		queueCtx, q, startErr := startQueueOperation(ctx, root, branchHead, []string{"merge", "landing"})
+		if startErr != nil {
+			return startErr
+		}
+		ctx = queueCtx
+		defer func() {
+			reason := queueInterruptionReason(err)
+			if finishErr := q.finish(reason); finishErr != nil {
+				if err == nil {
+					err = finishErr
+				} else {
+					fmt.Fprintf(stderr, "queue retirement: %v\n", finishErr)
+				}
+			}
+		}()
+		if err = q.waitAdmission(ctx, stderr); err != nil {
+			return err
+		}
+		ctx = withQueueAdmitted(ctx)
+		localFlags := *f
+		f = &localFlags
+		f.Context = ctx
 	}
 
 	repo, err := detectRepo()

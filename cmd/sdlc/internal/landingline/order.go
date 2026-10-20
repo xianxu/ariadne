@@ -22,11 +22,15 @@ const MaxGrant = 24 * time.Hour
 // Ticket is one waiting or admitted merge. Seq comes from the line's counter,
 // so FIFO is a total order that clock skew can't break.
 type Ticket struct {
-	Seq      int64     `json:"seq"`
-	Issue    int       `json:"issue"`
-	Branch   string    `json:"branch"`
-	PID      int       `json:"pid"`
-	Enqueued time.Time `json:"enqueued"`
+	QueueOperationID string    `json:"queue_operation_id,omitempty"`
+	QueuePID         int       `json:"queue_pid,omitempty"`
+	QueuePIDStarted  string    `json:"queue_pid_started,omitempty"`
+	QueueRoot        string    `json:"queue_root,omitempty"`
+	Seq              int64     `json:"seq"`
+	Issue            int       `json:"issue"`
+	Branch           string    `json:"branch"`
+	PID              int       `json:"pid"`
+	Enqueued         time.Time `json:"enqueued"`
 	// Unreadable marks a held ticket or head.lock whose contents don't parse:
 	// present, never reported as absent.
 	Unreadable bool `json:"-"`

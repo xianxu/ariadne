@@ -2012,6 +2012,28 @@ for operator reconciliation. No shared process group is signalled. The
 supervisor notice/ack formatter belongs to pair#722, while tl-worker describes
 the checkpoint discipline.
 
+`queue_runtime.go` enrolls each merge before waiting; `Line.tryAdmit` wraps the
+actual line transaction with its global gate. Ordinary-worktree merges and
+already-merged/train cleanup use the same lifetime through their bypass
+admission. `localcheck_run.go` enrolls suites and supplies the exact managed
+operation ID to `scripts/test-lock.py`. `QueueGate` borrows that held lease and
+publishes its running phase together with weighted capacity; grant-provider
+calls remain outside the global mutex. Reentrant makes reuse their holder.
+The forked watcher reopens its control mutex descriptor so it cannot unlock
+its parent's transaction. Raw slot/head bindings identify the controller's
+operation ID, kernel incarnation and checkout root.
+
+`Lease.RetireOutcome` serializes completion against cancellation, so a
+cancellation that wins cannot become a passing suite. The managed owner joins
+its cancellation reader and cleans the process group before retirement.
+`queue_interruption.go` retains the latest raw interruption log per check/head
+as `<git common dir>/sdlc/local-checks/<head>/<check>.interrupted.log` (the normal
+newest-20-head retention), while the queue's immutable JSON diagnostics keep
+their separate 30-day/4096-record policy. These logs never enter SuiteAttempt,
+main-red or flake evidence. A same-head manual retry after resume is ordinary
+admission. Direct make has no verified workspace identity and reports it as
+unknown, with its checkout named in detail; a surviving child remains unknown.
+
 ### Running the test suite (#253)
 
 The required recorded suite is declared in `.sdlc/local-checks.json` as

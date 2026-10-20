@@ -163,6 +163,14 @@ func TestMain(m *testing.M) {
 	testfix.PreferRealGit()
 	cleanupQuietGit := testfix.QuietBackgroundGit()
 	cleanupReviewBox := hermeticReviewBox()
+	// Queue consumers introduced by #481 must never enroll test operations in
+	// the machine's production registry, even through existing merge fixtures.
+	queueRoot, err := os.MkdirTemp("", "sdlc-queue-tests-")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	os.Setenv("WF_SDLC_QUEUE_ROOT", queueRoot)
 	testfix.PinAgent() // #367
 	// #409: every reviewer CLI counts as installed, whatever this machine has;
 	// tests of the pre-launch skip install their own.
@@ -197,6 +205,7 @@ func TestMain(m *testing.M) {
 		}
 	}
 	cleanupReviewBox()
+	_ = os.RemoveAll(queueRoot)
 	cleanupQuietGit()
 	os.Exit(exit)
 }

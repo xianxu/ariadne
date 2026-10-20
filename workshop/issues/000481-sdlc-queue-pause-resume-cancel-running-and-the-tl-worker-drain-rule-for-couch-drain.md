@@ -159,6 +159,10 @@ Implemented the pure owner/operation state model, strict additive codecs, portab
 
 TDD observed missing feature/API RED, concrete malformed owner/UTF-8 and held-waiter binding RED, a duplicate retirement observation RED, unsafe filename hiding an unknown holder RED, and unpublished-enrollment residue RED before fixes. Final queuegate race run passed 1.395s; combined TestQueue CLI/legacy + help/catalog race checks passed 2.771s; helptext passed 0.133s; golint passed 0.457s; diff check clean. No full suite yet: the recorded final suite and live peer executable conformance belong to M2 after all admission consumers are wired. No test changed the live queue, :0 or another checkout.
 
+### 2026-10-20 — M2 retained implementation checkpoint
+
+M1 closed SHIP after round 2; all four findings disposed. M2 now wires normal/resume/ordinary merges and real weighted suite admission to the shared gate, plus managed cancellation and the worker drain rule. RED tests showed missing waiting leases, a landing binding rooted at the wrong directory, the watcher's shared mutex descriptor after fork, mismatched Python ID grammar, and an unverified workspace guess; corresponding fixes pass. Go combined race checks passed 22.306s; broader local-check compatibility passed 280.288s; existing priority tests (16), shell weighted/FIFO/watch tests and TL-worker/lead tests pass. New full-flow interruption controls prove retained logs, no SuiteAttempt/GitHub/baseline/flake poisoning and same-head retry. Counted 8/16 runtime admissions perform zero process/topology commands. Python private tests pass (12); real peer executable conformance and final recorded suite/review remain pending. Both bounded subagents hit model capacity; continuing their retained work in the main thread per hub direction.
+
 ## Revisions
 
 ### 2026-10-20 — M1 review corrections
