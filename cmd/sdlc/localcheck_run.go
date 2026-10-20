@@ -46,6 +46,8 @@ type localRunDeps struct {
 	// the open issues' flake_tests, from a fresh tracker read. nil means no
 	// registry is available, which blocks like an unknown failure.
 	FlakeRegistry func(ctx context.Context) (flakes.Registry, error)
+	// normalTempDir selects the fallback candidate; nil keeps strict host selection.
+	normalTempDir func() (string, error)
 	// minute is the unit of timeout_minutes; tests shrink it.
 	minute time.Duration
 }
@@ -109,6 +111,8 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	publishing := false
 	if err != nil {
 		fmt.Fprintf(d.Stderr, "[!] local check %s: attempt log unavailable; using legacy log path: %v\n", c.Name, err)
+		// Until classified, raw execution output is not legacy suite evidence.
+		rec.LogPath = filepath.Join(logDir, sha, c.Name+".pending.log")
 	} else {
 		defer func() {
 			if !publishing {
@@ -127,6 +131,30 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	if rec.LogSHA256, rec.Tail, err = hashAndTail(rec.LogPath, localCheckTailLines); err != nil {
 		return rec, err
 	}
+	// A bounded complete read serves both startup diagnosis and ordinary facts.
+	// Missing/oversized output proves nothing about the environment.
+	facts := SuiteLogFacts{Unattributed: []string{"the suite log could not be parsed"}}
+	if log, readErr := readLocalCheckLog(rec.LogPath); readErr == nil {
+		if c.Name == suiteCheckName && rec.Exit > 0 && !rec.TimedOut && suiteEnvironmentLog(string(log)) {
+			path, envErr := retainSuiteEnvironment(logDir, sha, c.Name, rec.LogPath)
+			publishing = path == rec.LogPath // preserve raw inflight log if retention failed
+			rec.LogPath = path
+			return rec, envErr
+		}
+		facts = parseSuiteLogFacts(string(log))
+		for _, warning := range facts.Warnings {
+			fmt.Fprintf(d.Stderr, "[!] local check %s: log parser: %s\n", c.Name, warning)
+		}
+	} else {
+		fmt.Fprintf(d.Stderr, "[!] local check %s: log too large or unreadable for timing/failure parser; raw log retained: %v\n", c.Name, readErr)
+	}
+	if writer == nil {
+		legacy := filepath.Join(logDir, sha, c.Name+".log")
+		if err := os.Rename(rec.LogPath, legacy); err != nil {
+			return rec, err
+		}
+		rec.LogPath = legacy
+	}
 	queueSeconds, wallSeconds := queueWait.Seconds(), rec.Duration.Seconds()
 	saved := false // a saved attempt is what `local-check republish` can post later
 	var gateErr error
@@ -142,20 +170,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		if trailer, trailerErr := d.Git("show", "-s", "--format=%(trailers:key=Agent,valueonly)", sha); trailerErr == nil {
 			attempt.Agent, attempt.Model, attempt.Effort = suiteAgentFields(trailer)
 		}
-		// A log the parser cannot read names no test, so a failure in it is
-		// unattributable: never a known flake (#394).
-		facts := SuiteLogFacts{Unattributed: []string{"the suite log could not be parsed"}}
-		if info, statErr := os.Stat(writer.LogPath); statErr == nil && info.Size() <= 64<<20 {
-			if log, readErr := os.ReadFile(writer.LogPath); readErr == nil {
-				facts = parseSuiteLogFacts(string(log))
-				attempt.Failures, attempt.Units = facts.Failures, facts.Units
-				for _, warning := range facts.Warnings {
-					fmt.Fprintf(d.Stderr, "[!] local check %s: log parser: %s\n", c.Name, warning)
-				}
-			}
-		} else {
-			fmt.Fprintf(d.Stderr, "[!] local check %s: log too large for timing/failure parser; raw log retained\n", c.Name)
-		}
+		attempt.Failures, attempt.Units = facts.Failures, facts.Units
 		// A failure the log cannot name (#394 M2 review, BR-11): a run killed
 		// by its timeout, or one that never reported an exit, is never a known
 		// flake, whatever its partial log says.
@@ -287,11 +302,14 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 	}
 	// The RAM disk (#468): its env comes last so it wins, and the leak report
 	// compares the SSD temp folders across the run.
-	scratchEnv, _, dropScratch := prepareScratch(d.Stderr, check)
-	defer dropScratch()
-	cmd.Env = append(cmd.Env, scratchEnv...)
+	scratch, err := prepareScratch(d.Stderr, check, d.normalTempDir)
+	if err != nil {
+		return run, err
+	}
+	defer scratch.Cleanup()
+	cmd.Env = append(cmd.Env, scratch.Env...)
 	var ssdBefore map[string]bool
-	if scratchEnv != nil {
+	if scratch.OnScratch {
 		ssdBefore = listTemp(ssdTempDirs())
 		defer func() {
 			byPkg, unattributed := scratchLeaks(ssdBefore, listTemp(ssdTempDirs()), declaredTests(wt))
@@ -541,7 +559,7 @@ func pruneLocalCheckLogs(dir string, keep int) {
 
 // localCheckTempRoots places a run's checkout: <RAM disk>/local-checks when
 // the disk is mounted with room (#468), else the system temp folder, where it
-// always went. The sweep covers both.
+// always went. The sweep covers scratch and every repaired normal candidate.
 func localCheckTempRoots() (create string, all []string, note string) {
 	return scratchdisk.Roots(localCheckScratchSub, os.TempDir())
 }
@@ -561,4 +579,37 @@ func sweepStaleLocalWorktrees(d localRunDeps) {
 		}
 	}
 	_, _ = d.Git("worktree", "prune")
+}
+
+// readLocalCheckLog cannot allocate beyond the existing complete-log ceiling,
+// even if a file grows between its metadata read and the actual read.
+func readLocalCheckLog(path string) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	log, err := io.ReadAll(io.LimitReader(f, (64<<20)+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(log) > 64<<20 {
+		return nil, fmt.Errorf("log exceeds 64 MiB")
+	}
+	return log, nil
+}
+
+// retainSuiteEnvironment moves execution evidence out of the acceptance store.
+// A failed move keeps the owned raw log and names the retention error explicitly.
+func retainSuiteEnvironment(logDir, sha, check, raw string) (string, error) {
+	path := filepath.Join(logDir, sha, check+".environment.log")
+	err := os.MkdirAll(filepath.Dir(path), 0o755)
+	if err == nil {
+		err = os.Rename(raw, path)
+	}
+	if err != nil {
+		return raw, &suiteEnvironmentError{Check: check, LogPath: raw, Cause: fmt.Errorf("retain environment diagnostic: %w", err)}
+	}
+	pruneLocalCheckLogs(logDir, localCheckLogKeep)
+	return path, &suiteEnvironmentError{Check: check, LogPath: path}
 }

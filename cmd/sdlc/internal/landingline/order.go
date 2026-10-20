@@ -9,7 +9,10 @@ package landingline
 import (
 	"cmp"
 	"errors"
+	"fmt"
+	"maps"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -47,6 +50,10 @@ type Grant struct {
 	Revoked bool      `json:"revoked,omitempty"`
 }
 
+func (g Grant) boundedExpiry() bool {
+	return !g.Expires.IsZero() && g.Expires.After(g.Granted) && g.Expires.Sub(g.Granted) <= MaxGrant
+}
+
 // ValidGrants folds the log in order (the latest entry per issue wins) and keeps
 // the grants that confer priority at now: granted no later than now, unexpired,
 // and at most MaxGrant long, so a future-dated entry confers nothing. Authority is checked here as well as
@@ -61,7 +68,7 @@ func ValidGrants(entries []Grant, now time.Time) map[int]Grant {
 	valid := map[int]Grant{}
 	for issue, g := range latest {
 		if !g.Revoked && g.Grantor.Address != "" && authorized(g.Grantor.Slot) && g.Reason != "" &&
-			!g.Granted.After(now) && now.Before(g.Expires) && g.Expires.Sub(g.Granted) <= MaxGrant {
+			!g.Granted.After(now) && g.boundedExpiry() && now.Before(g.Expires) {
 			valid[issue] = g
 		}
 	}
@@ -83,11 +90,27 @@ func Order(tickets []Ticket, grants map[int]Grant) []Ticket {
 	})
 }
 
-// NextHead picks who is admitted next among tickets, Order's first one. An
+// GrantHold explains why a normal ticket cannot acquire a free head. The
+// existing valid grants are the hold; no ticket needs to exist yet (#470).
+// Sorted output stays stable across polls and names every outstanding recovery.
+func GrantHold(issue int, grants map[int]Grant) string {
+	if _, granted := grants[issue]; granted || len(grants) == 0 {
+		return ""
+	}
+	var reasons []string
+	for _, n := range slices.Sorted(maps.Keys(grants)) {
+		g := grants[n]
+		reasons = append(reasons, fmt.Sprintf("fleet-blocking grant #%d until %s: %s; in this repository's checkout run: sdlc landing revoke --issue %d", n, g.Expires.Format(time.RFC3339), g.Reason, n))
+	}
+	return strings.Join(reasons, "; ")
+}
+
+// NextHead picks who is admitted next among tickets: Order's first one,
+// unless a fleet-blocking grant holds normal admissions. An
 // admitted head has left the waiting tickets, so nothing here can preempt it.
 func NextHead(tickets []Ticket, grants map[int]Grant) (head Ticket, ok bool) {
 	order := Order(tickets, grants)
-	if len(order) == 0 {
+	if len(order) == 0 || GrantHold(order[0].Issue, grants) != "" {
 		return Ticket{}, false
 	}
 	return order[0], true

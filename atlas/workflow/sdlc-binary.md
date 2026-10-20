@@ -394,6 +394,11 @@ with reviewbox.
 - **Order.** `Order` and `NextHead` put fleet-blocking tickets first, then normal
   ones, FIFO by ticket number within each class. Waiters poll every 2 s. A
   running head is never preempted: priority decides only who is admitted next.
+  `GrantHold` holds normal admissions while any valid grant exists, even before
+  its issue queues or between two granted issues in one checkout (#470).
+  Granted tickets keep FIFO among themselves. Status and waiter output share
+  the hold explanation: issue, reason, expiry and revoke command in this repo.
+  Cancellation does not revoke a grant; expiry/revoke releases its hold.
 - **Grants.** `grants.jsonl` is the only source of priority. `ValidGrants` keeps
   the latest entry per issue when it is unrevoked and unexpired (at most 24 h),
   has a reason, and records a grantor that is the operator's shell or a :0 slot.
@@ -2004,6 +2009,32 @@ roots for earlier disposable folders. It also sweeps stale run and go-build fold
 and warns about `t.TempDir` folders a scratched run still left on the SSD temp
 folders. `pkg/golint`'s `tmp-literal` flags hardcoded temp roots that bypass it.
 
+Fallback also owns and removes a per-run directory and explicitly overrides
+both child temp variables (#477). `internal/scratchdisk.NormalTempDir` probes
+actual create/remove access, preserves a usable inherited root, then tries
+Darwin's per-user temp and the Unix default independently. Detached-checkout
+creation uses the same repair if its os.TempDir fallback is unusable; explicit
+custom fallback errors remain strict. Root enumeration also covers all repaired
+normal candidates for stale-checkout and per-run cleanup, even after the inherited root
+works again. No global process environment is changed.
+The local-run dependency can inject the normal-temp selector for fixtures (#487);
+its nil default remains the strict production selector. Fallback child-env tests
+create their checkout before invalidating inherited temp values and verify real
+child writes under a sandbox that denies host normal-temp roots.
+
+`runLocalCheck` reads one bounded complete log for startup classification and
+normal suite facts. `suiteenvironment.go` accepts only direct Go work-directory
+creation errors and the explicit compile-before-report Python/make wrapper.
+Mixed, quoted, truncated, timed-out or unknown output retains ordinary rules.
+Recognized startup errors return a typed could-not-run error before flake,
+attempt or status publication; known-flake reruns use the same classifier.
+Raw evidence moves to `<head>/<check>.environment.log`, bounded by existing
+20-head pruning, outside SuiteAttempt and legacy acceptance paths. A retention
+failure names and retains the raw inflight log. No schema changes or rewrites:
+a same-head environment repair can pass, while genuine failed attempts remain.
+Ordinary baseline diagnosis and train `mainIsRed` propagate execution errors;
+main health stays unknown and the train emits no failure/split event for them.
+
 Every package whose tests run git calls `testfix.PreferRealGit()` from its
 `TestMain`, putting `$(git --exec-path)` first on PATH: on macOS `/usr/bin/git`
 is the xcrun shim, which costs about 11 ms per spawn. A new git-driving test
@@ -2068,8 +2099,22 @@ The shell runner's default CI invocation still executes the selected batch.
 
 ### The Go lint catalog (#407)
 
+Suite text attribution (#476) preserves indentation before parsing controls:
+`suiteIndentLevel` classifies the whole leading Unicode-whitespace prefix once,
+accepting only ASCII-space quads; `suiteControlLine` derives column-zero
+admission for outcomes, summaries and JSON events from that same classifier.
+`failingNameLines` admits only column-zero records. Raw indented descendants
+coarsen to a proven ancestor, usually the top-level test; JSON failure events
+and explicit shard headers still prove exact leaves. `SuiteLogFacts.Warnings`
+explains the precision loss and possible subtest-only registration miss.
+`flakes.Covers` remains the matching authority; quotations cannot invent leaves.
+Quoted nested package trailers cannot flush pending outer names.
+The same boundary applies to unattributed failures and timing facts, including
+historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
+2N; `TestKnownFlakeGateQuotedNestedOutput` exercises the registered outer retry.
+
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
-that taught it (`test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
+that taught it (`suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
 #469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
 landing), and `wire-strict-decode` pair#594). `TestAtlasNamesEveryRule` keeps this list

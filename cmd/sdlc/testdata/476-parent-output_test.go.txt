@@ -1,0 +1,22 @@
+package outputfixture
+
+import "testing"
+
+func TestParentAfter(t *testing.T) {
+	t.Run("child", func(t *testing.T) { t.Fatal("real failure") })
+	t.Log("nested helper output:\n--- FAIL: TestParentAfter/child/helper (0.01s)")
+}
+
+func TestParentBefore(t *testing.T) {
+	t.Log("nested helper output:\n--- FAIL: TestParentBefore/helper (0.01s)")
+	t.Run("child", func(t *testing.T) { t.Fatal("real failure") })
+}
+
+func TestNestedReturnAndSibling(t *testing.T) {
+	t.Run("first", func(t *testing.T) {
+		t.Run("grand", func(t *testing.T) { t.Fatal("real grandchild failure") })
+		t.Log("nested helper output:\n--- FAIL: TestNestedReturnAndSibling/first/grand/helper (0.01s)")
+	})
+	t.Run("second", func(t *testing.T) { t.Fatal("real sibling failure") })
+	t.Log("nested helper output:\n\n--- FAIL: TestNestedReturnAndSibling/second/helper (0.01s)")
+}

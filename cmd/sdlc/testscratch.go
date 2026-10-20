@@ -8,10 +8,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,30 +22,63 @@ import (
 // calls it abandoned.
 const staleTempAge = 24 * time.Hour
 
-// prepareScratch gives a run its own temp folder on the RAM disk: the env
-// entries that point TMPDIR and GOTMPDIR there, and a cleanup that removes it.
-// It returns no env when the run should use the normal temp folder. Either
-// way it first sweeps what crashed runs and old builds left behind.
-func prepareScratch(stderr io.Writer, check string) (env []string, dir string, cleanup func()) {
-	cleanup = func() {}
-	sweepStaleTemp(os.TempDir(), false, time.Now(), processAlive)
+// scratchPreparation owns a run's temp directory until the child has stopped.
+// OnScratch is explicit: a normal fallback also overrides the child's env.
+type scratchPreparation struct {
+	Env       []string
+	Dir       string
+	OnScratch bool
+	Cleanup   func()
+}
+
+func prepareScratch(stderr io.Writer, check string, normalTempDir func() (string, error)) (scratchPreparation, error) {
+	// Creation and stale cleanup share every possible root, independently
+	// of today's placement. Former fallback runs stay there after recovery.
+	_, cleanupRoots, _ := scratchdisk.Roots("tmp", os.TempDir())
+	for _, root := range cleanupRoots {
+		sweepStaleTemp(root, true, time.Now(), processAlive)
+	}
+	makeRun := func(base string, onScratch bool) (scratchPreparation, error) {
+		if err := os.MkdirAll(base, 0o755); err != nil {
+			return scratchPreparation{}, err
+		}
+		dir, err := os.MkdirTemp(base, scratchRunPrefix+check+"-"+strconv.Itoa(os.Getpid())+"-")
+		if err != nil {
+			return scratchPreparation{}, err
+		}
+		p := scratchPreparation{Env: []string{"TMPDIR=" + dir, "GOTMPDIR=" + dir}, Dir: dir, OnScratch: onScratch, Cleanup: func() { _ = os.RemoveAll(dir) }}
+		for _, name := range []string{"TMPDIR", "GOTMPDIR"} {
+			if inherited := os.Getenv(name); inherited != "" {
+				if err := scratchdisk.CheckTempDir(inherited); err != nil {
+					fmt.Fprintf(stderr, "[!] inherited %s=%q is unusable (%v); using %s\n", name, inherited, err, dir)
+				}
+			}
+		}
+		return p, nil
+	}
 	root, note := scratchdisk.Use()
 	if note != "" {
 		fmt.Fprintf(stderr, "[!] %s\n", note)
 	}
-	if root == "" {
-		return nil, "", cleanup
-	}
-	base := filepath.Join(root, "tmp")
-	sweepStaleTemp(base, true, time.Now(), processAlive)
-	if err := os.MkdirAll(base, 0o755); err == nil {
-		dir, err = os.MkdirTemp(base, scratchRunPrefix+check+"-"+strconv.Itoa(os.Getpid())+"-")
-	}
-	if dir == "" {
+	if root != "" {
+		base := filepath.Join(root, "tmp")
+		if p, err := makeRun(base, true); err == nil {
+			return p, nil
+		}
 		fmt.Fprintf(stderr, "[!] test scratch %s not writable; using the normal temp folder\n", base)
-		return nil, "", cleanup
 	}
-	return []string{"TMPDIR=" + dir, "GOTMPDIR=" + dir}, dir, func() { _ = os.RemoveAll(dir) }
+	if normalTempDir == nil {
+		normalTempDir = scratchdisk.NormalTempDir
+	}
+	normal, err := normalTempDir()
+	if err != nil {
+		return scratchPreparation{}, fmt.Errorf("environment failure: cannot prepare TMPDIR/GOTMPDIR: %w", err)
+	}
+	p, err := makeRun(normal, false)
+	if err != nil {
+		return scratchPreparation{}, fmt.Errorf("environment failure: cannot prepare TMPDIR/GOTMPDIR in %s: %w", normal, err)
+	}
+	return p, nil
 }
 
 // scratchRunPrefix starts every run folder prepareScratch makes, and the
@@ -95,20 +126,10 @@ func sweepStaleTemp(dir string, runDirs bool, now time.Time, alive func(int) boo
 // system's per-user temp folder and the agents' scratch volume.
 func ssdTempDirs() []string {
 	var out []string
-	if d, err := userTempDir(); err == nil && d != "" {
+	if d, err := scratchdisk.UserTempDir(); err == nil && d != "" {
 		out = append(out, d)
 	}
 	return append(out, "/Volumes/AgentScratch/tmp")
-}
-
-// userTempDir is macOS's per-user temp folder (/var/folders/…/T), where a
-// template-less mktemp and Go's os.TempDir land when TMPDIR is unset.
-func userTempDir() (string, error) {
-	if runtime.GOOS != "darwin" {
-		return "", nil
-	}
-	out, err := exec.Command("getconf", "DARWIN_USER_TEMP_DIR").Output()
-	return strings.TrimRight(strings.TrimSpace(string(out)), "/"), err
 }
 
 // listTemp names the entries directly under each folder.
