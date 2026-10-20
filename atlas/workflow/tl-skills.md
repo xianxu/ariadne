@@ -77,13 +77,13 @@ project Logs or charters immediately. Existing explicit FILE forms remain;
 root's session.md for omitted FILE. `status move [OLD] [--apply]` discovers
 one legacy file or accepts OLD. It plans pure transformations in
 `status_move.go`, executes copy/switch/verify/cleanup in `status_move_apply.go`,
-and uses read-only `LookupRegistration` plus Couch `Rename` to preserve
+and uses typed batched `RegistrationSnapshot` list replies plus Couch `Rename` to preserve
 identity, unread baselines and owed events. Source sessions require prior
 registration so Couch imports their legacy metadata; tl-lead leaves those
 companions in place. Dry runs write nothing. A quiet window with editors
 closed is required: observed locks refuse, but there is no editor lease.
 Copies are exclusive and identical copies are reusable after interruption;
-changed copies refuse. Verified registration switching precedes source removal.
+changed copies refuse before switching. Confirmed root switching authorizes source-only cleanup; live destination edits and locks are allowed. Retry confirms the prior root rename and never overwrites live copies. The old tree must remain quiet between retries. Distinct registration conflicts refuse without disposal.
 The old session stays in use before switching; afterwards the new session
 works while cleanup can be retried. No journal is created.
 
@@ -103,3 +103,11 @@ checks over every planned and existing retry destination before copies. A later
 negation causes refusal with sources intact; only ignore additions may remain.
 
 Session migration refuses `.gitignore` files anywhere in the old or new side tree before effects. It rechecks effective Git protection before switching registrations and before each source deletion.
+
+Migration Couch calls have a five-second budget with bounded output draining.
+Read failures report unreachable Couch before local effects; uncertain rename
+outcomes preserve sources. Registration observations use fixed-count list
+snapshots, not per-document lookup/status. Git policy uses complete batched
+membership checks before copy/switch and one direct check per deletion. Counted
+8/16-document tests bound process growth; real scratch conformance interrupts
+after switching, edits the live root and retries cleanup.

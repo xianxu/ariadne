@@ -140,6 +140,17 @@ func readMoveTree(root, dir string, into map[string]moveSource, dirs ...map[stri
 func readSessionMove(d deps, root, old string) (sessionMoveSnapshot, error) {
 	s := sessionMoveSnapshot{Root: root, Old: old, Files: map[string]moveSource{}, Dest: map[string]moveSource{}, Existing: map[string]bool{}, Directories: map[string]bool{}, Registrations: map[string]*syncRegistration{}}
 	abs := func(p string) string { return filepath.Join(root, filepath.FromSlash(p)) }
+	regs, err := d.ss.RegistrationSnapshot()
+	if err != nil {
+		return s, fmt.Errorf("cannot reach Couch: %w; run outside the blocked agent sandbox", err)
+	}
+	for file, r := range regs {
+		rel, err := filepath.Rel(root, file)
+		if err == nil && rel != ".." && !strings.HasPrefix(rel, "../") {
+			s.Registrations[filepath.ToSlash(rel)] = r
+		}
+	}
+	s.CleanupOnly = old != "session.md" && s.Registrations[old] == nil && s.Registrations["session.md"] != nil
 
 	src, err := moveRead(root, old)
 	if errors.Is(err, os.ErrNotExist) && old != "session.md" {
@@ -164,15 +175,17 @@ func readSessionMove(d deps, root, old string) (sessionMoveSnapshot, error) {
 			return s, err
 		}
 	}
-	for _, rel := range []string{"session.md", ".session.md.ss-seen"} {
-		if v, err := moveRead(root, rel); err == nil {
-			s.Dest[rel] = v
-		} else if !errors.Is(err, os.ErrNotExist) {
+	if !s.CleanupOnly {
+		for _, rel := range []string{"session.md", ".session.md.ss-seen"} {
+			if v, err := moveRead(root, rel); err == nil {
+				s.Dest[rel] = v
+			} else if !errors.Is(err, os.ErrNotExist) {
+				return s, err
+			}
+		}
+		if err := readMoveTree(root, "session.side", s.Dest); err != nil {
 			return s, err
 		}
-	}
-	if err := readMoveTree(root, "session.side", s.Dest); err != nil {
-		return s, err
 	}
 	if v, err := moveRead(root, ".gitignore"); err == nil {
 		s.Ignore = v.Bytes
@@ -194,15 +207,14 @@ func readSessionMove(d deps, root, old string) (sessionMoveSnapshot, error) {
 		}
 	}
 	for _, rel := range sortedKeys(paths) {
-		r, err := d.ss.LookupRegistration(abs(rel))
-		if err != nil {
-			return s, err
+		if s.CleanupOnly && (rel == "session.md" || strings.HasPrefix(rel, "session.side/")) {
+			continue
 		}
-		s.Registrations[rel] = r
-		if err := checkMoveLock(d, root, rel, r != nil); err != nil {
+		if err := checkMoveLock(root, rel); err != nil {
 			return s, err
 		}
 	}
+
 	oldReg, newReg := s.Registrations[old], s.Registrations["session.md"]
 	if oldReg == nil && newReg == nil {
 		owner := strings.Trim(fields["couch-owner"], `"`)
@@ -215,12 +227,12 @@ func readSessionMove(d deps, root, old string) (sessionMoveSnapshot, error) {
 		return s, fmt.Errorf("session is unregistered; run couch --session-sync register %s --owner %s, then rerun", abs(old), owner)
 	}
 	if oldReg != nil && newReg != nil && old != "session.md" {
-		return s, fmt.Errorf("destination session registration is occupied")
+		return s, fmt.Errorf("distinct registration conflict: %s ID %s; session.md ID %s; neither binding discarded", old, oldReg.ID, newReg.ID)
 	}
 	for rel, v := range s.Files {
 		to, _ := moveTarget(old, rel)
 		if a, b := s.Registrations[rel], s.Registrations[to]; a != nil && b != nil && rel != to {
-			return s, fmt.Errorf("destination registration occupied: %s", to)
+			return s, fmt.Errorf("distinct registration conflict: %s ID %s; %s ID %s; neither binding discarded", rel, a.ID, to, b.ID)
 		}
 		if strings.HasSuffix(rel, ".md") {
 			f, err := moveMetadataFields(string(v.Bytes))
@@ -265,7 +277,7 @@ func readSessionMove(d deps, root, old string) (sessionMoveSnapshot, error) {
 	return s, nil
 }
 
-func checkMoveLock(d deps, root, rel string, registered bool) error {
+func checkMoveLock(root, rel string) error {
 	for _, suffix := range []string{".lock", ".clobbered"} {
 		p, err := safeMovePath(root, rel+suffix)
 		if err != nil {
@@ -278,15 +290,6 @@ func checkMoveLock(d deps, root, rel string, registered bool) error {
 			return fmt.Errorf("resolve clobbered evidence: %s", rel)
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return err
-		}
-	}
-	if registered {
-		st, err := d.ss.Status(filepath.Join(root, filepath.FromSlash(rel)))
-		if err != nil {
-			return err
-		}
-		if st.Holder != "" {
-			return exitError{3, fmt.Errorf("operator holds %s; wait for submit and close the editor", rel)}
 		}
 	}
 	return nil

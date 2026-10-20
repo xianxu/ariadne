@@ -302,15 +302,31 @@ func TestSessionSyncMoveConformance(t *testing.T) {
 		t.Fatalf("lookup before: %+v %v", before, err)
 	}
 	var out strings.Builder
+	// A real published rename followed by a lost response must permit cleanup
+	// after the operator has already edited the now-live destination.
+	err = moveSession(deps{ss: ss}, &out, root, old, true, func(event string) error {
+		if event == "rename session.md" {
+			live, err := os.ReadFile(filepath.Join(root, "session.md"))
+			if err != nil {
+				return err
+			}
+			writeFile(t, filepath.Join(root, "session.md"), string(live)+"\npost-switch-operator-edit\n")
+			return errInterrupted
+		}
+		return nil
+	})
+	if !errors.Is(err, errInterrupted) {
+		t.Fatalf("expected post-switch interruption: %v", err)
+	}
 	if err := moveSession(deps{ss: ss}, &out, root, old, true, nil); err != nil {
-		t.Fatalf("move: %v\n%s", err, out.String())
+		t.Fatalf("cleanup retry: %v\n%s", err, out.String())
 	}
 	after, err := ss.LookupRegistration(filepath.Join(root, "session.md"))
 	if err != nil || after == nil || after.ID != before.ID {
 		t.Fatalf("lookup after: %+v %v", after, err)
 	}
 	diff, err := ss.Diff(filepath.Join(root, "session.md"))
-	if err != nil || !strings.Contains(diff, "unread-operator-edit") {
+	if err != nil || (!strings.Contains(diff, "unread-operator-edit") || !strings.Contains(diff, "post-switch-operator-edit")) {
 		t.Fatalf("unread edit lost: %q %v", diff, err)
 	}
 	if err := moveSession(deps{ss: ss}, &out, root, old, true, nil); err != nil {

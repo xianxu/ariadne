@@ -1191,3 +1191,18 @@ The simplest durable authority beats a clever scan of consequences.
   directory, file and stationary targets across each reference consumer; assert
   final resolution and existence after source cleanup. Pure mapping and real
   migration tests defend this semantic reference invariant.
+
+- #504 live acceptance: the confirmed root registration switch transfers content
+  ownership to the live tree. Pre-switch byte equality cannot remain a cleanup
+  condition after the operator resumes editing. Compare old sources only;
+  confirm prior rename on cleanup retry, without overwriting the new tree.
+  Live-edit/lock/interruption fixtures and real scratch Couch retries defend
+  this temporal rule; source lint cannot prove it.
+- #504 live 196-document migration: enumerate external calls across every phase,
+  including safety checks. Per-document registry probes and repeated full-tree
+  Git checks compounded into a twenty-minute operation. Use fixed-count typed
+  list snapshots and batched membership checks, and assert command counts at N
+  and 2N. The scoped session-move-batched-reads Go rule forbids the mechanical
+  lookup/status API regression in the migration owners. Bound each migration
+  subprocess and pipe draining; a rename deadline means outcome unconfirmed,
+  not absence or authority to discard old copies.

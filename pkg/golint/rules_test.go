@@ -77,6 +77,43 @@ func TestSessionMoveRawFieldsRule(t *testing.T) {
 	}
 }
 
+func TestSessionMoveBatchedReadsRule(t *testing.T) {
+	rule := ruleOf(t, "session-move-batched-reads")
+	const apply = "cmd/tl-lead/status_move_apply.go"
+	const snapshot = "cmd/tl-lead/status_move_snapshot.go"
+	for _, tc := range []struct {
+		name, filename, body string
+		want                 int
+	}{
+		{"apply lookup", apply, `ss.LookupRegistration(file)`, 1},
+		{"snapshot status", snapshot, `ss.Status(file)`, 1},
+		{"absolute owner path", "/repo/" + snapshot, `deps.ss.LookupRegistration(file)`, 1},
+		{"both reads", apply, `ss.LookupRegistration(file); ss.Status(file)`, 2},
+		{"snapshot batch", snapshot, `ss.RegistrationSnapshot()`, 0},
+		{"local lockfile", apply, `checkMoveLock(file)`, 0},
+		{"other move file", "cmd/tl-lead/status_move_registry.go", `ss.LookupRegistration(file)`, 0},
+		{"fixture test", "cmd/tl-lead/status_move_apply_test.go", `ss.Status(file)`, 0},
+		{"same basename elsewhere", "cmd/other/status_move_snapshot.go", `ss.Status(file)`, 0},
+		{"comment and string", apply, "// ss.Status(file)\n_ = `ss.LookupRegistration(file)`", 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			src := "package main\nfunc f() {\n" + tc.body + "\n}\n"
+			got, err := Check(tc.filename, []byte(src), []Rule{rule})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(got) != tc.want {
+				t.Fatalf("findings = %v, want %d", got, tc.want)
+			}
+			for _, finding := range got {
+				if finding.Line != 3 || !strings.Contains(finding.Message, "ariadne#504") {
+					t.Errorf("finding must locate the call and cite the incident: %v", finding)
+				}
+			}
+		})
+	}
+}
+
 func TestRules(t *testing.T) {
 	for _, tc := range []struct {
 		rule string

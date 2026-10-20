@@ -352,3 +352,15 @@ func (f *fakeSessionSync) LookupRegistration(file string) (*syncRegistration, er
 	r := *f.identities[file]
 	return &r, nil
 }
+
+func (f *fakeSessionSync) RegistrationSnapshot() (map[string]*syncRegistration, error) {
+	out := map[string]*syncRegistration{}
+	for file := range f.registered {
+		r, err := f.LookupRegistration(file)
+		if err != nil {
+			return nil, err
+		}
+		out[file] = r
+	}
+	return out, nil
+}

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"os/exec"
 	"path"
 	"strings"
 )
@@ -51,9 +53,36 @@ func verifyMoveIgnores(root string, s sessionMoveSnapshot, p sessionMovePlan) er
 	for rel := range s.Dest {
 		paths[rel] = true
 	}
-	for _, rel := range sortedKeys(paths) {
-		if _, err := git(root, "check-ignore", "--quiet", "--", rel); err != nil {
-			return fmt.Errorf("cannot confirm destination %s is ignored; fix Git ignore rules before retrying: %w", rel, err)
+	return verifyMoveIgnoredPaths(root, sortedKeys(paths))
+}
+
+// Cleanup checks the retiring source's destination without rescanning the live
+// destination tree, where editor locks and new content are now expected.
+func verifyMoveDestinationIgnored(root, rel string) error {
+	return verifyMoveIgnoredPaths(root, []string{rel})
+}
+
+func verifyMoveIgnoredPaths(root string, paths []string) error {
+	if len(paths) == 0 {
+		return nil
+	}
+	input := strings.NewReader(strings.Join(paths, "\x00") + "\x00")
+	out, err := gitWithInput(root, input, "check-ignore", "-z", "--stdin")
+	if err != nil {
+		// Exit 1 means no path matched. It is an ordinary policy refusal,
+		// while other failures must retain their Git diagnostic.
+		var exit *exec.ExitError
+		if !errors.As(err, &exit) || exit.ExitCode() != 1 {
+			return fmt.Errorf("cannot confirm destination ignore policy; fix Git ignore rules before retrying: %w", err)
+		}
+	}
+	ignored := map[string]bool{}
+	for _, rel := range strings.Split(out, "\x00") {
+		ignored[rel] = true
+	}
+	for _, rel := range paths {
+		if !ignored[rel] {
+			return fmt.Errorf("cannot confirm destination %s is ignored; fix Git ignore rules before retrying", rel)
 		}
 	}
 	return nil

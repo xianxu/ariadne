@@ -858,8 +858,12 @@ Couch identity/unread/owed state, verifies, then cleans up unchanged sources.
 Only plain `parent: ../file.md` values are accepted; other YAML parent forms
 refuse before effects and name the file. Missing ignore rules are appended,
 then real Git ignore checks must pass for every destination before copying.
-A partial run keeps copies for the same command to reconcile; after the
-registration switch use the new session even if cleanup needs a retry.
+A partial run keeps copies for the same command to reconcile. After the root
+registration switch the new tree is live: edits and locks there are allowed.
+Cleanup removes unchanged old sources without comparing or overwriting live
+copies. Keep old leftovers quiet between cleanup retries. Registry observations
+and Git checks are batched; Couch calls are bounded to five seconds, with clear
+unreachable or unconfirmed-outcome errors and no silent retry.
 Reopen `session.md` after success. See `tl-lead --help` for refusals and the
 quiet-window requirement.
 

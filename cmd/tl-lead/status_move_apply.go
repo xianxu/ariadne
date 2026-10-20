@@ -69,23 +69,16 @@ func removeMoveSource(root string, m sessionMoveFile) error {
 	return os.Remove(filepath.Join(root, filepath.FromSlash(m.Old)))
 }
 
-func verifyMoveRegistration(d deps, root string, m sessionMoveFile, before *syncRegistration) error {
-	r, err := d.ss.LookupRegistration(filepath.Join(root, filepath.FromSlash(m.New)))
-	if err != nil {
-		return err
-	}
+func verifyMoveRegistration(regs map[string]*syncRegistration, root string, m sessionMoveFile, before *syncRegistration) error {
+	r := regs[filepath.Join(root, filepath.FromSlash(m.New))]
 	if r == nil {
 		return fmt.Errorf("new registration missing: %s", m.New)
 	}
 	if before != nil && (r.ID != before.ID || r.Owner != before.Owner) {
-		return fmt.Errorf("registration identity or owner changed: %s", m.New)
+		return fmt.Errorf("registration identity or fallback owner changed: %s", m.New)
 	}
-	old, err := d.ss.LookupRegistration(filepath.Join(root, filepath.FromSlash(m.Old)))
-	if err != nil {
-		return err
-	}
-	if old != nil {
-		return fmt.Errorf("old registration remains: %s", m.Old)
+	if old := regs[filepath.Join(root, filepath.FromSlash(m.Old))]; old != nil {
+		return fmt.Errorf("old registration remains: %s (ID %s)", m.Old, old.ID)
 	}
 	return nil
 }
@@ -98,13 +91,13 @@ func runSessionMove(d deps, out io.Writer, s sessionMoveSnapshot, p sessionMoveP
 		return nil
 	}
 	abs := func(rel string) string { return filepath.Join(s.Root, filepath.FromSlash(rel)) }
-	check := func(m sessionMoveFile) error {
-		for _, rel := range []string{m.Old, m.New} {
-			r, err := d.ss.LookupRegistration(abs(rel))
-			if err != nil {
-				return err
-			}
-			if err := checkMoveLock(d, s.Root, rel, r != nil); err != nil {
+	check := func(m sessionMoveFile, live bool) error {
+		paths := []string{m.Old}
+		if !live {
+			paths = append(paths, m.New)
+		}
+		for _, rel := range paths {
+			if err := checkMoveLock(s.Root, rel); err != nil {
 				return err
 			}
 		}
@@ -113,11 +106,48 @@ func runSessionMove(d deps, out io.Writer, s sessionMoveSnapshot, p sessionMoveP
 			return err
 		}
 		if !bytes.Equal(v.Bytes, m.Before) {
-			return fmt.Errorf("source changed: %s; rerun dry run", m.Old)
+			return fmt.Errorf("source changed: %s; preserved", m.Old)
 		}
 		return nil
 	}
+	checkSources := func() error {
+		current := map[string]moveSource{}
+		if err := readMoveTree(s.Root, sidedoc.SideDir(s.Old), current); err != nil {
+			return err
+		}
+		for rel, now := range current {
+			was, ok := s.Files[rel]
+			if !ok || !bytes.Equal(was.Bytes, now.Bytes) {
+				return fmt.Errorf("source tree changed: %s; old copies preserved", rel)
+			}
+		}
+		return nil
+	}
+
 	prepare := func() error {
+		if p.CleanupOnly {
+			if err := d.ss.Rename(abs(s.Old), abs("session.md")); err != nil {
+				return fmt.Errorf("cannot confirm prior root rename; old copies preserved: %w", err)
+			}
+			regs, err := d.ss.RegistrationSnapshot()
+			if err != nil {
+				return err
+			}
+			rootPair := sessionMoveFile{Old: s.Old, New: "session.md"}
+			if err := verifyMoveRegistration(regs, s.Root, rootPair, s.Registrations["session.md"]); err != nil {
+				return err
+			}
+			for _, m := range p.Files {
+				if regs[abs(m.Old)] != nil {
+					return fmt.Errorf("old registration conflict: %s (ID %s); preserve old copy", m.Old, regs[abs(m.Old)].ID)
+				}
+				if err := check(m, true); err != nil {
+					return err
+				}
+			}
+			return checkSources()
+		}
+
 		if !bytes.Equal(s.Ignore, p.Ignores) {
 			if _, err := safeMovePath(s.Root, ".gitignore"); err != nil {
 				return err
@@ -153,7 +183,7 @@ func runSessionMove(d deps, out io.Writer, s sessionMoveSnapshot, p sessionMoveP
 		return nil
 	}
 	copyOne := func(m sessionMoveFile) error {
-		if err := check(m); err != nil {
+		if err := check(m, false); err != nil {
 			return err
 		}
 		if err := copyMoveFile(s.Root, m); err != nil {
@@ -164,47 +194,12 @@ func runSessionMove(d deps, out io.Writer, s sessionMoveSnapshot, p sessionMoveP
 		}
 		return nil
 	}
-	switchOne := func(m sessionMoveFile) error {
+	beforeSwitch := func() error {
 		if err := verifyMoveIgnores(s.Root, s, p); err != nil {
 			return err
 		}
-		if err := check(m); err != nil {
-			return err
-		}
-		if s.Registrations[m.Old] != nil || s.Registrations[m.New] != nil {
-			if err := d.ss.Rename(abs(m.Old), abs(m.New)); err != nil {
-				return fmt.Errorf("switch unconfirmed at %s: %w; keep both copies, inspect Couch lookup, then rerun the identical apply", m.Old, err)
-			}
-			if err := after("rename " + m.New); err != nil {
-				return err
-			}
-			if err := verifyMoveRegistration(d, s.Root, m, s.Registrations[m.Old]); err != nil {
-				return err
-			}
-		}
-		v, err := moveRead(s.Root, m.New)
-		if err != nil {
-			return err
-		}
-		if !bytes.Equal(v.Bytes, m.After) {
-			return fmt.Errorf("new copy changed: %s; preserve both copies", m.New)
-		}
-		return nil
-	}
-	verifyAll := func() error {
-		if err := verifyMoveIgnores(s.Root, s, p); err != nil {
-			return err
-		}
-
-		// Verify every copy again before authorizing any deletion. Later edits are
-		// still subject to the documented closed-editor maintenance requirement.
 		for _, m := range p.Files {
-			if s.Registrations[m.Old] != nil || s.Registrations[m.New] != nil {
-				if err := verifyMoveRegistration(d, s.Root, m, s.Registrations[m.Old]); err != nil {
-					return err
-				}
-			}
-			if err := check(m); err != nil {
+			if err := check(m, false); err != nil {
 				return err
 			}
 			v, err := moveRead(s.Root, m.New)
@@ -212,35 +207,61 @@ func runSessionMove(d deps, out io.Writer, s sessionMoveSnapshot, p sessionMoveP
 				return err
 			}
 			if !bytes.Equal(v.Bytes, m.After) {
-				return fmt.Errorf("destination changed: %s", m.New)
+				return fmt.Errorf("new copy changed before switch: %s; old copies preserved", m.New)
 			}
 		}
-		current := map[string]moveSource{}
-		if err := readMoveTree(s.Root, sidedoc.SideDir(s.Old), current); err != nil {
+		return checkSources()
+	}
+	switchOne := func(m sessionMoveFile) error {
+		if err := check(m, false); err != nil {
 			return err
 		}
-		for rel, now := range current {
-			was, ok := s.Files[rel]
-			if !ok || !bytes.Equal(was.Bytes, now.Bytes) {
-				return fmt.Errorf("source tree changed: %s; preserve both copies and rerun", rel)
+		if s.Registrations[m.Old] != nil || s.Registrations[m.New] != nil {
+			if err := d.ss.Rename(abs(m.Old), abs(m.New)); err != nil {
+				return fmt.Errorf("switch unconfirmed at %s: %w; keep copies and rerun", m.Old, err)
+			}
+			if err := after("rename " + m.New); err != nil {
+				return err
 			}
 		}
 		return nil
 	}
-	removeOne := func(m sessionMoveFile) error {
-		if err := verifyMoveIgnores(s.Root, s, p); err != nil {
-			return err
-		}
-		if err := check(m); err != nil {
-			return err
-		}
-		v, err := moveRead(s.Root, m.New)
+	verifyAll := func() error {
+		regs, err := d.ss.RegistrationSnapshot()
 		if err != nil {
 			return err
 		}
-		if !bytes.Equal(v.Bytes, m.After) {
-			return fmt.Errorf("new session in use; destination changed during cleanup: %s; old copy preserved", m.New)
+		for _, m := range p.Files {
+			if r := regs[abs(m.Old)]; r != nil {
+				return fmt.Errorf("old registration conflict: %s ID %s; old copy preserved", m.Old, r.ID)
+			}
+			if s.Registrations[m.Old] == nil && s.Registrations[m.New] == nil && regs[abs(m.New)] != nil {
+				return fmt.Errorf("unexpected destination registration: %s ID %s", m.New, regs[abs(m.New)].ID)
+			}
+			if s.Registrations[m.Old] != nil || s.Registrations[m.New] != nil {
+				before := s.Registrations[m.Old]
+				if before == nil {
+					before = s.Registrations[m.New]
+				}
+				if err := verifyMoveRegistration(regs, s.Root, m, before); err != nil {
+					return err
+				}
+			}
+			if err := check(m, true); err != nil {
+				return err
+			}
 		}
+		return checkSources()
+	}
+
+	removeOne := func(m sessionMoveFile) error {
+		if err := verifyMoveDestinationIgnored(s.Root, m.New); err != nil {
+			return err
+		}
+		if err := check(m, true); err != nil {
+			return err
+		}
+
 		if m.Old == s.Old {
 			remaining := map[string]moveSource{}
 			if err := readMoveTree(s.Root, sidedoc.SideDir(s.Old), remaining); err != nil {
@@ -267,7 +288,12 @@ func runSessionMove(d deps, out io.Writer, s sessionMoveSnapshot, p sessionMoveP
 		case moveCopy:
 			err = copyOne(p.Files[state.Copies])
 		case moveSwitch:
-			err = switchOne(p.Files[state.Bindings])
+			if state.Bindings == 0 {
+				err = beforeSwitch()
+			}
+			if err == nil {
+				err = switchOne(p.Files[state.Bindings])
+			}
 		case moveVerify:
 			err = verifyAll()
 			if err == nil {
@@ -279,6 +305,9 @@ func runSessionMove(d deps, out io.Writer, s sessionMoveSnapshot, p sessionMoveP
 			return fmt.Errorf("session move has no authorized effect")
 		}
 		outcome := moveSucceeded
+		if p.CleanupOnly && state.Effect == movePrepare && err == nil {
+			outcome = moveResumeConfirmed
+		}
 		if err != nil {
 			outcome = moveFailed
 			if state.Effect == moveSwitch {
@@ -304,11 +333,20 @@ func renderSessionMove(out io.Writer, s sessionMoveSnapshot, p sessionMovePlan, 
 	if apply {
 		mode = "apply"
 	}
+	if p.CleanupOnly {
+		fmt.Fprintln(out, "new session in use; apply confirms prior rename before source-only cleanup")
+	}
 	fmt.Fprintf(out, "status move: %s -> session.md (%s)\n", s.Old, mode)
-	for _, dir := range p.Directories {
-		fmt.Fprintf(out, "directory %s\n", dir)
+	if !p.CleanupOnly {
+		for _, dir := range p.Directories {
+			fmt.Fprintf(out, "directory %s\n", dir)
+		}
 	}
 	for _, m := range p.Files {
+		if p.CleanupOnly {
+			fmt.Fprintf(out, "remove unchanged %s (keep live %s)\n", m.Old, m.New)
+			continue
+		}
 		fmt.Fprintf(out, "copy %s -> %s", m.Old, m.New)
 		if !bytes.Equal(m.Before, m.After) {
 			fmt.Fprint(out, " (rewrite links/index)")
@@ -318,18 +356,25 @@ func renderSessionMove(out io.Writer, s sessionMoveSnapshot, p sessionMovePlan, 
 		}
 		fmt.Fprintln(out)
 	}
-	if !bytes.Equal(s.Ignore, p.Ignores) {
+	if !p.CleanupOnly && !bytes.Equal(s.Ignore, p.Ignores) {
 		fmt.Fprintln(out, "update .gitignore: session.md, session.side/ and local companions")
 	}
-	for _, n := range p.Notes {
-		fmt.Fprintln(out, n)
+	if !p.CleanupOnly {
+		for _, n := range p.Notes {
+			fmt.Fprintln(out, n)
+		}
 	}
 	if !apply {
-		fmt.Fprintf(out, "next (close all affected editors first): tl-lead status move %s --apply\n", s.Old)
+		quiet := "close all affected editors first"
+		if p.CleanupOnly {
+			quiet = "keep old leftovers quiet; the new tree may stay live"
+		}
+		fmt.Fprintf(out, "next (%s): tl-lead status move %s --apply\n", quiet, s.Old)
 	}
 }
 
 func moveSession(d deps, out io.Writer, root, old string, apply bool, step func(string) error) error {
+	d.ss = boundedMoveSync(d.ss)
 	root, old, err := sessionMovePaths(root, old)
 	if err != nil {
 		return err

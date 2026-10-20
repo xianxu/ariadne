@@ -21,6 +21,7 @@ type moveSource struct {
 
 type sessionMoveSnapshot struct {
 	Root, Old     string
+	CleanupOnly   bool
 	Files         map[string]moveSource
 	Dest          map[string]moveSource
 	Existing      map[string]bool
@@ -40,6 +41,7 @@ type sessionMoveFile struct {
 type sessionMovePlan struct {
 	Files       []sessionMoveFile
 	Directories []string
+	CleanupOnly bool
 	Ignores     []byte
 	Notes       []string
 }
@@ -64,7 +66,7 @@ func planSessionMove(s sessionMoveSnapshot) (sessionMovePlan, error) {
 	if err := rejectMoveIgnoreFiles(s); err != nil {
 		return sessionMovePlan{}, err
 	}
-	p := sessionMovePlan{Ignores: moveIgnores(s.Ignore)}
+	p := sessionMovePlan{Ignores: moveIgnores(s.Ignore), CleanupOnly: s.CleanupOnly}
 	for _, dir := range sortedKeys(s.Directories) {
 		if to, ok := moveTarget(s.Old, dir); ok {
 			if _, occupied := s.Dest[to]; occupied {
@@ -100,7 +102,7 @@ func planSessionMove(s sessionMoveSnapshot) (sessionMovePlan, error) {
 				p.Notes = append(p.Notes, to+": mention "+mention)
 			}
 		}
-		if dst, ok := s.Dest[to]; ok && !bytes.Equal(dst.Bytes, after) {
+		if dst, ok := s.Dest[to]; !s.CleanupOnly && ok && !bytes.Equal(dst.Bytes, after) {
 			return p, fmt.Errorf("destination %s differs; inspect both copies and resolve the conflict", to)
 		}
 		p.Files = append(p.Files, sessionMoveFile{old, to, src.Bytes, after, src.Mode, src.Mtime})
@@ -160,6 +162,7 @@ const (
 	moveSucceeded moveOutcome = iota
 	moveFailed
 	moveUnconfirmed
+	moveResumeConfirmed
 )
 
 type sessionMoveState struct {
@@ -174,6 +177,12 @@ func transitionMove(s sessionMoveState, observed moveOutcome) (sessionMoveState,
 	}
 	if observed == moveFailed || observed == moveUnconfirmed {
 		s.Effect = moveStop
+		return s, nil
+	}
+	if observed == moveResumeConfirmed && s.Effect == movePrepare {
+		s.Copies, s.Bindings = s.Total, s.Total
+		s.Verified = true
+		s.Effect = moveRemove
 		return s, nil
 	}
 	if observed != moveSucceeded {

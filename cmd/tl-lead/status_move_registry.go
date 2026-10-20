@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 )
 
@@ -18,6 +19,55 @@ func (c couchSessionSync) LookupRegistration(file string) (*syncRegistration, er
 		return nil, err
 	}
 	return decodeMoveRegistration(raw)
+}
+
+// RegistrationSnapshot reads one coherent list without acknowledging edits or
+// deliveries. Owner is Couch's persisted fallback owner; lookup resolves current frontmatter.
+func (c couchSessionSync) RegistrationSnapshot() (map[string]*syncRegistration, error) {
+	raw, err := c.run("list", "--json")
+	if err != nil {
+		return nil, err
+	}
+	return decodeMoveRegistrationSnapshot(raw)
+}
+
+func decodeMoveRegistrationSnapshot(raw []byte) (map[string]*syncRegistration, error) {
+	fields, err := moveJSONFields(raw, "Code", "Registrations")
+	if err != nil {
+		return nil, err
+	}
+	var code string
+	if err := json.Unmarshal(fields["Code"], &code); err != nil || code != "ok" {
+		return nil, fmt.Errorf("couch list unavailable: Code is not ok")
+	}
+	list, ok := fields["Registrations"]
+	list = bytes.TrimSpace(list)
+	if !ok || len(list) == 0 || list[0] != '[' {
+		return nil, fmt.Errorf("couch list invalid Registrations: expected array")
+	}
+	var entries []json.RawMessage
+	if err := json.Unmarshal(list, &entries); err != nil {
+		return nil, fmt.Errorf("couch list invalid Registrations: %w", err)
+	}
+	out := make(map[string]*syncRegistration, len(entries))
+	ids := make(map[string]bool, len(entries))
+	for i, entry := range entries {
+		r, err := decodeMoveRegistrationObject(entry)
+		if err != nil {
+			return nil, fmt.Errorf("couch list registration %d: %w", i, err)
+		}
+		if !filepath.IsAbs(r.File) || filepath.Clean(r.File) != r.File || strings.ContainsAny(r.File, "\x00\r\n") {
+			return nil, fmt.Errorf("couch list invalid canonical File %q", r.File)
+		}
+		if _, exists := out[r.File]; exists {
+			return nil, fmt.Errorf("couch list duplicate registration path %s", r.File)
+		}
+		if ids[r.ID] {
+			return nil, fmt.Errorf("couch list duplicate registration identity %s", r.ID)
+		}
+		out[r.File], ids[r.ID] = r, true
+	}
+	return out, nil
 }
 
 func decodeMoveRegistration(raw []byte) (*syncRegistration, error) {
@@ -36,14 +86,18 @@ func decodeMoveRegistration(raw []byte) (*syncRegistration, error) {
 	if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
 		return nil, nil
 	}
-	fields, err = moveJSONFields(raw, "ID", "File", "Owner")
+	return decodeMoveRegistrationObject(raw)
+}
+
+func decodeMoveRegistrationObject(raw []byte) (*syncRegistration, error) {
+	fields, err := moveJSONFields(raw, "ID", "File", "Owner")
 	if err != nil {
 		return nil, err
 	}
 	r := &syncRegistration{}
 	for k, dst := range map[string]*string{"ID": &r.ID, "File": &r.File, "Owner": &r.Owner} {
 		if err := json.Unmarshal(fields[k], dst); err != nil || *dst == "" {
-			return nil, fmt.Errorf("couch lookup invalid %s", k)
+			return nil, fmt.Errorf("couch registration invalid %s", k)
 		}
 	}
 	return r, nil

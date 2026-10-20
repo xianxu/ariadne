@@ -193,7 +193,7 @@ TALKING TO THE OPERATOR
     status command, including from a subdirectory; explicit FILE still works.
     Read commands do not create a missing session file.
   - Move an older hub session in a quiet window with every affected editor
-    closed:
+    closed until the switch:
         tl-lead status move [OLD]                   (dry run; writes nothing)
         tl-lead status move [OLD] --apply
     OLD omitted discovers exactly one teams/*/tl-status-*.md, refusing
@@ -208,9 +208,17 @@ TALKING TO THE OPERATOR
     ignore lines are appended, then git check-ignore must confirm every
     destination before copying; side-tree .gitignore files at any depth refuse
     before effects. Fresh Git checks also precede switching and each deletion; a negation can refuse with only ignore rules
-    added. It refuses locks,
-    collisions, symlinks and changed copies. There is no editor lease: checks
-    cannot exclude an editor opening after a check, so keep editors closed.
+    added. Before switching it refuses locks, collisions, symlinks and changed
+    copies. There is no editor lease: keep affected editors closed until the
+    root registration switches. Afterwards the new tree is live: its edits and
+    locks are allowed; cleanup compares only old sources with their snapshot.
+    Keep old leftovers quiet between cleanup retries. A retry verifies the prior
+    root rename with Couch and never overwrites the live destination. Distinct
+    registration conflicts are named, never discarded automatically.
+    Registry observations use batched list snapshots at phase boundaries, and
+    ignore checks are batched. Each migration Couch subprocess has a five-second
+    budget; unreachable Couch refuses before local effects. An uncertain rename
+    preserves old files and requires reconciliation; no silent retry occurs.
     Before switching, a failure leaves the old session in use; after switching,
     the new session is in use and cleanup may be incomplete. Preserve both
     copies and rerun the identical command. For an unconfirmed Couch response,

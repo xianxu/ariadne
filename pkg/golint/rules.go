@@ -14,6 +14,12 @@ import (
 // with the fix for the mistake class it catches (tl-worker, tl-lead).
 var Catalog = []Rule{
 	{
+		Name:     "session-move-batched-reads",
+		Incident: "ariadne#504",
+		Message:  "session move must use RegistrationSnapshot and local lockfiles; per-document LookupRegistration or Status subprocesses made the 196-document live migration take about 20 minutes",
+		Match:    sessionMoveBatchedReads,
+	},
+	{
 		Name:     "session-move-raw-fields",
 		Incident: "ariadne#504",
 		Message:  "session move classification must decode YAML with moveMetadataFields; sidedoc.Fields preserves quotes and tags and can miss nested session registrations",
@@ -86,6 +92,36 @@ var Catalog = []Rule{
 		TestOnly: true,
 		Match:    fixedSleeps,
 	},
+}
+
+// These two owners use the migration's batch seam exclusively. Match selector
+// names regardless of receiver: SessionSync is injected dynamically, so package
+// alias or shadow resolution would not establish the receiver's concrete type.
+func sessionMoveBatchedReads(f *ast.File, context *CheckContext) []ast.Node {
+	filename := path.Clean(context.Path)
+	owned := false
+	for _, owner := range []string{"cmd/tl-lead/status_move_apply.go", "cmd/tl-lead/status_move_snapshot.go"} {
+		if filename == owner || strings.HasSuffix(filename, "/"+owner) {
+			owned = true
+			break
+		}
+	}
+	if !owned {
+		return nil
+	}
+	var out []ast.Node
+	ast.Inspect(f, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if ok && (sel.Sel.Name == "LookupRegistration" || sel.Sel.Name == "Status") {
+			out = append(out, call)
+		}
+		return true
+	})
+	return out
 }
 
 // Protect the session move classifier, not arbitrary side-doc readers: Fields

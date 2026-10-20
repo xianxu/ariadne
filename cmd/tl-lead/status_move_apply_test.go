@@ -189,7 +189,7 @@ func TestSessionMoveUncertainRename(t *testing.T) {
 }
 
 func TestSessionMoveInterveningEdits(t *testing.T) {
-	for _, kind := range []string{"source", "destination", "lock", "cleanup-destination", "late-file"} {
+	for _, kind := range []string{"source", "destination", "lock", "late-file"} {
 		t.Run(kind, func(t *testing.T) {
 			root, old, f := sessionMoveFixture(t)
 			triggered := false
@@ -197,17 +197,9 @@ func TestSessionMoveInterveningEdits(t *testing.T) {
 				if triggered {
 					return nil
 				}
-				if kind == "cleanup-destination" && strings.HasPrefix(event, "remove ") {
-					triggered = true
-					writeFile(t, filepath.Join(root, "session.md"), "operator's new draft")
-					return nil
-				}
 				if kind == "late-file" && strings.HasPrefix(event, "copy ") {
 					triggered = true
 					writeFile(t, filepath.Join(root, "teams/dev/tl-status-op.side/late.md"), "new draft")
-					return nil
-				}
-				if kind == "cleanup-destination" {
 					return nil
 				}
 				if event != "copy session.md" {

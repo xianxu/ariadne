@@ -109,3 +109,25 @@ func TestMoveSessionMetadata(t *testing.T) {
 		t.Fatalf("%+v %v", f, err)
 	}
 }
+
+func TestSessionMoveConfirmedResumeGrantsOnlyCleanup(t *testing.T) {
+	s, err := transitionMove(sessionMoveState{Total: 3, Effect: movePrepare}, moveResumeConfirmed)
+	if err != nil || s.Effect != moveRemove || !s.Verified {
+		t.Fatalf("resume: %+v %v", s, err)
+	}
+	for i := 0; i < 3; i++ {
+		if s.Effect != moveRemove {
+			t.Fatalf("unexpected effect: %+v", s)
+		}
+		s, err = transitionMove(s, moveSucceeded)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if s.Effect != moveDone {
+		t.Fatal(s)
+	}
+	if _, err := transitionMove(sessionMoveState{Total: 3, Effect: moveCopy}, moveResumeConfirmed); err == nil {
+		t.Fatal("accepted resume outside preparation")
+	}
+}
