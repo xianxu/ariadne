@@ -1,13 +1,13 @@
 ---
 id: 000470
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '280556c2c6e6a625b7688e48f61d528e10cb5f50' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '4a4d90949127c7278078dd11a4291adb8bca0607' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T18:22:36-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "087e030e", done: "cac5de36"}
+actual_hours: 0.47
 ---
 
 # landing: a fleet-blocking grant holds the line even before the granted issue queues
