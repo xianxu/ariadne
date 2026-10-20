@@ -17,6 +17,17 @@ type fakeSDLC struct {
 	fleetErr error
 	obs      map[string]Observation // "<repoPath>#<n>"
 	calls    int
+	issues   map[string][]RepoIssue // by repo path: sdlc state's issues there
+	issueErr map[string]error
+}
+
+// RepoIssues answers from the repository's recorded issues, as `sdlc state`
+// reads them from that checkout.
+func (f *fakeSDLC) RepoIssues(repoRoot string) ([]RepoIssue, error) {
+	if err := f.issueErr[repoRoot]; err != nil {
+		return nil, err
+	}
+	return f.issues[repoRoot], nil
 }
 
 func (f *fakeSDLC) FleetInventory(string) (Fleet, error) { return f.fleet, f.fleetErr }
