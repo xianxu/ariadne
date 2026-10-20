@@ -82,6 +82,84 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: ff52f87a-1f6b-45af-8c29-ead031b83408
+            repository: github.com/xianxu/ariadne
+            issue_id: "000501"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/9ecd27334cbf5ccb
+            reviewed_head: fe03d734f03caabf9bd30cf238d24e9dcc8f8008
+            slot: ariadne:3
+            requested_at: "2026-10-20T18:26:09.264032Z"
+          phase: finished
+          pid: 94922
+          started_at: "2026-10-20T18:26:09.361557Z"
+          finished_at: "2026-10-20T18:27:50.029833Z"
+          session_id: 01a15a90-5063-7b11-be1a-62e724797d81
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: fe03d734f03caabf9bd30cf238d24e9dcc8f8008
+        tracker_head: 6321f298e978d09443ef3a4331061a475f0358a9
+        branch_point: cb8ffe354ad44da23b6adae5fbc0211cda4adb84
+        since: "2026-10-20T10:56:04-07:00"
+        until: "2026-10-20T11:25:09-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-20T10:56:04-07:00"
+              end: "2026-10-20T11:25:09-07:00"
+              began: "2026-10-20T10:56:04-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 6764c7ef4291c5444d32969639ddd2dd1d007ca31a005da44714612a4291d118
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 88874354
+              windows:
+                - start: "2026-10-20T10:56:04-07:00"
+                  end: "2026-10-20T11:25:09-07:00"
+        cuts:
+            - dispatched: "2026-10-20T11:18:30-07:00"
+              finalized: "2026-10-20T11:19:48-07:00"
+              finalizing: false
+      "n": 2
+      timestamp: "2026-10-20T11:27:51-07:00"
+      dispatched: "2026-10-20T11:26:09-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: README.md:605–612 now documents the command, required flags, operator/:0 authority, descendant attestation, permanent audit and retry behavior, consistent with queue_reconcile.go and reconcile.go.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: The issue's active Done-when at lines 48–49 now specifies private executable recovery and read-only post-reboot observation. Revisions preserves the original live complete=true criterion as history, consistent with the approved acceptance change.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: TestReconcileIOFailures covers nine append and log/root/post-unlink sync failures, checking tombstone preservation, torn-log refusal and audit-preserving retry. All pass. Reverting the production fault-seam wiring through a temporary Go overlay makes all nine fail; the overlay was removed without modifying repository files.
+          round: 2
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: fe03d734f03caabf9bd30cf238d24e9dcc8f8008
+      blocked: false
 ---
 
 # Gate ledger — ariadne#501 (boundary-review)
@@ -100,8 +178,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-3** [Important] `durability-failure-coverage` Checked-off append and sync failure controls are missing
   The operative plan's completed crash/retry task claims append/sync error coverage, but reconcile_test.go does not exercise errors from log.Write, log.Sync, or either directory sync in reconcile.go:235-258. The crash hook runs only after successful audit and root sync. Add controllable failure tests proving pre-unlink failures preserve the tombstone and post-unlink sync failure retries without duplicating audit evidence (ARCH-ORDER).
 
+## Round 2 — 2026-10-20T11:27:51-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — README.md:605–612 now documents the command, required flags, operator/:0 authority, descendant attestation, permanent audit and retry behavior, consistent with queue_reconcile.go and reconcile.go.
+- BR-2 — addressed — The issue's active Done-when at lines 48–49 now specifies private executable recovery and read-only post-reboot observation. Revisions preserves the original live complete=true criterion as history, consistent with the approved acceptance change.
+- BR-3 — addressed — TestReconcileIOFailures covers nine append and log/root/post-unlink sync failures, checking tombstone preservation, torn-log refusal and audit-preserving retry. All pass. Reverting the production fault-seam wiring through a temporary Go overlay makes all nine fail; the overlay was removed without modifying repository files.
+
 ## Open findings
 
-- **BR-1** [Important] `user-surface-documentation` README omits the new queue reconcile command
-- **BR-2** [Important] `acceptance-criteria-consistency` Done-when still requires the superseded live-machine acceptance
-- **BR-3** [Important] `durability-failure-coverage` Checked-off append and sync failure controls are missing
+(none — every finding has been disposed)

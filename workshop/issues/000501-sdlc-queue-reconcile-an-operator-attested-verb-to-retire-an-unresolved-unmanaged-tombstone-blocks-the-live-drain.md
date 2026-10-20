@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "23d1c019", done: "eabe5427"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # sdlc queue reconcile: an operator-attested verb to retire an unresolved unmanaged tombstone (blocks the live drain)
@@ -62,6 +62,8 @@ Delivery gates remain the recorded suite, close review and central landing; they
 ## Log
 
 ### 2026-10-20
+- 2026-10-20: closed — Rebuilt modified=false executable passes seven private incident-recovery controls, final running/complete/empty with exact original audit bytes and idempotent replay. Nine before/partial/after append and log/root/post-unlink sync failure controls pass; failed pre-unlink effects preserve the tombstone, post-unlink uncertainty retries without duplicate audit. Real crash and kernel owner conformance pass. All TestQueue controls, queuegate/jsonstrict packages and Go lint pass. README/help/atlas and active Done-when now match the approved post-reboot scope; old acceptance is preserved in Revisions. Replacement recorded suite is queued and must pass before merge.; review verdict: SHIP
+- 2026-10-20: flow upgraded quick → full — 372 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 ### 2026-10-20 — claimed and durable design
 

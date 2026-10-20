@@ -89,3 +89,84 @@ findings:
    Add a `## Revisions` entry aligning active Done-when with approved post-reboot acceptance. Correct the completed durability-test claim until append/sync failure controls exist. The operative revision explicitly withdraws the historical model/bundle concept tables; those withdrawals match the implementation.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"6b321ae9-ec4c-45dc-a499-529d5c459382","repository":"github.com/xianxu/ariadne","issue_id":"000501","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/044530cff625a2b0","reviewed_head":"31cc33fcfefcee50db5dc2118afef03e98e7e7b4","slot":"ariadne:3","requested_at":"2026-10-20T18:18:30.441583Z"},"phase":"finished","pid":49315,"started_at":"2026-10-20T18:18:30.594054Z","finished_at":"2026-10-20T18:19:48.152653Z","session_id":"01a15a89-50a4-7bf2-b941-6422bb5e2e79","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T11:27:51-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 501 — sdlc queue reconcile: an operator-attested verb to retire an unresolved unmanaged tombstone (blocks the live drain) |
+| repo | ariadne |
+| issue file | workshop/issues/000501-sdlc-queue-reconcile-an-operator-attested-verb-to-retire-an-unresolved-unmanaged-tombstone-blocks-the-live-drain.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | cb8ffe354ad44da23b6adae5fbc0211cda4adb84..fe03d734f03caabf9bd30cf238d24e9dcc8f8008 |
+| command | sdlc close --issue 501 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-20T11:27:51-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation matches the operative, approved plan. All three prior findings are addressed, and the relevant tests pass. No new blocking findings were identified.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      README.md:605–612 now documents the command, required flags, operator/:0 authority, descendant attestation, permanent audit and retry behavior, consistent with queue_reconcile.go and reconcile.go.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The issue's active Done-when at lines 48–49 now specifies private executable recovery and read-only post-reboot observation. Revisions preserves the original live complete=true criterion as history, consistent with the approved acceptance change.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      TestReconcileIOFailures covers nine append and log/root/post-unlink sync failures, checking tombstone preservation, torn-log refusal and audit-preserving retry. All pass. Reverting the production fault-seam wiring through a temporary Go overlay makes all nine fail; the overlay was removed without modifying repository files.
+```
+
+1. **Strengths**
+
+   - Exact-byte digest validation, operation-record exclusion and tombstone locking precede removal (`reconcile.go:172–208`).
+   - Audit and root-directory sync complete before unlink; post-unlink sync errors propagate (`reconcile.go:242–265`).
+   - Real subprocess crash/retry and kernel lifecycle tests complement refusal and preservation controls.
+   - Immutable audit bytes preserve future fields; the shared numeric-token fix keeps duplicate-key validation strict.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None remaining.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed:
+
+   - `go test ./cmd/sdlc/internal/queuegate ./cmd/sdlc/internal/jsonstrict -count=1`
+   - `go test ./cmd/sdlc -run 'TestQueue' -count=1`
+
+   The negative overlay check confirmed that all nine new IO controls reach the production wiring. The full repository suite and historical live-machine acceptance were not independently rerun during this review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** reuses gate, flock, authority, kernel probe and interruption helpers.
+   - **ARCH-PURE — pass:** deterministic request/audit validation is separated from filesystem orchestration.
+   - **ARCH-PURPOSE — pass:** delivers exact, operator-attested same-boot retirement.
+   - **ARCH-MOCK — pass:** injected observations and private filesystem fixtures share production seams; real kernel conformance checks owner lifecycles.
+   - **ARCH-CONSTRAINTS — pass:** bounded records and streaming audit reads remain outside admission.
+   - **ARCH-SECURE — pass:** malformed, changed, live and uncertain evidence refuses.
+   - **ARCH-ORDER — pass:** durable ordering, crash recovery and before/after-effect IO failures are exercised.
+   - **ARCH-FUNERAL — pass against the approved revision:** permanent audit lifetime and per-repair growth are explicitly documented.
+   - **ARCH-EVOLVE — pass:** existing formats remain unchanged; immutable audit/original bytes preserve unknown members.
+
+7. **Plan revision recommendations:** None. The operative revisions explicitly withdraw the historical model/bundle concept tables and match the delivered implementation.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"ff52f87a-1f6b-45af-8c29-ead031b83408","repository":"github.com/xianxu/ariadne","issue_id":"000501","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/9ecd27334cbf5ccb","reviewed_head":"fe03d734f03caabf9bd30cf238d24e9dcc8f8008","slot":"ariadne:3","requested_at":"2026-10-20T18:26:09.264032Z"},"phase":"finished","pid":94922,"started_at":"2026-10-20T18:26:09.361557Z","finished_at":"2026-10-20T18:27:50.029833Z","session_id":"01a15a90-5063-7b11-be1a-62e724797d81","outcome":"returned"}] -->
