@@ -105,3 +105,10 @@ Items, in order:
   - `train_max_wait_minutes`; `landing status` shows the decision and its reason.
 - **`AdmissionRule` implementations updated** (the compiler's enumeration): `trainAdmission`'s two closures (`landingcar.go`); the stubs in `internal/landingline/train_test.go` (`TestAdmissibleGatesTheHead`, `TestAdmissionSeesTheTrainTheLastHeadRecorded`); and the calls in `TestTrainAdmission`.
 - **Red-checked:** the grant e2e fails with the old `serial()` NextDue. `TestLandingTrainOfOneIsTodaysLanding` now asserts that a lone landing has no NextDue and a Departed time.
+- **M1 review round 1 (FIX-THEN-SHIP), all six fixed in this round:**
+  - BR-1: the README and `landing --help` state the new departure rule and `train_max_wait_minutes`.
+  - BR-2: `DepartureDue` names its reason (slot, interval, max wait, full, cars left ready) with a dated time, and `landing status` prints it; `TestLandingStatusShowsTrainsAndReadiness` pins it.
+  - `Departed` now has a reader: `nextDeparture` computes the grid's next slot from it at read time, so an offset change applies at once.
+  - `alone` records that didn't leave cars ready, old-format ones included, are never a schedule (`TestNextDepartureReadsTheDeparture`).
+  - One `waitDeadline` helper replaces the duplicated condition.
+  - `Readiness.SinceHead` makes a `Since` carried by an older sdlc across a head change read as stale (`TestStaleSinceFromAnOlderSdlc`).

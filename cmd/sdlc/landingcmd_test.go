@@ -198,6 +198,18 @@ func TestLandingStatusShowsTrainsAndReadiness(t *testing.T) {
 			t.Errorf("status lacks %q:\n%s", want, out)
 		}
 	}
+	// #475: after a train, the status names the next departure and why; a
+	// car waiting past the bound brings it forward and says so.
+	at := time.Date(2026, 10, 20, 9, 0, 0, 0, time.Local)
+	if err := line.Record(landingline.Event{Kind: landingline.EventTrain, Train: 3, Seq: 3, Result: "landed", At: at, Departed: at, NextDue: at.Add(time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	d.now = func() time.Time { return at.Add(10 * time.Minute) }
+	out, err = runLanding(t, d, "status", "--repo", repo)
+	if err != nil || !strings.Contains(out, "next train at 2026-10-20 10:00 (interval)") {
+		t.Errorf("status lacks the reasoned next departure (%v):\n%s", err, out)
+	}
+
 }
 
 func TestRecentTrainsReport(t *testing.T) {

@@ -61,36 +61,82 @@ func DepartureDue(now time.Time, s Schedule, events []Event, w Waiters) (bool, s
 	if s.Off() {
 		return true, "trains are off"
 	}
-	next, ok := NextDeparture(events)
+	next, why, ok := nextDeparture(events, s)
 	if !ok {
 		return true, "first train"
 	}
 	if s.MaxCars > 0 && w.Ready >= s.MaxCars {
 		return true, fmt.Sprintf("train due (full: %d ready)", w.Ready)
 	}
-	if s.MaxWait > 0 && w.Ready > 0 && !w.OldestSince.IsZero() && now.Sub(w.OldestSince) >= s.MaxWait {
+	deadline, waiting := waitDeadline(s, w)
+	if waiting && !now.Before(deadline) {
 		return true, fmt.Sprintf("train due (a car has waited %s)", s.MaxWait)
 	}
 	if !now.Before(next) {
-		return true, "train due"
+		return true, "train due (" + why + ")"
 	}
-	if s.MaxWait > 0 && w.Ready > 0 && !w.OldestSince.IsZero() && w.OldestSince.Add(s.MaxWait).Before(next) {
-		next = w.OldestSince.Add(s.MaxWait)
+	if waiting && deadline.Before(next) {
+		next, why = deadline, "max wait"
 	}
-	return false, fmt.Sprintf("next train at %s", next.Format(time.RFC3339))
+	return false, fmt.Sprintf("next train at %s (%s)", next.Format("2006-01-02 15:04"), why)
 }
 
-// NextDeparture is the latest train event's NextDue; false when the log holds
-// no train.
-func NextDeparture(events []Event) (time.Time, bool) {
+// waitDeadline is when the oldest ready car will have waited MaxWait; false
+// when no bound is set or no car is ready.
+func waitDeadline(s Schedule, w Waiters) (time.Time, bool) {
+	if s.MaxWait <= 0 || w.Ready == 0 || w.OldestSince.IsZero() {
+		return time.Time{}, false
+	}
+	return w.OldestSince.Add(s.MaxWait), true
+}
+
+// departedOf is when a recorded departure left: Departed, or At for a record
+// written before Departed existed.
+func departedOf(e Event) time.Time {
+	if !e.Departed.IsZero() {
+		return e.Departed
+	}
+	return e.At
+}
+
+// leftReady reports whether a record's NextDue is "at once": its departure
+// left ready cars behind.
+func leftReady(e Event) bool { return !e.NextDue.After(departedOf(e)) }
+
+// nextDeparture is the next train's earliest departure and why. A
+// conductor's train sets it: the grid's next slot after its departure, read
+// at this moment so a changed plan offset applies at once, or the NextDue it
+// recorded without a plan. Any newer record that left ready cars behind (a
+// train cut short, or a lone landing) brings it forward to then. A lone
+// landing's record is never a schedule otherwise, including one written by an
+// sdlc before #475 with the interval after it.
+func nextDeparture(events []Event, s Schedule) (time.Time, string, bool) {
 	var next time.Time
-	found := false
+	why, found := "", false
 	for _, e := range events {
-		if e.Kind == EventTrain && !e.NextDue.IsZero() {
-			next, found = e.NextDue, true
+		if e.Kind != EventTrain || e.NextDue.IsZero() {
+			continue
+		}
+		switch {
+		case leftReady(e):
+			next, why, found = e.NextDue, "cars left ready", true
+		case e.Result == "alone":
+			continue // not a departure (#475)
+		case s.Offset != nil:
+			next, why, found = Slots{Interval: s.Interval, Offset: *s.Offset}.Next(departedOf(e)), "slot", true
+		default:
+			next, why, found = e.NextDue, "interval", true
 		}
 	}
-	return next, found
+	return next, why, found
+}
+
+// NextDeparture is the next train's earliest departure as the log records
+// it without a machine plan (status and history); false when the log holds
+// no departure.
+func NextDeparture(events []Event) (time.Time, bool) {
+	next, _, ok := nextDeparture(events, Schedule{})
+	return next, ok
 }
 
 // NextDue is when the train after one that departed at departed may leave:
@@ -140,6 +186,10 @@ type Readiness struct {
 	// keeps it, a new head or a not-ready vouch starts it over. A sidecar
 	// from before it reads as At.
 	Since time.Time `json:"since,omitzero"`
+	// SinceHead is the head Since was taken at: an older sdlc that re-vouches
+	// a new head carries both forward as unknown members, and the mismatch
+	// marks that Since stale.
+	SinceHead string `json:"since_head,omitempty"`
 	// Extra holds members a later sdlc wrote that this one doesn't know.
 	// They survive a rewrite of the same ticket's vouch (ARCH-EVOLVE).
 	Extra map[string]json.RawMessage `json:"-"`
@@ -149,7 +199,7 @@ type Readiness struct {
 func readinessFields(r *Readiness) map[string]any {
 	return map[string]any{
 		"version": &r.Version, "seq": &r.Seq, "branch": &r.Branch, "head": &r.Head, "pr": &r.PR,
-		"ready": &r.Ready, "alone": &r.Alone, "reason": &r.Reason, "at": &r.At, "since": &r.Since,
+		"ready": &r.Ready, "alone": &r.Alone, "reason": &r.Reason, "at": &r.At, "since": &r.Since, "since_head": &r.SinceHead,
 	}
 }
 
@@ -221,7 +271,7 @@ func (r Readiness) For(t Ticket, now time.Time) string {
 // firstReady is when r's car first vouched ready at its head: Since, or At
 // for a sidecar written before Since existed.
 func (r Readiness) firstReady() time.Time {
-	if !r.Since.IsZero() {
+	if !r.Since.IsZero() && r.SinceHead == r.Head {
 		return r.Since
 	}
 	return r.At

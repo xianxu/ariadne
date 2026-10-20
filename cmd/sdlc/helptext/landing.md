@@ -22,7 +22,7 @@ LANDING TRAINS (#449)
 
   `.sdlc/landing.json` on main turns the line into trains:
 
-    {"train_interval_minutes": 60, "train_max_cars": 8}
+    {"train_interval_minutes": 60, "train_max_cars": 8, "train_max_wait_minutes": 30}
 
   The file is absent by default, and an interval of 0 keeps the serial line
   above. It is under the local-gates guard, so the operator verifies every
@@ -32,9 +32,17 @@ LANDING TRAINS (#449)
 
   - A waiting merge checks its own publish and CI gates, read-only, on its
     pushed head, and vouches it ready (`ready/<seq>`).
-  - A merge departs only when the train is due and its vouch is current: the
-    first train, or the last train's departure plus the interval, or at once
-    after a train that left ready cars behind.
+  - A merge departs only when the train is due and its vouch is current. The
+    train is due:
+    - on the first train;
+    - at once when train_max_cars cars are ready (#475);
+    - when the oldest ready car has waited train_max_wait_minutes since its
+      first ready vouch (0 or absent: no bound);
+    - at once after a departure that left ready cars behind;
+    - otherwise at the next departure: the repository's next wall-clock slot
+      after the last train (with a machine plan), or one interval after it.
+    An early departure never moves later slots. A lone or fleet-blocking
+    landing is not a departure: it never pushes the next train back.
   - The admitted head conducts. It boards every waiting merge whose vouch
     holds and whose remote tip and open PR are still at the vouched head, up
     to train_max_cars. It builds `landing-train/<id>`: main, then each car's
@@ -55,7 +63,8 @@ LANDING TRAINS (#449)
   - A car that finds its own PR merged with no word from its train finishes
     as a resume.
 
-  `sdlc landing status` shows the train setting, the next departure, each
+  `sdlc landing status` shows the train setting, the next departure and why
+  (slot, interval, max wait, full, cars left ready), each
   waiting merge's readiness, and the last trains (result, cars, train PR,
   split suites, culprit).
 

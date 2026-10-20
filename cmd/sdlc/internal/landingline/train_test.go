@@ -544,11 +544,11 @@ func TestDepartureDueEarlyReasons(t *testing.T) {
 		due  bool
 		why  string
 	}{
-		{"nobody waiting", Waiters{}, now, false, "next train at 2026-10-19T10:00:00Z"},
+		{"nobody waiting", Waiters{}, now, false, "next train at 2026-10-19 10:00 (interval)"},
 		{"full", Waiters{Ready: 3, OldestSince: now}, now, true, "full: 3 ready"},
 		{"the oldest waited the bound", Waiters{Ready: 1, OldestSince: now.Add(-20 * time.Minute)}, now, true, "waited 20m"},
-		{"waiting, under the bound: the bound is the next time", Waiters{Ready: 1, OldestSince: now}, now, false, "next train at 2026-10-19T09:30:00Z"},
-		{"the slot comes first", Waiters{Ready: 1, OldestSince: tt0.Add(50 * time.Minute)}, tt0.Add(55 * time.Minute), false, "next train at 2026-10-19T10:00:00Z"},
+		{"waiting, under the bound: the bound is the next time", Waiters{Ready: 1, OldestSince: now}, now, false, "next train at 2026-10-19 09:30 (max wait)"},
+		{"the slot comes first", Waiters{Ready: 1, OldestSince: tt0.Add(50 * time.Minute)}, tt0.Add(55 * time.Minute), false, "next train at 2026-10-19 10:00 (interval)"},
 		{"the departure time", Waiters{}, tt0.Add(time.Hour), true, "train due"},
 	} {
 		if due, why := DepartureDue(c.at, s, events, c.w); due != c.due || !strings.Contains(why, c.why) {
@@ -618,7 +618,7 @@ func TestReadinessSinceAndWaiters(t *testing.T) {
 	now := tt0.Add(3 * time.Minute)
 	live := []Ticket{{Seq: 1, Branch: "b"}, {Seq: 2, Branch: "b"}, {Seq: 3, Branch: "b"}}
 	stale := vouch(3, true, tt0.Add(-time.Hour))
-	again.Since = tt0
+	again.Since, again.SinceHead = tt0, again.Head
 	ready := map[int64]Readiness{1: again, 2: vouch(2, true, now), 3: stale}
 	if w := ReadyWaiters(live, ready, now); w.Ready != 2 || !w.OldestSince.Equal(tt0) {
 		t.Errorf("waiters %+v", w)
@@ -684,5 +684,45 @@ func TestVouchKeepsSince(t *testing.T) {
 	vouchAt('b')
 	if s := since(); !s.Equal(now) {
 		t.Fatalf("a new head kept Since at %v", s)
+	}
+}
+
+// #475 round 1: the schedule as read at decision time. An offset change
+// applies at once (the grid is computed from the recorded departure); a lone
+// landing written before #475 (NextDue one interval on) is not a schedule; a
+// record that left ready cars brings the train forward; each reason is named.
+func TestNextDepartureReadsTheDeparture(t *testing.T) {
+	train := Event{Kind: EventTrain, Result: "landed", At: tt0.Add(20 * time.Minute), Departed: tt0, NextDue: tt0.Add(time.Hour)}
+	off := 15 * time.Minute
+	grid := Schedule{Interval: time.Hour, MaxCars: 3, Offset: &off}
+	if _, why := DepartureDue(tt0.Add(5*time.Minute), grid, []Event{train}, Waiters{}); why != "next train at 2026-10-19 09:15 (slot)" {
+		t.Errorf("a new offset did not apply at once: %q", why)
+	}
+	if due, why := DepartureDue(tt0.Add(15*time.Minute), grid, []Event{train}, Waiters{}); !due || why != "train due (slot)" {
+		t.Errorf("at the slot: %v %q", due, why)
+	}
+	oldAlone := Event{Kind: EventTrain, Result: "alone", At: tt0.Add(10 * time.Minute), NextDue: tt0.Add(70 * time.Minute)}
+	if _, why := DepartureDue(tt0.Add(30*time.Minute), hourly(), []Event{train, oldAlone}, Waiters{}); why != "next train at 2026-10-19 10:00 (interval)" {
+		t.Errorf("an old-format lone landing moved the train: %q", why)
+	}
+	left := Event{Kind: EventTrain, Result: "landed", At: tt0.Add(40 * time.Minute), Departed: tt0.Add(30 * time.Minute), NextDue: tt0.Add(30 * time.Minute)}
+	if due, why := DepartureDue(tt0.Add(41*time.Minute), hourly(), []Event{train, left}, Waiters{}); !due || why != "train due (cars left ready)" {
+		t.Errorf("left ready: %v %q", due, why)
+	}
+}
+
+// #475 round 1: an older sdlc that re-vouches a new head carries since and
+// since_head forward unchanged; the head mismatch marks that Since stale, so
+// the car's wait counts from the new vouch.
+func TestStaleSinceFromAnOlderSdlc(t *testing.T) {
+	r := vouch(1, true, tt0.Add(30*time.Minute))
+	r.Head, r.Since, r.SinceHead = oid('b'), tt0, oid('a') // since belongs to the old head
+	if got := r.firstReady(); !got.Equal(r.At) {
+		t.Errorf("stale since read as %v, want the vouch time %v", got, r.At)
+	}
+	again := vouch(1, true, tt0.Add(31*time.Minute))
+	again.Head = oid('b') // a re-vouch at the same (new) head
+	if got := carrySince(&r, again); !got.Equal(r.At) {
+		t.Errorf("carried a stale since: %v", got)
 	}
 }

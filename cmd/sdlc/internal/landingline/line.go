@@ -338,6 +338,10 @@ func (l *Line) Vouch(h *Handle, r Readiness) error {
 		if r.Since.IsZero() {
 			r.Since = carrySince(nil, r)
 		}
+		r.SinceHead = ""
+		if !r.Since.IsZero() {
+			r.SinceHead = r.Head
+		}
 		return writeAtomic(filepath.Join(l.dir, "ready"), h.ready, r)
 	})
 }
