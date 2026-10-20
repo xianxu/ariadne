@@ -63,3 +63,5 @@ ARCH-DRY/PURE: extract and reuse the existing archive transition verifier, with 
 ## Revisions
 
 - 2026-10-20: refine the original outcome-only wording after investigation showed that landed outcomes precede archival. Require the existing immutable archive-transition proof in addition to the retained outcome, preserving the requested successful train-archive report without treating landing as archive success. Proof design awaiting hub approval before implementation.
+
+- Hub approved the concrete proof design (receipt 6bd5e522-3ca0-4274-8575-a454b85901dc, verified submitted). change-code admitted the quick flow. The existing archive verifier will be reused; a read-only second pass confirmed its generation/asset/side checks and the tracked two-car fixture seams. Regression implementation is isolated to a new test file; production remains unchanged until the observed red run.
