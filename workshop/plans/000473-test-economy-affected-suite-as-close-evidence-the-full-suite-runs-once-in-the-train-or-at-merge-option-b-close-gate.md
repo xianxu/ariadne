@@ -653,6 +653,147 @@ rounds:
       isolation: checkout
       reviewed: 22460760f3d5f188c542a29f95358a8ef7899a8a
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 05bc1e1c-46c6-4788-b8aa-2d9f40b49b0e
+            repository: github.com/xianxu/ariadne
+            issue_id: "000473"
+            recipe: milestone-review
+            round: 6
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/e99f14f8d5df9597
+            reviewed_head: a3b1a8cb593559d6254cf0df09b0833e4fafcb46
+            slot: ariadne:2
+            requested_at: "2026-10-20T09:46:35.868741Z"
+          phase: finished
+          pid: 81339
+          started_at: "2026-10-20T09:46:35.988473Z"
+          finished_at: "2026-10-20T10:12:01.910331Z"
+          session_id: 2ee48323-5fad-4b4e-a672-b1a99ccf4fce
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: a3b1a8cb593559d6254cf0df09b0833e4fafcb46
+        tracker_head: 0c158439dfa9bdb30b733b79c8c0bfb6aa716bcd
+        branch_point: 0956e5e1c71bd6734f195929fc151e0c752dbc14
+        since: "2026-10-19T20:26:49-07:00"
+        until: "2026-10-20T02:45:54-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T20:26:49-07:00"
+              end: "2026-10-20T02:45:54-07:00"
+              began: "2026-10-19T20:26:49-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0973f648-94f5-4a35-b868-c9b26ef649ac
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: f5282d472b8b6f5111567dab26b9b61964c510a755e10cc2d5b21acb54f2393e
+              started: "2026-10-20T03:20:54.668Z"
+              spawned: false
+              bytes: 4767502
+              windows:
+                - start: "2026-10-19T20:26:49-07:00"
+                  end: "2026-10-20T02:45:54-07:00"
+        queue_waits:
+            - attempt_id: bcd9b7407517e24367c744af82d5db34
+              slot: ariadne:2
+              record_digest: 38cc6a62061e1a988f1d7f0f855462befe0fbd9fd08ff6e8d5e7da15ab214da4
+              start: "2026-10-20T03:26:49Z"
+              end: "2026-10-20T03:54:30.635003Z"
+              queue_seconds: 1661.635003
+              raw_seconds: 1669.213411
+              exact: true
+            - attempt_id: 1e519eee13691a7f9ae238f3a34af108
+              slot: ariadne:2
+              record_digest: ec17427e86246fbb78fe51b1c02c6c1a3c11100644e7ee265a3bbb81ecc632fc
+              start: "2026-10-20T04:15:40.4019Z"
+              end: "2026-10-20T04:37:58.530161Z"
+              queue_seconds: 1338.128261
+              raw_seconds: 1338.128261
+              exact: true
+            - attempt_id: ec45d2b999a4f613e1087a285f7a4e97
+              slot: ariadne:2
+              record_digest: 44c532f2cb7fa09e8ca756cfd526f624744a71e1024a397fc4dcd2c47bf96ea1
+              start: "2026-10-20T08:21:56.389306Z"
+              end: "2026-10-20T08:36:54.647565Z"
+              queue_seconds: 898.258259
+              raw_seconds: 898.258259
+              exact: true
+        protected:
+            - issue: "479"
+              slot: ariadne:2
+              start: "2026-10-19T21:12:26-07:00"
+              end: "2026-10-20T04:15:25.377Z"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 27.769466666666666
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-20T01:49:20-07:00"
+              finalized: "2026-10-20T01:57:31-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-20T02:03:23-07:00"
+              finalized: "2026-10-20T02:05:59-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-20T02:08:18-07:00"
+              finalized: "2026-10-20T02:14:02-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-20T02:22:21-07:00"
+              finalized: "2026-10-20T02:29:44-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-20T02:32:28-07:00"
+              finalized: "2026-10-20T02:45:04-07:00"
+              finalizing: true
+      "n": 6
+      timestamp: "2026-10-20T03:12:03-07:00"
+      dispatched: "2026-10-20T02:46:35-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-12
+          disposition: addressed
+          note: testStatsRows filters both rows on Runs>0; reverting the suite filter turns TestTestStatsRowsNeedRuns red (verified).
+          round: 6
+      findings:
+        - kind: defect
+          id: BR-13
+          severity: Minor
+          title: Docs rule runs before ownership, so an embedded or testdata .md outside cmd/ records a docs-only affected pass
+          detail: 'plan.go:30 skips isDoc paths before owners() and runAffectedCheck skips the graph when publishGateHasCodeSurface is false; churn.IsEmbedded only exempts cmd/. 4th in family: rule is "a path may be ignored only when no package owns it and no group matches it" - apply isDoc only to unowned paths and load the graph for any nonempty change set.'
+          family: unclassified-path-fails-closed
+          round: 6
+        - kind: defect
+          id: BR-14
+          severity: Minor
+          title: Plan ARCH-ORDER claims the affected record names its merge-base; the status carries only the scope
+          detail: 'plan line 169 vs affectedScope/statusDescription (localcheck_affected.go:79, localchecks.go:315). 3rd in family: rule is "each plan claim about a code property is delivered or revised in Revisions" - sweep Core concepts and ARCH sections against code at close.'
+          family: plan-tracks-code
+          round: 6
+        - kind: defect
+          id: BR-15
+          severity: Minor
+          title: affected.json strict parse misses case-folded duplicate keys (command vs COMMAND), last one wins
+          detail: 'jsonstrict.RejectDuplicateKeys compares keys case-sensitively but encoding/json matches field names case-insensitively, so DisallowUnknownFields accepts both. Rule: a strict decode rejects any key that is not an exact tag match.'
+          family: strict-persisted-format
+          round: 6
+      recipe: milestone-review
+      isolation: checkout
+      reviewed: a3b1a8cb593559d6254cf0df09b0833e4fafcb46
+      blocked: false
 ---
 
 # Gate ledger — ariadne#473 (boundary-review)
@@ -727,6 +868,23 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-12** [Minor] `report-row-requires-runs` (kind: defect) test-stats emits a zero-run suite row for a repo whose window holds only affected attempts
   aggregateCheckAttempts groups by repo over isFlakeEvidence, which now includes affected, before filtering rows by check (teststats.go:128,157), so the suite aggregate returns Runs 0 for such a repo and runTestStats appends it unconditionally (teststats_cmd.go:150-152). Filter suite rows with Runs > 0 as the affected row is, and add a runTestStats test with affected-only attempts.
 
+## Round 6 — 2026-10-20T03:12:03-07:00 (claude) — passed
+
+### Disposed
+
+- BR-12 — addressed — testStatsRows filters both rows on Runs>0; reverting the suite filter turns TestTestStatsRowsNeedRuns red (verified).
+
+### Raised
+
+- **BR-13** [Minor] `unclassified-path-fails-closed` (kind: defect) Docs rule runs before ownership, so an embedded or testdata .md outside cmd/ records a docs-only affected pass
+  plan.go:30 skips isDoc paths before owners() and runAffectedCheck skips the graph when publishGateHasCodeSurface is false; churn.IsEmbedded only exempts cmd/. 4th in family: rule is "a path may be ignored only when no package owns it and no group matches it" - apply isDoc only to unowned paths and load the graph for any nonempty change set.
+- **BR-14** [Minor] `plan-tracks-code` (kind: defect) Plan ARCH-ORDER claims the affected record names its merge-base; the status carries only the scope
+  plan line 169 vs affectedScope/statusDescription (localcheck_affected.go:79, localchecks.go:315). 3rd in family: rule is "each plan claim about a code property is delivered or revised in Revisions" - sweep Core concepts and ARCH sections against code at close.
+- **BR-15** [Minor] `strict-persisted-format` (kind: defect) affected.json strict parse misses case-folded duplicate keys (command vs COMMAND), last one wins
+  jsonstrict.RejectDuplicateKeys compares keys case-sensitively but encoding/json matches field names case-insensitively, so DisallowUnknownFields accepts both. Rule: a strict decode rejects any key that is not an exact tag match.
+
 ## Open findings
 
-- **BR-12** [Minor] `report-row-requires-runs` (kind: defect) test-stats emits a zero-run suite row for a repo whose window holds only affected attempts
+- **BR-13** [Minor] `unclassified-path-fails-closed` (kind: defect) Docs rule runs before ownership, so an embedded or testdata .md outside cmd/ records a docs-only affected pass
+- **BR-14** [Minor] `plan-tracks-code` (kind: defect) Plan ARCH-ORDER claims the affected record names its merge-base; the status carries only the scope
+- **BR-15** [Minor] `strict-persisted-format` (kind: defect) affected.json strict parse misses case-folded duplicate keys (command vs COMMAND), last one wins
