@@ -69,7 +69,10 @@ func (s *Store) WithGate(ctx context.Context, fn func() error) error {
 		}
 		err = flock.Exclusive(f, true)
 		if err == nil {
-			return fn()
+			if err := fn(); err != nil {
+				return err
+			}
+			return ctx.Err()
 		}
 		if !errors.Is(err, syscall.EWOULDBLOCK) {
 			return err
@@ -162,7 +165,7 @@ func (s *Store) mutate(ctx context.Context, action Action) error {
 		if action.Kind != "pause" || !action.CancelRunning {
 			return nil
 		}
-		return s.requestInterruptions(action.Reason)
+		return s.requestInterruptions(ctx, action.Reason)
 	})
 }
 
@@ -206,17 +209,33 @@ func safeID(id string) bool {
 	return true
 }
 
-func (s *Store) requestInterruptions(reason string) error {
+func (s *Store) intentPath(id string) string { return filepath.Join(s.Root, "cancel", id+".json") }
+
+func (s *Store) requestInterruptions(ctx context.Context, reason string) error {
 	rows, err := operationFiles(filepath.Join(s.Root, "operations"))
 	if err != nil {
 		return fmt.Errorf("pause applied; cancellation scan incomplete: %w", err)
 	}
+	intents, err := operationFiles(filepath.Join(s.Root, "cancel"))
+	if err != nil {
+		return fmt.Errorf("pause applied; cancellation registry unavailable: %w", err)
+	}
+	intentCount := len(intents)
 	var errs []error
 	for _, row := range rows {
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("pause applied; interruption publication incomplete: %w", err)
+		}
 		if row.IsDir() || !strings.HasSuffix(row.Name(), ".json") {
 			continue
 		}
 		path := filepath.Join(s.Root, "operations", row.Name())
+		if s.onLeaseRead != nil {
+			s.onLeaseRead(path)
+		}
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("pause applied; interruption publication incomplete: %w", err)
+		}
 		data, err := readBounded(path)
 		if err != nil {
 			errs = append(errs, err)
@@ -230,6 +249,13 @@ func (s *Store) requestInterruptions(reason string) error {
 		if op.Phase != "running" && op.Phase != "interrupting" {
 			continue
 		}
+		isSuite := false
+		for _, kind := range op.Kinds {
+			isSuite = isSuite || kind == "suite"
+		}
+		if !isSuite {
+			continue
+		} // Fast pause cancels suites, not an entire merge.
 		f, err := os.OpenFile(path, os.O_RDWR, 0)
 		if err != nil {
 			errs = append(errs, err)
@@ -240,8 +266,24 @@ func (s *Store) requestInterruptions(reason string) error {
 			f.Close()
 			continue // No lifetime holder: never ask a recycled process to stop.
 		}
-		intent, _ := json.Marshal(map[string]any{"schema_version": 1, "id": op.ID, "reason": reason})
-		if err = atomicWrite(filepath.Join(s.Root, "cancel", op.ID+".json"), intent); err == nil {
+		_, present, intentErr := s.readIntent(op.ID)
+		err = intentErr
+		if err == nil && !present {
+			if intentCount >= MaxOperations {
+				f.Close()
+				return errors.New("pause applied; cancellation registry full; repair required")
+			}
+			if err := ctx.Err(); err != nil {
+				f.Close()
+				return err
+			}
+			intent, _ := json.Marshal(map[string]any{"schema_version": 1, "id": op.ID, "reason": reason})
+			err = atomicWrite(s.intentPath(op.ID), intent)
+			if err == nil {
+				intentCount++
+			}
+		}
+		if err == nil {
 			op, err = TransitionOperation(op, "cancel")
 			if err == nil {
 				err = rewriteOperation(f, op)
@@ -281,7 +323,10 @@ func (s *Store) Observe(ctx context.Context) (Snapshot, []Operation, error) {
 		// These names are created only while holding control.lock and before
 		// publication. No admitted operation can depend on an unlocked temp.
 		for _, family := range []string{"", "operations", "cancel", "unresolved", "interrupted"} {
-			if err := s.sweepUnpublished(filepath.Join(s.Root, family)); err != nil {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if err := s.sweepUnpublished(ctx, filepath.Join(s.Root, family)); err != nil {
 				details = append(details, "unpublished queue residue: "+err.Error())
 			}
 		}
@@ -292,12 +337,18 @@ func (s *Store) Observe(ctx context.Context) (Snapshot, []Operation, error) {
 		}
 		var ops []Operation
 		for _, family := range []string{"unresolved", "operations"} {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			rows, scanErr := operationFiles(filepath.Join(s.Root, family))
 			if scanErr != nil {
 				details = append(details, family+": "+scanErr.Error())
 				continue
 			}
 			for _, row := range rows {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
 				if row.IsDir() || !strings.HasSuffix(row.Name(), ".json") {
 					details = append(details, "unexpected queue registry entry "+row.Name())
 					continue
@@ -316,6 +367,10 @@ func (s *Store) Observe(ctx context.Context) (Snapshot, []Operation, error) {
 				if s.onLeaseRead != nil {
 					s.onLeaseRead(path)
 				}
+				if err := ctx.Err(); err != nil {
+					f.Close()
+					return err
+				}
 				data, readErr := io.ReadAll(io.LimitReader(f, MaxJSON+1))
 				op, decodeErr := DecodeOperation(data)
 				if readErr != nil || decodeErr != nil || len(data) > MaxJSON || lockErr != nil && !held || row.Name() != op.ID+".json" {
@@ -323,12 +378,40 @@ func (s *Store) Observe(ctx context.Context) (Snapshot, []Operation, error) {
 					f.Close()
 					continue
 				}
+				reason, intent, intentErr := s.readIntent(op.ID)
+				if intentErr != nil {
+					details = append(details, "cancellation evidence "+op.ID+" unavailable: "+intentErr.Error())
+				} else if intent && op.Phase == "running" {
+					op, err = TransitionOperation(op, "cancel")
+					if err != nil {
+						f.Close()
+						return err
+					}
+					if held {
+						if err := rewriteOperation(f, op); err != nil {
+							details = append(details, "intent applied; phase repair unavailable: "+err.Error())
+						}
+					}
+				}
+				interrupted := intentErr == nil && (intent || op.Phase == "interrupting")
 				if !held && family == "operations" {
-					if op.Phase == "waiting" || op.Phase == "finished" || op.Phase == "interrupted" {
+					if (op.Phase == "waiting" || op.Phase == "finished" || op.Phase == "interrupted") && !intent {
 						_ = os.Remove(path)
 						_ = os.Remove(filepath.Join(s.Root, "cancel", op.ID+".json"))
 						f.Close()
 						continue
+					}
+					if interrupted {
+						if err := ctx.Err(); err != nil {
+							f.Close()
+							return err
+						}
+						if err := s.retainInterruption(ctx, op, reason); err != nil {
+							details = append(details, err.Error())
+							f.Close()
+							ops = append(ops, op)
+							continue
+						}
 					}
 					op, err = TransitionOperation(op, "unknown")
 					if err != nil {
@@ -337,16 +420,31 @@ func (s *Store) Observe(ctx context.Context) (Snapshot, []Operation, error) {
 						continue
 					}
 					op.Detail = "operation " + op.ID + " lost its lifetime lease; descendants require reconciliation"
-					if err := s.retainUnknown(op); err != nil {
+					if err := s.retainUnknown(ctx, op); err != nil {
 						details = append(details, err.Error())
 					} else {
 						_ = os.Remove(path)
+						if interrupted {
+							_ = os.Remove(s.intentPath(op.ID))
+						}
+					}
+				}
+				if family == "unresolved" && interrupted {
+					if err := ctx.Err(); err != nil {
+						f.Close()
+						return err
+					}
+					if err := s.retainInterruption(ctx, op, reason); err != nil {
+						details = append(details, err.Error())
+					} else {
+						_ = os.Remove(s.intentPath(op.ID))
 					}
 				}
 				if family == "unresolved" && s.BootID != nil && op.BootID != "" {
 					boot, bootErr := s.BootID()
 					if bootErr == nil && boot != "" && boot != op.BootID {
 						_ = os.Remove(path)
+						_ = os.Remove(s.intentPath(op.ID))
 						f.Close()
 						continue
 					}
@@ -355,6 +453,15 @@ func (s *Store) Observe(ctx context.Context) (Snapshot, []Operation, error) {
 				ops = append(ops, op)
 			}
 		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		orphans, orphanDetails, orphanErr := s.reconcileOrphanIntents(ctx)
+		if orphanErr != nil {
+			return orphanErr
+		}
+		ops = append(ops, orphans...)
+		details = append(details, orphanDetails...)
 		result = BuildSnapshot(control, ops, details)
 		observed = ops
 		return nil
@@ -362,12 +469,15 @@ func (s *Store) Observe(ctx context.Context) (Snapshot, []Operation, error) {
 	return result, observed, err
 }
 
-func (s *Store) sweepUnpublished(dir string) error {
+func (s *Store) sweepUnpublished(ctx context.Context, dir string) error {
 	rows, err := operationFiles(dir)
 	if err != nil {
 		return err
 	}
 	for _, row := range rows {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if !strings.HasPrefix(row.Name(), ".queue-") && !strings.HasPrefix(row.Name(), ".enroll-") {
 			continue
 		}
@@ -391,7 +501,20 @@ func (s *Store) sweepUnpublished(dir string) error {
 	return nil
 }
 
-func (s *Store) retainUnknown(op Operation) error {
+func (s *Store) retainUnknown(ctx context.Context, op Operation) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	path := filepath.Join(s.Root, "unresolved", op.ID+".json")
+	if old, err := readBounded(path); err == nil {
+		previous, decodeErr := DecodeOperation(old)
+		if decodeErr != nil || previous.ID != op.ID {
+			return errors.New("existing unresolved evidence is unreadable or mismatched")
+		}
+		return nil // Immutable recovery evidence preserves unknown additive fields.
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
 	rows, err := operationFiles(filepath.Join(s.Root, "unresolved"))
 	if err != nil || len(rows) >= MaxOperations {
 		return errors.New("unresolved queue registry full/unreadable; repair required")
@@ -400,49 +523,45 @@ func (s *Store) retainUnknown(op Operation) error {
 	if err != nil {
 		return err
 	}
-	return atomicWrite(filepath.Join(s.Root, "unresolved", op.ID+".json"), data)
+	return atomicWrite(path, data)
 }
 
-func (s *Store) retainInterruption(op Operation, reason string) error {
-	var err error
-	if op.Phase == "waiting" || op.Phase == "running" {
-		op, err = TransitionOperation(op, "cancel")
-		if err != nil {
-			return err
-		}
+func (s *Store) retainInterruption(ctx context.Context, op Operation, reason string) error {
+	if err := ctx.Err(); err != nil {
+		return err
 	}
-	if op.Phase == "interrupting" {
-		op, err = TransitionOperation(op, "finish")
-		if err != nil {
-			return err
+	path := filepath.Join(s.Root, "interrupted", op.ID+".json")
+	if old, err := readBounded(path); err == nil {
+		previous, decodeErr := DecodeInterruptionRecord(old)
+		if decodeErr != nil || previous.ID != op.ID {
+			return errors.New("existing interrupted evidence is unreadable or mismatched")
 		}
-	}
-	if op.Phase != "interrupted" {
-		return errors.New("queue interruption lacks interrupted transition")
+		return nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
 	}
 	if reason == "" {
 		reason = "queue cancellation interrupted this operation"
 	}
-	op.Detail = reason
-	if op.Extra == nil {
-		op.Extra = map[string]json.RawMessage{}
-	}
-	stamp, _ := json.Marshal(s.now())
-	op.Extra["finished_at"] = stamp
-	data, err := EncodeOperation(op)
+	data, err := EncodeInterruptionRecord(InterruptionRecord{SchemaVersion: 1, ID: op.ID, Outcome: "interrupted", Operation: op, Reason: reason, RecordedAt: s.now()})
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(s.Root, "interrupted", op.ID+".json")
+	if err := s.pruneInterruptions(ctx, 1); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := atomicWrite(path, data); err != nil {
 		return err
 	}
-	return s.pruneInterruptions()
+	return nil
 }
 
-func (s *Store) pruneInterruptions() error {
+func (s *Store) pruneInterruptions(ctx context.Context, reserve int) error {
 	dir := filepath.Join(s.Root, "interrupted")
-	rows, err := os.ReadDir(dir)
+	rows, err := operationFiles(dir)
 	if err != nil {
 		return err
 	}
@@ -452,6 +571,9 @@ func (s *Store) pruneInterruptions() error {
 	}
 	var keep []dated
 	for _, row := range rows {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if row.IsDir() {
 			continue
 		}
@@ -468,7 +590,10 @@ func (s *Store) pruneInterruptions() error {
 		}
 	}
 	sort.Slice(keep, func(i, j int) bool { return keep[i].at.After(keep[j].at) })
-	for _, row := range keep[min(len(keep), MaxOperations):] {
+	for _, row := range keep[min(len(keep), MaxOperations-reserve):] {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if err := os.Remove(filepath.Join(dir, row.name)); err != nil {
 			return err
 		}

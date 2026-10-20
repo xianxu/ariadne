@@ -81,7 +81,11 @@ func inspectJSON(data []byte) error {
 	return nil
 }
 
-func decodeObject(data []byte, fields map[string]any, optional map[string]bool) (map[string]json.RawMessage, error) {
+// StrictObject is the shared structural boundary for persisted gate metadata
+// and read-only legacy owner records. It preserves opaque member values while
+// rejecting duplicate keys at every depth, malformed JSON and bounded-input
+// violations. Schema-specific required fields and types belong to the caller.
+func StrictObject(data []byte) (map[string]json.RawMessage, error) {
 	if err := inspectJSON(data); err != nil {
 		return nil, err
 	}
@@ -90,6 +94,14 @@ func decodeObject(data []byte, fields map[string]any, optional map[string]bool) 
 	}
 	raw := map[string]json.RawMessage{}
 	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, err
+	}
+	return raw, nil
+}
+
+func decodeObject(data []byte, fields map[string]any, optional map[string]bool) (map[string]json.RawMessage, error) {
+	raw, err := StrictObject(data)
+	if err != nil {
 		return nil, err
 	}
 	extra := map[string]json.RawMessage{}

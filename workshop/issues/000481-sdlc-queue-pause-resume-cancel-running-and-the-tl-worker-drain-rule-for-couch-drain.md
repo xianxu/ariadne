@@ -160,6 +160,10 @@ TDD observed missing feature/API RED, concrete malformed owner/UTF-8 and held-wa
 
 ## Revisions
 
+### 2026-10-20 — M1 review corrections
+
+Round 1 requested cancellation crash recovery, in-transaction deadlines, actual-symbol traceability and one shared strict JSON boundary. Tests reproduced ignored durable intents, lost interruption diagnostics and scans continuing after cancellation before fixes. Owners/status now consume exact-ID intents; immutable diagnostic envelopes coexist with unresolved descendant evidence; orphan cleanup requires proof. Unknown additive fields remain preserved. Plan Revisions record recovery and budget semantics. Core race checks passed 5.945s, CLI/legacy race checks passed 1.934s, helptext and golint passed. Maximum-capacity pause read all 4,096 records once in 374 ms; deterministic cancellation tests guard partial publication. M1 review will rerun; M2 and the recorded full suite remain pending.
+
 ### 2026-10-20 — make frozen contract and clarified acceptance explicit
 
 The original Spec and Done-when remain above for context. Added explicit frozen-schema conformance, complete lifetime coverage/legacy uncertainty, and graceful merge interruption with successful-head reuse, reflecting the frozen Contract and hub clarifications. No change to pair#722's external protocol. Implementation is full flow with two actual review boundaries: backend/CLI, then admission/interruption/conformance.

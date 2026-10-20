@@ -31,7 +31,7 @@ func (s *Store) Enroll(ctx context.Context, op Operation) (*Lease, error) {
 	}
 	var lease *Lease
 	err = s.WithGate(ctx, func() error {
-		for _, family := range []string{"operations", "unresolved"} {
+		for _, family := range []string{"operations", "unresolved", "cancel"} {
 			rows, err := operationFiles(filepath.Join(s.Root, family))
 			if err != nil {
 				return err
@@ -65,8 +65,10 @@ func (s *Store) Enroll(ctx context.Context, op Operation) (*Lease, error) {
 			return err
 		}
 		path := filepath.Join(dir, op.ID+".json")
-		if _, err := os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("queue operation id already exists/unreadable: %s", op.ID)
+		for _, family := range []string{"operations", "unresolved", "interrupted", "cancel"} {
+			if _, err := os.Lstat(filepath.Join(s.Root, family, op.ID+".json")); !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("queue operation id already exists/unreadable: %s", op.ID)
+			}
 		}
 		if err := os.Rename(f.Name(), path); err != nil {
 			return err
@@ -162,7 +164,18 @@ func (l *Lease) CancellationRequested(ctx context.Context) (bool, error) {
 		if err != nil {
 			return err
 		}
-		requested = op.Phase == "interrupting"
+		_, present, err := l.store.readIntent(op.ID)
+		if err != nil {
+			return fmt.Errorf("queue cancellation evidence unavailable: %w", err)
+		}
+		requested = present || op.Phase == "interrupting"
+		if present && op.Phase == "running" {
+			op, err = TransitionOperation(op, "cancel")
+			if err != nil {
+				return err
+			}
+			return rewriteOperation(l.file, op)
+		}
 		return nil
 	})
 	return requested, err
@@ -179,18 +192,26 @@ func (l *Lease) Retire(ctx context.Context, reason string) error {
 		if err != nil {
 			return err
 		}
-		if op.Phase == "interrupting" || reason != "" {
+		intentReason, intent, intentErr := l.store.readIntent(op.ID)
+		if intentErr != nil {
+			return intentErr
+		}
+		if reason == "" && intent {
+			reason = intentReason
+		}
+		if op.Phase == "interrupting" || reason != "" || intent {
+			if err := l.store.retainInterruption(ctx, op, reason); err != nil {
+				return err
+			}
 			if !op.Managed && op.Phase != "waiting" {
 				op, err = TransitionOperation(op, "unknown")
 				if err != nil {
 					return err
 				}
 				op.Detail = "unmanaged operation " + op.ID + ": " + reason + "; descendants require operator reconciliation"
-				if err := l.store.retainUnknown(op); err != nil {
+				if err := l.store.retainUnknown(ctx, op); err != nil {
 					return err
 				}
-			} else if err := l.store.retainInterruption(op, reason); err != nil {
-				return err
 			}
 		}
 		if err := os.Remove(filepath.Join(l.store.Root, "operations", l.id+".json")); err != nil && !errors.Is(err, os.ErrNotExist) {

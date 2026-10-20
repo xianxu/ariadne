@@ -7,6 +7,18 @@ import (
 	"testing"
 )
 
+func TestStrictObjectSharedBoundaryPreservesOpaqueValuesAndRejectsAmbiguity(t *testing.T) {
+	fields, err := StrictObject([]byte(`{"owner":"A","future": { "n" : 1e99999 }}`))
+	if err != nil || string(fields["future"]) != `{ "n" : 1e99999 }` {
+		t.Fatalf("opaque object %s %v", fields["future"], err)
+	}
+	for _, raw := range [][]byte{[]byte(`{"x":1,"x":2}`), []byte(`{"future":{"x":1,"x":2}}`), []byte(`{"future":[{"x":1,"x":2}]}`), []byte(`[]`), []byte(`null`), []byte(`{} {}`), []byte(`{"truncated":`), append([]byte(`{"x":"`), 0xff), bytes.Repeat([]byte(" "), MaxJSON+1)} {
+		if _, err := StrictObject(raw); err == nil {
+			t.Fatalf("accepted ambiguous object %q", raw)
+		}
+	}
+}
+
 func TestControlCodecPreservesOpaqueAdditions(t *testing.T) {
 	raw := []byte(`{"schema_version":1,"pause_owners":[{"owner":"A","reason":"quoted ; $(opaque)","cancel_running":false,"new":{"n":1e9999}}],"future":[null,1e99999]}`)
 	c, err := DecodeControl(raw)

@@ -280,74 +280,10 @@ func queueLegacyBound(fields map[string]json.RawMessage, kind string, index queu
 	return false
 }
 
-// Generic old records have no owned schema, but duplicate or malformed JSON
-// cannot be used as proof of a binding. Number tokens preserve opaque values.
+// Legacy records share the gate codec's structural validation; their old
+// fields remain opaque except for the explicit queue incarnation binding.
 func queueLegacyFields(b []byte) (map[string]json.RawMessage, error) {
-	if len(b) == 0 || len(b) > queuegate.MaxJSON || !utf8.Valid(b) {
-		return nil, errors.New("empty/oversized owner record")
-	}
-	dec := json.NewDecoder(bytes.NewReader(b))
-	dec.UseNumber()
-	var scan func(int) error
-	scan = func(depth int) error {
-		if depth > 128 {
-			return errors.New("owner nesting exceeded")
-		}
-		tok, err := dec.Token()
-		if err != nil {
-			return err
-		}
-		d, ok := tok.(json.Delim)
-		if !ok {
-			return nil
-		}
-		if d == '{' {
-			seen := map[string]bool{}
-			for dec.More() {
-				key, err := dec.Token()
-				if err != nil {
-					return err
-				}
-				name, ok := key.(string)
-				if !ok || seen[name] {
-					return errors.New("duplicate/invalid owner member")
-				}
-				seen[name] = true
-				if err := scan(depth + 1); err != nil {
-					return err
-				}
-			}
-			tok, err = dec.Token()
-			if err != nil || tok != json.Delim('}') {
-				return errors.New("unclosed owner object")
-			}
-			return nil
-		}
-		if d == '[' {
-			for dec.More() {
-				if err := scan(depth + 1); err != nil {
-					return err
-				}
-			}
-			tok, err = dec.Token()
-			if err != nil || tok != json.Delim(']') {
-				return errors.New("unclosed owner array")
-			}
-			return nil
-		}
-		return errors.New("unexpected owner delimiter")
-	}
-	if err := scan(0); err != nil {
-		return nil, err
-	}
-	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
-		return nil, errors.New("trailing owner data")
-	}
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(b, &fields); err != nil || fields == nil {
-		return nil, errors.New("owner record is not an object")
-	}
-	return fields, nil
+	return queuegate.StrictObject(b)
 }
 
 func queueLegacyCommonDirs(ctx context.Context, root string) ([]string, error) {
