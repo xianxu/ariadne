@@ -1,0 +1,150 @@
+---
+collaboration-mode: discussion
+---
+
+# Root session file implementation plan
+
+> **For agentic workers:** Consult AGENTS.md Section 3 for execution strategy. Steps use checkbox syntax. The TL owns approval and the live migration; workers must not migrate the live hubs.
+
+**Goal:** Make repo-root `session.md` and `session.side/` the hub interface, with a safe, dry-run-first migration from the old location.
+
+**Architecture:** Keep explicit FILE arguments compatible and normalize omitted FILE arguments at the command boundary. A pure move planner rebases copied documents through existing sidedoc helpers. A thin executor copies exclusively, moves Couch registrations, verifies, and only then removes the old files. No recovery journal or new persistent protocol.
+
+**Tech Stack:** Go, Cobra, filesystem fixtures, existing SessionSync fake and real Couch scratch conformance; existing Parley attention finder.
+
+## Core concepts
+
+### Pure entities
+
+| Name | Lives in | Status |
+|------|----------|--------|
+| statusArgs | `cmd/tl-lead/status_path.go` | new |
+| sessionMovePlan | `cmd/tl-lead/status_move.go` | new |
+| sessionMovePhase / transitionMove | `cmd/tl-lead/status_move.go` | new |
+
+- `statusArgs` supplies an already-resolved default path when a command has exactly one fewer positional argument than its explicit-FILE form. It never guesses from a filename suffix. One parser serves all status commands; the existing argument validators run on the normalized arguments. Tests require no IO.
+- `sessionMovePlan` owns one old/new session pair, zero or one side tree, copied document bytes, registration pairs, conflicts, and ignore additions. It maps the old session exactly and the entire old side-tree prefix to their destinations. Reuse `sidedoc.RebaseLinks`, `sidedoc.SideDir`, `rebaseIndex`, and existing edit-record helpers; do not duplicate Markdown parsing. Preserve arbitrary unknown frontmatter and binary attachments.
+- `sessionMovePhase` enumerates preparing, switching, cleanup, complete, and refused. The executor reports filesystem/registry observations as events to `transitionMove`; the transition authorizes the next effects. One plan has N file copies and N registered-document moves. This model is scoped to the invocation; observed copies/registrations make retries possible without a journal.
+
+### Integration points
+
+| Name | Lives in | Status | Wraps |
+|------|----------|--------|-------|
+| hub session path resolution | `cmd/tl-lead/status_path.go` | new | Git top-level and legacy-file discovery |
+| status move executor | `cmd/tl-lead/status_move_apply.go` | new | exclusive file creation, locks, ignore file, verification, cleanup |
+| SessionSync registry operations | `cmd/tl-lead/sessionsync.go` | modified | existing Couch Rename / Registrations / Status / Apply seam |
+| fakeSessionSync | `cmd/tl-lead/sessionsync_fake_test.go` | modified | file-backed multi-document registry, lock, baseline and owed state |
+
+Resolve default session paths against Git's checkout top level, including from subdirectories. Omitted FILE requires a hub (`.hub` at root); an explicit FILE remains usable in existing scratch/non-hub callers. Reuse the existing Git runner, not another Git adapter. Do not create session.md as a side effect of a status read. The operator field remains optional tooling metadata, with its default from the existing git-user-name convention where a template/default is needed; migration preserves an existing operator value verbatim and does not invent an init verb.
+
+Couch remains the registration owner. Use `Rename`, not a second registration that drops the old identity. Extend the reply model only as needed to verify the effective new binding; JSON readers tolerate unknown fields. The fake must store registrations per document and preserve identity, baseline and owed events through rename. Verify its model with real Couch on isolated scratch documents, never hub files.
+
+## Command contract
+
+`tl-lead status move [OLD] [--apply]` always targets `<hub-root>/session.md`. OLD is repo-relative or absolute inside the same checkout. With OLD omitted, discover exactly one `teams/*/tl-status-*.md`; list candidates and refuse ambiguity. If no legacy file remains and session.md exists, report already migrated after verifying the destination; a missing source and missing destination refuses. No cross-repo moves. An explicit OLD equal to session.md is an already-at-destination check, not a destructive move.
+
+Every other status leaf accepts its existing argument list and its omitted-FILE form:
+
+| Explicit form | Default form |
+|---|---|
+| `submit FILE`, `seen FILE`, `owed FILE`, `check FILE`, `clobbered FILE` | verb alone |
+| `section FILE HEADING BODYFILE` | `section HEADING BODYFILE` |
+| `thread FILE TEXTFILE` | `thread TEXTFILE` |
+| `slots FILE` | `slots` |
+| `instructions list FILE` | `instructions list` |
+| `instructions link FILE POS TARGET` | `instructions link POS TARGET` |
+| `index FILE` | `index` |
+| `migrate-answers FILE` | `migrate-answers` |
+
+Keep flags, stdin body behavior and stale/lock exit codes unchanged. CLI help uses `[FILE]`. One shared normalizer is attached explicitly to each status leaf; a table-driven test enumerates the leaves so a future leaf cannot silently miss the default.
+
+Dry run reads and prints the old/new paths, all copy/link/index/registration/ignore effects, conflicts and exact next command. It writes no files, does not acknowledge operator edits, and never folds owed events. Applying also leaves unread operator edits unread; do not call MarkAllSeen as migration cleanup.
+
+## Copy, switch, verify, cleanup
+
+1. Snapshot the source session, full side tree (including nested side docs and assets), existing destinations, registrations and relevant locks. Resolve physical root once; refuse symlinks in source/destination paths or trees, non-regular entries, malformed session metadata, `.lock`, and unresolved `.clobbered` evidence. Refuse unrelated destination documents even when names happen to match; identical migration copies may be reused. Check source/destination registrations do not bind different document identities.
+2. Plan all rebasing before writing. Rewrite relative session links, side-document `parent:`, Markdown/reference/image links, and `discussions:` entries from old to new locations. Relative links to stationary tracked artifacts must still resolve after moving to root. Preserve URLs, fragments, code examples and unknown metadata. Report dangling links and bare old-path mentions without guessing replacements. Scope rewrites to the copied tree and session; report external backlinks for manual attention rather than sweeping tracked project files.
+3. Append missing anchored ignores to the hub's `.gitignore`: `/session.md`, `/session.side/`, and the known local status sidecars such as `/.session.md.ss-seen`. Preserve other bytes and old ignore rules. New copies must be ignored before publication; refuse tracked destinations. Dry run only prints the additions. Guard `.gitignore` against intervening edits with the existing unchanged-content writer.
+4. Copy final bytes exclusively, preserving file modes and mtimes. Existing byte-identical copies are no-ops; differing copies refuse without overwriting either. Include the bounded seen-ID set at `seenPath(OLD)` → `seenPath(NEW)`; move no lock or clobber evidence and let Couch own its registry/shadow state. Keep all old files until every new file is verified.
+5. Recheck locks and source hashes, then rename registered side docs and finally the session registration using SessionSync.Rename. Verify each effective binding and the final destination bytes. No new registration for unregistered side docs; the session's legacy frontmatter routing remains supported. On an uncertain rename, stop and print the identical retry and inspection instructions; do not blindly roll back or forget either path.
+6. Only after all registration moves and copy verification succeed, remove unchanged old files and empty old directories. Each removal checks the expected source bytes. Never recursively remove an uninspected directory. Preserve concurrent edits; refuse and report the exact remaining path. Retrying after partial cleanup verifies existing new files and finishes remaining old files. A new-only child after a cleanup interruption is preserved, never interpreted as a collision to delete. Success names session.md and instructs the operator to reopen the editor at the new path.
+
+The old source stays intact until the switch and verification. After a confirmed switch, the new session is the working interface even if cleanup fails. Do not promise that a partially removed old tree is still usable. Preserve the original session source until the final cleanup step so explicit OLD can anchor retries; if it is already gone, only a verified completed new destination is accepted.
+
+### Actions and visible state
+
+Actions: run dry run; resolve a named conflict; wait for operator submit/close; rerun the same apply; reopen session.md; inspect registry after an uncertain response.
+
+| Internal state / failure mode | Visible state | Recovery action | Possible loss |
+|---|---|---|---|
+| Lock, ambiguity, symlink, collision or stale source before effects | refused; old in use | resolve named conflict, rerun dry run | none |
+| Failure or cancellation copying | old in use; partial identical copies | rerun same apply | none; both copies kept |
+| Some child registrations moved; session not switched | old session in use; registry migration incomplete | rerun same apply | none; old and new bytes kept |
+| Rename outcome unknown | switch unconfirmed | inspect registry, retry identical rename through apply | none removed; routing temporarily uncertain |
+| Session registration and new bytes verified; cleanup interrupted | new in use; old cleanup incomplete | rerun same apply | none; obsolete copies remain |
+| Source changes after snapshot | conflict; source preserved | close editor, inspect both copies, rerun dry run | no automatic merge; stale new copy may need explicit human removal |
+| All cleanup complete | migrated | reopen session.md | old path removed intentionally |
+
+No atomic editor lease exists in the current Couch seam. A process-lifetime mutex local to tl-lead would exclude another tl-lead, but would not exclude Parley's operator editor; it cannot prove the lock invariant. Require a quiet window with editors closed, check `.lock` and Couch holder before copy/switch/removal, and test lock arrival between steps. This guarantees refusal for observed locks, not exclusion against an editor opening after the last check. No work continues in a background task after command return.
+
+## Operating envelope and principles
+
+- **ARCH-DRY:** reuse SessionSync and sidedoc transformations. Defaults have one normalizer. The existing answer migration remains separate because moving qa answers changes their document type/marker; this move preserves document meaning.
+- **ARCH-PURE:** snapshot → pure plan/transition → thin executor; pure tests need no process mocks.
+- **ARCH-PURPOSE:** include defaults, help/rule, ignore file, nested links/registrations and attention check. The last live acceptance remains an explicit operator/TL step, not silently waived.
+- **ARCH-MOCK:** extend the existing stateful fake, including a rename that publishes then returns an uncertain response. Real conformance uses temporary registered files and forgets them at cleanup.
+- **ARCH-CONSTRAINTS:** rare interactive maintenance, twice for the current fleet; one bounded sequential operation per file and registration, O(total bytes + files + links). Scan only old/new trees, not the whole workspace. No hot event path, so N/2N hot-path tests are unnecessary. No network beyond local Couch. No CPU fan-out; any read/permission error stops with paths and preserves sources.
+- **ARCH-SECURE:** paths, frontmatter, registry JSON and lock contents cross trust boundaries. Reject traversal, ambiguous roots, symlinks and malformed known fields. Unknown fields survive. No credentials created or logged. Tests isolate Git/Couch state from live hubs.
+- **ARCH-ORDER:** production transition model authorizes effects; injected step hooks test interruption, lock arrival and registration uncertainty at every boundary. Copies are exclusive and retries reconcile actual state; no success from an unknown response.
+- **ARCH-FUNERAL:** copied files replace their sources only after verification; leftover partial copies are named in output and collected on successful retry. No journal/cache family. Seen IDs retain their existing bounded lifecycle. New ignored session/side docs are operator-owned and explicitly removed when retiring the hub, after decisions enter tracked artifacts. Scratch conformance registrations are forgotten in cleanup.
+- **ARCH-EVOLVE:** preserve unknown frontmatter, side assets and Couch record fields; new JSON response members are tolerated. No on-disk format change.
+
+## Implementation tasks
+
+### Task 1: Defaults at command boundaries
+
+**Files:** create `cmd/tl-lead/status_path.go`, `status_path_test.go`; modify `status.go`, `instructions.go`, `index.go`, `migrate_apply.go`.
+
+- [ ] Write table-driven tests for every leaf's explicit and omitted FILE forms, including section/thread/instructions positional arity, repo subdirectory use, non-hub refusal and missing session. Test that reads never create a file and explicit legacy paths still work.
+- [ ] Run `go test ./cmd/tl-lead -run 'TestStatus(Default|Args|Path)' -count=1`; expect failures for missing default support.
+- [ ] Implement the shared normalization and Git-root resolution; update Usage/Args together. Keep file-reading errors observable.
+- [ ] Re-run focused tests and existing status/instructions/index/migrate tests. Commit with issue reference and Agent/Co-Authored-By trailers.
+
+### Task 2: Pure move planning and link corpus
+
+**Files:** create `cmd/tl-lead/status_move.go`, `status_move_test.go`, `testdata/status-move/before/` and `after/`; extract shared rebase/edit helpers from `migrate.go` only if needed.
+
+- [ ] Add a before/after fixture rooted at `teams/devinfra/tl-status-op.md` with session links/index, side parent links, nested side docs/assets, relative tracked-artifact links, code/URL controls, unknown fields and a seen set.
+- [ ] Add planner tests for ambiguity, missing/no-side source, already-destination, changed/equal copies, symlink traversal, locks, clobber evidence, malformed metadata and anchored ignore additions. Add transition sequence tests for permitted and refused effects.
+- [ ] Run `go test ./cmd/tl-lead -run 'TestSessionMove(Plan|Transition|Links)' -count=1`; expect undefined planner/model, then implement minimal planner and rerun to pass.
+- [ ] Commit pure implementation and fixture expectations.
+
+### Task 3: Executor, Couch identity and retry behavior
+
+**Files:** create `cmd/tl-lead/status_move_apply.go`, `status_move_apply_test.go`; modify `status.go`, `sessionsync.go`, `sessionsync_fake_test.go`, `sessionsync_registry_test.go`, `conformance_test.go` as needed.
+
+- [ ] Add failing CLI fixture tests for dry-run zero mutation, apply output/exit status, complete copy/switch/cleanup, ignore updates and lock exit 3. Compare every expected file byte and registry identity/baseline/owed set.
+- [ ] Inject a stop after every copy, registry rename and cleanup effect; rerun and assert eventual one new tree, preserved edits, and no duplicate registration. Cover publish-then-error, failed registry verification, destination edit, source edit, operator-lock arrival and cleanup permission failure. Test repeat dry run and repeat successful apply.
+- [ ] Implement thin snapshot/executor and wire `newStatusMoveCmd`; reuse exclusive create/unchanged-write helpers without silently copying their limitations into the contract. Do not reuse answer migration's MarkAllSeen behavior.
+- [ ] Run `go test ./cmd/tl-lead ./pkg/sidedoc -count=1`; expect pass. Run scratch-only `TL_LEAD_LIVE=1 go test ./cmd/tl-lead -run 'TestSessionSync.*Conformance' -count=1 -v` for the used rename/verification behavior. Verify cleanup forgot scratch registrations.
+- [ ] Commit; report any design delta to TL before implementing it.
+
+### Task 4: Operator documentation and attention evidence
+
+**Files:** modify `cmd/tl-lead/help.md`, `main_test.go`, `README.md`, `atlas/workflow/tl-skills.md`; retain existing atlas/index link. No live session edits.
+
+- [ ] Write failing help assertions for root session.md/session.side, optional FILE, operator metadata, move dry run/apply/quiet-window/retry commands, and the decisions rule. Replace active default examples while retaining old paths in migration examples and compatibility fixtures.
+- [ ] Document that session/side docs are ephemeral TL/operator interface; decisions are copied immediately into tracked issue/project Log/charter. Workers act from tracked issues plus explicit TL/operator instructions. Keep the rule in lead-owned prose, not duplicate worker-owned rules.
+- [ ] Record Parley evidence: `lua/parley/attention.lua` scans a registered parent's `.side/*.md` without a team-path assumption; `attention_model.lua` inherits the slot; `tests/integration/attention_finder_spec.lua` covers root discovery and nested documents on a later finder open. Preserve mtimes and registrations. Arbitrary subdirectories without side-document parents are not newly promised.
+- [ ] Run existing Parley attention tests with `make test-spec SPEC=ui/attention_finder` in its isolated test environment; no Parley code change is currently needed. Run `go test ./cmd/tl-lead -count=1`, inspect the default/path consumer sweep, and commit docs/evidence.
+
+### Task 5: Review, recorded suite, staging and manual acceptance
+
+- [ ] Push issue head with SDLC; run recorded full suite `sdlc local-check run --name suite` on the pushed head. Targeted checks precede it. Do not commit during source-checkout test runs.
+- [ ] Offer `sdlc stage --build` to the TL for scratch migration smoke; staging is authorized only at the TL's requested time. Report returned binary revision and exact fixture commands. Never invoke move on either live hub yourself.
+- [ ] TL and operator choose a quiet moment, close their editor locks, inspect dry runs, and apply separately in ops:0 and ops-echo:0. They verify parent/side links, registration routing, attention finder, ignored files, and reopening session.md. Capture their evidence in this issue. The manual last step remains required; do not close without it or an explicit scope revision.
+- [ ] Run `sdlc close --issue 504 --verified '<returned test and manual evidence>'`; this owns the fresh-context boundary review. Resolve findings and rerun relevant checks/suite after code changes. Report ready state to TL; on SHIP use `sdlc merge --yes` and report returned PR/merge evidence. Clear a stage if it was not cleared by landing.
+
+## Approval and revisions
+
+2026-10-20: TL accepted command discovery, compatibility and refusal semantics, then directed copy-then-switch instead of a recovery journal. This plan adopts that simplification. Approval of the complete plan is still required before change-code. The two visible failure locations around the registration switch are called out explicitly rather than promising the old registration stays active after it has moved.

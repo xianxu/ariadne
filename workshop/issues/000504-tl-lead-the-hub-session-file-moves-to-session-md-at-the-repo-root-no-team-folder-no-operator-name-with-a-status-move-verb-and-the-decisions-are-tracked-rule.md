@@ -1,13 +1,21 @@
 ---
 id: 000504
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'c22406b030aac8bd74f9f14de57fc1bd845d26fe' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '3df0eebfb4c70ec89dff964f3e5b685bc77d31cf' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-20T09:56:17-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead: the hub session file moves to session.md at the repo root (no team folder, no operator name), with a status move verb and the decisions-are-tracked rule
@@ -45,8 +53,27 @@ decision made in a side doc gets copied into the tracked artifact (issue, projec
 
 ## Plan
 
-- [ ]
+- [ ] Implement shared omitted-FILE defaults while preserving explicit paths.
+- [ ] Implement pure copy-then-switch planning and fixture link rebasing.
+- [ ] Implement guarded copying, Couch registration switch, verification and retryable cleanup.
+- [ ] Update help/README/atlas with session.md, session.side/ and the decisions rule; verify Parley attention compatibility.
+- [ ] Run focused checks, recorded suite and the SDLC boundary review.
+- [ ] TL and operator migrate both live hubs at a quiet moment; worker does not run live migrations.
+
+Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 
 ## Log
 
 ### 2026-10-20
+
+- Claimed in ariadne:4 and entered planning with `sdlc start-plan`. No implementation edits or live hub mutations.
+- TL accepted unambiguous legacy discovery, optional FILE defaults, compatibility and lock/collision/symlink refusals. TL directed copy-then-switch without a recovery journal. Sources remain until copies and registration switch are verified; after switch, cleanup failures use the new session and rerun cleanup. No editor lease exists, so apply requires a quiet window and rechecks observed locks (ARCH-ORDER).
+- Reuse `SessionSync.Rename` to preserve registry identity, baselines and owed events; reuse sidedoc link/index transformations (ARCH-DRY). Do not mark unread edits seen during migration.
+- Read-only delegated Parley check: root-parent side-doc discovery is path agnostic (`lua/parley/attention.lua`, `attention_model.lua`, `document_move_plan.lua`); `tests/integration/attention_finder_spec.lua` covers root discovery and nested documents on subsequent opens. No Parley change indicated. Tests not yet run.
+- Complete plan drafted for TL approval before change-code. Manual migration remains in Done when and will block completion until the TL/operator supplies evidence.
+
+## Revisions
+
+### 2026-10-20 — planning decisions from the TL
+
+- Added the executable plan and explicit defaults/compatibility semantics without changing the existing Spec or Done when. Chose copy-then-switch instead of a recovery journal at the TL's direction. Live migrations remain the last manual acceptance step, owned by the TL and operator.
