@@ -2051,15 +2051,19 @@ trimpath default and existing Go flags. Before that declaration landed, the
 equivalent fallback suite command exercised the same candidate Makefile.
 
 `make test` (`scripts/test-shard.py`) is the full run: it compiles the
-`cmd/sdlc` test binary once and splits its top-level tests over one process per
-core, balanced from the last run's per-test times
+`cmd/sdlc` test binary once and splits its top-level tests over at most eight
+processes (fewer on smaller hosts; four if CPU count is unavailable), balanced
+from the last run's per-test times
 (`<git-common-dir>/sdlc-test-timings.json`), with every other package in the module
 (cmd/weave, pkg/…, the other tools) alongside in one `go test` (#330; before, only
 `cmd/sdlc/...` ran, and a cmd/weave hang went unseen).
 `cmd/sdlc`'s tests change cwd and swap package seams, so they cannot run in
-parallel inside one process; separate processes share neither. About 8 minutes
-with 12 shards (#330 measured 7.5–8 on a busy machine, whole module), against about
-25 serially. Plain `go test ./cmd/sdlc/...` still works but runs
+parallel inside one process; separate processes share neither. Explicit overrides
+remain available, for example `make test ARGS="--shards 12"`. Five quiet-start
+whole-module measurements on a 12-core M2 Max (#480) found eight shards took
+584–600s versus 578s for twelve, with peak one-minute load 29–34 versus 68.
+Six shards took 747–820s. These are whole-machine measurements under the
+full-suite gate, not a guaranteed load ceiling. Plain `go test ./cmd/sdlc/...` still works but runs
 `cmd/sdlc` serially and needs `-timeout 60m` (it exceeds go's 10-minute default).
 `scripts/test-timing.py` reports per-test times from either run's `-json` output.
 
@@ -2272,9 +2276,10 @@ next waiter. Neither path discovers or stops another run (#400).
 
 **Weighted suites (#346).** A suite heavier than one slot declares its weight:
 `WF_TEST_WEIGHT ?= N` in the repo's root Makefile, before `Makefile.workflow`
-is included. The default is 1. ariadne declares 2, because its sharded suite
-runs ~12 processes, so it runs alone at the default cap. Two of them at once
-had pushed load to 185.
+is included. The default is 1. ariadne retains 2 with its eight-shard cap (#480):
+the measured suites still occupied about 78–90% of whole-machine CPU. Taking
+both slots keeps two full suites from overlapping; the comparison did not test
+concurrent suites. Earlier overlapping suites had pushed load to 185 (#346).
 
 **Host preflight before the lock (#333).** A repo whose suite cannot run on some
 hosts ships a preflight, by convention `tests/host-preflight.sh`, or names another

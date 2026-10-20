@@ -12,7 +12,7 @@ export GOFLAGS
 WF_ISSUES_DIR = workshop/issues
 WF_HISTORY_DIR = workshop/history
 
-# The sharded suite (#253, ~12 processes) takes both full-suite slots, so two
+# The measured eight-shard suite (#480) takes both full-suite slots, so two
 # ariadne suites never run at once (#346).
 WF_TEST_WEIGHT ?= 2
 
