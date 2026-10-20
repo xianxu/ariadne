@@ -377,19 +377,19 @@ one.
   `localchecks.go:140`; the `test-stats` aggregate (`teststats.go:111+`) and its printer
 - Test: `cmd/sdlc/localcheck_flakes_test.go`, `localcheck_republish_test.go`, `teststats_test.go`
 
-- [ ] **Step 1: Write the failing tests.** Strategy: rerun each existing suite-only test of the four predicates
+- [x] **Step 1: Write the failing tests.** Strategy: rerun each existing suite-only test of the four predicates
   (known-flake step, success guard, flake evidence, aggregates) with an `affected` attempt. Add one cross-check test:
   a failure under one check never blocks posting the other, and suite aggregates are unchanged by affected rows.
-- [ ] **Step 2: Run them.** They fail.
-- [ ] **Step 3: Implement.**
+- [x] **Step 2: Run them.** They fail.
+- [x] **Step 3: Implement.**
   - Add `isTestCheck(name) = name == suiteCheckName || name == affectedCheckName`.
   - `isFlakeEvidence` and the known-flake step (`localcheck_run.go:184`) use it.
   - The success guard compares the attempt's check with the posted one.
   - `isSuiteRun` keeps meaning the full suite, for the weekly stats and the main baseline.
   - `RepoStats` gains `Check string json:"check,omitempty"` (additive; the suite rows leave it empty), with one
     aggregate per (repo, check).
-- [ ] **Step 4: Run them until they pass**, along with `go test ./cmd/sdlc/ -run 'Flake|TestStats|Republish|Weekly'`.
-- [ ] **Step 5: Commit.** `#473 M2: affected counts as a test run`
+- [x] **Step 4: Run them until they pass**, along with `go test ./cmd/sdlc/ -run 'Flake|TestStats|Republish|Weekly'`.
+- [x] **Step 5: Commit.** `#473 M2: affected counts as a test run`
 
 ### Task 8: wording, help, atlas (D2)
 
@@ -434,3 +434,13 @@ one.
     a first-owner-wins lookup missed a root package that embeds a file inside a sub-package's directory, which
     `go list` confirms is legal.
   - An empty change set refuses (BR-2) rather than recording a docs-only pass.
+- **2026-10-20 (M2 Task 7, D4 made stricter; sent to the TL, proceeding unless they object).**
+  - **The success guard spans both checks.** An unexplained test-run failure on a head blocks a success post of
+    `suite` *or* `affected`. Task 7 had said they wouldn't trip each other, which would let a passing affected run
+    hide a failed suite on the same commit: the blind-rerun case #394 forbids.
+  - **A subset pass never confirms.** `flakes.Attempt.Subset` is set for affected attempts. Their failures need
+    explaining and get the known-flake rerun, but their passes never confirm a fail→pass (`Confirmed`,
+    `SameHeadFailPass`), because the run may not have included the failed test. A full suite pass or a targeted rerun
+    still confirms.
+  - **Stats:** `aggregateCheckAttempts` gives affected runs their own row (`RepoStats.Check`). `aggregateSuiteAttempts`
+    and its weekly consumers are unchanged.

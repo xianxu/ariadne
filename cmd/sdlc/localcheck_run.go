@@ -84,7 +84,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		fmt.Fprintf(d.Stderr, "[test-lock] priority unavailable: %v; using normal FIFO\n", subjectErr)
 		subject = suitePrioritySubject{CommonDir: d.Root}
 	}
-	if c.Name != suiteCheckName || d.SkipRecord {
+	if !isTestCheck(c.Name) || d.SkipRecord {
 		subject.Issue = 0
 	}
 	logDir, err := localCheckLogDir(d)
@@ -133,7 +133,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	// Missing/oversized output proves nothing about the environment.
 	facts := SuiteLogFacts{Unattributed: []string{"the suite log could not be parsed"}}
 	if log, readErr := readLocalCheckLog(rec.LogPath); readErr == nil {
-		if c.Name == suiteCheckName && rec.Exit > 0 && !rec.TimedOut && suiteEnvironmentLog(string(log)) {
+		if isTestCheck(c.Name) && rec.Exit > 0 && !rec.TimedOut && suiteEnvironmentLog(string(log)) {
 			path, envErr := retainSuiteEnvironment(logDir, sha, c.Name, rec.LogPath)
 			publishing = path == rec.LogPath // preserve raw inflight log if retention failed
 			rec.LogPath = path
@@ -181,7 +181,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		switch {
 		case rec.passed():
 			attempt.Outcome = string(flakes.Passed)
-		case c.Name == suiteCheckName && !d.SkipRecord:
+		case isTestCheck(c.Name) && !d.SkipRecord:
 			// #394: classify; when only registered flakes failed, rerun them.
 			var o flakes.Outcome
 			o, stepErr = knownFlakeStep(ctx, d, suiteGateRun{check: c, sha: sha, wt: wt, helper: helper, logDir: logDir, subject: subject,

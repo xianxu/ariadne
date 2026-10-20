@@ -151,6 +151,9 @@ func runTestStats(out io.Writer, flags testStatsFlags, deps testStatsDeps) error
 		if len(rows) != 0 {
 			report.Repos = append(report.Repos, rows[0])
 		}
+		if rows := aggregateCheckAttempts(attempts, since, name, affectedCheckName); len(rows) != 0 && rows[0].Runs > 0 {
+			report.Repos = append(report.Repos, rows[0])
+		}
 	}
 	if flags.JSON {
 		enc := json.NewEncoder(out)
@@ -218,11 +221,15 @@ func renderTestStatsText(out io.Writer, report testStatsReport) error {
 		return err
 	}
 	for _, s := range report.Repos {
-		if _, err := fmt.Fprintf(out, "%-9s %4d  %-13s %-14s %d/%d  wall %d/%d queue %d/%d\n", s.Repo, s.Runs, formatTestStatsQuantiles(s.Wall), formatTestStatsQuantiles(s.Queue), s.ConfirmedFlakeAttempts, s.FlakeDenominator, s.WallCoverage, s.Runs, s.QueueCoverage, s.Runs); err != nil {
+		label := s.Repo
+		if s.Check != "" {
+			label += " " + s.Check // an affected-suite row (#473), apart from the suite's
+		}
+		if _, err := fmt.Fprintf(out, "%-9s %4d  %-13s %-14s %d/%d  wall %d/%d queue %d/%d\n", label, s.Runs, formatTestStatsQuantiles(s.Wall), formatTestStatsQuantiles(s.Queue), s.ConfirmedFlakeAttempts, s.FlakeDenominator, s.WallCoverage, s.Runs, s.QueueCoverage, s.Runs); err != nil {
 			return err
 		}
 		for _, unit := range s.Slow {
-			if _, err := fmt.Fprintf(out, "  %s slow: %s %s %.1fs (n=%d)\n", s.Repo, unit.Kind, unit.Name, unit.P90, unit.Samples); err != nil {
+			if _, err := fmt.Fprintf(out, "  %s slow: %s %s %.1fs (n=%d)\n", label, unit.Kind, unit.Name, unit.P90, unit.Samples); err != nil {
 				return err
 			}
 		}
