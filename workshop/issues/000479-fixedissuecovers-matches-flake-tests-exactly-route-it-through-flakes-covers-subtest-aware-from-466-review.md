@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "c6b0c4ca", done: "490ac2c8"}
 ---
 
 # fixedIssueCovers matches flake_tests exactly; route it through flakes.Covers (subtest-aware, from #466 review)
