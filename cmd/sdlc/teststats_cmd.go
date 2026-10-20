@@ -172,12 +172,22 @@ func buildTestStatsReport(flags testStatsFlags, deps testStatsDeps) (testStatsRe
 		for _, warning := range legacyWarnings {
 			report.Warnings = append(report.Warnings, name+": "+warning)
 		}
-		rows := aggregateSuiteAttempts(attempts, since, name)
-		if len(rows) != 0 {
-			report.Repos = append(report.Repos, rows[0])
-		}
+		report.Repos = append(report.Repos, testStatsRows(attempts, since, name)...)
 	}
 	return report, nil
+}
+
+// testStatsRows are a repo's report rows: its suite, then its affected suite
+// (#473), each only when the window holds runs of it; flake evidence alone
+// (a rerun, the other check's attempts) makes no row.
+func testStatsRows(attempts []SuiteAttempt, since time.Time, repo string) []RepoStats {
+	var out []RepoStats
+	for _, check := range []string{suiteCheckName, affectedCheckName} {
+		if rows := aggregateCheckAttempts(attempts, since, repo, check); len(rows) != 0 && rows[0].Runs > 0 {
+			out = append(out, rows[0])
+		}
+	}
+	return out
 }
 
 func readLegacySuiteLogs(common, repo string, known map[string]bool) ([]SuiteAttempt, []string) {
@@ -238,11 +248,15 @@ func renderTestStatsText(out io.Writer, report testStatsReport) error {
 		return err
 	}
 	for _, s := range report.Repos {
-		if _, err := fmt.Fprintf(out, "%-9s %4d  %-13s %-14s %d/%d  wall %d/%d queue %d/%d\n", s.Repo, s.Runs, formatTestStatsQuantiles(s.Wall), formatTestStatsQuantiles(s.Queue), s.ConfirmedFlakeAttempts, s.FlakeDenominator, s.WallCoverage, s.Runs, s.QueueCoverage, s.Runs); err != nil {
+		label := s.Repo
+		if s.Check != "" {
+			label += " " + s.Check // an affected-suite row (#473), apart from the suite's
+		}
+		if _, err := fmt.Fprintf(out, "%-9s %4d  %-13s %-14s %d/%d  wall %d/%d queue %d/%d\n", label, s.Runs, formatTestStatsQuantiles(s.Wall), formatTestStatsQuantiles(s.Queue), s.ConfirmedFlakeAttempts, s.FlakeDenominator, s.WallCoverage, s.Runs, s.QueueCoverage, s.Runs); err != nil {
 			return err
 		}
 		for _, unit := range s.Slow {
-			if _, err := fmt.Fprintf(out, "  %s slow: %s %s %.1fs (n=%d)\n", s.Repo, unit.Kind, unit.Name, unit.P90, unit.Samples); err != nil {
+			if _, err := fmt.Fprintf(out, "  %s slow: %s %s %.1fs (n=%d)\n", label, unit.Kind, unit.Name, unit.P90, unit.Samples); err != nil {
 				return err
 			}
 		}

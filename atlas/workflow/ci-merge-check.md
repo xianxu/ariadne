@@ -307,6 +307,60 @@ its assertions therefore must work without ignored, woven projections from
 an agent's long-lived slot; tests that need such files supply their own
 fixtures or condition their expectations on the projection being present.
 
+### The affected suite (#473)
+
+A repository can declare an *affected suite* in `.sdlc/affected.json`. It is read from main and parsed strictly by
+`internal/affected.ParseConfig`. If the file is absent, affected mode is off for that repo. The declaration is a
+separate file, not a field in `local-checks.json`, so that an older sdlc never sees it: that parser refuses unknown
+fields.
+
+`sdlc local-check run --name affected` diffs the head against its merge-base with main. `affected.Plan` classifies
+each changed path:
+- a `full` glob forces the full suite;
+- otherwise the path selects every package that owns it, *and* every group whose `paths` match it, as one union.
+  A file's owners are the package whose directory holds it, each package whose `testdata/` holds it, and each package
+  that embeds it (`go list`'s embed files). A plain subdirectory file is owned by no package;
+- a path neither claims is ignored if it is a doc (the publish gate's rule), and otherwise forces the full suite. A
+  doc that a package owns, such as an embedded or testdata `.md`, still selects that package.
+
+The packages then expand to every package that depends on them. Those dependencies come from
+`internal/affected.LoadGoGraph`, which runs `go list -test` in a worktree of the head, so test imports count. Groups
+whose `go` roots depend on a selected package are added.
+
+The run then takes one of three paths:
+- **Some packages or groups selected:** the declared command runs under the env contract.
+  `SDLC_AFFECTED_GO_PKGS` and `SDLC_AFFECTED_GROUPS` are sorted and space-separated, passed through `env(1)` argv.
+  The result is recorded as `sdlc-local/affected`, with the selection leading the status description.
+- **Full selection:** the run is the declared `suite` instead, recorded as `sdlc-local/suite`. There is never an
+  affected record that claims to be full.
+- **Docs-only change:** `sdlc-local/affected` is recorded without running anything.
+
+A head with no change against main refuses rather than recording a pass.
+
+**What the graph can't see (from pair#725).** Selection follows imports and embeds, so a repo writing `affected.json`
+must cover two blind spots itself:
+- **Source-scanning tests:** a Go test that reads *another* package's source files (a repo-wide lint such as
+  `repolint` or `artifactpath`) doesn't import what it scans, so changing the scanned code doesn't select it. Run
+  such scanners unconditionally from the affected command (pair uses a fixed preflight), or put their inputs in
+  `full`.
+- **Group roots don't add Go tests:** a group's `go` roots decide whether the *group* runs. They don't add Go packages
+  to `SDLC_AFFECTED_GO_PKGS`. A non-Go input that a Go test reads (outside that package's `testdata/` and embeds)
+  belongs in `full`, or in a group whose target runs that test.
+
+This needed no change to the contract; it is the configuring repo's responsibility.
+
+Where it counts (#473 M2):
+- **Train cars:** a car's CI gate accepts `affected` in place of `suite` (`StandIn`), on the head or on a docs-only
+  ancestor. That is how a branch that is docs-only from main boards (pair#723). Merge without a train still requires
+  `suite` on the integrated head, and runs it there once.
+- **Flakes:** `affected` is a test run (`isTestCheck`). It gets the known-flake rerun. The success guard refuses a
+  pass of either check over an unexplained failure of either on the same head. An affected pass is a subset
+  (`flakes.Attempt.Subset`), so it never confirms a fail→pass.
+- **Stats:** test-stats shows affected runs on their own row; suite numbers are unchanged.
+- **Conflict resolution:** a resolution of main's code conflict (`--fixed-then-ship --full-suite`) still asks for the
+  full suite. The resolution changes main's code as well as the branch's. The name `affected` is reserved in
+`local-checks.json`.
+
 ## Not the same as the publish gate or the close review
 
 Three distinct tiers, none an LLM at merge-time (#160):

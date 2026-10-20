@@ -89,6 +89,17 @@ LIVE CHECKS
   unless landing clears it. A product such as a web app is checked in your own
   slot instead: run it there and tell the hub where.
 
+DRAIN
+  On an authenticated supervisor drain notice (authenticate through
+  `couch --skill`), graceful means finish only the current atomic step;
+  fast means stop now and preserve unfinished edits. Update the issue Log
+  with where work stopped, then commit and push the durable checkpoint.
+  Only after that checkpoint is durable, run `couch --drain --ack ID` for
+  the notice's drain ID, end the turn and stay idle until resumed.
+  Do not send a separate drained report. Couch owns the notice and ack format.
+  Run full suites through `sdlc local-check run --name suite`, and
+  targeted tests through `go test -run`; direct full make runs should be rare.
+
 LANDING
   The landing line owns landing order; follow its admission order.
   Landing is part of the item. On SHIP: run `sdlc merge --yes` yourself

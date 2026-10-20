@@ -21,11 +21,15 @@ type Attempt struct {
 	Subtests   []string
 	Kind       Kind // the gate's recorded outcome; "" for attempts from before #394
 	FinishedAt time.Time
+	// Subset marks a run of a selection, not every test (the affected suite,
+	// #473): its failures need explaining like any run's, but its pass proves
+	// nothing about a test it may not have run, so it never confirms.
+	Subset bool
 }
 
 // Confirmed reports whether a failed attempt has same-exact-head fail→pass
 // evidence: a later non-baseline attempt on the same SHA passed (#390's
-// intermittency proof). It is the one rule both test-stats and registration
+// intermittency proof), and was not a subset run (#473). It is the one rule both test-stats and registration
 // use.
 //
 // order must be in Sort's order; i is the failed attempt's index in it.
@@ -36,7 +40,7 @@ func Confirmed(order []Attempt, i int) (passedID string, ok bool) {
 		return "", false
 	}
 	for _, b := range order[i+1:] {
-		if b.SHA == failed.SHA && b.Passed && !b.Legacy && !b.Baseline {
+		if b.SHA == failed.SHA && b.Passed && !b.Legacy && !b.Baseline && !b.Subset {
 			return b.ID, true
 		}
 	}
