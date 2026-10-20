@@ -1107,3 +1107,10 @@ The simplest durable authority beats a clever scan of consequences.
   ambiguous for a decision that hides a failure. Use only an exact fully
   qualified name in the terminal card's `flake_tests`; legacy failures stay
   visible until retention expires (ARCH-SECURE).
+
+- **#473 M1 BR-1/BR-7 — test selection must over-select:** when a classifier maps a file to the code its change can
+  break, collect every claimant (here the package whose dir holds the file, each `testdata/` owner, and each package
+  that embeds it, plus every matching group), and fall back to the full run only when there are none. Two shortcuts
+  each skipped tests: "nearest ancestor directory" let a root package claim every path, and "first owner wins"
+  missed a second embedder. Prefer the toolchain's exact facts (`go list` EmbedFiles) to a directory heuristic, and
+  add a table row for a file with two owners.
