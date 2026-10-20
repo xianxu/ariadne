@@ -78,6 +78,10 @@ Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 - Isolated Parley checkout at its returned HEAD 11b39d8d ran `make -f Makefile.parley test-spec SPEC=ui/attention_finder` successfully, including existing root-parent and nested side-doc discovery. No Parley changes. Temporary checkout and harness state removed after the run.
 - TL requested stage only after SHIP and green suite, then TL/operator live migration, evidence, clear and merge. This conflicts with current manual pre-close Done when; clarification requested to move live acceptance to a post-close/pre-merge hold. Couch reported recipient unavailable on both clarification sends; no delivery receipt was created. No live files touched and no stage performed.
 
+- Drain checkpoint: implementation committed at `bb7847138bd2e5cc6c8beccdeceb890e885354cb`, published as [PR #351](https://github.com/xianxu/ariadne/pull/351). Final combined `TL_LEAD_LIVE=1 go test ./cmd/tl-lead ./pkg/sidedoc -count=1` passed (tl-lead 25.859s; sidedoc 0.131s). No source tests are running.
+- Recorded suite was launched on that pushed head, but remained queued behind the machine-wide pause for Couch drain `69bb7fc3-a125-42c6-9900-5814613b8eba` (operator shutdown/reboot/RAM-disk fix). Canceled this slot's queued suite with `sdlc local-check cancel --name suite`; no full-suite pass exists. Never treat the canceled attempt as validation.
+- Stop state for restart: issue remains working; no close review, SHIP, stage, live migration or merge. Resume with `sdlc state`, rerun the recorded suite when the fleet resumes, and obtain TL approval of the Done-when ordering revision before closing. TL wants green suite + SHIP, then `sdlc stage --build`, TL/operator migration of ops:0 and ops-echo:0, evidence appended here, stage cleared and merge. Existing Done when still requires manual migration before close because the clarification has not been delivered/approved. Ordinary Couch sends currently refuse while draining; no approval inferred from silence.
+
 ## Revisions
 
 ### 2026-10-20 — planning decisions from the TL
