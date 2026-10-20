@@ -442,3 +442,99 @@ findings:
    Append a `## Revisions` entry requiring every `RebaseIndex` consumer to propagate failure before destructive effects. Enumerate the session-move planner and both `migrate-answers` callers, with regression coverage for session and outside-document failures.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"8b5058a6-6b15-476a-9ee3-aba863b83088","repository":"github.com/xianxu/ariadne","issue_id":"000504","recipe":"milestone-review","round":5,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/fb21da9c073773e5","reviewed_head":"2094925522b379d1ddb7b41e0e759f76102b0788","slot":"ariadne:4","requested_at":"2026-10-20T20:18:00.135676Z"},"phase":"finished","pid":97867,"started_at":"2026-10-20T20:18:00.228749Z","finished_at":"2026-10-20T20:20:20.187979Z","session_id":"01a15af6-b6b2-7b41-8bf4-ee3c6b40d1d1","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T13:24:34-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 504 — tl-lead: the hub session file moves to session.md at the repo root (no team folder, no operator name), with a status move verb and the decisions-are-tracked rule |
+| repo | ariadne |
+| issue file | workshop/issues/000504-tl-lead-the-hub-session-file-moves-to-session-md-at-the-repo-root-no-team-folder-no-operator-name-with-a-status-move-verb-and-the-decisions-are-tracked-rule.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | e5c65cacc9942b245562e4cf9d9b00ab4aad8a86..4935e84497d52ad95e192fdb16f61ee974b38bfc |
+| command | sdlc close --issue 504 |
+| reviewer | codex (openai; author openai); degraded: same-family by choice |
+| isolation | fenced |
+| timestamp | 2026-10-20T13:24:34-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation matches the issue’s revised migration contract. BR-6 is addressed across all three index-transform consumers, with regression evidence confirmed by mutation testing. No new blocking findings were found. The recorded-suite, staging, and TL/operator acceptance holds remain applicable before landing.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      moveMetadataFields rejects unsupported parent syntax before effects; parent-refusal and ordinary-owner preservation tests pass.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Effective Git ignore membership is checked before publication; negation regressions pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Nested ignore-policy files are refused and effective protection is rechecked; nested-policy regressions pass.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Production dispatch consumes transitionMove grants; failure, uncertainty and confirmed-resume sequence tests pass.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Relocation maps directory targets and plans empty directories; reference-target matrix and collision tests pass.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      migrate.go:197 and :213 propagate RebaseIndex errors into named conflicts; status_move.go:93 already propagates them. All six session/outside regressions pass at head and fail when both conflict guards are disabled in a disposable copy, which was removed.
+```
+
+**1. Strengths**
+
+- Shared argument normalization preserves explicit paths while supplying hub-root defaults.
+- Copy verification precedes switching; confirmed switching permits cleanup while the destination remains live.
+- Regression fixtures exercise production planning and apply refusal, checking unchanged files, registrations, and zero applied effects.
+- README, help, and atlas describe the new paths, migration behavior, and tracked-decisions rule.
+
+**2. Critical findings**
+
+None.
+
+**3. Important findings**
+
+None.
+
+**4. Minor findings**
+
+None.
+
+**5. Test coverage notes**
+
+Ran `go test ./cmd/tl-lead ./pkg/sidedoc ./pkg/golint -count=1`; all passed. Disabling BR-6’s two conflict guards made all six regression cases fail. Live Couch conformance, the full recorded suite, and operator acceptance were not rerun during this review.
+
+**6. Architectural notes**
+
+- **ARCH-DRY — pass:** shared defaults and sidedoc transformations are reused.
+- **ARCH-PURE — pass:** planning and transitions remain separate from IO.
+- **ARCH-PURPOSE — pass:** all three promoted index-helper consumers propagate failure.
+- **ARCH-MOCK — pass:** stateful registry fake shares the production seam; opt-in conformance tests exist.
+- **ARCH-CONSTRAINTS — pass:** migration Couch calls are bounded; counted tests cover batched observations.
+- **ARCH-SECURE — pass:** paths, metadata, and registration evidence receive explicit validation.
+- **ARCH-ORDER — pass:** effect grants govern production sequencing; uncertainty stops cleanup authority.
+- **ARCH-FUNERAL — pass:** successful migration retires sources; retry and hub-retirement lifecycles are documented.
+- **ARCH-EVOLVE — pass:** targeted scalar edits preserve unknown metadata bytes; registry changes use Couch’s existing rename operation.
+
+**7. Plan revision recommendations**
+
+None. Existing revisions explain the superseded assumptions and the BR-6 consumer sweep.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"1e7c27b0-46d7-4f1b-96a2-ef74b8f1c2c1","repository":"github.com/xianxu/ariadne","issue_id":"000504","recipe":"milestone-review","round":6,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/c140b0e05051bbb9","reviewed_head":"4935e84497d52ad95e192fdb16f61ee974b38bfc","slot":"ariadne:4","requested_at":"2026-10-20T20:23:10.21958Z"},"phase":"finished","pid":34340,"started_at":"2026-10-20T20:23:10.323167Z","finished_at":"2026-10-20T20:24:33.627691Z","session_id":"01a15afb-720b-7e43-9f74-480e5e99a2d2","outcome":"returned"}] -->

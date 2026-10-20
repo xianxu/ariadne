@@ -73,6 +73,7 @@ Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 ## Log
 
 ### 2026-10-20
+- 2026-10-20: closed — Affected tl-lead, sidedoc and golint packages pass on BR-6-corrected head (12.250s, 0.124s, 0.441s). Six session/outside malformed-index regressions fail without propagation and pass with it, asserting refusal before any files or registrations change. Approved live-recovery deadline/batching/source-only cleanup regressions and scratch real-Couch post-switch retry conformance pass. Fresh recorded suite on 4935e844 queued/running, NOT yet passed; review overlap allowed by tl-worker. Green suite plus SHIP precede restage; TL/operator ops:0 leftover cleanup and ops-echo full migration precede clear-stage and merge.; review verdict: SHIP
 - 2026-10-20: closed — Affected tl-lead, sidedoc and golint packages pass; real scratch Couch conformance passes. Reference-target matrix checks two moving source coordinates, six target classes and five consumers; private overlay removal reproduces root-link and empty-directory failures. Directory collision refuses before effects. Prior nested-policy, parent, effective-ignore and transition-outcome regressions pass. Fresh recorded suite on 339ca087 queued/running, NOT yet passed; tl-worker allows review overlap. Green suite and SHIP precede staging; TL/operator live migration evidence and stage clear precede merge.; review verdict: SHIP
 
 - Claimed in ariadne:4 and entered planning with `sdlc start-plan`. No implementation edits or live hub mutations.

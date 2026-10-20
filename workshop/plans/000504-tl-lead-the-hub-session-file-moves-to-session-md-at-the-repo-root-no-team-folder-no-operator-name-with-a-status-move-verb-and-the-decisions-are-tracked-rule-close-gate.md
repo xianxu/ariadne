@@ -1091,6 +1091,315 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 1e7c27b0-46d7-4f1b-96a2-ef74b8f1c2c1
+            repository: github.com/xianxu/ariadne
+            issue_id: "000504"
+            recipe: milestone-review
+            round: 6
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/c140b0e05051bbb9
+            reviewed_head: 4935e84497d52ad95e192fdb16f61ee974b38bfc
+            slot: ariadne:4
+            requested_at: "2026-10-20T20:23:10.21958Z"
+          phase: finished
+          pid: 34340
+          started_at: "2026-10-20T20:23:10.323167Z"
+          finished_at: "2026-10-20T20:24:33.627691Z"
+          session_id: 01a15afb-720b-7e43-9f74-480e5e99a2d2
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 4935e84497d52ad95e192fdb16f61ee974b38bfc
+        tracker_head: a84f4240a911fa11acb09b337ba371a4ea1a6021
+        branch_point: e5c65cacc9942b245562e4cf9d9b00ab4aad8a86
+        since: "2026-10-20T09:56:17-07:00"
+        until: "2026-10-20T13:22:36-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-20T09:56:17-07:00"
+              end: "2026-10-20T13:22:36-07:00"
+              began: "2026-10-20T09:56:17-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+        sources:
+            - harness: codex
+              id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: 3676e73384a2d1c7865f11ddc68ddb152f5ef481b52130e38d46f4bba2add62e
+              started: "2026-10-20T16:55:54.591Z"
+              spawned: false
+              bytes: 8491914
+              windows:
+                - start: "2026-10-20T09:56:17-07:00"
+                  end: "2026-10-20T13:22:36-07:00"
+            - harness: codex
+              id: 01a15a3e-8844-7f72-b197-96fc83f81539
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              parent_id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              digest: 99f4fe4c8943f116c817c6f49191601750ba7359a2b97219b98d0b55624c89a9
+              started: "2026-10-20T16:56:50.162Z"
+              spawned: true
+              bytes: 429479
+              windows:
+                - start: "2026-10-20T16:56:50.162Z"
+                  end: "2026-10-20T13:22:36-07:00"
+            - harness: codex
+              id: 01a15a42-5379-7c20-88c4-31004da81ecc
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: 4e4c9bc1741e2528e5051d11802a748f5f372ca5332b3434ded06fc5caf6adf7
+              started: "2026-10-20T17:00:59.003Z"
+              spawned: false
+              bytes: 763820
+              windows:
+                - start: "2026-10-20T17:00:59.003Z"
+                  end: "2026-10-20T13:22:36-07:00"
+            - harness: codex
+              id: 01a15a45-27e9-7720-875d-4c8a5b2772e1
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: 1135a9640ff15cd6fbb4ea5f6dbd7032bd62470fa26f54b5b9887c31c685fc66
+              started: "2026-10-20T17:04:04.565Z"
+              spawned: false
+              bytes: 426336
+              windows:
+                - start: "2026-10-20T17:04:04.565Z"
+                  end: "2026-10-20T13:22:36-07:00"
+            - harness: codex
+              id: 01a15a46-07a6-72c0-82cb-44bec02002b5
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: 5bfb3fe7a915a4d656ff9fc353b586004651c3a5db2eca26b8f02cd1dbe0c13f
+              started: "2026-10-20T17:05:01.724Z"
+              spawned: false
+              bytes: 456616
+              windows:
+                - start: "2026-10-20T17:05:01.724Z"
+                  end: "2026-10-20T13:22:36-07:00"
+            - harness: codex
+              id: 01a15a46-8683-7420-a06f-df0dff734fa1
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: d639dea7a97c7fda61a1498c3bd55ae064ba78bcc121eedf02ec8c40ab988e6e
+              started: "2026-10-20T17:05:34.342Z"
+              spawned: false
+              bytes: 394281
+              windows:
+                - start: "2026-10-20T17:05:34.342Z"
+                  end: "2026-10-20T13:22:36-07:00"
+            - harness: codex
+              id: 01a15a47-64cc-7310-b6d4-0d5c94a3f3cc
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              parent_id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              digest: 820b4ce19aac4522ef3faa693fcbcb6f4509dc0881c4797ac9437133db6f0cbb
+              started: "2026-10-20T17:06:30.831Z"
+              spawned: true
+              bytes: 611122
+              windows:
+                - start: "2026-10-20T17:06:30.831Z"
+                  end: "2026-10-20T13:22:36-07:00"
+            - harness: codex
+              id: 01a15a47-8d09-72d0-bc5e-59ffcf634459
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              parent_id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              digest: ef8f65fe4b671657e5c95d5c071a40a3eac4103d889709a3ab12ed99196d3573
+              started: "2026-10-20T17:06:41.209Z"
+              spawned: true
+              bytes: 428852
+              windows:
+                - start: "2026-10-20T17:06:41.209Z"
+                  end: "2026-10-20T13:22:36-07:00"
+            - harness: codex
+              id: 01a15a69-4c0c-7a52-ab62-17119854390f
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              parent_id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              digest: ebd12c3a091cc94658e41e7188525eb145a39b575f44d918aef9073b74d621bc
+              started: "2026-10-20T17:43:32.788Z"
+              spawned: true
+              bytes: 464087
+              windows:
+                - start: "2026-10-20T17:43:32.788Z"
+                  end: "2026-10-20T13:22:36-07:00"
+            - harness: codex
+              id: 01a15a75-3658-7670-b877-fa294a5481b8
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              parent_id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              digest: 6419148965fba2a62d577dc2fb57ef478282b8e925438264a943b4cbb3e97b80
+              started: "2026-10-20T17:56:33.685Z"
+              spawned: true
+              bytes: 386945
+              windows:
+                - start: "2026-10-20T17:56:33.685Z"
+                  end: "2026-10-20T13:22:36-07:00"
+            - harness: codex
+              id: 01a15a7c-3b63-7521-a427-e5ef10e7f5ae
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              parent_id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              digest: b5135e0c34b4f5b53779cdc33dd9243449e8392172086c2698e4f6975ab49130
+              started: "2026-10-20T18:04:13.61Z"
+              spawned: true
+              bytes: 440990
+              windows:
+                - start: "2026-10-20T18:04:13.61Z"
+                  end: "2026-10-20T13:22:36-07:00"
+            - harness: codex
+              id: 01a15a82-bd42-7803-8860-2975e90d17aa
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              parent_id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              digest: d5ac9254be09b888a1001f0ad1760d90cb7f65d73775acd38dab54be6753a3ae
+              started: "2026-10-20T18:11:20.074Z"
+              spawned: true
+              bytes: 432542
+              windows:
+                - start: "2026-10-20T18:11:20.074Z"
+                  end: "2026-10-20T13:22:36-07:00"
+            - harness: codex
+              id: 01a15ae7-04e3-7f62-a391-757250d67173
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              parent_id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              digest: 602caff08a7cb05d9dbc8a9a5dcc17331c0da22611e6fda143b2e634c5b0e4d4
+              started: "2026-10-20T20:00:51.984Z"
+              spawned: true
+              bytes: 890672
+              windows:
+                - start: "2026-10-20T20:00:51.984Z"
+                  end: "2026-10-20T13:22:36-07:00"
+            - harness: codex
+              id: 01a15aeb-87a5-7360-a4a1-5e9116575ba0
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: 46036d06a7bf002f3081c3ca058d1a6e9eeb99424f2404f522da73fc58597185
+              started: "2026-10-20T20:05:47.99Z"
+              spawned: false
+              bytes: 536325
+              windows:
+                - start: "2026-10-20T20:05:47.99Z"
+                  end: "2026-10-20T13:22:36-07:00"
+            - harness: codex
+              id: 01a15aeb-8e90-7bb0-908c-0569a10b7ef9
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              parent_id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              digest: 63daec4cc0392a434dda68ac23a0c3a04451d7bf19a592be78d2d272b1cb6ab5
+              started: "2026-10-20T20:05:49.393Z"
+              spawned: true
+              bytes: 409610
+              windows:
+                - start: "2026-10-20T20:05:49.393Z"
+                  end: "2026-10-20T13:22:36-07:00"
+            - harness: codex
+              id: 01a15aeb-a9d0-7613-9ad7-212524859fb5
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              parent_id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              digest: 7b99c397f62c86dd9dbd2259f900123b3aa1f69e37f5f1b8081b68e2b9353b73
+              started: "2026-10-20T20:05:56.379Z"
+              spawned: true
+              bytes: 464075
+              windows:
+                - start: "2026-10-20T20:05:56.379Z"
+                  end: "2026-10-20T13:22:36-07:00"
+            - harness: codex
+              id: 01a15aeb-d57e-71e1-b653-8c5188b3b726
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              parent_id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              digest: 1c8be8e78fdb84624f80baaa6c568d4f21a40f035a5a9ad69ef6c8e7986a2b91
+              started: "2026-10-20T20:06:07.559Z"
+              spawned: true
+              bytes: 613809
+              windows:
+                - start: "2026-10-20T20:06:07.559Z"
+                  end: "2026-10-20T13:22:36-07:00"
+            - harness: codex
+              id: 01a15aec-3e4e-7422-989d-8a25a9538114
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: 142cadebbe7b10add26227a3984e669f72f652cf98c357a58e94f070201c2150
+              started: "2026-10-20T20:06:34.979Z"
+              spawned: false
+              bytes: 470476
+              windows:
+                - start: "2026-10-20T20:06:34.979Z"
+                  end: "2026-10-20T13:22:36-07:00"
+        queue_waits:
+            - attempt_id: a99132752ea2e45b82647f692bf81656
+              slot: ariadne:4
+              record_digest: d0006f1aadece1ad4c405982c6b3f202ead3940e7383f302a38bbc504819985f
+              start: "2026-10-20T18:14:41.32292Z"
+              end: "2026-10-20T18:48:24.356985Z"
+              queue_seconds: 2023.034065
+              raw_seconds: 2023.034065
+              exact: true
+        cuts:
+            - dispatched: "2026-10-20T10:47:02-07:00"
+              finalized: "2026-10-20T10:49:10-07:00"
+              finalizing: false
+            - dispatched: "2026-10-20T11:00:57-07:00"
+              finalized: "2026-10-20T11:03:26-07:00"
+              finalizing: false
+            - dispatched: "2026-10-20T11:07:33-07:00"
+              finalized: "2026-10-20T11:10:34-07:00"
+              finalizing: false
+            - dispatched: "2026-10-20T11:15:01-07:00"
+              finalized: "2026-10-20T11:17:06-07:00"
+              finalizing: true
+            - dispatched: "2026-10-20T13:18:00-07:00"
+              finalized: "2026-10-20T13:20:20-07:00"
+              finalizing: false
+      "n": 6
+      timestamp: "2026-10-20T13:24:34-07:00"
+      dispatched: "2026-10-20T13:23:10-07:00"
+      agent: codex
+      reviewer: 'codex (openai; author openai); degraded: same-family by choice'
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: moveMetadataFields rejects unsupported parent syntax before effects; parent-refusal and ordinary-owner preservation tests pass.
+          round: 6
+        - id: BR-2
+          disposition: addressed
+          note: Effective Git ignore membership is checked before publication; negation regressions pass.
+          round: 6
+        - id: BR-3
+          disposition: addressed
+          note: Nested ignore-policy files are refused and effective protection is rechecked; nested-policy regressions pass.
+          round: 6
+        - id: BR-4
+          disposition: addressed
+          note: Production dispatch consumes transitionMove grants; failure, uncertainty and confirmed-resume sequence tests pass.
+          round: 6
+        - id: BR-5
+          disposition: addressed
+          note: Relocation maps directory targets and plans empty directories; reference-target matrix and collision tests pass.
+          round: 6
+        - id: BR-6
+          disposition: addressed
+          note: migrate.go:197 and :213 propagate RebaseIndex errors into named conflicts; status_move.go:93 already propagates them. All six session/outside regressions pass at head and fail when both conflict guards are disabled in a disposable copy, which was removed.
+          round: 6
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 4935e84497d52ad95e192fdb16f61ee974b38bfc
+      blocked: false
 ---
 
 # Gate ledger — ariadne#504 (boundary-review)
@@ -1158,6 +1467,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Critical] `relocation-preserves-reference-targets` (kind: defect) migrate-answers suppresses index-rebasing errors and strands discussion references
   cmd/tl-lead/migrate.go:358-360 returns unchanged text when RebaseIndex fails. A discussions list containing doc: qa/op/a.md followed by doc: null produces one planned move, no conflicts, and no session edits; runMigration subsequently removes the indexed source at migrate_apply.go:232. A temporary regression fails at the pinned head and passes with the base migrate.go overlaid. ARCH-PURPOSE and ARCH-SECURE: propagate the error into a named migration conflict before effects for both callers, the session and outside Markdown documents. This is the 3rd finding in family relocation-preserves-reference-targets. Earlier rounds fixed instances; state and enforce the rule that every reference-transform consumer must successfully transform or refuse before deleting sources, and sweep all consumers in this round.
 
+## Round 6 — 2026-10-20T13:24:34-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — moveMetadataFields rejects unsupported parent syntax before effects; parent-refusal and ordinary-owner preservation tests pass.
+- BR-2 — addressed — Effective Git ignore membership is checked before publication; negation regressions pass.
+- BR-3 — addressed — Nested ignore-policy files are refused and effective protection is rechecked; nested-policy regressions pass.
+- BR-4 — addressed — Production dispatch consumes transitionMove grants; failure, uncertainty and confirmed-resume sequence tests pass.
+- BR-5 — addressed — Relocation maps directory targets and plans empty directories; reference-target matrix and collision tests pass.
+- BR-6 — addressed — migrate.go:197 and :213 propagate RebaseIndex errors into named conflicts; status_move.go:93 already propagates them. All six session/outside regressions pass at head and fail when both conflict guards are disabled in a disposable copy, which was removed.
+
 ## Open findings
 
-- **BR-6** [Critical] `relocation-preserves-reference-targets` (kind: defect) migrate-answers suppresses index-rebasing errors and strands discussion references
+(none — every finding has been disposed)
