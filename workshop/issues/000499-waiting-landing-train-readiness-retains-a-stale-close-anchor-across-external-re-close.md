@@ -69,6 +69,18 @@ Filed from pair:7 while landing pair#711, unclaimed. Native evidence: sdlc landi
 
 2026-10-20: Post-SHIP root-binding regression found and corrected within the approved reader-routing fix. The new mode loader inferred its repository from WF_ISSUES_DIR; pointing that directory into a legacy peer made the production guard accept a foreign-owned edit (red TestTransferGuardModeStaysOnPublicationRepository returned nil, 5.015s). Pin the mode loader to gitx.RepoTopLevelContext instead, matching the existing publication-checkout authority. The regression first verifies the ordinary foreign-owner refusal, then verifies a peer details path cannot make the guard accept the edit; unsupported external paths retain existing refusal behavior. Focused root/legacy/cutover/fresh-clone/coherence/probe/context checks pass (16.316s). Cancelled the prior suite before admission; request a new recorded suite on the corrected pushed head and a narrow fixed-then-ship review. No Spec, Done-when, reopen policy, state, or persisted-format change; stage remains cleared per TL.
 
+
+### 2026-10-20T10:20-07:00 — fleet drain checkpoint
+
+Operator-requested graceful Couch drain 69bb7fc3-a125-42c6-9900-5814613b8eba is active (verified through the live drain board for this ariadne:5 incarnation). Reason: shut down Couch, reboot, deploy RAM-disk no-journal fix. Stop after this durable checkpoint; no new work or landing during the drain.
+
+- PR: https://github.com/xianxu/ariadne/pull/349; issue remains codecomplete, not landed.
+- Last code commit: 266a62dd1139bd222ea7594044201286fce91246. Latest reviewed/mirrored head before this checkpoint: 6259b98f00a3e3737ed8a08ec0b0495e02e7b6cf. The narrow root-binding fix review returned SHIP with no new findings; all earlier BR-1 findings are addressed. Server checks passed on the pushed head.
+- Verification: original stale-anchor regression is red/green; production interleaving retains both real publish checks and counts one tracker probe / at most one fetch at 8/16 reads; next pass rejects malformed authority. Expanded readiness/ownership/restore/scope/context tests passed in 224.539s; tracker tests in 0.737s. Root-binding/legacy/cutover/fresh-clone/coherence/context controls passed in 16.316s, and the narrow reviewer independently reproduced red without the root correction.
+- Full suite has NOT run or passed for this code. All explicit suite requests were cancelled before admission: earlier candidates after code corrections, current 266a62dd request for the operator drain. Current run was next in line behind fleet-priority #492 when the queue paused; cancelled only this checkout's run with sdlc local-check cancel --name suite, and joined its exit. No own suite/reviewer/merge remains running.
+- Stage is cleared; TL selected no synthetic live re-close smoke. Real bare-remote regressions are the proof; next natural pair-train re-close is a later observation. Separate reopen refusal policy is unclaimed #502.
+- Resume after explicit operator restart/resume and confirmed queue availability: run sdlc state; read this Log and current card. Request sdlc local-check run --name suite on the pushed branch; no code change means the existing SHIP review remains applicable. After the recorded suite passes, run sdlc merge --yes and let it integrate/test current main. Do not manually chase main, waive CI/suite gates, or touch other slots' queue holders. Report landed PR #349 to the hub only after actual landing.
+
 ## Revisions
 
 ### 2026-10-20T09:03-07:00 — separate cache visibility from reopen policy
