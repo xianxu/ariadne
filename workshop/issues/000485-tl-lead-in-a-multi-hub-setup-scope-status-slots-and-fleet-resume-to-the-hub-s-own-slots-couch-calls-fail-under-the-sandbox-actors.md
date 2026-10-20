@@ -72,6 +72,7 @@ Awaiting the owning TL's approval before change-code.
 ## Log
 
 ### 2026-10-20 — boundary fixes
+- 2026-10-20: closed — Full tl-lead race suite including TL_LEAD_RESUME_CONFORMANCE=1 passes; staged-file golint catalog passes. BR-1 stalled-recheck regression reproduced 30-second delay before fix, now bounded at 500ms injected; stopped/untouched and guidance precede optional probe. BR-2 lint annotations, BR-3 README flags, BR-4 isolated real Couch queued/running/terminal JSON and exit conformance complete. TL live two-hub resume dry runs PASS, logged with exact binary revision. Updated recorded full suite queued on pushed head; required pass remains before landing. Atlas/help updated.; review verdict: SHIP
 
 - BR-1: execActors now bounds the whole observation class at 10 seconds plus at most one second pipe cleanup. The 30-second-stalled-recheck regression passes with an injected 500 ms bound, and asserts stopped/untouched output plus recovery guidance precede optional observation.
 - BR-2: virtual-time Sleep lines annotated with the supported test-fixed-sleep allowance; staged-file catalog passes. The earlier pre-stage catalog could not see new untracked tests; this was a verification gap, now covered in lessons.

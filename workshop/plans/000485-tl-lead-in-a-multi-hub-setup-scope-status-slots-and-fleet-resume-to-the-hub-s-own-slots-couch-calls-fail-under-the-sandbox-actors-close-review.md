@@ -104,3 +104,92 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"dbb0e422-cd8e-4d0a-9599-53970afb6e4d","repository":"github.com/xianxu/ariadne","issue_id":"000485","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/842400f973c425ef","reviewed_head":"5bba914916306320fbf216b85f44d6d2d7789970","slot":"ariadne:2","requested_at":"2026-10-20T20:59:53.024685Z"},"phase":"finished","pid":30645,"started_at":"2026-10-20T20:59:53.116926Z","finished_at":"2026-10-20T21:01:56.136081Z","session_id":"01a15b1d-0e93-7ac2-bdcf-91cc56375674","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T14:09:24-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 485 — tl-lead in a multi-hub setup: scope status slots and fleet resume to the hub's own slots; couch calls fail under the sandbox (actors '?') |
+| repo | ariadne |
+| issue file | workshop/issues/000485-tl-lead-in-a-multi-hub-setup-scope-status-slots-and-fleet-resume-to-the-hub-s-own-slots-couch-calls-fail-under-the-sandbox-actors.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 24dc067b4af6884677ba3dcaf74e266b7ac16021..e2d3af977ec4ae3d9e2758dc6f01cb59596a5b65 |
+| command | sdlc close --issue 485 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-20T14:09:24-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range delivers hub-scoped visibility, scoped freshness, and serial resume with conservative terminal-outcome handling. All four prior findings are addressed. Targeted tests, race detection, catalog checks, and isolated real-Couch conformance passed; no blocking findings remain.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      actors.go:37–40 bounds observation and pipe cleanup; fleet.go prints stopped/untouched results and guidance before rechecking. TestFleetResumeBoundedRecheck passes and failed after 30.15 seconds when the timeout was temporarily disabled.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      resume_result_test.go:93,99,110 contain reasoned synctest lint allowances. Removing them reproduced all three catalog failures; restoring them made the catalog pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README.md:286–291 now documents hub-scoped Slots, both --all flags, visibility-only expansion, and serial stop behavior, linking atlas/workflow/tl-skills.md. These descriptions agree with the command wiring and planner.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      TestCouchResumeReceiptConformance passed against the installed real Couch binary for queued/running polling and succeeded/refused/failed terminal receipts, including exit mapping and classification. Scratch configuration isolates it from live slots; atlas documents its execution cadence.
+```
+
+1. **Strengths**
+
+   - Shared ownership logic drives Slots, resume planning, and freshness; excluded slots are filtered before issue reads.
+   - Receipt classification requires matching terminal evidence and consistent process exit; actor presence cannot promote uncertainty to success.
+   - Hidden holds are checked against the latest section during guarded-write retries ([status.go:330](/Volumes/TestScratch/review-checkouts/b9dedea227c4a119/cmd/tl-lead/status.go:330)).
+   - README, help, and atlas describe the new flags and recovery behavior consistently.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed:
+
+   - `go test ./cmd/tl-lead -count=1`
+   - `go test -race ./cmd/tl-lead -count=1`
+   - Catalog and rule checks in `pkg/golint`
+   - Opt-in real-Couch receipt conformance
+
+   Regression mutations reproduced BR-1 and BR-2, then were restored. The checkout is clean. The full repository suite and live two-hub proof were not independently rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — Pass:** shared scope and existing Couch polling reused.
+   - **ARCH-PURE — Pass:** selection and classification remain pure; IO stays behind seams.
+   - **ARCH-PURPOSE — Pass:** all three scope consumers use the adapter; `--all` preserves mutation limits.
+   - **ARCH-MOCK — Pass:** stateful fakes, subprocess barriers, and real-Couch conformance cover relevant behavior.
+   - **ARCH-CONSTRAINTS — Pass:** selected-read counts and modeled delays test the declared workload.
+   - **ARCH-SECURE — Pass:** unreadable ownership refuses; malformed or inconsistent receipts remain uncertain.
+   - **ARCH-ORDER — Pass:** synchronous sequencing prevents later attempts before success; failures preserve partial progress.
+   - **ARCH-FUNERAL — Pass:** no new durable runtime artifact family; test resources have cleanup.
+   - **ARCH-EVOLVE — Pass:** no persisted-format change; receipt reads tolerate unknown fields without rewriting them.
+
+   Core-concept locations and pure/integration separation agree with the implementation.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"97d7a882-902f-443c-9f7e-d3ea91ccc2a8","repository":"github.com/xianxu/ariadne","issue_id":"000485","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/b9dedea227c4a119","reviewed_head":"e2d3af977ec4ae3d9e2758dc6f01cb59596a5b65","slot":"ariadne:2","requested_at":"2026-10-20T21:07:29.696605Z"},"phase":"finished","pid":13186,"started_at":"2026-10-20T21:07:29.816371Z","finished_at":"2026-10-20T21:09:24.021323Z","session_id":"01a15b24-06a8-7b01-bfd1-46bf8a7ef92c","outcome":"returned"}] -->
