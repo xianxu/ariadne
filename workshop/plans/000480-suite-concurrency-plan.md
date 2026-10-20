@@ -8,7 +8,7 @@ collaboration-mode: discussion
 
 **Goal:** Establish the suite's measured operating envelope and replace the CPU-count shard default with the supported cap, addressing the overload behind #480 and folding #484 into this issue.
 
-**Architecture:** Measure one pinned checkout under the existing machine-wide two-slot gate, with a quiet baseline after each independently queued job is admitted. Compare three runs each at 12, 8 and 6 shards; select the default from wall/load/kernel evidence. Preserve every existing landing lock, timeout and assertion; the identified cleanup window is a candidate follow-up.
+**Architecture:** Measure one pinned checkout under the existing machine-wide two-slot gate, with a quiet baseline after each independently queued job is admitted. The hub selected an 8-shard cap from five completed runs (one at 12, two each at 8 and 6) and the refused sixth attempt, ending the original nine-run experiment. Retain weight 2 from the measured CPU occupancy. Preserve every existing landing lock, timeout and assertion; the identified cleanup window is a candidate follow-up.
 
 **Tech stack:** Python standard library, Darwin Mach CPU counters, Go suite, existing Make/test-lock helpers.
 
@@ -60,8 +60,8 @@ ARCH-DRY/PURE: one default helper, pure tick arithmetic, existing runner/gate. A
 - [x] Build the local evidence harness and its SKILL.md usage record. Test CPU delta calculations (normal, zero ticks, uint32 wrap), sample aggregation, and interrupted-run marking with deterministic inputs before measuring.
 - [x] Validate the live sampler against top's system/idle report; keep the raw comparison and units in the evidence manifest.
 - [x] Create a detached checkout pinned to the approved measurement head. Verify clean source and Git revision before and after the matrix; do not commit into that checkout.
-- [ ] Execute the approved quiet matrix through the machine gate. Capture three attempts each at 12/8/6 shards, wall, peak one-minute load, kernel percentages and every failure. Preserve per-run output/JSON and environment (hardware, Python/Go versions, exact commands, scratch choice, sample interval).
-- [ ] Summarize individual runs and medians in the issue. Apply #484's published criterion: wall time within about 10% of the best while keeping peak load below about twice the core count (about 24 on this 12-core host). Choose the cap and weight from this table, not from CPU count alone. If none meets both, report the conflict to the hub before expanding the matrix or silently relaxing the envelope. The solo matrix cannot justify letting two whole-module suites overlap, so retain weight 2 unless further evidence is explicitly approved.
+- [x] Execute the approved matrix through separate weight-2 queue jobs; preserve five complete runs plus the refused sixth attempt. The hub ended the experiment early; no further runs are required. Per-run logs/JSON, hardware/Python/Go metadata, exact commands, scratch choice and sample interval are preserved.
+- [x] Record all observations and the hub's decision in the issue. The hub approved an 8-shard cap despite peaks 29–34 exceeding the original ~24 guideline: wall time was within 1–4% of 12 shards, whereas 6 shards cost 29–42% more. Retain weight 2; a single 8-shard suite still occupied 78–90% CPU. Further tuning, if needed, uses real suite telemetry.
 
 ## Task 3: enforce the selected default
 
@@ -87,3 +87,7 @@ ARCH-DRY/PURE: one default helper, pure tick arithmetic, existing runner/gate. A
 ## Execution checkpoint — 2026-10-20
 
 Five complete, hash-verified measurements are committed in the issue Log (counts 12:1, 8:2, 6:2). Position 06 refused quiet after 600.982s without launching its suite. The approved stop rule now applies: report to the hub and await a scheduled window, then resume 12/6/12/8 using a new attempt directory for position 06. All source stays at the pinned measurement head. No default selection or production implementation precedes the remaining evidence. Persistent refusal analysis and partial matrix are beside the harness in the issue's test-stats evidence.
+
+## Revisions — early decision
+
+- 2026-10-20 (hub approval e04c1fa0-a7ff-4ec8-9cbd-974138b480f6): the five completed runs decide the default. Drop the remaining four; no quiet window needed. Supersede the original nine-run and ~24 peak acceptance with default cap 8 / weight 2 and the matrix as observed, including refused run 06. Historical operating-envelope and execution-checkpoint text above records the original protocol, not outstanding work. Implement now, verify the final default, and land.

@@ -30,7 +30,7 @@ Known flaky tests (#394), registered with same-head fail→pass evidence:
 
 ## Spec
 
-The hub approved folding #484 into #480 after the bounded lock investigation. Measure three complete suite runs each at 12, 8 and 6 shards on a quiet machine, recording wall time, peak one-minute load and kernel share. Select the shard default and machine-suite weight from the results. Preserve landing locks and timeout assertions; the cleanup-lock finding below is a candidate follow-up, not an implementation task here. Detailed execution: [suite concurrency plan](../plans/000480-suite-concurrency-plan.md).
+The hub approved folding #484 into #480 after the bounded lock investigation. Use the five completed quiet-start suite runs at 12/8/6 shards and preserve the refused sixth attempt. The hub approved ending the matrix early and selecting an 8-shard default from this evidence; retain machine-suite weight 2 because the measured suite still occupies most of the host. Record wall time, peak one-minute load and kernel share. Preserve landing locks and timeout assertions; the cleanup-lock finding below is a candidate follow-up, not an implementation task here. Detailed execution: [suite concurrency plan](../plans/000480-suite-concurrency-plan.md).
 
 Diagnose the load-coupled train completion failure before choosing a fix. Capture goroutines at about 60 seconds with at most four concurrent diagnostic test processes; timestamp repository-lock acquisition/release and identify the owner and production window. Compare normal and bounded concurrent runs. The hub reports the same failure at load 70+, and #484 separately investigates the suite's 12/8/6 shard operating envelope (single-suite load 150+). Do not assume a deadlock or enlarge the timeout without evidence.
 
@@ -39,8 +39,8 @@ ARCH-CONSTRAINTS/PURPOSE: cap diagnostic concurrency at four, record load and wi
 ## Done when
 
 - The bounded lock investigation and four one-minute dumps are preserved on persistent storage, with cleanup-lock optimization recorded only as a candidate follow-up.
-- Nine quiet, pinned-head suite attempts (three each at 12/8/6 shards) report complete results, wall time, peak one-minute load and kernel share; failures remain visible.
-- The selected default and WF_TEST_WEIGHT have a measured rationale and regression coverage; no retry loop or longer landing-test timeout is introduced. A recorded final suite includes all original train variants.
+- The five completed quiet-start, pinned-head suite runs and the refused run 06 report their results, wall time, peak one-minute load and kernel share. The hub-approved early decision and omitted four runs are recorded; failures remain visible.
+- The 8-shard default and retained WF_TEST_WEIGHT=2 have a measured rationale and regression coverage; no retry loop or longer landing-test timeout is introduced. A recorded final suite includes all original train variants.
 - #484 is closed as folded into this issue; atlas is current and SDLC review/landing gates pass. Closing #480 unregisters its exact flaky subtest.
 
 ## Plan
@@ -95,6 +95,10 @@ Partial matrix (whole-machine measurements; all five complete suites passed 1792
 
 Counts are 12:1, 8:2, 6:2; matrix incomplete. Four valid runs remain. The summary tool excludes the nonquiet attempt. These observations do not yet satisfy the nine-run decision contract.
 
+- Hub decision after the stop report: five valid runs suffice; drop the remaining four attempts and select an 8-shard default. The two 8-shard walls (583.718/599.859s) are about 1–4% above the 12-shard observation (578.332s), with peak load 29.414/33.847 versus 68.222. Six shards cost about 29–42% more wall time. Keep weight 2: the 8-shard suites used about 78–90% of whole-machine CPU, and the solo comparison does not support overlapping two full suites. The hub accepts peak load above the original ~24 guideline; tune later from real suite telemetry if needed (ARCH-CONSTRAINTS). Canonical approval receipt e04c1fa0-a7ff-4ec8-9cbd-974138b480f6 was verified submitted from ops:0 to this slot. This supersedes the scheduled-window wait and the nine-run decision contract above.
+
 ## Revisions
 
 - 2026-10-20 (hub-approved scope fold): original Done-when was “The root cause is fixed (never a retry loop or a longer timeout); closing this issue unregisters the tests.” Bounded diagnostics identify the costly cleanup window but do not reproduce the original two-minute stall. Replace the unqualified root-cause promise with measured suite-envelope correction and persistent diagnostic evidence; retain the no-retry/no-timeout-bump constraint. Fold #484's 12/8/6 measurement into #480; leave cleanup-lock optimization as a possible separate follow-up. The diagnostic plan row now distinguishes observed lock ownership from unresolved starvation attribution.
+
+- 2026-10-20 (hub-approved early decision): supersede the nine-run / three-per-setting acceptance and approximately twice-core-count peak guideline with the five completed runs plus refused run 06. Set the default cap to 8 and retain suite weight 2; drop the remaining four measurements. Keep the original matrix and refusal evidence intact. The hub explicitly accepts the observed 8-shard peak (29–34) for its near-12-shard throughput and defers further tuning to actual telemetry. Update Done-when to match this current contract.
