@@ -17,20 +17,16 @@ func (s Selection) Empty() bool {
 
 func full(reason string) Selection { return Selection{Full: true, Reason: reason} }
 
-// Plan classifies each changed path by the plan's affected.Plan rules (#473): docs are ignored, a `full` match
-// selects everything, and otherwise package ownership and group `paths` are additive, never first-match (PQ-1); a
-// path neither claims is Full. Changed packages then expand to their dependents, and a group whose `go` root is
-// among them is selected. isDoc is the caller's docs rule.
+// Plan classifies each changed path by the plan's affected.Plan rules (#473): a `full` match selects everything;
+// otherwise package ownership (Owners) and group `paths` are additive, never first-match (PQ-1). A path neither
+// claims is ignored when it is a doc (isDoc, the caller's docs rule) and Full otherwise: a doc a package owns, an
+// embedded or testdata .md, still selects that package (close review). Changed packages then expand to their
+// dependents, and a group whose `go` root is among them is selected.
 func Plan(paths []string, g Graph, cfg Config, isDoc func(string) bool) Selection {
 	byDir := g.byDir()
 	changed := map[string]bool{}
 	groups := map[string]bool{}
-	code := false
 	for _, p := range paths {
-		if isDoc != nil && isDoc(p) {
-			continue
-		}
-		code = true
 		for _, pat := range cfg.Full {
 			ok, err := Match(pat, p)
 			if err != nil {
@@ -58,12 +54,12 @@ func Plan(paths []string, g Graph, cfg Config, isDoc func(string) bool) Selectio
 				}
 			}
 		}
-		if !claimed {
+		if !claimed && (isDoc == nil || !isDoc(p)) {
 			return full("unclassified: " + p)
 		}
 	}
-	if !code {
-		return Selection{}
+	if len(changed) == 0 && len(groups) == 0 {
+		return Selection{} // docs no package or group claims
 	}
 	pkgs := g.Dependents(changed)
 	selected := make(map[string]bool, len(pkgs))

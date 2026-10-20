@@ -110,10 +110,11 @@ THE AFFECTED SUITE (#473)
    "timeout_minutes": 30, "full": ["go.mod", "Makefile*"],
    "groups": [{"name": "lua", "paths": ["**/*.lua"], "go": ["./cmd/pair"]}]}
 
-  Each path changed since the merge-base with main: docs are ignored; a `full`
-  glob runs the suite instead; otherwise the path selects every package that
-  owns it (its directory, a testdata/ above it, or a go:embed of it) and every
-  group whose paths match; a path nothing claims runs the suite. Packages
+  Each path changed since the merge-base with main: a `full` glob runs the
+  suite instead; otherwise the path selects every package that owns it (its
+  directory, a testdata/ above it, or a go:embed of it) and every group whose
+  paths match; a path nothing claims is ignored if it is a doc and otherwise
+  runs the suite. A doc a package owns still selects that package. Packages
   expand to all that import them (go list -test). A group is also selected
   when one of its `go` packages depends on a selected package.
 
@@ -121,7 +122,8 @@ THE AFFECTED SUITE (#473)
   SDLC_AFFECTED_GROUPS=<group names> <command…>, both sorted and space-
   separated, never with both empty and never for a full selection, and is
   recorded as sdlc-local/affected. A full selection runs and records `suite`;
-  a docs-only change records `affected` without a run; no change refuses.
+  a change of only unclaimed docs records `affected` without a run; no change
+  refuses.
   The known-flake rule and the success guard apply to it as to the suite,
   but an affected pass never confirms a fail→pass (it may not have run the
   failed test). A train car boards on it in place of `suite`; merge without a

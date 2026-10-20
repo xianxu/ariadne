@@ -11,6 +11,7 @@ func TestRejectDuplicateKeys(t *testing.T) {
 		`{"a":1,"a":2}`:                       `duplicate object key "a"`,
 		`{"g":[{"n":"x","n":"y"}]}`:           `duplicate object key "n"`,
 		`{"a":{"b":1,"b":1}}`:                 `duplicate object key "b"`,
+		`{"command":["x"],"COMMAND":["y"]}`:   `duplicate object key "COMMAND"`,
 		`{"a":1} {"b":2}`:                     "trailing JSON value",
 		`{"a":`:                               "EOF",
 	} {

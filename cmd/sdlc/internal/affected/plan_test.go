@@ -32,7 +32,7 @@ func testGraph() Graph {
 			m + "/rt/sub": {},
 		},
 		// rt embeds its Lua runtime, as pair's runtimebundle does.
-		Embeds: map[string][]string{"rt/assets/init.lua": {m + "/rt"}, "other/blob.bin": {m + "/leaf"}},
+		Embeds: map[string][]string{"rt/assets/init.lua": {m + "/rt"}, "other/blob.bin": {m + "/leaf"}, "help/usage.md": {m + "/other"}},
 	}
 }
 
@@ -57,6 +57,10 @@ func TestPlan(t *testing.T) {
 		want  Selection
 	}{
 		{"docs only is empty", []string{"README.md", "atlas/x.md"}, Selection{}},
+		// Close review: a doc is ignored only when nothing claims it.
+		{"an embedded doc selects its embedder", []string{"help/usage.md"}, Selection{GoPkgs: []string{m + "other"}}},
+		{"a testdata doc selects its package", []string{"other/testdata/golden.md"}, Selection{GoPkgs: []string{m + "other"}}},
+		{"a doc in a package dir selects the package", []string{"other/NOTES.md"}, Selection{GoPkgs: []string{m + "other"}}},
 		{"leaf selects leaf and dependents only (Done-when)", []string{"leaf/leaf.go"},
 			Selection{GoPkgs: []string{m + "leaf", m + "mid", m + "tonly", m + "top"}, Groups: []string{"cli"}}},
 		{"unrelated change selects itself", []string{"other/other.go"},

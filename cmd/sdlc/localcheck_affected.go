@@ -33,14 +33,13 @@ func runAffectedCheck(ctx context.Context, d localRunDeps, ad affectedDeps, cfg 
 		// evidence nothing ran for (#473 M1 BR-2).
 		return localRunRecord{}, fmt.Errorf("local check %s: %s has no changes against its merge-base with main; there is nothing to vouch for, run --name %s", affectedCheckName, abbrevSHA(sha), suite.Name)
 	}
+	// The graph is loaded even for a docs-only diff: a package may embed or
+	// test against a doc, and only the graph knows (close review).
 	var sel affected.Selection
-	if publishGateHasCodeSurface(paths) {
-		g, err := ad.graph(ctx, sha)
-		if err != nil {
-			sel = affected.Selection{Full: true, Reason: "package graph unavailable: " + err.Error()}
-		} else {
-			sel = affected.Plan(paths, g, cfg, func(p string) bool { return !publishGateHasCodeSurface([]string{p}) })
-		}
+	if g, err := ad.graph(ctx, sha); err != nil {
+		sel = affected.Selection{Full: true, Reason: "package graph unavailable: " + err.Error()}
+	} else {
+		sel = affected.Plan(paths, g, cfg, func(p string) bool { return !publishGateHasCodeSurface([]string{p}) })
 	}
 	switch {
 	case sel.Full:

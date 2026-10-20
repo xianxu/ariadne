@@ -132,4 +132,11 @@ Each `impl` is 40% of the v2 range's upper end.
     purpose, because the resolution changes main's code too.
 - M2 closed SHIP (review rounds 4–5): BR-9 and BR-10 fixed. Its advisory Minor, an empty suite row in test-stats for
   an affected-only repo, is fixed in the same round: `testStatsRows` keeps a row only when its window holds runs.
+- Close review: SHIP, with 3 advisory findings, all fixed in the same round:
+  - Docs are judged after ownership, so an owned or embedded doc selects its package (`TestPlan` rows and
+    `TestAffectedOwnedDocRunsItsPackage`).
+  - The plan's merge-base claim is revised.
+  - Duplicate keys that differ only in case refuse.
+
+  These change code after the close, so the close is re-run with `--fixed-then-ship` after the suite.
 

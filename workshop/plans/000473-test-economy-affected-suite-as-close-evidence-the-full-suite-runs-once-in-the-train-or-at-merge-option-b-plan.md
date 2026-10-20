@@ -456,3 +456,14 @@ one.
     republished. The CI gate's runner lookup refuses a name it can't resolve, rather than running a zero check.
   - **Untrusted input degrades to the suite:** an `affected.json` that main can't parse makes a car require `suite`;
     it never stops the train.
+- **2026-10-20 (close review, advisory findings fixed in the same round).**
+  - **Docs are judged last.** A path is ignored only when no package owns it and no group claims it; then a doc is
+    ignored and anything else is Full. So an embedded or testdata `.md` outside `cmd/`, or a doc in a package
+    directory, selects its package. `runAffectedCheck` loads the graph for every non-empty change set, because only
+    the graph knows what a doc's owners are.
+  - **ARCH-ORDER claim revised:** the affected record names its *selection* (the status scope), not the merge-base it
+    planned against. The train's full suite remains the backstop for a stale selection, so the merge-base isn't
+    recorded.
+  - **Strict keys fold case:** `jsonstrict.RejectDuplicateKeys` treats keys equal under case folding as duplicates,
+    because `encoding/json` fills one field from `command` and `COMMAND`.
+

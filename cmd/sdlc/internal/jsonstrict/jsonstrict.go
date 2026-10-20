@@ -8,10 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 )
 
 // RejectDuplicateKeys refuses a JSON document in which any object, at any
-// depth, names a key twice: encoding/json silently keeps the last value.
+// depth, names a key twice: encoding/json silently keeps the last value. Keys
+// equal under case folding are duplicates too, since encoding/json matches
+// field names case-insensitively ("command" and "COMMAND" fill one field).
 // Only one top-level value is allowed.
 func RejectDuplicateKeys(raw []byte) error {
 	dec := json.NewDecoder(bytes.NewReader(raw))
@@ -39,7 +42,7 @@ func scan(dec *json.Decoder) error {
 	}
 	switch delim {
 	case '{':
-		seen := map[string]bool{}
+		seen := map[string]string{} // case-folded key → as first written
 		for dec.More() {
 			keyToken, err := dec.Token()
 			if err != nil {
@@ -49,10 +52,10 @@ func scan(dec *json.Decoder) error {
 			if !ok {
 				return errors.New("object key is not a string")
 			}
-			if seen[key] {
-				return fmt.Errorf("duplicate object key %q", key)
+			if prior, ok := seen[strings.ToLower(key)]; ok {
+				return fmt.Errorf("duplicate object key %q (as %q)", key, prior)
 			}
-			seen[key] = true
+			seen[strings.ToLower(key)] = key
 			if err := scan(dec); err != nil {
 				return err
 			}

@@ -313,12 +313,12 @@ fields.
 
 `sdlc local-check run --name affected` diffs the head against its merge-base with main. `affected.Plan` classifies
 each changed path:
-- docs are ignored, by the publish gate's rule;
 - a `full` glob forces the full suite;
 - otherwise the path selects every package that owns it, *and* every group whose `paths` match it, as one union.
   A file's owners are the package whose directory holds it, each package whose `testdata/` holds it, and each package
   that embeds it (`go list`'s embed files). A plain subdirectory file is owned by no package;
-- a path neither claims forces the full suite.
+- a path neither claims is ignored if it is a doc (the publish gate's rule), and otherwise forces the full suite. A
+  doc that a package owns, such as an embedded or testdata `.md`, still selects that package.
 
 The packages then expand to every package that depends on them. Those dependencies come from
 `internal/affected.LoadGoGraph`, which runs `go list -test` in a worktree of the head, so test imports count. Groups

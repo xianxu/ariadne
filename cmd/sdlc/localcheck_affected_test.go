@@ -150,6 +150,19 @@ func TestAffectedDocsOnlyRecordsWithoutRunning(t *testing.T) {
 	}
 }
 
+// #473 close review: a doc a package owns is not docs-only: the run loads
+// the graph and tests that package and its dependents.
+func TestAffectedOwnedDocRunsItsPackage(t *testing.T) {
+	d, gh, change, out, _ := affectedFixture(t)
+	sha := change(map[string]string{"leaf/NOTES.md": "# notes\n"})
+	if rec := runAffectedFixture(t, d, sha); !rec.passed() || gh.statuses[sha]["sdlc-local/affected"] != "success" {
+		t.Fatalf("%+v %v", rec, gh.statuses[sha])
+	}
+	if got, err := os.ReadFile(out); err != nil || string(got) != "example.com/m/leaf example.com/m/mid example.com/m/tonly\n\n" {
+		t.Fatalf("contract env %q %v", got, err)
+	}
+}
+
 // #473 M1 BR-2: a head with no change against main is not docs-only; it
 // refuses rather than recording a pass nothing ran for.
 func TestAffectedNoChangeRefuses(t *testing.T) {

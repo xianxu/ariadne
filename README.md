@@ -575,7 +575,7 @@ pushed head's run depends on what changed:
   plus every package that imports them, test imports included (from `go list`). `SDLC_AFFECTED_GROUPS` holds the
   declared non-Go test groups the change touches. Both are sorted and space-separated.
 - **A `full` path or an unclassified file changed:** sdlc runs and records the `suite` instead.
-- **Only docs changed:** sdlc records `affected` without running anything.
+- **Only docs that no package owns or embeds changed:** sdlc records `affected` without running anything.
 - **Nothing changed against main:** the run refuses.
 
 The schema and the classification rules are in [the affected
