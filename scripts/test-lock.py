@@ -106,6 +106,12 @@ def _queue_json(data):
     return text, parsed
 
 
+def _queue_skip_space(text, pos):
+    while text[pos] in ' \t\r\n':
+        pos += 1
+    return pos
+
+
 def queue_strict_object(data):
     """Strict structural boundary, returning original raw top-level values."""
     text, parsed = _queue_json(data)
@@ -114,17 +120,17 @@ def queue_strict_object(data):
     fields = {}
     pos = text.index('{') + 1
     while True:
-        pos = len(text) - len(text[pos:].lstrip())
+        pos = _queue_skip_space(text, pos)
         if text[pos] == '}':
             break
         key, pos = _QUEUE_DECODER.raw_decode(text, pos)
-        pos = len(text) - len(text[pos:].lstrip())
+        pos = _queue_skip_space(text, pos)
         pos += 1  # colon, already structurally checked
-        pos = len(text) - len(text[pos:].lstrip())
+        pos = _queue_skip_space(text, pos)
         start = pos
         _, pos = _QUEUE_DECODER.raw_decode(text, pos)
         fields[key] = text[start:pos].encode('utf-8')
-        pos = len(text) - len(text[pos:].lstrip())
+        pos = _queue_skip_space(text, pos)
         if text[pos] == ',':
             pos += 1
     return fields

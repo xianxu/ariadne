@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flock"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/queuegate"
 )
 
@@ -24,12 +25,14 @@ func TestQueueManagedSuiteFastPauseInterrupts(t *testing.T) {
 		t.Fatal(err)
 	}
 	marker := filepath.Join(t.TempDir(), "started")
+	childLifetime := filepath.Join(t.TempDir(), "child-lifetime")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan error, 1)
 	log := filepath.Join(t.TempDir(), "suite.log")
 	go func() {
-		_, err := runUnderSlot(ctx, d, d.Root, helper, t.TempDir(), "suite", "head", 1, suitePrioritySubject{}, []string{"sh", "-c", "echo begun > \"$1\"; sleep 30", "fixture", marker}, log, time.Minute)
+		child := "import fcntl,pathlib,sys,time; f=open(sys.argv[1],'w'); fcntl.flock(f,fcntl.LOCK_EX); pathlib.Path(sys.argv[2]).write_text('ready'); time.sleep(30)"
+		_, err := runUnderSlot(ctx, d, d.Root, helper, t.TempDir(), "suite", "head", 1, suitePrioritySubject{}, []string{"sh", "-c", "python3 -c \"$1\" \"$2\" \"$3\" & wait", "fixture", child, childLifetime, marker}, log, time.Minute)
 		done <- err
 	}()
 	joined := false
@@ -76,6 +79,14 @@ func TestQueueManagedSuiteFastPauseInterrupts(t *testing.T) {
 	x, err := s.Snapshot(context.Background())
 	if err != nil || len(x.Active) != 0 {
 		t.Fatalf("managed cleanup left active work: %+v %v", x, err)
+	}
+	childLock, err := os.OpenFile(childLifetime, os.O_RDWR, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer childLock.Close()
+	if err := flock.Exclusive(childLock, true); err != nil {
+		t.Fatalf("managed descendant still holds its lifetime resource: %v", err)
 	}
 	rows, _ := filepath.Glob(filepath.Join(s.Root, "interrupted", "*.json"))
 	if len(rows) != 1 {

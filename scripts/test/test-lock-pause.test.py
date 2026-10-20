@@ -163,6 +163,25 @@ class QueuePause(unittest.TestCase):
             with self.assertRaises(ValueError):
                 lock.queue_strict_object(bad)
 
+    def test_raw_member_scan_copies_only_linear_input(self):
+        # Count real substring bytes, not wall time or a stand-in parser.
+        original = lock._queue_json
+        for count in (8, 16):
+            copied = [0]
+            class MeasuredText(str):
+                def __getitem__(self, key):
+                    value = super().__getitem__(key)
+                    if isinstance(key, slice):
+                        copied[0] += len(value)
+                    return value
+            def measured(data):
+                text, parsed = original(data)
+                return MeasuredText(text), parsed
+            raw = json.dumps({f'future-{n}': n for n in range(count)}).encode()
+            with mock.patch.object(lock, '_queue_json', side_effect=measured):
+                self.assertEqual(len(lock.queue_strict_object(raw)), count)
+            self.assertLessEqual(copied[0], 2 * len(raw), f'{count} fields recopied remaining suffixes')
+
     def test_kernel_incarnation_and_boot_identity_are_semantic(self):
         self.assertTrue(lock.queue_process_start(os.getpid()))
         self.assertEqual(lock.queue_process_start(os.getpid()), lock.queue_process_start(os.getpid()))
