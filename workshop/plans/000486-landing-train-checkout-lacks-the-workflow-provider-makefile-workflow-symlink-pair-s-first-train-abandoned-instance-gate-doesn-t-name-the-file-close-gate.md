@@ -152,6 +152,100 @@ rounds:
       isolation: fenced
       reviewed: dc5a9f192f259a627a04e183e8197fc405a0edbe
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 6a185482-c3bc-4479-b41c-6f278d067285
+            repository: github.com/xianxu/ariadne
+            issue_id: "000486"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/940b064a741b190c
+            reviewed_head: 6ead757846233e97e84f2d087439c43e837117d8
+            slot: ariadne:4
+            requested_at: "2026-10-20T09:41:10.155739Z"
+          phase: finished
+          pid: 41029
+          started_at: "2026-10-20T09:41:10.24051Z"
+          finished_at: "2026-10-20T09:41:34.925338Z"
+          session_id: 444ccbb5-0d23-42de-8a92-b9622a9e0064
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 6ead757846233e97e84f2d087439c43e837117d8
+        tracker_head: 2a41686cbdf2a2a3a81fb907bb66985c222768af
+        branch_point: 438da630ea1dcdf464df0ed839ebe455ffd339ab
+        since: "2026-10-20T01:02:55-07:00"
+        until: "2026-10-20T02:40:48-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-20T01:02:55-07:00"
+              end: "2026-10-20T02:40:48-07:00"
+              began: "2026-10-20T01:02:55-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+        sources:
+            - harness: claude
+              id: 299d33d0-1f10-4950-b82c-b729d6c107a0
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: c716275116a5f27243e24a4ca294b045812791a5fd4d55940edcadad3cc9f7a6
+              started: "2026-10-16T06:28:11.678Z"
+              spawned: false
+              bytes: 94629731
+              windows:
+                - start: "2026-10-20T01:02:55-07:00"
+                  end: "2026-10-20T02:40:48-07:00"
+        queue_waits:
+            - attempt_id: 193438c3421d1a1feef3e8576630ae81
+              slot: ariadne:4
+              record_digest: 71533a32e34e5ee48db239c6c73cb55a7e8f058fc95b06f41b618beee0d7427e
+              start: "2026-10-20T08:47:37.219903Z"
+              end: "2026-10-20T08:58:28.665605Z"
+              queue_seconds: 651.445702
+              raw_seconds: 651.445702
+              exact: true
+            - attempt_id: 2f71f0d34a6aad0a2297fffee896a039
+              slot: ariadne:4
+              record_digest: 29bcfc48d19c9b7b3632044a74a74999da3cfc8eba6b815c919fa267000f09f8
+              start: "2026-10-20T09:10:29.046658Z"
+              end: "2026-10-20T09:16:06.450691Z"
+              queue_seconds: 337.404033
+              raw_seconds: 337.404033
+              exact: true
+        cuts:
+            - dispatched: "2026-10-20T01:19:39-07:00"
+              finalized: "2026-10-20T01:21:16-07:00"
+              finalizing: false
+            - dispatched: "2026-10-20T01:29:52-07:00"
+              finalized: "2026-10-20T01:36:54-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-20T02:41:35-07:00"
+      dispatched: "2026-10-20T02:41:10-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Already disposed addressed in round 2; this interdiff does not touch helpercapability.go's fallback or the fixture.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: Already disposed addressed in round 2; landingtrain.go comment unchanged by this interdiff.
+          round: 3
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 6ead757846233e97e84f2d087439c43e837117d8
+      blocked: false
 ---
 
 # Gate ledger — ariadne#486 (boundary-review)
@@ -174,6 +268,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - BR-1 — addressed — helpercapability.go:80 now falls back to the anchor's own Makefile.workflow. The fixture gitignores it and links it untracked in each car. With the fallback or the WorkflowAnchor line reverted, TestLandingTrainResolvesASymlinkedWorkflow fails with pair's exact lstat error, and with the fallback reverted the unit test fails too.
 - BR-2 — addressed — landingtrain.go:229-232 now describes the fallback to the checkout the train was built from. The plan's fails-without-fix claim is now true; confirmed by reverting.
+
+## Round 3 — 2026-10-20T02:41:35-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — Already disposed addressed in round 2; this interdiff does not touch helpercapability.go's fallback or the fixture.
+- BR-2 — addressed — Already disposed addressed in round 2; landingtrain.go comment unchanged by this interdiff.
 
 ## Open findings
 

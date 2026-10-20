@@ -143,3 +143,53 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"f22bf1ca-71f6-4fb9-a088-720d69b78afe","repository":"github.com/xianxu/ariadne","issue_id":"000486","recipe":"small-diff-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/e1624071ff38efaf","reviewed_head":"dc5a9f192f259a627a04e183e8197fc405a0edbe","slot":"ariadne:4","requested_at":"2026-10-20T08:29:52.507787Z"},"phase":"finished","pid":85159,"started_at":"2026-10-20T08:29:52.743624Z","finished_at":"2026-10-20T08:36:54.14004Z","session_id":"146fb686-5cc2-4493-9948-20463cf91b58","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T02:41:35-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 486 — Landing train checkout lacks the workflow provider (Makefile.workflow symlink): pair's first train abandoned; instance gate doesn't name the file |
+| repo | ariadne |
+| issue file | workshop/issues/000486-landing-train-checkout-lacks-the-workflow-provider-makefile-workflow-symlink-pair-s-first-train-abandoned-instance-gate-doesn-t-name-the-file.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 6f6d1e46b08b9c5ed028de9d1ae692b12c5087d0..6ead757846233e97e84f2d087439c43e837117d8 |
+| command | sdlc close --issue 486 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-20T02:41:35-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+No earlier finding is still open. BR-1 and BR-2 were already disposed `addressed` in round 2. This fix window changes one line of code. `prepareSuiteHelper` gained an `anchor` parameter in #486, and the caller main added in `cmd/sdlc/suiteenvironment_test.go:99` was passing the old two arguments. It now passes `""`, the same "no anchor" value local-check uses when `WorkflowAnchor` is unset. There are now three references, all on the new signature: the definition at `helpercapability.go:89`, `localcheck_run.go:83` and this test. `go vet ./cmd/sdlc/` is clean, and `TestScratchFallbackOverridesInheritedTemp` plus `TestWorkflowFileResolvesThroughTheAnchor` pass (`ok 0.612s`). The other two files in the window are generated gate and review records under `workshop/plans/`, not code. The issue's Spec, Revisions and Done-when are not in this window, so the scope has not changed. No conflict resolutions are listed.
+
+1. **Strengths**
+   - The fix is the smallest change that works: one caller updated to the new signature, with an empty anchor that means the same as local-check's default and changes nothing in what the test checks.
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none.
+5. **Test coverage:** The touched test compiles and passes. Its subject is scratch-directory and temp-directory handling, so the anchor value doesn't matter to it. The anchor behaviour is still covered by the tests confirmed in round 2.
+6. **Architecture (interdiff only):** ARCH-DRY passes, ARCH-PURE passes, ARCH-PURPOSE passes (all callers updated, nothing left on the old signature), and ARCH-EVOLVE passes (no stored format touched; the ledger files are generated output).
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Already disposed addressed in round 2; this interdiff does not touch helpercapability.go's fallback or the fixture.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Already disposed addressed in round 2; landingtrain.go comment unchanged by this interdiff.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"6a185482-c3bc-4479-b41c-6f278d067285","repository":"github.com/xianxu/ariadne","issue_id":"000486","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/940b064a741b190c","reviewed_head":"6ead757846233e97e84f2d087439c43e837117d8","slot":"ariadne:4","requested_at":"2026-10-20T09:41:10.155739Z"},"phase":"finished","pid":41029,"started_at":"2026-10-20T09:41:10.24051Z","finished_at":"2026-10-20T09:41:34.925338Z","session_id":"444ccbb5-0d23-42de-8a92-b9622a9e0064","outcome":"returned"}] -->
