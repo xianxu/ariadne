@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "bfaa445e", done: "9f81e930"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Continuing an issue whose branch already landed: refuse with 'close it and file a follow-up' (pair#622 case)
@@ -62,6 +62,10 @@ Steps:
 
 ## Log
 
+
+
+- 2026-10-20: closed — BR-1 fixed (landed check reads local-else-remote branch via issueTip; TestRemoteCanonicalAheadOfMergedHeadIsNotLanded), minors fixed; recorded suite pass on 69d2987c (exit 0, 9m33s); pair#622 shape test passes (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-20: flow upgraded quick → full — 141 added lines in code files (limit 100); an earlier round of this close already ran the full review
 ### 2026-10-19
 
 ## Log

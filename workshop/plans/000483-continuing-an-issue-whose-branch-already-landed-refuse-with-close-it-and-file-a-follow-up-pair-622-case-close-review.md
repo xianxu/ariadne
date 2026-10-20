@@ -101,3 +101,87 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"1077074f-152d-4a25-afec-931671823f12","repository":"github.com/xianxu/ariadne","issue_id":"000483","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/e829a2102610eb6e","reviewed_head":"3c683e9cd174f608896220678ea12328eedd20f2","slot":"ariadne:5","requested_at":"2026-10-20T13:07:23.179361Z"},"phase":"finished","pid":66692,"started_at":"2026-10-20T13:07:23.386153Z","finished_at":"2026-10-20T13:19:10.676064Z","session_id":"3184c72e-9656-425e-9fb0-05b6fe39d7cd","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T07:00:40-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 483 — Continuing an issue whose branch already landed: refuse with 'close it and file a follow-up' (pair#622 case) |
+| repo | ariadne |
+| issue file | workshop/issues/000483-continuing-an-issue-whose-branch-already-landed-refuse-with-close-it-and-file-a-follow-up-pair-622-case.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 48c1d7a3c8f766bcd3e2662a6354b6d1cfb287ad..69d2987ceff329b44ff50f7c8478a823c80698e2 |
+| command | sdlc close --issue 483 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-20T07:00:40-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Targeted tests pass. Next I'm reverting the BR-1 fix to confirm its regression test goes red.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All three round-1 findings are fixed, and the regression test for the fix that changes behavior fails without it. BR-1 is fixed: `issueBranchLanded` now reads the issue branch through `issueTip` (the local branch, else the remote one). `TestRemoteCanonicalAheadOfMergedHeadIsNotLanded` covers it. I put the old local-only `for-each-ref` read back in this checkout and that test failed (`landedissue_test.go:177: a remote canonical branch ahead of the merged head read as landed`). After restoring the code, the targeted tests for this issue pass, including the `TestIssueHintsRenderDecimalIDs` guard. BR-2 is fixed by a `## Revisions` entry that matches the code, and BR-3 by a documented precondition on `closeBranchRecoveryNote`. Nothing blocks SHIP. The full `cmd/sdlc` package did not finish within `go test`'s default 10-minute timeout here. That is a timeout, not a test failure: the only FAIL lines are the package-level ones, and no individual test failed.
+
+Done-when: current — `start-plan` and `change-code` both refuse a landed issue and name `sdlc issue new … --deps N` as the path forward. `TestStartPlanAndChangeCodeRefuseLandedIssue` pins this. The Revisions entry changes only how "landed" is detected; what the refusal does is unchanged.
+
+1. **Strengths**
+   - `landedissue.go:17` `landedPRs` is a small pure decision function, tested by a table with no IO. The IO wrapper is thin and treats every failure to read the evidence as "not landed", which keeps the older refusals (the safe direction).
+   - `trackerbranch.go:61` `issueTip` pulls the "local, else remote" read into one helper used in three places (close admission, the landed check, the recovery note). That is the rule-level answer to the BR-1 family (ARCH-DRY).
+   - The close admission reuses `refuseUnlandedBase`, so a follow-up branch with only the issue's prefix can't bring in another issue's work (ARCH-SECURE). `TestCloseRefusesFollowUpCarryingAnotherIssue` pins this.
+   - `landedS09` rebuilds pair#622's exact shape (squash merge, branch deleted, follow-up branch holding only evidence) behind the real `landingGH` seam, with an offline `insteadOf` rewrite for the remote URL (ARCH-MOCK).
+   - `landedRecovery` is one shared message for all three verbs.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - `trackerbranch.go:42-47`: when the branch has the issue prefix but the issue isn't landed, `issueBranchLanded` runs twice (once directly, then again inside `withLandedRecovery`), so that refusal costs two `gh pr list` calls. This only happens on the refusal path, so I'm not filing it.
+
+5. **Test coverage notes:** The tests cover:
+   - landed, open-PR and gh-error outcomes;
+   - a local branch ahead of the merged head, and a remote branch ahead of it;
+   - a later merged PR's head counting as landed;
+   - admission of a branch with the issue prefix, refusal when it carries another issue's work, and refusal of an unprefixed branch with the recovery text.
+
+   There is no test for `issueTip` returning an error, but that path falls back to "not landed", which is benign.
+
+6. **Architecture**
+   - ARCH-DRY: pass (`issueTip`, `refuseUnlandedBase` and `landedRecovery` are each shared).
+   - ARCH-PURE: pass. The decision is pure; the predicate that does IO is a thin wrapper.
+   - ARCH-PURPOSE: pass. Both verbs refuse, and close is admitted from a follow-up branch, which unparks pair#622. The BR-1 class (every read of the issue branch's state for "landed") now goes through `issueTip`.
+   - ARCH-MOCK: pass. `landedFakeGH` sits behind the production `landingGH` seam, and git runs against real local repos.
+   - ARCH-CONSTRAINTS: pass. There is one gh call per check: `start-plan` checks only started cards, while `change-code` checks on every run, which the plan accepts for an infrequent verb.
+   - ARCH-SECURE: pass. A branch prefix alone isn't trusted, and gh output comes through the typed `LandingPRs`.
+   - ARCH-ORDER: pass. No state is held between events; "landed" is worked out again at each call.
+   - ARCH-FUNERAL: pass. Nothing durable is created.
+   - ARCH-EVOLVE: pass. No persisted format changes.
+
+7. **Plan revisions:** none. The existing Revisions entry matches the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      landedissue.go:58 now uses issueTip (local else remote); TestRemoteCanonicalAheadOfMergedHeadIsNotLanded goes red when the local-only for-each-ref read is restored (verified by revert in this checkout).
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Issue Revisions 2026-10-20 names landedPRs(prs) plus issueBranchLanded and LandingPRs/HeadOID as the evidence source, matching landedissue.go:17-79.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      trackerbranch.go:70-72 doc comment states the precondition (describes only branches requireCloseIssueBranch admitted); requireCloseIssueBranch admits a tip mismatch only after issueBranchLanded.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"392fba76-64cd-4feb-9092-f723d031abf3","repository":"github.com/xianxu/ariadne","issue_id":"000483","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/b501ea97e89cb8ef","reviewed_head":"69d2987ceff329b44ff50f7c8478a823c80698e2","slot":"ariadne:5","requested_at":"2026-10-20T13:48:13.779615Z"},"phase":"finished","pid":87293,"started_at":"2026-10-20T13:48:13.867911Z","finished_at":"2026-10-20T14:00:39.239899Z","session_id":"3692e931-8925-4998-a303-40a49d74bbd2","outcome":"returned"}] -->
