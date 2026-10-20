@@ -263,3 +263,8 @@ boundaries (ARCH-PURPOSE, ARCH-ORDER, ARCH-CONSTRAINTS):
 The prior same-bytes destination requirement applies only before switching.
 The live-acceptance hold remains operator/TL-owned. This is a replacement plan
 for the same mechanism, not an incremental addition of recovery machinery.
+
+
+### 2026-10-20 — revised live-recovery plan approved
+
+TL approved the replacement plan (delivery 04e0afed-a17c-448d-8436-aa3ffc9324b2), including the quiet-old-tree limit. Keep the fix bounded: no journal, no automatic disposal of a registration conflict. After re-close and green suite, restage; the TL/operator checks are ops:0 leftover cleanup and ops-echo full migration.
