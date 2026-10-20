@@ -1,13 +1,21 @@
 ---
 id: 000501
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'e96ae5aa9af25d299b5a5c2191fb35fa54003709' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b8ef9a6171e5dbc51f17e9f3ead6a538ae3c62b8' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-20T10:56:04-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # sdlc queue reconcile: an operator-attested verb to retire an unresolved unmanaged tombstone (blocks the live drain)
@@ -40,8 +48,23 @@ complete=false forever, so pair#722's live drain can never reach "drained" and i
 
 ## Plan
 
-- [ ]
+Durable design: [queue reconciliation plan](../plans/000501-queue-reconcile-plan.md). Full flow, one atomic close boundary.
+
+- [ ] Pure request, audit receipt and effect/replay model with strict additive codecs.
+- [ ] Gate-serialized durable audit-before-unlink transaction, failure/replay/identity/retention controls.
+- [ ] Steward CLI and real private executable conformance; recorded suite, close and landing.
+
 
 ## Log
 
 ### 2026-10-20
+
+### 2026-10-20 — claimed and durable design
+
+Started from main after #492 landed; no stacked code. The existing unknown tombstone deliberately lacks a live descendant lease, so a new supervisor cannot retroactively prove absence. Reuse control.lock for concurrency and require the explicit operator note for descendant absence; kernel evidence only proves the original incarnation ended. Plan preserves original raw bytes in an immutable audit bundle before deletion and names finite retention/replay semantics. Full design awaits the hub before change-code; no implementation or production mutation.
+
+## Revisions
+
+### 2026-10-20 — post-reboot live acceptance (proposed, awaiting hub)
+
+The original 10-20 tombstone no longer appears in current live status after the OS reboot. Preserve the original Done-when as history; proposed replacement evidence is same-boot private executable conformance against that unmanaged record shape, then read-only live observation/operator acceptance. Unrelated running and legacy-overlay entries can still keep live complete=false; do not fabricate a production tombstone or stop other work to make this issue pass. Also make audit retention explicit:30 days/128 completed bundles with partial transactions pinned and replay refusal after evidence expiry. See durable plan for alternatives, exact states, failure tests and all ARCH principles.
