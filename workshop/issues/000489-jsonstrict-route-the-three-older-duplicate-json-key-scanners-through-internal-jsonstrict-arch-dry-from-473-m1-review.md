@@ -80,6 +80,11 @@ Quick flow. Plan posted to the hub, proceeding unless they object.
     whole-file test (`TestJSONRecursiveScannerSeesMethods`) covers methods; a mutation check fails each.
     The rule still can't see an iterative stack walk, and its comment says so.
 
+- First landing refused: the integrated suite failed `TestTrackedGoFilesPassTheCatalog`. `json-recursive-scanner`
+  flagged `queuegate/codec.go`, which #481 had just landed on main with its own recursive scanner (depth 128,
+  `UseNumber`); the main baseline passed. The guard caught exactly what it exists for. `queuegate.inspectJSON` now
+  calls `jsonstrict.Scan(d, 128)`, and the queuegate tests are green.
+
 ## Revisions
 
 - 2026-10-20: scope grew from "the three older scanners" to the whole class found by sweep (ARCH-PURPOSE): four more
