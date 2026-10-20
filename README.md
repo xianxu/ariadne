@@ -582,6 +582,10 @@ from this machine's test-stats store (or `--evidence TEXT` for a CI run); withou
 tests.
 
 A name may be an exact subtest (#466), such as `PKG.TestX/plain/dev-aliases.test.sh`.
+Suite attribution ignores indented quotations of nested helper commands. Real
+indented descendant subtest failures still identify the outer test's failed leaf
+(#476); quoted package trailers cannot change its package.
+
 - **What it explains:** only its own failure and its subtests'. A sibling
   subtest's failure stays unknown and blocks.
 - **Rerun:** its rerun is the whole top-level test, and it must show the

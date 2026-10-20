@@ -1,9 +1,17 @@
 package main
 
 import (
+	"iter"
 	"sort"
 	"strings"
+	"unicode"
 )
+
+// Suite control records start at column zero. Quoted subprocess output is
+// indented by testing and must not become package or outcome evidence (#476).
+func suiteControlLine(line string) bool {
+	return strings.TrimLeftFunc(line, unicode.IsSpace) == line
+}
 
 // failingTests extracts top-level test names from plain go test output and
 // test-shard.py's failure summary. The latter names the package before each
@@ -17,9 +25,15 @@ func failingSubtests(log string) []string { return failingNames(log, true) }
 
 // failingNames is the one scanner: top-level names, or only subtest names.
 func failingNames(log string, subtests bool) []string {
+	return failingNameLines(strings.Lines(log), subtests)
+}
+
+// The iterator keeps one traversal explicit and lets tests count line visits.
+func failingNameLines(lines iter.Seq[string], subtests bool) []string {
 	names := make(map[string]struct{})
 	var pending []string
 	var summaryPackage string
+	var outerTest string
 	add := func(pkg, test string) {
 		if test == "" || strings.Contains(test, "/") != subtests {
 			return
@@ -34,14 +48,25 @@ func failingNames(log string, subtests bool) []string {
 			add(pkg, test)
 		}
 		pending = nil
+		outerTest = ""
 	}
 
-	for _, line := range strings.Split(log, "\n") {
+	for line := range lines {
+		control := suiteControlLine(line)
 		fields := strings.Fields(line)
 		if len(fields) == 0 {
 			continue
 		}
+		// Real Go subtest outcomes are indented too. Only descendants of the
+		// outer failing test belong to this block; a quoted helper does not.
+		if !control && !(len(fields) >= 3 && fields[0] == "---" && fields[1] == "FAIL:" &&
+			outerTest != "" && strings.HasPrefix(fields[2], outerTest+"/")) {
+			continue
+		}
 		if len(fields) >= 3 && fields[0] == "---" && fields[1] == "FAIL:" {
+			if control {
+				outerTest, _, _ = strings.Cut(fields[2], "/")
+			}
 			pending = append(pending, fields[2])
 			continue
 		}
@@ -49,6 +74,7 @@ func failingNames(log string, subtests bool) []string {
 			flush(summaryPackage)
 			summaryPackage = fields[2]
 			if len(fields) == 4 { // a package-only failure has no test name
+				outerTest, _, _ = strings.Cut(fields[3], "/")
 				add(summaryPackage, fields[3])
 			}
 			continue

@@ -83,7 +83,10 @@ func parseSuiteLogFacts(log string) SuiteLogFacts {
 		failures[name] = struct{}{}
 	}
 	for index, raw := range strings.Split(log, "\n") {
-		line := strings.TrimSpace(raw)
+		if !suiteControlLine(raw) {
+			continue
+		}
+		line := strings.TrimSuffix(raw, "\r")
 		if strings.HasPrefix(line, "{") && strings.Contains(line, `"Action"`) {
 			var event goTestJSONEvent
 			if err := json.Unmarshal([]byte(line), &event); err != nil {
@@ -205,7 +208,10 @@ func unattributedFailures(log string, failures []string) []string {
 		}
 	}
 	for _, raw := range strings.Split(log, "\n") {
-		line := strings.TrimSpace(raw)
+		if !suiteControlLine(raw) {
+			continue
+		}
+		line := strings.TrimSuffix(raw, "\r")
 		switch fields := strings.Fields(line); {
 		case shardNoTest.MatchString(line):
 			add(shardNoTest.FindStringSubmatch(line)[1] + " exited without a failing test")

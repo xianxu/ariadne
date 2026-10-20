@@ -84,8 +84,8 @@ names; indentation checks inspect each line once, with no look-back or rescans.
 
 ## Plan
 
-- [ ] Reproduce the issue fixture red; add plain, sharded and conservative controls.
-- [ ] Correct existing failure/fact scanners before whitespace normalization; add
+- [x] Reproduce the issue fixture red; add plain, sharded and conservative controls.
+- [x] Correct existing failure/fact scanners before whitespace normalization; add
   the narrow lint guard against erasing line provenance in these scanners.
 - [ ] Run focused parser/classifier and local-check regression checks, then the
   recorded suite, close review and normal landing gates.
@@ -93,6 +93,21 @@ names; indentation checks inspect each line once, with no look-back or rescans.
 ## Log
 
 ### 2026-10-19
+
+- Focused quoted fixture/parser/registered-retry checks passed (1.165s).
+  Broader parser/local-check/known-flake/saved-evidence/environment controls passed
+  (296.155s); `pkg/golint` including tracked-source and atlas guards passed
+  (1.042s), and `internal/flakes` passed (0.123s). N/2N traversal checks passed.
+  The full recorded suite and close review remain pending.
+
+- TDD red reproduced exact `couchcmd failed without a failing test` through
+  `runLocalCheck`; nested launcher trailers also invented package timings. After
+  the scanner correction, all focused parser controls and the registered outer
+  retry passed. Corrected the test expectation to #466's whole-parent retry
+  contract (the registered leaf's PASS remains required).
+- The new `suite-line-provenance` lint's negative fixtures failed before the
+  rule, then passed with it. Its scope is the named scanners and lexical call
+  ordering, not a general control-flow or alias proof.
 
 - Claimed after #477 landed. Traced `failingNames` (Fields) and both suite-facts
   loops (TrimSpace): quoted nested FAIL package trailers consume pending outer
@@ -103,3 +118,11 @@ names; indentation checks inspect each line once, with no look-back or rescans.
   at the same `couchcmd.TestContinuationWriterPublishesExactCheckpointAcrossWorktrees/warm-reattached` (nested launcher
   helper TempDir cleanup), classified unattributable-failure again, refused landing, and queued a main baseline. Two
   slots' landings blocked by this today; raise priority if #715's root fix (pair:3) doesn't land first.
+
+## Revisions
+
+- 2026-10-19 21:07 PDT — Make the hot-path cost check executable: the existing
+  failure scan takes a line iterator through `failingNameLines`, with production
+  using `strings.Lines`. `TestFailingNamesLineVisits` counts exactly 4N+1 visits
+  for N=8 and 16 outer failures with real children and quoted helper output.
+  This adds no scan or durable state and keeps the same attribution policy.

@@ -14,6 +14,12 @@ import (
 // with the fix for the mistake class it catches (tl-worker, tl-lead).
 var Catalog = []Rule{
 	{
+		Name:     "suite-line-provenance",
+		Incident: "ariadne#476",
+		Message:  "suite scanners must preserve indentation: check suiteControlLine on the raw line before Fields, and never trim leading whitespace",
+		Match:    suiteLineProvenance,
+	},
+	{
 		Name:     "test-hardcoded-arch-count",
 		Incident: "ariadne#454",
 		Message:  "derive architecture header counts from the registry or assert the shared ArchitectureBlock; a fixed count breaks when a principle is added",
@@ -74,6 +80,53 @@ var Catalog = []Rule{
 		TestOnly: true,
 		Match:    fixedSleeps,
 	},
+}
+
+// Guard the known text-suite scanners, not arbitrary parsers. This is a
+// lexical ordering tripwire; behavioral fixtures own the provenance policy.
+func suiteLineProvenance(f *ast.File, _ *CheckContext) []ast.Node {
+	var out []ast.Node
+	pkg := localName(f, "strings")
+	for _, decl := range f.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || (fn.Name.Name != "failingNames" && fn.Name.Name != "failingNameLines" && fn.Name.Name != "parseSuiteLogFacts" && fn.Name.Name != "unattributedFailures") {
+			continue
+		}
+		ast.Inspect(fn.Body, func(n ast.Node) bool {
+			loop, ok := n.(*ast.RangeStmt)
+			if !ok {
+				return true
+			}
+			raw, ok := loop.Value.(*ast.Ident)
+			if !ok {
+				raw, ok = loop.Key.(*ast.Ident) // one-value range over a line iterator
+			}
+			if !ok {
+				return true
+			}
+			checked := false
+			ast.Inspect(loop.Body, func(n ast.Node) bool {
+				call, ok := n.(*ast.CallExpr)
+				if !ok {
+					return true
+				}
+				if fun, ok := call.Fun.(*ast.Ident); ok && fun.Name == "suiteControlLine" && len(call.Args) == 1 {
+					if arg, ok := call.Args[0].(*ast.Ident); ok && arg.Name == raw.Name {
+						checked = true
+					}
+				}
+				if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+					if id, ok := sel.X.(*ast.Ident); ok && pkg != "" && id.Name == pkg &&
+						(sel.Sel.Name == "TrimSpace" || strings.HasPrefix(sel.Sel.Name, "TrimLeft") || sel.Sel.Name == "Fields" && !checked) {
+						out = append(out, call)
+					}
+				}
+				return true
+			})
+			return false
+		})
+	}
+	return out
 }
 
 var archEntryCountRE = regexp.MustCompile(`\beach of the [0-9]+ entries\b`)

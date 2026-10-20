@@ -73,6 +73,12 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- Suite output contains quoted subprocess output too. Preserve indentation before
+  tokenizing control records; only real descendants of the outer failing test
+  can be indented test evidence. Apply the same boundary to package attribution,
+  unknown-failure reasons and timing facts, and test the actual registered retry
+  rather than just extracted names (#476).
+
 - Whenever artifact creation gains a fallback root, enumerate that root in
   stale cleanup too, including after the original root becomes usable again.
   Test stale removal and fresh preservation at the repaired location; normal

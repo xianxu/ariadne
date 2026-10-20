@@ -1,0 +1,11 @@
+couch: terminal: presenter unavailable
+--- FAIL: TestContinuationWriterPublishesExactCheckpointAcrossWorktrees (3.25s)
+    --- FAIL: TestContinuationWriterPublishesExactCheckpointAcrossWorktrees/warm-reattached (1.01s)
+        continuation_acceptance_test.go:137: production transport failed: exit status 1
+            === RUN   TestCouchLaunchPromptTransportHelper
+            --- FAIL: TestCouchLaunchPromptTransportHelper (0.12s)
+                --- FAIL: TestCouchLaunchPromptTransportHelper/cleanup (0.01s)
+            FAIL
+            FAIL	github.com/xianxu/pair/cmd/internal/launcher	0.226s
+FAIL
+FAIL	github.com/xianxu/pair/cmd/internal/couchcmd	3.25s

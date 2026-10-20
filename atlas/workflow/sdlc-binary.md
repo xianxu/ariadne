@@ -2090,8 +2090,16 @@ The shell runner's default CI invocation still executes the selected batch.
 
 ### The Go lint catalog (#407)
 
+Suite text attribution (#476) preserves indentation before parsing controls:
+`suiteControlLine` admits column-zero outcomes, summaries and JSON events;
+`failingNameLines` also retains real indented descendants of the current failing
+outer test. Quoted nested package trailers cannot flush pending outer names.
+The same boundary applies to unattributed failures and timing facts, including
+historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
+2N; `TestKnownFlakeGateQuotedNestedOutput` exercises the registered outer retry.
+
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
-that taught it (`test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
+that taught it (`suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
 #469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
 landing), and `wire-strict-decode` pair#594). `TestAtlasNamesEveryRule` keeps this list
