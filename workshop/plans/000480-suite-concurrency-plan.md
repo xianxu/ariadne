@@ -57,7 +57,7 @@ ARCH-DRY/PURE: one default helper, pure tick arithmetic, existing runner/gate. A
 
 ## Task 2: measure the matrix
 
-- [ ] Build the local evidence harness and its SKILL.md usage record. Test CPU delta calculations (normal, zero ticks, uint32 wrap), sample aggregation, and interrupted-run marking with deterministic inputs before measuring.
+- [x] Build the local evidence harness and its SKILL.md usage record. Test CPU delta calculations (normal, zero ticks, uint32 wrap), sample aggregation, and interrupted-run marking with deterministic inputs before measuring.
 - [x] Validate the live sampler against top's system/idle report; keep the raw comparison and units in the evidence manifest.
 - [x] Create a detached checkout pinned to the approved measurement head. Verify clean source and Git revision before and after the matrix; do not commit into that checkout.
 - [ ] Execute the approved quiet matrix through the machine gate. Capture three attempts each at 12/8/6 shards, wall, peak one-minute load, kernel percentages and every failure. Preserve per-run output/JSON and environment (hardware, Python/Go versions, exact commands, scratch choice, sample interval).
