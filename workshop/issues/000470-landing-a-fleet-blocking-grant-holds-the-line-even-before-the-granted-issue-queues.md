@@ -46,7 +46,9 @@ keep today's reordering. Expiry or revocation releases the hold. `sdlc landing s
 
 - [x] Add deterministic line fixtures for absent grant, granted arrival, hand-off, expiry/revoke, multiple grants, and cancellation/output; prove red.
 - [x] Reuse the grant authority in pure admission and status/wait reporting; require bounded expiry on grant writes.
-- [ ] Update help/README/atlas, run targeted tests and recorded suite, then close review and report for SHIP.
+- [x] Update help/README/atlas and verify with targeted tests and the recorded full suite.
+
+Close via the mandatory boundary review, then merge on SHIP and report to the hub.
 
 Actions: enqueue granted issue; revoke grant; wait for expiry; cancel waiter.
 
@@ -84,3 +86,5 @@ ARCH-DRY/PURE: one pure grant-hold rule uses existing ValidGrants; no additional
 - Broader targeted command TestLanding|TestLine|TestTrain reached PASS, but the overall run failed its real-repository HEAD guard because implementation commits occurred while it ran. This is not passing verification evidence. Recorded suite remains queued on immutable pushed 2619d603 in a detached checkout; use that result for final verification. No code changes followed the staged smoke.
 
 - Recorded suite on 2619d603 ran all shards: all passed except TestEnterLandingLineVouchesWhileWaiting, which caught a changed existing train hold prefix. Preserve that prefix by choosing line/train once when opening the line; strengthened the new waiter-output test to assert both prefixes. This is a reproducible branch regression, not a flake. Full suite must rerun on the fix.
+
+- Final recorded suite passed on 8530569a334f37306ea516c8897769045a3f0fbc: all 12 shards over 1758 cmd/sdlc tests and 72 other packages, zero failures, wall 720.1s. sdlc-local/suite success; log sha256 ecf031f0292e. Focused prefix/readiness/grant status/output checks also passed before the final push. The final code change preserves the existing train prefix; grant/status/revoke behavior is unchanged from the TL's passed live check.

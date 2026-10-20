@@ -1097,3 +1097,5 @@ The simplest durable authority beats a clever scan of consequences.
   visible until retention expires (ARCH-SECURE).
 
 - #470 verification: cmd/sdlc's source-checkout hermeticity guard pins HEAD for the entire test run. Do not commit while a targeted source-checkout run remains active: even passing tests fail that guard when HEAD moves. The recorded local-check suite uses a detached checkout and can overlap source bookkeeping safely. The existing hermeticity guard already enforces this class; no additional source lint is needed.
+
+- #470: when extending an output callback to another mode, preserve existing mode prefixes and sweep tests by the message/callback as well as filenames. The existing readiness fixture caught the train-prefix change; the grant fixture now asserts both serial and train prefixes. These observable prose contracts are defended by those integration assertions rather than a generic lexical lint rule.
