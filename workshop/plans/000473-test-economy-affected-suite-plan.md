@@ -120,12 +120,14 @@ machine-wide suite slots, like any local check. sdlc runs it as `env SDLC_AFFECT
   - **DRY rationale:** this is the first package graph in the repo (the exploration found none).
 - **affected.Selection**: `{Full bool; Reason string; GoPkgs []string; Groups []string}`. It is empty for a docs-only
   change, which records a pass that ran nothing and says so.
-- **affected.Plan(paths, graph, cfg) Selection**: classifies each changed path. The first matching rule wins:
+- **affected.Plan(paths, graph, cfg) Selection**: classifies each changed path:
   1. Docs (the existing `publishGateHasCodeSurface` rule) → ignored.
   2. Matches `full` → Full, with the path as the Reason.
-  3. A `.go` file, or any file inside a package directory (testdata, embedded assets) → its nearest package.
-  4. Matches a group's `paths` → that group.
-  5. Anything else → Full ("unclassified: path").
+  3. Otherwise the selectors are **additive**: a file inside a package directory (a `.go` file, testdata, an embedded
+     asset) selects its nearest package, *and* every group whose `paths` match it is selected too. pair's Lua lives
+     inside the embedding package `cmd/internal/runtimebundle`, so a `.lua` change selects that package and the `lua`
+     group (PQ-1).
+  4. A path that neither a package nor a group claims → Full ("unclassified: path").
 
   It then expands the packages to their dependents and selects the groups whose `go` roots depend on them. It is pure,
   with a table test.
@@ -190,11 +192,10 @@ one.
 **Files:**
 - Create: `cmd/sdlc/internal/affected/config.go`, `cmd/sdlc/internal/affected/config_test.go`
 
-- [ ] **Step 1: Write the failing test.** A table in `config_test.go` covering:
-  - the example from Core concepts parses, with defaults weight 1 and timeout 30;
-  - each refusal: unknown field, `version` ≠ 1, empty `command`, an empty argv element, weight 0 < w ≤ 8 and timeout
-    1..120 out of range, a bad group name, a duplicate group, a group with neither `paths` nor `go`, a malformed glob
-    (`path.Match` error), and trailing data after the object.
+- [ ] **Step 1: Write the failing tests.** Strategy: a table in which the Core-concepts example parses and each
+  validation rule refuses one minimal violation. `FuzzMatch` compares the `**` matcher against a reference (expanding
+  `**` to every segment count up to the path's depth, then `path.Match`), seeded with empty segments, leading, trailing
+  and doubled `**`, and `path.Match` error forms (`[`, `\\`).
 - [ ] **Step 2: Run it.** `go test ./cmd/sdlc/internal/affected/ -run TestParseConfig`. It fails: the package doesn't
   exist yet.
 - [ ] **Step 3: Implement.**
@@ -220,9 +221,7 @@ one.
 
   func ParseConfig(data []byte) (Config, error) // DisallowUnknownFields, single object, the validation above
   ```
-  The globs use `Match(pattern, path)`, a small helper over `path.Match` per segment that also supports `**` (zero or
-  more segments). It lives in `glob.go`, with its own table test (`**/*.lua` matches `a.lua` and `x/y/a.lua`;
-  `tests/lib/**` matches `tests/lib/a/b.sh`; `Makefile*` matches `Makefile.local` and not `sub/Makefile`).
+  The globs use `Match(pattern, path)` in `glob.go`: `path.Match` per segment, plus `**` for zero or more segments.
 - [ ] **Step 4: Run the tests until they pass.**
 - [ ] **Step 5: Commit.** `git commit -m '#473 M1: affected.Config and globs' -- cmd/sdlc/internal/affected`
 
@@ -231,17 +230,12 @@ one.
 **Files:**
 - Create: `cmd/sdlc/internal/affected/graph.go`, `plan.go`, and their `_test.go` files
 
-- [ ] **Step 1: Write the failing tests.** Use a literal Graph: `m/leaf` (dir `leaf`); `m/mid` deps `leaf`;
-  `m/top` deps `mid,leaf`; `m/other`; and `m/tonly`, which reaches `leaf` only through its tests. Table rows:
-  - `leaf/a.go` → GoPkgs `leaf mid top tonly`, not `other` (the Done-when fixture: leaf plus dependents only);
-  - `other/x_test.go` → `other`;
-  - `leaf/testdata/in.txt` → `leaf …` (nearest package directory);
-  - `README.md`, `atlas/x.md` → empty Selection;
-  - `go.mod` with `full: ["go.mod"]` → Full, Reason contains `go.mod`;
-  - `tools/x.py`, which no rule classifies → Full, Reason `unclassified: tools/x.py`;
-  - `nvim/a.lua` with group `lua` (paths `**/*.lua`) → Groups `lua`, GoPkgs empty;
-  - group `cli` with `go: ["./top"]` and change `leaf/a.go` → Groups contains `cli`; change `other/x.go` → no `cli`;
-  - a `full` match beats a Go file in the same change set.
+- [ ] **Step 1: Write the failing tests.** Strategy: a literal Graph (leaf ← mid ← top, a test-only dependent of leaf,
+  an unrelated package), with one table row per classification rule. The row the Done-when names is a leaf change
+  selecting leaf plus its dependents only. The PQ-1 row is a group-matching file inside a package directory, which
+  selects both. Further rows cover a group pulled in by its `go` root, Full beating everything else in one change set,
+  and the unclassified fallback. A property test over random graphs and change sets checks that the selection is
+  closed under dependents and never contains a package the change can't reach.
 - [ ] **Step 2: Run them.** They fail.
 - [ ] **Step 3: Implement.**
   ```go
@@ -280,8 +274,7 @@ one.
 - [ ] **Step 1: Write the failing test.** `TestLoadGoGraphConformance` runs the real `go list` on `testdata/mod`
   (it is copied to `t.TempDir()` first, because testdata holds a nested go.mod) and asserts that `Deps["example.com/m/mid"]`
   has `leaf`, `Deps[…/tonly]` has `leaf` (through its test), `Deps[…/other]` is empty, and `Dir` maps each package.
-  Also `TestParseGoList` on canned output: a ` [p.test]` variant folds into `p`, a `p.test` main package folds into `p`,
-  `p_test [p.test]` folds into `p`, and stdlib deps are dropped.
+  `TestParseGoList` on canned output pins the folding of test variants into their package.
 - [ ] **Step 2: Run it.** It fails.
 - [ ] **Step 3: Implement.**
   ```go
@@ -291,6 +284,8 @@ one.
   // LoadGoGraph runs `go list -test -f goListFormat ./...` and `go list -m` in dir.
   func LoadGoGraph(ctx context.Context, dir string) (Graph, error)
   ```
+  `FuzzParseGoList` feeds malformed lines (missing fields, stray ` [`, empty deps) and checks that the parse errors out
+  or yields a graph whose Deps all name known packages. It never panics.
   A package's owner is its `ForTest` value, else its ImportPath with a `.test` suffix trimmed. In a Deps entry, ` [x.test]`
   is stripped, and only paths under the module are kept.
 - [ ] **Step 4: Run the tests until they pass.**
@@ -299,8 +294,8 @@ one.
 ### Task 4: read `affected.json` from main; reserve the name
 
 **Files:**
-- Modify: `cmd/sdlc/localchecks.go` (beside `readLocalChecks`, ~line 408 of `cigate.go`; the function moves next to
-  `localChecksPath`)
+- Modify: `cmd/sdlc/cigate.go` (`readAffectedConfig` beside `readLocalChecks`, `:408`), `cmd/sdlc/localchecks.go`
+  (constants and the reserved name)
 - Test: `cmd/sdlc/localchecks_test.go`
 
 - [ ] **Step 1: Write the failing tests.**
@@ -319,19 +314,16 @@ one.
 - Create: `cmd/sdlc/localcheck_affected.go`, `cmd/sdlc/localcheck_affected_test.go`
 - Modify: `cmd/sdlc/localcheck_cmd.go:116-173` (`runLocalCheckCmd` dispatches the name `affected`)
 
-- [ ] **Step 1: Write the failing tests.** They use the existing local-check run harness in `localcheck_run_test.go`:
-  a real git repo, a fake GitHub that records posted statuses, and a fake suite helper.
+- [ ] **Step 1: Write the failing tests.** Strategy: the existing local-check run harness in `localcheck_run_test.go`
+  (a real git repo, a fake GitHub that records posted statuses, a fake suite helper), with one test per selection
+  outcome (subset, full, empty, no config, graph unavailable). The subset test is the contract fixture:
   - **Contract fixture (the fake consumer the TL asked for):** the fixture repo holds the Task 3 module plus a
     `Makefile` whose `test-affected` target runs `printf '%s\n%s\n' "$$SDLC_AFFECTED_GO_PKGS" "$$SDLC_AFFECTED_GROUPS" > "$$OUT"`,
     and an `affected.json` with `command: ["make","test-affected"]` and group `lua`. A branch changes `leaf/leaf.go`
     and `x.lua`. The test asserts the file reads `example.com/m/leaf example.com/m/mid example.com/m/tonly` / `lua`,
     and that the status `sdlc-local/affected` was posted as success with the description `3 packages, groups lua`.
-  - A go.mod change runs the declared `suite` (a fixture `make test` that touches a marker file), posts
-    `sdlc-local/suite`, and posts no `affected` status.
-  - A docs-only branch posts `sdlc-local/affected` success, "nothing affected (docs-only)", without running a command
-    (the marker is absent).
-  - No `affected.json` on main: `--name affected` refuses with "origin/main declares no .sdlc/affected.json".
-  - The graph fails to load (a syntax error in a .go file): the run is full and runs `suite`, with the Reason printed.
+  For the other outcomes, the assertion is which status got posted (`suite`, `affected` with "nothing affected", none
+  plus a refusal) and whether a fixture marker shows a command ran.
 - [ ] **Step 2: Run them.** They fail.
 - [ ] **Step 3: Implement.**
   ```go
@@ -385,13 +377,9 @@ one.
   `localchecks.go:140`; the `test-stats` aggregate (`teststats.go:111+`) and its printer
 - Test: `cmd/sdlc/localcheck_flakes_test.go`, `localcheck_republish_test.go`, `teststats_test.go`
 
-- [ ] **Step 1: Write the failing tests.**
-  - A failed `affected` run whose only failure is a registered flake reruns it and posts `pass · known flake #N`.
-  - `guardSuitePass` refuses an `affected` pass over an unexplained `affected` failure on the same sha, and is not
-    tripped by a failed `suite` attempt when posting `affected`, or the reverse.
-  - `flakeEvidence` accepts an `affected` same-head fail→pass.
-  - `aggregateSuiteAttempts` keeps its suite numbers unchanged when affected attempts are present, and reports them as
-    their own row (`RepoStats.Check = "affected"`).
+- [ ] **Step 1: Write the failing tests.** Strategy: rerun each existing suite-only test of the four predicates
+  (known-flake step, success guard, flake evidence, aggregates) with an `affected` attempt. Add one cross-check test:
+  a failure under one check never blocks posting the other, and suite aggregates are unchanged by affected rows.
 - [ ] **Step 2: Run them.** They fail.
 - [ ] **Step 3: Implement.**
   - Add `isTestCheck(name) = name == suiteCheckName || name == affectedCheckName`.
@@ -406,7 +394,7 @@ one.
 ### Task 8: wording, help, atlas (D2)
 
 **Files:**
-- Modify: `cmd/sdlc/close.go:1898` (`explainVerified` example), `cmd/sdlc/publishgate.go:302-308`,
+- Modify: `cmd/sdlc/close.go:1905` (the VERIFIED example in `explainVerified`), `cmd/sdlc/publishgate.go:302-308`,
   `cmd/sdlc/helptext/local-check.md`, `cmd/sdlc/helptext/merge.md:140-160`, `atlas/workflow/ci-merge-check.md`
   ("Recorded local checks"), `atlas/workflow/sdlc-binary.md` (landing train paragraph), `AGENTS.base.md:62`
   (base layer: say that close's evidence is the affected suite where a repo declares one)
