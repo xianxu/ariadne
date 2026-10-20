@@ -124,6 +124,8 @@ Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 
 - BR-6 correction removes the swallowing adapter; all three shared-helper consumers now propagate errors. Six session/outside invalid-index cases failed before the fix, then passed through both planning and apply refusal, proving unchanged source tree/registrations and zero applied effects. Targeted migrate/index tests passed (1.118s); affected package verification follows on this corrected head.
 
+- Additional live report (receipt c7dd9478-f41a-4263-9828-a20a5382013c verified submitted): TL observed an old-path violation notice, an old last-write/owed status view, unchanged reported source mtime, and no .clobbered copy. Read-only canonical `couch --session-sync list --json` inspection found only ops/session.md (preserved ID 69c4f9adaa10fcb0e5203b69bd29c1ac), with no old-path registration. Thus legacy status metadata is not evidence of a second persisted binding. Exact violation text is produced by Parley's attached-editor `lua/parley/session_sync.lua:346-383`, then relayed by Couch; it is not emitted by registry/status inspection. The cause of the reported notice is not established from source alone. Informed TL of the distinction and the need to unload old hidden buffers for the accepted quiet-old-tree cleanup check. Existing production verification already requires old bindings absent and new identity preserved before deletion; no live forget or file mutation was performed. New and distinct binding conflicts remain protected.
+
 ## Landing hold
 
 Pending: green suite and SHIP → final build staged → TL/operator migrate both live hubs → TL evidence appended here → stage cleared → merge. Worker must not merge before the TL returns that evidence.
