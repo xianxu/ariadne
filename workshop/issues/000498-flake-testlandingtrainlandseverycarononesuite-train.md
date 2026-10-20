@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flake_tests: [github.com/xianxu/ariadne/cmd/sdlc.TestLandingTrainLandsEveryCarOnOneSuite/train]
+flow: {kind: quick, provenance: inferred, spec: "8876058c", done: "15e3cf4e"}
 ---
 
 # flake: TestLandingTrainLandsEveryCarOnOneSuite/train
