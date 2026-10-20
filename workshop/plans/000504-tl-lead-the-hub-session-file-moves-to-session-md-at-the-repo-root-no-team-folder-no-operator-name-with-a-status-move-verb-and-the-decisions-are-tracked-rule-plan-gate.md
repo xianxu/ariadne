@@ -19,6 +19,25 @@ reviewer_runs:
       finished_at: "2026-10-20T17:05:59.106033Z"
       session_id: 01a15a46-8683-7420-a06f-df0dff734fa1
       outcome: returned
+    - version: 1
+      intent:
+        id: f3e423cc-05fa-42b1-a2d7-b6f72a72d4b8
+        repository: github.com/xianxu/ariadne
+        issue_id: "000504"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: codex
+        root: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+        reviewed_head: 3b62965fe3b597b002ccba56c19b948cbb2a32c5
+        slot: ariadne:4
+        requested_at: "2026-10-20T20:06:32.988267Z"
+      phase: finished
+      pid: 8959
+      started_at: "2026-10-20T20:06:33.333697Z"
+      finished_at: "2026-10-20T20:07:11.365227Z"
+      session_id: 01a15aec-3e4e-7422-989d-8a25a9538114
+      outcome: returned
 gate: plan-quality
 issue: 504
 id_prefix: PQ
@@ -130,7 +149,45 @@ rounds:
       agent: codex
       reviewer: 'codex (openai; author openai); degraded: same-family by choice'
       blocked: false
-content_hash: a97b2dd1ef494bb0959a69b9638f8278a1ec1a518dc2a9ab728fe2a483a9a4b6
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 1a549406-e6a1-48e3-9a66-6c18eeaf0147
+            repository: github.com/xianxu/ariadne
+            issue_id: "000504"
+            recipe: plan-quality
+            round: 4
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+            reviewed_head: 3b62965fe3b597b002ccba56c19b948cbb2a32c5
+            slot: ariadne:4
+            requested_at: "2026-10-20T20:05:47.004442Z"
+          phase: finished
+          pid: 69976
+          started_at: "2026-10-20T20:05:47.185883Z"
+          finished_at: "2026-10-20T20:06:25.790143Z"
+          session_id: 01a15aeb-87a5-7360-a4a1-5e9116575ba0
+          outcome: returned
+      "n": 4
+      timestamp: "2026-10-20T13:06:27-07:00"
+      agent: codex
+      reviewer: 'codex (openai; author openai); degraded: same-family by choice'
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Registration prerequisites preserve legacy session state before identity-preserving rename.
+          round: 4
+        - id: PQ-2
+          disposition: addressed
+          note: Index relocation uses separate source and destination coordinates and preserves unrelated metadata.
+          round: 4
+        - id: PQ-3
+          disposition: addressed
+          note: Named function strategies specify adversarial inputs and mechanical preservation and ordering assertions.
+          round: 4
+      blocked: false
+content_hash: 8635d57bd5d646b6f65e8f8632d39401dcc14c4358bc7ea623d2f4f18390dbd4
 ---
 
 # Gate ledger — ariadne#504 (plan-quality)
@@ -158,6 +215,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - PQ-3 — addressed — Named function strategies cover adversarial inputs, mechanical guards, controlled interruptions and stateful reconciliation.
 
 ## Round 3 — 2026-10-20T10:05:32-07:00 (codex) — passed
+
+## Round 4 — 2026-10-20T13:06:27-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Registration prerequisites preserve legacy session state before identity-preserving rename.
+- PQ-2 — addressed — Index relocation uses separate source and destination coordinates and preserves unrelated metadata.
+- PQ-3 — addressed — Named function strategies specify adversarial inputs and mechanical preservation and ordering assertions.
 
 ## Open findings
 
