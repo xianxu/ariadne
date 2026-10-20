@@ -257,23 +257,23 @@ boundaries (ARCH-PURPOSE, ARCH-ORDER, ARCH-CONSTRAINTS):
 | migration Couch runner | cmd/tl-lead/sessionsync.go | bounded single subprocess, no retry; deadline distinguishes read refusal from unconfirmed mutation |
 | snapshot/executor | status_move_snapshot.go, status_move_apply.go | batch registration observations at phase boundaries; source-only cleanup |
 
-- [ ] Add failing regression fixtures for denied/hung Couch before effects,
+- [x] Add failing regression fixtures for denied/hung Couch before effects,
   counting calls at N=8 and 2N=16, and edits/locks on the new session and side
   docs immediately after switch and between cleanup steps. Include interrupted
   post-switch retry with only old leftovers and a changed live destination.
-- [ ] Migration starts with one typed `couch --session-sync list --json` snapshot.
+- [x] Migration starts with one typed `couch --session-sync list --json` snapshot.
   Missing/bad replies are errors, never absence. Preserve ID and registered
   fallback owner; local session routing remains read from the document. Use
   list snapshots at fixed phase boundaries, not lookup/status per document.
   Check all relevant old/new `.lock`/`.clobbered` paths locally; no active
   editor lease is claimed. Perform necessary Rename mutations only for actual
   registered pairs, using Couch's idempotent previous-path check on retry.
-- [ ] Bound each migration Couch invocation to five seconds plus bounded pipe
+- [x] Bound each migration Couch invocation to five seconds plus bounded pipe
   draining. A preflight denial/timeout reports cannot reach Couch before local
   writes; a mutation timeout says outcome unconfirmed and keeps old copies.
   Do not try to bypass a sandbox or retry silently. Tests use an isolated
   helper subprocess; no live sockets or hub files.
-- [ ] Verify copies before switching. Once root registration switches last,
+- [x] Verify copies before switching. Once root registration switches last,
   destination edits are normal: do not compare live bytes, restore metadata,
   write destinations, or reject live locks during cleanup. Compare each old
   source against the captured source bytes immediately before its deletion.
@@ -283,12 +283,12 @@ boundaries (ARCH-PURPOSE, ARCH-ORDER, ARCH-CONSTRAINTS):
   a distinct occupied registration automatically; report the conflicting IDs.
   Across separate invocations the no-journal design cannot prove that an old
   leftover was never edited; the quiet-window rule applies to old leftovers.
-- [ ] Sweep external-operation growth: batch Git ignore checks with complete
+- [x] Sweep external-operation growth: batch Git ignore checks with complete
   output membership validation at phase boundaries, and one destination check
   per deletion; avoid rescanning/checking all N files for each of N steps.
   Test counts bound lookups/status to zero, list calls to a fixed phase count,
   renames to registered document count, and Git checks to O(N).
-- [ ] Update help/atlas and the current input/maintenance contract. Record
+- [x] Update help/atlas and the current input/maintenance contract. Record
   regression failures, package and scratch real-Couch conformance passes.
   Push, queue a new recorded suite, re-close for fresh SHIP, then restage only
   when green. TL/operator retry ops:0 cleanup and migrate ops-echo, returning
@@ -322,3 +322,7 @@ Session/outside malformed-index regressions must exercise the apply entrypoint
 and prove no filesystem or service effects. No new recovery mechanism or input
 syntax is added; this restores the promoted helper's existing error contract
 at all consumers (ARCH-PURPOSE, ARCH-SECURE).
+
+### 2026-10-20 — live acceptance complete
+
+Recorded suite and fresh close SHIP passed; final build 576fb5e7 was staged. TL receipt faaa841a-0cae-4c41-bc3d-c9caa1d1cd77 confirms ops:0 source-only cleanup and ops-echo full migration both pass, with identity/owner and last-write metadata preserved. The issue Log records timings and nonblocking hidden-companion residue. This completes the superseding manual landing hold; TL authorizes stage clear followed by merge.

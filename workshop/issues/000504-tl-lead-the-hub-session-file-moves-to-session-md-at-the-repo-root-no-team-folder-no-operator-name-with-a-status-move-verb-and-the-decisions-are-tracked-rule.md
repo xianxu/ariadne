@@ -128,9 +128,11 @@ Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 
 - Recovery acceptance checkpoint: close round 6 returned SHIP, all six findings addressed, measured actual 2.82h. Recorded full suite on 4935e84497d52ad95e192fdb16f61ee974b38bfc passed all eight shards (1,871 cmd/sdlc tests) and 75 other packages, zero failures, wall 685.3s; saved log sha256 prefix d8bdb87bc3b0. `sdlc stage --build` replaced the old stage with 576fb5e71420f17f2ecd8ca53f9aa2cb27f1eaf3 on ariadne:0; all seven binaries report that vcs.revision with vcs.modified=false. Sent TL the exact verification and requested ops:0 leftover cleanup plus ops-echo full-move evidence. Those manual checks, then evidence append and stage clear, remain the pre-merge hold. This checkpoint changes only tracked evidence.
 
+- Live acceptance PASS (TL receipt faaa841a-0cae-4c41-bc3d-c9caa1d1cd77) on staged 576fb5e7: ops:0 cleanup dry run took 0.2s and confirmed the prior rename; apply exited 0, removed the old session file, and retained session.md registration owner ops:0. The nine nested entries were already gone. ops-echo dry run and full apply exited 0 in seconds, created session.md and session.side/ with one side doc, preserved last-write metadata and owner ops-echo:0, and TL committed its .gitignore update. TL authorized stage clear and merge. Nonblocking retained residue: old .flock/.shadow/.sync companions, ops-echo .round (untracked), and an empty ops side-tree .claude directory. Recorded as live evidence; cleanup scope remains the approved session/side-doc migration and no worker touched live files.
+
 ## Landing hold
 
-Pending: green suite and SHIP → final build staged → TL/operator migrate both live hubs → TL evidence appended here → stage cleared → merge. Worker must not merge before the TL returns that evidence.
+Green suite, SHIP, final staging, both TL/operator live checks, and evidence capture are complete. TL authorized clearing the stage and merging; these are the remaining landing actions.
 
 ## Revisions
 
@@ -233,23 +235,23 @@ boundaries (ARCH-PURPOSE, ARCH-ORDER, ARCH-CONSTRAINTS):
 | migration Couch runner | cmd/tl-lead/sessionsync.go | bounded single subprocess, no retry; deadline distinguishes read refusal from unconfirmed mutation |
 | snapshot/executor | status_move_snapshot.go, status_move_apply.go | batch registration observations at phase boundaries; source-only cleanup |
 
-- [ ] Add failing regression fixtures for denied/hung Couch before effects,
+- [x] Add failing regression fixtures for denied/hung Couch before effects,
   counting calls at N=8 and 2N=16, and edits/locks on the new session and side
   docs immediately after switch and between cleanup steps. Include interrupted
   post-switch retry with only old leftovers and a changed live destination.
-- [ ] Migration starts with one typed `couch --session-sync list --json` snapshot.
+- [x] Migration starts with one typed `couch --session-sync list --json` snapshot.
   Missing/bad replies are errors, never absence. Preserve ID and registered
   fallback owner; local session routing remains read from the document. Use
   list snapshots at fixed phase boundaries, not lookup/status per document.
   Check all relevant old/new `.lock`/`.clobbered` paths locally; no active
   editor lease is claimed. Perform necessary Rename mutations only for actual
   registered pairs, using Couch's idempotent previous-path check on retry.
-- [ ] Bound each migration Couch invocation to five seconds plus bounded pipe
+- [x] Bound each migration Couch invocation to five seconds plus bounded pipe
   draining. A preflight denial/timeout reports cannot reach Couch before local
   writes; a mutation timeout says outcome unconfirmed and keeps old copies.
   Do not try to bypass a sandbox or retry silently. Tests use an isolated
   helper subprocess; no live sockets or hub files.
-- [ ] Verify copies before switching. Once root registration switches last,
+- [x] Verify copies before switching. Once root registration switches last,
   destination edits are normal: do not compare live bytes, restore metadata,
   write destinations, or reject live locks during cleanup. Compare each old
   source against the captured source bytes immediately before its deletion.
@@ -259,12 +261,12 @@ boundaries (ARCH-PURPOSE, ARCH-ORDER, ARCH-CONSTRAINTS):
   a distinct occupied registration automatically; report the conflicting IDs.
   Across separate invocations the no-journal design cannot prove that an old
   leftover was never edited; the quiet-window rule applies to old leftovers.
-- [ ] Sweep external-operation growth: batch Git ignore checks with complete
+- [x] Sweep external-operation growth: batch Git ignore checks with complete
   output membership validation at phase boundaries, and one destination check
   per deletion; avoid rescanning/checking all N files for each of N steps.
   Test counts bound lookups/status to zero, list calls to a fixed phase count,
   renames to registered document count, and Git checks to O(N).
-- [ ] Update help/atlas and the current input/maintenance contract. Record
+- [x] Update help/atlas and the current input/maintenance contract. Record
   regression failures, package and scratch real-Couch conformance passes.
   Push, queue a new recorded suite, re-close for fresh SHIP, then restage only
   when green. TL/operator retry ops:0 cleanup and migrate ops-echo, returning
